@@ -28,5 +28,5 @@ jobs:
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.PERSONAL_TOKEN }}
-          publish_dir: apps/web-app
-          destination_dir: web-app 
+          publish_dir: apps/web
+          destination_dir: web
