@@ -1,0 +1,12 @@
+{
+    "name": "@daily/config",
+    "private": true,
+    "version": "0.1.0",
+    "exports": {
+        "./prettier": "./prettier.mjs"
+    },
+    "devDependencies": {
+        "globals": "^16.0.0",
+        "prettier": "^3.5.3"
+    }
+}

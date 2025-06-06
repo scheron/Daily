@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://daily-app.com/sitemap.xml
+
+# Block access to admin areas if any
+Disallow: /admin/
+Disallow: /private/
+Disallow: /.env
+Disallow: /config/
+
+# Allow all other content
+Allow: /assets/
+Allow: /images/ 

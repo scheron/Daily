@@ -18,16 +18,18 @@
   "scripts": {
     "prepare": "husky",
     "clean": "rm -rf node_modules && rm -rf apps/*/node_modules && rm -rf packages/*/node_modules",
-    "build": "bunx turbo run build",
-    "dev:web": "bunx turbo run dev --filter=web",
-    "dev:landing": "bunx turbo run dev --filter=landing",
-    "lint": "bunx turbo run lint",
-    "format": "bunx turbo run format",
-    "lint-staged": "bunx turbo run lint-staged",
-    "check-types": "bunx turbo run check-types"
+    "build": "yarn turbo run build",
+    "dev:web": "yarn turbo run dev --filter=web",
+    "dev:landing": "yarn turbo run dev:landing --filter=@daily/landing",
+    "lint": "yarn turbo run lint",
+    "format": "yarn turbo run format",
+    "lint-staged": "yarn turbo run lint-staged",
+    "check-types": "yarn turbo run check-types",
+    "convert-to-webp": "node scripts/convert-to-webp.js"
   },
   "devDependencies": {
     "husky": "^9.1.6",
+    "sharp": "^0.34.2",
     "turbo": "^2.4.4"
   },
   "packageManager": "yarn@1.22.22"
