@@ -1,6 +1,7 @@
 document.addEventListener("DOMContentLoaded", () => {
   const previewImage = document.getElementById("preview")
   const canvas = document.getElementById("maskCanvas")
+  const getPath = (index) => (import.meta.env.ENV === "production" ? `/Daily/landing/assets/${index}.webp` : `/assets/${index}.webp`)
 
   const ctx = canvas.getContext("2d")
   const DURATION = 600
@@ -102,8 +103,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const index = btn.getAttribute("data-preview")
       if (index === currentTheme) return
       currentTheme = index
-      const newSrc = `/assets/${index}.webp`
-      bubbleReveal(newSrc)
+      bubbleReveal(getPath(index))
     })
   })
 })
