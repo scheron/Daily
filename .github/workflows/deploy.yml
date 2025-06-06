@@ -21,7 +21,7 @@ jobs:
         run: yarn install --frozen-lockfile
 
       - name: Build landing
-        run: yarn turbo run build:landing --filter=@daily/landing
+        run: yarn turbo run build --filter=@daily/landing
 
       - name: Deploy landing
         uses: peaceiris/actions-gh-pages@v3
