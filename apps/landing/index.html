@@ -101,15 +101,54 @@
       <div class="flex h-full w-full flex-col-reverse items-center justify-center lg:flex-row lg:justify-between">
         <div class="mt-2 w-full lg:mt-0 lg:w-2/3">
           <div class="relative mx-auto max-w-md overflow-hidden rounded-2xl lg:max-w-6xl">
-            <img
-              id="preview"
-              src="/assets/0.webp"
-              alt="App preview"
-              class="size-full rounded-xl shadow-2xl transition-opacity"
-              loading="eager"
-              decoding="async"
-              fetchpriority="high"
-            />
+            <div class="relative size-full">
+              <img
+                id="preview-0"
+                data-theme="0"
+                src="/assets/0.webp"
+                alt="App preview - Dark Blue theme"
+                class="preview-image size-full rounded-xl shadow-2xl transition-opacity duration-300"
+                loading="eager"
+                decoding="async"
+                fetchpriority="high"
+              />
+              <img
+                id="preview-1"
+                data-theme="1"
+                src="/assets/1.webp"
+                alt="App preview - Dark theme"
+                class="preview-image absolute inset-0 size-full rounded-xl shadow-2xl transition-opacity duration-300 opacity-0"
+                loading="lazy"
+                decoding="async"
+              />
+              <img
+                id="preview-2"
+                data-theme="2"
+                src="/assets/2.webp"
+                alt="App preview - Black theme"
+                class="preview-image absolute inset-0 size-full rounded-xl shadow-2xl transition-opacity duration-300 opacity-0"
+                loading="lazy"
+                decoding="async"
+              />
+              <img
+                id="preview-3"
+                data-theme="3"
+                src="/assets/3.webp"
+                alt="App preview - Light theme"
+                class="preview-image absolute inset-0 size-full rounded-xl shadow-2xl transition-opacity duration-300 opacity-0"
+                loading="lazy"
+                decoding="async"
+              />
+              <img
+                id="preview-4"
+                data-theme="4"
+                src="/assets/4.webp"
+                alt="App preview - Warm theme"
+                class="preview-image absolute inset-0 size-full rounded-xl shadow-2xl transition-opacity duration-300 opacity-0"
+                loading="lazy"
+                decoding="async"
+              />
+            </div>
             <canvas
               id="maskCanvas"
               class="pointer-events-none absolute inset-0 z-20 size-full rounded-xl"
