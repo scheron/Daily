@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev:landing": "vite",
-    "build:landing": "vite build",
-    "preview:landing": "vite preview",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
     "format": "prettier --write ."
   },
   "devDependencies": {
