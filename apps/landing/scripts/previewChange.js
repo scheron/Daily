@@ -1,7 +1,7 @@
 document.addEventListener("DOMContentLoaded", () => {
   const previewImage = document.getElementById("preview")
   const canvas = document.getElementById("maskCanvas")
-  const getPath = (index) => (import.meta.env.ENV === "production" ? `/Daily/landing/assets/${index}.webp` : `/assets/${index}.webp`)
+  const getPath = (index) => `/Daily/landing/assets/${index}.webp`
 
   const ctx = canvas.getContext("2d")
   const DURATION = 600
