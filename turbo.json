@@ -3,6 +3,7 @@
   "globalDependencies": ["**/.env"],
   "tasks": {
     "build": { "dependsOn": ["^build"], "outputs": ["dist/**"] },
+    "build:landing": { "dependsOn": ["^build"], "outputs": ["dist/**"] },
     "dev:web": { "cache": false, "persistent": true },
     "dev:landing": { "cache": false, "persistent": true },
     "lint": { "outputs": [] },
