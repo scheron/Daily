@@ -5,18 +5,11 @@
         http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
 
   <url>
-    <loc>https://scheron.github.io/Daily/landing</loc>
-    <lastmod>2024-01-01</lastmod>
+    <loc>https://scheron.github.io/Daily/landing/</loc>
+    <lastmod>2025-06-07</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
 
-  <!-- Web App -->
-  <url>
-    <loc>https://scheron.github.io/Daily/web/</loc>
-    <lastmod>2024-01-01</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
 
 </urlset> 
