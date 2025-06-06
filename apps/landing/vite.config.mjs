@@ -1,9 +1,9 @@
 import tailwindcss from "@tailwindcss/vite"
 import {defineConfig} from "vite"
 
-export default defineConfig({
+export default defineConfig(({command}) => ({
   plugins: [tailwindcss()],
-  base: '/',
+  base: command === 'build' ? '/Daily/landing/' : '/',
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
@@ -14,4 +14,4 @@ export default defineConfig({
   server: {
     port: 3000,
   },
-})
+}))
