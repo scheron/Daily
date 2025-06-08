@@ -1,0 +1,15 @@
+{
+  "name": "@daily/assets",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./styles/fonts.css": "./src/styles/fonts.css",
+    "./styles/theme.css": "./src/styles/theme.css",
+    "./styles/markdown.css": "./src/styles/markdown.css",
+    "./styles/libs": "./src/styles/lib/index.css"
+  },
+  "files": [
+    "src/**/*"
+  ]
+} 

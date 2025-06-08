@@ -9,4 +9,4 @@ export default {
   trailingComma: "all",
   importOrderParserPlugins: ["typescript"],
   importOrderTypeScriptVersion: "5.0.0",
-}
+};

@@ -1,0 +1,10 @@
+{
+    "name": "@daily/constants",
+    "version": "0.1.0",
+    "private": true,
+    "type": "module",
+    "exports": {
+        "./themes": "./src/themes.ts",
+        "./persist": "./src/persist.ts"
+    }
+}

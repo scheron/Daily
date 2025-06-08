@@ -3,10 +3,12 @@
     "private": true,
     "version": "0.1.0",
     "exports": {
-        "./prettier": "./prettier.mjs"
+        "./prettier": "./prettier/prettier.config.mjs",
+        "./typescript": "./typescript/tsconfig.base.json"
     },
     "devDependencies": {
         "globals": "^16.0.0",
-        "prettier": "^3.5.3"
+        "prettier": "^3.5.3",
+        "typescript": "5.8.3"
     }
 }

@@ -1,0 +1,63 @@
+@import "tailwindcss";
+@import "@daily/assets/styles/theme.css";
+@import "@daily/assets/styles/fonts.css";
+@import "@daily/assets/styles/markdown.css";
+
+:root {
+  --sidebar-width: 300px;
+  --sidebar-collapsed-width: 80px;
+  --header-height: 40px;
+}
+
+@theme {
+  --spacing-sidebar: var(--sidebar-width);
+  --spacing-sidebar-collapsed: var(--sidebar-collapsed-width);
+  --spacing-header: var(--header-height);
+}
+
+html {
+  font-size: 16px;
+  line-height: 1.2;
+}
+
+body {
+  font-weight: 400;
+  padding: 0;
+  margin: 0;
+  min-height: 100%;
+  background: var(--color-base-300);
+  color: var(--color-base-content);
+  font-family: var(--font-sans);
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  font-variation-settings: normal;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  user-select: none;
+}
+
+::-webkit-scrollbar {
+  background: var(--color-base-100);
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-base-300);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-accent);
+}
+
+::-webkit-scrollbar-corner {
+  background: var(--color-base-300);
+}
+
+.hide-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}

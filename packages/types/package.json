@@ -1,0 +1,14 @@
+{
+    "name": "@daily/types",
+    "version": "0.1.0",
+    "private": true,
+    "type": "module",
+    "exports": {
+        "./date": "./src/date.ts",
+        "./filters": "./src/filters.ts",
+        "./settings": "./src/settings.ts",
+        "./storage": "./src/storage.ts",
+        "./tasks": "./src/tasks.ts",
+        "./theme": "./src/theme.ts"
+    }
+}

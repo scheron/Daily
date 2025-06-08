@@ -1,0 +1,1 @@
+export type TasksFilter = "all" | "active" | "done"

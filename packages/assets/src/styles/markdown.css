@@ -1,0 +1,951 @@
+.markdown {
+  --base-size-1: 0.15rem;
+  --base-size-2: 0.25rem;
+  --base-size-3: 0.5rem;
+  --base-size-4: 0.75rem;
+  --base-size-5: 1.25rem;
+  --base-text-weight-normal: 400;
+  --base-text-weight-medium: 500;
+  --base-text-weight-semibold: 600;
+  --fontStack-monospace: "DMMono-Regular", ui-monospace, monospace;
+
+  --fgColor-accent: var(--color-accent);
+
+  --focus-outlineColor: var(--color-accent);
+  --fgColor-default: var(--color-base-content);
+  --fgColor-muted: var(--color-base-200);
+  --fgColor-accent: var(--color-primary);
+  --fgColor-success: var(--color-success);
+  --fgColor-attention: var(--color-warning);
+  --fgColor-danger: var(--color-error);
+  --fgColor-done: var(--color-info);
+  --bgColor-default: var(--color-base-100);
+  --bgColor-muted: var(--color-base-200);
+  --bgColor-neutral-muted: var(--color-base-300);
+  --bgColor-attention-muted: var(--color-warning);
+  --borderColor-default: var(--color-base-300);
+  --borderColor-muted: var(--color-base-300);
+  --borderColor-neutral-muted: var(--color-base-300);
+  --borderColor-accent-emphasis: var(--color-info);
+  --borderColor-success-emphasis: var(--color-success);
+  --borderColor-attention-emphasis: var(--color-warning);
+  --borderColor-danger-emphasis: var(--color-error);
+  --borderColor-done-emphasis: var(--color-info);
+}
+
+.markdown {
+  -ms-text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+  margin: 0;
+  color: var(--fgColor-default);
+  background-color: var(--bgColor-default);
+  font-family: var(--default-font-family);
+  font-size: inherit;
+  line-height: 1.5;
+  word-wrap: normal;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+.markdown .octicon {
+  display: inline-block;
+  fill: currentColor;
+  vertical-align: text-bottom;
+}
+
+.markdown h1:hover .anchor .octicon-link:before,
+.markdown h2:hover .anchor .octicon-link:before,
+.markdown h3:hover .anchor .octicon-link:before,
+.markdown h4:hover .anchor .octicon-link:before,
+.markdown h5:hover .anchor .octicon-link:before,
+.markdown h6:hover .anchor .octicon-link:before {
+  width: 16px;
+  height: 16px;
+  content: " ";
+  display: inline-block;
+  background-color: currentColor;
+  -webkit-mask-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' version='1.1' aria-hidden='true'><path fill-rule='evenodd' d='M7.775 3.275a.75.75 0 001.06 1.06l1.25-1.25a2 2 0 112.83 2.83l-2.5 2.5a2 2 0 01-2.83 0 .75.75 0 00-1.06 1.06 3.5 3.5 0 004.95 0l2.5-2.5a3.5 3.5 0 00-4.95-4.95l-1.25 1.25zm-4.69 9.64a2 2 0 010-2.83l2.5-2.5a2 2 0 012.83 0 .75.75 0 001.06-1.06 3.5 3.5 0 00-4.95 0l-2.5 2.5a3.5 3.5 0 004.95 4.95l1.25-1.25a.75.75 0 00-1.06-1.06l-1.25 1.25a2 2 0 01-2.83 0z'></path></svg>");
+  mask-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' version='1.1' aria-hidden='true'><path fill-rule='evenodd' d='M7.775 3.275a.75.75 0 001.06 1.06l1.25-1.25a2 2 0 112.83 2.83l-2.5 2.5a2 2 0 01-2.83 0 .75.75 0 00-1.06 1.06 3.5 3.5 0 004.95 0l2.5-2.5a3.5 3.5 0 00-4.95-4.95l-1.25 1.25zm-4.69 9.64a2 2 0 010-2.83l2.5-2.5a2 2 0 012.83 0 .75.75 0 001.06-1.06 3.5 3.5 0 00-4.95 0l-2.5 2.5a3.5 3.5 0 004.95 4.95l1.25-1.25a.75.75 0 00-1.06-1.06l-1.25 1.25a2 2 0 01-2.83 0z'></path></svg>");
+}
+
+.markdown details,
+.markdown figcaption,
+.markdown figure {
+  display: block;
+}
+
+.markdown summary {
+  display: list-item;
+}
+
+.markdown [hidden] {
+  display: none !important;
+}
+
+.markdown a {
+  background-color: transparent;
+  color: var(--borderColor-accent-emphasis);
+  text-decoration: none;
+}
+
+.markdown abbr[title] {
+  border-bottom: none;
+  -webkit-text-decoration: underline dotted;
+  text-decoration: underline dotted;
+}
+
+.markdown b,
+.markdown strong {
+  font-weight: var(--base-text-weight-semibold, 600);
+}
+
+.markdown dfn {
+  font-style: italic;
+}
+
+.markdown h1 {
+  margin: 0.67em 0;
+  font-weight: var(--base-text-weight-semibold, 600);
+  padding-bottom: 0.3em;
+  font-size: 2em;
+  border-bottom: 1px solid var(--fgColor-muted);
+}
+
+.markdown mark {
+  background-color: var(--bgColor-attention-muted);
+  color: var(--fgColor-default);
+}
+
+.markdown small {
+  font-size: 90%;
+}
+
+.markdown sub,
+.markdown sup {
+  font-size: 75%;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+
+.markdown sub {
+  bottom: -0.25em;
+}
+
+.markdown sup {
+  top: -0.5em;
+}
+
+.markdown img {
+  border-style: none;
+  max-width: 100%;
+  box-sizing: content-box;
+  pointer-events: none;
+}
+
+.markdown code,
+.markdown kbd,
+.markdown pre,
+.markdown samp {
+  font-family: monospace;
+  font-size: 1em;
+}
+
+.markdown figure {
+  margin: 1em var(--base-size-5);
+}
+
+.markdown hr {
+  box-sizing: content-box;
+  overflow: hidden;
+  background: transparent;
+  border-bottom: 1px solid var(--fgColor-muted);
+  height: 0.15em;
+  padding: 0;
+  margin: var(--base-size-4) 0;
+  background-color: var(--fgColor-muted);
+  border: 0;
+}
+
+.markdown input {
+  font: inherit;
+  margin: 0;
+  overflow: visible;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.markdown [type="button"],
+.markdown [type="reset"],
+.markdown [type="submit"] {
+  -webkit-appearance: button;
+  appearance: button;
+}
+
+.markdown [type="checkbox"],
+.markdown [type="radio"] {
+  box-sizing: border-box;
+  padding: 0;
+}
+
+.markdown [type="number"]::-webkit-inner-spin-button,
+.markdown [type="number"]::-webkit-outer-spin-button {
+  height: auto;
+}
+
+.markdown [type="search"]::-webkit-search-cancel-button,
+.markdown [type="search"]::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.markdown ::-webkit-input-placeholder {
+  color: inherit;
+  opacity: 0.54;
+}
+
+.markdown ::-webkit-file-upload-button {
+  -webkit-appearance: button;
+  appearance: button;
+  font: inherit;
+}
+
+.markdown a:hover {
+  text-decoration: underline;
+}
+
+.markdown ::placeholder {
+  color: var(--fgColor-muted);
+  opacity: 1;
+}
+
+.markdown hr::before {
+  display: table;
+  content: "";
+}
+
+.markdown hr::after {
+  display: table;
+  clear: both;
+  content: "";
+}
+
+.markdown table {
+  border-spacing: 0;
+  border-collapse: collapse;
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  overflow: auto;
+  font-variant: tabular-nums;
+}
+
+.markdown td,
+.markdown th {
+  padding: 0;
+}
+
+.markdown details summary {
+  cursor: pointer;
+}
+
+.markdown a:focus,
+.markdown [role="button"]:focus,
+.markdown input[type="radio"]:focus,
+.markdown input[type="checkbox"]:focus {
+  outline: 2px solid var(--focus-outlineColor);
+  outline-offset: -2px;
+  box-shadow: none;
+}
+
+.markdown a:focus:not(:focus-visible),
+.markdown [role="button"]:focus:not(:focus-visible),
+.markdown input[type="radio"]:focus:not(:focus-visible),
+.markdown input[type="checkbox"]:focus:not(:focus-visible) {
+  outline: solid 1px transparent;
+}
+
+.markdown a:focus-visible,
+.markdown [role="button"]:focus-visible,
+.markdown input[type="radio"]:focus-visible,
+.markdown input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--focus-outlineColor);
+  outline-offset: -2px;
+  box-shadow: none;
+}
+
+.markdown a:not([class]):focus,
+.markdown a:not([class]):focus-visible,
+.markdown input[type="radio"]:focus,
+.markdown input[type="radio"]:focus-visible,
+.markdown input[type="checkbox"]:focus,
+.markdown input[type="checkbox"]:focus-visible {
+  outline-offset: 0;
+}
+
+.markdown kbd {
+  display: inline-block;
+  padding: var(--base-size-1);
+  font: 11px var(--fontStack-monospace, ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace);
+  line-height: 10px;
+  color: var(--fgColor-default);
+  vertical-align: middle;
+  background-color: var(--bgColor-muted);
+  border: solid 1px var(--borderColor-neutral-muted);
+  border-bottom-color: var(--borderColor-neutral-muted);
+  border-radius: 6px;
+  box-shadow: inset 0 -1px 0 var(--borderColor-neutral-muted);
+}
+
+.markdown h1,
+.markdown h2,
+.markdown h3,
+.markdown h4,
+.markdown h5,
+.markdown h6 {
+  margin-top: var(--base-size-4);
+  margin-bottom: var(--base-size-3);
+  font-weight: var(--base-text-weight-semibold, 600);
+  line-height: 1.25;
+}
+
+.markdown h2 {
+  font-weight: var(--base-text-weight-semibold, 600);
+  padding-bottom: 0.3em;
+  font-size: 1.5em;
+  border-bottom: 1px solid var(--fgColor-muted);
+}
+
+.markdown h3 {
+  font-weight: var(--base-text-weight-semibold, 600);
+  font-size: 1.25em;
+}
+
+.markdown h4 {
+  font-weight: var(--base-text-weight-semibold, 600);
+  font-size: 1em;
+}
+
+.markdown h5 {
+  font-weight: var(--base-text-weight-semibold, 600);
+  font-size: 0.875em;
+}
+
+.markdown h6 {
+  font-weight: var(--base-text-weight-semibold, 600);
+  font-size: 0.8em;
+}
+
+.markdown p,
+.markdown li,
+.markdown td,
+.markdown th,
+.markdown blockquote,
+.markdown h1,
+.markdown h2,
+.markdown h3,
+.markdown h4,
+.markdown h5,
+.markdown h6,
+.markdown dt,
+.markdown dd {
+  margin-top: 0;
+  margin-bottom: 0.5em;
+  white-space: normal;
+  word-wrap: normal;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+.markdown blockquote {
+  margin: 0;
+  padding: 0 0.5em;
+  color: var(--fgColor-attention);
+  font-style: italic;
+  border-left: 0.25em solid var(--bgColor-attention-muted);
+}
+
+.markdown ul,
+.markdown ol {
+  margin-top: 0;
+  margin-bottom: 0;
+  padding-left: 1em;
+}
+
+.markdown ol ol,
+.markdown ul ol {
+  list-style-type: lower-roman;
+}
+
+.markdown ul ul ol,
+.markdown ul ol ol,
+.markdown ol ul ol,
+.markdown ol ol ol {
+  list-style-type: lower-alpha;
+}
+
+.markdown dd {
+  margin-left: 0;
+}
+
+.markdown tt,
+.markdown code,
+.markdown samp {
+  font-family: var(--fontStack-monospace, ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace);
+  font-size: 0.85em;
+}
+
+.markdown pre {
+  margin-top: 0;
+  margin-bottom: 0;
+  font-family: var(--fontStack-monospace, ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace);
+  font-size: 0.85em;
+  word-wrap: normal;
+  background-color: var(--bgColor-neutral-muted);
+  border-radius: 6px;
+  padding: var(--base-size-3);
+  overflow: auto;
+}
+
+.markdown pre code {
+  display: block;
+  padding: 0;
+  margin: 0;
+  overflow: visible;
+  line-height: inherit;
+  word-wrap: normal;
+  background-color: transparent;
+  border: 0;
+  font-size: 100%;
+  white-space: pre;
+}
+
+.markdown code {
+  font-family: var(--fontStack-monospace, ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace);
+  padding: 0.2em 0.4em;
+  margin: 0;
+  font-size: 85%;
+  line-height: 1.5;
+  white-space: break-spaces;
+  background-color: var(--bgColor-neutral-muted);
+  border-radius: 6px;
+}
+
+.markdown .octicon {
+  display: inline-block;
+  overflow: visible !important;
+  vertical-align: text-bottom;
+  fill: currentColor;
+}
+
+.markdown input::-webkit-outer-spin-button,
+.markdown input::-webkit-inner-spin-button {
+  margin: 0;
+  appearance: none;
+}
+
+.markdown::before {
+  display: table;
+  content: "";
+}
+
+.markdown::after {
+  display: table;
+  clear: both;
+  content: "";
+}
+
+.markdown > *:first-child {
+  margin-top: 0 !important;
+}
+
+.markdown > *:last-child {
+  margin-bottom: 0 !important;
+}
+
+.markdown a:not([href]) {
+  color: inherit;
+  text-decoration: none;
+}
+
+.markdown .absent {
+  color: var(--fgColor-danger);
+}
+
+.markdown .anchor {
+  float: left;
+  padding-right: var(--base-size-1);
+  margin-left: -20px;
+  line-height: 1;
+}
+
+.markdown .anchor:focus {
+  outline: none;
+}
+
+.markdown p,
+.markdown blockquote,
+.markdown ul,
+.markdown ol,
+.markdown dl,
+.markdown table,
+.markdown pre,
+.markdown details {
+  margin-top: 0;
+  margin-bottom: var(--base-size-3);
+}
+
+.markdown blockquote > :first-child {
+  margin-top: 0;
+}
+
+.markdown blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown h1 .octicon-link,
+.markdown h2 .octicon-link,
+.markdown h3 .octicon-link,
+.markdown h4 .octicon-link,
+.markdown h5 .octicon-link,
+.markdown h6 .octicon-link {
+  color: var(--fgColor-default);
+  vertical-align: middle;
+  visibility: hidden;
+}
+
+.markdown h1:hover .anchor,
+.markdown h2:hover .anchor,
+.markdown h3:hover .anchor,
+.markdown h4:hover .anchor,
+.markdown h5:hover .anchor,
+.markdown h6:hover .anchor {
+  text-decoration: none;
+}
+
+.markdown h1:hover .anchor .octicon-link,
+.markdown h2:hover .anchor .octicon-link,
+.markdown h3:hover .anchor .octicon-link,
+.markdown h4:hover .anchor .octicon-link,
+.markdown h5:hover .anchor .octicon-link,
+.markdown h6:hover .anchor .octicon-link {
+  visibility: visible;
+}
+
+.markdown h1 tt,
+.markdown h1 code,
+.markdown h2 tt,
+.markdown h2 code,
+.markdown h3 tt,
+.markdown h3 code,
+.markdown h4 tt,
+.markdown h4 code,
+.markdown h5 tt,
+.markdown h5 code,
+.markdown h6 tt,
+.markdown h6 code {
+  padding: 0 0.2em;
+  font-size: inherit;
+}
+
+.markdown summary h1,
+.markdown summary h2,
+.markdown summary h3,
+.markdown summary h4,
+.markdown summary h5,
+.markdown summary h6 {
+  display: inline-block;
+}
+
+.markdown summary h1 .anchor,
+.markdown summary h2 .anchor,
+.markdown summary h3 .anchor,
+.markdown summary h4 .anchor,
+.markdown summary h5 .anchor,
+.markdown summary h6 .anchor {
+  margin-left: -40px;
+}
+
+.markdown summary h1,
+.markdown summary h2 {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.markdown ul.no-list,
+.markdown ol.no-list {
+  padding: 0;
+  list-style-type: none;
+}
+
+.markdown ol[type="a s"] {
+  list-style-type: lower-alpha;
+}
+
+.markdown ol[type="A s"] {
+  list-style-type: upper-alpha;
+}
+
+.markdown ol[type="i s"] {
+  list-style-type: lower-roman;
+}
+
+.markdown ol[type="I s"] {
+  list-style-type: upper-roman;
+}
+
+.markdown ol[type="1"] {
+  list-style-type: decimal;
+}
+
+.markdown div > ol:not([type]) {
+  list-style-type: decimal;
+}
+
+.markdown ul ul,
+.markdown ul ol,
+.markdown ol ol,
+.markdown ol ul {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.markdown li > p {
+  margin-top: var(--base-size-3);
+}
+
+.markdown li + li {
+  margin-top: 0.25em;
+}
+
+.markdown dl {
+  padding: 0;
+}
+
+.markdown dl dt {
+  padding: 0;
+  margin-top: var(--base-size-3);
+  font-size: 1em;
+  font-style: italic;
+  font-weight: var(--base-text-weight-semibold, 600);
+}
+
+.markdown dl dd {
+  padding: 0 var(--base-size-3);
+  margin-bottom: var(--base-size-3);
+}
+
+.markdown table {
+  border-collapse: collapse;
+  font-size: 0.8em;
+}
+
+.markdown table th {
+  font-weight: var(--base-text-weight-semibold, 600);
+}
+
+.markdown table thead tr th {
+  background-color: var(--bgColor-neutral-muted);
+}
+
+.markdown table th,
+.markdown table td {
+  padding: 6px 13px;
+  border: 1px solid var(--borderColor-default);
+}
+
+.markdown table td > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown table tr {
+  background-color: var(--bgColor-default);
+  border-top: 1px solid var(--borderColor-muted);
+}
+
+.markdown table tr:nth-child(2n) {
+  background-color: var(--bgColor-default);
+}
+
+.markdown table img {
+  background-color: transparent;
+}
+
+.markdown img[align="right"] {
+  padding-left: 20px;
+}
+
+.markdown img[align="left"] {
+  padding-right: 20px;
+}
+
+.markdown .emoji {
+  max-width: none;
+  vertical-align: text-top;
+  background-color: transparent;
+}
+
+.markdown span.frame {
+  display: block;
+  overflow: hidden;
+}
+
+.markdown span.frame > span {
+  display: block;
+  float: left;
+  width: auto;
+  padding: 7px;
+  margin: 13px 0 0;
+  overflow: hidden;
+  border: 1px solid var(--borderColor-default);
+}
+
+.markdown span.frame span img {
+  display: block;
+  float: left;
+}
+
+.markdown span.frame span span {
+  display: block;
+  padding: 5px 0 0;
+  clear: both;
+  color: var(--fgColor-default);
+}
+
+.markdown span.align-center {
+  display: block;
+  overflow: hidden;
+  clear: both;
+}
+
+.markdown span.align-center > span {
+  display: block;
+  margin: 13px auto 0;
+  overflow: hidden;
+  text-align: center;
+}
+
+.markdown span.align-center span img {
+  margin: 0 auto;
+  text-align: center;
+}
+
+.markdown span.align-right {
+  display: block;
+  overflow: hidden;
+  clear: both;
+}
+
+.markdown span.align-right > span {
+  display: block;
+  margin: 13px 0 0;
+  overflow: hidden;
+  text-align: right;
+}
+
+.markdown span.align-right span img {
+  margin: 0;
+  text-align: right;
+}
+
+.markdown span.float-left {
+  display: block;
+  float: left;
+  margin-right: 13px;
+  overflow: hidden;
+}
+
+.markdown span.float-left span {
+  margin: 13px 0 0;
+}
+
+.markdown span.float-right {
+  display: block;
+  float: right;
+  margin-left: 13px;
+  overflow: hidden;
+}
+
+.markdown span.float-right > span {
+  display: block;
+  margin: 13px auto 0;
+  overflow: hidden;
+  text-align: right;
+}
+
+.markdown code,
+.markdown tt {
+  padding: 0.2em 0.4em;
+  margin: 0;
+  font-size: 85%;
+  line-height: 1.5;
+  white-space: break-spaces;
+  background-color: var(--bgColor-neutral-muted);
+  border-radius: 6px;
+}
+
+.markdown code br,
+.markdown tt br {
+  display: none;
+}
+
+.markdown del code {
+  text-decoration: inherit;
+}
+
+.markdown samp {
+  font-size: 85%;
+}
+
+.markdown pre code {
+  font-size: 100%;
+}
+
+.markdown pre > code {
+  padding: 0;
+  margin: 0;
+  word-break: normal;
+  white-space: pre;
+  background: transparent;
+  border: 0;
+}
+
+.markdown .highlight {
+  margin-bottom: var(--base-size-3);
+}
+
+.markdown .highlight pre {
+  margin-bottom: 0;
+  word-break: normal;
+}
+
+.markdown .highlight pre,
+.markdown pre {
+  padding: var(--base-size-3);
+  overflow: auto;
+  font-size: 85%;
+  line-height: 1.45;
+  color: var(--fgColor-default);
+  background-color: var(--bgColor-neutral-muted);
+  border-radius: 6px;
+}
+
+.markdown pre code,
+.markdown pre tt {
+  display: inline;
+  max-width: auto;
+  padding: 0;
+  margin: 0;
+  overflow: visible;
+  line-height: inherit;
+  word-wrap: normal;
+  background-color: transparent;
+  border: 0;
+}
+
+.markdown .csv-data td,
+.markdown .csv-data th {
+  padding: 5px;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.markdown .csv-data .blob-num {
+  padding: 10px var(--base-size-2) 9px;
+  text-align: right;
+  background: var(--bgColor-default);
+  border: 0;
+}
+
+.markdown .csv-data tr {
+  border-top: 0;
+}
+
+.markdown .csv-data th {
+  font-weight: var(--base-text-weight-semibold, 600);
+  background: var(--bgColor-muted);
+  border-top: 0;
+}
+
+.markdown body:has(:modal) {
+  padding-right: var(--dialog-scrollgutter) !important;
+}
+
+.markdown [role="button"]:focus:not(:focus-visible),
+.markdown [role="tabpanel"][tabindex="0"]:focus:not(:focus-visible),
+.markdown button:focus:not(:focus-visible),
+.markdown summary:focus:not(:focus-visible),
+.markdown a:focus:not(:focus-visible) {
+  outline: none;
+  box-shadow: none;
+}
+
+.markdown [tabindex="0"]:focus:not(:focus-visible),
+.markdown details-dialog:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.markdown > *:first-child > .heading-element:first-child {
+  margin-top: 0 !important;
+}
+
+.markdown .highlight pre:has(+ .zeroclipboard-container) {
+  min-height: 52px;
+}
+
+.markdown ul {
+  list-style-type: disc;
+}
+
+.markdown ol {
+  list-style-type: decimal;
+}
+
+.markdown ul ul {
+  list-style-type: circle;
+}
+
+.markdown ul ul ul {
+  list-style-type: square;
+}
+
+.markdown [type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 1.2em;
+  height: 1.2em;
+  border: 2px solid var(--borderColor-default);
+  border-radius: 4px;
+  vertical-align: middle;
+  position: relative;
+}
+
+.markdown [type="checkbox"]:checked {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.markdown [type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  left: 0.35em;
+  top: 0.1em;
+  width: 0.3em;
+  height: 0.6em;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* Remove bullet points for list items containing checkboxes */
+.markdown li:has([type="checkbox"]) {
+  list-style-type: none;
+}
+
+.markdown li:has([type="checkbox"]) p {
+  display: inline;
+}

@@ -1,0 +1,71 @@
+@import "vue-sonner/style.css";
+
+.toaster [data-sonner-toast][data-styled="true"] {
+  background: var(--color-base-100);
+  color: var(--color-base-content);
+  padding: 18px;
+  border: none;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-base-300);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  box-shadow: var(--shadow-md);
+}
+
+.toaster [data-sonner-toast] [data-icon] {
+  align-self: flex-start;
+  position: relative;
+  top: 2px;
+}
+.toaster [data-sonner-toast] [data-content] {
+  width: 100%;
+}
+
+.toaster [data-sonner-toast] [data-description] {
+  width: 100%;
+  margin-top: 4px;
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--color-base-content);
+}
+
+
+[data-sonner-toast][data-styled="true"] [data-button] {
+  color: var(--color-base-100);
+  background: var(--color-base-content);
+}
+
+.toaster [data-sonner-toast][data-styled="true"] [data-close-button] {
+  background: var(--color-base-300);
+  color: var(--color-base-content);
+  border-color: var(--color-base-100);
+}
+
+[data-sonner-toast][data-styled="true"]:hover [data-close-button]:hover {
+  background: var(--color-base-300);
+  border-color: var(--color-base-300);
+}
+
+.toaster [data-sonner-toast][data-styled="true"][data-expanded="true"] {
+  height: auto;
+}
+
+.toaster [data-sonner-toast][data-type="success"] {
+  color: var(--color-success);
+}
+.toaster [data-sonner-toast][data-type="success"] [data-icon] {
+  color: color-mix(in srgb, var(--color-success) 75%, var(--color-base-content));
+}
+.toaster [data-sonner-toast][data-type="error"] {
+  color: var(--color-error);
+}
+
+.toaster [data-sonner-toast][data-type="error"] [data-icon] {
+  color: color-mix(in srgb, var(--color-error) 75%, var(--color-base-content));
+}
+.toaster [data-sonner-toast][data-type="warning"] {
+  color: var(--color-warning);
+}
+.toaster [data-sonner-toast][data-type="warning"] [data-icon] {
+  color: color-mix(in srgb, var(--color-warning) 90%, var(--color-base-content));
+}

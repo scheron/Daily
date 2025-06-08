@@ -1,0 +1,42 @@
+@theme {
+  --default-font-family: "DM Sans", system-ui, sans-serif;
+  --font-sans: "DM Sans", system-ui, sans-serif;
+  --font-serif: "DM Sans", system-ui, sans-serif;
+  --font-mono: "DMMono-Regular", system-ui, sans-serif;
+}
+
+:root {
+  /* Dynamic color variables */
+  -c-base-100: oklch(20.768% 0.039 265.754);
+  -c-base-200: oklch(19.314% 0.037 265.754);
+  -c-base-300: oklch(17.86% 0.034 265.754);
+  -c-base-content: oklch(84.153% 0.007 265.754);
+
+  -c-accent: oklch(75.351% 0.138 232.661);
+  -c-accent-content: oklch(27.949% 0.036 260.03);
+
+  -c-info: oklch(68.455% 0.148 237.251);
+  -c-success: oklch(78.452% 0.132 181.911);
+  -c-warning: oklch(83.242% 0.139 82.95);
+  -c-error: oklch(71.785% 0.17 13.118);
+}
+
+@theme {
+  --color-base-100: var(--c-base-100);
+  --color-base-200: var(--c-base-200);
+  --color-base-300: var(--c-base-300);
+  --color-base-content: var(--c-base-content);
+
+  --color-accent: var(--c-accent);
+
+  --color-accent-content: var(--c-accent-content);
+
+  --color-info: var(--c-info);
+  --color-success: var(--c-success);
+  --color-warning: var(--c-warning);
+  --color-error: var(--c-error);
+}
+
+@utility focus-visible-ring {
+  @apply focus-visible:ring-2 focus-visible:ring-offset-2;
+}

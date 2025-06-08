@@ -1,0 +1,16 @@
+{
+  "extends": ["@vue/tsconfig/tsconfig.dom.json", "@daily/config/typescript"],
+  "compilerOptions": {
+    "baseUrl": "./src/",
+    "jsx": "preserve",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "types": ["vite/client", "node"],
+    "paths": {
+      "@/*": ["*"]
+    },
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.tsbuildinfo",
+  },
+  "files": [],
+  "exclude": ["node_modules", "dist", "*.config.*"],
+  "include": ["src/**/*.ts", "src/**/*.vue", "../../packages/constants/themes.ts", "../../packages/constants/storageKeys.ts", "../../packages/composables/src/useProgressFill.ts", "../../packages/composables/src/useMarkdown.ts", "../../packages/composables/src/useContentSize.ts", "../../packages/composables/src/useFocusTrap.ts"]
+}
