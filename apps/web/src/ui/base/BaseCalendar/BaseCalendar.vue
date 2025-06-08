@@ -1,10 +1,10 @@
 <script setup lang="ts">
+import {BaseButton} from "@daily/ui/base"
 import {isToday} from "@daily/utils/date"
 
 import {computed, onBeforeMount, ref, watch} from "vue"
 import {DateTime} from "luxon"
 
-import BaseButton from "../BaseButton.vue"
 import {WEEKDAYS} from "./model/constants"
 import {formatDaysToMonth} from "./model/helpers"
 

@@ -12,7 +12,6 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "@daily/assets": "*",
     "@daily/ui": "*",
     "@daily/utils": "*",
     "@daily/composables": "*",

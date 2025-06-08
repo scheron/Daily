@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {BaseButton, BaseModal} from "@daily/ui/base"
-import BaseCalendar, {PRESETS} from "@daily/ui/base-calendar"
+import BaseCalendar, {PRESETS} from "@/ui/base/BaseCalendar"
 import {Logo} from "@daily/ui/misc"
 import {prepareTasksForExport} from "@daily/utils/markdown"
 
@@ -12,7 +12,7 @@ import {useTasksStore} from "@/stores/tasks.store"
 import {useUIStore} from "@/stores/ui.store"
 
 import type {ISODate} from "@daily/types/date"
-import type {CalendarPreset, DateRange} from "@daily/ui/base-calendar"
+import type {CalendarPreset, DateRange} from "@/ui/base/BaseCalendar"
 
 const selectedRange = ref<DateRange>({start: null, end: null})
 

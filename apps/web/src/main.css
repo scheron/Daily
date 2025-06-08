@@ -1,7 +1,9 @@
 @import "tailwindcss";
-@import "@daily/assets/styles/theme.css";
-@import "@daily/assets/styles/fonts.css";
-@import "@daily/assets/styles/markdown.css";
+
+@import "@/assets/styles/theme.css";
+@import "@/assets/styles/fonts.css";
+@import "@/assets/styles/markdown.css";
+@import "@/assets/styles/lib/vue-sonner.css";
 
 :root {
   --sidebar-width: 300px;

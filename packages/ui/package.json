@@ -5,7 +5,6 @@
   "private": true,
   "exports": {
     "./base": "./src/base/index.ts",
-    "./base-calendar": "./src/base/BaseCalendar/index.ts",
     "./misc": "./src/misc/index.ts"
   },
   "dependencies": {

@@ -11,7 +11,7 @@
   font-display: swap;
   src:
     local("DM Sans Light"),
-    url(../fonts/DMSans-Light.ttf) format("truetype");
+    url(/fonts/DMSans-Light.ttf) format("truetype");
 }
 @font-face {
   font-family: "DM Sans";
@@ -20,7 +20,7 @@
   font-display: swap;
   src:
     local("DM Sans Regular"),
-    url(../fonts/DMSans-Regular.ttf) format("truetype");
+    url(/fonts/DMSans-Regular.ttf) format("truetype");
 }
 @font-face {
   font-family: "DM Sans";
@@ -29,7 +29,7 @@
   font-display: swap;
   src:
     local("DM Sans SemiBold"),
-    url(../fonts/DMSans-SemiBold.ttf) format("truetype");
+    url(/fonts/DMSans-SemiBold.ttf) format("truetype");
 }
 @font-face {
   font-family: "DM Sans";
@@ -38,7 +38,7 @@
   font-display: swap;
   src:
     local("DM Sans Bold"),
-    url(../fonts/DMSans-Bold.ttf) format("truetype");
+    url(/fonts/DMSans-Bold.ttf) format("truetype");
 }
 
 @font-face {
@@ -48,5 +48,5 @@
   font-display: swap;
   src:
     local("DM Mono"),
-    url(../fonts/DMMono-Regular.ttf) format("truetype");
+    url(/fonts/DMMono-Regular.ttf) format("truetype");
 }

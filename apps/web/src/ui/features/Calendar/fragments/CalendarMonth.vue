@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import BaseCalendar from "@daily/ui/base-calendar";
+import BaseCalendar from "@/ui/base/BaseCalendar"
 
 import type {ISODate} from "@daily/types/date"
 import type {Day} from "@daily/types/tasks"
