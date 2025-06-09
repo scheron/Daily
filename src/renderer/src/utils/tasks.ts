@@ -16,7 +16,7 @@ export function groupTasksByDay(tasks: Task[], days: DayItem[]): Day[] {
 
   return days.map((day) => {
     const tasks = tasksByDay.get(day.date) || []
-    const sortedTasks = sortScheduledTasks(tasks, "desc")
+    const sortedTasks = sortScheduledTasks(tasks, "asc")
     const countActive = sortedTasks.filter((task) => !task.done).length
     const countDone = sortedTasks.length - countActive
 
@@ -31,12 +31,24 @@ export function groupTasksByDay(tasks: Task[], days: DayItem[]): Day[] {
   })
 }
 
-function sortScheduledTasks<T extends {scheduled: {date: ISODate; time?: string}}>(tasks: T[], direction: "asc" | "desc" = "asc"): T[] {
+function sortScheduledTasks<T extends {scheduled: {date: ISODate; time?: string; order?: number}}>(
+  tasks: T[],
+  direction: "asc" | "desc" = "asc",
+): T[] {
   return [...tasks].sort((a, b) => {
-    const aTime = a.scheduled.time ?? "00:00"
-    const bTime = b.scheduled.time ?? "00:00"
-    const aMillis = DateTime.fromISO(`${a.scheduled.date}T${aTime}`).toMillis()
-    const bMillis = DateTime.fromISO(`${b.scheduled.date}T${bTime}`).toMillis()
-    return direction === "asc" ? aMillis - bMillis : bMillis - aMillis
+    const orderA = a.scheduled.order
+    const orderB = b.scheduled.order
+
+    if (orderA != null && orderB != null) {
+      return direction === "asc" ? orderA - orderB : orderB - orderA
+    }
+
+    const timeA = a.scheduled.time ?? "00:00"
+    const timeB = b.scheduled.time ?? "00:00"
+
+    const millisA = DateTime.fromISO(`${a.scheduled.date}T${timeA}`).toMillis()
+    const millisB = DateTime.fromISO(`${b.scheduled.date}T${timeB}`).toMillis()
+
+    return direction === "asc" ? millisA - millisB : millisB - millisA
   })
 }

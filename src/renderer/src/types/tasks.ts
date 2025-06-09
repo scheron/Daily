@@ -9,6 +9,7 @@ export type Task = {
     date: ISODate
     time: ISOTime
     timezone: Timezone
+    order: number
   }
 
   /** Backend datetime when the task was created */

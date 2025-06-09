@@ -3,9 +3,10 @@ import {computed, useTemplateRef, watch} from "vue"
 import {until, useEventListener} from "@vueuse/core"
 import {useDevice} from "@/composables/useDevice"
 import {useMarkdown} from "@/composables/useMarkdown"
-import BaseIcon from "@/ui/base/BaseIcon"
 
 import type {Task} from "@/types/tasks"
+
+import BaseIcon from "@/ui/base/BaseIcon"
 
 import {useSwipeGestures} from "../model/useSwipeGestures"
 import {useSwipeState} from "../model/useSwipeState"
@@ -70,6 +71,10 @@ useEventListener("mouseup", swipeGestures.onMouseUp, {passive: false})
     tabindex="0"
     @keydown.enter="emit('edit')"
   >
+    <span data-draggable-handle class="cursor-move px-2">
+      <BaseIcon name="drag-handle-vertical" size="5" />
+    </span>
+
     <div ref="container" class="relative min-h-11 shrink-0 touch-pan-y touch-pinch-zoom touch-none overflow-hidden select-none sm:min-h-12">
       <TaskItemAction
         class="justify-start"

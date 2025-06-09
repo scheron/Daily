@@ -7,6 +7,7 @@ export interface Storage {
   updateDay(date: ISODate, updates: {subtitle?: string}): Promise<Day | null>
   createTask(content: string, params: {date?: ISODate; time?: ISOTime; timezone?: Timezone}): Promise<Day>
   updateTask(id: Task["id"], updates: Partial<Omit<Task, "id" | "createdAt">>): Promise<Day | null>
+  moveTask(taskId: Task["id"], beforeTaskId: Task["id"] | null): Promise<Day | null>
   deleteTask(id: Task["id"]): Promise<boolean>
 }
 

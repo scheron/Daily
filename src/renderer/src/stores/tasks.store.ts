@@ -61,6 +61,13 @@ export const useTasksStore = defineStore("tasks", () => {
     return true
   }
 
+  async function moveTask(taskId: string, beforeTaskId: string | null) {
+    const updatedDay = await API.moveTask(taskId, beforeTaskId)
+    if (!updatedDay) return false
+    updateDayInStore(updatedDay)
+    return true
+  }
+
   async function deleteTask(taskId: string) {
     const task = findTaskById(taskId)
     if (!task) return false
@@ -131,6 +138,7 @@ export const useTasksStore = defineStore("tasks", () => {
     loadTasks,
     createTask,
     updateTask,
+    moveTask,
     deleteTask,
     updateDayTitle,
     restoreTask,
