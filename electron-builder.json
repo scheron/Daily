@@ -24,7 +24,7 @@
     "target": [
       {
         "target": "dmg",
-        "arch": ["arm64", "x64"]
+        "arch": ["arm64"]
       }
     ],
     "hardenedRuntime": true,
