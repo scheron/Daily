@@ -8,8 +8,7 @@
   "author": "infected by js",
   "license": "MIT",
   "engines": {
-    "node": ">=22.5.0",
-    "yarn": "1.22.22"
+    "node": ">=22.5.0"
   },
   "scripts": {
     "dev": "node scripts/dev-server.js",
@@ -19,7 +18,7 @@
     "build:linux": "NODE_ENV=production node scripts/build.js && electron-builder --linux",
     "build:compress": "NODE_ENV=production node scripts/build.js",
     "preview": "vite preview",
-    "postinstall": "yarn electron-builder install-app-deps",
+    "postinstall": "electron-builder install-app-deps",
     "lint": "eslint . --ext .vue,.js,.jsx,.ts,.tsx --fix",
     "format": "prettier --write src/",
     "prepare": "husky"

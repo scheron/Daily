@@ -25,14 +25,14 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22.5.0'
-          cache: 'yarn'
-          cache-dependency-path: 'website/yarn.lock'
+          cache: 'npm'
+          cache-dependency-path: 'website/package-lock.json'
           
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: npm i
         
       - name: Build website
-        run: yarn build
+        run: npm run build
         
       - name: Setup Pages
         uses: actions/configure-pages@v4

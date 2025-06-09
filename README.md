@@ -2,6 +2,7 @@
 
 **Daily** — A task management application focused on productivity, minimalism, and convenience. ✨
 
+
 | Desktop Version                    | Mobile Version                           |
 | ---------------------------------- | ---------------------------------------- |
 | ![Desktop Demo](./media/Demo.png) | ![Mobile Demo](./media/Demo-mobile.png) |

@@ -3,7 +3,7 @@ import {defineConfig} from "vite"
 
 export default defineConfig(({command}) => ({
   plugins: [tailwindcss()],
-  base: '/',
+  base: command === 'build' ? '/Daily/' : '/',
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
