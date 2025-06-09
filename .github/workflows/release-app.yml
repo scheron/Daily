@@ -1,0 +1,53 @@
+name: Release Desktop App
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.5.0'
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Build application
+        env:
+          GH_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
+        run: |
+          if [ "${{ matrix.os }}" = "macos-latest" ]; then
+            yarn build:mac
+          elif [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+            yarn build:linux
+          else
+            yarn build:win
+          fi
+        shell: bash
+
+      - name: Upload artifacts
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            dist/*.dmg
+            dist/*.exe
+            dist/*.AppImage
+            dist/*.snap
+            dist/*.deb
+            dist/*.rpm
+          draft: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_TOKEN }} 

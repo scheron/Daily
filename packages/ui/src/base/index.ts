@@ -1,7 +1,0 @@
-export {default as BaseIcon} from "./BaseIcon/BaseIcon.vue"
-export {default as IconsSprite} from "./BaseIcon/IconsSprite.vue"
-export {default as BasePanel} from "./BasePanel/BasePanel.vue"
-export {default as BaseAnimation} from "./BaseAnimation.vue"
-export {default as BaseButton} from "./BaseButton.vue"
-export {default as BaseModal} from "./BaseModal.vue"
-export {default as BaseSpinner} from "./BaseSpinner.vue"
