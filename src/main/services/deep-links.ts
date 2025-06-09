@@ -35,7 +35,7 @@ export function setupDeepLinks(mainWindow: BrowserWindow): void {
   }
 }
 
-function handleDeepLink(url: string, mainWindow: BrowserWindow): void {
+export function handleDeepLink(url: string, mainWindow: BrowserWindow): void {
   console.log("Deep link received:", url)
 
   if (mainWindow) {

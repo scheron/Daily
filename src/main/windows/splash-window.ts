@@ -79,21 +79,21 @@ export function createSplashWindow(): BrowserWindow {
         100% { transform: translateY(-100vh) scale(1.4); opacity: 0; }
       }
 
-      .particle:nth-child(1) { left: 5%; animation-duration: 8s; animation-delay: 0s; }
-      .particle:nth-child(2) { left: 15%; animation-duration: 6.5s; animation-delay: 1s; }
-      .particle:nth-child(3) { left: 25%; animation-duration: 7.2s; animation-delay: 2s; }
-      .particle:nth-child(4) { left: 35%; animation-duration: 9s; animation-delay: 0.5s; }
-      .particle:nth-child(5) { left: 45%; animation-duration: 5.5s; animation-delay: 1.5s; }
-      .particle:nth-child(6) { left: 55%; animation-duration: 8.3s; animation-delay: 0.2s; }
-      .particle:nth-child(7) { left: 65%; animation-duration: 6.8s; animation-delay: 1.2s; }
-      .particle:nth-child(8) { left: 75%; animation-duration: 7.5s; animation-delay: 2.3s; }
-      .particle:nth-child(9) { left: 85%; animation-duration: 8.7s; animation-delay: 0.8s; }
-      .particle:nth-child(10) { left: 10%; animation-duration: 7.9s; animation-delay: 1.8s; }
-      .particle:nth-child(11) { left: 20%; animation-duration: 6.2s; animation-delay: 0.4s; }
-      .particle:nth-child(12) { left: 30%; animation-duration: 9.3s; animation-delay: 2s; }
-      .particle:nth-child(13) { left: 50%; animation-duration: 5.8s; animation-delay: 1.1s; }
-      .particle:nth-child(14) { left: 70%; animation-duration: 8s; animation-delay: 0.6s; }
-      .particle:nth-child(15) { left: 90%; animation-duration: 6.9s; animation-delay: 1.4s; }
+      .particle:nth-child(1) { left: 5%; animation-duration: 4s; animation-delay: 0s; }
+      .particle:nth-child(2) { left: 15%; animation-duration: 3.25s; animation-delay: 0.5s; }
+      .particle:nth-child(3) { left: 25%; animation-duration: 3.6s; animation-delay: 1s; }
+      .particle:nth-child(4) { left: 35%; animation-duration: 4.5s; animation-delay: 0.25s; }
+      .particle:nth-child(5) { left: 45%; animation-duration: 2.75s; animation-delay: 0.75s; }
+      .particle:nth-child(6) { left: 55%; animation-duration: 4.15s; animation-delay: 0.1s; }
+      .particle:nth-child(7) { left: 65%; animation-duration: 3.4s; animation-delay: 0.6s; }
+      .particle:nth-child(8) { left: 75%; animation-duration: 3.75s; animation-delay: 1.15s; }
+      .particle:nth-child(9) { left: 85%; animation-duration: 4.35s; animation-delay: 0.4s; }
+      .particle:nth-child(10) { left: 10%; animation-duration: 3.95s; animation-delay: 0.9s; }
+      .particle:nth-child(11) { left: 20%; animation-duration: 3.1s; animation-delay: 0.2s; }
+      .particle:nth-child(12) { left: 30%; animation-duration: 4.65s; animation-delay: 1s; }
+      .particle:nth-child(13) { left: 50%; animation-duration: 2.9s; animation-delay: 0.55s; }
+      .particle:nth-child(14) { left: 70%; animation-duration: 4s; animation-delay: 0.3s; }
+      .particle:nth-child(15) { left: 90%; animation-duration: 3.45s; animation-delay: 0.7s; }
 
       .logo-wrapper {
         position: relative;
