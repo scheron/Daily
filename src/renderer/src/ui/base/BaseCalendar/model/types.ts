@@ -1,12 +1,15 @@
-import type {ISODate} from "@/types/date"
 import type {DateTime} from "luxon"
+
+import type {ISODate} from "@/types/date"
 
 export type CalendarDay = {
   date: DateTime
   isCurrentMonth: boolean
   isoDate: ISODate
   dayInfo: {
+    countActiveTasks: number
     countCompletedTasks: number
+    countDiscardedTasks: number
     countTotalTasks: number
   }
 }

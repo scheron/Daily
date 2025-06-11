@@ -58,6 +58,7 @@
     "vue-tsc": "^2.2.8"
   },
   "dependencies": {
+    "@floating-ui/vue": "^1.1.6",
     "@mdit/plugin-img-size": "^0.18.1",
     "@tailwindcss/vite": "^4.1.8",
     "@vueuse/core": "^13.1.0",

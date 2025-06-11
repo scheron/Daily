@@ -1,5 +1,5 @@
 import type {Settings} from "@/types/settings"
-import type {DayItem, Task} from "@/types/tasks"
+import type {DayItem, Tag, Task} from "@/types/tasks"
 
 /**
  * Should match main/preload.ts for typescript support in renderer
@@ -24,7 +24,10 @@ export default interface ElectronApi {
   loadDays: () => Promise<DayItem[]>
   saveDays: (days: DayItem[]) => Promise<void>
 
-  loadAllData: () => Promise<{tasks: Task[]; days: DayItem[]}>
+  loadTags: () => Promise<Tag[]>
+  saveTags: (tags: Tag[]) => Promise<void>
+
+  loadAllData: () => Promise<{tasks: Task[]; days: DayItem[]; tags: Tag[]}>
 
   onMenuAction: (callback: (action: "new-task" | "open-settings" | "export-data") => void) => void
 

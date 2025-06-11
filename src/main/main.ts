@@ -18,13 +18,13 @@ let mainWindow: BrowserWindow | null = null
 let splashWindow: BrowserWindow | null = null
 
 const gotLock = app.requestSingleInstanceLock()
+
 if (!gotLock) {
   app.quit()
 } else {
   app.on("second-instance", (_event, argv) => {
     if (mainWindow) {
-      if (mainWindow.isMinimized()) mainWindow.restore()
-      mainWindow.show()
+      focusWindow(mainWindow)
     }
     const url = argv.find((arg) => arg.startsWith("daily://"))
     if (url) handleDeepLink(url, mainWindow!)
@@ -76,6 +76,7 @@ app.whenReady().then(async () => {
       splashWindow = null
     }
     mainWindow!.show()
+    focusWindow(mainWindow!)
     console.log("✅ Main window displayed")
   })
 
@@ -105,9 +106,12 @@ app.on("activate", () => {
     setupMenuIPC(mainWindow)
     createMenu(mainWindow)
     setupDeepLinks(mainWindow)
-    mainWindow.once("ready-to-show", () => mainWindow!.show())
-  } else {
-    mainWindow!.show()
+    mainWindow.once("ready-to-show", () => {
+      mainWindow!.show()
+      focusWindow(mainWindow!)
+    })
+  } else if (mainWindow) {
+    focusWindow(mainWindow)
   }
 })
 
@@ -123,4 +127,9 @@ function getIconPath(): string {
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function focusWindow(win: BrowserWindow) {
+  if (win.isMinimized()) win.restore()
+  win.focus()
 }

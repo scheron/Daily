@@ -124,10 +124,10 @@ useEventListener(contentField, "keydown", (event) => {
 </script>
 
 <template>
-  <div class="relative h-full min-h-full flex-1">
+  <div class="relative h-full min-h-full flex-1 p-2">
     <div
       ref="contentField"
-      class="markdown size-full cursor-text overflow-y-auto rounded-lg p-3 outline-none"
+      class="markdown size-full cursor-text border border-base-300 overflow-y-auto rounded-lg p-4 pb-0 outline-none"
       contenteditable="true"
       @input="onInput"
     ></div>

@@ -31,6 +31,11 @@ export type IconName =
   | "sidebar"
   | "folder"
   | "export"
+  | "trash"
+  | "archive"
+  | "history"
+  | "tags"
+  | "monitor"
 </script>
 
 <template>
@@ -112,19 +117,22 @@ export type IconName =
       />
     </symbol>
 
-    <symbol id="check" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
-      <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+    <symbol id="check" viewBox="0 0 24 24">
+      <path
+        fill="currentColor"
+        d="M18.71 7.21a1 1 0 0 0-1.42 0l-7.45 7.46l-3.13-3.14A1 1 0 1 0 5.29 13l3.84 3.84a1 1 0 0 0 1.42 0l8.16-8.16a1 1 0 0 0 0-1.47"
+      />
     </symbol>
 
     <symbol id="check-check" viewBox="0 0 24 24" fill="none">
-      <g stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <g stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
         <path d="M18 6 7 17l-5-5"></path>
         <path d="m22 10-7.5 7.5L13 16"></path>
       </g>
     </symbol>
 
     <symbol id="undo" fill="none" viewBox="0 0 24 24">
-      <path stroke-width="2" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
+      <path stroke-width="1.5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
     </symbol>
 
     <symbol id="markdown" viewBox="0 0 128 128">
@@ -195,7 +203,7 @@ export type IconName =
       <g fill="none">
         <path
           fill="currentColor"
-          d="M7 9a1 1 0 1 1-2 0a1 1 0 0 1 2 0m0 3a1 1 0 1 1-2 0a1 1 0 0 1 2 0m3 0a1 1 0 1 1-2 0a1 1 0 0 1 2 0m0-3a1 1 0 1 1-2 0a1 1 0 0 1 2 0m3 0a1 1 0 1 1-2 0a1 1 0 0 1 2 0m0 3a1 1 0 1 1-2 0a1 1 0 0 1 2 0m3-3a1 1 0 1 1-2 0a1 1 0 0 1 2 0m0 3a1 1 0 1 1-2 0a1 1 0 0 1 2 0m3-3a1 1 0 1 1-2 0a1 1 0 0 1 2 0m0 3a1 1 0 1 1-2 0a1 1 0 0 1 2 0"
+          d="M7 9a1 1 0 1 1-2 0a1 1 0 0 1 2 0m0 3a1 1 0 1 1-2 0a1 1 0 0 1 2 0m3 0a1 1 0 1 1-2 0a1 1 0 0 1 2 0m0-3a1 1 0 1 1-2 0a1 1 0 0 1 2 0m3 0a1 1 0 1 1-2 0a1 1 0 0 1 2 0m0 3a1 1 0 1 1-2 0a1 1 0 0 1 2 0m3-3a1 1 0 1 1-2 0a1 1 0 0 1 2 0m0 3a1 1 0 1 1-2 0a1 1 0 0 1 2 0m3-3a1 1 0 1 1-2 0a1 1 0 0 1 2 0"
         />
         <path
           stroke="currentColor"
@@ -304,6 +312,54 @@ export type IconName =
         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
         <path d="m7 10 5 5 5-5"></path>
       </g>
+    </symbol>
+
+    <symbol id="trash" viewBox="0 0 20 22" fill="none">
+      <path
+        d="M1 5H19M6 5V3C6 2 7 1 8 1H12C13 1 14 2 14 3V5M17 9V19C17 20 16 21 15 21H5C4 21 3 20 3 19V9"
+        stroke="currentColor"
+        stroke-width="1.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+    </symbol>
+
+    <symbol id="archive" viewBox="0 0 21 21">
+      <path
+        fill="none"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        d="M3.5 7.5h14v7.998a2 2 0 0 1-2 2h-10a2 2 0 0 1-2-2zm0-3.978h14a1 1 0 0 1 1 1V6.5a1 1 0 0 1-1 1h-14a1 1 0 0 1-1-1V4.522a1 1 0 0 1 1-1m5 6.978h4"
+      />
+    </symbol>
+
+    <symbol id="history" viewBox="0 0 24 24">
+      <g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+        <path d="M3 3v5h5"></path>
+        <path d="M12 7v5l4 2"></path>
+      </g>
+    </symbol>
+    <symbol id="tags" viewBox="0 0 24 24">
+      <g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="m15 5 6.3 6.3a2.4 2.4 0 0 1 0 3.4L17 19"></path>
+        <path
+          d="M9.586 5.586A2 2 0 0 0 8.172 5H3a1 1 0 0 0-1 1v5.172a2 2 0 0 0 .586 1.414L8.29 18.29a2.426 2.426 0 0 0 3.42 0l3.58-3.58a2.426 2.426 0 0 0 0-3.42z"
+        ></path>
+        <circle cx="6.5" cy="9.5" r=".5" fill="currentColor"></circle>
+      </g>
+    </symbol>
+
+    <symbol id="monitor" viewBox="0 0 24 24">
+      <path
+        fill="none"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="1.5"
+        d="M8 21h8m-4-4v4m8-4H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1Z"
+      />
     </symbol>
   </svg>
 </template>

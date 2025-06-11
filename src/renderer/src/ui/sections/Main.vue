@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import {useDevice} from "@/composables/useDevice"
+import {useUIStore} from "@/stores/ui.store"
+
 import BaseAnimation from "@/ui/base/BaseAnimation.vue"
 import BaseButton from "@/ui/base/BaseButton.vue"
 import DayTitle from "@/ui/features/DayTitle"
@@ -15,12 +18,19 @@ defineProps<{
 const emit = defineEmits<{
   createTask: []
 }>()
+
+const uiStore = useUIStore()
+
+const {isMobile} = useDevice()
 </script>
 
 <template>
   <main class="bg-base-100 flex-1" :style="{width: contentWidth + 'px'}">
     <div class="border-base-300 h-header flex items-center justify-between border-b px-4 py-2" style="-webkit-app-region: drag">
-      <DayTitle class="ml-20 md:ml-0" />
+      <div class="flex items-center gap-2">
+        <BaseButton v-if="isMobile" variant="ghost" icon="sidebar" class="pl-16" style="-webkit-app-region: no-drag" @click="uiStore.toggleSidebarCollapse()" />
+        <DayTitle />
+      </div>
 
       <BaseButton
         v-if="!taskEditorOpen"
@@ -39,7 +49,7 @@ const emit = defineEmits<{
         <Toolbar />
       </div>
 
-      <div class="bg-base-200 flex-1 overflow-y-auto p-2">
+      <div class="bg-base-200 flex-1 overflow-y-auto">
         <BaseAnimation name="fade" mode="out-in">
           <TaskEditor v-if="taskEditorOpen" />
           <TasksList v-else />

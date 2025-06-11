@@ -3,10 +3,17 @@ export type ISOTime = string
 export type ISODateTime = string
 export type Timezone = string
 
+export type Tag = {
+  id: string
+  name: string
+  color: string
+}
+
 export type Task = {
   id: string
   content: string
   done: boolean
+  tags: Tag[]
 
   scheduled: {
     date: ISODate
@@ -29,6 +36,7 @@ export type Day = {
   date: ISODate
   subtitle?: string
   tasks: Task[]
+  tags: Tag[]
   countActive: number
   countDone: number
 }
@@ -42,6 +50,7 @@ export type StoreSchema = {
   settings: Settings
   tasks: Task[]
   days: DayItem[]
+  tags: Tag[]
 }
 
 export type ExportTaskData = {

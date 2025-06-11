@@ -15,9 +15,9 @@ function getIconPath(): string {
 export function createMainWindow(): BrowserWindow {
   const mainWindow = new BrowserWindow({
     width: 1200,
-    minWidth: 370,
+    minWidth: 500,
     height: 800,
-    minHeight: 500,
+    minHeight: 680,
     center: true,
     title: "Daily",
     transparent: true,

@@ -1,19 +1,19 @@
 <script setup lang="ts">
 import {computed, ref} from "vue"
-import {Day} from "@/types/tasks"
-import {getWeekStartDate, isToday} from "@/utils/date"
 import {DateTime} from "luxon"
 
+import {getWeekStartDate, isToday} from "@/utils/date"
+import {useTasksStore} from "@/stores/tasks.store"
+import WeekDay from "./fragments/WeekDay.vue"
+
 import type {ISODate} from "@/types/date"
+import type {Day} from "@/types/tasks"
 
-import CalendarWeekDay from "./CalendarWeekDay.vue"
+const tasksStore = useTasksStore()
 
-const props = defineProps<{activeDay: ISODate; days: Day[]}>()
-const emit = defineEmits<{"select-date": [date: ISODate]}>()
+const viewDate = ref(getWeekStartDate(tasksStore.activeDay))
 
-const viewDate = ref(getWeekStartDate(props.activeDay))
-
-const week = computed(() => formatDaysToWeek(props.days, viewDate.value))
+const week = computed(() => formatDaysToWeek(tasksStore.days, viewDate.value))
 
 function formatDaysToWeek(days: Day[], currentDate: ISODate) {
   const date = DateTime.fromISO(currentDate)
@@ -39,16 +39,12 @@ function formatDaysToWeek(days: Day[], currentDate: ISODate) {
 }
 
 function isActive(date: ISODate) {
-  return Boolean(props.activeDay && date === props.activeDay)
-}
-
-function selectDay(date: ISODate) {
-  emit("select-date", date)
+  return Boolean(tasksStore.activeDay && date === tasksStore.activeDay)
 }
 </script>
 
 <template>
-  <CalendarWeekDay
+  <WeekDay
     v-for="weekDay in week"
     :key="weekDay.date"
     :day="weekDay.day"
@@ -56,6 +52,6 @@ function selectDay(date: ISODate) {
     :current-month="weekDay.isCurrentMonth"
     :selected="isActive(weekDay.date)"
     :today="isToday(weekDay.date)"
-    @select-date="selectDay(weekDay.date)"
+    @select-date="tasksStore.setActiveDay(weekDay.date)"
   />
 </template>

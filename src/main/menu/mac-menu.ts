@@ -42,11 +42,6 @@ export function createMacMenu(mainWindow: BrowserWindow): MenuItemConstructorOpt
           accelerator: "CmdOrCtrl+E",
           click: () => mainWindow.webContents.send("export-data"),
         },
-        {
-          label: "Toggle Settings",
-          accelerator: "CmdOrCtrl+I",
-          click: () => mainWindow.webContents.send("open-settings"),
-        },
         {type: "separator"},
         ...(process.env.NODE_ENV === "development" ? [{role: "toggleDevTools" as const}] : []),
       ],

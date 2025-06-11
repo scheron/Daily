@@ -1,11 +1,14 @@
 import {computed, ref} from "vue"
-import {API} from "@/api"
-import {objectFilter} from "@/utils/objects"
 import {DateTime} from "luxon"
 import {defineStore} from "pinia"
 
+import {API} from "@/api"
+import {objectFilter} from "@/utils/objects"
+import {updateDays} from "@/utils/tasks"
+import {toRawDeep} from "@/utils/vue"
+
 import type {ISODate} from "@/types/date"
-import type {Day, Task} from "@/types/tasks"
+import type {Day, Tag, Task} from "@/types/tasks"
 
 export const useTasksStore = defineStore("tasks", () => {
   const isDaysLoaded = ref(false)
@@ -21,6 +24,11 @@ export const useTasksStore = defineStore("tasks", () => {
   const dailyTasks = computed(() => {
     const day = days.value.find((day) => day.date === activeDay.value)
     return day ? day.tasks : []
+  })
+
+  const dailyTags = computed(() => {
+    const day = days.value.find((day) => day.date === activeDay.value)
+    return day ? day.tags : []
   })
 
   function setActiveDay(date: ISODate) {
@@ -39,25 +47,29 @@ export const useTasksStore = defineStore("tasks", () => {
     }
   }
 
-  async function createTask(content: string) {
-    const updatedDay = await API.createTask(content, {
-      date: activeDay.value,
-      time: DateTime.now().toFormat("HH:mm"),
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    })
+  async function createTask(content: string, tags: Tag[] = []) {
+    const updatedDay = await API.createTask(
+      content,
+      toRawDeep({
+        date: activeDay.value,
+        time: DateTime.now().toFormat("HH:mm"),
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        tags,
+      }),
+    )
 
     if (!updatedDay) return false
 
-    updateDayInStore(updatedDay)
+    days.value = updateDays(days.value, updatedDay)
     return true
   }
 
-  async function updateTask(taskId: string, updates: {content?: string; done?: boolean}) {
+  async function updateTask(taskId: string, updates: Partial<Omit<Task, "id" | "createdAt" | "updatedAt">>) {
     const payload = objectFilter(updates, (value) => value !== undefined)
-    const updatedDay = await API.updateTask(taskId, payload)
+    const updatedDay = await API.updateTask(taskId, toRawDeep(payload))
     if (!updatedDay) return false
 
-    updateDayInStore(updatedDay)
+    days.value = updateDays(days.value, updatedDay)
     return true
   }
 
@@ -68,17 +80,15 @@ export const useTasksStore = defineStore("tasks", () => {
     const isSuccess = await API.deleteTask(taskId)
     if (!isSuccess) return false
 
-    const dayIndex = days.value.findIndex((day) => day.date === task.scheduled.date)
+    const dayIndex = days.value.findIndex((day) => day.date === activeDay.value)
     if (dayIndex === -1) return false
 
     lastDeletedTasks.value.set(task.id, task)
 
-    const updatedDay = days.value[dayIndex]
-    updatedDay.tasks = updatedDay.tasks.filter((t) => t.id !== taskId)
-    updatedDay.countActive = updatedDay.tasks.filter((t) => !t.done).length
-    updatedDay.countDone = updatedDay.tasks.length - updatedDay.countActive
+    const dayWithRemovedTask = {...days.value[dayIndex]}
+    dayWithRemovedTask.tasks = dayWithRemovedTask.tasks.filter((t) => t.id !== taskId)
 
-    updateDayInStore(updatedDay)
+    days.value = updateDays(days.value, dayWithRemovedTask)
 
     return true
   }
@@ -89,7 +99,7 @@ export const useTasksStore = defineStore("tasks", () => {
     const task = lastDeletedTasks.value.get(taskId)
     if (!task) return false
 
-    const isSuccess = await createTask(task.content)
+    const isSuccess = await createTask(task.content, task.tags)
 
     if (isSuccess) {
       lastDeletedTasks.value.delete(taskId)
@@ -103,20 +113,17 @@ export const useTasksStore = defineStore("tasks", () => {
     const updatedDay = await API.updateDay(date, {subtitle})
     if (!updatedDay) return false
 
-    updateDayInStore(updatedDay)
+    days.value = updateDays(days.value, updatedDay)
     return true
   }
 
-  function findTaskById(taskId: string): Task | null {
-    const tasks = days.value.flatMap((day) => day.tasks)
-    return tasks.find((t) => t.id === taskId) || null
+  async function revalidateTasks() {
+    const dailyTasks = await API.getDays()
+    days.value = dailyTasks
   }
 
-  function updateDayInStore(updatedDay: Day) {
-    const dayIndex = days.value.findIndex((day) => day.date === updatedDay.date)
-
-    if (dayIndex === -1) days.value.push(updatedDay)
-    else days.value[dayIndex] = updatedDay
+  function findTaskById(taskId: string): Task | null {
+    return dailyTasks.value.find((t) => t.id === taskId) || null
   }
 
   return {
@@ -124,6 +131,7 @@ export const useTasksStore = defineStore("tasks", () => {
     days,
     activeDay,
     dailyTasks,
+    dailyTags,
     activeDayInfo,
     lastDeletedTasks,
 
@@ -134,5 +142,6 @@ export const useTasksStore = defineStore("tasks", () => {
     deleteTask,
     updateDayTitle,
     restoreTask,
+    revalidateTasks,
   }
 })

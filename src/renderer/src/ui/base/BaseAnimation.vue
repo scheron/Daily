@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {computed} from "vue"
 
-type Name = "fade" | "fadeOut" | "slide" | "slideUp" | "slideDown" | "bounce" | "scale"
+type Name = "fade" | "fadeOut" | "slide" | "slideRight" | "slideUp" | "slideDown" | "bounce" | "scale"
 
 const props = withDefaults(
   defineProps<{
@@ -30,6 +30,12 @@ const ANIMATION_CLASSES: Record<Name, Partial<{enterFrom: string; leaveTo: strin
   slide: {
     enterFrom: "translate-x-[150%] opacity-0",
     leaveTo: "translate-x-[150%] opacity-0",
+    enterActive: `transition duration-${props.duration}`,
+    leaveActive: `transition duration-${props.duration}`,
+  },
+  slideRight: {
+    enterFrom: "-translate-x-full opacity-0",
+    leaveTo: "-translate-x-full opacity-0",
     enterActive: `transition duration-${props.duration}`,
     leaveActive: `transition duration-${props.duration}`,
   },
@@ -83,4 +89,4 @@ const variant = computed(() => ANIMATION_CLASSES[props.name] ?? ANIMATION_CLASSE
   >
     <slot />
   </Transition>
-</template>
+</template> 

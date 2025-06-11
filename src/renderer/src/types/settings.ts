@@ -2,6 +2,9 @@ import type {ISODate} from "./date"
 
 export type Settings = {
   theme: string
+  preferredLightTheme: string
+  preferredDarkTheme: string
+  isSystemThemeEnabled: boolean
   sidebarCollapsed: boolean
 }
 

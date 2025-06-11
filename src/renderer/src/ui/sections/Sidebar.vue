@@ -1,66 +1,66 @@
 <script setup lang="ts">
-import {useDevice} from "@/composables/useDevice"
+import {useTasksStore} from "@/stores/tasks.store"
+import {useUIStore} from "@/stores/ui.store"
+import {toFullDate} from "@/utils/date"
 
 import BaseButton from "@/ui/base/BaseButton.vue"
+import BasePanel from "@/ui/base/BasePanel"
 import BaseSpinner from "@/ui/base/BaseSpinner.vue"
-import Calendar from "@/ui/features/Calendar"
-import InfoPanel from "@/ui/features/InfoPanel"
+import CalendarMonth from "@/ui/features/CalendarMonth"
+import HelpPanel from "@/ui/features/HelpPanel"
 import RecentActiveTasks from "@/ui/features/RecentActiveTasks"
+import TagsPanel from "@/ui/features/TagsPanel"
+import Themes from "@/ui/features/Themes"
 import Logo from "@/ui/misc/Logo.vue"
-import {useUIStore} from "@/stores/ui.store"
 
 defineProps<{
-  isDataLoaded: boolean
+  dataLoaded: boolean
   contentHeight: number
 }>()
 
 const uiStore = useUIStore()
-const {isDesktop} = useDevice()
+const tasksStore = useTasksStore()
 </script>
 
 <template>
-  <aside :class="['border-base-300 bg-base-100 hidden shrink-0 border-r md:block', uiStore.isSidebarCollapsed ? 'w-sidebar-collapsed' : 'w-sidebar']">
-    <div class="border-base-300 h-header flex items-center justify-between border-b pr-4 pl-20 select-none" style="-webkit-app-region: drag">
-      <template v-if="uiStore.isSidebarCollapsed">
-        <Logo class="text-accent mx-auto h-5" />
-      </template>
+  <aside class="border-base-300 bg-base-100 w-sidebar border-r">
+    <div class="border-base-300 h-header flex items-center justify-between border-b pr-4 pl-4 select-none" style="-webkit-app-region: drag">
+      <div class="text-accent flex flex-1 pl-16 items-center gap-2">
+        <Logo class="h-5" />
+        <h2 class="font-mono text-xl font-bold">Daily</h2>
+      </div>
 
-      <template v-else>
-        <div class="text-accent flex flex-1 items-center gap-2">
-          <Logo class="h-5" />
-          <h2 class="font-mono text-xl font-bold">Daily</h2>
-        </div>
-
-        <div class="relative ml-auto flex items-center gap-1" style="-webkit-app-region: no-drag">
-          <BaseButton variant="ghost" :icon="uiStore.isInfoPanelOpen ? 'cog-off' : 'cog'" @click="uiStore.toggleIsInfoPanelOpen()" />
-        </div>
-      </template>
+      <div class="relative ml-auto flex items-center gap-1 text-sm" style="-webkit-app-region: no-drag">
+        {{ tasksStore.activeDay ? toFullDate(tasksStore.activeDay, {short: true}) : "" }}
+      </div>
     </div>
 
     <div :style="{height: contentHeight + 'px'}" class="hide-scrollbar overflow-y-auto">
-      <BaseSpinner v-if="!isDataLoaded" />
+      <BaseSpinner v-if="!dataLoaded" />
 
       <template v-else>
         <div class="text-base-content flex size-full flex-col pb-2">
-          <div class="flex-1 overflow-y-auto">
-            <InfoPanel v-if="uiStore.isInfoPanelOpen" />
-            <template v-else>
-              <Calendar class="my-4 px-2" />
-
-              <template v-if="!uiStore.isSidebarCollapsed">
-                <div class="bg-accent/10 mx-2 h-px"></div>
-                <RecentActiveTasks class="mt-4" />
-              </template>
-            </template>
+          <div class="hide-scrollbar flex-1 overflow-y-auto">
+            <BasePanel opened icon="calendar" group="calendar" label="Calendar" class="border-base-300 border-b" content-class="p-0 bg-base-100">
+              <CalendarMonth class="px-2 py-1" />
+            </BasePanel>
+            <BasePanel icon="history" group="calendar" label="Active Tasks" class="border-base-300 border-b" content-class="p-0 bg-base-100">
+              <RecentActiveTasks class="px-2" />
+            </BasePanel>
+            <BasePanel icon="tags" group="ui" label="Tags" class="border-base-300 border-b" content-class="p-0 bg-base-100">
+              <TagsPanel class="px-2" />
+            </BasePanel>
+            <BasePanel label="Themes" icon="background" group="ui" class="border-base-300 border-b">
+              <Themes />
+            </BasePanel>
+            <BasePanel label="Daily" icon="logo" group="ui" content-class="py-0">
+              <HelpPanel />
+            </BasePanel>
           </div>
 
-          <div
-            v-if="!uiStore.isInfoPanelOpen"
-            class="flex items-center gap-2"
-            :class="[uiStore.isSidebarCollapsed ? 'mx-auto flex-col' : 'mx-2 justify-between']"
-          >
+          <div class="mx-4 flex items-center justify-between gap-2">
             <BaseButton variant="ghost" icon="export" @click="uiStore.toggleIsExportTaskOpen()" />
-            <BaseButton v-if="isDesktop" variant="ghost" icon="sidebar" @click="uiStore.toggleSidebarCollapse()" />
+            <BaseButton variant="ghost" icon="sidebar" @click="uiStore.toggleSidebarCollapse()" />
           </div>
         </div>
       </template>

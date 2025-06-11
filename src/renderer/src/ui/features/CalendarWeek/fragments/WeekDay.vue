@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {toDay, toDayLabel} from "@/utils/date"
 import {cn} from "@/utils/tailwindcss"
+import BaseIcon from "@/ui/base/BaseIcon"
 
 import type {ISODate} from "@/types/date"
 import type {Day} from "@/types/tasks"
@@ -38,11 +39,14 @@ function selectDate() {
       :class="[today ? 'h-full opacity-100' : 'h-0 opacity-0']"
     />
 
-    <div
-      v-if="day && day?.tasks.length && day.countDone !== day.tasks.length"
-      class="absolute right-0 top-0 z-10 flex -translate-y-1/2 flex-col items-end"
-    >
-      <div class="bg-accent text-accent-content rounded-md px-1.5 py-0.5 text-[10px] font-semibold">{{ day.countDone }}/{{ day.tasks.length }}</div>
+    <div v-if="day && day?.tasks.length" class="absolute right-1 bottom-1 z-10 flex flex-col items-end">
+      <div
+        class="rounded-md text-[10px] relative border font-semibold flex items-center gap-1"
+        :class="[day.countActive === 0 ? 'border-success text-success' : 'border-warning text-warning']"
+      >
+        <BaseIcon v-if="day.countActive === 0" name="check" class="size-4 p-0.5" />
+        <span v-else class="px-1.5 py-0.5">{{ day.countActive > 9 ? "9+" : day.countActive }}</span>
+      </div>
     </div>
 
     <span class="text-base-content/60 text-xs font-semibold">{{ toDayLabel(date, {short: true}) }}</span>

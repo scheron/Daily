@@ -1,7 +1,7 @@
 import {dialog, ipcMain} from "electron"
 
 import type {StorageManager} from "../services/storage-manager.js"
-import type {DayItem, ExportTaskData, Task} from "../types.js"
+import type {DayItem, ExportTaskData, Tag, Task} from "../types.js"
 
 export function setupStorageIPC(storage: StorageManager): void {
   if (!storage) {
@@ -17,15 +17,19 @@ export function setupStorageIPC(storage: StorageManager): void {
   ipcMain.handle("load-days", () => storage.loadDays())
   ipcMain.handle("save-days", (_e, days: DayItem[]) => storage.saveDays(days))
 
+  ipcMain.handle("load-tags", () => storage.loadTags())
+  ipcMain.handle("save-tags", (_e, tags: Tag[]) => storage.saveTags(tags))
+
   ipcMain.handle("load-all-data", () => {
     const startTime = Date.now()
     const tasks = storage.loadTasks()
     const days = storage.loadDays()
+    const tags = storage.loadTags()
     const endTime = Date.now()
 
-    console.log(`🚀 load-all-data completed in ${endTime - startTime}ms (${tasks.length} tasks, ${days.length} days)`)
+    console.log(`🚀 load-all-data completed in ${endTime - startTime}ms (${tasks.length} tasks, ${days.length} days, ${tags.length} tags)`)
 
-    return {tasks, days}
+    return {tasks, days, tags}
   })
 
   ipcMain.handle("export-data", async (_e, exportData: ExportTaskData[]) => {

@@ -17,12 +17,16 @@ export function formatDaysToMonth(currentMonth: DateTime, days: Day[]): Calendar
 
     const dayInfo = {
       countCompletedTasks: 0,
+      countDiscardedTasks: 0,
+      countActiveTasks: 0,
       countTotalTasks: 0,
     }
 
     if (dayData && dayData.tasks.length > 0) {
-      dayInfo.countCompletedTasks = dayData.tasks.filter((task) => task.done).length
+      dayInfo.countCompletedTasks = dayData.tasks.filter((task) => task.status === "done").length
+      dayInfo.countDiscardedTasks = dayData.tasks.filter((task) => task.status === "discarded").length
       dayInfo.countTotalTasks = dayData.tasks.length
+      dayInfo.countActiveTasks = dayData.tasks.length - dayInfo.countCompletedTasks - dayInfo.countDiscardedTasks
     }
 
     calendarDays.push({

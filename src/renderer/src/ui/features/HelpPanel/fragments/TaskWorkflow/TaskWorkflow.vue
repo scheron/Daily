@@ -1,21 +1,21 @@
 <script setup lang="ts">
 import {onMounted, onUnmounted, ref} from "vue"
 import {useCycleList} from "@vueuse/core"
-import {sleep} from "@/utils/common"
 
+import {sleep} from "@/utils/misc"
 import BaseIcon from "@/ui/base/BaseIcon"
-
-import {animateSwipe} from "../animation"
+import {animateSwipe} from "./animation"
 
 const isAnimating = ref(false)
-const taskState = ref<"complete" | "delete" | "idle">("idle")
+const taskState = ref<"complete" | "cancel" | "idle">("idle")
 
-const animationLoop = ["toggleTaskDone", "toggleTaskDone", "toggleTaskDelete"].map((frame) => ({frame}))
+const animationLoop = ["toggleTaskDone", "toggleTaskDone", "toggleTaskCancel", "toggleTaskCancel"].map((frame) => ({frame}))
 const {state: animationState, next} = useCycleList(animationLoop)
 
 const swipeOffset = ref(0)
 const actionOpacity = ref(0)
 const isTaskDone = ref(false)
+const isTaskCancelled = ref(false)
 
 async function toggleTaskDone() {
   await animateSwipe("forward", (offset, opacity) => {
@@ -33,10 +33,11 @@ async function toggleTaskDone() {
   await sleep(100)
 
   isTaskDone.value = !isTaskDone.value
-  taskState.value = isTaskDone.value ? "complete" : "delete"
+  isTaskCancelled.value = false
+  taskState.value = isTaskDone.value ? "complete" : "idle"
 }
 
-async function toggleTaskDelete() {
+async function toggleTaskCancel() {
   await animateSwipe("forward", (offset, opacity) => {
     swipeOffset.value = -offset
     actionOpacity.value = opacity
@@ -49,10 +50,11 @@ async function toggleTaskDelete() {
     actionOpacity.value = opacity
   })
 
-  await sleep(500)
+  await sleep(100)
 
   isTaskDone.value = false
-  taskState.value = "idle"
+  isTaskCancelled.value = !isTaskCancelled.value
+  taskState.value = isTaskCancelled.value ? "cancel" : "idle"
 }
 
 async function animate() {
@@ -61,7 +63,7 @@ async function animate() {
   isAnimating.value = true
 
   if (animationState.value.frame === "toggleTaskDone") await toggleTaskDone()
-  else await toggleTaskDelete()
+  else await toggleTaskCancel()
 
   next()
 
@@ -92,27 +94,32 @@ onUnmounted(() => {
       </div>
 
       <div
+        class="bg-success absolute top-0 left-0 z-30 w-2 rounded-l-sm transition-all duration-500"
+        :class="[isTaskDone ? 'h-full opacity-100' : 'h-0 opacity-0']"
+      />
+      <div
+        class="bg-warning absolute top-0 left-0 z-30 w-2 rounded-l-sm transition-all duration-500"
+        :class="[isTaskCancelled ? 'h-full opacity-100' : 'h-0 opacity-0']"
+      />
+      <div
         class="group bg-base-100 absolute inset-0 z-10 flex h-full flex-wrap items-center px-4 transition-transform duration-75"
         :style="swipeOffset ? {transform: `translateX(${swipeOffset}px)`} : undefined"
       >
-        <div
-          class="bg-success absolute top-0 left-0 z-30 w-2 rounded-l-sm transition-all duration-500"
-          :class="[isTaskDone ? 'h-full opacity-100' : 'h-0 opacity-0']"
-        />
-
-        <span class="text-base-content text-sm transition-opacity duration-200" :class="{'line-through opacity-50': isTaskDone}">
+        <span class="text-base-content text-sm transition-opacity duration-200" :class="{'line-through opacity-50': isTaskDone || isTaskCancelled}">
           My Task Example
         </span>
       </div>
 
       <div
-        class="bg-error/60 absolute inset-y-0 flex w-full items-center justify-end px-4 opacity-0"
-        :style="{opacity: animationState.frame === 'toggleTaskDelete' ? actionOpacity : 0}"
+        class="bg-warning/60 absolute inset-y-0 flex w-full items-center justify-end px-4 opacity-0"
+        :class="[isTaskCancelled ? 'bg-base-300' : 'bg-warning/60']"
+        :style="{opacity: animationState.frame === 'toggleTaskCancel' ? actionOpacity : 0}"
       >
-        <BaseIcon name="x-mark" class="text-base-content size-5" />
+        <BaseIcon v-if="isTaskCancelled" name="undo" class="text-base-content size-5" />
+        <BaseIcon v-else name="archive" class="text-base-content size-5" />
       </div>
     </div>
 
-    <div class="text-base-content/70 mt-3 text-center text-xs">Use swipe to complete or delete task</div>
+    <div class="text-base-content/70 mt-3 text-center text-xs">Use swipe to complete or discard task</div>
   </div>
 </template>

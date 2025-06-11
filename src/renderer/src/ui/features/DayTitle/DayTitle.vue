@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import {computed, ref, useTemplateRef} from "vue"
 import {until} from "@vueuse/core"
-import {useTasksStore} from "@/stores/tasks.store"
+
 import {toFullDate} from "@/utils/date"
+import {useTasksStore} from "@/stores/tasks.store"
 import BaseButton from "@/ui/base/BaseButton.vue"
 
 const tasksStore = useTasksStore()
@@ -43,7 +44,7 @@ function onCancel() {
       v-model="formValue"
       placeholder="Edit day title..."
       :maxlength="30"
-      class="text-base-content placeholder-base-content/70 focus:shadow-base-content/70 shadow-base-content/20 flex-1 border-0 px-0 py-1 text-lg font-bold shadow-[0_-1px_0_inset] placeholder:font-normal focus:outline-none select-none"
+      class="text-base-content w-36 placeholder-base-content/70 focus:shadow-base-content/70 shadow-base-content/20 flex-1 border-0 px-0 py-1 text-lg font-bold shadow-[0_-1px_0_inset] placeholder:font-normal focus:outline-none select-none"
       style="-webkit-app-region: no-drag"
       @blur="onCancel"
     />

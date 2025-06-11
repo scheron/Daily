@@ -5,9 +5,9 @@ import {useFocusTrap} from "@/composables/useFocusTrap"
 import {findFocusableEl} from "@/utils/dom"
 import {cn} from "@/utils/tailwindcss"
 
-import BaseAnimation from "@/ui/base/BaseAnimation.vue"
-import BaseButton from "@/ui/base/BaseButton.vue"
-import Logo from "@/ui/misc/Logo.vue"
+import BaseAnimation from "../base/BaseAnimation.vue"
+import BaseButton from "../base/BaseButton.vue"
+import Logo from "../misc/Logo.vue"
 
 const props = withDefaults(
   defineProps<{
@@ -57,7 +57,7 @@ useEventListener(modalRef, "keydown", (event) => event.key === "Escape" && emit(
         <div class="bg-base-100 relative flex flex-col" :class="cn([fullscreen ? 'size-full' : 'h-[90vh] w-[90vw] rounded-lg'], containerClass)">
           <div class="border-base-300 h-header flex items-center justify-between border-b px-4 py-1">
             <slot v-if="!hideHeader" name="header">
-              <div class="text-accent flex items-center gap-2 pl-20">
+              <div class="text-accent flex items-center gap-2 pl-4">
                 <Logo class="h-5" />
                 <h2 class="font-mono text-xl font-bold">Daily</h2>
               </div>

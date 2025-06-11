@@ -16,14 +16,6 @@ export function createWindowsMenu(mainWindow: BrowserWindow): MenuItemConstructo
         },
         {type: "separator"},
         {
-          label: "Settings",
-          accelerator: "Ctrl+,",
-          click: () => {
-            mainWindow?.webContents.send("open-settings")
-          },
-        },
-        {type: "separator"},
-        {
           label: "Export",
           accelerator: "Ctrl+E",
           click: () => {

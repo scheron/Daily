@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import {computed, ref} from "vue"
 
-import type {IconName} from "@ui/base/BaseIcon/IconsSprite.vue"
+import type {IconName} from "../BaseIcon/IconsSprite.vue"
 import type {HtmlHTMLAttributes} from "vue"
 
-import BaseIcon from "@/ui/base/BaseIcon"
+import BaseIcon from "../BaseIcon/BaseIcon.vue"
 import {cn} from "@/utils/tailwindcss"
 
 import {useExpansionPanelGroup} from "./useExpansionPanelGroup"

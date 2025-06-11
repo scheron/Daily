@@ -1,16 +1,15 @@
 <script setup lang="ts">
 import {computed, onBeforeMount, ref, watch} from "vue"
-import {Day} from "@/types/tasks"
-import {isToday} from "@/utils/date"
 import {DateTime} from "luxon"
 
-import type {ISODate} from "@/types/date"
-import type {CalendarMode, CalendarSize, DateRange} from "./model/types"
-
+import {isToday} from "@/utils/date"
 import BaseButton from "@/ui/base/BaseButton.vue"
-
 import {WEEKDAYS} from "./model/constants"
 import {formatDaysToMonth} from "./model/helpers"
+
+import type {ISODate} from "@/types/date"
+import type {Day} from "@/types/tasks"
+import type {CalendarMode, CalendarSize, DateRange} from "./model/types"
 
 const props = withDefaults(
   defineProps<{
@@ -120,9 +119,9 @@ function getDateClasses(day: ReturnType<typeof formatDaysToMonth>[0]) {
 
   if (props.mode === "single") {
     if (isToday(day.isoDate)) classes.push("border-accent border-1")
-    if (isDateSelected(day.isoDate)) classes.push("bg-accent/85 text-accent-content hover:bg-accent")
+    if (isDateSelected(day.isoDate)) classes.push("bg-accent/30 text-accent hover:bg-accent/40")
   } else {
-    if (isDateSelected(day.isoDate)) classes.push("bg-accent/70 text-accent-content hover:bg-accent")
+    if (isDateSelected(day.isoDate)) classes.push("bg-accent/30 text-accent hover:bg-accent/40")
     else if (isDateInRange(day.isoDate)) classes.push("bg-accent/20 hover:bg-accent/30")
   }
 
@@ -182,8 +181,8 @@ onBeforeMount(() => {
 
         <div
           v-if="day.dayInfo.countTotalTasks"
-          class="border-base-300 absolute right-1 bottom-1 h-2 w-2 rounded-full border"
-          :class="[day.dayInfo.countCompletedTasks === day.dayInfo.countTotalTasks ? 'bg-success' : 'bg-info']"
+          class="absolute right-0.5 top-0.5 size-2 rounded-full shadow-xs"
+          :class="[day.dayInfo.countActiveTasks === 0 ? 'bg-success' : 'bg-warning']"
         />
       </BaseButton>
     </ul>

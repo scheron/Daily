@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import {computed} from "vue"
-import {useTasksStore} from "@/stores/tasks.store"
-import {toFullDate} from "@/utils/date"
 import {DateTime} from "luxon"
 
+import {toFullDate} from "@/utils/date"
+import {useTasksStore} from "@/stores/tasks.store"
 import BaseButton from "@/ui/base/BaseButton.vue"
-import BasePanel from "@/ui/base/BasePanel"
 
 const tasksStore = useTasksStore()
 
@@ -28,7 +27,7 @@ const groupedActiveDays = computed(() => {
     if (!day.countActive) continue
     const dayDate = DateTime.fromISO(day.date)
 
-    const isInThisWeek = dayDate >= startOfThisWeek && dayDate < now.minus({days: 1})
+    const isInThisWeek = dayDate >= startOfThisWeek && dayDate <= now
     const isInLastWeek = dayDate >= startOfLastWeek && dayDate <= endOfLastWeek
     const isInLastMonth = dayDate >= startOfLastMonth && dayDate <= endOfLastMonth
     const isOlder = dayDate < startOfLastMonth
@@ -49,23 +48,23 @@ const groupedActiveDays = computed(() => {
   ]
 })
 
+const hasRecentActiveTasks = computed(() => groupedActiveDays.value.some((group) => group.count))
+
 function selectDay(date: string) {
   tasksStore.setActiveDay(date)
 }
 </script>
 
 <template>
-  <div v-if="tasksStore.isDaysLoaded" class="mt-2 text-xs">
+  <div v-if="hasRecentActiveTasks" class="text-xs">
     <template v-for="group in groupedActiveDays" :key="group.label">
-      <BasePanel v-if="group.count" group="recent-active-tasks" content-class="p-2">
-        <template #header>
-          <div class="text-accent mb-1 flex items-center gap-1 text-sm font-bold uppercase select-none">
-            {{ group.label }}
-            <div class="text-info bg-info/30 flex size-4 items-center justify-center rounded-sm text-xs">
-              {{ group.count > 9 ? "9+" : group.count }}
-            </div>
+      <div v-if="group.count">
+        <div class="text-accent flex items-center gap-1 text-xs font-bold uppercase select-none bg-base-100 p-2">
+          {{ group.label }}
+          <div class="text-info bg-info/30 flex size-4 items-center justify-center rounded-sm text-xs">
+            {{ group.count > 9 ? "9+" : group.count }}
           </div>
-        </template>
+        </div>
 
         <div class="flex flex-col gap-1 px-2">
           <template v-for="item in group.items.slice(0, 5)" :key="item.date">
@@ -81,7 +80,8 @@ function selectDay(date: string) {
             +{{ group.items.length - 5 }} more
           </div>
         </div>
-      </BasePanel>
+      </div>
     </template>
   </div>
+  <div v-else class="text-accent/70 bg-accent/10 flex items-center justify-center rounded p-2">No recent active tasks</div>
 </template>

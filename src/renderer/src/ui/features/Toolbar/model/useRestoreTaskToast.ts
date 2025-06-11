@@ -1,10 +1,11 @@
+import {sleep} from "@/utils/misc"
+
 import {h} from "vue"
 import {toast} from "vue-sonner"
-import {sleep} from "@/utils/common"
-
-import type {Task} from "@/types/tasks"
 
 import DeleteSuccess from "../fragments/toasts/DeleteSuccess.vue"
+
+import type {Task} from "@/types/tasks"
 
 export function useRestoreTaskToast(onRestore: (task: Task) => Promise<boolean>) {
   return (task: Task) => {

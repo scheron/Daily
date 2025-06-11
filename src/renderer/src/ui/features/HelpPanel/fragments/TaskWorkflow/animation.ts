@@ -1,4 +1,4 @@
-import {sleep} from "@/utils/common"
+import {sleep} from "@/utils/misc"
 
 export async function animateSwipe(direction: "forward" | "backward", onProgress: (offset: number, opacity: number) => void) {
   const config = {

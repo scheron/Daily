@@ -34,7 +34,7 @@ export function useProgressFill(elementRef: Ref<HTMLElement | null>, options: Us
   }
 
   function cleanupProgressElement(element: HTMLElement) {
-    const progress = element.querySelector(".absolute.inset-0")
+    const progress = element.querySelector("[data-progress]")
     if (progress) progress.remove()
   }
 

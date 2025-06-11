@@ -2,7 +2,7 @@ import path from "path"
 import {app} from "electron"
 import fs from "fs-extra"
 
-import type {DayItem, ExportTaskData, StoreSchema, Task} from "../types.js"
+import type {DayItem, ExportTaskData, StoreSchema, Task, Tag} from "../types.js"
 
 export class StorageManager {
   private configDir: string
@@ -11,6 +11,7 @@ export class StorageManager {
 
   private tasksCache: Task[] = []
   private daysCache: DayItem[] = []
+  private tagsCache: Tag[] = []
 
   constructor() {
     this.configDir = path.join(app.getPath("home"), ".config", "daily")
@@ -33,19 +34,26 @@ export class StorageManager {
       const defaultData: Omit<StoreSchema, "settings"> = {
         tasks: [],
         days: [],
+        tags: [],
       }
       await fs.writeJson(this.dataPath, defaultData, {spaces: 2})
     }
 
     try {
-      const data = (await fs.readJson(this.dataPath)) as {tasks: Task[]; days: DayItem[]}
+      const data = (await fs.readJson(this.dataPath)) as {tasks: Task[]; days: DayItem[]; tags: Tag[]}
+
       this.tasksCache = Array.isArray(data.tasks) ? [...data.tasks] : []
       this.daysCache = Array.isArray(data.days) ? [...data.days] : []
+      this.tagsCache = Array.isArray(data.tags) ? [...data.tags] : []
+
     } catch (err) {
       console.warn("⚠️ Failed to load data from disk, resetting:", err)
+
       this.tasksCache = []
       this.daysCache = []
-      await fs.writeJson(this.dataPath, {tasks: [], days: []}, {spaces: 2})
+      this.tagsCache = []
+
+      await fs.writeJson(this.dataPath, {tasks: [], days: [], tags: []}, {spaces: 2})
     }
   }
 
@@ -86,12 +94,22 @@ export class StorageManager {
     await this.writeDataFile()
   }
 
+  loadTags(): Tag[] {
+    return [...this.tagsCache]
+  }
+
+  async saveTags(tags: Tag[]): Promise<void> {
+    this.tagsCache = [...tags]
+    await this.writeDataFile()
+  }
+
   private async writeDataFile(): Promise<void> {
     await fs.writeJson(
       this.dataPath,
       {
         tasks: this.tasksCache,
         days: this.daysCache,
+        tags: this.tagsCache,
       },
       {spaces: 2},
     )

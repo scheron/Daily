@@ -1,6 +1,6 @@
 import {contextBridge, ipcRenderer} from "electron"
 
-import type {DayItem, ExportTaskData, Settings, Task} from "./types.js"
+import type {DayItem, ExportTaskData, Settings, Tag, Task} from "./types.js"
 
 contextBridge.exposeInMainWorld("electronAPI", {
   minimize: () => ipcRenderer.send("window:minimize"),
@@ -21,6 +21,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   loadDays: () => ipcRenderer.invoke("load-days") as Promise<DayItem[]>,
   saveDays: (days: DayItem[]) => ipcRenderer.invoke("save-days", days),
+
+  loadTags: () => ipcRenderer.invoke("load-tags") as Promise<Tag[]>,
+  saveTags: (tags: Tag[]) => ipcRenderer.invoke("save-tags", tags),
 
   loadAllData: () => ipcRenderer.invoke("load-all-data") as Promise<{tasks: Task[]; days: DayItem[]}>,
 

@@ -10,8 +10,6 @@ export type ColorScheme = {
 
   // Accent 
   accent: string
-  // Accent alternative
-  "accent-content": string
 
   info: string
   success: string

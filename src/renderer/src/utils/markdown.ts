@@ -1,7 +1,7 @@
 import {DateTime} from "luxon"
 
-import type {ExportDayData} from "@/types/settings"
 import type {Day} from "@/types/tasks"
+import type {ExportDayData} from "@/types/settings"
 
 function getDateRange(fromDate: string, toDate: string): string[] {
   const start = DateTime.fromISO(fromDate)
@@ -47,9 +47,9 @@ export function prepareTasksForExport({fromDate, toDate, days}: {fromDate: strin
 
     const tasks = dayObj.tasks.map((task) => {
       const taskContent = task.content.trim()
-      const status = task.done ? "Done" : "Active"
+      const status = task.status === "done" ? "Done" : task.status === "discarded" ? "Discarded" : "Active"
 
-      let baseFilename = task.scheduled.time.replace(":", "-") // 23:00 -> 23-00
+      let baseFilename = task.scheduled.time.replace(":", "-") 
       let filename = `${baseFilename}.md`
 
       let counter = 1
