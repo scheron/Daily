@@ -105,7 +105,7 @@ app.whenReady().then(async () => {
         ...details.responseHeaders,
         "Content-Security-Policy": [
           `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; ` +
-            `img-src 'self' data: blob: https: file: attachment: safe-file:; font-src 'self' data:; ` +
+            `img-src 'self' data: blob: https: file: temp: safe-file:; font-src 'self' data:; ` +
             `connect-src 'self' https://api.github.com https://github.com; frame-src 'none'; object-src 'none';`,
         ],
       },

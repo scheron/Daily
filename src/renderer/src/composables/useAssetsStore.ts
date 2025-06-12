@@ -10,7 +10,7 @@ export function useAssetsStore() {
    * Stage an asset for later commit.
    * @param dataUrl - Base64 Data URL of the image/file
    * @param originalName - Desired base name (with extension) for the file
-   * @returns id for referencing this asset in markdown (attachment:<id>)
+   * @returns id for referencing this asset in markdown (temp:<id>)
    */
   function stageAsset(dataUrl: string, originalName: string): {id: string} {
     const id = crypto.randomUUID()

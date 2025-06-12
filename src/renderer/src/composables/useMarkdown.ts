@@ -35,7 +35,7 @@ export function useMarkdown() {
   function renderMarkdown(text: string) {
     // Add safe-file:// prefix to images that don't have a protocol
     const processedText = text.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, alt, src) => {
-      if (src.startsWith('http://') || src.startsWith('https://') || src.startsWith('data:') || src.startsWith('safe-file://') || src.startsWith('attachment:')) {
+      if (src.startsWith('http://') || src.startsWith('https://') || src.startsWith('data:') || src.startsWith('safe-file://') || src.startsWith('temp:')) {
         return match
       }
       return `![${alt}](safe-file://${src})`
@@ -44,22 +44,22 @@ export function useMarkdown() {
   }
 
   function applyPreviewImages(content: string, assets: AssetPreviewMap): string {
-    return content.replace(/!\[\]\(attachment:([a-zA-Z0-9_-]+)\)/g, (_, id) => {
+    return content.replace(/!\[\]\(temp:([a-zA-Z0-9_-]+)\)/g, (_, id) => {
       const dataUrl = assets[id]
-      return dataUrl ? `<img src="${dataUrl}" data-attachment="${id}" alt="" />` : `![broken](attachment:${id})`
+      return dataUrl ? `<img src="${dataUrl}" data-temp="${id}" alt="" />` : `![broken](temp:${id})`
     })
   }
 
   function convertImagesToMarkdown(el: HTMLElement): string {
     const clone = el.cloneNode(true) as HTMLElement
-    const imgs = clone.querySelectorAll("img[data-attachment]")
+    const imgs = clone.querySelectorAll("img[data-temp]")
 
     for (const img of Array.from(imgs)) {
-      const id = img.getAttribute("data-attachment")
+      const id = img.getAttribute("data-temp")
       if (!id) continue
 
       const replacement = document.createElement("span")
-      replacement.innerText = `![](attachment:${id})`
+      replacement.innerText = `![](temp:${id})`
       img.replaceWith(replacement)
     }
 

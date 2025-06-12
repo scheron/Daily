@@ -10,7 +10,7 @@ function extractFilenames(content: string): string[] {
   // ![alt](safe-file://filename.ext) - with protocol
   const patterns = [
     /!\[[^\]]*\]\(\s*safe-file:\/\/([^)\s]+)\s*\)/g,  // with safe-file:// prefix
-    /!\[[^\]]*\]\(\s*(?!(?:https?|data|attachment|safe-file):)([^)\s]+)\s*\)/g  // without protocol
+    /!\[[^\]]*\]\(\s*(?!(?:https?|data|temp|safe-file):)([^)\s]+)\s*\)/g  // without protocol
   ]
   
   const filenames = new Set<string>()

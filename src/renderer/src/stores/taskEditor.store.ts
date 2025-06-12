@@ -74,7 +74,7 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
 
     for (const id in committed) {
       const {filePath} = committed[id]
-      final = final.replace(new RegExp(`attachment:${id}`, "g"), filePath)
+      final = final.replace(new RegExp(`temp:${id}`, "g"), filePath)
     }
 
     return final

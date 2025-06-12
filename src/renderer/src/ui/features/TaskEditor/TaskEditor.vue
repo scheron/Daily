@@ -149,7 +149,7 @@ useClipboardPaste(contentField, {
     reader.onload = (e) => {
       const dataUrl = e.target?.result as string
       const {id} = taskEditorStore.stageAsset(dataUrl, file.name)
-      insertText(`![](attachment:${id})`)
+      insertText(`![](temp:${id})`)
       onInput()
     }
     reader.readAsDataURL(file)
