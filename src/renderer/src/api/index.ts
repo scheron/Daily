@@ -57,7 +57,10 @@ function defineApi(): Storage {
    * @param params.tags - The tags of the task
    * @returns The day that matches the query
    */
-  async function createTask(content: string, params: {date?: string; time?: string; timezone?: string; tags?: Tag[]}): Promise<Day> {
+  async function createTask(
+    content: string,
+    params: {date?: string; time?: string; timezone?: string; tags?: Tag[]},
+  ): Promise<Day> {
     const now = DateTime.now()
     const scheduledDate = params.date ? params.date : now.toISODate()!
     const scheduledTime = params.time ? params.time : now.toFormat("HH:mm")
@@ -159,7 +162,9 @@ function defineApi(): Storage {
     const idx = allTasks.findIndex((t) => t.id === id)
     if (idx < 0) return false
 
-    const oldDate = allTasks[idx].scheduled.date
+    const taskToDelete = allTasks[idx]
+    const oldDate = taskToDelete.scheduled.date
+
     allTasks.splice(idx, 1)
 
     await window.electronAPI.saveTasks(allTasks)

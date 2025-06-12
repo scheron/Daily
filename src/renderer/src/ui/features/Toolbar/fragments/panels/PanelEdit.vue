@@ -1,20 +1,21 @@
 <script setup lang="ts">
-import {computed, onMounted, ref, useTemplateRef} from "vue"
+import {computed, onMounted, ref, useTemplateRef, watch} from "vue"
 import {toast} from "vue-sonner"
-
-import {oklchToHex} from "@/utils/colors"
 import {useProgressFill} from "@/composables/useProgressFill"
 import {useTagsStore} from "@/stores/tags.store"
 import {useTaskEditorStore} from "@/stores/taskEditor.store"
 import {useTasksStore} from "@/stores/tasks.store"
 import {useThemeStore} from "@/stores/theme.store"
+import {oklchToHex} from "@/utils/colors"
+
+import type {Tag} from "@/types/tasks"
+
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseIcon from "@/ui/base/BaseIcon"
 import BasePopup from "@/ui/base/BasePopup.vue"
 import BaseTag from "@/ui/base/BaseTag.vue"
-import {useRestoreTaskToast} from "../../model/useRestoreTaskToast"
 
-import type {Tag} from "@/types/tasks"
+import {useRestoreTaskToast} from "../../model/useRestoreTaskToast"
 
 const VISIBLE_TAGS_COUNT = 3
 
@@ -28,6 +29,8 @@ const tagsStore = useTagsStore()
 const toastRestoreTask = useRestoreTaskToast(async (task) => await tasksStore.restoreTask(task.id))
 
 const selectedTags = ref<Map<Tag["id"], Tag>>(new Map())
+
+const deleteBlockRef = useTemplateRef<HTMLDivElement>("deleteBlock")
 
 const isNewTask = computed(() => taskEditorStore.currentEditingTask === null)
 const visibleTags = computed(() => tagsStore.tags.slice(0, VISIBLE_TAGS_COUNT))
@@ -43,8 +46,6 @@ function onSelectTag(tagId: Tag["id"]) {
   else selectedTags.value.set(tagId, tagsStore.tagsMap.get(tagId)!)
 }
 
-const deleteBlockRef = useTemplateRef<HTMLDivElement>("deleteBlock")
-
 useProgressFill(deleteBlockRef, {
   color: computed(() => `${oklchToHex(themeStore.currentTheme.colorScheme.error)}60`),
   duration: 500,
@@ -55,17 +56,24 @@ async function onSave() {
   const content = taskEditorStore.editorContent.trim()
   if (!content) return
 
+  const committed = await taskEditorStore.commitAssets()
+  const finalContent = taskEditorStore.replaceAttachments(content, committed)
+
   if (isNewTask.value) {
-    const newTags = Array.from(selectedTags.value.values())
-    const isSuccess = await tasksStore.createTask(content, newTags)
+    const isSuccess = await tasksStore.createTask({
+      content: finalContent,
+      tags: taskEditorStore.editorTags,
+    })
 
     if (!isSuccess) return toast.error("Failed to create task")
     else toast.success("Task created successfully")
 
     onClose()
   } else {
-    const newTags = Array.from(selectedTags.value.values())
-    const isSuccess = await tasksStore.updateTask(taskEditorStore.currentEditingTask!.id, {content, tags: newTags})
+    const isSuccess = await tasksStore.updateTask(taskEditorStore.currentEditingTask!.id, {
+      content: finalContent,
+      tags: taskEditorStore.editorTags,
+    })
 
     if (!isSuccess) return toast.error("Failed to update task")
     else toast.success("Task updated successfully")
@@ -85,8 +93,10 @@ async function onDelete() {
 
 function onClose() {
   taskEditorStore.setCurrentEditingTask(null)
-  taskEditorStore.setIsTaskDeleteConfirmOpen(false)
+  taskEditorStore.setEditorTags([])
+  taskEditorStore.rollbackAssets()
   taskEditorStore.setIsTaskEditorOpen(false)
+
   emit("close")
 }
 
@@ -95,17 +105,24 @@ onMounted(() => {
     selectedTags.value = new Map(taskEditorStore.currentEditingTask.tags.map((tag) => [tag.id, tag]))
   }
 })
+watch(
+  selectedTags,
+  (tags) => {
+    taskEditorStore.setEditorTags(Array.from(tags.values()))
+  },
+  {deep: true, immediate: true},
+)
 </script>
 
 <template>
   <div class="bg-base-100 flex size-full flex-col gap-3 px-4 py-2 md:flex-row md:items-center md:justify-between">
-    <div class="relative flex items-center gap-2 overflow-x-auto hide-scrollbar">
+    <div class="hide-scrollbar relative flex items-center gap-2 overflow-x-auto">
       <BasePopup v-if="remainingTags.length" title="More Tags">
         <template #trigger="{toggle}">
           <BaseButton
             variant="outline"
             size="sm"
-            class="px-2 rounded-md"
+            class="rounded-md px-2"
             :class="[hasSelectedInPopup ? 'bg-accent/10 border-accent text-accent' : 'opacity-70 hover:opacity-90']"
             icon="tags"
             icon-class="size-3.5"
@@ -125,11 +142,11 @@ onMounted(() => {
           :class="isActiveTag(tag.id) ? 'bg-accent/10 text-accent' : ''"
           @click="onSelectTag(tag.id)"
         >
-          <span class="size-2.5 rounded-sm shrink-0" :style="{backgroundColor: tag.color}" />
-          <span class="text-sm truncate">{{ tag.name }}</span>
+          <span class="size-2.5 shrink-0 rounded-sm" :style="{backgroundColor: tag.color}" />
+          <span class="truncate text-sm">{{ tag.name }}</span>
           <BaseIcon
             name="check"
-            class="size-3.5 ml-auto text-base-content shrink-0 transition-opacity duration-200"
+            class="text-base-content ml-auto size-3.5 shrink-0 transition-opacity duration-200"
             :class="isActiveTag(tag.id) ? 'opacity-100' : 'opacity-0'"
           />
         </BaseButton>
@@ -142,7 +159,7 @@ onMounted(() => {
       <div
         v-if="taskEditorStore.currentEditingTask"
         ref="deleteBlock"
-        class="bg-error/20 hover:bg-error/40 text-error flex w-full md:w-fit py-1 items-center justify-center gap-2 rounded-sm px-2 transition-colors duration-200"
+        class="bg-error/20 hover:bg-error/40 text-error flex w-full items-center justify-center gap-2 rounded-sm px-2 py-1 transition-colors duration-200 md:w-fit"
       >
         <BaseIcon name="x-mark" class="relative size-4 transition-transform group-hover:scale-110" />
         <span class="text-sm font-medium">Hold to delete</span>
@@ -152,14 +169,14 @@ onMounted(() => {
         size="sm"
         icon-class="size-4"
         icon="undo"
-        class="text-base-content bg-base-content/10 hover:bg-base-content/20 rounded-sm px-2 py-0.5 w-full md:w-auto"
+        class="text-base-content bg-base-content/10 hover:bg-base-content/20 w-full rounded-sm px-2 py-0.5 md:w-auto"
         @click="onClose"
       >
         <span class="text-sm">Cancel {{ isNewTask ? "Create" : "Update" }}</span>
       </BaseButton>
 
       <BaseButton
-        class="bg-success/20 hover:bg-success/30 rounded-sm text-success py-0.5 px-5 w-full md:w-auto"
+        class="bg-success/20 hover:bg-success/30 text-success w-full rounded-sm px-5 py-0.5 md:w-auto"
         size="sm"
         icon="check"
         icon-class="size-4"

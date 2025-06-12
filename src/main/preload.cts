@@ -31,6 +31,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   getStorageInfo: () => ipcRenderer.invoke("get-storage-info"),
 
+  saveAsset: (filename: string, data: Buffer) => ipcRenderer.invoke("save-asset", filename, data),
+  getAssetPath: (filename: string) => ipcRenderer.invoke("get-asset-path", filename),
+  deleteAsset: (filename: string) => ipcRenderer.invoke("delete-asset", filename),
+
   onMenuAction: (callback: (action: "new-task" | "open-settings" | "export-data") => void) => {
     ipcRenderer.on("new-task", () => callback("new-task"))
     ipcRenderer.on("open-settings", () => callback("open-settings"))

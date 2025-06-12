@@ -1,11 +1,10 @@
 import {computed, ref} from "vue"
-import {DateTime} from "luxon"
-import {defineStore} from "pinia"
-
 import {API} from "@/api"
 import {objectFilter} from "@/utils/objects"
 import {updateDays} from "@/utils/tasks"
 import {toRawDeep} from "@/utils/vue"
+import {DateTime} from "luxon"
+import {defineStore} from "pinia"
 
 import type {ISODate} from "@/types/date"
 import type {Day, Tag, Task} from "@/types/tasks"
@@ -47,7 +46,7 @@ export const useTasksStore = defineStore("tasks", () => {
     }
   }
 
-  async function createTask(content: string, tags: Tag[] = []) {
+  async function createTask({content, tags}: {content: string; tags: Tag[]}) {
     const updatedDay = await API.createTask(
       content,
       toRawDeep({
@@ -99,7 +98,7 @@ export const useTasksStore = defineStore("tasks", () => {
     const task = lastDeletedTasks.value.get(taskId)
     if (!task) return false
 
-    const isSuccess = await createTask(task.content, task.tags)
+    const isSuccess = await createTask({content: task.content, tags: task.tags})
 
     if (isSuccess) {
       lastDeletedTasks.value.delete(taskId)

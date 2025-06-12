@@ -1,15 +1,19 @@
+import { nanoid } from 'nanoid';
 import path from "path"
 import {app} from "electron"
 import fs from "fs-extra"
+
+// TODO: при создании удалять файлы которые не встречаются в tasks
 
 import type {DayItem, ExportTaskData, StoreSchema, Tag, Task} from "../types.js"
 
 import {deepMerge} from "./deep-merge.js"
 
 export class StorageManager {
-  private configDir: string
-  private configPath: string
-  private dataPath: string
+  configDir: string
+  configPath: string
+  dataPath: string
+  assetsDir: string
 
   private tasksCache: Task[] = []
   private daysCache: DayItem[] = []
@@ -20,10 +24,12 @@ export class StorageManager {
     this.configDir = path.join(app.getPath("home"), ".config", "daily")
     this.configPath = path.join(this.configDir, "config.json")
     this.dataPath = path.join(this.configDir, "data.json")
+    this.assetsDir = path.join(this.configDir, "assets")
   }
 
   async init(): Promise<void> {
     await fs.ensureDir(this.configDir)
+    await fs.ensureDir(this.assetsDir)
 
     if (!(await fs.pathExists(this.configPath))) {
       const defaultConfig: Partial<StoreSchema["settings"]> = {}
@@ -143,21 +149,58 @@ export class StorageManager {
     }
   }
 
+  async saveAsset(filename: string, data: Buffer): Promise<string> {
+    await fs.ensureDir(this.assetsDir)
+    
+    const ext = path.extname(filename)
+    const uniqueFilename = `${nanoid()}${ext}`
+    const filePath = path.join(this.assetsDir, uniqueFilename)
+
+    console.log("Saving asset to:", filePath, "filename:", filename)
+
+    await fs.writeFile(filePath, data)
+    return uniqueFilename
+  }
+
+  async getAssetPath(filename: string): Promise<string> {
+    await fs.ensureDir(this.assetsDir)
+    return path.join(this.assetsDir, filename)
+  }
+
+  async deleteAsset(filename: string): Promise<void> {
+    await fs.ensureDir(this.assetsDir)
+    console.log("Deleting asset:", filename)
+    const filePath = path.join(this.assetsDir, filename)
+    if (await fs.pathExists(filePath)) {
+      await fs.remove(filePath)
+    }
+  }
+
   async getStorageInfo(): Promise<{
     configDir: string
     configSize: number
     dataSize: number
+    assetsSize: number
     tasksCount: number
     daysCount: number
   }> {
     try {
       const configStat = await fs.stat(this.configPath)
       const dataStat = await fs.stat(this.dataPath)
+      
+      let assetsSize = 0
+      await fs.ensureDir(this.assetsDir)
+      const files = await fs.readdir(this.assetsDir)
+      for (const file of files) {
+        const stat = await fs.stat(path.join(this.assetsDir, file))
+        assetsSize += stat.size
+      }
 
       return {
         configDir: this.configDir,
         configSize: configStat.size,
         dataSize: dataStat.size,
+        assetsSize,
         tasksCount: this.tasksCache.length,
         daysCount: this.daysCache.length,
       }
@@ -167,6 +210,7 @@ export class StorageManager {
         configDir: this.configDir,
         configSize: 0,
         dataSize: 0,
+        assetsSize: 0,
         tasksCount: 0,
         daysCount: 0,
       }

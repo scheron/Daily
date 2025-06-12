@@ -17,7 +17,6 @@ export function useSettingsStore<K extends SettingsKey, T = any>(key: K, default
 
   async function getInitialValue(): Promise<T> {
     try {
-      console.log("getInitialValue", window.electronAPI.getSettings())
       const settings = await window.electronAPI.getSettings()
       const result = getObjectValueFromPath<any>(settings, key)
       return result ?? defaultValue as T

@@ -2,6 +2,7 @@
 import {computed, onMounted, onUnmounted, useTemplateRef} from "vue"
 import {toast} from "vue-sonner"
 import {until, useEventListener} from "@vueuse/core"
+import {useClipboardPaste} from "@/composables/useClipboardPaste"
 import {useDevice} from "@/composables/useDevice"
 import {useTaskEditorStore} from "@/stores/taskEditor.store"
 import {useTasksStore} from "@/stores/tasks.store"
@@ -10,30 +11,49 @@ import EditorPlaceholder from "./fragments/EditorPlaceholder.vue"
 
 const tasksStore = useTasksStore()
 const taskEditorStore = useTaskEditorStore()
-
-const {isTablet, isMacOS} = useDevice()
+const {isMacOS} = useDevice()
 
 const content = computed({
   get: () => taskEditorStore.editorContent,
-  set: (value) => taskEditorStore.setEditorContent(value),
+  set: (v) => taskEditorStore.setEditorContent(v),
 })
 
 const contentField = useTemplateRef<HTMLElement>("contentField")
 
-function focusContentField(setCursorToEnd = false) {
-  if (!contentField.value) return
+function insertText(text: string) {
+  const frag = document.createDocumentFragment()
 
-  contentField.value.focus()
+  text.split("\n").forEach((line, i, arr) => {
+    frag.appendChild(document.createTextNode(line))
+    if (i < arr.length - 1) frag.appendChild(document.createElement("br"))
+  })
 
-  if (setCursorToEnd) {
-    const range = document.createRange()
-    const selection = window.getSelection()
-
-    range.selectNodeContents(contentField.value)
+  const sel = window.getSelection()
+  if (sel?.rangeCount) {
+    const range = sel.getRangeAt(0)
+    range.deleteContents()
+    range.insertNode(frag)
     range.collapse(false)
+    sel.removeAllRanges()
+    sel.addRange(range)
+  } else {
+    contentField.value?.appendChild(frag)
+  }
+}
 
-    selection?.removeAllRanges()
-    selection?.addRange(range)
+function focusContentField(toEnd = false) {
+  const el = contentField.value
+  if (!el) return
+
+  el.focus()
+
+  if (toEnd) {
+    const range = document.createRange()
+    const sel = window.getSelection()
+    range.selectNodeContents(el)
+    range.collapse(false)
+    sel?.removeAllRanges()
+    sel?.addRange(range)
   }
 }
 
@@ -42,39 +62,37 @@ function onInput() {
   content.value = contentField.value.innerText || ""
 }
 
-function clearEditor() {
-  if (contentField.value) {
-    contentField.value.textContent = ""
-  }
-  taskEditorStore.setEditorContent("")
-}
-
 async function onSave(): Promise<boolean> {
-  if (!content.value.trim()) return false
+  const text = content.value.trim()
+  if (!text) return false
 
-  let isSuccess = false
+  const committed = await taskEditorStore.commitAssets()
+  const finalContent = taskEditorStore.replaceAttachments(text, committed)
 
+  let ok = false
   if (taskEditorStore.currentEditingTask) {
-    isSuccess = await tasksStore.updateTask(taskEditorStore.currentEditingTask.id, {content: content.value.trim()})
-
-    if (!isSuccess) {
+    ok = await tasksStore.updateTask(taskEditorStore.currentEditingTask.id, {
+      content: finalContent,
+      tags: taskEditorStore.editorTags,
+    })
+    if (!ok) {
       toast.error("Failed to update task")
       return false
     }
-
     toast.success("Task updated successfully")
   } else {
-    isSuccess = await tasksStore.createTask(content.value.trim())
-
-    if (!isSuccess) {
+    ok = await tasksStore.createTask({
+      content: finalContent,
+      tags: taskEditorStore.editorTags,
+    })
+    if (!ok) {
       toast.error("Failed to create task")
       return false
     }
-
     toast.success("Task created successfully")
   }
 
-  clearEditor()
+  clearEditor(false)
   return true
 }
 
@@ -88,38 +106,54 @@ async function onSaveAndContinue() {
   if (success) focusContentField()
 }
 
-function onClose() {
-  taskEditorStore.setIsTaskEditorOpen(false)
+function clearEditor(discardFiles = true) {
+  if (discardFiles) taskEditorStore.rollbackAssets()
+
+  if (contentField.value) contentField.value.textContent = ""
+  taskEditorStore.setEditorContent("")
+  taskEditorStore.setEditorTags([])
   taskEditorStore.setCurrentEditingTask(null)
+}
+
+async function onClose() {
+  clearEditor(true)
+  taskEditorStore.setIsTaskEditorOpen(false)
 }
 
 onMounted(async () => {
   await until(contentField).toBeTruthy()
+  if (!contentField.value) return
 
-  if (contentField.value) {
-    contentField.value.innerText = content.value
-    const isEditing = !!taskEditorStore.currentEditingTask
-    focusContentField(isEditing)
-  }
+  contentField.value.innerText = content.value
+  focusContentField(!!taskEditorStore.currentEditingTask)
 })
 
-onUnmounted(() => taskEditorStore.setEditorContent(""))
+onUnmounted(() => clearEditor(true))
 
 useEventListener(contentField, "keydown", (event) => {
-  const key = isMacOS ? "metaKey" : "ctrlKey"
+  const mod = isMacOS ? event.metaKey : event.ctrlKey
   if (event.key === "Escape") {
     onClose()
     return
   }
-
-  if (event.key === "Enter") {
-    if (event.shiftKey) return
-
+  if (event.key === "Enter" && !event.shiftKey) {
     event.preventDefault()
-
-    if (event[key]) onSaveAndContinue()
-    else onSaveAndClose()
+    mod ? onSaveAndContinue() : onSaveAndClose()
   }
+})
+
+useClipboardPaste(contentField, {
+  onTextPaste: () => onInput(),
+  onImagePaste: async (file) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string
+      const {id} = taskEditorStore.stageAsset(dataUrl, file.name)
+      insertText(`![](attachment:${id})`)
+      onInput()
+    }
+    reader.readAsDataURL(file)
+  },
 })
 </script>
 
@@ -127,11 +161,10 @@ useEventListener(contentField, "keydown", (event) => {
   <div class="relative h-full min-h-full flex-1 p-2">
     <div
       ref="contentField"
-      class="markdown size-full cursor-text border border-base-300 overflow-y-auto rounded-lg p-4 pb-0 outline-none"
+      class="markdown border-base-300 size-full cursor-text overflow-y-auto rounded-lg border p-4 pb-0 outline-none"
       contenteditable="true"
       @input="onInput"
     ></div>
-
-    <EditorPlaceholder v-show="!isTablet && !content.trim()" />
+    <EditorPlaceholder v-show="!content.trim()" />
   </div>
 </template>

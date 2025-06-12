@@ -1,7 +1,9 @@
-import {dirname, join} from "node:path"
+import path, {dirname, join} from "node:path"
 import {fileURLToPath} from "node:url"
-import {app, BrowserWindow, nativeImage, session} from "electron"
+import {app, BrowserWindow, nativeImage, protocol, session} from "electron"
+import fs from "fs-extra"
 
+import {cleanupOrphanAssets, focusWindow, getMimeType, sleep} from "./helpers.js"
 import {setupMenuIPC} from "./ipc/menu.js"
 import {setupStorageIPC} from "./ipc/storage.js"
 import {setupMainWindowIPC} from "./ipc/window.js"
@@ -48,11 +50,28 @@ if (process.platform === "darwin" && app.dock) {
 }
 
 app.whenReady().then(async () => {
+  protocol.handle("safe-file", async (request) => {
+    const url = request.url.replace("safe-file://", "")
+    const filePath = path.join(storage.assetsDir, decodeURIComponent(url))
+
+    try {
+      const data = await fs.readFile(filePath)
+      const extension = path.extname(filePath).slice(1)
+      const mime = getMimeType(extension)
+
+      return new Response(data, {headers: {"Content-Type": mime}})
+    } catch (e) {
+      console.error("❌ Failed to load asset:", filePath, e)
+      return new Response("Not Found", {status: 404})
+    }
+  })
+
   splashWindow = createSplashWindow()
 
   storage = new StorageManager()
   try {
     await storage.init()
+    await cleanupOrphanAssets(storage)
     const info = await storage.getStorageInfo()
     console.log(`✅ Storage initialized: ${info.tasksCount} tasks, ${info.daysCount} days`)
   } catch (err) {
@@ -86,7 +105,7 @@ app.whenReady().then(async () => {
         ...details.responseHeaders,
         "Content-Security-Policy": [
           `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; ` +
-            `img-src 'self' data: blob: https:; font-src 'self' data:; ` +
+            `img-src 'self' data: blob: https: file: attachment: safe-file:; font-src 'self' data:; ` +
             `connect-src 'self' https://api.github.com https://github.com; frame-src 'none'; object-src 'none';`,
         ],
       },
@@ -125,11 +144,3 @@ function getIconPath(): string {
   return process.env.NODE_ENV === "development" ? join(__dirname, "static", "icon.png") : join(app.getAppPath(), "static", "icon.png")
 }
 
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
-function focusWindow(win: BrowserWindow) {
-  if (win.isMinimized()) win.restore()
-  win.focus()
-}

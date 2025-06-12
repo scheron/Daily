@@ -48,4 +48,32 @@ export function setupStorageIPC(storage: StorageManager): void {
       return {success: false, error: errorMessage}
     }
   })
+
+  ipcMain.handle("save-asset", async (_e, filename: string, data: Buffer) => {
+    try {
+      return await storage.saveAsset(filename, data)
+    } catch (error) {
+      console.error("Failed to save asset:", error)
+      return false
+    }
+  })
+
+  ipcMain.handle("get-asset-path", async (_e, filename: string) => {
+    try {
+      return `safe-file://${filename}`
+    } catch (error) {
+      console.error("Failed to get asset path:", error)
+      return ''
+    }
+  })
+
+  ipcMain.handle("delete-asset", async (_e, filename: string) => {
+    try {
+      await storage.deleteAsset(filename)
+      return true
+    } catch (error) {
+      console.error("Failed to delete asset:", error)
+      return false
+    }
+  })
 }

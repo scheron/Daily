@@ -30,6 +30,7 @@ export type Day = {
   date: ISODate
   subtitle?: string
   tasks: Task[]
+  /** Aggregated tags for the daily tasks */
   tags: Tag[]
   countActive: number
   countDone: number

@@ -1,5 +1,6 @@
 import type {Settings} from "@/types/settings"
 import type {DayItem, Tag, Task} from "@/types/tasks"
+import type {Buffer} from "buffer"
 
 /**
  * Should match main/preload.ts for typescript support in renderer
@@ -15,9 +16,16 @@ export default interface ElectronApi {
     isLinux: () => boolean
   }
 
+  // === ASSETS ===
+  saveAsset: (filename: string, data: Buffer) => Promise<string>
+  getAssetPath: (filename: string) => Promise<string>
+  deleteAsset: (filename: string) => Promise<boolean>
+
+  // === SETTINGS ===
   getSettings: () => Promise<Partial<Settings>>
   saveSettings: (settings: Partial<Settings>) => Promise<void>
 
+  // === DATA ===
   loadTasks: () => Promise<Task[]>
   saveTasks: (tasks: Task[]) => Promise<void>
 
@@ -29,6 +37,7 @@ export default interface ElectronApi {
 
   loadAllData: () => Promise<{tasks: Task[]; days: DayItem[]; tags: Tag[]}>
 
+  // === MENU ===
   onMenuAction: (callback: (action: "new-task" | "open-settings" | "export-data") => void) => void
 
   exportData: (
