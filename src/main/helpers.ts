@@ -5,9 +5,22 @@ import type {StorageManager} from "./services/storage-manager"
 import type { BrowserWindow } from "electron"
 
 function extractFilenames(content: string): string[] {
-  // [alt](safe-file://filename.ext) — any alt, spaces around URL
-  const re = /!\[[^\]]*\]\(\s*safe-file:\/\/([^)\s]+)\s*\)/g
-  return Array.from(content.matchAll(re), (m) => m[1])
+  // Match both formats:
+  // ![alt](filename.ext) - clean format
+  // ![alt](safe-file://filename.ext) - with protocol
+  const patterns = [
+    /!\[[^\]]*\]\(\s*safe-file:\/\/([^)\s]+)\s*\)/g,  // with safe-file:// prefix
+    /!\[[^\]]*\]\(\s*(?!(?:https?|data|attachment|safe-file):)([^)\s]+)\s*\)/g  // without protocol
+  ]
+  
+  const filenames = new Set<string>()
+  for (const re of patterns) {
+    for (const match of content.matchAll(re)) {
+      filenames.add(match[1])
+    }
+  }
+  
+  return Array.from(filenames)
 }
 
 export async function cleanupOrphanAssets(storage: StorageManager) {

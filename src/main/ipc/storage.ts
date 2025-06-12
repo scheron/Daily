@@ -60,7 +60,7 @@ export function setupStorageIPC(storage: StorageManager): void {
 
   ipcMain.handle("get-asset-path", async (_e, filename: string) => {
     try {
-      return `safe-file://${filename}`
+      return filename
     } catch (error) {
       console.error("Failed to get asset path:", error)
       return ''

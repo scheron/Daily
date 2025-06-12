@@ -33,7 +33,14 @@ export function useMarkdown() {
   patchMarkdownItAnchors(markdownIt)
 
   function renderMarkdown(text: string) {
-    return markdownIt.render(text)
+    // Add safe-file:// prefix to images that don't have a protocol
+    const processedText = text.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, alt, src) => {
+      if (src.startsWith('http://') || src.startsWith('https://') || src.startsWith('data:') || src.startsWith('safe-file://') || src.startsWith('attachment:')) {
+        return match
+      }
+      return `![${alt}](safe-file://${src})`
+    })
+    return markdownIt.render(processedText)
   }
 
   function applyPreviewImages(content: string, assets: AssetPreviewMap): string {
