@@ -51,7 +51,7 @@ export const useTasksStore = defineStore("tasks", () => {
       content,
       toRawDeep({
         date: activeDay.value,
-        time: DateTime.now().toFormat("HH:mm"),
+        time: DateTime.now().toFormat("HH:mm:ss"),
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         tags,
       }),

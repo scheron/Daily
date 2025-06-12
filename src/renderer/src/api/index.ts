@@ -1,5 +1,5 @@
 import {arrayRemoveDuplicates} from "@/utils/arrays"
-import {groupTasksByDay} from "@/utils/tasks"
+import {groupTasksByDay, sortScheduledTasks} from "@/utils/tasks"
 import {DateTime} from "luxon"
 import {nanoid} from "nanoid"
 
@@ -63,7 +63,7 @@ function defineApi(): Storage {
   ): Promise<Day> {
     const now = DateTime.now()
     const scheduledDate = params.date ? params.date : now.toISODate()!
-    const scheduledTime = params.time ? params.time : now.toFormat("HH:mm")
+    const scheduledTime = params.time ? params.time : now.toFormat("HH:mm:ss")
     const scheduledTimezone = params.timezone ?? now.zoneName
 
     const newTask: Task = {
@@ -81,7 +81,7 @@ function defineApi(): Storage {
     }
 
     const {tasks: allTasks, days: allDays} = await window.electronAPI.loadAllData()
-    const newTasks = allTasks.concat(newTask)
+    const newTasks = sortScheduledTasks(allTasks.concat(newTask), "desc")
 
     await window.electronAPI.saveTasks(newTasks)
 
