@@ -2,7 +2,9 @@ import path from "path"
 import {app} from "electron"
 import fs from "fs-extra"
 
-import type {DayItem, ExportTaskData, StoreSchema, Task, Tag} from "../types.js"
+import type {DayItem, ExportTaskData, StoreSchema, Tag, Task} from "../types.js"
+
+import {deepMerge} from "./deep-merge.js"
 
 export class StorageManager {
   private configDir: string
@@ -12,6 +14,7 @@ export class StorageManager {
   private tasksCache: Task[] = []
   private daysCache: DayItem[] = []
   private tagsCache: Tag[] = []
+  private settingsCache: Partial<StoreSchema["settings"]> | null = null
 
   constructor() {
     this.configDir = path.join(app.getPath("home"), ".config", "daily")
@@ -23,10 +26,7 @@ export class StorageManager {
     await fs.ensureDir(this.configDir)
 
     if (!(await fs.pathExists(this.configPath))) {
-      const defaultConfig: StoreSchema["settings"] = {
-        theme: "night",
-        sidebarCollapsed: false,
-      }
+      const defaultConfig: Partial<StoreSchema["settings"]> = {}
       await fs.writeJson(this.configPath, defaultConfig, {spaces: 2})
     }
 
@@ -45,38 +45,42 @@ export class StorageManager {
       this.tasksCache = Array.isArray(data.tasks) ? [...data.tasks] : []
       this.daysCache = Array.isArray(data.days) ? [...data.days] : []
       this.tagsCache = Array.isArray(data.tags) ? [...data.tags] : []
-
+      this.settingsCache = await fs.readJson(this.configPath)
     } catch (err) {
       console.warn("⚠️ Failed to load data from disk, resetting:", err)
 
       this.tasksCache = []
       this.daysCache = []
       this.tagsCache = []
+      this.settingsCache = {}
 
       await fs.writeJson(this.dataPath, {tasks: [], days: [], tags: []}, {spaces: 2})
+      await fs.writeJson(this.configPath, {}, {spaces: 2})
     }
   }
 
-  async getSettings(): Promise<StoreSchema["settings"]> {
-    try {
-      return await fs.readJson(this.configPath)
-    } catch {
-      const fallback: StoreSchema["settings"] = {
-        theme: "night",
-        sidebarCollapsed: false,
+  async getSettings(): Promise<Partial<StoreSchema["settings"]>> {
+    if (!this.settingsCache) {
+      try {
+        this.settingsCache = await fs.readJson(this.configPath)
+      } catch (err) {
+        console.error("Failed to load settings:", err)
+        this.settingsCache = {}
+        await fs.writeJson(this.configPath, this.settingsCache, {spaces: 2})
       }
-      await fs.writeJson(this.configPath, fallback, {spaces: 2})
-      return fallback
     }
+
+    return this.settingsCache as Partial<StoreSchema["settings"]>
   }
 
   async saveSettings(newSettings: Partial<StoreSchema["settings"]>): Promise<void> {
     const current = await this.getSettings()
-    const merged = {...current, ...newSettings}
+    const merged = deepMerge(current, newSettings)
+    this.settingsCache = merged
     await fs.writeJson(this.configPath, merged, {spaces: 2})
   }
 
-  loadTasks(): Task[] {
+  async loadTasks(): Promise<Task[]> {
     return [...this.tasksCache]
   }
 
@@ -85,7 +89,7 @@ export class StorageManager {
     await this.writeDataFile()
   }
 
-  loadDays(): DayItem[] {
+  async loadDays(): Promise<DayItem[]> {
     return [...this.daysCache]
   }
 
@@ -94,7 +98,7 @@ export class StorageManager {
     await this.writeDataFile()
   }
 
-  loadTags(): Tag[] {
+  async loadTags(): Promise<Tag[]> {
     return [...this.tagsCache]
   }
 

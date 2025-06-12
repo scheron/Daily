@@ -1,11 +1,16 @@
 import type {ISODate} from "./date"
 
 export type Settings = {
-  theme: string
-  preferredLightTheme: string
-  preferredDarkTheme: string
-  isSystemThemeEnabled: boolean
-  sidebarCollapsed: boolean
+  themes: {
+    use_system: boolean
+    preferred_light: string
+    preferred_dark: string
+    current: string
+  }
+
+  sidebar: {
+    collapsed: boolean
+  }
 }
 
 export type ExportDayData = {

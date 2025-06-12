@@ -1,5 +1,5 @@
 import {computed, ref, watch} from "vue"
-import {useElectronStore} from "@/composables/useElectronStore"
+import {useSettingsStore} from "@/composables/useSettingsStore"
 import * as _themes from "@/constants/themes"
 import {defineStore} from "pinia"
 
@@ -7,74 +7,61 @@ import type {Theme} from "@/types/theme"
 
 export const useThemeStore = defineStore("theme", () => {
   const themes = ref<Theme[]>(Object.values(_themes))
-  const currentThemeId = useElectronStore<"theme", Theme["id"]>("theme", themes.value[8].id)
-  const preferredLightThemeId = useElectronStore<"preferredLightTheme", Theme["id"]>(
-    "preferredLightTheme",
-    themes.value.find((t) => t.type === "light")?.id || "github-light",
-  )
-  const preferredDarkThemeId = useElectronStore<"preferredDarkTheme", Theme["id"]>(
-    "preferredDarkTheme",
-    themes.value.find((t) => t.type === "dark")?.id || "github-dark",
-  )
-  const isSystemThemeEnabled = useElectronStore<"isSystemThemeEnabled", boolean>("isSystemThemeEnabled", false)
+
+  const currentThemeId = useSettingsStore("themes.current", themes.value[8].id)
+  const preferredLightThemeId = useSettingsStore("themes.preferred_light", "aurora-light")
+  const preferredDarkThemeId = useSettingsStore("themes.preferred_dark", "aurora")
+  const isSystemThemeEnabled = useSettingsStore("themes.use_system", false)
 
   const currentTheme = computed<Theme>(() => themes.value.find(({id}) => id === currentThemeId.value) ?? themes.value[0])
-  const preferredLightTheme = computed<Theme>(
-    () => themes.value.find(({id}) => id === preferredLightThemeId.value) ?? themes.value.find((t) => t.type === "light")!,
-  )
-  const preferredDarkTheme = computed<Theme>(
-    () => themes.value.find(({id}) => id === preferredDarkThemeId.value) ?? themes.value.find((t) => t.type === "dark")!,
-  )
+  const preferredLightTheme = computed<Theme | null>(() => themes.value.find(({id}) => id === preferredLightThemeId.value) ?? null)
+  const preferredDarkTheme = computed<Theme | null>(() => themes.value.find(({id}) => id === preferredDarkThemeId.value) ?? null)
 
-  function setTheme(themeId: Theme["id"]) {
+  function setCurrentTheme(themeId: Theme["id"]) {
     currentThemeId.value = themeId
-    isSystemThemeEnabled.value = false
   }
 
-  function setPreferredLightTheme(themeId: Theme["id"]) {
+  function setPreferredTheme(type: "light" | "dark", themeId: Theme["id"] | null) {
+    if (!themeId) return
+
     const theme = themes.value.find(({id}) => id === themeId)
-    if (theme && theme.type === "light") {
+    if (!theme) return
+
+    if (type === "light") {
       preferredLightThemeId.value = themeId
-      if (isSystemThemeEnabled.value && !window.matchMedia("(prefers-color-scheme: dark)").matches) {
-        setTheme(themeId)
-      }
-    }
-  }
-
-  function setPreferredDarkTheme(themeId: Theme["id"]) {
-    const theme = themes.value.find(({id}) => id === themeId)
-    if (theme && theme.type === "dark") {
+      if (isSystemThemeEnabled.value && !isCurrentSystemDark()) setCurrentTheme(themeId)
+    } else {
       preferredDarkThemeId.value = themeId
-      if (isSystemThemeEnabled.value && window.matchMedia("(prefers-color-scheme: dark)").matches) {
-        setTheme(themeId)
-      }
+      if (isSystemThemeEnabled.value && isCurrentSystemDark()) setCurrentTheme(themeId)
     }
   }
 
-  function applyTheme(theme: Theme) {
-    const root = document.documentElement
-
-    root.classList.remove(...themes.value.map((t) => t.id))
-    root.classList.add(theme.id)
-
-    Object.entries(theme.colorScheme).forEach(([key, value]) => {
-      root.style.setProperty(`--c-${key}`, value)
-    })
+  function isCurrentSystemDark() {
+    return window.matchMedia("(prefers-color-scheme: dark)").matches
   }
 
-  function toggleSystemTheme() {
-    isSystemThemeEnabled.value = !isSystemThemeEnabled.value
-    if (isSystemThemeEnabled.value) {
-      applySystemTheme()
-    }
+  function toggleSystemTheme(value?: boolean) {
+    isSystemThemeEnabled.value = value ?? !isSystemThemeEnabled.value
+    if (isSystemThemeEnabled.value) applySystemTheme()
   }
 
   function applySystemTheme() {
-    if (window.matchMedia("(prefers-color-scheme: dark)").matches) currentThemeId.value = preferredDarkTheme.value.id
-    else currentThemeId.value = preferredLightTheme.value.id
+    if (isCurrentSystemDark()) setCurrentTheme(preferredDarkTheme.value?.id ?? themes.value[0].id)
+    else setCurrentTheme(preferredLightTheme.value?.id ?? themes.value[0].id)
   }
 
-  watch(currentTheme, applyTheme, {immediate: true})
+  watch(
+    currentTheme,
+    (theme) => {
+      const root = document.documentElement
+
+      root.classList.remove(...themes.value.map((t) => t.id))
+      root.classList.add(theme.id)
+
+      Object.entries(theme.colorScheme).forEach(([key, value]) => root.style.setProperty(`--c-${key}`, value))
+    },
+    {immediate: true},
+  )
 
   window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
     if (isSystemThemeEnabled.value) applySystemTheme()
@@ -82,13 +69,13 @@ export const useThemeStore = defineStore("theme", () => {
 
   return {
     currentTheme,
+    isSystemThemeEnabled,
     preferredLightTheme,
     preferredDarkTheme,
     themes,
-    isSystemThemeEnabled,
-    setTheme,
-    setPreferredLightTheme,
-    setPreferredDarkTheme,
+
+    setCurrentTheme,
+    setPreferredTheme,
     toggleSystemTheme,
   }
 })

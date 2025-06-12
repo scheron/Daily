@@ -1,10 +1,10 @@
 import {ref} from "vue"
 import {useDevice} from "@/composables/useDevice"
-import {useElectronStore} from "@/composables/useElectronStore"
+import {useSettingsStore} from "@/composables/useSettingsStore"
 import {defineStore} from "pinia"
 
 export const useUIStore = defineStore("ui", () => {
-  const isSidebarCollapsed = useElectronStore("sidebarCollapsed", false)
+  const isSidebarCollapsed = useSettingsStore("sidebar.collapsed", false)
   const {isDesktop} = useDevice()
 
   const isExportTaskOpen = ref(false)

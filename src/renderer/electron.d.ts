@@ -15,7 +15,7 @@ export default interface ElectronApi {
     isLinux: () => boolean
   }
 
-  getSettings: () => Promise<Settings>
+  getSettings: () => Promise<Partial<Settings>>
   saveSettings: (settings: Partial<Settings>) => Promise<void>
 
   loadTasks: () => Promise<Task[]>

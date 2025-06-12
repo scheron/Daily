@@ -11,22 +11,19 @@ const themeStore = useThemeStore()
 const lightThemes = computed(() => themeStore.themes.filter((theme) => theme.type === "light"))
 const darkThemes = computed(() => themeStore.themes.filter((theme) => theme.type === "dark"))
 
-function setTheme(themeId: string) {
-  themeStore.setTheme(themeId)
+function setCurrentTheme(themeId: string) {
+  themeStore.setCurrentTheme(themeId)
+  themeStore.toggleSystemTheme(false)
 }
 
 function setPreferredLightTheme(event: Event) {
   const select = event.target as HTMLSelectElement
-  themeStore.setPreferredLightTheme(select.value)
+  themeStore.setPreferredTheme("light", select.value)
 }
 
 function setPreferredDarkTheme(event: Event) {
   const select = event.target as HTMLSelectElement
-  themeStore.setPreferredDarkTheme(select.value)
-}
-
-function toggleSystemTheme() {
-  themeStore.toggleSystemTheme()
+  themeStore.setPreferredTheme("dark", select.value)
 }
 </script>
 
@@ -44,8 +41,8 @@ function toggleSystemTheme() {
           :theme="theme"
           :system-enabled="Boolean(themeStore.isSystemThemeEnabled)"
           :selected="theme.id === themeStore.currentTheme.id"
-          :preferred="theme.id === themeStore.preferredLightTheme.id"
-          @click="setTheme(theme.id)"
+          :preferred="theme.id === themeStore.preferredLightTheme?.id"
+          @click="setCurrentTheme(theme.id)"
         />
       </div>
     </div>
@@ -62,8 +59,8 @@ function toggleSystemTheme() {
           :theme="theme"
           :system-enabled="Boolean(themeStore.isSystemThemeEnabled)"
           :selected="theme.id === themeStore.currentTheme.id"
-          :preferred="theme.id === themeStore.preferredDarkTheme.id"
-          @click="setTheme(theme.id)"
+          :preferred="theme.id === themeStore.preferredDarkTheme?.id"
+          @click="setCurrentTheme(theme.id)"
         />
       </div>
     </div>
@@ -75,7 +72,7 @@ function toggleSystemTheme() {
           'border-accent border': themeStore.isSystemThemeEnabled,
           'border-base-300 border': !themeStore.isSystemThemeEnabled,
         }"
-        @click="toggleSystemTheme"
+        @click="themeStore.toggleSystemTheme()"
       >
         <BaseIcon name="monitor" class="size-4" />
         {{ themeStore.isSystemThemeEnabled ? "System Sync Enabled" : "Sync with System Theme" }}
@@ -89,7 +86,7 @@ function toggleSystemTheme() {
           </div>
           <select
             class="text-base-content bg-base-100 border-base-300 hover:border-accent focus:border-accent w-full rounded-md border px-2 py-1.5 text-sm transition-colors outline-none select-none"
-            :value="themeStore.preferredLightTheme.id"
+            :value="themeStore.preferredLightTheme?.id"
             @change="setPreferredLightTheme"
           >
             <option v-for="theme in lightThemes" :key="theme.id" :value="theme.id">
@@ -105,7 +102,7 @@ function toggleSystemTheme() {
           </div>
           <select
             class="text-base-content bg-base-100 border-base-300 hover:border-accent focus:border-accent w-full rounded-md border px-2 py-1.5 text-sm transition-colors outline-none select-none"
-            :value="themeStore.preferredDarkTheme.id"
+            :value="themeStore.preferredDarkTheme?.id"
             @change="setPreferredDarkTheme"
           >
             <option v-for="theme in darkThemes" :key="theme.id" :value="theme.id">

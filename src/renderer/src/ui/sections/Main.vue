@@ -28,7 +28,7 @@ const {isMobile} = useDevice()
   <main class="bg-base-100 flex-1" :style="{width: contentWidth + 'px'}">
     <div class="border-base-300 h-header flex items-center justify-between border-b px-4 py-2" style="-webkit-app-region: drag">
       <div class="flex items-center gap-2">
-        <BaseButton v-if="isMobile" variant="ghost" icon="sidebar" class="pl-16" style="-webkit-app-region: no-drag" @click="uiStore.toggleSidebarCollapse()" />
+        <BaseButton v-if="isMobile" variant="ghost" icon="sidebar" class="ml-16" style="-webkit-app-region: no-drag" @click="uiStore.toggleSidebarCollapse()" />
         <DayTitle />
       </div>
 

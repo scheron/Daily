@@ -42,8 +42,15 @@ export type Day = {
 }
 
 export type Settings = {
-  theme: string
-  sidebarCollapsed: boolean
+  themes: {
+    current: string
+    preferred_light: string
+    preferred_dark: string
+    use_system: boolean
+  }
+  sidebar: {
+    collapsed: boolean
+  }
 }
 
 export type StoreSchema = {

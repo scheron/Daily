@@ -20,11 +20,11 @@ export function setupStorageIPC(storage: StorageManager): void {
   ipcMain.handle("load-tags", () => storage.loadTags())
   ipcMain.handle("save-tags", (_e, tags: Tag[]) => storage.saveTags(tags))
 
-  ipcMain.handle("load-all-data", () => {
+  ipcMain.handle("load-all-data", async () => {
     const startTime = Date.now()
-    const tasks = storage.loadTasks()
-    const days = storage.loadDays()
-    const tags = storage.loadTags()
+    const tasks = await storage.loadTasks()
+    const days = await storage.loadDays()
+    const tags = await storage.loadTags()
     const endTime = Date.now()
 
     console.log(`🚀 load-all-data completed in ${endTime - startTime}ms (${tasks.length} tasks, ${days.length} days, ${tags.length} tags)`)
