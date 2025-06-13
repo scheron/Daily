@@ -1,55 +1,58 @@
 {
-   "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
-   "appId": "com.dailyapp.daily",
-   "productName": "Daily",
-   "asar": false,
-   "copyright": "Copyright © 2025 Infected by JS",
-   "directories": {
-      "buildResources": "resources",
-      "output": "dist"
-   },
-   "files": [
-      { "filter": [ "**/*" ], "from": "build/main", "to": "main" },
-      { "filter": [ "**/*" ], "from": "build/renderer", "to": "renderer" },
-      { "filter": [ "**/*" ], "from": "src/main/static", "to": "static" },
-      "!build",
-      "!dist",
-      "!scripts",
-      "!src",
-      "!*.md",
-      "!.git*",
-      "!.DS_Store"
-   ],
-   "linux": {
-      "artifactName": "${productName}-Linux-${version}.${ext}",
-      "target": [ "AppImage" ] 
-   },
-   "mac": {
-      "artifactName": "${productName}-Mac-${version}-Installer.${ext}",
-      "category": "public.app-category.productivity",
-      "gatekeeperAssess": false,
-      "hardenedRuntime": true,
-      "icon": "icon.icns",
-      "notarize": false,
-      "target": [ { "arch": [ "arm64" ], "target": "dmg" } ]
-   },
-   "win": {
-      "artifactName": "${productName}-Windows-${version}-Setup.${ext}",
-      "icon": "icon.ico",
-      "target": [ { "arch": [ "x64" ], "target": "nsis" } ],
-      "verifyUpdateCodeSignature": false
-   },
-   "nsis": {
-      "allowElevation": true,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "deleteAppDataOnUninstall": false,
-      "installerIcon": "icon.ico",
-      "oneClick": false,
-      "perMachine": false,
-      "shortcutName": "Daily",
-      "uninstallerIcon": "icon.ico"
-   },
-   "publish": null
+  "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
+  "appId": "com.dailyapp.daily",
+  "productName": "Daily",
+  "asar": true,
+  "copyright": "Copyright © 2025 Infected by JS",
+  "directories": {
+    "buildResources": "resources",
+    "output": "dist"
+  },
+  "afterPack": "scripts/afterPack-mac.js",
+  "files": [
+    {"filter": ["**/*"], "from": "build/main", "to": "main"},
+    {"filter": ["**/*"], "from": "build/renderer", "to": "renderer"},
+    {"filter": ["**/*"], "from": "src/main/static", "to": "static"},
+    {"filter": ["**/*"], "from": "resources", "to": "."},
+    "!build",
+    "!dist",
+    "!scripts",
+    "!src",
+    "!*.md",
+    "!.git*",
+    "!.DS_Store"
+  ],
+  "linux": {
+    "artifactName": "${productName}-${version}-linux.${ext}",
+    "target": ["AppImage"]
+  },
+  "mac": {
+    "artifactName": "${productName}-${version}-mac.${ext}",
+    "category": "public.app-category.productivity",
+    "hardenedRuntime": true,
+    "gatekeeperAssess": true,
+    "identity": null,
+    "icon": "icon.icns",
+    "notarize": true,
+    "target": [{"target": "dmg", "arch": ["arm64"]}]
+  },
+  "win": {
+    "artifactName": "${productName}-${version}-win.${ext}",
+    "icon": "icon.ico",
+    "target": [{"arch": ["x64"], "target": "nsis"}],
+    "verifyUpdateCodeSignature": false
+  },
+  "nsis": {
+    "allowElevation": true,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "deleteAppDataOnUninstall": false,
+    "installerIcon": "icon.ico",
+    "oneClick": false,
+    "perMachine": false,
+    "shortcutName": "Daily",
+    "uninstallerIcon": "icon.ico"
+  },
+  "publish": null
 }

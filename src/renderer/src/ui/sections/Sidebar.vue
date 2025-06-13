@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {useDevice} from "@/composables/useDevice"
 import {useTasksStore} from "@/stores/tasks.store"
 import {useUIStore} from "@/stores/ui.store"
 import {toFullDate} from "@/utils/date"
@@ -20,12 +21,13 @@ defineProps<{
 
 const uiStore = useUIStore()
 const tasksStore = useTasksStore()
+const {isMacOS} = useDevice()
 </script>
 
 <template>
   <aside class="border-base-300 bg-base-100 w-sidebar border-r">
-    <div class="border-base-300 h-header flex items-center justify-between border-b pr-4 pl-4 select-none" style="-webkit-app-region: drag">
-      <div class="text-accent flex flex-1 pl-16 items-center gap-2">
+    <div class="border-base-300 h-header flex items-center justify-between border-b px-4 select-none" style="-webkit-app-region: drag">
+      <div class="text-accent flex flex-1 items-center gap-2" :class="{'pl-16': isMacOS}">
         <Logo class="h-5" />
         <h2 class="font-mono text-xl font-bold">Daily</h2>
       </div>

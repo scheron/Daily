@@ -1,14 +1,15 @@
 import {app, dialog} from "electron"
 
 import type {BrowserWindow, MenuItemConstructorOptions} from "electron"
+import {checkForUpdate} from "../services/updater.js"
 
 export function createMacMenu(mainWindow: BrowserWindow): MenuItemConstructorOptions[] {
   return [
     {
-      label: "Daily",
+      label: app.name,
       submenu: [
         {
-          label: "About",
+          label: "About Daily",
           click: () => {
             dialog.showMessageBox(mainWindow, {
               type: "info",
@@ -19,12 +20,14 @@ export function createMacMenu(mainWindow: BrowserWindow): MenuItemConstructorOpt
             })
           },
         },
+        {
+          label: "Check for Updates...",
+          click: () => checkForUpdate(mainWindow, true),
+        },
         {type: "separator"},
         {role: "hide"},
         {role: "hideOthers"},
         {role: "unhide"},
-        {type: "separator"},
-        {role: "services"},
         {type: "separator"},
         {role: "quit"},
       ],
@@ -43,7 +46,8 @@ export function createMacMenu(mainWindow: BrowserWindow): MenuItemConstructorOpt
           click: () => mainWindow.webContents.send("export-data"),
         },
         {type: "separator"},
-        ...(process.env.NODE_ENV === "development" ? [{role: "toggleDevTools" as const}] : []),
+        // ...(process.env.NODE_ENV === "development" ? [{role: "toggleDevTools" as const}] : []),
+        {role: "toggleDevTools"},
       ],
     },
     {

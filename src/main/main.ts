@@ -10,6 +10,7 @@ import {setupMainWindowIPC} from "./ipc/window.js"
 import {createMenu} from "./menu/menu.js"
 import {handleDeepLink, setupDeepLinks} from "./services/deep-links.js"
 import {StorageManager} from "./services/storage-manager.js"
+import {setupUpdateManager} from "./services/updater.js"
 import {createMainWindow} from "./windows/main-window.js"
 import {createSplashWindow} from "./windows/splash-window.js"
 
@@ -59,7 +60,7 @@ app.whenReady().then(async () => {
       const extension = path.extname(filePath).slice(1)
       const mime = getMimeType(extension)
 
-      return new Response(data, {headers: {"Content-Type": mime}})
+      return new Response(data as any, {headers: {"Content-Type": mime}})
     } catch (e) {
       console.error("❌ Failed to load asset:", filePath, e)
       return new Response("Not Found", {status: 404})
@@ -86,6 +87,7 @@ app.whenReady().then(async () => {
   setupMenuIPC(mainWindow)
   createMenu(mainWindow)
   setupDeepLinks(mainWindow)
+  setupUpdateManager(mainWindow)
 
   mainWindow.once("ready-to-show", async () => {
     await sleep(1000)
@@ -143,4 +145,3 @@ app.on("window-all-closed", () => {
 function getIconPath(): string {
   return process.env.NODE_ENV === "development" ? join(__dirname, "static", "icon.png") : join(app.getAppPath(), "static", "icon.png")
 }
-

@@ -19,6 +19,7 @@ export function useSettingsStore<K extends SettingsKey, T = any>(key: K, default
     try {
       const settings = await window.electronAPI.getSettings()
       const result = getObjectValueFromPath<any>(settings, key)
+      console.log("🔍 Settings:", result)
       return result ?? defaultValue as T
     } catch {
       return defaultValue as T

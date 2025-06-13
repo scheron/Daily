@@ -40,21 +40,6 @@ export const useTagsStore = defineStore("tags", () => {
     return true
   }
 
-  async function defineInitialTags() {
-    const initialTags = [
-      {name: "🔥 New", color: "#F86624"},
-      {name: "🎓 Education", color: "#00B8A9"},
-      {name: "💰 Finance", color: "#615FFF"},
-    ]
-
-    for (const tag of initialTags) {
-      const existingTag = tags.value.find((t) => t.name === tag.name)
-      if (!existingTag)  await createTag(tag.name, tag.color)
-    }
-  }
-
-  defineInitialTags()
-
   return {
     isTagsLoaded,
     tags,
