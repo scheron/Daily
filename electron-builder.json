@@ -1,56 +1,55 @@
 {
-  "appId": "com.dailyapp.daily",
-  "productName": "Daily",
-  "copyright": "Copyright © 2025 Infected by JS",
-  "directories": {
-    "buildResources": "resources",
-    "output": "dist"
-  },
-  "artifactName": "${productName}-${arch}.${ext}",
-  "nsis": {
-    "oneClick": false,
-    "perMachine": false,
-    "allowElevation": true,
-    "allowToChangeInstallationDirectory": true,
-    "installerIcon": "icon.ico",
-    "uninstallerIcon": "icon.ico",
-    "createDesktopShortcut": true,
-    "createStartMenuShortcut": true,
-    "shortcutName": "Daily"
-  },
-  "mac": {
-    "icon": "icon.icns",
-    "category": "public.app-category.productivity",
-    "target": [
-      {
-        "target": "dmg",
-        "arch": ["arm64"]
-      }
-    ],
-    "hardenedRuntime": true,
-    "gatekeeperAssess": false,
-    "notarize": false
-  },
-  "win": {
-    "icon": "icon.ico",
-    "target": [
-      {
-        "target": "nsis",
-        "arch": ["x64"]
-      }
-    ],
-    "verifyUpdateCodeSignature": false
-  },
-  "files": [
-    {"from": "build/main", "to": "main", "filter": ["**/*"]},
-    {"from": "build/renderer", "to": "renderer", "filter": ["**/*"]},
-    {"from": "src/main/static", "to": "static", "filter": ["**/*"]},
-    "!build",
-    "!dist",
-    "!scripts",
-    "!src",
-    "!*.md",
-    "!.git*",
-    "!.DS_Store"
-  ]
+   "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
+   "appId": "com.dailyapp.daily",
+   "productName": "Daily",
+   "asar": false,
+   "copyright": "Copyright © 2025 Infected by JS",
+   "directories": {
+      "buildResources": "resources",
+      "output": "dist"
+   },
+   "files": [
+      { "filter": [ "**/*" ], "from": "build/main", "to": "main" },
+      { "filter": [ "**/*" ], "from": "build/renderer", "to": "renderer" },
+      { "filter": [ "**/*" ], "from": "src/main/static", "to": "static" },
+      "!build",
+      "!dist",
+      "!scripts",
+      "!src",
+      "!*.md",
+      "!.git*",
+      "!.DS_Store"
+   ],
+   "linux": {
+      "artifactName": "${productName}-Linux-${version}.${ext}",
+      "target": [ "AppImage" ] 
+   },
+   "mac": {
+      "artifactName": "${productName}-Mac-${version}-Installer.${ext}",
+      "category": "public.app-category.productivity",
+      "gatekeeperAssess": false,
+      "hardenedRuntime": true,
+      "icon": "icon.icns",
+      "notarize": false,
+      "target": [ { "arch": [ "arm64" ], "target": "dmg" } ]
+   },
+   "win": {
+      "artifactName": "${productName}-Windows-${version}-Setup.${ext}",
+      "icon": "icon.ico",
+      "target": [ { "arch": [ "x64" ], "target": "nsis" } ],
+      "verifyUpdateCodeSignature": false
+   },
+   "nsis": {
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "deleteAppDataOnUninstall": false,
+      "installerIcon": "icon.ico",
+      "oneClick": false,
+      "perMachine": false,
+      "shortcutName": "Daily",
+      "uninstallerIcon": "icon.ico"
+   },
+   "publish": null
 }

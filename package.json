@@ -5,12 +5,32 @@
   "description": "Daily - A minimal daily tasks management app",
   "type": "module",
   "main": "main/main.js",
-  "author": "infected by js",
   "license": "MIT",
+  "keywords": [
+    "daily",
+    "daily-app",
+    "daily-tasks",
+    "tasks-management",
+    "todos",
+    "productivity"
+  ],
   "engines": {
-    "node": ">=22.5.0"
+    "node": ">=22.5.0",
+    "npm": ">=10.9.2",
+    "pnpm": ">=10.12.1"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron"
+    ]
+  },
+  "repository": "https://github.com/scheron/release-electron",
+  "author": {
+    "name": "Infected by JS",
+    "url": "https://github.com/scheron"
   },
   "scripts": {
+    "release": "node scripts/release.js",
     "dev": "node scripts/dev-server.js",
     "build": "NODE_ENV=production node scripts/build.js && electron-builder",
     "build:win": "NODE_ENV=production node scripts/build.js && electron-builder --win",
