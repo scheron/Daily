@@ -1,8 +1,8 @@
 document.addEventListener("DOMContentLoaded", () => {
   const platformLinks = {
-    mac: "https://github.com/scheron/Daily/releases/latest/download/Daily-macOS.dmg",
-    win: "https://github.com/scheron/Daily/releases/latest/download/Daily-Windows.exe",
-    linux: "https://github.com/scheron/Daily/releases/latest/download/Daily-Linux.AppImage",
+    mac: "https://github.com/scheron/Daily?tab=readme-ov-file#-installation",
+    win: "https://github.com/scheron/Daily?tab=readme-ov-file#-installation",
+    linux: "https://github.com/scheron/Daily?tab=readme-ov-file#-installation",
   }
 
   function detectPlatform() {
