@@ -73,8 +73,7 @@ const BRANCH = "main"
     await run(`git add package.json CHANGELOG.md`)
     await run(`git commit -m "release: v${nextVersion}"`)
 
-    const releaseBody = await fs.readFile(changelogPath, "utf8")
-    await run(`git tag -a v${nextVersion} -m "${releaseBody.replace(/"/g, '\"')}"`)
+    await run(`git tag v${nextVersion}`)
 
     await Promise.all([run(`git push origin ${BRANCH}`), run(`git push origin v${nextVersion}`)])
 
