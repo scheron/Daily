@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.2.1 - 2025-06-16
+
+### Bug Fixes
+- Fixed the issue where the app wouldn't apply the system theme on launch
+
+
 ## v0.2.0 - 2025-06-14
 
 ### First Public Release
