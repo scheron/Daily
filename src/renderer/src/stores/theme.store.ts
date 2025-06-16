@@ -1,4 +1,5 @@
 import {computed, ref, watch} from "vue"
+import {watchOnce} from "@vueuse/core"
 import {useSettingsStore} from "@/composables/useSettingsStore"
 import * as _themes from "@/constants/themes"
 import {defineStore} from "pinia"
@@ -62,6 +63,8 @@ export const useThemeStore = defineStore("theme", () => {
     },
     {immediate: true},
   )
+
+  watchOnce(isSystemThemeEnabled, (value) => value && applySystemTheme())
 
   window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
     if (isSystemThemeEnabled.value) applySystemTheme()
