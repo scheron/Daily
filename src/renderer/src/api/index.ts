@@ -91,7 +91,7 @@ function defineApi(): Storage {
     const dayItem = allDays.find(({id}) => id === dayId)
 
     if (!dayItem) {
-      const newDay: DayItem = {id: dayId, date: scheduledDate, subtitle: ""}
+      const newDay: DayItem = {id: dayId, date: scheduledDate, }
       const newDays = allDays.concat(newDay)
 
       await window.electronAPI.saveDays(newDays)
@@ -142,7 +142,6 @@ function defineApi(): Storage {
         const newDay: DayItem = {
           id: dayId,
           date: newDate,
-          subtitle: "",
         }
 
         await window.electronAPI.saveDays(allDays.concat(newDay))
@@ -177,31 +176,6 @@ function defineApi(): Storage {
     }
 
     return true
-  }
-
-  /**
-   * Update a day in the database
-   * @param date - The date formatted as YYYY-MM-DD of the day to update
-   * @param updates - The updates to apply to the day
-   * @returns The day that matches the query
-   */
-  async function updateDay(date: string, updates: {subtitle?: string}): Promise<Day | null> {
-    const allDays = await window.electronAPI.loadDays()
-
-    const dayId = date.replace(/-/g, "")
-    const idx = allDays.findIndex((d) => d.id === dayId)
-
-    if (idx < 0) {
-      const newDay: DayItem = {id: dayId, date, subtitle: updates.subtitle ?? ""}
-      const newDays = allDays.concat(newDay)
-      await window.electronAPI.saveDays(newDays)
-      return getDay(date)
-    }
-
-    allDays[idx].subtitle = updates.subtitle ?? allDays[idx].subtitle
-    await window.electronAPI.saveDays(allDays)
-
-    return getDay(date)
   }
 
   async function addTaskTags(taskId: Task["id"], ids: Tag["id"][]): Promise<Task | null> {
@@ -277,7 +251,6 @@ function defineApi(): Storage {
     createTask,
     updateTask,
     deleteTask,
-    updateDay,
 
     addTaskTags,
     removeTaskTags,

@@ -48,7 +48,6 @@ export function groupTasksByDay(params: GroupTasksByDayParams): Day[] {
     return {
       id: day.id,
       date: day.date,
-      subtitle: day.subtitle,
       countActive,
       countDone,
       tasks: sortedTasks,

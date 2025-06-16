@@ -62,7 +62,6 @@ export function prepareTasksForExport({fromDate, toDate, days}: {fromDate: strin
       const content = `---
 date: ${task.scheduled.date}
 time: ${task.scheduled.time}
-day_title: ${dayMap.get(date)?.subtitle || ""}
 status: ${status}
 ---
 

@@ -28,7 +28,6 @@ export type Task = {
 export type Day = {
   id: string
   date: ISODate
-  subtitle?: string
   tasks: Task[]
   /** Aggregated tags for the daily tasks */
   tags: Tag[]
@@ -44,5 +43,4 @@ export type Day = {
 export type DayItem = {
   id: string
   date: string
-  subtitle?: string
 }

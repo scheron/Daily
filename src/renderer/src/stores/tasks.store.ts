@@ -17,7 +17,7 @@ export const useTasksStore = defineStore("tasks", () => {
 
   const activeDayInfo = computed(() => {
     const day = days.value.find((day) => day.date === activeDay.value)
-    return day ? day : {date: activeDay.value, subtitle: ""}
+    return day ? day : {date: activeDay.value}
   })
 
   const dailyTasks = computed(() => {
@@ -108,14 +108,6 @@ export const useTasksStore = defineStore("tasks", () => {
     return false
   }
 
-  async function updateDayTitle(date: Day["date"], subtitle: Day["subtitle"]) {
-    const updatedDay = await API.updateDay(date, {subtitle})
-    if (!updatedDay) return false
-
-    days.value = updateDays(days.value, updatedDay)
-    return true
-  }
-
   async function revalidateTasks() {
     const dailyTasks = await API.getDays()
     days.value = dailyTasks
@@ -139,7 +131,6 @@ export const useTasksStore = defineStore("tasks", () => {
     createTask,
     updateTask,
     deleteTask,
-    updateDayTitle,
     restoreTask,
     revalidateTasks,
   }

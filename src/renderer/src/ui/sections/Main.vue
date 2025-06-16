@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import {computed} from "vue"
 import {useDevice} from "@/composables/useDevice"
+import {useTasksStore} from "@/stores/tasks.store"
 import {useUIStore} from "@/stores/ui.store"
+import {toFullDate} from "@/utils/date"
 
 import BaseAnimation from "@/ui/base/BaseAnimation.vue"
 import BaseButton from "@/ui/base/BaseButton.vue"
-import DayTitle from "@/ui/features/DayTitle"
 import TaskEditor from "@/ui/features/TaskEditor"
 import TasksList from "@/ui/features/TasksList"
 import Toolbar from "@/ui/features/Toolbar"
@@ -20,16 +22,29 @@ const emit = defineEmits<{
 }>()
 
 const uiStore = useUIStore()
+const tasksStore = useTasksStore()
 
 const {isMobile} = useDevice()
+
+const formattedDate = computed(() => toFullDate(tasksStore.activeDay ?? new Date()))
 </script>
 
 <template>
   <main class="bg-base-100 flex-1" :style="{width: contentWidth + 'px'}">
     <div class="border-base-300 h-header flex items-center justify-between border-b px-4 py-2" style="-webkit-app-region: drag">
       <div class="flex items-center gap-2">
-        <BaseButton v-if="isMobile" variant="ghost" icon="sidebar" class="ml-16" style="-webkit-app-region: no-drag" @click="uiStore.toggleSidebarCollapse()" />
-        <DayTitle />
+        <BaseButton
+          v-if="isMobile"
+          variant="ghost"
+          icon="sidebar"
+          class="ml-16"
+          style="-webkit-app-region: no-drag"
+          @click="uiStore.toggleSidebarCollapse()"
+        />
+
+        <h1 class="m-0 cursor-default truncate text-start text-lg font-bold">
+          {{ formattedDate }}
+        </h1>
       </div>
 
       <BaseButton

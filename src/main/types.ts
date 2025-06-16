@@ -28,13 +28,11 @@ export type Task = {
 export type DayItem = {
   id: string
   date: ISODate
-  subtitle: string
 }
 
 export type Day = {
   id: string
   date: ISODate
-  subtitle?: string
   tasks: Task[]
   tags: Tag[]
   countActive: number

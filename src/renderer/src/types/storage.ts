@@ -4,7 +4,6 @@ import type {Day, Tag, Task} from "./tasks"
 export interface Storage {
   getDays(params?: {from?: ISODate; to?: ISODate}): Promise<Day[]>
   getDay(date: ISODate): Promise<Day | null>
-  updateDay(date: ISODate, updates: {subtitle?: string}): Promise<Day | null>
 
   createTask(content: string, params: {date?: ISODate; time?: ISOTime; timezone?: Timezone; tags?: Tag[]}): Promise<Day>
   updateTask(id: Task["id"], updates: Partial<Omit<Task, "id" | "createdAt" | "updatedAt">>): Promise<Day | null>
