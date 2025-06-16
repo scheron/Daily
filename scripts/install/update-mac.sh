@@ -18,11 +18,27 @@ TEMP_DIR=$(mktemp -d)
 cd "$TEMP_DIR"
 
 LATEST_RELEASE=$(curl -s https://api.github.com/repos/scheron/Daily/releases/latest)
+LATEST_VERSION=$(echo "$LATEST_RELEASE" | grep -o '"tag_name": ".*"' | cut -d'"' -f4 | sed 's/^v//')
 DOWNLOAD_URL=$(echo "$LATEST_RELEASE" | grep -o '"browser_download_url": ".*mac.dmg"' | cut -d'"' -f4)
 
 if [ -z "$DOWNLOAD_URL" ]; then
   echo "${RED}❌ Could not find .dmg in latest release${NC}"
   exit 1
+fi
+
+if [ -f "$APP_PATH/Contents/Info.plist" ]; then
+  CURRENT_VERSION=$(defaults read "$APP_PATH/Contents/Info.plist" CFBundleShortVersionString)
+  echo "${GREEN}📱 Current version: $CURRENT_VERSION${NC}"
+  echo "${GREEN}📱 Latest version: $LATEST_VERSION${NC}"
+  
+  if [ "$CURRENT_VERSION" = "$LATEST_VERSION" ]; then
+    echo "${GREEN}✅ You already have the latest version installed!${NC}"
+    cd - > /dev/null
+    rm -rf "$TEMP_DIR"
+    exit 0
+  fi
+else
+  echo "${YELLOW}⚠️ No current version found - performing fresh install${NC}"
 fi
 
 echo "${GREEN}⬇️ Downloading latest version from GitHub...${NC}"
@@ -57,7 +73,6 @@ DMG_MOUNT=$(hdiutil attach daily.dmg | grep "/Volumes/" | cut -f 3-)
 
 if [ -z "$DMG_MOUNT" ]; then
   echo "${RED}❌ Failed to mount DMG${NC}"
-  # Restore from backup if it exists
   if [ -d "$BACKUP_PATH" ]; then
     echo "${YELLOW}🔄 Restoring from backup...${NC}"
     rm -rf "$APP_PATH"
