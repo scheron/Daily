@@ -6,6 +6,7 @@ import fs from "fs-extra"
 import {cleanupOrphanAssets, focusWindow, getMimeType, sleep} from "./helpers.js"
 import {setupMenuIPC} from "./ipc/menu.js"
 import {setupStorageIPC} from "./ipc/storage.js"
+import {setupUpdateIPC} from "./ipc/update.js"
 import {setupMainWindowIPC} from "./ipc/window.js"
 import {createMenu} from "./menu/menu.js"
 import {handleDeepLink, setupDeepLinks} from "./services/deep-links.js"
@@ -42,6 +43,7 @@ if (!gotLock) {
 }
 
 app.setName("Daily")
+
 if (process.platform === "darwin" && app.dock) {
   try {
     app.dock.setIcon(nativeImage.createFromPath(getIconPath()))
@@ -70,19 +72,24 @@ app.whenReady().then(async () => {
   splashWindow = createSplashWindow()
 
   storage = new StorageManager()
+
   try {
     await storage.init()
     await cleanupOrphanAssets(storage)
+
+    setupStorageIPC(storage)
+
     const info = await storage.getStorageInfo()
+
     console.log(`✅ Storage initialized: ${info.tasksCount} tasks, ${info.daysCount} days`)
   } catch (err) {
     console.error("❌ Failed to initialize storage:", err)
     app.quit()
     return
   }
-  setupStorageIPC(storage)
 
   mainWindow = createMainWindow()
+
   setupMainWindowIPC(mainWindow)
   setupMenuIPC(mainWindow)
   createMenu(mainWindow)
@@ -90,14 +97,13 @@ app.whenReady().then(async () => {
   setupUpdateManager(mainWindow)
 
   mainWindow.once("ready-to-show", async () => {
-    await sleep(1000)
-
     if (splashWindow) {
       splashWindow.close()
       splashWindow = null
     }
     mainWindow!.show()
     focusWindow(mainWindow!)
+    await setupUpdateIPC(mainWindow!)
     console.log("✅ Main window displayed")
   })
 
@@ -115,9 +121,8 @@ app.whenReady().then(async () => {
   })
 
   const urlArg = process.argv.find((arg) => arg.startsWith("daily://"))
-  if (urlArg) {
-    setTimeout(() => handleDeepLink(urlArg, mainWindow!), 1000)
-  }
+
+  if (urlArg) setTimeout(() => handleDeepLink(urlArg, mainWindow!), 1000)
 })
 
 app.on("activate", () => {
@@ -127,6 +132,7 @@ app.on("activate", () => {
     setupMenuIPC(mainWindow)
     createMenu(mainWindow)
     setupDeepLinks(mainWindow)
+
     mainWindow.once("ready-to-show", () => {
       mainWindow!.show()
       focusWindow(mainWindow!)

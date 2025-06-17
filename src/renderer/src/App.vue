@@ -16,6 +16,7 @@ import ExportTasksModal from "@/ui/modals/ExportTaskModal.vue"
 import Main from "@/ui/sections/Main.vue"
 import Sidebar from "@/ui/sections/Sidebar.vue"
 import SidebarMini from "@/ui/sections/SidebarMini.vue"
+import UpdateNotification from "@/ui/UpdateNotification.vue"
 
 const tasksStore = useTasksStore()
 const tagsStore = useTagsStore()
@@ -78,6 +79,8 @@ invoke(async () => {
     />
 
     <ExportTasksModal v-if="uiStore.isExportTaskOpen" :z-index="502" />
+
+    <UpdateNotification />
   </div>
 
   <IconsSprite />

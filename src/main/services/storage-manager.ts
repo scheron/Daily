@@ -1,13 +1,12 @@
-import { nanoid } from 'nanoid';
 import path from "path"
 import {app} from "electron"
 import fs from "fs-extra"
+import {nanoid} from "nanoid"
 
-// TODO: при создании удалять файлы которые не встречаются в tasks
 
 import type {DayItem, ExportTaskData, StoreSchema, Tag, Task} from "../types.js"
 
-import {deepMerge} from "./deep-merge.js"
+import {deepMerge} from "../helpers.js"
 
 export class StorageManager {
   configDir: string
@@ -151,7 +150,7 @@ export class StorageManager {
 
   async saveAsset(filename: string, data: Buffer): Promise<string> {
     await fs.ensureDir(this.assetsDir)
-    
+
     const ext = path.extname(filename)
     const uniqueFilename = `${nanoid()}${ext}`
     const filePath = path.join(this.assetsDir, uniqueFilename)
@@ -187,7 +186,7 @@ export class StorageManager {
     try {
       const configStat = await fs.stat(this.configPath)
       const dataStat = await fs.stat(this.dataPath)
-      
+
       let assetsSize = 0
       await fs.ensureDir(this.assetsDir)
       const files = await fs.readdir(this.assetsDir)

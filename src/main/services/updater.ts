@@ -9,9 +9,9 @@ const API_URL = `https://api.github.com/repos/${REPO}/releases/latest`
 let hasShownUpdatePrompt = false
 
 export function setupUpdateManager(window: BrowserWindow) {
-  if (app.isPackaged) {
-    checkForUpdate(window, false)
-  }
+  if (!app.isPackaged) return
+
+  checkForUpdate(window, false)
 }
 
 export function checkForUpdate(window: BrowserWindow, manual = true) {
@@ -72,6 +72,7 @@ export function checkForUpdate(window: BrowserWindow, manual = true) {
               })
               .then(({response}) => {
                 if (response === 0) shell.openExternal(REPO_URL)
+
               })
           }
         } catch (e: any) {

@@ -13,9 +13,16 @@ contextBridge.exposeInMainWorld("electronAPI", {
     isLinux: () => process.platform === "linux",
   },
 
+  /* === ASSETS === */
+  saveAsset: (filename: string, data: Buffer) => ipcRenderer.invoke("save-asset", filename, data),
+  getAssetPath: (filename: string) => ipcRenderer.invoke("get-asset-path", filename),
+  deleteAsset: (filename: string) => ipcRenderer.invoke("delete-asset", filename),
+
+  /* === SETTINGS === */
   getSettings: () => ipcRenderer.invoke("get-settings"),
   saveSettings: (settings: Partial<Settings>) => ipcRenderer.invoke("save-settings", settings),
 
+  /* === DATA === */
   loadTasks: () => ipcRenderer.invoke("load-tasks") as Promise<Task[]>,
   saveTasks: (tasks: Task[]) => ipcRenderer.invoke("save-tasks", tasks),
 
@@ -31,16 +38,27 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   getStorageInfo: () => ipcRenderer.invoke("get-storage-info"),
 
-  saveAsset: (filename: string, data: Buffer) => ipcRenderer.invoke("save-asset", filename, data),
-  getAssetPath: (filename: string) => ipcRenderer.invoke("get-asset-path", filename),
-  deleteAsset: (filename: string) => ipcRenderer.invoke("delete-asset", filename),
-
+  /* === MENU === */
   onMenuAction: (callback: (action: "new-task" | "open-settings" | "export-data") => void) => {
     ipcRenderer.on("new-task", () => callback("new-task"))
     ipcRenderer.on("open-settings", () => callback("open-settings"))
     ipcRenderer.on("export-data", () => callback("export-data"))
   },
 
-  onDeepLink: (callback: (url: string) => void) => ipcRenderer.on("deep-link", (_, url) => callback(url)),
+  /* === UPDATES === */
+  checkForUpdates: () => ipcRenderer.invoke("check-for-updates"),
+  downloadUpdate: () => ipcRenderer.invoke("download-update"),
+  installUpdate: () => ipcRenderer.invoke("install-update"),
+
+  onUpdateCheck: (callback: (hasUpdate: boolean, version: string | null) => void) => {
+    ipcRenderer.on("update-check", (_, hasUpdate, version) => callback(hasUpdate, version))
+  },
+  onUpdateDownloaded: (callback: (version: string) => void) => {
+    ipcRenderer.on("update-downloaded", (_, version) => callback(version))
+  },
+  onUpdateInstall: (callback: () => void) => {
+    ipcRenderer.on("update-install", () => callback())
+  },
+
   removeAllListeners: (channel: string) => ipcRenderer.removeAllListeners(channel),
 })
