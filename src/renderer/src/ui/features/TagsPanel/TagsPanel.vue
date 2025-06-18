@@ -24,7 +24,7 @@ async function deleteTag(id: string) {
 <template>
   <TagsForm v-if="isCreating" :tags="tagsStore.tags" @submit="tagsStore.createTag" @close="isCreating = false" />
 
-  <div v-else class="flex flex-col px-4 pb-6 pt-2 gap-2">
+  <div v-else class="flex flex-col px-4 gap-2">
     <BaseButton class="py- text-sm w-full" variant="outline" icon="plus" @click="isCreating = true">Create new tag</BaseButton>
 
     <div v-if="tags.length" class="flex flex-wrap gap-2 p-2 max-h-[200px] overflow-y-auto">
