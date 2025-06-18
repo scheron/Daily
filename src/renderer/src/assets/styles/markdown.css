@@ -7,7 +7,6 @@
   --base-text-weight-normal: 400;
   --base-text-weight-medium: 500;
   --base-text-weight-semibold: 600;
-  --fontStack-monospace: "DMMono-Regular", ui-monospace, monospace;
 
   --fgColor-accent: var(--color-accent);
 
@@ -39,7 +38,7 @@
   margin: 0;
   color: var(--fgColor-default);
   background-color: var(--bgColor-default);
-  font-family: var(--default-font-family);
+  font-family: var(--font-sans);
   font-size: inherit;
   line-height: 1.5;
   word-wrap: normal;
@@ -147,7 +146,7 @@
 .markdown kbd,
 .markdown pre,
 .markdown samp {
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 1em;
 }
 
@@ -287,7 +286,7 @@
 .markdown kbd {
   display: inline-block;
   padding: var(--base-size-1);
-  font: 11px var(--fontStack-monospace, ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace);
+  font: 11px var(--font-mono);
   line-height: 10px;
   color: var(--fgColor-default);
   vertical-align: middle;
@@ -392,14 +391,14 @@
 .markdown tt,
 .markdown code,
 .markdown samp {
-  font-family: var(--fontStack-monospace, ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace);
+  font-family: var(--font-mono);
   font-size: 0.85em;
 }
 
 .markdown pre {
   margin-top: 0;
   margin-bottom: 0;
-  font-family: var(--fontStack-monospace, ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace);
+  font-family: var(--font-mono);
   font-size: 0.85em;
   word-wrap: normal;
   background-color: var(--bgColor-neutral-muted);
@@ -422,7 +421,7 @@
 }
 
 .markdown code {
-  font-family: var(--fontStack-monospace, ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace);
+  font-family: var(--font-mono);
   padding: 0.2em 0.4em;
   margin: 0;
   font-size: 85%;
@@ -930,7 +929,7 @@
 }
 
 .markdown [type="checkbox"]:checked::after {
-  content: '';
+  content: "";
   position: absolute;
   left: 0.35em;
   top: 0.1em;
