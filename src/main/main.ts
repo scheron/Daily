@@ -1,15 +1,16 @@
-import path, {dirname, join} from "node:path"
+import {dirname, join} from "node:path"
 import {fileURLToPath} from "node:url"
 import {app, BrowserWindow, nativeImage, protocol, session} from "electron"
-import fs from "fs-extra"
 
-import {cleanupOrphanAssets, focusWindow, getMimeType, sleep} from "./helpers.js"
+import type {StorageManager} from "./types.js"
+
+import {cleanupOrphanAssets, focusWindow, sleep} from "./helpers.js"
 import {setupMenuIPC} from "./ipc/menu.js"
 import {setupStorageIPC} from "./ipc/storage.js"
 import {setupMainWindowIPC} from "./ipc/window.js"
 import {createMenu} from "./menu/menu.js"
 import {handleDeepLink, setupDeepLinks} from "./services/deep-links.js"
-import {StorageManager} from "./services/storage-manager.js"
+import {FileStorageManager} from "./services/storage-manager-v2.js"
 import {setupUpdateManager} from "./services/updater.js"
 import {createMainWindow} from "./windows/main-window.js"
 import {createSplashWindow} from "./windows/splash-window.js"
@@ -42,6 +43,7 @@ if (!gotLock) {
 }
 
 app.setName("Daily")
+
 if (process.platform === "darwin" && app.dock) {
   try {
     app.dock.setIcon(nativeImage.createFromPath(getIconPath()))
@@ -51,35 +53,19 @@ if (process.platform === "darwin" && app.dock) {
 }
 
 app.whenReady().then(async () => {
-  protocol.handle("safe-file", async (request) => {
-    const url = request.url.replace("safe-file://", "")
-    const filePath = path.join(storage.assetsDir, decodeURIComponent(url))
-
-    try {
-      const data = await fs.readFile(filePath)
-      const extension = path.extname(filePath).slice(1)
-      const mime = getMimeType(extension)
-
-      return new Response(data as any, {headers: {"Content-Type": mime}})
-    } catch (e) {
-      console.error("❌ Failed to load asset:", filePath, e)
-      return new Response("Not Found", {status: 404})
-    }
-  })
-
   splashWindow = createSplashWindow()
 
-  storage = new StorageManager()
+  storage = new FileStorageManager()
   try {
     await storage.init()
     await cleanupOrphanAssets(storage)
-    const info = await storage.getStorageInfo()
-    console.log(`✅ Storage initialized: ${info.tasksCount} tasks, ${info.daysCount} days`)
+    console.log(`✅ Storage initialized`)
   } catch (err) {
     console.error("❌ Failed to initialize storage:", err)
     app.quit()
     return
   }
+
   setupStorageIPC(storage)
 
   mainWindow = createMainWindow()
@@ -88,6 +74,11 @@ app.whenReady().then(async () => {
   createMenu(mainWindow)
   setupDeepLinks(mainWindow)
   setupUpdateManager(mainWindow)
+
+  protocol.handle("safe-file", async (request) => {
+    const url = request.url.replace("safe-file://", "")
+    return storage.getAssetResponse(url)
+  })
 
   mainWindow.once("ready-to-show", async () => {
     await sleep(1000)
@@ -122,11 +113,13 @@ app.whenReady().then(async () => {
 
 app.on("activate", () => {
   if (BrowserWindow.getAllWindows().length === 0) {
+
     mainWindow = createMainWindow()
     setupMainWindowIPC(mainWindow)
     setupMenuIPC(mainWindow)
     createMenu(mainWindow)
     setupDeepLinks(mainWindow)
+
     mainWindow.once("ready-to-show", () => {
       mainWindow!.show()
       focusWindow(mainWindow!)

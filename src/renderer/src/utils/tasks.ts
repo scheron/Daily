@@ -1,19 +1,21 @@
-import {DateTime} from "luxon"
+import { DateTime } from "luxon"
 
-import type {ISODate} from "@/types/date"
-import type {Day, DayItem, Tag, Task} from "@/types/tasks"
+import type { ISODate } from "@/types/date"
+import type { Day, Tag, Task } from "@/types/tasks"
 
-import {arrayRemoveDuplicates} from "./arrays"
+import { arrayRemoveDuplicates } from "./arrays"
 
 type GroupTasksByDayParams = {
   tasks: Task[]
-  days: DayItem[]
   tags: Tag[]
 }
 
-export function groupTasksByDay(params: GroupTasksByDayParams): Day[] {
-  const {tasks, days, tags} = params
 
+
+export function groupTasksByDay(params: GroupTasksByDayParams): Day[] {
+  const {tasks,  tags} = params
+
+  const taskDates = new Set<ISODate>()
   const tasksByDay = new Map<string, Task[]>()
   const tagsByDay = new Map<string, Tag[]>()
 
@@ -29,6 +31,7 @@ export function groupTasksByDay(params: GroupTasksByDayParams): Day[] {
 
     dayTasks.push(task)
     tasksByDay.set(taskDate, dayTasks)
+    taskDates.add(taskDate)
 
     const taskTags = task.tags.map(({id}) => tagsMap.get(id)).filter(Boolean) as Tag[]
 
@@ -38,16 +41,17 @@ export function groupTasksByDay(params: GroupTasksByDayParams): Day[] {
     tagsByDay.set(taskDate, newTags)
   }
 
-  return days.map((day) => {
-    const tasks = tasksByDay.get(day.date) || []
-    const tags = tagsByDay.get(day.date) || []
+  return Array.from(taskDates).map((date) => {
+    const tasks = tasksByDay.get(date) || []
+    const tags = tagsByDay.get(date) || []
     const sortedTasks = sortScheduledTasks(tasks, "desc")
     const countActive = sortedTasks.filter((task) => task.status === "active").length
     const countDone = sortedTasks.filter((task) => task.status === "done").length
 
+
     return {
-      id: day.id,
-      date: day.date,
+      id: date.replaceAll("-", ""),
+      date,
       countActive,
       countDone,
       tasks: sortedTasks,

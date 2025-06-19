@@ -1,6 +1,7 @@
 import type {ISODate, ISODateTime, ISOTime, Timezone} from "./date"
 
 export type TaskStatus = "active" | "discarded" | "done"
+
 export type Tag = {
   id: string
   name: string
@@ -19,28 +20,17 @@ export type Task = {
     timezone: Timezone
   }
 
-  /** Backend datetime when the task was created */
   createdAt: ISODateTime
-  /** Backend datetime when the task was updated */
   updatedAt: ISODateTime
 }
 
 export type Day = {
   id: string
   date: ISODate
+
   tasks: Task[]
-  /** Aggregated tags for the daily tasks */
   tags: Tag[]
+
   countActive: number
   countDone: number
-}
-
-/**
- * DayItem is a day item in the database
- * It is used to store the day item in the database
- * It is not used to store the day item in the UI
- */
-export type DayItem = {
-  id: string
-  date: string
 }
