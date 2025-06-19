@@ -88,11 +88,13 @@ export interface StorageManager {
   assetsDir: string
 
   init(): Promise<void>
+
   loadTasks(): Promise<Task[]>
   saveTasks(tasks: Task[]): Promise<void>
-  deleteTask(id: ID): Promise<void>
+  deleteTask(id: ID): Promise<boolean>
   loadTags(): Promise<Tag[]>
   saveTags(tags: Tag[]): Promise<void>
+
   loadSettings(): Promise<Settings>
   saveSettings(newSettings: Partial<Settings>): Promise<void>
 

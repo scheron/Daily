@@ -167,19 +167,25 @@ export class FileStorageManager implements StorageManager {
     }
   }
 
-  async deleteTask(id: ID): Promise<void> {
-    const meta = this.meta.tasks[id]
-    if (!meta) return
+  async deleteTask(id: ID): Promise<boolean> {
+    try {
+      const meta = this.meta.tasks[id]
+      if (!meta) return false
 
-    const filePath = path.join(this.rootDir, meta.file)
+      const filePath = path.join(this.rootDir, meta.file)
 
-    if (await fs.pathExists(filePath)) {
-      await fs.remove(filePath)
+      if (await fs.pathExists(filePath)) {
+        await fs.remove(filePath)
+      }
+
+      delete this.meta.tasks[id]
+
+      await this.persistMeta()
+      return true
+    } catch (error) {
+      console.error("Failed to delete task", error)
+      return false
     }
-
-    delete this.meta.tasks[id]
-
-    await this.persistMeta()
   }
 
   /* =============================== */

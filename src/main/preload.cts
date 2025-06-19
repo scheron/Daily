@@ -18,6 +18,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   loadTasks: () => ipcRenderer.invoke("load-tasks") as Promise<Task[]>,
   saveTasks: (tasks: Task[]) => ipcRenderer.invoke("save-tasks", tasks),
+  updateTask: (id: Task["id"], updates: Partial<Omit<Task, "id" | "createdAt" | "updatedAt">>) => ipcRenderer.invoke("update-task", id, updates),
+  deleteTask: (id: Task["id"]) => ipcRenderer.invoke("delete-task", id),
 
   loadTags: () => ipcRenderer.invoke("load-tags") as Promise<Tag[]>,
   saveTags: (tags: Tag[]) => ipcRenderer.invoke("save-tags", tags),

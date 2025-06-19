@@ -12,6 +12,7 @@ export function setupStorageIPC(storage: StorageManager): void {
 
   ipcMain.handle("load-tasks", () => storage.loadTasks())
   ipcMain.handle("save-tasks", (_e, tasks: Task[]) => storage.saveTasks(tasks))
+  ipcMain.handle("delete-task", (_e, id: Task["id"]) => storage.deleteTask(id))
 
   ipcMain.handle("load-days", () => [])
   ipcMain.handle("save-days", () => {})

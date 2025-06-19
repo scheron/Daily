@@ -1,5 +1,5 @@
 import {arrayRemoveDuplicates} from "@/utils/arrays"
-import {groupTasksByDay, sortScheduledTasks} from "@/utils/tasks"
+import {groupTasksByDay} from "@/utils/tasks"
 import {DateTime} from "luxon"
 import {nanoid} from "nanoid"
 
@@ -95,47 +95,24 @@ function defineApi(): Storage {
    * @returns The day that matches the query
    */
   async function updateTask(id: Task["id"], updates: Partial<Omit<Task, "id" | "createdAt" | "updatedAt">>): Promise<Day | null> {
-    // const {tasks: allTasks} = await window.electronAPI.loadAllData()
-    // const idx = allTasks.findIndex((t) => t.id === id)
-    // if (idx < 0) return null
+    try {
+      const allTasks = await window.electronAPI.loadTasks()
+      const task = allTasks.find((t) => t.id === id)
+      if (!task) return null
 
-    // const task = allTasks[idx]
+      const updatedTask: Task = {
+        ...task,
+        ...updates,
+        updatedAt: DateTime.now().toISO()!,
+      }
 
-    // const updatedTask: Task = {
-    //   ...task,
-    //   ...updates,
-    //   updatedAt: DateTime.now().toISO()!,
-    // }
+      await window.electronAPI.saveTasks([updatedTask])
 
-    // allTasks[idx] = updatedTask
-    // await window.electronAPI.saveTasks(allTasks)
-
-    // const oldDate = task.scheduled.date
-    // const newDate = updatedTask.scheduled.date
-
-    // if (newDate !== oldDate) {
-    //   const remaining = allTasks.filter(({scheduled}) => scheduled.date === oldDate)
-
-    //   if (!remaining.length) {
-    //     const filtered = allDays.filter(({date}) => date !== oldDate)
-    //     await window.electronAPI.saveDays(filtered)
-    //   }
-
-    //   const dayId = newDate.replace(/-/g, "")
-
-    //   if (!allDays.find(({id}) => id === dayId)) {
-    //     const newDay: DayItem = {
-    //       id: dayId,
-    //       date: newDate,
-    //     }
-
-    //     await window.electronAPI.saveDays(allDays.concat(newDay))
-    //   }
-    // return null
-    // }
-
-    // return getDay(updatedTask.scheduled.date)
-    return null
+      return getDay(updatedTask.scheduled.date)
+    } catch (error) {
+      console.error("Failed to update task", error)
+      return null
+    }
   }
 
   /**
@@ -144,56 +121,50 @@ function defineApi(): Storage {
    * @returns The day that matches the query
    */
   async function deleteTask(id: Task["id"]): Promise<boolean> {
-    // const {tasks: allTasks, days: allDays} = await window.electronAPI.loadAllData()
-    // const idx = allTasks.findIndex((t) => t.id === id)
-    // if (idx < 0) return false
+    try {
+      const allTasks = await window.electronAPI.loadTasks()
+      const task = allTasks.find((t) => t.id === id)
+      if (!task) return false
 
-    // const taskToDelete = allTasks[idx]
-    // const oldDate = taskToDelete.scheduled.date
+      await window.electronAPI.deleteTask(id)
 
-    // allTasks.splice(idx, 1)
-
-    // await window.electronAPI.saveTasks(allTasks)
-
-    // const remaining = allTasks.filter((t) => t.scheduled.date === oldDate)
-
-    // if (!remaining.length) {
-    //   const filtered = allDays.filter(({date}) => date !== oldDate)
-    //   await window.electronAPI.saveDays(filtered)
-    // }
-
-    return true
+      return true
+    } catch (error) {
+      console.error("Failed to delete task", error)
+      return false
+    }
   }
 
   async function addTaskTags(taskId: Task["id"], ids: Tag["id"][]): Promise<Task | null> {
-    // const {tasks: allTasks, tags: allTags} = await window.electronAPI.loadAllData()
+    const {tasks: allTasks, tags: allTags} = await window.electronAPI.loadAllData()
 
-    // const task = allTasks.find((t) => t.id === taskId)
-    // if (!task) return null
+    const task = allTasks.find((t) => t.id === taskId)
+    if (!task) return null
 
-    // const newTags = ids.map((id) => allTags.find((tag) => tag.id === id)).filter(Boolean) as Tag[]
-    // const tags = arrayRemoveDuplicates(task.tags.concat(newTags), "id")
+    const newTags = ids.map((id) => allTags.find((tag) => tag.id === id)).filter(Boolean) as Tag[]
+    const tags = arrayRemoveDuplicates(task.tags.concat(newTags), "id")
 
-    // const updatedTask = {...task, tags}
-    // await window.electronAPI.saveTasks(allTasks.map((t) => (t.id === taskId ? updatedTask : t)))
-    // return updatedTask
-    return null
+    const updatedTask = {...task, tags}
+
+    await window.electronAPI.saveTasks([updatedTask])
+
+    return updatedTask
   }
 
   async function removeTaskTags(taskId: Task["id"], ids: Tag["id"][]): Promise<Task | null> {
-    // const {tasks: allTasks} = await window.electronAPI.loadAllData()
+    const allTasks = await window.electronAPI.loadTasks()
 
-    // const task = allTasks.find((t) => t.id === taskId)
-    // if (!task) return null
+    const task = allTasks.find((t) => t.id === taskId)
+    if (!task) return null
 
-    // const newTags = task.tags.filter(({id}) => !ids.includes(id)) as Tag[]
-    // const tags = arrayRemoveDuplicates(newTags, "id")
+    const newTags = task.tags.filter(({id}) => !ids.includes(id)) as Tag[]
+    const tags = arrayRemoveDuplicates(newTags, "id")
 
-    // const newTasks = allTasks.map((t) => (t.id === taskId ? {...t, tags} : t))
-    // await window.electronAPI.saveTasks(newTasks)
+    const updatedTask = {...task, tags}
 
-    // return task
-    return null
+    await window.electronAPI.saveTasks([updatedTask])
+
+    return updatedTask
   }
 
   async function getTags(): Promise<Tag[]> {
@@ -219,17 +190,17 @@ function defineApi(): Storage {
   }
 
   async function deleteTag(id: Tag["id"]): Promise<boolean> {
-    // const {tasks: allTasks, tags: allTags} = await window.electronAPI.loadAllData()
+    const {tasks: allTasks, tags: allTags} = await window.electronAPI.loadAllData()
 
-    // const newTasks = allTasks.map((t) => ({
-    //   ...t,
-    //   tags: t.tags.filter((tag) => tag.id !== id),
-    // }))
+    const newTasks = allTasks.map((t) => ({
+      ...t,
+      tags: t.tags.filter((tag) => tag.id !== id),
+    }))
 
-    // const newTags = allTags.filter((tag) => tag.id !== id)
+    const newTags = allTags.filter((tag) => tag.id !== id)
 
-    // await window.electronAPI.saveTasks(newTasks)
-    // await window.electronAPI.saveTags(newTags)
+    await window.electronAPI.saveTasks(newTasks)
+    await window.electronAPI.saveTags(newTags)
 
     return true
   }

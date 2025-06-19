@@ -28,6 +28,7 @@ export default interface ElectronApi {
   // === DATA ===
   loadTasks: () => Promise<Task[]>
   saveTasks: (tasks: Task[]) => Promise<void>
+  deleteTask: (id: Task["id"]) => Promise<boolean>
 
   loadTags: () => Promise<Tag[]>
   saveTags: (tags: Tag[]) => Promise<void>
