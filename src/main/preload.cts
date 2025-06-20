@@ -1,6 +1,6 @@
 import {contextBridge, ipcRenderer} from "electron"
 
-import type {Settings, Tag, Task} from "./types.js"
+import type {Settings, StorageSyncEvent, Tag, Task} from "./types.js"
 
 contextBridge.exposeInMainWorld("electronAPI", {
   minimize: () => ipcRenderer.send("window:minimize"),
@@ -32,6 +32,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   onMenuAction: (callback: (action: "new-task") => void) => {
     ipcRenderer.on("new-task", () => callback("new-task"))
+  },
+
+  onStorageSync: (callback: (event: StorageSyncEvent) => void) => {
+    ipcRenderer.on("storage:sync", (_event, payload) => callback(payload))
   },
 
   onDeepLink: (callback: (url: string) => void) => ipcRenderer.on("deep-link", (_, url) => callback(url)),

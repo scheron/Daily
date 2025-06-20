@@ -19,7 +19,7 @@ const tags = computed(() => tagsStore.tags)
 async function deleteTag(id: string) {
   filterStore.removeActiveTag(id)
   await tagsStore.deleteTag(id)
-  await tasksStore.revalidateTasks()
+  await tasksStore.revalidate()
 }
 </script>
 

@@ -58,4 +58,5 @@ export function setupStorageIPC(storage: StorageManager): void {
       return false
     }
   })
+
 }

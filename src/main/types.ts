@@ -96,4 +96,10 @@ export interface StorageManager {
   deleteAsset(filename: string): Promise<void>
   getAssetPath(filename: string): Promise<string>
   getAssetResponse(fileUrl: string): Promise<Response>
+
+  syncFileSystemWithMeta(): Promise<void>
+}
+
+export type StorageSyncEvent = {
+  type: "tasks" | "tags" | "settings"
 }

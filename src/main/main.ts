@@ -10,6 +10,7 @@ import {setupStorageIPC} from "./ipc/storage.js"
 import {setupMainWindowIPC} from "./ipc/window.js"
 import {createMenu} from "./menu/menu.js"
 import {handleDeepLink, setupDeepLinks} from "./services/deep-links.js"
+import {setupStorageSync} from "./services/storage-events.js"
 import {FileStorageManager} from "./services/storage-manager.js"
 import {setupUpdateManager} from "./services/updater.js"
 import {createMainWindow} from "./windows/main-window.js"
@@ -69,11 +70,13 @@ app.whenReady().then(async () => {
   setupStorageIPC(storage)
 
   mainWindow = createMainWindow()
+
   setupMainWindowIPC(mainWindow)
   setupMenuIPC(mainWindow)
   createMenu(mainWindow)
   setupDeepLinks(mainWindow)
   setupUpdateManager(mainWindow)
+  setupStorageSync(() => mainWindow)
 
   protocol.handle("safe-file", async (request) => {
     const url = request.url.replace("safe-file://", "")
@@ -90,6 +93,14 @@ app.whenReady().then(async () => {
     mainWindow!.show()
     focusWindow(mainWindow!)
     console.log("✅ Main window displayed")
+  })
+
+  mainWindow.on("focus", async () => {
+    try {
+      await storage.syncFileSystemWithMeta()
+    } catch (err) {
+      console.warn("⚠️ Failed to sync file system on focus:", err)
+    }
   })
 
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
@@ -113,12 +124,12 @@ app.whenReady().then(async () => {
 
 app.on("activate", () => {
   if (BrowserWindow.getAllWindows().length === 0) {
-
     mainWindow = createMainWindow()
     setupMainWindowIPC(mainWindow)
     setupMenuIPC(mainWindow)
     createMenu(mainWindow)
     setupDeepLinks(mainWindow)
+    setupStorageSync(() => mainWindow)
 
     mainWindow.once("ready-to-show", () => {
       mainWindow!.show()

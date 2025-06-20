@@ -20,7 +20,8 @@ import {nanoid} from "nanoid"
 
 import type {ID, MetaFile, Settings, StorageManager, Tag, Task} from "../types"
 
-import {deepMerge, getMimeType} from "../helpers.js"
+import {arrayRemoveDuplicates, deepMerge, getMimeType} from "../helpers.js"
+import {notifyStorageChange} from "./storage-events.js"
 
 export class FileStorageManager implements StorageManager {
   readonly rootDir: string
@@ -78,6 +79,8 @@ export class FileStorageManager implements StorageManager {
       const dir = path.dirname(path.join(this.rootDir, task.file))
       await fs.ensureDir(dir)
     }
+
+    await this.syncFileSystemWithMeta()
   }
 
   /* =============================== */
@@ -196,7 +199,7 @@ export class FileStorageManager implements StorageManager {
   }
 
   async saveTags(tags: Tag[]): Promise<void> {
-    this.meta.tags = tags.reduce(
+    this.meta.tags = arrayRemoveDuplicates(tags, "name").reduce(
       (acc, tag) => {
         acc[tag.id] = tag
         return acc
@@ -208,7 +211,7 @@ export class FileStorageManager implements StorageManager {
   }
 
   /* =============================== */
-  /* ============ SETTINGS ============ */
+  /* =========== SETTINGS ========== */
   /* =============================== */
   async loadSettings(): Promise<Settings> {
     if (!this.settings) {
@@ -269,5 +272,34 @@ export class FileStorageManager implements StorageManager {
 
   private async persistMeta(): Promise<void> {
     await fs.writeJson(this.metaPath, this.meta, {spaces: 2})
+  }
+
+  /* =============================== */
+  /* ============ SYNC =========== */
+  /* =============================== */
+  async syncFileSystemWithMeta(): Promise<void> {
+    const existingIds = Object.keys(this.meta.tasks)
+    const toRemove: string[] = []
+
+    for (const id of existingIds) {
+      const relPath = this.meta.tasks[id].file
+      const fullPath = path.join(this.rootDir, relPath)
+
+      if (!(await fs.pathExists(fullPath))) {
+        console.warn(`⚠️ Missing task file for ID ${id}: ${relPath}`)
+        toRemove.push(id)
+      }
+    }
+
+    if (toRemove.length > 0) {
+      for (const id of toRemove) {
+        delete this.meta.tasks[id]
+      }
+
+      await this.persistMeta()
+      console.log(`🧹 Removed ${toRemove.length} orphaned tasks from meta`)
+      notifyStorageChange("tasks")
+      notifyStorageChange("tags")
+    }
   }
 }

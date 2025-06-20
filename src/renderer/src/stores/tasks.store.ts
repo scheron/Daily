@@ -36,6 +36,7 @@ export const useTasksStore = defineStore("tasks", () => {
 
   async function loadTasks() {
     isDaysLoaded.value = false
+
     try {
       const dailyTasks = await API.getDays()
       days.value = dailyTasks
@@ -108,9 +109,14 @@ export const useTasksStore = defineStore("tasks", () => {
     return false
   }
 
-  async function revalidateTasks() {
-    const dailyTasks = await API.getDays()
-    days.value = dailyTasks
+  async function revalidate() {
+    try {
+      const dailyTasks = await API.getDays()
+      days.value = dailyTasks
+      console.log("tasks revalidated")
+    } catch (error) {
+      console.error("Error revalidating tasks:", error)
+    }
   }
 
   function findTaskById(taskId: string): Task | null {
@@ -132,6 +138,6 @@ export const useTasksStore = defineStore("tasks", () => {
     updateTask,
     deleteTask,
     restoreTask,
-    revalidateTasks,
+    revalidate,
   }
 })

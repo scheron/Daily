@@ -15,3 +15,7 @@ export interface Storage {
   createTag(name: Tag["name"], color: Tag["color"], emoji?: Tag["emoji"]): Promise<Tag | null>
   deleteTag(id: Tag["id"]): Promise<boolean>
 }
+
+export type StorageSyncEvent = {
+  type: "tasks" | "tags" | "settings"
+}

@@ -1,7 +1,6 @@
 import {computed, ref} from "vue"
-import {defineStore} from "pinia"
-
 import {API} from "@/api"
+import {defineStore} from "pinia"
 
 import type {Tag} from "@/types/tasks"
 
@@ -12,6 +11,8 @@ export const useTagsStore = defineStore("tags", () => {
   const tagsMap = computed(() => new Map<Tag["id"], Tag>(tags.value.map((tag) => [tag.id, tag])))
 
   async function loadTags() {
+    isTagsLoaded.value = false
+
     try {
       const loadedTags = await API.getTags()
       tags.value = loadedTags
@@ -40,6 +41,15 @@ export const useTagsStore = defineStore("tags", () => {
     return true
   }
 
+  async function revalidate() {
+    try {
+      const loadedTags = await API.getTags()
+      tags.value = loadedTags
+    } catch (error) {
+      console.error("Error revalidating tags:", error)
+    }
+  }
+
   return {
     isTagsLoaded,
     tags,
@@ -48,5 +58,7 @@ export const useTagsStore = defineStore("tags", () => {
     loadTags,
     createTag,
     deleteTag,
+
+    revalidate,
   }
 })

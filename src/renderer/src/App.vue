@@ -36,6 +36,12 @@ window.electronAPI.onMenuAction((action) => {
   if (action === "new-task") onCreateTask()
 })
 
+window.electronAPI.onStorageSync(async ({type}) => {
+  if (type === "tasks") await tasksStore.revalidate()
+  else if (type === "tags") await tagsStore.revalidate()
+  // else if (type === "settings") settingsStore.revalidate()
+})
+
 invoke(async () => {
   await Promise.all([tasksStore.loadTasks(), tagsStore.loadTags()])
 })

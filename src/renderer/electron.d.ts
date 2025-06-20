@@ -1,6 +1,7 @@
-import type { Settings } from "@/types/settings"
-import type { Tag, Task } from "@/types/tasks"
-import type { Buffer } from "buffer"
+import type {Settings} from "@/types/settings"
+import type {StorageSyncEvent} from "@/types/storage"
+import type {Tag, Task} from "@/types/tasks"
+import type {Buffer} from "buffer"
 
 /**
  * Should match main/preload.ts for typescript support in renderer
@@ -37,6 +38,8 @@ export default interface ElectronApi {
 
   // === MENU ===
   onMenuAction: (callback: (action: "new-task") => void) => void
+
+  onStorageSync: (callback: (event: StorageSyncEvent) => void) => void
 }
 
 declare global {

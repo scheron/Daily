@@ -139,3 +139,17 @@ export function deepMerge<T>(target: T, source: Partial<T>, getId: (data: any) =
 function isMergeableObject(item: any): item is Record<string, any> {
   return item !== null && typeof item === "object" && !Array.isArray(item)
 }
+
+export function arrayRemoveDuplicates<T extends Record<K, string>, K extends keyof T>(array: T[], key: K): T[] {
+  const seen = new Set<string>()
+
+  return array.filter((item) => {
+    const value = item[key]
+
+    if (seen.has(value)) return false
+
+    seen.add(value)
+
+    return true
+  })
+}
