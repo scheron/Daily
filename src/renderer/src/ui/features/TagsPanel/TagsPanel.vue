@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import {computed, ref} from "vue"
-
+import {useFilterStore} from "@/stores/filter.store"
 import {useTagsStore} from "@/stores/tags.store"
 import {useTasksStore} from "@/stores/tasks.store"
+
 import BaseButton from "@/ui/base/BaseButton.vue"
+import BaseIcon from "@/ui/base/BaseIcon"
+
 import TagsForm from "./fragments/TagsForm.vue"
-import { useFilterStore } from "@/stores/filter.store"
 
 const tasksStore = useTasksStore()
 const tagsStore = useTagsStore()
@@ -22,34 +24,42 @@ async function deleteTag(id: string) {
 </script>
 
 <template>
-  <TagsForm v-if="isCreating" :tags="tagsStore.tags" @submit="tagsStore.createTag" @close="isCreating = false" />
+  <TagsForm v-if="isCreating" :tags="tagsStore.tags" class="px-4 py-6" @submit="tagsStore.createTag" @close="isCreating = false" />
 
-  <div v-else class="flex flex-col px-4 gap-2">
-    <BaseButton class="py- text-sm w-full" variant="outline" icon="plus" @click="isCreating = true">Create new tag</BaseButton>
+  <div v-else class="flex flex-col gap-2 px-4 py-4">
+    <BaseButton class="py- w-full text-sm" variant="outline" icon="plus" @click="isCreating = true">Create new tag</BaseButton>
 
-    <div v-if="tags.length" class="flex flex-wrap gap-2 p-2 max-h-[200px] overflow-y-auto">
+    <div v-if="tags.length" class="flex max-h-[200px] flex-wrap gap-2 overflow-y-auto p-2">
       <div
         v-for="tag in tags"
         :key="tag.id"
-        class="group flex items-center justify-between gap-1 flex-1 rounded-md pl-3 pr-1 py-1 text-sm w-full"
+        class="group flex w-full flex-1 border items-center justify-between rounded-md py-1 pr-1 pl-3 text-sm"
         :style="{
-          backgroundColor: `${tag.color}20`,
+          backgroundColor: `${tag.color}10`,
+          borderColor: `${tag.color}20`,
           color: tag.color,
         }"
       >
+        <span v-if="tag.emoji" class="text-sm mr-1">{{ tag.emoji }}</span>
+        <span v-else class="text-base leading-0">#</span>
         <span class="truncate">{{ tag.name }}</span>
 
         <BaseButton
-          class="opacity-60 p-0.5 ml-auto hover:opacity-100 transition-opacity shrink-0"
+          class="ml-auto shrink-0 p-0.5 opacity-60 transition-opacity hover:opacity-100"
           variant="text"
           icon-class="size-3.5"
+          :style="{color: tag.color}"
           icon="x-mark"
           @click="deleteTag(tag.id)"
         />
       </div>
     </div>
-    <div v-else class="flex flex-col items-center justify-center p-2 h-full gap-2">
-      <p class="text-base-content/50 text-sm">No tags yet</p>
+    <div v-else class="flex h-full flex-col items-center justify-center gap-2 p-2">
+      <p class="text-base-content/50 text-sm">
+        <BaseIcon name="tags" class="size-4" />
+
+        No tags yet
+      </p>
     </div>
   </div>
 </template>

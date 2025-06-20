@@ -138,11 +138,13 @@ watch(
           variant="ghost"
           size="sm"
           icon-class="size-3.5"
-          class="w-full"
+          class="w-full gap-0"
           :class="isActiveTag(tag.id) ? 'bg-accent/10 text-accent' : ''"
           @click="onSelectTag(tag.id)"
         >
-          <span class="size-2.5 shrink-0 rounded-sm" :style="{backgroundColor: tag.color}" />
+          <span class="size-2.5 shrink-0 mr-1 rounded-sm" :style="{backgroundColor: tag.color}" />
+          <span v-if="tag.emoji" class="mr-1 text-xs">{{ tag.emoji }}</span>
+          <span v-else class="text-base leading-0">#</span>
           <span class="truncate text-sm">{{ tag.name }}</span>
           <BaseIcon
             name="check"

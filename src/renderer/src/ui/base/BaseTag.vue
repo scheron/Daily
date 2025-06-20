@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type {Tag} from "@/types/tasks"
+
 import BaseButton from "@/ui/base/BaseButton.vue"
 
 defineProps<{tag: Tag; active?: boolean}>()
@@ -9,14 +10,15 @@ defineProps<{tag: Tag; active?: boolean}>()
   <BaseButton
     variant="outline"
     size="sm"
-    class="focus-visible-ring shrink-0 hover:opacity-100 rounded-md focus-visible:ring-offset-base-100 relative focus-visible:ring-base-content px-2 transition-all duration-200"
-    :class="active ? 'opacity-100 ' : 'opacity-80 hover:opacity-100'"
+    class="focus-visible-ring gap-0 focus-visible:ring-offset-base-100 focus-visible:ring-base-content relative shrink-0 rounded-md px-2 transition-all duration-200 hover:opacity-100"
     :style="{
-      borderColor: active ? tag.color : 'transparent',
-      backgroundColor: `${tag.color}60`,
+      borderColor: active ? tag.color : `${tag.color}20`,
+      backgroundColor: active ? `${tag.color}40` : `${tag.color}20`,
       color: tag.color,
     }"
   >
-    <span class="text-xs truncate">{{ tag.name }}</span>
+    <span v-if="tag.emoji" class="mr-1 text-xs">{{ tag.emoji }}</span>
+    <span v-else class="text-sm leading-0">#</span>
+    <span class="truncate text-xs">{{ tag.name }}</span>
   </BaseButton>
 </template>

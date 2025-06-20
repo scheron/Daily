@@ -22,8 +22,8 @@ export const useTagsStore = defineStore("tags", () => {
     }
   }
 
-  async function createTag(name: string, color: string) {
-    const newTag = await API.createTag(name, color)
+  async function createTag(name: string, color: string, emoji?: string) {
+    const newTag = await API.createTag(name, color, emoji)
     if (!newTag) return null
 
     tags.value.push(newTag)

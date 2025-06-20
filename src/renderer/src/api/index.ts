@@ -173,13 +173,14 @@ function defineApi(): Storage {
     return allTags
   }
 
-  async function createTag(name: Tag["name"], color: Tag["color"]): Promise<Tag | null> {
+  async function createTag(name: Tag["name"], color: Tag["color"], emoji: Tag["emoji"]): Promise<Tag | null> {
     const allTags = await window.electronAPI.loadTags()
 
     const newTag: Tag = {
       id: nanoid(),
       name,
       color,
+      emoji: emoji || "",
     }
     if (allTags.find((t) => t.name === name)) return null
 

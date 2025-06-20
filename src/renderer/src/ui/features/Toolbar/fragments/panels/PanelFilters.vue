@@ -1,16 +1,16 @@
 <script lang="ts" setup>
 import {computed, watch} from "vue"
-
-import {capitalize} from "@/utils/strings"
 import {useFilterStore} from "@/stores/filter.store"
 import {useTasksStore} from "@/stores/tasks.store"
+import {capitalize} from "@/utils/strings"
+
+import type {TasksFilter} from "@/types/filters"
+import type {Tag} from "@/types/tasks"
+
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseIcon from "@/ui/base/BaseIcon"
 import BasePopup from "@/ui/base/BasePopup.vue"
 import BaseTag from "@/ui/base/BaseTag.vue"
-
-import type {TasksFilter} from "@/types/filters"
-import type {Tag} from "@/types/tasks"
 
 const VISIBLE_TAGS_COUNT = 3
 const FILTERS: {label: string; value: TasksFilter}[] = [
@@ -58,8 +58,8 @@ watch(
 
 <template>
   <div class="bg-base-100 flex size-full flex-col gap-3 px-4 py-2 md:flex-row md:items-center md:justify-between">
-    <div class="relative flex items-center gap-2 overflow-x-auto hide-scrollbar">
-      <span v-if="!tasksStore.dailyTags.length" class="text-sm text-base-content/70">
+    <div class="hide-scrollbar relative flex items-center gap-2 overflow-x-auto">
+      <span v-if="!tasksStore.dailyTags.length" class="text-base-content/70 text-sm">
         <BaseIcon name="tags" class="size-4" />
         No daily tags
       </span>
@@ -70,7 +70,7 @@ watch(
             <BaseButton
               variant="outline"
               size="sm"
-              class="px-2 shrink-0 rounded-md"
+              class="shrink-0 rounded-md px-2"
               :class="[hasSelectedInPopup ? 'bg-accent/20 border-accent text-accent' : 'opacity-70 hover:opacity-90']"
               icon="tags"
               icon-class="size-3.5"
@@ -85,13 +85,16 @@ watch(
             :key="tag.id"
             variant="ghost"
             size="sm"
+            class="gap-0"
             icon-class="size-4"
             :class="isActiveTag(tag.id) ? 'bg-base-200' : ''"
             @click="selectTag(tag.id)"
           >
-            <span class="size-3 rounded-full shrink-0" :style="{backgroundColor: tag.color}" />
-            <span class="text-sm truncate">{{ tag.name }}</span>
-            <BaseIcon name="check" class="size-4 ml-auto text-base-content/70 shrink-0" :class="{invisible: !isActiveTag(tag.id)}" />
+            <span class="size-3 shrink-0 mr-1 rounded-full" :style="{backgroundColor: tag.color}" />
+            <span v-if="tag.emoji" class="mr-1 text-xs">{{ tag.emoji }}</span>
+            <span v-else class="text-base leading-0">#</span>
+            <span class="truncate text-sm">{{ tag.name }}</span>
+            <BaseIcon name="check" class="text-base-content/70 ml-auto size-4 shrink-0" :class="{invisible: !isActiveTag(tag.id)}" />
           </BaseButton>
         </BasePopup>
 
@@ -99,7 +102,7 @@ watch(
       </template>
     </div>
 
-    <div class="flex shrink-0 w-full items-center gap-3 md:w-auto">
+    <div class="flex w-full shrink-0 items-center gap-3 md:w-auto">
       <div class="bg-base-300 text-base-content inline-flex w-full gap-2 rounded-lg p-0.5 md:w-auto">
         <button
           v-for="option in FILTERS"

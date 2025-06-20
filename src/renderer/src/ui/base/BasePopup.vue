@@ -5,18 +5,26 @@ import {onClickOutside} from "@vueuse/core"
 import {autoUpdate, flip, offset, shift, useFloating} from "@floating-ui/vue"
 
 import BaseButton from "./BaseButton.vue"
+import { cn } from "@/utils/tailwindcss"
 
 type HorizontalPosition = "start" | "center" | "end"
 
-const props = withDefaults(defineProps<{
-  title?: string
-  hideCloseBtn?: boolean
-  position?: HorizontalPosition
-  triggerClass?: string
-}>(), {
-  hideCloseBtn: false,
-  position: "start",
-})
+const props = withDefaults(
+  defineProps<{
+    title?: string
+    hideHeader?: boolean
+    hideCloseBtn?: boolean
+    position?: HorizontalPosition
+    triggerClass?: string
+    contentClass?: string
+  }>(),
+  {
+    hideCloseBtn: false,
+    hideHeader: false,
+    position: "start",
+    contentClass: "",
+  },
+)
 
 const emit = defineEmits<{
   close: []
@@ -73,12 +81,12 @@ defineExpose({
     <div
       v-if="isOpen"
       ref="popup"
-      class="z-50 bg-base-100 rounded-lg shadow-lg border border-base-300 p-2 min-w-52 max-h-[300px] overflow-y-auto"
+      class="bg-base-100 border-base-300 z-50 max-h-[300px] min-w-52 overflow-y-auto rounded-lg border p-2 shadow-lg"
       :style="floatingStyles"
     >
-      <div class="flex flex-col gap-1">
-        <div v-if="title || !hideCloseBtn" class="flex items-center justify-between pb-1 border-b border-base-300">
-          <span v-if="title" class="text-sm pl-1 font-semibold text-base-content/70">{{ title }}</span>
+      <div :class="cn('flex flex-col gap-1', contentClass)">
+        <div v-if="!(hideHeader || hideCloseBtn)" class="border-base-300 flex items-center justify-between border-b pb-1">
+          <span v-if="title" class="text-base-content/70 pl-1 text-sm font-semibold">{{ title }}</span>
 
           <BaseButton
             v-if="!hideCloseBtn"
@@ -86,7 +94,7 @@ defineExpose({
             variant="ghost"
             size="sm"
             icon-class="size-4"
-            class="focus-visible-ring rounded-full p-1 text-base-content/70 hover:text-base-content ml-auto"
+            class="focus-visible-ring text-base-content/70 hover:text-base-content ml-auto rounded-full p-1"
             @click="hide"
           />
         </div>

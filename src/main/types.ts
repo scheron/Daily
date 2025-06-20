@@ -32,6 +32,7 @@ export type MetaTag = {
   id: ID
   name: string
   color: string
+  emoji: string
 }
 
 export type Settings = {
@@ -73,13 +74,6 @@ export type StoreSchema = {
   tags: Tag[]
 }
 
-export type ExportTaskData = {
-  date: ISODate
-  tasks: Array<{
-    filename: string
-    content: string
-  }>
-}
 
 export interface StorageManager {
   rootDir: string

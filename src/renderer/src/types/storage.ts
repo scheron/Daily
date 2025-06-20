@@ -12,6 +12,6 @@ export interface Storage {
   removeTaskTags(taskId: Task["id"], ids: Tag["id"][]): Promise<Task | null>
 
   getTags(): Promise<Tag[]>
-  createTag(name: Tag["name"], color: Tag["color"]): Promise<Tag | null>
+  createTag(name: Tag["name"], color: Tag["color"], emoji?: Tag["emoji"]): Promise<Tag | null>
   deleteTag(id: Tag["id"]): Promise<boolean>
 }
