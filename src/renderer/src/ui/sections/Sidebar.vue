@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import {computed} from "vue"
 import {useDevice} from "@/composables/useDevice"
 import {useTasksStore} from "@/stores/tasks.store"
 import {useUIStore} from "@/stores/ui.store"
-import {toFullDate} from "@/utils/date"
+import {countTasks} from "@/utils/tasks"
 
 import BaseButton from "@/ui/base/BaseButton.vue"
+import BaseIcon from "@/ui/base/BaseIcon"
 import BasePanel from "@/ui/base/BasePanel"
 import BaseSpinner from "@/ui/base/BaseSpinner.vue"
 import CalendarMonth from "@/ui/features/CalendarMonth"
@@ -22,6 +24,8 @@ defineProps<{
 const uiStore = useUIStore()
 const tasksStore = useTasksStore()
 const {isMacOS} = useDevice()
+
+const count = computed(() => countTasks(tasksStore.dailyTasks))
 </script>
 
 <template>
@@ -32,8 +36,22 @@ const {isMacOS} = useDevice()
         <h2 class="font-mono text-xl font-bold">Daily</h2>
       </div>
 
-      <div class="relative ml-auto flex items-center gap-1 text-sm" style="-webkit-app-region: no-drag">
-        {{ tasksStore.activeDay ? toFullDate(tasksStore.activeDay, {short: true}) : "" }}
+      <div class="relative ml-auto flex items-center gap-1 text-sm">
+        <template v-if="count.total">
+          <span v-if="count.active" class="text-base-content/50 flex items-center gap-1">
+            {{ count.active }} / {{ count.total }}
+            <BaseIcon name="check-check" class="size-4" />
+          </span>
+
+          <span v-else class="text-success flex items-center gap-1">
+            {{ count.done }}
+            <BaseIcon name="check-check" class="size-4" />
+          </span>
+        </template>
+        <span v-else class="text-base-content/50 flex items-center gap-1">
+          No tasks
+          <BaseIcon name="check-check" class="size-4" />
+        </span>
       </div>
     </div>
 

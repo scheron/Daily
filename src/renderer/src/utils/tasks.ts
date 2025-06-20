@@ -1,19 +1,17 @@
-import { DateTime } from "luxon"
+import {DateTime} from "luxon"
 
-import type { ISODate } from "@/types/date"
-import type { Day, Tag, Task } from "@/types/tasks"
+import type {ISODate} from "@/types/date"
+import type {Day, Tag, Task} from "@/types/tasks"
 
-import { arrayRemoveDuplicates } from "./arrays"
+import {arrayRemoveDuplicates} from "./arrays"
 
 type GroupTasksByDayParams = {
   tasks: Task[]
   tags: Tag[]
 }
 
-
-
 export function groupTasksByDay(params: GroupTasksByDayParams): Day[] {
-  const {tasks,  tags} = params
+  const {tasks, tags} = params
 
   const taskDates = new Set<ISODate>()
   const tasksByDay = new Map<string, Task[]>()
@@ -47,7 +45,6 @@ export function groupTasksByDay(params: GroupTasksByDayParams): Day[] {
     const sortedTasks = sortScheduledTasks(tasks, "desc")
     const countActive = sortedTasks.filter((task) => task.status === "active").length
     const countDone = sortedTasks.filter((task) => task.status === "done").length
-
 
     return {
       id: date.replaceAll("-", ""),
@@ -106,4 +103,17 @@ export function updateDays(days: Day[], updatedDay: Day): Day[] {
   updatedDays.splice(dayIndex, 1, dayWithStats)
 
   return updatedDays
+}
+
+export function countTasks(tasks: Task[]) {
+  return tasks.reduce(
+    (acc, task) => {
+      if (task.status === "active") acc.active++
+      else if (task.status === "done") acc.done++
+      else if (task.status === "discarded") acc.discarded++
+
+      return acc
+    },
+    {active: 0, done: 0, discarded: 0, total: tasks.length},
+  )
 }

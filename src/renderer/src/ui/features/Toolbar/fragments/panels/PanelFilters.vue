@@ -2,7 +2,6 @@
 import {computed, watch} from "vue"
 import {useFilterStore} from "@/stores/filter.store"
 import {useTasksStore} from "@/stores/tasks.store"
-import {capitalize} from "@/utils/strings"
 
 import type {TasksFilter} from "@/types/filters"
 import type {Tag} from "@/types/tasks"
@@ -27,18 +26,6 @@ const visibleTags = computed(() => tasksStore.dailyTags.slice(0, VISIBLE_TAGS_CO
 const remainingTags = computed(() => tasksStore.dailyTags.slice(VISIBLE_TAGS_COUNT))
 const hasSelectedInPopup = computed(() => remainingTags.value.some((tag) => filterStore.activeTagIds.has(tag.id)))
 
-const count = computed(() => {
-  return tasksStore.dailyTasks.reduce(
-    (acc, task) => {
-      if (task.status === "active") acc.active++
-      else if (task.status === "done") acc.done++
-      else if (task.status === "discarded") acc.discarded++
-
-      return acc
-    },
-    {active: 0, done: 0, discarded: 0},
-  )
-})
 
 function isActiveTag(tagId: Tag["id"]) {
   return filterStore.activeTagIds.has(tagId)
@@ -90,7 +77,7 @@ watch(
             :class="isActiveTag(tag.id) ? 'bg-base-200' : ''"
             @click="selectTag(tag.id)"
           >
-            <span class="size-3 shrink-0 mr-1 rounded-full" :style="{backgroundColor: tag.color}" />
+            <span class="mr-1 size-3 shrink-0 rounded-full" :style="{backgroundColor: tag.color}" />
             <span v-if="tag.emoji" class="mr-1 text-xs">{{ tag.emoji }}</span>
             <span v-else class="text-base leading-0">#</span>
             <span class="truncate text-sm">{{ tag.name }}</span>
@@ -107,17 +94,14 @@ watch(
         <button
           v-for="option in FILTERS"
           :key="option.value"
-          class="focus-visible-ring focus-visible:ring-offset-base-100 focus-visible:ring-base-content flex-1 rounded-md px-2 py-0.5 text-sm transition-colors outline-none md:flex-none"
+          class="focus-visible-ring capitalize focus-visible:ring-offset-base-100 focus-visible:ring-base-content flex-1 rounded-md px-2 py-0.5 text-sm transition-colors outline-none md:flex-none"
           :class="{
             'bg-base-100 text-base-content shadow-sm': filterStore.activeFilter === option.value,
             'text-base-content/70 hover:text-base-content': filterStore.activeFilter !== option.value,
           }"
           @click="filterStore.setActiveFilter(option.value)"
         >
-          {{ capitalize(option.value) }}
-          <span v-if="option.value !== 'all'" class="ml-1.5 text-xs">
-            ({{ count[option.value as keyof typeof count] > 9 ? "9+" : count[option.value as keyof typeof count] }})
-          </span>
+          {{ option.value }}
         </button>
       </div>
     </div>
