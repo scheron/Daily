@@ -78,7 +78,7 @@ const count = computed(() => countTasks(tasksStore.dailyTasks))
             </BasePanel>
           </div>
 
-          <div class="mx-4 flex items-center justify-between gap-2">
+          <div class="ml-auto mr-4 flex items-center justify-between gap-2">
             <BaseButton variant="ghost" icon="sidebar" @click="uiStore.toggleSidebarCollapse()" />
           </div>
         </div>
