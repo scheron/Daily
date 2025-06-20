@@ -61,7 +61,6 @@ const {isMacOS} = useDevice()
           </div>
 
           <div class="mx-4 flex items-center justify-between gap-2">
-            <BaseButton variant="ghost" icon="export" @click="uiStore.toggleIsExportTaskOpen()" />
             <BaseButton variant="ghost" icon="sidebar" @click="uiStore.toggleSidebarCollapse()" />
           </div>
         </div>

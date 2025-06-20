@@ -27,7 +27,6 @@ const uiStore = useUIStore()
           </div>
 
           <div class="mx-auto flex flex-col items-center gap-2">
-            <BaseButton variant="ghost" icon="export" @click="uiStore.toggleIsExportTaskOpen()" />
             <BaseButton variant="ghost" icon="sidebar" @click="uiStore.toggleSidebarCollapse()" />
           </div>
         </div>

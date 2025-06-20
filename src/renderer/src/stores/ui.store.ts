@@ -7,7 +7,6 @@ export const useUIStore = defineStore("ui", () => {
   const isSidebarCollapsed = useSettingsStore("sidebar.collapsed", false)
   const {isDesktop} = useDevice()
 
-  const isExportTaskOpen = ref(false)
   const isMobileSidebarOpen = ref(false)
 
   function toggleSidebarCollapse(isOpen?: boolean) {
@@ -18,16 +17,10 @@ export const useUIStore = defineStore("ui", () => {
     }
   }
 
-  function toggleIsExportTaskOpen(isOpen?: boolean) {
-    isExportTaskOpen.value = isOpen ?? !isExportTaskOpen.value
-  }
-
   return {
-    isExportTaskOpen,
     isSidebarCollapsed,
     isMobileSidebarOpen,
 
     toggleSidebarCollapse,
-    toggleIsExportTaskOpen,
   }
 })

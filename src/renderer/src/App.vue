@@ -12,7 +12,6 @@ import {useUIStore} from "@/stores/ui.store"
 
 import BaseAnimation from "@/ui/base/BaseAnimation.vue"
 import {IconsSprite} from "@/ui/base/BaseIcon"
-import ExportTasksModal from "@/ui/modals/ExportTaskModal.vue"
 import Main from "@/ui/sections/Main.vue"
 import Sidebar from "@/ui/sections/Sidebar.vue"
 import SidebarMini from "@/ui/sections/SidebarMini.vue"
@@ -35,7 +34,6 @@ function onCreateTask() {
 
 window.electronAPI.onMenuAction((action) => {
   if (action === "new-task") onCreateTask()
-  if (action === "export-data") uiStore.toggleIsExportTaskOpen()
 })
 
 invoke(async () => {
@@ -76,8 +74,6 @@ invoke(async () => {
       :task-editor-open="taskEditorStore.isTaskEditorOpen"
       @create-task="onCreateTask"
     />
-
-    <ExportTasksModal v-if="uiStore.isExportTaskOpen" :z-index="502" />
   </div>
 
   <IconsSprite />
