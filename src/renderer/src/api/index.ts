@@ -35,9 +35,7 @@ function defineApi(): Storage {
   async function getDay(date: ISODate): Promise<Day | null> {
     const {tasks: allTasks, tags} = await window.electronAPI.loadAllData()
 
-    debugger
     const tasksForDay = allTasks.filter((t) => t.scheduled.date === date)
-    console.log({tasksForDay})
 
     const days = groupTasksByDay({tasks: tasksForDay, tags})
 
@@ -169,7 +167,6 @@ function defineApi(): Storage {
 
   async function getTags(): Promise<Tag[]> {
     const {tags: allTags} = await window.electronAPI.loadAllData()
-    console.log({allTags})
     return allTags
   }
 

@@ -46,8 +46,7 @@ export function createMacMenu(mainWindow: BrowserWindow): MenuItemConstructorOpt
           click: () => mainWindow.webContents.send("export-data"),
         },
         {type: "separator"},
-        // ...(process.env.NODE_ENV === "development" ? [{role: "toggleDevTools" as const}] : []),
-        {role: "toggleDevTools"},
+        ...(process.env.NODE_ENV === "development" ? [{role: "toggleDevTools" as const}] : []),
       ],
     },
     {

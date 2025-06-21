@@ -98,6 +98,9 @@ export interface StorageManager {
   getAssetResponse(fileUrl: string): Promise<Response>
 
   syncFileSystemWithMeta(): Promise<void>
+
+  getStoragePath(pretty?: boolean): Promise<string>
+  selectStoragePath(removeOld?: boolean): Promise<boolean>
 }
 
 export type StorageSyncEvent = {

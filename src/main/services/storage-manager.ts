@@ -13,7 +13,7 @@ Documents/
 
 import {createHash} from "node:crypto"
 import path from "node:path"
-import {app} from "electron"
+import {app, dialog} from "electron"
 import fs from "fs-extra"
 import matter from "gray-matter"
 import {nanoid} from "nanoid"
@@ -24,16 +24,17 @@ import {arrayRemoveDuplicates, deepMerge, getMimeType} from "../helpers.js"
 import {notifyStorageChange} from "./storage-events.js"
 
 export class FileStorageManager implements StorageManager {
-  readonly rootDir: string
-  readonly metaPath: string
-  readonly configPath: string
-  readonly assetsDir: string
+  rootDir: string
+  metaPath: string
+  configPath: string
+  assetsDir: string
 
   private meta: MetaFile = {version: 1, tasks: {}, tags: {}}
   private settings: Settings | null = null
+  private readonly appSettingsPath = path.join(app.getPath("userData"), "settings.json")
 
   constructor() {
-    this.rootDir = path.join(app.getPath("documents"), "Daily")
+    this.rootDir = this.resolveStorageRoot()
     this.metaPath = path.join(this.rootDir, ".meta.json")
     this.configPath = path.join(this.rootDir, ".config.json")
     this.assetsDir = path.join(this.rootDir, "assets")
@@ -43,7 +44,7 @@ export class FileStorageManager implements StorageManager {
     await fs.ensureDir(this.rootDir)
     await fs.ensureDir(this.assetsDir)
 
-    // SETTINGS (config.json)
+    // SETTINGS (.config.json)
     if (!(await fs.pathExists(this.configPath))) {
       await fs.writeJson(
         this.configPath,
@@ -55,7 +56,6 @@ export class FileStorageManager implements StorageManager {
             use_system: true,
           },
           sidebar: {collapsed: false},
-          paths: {root: this.rootDir},
         },
         {spaces: 2},
       )
@@ -176,17 +176,22 @@ export class FileStorageManager implements StorageManager {
       if (!meta) return false
 
       const filePath = path.join(this.rootDir, meta.file)
+      const dayFolder = path.dirname(filePath)
 
       if (await fs.pathExists(filePath)) {
         await fs.remove(filePath)
       }
 
-      delete this.meta.tasks[id]
+      const files = await fs.readdir(dayFolder)
+      if (!files.length && dayFolder.startsWith(this.rootDir)) {
+        await fs.remove(dayFolder)
+      }
 
+      delete this.meta.tasks[id]
       await this.persistMeta()
       return true
     } catch (error) {
-      console.error("Failed to delete task", error)
+      console.error("❌ Failed to delete task:", error)
       return false
     }
   }
@@ -231,7 +236,6 @@ export class FileStorageManager implements StorageManager {
   /* =============================== */
   /* ============ ASSETS =========== */
   /* =============================== */
-
   async saveAsset(filename: string, data: Buffer): Promise<string> {
     await fs.ensureDir(this.assetsDir)
 
@@ -300,6 +304,206 @@ export class FileStorageManager implements StorageManager {
       console.log(`🧹 Removed ${toRemove.length} orphaned tasks from meta`)
       notifyStorageChange("tasks")
       notifyStorageChange("tags")
+    }
+  }
+
+  /* =============================== */
+  /* ============ PATHS =========== */
+  /* =============================== */
+  /**
+   * Migrates the entire Daily storage to a new directory.
+   * Copies all files, updates paths, and optionally removes the old directory.
+   * @param newPath - Absolute path to the new root directory.
+   * @param deleteOld - If true, the old directory will be deleted after migration.
+   * @returns true if migration succeeded, false otherwise.
+   */
+  private async migrateToNewRoot(selectedPath: string, removeOldDir = false): Promise<boolean> {
+    const originalRoot = this.rootDir
+
+    try {
+      const isDaily = path.basename(selectedPath) === "Daily"
+      const newRoot = isDaily ? selectedPath : path.join(selectedPath, "Daily")
+
+      if (newRoot === this.rootDir) return false
+
+      console.log("📦 Starting migration to:", newRoot)
+
+      const newMetaPath = path.join(newRoot, ".meta.json")
+      const newConfigPath = path.join(newRoot, ".config.json")
+      const newAssetsDir = path.join(newRoot, "assets")
+
+      await fs.ensureDir(newRoot)
+
+      for (const file of await fs.readdir(this.rootDir)) {
+        const from = path.join(this.rootDir, file)
+        const to = path.join(newRoot, file)
+        await fs.copy(from, to)
+      }
+
+      for (const task of Object.values(this.meta.tasks)) {
+        const absoluteOld = path.resolve(originalRoot, task.file)
+        const newRel = path.relative(newRoot, absoluteOld)
+        task.file = newRel
+      }
+
+      this.rootDir = newRoot
+      this.metaPath = newMetaPath
+      this.configPath = newConfigPath
+      this.assetsDir = newAssetsDir
+
+      await this.persistMeta()
+      await this.saveStorageRoot(newRoot)
+
+      if (removeOldDir) {
+        console.log("🧹 Removing old directory:", originalRoot)
+        await fs.remove(originalRoot)
+      }
+
+      console.log("✅ Migration completed.")
+      return true
+    } catch (error) {
+      // NOTE: Rollback to original state
+      console.error("❌ Migration failed:", error)
+      this.rootDir = originalRoot
+      this.metaPath = path.join(originalRoot, ".meta.json")
+      this.configPath = path.join(originalRoot, ".config.json")
+      this.assetsDir = path.join(originalRoot, "assets")
+      return false
+    }
+  }
+
+  async mergeWithExistingStorage(selectedPath: string): Promise<boolean> {
+    const isDaily = path.basename(selectedPath) === "Daily"
+    const newRoot = isDaily ? selectedPath : path.join(selectedPath, "Daily")
+    const newMetaPath = path.join(newRoot, ".meta.json")
+
+    try {
+      const existingMeta: MetaFile = (await fs.readJson(newMetaPath).catch(() => ({
+        version: 1,
+        tasks: {},
+        tags: {},
+      }))) as MetaFile
+
+      for (const task of Object.values(this.meta.tasks)) {
+        const id = task.id
+
+        const originalPath = path.resolve(this.rootDir, task.file)
+        const dayFolder = path.join(newRoot, task.scheduled.date)
+        await fs.ensureDir(dayFolder)
+
+        const newFilename = `${id}.md`
+        const targetPath = path.join(dayFolder, newFilename)
+        await fs.copy(originalPath, targetPath)
+
+        const relPath = path.relative(newRoot, targetPath)
+
+        existingMeta.tasks[id] = {...task, file: relPath}
+      }
+
+      await fs.writeJson(newMetaPath, existingMeta, {spaces: 2})
+      await this.saveStorageRoot(newRoot)
+
+      this.rootDir = newRoot
+      this.metaPath = newMetaPath
+      this.configPath = path.join(newRoot, ".config.json")
+      this.assetsDir = path.join(newRoot, "assets")
+      this.meta = existingMeta
+
+      console.log("✅ Merge with existing storage completed.")
+      return true
+    } catch (e) {
+      console.error("❌ Failed to merge storage:", e)
+      return false
+    }
+  }
+
+  async getStoragePath(pretty = false): Promise<string> {
+    if (!pretty) return this.rootDir
+
+    const home = app.getPath("home")
+
+    const isUnixLike = process.platform !== "win32"
+
+    if (isUnixLike && this.rootDir.startsWith(home)) {
+      return this.rootDir.replace(home, "~")
+    }
+
+    return this.rootDir
+  }
+
+  async selectStoragePath(removeOld = false): Promise<boolean> {
+    const result = await dialog.showOpenDialog({
+      title: "Select New Storage Folder",
+      properties: ["openDirectory", "createDirectory"],
+    })
+
+    if (result.canceled || !result.filePaths.length) return false
+
+    const selectedPath = result.filePaths[0]
+    const isDaily = path.basename(selectedPath) === "Daily"
+    const targetPath = isDaily ? selectedPath : path.join(selectedPath, "Daily")
+
+    if (targetPath === this.rootDir) return false
+
+    const hasMeta = await fs.pathExists(path.join(targetPath, ".meta.json"))
+    const hasTasks =
+      (await fs.pathExists(targetPath)) && (await fs.readdir(targetPath)).some((f) => f.endsWith(".md") || /^\d{4}-\d{2}-\d{2}$/.test(f))
+
+    if (hasMeta || hasTasks) {
+      const response = await dialog.showMessageBox({
+        type: "warning",
+        buttons: ["Replace", "Merge", "Cancel"],
+        defaultId: 1,
+        cancelId: 2,
+        message: "The folder already contains Daily data. What do you want to do?",
+        detail: "You can:\n- «Replace»: clear the folder and write your tasks\n- «Merge»: load existing and add your own",
+      })
+
+      // Replace
+      if (response.response === 0) {
+        await fs.emptyDir(targetPath)
+        return await this.migrateToNewRoot(selectedPath, true)
+      }
+
+      // Merge
+      if (response.response === 1) {
+        return await this.mergeWithExistingStorage(selectedPath)
+      }
+
+      return false
+    }
+
+    return await this.migrateToNewRoot(selectedPath, removeOld)
+  }
+
+  /**
+   * Resolves the actual Daily root
+   * - If found, returns it.
+   * - Otherwise, returns the default Documents/Daily
+   */
+  private resolveStorageRoot(): string {
+    const defaultPath = path.join(app.getPath("documents"), "Daily")
+
+    try {
+      if (fs.existsSync(this.appSettingsPath)) {
+        const settings = fs.readJsonSync(this.appSettingsPath)
+        const saved = settings?.paths?.root
+        if (saved && fs.existsSync(saved)) return saved
+      }
+    } catch (e) {
+      console.warn("⚠️ Failed to read settings.json:", e)
+    }
+
+    return defaultPath
+  }
+
+  private async saveStorageRoot(newPath: string): Promise<void> {
+    try {
+      const settings = {paths: {root: newPath}}
+      await fs.ensureDir(path.dirname(this.appSettingsPath))
+      await fs.writeJson(this.appSettingsPath, settings, {spaces: 2})
+    } catch (e) {
+      console.error("❌ Failed to write settings.json:", e)
     }
   }
 }

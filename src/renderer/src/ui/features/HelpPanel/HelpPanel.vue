@@ -2,6 +2,7 @@
 import BaseIcon from "@/ui/base/BaseIcon"
 import About from "./fragments/About.vue"
 import Shortcuts from "./fragments/Shortcuts.vue"
+import StorageSettings from "./fragments/StorageSettings.vue"
 import TaskWorkflow from "./fragments/TaskWorkflow/TaskWorkflow.vue"
 </script>
 
@@ -15,6 +16,17 @@ import TaskWorkflow from "./fragments/TaskWorkflow/TaskWorkflow.vue"
 
       <div class="flex flex-col gap-1 px-2">
         <TaskWorkflow />
+      </div>
+    </div>
+
+    <div>
+      <div class="border-b pb-1 mb-2 border-base-300 text-accent flex items-center gap-1 text-xs font-bold uppercase select-none">
+        <BaseIcon name="cog" class="size-4" />
+        Storage
+      </div>
+
+      <div class="flex flex-col gap-1 px-2">
+        <StorageSettings />
       </div>
     </div>
 

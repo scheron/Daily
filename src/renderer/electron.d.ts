@@ -26,6 +26,11 @@ export default interface ElectronApi {
   getSettings: () => Promise<Partial<Settings>>
   saveSettings: (settings: Partial<Settings>) => Promise<void>
 
+  // === STORAGE ===
+  getStoragePath: (pretty?: boolean) => Promise<string>
+  selectStoragePath: (removeOld?: boolean) => Promise<string>
+  onStorageSync: (callback: (event: StorageSyncEvent) => void) => void
+
   // === DATA ===
   loadTasks: () => Promise<Task[]>
   saveTasks: (tasks: Task[]) => Promise<void>
@@ -38,8 +43,6 @@ export default interface ElectronApi {
 
   // === MENU ===
   onMenuAction: (callback: (action: "new-task") => void) => void
-
-  onStorageSync: (callback: (event: StorageSyncEvent) => void) => void
 }
 
 declare global {

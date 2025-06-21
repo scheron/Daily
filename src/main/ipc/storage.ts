@@ -59,4 +59,6 @@ export function setupStorageIPC(storage: StorageManager): void {
     }
   })
 
+  ipcMain.handle("get-storage-path", (_e, pretty = false) => storage.getStoragePath(pretty))
+  ipcMain.handle("select-storage-path", (_e, removeOld = false) => storage.selectStoragePath(removeOld))
 }
