@@ -15,14 +15,6 @@ export function createWindowsMenu(mainWindow: BrowserWindow): MenuItemConstructo
           },
         },
         {type: "separator"},
-        {
-          label: "Export",
-          accelerator: "Ctrl+E",
-          click: () => {
-            mainWindow?.webContents.send("export-data")
-          },
-        },
-        {type: "separator"},
         {role: "quit"},
       ],
     },

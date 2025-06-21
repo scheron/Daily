@@ -40,11 +40,6 @@ export function createMacMenu(mainWindow: BrowserWindow): MenuItemConstructorOpt
           accelerator: "CmdOrCtrl+N",
           click: () => mainWindow.webContents.send("new-task"),
         },
-        {
-          label: "Export Tasks",
-          accelerator: "CmdOrCtrl+E",
-          click: () => mainWindow.webContents.send("export-data"),
-        },
         {type: "separator"},
         ...(process.env.NODE_ENV === "development" ? [{role: "toggleDevTools" as const}] : []),
       ],

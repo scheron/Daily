@@ -323,7 +323,6 @@ export class FileStorageManager implements StorageManager {
     try {
       const isDaily = path.basename(selectedPath) === "Daily"
       const newRoot = isDaily ? selectedPath : path.join(selectedPath, "Daily")
-
       if (newRoot === this.rootDir) return false
 
       console.log("📦 Starting migration to:", newRoot)
@@ -333,17 +332,12 @@ export class FileStorageManager implements StorageManager {
       const newAssetsDir = path.join(newRoot, "assets")
 
       await fs.ensureDir(newRoot)
+      await fs.emptyDir(newRoot)
 
-      for (const file of await fs.readdir(this.rootDir)) {
-        const from = path.join(this.rootDir, file)
+      for (const file of await fs.readdir(originalRoot)) {
+        const from = path.join(originalRoot, file)
         const to = path.join(newRoot, file)
         await fs.copy(from, to)
-      }
-
-      for (const task of Object.values(this.meta.tasks)) {
-        const absoluteOld = path.resolve(originalRoot, task.file)
-        const newRel = path.relative(newRoot, absoluteOld)
-        task.file = newRel
       }
 
       this.rootDir = newRoot
@@ -351,15 +345,14 @@ export class FileStorageManager implements StorageManager {
       this.configPath = newConfigPath
       this.assetsDir = newAssetsDir
 
-      await this.persistMeta()
       await this.saveStorageRoot(newRoot)
+      console.log("✅ Migration completed.")
 
       if (removeOldDir) {
         console.log("🧹 Removing old directory:", originalRoot)
         await fs.remove(originalRoot)
       }
 
-      console.log("✅ Migration completed.")
       return true
     } catch (error) {
       // NOTE: Rollback to original state
@@ -372,7 +365,7 @@ export class FileStorageManager implements StorageManager {
     }
   }
 
-  async mergeWithExistingStorage(selectedPath: string): Promise<boolean> {
+  private async mergeWithExistingStorage(selectedPath: string): Promise<boolean> {
     const isDaily = path.basename(selectedPath) === "Daily"
     const newRoot = isDaily ? selectedPath : path.join(selectedPath, "Daily")
     const newMetaPath = path.join(newRoot, ".meta.json")
@@ -391,11 +384,12 @@ export class FileStorageManager implements StorageManager {
         const dayFolder = path.join(newRoot, task.scheduled.date)
         await fs.ensureDir(dayFolder)
 
-        const newFilename = `${id}.md`
-        const targetPath = path.join(dayFolder, newFilename)
-        await fs.copy(originalPath, targetPath)
-
+        const targetPath = path.join(dayFolder, `${id}.md`)
         const relPath = path.relative(newRoot, targetPath)
+
+        if (originalPath !== targetPath) {
+          await fs.copy(originalPath, targetPath)
+        }
 
         existingMeta.tasks[id] = {...task, file: relPath}
       }
@@ -443,7 +437,13 @@ export class FileStorageManager implements StorageManager {
     const isDaily = path.basename(selectedPath) === "Daily"
     const targetPath = isDaily ? selectedPath : path.join(selectedPath, "Daily")
 
-    if (targetPath === this.rootDir) return false
+    try {
+      const currentReal = await fs.realpath(this.rootDir)
+      const selectedReal = await fs.realpath(targetPath)
+      if (currentReal === selectedReal) return false
+    } catch (e) {
+      console.warn("⚠️ Failed to resolve real paths for comparison:", e)
+    }
 
     const hasMeta = await fs.pathExists(path.join(targetPath, ".meta.json"))
     const hasTasks =
@@ -462,7 +462,7 @@ export class FileStorageManager implements StorageManager {
       // Replace
       if (response.response === 0) {
         await fs.emptyDir(targetPath)
-        return await this.migrateToNewRoot(selectedPath, true)
+        return await this.migrateToNewRoot(selectedPath, removeOld)
       }
 
       // Merge
