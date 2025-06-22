@@ -108,7 +108,7 @@ watch(
 <template>
   <div class="bg-base-100 flex size-full flex-col gap-3 px-4 py-2 md:flex-row md:items-center md:justify-between">
     <div class="relative flex w-full flex-1 items-center gap-2">
-      <DynamicTagsPanel :tags="tasksStore.dailyTags" :selected-tags="activeTagIds" empty-message="No daily tags" @select="onSelectTag" />
+      <DynamicTagsPanel :tags="tagsStore.tags" :selected-tags="activeTagIds" empty-message="No daily tags" @select="onSelectTag" />
     </div>
 
     <div class="flex w-full shrink-0 items-center gap-3 md:w-auto">
