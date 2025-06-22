@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.3.0 - 2025-06-22
+
+### ✨ Obsidian-like File Storage
+- Tasks now stored as individual markdown files with YAML frontmatter
+- Organized by date in Documents/Daily/YYYY-MM-DD/ structure
+- Local-first approach with cloud sync compatibility
+- Assets stored separately in assets/ folder
+- Automatic migration from previous storage system
+
 ## v0.2.1 - 2025-06-16
 
 ### Bug Fixes
