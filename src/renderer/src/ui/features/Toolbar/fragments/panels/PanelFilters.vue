@@ -2,6 +2,7 @@
 import {computed, watch} from "vue"
 import {useFilterStore} from "@/stores/filter.store"
 import {useTasksStore} from "@/stores/tasks.store"
+import {countTasks} from "@/utils/tasks"
 
 import type {TasksFilter} from "@/types/filters"
 import type {Tag} from "@/types/tasks"
@@ -22,10 +23,11 @@ const FILTERS: {label: string; value: TasksFilter}[] = [
 const tasksStore = useTasksStore()
 const filterStore = useFilterStore()
 
+const taskCounts = computed(() => countTasks(tasksStore.dailyTasks))
+
 const visibleTags = computed(() => tasksStore.dailyTags.slice(0, VISIBLE_TAGS_COUNT))
 const remainingTags = computed(() => tasksStore.dailyTags.slice(VISIBLE_TAGS_COUNT))
 const hasSelectedInPopup = computed(() => remainingTags.value.some((tag) => filterStore.activeTagIds.has(tag.id)))
-
 
 function isActiveTag(tagId: Tag["id"]) {
   return filterStore.activeTagIds.has(tagId)
@@ -94,14 +96,24 @@ watch(
         <button
           v-for="option in FILTERS"
           :key="option.value"
-          class="focus-visible-ring capitalize focus-visible:ring-offset-base-100 focus-visible:ring-base-content flex-1 rounded-md px-2 py-0.5 text-sm transition-colors outline-none md:flex-none"
+          class="focus-visible-ring focus-visible:ring-offset-base-100 focus-visible:ring-base-content inline-flex flex-1 items-center justify-center gap-x-1.5 rounded-md px-2 py-0.5 text-sm transition-colors outline-none md:flex-none"
           :class="{
             'bg-base-100 text-base-content shadow-sm': filterStore.activeFilter === option.value,
             'text-base-content/70 hover:text-base-content': filterStore.activeFilter !== option.value,
           }"
           @click="filterStore.setActiveFilter(option.value)"
         >
-          {{ option.value }}
+          <span>{{ option.label }}</span>
+          <span
+            v-if="option.value !== 'all'"
+            class="flex h-4 min-w-[1rem] items-center justify-center rounded-full px-1 text-xs"
+            :class="{
+              'bg-base-300': filterStore.activeFilter === option.value,
+              'bg-base-100 text-base-content/50': filterStore.activeFilter !== option.value,
+            }"
+          >
+            {{ taskCounts[option.value] > 9 ? "9+" : taskCounts[option.value] }}
+          </span>
         </button>
       </div>
     </div>
