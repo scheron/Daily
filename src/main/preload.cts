@@ -30,8 +30,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getAssetPath: (filename: string) => ipcRenderer.invoke("get-asset-path", filename),
   deleteAsset: (filename: string) => ipcRenderer.invoke("delete-asset", filename),
 
-  onMenuAction: (callback: (action: "new-task") => void) => {
+  onMenuAction: (callback: (action: "new-task" | "toggle-sidebar") => void) => {
     ipcRenderer.on("new-task", () => callback("new-task"))
+    ipcRenderer.on("toggle-sidebar", () => callback("toggle-sidebar"))
   },
 
   getStoragePath: (pretty?: boolean) => ipcRenderer.invoke("get-storage-path", pretty),

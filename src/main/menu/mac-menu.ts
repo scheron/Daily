@@ -40,6 +40,11 @@ export function createMacMenu(mainWindow: BrowserWindow): MenuItemConstructorOpt
           accelerator: "CmdOrCtrl+N",
           click: () => mainWindow.webContents.send("new-task"),
         },
+        {
+          label: "Toggle Sidebar",
+          accelerator: "CmdOrCtrl+I",
+          click: () => mainWindow.webContents.send("toggle-sidebar"),
+        },
         {type: "separator"},
         ...(process.env.NODE_ENV === "development" ? [{role: "toggleDevTools" as const}] : []),
       ],

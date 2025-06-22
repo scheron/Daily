@@ -34,6 +34,7 @@ function onCreateTask() {
 
 window.electronAPI.onMenuAction((action) => {
   if (action === "new-task") onCreateTask()
+  else if (action === "toggle-sidebar") uiStore.toggleSidebarCollapse()
 })
 
 window.electronAPI.onStorageSync(async ({type}) => {

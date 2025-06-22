@@ -23,9 +23,9 @@ const {isMacOS} = useDevice()
             {{ isMacOS ? "⌘" : "Ctrl" }}
           </kbd>
           +
-          <kbd class="bg-base-100 border-base-300 inline-flex h-6 items-center justify-center rounded border px-1.5">E</kbd>
+          <kbd class="bg-base-100 border-base-300 inline-flex h-6 items-center justify-center rounded border px-1.5">I</kbd>
         </td>
-        <td>Export tasks</td>
+        <td>Toggle sidebar</td>
       </tr>
     </tbody>
   </table>
