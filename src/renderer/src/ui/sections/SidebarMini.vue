@@ -11,6 +11,7 @@ defineProps<{
 }>()
 
 const uiStore = useUIStore()
+
 </script>
 
 <template>

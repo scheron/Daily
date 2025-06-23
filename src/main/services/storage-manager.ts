@@ -18,10 +18,9 @@ import fs from "fs-extra"
 import matter from "gray-matter"
 import {nanoid} from "nanoid"
 
-import type {ID, MetaFile, Settings, StorageManager, Tag, Task} from "../types"
+import type {ID, MetaFile, Settings, StorageManager, Tag, Task} from "../types.js"
 
 import {arrayRemoveDuplicates, deepMerge, getMimeType} from "../helpers.js"
-import {notifyStorageChange} from "./storage-events.js"
 
 export class FileStorageManager implements StorageManager {
   rootDir: string
@@ -29,18 +28,25 @@ export class FileStorageManager implements StorageManager {
   configPath: string
   assetsDir: string
 
-  private meta: MetaFile = {version: 1, tasks: {}, tags: {}}
+  private meta: MetaFile = {version: nanoid(), tasks: {}, tags: {}}
   private settings: Settings | null = null
   private readonly appSettingsPath = path.join(app.getPath("userData"), "settings.json")
+  private lastMetaVersion = ""
+  private lastConfigVersion = ""
 
   constructor() {
-    this.rootDir = this.resolveStorageRoot()
+    this.rootDir = path.join(app.getPath("documents"), "Daily")
     this.metaPath = path.join(this.rootDir, ".meta.json")
     this.configPath = path.join(this.rootDir, ".config.json")
     this.assetsDir = path.join(this.rootDir, "assets")
   }
 
   async init(): Promise<void> {
+    this.rootDir = await this.resolveStorageRoot()
+    this.metaPath = path.join(this.rootDir, ".meta.json")
+    this.configPath = path.join(this.rootDir, ".config.json")
+    this.assetsDir = path.join(this.rootDir, "assets")
+
     await fs.ensureDir(this.rootDir)
     await fs.ensureDir(this.assetsDir)
 
@@ -49,6 +55,7 @@ export class FileStorageManager implements StorageManager {
       await fs.writeJson(
         this.configPath,
         {
+          version: nanoid(),
           themes: {
             current: "github-light",
             preferred_light: "github-light",
@@ -61,7 +68,7 @@ export class FileStorageManager implements StorageManager {
       )
     }
 
-    // STORAGE (meta.json)
+    // STORAGE (.meta.json)
     if (await fs.pathExists(this.metaPath)) {
       try {
         const raw = await fs.readJson(this.metaPath)
@@ -80,7 +87,7 @@ export class FileStorageManager implements StorageManager {
       await fs.ensureDir(dir)
     }
 
-    await this.syncFileSystemWithMeta()
+    await this.syncStorage()
   }
 
   /* =============================== */
@@ -229,6 +236,8 @@ export class FileStorageManager implements StorageManager {
     const current = await this.loadSettings()
     const merged = deepMerge(current, newSettings)
 
+    merged.version = nanoid()
+
     this.settings = merged
     await fs.writeJson(this.configPath, merged, {spaces: 2})
   }
@@ -275,36 +284,53 @@ export class FileStorageManager implements StorageManager {
   }
 
   private async persistMeta(): Promise<void> {
+    this.meta.version = nanoid()
     await fs.writeJson(this.metaPath, this.meta, {spaces: 2})
   }
 
   /* =============================== */
   /* ============ SYNC =========== */
   /* =============================== */
-  async syncFileSystemWithMeta(): Promise<void> {
-    const existingIds = Object.keys(this.meta.tasks)
-    const toRemove: string[] = []
+  async syncStorage(): Promise<void> {
+    try {
+      console.log("🔄 Starting storage sync...")
 
-    for (const id of existingIds) {
-      const relPath = this.meta.tasks[id].file
-      const fullPath = path.join(this.rootDir, relPath)
+      const metaVersion = await this.getMetaVersion()
+      const configVersion = await this.getConfigVersion()
 
-      if (!(await fs.pathExists(fullPath))) {
-        console.warn(`⚠️ Missing task file for ID ${id}: ${relPath}`)
-        toRemove.push(id)
+      if (metaVersion !== this.lastMetaVersion || configVersion !== this.lastConfigVersion) {
+        console.log("📝 Meta or config changed, reloading data...")
+
+        await this.loadTasks()
+        await this.loadTags()
+
+        this.lastMetaVersion = metaVersion
+        this.lastConfigVersion = configVersion
+
+        console.log("✅ Storage sync completed - data reloaded")
+      } else {
+        console.log("✅ Storage sync completed - no changes detected")
       }
+    } catch (error) {
+      console.error("❌ Storage sync failed:", error)
+      throw error
     }
+  }
 
-    if (toRemove.length > 0) {
-      for (const id of toRemove) {
-        delete this.meta.tasks[id]
-      }
-
-      await this.persistMeta()
-      console.log(`🧹 Removed ${toRemove.length} orphaned tasks from meta`)
-      notifyStorageChange("tasks")
-      notifyStorageChange("tags")
+  private async getMetaVersion(): Promise<string> {
+    if (await fs.pathExists(this.metaPath)) {
+      const raw = await fs.readJson(this.metaPath)
+      return raw.version
     }
+    return ""
+  }
+
+  private async getConfigVersion(): Promise<string> {
+    if (await fs.pathExists(this.configPath)) {
+      const raw = await fs.readJson(this.configPath)
+      return raw.version
+    }
+    return ""
   }
 
   /* =============================== */
@@ -372,7 +398,7 @@ export class FileStorageManager implements StorageManager {
 
     try {
       const existingMeta: MetaFile = (await fs.readJson(newMetaPath).catch(() => ({
-        version: 1,
+        version: nanoid(),
         tasks: {},
         tags: {},
       }))) as MetaFile
@@ -380,7 +406,7 @@ export class FileStorageManager implements StorageManager {
 
       const mergedTags = {...existingMeta.tags}
       for (const tag of Object.values(this.meta.tags)) {
-        const existingTag = Object.values(mergedTags).find(t => t.name === tag.name)
+        const existingTag = Object.values(mergedTags).find((t) => t.name === tag.name)
         if (!existingTag) {
           mergedTags[tag.id] = tag
         }
@@ -408,7 +434,7 @@ export class FileStorageManager implements StorageManager {
       }
 
       const mergedMeta: MetaFile = {
-        version: 1,
+        version: nanoid(),
         tasks: mergedTasks,
         tags: mergedTags,
       }
@@ -475,7 +501,8 @@ export class FileStorageManager implements StorageManager {
         defaultId: 2,
         cancelId: 3,
         message: "The folder already contains Daily data. What do you want to do?",
-        detail: "You can:\n- «Use Target Data»: replace current storage with target folder data\n- «Use Current Data»: replace target folder with current storage\n- «Merge Both»: combine data from both storages",
+        detail:
+          "You can:\n- «Use Target Data»: replace current storage with target folder data\n- «Use Current Data»: replace target folder with current storage\n- «Merge Both»: combine data from both storages",
       })
 
       // Use Target Data (clear current and use target)
@@ -505,14 +532,20 @@ export class FileStorageManager implements StorageManager {
    * - If found, returns it.
    * - Otherwise, returns the default Documents/Daily
    */
-  private resolveStorageRoot(): string {
+  private async resolveStorageRoot(): Promise<string> {
     const defaultPath = path.join(app.getPath("documents"), "Daily")
 
     try {
-      if (fs.existsSync(this.appSettingsPath)) {
-        const settings = fs.readJsonSync(this.appSettingsPath)
+      if (await fs.pathExists(this.appSettingsPath)) {
+        const settings = await fs.readJson(this.appSettingsPath)
         const saved = settings?.paths?.root
-        if (saved && fs.existsSync(saved)) return saved
+        if (saved) {
+          try {
+            if (await fs.pathExists(saved)) return saved
+          } catch (e) {
+            console.warn("⚠️ Saved path exists but not accessible:", saved, e)
+          }
+        }
       }
     } catch (e) {
       console.warn("⚠️ Failed to read settings.json:", e)

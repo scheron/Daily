@@ -4,6 +4,7 @@ import {Toaster} from "vue-sonner"
 import {invoke} from "@vueuse/core"
 import {useContentSize} from "@/composables/useContentSize"
 import {useDevice} from "@/composables/useDevice"
+import {useStorageStore} from "@/stores/storage.store"
 import {useTagsStore} from "@/stores/tags.store"
 import {useTaskEditorStore} from "@/stores/taskEditor.store"
 import {useTasksStore} from "@/stores/tasks.store"
@@ -20,6 +21,8 @@ const tasksStore = useTasksStore()
 const tagsStore = useTagsStore()
 const taskEditorStore = useTaskEditorStore()
 const uiStore = useUIStore()
+
+useStorageStore()
 useThemeStore()
 
 const {isDesktop, isMobile, isTablet} = useDevice()
@@ -35,12 +38,6 @@ function onCreateTask() {
 window.electronAPI.onMenuAction((action) => {
   if (action === "new-task") onCreateTask()
   else if (action === "toggle-sidebar") uiStore.toggleSidebarCollapse()
-})
-
-window.electronAPI.onStorageSync(async ({type}) => {
-  if (type === "tasks") await tasksStore.revalidate()
-  else if (type === "tags") await tagsStore.revalidate()
-  // else if (type === "settings") settingsStore.revalidate()
 })
 
 invoke(async () => {

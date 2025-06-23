@@ -37,6 +37,7 @@ export type IconName =
   | "history"
   | "tags"
   | "monitor"
+  | "refresh"
 </script>
 
 <template>
@@ -371,6 +372,15 @@ export type IconName =
         stroke-width="1.5"
         d="M8 21h8m-4-4v4m8-4H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1Z"
       />
+    </symbol>
+
+    <symbol id="refresh" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+      <g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+        <path d="M3 3v5h5"></path>
+        <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path>
+        <path d="M16 16h5v5"></path>
+      </g>
     </symbol>
   </svg>
 </template>

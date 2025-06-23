@@ -11,4 +11,9 @@ export function setupMainWindowIPC(mainWindow: BrowserWindow): void {
   })
 
   ipcMain.on("window:close", () => mainWindow?.close())
+
+  // Console logging from renderer to main process
+  ipcMain.on("console:electron", (_event, ...args) => {
+    console.log("[RENDERER]", ...args)
+  })
 }

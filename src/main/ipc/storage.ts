@@ -2,6 +2,8 @@ import {ipcMain} from "electron"
 
 import type {StorageManager, Tag, Task} from "../types.js"
 
+import {forceStorageSync, isStorageSyncActive} from "../services/storage-sync.js"
+
 export function setupStorageIPC(storage: StorageManager): void {
   if (!storage) {
     throw new Error("Storage is not initialized")
@@ -29,6 +31,28 @@ export function setupStorageIPC(storage: StorageManager): void {
     console.log(`🚀 load-all-data completed in ${endTime - startTime}ms (${tasks.length} tasks, ${tags.length} tags)`)
 
     return {tasks, tags}
+  })
+
+  ipcMain.handle("sync-storage", async () => {
+    try {
+      await storage.syncStorage()
+      return true
+    } catch (error) {
+      console.error("Failed to sync storage:", error)
+      return false
+    }
+  })
+
+  ipcMain.handle("is-sync-active", () => isStorageSyncActive())
+
+  ipcMain.handle("force-sync", async () => {
+    try {
+      await forceStorageSync(storage)
+      return true
+    } catch (error) {
+      console.error("Failed to force sync:", error)
+      return false
+    }
   })
 
   ipcMain.handle("save-asset", async (_e, filename: string, data: Buffer) => {

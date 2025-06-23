@@ -2,7 +2,7 @@ import { Menu, type BrowserWindow } from "electron"
 import { createMacMenu } from "./mac-menu.js"
 import { createWindowsMenu } from "./windows-menu.js"
 
-export function createMenu(mainWindow: BrowserWindow): void {
+export function setupMenu(mainWindow: BrowserWindow): void {
   let template: Electron.MenuItemConstructorOptions[]
 
   if (process.platform === "darwin") {

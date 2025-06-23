@@ -8,10 +8,11 @@ import {cleanupOrphanAssets, focusWindow, sleep} from "./helpers.js"
 import {setupMenuIPC} from "./ipc/menu.js"
 import {setupStorageIPC} from "./ipc/storage.js"
 import {setupMainWindowIPC} from "./ipc/window.js"
-import {createMenu} from "./menu/menu.js"
+import {setupMenu} from "./menu/menu.js"
 import {handleDeepLink, setupDeepLinks} from "./services/deep-links.js"
-import {setupStorageSync} from "./services/storage-events.js"
+import {notifyStorageSyncStatus, setupStorageEvents} from "./services/storage-events.js"
 import {FileStorageManager} from "./services/storage-manager.js"
+import {setupStorageSync, teardownStorageSync} from "./services/storage-sync.js"
 import {setupUpdateManager} from "./services/updater.js"
 import {createMainWindow} from "./windows/main-window.js"
 import {createSplashWindow} from "./windows/splash-window.js"
@@ -24,12 +25,25 @@ let splashWindow: BrowserWindow | null = null
 
 const gotLock = app.requestSingleInstanceLock()
 
+const DISABLE_FOCUS_SYNC = process.env.DISABLE_FOCUS_SYNC === "true"
+
 if (!gotLock) {
   app.quit()
 } else {
-  app.on("second-instance", (_event, argv) => {
+  app.on("second-instance", async (_event, argv) => {
     if (mainWindow) {
       focusWindow(mainWindow)
+      if (!DISABLE_FOCUS_SYNC) {
+        try {
+          notifyStorageSyncStatus(true)
+          await storage.syncStorage()
+          console.log("🔄 Storage revalidated on second-instance")
+        } catch (err) {
+          console.warn("⚠️ Failed to revalidate storage on second-instance:", err)
+        } finally {
+          notifyStorageSyncStatus(false)
+        }
+      }
     }
     const url = argv.find((arg) => arg.startsWith("daily://"))
     if (url) handleDeepLink(url, mainWindow!)
@@ -68,15 +82,17 @@ app.whenReady().then(async () => {
   }
 
   setupStorageIPC(storage)
+  setupStorageSync(storage)
 
   mainWindow = createMainWindow()
 
   setupMainWindowIPC(mainWindow)
   setupMenuIPC(mainWindow)
-  createMenu(mainWindow)
+  setupMenu(mainWindow)
+
   setupDeepLinks(mainWindow)
   setupUpdateManager(mainWindow)
-  setupStorageSync(() => mainWindow)
+  setupStorageEvents(() => mainWindow)
 
   protocol.handle("safe-file", async (request) => {
     const url = request.url.replace("safe-file://", "")
@@ -93,14 +109,6 @@ app.whenReady().then(async () => {
     mainWindow!.show()
     focusWindow(mainWindow!)
     console.log("✅ Main window displayed")
-  })
-
-  mainWindow.on("focus", async () => {
-    try {
-      await storage.syncFileSystemWithMeta()
-    } catch (err) {
-      console.warn("⚠️ Failed to sync file system on focus:", err)
-    }
   })
 
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
@@ -122,14 +130,15 @@ app.whenReady().then(async () => {
   }
 })
 
-app.on("activate", () => {
+app.on("activate", async () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     mainWindow = createMainWindow()
     setupMainWindowIPC(mainWindow)
     setupMenuIPC(mainWindow)
-    createMenu(mainWindow)
+    setupMenu(mainWindow)
     setupDeepLinks(mainWindow)
-    setupStorageSync(() => mainWindow)
+    setupStorageEvents(() => mainWindow)
+    setupStorageSync(storage)
 
     mainWindow.once("ready-to-show", () => {
       mainWindow!.show()
@@ -137,13 +146,31 @@ app.on("activate", () => {
     })
   } else if (mainWindow) {
     focusWindow(mainWindow)
+    console.log("🔄 Storage revalidated on activate")
+
+    if (!DISABLE_FOCUS_SYNC) {
+      try {
+        notifyStorageSyncStatus(true)
+        await storage.syncStorage()
+        console.log("🔄 Storage revalidated on activate")
+      } catch (err) {
+        console.warn("⚠️ Failed to revalidate storage on activate:", err)
+      } finally {
+        notifyStorageSyncStatus(false)
+      }
+    }
   }
 })
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
+    teardownStorageSync()
     app.quit()
   }
+})
+
+app.on("before-quit", () => {
+  teardownStorageSync()
 })
 
 function getIconPath(): string {

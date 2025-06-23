@@ -5,7 +5,7 @@ export type Timezone = string
 export type ID = string
 
 export type MetaFile = {
-  version: number
+  version: string
   tasks: Record<ID, MetaTask>
   tags: Record<ID, MetaTag>
 }
@@ -36,6 +36,7 @@ export type MetaTag = {
 }
 
 export type Settings = {
+  version: string
   themes: {
     current: string
     preferred_light: string
@@ -97,7 +98,7 @@ export interface StorageManager {
   getAssetPath(filename: string): Promise<string>
   getAssetResponse(fileUrl: string): Promise<Response>
 
-  syncFileSystemWithMeta(): Promise<void>
+  syncStorage(): Promise<void>
 
   getStoragePath(pretty?: boolean): Promise<string>
   selectStoragePath(removeOld?: boolean): Promise<boolean>
@@ -105,4 +106,8 @@ export interface StorageManager {
 
 export type StorageSyncEvent = {
   type: "tasks" | "tags" | "settings"
+}
+
+export type StorageSyncStatusEvent = {
+  isSyncing: boolean
 }

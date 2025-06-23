@@ -29,7 +29,11 @@ export default interface ElectronApi {
   // === STORAGE ===
   getStoragePath: (pretty?: boolean) => Promise<string>
   selectStoragePath: (removeOld?: boolean) => Promise<string>
+
   onStorageSync: (callback: (event: StorageSyncEvent) => void) => void
+  onStorageSyncStatus: (callback: (event: {isSyncing: boolean}) => void) => void
+  isSyncActive: () => Promise<boolean>
+  forceSync: () => Promise<boolean>
 
   // === DATA ===
   loadTasks: () => Promise<Task[]>
@@ -43,6 +47,9 @@ export default interface ElectronApi {
 
   // === MENU ===
   onMenuAction: (callback: (action: "new-task") => void) => void
+
+  // === DEBUG ===
+  consoleElectron: (...args: any[]) => void
 }
 
 declare global {
