@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.3.1 - 2025-06-23
+
+### 🔄 Storage Synchronization
+- Cross-device storage sync with automatic synchronization
+- Performance improvements for large storage operations
+- Real-time sync status with loading indicators
+
 ## v0.3.0 - 2025-06-22
 
 ### ✨ Obsidian-like File Storage
