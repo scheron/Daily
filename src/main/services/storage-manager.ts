@@ -376,7 +376,17 @@ export class FileStorageManager implements StorageManager {
         tasks: {},
         tags: {},
       }))) as MetaFile
+      console.log("🔄 Merging with existing storage:", newMetaPath, existingMeta)
 
+      const mergedTags = {...existingMeta.tags}
+      for (const tag of Object.values(this.meta.tags)) {
+        const existingTag = Object.values(mergedTags).find(t => t.name === tag.name)
+        if (!existingTag) {
+          mergedTags[tag.id] = tag
+        }
+      }
+
+      const mergedTasks = {...existingMeta.tasks}
       for (const task of Object.values(this.meta.tasks)) {
         const id = task.id
 
@@ -391,17 +401,26 @@ export class FileStorageManager implements StorageManager {
           await fs.copy(originalPath, targetPath)
         }
 
-        existingMeta.tasks[id] = {...task, file: relPath}
+        const existingTask = mergedTasks[id]
+        if (!existingTask || (task.updatedAt && existingTask.updatedAt && task.updatedAt > existingTask.updatedAt)) {
+          mergedTasks[id] = {...task, file: relPath}
+        }
       }
 
-      await fs.writeJson(newMetaPath, existingMeta, {spaces: 2})
+      const mergedMeta: MetaFile = {
+        version: 1,
+        tasks: mergedTasks,
+        tags: mergedTags,
+      }
+
+      await fs.writeJson(newMetaPath, mergedMeta, {spaces: 2})
       await this.saveStorageRoot(newRoot)
 
       this.rootDir = newRoot
       this.metaPath = newMetaPath
       this.configPath = path.join(newRoot, ".config.json")
       this.assetsDir = path.join(newRoot, "assets")
-      this.meta = existingMeta
+      this.meta = mergedMeta
 
       console.log("✅ Merge with existing storage completed.")
       return true
@@ -452,21 +471,26 @@ export class FileStorageManager implements StorageManager {
     if (hasMeta || hasTasks) {
       const response = await dialog.showMessageBox({
         type: "warning",
-        buttons: ["Replace", "Merge", "Cancel"],
-        defaultId: 1,
-        cancelId: 2,
+        buttons: ["Use Target Data", "Use Current Data", "Merge Both", "Cancel"],
+        defaultId: 2,
+        cancelId: 3,
         message: "The folder already contains Daily data. What do you want to do?",
-        detail: "You can:\n- «Replace»: clear the folder and write your tasks\n- «Merge»: load existing and add your own",
+        detail: "You can:\n- «Use Target Data»: replace current storage with target folder data\n- «Use Current Data»: replace target folder with current storage\n- «Merge Both»: combine data from both storages",
       })
 
-      // Replace
+      // Use Target Data (clear current and use target)
       if (response.response === 0) {
+        return await this.migrateToNewRoot(selectedPath, removeOld)
+      }
+
+      // Use Current Data (clear target and use current)
+      if (response.response === 1) {
         await fs.emptyDir(targetPath)
         return await this.migrateToNewRoot(selectedPath, removeOld)
       }
 
-      // Merge
-      if (response.response === 1) {
+      // Merge Both
+      if (response.response === 2) {
         return await this.mergeWithExistingStorage(selectedPath)
       }
 
