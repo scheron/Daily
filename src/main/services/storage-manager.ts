@@ -72,7 +72,7 @@ export class FileStorageManager implements StorageManager {
     if (await fs.pathExists(this.metaPath)) {
       try {
         const raw = await fs.readJson(this.metaPath)
-        if (raw.version === 1 && raw.tasks && raw.tags) {
+        if (raw.tasks && raw.tags) {
           this.meta = raw as MetaFile
         } else {
           console.warn("Invalid meta.json structure. Reinitializing.")
