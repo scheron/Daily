@@ -28,13 +28,13 @@ const filteredTasks = computed(() => {
       if (filter === "discarded") return task.status === "discarded"
     })
     .filter((task) => {
-      if (!filterStore.activeTagIds.size) return true
-      return task.tags.some((tag) => filterStore.activeTagIds.has(tag.id))
+      if (!filterStore.activeTagNames.size) return true
+      return task.tags.some((tag) => filterStore.activeTagNames.has(tag.name))
     })
 })
 
 function getTaskTags(task: Task): Tag[] {
-  return task.tags.map((tag) => tagsStore.tagsMap.get(tag.id)).filter(Boolean) as Tag[]
+  return task.tags.map((tag) => tagsStore.tagsMap.get(tag.name)).filter(Boolean) as Tag[]
 }
 
 function onEdit(task?: Task) {

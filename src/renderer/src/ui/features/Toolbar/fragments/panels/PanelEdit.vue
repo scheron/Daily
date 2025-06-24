@@ -25,16 +25,17 @@ const tagsStore = useTagsStore()
 
 const toastRestoreTask = useRestoreTaskToast(async (task) => await tasksStore.restoreTask(task.id))
 
-const selectedTags = ref<Map<Tag["id"], Tag>>(new Map())
-const activeTagIds = computed(() => new Set(selectedTags.value.keys()))
+const selectedTags = ref<Map<Tag["name"], Tag>>(new Map())
+const activeTagNames = computed(() => new Set(selectedTags.value.keys()))
 
 const deleteBlockRef = useTemplateRef<HTMLDivElement>("deleteBlock")
 
 const isNewTask = computed(() => taskEditorStore.currentEditingTask === null)
 
-function onSelectTag(tagId: Tag["id"]) {
-  if (selectedTags.value.has(tagId)) selectedTags.value.delete(tagId)
-  else selectedTags.value.set(tagId, tagsStore.tagsMap.get(tagId)!)
+function onSelectTag(tagName: Tag["name"]) {
+  console.log({tagName, tags: tagsStore.tagsMap.get(tagName)})
+  if (selectedTags.value.has(tagName)) selectedTags.value.delete(tagName)
+  else selectedTags.value.set(tagName, tagsStore.tagsMap.get(tagName)!)
 }
 
 useProgressFill(deleteBlockRef, {
@@ -49,6 +50,8 @@ async function onSave() {
 
   const committed = await taskEditorStore.commitAssets()
   const finalContent = taskEditorStore.replaceAttachments(content, committed)
+
+  console.log({content: finalContent, tags: JSON.stringify(taskEditorStore.editorTags)})
 
   if (isNewTask.value) {
     const isSuccess = await tasksStore.createTask({
@@ -93,7 +96,7 @@ function onClose() {
 
 onMounted(() => {
   if (taskEditorStore.currentEditingTask) {
-    selectedTags.value = new Map(taskEditorStore.currentEditingTask.tags.map((tag) => [tag.id, tag]))
+    selectedTags.value = new Map(taskEditorStore.currentEditingTask.tags.map((tag) => [tag.name, tag]))
   }
 })
 watch(
@@ -108,7 +111,7 @@ watch(
 <template>
   <div class="bg-base-100 flex size-full flex-col gap-3 px-4 py-2 md:flex-row md:items-center md:justify-between">
     <div class="relative flex w-full flex-1 items-center gap-2">
-      <DynamicTagsPanel :tags="tagsStore.tags" :selected-tags="activeTagIds" empty-message="No daily tags" @select="onSelectTag" />
+      <DynamicTagsPanel :tags="tagsStore.tags" :selected-tags="activeTagNames" empty-message="No daily tags" @select="onSelectTag" />
     </div>
 
     <div class="flex w-full shrink-0 items-center gap-3 md:w-auto">

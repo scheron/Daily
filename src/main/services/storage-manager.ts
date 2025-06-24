@@ -173,7 +173,7 @@ export class FileStorageManager implements StorageManager {
       createdAt: task?.createdAt ?? new Date().toISOString(),
       updatedAt: task?.updatedAt ?? new Date().toISOString(),
       scheduled: task.scheduled,
-      tagIds: task.tags.map((t) => t.id),
+      tags: task.tags.map((t) => t.name),
     }
   }
 
@@ -213,7 +213,7 @@ export class FileStorageManager implements StorageManager {
   async saveTags(tags: Tag[]): Promise<void> {
     this.meta.tags = arrayRemoveDuplicates(tags, "name").reduce(
       (acc, tag) => {
-        acc[tag.id] = tag
+        acc[tag.name] = tag
         return acc
       },
       {} as MetaFile["tags"],
@@ -408,7 +408,7 @@ export class FileStorageManager implements StorageManager {
       for (const tag of Object.values(this.meta.tags)) {
         const existingTag = Object.values(mergedTags).find((t) => t.name === tag.name)
         if (!existingTag) {
-          mergedTags[tag.id] = tag
+          mergedTags[tag.name] = tag
         }
       }
 

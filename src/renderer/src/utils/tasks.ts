@@ -5,22 +5,17 @@ import type {Day, Tag, Task} from "@/types/tasks"
 
 import {arrayRemoveDuplicates} from "./arrays"
 
-type GroupTasksByDayParams = {
-  tasks: Task[]
-  tags: Tag[]
-}
-
-export function groupTasksByDay(params: GroupTasksByDayParams): Day[] {
+export function groupTasksByDay(params: {tasks: Task[]; tags: Tag[]}): Day[] {
   const {tasks, tags} = params
 
   const taskDates = new Set<ISODate>()
   const tasksByDay = new Map<string, Task[]>()
   const tagsByDay = new Map<string, Tag[]>()
 
-  const tagsMap = new Map<Tag["id"], Tag>()
+  const tagsMap = new Map<Tag["name"], Tag>()
 
   for (const tag of tags) {
-    tagsMap.set(tag.id, tag)
+    tagsMap.set(tag.name, tag)
   }
 
   for (const task of tasks) {
@@ -31,7 +26,7 @@ export function groupTasksByDay(params: GroupTasksByDayParams): Day[] {
     tasksByDay.set(taskDate, dayTasks)
     taskDates.add(taskDate)
 
-    const taskTags = task.tags.map(({id}) => tagsMap.get(id)).filter(Boolean) as Tag[]
+    const taskTags = task.tags.map(({name}) => tagsMap.get(name)).filter(Boolean) as Tag[]
 
     if (!tagsByDay.has(taskDate)) tagsByDay.set(taskDate, [])
 
@@ -52,7 +47,7 @@ export function groupTasksByDay(params: GroupTasksByDayParams): Day[] {
       countActive,
       countDone,
       tasks: sortedTasks,
-      tags: arrayRemoveDuplicates(tags, "id"),
+      tags: arrayRemoveDuplicates(tags, "name"),
     }
   })
 }
@@ -81,14 +76,14 @@ export function updateDayStats(day: Day): Day {
   const countActive = day.tasks.filter((task) => task.status === "active").length
   const countDone = day.tasks.filter((task) => task.status === "done").length
 
-  const usedTags = new Set(day.tasks.flatMap((t) => t.tags.map((tag) => tag.id)))
-  const updatedTags = day.tags.filter((tag) => usedTags.has(tag.id))
+  const usedTags = new Set(day.tasks.flatMap((t) => t.tags.map((tag) => tag.name)))
+  const updatedTags = day.tags.filter((tag) => usedTags.has(tag.name))
 
   return {
     ...day,
     countActive,
     countDone,
-    tags: arrayRemoveDuplicates(updatedTags, "id"),
+    tags: arrayRemoveDuplicates(updatedTags, "name"),
   }
 }
 

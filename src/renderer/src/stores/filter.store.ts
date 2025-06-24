@@ -6,28 +6,28 @@ import type {Tag} from "@/types/tasks"
 
 export const useFilterStore = defineStore("filter", () => {
   const activeFilter = ref<TasksFilter>("all")
-  const activeTagIds = ref<Set<Tag["id"]>>(new Set())
+  const activeTagNames = ref<Set<Tag["name"]>>(new Set())
 
   function setActiveFilter(filter: TasksFilter) {
     activeFilter.value = filter
   }
 
-  function setActiveTags(tagId: Tag["id"]) {
-    if (activeTagIds.value.has(tagId)) activeTagIds.value.delete(tagId)
-    else activeTagIds.value.add(tagId)
+  function setActiveTags(tagName: Tag["name"]) {
+    if (activeTagNames.value.has(tagName)) activeTagNames.value.delete(tagName)
+    else activeTagNames.value.add(tagName)
   }
 
-  function removeActiveTag(tagId: Tag["id"]) {
-    activeTagIds.value.delete(tagId)
+  function removeActiveTag(tagName: Tag["name"]) {
+    activeTagNames.value.delete(tagName)
   }
 
   function clearActiveTags() {
-    activeTagIds.value.clear()
+    activeTagNames.value.clear()
   }
 
   return {
     activeFilter,
-    activeTagIds,
+    activeTagNames,
 
     removeActiveTag,
     setActiveFilter,

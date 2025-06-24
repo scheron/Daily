@@ -3,7 +3,6 @@ import type {ISODate, ISODateTime, ISOTime, Timezone} from "./date"
 export type TaskStatus = "active" | "discarded" | "done"
 
 export type Tag = {
-  id: string
   name: string
   color: string
   emoji: string

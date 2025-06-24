@@ -16,9 +16,9 @@ const isCreating = ref(false)
 
 const tags = computed(() => tagsStore.tags)
 
-async function deleteTag(id: string) {
-  filterStore.removeActiveTag(id)
-  await tagsStore.deleteTag(id)
+async function deleteTag(name: string) {
+  filterStore.removeActiveTag(name)
+  await tagsStore.deleteTag(name)
   await tasksStore.revalidate()
 }
 </script>
@@ -32,7 +32,7 @@ async function deleteTag(id: string) {
     <div v-if="tags.length" class="flex max-h-[200px] flex-wrap gap-2 overflow-y-auto p-2">
       <div
         v-for="tag in tags"
-        :key="tag.id"
+        :key="tag.name"
         class="group flex w-full flex-1 border items-center justify-between rounded-md py-1 pr-1 pl-3 text-sm"
         :style="{
           backgroundColor: `${tag.color}10`,
@@ -50,7 +50,7 @@ async function deleteTag(id: string) {
           icon-class="size-3.5"
           :style="{color: tag.color}"
           icon="x-mark"
-          @click="deleteTag(tag.id)"
+          @click="deleteTag(tag.name)"
         />
       </div>
     </div>

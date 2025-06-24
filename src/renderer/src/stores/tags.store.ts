@@ -8,7 +8,7 @@ export const useTagsStore = defineStore("tags", () => {
   const isTagsLoaded = ref(false)
   const tags = ref<Tag[]>([])
 
-  const tagsMap = computed(() => new Map<Tag["id"], Tag>(tags.value.map((tag) => [tag.id, tag])))
+  const tagsMap = computed(() => new Map<Tag["name"], Tag>(tags.value.map((tag) => [tag.name, tag])))
 
   async function loadTags() {
     isTagsLoaded.value = false
@@ -32,11 +32,11 @@ export const useTagsStore = defineStore("tags", () => {
     return newTag
   }
 
-  async function deleteTag(id: string) {
-    const deletedTag = await API.deleteTag(id)
+  async function deleteTag(name: string) {
+    const deletedTag = await API.deleteTag(name)
     if (!deletedTag) return false
 
-    tags.value = tags.value.filter((tag) => tag.id !== id)
+    tags.value = tags.value.filter((tag) => tag.name !== name)
 
     return true
   }

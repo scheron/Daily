@@ -7,7 +7,7 @@ export type ID = string
 export type MetaFile = {
   version: string
   tasks: Record<ID, MetaTask>
-  tags: Record<ID, MetaTag>
+  tags: Record<string, MetaTag>
 }
 
 export type MetaTask = {
@@ -22,14 +22,13 @@ export type MetaTask = {
     timezone: Timezone
   }
 
-  tagIds: ID[]
+  tags: Tag["name"][]
 
   createdAt: ISODateTime
   updatedAt: ISODateTime
 }
 
 export type MetaTag = {
-  id: ID
   name: string
   color: string
   emoji: string
@@ -52,7 +51,21 @@ export type Settings = {
   }
 }
 
-export type Task = MetaTask & {
+export type Task = {
+  createdAt: ISODateTime
+  updatedAt: ISODateTime
+
+  id: ID
+
+  file: string
+  hash: string
+
+  scheduled: {
+    date: ISODate
+    time: ISOTime
+    timezone: Timezone
+  }
+
   content: string
   status: "active" | "done" | "discarded"
   tags: Tag[]
@@ -74,7 +87,6 @@ export type StoreSchema = {
   tasks: Task[]
   tags: Tag[]
 }
-
 
 export interface StorageManager {
   rootDir: string

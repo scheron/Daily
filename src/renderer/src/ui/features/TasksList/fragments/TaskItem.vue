@@ -109,7 +109,7 @@ useEventListener("mouseup", swipeGestures.onMouseUp, {passive: false})
 
       <div :style="swipeStyle" class="group bg-base-100 pr-4 py-2 pl-6 relative flex flex-col h-full">
         <div v-if="tags.length" class="flex mb-1 gap-1 items-center">
-          <BaseTag v-for="tag in tags.slice(0, VISIBLE_TAGS_COUNT)" :key="tag.id" :tag="tag" class="py-0.5 px-1" />
+          <BaseTag v-for="tag in tags.slice(0, VISIBLE_TAGS_COUNT)" :key="tag.name" :tag="tag" class="py-0.5 px-1" />
           <div v-if="tags.length > VISIBLE_TAGS_COUNT" class="text-xs text-info font-semibold bg-info/20 rounded-xl px-2 py-0.5">
             +{{ tags.length - VISIBLE_TAGS_COUNT }}
           </div>

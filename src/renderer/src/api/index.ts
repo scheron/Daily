@@ -39,7 +39,6 @@ function defineApi(): Storage {
 
     const days = groupTasksByDay({tasks: tasksForDay, tags})
 
-    console.log({days})
     return days?.[0] ?? null
   }
 
@@ -133,14 +132,15 @@ function defineApi(): Storage {
     }
   }
 
-  async function addTaskTags(taskId: Task["id"], ids: Tag["id"][]): Promise<Task | null> {
-    const {tasks: allTasks, tags: allTags} = await window.electronAPI.loadAllData()
+  async function addTaskTags(taskId: Task["id"], tagNames: Tag["name"][]): Promise<Task | null> {
+    const allTasks = await window.electronAPI.loadTasks()
+    const allTags = await window.electronAPI.loadTags()
 
     const task = allTasks.find((t) => t.id === taskId)
     if (!task) return null
 
-    const newTags = ids.map((id) => allTags.find((tag) => tag.id === id)).filter(Boolean) as Tag[]
-    const tags = arrayRemoveDuplicates(task.tags.concat(newTags), "id")
+    const newTags = tagNames.map((name) => allTags.find((tag) => tag.name === name)).filter(Boolean) as Tag[]
+    const tags = arrayRemoveDuplicates(task.tags.concat(newTags), "name")
 
     const updatedTask = {...task, tags}
 
@@ -149,14 +149,14 @@ function defineApi(): Storage {
     return updatedTask
   }
 
-  async function removeTaskTags(taskId: Task["id"], ids: Tag["id"][]): Promise<Task | null> {
+  async function removeTaskTags(taskId: Task["id"], tagNames: Tag["name"][]): Promise<Task | null> {
     const allTasks = await window.electronAPI.loadTasks()
 
     const task = allTasks.find((t) => t.id === taskId)
     if (!task) return null
 
-    const newTags = task.tags.filter(({id}) => !ids.includes(id)) as Tag[]
-    const tags = arrayRemoveDuplicates(newTags, "id")
+    const newTags = task.tags.filter(({name}) => !tagNames.includes(name)) as Tag[]
+    const tags = arrayRemoveDuplicates(newTags, "name")
 
     const updatedTask = {...task, tags}
 
@@ -174,28 +174,27 @@ function defineApi(): Storage {
     const allTags = await window.electronAPI.loadTags()
 
     const newTag: Tag = {
-      id: nanoid(),
       name,
       color,
       emoji: emoji || "",
     }
     if (allTags.find((t) => t.name === name)) return null
 
-    const newTags = arrayRemoveDuplicates(allTags.concat(newTag), "id")
+    const newTags = arrayRemoveDuplicates(allTags.concat(newTag), "name")
     await window.electronAPI.saveTags(newTags)
 
     return newTag
   }
 
-  async function deleteTag(id: Tag["id"]): Promise<boolean> {
+  async function deleteTag(name: Tag["name"]): Promise<boolean> {
     const {tasks: allTasks, tags: allTags} = await window.electronAPI.loadAllData()
 
     const newTasks = allTasks.map((t) => ({
       ...t,
-      tags: t.tags.filter((tag) => tag.id !== id),
+      tags: t.tags.filter((tag) => tag.name !== name),
     }))
 
-    const newTags = allTags.filter((tag) => tag.id !== id)
+    const newTags = allTags.filter((tag) => tag.name !== name)
 
     await window.electronAPI.saveTasks(newTasks)
     await window.electronAPI.saveTags(newTags)
