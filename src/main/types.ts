@@ -111,6 +111,7 @@ export interface StorageManager {
   getAssetResponse(fileUrl: string): Promise<Response>
 
   syncStorage(): Promise<void>
+  cleanupOrphanedEntries(): Promise<{removedTasks: number}>
 
   getStoragePath(pretty?: boolean): Promise<string>
   selectStoragePath(removeOld?: boolean): Promise<boolean>

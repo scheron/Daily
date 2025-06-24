@@ -20,9 +20,11 @@ import {nanoid} from "nanoid"
 
 import type {ID, MetaFile, Settings, StorageManager, Tag, Task} from "../types.js"
 
-import {arrayRemoveDuplicates, deepMerge, getMimeType} from "../helpers.js"
+import {arrayRemoveDuplicates, createCacheLoader, deepMerge, getMimeType} from "../helpers.js"
+import {notifyStorageChange} from "./storage-events.js"
 
 export class FileStorageManager implements StorageManager {
+  CACHE_TTL = 2 * 60 * 1000
   rootDir: string
   metaPath: string
   configPath: string
@@ -33,6 +35,12 @@ export class FileStorageManager implements StorageManager {
   private readonly appSettingsPath = path.join(app.getPath("userData"), "settings.json")
   private lastMetaVersion = ""
   private lastConfigVersion = ""
+
+  private metaVersionCache = createCacheLoader(async () => this.readMetaVersion(), this.CACHE_TTL)
+  private configVersionCache = createCacheLoader(async () => this.readConfigVersion(), this.CACHE_TTL)
+  private tasksCache = createCacheLoader(async () => this.readTasksRaw(), this.CACHE_TTL)
+  private tagsCache = createCacheLoader(async () => this.readTagsRaw(), this.CACHE_TTL)
+  private settingsCache = createCacheLoader(async () => this.readSettingsRaw(), this.CACHE_TTL)
 
   constructor() {
     this.rootDir = path.join(app.getPath("documents"), "Daily")
@@ -94,48 +102,7 @@ export class FileStorageManager implements StorageManager {
   /* ============ TASKS ============ */
   /* =============================== */
   async loadTasks(): Promise<Task[]> {
-    const result: Task[] = []
-
-    for (const taskId in this.meta.tasks) {
-      const meta = this.meta.tasks[taskId]
-      const fullPath = path.join(this.rootDir, meta.file)
-
-      if (!(await fs.pathExists(fullPath))) {
-        console.warn(`⚠️ Task file missing: ${fullPath}`)
-        continue
-      }
-
-      try {
-        const raw = await fs.readFile(fullPath, "utf-8")
-        const parsed = matter(raw)
-
-        const front = parsed.data ?? {}
-        const content = parsed.content?.trim() || ""
-        const validStatuses = ["active", "done", "discarded"]
-
-        if (!validStatuses.includes(front.status?.toLowerCase())) {
-          console.warn(`⚠️ Invalid or missing status in task ${taskId}, skipping.`)
-          continue
-        }
-
-        const tags: Tag[] = (front.tags || [])
-          .map((name: string) => Object.values(this.meta.tags).find((t) => t.name === name))
-          .filter(Boolean) as Tag[]
-
-        const task: Task = {
-          ...meta,
-          status: front.status?.toLowerCase() ?? "active",
-          content,
-          tags,
-        }
-
-        result.push(task)
-      } catch (err) {
-        console.error(`❌ Failed to parse task file ${fullPath}:`, err)
-      }
-    }
-
-    return result
+    return this.tasksCache.get()
   }
 
   async saveTasks(tasks: Task[]): Promise<void> {
@@ -144,9 +111,10 @@ export class FileStorageManager implements StorageManager {
     }
 
     await this.persistMeta()
+    this.tasksCache.clear()
   }
 
-  async saveTask(task: Task): Promise<void> {
+  private async saveTask(task: Task): Promise<void> {
     const dayFolder = path.join(this.rootDir, task.scheduled.date)
     await fs.ensureDir(dayFolder)
 
@@ -200,6 +168,8 @@ export class FileStorageManager implements StorageManager {
     } catch (error) {
       console.error("❌ Failed to delete task:", error)
       return false
+    } finally {
+      this.tasksCache.clear()
     }
   }
 
@@ -207,7 +177,7 @@ export class FileStorageManager implements StorageManager {
   /* ============ TAGS ============ */
   /* =============================== */
   async loadTags(): Promise<Tag[]> {
-    return Object.values(this.meta.tags)
+    return this.tagsCache.get()
   }
 
   async saveTags(tags: Tag[]): Promise<void> {
@@ -220,16 +190,14 @@ export class FileStorageManager implements StorageManager {
     )
 
     await this.persistMeta()
+    this.tagsCache.clear()
   }
 
   /* =============================== */
   /* =========== SETTINGS ========== */
   /* =============================== */
   async loadSettings(): Promise<Settings> {
-    if (!this.settings) {
-      this.settings = (await fs.readJson(this.configPath)) as Settings
-    }
-    return this.settings
+    return this.settingsCache.get()
   }
 
   async saveSettings(newSettings: Partial<Settings>): Promise<void> {
@@ -240,6 +208,9 @@ export class FileStorageManager implements StorageManager {
 
     this.settings = merged
     await fs.writeJson(this.configPath, merged, {spaces: 2})
+
+    this.configVersionCache.clear()
+    this.settingsCache.clear()
   }
 
   /* =============================== */
@@ -285,15 +256,122 @@ export class FileStorageManager implements StorageManager {
 
   private async persistMeta(): Promise<void> {
     this.meta.version = nanoid()
+
     await fs.writeJson(this.metaPath, this.meta, {spaces: 2})
+
+    this.metaVersionCache.clear()
+  }
+
+  /* =============================== */
+  /* ============ RAW DATA =========== */
+  /* =============================== */
+  private async readConfigVersion(): Promise<string> {
+    if (await fs.pathExists(this.configPath)) {
+      const raw = await fs.readJson(this.configPath)
+      return raw.version
+    }
+    return ""
+  }
+
+  private async readMetaVersion(): Promise<string> {
+    if (await fs.pathExists(this.metaPath)) {
+      const raw = await fs.readJson(this.metaPath)
+      return raw.version
+    }
+    return ""
+  }
+
+  private async readTasksRaw(): Promise<Task[]> {
+    const result: Task[] = []
+    const tasksToRemove: string[] = []
+
+    for (const taskId in this.meta.tasks) {
+      const meta = this.meta.tasks[taskId]
+      const fullPath = path.join(this.rootDir, meta.file)
+
+      if (!(await fs.pathExists(fullPath))) {
+        console.warn(`⚠️ Task file missing: ${fullPath}`)
+        tasksToRemove.push(taskId)
+        continue
+      }
+
+      try {
+        const raw = await fs.readFile(fullPath, "utf-8")
+        const parsed = matter(raw)
+
+        const front = parsed.data ?? {}
+        const content = parsed.content?.trim() || ""
+        const validStatuses = ["active", "done", "discarded"]
+
+        if (!validStatuses.includes(front.status?.toLowerCase())) {
+          console.warn(`⚠️ Invalid or missing status in task ${taskId}, skipping.`)
+          tasksToRemove.push(taskId)
+          continue
+        }
+
+        const tags: Tag[] = (front.tags || [])
+          .map((name: string) => Object.values(this.meta.tags).find((t) => t.name === name))
+          .filter(Boolean) as Tag[]
+
+        const task: Task = {
+          ...meta,
+          status: front.status?.toLowerCase() ?? "active",
+          content,
+          tags,
+        }
+
+        result.push(task)
+      } catch (err) {
+        console.error(`❌ Failed to parse task file ${fullPath}:`, err)
+        tasksToRemove.push(taskId)
+      }
+    }
+
+    if (tasksToRemove.length > 0) {
+      console.log(`🧹 Removing ${tasksToRemove.length} orphaned task entries from .meta.json:`, tasksToRemove)
+      for (const taskId of tasksToRemove) {
+        delete this.meta.tasks[taskId]
+      }
+      await this.persistMeta()
+    }
+
+    return result
+  }
+
+  private async readTagsRaw(): Promise<Tag[]> {
+    return Object.values(this.meta.tags)
+  }
+
+  private async readSettingsRaw(): Promise<Settings> {
+    if (!this.settings) {
+      this.settings = (await fs.readJson(this.configPath)) as Settings
+    }
+    return this.settings
   }
 
   /* =============================== */
   /* ============ SYNC =========== */
   /* =============================== */
+  async cleanupOrphanedEntries(): Promise<{removedTasks: number}> {
+    console.log("🧹 Starting cleanup of orphaned task entries...")
+
+    this.tasksCache.clear()
+
+    const tasks = await this.loadTasks()
+
+    const initialTaskCount = Object.keys(this.meta.tasks).length
+    const removedTasks = initialTaskCount - tasks.length
+
+    console.log(`✅ Cleanup completed: removed ${removedTasks} orphaned task entries`)
+
+    return {removedTasks}
+  }
+
   async syncStorage(): Promise<void> {
     try {
       console.log("🔄 Starting storage sync...")
+      this.metaVersionCache.clear()
+      this.configVersionCache.clear()
 
       const metaVersion = await this.getMetaVersion()
       const configVersion = await this.getConfigVersion()
@@ -301,11 +379,18 @@ export class FileStorageManager implements StorageManager {
       if (metaVersion !== this.lastMetaVersion || configVersion !== this.lastConfigVersion) {
         console.log("📝 Meta or config changed, reloading data...")
 
+        this.tasksCache.clear()
+        this.tagsCache.clear()
+        this.settingsCache.clear()
+
         await this.loadTasks()
         await this.loadTags()
 
         this.lastMetaVersion = metaVersion
         this.lastConfigVersion = configVersion
+
+        notifyStorageChange("tasks")
+        notifyStorageChange("tags")
 
         console.log("✅ Storage sync completed - data reloaded")
       } else {
@@ -318,19 +403,11 @@ export class FileStorageManager implements StorageManager {
   }
 
   private async getMetaVersion(): Promise<string> {
-    if (await fs.pathExists(this.metaPath)) {
-      const raw = await fs.readJson(this.metaPath)
-      return raw.version
-    }
-    return ""
+    return this.metaVersionCache.get()
   }
 
   private async getConfigVersion(): Promise<string> {
-    if (await fs.pathExists(this.configPath)) {
-      const raw = await fs.readJson(this.configPath)
-      return raw.version
-    }
-    return ""
+    return this.configVersionCache.get()
   }
 
   /* =============================== */
@@ -527,11 +604,6 @@ export class FileStorageManager implements StorageManager {
     return await this.migrateToNewRoot(selectedPath, removeOld)
   }
 
-  /**
-   * Resolves the actual Daily root
-   * - If found, returns it.
-   * - Otherwise, returns the default Documents/Daily
-   */
   private async resolveStorageRoot(): Promise<string> {
     const defaultPath = path.join(app.getPath("documents"), "Daily")
 
@@ -561,6 +633,15 @@ export class FileStorageManager implements StorageManager {
       await fs.writeJson(this.appSettingsPath, settings, {spaces: 2})
     } catch (e) {
       console.error("❌ Failed to write settings.json:", e)
+    } finally {
+      this.configVersionCache.clear()
+      this.metaVersionCache.clear()
+      this.tasksCache.clear()
+      this.tagsCache.clear()
+      this.settingsCache.clear()
+      notifyStorageChange("tasks")
+      notifyStorageChange("tags")
+      notifyStorageChange("settings")
     }
   }
 }

@@ -43,6 +43,15 @@ export function setupStorageIPC(storage: StorageManager): void {
     }
   })
 
+  ipcMain.handle("cleanup-orphaned-entries", async () => {
+    try {
+      return await storage.cleanupOrphanedEntries()
+    } catch (error) {
+      console.error("Failed to cleanup orphaned entries:", error)
+      return {removedTasks: 0}
+    }
+  })
+
   ipcMain.handle("save-asset", async (_e, filename: string, data: Buffer) => {
     try {
       return await storage.saveAsset(filename, data)
