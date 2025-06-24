@@ -30,7 +30,7 @@ export const useStorageStore = defineStore("storage", () => {
 
     try {
       isSyncing.value = true
-      const success = await window.electronAPI.forceSync()
+      const success = await window.electronAPI.syncStorage()
 
       if (success) {
         lastSyncTime.value = new Date()

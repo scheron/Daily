@@ -10,9 +10,8 @@ import {setupStorageIPC} from "./ipc/storage.js"
 import {setupMainWindowIPC} from "./ipc/window.js"
 import {setupMenu} from "./menu/menu.js"
 import {handleDeepLink, setupDeepLinks} from "./services/deep-links.js"
-import {notifyStorageSyncStatus, setupStorageEvents} from "./services/storage-events.js"
+import {notifyStorageSyncStatus, setupStorageEvents, syncStorage} from "./services/storage-events.js"
 import {FileStorageManager} from "./services/storage-manager.js"
-import {setupStorageSync, teardownStorageSync} from "./services/storage-sync.js"
 import {setupUpdateManager} from "./services/updater.js"
 import {createMainWindow} from "./windows/main-window.js"
 import {createSplashWindow} from "./windows/splash-window.js"
@@ -82,7 +81,6 @@ app.whenReady().then(async () => {
   }
 
   setupStorageIPC(storage)
-  setupStorageSync(storage)
 
   mainWindow = createMainWindow()
 
@@ -111,6 +109,8 @@ app.whenReady().then(async () => {
     console.log("✅ Main window displayed")
   })
 
+  mainWindow.on("focus", () => syncStorage(storage))
+
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     callback({
       responseHeaders: {
@@ -138,7 +138,6 @@ app.on("activate", async () => {
     setupMenu(mainWindow)
     setupDeepLinks(mainWindow)
     setupStorageEvents(() => mainWindow)
-    setupStorageSync(storage)
 
     mainWindow.once("ready-to-show", () => {
       mainWindow!.show()
@@ -164,13 +163,8 @@ app.on("activate", async () => {
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
-    teardownStorageSync()
     app.quit()
   }
-})
-
-app.on("before-quit", () => {
-  teardownStorageSync()
 })
 
 function getIconPath(): string {

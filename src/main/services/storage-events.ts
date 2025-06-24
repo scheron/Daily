@@ -1,10 +1,23 @@
 import type {BrowserWindow} from "electron"
-import type {StorageSyncEvent} from "../types.js"
+import type {StorageManager, StorageSyncEvent} from "../types.js"
 
 let getMainWindow: () => BrowserWindow | null = () => null
 
 export function setupStorageEvents(getWindow: () => BrowserWindow | null) {
   getMainWindow = getWindow
+}
+
+export async function syncStorage(storage: StorageManager): Promise<void> {
+  try {
+    console.log("🔄 Storage sync triggered")
+    notifyStorageSyncStatus(true)
+
+    await storage.syncStorage()
+  } catch (error) {
+    console.error("❌ Storage sync error:", error)
+  } finally {
+    notifyStorageSyncStatus(false)
+  }
 }
 
 export function notifyStorageChange(type: StorageSyncEvent["type"]) {

@@ -41,8 +41,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getStoragePath: (pretty?: boolean) => ipcRenderer.invoke("get-storage-path", pretty),
   selectStoragePath: (removeOld?: boolean) => ipcRenderer.invoke("select-storage-path", removeOld),
 
-  forceSync: () => ipcRenderer.invoke("force-sync") as Promise<boolean>,
-  isSyncActive: () => ipcRenderer.invoke("is-sync-active") as Promise<boolean>,
+  syncStorage: () => ipcRenderer.invoke("sync-storage") as Promise<boolean>,
 
   onStorageSync: (callback: (event: StorageSyncEvent) => void) => {
     ipcRenderer.on("storage:sync", (_event, data: StorageSyncEvent) => callback(data))

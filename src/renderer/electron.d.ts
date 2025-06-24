@@ -32,8 +32,7 @@ export default interface ElectronApi {
 
   onStorageSync: (callback: (event: StorageSyncEvent) => void) => void
   onStorageSyncStatus: (callback: (event: {isSyncing: boolean}) => void) => void
-  isSyncActive: () => Promise<boolean>
-  forceSync: () => Promise<boolean>
+  syncStorage: () => Promise<boolean>
 
   // === DATA ===
   loadTasks: () => Promise<Task[]>

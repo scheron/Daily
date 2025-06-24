@@ -2,7 +2,7 @@ import {ipcMain} from "electron"
 
 import type {StorageManager, Tag, Task} from "../types.js"
 
-import {forceStorageSync, isStorageSyncActive} from "../services/storage-sync.js"
+import {syncStorage} from "../services/storage-events.js"
 
 export function setupStorageIPC(storage: StorageManager): void {
   if (!storage) {
@@ -35,22 +35,10 @@ export function setupStorageIPC(storage: StorageManager): void {
 
   ipcMain.handle("sync-storage", async () => {
     try {
-      await storage.syncStorage()
+      await syncStorage(storage)
       return true
     } catch (error) {
       console.error("Failed to sync storage:", error)
-      return false
-    }
-  })
-
-  ipcMain.handle("is-sync-active", () => isStorageSyncActive())
-
-  ipcMain.handle("force-sync", async () => {
-    try {
-      await forceStorageSync(storage)
-      return true
-    } catch (error) {
-      console.error("Failed to force sync:", error)
       return false
     }
   })
