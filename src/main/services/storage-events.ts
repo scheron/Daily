@@ -1,5 +1,6 @@
 import type {BrowserWindow} from "electron"
-import type {StorageManager, StorageSyncEvent} from "../types.js"
+import type {StorageController} from "../storage/StorageController.js"
+import type {StorageSyncEvent} from "../types.js"
 
 let getMainWindow: () => BrowserWindow | null = () => null
 
@@ -7,7 +8,7 @@ export function setupStorageEvents(getWindow: () => BrowserWindow | null) {
   getMainWindow = getWindow
 }
 
-export async function syncStorage(storage: StorageManager): Promise<void> {
+export async function syncStorage(storage: StorageController): Promise<void> {
   try {
     console.log("🔄 Storage sync triggered")
     notifyStorageSyncStatus(true)
@@ -31,7 +32,7 @@ export function notifyStorageChange(type: StorageSyncEvent["type"]) {
 export async function notifyStorageSyncStatus(isSyncing: boolean) {
   const win = getMainWindow()
   if (!win) return
-  console.log("notifyStorageSyncStatus", isSyncing)
+  // console.log("notifyStorageSyncStatus", isSyncing)
 
   if (isSyncing) {
     win.webContents.send("storage:is-syncing", {isSyncing})

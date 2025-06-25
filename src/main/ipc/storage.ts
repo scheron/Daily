@@ -1,10 +1,11 @@
 import {ipcMain} from "electron"
 
-import type {StorageManager, Tag, Task} from "../types.js"
+import type {StorageController} from "../storage/StorageController.js"
+import type {Tag, Task} from "../types.js"
 
 import {syncStorage} from "../services/storage-events.js"
 
-export function setupStorageIPC(storage: StorageManager): void {
+export function setupStorageIPC(storage: StorageController): void {
   if (!storage) {
     throw new Error("Storage is not initialized")
   }

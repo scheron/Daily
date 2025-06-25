@@ -2,23 +2,21 @@ import {dirname, join} from "node:path"
 import {fileURLToPath} from "node:url"
 import {app, BrowserWindow, nativeImage, protocol, session} from "electron"
 
-import type {StorageManager} from "./types.js"
-
-import {cleanupOrphanAssets, focusWindow, sleep} from "./helpers.js"
+import {focusWindow, sleep} from "./helpers.js"
 import {setupMenuIPC} from "./ipc/menu.js"
 import {setupStorageIPC} from "./ipc/storage.js"
 import {setupMainWindowIPC} from "./ipc/window.js"
 import {setupMenu} from "./menu/menu.js"
 import {handleDeepLink, setupDeepLinks} from "./services/deep-links.js"
 import {notifyStorageSyncStatus, setupStorageEvents, syncStorage} from "./services/storage-events.js"
-import {FileStorageManager} from "./services/storage-manager.js"
 import {setupUpdateManager} from "./services/updater.js"
+import {StorageController} from "./storage/StorageController.js"
 import {createMainWindow} from "./windows/main-window.js"
 import {createSplashWindow} from "./windows/splash-window.js"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
-let storage: StorageManager
+let storage: StorageController
 let mainWindow: BrowserWindow | null = null
 let splashWindow: BrowserWindow | null = null
 
@@ -69,10 +67,10 @@ if (process.platform === "darwin" && app.dock) {
 app.whenReady().then(async () => {
   splashWindow = createSplashWindow()
 
-  storage = new FileStorageManager()
+  storage = new StorageController()
   try {
     await storage.init()
-    await cleanupOrphanAssets(storage)
+    await storage.cleanupOrphanAssets()
     console.log(`✅ Storage initialized`)
   } catch (err) {
     console.error("❌ Failed to initialize storage:", err)

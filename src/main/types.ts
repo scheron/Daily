@@ -45,10 +45,6 @@ export type Settings = {
   sidebar: {
     collapsed: boolean
   }
-
-  paths: {
-    root: string
-  }
 }
 
 export type Task = {
