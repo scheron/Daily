@@ -18,20 +18,6 @@ export class AssetsService {
     await fs.ensureDir(this.assetsDir)
   }
 
-  async migrate(newRoot: string, removeOldDir = false): Promise<void> {
-    const assetsDir = fsPaths.assetsDir(newRoot)
-
-    await fs.ensureDir(assetsDir)
-
-    for (const file of await fs.readdir(this.assetsDir)) {
-      const from = path.join(this.assetsDir, file)
-      const to = path.join(assetsDir, file)
-      await fs.copy(from, to)
-    }
-
-    if (removeOldDir) await fs.remove(this.assetsDir)
-  }
-
   async saveAsset(filename: string, data: Buffer): Promise<string> {
     await fs.ensureDir(this.assetsDir)
 
@@ -71,5 +57,32 @@ export class AssetsService {
     }
   }
 
-  
+  /* =============================== */
+  /* ========== MIGRATION ========== */
+  /* =============================== */
+
+  /**
+   * Copies all assets from the current storage to the new one
+   */
+  async migrateToNewLocation(newRootDir: string): Promise<void> {
+    const newAssetsDir = fsPaths.assetsDir(newRootDir)
+
+    await fs.ensureDir(newAssetsDir)
+
+    if (await fs.pathExists(this.assetsDir)) {
+      await fs.copy(this.assetsDir, newAssetsDir, {overwrite: true})
+      console.log(`✅ Assets migrated from ${this.assetsDir} to ${newAssetsDir}`)
+    }
+
+    this.assetsDir = newAssetsDir
+  }
+
+  /**
+   * Loads the assets from the target storage (without copying)
+   */
+  async loadFromLocation(newRootDir: string): Promise<void> {
+    this.assetsDir = fsPaths.assetsDir(newRootDir)
+    await fs.ensureDir(this.assetsDir)
+    console.log(`✅ Assets loaded from ${this.assetsDir}`)
+  }
 }

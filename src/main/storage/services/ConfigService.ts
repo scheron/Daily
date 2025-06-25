@@ -23,18 +23,6 @@ export class ConfigService {
     this.configCache.clear()
   }
 
-  async migrate(newRoot: string, removeOldDir = false): Promise<void> {
-    const config = await this.readConfigFile()
-    const newConfigPath = fsPaths.configFile(newRoot)
-
-    await fs.ensureDir(newRoot)
-
-    await fs.writeJson(newConfigPath, config, {spaces: 2})
-
-    this.configPath = newConfigPath
-    if (removeOldDir) await fs.remove(this.configPath)
-  }
-
   async getSettings(): Promise<Settings> {
     return this.configCache.get()
   }
@@ -85,5 +73,33 @@ export class ConfigService {
 
   private async readConfigVersion(): Promise<string> {
     return (await this.readConfigFile()).version
+  }
+
+  /* =============================== */
+  /* ========== MIGRATION ========== */
+  /* =============================== */
+
+  /**
+   * Copies the configuration from the current storage to the new one
+   */
+  async migrateToNewLocation(newRootDir: string): Promise<void> {
+    const newConfigPath = fsPaths.configFile(newRootDir)
+
+    if (await fs.pathExists(this.configPath)) {
+      await fs.copy(this.configPath, newConfigPath, {overwrite: true})
+      console.log(`✅ Config migrated from ${this.configPath} to ${newConfigPath}`)
+    }
+
+    this.configPath = newConfigPath
+    this.configCache.clear()
+  }
+
+  /**
+   * Loads the configuration from the target storage (without copying)
+   */
+  async loadFromLocation(newRootDir: string): Promise<void> {
+    this.configPath = fsPaths.configFile(newRootDir)
+    this.configCache.clear()
+    console.log(`✅ Config loaded from ${this.configPath}`)
   }
 }

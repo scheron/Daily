@@ -14,9 +14,8 @@ Documents/
 import path from "node:path"
 import {app, dialog} from "electron"
 import fs from "fs-extra"
-import {nanoid} from "nanoid"
 
-import type {ID, MetaFile, Settings, Tag, Task} from "../types.js"
+import type {ID, Settings, Tag, Task} from "../types.js"
 
 import {notifyStorageChange} from "../services/storage-events.js"
 import {AssetsService} from "./services/AssetsService.js"
@@ -54,123 +53,6 @@ export class StorageController {
     await this.syncStorage()
   }
 
-  private async migrateToNewRoot(selectedPath: string, removeOldDir = false): Promise<boolean> {
-    const originalRoot = this.rootDir
-
-    try {
-      const isDaily = path.basename(selectedPath) === "Daily"
-      const newRoot = isDaily ? selectedPath : path.join(selectedPath, "Daily")
-      if (newRoot === this.rootDir) return false
-
-      console.log("📦 Starting migration to:", newRoot)
-
-      this.rootDir = newRoot
-
-      await this.metaService.migrate(newRoot, removeOldDir)
-      await this.configService.migrate(newRoot, removeOldDir)
-      await this.assetsService.migrate(newRoot, removeOldDir)
-
-      await this.saveStorageRoot(newRoot)
-      console.log("✅ Migration completed.")
-
-      if (removeOldDir) {
-        console.log("🧹 Removing old directory:", originalRoot)
-        await fs.remove(originalRoot)
-      }
-
-      return true
-    } catch (error) {
-      // NOTE: Rollback to original state
-      console.error("❌ Migration failed:", error)
-      this.rootDir = originalRoot
-
-      await this.metaService.migrate(originalRoot, false)
-      await this.configService.migrate(originalRoot, false)
-      await this.assetsService.migrate(originalRoot, false)
-
-      return false
-    }
-  }
-
-  private async migrateWithMergeExistingStorage(selectedPath: string): Promise<boolean> {
-    const isDaily = path.basename(selectedPath) === "Daily"
-    const newRoot = isDaily ? selectedPath : path.join(selectedPath, "Daily")
-    const newMetaPath = path.join(newRoot, ".meta.json")
-
-    try {
-      const existingMeta: MetaFile = (await fs.readJson(newMetaPath).catch(() => ({
-        version: nanoid(),
-        tasks: {},
-        tags: {},
-      }))) as MetaFile
-
-      console.log("🔄 Merging with existing storage:", newMetaPath, existingMeta)
-
-      const currentTasks = await this.metaService.getTasks()
-      const currentTags = await this.metaService.getTags()
-
-      const mergedTags = {...existingMeta.tags}
-
-      for (const tag of currentTags) {
-        const existingTag = Object.values(mergedTags).find((t) => t.name === tag.name)
-        if (!existingTag) {
-          mergedTags[tag.name] = tag
-        }
-      }
-
-      const mergedTasks = {...existingMeta.tasks}
-
-      for (const task of currentTasks) {
-        const id = task.id
-
-        const originalPath = path.resolve(this.rootDir, fsPaths.taskFile(this.rootDir, `${task.scheduled.date}/${id}.md`))
-        const dayFolder = path.join(newRoot, task.scheduled.date)
-        await fs.ensureDir(dayFolder)
-
-        const targetPath = path.join(dayFolder, `${id}.md`)
-        const relPath = path.relative(newRoot, targetPath)
-
-        if (originalPath !== targetPath) {
-          await fs.copy(originalPath, targetPath)
-        }
-
-        const existingTask = mergedTasks[id]
-        if (!existingTask || (task.updatedAt && existingTask.updatedAt && task.updatedAt > existingTask.updatedAt)) {
-          mergedTasks[id] = {
-            id: task.id,
-            file: relPath,
-            hash: "",
-            createdAt: task.createdAt || new Date().toISOString(),
-            updatedAt: task.updatedAt || new Date().toISOString(),
-            scheduled: task.scheduled,
-            tags: task.tags.map((t) => t.name),
-          }
-        }
-      }
-
-      const mergedMeta: MetaFile = {
-        version: nanoid(),
-        tasks: mergedTasks,
-        tags: mergedTags,
-      }
-
-      await fs.writeJson(newMetaPath, mergedMeta, {spaces: 2})
-      await this.saveStorageRoot(newRoot)
-
-      this.rootDir = newRoot
-
-      await this.metaService.migrate(newRoot, true)
-      await this.configService.migrate(newRoot, true)
-      await this.assetsService.migrate(newRoot, true)
-
-      console.log("✅ Merge with existing storage completed.")
-      return true
-    } catch (e) {
-      console.error("❌ Failed to merge storage:", e)
-      return false
-    }
-  }
-
   /* =============================== */
   /* =========== STORAGE =========== */
   /* =============================== */
@@ -188,7 +70,7 @@ export class StorageController {
     return this.rootDir
   }
 
-  async selectStoragePath(removeOld = false): Promise<boolean> {
+  async selectStoragePath(removeOldDir = false): Promise<boolean> {
     const result = await dialog.showOpenDialog({
       title: "Select New Storage Folder",
       properties: ["openDirectory", "createDirectory"],
@@ -215,34 +97,29 @@ export class StorageController {
     if (hasMeta || hasTasks) {
       const response = await dialog.showMessageBox({
         type: "warning",
-        buttons: ["Use Target Data", "Use Current Data", "Merge Both", "Cancel"],
+        buttons: ["Use Target Data", "Use Current Data", "Cancel"],
         defaultId: 2,
         cancelId: 3,
         message: "The folder already contains Daily data. What do you want to do?",
         detail:
-          "You can:\n- «Use Target Data»: replace current storage with target folder data\n- «Use Current Data»: replace target folder with current storage\n- «Merge Both»: combine data from both storages",
+          "You can:\n- «Use Target Data»: replace current storage with target folder data\n- «Use Current Data»: replace target folder with current storage",
       })
 
       // Use Target Data (clear current and use target)
       if (response.response === 0) {
-        return await this.migrateToNewRoot(selectedPath, removeOld)
+        return this.switchToNewStorage(targetPath, "load", removeOldDir)
       }
 
       // Use Current Data (clear target and use current)
       if (response.response === 1) {
         await fs.emptyDir(targetPath)
-        return await this.migrateToNewRoot(selectedPath, removeOld)
-      }
-
-      // Merge Both
-      if (response.response === 2) {
-        return await this.migrateWithMergeExistingStorage(selectedPath)
+        return this.switchToNewStorage(targetPath, "migrate", removeOldDir)
       }
 
       return false
     }
 
-    return await this.migrateToNewRoot(selectedPath, removeOld)
+    return await this.switchToNewStorage(targetPath, "migrate", removeOldDir)
   }
 
   private async resolveStorageRoot(): Promise<string> {
@@ -284,6 +161,87 @@ export class StorageController {
       notifyStorageChange("tasks")
       notifyStorageChange("tags")
       notifyStorageChange("settings")
+    }
+  }
+
+  private async switchToNewStorage(targetPath: string, operation: "migrate" | "load", removeOldDir = false): Promise<boolean> {
+    try {
+      const oldRootDir = this.rootDir
+      const operationName = operation === "migrate" ? "migration" : "switching to target data"
+
+      console.log(`🔄 Starting ${operationName} to: ${targetPath}`)
+
+      const newMetaService = new MetaService(targetPath)
+      const newConfigService = new ConfigService(targetPath)
+      const newAssetsService = new AssetsService(targetPath)
+
+      await newMetaService.init()
+      await newConfigService.init()
+      await newAssetsService.init()
+
+      if (operation === "migrate") {
+        await this.metaService.migrateToNewLocation(targetPath)
+        await this.configService.migrateToNewLocation(targetPath)
+        await this.assetsService.migrateToNewLocation(targetPath)
+      } else {
+        await newMetaService.loadFromLocation(targetPath)
+        await newConfigService.loadFromLocation(targetPath)
+        await newAssetsService.loadFromLocation(targetPath)
+      }
+
+      this.rootDir = targetPath
+      await this.saveStorageRoot(targetPath)
+
+      this.metaService = newMetaService
+      this.configService = newConfigService
+      this.assetsService = newAssetsService
+
+      console.log(`✅ ${operationName} completed successfully to: ${targetPath}`)
+
+      if (removeOldDir) {
+        await this.removeOldStorage(oldRootDir, targetPath)
+      }
+
+      return true
+    } catch (error) {
+      console.error(`❌ ${operation === "migrate" ? "Migration" : "Switching"} failed:`, error)
+      return false
+    }
+  }
+
+  private async removeOldStorage(oldPath: string, newPath: string): Promise<void> {
+    try {
+      if (!oldPath || !newPath || oldPath === newPath) {
+        console.warn("⚠️ Invalid paths for removing old storage")
+        return
+      }
+
+      if (!oldPath.endsWith("Daily") && !oldPath.includes("Daily")) {
+        console.warn("⚠️ Old path doesn't look like a Daily folder, skipping removal")
+        return
+      }
+
+      if (!(await fs.pathExists(oldPath))) {
+        console.log("ℹ️ Old storage path doesn't exist, nothing to remove")
+        return
+      }
+
+      const response = await dialog.showMessageBox({
+        type: "question",
+        buttons: ["Remove Old Data", "Keep Old Data"],
+        defaultId: 1,
+        message: "Remove old storage data?",
+        detail: `Do you want to remove the old storage folder?\n\nPath: ${oldPath}\n\nThis action cannot be undone.`,
+      })
+
+      if (response.response === 0) {
+        await fs.remove(oldPath)
+        console.log(`🗑️ Old storage removed: ${oldPath}`)
+      } else {
+        console.log(`📁 Old storage preserved: ${oldPath}`)
+      }
+    } catch (error) {
+      console.error("❌ Failed to remove old storage:", error)
     }
   }
 

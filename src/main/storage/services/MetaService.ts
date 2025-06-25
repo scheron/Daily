@@ -34,19 +34,6 @@ export class MetaService {
     }
   }
 
-  async migrate(newRoot: string, removeOldDir = false): Promise<void> {
-    const meta = await this.readMetaFile()
-    const newMetaPath = fsPaths.metaFile(newRoot)
-
-    await fs.ensureDir(newRoot)
-
-    await fs.writeJson(newMetaPath, meta, {spaces: 2})
-
-    this.metaPath = newMetaPath
-
-    if (removeOldDir) await fs.remove(this.metaPath)
-  }
-
   async revalidate(): Promise<void> {
     this.metaCache.clear()
   }
@@ -273,5 +260,51 @@ export class MetaService {
    */
   private async readMetaVersion(): Promise<string> {
     return (await this.readMetaFile()).version
+  }
+
+  /* =============================== */
+  /* ========== MIGRATION ========== */
+  /* =============================== */
+
+  /**
+   * Copies all meta data and task files from the current location to the new one
+   */
+  async migrateToNewLocation(newRootDir: string): Promise<void> {
+    const newMetaPath = fsPaths.metaFile(newRootDir)
+
+    if (await fs.pathExists(this.metaPath)) {
+      await fs.copy(this.metaPath, newMetaPath, {overwrite: true})
+      console.log(`✅ Meta file migrated from ${this.metaPath} to ${newMetaPath}`)
+    }
+
+    const datePattern = /^\d{4}-\d{2}-\d{2}$/
+
+    if (await fs.pathExists(this.rootDir)) {
+      const items = await fs.readdir(this.rootDir)
+
+      for (const item of items) {
+        if (datePattern.test(item)) {
+          const sourceDateDir = path.join(this.rootDir, item)
+          const targetDateDir = path.join(newRootDir, item)
+
+          if (await fs.stat(sourceDateDir).then((s) => s.isDirectory())) {
+            await fs.copy(sourceDateDir, targetDateDir, {overwrite: true})
+            console.log(`✅ Date folder migrated: ${item}`)
+          }
+        }
+      }
+    }
+
+    this.metaPath = newMetaPath
+    this.metaCache.clear()
+  }
+
+  /**
+   * Loads meta data from the target storage (without copying)
+   */
+  async loadFromLocation(newRootDir: string): Promise<void> {
+    this.metaPath = fsPaths.metaFile(newRootDir)
+    this.metaCache.clear()
+    console.log(`✅ Meta data loaded from ${this.metaPath}`)
   }
 }
