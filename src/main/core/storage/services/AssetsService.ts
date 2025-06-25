@@ -2,8 +2,8 @@ import path from "node:path"
 import fs from "fs-extra"
 import {nanoid} from "nanoid"
 
-import {getMimeType} from "../../helpers.js"
-import {fsPaths} from "../utils/fsPaths.js"
+import {fsPaths} from "../../../config.js"
+import {getMimeType} from "../../../utils/file.js"
 
 export class AssetsService {
   assetsDir: string

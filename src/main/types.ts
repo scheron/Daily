@@ -84,17 +84,17 @@ export type StoreSchema = {
   tags: Tag[]
 }
 
-export interface StorageManager {
+export interface IStorageController {
   rootDir: string
-  metaPath: string
-  configPath: string
-  assetsDir: string
-
   init(): Promise<void>
+  getStoragePath(pretty?: boolean): Promise<string>
+
+  selectStoragePath(removeOldDir?: boolean): Promise<boolean>
 
   loadTasks(): Promise<Task[]>
   saveTasks(tasks: Task[]): Promise<void>
   deleteTask(id: ID): Promise<boolean>
+
   loadTags(): Promise<Tag[]>
   saveTags(tags: Tag[]): Promise<void>
 
@@ -106,11 +106,10 @@ export interface StorageManager {
   getAssetPath(filename: string): Promise<string>
   getAssetResponse(fileUrl: string): Promise<Response>
 
-  syncStorage(): Promise<void>
   cleanupOrphanedEntries(): Promise<{removedTasks: number}>
+  cleanupOrphanAssets(): Promise<void>
 
-  getStoragePath(pretty?: boolean): Promise<string>
-  selectStoragePath(removeOld?: boolean): Promise<boolean>
+  syncStorage(): Promise<void>
 }
 
 export type StorageSyncEvent = {

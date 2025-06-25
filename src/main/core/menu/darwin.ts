@@ -1,7 +1,8 @@
 import {app, dialog} from "electron"
 
 import type {BrowserWindow, MenuItemConstructorOptions} from "electron"
-import {checkForUpdate} from "../services/updater.js"
+
+import {checkForUpdate} from "../setup/updater.js"
 
 export function createMacMenu(mainWindow: BrowserWindow): MenuItemConstructorOptions[] {
   return [

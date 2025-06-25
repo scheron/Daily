@@ -1,6 +1,9 @@
-import { Menu, type BrowserWindow } from "electron"
-import { createMacMenu } from "./mac-menu.js"
-import { createWindowsMenu } from "./windows-menu.js"
+import {Menu} from "electron"
+
+import type {BrowserWindow} from "electron"
+
+import {createMacMenu} from "./darwin.js"
+import {createWindowsMenu} from "./windows.js"
 
 export function setupMenu(mainWindow: BrowserWindow): void {
   let template: Electron.MenuItemConstructorOptions[]
@@ -13,4 +16,4 @@ export function setupMenu(mainWindow: BrowserWindow): void {
 
   const menu = Menu.buildFromTemplate(template)
   Menu.setApplicationMenu(menu)
-} 
+}

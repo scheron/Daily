@@ -22,11 +22,11 @@ function buildMain() {
 }
 
 function copyStaticFiles() {
-  const staticSrc = Path.join(__dirname, "..", "src", "main", "static")
+  const resourcesSrc = Path.join(__dirname, "..", "src", "main", "resources")
   const staticDest = Path.join(__dirname, "..", "build", "main", "static")
   
-  if (FileSystem.existsSync(staticSrc)) {
-    FileSystem.cpSync(staticSrc, staticDest, { recursive: true })
+  if (FileSystem.existsSync(resourcesSrc)) {
+    FileSystem.cpSync(resourcesSrc, staticDest, { recursive: true })
     console.log(Chalk.blueBright("Static files copied successfully"))
   }
 }

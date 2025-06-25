@@ -4,18 +4,11 @@ import fs from "fs-extra"
 import matter from "gray-matter"
 import {nanoid} from "nanoid"
 
-import type {ID, MetaFile, Tag, Task} from "../../types"
+import type {ID, MetaFile, Tag, Task} from "../../../types.js"
 
-import {arrayRemoveDuplicates} from "../../helpers.js"
-import {CACHE_TTL, createCacheLoader} from "../utils/cache.js"
-import {fsPaths} from "../utils/fsPaths.js"
-
-/*
- * Работаем с файлом .meta.json
- * Если в течении 2 минут файл не изменился, то возвращаем кэш
- * Если файл изменился, то обновляем кэш
- * Все обращения к задачам и тегам обращаемся к кешу
- */
+import {fsPaths} from "../../../config.js"
+import {arrayRemoveDuplicates} from "../../../utils/arrays.js"
+import {CACHE_TTL, createCacheLoader} from "../../../utils/cache.js"
 
 export class MetaService {
   private metaPath: string

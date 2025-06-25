@@ -1,11 +1,11 @@
 import fs from "fs-extra"
 import {nanoid} from "nanoid"
 
-import type {Settings} from "../../types"
+import type {Settings} from "../../../types.js"
 
-import {CACHE_TTL, createCacheLoader} from "../utils/cache.js"
-import {deepMerge} from "../utils/deepMerge.js"
-import {fsPaths} from "../utils/fsPaths.js"
+import {fsPaths} from "../../../config.js"
+import {CACHE_TTL, createCacheLoader} from "../../../utils/cache.js"
+import {deepMerge} from "../../../utils/deepMerge.js"
 
 export class ConfigService {
   private configPath: string

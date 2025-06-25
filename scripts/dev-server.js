@@ -41,7 +41,7 @@ async function startElectron() {
     return
   }
 
-  const args = [join(__dirname, "..", "build", "main", "main.js"), rendererPort]
+  const args = [join(__dirname, "..", "build", "main", "app.js"), rendererPort]
   electronProcess = ChildProcess.spawn(Electron, args)
   electronProcessLocker = false
 
@@ -69,7 +69,7 @@ function restartElectron() {
 }
 
 function copyStaticFiles() {
-  copy("static")
+  copy("resources")
 }
 
 /*
@@ -77,7 +77,11 @@ The working dir of Electron is build/main instead of src/main because of TS.
 tsc does not copy static files, so copy them over manually for dev server.
 */
 function copy(path) {
-  cpSync(join(__dirname, "..", "src", "main", path), join(__dirname, "..", "build", "main", path), {recursive: true})
+  const srcPath = join(__dirname, "..", "src", "main", path)
+  const destPath = path === "resources" 
+    ? join(__dirname, "..", "build", "main", "static")
+    : join(__dirname, "..", "build", "main", path)
+  cpSync(srcPath, destPath, {recursive: true})
 }
 
 function stop() {
@@ -102,8 +106,8 @@ async function start() {
   }).on("change", (path) => {
     console.log(Chalk.blueBright(`[electron] `) + `Change in ${path}. reloading... 🚀`)
 
-    if (path.startsWith(join("static", "/"))) {
-      copy(path)
+    if (path.startsWith(join("resources", "/"))) {
+      copy("resources")
     }
 
     restartElectron()

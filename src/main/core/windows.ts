@@ -1,9 +1,48 @@
-import {BrowserWindow} from "electron"
+import {BrowserWindow, shell} from "electron"
+
+import {APP_CONFIG, PATHS} from "../config.js"
+
+export function createMainWindow(): BrowserWindow {
+  const mainWindow = new BrowserWindow({
+    width: APP_CONFIG.window.main.width,
+    minWidth: APP_CONFIG.window.main.minWidth,
+    height: APP_CONFIG.window.main.height,
+    minHeight: APP_CONFIG.window.main.minHeight,
+    center: true,
+    title: APP_CONFIG.name,
+    transparent: true,
+    frame: false,
+    show: false,
+    titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
+    icon: PATHS.icon,
+    webPreferences: {
+      preload: PATHS.preload,
+      nodeIntegration: false,
+      contextIsolation: true,
+      webSecurity: true,
+      allowRunningInsecureContent: false,
+      experimentalFeatures: false,
+    },
+  })
+
+  if (typeof PATHS.renderer === "string" && PATHS.renderer.startsWith("http")) {
+    mainWindow.loadURL(PATHS.renderer)
+  } else {
+    mainWindow.loadFile(PATHS.renderer)
+  }
+
+  mainWindow.webContents.setWindowOpenHandler(({url}) => {
+    shell.openExternal(url)
+    return {action: "deny"}
+  })
+
+  return mainWindow
+}
 
 export function createSplashWindow(): BrowserWindow {
   const splashWindow = new BrowserWindow({
-    width: 400,
-    height: 300,
+    width: APP_CONFIG.window.splash.width,
+    height: APP_CONFIG.window.splash.height,
     frame: false,
     transparent: true,
     alwaysOnTop: true,
@@ -156,4 +195,9 @@ export function createSplashWindow(): BrowserWindow {
   splashWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(splashHTML)}`)
 
   return splashWindow
+}
+
+export function focusWindow(win: BrowserWindow) {
+  if (win.isMinimized()) win.restore()
+  win.focus()
 }

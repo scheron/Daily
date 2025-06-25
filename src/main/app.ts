@@ -1,20 +1,14 @@
-import {dirname, join} from "node:path"
-import {fileURLToPath} from "node:url"
 import {app, BrowserWindow, nativeImage, protocol, session} from "electron"
 
-import {focusWindow, sleep} from "./helpers.js"
-import {setupMenuIPC} from "./ipc/menu.js"
-import {setupStorageIPC} from "./ipc/storage.js"
-import {setupMainWindowIPC} from "./ipc/window.js"
-import {setupMenu} from "./menu/menu.js"
-import {handleDeepLink, setupDeepLinks} from "./services/deep-links.js"
-import {notifyStorageSyncStatus, setupStorageEvents, syncStorage} from "./services/storage-events.js"
-import {setupUpdateManager} from "./services/updater.js"
-import {StorageController} from "./storage/StorageController.js"
-import {createMainWindow} from "./windows/main-window.js"
-import {createSplashWindow} from "./windows/splash-window.js"
-
-const __dirname = dirname(fileURLToPath(import.meta.url))
+import {PATHS} from "./config.js"
+import {setupMenuIPC, setupStorageIPC, setupWindowIPC} from "./core/ipc.js"
+import {setupMenu} from "./core/menu/base.js"
+import {StorageController} from "./core/storage/controller.js"
+import {createMainWindow, createSplashWindow, focusWindow} from "./core/windows.js"
+import { notifyStorageSyncStatus, setupStorageEvents, syncStorage } from "./core/storage/events.js"
+import { handleDeepLink, setupDeepLinks } from "./core/setup/deepLinks.js"
+import { setupUpdateManager } from "./core/setup/updater.js"
+import { sleep } from "./utils/common.js"
 
 let storage: StorageController
 let mainWindow: BrowserWindow | null = null
@@ -82,7 +76,7 @@ app.whenReady().then(async () => {
 
   mainWindow = createMainWindow()
 
-  setupMainWindowIPC(mainWindow)
+  setupWindowIPC(mainWindow)
   setupMenuIPC(mainWindow)
   setupMenu(mainWindow)
 
@@ -131,7 +125,7 @@ app.whenReady().then(async () => {
 app.on("activate", async () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     mainWindow = createMainWindow()
-    setupMainWindowIPC(mainWindow)
+    setupWindowIPC(mainWindow)
     setupMenuIPC(mainWindow)
     setupMenu(mainWindow)
     setupDeepLinks(mainWindow)
@@ -166,5 +160,5 @@ app.on("window-all-closed", () => {
 })
 
 function getIconPath(): string {
-  return process.env.NODE_ENV === "development" ? join(__dirname, "static", "icon.png") : join(app.getAppPath(), "static", "icon.png")
+  return PATHS.icon
 }

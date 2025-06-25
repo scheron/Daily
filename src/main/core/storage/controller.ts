@@ -15,16 +15,16 @@ import path from "node:path"
 import {app, dialog} from "electron"
 import fs from "fs-extra"
 
-import type {ID, Settings, Tag, Task} from "../types.js"
+import type {ID, IStorageController, Settings, Tag, Task} from "../../types.js"
 
-import {notifyStorageChange} from "../services/storage-events.js"
+import {fsPaths} from "../../config.js"
+import {extractFilenames} from "../../utils/file.js"
+import {notifyStorageChange} from "./events.js"
 import {AssetsService} from "./services/AssetsService.js"
 import {ConfigService} from "./services/ConfigService.js"
 import {MetaService} from "./services/MetaService.js"
-import {extractFilenames} from "./utils/fileTypes.js"
-import {fsPaths} from "./utils/fsPaths.js"
 
-export class StorageController {
+export class StorageController implements IStorageController {
   rootDir: string
   private lastMetaVersion = ""
   private lastConfigVersion = ""

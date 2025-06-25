@@ -1,11 +1,11 @@
 import {ipcMain} from "electron"
 
-import type {StorageController} from "../storage/StorageController.js"
-import type {Tag, Task} from "../types.js"
+import type {BrowserWindow} from "electron"
+import type {IStorageController, Tag, Task} from "../types.js"
 
-import {syncStorage} from "../services/storage-events.js"
+import {syncStorage} from "./storage/events.js"
 
-export function setupStorageIPC(storage: StorageController): void {
+export function setupStorageIPC(storage: IStorageController): void {
   if (!storage) {
     throw new Error("Storage is not initialized")
   }
@@ -83,4 +83,24 @@ export function setupStorageIPC(storage: StorageController): void {
 
   ipcMain.handle("get-storage-path", (_e, pretty = false) => storage.getStoragePath(pretty))
   ipcMain.handle("select-storage-path", (_e, removeOld = false) => storage.selectStoragePath(removeOld))
+}
+
+export function setupWindowIPC(mainWindow: BrowserWindow): void {
+  ipcMain.on("window:minimize", () => mainWindow?.minimize())
+
+  ipcMain.on("window:maximize", () => {
+    if (mainWindow?.isMaximized()) mainWindow.unmaximize()
+    else mainWindow?.maximize()
+  })
+
+  ipcMain.on("window:close", () => mainWindow?.close())
+
+  ipcMain.on("console:electron", (_event, ...args) => {
+    console.log("[RENDERER]", ...args)
+  })
+}
+
+export function setupMenuIPC(mainWindow: BrowserWindow): void {
+  ipcMain.on("menu:new-task", () => mainWindow.webContents.send("new-task"))
+  ipcMain.on("menu:toggle-sidebar", () => mainWindow.webContents.send("toggle-sidebar"))
 }

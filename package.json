@@ -4,7 +4,7 @@
   "productName": "Daily",
   "description": "Daily - A minimal daily tasks management app",
   "type": "module",
-  "main": "main/main.js",
+  "main": "main/app.js",
   "license": "MIT",
   "keywords": [
     "daily",
