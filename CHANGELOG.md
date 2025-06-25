@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.3.3 - 2025-06-26
+
+### 🏗️ Architecture Refactoring
+- **Major storage architecture refactoring** - Complete overhaul of the storage system with new modular architecture
+- Streamlined storage migration process with consolidated migration logic
+- Enhanced asset and config handling capabilities
+
+### 🔧 Code Organization Improvements  
+- Reorganized main process structure for better maintainability:
+  - Moved core functionality to dedicated `core/` directory
+  - Split IPC handlers into logical modules (`core/ipc.ts`)
+  - Reorganized menu handlers (`core/menu/`) 
+  - Improved setup modules (`core/setup/`)
+- Updated main entry point architecture for better static file handling
+- Consolidated utility functions with new helper modules
+- Added caching utilities and improved file handling
+
+### 🧹 Cleanup & Performance
+- Removed legacy storage manager implementation 
+- Eliminated deprecated helper functions and unused code
+- Improved development server and build scripts
+
+
 ## v0.3.2 - 2025-06-25
 
 ### 🔄 Storage Improvements
