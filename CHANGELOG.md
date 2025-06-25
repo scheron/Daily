@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.3.2 - 2025-06-25
+
+### 🔄 Storage Improvements
+- Performance improvements with caching system
+
+
 ## v0.3.1 - 2025-06-23
 
 ### 🔄 Storage Synchronization
