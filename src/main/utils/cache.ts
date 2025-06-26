@@ -22,9 +22,9 @@ export function createCacheLoader<T>(loader: Loader<T>, ttlMs: number = CACHE_TT
       }
 
       if (!inFlight) {
-        console.log("🔄 Loading fresh data")
         inFlight = loader().then((value) => {
           cache = {value, expiry: now + ttlMs}
+          console.log("🔄 Loading fresh data", cache.value)
           inFlight = null
           return value
         })

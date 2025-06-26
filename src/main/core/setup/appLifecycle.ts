@@ -1,14 +1,14 @@
-import {app, BrowserWindow, nativeImage} from "electron"
+import { app, BrowserWindow, nativeImage } from "electron"
 
-import type {StorageController} from "../storage/controller.js"
+import type { StorageController } from "../storage/controller.js"
 
-import {PATHS} from "../../config.js"
-import {focusWindow} from "../windows.js"
-import {notifyStorageSyncStatus, syncStorage} from "../storage/events.js"
+import { APP_CONFIG, ENV, PATHS } from "../../config.js"
+import { notifyStorageSyncStatus, syncStorage } from "../storage/events.js"
+import { focusWindow } from "../windows.js"
 
 export function setupAppProtocol() {
-  app.setAsDefaultProtocolClient("daily")
-  app.setName("Daily")
+  app.setAsDefaultProtocolClient(APP_CONFIG.protocol)
+  app.setName(APP_CONFIG.name)
 }
 
 export function setupDockIcon() {
@@ -22,12 +22,12 @@ export function setupDockIcon() {
 }
 
 export function setupSingleInstanceLock(
-  storage: StorageController,
+  getStorage: () => StorageController,
   getMainWindow: () => BrowserWindow | null,
   handleDeepLink: (url: string, window: BrowserWindow) => void,
 ) {
   const gotLock = app.requestSingleInstanceLock()
-  const DISABLE_FOCUS_SYNC = process.env.DISABLE_FOCUS_SYNC === "true"
+  const DISABLE_FOCUS_SYNC = ENV.disableFocusSync
 
   if (!gotLock) {
     app.quit()
@@ -36,7 +36,8 @@ export function setupSingleInstanceLock(
 
   app.on("second-instance", async (_event, argv) => {
     const mainWindow = getMainWindow()
-    if (mainWindow) {
+    const storage = getStorage()
+    if (mainWindow && storage) {
       focusWindow(mainWindow)
       if (!DISABLE_FOCUS_SYNC) {
         try {
@@ -50,7 +51,7 @@ export function setupSingleInstanceLock(
         }
       }
     }
-    const url = argv.find((arg) => arg.startsWith("daily://"))
+    const url = argv.find((arg) => arg.startsWith(`${APP_CONFIG.protocol}://`))
     if (url && mainWindow) handleDeepLink(url, mainWindow)
   })
 
@@ -58,15 +59,16 @@ export function setupSingleInstanceLock(
 }
 
 export function setupActivateHandler(
-  storage: StorageController,
+  getStorage: () => StorageController,
   getMainWindow: () => BrowserWindow | null,
   createMainWindow: () => BrowserWindow,
   setupWindowHandlers: (window: BrowserWindow) => void,
 ) {
-  const DISABLE_FOCUS_SYNC = process.env.DISABLE_FOCUS_SYNC === "true"
+  const DISABLE_FOCUS_SYNC = ENV.disableFocusSync
 
   app.on("activate", async () => {
     let mainWindow = getMainWindow()
+    const storage = getStorage()
 
     if (BrowserWindow.getAllWindows().length === 0) {
       mainWindow = createMainWindow()
@@ -76,7 +78,7 @@ export function setupActivateHandler(
         mainWindow!.show()
         focusWindow(mainWindow!)
       })
-    } else if (mainWindow) {
+    } else if (mainWindow && storage) {
       focusWindow(mainWindow)
 
       if (!DISABLE_FOCUS_SYNC) {
@@ -102,10 +104,11 @@ export function setupWindowAllClosedHandler() {
   })
 }
 
-export function setupStorageSync(storage: StorageController, getMainWindow: () => BrowserWindow | null) {
+export function setupStorageSync(getStorage: () => StorageController, getMainWindow: () => BrowserWindow | null) {
   const mainWindow = getMainWindow()
+  const storage = getStorage()
 
-  if (mainWindow) {
+  if (mainWindow && storage) {
     mainWindow.on("focus", () => syncStorage(storage))
   }
 }
