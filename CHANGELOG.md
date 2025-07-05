@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.3.4 - 2025-07-06
+
+### 🎨 UI/UX Improvements
+- **Theme flexibility** - Dark themes can now be used with light mode system preferences
+- **Task styling** - Removed line-through style for completed tasks for better readability
+
+### 🏗️ Architecture Refactoring
+- **Enhanced app lifecycle management** - Consolidated setup functions and improved protocol handling
+- Improved CSP (Content Security Policy) setup
+- Better protocol handling for deep links and file associations
+- Optimized cache utility performance
+
 ## v0.3.3 - 2025-06-26
 
 ### 🏗️ Architecture Refactoring
