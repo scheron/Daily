@@ -119,7 +119,7 @@ useEventListener("mouseup", swipeGestures.onMouseUp, {passive: false})
           <div
             ref="content"
             class="markdown max-w-full flex-1 cursor-default overflow-x-auto rounded-md p-1 break-words break-all transition-opacity duration-200 outline-none"
-            :class="{'line-through opacity-50': ['done', 'discarded'].includes(task.status)}"
+            :class="{'opacity-50': ['done', 'discarded'].includes(task.status)}"
           />
         </div>
       </div>
