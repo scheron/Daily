@@ -89,7 +89,7 @@ function setPreferredDarkTheme(event: Event) {
             :value="themeStore.preferredLightTheme?.id"
             @change="setPreferredLightTheme"
           >
-            <option v-for="theme in lightThemes" :key="theme.id" :value="theme.id">
+            <option v-for="theme in themeStore.themes" :key="theme.id" :value="theme.id">
               {{ theme.name }}
             </option>
           </select>
