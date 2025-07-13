@@ -14,7 +14,7 @@ import HelpPanel from "@/ui/features/HelpPanel"
 import RecentActiveTasks from "@/ui/features/RecentActiveTasks"
 import TagsPanel from "@/ui/features/TagsPanel"
 import Themes from "@/ui/features/Themes"
-import Logo from "@/ui/misc/Logo.vue"
+import Logo from "@/ui/common/misc/Logo.vue"
 
 defineProps<{
   dataLoaded: boolean

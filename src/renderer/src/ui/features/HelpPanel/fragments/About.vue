@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import BaseIcon from "@/ui/base/BaseIcon"
-import Logo from "@/ui/misc/Logo.vue"
+import Logo from "@/ui/common/misc/Logo.vue"
 </script>
 
 <template>

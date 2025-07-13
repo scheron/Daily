@@ -5,9 +5,9 @@ import {useFocusTrap} from "@/composables/useFocusTrap"
 import {findFocusableEl} from "@/utils/dom"
 import {cn} from "@/utils/tailwindcss"
 
-import BaseAnimation from "../base/BaseAnimation.vue"
-import BaseButton from "../base/BaseButton.vue"
-import Logo from "../misc/Logo.vue"
+import BaseAnimation from "@/ui/base/BaseAnimation.vue"
+import BaseButton from "@/ui/base/BaseButton.vue"
+import Logo from "@/ui/common/misc/Logo.vue"
 
 const props = withDefaults(
   defineProps<{

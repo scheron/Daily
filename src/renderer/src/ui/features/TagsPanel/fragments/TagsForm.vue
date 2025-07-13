@@ -6,8 +6,8 @@ import type {Tag} from "@/types/tasks"
 
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BasePopup from "@/ui/base/BasePopup.vue"
-import ColorPicker from "@/ui/misc/ColorPicker.vue"
-import EmojiPicker from "@/ui/misc/EmojiPicker.vue"
+import ColorPicker from "@/ui/common/pickers/ColorPicker.vue"
+import EmojiPicker from "@/ui/common/pickers/EmojiPicker.vue"
 
 import TagsInput from "./TagsInput.vue"
 

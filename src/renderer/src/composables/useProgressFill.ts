@@ -3,7 +3,7 @@ import {onLongPress, useEventListener} from "@vueuse/core"
 
 import type {MaybeRef, Ref} from "vue"
 
-interface UseProgressFillOptions {
+type UseProgressFillOptions = {
   duration?: number
   color?: MaybeRef<string>
   onComplete?: () => void

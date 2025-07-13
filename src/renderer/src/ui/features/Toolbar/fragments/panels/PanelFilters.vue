@@ -7,7 +7,7 @@ import {countTasks} from "@/utils/tasks"
 import type {TasksFilter} from "@/types/filters"
 import type {Tag} from "@/types/tasks"
 
-import DynamicTagsPanel from "@/ui/base/DynamicTagsPanel.vue"
+import DynamicTagsPanel from "@/ui/common/panels/DynamicTagsPanel.vue"
 
 const FILTERS: {label: string; value: TasksFilter}[] = [
   {label: "All", value: "all"},

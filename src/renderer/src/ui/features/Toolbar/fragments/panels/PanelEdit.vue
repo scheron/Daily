@@ -12,7 +12,7 @@ import type {Tag} from "@/types/tasks"
 
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseIcon from "@/ui/base/BaseIcon"
-import DynamicTagsPanel from "@/ui/base/DynamicTagsPanel.vue"
+import DynamicTagsPanel from "@/ui/common/panels/DynamicTagsPanel.vue"
 
 import {useRestoreTaskToast} from "../../model/useRestoreTaskToast"
 
