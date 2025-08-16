@@ -1,16 +1,17 @@
 <script setup lang="ts">
 import {computed} from "vue"
-
 import {useFilterStore} from "@/stores/filter.store"
 import {useTagsStore} from "@/stores/tags.store"
 import {useTaskEditorStore} from "@/stores/taskEditor.store"
 import {useTasksStore} from "@/stores/tasks.store"
-import BaseAnimation from "@/ui/base/BaseAnimation.vue"
-import BaseSpinner from "@/ui/base/BaseSpinner.vue"
-import EmptyState from "./fragments/EmptyState.vue"
-import TaskItem from "./fragments/TaskItem.vue"
 
 import type {Tag, Task, TaskStatus} from "@/types/tasks"
+
+import BaseAnimation from "@/ui/base/BaseAnimation.vue"
+import BaseSpinner from "@/ui/base/BaseSpinner.vue"
+
+import EmptyState from "./fragments/EmptyState.vue"
+import TaskItem from "./fragments/TaskItem.vue"
 
 const tasksStore = useTasksStore()
 const tagsStore = useTagsStore()
@@ -39,6 +40,7 @@ function getTaskTags(task: Task): Tag[] {
 
 function onEdit(task?: Task) {
   taskEditorStore.setCurrentEditingTask(task ?? null)
+  taskEditorStore.setEditorTags(task?.tags ?? [])
   taskEditorStore.setIsTaskEditorOpen(true)
 }
 

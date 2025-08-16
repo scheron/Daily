@@ -32,6 +32,7 @@ const isDataLoaded = computed(() => tasksStore.isDaysLoaded && tagsStore.isTagsL
 
 function onCreateTask() {
   taskEditorStore.setCurrentEditingTask(null)
+  taskEditorStore.setEditorTags([])
   taskEditorStore.setIsTaskEditorOpen(true)
 }
 

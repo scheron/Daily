@@ -62,7 +62,7 @@ function onInput() {
   content.value = contentField.value.innerText || ""
 }
 
-async function onSave(): Promise<boolean> {
+async function onSave(discardTags = true): Promise<boolean> {
   const text = content.value.trim()
   if (!text) return false
 
@@ -92,7 +92,7 @@ async function onSave(): Promise<boolean> {
     toast.success("Task created successfully")
   }
 
-  clearEditor(false)
+  clearEditor({discardFiles: false, discardTags})
   return true
 }
 
@@ -102,22 +102,19 @@ async function onSaveAndClose() {
 }
 
 async function onSaveAndContinue() {
-  const success = await onSave()
+  const success = await onSave(false)
   if (success) focusContentField()
 }
 
-function clearEditor(discardFiles = true) {
+function clearEditor(params: {discardFiles: boolean; discardTags: boolean}) {
+  const {discardFiles, discardTags} = params
   if (discardFiles) taskEditorStore.rollbackAssets()
 
   if (contentField.value) contentField.value.textContent = ""
   taskEditorStore.setEditorContent("")
-  taskEditorStore.setEditorTags([])
-  taskEditorStore.setCurrentEditingTask(null)
-}
 
-async function onClose() {
-  clearEditor(true)
-  taskEditorStore.setIsTaskEditorOpen(false)
+  if (discardTags) taskEditorStore.setEditorTags([])
+  taskEditorStore.setCurrentEditingTask(null)
 }
 
 onMounted(async () => {
@@ -128,14 +125,17 @@ onMounted(async () => {
   focusContentField(!!taskEditorStore.currentEditingTask)
 })
 
-onUnmounted(() => clearEditor(true))
+onUnmounted(() => clearEditor({discardFiles: true, discardTags: true}))
 
 useEventListener(contentField, "keydown", (event) => {
   const mod = isMacOS ? event.metaKey : event.ctrlKey
+
   if (event.key === "Escape") {
-    onClose()
+    clearEditor({discardFiles: true, discardTags: true})
+    taskEditorStore.setIsTaskEditorOpen(false)
     return
   }
+
   if (event.key === "Enter" && !event.shiftKey) {
     event.preventDefault()
     mod ? onSaveAndContinue() : onSaveAndClose()

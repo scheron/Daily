@@ -46,9 +46,7 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
 
   function setCurrentEditingTask(task: Task | null) {
     currentEditingTask.value = task
-
     editorContent.value = task ? task.content : ""
-    editorTags.value = task ? [...task.tags] : []
   }
 
   function setEditorContent(content: string) {
