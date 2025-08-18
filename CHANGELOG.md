@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.3.5 - 2025-08-17
+
+### 🐛 Bug Fixes
+- **Task Editor** - Fixed issue where "Save & Continue" action was resetting previously assigned tags instead of preserving them
+
+### 🏗️ Code Organization
+- Improved UI components structure for better maintainability
+
+
 ## v0.3.4 - 2025-07-06
 
 ### 🎨 UI/UX Improvements
