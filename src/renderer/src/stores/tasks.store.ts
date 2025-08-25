@@ -123,6 +123,18 @@ export const useTasksStore = defineStore("tasks", () => {
     return dailyTasks.value.find((t) => t.id === taskId) || null
   }
 
+  async function moveTask(taskId: string, targetDate: ISODate) {
+    const task = findTaskById(taskId)
+    if (!task) return false
+
+    const isSuccess = await API.moveTask(taskId, targetDate)
+    if (!isSuccess) return false
+
+    await revalidate()
+
+    return true
+  }
+
   return {
     isDaysLoaded,
     days,
@@ -137,6 +149,7 @@ export const useTasksStore = defineStore("tasks", () => {
     createTask,
     updateTask,
     deleteTask,
+    moveTask,
     restoreTask,
     revalidate,
   }

@@ -1,5 +1,5 @@
 /*
-New Storage Architecture:
+Storage Architecture:
 
 Documents/
 └── Daily/

@@ -202,6 +202,37 @@ function defineApi(): Storage {
     return true
   }
 
+  /**
+   * Move a task to a different day and delete it from the source day
+   * @param taskId - The id of the task to move
+   * @param targetDate - The target date to move the task to
+   * @returns The updated day information for both source and target days
+   */
+  async function moveTask(taskId: Task["id"], targetDate: ISODate): Promise<boolean> {
+    try {
+      const allTasks = await window.electronAPI.loadTasks()
+      const task = allTasks.find((t) => t.id === taskId)
+      if (!task) return false
+
+      const movedTask: Task = {
+        ...task,
+        scheduled: {
+          ...task.scheduled,
+          date: targetDate,
+        },
+        updatedAt: DateTime.now().toISO()!,
+      }
+
+      await deleteTask(taskId)
+      await window.electronAPI.saveTasks([movedTask])
+
+      return true
+    } catch (error) {
+      console.error("Failed to move task", error)
+      return false
+    }
+  }
+
   return {
     getDays,
     getDay,
@@ -209,6 +240,7 @@ function defineApi(): Storage {
     createTask,
     updateTask,
     deleteTask,
+    moveTask,
 
     addTaskTags,
     removeTaskTags,
