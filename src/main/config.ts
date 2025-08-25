@@ -15,7 +15,7 @@ export const APP_CONFIG = {
   window: {
     main: {
       width: 1200,
-      minWidth: 500,
+      minWidth: 610,
       height: 800,
       minHeight: 680,
     },
