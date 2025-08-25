@@ -10,6 +10,7 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
   const editorContent = ref("")
   const editorTags = ref<Tag[]>([])
   const isTaskEditorOpen = ref(false)
+  const isMoveDatePickerOpen = ref(false)
 
   const stagedAssets = ref<Record<string, {dataUrl: string; originalName: string}>>({})
 
@@ -67,6 +68,10 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
     isTaskEditorOpen.value = isOpen
   }
 
+  function setIsMoveDatePickerOpen(isOpen: boolean) {
+    isMoveDatePickerOpen.value = isOpen
+  }
+
   function replaceAttachments(text: string, committed: Record<string, {filename: string; filePath: string}>) {
     let final = text
 
@@ -83,6 +88,7 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
     editorContent,
     editorTags,
     isTaskEditorOpen,
+    isMoveDatePickerOpen,
 
     stagedAssets,
     stageAsset,
@@ -93,6 +99,7 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
     setEditorContent,
     setEditorTags,
     setIsTaskEditorOpen,
+    setIsMoveDatePickerOpen,
 
     replaceAttachments,
   }

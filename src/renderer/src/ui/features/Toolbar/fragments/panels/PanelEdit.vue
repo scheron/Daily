@@ -33,7 +33,6 @@ const deleteBlockRef = useTemplateRef<HTMLDivElement>("deleteBlock")
 const isNewTask = computed(() => taskEditorStore.currentEditingTask === null)
 
 function onSelectTag(tagName: Tag["name"]) {
-  console.log({tagName, tags: tagsStore.tagsMap.get(tagName)})
   if (selectedTags.value.has(tagName)) selectedTags.value.delete(tagName)
   else selectedTags.value.set(tagName, tagsStore.tagsMap.get(tagName)!)
 }
@@ -50,8 +49,6 @@ async function onSave() {
 
   const committed = await taskEditorStore.commitAssets()
   const finalContent = taskEditorStore.replaceAttachments(content, committed)
-
-  console.log({content: finalContent, tags: JSON.stringify(taskEditorStore.editorTags)})
 
   if (isNewTask.value) {
     const isSuccess = await tasksStore.createTask({
@@ -94,11 +91,16 @@ function onClose() {
   emit("close")
 }
 
+function onOpenMoveDatePicker() {
+  taskEditorStore.setIsMoveDatePickerOpen(true)
+}
+
 onMounted(() => {
   if (taskEditorStore.currentEditingTask) {
     selectedTags.value = new Map(taskEditorStore.currentEditingTask.tags.map((tag) => [tag.name, tag]))
   }
 })
+
 watch(
   selectedTags,
   (tags) => {
@@ -115,6 +117,17 @@ watch(
     </div>
 
     <div class="flex w-full shrink-0 items-center gap-3 md:w-auto">
+      <BaseButton
+        v-if="taskEditorStore.currentEditingTask"
+        size="sm"
+        icon="calendar"
+        icon-class="size-4"
+        class="text-accent bg-accent/10 hover:bg-accent/20 w-full rounded-sm px-2 py-0.5 md:w-auto"
+        @click="onOpenMoveDatePicker"
+      >
+        <span class="text-sm">Move Task</span>
+      </BaseButton>
+
       <div
         v-if="taskEditorStore.currentEditingTask"
         ref="deleteBlock"

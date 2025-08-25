@@ -1,17 +1,22 @@
 <script setup lang="ts">
 import {computed, onMounted, onUnmounted, useTemplateRef} from "vue"
-import {toast} from "vue-sonner"
 import {until, useEventListener} from "@vueuse/core"
 import {useClipboardPaste} from "@/composables/useClipboardPaste"
 import {useDevice} from "@/composables/useDevice"
 import {useTaskEditorStore} from "@/stores/taskEditor.store"
 import {useTasksStore} from "@/stores/tasks.store"
 
+import type {ISODate} from "@/types/date"
+
 import EditorPlaceholder from "./fragments/EditorPlaceholder.vue"
+import TaskMoveDatePicker from "./fragments/TaskMoveDatePicker.vue"
+import {useEditTask} from "./model/useEditTask"
 
 const tasksStore = useTasksStore()
 const taskEditorStore = useTaskEditorStore()
 const {isMacOS} = useDevice()
+
+const {createOrUpdate, move} = useEditTask()
 
 const content = computed({
   get: () => taskEditorStore.editorContent,
@@ -62,48 +67,33 @@ function onInput() {
   content.value = contentField.value.innerText || ""
 }
 
-async function onSave(discardTags = true): Promise<boolean> {
-  const text = content.value.trim()
-  if (!text) return false
-
-  const committed = await taskEditorStore.commitAssets()
-  const finalContent = taskEditorStore.replaceAttachments(text, committed)
-
-  let ok = false
-  if (taskEditorStore.currentEditingTask) {
-    ok = await tasksStore.updateTask(taskEditorStore.currentEditingTask.id, {
-      content: finalContent,
-      tags: taskEditorStore.editorTags,
-    })
-    if (!ok) {
-      toast.error("Failed to update task")
-      return false
-    }
-    toast.success("Task updated successfully")
-  } else {
-    ok = await tasksStore.createTask({
-      content: finalContent,
-      tags: taskEditorStore.editorTags,
-    })
-    if (!ok) {
-      toast.error("Failed to create task")
-      return false
-    }
-    toast.success("Task created successfully")
-  }
-
-  clearEditor({discardFiles: false, discardTags})
-  return true
-}
-
 async function onSaveAndClose() {
-  const success = await onSave()
-  if (success) taskEditorStore.setIsTaskEditorOpen(false)
+  const success = await createOrUpdate(content.value)
+  if (!success) return
+
+  taskEditorStore.setIsTaskEditorOpen(false)
+  clearEditor({discardFiles: false, discardTags: true})
 }
 
 async function onSaveAndContinue() {
-  const success = await onSave(false)
-  if (success) focusContentField()
+  const success = await createOrUpdate(content.value)
+  if (!success) return
+
+  focusContentField()
+  clearEditor({discardFiles: false, discardTags: false})
+}
+
+async function onMoveTask(targetDate: ISODate) {
+  if (!taskEditorStore.currentEditingTask) return
+
+  const success = await move(targetDate)
+  if (!success) return
+
+  taskEditorStore.setIsTaskEditorOpen(false)
+  tasksStore.setActiveDay(targetDate)
+  taskEditorStore.setIsMoveDatePickerOpen(false)
+
+  clearEditor({discardFiles: false, discardTags: true})
 }
 
 function clearEditor(params: {discardFiles: boolean; discardTags: boolean}) {
@@ -166,5 +156,10 @@ useClipboardPaste(contentField, {
       @input="onInput"
     ></div>
     <EditorPlaceholder v-show="!content.trim()" />
+    <TaskMoveDatePicker
+      :open="taskEditorStore.isMoveDatePickerOpen"
+      @cancel="taskEditorStore.setIsMoveDatePickerOpen(false)"
+      @move-task="onMoveTask"
+    />
   </div>
 </template>
