@@ -90,7 +90,6 @@ async function onMoveTask(targetDate: ISODate) {
   if (!success) return
 
   taskEditorStore.setIsTaskEditorOpen(false)
-  tasksStore.setActiveDay(targetDate)
   taskEditorStore.setIsMoveDatePickerOpen(false)
 
   clearEditor({discardFiles: false, discardTags: true})
