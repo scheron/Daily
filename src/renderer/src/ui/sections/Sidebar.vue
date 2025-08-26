@@ -39,7 +39,7 @@ const count = computed(() => countTasks(tasksStore.dailyTasks))
       <div class="relative ml-auto flex items-center gap-1 text-sm">
         <template v-if="count.total">
           <span v-if="count.active" class="text-base-content/50 flex items-center gap-1">
-            {{ count.active }} / {{ count.total }}
+            {{ count.done }} / {{ count.total }}
             <BaseIcon name="check-check" class="size-4" />
           </span>
 
