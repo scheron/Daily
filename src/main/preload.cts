@@ -9,6 +9,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
   minimize: () => ipcRenderer.send("window:minimize"),
   maximize: () => ipcRenderer.send("window:maximize"),
   close: () => ipcRenderer.send("window:close"),
+  closeTimerWindow: () => ipcRenderer.send("window:close-timer"),
+  openTimerWindow: () => ipcRenderer.send("window:open-timer"),
+
+
 
   platform: {
     isMac: () => process.platform === "darwin",
@@ -55,5 +59,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
   removeAllListeners: (channel: string) => ipcRenderer.removeAllListeners(channel),
 
   // Console logging to main process
+  // TODO: Remove this
   consoleElectron: (...args: any[]) => ipcRenderer.send("console:electron", ...args),
 })

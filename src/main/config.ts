@@ -22,6 +22,12 @@ export const APP_CONFIG = {
     splash: {
       width: 400,
       height: 300,
+      resizable: false,
+    },
+    timer: {
+      width: 400,
+      height: 300,
+      resizable: false,
     },
   },
   csp: {

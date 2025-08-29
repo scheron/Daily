@@ -47,7 +47,7 @@ export function createSplashWindow(): BrowserWindow {
     transparent: true,
     alwaysOnTop: true,
     center: true,
-    resizable: false,
+    resizable: APP_CONFIG.window.splash.resizable,
     movable: false,
     hasShadow: false,
     webPreferences: {
@@ -200,4 +200,41 @@ export function createSplashWindow(): BrowserWindow {
 export function focusWindow(win: BrowserWindow) {
   if (win.isMinimized()) win.restore()
   win.focus()
+}
+
+export function createTimerWindow(): BrowserWindow {
+  const timerWindow = new BrowserWindow({
+    title: "Daily Timer",
+    show: false,
+    icon: PATHS.icon,
+    width: APP_CONFIG.window.timer.width,
+    height: APP_CONFIG.window.timer.height,
+    resizable: APP_CONFIG.window.timer.resizable,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    center: true,
+    webPreferences: {
+      devTools: false,
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: PATHS.preload,
+      webSecurity: true,
+      allowRunningInsecureContent: false,
+      experimentalFeatures: false,
+    },
+  })
+
+  if (typeof PATHS.renderer === "string" && PATHS.renderer.startsWith("http")) {
+    timerWindow.loadURL(`${PATHS.renderer}#/timer`)
+  } else {
+    timerWindow.loadFile(PATHS.renderer, {hash: "#/timer"})
+  }
+
+  timerWindow.webContents.setWindowOpenHandler(({url}) => {
+    shell.openExternal(url)
+    return {action: "deny"}
+  })
+
+  return timerWindow
 }

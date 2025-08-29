@@ -25,9 +25,11 @@ import {sleep} from "./utils/common.js"
 let storage: StorageController
 let mainWindow: BrowserWindow | null = null
 let splashWindow: BrowserWindow | null = null
+let timerWindow: BrowserWindow | null = null
 
 const setupWindowHandlers = (window: BrowserWindow) => {
-  setupWindowIPC(window)
+  // prettier-ignore
+  setupWindowIPC(window, () => timerWindow, (win) => (timerWindow = win))
   setupMenuIPC(window)
   setupMenu(window)
   setupDeepLinks(window)

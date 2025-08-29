@@ -10,6 +10,10 @@ export default interface ElectronApi {
   minimize: () => void
   maximize: () => void
   close: () => void
+  closeTimerWindow: () => void
+  openTimerWindow: () => void
+
+
 
   platform: {
     isMac: () => boolean

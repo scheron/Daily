@@ -1,9 +1,9 @@
-import {ipcMain} from "electron"
+import {BrowserWindow, ipcMain} from "electron"
 
-import type {BrowserWindow} from "electron"
 import type {IStorageController, Tag, Task} from "../types.js"
 
 import {syncStorage} from "./storage/events.js"
+import {createTimerWindow} from "./windows.js"
 
 export function setupStorageIPC(storage: IStorageController): void {
   if (!storage) {
@@ -85,7 +85,11 @@ export function setupStorageIPC(storage: IStorageController): void {
   ipcMain.handle("select-storage-path", (_e, removeOld = false) => storage.selectStoragePath(removeOld))
 }
 
-export function setupWindowIPC(mainWindow: BrowserWindow): void {
+export function setupWindowIPC(
+  mainWindow: BrowserWindow,
+  getTimerWindow: () => BrowserWindow | null,
+  setTimerWindow: (window: BrowserWindow | null) => void,
+): void {
   ipcMain.on("window:minimize", () => mainWindow?.minimize())
 
   ipcMain.on("window:maximize", () => {
@@ -94,6 +98,38 @@ export function setupWindowIPC(mainWindow: BrowserWindow): void {
   })
 
   ipcMain.on("window:close", () => mainWindow?.close())
+
+  ipcMain.on("window:close-timer", (event) => {
+    const senderWindow = BrowserWindow.fromWebContents(event.sender)
+    if (senderWindow && senderWindow !== mainWindow) {
+      senderWindow.close()
+
+      if (senderWindow === getTimerWindow()) {
+        setTimerWindow(null)
+      }
+    }
+  })
+
+  ipcMain.on("window:open-timer", () => {
+    const existingTimer = getTimerWindow()
+
+    if (existingTimer && !existingTimer.isDestroyed()) {
+      existingTimer.show()
+      existingTimer.focus()
+      return
+    }
+
+    const newTimerWindow = createTimerWindow()
+    setTimerWindow(newTimerWindow)
+
+    newTimerWindow.on("closed", () => {
+      setTimerWindow(null)
+    })
+
+    newTimerWindow.once("ready-to-show", () => {
+      newTimerWindow.show()
+    })
+  })
 
   ipcMain.on("console:electron", (_event, ...args) => {
     console.log("[RENDERER]", ...args)
