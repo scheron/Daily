@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {computed} from "vue"
+import {useRouter} from "vue-router"
 import {useDevice} from "@/composables/useDevice"
 import {useTasksStore} from "@/stores/tasks.store"
 import {useUIStore} from "@/stores/ui.store"
@@ -21,12 +22,18 @@ const emit = defineEmits<{
   createTask: []
 }>()
 
+const router = useRouter()
 const uiStore = useUIStore()
 const tasksStore = useTasksStore()
 
 const {isMobile} = useDevice()
 
 const formattedDate = computed(() => toFullDate(tasksStore.activeDay ?? new Date()))
+
+function openTimerWindow() {
+  // Open timer window using Electron API, but navigate to timer route
+  window.electronAPI.openTimerWindow()
+}
 </script>
 
 <template>
@@ -46,6 +53,14 @@ const formattedDate = computed(() => toFullDate(tasksStore.activeDay ?? new Date
           {{ formattedDate }}
         </h1>
       </div>
+      <BaseButton
+        variant="outline"
+        icon="stopwatch"
+        style="-webkit-app-region: no-drag"
+        @click="openTimerWindow"
+      >
+        Open timer window
+      </BaseButton>
 
       <BaseButton
         v-if="!taskEditorOpen"

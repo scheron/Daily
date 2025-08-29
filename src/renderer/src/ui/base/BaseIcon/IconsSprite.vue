@@ -38,6 +38,7 @@ export type IconName =
   | "tags"
   | "monitor"
   | "refresh"
+  | "stopwatch"
 </script>
 
 <template>
@@ -381,6 +382,11 @@ export type IconName =
         <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path>
         <path d="M16 16h5v5"></path>
       </g>
+    </symbol>
+
+    <symbol id="stopwatch" fill="currentColor" viewBox="0 0 32 32">
+      <path d="M15 11H17V20H15zM13 2H19V4H13z"></path>
+      <path d="M28,9,26.58,7.59,24.33,9.84a10.94,10.94,0,1,0,1.18,1.65ZM16,26a9,9,0,1,1,9-9A9,9,0,0,1,16,26Z"></path>
     </symbol>
   </svg>
 </template>
