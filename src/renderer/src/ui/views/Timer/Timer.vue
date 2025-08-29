@@ -104,7 +104,7 @@ onUnmounted(() => {
       <BaseButton
         v-if="!isRunning"
         variant="primary"
-        icon="chevron-right"
+        icon="play"
         class="px-3 py-1 text-sm"
         style="-webkit-app-region: no-drag"
         @click="startTimer"

@@ -47,6 +47,26 @@ function onEdit(task?: Task) {
 function onChangeStatus(task: Task, status: TaskStatus) {
   tasksStore.updateTask(task.id, {status})
 }
+
+function onMoveDate(task: Task) {
+  // TODO: Implement move date functionality
+  console.log('Move date for task:', task.id)
+}
+
+function onSetTimer(task: Task) {
+  // TODO: Implement set timer functionality
+  console.log('Set timer for task:', task.id)
+}
+
+function onOpenTimer(task: Task) {
+  // TODO: Implement open timer functionality
+  console.log('Open timer for task:', task.id)
+}
+
+function onDelete(task: Task) {
+  // TODO: Implement delete functionality
+  console.log('Delete task:', task.id)
+}
 </script>
 
 <template>
@@ -64,6 +84,10 @@ function onChangeStatus(task: Task, status: TaskStatus) {
             :tags="getTaskTags(task)"
             @change-status="onChangeStatus(task, $event)"
             @edit="onEdit(task)"
+            @move-date="onMoveDate(task)"
+            @set-timer="onSetTimer(task)"
+            @open-timer="onOpenTimer(task)"
+            @delete="onDelete(task)"
           />
         </BaseAnimation>
       </div>
