@@ -1,12 +1,17 @@
 import {computed, ref, watch} from "vue"
-import {watchOnce} from "@vueuse/core"
+import {useBroadcastChannel, watchOnce} from "@vueuse/core"
 import {useSettingsStore} from "@/composables/useSettingsStore"
+import {BROADCAST_CHANNELS} from "@/constants/events"
 import * as _themes from "@/constants/themes"
 import {defineStore} from "pinia"
 
 import type {Theme} from "@/types/theme"
 
 export const useThemeStore = defineStore("theme", () => {
+  const {data: broadcastTheme, post: postTheme} = useBroadcastChannel<Theme["id"] | null, Theme["id"] | null>({
+    name: BROADCAST_CHANNELS.THEME_SYNC,
+  })
+
   const themes = ref<Theme[]>(Object.values(_themes))
 
   const currentThemeId = useSettingsStore("themes.current", themes.value[8].id)
@@ -51,18 +56,25 @@ export const useThemeStore = defineStore("theme", () => {
     else setCurrentTheme(preferredLightTheme.value?.id ?? themes.value[0].id)
   }
 
+  function applyThemeToDOM(themeId: Theme["id"]) {
+    const root = document.documentElement
+    const theme = themes.value.find((t) => t.id === themeId)
+
+    root.classList.remove(...themes.value.map((t) => t.id))
+    root.classList.add(themeId)
+
+    Object.entries(theme?.colorScheme ?? {}).forEach(([key, value]) => root.style.setProperty(`--c-${key}`, value))
+  }
+
   watch(
     currentTheme,
     (theme) => {
-      const root = document.documentElement
-
-      root.classList.remove(...themes.value.map((t) => t.id))
-      root.classList.add(theme.id)
-
-      Object.entries(theme.colorScheme).forEach(([key, value]) => root.style.setProperty(`--c-${key}`, value))
+      applyThemeToDOM(theme.id)
+      postTheme(theme.id)
     },
     {immediate: true},
   )
+  watch(broadcastTheme, (themeId) => themeId && applyThemeToDOM(themeId))
 
   watchOnce(isSystemThemeEnabled, (value) => value && applySystemTheme())
 
