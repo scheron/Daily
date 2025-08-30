@@ -8,12 +8,13 @@ import type {TasksFilter} from "@/types/filters"
 import type {Tag} from "@/types/tasks"
 
 import DynamicTagsPanel from "@/ui/common/panels/DynamicTagsPanel.vue"
+import BaseIcon, { IconName } from "@/ui/base/BaseIcon"
 
-const FILTERS: {label: string; value: TasksFilter}[] = [
-  {label: "All", value: "all"},
-  {label: "Active", value: "active"},
-  {label: "Done", value: "done"},
-  {label: "Discarded", value: "discarded"},
+const FILTERS: {label: string; value: TasksFilter; icon: IconName}[] = [
+  {label: "All", value: "all", icon: "history"},
+  {label: "Active", value: "active", icon: "fire"},
+  {label: "Done", value: "done", icon: "check-check"},
+  {label: "Discarded", value: "discarded", icon: "archive"},
 ]
 
 const tasksStore = useTasksStore()
@@ -51,6 +52,7 @@ watch(
           }"
           @click="filterStore.setActiveFilter(option.value)"
         >
+          <BaseIcon :name="option.icon" class="size-4" />
           <span>{{ option.label }}</span>
           <span
             v-if="option.value !== 'all'"
