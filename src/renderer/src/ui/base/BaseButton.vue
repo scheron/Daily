@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {computed} from "vue"
 
-import type {IconName} from "./BaseIcon/IconsSprite.vue"
+import type {IconName} from "./BaseIcon"
 import type {HtmlHTMLAttributes} from "vue"
 
 import BaseIcon from "./BaseIcon/BaseIcon.vue"

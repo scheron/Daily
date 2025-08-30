@@ -1,1 +1,3 @@
-export type TasksFilter = "all" | "active" | "done" | "discarded"
+import type {TaskStatus} from "./tasks"
+
+export type TasksFilter = "all" | TaskStatus

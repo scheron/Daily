@@ -1,11 +1,11 @@
 <script lang="ts" setup>
 import {computed, ref} from "vue"
 import {onClickOutside} from "@vueuse/core"
+import {cn} from "@/utils/tailwindcss"
 // @ts-ignore
 import {autoUpdate, flip, offset, shift, useFloating} from "@floating-ui/vue"
 
 import BaseButton from "./BaseButton.vue"
-import { cn } from "@/utils/tailwindcss"
 
 type HorizontalPosition = "start" | "center" | "end"
 
@@ -17,12 +17,14 @@ const props = withDefaults(
     position?: HorizontalPosition
     triggerClass?: string
     contentClass?: string
+    containerClass?: string
   }>(),
   {
     hideCloseBtn: false,
     hideHeader: false,
     position: "start",
     contentClass: "",
+    containerClass: "",
   },
 )
 
@@ -69,6 +71,7 @@ defineExpose({
   show,
   hide,
   toggle,
+  isOpen,
 })
 </script>
 
@@ -81,12 +84,12 @@ defineExpose({
     <div
       v-if="isOpen"
       ref="popup"
-      class="bg-base-100 border-base-300 z-50 max-h-[300px] min-w-52 overflow-y-auto rounded-lg border p-2 shadow-lg"
+      :class="cn('bg-base-100 border-base-300 z-50 max-h-[300px] min-w-52 overflow-y-auto rounded-lg border p-2 shadow-lg', containerClass)"
       :style="floatingStyles"
     >
       <div :class="cn('flex flex-col gap-1', contentClass)">
         <div v-if="!(hideHeader || hideCloseBtn)" class="border-base-300 flex items-center justify-between border-b pb-1">
-          <span v-if="title" class="text-base-content/70 pl-1 text-sm font-semibold">{{ title }}</span>
+          <span v-if="title" class="text-base-content/70 pl-2 text-sm font-semibold">{{ title }}</span>
 
           <BaseButton
             v-if="!hideCloseBtn"
@@ -99,7 +102,7 @@ defineExpose({
           />
         </div>
 
-        <slot :hide="hide" :show="show" :toggle="toggle" />
+        <slot :hide="hide" :show="show" :toggle="toggle" :is-open="isOpen"  />
       </div>
     </div>
   </Teleport>
