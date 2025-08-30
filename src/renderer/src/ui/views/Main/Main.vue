@@ -11,12 +11,12 @@ import {useThemeStore} from "@/stores/theme.store"
 import {useUIStore} from "@/stores/ui.store"
 
 import BaseAnimation from "@/ui/base/BaseAnimation.vue"
-import Toolbar from "@/ui/features/Toolbar"
 
 import Content from "./fragments/Content"
 import Header from "./fragments/Header.vue"
 import Sidebar from "./fragments/Sidebar.vue"
 import SidebarMini from "./fragments/SidebarMini.vue"
+import Toolbar from "./fragments/Toolbar"
 
 const tasksStore = useTasksStore()
 const tagsStore = useTagsStore()
