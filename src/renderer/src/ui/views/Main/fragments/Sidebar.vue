@@ -15,6 +15,7 @@ import HelpPanel from "@/ui/features/panels/HelpPanel"
 import RecentActiveTasksPanel from "@/ui/features/panels/RecentActiveTasksPanel"
 import TagsPanel from "@/ui/features/panels/TagsPanel"
 import ThemesPanel from "@/ui/features/panels/ThemesPanel"
+import IconsListPanel from "@/ui/features/panels/IconsListPanel"
 
 defineProps<{
   dataLoaded: boolean
@@ -75,6 +76,9 @@ const count = computed(() => countTasks(tasksStore.dailyTasks))
             </BasePanel>
             <BasePanel label="Daily" icon="logo" group="ui" content-class="py-0">
               <HelpPanel />
+            </BasePanel>
+            <BasePanel label="Icons" icon="archive" group="ui" content-class="py-0">
+              <IconsListPanel />
             </BasePanel>
           </div>
 
