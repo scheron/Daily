@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, onMounted, ref, watch} from "vue"
+import {computed, onMounted, reactive, ref, watch} from "vue"
 import {toast} from "vue-sonner"
 import {useTagsStore} from "@/stores/tags.store"
 import {useTaskEditorStore} from "@/stores/taskEditor.store"
@@ -8,7 +8,9 @@ import {useTasksStore} from "@/stores/tasks.store"
 import type {Tag} from "@/types/tasks"
 
 import BaseButton from "@/ui/base/BaseButton.vue"
+import BaseIcon from "@/ui/base/BaseIcon"
 import DynamicTagsPanel from "@/ui/common/panels/DynamicTagsPanel.vue"
+import TimePicker from "@/ui/common/pickers/TimePicker.vue"
 
 const emit = defineEmits<{close: []}>()
 
@@ -17,8 +19,10 @@ const taskEditorStore = useTaskEditorStore()
 const tagsStore = useTagsStore()
 
 const selectedTags = ref<Map<Tag["name"], Tag>>(new Map())
-const activeTagNames = computed(() => new Set(selectedTags.value.keys()))
 
+const estimated = reactive({hours: 0, minutes: 0})
+
+const activeTagNames = computed(() => new Set(selectedTags.value.keys()))
 const isNewTask = computed(() => taskEditorStore.currentEditingTask === null)
 
 function onSelectTag(tagName: Tag["name"]) {
@@ -37,6 +41,7 @@ async function onSave() {
     const isSuccess = await tasksStore.createTask({
       content: finalContent,
       tags: taskEditorStore.editorTags,
+      estimatedTime: estimated.hours * 3600 + estimated.minutes * 60,
     })
 
     if (!isSuccess) return toast.error("Failed to create task")
@@ -47,6 +52,8 @@ async function onSave() {
     const isSuccess = await tasksStore.updateTask(taskEditorStore.currentEditingTask!.id, {
       content: finalContent,
       tags: taskEditorStore.editorTags,
+      status: 'active',
+      estimatedTime: estimated.hours * 3600 + estimated.minutes * 60,
     })
 
     if (!isSuccess) return toast.error("Failed to update task")
@@ -68,6 +75,8 @@ function onClose() {
 onMounted(() => {
   if (taskEditorStore.currentEditingTask) {
     selectedTags.value = new Map(taskEditorStore.currentEditingTask.tags.map((tag) => [tag.name, tag]))
+    estimated.hours = Math.floor(taskEditorStore.currentEditingTask.estimatedTime / 3600)
+    estimated.minutes = Math.floor((taskEditorStore.currentEditingTask.estimatedTime % 3600) / 60)
   }
 })
 
@@ -87,6 +96,20 @@ watch(
     </div>
 
     <div class="flex w-full shrink-0 items-center gap-3 md:w-auto">
+      <div class="text-accent border-accent/30 flex items-center justify-center gap-2 rounded-md border p-0.5 font-mono">
+        <TimePicker v-model:time="estimated.hours" :max="23">
+          <template #trigger="{toggle}">
+            <BaseButton size="sm" class="w-16 px-1 py-0.5 text-xs" @click="toggle"> {{ estimated.hours }} h. </BaseButton>
+          </template>
+        </TimePicker>
+        <BaseIcon name="stopwatch" class="size-4" />
+        <TimePicker v-model:time="estimated.minutes" :max="59">
+          <template #trigger="{toggle}">
+            <BaseButton size="sm" class="w-16 px-1 py-0.5 text-xs" @click="toggle"> {{ estimated.minutes }} min. </BaseButton>
+          </template>
+        </TimePicker>
+      </div>
+
       <BaseButton
         size="sm"
         icon-class="size-4"
