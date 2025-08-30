@@ -338,12 +338,12 @@ export class StorageController implements IStorageController {
     try {
       const metaVersion = await this.metaService.getMetaVersion()
       const configVersion = await this.configService.getConfigVersion()
-      console.log("🔄 Starting storage sync...", {
-        metaVersion,
-        configVersion,
-        lastMetaVersion: this.lastMetaVersion,
-        lastConfigVersion: this.lastConfigVersion,
-      })
+      // console.log("🔄 Starting storage sync...", {
+      //   metaVersion,
+      //   configVersion,
+      //   lastMetaVersion: this.lastMetaVersion,
+      //   lastConfigVersion: this.lastConfigVersion,
+      // })
 
       if (metaVersion !== this.lastMetaVersion || configVersion !== this.lastConfigVersion) {
         console.log("📝 Meta or config changed, reloading data...")

@@ -110,25 +110,21 @@ export function setupWindowIPC(
     }
   })
 
-  ipcMain.on("window:open-timer", () => {
+  ipcMain.on("window:open-timer", (_e, taskId: Task["id"]) => {
     const existingTimer = getTimerWindow()
 
     if (existingTimer && !existingTimer.isDestroyed()) {
+      existingTimer.webContents.send("timer:refresh-timer", taskId)
       existingTimer.show()
       existingTimer.focus()
       return
     }
 
-    const newTimerWindow = createTimerWindow()
+    const newTimerWindow = createTimerWindow(taskId)
     setTimerWindow(newTimerWindow)
 
-    newTimerWindow.on("closed", () => {
-      setTimerWindow(null)
-    })
-
-    newTimerWindow.once("ready-to-show", () => {
-      newTimerWindow.show()
-    })
+    newTimerWindow.on("closed", () => setTimerWindow(null))
+    newTimerWindow.once("ready-to-show", () => newTimerWindow.show())
   })
 
   ipcMain.on("console:electron", (_event, ...args) => {

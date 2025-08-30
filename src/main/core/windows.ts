@@ -1,6 +1,7 @@
 import {BrowserWindow, shell} from "electron"
 
 import {APP_CONFIG, PATHS} from "../config.js"
+import type {Task} from "../types.js"
 
 export function createMainWindow(): BrowserWindow {
   const mainWindow = new BrowserWindow({
@@ -202,7 +203,7 @@ export function focusWindow(win: BrowserWindow) {
   win.focus()
 }
 
-export function createTimerWindow(): BrowserWindow {
+export function createTimerWindow(taskId?: Task["id"]): BrowserWindow {
   const timerWindow = new BrowserWindow({
     title: "Daily Timer",
     show: false,
@@ -225,10 +226,12 @@ export function createTimerWindow(): BrowserWindow {
     },
   })
 
+  const timerUrl = taskId ? `#/timer?taskId=${taskId}` : "#/timer"
+
   if (typeof PATHS.renderer === "string" && PATHS.renderer.startsWith("http")) {
-    timerWindow.loadURL(`${PATHS.renderer}#/timer`)
+    timerWindow.loadURL(`${PATHS.renderer}${timerUrl}`)
   } else {
-    timerWindow.loadFile(PATHS.renderer, {hash: "#/timer"})
+    timerWindow.loadFile(PATHS.renderer, {hash: timerUrl})
   }
 
   timerWindow.webContents.setWindowOpenHandler(({url}) => {

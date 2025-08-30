@@ -1,5 +1,6 @@
-import type {BrowserWindow} from "electron"
-import type {IStorageController, StorageSyncEvent} from "../../types.js"
+import {BrowserWindow} from "electron"
+
+import type {ID, IStorageController, StorageSyncEvent, Task, TaskEvent} from "../../types.js"
 
 let getMainWindow: () => BrowserWindow | null = () => null
 
@@ -28,10 +29,24 @@ export function notifyStorageChange(type: StorageSyncEvent["type"]) {
   win.webContents.send("storage:sync", {type})
 }
 
+export function notifyTaskEvent(event: TaskEvent["type"], taskOrId: Task | ID) {
+  const win = getMainWindow()
+  if (!win) return
+
+  if (event === "saved") win.webContents.send("task:saved", taskOrId)
+  else win.webContents.send("task:deleted", taskOrId)
+
+  const timerWindows = BrowserWindow.getAllWindows().filter((w) => w !== win && !w.isDestroyed())
+
+  timerWindows.forEach((timerWin) => {
+    if (event === "saved") timerWin.webContents.send("task:saved", taskOrId)
+    else timerWin.webContents.send("task:deleted", taskOrId)
+  })
+}
+
 export async function notifyStorageSyncStatus(isSyncing: boolean) {
   const win = getMainWindow()
   if (!win) return
-  // console.log("notifyStorageSyncStatus", isSyncing)
 
   if (isSyncing) {
     win.webContents.send("storage:is-syncing", {isSyncing})

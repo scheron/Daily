@@ -9,6 +9,7 @@ import type {ID, MetaFile, Tag, Task} from "../../../types.js"
 import {fsPaths} from "../../../config.js"
 import {arrayRemoveDuplicates} from "../../../utils/arrays.js"
 import {CACHE_TTL, createCacheLoader} from "../../../utils/cache.js"
+import {notifyTaskEvent} from "../events.js"
 
 export class MetaService {
   private metaPath: string
@@ -71,7 +72,7 @@ export class MetaService {
           ...taskMeta,
           status: front.status?.toLowerCase() ?? "active",
           estimatedTime: front.estimated ?? 0,
-          actualTime: front.spent ?? 0,
+          spentTime: front.spent ?? 0,
           content,
           tags,
         }
@@ -116,7 +117,7 @@ export class MetaService {
         id: task.id,
         date: task.scheduled.date,
         estimated: task.estimatedTime,
-        spent: task.actualTime,
+        spent: task.spentTime,
         status: task.status,
         tags: task.tags.map((t) => t.name),
       }
@@ -130,7 +131,7 @@ export class MetaService {
       meta.tasks[task.id] = {
         id: task.id,
         estimated: task.estimatedTime,
-        spent: task.actualTime,
+        spent: task.spentTime,
         file: path.relative(this.rootDir, filePath),
         hash,
         createdAt: task?.createdAt ?? new Date().toISOString(),
@@ -140,6 +141,7 @@ export class MetaService {
       }
     }
 
+    tasks.forEach((task) => notifyTaskEvent("saved", task))
     await this.persistMeta(meta)
   }
 
@@ -176,6 +178,8 @@ export class MetaService {
       if (!files.length && dayFolder.startsWith(this.rootDir)) {
         await fs.remove(dayFolder)
       }
+
+      notifyTaskEvent("deleted", id)
 
       delete meta.tasks[id]
       await this.persistMeta(meta)

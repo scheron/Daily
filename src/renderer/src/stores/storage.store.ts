@@ -25,6 +25,10 @@ export const useStorageStore = defineStore("storage", () => {
     lastSyncTime.value = value
   }
 
+  async function revalidate(): Promise<void> {
+    await Promise.all([tasksStore.revalidate(), tagsStore.revalidate()])
+  }
+
   async function forceSyncStorage() {
     if (isSyncing.value) return false
 
@@ -68,6 +72,8 @@ export const useStorageStore = defineStore("storage", () => {
 
     formattedTimeAgo,
     forceSyncStorage,
+
+    revalidate,
 
     setIsSyncing,
     setLastSyncTime,

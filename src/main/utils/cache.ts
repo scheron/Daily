@@ -17,14 +17,14 @@ export function createCacheLoader<T>(loader: Loader<T>, ttlMs: number = CACHE_TT
       const now = Date.now()
 
       if (cache && now < cache.expiry) {
-        console.log("🔄 Using cached data", cache.value)
+        // console.log("🔄 Using cached data", cache.value)
         return cache.value
       }
 
       if (!inFlight) {
         inFlight = loader().then((value) => {
           cache = {value, expiry: now + ttlMs}
-          console.log("🔄 Loading fresh data", cache.value)
+          // console.log("🔄 Loading fresh data", cache.value)
           inFlight = null
           return value
         })

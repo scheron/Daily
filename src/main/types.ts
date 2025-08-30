@@ -66,7 +66,7 @@ export type Task = {
   }
 
   estimatedTime: number
-  actualTime: number
+  spentTime: number
 
   content: string
   status: "active" | "done" | "discarded"
@@ -120,6 +120,10 @@ export interface IStorageController {
 
 export type StorageSyncEvent = {
   type: "tasks" | "tags" | "settings"
+}
+
+export type TaskEvent = {
+  type: "saved" | "deleted"
 }
 
 export type StorageSyncStatusEvent = {

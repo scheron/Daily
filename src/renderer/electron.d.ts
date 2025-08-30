@@ -10,10 +10,6 @@ export default interface ElectronApi {
   minimize: () => void
   maximize: () => void
   close: () => void
-  closeTimerWindow: () => void
-  openTimerWindow: () => void
-
-
 
   platform: {
     isMac: () => boolean
@@ -38,6 +34,10 @@ export default interface ElectronApi {
   onStorageSyncStatus: (callback: (event: {isSyncing: boolean}) => void) => void
   syncStorage: () => Promise<boolean>
 
+  // === TASK EVENTS ===
+  onTaskSaved: (callback: (task: Task) => void) => void
+  onTaskDeleted: (callback: (taskId: Task["id"]) => void) => void
+
   // === DATA ===
   loadTasks: () => Promise<Task[]>
   saveTasks: (tasks: Task[]) => Promise<void>
@@ -50,6 +50,11 @@ export default interface ElectronApi {
 
   // === MENU ===
   onMenuAction: (callback: (action: "new-task") => void) => void
+
+  // === TIMER ===
+  closeTimerWindow: () => void
+  openTimerWindow: (taskId: Task["id"]) => void
+  onRefreshTimerWindow: (callback: (taskId: Task["id"]) => void) => void
 
   // === DEBUG ===
   consoleElectron: (...args: any[]) => void
