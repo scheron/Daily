@@ -89,7 +89,7 @@ defineExpose({
     >
       <div :class="cn('flex flex-col gap-1', contentClass)">
         <div v-if="!(hideHeader || hideCloseBtn)" class="border-base-300 flex items-center justify-between border-b pb-1">
-          <span v-if="title" class="text-base-content/70 pl-2 text-sm font-semibold">{{ title }}</span>
+          <span v-if="title" class="text-base-content/70 pl-4 text-xs uppercase font-semibold">{{ title }}</span>
 
           <BaseButton
             v-if="!hideCloseBtn"
