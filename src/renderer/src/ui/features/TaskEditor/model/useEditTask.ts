@@ -2,8 +2,6 @@ import {toast} from "vue-sonner"
 import {useTaskEditorStore} from "@/stores/taskEditor.store"
 import {useTasksStore} from "@/stores/tasks.store"
 
-import type {ISODate} from "@/types/date"
-
 export function useEditTask() {
   const taskEditorStore = useTaskEditorStore()
   const tasksStore = useTasksStore()
@@ -56,24 +54,9 @@ export function useEditTask() {
     }
   }
 
-  async function move(targetDate: ISODate) {
-    if (!taskEditorStore.currentEditingTask) return
-
-    const success = await update(taskEditorStore.editorContent)
-    if (!success) return
-
-    const isMoved = await tasksStore.moveTask(taskEditorStore.currentEditingTask.id, targetDate)
-
-    if (isMoved) toast.success("Task moved successfully")
-    else toast.error("Failed to move task")
-
-    return isMoved
-  }
-
   return {
     create,
     update,
     createOrUpdate,
-    move,
   }
 }

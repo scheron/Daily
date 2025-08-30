@@ -4,19 +4,14 @@ import {until, useEventListener} from "@vueuse/core"
 import {useClipboardPaste} from "@/composables/useClipboardPaste"
 import {useDevice} from "@/composables/useDevice"
 import {useTaskEditorStore} from "@/stores/taskEditor.store"
-import {useTasksStore} from "@/stores/tasks.store"
-
-import type {ISODate} from "@/types/date"
 
 import EditorPlaceholder from "./fragments/EditorPlaceholder.vue"
-import TaskMoveDatePicker from "./fragments/TaskMoveDatePicker.vue"
 import {useEditTask} from "./model/useEditTask"
 
-const tasksStore = useTasksStore()
 const taskEditorStore = useTaskEditorStore()
-const {isMacOS} = useDevice()
 
-const {createOrUpdate, move} = useEditTask()
+const {isMacOS} = useDevice()
+const {createOrUpdate} = useEditTask()
 
 const content = computed({
   get: () => taskEditorStore.editorContent,
@@ -83,18 +78,6 @@ async function onSaveAndContinue() {
   clearEditor({discardFiles: false, discardTags: false})
 }
 
-async function onMoveTask(targetDate: ISODate) {
-  if (!taskEditorStore.currentEditingTask) return
-
-  const success = await move(targetDate)
-  if (!success) return
-
-  taskEditorStore.setIsTaskEditorOpen(false)
-  taskEditorStore.setIsMoveDatePickerOpen(false)
-
-  clearEditor({discardFiles: false, discardTags: true})
-}
-
 function clearEditor(params: {discardFiles: boolean; discardTags: boolean}) {
   const {discardFiles, discardTags} = params
   if (discardFiles) taskEditorStore.rollbackAssets()
@@ -155,10 +138,5 @@ useClipboardPaste(contentField, {
       @input="onInput"
     ></div>
     <EditorPlaceholder v-show="!content.trim()" />
-    <TaskMoveDatePicker
-      :open="taskEditorStore.isMoveDatePickerOpen"
-      @cancel="taskEditorStore.setIsMoveDatePickerOpen(false)"
-      @move-task="onMoveTask"
-    />
   </div>
 </template>

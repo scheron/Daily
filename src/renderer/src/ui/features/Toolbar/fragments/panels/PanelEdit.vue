@@ -1,34 +1,23 @@
 <script setup lang="ts">
-import {computed, onMounted, ref, useTemplateRef, watch} from "vue"
+import {computed, onMounted, ref, watch} from "vue"
 import {toast} from "vue-sonner"
-import {useProgressFill} from "@/composables/useProgressFill"
 import {useTagsStore} from "@/stores/tags.store"
 import {useTaskEditorStore} from "@/stores/taskEditor.store"
 import {useTasksStore} from "@/stores/tasks.store"
-import {useThemeStore} from "@/stores/theme.store"
-import {oklchToHex} from "@/utils/colors"
 
 import type {Tag} from "@/types/tasks"
 
 import BaseButton from "@/ui/base/BaseButton.vue"
-import BaseIcon from "@/ui/base/BaseIcon"
 import DynamicTagsPanel from "@/ui/common/panels/DynamicTagsPanel.vue"
-
-import {useRestoreTaskToast} from "../../model/useRestoreTaskToast"
 
 const emit = defineEmits<{close: []}>()
 
 const tasksStore = useTasksStore()
-const themeStore = useThemeStore()
 const taskEditorStore = useTaskEditorStore()
 const tagsStore = useTagsStore()
 
-const toastRestoreTask = useRestoreTaskToast(async (task) => await tasksStore.restoreTask(task.id))
-
 const selectedTags = ref<Map<Tag["name"], Tag>>(new Map())
 const activeTagNames = computed(() => new Set(selectedTags.value.keys()))
-
-const deleteBlockRef = useTemplateRef<HTMLDivElement>("deleteBlock")
 
 const isNewTask = computed(() => taskEditorStore.currentEditingTask === null)
 
@@ -36,12 +25,6 @@ function onSelectTag(tagName: Tag["name"]) {
   if (selectedTags.value.has(tagName)) selectedTags.value.delete(tagName)
   else selectedTags.value.set(tagName, tagsStore.tagsMap.get(tagName)!)
 }
-
-useProgressFill(deleteBlockRef, {
-  color: computed(() => `${oklchToHex(themeStore.currentTheme.colorScheme.error)}60`),
-  duration: 500,
-  onComplete: onDelete,
-})
 
 async function onSave() {
   const content = taskEditorStore.editorContent.trim()
@@ -73,15 +56,6 @@ async function onSave() {
   }
 }
 
-async function onDelete() {
-  if (!taskEditorStore.currentEditingTask) return
-
-  await tasksStore.deleteTask(taskEditorStore.currentEditingTask.id)
-  toastRestoreTask(taskEditorStore.currentEditingTask)
-
-  onClose()
-}
-
 function onClose() {
   taskEditorStore.setCurrentEditingTask(null)
   taskEditorStore.setEditorTags([])
@@ -89,10 +63,6 @@ function onClose() {
   taskEditorStore.setIsTaskEditorOpen(false)
 
   emit("close")
-}
-
-function onOpenMoveDatePicker() {
-  taskEditorStore.setIsMoveDatePickerOpen(true)
 }
 
 onMounted(() => {
@@ -118,30 +88,10 @@ watch(
 
     <div class="flex w-full shrink-0 items-center gap-3 md:w-auto">
       <BaseButton
-        v-if="taskEditorStore.currentEditingTask"
-        size="sm"
-        icon="calendar"
-        icon-class="size-4"
-        class="text-accent bg-accent/10 hover:bg-accent/20 w-full rounded-sm px-2 py-0.5 md:w-auto"
-        @click="onOpenMoveDatePicker"
-      >
-        <span class="text-sm">Move Task</span>
-      </BaseButton>
-
-      <div
-        v-if="taskEditorStore.currentEditingTask"
-        ref="deleteBlock"
-        class="bg-error/20 hover:bg-error/40 text-error flex w-full items-center justify-center gap-2 rounded-sm px-2 py-1 transition-colors duration-200 md:w-fit"
-      >
-        <BaseIcon name="x-mark" class="relative size-4 transition-transform group-hover:scale-110" />
-        <span class="text-sm font-medium">Hold to delete</span>
-      </div>
-
-      <BaseButton
         size="sm"
         icon-class="size-4"
         icon="undo"
-        class="text-base-content bg-base-content/10 hover:bg-base-content/20 w-full rounded-sm px-2 py-0.5 md:w-auto"
+        class="text-base-content bg-base-content/5 hover:bg-base-content/10 w-full rounded-sm px-2 py-0.5 md:w-auto"
         @click="onClose"
       >
         <span class="text-sm">Cancel {{ isNewTask ? "Create" : "Update" }}</span>

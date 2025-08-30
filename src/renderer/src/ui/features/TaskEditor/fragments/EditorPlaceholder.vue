@@ -6,7 +6,7 @@ const {isMacOS} = useDevice()
 </script>
 
 <template>
-  <div class="pointer-events-none absolute inset-0 z-50 mx-4 flex items-center justify-center">
+  <div class="pointer-events-none absolute inset-0 z-30 mx-4 flex items-center justify-center">
     <div class="text-base-content border-base-300 bg-base-100 flex min-w-80 flex-col items-center gap-2 rounded-lg border p-4 text-center">
       <BaseIcon name="markdown" class="size-8" />
 
