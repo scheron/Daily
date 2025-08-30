@@ -11,8 +11,10 @@ import {useThemeStore} from "@/stores/theme.store"
 import {useUIStore} from "@/stores/ui.store"
 
 import BaseAnimation from "@/ui/base/BaseAnimation.vue"
+import Toolbar from "@/ui/features/Toolbar"
 
-import Content from "./fragments/Content.vue"
+import Content from "./fragments/Content"
+import Header from "./fragments/Header.vue"
 import Sidebar from "./fragments/Sidebar.vue"
 import SidebarMini from "./fragments/SidebarMini.vue"
 
@@ -72,11 +74,21 @@ invoke(async () => {
       <div v-if="!isDesktop && uiStore.isMobileSidebarOpen" class="fixed inset-0 z-30 bg-black/50" @click="uiStore.toggleSidebarCollapse(false)" />
     </BaseAnimation>
 
-    <Content
-      :content-height="contentHeight"
-      :content-width="contentWidth"
-      :task-editor-open="taskEditorStore.isTaskEditorOpen"
-      @create-task="onCreateTask"
-    />
+    <main class="bg-base-100 flex-1" :style="{width: contentWidth + 'px'}">
+      <Header
+        :task-editor-open="taskEditorStore.isTaskEditorOpen"
+        :active-day="tasksStore.activeDay"
+        @toggle-sidebar="uiStore.toggleSidebarCollapse()"
+        @create-task="onCreateTask"
+      />
+
+      <div class="text-base-content flex size-full flex-col" :style="{height: contentHeight + 'px'}">
+        <div class="border-base-300 md:h-header flex items-center border-b">
+          <Toolbar />
+        </div>
+
+        <Content :task-editor-open="taskEditorStore.isTaskEditorOpen" @create-task="onCreateTask" />
+      </div>
+    </main>
   </div>
 </template>
