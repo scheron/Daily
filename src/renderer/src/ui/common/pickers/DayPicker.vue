@@ -22,7 +22,7 @@ const emit = defineEmits<{select: [date: ISODate], close: []}>()
 </script>
 
 <template>
-  <BasePopup :title="title" container-class="p-0" @close="emit('close')">
+  <BasePopup hide-header container-class="p-0" @close="emit('close')">
     <template #trigger="{toggle, hide, show}">
       <slot name="trigger" :toggle="toggle" :hide="hide" :show="show" />
     </template>
