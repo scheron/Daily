@@ -65,7 +65,7 @@ function defineApi(): Storage {
         content,
         status: "active",
         tags: params.tags ?? [],
-        estimatedTime: params.estimatedTime ?? 10,
+        estimatedTime: params.estimatedTime ?? 0,
         spentTime: 0,
         createdAt: now.toISO()!,
         updatedAt: now.toISO()!,

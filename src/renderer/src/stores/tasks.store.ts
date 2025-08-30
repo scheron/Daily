@@ -47,7 +47,7 @@ export const useTasksStore = defineStore("tasks", () => {
     }
   }
 
-  async function createTask({content, tags}: {content: string; tags: Tag[]}) {
+  async function createTask({content, tags, estimatedTime}: {content: string; tags: Tag[]; estimatedTime?: number}) {
     const updatedDay = await API.createTask(
       content,
       toRawDeep({
@@ -55,6 +55,7 @@ export const useTasksStore = defineStore("tasks", () => {
         time: DateTime.now().toFormat("HH:mm:ss"),
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         tags,
+        estimatedTime: estimatedTime ?? 0,
       }),
     )
 
