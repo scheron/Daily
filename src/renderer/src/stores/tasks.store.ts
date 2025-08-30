@@ -74,7 +74,7 @@ export const useTasksStore = defineStore("tasks", () => {
   }
 
   async function deleteTask(taskId: string) {
-    const task = findTaskById(taskId)
+    const task = findDailyTaskById(taskId)
     if (!task) return false
 
     const isSuccess = await API.deleteTask(taskId)
@@ -119,12 +119,16 @@ export const useTasksStore = defineStore("tasks", () => {
     }
   }
 
-  function findTaskById(taskId: string): Task | null {
+  function findDailyTaskById(taskId: string): Task | null {
     return dailyTasks.value.find((t) => t.id === taskId) || null
   }
 
+  function findTaskById(taskId: string): Task | null {
+    return days.value.flatMap((day) => day.tasks).find((t) => t.id === taskId) || null
+  }
+
   async function moveTask(taskId: string, targetDate: ISODate) {
-    const task = findTaskById(taskId)
+    const task = findDailyTaskById(taskId)
     if (!task) return false
 
     const isSuccess = await API.moveTask(taskId, targetDate)
@@ -146,6 +150,8 @@ export const useTasksStore = defineStore("tasks", () => {
 
     setActiveDay,
     loadTasks,
+    findDailyTaskById,
+    findTaskById,
     createTask,
     updateTask,
     deleteTask,
