@@ -6,7 +6,9 @@ export type IconName =
   | "chevron-left"
   | "chevron-right"
   | "chevron-down"
+  | "chevron-up"
   | "plus"
+  | "minus"
   | "play"
   | "pencil"
   | "markdown"
@@ -51,7 +53,6 @@ export type IconName =
       />
     </symbol>
 
-
     <symbol id="x-mark" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
       <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
     </symbol>
@@ -68,9 +69,18 @@ export type IconName =
       <path stroke-width="1.5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" d="M19.5 12l-7.5 7.5-7.5-7.5" />
     </symbol>
 
+    <symbol id="chevron-up" fill="none" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" stroke="currentColor" d="m4.5 15.75 7.5-7.5 7.5 7.5" />
+    </symbol>
+
     <symbol id="plus" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
       <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
     </symbol>
+
+<symbol id="minus" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14" />
+</symbol>
+
 
     <symbol id="pencil" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
       <path
@@ -143,7 +153,6 @@ export type IconName =
       />
     </symbol>
 
-
     <symbol id="keyboard" viewBox="0 0 24 24">
       <g fill="none">
         <path
@@ -194,9 +203,7 @@ export type IconName =
       />
     </symbol>
 
-  
-
-     <symbol id="sidebar" viewBox="0 0 24 24">
+    <symbol id="sidebar" viewBox="0 0 24 24">
       <path
         fill="none"
         stroke="currentColor"

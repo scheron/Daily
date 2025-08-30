@@ -7,8 +7,10 @@ import {countTasks} from "@/utils/tasks"
 import type {TasksFilter} from "@/types/filters"
 import type {Tag} from "@/types/tasks"
 
+import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseIcon, {IconName} from "@/ui/base/BaseIcon"
 import DynamicTagsPanel from "@/ui/common/panels/DynamicTagsPanel.vue"
+import TimePicker from "@/ui/common/pickers/TimePicker.vue"
 
 const FILTERS: {label: string; value: TasksFilter; icon: IconName}[] = [
   {label: "All", value: "all", icon: "today"},
@@ -44,6 +46,18 @@ watch(
         @select="onSelectTag"
       />
     </div>
+
+    <TimePicker :estimated-time="0">
+      <template #trigger="{toggle, hide, show}">
+        <BaseButton variant="ghost" icon="stopwatch" @click="toggle" />
+      </template>
+    </TimePicker>
+
+    <TimePicker :estimated-time="59008">
+      <template #trigger="{toggle, hide, show}">
+        <BaseButton variant="ghost" icon="stopwatch" @click="toggle" />
+      </template>
+    </TimePicker>
 
     <div class="flex w-full shrink-0 items-center gap-3 md:w-auto">
       <div class="bg-base-300 text-base-content inline-flex w-full gap-0.5 rounded-lg p-0.5 md:w-auto">

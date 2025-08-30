@@ -21,12 +21,12 @@ export type Task = {
   }
 
   /**
-   * The estimated time of the task.
+   * The estimated time of the task in seconds
    * @default 0
    */
   estimatedTime: number
   /**
-   * The actual time spent on the task. \
+   * The actual time spent on the task in seconds. \
    * Changes when the task is marked as done or discarded.
    * @default 0
    */
