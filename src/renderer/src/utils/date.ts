@@ -71,22 +71,44 @@ export function toLocaleDateRange(range: [Date, Date | null], locale: string) {
 }
 
 /**
- * Formats seconds into a human-readable duration in minutes .
+ * Formats seconds into a human-readable duration in days, hours, and minutes.
  * @param {number} seconds - The number of seconds to format.
  * @returns {string} A human-readable duration string.
  * @example formatDuration(30) // "1 min."
  * @example formatDuration(3660) // "1 h. 1 min."
+ * @example formatDuration(90000) // "1 d. 1 h."
  */
 export function formatDuration(seconds: number): string {
-  const hours = Math.floor(seconds / 3600)
+  const days = Math.floor(seconds / 86400)
+  const hours = Math.floor((seconds % 86400) / 3600)
   const minutes = Math.floor((seconds % 3600) / 60)
   const remainingSeconds = Math.floor(seconds % 60)
   const resultMinutes = minutes + (remainingSeconds >= 30 ? 1 : 0)
 
   const parts = []
 
+  if (days > 0) parts.push(`${days} d.`)
   if (hours > 0) parts.push(`${hours} h.`)
   if (resultMinutes > 0) parts.push(`${resultMinutes} min.`)
 
-  return parts.join(" ") || "0 min."
+  return parts.join(" ") || "<1 min."
+}
+
+/**
+ * Formats seconds into a human-readable duration in hours, minutes, and seconds.
+ * @param {number} total - The number of seconds to format.
+ * @returns {string} A human-readable duration string.
+ * @example formatTime(30) // "00:00:30"
+ * @example formatTime(3660) // "01:01:00"
+ * @example formatTime(90000) // "01:01:00"
+ */
+export function formatTime(total: number) {
+  const hours = Math.floor(total / 3600)
+  const minutes = Math.floor((total % 3600) / 60)
+  const seconds = total % 60
+
+  return [hours > 0 ? hours : null, minutes, seconds]
+    .filter((unit) => unit !== null)
+    .map((unit) => unit.toString().padStart(2, "0"))
+    .join(":")
 }

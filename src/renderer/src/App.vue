@@ -1,7 +1,17 @@
 <script setup lang="ts">
 import {Toaster} from "vue-sonner"
+import {invoke} from "@vueuse/core"
+import {useTagsStore} from "@/stores/tags.store"
+import {useTasksStore} from "@/stores/tasks.store"
 
 import {IconsSprite} from "@/ui/base/BaseIcon"
+
+const tasksStore = useTasksStore()
+const tagsStore = useTagsStore()
+
+invoke(async () => {
+  await Promise.all([tasksStore.loadTasks(), tagsStore.loadTags()])
+})
 </script>
 
 <template>

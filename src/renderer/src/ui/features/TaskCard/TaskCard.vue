@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, useTemplateRef, watch} from "vue"
+import {useTemplateRef, watch} from "vue"
 import {toast} from "vue-sonner"
 import {until} from "@vueuse/core"
 import {useMarkdown} from "@/composables/useMarkdown"
@@ -43,7 +43,7 @@ async function onDelete() {
 }
 
 function onOpenTimer() {
-  //
+  window.electronAPI.openTimerWindow(props.task.id)
 }
 
 async function onMoveDate(targetDate: ISODate) {

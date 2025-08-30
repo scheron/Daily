@@ -11,7 +11,7 @@ const emit = defineEmits<{"open-timer": []}>()
 
 const isEstimated = computed(() => props.task.estimatedTime > 0)
 
-const timeDisplay = computed(() => (props.task.status === "active" ? props.task.estimatedTime : props.task.actualTime))
+const timeDisplay = computed(() => (props.task.status === "active" ? props.task.estimatedTime : props.task.spentTime))
 </script>
 
 <template>

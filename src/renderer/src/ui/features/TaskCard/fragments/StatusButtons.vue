@@ -24,8 +24,8 @@ const FILTERS: StatusButton[] = [
     label: "Active",
     icon: "fire",
     value: "active",
-    activeClass: "bg-info/20 text-accent-content hover:text-accent-content",
-    inactiveClass: "hover:text-accent-content hover:bg-info/20",
+    activeClass: "bg-error/20 text-accent-content hover:text-accent-content",
+    inactiveClass: "hover:text-accent-content hover:bg-error/20",
   },
   {
     label: "Discarded",

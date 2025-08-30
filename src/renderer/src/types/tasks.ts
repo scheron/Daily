@@ -30,7 +30,7 @@ export type Task = {
    * Changes when the task is marked as done or discarded.
    * @default 0
    */
-  actualTime: number
+  spentTime: number
 
   createdAt: ISODateTime
   updatedAt: ISODateTime

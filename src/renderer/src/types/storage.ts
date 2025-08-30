@@ -21,3 +21,7 @@ export interface Storage {
 export type StorageSyncEvent = {
   type: "tasks" | "tags" | "settings"
 }
+
+export type TaskEvent = {
+  type: "saved" | "deleted"
+}

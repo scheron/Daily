@@ -41,10 +41,6 @@ window.electronAPI.onMenuAction((action) => {
   if (action === "new-task") onCreateTask()
   else if (action === "toggle-sidebar") uiStore.toggleSidebarCollapse()
 })
-
-invoke(async () => {
-  await Promise.all([tasksStore.loadTasks(), tagsStore.loadTags()])
-})
 </script>
 
 <template>
