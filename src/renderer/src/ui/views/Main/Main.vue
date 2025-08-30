@@ -22,8 +22,8 @@ const tasksStore = useTasksStore()
 const tagsStore = useTagsStore()
 const taskEditorStore = useTaskEditorStore()
 const uiStore = useUIStore()
+const storageStore = useStorageStore()
 
-useStorageStore()
 useThemeStore()
 
 const {isDesktop, isMobile, isTablet} = useDevice()
@@ -36,6 +36,10 @@ function onCreateTask() {
   taskEditorStore.setEditorTags([])
   taskEditorStore.setIsTaskEditorOpen(true)
 }
+
+window.electronAPI.onTaskSaved(async () => {
+  await storageStore.revalidate()
+})
 
 window.electronAPI.onMenuAction((action) => {
   if (action === "new-task") onCreateTask()
