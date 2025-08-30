@@ -53,7 +53,7 @@ const classes = computed(() => {
           {{ label }}
         </div>
       </slot>
-      <BaseIcon name="chevron-up" class="mx-2 size-4 transition-transform duration-300" :class="{'rotate-180': isOpened}" />
+      <BaseIcon name="chevron-down" class="mx-2 size-4 transition-transform duration-300" :class="{'rotate-180': isOpened}" />
     </div>
 
     <div
