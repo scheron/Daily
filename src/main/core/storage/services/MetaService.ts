@@ -70,6 +70,8 @@ export class MetaService {
         const task: Task = {
           ...taskMeta,
           status: front.status?.toLowerCase() ?? "active",
+          estimatedTime: front.estimated ?? 0,
+          actualTime: front.spent ?? 0,
           content,
           tags,
         }
@@ -113,6 +115,8 @@ export class MetaService {
       const frontmatter = {
         id: task.id,
         date: task.scheduled.date,
+        estimated: task.estimatedTime,
+        spent: task.actualTime,
         status: task.status,
         tags: task.tags.map((t) => t.name),
       }
@@ -125,6 +129,8 @@ export class MetaService {
 
       meta.tasks[task.id] = {
         id: task.id,
+        estimated: task.estimatedTime,
+        spent: task.actualTime,
         file: path.relative(this.rootDir, filePath),
         hash,
         createdAt: task?.createdAt ?? new Date().toISOString(),

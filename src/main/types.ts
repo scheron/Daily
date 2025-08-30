@@ -24,6 +24,9 @@ export type MetaTask = {
 
   tags: Tag["name"][]
 
+  estimated: number
+  spent: number
+
   createdAt: ISODateTime
   updatedAt: ISODateTime
 }
@@ -61,6 +64,9 @@ export type Task = {
     time: ISOTime
     timezone: Timezone
   }
+
+  estimatedTime: number
+  actualTime: number
 
   content: string
   status: "active" | "done" | "discarded"
