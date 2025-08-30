@@ -20,6 +20,18 @@ export type Task = {
     timezone: Timezone
   }
 
+  /**
+   * The estimated time of the task.
+   * @default 0
+   */
+  estimatedTime: number
+  /**
+   * The actual time spent on the task. \
+   * Changes when the task is marked as done or discarded.
+   * @default 0
+   */
+  actualTime: number
+
   createdAt: ISODateTime
   updatedAt: ISODateTime
 }

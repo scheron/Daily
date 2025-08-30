@@ -50,9 +50,10 @@ function defineApi(): Storage {
    * @param params.time - The time formatted as HH:MM:SS of the task
    * @param params.timezone - The timezone of the task
    * @param params.tags - The tags of the task
+   * @param params.estimatedTime - The estimated time of the task
    * @returns The day that matches the query
    */
-  async function createTask(content: string, params: {date?: string; time?: string; timezone?: string; tags?: Tag[]}): Promise<Day | null> {
+  async function createTask(content: string, params: {date?: string; time?: string; timezone?: string; tags?: Tag[]; estimatedTime?: number}): Promise<Day | null> {
     try {
       const now = DateTime.now()
       const scheduledDate = params.date ? params.date : now.toISODate()!
@@ -64,6 +65,8 @@ function defineApi(): Storage {
         content,
         status: "active",
         tags: params.tags ?? [],
+        estimatedTime: params.estimatedTime ?? 0,
+        actualTime: 0,
         createdAt: now.toISO()!,
         updatedAt: now.toISO()!,
         scheduled: {
