@@ -3,7 +3,7 @@
 **Daily** — A task management application focused on productivity, minimalism, and convenience. ✨
 
 
- ![Desktop Demo](./media/Demo.png) 
+ ![Desktop Demo](./media/Demo-new.png) 
 
 ---
 
@@ -12,17 +12,18 @@
 The idea came from my habit of organizing daily tasks in markdown, like:
 
 ```md
+## Tuesday, Dec 17
+
+- [x] Deploy to staging
+- [ ] Write documentation
+- [ ] Plan next sprint
+
 ## Monday, Dec 16
 
 - [x] Review pull requests  
 - [x] Team standup meeting
 - [ ] Complete feature implementation
 
-## Tuesday, Dec 17
-
-- [x] Deploy to staging
-- [ ] Write documentation
-- [ ] Plan next sprint
 ```
 
 I typically maintain my tasks organized by days, which allows me to revisit and track progress later.
@@ -39,6 +40,8 @@ Just a lightweight, local tool to help me stay on track, one day at a time.
 - **Day-centric workflow** — organize tasks by date
 - **Calendar navigation** 📅 — jump to any day
 - **Task management** ✅ — add, edit, complete tasks
+- **Time tracking** ⏱️ — estimate task duration and track time with a built-in timer
+- **Dedicated timer window** 🪟 — focus with a convenient separate timer interface
 - **Quick retrospectives** — see yesterday, plan today
 - **Tags** 🏷️ — group tasks by project or context
 - **Markdown support** 📝 — rich formatting with keyboard
