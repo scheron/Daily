@@ -13,8 +13,8 @@ import DynamicTagsPanel from "@/ui/common/panels/DynamicTagsPanel.vue"
 const FILTERS: {label: string; value: TasksFilter; icon: IconName}[] = [
   {label: "All", value: "all", icon: "today"},
   {label: "Active", value: "active", icon: "fire"},
-  {label: "Done", value: "done", icon: "check-check"},
   {label: "Discarded", value: "discarded", icon: "archive"},
+  {label: "Done", value: "done", icon: "check-check"},
 ]
 
 const tasksStore = useTasksStore()
