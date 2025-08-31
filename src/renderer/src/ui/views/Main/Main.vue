@@ -3,7 +3,7 @@ import {computed, onMounted, watchEffect} from "vue"
 import {useContentSize} from "@/composables/useContentSize"
 import {useDevice} from "@/composables/useDevice"
 import { useTour } from "@/composables/useTour"
-import { useGlobalTour, useGlobalTourManager } from "@/composables/useGlobalTour"
+import { useActiveTour } from "@/composables/useActiveTour"
 import { createWelcomeSteps, useTutorialStatus, tourNotifier } from "@/composables/useTourHelpers"
 import {useStorageStore} from "@/stores/storage.store"
 import {useTagsStore} from "@/stores/tags.store"
@@ -41,9 +41,14 @@ const tour = useTour(welcomeSteps, {
   }
 })
 
-// Global tour for rendering
-const globalTour = useGlobalTour()
-const globalManager = useGlobalTourManager()
+// Active tour for rendering
+const activeTour = useActiveTour()
+
+// Computed properties for active tour
+const activeTourStep = computed(() => activeTour.value?.currentTourStep || null)
+const activeTourCurrentStep = computed(() => activeTour.value?.currentStep || 0)
+const activeTourTotalSteps = computed(() => activeTour.value?.totalSteps || 0)
+const activeTourIsVisible = computed(() => activeTour.value?.isActive || false)
 
 // Tutorial status tracking
 const tutorial = useTutorialStatus()
@@ -91,6 +96,23 @@ async function initializeTour() {
       await tour.start()
     }
   }, 1000)
+}
+
+// Tour handlers
+function handleTourNext() {
+  activeTour.value?.next()
+}
+
+function handleTourPrevious() {
+  activeTour.value?.previous()
+}
+
+function handleTourSkip() {
+  activeTour.value?.skip()
+}
+
+function handleTourStop() {
+  activeTour.value?.stop()
 }
 </script>
 
@@ -140,15 +162,15 @@ async function initializeTour() {
 
     <!-- Tour Component -->
     <TourStep
-      v-if="globalTour.currentTourStep.value"
-      :step="globalTour.currentTourStep.value"
-      :current-index="globalTour.currentStep.value"
-      :total-steps="globalTour.totalSteps.value"
-      :is-visible="globalTour.isActive.value"
-      @next="globalManager.nextStep"
-      @previous="globalManager.previousStep"
-      @skip="globalManager.skipTour"
-      @close="globalManager.closeTour"
+      v-if="activeTourStep"
+      :step="activeTourStep"
+      :current-index="activeTourCurrentStep"
+      :total-steps="activeTourTotalSteps"
+      :is-visible="activeTourIsVisible"
+      @next="handleTourNext"
+      @previous="handleTourPrevious"
+      @skip="handleTourSkip"
+      @close="handleTourStop"
     />
   </div>
 </template>

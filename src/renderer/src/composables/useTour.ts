@@ -5,7 +5,7 @@
 
 import { ref, computed } from 'vue'
 import type { TourStep } from '@/types/tour'
-import { useGlobalTourManager } from './useGlobalTour'
+import { setActiveTour, clearActiveTour } from './useActiveTour'
 
 /**
  * Creates a tour with given steps
@@ -27,9 +27,43 @@ export function useTour(
   const currentStep = ref(0)
   const tourSteps = ref<TourStep[]>(steps)
   
-  // Global manager integration
-  const globalManager = useGlobalTourManager()
-  const tourId = options.id || `tour-${Date.now()}`
+  // Utility functions
+  const waitForElement = (selector: string, timeout = 5000): Promise<HTMLElement> => {
+    return new Promise((resolve, reject) => {
+      const element = document.querySelector(selector) as HTMLElement
+      if (element) {
+        resolve(element)
+        return
+      }
+
+      const observer = new MutationObserver(() => {
+        const element = document.querySelector(selector) as HTMLElement
+        if (element) {
+          observer.disconnect()
+          resolve(element)
+        }
+      })
+
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true
+      })
+
+      setTimeout(() => {
+        observer.disconnect()
+        reject(new Error(`Element "${selector}" not found within ${timeout}ms`))
+      }, timeout)
+    })
+  }
+
+  const ensureElementsExist = async (selectors: string[]): Promise<boolean> => {
+    try {
+      await Promise.all(selectors.map(selector => waitForElement(selector)))
+      return true
+    } catch {
+      return false
+    }
+  }
 
   // Computed properties
   const totalSteps = computed(() => tourSteps.value.length)
@@ -38,6 +72,31 @@ export function useTour(
   const canGoPrev = computed(() => currentStep.value > 0)
   const isFirst = computed(() => currentStep.value === 0)
   const isLast = computed(() => currentStep.value === totalSteps.value - 1)
+
+  // Create tour object
+  const tourObject = {
+    isActive,
+    currentStep,
+    currentTourStep,
+    totalSteps,
+    canGoNext,
+    canGoPrev,
+    isFirst,
+    isLast,
+    tourSteps,
+    start: async () => await start(),
+    stop: () => stop(),
+    next: async () => await next(),
+    previous: async () => await previous(),
+    goToStep: async (stepIndex: number) => await goToStep(stepIndex),
+    skip: () => skip(),
+    complete: () => complete(),
+    proceedNext: async () => await proceedNext(),
+    notifyAction: async (actionType: string, data?: any) => await notifyAction(actionType, data),
+    updateSteps: (newSteps: TourStep[]) => updateSteps(newSteps),
+    waitForElement,
+    ensureElementsExist
+  }
 
   // Tour control methods
   async function start() {
@@ -50,18 +109,8 @@ export function useTour(
     isActive.value = true
     currentStep.value = 0
     
-    // Activate tour globally for rendering
-    globalManager.activateTour(
-      tourId,
-      tourSteps.value,
-      currentStep.value,
-      {
-        onNext: next,
-        onPrevious: previous,
-        onSkip: skip,
-        onClose: stop
-      }
-    )
+    // Set as globally active tour
+    setActiveTour(tourObject)
 
     // Execute beforeShow for first step
     const firstStep = currentTourStep.value
@@ -73,7 +122,7 @@ export function useTour(
   function stop() {
     isActive.value = false
     currentStep.value = 0
-    globalManager.deactivateTour()
+    clearActiveTour()
   }
 
   async function next() {
@@ -93,19 +142,6 @@ export function useTour(
     if (canGoNext.value) {
       currentStep.value++
       
-      // Sync with global state
-      globalManager.activateTour(
-        tourId,
-        tourSteps.value,
-        currentStep.value,
-        {
-          onNext: next,
-          onPrevious: previous,
-          onSkip: skip,
-          onClose: stop
-        }
-      )
-      
       // Execute beforeShow for next step
       const nextStepData = currentTourStep.value
       if (nextStepData?.beforeShow) {
@@ -119,19 +155,6 @@ export function useTour(
   async function previous() {
     if (canGoPrev.value) {
       currentStep.value--
-      
-      // Sync with global state
-      globalManager.activateTour(
-        tourId,
-        tourSteps.value,
-        currentStep.value,
-        {
-          onNext: next,
-          onPrevious: previous,
-          onSkip: skip,
-          onClose: stop
-        }
-      )
       
       // Execute beforeShow for previous step
       const prevStepData = currentTourStep.value
@@ -166,7 +189,7 @@ export function useTour(
     
     isActive.value = false
     currentStep.value = 0
-    globalManager.deactivateTour()
+    clearActiveTour()
   }
 
   /**
@@ -216,77 +239,12 @@ export function useTour(
     }
   }
 
-  // Utility functions
-  const waitForElement = (selector: string, timeout = 5000): Promise<HTMLElement> => {
-    return new Promise((resolve, reject) => {
-      const element = document.querySelector(selector) as HTMLElement
-      if (element) {
-        resolve(element)
-        return
-      }
-
-      const observer = new MutationObserver(() => {
-        const element = document.querySelector(selector) as HTMLElement
-        if (element) {
-          observer.disconnect()
-          resolve(element)
-        }
-      })
-
-      observer.observe(document.body, {
-        childList: true,
-        subtree: true
-      })
-
-      setTimeout(() => {
-        observer.disconnect()
-        reject(new Error(`Element "${selector}" not found within ${timeout}ms`))
-      }, timeout)
-    })
-  }
-
-  const ensureElementsExist = async (selectors: string[]): Promise<boolean> => {
-    try {
-      await Promise.all(selectors.map(selector => waitForElement(selector)))
-      return true
-    } catch {
-      return false
-    }
-  }
-
   // Auto start if enabled
   if (options.autoStart && steps.length > 0) {
     setTimeout(() => start(), 100)
   }
 
-  return {
-    // State
-    isActive,
-    currentStep,
-    currentTourStep,
-    totalSteps,
-    canGoNext,
-    canGoPrev,
-    isFirst,
-    isLast,
-    tourSteps,
-
-    // Methods
-    start,
-    stop,
-    next,
-    previous,
-    goToStep,
-    skip,
-    complete,
-    proceedNext,
-    notifyAction,
-    updateSteps,
-
-    // Utilities
-    waitForElement,
-    ensureElementsExist,
-  }
+  return tourObject
 }
 
 // Экспорт основного composable
