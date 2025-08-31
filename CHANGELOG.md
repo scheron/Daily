@@ -1,5 +1,50 @@
 # Changelog
 
+## v0.4.0 - 2025-08-31
+
+### ✨ New Features
+
+- **🎯 Focus Timer** - Introducing a dedicated focus timer window to help user stay concentrated on each tasks
+  - Track time spent on individual tasks
+  - Visual progress indicators showing completion percentage
+  - Separate timer window for distraction-free focus sessions
+  - Real-time timer statistics and focus session tracking
+
+- **⏱️ Estimated Time Tracking** - Plan your day better with time estimation features
+  - Set estimated time for tasks during creation or editing
+  - Visual indicators showing actual vs estimated time
+  - TimePicker component for easy time selection
+  - Smart duration formatting and display
+
+### 🎨 UI/UX Improvements
+
+- **🎨 Major Interface Redesign** 
+  
+  | Before | After |
+  |--------|-------|
+  | ![Previous Design](media/Demo.png) | ![New Design](media/Demo-new.png) |
+  
+- **Enhanced Task Cards** - Redesigned task items with better visual hierarchy
+  - Better visual indicators for task status
+  - Cleaner presentation of time information
+  - Enhanced quick actions and status management
+
+- **Restructured Main Interface** - Complete reorganization for better workflow
+  - New header component with improved navigation
+  - Redesigned toolbar with dedicated edit and filter panels
+  - Better content organization and layout structure
+  - Improved day picker with calendar integration
+
+- **📱 Interactive Tooltips** - Added tooltip support throughout the interface for better user guidance
+
+---
+
+## v0.3.5 - 2025-08-18
+
+- fix: issue where save&continue not saves tags
+- refactor(ui): reorganize components into common directory structure
+ feat: add watch on add or delete current robot portfolios for subscribe
+
 ## v0.3.6 - 2025-08-25
 
 ### ✨ New Features
