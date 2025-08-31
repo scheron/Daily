@@ -2,6 +2,7 @@
 import {computed} from "vue"
 import {useDevice} from "@/composables/useDevice"
 import {toFullDate} from "@/utils/date"
+import { tourNotifier } from "@/composables/useTourHelpers"
 
 import BaseButton from "@/ui/base/BaseButton.vue"
 
@@ -11,6 +12,13 @@ const emit = defineEmits<{createTask: []; toggleSidebar: []}>()
 const {isMobile} = useDevice()
 
 const formattedDate = computed(() => toFullDate(props.activeDay ?? new Date()))
+
+// Handle create task button click
+function handleCreateTask() {
+  // Notify all active tours
+  tourNotifier.notify('task-button-clicked')
+  emit('createTask')
+}
 </script>
 
 <template>
@@ -30,7 +38,7 @@ const formattedDate = computed(() => toFullDate(props.activeDay ?? new Date()))
       class="text-accent hover:bg-accent/10 focus-visible-ring focus-visible:ring-accent shrink-0 px-4 py-0"
       icon="plus"
       style="-webkit-app-region: no-drag"
-      @click="emit('createTask')"
+      @click="handleCreateTask"
     >
       New Task
     </BaseButton>

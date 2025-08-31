@@ -6,6 +6,7 @@ import FloatingVue from 'floating-vue'
 import App from "@/App.vue"
 import router from "@/router"
 
+
 import "floating-vue/dist/style.css"
 import "vue-sonner/style.css"
 

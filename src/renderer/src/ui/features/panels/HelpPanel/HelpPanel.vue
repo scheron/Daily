@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import {useTour} from "@/composables/useTour"
+
+import { useTour } from "@/composables/useTour"
+import { createWelcomeSteps } from "@/composables/useTourHelpers"
 
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseIcon from "@/ui/base/BaseIcon"
@@ -8,7 +10,20 @@ import About from "./fragments/About.vue"
 import Shortcuts from "./fragments/Shortcuts.vue"
 import StorageSettings from "./fragments/StorageSettings.vue"
 
-const {restartTour} = useTour()
+// Local demo tour
+const demoTour = useTour([], { id: 'demo-tour' })
+
+// Force start welcome tour
+async function forceStartWelcomeTour() {
+  const welcomeSteps = createWelcomeSteps()
+  
+  if (demoTour.isActive.value) {
+    demoTour.stop()
+  }
+  
+  demoTour.updateSteps(welcomeSteps)
+  await demoTour.start()
+}
 </script>
 
 <template>
@@ -31,9 +46,9 @@ const {restartTour} = useTour()
       </div>
 
       <div class="flex flex-col gap-1 px-2">
-        <BaseButton variant="ghost" size="sm" class="justify-start gap-2 px-2 py-1" @click="restartTour">
+        <BaseButton variant="ghost" size="sm" class="justify-start gap-2 px-2 py-1" @click="forceStartWelcomeTour">
           <BaseIcon name="play" class="size-3" />
-          Show tutorial
+          Show App Tour
         </BaseButton>
       </div>
     </div>

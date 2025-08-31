@@ -130,7 +130,7 @@ useClipboardPaste(contentField, {
 </script>
 
 <template>
-  <div class="relative h-full min-h-full flex-1 p-2">
+  <div data-tour="task-editor" class="relative h-full min-h-full flex-1 p-2">
     <div
       ref="contentField"
       class="markdown border-base-300 size-full cursor-text overflow-y-auto rounded-lg border p-4 pb-0 outline-none"

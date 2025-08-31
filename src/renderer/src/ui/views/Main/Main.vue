@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import {computed, onMounted} from "vue"
-import {invoke} from "@vueuse/core"
+import {computed, onMounted, watchEffect} from "vue"
 import {useContentSize} from "@/composables/useContentSize"
 import {useDevice} from "@/composables/useDevice"
-import {useTour} from "@/composables/useTour"
+import { useTour } from "@/composables/useTour"
+import { useGlobalTour, useGlobalTourManager } from "@/composables/useGlobalTour"
+import { createWelcomeSteps, useTutorialStatus, tourNotifier } from "@/composables/useTourHelpers"
 import {useStorageStore} from "@/stores/storage.store"
 import {useTagsStore} from "@/stores/tags.store"
 import {useTaskEditorStore} from "@/stores/taskEditor.store"
@@ -30,7 +31,25 @@ useThemeStore()
 
 const {isDesktop, isMobile, isTablet} = useDevice()
 const {contentHeight, contentWidth} = useContentSize("container")
-const {isTourActive, currentTourStep, currentStep, totalSteps, nextStep, prevStep, skipTour, stopTour, initializeTour} = useTour()
+
+// Create welcome tour
+const welcomeSteps = createWelcomeSteps()
+const tour = useTour(welcomeSteps, {
+  id: 'welcome-tour',
+  onComplete() {
+    tutorial.markCompleted()
+  }
+})
+
+// Global tour for rendering
+const globalTour = useGlobalTour()
+const globalManager = useGlobalTourManager()
+
+// Tutorial status tracking
+const tutorial = useTutorialStatus()
+
+// Register tour for notifications
+tourNotifier.register(tour)
 
 const isDataLoaded = computed(() => tasksStore.isDaysLoaded && tagsStore.isTagsLoaded)
 
@@ -55,7 +74,7 @@ onMounted(() => {
     initializeTour()
   } else {
     // Ждем загрузки данных
-    const unwatch = computed(() => isDataLoaded.value).watchEffect(() => {
+    const unwatch = watchEffect(() => {
       if (isDataLoaded.value) {
         initializeTour()
         unwatch() // Останавливаем наблюдение
@@ -63,6 +82,16 @@ onMounted(() => {
     })
   }
 })
+
+// Initialize tour
+async function initializeTour() {
+  // Small delay for rendering completion
+  setTimeout(async () => {
+    if (!tutorial.isCompleted.value) {
+      await tour.start()
+    }
+  }, 1000)
+}
 </script>
 
 <template>
@@ -109,17 +138,17 @@ onMounted(() => {
       </div>
     </main>
 
-    <!-- Custom Tour Component -->
+    <!-- Tour Component -->
     <TourStep
-      v-if="currentTourStep"
-      :step="currentTourStep"
-      :current-index="currentStep"
-      :total-steps="totalSteps"
-      :is-visible="isTourActive"
-      @next="nextStep"
-      @previous="prevStep"
-      @skip="skipTour"
-      @close="stopTour"
+      v-if="globalTour.currentTourStep.value"
+      :step="globalTour.currentTourStep.value"
+      :current-index="globalTour.currentStep.value"
+      :total-steps="globalTour.totalSteps.value"
+      :is-visible="globalTour.isActive.value"
+      @next="globalManager.nextStep"
+      @previous="globalManager.previousStep"
+      @skip="globalManager.skipTour"
+      @close="globalManager.closeTour"
     />
   </div>
 </template>

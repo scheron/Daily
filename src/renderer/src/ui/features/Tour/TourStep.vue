@@ -6,14 +6,10 @@ import {useDevice} from "@/composables/useDevice"
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseIcon from "@/ui/base/BaseIcon"
 
-export interface TourStepProps {
-  step: {
-    target: string
-    title: string
-    description: string
-    placement?: 'top' | 'bottom' | 'left' | 'right' | 'top-start' | 'top-end' | 'bottom-start' | 'bottom-end' | 'left-start' | 'left-end' | 'right-start' | 'right-end' | 'auto'
-    offset?: [number, number]
-  }
+import type { TourStep } from "@/types/tour"
+
+interface TourStepProps {
+  step: TourStep
   currentIndex: number
   totalSteps: number
   isVisible: boolean
@@ -107,7 +103,7 @@ async function updatePosition() {
   const bestPlacement = await getBestPlacement(targetElement.value)
   
   const middleware = [
-    offset(props.step.offset ? {mainAxis: props.step.offset[1], crossAxis: props.step.offset[0]} : {mainAxis: 12, crossAxis: 0}),
+    offset(typeof props.step.offset === 'number' ? {mainAxis: props.step.offset, crossAxis: 0} : {mainAxis: 12, crossAxis: 0}),
     flip({
       fallbackPlacements: ['top', 'bottom', 'left', 'right']
     }),
@@ -460,7 +456,7 @@ const arrowStyles = computed(() => {
           </div>
 
           <!-- Buttons -->
-          <div class="tour-buttons" :class="{ 'tour-buttons--mobile': isMobile }">
+          <div v-if="!step.interactive" class="tour-buttons" :class="{ 'tour-buttons--mobile': isMobile }">
             <BaseButton
               v-if="!isFirst"
               variant="ghost"
@@ -479,6 +475,7 @@ const arrowStyles = computed(() => {
             </BaseButton>
             
             <BaseButton
+              v-if="!step.waitForAction"
               variant="primary"
               size="sm"
               class="bg-accent text-accent-content"
@@ -486,6 +483,13 @@ const arrowStyles = computed(() => {
             >
               {{ isLast ? 'Завершить' : 'Далее' }}
             </BaseButton>
+          </div>
+
+          <!-- Интерактивный режим -->
+          <div v-else class="tour-interactive-hint">
+            <p class="text-sm text-base-content/70">
+              Выполните указанное действие для продолжения
+            </p>
           </div>
         </div>
       </div>

@@ -25,12 +25,18 @@ export interface TourStep {
   placement?: TourPlacement
   /** Отступ от целевого элемента */
   offset?: number
-  /** Должен ли шаг ждать действия пользователя */
+  /** Должен ли шаг ждать действия пользователя (скрывает кнопку "Далее") */
   waitForAction?: boolean
+  /** Интерактивный шаг - скрывает все кнопки навигации */
+  interactive?: boolean
   /** Функция, выполняемая перед показом шага */
   beforeShow?: () => Promise<void> | void
   /** Функция, выполняемая после завершения шага */
   afterComplete?: () => Promise<void> | void
+  /** Функция для проверки, можно ли перейти к следующему шагу */
+  canProceed?: () => Promise<boolean> | boolean
+  /** Функция для ожидания пользовательского действия */
+  onUserAction?: (actionType: string, data?: any) => Promise<void> | void
 }
 
 /**
