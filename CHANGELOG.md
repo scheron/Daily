@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.4.1 - 2025-08-31
+
+### 🐛 Bug Fixes
+- Fixed color fill not working when holding delete task button
+
+
 ## v0.4.0 - 2025-08-31
 
 ### ✨ New Features
