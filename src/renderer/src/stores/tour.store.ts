@@ -1,203 +1,226 @@
 import {ref, computed} from "vue"
 import {defineStore} from "pinia"
 import {useSettingsStore} from "@/composables/useSettingsStore"
-import type {VOnboardingStep} from 'v-onboarding'
-
-export interface TourStep extends VOnboardingStep {
-  attachTo: {
-    element: string
-    on?: 'top' | 'bottom' | 'left' | 'right' | 'center' | 'top-start' | 'top-end' | 'bottom-start' | 'bottom-end' | 'left-start' | 'left-end' | 'right-start' | 'right-end' | 'auto'
-  }
-  content: {
-    title: string
-    description: string
-  }
-  options?: {
-    scrollToElement?: boolean
-    highlight?: boolean
-    showButtons?: boolean
-    canClickTarget?: boolean
-    offset?: [number, number] // [skidding, distance]
-    placement?: string
-    modifiers?: any[]
-  }
-}
+import type { TourStep, TourConfig, TourState } from "@/types/tour"
+import { createTour, quickStep, TourPresets } from "@/utils/tour-builder"
 
 export const useTourStore = defineStore("tour", () => {
   // Состояние туториала
   const isTourActive = ref(false)
   const currentStep = ref(0)
   const isFirstLaunch = useSettingsStore("tutorial.completed", false)
+  const currentTourConfig = ref<TourConfig | null>(null)
 
-  // Определение шагов туториала
-  const tourSteps = ref<TourStep[]>([
-    {
-      attachTo: {
-        element: '[data-tour="welcome"]',
-        on: 'bottom-start'
-      },
-      content: {
-        title: "Добро пожаловать в Daily!",
-        description: "Daily - это минималистичное приложение для управления ежедневными задачами. Давайте познакомимся с основными возможностями."
-      },
-      options: {
-        scrollToElement: false,
-        highlight: true,
-        offset: [0, 16]
-      }
-    },
-    {
-      attachTo: {
-        element: '[data-tour="new-task-button"]',
-        on: 'bottom-end'
-      },
-      content: {
-        title: "Создание задач",
-        description: "Нажмите эту кнопку, чтобы создать новую задачу. Вы можете добавлять описание, теги и устанавливать время выполнения."
-      },
-      options: {
-        highlight: true,
-        canClickTarget: false,
-        offset: [-8, 12]
-      }
-    },
-    {
-      attachTo: {
-        element: '[data-tour="calendar"]',
-        on: 'right-start'
-      },
-      content: {
-        title: "Календарь",
-        description: "В календаре вы можете переключаться между днями и видеть задачи на любую дату. Просто кликните на нужный день."
-      },
-      options: {
-        scrollToElement: true,
-        highlight: true,
-        offset: [16, 0]
-      }
-    },
-    {
-      attachTo: {
-        element: '[data-tour="active-tasks"]',
-        on: 'right'
-      },
-      content: {
-        title: "Активные задачи",
-        description: "Здесь отображаются ваши недавние и активные задачи для быстрого доступа."
-      },
-      options: {
-        highlight: true,
-        offset: [16, 0]
-      }
-    },
-    {
-      attachTo: {
-        element: '[data-tour="tags"]',
-        on: 'right'
-      },
-      content: {
-        title: "Теги",
-        description: "Организуйте ваши задачи с помощью тегов. Создавайте категории и фильтруйте задачи по ним."
-      },
-      options: {
-        highlight: true,
-        offset: [16, 0]
-      }
-    },
-    {
-      attachTo: {
-        element: '[data-tour="themes"]',
-        on: 'right-end'
-      },
-      content: {
-        title: "Темы оформления",
-        description: "Настройте внешний вид приложения под себя. Выберите светлую, темную тему или следуйте системным настройкам."
-      },
-      options: {
-        highlight: true,
-        offset: [16, 8]
-      }
-    },
-    {
-      attachTo: {
-        element: '[data-tour="task-list"]',
-        on: 'auto' // Автоматическое определение лучшей позиции
-      },
-      content: {
-        title: "Список задач",
-        description: "Здесь отображаются все ваши задачи на выбранный день. Отмечайте выполненные задачи и управляйте ими."
-      },
-      options: {
-        highlight: true,
-        offset: [-16, 0]
-      }
-    },
-    {
-      attachTo: {
-        element: '[data-tour="toolbar"]',
-        on: 'auto' // Автоматическое определение лучшей позиции
-      },
-      content: {
-        title: "Панель инструментов",
-        description: "Используйте фильтры и сортировку для удобной работы с задачами. Также здесь можно переключать режимы отображения."
-      },
-      options: {
-        highlight: true,
-        offset: [0, 12]
-      }
-    }
-  ])
+  /**
+   * Создание welcome тура с помощью builder
+   */
+  function createWelcomeTour(): TourConfig {
+    return TourPresets.welcome()
+      .addStep(quickStep(
+        'welcome',
+        '[data-tour="welcome"]',
+        'Добро пожаловать в Daily!',
+        'Daily - это минималистичное приложение для управления ежедневными задачами. Давайте познакомимся с основными возможностями.',
+        'bottom-start'
+      ))
+      .addStep(quickStep(
+        'new-task',
+        '[data-tour="new-task-button"]',
+        'Создание задач',
+        'Нажмите эту кнопку, чтобы создать новую задачу. Вы можете добавлять описание, теги и устанавливать время выполнения.',
+        'bottom-end'
+      ))
+      .addStep(quickStep(
+        'calendar',
+        '[data-tour="calendar"]',
+        'Календарь',
+        'В календаре вы можете переключаться между днями и видеть задачи на любую дату. Просто кликните на нужный день.',
+        'right-start'
+      ))
+      .addStep(quickStep(
+        'active-tasks',
+        '[data-tour="active-tasks"]',
+        'Активные задачи',
+        'Здесь отображаются ваши недавние и активные задачи для быстрого доступа.',
+        'right'
+      ))
+      .addStep(quickStep(
+        'tags',
+        '[data-tour="tags"]',
+        'Теги',
+        'Организуйте ваши задачи с помощью тегов. Создавайте категории и фильтруйте задачи по ним.',
+        'right'
+      ))
+      .addStep(quickStep(
+        'themes',
+        '[data-tour="themes"]',
+        'Темы оформления',
+        'Настройте внешний вид приложения под себя. Выберите светлую, темную тему или следуйте системным настройкам.',
+        'right-end'
+      ))
+      .addStep(quickStep(
+        'task-list',
+        '[data-tour="task-list"]',
+        'Список задач',
+        'Здесь отображаются все ваши задачи на выбранный день. Отмечайте выполненные задачи и управляйте ими.',
+        'auto'
+      ))
+      .addStep(quickStep(
+        'toolbar',
+        '[data-tour="toolbar"]',
+        'Панель инструментов',
+        'Используйте фильтры и сортировку для удобной работы с задачами. Также здесь можно переключать режимы отображения.',
+        'auto'
+      ))
+      .onComplete(() => {
+        console.log('Welcome tour completed!')
+      })
+      .build()
+  }
+
+  // Устанавливаем welcome тур по умолчанию
+  currentTourConfig.value = createWelcomeTour()
 
   // Computed properties
   const isFirstTime = computed(() => !isFirstLaunch.value)
+  const tourSteps = computed(() => currentTourConfig.value?.steps || [])
   const totalSteps = computed(() => tourSteps.value.length)
   const canGoNext = computed(() => currentStep.value < totalSteps.value - 1)
   const canGoPrev = computed(() => currentStep.value > 0)
+  const currentTourStep = computed(() => tourSteps.value[currentStep.value] || null)
+  
+  // Состояние тура
+  const tourState = computed<TourState>(() => ({
+    isActive: isTourActive.value,
+    currentStep: currentStep.value,
+    totalSteps: totalSteps.value,
+    canGoNext: canGoNext.value,
+    canGoPrevious: canGoPrev.value,
+    isCompleted: !isTourActive.value && Boolean(isFirstLaunch.value)
+  }))
 
-  // Методы управления туром
-  function startTour() {
+  /**
+   * Запускает тур
+   */
+  async function startTour(config?: TourConfig) {
+    if (config) {
+      currentTourConfig.value = config
+    }
+    
+    if (!currentTourConfig.value) {
+      console.warn('No tour configuration available')
+      return
+    }
+
     isTourActive.value = true
     currentStep.value = 0
+    
+    // Выполняем beforeShow для первого шага
+    const firstStep = currentTourStep.value
+    if (firstStep?.beforeShow) {
+      await firstStep.beforeShow()
+    }
   }
 
+  /**
+   * Останавливает тур
+   */
   function stopTour() {
     isTourActive.value = false
     currentStep.value = 0
   }
 
-  function nextStep() {
+  /**
+   * Переходит к следующему шагу
+   */
+  async function nextStep() {
+    const currentStepData = currentTourStep.value
+    
+    // Выполняем afterComplete для текущего шага
+    if (currentStepData?.afterComplete) {
+      await currentStepData.afterComplete()
+    }
+
     if (canGoNext.value) {
       currentStep.value++
+      
+      // Выполняем beforeShow для следующего шага
+      const nextStepData = currentTourStep.value
+      if (nextStepData?.beforeShow) {
+        await nextStepData.beforeShow()
+      }
     } else {
       completeTour()
     }
   }
 
-  function prevStep() {
+  /**
+   * Возвращается к предыдущему шагу
+   */
+  async function prevStep() {
     if (canGoPrev.value) {
       currentStep.value--
+      
+      // Выполняем beforeShow для предыдущего шага
+      const prevStepData = currentTourStep.value
+      if (prevStepData?.beforeShow) {
+        await prevStepData.beforeShow()
+      }
     }
   }
 
-  function goToStep(stepIndex: number) {
+  /**
+   * Переходит к конкретному шагу
+   */
+  async function goToStep(stepIndex: number) {
     if (stepIndex >= 0 && stepIndex < totalSteps.value) {
       currentStep.value = stepIndex
+      
+      // Выполняем beforeShow для выбранного шага
+      const stepData = currentTourStep.value
+      if (stepData?.beforeShow) {
+        await stepData.beforeShow()
+      }
     }
   }
 
+  /**
+   * Пропускает тур
+   */
   function skipTour() {
+    const config = currentTourConfig.value
+    if (config?.onSkip) {
+      config.onSkip()
+    }
     completeTour()
   }
 
+  /**
+   * Завершает тур
+   */
   function completeTour() {
+    const config = currentTourConfig.value
+    if (config?.onComplete) {
+      config.onComplete()
+    }
+    
     isTourActive.value = false
     currentStep.value = 0
     isFirstLaunch.value = true
   }
 
-  // Проверка, нужно ли показать тур при первом запуске
+  /**
+   * Устанавливает новую конфигурацию тура
+   */
+  function setTourConfig(config: TourConfig) {
+    currentTourConfig.value = config
+  }
+
+  /**
+   * Проверка, нужно ли показать тур при первом запуске
+   */
   function checkAndStartTour() {
-    if (isFirstTime.value) {
+    if (isFirstTime.value && currentTourConfig.value?.autoStart) {
       // Небольшая задержка, чтобы дать интерфейсу загрузиться
       setTimeout(() => {
         startTour()
@@ -205,10 +228,26 @@ export const useTourStore = defineStore("tour", () => {
     }
   }
 
-  // Сброс состояния (для тестирования)
+  /**
+   * Сброс состояния (для тестирования)
+   */
   function resetTutorial() {
     isFirstLaunch.value = false
     stopTour()
+  }
+
+  /**
+   * Создает новый тур для тестирования или демонстрации
+   */
+  function createCustomTour(steps: TourStep[], name = 'Custom Tour') {
+    const customConfig = createTour('custom-tour')
+      .name(name)
+      .autoStart(false)
+      .skippable(true)
+    
+    steps.forEach(step => customConfig.addStep(step))
+    
+    return customConfig.build()
   }
 
   return {
@@ -216,6 +255,8 @@ export const useTourStore = defineStore("tour", () => {
     isTourActive,
     currentStep,
     tourSteps,
+    currentTourStep,
+    currentTourConfig,
     isFirstLaunch,
 
     // Computed
@@ -223,6 +264,7 @@ export const useTourStore = defineStore("tour", () => {
     totalSteps,
     canGoNext,
     canGoPrev,
+    tourState,
 
     // Methods
     startTour,
@@ -232,7 +274,12 @@ export const useTourStore = defineStore("tour", () => {
     goToStep,
     skipTour,
     completeTour,
+    setTourConfig,
     checkAndStartTour,
     resetTutorial,
+    createCustomTour,
+    
+    // Tour creation helpers
+    createWelcomeTour,
   }
 })

@@ -18,6 +18,7 @@ import Header from "./fragments/Header.vue"
 import Sidebar from "./fragments/Sidebar.vue"
 import SidebarMini from "./fragments/SidebarMini.vue"
 import Toolbar from "./fragments/Toolbar"
+import {TourStep} from "@/ui/features/Tour"
 
 const tasksStore = useTasksStore()
 const tagsStore = useTagsStore()
@@ -29,7 +30,7 @@ useThemeStore()
 
 const {isDesktop, isMobile, isTablet} = useDevice()
 const {contentHeight, contentWidth} = useContentSize("container")
-const {onboardingConfig, onboardingEvents, onboardingRef, tourSteps, initializeTour} = useTour()
+const {isTourActive, currentTourStep, currentStep, totalSteps, nextStep, prevStep, skipTour, stopTour, initializeTour} = useTour()
 
 const isDataLoaded = computed(() => tasksStore.isDaysLoaded && tagsStore.isTagsLoaded)
 
@@ -108,59 +109,17 @@ onMounted(() => {
       </div>
     </main>
 
-    <!-- V-Onboarding Component -->
-    <VOnboardingWrapper
-      ref="onboardingRef"
-      :steps="tourSteps"
-      :options="onboardingConfig"
-      v-on="onboardingEvents"
-    >
-      <template #default="{ previous, next, step, exit, isFirst, isLast, index }">
-        <VOnboardingStep>
-          <div class="v-onboarding-step">
-            <div class="v-onboarding-step__header">
-              <h3 class="v-onboarding-step__title">{{ step.content.title }}</h3>
-              <div class="v-onboarding-step__counter">{{ index + 1 }} / {{ tourSteps.length }}</div>
-            </div>
-            <div class="v-onboarding-step__content">
-              <p>{{ step.content.description }}</p>
-            </div>
-            <div class="v-onboarding-step__actions">
-              <div class="v-onboarding-step__navigation">
-                <div class="v-onboarding-step__dots">
-                  <span
-                    v-for="(_, i) in tourSteps"
-                    :key="i"
-                    class="v-onboarding-step__dot"
-                    :class="{ 'v-onboarding-step__dot--active': i === index }"
-                  />
-                </div>
-              </div>
-              <div style="display: flex; gap: 8px;">
-                <button
-                  v-if="!isFirst"
-                  class="v-onboarding-step__button v-onboarding-step__button--secondary"
-                  @click="previous"
-                >
-                  Назад
-                </button>
-                <button
-                  class="v-onboarding-step__button v-onboarding-step__button--secondary"
-                  @click="exit"
-                >
-                  Пропустить
-                </button>
-                <button
-                  class="v-onboarding-step__button v-onboarding-step__button--primary"
-                  @click="isLast ? exit() : next()"
-                >
-                  {{ isLast ? 'Завершить' : 'Далее' }}
-                </button>
-              </div>
-            </div>
-          </div>
-        </VOnboardingStep>
-      </template>
-    </VOnboardingWrapper>
+    <!-- Custom Tour Component -->
+    <TourStep
+      v-if="currentTourStep"
+      :step="currentTourStep"
+      :current-index="currentStep"
+      :total-steps="totalSteps"
+      :is-visible="isTourActive"
+      @next="nextStep"
+      @previous="prevStep"
+      @skip="skipTour"
+      @close="stopTour"
+    />
   </div>
 </template>
