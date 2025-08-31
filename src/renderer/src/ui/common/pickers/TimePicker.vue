@@ -48,7 +48,7 @@ function onDecrease() {
     <div class="flex flex-col items-center gap-2 text-xs">
       <div class="text-base-content/60 flex flex-col items-center justify-center gap-2 font-mono font-bold">
         <BaseButton icon="chevron-up" size="sm" variant="ghost" @mousedown="startIncrease" @mouseup="stopIncrease" @mouseleave="stopIncrease" />
-        <div class="text-base-content border-base-300 border-b font-mono text-3xl font-bold">{{ value.toString().padStart(2, "0") }}</div>
+        <div class="text-base-content font-mono text-3xl font-bold">{{ value.toString().padStart(2, "0") }}</div>
         <BaseButton
           icon="chevron-down"
           size="sm"
