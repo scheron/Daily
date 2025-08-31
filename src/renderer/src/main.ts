@@ -13,7 +13,6 @@ import "@/assets/styles/main.css"
 import "@/assets/styles/rewrites/vue-sonner.css"
 import "@/assets/styles/rewrites/floating-vue.css"
 
-import "@/utils/consoleElectron"
 
 
 createApp(App)

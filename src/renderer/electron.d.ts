@@ -55,9 +55,6 @@ export default interface ElectronApi {
   closeTimerWindow: () => void
   openTimerWindow: (taskId: Task["id"]) => void
   onRefreshTimerWindow: (callback: (taskId: Task["id"]) => void) => void
-
-  // === DEBUG ===
-  consoleElectron: (...args: any[]) => void
 }
 
 declare global {

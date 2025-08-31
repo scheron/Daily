@@ -57,7 +57,7 @@ export const useStorageStore = defineStore("storage", () => {
     } else if (type === "tags") {
       await tagsStore.revalidate()
     } else if (type === "settings") {
-      console.electron("Storage sync: settings updated")
+      console.log("Storage sync: settings updated")
     }
   })
 

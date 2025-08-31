@@ -56,8 +56,4 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   onDeepLink: (callback: (url: string) => void) => ipcRenderer.on("deep-link", (_, url) => callback(url)),
   removeAllListeners: (channel: string) => ipcRenderer.removeAllListeners(channel),
-
-  // Console logging to main process
-  // TODO: Remove this
-  consoleElectron: (...args: any[]) => ipcRenderer.send("console:electron", ...args),
 })
