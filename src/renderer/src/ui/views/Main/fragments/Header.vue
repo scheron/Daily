@@ -25,6 +25,7 @@ const formattedDate = computed(() => toFullDate(props.activeDay ?? new Date()))
 
     <BaseButton
       v-if="!taskEditorOpen"
+      data-tour="new-task-button"
       variant="text"
       class="text-accent hover:bg-accent/10 focus-visible-ring focus-visible:ring-accent shrink-0 px-4 py-0"
       icon="plus"

@@ -31,7 +31,7 @@ const count = computed(() => countTasks(tasksStore.dailyTasks))
 <template>
   <aside class="border-base-300 bg-base-100 w-sidebar border-r">
     <div class="border-base-300 h-header flex items-center justify-between border-b px-4 select-none" style="-webkit-app-region: drag">
-      <div class="text-accent flex flex-1 items-center gap-2" :class="{'pl-16': isMacOS}">
+      <div data-tour="welcome" class="text-accent flex flex-1 items-center gap-2" :class="{'pl-16': isMacOS}">
         <Logo class="h-5" />
         <h2 class="font-mono text-xl font-bold">Daily</h2>
       </div>
@@ -61,16 +61,16 @@ const count = computed(() => countTasks(tasksStore.dailyTasks))
       <template v-else>
         <div class="text-base-content flex size-full flex-col pb-2">
           <div class="hide-scrollbar flex-1 overflow-y-auto">
-            <BasePanel opened icon="calendar" group="calendar" label="Calendar" class="border-base-300 border-b" content-class="p-0 bg-base-100">
+            <BasePanel data-tour="calendar" opened icon="calendar" group="calendar" label="Calendar" class="border-base-300 border-b" content-class="p-0 bg-base-100">
               <CalendarMonthPanel class="px-2 py-1" />
             </BasePanel>
-            <BasePanel icon="history" group="calendar" label="Active Tasks" class="border-base-300 border-b" content-class="p-0 bg-base-100">
+            <BasePanel data-tour="active-tasks" icon="history" group="calendar" label="Active Tasks" class="border-base-300 border-b" content-class="p-0 bg-base-100">
               <RecentActiveTasksPanel class="px-2" />
             </BasePanel>
-            <BasePanel icon="tags" group="ui" label="Tags" class="border-base-300 border-b" content-class="p-0 bg-base-100">
+            <BasePanel data-tour="tags" icon="tags" group="ui" label="Tags" class="border-base-300 border-b" content-class="p-0 bg-base-100">
               <TagsPanel class="px-2" />
             </BasePanel>
-            <BasePanel label="Themes" icon="background" group="ui" class="border-base-300 border-b">
+            <BasePanel data-tour="themes" label="Themes" icon="background" group="ui" class="border-base-300 border-b">
               <ThemesPanel />
             </BasePanel>
             <BasePanel label="Daily" icon="logo" group="ui" content-class="py-0">

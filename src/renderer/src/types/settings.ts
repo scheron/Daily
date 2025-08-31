@@ -13,4 +13,8 @@ export type Settings = {
   paths: {
     root: string
   }
+
+  tutorial: {
+    completed: boolean
+  }
 }

@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import {computed} from "vue"
+import {computed, onMounted} from "vue"
 import {invoke} from "@vueuse/core"
 import {useContentSize} from "@/composables/useContentSize"
 import {useDevice} from "@/composables/useDevice"
+import {useTour} from "@/composables/useTour"
 import {useStorageStore} from "@/stores/storage.store"
 import {useTagsStore} from "@/stores/tags.store"
 import {useTaskEditorStore} from "@/stores/taskEditor.store"
@@ -28,6 +29,7 @@ useThemeStore()
 
 const {isDesktop, isMobile, isTablet} = useDevice()
 const {contentHeight, contentWidth} = useContentSize("container")
+const {onboardingConfig, onboardingEvents, onboardingRef, tourSteps, initializeTour} = useTour()
 
 const isDataLoaded = computed(() => tasksStore.isDaysLoaded && tagsStore.isTagsLoaded)
 
@@ -44,6 +46,21 @@ window.electronAPI.onTaskSaved(async () => {
 window.electronAPI.onMenuAction((action) => {
   if (action === "new-task") onCreateTask()
   else if (action === "toggle-sidebar") uiStore.toggleSidebarCollapse()
+})
+
+// Инициализация тура после загрузки данных
+onMounted(() => {
+  if (isDataLoaded.value) {
+    initializeTour()
+  } else {
+    // Ждем загрузки данных
+    const unwatch = computed(() => isDataLoaded.value).watchEffect(() => {
+      if (isDataLoaded.value) {
+        initializeTour()
+        unwatch() // Останавливаем наблюдение
+      }
+    })
+  }
 })
 </script>
 
@@ -90,5 +107,60 @@ window.electronAPI.onMenuAction((action) => {
         <Content :task-editor-open="taskEditorStore.isTaskEditorOpen" @create-task="onCreateTask" />
       </div>
     </main>
+
+    <!-- V-Onboarding Component -->
+    <VOnboardingWrapper
+      ref="onboardingRef"
+      :steps="tourSteps"
+      :options="onboardingConfig"
+      v-on="onboardingEvents"
+    >
+      <template #default="{ previous, next, step, exit, isFirst, isLast, index }">
+        <VOnboardingStep>
+          <div class="v-onboarding-step">
+            <div class="v-onboarding-step__header">
+              <h3 class="v-onboarding-step__title">{{ step.content.title }}</h3>
+              <div class="v-onboarding-step__counter">{{ index + 1 }} / {{ tourSteps.length }}</div>
+            </div>
+            <div class="v-onboarding-step__content">
+              <p>{{ step.content.description }}</p>
+            </div>
+            <div class="v-onboarding-step__actions">
+              <div class="v-onboarding-step__navigation">
+                <div class="v-onboarding-step__dots">
+                  <span
+                    v-for="(_, i) in tourSteps"
+                    :key="i"
+                    class="v-onboarding-step__dot"
+                    :class="{ 'v-onboarding-step__dot--active': i === index }"
+                  />
+                </div>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <button
+                  v-if="!isFirst"
+                  class="v-onboarding-step__button v-onboarding-step__button--secondary"
+                  @click="previous"
+                >
+                  Назад
+                </button>
+                <button
+                  class="v-onboarding-step__button v-onboarding-step__button--secondary"
+                  @click="exit"
+                >
+                  Пропустить
+                </button>
+                <button
+                  class="v-onboarding-step__button v-onboarding-step__button--primary"
+                  @click="isLast ? exit() : next()"
+                >
+                  {{ isLast ? 'Завершить' : 'Далее' }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </VOnboardingStep>
+      </template>
+    </VOnboardingWrapper>
   </div>
 </template>

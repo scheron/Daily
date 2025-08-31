@@ -1,9 +1,14 @@
 <script setup lang="ts">
+import {useTour} from "@/composables/useTour"
+
+import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseIcon from "@/ui/base/BaseIcon"
 
 import About from "./fragments/About.vue"
 import Shortcuts from "./fragments/Shortcuts.vue"
 import StorageSettings from "./fragments/StorageSettings.vue"
+
+const {restartTour} = useTour()
 </script>
 
 <template>
@@ -16,6 +21,20 @@ import StorageSettings from "./fragments/StorageSettings.vue"
 
       <div class="flex flex-col gap-1 px-2">
         <About />
+      </div>
+    </div>
+
+    <div>
+      <div class="border-base-300 text-accent mb-2 flex items-center gap-1 border-b pb-1 text-xs font-bold uppercase select-none">
+        <BaseIcon name="info" class="size-4" />
+        Tutorial
+      </div>
+
+      <div class="flex flex-col gap-1 px-2">
+        <BaseButton variant="ghost" size="sm" class="justify-start gap-2 px-2 py-1" @click="restartTour">
+          <BaseIcon name="play" class="size-3" />
+          Show tutorial
+        </BaseButton>
       </div>
     </div>
     <div>

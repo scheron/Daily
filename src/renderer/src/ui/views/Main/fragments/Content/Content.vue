@@ -38,7 +38,7 @@ const filteredTasks = computed(() => {
     <BaseAnimation name="fade" mode="out-in">
       <TaskEditor v-if="taskEditorOpen" />
 
-      <div v-else class="size-full flex-1 overflow-y-auto">
+      <div v-else data-tour="task-list" class="size-full flex-1 overflow-y-auto">
         <BaseAnimation name="fade" mode="out-in">
           <BaseSpinner v-if="!tasksStore.isDaysLoaded" />
           <ContentNoTasks v-else-if="!filteredTasks.length" :date="tasksStore.activeDay" :filter="filterStore.activeFilter" @create-task="emit('createTask')" />

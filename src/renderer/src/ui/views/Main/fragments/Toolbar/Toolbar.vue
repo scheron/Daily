@@ -11,6 +11,8 @@ const activeState = computed(() => (taskEditorStore.isTaskEditorOpen ? "edit" : 
 </script>
 
 <template>
-  <PanelEdit v-if="activeState === 'edit'" />
-  <PanelFilters v-else />
+  <div data-tour="toolbar">
+    <PanelEdit v-if="activeState === 'edit'" />
+    <PanelFilters v-else />
+  </div>
 </template>
