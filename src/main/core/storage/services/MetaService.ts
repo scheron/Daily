@@ -9,6 +9,7 @@ import type {ID, MetaFile, Tag, Task} from "../../../types.js"
 import {fsPaths} from "../../../config.js"
 import {arrayRemoveDuplicates} from "../../../utils/arrays.js"
 import {CACHE_TTL, createCacheLoader} from "../../../utils/cache.js"
+import {formatDuration} from "../../../utils/date.js"
 import {notifyTaskEvent} from "../events.js"
 
 export class MetaService {
@@ -71,8 +72,8 @@ export class MetaService {
         const task: Task = {
           ...taskMeta,
           status: front.status?.toLowerCase() ?? "active",
-          estimatedTime: front.estimated ?? 0,
-          spentTime: front.spent ?? 0,
+          estimatedTime: meta.tasks[taskId].estimated ?? 0,
+          spentTime: meta.tasks[taskId].spent ?? 0,
           content,
           tags,
         }
@@ -116,8 +117,8 @@ export class MetaService {
       const frontmatter = {
         id: task.id,
         date: task.scheduled.date,
-        estimated: task.estimatedTime,
-        spent: task.spentTime,
+        estimated: task.estimatedTime ? formatDuration(task.estimatedTime) : "-",
+        spent: task.spentTime ? formatDuration(task.spentTime) : "-",
         status: task.status,
         tags: task.tags.map((t) => t.name),
       }
