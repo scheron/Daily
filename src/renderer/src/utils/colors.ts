@@ -39,7 +39,7 @@ export function getOppositeColor(color: string): string {
 }
 
 export function oklchToHex(color: string): string {
-  const matches = color.match(/oklch\((\d+)%\s+(\d*\.?\d+)\s+(\d+)\)/)
+  const matches = color.match(/oklch\(\s*(\d+(?:\.\d+)?)%\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)\s*\)/)
   if (!matches) return color
 
   const [, l, c, h] = matches
@@ -52,7 +52,7 @@ export function oklchToHex(color: string): string {
 
   const l_ = lightness + 0.3963377774 * a + 0.2158037573 * b
   const m_ = lightness - 0.1055613458 * a - 0.0638541728 * b
-  const s_ = lightness - 0.0894841775 * a - 1.2914855480 * b
+  const s_ = lightness - 0.0894841775 * a - 1.291485548 * b
 
   const l_cube = l_ * l_ * l_
   const m_cube = m_ * m_ * m_
@@ -60,7 +60,7 @@ export function oklchToHex(color: string): string {
 
   const r = 4.0767416621 * l_cube - 3.3077115913 * m_cube + 0.2309699292 * s_cube
   const g = -1.2684380046 * l_cube + 2.6097574011 * m_cube - 0.3413193965 * s_cube
-  const b_val = -0.0041960863 * l_cube - 0.7034186147 * m_cube + 1.7076147010 * s_cube
+  const b_val = -0.0041960863 * l_cube - 0.7034186147 * m_cube + 1.707614701 * s_cube
 
   const r_8bit = Math.max(0, Math.min(255, Math.round(r * 255)))
   const g_8bit = Math.max(0, Math.min(255, Math.round(g * 255)))
