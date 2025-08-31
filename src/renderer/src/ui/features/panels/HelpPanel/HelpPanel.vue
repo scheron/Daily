@@ -10,15 +10,14 @@ import StorageSettings from "./fragments/StorageSettings.vue"
   <div class="flex w-full cursor-auto flex-col gap-3 py-3">
     <div>
       <div class="border-base-300 text-accent mb-2 flex items-center gap-1 border-b pb-1 text-xs font-bold uppercase select-none">
-        <BaseIcon name="cog" class="size-4" />
-        Storage
+        <BaseIcon name="star" class="size-4" />
+        About
       </div>
 
       <div class="flex flex-col gap-1 px-2">
-        <StorageSettings />
+        <About />
       </div>
     </div>
-
     <div>
       <div class="border-base-300 text-accent mb-2 flex items-center gap-1 border-b pb-1 text-xs font-bold uppercase select-none">
         <BaseIcon name="keyboard" class="size-4" />
@@ -32,12 +31,11 @@ import StorageSettings from "./fragments/StorageSettings.vue"
 
     <div>
       <div class="border-base-300 text-accent mb-2 flex items-center gap-1 border-b pb-1 text-xs font-bold uppercase select-none">
-        <BaseIcon name="star" class="size-4" />
-        About
+        <BaseIcon name="folder" class="size-4" />
+        Storage
       </div>
-
       <div class="flex flex-col gap-1 px-2">
-        <About />
+        <StorageSettings />
       </div>
     </div>
   </div>

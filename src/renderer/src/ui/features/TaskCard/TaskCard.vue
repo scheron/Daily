@@ -97,7 +97,7 @@ watch(
         </div>
       </div>
 
-      <div class="mb-5 transition-opacity duration-200" :class="{'opacity-40': ['done', 'discarded'].includes(task.status)}">
+      <div class="mb-5 transition-opacity duration-200" :class="{'opacity-50': ['done', 'discarded'].includes(task.status)}">
         <div ref="content" class="markdown prose prose-sm max-w-none leading-relaxed break-words transition-all duration-200" />
       </div>
     </div>

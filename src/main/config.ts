@@ -25,7 +25,7 @@ export const APP_CONFIG = {
       resizable: false,
     },
     timer: {
-      width: 350,
+      width: 300,
       height: 280,
       resizable: false,
     },
