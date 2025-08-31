@@ -1,17 +1,20 @@
 <script setup lang="ts">
 import {computed} from "vue"
+import {cn} from "@/utils/tailwindcss"
 
-import type {IconName} from "./BaseIcon"
+import type {Placement} from "floating-vue"
 import type {HtmlHTMLAttributes} from "vue"
+import type {IconName} from "./BaseIcon"
 
 import BaseIcon from "./BaseIcon/BaseIcon.vue"
-import {cn} from "@/utils/tailwindcss"
 
 const props = defineProps<{
   variant?: "primary" | "ghost" | "text" | "outline"
   size?: "sm" | "md" | "lg"
   icon?: IconName
   disabled?: boolean
+  tooltip?: string
+  tooltipPosition?: Placement
   iconClass?: HtmlHTMLAttributes["class"]
   class?: HtmlHTMLAttributes["class"]
 }>()
@@ -49,8 +52,8 @@ const classes = computed(() =>
 </script>
 
 <template>
-  <button :class="classes" :disabled="disabled">
+  <button v-tooltip="{content: tooltip, placement: tooltipPosition}" :class="classes" :disabled="disabled">
     <BaseIcon v-if="icon" :name="icon" :class="iconClass" />
     <slot />
   </button>
-</template> 
+</template>

@@ -15,6 +15,7 @@ const isEstimated = computed(() => props.task.estimatedTime > 0)
 <template>
   <div
     v-if="isEstimated"
+    v-tooltip="{content: task.status === 'active' ? 'Open task timer' : 'Check task statistics', placement: 'bottom-end'}"
     class="flex h-7 shrink-0 items-center gap-1 rounded-md border px-3 py-1 text-xs transition-colors duration-200"
     :class="{
       'text-accent border-accent/20 hover:border-accent/40 hover:bg-accent/20': task.status === 'active',

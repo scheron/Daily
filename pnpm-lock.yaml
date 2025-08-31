@@ -29,6 +29,9 @@ importers:
       electron-updater:
         specifier: ^6.6.2
         version: 6.6.2
+      floating-vue:
+        specifier: ^5.2.2
+        version: 5.2.2(vue@3.5.16(typescript@5.8.3))
       fs-extra:
         specifier: ^11.3.0
         version: 11.3.0
@@ -522,6 +525,9 @@ packages:
 
   '@floating-ui/core@1.7.1':
     resolution: {integrity: sha512-azI0DrjMMfIug/ExbBaeDVJXcY0a7EPvPjb2xAJPa4HeimBX+Z18HK8QQR3jb6356SnDDdxx+hinMLcJEDdOjw==}
+
+  '@floating-ui/dom@1.1.1':
+    resolution: {integrity: sha512-TpIO93+DIujg3g7SykEAGZMDtbJRrmnYRCNYSjJlvIbGhBjRSNTLVbNeDQBrzy9qDgUbiWdc7KA0uZHZ2tJmiw==}
 
   '@floating-ui/dom@1.7.1':
     resolution: {integrity: sha512-cwsmW/zyw5ltYTUeeYJ60CnQuPqmGwuGVhG9w0PRaRKkAyi38BT5CKrpIbb+jtahSwUl04cWzSx9ZOIxeS6RsQ==}
@@ -1888,6 +1894,15 @@ packages:
 
   flatted@3.3.3:
     resolution: {integrity: sha512-GX+ysw4PBCz0PzosHDepZGANEuFCMLrnRTiEy9McGjmkCQYwRq4A/X786G/fjM/+OjsWSU1ZrY5qyARZmO/uwg==}
+
+  floating-vue@5.2.2:
+    resolution: {integrity: sha512-afW+h2CFafo+7Y9Lvw/xsqjaQlKLdJV7h1fCHfcYQ1C4SVMlu7OAekqWgu5d4SgvkBVU0pVpLlVsrSTBURFRkg==}
+    peerDependencies:
+      '@nuxt/kit': ^3.2.0
+      vue: ^3.2.0
+    peerDependenciesMeta:
+      '@nuxt/kit':
+        optional: true
 
   for-each@0.3.5:
     resolution: {integrity: sha512-dKx12eRCVIzqCxFGplyFKJMPvLEWgmNtUrpTiJIR5u97zEhRG8ySrtboPHZXx7daLxQVrl643cTzbab2tkQjxg==}
@@ -3583,6 +3598,11 @@ packages:
     peerDependencies:
       eslint: ^8.57.0 || ^9.0.0
 
+  vue-resize@2.0.0-alpha.1:
+    resolution: {integrity: sha512-7+iqOueLU7uc9NrMfrzbG8hwMqchfVfSzpVlCMeJQe4pyibqyoifDNbKTZvwxZKDvGkB+PdFeKvnGZMoEb8esg==}
+    peerDependencies:
+      vue: ^3.0.0
+
   vue-router@4.5.1:
     resolution: {integrity: sha512-ogAF3P97NPm8fJsE4by9dwSYtDwXIY1nFY9T6DyQnGHd1E2Da94w9JIolpe42LJGIl0DwOHBi8TcRPlPGwbTtw==}
     peerDependencies:
@@ -4099,6 +4119,10 @@ snapshots:
   '@floating-ui/core@1.7.1':
     dependencies:
       '@floating-ui/utils': 0.2.9
+
+  '@floating-ui/dom@1.1.1':
+    dependencies:
+      '@floating-ui/core': 1.7.1
 
   '@floating-ui/dom@1.7.1':
     dependencies:
@@ -5729,6 +5753,12 @@ snapshots:
       keyv: 4.5.4
 
   flatted@3.3.3: {}
+
+  floating-vue@5.2.2(vue@3.5.16(typescript@5.8.3)):
+    dependencies:
+      '@floating-ui/dom': 1.1.1
+      vue: 3.5.16(typescript@5.8.3)
+      vue-resize: 2.0.0-alpha.1(vue@3.5.16(typescript@5.8.3))
 
   for-each@0.3.5:
     dependencies:
@@ -7386,6 +7416,10 @@ snapshots:
       semver: 7.7.2
     transitivePeerDependencies:
       - supports-color
+
+  vue-resize@2.0.0-alpha.1(vue@3.5.16(typescript@5.8.3)):
+    dependencies:
+      vue: 3.5.16(typescript@5.8.3)
 
   vue-router@4.5.1(vue@3.5.16(typescript@5.8.3)):
     dependencies:

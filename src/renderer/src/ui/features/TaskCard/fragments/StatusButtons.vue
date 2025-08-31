@@ -17,6 +17,7 @@ type StatusButton = {
   value: Exclude<TasksFilter, "all">
   activeClass: HtmlHTMLAttributes["class"]
   inactiveClass: HtmlHTMLAttributes["class"]
+  tooltip: string
 }
 
 const FILTERS: StatusButton[] = [
@@ -24,29 +25,32 @@ const FILTERS: StatusButton[] = [
     label: "Active",
     icon: "fire",
     value: "active",
-    activeClass: "bg-error/20 text-accent-content hover:text-accent-content",
-    inactiveClass: "hover:text-accent-content hover:bg-error/20",
+    tooltip: "Set as active",
+    activeClass: "bg-error/20 text-base-content hover:text-base-content",
+    inactiveClass: "hover:text-base-content hover:bg-error/20",
   },
   {
     label: "Discarded",
     icon: "archive",
     value: "discarded",
-    activeClass: "hover:bg-warning/30 bg-warning/20 text-accent-content hover:text-accent-content",
-    inactiveClass: "hover:text-accent-content hover:bg-warning/30",
+    tooltip: "Discard task",
+    activeClass: "hover:bg-warning/30 bg-warning/20 text-base-content hover:text-base-content",
+    inactiveClass: "hover:text-base-content hover:bg-warning/30",
   },
   {
     label: "Done",
     icon: "check-check",
     value: "done",
-    activeClass: "bg-success/30 hover:bg-success/40 text-accent-content hover:text-accent-content",
-    inactiveClass: "hover:text-accent-content hover:bg-success/30",
+    tooltip: "Mark as done",
+    activeClass: "bg-success/30 hover:bg-success/40 text-base-content hover:text-base-content",
+    inactiveClass: "hover:text-base-content hover:bg-success/30",
   },
 ]
 
 function getButtonClass(classes: HtmlHTMLAttributes["class"]) {
   const baseClass = `
     rounded-md px-2 py-0.5 text-xs
-    text-accent-content/50
+    text-base-content/50
     focus-visible-ring focus-visible:ring-offset-base-100 focus-visible:ring-base-content
     transition-colors duration-200 outline-none
   `
@@ -57,10 +61,11 @@ function getButtonClass(classes: HtmlHTMLAttributes["class"]) {
 
 <template>
   <div class="w-auto shrink-0">
-    <div class="bg-accent/5 border border-accent/5 inline-flex w-auto items-center gap-1 rounded-lg p-1">
+    <div class="bg-accent/5 border-accent/5 inline-flex w-auto items-center gap-1 rounded-lg border p-1">
       <button
         v-for="option in FILTERS"
         :key="option.value"
+        v-tooltip="{disabled: props.status === option.value, content: option.tooltip, placement: 'bottom-end'}"
         :class="getButtonClass(props.status === option.value ? option.activeClass : option.inactiveClass)"
         @click="emit('change-status', option.value)"
       >

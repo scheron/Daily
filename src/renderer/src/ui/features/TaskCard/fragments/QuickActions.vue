@@ -40,7 +40,14 @@ function withOpenDayPicker(show: () => void) {
     :class="[isOpenDayPicker ? 'opacity-100' : 'opacity-0']"
   >
     <div ref="deleteButton" class="size-7 rounded-md">
-      <BaseButton variant="ghost" size="sm" icon="trash" class="hover:text-error hover:bg-error/10 size-full" icon-class="size-4" />
+      <BaseButton
+        variant="ghost"
+        size="sm"
+        tooltip="Hold to delete task"
+        icon="trash"
+        class="hover:text-error hover:bg-error/10 size-full"
+        icon-class="size-4"
+      />
     </div>
 
     <DayPicker
@@ -55,6 +62,7 @@ function withOpenDayPicker(show: () => void) {
           variant="ghost"
           size="sm"
           icon="calendar"
+          tooltip="Move task to another day"
           class="hover:text-accent hover:bg-accent/10 size-7"
           icon-class="size-5"
           @click="withOpenDayPicker(show)"
@@ -67,6 +75,7 @@ function withOpenDayPicker(show: () => void) {
       size="sm"
       icon="pencil"
       class="hover:text-accent hover:bg-accent/10 size-7"
+      tooltip="Edit task"
       icon-class="size-4"
       @click="emit('edit')"
     />

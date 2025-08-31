@@ -85,6 +85,7 @@
     "clsx": "^2.1.1",
     "electron-store": "^10.0.1",
     "electron-updater": "^6.6.2",
+    "floating-vue": "^5.2.2",
     "fs-extra": "^11.3.0",
     "gray-matter": "^4.0.3",
     "highlight.js": "^11.11.1",

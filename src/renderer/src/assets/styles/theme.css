@@ -13,7 +13,6 @@
   -c-base-content: oklch(84.153% 0.007 265.754);
 
   -c-accent: oklch(75.351% 0.138 232.661);
-  -c-accent-content: oklch(27.949% 0.036 260.03);
 
   -c-info: oklch(68.455% 0.148 237.251);
   -c-success: oklch(78.452% 0.132 181.911);
@@ -28,8 +27,6 @@
   --color-base-content: var(--c-base-content);
 
   --color-accent: var(--c-accent);
-
-  --color-accent-content: var(--c-accent-content);
 
   --color-info: var(--c-info);
   --color-success: var(--c-success);

@@ -52,7 +52,7 @@ async function onSave() {
     const isSuccess = await tasksStore.updateTask(taskEditorStore.currentEditingTask!.id, {
       content: finalContent,
       tags: taskEditorStore.editorTags,
-      status: 'active',
+      status: "active",
       estimatedTime: estimated.hours * 3600 + estimated.minutes * 60,
     })
 
@@ -99,13 +99,17 @@ watch(
       <div class="text-accent border-accent/30 flex items-center justify-center gap-2 rounded-md border p-0.5 font-mono">
         <TimePicker v-model:time="estimated.hours" :max="23">
           <template #trigger="{toggle}">
-            <BaseButton size="sm" class="w-16 px-1 py-0.5 text-xs" @click="toggle"> {{ estimated.hours }} h. </BaseButton>
+            <BaseButton size="sm" class="w-16 px-1 py-0.5 text-xs" tooltip="Estimated hours" @click="toggle">
+              {{ estimated.hours }} h.
+            </BaseButton>
           </template>
         </TimePicker>
         <BaseIcon name="stopwatch" class="size-4" />
         <TimePicker v-model:time="estimated.minutes" :max="59">
           <template #trigger="{toggle}">
-            <BaseButton size="sm" class="w-16 px-1 py-0.5 text-xs" @click="toggle"> {{ estimated.minutes }} min. </BaseButton>
+            <BaseButton size="sm" class="w-16 px-1 py-0.5 text-xs" tooltip="Estimated minutes" @click="toggle">
+              {{ estimated.minutes }} min.
+            </BaseButton>
           </template>
         </TimePicker>
       </div>
