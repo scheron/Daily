@@ -78,6 +78,8 @@ Each task is stored as a separate `.md` file with YAML frontmatter containing me
 id: task_abc123
 date: 2024-01-15
 status: done
+estimated: 4 h. 30 min.
+spent: 1 h.
 tags: [work, project]
 ---
 
