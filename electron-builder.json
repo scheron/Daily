@@ -22,10 +22,6 @@
     "!.git*",
     "!.DS_Store"
   ],
-  "linux": {
-    "artifactName": "${productName}-${version}-linux.${ext}",
-    "target": ["AppImage"]
-  },
   "mac": {
     "artifactName": "${productName}-${version}-mac.${ext}",
     "category": "public.app-category.productivity",
@@ -35,24 +31,6 @@
     "icon": "icon.icns",
     "notarize": true,
     "target": [{"target": "dmg", "arch": ["arm64"]}]
-  },
-  "win": {
-    "artifactName": "${productName}-${version}-win.${ext}",
-    "icon": "icon.ico",
-    "target": [{"arch": ["x64"], "target": "nsis"}],
-    "verifyUpdateCodeSignature": false
-  },
-  "nsis": {
-    "allowElevation": true,
-    "allowToChangeInstallationDirectory": true,
-    "createDesktopShortcut": true,
-    "createStartMenuShortcut": true,
-    "deleteAppDataOnUninstall": false,
-    "installerIcon": "icon.ico",
-    "oneClick": false,
-    "perMachine": false,
-    "shortcutName": "Daily",
-    "uninstallerIcon": "icon.ico"
   },
   "publish": null
 }

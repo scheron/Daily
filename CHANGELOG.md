@@ -153,8 +153,6 @@ No cloud. No accounts. Just tasks, just days.
 | OS      | Installer                                              |
 |---------|---------------------------------------------------------|
 | 🖥 macOS | [Download `.dmg`](https://github.com/scheron/Daily/releases/download/v0.2.0/Daily-0.2.0.dmg) |
-| 🪟 Windows | [Download `.exe`](https://github.com/scheron/Daily/releases/download/v0.2.0/Daily-0.2.0.exe)       |
-| 🐧 Linux  | [Download `.AppImage`](https://github.com/scheron/Daily/releases/download/v0.2.0/Daily-0.2.0.AppImage) |
 
 > If you see a warning about an unverified developer, [follow the update instructions](https://github.com/scheron/Daily#-updating).
 

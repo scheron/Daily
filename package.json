@@ -32,10 +32,7 @@
   "scripts": {
     "release": "node scripts/release.js",
     "dev": "node scripts/dev-server.js",
-    "build": "node scripts/build.js && electron-builder",
-    "build:win": "node scripts/build.js && electron-builder --win",
-    "build:mac": "node scripts/build.js && electron-builder --mac",
-    "build:linux": "node scripts/build.js && electron-builder --linux",
+    "build": "node scripts/build.js && electron-builder --mac",
     "build:compress": "node scripts/build.js",
     "preview": "vite preview",
     "postinstall": "electron-builder install-app-deps",

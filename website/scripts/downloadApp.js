@@ -1,15 +1,11 @@
 document.addEventListener("DOMContentLoaded", () => {
   const platformLinks = {
     mac: "https://github.com/scheron/Daily?tab=readme-ov-file#-installation",
-    win: "https://github.com/scheron/Daily?tab=readme-ov-file#-installation",
-    linux: "https://github.com/scheron/Daily?tab=readme-ov-file#-installation",
   }
 
   function detectPlatform() {
     const {platform} = navigator
     if (/Mac/i.test(platform)) return "mac"
-    if (/Win/i.test(platform)) return "win"
-    if (/Linux/i.test(platform)) return "linux"
     return null
   }
 
@@ -18,6 +14,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (downloadBtn && platform && platformLinks[platform]) {
     downloadBtn.href = platformLinks[platform]
-    downloadBtn.textContent = `Download for ${{mac: "macOS", win: "Windows", linux: "Linux"}[platform]}`
+    downloadBtn.textContent = `Download for macOS`
+  } else if (downloadBtn) {
+    downloadBtn.href = platformLinks.mac
+    downloadBtn.textContent = `Download for macOS`
   }
 })

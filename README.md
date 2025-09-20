@@ -110,16 +110,15 @@ The `assets/` folder stores any files attached to your tasks (images, documents,
 
 ## 🚀 Installation
 
+> [!NOTE]
+> **macOS Only**: Daily currently supports only macOS. This is a personal project focused on macOS development.
+
 1. Go to [Releases](https://github.com/scheron/Daily/releases)
-2. Download the appropriate version for your system:
-   - macOS: `.dmg`
-   - Windows: `.exe`
-   - Linux: `.AppImage`
+2. Download the `.dmg` file for macOS
 
 > [!NOTE]
 > The app is currently **not signed or notarized**:
 > - **macOS** will show a Gatekeeper warning. Follow the terminal instructions below to remove quarantine.
-> - **Windows** will display a "Windows protected your PC" warning. Click "More info" → "Run anyway".
 >
 > This is intentional, as Daily is open-source and not distributed through centralized stores.  
 > You can verify all binaries are built from source on GitHub.
@@ -145,45 +144,12 @@ curl -fsSL https://raw.githubusercontent.com/scheron/Daily/main/scripts/install/
 
 ---
 
-### 🖥️ Windows
-
-- Run the `.exe` installer
-- Click "More info" → "Run anyway" if prompted
-
----
-
-### 🐧 Linux
-
-You can either:
-
-- Make the AppImage executable:
-  ```bash
-  chmod +x Daily-*.AppImage
-  ./Daily-*.AppImage
-  ```
-
-Or quick install via terminal:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/scheron/Daily/main/scripts/install/install-linux.sh | sh
-```
-
----
-
 ## 🔄 Updating
 
 If installed via terminal script, update using:
 
-### macOS
-
 ```bash
 curl -fsSL https://raw.githubusercontent.com/scheron/Daily/main/scripts/install/update-mac.sh | sh
-```
-
-### Linux
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/scheron/Daily/main/scripts/install/update-linux.sh | sh
 ```
 
 Or just download the latest version from the [Releases](https://github.com/scheron/Daily/releases) page.
