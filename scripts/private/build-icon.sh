@@ -1,8 +1,5 @@
 #!/bin/bash
 
-ICON_NAME="icon"
-ICONSET="${ICON_NAME}.iconset"
-ICNS="${ICON_NAME}.icns"
 PNG="$1"
 
 if [ -z "$PNG" ]; then
@@ -11,6 +8,12 @@ if [ -z "$PNG" ]; then
   exit 1
 fi
 
+PNG_DIR=$(dirname "$PNG")
+PNG_BASENAME=$(basename "$PNG" .png)
+
+ICON_NAME="$PNG_BASENAME"
+ICONSET="$PNG_DIR/${ICON_NAME}.iconset"
+ICNS="$PNG_DIR/${ICON_NAME}.icns"
 
 WIDTH=$(sips -g pixelWidth "$PNG" | tail -n1 | cut -d' ' -f4)
 HEIGHT=$(sips -g pixelHeight "$PNG" | tail -n1 | cut -d' ' -f4)
@@ -26,18 +29,18 @@ if [ "$WIDTH" -lt 1024 ] || [ "$HEIGHT" -lt 1024 ]; then
 fi
 
 echo "🔄 Creating iconset directory..."
-mkdir -p $ICONSET
+mkdir -p "$ICONSET"
 
 echo "🔄 Generating icons..."
-sips -z 16 16     "$PNG" --out $ICONSET/icon_16x16.png
-sips -z 32 32     "$PNG" --out $ICONSET/icon_16x16@2x.png
-sips -z 128 128   "$PNG" --out $ICONSET/icon_128x128.png
-sips -z 256 256   "$PNG" --out $ICONSET/icon_128x128@2x.png
+sips -z 16 16     "$PNG" --out "$ICONSET/icon_16x16.png"
+sips -z 32 32     "$PNG" --out "$ICONSET/icon_16x16@2x.png"
+sips -z 128 128   "$PNG" --out "$ICONSET/icon_128x128.png"
+sips -z 256 256   "$PNG" --out "$ICONSET/icon_128x128@2x.png"
 
 echo "🔄 Creating macOS .icns..."
-iconutil -c icns $ICONSET -o $ICNS
+iconutil -c icns "$ICONSET" -o "$ICNS"
 
-rm -rf $ICONSET
+rm -rf "$ICONSET"
 
 echo "✅ macOS icon created successfully:"
 echo "   - $ICNS"
