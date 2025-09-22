@@ -111,7 +111,7 @@ The `assets/` folder stores any files attached to your tasks (images, documents,
 ## 🚀 Installation
 
 > [!NOTE]
-> **macOS Only**: Daily currently supports only macOS. This is a personal project focused on macOS development.
+> **macOS Only**: Daily currently supports only macOS. While built with Electron (which supports cross-platform deployment), this is a personal project and I don't have Windows or Linux systems available for proper testing and support (or I'm just lazy 🤷‍♂️).
 
 1. Go to [Releases](https://github.com/scheron/Daily/releases)
 2. Download the `.dmg` file for macOS
@@ -121,7 +121,6 @@ The `assets/` folder stores any files attached to your tasks (images, documents,
 > - **macOS** will show a Gatekeeper warning. Follow the terminal instructions below to remove quarantine.
 >
 > This is intentional, as Daily is open-source and not distributed through centralized stores.  
-> You can verify all binaries are built from source on GitHub.
 
 ---
 
