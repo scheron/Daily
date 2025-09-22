@@ -27,6 +27,6 @@ const emit = defineEmits<{select: [date: ISODate], close: []}>()
       <slot name="trigger" :toggle="toggle" :hide="hide" :show="show" />
     </template>
 
-    <BaseCalendar mode="single" :days="days" :initial-month="activeDay" size="sm" @select-date="emit('select', $event)" />
+    <BaseCalendar mode="single" :days="days" :show-today-button="false" :initial-month="activeDay" size="sm" @select-date="emit('select', $event)" />
   </BasePopup>
 </template>

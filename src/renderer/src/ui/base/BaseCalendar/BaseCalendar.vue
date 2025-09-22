@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import {computed, onBeforeMount, ref, watch} from "vue"
-import {DateTime} from "luxon"
-
 import {isToday} from "@/utils/date"
-import BaseButton from "@/ui/base/BaseButton.vue"
-import {WEEKDAYS} from "./model/constants"
-import {formatDaysToMonth} from "./model/helpers"
+import {DateTime} from "luxon"
 
 import type {ISODate} from "@/types/date"
 import type {Day} from "@/types/tasks"
 import type {CalendarMode, CalendarSize, DateRange} from "./model/types"
+
+import BaseButton from "@/ui/base/BaseButton.vue"
+
+import {WEEKDAYS} from "./model/constants"
+import {formatDaysToMonth} from "./model/helpers"
 
 const props = withDefaults(
   defineProps<{
@@ -19,12 +20,14 @@ const props = withDefaults(
     selectedRange?: DateRange | null
     initialMonth?: ISODate
     size?: CalendarSize
+    showTodayButton?: boolean
   }>(),
   {
     mode: "single",
     selectedDate: null,
     selectedRange: null,
     size: "md",
+    showTodayButton: true,
   },
 )
 
@@ -75,10 +78,10 @@ function nextMonth() {
 
 function selectDate(isoDate: ISODate) {
   if (props.mode === "single") emit("select-date", isoDate)
-  else handleRangeSelection(isoDate)
+  else selectRange(isoDate)
 }
 
-function handleRangeSelection(isoDate: ISODate) {
+function selectRange(isoDate: ISODate) {
   const clickedDate = DateTime.fromISO(isoDate)
   const currentRange = props.selectedRange || {start: null, end: null}
 
@@ -90,6 +93,11 @@ function handleRangeSelection(isoDate: ISODate) {
 
     emit("update-range", newRange)
   }
+}
+
+function selectToday() {
+  currentMonth.value = DateTime.now()
+  selectDate(DateTime.now().toISODate()!)
 }
 
 function isDateSelected(isoDate: ISODate) {
@@ -151,12 +159,15 @@ onBeforeMount(() => {
 
 <template>
   <div class="flex-1">
-    <div class="mb-4 flex items-center justify-between">
-      <BaseButton variant="ghost" icon="chevron-left" @click="previousMonth" />
-      <h2 class="font-semibold capitalize" :class="sizeConfig.headerTextSize">
-        {{ monthYearDisplay }}
-      </h2>
-      <BaseButton variant="ghost" icon="chevron-right" @click="nextMonth" />
+    <div class="mb-4 gap-1 flex items-center justify-between">
+      <div class="flex flex-1 items-center justify-between gap-1">
+        <BaseButton variant="ghost" icon="chevron-left" @click="previousMonth" />
+        <h2 class="font-semibold capitalize" :class="sizeConfig.headerTextSize">
+          {{ monthYearDisplay }}
+        </h2>
+        <BaseButton variant="ghost" icon="chevron-right" @click="nextMonth" />
+      </div>
+      <BaseButton v-if="showTodayButton" variant="outline" icon-class="text-accent" class="border-accent" tooltip="Today" icon="today" @click="selectToday" />
     </div>
 
     <ul class="grid grid-cols-7 gap-1">
@@ -181,7 +192,7 @@ onBeforeMount(() => {
 
         <div
           v-if="day.dayInfo.countTotalTasks"
-          class="absolute right-0.5 top-0.5 size-2 rounded-full shadow-xs"
+          class="absolute top-0.5 right-0.5 size-2 rounded-full shadow-xs"
           :class="[day.dayInfo.countActiveTasks === 0 ? 'bg-success' : 'bg-warning']"
         />
       </BaseButton>
