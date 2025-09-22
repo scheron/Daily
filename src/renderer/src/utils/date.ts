@@ -131,3 +131,21 @@ export function secondsToTime(sec: number): {HH: string; mm: string; ss: string}
     ss: padZero(seconds),
   }
 }
+
+/**
+ * Gets the previous week's date from the given date
+ * @param {ISODate} currentDate - The current date
+ * @returns {ISODate} The date from the previous week
+ */
+export function getPreviousWeek(currentDate: ISODate): ISODate {
+  return DateTime.fromISO(currentDate).minus({weeks: 1}).toISODate()!
+}
+
+/**
+ * Gets the next week's date from the given date
+ * @param {ISODate} currentDate - The current date
+ * @returns {ISODate} The date from the next week
+ */
+export function getNextWeek(currentDate: ISODate): ISODate {
+  return DateTime.fromISO(currentDate).minus({weeks: -1}).toISODate()!
+}

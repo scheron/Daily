@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import {useTasksStore} from "@/stores/tasks.store"
 import {useUIStore} from "@/stores/ui.store"
+import {getNextWeek, getPreviousWeek} from "@/utils/date"
 
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseSpinner from "@/ui/base/BaseSpinner.vue"
@@ -11,7 +13,15 @@ defineProps<{
 }>()
 
 const uiStore = useUIStore()
+const tasksStore = useTasksStore()
 
+function goToPreviousWeek() {
+  tasksStore.setActiveDay(getPreviousWeek(tasksStore.activeDay))
+}
+
+function goToNextWeek() {
+  tasksStore.setActiveDay(getNextWeek(tasksStore.activeDay))
+}
 </script>
 
 <template>
@@ -23,6 +33,11 @@ const uiStore = useUIStore()
 
       <template v-else>
         <div class="text-base-content flex size-full flex-col pb-4">
+          <div class="border-base-300 flex items-center justify-center gap-1 border-b px-2 py-1">
+            <BaseButton variant="ghost" icon="chevron-left" size="sm" tooltip="Предыдущая неделя" @click="goToPreviousWeek()" />
+            <BaseButton variant="ghost" icon="chevron-right" size="sm" tooltip="Следующая неделя" @click="goToNextWeek()" />
+          </div>
+
           <div class="hide-scrollbar flex-1 overflow-y-auto px-1 py-4">
             <CalendarWeek />
           </div>
