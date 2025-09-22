@@ -2,6 +2,7 @@
 import {computed} from "vue"
 import {useFilterStore} from "@/stores/filter.store"
 import {useTasksStore} from "@/stores/tasks.store"
+import {filterTasksByStatus} from "@/utils/tasks"
 
 import BaseAnimation from "@/ui/base/BaseAnimation.vue"
 import BaseSpinner from "@/ui/base/BaseSpinner.vue"
@@ -17,19 +18,10 @@ const tasksStore = useTasksStore()
 const filterStore = useFilterStore()
 
 const filteredTasks = computed(() => {
-  const filter = filterStore.activeFilter
-
-  return tasksStore.dailyTasks
-    .filter((task) => {
-      if (filter === "all") return true
-      if (filter === "active") return task.status === "active"
-      if (filter === "done") return task.status === "done"
-      if (filter === "discarded") return task.status === "discarded"
-    })
-    .filter((task) => {
-      if (!filterStore.activeTagNames.size) return true
-      return task.tags.some((tag) => filterStore.activeTagNames.has(tag.name))
-    })
+  return filterTasksByStatus(tasksStore.dailyTasks, filterStore.activeFilter).filter((task) => {
+    if (!filterStore.activeTagNames.size) return true
+    return task.tags.some((tag) => filterStore.activeTagNames.has(tag.name))
+  })
 })
 </script>
 
@@ -41,7 +33,12 @@ const filteredTasks = computed(() => {
       <div v-else class="size-full flex-1 overflow-y-auto">
         <BaseAnimation name="fade" mode="out-in">
           <BaseSpinner v-if="!tasksStore.isDaysLoaded" />
-          <ContentNoTasks v-else-if="!filteredTasks.length" :date="tasksStore.activeDay" :filter="filterStore.activeFilter" @create-task="emit('createTask')" />
+          <ContentNoTasks
+            v-else-if="!filteredTasks.length"
+            :date="tasksStore.activeDay"
+            :filter="filterStore.activeFilter"
+            @create-task="emit('createTask')"
+          />
           <ContentTasksList v-else :key="String(tasksStore.activeDay + filterStore.activeFilter)" :tasks="filteredTasks" />
         </BaseAnimation>
       </div>

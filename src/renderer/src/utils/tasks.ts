@@ -1,6 +1,7 @@
 import {DateTime} from "luxon"
 
 import type {ISODate} from "@/types/date"
+import type {TasksFilter} from "@/types/filters"
 import type {Day, Tag, Task} from "@/types/tasks"
 
 import {arrayRemoveDuplicates} from "./arrays"
@@ -111,4 +112,9 @@ export function countTasks(tasks: Task[]) {
     },
     {active: 0, done: 0, discarded: 0, total: tasks.length},
   )
+}
+
+export function filterTasksByStatus(tasks: Task[], filter: TasksFilter): Task[] {
+  if (filter === "all") return tasks
+  return tasks.filter((task) => task.status === filter)
 }

@@ -2,7 +2,8 @@
 import {computed, watch} from "vue"
 import {useFilterStore} from "@/stores/filter.store"
 import {useTasksStore} from "@/stores/tasks.store"
-import {countTasks} from "@/utils/tasks"
+import {arrayRemoveDuplicates} from "@/utils/arrays"
+import {countTasks, filterTasksByStatus} from "@/utils/tasks"
 
 import type {TasksFilter} from "@/types/filters"
 import type {Tag} from "@/types/tasks"
@@ -22,6 +23,14 @@ const filterStore = useFilterStore()
 
 const taskCounts = computed(() => countTasks(tasksStore.dailyTasks))
 
+const filteredTags = computed(() => {
+  const filter = filterStore.activeFilter
+
+  const allTags = filterTasksByStatus(tasksStore.dailyTasks, filter).flatMap((task) => task.tags)
+
+  return arrayRemoveDuplicates(allTags, "name").sort((a, b) => a.name.localeCompare(b.name))
+})
+
 function onSelectTag(name: Tag["name"]) {
   filterStore.setActiveTags(name)
 }
@@ -37,12 +46,7 @@ watch(
 <template>
   <div class="bg-base-100 flex size-full flex-col gap-3 px-4 py-2 md:flex-row md:items-center md:justify-between">
     <div class="relative flex w-full flex-1 items-center gap-2">
-      <DynamicTagsPanel
-        :tags="tasksStore.dailyTags"
-        :selected-tags="filterStore.activeTagNames"
-        empty-message="No daily tags"
-        @select="onSelectTag"
-      />
+      <DynamicTagsPanel :tags="filteredTags" :selected-tags="filterStore.activeTagNames" empty-message="No daily tags" @select="onSelectTag" />
     </div>
 
     <div class="flex w-full shrink-0 items-center gap-3 md:w-auto">
