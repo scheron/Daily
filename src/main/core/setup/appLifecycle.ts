@@ -1,10 +1,11 @@
-import { app, BrowserWindow, nativeImage } from "electron"
+import {app, nativeImage} from "electron"
 
-import type { StorageController } from "../storage/controller.js"
+import type {BrowserWindow} from "electron"
+import type {StorageController} from "../storage/controller.js"
 
-import { APP_CONFIG, ENV, PATHS } from "../../config.js"
-import { notifyStorageSyncStatus, syncStorage } from "../storage/events.js"
-import { focusWindow } from "../windows.js"
+import {APP_CONFIG, ENV, PATHS} from "../../config.js"
+import {notifyStorageSyncStatus, syncStorage} from "../storage/events.js"
+import {focusWindow} from "../windows.js"
 
 export function setupAppProtocol() {
   app.setAsDefaultProtocolClient(APP_CONFIG.protocol)
@@ -70,7 +71,7 @@ export function setupActivateHandler(
     let mainWindow = getMainWindow()
     const storage = getStorage()
 
-    if (BrowserWindow.getAllWindows().length === 0) {
+    if (!mainWindow || mainWindow.isDestroyed()) {
       mainWindow = createMainWindow()
       setupWindowHandlers(mainWindow)
 

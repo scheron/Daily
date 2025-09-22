@@ -52,6 +52,15 @@ setupActivateHandler(
   () => {
     mainWindow = createMainWindow()
     setupWindowHandlers(mainWindow)
+    
+    mainWindow.on("closed", () => {
+      if (timerWindow && !timerWindow.isDestroyed()) {
+        timerWindow.close()
+        timerWindow = null
+      }
+      mainWindow = null
+    })
+    
     return mainWindow
   },
   setupWindowHandlers,
@@ -76,6 +85,15 @@ app.whenReady().then(async () => {
   mainWindow = createMainWindow()
   setupWindowHandlers(mainWindow)
   setupUpdateManager(mainWindow)
+
+  // Close timer window when main window is closed
+  mainWindow.on("closed", () => {
+    if (timerWindow && !timerWindow.isDestroyed()) {
+      timerWindow.close()
+      timerWindow = null
+    }
+    mainWindow = null
+  })
 
   setupSafeFileProtocol(storage)
   setupCSP()
