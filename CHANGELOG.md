@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.4.2 - 2025-09-22
+
+### ✨ New Features
+- **Calendar Navigation** - Added "Today" button functionality for quick navigation to current date
+- **Sidebar Navigation** - Added navigation buttons for previous and next week in minimized sidebar
+
+### 🐛 Bug Fixes
+- **Tags Display** - Fixed issue where tags were showing for all daily tasks instead of only filtered tasks
+- **Timer Window** - Fixed timer window not closing when main window is closed
+- **Styles** - Updated checkbox colors to use accent color variables for better consistency
+- **Markdown Elements** - Fixed background color for markdown elements to use muted background variable
+
+
+### 🏗️ Build Improvements
+- **Build Configuration** - Removed Windows and Linux build configurations, focusing on macOS-only support
+- **Icon Generation** - Update icon generation script for new macOS Tahoe version
+
+---
+
 ## v0.4.1 - 2025-08-31
 
 ### 🐛 Bug Fixes
