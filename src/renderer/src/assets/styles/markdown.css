@@ -13,7 +13,7 @@
   --focus-outlineColor: var(--color-accent);
   --fgColor-default: var(--color-base-content);
   --fgColor-muted: var(--color-base-200);
-  --fgColor-accent: var(--color-primary);
+  --fgColor-accent: var(--color-accent);
   --fgColor-success: var(--color-success);
   --fgColor-attention: var(--color-warning);
   --fgColor-danger: var(--color-error);
@@ -917,15 +917,15 @@
   -webkit-appearance: none;
   width: 1.2em;
   height: 1.2em;
-  border: 2px solid var(--borderColor-default);
+  border: 2px solid var(--fgColor-default);
   border-radius: 4px;
   vertical-align: middle;
   position: relative;
 }
 
 .markdown [type="checkbox"]:checked {
-  background-color: var(--color-primary);
-  border-color: var(--color-primary);
+  background-color: var(--fgColor-accent);
+  border-color: var(--fgColor-accent);
 }
 
 .markdown [type="checkbox"]:checked::after {
@@ -935,12 +935,11 @@
   top: 0.1em;
   width: 0.3em;
   height: 0.6em;
-  border: solid white;
+  border: solid var(--bgColor-default);
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
 }
 
-/* Remove bullet points for list items containing checkboxes */
 .markdown li:has([type="checkbox"]) {
   list-style-type: none;
 }
