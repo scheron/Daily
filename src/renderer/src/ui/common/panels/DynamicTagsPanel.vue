@@ -118,7 +118,7 @@ useResizeObserver(containerRef, calculateVisibleTags)
           :key="tag.name"
           variant="ghost"
           size="sm"
-          class="gap-0"
+          class="gap-0 w-full"
           icon-class="size-4"
           :class="isActiveTag(tag.name) ? 'bg-base-200' : ''"
           @click="onSelectTag(tag.name)"
