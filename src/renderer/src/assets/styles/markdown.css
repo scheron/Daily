@@ -102,13 +102,7 @@
   font-style: italic;
 }
 
-.markdown h1 {
-  margin: 0.67em 0;
-  font-weight: var(--base-text-weight-semibold, 600);
-  padding-bottom: 0.3em;
-  font-size: 2em;
-  border-bottom: 1px solid var(--fgColor-muted);
-}
+
 
 .markdown mark {
   background-color: var(--bgColor-attention-muted);
@@ -158,11 +152,11 @@
   box-sizing: content-box;
   overflow: hidden;
   background: transparent;
-  border-bottom: 1px solid var(--fgColor-muted);
+  border-bottom: 1px solid color-mix(in oklab, var(--fgColor-default) 40%, var(--fgColor-muted) 80%);
   height: 0.15em;
   padding: 0;
   margin: var(--base-size-4) 0;
-  background-color: var(--fgColor-muted);
+  background-color: color-mix(in oklab, var(--fgColor-default) 40%, var(--fgColor-muted) 80%);
   border: 0;
 }
 
@@ -309,16 +303,24 @@
   line-height: 1.25;
 }
 
+.markdown h1 {
+  margin: 0.67em 0;
+  font-weight: var(--base-text-weight-semibold, 600);
+  padding-bottom: 0.3em;
+  font-size: 1.3em;
+  border-bottom: 1px solid color-mix(in oklab, var(--fgColor-default) 40%, var(--fgColor-muted) 80%);
+}
+
 .markdown h2 {
   font-weight: var(--base-text-weight-semibold, 600);
   padding-bottom: 0.3em;
-  font-size: 1.5em;
-  border-bottom: 1px solid var(--fgColor-muted);
+  font-size: 1.2em;
+  border-bottom: 1px solid color-mix(in oklab, var(--fgColor-default) 40%, var(--fgColor-muted) 80%);
 }
 
 .markdown h3 {
   font-weight: var(--base-text-weight-semibold, 600);
-  font-size: 1.25em;
+  font-size: 1.1em;
 }
 
 .markdown h4 {
