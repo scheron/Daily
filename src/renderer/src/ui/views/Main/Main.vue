@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import {computed} from "vue"
-import {invoke} from "@vueuse/core"
 import {useContentSize} from "@/composables/useContentSize"
 import {useDevice} from "@/composables/useDevice"
 import {useStorageStore} from "@/stores/storage.store"

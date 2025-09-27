@@ -18,10 +18,14 @@ const tasksStore = useTasksStore()
 const filterStore = useFilterStore()
 
 const filteredTasks = computed(() => {
-  return filterTasksByStatus(tasksStore.dailyTasks, filterStore.activeFilter).filter((task) => {
-    if (!filterStore.activeTagNames.size) return true
-    return task.tags.some((tag) => filterStore.activeTagNames.has(tag.name))
-  })
+  const statusOrder = {active: 0, done: 1, discarded: 2}
+
+  return filterTasksByStatus(tasksStore.dailyTasks, filterStore.activeFilter)
+    .filter((task) => {
+      if (!filterStore.activeTagNames.size) return true
+      return task.tags.some((tag) => filterStore.activeTagNames.has(tag.name))
+    })
+    .sort((a, b) => statusOrder[a.status] - statusOrder[b.status])
 })
 </script>
 
