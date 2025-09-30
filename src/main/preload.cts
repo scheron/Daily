@@ -56,4 +56,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   onDeepLink: (callback: (url: string) => void) => ipcRenderer.on("deep-link", (_, url) => callback(url)),
   removeAllListeners: (channel: string) => ipcRenderer.removeAllListeners(channel),
+
+  updateVibrancy: (themeId: string) => ipcRenderer.invoke("update-vibrancy", themeId),
 })

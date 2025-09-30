@@ -32,6 +32,11 @@
   --color-success: var(--c-success);
   --color-warning: var(--c-warning);
   --color-error: var(--c-error);
+
+  /* Glassmorphism colors */
+  --color-glass-bg: var(--c-glass-bg);
+  --color-glass-border: var(--c-glass-border);
+  --color-glass-backdrop: var(--c-glass-backdrop);
 }
 
 @utility focus-visible-ring {

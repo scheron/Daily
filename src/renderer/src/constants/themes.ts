@@ -244,3 +244,47 @@ export const AyuDarkTheme: Theme = {
     error: "#F07178",
   },
 }
+
+/* -------------- Glassmorphism Themes -------------- */
+
+export const GlassmorphismLightTheme: Theme = {
+  id: "glassmorphism-light",
+  name: "Glassmorphism Light",
+  type: "light",
+  colorScheme: {
+    "base-100": "rgba(255, 255, 255, 0.25)",
+    "base-200": "rgba(255, 255, 255, 0.15)",
+    "base-300": "rgba(255, 255, 255, 0.1)",
+    "base-content": "oklch(20% 0.02 265.754)",
+    accent: "oklch(65% 0.15 230)",
+    info: "oklch(75% 0.15 200)",
+    success: "oklch(75% 0.15 120)",
+    warning: "oklch(75% 0.15 80)",
+    error: "oklch(70% 0.15 15)",
+    
+    "glass-bg": "rgba(255, 255, 255, 0.2)",
+    "glass-border": "rgba(255, 255, 255, 0.3)",
+    "glass-backdrop": "rgba(255, 255, 255, 0.1)",
+  },
+}
+
+export const GlassmorphismDarkTheme: Theme = {
+  id: "glassmorphism-dark",
+  name: "Glassmorphism Dark",
+  type: "dark",
+  colorScheme: {
+    "base-100": "rgba(0, 0, 0, 0.15)",
+    "base-200": "rgba(0, 0, 0, 0.0)",
+    "base-300": "rgba(0, 0, 0, 0.05)",
+    "base-content": "oklch(85% 0.01 265.754)",
+    accent: "oklch(70% 0.15 230)",
+    info: "oklch(75% 0.15 200)",
+    success: "oklch(75% 0.15 120)",
+    warning: "oklch(75% 0.15 80)",
+    error: "oklch(70% 0.15 15)",
+    
+    "glass-bg": "rgba(0, 0, 0, 0)",
+    "glass-border": "rgba(255, 255, 255, 0.1)",
+    "glass-backdrop": "rgba(0, 0, 0, 0.1)",
+  },
+}

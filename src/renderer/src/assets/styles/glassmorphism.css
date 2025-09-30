@@ -1,0 +1,126 @@
+/* Glassmorphism Effects - Only for glassmorphism themes */
+
+/* Theme-specific glassmorphism adjustments - only blur and transparency */
+.glassmorphism-light .glass-card {
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.glassmorphism-light .glass-panel {
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.glassmorphism-light .glass-modal {
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.glassmorphism-light .glass-button {
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  transition: all 0.3s ease;
+  color: rgba(0, 0, 0, 0.9);
+}
+
+.glassmorphism-light .glass-button:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.glassmorphism-light .glass-input {
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  color: rgba(0, 0, 0, 0.9);
+}
+
+.glassmorphism-dark .glass-card {
+  background: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.glassmorphism-dark .glass-panel {
+  background: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.glassmorphism-dark .glass-modal {
+  background: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.glassmorphism-dark .glass-button {
+  background: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  transition: all 0.3s ease;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.glassmorphism-dark .glass-button:hover {
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.glassmorphism-dark .glass-input {
+  background: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  color: rgba(255, 255, 255, 0.95);
+}
+
+/* Additional glassmorphism styles for interactive elements - only blur and transparency */
+.glassmorphism-light .bg-accent\/20 {
+  background: rgba(255, 255, 255, 0.25) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.glassmorphism-light .hover\:bg-accent\/30:hover {
+  background: rgba(255, 255, 255, 0.35) !important;
+}
+
+.glassmorphism-light .hover\:bg-base-200:hover {
+  background: rgba(255, 255, 255, 0.35) !important;
+}
+
+.glassmorphism-dark .bg-accent\/20 {
+  background: rgba(0, 0, 0, 0.25) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.glassmorphism-dark .hover\:bg-accent\/30:hover {
+  background: rgba(0, 0, 0, 0.35) !important;
+}
+
+.glassmorphism-dark .hover\:bg-base-200:hover {
+  background: rgba(0, 0, 0, 0.35) !important;
+}
+
+/* Animation for glassmorphism elements */
+@keyframes glass-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.glass-shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.1),
+    transparent
+  );
+  background-size: 200% 100%;
+  animation: glass-shimmer 2s infinite;
+}

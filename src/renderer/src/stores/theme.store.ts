@@ -71,6 +71,9 @@ export const useThemeStore = defineStore("theme", () => {
     (theme) => {
       applyThemeToDOM(theme.id)
       postTheme(theme.id)
+      
+      // Update window vibrancy (always enabled for better performance)
+      window.electronAPI.updateVibrancy(theme.id)
     },
     {immediate: true},
   )

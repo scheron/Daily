@@ -3,7 +3,7 @@ import {BrowserWindow, ipcMain} from "electron"
 import type {IStorageController, Tag, Task} from "../types.js"
 
 import {syncStorage} from "./storage/events.js"
-import {createTimerWindow} from "./windows.js"
+import {createTimerWindow, updateWindowVibrancy} from "./windows.js"
 
 export function setupStorageIPC(storage: IStorageController): void {
   if (!storage) {
@@ -129,6 +129,13 @@ export function setupWindowIPC(
 
   ipcMain.on("console:electron", (_event, ...args) => {
     console.log("[RENDERER]", ...args)
+  })
+
+  // Handle vibrancy updates for glassmorphism themes
+  ipcMain.handle("update-vibrancy", (_e, themeId: string) => {
+    if (mainWindow) {
+      updateWindowVibrancy(mainWindow, themeId)
+    }
   })
 }
 

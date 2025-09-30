@@ -15,6 +15,11 @@ export type ColorScheme = {
   success: string
   warning: string
   error: string
+
+  // Glassmorphism properties
+  "glass-bg"?: string
+  "glass-border"?: string
+  "glass-backdrop"?: string
 }
 
 export type Theme = {

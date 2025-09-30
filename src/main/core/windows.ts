@@ -16,13 +16,19 @@ export function createMainWindow(): BrowserWindow {
     show: false,
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
     icon: PATHS.icon,
+    // Enable vibrancy for macOS glassmorphism effects
+    ...(process.platform === "darwin" && {
+      vibrancy: "under-window",
+      visualEffectState: "active"
+    }),
     webPreferences: {
       preload: PATHS.preload,
       nodeIntegration: false,
       contextIsolation: true,
       webSecurity: true,
       allowRunningInsecureContent: false,
-      experimentalFeatures: false,
+      // Enable experimental features for backdrop-filter
+      experimentalFeatures: true,
     },
   })
 
@@ -38,6 +44,15 @@ export function createMainWindow(): BrowserWindow {
   })
 
   return mainWindow
+}
+
+// Function to update window vibrancy based on theme
+export function updateWindowVibrancy(window: BrowserWindow, themeId: string) {
+  if (process.platform === "darwin") {
+    // Always keep vibrancy enabled for better performance
+    // The visual effect is controlled by CSS transparency
+    window.setVibrancy("under-window");
+  }
 }
 
 export function createSplashWindow(): BrowserWindow {

@@ -2,6 +2,7 @@
 @import "./fonts.css";
 @import "tailwindcss";
 @import "./markdown.css";
+@import "./glassmorphism.css";
 
 :root {
   --sidebar-width: 300px;
@@ -60,4 +61,8 @@ body {
 }
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
+}
+
+.glassmorphism-dark .markdown {
+  background: rgba(0, 0, 0, 0) !important;
 }
