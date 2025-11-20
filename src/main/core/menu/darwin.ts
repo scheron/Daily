@@ -1,7 +1,8 @@
-import {app, dialog} from "electron"
+import {app, dialog, ipcMain} from "electron"
 
 import type {BrowserWindow, MenuItemConstructorOptions} from "electron"
 
+import {ENV} from "../../config.js"
 import {checkForUpdate} from "../setup/updater.js"
 
 export function createMacMenu(mainWindow: BrowserWindow): MenuItemConstructorOptions[] {
@@ -47,7 +48,18 @@ export function createMacMenu(mainWindow: BrowserWindow): MenuItemConstructorOpt
           click: () => mainWindow.webContents.send("toggle-sidebar"),
         },
         {type: "separator"},
-        ...(process.env.NODE_ENV === "development" ? [{role: "toggleDevTools" as const}] : []),
+        ...(ENV.isDevelopment
+          ? [
+              {role: "toggleDevTools" as const},
+              {
+                label: "DB Viewer",
+                accelerator: "CmdOrCtrl+Shift+D",
+                click: () => {
+                  ipcMain.emit("devtools:open")
+                },
+              },
+            ]
+          : []),
       ],
     },
     {

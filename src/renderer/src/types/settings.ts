@@ -1,8 +1,8 @@
 export type Settings = {
   themes: {
-    use_system: boolean
-    preferred_light: string
-    preferred_dark: string
+    useSystem: boolean
+    preferredLight: string
+    preferredDark: string
     current: string
   }
 

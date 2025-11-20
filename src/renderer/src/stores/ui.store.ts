@@ -1,10 +1,10 @@
 import {ref} from "vue"
 import {useDevice} from "@/composables/useDevice"
-import {useSettingsStore} from "@/composables/useSettingsStore"
+import {useSettingValue} from "@/composables/useSettingsValue"
 import {defineStore} from "pinia"
 
 export const useUIStore = defineStore("ui", () => {
-  const isSidebarCollapsed = useSettingsStore("sidebar.collapsed", false)
+  const isSidebarCollapsed = useSettingValue("sidebar.collapsed", false)
   const {isDesktop} = useDevice()
 
   const isMobileSidebarOpen = ref(false)

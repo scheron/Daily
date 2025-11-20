@@ -20,7 +20,7 @@ export function objectFilter<T extends Record<string, any>>(obj: T, filterCb: (v
  * getObjectValueFromPath(obj, "foo.bar.baz") // returns 123
  * getObjectValueFromPath(obj, "foo.bar") // returns { baz: 123 }
  * getObjectValueFromPath(obj, "foo-bar-baz", "-") // returns 123
- * 
+ *
  * @template T The type of the value to return
  * @param {Record<string, any>} obj - The object to get the value from
  * @param {string} path - The path to the value, separated by the delimiter
@@ -53,7 +53,7 @@ export function getObjectValueFromPath<T>(obj: Record<string, any>, path: string
  * transformObjectFromPath("foo.bar.baz", 123) // returns { foo: { bar: { baz: 123 } } }
  * transformObjectFromPath("foo.bar", { baz: 123 }) // returns { foo: { bar: { baz: 123 } } }
  * transformObjectFromPath("foo-bar-baz", 123, "-") // returns { foo: { bar: { baz: 123 } } }
- * 
+ *
  * @template T The type of the value to set
  * @param {string} path - The path where to set the value, separated by the delimiter
  * @param {T} value - The value to set at the path

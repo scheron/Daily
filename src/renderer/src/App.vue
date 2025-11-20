@@ -10,7 +10,7 @@ const tasksStore = useTasksStore()
 const tagsStore = useTagsStore()
 
 invoke(async () => {
-  await Promise.all([tasksStore.loadTasks(), tagsStore.loadTags()])
+  await Promise.all([tasksStore.getTaskList(), tagsStore.getTagList()])
 })
 </script>
 

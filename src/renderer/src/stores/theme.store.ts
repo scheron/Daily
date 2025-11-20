@@ -1,6 +1,6 @@
 import {computed, ref, watch} from "vue"
 import {useBroadcastChannel, watchOnce} from "@vueuse/core"
-import {useSettingsStore} from "@/composables/useSettingsStore"
+import {useSettingValue} from "@/composables/useSettingsValue"
 import {BROADCAST_CHANNELS} from "@/constants/events"
 import * as _themes from "@/constants/themes"
 import {defineStore} from "pinia"
@@ -14,10 +14,10 @@ export const useThemeStore = defineStore("theme", () => {
 
   const themes = ref<Theme[]>(Object.values(_themes))
 
-  const currentThemeId = useSettingsStore("themes.current", themes.value[8].id)
-  const preferredLightThemeId = useSettingsStore("themes.preferred_light", "aurora-light")
-  const preferredDarkThemeId = useSettingsStore("themes.preferred_dark", "aurora")
-  const isSystemThemeEnabled = useSettingsStore("themes.use_system", false)
+  const currentThemeId = useSettingValue("themes.current", themes.value[8].id)
+  const preferredLightThemeId = useSettingValue("themes.preferredLight", "aurora-light")
+  const preferredDarkThemeId = useSettingValue("themes.preferredDark", "aurora")
+  const isSystemThemeEnabled = useSettingValue("themes.useSystem", false)
 
   const currentTheme = computed<Theme>(() => themes.value.find(({id}) => id === currentThemeId.value) ?? themes.value[0])
   const preferredLightTheme = computed<Theme | null>(() => themes.value.find(({id}) => id === preferredLightThemeId.value) ?? null)

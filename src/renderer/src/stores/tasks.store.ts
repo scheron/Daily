@@ -34,11 +34,12 @@ export const useTasksStore = defineStore("tasks", () => {
     activeDay.value = date
   }
 
-  async function loadTasks() {
+  async function getTaskList() {
     isDaysLoaded.value = false
 
     try {
       const dailyTasks = await API.getDays()
+      console.log("[TASKS] Loaded tasks:", dailyTasks)
       days.value = dailyTasks
     } catch (error) {
       console.error("Failed to load tasks:", error)
@@ -150,7 +151,7 @@ export const useTasksStore = defineStore("tasks", () => {
     lastDeletedTasks,
 
     setActiveDay,
-    loadTasks,
+    getTaskList,
     findDailyTaskById,
     findTaskById,
     createTask,

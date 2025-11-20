@@ -6,8 +6,6 @@ import TodoList from "markdown-it-task-lists"
 
 import "highlight.js/styles/github-dark.css"
 
-type AssetPreviewMap = Record<string, string>
-
 export function useMarkdown() {
   const markdownIt = new MarkdownIt({
     html: true,
@@ -33,37 +31,7 @@ export function useMarkdown() {
   patchMarkdownItAnchors(markdownIt)
 
   function renderMarkdown(text: string) {
-    // Add safe-file:// prefix to images that don't have a protocol
-    const processedText = text.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, alt, src) => {
-      if (src.startsWith('http://') || src.startsWith('https://') || src.startsWith('data:') || src.startsWith('safe-file://') || src.startsWith('temp:')) {
-        return match
-      }
-      return `![${alt}](safe-file://${src})`
-    })
-    return markdownIt.render(processedText)
-  }
-
-  function applyPreviewImages(content: string, assets: AssetPreviewMap): string {
-    return content.replace(/!\[\]\(temp:([a-zA-Z0-9_-]+)\)/g, (_, id) => {
-      const dataUrl = assets[id]
-      return dataUrl ? `<img src="${dataUrl}" data-temp="${id}" alt="" />` : `![broken](temp:${id})`
-    })
-  }
-
-  function convertImagesToMarkdown(el: HTMLElement): string {
-    const clone = el.cloneNode(true) as HTMLElement
-    const imgs = clone.querySelectorAll("img[data-temp]")
-
-    for (const img of Array.from(imgs)) {
-      const id = img.getAttribute("data-temp")
-      if (!id) continue
-
-      const replacement = document.createElement("span")
-      replacement.innerText = `![](temp:${id})`
-      img.replaceWith(replacement)
-    }
-
-    return clone.innerText.trim()
+    return markdownIt.render(text)
   }
 
   function parseMarkdown(html: string) {
@@ -75,8 +43,6 @@ export function useMarkdown() {
   return {
     renderMarkdown,
     parseMarkdown,
-    applyPreviewImages,
-    convertImagesToMarkdown,
   }
 }
 

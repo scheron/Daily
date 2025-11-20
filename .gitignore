@@ -2,6 +2,7 @@ node_modules/
 dist/
 build/
 
+*.txt
 *.tsbuildinfo
 logs*
 .vscode
@@ -43,3 +44,5 @@ dist-ssr
 .actrc
 
 .secrets
+
+CLAUDE.md

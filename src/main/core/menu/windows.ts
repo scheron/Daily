@@ -1,6 +1,8 @@
-import {app, dialog} from "electron"
+import {app, dialog, ipcMain} from "electron"
 
 import type {BrowserWindow, MenuItemConstructorOptions} from "electron"
+
+import {ENV} from "../../config.js"
 
 export function createWindowsMenu(mainWindow: BrowserWindow): MenuItemConstructorOptions[] {
   return [
@@ -27,7 +29,18 @@ export function createWindowsMenu(mainWindow: BrowserWindow): MenuItemConstructo
       submenu: [
         {role: "reload"},
         {role: "forceReload"},
-        ...(process.env.NODE_ENV === "development" ? [{role: "toggleDevTools" as const}] : []),
+        ...(ENV.isDevelopment
+          ? [
+              {role: "toggleDevTools" as const},
+              {
+                label: "DB Viewer",
+                accelerator: "Ctrl+Shift+D",
+                click: () => {
+                  ipcMain.emit("devtools:open")
+                },
+              },
+            ]
+          : []),
         {type: "separator"},
         {role: "resetZoom"},
         {role: "zoomIn"},

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {Buffer} from "buffer"
 import {computed, onMounted, onUnmounted, useTemplateRef} from "vue"
 import {until, useEventListener} from "@vueuse/core"
 import {useClipboardPaste} from "@/composables/useClipboardPaste"
@@ -79,8 +80,7 @@ async function onSaveAndContinue() {
 }
 
 function clearEditor(params: {discardFiles: boolean; discardTags: boolean}) {
-  const {discardFiles, discardTags} = params
-  if (discardFiles) taskEditorStore.rollbackAssets()
+  const {discardTags} = params
 
   if (contentField.value) contentField.value.textContent = ""
   taskEditorStore.setEditorContent("")
@@ -118,11 +118,25 @@ useClipboardPaste(contentField, {
   onTextPaste: () => onInput(),
   onImagePaste: async (file) => {
     const reader = new FileReader()
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       const dataUrl = e.target?.result as string
-      const {id} = taskEditorStore.stageAsset(dataUrl, file.name)
-      insertText(`![](temp:${id})`)
-      onInput()
+
+      const [, base64] = dataUrl.split(",")
+      const binary = atob(base64)
+      const len = binary.length
+      const arr = new Uint8Array(len)
+      for (let i = 0; i < len; i++) arr[i] = binary.charCodeAt(i)
+      const buffer = Buffer.from(arr)
+
+      try {
+        console.log("Saving file:", file.name)
+        const id = await window.electronAPI.saveFile(file.name, buffer)
+        const url = await window.electronAPI.getFilePath(id)
+        insertText(`![](${url})`)
+        onInput()
+      } catch (error) {
+        console.error("Failed to save file:", error)
+      }
     }
     reader.readAsDataURL(file)
   },

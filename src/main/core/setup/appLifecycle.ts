@@ -1,7 +1,7 @@
 import {app, nativeImage} from "electron"
 
 import type {BrowserWindow} from "electron"
-import type {StorageController} from "../storage/controller.js"
+import type {StorageController} from "../storage/StorageController.js"
 
 import {APP_CONFIG, ENV, PATHS} from "../../config.js"
 import {notifyStorageSyncStatus, syncStorage} from "../storage/events.js"

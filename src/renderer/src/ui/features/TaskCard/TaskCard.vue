@@ -26,6 +26,8 @@ const contentRef = useTemplateRef<HTMLElement>("content")
 const {renderMarkdown} = useMarkdown()
 
 function onChangeStatus(status: TaskStatus) {
+  if(props.task.status === status) return
+
   tasksStore.updateTask(props.task.id, {status})
 }
 
@@ -73,7 +75,7 @@ watch(
   <div
     class="group bg-base-100 hover:shadow-accent/5 relative overflow-hidden rounded-xl border transition-all duration-200 hover:shadow-lg"
     :class="{
-      'border-success/30  hover:border-success/40': task.status === 'done',
+      'border-success/30 hover:border-success/40': task.status === 'done',
       'border-warning/30 hover:border-warning/40': task.status === 'discarded',
       'border-base-300 hover:border-base-content/20': task.status === 'active',
     }"
@@ -98,7 +100,7 @@ watch(
       </div>
 
       <div class="mb-5 transition-opacity duration-200" :class="{'opacity-50': ['done', 'discarded'].includes(task.status)}">
-        <div ref="content" class="markdown prose prose-sm max-w-none leading-relaxed break-words transition-all duration-200" />
+        <div ref="content" class="markdown prose prose-sm wrap-break-words max-w-none leading-relaxed transition-all duration-200" />
       </div>
     </div>
   </div>

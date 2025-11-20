@@ -1,16 +1,17 @@
 import {BrowserWindow, shell} from "electron"
 
-import {APP_CONFIG, PATHS} from "../config.js"
 import type {Task} from "../types.js"
+
+import {APP_CONFIG, PATHS} from "../config.js"
 
 export function createMainWindow(): BrowserWindow {
   const mainWindow = new BrowserWindow({
+    title: APP_CONFIG.name,
     width: APP_CONFIG.window.main.width,
     minWidth: APP_CONFIG.window.main.minWidth,
     height: APP_CONFIG.window.main.height,
     minHeight: APP_CONFIG.window.main.minHeight,
     center: true,
-    title: APP_CONFIG.name,
     transparent: true,
     frame: false,
     show: false,
@@ -198,11 +199,6 @@ export function createSplashWindow(): BrowserWindow {
   return splashWindow
 }
 
-export function focusWindow(win: BrowserWindow) {
-  if (win.isMinimized()) win.restore()
-  win.focus()
-}
-
 export function createTimerWindow(taskId?: Task["id"]): BrowserWindow {
   const timerWindow = new BrowserWindow({
     title: "Daily Timer",
@@ -240,4 +236,47 @@ export function createTimerWindow(taskId?: Task["id"]): BrowserWindow {
   })
 
   return timerWindow
+}
+
+export function createDevToolsWindow(): BrowserWindow {
+  const devToolsWindow = new BrowserWindow({
+    title: "Daily · DB Viewer",
+    width: APP_CONFIG.window.devTools.width,
+    minWidth: APP_CONFIG.window.devTools.minWidth,
+    height: APP_CONFIG.window.devTools.height,
+    minHeight: APP_CONFIG.window.devTools.minHeight,
+    show: false,
+    icon: PATHS.icon,
+    frame: false,
+    backgroundColor: "#1c1e2e",
+    webPreferences: {
+      devTools: true,
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: PATHS.preload,
+      webSecurity: true,
+    },
+  })
+
+  if (typeof PATHS.renderer === "string" && PATHS.renderer.startsWith("http")) {
+    devToolsWindow.loadURL(`${PATHS.renderer}#/db-viewer`)
+  } else {
+    devToolsWindow.loadFile(PATHS.renderer, {hash: "/db-viewer"})
+  }
+
+  devToolsWindow.webContents.setWindowOpenHandler(({url}) => {
+    shell.openExternal(url)
+    return {action: "deny"}
+  })
+
+  devToolsWindow.once("ready-to-show", () => {
+    devToolsWindow.show()
+  })
+
+  return devToolsWindow
+}
+
+export function focusWindow(win: BrowserWindow) {
+  if (win.isMinimized()) win.restore()
+  win.focus()
 }

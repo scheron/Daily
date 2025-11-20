@@ -1,19 +1,80 @@
 # Changelog
 
+## [unreleased]
+
+### ✨ New Features
+
+- **PouchDB Storage Migration** - Complete migration from Obsidian-like file storage to PouchDB
+  - Implemented PouchDB storage layer with document-based architecture
+  - Created comprehensive migration script for seamless data transition
+  - Added support for local database with PouchDB-Find for efficient querying
+
+- **File Attachments System** - Full support for attaching files to tasks
+  - CRUD operations for file attachments with PouchDB `_attachments`
+  - Custom protocol handler (`daily://file/{id}`) for secure file access
+  - File metadata storage with FileModel and FilesService
+  - Integrated attachment management directly in tasks
+
+- **Enhanced Tag Management** - Improved tag system with database integration
+  - Full CRUD operations for tags through TagModel and TagsService
+  - Task-tag associations with normalized storage (tags stored as string references)
+  - Tag hydration in service layer for rich domain objects
+  - O(1) tag lookup with Map-based caching
+
+- **DB Viewer Tool** - Developer tool for database inspection
+  - In-app database viewer accessible via menu
+  - IPC integration for document management
+  - Real-time view of PouchDB documents and structure
+
+### 🏗️ Architecture Refactoring
+
+- **Storage Layer Redesign** - Multi-layered storage architecture
+  - Implemented StorageController facade pattern coordinating all services
+  - Created Service Layer (TasksService, TagsService, FilesService, SettingsService)
+  - Built Model Layer for direct PouchDB operations (TaskModel, TagModel, FileModel, SettingsModel)
+  - Added Mapper Layer for bidirectional transformation between domain models and documents
+
+- **Document Mappers** - Clean separation between domain and storage
+  - `taskToDoc()` / `docToTask()` - Task ↔ TaskDoc transformation
+  - `tagToDoc()` / `docToTag()` - Tag ↔ TagDoc transformation
+  - `settingsToDoc()` / `docToSettings()` - Settings ↔ SettingsDoc transformation
+  - `fileToDoc()` / `docToFile()` - File ↔ FileDoc transformation
+  - Document ID strategy with type prefixes (task:, tag:, file:, settings:)
+
+- **IPC Reorganization** - Improved IPC handler structure
+  - Reorganized IPC setup into logical modules (storage, window, timer, menu, devtools)
+  - Better separation of concerns for IPC handlers
+  - Updated window handling for better lifecycle management
+  - Enhanced storage interaction patterns
+
+### 🔄 Storage Improvements
+
+- **Settings Service** - Streamlined settings management
+  - Replaced DbSettingsService with unified SettingsService
+  - Single document storage pattern (settings:default)
+  - Deep merge updates for settings changes
+
+- **Asset to File Naming** - Consistent terminology throughout codebase
+  - Renamed asset handling to file handling for clarity
+  - Updated all related services, types, and IPC handlers
+  - Renamed `getAssetResponse` to `createAssetResponse`
+
 ## v0.4.2 - 2025-09-22
 
 ### ✨ New Features
+
 - **Calendar Navigation** - Added "Today" button functionality for quick navigation to current date
 - **Sidebar Navigation** - Added navigation buttons for previous and next week in minimized sidebar
 
 ### 🐛 Bug Fixes
+
 - **Tags Display** - Fixed issue where tags were showing for all daily tasks instead of only filtered tasks
 - **Timer Window** - Fixed timer window not closing when main window is closed
 - **Styles** - Updated checkbox colors to use accent color variables for better consistency
 - **Markdown Elements** - Fixed background color for markdown elements to use muted background variable
 
-
 ### 🏗️ Build Improvements
+
 - **Build Configuration** - Removed Windows and Linux build configurations, focusing on macOS-only support
 - **Icon Generation** - Update icon generation script for new macOS Tahoe version
 
@@ -22,8 +83,8 @@
 ## v0.4.1 - 2025-08-31
 
 ### 🐛 Bug Fixes
-- Fixed color fill not working when holding delete task button
 
+- Fixed color fill not working when holding delete task button
 
 ## v0.4.0 - 2025-08-31
 
@@ -43,12 +104,12 @@
 
 ### 🎨 UI/UX Improvements
 
-- **🎨 Major Interface Redesign** 
-  
-  | Before | After |
-  |--------|-------|
+- **🎨 Major Interface Redesign**
+
+  | Before                             | After                             |
+  | ---------------------------------- | --------------------------------- |
   | ![Previous Design](media/Demo.png) | ![New Design](media/Demo-new.png) |
-  
+
 - **Enhanced Task Cards** - Redesigned task items with better visual hierarchy
   - Better visual indicators for task status
   - Cleaner presentation of time information
@@ -68,11 +129,12 @@
 
 - fix: issue where save&continue not saves tags
 - refactor(ui): reorganize components into common directory structure
- feat: add watch on add or delete current robot portfolios for subscribe
+  feat: add watch on add or delete current robot portfolios for subscribe
 
 ## v0.3.6 - 2025-08-25
 
 ### ✨ New Features
+
 - **Task Rescheduling** - Tasks are now flexible! Move them to any day you want with the new **Move Task** option in edit mode.
 
 ---
@@ -80,9 +142,11 @@
 ## v0.3.5 - 2025-08-17
 
 ### 🐛 Bug Fixes
+
 - **Task Editor** - Fixed issue where "Save & Continue" action was resetting previously assigned tags instead of preserving them
 
 ### 🏗️ Code Organization
+
 - Improved UI components structure for better maintainability
 
 ---
@@ -90,10 +154,12 @@
 ## v0.3.4 - 2025-07-06
 
 ### 🎨 UI/UX Improvements
+
 - **Theme flexibility** - Dark themes can now be used with light mode system preferences
 - **Task styling** - Removed line-through style for completed tasks for better readability
 
 ### 🏗️ Architecture Refactoring
+
 - **Enhanced app lifecycle management** - Consolidated setup functions and improved protocol handling
 - Improved CSP (Content Security Policy) setup
 - Better protocol handling for deep links and file associations
@@ -104,22 +170,25 @@
 ## v0.3.3 - 2025-06-26
 
 ### 🏗️ Architecture Refactoring
+
 - **Major storage architecture refactoring** - Complete overhaul of the storage system with new modular architecture
 - Streamlined storage migration process with consolidated migration logic
 - Enhanced asset and config handling capabilities
 
-### 🔧 Code Organization Improvements  
+### 🔧 Code Organization Improvements
+
 - Reorganized main process structure for better maintainability:
   - Moved core functionality to dedicated `core/` directory
   - Split IPC handlers into logical modules (`core/ipc.ts`)
-  - Reorganized menu handlers (`core/menu/`) 
+  - Reorganized menu handlers (`core/menu/`)
   - Improved setup modules (`core/setup/`)
 - Updated main entry point architecture for better static file handling
 - Consolidated utility functions with new helper modules
 - Added caching utilities and improved file handling
 
 ### 🧹 Cleanup & Performance
-- Removed legacy storage manager implementation 
+
+- Removed legacy storage manager implementation
 - Eliminated deprecated helper functions and unused code
 - Improved development server and build scripts
 
@@ -128,6 +197,7 @@
 ## v0.3.2 - 2025-06-25
 
 ### 🔄 Storage Improvements
+
 - Performance improvements with caching system
 
 ---
@@ -135,6 +205,7 @@
 ## v0.3.1 - 2025-06-23
 
 ### 🔄 Storage Synchronization
+
 - Cross-device storage sync with automatic synchronization
 - Performance improvements for large storage operations
 - Real-time sync status with loading indicators
@@ -144,6 +215,7 @@
 ## v0.3.0 - 2025-06-22
 
 ### ✨ Obsidian-like File Storage
+
 - Tasks now stored as individual markdown files with YAML frontmatter
 - Organized by date in Documents/Daily/YYYY-MM-DD/ structure
 - Local-first approach with cloud sync compatibility
@@ -155,6 +227,7 @@
 ## v0.2.1 - 2025-06-16
 
 ### Bug Fixes
+
 - Fixed the issue where the app wouldn't apply the system theme on launch
 
 ---
@@ -169,12 +242,11 @@ No cloud. No accounts. Just tasks, just days.
 
 #### 📦 Download
 
-| OS      | Installer                                              |
-|---------|---------------------------------------------------------|
+| OS       | Installer                                                                                    |
+| -------- | -------------------------------------------------------------------------------------------- |
 | 🖥 macOS | [Download `.dmg`](https://github.com/scheron/Daily/releases/download/v0.2.0/Daily-0.2.0.dmg) |
 
 > If you see a warning about an unverified developer, [follow the update instructions](https://github.com/scheron/Daily#-updating).
-
 
 #### ✨ Features
 
@@ -189,6 +261,5 @@ No cloud. No accounts. Just tasks, just days.
 
 Daily doesn’t auto-update. You’re in control.  
 Update instructions: [#-updating](https://github.com/scheron/Daily#-updating)
-
 
 Let Daily help you stay on track — one day at a time. ☀️

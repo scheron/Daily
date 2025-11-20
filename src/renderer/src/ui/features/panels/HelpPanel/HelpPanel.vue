@@ -3,7 +3,6 @@ import BaseIcon from "@/ui/base/BaseIcon"
 
 import About from "./fragments/About.vue"
 import Shortcuts from "./fragments/Shortcuts.vue"
-import StorageSettings from "./fragments/StorageSettings.vue"
 </script>
 
 <template>
@@ -32,10 +31,10 @@ import StorageSettings from "./fragments/StorageSettings.vue"
     <div>
       <div class="border-base-300 text-accent mb-2 flex items-center gap-1 border-b pb-1 text-xs font-bold uppercase select-none">
         <BaseIcon name="folder" class="size-4" />
-        Storage
+        Export
       </div>
       <div class="flex flex-col gap-1 px-2">
-        <StorageSettings />
+        <p class="text-base-content/70 text-xs">In development ...</p>
       </div>
     </div>
   </div>

@@ -10,11 +10,11 @@ export const useTagsStore = defineStore("tags", () => {
 
   const tagsMap = computed(() => new Map<Tag["name"], Tag>(tags.value.map((tag) => [tag.name, tag])))
 
-  async function loadTags() {
+  async function getTagList() {
     isTagsLoaded.value = false
 
     try {
-      const loadedTags = await API.getTags()
+      const loadedTags = await API.getTagList()
       tags.value = loadedTags
     } catch (error) {
       console.error("Error loading tags:", error)
@@ -24,7 +24,7 @@ export const useTagsStore = defineStore("tags", () => {
   }
 
   async function createTag(name: string, color: string, emoji?: string) {
-    const newTag = await API.createTag(name, color, emoji)
+    const newTag = await API.createTag({name, color, emoji: emoji ?? "#"})
     if (!newTag) return null
 
     tags.value.push(newTag)
@@ -43,7 +43,7 @@ export const useTagsStore = defineStore("tags", () => {
 
   async function revalidate() {
     try {
-      const loadedTags = await API.getTags()
+      const loadedTags = await API.getTagList()
       tags.value = loadedTags
     } catch (error) {
       console.error("Error revalidating tags:", error)
@@ -55,7 +55,7 @@ export const useTagsStore = defineStore("tags", () => {
     tags,
     tagsMap,
 
-    loadTags,
+    getTagList,
     createTag,
     deleteTag,
 

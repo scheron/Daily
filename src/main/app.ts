@@ -1,9 +1,9 @@
-import {app} from "electron"
+import {app, protocol} from "electron"
 
 import type {BrowserWindow} from "electron"
 
 import {APP_CONFIG} from "./config.js"
-import {setupMenuIPC, setupStorageIPC, setupWindowIPC} from "./core/ipc.js"
+import {setupDbViewerIPC, setupDevToolsIPC, setupWindowIPC as setupMainWindowIPC, setupMenuIPC, setupStorageIPC, setupTimerIPC} from "./core/setup/ipc.js"
 import {setupMenu} from "./core/menu/base.js"
 import {
   setupActivateHandler,
@@ -17,7 +17,7 @@ import {setupCSP} from "./core/setup/csp.js"
 import {handleDeepLink, setupDeepLinks} from "./core/setup/deepLinks.js"
 import {setupSafeFileProtocol} from "./core/setup/protocols.js"
 import {setupUpdateManager} from "./core/setup/updater.js"
-import {StorageController} from "./core/storage/controller.js"
+import {StorageController} from "./core/storage/StorageController.js"
 import {setupStorageEvents} from "./core/storage/events.js"
 import {createMainWindow, createSplashWindow, focusWindow} from "./core/windows.js"
 import {sleep} from "./utils/common.js"
@@ -26,14 +26,19 @@ let storage: StorageController
 let mainWindow: BrowserWindow | null = null
 let splashWindow: BrowserWindow | null = null
 let timerWindow: BrowserWindow | null = null
+let devToolsWindow: BrowserWindow | null = null
 
-const setupWindowHandlers = (window: BrowserWindow) => {
-  // prettier-ignore
-  setupWindowIPC(window, () => timerWindow, (win) => (timerWindow = win))
-  setupMenuIPC(window)
-  setupMenu(window)
-  setupDeepLinks(window)
-  setupStorageEvents(() => mainWindow)
+APP_CONFIG.privilegedSchemes.forEach((scheme) => protocol.registerSchemesAsPrivileged([scheme]))
+
+// prettier-ignore
+function setupWindowHandlers(window: BrowserWindow) {
+  setupMainWindowIPC(() => window)
+  setupTimerIPC(() => window, () => timerWindow, (win) => (timerWindow = win))
+  setupDevToolsIPC(() => window, () => devToolsWindow, (win) => (devToolsWindow = win))
+  setupMenuIPC(() => window)
+  setupMenu(() => window)
+  setupDeepLinks(() => window)
+  setupStorageEvents(() => window)
 }
 
 setupAppProtocol()
@@ -52,7 +57,7 @@ setupActivateHandler(
   () => {
     mainWindow = createMainWindow()
     setupWindowHandlers(mainWindow)
-    
+
     mainWindow.on("closed", () => {
       if (timerWindow && !timerWindow.isDestroyed()) {
         timerWindow.close()
@@ -60,7 +65,7 @@ setupActivateHandler(
       }
       mainWindow = null
     })
-    
+
     return mainWindow
   },
   setupWindowHandlers,
@@ -72,8 +77,11 @@ app.whenReady().then(async () => {
   storage = new StorageController()
   try {
     await storage.init()
-    await storage.cleanupOrphanAssets()
+    await storage.cleanupOrphanFiles()
+
     console.log(`✅ Storage initialized`)
+
+    await setupDbViewerIPC()
   } catch (err) {
     console.error("❌ Failed to initialize storage:", err)
     app.quit()
@@ -83,6 +91,7 @@ app.whenReady().then(async () => {
   setupStorageIPC(storage)
 
   mainWindow = createMainWindow()
+
   setupWindowHandlers(mainWindow)
   setupUpdateManager(mainWindow)
 

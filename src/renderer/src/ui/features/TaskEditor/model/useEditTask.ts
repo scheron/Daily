@@ -10,11 +10,8 @@ export function useEditTask() {
     const text = content.trim()
     if (!text) return false
 
-    const committed = await taskEditorStore.commitAssets()
-    const finalContent = taskEditorStore.replaceAttachments(text, committed)
-
     return await tasksStore.createTask({
-      content: finalContent,
+      content: text,
       tags: taskEditorStore.editorTags,
     })
   }
@@ -25,11 +22,8 @@ export function useEditTask() {
     const text = content.trim()
     if (!text) return false
 
-    const committed = await taskEditorStore.commitAssets()
-    const finalContent = taskEditorStore.replaceAttachments(text, committed)
-
     return await tasksStore.updateTask(taskEditorStore.currentEditingTask.id, {
-      content: finalContent,
+      content: text,
       tags: taskEditorStore.editorTags,
     })
   }

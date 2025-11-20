@@ -1,3 +1,5 @@
+import {APP_CONFIG} from "../config.js"
+
 export function getMimeType(ext: string): string {
   switch (ext.toLowerCase()) {
     case "png":
@@ -16,21 +18,21 @@ export function getMimeType(ext: string): string {
   }
 }
 
-export function extractFilenames(content: string): string[] {
-  // Match both formats:
-  // ![alt](filename.ext) - clean format
-  // ![alt](safe-file://filename.ext) - with protocol
-  const patterns = [
-    /!\[[^\]]*\]\(\s*safe-file:\/\/([^)\s]+)\s*\)/g, // with safe-file:// prefix
-    /!\[[^\]]*\]\(\s*(?!(?:https?|data|temp|safe-file):)([^)\s]+)\s*\)/g, // without protocol
-  ]
+/**
+ * Extract file IDs from content
+ * Example: ![alt](daily://file/abc123) → extract ["abc123"]
+ * @param content Markdown content that may contain file references
+ * @returns Array of file IDs (without protocol prefix)
+ */
+export function extractFileIds(content: string): string[] {
+  const fileIds = new Set<string>()
 
-  const filenames = new Set<string>()
-  for (const re of patterns) {
-    for (const match of content.matchAll(re)) {
-      filenames.add(match[1])
-    }
+  const escapedProtocol = APP_CONFIG.filesProtocol.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  const regex = new RegExp(`!\\[[^\\]]*\\]\\(\\s*${escapedProtocol}\\/([a-zA-Z0-9_-]+)\\s*\\)`, "g")
+  
+  for (const match of content.matchAll(regex)) {
+    fileIds.add(match[1])
   }
 
-  return Array.from(filenames)
+  return Array.from(fileIds)
 }

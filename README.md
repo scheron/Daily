@@ -37,74 +37,49 @@ Just a lightweight, local tool to help me stay on track, one day at a time.
 
 ### ✨ Features
 
-- **Day-centric workflow** — organize tasks by date
-- **Calendar navigation** 📅 — jump to any day
-- **Task management** ✅ — add, edit, complete tasks
-- **Time tracking** ⏱️ — estimate task duration and track time with a built-in timer
-- **Dedicated timer window** 🪟 — focus with a convenient separate timer interface
-- **Quick retrospectives** — see yesterday, plan today
-- **Tags** 🏷️ — group tasks by project or context
-- **Markdown support** 📝 — rich formatting with keyboard
-- **Obsidian-like storage** 📁 — local storage in markdown format with individual task files
-- **Multiple themes** 🎨 — choose from 9+ UI themes
+- **Day-centric workflow** 📅 — organize tasks by date, focus on what matters today
+- **Calendar navigation** — jump to any day, review past work, plan ahead
+- **Rich task content** 📝 — markdown formatting, embedded images, file attachments
+- **Time tracking** ⏱️ — estimate how long tasks will take, track actual time spent
+- **Focus timer** 🪟 — dedicated timer window to stay concentrated on one task
+- **Quick retrospectives** — see what you did yesterday, plan what you'll do today
+- **Smart organization** 🏷️ — group tasks by project, priority, or context with tags
+- **Beautiful themes** 🎨 — choose from 9+ UI themes to match any style
+- **100% offline** 📁 — everything stored locally, no internet required
+- **Keyboard shortcuts** ⌨️ — navigate and manage tasks without touching your mouse
 
 ---
 
-## 📁 Task Storage
+## 💾 Data Privacy & Control
 
-Daily uses an **Obsidian-like storage system** that keeps tasks as individual markdown files, making them easy to sync, backup, and access from anywhere.
+Daily stores everything locally on Mac — no accounts, no cloud dependency, no subscription fees.
 
-### File Structure
+### Rich Task Content
 
-```
-Documents/
-└── Daily/
-    ├── 2024-01-15/
-    │   ├── task_abc123.md
-    │   └── task_def456.md
-    ├── 2024-01-16/
-    │   └── task_ghi789.md
-    ├── .meta.json
-    ├── .config.json
-    └── assets/          # Attached files (images, documents, etc.)
-```
+Create tasks with everything you need:
 
-### Task Files
+- **📝 Markdown formatting** — headers, lists, links, code blocks
+- **🖼️ Images & Screenshots** — paste images directly with `Cmd+V` or drag & drop
+- **⏱️ Time Tracking** — set estimates and track actual time spent
+- **🏷️ Tags** — organize tasks by project, priority, or context
 
-Each task is stored as a separate `.md` file with YAML frontmatter containing metadata:
+### Why Local Storage?
 
-```markdown
----
-id: task_abc123
-date: 2024-01-15
-status: done
-estimated: 4 h. 30 min.
-spent: 1 h.
-tags: [work, project]
----
-
-Complete the feature implementation and write documentation
-```
-
-### Assets
-
-The `assets/` folder stores any files attached to your tasks (images, documents, etc.). When you attach a file to a task, it's automatically copied to this folder with a unique filename, ensuring your attachments stay organized and accessible.
-
-### Benefits
-
-- **🔄 Easy Sync** — Works with any cloud service (Dropbox, iCloud, Google Drive)
-- **📝 Human Readable** — Tasks are plain markdown files you can edit manually
-- **🔒 Local First** — Your data stays on your device, no cloud required
-- **📦 Portable** — Copy the entire folder to backup or move between devices
-- **🔍 Version Control** — Perfect for Git repositories to track changes over time
-- **🛠️ Interoperable** — Use with other markdown editors or tools
+- **⚡ Blazing Fast** — instant search and navigation, no loading spinners
+- **🔒 100% Private** — tasks never leave the device
+- **✈️ Always Available** — work offline, no internet required
+- **💰 Zero Cost** — no cloud subscriptions or storage fees
+- **🛡️ Safe & Reliable** — automatic conflict prevention, no data loss
+- **📦 Easy Backup** — simple export for backups or migration
 
 ---
 
-### 🗺️ Planned
+### 🗺️ Coming Soon
 
-- **AI-powered search** 🔍 — search across tasks intelligently
-- **Voice-to-task** 🎤 — jot down ideas while walking
+- **File attachments** 📎 — attach documents, PDFs, and any files to tasks
+- **Multi-device sync** 🔄 — seamlessly sync tasks across all devices
+- **Smart search** 🔍 — find any task instantly with AI-powered search
+- **Voice capture** 🎤 — create tasks hands-free while walking or driving
 
 ---
 
@@ -155,4 +130,4 @@ Or just download the latest version from the [Releases](https://github.com/scher
 
 ---
 
-Enjoy using **Daily** — your tasks, your days. ☀️
+Enjoy using **Daily** — organize tasks, own the days. ☀️

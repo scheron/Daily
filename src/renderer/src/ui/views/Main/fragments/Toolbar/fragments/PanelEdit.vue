@@ -34,12 +34,9 @@ async function onSave() {
   const content = taskEditorStore.editorContent.trim()
   if (!content) return
 
-  const committed = await taskEditorStore.commitAssets()
-  const finalContent = taskEditorStore.replaceAttachments(content, committed)
-
   if (isNewTask.value) {
     const isSuccess = await tasksStore.createTask({
-      content: finalContent,
+      content,
       tags: taskEditorStore.editorTags,
       estimatedTime: estimated.hours * 3600 + estimated.minutes * 60,
     })
@@ -50,7 +47,7 @@ async function onSave() {
     onClose()
   } else {
     const isSuccess = await tasksStore.updateTask(taskEditorStore.currentEditingTask!.id, {
-      content: finalContent,
+      content,
       tags: taskEditorStore.editorTags,
       status: "active",
       estimatedTime: estimated.hours * 3600 + estimated.minutes * 60,
@@ -66,7 +63,6 @@ async function onSave() {
 function onClose() {
   taskEditorStore.setCurrentEditingTask(null)
   taskEditorStore.setEditorTags([])
-  taskEditorStore.rollbackAssets()
   taskEditorStore.setIsTaskEditorOpen(false)
 
   emit("close")
