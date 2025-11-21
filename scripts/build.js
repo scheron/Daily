@@ -22,7 +22,7 @@ function buildMain() {
 }
 
 function copyStaticFiles() {
-  const resourcesSrc = Path.join(__dirname, "..", "src", "main", "resources")
+  const resourcesSrc = Path.join(__dirname, "..", "resources")
   const staticDest = Path.join(__dirname, "..", "build", "main", "static")
   
   if (FileSystem.existsSync(resourcesSrc)) {

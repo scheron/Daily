@@ -77,10 +77,8 @@ The working dir of Electron is build/main instead of src/main because of TS.
 tsc does not copy static files, so copy them over manually for dev server.
 */
 function copy(path) {
-  const srcPath = join(__dirname, "..", "src", "main", path)
-  const destPath = path === "resources" 
-    ? join(__dirname, "..", "build", "main", "static")
-    : join(__dirname, "..", "build", "main", path)
+  const srcPath = path === "resources" ? join(__dirname, "..", "resources") : join(__dirname, "..", "src", "main", path)
+  const destPath = path === "resources" ? join(__dirname, "..", "build", "main", "static") : join(__dirname, "..", "build", "main", path)
   cpSync(srcPath, destPath, {recursive: true})
 }
 
@@ -100,9 +98,11 @@ async function start() {
   copyStaticFiles()
   startElectron()
 
-  const path = join(__dirname, "..", "src", "main")
-  Chokidar.watch(path, {
-    cwd: path,
+  const mainPath = join(__dirname, "..", "src", "main")
+  const resourcesPath = join(__dirname, "..", "resources")
+
+  Chokidar.watch(mainPath, {
+    cwd: mainPath,
   }).on("change", (path) => {
     console.log(Chalk.blueBright(`[electron] `) + `Change in ${path}. reloading... 🚀`)
 
@@ -111,6 +111,11 @@ async function start() {
     }
 
     restartElectron()
+  })
+
+  Chokidar.watch(resourcesPath).on("change", () => {
+    console.log(Chalk.blueBright(`[electron] `) + `Change in resources. copying... 🚀`)
+    copy("resources")
   })
 }
 

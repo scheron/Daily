@@ -12,7 +12,6 @@
   "files": [
     {"filter": ["**/*"], "from": "build/main", "to": "main"},
     {"filter": ["**/*"], "from": "build/renderer", "to": "renderer"},
-    {"filter": ["**/*"], "from": "src/main/static", "to": "static"},
     {"filter": ["**/*"], "from": "resources", "to": "."},
     "!build",
     "!dist",
