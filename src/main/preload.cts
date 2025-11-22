@@ -57,7 +57,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
   },
 
   syncStorage: () => ipcRenderer.invoke("sync-storage") as Promise<boolean>,
-
   onStorageSync: (callback: (event: StorageSyncEvent) => void) => ipcRenderer.on("storage:sync", (_event, data: StorageSyncEvent) => callback(data)),
   onStorageSyncStatus: (callback: (event: {isSyncing: boolean}) => void) => ipcRenderer.on("storage:is-syncing", (_event, data: {isSyncing: boolean}) => callback(data)),
 

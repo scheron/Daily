@@ -31,7 +31,6 @@ export function useSettingValue<K extends SettingsKey, T = any>(key: K, defaultV
     if (!settingsStore.settings) return
 
     const updated = transformObjectFromPath(key, value) as Partial<Settings>
-    console.log("updated", updated)
     settingsStore.updateSettings(updated)
   }
 

@@ -2,21 +2,14 @@ import type {Tag, TaskInternal} from "../../types.js"
 import type {TagModel} from "../models/TagModel"
 import type {TaskModel} from "../models/TaskModel"
 
-import {createCacheLoader} from "../../utils/cache.js"
-
 export class TagsService {
-  private CACHE_TTL = 5 * 60_000
-  private tagListLoader: ReturnType<typeof createCacheLoader<Tag[]>>
-
   constructor(
     private taskModel: TaskModel,
     private tagModel: TagModel,
-  ) {
-    this.tagListLoader = createCacheLoader(() => this.tagModel.getTagList(), this.CACHE_TTL)
-  }
+  ) {}
 
   async getTagList(): Promise<Tag[]> {
-    return this.tagListLoader.get()
+    return this.tagModel.getTagList()
   }
 
   async getTag(name: Tag["name"]): Promise<Tag | null> {
@@ -24,19 +17,11 @@ export class TagsService {
   }
 
   async updateTag(name: Tag["name"], tag: Tag): Promise<Tag | null> {
-    const updatedTag = await this.tagModel.updateTag(name, tag)
-    if (!updatedTag) return null
-
-    this.tagListLoader.clear()
-    return updatedTag
+    return this.tagModel.updateTag(name, tag)
   }
 
   async createTag(tag: Tag): Promise<Tag | null> {
-    const createdTag = await this.tagModel.createTag(tag)
-    if (!createdTag) return null
-
-    this.tagListLoader.clear()
-    return createdTag
+    return this.tagModel.createTag(tag)
   }
 
   async deleteTag(name: Tag["name"]): Promise<boolean> {
@@ -53,8 +38,6 @@ export class TagsService {
 
       ops.push(this.taskModel.updateTask(task.id, {tags: newTags}))
     }
-
-    this.tagListLoader.clear()
 
     if (!ops.length) {
       console.log(`ℹ️ Tag "${name}" not found in any tasks`)

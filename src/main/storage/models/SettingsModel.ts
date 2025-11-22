@@ -4,14 +4,19 @@ import type {Settings} from "../../types.js"
 import type {SettingsDoc} from "../types.js"
 
 import {AsyncMutex} from "../../utils/AsyncMutex.js"
+import {createCacheLoader} from "../../utils/cache.js"
 import {deepMerge} from "../../utils/deepMerge.js"
 import {withRetryOnConflict} from "../../utils/withRetryOnConflict.js"
 import {docToSettings, docIdMap, settingsToDoc} from "./_mappers.js"
 
 export class SettingsModel {
   private readonly mutex = new AsyncMutex()
+  private CACHE_TTL = 5 * 60_000
+  private settingsLoader: ReturnType<typeof createCacheLoader<Settings>>
 
-  constructor(private db: PouchDB.Database) {}
+  constructor(private db: PouchDB.Database) {
+    this.settingsLoader = createCacheLoader(() => this.loadSettingsFromDB(), this.CACHE_TTL)
+  }
 
   private getDefaultSettings(): Settings {
     return {
@@ -50,6 +55,10 @@ export class SettingsModel {
   }
 
   async loadSettings(): Promise<Settings> {
+    return this.settingsLoader.get()
+  }
+
+  private async loadSettingsFromDB(): Promise<Settings> {
     const doc = await this.getOrCreateSettingsDoc()
 
     const settings = docToSettings(doc)
@@ -84,6 +93,7 @@ export class SettingsModel {
 
         const res = await this.db.put(updatedDoc)
         console.log(`💾 Updated settings in PouchDB (rev=${res.rev}, attempt=${attempt + 1})`)
+        this.settingsLoader.clear()
 
         return res
       })

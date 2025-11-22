@@ -48,6 +48,7 @@ app.whenReady().then(async () => {
   try {
     await storage.init()
     await storage.cleanupOrphanFiles()
+    await storage.loadSettings()
     console.log("✅ Storage initialized")
 
     await setupDbViewerIPC()
@@ -82,7 +83,7 @@ app.whenReady().then(async () => {
     () => windows.main,
   )
 
-  const main = setupMainWindow(windows, {showSplash: true})
+  const main = await setupMainWindow(windows, {showSplash: true})
 
   setupUpdateManager(main)
 

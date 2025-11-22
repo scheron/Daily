@@ -1,13 +1,23 @@
 import type {Tag} from "../../types.js"
 import type {TagDoc} from "../types.js"
 
+import {createCacheLoader} from "../../utils/cache.js"
 import {withRetryOnConflict} from "../../utils/withRetryOnConflict.js"
 import {docIdMap, docToTag, tagToDoc} from "./_mappers.js"
 
 export class TagModel {
-  constructor(private db: PouchDB.Database) {}
+  private CACHE_TTL = 5 * 60_000
+  private tagListLoader: ReturnType<typeof createCacheLoader<Tag[]>>
+
+  constructor(private db: PouchDB.Database) {
+    this.tagListLoader = createCacheLoader(() => this.loadTagListFromDB(), this.CACHE_TTL)
+  }
 
   async getTagList(): Promise<Tag[]> {
+    return this.tagListLoader.get()
+  }
+
+  private async loadTagListFromDB(): Promise<Tag[]> {
     try {
       const result = (await this.db.find({selector: {type: "tag"}})) as PouchDB.Find.FindResponse<TagDoc>
       const tags = result.docs.map(docToTag)
@@ -47,6 +57,7 @@ export class TagModel {
       }
 
       console.log(`💾 Created tag ${tag.name} in PouchDB (rev=${res.rev})`)
+      this.tagListLoader.clear()
       return docToTag(doc)
     } catch (error: any) {
       if (error?.status === 409) {
@@ -83,6 +94,7 @@ export class TagModel {
       }
 
       console.log(`💾 Updated tag ${name} in PouchDB (rev=${res.rev}, attempt=${attempt + 1})`)
+      this.tagListLoader.clear()
       return docToTag(updatedDoc)
     })
   }
@@ -94,6 +106,7 @@ export class TagModel {
       await this.db.remove(doc)
 
       console.log(`🗑️ Deleted tag: ${name}`)
+      this.tagListLoader.clear()
 
       return true
     } catch (error: any) {

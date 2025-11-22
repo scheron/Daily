@@ -4,8 +4,8 @@ import type {BrowserWindow} from "electron"
 import type {StorageController} from "../../storage/StorageController.js"
 
 import {APP_CONFIG, ENV, PATHS} from "../../config.js"
-import {notifyStorageSyncStatus, syncStorage} from "./storage.js"
 import {focusWindow} from "../../windows.js"
+import {notifyStorageSyncStatus, syncStorage} from "./storage.js"
 
 export function setupAppIdentity() {
   app.setName(APP_CONFIG.name)
