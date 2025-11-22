@@ -1,5 +1,5 @@
 import type {PartialDeep} from "type-fest"
-import type {Tag, Task, TaskInternal} from "../../../types"
+import type {ISODate, Tag, Task, TaskInternal} from "../../../types"
 import type {TagModel} from "../models/TagModel"
 import type {TaskModel} from "../models/TaskModel"
 
@@ -9,8 +9,8 @@ export class TasksService {
     private tagModel: TagModel,
   ) {}
 
-  async getTaskList(): Promise<Task[]> {
-    const [tasks, allTags] = await Promise.all([this.taskModel.getTaskList(), this.tagModel.getTagList()])
+  async getTaskList(params?: {from?: ISODate; to?: ISODate}): Promise<Task[]> {
+    const [tasks, allTags] = await Promise.all([this.taskModel.getTaskList(params), this.tagModel.getTagList()])
 
     const tagMap = new Map(allTags.map((t) => [t.name, t]))
 

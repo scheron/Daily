@@ -1,7 +1,7 @@
 import {nanoid} from "nanoid"
 
 import type {PartialDeep} from "type-fest"
-import type {Task, TaskInternal} from "../../../types.js"
+import type {ISODate, Task, TaskInternal} from "../../../types.js"
 import type {TaskDoc} from "../types.js"
 
 import {withRetryOnConflict} from "../../../utils/withRetryOnConflict.js"
@@ -10,11 +10,26 @@ import {docIdMap, docToTask, taskToDoc} from "./_mappers.js"
 export class TaskModel {
   constructor(private db: PouchDB.Database) {}
 
-  async getTaskList(): Promise<TaskInternal[]> {
+  async getTaskList(params?: {from?: ISODate; to?: ISODate}): Promise<TaskInternal[]> {
     try {
-      const result = (await this.db.find({selector: {type: "task"}})) as PouchDB.Find.FindResponse<TaskDoc>
+      let selector: PouchDB.Find.Selector = {type: "task"}
 
-      console.log(`[TASKS] Loaded ${result.docs.length} task docs from PouchDB`)
+      if (params?.from || params?.to) {
+        const dateSelector: {$gte?: ISODate; $lte?: ISODate} = {}
+
+        if (params?.from) dateSelector.$gte = params.from
+        if (params?.to) dateSelector.$lte = params.to
+
+        Object.assign(selector, {
+          "scheduled.date": dateSelector,
+        })
+      }
+
+      const result = (await this.db.find({selector})) as PouchDB.Find.FindResponse<TaskDoc>
+
+      console.log(
+        `[TASKS] Loaded ${result.docs.length} task docs from PouchDB ${params?.from || params?.to ? `(from: ${params?.from ?? "∞"}, to: ${params?.to ?? "∞"})` : "(all)"}`,
+      )
       return result.docs.map(docToTask)
     } catch (error) {
       console.error("[TASKS] Failed to load task docs from PouchDB:", error)

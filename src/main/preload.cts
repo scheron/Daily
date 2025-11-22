@@ -1,7 +1,7 @@
 import {contextBridge, ipcRenderer} from "electron"
 
 import type {PartialDeep} from "type-fest"
-import type {Settings, StorageSyncEvent, Tag, Task} from "./types.js"
+import type {Day, ISODate, Settings, StorageSyncEvent, Tag, Task} from "./types.js"
 
 /* MAIN BRIDGE WITH FRONTEND */
 
@@ -43,7 +43,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   addTaskTags: (taskId: Task["id"], tagNames: Tag["name"][]) => ipcRenderer.invoke("add-task-tags", taskId, tagNames),
   removeTaskTags: (taskId: Task["id"], tagNames: Tag["name"][]) => ipcRenderer.invoke("remove-task-tags", taskId, tagNames),
 
-  loadAllData: () => ipcRenderer.invoke("load-all-data") as Promise<{tasks: Task[]; tags: Tag[]}>,
+  getDays: (params?: {from?: ISODate; to?: ISODate}) => ipcRenderer.invoke("get-days", params) as Promise<Day[]>,
+  getDay: (date: ISODate) => ipcRenderer.invoke("get-day", date) as Promise<Day | null>,
 
   saveFile: (filename: string, data: Buffer) => ipcRenderer.invoke("save-file", filename, data),
   getFilePath: (id: string) => ipcRenderer.invoke("get-file-path", id),

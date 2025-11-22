@@ -12,7 +12,7 @@ Storage Architecture (PouchDB):
 import fs from "fs-extra"
 
 import type {PartialDeep} from "type-fest"
-import type {File, IStorageController, Settings, Tag, Task} from "../../types.js"
+import type {Day, File, ISODate, IStorageController, Settings, Tag, Task} from "../../types.js"
 
 import {fsPaths} from "../../config.js"
 import {getDB} from "./database.js"
@@ -20,6 +20,7 @@ import {FileModel} from "./models/FileModel.js"
 import {SettingsModel} from "./models/SettingsModel.js"
 import {TagModel} from "./models/TagModel.js"
 import {TaskModel} from "./models/TaskModel.js"
+import {DaysService} from "./services/DaysService.js"
 import {FilesService} from "./services/FilesService.js"
 import {SettingsService} from "./services/SettingsService.js"
 import {TagsService} from "./services/TagsService.js"
@@ -32,6 +33,7 @@ export class StorageController implements IStorageController {
   private tasksService!: TasksService
   private tagsService!: TagsService
   private filesService!: FilesService
+  private daysService!: DaysService
 
   async init(): Promise<void> {
     await fs.ensureDir(this.rootDir)
@@ -47,6 +49,7 @@ export class StorageController implements IStorageController {
     this.tagsService = new TagsService(taskModel, tagModel)
     this.settingsService = new SettingsService(settingsModel)
     this.filesService = new FilesService(fileModel)
+    this.daysService = new DaysService(taskModel, tagModel)
   }
 
   async loadSettings(): Promise<Settings> {
@@ -57,8 +60,16 @@ export class StorageController implements IStorageController {
     await this.settingsService.saveSettings(newSettings)
   }
 
-  async getTaskList(): Promise<Task[]> {
-    return this.tasksService.getTaskList()
+  async getDays(params: {from?: ISODate; to?: ISODate} = {}): Promise<Day[]> {
+    return this.daysService.getDays(params)
+  }
+
+  async getDay(date: ISODate): Promise<Day | null> {
+    return this.daysService.getDay(date)
+  }
+
+  async getTaskList(params?: {from?: ISODate; to?: ISODate}): Promise<Task[]> {
+    return this.tasksService.getTaskList(params)
   }
 
   async getTask(id: Task["id"]): Promise<Task | null> {

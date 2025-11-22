@@ -1,7 +1,7 @@
 import {BrowserWindow, ipcMain} from "electron"
 
 import type {PartialDeep} from "type-fest"
-import type {IStorageController, Tag, Task} from "../../types.js"
+import type {ISODate, IStorageController, Tag, Task} from "../../types.js"
 
 import {fsPaths} from "../../config.js"
 import {getDB} from "../storage/database.js"
@@ -11,13 +11,13 @@ import {createDevToolsWindow, createTimerWindow} from "../windows.js"
 export function setupStorageIPC(storage: IStorageController): void {
   if (!storage) throw new Error("Storage is not initialized")
 
-  ipcMain.handle("load-settings", () => storage.loadSettings())
+  ipcMain.handle("load-settings", (_e) => storage.loadSettings())
   ipcMain.handle("save-settings", (_e, newSettings: Partial<Record<string, any>>) => storage.saveSettings(newSettings))
 
-  ipcMain.handle("load-days", () => [])
-  ipcMain.handle("save-days", () => {})
+  ipcMain.handle("get-days", (_e, params?: {from?: ISODate; to?: ISODate}) => storage.getDays(params))
+  ipcMain.handle("get-day", (_e, date: ISODate) => storage.getDay(date))
 
-  ipcMain.handle("get-task-list", () => storage.getTaskList())
+  ipcMain.handle("get-task-list", (_e, params?: {from?: ISODate; to?: ISODate}) => storage.getTaskList(params))
   ipcMain.handle("get-task", (_e, id: Task["id"]) => storage.getTask(id))
   ipcMain.handle("update-task", (_e, id: Task["id"], updates: PartialDeep<Task>) => storage.updateTask(id, updates))
   ipcMain.handle("create-task", (_e, task: Task) => storage.createTask(task))
@@ -32,22 +32,11 @@ export function setupStorageIPC(storage: IStorageController): void {
   ipcMain.handle("add-task-tags", (_e, taskId: Task["id"], tagNames: Tag["name"][]) => storage.addTaskTags(taskId, tagNames))
   ipcMain.handle("remove-task-tags", (_e, taskId: Task["id"], tagNames: Tag["name"][]) => storage.removeTaskTags(taskId, tagNames))
 
-  ipcMain.handle("load-all-data", async () => {
-    const startTime = Date.now()
-    const tasks = await storage.getTaskList()
-    const tags = await storage.getTagList()
-    const endTime = Date.now()
-
-    console.log(`🚀 load-all-data completed in ${endTime - startTime}ms (${tasks.length} tasks, ${tags.length} tags)`)
-
-    return {tasks, tags}
-  })
-
   ipcMain.handle("save-file", (_e, filename: string, data: any) => storage.saveFile(filename, Buffer.isBuffer(data) ? data : Buffer.from(data)))
   ipcMain.handle("delete-file", (_e, filename: string) => storage.deleteFile(filename))
   ipcMain.handle("get-file-path", (_e, id: string) => storage.getFilePath(id))
 
-  ipcMain.handle("sync-storage", async () => {
+  ipcMain.handle("sync-storage", async (_e) => {
     try {
       await syncStorage(storage)
       return true

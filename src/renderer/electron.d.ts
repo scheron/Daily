@@ -1,6 +1,7 @@
+import type {ISODate} from "@/types/date"
 import type {Settings} from "@/types/settings"
 import type {StorageSyncEvent} from "@/types/storage"
-import type {Tag, Task} from "@/types/tasks"
+import type {Day, Tag, Task} from "@/types/tasks"
 import type {Buffer} from "buffer"
 import type {PartialDeep} from "type-fest"
 
@@ -37,7 +38,10 @@ export default interface ElectronApi {
   onTaskDeleted: (callback: (taskId: Task["id"]) => void) => void
 
   // === DATA ===
-  getTaskList: () => Promise<Task[]>
+  getDays: (params?: {from?: ISODate; to?: ISODate}) => Promise<Day[]>
+  getDay: (date: ISODate) => Promise<Day | null>
+
+  getTaskList: (params?: {from?: ISODate; to?: ISODate}) => Promise<Task[]>
   getTask: (id: Task["id"]) => Promise<Task | null>
   updateTask: (id: Task["id"], updates: PartialDeep<Task>) => Promise<Task | null>
   createTask: (task: Omit<Task, "id" | "createdAt" | "updatedAt">) => Promise<Task | null>
@@ -51,8 +55,6 @@ export default interface ElectronApi {
 
   addTaskTags: (taskId: Task["id"], tagNames: Tag["name"][]) => Promise<Task | null>
   removeTaskTags: (taskId: Task["id"], tagNames: Tag["name"][]) => Promise<Task | null>
-
-  loadAllData: () => Promise<{tasks: Task[]; tags: Tag[]}>
 
   // === MENU ===
   onMenuAction: (callback: (action: "new-task") => void) => void

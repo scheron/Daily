@@ -1,4 +1,3 @@
-import {groupTasksByDay} from "@/utils/tasks"
 import {DateTime} from "luxon"
 
 import type {ISODate} from "@/types/date"
@@ -8,25 +7,11 @@ import type {Day, Tag, Task, TaskStatus} from "@/types/tasks"
 export class StorageAPI implements Storage {
   //#region DAYS
   async getDays(params: {from?: ISODate; to?: ISODate} = {}): Promise<Day[]> {
-    const {from, to} = params
-    const fromDate = from ? from : DateTime.now().minus({years: 1}).toISODate()!
-    const toDate = to ? to : DateTime.now().plus({years: 1}).toISODate()!
-
-    const {tasks: allTasks, tags} = await window.electronAPI.loadAllData()
-
-    const tasks = allTasks.filter((t) => t.scheduled.date >= fromDate && t.scheduled.date <= toDate)
-
-    return groupTasksByDay({tasks, tags})
+    return window.electronAPI.getDays(params)
   }
 
   async getDay(date: ISODate): Promise<Day | null> {
-    const {tasks: allTasks, tags} = await window.electronAPI.loadAllData()
-
-    const tasksForDay = allTasks.filter((t) => t.scheduled.date === date)
-
-    const days = groupTasksByDay({tasks: tasksForDay, tags})
-
-    return days?.[0] ?? null
+    return window.electronAPI.getDay(date)
   }
   //#endregion
 
