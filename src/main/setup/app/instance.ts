@@ -8,7 +8,7 @@ import {focusWindow} from "../../windows.js"
 import {handleDeepLink} from "./deeplinks.js"
 import {notifyStorageSyncStatus} from "./storage.js"
 
-export function setupInstanceAndDeepLinks(getStorage: () => StorageController, getMainWindow: () => BrowserWindow | null) {
+export function setupInstanceAndDeepLinks(getStorage: () => StorageController | null, getMainWindow: () => BrowserWindow | null) {
   const gotLock = app.requestSingleInstanceLock()
   const DISABLE_FOCUS_SYNC = ENV.disableFocusSync
 

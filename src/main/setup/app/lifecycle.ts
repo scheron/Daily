@@ -30,7 +30,7 @@ export function setupWindowAllClosedHandler() {
 }
 
 export function setupActivateHandler(
-  getStorage: () => StorageController,
+  getStorage: () => StorageController | null,
   getMainWindow: () => BrowserWindow | null,
   createMainWindow: () => BrowserWindow,
 ) {
@@ -41,7 +41,6 @@ export function setupActivateHandler(
     const storage = getStorage()
 
     if (!mainWindow || mainWindow.isDestroyed()) {
-      // Window handlers are already registered globally, just create window
       createMainWindow()
     } else if (mainWindow && storage) {
       focusWindow(mainWindow)

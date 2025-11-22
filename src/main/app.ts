@@ -19,27 +19,10 @@ import {StorageController} from "./storage/StorageController.js"
 import {sleep} from "./utils/common.js"
 import {createMainWindow, createSplashWindow, focusWindow} from "./windows.js"
 
-type AppWindows = {
-  main: BrowserWindow | null
-  splash: BrowserWindow | null
-  timer: BrowserWindow | null
-  devTools: BrowserWindow | null
-}
+type AppWindows = {main: BrowserWindow | null; splash: BrowserWindow | null; timer: BrowserWindow | null; devTools: BrowserWindow | null}
 
-type AppContext = {
-  storage: StorageController | null
-  windows: AppWindows
-}
-
-const ctx: AppContext = {
-  storage: null,
-  windows: {
-    main: null,
-    splash: null,
-    timer: null,
-    devTools: null,
-  },
-}
+const windows: AppWindows = {main: null, splash: null, timer: null, devTools: null}
+let storage: StorageController | null = null
 
 setupPrivilegedSchemes()
 setupAppIdentity()
@@ -47,26 +30,24 @@ setupDockIcon()
 setupWindowAllClosedHandler()
 
 setupInstanceAndDeepLinks(
-  () => ctx.storage!,
-  () => ctx.windows.main,
+  () => storage,
+  () => windows.main,
 )
 
 setupActivateHandler(
-  () => ctx.storage!,
-  () => ctx.windows.main,
-  () => setupMainWindow(ctx),
+  () => storage,
+  () => windows.main,
+  () => setupMainWindow(windows),
 )
 
 app.whenReady().then(async () => {
-  const {windows} = ctx
-
   windows.splash = createSplashWindow()
 
-  ctx.storage = new StorageController()
+  storage = new StorageController()
 
   try {
-    await ctx.storage.init()
-    await ctx.storage.cleanupOrphanFiles()
+    await storage.init()
+    await storage.cleanupOrphanFiles()
     console.log("✅ Storage initialized")
 
     await setupDbViewerIPC()
@@ -76,7 +57,7 @@ app.whenReady().then(async () => {
     return
   }
 
-  setupSafeFileProtocol(ctx.storage)
+  setupSafeFileProtocol(storage)
   setupCSP()
 
   setupMainWindowIPC(() => windows.main)
@@ -94,22 +75,21 @@ app.whenReady().then(async () => {
     (win) => (windows.devTools = win),
   )
 
-  setupStorageIPC(() => ctx.storage!)
+  setupStorageIPC(() => storage!)
   setupStorageEvents(() => windows.main)
   setupStorageSync(
-    () => ctx.storage!,
+    () => storage!,
     () => windows.main,
   )
 
-  const main = setupMainWindow(ctx, {showSplash: true})
+  const main = setupMainWindow(windows, {showSplash: true})
 
   setupUpdateManager(main)
 
   console.log(`🚀 ${APP_CONFIG.name} started`)
 })
 
-function setupMainWindow(ctx: AppContext, options?: {showSplash?: boolean}) {
-  const {windows} = ctx
+function setupMainWindow(windows: AppWindows, options?: {showSplash?: boolean}) {
   const showSplash = options?.showSplash ?? false
 
   windows.main = createMainWindow()
@@ -118,12 +98,12 @@ function setupMainWindow(ctx: AppContext, options?: {showSplash?: boolean}) {
   setupMenu(() => main)
 
   main.on("closed", () => {
-    if (ctx.windows.timer && !ctx.windows.timer.isDestroyed()) {
-      ctx.windows.timer.close()
-      ctx.windows.timer = null
+    if (windows.timer && !windows.timer.isDestroyed()) {
+      windows.timer.close()
+      windows.timer = null
     }
 
-    ctx.windows.main = null
+    windows.main = null
   })
 
   main.once("ready-to-show", async () => {
