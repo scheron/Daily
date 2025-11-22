@@ -1,6 +1,6 @@
 import {BrowserWindow} from "electron"
 
-import type {ID, IStorageController, StorageSyncEvent, Task, TaskEvent} from "../../types.js"
+import type {IStorageController, StorageSyncEvent, Task, TaskEvent} from "../../types.js"
 
 let getMainWindow: () => BrowserWindow | null = () => null
 
@@ -29,7 +29,7 @@ export function notifyStorageChange(type: StorageSyncEvent["type"]) {
   win.webContents.send("storage:sync", {type})
 }
 
-export function notifyTaskEvent(event: TaskEvent["type"], taskOrId: Task | ID) {
+export function notifyTaskEvent(event: TaskEvent["type"], taskOrId: Task | Task["id"]) {
   const win = getMainWindow()
   if (!win) return
 

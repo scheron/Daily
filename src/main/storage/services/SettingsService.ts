@@ -1,4 +1,4 @@
-import type {Settings} from "../../../types"
+import type {Settings} from "../../types"
 import type {SettingsModel} from "../models/SettingsModel"
 
 export class SettingsService {

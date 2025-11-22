@@ -1,6 +1,6 @@
 import {nanoid} from "nanoid"
 
-import type {File} from "../../../types.js"
+import type {File} from "../../types.js"
 import type {FileDoc} from "../types.js"
 
 import {docIdMap, docToFile, fileToDoc} from "./_mappers.js"

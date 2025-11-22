@@ -1,11 +1,11 @@
 import path from "node:path"
 
-import type {File, Task} from "../../../types.js"
+import type {File, Task} from "../../types.js"
 import type {FileModel} from "../models/FileModel.js"
 
-import {APP_CONFIG} from "../../../config.js"
-import {forEachAsync} from "../../../utils/arrays.js"
-import {extractFileIds, getMimeType} from "../../../utils/file.js"
+import {APP_CONFIG} from "../../config.js"
+import {forEachAsync} from "../../utils/arrays.js"
+import {extractFileIds, getMimeType} from "../../utils/file.js"
 
 export class FilesService {
   constructor(private fileModel: FileModel) {}

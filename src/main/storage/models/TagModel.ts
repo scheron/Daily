@@ -1,7 +1,7 @@
-import type {Tag} from "../../../types.js"
+import type {Tag} from "../../types.js"
 import type {TagDoc} from "../types.js"
 
-import {withRetryOnConflict} from "../../../utils/withRetryOnConflict.js"
+import {withRetryOnConflict} from "../../utils/withRetryOnConflict.js"
 import {docIdMap, docToTag, tagToDoc} from "./_mappers.js"
 
 export class TagModel {

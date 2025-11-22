@@ -1,10 +1,10 @@
 import {nanoid} from "nanoid"
 
 import type {PartialDeep} from "type-fest"
-import type {ISODate, Task, TaskInternal} from "../../../types.js"
+import type {ISODate, Task, TaskInternal} from "../../types.js"
 import type {TaskDoc} from "../types.js"
 
-import {withRetryOnConflict} from "../../../utils/withRetryOnConflict.js"
+import {withRetryOnConflict} from "../../utils/withRetryOnConflict.js"
 import {docIdMap, docToTask, taskToDoc} from "./_mappers.js"
 
 export class TaskModel {

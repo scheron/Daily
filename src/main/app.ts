@@ -1,85 +1,154 @@
-import {app, protocol} from "electron"
+import {app} from "electron"
 
 import type {BrowserWindow} from "electron"
 
 import {APP_CONFIG} from "./config.js"
-import {setupDbViewerIPC, setupDevToolsIPC, setupWindowIPC as setupMainWindowIPC, setupMenuIPC, setupStorageIPC, setupTimerIPC} from "./core/setup/ipc.js"
-import {setupMenu} from "./core/menu/base.js"
-import {
-  setupActivateHandler,
-  setupAppProtocol,
-  setupDockIcon,
-  setupSingleInstanceLock,
-  setupStorageSync,
-  setupWindowAllClosedHandler,
-} from "./core/setup/appLifecycle.js"
-import {setupCSP} from "./core/setup/csp.js"
-import {handleDeepLink, setupDeepLinks} from "./core/setup/deepLinks.js"
-import {setupSafeFileProtocol} from "./core/setup/protocols.js"
-import {setupUpdateManager} from "./core/setup/updater.js"
-import {StorageController} from "./core/storage/StorageController.js"
-import {setupStorageEvents} from "./core/storage/events.js"
-import {createMainWindow, createSplashWindow, focusWindow} from "./core/windows.js"
+import {setupInstanceAndDeepLinks} from "./setup/app/instance.js"
+import {setupActivateHandler, setupAppIdentity, setupDockIcon, setupStorageSync, setupWindowAllClosedHandler} from "./setup/app/lifecycle.js"
+import {setupMenu} from "./setup/app/menu.js"
+import {setupStorageEvents} from "./setup/app/storage.js"
+import {setupDbViewerIPC, setupDevToolsIPC} from "./setup/ipc/devtools.js"
+import {setupMenuIPC} from "./setup/ipc/menu.js"
+import {setupStorageIPC} from "./setup/ipc/storage.js"
+import {setupTimerIPC} from "./setup/ipc/timer.js"
+import {setupMainWindowIPC} from "./setup/ipc/windows.js"
+import {setupCSP} from "./setup/security/csp.js"
+import {setupPrivilegedSchemes, setupSafeFileProtocol} from "./setup/security/protocols.js"
+import {setupUpdateManager} from "./setup/updates/updater.js"
+import {StorageController} from "./storage/StorageController.js"
 import {sleep} from "./utils/common.js"
+import {createMainWindow, createSplashWindow, focusWindow} from "./windows.js"
 
-let storage: StorageController
-let mainWindow: BrowserWindow | null = null
-let splashWindow: BrowserWindow | null = null
-let timerWindow: BrowserWindow | null = null
-let devToolsWindow: BrowserWindow | null = null
-
-APP_CONFIG.privilegedSchemes.forEach((scheme) => protocol.registerSchemesAsPrivileged([scheme]))
-
-// prettier-ignore
-function setupWindowHandlers(window: BrowserWindow) {
-  setupMainWindowIPC(() => window)
-  setupTimerIPC(() => window, () => timerWindow, (win) => (timerWindow = win))
-  setupDevToolsIPC(() => window, () => devToolsWindow, (win) => (devToolsWindow = win))
-  setupMenuIPC(() => window)
-  setupMenu(() => window)
-  setupDeepLinks(() => window)
-  setupStorageEvents(() => window)
+type AppWindows = {
+  main: BrowserWindow | null
+  splash: BrowserWindow | null
+  timer: BrowserWindow | null
+  devTools: BrowserWindow | null
 }
 
-setupAppProtocol()
+type AppContext = {
+  storage: StorageController | null
+  windows: AppWindows
+}
+
+const ctx: AppContext = {
+  storage: null,
+  windows: {
+    main: null,
+    splash: null,
+    timer: null,
+    devTools: null,
+  },
+}
+
+function closeTimerWindow(ctx: AppContext) {
+  const {windows} = ctx
+  if (windows.timer && !windows.timer.isDestroyed()) {
+    windows.timer.close()
+    windows.timer = null
+  }
+}
+
+function attachMainWindowClosedHandler(ctx: AppContext, win: BrowserWindow) {
+  win.on("closed", () => {
+    closeTimerWindow(ctx)
+    ctx.windows.main = null
+  })
+}
+
+function setupWindowHandlers(main: BrowserWindow, ctx: AppContext) {
+  const {windows} = ctx
+
+  setupMainWindowIPC(() => main)
+
+  setupTimerIPC(
+    () => main,
+    () => windows.timer,
+    (win) => (windows.timer = win),
+  )
+
+  setupDevToolsIPC(
+    () => main,
+    () => windows.devTools,
+    (win) => (windows.devTools = win),
+  )
+
+  setupMenuIPC(() => main)
+  setupMenu(() => main)
+
+  setupStorageEvents(() => main)
+}
+
+function createInitialMainWindow(ctx: AppContext) {
+  const {windows} = ctx
+
+  windows.main = createMainWindow()
+  const main = windows.main!
+
+  attachMainWindowClosedHandler(ctx, main)
+  setupWindowHandlers(main, ctx)
+
+  main.once("ready-to-show", async () => {
+    await sleep(1000)
+
+    if (windows.splash) {
+      windows.splash.close()
+      windows.splash = null
+    }
+
+    main.show()
+    focusWindow(main)
+    console.log("✅ Main window displayed")
+  })
+
+  return main
+}
+
+function createMainWindowForActivation(ctx: AppContext) {
+  const {windows} = ctx
+
+  windows.main = createMainWindow()
+  const main = windows.main!
+
+  attachMainWindowClosedHandler(ctx, main)
+  setupWindowHandlers(main, ctx)
+
+  main.once("ready-to-show", () => {
+    main.show()
+    focusWindow(main)
+  })
+
+  return main
+}
+
+setupPrivilegedSchemes()
+setupAppIdentity()
 setupDockIcon()
 setupWindowAllClosedHandler()
 
-setupSingleInstanceLock(
-  () => storage,
-  () => mainWindow,
-  handleDeepLink,
+setupInstanceAndDeepLinks(
+  () => ctx.storage!,
+  () => ctx.windows.main,
 )
 
 setupActivateHandler(
-  () => storage,
-  () => mainWindow,
-  () => {
-    mainWindow = createMainWindow()
-    setupWindowHandlers(mainWindow)
-
-    mainWindow.on("closed", () => {
-      if (timerWindow && !timerWindow.isDestroyed()) {
-        timerWindow.close()
-        timerWindow = null
-      }
-      mainWindow = null
-    })
-
-    return mainWindow
-  },
-  setupWindowHandlers,
+  () => ctx.storage!,
+  () => ctx.windows.main,
+  () => createMainWindowForActivation(ctx),
+  (win) => setupWindowHandlers(win, ctx),
 )
 
 app.whenReady().then(async () => {
-  splashWindow = createSplashWindow()
+  const {windows} = ctx
 
-  storage = new StorageController()
+  windows.splash = createSplashWindow()
+
+  ctx.storage = new StorageController()
+
   try {
-    await storage.init()
-    await storage.cleanupOrphanFiles()
-
-    console.log(`✅ Storage initialized`)
+    await ctx.storage.init()
+    await ctx.storage.cleanupOrphanFiles()
+    console.log("✅ Storage initialized")
 
     await setupDbViewerIPC()
   } catch (err) {
@@ -88,44 +157,18 @@ app.whenReady().then(async () => {
     return
   }
 
-  setupStorageIPC(storage)
-
-  mainWindow = createMainWindow()
-
-  setupWindowHandlers(mainWindow)
-  setupUpdateManager(mainWindow)
-
-  // Close timer window when main window is closed
-  mainWindow.on("closed", () => {
-    if (timerWindow && !timerWindow.isDestroyed()) {
-      timerWindow.close()
-      timerWindow = null
-    }
-    mainWindow = null
-  })
-
-  setupSafeFileProtocol(storage)
+  setupSafeFileProtocol(ctx.storage)
   setupCSP()
 
-  mainWindow.once("ready-to-show", async () => {
-    await sleep(1000)
+  const main = createInitialMainWindow(ctx)
 
-    if (splashWindow) {
-      splashWindow.close()
-      splashWindow = null
-    }
-    mainWindow!.show()
-    focusWindow(mainWindow!)
-    console.log("✅ Main window displayed")
-  })
+  setupUpdateManager(main)
 
+  setupStorageIPC(ctx.storage)
   setupStorageSync(
-    () => storage,
-    () => mainWindow,
+    () => ctx.storage!,
+    () => ctx.windows.main,
   )
 
-  const urlArg = process.argv.find((arg) => arg.startsWith(`${APP_CONFIG.protocol}://`))
-  if (urlArg) {
-    setTimeout(() => handleDeepLink(urlArg, mainWindow!), 1000)
-  }
+  console.log(`🚀 ${APP_CONFIG.name} started`)
 })

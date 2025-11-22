@@ -1,4 +1,4 @@
-import type {ISODate, ISODateTime, ISOTime, Settings, Timezone} from "../../types.js"
+import type {ISODate, ISODateTime, ISOTime, Settings, Timezone} from "../types.js"
 
 /** Base document type with common PouchDB fields. All documents extend this base.  */
 export type BaseDoc = {

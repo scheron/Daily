@@ -12,9 +12,9 @@ Storage Architecture (PouchDB):
 import fs from "fs-extra"
 
 import type {PartialDeep} from "type-fest"
-import type {Day, File, ISODate, IStorageController, Settings, Tag, Task} from "../../types.js"
+import type {Day, File, ISODate, IStorageController, Settings, Tag, Task} from "../types.js"
 
-import {fsPaths} from "../../config.js"
+import {fsPaths} from "../config.js"
 import {getDB} from "./database.js"
 import {FileModel} from "./models/FileModel.js"
 import {SettingsModel} from "./models/SettingsModel.js"

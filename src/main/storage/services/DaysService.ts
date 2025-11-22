@@ -1,10 +1,10 @@
 import {DateTime} from "luxon"
 
-import type {Day, ISODate, Tag, Task} from "../../../types.js"
+import type {Day, ISODate, Tag, Task} from "../../types.js"
 import type {TagModel} from "../models/TagModel.js"
 import type {TaskModel} from "../models/TaskModel.js"
 
-import {groupTasksByDay} from "../../../utils/tasks.js"
+import {groupTasksByDay} from "../../utils/tasks.js"
 
 export class DaysService {
   constructor(

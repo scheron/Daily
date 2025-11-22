@@ -1,9 +1,11 @@
 import {protocol} from "electron"
 
-import type {StorageController} from "../storage/StorageController.js"
+import type {StorageController} from "../../storage/StorageController.js"
+
+import {APP_CONFIG} from "../../config.js"
 
 export function setupSafeFileProtocol(storage: StorageController) {
-  protocol.handle("daily", async (request) => {
+  protocol.handle(APP_CONFIG.protocol, async (request) => {
     console.log(`🔗 Protocol handler called: ${request.url}`)
 
     const url = new URL(request.url)
@@ -25,4 +27,8 @@ export function setupSafeFileProtocol(storage: StorageController) {
     })
     return response
   })
+}
+
+export function setupPrivilegedSchemes() {
+  APP_CONFIG.privilegedSchemes.forEach((scheme) => protocol.registerSchemesAsPrivileged([scheme]))
 }

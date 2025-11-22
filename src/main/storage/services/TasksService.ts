@@ -1,5 +1,5 @@
 import type {PartialDeep} from "type-fest"
-import type {ISODate, Tag, Task, TaskInternal} from "../../../types"
+import type {ISODate, Tag, Task, TaskInternal} from "../../types"
 import type {TagModel} from "../models/TagModel"
 import type {TaskModel} from "../models/TaskModel"
 

@@ -1,8 +1,8 @@
 import {BrowserWindow, shell} from "electron"
 
-import type {Task} from "../types.js"
+import type {Task} from "./types.js"
 
-import {APP_CONFIG, PATHS} from "../config.js"
+import {APP_CONFIG, PATHS} from "./config.js"
 
 export function createMainWindow(): BrowserWindow {
   const mainWindow = new BrowserWindow({

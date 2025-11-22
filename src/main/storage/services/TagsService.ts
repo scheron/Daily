@@ -1,4 +1,4 @@
-import type {Tag, TaskInternal} from "../../../types"
+import type {Tag, TaskInternal} from "../../types.js"
 import type {TagModel} from "../models/TagModel"
 import type {TaskModel} from "../models/TaskModel"
 

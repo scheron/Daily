@@ -1,4 +1,4 @@
-import type {File, ISODateTime, Settings, Tag, TaskInternal} from "../../../types.js"
+import type {File, ISODateTime, Settings, Tag, TaskInternal} from "../../types.js"
 import type {FileDoc, SettingsDoc, TagDoc, TaskDoc} from "../types.js"
 
 /**

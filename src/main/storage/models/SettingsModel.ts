@@ -1,11 +1,11 @@
 import {nanoid} from "nanoid"
 
-import type {Settings} from "../../../types.js"
+import type {Settings} from "../../types.js"
 import type {SettingsDoc} from "../types.js"
 
-import {AsyncMutex} from "../../../utils/AsyncMutex.js"
-import {deepMerge} from "../../../utils/deepMerge.js"
-import {withRetryOnConflict} from "../../../utils/withRetryOnConflict.js"
+import {AsyncMutex} from "../../utils/AsyncMutex.js"
+import {deepMerge} from "../../utils/deepMerge.js"
+import {withRetryOnConflict} from "../../utils/withRetryOnConflict.js"
 import {docToSettings, docIdMap, settingsToDoc} from "./_mappers.js"
 
 export class SettingsModel {
