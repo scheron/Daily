@@ -33,7 +33,6 @@ export function setupActivateHandler(
   getStorage: () => StorageController,
   getMainWindow: () => BrowserWindow | null,
   createMainWindow: () => BrowserWindow,
-  setupWindowHandlers: (window: BrowserWindow) => void,
 ) {
   const DISABLE_FOCUS_SYNC = ENV.disableFocusSync
 
@@ -42,13 +41,8 @@ export function setupActivateHandler(
     const storage = getStorage()
 
     if (!mainWindow || mainWindow.isDestroyed()) {
-      mainWindow = createMainWindow()
-      setupWindowHandlers(mainWindow)
-
-      mainWindow.once("ready-to-show", () => {
-        mainWindow!.show()
-        focusWindow(mainWindow!)
-      })
+      // Window handlers are already registered globally, just create window
+      createMainWindow()
     } else if (mainWindow && storage) {
       focusWindow(mainWindow)
 
@@ -68,9 +62,16 @@ export function setupActivateHandler(
 }
 
 export function setupStorageSync(getStorage: () => StorageController, getMainWindow: () => BrowserWindow | null) {
-  const mainWindow = getMainWindow()
-  const storage = getStorage()
-  if (mainWindow && storage) {
-    mainWindow.on("focus", () => syncStorage(storage))
-  }
+  const DISABLE_FOCUS_SYNC = ENV.disableFocusSync
+
+  if (DISABLE_FOCUS_SYNC) return
+
+  app.on("browser-window-focus", (_event, window) => {
+    const mainWindow = getMainWindow()
+    const storage = getStorage()
+
+    if (window === mainWindow && storage) {
+      syncStorage(storage)
+    }
+  })
 }

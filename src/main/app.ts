@@ -41,86 +41,6 @@ const ctx: AppContext = {
   },
 }
 
-function closeTimerWindow(ctx: AppContext) {
-  const {windows} = ctx
-  if (windows.timer && !windows.timer.isDestroyed()) {
-    windows.timer.close()
-    windows.timer = null
-  }
-}
-
-function attachMainWindowClosedHandler(ctx: AppContext, win: BrowserWindow) {
-  win.on("closed", () => {
-    closeTimerWindow(ctx)
-    ctx.windows.main = null
-  })
-}
-
-function setupWindowHandlers(main: BrowserWindow, ctx: AppContext) {
-  const {windows} = ctx
-
-  setupMainWindowIPC(() => main)
-
-  setupTimerIPC(
-    () => main,
-    () => windows.timer,
-    (win) => (windows.timer = win),
-  )
-
-  setupDevToolsIPC(
-    () => main,
-    () => windows.devTools,
-    (win) => (windows.devTools = win),
-  )
-
-  setupMenuIPC(() => main)
-  setupMenu(() => main)
-
-  setupStorageEvents(() => main)
-}
-
-function createInitialMainWindow(ctx: AppContext) {
-  const {windows} = ctx
-
-  windows.main = createMainWindow()
-  const main = windows.main!
-
-  attachMainWindowClosedHandler(ctx, main)
-  setupWindowHandlers(main, ctx)
-
-  main.once("ready-to-show", async () => {
-    await sleep(1000)
-
-    if (windows.splash) {
-      windows.splash.close()
-      windows.splash = null
-    }
-
-    main.show()
-    focusWindow(main)
-    console.log("✅ Main window displayed")
-  })
-
-  return main
-}
-
-function createMainWindowForActivation(ctx: AppContext) {
-  const {windows} = ctx
-
-  windows.main = createMainWindow()
-  const main = windows.main!
-
-  attachMainWindowClosedHandler(ctx, main)
-  setupWindowHandlers(main, ctx)
-
-  main.once("ready-to-show", () => {
-    main.show()
-    focusWindow(main)
-  })
-
-  return main
-}
-
 setupPrivilegedSchemes()
 setupAppIdentity()
 setupDockIcon()
@@ -134,8 +54,7 @@ setupInstanceAndDeepLinks(
 setupActivateHandler(
   () => ctx.storage!,
   () => ctx.windows.main,
-  () => createMainWindowForActivation(ctx),
-  (win) => setupWindowHandlers(win, ctx),
+  () => setupMainWindow(ctx),
 )
 
 app.whenReady().then(async () => {
@@ -160,15 +79,67 @@ app.whenReady().then(async () => {
   setupSafeFileProtocol(ctx.storage)
   setupCSP()
 
-  const main = createInitialMainWindow(ctx)
+  setupMainWindowIPC(() => windows.main)
+  setupMenuIPC(() => windows.main)
+
+  setupTimerIPC(
+    () => windows.main,
+    () => windows.timer,
+    (win) => (windows.timer = win),
+  )
+
+  setupDevToolsIPC(
+    () => windows.main,
+    () => windows.devTools,
+    (win) => (windows.devTools = win),
+  )
+
+  setupStorageIPC(() => ctx.storage!)
+  setupStorageEvents(() => windows.main)
+  setupStorageSync(
+    () => ctx.storage!,
+    () => windows.main,
+  )
+
+  const main = setupMainWindow(ctx, {showSplash: true})
 
   setupUpdateManager(main)
 
-  setupStorageIPC(ctx.storage)
-  setupStorageSync(
-    () => ctx.storage!,
-    () => ctx.windows.main,
-  )
-
   console.log(`🚀 ${APP_CONFIG.name} started`)
 })
+
+function setupMainWindow(ctx: AppContext, options?: {showSplash?: boolean}) {
+  const {windows} = ctx
+  const showSplash = options?.showSplash ?? false
+
+  windows.main = createMainWindow()
+  const main = windows.main!
+
+  setupMenu(() => main)
+
+  main.on("closed", () => {
+    if (ctx.windows.timer && !ctx.windows.timer.isDestroyed()) {
+      ctx.windows.timer.close()
+      ctx.windows.timer = null
+    }
+
+    ctx.windows.main = null
+  })
+
+  main.once("ready-to-show", async () => {
+    if (showSplash) {
+      await sleep(1000)
+
+      if (windows.splash) {
+        windows.splash.close()
+        windows.splash = null
+      }
+      console.log("✅ Main window displayed")
+    }
+
+    main.show()
+    focusWindow(main)
+  })
+
+  return main
+}
