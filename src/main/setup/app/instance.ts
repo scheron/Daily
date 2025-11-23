@@ -42,14 +42,12 @@ export function setupInstanceAndDeepLinks(getStorage: () => StorageController | 
     if (url && mainWindow) handleDeepLink(url, mainWindow)
   })
 
-  // macOS open-url
   app.on("open-url", (event, url) => {
     event.preventDefault()
     const mainWindow = getMainWindow()
     if (url && mainWindow) handleDeepLink(url, mainWindow)
   })
 
-  // startup argv (Windows/Linux)
   const urlArg = process.argv.find((arg) => arg.startsWith(`${APP_CONFIG.protocol}://`))
   if (urlArg) {
     app.whenReady().then(() => {

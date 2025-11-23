@@ -4,17 +4,13 @@ import os from 'node:os'
 import PouchDB from 'pouchdb'
 import chalk from 'chalk'
 
-// Буфер для сохранения вывода
 let outputBuffer = []
 const shouldSave = process.argv.includes('--save') || process.argv.some(arg => arg.startsWith('--output'))
 
-// Перехватываем console.log если нужно сохранять
 const originalLog = console.log
 if (shouldSave) {
   console.log = (...args) => {
-    // Выводим в консоль с цветами
     originalLog(...args)
-    // Сохраняем в буфер без цветов (убираем ANSI коды)
     const plainText = args.map(arg => 
       typeof arg === 'string' ? arg.replace(/\u001b\[\d+m/g, '') : String(arg)
     ).join(' ')
@@ -23,7 +19,7 @@ if (shouldSave) {
 }
 
 /**
- * Получить путь к БД в зависимости от платформы
+ * Get database path based on platform
  */
 function getDbPath() {
   const platform = os.platform()
@@ -32,47 +28,38 @@ function getDbPath() {
   let appDataPath
   
   if (platform === 'darwin') {
-    // macOS
     appDataPath = path.join(home, 'Library', 'Application Support', 'Daily')
   } else if (platform === 'win32') {
-    // Windows
     appDataPath = path.join(process.env.APPDATA || path.join(home, 'AppData', 'Roaming'), 'Daily')
   } else {
-    // Linux
     appDataPath = path.join(home, '.config', 'Daily')
   }
   
   return path.join(appDataPath, 'db')
 }
 
-// Главная функция
 async function main() {
   try {
-    // Получаем путь к БД
     const dbPath = getDbPath()
     
     console.log(chalk.blue.bold('\n📂 PouchDB Inspector\n'))
     console.log(chalk.gray(`Database path: ${dbPath}\n`))
 
-    // Проверяем существование БД
     if (!fs.existsSync(dbPath)) {
       console.log(chalk.yellow('⚠️  База данных не найдена'))
       console.log(chalk.gray(`Путь: ${dbPath}`))
       return
     }
 
-    // Открываем БД
     const db = new PouchDB(dbPath)
 
-    // Получаем все документы
     const result = await db.allDocs({
       include_docs: true,
-      attachments: false // не загружаем attachment'ы для быстроты
+      attachments: false
     })
 
     const docs = result.rows.map(row => row.doc)
     
-    // Группируем документы по типам
     const docsByType = {
       task: [],
       tag: [],
@@ -87,16 +74,14 @@ async function main() {
       }
     })
 
-    // Загружаем attachment'ы для файлов
     if (docsByType.file.length > 0) {
       for (let i = 0; i < docsByType.file.length; i++) {
         const fileDoc = docsByType.file[i]
         try {
           const docWithAttachment = await db.get(fileDoc._id, {
             attachments: true,
-            binary: false // Получаем как base64 строку, а не Blob
+            binary: false
           })
-          // Обновляем документ с attachment'ами
           docsByType.file[i] = docWithAttachment
         } catch (error) {
           console.error(chalk.yellow(`⚠️  Не удалось загрузить attachment для файла ${fileDoc._id}:`), error.message)
@@ -104,13 +89,11 @@ async function main() {
       }
     }
 
-    // Определяем режим работы из аргументов
     const args = process.argv.slice(2)
     const mode = args.includes('--export') ? 'export' 
                : args.includes('--ids') ? 'ids' 
                : 'full'
 
-    // Выводим данные в зависимости от режима
     if (mode === 'export') {
       await exportToJson(docs, docsByType)
     } else if (mode === 'ids') {
@@ -119,12 +102,10 @@ async function main() {
       displayFull(docsByType)
     }
 
-    // Сохраняем вывод в файл если требуется
     if (shouldSave) {
       saveOutputToFile()
     }
 
-    // Закрываем БД
     await db.close()
 
   } catch (error) {
@@ -133,11 +114,10 @@ async function main() {
   }
 }
 
-// Запускаем
 main()
 
 /**
- * Полный вывод документов в консоль
+ * Display full document output in console
  */
 function displayFull(docsByType) {
   console.log(chalk.green.bold('📊 Статистика:\n'))
@@ -159,7 +139,6 @@ function displayFull(docsByType) {
   console.log(`  ${chalk.cyan('Total'.padEnd(12))}: ${chalk.yellow.bold(total)}`)
   console.log()
 
-  // Выводим документы по типам
   if (docsByType.task.length > 0) {
     console.log(chalk.magenta.bold('📝 Tasks:\n'))
     docsByType.task.forEach(doc => {
@@ -233,7 +212,7 @@ function displayFull(docsByType) {
 }
 
 /**
- * Вывод только ID документов
+ * Display only document IDs
  */
 function displayIds(docsByType) {
   console.log(chalk.green.bold('📋 Document IDs:\n'))
@@ -250,7 +229,7 @@ function displayIds(docsByType) {
 }
 
 /**
- * Экспорт в JSON файл
+ * Export to JSON file
  */
 async function exportToJson(docs, docsByType) {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)
@@ -277,7 +256,7 @@ async function exportToJson(docs, docsByType) {
 }
 
 /**
- * Форматирование размера в байтах
+ * Format bytes to human-readable size
  */
 function formatBytes(bytes) {
   if (bytes === 0) return '0 Bytes'
@@ -288,18 +267,15 @@ function formatBytes(bytes) {
 }
 
 /**
- * Сохранение вывода в файл
+ * Save output to file
  */
 function saveOutputToFile() {
-  // Определяем имя файла
   let filename
   const outputArgIndex = process.argv.findIndex(arg => arg === '--output')
   
   if (outputArgIndex !== -1 && process.argv[outputArgIndex + 1]) {
-    // Используем указанное имя файла
     filename = process.argv[outputArgIndex + 1]
   } else {
-    // Генерируем имя файла с timestamp
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)
     filename = `pouchdb-inspect-${timestamp}.txt`
   }

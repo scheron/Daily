@@ -37,11 +37,9 @@ async function loadDocs() {
     const data = await window.electronAPI.invoke("db-viewer:get-docs", currentType.value, 200)
     docs.value = data.docs || []
 
-    // Try to restore previously selected doc
     if (previousId && docs.value.some((d) => d._id === previousId)) {
       await loadDoc(previousId)
     } else if (docs.value.length > 0 && !activeDoc.value) {
-      // Auto-select first doc if available
       await loadDoc(docs.value[0]._id)
     }
   } catch (e: any) {
@@ -86,7 +84,6 @@ function handleFocus() {
 onMounted(() => {
   loadDocs()
 
-  // Reload data when window becomes visible or gets focus
   document.addEventListener("visibilitychange", handleVisibilityChange)
   window.addEventListener("focus", handleFocus)
 })
