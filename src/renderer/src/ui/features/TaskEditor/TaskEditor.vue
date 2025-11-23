@@ -8,6 +8,7 @@ import {useTaskEditorStore} from "@/stores/taskEditor.store"
 
 import EditorPlaceholder from "./fragments/EditorPlaceholder.vue"
 import {useEditTask} from "./model/useEditTask"
+import { calculateProportionalSize, getImageDimensions } from "@/utils/images"
 
 const taskEditorStore = useTaskEditorStore()
 
@@ -132,7 +133,12 @@ useClipboardPaste(contentField, {
         console.log("Saving file:", file.name)
         const id = await window.electronAPI.saveFile(file.name, buffer)
         const url = await window.electronAPI.getFilePath(id)
-        insertText(`![](${url})`)
+        const filename = file.name || "image"
+
+        const {width, height} = await getImageDimensions(dataUrl)
+        const {width: displayWidth, height: displayHeight} = calculateProportionalSize(width, height)
+
+        insertText(`![${filename} =${displayWidth}x${displayHeight}](${url})`)
         onInput()
       } catch (error) {
         console.error("Failed to save file:", error)
