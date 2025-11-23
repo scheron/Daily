@@ -2,18 +2,23 @@
  * Legacy Data Migration Script
  *
  * Migrates data from old file-based storage to PouchDB:
- * - ~/Documents/Daily/ → ~/Library/Application Support/Daily/db/
+ * - <legacy-path> → ~/Library/Application Support/Daily/db/
  *
  * Source structure:
- * - Documents/Daily/.meta.json (tasks metadata)
- * - Documents/Daily/.config.json (settings)
- * - Documents/Daily/YYYY-MM-DD/*.md (task files)
- * - Documents/Daily/assets/* (asset files)
+ * - <legacy-path>/.meta.json (tasks metadata)
+ * - <legacy-path>/.config.json (settings)
+ * - <legacy-path>/YYYY-MM-DD/*.md (task files)
+ * - <legacy-path>/assets/* (asset files)
  *
  * Target structure:
- * - PouchDB with TaskDoc, TagDoc, SettingsDoc, AssetDoc
+ * - PouchDB with TaskDoc, TagDoc, SettingsDoc, FileDoc
  *
- * Usage: pnpm migrate
+ * Usage:
+ *   node scripts/migrate.js <legacy-path>
+ *
+ * Example:
+ *   node scripts/migrate.js "/Users/username/Library/Mobile Documents/com~apple~CloudDocs/Daily"
+ *   node scripts/migrate.js "/Users/username/Documents/Daily"
  */
 
 import {createHash} from 'node:crypto'
@@ -35,7 +40,22 @@ PouchDB.plugin(PouchDBFind)
 /* ============== CONFIGURATION ============== */
 /* ============================================ */
 
-const LEGACY_ROOT = path.join('/Users/olegardo/Library/Mobile Documents/com~apple~CloudDocs/Daily')
+// Get legacy path from command line argument
+const LEGACY_ROOT_ARG = process.argv[2]
+
+if (!LEGACY_ROOT_ARG) {
+  console.error('❌ Error: Legacy data path is required')
+  console.error()
+  console.error('Usage: node scripts/migrate.js <legacy-path>')
+  console.error()
+  console.error('Example:')
+  console.error('  node scripts/migrate.js "/Users/username/Library/Mobile Documents/com~apple~CloudDocs/Daily"')
+  console.error('  node scripts/migrate.js "/Users/username/Documents/Daily"')
+  console.error()
+  process.exit(1)
+}
+
+const LEGACY_ROOT = path.resolve(LEGACY_ROOT_ARG)
 const NEW_DB_PATH = path.join(os.homedir(), 'Library', 'Application Support', 'Daily', 'db')
 
 const LEGACY_META_FILE = path.join(LEGACY_ROOT, '.meta.json')
@@ -71,7 +91,8 @@ function getMimeType(extension) {
 }
 
 /**
- * Parse duration string (e.g., "2 h. 30 min.") to milliseconds
+ * Parse duration string (e.g., "2 h. 30 min.") to seconds
+ * (matching the format used in the application)
  */
 function parseDuration(str) {
   if (!str || str === '-') return 0
@@ -80,10 +101,40 @@ function parseDuration(str) {
   const hourMatch = str.match(/(\d+)\s*h/)
   const minMatch = str.match(/(\d+)\s*min/)
 
-  if (hourMatch) total += parseInt(hourMatch[1]) * 60 * 60 * 1000
-  if (minMatch) total += parseInt(minMatch[1]) * 60 * 1000
+  if (hourMatch) total += parseInt(hourMatch[1]) * 60 * 60
+  if (minMatch) total += parseInt(minMatch[1]) * 60
 
   return total
+}
+
+/**
+ * Normalize date to YYYY-MM-DD format
+ * Handles dates with time, timestamps, etc.
+ */
+function normalizeDate(dateStr) {
+  if (!dateStr || typeof dateStr !== 'string') return ''
+
+  // Extract YYYY-MM-DD from various formats
+  // Handles: "2025-11-29", "2025-11-29T03:11:19", "2025-11-29 03:11:19", etc.
+  const dateMatch = dateStr.match(/^(\d{4}-\d{2}-\d{2})/)
+  if (dateMatch) {
+    return dateMatch[1]
+  }
+
+  // Try to parse as Date and format
+  try {
+    const date = new Date(dateStr)
+    if (!isNaN(date.getTime())) {
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      return `${year}-${month}-${day}`
+    }
+  } catch (e) {
+    // Ignore parsing errors
+  }
+
+  return ''
 }
 
 /* ============================================ */
@@ -98,10 +149,12 @@ async function initDB() {
 
   const db = new PouchDB(NEW_DB_PATH)
 
-  // Create indexes
+  // Create indexes (matching database.ts)
   await db.createIndex({index: {fields: ['type']}})
   await db.createIndex({index: {fields: ['type', 'scheduled.date']}})
   await db.createIndex({index: {fields: ['type', 'status']}})
+  await db.createIndex({index: {fields: ['type', 'createdAt']}})
+  await db.createIndex({index: {fields: ['type', 'updatedAt']}})
 
   console.log('✅ Connected to PouchDB')
   console.log()
@@ -254,14 +307,24 @@ async function migrateTasks(db, metaData, tagsMap) {
 
   const taskDocs = []
   const errors = []
+  const skippedByStatus = []
+  const skippedByFile = []
+  const dateStats = new Map() // Track tasks by date
+  const migratedByMonth = new Map() // Track successfully migrated tasks by month
 
   for (const taskMeta of tasksMetadata) {
     try {
+      const taskDate = taskMeta.scheduled?.date || 'unknown'
+      const dateKey = taskDate !== 'unknown' && taskDate.length >= 7 ? taskDate.substring(0, 7) : 'unknown' // YYYY-MM for grouping
+      dateStats.set(dateKey, (dateStats.get(dateKey) || 0) + 1)
+
       const taskPath = path.join(LEGACY_ROOT, taskMeta.file)
 
       if (!(await pathExists(taskPath))) {
-        console.warn(`   ⚠️  Task file missing: ${taskMeta.file}`)
-        errors.push(`Missing file: ${taskMeta.file}`)
+        const errorMsg = `Task file missing: ${taskMeta.file} (date: ${taskDate})`
+        console.warn(`   ⚠️  ${errorMsg}`)
+        skippedByFile.push({id: taskMeta.id, file: taskMeta.file, date: taskDate})
+        errors.push(errorMsg)
         continue
       }
 
@@ -271,45 +334,71 @@ async function migrateTasks(db, metaData, tagsMap) {
       const frontmatter = parsed.data || {}
       const content = parsed.content?.trim() || ''
 
-      // Validate status
-      const validStatuses = ['active', 'done', 'discarded']
-      const status = frontmatter.status?.toLowerCase()
+      // Get actual date from frontmatter if not in meta
+      const actualDate = taskMeta.scheduled?.date || frontmatter.date || 'unknown'
+      const actualDateKey = actualDate !== 'unknown' && actualDate.length >= 7 ? actualDate.substring(0, 7) : 'unknown'
 
-      if (!validStatuses.includes(status)) {
-        console.warn(`   ⚠️  Invalid status in task ${taskMeta.id}: ${status}`)
-        errors.push(`Invalid status: ${taskMeta.id}`)
-        continue
+      // Validate status - use default if missing
+      const validStatuses = ['active', 'done', 'discarded']
+      let status = frontmatter.status?.toLowerCase()
+
+      if (!status || !validStatuses.includes(status)) {
+        // Use default status if missing or invalid
+        status = 'active'
+        if (frontmatter.status) {
+          console.warn(`   ⚠️  Invalid status "${frontmatter.status}" in task ${taskMeta.id}, using default "active"`)
+          skippedByStatus.push({id: taskMeta.id, status: frontmatter.status, date: taskDate})
+        }
       }
 
       // Sanitize ID - PouchDB doesn't allow IDs starting with underscore
       let taskId = taskMeta.id
       if (taskId.startsWith('_')) {
-        taskId = 'task' + taskId
+        taskId = taskId.slice(1) // Remove leading underscore
         console.log(`   🔧 Sanitized ID: ${taskMeta.id} → ${taskId}`)
       }
 
-      // Convert to TaskDoc format
+      // Convert to TaskDoc format (matching docIdMap.task.toDoc format)
+      // Normalize date to YYYY-MM-DD format
+      const rawDate = taskMeta.scheduled?.date || frontmatter.date || ''
+      const finalDate = normalizeDate(rawDate)
+      
+      if (!finalDate) {
+        const errorMsg = `Task ${taskMeta.id} has invalid or missing date: ${rawDate}`
+        console.warn(`   ⚠️  ${errorMsg}`)
+        errors.push(errorMsg)
+        continue
+      }
+
       const taskDoc = {
-        _id: taskId,
+        _id: `task:${taskId}`,
         type: 'task',
         status: status,
         scheduled: {
-          date: taskMeta.scheduled?.date || frontmatter.date,
-          time: taskMeta.scheduled?.time || '',
-          timezone: taskMeta.scheduled?.timezone || '',
+          date: finalDate,
+          time: taskMeta.scheduled?.time || frontmatter.time || '',
+          timezone: taskMeta.scheduled?.timezone || frontmatter.timezone || '',
         },
         estimatedTime: taskMeta.estimated || parseDuration(frontmatter.estimated),
         spentTime: taskMeta.spent || parseDuration(frontmatter.spent),
         content: content,
         tagNames: (frontmatter.tags || []).filter(tagName => tagsMap.has(tagName)),
+        attachments: [], // Initialize empty attachments array
         createdAt: taskMeta.createdAt || new Date().toISOString(),
         updatedAt: taskMeta.updatedAt || new Date().toISOString(),
       }
 
       taskDocs.push(taskDoc)
+      
+      // Track successfully processed tasks by month
+      if (finalDate && finalDate.length >= 7) {
+        const monthKey = finalDate.substring(0, 7)
+        migratedByMonth.set(monthKey, (migratedByMonth.get(monthKey) || 0) + 1)
+      }
     } catch (error) {
-      console.error(`   ❌ Failed to process task ${taskMeta.id}:`, error.message)
-      errors.push(`Error in ${taskMeta.id}: ${error.message}`)
+      const errorMsg = `Failed to process task ${taskMeta.id}: ${error.message}`
+      console.error(`   ❌ ${errorMsg}`)
+      errors.push(errorMsg)
     }
   }
 
@@ -319,13 +408,54 @@ async function migrateTasks(db, metaData, tagsMap) {
     return
   }
 
+  // Log date statistics
+  console.log('   📊 Tasks found in .meta.json by month:')
+  const sortedDates = Array.from(dateStats.entries()).sort()
+  sortedDates.forEach(([month, count]) => {
+    console.log(`      ${month}: ${count} tasks`)
+  })
+  console.log()
+
   try {
     await db.bulkDocs(taskDocs)
     console.log(`✅ Migrated ${taskDocs.length} tasks`)
 
+    // Log successfully migrated tasks by month
+    if (migratedByMonth.size > 0) {
+      console.log('   📊 Successfully migrated tasks by month:')
+      const sortedMigrated = Array.from(migratedByMonth.entries()).sort()
+      sortedMigrated.forEach(([month, count]) => {
+        console.log(`      ${month}: ${count} tasks`)
+      })
+      console.log()
+    }
+
+    if (skippedByFile.length > 0) {
+      console.log(`   ⚠️  ${skippedByFile.length} tasks skipped (missing files):`)
+      skippedByFile.slice(0, 10).forEach(item => {
+        console.log(`      - ${item.id} (${item.date}): ${item.file}`)
+      })
+      if (skippedByFile.length > 10) {
+        console.log(`      ... and ${skippedByFile.length - 10} more`)
+      }
+    }
+
+    if (skippedByStatus.length > 0) {
+      console.log(`   ⚠️  ${skippedByStatus.length} tasks had invalid status (using default):`)
+      skippedByStatus.slice(0, 10).forEach(item => {
+        console.log(`      - ${item.id} (${item.date}): status="${item.status}"`)
+      })
+      if (skippedByStatus.length > 10) {
+        console.log(`      ... and ${skippedByStatus.length - 10} more`)
+      }
+    }
+
     if (errors.length > 0) {
       console.log(`   ⚠️  ${errors.length} tasks had errors:`)
-      errors.forEach(err => console.log(`      - ${err}`))
+      errors.slice(0, 10).forEach(err => console.log(`      - ${err}`))
+      if (errors.length > 10) {
+        console.log(`      ... and ${errors.length - 10} more errors`)
+      }
     }
   } catch (error) {
     console.error('❌ Failed to save tasks to database:', error)
@@ -336,7 +466,8 @@ async function migrateTasks(db, metaData, tagsMap) {
 }
 
 /**
- * Migrate assets from assets/ folder to AssetDoc with attachments
+ * Migrate assets from assets/ folder to FileDoc with attachments
+ * (matching FileModel.createFile approach)
  */
 async function migrateAssets(db) {
   console.log('🖼️  Migrating assets...')
@@ -371,27 +502,29 @@ async function migrateAssets(db) {
 
         const extension = path.extname(filename).slice(1)
         const mimeType = getMimeType(extension)
-        const assetId = `asset:${nanoid()}`
+        const fileId = nanoid() // Just the ID, not prefixed
         const now = new Date().toISOString()
 
-        console.log(`   📎 Migrating: ${filename} → ${assetId}`)
+        console.log(`   📎 Migrating: ${filename} → file:${fileId}`)
 
-        // Step 1: Create document without attachment
-        const docWithoutAttachment = {
-          _id: assetId,
-          type: 'asset',
+        // Create FileDoc with attachment (matching fileToDoc approach)
+        const fileDoc = {
+          _id: `file:${fileId}`,
+          type: 'file',
           name: filename,
           mimeType,
           size: data.length,
-          publicIn: [],
           createdAt: now,
           updatedAt: now,
+          _attachments: {
+            data: {
+              content_type: mimeType,
+              data: data.toString('base64'),
+            },
+          },
         }
 
-        const putResult = await db.put(docWithoutAttachment)
-
-        // Step 2: Add attachment
-        await db.putAttachment(assetId, 'data', putResult.rev, data, mimeType)
+        await db.put(fileDoc)
 
         migrated++
       } catch (error) {
@@ -450,9 +583,27 @@ async function migrate() {
     // Read legacy metadata
     console.log('📖 Reading legacy .meta.json...')
     const metaData = JSON.parse(await readFile(LEGACY_META_FILE, 'utf-8'))
-    console.log(`   Version: ${metaData.version}`)
-    console.log(`   Tasks: ${Object.keys(metaData.tasks || {}).length}`)
-    console.log(`   Tags: ${Object.keys(metaData.tags || {}).length}`)
+    console.log(`   Version: ${metaData.version || 'unknown'}`)
+    console.log(`   Tasks in metadata: ${Object.keys(metaData.tasks || {}).length}`)
+    console.log(`   Tags in metadata: ${Object.keys(metaData.tags || {}).length}`)
+    
+    // Analyze task dates from metadata
+    if (metaData.tasks && Object.keys(metaData.tasks).length > 0) {
+      const taskDates = new Map()
+      Object.values(metaData.tasks).forEach(task => {
+        const date = task.scheduled?.date || 'unknown'
+        const month = date !== 'unknown' && date.length >= 7 ? date.substring(0, 7) : 'unknown'
+        taskDates.set(month, (taskDates.get(month) || 0) + 1)
+      })
+      
+      if (taskDates.size > 0) {
+        console.log('   📅 Task dates in metadata:')
+        const sortedTaskDates = Array.from(taskDates.entries()).sort()
+        sortedTaskDates.forEach(([month, count]) => {
+          console.log(`      ${month}: ${count} tasks`)
+        })
+      }
+    }
     console.log()
 
     // Migrate in order
@@ -469,20 +620,39 @@ async function migrate() {
     console.log('=' .repeat(60))
     console.log('✅ Migration completed successfully!')
     console.log()
-    console.log('📊 Summary:')
+    console.log('📊 Final Summary:')
 
     const allDocs = await db.allDocs()
     const docsByType = {}
+    const taskDatesInDB = new Map()
 
     for (const row of allDocs.rows) {
       const type = row.id.split(':')[0]
       docsByType[type] = (docsByType[type] || 0) + 1
+      
+      // Count tasks by date in database
+      if (type === 'task' && row.doc) {
+        const taskDate = row.doc.scheduled?.date || 'unknown'
+        if (taskDate !== 'unknown' && taskDate.length >= 7) {
+          const month = taskDate.substring(0, 7)
+          taskDatesInDB.set(month, (taskDatesInDB.get(month) || 0) + 1)
+        }
+      }
     }
 
     console.log(`   Total documents: ${allDocs.rows.length}`)
     Object.entries(docsByType).forEach(([type, count]) => {
       console.log(`   - ${type}: ${count}`)
     })
+    
+    if (taskDatesInDB.size > 0) {
+      console.log()
+      console.log('   📅 Tasks in database by month:')
+      const sortedTaskDatesInDB = Array.from(taskDatesInDB.entries()).sort()
+      sortedTaskDatesInDB.forEach(([month, count]) => {
+        console.log(`      ${month}: ${count} tasks`)
+      })
+    }
 
     console.log()
     console.log('💡 Next steps:')
