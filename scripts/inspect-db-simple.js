@@ -77,7 +77,7 @@ async function main() {
       task: [],
       tag: [],
       settings: [],
-      asset: [],
+      file: [],
     }
 
     docs.forEach(doc => {
@@ -86,6 +86,23 @@ async function main() {
         docsByType[type].push(doc)
       }
     })
+
+    // Загружаем attachment'ы для файлов
+    if (docsByType.file.length > 0) {
+      for (let i = 0; i < docsByType.file.length; i++) {
+        const fileDoc = docsByType.file[i]
+        try {
+          const docWithAttachment = await db.get(fileDoc._id, {
+            attachments: true,
+            binary: false // Получаем как base64 строку, а не Blob
+          })
+          // Обновляем документ с attachment'ами
+          docsByType.file[i] = docWithAttachment
+        } catch (error) {
+          console.error(chalk.yellow(`⚠️  Не удалось загрузить attachment для файла ${fileDoc._id}:`), error.message)
+        }
+      }
+    }
 
     // Определяем режим работы из аргументов
     const args = process.argv.slice(2)
@@ -129,7 +146,7 @@ function displayFull(docsByType) {
     'Tasks': docsByType.task.length,
     'Tags': docsByType.tag.length,
     'Settings': docsByType.settings.length,
-    'Assets': docsByType.asset.length,
+    'Files': docsByType.file.length,
   }
 
   Object.entries(stats).forEach(([type, count]) => {
@@ -152,6 +169,7 @@ function displayFull(docsByType) {
       console.log(`     Scheduled: ${chalk.cyan(doc.scheduled?.date)} ${doc.scheduled?.time || ''}`)
       console.log(`     Tags: ${doc.tagNames?.join(', ') || 'none'}`)
       console.log(`     Time: ${doc.spentTime || 0}/${doc.estimatedTime || 0} min`)
+      console.log(`     Attachments: ${doc.attachments?.join(', ') || 'none'}`)
       if (doc.content) {
         const preview = doc.content.slice(0, 60).replace(/\n/g, ' ')
         console.log(`     Content: ${chalk.gray(preview)}${doc.content.length > 60 ? '...' : ''}`)
@@ -183,14 +201,32 @@ function displayFull(docsByType) {
     })
   }
 
-  if (docsByType.asset.length > 0) {
-    console.log(chalk.magenta.bold('📎 Assets:\n'))
-    docsByType.asset.forEach(doc => {
+  if (docsByType.file.length > 0) {
+    console.log(chalk.magenta.bold('📎 Files:\n'))
+    docsByType.file.forEach(doc => {
       console.log(`  📎 ${chalk.bold(doc.name)}`)
       console.log(`     ID: ${doc._id}`)
       console.log(`     Type: ${doc.mimeType}`)
       console.log(`     Size: ${formatBytes(doc.size)}`)
-      console.log(`     Used in: ${doc.publicIn?.length || 0} task(s)`)
+      
+      const attachment = doc._attachments?.data
+      if (attachment) {
+        const data = attachment.data
+        const dataStr = typeof data === 'string' ? data : '[Blob]'
+        const previewLength = 100
+        const preview = dataStr.length > previewLength 
+          ? dataStr.substring(0, previewLength) + '...' 
+          : dataStr
+        console.log(`     Has attachment: ${chalk.green('Yes')}`)
+        console.log(`     Attachment type: ${attachment.content_type || 'unknown'}`)
+        console.log(`     Attachment size: ${formatBytes(attachment.length || 0)}`)
+        console.log(`     Attachment data (preview): ${chalk.gray(preview)}`)
+      } else {
+        console.log(`     Has attachment: ${chalk.red('No')}`)
+      }
+      
+      console.log(`     Created: ${chalk.gray(new Date(doc.createdAt).toLocaleString())}`)
+      console.log(`     Updated: ${chalk.gray(new Date(doc.updatedAt).toLocaleString())}`)
       console.log()
     })
   }
@@ -228,8 +264,7 @@ async function exportToJson(docs, docsByType) {
       tasks: docsByType.task.length,
       tags: docsByType.tag.length,
       settings: docsByType.settings.length,
-      assets: docsByType.asset.length,
-      other: docsByType.other.length,
+      files: docsByType.file.length,
     },
     documents: docs
   }
