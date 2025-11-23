@@ -103,7 +103,7 @@ export interface IStorageController {
   getDays(params?: {from?: ISODate; to?: ISODate}): Promise<Day[]>
   getDay(date: ISODate): Promise<Day | null>
 
-  getTaskList(params?: {from?: ISODate; to?: ISODate}): Promise<Task[]>
+  getTaskList(params?: {from?: ISODate; to?: ISODate; limit?: number}): Promise<Task[]>
   getTask(id: Task["id"]): Promise<Task | null>
   updateTask(id: Task["id"], updates: PartialDeep<Task>): Promise<Task | null>
   createTask(task: Task): Promise<Task | null>

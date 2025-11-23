@@ -68,7 +68,7 @@ export class StorageController implements IStorageController {
     return this.daysService.getDay(date)
   }
 
-  async getTaskList(params?: {from?: ISODate; to?: ISODate}): Promise<Task[]> {
+  async getTaskList(params?: {from?: ISODate; to?: ISODate; limit?: number}): Promise<Task[]> {
     return this.tasksService.getTaskList(params)
   }
 

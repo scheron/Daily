@@ -25,7 +25,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   loadSettings: () => ipcRenderer.invoke("load-settings") as Promise<Settings>,
   saveSettings: (settings: Partial<Settings>) => ipcRenderer.invoke("save-settings", settings),
 
-  getTaskList: () => ipcRenderer.invoke("get-task-list") as Promise<Task[]>,
+  getTaskList: (params?: {from?: ISODate; to?: ISODate; limit?: number}) => ipcRenderer.invoke("get-task-list", params) as Promise<Task[]>,
   getTask: (id: Task["id"]) => ipcRenderer.invoke("get-task", id) as Promise<Task | null>,
   updateTask: (id: Task["id"], updates: PartialDeep<Task>) => ipcRenderer.invoke("update-task", id, updates),
   createTask: (task: Task) => ipcRenderer.invoke("create-task", task),

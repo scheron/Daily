@@ -12,7 +12,7 @@ export function setupStorageIPC(getStorage: () => IStorageController): void {
   ipcMain.handle("get-days", (_e, params?: {from?: ISODate; to?: ISODate}) => getStorage().getDays(params))
   ipcMain.handle("get-day", (_e, date: ISODate) => getStorage().getDay(date))
 
-  ipcMain.handle("get-task-list", (_e, params?: {from?: ISODate; to?: ISODate}) => getStorage().getTaskList(params))
+  ipcMain.handle("get-task-list", (_e, params?: {from?: ISODate; to?: ISODate; limit?: number}) => getStorage().getTaskList(params))
   ipcMain.handle("get-task", (_e, id: Task["id"]) => getStorage().getTask(id))
   ipcMain.handle("update-task", (_e, id: Task["id"], updates: PartialDeep<Task>) => getStorage().updateTask(id, updates))
   ipcMain.handle("create-task", (_e, task: Task) => getStorage().createTask(task))

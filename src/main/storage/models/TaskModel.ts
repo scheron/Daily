@@ -10,9 +10,12 @@ import {docIdMap, docToTask, taskToDoc} from "./_mappers.js"
 export class TaskModel {
   constructor(private db: PouchDB.Database) {}
 
-  async getTaskList(params?: {from?: ISODate; to?: ISODate}): Promise<TaskInternal[]> {
+  async getTaskList(params?: {from?: ISODate; to?: ISODate; limit?: number}): Promise<TaskInternal[]> {
     try {
       let selector: PouchDB.Find.Selector = {type: "task"}
+
+      // PouchDB find() has default limit of 25
+      const limit = params?.limit ?? Infinity
 
       if (params?.from || params?.to) {
         const dateSelector: {$gte?: ISODate; $lte?: ISODate} = {}
@@ -25,11 +28,8 @@ export class TaskModel {
         })
       }
 
-      const result = (await this.db.find({selector})) as PouchDB.Find.FindResponse<TaskDoc>
+      const result = (await this.db.find({selector, limit})) as PouchDB.Find.FindResponse<TaskDoc>
 
-      console.log(
-        `[TASKS] Loaded ${result.docs.length} task docs from PouchDB ${params?.from || params?.to ? `(from: ${params?.from ?? "∞"}, to: ${params?.to ?? "∞"})` : "(all)"}`,
-      )
       return result.docs.map(docToTask)
     } catch (error) {
       console.error("[TASKS] Failed to load task docs from PouchDB:", error)

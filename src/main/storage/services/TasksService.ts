@@ -9,7 +9,7 @@ export class TasksService {
     private tagModel: TagModel,
   ) {}
 
-  async getTaskList(params?: {from?: ISODate; to?: ISODate}): Promise<Task[]> {
+  async getTaskList(params?: {from?: ISODate; to?: ISODate; limit?: number}): Promise<Task[]> {
     const [tasks, allTags] = await Promise.all([this.taskModel.getTaskList(params), this.tagModel.getTagList()])
 
     const tagMap = new Map(allTags.map((t) => [t.name, t]))
