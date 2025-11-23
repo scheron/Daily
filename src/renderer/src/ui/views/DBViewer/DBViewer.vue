@@ -119,8 +119,7 @@ onUnmounted(() => {
     </header>
 
     <div class="grid flex-1 grid-cols-[320px_minmax(0,1fr)] overflow-hidden">
-      <!-- Sidebar -->
-      <aside class="bg-base-200 border-base-300 flex flex-col gap-2 border-r p-2">
+      <aside class="bg-base-200 border-base-300 flex flex-col overflow-y-auto gap-2 border-r p-2">
         <div>
           <div class="text-base-content/40 mb-1 text-xs uppercase tracking-widest">Document types</div>
           <div class="flex flex-wrap gap-1">
@@ -176,7 +175,7 @@ onUnmounted(() => {
           </div>
           <div class="flex-1 overflow-auto p-2">
             <pre v-if="activeDoc" class="text-base-content font-mono text-xs leading-relaxed"><code>{{ JSON.stringify(docWithoutMeta, null, 2) }}</code></pre>
-            <div v-else class="text-base-content/40 p-2 text-xs">// Select a document on the left</div>
+            <div v-else class="text-base-content/40 p-2 text-xs">Select a document on the left</div>
           </div>
         </section>
 
@@ -188,7 +187,7 @@ onUnmounted(() => {
           </div>
           <div class="flex-1 overflow-auto p-2">
             <pre v-if="activeDoc" class="text-base-content font-mono text-xs leading-relaxed"><code>{{ JSON.stringify(activeDoc, null, 2) }}</code></pre>
-            <div v-else class="text-base-content/40 p-2 text-xs">// Raw PouchDB doc will appear here</div>
+            <div v-else class="text-base-content/40 p-2 text-xs">Raw PouchDB doc will appear here</div>
           </div>
         </section>
       </main>

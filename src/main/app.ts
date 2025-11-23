@@ -83,7 +83,7 @@ app.whenReady().then(async () => {
     () => windows.main,
   )
 
-  const main = await setupMainWindow(windows, {showSplash: true})
+  const main = setupMainWindow(windows, {showSplash: true})
 
   setupUpdateManager(main)
 
