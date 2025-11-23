@@ -120,7 +120,7 @@ export function docToSettings(doc: SettingsDoc): Settings {
 /* ============ FILE <-> DOC ================= */
 /* ============================================ */
 
-export function fileToDoc(file: File): FileDoc {
+export function fileToDoc(file: File & {fileBuffer: Buffer}): FileDoc {
   return {
     _id: docIdMap.file.toDoc(file.id),
     type: "file",
@@ -129,6 +129,12 @@ export function fileToDoc(file: File): FileDoc {
     size: file.size,
     createdAt: file.createdAt,
     updatedAt: file.updatedAt,
+    _attachments: {
+      data: {
+        content_type: file.mimeType,
+        data: file.fileBuffer.toString("base64"),
+      },
+    },
   }
 }
 

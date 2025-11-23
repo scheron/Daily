@@ -52,24 +52,19 @@ export class FileModel {
     try {
       const now = new Date().toISOString()
 
-      const file: File = {
+      const file: File & {fileBuffer: Buffer} = {
         id: nanoid(),
         name,
         mimeType,
         size,
         createdAt: now,
         updatedAt: now,
+        fileBuffer: data,
       }
 
-      const doc = fileToDoc(file)
-      const putResult = await this.db.put(doc)
+      const putResult = await this.db.put(fileToDoc(file))
 
       console.log(`📝 Document created, rev: ${putResult.rev}`)
-
-      const attachResult = await this.db.putAttachment(doc._id, "data", putResult.rev, data, mimeType)
-      console.log(`📎 Attachment added, rev: ${attachResult.rev}`)
-
-      await this.db.get(doc._id, {attachments: true, binary: false})
 
       return file
     } catch (error) {
