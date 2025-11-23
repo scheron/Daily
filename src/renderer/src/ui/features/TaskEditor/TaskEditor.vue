@@ -2,7 +2,9 @@
 import {Buffer} from "buffer"
 import {computed, onMounted, onUnmounted, useTemplateRef} from "vue"
 import {until, useEventListener} from "@vueuse/core"
+import {toast} from "vue-sonner"
 import {useClipboardPaste} from "@/composables/useClipboardPaste"
+import {useFileDrop} from "@/composables/useFileDrop"
 import {useDevice} from "@/composables/useDevice"
 import {useTaskEditorStore} from "@/stores/taskEditor.store"
 
@@ -41,6 +43,36 @@ function insertText(text: string) {
   } else {
     contentField.value?.appendChild(frag)
   }
+}
+
+async function processImageFile(file: File) {
+  const reader = new FileReader()
+  reader.onload = async (e) => {
+    const dataUrl = e.target?.result as string
+
+    const [, base64] = dataUrl.split(",")
+    const binary = atob(base64)
+    const len = binary.length
+    const arr = new Uint8Array(len)
+    for (let i = 0; i < len; i++) arr[i] = binary.charCodeAt(i)
+    const buffer = Buffer.from(arr)
+
+    try {
+      console.log("Saving file:", file.name)
+      const id = await window.electronAPI.saveFile(file.name, buffer)
+      const url = await window.electronAPI.getFilePath(id)
+      const filename = file.name || "image"
+
+      const {width, height} = await getImageDimensions(dataUrl)
+      const {width: displayWidth, height: displayHeight} = calculateProportionalSize(width, height)
+
+      insertText(`![${filename} =${displayWidth}x${displayHeight}](${url})`)
+      onInput()
+    } catch (error) {
+      console.error("Failed to save file:", error)
+    }
+  }
+  reader.readAsDataURL(file)
 }
 
 function focusContentField(toEnd = false) {
@@ -117,34 +149,13 @@ useEventListener(contentField, "keydown", (event) => {
 
 useClipboardPaste(contentField, {
   onTextPaste: () => onInput(),
-  onImagePaste: async (file) => {
-    const reader = new FileReader()
-    reader.onload = async (e) => {
-      const dataUrl = e.target?.result as string
+  onImagePaste: processImageFile,
+})
 
-      const [, base64] = dataUrl.split(",")
-      const binary = atob(base64)
-      const len = binary.length
-      const arr = new Uint8Array(len)
-      for (let i = 0; i < len; i++) arr[i] = binary.charCodeAt(i)
-      const buffer = Buffer.from(arr)
-
-      try {
-        console.log("Saving file:", file.name)
-        const id = await window.electronAPI.saveFile(file.name, buffer)
-        const url = await window.electronAPI.getFilePath(id)
-        const filename = file.name || "image"
-
-        const {width, height} = await getImageDimensions(dataUrl)
-        const {width: displayWidth, height: displayHeight} = calculateProportionalSize(width, height)
-
-        insertText(`![${filename} =${displayWidth}x${displayHeight}](${url})`)
-        onInput()
-      } catch (error) {
-        console.error("Failed to save file:", error)
-      }
-    }
-    reader.readAsDataURL(file)
+const {isDraggingOver} = useFileDrop(contentField, {
+  onFileDrop: processImageFile,
+  onRejectedFile: (file) => {
+    toast.error(`Only image files are supported. "${file.name}" is not an image.`)
   },
 })
 </script>
@@ -153,7 +164,8 @@ useClipboardPaste(contentField, {
   <div class="relative h-full min-h-full flex-1 p-2">
     <div
       ref="contentField"
-      class="markdown border-base-300 size-full cursor-text overflow-y-auto rounded-lg border p-4 pb-0 outline-none"
+      class="markdown border-base-300 size-full cursor-text overflow-y-auto rounded-lg border p-4 pb-0 outline-none transition-colors"
+      :class="{'ring-2 ring-blue-500 ring-offset-2 bg-blue-50/50': isDraggingOver}"
       contenteditable="true"
       @input="onInput"
     ></div>
