@@ -18,6 +18,8 @@ export function useProgressFill(elementRef: Ref<HTMLElement | null>, options: Us
   const startTime = ref(0)
   const animationFrame = ref<number>()
 
+  const isFilling = computed(() => !isComplete.value && progress.value > 0)
+
   const progressElement = document.createElement("div")
   progressElement.className = "absolute inset-0"
   progressElement.dataset.progress = ""
@@ -100,6 +102,7 @@ export function useProgressFill(elementRef: Ref<HTMLElement | null>, options: Us
 
   return {
     progress,
+    isFilling,
     isComplete,
     startProgress,
     stopProgress,

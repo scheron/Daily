@@ -22,7 +22,7 @@ const deleteButtonRef = useTemplateRef<HTMLDivElement>("deleteButton")
 
 const isOpenDayPicker = ref(false)
 
-useProgressFill(deleteButtonRef, {
+const {isFilling}=useProgressFill(deleteButtonRef, {
   color: computed(() => `${oklchToHex(themeStore.currentTheme.colorScheme.error)}60`),
   duration: 500,
   onComplete: () => emit("delete"),
@@ -46,6 +46,7 @@ function withOpenDayPicker(show: () => void) {
         tooltip="Hold to delete task"
         icon="trash"
         class="hover:text-error hover:bg-error/10 size-full"
+        :class="{'text-error': isFilling}"
         icon-class="size-4"
       />
     </div>
