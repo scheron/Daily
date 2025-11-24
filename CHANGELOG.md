@@ -2,62 +2,40 @@
 
 ## [unreleased]
 
+## v0.5.0 - 2025-11-24
+
 ### ✨ New Features
 
-- **PouchDB Storage Migration** - Complete migration from Obsidian-like file storage to PouchDB
-  - Implemented PouchDB storage layer with document-based architecture
-  - Created comprehensive migration script for seamless data transition
-  - Added support for local database with PouchDB-Find for efficient querying
+- **📎 File Attachments** - Added support for attaching files and images to tasks
+  - Drag and drop files directly into the task editor
+  - Images are automatically scaled for convenient viewing
+  - All attachments are stored locally and available offline
 
-- **File Attachments System** - Full support for attaching files to tasks
-  - CRUD operations for file attachments with PouchDB `_attachments`
-  - Custom protocol handler (`daily://file/{id}`) for secure file access
-  - File metadata storage with FileModel and FilesService
-  - Integrated attachment management directly in tasks
+- **🏷️ Enhanced Tag System** - Faster and more convenient tag management
+  - Instant search and filtering by tags
+  - Improved performance when working with large numbers of tags
+  - More stable task-tag associations
 
-- **Enhanced Tag Management** - Improved tag system with database integration
-  - Full CRUD operations for tags through TagModel and TagsService
-  - Task-tag associations with normalized storage (tags stored as string references)
-  - Tag hydration in service layer for rich domain objects
-  - O(1) tag lookup with Map-based caching
+### ⚡ Performance Improvements
 
-- **DB Viewer Tool** - Developer tool for database inspection
-  - In-app database viewer accessible via menu
-  - IPC integration for document management
-  - Real-time view of PouchDB documents and structure
+- **🚀 New Data Storage System** - Completely redesigned storage architecture
+  - Significantly faster loading and saving of tasks
+  - Improved performance when working with large amounts of data
+  - More reliable data storage
+  - Automatic migration of existing data without data loss
 
-### 🏗️ Architecture Refactoring
+- **⚙️ Settings Optimization** - Improved application settings management
+  - Faster saving and applying of settings changes
+  - Improved synchronization of settings between application components
 
-- **Storage Layer Redesign** - Multi-layered storage architecture
-  - Implemented StorageController facade pattern coordinating all services
-  - Created Service Layer (TasksService, TagsService, FilesService, SettingsService)
-  - Built Model Layer for direct PouchDB operations (TaskModel, TagModel, FileModel, SettingsModel)
-  - Added Mapper Layer for bidirectional transformation between domain models and documents
+### 🐛 Bug Fixes
 
-- **Document Mappers** - Clean separation between domain and storage
-  - `taskToDoc()` / `docToTask()` - Task ↔ TaskDoc transformation
-  - `tagToDoc()` / `docToTag()` - Tag ↔ TagDoc transformation
-  - `settingsToDoc()` / `docToSettings()` - Settings ↔ SettingsDoc transformation
-  - `fileToDoc()` / `docToFile()` - File ↔ FileDoc transformation
-  - Document ID strategy with type prefixes (task:, tag:, file:, settings:)
+- Fixed issue with duplicate file attachments
+- Improved sorting of filtered tasks by status
+- Fixed Markdown header styles for better readability
+- Improved visibility of interface element borders
 
-- **IPC Reorganization** - Improved IPC handler structure
-  - Reorganized IPC setup into logical modules (storage, window, timer, menu, devtools)
-  - Better separation of concerns for IPC handlers
-  - Updated window handling for better lifecycle management
-  - Enhanced storage interaction patterns
-
-### 🔄 Storage Improvements
-
-- **Settings Service** - Streamlined settings management
-  - Replaced DbSettingsService with unified SettingsService
-  - Single document storage pattern (settings:default)
-  - Deep merge updates for settings changes
-
-- **Asset to File Naming** - Consistent terminology throughout codebase
-  - Renamed asset handling to file handling for clarity
-  - Updated all related services, types, and IPC handlers
-  - Renamed `getAssetResponse` to `createAssetResponse`
+---
 
 ## v0.4.2 - 2025-09-22
 
