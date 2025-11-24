@@ -31,7 +31,7 @@ function setPreferredDarkTheme(event: Event) {
   <div class="flex flex-col gap-4">
     <div class="flex flex-col gap-2">
       <div class="text-base-content flex items-center gap-1 text-xs font-bold select-none">
-        <BaseIcon name="sun" class="size-4" />
+        <BaseIcon name="background" class="size-4" />
         Light Mode
       </div>
       <div class="flex gap-3 overflow-x-auto overscroll-none py-3">
@@ -49,7 +49,7 @@ function setPreferredDarkTheme(event: Event) {
 
     <div class="flex flex-col gap-2">
       <div class="text-base-content flex items-center gap-1 text-xs font-bold select-none">
-        <BaseIcon name="moon" class="size-4" />
+        <BaseIcon name="background" class="size-4" />
         Dark Mode
       </div>
       <div class="flex gap-3 overflow-x-auto overscroll-none py-3">

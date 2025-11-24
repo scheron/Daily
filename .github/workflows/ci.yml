@@ -45,7 +45,7 @@ jobs:
         run: pnpm exec tsc --noEmit --project src/main/tsconfig.json
 
       - name: Type check renderer
-        run: pnpm exec tsc --noEmit --project src/renderer/tsconfig.json
+        run: pnpm exec vue-tsc --noEmit --project src/renderer/tsconfig.json
 
   build-check:
     name: Build Check

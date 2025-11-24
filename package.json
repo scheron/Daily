@@ -33,7 +33,7 @@
     "postinstall": "electron-builder install-app-deps",
     "lint": "eslint . --ext .vue,.js,.jsx,.ts,.tsx --fix",
     "format": "prettier --write src/",
-    "typecheck": "tsc --noEmit --project src/main/tsconfig.json && tsc --noEmit --project src/renderer/tsconfig.json",
+    "typecheck": "tsc --noEmit --project src/main/tsconfig.json && vue-tsc --noEmit --project src/renderer/tsconfig.json",
     "prepare": "husky",
     "lint-staged": "lint-staged",
     "circular": "madge --circular src/",
