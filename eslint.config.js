@@ -78,6 +78,7 @@ export default [
       vue,
       "@typescript-eslint": tseslint,
       import: importPlugin,
+      "unused-imports": unusedImports,
     },
     rules: {
       "vue/multi-word-component-names": "off",

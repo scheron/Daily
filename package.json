@@ -33,15 +33,35 @@
     "postinstall": "electron-builder install-app-deps",
     "lint": "eslint . --ext .vue,.js,.jsx,.ts,.tsx --fix",
     "format": "prettier --write src/",
+    "typecheck": "tsc --noEmit --project src/main/tsconfig.json && tsc --noEmit --project src/renderer/tsconfig.json",
     "prepare": "husky",
+    "lint-staged": "lint-staged",
+    "circular": "madge --circular src/",
+    "bundle:size": "node scripts/bundle-size.js",
+    "check:all": "pnpm lint && pnpm typecheck && pnpm circular",
     "db:inspect": "node scripts/inspect-db-simple.js",
     "db:export": "node scripts/inspect-db-simple.js --export",
     "db:ids": "node scripts/inspect-db-simple.js --ids",
     "db:save": "node scripts/inspect-db-simple.js --save",
     "db:ids-save": "node scripts/inspect-db-simple.js --ids --save",
     "db:clear": "node scripts/clear-db.js",
-    "db:clear:force": "node scripts/clear-db.js --force",
-    "migrate": "node scripts/migrate.js"
+    "db:clear:force": "node scripts/clear-db.js --force"
+  },
+  "lint-staged": {
+    "*.ts": [
+      "eslint --fix",
+      "prettier --parser=typescript --write"
+    ],
+    "*.{js,vue}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ],
+    "*.{css}": [
+      "prettier --write"
+    ]
   },
   "devDependencies": {
     "@commitlint/cli": "^19.8.1",
@@ -68,6 +88,7 @@
     "eslint-plugin-vue": "^10.1.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.1.0",
+    "madge": "^8.0.0",
     "prettier": "^3.5.3",
     "prettier-plugin-tailwindcss": "^0.6.12",
     "rollup-plugin-visualizer": "^6.0.1",
@@ -103,14 +124,5 @@
     "vue": "^3.5.16",
     "vue-router": "^4.5.1",
     "vue-sonner": "^2.0.0"
-  },
-  "lint-staged": {
-    "*.{js,jsx,ts,tsx,vue}": [
-      "eslint --fix",
-      "prettier --write"
-    ],
-    "*.{json,md,yml,yaml}": [
-      "prettier --write"
-    ]
   }
 }

@@ -46,3 +46,8 @@ dist-ssr
 .secrets
 
 CLAUDE.md
+
+# Analysis artifacts
+deps.svg
+*.svg
+release-notes.md
