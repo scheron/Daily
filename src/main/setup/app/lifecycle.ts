@@ -42,7 +42,10 @@ export function setupActivateHandler(
 
     if (!mainWindow || mainWindow.isDestroyed()) {
       createMainWindow()
-    } else if (mainWindow && storage) {
+      return
+    }
+
+    if (storage) {
       focusWindow(mainWindow)
 
       if (!DISABLE_FOCUS_SYNC) {
