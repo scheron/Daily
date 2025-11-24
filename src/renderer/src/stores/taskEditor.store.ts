@@ -1,7 +1,7 @@
 import {ref} from "vue"
 import {defineStore} from "pinia"
 
-import type {Tag, Task} from "@/types/tasks"
+import type {Tag, Task} from "@shared/types/storage"
 
 export const useTaskEditorStore = defineStore("taskEditor", () => {
   const currentEditingTask = ref<Task | null>(null)

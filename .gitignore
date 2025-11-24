@@ -1,6 +1,6 @@
 node_modules/
 dist/
-build/
+out/
 
 *.txt
 *.tsbuildinfo
@@ -46,6 +46,7 @@ dist-ssr
 .secrets
 
 CLAUDE.md
+.decompose-file-here
 
 # Analysis artifacts
 deps.svg

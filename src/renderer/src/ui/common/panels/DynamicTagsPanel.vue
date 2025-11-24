@@ -2,7 +2,7 @@
 import {computed, nextTick, ref, watch} from "vue"
 import {useResizeObserver} from "@vueuse/core"
 
-import type {Tag} from "@/types/tasks"
+import type {Tag} from "@shared/types/storage"
 
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseIcon from "@/ui/base/BaseIcon"
@@ -12,7 +12,7 @@ import BaseTag from "@/ui/base/BaseTag.vue"
 const props = withDefaults(
   defineProps<{
     tags: Tag[]
-    selectedTags?: Set<string>
+    selectedTags?: Set<Tag["id"]>
     emptyMessage?: string
   }>(),
   {
@@ -28,14 +28,14 @@ const tagsRef = ref<HTMLElement | null>(null)
 const visibleTags = ref<Tag[]>([])
 const hiddenTags = ref<Tag[]>([])
 
-const hasSelectedInPopup = computed(() => hiddenTags.value.some((tag) => props.selectedTags.has(tag.name)))
+const hasSelectedInPopup = computed(() => hiddenTags.value.some((tag) => props.selectedTags.has(tag.id)))
 
-function isActiveTag(name: Tag["name"]) {
-  return props.selectedTags.has(name)
+function isActiveTag(id: Tag["id"]) {
+  return props.selectedTags.has(id)
 }
 
-function onSelectTag(name: Tag["name"]) {
-  emit("select", name)
+function onSelectTag(id: Tag["id"]) {
+  emit("select", id)
 }
 
 async function calculateVisibleTags() {
@@ -93,10 +93,10 @@ useResizeObserver(containerRef, calculateVisibleTags)
 
     <template v-else>
       <div ref="tagsRef" class="pointer-events-none absolute top-0 left-0 flex items-center gap-2 opacity-0">
-        <BaseTag v-for="tag in tags" :key="tag.name" :tag="tag" :active="isActiveTag(tag.name)" />
+        <BaseTag v-for="tag in tags" :key="tag.id" :tag="tag" :active="isActiveTag(tag.id)" />
       </div>
 
-      <BaseTag v-for="tag in visibleTags" :key="tag.name" :tag="tag" :active="isActiveTag(tag.name)" @click="onSelectTag(tag.name)" />
+      <BaseTag v-for="tag in visibleTags" :key="tag.id" :tag="tag" :active="isActiveTag(tag.id)" @click="onSelectTag(tag.id)" />
 
       <BasePopup v-if="hiddenTags.length" title="More Tags">
         <template #trigger="{toggle}">
@@ -115,19 +115,19 @@ useResizeObserver(containerRef, calculateVisibleTags)
 
         <BaseButton
           v-for="tag in hiddenTags"
-          :key="tag.name"
+          :key="tag.id"
           variant="ghost"
           size="sm"
-          class="gap-0 w-full"
+          class="w-full gap-0"
           icon-class="size-4"
-          :class="isActiveTag(tag.name) ? 'bg-base-200' : ''"
-          @click="onSelectTag(tag.name)"
+          :class="isActiveTag(tag.id) ? 'bg-base-200' : ''"
+          @click="onSelectTag(tag.id)"
         >
           <span class="mr-2 size-3 shrink-0 rounded-full" :style="{backgroundColor: tag.color}" />
           <span v-if="tag.emoji" class="mr-1 text-xs">{{ tag.emoji }}</span>
           <span v-else class="text-base leading-0">#</span>
           <span class="truncate text-sm">{{ tag.name }}</span>
-          <BaseIcon name="check" class="text-base-content/70 ml-auto size-4 shrink-0" :class="{invisible: !isActiveTag(tag.name)}" />
+          <BaseIcon name="check" class="text-base-content/70 ml-auto size-4 shrink-0" :class="{invisible: !isActiveTag(tag.id)}" />
         </BaseButton>
       </BasePopup>
     </template>

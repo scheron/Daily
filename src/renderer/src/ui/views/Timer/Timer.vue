@@ -5,7 +5,7 @@ import {useMarkdown} from "@/composables/useMarkdown"
 import {useStorageStore} from "@/stores/storage.store"
 import {useTasksStore} from "@/stores/tasks.store"
 import {useThemeStore} from "@/stores/theme.store"
-import {truncate} from "@/utils/strings"
+import {truncate} from "@shared/utils/strings/truncate"
 
 import BaseButton from "@/ui/base/BaseButton.vue"
 
@@ -35,24 +35,24 @@ async function onTimerChanged(time: number) {
 }
 
 function closeWindow() {
-  window.electronAPI.closeTimerWindow()
+  window.BridgeIPC["timer:close"]()
 }
 
 onMounted(async () => {
   taskId.value = route.query.taskId as string
 })
 
-window.electronAPI.onTaskSaved(async (savedTask) => {
+window.BridgeIPC["tasks:on-task-saved"](async (savedTask) => {
   if (savedTask.id === taskId.value) {
     await storageStore.revalidate()
   }
 })
 
-window.electronAPI.onTaskDeleted(async (deletedTaskId) => {
+window.BridgeIPC["tasks:on-task-deleted"](async (deletedTaskId) => {
   if (deletedTaskId === taskId.value) closeWindow()
 })
 
-window.electronAPI.onRefreshTimerWindow(async (newTaskId) => {
+window.BridgeIPC["timer:on-refresh"](async (newTaskId) => {
   taskId.value = newTaskId
   await storageStore.revalidate()
 })

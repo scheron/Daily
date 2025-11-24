@@ -6,6 +6,89 @@
 
 ### ✨ New Features
 
+- **iCloud Synchronization** - Smart sync system for seamless cross-device experience
+  - Automatic background synchronization pulls changes from iCloud every 5 minutes
+  - Manual push to upload local changes to iCloud when needed
+  - Smart sync strategy: automatic pull for downloads, manual push for uploads
+  - Real-time sync status with visual indicators (inactive, active, syncing, error)
+  - Sync settings persisted across app restarts
+  - Minimum 1-second sync duration for better user feedback
+  - Local-first architecture: PouchDB remains source of truth
+  - Backend initialization only when sync is enabled (privacy-focused)
+
+- **PouchDB Storage Migration** - Complete migration from Obsidian-like file storage to PouchDB
+  - Implemented PouchDB storage layer with document-based architecture
+  - Created comprehensive migration script for seamless data transition
+  - Added support for local database with PouchDB-Find for efficient querying
+
+- **File Attachments System** - Full support for attaching files to tasks
+  - CRUD operations for file attachments with PouchDB `_attachments`
+  - Custom protocol handler (`daily://file/{id}`) for secure file access
+  - File metadata storage with FileModel and FilesService
+  - Integrated attachment management directly in tasks
+
+- **Enhanced Tag Management** - Improved tag system with database integration
+  - Full CRUD operations for tags through TagModel and TagsService
+  - Task-tag associations with normalized storage (tags stored as string references)
+  - Tag hydration in service layer for rich domain objects
+  - O(1) tag lookup with Map-based caching
+
+- **DB Viewer Tool** - Developer tool for database inspection
+  - In-app database viewer accessible via menu
+  - IPC integration for document management
+  - Real-time view of PouchDB documents and structure
+
+### 🏗️ Architecture Refactoring
+
+- **Storage Layer Redesign** - Multi-layered storage architecture
+  - Implemented StorageController facade pattern coordinating all services
+  - Created Service Layer (TasksService, TagsService, FilesService, SettingsService)
+  - Built Model Layer for direct PouchDB operations (TaskModel, TagModel, FileModel, SettingsModel)
+  - Added Mapper Layer for bidirectional transformation between domain models and documents
+
+- **Document Mappers** - Clean separation between domain and storage
+  - `taskToDoc()` / `docToTask()` - Task ↔ TaskDoc transformation
+  - `tagToDoc()` / `docToTag()` - Tag ↔ TagDoc transformation
+  - `settingsToDoc()` / `docToSettings()` - Settings ↔ SettingsDoc transformation
+  - `fileToDoc()` / `docToFile()` - File ↔ FileDoc transformation
+  - Document ID strategy with type prefixes (task:, tag:, file:, settings:)
+
+- **IPC Reorganization** - Improved IPC handler structure
+  - Reorganized IPC setup into logical modules (storage, window, timer, menu, devtools)
+  - Better separation of concerns for IPC handlers
+  - Updated window handling for better lifecycle management
+  - Enhanced storage interaction patterns
+
+### 🔄 Storage & Sync Improvements
+
+- **Sync Engine Architecture** - Robust synchronization system
+  - SyncEngine orchestrates pull/push operations between PouchDB and remote storage
+  - LocalFileBackend implementation for iCloud Drive integration
+  - Snapshot-based sync with metadata comparison for efficient updates
+  - LWW (Last Write Wins) merge strategy for conflict resolution
+  - Snapshot integrity validation with SHA-256 hashing
+  - Auto-sync scheduler with configurable intervals
+  - Event broadcasting for real-time UI updates
+
+- **Settings Service** - Enhanced settings management with sync support
+  - Added `sync.enabled` boolean flag to control synchronization
+  - Replaced DbSettingsService with unified SettingsService
+  - Single document storage pattern (settings:default)
+  - Deep merge updates for settings changes
+  - Settings changes trigger sync state updates
+
+- **IPC Sync Handlers** - Complete sync control via IPC
+  - `sync:activate` - Enable automatic synchronization with initial pull
+  - `sync:deactivate` - Disable synchronization and update settings
+  - `sync:force` - Manual pull for immediate sync
+  - `sync:push` - Manual push to upload local changes
+  - `sync:get-status` - Query current sync status
+  - `sync:status-changed` - Real-time status broadcasts to renderer
+
+- **Asset to File Naming** - Consistent terminology throughout codebase
+  - Renamed asset handling to file handling for clarity
+  - Updated all related services, types, and IPC handlers
+  - Renamed `getAssetResponse` to `createAssetResponse`
 - **📎 File Attachments** - Added support for attaching files and images to tasks
   - Drag and drop files directly into the task editor
   - Images are automatically scaled for convenient viewing

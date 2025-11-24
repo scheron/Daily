@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {computed} from "vue"
 import {useDevice} from "@/composables/useDevice"
-import {toFullDate} from "@/utils/date"
+import {toFullDate} from "@shared/utils/date/formatters"
 
 import BaseButton from "@/ui/base/BaseButton.vue"
 

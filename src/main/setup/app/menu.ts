@@ -1,9 +1,8 @@
+import {ENV} from "@/config"
+import {checkForUpdate} from "@/setup/updates/updater"
 import {app, dialog, ipcMain, Menu} from "electron"
 
 import type {BrowserWindow, MenuItemConstructorOptions} from "electron"
-
-import {ENV} from "../../config.js"
-import {checkForUpdate} from "../updates/updater.js"
 
 export function setupMenu(getMainWindow: () => BrowserWindow | null): void {
   let template: Electron.MenuItemConstructorOptions[]

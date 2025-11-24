@@ -27,7 +27,6 @@
   color: var(--color-base-content);
 }
 
-
 [data-sonner-toast][data-styled="true"] [data-button] {
   color: var(--color-base-100);
   background: var(--color-base-content);

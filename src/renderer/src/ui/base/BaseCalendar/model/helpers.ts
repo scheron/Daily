@@ -1,4 +1,4 @@
-import type {Day} from "@/types/tasks"
+import type {Day} from "@shared/types/storage"
 import type {DateTime} from "luxon"
 import type {CalendarDay} from "./types"
 

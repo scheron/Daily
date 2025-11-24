@@ -1,12 +1,12 @@
+import {APP_CONFIG} from "@/config"
+import {LogContext, logger} from "@/utils/logger"
 import {protocol} from "electron"
 
-import type {StorageController} from "../../storage/StorageController.js"
-
-import {APP_CONFIG} from "../../config.js"
+import type {StorageController} from "@/storage/StorageController"
 
 export function setupSafeFileProtocol(storage: StorageController) {
   protocol.handle(APP_CONFIG.protocol, async (request) => {
-    console.log(`🔗 Protocol handler called: ${request.url}`)
+    logger.debug(LogContext.FILES, `Protocol handler called: ${request.url}`)
 
     const url = new URL(request.url)
     const host = url.hostname
@@ -21,10 +21,7 @@ export function setupSafeFileProtocol(storage: StorageController) {
     }
 
     const response = await storage.createFileResponse(id)
-    console.log(`📤 Protocol handler response:`, {
-      status: response.status,
-      contentType: response.headers.get("Content-Type"),
-    })
+    logger.debug(LogContext.FILES, `Protocol response: ${response.status} ${response.headers.get("Content-Type")}`)
     return response
   })
 }

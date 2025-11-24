@@ -1,12 +1,8 @@
 <script setup lang="ts">
-import {computed} from "vue"
 import {useDevice} from "@/composables/useDevice"
-import {useTasksStore} from "@/stores/tasks.store"
 import {useUIStore} from "@/stores/ui.store"
-import {countTasks} from "@/utils/tasks"
 
 import BaseButton from "@/ui/base/BaseButton.vue"
-import BaseIcon from "@/ui/base/BaseIcon"
 import BasePanel from "@/ui/base/BasePanel"
 import BaseSpinner from "@/ui/base/BaseSpinner.vue"
 import Logo from "@/ui/common/misc/Logo.vue"
@@ -15,6 +11,7 @@ import HelpPanel from "@/ui/features/panels/HelpPanel"
 import RecentActiveTasksPanel from "@/ui/features/panels/RecentActiveTasksPanel"
 import TagsPanel from "@/ui/features/panels/TagsPanel"
 import ThemesPanel from "@/ui/features/panels/ThemesPanel"
+import StorageSyncIndicator from "@/ui/features/StorageSyncIndicator"
 
 defineProps<{
   dataLoaded: boolean
@@ -22,10 +19,7 @@ defineProps<{
 }>()
 
 const uiStore = useUIStore()
-const tasksStore = useTasksStore()
 const {isMacOS} = useDevice()
-
-const count = computed(() => countTasks(tasksStore.dailyTasks))
 </script>
 
 <template>
@@ -37,21 +31,7 @@ const count = computed(() => countTasks(tasksStore.dailyTasks))
       </div>
 
       <div class="relative ml-auto flex items-center gap-1 text-sm">
-        <template v-if="count.total">
-          <span v-if="count.active" class="text-base-content/50 flex items-center gap-1">
-            {{ count.done }} / {{ count.total }}
-            <BaseIcon name="check-check" class="size-4" />
-          </span>
-
-          <span v-else class="text-success flex items-center gap-1">
-            {{ count.done }}
-            <BaseIcon name="check-check" class="size-4" />
-          </span>
-        </template>
-        <span v-else class="text-base-content/50 flex items-center gap-1">
-          No tasks
-          <BaseIcon name="check-check" class="size-4" />
-        </span>
+        <StorageSyncIndicator />
       </div>
     </div>
 

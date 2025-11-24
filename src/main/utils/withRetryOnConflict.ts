@@ -1,9 +1,9 @@
+import {LogContext, logger} from "./logger"
+
 export type ConflictError = {status?: number; [key: string]: any}
 
 export type RetryOptions = {
-  /** Maximum number of attempts (default: 3) */
   maxRetries?: number
-  /** Logger, can be passed console or your own Logger */
   logger?: {
     debug?: (...args: any[]) => void
     info?: (...args: any[]) => void
@@ -26,7 +26,8 @@ export async function withRetryOnConflict<T>(
   operation: (attempt: number) => Promise<T>,
   options: RetryOptions = {},
 ): Promise<T | null> {
-  const {maxRetries = 3, logger = console} = options
+  const {maxRetries = 3} = options
+  const customLogger = options.logger
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
@@ -36,15 +37,27 @@ export async function withRetryOnConflict<T>(
       const status = (error as ConflictError)?.status
 
       if (status === 409) {
-        logger.warn?.(`${label} Conflict on save (attempt ${attempt + 1}/${maxRetries})`)
+        if (customLogger) {
+          customLogger.warn?.(`${label} Conflict on save (attempt ${attempt + 1}/${maxRetries})`)
+        } else {
+          logger.warn(LogContext.DB, `${label} Conflict on save (attempt ${attempt + 1}/${maxRetries})`)
+        }
 
         if (attempt < maxRetries - 1) continue
 
-        logger.warn?.(`${label} Giving up after conflicts; another writer won the race.`)
+        if (customLogger) {
+          customLogger.warn?.(`${label} Giving up after conflicts; another writer won the race.`)
+        } else {
+          logger.warn(LogContext.DB, `${label} Giving up after conflicts; another writer won the race.`)
+        }
         return null
       }
 
-      logger.error?.(`${label} Failed to complete operation:`, error)
+      if (customLogger) {
+        customLogger.error?.(`${label} Failed to complete operation:`, error)
+      } else {
+        logger.error(LogContext.DB, `${label} Failed to complete operation`, error)
+      }
       throw error
     }
   }

@@ -1,13 +1,14 @@
+import {AsyncMutex} from "@/utils/AsyncMutex"
+import {deepMerge} from "@shared/utils/common/deepMerge"
+import {createCacheLoader} from "@/utils/createCacheLoader"
+import {LogContext, logger} from "@/utils/logger"
+import {withRetryOnConflict} from "@/utils/withRetryOnConflict"
 import {nanoid} from "nanoid"
 
-import type {Settings} from "../../types.js"
-import type {SettingsDoc} from "../types.js"
+import type {SettingsDoc} from "@/types/database"
+import type {Settings} from "@shared/types/storage"
 
-import {AsyncMutex} from "../../utils/AsyncMutex.js"
-import {createCacheLoader} from "../../utils/cache.js"
-import {deepMerge} from "../../utils/deepMerge.js"
-import {withRetryOnConflict} from "../../utils/withRetryOnConflict.js"
-import {docToSettings, docIdMap, settingsToDoc} from "./_mappers.js"
+import {docIdMap, docToSettings, settingsToDoc} from "./_mappers"
 
 export class SettingsModel {
   private readonly mutex = new AsyncMutex()
@@ -16,6 +17,10 @@ export class SettingsModel {
 
   constructor(private db: PouchDB.Database) {
     this.settingsLoader = createCacheLoader(() => this.loadSettingsFromDB(), this.CACHE_TTL)
+  }
+
+  invalidateCache() {
+    this.settingsLoader.clear()
   }
 
   private getDefaultSettings(): Settings {
@@ -29,6 +34,9 @@ export class SettingsModel {
       },
       sidebar: {
         collapsed: false,
+      },
+      sync: {
+        enabled: false,
       },
     }
   }
@@ -63,7 +71,7 @@ export class SettingsModel {
 
     const settings = docToSettings(doc)
 
-    console.log("[SETTINGS] Loaded settings:", settings)
+    // console.log("[SETTINGS] Loaded settings:", settings)
     return settings
   }
 
@@ -92,7 +100,8 @@ export class SettingsModel {
         }
 
         const res = await this.db.put(updatedDoc)
-        console.log(`💾 Updated settings in PouchDB (rev=${res.rev}, attempt=${attempt + 1})`)
+        logger.storage("Updated", "settings", "default")
+        logger.debug(LogContext.SETTINGS, `Settings rev: ${res.rev}, attempt: ${attempt + 1}`)
         this.settingsLoader.clear()
 
         return res

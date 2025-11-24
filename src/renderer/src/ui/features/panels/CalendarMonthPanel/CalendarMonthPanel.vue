@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {useTasksStore} from "@/stores/tasks.store"
+
 import BaseCalendar from "@/ui/base/BaseCalendar"
 
 const tasksStore = useTasksStore()

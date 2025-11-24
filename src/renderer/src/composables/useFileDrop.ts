@@ -1,5 +1,5 @@
-import {useEventListener} from "@vueuse/core"
 import {ref} from "vue"
+import {useEventListener} from "@vueuse/core"
 
 import type {Ref} from "vue"
 

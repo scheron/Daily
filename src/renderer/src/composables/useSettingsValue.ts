@@ -1,8 +1,8 @@
 import {computed} from "vue"
 import {useSettingsStore} from "@/stores/settings.store"
-import {getObjectValueFromPath, transformObjectFromPath} from "@/utils/objects"
+import {getObjectValueFromPath, transformObjectFromPath} from "@shared/utils/objects/path"
 
-import type {Settings} from "@/types/settings"
+import type {Settings} from "@shared/types/storage"
 
 type FlattenObjectPaths<T extends object, Prefix extends string = ""> = {
   [K in keyof T]: T[K] extends object

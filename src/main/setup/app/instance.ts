@@ -1,16 +1,14 @@
+import {APP_CONFIG} from "@/config"
+import {focusWindow} from "@/windows"
 import {app} from "electron"
 
+import type {StorageController} from "@/storage/StorageController"
 import type {BrowserWindow} from "electron"
-import type {StorageController} from "../../storage/StorageController.js"
 
-import {APP_CONFIG, ENV} from "../../config.js"
-import {focusWindow} from "../../windows.js"
-import {handleDeepLink} from "./deeplinks.js"
-import {notifyStorageSyncStatus} from "./storage.js"
+import {handleDeepLink} from "./deeplinks"
 
 export function setupInstanceAndDeepLinks(getStorage: () => StorageController | null, getMainWindow: () => BrowserWindow | null) {
   const gotLock = app.requestSingleInstanceLock()
-  const DISABLE_FOCUS_SYNC = ENV.disableFocusSync
 
   if (!gotLock) {
     app.quit()
@@ -21,21 +19,9 @@ export function setupInstanceAndDeepLinks(getStorage: () => StorageController | 
 
   app.on("second-instance", async (_event, argv) => {
     const mainWindow = getMainWindow()
-    const storage = getStorage()
 
-    if (mainWindow && storage) {
+    if (mainWindow) {
       focusWindow(mainWindow)
-      if (!DISABLE_FOCUS_SYNC) {
-        try {
-          notifyStorageSyncStatus(true)
-          await storage.syncStorage()
-          console.log("🔄 Storage revalidated on second-instance")
-        } catch (err) {
-          console.warn("⚠️ Failed to revalidate storage on second-instance:", err)
-        } finally {
-          notifyStorageSyncStatus(false)
-        }
-      }
     }
 
     const url = argv.find((arg) => arg.startsWith(`${APP_CONFIG.protocol}://`))

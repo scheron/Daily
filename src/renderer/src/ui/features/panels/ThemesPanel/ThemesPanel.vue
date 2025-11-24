@@ -2,6 +2,7 @@
 import {computed} from "vue"
 import {useThemeStore} from "@/stores/theme.store"
 
+import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseIcon from "@/ui/base/BaseIcon"
 
 import Preview from "./fragments/Preview.vue"
@@ -66,17 +67,18 @@ function setPreferredDarkTheme(event: Event) {
     </div>
 
     <div class="flex flex-col gap-4">
-      <button
-        class="bg-base-200 hover:bg-base-300 text-base-content flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors"
+      <BaseButton
+        variant="secondary"
+        size="sm"
+        icon="monitor"
         :class="{
           'border-accent border': themeStore.isSystemThemeEnabled,
           'border-base-300 border': !themeStore.isSystemThemeEnabled,
         }"
         @click="themeStore.toggleSystemTheme()"
       >
-        <BaseIcon name="monitor" class="size-4" />
         {{ themeStore.isSystemThemeEnabled ? "System Sync Enabled" : "Sync with System Theme" }}
-      </button>
+      </BaseButton>
 
       <div v-if="themeStore.isSystemThemeEnabled" class="border-base-300 flex flex-col gap-4 rounded-lg border p-4">
         <div class="flex flex-col gap-1.5">

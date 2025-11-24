@@ -1,6 +1,9 @@
-import type {Tag, TaskInternal} from "../../types.js"
-import type {TagModel} from "../models/TagModel"
-import type {TaskModel} from "../models/TaskModel"
+import {LogContext, logger} from "@/utils/logger"
+
+import type {TagModel} from "@/storage/models/TagModel"
+import type {TaskModel} from "@/storage/models/TaskModel"
+import type {Tag} from "@shared/types/storage"
+import type {TaskInternal} from "@/types/storage"
 
 export class TagsService {
   constructor(
@@ -9,23 +12,23 @@ export class TagsService {
   ) {}
 
   async getTagList(): Promise<Tag[]> {
-    return this.tagModel.getTagList()
+    return await this.tagModel.getTagList()
   }
 
-  async getTag(name: Tag["name"]): Promise<Tag | null> {
-    return this.tagModel.getTag(name)
+  async getTag(id: Tag["id"]): Promise<Tag | null> {
+    return await this.tagModel.getTag(id)
   }
 
-  async updateTag(name: Tag["name"], tag: Tag): Promise<Tag | null> {
-    return this.tagModel.updateTag(name, tag)
+  async updateTag(id: Tag["id"], updates: Partial<Tag>): Promise<Tag | null> {
+    return this.tagModel.updateTag(id, updates)
   }
 
-  async createTag(tag: Tag): Promise<Tag | null> {
+  async createTag(tag: Omit<Tag, "id" | "createdAt" | "updatedAt">): Promise<Tag | null> {
     return this.tagModel.createTag(tag)
   }
 
-  async deleteTag(name: Tag["name"]): Promise<boolean> {
-    const deleted = await this.tagModel.deleteTag(name)
+  async deleteTag(id: Tag["id"]): Promise<boolean> {
+    const deleted = await this.tagModel.deleteTag(id)
     if (!deleted) return false
 
     const tasks = await this.taskModel.getTaskList()
@@ -33,14 +36,14 @@ export class TagsService {
     const ops: Promise<TaskInternal | null>[] = []
 
     for (const task of tasks) {
-      const newTags = task.tags.filter((tagName) => tagName !== name)
+      const newTags = task.tags.filter((tagId) => tagId !== id)
       if (newTags.length === task.tags.length) continue
 
       ops.push(this.taskModel.updateTask(task.id, {tags: newTags}))
     }
 
     if (!ops.length) {
-      console.log(`ℹ️ Tag "${name}" not found in any tasks`)
+      logger.debug(LogContext.TAGS, `Tag "${id}" not found in any tasks`)
       return true
     }
 
@@ -49,8 +52,8 @@ export class TagsService {
     const failed = results.filter((r) => r.status === "rejected")
     const succeeded = results.filter((r) => r.status === "fulfilled")
 
-    console.log(`🧹 Tag "${name}" removed from: ${succeeded.length} tasks`)
-    if (failed.length > 0) console.warn(`⚠️ Failed to remove tag from ${failed.length} tasks`, failed)
+    logger.info(LogContext.TAGS, `Tag "${id}" removed from ${succeeded.length} tasks`)
+    if (failed.length > 0) logger.warn(LogContext.TAGS, `Failed to remove tag from ${failed.length} tasks`)
 
     return true
   }

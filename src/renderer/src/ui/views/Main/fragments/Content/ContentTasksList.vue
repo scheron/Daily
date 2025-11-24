@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {useTagsStore} from "@/stores/tags.store"
-import {Tag, Task} from "@/types/tasks"
+import {Tag, Task} from "@shared/types/storage"
 
 import BaseAnimation from "@/ui/base/BaseAnimation.vue"
 import {TaskCard} from "@/ui/features/TaskCard"
@@ -10,7 +10,7 @@ defineProps<{tasks: Task[]}>()
 const tagsStore = useTagsStore()
 
 function getTaskTags(task: Task): Tag[] {
-  return task.tags.map((tag) => tagsStore.tagsMap.get(tag.name)).filter(Boolean) as Tag[]
+  return task.tags.map((tag) => tagsStore.tagsMap.get(tag.id)).filter(Boolean) as Tag[]
 }
 </script>
 

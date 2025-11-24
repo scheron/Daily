@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import {computed, ref} from "vue"
 import {useIntervalFn} from "@vueuse/core"
-import {Task} from "@/types/tasks"
-import {formatTime} from "@/utils/date"
+import {Task} from "@shared/types/storage"
+import {toLocaleTime} from "@shared/utils/date/formatters"
 
 // TODO: Maybe we can sound when timer is finished?
 
@@ -30,8 +30,8 @@ const {isActive, pause, resume} = useIntervalFn(
   <main class="flex size-full flex-1 flex-col items-center justify-center gap-4">
     <div class="text-center">
       <h1 class="mb-2 text-xl font-bold">Progress {{ Math.round((_spentTime / props.task.estimatedTime) * 100) }}%</h1>
-      <div class="text-base-content font-mono text-4xl font-bold">{{ formatTime(_spentTime) }}</div>
-      <div class="text-base-content/60 font-mono text-base font-bold">{{ formatTime(props.task.estimatedTime) }}</div>
+      <div class="text-base-content font-mono text-4xl font-bold">{{ toLocaleTime(_spentTime) }}</div>
+      <div class="text-base-content/60 font-mono text-base font-bold">{{ toLocaleTime(props.task.estimatedTime) }}</div>
     </div>
 
     <div class="flex h-10 w-full gap-2 px-8" style="-webkit-app-region: no-drag">

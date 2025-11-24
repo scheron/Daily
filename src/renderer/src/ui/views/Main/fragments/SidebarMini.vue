@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {useTasksStore} from "@/stores/tasks.store"
 import {useUIStore} from "@/stores/ui.store"
-import {getNextWeek, getPreviousWeek} from "@/utils/date"
+import {getNextWeek, getPreviousWeek} from "@/utils/date/week"
 
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseSpinner from "@/ui/base/BaseSpinner.vue"

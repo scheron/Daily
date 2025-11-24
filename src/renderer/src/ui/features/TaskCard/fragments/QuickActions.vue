@@ -3,8 +3,8 @@ import {computed, ref, useTemplateRef} from "vue"
 import {useProgressFill} from "@/composables/useProgressFill"
 import {useTasksStore} from "@/stores/tasks.store"
 import {useThemeStore} from "@/stores/theme.store"
-import {ISODate} from "@/types/date"
-import {oklchToHex} from "@/utils/colors"
+import {ISODate} from "@shared/types/common"
+import {oklchToHex} from "@/utils/colors/oklchToHex"
 
 import BaseButton from "@/ui/base/BaseButton.vue"
 import DayPicker from "@/ui/common/pickers/DayPicker.vue"
@@ -22,7 +22,7 @@ const deleteButtonRef = useTemplateRef<HTMLDivElement>("deleteButton")
 
 const isOpenDayPicker = ref(false)
 
-const {isFilling}=useProgressFill(deleteButtonRef, {
+const {isFilling} = useProgressFill(deleteButtonRef, {
   color: computed(() => `${oklchToHex(themeStore.currentTheme.colorScheme.error)}60`),
   duration: 500,
   onComplete: () => emit("delete"),

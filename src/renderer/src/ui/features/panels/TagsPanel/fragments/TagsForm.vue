@@ -2,7 +2,7 @@
 import {computed, onMounted, ref, useTemplateRef} from "vue"
 import {toast} from "vue-sonner"
 
-import type {Tag} from "@/types/tasks"
+import type {Tag} from "@shared/types/storage"
 
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BasePopup from "@/ui/base/BasePopup.vue"
@@ -38,6 +38,7 @@ async function createTag() {
 
   const tagName = newTagName.value.trim()
 
+  /** @deprecated Remove in future */
   if (props.tags.some((tag) => tag.name === tagName)) {
     toast.error("Tag with this name already exists")
     return

@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import {computed} from "vue"
+import {useTasksStore} from "@/stores/tasks.store"
+import {toFullDate} from "@shared/utils/date/formatters"
 import {DateTime} from "luxon"
 
-import {toFullDate} from "@/utils/date"
-import {useTasksStore} from "@/stores/tasks.store"
 import BaseButton from "@/ui/base/BaseButton.vue"
 
 const tasksStore = useTasksStore()
@@ -59,7 +59,7 @@ function selectDay(date: string) {
   <div v-if="hasRecentActiveTasks" class="text-xs">
     <template v-for="group in groupedActiveDays" :key="group.label">
       <div v-if="group.count">
-        <div class="text-accent flex items-center gap-1 text-xs font-bold uppercase select-none bg-base-100 p-2">
+        <div class="text-accent bg-base-100 flex items-center gap-1 p-2 text-xs font-bold uppercase select-none">
           {{ group.label }}
           <div class="text-info bg-info/30 flex size-4 items-center justify-center rounded-sm text-xs">
             {{ group.count > 9 ? "9+" : group.count }}

@@ -9,22 +9,28 @@ Storage Architecture (PouchDB):
     └── files (FileDoc with _attachments)
 */
 
+import {fsPaths} from "@/config"
+import {getDB} from "@/storage/database"
+import {FileModel} from "@/storage/models/FileModel"
+import {SettingsModel} from "@/storage/models/SettingsModel"
+import {TagModel} from "@/storage/models/TagModel"
+import {TaskModel} from "@/storage/models/TaskModel"
+import {DaysService} from "@/storage/services/DaysService"
+import {FilesService} from "@/storage/services/FilesService"
+import {SettingsService} from "@/storage/services/SettingsService"
+import {TagsService} from "@/storage/services/TagsService"
+import {TasksService} from "@/storage/services/TasksService"
+import {LocalStorageAdapter} from "@/storage/sync/adapters/LocalStorageAdapter"
+import {RemoteStorageAdapter} from "@/storage/sync/adapters/RemoteStorageAdapter"
+import {SyncEngine} from "@/storage/sync/SyncEngine"
+import {LogContext, logger} from "@/utils/logger"
 import fs from "fs-extra"
 
+import type {ISODate} from "@shared/types/common"
+import type {Day, File, Settings, Tag, Task} from "@shared/types/storage"
+import type {IStorageController} from "@/types/storage"
+import type {SyncStatus} from "@shared/types/storage"
 import type {PartialDeep} from "type-fest"
-import type {Day, File, ISODate, IStorageController, Settings, Tag, Task} from "../types.js"
-
-import {fsPaths} from "../config.js"
-import {getDB} from "./database.js"
-import {FileModel} from "./models/FileModel.js"
-import {SettingsModel} from "./models/SettingsModel.js"
-import {TagModel} from "./models/TagModel.js"
-import {TaskModel} from "./models/TaskModel.js"
-import {DaysService} from "./services/DaysService.js"
-import {FilesService} from "./services/FilesService.js"
-import {SettingsService} from "./services/SettingsService.js"
-import {TagsService} from "./services/TagsService.js"
-import {TasksService} from "./services/TasksService.js"
 
 export class StorageController implements IStorageController {
   rootDir: string = fsPaths.appDataRoot()
@@ -34,6 +40,10 @@ export class StorageController implements IStorageController {
   private tagsService!: TagsService
   private filesService!: FilesService
   private daysService!: DaysService
+  private syncEngine!: SyncEngine
+
+  private notifyStorageStatusChange?: (status: SyncStatus, prevStatus: SyncStatus) => void
+  private notifyStorageDataChange?: () => void
 
   async init(): Promise<void> {
     await fs.ensureDir(this.rootDir)
@@ -50,8 +60,56 @@ export class StorageController implements IStorageController {
     this.settingsService = new SettingsService(settingsModel)
     this.filesService = new FilesService(fileModel)
     this.daysService = new DaysService(taskModel, tagModel)
+
+    const remoteAdapter = new RemoteStorageAdapter(fsPaths.remoteSyncPath())
+    const localAdapter = new LocalStorageAdapter(db)
+
+    this.syncEngine = new SyncEngine(localAdapter, remoteAdapter, {
+      onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => this.notifyStorageStatusChange?.(status, prevStatus),
+      onDataChanged: () => {
+        settingsModel.invalidateCache()
+        tagModel.invalidateCache()
+        this.notifyStorageDataChange?.()
+      },
+    })
+
+    const settings = await this.loadSettings()
+
+    if (settings.sync.enabled) {
+      logger.info(LogContext.STORAGE, "Auto-sync was enabled, restoring")
+      this.syncEngine.enableAutoSync()
+    }
   }
 
+  //#region STORAGE
+  setupStorageBroadcasts(callbacks: {onStatusChange: (status: SyncStatus) => void; onDataChange: () => void}): void {
+    this.notifyStorageStatusChange = callbacks.onStatusChange
+    this.notifyStorageDataChange = callbacks.onDataChange
+  }
+
+  async activateSync() {
+    logger.info(LogContext.STORAGE, "Activating sync")
+    await this.settingsService.saveSettings({sync: {enabled: true}})
+    this.syncEngine.enableAutoSync()
+  }
+
+  async deactivateSync() {
+    logger.info(LogContext.STORAGE, "Deactivating sync")
+    await this.settingsService.saveSettings({sync: {enabled: false}})
+    this.syncEngine.disableAutoSync()
+  }
+
+  async forceSync() {
+    logger.info(LogContext.STORAGE, "Force syncing")
+    await this.syncEngine.sync("pull")
+  }
+
+  getSyncStatus(): SyncStatus {
+    return this.syncEngine.syncStatus
+  }
+  //#endregion
+
+  //#region SETTINGS
   async loadSettings(): Promise<Settings> {
     return this.settingsService.loadSettings()
   }
@@ -59,7 +117,9 @@ export class StorageController implements IStorageController {
   async saveSettings(newSettings: Partial<Settings>): Promise<void> {
     await this.settingsService.saveSettings(newSettings)
   }
+  //#endregion
 
+  //#region DAYS
   async getDays(params: {from?: ISODate; to?: ISODate} = {}): Promise<Day[]> {
     return this.daysService.getDays(params)
   }
@@ -67,7 +127,9 @@ export class StorageController implements IStorageController {
   async getDay(date: ISODate): Promise<Day | null> {
     return this.daysService.getDay(date)
   }
+  //#endregion
 
+  //#region TASKS
   async getTaskList(params?: {from?: ISODate; to?: ISODate; limit?: number}): Promise<Task[]> {
     return this.tasksService.getTaskList(params)
   }
@@ -77,55 +139,59 @@ export class StorageController implements IStorageController {
   }
 
   async updateTask(id: Task["id"], updates: PartialDeep<Task>): Promise<Task | null> {
-    return this.tasksService.updateTask(id, updates)
+    return await this.tasksService.updateTask(id, updates)
   }
 
   async createTask(task: Task): Promise<Task | null> {
-    return this.tasksService.createTask(task)
+    return await this.tasksService.createTask(task)
   }
 
   async deleteTask(id: Task["id"]): Promise<boolean> {
-    return this.tasksService.deleteTask(id)
+    return await this.tasksService.deleteTask(id)
   }
 
+  async addTaskAttachment(taskId: Task["id"], fileId: File["id"]): Promise<Task | null> {
+    return await this.tasksService.addTaskAttachment(taskId, fileId)
+  }
+
+  async removeTaskAttachment(taskId: Task["id"], fileId: File["id"]): Promise<Task | null> {
+    return await this.tasksService.removeTaskAttachment(taskId, fileId)
+  }
+  //#endregion
+
+  //#region TAGS
   async getTagList(): Promise<Tag[]> {
     return this.tagsService.getTagList()
   }
 
-  async getTag(name: Tag["name"]): Promise<Tag | null> {
-    return this.tagsService.getTag(name)
+  async getTag(id: Tag["id"]): Promise<Tag | null> {
+    return this.tagsService.getTag(id)
   }
 
-  async updateTag(name: Tag["name"], tag: Tag): Promise<Tag | null> {
-    return this.tagsService.updateTag(name, tag)
+  async updateTag(id: Tag["id"], updates: Partial<Tag>): Promise<Tag | null> {
+    return await this.tagsService.updateTag(id, updates)
   }
 
-  async createTag(tag: Tag): Promise<Tag | null> {
-    return this.tagsService.createTag(tag)
+  async createTag(tag: Omit<Tag, "id" | "createdAt" | "updatedAt">): Promise<Tag | null> {
+    return await this.tagsService.createTag(tag)
   }
 
-  async deleteTag(name: Tag["name"]): Promise<boolean> {
-    return this.tagsService.deleteTag(name)
+  async deleteTag(id: Tag["id"]): Promise<boolean> {
+    return await this.tagsService.deleteTag(id)
   }
 
-  async addTaskTags(taskId: Task["id"], tagNames: Tag["name"][]): Promise<Task | null> {
-    return this.tasksService.addTaskTags(taskId, tagNames)
+  async addTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Promise<Task | null> {
+    return await this.tasksService.addTaskTags(taskId, tagIds)
   }
 
-  async removeTaskTags(taskId: Task["id"], tagNames: Tag["name"][]): Promise<Task | null> {
-    return this.tasksService.removeTaskTags(taskId, tagNames)
+  async removeTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Promise<Task | null> {
+    return await this.tasksService.removeTaskTags(taskId, tagIds)
   }
+  //#endregion
 
-  async addTaskAttachment(taskId: Task["id"], fileId: File["id"]): Promise<Task | null> {
-    return this.tasksService.addTaskAttachment(taskId, fileId)
-  }
-
-  async removeTaskAttachment(taskId: Task["id"], fileId: File["id"]): Promise<Task | null> {
-    return this.tasksService.removeTaskAttachment(taskId, fileId)
-  }
-
-  async saveFile(filename: string, data: Buffer): Promise<string> {
-    return this.filesService.saveFile(filename, data)
+  //#region FILES
+  async saveFile(filename: string, data: Buffer): Promise<File["id"]> {
+    return await this.filesService.saveFile(filename, data)
   }
 
   getFilePath(id: File["id"]): string {
@@ -133,7 +199,7 @@ export class StorageController implements IStorageController {
   }
 
   async deleteFile(fileId: File["id"]): Promise<boolean> {
-    return this.filesService.deleteFile(fileId)
+    return await this.filesService.deleteFile(fileId)
   }
 
   async getFiles(fileIds: File["id"][]): Promise<File[]> {
@@ -148,12 +214,5 @@ export class StorageController implements IStorageController {
     const tasks = await this.getTaskList()
     return this.filesService.cleanupOrphanFiles(tasks)
   }
-
-  async syncStorage(): Promise<void> {
-    try {
-      // TODO: in future we will sync with CouchDB
-    } catch (error) {
-      console.error("❌ Storage sync failed:", error)
-    }
-  }
+  //#endregion
 }

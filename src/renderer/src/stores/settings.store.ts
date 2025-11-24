@@ -1,20 +1,20 @@
 import {ref} from "vue"
 import {invoke} from "@vueuse/core"
-import {deepMerge} from "@/utils/deepMerge"
-import {toRawDeep} from "@/utils/vue"
+import {toRawDeep} from "@/utils/ui/vue"
+import {deepMerge} from "@shared/utils/common/deepMerge"
 import {defineStore} from "pinia"
 
-import type {Settings} from "@/types/settings"
+import type {Settings} from "@shared/types/storage"
 
 export const useSettingsStore = defineStore("settings", () => {
   const settings = ref<Settings | null>(null)
   const isSettingsLoaded = ref(false)
 
   async function loadSettings(): Promise<void> {
-    if (isSettingsLoaded.value || settings.value) return
+    if (isSettingsLoaded.value) return
 
     try {
-      settings.value = await window.electronAPI.loadSettings()
+      settings.value = await window.BridgeIPC["settings:load"]()
     } catch (error) {
       console.error("Failed to load settings:", error)
     } finally {
@@ -30,11 +30,16 @@ export const useSettingsStore = defineStore("settings", () => {
     if (before === after) return
 
     try {
-      await window.electronAPI.saveSettings(toRawDeep(settings.value))
+      await window.BridgeIPC["settings:save"](toRawDeep(settings.value))
     } catch (error) {
       console.error("Failed to save settings:", error)
       await loadSettings()
     }
+  }
+
+  async function revalidate(): Promise<void> {
+    isSettingsLoaded.value = false
+    await loadSettings()
   }
 
   invoke(loadSettings)
@@ -45,5 +50,6 @@ export const useSettingsStore = defineStore("settings", () => {
 
     loadSettings,
     updateSettings,
+    revalidate,
   }
 })

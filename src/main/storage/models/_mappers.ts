@@ -1,8 +1,10 @@
-import type {File, ISODateTime, Settings, Tag, TaskInternal} from "../../types.js"
-import type {FileDoc, SettingsDoc, TagDoc, TaskDoc} from "../types.js"
+import type {ISODateTime} from "@shared/types/common"
+import type {FileDoc, SettingsDoc, TagDoc, TaskDoc} from "@/types/database"
+import type {File, Settings, Tag} from "@shared/types/storage"
+import type {TaskInternal} from "@/types/storage"
 
 /**
- * Domain Model ↔ Storage Document Mappers
+ * Domain Model <-> Storage Document Mappers
  */
 export const docIdMap = {
   task: {
@@ -10,7 +12,7 @@ export const docIdMap = {
     fromDoc: (id: string) => id.split(":")[1],
   },
   tag: {
-    toDoc: (name: string) => `tag:${name}`,
+    toDoc: (id: string) => `tag:${id}`,
     fromDoc: (id: string) => id.split(":")[1],
   },
   settings: {
@@ -29,6 +31,7 @@ export const docIdMap = {
 export function taskToDoc(task: TaskInternal): TaskDoc {
   const createdAt = task.createdAt ?? new Date().toISOString()
   const updatedAt = task.updatedAt ?? createdAt
+  const deletedAt = task.deletedAt ?? null
 
   return {
     _id: docIdMap.task.toDoc(task.id),
@@ -42,10 +45,11 @@ export function taskToDoc(task: TaskInternal): TaskDoc {
     estimatedTime: task.estimatedTime,
     spentTime: task.spentTime,
     content: task.content,
-    tagNames: task.tags,
+    tags: task.tags,
     attachments: task.attachments ?? [],
     createdAt,
     updatedAt,
+    deletedAt,
   }
 }
 
@@ -59,35 +63,42 @@ export function docToTask(doc: TaskDoc): TaskInternal {
       timezone: doc.scheduled.timezone,
     },
     estimatedTime: doc.estimatedTime,
-    tags: doc.tagNames,
+    tags: doc.tags,
     spentTime: doc.spentTime,
     content: doc.content,
     attachments: doc.attachments ?? [],
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
+    deletedAt: doc.deletedAt,
   }
 }
 
 /* ========================================== */
 /* ============== TAG <-> DOC ============== */
 /* ========================================= */
-export function tagToDoc(tag: Tag & {createdAt?: ISODateTime; updatedAt?: ISODateTime}): TagDoc {
+export function tagToDoc(tag: Tag): TagDoc {
   const createdAt = tag.createdAt ?? new Date().toISOString()
   const updatedAt = tag.updatedAt ?? createdAt
+  const deletedAt = tag.deletedAt ?? null
 
   return {
-    _id: docIdMap.tag.toDoc(tag.name),
+    _id: docIdMap.tag.toDoc(tag.id),
     type: "tag",
     name: tag.name,
     color: tag.color,
     emoji: tag.emoji,
     createdAt,
     updatedAt,
+    deletedAt,
   }
 }
 
 export function docToTag(doc: TagDoc): Tag {
   return {
+    id: docIdMap.tag.fromDoc(doc._id),
+    createdAt: doc.createdAt,
+    updatedAt: doc.updatedAt,
+    deletedAt: doc.deletedAt,
     name: doc.name,
     color: doc.color,
     emoji: doc.emoji,
@@ -105,6 +116,7 @@ export function settingsToDoc(settings: Settings, createdAt: ISODateTime, update
     data: settings,
     createdAt,
     updatedAt,
+    deletedAt: null, // Settings cannot be deleted
   }
 }
 
@@ -113,6 +125,7 @@ export function docToSettings(doc: SettingsDoc): Settings {
     version: doc.data.version,
     themes: doc.data.themes,
     sidebar: doc.data.sidebar,
+    sync: doc.data.sync,
   }
 }
 
@@ -129,6 +142,7 @@ export function fileToDoc(file: File & {fileBuffer: Buffer}): FileDoc {
     size: file.size,
     createdAt: file.createdAt,
     updatedAt: file.updatedAt,
+    deletedAt: file.deletedAt ?? null,
     _attachments: {
       data: {
         content_type: file.mimeType,
@@ -146,5 +160,6 @@ export function docToFile(doc: FileDoc): File {
     size: doc.size,
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
+    deletedAt: doc.deletedAt,
   }
 }

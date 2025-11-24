@@ -1,4 +1,5 @@
 import path from "node:path"
+import {LogContext, logger} from "@/utils/logger"
 import fs from "fs-extra"
 import PouchDB from "pouchdb"
 import PouchDBFind from "pouchdb-find"
@@ -17,18 +18,18 @@ export function getDB(dbPath: string): Promise<DailyDB> {
         const dbDir = path.dirname(dbPath)
         await fs.ensureDir(dbDir)
 
-        console.log(`📂 Initializing PouchDB at: ${dbPath}`)
+        logger.info(LogContext.DB, `Initializing PouchDB at: ${dbPath}`)
 
         const db = new PouchDB(dbPath)
 
-        console.log("🔨 Creating database indexes...")
+        logger.info(LogContext.DB, "Creating database indexes")
 
         await createIndexes(db)
 
         dbInstance = db
         return db
       } catch (error) {
-        console.error("❌ Failed to initialize PouchDB:", error)
+        logger.error(LogContext.DB, "Failed to initialize PouchDB", error)
         dbReadyPromise = null
         throw error
       }
@@ -45,7 +46,7 @@ async function createIndexes(db: DailyDB) {
   await db.createIndex({index: {fields: ["type", "createdAt"]}})
   await db.createIndex({index: {fields: ["type", "updatedAt"]}})
 
-  console.log("✅ PouchDB initialized successfully with indexes")
+  logger.lifecycle("PouchDB initialized successfully with indexes")
 }
 
 export function getDBInstance(): DailyDB | null {
@@ -60,7 +61,7 @@ export async function closeDB(): Promise<void> {
   dbInstance = null
   dbReadyPromise = null
 
-  console.log("🔒 PouchDB closed")
+  logger.info(LogContext.DB, "PouchDB closed")
 }
 
 /**
@@ -72,11 +73,11 @@ export async function destroyDB(dbPath: string): Promise<void> {
     await dbInstance.destroy()
     dbInstance = null
     dbReadyPromise = null
-    console.log("🗑️ PouchDB destroyed (active instance)")
+    logger.warn(LogContext.DB, "PouchDB destroyed (active instance)")
     return
   }
 
   const db = new PouchDB(dbPath)
   await db.destroy()
-  console.log("🗑️ PouchDB destroyed (fresh instance)")
+  logger.warn(LogContext.DB, "PouchDB destroyed (fresh instance)")
 }

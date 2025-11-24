@@ -1,0 +1,50 @@
+import type {ISODate} from "@shared/types/common"
+import type {Day, File, Settings, SyncStatus, Tag, Task} from "@shared/types/storage"
+import type {ReplaceValue} from "@shared/types/utils"
+import type {PartialDeep} from "type-fest"
+
+export type TaskInternal = ReplaceValue<Task, "tags", Tag["id"][]>
+
+export interface IStorageController {
+  rootDir: string
+  init(): Promise<void>
+
+  getDays(params?: {from?: ISODate; to?: ISODate}): Promise<Day[]>
+  getDay(date: ISODate): Promise<Day | null>
+
+  getTaskList(params?: {from?: ISODate; to?: ISODate; limit?: number}): Promise<Task[]>
+  getTask(id: Task["id"]): Promise<Task | null>
+  updateTask(id: Task["id"], updates: PartialDeep<Task>): Promise<Task | null>
+  createTask(task: Omit<Task, "id" | "createdAt" | "updatedAt">): Promise<Task | null>
+  deleteTask(id: Task["id"]): Promise<boolean>
+
+  getTagList(): Promise<Tag[]>
+  getTag(id: Tag["id"]): Promise<Tag | null>
+  updateTag(id: Tag["id"], updates: Partial<Tag>): Promise<Tag | null>
+  createTag(tag: Omit<Tag, "id" | "createdAt" | "updatedAt">): Promise<Tag | null>
+  deleteTag(id: Tag["id"]): Promise<boolean>
+
+  addTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Promise<Task | null>
+  removeTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Promise<Task | null>
+
+  addTaskAttachment(taskId: Task["id"], fileId: File["id"]): Promise<Task | null>
+  removeTaskAttachment(taskId: Task["id"], fileId: File["id"]): Promise<Task | null>
+
+  loadSettings(): Promise<Settings>
+  saveSettings(newSettings: Partial<Settings>): Promise<void>
+
+  saveFile(filename: string, data: Buffer): Promise<File["id"]>
+  getFilePath(id: File["id"]): string
+  deleteFile(fileId: File["id"]): Promise<boolean>
+  getFiles(fileIds: File["id"][]): Promise<File[]>
+  createFileResponse(id: File["id"]): Promise<Response>
+
+  cleanupOrphanFiles(): Promise<void>
+
+  setupStorageBroadcasts(callbacks: {onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => void; onDataChange: () => void}): void
+
+  activateSync(): Promise<void>
+  deactivateSync(): Promise<void>
+  forceSync(): Promise<void>
+  getSyncStatus(): SyncStatus
+}

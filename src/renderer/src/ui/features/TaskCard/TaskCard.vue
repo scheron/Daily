@@ -5,9 +5,9 @@ import {until} from "@vueuse/core"
 import {useMarkdown} from "@/composables/useMarkdown"
 import {useTaskEditorStore} from "@/stores/taskEditor.store"
 import {useTasksStore} from "@/stores/tasks.store"
-import {ISODate} from "@/types/date"
+import {ISODate} from "@shared/types/common"
 
-import type {Tag, Task, TaskStatus} from "@/types/tasks"
+import type {Tag, Task, TaskStatus} from "@shared/types/storage"
 
 import DynamicTagsPanel from "@/ui/common/panels/DynamicTagsPanel.vue"
 
@@ -26,7 +26,7 @@ const contentRef = useTemplateRef<HTMLElement>("content")
 const {renderMarkdown} = useMarkdown()
 
 function onChangeStatus(status: TaskStatus) {
-  if(props.task.status === status) return
+  if (props.task.status === status) return
 
   tasksStore.updateTask(props.task.id, {status})
 }
@@ -45,7 +45,7 @@ async function onDelete() {
 }
 
 function onOpenTimer() {
-  window.electronAPI.openTimerWindow(props.task.id)
+  window.BridgeIPC["timer:open"](props.task.id)
 }
 
 async function onMoveDate(targetDate: ISODate) {

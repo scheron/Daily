@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import {computed} from "vue"
-import {Task} from "@/types/tasks"
-import {formatDuration} from "@/utils/date"
+import {Task} from "@shared/types/storage"
+import {toDurationLabel} from "@shared/utils/date/formatters"
 
 const props = defineProps<{task: Task}>()
 
-const formattedEstimatedTime = computed(() => formatDuration(props.task.estimatedTime))
-const formattedSpentTime = computed(() => formatDuration(props.task.spentTime))
+const formattedEstimatedTime = computed(() => toDurationLabel(props.task.estimatedTime))
+const formattedSpentTime = computed(() => toDurationLabel(props.task.spentTime))
 </script>
 
 <template>

@@ -2,11 +2,12 @@
 import {computed, watch} from "vue"
 import {useFilterStore} from "@/stores/filter.store"
 import {useTasksStore} from "@/stores/tasks.store"
-import {arrayRemoveDuplicates} from "@/utils/arrays"
-import {countTasks, filterTasksByStatus} from "@/utils/tasks"
+import {countTasks} from "@/utils/tasks/countTasks"
+import {filterTasksByStatus} from "@/utils/tasks/filterTasksByStatus"
+import {removeDuplicates} from "@shared/utils/arrays/removeDuplicates"
 
 import type {TasksFilter} from "@/types/filters"
-import type {Tag} from "@/types/tasks"
+import type {Tag} from "@shared/types/storage"
 
 import BaseIcon, {IconName} from "@/ui/base/BaseIcon"
 import DynamicTagsPanel from "@/ui/common/panels/DynamicTagsPanel.vue"
@@ -28,7 +29,7 @@ const filteredTags = computed(() => {
 
   const allTags = filterTasksByStatus(tasksStore.dailyTasks, filter).flatMap((task) => task.tags)
 
-  return arrayRemoveDuplicates(allTags, "name").sort((a, b) => a.name.localeCompare(b.name))
+  return removeDuplicates(allTags, "name").sort((a, b) => a.name.localeCompare(b.name))
 })
 
 function onSelectTag(name: Tag["name"]) {
@@ -46,7 +47,7 @@ watch(
 <template>
   <div class="bg-base-100 flex size-full flex-col gap-3 px-4 py-2 md:flex-row md:items-center md:justify-between">
     <div class="relative flex w-full flex-1 items-center gap-2">
-      <DynamicTagsPanel :tags="filteredTags" :selected-tags="filterStore.activeTagNames" empty-message="No daily tags" @select="onSelectTag" />
+      <DynamicTagsPanel :tags="filteredTags" :selected-tags="filterStore.activeTagIds" empty-message="No daily tags" @select="onSelectTag" />
     </div>
 
     <div class="flex w-full shrink-0 items-center gap-3 md:w-auto">
@@ -54,7 +55,7 @@ watch(
         <button
           v-for="option in FILTERS"
           :key="option.value"
-          class="focus-visible-ring focus-visible:ring-offset-base-100 focus-visible:ring-base-content inline-flex flex-1 items-center justify-center gap-x-1.5 rounded-md px-2 py-0.5 text-sm transition-colors outline-none md:flex-none"
+          class="focus-visible-ring focus-visible:ring-offset-base-100 focus-visible:ring-accent inline-flex flex-1 items-center justify-center gap-x-1.5 rounded-md px-2 py-0.5 text-sm transition-colors outline-none md:flex-none"
           :class="{
             'bg-base-100 text-base-content shadow-sm': filterStore.activeFilter === option.value,
             'text-base-content/70 hover:text-base-content': filterStore.activeFilter !== option.value,
@@ -65,7 +66,7 @@ watch(
           <span class="text-sm">{{ option.label }}</span>
           <span
             v-if="option.value !== 'all'"
-            class="flex h-4 min-w-[1rem] items-center justify-center rounded-full px-1 text-xs"
+            class="flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-xs"
             :class="{
               'bg-base-300': filterStore.activeFilter === option.value,
               'bg-base-100 text-base-content/50': filterStore.activeFilter !== option.value,

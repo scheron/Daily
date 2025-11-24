@@ -1,21 +1,21 @@
 <script setup lang="ts">
-import {Buffer} from "buffer"
 import {computed, onMounted, onUnmounted, useTemplateRef} from "vue"
-import {until, useEventListener} from "@vueuse/core"
 import {toast} from "vue-sonner"
+import {until, useEventListener} from "@vueuse/core"
 import {useClipboardPaste} from "@/composables/useClipboardPaste"
-import {useFileDrop} from "@/composables/useFileDrop"
 import {useDevice} from "@/composables/useDevice"
+import {useFileDrop} from "@/composables/useFileDrop"
 import {useTaskEditorStore} from "@/stores/taskEditor.store"
 
 import EditorPlaceholder from "./fragments/EditorPlaceholder.vue"
 import {useEditTask} from "./model/useEditTask"
-import { calculateProportionalSize, getImageDimensions } from "@/utils/images"
+import {useImageUpload} from "./model/useImageUpload"
 
 const taskEditorStore = useTaskEditorStore()
 
 const {isMacOS} = useDevice()
 const {createOrUpdate} = useEditTask()
+const {uploadImageFile} = useImageUpload()
 
 const content = computed({
   get: () => taskEditorStore.editorContent,
@@ -43,36 +43,6 @@ function insertText(text: string) {
   } else {
     contentField.value?.appendChild(frag)
   }
-}
-
-async function processImageFile(file: File) {
-  const reader = new FileReader()
-  reader.onload = async (e) => {
-    const dataUrl = e.target?.result as string
-
-    const [, base64] = dataUrl.split(",")
-    const binary = atob(base64)
-    const len = binary.length
-    const arr = new Uint8Array(len)
-    for (let i = 0; i < len; i++) arr[i] = binary.charCodeAt(i)
-    const buffer = Buffer.from(arr)
-
-    try {
-      console.log("Saving file:", file.name)
-      const id = await window.electronAPI.saveFile(file.name, buffer)
-      const url = await window.electronAPI.getFilePath(id)
-      const filename = file.name || "image"
-
-      const {width, height} = await getImageDimensions(dataUrl)
-      const {width: displayWidth, height: displayHeight} = calculateProportionalSize(width, height)
-
-      insertText(`![${filename} =${displayWidth}x${displayHeight}](${url})`)
-      onInput()
-    } catch (error) {
-      console.error("Failed to save file:", error)
-    }
-  }
-  reader.readAsDataURL(file)
 }
 
 function focusContentField(toEnd = false) {
@@ -149,11 +119,19 @@ useEventListener(contentField, "keydown", (event) => {
 
 useClipboardPaste(contentField, {
   onTextPaste: () => onInput(),
-  onImagePaste: processImageFile,
+  onImagePaste: async (file) => {
+    const md = await uploadImageFile(file)
+    if (md) insertText(md)
+    onInput()
+  },
 })
 
 const {isDraggingOver} = useFileDrop(contentField, {
-  onFileDrop: processImageFile,
+  onFileDrop: async (file) => {
+    const md = await uploadImageFile(file)
+    if (md) insertText(md)
+    onInput()
+  },
   onRejectedFile: (file) => {
     toast.error(`Only image files are supported. "${file.name}" is not an image.`)
   },
@@ -164,8 +142,8 @@ const {isDraggingOver} = useFileDrop(contentField, {
   <div class="relative h-full min-h-full flex-1 p-2">
     <div
       ref="contentField"
-      class="markdown border-base-300 size-full cursor-text overflow-y-auto rounded-lg border p-4 pb-0 outline-none transition-colors"
-      :class="{'ring-2 ring-blue-500 ring-offset-2 bg-blue-50/50': isDraggingOver}"
+      class="markdown border-base-300 size-full cursor-text overflow-y-auto rounded-lg border p-4 pb-0 transition-colors outline-none"
+      :class="{'ring-offset-base-100 ring-accent/50 ring-2': isDraggingOver}"
       contenteditable="true"
       @input="onInput"
     ></div>

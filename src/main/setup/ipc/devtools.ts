@@ -1,8 +1,8 @@
+import {fsPaths} from "@/config"
+import {getDB} from "@/storage/database"
+import {LogContext, logger} from "@/utils/logger"
+import {createDevToolsWindow} from "@/windows"
 import {BrowserWindow, ipcMain} from "electron"
-
-import {fsPaths} from "../../config.js"
-import {getDB} from "../../storage/database.js"
-import {createDevToolsWindow} from "../../windows.js"
 
 export function setupDevToolsIPC(
   getMainWindow: () => BrowserWindow | null,
@@ -76,7 +76,7 @@ export async function setupDbViewerIPC(): Promise<void> {
         }
       }
     } catch (error) {
-      console.error("❌ Failed to get docs:", error)
+      logger.error(LogContext.DB, "Failed to get docs", error)
       throw error
     }
   })
@@ -90,10 +90,10 @@ export async function setupDbViewerIPC(): Promise<void> {
       const doc = await dbInstance.get(id, {attachments: true})
       return doc
     } catch (error) {
-      console.error("❌ Failed to get doc:", id, error)
+      logger.error(LogContext.DB, `Failed to get doc: ${id}`, error)
       throw error
     }
   })
 
-  console.log("🔍 DB Viewer IPC handlers registered")
+  logger.debug(LogContext.IPC, "DB Viewer IPC handlers registered")
 }

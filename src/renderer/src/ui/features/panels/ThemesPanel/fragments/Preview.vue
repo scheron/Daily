@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import BaseIcon from "@/ui/base/BaseIcon"
-
 import type {Theme} from "@/types/theme"
+
+import BaseIcon from "@/ui/base/BaseIcon"
 
 defineProps<{
   theme: Theme
@@ -33,7 +33,7 @@ defineProps<{
       </div>
 
       <div class="flex flex-1 flex-col gap-0.5 py-0.5 pr-0.5 pl-0.5">
-        <div class="mb-0.5 pb-1 flex items-center gap-0.5 border-b" :style="{borderColor: theme.colorScheme['base-300']}">
+        <div class="mb-0.5 flex items-center gap-0.5 border-b pb-1" :style="{borderColor: theme.colorScheme['base-300']}">
           <div class="rounded-sm" :style="{width: '35%', height: '2px', backgroundColor: theme.colorScheme['base-content'], opacity: 0.3}" />
           <div class="ml-auto rounded-sm" :style="{width: '10px', height: '2px', backgroundColor: theme.colorScheme.accent}" />
         </div>

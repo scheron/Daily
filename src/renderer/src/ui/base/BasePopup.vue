@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import {computed, ref} from "vue"
 import {onClickOutside} from "@vueuse/core"
-import {cn} from "@/utils/tailwindcss"
+import {cn} from "@/utils/ui/tailwindcss"
 // @ts-ignore
 import {autoUpdate, flip, offset, shift, useFloating} from "@floating-ui/vue"
 
@@ -89,7 +89,9 @@ defineExpose({
     >
       <div :class="cn('flex flex-col gap-1', contentClass)">
         <div v-if="!(hideHeader || hideCloseBtn)" class="border-base-300 flex items-center justify-between border-b pb-1">
-          <span v-if="title" class="text-base-content/70 pl-4 text-xs uppercase font-semibold">{{ title }}</span>
+          <slot name="title">
+            <span v-if="title" class="text-base-content/70 pl-4 text-xs font-semibold uppercase">{{ title }}</span>
+          </slot>
 
           <BaseButton
             v-if="!hideCloseBtn"
@@ -102,7 +104,7 @@ defineExpose({
           />
         </div>
 
-        <slot :hide="hide" :show="show" :toggle="toggle" :is-open="isOpen"  />
+        <slot :hide="hide" :show="show" :toggle="toggle" :is-open="isOpen" />
       </div>
     </div>
   </Teleport>

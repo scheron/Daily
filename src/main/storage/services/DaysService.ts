@@ -1,10 +1,10 @@
+import {groupTasksByDay} from "@/utils/tasks/groupTasksByDay"
 import {DateTime} from "luxon"
 
-import type {Day, ISODate, Tag, Task} from "../../types.js"
-import type {TagModel} from "../models/TagModel.js"
-import type {TaskModel} from "../models/TaskModel.js"
-
-import {groupTasksByDay} from "../../utils/tasks.js"
+import type {TagModel} from "@/storage/models/TagModel"
+import type {TaskModel} from "@/storage/models/TaskModel"
+import type {ISODate} from "@shared/types/common"
+import type {Day, Tag, Task} from "@shared/types/storage"
 
 export class DaysService {
   constructor(
@@ -19,9 +19,10 @@ export class DaysService {
 
     const [tasksInternal, allTags] = await Promise.all([this.taskModel.getTaskList({from: fromDate, to: toDate}), this.tagModel.getTagList()])
 
-    const tagMap = new Map(allTags.map((t) => [t.name, t]))
+    const tagMap = new Map(allTags.map((t) => [t.id, t]))
+
     const tasks: Task[] = tasksInternal.map((task) => {
-      const tags = task.tags.map((name) => tagMap.get(name)).filter(Boolean) as Tag[]
+      const tags = task.tags.map((id) => tagMap.get(id)).filter(Boolean) as Tag[]
       return {...task, tags}
     })
 

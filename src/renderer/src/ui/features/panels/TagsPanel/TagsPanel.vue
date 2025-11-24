@@ -3,6 +3,7 @@ import {computed, ref} from "vue"
 import {useFilterStore} from "@/stores/filter.store"
 import {useTagsStore} from "@/stores/tags.store"
 import {useTasksStore} from "@/stores/tasks.store"
+import {Tag} from "@shared/types/storage"
 
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseIcon from "@/ui/base/BaseIcon"
@@ -16,9 +17,9 @@ const isCreating = ref(false)
 
 const tags = computed(() => tagsStore.tags)
 
-async function deleteTag(name: string) {
-  filterStore.removeActiveTag(name)
-  await tagsStore.deleteTag(name)
+async function deleteTag(id: Tag["id"]) {
+  filterStore.removeActiveTag(id)
+  await tagsStore.deleteTag(id)
   await tasksStore.revalidate()
 }
 </script>
@@ -32,15 +33,15 @@ async function deleteTag(name: string) {
     <div v-if="tags.length" class="flex max-h-[200px] flex-wrap gap-2 overflow-y-auto p-2">
       <div
         v-for="tag in tags"
-        :key="tag.name"
-        class="group flex w-full flex-1 border items-center justify-between rounded-md py-1 pr-1 pl-3 text-sm"
+        :key="tag.id"
+        class="group flex w-full flex-1 items-center justify-between rounded-md border py-1 pr-1 pl-3 text-sm"
         :style="{
           backgroundColor: `${tag.color}10`,
           borderColor: `${tag.color}20`,
           color: tag.color,
         }"
       >
-        <span v-if="tag.emoji" class="text-sm mr-1">{{ tag.emoji }}</span>
+        <span v-if="tag.emoji" class="mr-1 text-sm">{{ tag.emoji }}</span>
         <span v-else class="text-base leading-0">#</span>
         <span class="truncate">{{ tag.name }}</span>
 
@@ -50,7 +51,7 @@ async function deleteTag(name: string) {
           icon-class="size-3.5"
           :style="{color: tag.color}"
           icon="x-mark"
-          @click="deleteTag(tag.name)"
+          @click="deleteTag(tag.id)"
         />
       </div>
     </div>

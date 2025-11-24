@@ -1,7 +1,7 @@
 <script lang="ts" setup>
-import {ISODate} from "@/types/date"
+import {ISODate} from "@shared/types/common"
 
-import type {Day} from "@/types/tasks"
+import type {Day} from "@shared/types/storage"
 
 import BaseCalendar from "@/ui/base/BaseCalendar"
 import BasePopup from "@/ui/base/BasePopup.vue"
@@ -18,7 +18,7 @@ withDefaults(
   },
 )
 
-const emit = defineEmits<{select: [date: ISODate], close: []}>()
+const emit = defineEmits<{select: [date: ISODate]; close: []}>()
 </script>
 
 <template>

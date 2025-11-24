@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import {computed} from "vue"
-import {formatDuration} from "@/utils/date"
+import {toDurationLabel} from "@shared/utils/date/formatters"
 
-import type {Task} from "@/types/tasks"
+import type {Task} from "@shared/types/storage"
 
 import BaseIcon from "@/ui/base/BaseIcon"
 
@@ -37,7 +37,7 @@ function calcProgress(current: number, total: number) {
 
     <BaseIcon :name="task.status === 'active' ? 'stopwatch' : 'check-check'" class="size-4" />
     <span class="tracking-wide">
-      {{ task.status === "active" ? formatDuration(props.task.estimatedTime) : formatDuration(props.task.spentTime) }}
+      {{ task.status === "active" ? toDurationLabel(props.task.estimatedTime) : toDurationLabel(props.task.spentTime) }}
     </span>
   </div>
 </template>

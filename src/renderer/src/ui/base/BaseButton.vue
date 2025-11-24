@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {computed} from "vue"
-import {cn} from "@/utils/tailwindcss"
+import {cn} from "@/utils/ui/tailwindcss"
 
 import type {Placement} from "floating-vue"
 import type {HtmlHTMLAttributes} from "vue"
@@ -9,7 +9,7 @@ import type {IconName} from "./BaseIcon"
 import BaseIcon from "./BaseIcon/BaseIcon.vue"
 
 const props = defineProps<{
-  variant?: "primary" | "ghost" | "text" | "outline"
+  variant?: "primary" | "secondary" | "ghost" | "text" | "outline"
   size?: "sm" | "md" | "lg"
   icon?: IconName
   disabled?: boolean
@@ -24,13 +24,34 @@ const slots = defineSlots<{
 }>()
 
 const variantClasses = {
-  primary:
-    "bg-accent/20 text-accent hover:bg-accent/30 disabled:hover:bg-accent/20 focus-visible-ring focus-visible:ring-offset-base-100 focus-visible:ring-accent",
-  ghost:
-    "bg-transparent hover:bg-base-200 disabled:hover:bg-transparent text-base-content focus-visible-ring focus-visible:ring-offset-base-100 focus-visible:ring-base-content",
-  text: "bg-transparent text-base-content focus-visible-ring focus-visible:ring-offset-base-100 focus-visible:ring-base-content",
-  outline:
-    "text-base-content border-base-content/60 disabled:hover:bg-transparent hover:bg-base-200 border px-8 focus-visible-ring focus-visible:ring-offset-base-100 focus-visible:ring-base-content",
+  primary: `
+  bg-accent/20 text-accent
+  hover:bg-accent/30 
+  disabled:hover:bg-accent/20 
+  focus-visible-ring focus-visible:ring-offset-base-100 focus-visible:ring-accent
+  `,
+  secondary: `
+  bg-base-200 text-base-content 
+  hover:bg-base-300 
+  focus-visible-ring focus-visible:ring-offset-base-100 focus-visible:ring-accent
+  disabled:hover:bg-base-200 
+  `,
+  ghost: `
+  bg-transparent text-base-content 
+  hover:bg-base-200 
+  focus-visible-ring focus-visible:ring-offset-base-100 focus-visible:ring-accent
+  disabled:hover:bg-transparent
+  `,
+  text: `
+  bg-transparent text-base-content 
+  focus-visible-ring focus-visible:ring-offset-base-100 focus-visible:ring-accent
+  `,
+  outline: `
+  text-base-content border-base-content/60 
+  hover:bg-base-200 border px-8 
+  focus-visible-ring focus-visible:ring-offset-base-100 focus-visible:ring-accent
+  disabled:hover:bg-transparent 
+  `,
 }
 
 const sizeClasses = {
@@ -44,7 +65,7 @@ const classes = computed(() =>
     "flex items-center justify-center items-center rounded-md border-2 border-transparent transition-colors duration-200 outline-none disabled:cursor-default",
     variantClasses[props.variant || "primary"],
     sizeClasses[props.size || "md"],
-    slots.default ? "gap-1 px-3 py-1" : "p-1",
+    slots.default ? "gap-1 px-3 py-1.5" : "p-1",
     props.class,
     props.disabled && "cursor-auto opacity-50",
   ),

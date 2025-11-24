@@ -2,7 +2,7 @@
 import {computed} from "vue"
 import {useFilterStore} from "@/stores/filter.store"
 import {useTasksStore} from "@/stores/tasks.store"
-import {filterTasksByStatus} from "@/utils/tasks"
+import {filterTasksByStatus} from "@/utils/tasks/filterTasksByStatus"
 
 import BaseAnimation from "@/ui/base/BaseAnimation.vue"
 import BaseSpinner from "@/ui/base/BaseSpinner.vue"
@@ -22,8 +22,8 @@ const filteredTasks = computed(() => {
 
   return filterTasksByStatus(tasksStore.dailyTasks, filterStore.activeFilter)
     .filter((task) => {
-      if (!filterStore.activeTagNames.size) return true
-      return task.tags.some((tag) => filterStore.activeTagNames.has(tag.name))
+      if (!filterStore.activeTagIds.size) return true
+      return task.tags.some((tag) => filterStore.activeTagIds.has(tag.id))
     })
     .sort((a, b) => statusOrder[a.status] - statusOrder[b.status])
 })

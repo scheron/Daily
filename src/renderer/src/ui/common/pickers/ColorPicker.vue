@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import {computed} from "vue"
+import {generateGradient} from "@/utils/colors/generateGradient"
+import {getOppositeColor} from "@/utils/colors/getOppositeColor"
 
-import {generateGradient, getOppositeColor} from "@/utils/colors"
 import BaseButton from "@/ui/base/BaseButton.vue"
 
 const props = withDefaults(defineProps<{colors?: string[]; steps?: number}>(), {
@@ -32,7 +33,7 @@ const emit = defineEmits<{selected: [color: string]}>()
         v-for="(color, rowIndex) in column"
         :key="rowIndex"
         :style="{backgroundColor: color}"
-        class="size-6 rounded-sm p-0 border border-base-300 outline-none"
+        class="border-base-300 size-6 rounded-sm border p-0 outline-none"
         @click="emit('selected', color)"
       />
     </div>

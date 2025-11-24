@@ -1,9 +1,9 @@
 <script lang="ts" setup>
 import {HtmlHTMLAttributes} from "vue"
-import {cn} from "@/utils/tailwindcss"
+import {cn} from "@/utils/ui/tailwindcss"
 
 import type {TasksFilter} from "@/types/filters"
-import type {TaskStatus} from "@/types/tasks"
+import type {TaskStatus} from "@shared/types/storage"
 import type {IconName} from "@/ui/base/BaseIcon"
 
 import BaseIcon from "@/ui/base/BaseIcon"
@@ -51,7 +51,7 @@ function getButtonClass(classes: HtmlHTMLAttributes["class"]) {
   const baseClass = `
     rounded-md px-2 py-0.5 text-xs
     text-base-content/50
-    focus-visible-ring focus-visible:ring-offset-base-100 focus-visible:ring-base-content
+    focus-visible-ring focus-visible:ring-offset-base-100 focus-visible:ring-accent
     transition-colors duration-200 outline-none
   `
 

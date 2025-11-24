@@ -1,21 +1,23 @@
+import {LogContext, logger} from "@/utils/logger"
+import {withRetryOnConflict} from "@/utils/withRetryOnConflict"
 import {nanoid} from "nanoid"
 
-import type {File} from "../../types.js"
-import type {FileDoc} from "../types.js"
+import type {FileDoc} from "@/types/database"
+import type {File} from "@shared/types/storage"
 
-import {docIdMap, docToFile, fileToDoc} from "./_mappers.js"
+import {docIdMap, docToFile, fileToDoc} from "./_mappers"
 
 export class FileModel {
   constructor(private db: PouchDB.Database) {}
 
-  async getFileList(): Promise<File[]> {
+  async getFileList({includeDeleted = false}: {includeDeleted?: boolean} = {}): Promise<File[]> {
     try {
       const result = (await this.db.find({selector: {type: "file"}})) as PouchDB.Find.FindResponse<FileDoc>
 
-      console.log(`[FILES] Loaded ${result.docs.length} files from PouchDB`)
-      return result.docs.map(docToFile)
+      logger.info(LogContext.FILES, `Loaded ${result.docs.length} files from database`)
+      return result.docs.map(docToFile).filter((file) => !includeDeleted && !file.deletedAt)
     } catch (error) {
-      console.error("[FILES] Failed to load files from PouchDB:", error)
+      logger.error(LogContext.FILES, "Failed to load files from database", error)
       throw error
     }
   }
@@ -33,17 +35,17 @@ export class FileModel {
 
       for (const row of result.rows) {
         if ("error" in row) {
-          console.error(`[FILES] Failed to get file ${row.key}:`, row.error)
+          logger.error(LogContext.FILES, `Failed to get file ${row.key}`, row.error)
           continue
         }
 
         if (row.doc) files.push(docToFile(row.doc))
       }
 
-      console.log(`[FILES] Retrieved ${files.length}/${ids.length} files`)
+      logger.debug(LogContext.FILES, `Retrieved ${files.length}/${ids.length} files`)
       return files
     } catch (error) {
-      console.error("[FILES] Failed to get files:", error)
+      logger.error(LogContext.FILES, "Failed to get files", error)
       throw error
     }
   }
@@ -59,63 +61,75 @@ export class FileModel {
         size,
         createdAt: now,
         updatedAt: now,
+        deletedAt: null,
         fileBuffer: data,
       }
 
       const putResult = await this.db.put(fileToDoc(file))
 
-      console.log(`📝 Document created, rev: ${putResult.rev}`)
+      logger.storage("Created", "file", file.id)
+      logger.debug(LogContext.FILES, `File rev: ${putResult.rev}`)
 
       return file
     } catch (error) {
-      console.error(`❌ Failed to create file ${name}:`, error)
+      logger.error(LogContext.FILES, `Failed to create file ${name}`, error)
       throw error
     }
   }
 
   async deleteFile(id: File["id"]): Promise<boolean> {
-    try {
-      const doc = await this.db.get<FileDoc>(docIdMap.file.toDoc(id))
-      if (!doc) return false
+    const isDeleted = await withRetryOnConflict("[FILE]", async (attempt) => {
+      try {
+        const doc = await this.db.get<FileDoc>(docIdMap.file.toDoc(id))
+        if (!doc) return false
 
-      await this.db.remove(doc)
+        const now = new Date().toISOString()
+        const deletedDoc: FileDoc = {
+          ...doc,
+          deletedAt: now,
+          updatedAt: now,
+        }
 
-      console.log(`🗑️ Deleted file: ${id}`)
-      return true
-    } catch (error: any) {
-      if (error?.status === 404) {
-        console.warn(`⚠️ File not found for deletion: ${id}`)
+        const res = await this.db.put(deletedDoc)
+
+        if (!res.ok) {
+          return false
+        }
+
+        logger.storage("Deleted", "file", id)
+        logger.debug(LogContext.FILES, `File rev: ${res.rev}, attempt: ${attempt + 1}`)
+        return true
+      } catch (error: any) {
+        if (error?.status === 404) {
+          logger.warn(LogContext.FILES, `File not found for deletion: ${id}`)
+          return false
+        }
+
+        logger.error(LogContext.FILES, `Failed to delete file ${id}`, error)
         return false
       }
-
-      console.error(`❌ Failed to delete file ${id}:`, error)
-      return false
-    }
+    })
+    return Boolean(isDeleted)
   }
 
   async getFileWithAttachment(id: File["id"]): Promise<FileDoc | null> {
     try {
-      console.log(`🔍 Fetching file with attachment: ${id}`)
+      logger.debug(LogContext.FILES, `Fetching file with attachment: ${id}`)
 
       const doc = await this.db.get<FileDoc>(docIdMap.file.toDoc(id), {
         attachments: true,
         binary: false, // Get as base64 string, not Blob
       })
 
-      console.log(`📄 File doc retrieved:`, {
-        id: doc._id,
-        name: doc.name,
-        mimeType: doc.mimeType,
-        size: doc.size,
-      })
+      logger.debug(LogContext.FILES, `File doc retrieved: ${doc.name} (${doc.size} bytes)`)
 
       return doc
     } catch (error: any) {
       if (error?.status === 404) {
-        console.warn(`[FILES] File not found: ${id}`)
+        logger.warn(LogContext.FILES, `File not found: ${id}`)
         return null
       }
-      console.error(`[FILES] Failed to get file with attachment ${id}:`, error)
+      logger.error(LogContext.FILES, `Failed to get file with attachment ${id}`, error)
       throw error
     }
   }

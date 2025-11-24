@@ -1,0 +1,64 @@
+import {contextBridge, ipcRenderer} from "electron"
+
+import type {ISODate} from "@shared/types/common"
+import type {BridgeIPC} from "@shared/types/ipc"
+import type {Day, Settings, SyncStatus, Tag, Task} from "@shared/types/storage"
+import type {PartialDeep} from "type-fest"
+
+// prettier-ignore
+contextBridge.exposeInMainWorld("BridgeIPC", {
+  invoke: (channel: string, ...args: any[]) => ipcRenderer.invoke(channel, ...args),
+  send: (channel: string, ...args: any[]) => ipcRenderer.send(channel, ...args),
+  on: (channel: string, callback: (...args: any[]) => void) => {
+    const subscription = (_event: any, ...args: any[]) => callback(...args)
+    ipcRenderer.on(channel, subscription)
+    return () => ipcRenderer.removeListener(channel, subscription)
+  },
+
+  "window:minimize": () => ipcRenderer.send("window:minimize"),
+  "window:maximize": () => ipcRenderer.send("window:maximize"),
+  "window:close": () => ipcRenderer.send("window:close"),
+
+  "platform:is-mac": () => process.platform === "darwin",
+  "platform:is-windows": () => process.platform === "win32",
+  "platform:is-linux": () => process.platform === "linux",
+
+  "timer:close": () => ipcRenderer.send("window:close-timer"),
+  "timer:open": (taskId: Task["id"]) => ipcRenderer.send("window:open-timer", taskId),
+  "timer:on-refresh": (callback: (taskId: Task["id"]) => void) => ipcRenderer.on("timer:refresh-timer", (_event, taskId: Task["id"]) => callback(taskId)),
+
+  "menu:on-new-task": (callback: (action: "new-task") => void) => ipcRenderer.on("menu:new-task", () => callback("new-task")),
+
+  "storage-sync:activate": () => ipcRenderer.invoke("storage:activate-sync") as Promise<void>,
+  "storage-sync:deactivate": () => ipcRenderer.invoke("storage:deactivate-sync") as Promise<void>,
+  "storage-sync:sync": () => ipcRenderer.invoke("storage:force-sync") as Promise<void>,
+  "storage-sync:get-status": () => ipcRenderer.invoke("storage:get-sync-status") as Promise<SyncStatus>,
+  "storage-sync:on-status-changed": (callback: (status: SyncStatus, prevStatus: SyncStatus) => void) => ipcRenderer.on("storage:sync-status-changed", (_event, status: SyncStatus, prevStatus: SyncStatus) => callback(status, prevStatus)),
+  "storage-sync:on-data-changed": (callback: () => void) => ipcRenderer.on("storage:data-changed", (_event, ) => callback()),
+
+  "settings:load": () => ipcRenderer.invoke("load-settings") as Promise<Settings>,
+  "settings:save": (settings: Partial<Settings>) => ipcRenderer.invoke("save-settings", settings),
+
+  "days:get-many": (params?: {from?: ISODate; to?: ISODate}) => ipcRenderer.invoke("get-days", params) as Promise<Day[]>,
+  "days:get-one": (date: ISODate) => ipcRenderer.invoke("get-day", date) as Promise<Day | null>,
+
+  "tasks:get-many": (params?: {from?: ISODate; to?: ISODate; limit?: number}) => ipcRenderer.invoke("get-task-list", params) as Promise<Task[]>,
+  "tasks:get-one": (id: Task["id"]) => ipcRenderer.invoke("get-task", id) as Promise<Task | null>,
+  "tasks:update": (id: Task["id"], updates: PartialDeep<Task>) => ipcRenderer.invoke("update-task", id, updates),
+  "tasks:create": (task: Omit<Task, "id" | "createdAt" | "updatedAt" | "deletedAt" | "attachments">) => ipcRenderer.invoke("create-task", task),
+  "tasks:delete": (id: Task["id"]) => ipcRenderer.invoke("delete-task", id),
+  "tasks:on-task-saved": (callback: (task: Task) => void) => ipcRenderer.on("task:saved", (_event, data: Task) => callback(data)),
+  "tasks:on-task-deleted": (callback: (taskId: Task["id"]) => void) => ipcRenderer.on("task:deleted", (_event, taskId: Task["id"]) => callback(taskId)),
+
+  "tags:get-many": () => ipcRenderer.invoke("get-tag-list") as Promise<Tag[]>,
+  "tags:get-one": (id: Tag["id"]) => ipcRenderer.invoke("get-tag", id) as Promise<Tag | null>,
+  "tags:update": (id: Tag["id"], updates: Partial<Tag>) => ipcRenderer.invoke("update-tag", id, updates),
+  "tags:create": (tag: Omit<Tag, "id" | "createdAt" | "updatedAt" | "deletedAt">) => ipcRenderer.invoke("create-tag", tag),
+  "tags:delete": (id: Tag["id"]) => ipcRenderer.invoke("delete-tag", id),
+  "tasks:add-tags": (taskId: Task["id"], tagIds: Tag["id"][]) => ipcRenderer.invoke("add-task-tags", taskId, tagIds),
+  "tasks:remove-tags": (taskId: Task["id"], tagIds: Tag["id"][]) => ipcRenderer.invoke("remove-task-tags", taskId, tagIds),
+
+  "files:save": (filename: string, data: Buffer) => ipcRenderer.invoke("save-file", filename, data),
+  "files:delete": (filename: string) => ipcRenderer.invoke("delete-file", filename),
+  "files:get-path": (id: string) => ipcRenderer.invoke("get-file-path", id) as Promise<string>,
+} satisfies BridgeIPC)

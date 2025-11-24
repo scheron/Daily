@@ -1,5 +1,5 @@
 import {onBeforeUnmount, watchEffect} from "vue"
-import {findAllFocusableElements} from "@/utils/dom"
+import {findAllFocusableElements} from "@/utils/ui/dom"
 
 import type {Ref} from "vue"
 

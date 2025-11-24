@@ -1,9 +1,12 @@
-import type {Tag} from "../../types.js"
-import type {TagDoc} from "../types.js"
+import {createCacheLoader} from "@/utils/createCacheLoader"
+import {LogContext, logger} from "@/utils/logger"
+import {withRetryOnConflict} from "@/utils/withRetryOnConflict"
+import {nanoid} from "nanoid"
 
-import {createCacheLoader} from "../../utils/cache.js"
-import {withRetryOnConflict} from "../../utils/withRetryOnConflict.js"
-import {docIdMap, docToTag, tagToDoc} from "./_mappers.js"
+import type {TagDoc} from "@/types/database"
+import type {Tag} from "@shared/types/storage"
+
+import {docIdMap, docToTag, tagToDoc} from "./_mappers"
 
 export class TagModel {
   private CACHE_TTL = 5 * 60_000
@@ -13,8 +16,13 @@ export class TagModel {
     this.tagListLoader = createCacheLoader(() => this.loadTagListFromDB(), this.CACHE_TTL)
   }
 
-  async getTagList(): Promise<Tag[]> {
-    return this.tagListLoader.get()
+  invalidateCache() {
+    this.tagListLoader.clear()
+  }
+
+  async getTagList({includeDeleted = false}: {includeDeleted?: boolean} = {}): Promise<Tag[]> {
+    const tags = await this.tagListLoader.get()
+    return tags.filter((tag) => !includeDeleted && !tag.deletedAt)
   }
 
   private async loadTagListFromDB(): Promise<Tag[]> {
@@ -22,58 +30,57 @@ export class TagModel {
       const result = (await this.db.find({selector: {type: "tag"}})) as PouchDB.Find.FindResponse<TagDoc>
       const tags = result.docs.map(docToTag)
 
-      console.log(`[TAGS] Loaded ${tags.length} tags from PouchDB`)
+      logger.info(LogContext.TAGS, `Loaded ${tags.length} tags from database`)
       return tags
     } catch (error) {
-      console.error("[TAGS] Failed to load tags from PouchDB:", error)
+      logger.error(LogContext.TAGS, "Failed to load tags from database", error)
       throw error
     }
   }
 
-  async getTag(name: Tag["name"]): Promise<Tag | null> {
+  async getTag(id: Tag["id"]): Promise<Tag | null> {
     try {
-      const doc = await this.db.get<TagDoc>(docIdMap.tag.toDoc(name))
+      const doc = await this.db.get<TagDoc>(docIdMap.tag.toDoc(id))
       return docToTag(doc)
     } catch (error: any) {
       if (error?.status === 404) {
-        console.warn(`[TAGS] Tag not found: ${name}`)
+        logger.warn(LogContext.TAGS, `Tag not found: ${id}`)
         return null
       }
-      console.error(`[TAGS] Failed to get tag ${name}:`, error)
+      logger.error(LogContext.TAGS, `Failed to get tag ${id}`, error)
       throw error
     }
   }
 
-  async createTag(tag: Tag): Promise<Tag | null> {
+  async createTag(tag: Omit<Tag, "id" | "createdAt" | "updatedAt">): Promise<Tag | null> {
+    const id = nanoid()
+    const now = new Date().toISOString()
+
     try {
-      const now = new Date().toISOString()
-      const doc = tagToDoc({...tag, createdAt: now, updatedAt: now})
+      const doc = tagToDoc({...tag, id, createdAt: now, updatedAt: now})
 
       const res = await this.db.put(doc)
 
       if (!res.ok) {
-        console.error(`❌ Failed to create tag ${tag.name}:`, res)
-        throw new Error(`Failed to create tag ${tag.name}`)
+        throw new Error(`Failed to create tag ${id}`)
       }
 
-      console.log(`💾 Created tag ${tag.name} in PouchDB (rev=${res.rev})`)
+      logger.storage("Created", "tag", id)
+      logger.debug(LogContext.TAGS, `Tag rev: ${res.rev}`)
+
       this.tagListLoader.clear()
+
       return docToTag(doc)
     } catch (error: any) {
-      if (error?.status === 409) {
-        console.warn(`⚠️ Tag ${tag.name} already exists, forwarding to updateTag`)
-        return await this.updateTag(tag.name, tag)
-      }
-
-      console.error(`❌ Failed to create tag ${tag.name}:`, error)
+      logger.error(LogContext.TAGS, `Failed to create tag ${id}`, error)
       return null
     }
   }
 
-  async updateTag(name: Tag["name"], tag: Tag): Promise<Tag | null> {
+  async updateTag(id: Tag["id"], updates: Partial<Tag>): Promise<Tag | null> {
     return await withRetryOnConflict("[TAG]", async (attempt) => {
-      const existing = await this.db.get<TagDoc>(docIdMap.tag.toDoc(name))
-      const patched = this.applyDiffToDoc(existing, tag)
+      const existing = await this.db.get<TagDoc>(docIdMap.tag.toDoc(id))
+      const patched = this.applyDiffToDoc(existing, updates)
 
       const now = new Date().toISOString()
 
@@ -89,35 +96,52 @@ export class TagModel {
       const res = await this.db.put(updatedDoc)
 
       if (!res.ok) {
-        console.error(`❌ Failed to update tag ${name}:`, res)
-        throw new Error(`Failed to update tag ${name}`)
+        throw new Error(`Failed to update tag ${id}`)
       }
 
-      console.log(`💾 Updated tag ${name} in PouchDB (rev=${res.rev}, attempt=${attempt + 1})`)
+      logger.storage("Updated", "tag", id)
+      logger.debug(LogContext.TAGS, `Tag rev: ${res.rev}, attempt: ${attempt + 1}`)
+
       this.tagListLoader.clear()
+
       return docToTag(updatedDoc)
     })
   }
 
-  async deleteTag(name: Tag["name"]): Promise<boolean> {
-    try {
-      const doc = await this.db.get<TagDoc>(docIdMap.tag.toDoc(name))
+  async deleteTag(id: Tag["id"]): Promise<boolean> {
+    const isDeleted = await withRetryOnConflict("[TAG]", async (attempt) => {
+      try {
+        const doc = await this.db.get<TagDoc>(docIdMap.tag.toDoc(id))
 
-      await this.db.remove(doc)
+        const now = new Date().toISOString()
+        const deletedDoc: TagDoc = {
+          ...doc,
+          deletedAt: now,
+          updatedAt: now,
+        }
 
-      console.log(`🗑️ Deleted tag: ${name}`)
-      this.tagListLoader.clear()
+        const res = await this.db.put(deletedDoc)
 
-      return true
-    } catch (error: any) {
-      if (error?.status === 404) {
-        console.warn(`⚠️ Tag not found for deletion: ${name}`)
-        return false
+        if (!res.ok) {
+          throw new Error(`Failed to soft-delete tag ${id}`)
+        }
+
+        logger.storage("Deleted", "tag", id)
+        logger.debug(LogContext.TAGS, `Tag rev: ${res.rev}, attempt: ${attempt + 1}`)
+        this.tagListLoader.clear()
+
+        return true
+      } catch (error: any) {
+        if (error?.status === 404) {
+          logger.warn(LogContext.TAGS, `Tag not found for deletion: ${id}`)
+          return false
+        }
+
+        logger.error(LogContext.TAGS, `Failed to delete tag ${id}`, error)
+        throw error
       }
-
-      console.error(`❌ Failed to delete tag ${name}:`, error)
-      throw error
-    }
+    })
+    return Boolean(isDeleted)
   }
 
   private applyDiffToDoc(doc: TagDoc, updates: Partial<Tag>): TagDoc {
@@ -125,6 +149,10 @@ export class TagModel {
 
     if (updates.color !== undefined) {
       nextDoc.color = updates.color
+    }
+
+    if (updates.deletedAt !== undefined) {
+      nextDoc.deletedAt = updates.deletedAt
     }
 
     return nextDoc

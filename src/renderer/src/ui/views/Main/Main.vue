@@ -36,11 +36,11 @@ function onCreateTask() {
   taskEditorStore.setIsTaskEditorOpen(true)
 }
 
-window.electronAPI.onTaskSaved(async () => {
+window.BridgeIPC["tasks:on-task-saved"](async () => {
   await storageStore.revalidate()
 })
 
-window.electronAPI.onMenuAction((action) => {
+window.BridgeIPC["menu:on-new-task"]((action) => {
   if (action === "new-task") onCreateTask()
   else if (action === "toggle-sidebar") uiStore.toggleSidebarCollapse()
 })

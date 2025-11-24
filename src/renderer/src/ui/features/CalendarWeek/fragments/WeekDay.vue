@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import {toDay, toDayLabel} from "@/utils/date"
-import {cn} from "@/utils/tailwindcss"
-import BaseIcon from "@/ui/base/BaseIcon"
+import {toDay, toDayLabel} from "@shared/utils/date/formatters"
+import {cn} from "@/utils/ui/tailwindcss"
 
-import type {ISODate} from "@/types/date"
-import type {Day} from "@/types/tasks"
+import type {ISODate} from "@shared/types/common"
+import type {Day} from "@shared/types/storage"
+
+import BaseIcon from "@/ui/base/BaseIcon"
 
 const props = defineProps<{
   date: ISODate
@@ -41,7 +42,7 @@ function selectDate() {
 
     <div v-if="day && day?.tasks.length" class="absolute right-1 bottom-1 z-10 flex flex-col items-end">
       <div
-        class="rounded-md text-[10px] relative border font-semibold flex items-center gap-1"
+        class="relative flex items-center gap-1 rounded-md border text-[10px] font-semibold"
         :class="[day.countActive === 0 ? 'border-success text-success' : 'border-warning text-warning']"
       >
         <BaseIcon v-if="day.countActive === 0" name="check" class="size-4 p-0.5" />

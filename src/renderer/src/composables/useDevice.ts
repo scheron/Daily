@@ -8,7 +8,7 @@ export function useDevice() {
     isTablet: breakpoint.between("sm", "lg"),
     isDesktop: breakpoint.greaterOrEqual("lg"),
 
-    isMacOS: window.electronAPI.platform.isMac(),
-    isWindows: window.electronAPI.platform.isWindows() || window.electronAPI.platform.isLinux(),
+    isMacOS: window.BridgeIPC["platform:is-mac"](),
+    isWindows: window.BridgeIPC["platform:is-windows"]() || window.BridgeIPC["platform:is-linux"](),
   }
 }

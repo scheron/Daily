@@ -89,4 +89,4 @@ const variant = computed(() => ANIMATION_CLASSES[props.name] ?? ANIMATION_CLASSE
   >
     <slot />
   </Transition>
-</template> 
+</template>

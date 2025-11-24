@@ -1,11 +1,12 @@
 import path from "node:path"
+import {APP_CONFIG} from "@/config"
+import {forEachAsync} from "@shared/utils/arrays/forEachAsync"
+import {extractFileIds} from "@/utils/files/extractFileIds"
+import {getMimeType} from "@/utils/files/getMimeType"
+import {LogContext, logger} from "@/utils/logger"
 
-import type {File, Task} from "../../types.js"
-import type {FileModel} from "../models/FileModel.js"
-
-import {APP_CONFIG} from "../../config.js"
-import {forEachAsync} from "../../utils/arrays.js"
-import {extractFileIds, getMimeType} from "../../utils/file.js"
+import type {FileModel} from "@/storage/models/FileModel"
+import type {File, Task} from "@shared/types/storage"
 
 export class FilesService {
   constructor(private fileModel: FileModel) {}
@@ -33,7 +34,7 @@ export class FilesService {
   }
 
   async getFiles(fileIds: File["id"][]): Promise<File[]> {
-    return this.fileModel.getFiles(fileIds)
+    return await this.fileModel.getFiles(fileIds)
   }
 
   /**
@@ -45,7 +46,16 @@ export class FilesService {
       const doc = await this.fileModel.getFileWithAttachment(id)
 
       if (!doc) {
-        console.error(`❌ File not found: ${id}`)
+        logger.warn(LogContext.FILES, `File not found: ${id}`)
+        return new Response("File not found", {
+          status: 404,
+          headers: {"Content-Type": "text/plain"},
+        })
+      }
+
+      // Return 404 if file is soft-deleted
+      if (doc.deletedAt !== null) {
+        logger.warn(LogContext.FILES, `File is deleted: ${id}`)
         return new Response("File not found", {
           status: 404,
           headers: {"Content-Type": "text/plain"},
@@ -60,10 +70,7 @@ export class FilesService {
       const base64Data = typeof attachment.data === "string" ? attachment.data : ""
       const buffer = Buffer.from(base64Data, "base64")
 
-      console.log(`✅ File response created:`, {
-        contentType: attachment.content_type,
-        bufferSize: buffer.length,
-      })
+      logger.debug(LogContext.FILES, `File response created: ${attachment.content_type}, ${buffer.length} bytes`)
 
       const response = new Response(buffer as any, {
         headers: {
@@ -75,11 +82,11 @@ export class FilesService {
       return response
     } catch (error: any) {
       if (error?.status === 404) {
-        console.error(`❌ File not found: ${id}`)
+        logger.warn(LogContext.FILES, `File not found: ${id}`)
         return new Response("File not found", {status: 404, headers: {"Content-Type": "text/plain"}})
       }
 
-      console.error(`❌ Failed to get file ${id}:`, error)
+      logger.error(LogContext.FILES, `Failed to get file ${id}`, error)
       throw error
     }
   }
@@ -97,15 +104,16 @@ export class FilesService {
 
       const allFiles = await this.fileModel.getFileList()
 
-      const orphans = allFiles.filter((file) => !referenced.has(file.id))
+      // Only consider non-deleted files as orphans
+      const orphans = allFiles.filter((file) => file.deletedAt === null && !referenced.has(file.id))
 
       await forEachAsync(orphans, (orphan) => {
         this.fileModel.deleteFile(orphan.id)
       })
 
-      console.log(`🗑️ Removed ${orphans.length} orphan files`)
+      logger.info(LogContext.FILES, `Removed ${orphans.length} orphan files`)
     } catch (err) {
-      console.error("❌ Failed to cleanup orphan files:", err)
+      logger.error(LogContext.FILES, "Failed to cleanup orphan files", err)
     }
   }
 }

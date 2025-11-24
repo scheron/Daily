@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {computed} from "vue"
-import {toDayLabel} from "@/utils/date"
+import {toDayLabel} from "@shared/utils/date/formatters"
 
 import type {TasksFilter} from "@/types/filters"
 

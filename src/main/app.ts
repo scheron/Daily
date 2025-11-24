@@ -1,23 +1,23 @@
+import {APP_CONFIG} from "@/config"
+import {setupInstanceAndDeepLinks} from "@/setup/app/instance"
+import {setupActivateHandler, setupAppIdentity, setupDockIcon, setupWindowAllClosedHandler} from "@/setup/app/lifecycle"
+import {setupMenu} from "@/setup/app/menu"
+import {setupStorageSync} from "@/setup/app/storage"
+import {setupDbViewerIPC, setupDevToolsIPC} from "@/setup/ipc/devtools"
+import {setupMenuIPC} from "@/setup/ipc/menu"
+import {setupStorageIPC} from "@/setup/ipc/storage"
+import {setupTimerIPC} from "@/setup/ipc/timer"
+import {setupMainWindowIPC} from "@/setup/ipc/windows"
+import {setupCSP} from "@/setup/security/csp"
+import {setupPrivilegedSchemes, setupSafeFileProtocol} from "@/setup/security/protocols"
+import {setupUpdateManager} from "@/setup/updates/updater"
+import {StorageController} from "@/storage/StorageController"
+import {logger} from "@/utils/logger"
+import {createMainWindow, createSplashWindow, focusWindow} from "@/windows"
+import {sleep} from "@shared/utils/common/sleep"
 import {app} from "electron"
 
 import type {BrowserWindow} from "electron"
-
-import {APP_CONFIG} from "./config.js"
-import {setupInstanceAndDeepLinks} from "./setup/app/instance.js"
-import {setupActivateHandler, setupAppIdentity, setupDockIcon, setupStorageSync, setupWindowAllClosedHandler} from "./setup/app/lifecycle.js"
-import {setupMenu} from "./setup/app/menu.js"
-import {setupStorageEvents} from "./setup/app/storage.js"
-import {setupDbViewerIPC, setupDevToolsIPC} from "./setup/ipc/devtools.js"
-import {setupMenuIPC} from "./setup/ipc/menu.js"
-import {setupStorageIPC} from "./setup/ipc/storage.js"
-import {setupTimerIPC} from "./setup/ipc/timer.js"
-import {setupMainWindowIPC} from "./setup/ipc/windows.js"
-import {setupCSP} from "./setup/security/csp.js"
-import {setupPrivilegedSchemes, setupSafeFileProtocol} from "./setup/security/protocols.js"
-import {setupUpdateManager} from "./setup/updates/updater.js"
-import {StorageController} from "./storage/StorageController.js"
-import {sleep} from "./utils/common.js"
-import {createMainWindow, createSplashWindow, focusWindow} from "./windows.js"
 
 type AppWindows = {main: BrowserWindow | null; splash: BrowserWindow | null; timer: BrowserWindow | null; devTools: BrowserWindow | null}
 
@@ -49,11 +49,11 @@ app.whenReady().then(async () => {
     await storage.init()
     await storage.cleanupOrphanFiles()
     await storage.loadSettings()
-    console.log("✅ Storage initialized")
+    logger.lifecycle("Storage initialized")
 
     await setupDbViewerIPC()
   } catch (err) {
-    console.error("❌ Failed to initialize storage:", err)
+    logger.error("APP" as any, "Failed to initialize storage", err)
     app.quit()
     return
   }
@@ -76,10 +76,9 @@ app.whenReady().then(async () => {
     (win) => (windows.devTools = win),
   )
 
-  setupStorageIPC(() => storage!)
-  setupStorageEvents(() => windows.main)
+  setupStorageIPC(() => storage)
   setupStorageSync(
-    () => storage!,
+    () => storage,
     () => windows.main,
   )
 
@@ -87,7 +86,7 @@ app.whenReady().then(async () => {
 
   setupUpdateManager(main)
 
-  console.log(`🚀 ${APP_CONFIG.name} started`)
+  logger.lifecycle(`${APP_CONFIG.name} started`)
 })
 
 function setupMainWindow(windows: AppWindows, options?: {showSplash?: boolean}) {
@@ -115,7 +114,7 @@ function setupMainWindow(windows: AppWindows, options?: {showSplash?: boolean}) 
         windows.splash.close()
         windows.splash = null
       }
-      console.log("✅ Main window displayed")
+      logger.lifecycle("Main window displayed")
     }
 
     main.show()

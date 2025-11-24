@@ -1,5 +1,5 @@
-import type {Settings} from "../../types"
-import type {SettingsModel} from "../models/SettingsModel"
+import type {SettingsModel} from "@/storage/models/SettingsModel"
+import type {Settings} from "@shared/types/storage"
 
 export class SettingsService {
   constructor(private settingsModel: SettingsModel) {}

@@ -1,1 +1,1 @@
-export {default} from './RecentActiveTasksPanel.vue'
+export {default} from "./RecentActiveTasksPanel.vue"

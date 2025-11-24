@@ -5,15 +5,13 @@
   "asar": true,
   "copyright": "Copyright © 2025 Infected by JS",
   "directories": {
-    "buildResources": "resources",
+    "buildResources": "public",
     "output": "dist"
   },
   "afterPack": "scripts/afterPack-mac.js",
   "files": [
-    {"filter": ["**/*"], "from": "build/main", "to": "main"},
-    {"filter": ["**/*"], "from": "build/renderer", "to": "renderer"},
-    {"filter": ["**/*"], "from": "resources", "to": "."},
-    "!build",
+    "out/**/*",
+    {"filter": ["**/*"], "from": "public", "to": "resources"},
     "!dist",
     "!scripts",
     "!src",

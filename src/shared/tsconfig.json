@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "rootDir": ".",
+    "outDir": "../../build/shared",
+    "allowJs": true,
+    "noImplicitAny": false,
+    "declaration": true,
+    "declarationMap": true,
+    "baseUrl": "."
+  }
+}

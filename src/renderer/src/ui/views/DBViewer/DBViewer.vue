@@ -24,6 +24,7 @@ const docWithoutMeta = computed(() => {
   if (!activeDoc.value) return null
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const {_id, _rev, _attachments, ...rest} = activeDoc.value
+  console.log("Doc without meta:", activeDoc.value)
   return rest
 })
 
@@ -34,7 +35,7 @@ async function loadDocs() {
   const previousId = activeDoc.value?._id
 
   try {
-    const data = await window.electronAPI.invoke("db-viewer:get-docs", currentType.value, 200)
+    const data = await window.BridgeIPC.invoke("db-viewer:get-docs", currentType.value, 200)
     docs.value = data.docs || []
 
     if (previousId && docs.value.some((d) => d._id === previousId)) {
@@ -52,7 +53,7 @@ async function loadDocs() {
 
 async function loadDoc(id: string) {
   try {
-    const doc = await window.electronAPI.invoke("db-viewer:get-doc", id)
+    const doc = await window.BridgeIPC.invoke("db-viewer:get-doc", id)
     activeDoc.value = doc
   } catch (e: any) {
     console.error("Failed to load doc:", e)
@@ -97,15 +98,16 @@ onUnmounted(() => {
 <template>
   <div class="bg-base-300 text-base-content flex h-screen w-screen flex-col">
     <!-- Header -->
-    <header style="-webkit-app-region: drag" class="bg-base-200 border-base-300 sticky top-0 z-10 flex items-center justify-between border-b px-4 py-2">
+    <header
+      style="-webkit-app-region: drag"
+      class="bg-base-200 border-base-300 sticky top-0 z-10 flex items-center justify-between border-b px-4 py-2"
+    >
       <div>
-        <h1 class="text-base-content/60 text-sm font-semibold uppercase tracking-wide">Daily · DB Viewer</h1>
+        <h1 class="text-base-content/60 text-sm font-semibold tracking-wide uppercase">Daily · DB Viewer</h1>
         <span class="text-base-content/40 text-xs">Electron IPC Mode</span>
       </div>
       <div class="flex items-center gap-3" style="-webkit-app-region: no-drag">
-        <span class="text-base-content/50 text-xs">
-          type: <code class="font-mono">task | tag | settings | file</code>
-        </span>
+        <span class="text-base-content/50 text-xs"> type: <code class="font-mono">task | tag | settings | file</code> </span>
         <button
           class="bg-base-200 border-base-300 text-base-content hover:bg-base-100 rounded-full border px-3 py-1 text-xs transition-colors"
           @click="loadDocs"
@@ -116,9 +118,9 @@ onUnmounted(() => {
     </header>
 
     <div class="grid flex-1 grid-cols-[320px_minmax(0,1fr)] overflow-hidden">
-      <aside class="bg-base-200 border-base-300 flex flex-col overflow-y-auto gap-2 border-r p-2">
+      <aside class="bg-base-200 border-base-300 flex flex-col gap-2 overflow-y-auto border-r p-2">
         <div>
-          <div class="text-base-content/40 mb-1 text-xs uppercase tracking-widest">Document types</div>
+          <div class="text-base-content/40 mb-1 text-xs tracking-widest uppercase">Document types</div>
           <div class="flex flex-wrap gap-1">
             <button
               v-for="type in ['task', 'tag', 'settings', 'file']"
@@ -138,7 +140,7 @@ onUnmounted(() => {
         </div>
 
         <div class="flex flex-1 flex-col overflow-hidden">
-          <div class="text-base-content/40 mb-1 text-xs uppercase tracking-widest">Documents</div>
+          <div class="text-base-content/40 mb-1 text-xs tracking-widest uppercase">Documents</div>
           <div class="bg-base-100 border-base-300 flex-1 overflow-auto rounded-lg border p-1">
             <div v-if="loading" class="text-base-content/40 p-2 text-xs">Loading…</div>
             <div v-else-if="error" class="text-error p-2 text-xs">{{ error }}</div>
@@ -151,7 +153,7 @@ onUnmounted(() => {
                 :class="activeDoc?._id === doc._id ? 'border-accent/45 bg-accent/15 border' : 'hover:bg-base-200/50'"
                 @click="loadDoc(doc._id)"
               >
-                <div class="text-base-content/60 break-all font-mono text-xs">{{ doc._id }}</div>
+                <div class="text-base-content/60 font-mono text-xs break-all">{{ doc._id }}</div>
                 <div class="text-base-content/40 mt-0.5 flex items-center gap-2 text-[10px]">
                   <span class="border-base-300 rounded-full border px-1.5 py-0.5">{{ doc.type }}</span>
                   <span>{{ formatDate(doc.createdAt) }}</span>
@@ -171,7 +173,10 @@ onUnmounted(() => {
             <span class="text-base-content/40 font-mono text-xs">{{ activeDoc?._id || "" }}</span>
           </div>
           <div class="flex-1 overflow-auto p-2">
-            <pre v-if="activeDoc" class="text-base-content font-mono text-xs leading-relaxed"><code>{{ JSON.stringify(docWithoutMeta, null, 2) }}</code></pre>
+            <pre
+              v-if="activeDoc"
+              class="text-base-content font-mono text-xs leading-relaxed"
+            ><code>{{ JSON.stringify(docWithoutMeta, null, 2) }}</code></pre>
             <div v-else class="text-base-content/40 p-2 text-xs">Select a document on the left</div>
           </div>
         </section>
@@ -183,7 +188,10 @@ onUnmounted(() => {
             <span class="border-base-300 text-base-content/50 rounded-full border px-1.5 py-0.5 text-[10px]">_rev, _attachments etc.</span>
           </div>
           <div class="flex-1 overflow-auto p-2">
-            <pre v-if="activeDoc" class="text-base-content font-mono text-xs leading-relaxed"><code>{{ JSON.stringify(activeDoc, null, 2) }}</code></pre>
+            <pre
+              v-if="activeDoc"
+              class="text-base-content font-mono text-xs leading-relaxed"
+            ><code>{{ JSON.stringify(activeDoc, null, 2) }}</code></pre>
             <div v-else class="text-base-content/40 p-2 text-xs">Raw PouchDB doc will appear here</div>
           </div>
         </section>
@@ -191,4 +199,3 @@ onUnmounted(() => {
     </div>
   </div>
 </template>
-

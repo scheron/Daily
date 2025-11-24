@@ -102,8 +102,6 @@
   font-style: italic;
 }
 
-
-
 .markdown mark {
   background-color: var(--bgColor-attention-muted);
   color: var(--fgColor-default);

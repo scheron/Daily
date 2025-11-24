@@ -5,7 +5,7 @@ import {useTagsStore} from "@/stores/tags.store"
 import {useTaskEditorStore} from "@/stores/taskEditor.store"
 import {useTasksStore} from "@/stores/tasks.store"
 
-import type {Tag} from "@/types/tasks"
+import type {Tag} from "@shared/types/storage"
 
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseIcon from "@/ui/base/BaseIcon"
@@ -18,16 +18,16 @@ const tasksStore = useTasksStore()
 const taskEditorStore = useTaskEditorStore()
 const tagsStore = useTagsStore()
 
-const selectedTags = ref<Map<Tag["name"], Tag>>(new Map())
+const selectedTags = ref<Map<Tag["id"], Tag>>(new Map())
 
 const estimated = reactive({hours: 0, minutes: 0})
 
-const activeTagNames = computed(() => new Set(selectedTags.value.keys()))
+const activeTagIds = computed(() => new Set(selectedTags.value.keys()))
 const isNewTask = computed(() => taskEditorStore.currentEditingTask === null)
 
-function onSelectTag(tagName: Tag["name"]) {
-  if (selectedTags.value.has(tagName)) selectedTags.value.delete(tagName)
-  else selectedTags.value.set(tagName, tagsStore.tagsMap.get(tagName)!)
+function onSelectTag(tagId: Tag["id"]) {
+  if (selectedTags.value.has(tagId)) selectedTags.value.delete(tagId)
+  else selectedTags.value.set(tagId, tagsStore.tagsMap.get(tagId)!)
 }
 
 async function onSave() {
@@ -70,7 +70,7 @@ function onClose() {
 
 onMounted(() => {
   if (taskEditorStore.currentEditingTask) {
-    selectedTags.value = new Map(taskEditorStore.currentEditingTask.tags.map((tag) => [tag.name, tag]))
+    selectedTags.value = new Map(taskEditorStore.currentEditingTask.tags.map((tag) => [tag.id, tag]))
     estimated.hours = Math.floor(taskEditorStore.currentEditingTask.estimatedTime / 3600)
     estimated.minutes = Math.floor((taskEditorStore.currentEditingTask.estimatedTime % 3600) / 60)
   }
@@ -88,16 +88,14 @@ watch(
 <template>
   <div class="bg-base-100 flex size-full flex-col gap-3 px-4 py-2 md:flex-row md:items-center md:justify-between">
     <div class="relative flex w-full flex-1 items-center gap-2">
-      <DynamicTagsPanel :tags="tagsStore.tags" :selected-tags="activeTagNames" empty-message="No daily tags" @select="onSelectTag" />
+      <DynamicTagsPanel :tags="tagsStore.tags" :selected-tags="activeTagIds" empty-message="No daily tags" @select="onSelectTag" />
     </div>
 
     <div class="flex w-full shrink-0 items-center gap-3 md:w-auto">
       <div class="text-accent border-accent/30 flex items-center justify-center gap-2 rounded-md border p-0.5 font-mono">
         <TimePicker v-model:time="estimated.hours" :max="23">
           <template #trigger="{toggle}">
-            <BaseButton size="sm" class="w-16 px-1 py-0.5 text-xs" tooltip="Estimated hours" @click="toggle">
-              {{ estimated.hours }} h.
-            </BaseButton>
+            <BaseButton size="sm" class="w-16 px-1 py-0.5 text-xs" tooltip="Estimated hours" @click="toggle"> {{ estimated.hours }} h. </BaseButton>
           </template>
         </TimePicker>
         <BaseIcon name="stopwatch" class="size-4" />

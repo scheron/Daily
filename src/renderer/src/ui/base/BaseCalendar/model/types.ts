@@ -1,6 +1,5 @@
+import type {ISODate} from "@shared/types/common"
 import type {DateTime} from "luxon"
-
-import type {ISODate} from "@/types/date"
 
 export type CalendarDay = {
   date: DateTime

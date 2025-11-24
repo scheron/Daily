@@ -2,8 +2,8 @@
 import {computed, nextTick, useTemplateRef, watchEffect} from "vue"
 import {useEventListener} from "@vueuse/core"
 import {useFocusTrap} from "@/composables/useFocusTrap"
-import {findFocusableEl} from "@/utils/dom"
-import {cn} from "@/utils/tailwindcss"
+import {findFocusableEl} from "@/utils/ui/dom"
+import {cn} from "@/utils/ui/tailwindcss"
 
 import BaseAnimation from "@/ui/base/BaseAnimation.vue"
 import BaseButton from "@/ui/base/BaseButton.vue"

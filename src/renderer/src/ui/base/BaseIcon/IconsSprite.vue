@@ -34,6 +34,10 @@ export type IconName =
   | "monitor"
   | "refresh"
   | "stopwatch"
+  | "cloud"
+  | "cloud-alert"
+  | "cloud-off"
+  | "circle-pulse"
 </script>
 
 <template>
@@ -77,10 +81,9 @@ export type IconName =
       <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
     </symbol>
 
-<symbol id="minus" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-  <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14" />
-</symbol>
-
+    <symbol id="minus" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14" />
+    </symbol>
 
     <symbol id="pencil" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
       <path
@@ -296,12 +299,36 @@ export type IconName =
       <path d="M28,9,26.58,7.59,24.33,9.84a10.94,10.94,0,1,0,1.18,1.65ZM16,26a9,9,0,1,1,9-9A9,9,0,0,1,16,26Z"></path>
     </symbol>
 
-    <svg id="play" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+    <symbol id="play" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
       <path
         stroke-linecap="round"
         stroke-linejoin="round"
         d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z"
       />
-    </svg>
+    </symbol>
+    <symbol id="cloud" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+      <path
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        d="M2.25 15a4.5 4.5 0 0 0 4.5 4.5H18a3.75 3.75 0 0 0 1.332-7.257 3 3 0 0 0-3.758-3.848 5.25 5.25 0 0 0-10.233 2.33A4.502 4.502 0 0 0 2.25 15Z"
+      />
+    </symbol>
+    <symbol id="circle-pulse" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+      <path
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125"
+      />
+    </symbol>
+    <symbol id="cloud-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 12v4"></path>
+      <path d="M12 20h.01"></path>
+      <path d="M17 18h.5a1 1 0 0 0 0-9h-1.79A7 7 0 1 0 7 17.708"></path>
+    </symbol>
+    <symbol id="cloud-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="m2 2 20 20"></path>
+      <path d="M5.782 5.782A7 7 0 0 0 9 19h8.5a4.5 4.5 0 0 0 1.307-.193"></path>
+      <path d="M21.532 16.5A4.5 4.5 0 0 0 17.5 10h-1.79A7.008 7.008 0 0 0 10 5.07"></path>
+    </symbol>
   </svg>
 </template>

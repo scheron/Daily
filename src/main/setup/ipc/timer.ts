@@ -1,8 +1,7 @@
+import {createTimerWindow} from "@/windows"
 import {BrowserWindow, ipcMain} from "electron"
 
-import type {Task} from "../../types.js"
-
-import {createTimerWindow} from "../../windows.js"
+import type {Task} from "@shared/types/storage"
 
 export function setupTimerIPC(
   getMainWindow: () => BrowserWindow | null,

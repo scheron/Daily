@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type {Tag} from "@/types/tasks"
+import type {Tag} from "@shared/types/storage"
 
 import BaseButton from "@/ui/base/BaseButton.vue"
 
@@ -10,7 +10,7 @@ defineProps<{tag: Tag; active?: boolean}>()
   <BaseButton
     variant="outline"
     size="sm"
-    class="focus-visible-ring gap-0 focus-visible:ring-offset-base-100 focus-visible:ring-base-content relative shrink-0 rounded-md px-2 transition-all duration-200 hover:opacity-100"
+    class="focus-visible-ring focus-visible:ring-offset-base-100 focus-visible:ring-accent relative shrink-0 gap-0 rounded-md px-2 transition-all duration-200 hover:opacity-100"
     :style="{
       borderColor: active ? tag.color : `${tag.color}20`,
       backgroundColor: active ? `${tag.color}40` : `${tag.color}20`,

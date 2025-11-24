@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import {computed, onBeforeMount, ref, watch} from "vue"
-import {isToday} from "@/utils/date"
+import {isToday} from "@shared/utils/date/validators"
 import {DateTime} from "luxon"
 
-import type {ISODate} from "@/types/date"
-import type {Day} from "@/types/tasks"
+import type {ISODate} from "@shared/types/common"
+import type {Day} from "@shared/types/storage"
 import type {CalendarMode, CalendarSize, DateRange} from "./model/types"
 
 import BaseButton from "@/ui/base/BaseButton.vue"
@@ -159,7 +159,7 @@ onBeforeMount(() => {
 
 <template>
   <div class="flex-1">
-    <div class="mb-4 gap-1 flex items-center justify-between">
+    <div class="mb-4 flex items-center justify-between gap-1">
       <div class="flex flex-1 items-center justify-between gap-1">
         <BaseButton variant="ghost" icon="chevron-left" @click="previousMonth" />
         <h2 class="font-semibold capitalize" :class="sizeConfig.headerTextSize">
@@ -167,7 +167,15 @@ onBeforeMount(() => {
         </h2>
         <BaseButton variant="ghost" icon="chevron-right" @click="nextMonth" />
       </div>
-      <BaseButton v-if="showTodayButton" variant="outline" icon-class="text-accent" class="border-accent" tooltip="Today" icon="today" @click="selectToday" />
+      <BaseButton
+        v-if="showTodayButton"
+        variant="outline"
+        icon-class="text-accent"
+        class="border-accent"
+        tooltip="Today"
+        icon="today"
+        @click="selectToday"
+      />
     </div>
 
     <ul class="grid grid-cols-7 gap-1">

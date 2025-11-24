@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {useDevice} from "@/composables/useDevice"
+
 import BaseIcon from "@/ui/base/BaseIcon"
 
 const {isMacOS} = useDevice()

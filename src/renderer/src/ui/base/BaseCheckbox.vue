@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {computed} from "vue"
-import {cn} from "@/utils/tailwindcss"
+import {cn} from "@/utils/ui/tailwindcss"
 
 import BaseIcon from "./BaseIcon"
 
@@ -62,6 +62,6 @@ function onKeyDown(event: KeyboardEvent) {
 
 <template>
   <button type="button" :class="classes" :disabled="disabled" @click.self="toggle" @keydown.self="onKeyDown">
-    <BaseIcon name="check" :class="iconSizeClasses[size]"  />
+    <BaseIcon name="check" :class="iconSizeClasses[size]" />
   </button>
 </template>

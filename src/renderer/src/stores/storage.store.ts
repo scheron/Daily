@@ -1,81 +1,84 @@
-import {computed, ref} from "vue"
-import {formatTimeAgo} from "@vueuse/core"
+import {onMounted, ref} from "vue"
+import {toast} from "vue-sonner"
+import {sleep} from "@shared/utils/common/sleep"
 import {defineStore} from "pinia"
 
+import type {ISODateTime} from "@shared/types/common"
+import type {SyncStatus} from "@shared/types/storage"
+
+import {useSettingsStore} from "./settings.store"
 import {useTagsStore} from "./tags.store"
 import {useTasksStore} from "./tasks.store"
 
 export const useStorageStore = defineStore("storage", () => {
   const tasksStore = useTasksStore()
   const tagsStore = useTagsStore()
+  const settingsStore = useSettingsStore()
 
-  const isSyncing = ref(false)
-  const lastSyncTime = ref<Date | null>(null)
+  const status = ref<SyncStatus>("inactive")
+  const lastSyncAt = ref<ISODateTime>(new Date().toISOString())
 
-  const formattedTimeAgo = computed(() => {
-    if (!lastSyncTime.value) return "Never"
-    return formatTimeAgo(lastSyncTime.value)
-  })
-
-  function setIsSyncing(value: boolean) {
-    isSyncing.value = value
+  async function loadSyncStatus(): Promise<void> {
+    status.value = await window.BridgeIPC["storage-sync:get-status"]()
   }
 
-  function setLastSyncTime(value: Date) {
-    lastSyncTime.value = value
+  async function activateSync(): Promise<void> {
+    try {
+      await window.BridgeIPC["storage-sync:activate"]()
+    } catch (error: any) {
+      console.error("Failed to activate sync:", error)
+    }
+  }
+
+  async function deactivateSync(): Promise<void> {
+    try {
+      await window.BridgeIPC["storage-sync:deactivate"]()
+    } catch (error: any) {
+      console.error("Failed to deactivate sync:", error)
+    }
+  }
+
+  async function forceSync(): Promise<void> {
+    try {
+      await window.BridgeIPC["storage-sync:sync"]()
+    } catch (error: any) {
+      console.error("Failed to force sync:", error)
+    }
   }
 
   async function revalidate(): Promise<void> {
-    await Promise.all([tasksStore.revalidate(), tagsStore.revalidate()])
+    await Promise.all([tasksStore.revalidate(), tagsStore.revalidate(), settingsStore.revalidate()])
   }
 
-  async function forceSyncStorage() {
-    if (isSyncing.value) return false
+  window.BridgeIPC["storage-sync:on-status-changed"](async (newStatus, prevStatus) => {
+    status.value = newStatus
+    lastSyncAt.value = new Date().toISOString()
 
-    try {
-      isSyncing.value = true
-      const success = await window.electronAPI.syncStorage()
-
-      if (success) {
-        lastSyncTime.value = new Date()
-      }
-
-      return success
-    } catch (error) {
-      console.error("Failed to force sync:", error)
-      return false
-    } finally {
-      isSyncing.value = false
-    }
-  }
-
-  window.electronAPI.onStorageSync(async ({type}) => {
-    lastSyncTime.value = new Date()
-
-    if (type === "tasks") {
-      await tasksStore.revalidate()
-    } else if (type === "tags") {
-      await tagsStore.revalidate()
-    } else if (type === "settings") {
-      console.log("Storage sync: settings updated")
+    if (prevStatus === "inactive" && newStatus === "active") {
+      await sleep(500)
+      forceSync()
     }
   })
 
-  window.electronAPI.onStorageSyncStatus(({isSyncing: syncing}) => {
-    lastSyncTime.value = new Date()
-    setIsSyncing(syncing)
+  window.BridgeIPC["storage-sync:on-data-changed"](async () => {
+    lastSyncAt.value = new Date().toISOString()
+    await revalidate()
+    toast.success("Data synced successfully")
+  })
+
+  onMounted(async () => {
+    await loadSyncStatus()
+    if (status.value === "active") forceSync()
   })
 
   return {
-    isSyncing,
-    lastSyncTime,
+    status,
+    lastSyncAt,
 
-    formattedTimeAgo,
-    forceSyncStorage,
+    forceSync,
+    activateSync,
+    deactivateSync,
 
     revalidate,
-
-    setIsSyncing,
-    setLastSyncTime,
   }
 })

@@ -8,6 +8,7 @@ export const APP_CONFIG = {
   name: "Daily",
   protocol: "daily",
   filesProtocol: "daily://file",
+  iCloudPath: `${process.env.HOME}/Library/Mobile Documents/com~apple~CloudDocs`,
   window: {
     main: {
       width: 1200,
@@ -55,7 +56,12 @@ export const APP_CONFIG = {
 export const ENV = {
   isDevelopment: process.env.NODE_ENV === "development",
   isProduction: process.env.NODE_ENV === "production",
-  disableFocusSync: process.env.DISABLE_FOCUS_SYNC === "true",
+
+  // Logging configuration - SINGLE TOGGLE
+  logging: {
+    enabled: process.env.NODE_ENV === "development", // Enable in development only
+    minLevel: "INFO" as const, // Show INFO, WARN, ERROR (hide DEBUG)
+  },
 } as const
 
 /**
@@ -63,13 +69,18 @@ export const ENV = {
  */
 export const PATHS = {
   get icon() {
-    return ENV.isDevelopment ? join(__dirname, "static", "icon.png") : join(app.getAppPath(), "static", "icon.png")
+    return ENV.isDevelopment ? join(__dirname, "resources", "icon.png") : join(app.getAppPath(), "resources", "icon.png")
   },
   get preload() {
-    return ENV.isDevelopment ? join(process.cwd(), "build", "main", "preload.cjs") : join(app.getAppPath(), "main", "preload.cjs")
+    return ENV.isDevelopment ? join(process.cwd(), "out", "preload", "preload.cjs") : join(app.getAppPath(), "out", "preload", "preload.cjs")
   },
   get renderer() {
-    return ENV.isDevelopment ? `http://localhost:${process.argv[2]}` : join(app.getAppPath(), "renderer", "index.html")
+    // electron-vite sets ELECTRON_RENDERER_URL environment variable automatically
+    return ENV.isDevelopment && process.env.ELECTRON_RENDERER_URL
+      ? process.env.ELECTRON_RENDERER_URL
+      : ENV.isDevelopment
+        ? "http://localhost:8080"
+        : join(app.getAppPath(), "out", "renderer", "index.html")
   },
 } as const
 
@@ -85,4 +96,7 @@ export const fsPaths = {
 
   /** Default export location for vault exports */
   exportRootDefault: () => path.join(app.getPath("documents"), "Daily-Exports"),
+
+  /** Remote sync directory */
+  remoteSyncPath: () => path.join(APP_CONFIG.iCloudPath, "Daily"),
 }

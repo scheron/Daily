@@ -2,19 +2,20 @@ import {computed, ref} from "vue"
 import {API} from "@/api"
 import {defineStore} from "pinia"
 
-import type {Tag} from "@/types/tasks"
+import type {Tag} from "@shared/types/storage"
 
 export const useTagsStore = defineStore("tags", () => {
   const isTagsLoaded = ref(false)
   const tags = ref<Tag[]>([])
 
-  const tagsMap = computed(() => new Map<Tag["name"], Tag>(tags.value.map((tag) => [tag.name, tag])))
+  const tagsMap = computed(() => new Map<Tag["id"], Tag>(tags.value.map((tag) => [tag.id, tag])))
 
   async function getTagList() {
     isTagsLoaded.value = false
 
     try {
       const loadedTags = await API.getTagList()
+      console.log("Loaded tags:", loadedTags)
       tags.value = loadedTags
     } catch (error) {
       console.error("Error loading tags:", error)
@@ -32,11 +33,11 @@ export const useTagsStore = defineStore("tags", () => {
     return newTag
   }
 
-  async function deleteTag(name: string) {
-    const deletedTag = await API.deleteTag(name)
+  async function deleteTag(id: Tag["id"]) {
+    const deletedTag = await API.deleteTag(id)
     if (!deletedTag) return false
 
-    tags.value = tags.value.filter((tag) => tag.name !== name)
+    tags.value = tags.value.filter((tag) => tag.id !== id)
 
     return true
   }
@@ -44,6 +45,7 @@ export const useTagsStore = defineStore("tags", () => {
   async function revalidate() {
     try {
       const loadedTags = await API.getTagList()
+      console.log("Revalidated tags:", loadedTags)
       tags.value = loadedTags
     } catch (error) {
       console.error("Error revalidating tags:", error)
