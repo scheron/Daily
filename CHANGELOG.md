@@ -2,6 +2,8 @@
 
 ## [unreleased]
 
+## v0.6.0 - 2025-11-30
+
 ### ✨ New Features
 
 - **iCloud Synchronization** - Smart sync system for seamless cross-device experience
@@ -61,6 +63,8 @@
   - Snapshot integrity validation with SHA-256 hashing
   - Auto-sync scheduler with configurable intervals
   - Event broadcasting for real-time UI updates
+
+---
 
 ## v0.5.0 - 2025-11-24
 
