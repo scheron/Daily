@@ -12,6 +12,7 @@ import BaseTag from "@/ui/base/BaseTag.vue"
 const props = withDefaults(
   defineProps<{
     tags: Tag[]
+    selectable?: boolean
     selectedTags?: Set<Tag["id"]>
     emptyMessage?: string
   }>(),
@@ -86,17 +87,26 @@ useResizeObserver(containerRef, calculateVisibleTags)
 
 <template>
   <div ref="containerRef" class="relative flex w-full items-center gap-2">
-    <span v-if="!tags.length" class="text-base-content/70 text-sm">
-      <BaseIcon name="tags" class="size-4" />
-      {{ emptyMessage }}
-    </span>
+    <slot v-if="!tags.length" name="empty">
+      <span class="text-base-content/70 text-sm">
+        <BaseIcon name="tags" class="size-4" />
+        {{ emptyMessage }}
+      </span>
+    </slot>
 
     <template v-else>
       <div ref="tagsRef" class="pointer-events-none absolute top-0 left-0 flex items-center gap-2 opacity-0">
-        <BaseTag v-for="tag in tags" :key="tag.id" :tag="tag" :active="isActiveTag(tag.id)" />
+        <BaseTag v-for="tag in tags" :key="tag.id" :tag="tag" :active="isActiveTag(tag.id)" :selectable="selectable" />
       </div>
 
-      <BaseTag v-for="tag in visibleTags" :key="tag.id" :tag="tag" :active="isActiveTag(tag.id)" @click="onSelectTag(tag.id)" />
+      <BaseTag
+        v-for="tag in visibleTags"
+        :key="tag.id"
+        :tag="tag"
+        :active="isActiveTag(tag.id)"
+        :selectable="selectable"
+        @click="onSelectTag(tag.id)"
+      />
 
       <BasePopup v-if="hiddenTags.length" title="More Tags">
         <template #trigger="{toggle}">

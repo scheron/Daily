@@ -3,8 +3,6 @@ import {removeDuplicates} from "@shared/utils/arrays/removeDuplicates"
 import type {ISODate} from "@shared/types/common"
 import type {Day, Tag, Task} from "@shared/types/storage"
 
-import {sortScheduledTasks} from "./sortScheduledTasks"
-
 export function groupTasksByDay(params: {tasks: Task[]; tags: Tag[]}): Day[] {
   const {tasks, tags} = params
 
@@ -37,16 +35,15 @@ export function groupTasksByDay(params: {tasks: Task[]; tags: Tag[]}): Day[] {
   return Array.from(taskDates).map((date) => {
     const tasks = tasksByDay.get(date) || []
     const tags = tagsByDay.get(date) || []
-    const sortedTasks = sortScheduledTasks(tasks, "desc")
-    const countActive = sortedTasks.filter((task) => task.status === "active").length
-    const countDone = sortedTasks.filter((task) => task.status === "done").length
+    const countActive = tasks.filter((task) => task.status === "active").length
+    const countDone = tasks.filter((task) => task.status === "done").length
 
     return {
       id: date.replaceAll("-", ""),
       date,
       countActive,
       countDone,
-      tasks: sortedTasks,
+      tasks,
       tags: removeDuplicates(tags, "name"),
     }
   })

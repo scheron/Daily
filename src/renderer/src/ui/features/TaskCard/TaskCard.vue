@@ -82,6 +82,7 @@ watch(
   >
     <div
       class="absolute top-0 left-0 z-30 h-0 w-1 rounded-l-sm opacity-0 transition-all duration-500"
+      aria-label="Task status indicator"
       :class="{
         'bg-warning/30 h-full opacity-100': task.status === 'discarded',
         'bg-success/30 h-full opacity-100': task.status === 'done',
@@ -91,7 +92,6 @@ watch(
     <div class="relative z-10 w-full px-5 pt-3 pb-1">
       <div class="mb-3 flex w-full items-center justify-between gap-3">
         <DynamicTagsPanel :tags="tags" empty-message="No tags" />
-
         <div class="flex shrink-0 items-center gap-2">
           <QuickActions @move-date="onMoveDate" @edit="onEdit" @delete="onDelete" />
           <TimerButton :task="task" @open-timer="onOpenTimer" />

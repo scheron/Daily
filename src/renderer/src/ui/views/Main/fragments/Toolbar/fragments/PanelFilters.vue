@@ -9,6 +9,7 @@ import {removeDuplicates} from "@shared/utils/arrays/removeDuplicates"
 import type {TasksFilter} from "@/types/filters"
 import type {Tag} from "@shared/types/storage"
 
+import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseIcon, {IconName} from "@/ui/base/BaseIcon"
 import DynamicTagsPanel from "@/ui/common/panels/DynamicTagsPanel.vue"
 
@@ -47,7 +48,19 @@ watch(
 <template>
   <div class="bg-base-100 flex size-full flex-col gap-3 px-4 py-2 md:flex-row md:items-center md:justify-between">
     <div class="relative flex w-full flex-1 items-center gap-2">
-      <DynamicTagsPanel :tags="filteredTags" :selected-tags="filterStore.activeTagIds" empty-message="No daily tags" @select="onSelectTag" />
+      <BaseButton
+        variant="ghost"
+        :icon="filterStore.activeTagIds.size ? 'tags-off' : 'tags'"
+        :class="{'hover:bg-accent/20': filterStore.activeTagIds.size}"
+        icon-class="size-4"
+        @click="filterStore.activeTagIds.size ? filterStore.clearActiveTags() : null"
+      />
+
+      <DynamicTagsPanel :tags="filteredTags" :selected-tags="filterStore.activeTagIds" empty-message="No daily tags" selectable @select="onSelectTag">
+        <template #empty>
+          <span class="text-base-content/70 text-sm"> No daily tags </span>
+        </template>
+      </DynamicTagsPanel>
     </div>
 
     <div class="flex w-full shrink-0 items-center gap-3 md:w-auto">

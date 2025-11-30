@@ -18,6 +18,7 @@ export interface BridgeIPC {
   "platform:is-linux": () => boolean
 
   // === WINDOW MENU SHORTCUTS ===
+  /**@deprecated remote with menu*/
   "menu:on-new-task": (callback: (action: "new-task") => void) => void
 
   // === TIMER ===

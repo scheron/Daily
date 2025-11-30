@@ -31,6 +31,7 @@ export type IconName =
   | "archive"
   | "history"
   | "tags"
+  | "tags-off"
   | "monitor"
   | "refresh"
   | "stopwatch"
@@ -38,6 +39,8 @@ export type IconName =
   | "cloud-alert"
   | "cloud-off"
   | "circle-pulse"
+  | "filter"
+  | "filter-off"
 </script>
 
 <template>
@@ -273,6 +276,21 @@ export type IconName =
         <circle cx="6.5" cy="9.5" r=".5" fill="currentColor"></circle>
       </g>
     </symbol>
+    <symbol id="tags-off" fill="none" viewBox="0 0 23 18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M15.25 0.75L21.75 7.25M15.25 7.25L21.75 0.75" stroke-width="1.5" stroke-linecap="round" />
+      <path
+        d="M8.336 3.336C7.96101 2.9609 7.45239 2.75011 6.922 2.75H1.75C1.48478 2.75 1.23043 2.85536 1.04289 3.04289C0.855357 3.23043 0.75 3.48478 0.75 3.75V8.922C0.750113 9.45239 0.960901 9.96101 1.336 10.336L7.04 16.04C7.49451 16.4916 8.10925 16.7451 8.75 16.7451C9.39075 16.7451 10.0055 16.4916 10.46 16.04L14.04 12.46C14.4916 12.0055 14.7451 11.3908 14.7451 10.75C14.7451 10.1092 14.4916 9.49451 14.04 9.04L8.336 3.336Z"
+        stroke-width="1.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+      <path
+        d="M5.25 7.75C5.52614 7.75 5.75 7.52614 5.75 7.25C5.75 6.97386 5.52614 6.75 5.25 6.75C4.97386 6.75 4.75 6.97386 4.75 7.25C4.75 7.52614 4.97386 7.75 5.25 7.75Z"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+    </symbol>
 
     <symbol id="monitor" viewBox="0 0 24 24">
       <path
@@ -329,6 +347,18 @@ export type IconName =
       <path d="m2 2 20 20"></path>
       <path d="M5.782 5.782A7 7 0 0 0 9 19h8.5a4.5 4.5 0 0 0 1.307-.193"></path>
       <path d="M21.532 16.5A4.5 4.5 0 0 0 17.5 10h-1.79A7.008 7.008 0 0 0 10 5.07"></path>
+    </symbol>
+    <symbol id="filter" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path
+        d="M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z"
+      ></path>
+    </symbol>
+    <symbol id="filter-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path
+        d="M12.531 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14v6a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341l.427-.473"
+      ></path>
+      <path d="m16.5 3.5 5 5"></path>
+      <path d="m21.5 3.5-5 5"></path>
     </symbol>
   </svg>
 </template>
