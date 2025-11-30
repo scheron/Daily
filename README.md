@@ -1,9 +1,8 @@
-# <img src="./src/renderer/public/favicon.svg" width="25" height="25" /> Daily 
+# <img src="./src/renderer/public/favicon.svg" width="25" height="25" /> Daily
 
 **Daily** — A task management application focused on productivity, minimalism, and convenience. ✨
 
-
- ![Desktop Demo](./media/Demo-new.png) 
+![Desktop Demo](./media/Demo-new.png)
 
 ---
 
@@ -20,18 +19,17 @@ The idea came from my habit of organizing daily tasks in markdown, like:
 
 ## Monday, Dec 16
 
-- [x] Review pull requests  
+- [x] Review pull requests
 - [x] Team standup meeting
 - [ ] Complete feature implementation
-
 ```
 
 I typically maintain my tasks organized by days, which allows me to revisit and track progress later.
 
 This stems from the standard workflow requirement: "What I did yesterday, what I'm doing today" 📊
 
-No bloat. No accounts. No cloud.
-Just a lightweight, local tool to help me stay on track, one day at a time.
+No bloat. No accounts. No complexity.
+Just a lightweight, local-first tool to help me stay on track, one day at a time.
 
 ---
 
@@ -45,14 +43,15 @@ Just a lightweight, local tool to help me stay on track, one day at a time.
 - **Quick retrospectives** — see what you did yesterday, plan what you'll do today
 - **Smart organization** 🏷️ — group tasks by project, priority, or context with tags
 - **Beautiful themes** 🎨 — choose from 9+ UI themes to match any style
-- **100% offline** 📁 — everything stored locally, no internet required
+- **iCloud sync** ☁️ — optional cross-device synchronization for seamless workflow
+- **Local-first** 📁 — everything stored locally, works completely offline
 - **Keyboard shortcuts** ⌨️ — navigate and manage tasks without touching your mouse
 
 ---
 
 ## 💾 Data Privacy & Control
 
-Daily stores everything locally on Mac — no accounts, no cloud dependency, no subscription fees.
+Daily stores everything locally on Mac — no accounts, no mandatory cloud dependency, no subscription fees.
 
 ### Rich Task Content
 
@@ -63,21 +62,19 @@ Create tasks with everything you need:
 - **⏱️ Time Tracking** — set estimates and track actual time spent
 - **🏷️ Tags** — organize tasks by project, priority, or context
 
-### Why Local Storage?
+### Why Local-First Storage?
 
-- **⚡ Blazing Fast** — instant search and navigation, no loading spinners
-- **🔒 100% Private** — tasks never leave the device
-- **✈️ Always Available** — work offline, no internet required
-- **💰 Zero Cost** — no cloud subscriptions or storage fees
+- **🔒 Private by Default** — tasks stay on the device unless sync is enabled
+- **✈️ Always Available** — work offline anytime, no internet required
+- **💰 Zero Cost** — no required subscriptions or storage fees
 - **🛡️ Safe & Reliable** — automatic conflict prevention, no data loss
 - **📦 Easy Backup** — simple export for backups or migration
+- **☁️ Optional Sync** — enable iCloud sync when cross-device access is needed
 
 ---
 
 ### 🗺️ Coming Soon
 
-- **File attachments** 📎 — attach documents, PDFs, and any files to tasks
-- **Multi-device sync** 🔄 — seamlessly sync tasks across all devices
 - **Smart search** 🔍 — find any task instantly with AI-powered search
 - **Voice capture** 🎤 — create tasks hands-free while walking or driving
 
@@ -93,9 +90,10 @@ Create tasks with everything you need:
 
 > [!NOTE]
 > The app is currently **not signed or notarized**:
+>
 > - **macOS** will show a Gatekeeper warning. Follow the terminal instructions below to remove quarantine.
 >
-> This is intentional, as Daily is open-source and not distributed through centralized stores.  
+> This is intentional, as Daily is open-source and not distributed through centralized stores.
 
 ---
 
