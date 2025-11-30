@@ -2,8 +2,6 @@
 
 ## [unreleased]
 
-## v0.5.0 - 2025-11-24
-
 ### ✨ New Features
 
 - **iCloud Synchronization** - Smart sync system for seamless cross-device experience
@@ -15,11 +13,6 @@
   - Minimum 1-second sync duration for better user feedback
   - Local-first architecture: PouchDB remains source of truth
   - Backend initialization only when sync is enabled (privacy-focused)
-
-- **PouchDB Storage Migration** - Complete migration from Obsidian-like file storage to PouchDB
-  - Implemented PouchDB storage layer with document-based architecture
-  - Created comprehensive migration script for seamless data transition
-  - Added support for local database with PouchDB-Find for efficient querying
 
 - **File Attachments System** - Full support for attaching files to tasks
   - CRUD operations for file attachments with PouchDB `_attachments`
@@ -63,32 +56,22 @@
 
 - **Sync Engine Architecture** - Robust synchronization system
   - SyncEngine orchestrates pull/push operations between PouchDB and remote storage
-  - LocalFileBackend implementation for iCloud Drive integration
   - Snapshot-based sync with metadata comparison for efficient updates
   - LWW (Last Write Wins) merge strategy for conflict resolution
   - Snapshot integrity validation with SHA-256 hashing
   - Auto-sync scheduler with configurable intervals
   - Event broadcasting for real-time UI updates
 
-- **Settings Service** - Enhanced settings management with sync support
-  - Added `sync.enabled` boolean flag to control synchronization
-  - Replaced DbSettingsService with unified SettingsService
-  - Single document storage pattern (settings:default)
-  - Deep merge updates for settings changes
-  - Settings changes trigger sync state updates
+## v0.5.0 - 2025-11-24
 
-- **IPC Sync Handlers** - Complete sync control via IPC
-  - `sync:activate` - Enable automatic synchronization with initial pull
-  - `sync:deactivate` - Disable synchronization and update settings
-  - `sync:force` - Manual pull for immediate sync
-  - `sync:push` - Manual push to upload local changes
-  - `sync:get-status` - Query current sync status
-  - `sync:status-changed` - Real-time status broadcasts to renderer
+### ✨ New Features
 
-- **Asset to File Naming** - Consistent terminology throughout codebase
-  - Renamed asset handling to file handling for clarity
-  - Updated all related services, types, and IPC handlers
-  - Renamed `getAssetResponse` to `createAssetResponse`
+- **🚀 New Data Storage System** - Completely redesigned storage architecture
+  - Significantly faster loading and saving of tasks
+  - Improved performance when working with large amounts of data
+  - More reliable data storage
+  - Automatic migration of existing data without data loss
+
 - **📎 File Attachments** - Added support for attaching files and images to tasks
   - Drag and drop files directly into the task editor
   - Images are automatically scaled for convenient viewing
@@ -100,12 +83,6 @@
   - More stable task-tag associations
 
 ### ⚡ Performance Improvements
-
-- **🚀 New Data Storage System** - Completely redesigned storage architecture
-  - Significantly faster loading and saving of tasks
-  - Improved performance when working with large amounts of data
-  - More reliable data storage
-  - Automatic migration of existing data without data loss
 
 - **⚙️ Settings Optimization** - Improved application settings management
   - Faster saving and applying of settings changes
