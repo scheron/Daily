@@ -67,7 +67,7 @@ window.BridgeIPC["timer:on-refresh"](async (newTaskId) => {
           class="rounded-md px-2 py-1 text-xs"
           :style="{backgroundColor: `${tag.color}20`, borderColor: `${tag.color}30`}"
         >
-          {{ tag.emoji }}
+          {{ tag.name }}
         </span>
       </div>
       <BaseButton variant="ghost" icon="x-mark" class="p-1 opacity-60 hover:opacity-100" style="-webkit-app-region: no-drag" @click="closeWindow" />

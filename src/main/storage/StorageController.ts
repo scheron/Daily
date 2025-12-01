@@ -26,10 +26,9 @@ import {SyncEngine} from "@/storage/sync/SyncEngine"
 import {LogContext, logger} from "@/utils/logger"
 import fs from "fs-extra"
 
-import type {ISODate} from "@shared/types/common"
-import type {Day, File, Settings, Tag, Task} from "@shared/types/storage"
 import type {IStorageController} from "@/types/storage"
-import type {SyncStatus} from "@shared/types/storage"
+import type {ISODate} from "@shared/types/common"
+import type {Day, File, Settings, SyncStatus, Tag, Task} from "@shared/types/storage"
 import type {PartialDeep} from "type-fest"
 
 export class StorageController implements IStorageController {

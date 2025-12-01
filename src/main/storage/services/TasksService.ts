@@ -1,8 +1,8 @@
 import type {TagModel} from "@/storage/models/TagModel"
 import type {TaskModel} from "@/storage/models/TaskModel"
+import type {TaskInternal} from "@/types/storage"
 import type {ISODate} from "@shared/types/common"
 import type {File, Tag, Task} from "@shared/types/storage"
-import type {TaskInternal} from "@/types/storage"
 import type {PartialDeep} from "type-fest"
 
 export class TasksService {

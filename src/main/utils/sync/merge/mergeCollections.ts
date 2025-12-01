@@ -1,5 +1,5 @@
-import {isNewer} from "@shared/utils/date/validators"
 import {toTs} from "@shared/utils/date/formatters"
+import {isNewer} from "@shared/utils/date/validators"
 
 import type {BaseDoc} from "@/types/database"
 import type {SyncStrategy} from "@/types/sync"

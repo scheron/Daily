@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import {computed} from "vue"
 import {useDevice} from "@/composables/useDevice"
-import {useUIStore} from "@/stores/ui.store"
 import {toFullDate} from "@shared/utils/date/formatters"
 
 import BaseButton from "@/ui/base/BaseButton.vue"
+import {useUIStore} from "@/ui/views/Main/model/ui.store"
 
 const props = defineProps<{taskEditorOpen: boolean; activeDay: string}>()
 const emit = defineEmits<{createTask: []; toggleSidebar: []}>()
@@ -15,9 +15,7 @@ const uiStore = useUIStore()
 const formattedDate = computed(() => toFullDate(props.activeDay ?? new Date()))
 
 const showToggleButton = computed(() => {
-  // Desktop: show when sidebar is collapsed
   if (isDesktop.value) return uiStore.isSidebarCollapsed
-  // Mobile/Tablet: always show (to open overlay)
   return true
 })
 </script>

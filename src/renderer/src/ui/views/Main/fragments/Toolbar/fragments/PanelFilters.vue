@@ -1,6 +1,5 @@
 <script lang="ts" setup>
 import {computed, watch} from "vue"
-import {useFilterStore} from "@/stores/filter.store"
 import {useTasksStore} from "@/stores/tasks.store"
 import {countTasks} from "@/utils/tasks/countTasks"
 import {filterTasksByStatus} from "@/utils/tasks/filterTasksByStatus"
@@ -11,7 +10,9 @@ import type {Tag} from "@shared/types/storage"
 
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseIcon, {IconName} from "@/ui/base/BaseIcon"
-import DynamicTagsPanel from "@/ui/common/panels/DynamicTagsPanel.vue"
+import DynamicTagsPanel from "@/ui/common/misc/DynamicTagsPanel.vue"
+
+import {useFilterStore} from "../../../model/filter.store"
 
 const FILTERS: {label: string; value: TasksFilter; icon: IconName}[] = [
   {label: "All", value: "all", icon: "today"},

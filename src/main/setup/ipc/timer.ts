@@ -8,11 +8,11 @@ export function setupTimerIPC(
   getTimerWindow: () => BrowserWindow | null,
   setTimerWindow: (window: BrowserWindow | null) => void,
 ) {
-  ipcMain.on("window:open-timer", (_e, taskId: Task["id"]) => {
+  ipcMain.on("timer:open", (_e, taskId: Task["id"]) => {
     const existingTimer = getTimerWindow()
 
     if (existingTimer && !existingTimer.isDestroyed()) {
-      existingTimer.webContents.send("timer:refresh-timer", taskId)
+      existingTimer.webContents.send("timer:refresh", taskId)
       existingTimer.show()
       existingTimer.focus()
       return
@@ -25,7 +25,7 @@ export function setupTimerIPC(
     newTimerWindow.once("ready-to-show", () => newTimerWindow.show())
   })
 
-  ipcMain.on("window:close-timer", (event) => {
+  ipcMain.on("timer:close", (event) => {
     const senderWindow = BrowserWindow.fromWebContents(event.sender)
     if (senderWindow && senderWindow !== getMainWindow?.()) {
       senderWindow.close()

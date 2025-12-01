@@ -1,8 +1,8 @@
 import {AsyncMutex} from "@/utils/AsyncMutex"
-import {deepMerge} from "@shared/utils/common/deepMerge"
 import {createCacheLoader} from "@/utils/createCacheLoader"
 import {LogContext, logger} from "@/utils/logger"
 import {withRetryOnConflict} from "@/utils/withRetryOnConflict"
+import {deepMerge} from "@shared/utils/common/deepMerge"
 import {nanoid} from "nanoid"
 
 import type {SettingsDoc} from "@/types/database"

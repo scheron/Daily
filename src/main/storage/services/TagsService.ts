@@ -2,8 +2,8 @@ import {LogContext, logger} from "@/utils/logger"
 
 import type {TagModel} from "@/storage/models/TagModel"
 import type {TaskModel} from "@/storage/models/TaskModel"
-import type {Tag} from "@shared/types/storage"
 import type {TaskInternal} from "@/types/storage"
+import type {Tag} from "@shared/types/storage"
 
 export class TagsService {
   constructor(

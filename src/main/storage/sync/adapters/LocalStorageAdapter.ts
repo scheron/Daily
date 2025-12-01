@@ -1,5 +1,5 @@
-import {isNewerOrEqual} from "@shared/utils/date/validators"
 import {withRetryOnConflict} from "@/utils/withRetryOnConflict"
+import {isNewerOrEqual} from "@shared/utils/date/validators"
 
 import type {FileDoc, SettingsDoc, TagDoc, TaskDoc} from "@/types/database"
 import type {ILocalStorage, Snapshot, SyncDoc} from "@/types/sync"

@@ -67,6 +67,7 @@ export const useTasksStore = defineStore("tasks", () => {
   }
 
   async function updateTask(taskId: string, updates: Partial<Omit<Task, "id" | "createdAt" | "updatedAt">>) {
+    console.log("[TASKS] Updating task:", taskId, updates)
     const payload = objectFilter(updates, (value) => value !== undefined)
     const updatedDay = await API.updateTask(taskId, toRawDeep(payload))
     if (!updatedDay) return false

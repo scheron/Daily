@@ -2,15 +2,16 @@
 import {computed, onMounted, reactive, ref, watch} from "vue"
 import {toast} from "vue-sonner"
 import {useTagsStore} from "@/stores/tags.store"
-import {useTaskEditorStore} from "@/stores/taskEditor.store"
 import {useTasksStore} from "@/stores/tasks.store"
 
 import type {Tag} from "@shared/types/storage"
 
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseIcon from "@/ui/base/BaseIcon"
-import DynamicTagsPanel from "@/ui/common/panels/DynamicTagsPanel.vue"
+import DynamicTagsPanel from "@/ui/common/misc/DynamicTagsPanel.vue"
 import TimePicker from "@/ui/common/pickers/TimePicker.vue"
+
+import {useTaskEditorStore} from "../../../model/taskEditor.store"
 
 const emit = defineEmits<{close: []}>()
 

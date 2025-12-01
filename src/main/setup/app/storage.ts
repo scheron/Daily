@@ -13,13 +13,13 @@ export function setupStorageSync(getStorage: () => IStorageController | null, ge
     onStatusChange: (status, prevStatus) => {
       const mainWindow = getMainWindow()
       if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send("storage:sync-status-changed", status, prevStatus)
+        mainWindow.webContents.send("storage-sync:status-changed", status, prevStatus)
       }
     },
     onDataChange: () => {
       const mainWindow = getMainWindow()
       if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send("storage:data-changed")
+        mainWindow.webContents.send("storage-sync:data-changed")
       }
     },
   })
