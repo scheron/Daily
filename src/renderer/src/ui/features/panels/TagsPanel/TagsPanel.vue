@@ -1,19 +1,17 @@
 <script setup lang="ts">
-import {computed, ref} from "vue"
+import {computed} from "vue"
 import {useFilterStore} from "@/stores/filter.store"
 import {useTagsStore} from "@/stores/tags.store"
 import {useTasksStore} from "@/stores/tasks.store"
 import {Tag} from "@shared/types/storage"
 
 import BaseButton from "@/ui/base/BaseButton.vue"
-import BaseIcon from "@/ui/base/BaseIcon"
 
 import TagsForm from "./fragments/TagsForm.vue"
 
 const tasksStore = useTasksStore()
 const tagsStore = useTagsStore()
 const filterStore = useFilterStore()
-const isCreating = ref(false)
 
 const tags = computed(() => tagsStore.tags)
 
@@ -25,11 +23,8 @@ async function deleteTag(id: Tag["id"]) {
 </script>
 
 <template>
-  <TagsForm v-if="isCreating" :tags="tagsStore.tags" class="px-4 py-6" @submit="tagsStore.createTag" @close="isCreating = false" />
-
-  <div v-else class="flex flex-col gap-2 px-4 py-4">
-    <BaseButton class="py- w-full text-sm" variant="outline" icon="plus" @click="isCreating = true">Create new tag</BaseButton>
-
+  <div class="flex flex-col gap-2 px-4 py-4">
+    <TagsForm :tags="tagsStore.tags" @submit="tagsStore.createTag" />
     <div v-if="tags.length" class="flex max-h-[200px] flex-wrap gap-2 overflow-y-auto p-2">
       <div
         v-for="tag in tags"
@@ -53,13 +48,6 @@ async function deleteTag(id: Tag["id"]) {
           @click="deleteTag(tag.id)"
         />
       </div>
-    </div>
-    <div v-else class="flex h-full flex-col items-center justify-center gap-2 p-2">
-      <p class="text-base-content/50 text-sm">
-        <BaseIcon name="tags" class="size-4" />
-
-        No tags yet
-      </p>
     </div>
   </div>
 </template>
