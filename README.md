@@ -57,15 +57,19 @@ See Daily in action with these feature demonstrations:
 
 ### Managing Tasks
 
-![Move Tasks](./media/showcase/move-tasks.gif)
-
-### Delete & Restore
-
-![Delete Restore](./media/showcase/delete-restore.gif)
+![Managing Tasks](./media/showcase/tasks-managment.gif)
 
 ### Tag Management
 
 ![Tag Management](./media/showcase/tags-managment.gif)
+
+### Delete & Restore Tasks
+
+![Delete Restore](./media/showcase/delete-restore.gif)
+
+### Move Task
+
+![Move Tasks](./media/showcase/move-tasks.gif)
 
 ### iCloud Sync
 
