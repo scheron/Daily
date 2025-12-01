@@ -2,7 +2,7 @@
 
 **Daily** — A task management application focused on productivity, minimalism, and convenience. ✨
 
-![Desktop Demo](./media/Demo-new.png)
+![Desktop Demo](./media/Demo-super-new.png)
 
 ---
 
@@ -46,6 +46,32 @@ Just a lightweight, local-first tool to help me stay on track, one day at a time
 - **iCloud sync** ☁️ — optional cross-device synchronization for seamless workflow
 - **Local-first** 📁 — everything stored locally, works completely offline
 - **Keyboard shortcuts** ⌨️ — navigate and manage tasks without touching your mouse
+
+---
+
+## 🎬 Showcase
+
+See Daily in action with these feature demonstrations:
+
+<div align="center">
+
+### Managing Tasks
+
+![Move Tasks](./media/showcase/move-tasks.gif)
+
+### Delete & Restore
+
+![Delete Restore](./media/showcase/delete-restore.gif)
+
+### Tag Management
+
+![Tag Management](./media/showcase/tags-managment.gif)
+
+### iCloud Sync
+
+![Sync](./media/showcase/sync.gif)
+
+</div>
 
 ---
 

@@ -39,6 +39,7 @@
     "prepare": "husky",
     "db:inspect": "node scripts/db/inspect-db.js --output output.txt",
     "db:clear": "node scripts/db/clear-db.js",
+    "db:seed": "node scripts/db/seed.js",
     "lint-staged": "lint-staged",
     "circular": "madge --circular src/",
     "bundle:size": "node scripts/bundle-size.js",
