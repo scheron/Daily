@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import {useTasksStore} from "@/stores/tasks.store"
-import {useUIStore} from "@/stores/ui.store"
 import {getNextWeek, getPreviousWeek} from "@/utils/date/week"
 
 import BaseButton from "@/ui/base/BaseButton.vue"
@@ -12,7 +11,6 @@ defineProps<{
   contentHeight: number
 }>()
 
-const uiStore = useUIStore()
 const tasksStore = useTasksStore()
 
 function goToPreviousWeek() {
@@ -26,13 +24,13 @@ function goToNextWeek() {
 
 <template>
   <aside class="border-base-300 bg-base-100 w-sidebar-collapsed border-r">
-    <div class="border-base-300 h-header flex items-center justify-between border-b pr-4 pl-4 select-none" style="-webkit-app-region: drag"></div>
+    <div class="border-base-300 h-header border-b select-none" style="-webkit-app-region: drag"></div>
 
     <div :style="{height: contentHeight + 'px'}" class="hide-scrollbar overflow-y-auto">
       <BaseSpinner v-if="!dataLoaded" />
 
       <template v-else>
-        <div class="text-base-content flex size-full flex-col pb-4">
+        <div class="text-base-content flex size-full flex-col">
           <div class="border-base-300 flex items-center justify-center gap-1 border-b px-2 py-1">
             <BaseButton variant="ghost" icon="chevron-left" size="sm" tooltip="Предыдущая неделя" @click="goToPreviousWeek()" />
             <BaseButton variant="ghost" icon="chevron-right" size="sm" tooltip="Следующая неделя" @click="goToNextWeek()" />
@@ -40,10 +38,6 @@ function goToNextWeek() {
 
           <div class="hide-scrollbar flex-1 overflow-y-auto px-1 py-4">
             <CalendarWeek />
-          </div>
-
-          <div class="mx-auto flex flex-col items-center gap-2">
-            <BaseButton variant="ghost" icon="sidebar" @click="uiStore.toggleSidebarCollapse()" />
           </div>
         </div>
       </template>

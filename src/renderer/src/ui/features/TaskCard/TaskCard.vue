@@ -22,12 +22,12 @@ const tasksStore = useTasksStore()
 const taskEditorStore = useTaskEditorStore()
 
 const toastRestoreTask = useRestoreTaskToast(async (task) => await tasksStore.restoreTask(task.id))
+
 const contentRef = useTemplateRef<HTMLElement>("content")
 const {renderMarkdown} = useMarkdown()
 
 function onChangeStatus(status: TaskStatus) {
   if (props.task.status === status) return
-
   tasksStore.updateTask(props.task.id, {status})
 }
 
@@ -95,7 +95,7 @@ watch(
         <div class="flex shrink-0 items-center gap-2">
           <QuickActions @move-date="onMoveDate" @edit="onEdit" @delete="onDelete" />
           <TimerButton :task="task" @open-timer="onOpenTimer" />
-          <StatusButtons :status="task.status" @change-status="onChangeStatus" />
+          <StatusButtons :status="task.status" @update:status="onChangeStatus" />
         </div>
       </div>
 
