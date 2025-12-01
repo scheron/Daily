@@ -2,16 +2,15 @@
 
 ## [unreleased]
 
+## v0.6.1 - 2025-12-01
+
 ### 🎨 UI/UX Improvements
 
 - **Redesigned Sidebar Navigation** - Replaced accordion panels with bottom menu bar navigation
   - Removed collapsible accordion panels for cleaner, more focused interface
   - New bottom menu bar with icon-based navigation (Calendar, Tags, Cloud Sync, Themes, Help)
-  - Each section now occupies full sidebar height when active
   - Active sections display labels with smooth slide animations
   - Combined Calendar and Active Tasks into single section for related features
-  - Cloud Sync moved to dedicated sidebar section with full sync controls
-  - Contextual toggle button: appears in main header when sidebar collapsed, in sidebar header when expanded
   - On mobile/tablet, toggle button always in main header for consistency
   - Collapsed sidebar shows minimal week calendar view
 
@@ -23,13 +22,7 @@
   - Added 10 carefully selected colors with no duplicates
   - Tags list and creation form now visible simultaneously
 
-### 🔧 Technical Improvements
-
-- **Created Reusable Animation Composable** - Extracted label animation logic into `useLabelAnimation` composable
-  - Shared animation system for sidebar menu and task status buttons
-  - Smooth slide-in/slide-out transitions for active state labels
-  - Configurable data attributes for flexible component integration
-  - Type-safe with generic type parameters
+---
 
 ## v0.6.0 - 2025-11-30
 
