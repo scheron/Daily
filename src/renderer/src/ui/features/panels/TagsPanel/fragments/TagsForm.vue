@@ -7,18 +7,16 @@ import type {Tag} from "@shared/types/storage"
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BasePopup from "@/ui/base/BasePopup.vue"
 import ColorPicker from "@/ui/common/pickers/ColorPicker.vue"
-import EmojiPicker from "@/ui/common/pickers/EmojiPicker.vue"
 
 import TagsInput from "./TagsInput.vue"
 
 const COLORS = ["#D01C55", "#015A6F", "#35A4D9", "#F5A623", "#7B61FF", "#615FFF", "#00B8A9", "#F86624"]
 
 const props = withDefaults(defineProps<{tags: Tag[]}>(), {tags: () => []})
-const emit = defineEmits<{submit: [name: string, color: string, emoji?: string]; close: []}>()
+const emit = defineEmits<{submit: [name: string, color: string]; close: []}>()
 
 const newTagName = ref("")
 const newTagColor = ref("#D01C55")
-const newTagEmoji = ref<string>("")
 const isCreating = ref(false)
 
 const inputRef = useTemplateRef<HTMLInputElement>("input")
@@ -44,20 +42,15 @@ async function createTag() {
     return
   }
 
-  emit("submit", tagName, newTagColor.value, newTagEmoji.value)
+  emit("submit", tagName, newTagColor.value)
   emit("close")
 
   newTagName.value = ""
-  newTagEmoji.value = ""
   isCreating.value = false
 }
 
 function onColorSelect(color: string) {
   newTagColor.value = color
-}
-
-function onEmojiSelect(emoji?: string) {
-  newTagEmoji.value = emoji ?? ""
 }
 
 onMounted(() => inputRef.value?.focus())
@@ -77,23 +70,9 @@ onMounted(() => inputRef.value?.focus())
     <div class="mb-3 flex items-center gap-2">
       <span class="text-base-content/50 text-sm">Name:</span>
 
-      <BasePopup triggerClass="flex size-8 items-center justify-center" hide-header content-class="overflow-hidden p-1" position="center">
-        <template #trigger="{toggle}">
-          <BaseButton variant="outline" type="button" class="size-full" @click="toggle">
-            <span v-if="newTagEmoji" class="text-lg">{{ newTagEmoji }}</span>
-            <span v-else class="text-lg">#</span>
-          </BaseButton>
-        </template>
-
-        <template #default="{hide}">
-          <!-- prettier-ignore -->
-          <EmojiPicker
-            :selected-emoji="newTagEmoji"
-            @selected="(emoji) => { onEmojiSelect(emoji); hide() }"
-            @clear="() => { onEmojiSelect(); hide() }"
-          />
-        </template>
-      </BasePopup>
+      <div class="flex size-8 items-center justify-center">
+        <span class="text-lg">#</span>
+      </div>
 
       <div class="flex-1">
         <TagsInput v-model="newTagName" />

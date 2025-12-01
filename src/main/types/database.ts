@@ -48,8 +48,6 @@ export type TagDoc = BaseDoc & {
   name: string
   /** Tag color (hex format) */
   color: string
-  /** Tag emoji */
-  emoji: string
   /** Sort order for display. Optional. */
   sortOrder?: number
 }

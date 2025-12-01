@@ -134,8 +134,7 @@ useResizeObserver(containerRef, calculateVisibleTags)
           @click="onSelectTag(tag.id)"
         >
           <span class="mr-2 size-3 shrink-0 rounded-full" :style="{backgroundColor: tag.color}" />
-          <span v-if="tag.emoji" class="mr-1 text-xs">{{ tag.emoji }}</span>
-          <span v-else class="text-base leading-0">#</span>
+          <span class="text-base leading-0">#</span>
           <span class="truncate text-sm">{{ tag.name }}</span>
           <BaseIcon name="check" class="text-base-content/70 ml-auto size-4 shrink-0" :class="{invisible: !isActiveTag(tag.id)}" />
         </BaseButton>

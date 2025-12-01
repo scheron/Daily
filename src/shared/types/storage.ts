@@ -60,8 +60,6 @@ export type Tag = {
 
   name: string
   color: string
-  /** @deprecated Remove in future */
-  emoji: string
 }
 
 export type File = {

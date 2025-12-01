@@ -19,8 +19,7 @@ defineProps<{
     :class="{active, selectable}"
     :style="{'--tag-color': tag.color}"
   >
-    <span v-if="tag.emoji" class="mr-1 text-xs">{{ tag.emoji }}</span>
-    <span v-else class="text-sm leading-0">#</span>
+    <span class="text-sm leading-0">#</span>
     <span class="truncate text-xs">{{ tag.name }}</span>
   </BaseButton>
 </template>

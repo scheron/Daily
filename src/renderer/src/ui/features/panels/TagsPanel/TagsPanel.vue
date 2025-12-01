@@ -41,8 +41,7 @@ async function deleteTag(id: Tag["id"]) {
           color: tag.color,
         }"
       >
-        <span v-if="tag.emoji" class="mr-1 text-sm">{{ tag.emoji }}</span>
-        <span v-else class="text-base leading-0">#</span>
+        <span class="text-base leading-0">#</span>
         <span class="truncate">{{ tag.name }}</span>
 
         <BaseButton

@@ -1,7 +1,7 @@
-import type {ISODateTime} from "@shared/types/common"
 import type {FileDoc, SettingsDoc, TagDoc, TaskDoc} from "@/types/database"
-import type {File, Settings, Tag} from "@shared/types/storage"
 import type {TaskInternal} from "@/types/storage"
+import type {ISODateTime} from "@shared/types/common"
+import type {File, Settings, Tag} from "@shared/types/storage"
 
 /**
  * Domain Model <-> Storage Document Mappers
@@ -86,7 +86,6 @@ export function tagToDoc(tag: Tag): TagDoc {
     type: "tag",
     name: tag.name,
     color: tag.color,
-    emoji: tag.emoji,
     createdAt,
     updatedAt,
     deletedAt,
@@ -101,7 +100,6 @@ export function docToTag(doc: TagDoc): Tag {
     deletedAt: doc.deletedAt,
     name: doc.name,
     color: doc.color,
-    emoji: doc.emoji,
   }
 }
 
