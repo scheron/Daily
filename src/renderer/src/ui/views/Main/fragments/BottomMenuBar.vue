@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {useVModel} from "@vueuse/core"
+import {BOTTOM_MENU_ITEMS, SYNC_STATUS_ENUM} from "@/constants/enums"
 import {useStorageStore} from "@/stores/storage.store"
 
 import type {SidebarSection} from "@/types/sidebar"
@@ -7,14 +8,13 @@ import type {SidebarSection} from "@/types/sidebar"
 import BaseIcon from "@/ui/base/BaseIcon"
 import AnimatedTabs from "@/ui/common/misc/AnimatedTabs"
 
-import {BOTTOM_MENU_ITEMS} from "../model/constants"
-
 const props = defineProps<{section: SidebarSection}>()
 const emit = defineEmits<{"update:section": [section: SidebarSection]}>()
 
 const activeSection = useVModel(props, "section", emit)
 const storageStore = useStorageStore()
 </script>
+
 <template>
   <div class="border-base-300 bg-base-100 border-t px-2 py-2">
     <AnimatedTabs
@@ -24,10 +24,7 @@ const storageStore = useStorageStore()
       tab-class="flex items-center justify-center gap-1 rounded-md px-2 py-1 transition-colors duration-200 outline-none focus-visible-ring focus-visible:ring-offset-base-100 focus-visible:ring-accent"
     >
       <template #tab-icon-cloud-sync>
-        <BaseIcon
-          :name="storageStore.status === 'syncing' ? 'refresh' : 'cloud'"
-          :class="[storageStore.status === 'syncing' ? 'animate-spin' : '', 'size-5']"
-        />
+        <BaseIcon :name="SYNC_STATUS_ENUM[storageStore.status].icon" :class="[storageStore.status === 'syncing' ? 'animate-spin' : '', 'size-5']" />
       </template>
     </AnimatedTabs>
   </div>

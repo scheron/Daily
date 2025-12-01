@@ -6,36 +6,33 @@ import Shortcuts from "./fragments/Shortcuts.vue"
 </script>
 
 <template>
-  <div class="flex w-full cursor-auto flex-col gap-3 py-3">
-    <div>
-      <div class="border-base-300 text-accent mb-2 flex items-center gap-1 border-b pb-1 text-xs font-bold uppercase select-none">
-        <BaseIcon name="star" class="size-4" />
-        About
-      </div>
+  <div class="flex h-full flex-col gap-4 px-4 py-4">
+    <h3 class="text-base-content text-sm font-semibold">Daily</h3>
 
-      <div class="flex flex-col gap-1 px-2">
-        <About />
+    <div class="border-base-300 flex flex-col gap-3 rounded-md border p-3">
+      <div class="flex items-center gap-2">
+        <BaseIcon name="star" class="text-accent size-5" />
+        <h3 class="text-xs font-medium">About</h3>
       </div>
-    </div>
-    <div>
-      <div class="border-base-300 text-accent mb-2 flex items-center gap-1 border-b pb-1 text-xs font-bold uppercase select-none">
-        <BaseIcon name="keyboard" class="size-4" />
-        Shortcuts
-      </div>
-
-      <div class="flex flex-col gap-1 px-2">
-        <Shortcuts />
-      </div>
+      <About />
     </div>
 
-    <div>
-      <div class="border-base-300 text-accent mb-2 flex items-center gap-1 border-b pb-1 text-xs font-bold uppercase select-none">
-        <BaseIcon name="folder" class="size-4" />
-        Export
+    <div class="border-base-300 flex flex-col gap-3 rounded-md border p-3">
+      <div class="flex items-center gap-2">
+        <BaseIcon name="keyboard" class="text-accent size-5" />
+        <h3 class="text-xs font-medium">Shortcuts</h3>
       </div>
-      <div class="flex flex-col gap-1 px-2">
-        <p class="text-base-content/70 text-xs">In development ...</p>
+      <Shortcuts />
+    </div>
+
+    <div class="border-base-300 flex flex-col gap-3 rounded-md border p-3">
+      <div class="flex items-center gap-2">
+        <BaseIcon name="folder" class="text-accent size-5" />
+        <h3 class="text-xs font-medium">Export</h3>
       </div>
+      <p class="text-base-content/60 text-xs leading-relaxed">
+        Export functionality is currently in development. Soon you'll be able to export your tasks and data.
+      </p>
     </div>
   </div>
 </template>

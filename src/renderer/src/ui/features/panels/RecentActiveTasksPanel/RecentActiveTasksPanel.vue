@@ -68,7 +68,7 @@ function selectDay(date: string) {
 
         <div class="flex flex-col gap-1 px-2">
           <template v-for="item in group.items.slice(0, 5)" :key="item.date">
-            <BaseButton size="sm" class="justify-between gap-2" variant="outline" @click="selectDay(item.date)">
+            <BaseButton size="sm" class="justify-between gap-2" variant="ghost" @click="selectDay(item.date)">
               <span class="text-sm">{{ toFullDate(item.date) }}</span>
               <div class="text-info bg-info/30 flex size-4 items-center justify-center rounded-sm text-xs">
                 {{ item.count > 9 ? "9+" : item.count }}

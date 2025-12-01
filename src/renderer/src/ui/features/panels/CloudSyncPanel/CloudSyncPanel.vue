@@ -1,51 +1,13 @@
 <script setup lang="ts">
-import {computed} from "vue"
+import {SYNC_STATUS_ENUM} from "@/constants/enums"
 import {useStorageStore} from "@/stores/storage.store"
 import {toLocaleTime} from "@shared/utils/date/formatters"
-
-import type {IconName} from "@/ui/base/BaseIcon"
 
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseIcon from "@/ui/base/BaseIcon"
 import BaseSwitch from "@/ui/base/BaseSwitch.vue"
 
 const storageStore = useStorageStore()
-
-const statusInfo = computed<{
-  icon: IconName
-  text: string
-  description: string
-  color: string
-}>(() => {
-  if (storageStore.status === "syncing")
-    return {
-      icon: "refresh",
-      text: "Syncing...",
-      description: "Your data is currently syncing with iCloud",
-      color: "text-accent/80",
-    }
-  if (storageStore.status === "error")
-    return {
-      icon: "cloud-alert",
-      text: "Sync Error",
-      description: "There was an error syncing your data",
-      color: "text-error",
-    }
-  if (storageStore.status === "inactive")
-    return {
-      icon: "cloud-off",
-      text: "Sync Disabled",
-      description: "Enable sync to backup your data to iCloud",
-      color: "text-base-content/30",
-    }
-
-  return {
-    icon: "cloud",
-    text: "Synced",
-    description: "Your data is synced with iCloud",
-    color: "text-success",
-  }
-})
 
 async function onToggleAutoSync(value: boolean) {
   if (value) {
@@ -62,17 +24,20 @@ async function onForceSync() {
 
 <template>
   <div class="flex h-full flex-col gap-4 px-4 py-4">
+    <h3 class="text-base-content text-sm font-semibold">iCloud Sync</h3>
     <div class="flex flex-col gap-3">
       <div class="flex items-center justify-between gap-3">
         <div class="flex flex-1 items-center gap-2">
           <BaseIcon
-            :name="statusInfo.icon"
+            :name="SYNC_STATUS_ENUM[storageStore.status].icon"
             class="size-6 shrink-0"
-            :class="[statusInfo.color, {'animate-spin': storageStore.status === 'syncing'}]"
+            :class="[SYNC_STATUS_ENUM[storageStore.status].color, {'animate-spin': storageStore.status === 'syncing'}]"
           />
           <div class="flex flex-col gap-0.5">
-            <span class="text-sm font-medium" :class="statusInfo.color">{{ statusInfo.text }}</span>
-            <span class="text-base-content/50 text-xs">{{ statusInfo.description }}</span>
+            <span class="text-sm font-medium" :class="SYNC_STATUS_ENUM[storageStore.status].color">{{
+              SYNC_STATUS_ENUM[storageStore.status].text
+            }}</span>
+            <span class="text-base-content/50 text-xs">{{ SYNC_STATUS_ENUM[storageStore.status].description }}</span>
           </div>
         </div>
 
@@ -110,10 +75,8 @@ async function onForceSync() {
       </template>
 
       <div class="border-base-300 mt-2 flex flex-col gap-2 rounded-md border p-3">
-        <h3 class="text-xs font-medium">About iCloud Sync</h3>
         <p class="text-base-content/60 text-xs leading-relaxed">
-          When enabled, your tasks, tags, and settings are automatically synced to iCloud. This allows you to access your data across multiple
-          devices.
+          When enabled, your tasks, tags, and settings are automatically synced to iCloud. This allows to access data on multiple devices.
         </p>
       </div>
     </div>
