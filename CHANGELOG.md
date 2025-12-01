@@ -2,6 +2,16 @@
 
 ## [unreleased]
 
+### 🎨 UI/UX Improvements
+
+- **Simplified Tag System** - Streamlined tag creation and management
+  - Removed emoji support from tags for cleaner, more minimal interface
+  - All tags now consistently use hash (#) symbol
+  - Redesigned tag creation form with inline input and color picker
+  - Tag input now includes hash symbol prefix and clear button
+  - Added 10 carefully selected colors with no duplicates
+  - Tags list and creation form now visible simultaneously
+
 ## v0.6.0 - 2025-11-30
 
 ### ✨ New Features
