@@ -18,15 +18,17 @@ const {isMacOS} = useDevice()
         <tbody class="text-base-content/80">
           <tr>
             <td class="p-1 text-start">
+              <kbd class="bg-base-100 border-base-300 inline-flex h-6 items-center justify-start rounded border px-1.5"> ⌘ </kbd>
+              +
               <kbd class="bg-base-100 border-base-300 inline-flex h-6 items-center justify-start rounded border px-1.5">Enter</kbd>
             </td>
             <td class="text-start">Save & Close</td>
           </tr>
           <tr>
             <td class="p-1 text-start">
-              <kbd class="bg-base-100 border-base-300 inline-flex h-6 items-center justify-start rounded border px-1.5">
-                {{ isMacOS ? "⌘" : "Ctrl" }}
-              </kbd>
+              <kbd class="bg-base-100 border-base-300 inline-flex h-6 items-center justify-start rounded border px-1.5"> ⌘ </kbd>
+              +
+              <kbd class="bg-base-100 border-base-300 inline-flex h-6 items-center justify-start rounded border px-1.5"> ⇧ </kbd>
               +
               <kbd class="bg-base-100 border-base-300 inline-flex h-6 items-center justify-start rounded border px-1.5">Enter</kbd>
             </td>

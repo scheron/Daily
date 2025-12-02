@@ -41,6 +41,12 @@ export type IconName =
   | "circle-pulse"
   | "filter"
   | "filter-off"
+  | "bold"
+  | "italic"
+  | "code"
+  | "heading"
+  | "checkbox"
+  | "quote"
 </script>
 
 <template>
@@ -359,6 +365,38 @@ export type IconName =
       ></path>
       <path d="m16.5 3.5 5 5"></path>
       <path d="m21.5 3.5-5 5"></path>
+    </symbol>
+
+    <symbol id="bold" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path>
+      <path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path>
+    </symbol>
+
+    <symbol id="italic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="19" y1="4" x2="10" y2="4"></line>
+      <line x1="14" y1="20" x2="5" y2="20"></line>
+      <line x1="15" y1="4" x2="9" y2="20"></line>
+    </symbol>
+
+    <symbol id="code" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="16 18 22 12 16 6"></polyline>
+      <polyline points="8 6 2 12 8 18"></polyline>
+    </symbol>
+
+    <symbol id="heading" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 8.25h15m-16.5 7.5h15m-1.8-13.5-3.9 19.5m-2.1-19.5-3.9 19.5" />
+    </symbol>
+
+    <symbol id="checkbox" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+      <path d="M9 12l2 2 4-4"></path>
+    </symbol>
+
+    <symbol id="quote" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path
+        d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"
+      ></path>
+      <path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"></path>
     </symbol>
   </svg>
 </template>

@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import {useMarkdown} from "@/composables/useMarkdown"
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseIcon from "@/ui/base/BaseIcon"
 
+import TaskContentViewer from "./TaskContentViewer.vue"
+
 defineProps<{taskContent: string}>()
 defineEmits<{restore: []}>()
-
-const {renderMarkdown} = useMarkdown()
 </script>
 
 <template>
@@ -18,8 +17,8 @@ const {renderMarkdown} = useMarkdown()
       <span class="text-base-content text-lg font-semibold">Task deleted successfully</span>
     </div>
 
-    <div class="border-base-300 rounded-md border p-2">
-      <p class="markdown line-clamp-4 text-xs" v-html="renderMarkdown(taskContent)" />
+    <div class="border-base-300 line-clamp-4 max-h-[250px] overflow-y-auto rounded-md border p-2 text-xs">
+      <TaskContentViewer :content="taskContent" />
     </div>
 
     <BaseButton variant="ghost" class="" icon-class="size-4" icon="undo" @click="$emit('restore')"> Restore </BaseButton>

@@ -1,7 +1,6 @@
 @import "./theme.css";
 @import "./fonts.css";
 @import "tailwindcss";
-@import "./markdown.css";
 
 :root {
   --sidebar-width: 300px;
