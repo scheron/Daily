@@ -1,21 +1,24 @@
 <script setup lang="ts">
 import {computed, onMounted, onUnmounted, watch} from "vue"
 import {toast} from "vue-sonner"
+
+import {
+  createCodeBlockAutocomplete,
+  createCodeSyntaxExtension,
+  createThemeExtension,
+  createWYSIWYGExtension,
+  useCodeMirror,
+} from "@/composables/codemirror"
 import {useClipboardPaste} from "@/composables/useClipboardPaste"
 import {useDevice} from "@/composables/useDevice"
 import {useFileDrop} from "@/composables/useFileDrop"
-import {useCodeMirror} from "@/composables/useCodeMirror"
-import {keymap} from "@codemirror/view"
 
 import {useTaskEditorStore} from "@MainView/stores/taskEditor.store"
+import {keymap} from "@codemirror/view"
 import {useEditTask} from "./composables/useEditTask"
 import {useImageUpload} from "./composables/useImageUpload"
 import EditorPlaceholder from "./{fragments}/EditorPlaceholder.vue"
 import FloatingToolbar from "./{fragments}/FloatingToolbar.vue"
-
-import {createThemeExtension} from "./extensions/themeExtension"
-import {createWYSIWYGExtension} from "./extensions/wysiwygExtension"
-import {createCodeSyntaxExtension} from "./extensions/codeSyntaxExtension"
 import {createMarkdownKeymap} from "./commands/markdownCommands"
 
 const taskEditorStore = useTaskEditorStore()
@@ -85,6 +88,9 @@ const {view, container, setContent, insertText, focus} = useCodeMirror({
 
     // Code syntax highlighting
     createCodeSyntaxExtension(),
+
+    // Code block auto-completion
+    createCodeBlockAutocomplete(),
 
     // Keyboard shortcuts
     keymap.of([
@@ -175,7 +181,3 @@ const {isDraggingOver} = useFileDrop(container, {
     <FloatingToolbar :editor-view="view" />
   </div>
 </template>
-
-<style scoped>
-/* Additional CodeMirror-specific styles if needed */
-</style>

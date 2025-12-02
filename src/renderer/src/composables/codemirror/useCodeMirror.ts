@@ -1,8 +1,13 @@
-import {onBeforeUnmount, ref, Ref, watch} from "vue"
-import {EditorState, Extension} from "@codemirror/state"
-import {EditorView, keymap, ViewUpdate} from "@codemirror/view"
+import {onBeforeUnmount, ref, watch} from "vue"
+
 import {defaultKeymap, history, historyKeymap} from "@codemirror/commands"
 import {markdown} from "@codemirror/lang-markdown"
+import {EditorState} from "@codemirror/state"
+import {EditorView, keymap} from "@codemirror/view"
+
+import type {Extension} from "@codemirror/state"
+import type {ViewUpdate} from "@codemirror/view"
+import type {Ref} from "vue"
 
 export interface UseCodeMirrorOptions {
   content?: string

@@ -1,7 +1,17 @@
-import {Extension} from "@codemirror/state"
-import {Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate, WidgetType} from "@codemirror/view"
 import {syntaxTree} from "@codemirror/language"
-import {RangeSetBuilder} from "@codemirror/state"
+import {Facet, RangeSetBuilder} from "@codemirror/state"
+import {Decoration, ViewPlugin, WidgetType} from "@codemirror/view"
+
+import type {Extension} from "@codemirror/state"
+import type {DecorationSet, EditorView, ViewUpdate} from "@codemirror/view"
+
+/**
+ * Facet for storing readonly mode state
+ * Exported for use in other extensions (e.g., codeSyntaxExtension)
+ */
+export const readonlyMode = Facet.define<boolean, boolean>({
+  combine: (values) => values[0] ?? false,
+})
 
 /**
  * Check if cursor is inside or touching a range
@@ -34,9 +44,9 @@ class CheckboxWidget extends WidgetType {
     checkbox.style.cursor = "pointer"
 
     // Prevent checkbox interaction (view-only in WYSIWYG)
-    checkbox.onclick = (e) => {
-      e.preventDefault()
-    }
+    // checkbox.onclick = (e) => {
+    //   e.preventDefault()
+    // }
 
     wrapper.appendChild(checkbox)
     return wrapper
@@ -54,23 +64,25 @@ function createWYSIWYGDecorations(view: EditorView): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>()
   const {state} = view
   const tree = syntaxTree(state)
-  const cursorPos = state.selection.main.head
+  const selection = state.selection.main
+  const cursorPos = selection.head
+  const hasSelection = selection.from !== selection.to
+  const isReadonly = state.facet(readonlyMode)
 
   // Iterate through syntax tree
   tree.iterate({
     enter: (node) => {
       const {from, to, name} = node
 
-      // Skip if cursor is inside this element (show raw syntax)
-      const showRaw = isCursorInRange(cursorPos, from, to)
+      // Skip if cursor is inside this element (show raw syntax) - unless in readonly mode or has selection
+      // When user is selecting text, don't change formatting to prevent "jumping"
+      const showRaw = !isReadonly && !hasSelection && isCursorInRange(cursorPos, from, to)
 
       try {
         // Handle different markdown elements
         switch (name) {
-          // === Inline Elements ===
-
+          // Bold: **text** or __text__
           case "StrongEmphasis": {
-            // Bold: **text** or __text__
             if (!showRaw) {
               const text = state.doc.sliceString(from, to)
               const marker = text.startsWith("**") ? "**" : "__"
@@ -95,8 +107,8 @@ function createWYSIWYGDecorations(view: EditorView): DecorationSet {
             break
           }
 
+          // Italic: *text* or _text_
           case "Emphasis": {
-            // Italic: *text* or _text_
             if (!showRaw) {
               const text = state.doc.sliceString(from, to)
               const marker = text.startsWith("*") ? "*" : "_"
@@ -121,8 +133,8 @@ function createWYSIWYGDecorations(view: EditorView): DecorationSet {
             break
           }
 
+          // Inline code: `code`
           case "InlineCode": {
-            // Inline code: `code`
             if (!showRaw) {
               // Hide opening backtick
               builder.add(from, from + 1, Decoration.replace({}))
@@ -142,8 +154,8 @@ function createWYSIWYGDecorations(view: EditorView): DecorationSet {
             break
           }
 
+          // Strikethrough: ~~text~~
           case "Strikethrough": {
-            // Strikethrough: ~~text~~
             if (!showRaw) {
               // Hide opening ~~
               builder.add(from, from + 2, Decoration.replace({}))
@@ -163,15 +175,13 @@ function createWYSIWYGDecorations(view: EditorView): DecorationSet {
             break
           }
 
-          // === Block Elements ===
-
+          // Headings: # text
           case "ATXHeading1":
           case "ATXHeading2":
           case "ATXHeading3":
           case "ATXHeading4":
           case "ATXHeading5":
           case "ATXHeading6": {
-            // Headings: # text
             if (!showRaw) {
               const level = parseInt(name.slice(-1))
               const text = state.doc.sliceString(from, to)
@@ -192,7 +202,7 @@ function createWYSIWYGDecorations(view: EditorView): DecorationSet {
                   Decoration.mark({
                     class: `cm-heading cm-heading${level}`,
                     attributes: {
-                      style: `font-weight: 600; font-size: ${fontSizes[level - 1]}; line-height: ${lineHeights[level - 1]};`,
+                      style: `font-weight: 600; font-size: ${fontSizes[level - 1]}; line-height: ${lineHeights[level - 1]}; text-decoration: none; border-bottom: none;`,
                     },
                   }),
                 )
@@ -201,8 +211,8 @@ function createWYSIWYGDecorations(view: EditorView): DecorationSet {
             break
           }
 
+          // Blockquote marker: >
           case "QuoteMark": {
-            // Blockquote marker: >
             if (!showRaw) {
               builder.add(
                 from,
@@ -215,8 +225,8 @@ function createWYSIWYGDecorations(view: EditorView): DecorationSet {
             break
           }
 
+          // Blockquote content styling
           case "Blockquote": {
-            // Blockquote content styling
             if (!showRaw) {
               builder.add(
                 from,
@@ -229,8 +239,8 @@ function createWYSIWYGDecorations(view: EditorView): DecorationSet {
             break
           }
 
+          // Task list checkbox: [ ] or [x]
           case "TaskMarker": {
-            // Task list checkbox: [ ] or [x]
             const text = state.doc.sliceString(from, to)
             const checked = /\[x\]/i.test(text)
 
@@ -241,8 +251,8 @@ function createWYSIWYGDecorations(view: EditorView): DecorationSet {
             break
           }
 
+          // List markers: - or * or +
           case "ListMark": {
-            // List markers: - or * or +
             if (!showRaw) {
               builder.add(
                 from,
@@ -255,8 +265,8 @@ function createWYSIWYGDecorations(view: EditorView): DecorationSet {
             break
           }
 
+          // Links: [text](url)
           case "Link": {
-            // Links: [text](url)
             if (!showRaw) {
               // Parse link text and URL
               const text = state.doc.sliceString(from, to)
@@ -264,7 +274,6 @@ function createWYSIWYGDecorations(view: EditorView): DecorationSet {
 
               if (match) {
                 const linkTextLen = match[1].length
-                const urlLen = match[2].length
 
                 // Hide opening [
                 builder.add(from, from + 1, Decoration.replace({}))
@@ -288,15 +297,13 @@ function createWYSIWYGDecorations(view: EditorView): DecorationSet {
             break
           }
 
+          // Images: ![alt](url)
           case "Image": {
-            // Images: ![alt](url)
             if (!showRaw) {
               const text = state.doc.sliceString(from, to)
               const match = text.match(/!\[([^\]]*)\]\(([^)]+)\)/)
 
               if (match) {
-                const altText = match[1] || "image"
-
                 // Show simplified text instead of full markdown
                 builder.add(
                   from,
@@ -312,8 +319,9 @@ function createWYSIWYGDecorations(view: EditorView): DecorationSet {
             break
           }
 
+          // Horizontal rule: --- or *** or ___
           case "HorizontalRule": {
-            // Horizontal rule: --- or *** or ___
+            console.log("HorizontalRule", from, to)
             if (!showRaw) {
               builder.add(
                 from,
@@ -326,28 +334,52 @@ function createWYSIWYGDecorations(view: EditorView): DecorationSet {
             break
           }
 
+          // Code fence markers: ```
           case "CodeMark": {
-            // Code fence markers: ```
             if (!showRaw) {
-              builder.add(
-                from,
-                to,
-                Decoration.mark({
-                  class: "cm-marker-subtle",
-                }),
-              )
+              if (isReadonly) {
+                // In readonly mode, hide the entire line
+                const line = state.doc.lineAt(from)
+                builder.add(
+                  line.from,
+                  line.from,
+                  Decoration.line({
+                    class: "cm-hide-line",
+                  }),
+                )
+              } else {
+                // In edit mode, make markers subtle
+                builder.add(
+                  from,
+                  to,
+                  Decoration.mark({
+                    class: "cm-marker-subtle",
+                  }),
+                )
+              }
             }
             break
           }
 
+          // Code blocks: ```lang\ncode\n```
           case "FencedCode": {
-            // Code blocks: ```lang\ncode\n```
-            if (!showRaw) {
+            // Let codeSyntaxExtension handle the styling
+            // We just need to ensure we don't interfere
+            break
+          }
+
+          // Code info (language name after opening ```)
+          case "CodeInfo": {
+            if (!showRaw && !isReadonly) {
+              // Only show in edit mode
               builder.add(
                 from,
                 to,
                 Decoration.mark({
-                  class: "cm-codeblock",
+                  class: "cm-code-lang",
+                  attributes: {
+                    style: "color: var(--color-accent); font-size: 0.75em; opacity: 0.7;",
+                  },
                 }),
               )
             }
@@ -390,7 +422,16 @@ const wysiwygPlugin = ViewPlugin.fromClass(
 
 /**
  * Export WYSIWYG extension
+ * @param options - Configuration options
+ * @param options.readonly - If true, always show WYSIWYG mode (ignore cursor position)
  */
-export function createWYSIWYGExtension(): Extension {
-  return [wysiwygPlugin]
+export function createWYSIWYGExtension(options: {readonly?: boolean} = {}): Extension {
+  const isReadonly = options.readonly ?? false
+
+  return [
+    // Set readonly mode facet first
+    readonlyMode.of(isReadonly),
+    // Then apply plugin
+    wysiwygPlugin,
+  ]
 }

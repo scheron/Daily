@@ -1,17 +1,15 @@
 <script setup lang="ts">
-import {useTemplateRef, watch} from "vue"
 import {toast} from "vue-sonner"
-import {until} from "@vueuse/core"
 
 import {ISODate} from "@shared/types/common"
 import {useTasksStore} from "@/stores/tasks.store"
-import {useMarkdown} from "@/composables/useMarkdown"
 import DynamicTagsPanel from "@/ui/common/misc/DynamicTagsPanel.vue"
 
 import {useTaskEditorStore} from "@MainView/stores/taskEditor.store"
 import {useRestoreTaskToast} from "./composables/useRestoreTaskToast"
 import QuickActions from "./{fragments}/QuickActions.vue"
 import StatusButtons from "./{fragments}/StatusButtons.vue"
+import TaskContentViewer from "./{fragments}/TaskContentViewer.vue"
 import TimeTrackingButton from "./{fragments}/TimeTrackingButton.vue"
 
 import type {Tag, Task, TaskStatus} from "@shared/types/storage"
@@ -22,9 +20,6 @@ const tasksStore = useTasksStore()
 const taskEditorStore = useTaskEditorStore()
 
 const toastRestoreTask = useRestoreTaskToast(async (task) => await tasksStore.restoreTask(task.id))
-
-const contentRef = useTemplateRef<HTMLElement>("content")
-const {renderMarkdown} = useMarkdown()
 
 function onChangeStatus(status: TaskStatus) {
   if (props.task.status === status) return
@@ -53,18 +48,6 @@ async function onMoveDate(targetDate: ISODate) {
   if (isMoved) toast.success("Task moved successfully")
   else toast.error("Failed to move task")
 }
-
-watch(
-  () => props.task.content,
-  async () => {
-    await until(contentRef).toBeTruthy()
-
-    if (contentRef.value) {
-      contentRef.value.innerHTML = renderMarkdown(props.task.content)
-    }
-  },
-  {immediate: true},
-)
 </script>
 
 <template>
@@ -96,7 +79,7 @@ watch(
       </div>
 
       <div class="mb-5 transition-opacity duration-200" :class="{'opacity-50': ['done', 'discarded'].includes(task.status)}">
-        <div ref="content" class="markdown prose prose-sm wrap-break-words max-w-none leading-relaxed transition-all duration-200" />
+        <TaskContentViewer :content="task.content" />
       </div>
     </div>
   </div>

@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import {computed, ref, watch} from "vue"
-import {EditorView} from "@codemirror/view"
-// @ts-ignore
-import {autoUpdate, flip, offset, shift, useFloating} from "@floating-ui/vue"
 
 import BaseButton from "@/ui/base/BaseButton.vue"
+
+import {EditorView} from "@codemirror/view"
+import {autoUpdate, flip, offset, shift, useFloating} from "@floating-ui/vue"
 import {markdownCommands} from "../commands/markdownCommands"
 
 interface Props {
@@ -95,7 +95,7 @@ function handleCommand(command: (view: EditorView) => boolean) {
       <!-- Group 1: Text Formatting -->
       <div class="border-base-300 flex gap-0.5 border-r pr-1">
         <BaseButton
-          icon="bold"
+          icon="star"
           variant="ghost"
           size="sm"
           tooltip="Bold (Cmd+B)"
@@ -103,7 +103,7 @@ function handleCommand(command: (view: EditorView) => boolean) {
           @click="handleCommand(markdownCommands.toggleBold)"
         />
         <BaseButton
-          icon="italic"
+          icon="star"
           variant="ghost"
           size="sm"
           tooltip="Italic (Cmd+I)"
@@ -111,7 +111,7 @@ function handleCommand(command: (view: EditorView) => boolean) {
           @click="handleCommand(markdownCommands.toggleItalic)"
         />
         <BaseButton
-          icon="code"
+          icon="star"
           variant="ghost"
           size="sm"
           tooltip="Inline Code (Cmd+`)"
@@ -119,7 +119,7 @@ function handleCommand(command: (view: EditorView) => boolean) {
           @click="handleCommand(markdownCommands.toggleCode)"
         />
         <BaseButton
-          icon="strikethrough"
+          icon="star"
           variant="ghost"
           size="sm"
           tooltip="Strikethrough"
@@ -131,7 +131,7 @@ function handleCommand(command: (view: EditorView) => boolean) {
       <!-- Group 2: Block Elements -->
       <div class="border-base-300 flex gap-0.5 border-r pr-1">
         <BaseButton
-          icon="heading"
+          icon="star"
           variant="ghost"
           size="sm"
           tooltip="Heading"
@@ -139,7 +139,7 @@ function handleCommand(command: (view: EditorView) => boolean) {
           @click="handleCommand(markdownCommands.insertHeading2)"
         />
         <BaseButton
-          icon="list-bullet"
+          icon="star"
           variant="ghost"
           size="sm"
           tooltip="Bullet List"
@@ -147,7 +147,7 @@ function handleCommand(command: (view: EditorView) => boolean) {
           @click="handleCommand(markdownCommands.insertBulletList)"
         />
         <BaseButton
-          icon="list-numbered"
+          icon="star"
           variant="ghost"
           size="sm"
           tooltip="Numbered List"
@@ -155,7 +155,7 @@ function handleCommand(command: (view: EditorView) => boolean) {
           @click="handleCommand(markdownCommands.insertNumberedList)"
         />
         <BaseButton
-          icon="checkbox"
+          icon="star"
           variant="ghost"
           size="sm"
           tooltip="Checkbox"
@@ -163,7 +163,7 @@ function handleCommand(command: (view: EditorView) => boolean) {
           @click="handleCommand(markdownCommands.insertCheckbox)"
         />
         <BaseButton
-          icon="quote"
+          icon="star"
           variant="ghost"
           size="sm"
           tooltip="Quote"
@@ -175,7 +175,7 @@ function handleCommand(command: (view: EditorView) => boolean) {
       <!-- Group 3: Rich Content -->
       <div class="border-base-300 flex gap-0.5 border-r pr-1">
         <BaseButton
-          icon="link"
+          icon="star"
           variant="ghost"
           size="sm"
           tooltip="Link (Cmd+K)"
@@ -183,7 +183,7 @@ function handleCommand(command: (view: EditorView) => boolean) {
           @click="handleCommand(markdownCommands.insertLink)"
         />
         <BaseButton
-          icon="image"
+          icon="star"
           variant="ghost"
           size="sm"
           tooltip="Image"
@@ -191,7 +191,7 @@ function handleCommand(command: (view: EditorView) => boolean) {
           @click="handleCommand(markdownCommands.insertImage())"
         />
         <BaseButton
-          icon="code-block"
+          icon="star"
           variant="ghost"
           size="sm"
           tooltip="Code Block"
@@ -199,7 +199,7 @@ function handleCommand(command: (view: EditorView) => boolean) {
           @click="handleCommand(markdownCommands.insertCodeBlock)"
         />
         <BaseButton
-          icon="table"
+          icon="star"
           variant="ghost"
           size="sm"
           tooltip="Table"
