@@ -1,8 +1,8 @@
 import {DateTime} from "luxon"
 
-import type {ISODate, ISODateTime} from "../../types/common"
-
 import {toTs} from "./formatters"
+
+import type {ISODate, ISODateTime} from "../../types/common"
 
 export function isNewer(a: ISODateTime, b: ISODateTime): boolean {
   return toTs(a) > toTs(b)

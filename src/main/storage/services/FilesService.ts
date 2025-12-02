@@ -1,9 +1,11 @@
 import path from "node:path"
-import {APP_CONFIG} from "@/config"
+
+import {forEachAsync} from "@shared/utils/arrays/forEachAsync"
 import {extractFileIds} from "@/utils/files/extractFileIds"
 import {getMimeType} from "@/utils/files/getMimeType"
 import {LogContext, logger} from "@/utils/logger"
-import {forEachAsync} from "@shared/utils/arrays/forEachAsync"
+
+import {APP_CONFIG} from "@/config"
 
 import type {FileModel} from "@/storage/models/FileModel"
 import type {File, Task} from "@shared/types/storage"

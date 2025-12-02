@@ -1,10 +1,9 @@
 <script lang="ts" setup>
 import {ISODate} from "@shared/types/common"
-
-import type {Day} from "@shared/types/storage"
-
 import BaseCalendar from "@/ui/base/BaseCalendar"
 import BasePopup from "@/ui/base/BasePopup.vue"
+
+import type {Day} from "@shared/types/storage"
 
 withDefaults(
   defineProps<{

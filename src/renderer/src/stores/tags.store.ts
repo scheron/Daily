@@ -1,6 +1,7 @@
 import {computed, ref} from "vue"
-import {API} from "@/api"
 import {defineStore} from "pinia"
+
+import {API} from "@/api"
 
 import type {Tag} from "@shared/types/storage"
 

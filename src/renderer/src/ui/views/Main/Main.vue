@@ -1,28 +1,28 @@
 <script setup lang="ts">
 import {computed} from "vue"
-import {useDevice} from "@/composables/useDevice"
+
 import {useStorageStore} from "@/stores/storage.store"
 import {useTagsStore} from "@/stores/tags.store"
 import {useTasksStore} from "@/stores/tasks.store"
 import {useThemeStore} from "@/stores/theme.store"
-
+import {useDevice} from "@/composables/useDevice"
 import BaseAnimation from "@/ui/base/BaseAnimation.vue"
-import {useTaskEditorStore} from "@/ui/views/Main/model/taskEditor.store"
-import {useUIStore} from "@/ui/views/Main/model/ui.store"
-import {useContentSize} from "@/ui/views/Main/model/useContentSize"
 
-import Content from "./fragments/Content"
-import Header from "./fragments/Header.vue"
-import Sidebar from "./fragments/Sidebar"
-import SidebarMini from "./fragments/SidebarMini"
-import Toolbar from "./fragments/Toolbar"
+import {useTaskEditorStore} from "./stores/taskEditor.store"
+import {useUIStore} from "./stores/ui.store"
+import {useContentSize} from "./composables/useContentSize"
+import Content from "./{fragments}/Content"
+import Header from "./{fragments}/Header.vue"
+import Sidebar from "./{fragments}/Sidebar"
+import SidebarMini from "./{fragments}/SidebarMini"
+import Toolbar from "./{fragments}/Toolbar"
 
 const tasksStore = useTasksStore()
 const tagsStore = useTagsStore()
 const taskEditorStore = useTaskEditorStore()
 const uiStore = useUIStore()
-const storageStore = useStorageStore()
 
+useStorageStore()
 useThemeStore()
 
 const {isDesktop, isMobile, isTablet} = useDevice()

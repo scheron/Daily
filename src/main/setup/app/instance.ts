@@ -1,11 +1,11 @@
+import {app} from "electron"
+
 import {APP_CONFIG} from "@/config"
 import {focusWindow} from "@/windows"
-import {app} from "electron"
+import {handleDeepLink} from "./deeplinks"
 
 import type {StorageController} from "@/storage/StorageController"
 import type {BrowserWindow} from "electron"
-
-import {handleDeepLink} from "./deeplinks"
 
 export function setupInstanceAndDeepLinks(getStorage: () => StorageController | null, getMainWindow: () => BrowserWindow | null) {
   const gotLock = app.requestSingleInstanceLock()

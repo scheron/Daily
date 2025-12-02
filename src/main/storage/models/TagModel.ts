@@ -1,12 +1,13 @@
+import {nanoid} from "nanoid"
+
 import {createCacheLoader} from "@/utils/createCacheLoader"
 import {LogContext, logger} from "@/utils/logger"
 import {withRetryOnConflict} from "@/utils/withRetryOnConflict"
-import {nanoid} from "nanoid"
+
+import {docIdMap, docToTag, tagToDoc} from "./_mappers"
 
 import type {TagDoc} from "@/types/database"
 import type {Tag} from "@shared/types/storage"
-
-import {docIdMap, docToTag, tagToDoc} from "./_mappers"
 
 export class TagModel {
   private CACHE_TTL = 5 * 60_000

@@ -1,7 +1,8 @@
 import {join} from "path"
+import fs from "fs-extra"
+
 import {getDefaultSnapshot} from "@/utils/sync/snapshot/getDefaultSnapshot"
 import {isValidSnapshot} from "@/utils/sync/snapshot/isValidSnapshot"
-import fs from "fs-extra"
 
 import type {IRemoteStorage, Snapshot} from "@/types/sync"
 

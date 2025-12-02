@@ -1,11 +1,12 @@
+import {nanoid} from "nanoid"
+
 import {LogContext, logger} from "@/utils/logger"
 import {withRetryOnConflict} from "@/utils/withRetryOnConflict"
-import {nanoid} from "nanoid"
+
+import {docIdMap, docToFile, fileToDoc} from "./_mappers"
 
 import type {FileDoc} from "@/types/database"
 import type {File} from "@shared/types/storage"
-
-import {docIdMap, docToFile, fileToDoc} from "./_mappers"
 
 export class FileModel {
   constructor(private db: PouchDB.Database) {}

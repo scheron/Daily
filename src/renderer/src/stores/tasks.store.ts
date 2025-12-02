@@ -1,10 +1,12 @@
 import {computed, ref} from "vue"
-import {API} from "@/api"
-import {updateDays} from "@/utils/tasks/updateDays"
-import {toRawDeep} from "@/utils/ui/vue"
-import {objectFilter} from "@shared/utils/objects/filter"
 import {DateTime} from "luxon"
 import {defineStore} from "pinia"
+
+import {objectFilter} from "@shared/utils/objects/filter"
+import {updateDays} from "@/utils/tasks/updateDays"
+import {toRawDeep} from "@/utils/ui/vue"
+
+import {API} from "@/api"
 
 import type {ISODate} from "@shared/types/common"
 import type {Day, Tag, Task} from "@shared/types/storage"

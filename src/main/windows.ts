@@ -1,5 +1,6 @@
-import {APP_CONFIG, PATHS} from "@/config"
 import {BrowserWindow, shell} from "electron"
+
+import {APP_CONFIG, PATHS} from "@/config"
 
 export function createMainWindow(): BrowserWindow {
   const mainWindow = new BrowserWindow({

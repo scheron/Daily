@@ -1,14 +1,15 @@
+import {nanoid} from "nanoid"
+
 import {LogContext, logger} from "@/utils/logger"
 import {withRetryOnConflict} from "@/utils/withRetryOnConflict"
-import {nanoid} from "nanoid"
+
+import {docIdMap, docToTask, taskToDoc} from "./_mappers"
 
 import type {TaskDoc} from "@/types/database"
 import type {TaskInternal} from "@/types/storage"
 import type {ISODate} from "@shared/types/common"
 import type {Task} from "@shared/types/storage"
 import type {PartialDeep} from "type-fest"
-
-import {docIdMap, docToTask, taskToDoc} from "./_mappers"
 
 export class TaskModel {
   constructor(private db: PouchDB.Database) {}

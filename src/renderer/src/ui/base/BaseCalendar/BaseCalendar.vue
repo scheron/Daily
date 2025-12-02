@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import {computed, onBeforeMount, ref, watch} from "vue"
-import {isToday} from "@shared/utils/date/validators"
 import {DateTime} from "luxon"
+
+import {isToday} from "@shared/utils/date/validators"
+import BaseButton from "@/ui/base/BaseButton.vue"
+
+import {WEEKDAYS} from "./constants"
+import {formatDaysToMonth} from "./utils"
 
 import type {ISODate} from "@shared/types/common"
 import type {Day} from "@shared/types/storage"
-import type {CalendarMode, CalendarSize, DateRange} from "./model/types"
-
-import BaseButton from "@/ui/base/BaseButton.vue"
-
-import {WEEKDAYS} from "./model/constants"
-import {formatDaysToMonth} from "./model/helpers"
+import type {CalendarMode, CalendarSize, DateRange} from "./types"
 
 const props = withDefaults(
   defineProps<{

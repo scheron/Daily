@@ -1,8 +1,8 @@
-import type {BaseDoc, SettingsDoc} from "@/types/database"
-import type {SnapshotDocs, SyncDoc, SyncStrategy} from "@/types/sync"
-
 import {mergeCollections} from "./mergeCollections"
 import {mergeSettings} from "./mergeSettings"
+
+import type {BaseDoc, SettingsDoc} from "@/types/database"
+import type {SnapshotDocs, SyncDoc, SyncStrategy} from "@/types/sync"
 
 /**
  * Merge remote snapshot into local using pure LWW strategy.

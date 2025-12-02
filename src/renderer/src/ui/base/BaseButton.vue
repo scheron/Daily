@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import {computed} from "vue"
+
 import {cn} from "@/utils/ui/tailwindcss"
+
+import BaseIcon from "./BaseIcon/BaseIcon.vue"
 
 import type {Placement} from "floating-vue"
 import type {HtmlHTMLAttributes} from "vue"
 import type {IconName} from "./BaseIcon"
-
-import BaseIcon from "./BaseIcon/BaseIcon.vue"
 
 const props = defineProps<{
   variant?: "primary" | "secondary" | "ghost" | "text" | "outline"

@@ -1,6 +1,8 @@
-import {APP_CONFIG} from "@/config"
-import {LogContext, logger} from "@/utils/logger"
 import {protocol} from "electron"
+
+import {LogContext, logger} from "@/utils/logger"
+
+import {APP_CONFIG} from "@/config"
 
 import type {StorageController} from "@/storage/StorageController"
 

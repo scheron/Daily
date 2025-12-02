@@ -1,8 +1,9 @@
 import path from "node:path"
-import {LogContext, logger} from "@/utils/logger"
 import fs from "fs-extra"
 import PouchDB from "pouchdb"
 import PouchDBFind from "pouchdb-find"
+
+import {LogContext, logger} from "@/utils/logger"
 
 PouchDB.plugin(PouchDBFind)
 

@@ -1,14 +1,15 @@
 import {onMounted, ref} from "vue"
 import {toast} from "vue-sonner"
-import {sleep} from "@shared/utils/common/sleep"
 import {defineStore} from "pinia"
 
-import type {ISODateTime} from "@shared/types/common"
-import type {SyncStatus} from "@shared/types/storage"
+import {sleep} from "@shared/utils/common/sleep"
 
 import {useSettingsStore} from "./settings.store"
 import {useTagsStore} from "./tags.store"
 import {useTasksStore} from "./tasks.store"
+
+import type {ISODateTime} from "@shared/types/common"
+import type {SyncStatus} from "@shared/types/storage"
 
 export const useStorageStore = defineStore("storage", () => {
   const tasksStore = useTasksStore()

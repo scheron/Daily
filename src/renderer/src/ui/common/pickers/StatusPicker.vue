@@ -1,12 +1,13 @@
 <script lang="ts" setup>
 import {computed, HtmlHTMLAttributes} from "vue"
-import {TasksFilter} from "@/types/filters"
-import {cn} from "@/utils/ui/tailwindcss"
-import {TaskStatus} from "@shared/types/storage"
 
+import {TaskStatus} from "@shared/types/storage"
+import {cn} from "@/utils/ui/tailwindcss"
 import BaseButton from "@/ui/base/BaseButton.vue"
 import {IconName} from "@/ui/base/BaseIcon"
 import BasePopup from "@/ui/base/BasePopup.vue"
+
+import {TasksFilter} from "@/types/common"
 
 const props = withDefaults(
   defineProps<{

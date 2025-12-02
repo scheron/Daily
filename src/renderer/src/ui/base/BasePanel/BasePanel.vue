@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import {computed, ref} from "vue"
-import {cn} from "@/utils/ui/tailwindcss"
 
-import type {HtmlHTMLAttributes} from "vue"
-import type {IconName} from "../BaseIcon"
+import {cn} from "@/utils/ui/tailwindcss"
 
 import BaseIcon from "../BaseIcon/BaseIcon.vue"
 import {useExpansionPanelGroup} from "./useExpansionPanelGroup"
+
+import type {HtmlHTMLAttributes} from "vue"
+import type {IconName} from "../BaseIcon"
 
 const props = withDefaults(
   defineProps<{

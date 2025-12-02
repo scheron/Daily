@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import {computed} from "vue"
+
 import {generateGradient} from "@/utils/colors/generateGradient"
 import {getOppositeColor} from "@/utils/colors/getOppositeColor"
-
 import BaseButton from "@/ui/base/BaseButton.vue"
 
 const props = withDefaults(defineProps<{colors?: string[]; steps?: number}>(), {

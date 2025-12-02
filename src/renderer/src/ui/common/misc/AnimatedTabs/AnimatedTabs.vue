@@ -1,12 +1,12 @@
 <script setup lang="ts" generic="T extends string">
 import {HTMLAttributes} from "vue"
+
 import {cn} from "@/utils/ui/tailwindcss"
-
-import type {IconName} from "@/ui/base/BaseIcon"
-
 import BaseIcon from "@/ui/base/BaseIcon"
 
 import {useTabAnimation} from "./useTabAnimation"
+
+import type {IconName} from "@/ui/base/BaseIcon"
 
 export type AnimatedTab<T extends string = string> = {
   id: T

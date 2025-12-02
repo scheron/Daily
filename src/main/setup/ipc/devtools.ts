@@ -1,8 +1,10 @@
+import {BrowserWindow, ipcMain} from "electron"
+
+import {LogContext, logger} from "@/utils/logger"
+
 import {fsPaths} from "@/config"
 import {getDB} from "@/storage/database"
-import {LogContext, logger} from "@/utils/logger"
 import {createDevToolsWindow} from "@/windows"
-import {BrowserWindow, ipcMain} from "electron"
 
 export function setupDevToolsIPC(
   getMainWindow: () => BrowserWindow | null,

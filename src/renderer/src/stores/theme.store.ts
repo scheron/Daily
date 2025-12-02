@@ -1,9 +1,10 @@
 import {computed, ref, watch} from "vue"
 import {useBroadcastChannel, watchOnce} from "@vueuse/core"
+import {defineStore} from "pinia"
+
 import {useSettingValue} from "@/composables/useSettingsValue"
 import {BROADCAST_CHANNELS} from "@/constants/events"
 import * as _themes from "@/constants/themes"
-import {defineStore} from "pinia"
 
 import type {Theme} from "@/types/theme"
 

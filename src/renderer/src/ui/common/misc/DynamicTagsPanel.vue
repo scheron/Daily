@@ -2,12 +2,12 @@
 import {computed, nextTick, ref, watch} from "vue"
 import {useResizeObserver} from "@vueuse/core"
 
-import type {Tag} from "@shared/types/storage"
-
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseIcon from "@/ui/base/BaseIcon"
 import BasePopup from "@/ui/base/BasePopup.vue"
 import BaseTag from "@/ui/base/BaseTag.vue"
+
+import type {Tag} from "@shared/types/storage"
 
 const props = withDefaults(
   defineProps<{

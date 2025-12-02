@@ -1,6 +1,7 @@
+import {app, dialog, ipcMain, Menu} from "electron"
+
 import {ENV} from "@/config"
 import {checkForUpdate} from "@/setup/updates/updater"
-import {app, dialog, ipcMain, Menu} from "electron"
 
 import type {BrowserWindow, MenuItemConstructorOptions} from "electron"
 

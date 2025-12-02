@@ -1,10 +1,11 @@
 <script lang="ts" setup>
 import {computed, ref} from "vue"
 import {onClickOutside} from "@vueuse/core"
+
 import {cn} from "@/utils/ui/tailwindcss"
+
 // @ts-ignore
 import {autoUpdate, flip, offset, shift, useFloating} from "@floating-ui/vue"
-
 import BaseButton from "./BaseButton.vue"
 
 type HorizontalPosition = "start" | "center" | "end"

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {computed} from "vue"
+
 import {cn} from "@/utils/ui/tailwindcss"
 
 import type {IconName} from "./BaseIcon"

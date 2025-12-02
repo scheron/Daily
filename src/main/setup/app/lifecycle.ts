@@ -1,6 +1,7 @@
+import {app, nativeImage} from "electron"
+
 import {APP_CONFIG, PATHS} from "@/config"
 import {focusWindow} from "@/windows"
-import {app, nativeImage} from "electron"
 
 import type {StorageController} from "@/storage/StorageController"
 import type {BrowserWindow} from "electron"

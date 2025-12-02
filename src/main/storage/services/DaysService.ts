@@ -1,5 +1,6 @@
-import {groupTasksByDay} from "@/utils/tasks/groupTasksByDay"
 import {DateTime} from "luxon"
+
+import {groupTasksByDay} from "@/utils/tasks/groupTasksByDay"
 
 import type {TagModel} from "@/storage/models/TagModel"
 import type {TaskModel} from "@/storage/models/TaskModel"

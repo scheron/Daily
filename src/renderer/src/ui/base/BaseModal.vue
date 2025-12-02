@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import {computed, nextTick, useTemplateRef, watchEffect} from "vue"
 import {useEventListener} from "@vueuse/core"
+
 import {useFocusTrap} from "@/composables/useFocusTrap"
 import {findFocusableEl} from "@/utils/ui/dom"
 import {cn} from "@/utils/ui/tailwindcss"
-
 import BaseAnimation from "@/ui/base/BaseAnimation.vue"
 import BaseButton from "@/ui/base/BaseButton.vue"
 import Logo from "@/ui/common/misc/Logo.vue"

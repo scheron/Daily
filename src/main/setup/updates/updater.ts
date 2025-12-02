@@ -1,6 +1,7 @@
 import https from "https"
-import {LogContext, logger} from "@/utils/logger"
 import {app, dialog, shell} from "electron"
+
+import {LogContext, logger} from "@/utils/logger"
 
 import type {BrowserWindow} from "electron"
 

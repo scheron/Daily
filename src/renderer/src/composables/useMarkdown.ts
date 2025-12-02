@@ -1,8 +1,9 @@
-import {imgSize, obsidianImgSize} from "@mdit/plugin-img-size"
 import hljs from "highlight.js"
 import MarkdownIt from "markdown-it"
 // @ts-ignore
 import TodoList from "markdown-it-task-lists"
+
+import {imgSize, obsidianImgSize} from "@mdit/plugin-img-size"
 
 import "highlight.js/styles/github-dark.css"
 

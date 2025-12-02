@@ -1,14 +1,15 @@
+import {nanoid} from "nanoid"
+
+import {deepMerge} from "@shared/utils/common/deepMerge"
 import {AsyncMutex} from "@/utils/AsyncMutex"
 import {createCacheLoader} from "@/utils/createCacheLoader"
 import {LogContext, logger} from "@/utils/logger"
 import {withRetryOnConflict} from "@/utils/withRetryOnConflict"
-import {deepMerge} from "@shared/utils/common/deepMerge"
-import {nanoid} from "nanoid"
+
+import {docIdMap, docToSettings, settingsToDoc} from "./_mappers"
 
 import type {SettingsDoc} from "@/types/database"
 import type {Settings} from "@shared/types/storage"
-
-import {docIdMap, docToSettings, settingsToDoc} from "./_mappers"
 
 export class SettingsModel {
   private readonly mutex = new AsyncMutex()

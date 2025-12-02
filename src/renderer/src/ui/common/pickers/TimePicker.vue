@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import {computed} from "vue"
-import {withRepeatAction} from "@/utils/withRepeatAction"
 
+import {withRepeatAction} from "@/utils/withRepeatAction"
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BasePopup from "@/ui/base/BasePopup.vue"
 import NumberInput from "@/ui/common/inputs/NumberInput.vue"

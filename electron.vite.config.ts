@@ -1,88 +1,81 @@
-import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
-import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
-import tailwindcss from '@tailwindcss/vite'
-import vuePlugin from '@vitejs/plugin-vue'
-import tsconfigPaths from 'vite-tsconfig-paths'
+import {dirname, join} from "node:path"
+import {fileURLToPath} from "node:url"
+import {defineConfig, externalizeDepsPlugin} from "electron-vite"
+import tsconfigPaths from "vite-tsconfig-paths"
+
+import tailwindcss from "@tailwindcss/vite"
+import vuePlugin from "@vitejs/plugin-vue"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
 export default defineConfig({
   main: {
-    plugins: [
-      externalizeDepsPlugin(), 
-      tsconfigPaths() 
-    ],
+    plugins: [externalizeDepsPlugin(), tsconfigPaths()],
     build: {
-      outDir: 'out/main',
+      outDir: "out/main",
       rollupOptions: {
         input: {
-          main: join(__dirname, 'src/main/app.ts')
-        }
-      }
+          main: join(__dirname, "src/main/app.ts"),
+        },
+      },
     },
     resolve: {
       alias: {
-        '@': join(__dirname, 'src/main'),
-        '@shared': join(__dirname, 'src/shared')
-      }
-    }
+        "@": join(__dirname, "src/main"),
+        "@shared": join(__dirname, "src/shared"),
+      },
+    },
   },
 
   preload: {
-    plugins: [
-      externalizeDepsPlugin(),
-      tsconfigPaths()
-    ],
+    plugins: [externalizeDepsPlugin(), tsconfigPaths()],
     build: {
-      outDir: 'out/preload',
+      outDir: "out/preload",
       rollupOptions: {
         input: {
-          preload: join(__dirname, 'src/main/preload.ts')
+          preload: join(__dirname, "src/main/preload.ts"),
         },
         output: {
-          format: 'cjs',
-          entryFileNames: '[name].cjs'
-        }
-      }
+          format: "cjs",
+          entryFileNames: "[name].cjs",
+        },
+      },
     },
     resolve: {
       alias: {
-        '@': join(__dirname, 'src/main'),
-        '@shared': join(__dirname, 'src/shared')
-      }
-    }
+        "@": join(__dirname, "src/main"),
+        "@MainView": join(__dirname, "src/renderer/src/ui/views/Main"),
+        "@shared": join(__dirname, "src/shared"),
+      },
+    },
   },
 
   renderer: {
-    root: join(__dirname, 'src/renderer'),
-    publicDir: 'public',
+    root: join(__dirname, "src/renderer"),
+    publicDir: "public",
     resolve: {
       alias: {
-        '@': join(__dirname, 'src/renderer/src'),
-        '@shared': join(__dirname, 'src/shared')
-      }
+        "@": join(__dirname, "src/renderer/src"),
+        "@MainView": join(__dirname, "src/renderer/src/ui/views/Main"),
+        "@shared": join(__dirname, "src/shared"),
+      },
     },
     build: {
-      outDir: join(__dirname, 'out/renderer'),
+      outDir: join(__dirname, "out/renderer"),
       emptyOutDir: true,
       sourcemap: false,
-      chunkSizeWarningLimit: 1000
+      chunkSizeWarningLimit: 1000,
     },
-    plugins: [
-      vuePlugin(),
-      tailwindcss(),
-      tsconfigPaths()
-    ],
+    plugins: [vuePlugin(), tailwindcss(), tsconfigPaths()],
     server: {
-      port: 8080
+      port: 8080,
     },
     optimizeDeps: {
-      include: ['vue', '@vueuse/core', 'pinia', 'luxon', 'highlight.js', 'markdown-it'],
-      exclude: ['@electron/rebuild']
+      include: ["vue", "@vueuse/core", "pinia", "luxon", "highlight.js", "markdown-it"],
+      exclude: ["@electron/rebuild"],
     },
     css: {
-      devSourcemap: false
-    }
-  }
+      devSourcemap: false,
+    },
+  },
 })

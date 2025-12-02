@@ -9,6 +9,10 @@ Storage Architecture (PouchDB):
     └── files (FileDoc with _attachments)
 */
 
+import fs from "fs-extra"
+
+import {LogContext, logger} from "@/utils/logger"
+
 import {fsPaths} from "@/config"
 import {getDB} from "@/storage/database"
 import {FileModel} from "@/storage/models/FileModel"
@@ -23,8 +27,6 @@ import {TasksService} from "@/storage/services/TasksService"
 import {LocalStorageAdapter} from "@/storage/sync/adapters/LocalStorageAdapter"
 import {RemoteStorageAdapter} from "@/storage/sync/adapters/RemoteStorageAdapter"
 import {SyncEngine} from "@/storage/sync/SyncEngine"
-import {LogContext, logger} from "@/utils/logger"
-import fs from "fs-extra"
 
 import type {IStorageController} from "@/types/storage"
 import type {ISODate} from "@shared/types/common"

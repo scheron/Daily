@@ -1,3 +1,8 @@
+import {app} from "electron"
+
+import {sleep} from "@shared/utils/common/sleep"
+import {logger} from "@/utils/logger"
+
 import {APP_CONFIG} from "@/config"
 import {setupInstanceAndDeepLinks} from "@/setup/app/instance"
 import {setupActivateHandler, setupAppIdentity, setupDockIcon, setupWindowAllClosedHandler} from "@/setup/app/lifecycle"
@@ -11,10 +16,7 @@ import {setupCSP} from "@/setup/security/csp"
 import {setupPrivilegedSchemes, setupSafeFileProtocol} from "@/setup/security/protocols"
 import {setupUpdateManager} from "@/setup/updates/updater"
 import {StorageController} from "@/storage/StorageController"
-import {logger} from "@/utils/logger"
 import {createMainWindow, createSplashWindow, focusWindow} from "@/windows"
-import {sleep} from "@shared/utils/common/sleep"
-import {app} from "electron"
 
 import type {BrowserWindow} from "electron"
 

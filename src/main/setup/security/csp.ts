@@ -1,5 +1,6 @@
-import {APP_CONFIG} from "@/config"
 import {session} from "electron"
+
+import {APP_CONFIG} from "@/config"
 
 export function setupCSP() {
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {

@@ -1,6 +1,7 @@
 import {computed} from "vue"
-import {useSettingsStore} from "@/stores/settings.store"
+
 import {getObjectValueFromPath, transformObjectFromPath} from "@shared/utils/objects/path"
+import {useSettingsStore} from "@/stores/settings.store"
 
 import type {Settings} from "@shared/types/storage"
 

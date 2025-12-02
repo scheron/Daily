@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type {Tag} from "@shared/types/storage"
-
 import BaseButton from "@/ui/base/BaseButton.vue"
+
+import type {Tag} from "@shared/types/storage"
 
 defineProps<{
   tag: Tag

@@ -1,8 +1,9 @@
 import {ref} from "vue"
 import {invoke} from "@vueuse/core"
-import {toRawDeep} from "@/utils/ui/vue"
-import {deepMerge} from "@shared/utils/common/deepMerge"
 import {defineStore} from "pinia"
+
+import {deepMerge} from "@shared/utils/common/deepMerge"
+import {toRawDeep} from "@/utils/ui/vue"
 
 import type {Settings} from "@shared/types/storage"
 
