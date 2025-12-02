@@ -3,6 +3,7 @@ import {computed, onMounted, onUnmounted, watch} from "vue"
 import {toast} from "vue-sonner"
 
 import {
+  createAutoPairsExtension,
   createCodeBlockAutocomplete,
   createCodeSyntaxExtension,
   createThemeExtension,
@@ -91,6 +92,9 @@ const {view, container, setContent, insertText, focus} = useCodeMirror({
 
     // Code block auto-completion
     createCodeBlockAutocomplete(),
+
+    // Auto-close brackets, quotes, and markdown markers
+    createAutoPairsExtension(),
 
     // Keyboard shortcuts
     keymap.of([
