@@ -2,12 +2,16 @@
 
 ## [unreleased]
 
+## v0.6.2 - 2025-12-02
+
 ### 🔄 Time Tracking Improvements
 
 - **Redesigned Time Estimation & Tracking** - Changed approach to time estimation and task time tracking
   - Removed timer functionality for automatic time tracking
   - Added manual time addition/subtraction with preset buttons or input field
   - More flexible and precise control over time spent on tasks
+
+---
 
 ## v0.6.1 - 2025-12-01
 
