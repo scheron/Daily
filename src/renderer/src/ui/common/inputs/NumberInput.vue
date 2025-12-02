@@ -1,9 +1,13 @@
 <script setup lang="ts">
+import {computed, HtmlHTMLAttributes} from "vue"
+import {cn} from "@/utils/ui/tailwindcss"
+
 const props = withDefaults(
   defineProps<{
     modelValue: number
     max?: number
     placeholder?: string
+    class?: HtmlHTMLAttributes["class"]
   }>(),
   {
     max: Infinity,
@@ -12,6 +16,13 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{"update:modelValue": [value: number]}>()
+
+const classes = computed(() =>
+  cn([
+    "bg-base-200 text-base-content focus:ring-accent w-16 rounded px-1.5 py-0.5 text-center font-mono text-xs focus:ring-1 focus:outline-none",
+    props.class,
+  ]),
+)
 
 function onInput(event: Event) {
   const input = event.target as HTMLInputElement
@@ -68,7 +79,7 @@ function onBeforeInput(event: InputEvent) {
     type="text"
     inputmode="numeric"
     :placeholder="placeholder"
-    class="bg-base-200 text-base-content focus:ring-accent w-16 rounded px-1.5 py-0.5 text-center font-mono text-xs focus:ring-1 focus:outline-none"
+    :class="classes"
     @input="onInput"
     @beforeinput="onBeforeInput"
   />

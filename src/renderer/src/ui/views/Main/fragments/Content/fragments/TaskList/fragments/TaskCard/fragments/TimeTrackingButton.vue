@@ -81,17 +81,17 @@ const timeDifference = computed(() => {
       <div
         v-if="isEstimated"
         v-tooltip="{content: task.status === 'active' ? 'Open time tracking' : 'Check time tracking', placement: 'bottom-end'}"
-        class="relative flex h-7 shrink-0 items-center gap-1 overflow-hidden rounded-md border px-3 py-1 text-xs transition-colors duration-200"
+        class="relative flex h-7 shrink-0 items-center gap-1 overflow-hidden rounded-md border border-transparent px-2 py-1 text-xs transition-colors duration-200"
         :class="{
-          'text-accent border-accent/20 hover:border-accent/40 hover:bg-accent/20': task.status === 'active',
-          'text-success bg-success/10 border-success/20 hover:bg-success/20': task.status === 'done',
-          'text-warning bg-warning/10 border-warning/20 hover:bg-warning/20': task.status === 'discarded',
+          'text-accent hover:border-accent/10': task.status === 'active',
+          'text-success hover:border-success/10': task.status === 'done',
+          'text-warning hover:border-warning/10': task.status === 'discarded',
         }"
         @click="toggle"
       >
         <div
           v-if="task.status === 'active'"
-          class="bg-accent/20 absolute top-0 left-0 h-full transition-all duration-200 ease-in-out"
+          class="bg-accent/10 absolute top-0 left-0 h-full transition-all duration-200 ease-in-out"
           :style="{width: `${progress}%`}"
         ></div>
 
@@ -115,7 +115,7 @@ const timeDifference = computed(() => {
         </div>
 
         <div v-if="timeDifference.raw && isCompleted" class="flex w-full items-center justify-between gap-1">
-          <span class="text-base-content/40">{{ timeDifference.isOver ? "Overtime" : "Left" }}</span>
+          <span class="text-base-content/40">{{ timeDifference.isOver ? "Overtime" : "Under time" }}</span>
           <span :class="timeDifference.isOver ? 'text-error' : 'text-success'" class="font-mono font-bold">
             {{ toDurationLabel(Math.abs(timeDifference.raw)) }}
           </span>

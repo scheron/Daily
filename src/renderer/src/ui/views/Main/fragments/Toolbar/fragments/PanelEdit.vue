@@ -3,7 +3,6 @@ import {computed, onMounted, reactive, ref, watch} from "vue"
 import {toast} from "vue-sonner"
 import {useTagsStore} from "@/stores/tags.store"
 import {useTasksStore} from "@/stores/tasks.store"
-import {withRepeatAction} from "@/utils/withRepeatAction"
 
 import type {Tag} from "@shared/types/storage"
 
@@ -11,6 +10,7 @@ import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseIcon from "@/ui/base/BaseIcon"
 import BasePopup from "@/ui/base/BasePopup.vue"
 import DynamicTagsPanel from "@/ui/common/misc/DynamicTagsPanel.vue"
+import TimePicker from "@/ui/common/pickers/TimePicker.vue"
 
 import {useTaskEditorStore} from "../../../model/taskEditor.store"
 
@@ -31,27 +31,6 @@ function onSelectTag(tagId: Tag["id"]) {
   if (selectedTags.value.has(tagId)) selectedTags.value.delete(tagId)
   else selectedTags.value.set(tagId, tagsStore.tagsMap.get(tagId)!)
 }
-
-function incrementHours() {
-  estimated.hours = Math.min(estimated.hours + 1, 23)
-}
-
-function decrementHours() {
-  estimated.hours = Math.max(estimated.hours - 1, 0)
-}
-
-function incrementMinutes() {
-  estimated.minutes = Math.min(estimated.minutes + 1, 59)
-}
-
-function decrementMinutes() {
-  estimated.minutes = Math.max(estimated.minutes - 1, 0)
-}
-
-const {start: startIncHours, stop: stopIncHours} = withRepeatAction(incrementHours, {initialDelay: 300, interval: 100})
-const {start: startDecHours, stop: stopDecHours} = withRepeatAction(decrementHours, {initialDelay: 300, interval: 100})
-const {start: startIncMinutes, stop: stopIncMinutes} = withRepeatAction(incrementMinutes, {initialDelay: 300, interval: 100})
-const {start: startDecMinutes, stop: stopDecMinutes} = withRepeatAction(decrementMinutes, {initialDelay: 300, interval: 100})
 
 async function onSave() {
   const content = taskEditorStore.editorContent.trim()
@@ -124,34 +103,10 @@ watch(
           </BaseButton>
         </template>
 
-        <div class="flex items-center justify-between gap-3">
-          <div class="flex w-1/3 flex-col items-center gap-1">
-            <BaseButton icon="chevron-up" size="sm" variant="ghost" @mousedown="startIncHours" @mouseup="stopIncHours" @mouseleave="stopIncHours" />
-            <div class="font-mono text-2xl font-bold">{{ estimated.hours.toString().padStart(2, "0") }}</div>
-            <BaseButton icon="chevron-down" size="sm" variant="ghost" @mousedown="startDecHours" @mouseup="stopDecHours" @mouseleave="stopDecHours" />
-          </div>
-
+        <div class="flex items-center justify-between gap-3 px-3">
+          <TimePicker v-model:time="estimated.hours" :min="0" :max="23" inline />
           <BaseIcon name="stopwatch" class="size-5" />
-
-          <div class="flex w-1/3 flex-col items-center gap-1">
-            <BaseButton
-              icon="chevron-up"
-              size="sm"
-              variant="ghost"
-              @mousedown="startIncMinutes"
-              @mouseup="stopIncMinutes"
-              @mouseleave="stopIncMinutes"
-            />
-            <div class="font-mono text-2xl font-bold">{{ estimated.minutes.toString().padStart(2, "0") }}</div>
-            <BaseButton
-              icon="chevron-down"
-              size="sm"
-              variant="ghost"
-              @mousedown="startDecMinutes"
-              @mouseup="stopDecMinutes"
-              @mouseleave="stopDecMinutes"
-            />
-          </div>
+          <TimePicker v-model:time="estimated.minutes" :min="0" :max="59" inline />
         </div>
       </BasePopup>
 

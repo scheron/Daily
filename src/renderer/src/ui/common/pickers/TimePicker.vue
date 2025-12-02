@@ -4,6 +4,7 @@ import {withRepeatAction} from "@/utils/withRepeatAction"
 
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BasePopup from "@/ui/base/BasePopup.vue"
+import NumberInput from "@/ui/common/inputs/NumberInput.vue"
 
 const props = withDefaults(
   defineProps<{
@@ -11,6 +12,7 @@ const props = withDefaults(
     time?: number
     min?: number
     max?: number
+    inline?: boolean
   }>(),
   {
     title: "Select Time",
@@ -40,7 +42,15 @@ function onDecrease() {
 </script>
 
 <template>
-  <BasePopup hide-header container-class="p-0 min-w-20" position="center" content-class="p-0 py-2" @close="emit('close')">
+  <div v-if="inline" class="flex flex-col items-center gap-2 text-xs">
+    <div class="text-base-content/60 flex flex-col items-center justify-center gap-2 font-mono font-bold">
+      <BaseButton icon="chevron-up" size="sm" variant="ghost" @mousedown="startIncrease" @mouseup="stopIncrease" @mouseleave="stopIncrease" />
+      <NumberInput v-model="value" :min="props.min" :max="props.max" class="text-base-content bg-base-100 font-mono text-2xl font-bold" />
+      <BaseButton icon="chevron-down" size="sm" variant="ghost" @mousedown="startDecrease" @mouseup="stopDecrease" @mouseleave="stopDecrease" />
+    </div>
+  </div>
+
+  <BasePopup v-else hide-header container-class="p-0 min-w-20" position="center" content-class="p-0 py-2" @close="emit('close')">
     <template #trigger="{toggle, hide, show}">
       <slot name="trigger" :toggle="toggle" :hide="hide" :show="show" />
     </template>
@@ -48,15 +58,8 @@ function onDecrease() {
     <div class="flex flex-col items-center gap-2 text-xs">
       <div class="text-base-content/60 flex flex-col items-center justify-center gap-2 font-mono font-bold">
         <BaseButton icon="chevron-up" size="sm" variant="ghost" @mousedown="startIncrease" @mouseup="stopIncrease" @mouseleave="stopIncrease" />
-        <div class="text-base-content font-mono text-3xl font-bold">{{ value.toString().padStart(2, "0") }}</div>
-        <BaseButton
-          icon="chevron-down"
-          size="sm"
-          variant="ghost"
-          @mousedown="startDecrease('hours')"
-          @mouseup="stopDecrease"
-          @mouseleave="stopDecrease"
-        />
+        <NumberInput v-model="value" :min="props.min" :max="props.max" class="text-base-content bg-base-100 font-mono text-2xl font-bold" />
+        <BaseButton icon="chevron-down" size="sm" variant="ghost" @mousedown="startDecrease" @mouseup="stopDecrease" @mouseleave="stopDecrease" />
       </div>
     </div>
   </BasePopup>
