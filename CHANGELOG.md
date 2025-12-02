@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.6.3 - 2025-12-02
+
+### 🐛 Bug Fixes
+
+- Fixed an isssue where sidebar does not shows menu
+
 ## [unreleased]
 
 ## v0.6.2 - 2025-12-02
