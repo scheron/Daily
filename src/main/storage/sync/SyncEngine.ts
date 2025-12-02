@@ -4,6 +4,8 @@ import {mergeRemoteIntoLocal} from "@/utils/sync/merge/mergeRemoteIntoLocal"
 import {buildSnapshot, buildSnapshotMeta} from "@/utils/sync/snapshot/buildSnapshot"
 import {withElapsedDelay} from "@/utils/withElapsedDelay"
 
+import {APP_CONFIG} from "@/config"
+
 import type {ILocalStorage, IRemoteStorage, SnapshotDocs, SyncStrategy} from "@/types/sync"
 import type {SyncStatus} from "@shared/types/storage"
 
@@ -23,8 +25,7 @@ import type {SyncStatus} from "@shared/types/storage"
  * - Garbage collection is handled by the local store automatically
  */
 export class SyncEngine {
-  private PULL_INTERVAL_MS = 5 * 60_000
-  private GC_INTERVAL_MS = 30 * 24 * 60 * 60_000
+  private GC_INTERVAL_MS = APP_CONFIG.sync.garbageCollectionInterval
 
   private _syncStatus: SyncStatus = "inactive"
   private _isSyncEnabled = false
@@ -45,7 +46,7 @@ export class SyncEngine {
     this.onDataChanged = options.onDataChanged
 
     this.autoSyncScheduler = createIntervalScheduler({
-      intervalMs: this.PULL_INTERVAL_MS,
+      intervalMs: APP_CONFIG.sync.remoteSyncInterval,
       onProcess: () => this.sync(),
     })
   }
@@ -140,7 +141,12 @@ export class SyncEngine {
       return {resultDocs: localDocs, hasChanges: false}
     }
 
-    const {resultDocs, toUpsert, toRemove, changes} = await mergeRemoteIntoLocal(localDocs, remoteDocs, strategy, this.GC_INTERVAL_MS)
+    const {resultDocs, toUpsert, toRemove, changes} = await mergeRemoteIntoLocal(
+      localDocs,
+      remoteDocs,
+      strategy,
+      APP_CONFIG.sync.garbageCollectionInterval,
+    )
 
     if (toUpsert.length) {
       logger.debug(LogContext.PULL, `Upserting ${toUpsert.length} documents`)

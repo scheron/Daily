@@ -9,6 +9,12 @@ export const APP_CONFIG = {
   protocol: "daily",
   filesProtocol: "daily://file",
   iCloudPath: `${process.env.HOME}/Library/Mobile Documents/com~apple~CloudDocs`,
+
+  sync: {
+    garbageCollectionInterval: 7 * 24 * 60 * 60 * 1000,
+    remoteSyncInterval: 5 * 60 * 1000,
+  },
+
   window: {
     main: {
       width: 1200,
@@ -52,10 +58,9 @@ export const ENV = {
   isDevelopment: process.env.NODE_ENV === "development",
   isProduction: process.env.NODE_ENV === "production",
 
-  // Logging configuration - SINGLE TOGGLE
   logging: {
-    enabled: process.env.NODE_ENV === "development", // Enable in development only
-    minLevel: "INFO" as const, // Show INFO, WARN, ERROR (hide DEBUG)
+    enabled: process.env.NODE_ENV === "development",
+    minLevel: "INFO" as const,
   },
 } as const
 
