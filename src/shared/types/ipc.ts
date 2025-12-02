@@ -21,11 +21,6 @@ export interface BridgeIPC {
   /**@deprecated remote with menu*/
   "menu:on-new-task": (callback: (action: "new-task") => void) => void
 
-  // === TIMER ===
-  "timer:close": () => void
-  "timer:open": (taskId: Task["id"]) => void
-  "timer:on-refresh": (callback: (taskId: Task["id"]) => void) => void
-
   // === STORAGE  ===
   "storage-sync:activate": () => Promise<void>
   "storage-sync:deactivate": () => Promise<void>
@@ -50,11 +45,6 @@ export interface BridgeIPC {
   "tasks:delete": (id: Task["id"]) => Promise<boolean>
   "tasks:add-tags": (taskId: Task["id"], tagIds: Tag["id"][]) => Promise<Task | null>
   "tasks:remove-tags": (taskId: Task["id"], tagIds: Tag["id"][]) => Promise<Task | null>
-
-  /**@deprecated remote with timer*/
-  "tasks:on-task-saved": (callback: (task: Task) => void) => void
-  /**@deprecated remote with timer*/
-  "tasks:on-task-deleted": (callback: (taskId: Task["id"]) => void) => void
 
   // === TAGS  ===
   "tags:get-many": () => Promise<Tag[]>

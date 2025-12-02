@@ -21,11 +21,6 @@ export const APP_CONFIG = {
       height: 300,
       resizable: false,
     },
-    timer: {
-      width: 300,
-      height: 280,
-      resizable: false,
-    },
     devTools: {
       width: 1200,
       minWidth: 610,

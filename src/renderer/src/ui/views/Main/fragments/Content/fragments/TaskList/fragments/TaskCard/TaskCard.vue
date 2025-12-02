@@ -13,7 +13,7 @@ import {useTaskEditorStore} from "@/ui/views/Main/model/taskEditor.store"
 
 import QuickActions from "./fragments/QuickActions.vue"
 import StatusButtons from "./fragments/StatusButtons.vue"
-import TimerButton from "./fragments/TimerButton.vue"
+import TimeTrackingButton from "./fragments/TimeTrackingButton.vue"
 import {useRestoreTaskToast} from "./model/useRestoreTaskToast"
 
 const props = withDefaults(defineProps<{task: Task; tags?: Tag[]}>(), {tags: () => []})
@@ -42,10 +42,6 @@ async function onDelete() {
 
   await tasksStore.deleteTask(props.task.id)
   toastRestoreTask(props.task)
-}
-
-function onOpenTimer() {
-  window.BridgeIPC["timer:open"](props.task.id)
 }
 
 async function onMoveDate(targetDate: ISODate) {
@@ -94,7 +90,7 @@ watch(
         <DynamicTagsPanel :tags="tags" empty-message="No tags" />
         <div class="flex shrink-0 items-center gap-2">
           <QuickActions @move-date="onMoveDate" @edit="onEdit" @delete="onDelete" />
-          <TimerButton :task="task" @open-timer="onOpenTimer" />
+          <TimeTrackingButton :task="task" />
           <StatusButtons :status="task.status" @update:status="onChangeStatus" />
         </div>
       </div>

@@ -23,10 +23,6 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "platform:is-windows": () => process.platform === "win32",
   "platform:is-linux": () => process.platform === "linux",
 
-  "timer:close": () => ipcRenderer.send("timer:close"),
-  "timer:open": (taskId: Task["id"]) => ipcRenderer.send("timer:open", taskId),
-  "timer:on-refresh": (callback: (taskId: Task["id"]) => void) => ipcRenderer.on("timer:refresh", (_event, taskId: Task["id"]) => callback(taskId)),
-
   "menu:on-new-task": (callback: (action: "new-task") => void) => ipcRenderer.on("menu:new-task", () => callback("new-task")),
 
   "storage-sync:activate": () => ipcRenderer.invoke("storage-sync:activate") as Promise<void>,
@@ -47,16 +43,14 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "tasks:update": (id: Task["id"], updates: PartialDeep<Task>) => ipcRenderer.invoke("tasks:update", id, updates),
   "tasks:create": (task: Omit<Task, "id" | "createdAt" | "updatedAt" | "deletedAt" | "attachments">) => ipcRenderer.invoke("tasks:create", task),
   "tasks:delete": (id: Task["id"]) => ipcRenderer.invoke("tasks:delete", id),
-  "tasks:on-task-saved": (callback: (task: Task) => void) => ipcRenderer.on("tasks:saved", (_event, data: Task) => callback(data)),
-  "tasks:on-task-deleted": (callback: (taskId: Task["id"]) => void) => ipcRenderer.on("tasks:deleted", (_event, taskId: Task["id"]) => callback(taskId)),
+  "tasks:add-tags": (taskId: Task["id"], tagIds: Tag["id"][]) => ipcRenderer.invoke("tasks:add-tags", taskId, tagIds),
+  "tasks:remove-tags": (taskId: Task["id"], tagIds: Tag["id"][]) => ipcRenderer.invoke("tasks:remove-tags", taskId, tagIds),
 
   "tags:get-many": () => ipcRenderer.invoke("tags:get-many") as Promise<Tag[]>,
   "tags:get-one": (id: Tag["id"]) => ipcRenderer.invoke("tags:get-one", id) as Promise<Tag | null>,
   "tags:update": (id: Tag["id"], updates: Partial<Tag>) => ipcRenderer.invoke("tags:update", id, updates),
   "tags:create": (tag: Omit<Tag, "id" | "createdAt" | "updatedAt" | "deletedAt">) => ipcRenderer.invoke("tags:create", tag),
   "tags:delete": (id: Tag["id"]) => ipcRenderer.invoke("tags:delete", id),
-  "tasks:add-tags": (taskId: Task["id"], tagIds: Tag["id"][]) => ipcRenderer.invoke("tasks:add-tags", taskId, tagIds),
-  "tasks:remove-tags": (taskId: Task["id"], tagIds: Tag["id"][]) => ipcRenderer.invoke("tasks:remove-tags", taskId, tagIds),
 
   "files:save": (filename: string, data: Buffer) => ipcRenderer.invoke("files:save", filename, data),
   "files:delete": (filename: string) => ipcRenderer.invoke("files:delete", filename),

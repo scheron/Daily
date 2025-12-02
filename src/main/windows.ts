@@ -1,8 +1,6 @@
 import {APP_CONFIG, PATHS} from "@/config"
 import {BrowserWindow, shell} from "electron"
 
-import type {Task} from "@shared/types/storage"
-
 export function createMainWindow(): BrowserWindow {
   const mainWindow = new BrowserWindow({
     title: APP_CONFIG.name,
@@ -196,45 +194,6 @@ export function createSplashWindow(): BrowserWindow {
   splashWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(splashHTML)}`)
 
   return splashWindow
-}
-
-export function createTimerWindow(taskId?: Task["id"]): BrowserWindow {
-  const timerWindow = new BrowserWindow({
-    title: "Daily Timer",
-    show: false,
-    icon: PATHS.icon,
-    width: APP_CONFIG.window.timer.width,
-    height: APP_CONFIG.window.timer.height,
-    resizable: APP_CONFIG.window.timer.resizable,
-    frame: false,
-    transparent: true,
-    alwaysOnTop: true,
-    center: true,
-    webPreferences: {
-      devTools: false,
-      nodeIntegration: false,
-      contextIsolation: true,
-      preload: PATHS.preload,
-      webSecurity: true,
-      allowRunningInsecureContent: false,
-      experimentalFeatures: false,
-    },
-  })
-
-  const timerUrl = taskId ? `#/timer?taskId=${taskId}` : "#/timer"
-
-  if (typeof PATHS.renderer === "string" && PATHS.renderer.startsWith("http")) {
-    timerWindow.loadURL(`${PATHS.renderer}${timerUrl}`)
-  } else {
-    timerWindow.loadFile(PATHS.renderer, {hash: timerUrl})
-  }
-
-  timerWindow.webContents.setWindowOpenHandler(({url}) => {
-    shell.openExternal(url)
-    return {action: "deny"}
-  })
-
-  return timerWindow
 }
 
 export function createDevToolsWindow(): BrowserWindow {

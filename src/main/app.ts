@@ -6,7 +6,6 @@ import {setupStorageSync} from "@/setup/app/storage"
 import {setupDbViewerIPC, setupDevToolsIPC} from "@/setup/ipc/devtools"
 import {setupMenuIPC} from "@/setup/ipc/menu"
 import {setupStorageIPC} from "@/setup/ipc/storage"
-import {setupTimerIPC} from "@/setup/ipc/timer"
 import {setupMainWindowIPC} from "@/setup/ipc/windows"
 import {setupCSP} from "@/setup/security/csp"
 import {setupPrivilegedSchemes, setupSafeFileProtocol} from "@/setup/security/protocols"
@@ -19,9 +18,9 @@ import {app} from "electron"
 
 import type {BrowserWindow} from "electron"
 
-type AppWindows = {main: BrowserWindow | null; splash: BrowserWindow | null; timer: BrowserWindow | null; devTools: BrowserWindow | null}
+type AppWindows = {main: BrowserWindow | null; splash: BrowserWindow | null; devTools: BrowserWindow | null}
 
-const windows: AppWindows = {main: null, splash: null, timer: null, devTools: null}
+const windows: AppWindows = {main: null, splash: null, devTools: null}
 let storage: StorageController | null = null
 
 setupPrivilegedSchemes()
@@ -64,12 +63,6 @@ app.whenReady().then(async () => {
   setupMainWindowIPC(() => windows.main)
   setupMenuIPC(() => windows.main)
 
-  setupTimerIPC(
-    () => windows.main,
-    () => windows.timer,
-    (win) => (windows.timer = win),
-  )
-
   setupDevToolsIPC(
     () => windows.main,
     () => windows.devTools,
@@ -98,11 +91,6 @@ function setupMainWindow(windows: AppWindows, options?: {showSplash?: boolean}) 
   setupMenu(() => main)
 
   main.on("closed", () => {
-    if (windows.timer && !windows.timer.isDestroyed()) {
-      windows.timer.close()
-      windows.timer = null
-    }
-
     windows.main = null
   })
 

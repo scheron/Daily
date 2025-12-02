@@ -9,11 +9,6 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import("@/ui/views/Main"),
   },
   {
-    path: "/timer",
-    name: "Timer",
-    component: () => import("@/ui/views/Timer"),
-  },
-  {
     path: "/db-viewer",
     name: "DBViewer",
     component: () => import("@/ui/views/DBViewer"),

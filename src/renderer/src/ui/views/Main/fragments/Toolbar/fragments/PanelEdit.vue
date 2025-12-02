@@ -3,13 +3,14 @@ import {computed, onMounted, reactive, ref, watch} from "vue"
 import {toast} from "vue-sonner"
 import {useTagsStore} from "@/stores/tags.store"
 import {useTasksStore} from "@/stores/tasks.store"
+import {withRepeatAction} from "@/utils/withRepeatAction"
 
 import type {Tag} from "@shared/types/storage"
 
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseIcon from "@/ui/base/BaseIcon"
+import BasePopup from "@/ui/base/BasePopup.vue"
 import DynamicTagsPanel from "@/ui/common/misc/DynamicTagsPanel.vue"
-import TimePicker from "@/ui/common/pickers/TimePicker.vue"
 
 import {useTaskEditorStore} from "../../../model/taskEditor.store"
 
@@ -30,6 +31,27 @@ function onSelectTag(tagId: Tag["id"]) {
   if (selectedTags.value.has(tagId)) selectedTags.value.delete(tagId)
   else selectedTags.value.set(tagId, tagsStore.tagsMap.get(tagId)!)
 }
+
+function incrementHours() {
+  estimated.hours = Math.min(estimated.hours + 1, 23)
+}
+
+function decrementHours() {
+  estimated.hours = Math.max(estimated.hours - 1, 0)
+}
+
+function incrementMinutes() {
+  estimated.minutes = Math.min(estimated.minutes + 1, 59)
+}
+
+function decrementMinutes() {
+  estimated.minutes = Math.max(estimated.minutes - 1, 0)
+}
+
+const {start: startIncHours, stop: stopIncHours} = withRepeatAction(incrementHours, {initialDelay: 300, interval: 100})
+const {start: startDecHours, stop: stopDecHours} = withRepeatAction(decrementHours, {initialDelay: 300, interval: 100})
+const {start: startIncMinutes, stop: stopIncMinutes} = withRepeatAction(incrementMinutes, {initialDelay: 300, interval: 100})
+const {start: startDecMinutes, stop: stopDecMinutes} = withRepeatAction(decrementMinutes, {initialDelay: 300, interval: 100})
 
 async function onSave() {
   const content = taskEditorStore.editorContent.trim()
@@ -93,21 +115,45 @@ watch(
     </div>
 
     <div class="flex w-full shrink-0 items-center gap-3 md:w-auto">
-      <div class="text-accent border-accent/30 flex items-center justify-center gap-2 rounded-md border p-0.5 font-mono">
-        <TimePicker v-model:time="estimated.hours" :max="23">
-          <template #trigger="{toggle}">
-            <BaseButton size="sm" class="w-16 px-1 py-0.5 text-xs" tooltip="Estimated hours" @click="toggle"> {{ estimated.hours }} h. </BaseButton>
-          </template>
-        </TimePicker>
-        <BaseIcon name="stopwatch" class="size-4" />
-        <TimePicker v-model:time="estimated.minutes" :max="59">
-          <template #trigger="{toggle}">
-            <BaseButton size="sm" class="w-16 px-1 py-0.5 text-xs" tooltip="Estimated minutes" @click="toggle">
-              {{ estimated.minutes }} min.
-            </BaseButton>
-          </template>
-        </TimePicker>
-      </div>
+      <BasePopup hide-header container-class="p-0 min-w-40" position="center" content-class="p-3">
+        <template #trigger="{toggle}">
+          <BaseButton variant="outline" class="border-accent/30 text-accent hover:bg-accent/10" size="sm" @click="toggle">
+            <span class="px-2 text-xs">{{ estimated.hours }} h.</span>
+            <BaseIcon name="stopwatch" class="size-4" />
+            <span class="px-2 text-xs">{{ estimated.minutes }} min.</span>
+          </BaseButton>
+        </template>
+
+        <div class="flex items-center justify-between gap-3">
+          <div class="flex w-1/3 flex-col items-center gap-1">
+            <BaseButton icon="chevron-up" size="sm" variant="ghost" @mousedown="startIncHours" @mouseup="stopIncHours" @mouseleave="stopIncHours" />
+            <div class="font-mono text-2xl font-bold">{{ estimated.hours.toString().padStart(2, "0") }}</div>
+            <BaseButton icon="chevron-down" size="sm" variant="ghost" @mousedown="startDecHours" @mouseup="stopDecHours" @mouseleave="stopDecHours" />
+          </div>
+
+          <BaseIcon name="stopwatch" class="size-5" />
+
+          <div class="flex w-1/3 flex-col items-center gap-1">
+            <BaseButton
+              icon="chevron-up"
+              size="sm"
+              variant="ghost"
+              @mousedown="startIncMinutes"
+              @mouseup="stopIncMinutes"
+              @mouseleave="stopIncMinutes"
+            />
+            <div class="font-mono text-2xl font-bold">{{ estimated.minutes.toString().padStart(2, "0") }}</div>
+            <BaseButton
+              icon="chevron-down"
+              size="sm"
+              variant="ghost"
+              @mousedown="startDecMinutes"
+              @mouseup="stopDecMinutes"
+              @mouseleave="stopDecMinutes"
+            />
+          </div>
+        </div>
+      </BasePopup>
 
       <BaseButton
         size="sm"
