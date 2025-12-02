@@ -1,0 +1,266 @@
+/**
+ * CodeMirror 6 Custom Styles
+ * Integrates with Daily's design system and existing markdown styles
+ */
+
+/* Base CodeMirror container */
+.cm-editor {
+  height: 100%;
+  font-size: inherit;
+  line-height: 1.6;
+}
+
+.cm-scroller {
+  overflow: auto;
+  font-family: inherit;
+}
+
+.cm-content {
+  caret-color: var(--color-accent);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+/* Focus styles */
+.cm-focused {
+  outline: none;
+}
+
+/* Selection */
+.cm-selectionBackground {
+  background-color: var(--color-accent) !important;
+  opacity: 0.2;
+}
+
+.cm-focused .cm-selectionBackground {
+  background-color: var(--color-accent) !important;
+  opacity: 0.25;
+}
+
+/* Cursor */
+.cm-cursor,
+.cm-dropCursor {
+  border-left: 2px solid var(--color-accent);
+  margin-left: -1px;
+}
+
+/* Placeholder */
+.cm-content[data-placeholder]::before {
+  content: attr(data-placeholder);
+  position: absolute;
+  color: var(--color-base-content);
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+/* Inline code styling */
+.cm-code {
+  font-family: var(--font-mono);
+  background-color: var(--color-base-300);
+  padding: 0.2em 0.4em;
+  border-radius: 6px;
+  font-size: 85%;
+  line-height: 1.5;
+}
+
+/* Code block styling */
+.cm-codeblock {
+  display: block;
+  font-family: var(--font-mono);
+  background-color: var(--color-base-300);
+  padding: 0.5rem;
+  border-radius: 6px;
+  font-size: 0.85em;
+  line-height: inherit;
+  margin: 0;
+  word-wrap: normal;
+  overflow: auto;
+}
+
+/* Links */
+.cm-link {
+  color: var(--color-info);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.cm-link:hover {
+  text-decoration: underline;
+}
+
+/* Headings */
+.cm-heading {
+  font-weight: 600;
+  margin-top: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.cm-heading1 {
+  font-size: 1.5em;
+  line-height: 1.4;
+  margin: 0.6em 0;
+  padding-bottom: 0.1em;
+}
+
+.cm-heading2 {
+  font-size: 1.35em;
+  line-height: 1.2;
+}
+
+.cm-heading3 {
+  font-size: 1.3em;
+  line-height: 1.1;
+}
+
+.cm-heading4 {
+  font-size: 1.25em;
+  line-height: 1;
+}
+
+.cm-heading5 {
+  font-size: 1.125em;
+  line-height: 1;
+}
+
+.cm-heading6 {
+  font-size: 1em;
+  line-height: 1;
+}
+
+/* Emphasis (italic) */
+.cm-emphasis {
+  font-style: italic;
+}
+
+/* Strong (bold) */
+.cm-strong {
+  font-weight: 600;
+}
+
+/* Blockquote */
+.cm-quote {
+  border-left: 0.25em solid var(--color-warning);
+  padding: 0 0.5em;
+  color: var(--color-warning);
+  font-style: italic;
+  margin: 0;
+}
+
+/* Lists */
+.cm-list {
+  padding-left: 1em;
+}
+
+/* Horizontal rule */
+.cm-hr {
+  display: block;
+  border: none;
+  border-top: 2px solid var(--color-base-300);
+  margin: 1rem 0;
+  height: 2px;
+}
+
+/* Task markers (checkboxes) */
+.cm-task-marker {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 0.5rem;
+}
+
+.cm-task-marker input[type="checkbox"] {
+  cursor: pointer;
+}
+
+/* Markdown markers (when visible) */
+.cm-marker-hidden {
+  display: none;
+}
+
+.cm-marker-subtle {
+  opacity: 0.3;
+  font-size: 0.875em;
+  color: var(--color-base-content);
+}
+
+/* Table styling */
+.cm-table {
+  display: table;
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+
+.cm-table-row {
+  display: table-row;
+}
+
+.cm-table-cell {
+  display: table-cell;
+  border: 1px solid var(--color-base-300);
+  padding: 0.5rem;
+}
+
+.cm-table-header {
+  font-weight: 600;
+  background-color: var(--color-base-200);
+}
+
+/* Animations for decorations */
+.cm-content > * {
+  transition: opacity 0.1s ease;
+}
+
+/* Match existing markdown styles */
+.markdown .cm-editor {
+  color: var(--color-base-content);
+}
+
+/* Line wrapping */
+.cm-line {
+  padding: 0;
+}
+
+/* Active line (subtle highlight) */
+.cm-activeLine {
+  background-color: transparent;
+}
+
+/* Ensure proper spacing */
+.cm-content > div {
+  padding: 0;
+}
+
+/* Fix for hidden elements causing layout issues */
+.cm-content .cm-marker-hidden + * {
+  display: inline;
+}
+
+/* Smooth transitions for WYSIWYG effect */
+.cm-line * {
+  transition:
+    opacity 0.1s ease,
+    color 0.1s ease,
+    background-color 0.1s ease;
+}
+
+/* Ensure checkboxes are styled correctly */
+.markdown-checkbox {
+  width: 1rem;
+  height: 1rem;
+  cursor: pointer;
+  accent-color: var(--color-accent);
+}
+
+/* Image placeholder styling */
+.cm-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  margin: 0.5rem 0;
+}
+
+/* Ensure proper text selection color */
+::selection {
+  background-color: var(--color-accent);
+  opacity: 0.2;
+}
