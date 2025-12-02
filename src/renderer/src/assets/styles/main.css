@@ -2,7 +2,6 @@
 @import "./fonts.css";
 @import "tailwindcss";
 @import "./markdown.css";
-@import "./codemirror.css";
 
 :root {
   --sidebar-width: 300px;

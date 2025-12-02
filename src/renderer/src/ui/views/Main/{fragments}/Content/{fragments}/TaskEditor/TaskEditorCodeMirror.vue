@@ -15,6 +15,7 @@ import {useDevice} from "@/composables/useDevice"
 import {useFileDrop} from "@/composables/useFileDrop"
 
 import {useTaskEditorStore} from "@MainView/stores/taskEditor.store"
+import {indentWithTab} from "@codemirror/commands"
 import {keymap} from "@codemirror/view"
 import {useEditTask} from "./composables/useEditTask"
 import {useImageUpload} from "./composables/useImageUpload"
@@ -98,6 +99,8 @@ const {view, container, setContent, insertText, focus} = useCodeMirror({
 
     // Keyboard shortcuts
     keymap.of([
+      // Tab inserts indent instead of changing focus
+      indentWithTab,
       // Custom keybindings for save/cancel
       {
         key: "Enter",
