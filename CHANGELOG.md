@@ -2,6 +2,8 @@
 
 ## [unreleased]
 
+## v0.7.0 - 2025-12-03
+
 ### ✨ New Features
 
 - **CodeMirror Integration** - Complete markdown editor overhaul with advanced editing capabilities
