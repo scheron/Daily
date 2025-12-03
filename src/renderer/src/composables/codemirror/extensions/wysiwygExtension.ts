@@ -20,6 +20,10 @@ function isCursorInRange(cursorPos: number, from: number, to: number): boolean {
   return cursorPos >= from && cursorPos <= to
 }
 
+function isSelectionOverlapping(selectionFrom: number, selectionTo: number, from: number, to: number): boolean {
+  return selectionFrom < to && selectionTo > from
+}
+
 /**
  * Widget for rendering checkboxes in task lists
  */
@@ -171,9 +175,11 @@ function createWYSIWYGDecorations(view: EditorView): DecorationSet {
     enter: (node) => {
       const {from, to, name} = node
 
-      // Skip if cursor is inside this element (show raw syntax) - unless in readonly mode or has selection
-      // When user is selecting text, don't change formatting to prevent "jumping"
-      const showRaw = !isReadonly && !hasSelection && isCursorInRange(cursorPos, from, to)
+      // Show raw syntax when:
+      // 1. Not in readonly mode
+      // 2. Either cursor is inside the element OR selection overlaps with the element
+      const showRaw =
+        !isReadonly && (isCursorInRange(cursorPos, from, to) || (hasSelection && isSelectionOverlapping(selection.from, selection.to, from, to)))
 
       try {
         // Handle different markdown elements
