@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, ref, watch} from "vue"
+import {computed, onBeforeUnmount, onMounted, ref, watch} from "vue"
 
 import BaseButton from "@/ui/base/BaseButton.vue"
 
@@ -13,15 +13,15 @@ interface Props {
 
 const props = defineProps<Props>()
 
+let cleanupInterval: number | null = null
+
 const toolbarRef = ref<HTMLElement | null>(null)
 const selectionBounds = ref<DOMRect | null>(null)
+const hasSelection = ref(false)
 
 // Check if toolbar should be visible
 const isVisible = computed(() => {
-  if (!props.editorView) return false
-
-  const selection = props.editorView.state.selection.main
-  return !selection.empty && props.editorView.hasFocus && selectionBounds.value !== null
+  return hasSelection.value && selectionBounds.value !== null
 })
 
 // Create virtual reference element from selection bounds
@@ -40,46 +40,83 @@ const {floatingStyles} = useFloating(virtualReference, toolbarRef, {
   whileElementsMounted: autoUpdate,
 })
 
-// Watch editor selection and update bounds
+// Function to update selection bounds
+function updateSelectionBounds() {
+  if (!props.editorView) {
+    selectionBounds.value = null
+    hasSelection.value = false
+    return
+  }
+
+  const selection = props.editorView.state.selection.main
+
+  if (selection.empty) {
+    selectionBounds.value = null
+    hasSelection.value = false
+    return
+  }
+
+  // Update hasSelection immediately
+  hasSelection.value = true
+
+  try {
+    const fromCoords = props.editorView.coordsAtPos(selection.from)
+    const toCoords = props.editorView.coordsAtPos(selection.to)
+
+    if (fromCoords && toCoords) {
+      selectionBounds.value = DOMRect.fromRect({
+        x: Math.min(fromCoords.left, toCoords.left),
+        y: Math.min(fromCoords.top, toCoords.top),
+        width: Math.abs(toCoords.right - fromCoords.left),
+        height: Math.abs(toCoords.bottom - fromCoords.top),
+      })
+    }
+  } catch (err) {
+    // Selection out of bounds
+    selectionBounds.value = null
+    hasSelection.value = false
+  }
+}
+
+// Watch for editor view changes and set up selection listener
 watch(
-  () => props.editorView?.state.selection,
-  () => {
-    if (!props.editorView) {
-      selectionBounds.value = null
-      return
+  () => props.editorView,
+  (view) => {
+    // Clean up previous interval
+    if (cleanupInterval !== null) {
+      clearInterval(cleanupInterval)
+      cleanupInterval = null
     }
 
-    const selection = props.editorView.state.selection.main
+    if (view) {
+      // Initial update
+      updateSelectionBounds()
 
-    if (selection.empty) {
+      // Poll for selection changes more frequently
+      cleanupInterval = setInterval(() => {
+        updateSelectionBounds()
+      }, 50) as unknown as number // Check twice as often
+    } else {
       selectionBounds.value = null
-      return
-    }
-
-    try {
-      const fromCoords = props.editorView.coordsAtPos(selection.from)
-      const toCoords = props.editorView.coordsAtPos(selection.to)
-
-      if (fromCoords && toCoords) {
-        selectionBounds.value = DOMRect.fromRect({
-          x: Math.min(fromCoords.left, toCoords.left),
-          y: Math.min(fromCoords.top, toCoords.top),
-          width: Math.abs(toCoords.right - fromCoords.left),
-          height: Math.abs(toCoords.bottom - fromCoords.top),
-        })
-      }
-    } catch (err) {
-      // Selection out of bounds
-      selectionBounds.value = null
+      hasSelection.value = false
     }
   },
-  {immediate: true, deep: true},
+  {immediate: true},
 )
+
+// Cleanup on unmount
+onBeforeUnmount(() => {
+  if (cleanupInterval !== null) {
+    clearInterval(cleanupInterval)
+  }
+})
 
 // Command handlers
 function handleCommand(command: (view: EditorView) => boolean) {
   if (props.editorView) {
     command(props.editorView)
+    // Keep focus on editor after command
+    props.editorView.focus()
   }
 }
 </script>

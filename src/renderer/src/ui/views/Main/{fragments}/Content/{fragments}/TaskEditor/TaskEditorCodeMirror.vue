@@ -66,15 +66,6 @@ function clearEditor(params: {discardFiles: boolean; discardTags: boolean}) {
   taskEditorStore.setCurrentEditingTask(null)
 }
 
-// Handle Enter key based on modifier
-function handleEnter(isMod: boolean) {
-  if (isMod) {
-    onSaveAndContinue()
-  } else {
-    onSaveAndClose()
-  }
-}
-
 // Initialize CodeMirror
 const {view, container, setContent, insertText, focus} = useCodeMirror({
   content: content.value,
@@ -103,16 +94,16 @@ const {view, container, setContent, insertText, focus} = useCodeMirror({
       indentWithTab,
       // Custom keybindings for save/cancel
       {
-        key: "Enter",
+        key: "Ctrl-Enter",
         run: () => {
-          handleEnter(false)
+          onSaveAndClose()
           return true
         },
       },
       {
         key: "Mod-Enter",
         run: () => {
-          handleEnter(true)
+          onSaveAndContinue()
           return true
         },
       },

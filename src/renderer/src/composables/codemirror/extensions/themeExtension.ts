@@ -13,16 +13,17 @@ export function createThemeExtension(): Extension {
         color: "var(--color-base-content)",
         backgroundColor: "transparent",
         fontFamily: "var(--font-sans)",
-        fontSize: "inherit",
+        fontSize: "0.875rem", // 14px - smaller than default
         height: "100%",
-        lineHeight: "1.8",
+        lineHeight: "1.6",
       },
 
       ".cm-content": {
         caretColor: "var(--color-accent)",
         padding: "1rem",
         fontFamily: "inherit",
-        lineHeight: "1.6",
+        fontSize: "0.875rem", // 14px - match root
+        lineHeight: "1.5",
         whiteSpace: "pre-wrap",
         wordWrap: "break-word",
       },
@@ -103,9 +104,9 @@ export function createThemeExtension(): Extension {
       },
 
       ".cm-heading1": {
-        fontSize: "1.5em",
+        fontSize: "1.35em",
         lineHeight: "1.4",
-        margin: "0.6em 0",
+        margin: "0.5em 0",
         paddingBottom: "0.1em",
         fontWeight: "600",
         textDecoration: "none",
@@ -113,32 +114,32 @@ export function createThemeExtension(): Extension {
       },
 
       ".cm-heading2": {
-        fontSize: "1.35em",
-        lineHeight: "1.2",
+        fontSize: "1.25em",
+        lineHeight: "1.3",
         fontWeight: "600",
         textDecoration: "none",
         borderBottom: "none",
       },
 
       ".cm-heading3": {
-        fontSize: "1.3em",
-        lineHeight: "1.1",
+        fontSize: "1.15em",
+        lineHeight: "1.2",
         fontWeight: "600",
         textDecoration: "none",
         borderBottom: "none",
       },
 
       ".cm-heading4": {
-        fontSize: "1.25em",
-        lineHeight: "1",
+        fontSize: "1.1em",
+        lineHeight: "1.1",
         fontWeight: "600",
         textDecoration: "none",
         borderBottom: "none",
       },
 
       ".cm-heading5": {
-        fontSize: "1.125em",
-        lineHeight: "1",
+        fontSize: "1.05em",
+        lineHeight: "1.1",
         fontWeight: "600",
         textDecoration: "none",
         borderBottom: "none",
@@ -146,7 +147,7 @@ export function createThemeExtension(): Extension {
 
       ".cm-heading6": {
         fontSize: "1em",
-        lineHeight: "1",
+        lineHeight: "1.1",
         fontWeight: "600",
         textDecoration: "none",
         borderBottom: "none",
@@ -423,13 +424,49 @@ export function createThemeExtension(): Extension {
         display: "inline-flex",
         alignItems: "center",
         marginRight: "0.5rem",
+        marginLeft: "0.5rem",
+        verticalAlign: "middle",
+        lineHeight: "1.8",
       },
 
-      ".cm-task-marker input[type='checkbox']": {
-        cursor: "pointer",
-        width: "1rem",
-        height: "1rem",
-        accentColor: "var(--color-accent)",
+      // Checkbox base styles (matches markdown.css)
+      ".cm-task-checkbox": {
+        appearance: "none",
+        width: "1.2em",
+        height: "1.2em",
+        border: "2px solid var(--color-base-content)",
+        borderRadius: "4px",
+        verticalAlign: "middle",
+        position: "relative",
+        margin: "0",
+        backgroundColor: "transparent",
+      },
+
+      // Checked checkbox styles
+      ".cm-task-checkbox-checked": {
+        backgroundColor: "var(--color-accent)",
+        borderColor: "var(--color-accent)",
+      },
+
+      // Checkmark inside checked checkbox (using ::after pseudo-element)
+      ".cm-task-checkbox-checked::after": {
+        content: "''",
+        display: "block",
+        position: "absolute",
+        left: "50%",
+        top: "50%",
+        transform: "translate(-50%, -50%) rotate(45deg)",
+        width: "0.3em",
+        height: "0.6em",
+        border: "solid var(--color-base-100)",
+        borderWidth: "0 2px 2px 0",
+      },
+
+      // Lines containing task markers should have consistent height
+      ".cm-line:has(.cm-task-marker)": {
+        minHeight: "1.8em",
+        display: "flex",
+        alignItems: "center",
       },
 
       // Placeholder styling

@@ -3,7 +3,8 @@ import {onMounted, ref, watch} from "vue"
 
 import {createCodeSyntaxExtension, createThemeExtension, createWYSIWYGExtension} from "@/composables/codemirror"
 
-import {markdown} from "@codemirror/lang-markdown"
+import {markdown, markdownLanguage} from "@codemirror/lang-markdown"
+import {languages} from "@codemirror/language-data"
 import {EditorState} from "@codemirror/state"
 import {EditorView} from "@codemirror/view"
 
@@ -26,8 +27,11 @@ function createReadonlyEditor(content: string) {
   const state = EditorState.create({
     doc: content,
     extensions: [
-      // Markdown language support (must be first!)
-      markdown(),
+      // Markdown language support with GFM (task lists, strikethrough, tables)
+      markdown({
+        base: markdownLanguage, // Use GFM-enabled language
+        codeLanguages: languages,
+      }),
 
       // Make editor readonly
       EditorView.editable.of(false),
