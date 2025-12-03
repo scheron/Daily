@@ -1,132 +1,23 @@
 import {syntaxTree} from "@codemirror/language"
-import {languages} from "@codemirror/language-data"
 import {RangeSet, RangeSetBuilder, StateEffect} from "@codemirror/state"
 import {Decoration, ViewPlugin} from "@codemirror/view"
-import {classHighlighter, highlightTree} from "@lezer/highlight"
-import {readonlyMode} from "./wysiwygExtension"
+import {isLanguageLoaded, loadLanguage} from "../language/cache"
+import {getCodeContentRange, getLanguageFromCodeFence, highlightCodeBlock} from "../language/highlighting"
+import {readonlyMode} from "./wysiwyg"
 
-import type {LanguageSupport} from "@codemirror/language"
 import type {Extension} from "@codemirror/state"
 import type {DecorationSet, EditorView, ViewUpdate} from "@codemirror/view"
 
-// Cache for loaded language parsers
-const languageCache = new Map<string, LanguageSupport | null>()
-
-// State effect to trigger decoration update after language load
+/**
+ * State effect to trigger decoration update after language load
+ */
 const updateHighlighting = StateEffect.define<null>()
-
-/**
- * Attempt to load a language parser dynamically
- */
-async function loadLanguage(languageName: string): Promise<LanguageSupport | null> {
-  // Check cache first
-  if (languageCache.has(languageName)) {
-    return languageCache.get(languageName) || null
-  }
-
-  // Find language in CodeMirror's language data
-  const langInfo = languages.find(
-    (lang) =>
-      lang.name.toLowerCase() === languageName.toLowerCase() || lang.alias?.some((alias) => alias.toLowerCase() === languageName.toLowerCase()),
-  )
-
-  if (!langInfo) {
-    languageCache.set(languageName, null)
-    return null
-  }
-
-  try {
-    // Load language support dynamically
-    const language = await langInfo.load()
-    languageCache.set(languageName, language)
-    return language
-  } catch (err) {
-    console.warn(`Failed to load language: ${languageName}`, err)
-    languageCache.set(languageName, null)
-    return null
-  }
-}
-
-/**
- * Extract language name from code fence
- */
-function getLanguageFromCodeFence(view: EditorView, fenceStart: number): string | null {
-  const line = view.state.doc.lineAt(fenceStart)
-  const text = line.text
-
-  // Match ```language
-  const match = text.match(/^```(\w+)/)
-  return match ? match[1] : null
-}
-
-/**
- * Find the code content range (excluding fence markers)
- */
-function getCodeContentRange(view: EditorView, fenceFrom: number, fenceTo: number) {
-  const firstLine = view.state.doc.lineAt(fenceFrom)
-  const lastLine = view.state.doc.lineAt(fenceTo)
-
-  // Start after first line (opening ```)
-  const contentFrom = firstLine.to + 1
-
-  // End at start of last line (closing ```)
-  const contentTo = Math.max(contentFrom, lastLine.from)
-
-  return {contentFrom, contentTo}
-}
-
-/**
- * Apply syntax highlighting to code content (synchronous version)
- */
-function highlightCodeBlockSync(
-  view: EditorView,
-  builder: RangeSetBuilder<Decoration>,
-  fenceFrom: number,
-  fenceTo: number,
-  languageName: string | null,
-) {
-  if (!languageName) return
-
-  // Check if language is already loaded (synchronously)
-  const lang = languageCache.get(languageName)
-  if (!lang) return
-
-  const {contentFrom, contentTo} = getCodeContentRange(view, fenceFrom, fenceTo)
-  if (contentFrom >= contentTo) return
-
-  const codeText = view.state.doc.sliceString(contentFrom, contentTo)
-
-  try {
-    // Parse the code with the language parser
-    const tree = lang.language.parser.parse(codeText)
-
-    // Apply syntax highlighting decorations using classHighlighter
-    // classHighlighter automatically maps Lezer tags to CSS classes
-    highlightTree(tree, classHighlighter, (from: number, to: number, classes: string) => {
-      // Offset positions to match document positions
-      const decorationFrom = contentFrom + from
-      const decorationTo = contentFrom + to
-
-      if (classes && decorationFrom < decorationTo && decorationTo <= view.state.doc.length) {
-        builder.add(
-          decorationFrom,
-          decorationTo,
-          Decoration.mark({
-            class: classes,
-          }),
-        )
-      }
-    })
-  } catch (err) {
-    console.warn(`Failed to highlight code block:`, err)
-  }
-}
 
 /**
  * Load language asynchronously and trigger view update
  */
 async function loadLanguageAndUpdate(view: EditorView, languageName: string) {
-  if (languageCache.has(languageName)) return
+  if (isLanguageLoaded(languageName)) return
 
   await loadLanguage(languageName)
 
@@ -148,7 +39,7 @@ function createCodeSyntaxDecorations(view: EditorView): DecorationSet {
   const tree = syntaxTree(view.state)
   const isReadonly = view.state.facet(readonlyMode)
 
-  // First pass: collect line decorations
+  // First pass: collect line decorations for backgrounds
   tree.iterate({
     enter: (node) => {
       if (node.name === "FencedCode") {
@@ -210,11 +101,11 @@ function createCodeSyntaxDecorations(view: EditorView): DecorationSet {
 
         // Apply syntax highlighting to code content (excluding markers) if language is loaded
         if (languageName) {
-          if (languageCache.has(languageName)) {
-            // Language is loaded or attempted - apply highlighting to content only
+          if (isLanguageLoaded(languageName)) {
+            // Language is loaded - apply highlighting to content only
             const {contentFrom, contentTo} = getCodeContentRange(view, from, to)
             if (contentFrom < contentTo) {
-              highlightCodeBlockSync(view, markBuilder, from, to, languageName)
+              highlightCodeBlock(view, markBuilder, from, to, languageName)
             }
           } else {
             // Load language asynchronously and update
@@ -241,7 +132,7 @@ const codeSyntaxPlugin = ViewPlugin.fromClass(
     }
 
     update(update: ViewUpdate) {
-      // Update decorations on document changes, selection changes, or highlighting effect
+      // Update decorations on document changes, viewport changes, or highlighting effect
       if (update.docChanged || update.viewportChanged || update.transactions.some((tr) => tr.effects.some((e) => e.is(updateHighlighting)))) {
         this.decorations = createCodeSyntaxDecorations(update.view)
       }
@@ -259,7 +150,7 @@ export function createCodeSyntaxExtension(): Extension {
   return [
     // Custom code block highlighting plugin
     // Note: We don't use defaultHighlightStyle to avoid style conflicts
-    // All syntax highlighting styles are defined in themeExtension.ts
+    // All syntax highlighting styles are defined in theme/syntaxHighlighting.ts
     codeSyntaxPlugin,
   ]
 }

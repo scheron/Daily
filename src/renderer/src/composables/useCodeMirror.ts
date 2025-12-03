@@ -1,37 +1,24 @@
 import {onBeforeUnmount, ref, watch} from "vue"
 
+import {createMarkdownLanguageExtension} from "@/utils/codemirror/extensions/markdownLanguage"
+
 import {defaultKeymap, history, historyKeymap} from "@codemirror/commands"
 import {EditorState} from "@codemirror/state"
 import {EditorView, keymap} from "@codemirror/view"
-import {createMarkdownLanguageExtension} from "./extensions/markdownLanguageExtension"
 
 import type {Extension} from "@codemirror/state"
 import type {ViewUpdate} from "@codemirror/view"
 import type {Ref} from "vue"
 
-export interface UseCodeMirrorOptions {
+export type UseCodeMirrorOptions = {
   content?: string
   onUpdate?: (content: string) => void
   extensions?: Extension[]
   placeholder?: string
 }
 
-export interface UseCodeMirrorReturn {
-  view: Ref<EditorView | null>
-  container: Ref<HTMLElement | null>
-  getContent: () => string
-  setContent: (content: string) => void
-  insertText: (text: string) => void
-  focus: () => void
-  getSelection: () => {from: number; to: number; text: string} | null
-}
-
-/**
- * CodeMirror 6 composable for Vue 3
- * Handles editor initialization, lifecycle, and state synchronization
- */
-export function useCodeMirror(options: UseCodeMirrorOptions = {}): UseCodeMirrorReturn {
-  const {content = "", onUpdate, extensions = [], placeholder = ""} = options
+export function useCodeMirror(options: UseCodeMirrorOptions = {}) {
+  const {content = "", onUpdate = () => {}, extensions = [], placeholder = ""} = options
 
   const view = ref<EditorView | null>(null)
   const container = ref<HTMLElement | null>(null)
@@ -39,24 +26,17 @@ export function useCodeMirror(options: UseCodeMirrorOptions = {}): UseCodeMirror
   // Track if we're updating from external source to avoid feedback loops
   let isExternalUpdate = false
 
-  /**
-   * Initialize the CodeMirror editor
-   */
   function initializeEditor(element: HTMLElement) {
     if (view.value) {
       view.value.destroy()
     }
 
-    // Build extensions array
     const editorExtensions: Extension[] = [
-      // Core functionality
       history(),
       keymap.of([...defaultKeymap, ...historyKeymap]),
 
-      // Markdown language support with GFM (task lists, strikethrough, tables)
       createMarkdownLanguageExtension(),
 
-      // Update listener for external state sync
       EditorView.updateListener.of((update: ViewUpdate) => {
         if (update.docChanged && !isExternalUpdate) {
           const newContent = update.state.doc.toString()
@@ -64,42 +44,25 @@ export function useCodeMirror(options: UseCodeMirrorOptions = {}): UseCodeMirror
         }
       }),
 
-      // Placeholder text
-      ...(placeholder
-        ? [
-            EditorView.contentAttributes.of({
-              "data-placeholder": placeholder,
-            }),
-          ]
-        : []),
-
-      // Custom extensions from options
+      ...(placeholder ? [EditorView.contentAttributes.of({"data-placeholder": placeholder})] : []),
       ...extensions,
     ]
 
-    // Create editor state
     const state = EditorState.create({
       doc: content,
       extensions: editorExtensions,
     })
 
-    // Create editor view
     view.value = new EditorView({
       state,
       parent: element,
     })
   }
 
-  /**
-   * Get current editor content
-   */
   function getContent(): string {
     return view.value?.state.doc.toString() || ""
   }
 
-  /**
-   * Set editor content (programmatically)
-   */
   function setContent(newContent: string) {
     if (!view.value) return
 
@@ -130,16 +93,10 @@ export function useCodeMirror(options: UseCodeMirrorOptions = {}): UseCodeMirror
     view.value.focus()
   }
 
-  /**
-   * Focus the editor
-   */
   function focus() {
     view.value?.focus()
   }
 
-  /**
-   * Get current selection
-   */
   function getSelection() {
     if (!view.value) return null
 
@@ -149,9 +106,6 @@ export function useCodeMirror(options: UseCodeMirrorOptions = {}): UseCodeMirror
     return {from, to, text}
   }
 
-  /**
-   * Watch for container changes and initialize editor
-   */
   watch(
     container,
     (newContainer) => {
@@ -162,9 +116,6 @@ export function useCodeMirror(options: UseCodeMirrorOptions = {}): UseCodeMirror
     {immediate: true},
   )
 
-  /**
-   * Cleanup on unmount
-   */
   onBeforeUnmount(() => {
     view.value?.destroy()
     view.value = null

@@ -3,9 +3,6 @@ import {keymap} from "@codemirror/view"
 import type {EditorState, Extension} from "@codemirror/state"
 import type {KeyBinding} from "@codemirror/view"
 
-/**
- * Patterns for detecting block prefixes
- */
 const BLOCK_PATTERNS = {
   // Blockquote: > or > with spaces
   blockquote: /^(\s*)(>\s*)/,
@@ -20,9 +17,9 @@ const BLOCK_PATTERNS = {
 }
 
 /**
- * Handle Enter key to continue block prefixes
+ * format Enter key to continue block prefixes
  */
-function handleEnterKey(state: EditorState): {from: number; to: number; insert: string} | null {
+function formatEnterKey(state: EditorState): {from: number; to: number; insert: string} | null {
   const line = state.doc.lineAt(state.selection.main.from)
   const lineText = line.text
 
@@ -132,7 +129,7 @@ const blockContinuationKeymap: KeyBinding[] = [
   {
     key: "Enter",
     run: (view) => {
-      const change = handleEnterKey(view.state)
+      const change = formatEnterKey(view.state)
 
       if (change) {
         view.dispatch({

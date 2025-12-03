@@ -2,18 +2,15 @@
 import {computed, onMounted, onUnmounted, watch} from "vue"
 import {toast} from "vue-sonner"
 
-import {
-  createAutoPairsExtension,
-  createBlockContinuationExtension,
-  createCodeBlockAutocomplete,
-  createCodeSyntaxExtension,
-  createThemeExtension,
-  createWYSIWYGExtension,
-  useCodeMirror,
-} from "@/composables/codemirror"
 import {useClipboardPaste} from "@/composables/useClipboardPaste"
-import {useDevice} from "@/composables/useDevice"
+import {useCodeMirror} from "@/composables/useCodeMirror"
 import {useFileDrop} from "@/composables/useFileDrop"
+import {createAutoPairsExtension} from "@/utils/codemirror/extensions/autoPairs"
+import {createBlockContinuationExtension} from "@/utils/codemirror/extensions/blockContinuation"
+import {createCodeBlockAutocomplete} from "@/utils/codemirror/extensions/codeBlockAutocomplete"
+import {createCodeSyntaxExtension} from "@/utils/codemirror/extensions/codeSyntax"
+import {createThemeExtension} from "@/utils/codemirror/extensions/theme"
+import {createWYSIWYGExtension} from "@/utils/codemirror/extensions/wysiwyg"
 
 import {useTaskEditorStore} from "@MainView/stores/taskEditor.store"
 import {indentWithTab} from "@codemirror/commands"
@@ -26,16 +23,53 @@ import {createMarkdownKeymap} from "./commands/markdownCommands"
 
 const taskEditorStore = useTaskEditorStore()
 
-const {isMacOS} = useDevice()
-const {createOrUpdate} = useEditTask()
-const {uploadImageFile} = useImageUpload()
-
 const content = computed({
   get: () => taskEditorStore.editorContent,
   set: (v) => taskEditorStore.setEditorContent(v),
 })
 
-// Save handlers
+const {createOrUpdate} = useEditTask()
+const {uploadImageFile} = useImageUpload()
+
+const {view, container, setContent, insertText, focus} = useCodeMirror({
+  content: content.value,
+  onUpdate: (newContent) => (content.value = newContent),
+  extensions: [
+    EditorView.lineWrapping,
+    createThemeExtension(),
+    createWYSIWYGExtension(),
+    createCodeSyntaxExtension(),
+    createCodeBlockAutocomplete(),
+    createAutoPairsExtension(),
+    createBlockContinuationExtension(),
+    keymap.of([
+      indentWithTab,
+      {
+        key: "Ctrl-Enter",
+        run: () => {
+          onSaveAndClose()
+          return true
+        },
+      },
+      {
+        key: "Mod-Enter",
+        run: () => {
+          onSaveAndContinue()
+          return true
+        },
+      },
+      {
+        key: "Escape",
+        run: () => {
+          onCancel()
+          return true
+        },
+      },
+      ...createMarkdownKeymap(),
+    ]),
+  ],
+})
+
 async function onSaveAndClose() {
   const success = await createOrUpdate(content.value)
   if (!success) return
@@ -67,103 +101,31 @@ function clearEditor(params: {discardFiles: boolean; discardTags: boolean}) {
   taskEditorStore.setCurrentEditingTask(null)
 }
 
-// Initialize CodeMirror
-const {view, container, setContent, insertText, focus} = useCodeMirror({
-  content: content.value,
-  onUpdate: (newContent) => {
-    content.value = newContent
-  },
-  extensions: [
-    // Line wrapping (no horizontal scroll)
-    EditorView.lineWrapping,
-
-    // Theme
-    createThemeExtension(),
-
-    // WYSIWYG rendering
-    createWYSIWYGExtension(),
-
-    // Code syntax highlighting
-    createCodeSyntaxExtension(),
-
-    // Code block auto-completion
-    createCodeBlockAutocomplete(),
-
-    // Auto-close brackets, quotes, and markdown markers
-    createAutoPairsExtension(),
-
-    // Auto-continue block prefixes (blockquotes, lists, checkboxes)
-    createBlockContinuationExtension(),
-
-    // Keyboard shortcuts
-    keymap.of([
-      // Tab inserts indent instead of changing focus
-      indentWithTab,
-      // Custom keybindings for save/cancel
-      {
-        key: "Ctrl-Enter",
-        run: () => {
-          onSaveAndClose()
-          return true
-        },
-      },
-      {
-        key: "Mod-Enter",
-        run: () => {
-          onSaveAndContinue()
-          return true
-        },
-      },
-      {
-        key: "Escape",
-        run: () => {
-          onCancel()
-          return true
-        },
-      },
-      // Markdown formatting shortcuts
-      ...createMarkdownKeymap(),
-    ]),
-  ],
-  placeholder: "",
-})
-
-// Watch for content changes from store (when loading a task)
 watch(
   () => taskEditorStore.editorContent,
   (newContent) => {
-    // Only update if different (avoid feedback loop)
     if (newContent !== content.value) {
       setContent(newContent)
     }
   },
 )
 
-// Initialize editor with content when mounted
 onMounted(() => {
   if (taskEditorStore.currentEditingTask) {
     setContent(taskEditorStore.editorContent)
   }
-  // Focus at end if editing existing task
-  setTimeout(() => {
-    focus()
-  }, 100)
+  setTimeout(focus, 100)
 })
 
 onUnmounted(() => clearEditor({discardFiles: true, discardTags: true}))
 
-// Clipboard paste handler
 useClipboardPaste(container, {
-  onTextPaste: () => {
-    // Content updates automatically via CodeMirror
-  },
   onImagePaste: async (file) => {
     const md = await uploadImageFile(file)
     if (md) insertText(md)
   },
 })
 
-// File drop handler
 const {isDraggingOver} = useFileDrop(container, {
   onFileDrop: async (file) => {
     const md = await uploadImageFile(file)
@@ -183,6 +145,6 @@ const {isDraggingOver} = useFileDrop(container, {
       :class="{'ring-offset-base-100 ring-accent/50 ring-2': isDraggingOver}"
     ></div>
     <EditorPlaceholder v-show="!content.trim()" />
-    <FloatingToolbar :editor-view="view" />
+    <FloatingToolbar v-if="view" :editor-view="view" />
   </div>
 </template>

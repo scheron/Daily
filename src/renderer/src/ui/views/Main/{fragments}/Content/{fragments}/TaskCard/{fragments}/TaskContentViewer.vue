@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import {onMounted, ref, watch} from "vue"
 
-import {createCodeSyntaxExtension, createMarkdownLanguageExtension, createThemeExtension, createWYSIWYGExtension} from "@/composables/codemirror"
+import {createCodeSyntaxExtension} from "@/utils/codemirror/extensions/codeSyntax"
+import {createMarkdownLanguageExtension} from "@/utils/codemirror/extensions/markdownLanguage"
+import {createThemeExtension} from "@/utils/codemirror/extensions/theme"
+import {createWYSIWYGExtension} from "@/utils/codemirror/extensions/wysiwyg"
 
 import {EditorState} from "@codemirror/state"
 import {EditorView} from "@codemirror/view"
@@ -16,35 +19,20 @@ let view: EditorView | null = null
 function createReadonlyEditor(content: string) {
   if (!container.value) return
 
-  // Destroy existing view if any
-  if (view) {
-    view.destroy()
-  }
+  if (view) view.destroy()
 
-  // Create readonly CodeMirror instance
   const state = EditorState.create({
     doc: content,
     extensions: [
-      // Markdown language support with GFM (task lists, strikethrough, tables)
       createMarkdownLanguageExtension(),
 
-      // Line wrapping (no horizontal scroll)
       EditorView.lineWrapping,
-
-      // Make editor readonly
       EditorView.editable.of(false),
       EditorState.readOnly.of(true),
 
-      // Theme
       createThemeExtension(),
-
-      // WYSIWYG rendering (always show, ignore cursor position)
       createWYSIWYGExtension({readonly: true}),
-
-      // Code syntax highlighting
       createCodeSyntaxExtension(),
-
-      // Disable cursor
       EditorView.theme({
         ".cm-cursor": {display: "none"},
         ".cm-content": {cursor: "default"},
@@ -59,7 +47,6 @@ function createReadonlyEditor(content: string) {
   })
 }
 
-// Watch for content changes
 watch(
   () => props.content,
   (newContent) => {
@@ -80,7 +67,7 @@ onMounted(() => {
 <style scoped>
 .task-content-viewer {
   width: 100%;
-  overflow-x: auto; /* Allow horizontal scroll for wide code blocks */
+  overflow-x: auto;
   overflow-y: hidden;
 }
 

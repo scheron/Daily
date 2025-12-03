@@ -1,5 +1,4 @@
-import {EditorView} from "@codemirror/view"
-import {EditorState} from "@codemirror/state"
+import type {EditorView} from "@codemirror/view"
 
 export type MarkdownCommand = (view: EditorView) => boolean
 
@@ -147,10 +146,9 @@ export const markdownCommands = {
    * Insert image
    * Returns command that needs async image upload
    */
-  insertImage: (onImageUpload?: () => Promise<string>): MarkdownCommand => {
+  insertImage: (onImageUpload?: () => Promise<string>): ((view: EditorView) => Promise<boolean>) => {
     return async (view: EditorView): Promise<boolean> => {
       if (!onImageUpload) {
-        // Fallback: insert template
         const template = "![alt text](image-url)"
         const {from} = view.state.selection.main
         view.dispatch({
@@ -162,7 +160,6 @@ export const markdownCommands = {
       }
 
       try {
-        // Call upload handler (will be provided by component)
         const markdown = await onImageUpload()
         if (markdown) {
           const {from} = view.state.selection.main
@@ -283,14 +280,14 @@ export function createMarkdownKeymap(options: {onSave?: () => void; onCancel?: (
       ? [
           {
             key: "Enter",
-            run: (view: EditorView) => {
+            run: (_view: EditorView) => {
               onSave()
               return true
             },
           },
           {
             key: "Mod-Enter",
-            run: (view: EditorView) => {
+            run: (_view: EditorView) => {
               onSave()
               return true
             },
@@ -302,7 +299,7 @@ export function createMarkdownKeymap(options: {onSave?: () => void; onCancel?: (
       ? [
           {
             key: "Escape",
-            run: (view: EditorView) => {
+            run: (_view: EditorView) => {
               onCancel()
               return true
             },
