@@ -14,7 +14,7 @@ import {createWYSIWYGExtension} from "@/utils/codemirror/extensions/wysiwyg"
 
 import {useTaskEditorStore} from "@MainView/stores/taskEditor.store"
 import {indentWithTab} from "@codemirror/commands"
-import {EditorView, keymap} from "@codemirror/view"
+import {EditorView} from "@codemirror/view"
 import {useEditTask} from "./composables/useEditTask"
 import {useImageUpload} from "./composables/useImageUpload"
 import EditorPlaceholder from "./{fragments}/EditorPlaceholder.vue"
@@ -42,31 +42,31 @@ const {view, container, setContent, insertText, focus} = useCodeMirror({
     createCodeBlockAutocomplete(),
     createAutoPairsExtension(),
     createBlockContinuationExtension(),
-    keymap.of([
-      indentWithTab,
-      {
-        key: "Ctrl-Enter",
-        run: () => {
-          onSaveAndClose()
-          return true
-        },
+  ],
+  shortcuts: [
+    indentWithTab,
+    {
+      key: "Mod-Enter",
+      run: () => {
+        onSaveAndClose()
+        return true
       },
-      {
-        key: "Mod-Enter",
-        run: () => {
-          onSaveAndContinue()
-          return true
-        },
+    },
+    {
+      key: "Mod-Shift-Enter",
+      run: () => {
+        onSaveAndContinue()
+        return true
       },
-      {
-        key: "Escape",
-        run: () => {
-          onCancel()
-          return true
-        },
+    },
+    {
+      key: "Escape",
+      run: () => {
+        onCancel()
+        return true
       },
-      ...createMarkdownKeymap(),
-    ]),
+    },
+    ...createMarkdownKeymap(),
   ],
 })
 
@@ -141,7 +141,7 @@ const {isDraggingOver} = useFileDrop(container, {
   <div class="relative h-full min-h-full flex-1 p-2">
     <div
       ref="container"
-      class="markdown border-base-300 size-full cursor-text overflow-y-auto rounded-lg border transition-colors"
+      class="bg-base-100 border-base-300 size-full cursor-text overflow-y-auto rounded-lg border transition-colors"
       :class="{'ring-offset-base-100 ring-accent/50 ring-2': isDraggingOver}"
     ></div>
     <EditorPlaceholder v-show="!content.trim()" />

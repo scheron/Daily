@@ -43,13 +43,13 @@ export const editorStyles: Record<string, StyleSpec> = {
   },
 
   "&.cm-focused .cm-selectionBackground, ::selection": {
-    backgroundColor: "var(--color-accent)",
-    opacity: "0.25",
+    backgroundColor: "color-mix(in srgb, var(--color-accent) 50%, transparent)",
+    opacity: "0.05",
   },
 
   ".cm-selectionBackground": {
-    backgroundColor: "var(--color-accent)",
-    opacity: "0.2",
+    backgroundColor: "color-mix(in srgb, var(--color-accent) 50%, transparent)",
+    opacity: "0.05",
   },
 
   ".cm-activeLine": {

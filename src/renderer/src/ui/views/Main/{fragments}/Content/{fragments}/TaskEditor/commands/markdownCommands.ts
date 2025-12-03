@@ -264,9 +264,7 @@ export const markdownCommands = {
 /**
  * Create keyboard shortcuts keymap
  */
-export function createMarkdownKeymap(options: {onSave?: () => void; onCancel?: () => void} = {}) {
-  const {onSave, onCancel} = options
-
+export function createMarkdownKeymap() {
   return [
     // Text formatting
     {key: "Mod-b", run: markdownCommands.toggleBold},
@@ -274,37 +272,5 @@ export function createMarkdownKeymap(options: {onSave?: () => void; onCancel?: (
     {key: "Mod-`", run: markdownCommands.toggleCode},
     {key: "Mod-Shift-x", run: markdownCommands.toggleStrikethrough},
     {key: "Mod-k", run: markdownCommands.insertLink},
-
-    // Save/Cancel (will be handled by component)
-    ...(onSave
-      ? [
-          {
-            key: "Enter",
-            run: (_view: EditorView) => {
-              onSave()
-              return true
-            },
-          },
-          {
-            key: "Mod-Enter",
-            run: (_view: EditorView) => {
-              onSave()
-              return true
-            },
-          },
-        ]
-      : []),
-
-    ...(onCancel
-      ? [
-          {
-            key: "Escape",
-            run: (_view: EditorView) => {
-              onCancel()
-              return true
-            },
-          },
-        ]
-      : []),
   ]
 }

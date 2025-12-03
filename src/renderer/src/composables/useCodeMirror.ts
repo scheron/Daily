@@ -7,18 +7,19 @@ import {EditorState} from "@codemirror/state"
 import {EditorView, keymap} from "@codemirror/view"
 
 import type {Extension} from "@codemirror/state"
-import type {ViewUpdate} from "@codemirror/view"
+import type {KeyBinding, ViewUpdate} from "@codemirror/view"
 import type {Ref} from "vue"
 
 export type UseCodeMirrorOptions = {
   content?: string
   onUpdate?: (content: string) => void
   extensions?: Extension[]
+  shortcuts?: KeyBinding[]
   placeholder?: string
 }
 
 export function useCodeMirror(options: UseCodeMirrorOptions = {}) {
-  const {content = "", onUpdate = () => {}, extensions = [], placeholder = ""} = options
+  const {content = "", onUpdate = () => {}, extensions = [], shortcuts = [], placeholder = ""} = options
 
   const view = ref<EditorView | null>(null)
   const container = ref<HTMLElement | null>(null)
@@ -33,6 +34,7 @@ export function useCodeMirror(options: UseCodeMirrorOptions = {}) {
 
     const editorExtensions: Extension[] = [
       history(),
+      keymap.of(shortcuts),
       keymap.of([...defaultKeymap, ...historyKeymap]),
 
       createMarkdownLanguageExtension(),
