@@ -2,6 +2,14 @@
 
 ## [unreleased]
 
+### ✨ New Features
+
+- **CodeMirror Integration** - Complete markdown editor overhaul with advanced editing capabilities
+  - WYSIWYG support for visual markdown editing
+  - Enhanced markdown support with GFM features
+
+---
+
 ## v0.6.3 - 2025-12-02
 
 ### 🐛 Bug Fixes
