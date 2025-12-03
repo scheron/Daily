@@ -4,6 +4,7 @@ import {toast} from "vue-sonner"
 
 import {
   createAutoPairsExtension,
+  createBlockContinuationExtension,
   createCodeBlockAutocomplete,
   createCodeSyntaxExtension,
   createThemeExtension,
@@ -16,7 +17,7 @@ import {useFileDrop} from "@/composables/useFileDrop"
 
 import {useTaskEditorStore} from "@MainView/stores/taskEditor.store"
 import {indentWithTab} from "@codemirror/commands"
-import {keymap} from "@codemirror/view"
+import {EditorView, keymap} from "@codemirror/view"
 import {useEditTask} from "./composables/useEditTask"
 import {useImageUpload} from "./composables/useImageUpload"
 import EditorPlaceholder from "./{fragments}/EditorPlaceholder.vue"
@@ -73,6 +74,9 @@ const {view, container, setContent, insertText, focus} = useCodeMirror({
     content.value = newContent
   },
   extensions: [
+    // Line wrapping (no horizontal scroll)
+    EditorView.lineWrapping,
+
     // Theme
     createThemeExtension(),
 
@@ -87,6 +91,9 @@ const {view, container, setContent, insertText, focus} = useCodeMirror({
 
     // Auto-close brackets, quotes, and markdown markers
     createAutoPairsExtension(),
+
+    // Auto-continue block prefixes (blockquotes, lists, checkboxes)
+    createBlockContinuationExtension(),
 
     // Keyboard shortcuts
     keymap.of([

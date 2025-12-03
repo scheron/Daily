@@ -187,6 +187,8 @@ export function createThemeExtension(): Extension {
         paddingLeft: "0.5rem",
         paddingRight: "0.5rem",
         borderRadius: "2px",
+        whiteSpace: "pre", // Disable wrapping in code blocks
+        overflowX: "auto", // Enable horizontal scroll
       },
 
       // First line of code block gets top padding, margin and border radius

@@ -33,6 +33,9 @@ function createReadonlyEditor(content: string) {
         codeLanguages: languages,
       }),
 
+      // Line wrapping (no horizontal scroll)
+      EditorView.lineWrapping,
+
       // Make editor readonly
       EditorView.editable.of(false),
       EditorState.readOnly.of(true),
@@ -82,6 +85,8 @@ onMounted(() => {
 <style scoped>
 .task-content-viewer {
   width: 100%;
+  overflow-x: auto; /* Allow horizontal scroll for wide code blocks */
+  overflow-y: visible;
 }
 
 .task-content-viewer :deep(.cm-editor) {
@@ -94,5 +99,11 @@ onMounted(() => {
 
 .task-content-viewer :deep(.cm-content) {
   padding: 0;
+}
+
+/* Code blocks should not wrap and can extend beyond container width */
+.task-content-viewer :deep(.cm-codeblock-line) {
+  white-space: pre !important;
+  overflow-x: visible !important;
 }
 </style>
