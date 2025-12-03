@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, onBeforeUnmount, onMounted, ref, watch} from "vue"
+import {computed, onBeforeUnmount, ref, watch} from "vue"
 
 import BaseButton from "@/ui/base/BaseButton.vue"
 
@@ -32,11 +32,7 @@ const virtualReference = computed(() => ({
 // Setup floating positioning
 const {floatingStyles} = useFloating(virtualReference, toolbarRef, {
   placement: "top",
-  middleware: [
-    offset(8),
-    flip(), // Flip to bottom if no space above
-    shift({padding: 8}), // Stay within viewport
-  ],
+  middleware: [offset(10), flip(), shift({padding: 12})],
   whileElementsMounted: autoUpdate,
 })
 
@@ -71,7 +67,7 @@ function updateSelectionBounds() {
         height: Math.abs(toCoords.bottom - fromCoords.top),
       })
     }
-  } catch (err) {
+  } catch {
     // Selection out of bounds
     selectionBounds.value = null
     hasSelection.value = false
@@ -127,135 +123,65 @@ function handleCommand(command: (view: EditorView) => boolean) {
       v-if="isVisible"
       ref="toolbarRef"
       :style="floatingStyles"
-      class="bg-base-100 border-base-300 z-[60] flex gap-1 rounded-lg border p-1 shadow-lg"
+      class="bg-base-200 border-base-content/20 z-60 flex items-center gap-1 rounded-lg border p-1 shadow-lg"
     >
-      <!-- Group 1: Text Formatting -->
-      <div class="border-base-300 flex gap-0.5 border-r pr-1">
-        <BaseButton
-          icon="star"
-          variant="ghost"
-          size="sm"
-          tooltip="Bold (Cmd+B)"
-          tooltip-position="bottom"
-          @click="handleCommand(markdownCommands.toggleBold)"
-        />
-        <BaseButton
-          icon="star"
-          variant="ghost"
-          size="sm"
-          tooltip="Italic (Cmd+I)"
-          tooltip-position="bottom"
-          @click="handleCommand(markdownCommands.toggleItalic)"
-        />
-        <BaseButton
-          icon="star"
-          variant="ghost"
-          size="sm"
-          tooltip="Inline Code (Cmd+`)"
-          tooltip-position="bottom"
-          @click="handleCommand(markdownCommands.toggleCode)"
-        />
-        <BaseButton
-          icon="star"
-          variant="ghost"
-          size="sm"
-          tooltip="Strikethrough"
-          tooltip-position="bottom"
-          @click="handleCommand(markdownCommands.toggleStrikethrough)"
-        />
-      </div>
+      <BaseButton
+        icon="bold"
+        variant="secondary"
+        icon-class="size-4"
+        size="sm"
+        tooltip="Bold (Cmd+B)"
+        tooltip-position="bottom"
+        @click="handleCommand(markdownCommands.toggleBold)"
+      />
+      <BaseButton
+        icon="italic"
+        variant="secondary"
+        icon-class="size-4"
+        size="sm"
+        tooltip="Italic (Cmd+I)"
+        tooltip-position="bottom"
+        @click="handleCommand(markdownCommands.toggleItalic)"
+      />
+      <BaseButton
+        icon="code"
+        variant="secondary"
+        icon-class="size-4"
+        size="sm"
+        tooltip="Inline Code (Cmd+`)"
+        tooltip-position="bottom"
+        @click="handleCommand(markdownCommands.toggleCode)"
+      />
 
-      <!-- Group 2: Block Elements -->
-      <div class="border-base-300 flex gap-0.5 border-r pr-1">
-        <BaseButton
-          icon="star"
-          variant="ghost"
-          size="sm"
-          tooltip="Heading"
-          tooltip-position="bottom"
-          @click="handleCommand(markdownCommands.insertHeading2)"
-        />
-        <BaseButton
-          icon="star"
-          variant="ghost"
-          size="sm"
-          tooltip="Bullet List"
-          tooltip-position="bottom"
-          @click="handleCommand(markdownCommands.insertBulletList)"
-        />
-        <BaseButton
-          icon="star"
-          variant="ghost"
-          size="sm"
-          tooltip="Numbered List"
-          tooltip-position="bottom"
-          @click="handleCommand(markdownCommands.insertNumberedList)"
-        />
-        <BaseButton
-          icon="star"
-          variant="ghost"
-          size="sm"
-          tooltip="Checkbox"
-          tooltip-position="bottom"
-          @click="handleCommand(markdownCommands.insertCheckbox)"
-        />
-        <BaseButton
-          icon="star"
-          variant="ghost"
-          size="sm"
-          tooltip="Quote"
-          tooltip-position="bottom"
-          @click="handleCommand(markdownCommands.insertBlockquote)"
-        />
-      </div>
+      <div class="bg-base-content/20 mx-2 h-8 w-px" />
 
-      <!-- Group 3: Rich Content -->
-      <div class="border-base-300 flex gap-0.5 border-r pr-1">
-        <BaseButton
-          icon="star"
-          variant="ghost"
-          size="sm"
-          tooltip="Link (Cmd+K)"
-          tooltip-position="bottom"
-          @click="handleCommand(markdownCommands.insertLink)"
-        />
-        <BaseButton
-          icon="star"
-          variant="ghost"
-          size="sm"
-          tooltip="Image"
-          tooltip-position="bottom"
-          @click="handleCommand(markdownCommands.insertImage())"
-        />
-        <BaseButton
-          icon="star"
-          variant="ghost"
-          size="sm"
-          tooltip="Code Block"
-          tooltip-position="bottom"
-          @click="handleCommand(markdownCommands.insertCodeBlock)"
-        />
-        <BaseButton
-          icon="star"
-          variant="ghost"
-          size="sm"
-          tooltip="Table"
-          tooltip-position="bottom"
-          @click="handleCommand(markdownCommands.insertTable)"
-        />
-      </div>
-
-      <!-- Group 4: Advanced -->
-      <div class="flex gap-0.5">
-        <BaseButton
-          icon="x-mark"
-          variant="ghost"
-          size="sm"
-          tooltip="Clear Formatting"
-          tooltip-position="bottom"
-          @click="handleCommand(markdownCommands.clearFormatting)"
-        />
-      </div>
+      <BaseButton
+        icon="heading"
+        variant="secondary"
+        icon-class="size-4"
+        size="sm"
+        tooltip="Heading"
+        tooltip-position="bottom"
+        @click="handleCommand(markdownCommands.insertHeading2)"
+      />
+      <BaseButton
+        icon="checkbox"
+        variant="secondary"
+        icon-class="size-4"
+        size="sm"
+        tooltip="Checkbox"
+        tooltip-position="bottom"
+        @click="handleCommand(markdownCommands.insertCheckbox)"
+      />
+      <BaseButton
+        icon="quote"
+        variant="secondary"
+        icon-class="size-4"
+        size="sm"
+        tooltip="Quote"
+        tooltip-position="bottom"
+        @click="handleCommand(markdownCommands.insertBlockquote)"
+      />
     </div>
   </Teleport>
 </template>

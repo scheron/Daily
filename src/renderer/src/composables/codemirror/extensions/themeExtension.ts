@@ -227,7 +227,7 @@ export function createThemeExtension(): Extension {
         opacity: "0.7",
       },
 
-      // Syntax highlighting tokens (GitHub Dark theme - matches highlight.js)
+      // Syntax highlighting tokens (GitHub Dark theme)
       // Keywords (const, let, function, class, import, export, etc.)
       ".tok-keyword": {
         color: "#ff7b72",
@@ -535,6 +535,6 @@ export function createThemeExtension(): Extension {
         marginBottom: "0.75rem !important",
       },
     },
-    {dark: false}, // We handle dark mode via CSS variables
+    {dark: true},
   )
 }

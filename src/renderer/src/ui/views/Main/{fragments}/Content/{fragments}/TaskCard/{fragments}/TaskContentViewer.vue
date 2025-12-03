@@ -1,10 +1,8 @@
 <script setup lang="ts">
 import {onMounted, ref, watch} from "vue"
 
-import {createCodeSyntaxExtension, createThemeExtension, createWYSIWYGExtension} from "@/composables/codemirror"
+import {createCodeSyntaxExtension, createMarkdownLanguageExtension, createThemeExtension, createWYSIWYGExtension} from "@/composables/codemirror"
 
-import {markdown, markdownLanguage} from "@codemirror/lang-markdown"
-import {languages} from "@codemirror/language-data"
 import {EditorState} from "@codemirror/state"
 import {EditorView} from "@codemirror/view"
 
@@ -28,10 +26,7 @@ function createReadonlyEditor(content: string) {
     doc: content,
     extensions: [
       // Markdown language support with GFM (task lists, strikethrough, tables)
-      markdown({
-        base: markdownLanguage, // Use GFM-enabled language
-        codeLanguages: languages,
-      }),
+      createMarkdownLanguageExtension(),
 
       // Line wrapping (no horizontal scroll)
       EditorView.lineWrapping,
@@ -86,7 +81,7 @@ onMounted(() => {
 .task-content-viewer {
   width: 100%;
   overflow-x: auto; /* Allow horizontal scroll for wide code blocks */
-  overflow-y: visible;
+  overflow-y: hidden;
 }
 
 .task-content-viewer :deep(.cm-editor) {

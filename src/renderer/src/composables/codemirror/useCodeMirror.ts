@@ -1,10 +1,9 @@
 import {onBeforeUnmount, ref, watch} from "vue"
 
 import {defaultKeymap, history, historyKeymap} from "@codemirror/commands"
-import {markdown, markdownLanguage} from "@codemirror/lang-markdown"
-import {languages} from "@codemirror/language-data"
 import {EditorState} from "@codemirror/state"
 import {EditorView, keymap} from "@codemirror/view"
+import {createMarkdownLanguageExtension} from "./extensions/markdownLanguageExtension"
 
 import type {Extension} from "@codemirror/state"
 import type {ViewUpdate} from "@codemirror/view"
@@ -54,11 +53,8 @@ export function useCodeMirror(options: UseCodeMirrorOptions = {}): UseCodeMirror
       history(),
       keymap.of([...defaultKeymap, ...historyKeymap]),
 
-      // Markdown language support with GFM (markdownLanguage includes task lists, strikethrough, tables)
-      markdown({
-        base: markdownLanguage, // Use GFM-enabled language
-        codeLanguages: languages,
-      }),
+      // Markdown language support with GFM (task lists, strikethrough, tables)
+      createMarkdownLanguageExtension(),
 
       // Update listener for external state sync
       EditorView.updateListener.of((update: ViewUpdate) => {
@@ -175,7 +171,7 @@ export function useCodeMirror(options: UseCodeMirrorOptions = {}): UseCodeMirror
   })
 
   return {
-    view,
+    view: view as Ref<EditorView | null>,
     container,
     getContent,
     setContent,
