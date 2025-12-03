@@ -17,7 +17,7 @@ defineEmits<{restore: []}>()
       <span class="text-base-content text-lg font-semibold">Task deleted successfully</span>
     </div>
 
-    <div class="border-base-300 line-clamp-4 overflow-hidden rounded-md border p-2 text-xs">
+    <div class="border-base-300 line-clamp-4 max-h-[250px] overflow-y-auto rounded-md border p-2 text-xs">
       <TaskContentViewer :content="taskContent" />
     </div>
 
