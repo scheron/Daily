@@ -2,6 +2,8 @@
 
 ## [unreleased]
 
+## v0.8.0 - 2025-12-04
+
 ### ✨ New Features
 
 - **Search** - Search across all tasks with intelligent fuzzy matching
@@ -13,6 +15,8 @@
   - Results sorted by relevance score and recency
 
 ![Search](./media//showcase/search.gif)
+
+---
 
 ## v0.7.1 - 2025-12-03
 
