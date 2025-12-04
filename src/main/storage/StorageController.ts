@@ -31,6 +31,7 @@ import {SyncEngine} from "@/storage/sync/SyncEngine"
 
 import type {IStorageController} from "@/types/storage"
 import type {ISODate} from "@shared/types/common"
+import type {TaskSearchResult} from "@shared/types/search"
 import type {Day, File, Settings, SyncStatus, Tag, Task} from "@shared/types/storage"
 import type {PartialDeep} from "type-fest"
 
@@ -219,7 +220,7 @@ export class StorageController implements IStorageController {
   //#endregion
 
   //#region SEARCH
-  async searchTasks(query: string): Promise<Task[]> {
+  async searchTasks(query: string): Promise<TaskSearchResult[]> {
     return await this.searchService.searchTasks(query)
   }
   //#endregion

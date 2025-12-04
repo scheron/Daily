@@ -2,8 +2,9 @@ import {TaskSearchIndex} from "../search/TaskSearchIndex"
 
 import type {TagModel} from "@/storage/models/TagModel"
 import type {TaskModel} from "@/storage/models/TaskModel"
+import type {SearchOptions} from "@/types/search"
+import type {TaskSearchResult} from "@shared/types/search"
 import type {Tag, Task} from "@shared/types/storage"
-import type {SearchOptions, TaskSearchResult} from "../../types/search"
 
 /**
  * Service for searching tasks with fuzzy matching

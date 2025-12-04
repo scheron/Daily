@@ -1,1 +1,1 @@
-export { default } from "./SearchPanel.vue"
+export {default} from "./SearchPanel.vue"
