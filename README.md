@@ -72,6 +72,10 @@ See Daily in action with these feature demonstrations:
 
 ![Move Tasks](./media/showcase/move-tasks.gif)
 
+### Search Tasks
+
+![Search Tasks](./media/showcase/search.gif)
+
 ### iCloud Sync
 
 ![Sync](./media/showcase/sync.gif)
