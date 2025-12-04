@@ -2,6 +2,7 @@ import {contextBridge, ipcRenderer} from "electron"
 
 import type {ISODate} from "@shared/types/common"
 import type {BridgeIPC} from "@shared/types/ipc"
+import type {TaskSearchResult} from "@shared/types/search"
 import type {Day, Settings, SyncStatus, Tag, Task} from "@shared/types/storage"
 import type {PartialDeep} from "type-fest"
 
@@ -22,6 +23,8 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "platform:is-mac": () => process.platform === "darwin",
   "platform:is-windows": () => process.platform === "win32",
   "platform:is-linux": () => process.platform === "linux",
+
+  "shell:open-external": (url: string) => ipcRenderer.invoke("shell:open-external", url) as Promise<boolean>,
 
   "menu:on-new-task": (callback: (action: "new-task") => void) => ipcRenderer.on("menu:new-task", () => callback("new-task")),
 
@@ -45,6 +48,8 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "tasks:delete": (id: Task["id"]) => ipcRenderer.invoke("tasks:delete", id),
   "tasks:add-tags": (taskId: Task["id"], tagIds: Tag["id"][]) => ipcRenderer.invoke("tasks:add-tags", taskId, tagIds),
   "tasks:remove-tags": (taskId: Task["id"], tagIds: Tag["id"][]) => ipcRenderer.invoke("tasks:remove-tags", taskId, tagIds),
+
+  "search:query": (query: string) => ipcRenderer.invoke("search:query", query) as Promise<TaskSearchResult[]>,
 
   "tags:get-many": () => ipcRenderer.invoke("tags:get-many") as Promise<Tag[]>,
   "tags:get-one": (id: Tag["id"]) => ipcRenderer.invoke("tags:get-one", id) as Promise<Tag | null>,

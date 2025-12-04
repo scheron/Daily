@@ -18,6 +18,8 @@ export function setupStorageIPC(getStorage: () => IStorageController | null): vo
   ipcMain.handle("tasks:create", (_e, task: Omit<Task, "id" | "createdAt" | "updatedAt">) => getStorage()?.createTask(task))
   ipcMain.handle("tasks:delete", (_e, id: Task["id"]) => getStorage()?.deleteTask(id))
 
+  ipcMain.handle("search:query", (_e, query: string) => getStorage()?.searchTasks(query))
+
   ipcMain.handle("tags:get-many", () => getStorage()?.getTagList())
   ipcMain.handle("tags:get-one", (_e, id: Tag["id"]) => getStorage()?.getTag(id))
   ipcMain.handle("tags:update", (_e, id: Tag["id"], updates: Partial<Tag>) => getStorage()?.updateTag(id, updates))

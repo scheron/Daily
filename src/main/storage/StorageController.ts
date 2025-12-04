@@ -21,6 +21,7 @@ import {TagModel} from "@/storage/models/TagModel"
 import {TaskModel} from "@/storage/models/TaskModel"
 import {DaysService} from "@/storage/services/DaysService"
 import {FilesService} from "@/storage/services/FilesService"
+import {SearchService} from "@/storage/services/SearchService"
 import {SettingsService} from "@/storage/services/SettingsService"
 import {TagsService} from "@/storage/services/TagsService"
 import {TasksService} from "@/storage/services/TasksService"
@@ -41,6 +42,7 @@ export class StorageController implements IStorageController {
   private tagsService!: TagsService
   private filesService!: FilesService
   private daysService!: DaysService
+  private searchService!: SearchService
   private syncEngine!: SyncEngine
 
   private notifyStorageStatusChange?: (status: SyncStatus, prevStatus: SyncStatus) => void
@@ -61,6 +63,7 @@ export class StorageController implements IStorageController {
     this.settingsService = new SettingsService(settingsModel)
     this.filesService = new FilesService(fileModel)
     this.daysService = new DaysService(taskModel, tagModel)
+    this.searchService = new SearchService(taskModel, tagModel)
 
     const remoteAdapter = new RemoteStorageAdapter(fsPaths.remoteSyncPath())
     const localAdapter = new LocalStorageAdapter(db)
@@ -80,6 +83,11 @@ export class StorageController implements IStorageController {
       logger.info(LogContext.STORAGE, "Auto-sync was enabled, restoring")
       this.syncEngine.enableAutoSync()
     }
+
+    // Initialize search index
+    logger.info(LogContext.STORAGE, "Initializing search index")
+    await this.searchService.initializeIndex()
+    logger.info(LogContext.STORAGE, `Search index initialized with ${this.searchService.getIndexSize()} tasks`)
   }
 
   //#region STORAGE
@@ -140,15 +148,27 @@ export class StorageController implements IStorageController {
   }
 
   async updateTask(id: Task["id"], updates: PartialDeep<Task>): Promise<Task | null> {
-    return await this.tasksService.updateTask(id, updates)
+    const updatedTask = await this.tasksService.updateTask(id, updates)
+    if (updatedTask) {
+      await this.searchService.updateTaskInIndex(updatedTask)
+    }
+    return updatedTask
   }
 
   async createTask(task: Task): Promise<Task | null> {
-    return await this.tasksService.createTask(task)
+    const createdTask = await this.tasksService.createTask(task)
+    if (createdTask) {
+      await this.searchService.addTaskToIndex(createdTask)
+    }
+    return createdTask
   }
 
   async deleteTask(id: Task["id"]): Promise<boolean> {
-    return await this.tasksService.deleteTask(id)
+    const deleted = await this.tasksService.deleteTask(id)
+    if (deleted) {
+      this.searchService.removeTaskFromIndex(id)
+    }
+    return deleted
   }
 
   async addTaskAttachment(taskId: Task["id"], fileId: File["id"]): Promise<Task | null> {
@@ -182,11 +202,25 @@ export class StorageController implements IStorageController {
   }
 
   async addTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Promise<Task | null> {
-    return await this.tasksService.addTaskTags(taskId, tagIds)
+    const updatedTask = await this.tasksService.addTaskTags(taskId, tagIds)
+    if (updatedTask) {
+      await this.searchService.updateTaskInIndex(updatedTask)
+    }
+    return updatedTask
   }
 
   async removeTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Promise<Task | null> {
-    return await this.tasksService.removeTaskTags(taskId, tagIds)
+    const updatedTask = await this.tasksService.removeTaskTags(taskId, tagIds)
+    if (updatedTask) {
+      await this.searchService.updateTaskInIndex(updatedTask)
+    }
+    return updatedTask
+  }
+  //#endregion
+
+  //#region SEARCH
+  async searchTasks(query: string): Promise<Task[]> {
+    return await this.searchService.searchTasks(query)
   }
   //#endregion
 

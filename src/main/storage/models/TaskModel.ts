@@ -36,7 +36,7 @@ export class TaskModel {
 
       logger.info(LogContext.TASKS, `Loaded ${result.docs.length} tasks from database`)
 
-      return result.docs.map(docToTask).filter((task) => !params?.includeDeleted && !task.deletedAt)
+      return result.docs.map(docToTask).filter((task) => params?.includeDeleted || !task.deletedAt)
     } catch (error) {
       logger.error(LogContext.TASKS, "Failed to load tasks from database", error)
       throw error

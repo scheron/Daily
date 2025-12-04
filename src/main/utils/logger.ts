@@ -15,6 +15,7 @@ export const LogContext = {
   PUSH: "PUSH",
   IPC: "IPC",
   SETTINGS: "SETTINGS",
+  SHELL: "SHELL",
 } as const
 
 class Logger {

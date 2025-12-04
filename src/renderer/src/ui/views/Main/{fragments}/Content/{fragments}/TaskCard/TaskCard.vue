@@ -9,7 +9,7 @@ import {useTaskEditorStore} from "@MainView/stores/taskEditor.store"
 import {useRestoreTaskToast} from "./composables/useRestoreTaskToast"
 import QuickActions from "./{fragments}/QuickActions.vue"
 import StatusButtons from "./{fragments}/StatusButtons.vue"
-import TaskContentViewer from "./{fragments}/TaskContentViewer.vue"
+import TaskContent from "./{fragments}/TaskContent.vue"
 import TimeTrackingButton from "./{fragments}/TimeTrackingButton.vue"
 
 import type {Tag, Task, TaskStatus} from "@shared/types/storage"
@@ -52,6 +52,7 @@ async function onMoveDate(targetDate: ISODate) {
 
 <template>
   <div
+    :id="task.id"
     class="group bg-base-100 hover:shadow-accent/5 relative overflow-hidden rounded-xl border transition-all duration-200 hover:shadow-lg"
     :class="{
       'border-success/30 hover:border-success/40': task.status === 'done',
@@ -79,7 +80,7 @@ async function onMoveDate(targetDate: ISODate) {
       </div>
 
       <div class="mb-5 transition-opacity duration-200" :class="{'opacity-50': ['done', 'discarded'].includes(task.status)}">
-        <TaskContentViewer :content="task.content" />
+        <TaskContent :content="task.content" />
       </div>
     </div>
   </div>

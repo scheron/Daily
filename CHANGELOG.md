@@ -2,6 +2,18 @@
 
 ## [unreleased]
 
+### ✨ New Features
+
+- **Search** - Search across all tasks with intelligent fuzzy matching
+  - Search panel accessible from sidebar (search icon)
+  - Fuzzy matching handles typos and partial matches automatically
+  - Click any result to navigate directly to that day and automatically scroll to the task
+  - Tasks are highlighted when navigated from search results for easy identification
+  - Filter search results by task status (all, active, done, discarded)
+  - Results sorted by relevance score and recency
+
+![Search](./media//showcase/search.gif)
+
 ## v0.7.1 - 2025-12-03
 
 ### ✨ New Features

@@ -2,6 +2,7 @@ import {EditorView} from "@codemirror/view"
 import {codeBlockStyles} from "../theme/codeBlocks"
 import {editorStyles} from "../theme/editor"
 import {markdownStyles} from "../theme/markdown"
+import {searchHighlightStyles} from "../theme/searchHighlight"
 import {syntaxHighlightingStyles} from "../theme/syntaxHighlighting"
 import {utilityStyles} from "../theme/utilities"
 import {widgetStyles} from "../theme/widgets"
@@ -21,6 +22,7 @@ export function createThemeExtension(dark: boolean = true): Extension {
       ...syntaxHighlightingStyles,
       ...widgetStyles,
       ...utilityStyles,
+      ...searchHighlightStyles,
     },
     {dark: dark},
   )

@@ -10,6 +10,7 @@ import {setupMenu} from "@/setup/app/menu"
 import {setupStorageSync} from "@/setup/app/storage"
 import {setupDbViewerIPC, setupDevToolsIPC} from "@/setup/ipc/devtools"
 import {setupMenuIPC} from "@/setup/ipc/menu"
+import {setupShellIPC} from "@/setup/ipc/shell"
 import {setupStorageIPC} from "@/setup/ipc/storage"
 import {setupMainWindowIPC} from "@/setup/ipc/windows"
 import {setupCSP} from "@/setup/security/csp"
@@ -62,6 +63,7 @@ app.whenReady().then(async () => {
   setupSafeFileProtocol(storage)
   setupCSP()
 
+  setupShellIPC()
   setupMainWindowIPC(() => windows.main)
   setupMenuIPC(() => windows.main)
 

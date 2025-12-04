@@ -1,71 +1,74 @@
 <script setup lang="ts">
-import {computed, onMounted, onUnmounted, useTemplateRef} from "vue"
+import {computed, onMounted, onUnmounted, watch} from "vue"
 import {toast} from "vue-sonner"
-import {until, useEventListener} from "@vueuse/core"
 
 import {useClipboardPaste} from "@/composables/useClipboardPaste"
-import {useDevice} from "@/composables/useDevice"
+import {useCodeMirror} from "@/composables/useCodeMirror"
 import {useFileDrop} from "@/composables/useFileDrop"
+import {createMarkdownKeymap} from "@/utils/codemirror/commands/keymap"
+import {createAutoPairsExtension} from "@/utils/codemirror/extensions/autoPairs"
+import {createBlockContinuationExtension} from "@/utils/codemirror/extensions/blockContinuation"
+import {createCodeBlockAutocomplete} from "@/utils/codemirror/extensions/codeBlockAutocomplete"
+import {createCodeSyntaxExtension} from "@/utils/codemirror/extensions/codeSyntax"
+import {createThemeExtension} from "@/utils/codemirror/extensions/theme"
+import {createWYSIWYGExtension} from "@/utils/codemirror/extensions/wysiwyg"
 
 import {useTaskEditorStore} from "@MainView/stores/taskEditor.store"
+import {indentWithTab} from "@codemirror/commands"
+import {EditorView} from "@codemirror/view"
 import {useEditTask} from "./composables/useEditTask"
 import {useImageUpload} from "./composables/useImageUpload"
 import EditorPlaceholder from "./{fragments}/EditorPlaceholder.vue"
+import FloatingToolbar from "./{fragments}/FloatingToolbar.vue"
 
 const taskEditorStore = useTaskEditorStore()
-
-const {isMacOS} = useDevice()
-const {createOrUpdate} = useEditTask()
-const {uploadImageFile} = useImageUpload()
 
 const content = computed({
   get: () => taskEditorStore.editorContent,
   set: (v) => taskEditorStore.setEditorContent(v),
 })
 
-const contentField = useTemplateRef<HTMLElement>("contentField")
+const {createOrUpdate} = useEditTask()
+const {uploadImageFile} = useImageUpload()
 
-function insertText(text: string) {
-  const frag = document.createDocumentFragment()
-
-  text.split("\n").forEach((line, i, arr) => {
-    frag.appendChild(document.createTextNode(line))
-    if (i < arr.length - 1) frag.appendChild(document.createElement("br"))
-  })
-
-  const sel = window.getSelection()
-  if (sel?.rangeCount) {
-    const range = sel.getRangeAt(0)
-    range.deleteContents()
-    range.insertNode(frag)
-    range.collapse(false)
-    sel.removeAllRanges()
-    sel.addRange(range)
-  } else {
-    contentField.value?.appendChild(frag)
-  }
-}
-
-function focusContentField(toEnd = false) {
-  const el = contentField.value
-  if (!el) return
-
-  el.focus()
-
-  if (toEnd) {
-    const range = document.createRange()
-    const sel = window.getSelection()
-    range.selectNodeContents(el)
-    range.collapse(false)
-    sel?.removeAllRanges()
-    sel?.addRange(range)
-  }
-}
-
-function onInput() {
-  if (!contentField.value) return
-  content.value = contentField.value.innerText || ""
-}
+const {view, container, setContent, insertText, focus} = useCodeMirror({
+  content: content.value,
+  onUpdate: (newContent) => (content.value = newContent),
+  extensions: [
+    EditorView.lineWrapping,
+    createThemeExtension(),
+    createWYSIWYGExtension(),
+    createCodeSyntaxExtension(),
+    createCodeBlockAutocomplete(),
+    createAutoPairsExtension(),
+    createBlockContinuationExtension(),
+  ],
+  shortcuts: [
+    indentWithTab,
+    {
+      key: "Mod-Enter",
+      run: () => {
+        onSaveAndClose()
+        return true
+      },
+    },
+    {
+      key: "Mod-Shift-Enter",
+      run: () => {
+        onSaveAndContinue()
+        return true
+      },
+    },
+    {
+      key: "Escape",
+      run: () => {
+        onCancel()
+        return true
+      },
+    },
+    ...createMarkdownKeymap(),
+  ],
+})
 
 async function onSaveAndClose() {
   const success = await createOrUpdate(content.value)
@@ -79,59 +82,54 @@ async function onSaveAndContinue() {
   const success = await createOrUpdate(content.value)
   if (!success) return
 
-  focusContentField()
+  view.value?.focus()
   clearEditor({discardFiles: false, discardTags: false})
+}
+
+function onCancel() {
+  clearEditor({discardFiles: true, discardTags: true})
+  taskEditorStore.setIsTaskEditorOpen(false)
 }
 
 function clearEditor(params: {discardFiles: boolean; discardTags: boolean}) {
   const {discardTags} = params
 
-  if (contentField.value) contentField.value.textContent = ""
+  setContent("")
   taskEditorStore.setEditorContent("")
 
   if (discardTags) taskEditorStore.setEditorTags([])
   taskEditorStore.setCurrentEditingTask(null)
 }
 
-onMounted(async () => {
-  await until(contentField).toBeTruthy()
-  if (!contentField.value) return
+watch(
+  () => taskEditorStore.editorContent,
+  (newContent) => {
+    if (newContent !== content.value) {
+      setContent(newContent)
+    }
+  },
+)
 
-  contentField.value.innerText = content.value
-  focusContentField(!!taskEditorStore.currentEditingTask)
+onMounted(() => {
+  if (taskEditorStore.currentEditingTask) {
+    setContent(taskEditorStore.editorContent)
+  }
+  setTimeout(focus, 100)
 })
 
 onUnmounted(() => clearEditor({discardFiles: true, discardTags: true}))
 
-useEventListener(contentField, "keydown", (event) => {
-  const mod = isMacOS ? event.metaKey : event.ctrlKey
-
-  if (event.key === "Escape") {
-    clearEditor({discardFiles: true, discardTags: true})
-    taskEditorStore.setIsTaskEditorOpen(false)
-    return
-  }
-
-  if (event.key === "Enter" && !event.shiftKey) {
-    event.preventDefault()
-    mod ? onSaveAndContinue() : onSaveAndClose()
-  }
-})
-
-useClipboardPaste(contentField, {
-  onTextPaste: () => onInput(),
+useClipboardPaste(container, {
   onImagePaste: async (file) => {
     const md = await uploadImageFile(file)
     if (md) insertText(md)
-    onInput()
   },
 })
 
-const {isDraggingOver} = useFileDrop(contentField, {
+const {isDraggingOver} = useFileDrop(container, {
   onFileDrop: async (file) => {
     const md = await uploadImageFile(file)
     if (md) insertText(md)
-    onInput()
   },
   onRejectedFile: (file) => {
     toast.error(`Only image files are supported. "${file.name}" is not an image.`)
@@ -142,12 +140,11 @@ const {isDraggingOver} = useFileDrop(contentField, {
 <template>
   <div class="relative h-full min-h-full flex-1 p-2">
     <div
-      ref="contentField"
-      class="markdown border-base-300 size-full cursor-text overflow-y-auto rounded-lg border p-4 pb-0 transition-colors outline-none"
+      ref="container"
+      class="bg-base-100 border-base-300 size-full cursor-text overflow-y-auto rounded-lg border transition-colors"
       :class="{'ring-offset-base-100 ring-accent/50 ring-2': isDraggingOver}"
-      contenteditable="true"
-      @input="onInput"
     ></div>
     <EditorPlaceholder v-show="!content.trim()" />
+    <FloatingToolbar v-if="view" :editor-view="view" />
   </div>
 </template>

@@ -1,6 +1,7 @@
 import {DateTime} from "luxon"
 
 import type {ISODate} from "@shared/types/common"
+import type {TaskSearchResult} from "@shared/types/search"
 import type {Day, Tag, Task, TaskStatus} from "@shared/types/storage"
 import type {Storage} from "./types"
 
@@ -78,6 +79,15 @@ export class StorageAPI implements Storage {
     } catch (error) {
       console.error("Failed to move task", error)
       return false
+    }
+  }
+
+  async searchTasks(query: string): Promise<TaskSearchResult[]> {
+    try {
+      return await window.BridgeIPC["search:query"](query)
+    } catch (error) {
+      console.error("Failed to search tasks", error)
+      return []
     }
   }
   //#endregion

@@ -1,4 +1,5 @@
 import {ImageWidget} from "@/utils/codemirror/widgets/ImageWidget"
+import {LinkWidget} from "@/utils/codemirror/widgets/LinkWidget"
 
 import {Decoration} from "@codemirror/view"
 
@@ -105,7 +106,14 @@ export function formatStrikethrough(builder: RangeSetBuilder<Decoration>, state:
 /**
  * format links ([text](url))
  */
-export function formatLink(builder: RangeSetBuilder<Decoration>, state: EditorState, from: number, to: number, showRaw: boolean): void {
+export function formatLink(
+  builder: RangeSetBuilder<Decoration>,
+  state: EditorState,
+  from: number,
+  to: number,
+  showRaw: boolean,
+  isReadonly: boolean = false,
+): void {
   if (showRaw) return
 
   // Parse link text and URL
@@ -113,25 +121,40 @@ export function formatLink(builder: RangeSetBuilder<Decoration>, state: EditorSt
   const match = text.match(/\[([^\]]+)\]\(([^)]+)\)/)
 
   if (match) {
-    const linkTextLen = match[1].length
+    const linkText = match[1]
+    const url = match[2]
 
-    // Hide opening [
-    builder.add(from, from + 1, Decoration.replace({}))
+    if (isReadonly) {
+      // In readonly mode, replace with clickable link widget
+      builder.add(
+        from,
+        to,
+        Decoration.replace({
+          widget: new LinkWidget(linkText, url),
+        }),
+      )
+    } else {
+      // In edit mode, show styled text with hidden markdown syntax
+      const linkTextLen = linkText.length
 
-    // Style link text to match markdown.css
-    builder.add(
-      from + 1,
-      from + 1 + linkTextLen,
-      Decoration.mark({
-        class: "cm-link",
-        attributes: {
-          style: "color: var(--color-info); text-decoration: none;",
-        },
-      }),
-    )
+      // Hide opening [
+      builder.add(from, from + 1, Decoration.replace({}))
 
-    // Hide ](url)
-    builder.add(from + 1 + linkTextLen, to, Decoration.replace({}))
+      // Style link text to match markdown.css
+      builder.add(
+        from + 1,
+        from + 1 + linkTextLen,
+        Decoration.mark({
+          class: "cm-link",
+          attributes: {
+            style: "color: var(--color-info); text-decoration: none;",
+          },
+        }),
+      )
+
+      // Hide ](url)
+      builder.add(from + 1 + linkTextLen, to, Decoration.replace({}))
+    }
   }
 }
 

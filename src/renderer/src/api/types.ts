@@ -1,4 +1,5 @@
 import type {ISODate, ISOTime, Timezone} from "@shared/types/common"
+import type {TaskSearchResult} from "@shared/types/search"
 import type {Day, Tag, Task} from "@shared/types/storage"
 
 // prettier-ignore
@@ -49,6 +50,12 @@ export interface Storage {
    * @returns The updated day information for both source and target days
    */
   moveTask(taskId: Task["id"], targetDate: ISODate): Promise<boolean>
+  /**
+   * Search for tasks using fuzzy matching
+   * @param query - The search query string
+   * @returns Array of task search results with match information, sorted by relevance
+   */
+  searchTasks(query: string): Promise<TaskSearchResult[]>
 
   addTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Promise<Task | null>
   removeTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Promise<Task | null>

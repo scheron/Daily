@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {onMounted, useTemplateRef} from "vue"
+import BaseInput from "@/ui/base/BaseInput.vue"
 
 defineProps<{
   modelValue: string
@@ -10,8 +10,6 @@ defineProps<{
 const emit = defineEmits<{
   "update:modelValue": [value: string]
 }>()
-
-const inputRef = useTemplateRef<HTMLInputElement>("input")
 
 function onKeyDown(event: KeyboardEvent) {
   if (event.key === " ") {
@@ -34,18 +32,15 @@ function onInput(event: Event) {
   const target = event.target as HTMLInputElement
   emit("update:modelValue", target.value)
 }
-
-onMounted(() => inputRef.value?.focus())
 </script>
 
 <template>
-  <input
-    ref="input"
-    :value="modelValue"
+  <BaseInput
+    :model-value="modelValue"
     type="text"
+    focus-on-mount
     :maxlength="maxlength || 50"
     :placeholder="placeholder || 'Tag name'"
-    class="bg-base-100 border-base-300 focus:ring-primary/20 focus:border-primary/50 h-8 w-full rounded-lg border px-3 py-1.5 text-sm focus:ring-1 focus:outline-none"
     @keydown="onKeyDown"
     @input="onInput"
   />

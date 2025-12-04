@@ -1,4 +1,5 @@
 import type {ISODate} from "@shared/types/common"
+import type {TaskSearchResult} from "@shared/types/search"
 import type {Day, File, Settings, SyncStatus, Tag, Task} from "@shared/types/storage"
 import type {ReplaceValue} from "@shared/types/utils"
 import type {PartialDeep} from "type-fest"
@@ -17,6 +18,8 @@ export interface IStorageController {
   updateTask(id: Task["id"], updates: PartialDeep<Task>): Promise<Task | null>
   createTask(task: Omit<Task, "id" | "createdAt" | "updatedAt">): Promise<Task | null>
   deleteTask(id: Task["id"]): Promise<boolean>
+
+  searchTasks(query: string): Promise<TaskSearchResult[]>
 
   getTagList(): Promise<Tag[]>
   getTag(id: Tag["id"]): Promise<Tag | null>

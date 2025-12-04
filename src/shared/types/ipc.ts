@@ -1,6 +1,7 @@
 /// <reference types="node" />
 import type {PartialDeep} from "type-fest"
 import type {ISODate} from "./common"
+import type {TaskSearchResult} from "./search"
 import type {Day, File, Settings, SyncStatus, Tag, Task} from "./storage"
 
 export interface BridgeIPC {
@@ -16,6 +17,9 @@ export interface BridgeIPC {
   "platform:is-mac": () => boolean
   "platform:is-windows": () => boolean
   "platform:is-linux": () => boolean
+
+  // === SHELL ===
+  "shell:open-external": (url: string) => Promise<boolean>
 
   // === WINDOW MENU SHORTCUTS ===
   /**@deprecated remote with menu*/
@@ -45,6 +49,9 @@ export interface BridgeIPC {
   "tasks:delete": (id: Task["id"]) => Promise<boolean>
   "tasks:add-tags": (taskId: Task["id"], tagIds: Tag["id"][]) => Promise<Task | null>
   "tasks:remove-tags": (taskId: Task["id"], tagIds: Tag["id"][]) => Promise<Task | null>
+
+  // === SEARCH  ===
+  "search:query": (query: string) => Promise<TaskSearchResult[]>
 
   // === TAGS  ===
   "tags:get-many": () => Promise<Tag[]>

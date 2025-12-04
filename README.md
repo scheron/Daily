@@ -37,6 +37,7 @@ Just a lightweight, local-first tool to help me stay on track, one day at a time
 
 - **Day-centric workflow** 📅 — organize tasks by date, focus on what matters today
 - **Calendar navigation** — jump to any day, review past work, plan ahead
+- **Fuzzy search** 🔍 — find any task instantly with intelligent fuzzy matching that handles typos
 - **Rich task content** 📝 — markdown formatting, embedded images, file attachments
 - **Time tracking** ⏱️ — estimate how long tasks will take, track actual time spent
 - **Focus timer** 🪟 — dedicated timer window to stay concentrated on one task
@@ -105,8 +106,7 @@ Create tasks with everything you need:
 
 ### 🗺️ Coming Soon
 
-- **Smart search** 🔍 — find any task instantly with AI-powered search
-- **Voice capture** 🎤 — create tasks hands-free while walking or driving
+- **Voice to task** 🎤 — voice recording to task
 
 ---
 

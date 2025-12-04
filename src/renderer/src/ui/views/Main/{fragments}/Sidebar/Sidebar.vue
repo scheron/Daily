@@ -14,11 +14,11 @@ import CalendarMonthPanel from "./{fragments}/CalendarMonthPanel.vue"
 import CloudSyncPanel from "./{fragments}/CloudSyncPanel.vue"
 import HelpPanel from "./{fragments}/HelpPanel"
 import RecentActiveTasksPanel from "./{fragments}/RecentActiveTasksPanel.vue"
+import SearchPanel from "./{fragments}/SearchPanel"
 import TagsPanel from "./{fragments}/TagsPanel"
 import ThemesPanel from "./{fragments}/ThemesPanel"
 import {BOTTOM_MENU_ITEMS, SYNC_STATUS_ENUM} from "./constants"
-
-import type {SidebarSection} from "./types"
+import {SidebarSection} from "./types"
 
 defineProps<{
   dataLoaded: boolean
@@ -29,8 +29,8 @@ const uiStore = useUIStore()
 const storageStore = useStorageStore()
 
 const {isMacOS, isDesktop} = useDevice()
-const activeSection = ref<SidebarSection>("calendar")
 
+const activeSection = ref<SidebarSection>("calendar")
 const showCollapseButton = computed(() => {
   if (isDesktop.value) return !uiStore.isSidebarCollapsed
   return false
@@ -70,6 +70,7 @@ const showCollapseButton = computed(() => {
           </div>
           <TagsPanel v-else-if="activeSection === 'tags'" class="h-full" />
           <CloudSyncPanel v-else-if="activeSection === 'cloud-sync'" class="h-full" />
+          <SearchPanel v-else-if="activeSection === 'search'" class="h-full" />
           <ThemesPanel v-else-if="activeSection === 'themes'" class="h-full px-4 py-4" />
           <HelpPanel v-else-if="activeSection === 'help'" class="h-full px-4" />
         </div>
@@ -79,7 +80,7 @@ const showCollapseButton = computed(() => {
             v-model:tab="activeSection"
             :tabs="BOTTOM_MENU_ITEMS"
             class="flex items-center justify-between gap-1"
-            tab-class="flex items-center justify-center gap-1 rounded-md px-2 py-1 transition-colors duration-200 outline-none focus-visible-ring focus-visible:ring-offset-base-100 focus-visible:ring-accent"
+            tab-class="flex items-center justify-center gap-1 rounded-md px-1.5 py-1 transition-colors duration-200 outline-none focus-visible-ring focus-visible:ring-offset-base-100 focus-visible:ring-accent"
           >
             <template #tab-icon-cloud-sync>
               <BaseIcon

@@ -4,21 +4,15 @@ import {computed, watch} from "vue"
 import {removeDuplicates} from "@shared/utils/arrays/removeDuplicates"
 import {useTasksStore} from "@/stores/tasks.store"
 import BaseButton from "@/ui/base/BaseButton.vue"
-import BaseIcon, {IconName} from "@/ui/base/BaseIcon"
+import BaseIcon from "@/ui/base/BaseIcon"
 import DynamicTagsPanel from "@/ui/common/misc/DynamicTagsPanel.vue"
 
+import {TASK_FILTERS} from "@MainView/constants"
 import {useFilterStore} from "@MainView/stores/filter.store"
 import {countTasks} from "../utils/countTasks"
 
 import type {TasksFilter} from "@/types/common"
 import type {Tag, Task} from "@shared/types/storage"
-
-const FILTERS: {label: string; value: TasksFilter; icon: IconName}[] = [
-  {label: "All", value: "all", icon: "today"},
-  {label: "Active", value: "active", icon: "fire"},
-  {label: "Discarded", value: "discarded", icon: "archive"},
-  {label: "Done", value: "done", icon: "check-check"},
-]
 
 const tasksStore = useTasksStore()
 const filterStore = useFilterStore()
@@ -71,7 +65,7 @@ watch(
     <div class="flex w-full shrink-0 items-center gap-3 md:w-auto">
       <div class="bg-base-300 text-base-content inline-flex w-full gap-0.5 rounded-lg p-0.5 md:w-auto">
         <button
-          v-for="option in FILTERS"
+          v-for="option in TASK_FILTERS"
           :key="option.value"
           class="focus-visible-ring focus-visible:ring-offset-base-100 focus-visible:ring-accent inline-flex flex-1 items-center justify-center gap-x-1.5 rounded-md px-2 py-0.5 text-sm transition-colors outline-none md:flex-none"
           :class="{

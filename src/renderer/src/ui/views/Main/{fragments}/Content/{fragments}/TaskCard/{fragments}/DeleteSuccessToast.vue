@@ -2,7 +2,7 @@
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseIcon from "@/ui/base/BaseIcon"
 
-import TaskContentViewer from "./TaskContentViewer.vue"
+import TaskContent from "./TaskContent.vue"
 
 defineProps<{taskContent: string}>()
 defineEmits<{restore: []}>()
@@ -18,7 +18,7 @@ defineEmits<{restore: []}>()
     </div>
 
     <div class="border-base-300 line-clamp-4 max-h-[250px] overflow-y-auto rounded-md border p-2 text-xs">
-      <TaskContentViewer :content="taskContent" />
+      <TaskContent :content="taskContent" />
     </div>
 
     <BaseButton variant="ghost" class="" icon-class="size-4" icon="undo" @click="$emit('restore')"> Restore </BaseButton>

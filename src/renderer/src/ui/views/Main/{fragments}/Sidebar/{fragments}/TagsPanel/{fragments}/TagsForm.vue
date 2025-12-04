@@ -4,9 +4,8 @@ import {toast} from "vue-sonner"
 
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BasePopup from "@/ui/base/BasePopup.vue"
+import TagsInput from "@/ui/common/inputs/TagsInput.vue"
 import ColorPicker from "@/ui/common/pickers/ColorPicker.vue"
-
-import TagsInput from "./TagsInput.vue"
 
 import type {Tag} from "@shared/types/storage"
 

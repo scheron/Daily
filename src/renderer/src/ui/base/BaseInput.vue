@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed} from "vue"
+import {computed, onMounted, useTemplateRef, watch} from "vue"
 
 const props = defineProps<{
   modelValue: string
@@ -7,6 +7,7 @@ const props = defineProps<{
   type?: string
   disabled?: boolean
   class?: string
+  focusOnMount?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -14,10 +15,12 @@ const emit = defineEmits<{
   "keyup.enter": []
 }>()
 
+const inputRef = useTemplateRef<HTMLInputElement>("input")
+
 const classes = computed(() => [
   "w-full px-3 py-1.5 rounded-lg bg-base-100 border border-base-300",
-  "focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50",
-  "disabled:opacity-50 disabled:cursor-not-allowed",
+  "focus-visible-ring focus-visible:ring-offset-base-100 focus-visible:ring-accent/80",
+  "disabled:opacity-50 disabled:cursor-not-allowed outline-none",
   "placeholder:text-base-content/50",
   props.class,
 ])
@@ -32,10 +35,20 @@ function onKeyup(e: KeyboardEvent) {
     emit("keyup.enter")
   }
 }
+
+onMounted(() => props.focusOnMount && inputRef.value?.focus())
+
+watch(
+  () => props.modelValue,
+  (newValue) => {
+    if (!newValue) inputRef.value?.focus()
+  },
+)
 </script>
 
 <template>
   <input
+    ref="input"
     :type="type ?? 'text'"
     :value="modelValue"
     :placeholder="placeholder"

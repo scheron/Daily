@@ -63,7 +63,7 @@ function createWYSIWYGDecorations(view: EditorView): DecorationSet {
             break
 
           case "Link":
-            formatLink(builder, state, from, to, showRaw)
+            formatLink(builder, state, from, to, showRaw, isReadonly)
             break
 
           case "Image":

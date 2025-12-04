@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import {computed, ref} from "vue"
 
-import {useEditorSelection} from "@/composables/useEditorSelection"
+import {blockCommands} from "@/utils/codemirror/commands/blockCommands"
+import {inlineCommands} from "@/utils/codemirror/commands/inlineCommands"
 import BaseButton from "@/ui/base/BaseButton.vue"
+import {useEditorSelection} from "@/ui/views/Main/{fragments}/Content/{fragments}/TaskEditor/composables/useEditorSelection"
 
 import {autoUpdate, flip, offset, shift, useFloating} from "@floating-ui/vue"
-import {markdownCommands} from "../commands/markdownCommands"
 
 import type {EditorView} from "@codemirror/view"
 
@@ -26,7 +27,7 @@ const {floatingStyles} = useFloating(virtualReference, toolbarRef, {
   whileElementsMounted: autoUpdate,
 })
 
-function handleCommand(command: (view: EditorView) => boolean) {
+function onCommand(command: (view: EditorView) => boolean) {
   if (props.editorView) {
     command(props.editorView)
     props.editorView.focus()
@@ -49,7 +50,7 @@ function handleCommand(command: (view: EditorView) => boolean) {
         size="sm"
         tooltip="Bold (Cmd+B)"
         tooltip-position="top"
-        @click="handleCommand(markdownCommands.toggleBold)"
+        @click="onCommand(inlineCommands.toggleBold)"
       />
       <BaseButton
         icon="italic"
@@ -58,7 +59,7 @@ function handleCommand(command: (view: EditorView) => boolean) {
         size="sm"
         tooltip="Italic (Cmd+I)"
         tooltip-position="top"
-        @click="handleCommand(markdownCommands.toggleItalic)"
+        @click="onCommand(inlineCommands.toggleItalic)"
       />
       <BaseButton
         icon="code"
@@ -67,7 +68,7 @@ function handleCommand(command: (view: EditorView) => boolean) {
         size="sm"
         tooltip="Inline Code (Cmd+`)"
         tooltip-position="top"
-        @click="handleCommand(markdownCommands.toggleCode)"
+        @click="onCommand(inlineCommands.toggleCode)"
       />
 
       <div class="bg-base-content/20 mx-2 h-8 w-px" />
@@ -79,7 +80,7 @@ function handleCommand(command: (view: EditorView) => boolean) {
         size="sm"
         tooltip="Heading"
         tooltip-position="top"
-        @click="handleCommand(markdownCommands.insertHeading2)"
+        @click="onCommand(blockCommands.insertHeading2)"
       />
       <BaseButton
         icon="checkbox"
@@ -88,7 +89,7 @@ function handleCommand(command: (view: EditorView) => boolean) {
         size="sm"
         tooltip="Checkbox"
         tooltip-position="top"
-        @click="handleCommand(markdownCommands.insertCheckbox)"
+        @click="onCommand(blockCommands.insertCheckbox)"
       />
       <BaseButton
         icon="quote"
@@ -97,7 +98,7 @@ function handleCommand(command: (view: EditorView) => boolean) {
         size="sm"
         tooltip="Quote"
         tooltip-position="top"
-        @click="handleCommand(markdownCommands.insertBlockquote)"
+        @click="onCommand(blockCommands.insertBlockquote)"
       />
     </div>
   </Teleport>
