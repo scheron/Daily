@@ -1,3 +1,5 @@
+type Identity<T> = {[P in keyof T]: T[P]}
+
 /**
  * Creates a new type by renaming a property key `KOld` in type `T` to a new key `KNew`.
  * The value type remains the same.
@@ -11,7 +13,6 @@
  */
 export type ReplaceKey<T, KOld extends keyof T, KNew extends PropertyKey> = Omit<T, KOld> & {[P in KNew]: T[KOld]}
 
-type Identity<T> = {[P in keyof T]: T[P]}
 /**
  * Creates a new type by replacing the value of a property key `K` in type `T`
  * with a new value of type `TReplace`.
