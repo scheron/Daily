@@ -29,14 +29,6 @@ export type UseImageUploadResult = {
   uploadFiles: (files: FileList | File[]) => Promise<string[]>
 }
 
-/**
- * Composable для загрузки/сжатия изображений и вставки в Markdown.
- *
- * 1) Сжимает изображение через canvas до maxWidth/maxHeight (по умолчанию 1024).
- * 2) Сохраняет через window.BridgeIPC["files:save"](name, buffer).
- * 3) Для вставки в текст использует calculateProportionalSize с displayMaxSize.
- * 4) Возвращает готовую строку вида: ![name =WxH](url).
- */
 export function useImageUpload(options: UseImageUploadOptions = {}): UseImageUploadResult {
   const isUploading = ref(false)
   const error = ref<string | null>(null)

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {computed} from "vue"
 import {toast} from "vue-sonner"
 
 import {ISODate} from "@shared/types/common"
@@ -11,6 +12,7 @@ import QuickActions from "./{fragments}/QuickActions.vue"
 import StatusButtons from "./{fragments}/StatusButtons.vue"
 import TaskContent from "./{fragments}/TaskContent.vue"
 import TimeTrackingButton from "./{fragments}/TimeTrackingButton.vue"
+import {TaskEditorCard} from "../TaskEditorCard"
 
 import type {Tag, Task, TaskStatus} from "@shared/types/storage"
 
@@ -20,6 +22,16 @@ const tasksStore = useTasksStore()
 const taskEditorStore = useTaskEditorStore()
 
 const toastRestoreTask = useRestoreTaskToast(async (task) => await tasksStore.restoreTask(task.id))
+
+const isEditing = computed(() => {
+  if (!taskEditorStore.isTaskEditorOpen) return false
+
+  if (props.task.id === "new-task" && !taskEditorStore.currentEditingTask) {
+    return true
+  }
+
+  return taskEditorStore.currentEditingTask?.id === props.task.id
+})
 
 function onChangeStatus(status: TaskStatus) {
   if (props.task.status === status) return
@@ -51,9 +63,12 @@ async function onMoveDate(targetDate: ISODate) {
 </script>
 
 <template>
+  <TaskEditorCard v-if="isEditing" />
+
   <div
+    v-else
     :id="task.id"
-    class="group bg-base-100 hover:shadow-accent/5 relative overflow-hidden rounded-xl border transition-all duration-200 hover:shadow-lg"
+    class="group min-h-card bg-base-100 hover:shadow-accent/5 relative overflow-hidden rounded-xl border transition-all duration-200 hover:shadow-lg"
     :class="{
       'border-success/30 hover:border-success/40': task.status === 'done',
       'border-warning/30 hover:border-warning/40': task.status === 'discarded',

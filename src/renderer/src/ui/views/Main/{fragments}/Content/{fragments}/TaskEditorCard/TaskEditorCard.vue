@@ -1,0 +1,302 @@
+<script setup lang="ts">
+import {computed, onMounted, onUnmounted, reactive, ref, watch} from "vue"
+import {toast} from "vue-sonner"
+
+import {useTagsStore} from "@/stores/tags.store"
+import {useTasksStore} from "@/stores/tasks.store"
+import {useClipboardPaste} from "@/composables/useClipboardPaste"
+import {useCodeMirror} from "@/composables/useCodeMirror"
+import {useFileDrop} from "@/composables/useFileDrop"
+import {createMarkdownKeymap} from "@/utils/codemirror/commands/keymap"
+import {createAutoPairsExtension} from "@/utils/codemirror/extensions/autoPairs"
+import {createBlockContinuationExtension} from "@/utils/codemirror/extensions/blockContinuation"
+import {createCodeBlockAutocomplete} from "@/utils/codemirror/extensions/codeBlockAutocomplete"
+import {createCodeSyntaxExtension} from "@/utils/codemirror/extensions/codeSyntax"
+import {createThemeExtension} from "@/utils/codemirror/extensions/theme"
+import {createWYSIWYGExtension} from "@/utils/codemirror/extensions/wysiwyg"
+import BaseButton from "@/ui/base/BaseButton.vue"
+import BaseIcon from "@/ui/base/BaseIcon"
+import BasePopup from "@/ui/base/BasePopup.vue"
+import DynamicTagsPanel from "@/ui/common/misc/DynamicTagsPanel.vue"
+import TimePicker from "@/ui/common/pickers/TimePicker.vue"
+
+import {useTaskEditorStore} from "@MainView/stores/taskEditor.store"
+import {indentWithTab} from "@codemirror/commands"
+import {EditorView} from "@codemirror/view"
+import {useImageUpload} from "../TaskEditor/composables/useImageUpload"
+import EditorPlaceholder from "../TaskEditor/{fragments}/EditorPlaceholder.vue"
+import FloatingToolbar from "../TaskEditor/{fragments}/FloatingToolbar.vue"
+
+import type {Tag} from "@shared/types/storage"
+
+const tasksStore = useTasksStore()
+const taskEditorStore = useTaskEditorStore()
+const tagsStore = useTagsStore()
+
+const selectedTags = ref<Map<Tag["id"], Tag>>(new Map())
+const estimated = reactive({hours: 0, minutes: 0})
+
+const activeTagIds = computed(() => new Set(selectedTags.value.keys()))
+const isNewTask = computed(() => taskEditorStore.currentEditingTask === null)
+
+const content = computed({
+  get: () => taskEditorStore.editorContent,
+  set: (v) => taskEditorStore.setEditorContent(v),
+})
+
+const {uploadImageFile} = useImageUpload()
+
+const {view, container, setContent, insertText, focus} = useCodeMirror({
+  content: content.value,
+  onUpdate: (newContent) => (content.value = newContent),
+  extensions: [
+    EditorView.lineWrapping,
+    createThemeExtension(),
+    createWYSIWYGExtension(),
+    createCodeSyntaxExtension(),
+    createCodeBlockAutocomplete(),
+    createAutoPairsExtension(),
+    createBlockContinuationExtension(),
+  ],
+  shortcuts: [
+    indentWithTab,
+    {
+      key: "Mod-Enter",
+      run: () => {
+        onSaveAndClose()
+        return true
+      },
+    },
+    {
+      key: "Mod-Shift-Enter",
+      run: () => {
+        onSaveAndContinue()
+        return true
+      },
+    },
+    {
+      key: "Escape",
+      run: () => {
+        onCancel()
+        return true
+      },
+    },
+    ...createMarkdownKeymap(),
+  ],
+})
+
+function onSelectTag(tagId: Tag["id"]) {
+  if (selectedTags.value.has(tagId)) selectedTags.value.delete(tagId)
+  else selectedTags.value.set(tagId, tagsStore.tagsMap.get(tagId)!)
+}
+
+async function onSave() {
+  const text = content.value.trim()
+  if (!text) return
+
+  if (isNewTask.value) {
+    const isSuccess = await tasksStore.createTask({
+      content: text,
+      tags: taskEditorStore.editorTags,
+      estimatedTime: estimated.hours * 3600 + estimated.minutes * 60,
+    })
+
+    if (!isSuccess) return toast.error("Failed to create task")
+    else toast.success("Task created successfully")
+
+    onClose()
+  } else {
+    const isSuccess = await tasksStore.updateTask(taskEditorStore.currentEditingTask!.id, {
+      content: text,
+      tags: taskEditorStore.editorTags,
+      status: "active",
+      estimatedTime: estimated.hours * 3600 + estimated.minutes * 60,
+    })
+
+    if (!isSuccess) return toast.error("Failed to update task")
+    else toast.success("Task updated successfully")
+
+    onClose()
+  }
+}
+
+function onSaveAndClose() {
+  onSave()
+}
+
+async function onSaveAndContinue() {
+  const text = content.value.trim()
+  if (!text) return
+
+  if (isNewTask.value) {
+    const isSuccess = await tasksStore.createTask({
+      content: text,
+      tags: taskEditorStore.editorTags,
+      estimatedTime: estimated.hours * 3600 + estimated.minutes * 60,
+    })
+
+    if (!isSuccess) {
+      toast.error("Failed to create task")
+      return
+    }
+    toast.success("Task created successfully")
+
+    clearEditor({discardFiles: false, discardTags: false})
+    taskEditorStore.setCurrentEditingTask(null)
+    taskEditorStore.setEditorTags([])
+    selectedTags.value.clear()
+    estimated.hours = 0
+    estimated.minutes = 0
+    view.value?.focus()
+  } else {
+    const isSuccess = await tasksStore.updateTask(taskEditorStore.currentEditingTask!.id, {
+      content: text,
+      tags: taskEditorStore.editorTags,
+      status: "active",
+      estimatedTime: estimated.hours * 3600 + estimated.minutes * 60,
+    })
+
+    if (!isSuccess) {
+      toast.error("Failed to update task")
+      return
+    }
+    toast.success("Task updated successfully")
+
+    onClose()
+  }
+}
+
+function onCancel() {
+  clearEditor({discardFiles: true, discardTags: true})
+  taskEditorStore.setIsTaskEditorOpen(false)
+}
+
+function onClose() {
+  clearEditor({discardFiles: true, discardTags: true})
+  taskEditorStore.setIsTaskEditorOpen(false)
+}
+
+function clearEditor(params: {discardFiles: boolean; discardTags: boolean}) {
+  const {discardTags} = params
+
+  setContent("")
+  taskEditorStore.setEditorContent("")
+
+  if (discardTags) {
+    taskEditorStore.setEditorTags([])
+    selectedTags.value.clear()
+  }
+  if (params.discardTags) {
+    taskEditorStore.setCurrentEditingTask(null)
+  }
+}
+
+watch(
+  () => taskEditorStore.editorContent,
+  (newContent) => {
+    if (newContent !== content.value) {
+      setContent(newContent)
+    }
+  },
+)
+
+watch(
+  selectedTags,
+  (tags) => {
+    taskEditorStore.setEditorTags(Array.from(tags.values()))
+  },
+  {deep: true, immediate: true},
+)
+
+onMounted(() => {
+  if (taskEditorStore.currentEditingTask) {
+    setContent(taskEditorStore.editorContent)
+    selectedTags.value = new Map(taskEditorStore.currentEditingTask.tags.map((tag) => [tag.id, tag]))
+    estimated.hours = Math.floor(taskEditorStore.currentEditingTask.estimatedTime / 3600)
+    estimated.minutes = Math.floor((taskEditorStore.currentEditingTask.estimatedTime % 3600) / 60)
+  }
+  setTimeout(focus, 100)
+})
+
+onUnmounted(() => clearEditor({discardFiles: true, discardTags: true}))
+
+useClipboardPaste(container, {
+  onImagePaste: async (file) => {
+    const md = await uploadImageFile(file)
+    if (md) insertText(md)
+  },
+})
+
+const {isDraggingOver} = useFileDrop(container, {
+  onFileDrop: async (file) => {
+    const md = await uploadImageFile(file)
+    if (md) insertText(md)
+  },
+  onRejectedFile: (file) => {
+    toast.error(`Only image files are supported. "${file.name}" is not an image.`)
+  },
+})
+</script>
+
+<template>
+  <div
+    class="group min-h-card bg-base-100 hover:shadow-accent/5 border-base-300 relative flex flex-col overflow-hidden rounded-xl border transition-all duration-200 hover:shadow-lg"
+    :class="{'ring-offset-base-100 ring-accent/50 ring-2': isDraggingOver}"
+  >
+    <!-- Header with toolbar controls -->
+    <div class="bg-base-100 border-base-300 flex w-full shrink-0 flex-col gap-3 border-b px-4 py-2 md:flex-row md:items-center md:justify-between">
+      <div class="relative flex w-full flex-1 items-center gap-2">
+        <DynamicTagsPanel :tags="tagsStore.tags" :selected-tags="activeTagIds" empty-message="No daily tags" @select="onSelectTag" />
+      </div>
+
+      <div class="flex w-full shrink-0 items-center gap-3 md:w-auto">
+        <BasePopup hide-header container-class="p-0 min-w-40" position="center" content-class="p-3">
+          <template #trigger="{toggle}">
+            <BaseButton variant="outline" class="border-accent/30 text-accent hover:bg-accent/10" size="sm" @click="toggle">
+              <span class="px-2 text-xs">{{ estimated.hours }} h.</span>
+              <BaseIcon name="stopwatch" class="size-4" />
+              <span class="px-2 text-xs">{{ estimated.minutes }} min.</span>
+            </BaseButton>
+          </template>
+
+          <div class="flex items-center justify-between gap-3 px-3">
+            <TimePicker v-model:time="estimated.hours" :min="0" :max="23" inline />
+            <BaseIcon name="stopwatch" class="size-5" />
+            <TimePicker v-model:time="estimated.minutes" :min="0" :max="59" inline />
+          </div>
+        </BasePopup>
+
+        <BaseButton
+          size="sm"
+          icon-class="size-4"
+          icon="undo"
+          class="text-base-content bg-base-content/5 hover:bg-base-content/10 w-full rounded-sm px-2 py-0.5 md:w-auto"
+          @click="onCancel"
+        >
+          <span class="text-sm">Cancel {{ isNewTask ? "Create" : "Update" }}</span>
+        </BaseButton>
+
+        <BaseButton
+          class="bg-success/20 hover:bg-success/30 text-success w-full rounded-sm px-5 py-0.5 md:w-auto"
+          size="sm"
+          icon="check"
+          icon-class="size-4"
+          @click="onSave"
+        >
+          <span class="text-sm">{{ isNewTask ? "Create New" : "Update Task" }}</span>
+        </BaseButton>
+      </div>
+    </div>
+
+    <!-- Editor body -->
+    <div class="relative flex min-h-0 flex-1 p-2">
+      <div
+        ref="container"
+        class="bg-base-100 border-base-300 h-full w-full cursor-text overflow-y-auto rounded-lg border transition-colors"
+        :class="{'ring-offset-base-100 ring-accent/50 ring-2': isDraggingOver}"
+      ></div>
+      <EditorPlaceholder v-show="!content.trim()" />
+      <FloatingToolbar v-if="view" :editor-view="view" />
+    </div>
+  </div>
+</template>

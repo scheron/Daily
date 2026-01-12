@@ -6,12 +6,14 @@
   --sidebar-width: 300px;
   --sidebar-collapsed-width: 80px;
   --header-height: 40px;
+  --card-min-height: 100px;
 }
 
 @theme {
   --spacing-sidebar: var(--sidebar-width);
   --spacing-sidebar-collapsed: var(--sidebar-collapsed-width);
   --spacing-header: var(--header-height);
+  --spacing-card: var(--card-min-height);
 }
 
 html {
