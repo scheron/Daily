@@ -24,7 +24,6 @@ import {useTaskEditorStore} from "@MainView/stores/taskEditor.store"
 import {indentWithTab} from "@codemirror/commands"
 import {EditorView} from "@codemirror/view"
 import {useImageUpload} from "../TaskEditor/composables/useImageUpload"
-import EditorPlaceholder from "../TaskEditor/{fragments}/EditorPlaceholder.vue"
 import FloatingToolbar from "../TaskEditor/{fragments}/FloatingToolbar.vue"
 
 import type {Tag} from "@shared/types/storage"
@@ -243,8 +242,7 @@ const {isDraggingOver} = useFileDrop(container, {
     class="group min-h-card bg-base-100 hover:shadow-accent/5 border-base-300 relative flex flex-col overflow-hidden rounded-xl border transition-all duration-200 hover:shadow-lg"
     :class="{'ring-offset-base-100 ring-accent/50 ring-2': isDraggingOver}"
   >
-    <!-- Header with toolbar controls -->
-    <div class="bg-base-100 border-base-300 flex w-full shrink-0 flex-col gap-3 border-b px-4 py-2 md:flex-row md:items-center md:justify-between">
+    <div class="bg-base-100 flex w-full shrink-0 flex-col gap-3 px-4 py-2 md:flex-row md:items-center md:justify-between">
       <div class="relative flex w-full flex-1 items-center gap-2">
         <DynamicTagsPanel :tags="tagsStore.tags" :selected-tags="activeTagIds" empty-message="No daily tags" @select="onSelectTag" />
       </div>
@@ -288,15 +286,36 @@ const {isDraggingOver} = useFileDrop(container, {
       </div>
     </div>
 
-    <!-- Editor body -->
-    <div class="relative flex min-h-0 flex-1 p-2">
+    <div class="relative mb-1 flex min-h-0 flex-1 flex-col gap-2 p-2">
       <div
         ref="container"
         class="bg-base-100 border-base-300 h-full w-full cursor-text overflow-y-auto rounded-lg border transition-colors"
         :class="{'ring-offset-base-100 ring-accent/50 ring-2': isDraggingOver}"
       ></div>
-      <EditorPlaceholder v-show="!content.trim()" />
       <FloatingToolbar v-if="view" :editor-view="view" />
+
+      <div class="text-base-content/60 flex shrink-0 items-center justify-center gap-8 text-[10px]">
+        <div class="flex items-center gap-1.5">
+          <kbd class="bg-base-200 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1">Esc</kbd>
+          <span>Cancel</span>
+        </div>
+
+        <div class="flex items-center gap-1.5">
+          <kbd class="bg-base-200 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1"> ⌘ </kbd>
+          <span>+</span>
+          <kbd class="bg-base-200 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1">Enter</kbd>
+          <span>Save & Close</span>
+        </div>
+
+        <div class="flex items-center gap-1.5">
+          <kbd class="bg-base-200 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1"> ⌘ </kbd>
+          <span>+</span>
+          <kbd class="bg-base-200 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1"> ⇧ </kbd>
+          <span>+</span>
+          <kbd class="bg-base-200 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1">Enter</kbd>
+          <span>Save & Continue</span>
+        </div>
+      </div>
     </div>
   </div>
 </template>
