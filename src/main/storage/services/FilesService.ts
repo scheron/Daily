@@ -1,6 +1,6 @@
 import path from "node:path"
 
-import {forEachAsync} from "@shared/utils/arrays/forEachAsync"
+import {forEachParallel} from "@shared/utils/arrays/forEachParallel"
 import {extractFileIds} from "@/utils/files/extractFileIds"
 import {getMimeType} from "@/utils/files/getMimeType"
 import {LogContext, logger} from "@/utils/logger"
@@ -109,8 +109,8 @@ export class FilesService {
       // Only consider non-deleted files as orphans
       const orphans = allFiles.filter((file) => file.deletedAt === null && !referenced.has(file.id))
 
-      await forEachAsync(orphans, (orphan) => {
-        this.fileModel.deleteFile(orphan.id)
+      await forEachParallel(orphans, async (orphan) => {
+        await this.fileModel.deleteFile(orphan.id)
       })
 
       logger.info(LogContext.FILES, `Removed ${orphans.length} orphan files`)
