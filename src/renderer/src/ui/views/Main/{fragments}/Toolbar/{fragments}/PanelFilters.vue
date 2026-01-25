@@ -9,7 +9,6 @@ import DynamicTagsPanel from "@/ui/common/misc/DynamicTagsPanel.vue"
 
 import {TASK_FILTERS} from "@MainView/constants"
 import {useFilterStore} from "@MainView/stores/filter.store"
-import {countTasks} from "../utils/countTasks"
 
 import type {TasksFilter} from "@/types/common"
 import type {Tag, Task} from "@shared/types/storage"
@@ -30,6 +29,19 @@ const filteredTags = computed(() => {
 function filterTasksByStatus(tasks: Task[], filter: TasksFilter): Task[] {
   if (filter === "all") return tasks
   return tasks.filter((task) => task.status === filter)
+}
+
+function countTasks(tasks: Task[]) {
+  return tasks.reduce(
+    (acc, task) => {
+      if (task.status === "active") acc.active++
+      else if (task.status === "done") acc.done++
+      else if (task.status === "discarded") acc.discarded++
+
+      return acc
+    },
+    {active: 0, done: 0, discarded: 0, total: tasks.length},
+  )
 }
 
 function onSelectTag(name: Tag["name"]) {

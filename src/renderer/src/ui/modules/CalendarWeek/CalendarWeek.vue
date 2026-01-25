@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import {computed} from "vue"
 
+import {getWeekDays} from "@shared/utils/date/getWeekDays"
 import {isToday} from "@shared/utils/date/validators"
 import {useTasksStore} from "@/stores/tasks.store"
 
-import {getWeekDays} from "../../utils/week"
 import WeekDay from "./{fragments}/WeekDay.vue"
 
 import type {ISODate} from "@shared/types/common"

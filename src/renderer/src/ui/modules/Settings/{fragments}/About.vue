@@ -4,7 +4,7 @@ import Logo from "@/ui/common/misc/Logo.vue"
 </script>
 
 <template>
-  <div class="flex flex-1 flex-col overflow-y-auto">
+  <div class="flex flex-1 flex-col">
     <div class="space-y-2">
       <h3 class="text-base font-semibold">Elevate Your Productivity</h3>
       <p class="text-base-content/80 flex items-start gap-2 text-sm">
@@ -18,12 +18,11 @@ import Logo from "@/ui/common/misc/Logo.vue"
         <li>- <BaseIcon name="sparkles" class="text-accent mr-2 size-4" /> <span class="font-medium">Elegant UI</span></li>
         <li>- <BaseIcon name="markdown" class="text-accent mr-2 size-4" /> <span class="font-medium">Markdown Support</span></li>
         <li>- <BaseIcon name="background" class="text-accent mr-2 size-4" /> <span class="font-medium">Multiple themes</span></li>
-        <li>- <BaseIcon name="keyboard" class="text-accent mr-2 size-4" /> <span class="font-medium">Keyboard Shortcuts</span></li>
       </ul>
     </div>
 
     <div class="text-base-content/60 mt-4 text-xs">
-      <p>Made with ❤️ by <a href="https://github.com/scheron" target="_blank" class="text-accent hover:underline">Infected by js</a></p>
+      <p>Made with ❤️ by <a href="https://github.com/scheron" target="_blank" class="text-accent hover:underline">Scheron</a></p>
     </div>
   </div>
 </template>

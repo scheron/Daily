@@ -6,7 +6,7 @@ import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseIcon from "@/ui/base/BaseIcon"
 import BlockUI from "@/ui/common/misc/BlockUI.vue"
 
-import Preview from "./{fragments}/Preview.vue"
+import ThemesPreview from "./ThemesPreview.vue"
 
 const themeStore = useThemeStore()
 
@@ -30,15 +30,14 @@ function setPreferredDarkTheme(event: Event) {
 </script>
 
 <template>
-  <div class="flex flex-col gap-4">
-    <h3 class="text-base-content text-sm font-semibold">Themes</h3>
+  <div class="flex flex-col gap-4 pb-8">
     <div class="flex flex-col gap-2">
       <div class="text-base-content flex items-center gap-1 text-xs font-bold select-none">
         <BaseIcon name="background" class="size-4" />
         Light Mode
       </div>
       <div class="flex gap-3 overflow-x-auto overscroll-none py-3">
-        <Preview
+        <ThemesPreview
           v-for="theme in lightThemes"
           :key="theme.id"
           :theme="theme"
@@ -56,7 +55,7 @@ function setPreferredDarkTheme(event: Event) {
         Dark Mode
       </div>
       <div class="flex gap-3 overflow-x-auto overscroll-none py-3">
-        <Preview
+        <ThemesPreview
           v-for="theme in darkThemes"
           :key="theme.id"
           :theme="theme"

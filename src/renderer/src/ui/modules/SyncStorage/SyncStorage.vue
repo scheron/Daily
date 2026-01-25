@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import {toLocaleTime} from "@shared/utils/date/formatters"
 import {useStorageStore} from "@/stores/storage.store"
+import {SYNC_STATUS_ENUM} from "@/constants/sync"
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseIcon from "@/ui/base/BaseIcon"
 import BaseSwitch from "@/ui/base/BaseSwitch.vue"
-
-import {SYNC_STATUS_ENUM} from "../constants"
 
 const storageStore = useStorageStore()
 

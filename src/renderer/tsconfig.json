@@ -19,6 +19,6 @@
       "@MainView/*": ["./src/ui/views/Main/*"]
     }
   },
-  "include": ["./**/*.ts", "./**/*.d.ts", "./**/*.tsx", "./**/*.vue"],
+  "include": ["./**/*.ts", "./**/*.d.ts", "./**/*.tsx", "./**/*.vue", "../shared/utils/date/getNextWeekDate.ts"],
   "exclude": ["node_modules", "build", "dist", "public"]
 }

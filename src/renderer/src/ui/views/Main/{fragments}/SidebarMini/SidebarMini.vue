@@ -1,10 +1,10 @@
 <script setup lang="ts">
+import {getNextWeekDate} from "@shared/utils/date/getNextWeekDate"
+import {getPrevWeekDate} from "@shared/utils/date/getPrevWeekDate"
 import {useTasksStore} from "@/stores/tasks.store"
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseSpinner from "@/ui/base/BaseSpinner.vue"
-
-import {getNextWeek, getPreviousWeek} from "./utils/week"
-import CalendarWeek from "./{fragments}/CalendarWeek"
+import CalendarWeek from "@/ui/modules/CalendarWeek"
 
 defineProps<{
   dataLoaded: boolean
@@ -14,11 +14,11 @@ defineProps<{
 const tasksStore = useTasksStore()
 
 function goToPreviousWeek() {
-  tasksStore.setActiveDay(getPreviousWeek(tasksStore.activeDay))
+  tasksStore.setActiveDay(getPrevWeekDate(tasksStore.activeDay))
 }
 
 function goToNextWeek() {
-  tasksStore.setActiveDay(getNextWeek(tasksStore.activeDay))
+  tasksStore.setActiveDay(getNextWeekDate(tasksStore.activeDay))
 }
 </script>
 
@@ -32,8 +32,8 @@ function goToNextWeek() {
       <template v-else>
         <div class="text-base-content flex size-full flex-col">
           <div class="border-base-300 flex items-center justify-center gap-1 border-b px-2 py-1">
-            <BaseButton variant="ghost" icon="chevron-left" size="sm" tooltip="Предыдущая неделя" @click="goToPreviousWeek()" />
-            <BaseButton variant="ghost" icon="chevron-right" size="sm" tooltip="Следующая неделя" @click="goToNextWeek()" />
+            <BaseButton variant="ghost" icon="chevron-left" size="sm" tooltip="Previous week" @click="goToPreviousWeek()" />
+            <BaseButton variant="ghost" icon="chevron-right" size="sm" tooltip="Next week" @click="goToNextWeek()" />
           </div>
 
           <div class="hide-scrollbar flex-1 overflow-y-auto px-1 py-4">

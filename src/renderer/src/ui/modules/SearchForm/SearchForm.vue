@@ -10,7 +10,8 @@ import BaseIcon from "@/ui/base/BaseIcon"
 import {API} from "@/api"
 import SearchResultItem from "./{fragments}/SearchResultItem.vue"
 import SearchToolbar from "./{fragments}/SearchToolbar.vue"
-import {TaskStatusFilter} from "../../types"
+
+import type {TaskStatusFilter} from "./types"
 
 const tasksStore = useTasksStore()
 

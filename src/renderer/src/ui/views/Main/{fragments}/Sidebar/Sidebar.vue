@@ -3,23 +3,23 @@ import {computed, ref} from "vue"
 
 import {useStorageStore} from "@/stores/storage.store"
 import {useDevice} from "@/composables/useDevice"
+import {SYNC_STATUS_ENUM} from "@/constants/sync"
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseIcon from "@/ui/base/BaseIcon"
 import BaseSpinner from "@/ui/base/BaseSpinner.vue"
 import AnimatedTabs from "@/ui/common/misc/AnimatedTabs"
 import Logo from "@/ui/common/misc/Logo.vue"
+import CalendarMonth from "@/ui/modules/CalendarMonth"
+import DeletedTasks from "@/ui/modules/DeletedTasks"
+import SearchForm from "@/ui/modules/SearchForm"
+import Settings from "@/ui/modules/Settings"
+import SyncStorage from "@/ui/modules/SyncStorage"
+import TagsForm from "@/ui/modules/TagsForm"
 
 import {useUIStore} from "@MainView/stores/ui.store"
-import CalendarMonthPanel from "./{fragments}/CalendarMonthPanel.vue"
-import CloudSyncPanel from "./{fragments}/CloudSyncPanel.vue"
-import DeletedTasksPanel from "./{fragments}/DeletedTasksPanel"
-import HelpPanel from "./{fragments}/HelpPanel"
-import RecentActiveTasksPanel from "./{fragments}/RecentActiveTasksPanel.vue"
-import SearchPanel from "./{fragments}/SearchPanel"
-import TagsPanel from "./{fragments}/TagsPanel"
-import ThemesPanel from "./{fragments}/ThemesPanel"
-import {BOTTOM_MENU_ITEMS, SYNC_STATUS_ENUM} from "./constants"
-import {SidebarSection} from "./types"
+import {BOTTOM_MENU_ITEMS} from "./model/constants"
+
+import type {SidebarSection} from "./model/types"
 
 defineProps<{
   dataLoaded: boolean
@@ -65,16 +65,12 @@ const showCollapseButton = computed(() => {
 
       <template v-else>
         <div class="hide-scrollbar flex-1 overflow-y-auto">
-          <div v-if="activeSection === 'calendar'" class="flex h-full flex-col gap-2 px-2 py-2">
-            <CalendarMonthPanel />
-            <RecentActiveTasksPanel />
-          </div>
-          <TagsPanel v-else-if="activeSection === 'tags'" class="h-full" />
-          <CloudSyncPanel v-else-if="activeSection === 'cloud-sync'" class="h-full" />
-          <SearchPanel v-else-if="activeSection === 'search'" class="h-full" />
-          <DeletedTasksPanel v-else-if="activeSection === 'deleted'" class="h-full" />
-          <ThemesPanel v-else-if="activeSection === 'themes'" class="h-full px-4 py-4" />
-          <HelpPanel v-else-if="activeSection === 'help'" class="h-full px-4" />
+          <CalendarMonth v-if="activeSection === 'calendar'" />
+          <TagsForm v-else-if="activeSection === 'tags'" class="h-full" />
+          <SyncStorage v-else-if="activeSection === 'cloud-sync'" class="h-full" />
+          <SearchForm v-else-if="activeSection === 'search'" class="h-full" />
+          <DeletedTasks v-else-if="activeSection === 'deleted'" class="h-full" />
+          <Settings v-else-if="activeSection === 'settings'" class="h-full px-4" />
         </div>
 
         <div class="border-base-300 bg-base-100 border-t px-2 py-2">
