@@ -37,13 +37,6 @@ const statusColorClass = computed(() => {
   return "text-error"
 })
 
-const contentPreview = computed(() =>
-  props.task.content
-    .replace(/[#*`\[\]]/g, "")
-    .trim()
-    .slice(0, 100),
-)
-
 async function onPermanentDelete(task: Task) {
   const deleted = await API.permanentlyDeleteTask(task.id)
 

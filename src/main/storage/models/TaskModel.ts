@@ -217,7 +217,7 @@ export class TaskModel {
   }
 
   async permanentlyDeleteTask(id: Task["id"]): Promise<boolean> {
-    return await withRetryOnConflict("[TASK-PERMANENT-DELETE]", async (attempt) => {
+    const isDeleted = await withRetryOnConflict("[TASK-PERMANENT-DELETE]", async (attempt) => {
       try {
         const doc = await this.db.get<TaskDoc>(docIdMap.task.toDoc(id))
         if (!doc) return false
@@ -250,6 +250,8 @@ export class TaskModel {
         throw error
       }
     })
+
+    return Boolean(isDeleted)
   }
 
   private applyDiffToDoc(doc: TaskDoc, updates: PartialDeep<TaskInternal>): TaskDoc {
