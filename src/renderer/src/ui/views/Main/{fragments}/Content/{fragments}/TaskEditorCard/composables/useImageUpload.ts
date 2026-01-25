@@ -39,7 +39,7 @@ export function useImageUpload(options: UseImageUploadOptions = {}): UseImageUpl
     error.value = null
 
     if (!file.type.startsWith("image/")) {
-      error.value = "Файл не является изображением"
+      error.value = "File is not an image"
       return null
     }
 
@@ -60,7 +60,7 @@ export function useImageUpload(options: UseImageUploadOptions = {}): UseImageUpl
       return markdown
     } catch (e: any) {
       console.error("[useImageUpload] Failed to upload image:", e)
-      error.value = e?.message ?? "Не удалось загрузить изображение"
+      error.value = e?.message ?? "Failed to upload image"
       return null
     } finally {
       isUploading.value = false
