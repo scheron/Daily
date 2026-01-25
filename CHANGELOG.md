@@ -2,6 +2,8 @@
 
 ## [unreleased]
 
+## v0.9.0 - 2026-01-25
+
 ### ✨ New Features
 
 - **In-Place Task Editor** - Redesigned task editing experience with inline editing
