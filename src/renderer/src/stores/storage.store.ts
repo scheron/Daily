@@ -1,4 +1,5 @@
 import {onMounted, ref} from "vue"
+import {createEventHook} from "@vueuse/core"
 import {defineStore} from "pinia"
 
 import {sleep} from "@shared/utils/common/sleep"
@@ -11,6 +12,8 @@ import type {ISODateTime} from "@shared/types/common"
 import type {SyncStatus} from "@shared/types/storage"
 
 export const useStorageStore = defineStore("storage", () => {
+  const onStorageDataChanged = createEventHook()
+
   const tasksStore = useTasksStore()
   const tagsStore = useTagsStore()
   const settingsStore = useSettingsStore()
@@ -63,6 +66,7 @@ export const useStorageStore = defineStore("storage", () => {
   window.BridgeIPC["storage-sync:on-data-changed"](async () => {
     lastSyncAt.value = new Date().toISOString()
     await revalidate()
+    onStorageDataChanged.trigger()
   })
 
   onMounted(async () => {
@@ -79,5 +83,6 @@ export const useStorageStore = defineStore("storage", () => {
     deactivateSync,
 
     revalidate,
+    onStorageDataChanged: onStorageDataChanged.on,
   }
 })

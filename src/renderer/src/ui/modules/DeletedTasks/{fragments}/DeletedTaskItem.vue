@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {computed, onMounted, onUnmounted, useTemplateRef, watch} from "vue"
+import {toasts} from "vue-toasts-lite"
 
 import {toFullDate} from "@shared/utils/date/formatters"
 import {createCodeSyntaxExtension} from "@/utils/codemirror/extensions/codeSyntax"
@@ -9,21 +10,20 @@ import {createWYSIWYGExtension} from "@/utils/codemirror/extensions/wysiwyg"
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseIcon from "@/ui/base/BaseIcon"
 import BaseTag from "@/ui/base/BaseTag.vue"
+import ConfirmPopup from "@/ui/common/misc/ConfirmPopup.vue"
 
+import {API} from "@/api"
 import {EditorState} from "@codemirror/state"
 import {EditorView} from "@codemirror/view"
 
 import type {Task} from "@shared/types/storage"
 
 const props = defineProps<{task: Task}>()
+const emit = defineEmits<{restore: [task: Task]}>()
 
-const emit = defineEmits<{
-  restore: [task: Task]
-  deletePermanently: [task: Task]
-}>()
+let view: EditorView | null = null
 
 const containerRef = useTemplateRef<HTMLDivElement>("container")
-let view: EditorView | null = null
 
 const statusIcon = computed(() => {
   if (props.task.status === "done") return "check-check"
@@ -36,6 +36,20 @@ const statusColorClass = computed(() => {
   if (props.task.status === "discarded") return "text-warning"
   return "text-error"
 })
+
+const contentPreview = computed(() =>
+  props.task.content
+    .replace(/[#*`\[\]]/g, "")
+    .trim()
+    .slice(0, 100),
+)
+
+async function onPermanentDelete(task: Task) {
+  const deleted = await API.permanentlyDeleteTask(task.id)
+
+  if (deleted) toasts.success("Task permanently deleted")
+  else toasts.error("Failed to permanently delete task")
+}
 
 function createReadonlyEditor(content: string) {
   if (!containerRef.value) return
@@ -87,7 +101,7 @@ const deletedAtFormatted = computed(() => {
 </script>
 
 <template>
-  <div class="border-base-300 flex flex-col gap-2 rounded-lg border px-2 py-2 shadow-xs transition-colors duration-200">
+  <div class="border-base-300 flex flex-col gap-2 rounded-lg border px-4 py-2 shadow-xs transition-colors duration-200">
     <div class="flex items-center justify-between gap-2">
       <span class="text-base-content/60 text-xs">{{ toFullDate(task.scheduled.date) }}</span>
       <BaseIcon :name="statusIcon" class="size-4" :class="statusColorClass" />
@@ -101,32 +115,26 @@ const deletedAtFormatted = computed(() => {
       <BaseTag v-for="tag in task.tags" :key="tag.id" :selectable="false" :tag="tag" />
     </div>
 
-    <div class="border-base-300 mt-1 border-t pt-2">
-      <div class="mb-2 flex items-center justify-between">
-        <span class="text-base-content/50 text-[10px]">Deleted: {{ deletedAtFormatted }}</span>
-      </div>
+    <div class="mt-1 flex items-center justify-between gap-2 pt-2">
+      <span class="text-base-content/50 text-xs">Deleted: {{ deletedAtFormatted }}</span>
 
       <div class="flex gap-1">
-        <BaseButton
-          variant="ghost"
-          size="sm"
-          icon="undo"
-          tooltip="Restore task"
-          class="text-success hover:bg-success/10 flex-1"
-          @click="emit('restore', task)"
+        <BaseButton variant="ghost" size="sm" icon="undo" class="text-success hover:bg-success/10 size-7" @click="emit('restore', task)" />
+
+        <ConfirmPopup
+          ref="confirmPopup"
+          title="Delete task permanently?"
+          message="This cannot be undone."
+          cancel-text="Cancel"
+          confirm-class="text-error hover:bg-error/10"
+          confirm-text="Delete"
+          position="center"
+          @confirm="onPermanentDelete(task)"
         >
-          Restore
-        </BaseButton>
-        <BaseButton
-          variant="ghost"
-          size="sm"
-          icon="trash"
-          tooltip="Delete permanently"
-          class="text-error hover:bg-error/10 flex-1"
-          @click="emit('deletePermanently', task)"
-        >
-          Delete
-        </BaseButton>
+          <template #trigger="{show}">
+            <BaseButton variant="ghost" size="sm" icon="trash" class="text-error hover:bg-error/10 size-7" icon-class="size-4" @click="show()" />
+          </template>
+        </ConfirmPopup>
       </div>
     </div>
   </div>

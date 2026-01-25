@@ -48,6 +48,7 @@ export type IconName =
   | "checkbox"
   | "quote"
   | "search"
+  | "book-x"
 </script>
 
 <template>
@@ -400,6 +401,11 @@ export type IconName =
     </symbol>
     <symbol id="search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
       <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+    </symbol>
+    <symbol id="book-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="m14.5 7-5 5" />
+      <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20" />
+      <path d="m9.5 7 5 5" />
     </symbol>
   </svg>
 </template>
