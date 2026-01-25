@@ -23,8 +23,8 @@ import TimePicker from "@/ui/common/pickers/TimePicker.vue"
 import {useTaskEditorStore} from "@MainView/stores/taskEditor.store"
 import {indentWithTab} from "@codemirror/commands"
 import {EditorView} from "@codemirror/view"
-import {useImageUpload} from "../TaskEditor/composables/useImageUpload"
-import FloatingToolbar from "../TaskEditor/{fragments}/FloatingToolbar.vue"
+import {useImageUpload} from "./composables/useImageUpload"
+import FloatingToolbar from "./{fragments}/FloatingToolbar.vue"
 
 import type {Tag} from "@shared/types/storage"
 

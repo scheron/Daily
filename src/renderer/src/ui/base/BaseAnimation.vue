@@ -9,10 +9,12 @@ const props = withDefaults(
     group?: boolean
     mode?: "in-out" | "out-in" | "default"
     duration?: number
+    disabled?: boolean
   }>(),
   {
     mode: "default",
     duration: 100,
+    disabled: false,
   },
 )
 
@@ -69,24 +71,31 @@ const variant = computed(() => ANIMATION_CLASSES[props.name] ?? ANIMATION_CLASSE
 </script>
 
 <template>
-  <TransitionGroup
-    v-if="props.group"
-    :enter-from-class="variant.enterFrom"
-    :leave-to-class="variant.leaveTo"
-    :enter-active-class="variant.enterActive"
-    :leave-active-class="variant.leaveActive"
-  >
+  <template v-if="disabled">
     <slot />
-  </TransitionGroup>
+  </template>
 
-  <Transition
-    v-else
-    :enter-from-class="variant.enterFrom"
-    :leave-to-class="variant.leaveTo"
-    :enter-active-class="variant.enterActive"
-    :leave-active-class="variant.leaveActive"
-    :mode="mode"
-  >
-    <slot />
-  </Transition>
+  <template v-else>
+    <TransitionGroup
+      v-if="props.group"
+      persisted
+      :enter-from-class="variant.enterFrom"
+      :leave-to-class="variant.leaveTo"
+      :enter-active-class="variant.enterActive"
+      :leave-active-class="variant.leaveActive"
+    >
+      <slot />
+    </TransitionGroup>
+
+    <Transition
+      v-else
+      :enter-from-class="variant.enterFrom"
+      :leave-to-class="variant.leaveTo"
+      :enter-active-class="variant.enterActive"
+      :leave-active-class="variant.leaveActive"
+      :mode="mode"
+    >
+      <slot />
+    </Transition>
+  </template>
 </template>

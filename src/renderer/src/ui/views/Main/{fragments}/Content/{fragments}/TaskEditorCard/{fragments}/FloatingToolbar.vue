@@ -4,9 +4,9 @@ import {computed, ref} from "vue"
 import {blockCommands} from "@/utils/codemirror/commands/blockCommands"
 import {inlineCommands} from "@/utils/codemirror/commands/inlineCommands"
 import BaseButton from "@/ui/base/BaseButton.vue"
-import {useEditorSelection} from "@/ui/views/Main/{fragments}/Content/{fragments}/TaskEditor/composables/useEditorSelection"
 
 import {autoUpdate, flip, offset, shift, useFloating} from "@floating-ui/vue"
+import {useEditorSelection} from "../composables/useEditorSelection"
 
 import type {EditorView} from "@codemirror/view"
 
