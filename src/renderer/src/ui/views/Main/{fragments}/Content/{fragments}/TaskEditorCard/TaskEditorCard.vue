@@ -35,12 +35,29 @@ const tagsStore = useTagsStore()
 const selectedTags = ref<Map<Tag["id"], Tag>>(new Map())
 const estimated = reactive({hours: 0, minutes: 0})
 
+const initialState = ref({
+  content: "",
+  tagIds: new Set<string>(),
+  estimatedHours: 0,
+  estimatedMinutes: 0,
+})
+
 const activeTagIds = computed(() => new Set(selectedTags.value.keys()))
 const isNewTask = computed(() => taskEditorStore.currentEditingTask === null)
 
 const content = computed({
   get: () => taskEditorStore.editorContent,
   set: (v) => taskEditorStore.setEditorContent(v),
+})
+
+const hasChanges = computed(() => {
+  const currentTagIds = new Set(selectedTags.value.keys())
+  const contentChanged = content.value.trim() !== initialState.value.content.trim()
+  const tagsChanged =
+    currentTagIds.size !== initialState.value.tagIds.size || Array.from(currentTagIds).some((id) => !initialState.value.tagIds.has(id))
+  const estimatedChanged = estimated.hours !== initialState.value.estimatedHours || estimated.minutes !== initialState.value.estimatedMinutes
+
+  return contentChanged || tagsChanged || estimatedChanged
 })
 
 const {uploadImageFile} = useImageUpload()
@@ -166,6 +183,11 @@ async function onSaveAndContinue() {
 }
 
 function onCancel() {
+  if (hasChanges.value) {
+    const confirmed = window.confirm("You have unsaved changes. Are you sure you want to close the editor?")
+    if (!confirmed) return
+  }
+
   clearEditor({discardFiles: true, discardTags: true})
   taskEditorStore.setIsTaskEditorOpen(false)
 }
@@ -214,6 +236,14 @@ onMounted(() => {
     estimated.hours = Math.floor(taskEditorStore.currentEditingTask.estimatedTime / 3600)
     estimated.minutes = Math.floor((taskEditorStore.currentEditingTask.estimatedTime % 3600) / 60)
   }
+
+  initialState.value = {
+    content: taskEditorStore.editorContent,
+    tagIds: new Set(selectedTags.value.keys()),
+    estimatedHours: estimated.hours,
+    estimatedMinutes: estimated.minutes,
+  }
+
   setTimeout(focus, 100)
 })
 
