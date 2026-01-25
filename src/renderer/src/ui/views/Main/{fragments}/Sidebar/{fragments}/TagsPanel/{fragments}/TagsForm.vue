@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {computed, onMounted, ref, useTemplateRef} from "vue"
-import {toast} from "vue-sonner"
+import {toasts} from "vue-toasts-lite"
 
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BasePopup from "@/ui/base/BasePopup.vue"
@@ -36,7 +36,7 @@ async function createTag() {
 
   /** @deprecated Remove in future */
   if (props.tags.some((tag) => tag.name === tagName)) {
-    toast.error("Tag with this name already exists")
+    toasts.error("Tag with this name already exists")
     return
   }
 

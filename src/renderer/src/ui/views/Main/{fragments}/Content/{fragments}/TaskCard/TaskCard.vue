@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import {computed} from "vue"
-import {toast} from "vue-sonner"
+import {toasts} from "vue-toasts-lite"
 
 import {ISODate} from "@shared/types/common"
 import {useTasksStore} from "@/stores/tasks.store"
 import DynamicTagsPanel from "@/ui/common/misc/DynamicTagsPanel.vue"
 
 import {useTaskEditorStore} from "@MainView/stores/taskEditor.store"
-import {useRestoreTaskToast} from "./composables/useRestoreTaskToast"
 import QuickActions from "./{fragments}/QuickActions.vue"
 import StatusButtons from "./{fragments}/StatusButtons.vue"
 import TaskContent from "./{fragments}/TaskContent.vue"
@@ -20,8 +19,6 @@ const props = withDefaults(defineProps<{task: Task; tags?: Tag[]}>(), {tags: () 
 
 const tasksStore = useTasksStore()
 const taskEditorStore = useTaskEditorStore()
-
-const toastRestoreTask = useRestoreTaskToast(async (task) => await tasksStore.restoreTask(task.id))
 
 const isEditing = computed(() => {
   if (!taskEditorStore.isTaskEditorOpen) return false
@@ -46,9 +43,8 @@ function onEdit() {
 
 async function onDelete() {
   if (!props.task) return
-
   await tasksStore.deleteTask(props.task.id)
-  toastRestoreTask(props.task)
+  toasts.success("Task deleted")
 }
 
 async function onMoveDate(targetDate: ISODate) {
@@ -57,8 +53,8 @@ async function onMoveDate(targetDate: ISODate) {
 
   const isMoved = await tasksStore.moveTask(props.task.id, targetDate)
 
-  if (isMoved) toast.success("Task moved successfully")
-  else toast.error("Failed to move task")
+  if (isMoved) toasts.success("Task moved successfully")
+  else toasts.error("Failed to move task")
 }
 </script>
 

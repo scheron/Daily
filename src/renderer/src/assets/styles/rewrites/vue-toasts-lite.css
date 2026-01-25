@@ -1,0 +1,13 @@
+:root {
+  --tl-font-family: var(--default-font-family);
+  --tl-bg: var(--color-base-100);
+  --tl-text: var(--color-base-content);
+  --tl-border: var(--color-base-300);
+  --tl-shadow: var(--shadow-md);
+  --tl-success: var(--color-success);
+  --tl-error: var(--color-error);
+  --tl-warn: var(--color-warning);
+  --tl-icon-color: var(--color-base-100);
+  --tl-loading-border: var(--color-base-300);
+  --tl-loading-bg: var(--color-base-100);
+}

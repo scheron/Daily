@@ -48,6 +48,9 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "tasks:delete": (id: Task["id"]) => ipcRenderer.invoke("tasks:delete", id),
   "tasks:add-tags": (taskId: Task["id"], tagIds: Tag["id"][]) => ipcRenderer.invoke("tasks:add-tags", taskId, tagIds),
   "tasks:remove-tags": (taskId: Task["id"], tagIds: Tag["id"][]) => ipcRenderer.invoke("tasks:remove-tags", taskId, tagIds),
+  "tasks:get-deleted": (params?: {limit?: number}) => ipcRenderer.invoke("tasks:get-deleted", params) as Promise<Task[]>,
+  "tasks:restore": (id: Task["id"]) => ipcRenderer.invoke("tasks:restore", id) as Promise<Task | null>,
+  "tasks:delete-permanently": (id: Task["id"]) => ipcRenderer.invoke("tasks:delete-permanently", id) as Promise<boolean>,
 
   "search:query": (query: string) => ipcRenderer.invoke("search:query", query) as Promise<TaskSearchResult[]>,
 

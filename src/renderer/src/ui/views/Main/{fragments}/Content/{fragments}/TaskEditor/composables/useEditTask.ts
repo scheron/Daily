@@ -1,4 +1,4 @@
-import {toast} from "vue-sonner"
+import {toasts} from "vue-toasts-lite"
 
 import {useTasksStore} from "@/stores/tasks.store"
 
@@ -37,14 +37,14 @@ export function useEditTask() {
     if (taskEditorStore.currentEditingTask) {
       const isUpdated = await update(text)
 
-      if (isUpdated) toast.success("Task updated successfully")
-      else toast.error("Failed to update task")
+      if (isUpdated) toasts.success("Task updated successfully")
+      else toasts.error("Failed to update task")
 
       return isUpdated
     } else {
       const isCreated = await create(text)
-      if (isCreated) toast.success("Task created successfully")
-      else toast.error("Failed to create task")
+      if (isCreated) toasts.success("Task created successfully")
+      else toasts.error("Failed to create task")
 
       return isCreated
     }

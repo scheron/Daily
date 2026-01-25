@@ -15,7 +15,6 @@ export const useTasksStore = defineStore("tasks", () => {
   const isDaysLoaded = ref(false)
   const days = ref<Day[]>([])
   const activeDay = ref<ISODate>(DateTime.now().toISODate()!)
-  const lastDeletedTasks = ref<Map<string, Task>>(new Map())
 
   const activeDayInfo = computed(() => {
     const day = days.value.find((day) => day.date === activeDay.value)
@@ -69,7 +68,6 @@ export const useTasksStore = defineStore("tasks", () => {
   }
 
   async function updateTask(taskId: string, updates: Partial<Omit<Task, "id" | "createdAt" | "updatedAt">>) {
-    console.log("[TASKS] Updating task:", taskId, updates)
     const payload = objectFilter(updates, (value) => value !== undefined)
     const updatedDay = await API.updateTask(taskId, toRawDeep(payload))
     if (!updatedDay) return false
@@ -88,30 +86,12 @@ export const useTasksStore = defineStore("tasks", () => {
     const dayIndex = days.value.findIndex((day) => day.date === activeDay.value)
     if (dayIndex === -1) return false
 
-    lastDeletedTasks.value.set(task.id, task)
-
     const dayWithRemovedTask = {...days.value[dayIndex]}
     dayWithRemovedTask.tasks = dayWithRemovedTask.tasks.filter((t) => t.id !== taskId)
 
     days.value = updateDays(days.value, dayWithRemovedTask)
 
     return true
-  }
-
-  async function restoreTask(taskId: string) {
-    if (!lastDeletedTasks.value.size) return false
-
-    const task = lastDeletedTasks.value.get(taskId)
-    if (!task) return false
-
-    const isSuccess = await createTask({content: task.content, tags: task.tags})
-
-    if (isSuccess) {
-      lastDeletedTasks.value.delete(taskId)
-      return true
-    }
-
-    return false
   }
 
   async function revalidate() {
@@ -151,7 +131,6 @@ export const useTasksStore = defineStore("tasks", () => {
     dailyTasks,
     dailyTags,
     activeDayInfo,
-    lastDeletedTasks,
 
     setActiveDay,
     getTaskList,
@@ -161,7 +140,6 @@ export const useTasksStore = defineStore("tasks", () => {
     updateTask,
     deleteTask,
     moveTask,
-    restoreTask,
     revalidate,
   }
 })

@@ -23,6 +23,12 @@ import type {SyncStatus} from "@shared/types/storage"
  * - Documents with deletedAt !== null are considered soft-deleted
  * - Soft-deleted documents are synced like normal documents
  * - Garbage collection is handled by the local store automatically
+ *
+ * Permanent Delete Strategy:
+ * - Uses epoch timestamp (1970-01-01) for deletedAt
+ * - isExpired() returns true immediately for epoch timestamps
+ * - Triggers automatic garbage collection on next sync
+ * - Syncs deletion across all devices via snapshot system
  */
 export class SyncEngine {
   private GC_INTERVAL_MS = APP_CONFIG.sync.garbageCollectionInterval

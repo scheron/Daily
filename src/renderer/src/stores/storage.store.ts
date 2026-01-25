@@ -1,5 +1,4 @@
 import {onMounted, ref} from "vue"
-import {toast} from "vue-sonner"
 import {defineStore} from "pinia"
 
 import {sleep} from "@shared/utils/common/sleep"
@@ -57,14 +56,13 @@ export const useStorageStore = defineStore("storage", () => {
 
     if (prevStatus === "inactive" && newStatus === "active") {
       await sleep(500)
-      forceSync()
+      await forceSync()
     }
   })
 
   window.BridgeIPC["storage-sync:on-data-changed"](async () => {
     lastSyncAt.value = new Date().toISOString()
     await revalidate()
-    toast.success("Data synced successfully")
   })
 
   onMounted(async () => {

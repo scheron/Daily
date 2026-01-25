@@ -67,6 +67,32 @@ export class TasksService {
     return this.taskModel.deleteTask(id)
   }
 
+  async getDeletedTasks(params?: {limit?: number}): Promise<Task[]> {
+    const [deletedTasks, allTags] = await Promise.all([this.taskModel.getDeletedTasks(params), this.tagModel.getTagList()])
+
+    const tagMap = new Map(allTags.map((t) => [t.id, t]))
+
+    return deletedTasks.map((task) => {
+      const tags = task.tags.map((id) => tagMap.get(id)).filter(Boolean) as Tag[]
+      return {...task, tags}
+    })
+  }
+
+  async restoreTask(id: Task["id"]): Promise<Task | null> {
+    const [restoredTask, allTags] = await Promise.all([this.taskModel.restoreTask(id), this.tagModel.getTagList()])
+
+    if (!restoredTask) return null
+
+    const tagMap = new Map(allTags.map((t) => [t.id, t]))
+    const tags = restoredTask.tags.map((id) => tagMap.get(id)).filter(Boolean) as Tag[]
+
+    return {...restoredTask, tags}
+  }
+
+  async permanentlyDeleteTask(id: Task["id"]): Promise<boolean> {
+    return this.taskModel.permanentlyDeleteTask(id)
+  }
+
   async addTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Promise<Task | null> {
     const task = await this.taskModel.getTask(taskId)
     if (!task) return null

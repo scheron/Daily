@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {Toaster} from "vue-sonner"
+import {ToastsLiteProvider} from "vue-toasts-lite"
 import {invoke} from "@vueuse/core"
 
 import {useTagsStore} from "@/stores/tags.store"
@@ -19,4 +20,5 @@ invoke(async () => {
 
   <IconsSprite />
   <Toaster class="toaster" :duration="3000" close-button />
+  <ToastsLiteProvider />
 </template>

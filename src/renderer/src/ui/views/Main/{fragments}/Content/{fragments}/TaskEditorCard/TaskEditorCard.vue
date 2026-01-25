@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {computed, onMounted, onUnmounted, reactive, ref, watch} from "vue"
-import {toast} from "vue-sonner"
+import {toasts} from "vue-toasts-lite"
 
 import {useTagsStore} from "@/stores/tags.store"
 import {useTasksStore} from "@/stores/tasks.store"
@@ -100,8 +100,8 @@ async function onSave() {
       estimatedTime: estimated.hours * 3600 + estimated.minutes * 60,
     })
 
-    if (!isSuccess) return toast.error("Failed to create task")
-    else toast.success("Task created successfully")
+    if (!isSuccess) return toasts.error("Failed to create task")
+    else toasts.success("Task created successfully")
 
     onClose()
   } else {
@@ -112,8 +112,8 @@ async function onSave() {
       estimatedTime: estimated.hours * 3600 + estimated.minutes * 60,
     })
 
-    if (!isSuccess) return toast.error("Failed to update task")
-    else toast.success("Task updated successfully")
+    if (!isSuccess) return toasts.error("Failed to update task")
+    else toasts.success("Task updated successfully")
 
     onClose()
   }
@@ -135,10 +135,10 @@ async function onSaveAndContinue() {
     })
 
     if (!isSuccess) {
-      toast.error("Failed to create task")
+      toasts.error("Failed to create task")
       return
     }
-    toast.success("Task created successfully")
+    toasts.success("Task created successfully")
 
     clearEditor({discardFiles: false, discardTags: false})
     taskEditorStore.setCurrentEditingTask(null)
@@ -156,10 +156,10 @@ async function onSaveAndContinue() {
     })
 
     if (!isSuccess) {
-      toast.error("Failed to update task")
+      toasts.error("Failed to update task")
       return
     }
-    toast.success("Task updated successfully")
+    toasts.success("Task updated successfully")
 
     onClose()
   }
@@ -232,7 +232,7 @@ const {isDraggingOver} = useFileDrop(container, {
     if (md) insertText(md)
   },
   onRejectedFile: (file) => {
-    toast.error(`Only image files are supported. "${file.name}" is not an image.`)
+    toasts.error(`Only image files are supported. "${file.name}" is not an image.`)
   },
 })
 </script>

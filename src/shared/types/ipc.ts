@@ -49,6 +49,9 @@ export interface BridgeIPC {
   "tasks:delete": (id: Task["id"]) => Promise<boolean>
   "tasks:add-tags": (taskId: Task["id"], tagIds: Tag["id"][]) => Promise<Task | null>
   "tasks:remove-tags": (taskId: Task["id"], tagIds: Tag["id"][]) => Promise<Task | null>
+  "tasks:get-deleted": (params?: {limit?: number}) => Promise<Task[]>
+  "tasks:restore": (id: Task["id"]) => Promise<Task | null>
+  "tasks:delete-permanently": (id: Task["id"]) => Promise<boolean>
 
   // === SEARCH  ===
   "search:query": (query: string) => Promise<TaskSearchResult[]>

@@ -1,4 +1,5 @@
 import {ref} from "vue"
+import {toasts} from "vue-toasts-lite"
 import {defineStore} from "pinia"
 
 import {useDevice} from "@/composables/useDevice"
@@ -11,6 +12,7 @@ export const useUIStore = defineStore("ui", () => {
   const isMobileSidebarOpen = ref(false)
 
   function toggleSidebarCollapse(isOpen?: boolean) {
+    toasts.success("Hello, world!")
     if (isDesktop.value) {
       isSidebarCollapsed.value = !isSidebarCollapsed.value
     } else {

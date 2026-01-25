@@ -10,8 +10,8 @@ import BaseSpinner from "@/ui/base/BaseSpinner.vue"
 import {useFilterStore} from "@MainView/stores/filter.store"
 import {useTaskEditorStore} from "@MainView/stores/taskEditor.store"
 import {TasksFilter} from "@/types/common"
-import NoTasksCard from "./{fragments}/NoTasksCard.vue"
-import {TaskCard} from "./{fragments}/TaskCard"
+import NoTasksPlaceholder from "./{fragments}/NoTasksPlaceholder.vue"
+import TaskCard from "./{fragments}/TaskCard"
 
 defineProps<{taskEditorOpen: boolean}>()
 const emit = defineEmits<{createTask: []}>()
@@ -67,7 +67,7 @@ function getTaskTags(task: Task): Tag[] {
   <div class="bg-base-200 flex-1 overflow-y-auto">
     <BaseAnimation name="fade" mode="out-in">
       <BaseSpinner v-if="!tasksStore.isDaysLoaded" />
-      <NoTasksCard
+      <NoTasksPlaceholder
         v-else-if="!filteredTasks.length && !taskEditorOpen"
         :date="tasksStore.activeDay"
         :filter="filterStore.activeFilter"

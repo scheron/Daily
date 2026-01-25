@@ -12,6 +12,7 @@ import Logo from "@/ui/common/misc/Logo.vue"
 import {useUIStore} from "@MainView/stores/ui.store"
 import CalendarMonthPanel from "./{fragments}/CalendarMonthPanel.vue"
 import CloudSyncPanel from "./{fragments}/CloudSyncPanel.vue"
+import DeletedTasksPanel from "./{fragments}/DeletedTasksPanel"
 import HelpPanel from "./{fragments}/HelpPanel"
 import RecentActiveTasksPanel from "./{fragments}/RecentActiveTasksPanel.vue"
 import SearchPanel from "./{fragments}/SearchPanel"
@@ -71,6 +72,7 @@ const showCollapseButton = computed(() => {
           <TagsPanel v-else-if="activeSection === 'tags'" class="h-full" />
           <CloudSyncPanel v-else-if="activeSection === 'cloud-sync'" class="h-full" />
           <SearchPanel v-else-if="activeSection === 'search'" class="h-full" />
+          <DeletedTasksPanel v-else-if="activeSection === 'deleted'" class="h-full" />
           <ThemesPanel v-else-if="activeSection === 'themes'" class="h-full px-4 py-4" />
           <HelpPanel v-else-if="activeSection === 'help'" class="h-full px-4" />
         </div>

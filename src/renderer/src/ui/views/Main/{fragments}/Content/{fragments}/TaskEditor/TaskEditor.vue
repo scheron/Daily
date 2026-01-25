@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {computed, onMounted, onUnmounted, watch} from "vue"
-import {toast} from "vue-sonner"
+import {toasts} from "vue-toasts-lite"
 
 import {useClipboardPaste} from "@/composables/useClipboardPaste"
 import {useCodeMirror} from "@/composables/useCodeMirror"
@@ -132,7 +132,7 @@ const {isDraggingOver} = useFileDrop(container, {
     if (md) insertText(md)
   },
   onRejectedFile: (file) => {
-    toast.error(`Only image files are supported. "${file.name}" is not an image.`)
+    toasts.error(`Only image files are supported. "${file.name}" is not an image.`)
   },
 })
 </script>

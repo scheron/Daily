@@ -55,6 +55,13 @@ export const BOTTOM_MENU_ITEMS: AnimatedTab<SidebarSection>[] = [
     inactiveClass: "text-base-content hover:bg-base-200",
   },
   {
+    id: "deleted",
+    icon: "trash",
+    label: "Deleted",
+    activeClass: "bg-accent/20 text-accent",
+    inactiveClass: "text-base-content hover:bg-base-200",
+  },
+  {
     id: "cloud-sync",
     icon: "cloud",
     label: "Sync",

@@ -18,6 +18,9 @@ export interface IStorageController {
   updateTask(id: Task["id"], updates: PartialDeep<Task>): Promise<Task | null>
   createTask(task: Omit<Task, "id" | "createdAt" | "updatedAt">): Promise<Task | null>
   deleteTask(id: Task["id"]): Promise<boolean>
+  getDeletedTasks(params?: {limit?: number}): Promise<Task[]>
+  restoreTask(id: Task["id"]): Promise<Task | null>
+  permanentlyDeleteTask(id: Task["id"]): Promise<boolean>
 
   searchTasks(query: string): Promise<TaskSearchResult[]>
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {computed, onMounted, reactive, ref, watch} from "vue"
-import {toast} from "vue-sonner"
+import {toasts} from "vue-toasts-lite"
 
 import {useTagsStore} from "@/stores/tags.store"
 import {useTasksStore} from "@/stores/tasks.store"
@@ -43,8 +43,8 @@ async function onSave() {
       estimatedTime: estimated.hours * 3600 + estimated.minutes * 60,
     })
 
-    if (!isSuccess) return toast.error("Failed to create task")
-    else toast.success("Task created successfully")
+    if (!isSuccess) return toasts.error("Failed to create task")
+    else toasts.success("Task created successfully")
 
     onClose()
   } else {

@@ -90,6 +90,33 @@ export class StorageAPI implements Storage {
       return []
     }
   }
+
+  async getDeletedTasks(params?: {limit?: number}): Promise<Task[]> {
+    try {
+      return await window.BridgeIPC["tasks:get-deleted"](params)
+    } catch (error) {
+      console.error("Failed to get deleted tasks", error)
+      return []
+    }
+  }
+
+  async restoreTask(id: Task["id"]): Promise<Task | null> {
+    try {
+      return await window.BridgeIPC["tasks:restore"](id)
+    } catch (error) {
+      console.error("Failed to restore task", error)
+      return null
+    }
+  }
+
+  async permanentlyDeleteTask(id: Task["id"]): Promise<boolean> {
+    try {
+      return await window.BridgeIPC["tasks:delete-permanently"](id)
+    } catch (error) {
+      console.error("Failed to permanently delete task", error)
+      return false
+    }
+  }
   //#endregion
 
   //#region TAGS

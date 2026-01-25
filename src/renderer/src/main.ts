@@ -9,10 +9,12 @@ import router from "@/router"
 
 import "floating-vue/dist/style.css"
 import "vue-sonner/style.css"
+import "vue-toasts-lite/style.css"
 
 import "@/assets/styles/main.css"
 import "@/assets/styles/rewrites/floating-vue.css"
 import "@/assets/styles/rewrites/vue-sonner.css"
+import "@/assets/styles/rewrites/vue-toasts-lite.css"
 
 async function initApp() {
   const pinia = createPinia()

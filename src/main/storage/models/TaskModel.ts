@@ -150,6 +150,108 @@ export class TaskModel {
     return Boolean(isDeleted)
   }
 
+  async getDeletedTasks(params?: {limit?: number}): Promise<TaskInternal[]> {
+    try {
+      const selector: PouchDB.Find.Selector = {
+        type: "task",
+        deletedAt: {$ne: null},
+      }
+
+      const limit = params?.limit ?? Infinity
+      const result = (await this.db.find({selector, limit})) as PouchDB.Find.FindResponse<TaskDoc>
+
+      // Filter out permanently deleted documents
+      // Permanently deleted = epoch timestamp (year < 2000)
+      const PERMANENT_DELETE_THRESHOLD = new Date("2000-01-01").getTime()
+      const filteredDocs = result.docs.filter((doc: any) => {
+        if (doc._deleted) return false
+        if (!doc.deletedAt) return false
+        const deletedAtTime = new Date(doc.deletedAt).getTime()
+        return deletedAtTime >= PERMANENT_DELETE_THRESHOLD
+      })
+
+      logger.info(LogContext.TASKS, `Loaded ${filteredDocs.length} deleted tasks from database`)
+
+      return filteredDocs.map(docToTask)
+    } catch (error) {
+      logger.error(LogContext.TASKS, "Failed to load deleted tasks from database", error)
+      throw error
+    }
+  }
+
+  async restoreTask(id: Task["id"]): Promise<TaskInternal | null> {
+    return await withRetryOnConflict("[TASK-RESTORE]", async (attempt) => {
+      try {
+        const doc = await this.db.get<TaskDoc>(docIdMap.task.toDoc(id))
+        if (!doc?.deletedAt) {
+          logger.warn(LogContext.TASKS, `Task ${id} not found or not deleted`)
+          return null
+        }
+
+        const now = new Date().toISOString()
+        const restoredDoc: TaskDoc = {
+          ...doc,
+          deletedAt: null,
+          updatedAt: now,
+        }
+
+        const res = await this.db.put(restoredDoc)
+
+        if (!res.ok) {
+          throw new Error(`Failed to restore task ${id}`)
+        }
+
+        logger.storage("Restored", "task", id)
+        logger.debug(LogContext.TASKS, `Task rev: ${res.rev}, attempt: ${attempt + 1}`)
+
+        return docToTask(restoredDoc)
+      } catch (error: any) {
+        if (error?.status === 404) {
+          logger.warn(LogContext.TASKS, `Task not found for restoration: ${id}`)
+          return null
+        }
+        logger.error(LogContext.TASKS, `Failed to restore task ${id}`, error)
+        throw error
+      }
+    })
+  }
+
+  async permanentlyDeleteTask(id: Task["id"]): Promise<boolean> {
+    return await withRetryOnConflict("[TASK-PERMANENT-DELETE]", async (attempt) => {
+      try {
+        const doc = await this.db.get<TaskDoc>(docIdMap.task.toDoc(id))
+        if (!doc) return false
+
+        const now = new Date().toISOString()
+        // Use epoch timestamp (1970-01-01) for permanent deletion
+        // This will trigger immediate garbage collection via isExpired() in sync
+        const permanentDeleteDoc: TaskDoc = {
+          ...doc,
+          deletedAt: new Date(0).toISOString(), // Epoch timestamp
+          updatedAt: now,
+        }
+
+        const res = await this.db.put(permanentDeleteDoc)
+
+        if (!res.ok) {
+          throw new Error(`Failed to permanently delete task ${id}`)
+        }
+
+        logger.storage("Permanently Deleted", "task", id)
+        logger.debug(LogContext.TASKS, `Task rev: ${res.rev}, attempt: ${attempt + 1}`)
+
+        return true
+      } catch (error: any) {
+        if (error?.status === 404) {
+          logger.warn(LogContext.TASKS, `Task not found for permanent deletion: ${id}`)
+          return false
+        }
+        logger.error(LogContext.TASKS, `Failed to permanently delete task ${id}`, error)
+        throw error
+      }
+    })
+  }
+
   private applyDiffToDoc(doc: TaskDoc, updates: PartialDeep<TaskInternal>): TaskDoc {
     const nextDoc = {...doc}
 

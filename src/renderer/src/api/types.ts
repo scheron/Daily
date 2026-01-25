@@ -56,7 +56,26 @@ export interface Storage {
    * @returns Array of task search results with match information, sorted by relevance
    */
   searchTasks(query: string): Promise<TaskSearchResult[]>
+  /**
+   * Get deleted tasks 
+   * @param params - The parameters for the query
+   * @param params.limit - The limit of the tasks to get
+   * @returns The deleted tasks that match the query
+   */
+  getDeletedTasks(params?: {limit?: number}): Promise<Task[]>
 
+  /**
+   * Restore a deleted task 
+   * @param id - The id of the task to restore
+   * @returns The restored task
+   */
+  restoreTask(id: Task["id"]): Promise<Task | null>
+  /**
+   * Permanently delete a task in the database
+   * @param id - The id of the task to permanently delete
+   * @returns The deleted task
+   */
+  permanentlyDeleteTask(id: Task["id"]): Promise<boolean>
   addTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Promise<Task | null>
   removeTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Promise<Task | null>
 
