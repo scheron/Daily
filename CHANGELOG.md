@@ -2,6 +2,51 @@
 
 ## [unreleased]
 
+### ✨ New Features
+
+- **In-Place Task Editor** - Redesigned task editing experience with inline editing
+  - TaskEditorCard component replaces modal editor for seamless editing workflow
+  - Edit tasks directly in the task list without opening separate windows
+  - Real-time content editing with CodeMirror integration
+  - Support for creating new tasks with placeholder in task list
+  - Keyboard shortcuts: `Cmd/Ctrl+Enter` to save and close, `Cmd/Ctrl+Shift+Enter` to save and continue
+  - Automatic focus management for better editing flow
+
+- **Deleted Tasks Management** - Complete system for managing deleted tasks
+  - New DeletedTasks module accessible from sidebar
+  - View all deleted tasks with full task details and metadata
+  - Restore deleted tasks with automatic navigation to restored task's date
+  - Permanent deletion with confirmation popup
+  - Visual highlighting of restored tasks for easy identification
+  - Loading states and empty state handling
+
+- **Calendar Month View** - Enhanced calendar navigation
+  - New CalendarMonth component for month-based date selection
+  - Integrated with sidebar for improved date navigation
+  - Shows task activity indicators on calendar days
+
+- **Confirm Popup Component** - Reusable confirmation dialog
+  - ConfirmPopup component with customizable messages and actions
+  - Progress fill animation for destructive actions
+  - Flexible positioning and styling options
+  - Used for permanent task deletion and other critical confirmations
+
+### 🎨 UI/UX Improvements
+
+- **Enhanced Task Editing Experience** - Improved editor workflow and feedback
+  - Unsaved changes detection with confirmation dialog on close
+  - Initial state tracking to detect content, tags, and time estimation changes
+  - Better visual feedback for editing state
+  - Improved placeholder instructions for markdown editing
+  - Seamless transition between task card and editor views
+
+- **Improved Task Filtering** - Refactored task filtering logic
+  - Better integration with tag filtering
+  - More efficient filtering performance
+  - Cleaner code organization for filter logic
+
+---
+
 ## v0.8.0 - 2025-12-04
 
 ### ✨ New Features
