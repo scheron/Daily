@@ -36,6 +36,9 @@
     "typecheck:main": "tsc --noEmit --project src/main/tsconfig.json",
     "typecheck:render": "vue-tsc --noEmit --project src/renderer/tsconfig.json",
     "typecheck:shared": "tsc --noEmit --project src/shared/tsconfig.json",
+    "typecheck:mcp": "tsc --noEmit --project src/mcp-server/tsconfig.json",
+    "mcp:build": "esbuild src/mcp-server/index.ts --bundle --platform=node --target=node22 --format=esm --outfile=out/mcp-server/index.js --packages=external",
+    "mcp:start": "node out/mcp-server/index.js",
     "prepare": "husky",
     "db:inspect": "node scripts/db/inspect-db.js --output output.txt",
     "db:clear": "node scripts/db/clear-db.js",
@@ -106,6 +109,7 @@
     "@floating-ui/vue": "^1.1.6",
     "@lezer/highlight": "^1.2.3",
     "@lezer/markdown": "^1.6.0",
+    "@modelcontextprotocol/sdk": "^1.25.3",
     "@tailwindcss/vite": "^4.1.8",
     "@vueuse/core": "^13.1.0",
     "clsx": "^2.1.1",
@@ -125,6 +129,7 @@
     "vue": "^3.5.16",
     "vue-router": "^4.5.1",
     "vue-sonner": "^2.0.0",
-    "vue-toasts-lite": "^0.1.4"
+    "vue-toasts-lite": "^0.1.4",
+    "zod": "^3.25.76"
   }
 }
