@@ -152,6 +152,7 @@ export class StorageController implements IStorageController {
     const updatedTask = await this.tasksService.updateTask(id, updates)
     if (updatedTask) {
       await this.searchService.updateTaskInIndex(updatedTask)
+      this.notifyStorageDataChange?.()
     }
     return updatedTask
   }
@@ -160,8 +161,8 @@ export class StorageController implements IStorageController {
     const createdTask = await this.tasksService.createTask(task)
     if (createdTask) {
       await this.searchService.addTaskToIndex(createdTask)
+      this.notifyStorageDataChange?.()
     }
-    this.notifyStorageDataChange?.()
     return createdTask
   }
 
@@ -169,21 +170,25 @@ export class StorageController implements IStorageController {
     const deleted = await this.tasksService.deleteTask(id)
     if (deleted) {
       this.searchService.removeTaskFromIndex(id)
+      this.notifyStorageDataChange?.()
     }
 
-    this.notifyStorageDataChange?.()
     return deleted
   }
 
   async addTaskAttachment(taskId: Task["id"], fileId: File["id"]): Promise<Task | null> {
     const addedTask = await this.tasksService.addTaskAttachment(taskId, fileId)
-    this.notifyStorageDataChange?.()
+    if (addedTask) {
+      this.notifyStorageDataChange?.()
+    }
     return addedTask
   }
 
   async removeTaskAttachment(taskId: Task["id"], fileId: File["id"]): Promise<Task | null> {
     const removedTask = await this.tasksService.removeTaskAttachment(taskId, fileId)
-    this.notifyStorageDataChange?.()
+    if (removedTask) {
+      this.notifyStorageDataChange?.()
+    }
     return removedTask
   }
 
@@ -195,8 +200,8 @@ export class StorageController implements IStorageController {
     const restoredTask = await this.tasksService.restoreTask(id)
     if (restoredTask) {
       await this.searchService.updateTaskInIndex(restoredTask)
+      this.notifyStorageDataChange?.()
     }
-    this.notifyStorageDataChange?.()
     return restoredTask
   }
 
@@ -204,8 +209,8 @@ export class StorageController implements IStorageController {
     const deleted = await this.tasksService.permanentlyDeleteTask(id)
     if (deleted) {
       this.searchService.removeTaskFromIndex(id)
+      this.notifyStorageDataChange?.()
     }
-    this.notifyStorageDataChange?.()
     return deleted
   }
   //#endregion
@@ -221,13 +226,17 @@ export class StorageController implements IStorageController {
 
   async updateTag(id: Tag["id"], updates: Partial<Tag>): Promise<Tag | null> {
     const updatedTag = await this.tagsService.updateTag(id, updates)
-    this.notifyStorageDataChange?.()
+    if (updatedTag) {
+      this.notifyStorageDataChange?.()
+    }
     return updatedTag
   }
 
   async createTag(tag: Omit<Tag, "id" | "createdAt" | "updatedAt">): Promise<Tag | null> {
     const createdTag = await this.tagsService.createTag(tag)
-    this.notifyStorageDataChange?.()
+    if (createdTag) {
+      this.notifyStorageDataChange?.()
+    }
     return createdTag
   }
 
@@ -243,8 +252,8 @@ export class StorageController implements IStorageController {
     const updatedTask = await this.tasksService.addTaskTags(taskId, tagIds)
     if (updatedTask) {
       await this.searchService.updateTaskInIndex(updatedTask)
+      this.notifyStorageDataChange?.()
     }
-    this.notifyStorageDataChange?.()
     return updatedTask
   }
 
@@ -252,6 +261,7 @@ export class StorageController implements IStorageController {
     const updatedTask = await this.tasksService.removeTaskTags(taskId, tagIds)
     if (updatedTask) {
       await this.searchService.updateTaskInIndex(updatedTask)
+      this.notifyStorageDataChange?.()
     }
     this.notifyStorageDataChange?.()
     return updatedTask
