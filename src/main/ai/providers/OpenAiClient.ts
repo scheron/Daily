@@ -1,0 +1,156 @@
+import {deepMerge} from "@shared/utils/common/deepMerge"
+import {LogContext, logger} from "@/utils/logger"
+
+import type {AIConfig} from "@shared/types/ai"
+import type {ChatRequest, MessageLLM, OpenAiChatResponse, Tool, ToolCallLLM} from "../types"
+
+/**
+ * OpenAI-Compatible API Client
+ *
+ * HTTP client for communicating with OpenAI API and compatible services
+ * (DeepSeek, Groq, Together, etc.)
+ */
+export class OpenAiClient {
+  constructor(private config: AIConfig["openai"]) {}
+
+  setConfig(config: Partial<AIConfig["openai"]>): void {
+    this.config = deepMerge(this.config, config)
+  }
+
+  async checkConnection(): Promise<boolean> {
+    if (!this.config?.apiKey || !this.config?.baseUrl) return false
+
+    try {
+      const response = await fetch(`${this.config.baseUrl}/models`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${this.config.apiKey}`,
+        },
+        signal: AbortSignal.timeout(10000),
+      })
+      return response.ok
+    } catch {
+      return false
+    }
+  }
+
+  async listModels(): Promise<string[]> {
+    if (!this.config?.apiKey) return []
+
+    try {
+      const response = await fetch(`${this.config.baseUrl}/models`, {
+        headers: {
+          Authorization: `Bearer ${this.config.apiKey}`,
+        },
+      })
+      if (!response.ok) return []
+
+      const data = (await response.json()) as {data?: Array<{id: string}>}
+      return data.data?.map((m) => m.id).slice(0, 20) ?? [] // Limit to 20 models
+    } catch {
+      return []
+    }
+  }
+
+  async chat(messages: MessageLLM[], tools?: Tool[]): Promise<{message: MessageLLM; done: boolean}> {
+    if (!this.config?.model || !this.config?.apiKey || !this.config.baseUrl) {
+      logger.error(LogContext.AI, "OpenAI config is not set")
+      return {message: {role: "assistant", content: "OpenAI config is not set"}, done: false}
+    }
+
+    logger.debug(LogContext.AI, "OpenAI chat request", {model: this.config.model, messagesCount: messages.length})
+
+    const openAiMessages = this.convertMessages(messages)
+
+    const response = await fetch(`${this.config.baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.config?.apiKey ?? ""}`,
+      },
+      body: JSON.stringify({
+        model: this.config.model,
+        messages: openAiMessages,
+        tools,
+        stream: false,
+      } satisfies ChatRequest),
+    })
+
+    if (!response.ok) {
+      const error = await response.text()
+      throw new Error(`OpenAI error: ${error}`)
+    }
+
+    const result = (await response.json()) as OpenAiChatResponse
+    const choice = result.choices[0]
+
+    if (!choice) {
+      throw new Error("No response from OpenAI")
+    }
+
+    const message = this.convertResponseMessage(choice.message)
+
+    logger.debug(LogContext.AI, "OpenAI chat response", {
+      hasToolCalls: !!message.tool_calls?.length,
+      contentLength: message.content?.length ?? 0,
+    })
+
+    return {message, done: true}
+  }
+
+  private convertMessages(messages: MessageLLM[]): MessageLLM[] {
+    logger.debug(LogContext.AI, "Converting messages to OpenAI format", {messages})
+    return messages.map((msg) => {
+      const message: MessageLLM = {
+        role: msg.role,
+        content: msg.content || null,
+      }
+
+      if (msg.tool_calls) {
+        message.tool_calls = msg.tool_calls.map((tc) => ({
+          id: tc.id,
+          type: "function",
+          function: {
+            name: tc.function.name,
+            arguments: JSON.stringify(tc.function.arguments),
+          },
+        }))
+      }
+
+      if (msg.tool_call_id) {
+        message.tool_call_id = msg.tool_call_id
+      }
+
+      return message
+    })
+  }
+
+  private convertResponseMessage(msg: MessageLLM): MessageLLM {
+    const message: MessageLLM = {
+      role: msg.role,
+      content: msg.content ?? "",
+    }
+
+    if (msg.tool_calls) {
+      message.tool_calls = msg.tool_calls.map((tc): ToolCallLLM => {
+        let args: Record<string, unknown> = {}
+        try {
+          args = JSON.parse(tc.function.arguments as string)
+        } catch {
+          // Keep empty args if parsing fails
+        }
+
+        return {
+          id: tc.id,
+          type: "function",
+          function: {
+            name: tc.function.name,
+            arguments: args,
+          },
+        }
+      })
+    }
+
+    return message
+  }
+}

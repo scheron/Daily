@@ -1,1 +1,1 @@
-export type SidebarSection = "calendar" | "tags" | "cloud-sync" | "themes" | "settings" | "search" | "deleted"
+export type SidebarSection = "calendar" | "tags" | "themes" | "settings" | "search" | "deleted" | "assistant"

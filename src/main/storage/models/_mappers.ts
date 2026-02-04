@@ -124,6 +124,7 @@ export function docToSettings(doc: SettingsDoc): Settings {
     themes: doc.data.themes,
     sidebar: doc.data.sidebar,
     sync: doc.data.sync,
+    ai: doc.data.ai,
   }
 }
 

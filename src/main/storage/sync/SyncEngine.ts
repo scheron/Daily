@@ -1,8 +1,8 @@
+import {withElapsedDelay} from "@shared/utils/common/withElapsedDelay"
 import {createIntervalScheduler} from "@/utils/createIntervalScheduler"
 import {LogContext, logger} from "@/utils/logger"
 import {mergeRemoteIntoLocal} from "@/utils/sync/merge/mergeRemoteIntoLocal"
 import {buildSnapshot, buildSnapshotMeta} from "@/utils/sync/snapshot/buildSnapshot"
-import {withElapsedDelay} from "@/utils/withElapsedDelay"
 
 import {APP_CONFIG} from "@/config"
 

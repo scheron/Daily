@@ -1,5 +1,6 @@
 import {contextBridge, ipcRenderer} from "electron"
 
+import type {AIConfig, AIMessage} from "@shared/types/ai"
 import type {ISODate} from "@shared/types/common"
 import type {BridgeIPC} from "@shared/types/ipc"
 import type {TaskSearchResult} from "@shared/types/search"
@@ -63,4 +64,17 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "files:save": (filename: string, data: Buffer) => ipcRenderer.invoke("files:save", filename, data),
   "files:delete": (filename: string) => ipcRenderer.invoke("files:delete", filename),
   "files:get-path": (id: string) => ipcRenderer.invoke("files:get-path", id) as Promise<string>,
+
+  "ai:check-connection": () => ipcRenderer.invoke("ai:check-connection") as Promise<boolean>,
+  "ai:list-models": () => ipcRenderer.invoke("ai:list-models") as Promise<string[]>,
+  "ai:send-message": (message: string) => ipcRenderer.invoke("ai:send-message", message) as Promise<AIMessage>,
+  "ai:cancel": () => ipcRenderer.invoke("ai:cancel") as Promise<boolean>,
+  "ai:clear-history": () => ipcRenderer.invoke("ai:clear-history") as Promise<boolean>,
+  "ai:update-config": (config: Partial<AIConfig>) => ipcRenderer.invoke("ai:update-config", config) as Promise<AIConfig>,
+  "ai:get-config": () => ipcRenderer.invoke("ai:get-config") as Promise<AIConfig>,
+  "ai:on-stream-chunk": (callback: (chunk: string) => void) => {
+    const subscription = (_event: any, chunk: string) => callback(chunk)
+    ipcRenderer.on("ai:stream-chunk", subscription)
+    return () => ipcRenderer.removeListener("ai:stream-chunk", subscription)
+  },
 } satisfies BridgeIPC)

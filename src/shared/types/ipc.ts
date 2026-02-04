@@ -1,5 +1,5 @@
-/// <reference types="node" />
 import type {PartialDeep} from "type-fest"
+import type {AIResponse} from "./ai"
 import type {ISODate} from "./common"
 import type {TaskSearchResult} from "./search"
 import type {Day, File, Settings, SyncStatus, Tag, Task} from "./storage"
@@ -67,4 +67,12 @@ export interface BridgeIPC {
   "files:save": (filename: string, data: Buffer) => Promise<File["id"]>
   "files:delete": (filename: string) => Promise<boolean>
   "files:get-path": (id: File["id"]) => Promise<string>
+
+  // === AI ===
+  "ai:check-connection": () => Promise<boolean>
+  "ai:list-models": () => Promise<string[]>
+  "ai:send-message": (message: string) => Promise<AIResponse>
+  "ai:cancel": () => Promise<boolean>
+  "ai:clear-history": () => Promise<boolean>
+  "ai:on-stream-chunk": (callback: (chunk: string) => void) => () => void
 }

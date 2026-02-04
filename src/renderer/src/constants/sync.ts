@@ -25,7 +25,7 @@ export const SYNC_STATUS_ENUM: SyncStatusEnum = {
   active: {
     icon: "cloud",
     text: "Synced",
-    description: "iCloud data is synced",
+    description: "Automatically sync your tasks, tags, and settings to iCloud",
     color: "text-success",
   },
 }

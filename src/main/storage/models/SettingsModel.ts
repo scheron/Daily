@@ -39,6 +39,10 @@ export class SettingsModel {
       sync: {
         enabled: false,
       },
+      ai: {
+        enabled: false,
+        provider: "openai",
+      },
     }
   }
 
@@ -70,10 +74,7 @@ export class SettingsModel {
   private async loadSettingsFromDB(): Promise<Settings> {
     const doc = await this.getOrCreateSettingsDoc()
 
-    const settings = docToSettings(doc)
-
-    // console.log("[SETTINGS] Loaded settings:", settings)
-    return settings
+    return docToSettings(doc)
   }
 
   /**

@@ -7,7 +7,7 @@ import {handleDeepLink} from "./deeplinks"
 import type {StorageController} from "@/storage/StorageController"
 import type {BrowserWindow} from "electron"
 
-export function setupInstanceAndDeepLinks(getStorage: () => StorageController | null, getMainWindow: () => BrowserWindow | null) {
+export function setupInstanceAndDeepLinks(_getStorage: () => StorageController | null, getMainWindow: () => BrowserWindow | null) {
   const gotLock = app.requestSingleInstanceLock()
 
   if (!gotLock) {

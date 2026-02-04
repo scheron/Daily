@@ -5,6 +5,7 @@ import type {ISODate} from "@shared/types/common"
 import type {Tag, Task} from "@shared/types/storage"
 import type {PartialDeep} from "type-fest"
 
+// prettier-ignore
 export function setupStorageIPC(getStorage: () => IStorageController | null): void {
   ipcMain.handle("settings:load", (_e) => getStorage()?.loadSettings())
   ipcMain.handle("settings:save", (_e, newSettings: Partial<Record<string, any>>) => getStorage()?.saveSettings(newSettings))
@@ -32,9 +33,7 @@ export function setupStorageIPC(getStorage: () => IStorageController | null): vo
   ipcMain.handle("tasks:add-tags", (_e, taskId: Task["id"], tags: Tag["id"][]) => getStorage()?.addTaskTags(taskId, tags))
   ipcMain.handle("tasks:remove-tags", (_e, taskId: Task["id"], tags: Tag["id"][]) => getStorage()?.removeTaskTags(taskId, tags))
 
-  ipcMain.handle("files:save", (_e, filename: string, data: any) =>
-    getStorage()?.saveFile(filename, Buffer.isBuffer(data) ? data : Buffer.from(data)),
-  )
+  ipcMain.handle("files:save", (_e, filename: string, data: any) => getStorage()?.saveFile(filename, Buffer.isBuffer(data) ? data : Buffer.from(data)))
   ipcMain.handle("files:delete", (_e, filename: string) => getStorage()?.deleteFile(filename))
   ipcMain.handle("files:get-path", (_e, id: string) => getStorage()?.getFilePath(id))
 

@@ -24,7 +24,7 @@ export function findAllFocusableElements(container: HTMLElement): HTMLElement[] 
   return Array.from(container.querySelectorAll(focusableSelectors.join(", "))) as HTMLElement[]
 }
 
-let highlightTimeout: NodeJS.Timeout | null = null
+let highlightTimeout: ReturnType<typeof setTimeout> | null = null
 
 export function highlightElement(elementId: string, options: {class: string; duration?: number}) {
   if (highlightTimeout) clearTimeout(highlightTimeout)

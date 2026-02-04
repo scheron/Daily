@@ -62,7 +62,7 @@ export function toMonthYear(date: ISODate) {
  * @returns The formatted date
  * @example toLocaleDate("2021-01-01") // "1/1/2021"
  */
-export function toLocaleDate(date: Date, locale: string) {
+export function toLocaleDate(date: Date, locale: string = "en-US") {
   return DateTime.fromJSDate(date).toLocaleString(DateTime.DATE_SHORT, {locale})
 }
 
@@ -73,7 +73,7 @@ export function toLocaleDate(date: Date, locale: string) {
  * @returns The formatted date range
  * @example toLocaleDateRange([new Date("2021-01-01"), new Date("2021-01-02")]) // "1/1/2021 — 1/2/2021"
  */
-export function toLocaleDateRange(range: [Date, Date | null], locale: string) {
+export function toLocaleDateRange(range: [Date, Date | null], locale: string = "en-US") {
   if (!range || !range[0]) return ""
   const start = toLocaleDate(range[0], locale)
   if (!range[1]) return start
@@ -150,4 +150,16 @@ export function toTs(value?: ISODateTime): number {
  */
 export function toISODateTime(value: number): ISODateTime {
   return new Date(value).toISOString()
+}
+
+/**
+ * Converts a timestamp to an ISO date time
+ * @param value - The value to convert to an ISO date time
+ * @returns The ISO date time
+ * @example toISODate(1609459200000) // "2021-01-01"
+ */
+export function toISODate(value: number | Date | string): ISODate {
+  if (value instanceof Date) return DateTime.fromJSDate(value).toFormat("yyyy-MM-dd")
+  if (typeof value === "number") return DateTime.fromMillis(value).toFormat("yyyy-MM-dd")
+  return value
 }

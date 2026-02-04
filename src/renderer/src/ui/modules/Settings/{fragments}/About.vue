@@ -4,7 +4,7 @@ import Logo from "@/ui/common/misc/Logo.vue"
 </script>
 
 <template>
-  <div class="flex flex-1 flex-col">
+  <div class="flex flex-1 flex-col pb-4">
     <div class="space-y-2">
       <h3 class="text-base font-semibold">Elevate Your Productivity</h3>
       <p class="text-base-content/80 flex items-start gap-2 text-sm">
@@ -15,9 +15,14 @@ import Logo from "@/ui/common/misc/Logo.vue"
 
     <div class="mt-4 space-y-2">
       <ul class="text-base-content/80 space-y-1 text-sm">
-        <li>- <BaseIcon name="sparkles" class="text-accent mr-2 size-4" /> <span class="font-medium">Elegant UI</span></li>
-        <li>- <BaseIcon name="markdown" class="text-accent mr-2 size-4" /> <span class="font-medium">Markdown Support</span></li>
-        <li>- <BaseIcon name="background" class="text-accent mr-2 size-4" /> <span class="font-medium">Multiple themes</span></li>
+        <li><BaseIcon name="sparkles" class="text-accent mr-2 size-4" /> <span class="font-medium">Elegant UI</span></li>
+        <li><BaseIcon name="markdown" class="text-accent mr-2 size-4" /> <span class="font-medium">Markdown Support</span></li>
+        <li><BaseIcon name="ai" class="text-accent mr-2 size-4" /> <span class="font-medium">Workflow with AI</span></li>
+        <li><BaseIcon name="cloud" class="text-accent mr-2 size-4" /> <span class="font-medium">Connect multiple devices with iCloud</span></li>
+        <li>
+          <BaseIcon name="background" class="text-accent mr-2 size-4" />
+          <span class="font-medium">Multiple themes</span>
+        </li>
       </ul>
     </div>
 

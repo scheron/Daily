@@ -5,16 +5,22 @@ import type {Task} from "./storage"
  * Indicates where in the text the match occurred
  */
 export type SearchMatch = {
-  indices: [number, number][] // Array of [start, end] positions in the original content
-  value: string // The matched text
-  key: string // The field that was matched (e.g., "plainText")
+  /** Array of [start, end] positions in the original content */
+  indices: [number, number][]
+  /** The matched text */
+  value: string
+  /** The field that was matched (e.g., "plainText") */
+  key: string
 }
 
 /**
  * Task search result with match information
  */
 export type TaskSearchResult = {
-  task: Task // Full task with enriched tags
-  matches?: SearchMatch[] // Match positions in the original content
-  score: number // Relevance score (lower is better)
+  /** Full task with enriched tags */
+  task: Task
+  /** Match positions in the original content */
+  matches?: SearchMatch[]
+  /** Relevance score (lower is better) */
+  score: number
 }

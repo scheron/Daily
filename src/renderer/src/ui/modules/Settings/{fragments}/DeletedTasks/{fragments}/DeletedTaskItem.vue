@@ -94,7 +94,7 @@ const deletedAtFormatted = computed(() => {
 </script>
 
 <template>
-  <div class="border-base-300 flex flex-col gap-2 rounded-lg border px-4 py-2 shadow-xs transition-colors duration-200">
+  <div class="border-base-300 flex flex-col gap-2 rounded-lg border px-4 py-2 transition-colors duration-200">
     <div class="flex items-center justify-between gap-2">
       <span class="text-base-content/60 text-xs">{{ toFullDate(task.scheduled.date) }}</span>
       <BaseIcon :name="statusIcon" class="size-4" :class="statusColorClass" />

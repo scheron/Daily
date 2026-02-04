@@ -14,7 +14,15 @@ export const APP_CONFIG = {
     garbageCollectionInterval: 7 * 24 * 60 * 60 * 1000,
     remoteSyncInterval: 5 * 60 * 1000,
   },
-
+  ai: {
+    enabled: false,
+    provider: "openai",
+    openai: {
+      model: "deepseek-chat",
+      baseUrl: "https://api.deepseek.com/v1",
+      apiKey: "",
+    },
+  },
   window: {
     main: {
       width: 1200,

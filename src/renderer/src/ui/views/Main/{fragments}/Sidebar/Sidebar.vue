@@ -1,19 +1,15 @@
 <script setup lang="ts">
 import {computed, ref} from "vue"
 
-import {useStorageStore} from "@/stores/storage.store"
 import {useDevice} from "@/composables/useDevice"
-import {SYNC_STATUS_ENUM} from "@/constants/sync"
 import BaseButton from "@/ui/base/BaseButton.vue"
-import BaseIcon from "@/ui/base/BaseIcon"
 import BaseSpinner from "@/ui/base/BaseSpinner.vue"
 import AnimatedTabs from "@/ui/common/misc/AnimatedTabs"
 import Logo from "@/ui/common/misc/Logo.vue"
+import AiAssistant from "@/ui/modules/AiAssistant"
 import CalendarMonth from "@/ui/modules/CalendarMonth"
-import DeletedTasks from "@/ui/modules/DeletedTasks"
 import SearchForm from "@/ui/modules/SearchForm"
 import Settings from "@/ui/modules/Settings"
-import SyncStorage from "@/ui/modules/SyncStorage"
 import TagsForm from "@/ui/modules/TagsForm"
 
 import {useUIStore} from "@MainView/stores/ui.store"
@@ -27,7 +23,6 @@ defineProps<{
 }>()
 
 const uiStore = useUIStore()
-const storageStore = useStorageStore()
 
 const {isMacOS, isDesktop} = useDevice()
 
@@ -67,10 +62,9 @@ const showCollapseButton = computed(() => {
         <div class="hide-scrollbar flex-1 overflow-y-auto">
           <CalendarMonth v-if="activeSection === 'calendar'" />
           <TagsForm v-else-if="activeSection === 'tags'" class="h-full" />
-          <SyncStorage v-else-if="activeSection === 'cloud-sync'" class="h-full" />
           <SearchForm v-else-if="activeSection === 'search'" class="h-full" />
-          <DeletedTasks v-else-if="activeSection === 'deleted'" class="h-full" />
-          <Settings v-else-if="activeSection === 'settings'" class="h-full px-4" />
+          <AiAssistant v-else-if="activeSection === 'assistant'" class="h-full" />
+          <Settings v-else-if="activeSection === 'settings'" class="h-full" />
         </div>
 
         <div class="border-base-300 bg-base-100 border-t px-2 py-2">
@@ -79,14 +73,7 @@ const showCollapseButton = computed(() => {
             :tabs="BOTTOM_MENU_ITEMS"
             class="flex items-center justify-between gap-1"
             tab-class="flex items-center justify-center gap-1 rounded-md px-1.5 py-1 transition-colors duration-200 outline-none focus-visible-ring focus-visible:ring-offset-base-100 focus-visible:ring-accent"
-          >
-            <template #tab-icon-cloud-sync>
-              <BaseIcon
-                :name="SYNC_STATUS_ENUM[storageStore.status].icon"
-                :class="[storageStore.status === 'syncing' ? 'animate-spin' : '', 'size-5']"
-              />
-            </template>
-          </AnimatedTabs>
+          />
         </div>
       </template>
     </div>

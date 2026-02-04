@@ -3,9 +3,10 @@ import { createApp } from "vue"
 import { useSettingsStore } from "@/stores/settings.store"
 
 import FloatingVue from 'floating-vue'
-
 import App from "@/App.vue"
 import router from "@/router"
+
+import vFocusOnMount from "@/directives/vFocusOnMount"
 
 import "floating-vue/dist/style.css"
 import "vue-sonner/style.css"
@@ -39,7 +40,7 @@ async function initApp() {
   })
 
   useSettingsStore()
-
+  app.directive("focus-on-mount", vFocusOnMount)
   app.mount("#app")
 }
 

@@ -1,4 +1,4 @@
-import {sleep} from "@shared/utils/common/sleep"
+import {sleep} from "../common/sleep"
 
 /**
  * Runs a function and waits for a minimum duration before returning the result.

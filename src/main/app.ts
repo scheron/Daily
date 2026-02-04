@@ -4,6 +4,7 @@ import {sleep} from "@shared/utils/common/sleep"
 import {logger} from "@/utils/logger"
 
 import {APP_CONFIG} from "@/config"
+import {setupAiIPC} from "@/setup/app/ai"
 import {setupInstanceAndDeepLinks} from "@/setup/app/instance"
 import {setupActivateHandler, setupAppIdentity, setupDockIcon, setupWindowAllClosedHandler} from "@/setup/app/lifecycle"
 import {setupMenu} from "@/setup/app/menu"
@@ -75,6 +76,10 @@ app.whenReady().then(async () => {
   )
 
   setupStorageIPC(() => storage)
+  setupAiIPC(
+    () => storage,
+    () => windows.main,
+  )
   setupStorageSync(
     () => storage,
     () => windows.main,

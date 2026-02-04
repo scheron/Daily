@@ -2,12 +2,12 @@
 import {computed, ref} from "vue"
 
 import {cn} from "@/utils/ui/tailwindcss"
+import BaseIcon from "@/ui/base/BaseIcon"
 
-import BaseIcon from "../BaseIcon/BaseIcon.vue"
 import {useExpansionPanelGroup} from "./useExpansionPanelGroup"
 
+import type {IconName} from "@/ui/base/BaseIcon"
 import type {HtmlHTMLAttributes} from "vue"
-import type {IconName} from "../BaseIcon"
 
 const props = withDefaults(
   defineProps<{
@@ -41,7 +41,7 @@ const classes = computed(() => {
 <template>
   <div :class="classes">
     <div
-      class="bg-base-100 text-base-content hover:bg-base-300 focus-visible:bg-base-200 flex w-full items-center justify-between px-4 py-2 text-base transition-colors duration-200 outline-none"
+      class="bg-base-100 text-base-content hover:bg-base-300 focus-visible:bg-base-200 flex w-full items-center justify-between px-2 py-2 text-base transition-colors duration-200 outline-none"
       :tabindex="disabled ? undefined : 0"
       @click="onToggle"
       @keydown.enter="onToggle"
@@ -58,7 +58,7 @@ const classes = computed(() => {
 
     <div
       v-if="isOpened"
-      :class="cn('bg-base-200/40 border-base-300 text-base-content relative flex size-full flex-col border-t p-4', props.contentClass)"
+      :class="cn('bg-base-200/20 border-base-300 text-base-content relative flex size-full flex-col border-t p-4', props.contentClass)"
     >
       <slot />
     </div>

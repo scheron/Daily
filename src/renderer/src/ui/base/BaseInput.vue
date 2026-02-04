@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, onMounted, useTemplateRef, watch} from "vue"
+import {computed, onMounted, useTemplateRef} from "vue"
 
 const props = defineProps<{
   modelValue: string
@@ -37,13 +37,6 @@ function onKeyup(e: KeyboardEvent) {
 }
 
 onMounted(() => props.focusOnMount && inputRef.value?.focus())
-
-watch(
-  () => props.modelValue,
-  (newValue) => {
-    if (!newValue) inputRef.value?.focus()
-  },
-)
 </script>
 
 <template>

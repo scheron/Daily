@@ -1,3 +1,10 @@
+/**
+ * Deep merge two objects in-place.
+ * @param target - The target object to merge into.
+ * @param source - The source object to merge from.
+ * @param getId - A function to get the ID of an object.
+ * @returns The merged object.
+ */
 export function deepMerge<T>(target: T, source: Partial<T>, getId: (data: any) => any = (data: any) => data.id): T {
   try {
     if (!source) return target
