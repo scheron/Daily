@@ -1,4 +1,3 @@
-import {deepMerge} from "@shared/utils/common/deepMerge"
 import {LogContext, logger} from "@/utils/logger"
 
 import type {AIConfig} from "@shared/types/ai"
@@ -11,16 +10,19 @@ import type {ChatRequest, MessageLLM, OpenAiChatResponse, Tool, ToolCallLLM} fro
  * (DeepSeek, Groq, Together, etc.)
  */
 export class OpenAiClient {
-  constructor(private config: AIConfig["openai"]) {}
+  private readonly MODELS_LIMIT_COUNT = 20
+  private config: AIConfig["openai"] | null = null
 
-  setConfig(config: Partial<AIConfig["openai"]>): void {
-    this.config = deepMerge(this.config, config)
+  updateConfig(config: AIConfig | null) {
+    this.config = config?.openai ?? null
   }
 
   async checkConnection(): Promise<boolean> {
     if (!this.config?.apiKey || !this.config?.baseUrl) return false
 
     try {
+      logger.debug(LogContext.AI, "Checking OpenAI connection", {baseUrl: this.config.baseUrl})
+
       const response = await fetch(`${this.config.baseUrl}/models`, {
         method: "GET",
         headers: {
@@ -28,8 +30,12 @@ export class OpenAiClient {
         },
         signal: AbortSignal.timeout(10000),
       })
+
+      logger.debug(LogContext.AI, "OpenAI connection check response", {response: response.ok})
+
       return response.ok
-    } catch {
+    } catch (e) {
+      logger.error(LogContext.AI, "Failed to check OpenAI connection", {error: e})
       return false
     }
   }
@@ -39,14 +45,14 @@ export class OpenAiClient {
 
     try {
       const response = await fetch(`${this.config.baseUrl}/models`, {
-        headers: {
-          Authorization: `Bearer ${this.config.apiKey}`,
-        },
+        headers: {Authorization: `Bearer ${this.config.apiKey}`},
       })
+
       if (!response.ok) return []
 
       const data = (await response.json()) as {data?: Array<{id: string}>}
-      return data.data?.map((m) => m.id).slice(0, 20) ?? [] // Limit to 20 models
+
+      return data.data?.map((m) => m.id).slice(0, this.MODELS_LIMIT_COUNT) ?? []
     } catch {
       return []
     }
@@ -66,7 +72,7 @@ export class OpenAiClient {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${this.config?.apiKey ?? ""}`,
+        Authorization: `Bearer ${this.config.apiKey ?? ""}`,
       },
       body: JSON.stringify({
         model: this.config.model,

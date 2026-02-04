@@ -3,12 +3,13 @@ import {app} from "electron"
 import {sleep} from "@shared/utils/common/sleep"
 import {logger} from "@/utils/logger"
 
+import {AIController} from "@/ai/AIController"
 import {APP_CONFIG} from "@/config"
-import {setupAiIPC} from "@/setup/app/ai"
 import {setupInstanceAndDeepLinks} from "@/setup/app/instance"
 import {setupActivateHandler, setupAppIdentity, setupDockIcon, setupWindowAllClosedHandler} from "@/setup/app/lifecycle"
 import {setupMenu} from "@/setup/app/menu"
 import {setupStorageSync} from "@/setup/app/storage"
+import {setupAiIPC} from "@/setup/ipc/ai"
 import {setupDbViewerIPC, setupDevToolsIPC} from "@/setup/ipc/devtools"
 import {setupMenuIPC} from "@/setup/ipc/menu"
 import {setupShellIPC} from "@/setup/ipc/shell"
@@ -27,6 +28,7 @@ type AppWindows = {main: BrowserWindow | null; splash: BrowserWindow | null; dev
 
 const windows: AppWindows = {main: null, splash: null, devTools: null}
 let storage: StorageController | null = null
+let ai: AIController | null = null
 
 setupPrivilegedSchemes()
 setupAppIdentity()
@@ -48,9 +50,12 @@ app.whenReady().then(async () => {
   windows.splash = createSplashWindow()
 
   storage = new StorageController()
+  ai = new AIController(storage)
 
   try {
     await storage.init()
+    await ai.init()
+
     await storage.cleanupOrphanFiles()
     await storage.loadSettings()
     logger.lifecycle("Storage initialized")
@@ -76,10 +81,7 @@ app.whenReady().then(async () => {
   )
 
   setupStorageIPC(() => storage)
-  setupAiIPC(
-    () => storage,
-    () => windows.main,
-  )
+  setupAiIPC(() => ai)
   setupStorageSync(
     () => storage,
     () => windows.main,

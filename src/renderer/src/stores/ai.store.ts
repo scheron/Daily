@@ -1,54 +1,67 @@
-import {computed, onUnmounted, ref} from "vue"
+import {computed, ref} from "vue"
 import {defineStore} from "pinia"
 
 import {withElapsedDelay} from "@shared/utils/common/withElapsedDelay"
 import {toISODate} from "@shared/utils/date/formatters"
+import {useSettingsStore} from "@/stores/settings.store"
 import {useLoadingState} from "@/composables/useLoadingState"
+import {toRawDeep} from "@/utils/ui/vue"
 
-import type {AIMessage} from "@shared/types/ai"
+import type {AIConfig, AIMessage} from "@shared/types/ai"
 import type {ISODate} from "@shared/types/common"
 
 export const useAiStore = defineStore("ai", () => {
-  const isConnected = ref(false)
-  const {isLoaded, isError, isLoading, setState} = useLoadingState("IDLE")
-  const {isLoaded: isThinkEnd, isLoading: isThinkingLoading, isError: isThinkError, setState: setThinkState} = useLoadingState("IDLE")
+  const settingsStore = useSettingsStore()
 
+  const connectionState = useLoadingState("IDLE")
+  const thinkState = useLoadingState("IDLE")
+
+  const isConnected = ref(false)
   const messages = ref<AIMessage[]>([])
   const availableModels = ref<string[]>([])
   const chatTimeStarted = ref<ISODate | null>(null)
 
-  /**@deprecated удалить стриминг */
-  const streamingContent = ref("")
+  const config = computed(() => settingsStore.settings?.ai ?? null)
 
+  const isDisabled = computed(() => !config.value?.enabled)
   const hasMessages = computed(() => Boolean(messages.value.length))
   const lastMessage = computed(() => messages.value.at(-1) ?? null)
 
+  async function updateConfig(updates: Partial<AIConfig>) {
+    const success = await window.BridgeIPC["ai:update-config"](toRawDeep(updates))
+    if (success) settingsStore.revalidate()
+  }
+
   async function checkConnection() {
+    if (isDisabled.value) return
     try {
-      setState("LOADING")
+      connectionState.setState("LOADING")
 
       const isConnectedResult = await window.BridgeIPC["ai:check-connection"]()
 
-      if (isConnectedResult) {
-        availableModels.value = await window.BridgeIPC["ai:list-models"]()
+      if (!isConnectedResult) {
+        isConnected.value = false
+        connectionState.setState("ERROR")
+        return
       }
 
-      isConnected.value = isConnectedResult
-      setState("LOADED")
+      availableModels.value = await window.BridgeIPC["ai:list-models"]()
+      isConnected.value = true
+      connectionState.setState("LOADED")
     } catch {
-      setState("ERROR")
+      isConnected.value = false
+      connectionState.setState("ERROR")
     }
   }
 
   async function sendMessage(content: string): Promise<void> {
-    if (!content.trim() || isLoading.value || isThinkingLoading.value) return
+    if (isDisabled.value) return
+    if (!content.trim() || connectionState.isLoading.value || thinkState.isLoading.value) return
 
     await withElapsedDelay(async () => {
-      if (!hasMessages.value) {
-        chatTimeStarted.value = toISODate(Date.now())
-      }
+      if (!hasMessages.value) chatTimeStarted.value = toISODate(Date.now())
 
-      setThinkState("LOADING")
+      thinkState.setState("LOADING")
 
       const userMessage: AIMessage = {
         id: `user_${Date.now()}`,
@@ -62,14 +75,15 @@ export const useAiStore = defineStore("ai", () => {
       try {
         const response = await window.BridgeIPC["ai:send-message"](content)
 
-        if (response.success && response.message) {
-          messages.value.push(response.message)
-          setThinkState("LOADED")
-        } else {
-          setThinkState("ERROR")
+        if (!response.success || !response.message) {
+          thinkState.setState("ERROR")
+          return
         }
+
+        messages.value.push(response.message)
+        thinkState.setState("LOADED")
       } catch {
-        setThinkState("ERROR")
+        thinkState.setState("ERROR")
       }
     })
   }
@@ -77,48 +91,41 @@ export const useAiStore = defineStore("ai", () => {
   async function retryMessage(): Promise<void> {
     if (!lastMessage.value) return
     await sendMessage(lastMessage.value.content)
-    messages.value.splice(messages.value.length - 1, 1)
   }
 
   function cancelRequest(): void {
+    if (isDisabled.value) return
     window.BridgeIPC["ai:cancel"]()
-    setThinkState("IDLE")
+    thinkState.setState("IDLE")
   }
 
   async function clearHistory(): Promise<void> {
+    if (isDisabled.value) return
     await window.BridgeIPC["ai:clear-history"]()
     chatTimeStarted.value = null
     messages.value = []
-    setThinkState("IDLE")
+    thinkState.setState("IDLE")
   }
 
-  const unsubscribe = window.BridgeIPC["ai:on-stream-chunk"]((chunk) => {
-    streamingContent.value += chunk
-  })
-
-  onUnmounted(() => {
-    unsubscribe()
-  })
-
   return {
+    config,
     messages,
     chatTimeStarted,
-    isLoading,
-    isLoaded,
-    isError,
-
-    isThinkingLoading,
-    isThinkEnd,
-    isThinkError,
+    availableModels,
 
     isConnected,
-    availableModels,
-    streamingContent,
+    isDisabled,
+    isConnectionLoading: connectionState.isLoading,
+    isConnectionLoaded: connectionState.isLoaded,
+    isConnectionError: connectionState.isError,
+    isThinkLoading: thinkState.isLoading,
+    isThinkLoaded: thinkState.isLoaded,
+    isThinkError: thinkState.isError,
 
-    // Computed
     hasMessages,
     lastMessage,
 
+    updateConfig,
     checkConnection,
     sendMessage,
     retryMessage,

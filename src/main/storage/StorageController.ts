@@ -85,7 +85,6 @@ export class StorageController implements IStorageController {
       this.syncEngine.enableAutoSync()
     }
 
-    // Initialize search index
     logger.info(LogContext.STORAGE, "Initializing search index")
     await this.searchService.initializeIndex()
     logger.info(LogContext.STORAGE, `Search index initialized with ${this.searchService.getIndexSize()} tasks`)

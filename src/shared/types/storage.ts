@@ -17,7 +17,7 @@ export type Settings = {
   sync: {
     enabled: boolean
   }
-  ai: AIConfig
+  ai: AIConfig | null
 }
 
 export type TaskStatus = "active" | "discarded" | "done"

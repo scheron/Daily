@@ -1,5 +1,5 @@
 import type {PartialDeep} from "type-fest"
-import type {AIResponse} from "./ai"
+import type {AIConfig, AIResponse} from "./ai"
 import type {ISODate} from "./common"
 import type {TaskSearchResult} from "./search"
 import type {Day, File, Settings, SyncStatus, Tag, Task} from "./storage"
@@ -74,5 +74,5 @@ export interface BridgeIPC {
   "ai:send-message": (message: string) => Promise<AIResponse>
   "ai:cancel": () => Promise<boolean>
   "ai:clear-history": () => Promise<boolean>
-  "ai:on-stream-chunk": (callback: (chunk: string) => void) => () => void
+  "ai:update-config": (config: Partial<AIConfig>) => Promise<boolean>
 }

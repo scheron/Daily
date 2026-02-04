@@ -6,21 +6,21 @@ export type AIConfig = {
   provider: AIProvider
 
   /** OpenAI compatible models (DeepSeek, OpenAI, Groq, etc.) */
-  openai?: {
+  openai: {
     model: string
     /** API URL */
     baseUrl: string
     /** API Key */
     apiKey: string
-  }
+  } | null
 
   /** Local llama.cpp */
-  local?: {
+  local: {
     /** One of curated models from manifest */
     model: LocalModelId
     /** Optional: let user override defaults in advanced settings */
     params?: LocalRuntimeParams
-  }
+  } | null
 }
 
 export type AIMessage = {

@@ -73,11 +73,6 @@ export class ToolExecutor {
           return await this.updateTag(params)
         case "delete_tag":
           return await this.deleteTag(params)
-        // Summaries
-        case "get_today_summary":
-          return await this.getTodaySummary()
-        case "get_week_summary":
-          return await this.getWeekSummary()
         default:
           return {success: false, error: `Unknown tool: ${toolName}`}
       }
@@ -468,55 +463,5 @@ export class ToolExecutor {
     }
 
     return {success: true, data: `Tag deleted: ${tagId}`}
-  }
-
-  // ========== SUMMARIES ==========
-
-  private async getTodaySummary(): Promise<ToolResult> {
-    const today = this.getTodayDate()
-    const tasks = await this.storage.getTaskList({from: today, to: today})
-
-    const active = tasks.filter((t) => t.status === "active").length
-    const done = tasks.filter((t) => t.status === "done").length
-    const discarded = tasks.filter((t) => t.status === "discarded").length
-
-    return {
-      success: true,
-      data: `Today's summary (${today}):\n- Total tasks: ${tasks.length}\n- Active: ${active}\n- Completed: ${done}\n- Discarded: ${discarded}`,
-    }
-  }
-
-  private async getWeekSummary(): Promise<ToolResult> {
-    const today = new Date()
-    const startOfWeek = new Date(today)
-    startOfWeek.setDate(today.getDate() - today.getDay()) // Sunday
-    const endOfWeek = new Date(startOfWeek)
-    endOfWeek.setDate(startOfWeek.getDate() + 6) // Saturday
-
-    const from = startOfWeek.toISOString().split("T")[0]
-    const to = endOfWeek.toISOString().split("T")[0]
-
-    const tasks = await this.storage.getTaskList({from, to})
-
-    const active = tasks.filter((t) => t.status === "active").length
-    const done = tasks.filter((t) => t.status === "done").length
-    const discarded = tasks.filter((t) => t.status === "discarded").length
-
-    // Group by day
-    const byDay: Record<string, number> = {}
-    for (const task of tasks) {
-      const date = task.scheduled.date
-      byDay[date] = (byDay[date] || 0) + 1
-    }
-
-    const dayBreakdown = Object.entries(byDay)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([date, count]) => `  - ${date}: ${count} tasks`)
-      .join("\n")
-
-    return {
-      success: true,
-      data: `Week summary (${from} to ${to}):\n- Total tasks: ${tasks.length}\n- Active: ${active}\n- Completed: ${done}\n- Discarded: ${discarded}\n\nBy day:\n${dayBreakdown}`,
-    }
   }
 }

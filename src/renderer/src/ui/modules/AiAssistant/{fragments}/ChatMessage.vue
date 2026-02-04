@@ -23,7 +23,7 @@ const isUser = computed(() => props.message.role === "user")
         <div class="rounded-lg px-3 py-2" :class="[isUser ? 'text-primary-content bg-base-200 border-base-300 border' : 'text-base-content']">
           <p class="text-sm whitespace-pre-wrap">{{ message.content }}</p>
         </div>
-        <BaseButton v-if="isUser" variant="ghost" size="sm" icon="refresh" class="size-6" icon-class="size-4" @click="emit('retry')" />
+        <!-- <BaseButton v-if="isUser" variant="ghost" size="sm" icon="refresh" class="size-6" icon-class="size-4" @click="emit('retry')" /> -->
       </div>
 
       <div v-if="message.toolCalls?.length">

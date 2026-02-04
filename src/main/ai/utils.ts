@@ -53,10 +53,6 @@ Use this information to correctly interpret relative dates like "today", "tomorr
 - add_task_tags: Add tags to a task
 - remove_task_tags: Remove tags from a task
 
-### Summaries
-- get_today_summary: Quick overview of today
-- get_week_summary: Weekly progress overview
-
 ## Workflow Guidelines
 
 1. **Before modifying tasks**: Always use list_tasks first to find the correct task_id

@@ -1,13 +1,12 @@
 <script setup lang="ts">
-import {useSettingValue} from "@/composables/useSettingsValue"
+import {useAiStore} from "@/stores/ai.store"
 import BaseIcon from "@/ui/base/BaseIcon"
 import BaseSwitch from "@/ui/base/BaseSwitch.vue"
 import SelectableButton from "@/ui/common/buttons/SelectableButton.vue"
 
 import SettingsOpenAI from "./{fragments}/SettingsOpenAI.vue"
 
-const enabled = useSettingValue("ai.enabled", false)
-const provider = useSettingValue("ai.provider", "openai")
+const aiStore = useAiStore()
 
 const providers: Array<{id: any; name: string; description: string; recommended?: boolean}> = [
   {id: "ollama", name: "Local", description: "Daily AI assistant"},
@@ -22,14 +21,19 @@ const providers: Array<{id: any; name: string; description: string; recommended?
         <p class="text-base-content text-sm">Enable AI Assistant</p>
         <p class="text-base-content/60 text-xs">Chat with AI to manage daily workflow</p>
       </div>
-      <BaseSwitch v-model="enabled" />
+      <BaseSwitch :model-value="aiStore.config?.enabled ?? false" @update:model-value="aiStore.updateConfig({enabled: $event})" />
     </div>
 
-    <template v-if="enabled">
+    <template v-if="aiStore.config?.enabled">
       <div class="flex flex-col gap-2">
         <span class="text-base-content/80 text-xs">Provider</span>
         <div class="flex gap-2">
-          <SelectableButton v-for="p in providers" :key="p.id" :active="provider === p.id" @click="provider = p.id">
+          <SelectableButton
+            v-for="p in providers"
+            :key="p.id"
+            :active="aiStore.config?.provider === p.id"
+            @click="aiStore.updateConfig({provider: p.id})"
+          >
             <p class="text-base-content text-sm font-medium">
               {{ p.name }}
               <BaseIcon v-if="p.recommended" v-tooltip="'Recommended'" name="award" class="text-accent -mt-1 size-4" />
@@ -39,7 +43,7 @@ const providers: Array<{id: any; name: string; description: string; recommended?
         </div>
       </div>
 
-      <SettingsOpenAI v-if="provider === 'openai'" />
+      <SettingsOpenAI v-if="aiStore.config?.provider === 'openai'" />
 
       <template v-else>
         <div class="text-base-content/60 text-xs">Local model will be available soon. You can use remote models for now.</div>

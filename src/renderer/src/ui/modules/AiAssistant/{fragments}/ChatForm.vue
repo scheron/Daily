@@ -10,11 +10,13 @@ defineProps<{
   aiConfig: AIConfig["openai"] | AIConfig["local"] | null
   disabled?: boolean
   loading?: boolean
+  error?: boolean
 }>()
 
 const emit = defineEmits<{
   send: [message: string]
   cancel: []
+  retry: []
 }>()
 
 const message = ref("")
@@ -39,7 +41,11 @@ function cancelRequest() {
 
 <template>
   <div>
-    <div class="bg-base-200 border-base-300 h-fit w-full rounded-lg border">
+    <div v-if="error" class="flex size-full w-full items-center justify-center">
+      <ThinkErrorAICard @retry="emit('retry')" />
+    </div>
+
+    <div v-else class="bg-base-200 border-base-300 h-fit w-full rounded-lg border">
       <AutoSizeInput v-model="message" :disabled="disabled || loading" placeholder="Ask me anything..." :max-height="200" @keydown="onKeydown" />
 
       <div class="flex w-full items-center justify-between gap-2 p-2">

@@ -1,6 +1,6 @@
 import {contextBridge, ipcRenderer} from "electron"
 
-import type {AIConfig, AIMessage} from "@shared/types/ai"
+import type {AIConfig, AIResponse} from "@shared/types/ai"
 import type {ISODate} from "@shared/types/common"
 import type {BridgeIPC} from "@shared/types/ipc"
 import type {TaskSearchResult} from "@shared/types/search"
@@ -67,14 +67,8 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
 
   "ai:check-connection": () => ipcRenderer.invoke("ai:check-connection") as Promise<boolean>,
   "ai:list-models": () => ipcRenderer.invoke("ai:list-models") as Promise<string[]>,
-  "ai:send-message": (message: string) => ipcRenderer.invoke("ai:send-message", message) as Promise<AIMessage>,
+  "ai:send-message": (message: string) => ipcRenderer.invoke("ai:send-message", message) as Promise<AIResponse>,
   "ai:cancel": () => ipcRenderer.invoke("ai:cancel") as Promise<boolean>,
   "ai:clear-history": () => ipcRenderer.invoke("ai:clear-history") as Promise<boolean>,
-  "ai:update-config": (config: Partial<AIConfig>) => ipcRenderer.invoke("ai:update-config", config) as Promise<AIConfig>,
-  "ai:get-config": () => ipcRenderer.invoke("ai:get-config") as Promise<AIConfig>,
-  "ai:on-stream-chunk": (callback: (chunk: string) => void) => {
-    const subscription = (_event: any, chunk: string) => callback(chunk)
-    ipcRenderer.on("ai:stream-chunk", subscription)
-    return () => ipcRenderer.removeListener("ai:stream-chunk", subscription)
-  },
+  "ai:update-config": (config: AIConfig) => ipcRenderer.invoke("ai:update-config", config) as Promise<boolean>,
 } satisfies BridgeIPC)
