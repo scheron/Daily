@@ -33,11 +33,14 @@ export const useAiStore = defineStore("ai", () => {
   }
 
   async function checkConnection() {
+    console.log("checkConnection", isDisabled.value)
     if (isDisabled.value) return
     try {
+      console.log("checkConnection loading")
       connectionState.setState("LOADING")
 
       const isConnectedResult = await window.BridgeIPC["ai:check-connection"]()
+      console.log("checkConnection isConnectedResult", isConnectedResult)
 
       if (!isConnectedResult) {
         isConnected.value = false
@@ -49,6 +52,7 @@ export const useAiStore = defineStore("ai", () => {
       isConnected.value = true
       connectionState.setState("LOADED")
     } catch {
+      console.log("checkConnection error")
       isConnected.value = false
       connectionState.setState("ERROR")
     }

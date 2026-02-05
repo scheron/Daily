@@ -37,13 +37,6 @@ export type ChatRequest = {
   stream?: boolean
 }
 
-export type OllamaChatResponse = {
-  model: string
-  message: MessageLLM
-  done: boolean
-  done_reason?: string
-}
-
 export type OpenAiChatResponse = {
   id: string
   model: string
@@ -51,13 +44,4 @@ export type OpenAiChatResponse = {
     message: MessageLLM
     finish_reason: string
   }>
-}
-
-export type StreamChunk = {
-  model: string
-  message: {
-    role: string
-    content: string
-  }
-  done: boolean
 }

@@ -5,8 +5,9 @@ export type AIConfig = {
   enabled: boolean
   provider: AIProvider
 
-  /** OpenAI compatible models (DeepSeek, OpenAI, Groq, etc.) */
+  /** OpenAI compatible provider (DeepSeek, OpenAI, Groq, etc.) */
   openai: {
+    /** Model name */
     model: string
     /** API URL */
     baseUrl: string

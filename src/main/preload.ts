@@ -70,5 +70,5 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "ai:send-message": (message: string) => ipcRenderer.invoke("ai:send-message", message) as Promise<AIResponse>,
   "ai:cancel": () => ipcRenderer.invoke("ai:cancel") as Promise<boolean>,
   "ai:clear-history": () => ipcRenderer.invoke("ai:clear-history") as Promise<boolean>,
-  "ai:update-config": (config: AIConfig) => ipcRenderer.invoke("ai:update-config", config) as Promise<boolean>,
+  "ai:update-config": (config: Partial<AIConfig>) => ipcRenderer.invoke("ai:update-config", config) as Promise<boolean>,
 } satisfies BridgeIPC)

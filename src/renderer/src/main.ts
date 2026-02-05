@@ -1,10 +1,10 @@
+import { useSettingsStore } from "@/stores/settings.store"
 import { createPinia } from "pinia"
 import { createApp } from "vue"
-import { useSettingsStore } from "@/stores/settings.store"
 
-import FloatingVue from 'floating-vue'
 import App from "@/App.vue"
 import router from "@/router"
+import FloatingVue from 'floating-vue'
 
 import vFocusOnMount from "@/directives/vFocusOnMount"
 
