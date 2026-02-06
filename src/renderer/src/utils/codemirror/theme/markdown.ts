@@ -54,25 +54,25 @@ export const markdownStyles: Record<string, StyleSpec> = {
   },
 
   ".cm-heading1": {
-    fontSize: "1.35em",
-    lineHeight: "1.4",
-    margin: "0.5em 0",
-    paddingBottom: "0.1em",
+    fontSize: "1.45em !important",
+    lineHeight: "1.1 !important",
+    margin: "0.5em 0 !important",
+    paddingBottom: "0.5em !important",
     fontWeight: "600",
     textDecoration: "none",
     borderBottom: "none",
   },
 
   ".cm-heading2": {
-    fontSize: "1.25em",
-    lineHeight: "1.3",
+    fontSize: "1.4em !important",
+    lineHeight: "1.3 !important",
     fontWeight: "600",
     textDecoration: "none",
     borderBottom: "none",
   },
 
   ".cm-heading3": {
-    fontSize: "1.15em",
+    fontSize: "1.2em !important",
     lineHeight: "1.2",
     fontWeight: "600",
     textDecoration: "none",
@@ -80,7 +80,7 @@ export const markdownStyles: Record<string, StyleSpec> = {
   },
 
   ".cm-heading4": {
-    fontSize: "1.1em",
+    fontSize: "1.15em !important",
     lineHeight: "1.1",
     fontWeight: "600",
     textDecoration: "none",
@@ -88,7 +88,7 @@ export const markdownStyles: Record<string, StyleSpec> = {
   },
 
   ".cm-heading5": {
-    fontSize: "1.05em",
+    fontSize: "1.1em !important",
     lineHeight: "1.1",
     fontWeight: "600",
     textDecoration: "none",
@@ -96,7 +96,7 @@ export const markdownStyles: Record<string, StyleSpec> = {
   },
 
   ".cm-heading6": {
-    fontSize: "1em",
+    fontSize: "1em !important",
     lineHeight: "1.1",
     fontWeight: "600",
     textDecoration: "none",

@@ -39,10 +39,7 @@ export class SettingsModel {
       sync: {
         enabled: false,
       },
-      ai: {
-        enabled: false,
-        provider: "openai",
-      },
+      ai: null,
     }
   }
 

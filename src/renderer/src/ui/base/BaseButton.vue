@@ -14,6 +14,7 @@ const props = defineProps<{
   size?: "sm" | "md" | "lg"
   icon?: IconName
   disabled?: boolean
+  loading?: boolean
   tooltip?: string
   tooltipPosition?: Placement
   iconClass?: HtmlHTMLAttributes["class"]
@@ -74,8 +75,11 @@ const classes = computed(() =>
 </script>
 
 <template>
-  <button v-tooltip="{content: tooltip, placement: tooltipPosition}" :class="classes" :disabled="disabled">
-    <BaseIcon v-if="icon" :name="icon" :class="iconClass" />
-    <slot />
+  <button v-tooltip="{content: tooltip, placement: tooltipPosition}" :class="classes" :disabled="disabled || loading">
+    <BaseIcon v-if="loading" name="spinner" class="animate-spin" :class="iconClass" />
+    <template v-else>
+      <BaseIcon v-if="icon" :name="icon" :class="iconClass" />
+      <slot />
+    </template>
   </button>
 </template>

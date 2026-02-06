@@ -21,7 +21,7 @@ export class OpenAiClient {
     if (!this.config?.apiKey || !this.config?.baseUrl) return false
 
     try {
-      logger.debug(LogContext.AI, "Checking OpenAI connection", {baseUrl: this.config.baseUrl})
+      logger.info(LogContext.AI, "Checking OpenAI connection", {baseUrl: this.config.baseUrl})
 
       const response = await fetch(`${this.config.baseUrl}/models`, {
         method: "GET",
@@ -31,7 +31,7 @@ export class OpenAiClient {
         signal: AbortSignal.timeout(10000),
       })
 
-      logger.debug(LogContext.AI, "OpenAI connection check response", {response: response.ok})
+      logger.info(LogContext.AI, "OpenAI connection check response", {response: response.ok})
 
       return response.ok
     } catch (e) {
@@ -64,7 +64,7 @@ export class OpenAiClient {
       return {message: {role: "assistant", content: "OpenAI config is not set"}, done: false}
     }
 
-    logger.debug(LogContext.AI, "OpenAI chat request", {model: this.config.model, messagesCount: messages.length})
+    logger.info(LogContext.AI, "OpenAI chat request", {model: this.config.model, messagesCount: messages.length})
 
     const openAiMessages = this.convertMessages(messages)
 
@@ -96,7 +96,7 @@ export class OpenAiClient {
 
     const message = this.convertResponseMessage(choice.message)
 
-    logger.debug(LogContext.AI, "OpenAI chat response", {
+    logger.info(LogContext.AI, "OpenAI chat response", {
       hasToolCalls: !!message.tool_calls?.length,
       contentLength: message.content?.length ?? 0,
     })
@@ -105,7 +105,7 @@ export class OpenAiClient {
   }
 
   private convertMessages(messages: MessageLLM[]): MessageLLM[] {
-    logger.debug(LogContext.AI, "Converting messages to OpenAI format", {messages})
+    logger.info(LogContext.AI, "Converting messages to OpenAI format", {messages})
     return messages.map((msg) => {
       const message: MessageLLM = {
         role: msg.role,

@@ -446,33 +446,6 @@ export const AI_TOOLS: Tool[] = [
       },
     },
   },
-
-  // ========== SUMMARIES ==========
-  {
-    type: "function",
-    function: {
-      name: "get_today_summary",
-      description:
-        "Get a quick summary/overview of today's tasks. " +
-        "Shows counts: total, active, completed, discarded. " +
-        "Use when user asks 'how am I doing today?' or 'what's my progress?'.",
-      parameters: {
-        type: "object",
-        properties: {},
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "get_week_summary",
-      description: "Get a summary of the entire current week with task counts per day. " + "Use when user asks about weekly progress or planning.",
-      parameters: {
-        type: "object",
-        properties: {},
-      },
-    },
-  },
 ]
 
 export type ToolName =
@@ -498,6 +471,3 @@ export type ToolName =
   | "create_tag"
   | "update_tag"
   | "delete_tag"
-  // Summaries
-  | "get_today_summary"
-  | "get_week_summary"

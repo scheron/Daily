@@ -116,6 +116,15 @@ onBeforeMount(() => {
       </div>
     </div>
 
-    <BaseButton v-if="!aiStore.isConnected" variant="primary" size="sm" class="mt-2 w-full py-1" @click="onConnect"> Connect </BaseButton>
+    <BaseButton
+      v-if="!aiStore.isConnected"
+      :loading="aiStore.isConnectionLoading"
+      variant="primary"
+      size="sm"
+      class="mt-2 w-full py-1"
+      @click="onConnect"
+    >
+      Connect
+    </BaseButton>
   </div>
 </template>

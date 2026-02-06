@@ -60,6 +60,7 @@ export type IconName =
   | "award"
   | "arrow-up"
   | "stop"
+  | "spinner"
 </script>
 
 <template>
@@ -487,6 +488,16 @@ export type IconName =
         stroke-linejoin="round"
         d="M5.25 7.5A2.25 2.25 0 0 1 7.5 5.25h9a2.25 2.25 0 0 1 2.25 2.25v9a2.25 2.25 0 0 1-2.25 2.25h-9a2.25 2.25 0 0 1-2.25-2.25v-9Z"
       />
+      <symbol id="spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2v4"></path>
+        <path d="m16.2 7.8 2.9-2.9"></path>
+        <path d="M18 12h4"></path>
+        <path d="m16.2 16.2 2.9 2.9"></path>
+        <path d="M12 18v4"></path>
+        <path d="m4.9 19.1 2.9-2.9"></path>
+        <path d="M2 12h4"></path>
+        <path d="m4.9 4.9 2.9 2.9"></path>
+      </symbol>
     </symbol>
   </svg>
 </template>
