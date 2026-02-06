@@ -16,7 +16,6 @@ export const LogContext = {
   IPC: "IPC",
   SETTINGS: "SETTINGS",
   SHELL: "SHELL",
-  MCP: "MCP",
   AI: "AI",
 } as const
 

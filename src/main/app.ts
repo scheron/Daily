@@ -15,7 +15,6 @@ import {setupMenuIPC} from "@/setup/ipc/menu"
 import {setupShellIPC} from "@/setup/ipc/shell"
 import {setupStorageIPC} from "@/setup/ipc/storage"
 import {setupMainWindowIPC} from "@/setup/ipc/windows"
-import {setupMcpHttpApi} from "@/setup/mcp/httpApi"
 import {setupCSP} from "@/setup/security/csp"
 import {setupPrivilegedSchemes, setupSafeFileProtocol} from "@/setup/security/protocols"
 import {setupUpdateManager} from "@/setup/updates/updater"
@@ -86,9 +85,6 @@ app.whenReady().then(async () => {
     () => storage,
     () => windows.main,
   )
-
-  // Start HTTP API for MCP server integration
-  setupMcpHttpApi(() => storage)
 
   const main = setupMainWindow(windows, {showSplash: true})
 
