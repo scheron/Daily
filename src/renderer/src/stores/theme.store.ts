@@ -1,5 +1,5 @@
 import {computed, ref, watch} from "vue"
-import {useBroadcastChannel, watchOnce} from "@vueuse/core"
+import {useBroadcastChannel} from "@vueuse/core"
 import {defineStore} from "pinia"
 
 import {useSettingValue} from "@/composables/useSettingsValue"
@@ -77,7 +77,7 @@ export const useThemeStore = defineStore("theme", () => {
   )
   watch(broadcastTheme, (themeId) => themeId && applyThemeToDOM(themeId))
 
-  watchOnce(isSystemThemeEnabled, (value) => value && applySystemTheme())
+  watch(isSystemThemeEnabled, (value) => value && applySystemTheme(), {immediate: true})
 
   window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
     if (isSystemThemeEnabled.value) applySystemTheme()

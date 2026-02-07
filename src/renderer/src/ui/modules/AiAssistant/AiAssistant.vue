@@ -4,27 +4,53 @@ import {until} from "@vueuse/core"
 
 import {toFullDate} from "@shared/utils/date/formatters"
 import {useAiStore} from "@/stores/ai.store"
+import {useLocalModelStore} from "@/stores/localModel.store"
 import {useTyping} from "@/composables/useTyping"
 import {getProviderConfig} from "@/utils/ai/getProviderConfig"
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseIcon from "@/ui/base/BaseIcon"
+import WaveText from "@/ui/common/misc/WaveText.vue"
 
 import ConnectionErrorAICard from "./{fragments}/cards/ConnectionErrorAICard.vue"
 import DisabledAICard from "./{fragments}/cards/DisabledAICard.vue"
 import OnboardingAICard from "./{fragments}/cards/OnboardingAICard.vue"
+import ThinkErrorAICard from "./{fragments}/cards/ThinkErrorAICard.vue"
 import ChatForm from "./{fragments}/ChatForm.vue"
 import ChatMessage from "./{fragments}/ChatMessage.vue"
 
+import type {AIProvider} from "@shared/types/ai"
+
 const aiStore = useAiStore()
+const localModelStore = useLocalModelStore()
 const {startTyping, stopTyping, renderTyping} = useTyping({duration: 80, endDelay: 1500})
 
 const messagesContainerRef = useTemplateRef<HTMLElement>("messagesContainer")
 
 const aiConfig = computed(() => (aiStore.config ? getProviderConfig(aiStore.config.provider, aiStore.config) : null))
+const activeProvider = computed(() => aiStore.config?.provider ?? "openai")
+const activeModel = computed(() => {
+  if (!aiStore.config) return ""
+  if (aiStore.config.provider === "openai") return aiStore.config.openai?.model ?? ""
+  return aiStore.config.local?.model ?? ""
+})
+
+const installedLocalModels = computed(() => localModelStore.installedModels)
+
+/** Last user message can be retried if it has no assistant response, not loading, and no error */
+const retryableMessageId = computed(() => {
+  if (aiStore.isThinkLoading || aiStore.isThinkError) return null
+  const last = aiStore.messages.at(-1)
+  if (last?.role === "user") return last.id
+  return null
+})
 
 function scrollToBottom() {
   if (!messagesContainerRef.value) return
   messagesContainerRef.value.scrollTop = messagesContainerRef.value.scrollHeight
+}
+
+async function handleSelectModel(provider: AIProvider, model: string) {
+  await aiStore.selectModel(provider, model)
 }
 
 watch(
@@ -39,13 +65,15 @@ watch(
 )
 
 watch(
-  () => [aiStore.messages.length, aiStore.isThinkLoading],
+  () => [aiStore.messages.length, aiStore.isThinkLoading, aiStore.isThinkError],
   async () => {
     await nextTick()
     scrollToBottom()
   },
 )
+
 onMounted(async () => {
+  localModelStore.loadModels()
   await until(messagesContainerRef).toBeTruthy()
   await nextTick()
   scrollToBottom()
@@ -81,12 +109,20 @@ onMounted(async () => {
       <template v-else>
         <OnboardingAICard v-if="!aiStore.hasMessages" />
 
-        <div v-else ref="messagesContainer" class="flex-1 space-y-4 overflow-y-auto px-4 py-3">
-          <ChatMessage v-for="msg in aiStore.messages" :key="msg.id" :message="msg" @retry="aiStore.retryMessage" />
+        <div v-else ref="messagesContainer" class="flex-1 space-y-5 overflow-y-auto px-4 py-3">
+          <ChatMessage
+            v-for="msg in aiStore.messages"
+            :key="msg.id"
+            :message="msg"
+            :can-retry="msg.id === retryableMessageId"
+            @retry="aiStore.retryMessage"
+          />
 
-          <div v-if="aiStore.isThinkLoading" class="my-8 flex items-start gap-3">
-            <div class="bg-base-200 text-base-content/60 rounded-lg px-3 py-2 text-sm">
-              {{ renderTyping("Thinking...") }}
+          <ThinkErrorAICard v-if="aiStore.isThinkError && retryableMessageId" @retry="aiStore.retryMessage" />
+
+          <div v-if="aiStore.isThinkLoading" class="flex items-start gap-3">
+            <div class="text-base-content/60 pt-1 text-sm">
+              <WaveText text="Thinking..." />
             </div>
           </div>
         </div>
@@ -94,12 +130,15 @@ onMounted(async () => {
         <ChatForm
           v-focus-on-mount
           :ai-config="aiConfig"
+          :active-provider="activeProvider"
+          :active-model="activeModel"
+          :local-models="installedLocalModels"
+          :remote-models="aiStore.remoteModels"
           :loading="aiStore.isThinkLoading"
-          :error="aiStore.isThinkError"
           class="flex w-full items-center justify-between px-4 py-3"
           @send="aiStore.sendMessage"
-          @retry="aiStore.retryMessage"
           @cancel="aiStore.cancelRequest"
+          @select-model="handleSelectModel"
         />
       </template>
     </template>

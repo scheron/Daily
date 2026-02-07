@@ -61,30 +61,30 @@ onMounted(() => {
 </script>
 
 <template>
-  <div ref="container" class="task-content-viewer"></div>
+  <div ref="container" class="markdown-view"></div>
 </template>
 
 <style scoped>
-.task-content-viewer {
+.markdown-view {
   width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
 }
 
-.task-content-viewer :deep(.cm-editor) {
+.markdown-view :deep(.cm-editor) {
   background-color: transparent;
 }
 
-.task-content-viewer :deep(.cm-scroller) {
+.markdown-view :deep(.cm-scroller) {
   overflow: visible;
 }
 
-.task-content-viewer :deep(.cm-content) {
+.markdown-view :deep(.cm-content) {
   padding: 0;
 }
 
 /* Code blocks should not wrap and can extend beyond container width */
-.task-content-viewer :deep(.cm-codeblock-line) {
+.markdown-view :deep(.cm-codeblock-line) {
   white-space: pre !important;
   overflow-x: visible !important;
 }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, HTMLAttributes, nextTick, onMounted, useTemplateRef} from "vue"
+import {computed, HTMLAttributes, nextTick, onMounted, useTemplateRef, watch} from "vue"
 import {until} from "@vueuse/core"
 
 import {cn} from "@/utils/ui/tailwindcss"
@@ -38,6 +38,8 @@ async function adjustHeight() {
     textareaRef.value.style.overflowY = "hidden"
   }
 }
+
+watch(() => props.modelValue, adjustHeight)
 
 onMounted(async () => {
   await until(textareaRef).toBeTruthy()

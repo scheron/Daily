@@ -4,11 +4,11 @@ import {toasts} from "vue-toasts-lite"
 import {ISODate} from "@shared/types/common"
 import {useTasksStore} from "@/stores/tasks.store"
 import DynamicTagsPanel from "@/ui/common/misc/DynamicTagsPanel.vue"
+import MarkdownContent from "@/ui/common/misc/MarkdownContent.vue"
 
 import {useTaskEditorStore} from "@MainView/stores/taskEditor.store"
 import QuickActions from "./{fragments}/QuickActions.vue"
 import StatusButtons from "./{fragments}/StatusButtons.vue"
-import TaskContent from "./{fragments}/TaskContent.vue"
 import TimeTrackingButton from "./{fragments}/TimeTrackingButton.vue"
 
 import type {Tag, Task, TaskStatus} from "@shared/types/storage"
@@ -76,7 +76,7 @@ async function onMoveDate(targetDate: ISODate) {
       </div>
 
       <div class="mb-5 transition-opacity duration-200" :class="{'opacity-50': ['done', 'discarded'].includes(task.status)}">
-        <TaskContent :content="task.content" />
+        <MarkdownContent :content="task.content" />
       </div>
     </div>
   </div>

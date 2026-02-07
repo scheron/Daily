@@ -1,6 +1,6 @@
 import {contextBridge, ipcRenderer} from "electron"
 
-import type {AIConfig, AIResponse} from "@shared/types/ai"
+import type {AIConfig, AIResponse, LocalModelDownloadProgress, LocalModelId, LocalModelInfo, LocalRuntimeState} from "@shared/types/ai"
 import type {ISODate} from "@shared/types/common"
 import type {BridgeIPC} from "@shared/types/ipc"
 import type {TaskSearchResult} from "@shared/types/search"
@@ -71,4 +71,14 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "ai:cancel": () => ipcRenderer.invoke("ai:cancel") as Promise<boolean>,
   "ai:clear-history": () => ipcRenderer.invoke("ai:clear-history") as Promise<boolean>,
   "ai:update-config": (config: Partial<AIConfig>) => ipcRenderer.invoke("ai:update-config", config) as Promise<boolean>,
+
+  "ai:local-list-models": () => ipcRenderer.invoke("ai:local-list-models") as Promise<LocalModelInfo[]>,
+  "ai:local-download-model": (modelId: LocalModelId) => ipcRenderer.invoke("ai:local-download-model", modelId) as Promise<boolean>,
+  "ai:local-cancel-download": (modelId: LocalModelId) => ipcRenderer.invoke("ai:local-cancel-download", modelId) as Promise<boolean>,
+  "ai:local-delete-model": (modelId: LocalModelId) => ipcRenderer.invoke("ai:local-delete-model", modelId) as Promise<boolean>,
+  "ai:local-get-state": () => ipcRenderer.invoke("ai:local-get-state") as Promise<LocalRuntimeState>,
+  "ai:local-get-disk-usage": () => ipcRenderer.invoke("ai:local-get-disk-usage") as Promise<{total: number; models: Record<string, number>}>,
+
+  "ai:on-local-state-changed": (callback: (state: LocalRuntimeState) => void) => ipcRenderer.on("ai:local-state-changed", (_event, state: LocalRuntimeState) => callback(state)),
+  "ai:on-local-download-progress": (callback: (progress: LocalModelDownloadProgress) => void) => ipcRenderer.on("ai:local-download-progress", (_event, progress: LocalModelDownloadProgress) => callback(progress)),
 } satisfies BridgeIPC)

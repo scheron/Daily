@@ -4,12 +4,13 @@ import BaseIcon from "@/ui/base/BaseIcon"
 import BaseSwitch from "@/ui/base/BaseSwitch.vue"
 import SelectableButton from "@/ui/common/buttons/SelectableButton.vue"
 
+import SettingsLocal from "./{fragments}/SettingsLocal.vue"
 import SettingsOpenAI from "./{fragments}/SettingsOpenAI.vue"
 
 const aiStore = useAiStore()
 
 const providers: Array<{id: any; name: string; description: string; recommended?: boolean}> = [
-  {id: "ollama", name: "Local", description: "Daily AI assistant"},
+  {id: "local", name: "Local", description: "Daily AI assistant"},
   {id: "openai", name: "Remote", description: "DeepSeek, OpenAI, Groq, etc.", recommended: true},
 ]
 </script>
@@ -32,7 +33,12 @@ const providers: Array<{id: any; name: string; description: string; recommended?
             v-for="p in providers"
             :key="p.id"
             :active="aiStore.config?.provider === p.id"
-            @click="aiStore.updateConfig({provider: p.id})"
+            @click="
+              async () => {
+                await aiStore.updateConfig({provider: p.id})
+                await aiStore.checkConnection()
+              }
+            "
           >
             <p class="text-base-content text-sm font-medium">
               {{ p.name }}
@@ -44,10 +50,7 @@ const providers: Array<{id: any; name: string; description: string; recommended?
       </div>
 
       <SettingsOpenAI v-if="aiStore.config?.provider === 'openai'" />
-
-      <template v-else>
-        <div class="text-base-content/60 text-xs">Local model will be available soon. You can use remote models for now.</div>
-      </template>
+      <SettingsLocal v-else-if="aiStore.config?.provider === 'local'" />
     </template>
   </div>
 </template>

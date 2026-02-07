@@ -1,5 +1,5 @@
 import type {PartialDeep} from "type-fest"
-import type {AIConfig, AIResponse} from "./ai"
+import type {AIConfig, AIResponse, LocalModelDownloadProgress, LocalModelId, LocalModelInfo, LocalRuntimeState} from "./ai"
 import type {ISODate} from "./common"
 import type {TaskSearchResult} from "./search"
 import type {Day, File, Settings, SyncStatus, Tag, Task} from "./storage"
@@ -75,4 +75,16 @@ export interface BridgeIPC {
   "ai:cancel": () => Promise<boolean>
   "ai:clear-history": () => Promise<boolean>
   "ai:update-config": (config: Partial<AIConfig>) => Promise<boolean>
+
+  // === AI LOCAL MODEL MANAGEMENT ===
+  "ai:local-list-models": () => Promise<LocalModelInfo[]>
+  "ai:local-download-model": (modelId: LocalModelId) => Promise<boolean>
+  "ai:local-cancel-download": (modelId: LocalModelId) => Promise<boolean>
+  "ai:local-delete-model": (modelId: LocalModelId) => Promise<boolean>
+  "ai:local-get-state": () => Promise<LocalRuntimeState>
+  "ai:local-get-disk-usage": () => Promise<{total: number; models: Record<string, number>}>
+
+  // === AI LOCAL EVENTS ===
+  "ai:on-local-state-changed": (callback: (state: LocalRuntimeState) => void) => void
+  "ai:on-local-download-progress": (callback: (progress: LocalModelDownloadProgress) => void) => void
 }

@@ -2,6 +2,7 @@ import {LogContext, logger} from "@/utils/logger"
 
 import type {AIConfig} from "@shared/types/ai"
 import type {ChatRequest, MessageLLM, OpenAiChatResponse, Tool, ToolCallLLM} from "../types"
+import type {IAIProvider} from "./IAIProvider"
 
 /**
  * OpenAI-Compatible API Client
@@ -9,7 +10,7 @@ import type {ChatRequest, MessageLLM, OpenAiChatResponse, Tool, ToolCallLLM} fro
  * HTTP client for communicating with OpenAI API and compatible services
  * (DeepSeek, Groq, Together, etc.)
  */
-export class OpenAiClient {
+export class OpenAiClient implements IAIProvider {
   private readonly MODELS_LIMIT_COUNT = 20
   private config: AIConfig["openai"] | null = null
 
@@ -58,7 +59,7 @@ export class OpenAiClient {
     }
   }
 
-  async chat(messages: MessageLLM[], tools?: Tool[]): Promise<{message: MessageLLM; done: boolean}> {
+  async chat(messages: MessageLLM[], tools?: Tool[], signal?: AbortSignal): Promise<{message: MessageLLM; done: boolean}> {
     if (!this.config?.model || !this.config?.apiKey || !this.config.baseUrl) {
       logger.error(LogContext.AI, "OpenAI config is not set")
       return {message: {role: "assistant", content: "OpenAI config is not set"}, done: false}
@@ -80,6 +81,7 @@ export class OpenAiClient {
         tools,
         stream: false,
       } satisfies ChatRequest),
+      signal,
     })
 
     if (!response.ok) {

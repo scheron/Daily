@@ -13,6 +13,8 @@ export type AIConfig = {
     baseUrl: string
     /** API Key */
     apiKey: string
+    /** Cached list of models fetched from provider */
+    availableModels?: string[]
   } | null
 
   /** Local llama.cpp */
@@ -21,6 +23,8 @@ export type AIConfig = {
     model: LocalModelId
     /** Optional: let user override defaults in advanced settings */
     params?: LocalRuntimeParams
+    /** Cached list of models fetched from local provider */
+    availableModels?: string[]
   } | null
 }
 
@@ -112,4 +116,21 @@ export type LocalConfig = {
   modelId: LocalModelId
   toolingMode?: LocalToolingMode // default "compat"
   params?: LocalRuntimeParams
+}
+
+export type LocalModelInfo = {
+  id: LocalModelId
+  title: string
+  description: string
+  sizeBytes: number
+  requirements: {ramGb: number; diskGb: number}
+  installed: boolean
+  recommended?: boolean
+}
+
+export type LocalModelDownloadProgress = {
+  modelId: LocalModelId
+  percent: number
+  downloadedBytes: number
+  totalBytes: number
 }

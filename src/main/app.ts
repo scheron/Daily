@@ -10,6 +10,7 @@ import {setupActivateHandler, setupAppIdentity, setupDockIcon, setupWindowAllClo
 import {setupMenu} from "@/setup/app/menu"
 import {setupStorageSync} from "@/setup/app/storage"
 import {setupAiIPC} from "@/setup/ipc/ai"
+import {setupLocalAiIPC} from "@/setup/ipc/ai-local"
 import {setupDbViewerIPC, setupDevToolsIPC} from "@/setup/ipc/devtools"
 import {setupMenuIPC} from "@/setup/ipc/menu"
 import {setupShellIPC} from "@/setup/ipc/shell"
@@ -49,7 +50,9 @@ app.whenReady().then(async () => {
   windows.splash = createSplashWindow()
 
   storage = new StorageController()
-  ai = new AIController(storage)
+  ai = new AIController(storage, (state) => {
+    windows.main?.webContents.send("ai:local-state-changed", state)
+  })
 
   try {
     await storage.init()
@@ -81,6 +84,10 @@ app.whenReady().then(async () => {
 
   setupStorageIPC(() => storage)
   setupAiIPC(() => ai)
+  setupLocalAiIPC(
+    () => ai,
+    () => windows.main,
+  )
   setupStorageSync(
     () => storage,
     () => windows.main,
@@ -91,6 +98,12 @@ app.whenReady().then(async () => {
   setupUpdateManager(main)
 
   logger.lifecycle(`${APP_CONFIG.name} started`)
+})
+
+app.on("before-quit", async () => {
+  if (ai) {
+    await ai.dispose()
+  }
 })
 
 function setupMainWindow(windows: AppWindows, options?: {showSplash?: boolean}) {

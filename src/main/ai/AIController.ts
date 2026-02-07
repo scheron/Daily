@@ -1,56 +1,101 @@
 import {deepMerge} from "@shared/utils/common/deepMerge"
 import {LogContext, logger} from "@/utils/logger"
 
+import {LocalLLMProvider} from "./providers/local/LocalLLMProvider"
 import {OpenAiClient} from "./providers/OpenAiClient"
 import {ToolExecutor} from "./tools/ToolExecutor"
-import {AI_TOOLS} from "./tools/tools"
-import {filterThinkingBlocks, getSystemPrompt} from "./utils"
+import {AI_TOOLS, AI_TOOLS_COMPACT} from "./tools/tools"
+import {filterThinkingBlocks, getSystemPrompt, getSystemPromptCompact} from "./utils"
 
 import type {StorageController} from "@/storage/StorageController"
-import type {AIConfig, AIMessage, AIResponse} from "@shared/types/ai"
+import type {AIConfig, AIMessage, AIResponse, LocalRuntimeState} from "@shared/types/ai"
+import type {IAIProvider} from "./providers/IAIProvider"
+import type {ModelManager} from "./providers/local/ModelManager"
 import type {ToolName} from "./tools/tools"
 import type {MessageLLM, ToolCallLLM} from "./types"
 
 /**
  * AI Service
  *
- * Orchestrates communication between the user, LLM providers (Ollama, OpenAI), and tool execution.
+ * Orchestrates communication between the user, LLM providers (OpenAI, Local), and tool execution.
  * Implements the agentic loop: user message -> LLM -> (tool calls -> LLM)* -> response
  */
 export class AIController {
-  private aiProvider: OpenAiClient
+  private openaiProvider: OpenAiClient
+  private localProvider: LocalLLMProvider
   private executor: ToolExecutor
   private conversationHistory: MessageLLM[] = []
   private abortController: AbortController | null = null
   private config: AIConfig | null = null
 
-  constructor(private storage: StorageController) {
+  constructor(
+    private storage: StorageController,
+    broadcastState?: (state: LocalRuntimeState) => void,
+  ) {
     this.executor = new ToolExecutor(storage)
-    this.aiProvider = new OpenAiClient()
+    this.openaiProvider = new OpenAiClient()
+    this.localProvider = new LocalLLMProvider(broadcastState)
+  }
+
+  private get activeProvider(): IAIProvider {
+    return this.config?.provider === "local" ? this.localProvider : this.openaiProvider
   }
 
   async init() {
     const config = (await this.storage.loadSettings()).ai
+    await this.localProvider.modelManager.init()
     await this.updateConfig(config)
   }
 
   async updateConfig(config: AIConfig | null) {
     if (config?.enabled) config.provider = config?.provider ?? "openai"
 
+    const previousProvider = this.config?.provider
+
     this.config = deepMerge(this.config, config)
 
     await this.storage.saveSettings({ai: this.config!})
-    this.aiProvider.updateConfig(this.config)
+
+    // Update both providers so they have current config
+    this.openaiProvider.updateConfig(this.config)
+    this.localProvider.updateConfig(this.config)
+
+    // If switching away from local, stop the server
+    if (previousProvider === "local" && this.config?.provider !== "local") {
+      await this.localProvider.dispose()
+    }
 
     return true
   }
 
   async checkConnection(): Promise<boolean> {
-    return this.aiProvider.checkConnection()
+    return this.activeProvider.checkConnection()
   }
 
   async listModels(): Promise<string[]> {
-    return this.aiProvider.listModels()
+    return this.activeProvider.listModels()
+  }
+
+  getModelManager(): ModelManager {
+    return this.localProvider.modelManager
+  }
+
+  async getLocalState(): Promise<LocalRuntimeState> {
+    const serverState = this.localProvider.getState()
+
+    // Server state is "not_installed" by default — enrich with model info
+    if (serverState.status === "not_installed") {
+      const selectedModel = this.config?.local?.model
+      if (selectedModel && (await this.localProvider.modelManager.isInstalled(selectedModel))) {
+        return {status: "installed", modelId: selectedModel}
+      }
+    }
+
+    return serverState
+  }
+
+  async dispose(): Promise<void> {
+    await this.localProvider.dispose()
   }
 
   clearHistory(): boolean {
@@ -82,11 +127,13 @@ export class AIController {
 
       let iterations = 0
       const maxIterations = 10
+      const isLocal = this.config?.provider === "local"
+      const systemPrompt = isLocal ? getSystemPromptCompact() : getSystemPrompt()
 
       while (iterations < maxIterations) {
         iterations++
 
-        const messages: MessageLLM[] = [{role: "system", content: getSystemPrompt()}, ...this.conversationHistory]
+        const messages: MessageLLM[] = [{role: "system", content: systemPrompt}, ...this.conversationHistory]
 
         const response = await this.callLLM(messages)
         const assistantMessage = response.message
@@ -135,7 +182,8 @@ export class AIController {
   }
 
   private async callLLM(messages: MessageLLM[]): Promise<{message: MessageLLM; done: boolean}> {
-    return this.aiProvider.chat(messages, AI_TOOLS)
+    const tools = this.config?.provider === "local" ? AI_TOOLS_COMPACT : AI_TOOLS
+    return this.activeProvider.chat(messages, tools, this.abortController?.signal)
   }
 
   private async executeToolCall(toolCall: ToolCallLLM): Promise<{success: boolean; data?: string; error?: string}> {

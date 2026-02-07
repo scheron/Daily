@@ -80,6 +80,10 @@ export const AI_TOOLS: Tool[] = [
             type: "array",
             description: "Array of tag IDs to assign. Get available IDs from list_tags first.",
           },
+          estimated_minutes: {
+            type: "number",
+            description: "Estimated time for the task in minutes. Example: 30 for half an hour, 120 for 2 hours. Optional.",
+          },
         },
         required: ["content"],
       },
@@ -90,7 +94,7 @@ export const AI_TOOLS: Tool[] = [
     function: {
       name: "update_task",
       description:
-        "Update an existing task's content, date, time, or status. " +
+        "Update an existing task's content, date, time, status, or estimated time. " +
         "Use for editing task text, rescheduling, or changing status. " +
         "First use list_tasks to find the task_id. " +
         "For simple status changes, prefer complete_task, discard_task, or reactivate_task instead.",
@@ -117,6 +121,10 @@ export const AI_TOOLS: Tool[] = [
             type: "string",
             description: "New status: 'active' (in progress), 'done' (completed), 'discarded' (cancelled).",
             enum: ["active", "done", "discarded"],
+          },
+          estimated_minutes: {
+            type: "number",
+            description: "Estimated time for the task in minutes. Example: 30 for half an hour, 120 for 2 hours.",
           },
         },
         required: ["task_id"],
@@ -346,6 +354,100 @@ export const AI_TOOLS: Tool[] = [
     },
   },
 
+  // ========== TIME TRACKING ==========
+  {
+    type: "function",
+    function: {
+      name: "log_time",
+      description:
+        "Log time spent on a task. Use when user says 'I spent X minutes/hours on...', 'log time', 'track time'. " +
+        "Supports add (default), subtract, and set operations. " +
+        "Example: 'I spent 45 minutes on the report' or 'remove 10 minutes from task X'.",
+      parameters: {
+        type: "object",
+        properties: {
+          task_id: {
+            type: "string",
+            description: "Task ID to log time for. Get from list_tasks or search_tasks.",
+          },
+          minutes: {
+            type: "number",
+            description: "Number of minutes to log. Must be a positive number. Example: 30 for half an hour, 120 for 2 hours.",
+          },
+          operation: {
+            type: "string",
+            description: "How to apply the time: 'add' (default) adds to existing, 'subtract' removes from existing, 'set' replaces existing.",
+            enum: ["add", "subtract", "set"],
+          },
+        },
+        required: ["task_id", "minutes"],
+      },
+    },
+  },
+
+  // ========== DAY OVERVIEW ==========
+  {
+    type: "function",
+    function: {
+      name: "get_day_summary",
+      description:
+        "Get a summary overview of a day: task counts, completion progress, time estimates and spent, tags used. " +
+        "Use when user asks 'how's my day?', 'what's my progress?', 'day overview', 'how am I doing today?'.",
+      parameters: {
+        type: "object",
+        properties: {
+          date: {
+            type: "string",
+            description: "Date in YYYY-MM-DD format. Defaults to today.",
+          },
+        },
+      },
+    },
+  },
+
+  // ========== ATTACHMENTS ==========
+  {
+    type: "function",
+    function: {
+      name: "get_task_attachments",
+      description:
+        "Get the list of file attachments for a task. Returns file name, type, size, and ID. " +
+        "Use when user asks about files, images, or attachments on a task.",
+      parameters: {
+        type: "object",
+        properties: {
+          task_id: {
+            type: "string",
+            description: "Task ID to get attachments for. Get from list_tasks or search_tasks.",
+          },
+        },
+        required: ["task_id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "remove_task_attachment",
+      description:
+        "Remove a file attachment from a task. Use get_task_attachments first to find the file_id. " + "Ask for confirmation before removing.",
+      parameters: {
+        type: "object",
+        properties: {
+          task_id: {
+            type: "string",
+            description: "Task ID to remove attachment from.",
+          },
+          file_id: {
+            type: "string",
+            description: "File ID to remove. Get from get_task_attachments.",
+          },
+        },
+        required: ["task_id", "file_id"],
+      },
+    },
+  },
+
   // ========== TAGS ==========
   {
     type: "function",
@@ -448,6 +550,270 @@ export const AI_TOOLS: Tool[] = [
   },
 ]
 
+/**
+ * Compact tool set for local LLMs — fewer tools, shorter descriptions, smaller payload.
+ * Removes redundant tools (complete_task, discard_task, reactivate_task → use update_task with status).
+ * Removes rare tools (get_tag, permanently_delete_task, get_deleted_tasks, restore_task).
+ */
+export const AI_TOOLS_COMPACT: Tool[] = [
+  {
+    type: "function",
+    function: {
+      name: "list_tasks",
+      description: "Get tasks for a date. Returns IDs, content, status, time, tags.",
+      parameters: {
+        type: "object",
+        properties: {
+          date: {type: "string", description: "YYYY-MM-DD. Defaults to today."},
+          include_done: {type: "boolean"},
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_task",
+      description: "Get full details of a task by ID.",
+      parameters: {
+        type: "object",
+        properties: {
+          task_id: {type: "string"},
+        },
+        required: ["task_id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "create_task",
+      description: "Create a new task. Use list_tags first if adding tags.",
+      parameters: {
+        type: "object",
+        properties: {
+          content: {type: "string", description: "Task text."},
+          date: {type: "string", description: "YYYY-MM-DD. Defaults to today."},
+          time: {type: "string", description: "HH:MM 24h format."},
+          tag_ids: {type: "array"},
+          estimated_minutes: {type: "number"},
+        },
+        required: ["content"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_task",
+      description: "Update task fields. Set status to change state: " + "'done'=completed/finished, 'discarded'=cancelled/skipped, 'active'=reopen.",
+      parameters: {
+        type: "object",
+        properties: {
+          task_id: {type: "string"},
+          content: {type: "string"},
+          date: {type: "string"},
+          time: {type: "string"},
+          status: {
+            type: "string",
+            description: "done=complete, discarded=cancel/skip, active=reopen",
+            enum: ["active", "done", "discarded"],
+          },
+          estimated_minutes: {type: "number"},
+        },
+        required: ["task_id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "delete_task",
+      description: "Move a task to trash (soft delete).",
+      parameters: {
+        type: "object",
+        properties: {
+          task_id: {type: "string"},
+        },
+        required: ["task_id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "add_task_tags",
+      description: "Add tags to a task. Use list_tags first.",
+      parameters: {
+        type: "object",
+        properties: {
+          task_id: {type: "string"},
+          tag_ids: {type: "array"},
+        },
+        required: ["task_id", "tag_ids"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "remove_task_tags",
+      description: "Remove tags from a task.",
+      parameters: {
+        type: "object",
+        properties: {
+          task_id: {type: "string"},
+          tag_ids: {type: "array"},
+        },
+        required: ["task_id", "tag_ids"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "search_tasks",
+      description: "Search tasks by text across all dates.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: {type: "string"},
+        },
+        required: ["query"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "move_task",
+      description: "Move/reschedule a task to another date.",
+      parameters: {
+        type: "object",
+        properties: {
+          task_id: {type: "string"},
+          date: {type: "string", description: "YYYY-MM-DD"},
+        },
+        required: ["task_id", "date"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "log_time",
+      description: "Log time spent on a task. Operations: add (default), subtract, set.",
+      parameters: {
+        type: "object",
+        properties: {
+          task_id: {type: "string"},
+          minutes: {type: "number"},
+          operation: {type: "string", enum: ["add", "subtract", "set"]},
+        },
+        required: ["task_id", "minutes"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_day_summary",
+      description: "Get day overview: task counts, progress, time stats.",
+      parameters: {
+        type: "object",
+        properties: {
+          date: {type: "string", description: "YYYY-MM-DD. Defaults to today."},
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_task_attachments",
+      description: "List file attachments on a task.",
+      parameters: {
+        type: "object",
+        properties: {
+          task_id: {type: "string"},
+        },
+        required: ["task_id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "remove_task_attachment",
+      description: "Remove a file attachment from a task.",
+      parameters: {
+        type: "object",
+        properties: {
+          task_id: {type: "string"},
+          file_id: {type: "string"},
+        },
+        required: ["task_id", "file_id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_tags",
+      description: "Get all tags with IDs, names, colors.",
+      parameters: {
+        type: "object",
+        properties: {},
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "create_tag",
+      description: "Create a new tag.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: {type: "string"},
+          color: {type: "string", description: "Hex color like #FF5733."},
+        },
+        required: ["name"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_tag",
+      description: "Update a tag's name or color.",
+      parameters: {
+        type: "object",
+        properties: {
+          tag_id: {type: "string"},
+          name: {type: "string"},
+          color: {type: "string"},
+        },
+        required: ["tag_id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "delete_tag",
+      description: "Delete a tag. Removes it from all tasks.",
+      parameters: {
+        type: "object",
+        properties: {
+          tag_id: {type: "string"},
+        },
+        required: ["tag_id"],
+      },
+    },
+  },
+]
+
 export type ToolName =
   // Tasks
   | "list_tasks"
@@ -465,6 +831,13 @@ export type ToolName =
   | "remove_task_tags"
   | "search_tasks"
   | "move_task"
+  // Time tracking
+  | "log_time"
+  // Day overview
+  | "get_day_summary"
+  // Attachments
+  | "get_task_attachments"
+  | "remove_task_attachment"
   // Tags
   | "list_tags"
   | "get_tag"

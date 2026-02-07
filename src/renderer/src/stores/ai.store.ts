@@ -7,7 +7,7 @@ import {useSettingsStore} from "@/stores/settings.store"
 import {useLoadingState} from "@/composables/useLoadingState"
 import {toRawDeep} from "@/utils/ui/vue"
 
-import type {AIConfig, AIMessage} from "@shared/types/ai"
+import type {AIConfig, AIMessage, AIProvider} from "@shared/types/ai"
 import type {ISODate} from "@shared/types/common"
 
 export const useAiStore = defineStore("ai", () => {
@@ -17,9 +17,17 @@ export const useAiStore = defineStore("ai", () => {
   const thinkState = useLoadingState("IDLE")
 
   const isConnected = ref(false)
+  const isCancelled = ref(false)
   const messages = ref<AIMessage[]>([])
-  const availableModels = ref<string[]>([])
   const chatTimeStarted = ref<ISODate | null>(null)
+
+  const remoteModels = computed(() => config.value?.openai?.availableModels ?? [])
+  const availableModels = computed(() => {
+    if (!config.value) return []
+    if (config.value.provider === "openai") return config.value.openai?.availableModels ?? []
+    if (config.value.provider === "local") return config.value.local?.availableModels ?? []
+    return []
+  })
 
   const config = computed(() => settingsStore.settings?.ai ?? null)
 
@@ -29,7 +37,7 @@ export const useAiStore = defineStore("ai", () => {
 
   async function updateConfig(updates: Partial<AIConfig>) {
     const success = await window.BridgeIPC["ai:update-config"](toRawDeep(updates))
-    if (success) settingsStore.revalidate()
+    if (success) await settingsStore.revalidate()
   }
 
   async function checkConnection() {
@@ -48,9 +56,16 @@ export const useAiStore = defineStore("ai", () => {
         return
       }
 
-      availableModels.value = await window.BridgeIPC["ai:list-models"]()
+      const fetchedModels = await window.BridgeIPC["ai:list-models"]()
       isConnected.value = true
       connectionState.setState("LOADED")
+
+      // Persist fetched models into config
+      if (config.value?.provider === "openai") {
+        await updateConfig({openai: {availableModels: fetchedModels} as AIConfig["openai"]})
+      } else if (config.value?.provider === "local") {
+        await updateConfig({local: {availableModels: fetchedModels} as AIConfig["local"]})
+      }
     } catch {
       console.log("checkConnection error")
       isConnected.value = false
@@ -61,6 +76,8 @@ export const useAiStore = defineStore("ai", () => {
   async function sendMessage(content: string): Promise<void> {
     if (isDisabled.value) return
     if (!content.trim() || connectionState.isLoading.value || thinkState.isLoading.value) return
+
+    isCancelled.value = false
 
     await withElapsedDelay(async () => {
       if (!hasMessages.value) chatTimeStarted.value = toISODate(Date.now())
@@ -79,6 +96,8 @@ export const useAiStore = defineStore("ai", () => {
       try {
         const response = await window.BridgeIPC["ai:send-message"](content)
 
+        if (isCancelled.value) return
+
         if (!response.success || !response.message) {
           thinkState.setState("ERROR")
           return
@@ -87,18 +106,27 @@ export const useAiStore = defineStore("ai", () => {
         messages.value.push(response.message)
         thinkState.setState("LOADED")
       } catch {
+        if (isCancelled.value) return
         thinkState.setState("ERROR")
       }
     })
   }
 
   async function retryMessage(): Promise<void> {
-    if (!lastMessage.value) return
-    await sendMessage(lastMessage.value.content)
+    const lastUserMessage = [...messages.value].reverse().find((m) => m.role === "user")
+    if (!lastUserMessage) return
+
+    // Remove the failed user message before resending
+    const lastUserIdx = messages.value.lastIndexOf(lastUserMessage)
+    if (lastUserIdx !== -1) messages.value.splice(lastUserIdx, 1)
+
+    thinkState.setState("IDLE")
+    await sendMessage(lastUserMessage.content)
   }
 
   function cancelRequest(): void {
     if (isDisabled.value) return
+    isCancelled.value = true
     window.BridgeIPC["ai:cancel"]()
     thinkState.setState("IDLE")
   }
@@ -111,11 +139,21 @@ export const useAiStore = defineStore("ai", () => {
     thinkState.setState("IDLE")
   }
 
+  async function selectModel(provider: AIProvider, model: string) {
+    if (provider === "openai") {
+      await updateConfig({provider, openai: {model} as AIConfig["openai"]})
+    } else {
+      await updateConfig({provider, local: {model} as unknown as AIConfig["local"]})
+    }
+    await checkConnection()
+  }
+
   return {
     config,
     messages,
     chatTimeStarted,
     availableModels,
+    remoteModels,
 
     isConnected,
     isDisabled,
@@ -135,5 +173,6 @@ export const useAiStore = defineStore("ai", () => {
     retryMessage,
     cancelRequest,
     clearHistory,
+    selectModel,
   }
 })

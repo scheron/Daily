@@ -6,10 +6,11 @@
 
 import {nanoid} from "nanoid"
 
+import {toDurationLabel} from "@shared/utils/date/formatters"
 import {LogContext, logger} from "@/utils/logger"
 
 import type {StorageController} from "@/storage/StorageController"
-import type {Tag, Task} from "@shared/types/storage"
+import type {Day, File, Tag, Task} from "@shared/types/storage"
 import type {ToolName} from "./tools"
 
 export type ToolResult = {
@@ -62,6 +63,17 @@ export class ToolExecutor {
           return await this.searchTasks(params)
         case "move_task":
           return await this.moveTask(params)
+        // Time tracking
+        case "log_time":
+          return await this.logTime(params)
+        // Day overview
+        case "get_day_summary":
+          return await this.getDaySummary(params)
+        // Attachments
+        case "get_task_attachments":
+          return await this.getTaskAttachments(params)
+        case "remove_task_attachment":
+          return await this.removeTaskAttachment(params)
         // Tags
         case "list_tags":
           return await this.listTags()
@@ -87,11 +99,20 @@ export class ToolExecutor {
     return new Date().toISOString().split("T")[0]
   }
 
-  private formatTask(task: Task): string {
+  private formatDuration(seconds: number): string {
+    return seconds > 0 ? toDurationLabel(seconds) : "none"
+  }
+
+  private formatTask(task: Task, compact = true): string {
     const statusEmoji = task.status === "done" ? "✅" : task.status === "discarded" ? "❌" : "⬜"
     const time = task.scheduled.time || "no time"
     const tags = task.tags.length > 0 ? ` [${task.tags.map((t) => t.name).join(", ")}]` : ""
-    return `${statusEmoji} [${time}] ${task.content}${tags} (ID: ${task.id})`
+    // In compact mode, only show first line of content to reduce token count
+    const content = compact ? task.content.split("\n")[0].slice(0, 100) : task.content
+    const est = task.estimatedTime > 0 ? ` (est: ${toDurationLabel(task.estimatedTime)})` : ""
+    const spent = task.spentTime > 0 ? ` (spent: ${toDurationLabel(task.spentTime)})` : ""
+    const attachments = task.attachments.length > 0 ? ` 📎${task.attachments.length}` : ""
+    return `${statusEmoji} [${time}] ${content}${tags}${est}${spent}${attachments} (ID: ${task.id})`
   }
 
   private formatTag(tag: Tag): string {
@@ -131,10 +152,26 @@ export class ToolExecutor {
       return {success: false, error: `Task not found: ${taskId}`}
     }
 
-    return {
-      success: true,
-      data: `Task details:\n${this.formatTask(task)}\nDate: ${task.scheduled.date}\nCreated: ${task.createdAt}`,
+    const lines = [`Task details:\n${this.formatTask(task, false)}`, `Date: ${task.scheduled.date}`]
+
+    if (task.estimatedTime > 0 || task.spentTime > 0) {
+      const est = this.formatDuration(task.estimatedTime)
+      const spent = this.formatDuration(task.spentTime)
+      let timeLine = `Time — estimated: ${est}, spent: ${spent}`
+      if (task.estimatedTime > 0 && task.spentTime > 0) {
+        const pct = Math.round((task.spentTime / task.estimatedTime) * 100)
+        timeLine += ` (${pct}%)`
+      }
+      lines.push(timeLine)
     }
+
+    if (task.attachments.length > 0) {
+      lines.push(`Attachments: ${task.attachments.length} file(s) — use get_task_attachments for details`)
+    }
+
+    lines.push(`Created: ${task.createdAt}`)
+
+    return {success: true, data: lines.join("\n")}
   }
 
   private async createTask(params: ToolParams): Promise<ToolResult> {
@@ -147,6 +184,8 @@ export class ToolExecutor {
     const date = (params.date as string) || this.getTodayDate()
     const time = (params.time as string) || ""
     const tagIds = (params.tag_ids as string[]) || []
+    const estimatedMinutes = params.estimated_minutes as number | undefined
+    const estimatedTime = estimatedMinutes ? Math.max(0, Math.round(estimatedMinutes)) * 60 : 0
 
     // Get tags if specified
     let tags: Tag[] = []
@@ -166,7 +205,7 @@ export class ToolExecutor {
       },
       tags,
       attachments: [],
-      estimatedTime: 0,
+      estimatedTime,
       spentTime: 0,
       createdAt: now,
       updatedAt: now,
@@ -197,6 +236,10 @@ export class ToolExecutor {
       updates.scheduled = {}
       if (params.date !== undefined) (updates.scheduled as Record<string, string>).date = params.date as string
       if (params.time !== undefined) (updates.scheduled as Record<string, string>).time = params.time as string
+    }
+
+    if (params.estimated_minutes !== undefined) {
+      updates.estimatedTime = Math.max(0, Math.round(params.estimated_minutes as number)) * 60
     }
 
     const updated = await this.storage.updateTask(taskId, updates)
@@ -385,6 +428,158 @@ export class ToolExecutor {
     }
 
     return {success: true, data: `Task moved to ${date}: ${this.formatTask(updated)}`}
+  }
+
+  // ========== TIME TRACKING ==========
+
+  private async logTime(params: ToolParams): Promise<ToolResult> {
+    const taskId = params.task_id as string
+    const minutes = params.minutes as number
+    const operation = (params.operation as string) || "add"
+
+    if (!taskId) {
+      return {success: false, error: "task_id is required"}
+    }
+    if (minutes === undefined || minutes === null) {
+      return {success: false, error: "minutes is required"}
+    }
+    if (minutes < 0) {
+      return {success: false, error: "minutes must be a positive number. Use operation='subtract' to remove time."}
+    }
+
+    const task = await this.storage.getTask(taskId)
+    if (!task) {
+      return {success: false, error: `Task not found: ${taskId}`}
+    }
+
+    const deltaSeconds = Math.round(minutes) * 60
+    let newSpentTime: number
+
+    switch (operation) {
+      case "add":
+        newSpentTime = task.spentTime + deltaSeconds
+        break
+      case "subtract":
+        newSpentTime = Math.max(0, task.spentTime - deltaSeconds)
+        break
+      case "set":
+        newSpentTime = deltaSeconds
+        break
+      default:
+        return {success: false, error: `Invalid operation: ${operation}. Use 'add', 'subtract', or 'set'.`}
+    }
+
+    const updated = await this.storage.updateTask(taskId, {spentTime: newSpentTime})
+    if (!updated) {
+      return {success: false, error: `Failed to update task: ${taskId}`}
+    }
+
+    const label = this.formatDuration(newSpentTime)
+    return {success: true, data: `Time logged (${operation}): ${this.formatTask(updated)}\nTotal spent: ${label}`}
+  }
+
+  // ========== DAY OVERVIEW ==========
+
+  private async getDaySummary(params: ToolParams): Promise<ToolResult> {
+    const date = (params.date as string) || this.getTodayDate()
+
+    const day: Day | null = await this.storage.getDay(date)
+
+    if (!day || day.tasks.length === 0) {
+      return {success: true, data: `No tasks scheduled for ${date}.`}
+    }
+
+    const total = day.tasks.length
+    const active = day.countActive
+    const done = day.countDone
+    const discarded = total - active - done
+    const completionPct = total > 0 ? Math.round((done / total) * 100) : 0
+
+    let totalEstimated = 0
+    let totalSpent = 0
+    for (const task of day.tasks) {
+      totalEstimated += task.estimatedTime
+      totalSpent += task.spentTime
+    }
+
+    const lines = [
+      `📊 Day summary for ${date}:`,
+      `Tasks: ${total} total — ${done} done, ${active} active${discarded > 0 ? `, ${discarded} discarded` : ""}`,
+      `Completion: ${completionPct}%`,
+    ]
+
+    if (totalEstimated > 0 || totalSpent > 0) {
+      lines.push(`Time — estimated: ${this.formatDuration(totalEstimated)}, spent: ${this.formatDuration(totalSpent)}`)
+      if (totalEstimated > 0 && totalSpent > 0) {
+        const timePct = Math.round((totalSpent / totalEstimated) * 100)
+        lines.push(`Time usage: ${timePct}% of estimated`)
+      }
+    }
+
+    if (day.tags.length > 0) {
+      lines.push(`Tags: ${day.tags.map((t) => t.name).join(", ")}`)
+    }
+
+    return {success: true, data: lines.join("\n")}
+  }
+
+  // ========== ATTACHMENTS ==========
+
+  private async getTaskAttachments(params: ToolParams): Promise<ToolResult> {
+    const taskId = params.task_id as string
+    if (!taskId) {
+      return {success: false, error: "task_id is required"}
+    }
+
+    const task = await this.storage.getTask(taskId)
+    if (!task) {
+      return {success: false, error: `Task not found: ${taskId}`}
+    }
+
+    if (task.attachments.length === 0) {
+      return {success: true, data: `No attachments on task "${task.content.split("\n")[0].slice(0, 50)}".`}
+    }
+
+    const files: File[] = await this.storage.getFiles(task.attachments)
+
+    if (files.length === 0) {
+      return {success: true, data: `Task references ${task.attachments.length} file(s) but none could be loaded.`}
+    }
+
+    const fileList = files
+      .map((f, i) => {
+        const sizeKb = Math.round(f.size / 1024)
+        const sizeLabel = sizeKb >= 1024 ? `${(sizeKb / 1024).toFixed(1)} MB` : `${sizeKb} KB`
+        return `${i + 1}. ${f.name} (${f.mimeType}, ${sizeLabel}) — ID: ${f.id}`
+      })
+      .join("\n")
+
+    return {success: true, data: `Attachments for task (${files.length}):\n${fileList}`}
+  }
+
+  private async removeTaskAttachment(params: ToolParams): Promise<ToolResult> {
+    const taskId = params.task_id as string
+    const fileId = params.file_id as string
+
+    if (!taskId) {
+      return {success: false, error: "task_id is required"}
+    }
+    if (!fileId) {
+      return {success: false, error: "file_id is required"}
+    }
+
+    const task = await this.storage.getTask(taskId)
+    if (!task) {
+      return {success: false, error: `Task not found: ${taskId}`}
+    }
+
+    if (!task.attachments.includes(fileId)) {
+      return {success: false, error: `File ${fileId} is not attached to task ${taskId}`}
+    }
+
+    await this.storage.removeTaskAttachment(taskId, fileId)
+
+    return {success: true, data: `Attachment removed from task: ${fileId}`}
   }
 
   // ========== TAGS ==========

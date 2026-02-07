@@ -22,6 +22,9 @@ export const APP_CONFIG = {
       baseUrl: "https://api.deepseek.com/v1",
       apiKey: "",
     },
+    local: {
+      model: "daily-local-balanced",
+    },
   },
   window: {
     main: {
@@ -107,4 +110,10 @@ export const fsPaths = {
 
   /** Remote sync directory */
   remoteSyncPath: () => path.join(APP_CONFIG.iCloudPath, "Daily"),
+
+  /** Local AI model files (GGUF) */
+  modelsPath: () => path.join(app.getPath("userData"), "models"),
+
+  /** Local AI binary (llama-server) */
+  binPath: () => path.join(app.getPath("userData"), "bin"),
 }
