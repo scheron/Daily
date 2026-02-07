@@ -121,10 +121,7 @@ export function settingsToDoc(settings: Settings, createdAt: ISODateTime, update
 export function docToSettings(doc: SettingsDoc): Settings {
   return {
     version: doc.data.version,
-    themes: {
-      ...doc.data.themes,
-      glassUI: doc.data.themes?.glassUI ?? false,
-    },
+    themes: doc.data.themes,
     sidebar: doc.data.sidebar,
     sync: doc.data.sync,
     ai: doc.data.ai,
