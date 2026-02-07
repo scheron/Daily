@@ -77,10 +77,25 @@ html.glass-ui body {
 }
 
 html.glass-ui .app-shell {
-  background:
-    radial-gradient(circle at 8% 15%, color-mix(in oklab, var(--color-accent) 16%, transparent), transparent 35%),
-    radial-gradient(circle at 92% 78%, color-mix(in oklab, var(--color-info) 12%, transparent), transparent 33%),
-    color-mix(in oklab, var(--color-base-300) 44%, transparent);
+  position: relative;
+  isolation: isolate;
+  background: color-mix(in oklab, var(--color-base-100) 12%, transparent);
+  border: 1px solid color-mix(in oklab, var(--color-accent) 26%, transparent);
+  border-radius: 14px;
+  overflow: hidden;
+  backdrop-filter: blur(34px);
+  -webkit-backdrop-filter: blur(34px);
+}
+
+html.glass-ui .app-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  background: color-mix(in oklab, var(--color-base-100) 44%, transparent);
 }
 
 html.glass-ui .app-sidebar,
@@ -89,20 +104,41 @@ html.glass-ui .app-header,
 html.glass-ui .app-toolbar,
 html.glass-ui .app-sidebar-footer,
 html.glass-ui .app-content {
-  background: var(--glass-surface) !important;
-  border-color: var(--glass-border) !important;
-  box-shadow: var(--glass-shadow);
-  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  position: relative;
+  z-index: 1;
+  background: transparent !important;
+  box-shadow: none;
+}
+
+html.glass-ui .app-sidebar {
+  background: color-mix(in oklab, var(--color-base-100) 26%, transparent) !important;
+}
+
+html.glass-ui #app [class*="bg-base-"]:not(.app-shell) {
+  background-color: color-mix(in oklab, var(--color-base-100) 24%, transparent) !important;
+  backdrop-filter: blur(18px) saturate(128%);
+  -webkit-backdrop-filter: blur(18px) saturate(128%);
+}
+
+html.glass-ui #app [class*="border-base-"] {
+  border-color: color-mix(in oklab, var(--color-accent) 22%, transparent) !important;
 }
 
 @supports not ((backdrop-filter: blur(1px))) {
+  html.glass-ui .app-shell {
+    background: color-mix(in oklab, var(--color-base-300) 72%, transparent);
+  }
+
   html.glass-ui .app-sidebar,
   html.glass-ui .app-main-panel,
   html.glass-ui .app-header,
   html.glass-ui .app-toolbar,
   html.glass-ui .app-sidebar-footer,
   html.glass-ui .app-content {
-    background: color-mix(in oklab, var(--color-base-100) 88%, transparent) !important;
+    background: color-mix(in oklab, var(--color-base-100) 84%, transparent) !important;
+  }
+
+  html.glass-ui #app [class*="bg-base-"]:not(.app-shell) {
+    background-color: color-mix(in oklab, var(--color-base-100) 84%, transparent) !important;
   }
 }

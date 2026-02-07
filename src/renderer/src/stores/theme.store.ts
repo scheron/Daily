@@ -24,8 +24,18 @@ export const useThemeStore = defineStore("theme", () => {
   const currentTheme = computed<Theme>(() => themes.value.find(({id}) => id === currentThemeId.value) ?? themes.value[0])
   const preferredLightTheme = computed<Theme | null>(() => themes.value.find(({id}) => id === preferredLightThemeId.value) ?? null)
   const preferredDarkTheme = computed<Theme | null>(() => themes.value.find(({id}) => id === preferredDarkThemeId.value) ?? null)
+  const darkThemes = computed<Theme[]>(() => themes.value.filter((theme) => theme.type === "dark"))
+
+  function getFallbackDarkThemeId(): Theme["id"] {
+    return preferredDarkTheme.value?.id ?? darkThemes.value[0]?.id ?? themes.value[0].id
+  }
 
   function setCurrentTheme(themeId: Theme["id"]) {
+    const nextTheme = themes.value.find(({id}) => id === themeId)
+    if (isGlassUIEnabled.value && nextTheme?.type === "light") {
+      currentThemeId.value = getFallbackDarkThemeId()
+      return
+    }
     currentThemeId.value = themeId
   }
 
@@ -72,6 +82,12 @@ export const useThemeStore = defineStore("theme", () => {
   function toggleGlassUI(value?: boolean) {
     isGlassUIEnabled.value = value ?? !isGlassUIEnabled.value
     document.documentElement.classList.toggle("glass-ui", Boolean(isGlassUIEnabled.value))
+    if (isGlassUIEnabled.value) enforceGlassThemeMode()
+  }
+
+  function enforceGlassThemeMode() {
+    isSystemThemeEnabled.value = false
+    if (currentTheme.value.type === "light") setCurrentTheme(getFallbackDarkThemeId())
   }
 
   watch(
@@ -87,6 +103,7 @@ export const useThemeStore = defineStore("theme", () => {
     isGlassUIEnabled,
     (value) => {
       document.documentElement.classList.toggle("glass-ui", Boolean(value))
+      if (value) enforceGlassThemeMode()
     },
     {immediate: true},
   )
