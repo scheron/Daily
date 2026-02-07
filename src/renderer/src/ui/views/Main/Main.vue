@@ -43,7 +43,7 @@ window.BridgeIPC["menu:on-new-task"]((action) => {
 </script>
 
 <template>
-  <div ref="container" class="bg-base-300 flex h-dvh w-dvw overflow-hidden">
+  <div ref="container" class="app-shell bg-base-300 flex h-dvh w-dvw overflow-hidden">
     <template v-if="isDesktop">
       <SidebarMini v-if="uiStore.isSidebarCollapsed" :content-height="contentHeight" :data-loaded="isDataLoaded" />
       <Sidebar v-else :content-height="contentHeight" :data-loaded="isDataLoaded" />
@@ -69,7 +69,7 @@ window.BridgeIPC["menu:on-new-task"]((action) => {
       <div v-if="!isDesktop && uiStore.isMobileSidebarOpen" class="fixed inset-0 z-30 bg-black/50" @click="uiStore.toggleSidebarCollapse(false)" />
     </BaseAnimation>
 
-    <main class="bg-base-100 flex-1" :style="{width: contentWidth + 'px'}">
+    <main class="app-main-panel bg-base-100 flex-1" :style="{width: contentWidth + 'px'}">
       <Header
         :task-editor-open="taskEditorStore.isTaskEditorOpen"
         :active-day="tasksStore.activeDay"
@@ -77,8 +77,8 @@ window.BridgeIPC["menu:on-new-task"]((action) => {
         @create-task="onCreateTask"
       />
 
-      <div class="text-base-content flex size-full flex-col" :style="{height: contentHeight + 'px'}">
-        <div class="border-base-300 md:h-header flex items-center border-b">
+      <div class="app-main-body text-base-content flex size-full flex-col" :style="{height: contentHeight + 'px'}">
+        <div class="app-toolbar border-base-300 md:h-header flex items-center border-b">
           <Toolbar />
         </div>
 

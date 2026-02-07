@@ -34,9 +34,9 @@ const showCollapseButton = computed(() => {
 </script>
 
 <template>
-  <aside class="border-base-300 bg-base-100 w-sidebar border-r">
+  <aside class="app-sidebar border-base-300 bg-base-100 w-sidebar border-r">
     <div
-      class="border-base-300 h-header flex items-center border-b px-4 select-none"
+      class="app-header border-base-300 h-header flex items-center border-b px-4 select-none"
       style="-webkit-app-region: drag"
       :class="{'justify-between': showCollapseButton}"
     >
@@ -67,7 +67,7 @@ const showCollapseButton = computed(() => {
           <Settings v-else-if="activeSection === 'settings'" class="h-full" />
         </div>
 
-        <div class="border-base-300 bg-base-100 border-t px-2 py-2">
+        <div class="app-sidebar-footer border-base-300 bg-base-100 border-t px-2 py-2">
           <AnimatedTabs
             v-model:tab="activeSection"
             :tabs="BOTTOM_MENU_ITEMS"

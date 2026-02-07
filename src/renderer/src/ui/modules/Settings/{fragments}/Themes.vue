@@ -4,6 +4,7 @@ import {computed} from "vue"
 import {useThemeStore} from "@/stores/theme.store"
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseIcon from "@/ui/base/BaseIcon"
+import BaseSwitch from "@/ui/base/BaseSwitch.vue"
 import BlockUI from "@/ui/common/misc/BlockUI.vue"
 
 import ThemesPreview from "./ThemesPreview.vue"
@@ -31,6 +32,14 @@ function setPreferredDarkTheme(event: Event) {
 
 <template>
   <div class="flex flex-col gap-4 pb-8">
+    <div class="border-base-300 bg-base-200/60 flex items-start justify-between gap-2 rounded-lg border p-3">
+      <div>
+        <p class="text-base-content text-sm">Glass UI</p>
+        <p class="text-base-content/60 text-xs">Enable frosted glass panels over your selected theme</p>
+      </div>
+      <BaseSwitch :model-value="themeStore.isGlassUIEnabled" @update:model-value="themeStore.toggleGlassUI($event)" />
+    </div>
+
     <div class="flex flex-col gap-2">
       <div class="text-base-content flex items-center gap-1 text-xs font-bold select-none">
         <BaseIcon name="background" class="size-4" />

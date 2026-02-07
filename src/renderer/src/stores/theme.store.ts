@@ -19,6 +19,7 @@ export const useThemeStore = defineStore("theme", () => {
   const preferredLightThemeId = useSettingValue("themes.preferredLight", "aurora-light")
   const preferredDarkThemeId = useSettingValue("themes.preferredDark", "aurora")
   const isSystemThemeEnabled = useSettingValue("themes.useSystem", false)
+  const isGlassUIEnabled = useSettingValue("themes.glassUI", false)
 
   const currentTheme = computed<Theme>(() => themes.value.find(({id}) => id === currentThemeId.value) ?? themes.value[0])
   const preferredLightTheme = computed<Theme | null>(() => themes.value.find(({id}) => id === preferredLightThemeId.value) ?? null)
@@ -63,8 +64,14 @@ export const useThemeStore = defineStore("theme", () => {
 
     root.classList.remove(...themes.value.map((t) => t.id))
     root.classList.add(themeId)
+    root.classList.toggle("glass-ui", Boolean(isGlassUIEnabled.value))
 
     Object.entries(theme?.colorScheme ?? {}).forEach(([key, value]) => root.style.setProperty(`--c-${key}`, value))
+  }
+
+  function toggleGlassUI(value?: boolean) {
+    isGlassUIEnabled.value = value ?? !isGlassUIEnabled.value
+    document.documentElement.classList.toggle("glass-ui", Boolean(isGlassUIEnabled.value))
   }
 
   watch(
@@ -76,6 +83,13 @@ export const useThemeStore = defineStore("theme", () => {
     {immediate: true},
   )
   watch(broadcastTheme, (themeId) => themeId && applyThemeToDOM(themeId))
+  watch(
+    isGlassUIEnabled,
+    (value) => {
+      document.documentElement.classList.toggle("glass-ui", Boolean(value))
+    },
+    {immediate: true},
+  )
 
   watch(isSystemThemeEnabled, (value) => value && applySystemTheme(), {immediate: true})
 
@@ -88,10 +102,12 @@ export const useThemeStore = defineStore("theme", () => {
     isSystemThemeEnabled,
     preferredLightTheme,
     preferredDarkTheme,
+    isGlassUIEnabled,
     themes,
 
     setCurrentTheme,
     setPreferredTheme,
     toggleSystemTheme,
+    toggleGlassUI,
   }
 })

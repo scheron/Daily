@@ -50,7 +50,7 @@ function getTaskTags(task: Task): Tag[] {
 </script>
 
 <template>
-  <div class="bg-base-200 flex-1 overflow-y-auto">
+  <div class="app-content bg-base-200 flex-1 overflow-y-auto">
     <BaseAnimation name="fade" mode="out-in">
       <BaseSpinner v-if="!tasksStore.isDaysLoaded" />
       <NoTasksPlaceholder

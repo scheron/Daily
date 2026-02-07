@@ -10,6 +10,7 @@ export type Settings = {
     preferredLight: string
     preferredDark: string
     useSystem: boolean
+    glassUI: boolean
   }
   sidebar: {
     collapsed: boolean

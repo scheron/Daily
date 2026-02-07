@@ -7,6 +7,10 @@
   --sidebar-collapsed-width: 80px;
   --header-height: 40px;
   --card-min-height: 100px;
+  --glass-surface: color-mix(in oklab, var(--color-base-100) 62%, transparent);
+  --glass-border: color-mix(in oklab, var(--color-base-content) 14%, transparent);
+  --glass-blur: 18px;
+  --glass-shadow: 0 10px 40px color-mix(in oklab, var(--color-base-content) 10%, transparent);
 }
 
 @theme {
@@ -66,4 +70,39 @@ body {
 .highlight {
   border: 1px solid var(--color-accent);
   box-shadow: 0 0 8px 1px var(--color-accent);
+}
+
+html.glass-ui body {
+  background: transparent;
+}
+
+html.glass-ui .app-shell {
+  background:
+    radial-gradient(circle at 8% 15%, color-mix(in oklab, var(--color-accent) 16%, transparent), transparent 35%),
+    radial-gradient(circle at 92% 78%, color-mix(in oklab, var(--color-info) 12%, transparent), transparent 33%),
+    color-mix(in oklab, var(--color-base-300) 44%, transparent);
+}
+
+html.glass-ui .app-sidebar,
+html.glass-ui .app-main-panel,
+html.glass-ui .app-header,
+html.glass-ui .app-toolbar,
+html.glass-ui .app-sidebar-footer,
+html.glass-ui .app-content {
+  background: var(--glass-surface) !important;
+  border-color: var(--glass-border) !important;
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+}
+
+@supports not ((backdrop-filter: blur(1px))) {
+  html.glass-ui .app-sidebar,
+  html.glass-ui .app-main-panel,
+  html.glass-ui .app-header,
+  html.glass-ui .app-toolbar,
+  html.glass-ui .app-sidebar-footer,
+  html.glass-ui .app-content {
+    background: color-mix(in oklab, var(--color-base-100) 88%, transparent) !important;
+  }
 }

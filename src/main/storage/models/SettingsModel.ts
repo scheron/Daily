@@ -32,6 +32,7 @@ export class SettingsModel {
         preferredLight: "github-light",
         preferredDark: "github-dark",
         useSystem: true,
+        glassUI: false,
       },
       sidebar: {
         collapsed: false,

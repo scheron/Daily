@@ -22,7 +22,7 @@ const showToggleButton = computed(() => {
 </script>
 
 <template>
-  <div class="border-base-300 h-header flex items-center justify-between border-b px-4 py-2" style="-webkit-app-region: drag">
+  <div class="app-header border-base-300 h-header flex items-center justify-between border-b px-4 py-2" style="-webkit-app-region: drag">
     <div class="flex items-center gap-2">
       <BaseButton
         v-if="showToggleButton"
