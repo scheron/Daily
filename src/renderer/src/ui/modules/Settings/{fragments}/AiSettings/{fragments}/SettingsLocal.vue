@@ -109,7 +109,7 @@ onMounted(() => {
         v-for="model in localStore.models"
         :key="model.id"
         :model="model"
-        :is-active="aiStore.config?.local?.model === model.id"
+        :is-active="aiStore.config?.local?.model === model.id && model.installed"
         :download-progress="localStore.getDownloadProgress(model.id)"
         :is-pending="localStore.isPending(model.id)"
         :error="localStore.getDownloadError(model.id)"

@@ -7,7 +7,7 @@ defineProps<{name: IconName}>()
 </script>
 
 <template>
-  <svg :class="cn('inline-block aspect-square size-5 shrink-0', $attrs.class as string)" fill="currentColor">
+  <svg :class="cn('inline-block aspect-square size-5 shrink-0 outline-none', $attrs.class as string)" tabindex="-1" fill="currentColor">
     <use :href="`#${name}`" />
   </svg>
 </template>

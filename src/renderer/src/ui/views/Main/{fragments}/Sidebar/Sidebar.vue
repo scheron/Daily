@@ -63,7 +63,7 @@ const showCollapseButton = computed(() => {
           <CalendarMonth v-if="activeSection === 'calendar'" />
           <TagsForm v-else-if="activeSection === 'tags'" class="h-full" />
           <SearchForm v-else-if="activeSection === 'search'" class="h-full" />
-          <AiAssistant v-else-if="activeSection === 'assistant'" class="h-full" />
+          <AiAssistant v-else-if="activeSection === 'assistant'" class="h-full" @navigate-settings="activeSection = 'settings'" />
           <Settings v-else-if="activeSection === 'settings'" class="h-full" />
         </div>
 

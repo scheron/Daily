@@ -11,11 +11,11 @@ import fs from "fs-extra"
 import {LogContext, logger} from "@/utils/logger"
 
 import {fsPaths} from "@/config"
-import {SERVER_BINARY} from "./manifest"
+import {SERVER_BINARY} from "../models/manifest"
 
 import type {LocalModelId, LocalRuntimeState} from "@shared/types/ai"
 import type {ChildProcess} from "node:child_process"
-import type {ModelManifestEntry} from "./manifest"
+import type {ModelManifestEntry} from "../models/manifest"
 
 const execFileAsync = promisify(execFile)
 

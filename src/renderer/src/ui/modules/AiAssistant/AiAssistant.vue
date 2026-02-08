@@ -13,12 +13,17 @@ import WaveText from "@/ui/common/misc/WaveText.vue"
 
 import ConnectionErrorAICard from "./{fragments}/cards/ConnectionErrorAICard.vue"
 import DisabledAICard from "./{fragments}/cards/DisabledAICard.vue"
+import NoLocalModelAICard from "./{fragments}/cards/NoLocalModelAICard.vue"
 import OnboardingAICard from "./{fragments}/cards/OnboardingAICard.vue"
 import ThinkErrorAICard from "./{fragments}/cards/ThinkErrorAICard.vue"
 import ChatForm from "./{fragments}/ChatForm.vue"
 import ChatMessage from "./{fragments}/ChatMessage.vue"
 
 import type {AIProvider} from "@shared/types/ai"
+
+const emit = defineEmits<{
+  "navigate-settings": []
+}>()
 
 const aiStore = useAiStore()
 const localModelStore = useLocalModelStore()
@@ -35,10 +40,11 @@ const activeModel = computed(() => {
 })
 
 const installedLocalModels = computed(() => localModelStore.installedModels)
+const isNoLocalModel = computed(() => aiStore.config?.provider === "local" && installedLocalModels.value.length === 0)
 
-/** Last user message can be retried if it has no assistant response, not loading, and no error */
+/** Last user message can be retried if it has no assistant response and not loading */
 const retryableMessageId = computed(() => {
-  if (aiStore.isThinkLoading || aiStore.isThinkError) return null
+  if (aiStore.isThinkLoading) return null
   const last = aiStore.messages.at(-1)
   if (last?.role === "user") return last.id
   return null
@@ -101,6 +107,9 @@ onMounted(async () => {
 
       <div v-if="aiStore.isDisabled" class="flex size-full w-full items-center justify-center">
         <DisabledAICard />
+      </div>
+      <div v-else-if="aiStore.isConnectionError && isNoLocalModel" class="flex size-full w-full items-center justify-center">
+        <NoLocalModelAICard @go-to-settings="emit('navigate-settings')" />
       </div>
       <div v-else-if="aiStore.isConnectionError" class="flex size-full w-full items-center justify-center">
         <ConnectionErrorAICard @retry="aiStore.checkConnection" />

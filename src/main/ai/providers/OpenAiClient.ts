@@ -141,20 +141,10 @@ export class OpenAiClient implements IAIProvider {
 
     if (msg.tool_calls) {
       message.tool_calls = msg.tool_calls.map((tc): ToolCallLLM => {
-        let args: Record<string, unknown> = {}
         try {
-          args = JSON.parse(tc.function.arguments as string)
+          return {id: tc.id, type: "function", function: {name: tc.function.name, arguments: JSON.parse(tc.function.arguments as string)}}
         } catch {
-          // Keep empty args if parsing fails
-        }
-
-        return {
-          id: tc.id,
-          type: "function",
-          function: {
-            name: tc.function.name,
-            arguments: args,
-          },
+          return {id: tc.id, type: "function", function: {name: tc.function.name, arguments: {}}}
         }
       })
     }

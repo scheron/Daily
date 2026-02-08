@@ -10,7 +10,7 @@ import {filterThinkingBlocks, getSystemPrompt, getSystemPromptCompact} from "./u
 import type {StorageController} from "@/storage/StorageController"
 import type {AIConfig, AIMessage, AIResponse, LocalRuntimeState} from "@shared/types/ai"
 import type {IAIProvider} from "./providers/IAIProvider"
-import type {ModelManager} from "./providers/local/ModelManager"
+import type {ModelManager} from "./providers/local/models/ModelManager"
 import type {ToolName} from "./tools/tools"
 import type {MessageLLM, ToolCallLLM} from "./types"
 

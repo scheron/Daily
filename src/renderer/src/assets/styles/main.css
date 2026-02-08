@@ -120,10 +120,6 @@ html.glass-ui #app [class*="bg-base-"]:not(.app-shell) {
   -webkit-backdrop-filter: blur(18px) saturate(128%);
 }
 
-html.glass-ui #app [class*="border-base-"] {
-  border-color: color-mix(in oklab, var(--color-accent) 22%, transparent) !important;
-}
-
 @supports not ((backdrop-filter: blur(1px))) {
   html.glass-ui .app-shell {
     background: color-mix(in oklab, var(--color-base-300) 72%, transparent);

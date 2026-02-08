@@ -9,7 +9,8 @@ const props = defineProps<{
 }>()
 
 const buttonClass = computed(() => {
-  const baseClass = "flex-1 rounded-lg border p-3 text-left flex flex-col items-start justify-start transition-colors"
+  const baseClass =
+    "flex-1 rounded-lg border p-3 text-left flex flex-col outline-none focus-visible-ring focus-visible:ring-offset-base-100 focus-visible:ring-accent items-start justify-start transition-colors"
   return cn(baseClass, [props.active ? "border-accent bg-accent/10" : "border-base-300 bg-base-200 hover:border-base-content/20"], props.class)
 })
 </script>

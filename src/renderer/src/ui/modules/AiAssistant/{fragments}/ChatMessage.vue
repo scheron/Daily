@@ -62,7 +62,7 @@ const formattedTime = computed(() => toLocaleTime(props.message.timestamp))
       </div>
       <div class="mt-1 flex items-center justify-end gap-1.5">
         <BaseButton
-          v-if="true"
+          v-if="canRetry"
           variant="text"
           icon="refresh"
           icon-class="size-3.5"

@@ -1,9 +1,9 @@
 import {LogContext, logger} from "@/utils/logger"
 
 import {OpenAiClient} from "../OpenAiClient"
-import {LlamaServerManager} from "./LlamaServerManager"
-import {getManifestEntry} from "./manifest"
-import {ModelManager} from "./ModelManager"
+import {getManifestEntry} from "./models/manifest"
+import {ModelManager} from "./models/ModelManager"
+import {LlamaServerManager} from "./server/LlamaServerManager"
 
 import type {AIConfig, LocalModelId, LocalRuntimeState} from "@shared/types/ai"
 import type {MessageLLM, Tool} from "../../types"

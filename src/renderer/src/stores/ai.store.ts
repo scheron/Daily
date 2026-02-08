@@ -1,4 +1,5 @@
 import {computed, ref} from "vue"
+import {toasts} from "vue-toasts-lite"
 import {defineStore} from "pinia"
 
 import {withElapsedDelay} from "@shared/utils/common/withElapsedDelay"
@@ -104,6 +105,7 @@ export const useAiStore = defineStore("ai", () => {
         }
 
         messages.value.push(response.message)
+        toasts.success("AI response ready")
         thinkState.setState("LOADED")
       } catch {
         if (isCancelled.value) return

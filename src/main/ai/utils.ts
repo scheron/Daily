@@ -1,4 +1,3 @@
-// TODO: Rework prompt for using tooling instead of hardcode
 /**
  * Generate system prompt with current date/time context
  */
