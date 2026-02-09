@@ -2,6 +2,8 @@
 
 ## [unreleased]
 
+## v0.10.0 - 2026-02-09
+
 ### ✨ New Features
 
 - **AI Assistant** — Built-in AI chat assistant accessible from the sidebar
