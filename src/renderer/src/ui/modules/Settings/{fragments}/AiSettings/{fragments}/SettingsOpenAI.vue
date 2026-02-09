@@ -2,7 +2,7 @@
 import {onBeforeMount, reactive, ref} from "vue"
 
 import {AIConfig} from "@shared/types/ai"
-import {useAiStore} from "@/stores/ai.store"
+import {useAiStore} from "@/stores/ai/ai.store"
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseIcon from "@/ui/base/BaseIcon"
 import BaseInput from "@/ui/base/BaseInput.vue"

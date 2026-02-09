@@ -29,7 +29,7 @@ const sizeLabel = computed(() => {
   return gb >= 1 ? `~${gb.toFixed(1)} GB` : `~${(props.model.sizeBytes / 1_000_000).toFixed(0)} MB`
 })
 
-function handleDownload() {
+function onDownload() {
   emit("clearError")
   emit("download")
 }
@@ -51,12 +51,12 @@ function handleDownload() {
           </template>
 
           <template v-else-if="!model.installed && !isDownloading">
-            <BaseButton variant="secondary" size="sm" class="px-2 py-1 text-xs" @click="handleDownload"> Download </BaseButton>
+            <BaseButton variant="secondary" size="sm" class="px-2 py-1 text-xs" @click="onDownload"> Download </BaseButton>
           </template>
 
           <template v-else-if="isDownloading">
-            <BaseButton variant="ghost" size="sm" class="p-1" tooltip="Cancel download" @click="emit('cancelDownload')">
-              <BaseIcon name="x" class="size-4" />
+            <BaseButton variant="ghost" size="sm" class="text-warning hover:text-warning p-0 text-xs" @click="emit('cancelDownload')">
+              Cancel
             </BaseButton>
           </template>
 
@@ -77,7 +77,6 @@ function handleDownload() {
 
       <div class="text-base-content/60 text-xs">{{ sizeLabel }} · Requires {{ model.requirements.ramGb }}GB RAM</div>
 
-      <!-- Download progress bar -->
       <div v-if="isDownloading && downloadProgress" class="flex flex-col gap-1">
         <div class="bg-base-300 relative h-1.5 w-full overflow-hidden rounded-full">
           <div

@@ -3,8 +3,7 @@ import {computed, nextTick, onMounted, useTemplateRef, watch} from "vue"
 import {until} from "@vueuse/core"
 
 import {toFullDate} from "@shared/utils/date/formatters"
-import {useAiStore} from "@/stores/ai.store"
-import {useLocalModelStore} from "@/stores/localModel.store"
+import {useAiStore} from "@/stores/ai/ai.store"
 import {useTyping} from "@/composables/useTyping"
 import {getProviderConfig} from "@/utils/ai/getProviderConfig"
 import BaseButton from "@/ui/base/BaseButton.vue"
@@ -26,7 +25,6 @@ const emit = defineEmits<{
 }>()
 
 const aiStore = useAiStore()
-const localModelStore = useLocalModelStore()
 const {startTyping, stopTyping, renderTyping} = useTyping({duration: 80, endDelay: 1500})
 
 const messagesContainerRef = useTemplateRef<HTMLElement>("messagesContainer")
@@ -39,12 +37,12 @@ const activeModel = computed(() => {
   return aiStore.config.local?.model ?? ""
 })
 
-const installedLocalModels = computed(() => localModelStore.installedModels)
+const installedLocalModels = computed(() => aiStore.installedLocalModels)
 const isNoLocalModel = computed(() => aiStore.config?.provider === "local" && installedLocalModels.value.length === 0)
 
-/** Last user message can be retried if it has no assistant response and not loading */
 const retryableMessageId = computed(() => {
   if (aiStore.isThinkLoading) return null
+
   const last = aiStore.messages.at(-1)
   if (last?.role === "user") return last.id
   return null
@@ -57,6 +55,10 @@ function scrollToBottom() {
 
 async function handleSelectModel(provider: AIProvider, model: string) {
   await aiStore.selectModel(provider, model)
+}
+
+async function handleSelectRemoteModel(model: string) {
+  await aiStore.selectModel("openai", model)
 }
 
 watch(
@@ -79,7 +81,7 @@ watch(
 )
 
 onMounted(async () => {
-  localModelStore.loadModels()
+  aiStore.loadLocalModels()
   await until(messagesContainerRef).toBeTruthy()
   await nextTick()
   scrollToBottom()
@@ -91,7 +93,7 @@ onMounted(async () => {
     <template v-if="aiStore.isConnectionLoading">
       <div class="flex h-full flex-col items-center justify-center">
         <div class="text-base-content/60 relative flex w-full items-center justify-center">
-          <BaseIcon name="ai" class="size-16 animate-pulse" />
+          <BaseIcon name="logo" class="size-16 animate-pulse" />
           <h3 class="text-base-content absolute bottom-0 left-1/2 mb-2 -translate-x-1/2 translate-y-12 text-base font-light">
             {{ renderTyping("Connecting to AI...") }}
           </h3>
@@ -102,14 +104,18 @@ onMounted(async () => {
     <template v-else>
       <div v-if="aiStore.chatTimeStarted && aiStore.hasMessages" class="h-header flex items-center justify-between px-4 py-1 text-sm">
         <span class="text-base-content/80 flex-1 rounded-md px-2 py-1 text-sm">{{ toFullDate(aiStore.chatTimeStarted) }}</span>
-        <BaseButton variant="ghost" size="sm" icon="x-mark" class="" tooltip="Clear chat" @click="aiStore.clearHistory" />
+        <BaseButton variant="ghost" size="sm" icon="trash" icon-class="size-4" class="" tooltip="Clear chat" @click="aiStore.clearHistory" />
       </div>
 
       <div v-if="aiStore.isDisabled" class="flex size-full w-full items-center justify-center">
         <DisabledAICard />
       </div>
       <div v-else-if="aiStore.isConnectionError && isNoLocalModel" class="flex size-full w-full items-center justify-center">
-        <NoLocalModelAICard @go-to-settings="emit('navigate-settings')" />
+        <NoLocalModelAICard
+          :remote-models="aiStore.remoteModels"
+          @go-to-settings="emit('navigate-settings')"
+          @select-remote-model="handleSelectRemoteModel"
+        />
       </div>
       <div v-else-if="aiStore.isConnectionError" class="flex size-full w-full items-center justify-center">
         <ConnectionErrorAICard @retry="aiStore.checkConnection" />

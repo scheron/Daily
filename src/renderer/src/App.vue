@@ -3,7 +3,7 @@ import {Toaster} from "vue-sonner"
 import {ToastsLiteProvider} from "vue-toasts-lite"
 import {invoke, until} from "@vueuse/core"
 
-import {useAiStore} from "@/stores/ai.store"
+import {useAiStore} from "@/stores/ai/ai.store"
 import {useSettingsStore} from "@/stores/settings.store"
 import {useTagsStore} from "@/stores/tags.store"
 import {useTasksStore} from "@/stores/tasks.store"
@@ -17,10 +17,7 @@ const tagsStore = useTagsStore()
 invoke(async () => {
   await Promise.all([tasksStore.getTaskList(), tagsStore.getTagList()])
   await until(() => settingsStore.isSettingsLoaded).toBeTruthy()
-  console.log("settingsStore.isSettingsLoaded", settingsStore.isSettingsLoaded)
-  console.log("aiStore.isConnected", aiStore.isConnected)
   await aiStore.checkConnection()
-  console.log("aiStore.isConnected", aiStore.isConnected)
 })
 </script>
 

@@ -1,9 +1,14 @@
 import {computed, ref} from "vue"
 import {defineStore} from "pinia"
 
-import type {LocalModelDownloadProgress, LocalModelId, LocalModelInfo, LocalRuntimeState} from "@shared/types/ai"
+import {useSettingsStore} from "@/stores/settings.store"
+import {toRawDeep} from "@/utils/ui/vue"
+
+import type {AIConfig, LocalModelDownloadProgress, LocalModelId, LocalModelInfo, LocalRuntimeState} from "@shared/types/ai"
 
 export const useLocalModelStore = defineStore("localModel", () => {
+  const settingsStore = useSettingsStore()
+
   const models = ref<LocalModelInfo[]>([])
   const runtimeState = ref<LocalRuntimeState>({status: "not_installed"})
   const downloadProgress = ref<Map<LocalModelId, LocalModelDownloadProgress>>(new Map())
@@ -16,6 +21,8 @@ export const useLocalModelStore = defineStore("localModel", () => {
   const isModelRunning = computed(() => runtimeState.value.status === "running")
   const isModelStarting = computed(() => runtimeState.value.status === "starting")
   const isServerError = computed(() => runtimeState.value.status === "error")
+  const availableModels = computed(() => settingsStore.settings?.ai?.local?.availableModels ?? [])
+  const selectedModel = computed(() => settingsStore.settings?.ai?.local?.model ?? null)
   const activeModelId = computed(() => {
     const state = runtimeState.value
     if ("modelId" in state) return state.modelId
@@ -41,6 +48,19 @@ export const useLocalModelStore = defineStore("localModel", () => {
   function clearDownloadError(modelId: LocalModelId) {
     downloadErrors.value.delete(modelId)
     downloadErrors.value = new Map(downloadErrors.value)
+  }
+
+  async function updateConfig(updates: Partial<AIConfig>) {
+    const success = await window.BridgeIPC["ai:update-config"](toRawDeep(updates))
+    if (success) await settingsStore.revalidate()
+  }
+
+  async function setAvailableModels(models: string[]) {
+    await updateConfig({local: {availableModels: models} as AIConfig["local"]})
+  }
+
+  async function selectModel(model: LocalModelId) {
+    await updateConfig({provider: "local", local: {model} as AIConfig["local"]})
   }
 
   async function loadModels() {
@@ -84,18 +104,15 @@ export const useLocalModelStore = defineStore("localModel", () => {
     await loadModels()
   }
 
-  // Setup IPC event listeners
   window.BridgeIPC["ai:on-local-state-changed"]((state) => {
     runtimeState.value = state
   })
 
   window.BridgeIPC["ai:on-local-download-progress"]((progress) => {
-    // Once we receive progress, remove from pending
     pendingDownloads.value.delete(progress.modelId)
     pendingDownloads.value = new Set(pendingDownloads.value)
 
     downloadProgress.value.set(progress.modelId, progress)
-    // Trigger reactivity
     downloadProgress.value = new Map(downloadProgress.value)
   })
 
@@ -112,6 +129,8 @@ export const useLocalModelStore = defineStore("localModel", () => {
     isModelRunning,
     isModelStarting,
     isServerError,
+    availableModels,
+    selectedModel,
     activeModelId,
 
     getDownloadProgress,
@@ -119,6 +138,8 @@ export const useLocalModelStore = defineStore("localModel", () => {
     isPending,
     getDownloadError,
     clearDownloadError,
+    setAvailableModels,
+    selectModel,
     loadModels,
     downloadModel,
     cancelDownload,

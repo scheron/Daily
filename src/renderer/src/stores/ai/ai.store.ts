@@ -4,15 +4,19 @@ import {defineStore} from "pinia"
 
 import {withElapsedDelay} from "@shared/utils/common/withElapsedDelay"
 import {toISODate} from "@shared/utils/date/formatters"
+import {useLocalModelStore} from "@/stores/ai/localModel.store"
+import {useRemoteModelStore} from "@/stores/ai/remoteModel.store"
 import {useSettingsStore} from "@/stores/settings.store"
 import {useLoadingState} from "@/composables/useLoadingState"
 import {toRawDeep} from "@/utils/ui/vue"
 
-import type {AIConfig, AIMessage, AIProvider} from "@shared/types/ai"
+import type {AIConfig, AIMessage, AIProvider, LocalModelId} from "@shared/types/ai"
 import type {ISODate} from "@shared/types/common"
 
 export const useAiStore = defineStore("ai", () => {
   const settingsStore = useSettingsStore()
+  const localModelStore = useLocalModelStore()
+  const remoteModelStore = useRemoteModelStore()
 
   const connectionState = useLoadingState("IDLE")
   const thinkState = useLoadingState("IDLE")
@@ -22,11 +26,15 @@ export const useAiStore = defineStore("ai", () => {
   const messages = ref<AIMessage[]>([])
   const chatTimeStarted = ref<ISODate | null>(null)
 
-  const remoteModels = computed(() => config.value?.openai?.availableModels ?? [])
+  const remoteModels = computed(() => remoteModelStore.availableModels)
+  const localModels = computed(() => localModelStore.models)
+  const installedLocalModels = computed(() => localModelStore.installedModels)
+  const localRuntimeState = computed(() => localModelStore.runtimeState)
+  const localDiskUsage = computed(() => localModelStore.diskUsage)
   const availableModels = computed(() => {
     if (!config.value) return []
-    if (config.value.provider === "openai") return config.value.openai?.availableModels ?? []
-    if (config.value.provider === "local") return config.value.local?.availableModels ?? []
+    if (config.value.provider === "openai") return remoteModelStore.availableModels
+    if (config.value.provider === "local") return localModelStore.availableModels
     return []
   })
 
@@ -42,14 +50,11 @@ export const useAiStore = defineStore("ai", () => {
   }
 
   async function checkConnection() {
-    console.log("checkConnection", isDisabled.value)
     if (isDisabled.value) return
     try {
-      console.log("checkConnection loading")
       connectionState.setState("LOADING")
 
       const isConnectedResult = await window.BridgeIPC["ai:check-connection"]()
-      console.log("checkConnection isConnectedResult", isConnectedResult)
 
       if (!isConnectedResult) {
         isConnected.value = false
@@ -61,14 +66,9 @@ export const useAiStore = defineStore("ai", () => {
       isConnected.value = true
       connectionState.setState("LOADED")
 
-      // Persist fetched models into config
-      if (config.value?.provider === "openai") {
-        await updateConfig({openai: {availableModels: fetchedModels} as AIConfig["openai"]})
-      } else if (config.value?.provider === "local") {
-        await updateConfig({local: {availableModels: fetchedModels} as AIConfig["local"]})
-      }
+      if (config.value?.provider === "openai") await remoteModelStore.setAvailableModels(fetchedModels)
+      else if (config.value?.provider === "local") await localModelStore.setAvailableModels(fetchedModels)
     } catch {
-      console.log("checkConnection error")
       isConnected.value = false
       connectionState.setState("ERROR")
     }
@@ -118,7 +118,6 @@ export const useAiStore = defineStore("ai", () => {
     const lastUserMessage = [...messages.value].reverse().find((m) => m.role === "user")
     if (!lastUserMessage) return
 
-    // Remove the failed user message before resending
     const lastUserIdx = messages.value.lastIndexOf(lastUserMessage)
     if (lastUserIdx !== -1) messages.value.splice(lastUserIdx, 1)
 
@@ -128,6 +127,7 @@ export const useAiStore = defineStore("ai", () => {
 
   function cancelRequest(): void {
     if (isDisabled.value) return
+
     isCancelled.value = true
     window.BridgeIPC["ai:cancel"]()
     thinkState.setState("IDLE")
@@ -135,18 +135,56 @@ export const useAiStore = defineStore("ai", () => {
 
   async function clearHistory(): Promise<void> {
     if (isDisabled.value) return
+
     await window.BridgeIPC["ai:clear-history"]()
+
     chatTimeStarted.value = null
     messages.value = []
     thinkState.setState("IDLE")
   }
 
   async function selectModel(provider: AIProvider, model: string) {
-    if (provider === "openai") {
-      await updateConfig({provider, openai: {model} as AIConfig["openai"]})
-    } else {
-      await updateConfig({provider, local: {model} as unknown as AIConfig["local"]})
-    }
+    if (provider === "openai") await remoteModelStore.selectModel(model)
+    else await localModelStore.selectModel(model as LocalModelId)
+
+    await checkConnection()
+  }
+
+  function getLocalDownloadProgress(modelId: LocalModelId) {
+    return localModelStore.getDownloadProgress(modelId)
+  }
+
+  function isLocalModelPending(modelId: LocalModelId) {
+    return localModelStore.isPending(modelId)
+  }
+
+  function getLocalDownloadError(modelId: LocalModelId) {
+    return localModelStore.getDownloadError(modelId)
+  }
+
+  function clearLocalDownloadError(modelId: LocalModelId) {
+    localModelStore.clearDownloadError(modelId)
+  }
+
+  async function loadLocalModels() {
+    await localModelStore.loadModels()
+  }
+
+  async function downloadLocalModel(modelId: LocalModelId) {
+    await localModelStore.downloadModel(modelId)
+  }
+
+  async function cancelLocalModelDownload(modelId: LocalModelId) {
+    await localModelStore.cancelDownload(modelId)
+  }
+
+  async function deleteLocalModel(modelId: LocalModelId) {
+    await localModelStore.deleteModel(modelId)
+    await checkConnection()
+  }
+
+  async function selectLocalModel(modelId: LocalModelId) {
+    await localModelStore.selectModel(modelId)
     await checkConnection()
   }
 
@@ -156,6 +194,10 @@ export const useAiStore = defineStore("ai", () => {
     chatTimeStarted,
     availableModels,
     remoteModels,
+    localModels,
+    installedLocalModels,
+    localRuntimeState,
+    localDiskUsage,
 
     isConnected,
     isDisabled,
@@ -165,6 +207,10 @@ export const useAiStore = defineStore("ai", () => {
     isThinkLoading: thinkState.isLoading,
     isThinkLoaded: thinkState.isLoaded,
     isThinkError: thinkState.isError,
+    isLocalModelsLoading: localModelStore.isLoadingModels,
+    isLocalModelRunning: localModelStore.isModelRunning,
+    isLocalModelStarting: localModelStore.isModelStarting,
+    isLocalServerError: localModelStore.isServerError,
 
     hasMessages,
     lastMessage,
@@ -176,5 +222,14 @@ export const useAiStore = defineStore("ai", () => {
     cancelRequest,
     clearHistory,
     selectModel,
+    getLocalDownloadProgress,
+    isLocalModelPending,
+    getLocalDownloadError,
+    clearLocalDownloadError,
+    loadLocalModels,
+    downloadLocalModel,
+    cancelLocalModelDownload,
+    deleteLocalModel,
+    selectLocalModel,
   }
 })
