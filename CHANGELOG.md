@@ -2,6 +2,28 @@
 
 ## [unreleased]
 
+### ✨ New Features
+
+- **AI Assistant** — Built-in AI chat assistant accessible from the sidebar
+  - Chat with AI asistant
+  - AI can create, update, complete, and manage tasks
+  - Configurable OpenAI API key and model selection in settings
+
+![AI Assistant](./media/ai-assistant.png)
+
+- **Glass UI Theme** — New theme with semi-transparent background
+  - Glass UI theme with semi-transparent background for modern aesthetic
+  - Can be applied simultaneously with other themes for layered visual effects
+
+![Glass UI](./media/glass-ui-demo.png)
+
+- **Deleted Tasks Management** — Enhanced control over recently deleted tasks
+  - Restore deleted tasks to their original dates
+  - Permanently delete tasks with confirmation
+  - Manage all recently deleted tasks from dedicated interface
+
+---
+
 ## v0.9.0 - 2026-01-25
 
 ### ✨ New Features
