@@ -126,7 +126,7 @@ Daily includes a built-in AI agent — not just a chatbot, but an assistant that
 
 ## 🎨 Glass UI
 
-A translucent interface style with blur effects that lets your desktop shine through.
+A translucent interface style with blur effects
 
 ![Glass UI Demo](./media/glass-ui-demo.png)
 
