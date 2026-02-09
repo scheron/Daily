@@ -1,6 +1,6 @@
 # <img src="./src/renderer/public/favicon.svg" width="25" height="25" /> Daily
 
-**Daily** — An AI-powered task management application focused on productivity, minimalism, and convenience. ✨
+**Daily** — An AI-powered task management application focused on productivity, minimalism, and convenience.
 
 ![Desktop Demo](./media/Demo-super-new.png)
 
