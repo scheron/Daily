@@ -1,3 +1,7 @@
+import type {AIConfig} from "@shared/types/ai"
+
+export type PromptTier = "tiny" | "medium" | "large"
+
 export type MessageLLM = {
   id?: string
   role: "system" | "user" | "assistant" | "tool"
@@ -30,18 +34,10 @@ export type Tool = {
   }
 }
 
-export type ChatRequest = {
-  model: string
-  messages: MessageLLM[]
-  tools?: Tool[]
-  stream?: boolean
-}
-
-export type OpenAiChatResponse = {
-  id: string
-  model: string
-  choices: Array<{
-    message: MessageLLM
-    finish_reason: string
-  }>
+export interface IAiClient {
+  updateConfig(config: AIConfig | null): void
+  checkConnection(): Promise<boolean>
+  listModels(): Promise<string[]>
+  chat(messages: MessageLLM[], tools?: Tool[], signal?: AbortSignal): Promise<{message: MessageLLM; done: boolean}>
+  dispose?(): Promise<void>
 }

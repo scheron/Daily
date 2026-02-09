@@ -1,4 +1,4 @@
-import {LogContext, logger} from "@/utils/logger"
+import {logger} from "@/utils/logger"
 
 import type {TagModel} from "@/storage/models/TagModel"
 import type {TaskModel} from "@/storage/models/TaskModel"
@@ -43,7 +43,7 @@ export class TagsService {
     }
 
     if (!ops.length) {
-      logger.debug(LogContext.TAGS, `Tag "${id}" not found in any tasks`)
+      logger.debug(logger.CONTEXT.TAGS, `Tag "${id}" not found in any tasks`)
       return true
     }
 
@@ -52,8 +52,8 @@ export class TagsService {
     const failed = results.filter((r) => r.status === "rejected")
     const succeeded = results.filter((r) => r.status === "fulfilled")
 
-    logger.info(LogContext.TAGS, `Tag "${id}" removed from ${succeeded.length} tasks`)
-    if (failed.length > 0) logger.warn(LogContext.TAGS, `Failed to remove tag from ${failed.length} tasks`)
+    logger.info(logger.CONTEXT.TAGS, `Tag "${id}" removed from ${succeeded.length} tasks`)
+    if (failed.length > 0) logger.warn(logger.CONTEXT.TAGS, `Failed to remove tag from ${failed.length} tasks`)
 
     return true
   }

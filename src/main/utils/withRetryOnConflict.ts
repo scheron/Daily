@@ -1,4 +1,4 @@
-import {LogContext, logger} from "./logger"
+import {logger} from "./logger"
 
 export type ConflictError = {status?: number; [key: string]: any}
 
@@ -40,7 +40,7 @@ export async function withRetryOnConflict<T>(
         if (customLogger) {
           customLogger.warn?.(`${label} Conflict on save (attempt ${attempt + 1}/${maxRetries})`)
         } else {
-          logger.warn(LogContext.DB, `${label} Conflict on save (attempt ${attempt + 1}/${maxRetries})`)
+          logger.warn(logger.CONTEXT.DB, `${label} Conflict on save (attempt ${attempt + 1}/${maxRetries})`)
         }
 
         if (attempt < maxRetries - 1) continue
@@ -48,7 +48,7 @@ export async function withRetryOnConflict<T>(
         if (customLogger) {
           customLogger.warn?.(`${label} Giving up after conflicts; another writer won the race.`)
         } else {
-          logger.warn(LogContext.DB, `${label} Giving up after conflicts; another writer won the race.`)
+          logger.warn(logger.CONTEXT.DB, `${label} Giving up after conflicts; another writer won the race.`)
         }
         return null
       }
@@ -56,7 +56,7 @@ export async function withRetryOnConflict<T>(
       if (customLogger) {
         customLogger.error?.(`${label} Failed to complete operation:`, error)
       } else {
-        logger.error(LogContext.DB, `${label} Failed to complete operation`, error)
+        logger.error(logger.CONTEXT.DB, `${label} Failed to complete operation`, error)
       }
       throw error
     }

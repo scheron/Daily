@@ -1,52 +1,56 @@
-import {LogContext, logger} from "@/utils/logger"
+import {logger} from "@/utils/logger"
 
+import {APP_CONFIG} from "@/config"
+
+import type {IAiClient, MessageLLM, Tool, ToolCallLLM} from "@/ai/types"
 import type {AIConfig} from "@shared/types/ai"
-import type {ChatRequest, MessageLLM, OpenAiChatResponse, Tool, ToolCallLLM} from "../types"
-import type {IAIProvider} from "./IAIProvider"
+import type {ChatRequest, OpenAiChatConfig, OpenAiChatResponse, OpenAiConnectionConfig} from "./types"
 
 /**
  * OpenAI-Compatible API Client
- *
- * HTTP client for communicating with OpenAI API and compatible services
- * (DeepSeek, Groq, Together, etc.)
+ * (DeepSeek, Groq, Together, etc. and Local LLM (llama.cpp))
  */
-export class OpenAiClient implements IAIProvider {
-  private readonly MODELS_LIMIT_COUNT = 20
-  private config: AIConfig["openai"] | null = null
+export abstract class OpenAiCompatibleClient implements IAiClient {
+  private readonly MODELS_LIMIT_COUNT = APP_CONFIG.ai.runtime.openAiCompatible.modelsLimitCount
+  private readonly CONNECTION_TIMEOUT_MS = APP_CONFIG.ai.runtime.openAiCompatible.connectionTimeoutMs
 
-  updateConfig(config: AIConfig | null) {
-    this.config = config?.openai ?? null
-  }
+  abstract updateConfig(config: AIConfig | null): void
+
+  protected abstract getClientName(): string
+  protected abstract getConnectionConfig(): OpenAiConnectionConfig | null
+  protected abstract getChatConfig(): OpenAiChatConfig | null
 
   async checkConnection(): Promise<boolean> {
-    if (!this.config?.apiKey || !this.config?.baseUrl) return false
+    const config = this.getConnectionConfig()
+    if (!config) return false
 
     try {
-      logger.info(LogContext.AI, "Checking OpenAI connection", {baseUrl: this.config.baseUrl})
+      logger.info(logger.CONTEXT.AI, `Checking ${this.getClientName()} connection`, {baseUrl: config.baseUrl})
 
-      const response = await fetch(`${this.config.baseUrl}/models`, {
+      const response = await fetch(`${config.baseUrl}/models`, {
         method: "GET",
         headers: {
-          Authorization: `Bearer ${this.config.apiKey}`,
+          Authorization: `Bearer ${config.apiKey}`,
         },
-        signal: AbortSignal.timeout(10000),
+        signal: AbortSignal.timeout(this.CONNECTION_TIMEOUT_MS),
       })
 
-      logger.info(LogContext.AI, "OpenAI connection check response", {response: response.ok})
+      logger.info(logger.CONTEXT.AI, `${this.getClientName()} connection check response`, {response: response.ok})
 
       return response.ok
     } catch (e) {
-      logger.error(LogContext.AI, "Failed to check OpenAI connection", {error: e})
+      logger.error(logger.CONTEXT.AI, `Failed to check ${this.getClientName()} connection`, {error: e})
       return false
     }
   }
 
   async listModels(): Promise<string[]> {
-    if (!this.config?.apiKey) return []
+    const config = this.getConnectionConfig()
+    if (!config) return []
 
     try {
-      const response = await fetch(`${this.config.baseUrl}/models`, {
-        headers: {Authorization: `Bearer ${this.config.apiKey}`},
+      const response = await fetch(`${config.baseUrl}/models`, {
+        headers: {Authorization: `Bearer ${config.apiKey}`},
       })
 
       if (!response.ok) return []
@@ -60,23 +64,24 @@ export class OpenAiClient implements IAIProvider {
   }
 
   async chat(messages: MessageLLM[], tools?: Tool[], signal?: AbortSignal): Promise<{message: MessageLLM; done: boolean}> {
-    if (!this.config?.model || !this.config?.apiKey || !this.config.baseUrl) {
-      logger.error(LogContext.AI, "OpenAI config is not set")
-      return {message: {role: "assistant", content: "OpenAI config is not set"}, done: false}
+    const config = this.getChatConfig()
+    if (!config) {
+      logger.error(logger.CONTEXT.AI, `${this.getClientName()} config is not set`)
+      return {message: {role: "assistant", content: `${this.getClientName()} config is not set`}, done: false}
     }
 
-    logger.info(LogContext.AI, "OpenAI chat request", {model: this.config.model, messagesCount: messages.length})
+    logger.info(logger.CONTEXT.AI, `${this.getClientName()} chat request`, {model: config.model, messagesCount: messages.length})
 
     const openAiMessages = this.convertMessages(messages)
 
-    const response = await fetch(`${this.config.baseUrl}/chat/completions`, {
+    const response = await fetch(`${config.baseUrl}/chat/completions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${this.config.apiKey ?? ""}`,
+        Authorization: `Bearer ${config.apiKey}`,
       },
       body: JSON.stringify({
-        model: this.config.model,
+        model: config.model,
         messages: openAiMessages,
         tools,
         stream: false,
@@ -86,19 +91,19 @@ export class OpenAiClient implements IAIProvider {
 
     if (!response.ok) {
       const error = await response.text()
-      throw new Error(`OpenAI error: ${error}`)
+      throw new Error(`${this.getClientName()} error: ${error}`)
     }
 
     const result = (await response.json()) as OpenAiChatResponse
     const choice = result.choices[0]
 
     if (!choice) {
-      throw new Error("No response from OpenAI")
+      throw new Error(`No response from ${this.getClientName()}`)
     }
 
     const message = this.convertResponseMessage(choice.message)
 
-    logger.info(LogContext.AI, "OpenAI chat response", {
+    logger.info(logger.CONTEXT.AI, `${this.getClientName()} chat response`, {
       hasToolCalls: !!message.tool_calls?.length,
       contentLength: message.content?.length ?? 0,
     })
@@ -107,7 +112,7 @@ export class OpenAiClient implements IAIProvider {
   }
 
   private convertMessages(messages: MessageLLM[]): MessageLLM[] {
-    logger.info(LogContext.AI, "Converting messages to OpenAI format", {messages})
+    logger.info(logger.CONTEXT.AI, "Converting messages to OpenAI format", {messages})
     return messages.map((msg) => {
       const message: MessageLLM = {
         role: msg.role,

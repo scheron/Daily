@@ -1,6 +1,6 @@
 import {withElapsedDelay} from "@shared/utils/common/withElapsedDelay"
 import {createIntervalScheduler} from "@/utils/createIntervalScheduler"
-import {LogContext, logger} from "@/utils/logger"
+import {logger} from "@/utils/logger"
 import {mergeRemoteIntoLocal} from "@/utils/sync/merge/mergeRemoteIntoLocal"
 import {buildSnapshot, buildSnapshotMeta} from "@/utils/sync/snapshot/buildSnapshot"
 
@@ -113,7 +113,7 @@ export class SyncEngine {
       const {docs: remoteDocs, meta: remoteMeta} = (await this.remoteStore.loadSnapshot()) ?? {docs: null, meta: null}
 
       if (remoteDocs && remoteMeta && localMeta.hash === remoteMeta.hash) {
-        logger.debug(LogContext.SYNC, "Hashes match, no changes detected")
+        logger.debug(logger.CONTEXT.SYNC_ENGINE, "Hashes match, no changes detected")
         return
       }
 
@@ -127,7 +127,7 @@ export class SyncEngine {
         await this._push(resultDocs)
       }
     } catch (error) {
-      logger.error(LogContext.SYNC, "Failed to sync", error)
+      logger.error(logger.CONTEXT.SYNC_ENGINE, "Failed to sync", error)
       throw error
     }
   }
@@ -140,10 +140,10 @@ export class SyncEngine {
     remoteDocs: SnapshotDocs | null,
     strategy: SyncStrategy,
   ): Promise<{resultDocs: SnapshotDocs; hasChanges: boolean}> {
-    logger.info(LogContext.PULL, "Pulling snapshot")
+    logger.info(logger.CONTEXT.SYNC_PULL, "Pulling snapshot")
 
     if (!remoteDocs) {
-      logger.debug(LogContext.PULL, "Remote snapshot not found")
+      logger.debug(logger.CONTEXT.SYNC_PULL, "Remote snapshot not found")
       return {resultDocs: localDocs, hasChanges: false}
     }
 
@@ -155,16 +155,16 @@ export class SyncEngine {
     )
 
     if (toUpsert.length) {
-      logger.debug(LogContext.PULL, `Upserting ${toUpsert.length} documents`)
+      logger.debug(logger.CONTEXT.SYNC_PULL, `Upserting ${toUpsert.length} documents`)
       await this.localStore.upsertDocs(toUpsert)
     }
 
     if (toRemove.length) {
-      logger.debug(LogContext.PULL, `Deleting ${toRemove.length} documents`)
+      logger.debug(logger.CONTEXT.SYNC_PULL, `Deleting ${toRemove.length} documents`)
       await this.localStore.deleteDocs(toRemove)
     }
 
-    logger.info(LogContext.PULL, `Pull result: ${changes} changes`)
+    logger.info(logger.CONTEXT.SYNC_PULL, `Pull result: ${changes} changes`)
 
     return {resultDocs: resultDocs, hasChanges: changes > 0}
   }
@@ -173,12 +173,12 @@ export class SyncEngine {
    * Push phase: send local changes to remote
    */
   private async _push(localDocs: SnapshotDocs): Promise<void> {
-    logger.info(LogContext.PUSH, "Pushing snapshot")
+    logger.info(logger.CONTEXT.SYNC_PUSH, "Pushing snapshot")
 
     const snapshot = buildSnapshot(localDocs)
     await this.remoteStore.saveSnapshot(snapshot)
 
-    logger.info(LogContext.PUSH, `Pushed snapshot ${snapshot.meta.hash}`)
+    logger.info(logger.CONTEXT.SYNC_PUSH, `Pushed snapshot ${snapshot.meta.hash}`)
   }
 
   private _setStatus(status: SyncStatus): void {
@@ -192,11 +192,11 @@ export class SyncEngine {
       const hasAnyData = localDocs.tasks.length > 0 || localDocs.tags.length > 0 || localDocs.files.length > 0 || !!localDocs.settings
 
       if (hasAnyData) {
-        logger.debug(LogContext.PUSH, "No remote snapshot, local has data, need push")
+        logger.debug(logger.CONTEXT.SYNC_PUSH, "No remote snapshot, local has data, need push")
         return true
       }
 
-      logger.debug(LogContext.PUSH, "No remote snapshot and no local data, no push needed")
+      logger.debug(logger.CONTEXT.SYNC_PUSH, "No remote snapshot and no local data, no push needed")
       return false
     }
 
@@ -204,11 +204,11 @@ export class SyncEngine {
     const remoteMeta = buildSnapshotMeta(remoteDocs)
 
     if (localMeta.hash !== remoteMeta.hash) {
-      logger.debug(LogContext.PUSH, "Hashes mismatch, need push")
+      logger.debug(logger.CONTEXT.SYNC_PUSH, "Hashes mismatch, need push")
       return true
     }
 
-    logger.debug(LogContext.PUSH, "No changes detected, no push")
+    logger.debug(logger.CONTEXT.SYNC_PUSH, "No changes detected, no push")
     return false
   }
 }

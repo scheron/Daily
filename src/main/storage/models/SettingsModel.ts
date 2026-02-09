@@ -3,7 +3,7 @@ import {nanoid} from "nanoid"
 import {deepMerge} from "@shared/utils/common/deepMerge"
 import {AsyncMutex} from "@/utils/AsyncMutex"
 import {createCacheLoader} from "@/utils/createCacheLoader"
-import {LogContext, logger} from "@/utils/logger"
+import {logger} from "@/utils/logger"
 import {withRetryOnConflict} from "@/utils/withRetryOnConflict"
 
 import {docIdMap, docToSettings, settingsToDoc} from "./_mappers"
@@ -100,8 +100,8 @@ export class SettingsModel {
         }
 
         const res = await this.db.put(updatedDoc)
-        logger.storage("Updated", "settings", "default")
-        logger.debug(LogContext.SETTINGS, `Settings rev: ${res.rev}, attempt: ${attempt + 1}`)
+        logger.storage("Updated", "SETTINGS", "default")
+        logger.debug(logger.CONTEXT.SETTINGS, `Settings rev: ${res.rev}, attempt: ${attempt + 1}`)
         this.settingsLoader.clear()
 
         return res

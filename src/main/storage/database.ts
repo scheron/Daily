@@ -3,7 +3,7 @@ import fs from "fs-extra"
 import PouchDB from "pouchdb"
 import PouchDBFind from "pouchdb-find"
 
-import {LogContext, logger} from "@/utils/logger"
+import {logger} from "@/utils/logger"
 
 PouchDB.plugin(PouchDBFind)
 
@@ -19,18 +19,18 @@ export function getDB(dbPath: string): Promise<DailyDB> {
         const dbDir = path.dirname(dbPath)
         await fs.ensureDir(dbDir)
 
-        logger.info(LogContext.DB, `Initializing PouchDB at: ${dbPath}`)
+        logger.info(logger.CONTEXT.DB, `Initializing PouchDB at: ${dbPath}`)
 
         const db = new PouchDB(dbPath)
 
-        logger.info(LogContext.DB, "Creating database indexes")
+        logger.info(logger.CONTEXT.DB, "Creating database indexes")
 
         await createIndexes(db)
 
         dbInstance = db
         return db
       } catch (error) {
-        logger.error(LogContext.DB, "Failed to initialize PouchDB", error)
+        logger.error(logger.CONTEXT.DB, "Failed to initialize PouchDB", error)
         dbReadyPromise = null
         throw error
       }
@@ -62,7 +62,7 @@ export async function closeDB(): Promise<void> {
   dbInstance = null
   dbReadyPromise = null
 
-  logger.info(LogContext.DB, "PouchDB closed")
+  logger.info(logger.CONTEXT.DB, "PouchDB closed")
 }
 
 /**
@@ -74,11 +74,11 @@ export async function destroyDB(dbPath: string): Promise<void> {
     await dbInstance.destroy()
     dbInstance = null
     dbReadyPromise = null
-    logger.warn(LogContext.DB, "PouchDB destroyed (active instance)")
+    logger.warn(logger.CONTEXT.DB, "PouchDB destroyed (active instance)")
     return
   }
 
   const db = new PouchDB(dbPath)
   await db.destroy()
-  logger.warn(LogContext.DB, "PouchDB destroyed (fresh instance)")
+  logger.warn(logger.CONTEXT.DB, "PouchDB destroyed (fresh instance)")
 }

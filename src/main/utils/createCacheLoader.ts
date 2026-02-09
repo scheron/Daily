@@ -17,7 +17,7 @@ export function createCacheLoader<T>(loader: Loader<T>, ttlMs: number = CACHE_TT
       const now = Date.now()
 
       if (cache && now < cache.expiry) {
-        // logger.debug(LogContext.APP, "Using cached data", cache.value)
+        // logger.debug(logger.context.APP, "Using cached data", cache.value)
         return cache.value
       }
 
@@ -33,7 +33,7 @@ export function createCacheLoader<T>(loader: Loader<T>, ttlMs: number = CACHE_TT
     clear() {
       cache = null
       inFlight = null
-      // logger.info(LogContext.APP, "Cleared cache")
+      // logger.info(logger.context.APP, "Cleared cache")
     },
   }
 }

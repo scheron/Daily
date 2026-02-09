@@ -2,20 +2,16 @@ import {stat} from "node:fs/promises"
 import path from "node:path"
 import fs from "fs-extra"
 
-import {LogContext, logger} from "@/utils/logger"
+import {logger} from "@/utils/logger"
 
+import {downloadWithProgress} from "@/ai/utils/downloadWithProgress"
 import {fsPaths} from "@/config"
-import {downloadWithProgress} from "./downloadWithProgress"
 import {getManifestEntry, MODEL_MANIFEST} from "./manifest"
 
 import type {LocalModelDownloadProgress, LocalModelId, LocalModelInfo} from "@shared/types/ai"
+import type {ILocalModelService} from "../types"
 
-/**
- * Manages GGUF model files on disk.
- *
- * Handles downloading, deleting, and querying installed model state.
- */
-export class ModelManager {
+export class LocalModelService implements ILocalModelService {
   private activeDownloads = new Map<string, AbortController>()
 
   async init(): Promise<void> {
@@ -58,12 +54,12 @@ export class ModelManager {
     if (!entry) throw new Error(`Unknown model: ${modelId}`)
 
     if (await this.isInstalled(modelId)) {
-      logger.info(LogContext.AI, "Model already installed", {modelId})
+      logger.info(logger.CONTEXT.AI, "Model already installed", {modelId})
       return true
     }
 
     if (this.activeDownloads.has(modelId)) {
-      logger.info(LogContext.AI, "Download already in progress", {modelId})
+      logger.info(logger.CONTEXT.AI, "Download already in progress", {modelId})
       return false
     }
 
@@ -88,14 +84,14 @@ export class ModelManager {
         },
       })
 
-      logger.info(LogContext.AI, "Model downloaded successfully", {modelId})
+      logger.info(logger.CONTEXT.AI, "Model downloaded successfully", {modelId})
       return true
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") {
-        logger.info(LogContext.AI, "Model download cancelled", {modelId})
+        logger.info(logger.CONTEXT.AI, "Model download cancelled", {modelId})
         return false
       }
-      logger.error(LogContext.AI, "Model download failed", {modelId, error: err})
+      logger.error(logger.CONTEXT.AI, "Model download failed", {modelId, error: err})
       throw err
     } finally {
       this.activeDownloads.delete(modelId)
@@ -119,7 +115,7 @@ export class ModelManager {
     if (!(await fs.pathExists(modelPath))) return false
 
     await fs.remove(modelPath)
-    logger.info(LogContext.AI, "Model deleted", {modelId})
+    logger.info(logger.CONTEXT.AI, "Model deleted", {modelId})
     return true
   }
 

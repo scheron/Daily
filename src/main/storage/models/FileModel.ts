@@ -1,6 +1,6 @@
 import {nanoid} from "nanoid"
 
-import {LogContext, logger} from "@/utils/logger"
+import {logger} from "@/utils/logger"
 import {withRetryOnConflict} from "@/utils/withRetryOnConflict"
 
 import {docIdMap, docToFile, fileToDoc} from "./_mappers"
@@ -15,10 +15,10 @@ export class FileModel {
     try {
       const result = (await this.db.find({selector: {type: "file"}})) as PouchDB.Find.FindResponse<FileDoc>
 
-      logger.info(LogContext.FILES, `Loaded ${result.docs.length} files from database`)
+      logger.info(logger.CONTEXT.FILES, `Loaded ${result.docs.length} files from database`)
       return result.docs.map(docToFile).filter((file) => !includeDeleted && !file.deletedAt)
     } catch (error) {
-      logger.error(LogContext.FILES, "Failed to load files from database", error)
+      logger.error(logger.CONTEXT.FILES, "Failed to load files from database", error)
       throw error
     }
   }
@@ -36,17 +36,17 @@ export class FileModel {
 
       for (const row of result.rows) {
         if ("error" in row) {
-          logger.error(LogContext.FILES, `Failed to get file ${row.key}`, row.error)
+          logger.error(logger.CONTEXT.FILES, `Failed to get file ${row.key}`, row.error)
           continue
         }
 
         if (row.doc) files.push(docToFile(row.doc))
       }
 
-      logger.debug(LogContext.FILES, `Retrieved ${files.length}/${ids.length} files`)
+      logger.debug(logger.CONTEXT.FILES, `Retrieved ${files.length}/${ids.length} files`)
       return files
     } catch (error) {
-      logger.error(LogContext.FILES, "Failed to get files", error)
+      logger.error(logger.CONTEXT.FILES, "Failed to get files", error)
       throw error
     }
   }
@@ -68,12 +68,12 @@ export class FileModel {
 
       const putResult = await this.db.put(fileToDoc(file))
 
-      logger.storage("Created", "file", file.id)
-      logger.debug(LogContext.FILES, `File rev: ${putResult.rev}`)
+      logger.storage("Created", "FILES", file.id)
+      logger.debug(logger.CONTEXT.FILES, `File rev: ${putResult.rev}`)
 
       return file
     } catch (error) {
-      logger.error(LogContext.FILES, `Failed to create file ${name}`, error)
+      logger.error(logger.CONTEXT.FILES, `Failed to create file ${name}`, error)
       throw error
     }
   }
@@ -97,16 +97,16 @@ export class FileModel {
           return false
         }
 
-        logger.storage("Deleted", "file", id)
-        logger.debug(LogContext.FILES, `File rev: ${res.rev}, attempt: ${attempt + 1}`)
+        logger.storage("Deleted", "FILES", id)
+        logger.debug(logger.CONTEXT.FILES, `File rev: ${res.rev}, attempt: ${attempt + 1}`)
         return true
       } catch (error: any) {
         if (error?.status === 404) {
-          logger.warn(LogContext.FILES, `File not found for deletion: ${id}`)
+          logger.warn(logger.CONTEXT.FILES, `File not found for deletion: ${id}`)
           return false
         }
 
-        logger.error(LogContext.FILES, `Failed to delete file ${id}`, error)
+        logger.error(logger.CONTEXT.FILES, `Failed to delete file ${id}`, error)
         return false
       }
     })
@@ -115,22 +115,22 @@ export class FileModel {
 
   async getFileWithAttachment(id: File["id"]): Promise<FileDoc | null> {
     try {
-      logger.debug(LogContext.FILES, `Fetching file with attachment: ${id}`)
+      logger.debug(logger.CONTEXT.FILES, `Fetching file with attachment: ${id}`)
 
       const doc = await this.db.get<FileDoc>(docIdMap.file.toDoc(id), {
         attachments: true,
         binary: false, // Get as base64 string, not Blob
       })
 
-      logger.debug(LogContext.FILES, `File doc retrieved: ${doc.name} (${doc.size} bytes)`)
+      logger.debug(logger.CONTEXT.FILES, `File doc retrieved: ${doc.name} (${doc.size} bytes)`)
 
       return doc
     } catch (error: any) {
       if (error?.status === 404) {
-        logger.warn(LogContext.FILES, `File not found: ${id}`)
+        logger.warn(logger.CONTEXT.FILES, `File not found: ${id}`)
         return null
       }
-      logger.error(LogContext.FILES, `Failed to get file with attachment ${id}`, error)
+      logger.error(logger.CONTEXT.FILES, `Failed to get file with attachment ${id}`, error)
       throw error
     }
   }

@@ -10,7 +10,6 @@ import {setupActivateHandler, setupAppIdentity, setupDockIcon, setupWindowAllClo
 import {setupMenu} from "@/setup/app/menu"
 import {setupStorageSync} from "@/setup/app/storage"
 import {setupAiIPC} from "@/setup/ipc/ai"
-import {setupLocalAiIPC} from "@/setup/ipc/ai-local"
 import {setupDbViewerIPC, setupDevToolsIPC} from "@/setup/ipc/devtools"
 import {setupMenuIPC} from "@/setup/ipc/menu"
 import {setupShellIPC} from "@/setup/ipc/shell"
@@ -83,8 +82,7 @@ app.whenReady().then(async () => {
   )
 
   setupStorageIPC(() => storage)
-  setupAiIPC(() => ai)
-  setupLocalAiIPC(
+  setupAiIPC(
     () => ai,
     () => windows.main,
   )

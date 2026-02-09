@@ -1,29 +1,50 @@
 import {ENV} from "@/config"
+import {LOG_CONTEXT} from "@/types/logger"
 
-export type LogLevel = "DEBUG" | "INFO" | "WARN" | "ERROR"
-export type LogContext = string
-
-export const LogContext = {
-  APP: "APP",
-  DB: "DB",
-  STORAGE: "STORAGE",
-  TASKS: "TASKS",
-  TAGS: "TAGS",
-  FILES: "FILES",
-  SYNC: "SYNC",
-  PULL: "PULL",
-  PUSH: "PUSH",
-  IPC: "IPC",
-  SETTINGS: "SETTINGS",
-  SHELL: "SHELL",
-  AI: "AI",
-} as const
+import type {LogContext, LogLevel} from "@/types/logger"
 
 class Logger {
+  static readonly CONTEXT = LOG_CONTEXT
+  private readonly allowedContexts: Set<LogContext> | null
+
   constructor(
     private enabled: boolean,
     private minLevel: LogLevel,
-  ) {}
+    contexts?: LogContext[],
+  ) {
+    const normalized = contexts?.filter(Boolean)
+    this.allowedContexts = normalized?.length ? new Set(normalized) : null
+  }
+
+  get CONTEXT(): typeof LOG_CONTEXT {
+    return Logger.CONTEXT
+  }
+
+  debug(context: LogContext, message: string, data?: any): void {
+    this.log("DEBUG", context, message, data)
+  }
+
+  info(context: LogContext, message: string, data?: any): void {
+    this.log("INFO", context, message, data)
+  }
+
+  warn(context: LogContext, message: string, data?: any): void {
+    this.log("WARN", context, message, data)
+  }
+
+  error(context: LogContext, message: string, error?: any): void {
+    const errorData = error instanceof Error ? {message: error.message, stack: error.stack} : error
+    this.log("ERROR", context, message, errorData)
+  }
+
+  lifecycle(message: string): void {
+    this.log("INFO", "APP", message)
+  }
+
+  storage(operation: string, context: LogContext, id?: string): void {
+    const message = id ? `${operation} ${context}: ${id}` : `${operation} ${context}`
+    this.log("INFO", context, message)
+  }
 
   private levelPriority: Record<LogLevel, number> = {
     DEBUG: 0,
@@ -45,6 +66,7 @@ class Logger {
   private log(level: LogLevel, context: LogContext | undefined, message: string, data?: any): void {
     if (!this.enabled) return
     if (this.levelPriority[level] < this.levelPriority[this.minLevel]) return
+    if (this.allowedContexts && (!context || !this.allowedContexts.has(context))) return
 
     const timestamp = new Date().toLocaleTimeString("en-US", {hour12: false})
 
@@ -79,32 +101,6 @@ class Logger {
       consoleMethod(logLine)
     }
   }
-
-  debug(context: LogContext, message: string, data?: any): void {
-    this.log("DEBUG", context, message, data)
-  }
-
-  info(context: LogContext, message: string, data?: any): void {
-    this.log("INFO", context, message, data)
-  }
-
-  warn(context: LogContext, message: string, data?: any): void {
-    this.log("WARN", context, message, data)
-  }
-
-  error(context: LogContext, message: string, error?: any): void {
-    const errorData = error instanceof Error ? {message: error.message, stack: error.stack} : error
-    this.log("ERROR", context, message, errorData)
-  }
-
-  lifecycle(message: string): void {
-    this.log("INFO", "APP", message)
-  }
-
-  storage(operation: string, entity: string, id?: string): void {
-    const message = id ? `${operation} ${entity}: ${id}` : `${operation} ${entity}`
-    this.log("INFO", entity.toUpperCase(), message)
-  }
 }
 
-export const logger = new Logger(ENV.logging?.enabled ?? false, ENV.logging?.minLevel ?? "INFO")
+export const logger = new Logger(ENV.logging?.enabled ?? false, ENV.logging?.minLevel ?? "INFO", ENV.logging?.contexts)

@@ -3,9 +3,9 @@ import {rename, unlink} from "node:fs/promises"
 import {Readable} from "node:stream"
 import {pipeline} from "node:stream/promises"
 
-import {LogContext, logger} from "@/utils/logger"
+import {logger} from "@/utils/logger"
 
-export type DownloadParams = {
+type DownloadParams = {
   url: string
   destPath: string
   onProgress: (downloadedBytes: number, totalBytes: number) => void
@@ -20,7 +20,7 @@ export async function downloadWithProgress(params: DownloadParams): Promise<void
   const {url, destPath, onProgress, signal} = params
   const tempPath = `${destPath}.download`
 
-  logger.info(LogContext.AI, "Starting download", {url, destPath})
+  logger.info(logger.CONTEXT.AI, "Starting download", {url, destPath})
 
   try {
     const response = await fetch(url, {
@@ -31,21 +31,14 @@ export async function downloadWithProgress(params: DownloadParams): Promise<void
       },
     })
 
-    if (!response.ok) {
-      throw new Error(`Download failed: HTTP ${response.status} ${response.statusText}`)
-    }
-
-    if (!response.body) {
-      throw new Error("Download failed: no response body")
-    }
+    if (!response.ok) throw new Error(`Download failed: HTTP ${response.status} ${response.statusText}`)
+    if (!response.body) throw new Error("Download failed: no response body")
 
     const totalBytes = Number(response.headers.get("content-length") ?? 0)
     let downloadedBytes = 0
 
-    // Use Readable.fromWeb for better compatibility with Node.js streaming
     const nodeStream = Readable.fromWeb(response.body as any)
 
-    // Track progress via transform
     const progressStream = new Readable({
       objectMode: false,
       read() {},
@@ -70,13 +63,12 @@ export async function downloadWithProgress(params: DownloadParams): Promise<void
 
     await rename(tempPath, destPath)
 
-    logger.info(LogContext.AI, "Download completed", {destPath, totalBytes: downloadedBytes})
+    logger.info(logger.CONTEXT.AI, "Download completed", {destPath, totalBytes: downloadedBytes})
   } catch (err) {
-    // Clean up temp file on error/abort
     try {
       await unlink(tempPath)
     } catch {
-      // Temp file may not exist
+      // ignore
     }
     throw err
   }

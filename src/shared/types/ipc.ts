@@ -1,3 +1,4 @@
+import type {Buffer} from "buffer"
 import type {PartialDeep} from "type-fest"
 import type {AIConfig, AIResponse, LocalModelDownloadProgress, LocalModelId, LocalModelInfo, LocalRuntimeState} from "./ai"
 import type {ISODate} from "./common"

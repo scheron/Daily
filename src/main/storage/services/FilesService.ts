@@ -3,7 +3,7 @@ import path from "node:path"
 import {forEachParallel} from "@shared/utils/arrays/forEachParallel"
 import {extractFileIds} from "@/utils/files/extractFileIds"
 import {getMimeType} from "@/utils/files/getMimeType"
-import {LogContext, logger} from "@/utils/logger"
+import {logger} from "@/utils/logger"
 
 import {APP_CONFIG} from "@/config"
 
@@ -48,7 +48,7 @@ export class FilesService {
       const doc = await this.fileModel.getFileWithAttachment(id)
 
       if (!doc) {
-        logger.warn(LogContext.FILES, `File not found: ${id}`)
+        logger.warn(logger.CONTEXT.FILES, `File not found: ${id}`)
         return new Response("File not found", {
           status: 404,
           headers: {"Content-Type": "text/plain"},
@@ -57,7 +57,7 @@ export class FilesService {
 
       // Return 404 if file is soft-deleted
       if (doc.deletedAt !== null) {
-        logger.warn(LogContext.FILES, `File is deleted: ${id}`)
+        logger.warn(logger.CONTEXT.FILES, `File is deleted: ${id}`)
         return new Response("File not found", {
           status: 404,
           headers: {"Content-Type": "text/plain"},
@@ -72,7 +72,7 @@ export class FilesService {
       const base64Data = typeof attachment.data === "string" ? attachment.data : ""
       const buffer = Buffer.from(base64Data, "base64")
 
-      logger.debug(LogContext.FILES, `File response created: ${attachment.content_type}, ${buffer.length} bytes`)
+      logger.debug(logger.CONTEXT.FILES, `File response created: ${attachment.content_type}, ${buffer.length} bytes`)
 
       const response = new Response(buffer as any, {
         headers: {
@@ -84,11 +84,11 @@ export class FilesService {
       return response
     } catch (error: any) {
       if (error?.status === 404) {
-        logger.warn(LogContext.FILES, `File not found: ${id}`)
+        logger.warn(logger.CONTEXT.FILES, `File not found: ${id}`)
         return new Response("File not found", {status: 404, headers: {"Content-Type": "text/plain"}})
       }
 
-      logger.error(LogContext.FILES, `Failed to get file ${id}`, error)
+      logger.error(logger.CONTEXT.FILES, `Failed to get file ${id}`, error)
       throw error
     }
   }
@@ -113,9 +113,9 @@ export class FilesService {
         await this.fileModel.deleteFile(orphan.id)
       })
 
-      logger.info(LogContext.FILES, `Removed ${orphans.length} orphan files`)
+      logger.info(logger.CONTEXT.FILES, `Removed ${orphans.length} orphan files`)
     } catch (err) {
-      logger.error(LogContext.FILES, "Failed to cleanup orphan files", err)
+      logger.error(logger.CONTEXT.FILES, "Failed to cleanup orphan files", err)
     }
   }
 }

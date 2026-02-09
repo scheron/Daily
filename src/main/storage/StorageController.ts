@@ -11,7 +11,7 @@ Storage Architecture (PouchDB):
 
 import fs from "fs-extra"
 
-import {LogContext, logger} from "@/utils/logger"
+import {logger} from "@/utils/logger"
 
 import {fsPaths} from "@/config"
 import {getDB} from "@/storage/database"
@@ -81,13 +81,13 @@ export class StorageController implements IStorageController {
     const settings = await this.loadSettings()
 
     if (settings.sync.enabled) {
-      logger.info(LogContext.STORAGE, "Auto-sync was enabled, restoring")
+      logger.info(logger.CONTEXT.STORAGE, "Auto-sync was enabled, restoring")
       this.syncEngine.enableAutoSync()
     }
 
-    logger.info(LogContext.STORAGE, "Initializing search index")
+    logger.info(logger.CONTEXT.STORAGE, "Initializing search index")
     await this.searchService.initializeIndex()
-    logger.info(LogContext.STORAGE, `Search index initialized with ${this.searchService.getIndexSize()} tasks`)
+    logger.info(logger.CONTEXT.STORAGE, `Search index initialized with ${this.searchService.getIndexSize()} tasks`)
   }
 
   //#region STORAGE
@@ -97,19 +97,19 @@ export class StorageController implements IStorageController {
   }
 
   async activateSync() {
-    logger.info(LogContext.STORAGE, "Activating sync")
+    logger.info(logger.CONTEXT.STORAGE, "Activating sync")
     await this.settingsService.saveSettings({sync: {enabled: true}})
     this.syncEngine.enableAutoSync()
   }
 
   async deactivateSync() {
-    logger.info(LogContext.STORAGE, "Deactivating sync")
+    logger.info(logger.CONTEXT.STORAGE, "Deactivating sync")
     await this.settingsService.saveSettings({sync: {enabled: false}})
     this.syncEngine.disableAutoSync()
   }
 
   async forceSync() {
-    logger.info(LogContext.STORAGE, "Force syncing")
+    logger.info(logger.CONTEXT.STORAGE, "Force syncing")
     await this.syncEngine.sync("pull")
   }
 

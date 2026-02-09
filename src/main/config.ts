@@ -2,6 +2,8 @@ import path, {dirname, join} from "node:path"
 import {fileURLToPath} from "node:url"
 import {app} from "electron"
 
+import type {LogContext} from "@/types/logger"
+
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
 export const APP_CONFIG = {
@@ -17,13 +19,24 @@ export const APP_CONFIG = {
   ai: {
     enabled: false,
     provider: "openai",
+    runtime: {
+      openAiCompatible: {
+        modelsLimitCount: 20,
+        connectionTimeoutMs: 10_000,
+      },
+      local: {
+        host: "127.0.0.1",
+        apiPath: "/v1",
+        apiKey: "no-key",
+      },
+    },
     openai: {
       model: "deepseek-chat",
       baseUrl: "https://api.deepseek.com/v1",
       apiKey: "",
     },
     local: {
-      model: "daily-local-balanced",
+      model: "daily-balanced",
     },
   },
   window: {
@@ -72,6 +85,7 @@ export const ENV = {
   logging: {
     enabled: process.env.NODE_ENV === "development",
     minLevel: "INFO" as const,
+    contexts: [] as LogContext[],
   },
 } as const
 

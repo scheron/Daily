@@ -1,6 +1,6 @@
 import {execFile, spawn} from "node:child_process"
 import {createWriteStream} from "node:fs"
-import {chmod, rename, unlink} from "node:fs/promises"
+import {chmod, readdir, rename, unlink} from "node:fs/promises"
 import {createServer} from "node:net"
 import path from "node:path"
 import {Readable} from "node:stream"
@@ -8,14 +8,14 @@ import {pipeline} from "node:stream/promises"
 import {promisify} from "node:util"
 import fs from "fs-extra"
 
-import {LogContext, logger} from "@/utils/logger"
+import {logger} from "@/utils/logger"
 
-import {fsPaths} from "@/config"
-import {SERVER_BINARY} from "../models/manifest"
+import {APP_CONFIG, fsPaths} from "@/config"
+import {SERVER_BINARY} from "./manifest"
 
 import type {LocalModelId, LocalRuntimeState} from "@shared/types/ai"
 import type {ChildProcess} from "node:child_process"
-import type {ModelManifestEntry} from "../models/manifest"
+import type {ModelManifestEntry} from "../types"
 
 const execFileAsync = promisify(execFile)
 
@@ -25,7 +25,7 @@ const execFileAsync = promisify(execFile)
  * Handles binary download/extraction, spawning, health checks,
  * and graceful shutdown.
  */
-export class LlamaServerManager {
+export class LlamaServer {
   private process: ChildProcess | null = null
   private port: number | null = null
   private currentModelId: LocalModelId | null = null
@@ -69,7 +69,7 @@ export class LlamaServerManager {
     try {
       const {stdout, stderr} = await execFileAsync(this.getBinaryPath(), ["--version"])
       const output = stdout + stderr
-      // llama-server outputs version to stderr; manifest uses "b5200", binary outputs "5200"
+      // NOTE: llama-server outputs version to stderr; manifest uses "b5200", binary outputs "5200"
       const numericVersion = SERVER_BINARY.version.replace(/^b/, "")
       return output.includes(SERVER_BINARY.version) || output.includes(numericVersion)
     } catch {
@@ -81,8 +81,7 @@ export class LlamaServerManager {
     if (await this.isBinaryInstalled()) {
       if (await this.isCorrectVersion()) return
 
-      // Version mismatch — remove old binary and re-download
-      logger.info(LogContext.AI, "llama-server version mismatch, updating binary")
+      logger.info(logger.CONTEXT.AI, "llama-server version mismatch, updating binary")
       try {
         await fs.remove(fsPaths.binPath())
       } catch {
@@ -90,7 +89,7 @@ export class LlamaServerManager {
       }
     }
 
-    logger.info(LogContext.AI, "Downloading llama-server binary")
+    logger.info(logger.CONTEXT.AI, "Downloading llama-server binary")
 
     const arch = process.arch as "arm64" | "x64"
     const binaryInfo = SERVER_BINARY.macos[arch]
@@ -102,7 +101,6 @@ export class LlamaServerManager {
 
     const zipPath = path.join(fsPaths.binPath(), "llama-server.zip")
 
-    // Download the zip
     const response = await fetch(binaryInfo.url, {redirect: "follow"})
     if (!response.ok || !response.body) {
       throw new Error(`Failed to download llama-server: HTTP ${response.status}`)
@@ -112,14 +110,12 @@ export class LlamaServerManager {
     const writeStream = createWriteStream(zipPath)
     await pipeline(nodeStream, writeStream)
 
-    // Extract llama-server from zip using macOS built-in unzip
     const extractDir = path.join(fsPaths.binPath(), "_extract")
     await fs.ensureDir(extractDir)
 
     try {
       await execFileAsync("unzip", ["-o", zipPath, "-d", extractDir])
 
-      // Find the directory containing llama-server (includes required .dylib files)
       const {stdout} = await execFileAsync("find", [extractDir, "-name", "llama-server", "-type", "f"])
       const binarySource = stdout.trim().split("\n")[0]
 
@@ -127,9 +123,7 @@ export class LlamaServerManager {
         throw new Error("llama-server binary not found in zip archive")
       }
 
-      // Move all files from the same directory (binary + dylibs + metal shaders)
       const sourceDir = path.dirname(binarySource)
-      const {readdir} = await import("node:fs/promises")
       const files = await readdir(sourceDir)
 
       for (const file of files) {
@@ -138,7 +132,6 @@ export class LlamaServerManager {
         await rename(src, dest)
       }
     } finally {
-      // Clean up
       try {
         await fs.remove(extractDir)
       } catch {
@@ -151,24 +144,22 @@ export class LlamaServerManager {
       }
     }
 
-    // Make executable and remove macOS quarantine from all extracted files
     await chmod(this.getBinaryPath(), 0o755)
     try {
       await execFileAsync("xattr", ["-dr", "com.apple.quarantine", fsPaths.binPath()])
     } catch {
-      // xattr may fail if attribute doesn't exist — safe to ignore
+      // ignore
     }
     try {
       await execFileAsync("xattr", ["-dr", "com.apple.provenance", fsPaths.binPath()])
     } catch {
-      // safe to ignore
+      // ignore
     }
 
-    logger.info(LogContext.AI, "llama-server binary installed")
+    logger.info(logger.CONTEXT.AI, "llama-server binary installed")
   }
 
   async start(modelPath: string, modelId: LocalModelId, params: ModelManifestEntry["serverArgs"]): Promise<void> {
-    // Stop existing process if running
     if (this.process) {
       await this.stop()
     }
@@ -176,7 +167,6 @@ export class LlamaServerManager {
     this.setState({status: "starting", modelId})
 
     try {
-      // Find a free port
       this.port = await this.findFreePort()
 
       const args = [
@@ -189,7 +179,7 @@ export class LlamaServerManager {
         "--n-gpu-layers",
         String(params.gpuLayers),
         "--host",
-        "127.0.0.1",
+        APP_CONFIG.ai.runtime.local.host,
         "--jinja",
         "--flash-attn",
         "--cont-batching",
@@ -199,7 +189,7 @@ export class LlamaServerManager {
         "256",
       ]
 
-      logger.info(LogContext.AI, "Starting llama-server", {port: this.port, modelPath, args})
+      logger.info(logger.CONTEXT.AI, "Starting llama-server", {port: this.port, modelPath, args})
 
       this.process = spawn(this.getBinaryPath(), args, {
         stdio: ["ignore", "pipe", "pipe"],
@@ -208,28 +198,25 @@ export class LlamaServerManager {
       this.currentModelId = modelId
 
       this.process.on("exit", (code, signal) => {
-        logger.info(LogContext.AI, "llama-server exited", {code, signal})
+        logger.info(logger.CONTEXT.AI, "llama-server exited", {code, signal})
         this.process = null
         this.port = null
-        // Only set error if we didn't intentionally stop
         if (this.state.status === "running" || this.state.status === "starting") {
           this.setState({status: "error", modelId, message: `Server exited unexpectedly (code: ${code})`})
         }
       })
 
       this.process.on("error", (err) => {
-        logger.error(LogContext.AI, "llama-server error", err)
+        logger.error(logger.CONTEXT.AI, "llama-server error", err)
         this.process = null
         this.port = null
         this.setState({status: "error", modelId, message: err.message})
       })
 
-      // Capture stderr for debugging
       this.process.stderr?.on("data", (data: Buffer) => {
-        logger.debug(LogContext.AI, `llama-server stderr: ${data.toString().trim()}`)
+        logger.debug(logger.CONTEXT.AI, `llama-server stderr: ${data.toString().trim()}`)
       })
 
-      // Wait for server to be ready
       await this.waitForReady()
 
       this.setState({
@@ -239,7 +226,7 @@ export class LlamaServerManager {
         pid: this.process?.pid,
       })
 
-      logger.info(LogContext.AI, "llama-server is ready", {port: this.port, pid: this.process?.pid})
+      logger.info(logger.CONTEXT.AI, "llama-server is ready", {port: this.port, pid: this.process?.pid})
     } catch (err) {
       await this.stop()
       this.setState({
@@ -257,7 +244,7 @@ export class LlamaServerManager {
     const proc = this.process
     this.process = null
 
-    logger.info(LogContext.AI, "Stopping llama-server")
+    logger.info(logger.CONTEXT.AI, "Stopping llama-server")
 
     return new Promise<void>((resolve) => {
       const timeout = setTimeout(() => {
@@ -298,7 +285,7 @@ export class LlamaServerManager {
 
     while (Date.now() - startTime < timeoutMs) {
       try {
-        const response = await fetch(`http://127.0.0.1:${this.port}/health`, {
+        const response = await fetch(`http://${APP_CONFIG.ai.runtime.local.host}:${this.port}/health`, {
           signal: AbortSignal.timeout(2000),
         })
 
@@ -309,10 +296,9 @@ export class LlamaServerManager {
           }
         }
       } catch {
-        // Server not ready yet
+        // ignore
       }
 
-      // Check if process died while waiting
       if (!this.process) {
         throw new Error("llama-server process exited during startup")
       }
@@ -326,7 +312,7 @@ export class LlamaServerManager {
   private findFreePort(): Promise<number> {
     return new Promise((resolve, reject) => {
       const server = createServer()
-      server.listen(0, "127.0.0.1", () => {
+      server.listen(0, APP_CONFIG.ai.runtime.local.host, () => {
         const address = server.address()
         if (!address || typeof address === "string") {
           server.close()

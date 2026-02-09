@@ -1,49 +1,47 @@
 import {deepMerge} from "@shared/utils/common/deepMerge"
-import {LogContext, logger} from "@/utils/logger"
+import {logger} from "@/utils/logger"
 
-import {LocalLLMProvider} from "./providers/local/LocalLLMProvider"
-import {OpenAiClient} from "./providers/OpenAiClient"
-import {ToolExecutor} from "./tools/ToolExecutor"
-import {AI_TOOLS, AI_TOOLS_COMPACT} from "./tools/tools"
-import {filterThinkingBlocks, getSystemPrompt, getSystemPromptCompact} from "./utils"
+import {LocalAiClient} from "@/ai/clients/local"
+import {getManifestEntry} from "@/ai/clients/local/core/manifest"
+import {RemoteAiClient} from "@/ai/clients/remote"
+import {getSystemPrompt} from "@/ai/promts/getSystemPrompt"
+import {getSystemPromptCompact} from "@/ai/promts/getSystemPromptCompact"
+import {getSystemPromptTiny} from "@/ai/promts/getSystemPromptTiny"
+import {ToolExecutor} from "@/ai/tools/ToolExecutor"
+import {AI_TOOLS, AI_TOOLS_COMPACT} from "@/ai/tools/tools"
+import {filterThinkBlocks} from "./utils/filterThinkBlocks"
 
+import type {ILocalModelService} from "@/ai/clients/local"
+import type {ToolName} from "@/ai/tools/tools"
+import type {IAiClient, MessageLLM, PromptTier, Tool, ToolCallLLM} from "@/ai/types"
 import type {StorageController} from "@/storage/StorageController"
 import type {AIConfig, AIMessage, AIResponse, LocalRuntimeState} from "@shared/types/ai"
-import type {IAIProvider} from "./providers/IAIProvider"
-import type {ModelManager} from "./providers/local/models/ModelManager"
-import type {ToolName} from "./tools/tools"
-import type {MessageLLM, ToolCallLLM} from "./types"
 
-/**
- * AI Service
- *
- * Orchestrates communication between the user, LLM providers (OpenAI, Local), and tool execution.
- * Implements the agentic loop: user message -> LLM -> (tool calls -> LLM)* -> response
- */
 export class AIController {
-  private openaiProvider: OpenAiClient
-  private localProvider: LocalLLMProvider
+  private openaiClient: RemoteAiClient
+  private localClient: LocalAiClient
   private executor: ToolExecutor
   private conversationHistory: MessageLLM[] = []
   private abortController: AbortController | null = null
   private config: AIConfig | null = null
+  private currentToolSchemas = new Map<string, Tool["function"]["parameters"]>()
 
   constructor(
     private storage: StorageController,
     broadcastState?: (state: LocalRuntimeState) => void,
   ) {
     this.executor = new ToolExecutor(storage)
-    this.openaiProvider = new OpenAiClient()
-    this.localProvider = new LocalLLMProvider(broadcastState)
+    this.openaiClient = new RemoteAiClient()
+    this.localClient = new LocalAiClient(broadcastState)
   }
 
-  private get activeProvider(): IAIProvider {
-    return this.config?.provider === "local" ? this.localProvider : this.openaiProvider
+  private get activeProvider(): IAiClient {
+    return this.config?.provider === "local" ? this.localClient : this.openaiClient
   }
 
   async init() {
     const config = (await this.storage.loadSettings()).ai
-    await this.localProvider.modelManager.init()
+    await this.localClient.modelService.init()
     await this.updateConfig(config)
   }
 
@@ -56,13 +54,11 @@ export class AIController {
 
     await this.storage.saveSettings({ai: this.config!})
 
-    // Update both providers so they have current config
-    this.openaiProvider.updateConfig(this.config)
-    this.localProvider.updateConfig(this.config)
+    this.openaiClient.updateConfig(this.config)
+    this.localClient.updateConfig(this.config)
 
-    // If switching away from local, stop the server
     if (previousProvider === "local" && this.config?.provider !== "local") {
-      await this.localProvider.dispose()
+      await this.localClient.dispose()
     }
 
     return true
@@ -76,17 +72,17 @@ export class AIController {
     return this.activeProvider.listModels()
   }
 
-  getModelManager(): ModelManager {
-    return this.localProvider.modelManager
+  getLocalModel(): ILocalModelService {
+    return this.localClient.modelService
   }
 
   async getLocalState(): Promise<LocalRuntimeState> {
-    const serverState = this.localProvider.getState()
+    const serverState = this.localClient.getState()
 
-    // Server state is "not_installed" by default — enrich with model info
     if (serverState.status === "not_installed") {
       const selectedModel = this.config?.local?.model
-      if (selectedModel && (await this.localProvider.modelManager.isInstalled(selectedModel))) {
+
+      if (selectedModel && (await this.localClient.modelService.isInstalled(selectedModel))) {
         return {status: "installed", modelId: selectedModel}
       }
     }
@@ -95,7 +91,7 @@ export class AIController {
   }
 
   async dispose(): Promise<void> {
-    await this.localProvider.dispose()
+    await this.localClient.dispose()
   }
 
   clearHistory(): boolean {
@@ -115,7 +111,7 @@ export class AIController {
 
     if (!config?.enabled) return {success: false, error: "AI assistant is disabled"}
 
-    logger.info(LogContext.AI, "Processing message", {messageLength: userMessage.length, provider: config.provider})
+    logger.info(logger.CONTEXT.AI, "Processing message", {messageLength: userMessage.length, provider: config.provider})
 
     this.abortController = new AbortController()
 
@@ -124,21 +120,40 @@ export class AIController {
 
       const toolCalls: Array<{name: string; result: string}> = []
       let finalContent = ""
+      let requireVisibleFinalAnswer = false
 
       let iterations = 0
       const maxIterations = 10
-      const isLocal = this.config?.provider === "local"
-      const systemPrompt = isLocal ? getSystemPromptCompact() : getSystemPrompt()
+      const promptTier = this.resolvePromptTier(config)
+      const systemPrompt = this.getSystemPromptByTier(promptTier)
+      logger.debug(logger.CONTEXT.AI, "Prompt tier selected", {
+        tier: promptTier,
+        provider: config.provider,
+        model: config.openai?.model ?? config.local?.model,
+      })
 
       while (iterations < maxIterations) {
         iterations++
 
-        const messages: MessageLLM[] = [{role: "system", content: systemPrompt}, ...this.conversationHistory]
+        const messages: MessageLLM[] = [
+          {role: "system", content: systemPrompt},
+          ...(requireVisibleFinalAnswer
+            ? [
+                {
+                  role: "system" as const,
+                  content:
+                    "Your previous output had no user-visible answer. Return a concise final answer only. Do not include reasoning labels like Thought/Action/Observation.",
+                },
+              ]
+            : []),
+          ...this.conversationHistory,
+        ]
 
-        const response = await this.callLLM(messages)
+        const response = await this.callLLM(messages, promptTier)
         const assistantMessage = response.message
 
         if (assistantMessage.tool_calls && assistantMessage.tool_calls.length) {
+          requireVisibleFinalAnswer = false
           this.conversationHistory.push(assistantMessage)
 
           for (const toolCall of assistantMessage.tool_calls) {
@@ -148,10 +163,23 @@ export class AIController {
             this.conversationHistory.push({role: "tool", content: JSON.stringify(result), tool_call_id: toolCall.id})
           }
         } else {
-          finalContent = filterThinkingBlocks(assistantMessage.content ?? "")
+          const rawContent = assistantMessage.content ?? ""
+          finalContent = filterThinkBlocks(rawContent)
+
+          if (!finalContent && iterations < maxIterations) {
+            requireVisibleFinalAnswer = true
+            this.conversationHistory.push({role: "assistant", content: rawContent})
+            continue
+          }
+
+          if (!finalContent) finalContent = "I completed the request, but could not produce a visible final response."
           this.conversationHistory.push({role: "assistant", content: finalContent})
           break
         }
+      }
+
+      if (!finalContent) {
+        finalContent = "I completed the request, but could not produce a visible final response."
       }
 
       const responseMessage: AIMessage = {
@@ -162,7 +190,7 @@ export class AIController {
         toolCalls: toolCalls.length ? toolCalls : [],
       }
 
-      logger.info(LogContext.AI, "Message processed", {iterations, toolCallsCount: toolCalls.length, responseLength: finalContent.length})
+      logger.info(logger.CONTEXT.AI, "Message processed", {iterations, toolCallsCount: toolCalls.length, responseLength: finalContent.length})
 
       return {success: true, message: responseMessage}
     } catch (error) {
@@ -174,15 +202,47 @@ export class AIController {
         return {success: false, error: "Request cancelled"}
       }
 
-      logger.error(LogContext.AI, "Failed to process message", error)
+      logger.error(logger.CONTEXT.AI, "Failed to process message", error)
       return {success: false, error: message}
     } finally {
       this.abortController = null
     }
   }
 
-  private async callLLM(messages: MessageLLM[]): Promise<{message: MessageLLM; done: boolean}> {
-    const tools = this.config?.provider === "local" ? AI_TOOLS_COMPACT : AI_TOOLS
+  private getSystemPromptByTier(tier: PromptTier): string {
+    if (tier === "tiny") return getSystemPromptTiny()
+    if (tier === "medium") return getSystemPromptCompact()
+    return getSystemPrompt()
+  }
+
+  private resolvePromptTier(config: AIConfig | null): PromptTier {
+    if (config?.provider === "local") {
+      const modelId = config.local?.model
+      if (!modelId) return "medium"
+      return getManifestEntry(modelId)?.promptTier ?? "medium"
+    }
+
+    const modelName = config?.openai?.model?.toLowerCase() ?? ""
+    if (!modelName) return "large"
+
+    if (modelName.includes("nano")) return "tiny"
+    if (modelName.includes("mini") || modelName.includes("small")) return "medium"
+
+    const sizeMatch = modelName.match(/(\d+(?:\.\d+)?)b/)
+    if (sizeMatch) {
+      const sizeB = Number(sizeMatch[1])
+      if (!Number.isNaN(sizeB)) {
+        if (sizeB <= 4) return "tiny"
+        if (sizeB <= 14) return "medium"
+      }
+    }
+
+    return "large"
+  }
+
+  private async callLLM(messages: MessageLLM[], promptTier: PromptTier): Promise<{message: MessageLLM; done: boolean}> {
+    const tools = this.getToolsForTier(promptTier)
+    this.currentToolSchemas = new Map(tools.map((tool) => [tool.function.name, tool.function.parameters]))
     return this.activeProvider.chat(messages, tools, this.abortController?.signal)
   }
 
@@ -190,7 +250,13 @@ export class AIController {
     if (!this.executor) return {success: false, error: "Executor not initialized"}
 
     const {name, arguments: args} = toolCall.function
-    logger.debug(LogContext.AI, `Tool call: ${name}`, args)
+    logger.debug(logger.CONTEXT.AI, `Tool call: ${name}`, args)
+
+    const validationError = this.validateToolArguments(name, args)
+    if (validationError) {
+      logger.warn(logger.CONTEXT.AI, `Tool call rejected: ${name}`, {error: validationError, args})
+      return {success: false, error: validationError}
+    }
 
     const result = await this.executor.execute(name as ToolName, args as any)
     return {
@@ -198,5 +264,51 @@ export class AIController {
       data: typeof result.data === "string" ? result.data : JSON.stringify(result.data),
       error: result.error,
     }
+  }
+
+  private getToolsForTier(promptTier: PromptTier): Tool[] {
+    return promptTier === "large" ? AI_TOOLS : AI_TOOLS_COMPACT
+  }
+
+  private validateToolArguments(toolName: string, args: unknown): string | null {
+    const schema = this.currentToolSchemas.get(toolName)
+    if (!schema) return `Tool '${toolName}' is not available for this model tier`
+
+    if (!args || typeof args !== "object" || Array.isArray(args)) {
+      return `Invalid arguments for '${toolName}': expected an object`
+    }
+
+    const params = args as Record<string, unknown>
+
+    for (const key of schema.required ?? []) {
+      if (params[key] === undefined || params[key] === null) {
+        return `Invalid arguments for '${toolName}': '${key}' is required`
+      }
+    }
+
+    for (const [key, descriptor] of Object.entries(schema.properties)) {
+      const value = params[key]
+      if (value === undefined || value === null) continue
+
+      const typeMatches = this.isArgumentTypeValid(descriptor.type, value)
+      if (!typeMatches) {
+        return `Invalid arguments for '${toolName}': '${key}' must be ${descriptor.type}`
+      }
+
+      if (descriptor.enum && !descriptor.enum.includes(String(value))) {
+        return `Invalid arguments for '${toolName}': '${key}' must be one of ${descriptor.enum.join(", ")}`
+      }
+    }
+
+    return null
+  }
+
+  private isArgumentTypeValid(expectedType: string, value: unknown): boolean {
+    if (expectedType === "array") return Array.isArray(value)
+    if (expectedType === "number") return typeof value === "number" && Number.isFinite(value)
+    if (expectedType === "string") return typeof value === "string"
+    if (expectedType === "boolean") return typeof value === "boolean"
+    if (expectedType === "object") return typeof value === "object" && value !== null && !Array.isArray(value)
+    return true
   }
 }

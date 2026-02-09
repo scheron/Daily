@@ -1,7 +1,7 @@
 import {nanoid} from "nanoid"
 
 import {createCacheLoader} from "@/utils/createCacheLoader"
-import {LogContext, logger} from "@/utils/logger"
+import {logger} from "@/utils/logger"
 import {withRetryOnConflict} from "@/utils/withRetryOnConflict"
 
 import {docIdMap, docToTag, tagToDoc} from "./_mappers"
@@ -31,10 +31,10 @@ export class TagModel {
       const result = (await this.db.find({selector: {type: "tag"}})) as PouchDB.Find.FindResponse<TagDoc>
       const tags = result.docs.map(docToTag)
 
-      logger.info(LogContext.TAGS, `Loaded ${tags.length} tags from database`)
+      logger.info(logger.CONTEXT.TAGS, `Loaded ${tags.length} tags from database`)
       return tags
     } catch (error) {
-      logger.error(LogContext.TAGS, "Failed to load tags from database", error)
+      logger.error(logger.CONTEXT.TAGS, "Failed to load tags from database", error)
       throw error
     }
   }
@@ -45,10 +45,10 @@ export class TagModel {
       return docToTag(doc)
     } catch (error: any) {
       if (error?.status === 404) {
-        logger.warn(LogContext.TAGS, `Tag not found: ${id}`)
+        logger.warn(logger.CONTEXT.TAGS, `Tag not found: ${id}`)
         return null
       }
-      logger.error(LogContext.TAGS, `Failed to get tag ${id}`, error)
+      logger.error(logger.CONTEXT.TAGS, `Failed to get tag ${id}`, error)
       throw error
     }
   }
@@ -66,14 +66,14 @@ export class TagModel {
         throw new Error(`Failed to create tag ${id}`)
       }
 
-      logger.storage("Created", "tag", id)
-      logger.debug(LogContext.TAGS, `Tag rev: ${res.rev}`)
+      logger.storage("Created", "TAGS", id)
+      logger.debug(logger.CONTEXT.TAGS, `Tag rev: ${res.rev}`)
 
       this.tagListLoader.clear()
 
       return docToTag(doc)
     } catch (error: any) {
-      logger.error(LogContext.TAGS, `Failed to create tag ${id}`, error)
+      logger.error(logger.CONTEXT.TAGS, `Failed to create tag ${id}`, error)
       return null
     }
   }
@@ -100,8 +100,8 @@ export class TagModel {
         throw new Error(`Failed to update tag ${id}`)
       }
 
-      logger.storage("Updated", "tag", id)
-      logger.debug(LogContext.TAGS, `Tag rev: ${res.rev}, attempt: ${attempt + 1}`)
+      logger.storage("Updated", "TAGS", id)
+      logger.debug(logger.CONTEXT.TAGS, `Tag rev: ${res.rev}, attempt: ${attempt + 1}`)
 
       this.tagListLoader.clear()
 
@@ -127,18 +127,18 @@ export class TagModel {
           throw new Error(`Failed to soft-delete tag ${id}`)
         }
 
-        logger.storage("Deleted", "tag", id)
-        logger.debug(LogContext.TAGS, `Tag rev: ${res.rev}, attempt: ${attempt + 1}`)
+        logger.storage("Deleted", "TAGS", id)
+        logger.debug(logger.CONTEXT.TAGS, `Tag rev: ${res.rev}, attempt: ${attempt + 1}`)
         this.tagListLoader.clear()
 
         return true
       } catch (error: any) {
         if (error?.status === 404) {
-          logger.warn(LogContext.TAGS, `Tag not found for deletion: ${id}`)
+          logger.warn(logger.CONTEXT.TAGS, `Tag not found for deletion: ${id}`)
           return false
         }
 
-        logger.error(LogContext.TAGS, `Failed to delete tag ${id}`, error)
+        logger.error(logger.CONTEXT.TAGS, `Failed to delete tag ${id}`, error)
         throw error
       }
     })

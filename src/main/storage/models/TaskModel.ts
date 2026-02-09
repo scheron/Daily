@@ -1,6 +1,6 @@
 import {nanoid} from "nanoid"
 
-import {LogContext, logger} from "@/utils/logger"
+import {logger} from "@/utils/logger"
 import {withRetryOnConflict} from "@/utils/withRetryOnConflict"
 
 import {docIdMap, docToTask, taskToDoc} from "./_mappers"
@@ -34,11 +34,11 @@ export class TaskModel {
 
       const result = (await this.db.find({selector, limit})) as PouchDB.Find.FindResponse<TaskDoc>
 
-      logger.info(LogContext.TASKS, `Loaded ${result.docs.length} tasks from database`)
+      logger.info(logger.CONTEXT.TASKS, `Loaded ${result.docs.length} tasks from database`)
 
       return result.docs.map(docToTask).filter((task) => params?.includeDeleted || !task.deletedAt)
     } catch (error) {
-      logger.error(LogContext.TASKS, "Failed to load tasks from database", error)
+      logger.error(logger.CONTEXT.TASKS, "Failed to load tasks from database", error)
       throw error
     }
   }
@@ -47,15 +47,15 @@ export class TaskModel {
     try {
       const doc = await this.db.get<TaskDoc>(docIdMap.task.toDoc(id))
 
-      logger.debug(LogContext.TASKS, `Returned task: ${id}`)
+      logger.debug(logger.CONTEXT.TASKS, `Returned task: ${id}`)
 
       return docToTask(doc)
     } catch (error: any) {
       if (error?.status === 404) {
-        logger.warn(LogContext.TASKS, `Task not found: ${id}`)
+        logger.warn(logger.CONTEXT.TASKS, `Task not found: ${id}`)
         return null
       }
-      logger.error(LogContext.TASKS, `Failed to get task ${id}`, error)
+      logger.error(logger.CONTEXT.TASKS, `Failed to get task ${id}`, error)
       throw error
     }
   }
@@ -72,15 +72,15 @@ export class TaskModel {
         throw new Error(`Failed to create task ${id}`)
       }
 
-      logger.storage("Created", "task", id)
-      logger.debug(LogContext.TASKS, `Task rev: ${res.rev}`)
+      logger.storage("Created", "TASKS", id)
+      logger.debug(logger.CONTEXT.TASKS, `Task rev: ${res.rev}`)
 
       return docToTask(doc)
     } catch (error: any) {
       if (error?.status === 409) {
-        logger.warn(LogContext.TASKS, `Conflict creating task ${id}: document already exists`)
+        logger.warn(logger.CONTEXT.TASKS, `Conflict creating task ${id}: document already exists`)
       } else {
-        logger.error(LogContext.TASKS, `Failed to create task ${id}`, error)
+        logger.error(logger.CONTEXT.TASKS, `Failed to create task ${id}`, error)
       }
       throw error
     }
@@ -108,8 +108,8 @@ export class TaskModel {
         throw new Error(`Failed to update task ${id}`)
       }
 
-      logger.storage("Updated", "task", id)
-      logger.debug(LogContext.TASKS, `Task rev: ${res.rev}, attempt: ${attempt + 1}`)
+      logger.storage("Updated", "TASKS", id)
+      logger.debug(logger.CONTEXT.TASKS, `Task rev: ${res.rev}, attempt: ${attempt + 1}`)
 
       return docToTask(updatedDoc)
     })
@@ -134,16 +134,16 @@ export class TaskModel {
           throw new Error(`Failed to soft-delete task ${id}`)
         }
 
-        logger.storage("Deleted", "task", id)
-        logger.debug(LogContext.TASKS, `Task rev: ${res.rev}, attempt: ${attempt + 1}`)
+        logger.storage("Deleted", "TASKS", id)
+        logger.debug(logger.CONTEXT.TASKS, `Task rev: ${res.rev}, attempt: ${attempt + 1}`)
         return true
       } catch (error: any) {
         if (error?.status === 404) {
-          logger.warn(LogContext.TASKS, `Task not found for deletion: ${id}`)
+          logger.warn(logger.CONTEXT.TASKS, `Task not found for deletion: ${id}`)
           return false
         }
 
-        logger.error(LogContext.TASKS, `Failed to delete task ${id}`, error)
+        logger.error(logger.CONTEXT.TASKS, `Failed to delete task ${id}`, error)
         throw error
       }
     })
@@ -170,11 +170,11 @@ export class TaskModel {
         return deletedAtTime >= PERMANENT_DELETE_THRESHOLD
       })
 
-      logger.info(LogContext.TASKS, `Loaded ${filteredDocs.length} deleted tasks from database`)
+      logger.info(logger.CONTEXT.TASKS, `Loaded ${filteredDocs.length} deleted tasks from database`)
 
       return filteredDocs.map(docToTask)
     } catch (error) {
-      logger.error(LogContext.TASKS, "Failed to load deleted tasks from database", error)
+      logger.error(logger.CONTEXT.TASKS, "Failed to load deleted tasks from database", error)
       throw error
     }
   }
@@ -184,7 +184,7 @@ export class TaskModel {
       try {
         const doc = await this.db.get<TaskDoc>(docIdMap.task.toDoc(id))
         if (!doc?.deletedAt) {
-          logger.warn(LogContext.TASKS, `Task ${id} not found or not deleted`)
+          logger.warn(logger.CONTEXT.TASKS, `Task ${id} not found or not deleted`)
           return null
         }
 
@@ -201,16 +201,16 @@ export class TaskModel {
           throw new Error(`Failed to restore task ${id}`)
         }
 
-        logger.storage("Restored", "task", id)
-        logger.debug(LogContext.TASKS, `Task rev: ${res.rev}, attempt: ${attempt + 1}`)
+        logger.storage("Restored", "TASKS", id)
+        logger.debug(logger.CONTEXT.TASKS, `Task rev: ${res.rev}, attempt: ${attempt + 1}`)
 
         return docToTask(restoredDoc)
       } catch (error: any) {
         if (error?.status === 404) {
-          logger.warn(LogContext.TASKS, `Task not found for restoration: ${id}`)
+          logger.warn(logger.CONTEXT.TASKS, `Task not found for restoration: ${id}`)
           return null
         }
-        logger.error(LogContext.TASKS, `Failed to restore task ${id}`, error)
+        logger.error(logger.CONTEXT.TASKS, `Failed to restore task ${id}`, error)
         throw error
       }
     })
@@ -237,16 +237,16 @@ export class TaskModel {
           throw new Error(`Failed to permanently delete task ${id}`)
         }
 
-        logger.storage("Permanently Deleted", "task", id)
-        logger.debug(LogContext.TASKS, `Task rev: ${res.rev}, attempt: ${attempt + 1}`)
+        logger.storage("Permanently Deleted", "TASKS", id)
+        logger.debug(logger.CONTEXT.TASKS, `Task rev: ${res.rev}, attempt: ${attempt + 1}`)
 
         return true
       } catch (error: any) {
         if (error?.status === 404) {
-          logger.warn(LogContext.TASKS, `Task not found for permanent deletion: ${id}`)
+          logger.warn(logger.CONTEXT.TASKS, `Task not found for permanent deletion: ${id}`)
           return false
         }
-        logger.error(LogContext.TASKS, `Failed to permanently delete task ${id}`, error)
+        logger.error(logger.CONTEXT.TASKS, `Failed to permanently delete task ${id}`, error)
         throw error
       }
     })

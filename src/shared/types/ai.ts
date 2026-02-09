@@ -1,5 +1,5 @@
 export type AIProvider = "openai" | "local"
-export type LocalModelId = "daily-local-fast" | "daily-local-balanced" | "daily-local-quality"
+export type LocalModelId = "daily-fast" | "daily-balanced" | "daily-quality"
 
 export type AIConfig = {
   enabled: boolean
@@ -76,9 +76,6 @@ export type LocalRuntimeParams = {
   threads?: number
 }
 
-/** Local runtime state
- * Useful for UI to show the state of the local runtime
- */
 export type LocalRuntimeState =
   | {status: "not_installed"}
   | {status: "downloading"; modelId: LocalModelId; progress: number}
@@ -87,7 +84,6 @@ export type LocalRuntimeState =
   | {status: "running"; modelId: LocalModelId; port: number; pid?: number}
   | {status: "error"; modelId?: LocalModelId; message: string; details?: string}
 
-/** Local model manifest (llama.cpp) */
 export type LocalModelManifest = {
   version: number
   models: Array<{
@@ -103,7 +99,6 @@ export type LocalModelManifest = {
     }>
     serverDefaults: LocalRuntimeParams
     capabilities: {
-      /** How we do tools: compat loop vs native tools */
       tools: LocalToolingMode
       json: "strict" | "loose"
     }
@@ -114,7 +109,7 @@ export type LocalToolingMode = "compat" | "native"
 
 export type LocalConfig = {
   modelId: LocalModelId
-  toolingMode?: LocalToolingMode // default "compat"
+  toolingMode?: LocalToolingMode
   params?: LocalRuntimeParams
 }
 

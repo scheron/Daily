@@ -1,19 +1,8 @@
-/**
- * AI Tools Definition
- *
- * Loads tool definitions from JSONL files (inlined at build time via Vite ?raw).
- * Each line in a JSONL file is a JSON object representing one tool.
- */
-
 import toolsCompactRaw from "./tools-compact.jsonl?raw"
 import toolsRaw from "./tools.jsonl?raw"
 
 import type {Tool} from "../types"
 
-/**
- * Parse JSONL content into an array of Tool objects.
- * Each line must be a valid JSON object representing a Tool.
- */
 function parseToolsJsonl(content: string): Tool[] {
   return content
     .trim()
@@ -23,11 +12,6 @@ function parseToolsJsonl(content: string): Tool[] {
 
 export const AI_TOOLS: Tool[] = parseToolsJsonl(toolsRaw)
 
-/**
- * Compact tool set for local LLMs — fewer tools, shorter descriptions, smaller payload.
- * Removes redundant tools (complete_task, discard_task, reactivate_task → use update_task with status).
- * Removes rare tools (get_tag, permanently_delete_task, get_deleted_tasks, restore_task).
- */
 export const AI_TOOLS_COMPACT: Tool[] = parseToolsJsonl(toolsCompactRaw)
 
 export type ToolName =

@@ -1,7 +1,7 @@
 import https from "https"
 import {app, dialog, shell} from "electron"
 
-import {LogContext, logger} from "@/utils/logger"
+import {logger} from "@/utils/logger"
 
 import type {BrowserWindow} from "electron"
 
@@ -19,7 +19,7 @@ export function setupUpdateManager(window: BrowserWindow) {
 
 export function checkForUpdate(window: BrowserWindow, manual = true) {
   const currentVersion = app.getVersion()
-  logger.debug(LogContext.APP, `Checking for updates (current: ${currentVersion})`)
+  logger.debug(logger.CONTEXT.APP, `Checking for updates (current: ${currentVersion})`)
 
   const options = {
     headers: {
@@ -32,7 +32,7 @@ export function checkForUpdate(window: BrowserWindow, manual = true) {
     .get(API_URL, options, (res) => {
       if (res.statusCode !== 200) {
         const error = new Error(`GitHub API Error: ${res.statusCode} - ${res.statusMessage}`)
-        logger.error(LogContext.APP, "Failed to fetch latest release", error)
+        logger.error(logger.CONTEXT.APP, "Failed to fetch latest release", error)
         if (manual) dialog.showErrorBox("Update Check Failed", error.message)
         res.resume()
         return
@@ -46,7 +46,7 @@ export function checkForUpdate(window: BrowserWindow, manual = true) {
           const tag = json.tag_name?.replace(/^v/, "")
           if (!tag) throw new Error("No tag_name in release")
 
-          logger.info(LogContext.APP, `Version check: Current ${currentVersion}, Latest ${tag}`)
+          logger.info(logger.CONTEXT.APP, `Version check: Current ${currentVersion}, Latest ${tag}`)
 
           if (tag === currentVersion) {
             if (manual) {
@@ -78,13 +78,13 @@ export function checkForUpdate(window: BrowserWindow, manual = true) {
               })
           }
         } catch (e: any) {
-          logger.error(LogContext.APP, "Failed to parse release info", e)
+          logger.error(logger.CONTEXT.APP, "Failed to parse release info", e)
           if (manual) dialog.showErrorBox("Update Check Failed", e.message)
         }
       })
     })
     .on("error", (err) => {
-      logger.error(LogContext.APP, "Failed to connect to GitHub", err)
+      logger.error(logger.CONTEXT.APP, "Failed to connect to GitHub", err)
       if (manual) dialog.showErrorBox("Update Check Failed", err.message)
     })
 }

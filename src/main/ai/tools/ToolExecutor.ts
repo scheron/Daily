@@ -1,34 +1,18 @@
-/**
- * Tool Executor
- *
- * Executes AI tool calls by delegating to StorageController.
- */
-
 import {nanoid} from "nanoid"
 
 import {toDurationLabel} from "@shared/utils/date/formatters"
-import {LogContext, logger} from "@/utils/logger"
+import {logger} from "@/utils/logger"
 
 import type {StorageController} from "@/storage/StorageController"
 import type {Day, File, Tag, Task} from "@shared/types/storage"
 import type {ToolName} from "./tools"
-
-export type ToolResult = {
-  success: boolean
-  data?: unknown
-  error?: string
-}
-
-type ToolParams = Record<string, unknown>
-
-// Random tag colors
-const TAG_COLORS = ["#ef4444", "#f97316", "#eab308", "#22c55e", "#14b8a6", "#3b82f6", "#8b5cf6", "#ec4899"]
+import type {ToolParams, ToolResult} from "./types"
 
 export class ToolExecutor {
   constructor(private storage: StorageController) {}
 
   async execute(toolName: ToolName, params: ToolParams): Promise<ToolResult> {
-    logger.info(LogContext.AI, `Executing tool: ${toolName}`, params)
+    logger.info(logger.CONTEXT.AI, `Executing tool: ${toolName}`, params)
 
     try {
       switch (toolName) {
@@ -90,7 +74,7 @@ export class ToolExecutor {
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      logger.error(LogContext.AI, `Tool execution failed: ${toolName}`, error)
+      logger.error(logger.CONTEXT.AI, `Tool execution failed: ${toolName}`, error)
       return {success: false, error: message}
     }
   }
@@ -615,6 +599,7 @@ export class ToolExecutor {
       return {success: false, error: "name is required"}
     }
 
+    const TAG_COLORS = ["#ef4444", "#f97316", "#eab308", "#22c55e", "#14b8a6", "#3b82f6", "#8b5cf6", "#ec4899"]
     const color = (params.color as string) || TAG_COLORS[Math.floor(Math.random() * TAG_COLORS.length)]
 
     const created = await this.storage.createTag({name, color, deletedAt: null})
