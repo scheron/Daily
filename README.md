@@ -117,10 +117,10 @@ Daily includes a built-in AI agent — not just a chatbot, but an assistant that
 
 | **OpenAI**                                                                          | **Local models**                                                                                                                            |
 | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| 🔑 Connect your API key for cloud-based models (e.g., GPT-4, DeepSeek, etc.)        | 🏠 Run everything offline with llama.cpp                                                                                                    |
-| - Access to advanced cloud models<br>- Always up-to-date<br>- No downloads required | - Metal GPU acceleration on macOS for fast inference<br>- Three curated models: fast, balanced, or quality<br>- No data leaves your machine |
-| - Configure API key and model in settings                                           | - Download and manage models directly in the app                                                                                            |
-| ![Remote Model Settings](./media/ai-settings-remote.png)                            | ![Local Model Settings](./media/ai-settings-local.png)                                                                                      |
+| 🔑 Connect your API key for cloud-based models (e.g., GPT-4, DeepSeek, etc.)         | 🏠 Run everything offline with llama.cpp                                                                                                    |
+| - Metal GPU acceleration on macOS for fast inference<br>- Three curated models: fast, balanced, or quality<br>- No data leaves your machine | - Access to advanced cloud models<br>- Always up-to-date<br>- No downloads required|
+| - Download and manage models directly in the app                                           | - Configure API key and model in settings                                                                                             |
+| ![Local Model Settings](./media/ai-settings-local.png)                          |   ![Remote Model Settings](./media/ai-settings-remote.png)                                                                                      |
 
 ---
 
