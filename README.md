@@ -117,9 +117,9 @@ Daily includes a built-in AI agent — not just a chatbot, but an assistant that
 
 | **Local models**                                                                          | **Remote models(OpenAI)**                                                                                                                            |
 | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| Connect your API key for cloud-based models (e.g., GPT-4, DeepSeek, etc.)         | Run everything offline with llama.cpp                                                                                                    |
+| Run everything offline with llama.cpp         |  Connect your API key for cloud-based models (e.g., GPT-4, DeepSeek, etc.)                                                                                                   |
 | - Metal GPU acceleration on macOS for fast inference<br>- Three curated models: fast, balanced, or quality<br>- No data leaves your machine | - Access to advanced cloud models<br>- Always up-to-date<br>- No downloads required|
-| - Download and manage models directly in the app                                           | - Configure API key and model in settings                                                                                             |
+| Download and manage models directly in the app                                           | Configure API key and model in settings                                                                                             |
 | ![Local Model Settings](./media/ai-settings-local.png)                          |   ![Remote Model Settings](./media/ai-settings-remote.png)                                                                                      |
 
 ---
