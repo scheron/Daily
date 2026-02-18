@@ -7,6 +7,7 @@ import DynamicTagsPanel from "@/ui/common/misc/DynamicTagsPanel.vue"
 import MarkdownContent from "@/ui/common/misc/MarkdownContent.vue"
 
 import {useTaskEditorStore} from "@MainView/stores/taskEditor.store"
+import {useCopyTaskToClipboard} from "./composables/useCopyTaskToClipboard"
 import QuickActions from "./{fragments}/QuickActions.vue"
 import StatusButtons from "./{fragments}/StatusButtons.vue"
 import TimeTrackingButton from "./{fragments}/TimeTrackingButton.vue"
@@ -17,6 +18,7 @@ const props = withDefaults(defineProps<{task: Task; tags?: Tag[]}>(), {tags: () 
 
 const tasksStore = useTasksStore()
 const taskEditorStore = useTaskEditorStore()
+const {copyTaskToClipboard} = useCopyTaskToClipboard()
 
 function onChangeStatus(status: TaskStatus) {
   if (props.task.status === status) return
@@ -44,6 +46,14 @@ async function onMoveDate(targetDate: ISODate) {
   if (isMoved) toasts.success("Task moved successfully")
   else toasts.error("Failed to move task")
 }
+
+async function onCopyTask() {
+  if (!props.task) return
+
+  const copied = await copyTaskToClipboard(props.task, props.tags)
+  if (copied) toasts.success("Task copied to clipboard")
+  else toasts.error("Failed to copy task")
+}
 </script>
 
 <template>
@@ -69,7 +79,7 @@ async function onMoveDate(targetDate: ISODate) {
       <div class="mb-3 flex w-full items-center justify-between gap-3">
         <DynamicTagsPanel :tags="tags" empty-message="No tags" />
         <div class="flex shrink-0 items-center gap-2">
-          <QuickActions @move-date="onMoveDate" @edit="onEdit" @delete="onDelete" />
+          <QuickActions @move-date="onMoveDate" @edit="onEdit" @delete="onDelete" @copy-task="onCopyTask" />
           <TimeTrackingButton :task="task" />
           <StatusButtons :status="task.status" @update:status="onChangeStatus" />
         </div>

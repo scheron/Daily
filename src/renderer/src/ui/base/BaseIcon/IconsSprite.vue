@@ -61,6 +61,7 @@ export type IconName =
   | "arrow-up"
   | "stop"
   | "spinner"
+  | "copy"
 </script>
 
 <template>
@@ -498,6 +499,10 @@ export type IconName =
         <path d="M2 12h4"></path>
         <path d="m4.9 4.9 2.9 2.9"></path>
       </symbol>
+    </symbol>
+    <symbol id="copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect>
+      <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
     </symbol>
   </svg>
 </template>

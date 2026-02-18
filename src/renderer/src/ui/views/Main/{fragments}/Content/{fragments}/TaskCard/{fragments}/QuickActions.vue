@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {computed, ref, useTemplateRef} from "vue"
+import {autoResetRef} from "@vueuse/core"
 
 import {ISODate} from "@shared/types/common"
 import {useTasksStore} from "@/stores/tasks.store"
@@ -13,10 +14,12 @@ const emit = defineEmits<{
   edit: []
   "move-date": [date: ISODate]
   delete: []
+  "copy-task": []
 }>()
 
 const tasksStore = useTasksStore()
 const themeStore = useThemeStore()
+const isCopyNotified = autoResetRef(false, 1000)
 
 const deleteButtonRef = useTemplateRef<HTMLDivElement>("deleteButton")
 
@@ -32,6 +35,11 @@ function withOpenDayPicker(show: () => void) {
   isOpenDayPicker.value = true
   show()
 }
+
+async function onCopyTask() {
+  isCopyNotified.value = true
+  emit("copy-task")
+}
 </script>
 
 <template>
@@ -39,6 +47,15 @@ function withOpenDayPicker(show: () => void) {
     class="flex items-center gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100 focus-within:opacity-100"
     :class="[isOpenDayPicker ? 'opacity-100' : 'opacity-0']"
   >
+    <BaseButton
+      variant="ghost"
+      size="sm"
+      :icon="isCopyNotified ? 'check' : 'copy'"
+      class="hover:text-accent hover:bg-accent/10 size-7"
+      :tooltip="isCopyNotified ? 'Copied' : 'Copy to clipboard'"
+      icon-class="size-4"
+      @click="onCopyTask"
+    />
     <div ref="deleteButton" class="size-7 rounded-md">
       <BaseButton
         variant="ghost"
