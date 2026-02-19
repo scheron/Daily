@@ -6,6 +6,7 @@ import {isToday} from "@shared/utils/date/validators"
 import BaseButton from "@/ui/base/BaseButton.vue"
 
 import {WEEKDAYS} from "./constants"
+import {useCalendarSwipe} from "./useCalendarSwipe"
 import {formatDaysToMonth} from "./utils"
 
 import type {ISODate} from "@shared/types/common"
@@ -37,6 +38,7 @@ const emit = defineEmits<{
 }>()
 
 const currentMonth = ref<DateTime<boolean>>(DateTime.now())
+const calendarRootEl = ref<HTMLElement | null>(null)
 
 const calendarDays = computed(() => formatDaysToMonth(currentMonth.value, props.days))
 const monthYearDisplay = computed(() => currentMonth.value.toFormat("MMMM yyyy", {locale: "en"}))
@@ -155,10 +157,16 @@ onBeforeMount(() => {
       ? DateTime.fromISO(props.selectedDate)
       : DateTime.now()
 })
+
+useCalendarSwipe({
+  target: calendarRootEl,
+  onPreviousMonth: previousMonth,
+  onNextMonth: nextMonth,
+})
 </script>
 
 <template>
-  <div class="flex-1">
+  <div ref="calendarRootEl" class="flex-1">
     <div class="mb-4 flex items-center justify-between gap-1">
       <div class="flex flex-1 items-center justify-between gap-1">
         <BaseButton variant="ghost" icon="chevron-left" @click="previousMonth" />

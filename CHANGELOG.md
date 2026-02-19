@@ -13,6 +13,7 @@
   ![Tags Predict Preview](./media/tags-predict.png)
 - Simplified UI copy and actions for a more minimal interface
 - Replaced native About dialog with a compact custom About window (logo, version, copyright)
+- Improved month calendar navigation: added mouse wheel and horizontal swipe support (touchpad/touch), with one month change per gesture
 
 ## v0.10.0 - 2026-02-09
 
