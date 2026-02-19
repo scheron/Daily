@@ -7,6 +7,7 @@ import AiSettings from "./{fragments}/AiSettings"
 import DeletedTasks from "./{fragments}/DeletedTasks"
 import SyncSettings from "./{fragments}/SyncSettings.vue"
 import Themes from "./{fragments}/Themes.vue"
+import IconsList from "../IconsList"
 
 const COMMON_GROUP = "settings"
 </script>
@@ -45,6 +46,7 @@ const COMMON_GROUP = "settings"
       </template>
       <SyncSettings />
     </ExpansionPanel>
+
     <ExpansionPanel :group="COMMON_GROUP">
       <template #header>
         <h3 class="text-base-content flex items-center gap-2 text-sm font-semibold">
@@ -53,6 +55,16 @@ const COMMON_GROUP = "settings"
         </h3>
       </template>
       <DeletedTasks />
+    </ExpansionPanel>
+
+    <ExpansionPanel :group="COMMON_GROUP">
+      <template #header>
+        <h3 class="text-base-content flex items-center gap-2 text-sm font-semibold">
+          <BaseIcon name="heading" class="text-accent size-4" />
+          Icons
+        </h3>
+      </template>
+      <IconsList />
     </ExpansionPanel>
   </div>
 </template>
