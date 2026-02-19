@@ -12,6 +12,7 @@
 - Added inline tag commands in the task editor: `#tag` to attach and `-#tag` to detach
   ![Tags Predict Preview](./media/tags-predict.png)
 - Simplified UI copy and actions for a more minimal interface
+- Replaced native About dialog with a compact custom About window (logo, version, copyright)
 
 ## v0.10.0 - 2026-02-09
 

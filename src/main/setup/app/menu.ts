@@ -1,4 +1,4 @@
-import {app, dialog, ipcMain, Menu} from "electron"
+import {app, ipcMain, Menu} from "electron"
 
 import {ENV} from "@/config"
 import {checkForUpdate} from "@/setup/updates/updater"
@@ -28,15 +28,7 @@ function createMacMenu(mainWindow: BrowserWindow): MenuItemConstructorOptions[] 
       submenu: [
         {
           label: "About Daily",
-          click: () => {
-            dialog.showMessageBox(mainWindow, {
-              type: "info",
-              title: "About Daily",
-              message: "Daily",
-              detail: `Version: ${app.getVersion()}\nElevate Your Productivity with Daily\n\nCopyright © 2025 Infected by js`,
-              buttons: ["OK"],
-            })
-          },
+          click: () => ipcMain.emit("about:open"),
         },
         {
           label: "Check for Updates...",
@@ -154,15 +146,7 @@ function createWindowsMenu(mainWindow: BrowserWindow): MenuItemConstructorOption
       submenu: [
         {
           label: "About Daily",
-          click: () => {
-            dialog.showMessageBox(mainWindow, {
-              type: "info",
-              title: "About Daily",
-              message: "Daily",
-              detail: `Version: ${app.getVersion()}\nElevate Your Productivity with Daily\n\nCopyright © 2025 Infected by js`,
-              buttons: ["OK"],
-            })
-          },
+          click: () => ipcMain.emit("about:open"),
         },
       ],
     },

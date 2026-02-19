@@ -9,6 +9,7 @@ import {setupInstanceAndDeepLinks} from "@/setup/app/instance"
 import {setupActivateHandler, setupAppIdentity, setupDockIcon, setupWindowAllClosedHandler} from "@/setup/app/lifecycle"
 import {setupMenu} from "@/setup/app/menu"
 import {setupStorageSync} from "@/setup/app/storage"
+import {setupAboutIPC} from "@/setup/ipc/about"
 import {setupAiIPC} from "@/setup/ipc/ai"
 import {setupDbViewerIPC, setupDevToolsIPC} from "@/setup/ipc/devtools"
 import {setupMenuIPC} from "@/setup/ipc/menu"
@@ -23,9 +24,9 @@ import {createMainWindow, createSplashWindow, focusWindow} from "@/windows"
 
 import type {BrowserWindow} from "electron"
 
-type AppWindows = {main: BrowserWindow | null; splash: BrowserWindow | null; devTools: BrowserWindow | null}
+type AppWindows = {main: BrowserWindow | null; splash: BrowserWindow | null; devTools: BrowserWindow | null; about: BrowserWindow | null}
 
-const windows: AppWindows = {main: null, splash: null, devTools: null}
+const windows: AppWindows = {main: null, splash: null, devTools: null, about: null}
 let storage: StorageController | null = null
 let ai: AIController | null = null
 
@@ -79,6 +80,10 @@ app.whenReady().then(async () => {
     () => windows.main,
     () => windows.devTools,
     (win) => (windows.devTools = win),
+  )
+  setupAboutIPC(
+    () => windows.about,
+    (win) => (windows.about = win),
   )
 
   setupStorageIPC(() => storage)
