@@ -7,6 +7,8 @@
 - Improved Tag-related components
 - Add more chars to tags form
 - Fixed an issue where relative dates were not properly shown as "Today" and "Yesterday"
+- Fixed an issue where tags appeared in different orders
+- Added automatic scroll to top when starting to edit or add a task, ensuring the editor is always visible
 
 ## v0.10.0 - 2026-02-09
 

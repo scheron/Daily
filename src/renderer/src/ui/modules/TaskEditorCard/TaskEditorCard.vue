@@ -45,6 +45,11 @@ const initialState = ref({
 const activeTagIds = computed(() => new Set(selectedTags.value.keys()))
 const isNewTask = computed(() => taskEditorStore.currentEditingTask === null)
 
+const editorId = computed(() => {
+  if (isNewTask.value) return "task-editor-new-task"
+  return `task-editor-${taskEditorStore.currentEditingTask?.id}`
+})
+
 const content = computed({
   get: () => taskEditorStore.editorContent,
   set: (v) => taskEditorStore.setEditorContent(v),
@@ -269,6 +274,7 @@ const {isDraggingOver} = useFileDrop(container, {
 
 <template>
   <div
+    :id="editorId"
     class="group min-h-card bg-base-100 hover:shadow-accent/5 border-base-300 relative flex flex-col overflow-hidden rounded-xl border transition-all duration-200 hover:shadow-lg"
     :class="{'ring-offset-base-100 ring-accent/50 ring-2': isDraggingOver}"
   >

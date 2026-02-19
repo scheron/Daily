@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed} from "vue"
+import {computed, watch} from "vue"
 
 import {ISODate} from "@shared/types/common"
 import {Tag, Task} from "@shared/types/storage"
@@ -8,6 +8,7 @@ import {useFilterStore} from "@/stores/filter.store"
 import {useTagsStore} from "@/stores/tags.store"
 import {useTaskEditorStore} from "@/stores/taskEditor.store"
 import {useTasksStore} from "@/stores/tasks.store"
+import {scrollToElement} from "@/utils/ui/dom"
 import BaseAnimation from "@/ui/base/BaseAnimation.vue"
 import BaseSpinner from "@/ui/base/BaseSpinner.vue"
 import TaskCard from "@/ui/modules/TaskCard"
@@ -72,6 +73,16 @@ function createTaskPlaceholder(date: ISODate): Task {
     updatedAt: new Date().toISOString(),
   }
 }
+
+watch(
+  () => taskEditorStore.isTaskEditorOpen,
+  (isOpen) => {
+    if (isOpen) {
+      const editorId = taskEditorStore.currentEditingTask ? `task-editor-${taskEditorStore.currentEditingTask.id}` : "task-editor-new-task"
+      scrollToElement(editorId, {behavior: "instant", block: "start"})
+    }
+  },
+)
 </script>
 
 <template>
