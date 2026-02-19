@@ -39,11 +39,16 @@ const emit = defineEmits<{
     <template v-else>
       <p class="text-info text-center text-sm">
         No available models yet. <br />
-        Open settings and configure your first AI assistant.
+        Open settings to set up AI.
       </p>
-      <BaseButton class="border-info text-info w-full text-sm" size="sm" variant="outline" @click="emit('go-to-settings')">
-        Go to Settings
-      </BaseButton>
+      <BaseButton
+        class="border-info text-info size-8 p-0 text-sm"
+        size="sm"
+        icon="sidebar"
+        tooltip="Settings"
+        variant="outline"
+        @click="emit('go-to-settings')"
+      />
     </template>
   </div>
 </template>

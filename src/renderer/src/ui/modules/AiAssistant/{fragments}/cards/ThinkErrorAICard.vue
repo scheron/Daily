@@ -13,6 +13,8 @@ function onRetry() {
 <template>
   <div class="bg-error/10 text-error rounded-lg px-3 py-2 text-sm">
     <p class="text-error text-center text-xs">Failed to generate response. Please try again.</p>
-    <BaseButton variant="ghost" size="sm" icon="refresh" class="text-error hover:bg-error/10 mt-2 w-full" @click="onRetry"> Retry </BaseButton>
+    <div class="mt-2 flex justify-center">
+      <BaseButton variant="ghost" size="sm" icon="refresh" tooltip="Retry" class="text-error hover:bg-error/10 size-7 p-0" @click="onRetry" />
+    </div>
   </div>
 </template>

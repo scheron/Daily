@@ -51,24 +51,29 @@ function onDownload() {
           </template>
 
           <template v-else-if="!model.installed && !isDownloading">
-            <BaseButton variant="secondary" size="sm" class="px-2 py-1 text-xs" @click="onDownload"> Download </BaseButton>
+            <BaseButton variant="secondary" size="sm" icon="plus" tooltip="Download" class="size-7 p-0" @click="onDownload" />
           </template>
 
           <template v-else-if="isDownloading">
-            <BaseButton variant="ghost" size="sm" class="text-warning hover:text-warning p-0 text-xs" @click="emit('cancelDownload')">
-              Cancel
-            </BaseButton>
+            <BaseButton
+              variant="ghost"
+              size="sm"
+              icon="x-mark"
+              tooltip="Cancel"
+              class="text-warning hover:text-warning size-7 p-0"
+              @click="emit('cancelDownload')"
+            />
           </template>
 
           <template v-else-if="model.installed && !isActive">
-            <BaseButton variant="secondary" size="sm" class="px-2 py-1 text-xs" @click="emit('select')"> Select </BaseButton>
-            <BaseButton variant="ghost" size="sm" class="p-1" tooltip="Delete model" @click="emit('delete')">
+            <BaseButton variant="secondary" size="sm" icon="check" tooltip="Select" class="size-7 p-0" @click="emit('select')" />
+            <BaseButton variant="ghost" size="sm" class="size-7 p-0" tooltip="Delete" @click="emit('delete')">
               <BaseIcon name="trash" class="size-4" />
             </BaseButton>
           </template>
 
           <template v-else-if="model.installed && isActive">
-            <BaseButton variant="ghost" size="sm" class="p-1" tooltip="Delete model" @click="emit('delete')">
+            <BaseButton variant="ghost" size="sm" class="size-7 p-0" tooltip="Delete" @click="emit('delete')">
               <BaseIcon name="trash" class="size-4" />
             </BaseButton>
           </template>

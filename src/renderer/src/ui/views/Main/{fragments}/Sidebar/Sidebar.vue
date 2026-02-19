@@ -49,7 +49,7 @@ const showCollapseButton = computed(() => {
         v-if="showCollapseButton"
         variant="ghost"
         icon="sidebar"
-        :tooltip="isDesktop ? 'Collapse Sidebar' : 'Close Sidebar'"
+        :tooltip="isDesktop ? 'Collapse' : 'Close'"
         style="-webkit-app-region: no-drag"
         @click="uiStore.toggleSidebarCollapse()"
       />

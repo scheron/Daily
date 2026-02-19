@@ -27,7 +27,7 @@ const showToggleButton = computed(() => {
         v-if="showToggleButton"
         variant="ghost"
         icon="sidebar"
-        :tooltip="isDesktop ? 'Expand Sidebar' : 'Toggle Sidebar'"
+        :tooltip="isDesktop ? 'Expand' : 'Menu'"
         :class="{'ml-16': isMobile}"
         style="-webkit-app-region: no-drag"
         @click="emit('toggleSidebar')"
@@ -41,12 +41,11 @@ const showToggleButton = computed(() => {
     <BaseButton
       v-if="!taskEditorOpen"
       variant="text"
-      class="text-accent hover:bg-accent/10 focus-visible-ring focus-visible:ring-accent shrink-0 px-4 py-0"
+      class="text-accent hover:bg-accent/10 focus-visible-ring focus-visible:ring-accent size-8 shrink-0 p-0"
       icon="plus"
+      tooltip="Create"
       style="-webkit-app-region: no-drag"
       @click="emit('createTask')"
-    >
-      New Task
-    </BaseButton>
+    />
   </div>
 </template>

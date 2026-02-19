@@ -97,18 +97,14 @@ export function createTagsAutocompleteExtension(options: TagsAutocompleteOptions
   const source = (context: CompletionContext): CompletionResult | null => {
     // Strict trigger: only #tag or -#tag, never plain "#" or "# ".
     const match = context.matchBefore(/-?#[\w-]+/)
-    console.log("[1] match", match?.text)
     if (!match) return null
 
-    console.log("[2] explicit/empty", context.explicit, match.from === match.to)
     if (!context.explicit && match.from === match.to) return null
 
     const charBeforeHash = match.from > 0 ? context.state.sliceDoc(match.from - 1, match.from) : ""
-    console.log("[3] charBeforeHash", JSON.stringify(charBeforeHash))
     if (charBeforeHash && /[\w-]/.test(charBeforeHash)) return null
     const isRemove = match.text.startsWith("-#")
     const query = match.text.slice(isRemove ? 2 : 1)
-    console.log("[4] query", query)
 
     metaByLabel.clear()
     const sourceTags = isRemove ? (options.getAttachedTags?.() ?? options.getTags()) : options.getTags()
@@ -119,7 +115,6 @@ export function createTagsAutocompleteExtension(options: TagsAutocompleteOptions
       metaByLabel,
       isRemove ? options.onRemoveTag : options.onAddTag,
     )
-    console.log("[5] completions", completions.length)
     if (!completions.length) return null
 
     const result = {
@@ -128,7 +123,6 @@ export function createTagsAutocompleteExtension(options: TagsAutocompleteOptions
       options: completions,
       validFor: /-?#[\w-]*/,
     }
-    console.log("[6] result", result)
     return result
   }
 

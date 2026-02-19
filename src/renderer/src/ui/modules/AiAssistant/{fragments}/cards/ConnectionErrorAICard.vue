@@ -19,6 +19,6 @@ function onRetry() {
       Cannot connect to API. <br />
       Check your API key and URL in settings
     </p>
-    <BaseButton class="border-error text-error w-full text-sm" size="sm" variant="outline" @click="onRetry"> Reconnect </BaseButton>
+    <BaseButton class="border-error text-error size-8 p-0 text-sm" size="sm" variant="outline" icon="refresh" tooltip="Reconnect" @click="onRetry" />
   </div>
 </template>

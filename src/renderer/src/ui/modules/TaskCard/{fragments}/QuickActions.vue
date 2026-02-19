@@ -43,7 +43,7 @@ function withOpenDayPicker(show: () => void) {
       <BaseButton
         variant="ghost"
         size="sm"
-        tooltip="Hold to delete task"
+        tooltip="Hold to delete"
         icon="trash"
         class="hover:text-error hover:bg-error/10 size-full"
         :class="{'text-error': isFilling}"
@@ -52,7 +52,7 @@ function withOpenDayPicker(show: () => void) {
     </div>
 
     <DayPicker
-      title="Move task to day"
+      title="Move to day"
       :days="tasksStore.days"
       :active-day="tasksStore.activeDay"
       @select="emit('move-date', $event)"
@@ -63,7 +63,7 @@ function withOpenDayPicker(show: () => void) {
           variant="ghost"
           size="sm"
           icon="calendar"
-          tooltip="Move task to another day"
+          tooltip="Move day"
           class="hover:text-accent hover:bg-accent/10 size-7"
           icon-class="size-5"
           @click="withOpenDayPicker(show)"
@@ -76,7 +76,7 @@ function withOpenDayPicker(show: () => void) {
       size="sm"
       icon="pencil"
       class="hover:text-accent hover:bg-accent/10 size-7"
-      tooltip="Edit task"
+      tooltip="Edit"
       icon-class="size-4"
       @click="emit('edit')"
     />

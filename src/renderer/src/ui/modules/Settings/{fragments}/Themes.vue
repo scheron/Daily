@@ -96,21 +96,21 @@ function setPreferredDarkTheme(event: Event) {
         variant="secondary"
         size="sm"
         icon="monitor"
+        class="size-8 p-0"
+        :tooltip="
+          themeStore.isGlassUIEnabled
+            ? 'System sync disabled in Glass UI'
+            : themeStore.isSystemThemeEnabled
+              ? 'System sync enabled'
+              : 'Sync with system theme'
+        "
         :disabled="themeStore.isGlassUIEnabled"
         :class="{
           'border-accent border': themeStore.isSystemThemeEnabled,
           'border-base-300 border': !themeStore.isSystemThemeEnabled,
         }"
         @click="themeStore.toggleSystemTheme()"
-      >
-        {{
-          themeStore.isGlassUIEnabled
-            ? "System Sync Disabled in Glass UI"
-            : themeStore.isSystemThemeEnabled
-              ? "System Sync Enabled"
-              : "Sync with System Theme"
-        }}
-      </BaseButton>
+      />
 
       <BlockUI :block="!themeStore.isSystemThemeEnabled || themeStore.isGlassUIEnabled">
         <div class="border-base-300 flex flex-col gap-4 rounded-lg border p-4">

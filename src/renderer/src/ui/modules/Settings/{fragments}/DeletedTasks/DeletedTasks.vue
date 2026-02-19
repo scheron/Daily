@@ -62,7 +62,7 @@ storageStore.onStorageDataChanged(async () => {
       <BaseIcon name="empty" class="size-12" />
       <div class="space-y-1">
         <p class="text-sm font-medium">No deleted tasks</p>
-        <p class="text-xs">Deleted tasks will appear here</p>
+        <p class="text-xs">Will appear here</p>
       </div>
     </div>
   </div>

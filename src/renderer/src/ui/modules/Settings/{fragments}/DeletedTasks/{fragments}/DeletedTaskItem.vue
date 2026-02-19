@@ -119,7 +119,7 @@ const deletedAtFormatted = computed(() => {
 
         <ConfirmPopup
           ref="confirmPopup"
-          title="Delete task permanently?"
+          title="Delete forever?"
           message="This cannot be undone."
           cancel-text="Cancel"
           confirm-class="text-error hover:bg-error/10"

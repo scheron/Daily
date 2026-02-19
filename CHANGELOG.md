@@ -11,6 +11,7 @@
 - Added automatic scroll to top when starting to edit or add a task, ensuring the editor is always visible
 - Added inline tag commands in the task editor: `#tag` to attach and `-#tag` to detach
   ![Tags Predict Preview](./media/tags-predict.png)
+- Simplified UI copy and actions for a more minimal interface
 
 ## v0.10.0 - 2026-02-09
 

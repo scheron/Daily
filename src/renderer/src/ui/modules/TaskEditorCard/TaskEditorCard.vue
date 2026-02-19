@@ -297,15 +297,15 @@ const {isDraggingOver} = useFileDrop(container, {
     class="group min-h-card bg-base-100 hover:shadow-accent/5 border-base-300 relative flex flex-col overflow-hidden rounded-xl border transition-all duration-200 hover:shadow-lg"
     :class="{'ring-offset-base-100 ring-accent/50 ring-2': isDraggingOver}"
   >
-    <div class="bg-base-100 flex w-full shrink-0 flex-col gap-3 px-4 py-2 md:flex-row md:items-center md:justify-between">
-      <div class="relative flex w-full flex-1 items-center gap-2">
-        <DynamicTagsPanel :tags="tagsStore.tags" :selected-tags="activeTagIds" empty-message="No daily tags" @select="onSelectTag" />
+    <div class="bg-base-100 flex w-full shrink-0 items-center justify-between gap-2 px-4 py-2">
+      <div class="relative flex min-w-0 flex-1 items-center gap-2">
+        <DynamicTagsPanel class="w-full" :tags="tagsStore.tags" :selected-tags="activeTagIds" empty-message="No daily tags" @select="onSelectTag" />
       </div>
 
-      <div class="flex w-full shrink-0 items-center gap-3 md:w-auto">
+      <div class="flex shrink-0 items-center gap-2">
         <BasePopup hide-header container-class="p-0 min-w-40" position="center" content-class="p-3">
           <template #trigger="{toggle}">
-            <BaseButton variant="outline" class="border-accent/30 text-accent hover:bg-accent/10" size="sm" @click="toggle">
+            <BaseButton variant="outline" class="border-accent/30 text-accent hover:bg-accent/10 px-2" size="sm" @click="toggle">
               <span class="px-2 text-xs">{{ estimated.hours }} h.</span>
               <BaseIcon name="stopwatch" class="size-4" />
               <span class="px-2 text-xs">{{ estimated.minutes }} min.</span>
@@ -323,21 +323,19 @@ const {isDraggingOver} = useFileDrop(container, {
           size="sm"
           icon-class="size-4"
           icon="undo"
-          class="text-base-content bg-base-content/5 hover:bg-base-content/10 w-full rounded-sm px-2 py-0.5 md:w-auto"
+          tooltip="Cancel"
+          class="text-base-content bg-base-content/5 hover:bg-base-content/10 size-7 rounded-sm p-0"
           @click="onCancel"
-        >
-          <span class="text-sm">Cancel {{ isNewTask ? "Create" : "Update" }}</span>
-        </BaseButton>
+        />
 
         <BaseButton
-          class="bg-success/20 hover:bg-success/30 text-success w-full rounded-sm px-5 py-0.5 md:w-auto"
+          class="bg-success/20 hover:bg-success/30 text-success size-7 rounded-sm p-0"
           size="sm"
           icon="check"
+          :tooltip="isNewTask ? 'Create' : 'Save'"
           icon-class="size-4"
           @click="onSave"
-        >
-          <span class="text-sm">{{ isNewTask ? "Create New" : "Update Task" }}</span>
-        </BaseButton>
+        />
       </div>
     </div>
 
@@ -349,7 +347,7 @@ const {isDraggingOver} = useFileDrop(container, {
       ></div>
       <FloatingToolbar v-if="view" :editor-view="view" />
 
-      <div class="text-base-content/60 flex shrink-0 items-center justify-center gap-8 text-[10px]">
+      <div class="text-base-content/60 hidden shrink-0 items-center justify-center gap-6 text-[10px] md:flex">
         <div class="flex items-center gap-1.5">
           <kbd class="bg-base-200 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1">#tag</kbd>
           <span>Add tag</span>
@@ -377,6 +375,20 @@ const {isDraggingOver} = useFileDrop(container, {
           <span>+</span>
           <kbd class="bg-base-200 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1">Enter</kbd>
           <span>Save & Continue</span>
+        </div>
+      </div>
+
+      <div class="text-base-content/60 flex shrink-0 items-center justify-center gap-4 text-[10px] md:hidden">
+        <div class="flex items-center gap-1.5">
+          <kbd class="bg-base-200 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1">Esc</kbd>
+          <span>Cancel</span>
+        </div>
+
+        <div class="flex items-center gap-1.5">
+          <kbd class="bg-base-200 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1"> ⌘ </kbd>
+          <span>+</span>
+          <kbd class="bg-base-200 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1">Enter</kbd>
+          <span>Save</span>
         </div>
       </div>
     </div>

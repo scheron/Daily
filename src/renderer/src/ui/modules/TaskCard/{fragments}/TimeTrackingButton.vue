@@ -80,7 +80,7 @@ const timeDifference = computed(() => {
     <template #trigger="{toggle}">
       <div
         v-if="isEstimated"
-        v-tooltip="{content: task.status === 'active' ? 'Open time tracking' : 'Check time tracking', placement: 'bottom-end'}"
+        v-tooltip="{content: 'Time', placement: 'bottom-end'}"
         class="relative flex h-7 shrink-0 items-center gap-1 overflow-hidden rounded-md border border-transparent px-2 py-1 text-xs transition-colors duration-200"
         :class="{
           'text-accent hover:border-accent/10': task.status === 'active',

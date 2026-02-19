@@ -31,6 +31,6 @@ const title = computed(() => {
       </span>
     </h3>
 
-    <BaseButton variant="primary" icon="plus" class="mt-8" @click="emit('createTask')"> Add Task </BaseButton>
+    <BaseButton variant="primary" icon="plus" class="mt-8" @click="emit('createTask')"> Create </BaseButton>
   </div>
 </template>
