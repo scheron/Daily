@@ -1,52 +1,14 @@
 <script setup lang="ts">
 import {computed} from "vue"
-import {DateTime} from "luxon"
 
 import {toFullDate} from "@shared/utils/date/formatters"
+import {groupActiveDays} from "@shared/utils/date/groupActiveDays"
 import {useTasksStore} from "@/stores/tasks.store"
 import BaseButton from "@/ui/base/BaseButton.vue"
 
 const tasksStore = useTasksStore()
 
-const groupedActiveDays = computed(() => {
-  const now = DateTime.now()
-  const startOfThisWeek = now.startOf("week")
-  const startOfLastWeek = startOfThisWeek.minus({weeks: 1})
-  const endOfLastWeek = startOfThisWeek.minus({days: 1})
-
-  const startOfThisMonth = now.startOf("month")
-  const startOfLastMonth = startOfThisMonth.minus({months: 1})
-  const endOfLastMonth = startOfThisMonth.minus({days: 1})
-
-  const thisWeek: {date: string; count: number}[] = []
-  const lastWeek: {date: string; count: number}[] = []
-  const lastMonth: {date: string; count: number}[] = []
-  const older: {date: string; count: number}[] = []
-
-  for (const day of tasksStore.days) {
-    if (!day.countActive) continue
-    const dayDate = DateTime.fromISO(day.date)
-
-    const isInThisWeek = dayDate >= startOfThisWeek && dayDate <= now
-    const isInLastWeek = dayDate >= startOfLastWeek && dayDate <= endOfLastWeek
-    const isInLastMonth = dayDate >= startOfLastMonth && dayDate <= endOfLastMonth
-    const isOlder = dayDate < startOfLastMonth
-
-    if (isInThisWeek) thisWeek.push({date: day.date, count: day.countActive})
-    if (isInLastWeek) lastWeek.push({date: day.date, count: day.countActive})
-    if (isInLastMonth) lastMonth.push({date: day.date, count: day.countActive})
-    if (isOlder) older.push({date: day.date, count: day.countActive})
-  }
-
-  const sortDesc = (a: {date: string}, b: {date: string}) => b.date.localeCompare(a.date)
-
-  return [
-    {label: "this week", count: thisWeek.length, items: thisWeek.sort(sortDesc)},
-    {label: "last week", count: lastWeek.length, items: lastWeek.sort(sortDesc)},
-    {label: "last month", count: lastMonth.length, items: lastMonth.sort(sortDesc)},
-    {label: "older", count: older.length, items: older.sort(sortDesc)},
-  ]
-})
+const groupedActiveDays = computed(() => groupActiveDays(tasksStore.days))
 
 const hasRecentActiveTasks = computed(() => groupedActiveDays.value.some((group) => group.count))
 

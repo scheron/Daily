@@ -6,6 +6,7 @@
   ![Context Menu Preview](./media/context-menu.png)
 - Improved Tag-related components
 - Add more chars to tags form
+- Fixed an issue where relative dates were not properly shown as "Today" and "Yesterday"
 
 ## v0.10.0 - 2026-02-09
 
