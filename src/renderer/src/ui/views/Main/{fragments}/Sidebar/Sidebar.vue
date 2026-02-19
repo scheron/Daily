@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {computed, ref} from "vue"
 
+import {useUIStore} from "@/stores/ui.store"
 import {useDevice} from "@/composables/useDevice"
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseSpinner from "@/ui/base/BaseSpinner.vue"
@@ -12,7 +13,6 @@ import SearchForm from "@/ui/modules/SearchForm"
 import Settings from "@/ui/modules/Settings"
 import TagsForm from "@/ui/modules/TagsForm"
 
-import {useUIStore} from "@MainView/stores/ui.store"
 import {BOTTOM_MENU_ITEMS} from "./model/constants"
 
 import type {SidebarSection} from "./model/types"

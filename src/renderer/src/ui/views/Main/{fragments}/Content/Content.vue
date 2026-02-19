@@ -1,21 +1,23 @@
 <script setup lang="ts">
 import {computed} from "vue"
 
+import {ISODate} from "@shared/types/common"
 import {Tag, Task} from "@shared/types/storage"
+import {useFilterStore} from "@/stores/filter.store"
 import {useTagsStore} from "@/stores/tags.store"
+import {useTaskEditorStore} from "@/stores/taskEditor.store"
 import {useTasksStore} from "@/stores/tasks.store"
 import BaseAnimation from "@/ui/base/BaseAnimation.vue"
 import BaseSpinner from "@/ui/base/BaseSpinner.vue"
+import TaskCard from "@/ui/modules/TaskCard"
+import TaskEditorCard from "@/ui/modules/TaskEditorCard"
 
-import {useFilterStore} from "@MainView/stores/filter.store"
-import {useTaskEditorStore} from "@MainView/stores/taskEditor.store"
-import {TasksFilter} from "@/types/common"
 import NoTasksPlaceholder from "./{fragments}/NoTasksPlaceholder.vue"
-import TaskCard from "./{fragments}/TaskCard"
-import {TaskEditorCard} from "./{fragments}/TaskEditorCard"
-import {createTaskPlaceholder, NEW_TASK_ID} from "./model/constants"
+
+import type {TasksFilter} from "@/types/common"
 
 defineProps<{taskEditorOpen: boolean}>()
+
 const emit = defineEmits<{createTask: []}>()
 
 const tasksStore = useTasksStore()
@@ -46,6 +48,27 @@ function filterTasksByStatus(tasks: Task[], filter: TasksFilter): Task[] {
 
 function getTaskTags(task: Task): Tag[] {
   return task.tags.map((tag) => tagsStore.tagsMap.get(tag.id)).filter(Boolean) as Tag[]
+}
+const NEW_TASK_ID = "new-task"
+
+function createTaskPlaceholder(date: ISODate): Task {
+  return {
+    id: NEW_TASK_ID,
+    content: "",
+    status: "active",
+    tags: [],
+    estimatedTime: 0,
+    spentTime: 0,
+    deletedAt: null,
+    attachments: [],
+    scheduled: {
+      date,
+      time: new Date().toTimeString().slice(0, 8),
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    },
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }
 }
 </script>
 

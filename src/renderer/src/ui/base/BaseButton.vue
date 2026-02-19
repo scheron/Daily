@@ -40,7 +40,7 @@ const variantClasses = {
   `,
   ghost: `
   bg-transparent text-base-content 
-  hover:bg-base-200 
+  hover:bg-base-300/50
   focus-visible-ring focus-visible:ring-offset-base-100 focus-visible:ring-accent
   disabled:hover:bg-transparent
   `,

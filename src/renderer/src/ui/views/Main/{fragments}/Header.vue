@@ -2,10 +2,9 @@
 import {computed} from "vue"
 
 import {toFullDate} from "@shared/utils/date/formatters"
+import {useUIStore} from "@/stores/ui.store"
 import {useDevice} from "@/composables/useDevice"
 import BaseButton from "@/ui/base/BaseButton.vue"
-
-import {useUIStore} from "@MainView/stores/ui.store"
 
 const props = defineProps<{taskEditorOpen: boolean; activeDay: string}>()
 const emit = defineEmits<{createTask: []; toggleSidebar: []}>()

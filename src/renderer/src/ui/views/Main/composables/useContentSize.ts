@@ -1,9 +1,9 @@
 import {computed, ref, useTemplateRef} from "vue"
 import {tryOnMounted, useElementSize} from "@vueuse/core"
 
-import {useUIStore} from "@MainView/stores/ui.store"
+import {useUIStore} from "@/stores/ui.store"
 
-export const useContentSize = (contentId: string) => {
+export function useContentSize(contentId: string) {
   const uiStore = useUIStore()
 
   const headerHeight = ref(62)

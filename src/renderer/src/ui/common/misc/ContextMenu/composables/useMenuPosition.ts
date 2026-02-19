@@ -1,6 +1,5 @@
 import {computed, ref} from "vue"
 
-// @ts-ignore
 import {autoUpdate, flip, offset, shift, useFloating} from "@floating-ui/vue"
 
 import type {Ref} from "vue"
@@ -31,11 +30,8 @@ export function useMenuPosition(menuRef: Ref<HTMLElement | null>) {
   })
 
   function setPosition(positionOrEvent: {x: number; y: number} | MouseEvent) {
-    if (positionOrEvent instanceof MouseEvent) {
-      mousePosition.value = {x: positionOrEvent.clientX, y: positionOrEvent.clientY}
-    } else {
-      mousePosition.value = {x: positionOrEvent.x, y: positionOrEvent.y}
-    }
+    if (positionOrEvent instanceof MouseEvent) mousePosition.value = {x: positionOrEvent.clientX, y: positionOrEvent.clientY}
+    else mousePosition.value = {x: positionOrEvent.x, y: positionOrEvent.y}
   }
 
   return {floatingStyles, setPosition}

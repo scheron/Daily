@@ -2,7 +2,7 @@ import {onUnmounted, ref} from "vue"
 
 import type {Ref} from "vue"
 
-interface Point {
+interface type {
   x: number
   y: number
 }
@@ -14,34 +14,31 @@ interface Point {
  * toward the submenu (safe triangle), preventing accidental submenu flicker.
  */
 export function useSubmenuIntent(submenuEl: Ref<HTMLElement | null>) {
-  const prevMouse = ref<Point | null>(null)
-  const currentMouse = ref<Point | null>(null)
+  const prevMouse = ref<type | null>(null)
+  const currentMouse = ref<type | null>(null)
   const pendingValue = ref<string | null>(null)
+
   let fallbackTimer: ReturnType<typeof setTimeout> | null = null
 
-  function isMovingTowardSubmenu(current: Point, previous: Point, rect: DOMRect): boolean {
+  function isMovingTowardSubmenu(current: type, previous: type, rect: DOMRect): boolean {
     const dx = current.x - previous.x
     const dy = current.y - previous.y
 
-    // Need meaningful movement to determine direction
     if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return false
 
-    // Determine if submenu is to the right or left
     const submenuIsRight = rect.left >= previous.x
 
-    // Check horizontal direction matches submenu side
     if (submenuIsRight && dx <= 0) return false
     if (!submenuIsRight && dx >= 0) return false
 
-    // Build safe triangle: from previous mouse position to near corners of submenu
     const nearX = submenuIsRight ? rect.left : rect.right
-    const topCorner: Point = {x: nearX, y: rect.top - 4}
-    const bottomCorner: Point = {x: nearX, y: rect.bottom + 4}
+    const topCorner: type = {x: nearX, y: rect.top - 4}
+    const bottomCorner: type = {x: nearX, y: rect.bottom + 4}
 
     return isPointInTriangle(current, previous, topCorner, bottomCorner)
   }
 
-  function isPointInTriangle(p: Point, a: Point, b: Point, c: Point): boolean {
+  function isPointInTriangle(p: type, a: type, b: type, c: type): boolean {
     const d1 = sign(p, a, b)
     const d2 = sign(p, b, c)
     const d3 = sign(p, c, a)
@@ -52,7 +49,7 @@ export function useSubmenuIntent(submenuEl: Ref<HTMLElement | null>) {
     return !(hasNeg && hasPos)
   }
 
-  function sign(p1: Point, p2: Point, p3: Point): number {
+  function sign(p1: type, p2: type, p3: type): number {
     return (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y)
   }
 
@@ -63,11 +60,6 @@ export function useSubmenuIntent(submenuEl: Ref<HTMLElement | null>) {
     }
   }
 
-  /**
-   * Called when the mouse hovers a new item.
-   * Returns true if the switch should happen immediately,
-   * false if it should be deferred (mouse heading toward submenu).
-   */
   function requestSwitch(value: string, onSwitch: (value: string) => void): boolean {
     const el = submenuEl.value
     const curr = currentMouse.value
@@ -84,7 +76,6 @@ export function useSubmenuIntent(submenuEl: Ref<HTMLElement | null>) {
       return true
     }
 
-    // Mouse is heading toward submenu — defer switch
     pendingValue.value = value
     clearTimers()
 
@@ -93,7 +84,7 @@ export function useSubmenuIntent(submenuEl: Ref<HTMLElement | null>) {
         onSwitch(value)
         pendingValue.value = null
       }
-    }, 100)
+    }, 150)
 
     return false
   }
@@ -108,9 +99,7 @@ export function useSubmenuIntent(submenuEl: Ref<HTMLElement | null>) {
     pendingValue.value = null
   }
 
-  onUnmounted(() => {
-    clearTimers()
-  })
+  onUnmounted(clearTimers)
 
   return {
     trackMouse,

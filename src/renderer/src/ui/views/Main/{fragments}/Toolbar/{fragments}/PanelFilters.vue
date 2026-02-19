@@ -2,13 +2,12 @@
 import {computed, watch} from "vue"
 
 import {removeDuplicates} from "@shared/utils/arrays/removeDuplicates"
+import {useFilterStore} from "@/stores/filter.store"
 import {useTasksStore} from "@/stores/tasks.store"
+import {TASK_FILTERS} from "@/constants/tasks"
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseIcon from "@/ui/base/BaseIcon"
 import DynamicTagsPanel from "@/ui/common/misc/DynamicTagsPanel.vue"
-
-import {TASK_FILTERS} from "@MainView/constants"
-import {useFilterStore} from "@MainView/stores/filter.store"
 
 import type {TasksFilter} from "@/types/common"
 import type {Tag, Task} from "@shared/types/storage"

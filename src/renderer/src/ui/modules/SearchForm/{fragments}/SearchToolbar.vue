@@ -1,9 +1,9 @@
 <script setup lang="ts">
+import {TASK_FILTERS} from "@/constants/tasks"
 import SearchInput from "@/ui/common/inputs/SearchInput.vue"
 import AnimatedTabs from "@/ui/common/misc/AnimatedTabs"
-import {TASK_FILTERS} from "@/ui/views/Main/constants"
 
-import {TasksFilter} from "@/types/common"
+import type {TasksFilter} from "@/types/common"
 
 defineProps<{
   filterQuery: string

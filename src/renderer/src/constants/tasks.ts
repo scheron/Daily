@@ -2,7 +2,7 @@ import type {TasksFilter} from "@/types/common"
 import type {IconName} from "@/ui/base/BaseIcon"
 import type {HTMLAttributes} from "vue"
 
-type TaskFilter = {
+type Filter = {
   label: string
   value: TasksFilter
   icon: IconName
@@ -10,7 +10,7 @@ type TaskFilter = {
   inactiveClass: HTMLAttributes["class"]
 }
 
-export const TASK_FILTERS: TaskFilter[] = [
+export const TASK_FILTERS: Filter[] = [
   {
     label: "All",
     value: "all",

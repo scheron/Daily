@@ -23,7 +23,6 @@ export default {
     "^@/utils/(.*)$",
     "^@/ui/(.*)$",
     "",
-    "^@MainView/(.*)$",
     "^@(.*)$",
     "^(.*)/stores/(.*)$",
     "^(.*)/composables/(.*)$",

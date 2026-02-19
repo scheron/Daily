@@ -1,33 +1,29 @@
 <script setup lang="ts">
-import {computed, onBeforeUnmount, ref, watch} from "vue"
+import {computed, onBeforeUnmount, useTemplateRef, watch} from "vue"
 
-// @ts-ignore
 import {autoUpdate, flip, offset, shift, useFloating} from "@floating-ui/vue"
-import {useContextMenuConsumer} from "../model/useContextMenuProvider"
-import {useSubmenuNavigation} from "../model/useSubmenuNavigation"
+import {useContextMenuConsumer} from "../composables/useContextMenuProvider"
+import {useSubmenuNavigation} from "../composables/useSubmenuNavigation"
 import MenuList from "./MenuList.vue"
 
-import type {ContextMenuItem} from "../types"
+import type {ContextMenuItem, ContextMenuSelectEvent} from "../types"
 
-const props = defineProps<{
-  items: ContextMenuItem[]
-  submenuPrefersLeft?: boolean
-}>()
+const SUBMENU_PREFIX = "child-"
 
-const emit = defineEmits<{
-  select: [path: ContextMenuItem[]]
-}>()
+const props = defineProps<{items: ContextMenuItem[]; submenuPrefersLeft?: boolean}>()
+const emit = defineEmits<{select: [path: ContextMenuSelectEvent]}>()
+
+const submenuPanelRef = useTemplateRef("submenuPanel")
 
 const {contextMenuSlots, registerSubmenu, unregisterSubmenu} = useContextMenuConsumer()
+const {activeSubmenuItem, activeSubmenuEl, ...navigation} = useSubmenuNavigation(submenuPanelRef)
 
-const submenuPanelRef = ref<HTMLElement | null>(null)
-
-function itemHasSubmenu(item: ContextMenuItem): boolean {
-  if (item.separator) return false
-  return !!item.children
-}
-
-const {activeSubmenuItem, activeSubmenuEl, ...navigation} = useSubmenuNavigation(submenuPanelRef, itemHasSubmenu)
+const {floatingStyles} = useFloating(activeSubmenuEl, submenuPanelRef, {
+  strategy: "fixed",
+  placement: computed(() => (props.submenuPrefersLeft ? "left-start" : "right-start")),
+  middleware: [offset(4), flip({crossAxis: false}), shift({padding: 8})],
+  whileElementsMounted: autoUpdate,
+})
 
 const hasChildrenSubmenu = computed(() => {
   return !!(activeSubmenuItem.value && !activeSubmenuItem.value.separator && Array.isArray(activeSubmenuItem.value.children))
@@ -39,26 +35,22 @@ const hasSubmenu = computed(() => hasChildrenSubmenu.value || hasSlotSubmenu.val
 
 const submenuSlotName = computed(() => {
   if (!hasSlotSubmenu.value || !activeSubmenuItem.value || activeSubmenuItem.value.separator) return null
-  return `child-${activeSubmenuItem.value.value}`
-})
-
-const placement = computed(() => (props.submenuPrefersLeft ? "left-start" : "right-start"))
-
-const {floatingStyles} = useFloating(activeSubmenuEl, submenuPanelRef, {
-  placement,
-  strategy: "fixed",
-  middleware: [offset(4), flip({crossAxis: false}), shift({padding: 8})],
-  whileElementsMounted: autoUpdate,
+  return `${SUBMENU_PREFIX}${activeSubmenuItem.value.value}`
 })
 
 function onLeafSelect(item: ContextMenuItem) {
-  emit("select", [item])
+  emit("select", {item, parent: null})
 }
 
-function onChildSelect(childPath: ContextMenuItem[]) {
-  if (activeSubmenuItem.value) {
-    emit("select", [activeSubmenuItem.value, ...childPath])
-  }
+function onChildSelect(childPath: ContextMenuSelectEvent) {
+  if (!activeSubmenuItem.value) return
+
+  emit("select", withParent(childPath, activeSubmenuItem.value))
+}
+
+function withParent(path: ContextMenuSelectEvent, parentItem: ContextMenuItem): ContextMenuSelectEvent {
+  if (!path.parent) return {...path, parent: {item: parentItem, parent: null}}
+  return {...path, parent: withParent(path.parent, parentItem)}
 }
 
 watch(submenuPanelRef, (newEl, oldEl) => {
@@ -85,7 +77,7 @@ onBeforeUnmount(() => {
   <Teleport to="body">
     <div
       v-if="hasSubmenu"
-      ref="submenuPanelRef"
+      ref="submenuPanel"
       :style="floatingStyles"
       class="bg-base-100 border-base-300 z-50 min-w-44 rounded-lg border shadow-lg"
       @mouseenter="navigation.onSubmenuMouseenter"

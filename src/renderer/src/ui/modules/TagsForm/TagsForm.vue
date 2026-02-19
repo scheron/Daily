@@ -2,11 +2,11 @@
 import {computed} from "vue"
 
 import {Tag} from "@shared/types/storage"
+import {useFilterStore} from "@/stores/filter.store"
 import {useTagsStore} from "@/stores/tags.store"
 import {useTasksStore} from "@/stores/tasks.store"
 import BaseButton from "@/ui/base/BaseButton.vue"
 
-import {useFilterStore} from "@MainView/stores/filter.store"
 import TagsForm from "./{fragments}/TagsForm.vue"
 
 const tasksStore = useTasksStore()

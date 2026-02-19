@@ -44,7 +44,6 @@ export default defineConfig({
     resolve: {
       alias: {
         "@": join(__dirname, "src/main"),
-        "@MainView": join(__dirname, "src/renderer/src/ui/views/Main"),
         "@shared": join(__dirname, "src/shared"),
       },
     },
@@ -56,7 +55,6 @@ export default defineConfig({
     resolve: {
       alias: {
         "@": join(__dirname, "src/renderer/src"),
-        "@MainView": join(__dirname, "src/renderer/src/ui/views/Main"),
         "@shared": join(__dirname, "src/shared"),
       },
     },

@@ -6,21 +6,20 @@ import {useSubmenuIntent} from "./useSubmenuIntent"
 import type {Ref} from "vue"
 import type {ContextMenuItem} from "../types"
 
-/**
- * Manages which submenu item is active based on mouse interaction.
- * Handles hover transitions with safe-triangle protection and leave debounce.
- */
-export function useSubmenuNavigation(submenuPanelRef: Ref<HTMLElement | null>, itemHasSubmenu: (item: ContextMenuItem) => boolean) {
+export function useSubmenuNavigation(submenuPanelRef: Ref<HTMLElement | null>) {
   const hoveredItem = ref<ContextMenuItem | null>(null)
   const hoveredEl = ref<HTMLElement | null>(null)
 
   const activeSubmenuItem = ref<ContextMenuItem | null>(null)
   const activeSubmenuEl = ref<HTMLElement | null>(null)
 
-  // Safe triangle
+  function hasSubmenu(item: ContextMenuItem): boolean {
+    if (item.separator) return false
+    return !!item.children
+  }
+
   const {trackMouse, requestSwitch, cancel: cancelIntent} = useSubmenuIntent(submenuPanelRef)
 
-  // Debounce leave — allows mouse to cross gap between menu and submenu
   const {start: startLeaveTimer, stop: stopLeaveTimer} = useTimeoutFn(
     () => {
       activeSubmenuItem.value = null
@@ -41,24 +40,23 @@ export function useSubmenuNavigation(submenuPanelRef: Ref<HTMLElement | null>, i
     hoveredItem.value = item
     hoveredEl.value = el
 
-    if (!itemHasSubmenu(item)) {
+    if (!hasSubmenu(item)) {
       if (activeSubmenuItem.value) {
-        const shouldDefer = !requestSwitch(item.separator ? "" : item.value, () => {
-          switchTo(null, null)
-        })
+        const shouldDefer = !requestSwitch(item.separator ? "" : item.value, () => switchTo(null, null))
         if (shouldDefer) return
       }
+
       switchTo(null, null)
       return
     }
 
-    // Same submenu already open?
-    if (activeSubmenuItem.value && !activeSubmenuItem.value.separator && !item.separator && activeSubmenuItem.value.value === item.value) {
+    const isSubmenuOpen = activeSubmenuItem.value && !activeSubmenuItem.value.separator && activeSubmenuItem.value.value === item.value
+
+    if (isSubmenuOpen) {
       stopLeaveTimer()
       return
     }
 
-    // Different submenu — apply safe triangle
     if (activeSubmenuItem.value) {
       const shouldDefer = !requestSwitch(item.separator ? "" : item.value, (value) => {
         if (hoveredItem.value && !hoveredItem.value.separator && hoveredItem.value.value === value) {

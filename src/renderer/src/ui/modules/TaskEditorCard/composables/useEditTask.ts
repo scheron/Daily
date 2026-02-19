@@ -1,8 +1,7 @@
 import {toasts} from "vue-toasts-lite"
 
+import {useTaskEditorStore} from "@/stores/taskEditor.store"
 import {useTasksStore} from "@/stores/tasks.store"
-
-import {useTaskEditorStore} from "@MainView/stores/taskEditor.store"
 
 export function useEditTask() {
   const taskEditorStore = useTaskEditorStore()

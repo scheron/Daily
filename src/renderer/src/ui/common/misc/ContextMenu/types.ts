@@ -15,4 +15,7 @@ export type ContextMenuItem =
   | (CommonProps & {separator?: false; value: string; label: string})
   | (CommonProps & {separator: true; value?: string; label?: string})
 
-export type ContextMenuSelectPath = ContextMenuItem[]
+export type ContextMenuSelectEvent = {
+  item: ContextMenuItem
+  parent?: ContextMenuSelectEvent | null
+}

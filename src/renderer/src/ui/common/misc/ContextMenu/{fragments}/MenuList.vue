@@ -4,16 +4,8 @@ import BaseIcon from "@/ui/base/BaseIcon"
 
 import type {ContextMenuItem} from "../types"
 
-const props = defineProps<{
-  items: ContextMenuItem[]
-  activeValue?: string | null
-}>()
-
-const emit = defineEmits<{
-  select: [ContextMenuItem]
-  "item-hover": [item: ContextMenuItem, el: HTMLElement]
-  "item-leave": []
-}>()
+const props = defineProps<{items: ContextMenuItem[]; activeValue?: string | null}>()
+const emit = defineEmits<{select: [ContextMenuItem]; "item-hover": [item: ContextMenuItem, el: HTMLElement]; "item-leave": []}>()
 
 function getItemClass(item: ContextMenuItem): string {
   const baseClass = "text-base-content hover:bg-base-300/80 flex w-full items-center gap-2 rounded-md py-1.5 text-left transition-colors"

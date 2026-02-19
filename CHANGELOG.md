@@ -2,6 +2,9 @@
 
 ## [unreleased]
 
+- Добавлено контектное окно для задач с быстрым доступом к командам
+  ![Context Menu Preview](./media/context-menu.png)
+
 ## v0.10.0 - 2026-02-09
 
 ### ✨ New Features

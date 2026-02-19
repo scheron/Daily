@@ -3,7 +3,7 @@ import {useVModel} from "@vueuse/core"
 
 import AnimatedTabs from "@/ui/common/misc/AnimatedTabs"
 
-import {STATUS_BUTTONS} from "../constants"
+import {STATUS_BUTTONS} from "../model/constants"
 
 import type {TaskStatus} from "@shared/types/storage"
 
