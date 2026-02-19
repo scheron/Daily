@@ -84,7 +84,7 @@ function onSelect(event: ContextMenuSelectEvent) {
         <div class="mb-3 flex w-full items-center justify-between gap-3">
           <DynamicTagsPanel :tags="tags" empty-message="No tags" />
           <div class="flex shrink-0 items-center gap-2">
-            <QuickActions @move-date="rescheduleTask" @edit="startEdit" @delete="deleteTask" />
+            <QuickActions :task-date="task.scheduled.date" @move-date="rescheduleTask" @edit="startEdit" @delete="deleteTask" />
             <TimeTrackingButton :task="task" />
             <StatusButtons :status="task.status" @update:status="changeStatus" />
           </div>

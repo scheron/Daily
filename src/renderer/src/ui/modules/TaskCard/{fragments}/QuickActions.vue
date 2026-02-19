@@ -15,6 +15,10 @@ const emit = defineEmits<{
   delete: []
 }>()
 
+defineProps<{
+  taskDate: ISODate
+}>()
+
 const tasksStore = useTasksStore()
 const themeStore = useThemeStore()
 
@@ -54,7 +58,8 @@ function withOpenDayPicker(show: () => void) {
     <DayPicker
       title="Move to day"
       :days="tasksStore.days"
-      :active-day="tasksStore.activeDay"
+      :active-day="taskDate"
+      :selected-day="taskDate"
       @select="emit('move-date', $event)"
       @close="isOpenDayPicker = false"
     >

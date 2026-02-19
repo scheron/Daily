@@ -10,10 +10,12 @@ withDefaults(
     title: string
     days: Day[]
     activeDay: string
+    selectedDay?: ISODate | null
   }>(),
   {
     days: () => [],
     title: "Select Day",
+    selectedDay: null,
   },
 )
 
@@ -26,6 +28,14 @@ const emit = defineEmits<{select: [date: ISODate]; close: []}>()
       <slot name="trigger" :toggle="toggle" :hide="hide" :show="show" />
     </template>
 
-    <BaseCalendar mode="single" :days="days" :show-today-button="false" :initial-month="activeDay" size="sm" @select-date="emit('select', $event)" />
+    <BaseCalendar
+      mode="single"
+      :days="days"
+      :selected-date="selectedDay"
+      :show-today-button="false"
+      :initial-month="activeDay"
+      size="sm"
+      @select-date="emit('select', $event)"
+    />
   </BasePopup>
 </template>

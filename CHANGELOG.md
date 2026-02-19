@@ -15,6 +15,7 @@
 - Replaced native About dialog with a compact custom About window (logo, version, copyright)
 - Improved month calendar navigation: added mouse wheel and horizontal swipe support (touchpad/touch), with one month change per gesture
 - Fixed DeepSeek thinking-model tool-call flow by preserving and sending `reasoning_content` in assistant history messages
+- Fixed an issue where the task's current day was not highlighted in the QuickActions "Move to day" date picker
 
 ## v0.10.0 - 2026-02-09
 
