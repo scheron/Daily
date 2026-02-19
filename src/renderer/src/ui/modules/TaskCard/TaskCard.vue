@@ -20,7 +20,7 @@ const props = withDefaults(defineProps<{task: Task; tags?: Tag[]}>(), {tags: () 
 
 const tasksStore = useTasksStore()
 
-const {startEdit, changeStatus, deleteTask, rescheduleTask, copyToClipboardTask, updateTaskTags} = useTaskModel(props.task, props.tags)
+const {startEdit, changeStatus, deleteTask, rescheduleTask, copyToClipboardTask, updateTaskTags} = useTaskModel(props)
 
 const menuItems = computed<ContextMenuItem[]>(() => [
   {value: "edit", label: "Edit", icon: "pencil"},

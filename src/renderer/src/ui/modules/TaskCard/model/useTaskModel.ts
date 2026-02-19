@@ -10,14 +10,16 @@ import type {ISODate} from "@shared/types/common"
 import type {Tag, Task, TaskStatus} from "@shared/types/storage"
 import type {MaybeRefOrGetter} from "vue"
 
-export function useTaskModel(rawTask: MaybeRefOrGetter<Task>, rawTags: MaybeRefOrGetter<Tag[]> = []) {
+type TaskModelProps = {task: Task; tags?: Tag[]}
+
+export function useTaskModel(rawProps: MaybeRefOrGetter<TaskModelProps>) {
   const tasksStore = useTasksStore()
   const taskEditorStore = useTaskEditorStore()
 
   const {copy} = useClipboard({legacy: true})
 
-  const task = computed(() => toValue(rawTask))
-  const tags = computed(() => toValue(rawTags))
+  const task = computed(() => toValue(rawProps).task)
+  const tags = computed(() => toValue(rawProps).tags ?? [])
 
   function startEdit() {
     taskEditorStore.setCurrentEditingTask(task.value ?? null)
