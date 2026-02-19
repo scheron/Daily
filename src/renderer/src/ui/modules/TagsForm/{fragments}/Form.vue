@@ -55,8 +55,8 @@ onMounted(() => inputRef.value?.focus())
 <template>
   <form class="flex flex-col gap-2" @submit.prevent="createTag">
     <div class="relative flex items-center">
-      <span class="text-base-content/40 pointer-events-none absolute left-3 text-sm">#</span>
-      <TagsInput v-model="newTagName" class="mb-1 pr-16 pl-6" />
+      <span class="text-base-content/40 pointer-events-none absolute bottom-1.5 left-3 text-lg">#</span>
+      <TagsInput v-model="newTagName" class="mb-1 pr-16 pl-7" />
       <div class="absolute right-1 flex items-center gap-1">
         <BaseButton
           v-if="newTagName"

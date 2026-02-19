@@ -22,8 +22,9 @@ function onKeyDown(event: KeyboardEvent) {
   const isAllowedKey = allowedKeys.includes(event.key)
   const isLetterOrDigit = /^[a-zA-Zа-яА-Я0-9]$/.test(event.key)
   const isHyphenOrUnderscore = event.key === "-" || event.key === "_"
+  const isSlash = event.key === "/"
 
-  if (!isAllowedKey && !isLetterOrDigit && !isHyphenOrUnderscore) {
+  if (!isAllowedKey && !isLetterOrDigit && !isHyphenOrUnderscore && !isSlash) {
     event.preventDefault()
   }
 }
@@ -40,7 +41,7 @@ function onInput(event: Event) {
     type="text"
     focus-on-mount
     :maxlength="maxlength || 50"
-    :placeholder="placeholder || 'Tag name'"
+    :placeholder="placeholder || '[a-zA-Zа-яА-Я0-9-_/]'"
     @keydown="onKeyDown"
     @input="onInput"
   />

@@ -2,8 +2,10 @@
 
 ## [unreleased]
 
-- Добавлено контектное окно для задач с быстрым доступом к командам
+- Added a context menu for tasks with quick access to commands
   ![Context Menu Preview](./media/context-menu.png)
+- Improved Tag-related components
+- Add more chars to tags form
 
 ## v0.10.0 - 2026-02-09
 

@@ -7,7 +7,7 @@ import {useTagsStore} from "@/stores/tags.store"
 import {useTasksStore} from "@/stores/tasks.store"
 import BaseButton from "@/ui/base/BaseButton.vue"
 
-import TagsForm from "./{fragments}/TagsForm.vue"
+import Form from "./{fragments}/Form.vue"
 
 const tasksStore = useTasksStore()
 const tagsStore = useTagsStore()
@@ -24,7 +24,7 @@ async function deleteTag(id: Tag["id"]) {
 
 <template>
   <div class="flex h-full flex-col px-4 py-1.5">
-    <TagsForm :tags="tagsStore.tags" class="mb-2" @submit="tagsStore.createTag" />
+    <Form :tags="tagsStore.tags" class="mb-2" @submit="tagsStore.createTag" />
 
     <div class="bg-base-300 my-1 h-px w-full" />
 
