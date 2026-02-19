@@ -72,7 +72,7 @@ export abstract class OpenAiCompatibleClient implements IAiClient {
 
     logger.info(logger.CONTEXT.AI, `${this.getClientName()} chat request`, {model: config.model, messagesCount: messages.length})
 
-    const openAiMessages = this.convertMessages(messages)
+    const openAiMessages = this.convertMessages(messages, config.model)
 
     const response = await fetch(`${config.baseUrl}/chat/completions`, {
       method: "POST",
@@ -111,12 +111,21 @@ export abstract class OpenAiCompatibleClient implements IAiClient {
     return {message, done: true}
   }
 
-  private convertMessages(messages: MessageLLM[]): MessageLLM[] {
+  private convertMessages(messages: MessageLLM[], model: string): MessageLLM[] {
+    const needsReasoningContent = /deepseek-reasoner/i.test(model)
+
     logger.info(logger.CONTEXT.AI, "Converting messages to OpenAI format", {messages})
     return messages.map((msg) => {
       const message: MessageLLM = {
         role: msg.role,
         content: msg.content || null,
+      }
+
+      if (msg.reasoning_content !== undefined) {
+        message.reasoning_content = msg.reasoning_content
+      } else if (needsReasoningContent && msg.role === "assistant") {
+        // DeepSeek thinking models require this field in assistant history entries.
+        message.reasoning_content = msg.content ?? ""
       }
 
       if (msg.tool_calls) {
@@ -142,6 +151,10 @@ export abstract class OpenAiCompatibleClient implements IAiClient {
     const message: MessageLLM = {
       role: msg.role,
       content: msg.content ?? "",
+    }
+
+    if (msg.reasoning_content !== undefined) {
+      message.reasoning_content = msg.reasoning_content
     }
 
     if (msg.tool_calls) {

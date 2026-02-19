@@ -6,6 +6,7 @@ export type MessageLLM = {
   id?: string
   role: "system" | "user" | "assistant" | "tool"
   content: string | null
+  reasoning_content?: string | null
   timestamp?: number
   tool_calls?: ToolCallLLM[]
   tool_call_id?: string

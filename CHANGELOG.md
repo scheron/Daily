@@ -14,6 +14,7 @@
 - Simplified UI copy and actions for a more minimal interface
 - Replaced native About dialog with a compact custom About window (logo, version, copyright)
 - Improved month calendar navigation: added mouse wheel and horizontal swipe support (touchpad/touch), with one month change per gesture
+- Fixed DeepSeek thinking-model tool-call flow by preserving and sending `reasoning_content` in assistant history messages
 
 ## v0.10.0 - 2026-02-09
 
