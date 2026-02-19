@@ -3,6 +3,7 @@ import {computed} from "vue"
 
 import {ISODate} from "@shared/types/common"
 import {Tag, Task} from "@shared/types/storage"
+import {sortTags} from "@shared/utils/tags/sortTags"
 import {useFilterStore} from "@/stores/filter.store"
 import {useTagsStore} from "@/stores/tags.store"
 import {useTaskEditorStore} from "@/stores/taskEditor.store"
@@ -47,7 +48,8 @@ function filterTasksByStatus(tasks: Task[], filter: TasksFilter): Task[] {
 }
 
 function getTaskTags(task: Task): Tag[] {
-  return task.tags.map((tag) => tagsStore.tagsMap.get(tag.id)).filter(Boolean) as Tag[]
+  const tags = task.tags.map((tag) => tagsStore.tagsMap.get(tag.id)).filter(Boolean) as Tag[]
+  return sortTags(tags)
 }
 const NEW_TASK_ID = "new-task"
 

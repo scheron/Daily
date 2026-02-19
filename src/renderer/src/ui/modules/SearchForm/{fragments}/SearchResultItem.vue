@@ -2,6 +2,7 @@
 import {computed, onMounted, onUnmounted, useTemplateRef, watch} from "vue"
 
 import {toFullDate} from "@shared/utils/date/formatters"
+import {sortTags} from "@shared/utils/tags/sortTags"
 import {createCodeSyntaxExtension} from "@/utils/codemirror/extensions/codeSyntax"
 import {createMarkdownLanguageExtension} from "@/utils/codemirror/extensions/markdownLanguage"
 import {createSearchHighlightExtension} from "@/utils/codemirror/extensions/searchHighlight"
@@ -31,6 +32,8 @@ const statusColorClass = computed(() => {
   if (props.result.task.status === "discarded") return "text-warning"
   return "text-error"
 })
+
+const sortedTags = computed(() => sortTags(props.result.task.tags))
 
 function createReadonlyEditor(content: string) {
   if (!containerRef.value) return
@@ -88,8 +91,8 @@ onUnmounted(() => view?.destroy())
       <div ref="container" class="search-result-content-viewer"></div>
     </div>
 
-    <div v-if="result.task.tags.length" class="flex flex-wrap gap-0.5">
-      <BaseTag v-for="tag in result.task.tags" :key="tag.id" :selectable="false" :tag="tag" />
+    <div v-if="sortedTags.length" class="flex flex-wrap gap-0.5">
+      <BaseTag v-for="tag in sortedTags" :key="tag.id" :selectable="false" :tag="tag" />
     </div>
   </div>
 </template>

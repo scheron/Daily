@@ -2,6 +2,7 @@
 import {computed, watch} from "vue"
 
 import {removeDuplicates} from "@shared/utils/arrays/removeDuplicates"
+import {sortTags} from "@shared/utils/tags/sortTags"
 import {useFilterStore} from "@/stores/filter.store"
 import {useTasksStore} from "@/stores/tasks.store"
 import {TASK_FILTERS} from "@/constants/tasks"
@@ -22,7 +23,7 @@ const filteredTags = computed(() => {
 
   const allTags = filterTasksByStatus(tasksStore.dailyTasks, filter).flatMap((task) => task.tags)
 
-  return removeDuplicates(allTags, "name").sort((a, b) => a.name.localeCompare(b.name))
+  return sortTags(removeDuplicates(allTags, "name"))
 })
 
 function filterTasksByStatus(tasks: Task[], filter: TasksFilter): Task[] {

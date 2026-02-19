@@ -1,3 +1,5 @@
+import {sortTags} from "@shared/utils/tags/sortTags"
+
 import {TaskSearchIndex} from "../search/TaskSearchIndex"
 
 import type {TagModel} from "@/storage/models/TagModel"
@@ -50,7 +52,7 @@ export class SearchService {
     for (const result of searchResults) {
       const task = await this.taskModel.getTask(result.task.id)
       if (task) {
-        const tags = task.tags.map((id) => tagMap.get(id)).filter(Boolean) as Tag[]
+        const tags = sortTags(task.tags.map((id) => tagMap.get(id)).filter(Boolean) as Tag[])
         results.push({
           task: {...task, tags},
           matches: result.matches,
@@ -107,7 +109,7 @@ export class SearchService {
     const tagMap = new Map(allTags.map((t) => [t.id, t]))
 
     return tasks.map((task) => {
-      const tags = task.tags.map((id) => tagMap.get(id)).filter(Boolean) as Tag[]
+      const tags = sortTags(task.tags.map((id) => tagMap.get(id)).filter(Boolean) as Tag[])
       return {...task, tags}
     })
   }

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {computed} from "vue"
 
+import {sortTags} from "@shared/utils/tags/sortTags"
 import {useTagsStore} from "@/stores/tags.store"
 import BaseMenu from "@/ui/base/BaseMenu.vue"
 import BaseTag from "@/ui/base/BaseTag.vue"
@@ -16,7 +17,7 @@ const tagsStore = useTagsStore()
 const taskTags = computed(() => props.task.tags.map((tag) => tag.id))
 
 const menuItems = computed<ContextMenuItem[]>(() => {
-  return tagsStore.tags.map((tag) => ({
+  return sortTags(tagsStore.tags).map((tag) => ({
     value: tag.id,
     class: "p-0",
     label: tag.name,

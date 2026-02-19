@@ -1,5 +1,6 @@
 import {DateTime} from "luxon"
 
+import {sortTags} from "@shared/utils/tags/sortTags"
 import {groupTasksByDay} from "@/utils/tasks/groupTasksByDay"
 
 import type {TagModel} from "@/storage/models/TagModel"
@@ -23,7 +24,7 @@ export class DaysService {
     const tagMap = new Map(allTags.map((t) => [t.id, t]))
 
     const tasks: Task[] = tasksInternal.map((task) => {
-      const tags = task.tags.map((id) => tagMap.get(id)).filter(Boolean) as Tag[]
+      const tags = sortTags(task.tags.map((id) => tagMap.get(id)).filter(Boolean) as Tag[])
       return {...task, tags}
     })
 

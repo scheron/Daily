@@ -1,3 +1,5 @@
+import {sortTags} from "@shared/utils/tags/sortTags"
+
 import type {TagModel} from "@/storage/models/TagModel"
 import type {TaskModel} from "@/storage/models/TaskModel"
 import type {TaskInternal} from "@/types/storage"
@@ -17,7 +19,7 @@ export class TasksService {
     const tagMap = new Map(allTags.map((t) => [t.id, t]))
 
     return tasks.map((task) => {
-      const tags = task.tags.map((id) => tagMap.get(id)).filter(Boolean) as Tag[]
+      const tags = sortTags(task.tags.map((id) => tagMap.get(id)).filter(Boolean) as Tag[])
       return {...task, tags}
     })
   }
@@ -27,7 +29,7 @@ export class TasksService {
     if (!task) return null
 
     const tagMap = new Map(allTags.map((t) => [t.id, t]))
-    const tags = task.tags.map((id) => tagMap.get(id)).filter(Boolean) as Tag[]
+    const tags = sortTags(task.tags.map((id) => tagMap.get(id)).filter(Boolean) as Tag[])
 
     return {...task, tags}
   }
@@ -43,7 +45,7 @@ export class TasksService {
     if (!task) return null
 
     const tagMap = new Map(allTags.map((t) => [t.id, t]))
-    const tags = task.tags.map((id) => tagMap.get(id)).filter(Boolean) as Tag[]
+    const tags = sortTags(task.tags.map((id) => tagMap.get(id)).filter(Boolean) as Tag[])
 
     return {...task, tags}
   }
@@ -73,7 +75,7 @@ export class TasksService {
     const tagMap = new Map(allTags.map((t) => [t.id, t]))
 
     return deletedTasks.map((task) => {
-      const tags = task.tags.map((id) => tagMap.get(id)).filter(Boolean) as Tag[]
+      const tags = sortTags(task.tags.map((id) => tagMap.get(id)).filter(Boolean) as Tag[])
       return {...task, tags}
     })
   }

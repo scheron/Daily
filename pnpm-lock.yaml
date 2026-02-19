@@ -52,6 +52,9 @@ importers:
       electron-updater:
         specifier: ^6.6.2
         version: 6.7.3
+      fast-sort:
+        specifier: ^3.4.1
+        version: 3.4.1
       floating-vue:
         specifier: ^5.2.2
         version: 5.2.2(vue@3.5.27(typescript@5.9.3))
@@ -2234,6 +2237,9 @@ packages:
 
   fast-levenshtein@2.0.6:
     resolution: {integrity: sha512-DCXu6Ifhqcks7TZKY3Hxp3y6qphY5SJZmrWMDrKcERSOXWQdMhU9Ig/PYrzyw/ul9jOIyh0N4M0tbC5hodg8dw==}
+
+  fast-sort@3.4.1:
+    resolution: {integrity: sha512-76uvGPsF6So53sZAqenP9UVT3p5l7cyTHkLWVCMinh41Y8NDrK1IYXJgaBMfc1gk7nJiSRZp676kddFG2Aa5+A==}
 
   fast-uri@3.1.0:
     resolution: {integrity: sha512-iPeeDKJSWf4IEOasVVrknXpaBV0IApz/gp7S2bb7Z4Lljbl2MGJRqInZiUrQwV16cpzw/D3S5j5Julj/gT52AA==}
@@ -6972,6 +6978,8 @@ snapshots:
   fast-json-stable-stringify@2.1.0: {}
 
   fast-levenshtein@2.0.6: {}
+
+  fast-sort@3.4.1: {}
 
   fast-uri@3.1.0: {}
 

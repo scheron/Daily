@@ -3,6 +3,7 @@ import {computed, onMounted, onUnmounted, useTemplateRef, watch} from "vue"
 import {toasts} from "vue-toasts-lite"
 
 import {toFullDate} from "@shared/utils/date/formatters"
+import {sortTags} from "@shared/utils/tags/sortTags"
 import {createCodeSyntaxExtension} from "@/utils/codemirror/extensions/codeSyntax"
 import {createMarkdownLanguageExtension} from "@/utils/codemirror/extensions/markdownLanguage"
 import {createThemeExtension} from "@/utils/codemirror/extensions/theme"
@@ -36,6 +37,8 @@ const statusColorClass = computed(() => {
   if (props.task.status === "discarded") return "text-warning"
   return "text-error"
 })
+
+const sortedTags = computed(() => sortTags(props.task.tags))
 
 async function onPermanentDelete(task: Task) {
   const deleted = await API.permanentlyDeleteTask(task.id)
@@ -104,8 +107,8 @@ const deletedAtFormatted = computed(() => {
       <div ref="container" class="deleted-task-content-viewer"></div>
     </div>
 
-    <div v-if="task.tags.length" class="flex flex-wrap gap-0.5">
-      <BaseTag v-for="tag in task.tags" :key="tag.id" :selectable="false" :tag="tag" />
+    <div v-if="sortedTags.length" class="flex flex-wrap gap-0.5">
+      <BaseTag v-for="tag in sortedTags" :key="tag.id" :selectable="false" :tag="tag" />
     </div>
 
     <div class="mt-1 flex items-center justify-between gap-2 pt-2">
