@@ -2,6 +2,7 @@
 import {computed, onMounted, ref, useTemplateRef} from "vue"
 import {toasts} from "vue-toasts-lite"
 
+import {TAG_QUICK_COLORS} from "@shared/constants/theme/colorPalette"
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BasePopup from "@/ui/base/BasePopup.vue"
 import TagsInput from "@/ui/common/inputs/TagsInput.vue"
@@ -9,13 +10,11 @@ import ColorPicker from "@/ui/common/pickers/ColorPicker.vue"
 
 import type {Tag} from "@shared/types/storage"
 
-const COLORS = ["#D01C55", "#015A6F", "#35A4D9", "#F5A623", "#7B61FF", "#00B8A9", "#F86624", "#10B981", "#EAB308", "#A855F7"]
-
 const props = withDefaults(defineProps<{tags: Tag[]}>(), {tags: () => []})
 const emit = defineEmits<{submit: [name: string, color: string]}>()
 
 const newTagName = ref("")
-const newTagColor = ref("#D01C55")
+const newTagColor = ref(TAG_QUICK_COLORS[0])
 
 const inputRef = useTemplateRef<HTMLInputElement>("input")
 
@@ -43,7 +42,7 @@ async function createTag() {
   emit("submit", tagName, newTagColor.value)
 
   newTagName.value = ""
-  newTagColor.value = COLORS[0]
+  newTagColor.value = TAG_QUICK_COLORS[0]
 }
 
 function onColorSelect(color: string) {
@@ -57,7 +56,7 @@ onMounted(() => inputRef.value?.focus())
   <form class="flex flex-col gap-2" @submit.prevent="createTag">
     <div class="relative flex items-center">
       <span class="text-base-content/40 pointer-events-none absolute left-3 text-sm">#</span>
-      <TagsInput v-model="newTagName" class="pr-16 pl-6" />
+      <TagsInput v-model="newTagName" class="mb-1 pr-16 pl-6" />
       <div class="absolute right-1 flex items-center gap-1">
         <BaseButton
           v-if="newTagName"
@@ -75,7 +74,7 @@ onMounted(() => inputRef.value?.focus())
 
     <div class="flex items-center gap-1.5">
       <button
-        v-for="color in COLORS"
+        v-for="color in TAG_QUICK_COLORS"
         :key="color"
         type="button"
         class="size-5 rounded-full transition-opacity hover:opacity-100"
@@ -84,16 +83,16 @@ onMounted(() => inputRef.value?.focus())
         @click="onColorSelect(color)"
       />
 
-      <BasePopup triggerClass="flex items-center justify-center" hide-header content-class="p-2" position="center">
+      <BasePopup triggerClass="flex items-center justify-center" hide-header position="center">
         <template #trigger="{toggle}">
           <button
             type="button"
             class="relative size-5 overflow-hidden rounded-full transition-opacity hover:opacity-100"
-            :class="!COLORS.includes(newTagColor) ? 'opacity-100' : 'opacity-40'"
+            :class="!TAG_QUICK_COLORS.includes(newTagColor) ? 'opacity-100' : 'opacity-40'"
             @click="toggle"
           >
             <div class="absolute inset-0 bg-[conic-gradient(from_0deg,red,yellow,lime,aqua,blue,magenta,red)]" />
-            <div v-if="!COLORS.includes(newTagColor)" class="absolute inset-0.5 rounded-full" :style="{backgroundColor: newTagColor}" />
+            <div v-if="!TAG_QUICK_COLORS.includes(newTagColor)" class="absolute inset-0.5 rounded-full" :style="{backgroundColor: newTagColor}" />
           </button>
         </template>
 

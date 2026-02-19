@@ -1,29 +1,16 @@
 <script setup lang="ts">
 import {computed} from "vue"
 
+import {TAG_COLOR_PALETTE} from "@shared/constants/theme/colorPalette"
 import {generateGradient} from "@/utils/colors/generateGradient"
-import {getOppositeColor} from "@/utils/colors/getOppositeColor"
 import BaseButton from "@/ui/base/BaseButton.vue"
 
-const props = withDefaults(defineProps<{colors?: string[]; steps?: number}>(), {
-  colors: () => [
-    "#D01C55", // Red
-    "#015A6F", // Dark teal
-    "#35A4D9", // Blue
-    "#F5A623", // Orange
-    "#7B61FF", // Purple
-    "#615FFF", // Indigo
-    "#00B8A9", // Turquoise
-    "#F86624", // Orange red
-    "#c1c1c1", // Dark gray
-    "#000000", // Black
-  ],
-  steps: 6,
-})
-
-const palette = computed(() => props.colors.map((color) => generateGradient(getOppositeColor(color), color, props.steps)))
-
+const props = withDefaults(defineProps<{steps?: number}>(), {steps: 5})
 const emit = defineEmits<{selected: [color: string]}>()
+
+const palette = computed(() => {
+  return TAG_COLOR_PALETTE.from.map((color, index) => generateGradient(color, TAG_COLOR_PALETTE.to[index], props.steps))
+})
 </script>
 
 <template>

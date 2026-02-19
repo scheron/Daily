@@ -23,10 +23,12 @@ async function deleteTag(id: Tag["id"]) {
 </script>
 
 <template>
-  <div class="flex h-full flex-col gap-4 px-4 py-4">
-    <h3 class="text-base-content text-sm font-semibold">Tags</h3>
-    <TagsForm :tags="tagsStore.tags" @submit="tagsStore.createTag" />
-    <div>
+  <div class="flex h-full flex-col px-4 py-1.5">
+    <TagsForm :tags="tagsStore.tags" class="mb-2" @submit="tagsStore.createTag" />
+
+    <div class="bg-base-300 my-1 h-px w-full" />
+
+    <div class="h-full">
       <div v-if="tags.length" class="flex flex-1 flex-wrap gap-2 overflow-y-auto p-2">
         <div
           v-for="tag in tags"
@@ -51,12 +53,6 @@ async function deleteTag(id: Tag["id"]) {
           />
         </div>
       </div>
-    </div>
-
-    <div class="border-base-300 flex flex-col gap-2 rounded-md border p-3">
-      <p class="text-base-content/60 text-xs leading-relaxed">
-        Tags help you organize and categorize your tasks. Create custom tags with different colors to quickly filter and find related tasks.
-      </p>
     </div>
   </div>
 </template>

@@ -1,5 +1,6 @@
 import {nanoid} from "nanoid"
 
+import {TAG_QUICK_COLORS} from "@shared/constants/theme/colorPalette"
 import {toDurationLabel} from "@shared/utils/date/formatters"
 import {logger} from "@/utils/logger"
 
@@ -599,8 +600,7 @@ export class ToolExecutor {
       return {success: false, error: "name is required"}
     }
 
-    const TAG_COLORS = ["#ef4444", "#f97316", "#eab308", "#22c55e", "#14b8a6", "#3b82f6", "#8b5cf6", "#ec4899"]
-    const color = (params.color as string) || TAG_COLORS[Math.floor(Math.random() * TAG_COLORS.length)]
+    const color = (params.color as string) || TAG_QUICK_COLORS[Math.floor(Math.random() * TAG_QUICK_COLORS.length)]
 
     const created = await this.storage.createTag({name, color, deletedAt: null})
 
