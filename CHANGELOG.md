@@ -9,6 +9,8 @@
 - Fixed an issue where relative dates were not properly shown as "Today" and "Yesterday"
 - Fixed an issue where tags appeared in different orders
 - Added automatic scroll to top when starting to edit or add a task, ensuring the editor is always visible
+- Added inline tag commands in the task editor: `#tag` to attach and `-#tag` to detach
+  ![Tags Predict Preview](./media/tags-predict.png)
 
 ## v0.10.0 - 2026-02-09
 

@@ -49,4 +49,70 @@ export const utilityStyles: Record<string, StyleSpec> = {
     paddingBottom: "0 !important",
     marginBottom: "0.75rem !important",
   },
+
+  // Autocomplete popup styling
+  ".cm-tooltip.cm-tooltip-autocomplete": {
+    backgroundColor: "var(--color-base-100)",
+    border: "1px solid var(--color-base-300)",
+    borderRadius: "0.75rem",
+    boxShadow: "0 10px 28px color-mix(in srgb, var(--color-base-content) 10%, transparent)",
+    overflow: "hidden",
+    padding: "0.15rem",
+  },
+
+  ".cm-tooltip.cm-tooltip-autocomplete > ul": {
+    fontFamily: "var(--font-sans)",
+    padding: "0",
+    maxHeight: "13rem",
+  },
+
+  ".cm-tooltip.cm-tooltip-autocomplete > ul > li": {
+    borderRadius: "0.5rem",
+    padding: "0.2rem 0.35rem",
+  },
+
+  ".cm-tooltip.cm-tooltip-autocomplete > ul > li[aria-selected]": {
+    backgroundColor: "transparent",
+  },
+
+  ".cm-completionMatchedText": {
+    textDecoration: "none",
+    fontWeight: "600",
+    color: "var(--color-accent)",
+  },
+
+  ".cm-tags-autocomplete .cm-completionIcon, .cm-tags-autocomplete .cm-completionLabel, .cm-tags-autocomplete .cm-completionDetail": {
+    display: "none",
+  },
+
+  ".cm-tags-autocomplete .cm-tag-option-chip": {
+    color: "var(--tag-color)",
+    border: "1px solid transparent",
+    backgroundColor: "transparent",
+    borderRadius: "0.625rem",
+    padding: "0.35rem 0.7rem",
+    display: "flex",
+    alignItems: "center",
+    lineHeight: "1.25rem",
+    width: "100%",
+    fontSize: "0.875rem",
+  },
+
+  ".cm-tags-autocomplete .cm-tag-option-chip::before": {
+    content: '"#"',
+    marginRight: "0.08rem",
+  },
+
+  ".cm-tags-autocomplete .cm-tag-option-chip-remove::before": {
+    content: '"-#"',
+  },
+
+  ".cm-tags-autocomplete li[aria-selected] .cm-tag-option-chip": {
+    borderColor: "var(--tag-color)",
+    backgroundColor: "color-mix(in srgb, var(--tag-color) 20%, transparent)",
+  },
+
+  ".cm-tags-autocomplete .cm-tag-option-remove .cm-tag-option-chip": {
+    color: "var(--color-error)",
+  },
 }

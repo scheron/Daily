@@ -13,6 +13,7 @@ import {createAutoPairsExtension} from "@/utils/codemirror/extensions/autoPairs"
 import {createBlockContinuationExtension} from "@/utils/codemirror/extensions/blockContinuation"
 import {createCodeBlockAutocomplete} from "@/utils/codemirror/extensions/codeBlockAutocomplete"
 import {createCodeSyntaxExtension} from "@/utils/codemirror/extensions/codeSyntax"
+import {createTagsAutocompleteExtension} from "@/utils/codemirror/extensions/tagsAutocomplete"
 import {createThemeExtension} from "@/utils/codemirror/extensions/theme"
 import {createWYSIWYGExtension} from "@/utils/codemirror/extensions/wysiwyg"
 import BaseButton from "@/ui/base/BaseButton.vue"
@@ -67,6 +68,18 @@ const hasChanges = computed(() => {
 
 const {uploadImageFile} = useImageUpload()
 
+function addSelectedTag(tag: Tag) {
+  if (!selectedTags.value.has(tag.id)) {
+    selectedTags.value.set(tag.id, tag)
+  }
+}
+
+function removeSelectedTag(tag: Tag) {
+  if (selectedTags.value.has(tag.id)) {
+    selectedTags.value.delete(tag.id)
+  }
+}
+
 const {view, container, setContent, insertText, focus} = useCodeMirror({
   content: content.value,
   onUpdate: (newContent) => (content.value = newContent),
@@ -76,6 +89,12 @@ const {view, container, setContent, insertText, focus} = useCodeMirror({
     createWYSIWYGExtension(),
     createCodeSyntaxExtension(),
     createCodeBlockAutocomplete(),
+    createTagsAutocompleteExtension({
+      getTags: () => tagsStore.tags,
+      getAttachedTags: () => Array.from(selectedTags.value.values()),
+      onAddTag: addSelectedTag,
+      onRemoveTag: removeSelectedTag,
+    }),
     createAutoPairsExtension(),
     createBlockContinuationExtension(),
   ],
@@ -331,6 +350,14 @@ const {isDraggingOver} = useFileDrop(container, {
       <FloatingToolbar v-if="view" :editor-view="view" />
 
       <div class="text-base-content/60 flex shrink-0 items-center justify-center gap-8 text-[10px]">
+        <div class="flex items-center gap-1.5">
+          <kbd class="bg-base-200 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1">#tag</kbd>
+          <span>Add tag</span>
+          <span>/</span>
+          <kbd class="bg-base-200 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1">-#tag</kbd>
+          <span>Remove tag</span>
+        </div>
+
         <div class="flex items-center gap-1.5">
           <kbd class="bg-base-200 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1">Esc</kbd>
           <span>Cancel</span>

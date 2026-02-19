@@ -108,7 +108,7 @@ useResizeObserver(containerRef, calculateVisibleTags)
         @click="onSelectTag(tag.id)"
       />
 
-      <BasePopup v-if="hiddenTags.length" title="More Tags">
+      <BasePopup v-if="hiddenTags.length" hide-header hide-close-btn container-class="min-w-44 p-1" content-class="gap-1">
         <template #trigger="{toggle}">
           <BaseButton
             variant="outline"
@@ -123,21 +123,15 @@ useResizeObserver(containerRef, calculateVisibleTags)
           </BaseButton>
         </template>
 
-        <BaseButton
+        <BaseTag
           v-for="tag in hiddenTags"
           :key="tag.id"
-          variant="ghost"
-          size="sm"
-          class="w-full gap-0"
-          icon-class="size-4"
-          :class="isActiveTag(tag.id) ? 'bg-base-200' : ''"
+          :tag="tag"
+          :active="isActiveTag(tag.id)"
+          :selectable="selectable"
+          class="w-full justify-start text-start"
           @click="onSelectTag(tag.id)"
-        >
-          <span class="mr-2 size-3 shrink-0 rounded-full" :style="{backgroundColor: tag.color}" />
-          <span class="text-base leading-0">#</span>
-          <span class="truncate text-sm">{{ tag.name }}</span>
-          <BaseIcon name="check" class="text-base-content/70 ml-auto size-4 shrink-0" :class="{invisible: !isActiveTag(tag.id)}" />
-        </BaseButton>
+        />
       </BasePopup>
     </template>
   </div>
