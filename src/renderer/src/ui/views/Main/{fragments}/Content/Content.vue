@@ -79,7 +79,7 @@ watch(
   (isOpen) => {
     if (isOpen) {
       const editorId = taskEditorStore.currentEditingTask ? `task-editor-${taskEditorStore.currentEditingTask.id}` : "task-editor-new-task"
-      scrollToElement(editorId, {behavior: "instant", block: "start"})
+      scrollToElement(editorId, {behavior: "instant", block: "nearest"})
     }
   },
 )

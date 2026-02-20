@@ -27,7 +27,7 @@ const formattedTime = computed(() => toLocaleTime(props.message.timestamp))
   <div class="flex" :class="[isUser ? 'justify-end' : 'justify-start']">
     <div v-if="!isUser" class="flex w-full gap-3">
       <div class="min-w-0 flex-1">
-        <div class="ai-message-content text-sm">
+        <div class="ai-message-content text-sm select-text">
           <MarkdownContent :content="message.content" />
         </div>
 
@@ -58,7 +58,7 @@ const formattedTime = computed(() => toLocaleTime(props.message.timestamp))
 
     <div v-else class="max-w-[85%]">
       <div class="bg-base-200 border-base-300 rounded-2xl rounded-br-sm border px-3.5 py-2">
-        <p class="text-sm whitespace-pre-wrap">{{ message.content }}</p>
+        <p class="text-sm whitespace-pre-wrap select-text">{{ message.content }}</p>
       </div>
       <div class="mt-1 flex items-center justify-end gap-1.5">
         <BaseButton

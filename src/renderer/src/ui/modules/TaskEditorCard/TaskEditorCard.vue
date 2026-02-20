@@ -329,7 +329,7 @@ const {isDraggingOver} = useFileDrop(container, {
         />
 
         <BaseButton
-          class="bg-success/20 hover:bg-success/30 text-success size-7 rounded-sm p-0"
+          class="bg-success/20 hover:bg-success/30 text-success h-7 rounded-sm px-8"
           size="sm"
           icon="check"
           :tooltip="isNewTask ? 'Create' : 'Save'"
@@ -349,45 +349,45 @@ const {isDraggingOver} = useFileDrop(container, {
 
       <div class="text-base-content/60 hidden shrink-0 items-center justify-center gap-6 text-[10px] md:flex">
         <div class="flex items-center gap-1.5">
-          <kbd class="bg-base-200 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1">#tag</kbd>
-          <span>Add tag</span>
+          <kbd class="bg-base-content/10 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1">#tag</kbd>
+          <span>Attach tag</span>
           <span>/</span>
-          <kbd class="bg-base-200 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1">-#tag</kbd>
-          <span>Remove tag</span>
+          <kbd class="bg-base-content/10 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1">-#tag</kbd>
+          <span>Detach tag</span>
         </div>
 
         <div class="flex items-center gap-1.5">
-          <kbd class="bg-base-200 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1">Esc</kbd>
+          <kbd class="bg-base-content/10 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1">Esc</kbd>
           <span>Cancel</span>
         </div>
 
         <div class="flex items-center gap-1.5">
-          <kbd class="bg-base-200 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1"> ⌘ </kbd>
+          <kbd class="bg-base-content/10 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1"> ⌘ </kbd>
           <span>+</span>
-          <kbd class="bg-base-200 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1">Enter</kbd>
+          <kbd class="bg-base-content/10 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1">Enter</kbd>
           <span>Save & Close</span>
         </div>
 
         <div class="flex items-center gap-1.5">
-          <kbd class="bg-base-200 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1"> ⌘ </kbd>
+          <kbd class="bg-base-content/10 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1"> ⌘ </kbd>
           <span>+</span>
-          <kbd class="bg-base-200 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1"> ⇧ </kbd>
+          <kbd class="bg-base-content/10 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1"> ⇧ </kbd>
           <span>+</span>
-          <kbd class="bg-base-200 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1">Enter</kbd>
+          <kbd class="bg-base-content/10 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1">Enter</kbd>
           <span>Save & Continue</span>
         </div>
       </div>
 
       <div class="text-base-content/60 flex shrink-0 items-center justify-center gap-4 text-[10px] md:hidden">
         <div class="flex items-center gap-1.5">
-          <kbd class="bg-base-200 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1">Esc</kbd>
+          <kbd class="bg-base-content/10 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1">Esc</kbd>
           <span>Cancel</span>
         </div>
 
         <div class="flex items-center gap-1.5">
-          <kbd class="bg-base-200 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1"> ⌘ </kbd>
+          <kbd class="bg-base-content/10 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1"> ⌘ </kbd>
           <span>+</span>
-          <kbd class="bg-base-200 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1">Enter</kbd>
+          <kbd class="bg-base-content/10 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1">Enter</kbd>
           <span>Save</span>
         </div>
       </div>

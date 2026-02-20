@@ -1,21 +1,46 @@
 # Changelog
 
-## [unreleased]
+## [Unreleased]
 
-- Added a context menu for tasks with quick access to commands
+This release adds a context menu for tasks, improves tag handling and calendar navigation, introduces inline tag commands in the editor, and includes other improvements and bug fixes.
+
+### ✨ New Features
+
+- **Context Menu for Tasks** — Quick access to common commands from the task list
+  - Right-click or long-press on a task to open the context menu with actions
+
   ![Context Menu Preview](./media/context-menu.png)
-- Improved Tag-related components
-- Add more chars to tags form
-- Fixed an issue where relative dates were not properly shown as "Today" and "Yesterday"
-- Fixed an issue where tags appeared in different orders
-- Added automatic scroll to top when starting to edit or add a task, ensuring the editor is always visible
-- Added inline tag commands in the task editor: `#tag` to attach and `-#tag` to detach
+
+- **Inline Tag Commands in Task Editor** — Attach and detach tags without leaving the editor
+  - Type `#tag` to attach a tag and `-#tag` to detach
+  - Predictions and quick selection while typing
+
   ![Tags Predict Preview](./media/tags-predict.png)
-- Simplified UI copy and actions for a more minimal interface
-- Replaced native About dialog with a compact custom About window (logo, version, copyright)
-- Improved month calendar navigation: added mouse wheel and horizontal swipe support (touchpad/touch), with one month change per gesture
-- Fixed DeepSeek thinking-model tool-call flow by preserving and sending `reasoning_content` in assistant history messages
-- Fixed an issue where the task's current day was not highlighted in the QuickActions "Move to day" date picker
+
+- **Auto-Scroll on Edit** — Editor stays in view when adding or editing tasks
+  - Automatic scroll to top when opening the editor so the task content is always visible
+
+### 🎨 UI/UX Improvements
+
+- **Tag Components** — Refined tag-related UI and behavior
+  - Improved tag components for clearer display and interaction
+  - Increased character limit for tag names in the tag form
+
+- **Minimal Interface** — Simplified copy and actions across the app
+  - Cleaner labels and fewer redundant controls for a more focused experience
+
+- **Custom About Window** — Replaced the native About dialog with a compact in-app window
+  - Shows app logo, version, and copyright in a minimal layout
+
+- **Month Calendar Navigation** — Easier navigation in the month calendar
+  - Mouse wheel and horizontal swipe (touchpad/touch) change months with one gesture per step
+
+### 🐛 Bug Fixes
+
+- Fixed an issue where relative dates were not shown correctly as "Today" and "Yesterday".
+- Fixed an issue where tags could appear in different orders.
+- Fixed the Remote thinking-models tool-call flow by preserving and sending `reasoning_content` in assistant history messages.
+- Fixed an issue where the current day was not highlighted in the Quick Actions "Move to day" date picker.
 
 ## v0.10.0 - 2026-02-09
 
