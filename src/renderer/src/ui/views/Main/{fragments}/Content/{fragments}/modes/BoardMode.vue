@@ -194,7 +194,7 @@ watch(
 
 <template>
   <div class="h-full w-full overflow-x-auto overflow-y-hidden p-1.5" @dragover="onDragOver">
-    <div class="flex h-full min-w-full gap-1.5">
+    <div class="inline-flex h-full min-w-full gap-1.5">
       <div
         v-for="column in visibleColumns"
         :key="column.status"
