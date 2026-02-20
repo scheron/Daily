@@ -32,7 +32,7 @@ import {SyncEngine} from "@/storage/sync/SyncEngine"
 import type {IStorageController} from "@/types/storage"
 import type {ISODate} from "@shared/types/common"
 import type {TaskSearchResult} from "@shared/types/search"
-import type {Day, File, Settings, SyncStatus, Tag, Task} from "@shared/types/storage"
+import type {Day, File, MoveTaskByOrderParams, Settings, SyncStatus, Tag, Task} from "@shared/types/storage"
 import type {PartialDeep} from "type-fest"
 
 export class StorageController implements IStorageController {
@@ -149,6 +149,15 @@ export class StorageController implements IStorageController {
 
   async updateTask(id: Task["id"], updates: PartialDeep<Task>): Promise<Task | null> {
     const updatedTask = await this.tasksService.updateTask(id, updates)
+    if (updatedTask) {
+      await this.searchService.updateTaskInIndex(updatedTask)
+      this.notifyStorageDataChange?.()
+    }
+    return updatedTask
+  }
+
+  async moveTaskByOrder(params: MoveTaskByOrderParams): Promise<Task | null> {
+    const updatedTask = await this.tasksService.moveTaskByOrder(params)
     if (updatedTask) {
       await this.searchService.updateTaskInIndex(updatedTask)
       this.notifyStorageDataChange?.()

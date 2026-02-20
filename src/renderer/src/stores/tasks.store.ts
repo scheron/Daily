@@ -2,17 +2,16 @@ import {computed, ref} from "vue"
 import {DateTime} from "luxon"
 import {defineStore} from "pinia"
 
-import {getNextTaskOrderIndex} from "@shared/utils/tasks/orderIndex"
 import {objectFilter} from "@shared/utils/objects/filter"
+import {getNextTaskOrderIndex} from "@shared/utils/tasks/orderIndex"
 import {updateDays} from "@/utils/tasks/updateDays"
-import {buildTaskMovePatches} from "@/utils/tasks/reorderTasks"
 import {toRawDeep} from "@/utils/ui/vue"
 
 import {API} from "@/api"
 
+import type {TaskDropMode, TaskDropPosition, TaskMoveMeta} from "@/utils/tasks/reorderTasks"
 import type {ISODate} from "@shared/types/common"
 import type {Day, Tag, Task, TaskStatus} from "@shared/types/storage"
-import type {TaskDropMode, TaskDropPosition, TaskMoveMeta} from "@/utils/tasks/reorderTasks"
 
 export const useTasksStore = defineStore("tasks", () => {
   const isDaysLoaded = ref(false)
@@ -138,44 +137,42 @@ export const useTasksStore = defineStore("tasks", () => {
     const day = days.value.find((item) => item.date === activeDay.value)
     if (!day) return null
 
-    const moveResult = buildTaskMovePatches({
-      tasks: day.tasks,
+    const sourceTask = day.tasks.find((task) => task.id === params.taskId)
+    if (!sourceTask) return null
+
+    const targetTaskId = params.targetTaskId ?? null
+    const position = params.position ?? "before"
+    const toStatus = params.targetStatus ?? sourceTask.status
+
+    const meta: TaskMoveMeta = {
       taskId: params.taskId,
       mode: params.mode,
-      targetTaskId: params.targetTaskId,
-      targetStatus: params.targetStatus,
-      position: params.position,
-    })
+      fromStatus: sourceTask.status,
+      toStatus,
+      targetTaskId,
+      position,
+    }
 
-    if (!moveResult) return null
-
-    const {patches, meta} = moveResult
-    if (!patches.length) return meta
-
-    let lastDay: Day | null = null
+    if (targetTaskId === params.taskId && toStatus === sourceTask.status) {
+      return meta
+    }
 
     try {
-      for (const patch of patches) {
-        const updates = objectFilter(
-          {
-            orderIndex: patch.orderIndex,
-            status: patch.status,
-          },
-          (value) => value !== undefined,
-        )
-
-        const nextDay = await API.updateTask(patch.id, toRawDeep(updates))
-        if (!nextDay) {
-          await revalidate()
-          return null
-        }
-
-        lastDay = nextDay
+      const nextDay = await API.moveTaskByOrder(
+        toRawDeep({
+          taskId: params.taskId,
+          mode: params.mode,
+          targetTaskId,
+          targetStatus: params.targetStatus,
+          position,
+        }),
+      )
+      if (!nextDay) {
+        await revalidate()
+        return null
       }
 
-      if (lastDay) {
-        days.value = updateDays(days.value, lastDay)
-      }
+      days.value = updateDays(days.value, nextDay)
     } catch (error) {
       console.error("Failed to reorder tasks", error)
       await revalidate()

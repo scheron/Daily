@@ -1,6 +1,6 @@
 import type {ISODate} from "@shared/types/common"
 import type {TaskSearchResult} from "@shared/types/search"
-import type {Day, File, Settings, SyncStatus, Tag, Task} from "@shared/types/storage"
+import type {Day, File, MoveTaskByOrderParams, Settings, SyncStatus, Tag, Task} from "@shared/types/storage"
 import type {ReplaceValue} from "@shared/types/utils"
 import type {PartialDeep} from "type-fest"
 
@@ -16,6 +16,7 @@ export interface IStorageController {
   getTaskList(params?: {from?: ISODate; to?: ISODate; limit?: number}): Promise<Task[]>
   getTask(id: Task["id"]): Promise<Task | null>
   updateTask(id: Task["id"], updates: PartialDeep<Task>): Promise<Task | null>
+  moveTaskByOrder(params: MoveTaskByOrderParams): Promise<Task | null>
   createTask(task: Omit<Task, "id" | "createdAt" | "updatedAt">): Promise<Task | null>
   deleteTask(id: Task["id"]): Promise<boolean>
   getDeletedTasks(params?: {limit?: number}): Promise<Task[]>

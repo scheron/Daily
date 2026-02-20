@@ -46,6 +46,7 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "tasks:get-one": (id: Task["id"]) => ipcRenderer.invoke("tasks:get-one", id) as Promise<Task | null>,
   "tasks:update": (id: Task["id"], updates: PartialDeep<Task>) => ipcRenderer.invoke("tasks:update", id, updates),
   "tasks:create": (task: Omit<Task, "id" | "createdAt" | "updatedAt" | "deletedAt" | "attachments">) => ipcRenderer.invoke("tasks:create", task),
+  "tasks:move-by-order": (params) => ipcRenderer.invoke("tasks:move-by-order", params) as Promise<Task | null>,
   "tasks:delete": (id: Task["id"]) => ipcRenderer.invoke("tasks:delete", id),
   "tasks:add-tags": (taskId: Task["id"], tagIds: Tag["id"][]) => ipcRenderer.invoke("tasks:add-tags", taskId, tagIds),
   "tasks:remove-tags": (taskId: Task["id"], tagIds: Tag["id"][]) => ipcRenderer.invoke("tasks:remove-tags", taskId, tagIds),

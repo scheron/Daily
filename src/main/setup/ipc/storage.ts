@@ -2,7 +2,7 @@ import {ipcMain} from "electron"
 
 import type {IStorageController} from "@/types/storage"
 import type {ISODate} from "@shared/types/common"
-import type {Tag, Task} from "@shared/types/storage"
+import type {MoveTaskByOrderParams, Tag, Task} from "@shared/types/storage"
 import type {PartialDeep} from "type-fest"
 
 // prettier-ignore
@@ -17,6 +17,7 @@ export function setupStorageIPC(getStorage: () => IStorageController | null): vo
   ipcMain.handle("tasks:get-one", (_e, id: Task["id"]) => getStorage()?.getTask(id))
   ipcMain.handle("tasks:update", (_e, id: Task["id"], updates: PartialDeep<Task>) => getStorage()?.updateTask(id, updates))
   ipcMain.handle("tasks:create", (_e, task: Omit<Task, "id" | "createdAt" | "updatedAt">) => getStorage()?.createTask(task))
+  ipcMain.handle("tasks:move-by-order", (_e, params: MoveTaskByOrderParams) => getStorage()?.moveTaskByOrder(params))
   ipcMain.handle("tasks:delete", (_e, id: Task["id"]) => getStorage()?.deleteTask(id))
   ipcMain.handle("tasks:get-deleted", (_e, params?: {limit?: number}) => getStorage()?.getDeletedTasks(params))
   ipcMain.handle("tasks:restore", (_e, id: Task["id"]) => getStorage()?.restoreTask(id))

@@ -1,9 +1,9 @@
-import {ORDER_INDEX_STEP, sortTasksByOrderIndex} from "@shared/utils/tasks/orderIndex"
+import {ORDER_INDEX_START, ORDER_INDEX_STEP, sortTasksByOrderIndex} from "@shared/utils/tasks/orderIndex"
 
-import type {Task, TaskStatus} from "@shared/types/storage"
+import type {Task, TaskMoveMode, TaskMovePosition, TaskStatus} from "@shared/types/storage"
 
-export type TaskDropMode = "list" | "column"
-export type TaskDropPosition = "before" | "after"
+export type TaskDropMode = TaskMoveMode
+export type TaskDropPosition = TaskMovePosition
 
 export type TaskMoveMeta = {
   taskId: Task["id"]
@@ -60,7 +60,10 @@ export function buildTaskMovePatches(params: BuildTaskMovePatchesParams): BuildT
 
   const movedTask: Task = {...sourceTask, status: toStatus}
 
-  const patches = mode === "list" ? buildListModePatches(tasks, movedTask, targetTaskId, position) : buildColumnModePatches(tasks, movedTask, targetTaskId, position)
+  const patches =
+    mode === "list"
+      ? buildListModePatches(tasks, movedTask, targetTaskId, position)
+      : buildColumnModePatches(tasks, movedTask, targetTaskId, position)
 
   return {
     patches,
@@ -154,6 +157,6 @@ function resolveInsertIndex(tasks: Task[], targetTaskId: Task["id"] | null, posi
   return position === "after" ? targetIndex + 1 : targetIndex
 }
 
-function createOrderMapFromSequence(tasks: Task[], start = ORDER_INDEX_STEP, step = ORDER_INDEX_STEP) {
+function createOrderMapFromSequence(tasks: Task[], start = ORDER_INDEX_START, step = ORDER_INDEX_STEP) {
   return new Map(tasks.map((task, index) => [task.id, start + index * step]))
 }

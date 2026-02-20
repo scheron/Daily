@@ -1,6 +1,6 @@
 import type {ISODate, ISOTime, Timezone} from "@shared/types/common"
 import type {TaskSearchResult} from "@shared/types/search"
-import type {Day, Tag, Task} from "@shared/types/storage"
+import type {Day, MoveTaskByOrderParams, Tag, Task} from "@shared/types/storage"
 
 // prettier-ignore
 export interface Storage {
@@ -37,6 +37,7 @@ export interface Storage {
    * @returns The day that matches the query
    */
   updateTask(id: Task["id"], updates: Partial<Omit<Task, "id" | "createdAt" | "updatedAt">>): Promise<Day | null>
+  moveTaskByOrder(params: MoveTaskByOrderParams): Promise<Day | null>
   /**
    * Delete a task in the database
    * @param id - The id of the task to delete

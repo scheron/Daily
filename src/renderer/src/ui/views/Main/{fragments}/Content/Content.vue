@@ -6,14 +6,12 @@ import {Tag, Task, TaskStatus} from "@shared/types/storage"
 import {removeDuplicates} from "@shared/utils/arrays/removeDuplicates"
 import {sortTags} from "@shared/utils/tags/sortTags"
 import {sortTasksByOrderIndex} from "@shared/utils/tasks/orderIndex"
-import {provideTaskDnd, useTaskDnd} from "@/composables/useTaskDnd"
 import {useFilterStore} from "@/stores/filter.store"
 import {useTagsStore} from "@/stores/tags.store"
 import {useTaskEditorStore} from "@/stores/taskEditor.store"
 import {useTasksStore} from "@/stores/tasks.store"
 import {useUIStore} from "@/stores/ui.store"
 import {scrollToElement} from "@/utils/ui/dom"
-import BaseAnimation from "@/ui/base/BaseAnimation.vue"
 import BaseModal from "@/ui/base/BaseModal.vue"
 import BaseSpinner from "@/ui/base/BaseSpinner.vue"
 import TaskEditorCard from "@/ui/modules/TaskEditorCard"
@@ -81,14 +79,19 @@ const boardTagsByStatus = computed<Record<TaskStatus, Tag[]>>(() => {
   }
 })
 
-const taskDnd = useTaskDnd({
-  tasks: sortedDailyTasks,
-  disabled: computed(() => taskEditorStore.isTaskEditorOpen),
-  onMove: (params) => tasksStore.moveTaskByOrder(params),
-  onMoved: (meta) => emit("taskMoved", meta),
-})
+const isDndDisabled = computed(() => taskEditorStore.isTaskEditorOpen)
 
-provideTaskDnd(taskDnd)
+async function moveTaskByOrder(params: {
+  taskId: Task["id"]
+  mode: "list" | "column"
+  targetTaskId?: Task["id"] | null
+  targetStatus?: TaskStatus
+  position?: "before" | "after"
+}) {
+  const meta = await tasksStore.moveTaskByOrder(params)
+  if (meta) emit("taskMoved", meta)
+  return meta
+}
 
 function isEditing(task: Task): boolean {
   if (!taskEditorStore.isTaskEditorOpen) return false
@@ -163,8 +166,17 @@ watch(
       :new-task-placeholder="newTaskPlaceholder"
       :is-editing="isEditing"
       :get-task-tags="getTaskTags"
+      :dnd-disabled="isDndDisabled"
+      :move-task-by-order="moveTaskByOrder"
     />
-    <ContentBoardView v-else :tasks-by-status="boardTasksByStatus" :tags-by-status="boardTagsByStatus" :get-task-tags="getTaskTags" />
+    <ContentBoardView
+      v-else
+      :tasks-by-status="boardTasksByStatus"
+      :tags-by-status="boardTagsByStatus"
+      :get-task-tags="getTaskTags"
+      :dnd-disabled="isDndDisabled"
+      :move-task-by-order="moveTaskByOrder"
+    />
 
     <BaseModal
       v-if="uiStore.tasksViewMode === 'columns'"

@@ -29,6 +29,10 @@ function createReadonlyEditor(content: string) {
       EditorView.lineWrapping,
       EditorView.editable.of(false),
       EditorState.readOnly.of(true),
+      EditorView.contentAttributes.of({
+        contenteditable: "false",
+        tabindex: "-1",
+      }),
 
       createThemeExtension(),
       createWYSIWYGExtension({readonly: true}),

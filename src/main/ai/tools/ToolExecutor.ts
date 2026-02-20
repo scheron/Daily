@@ -2,6 +2,7 @@ import {nanoid} from "nanoid"
 
 import {TAG_QUICK_COLORS} from "@shared/constants/theme/colorPalette"
 import {toDurationLabel} from "@shared/utils/date/formatters"
+import {getNextTaskOrderIndex} from "@shared/utils/tasks/orderIndex"
 import {logger} from "@/utils/logger"
 
 import type {StorageController} from "@/storage/StorageController"
@@ -171,6 +172,7 @@ export class ToolExecutor {
     const tagIds = (params.tag_ids as string[]) || []
     const estimatedMinutes = params.estimated_minutes as number | undefined
     const estimatedTime = estimatedMinutes ? Math.max(0, Math.round(estimatedMinutes)) * 60 : 0
+    const dayTasks = await this.storage.getTaskList({from: date, to: date})
 
     // Get tags if specified
     let tags: Tag[] = []
@@ -183,7 +185,7 @@ export class ToolExecutor {
       id: nanoid(),
       content,
       status: "active",
-      orderIndex: Date.now(),
+      orderIndex: getNextTaskOrderIndex(dayTasks),
       scheduled: {
         date,
         time,

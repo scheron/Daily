@@ -3,7 +3,7 @@ import type {PartialDeep} from "type-fest"
 import type {AIConfig, AIResponse, LocalModelDownloadProgress, LocalModelId, LocalModelInfo, LocalRuntimeState} from "./ai"
 import type {ISODate} from "./common"
 import type {TaskSearchResult} from "./search"
-import type {Day, File, Settings, SyncStatus, Tag, Task} from "./storage"
+import type {Day, File, MoveTaskByOrderParams, Settings, SyncStatus, Tag, Task} from "./storage"
 
 export interface BridgeIPC {
   // === GENERAL IPC ===
@@ -47,6 +47,7 @@ export interface BridgeIPC {
   "tasks:get-one": (id: Task["id"]) => Promise<Task | null>
   "tasks:update": (id: Task["id"], updates: PartialDeep<Task>) => Promise<Task | null>
   "tasks:create": (task: Omit<Task, "id" | "createdAt" | "updatedAt" | "deletedAt" | "attachments">) => Promise<Task | null>
+  "tasks:move-by-order": (params: MoveTaskByOrderParams) => Promise<Task | null>
   "tasks:delete": (id: Task["id"]) => Promise<boolean>
   "tasks:add-tags": (taskId: Task["id"], tagIds: Tag["id"][]) => Promise<Task | null>
   "tasks:remove-tags": (taskId: Task["id"], tagIds: Tag["id"][]) => Promise<Task | null>

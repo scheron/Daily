@@ -4,6 +4,8 @@ import type {ID, ISODate, ISODateTime, ISOTime, Timezone} from "./common"
 export type SyncStatus = "inactive" | "active" | "syncing" | "error"
 export type LayoutType = "list" | "columns"
 export type TaskStatus = "active" | "discarded" | "done"
+export type TaskMoveMode = "list" | "column"
+export type TaskMovePosition = "before" | "after"
 
 export type Settings = {
   version: string
@@ -103,4 +105,12 @@ export type Day = {
   tags: Tag[]
   countActive: number
   countDone: number
+}
+
+export type MoveTaskByOrderParams = {
+  taskId: Task["id"]
+  mode: TaskMoveMode
+  targetTaskId?: Task["id"] | null
+  targetStatus?: TaskStatus
+  position?: TaskMovePosition
 }

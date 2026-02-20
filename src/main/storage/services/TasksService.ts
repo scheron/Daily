@@ -1,10 +1,11 @@
 import {sortTags} from "@shared/utils/tags/sortTags"
+import {getOrderIndexBetween, getTaskOrderValue, normalizeTaskOrderIndexes, sortTasksByOrderIndex} from "@shared/utils/tasks/orderIndex"
 
 import type {TagModel} from "@/storage/models/TagModel"
 import type {TaskModel} from "@/storage/models/TaskModel"
 import type {TaskInternal} from "@/types/storage"
 import type {ISODate} from "@shared/types/common"
-import type {File, Tag, Task} from "@shared/types/storage"
+import type {File, MoveTaskByOrderParams, Tag, Task, TaskMovePosition} from "@shared/types/storage"
 import type {PartialDeep} from "type-fest"
 
 export class TasksService {
@@ -63,6 +64,68 @@ export class TasksService {
     const tags = createdTask.tags.map((id) => tagMap.get(id)).filter(Boolean) as Tag[]
 
     return {...createdTask, tags}
+  }
+
+  async moveTaskByOrder(params: MoveTaskByOrderParams): Promise<Task | null> {
+    const sourceTask = await this.taskModel.getTask(params.taskId)
+    if (!sourceTask) return null
+
+    const position = params.position ?? "before"
+    const targetTaskId = params.targetTaskId ?? null
+    const targetStatus = params.targetStatus ?? sourceTask.status
+
+    if (targetTaskId === sourceTask.id && targetStatus === sourceTask.status) {
+      return this.getTask(sourceTask.id)
+    }
+
+    const dayTasks = await this.taskModel.getTaskList({
+      from: sourceTask.scheduled.date,
+      to: sourceTask.scheduled.date,
+    })
+
+    const dayTaskById = new Map(dayTasks.map((task) => [task.id, task]))
+    const tasksWithoutSource = dayTasks.filter((task) => task.id !== sourceTask.id)
+    const destinationScope = params.mode === "column" ? tasksWithoutSource.filter((task) => task.status === targetStatus) : tasksWithoutSource
+    const orderedDestinationScope = sortTasksByOrderIndex(destinationScope)
+    const insertAt = resolveInsertIndex(orderedDestinationScope, targetTaskId, position)
+
+    const prevTask = orderedDestinationScope[insertAt - 1] ?? null
+    const nextTask = orderedDestinationScope[insertAt] ?? null
+    const nextOrderIndex = getOrderIndexBetween(prevTask ? getTaskOrderValue(prevTask) : null, nextTask ? getTaskOrderValue(nextTask) : null)
+
+    if (nextOrderIndex !== null) {
+      const updates: PartialDeep<TaskInternal> = {orderIndex: nextOrderIndex}
+      if (targetStatus !== sourceTask.status) {
+        updates.status = targetStatus
+      }
+
+      await this.taskModel.updateTask(sourceTask.id, updates)
+      return this.getTask(sourceTask.id)
+    }
+
+    const movedTask: TaskInternal = {...sourceTask, status: targetStatus}
+    const reorderedScope: TaskInternal[] = [...orderedDestinationScope]
+    reorderedScope.splice(insertAt, 0, movedTask)
+
+    const normalized = normalizeTaskOrderIndexes(reorderedScope)
+
+    for (const patch of normalized) {
+      const existing = dayTaskById.get(patch.id)
+      if (!existing) continue
+
+      const shouldChangeOrder = existing.orderIndex !== patch.orderIndex
+      const shouldChangeStatus = patch.id === sourceTask.id && existing.status !== targetStatus
+      if (!shouldChangeOrder && !shouldChangeStatus) continue
+
+      const updates: PartialDeep<TaskInternal> = {orderIndex: patch.orderIndex}
+      if (shouldChangeStatus) {
+        updates.status = targetStatus
+      }
+
+      await this.taskModel.updateTask(existing.id, updates)
+    }
+
+    return this.getTask(sourceTask.id)
   }
 
   async deleteTask(id: Task["id"]): Promise<boolean> {
@@ -155,4 +218,13 @@ export class TasksService {
 
     return this.getTask(taskId)
   }
+}
+
+function resolveInsertIndex(tasks: Array<Pick<TaskInternal, "id">>, targetTaskId: TaskInternal["id"] | null, position: TaskMovePosition): number {
+  if (!targetTaskId) return tasks.length
+
+  const targetIndex = tasks.findIndex((task) => task.id === targetTaskId)
+  if (targetIndex === -1) return tasks.length
+
+  return position === "after" ? targetIndex + 1 : targetIndex
 }

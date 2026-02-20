@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-This release adds a context menu for tasks, improves tag handling and calendar navigation, introduces inline tag commands in the editor, adds list/board task layouts, and includes other improvements and bug fixes.
+This release adds a context menu for tasks, improves tag handling and calendar navigation, introduces inline tag commands in the editor, adds list/board task layouts, and brings manual task ordering with drag-and-drop.
 
 ### ✨ New Features
 
@@ -13,26 +13,26 @@ This release adds a context menu for tasks, improves tag handling and calendar n
 - **Layout Settings** — New settings section for layout behavior
   - Added `Layout` section with clickable preview cards for `List` and `Board` modes
   - Added `layout.columnsHideEmpty` switch to hide empty columns in board mode
+  - In `Board` mode, task editing opens in a modal
+    ![Columns View](./media/columns-view.png)
 
-  ![Columns View](./media/columns-view.png)
+- **Drag & Drop Behavior** — drag and drop support is now implemented for tasks
+  - Reorder tasks in list view
+  - Rearrange tasks within the same column in board view
+  - Move tasks between columns in board view
 
-- **Board Editing Modal** — Editing in board mode now uses modal editor
-  - In `Columns` mode, task editing opens in a compact modal instead of inline editing in a column
-  - Keeps editing stable in narrow/scrollable board layouts
+![Task DnD Preview](./media/task-dnd-preview.gif)
 
 - **Context Menu for Tasks** — Quick access to common commands from the task list
   - Right-click or long-press on a task to open the context menu with actions
 
-  ![Context Menu Preview](./media/context-menu.png)
+![Context Menu Preview](./media/context-menu.png)
 
 - **Inline Tag Commands in Task Editor** — Attach and detach tags without leaving the editor
   - Type `#tag` to attach a tag and `-#tag` to detach
   - Predictions and quick selection while typing
 
-  ![Tags Predict Preview](./media/tags-predict.png)
-
-- **Auto-Scroll on Edit** — Editor stays in view when adding or editing tasks
-  - Automatic scroll to top when opening the editor so the task content is always visible
+![Tags Predict Preview](./media/tags-predict.png)
 
 ### 🎨 UI/UX Improvements
 

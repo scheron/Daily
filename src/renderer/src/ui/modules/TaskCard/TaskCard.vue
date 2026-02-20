@@ -134,7 +134,7 @@ function getStatusActionClass(status: TaskStatus) {
       <div class="relative z-10 w-full px-5 pt-3 pb-1">
         <div class="mb-3 flex w-full items-center justify-between gap-3">
           <DynamicTagsPanel :tags="tags" empty-message="No tags" />
-          <div class="flex shrink-0 items-center gap-2">
+          <div class="flex shrink-0 items-center gap-2" data-task-dnd-ignore="true">
             <template v-if="isColumnView">
               <TimeTrackingButton :task="task" />
 

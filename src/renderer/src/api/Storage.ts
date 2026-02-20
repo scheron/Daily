@@ -2,7 +2,7 @@ import {DateTime} from "luxon"
 
 import type {ISODate} from "@shared/types/common"
 import type {TaskSearchResult} from "@shared/types/search"
-import type {Day, Tag, Task, TaskStatus} from "@shared/types/storage"
+import type {Day, MoveTaskByOrderParams, Tag, Task, TaskStatus} from "@shared/types/storage"
 import type {Storage} from "./types"
 
 export class StorageAPI implements Storage {
@@ -33,7 +33,7 @@ export class StorageAPI implements Storage {
         tags: params.tags ?? [],
         estimatedTime: params.estimatedTime ?? 0,
         spentTime: 0,
-        orderIndex: params.orderIndex ?? Date.now(),
+        orderIndex: params.orderIndex ?? 0,
         scheduled: {
           date: scheduledDate,
           time: scheduledTime,
@@ -60,6 +60,18 @@ export class StorageAPI implements Storage {
       return this.getDay(updatedTask.scheduled.date)
     } catch (error) {
       console.error("Failed to update task", error)
+      return null
+    }
+  }
+
+  async moveTaskByOrder(params: MoveTaskByOrderParams): Promise<Day | null> {
+    try {
+      const updatedTask = await window.BridgeIPC["tasks:move-by-order"](params)
+      if (!updatedTask) return null
+
+      return this.getDay(updatedTask.scheduled.date)
+    } catch (error) {
+      console.error("Failed to move task by order", error)
       return null
     }
   }
