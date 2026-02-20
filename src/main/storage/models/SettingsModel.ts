@@ -41,6 +41,15 @@ export class SettingsModel {
         enabled: false,
       },
       ai: null,
+      layout: {
+        type: "list",
+        columnsHideEmpty: false,
+        columnsCollapsed: {
+          active: false,
+          discarded: false,
+          done: false,
+        },
+      },
     }
   }
 

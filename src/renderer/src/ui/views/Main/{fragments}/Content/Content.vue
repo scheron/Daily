@@ -2,18 +2,22 @@
 import {computed, watch} from "vue"
 
 import {ISODate} from "@shared/types/common"
-import {Tag, Task} from "@shared/types/storage"
+import {Tag, Task, TaskStatus} from "@shared/types/storage"
+import {removeDuplicates} from "@shared/utils/arrays/removeDuplicates"
 import {sortTags} from "@shared/utils/tags/sortTags"
 import {useFilterStore} from "@/stores/filter.store"
 import {useTagsStore} from "@/stores/tags.store"
 import {useTaskEditorStore} from "@/stores/taskEditor.store"
 import {useTasksStore} from "@/stores/tasks.store"
+import {useUIStore} from "@/stores/ui.store"
 import {scrollToElement} from "@/utils/ui/dom"
 import BaseAnimation from "@/ui/base/BaseAnimation.vue"
+import BaseModal from "@/ui/base/BaseModal.vue"
 import BaseSpinner from "@/ui/base/BaseSpinner.vue"
-import TaskCard from "@/ui/modules/TaskCard"
 import TaskEditorCard from "@/ui/modules/TaskEditorCard"
 
+import ContentBoardView from "./{fragments}/ContentBoardView.vue"
+import ContentListView from "./{fragments}/ContentListView.vue"
 import NoTasksPlaceholder from "./{fragments}/NoTasksPlaceholder.vue"
 
 import type {TasksFilter} from "@/types/common"
@@ -26,16 +30,48 @@ const tasksStore = useTasksStore()
 const filterStore = useFilterStore()
 const tagsStore = useTagsStore()
 const taskEditorStore = useTaskEditorStore()
+const uiStore = useUIStore()
 
-const filteredTasks = computed(() => {
+const listTasks = computed(() => {
   return filterTasksByStatus(tasksStore.dailyTasks, filterStore.activeFilter).filter((task) => {
     if (!filterStore.activeTagIds.size) return true
     return task.tags.some((tag) => filterStore.activeTagIds.has(tag.id))
   })
 })
+const boardTasks = computed(() => {
+  return tasksStore.dailyTasks.filter((task) => {
+    if (!filterStore.activeTagIds.size) return true
+    return task.tags.some((tag) => filterStore.activeTagIds.has(tag.id))
+  })
+})
+const hasBoardTasks = computed(() => boardTasks.value.length > 0)
 
 const isNewTaskEditing = computed(() => taskEditorStore.isTaskEditorOpen && !taskEditorStore.currentEditingTask)
 const newTaskPlaceholder = computed<Task | null>(() => (isNewTaskEditing.value ? createTaskPlaceholder(tasksStore.activeDay) : null))
+const boardTasksByStatus = computed<Record<TaskStatus, Task[]>>(() => {
+  return boardTasks.value.reduce(
+    (acc, task) => {
+      acc[task.status].push(task)
+      return acc
+    },
+    {active: [], discarded: [], done: []} as Record<TaskStatus, Task[]>,
+  )
+})
+const boardTagsByStatus = computed<Record<TaskStatus, Tag[]>>(() => {
+  const rawTagsByStatus = tasksStore.dailyTasks.reduce(
+    (acc, task) => {
+      acc[task.status].push(...task.tags)
+      return acc
+    },
+    {active: [], discarded: [], done: []} as Record<TaskStatus, Tag[]>,
+  )
+
+  return {
+    active: sortTags(removeDuplicates(rawTagsByStatus.active, "name")),
+    discarded: sortTags(removeDuplicates(rawTagsByStatus.discarded, "name")),
+    done: sortTags(removeDuplicates(rawTagsByStatus.done, "name")),
+  }
+})
 
 function isEditing(task: Task): boolean {
   if (!taskEditorStore.isTaskEditorOpen) return false
@@ -77,6 +113,8 @@ function createTaskPlaceholder(date: ISODate): Task {
 watch(
   () => taskEditorStore.isTaskEditorOpen,
   (isOpen) => {
+    if (uiStore.tasksViewMode === "columns") return
+
     if (isOpen) {
       const editorId = taskEditorStore.currentEditingTask ? `task-editor-${taskEditorStore.currentEditingTask.id}` : "task-editor-new-task"
       scrollToElement(editorId, {behavior: "instant", block: "nearest"})
@@ -86,27 +124,40 @@ watch(
 </script>
 
 <template>
-  <div class="app-content bg-base-200 flex-1 overflow-y-auto">
-    <BaseAnimation name="fade" mode="out-in">
-      <BaseSpinner v-if="!tasksStore.isDaysLoaded" />
-      <NoTasksPlaceholder
-        v-else-if="!filteredTasks.length && !taskEditorOpen"
-        :date="tasksStore.activeDay"
-        :filter="filterStore.activeFilter"
-        @create-task="emit('createTask')"
-      />
+  <div class="app-content bg-base-200 flex-1" :class="uiStore.tasksViewMode === 'columns' ? 'overflow-hidden' : 'overflow-y-auto'">
+    <BaseSpinner v-if="!tasksStore.isDaysLoaded" />
+    <NoTasksPlaceholder
+      v-else-if="uiStore.tasksViewMode === 'list' && !listTasks.length && !taskEditorOpen"
+      :date="tasksStore.activeDay"
+      :filter="filterStore.activeFilter"
+      @create-task="emit('createTask')"
+    />
+    <NoTasksPlaceholder
+      v-else-if="uiStore.tasksViewMode === 'columns' && !hasBoardTasks && !taskEditorOpen"
+      :date="tasksStore.activeDay"
+      filter="all"
+      @create-task="emit('createTask')"
+    />
+    <ContentListView
+      v-else-if="uiStore.tasksViewMode === 'list'"
+      :tasks="listTasks"
+      :is-new-task-editing="isNewTaskEditing"
+      :new-task-placeholder="newTaskPlaceholder"
+      :is-editing="isEditing"
+      :get-task-tags="getTaskTags"
+    />
+    <ContentBoardView v-else :tasks-by-status="boardTasksByStatus" :tags-by-status="boardTagsByStatus" :get-task-tags="getTaskTags" />
 
-      <div v-else :key="String(tasksStore.activeDay + filterStore.activeFilter)" class="flex flex-1 flex-col gap-2 p-2">
-        <template v-if="isNewTaskEditing && newTaskPlaceholder">
-          <TaskEditorCard v-if="isEditing(newTaskPlaceholder)" />
-          <TaskCard v-else :key="newTaskPlaceholder.id" :task="newTaskPlaceholder" :tags="[]" />
-        </template>
-
-        <template v-for="task in filteredTasks" :key="task.id">
-          <TaskEditorCard v-if="isEditing(task)" />
-          <TaskCard v-else :key="task.id" :task="task" :tags="getTaskTags(task)" />
-        </template>
-      </div>
-    </BaseAnimation>
+    <BaseModal
+      v-if="uiStore.tasksViewMode === 'columns'"
+      :open="taskEditorStore.isTaskEditorOpen"
+      hide-header
+      container-class="h-auto w-[min(780px,94vw)] max-h-[84vh] rounded-xl"
+      content-class="!p-0 overflow-hidden h-full flex flex-col"
+      :z-index="2"
+      @close="taskEditorStore.setIsTaskEditorOpen(false)"
+    >
+      <TaskEditorCard />
+    </BaseModal>
   </div>
 </template>

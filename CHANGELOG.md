@@ -2,9 +2,23 @@
 
 ## [Unreleased]
 
-This release adds a context menu for tasks, improves tag handling and calendar navigation, introduces inline tag commands in the editor, and includes other improvements and bug fixes.
+This release adds a context menu for tasks, improves tag handling and calendar navigation, introduces inline tag commands in the editor, adds list/board task layouts, and includes other improvements and bug fixes.
 
 ### ✨ New Features
+
+- **Task Board Layout** — New kanban-like board mode for daily tasks
+  - Added two layout modes: `List` and `Columns`
+  - Tasks are automatically move across columns when status changes
+
+- **Layout Settings** — New settings section for layout behavior
+  - Added `Layout` section with clickable preview cards for `List` and `Board` modes
+  - Added `layout.columnsHideEmpty` switch to hide empty columns in board mode
+
+  ![Columns View](./media/columns-view.png)
+
+- **Board Editing Modal** — Editing in board mode now uses modal editor
+  - In `Columns` mode, task editing opens in a compact modal instead of inline editing in a column
+  - Keeps editing stable in narrow/scrollable board layouts
 
 - **Context Menu for Tasks** — Quick access to common commands from the task list
   - Right-click or long-press on a task to open the context menu with actions
@@ -22,6 +36,17 @@ This release adds a context menu for tasks, improves tag handling and calendar n
 
 ### 🎨 UI/UX Improvements
 
+- **Board-Specific Task Presentation** — Dedicated task card variant for board columns
+  - Kept list-mode card unchanged
+  - In board mode, replaced status button group with a single status trigger + popup menu
+  - Removed quick actions from board-mode cards for cleaner compact layout
+
+- **Layout-Aware Main View** — Separate list/board rendering paths
+  - Split content rendering into dedicated list and board view components
+  - Toolbar with global filters is shown only in list mode
+  - In board mode, tags are shown and filtered per column
+  - Board scrolling is handled by the columns container (including horizontal scroll on narrow screens)
+
 - **Tag Components** — Refined tag-related UI and behavior
   - Improved tag components for clearer display and interaction
   - Increased character limit for tag names in the tag form
@@ -37,6 +62,7 @@ This release adds a context menu for tasks, improves tag handling and calendar n
 
 ### 🐛 Bug Fixes
 
+- Fixed an issue where task editor content could shrink in scrollable board columns while editing.
 - Fixed an issue where relative dates were not shown correctly as "Today" and "Yesterday".
 - Fixed an issue where tags could appear in different orders.
 - Fixed the Remote thinking-models tool-call flow by preserving and sending `reasoning_content` in assistant history messages.

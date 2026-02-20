@@ -25,6 +25,8 @@ export type IconName =
   | "info"
   | "today"
   | "sidebar"
+  | "layout-list"
+  | "layout-columns"
   | "folder"
   | "folder-open"
   | "trash"
@@ -62,6 +64,9 @@ export type IconName =
   | "stop"
   | "spinner"
   | "copy"
+  | "layout"
+  | "minimize"
+  | "maximize"
 </script>
 
 <template>
@@ -245,6 +250,28 @@ export type IconName =
         color="currentColor"
       />
     </symbol>
+
+    <symbol id="layout-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="4.5" cy="6.5" r="1" fill="currentColor" />
+      <circle cx="4.5" cy="12" r="1" fill="currentColor" />
+      <circle cx="4.5" cy="17.5" r="1" fill="currentColor" />
+      <path d="M8 6.5h12M8 12h12M8 17.5h12" />
+    </symbol>
+
+    <symbol
+      id="layout-columns"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <rect x="3" y="4" width="5" height="16" rx="1.2" />
+      <rect x="9.5" y="4" width="5" height="16" rx="1.2" />
+      <rect x="16" y="4" width="5" height="16" rx="1.2" />
+    </symbol>
+
     <symbol id="folder" viewBox="0 0 24 24">
       <path
         fill="none"
@@ -503,6 +530,23 @@ export type IconName =
     <symbol id="copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
       <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect>
       <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
+    </symbol>
+    <symbol id="layout" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <rect width="7" height="18" x="3" y="3" rx="1"></rect>
+      <rect width="7" height="7" x="14" y="3" rx="1"></rect>
+      <rect width="7" height="7" x="14" y="14" rx="1"></rect>
+    </symbol>
+    <symbol id="minimize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="m14 10 7-7"></path>
+      <path d="M20 10h-6V4"></path>
+      <path d="m3 21 7-7"></path>
+      <path d="M4 14h6v6"></path>
+    </symbol>
+    <symbol id="maximize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M15 3h6v6"></path>
+      <path d="m21 3-7 7"></path>
+      <path d="m3 21 7-7"></path>
+      <path d="M9 21H3v-6"></path>
     </symbol>
   </svg>
 </template>

@@ -119,12 +119,27 @@ export function settingsToDoc(settings: Settings, createdAt: ISODateTime, update
 }
 
 export function docToSettings(doc: SettingsDoc): Settings {
+  const columnsCollapsed = doc.data.layout?.columnsCollapsed ?? {
+    active: false,
+    discarded: false,
+    done: false,
+  }
+
   return {
     version: doc.data.version,
     themes: doc.data.themes,
     sidebar: doc.data.sidebar,
     sync: doc.data.sync,
     ai: doc.data.ai,
+    layout: {
+      type: doc.data.layout?.type ?? "list",
+      columnsHideEmpty: doc.data.layout?.columnsHideEmpty ?? false,
+      columnsCollapsed: {
+        active: Boolean(columnsCollapsed.active),
+        discarded: Boolean(columnsCollapsed.discarded),
+        done: Boolean(columnsCollapsed.done),
+      },
+    },
   }
 }
 

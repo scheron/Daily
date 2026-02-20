@@ -113,7 +113,7 @@ useResizeObserver(containerRef, calculateVisibleTags)
           <BaseButton
             variant="outline"
             size="sm"
-            class="shrink-0 rounded-md px-2"
+            class="h-7 shrink-0 rounded-md px-2"
             :class="[hasSelectedInPopup ? 'bg-accent/20 border-accent text-accent' : 'opacity-70 hover:opacity-90']"
             icon="tags"
             icon-class="size-3.5"

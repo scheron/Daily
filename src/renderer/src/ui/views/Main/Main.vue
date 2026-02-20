@@ -78,7 +78,7 @@ window.BridgeIPC["menu:on-new-task"]((action) => {
       />
 
       <div class="app-main-body text-base-content flex size-full flex-col" :style="{height: contentHeight + 'px'}">
-        <div class="app-toolbar border-base-300 md:h-header flex items-center border-b">
+        <div v-if="uiStore.tasksViewMode === 'list'" class="app-toolbar border-base-300 md:h-header flex items-center border-b">
           <Toolbar />
         </div>
 

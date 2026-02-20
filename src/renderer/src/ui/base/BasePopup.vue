@@ -85,7 +85,7 @@ defineExpose({
     <div
       v-if="isOpen"
       ref="popup"
-      :class="cn('bg-base-100 border-base-300 z-50 max-h-[300px] min-w-52 overflow-y-auto rounded-lg border p-2 shadow-lg', containerClass)"
+      :class="cn('bg-base-100 border-base-300 z-999 max-h-[300px] min-w-52 overflow-y-auto rounded-lg border p-2 shadow-lg', containerClass)"
       :style="floatingStyles"
     >
       <div :class="cn('flex flex-col gap-1', contentClass)">

@@ -5,9 +5,10 @@ import {useEventListener} from "@vueuse/core"
 import {useFocusTrap} from "@/composables/useFocusTrap"
 import {findFocusableEl} from "@/utils/ui/dom"
 import {cn} from "@/utils/ui/tailwindcss"
-import BaseAnimation from "@/ui/base/BaseAnimation.vue"
 import BaseButton from "@/ui/base/BaseButton.vue"
 import Logo from "@/ui/common/misc/Logo.vue"
+
+import BaseAnimation from "./BaseAnimation.vue"
 
 const props = withDefaults(
   defineProps<{
@@ -15,6 +16,7 @@ const props = withDefaults(
     title?: string
     fullscreen?: boolean
     hideHeader?: boolean
+    hideToolbar?: boolean
     zIndex?: number
     contentClass?: string
     containerClass?: string
@@ -50,13 +52,13 @@ useEventListener(modalRef, "keydown", (event) => event.key === "Escape" && emit(
 
 <template>
   <Teleport to="body">
-    <BaseAnimation name="fade">
+    <BaseAnimation name="bounce">
       <div v-if="open" ref="modal" class="fixed inset-0 flex items-center justify-center" :style="{zIndex}" tabindex="0">
-        <div class="bg-base-300/80 absolute inset-0 backdrop-blur-sm" @click="$emit('close', false)" />
+        <div class="bg-base-300/60 absolute inset-0 backdrop-blur-xs" @click="$emit('close', false)" />
 
         <div class="bg-base-100 relative flex flex-col" :class="cn([fullscreen ? 'size-full' : 'h-[90vh] w-[90vw] rounded-lg'], containerClass)">
-          <div class="border-base-300 h-header flex items-center justify-between border-b px-4 py-1">
-            <slot v-if="!hideHeader" name="header">
+          <div v-if="!hideHeader" class="border-base-300 h-header flex items-center justify-between border-b px-4 py-1">
+            <slot v-if="!hideToolbar" name="toolbar">
               <div class="text-accent flex items-center gap-2 pl-4">
                 <Logo class="h-5" />
                 <h2 class="font-mono text-xl font-bold">Daily</h2>

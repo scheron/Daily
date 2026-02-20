@@ -2,6 +2,8 @@ import type {AIConfig} from "./ai"
 import type {ID, ISODate, ISODateTime, ISOTime, Timezone} from "./common"
 
 export type SyncStatus = "inactive" | "active" | "syncing" | "error"
+export type LayoutType = "list" | "columns"
+export type TaskStatus = "active" | "discarded" | "done"
 
 export type Settings = {
   version: string
@@ -19,9 +21,22 @@ export type Settings = {
     enabled: boolean
   }
   ai: AIConfig | null
+  layout: {
+    type: LayoutType
+    /**
+     * Indicates whether columns with no tasks should be hidden.
+     * Applies only to the "columns" layout type.
+     */
+    columnsHideEmpty: boolean
+    /**
+     * Indicates whether columns have been manually collapsed.
+     * Applies only to the "columns" layout type.
+     * @example {active: true, discarded: false, done: false} means that "active" and "done" columns are collapsed by user
+     * @default {active: false, discarded: false, done: false}
+     */
+    columnsCollapsed: Record<TaskStatus, boolean>
+  }
 }
-
-export type TaskStatus = "active" | "discarded" | "done"
 
 export type Task = {
   /** Task ID (task:ID) */

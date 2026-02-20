@@ -339,10 +339,10 @@ const {isDraggingOver} = useFileDrop(container, {
       </div>
     </div>
 
-    <div class="relative mb-1 flex min-h-0 flex-1 flex-col gap-2 p-2">
+    <div class="relative mb-1 flex max-h-[81vh] min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2">
       <div
         ref="container"
-        class="bg-base-100 border-base-300 h-full w-full cursor-text overflow-y-auto rounded-lg border transition-colors"
+        class="bg-base-100 border-base-300 h-full min-h-24 w-full cursor-text overflow-y-auto rounded-lg border transition-colors"
         :class="{'ring-offset-base-100 ring-accent/50 ring-2': isDraggingOver}"
       ></div>
       <FloatingToolbar v-if="view" :editor-view="view" />
