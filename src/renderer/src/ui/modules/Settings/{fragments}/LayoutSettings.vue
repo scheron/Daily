@@ -35,12 +35,22 @@ function onSelectLayout(type: LayoutType) {
     </div>
 
     <BlockUI :block="uiStore.tasksViewMode !== 'columns'">
-      <div class="border-base-300 bg-base-200/60 flex items-start justify-between gap-2 rounded-lg border p-3">
-        <div>
-          <p class="text-base-content text-sm">Hide empty</p>
-          <p class="text-base-content/60 text-xs">Hides columns with no tasks</p>
+      <div class="flex flex-col gap-2">
+        <div class="border-base-300 bg-base-200/60 flex items-start justify-between gap-2 rounded-lg border p-3">
+          <div>
+            <p class="text-base-content text-sm">Auto-hide empty columns</p>
+            <p class="text-base-content/60 text-xs">Hide columns that have no tasks</p>
+          </div>
+          <BaseSwitch :model-value="uiStore.columnsHideEmpty" @update:model-value="uiStore.toggleColumnsHideEmpty($event)" />
         </div>
-        <BaseSwitch :model-value="uiStore.columnsHideEmpty" @update:model-value="uiStore.toggleColumnsHideEmpty($event)" />
+
+        <div class="border-base-300 bg-base-200/60 flex items-start justify-between gap-2 rounded-lg border p-3">
+          <div>
+            <p class="text-base-content text-sm">Auto-collapse empty columns</p>
+            <p class="text-base-content/60 text-xs">Collapse columns that have no tasks</p>
+          </div>
+          <BaseSwitch :model-value="uiStore.columnsAutoCollapseEmpty" @update:model-value="uiStore.toggleColumnsAutoCollapseEmpty($event)" />
+        </div>
       </div>
     </BlockUI>
   </div>

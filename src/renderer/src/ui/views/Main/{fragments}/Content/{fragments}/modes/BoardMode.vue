@@ -85,14 +85,17 @@ function isColumnHidden(status: TaskStatus) {
 }
 
 function isColumnCollapsed(status: TaskStatus) {
+  if (uiStore.columnsAutoCollapseEmpty) return !isDragging.value && isColumnEmpty(status)
   return Boolean(uiStore.columnsCollapsed[status])
 }
 
 function onToggleColumn(status: TaskStatus) {
+  if (uiStore.columnsAutoCollapseEmpty) return
   uiStore.toggleColumnCollapsed(status)
 }
 
 function onColumnDragEnter(status: TaskStatus) {
+  if (uiStore.columnsAutoCollapseEmpty) return
   if (!isDragging.value) return
   if (!isColumnCollapsed(status)) return
 
@@ -205,7 +208,14 @@ watch(
             <span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="column.counterClass">
               {{ filteredTasksByStatus[column.status].length }}
             </span>
-            <BaseButton variant="ghost" icon="chevron-right" tooltip="Expand column" class="size-6 p-0" @click="onToggleColumn(column.status)" />
+            <BaseButton
+              v-if="!uiStore.columnsAutoCollapseEmpty"
+              variant="ghost"
+              icon="chevron-right"
+              tooltip="Expand column"
+              class="size-6 p-0"
+              @click="onToggleColumn(column.status)"
+            />
           </div>
         </template>
 
@@ -218,7 +228,14 @@ watch(
                 {{ filteredTasksByStatus[column.status].length }}
               </span>
             </div>
-            <BaseButton variant="ghost" icon="chevron-left" tooltip="Collapse column" class="size-6 p-0" @click="onToggleColumn(column.status)" />
+            <BaseButton
+              v-if="!uiStore.columnsAutoCollapseEmpty"
+              variant="ghost"
+              icon="chevron-left"
+              tooltip="Collapse column"
+              class="size-6 p-0"
+              @click="onToggleColumn(column.status)"
+            />
           </div>
 
           <div class="border-base-300 h-header border-b px-3 py-1.5">

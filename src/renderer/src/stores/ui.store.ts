@@ -13,6 +13,7 @@ export const useUIStore = defineStore("ui", () => {
   const isSidebarCollapsed = useSettingValue("sidebar.collapsed", false)
   const tasksViewMode = useSettingValue("layout.type", "list" as TasksViewMode)
   const columnsHideEmpty = useSettingValue("layout.columnsHideEmpty", false)
+  const columnsAutoCollapseEmpty = useSettingValue("layout.columnsAutoCollapseEmpty", false)
   const activeColumnCollapsed = useSettingValue("layout.columnsCollapsed.active", false)
   const discardedColumnCollapsed = useSettingValue("layout.columnsCollapsed.discarded", false)
   const doneColumnCollapsed = useSettingValue("layout.columnsCollapsed.done", false)
@@ -40,7 +41,28 @@ export const useUIStore = defineStore("ui", () => {
   }
 
   function toggleColumnsHideEmpty(value?: boolean) {
-    columnsHideEmpty.value = value ?? !columnsHideEmpty.value
+    const nextValue = value ?? !columnsHideEmpty.value
+
+    if (!nextValue) {
+      columnsHideEmpty.value = false
+      return
+    }
+
+    if (columnsAutoCollapseEmpty.value) columnsAutoCollapseEmpty.value = false
+    columnsHideEmpty.value = true
+  }
+
+  function toggleColumnsAutoCollapseEmpty(value?: boolean) {
+    const nextValue = value ?? !columnsAutoCollapseEmpty.value
+
+    if (!nextValue) {
+      columnsAutoCollapseEmpty.value = false
+      return
+    }
+
+    if (columnsHideEmpty.value) columnsHideEmpty.value = false
+
+    columnsAutoCollapseEmpty.value = true
   }
 
   function toggleColumnCollapsed(status: TaskStatus) {
@@ -60,11 +82,13 @@ export const useUIStore = defineStore("ui", () => {
     isMobileSidebarOpen,
     tasksViewMode,
     columnsHideEmpty,
+    columnsAutoCollapseEmpty,
     columnsCollapsed,
 
     toggleSidebarCollapse,
     setTasksViewMode,
     toggleColumnsHideEmpty,
+    toggleColumnsAutoCollapseEmpty,
     toggleColumnCollapsed,
     setColumnCollapsed,
   }

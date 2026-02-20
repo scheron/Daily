@@ -12,7 +12,7 @@ This release adds a context menu for tasks, improves tag handling and calendar n
 
 - **Layout Settings** — New settings section for layout behavior
   - Added `Layout` section with clickable preview cards for `List` and `Board` modes
-  - Added `layout.columnsHideEmpty` switch to hide empty columns in board mode
+  - Added empty-column behavior: hide empty columns or keep them visible in a collapsed state
   - In `Board` mode, task editing opens in a modal
     ![Columns View](./media/columns-view.png)
 

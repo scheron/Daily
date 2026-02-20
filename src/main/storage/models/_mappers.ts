@@ -139,6 +139,7 @@ export function docToSettings(doc: SettingsDoc): Settings {
     layout: {
       type: doc.data.layout?.type ?? "list",
       columnsHideEmpty: doc.data.layout?.columnsHideEmpty ?? false,
+      columnsAutoCollapseEmpty: doc.data.layout?.columnsAutoCollapseEmpty ?? false,
       columnsCollapsed: {
         active: Boolean(columnsCollapsed.active),
         discarded: Boolean(columnsCollapsed.discarded),

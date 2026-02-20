@@ -31,6 +31,11 @@ export type Settings = {
      */
     columnsHideEmpty: boolean
     /**
+     * Indicates whether empty columns should be automatically collapsed.
+     * Applies only to the "columns" layout type.
+     */
+    columnsAutoCollapseEmpty: boolean
+    /**
      * Indicates whether columns have been manually collapsed.
      * Applies only to the "columns" layout type.
      * @example {active: true, discarded: false, done: false} means that "active" and "done" columns are collapsed by user

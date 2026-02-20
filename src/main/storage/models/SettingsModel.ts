@@ -44,6 +44,7 @@ export class SettingsModel {
       layout: {
         type: "list",
         columnsHideEmpty: false,
+        columnsAutoCollapseEmpty: false,
         columnsCollapsed: {
           active: false,
           discarded: false,
