@@ -1,3 +1,4 @@
+import type {IconName} from "@/ui/base/BaseIcon"
 import type {AnimatedTab} from "@/ui/common/misc/AnimatedTabs"
 import type {TaskStatus} from "@shared/types/storage"
 
@@ -26,4 +27,10 @@ export const STATUS_BUTTONS: AnimatedTab<TaskStatus>[] = [
     activeClass: "text-success bg-success/10 border-success hover:text-success",
     inactiveClass: "hover:text-success",
   },
+]
+
+export const STATUS_ACTIONS: Array<{label: string; value: TaskStatus; icon: IconName; tooltip: string}> = [
+  {label: "Active", value: "active", icon: "fire", tooltip: "Set as active"},
+  {label: "Discarded", value: "discarded", icon: "archive", tooltip: "Discard task"},
+  {label: "Done", value: "done", icon: "check-check", tooltip: "Mark as done"},
 ]

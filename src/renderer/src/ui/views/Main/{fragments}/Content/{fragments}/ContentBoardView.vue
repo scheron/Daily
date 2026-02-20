@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import {computed, onBeforeUnmount, ref, watch} from "vue"
-import draggable from "vuedraggable"
+import {computed, ref, watch} from "vue"
+import VueDraggable from "vuedraggable"
 
+import {deepClone} from "@shared/utils/common/deepClone"
 import {useUIStore} from "@/stores/ui.store"
-import {resolveVerticalScrollableAncestor, useDragAutoScroll} from "@/composables/useDragAutoScroll"
+import {resolveMoveTarget, useTaskDragDrop} from "@/composables/useTaskDragDrop"
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseIcon from "@/ui/base/BaseIcon"
 import DynamicTagsPanel from "@/ui/common/misc/DynamicTagsPanel.vue"
@@ -11,7 +12,7 @@ import TaskCard from "@/ui/modules/TaskCard"
 
 import type {IconName} from "@/ui/base/BaseIcon"
 import type {TaskMoveMeta} from "@/utils/tasks/reorderTasks"
-import type {Tag, Task, TaskStatus} from "@shared/types/storage"
+import type {MoveTaskByOrderParams, Tag, Task, TaskStatus} from "@shared/types/storage"
 
 type BoardColumn = {
   status: TaskStatus
@@ -47,13 +48,7 @@ const props = defineProps<{
   tagsByStatus: Record<TaskStatus, Tag[]>
   getTaskTags: (task: Task) => Tag[]
   dndDisabled: boolean
-  moveTaskByOrder: (params: {
-    taskId: Task["id"]
-    mode: "list" | "column"
-    targetTaskId?: Task["id"] | null
-    targetStatus?: TaskStatus
-    position?: "before" | "after"
-  }) => Promise<TaskMoveMeta | null>
+  moveTaskByOrder: (params: MoveTaskByOrderParams) => Promise<TaskMoveMeta | null>
 }>()
 
 const uiStore = useUIStore()
@@ -67,18 +62,12 @@ const localTasksByStatus = ref<Record<TaskStatus, Task[]>>({
   discarded: [],
   done: [],
 })
-const isDragging = ref(false)
-const isCommitting = ref(false)
-const pendingCrossColumnMove = ref<{
-  taskId: Task["id"]
-  targetStatus: TaskStatus
-  targetTaskId: Task["id"] | null
-  position: "before" | "after"
-} | null>(null)
+const pendingCrossColumnMove = ref<MoveTaskByOrderParams | null>(null)
 const SORTABLE_ANIMATION_MS = 140
-const autoScroll = useDragAutoScroll()
-
-const isDragDisabled = computed(() => props.dndDisabled || isCommitting.value)
+const {isDragging, isCommitting, isDragDisabled, onDragStart, onDragEnd, onDragOver, runWithCommit} = useTaskDragDrop({
+  dndDisabled: () => props.dndDisabled,
+  onDragEnd: flushPendingCrossColumnMove,
+})
 const visibleColumns = computed(() => BOARD_COLUMNS.filter((column) => !isColumnHidden(column.status)))
 const filteredTasksByStatus = computed<Record<TaskStatus, Task[]>>(() => {
   return {
@@ -88,15 +77,11 @@ const filteredTasksByStatus = computed<Record<TaskStatus, Task[]>>(() => {
   }
 })
 
-function cloneTask(task: Task): Task {
-  return {...task}
-}
-
 function syncLocalTasks() {
   localTasksByStatus.value = {
-    active: filteredTasksByStatus.value.active.map(cloneTask),
-    discarded: filteredTasksByStatus.value.discarded.map(cloneTask),
-    done: filteredTasksByStatus.value.done.map(cloneTask),
+    active: filteredTasksByStatus.value.active.map((task) => deepClone(task)),
+    discarded: filteredTasksByStatus.value.discarded.map((task) => deepClone(task)),
+    done: filteredTasksByStatus.value.done.map((task) => deepClone(task)),
   }
 }
 
@@ -155,33 +140,12 @@ function onSelectTag(status: TaskStatus, id: Tag["id"]) {
   activeTagIdsByStatus.value[status] = [...selectedTagIds, id]
 }
 
-function onDragStart() {
-  isDragging.value = true
-  window.addEventListener("dragover", onGlobalDragOver)
-}
-
-function onDragEnd() {
-  isDragging.value = false
-  window.removeEventListener("dragover", onGlobalDragOver)
-  autoScroll.stop()
-
+function flushPendingCrossColumnMove() {
   const pendingMove = pendingCrossColumnMove.value
   if (!pendingMove) return
   pendingCrossColumnMove.value = null
 
-  window.setTimeout(() => {
-    void commitColumnMove(pendingMove)
-  }, SORTABLE_ANIMATION_MS + 16)
-}
-
-function onDragOver(event: DragEvent) {
-  if (!isDragging.value) return
-  autoScroll.update(resolveVerticalScrollableAncestor(event.target), event.clientY)
-}
-
-function onGlobalDragOver(event: DragEvent) {
-  if (!isDragging.value) return
-  autoScroll.update(resolveVerticalScrollableAncestor(event.target), event.clientY)
+  setTimeout(() => commitColumnMove(pendingMove), SORTABLE_ANIMATION_MS + 16)
 }
 
 async function onColumnChange(status: TaskStatus, event: {added?: {newIndex: number}; moved?: {newIndex: number; oldIndex: number}}) {
@@ -196,16 +160,14 @@ async function onColumnChange(status: TaskStatus, event: {added?: {newIndex: num
 
   movedTask.status = status
 
-  const nextTask = localTasksByStatus.value[status][newIndex + 1] ?? null
-  const targetTaskId = nextTask?.id ?? null
-  const position = targetTaskId ? "before" : "after"
+  const {targetTaskId, position} = resolveMoveTarget(localTasksByStatus.value[status], newIndex)
 
   const moveParams = {
     taskId: movedTask.id,
     targetStatus: status,
     targetTaskId,
     position,
-  } as const
+  } as MoveTaskByOrderParams
 
   if (event.added) {
     pendingCrossColumnMove.value = moveParams
@@ -215,15 +177,8 @@ async function onColumnChange(status: TaskStatus, event: {added?: {newIndex: num
   await commitColumnMove(moveParams)
 }
 
-async function commitColumnMove(params: {
-  taskId: Task["id"]
-  targetStatus: TaskStatus
-  targetTaskId: Task["id"] | null
-  position: "before" | "after"
-}) {
-  isCommitting.value = true
-
-  try {
+async function commitColumnMove(params: MoveTaskByOrderParams) {
+  await runWithCommit(async () => {
     const result = await props.moveTaskByOrder({
       taskId: params.taskId,
       mode: "column",
@@ -235,15 +190,8 @@ async function commitColumnMove(params: {
     if (!result) {
       syncLocalTasks()
     }
-  } finally {
-    isCommitting.value = false
-  }
+  })
 }
-
-onBeforeUnmount(() => {
-  window.removeEventListener("dragover", onGlobalDragOver)
-  autoScroll.stop()
-})
 </script>
 
 <template>
@@ -289,18 +237,18 @@ onBeforeUnmount(() => {
           </div>
 
           <div class="relative flex min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-2">
-            <draggable
+            <VueDraggable
               :list="localTasksByStatus[column.status]"
               item-key="id"
               group="daily-board"
-              filter="[data-task-dnd-ignore], [data-task-dnd-ignore] *, button, a, input, textarea, select, [role='button']"
+              filter="[data-draggable-task-ignore], [data-draggable-task-ignore] *, button, a, input, textarea, select, [role='button']"
               :prevent-on-filter="false"
               :force-fallback="true"
               :fallback-on-body="true"
               :fallback-tolerance="2"
-              ghost-class="task-dnd-ghost"
-              chosen-class="task-dnd-chosen"
-              drag-class="task-dnd-dragging"
+              ghost-class="draggable-task-ghost"
+              chosen-class="draggable-task-chosen"
+              drag-class="draggable-task-dragging"
               :animation="140"
               :disabled="isDragDisabled"
               class="flex min-h-full w-full min-w-0 flex-col overflow-x-hidden"
@@ -309,13 +257,13 @@ onBeforeUnmount(() => {
               @change="onColumnChange(column.status, $event)"
             >
               <template #item="{element: task}">
-                <div class="task-dnd-item relative">
+                <div class="relative mb-2 last:mb-0">
                   <div class="w-full shrink-0">
-                    <TaskCard :task="task" :tags="getTaskTags(task)" view="column" />
+                    <TaskCard :task="task" :tags="getTaskTags(task)" view="columns" />
                   </div>
                 </div>
               </template>
-            </draggable>
+            </VueDraggable>
 
             <div
               v-if="!localTasksByStatus[column.status].length && !isDragging"
@@ -332,30 +280,3 @@ onBeforeUnmount(() => {
     </div>
   </div>
 </template>
-
-<style scoped>
-.task-dnd-ghost {
-  position: relative;
-  border: 2px dashed color-mix(in oklab, var(--color-accent) 58%, transparent);
-  border-radius: 0.9rem;
-  background: color-mix(in oklab, var(--color-accent) 12%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--color-accent) 24%, transparent);
-}
-
-.task-dnd-ghost > * {
-  opacity: 0;
-  pointer-events: none;
-}
-
-.task-dnd-dragging {
-  opacity: 0.95;
-}
-
-.task-dnd-item {
-  margin-bottom: 0.5rem;
-}
-
-.task-dnd-item:last-child {
-  margin-bottom: 0;
-}
-</style>

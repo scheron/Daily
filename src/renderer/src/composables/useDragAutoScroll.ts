@@ -76,14 +76,14 @@ export function useDragAutoScroll(options: DragAutoScrollOptions = {}) {
 
     if (velocity === 0) {
       if (rafId !== null) {
-        window.cancelAnimationFrame(rafId)
+        cancelAnimationFrame(rafId)
         rafId = null
       }
       return
     }
 
     if (rafId === null) {
-      rafId = window.requestAnimationFrame(tick)
+      rafId = requestAnimationFrame(tick)
     }
   }
 

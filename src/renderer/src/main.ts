@@ -16,6 +16,7 @@ import "@/assets/styles/main.css"
 import "@/assets/styles/rewrites/floating-vue.css"
 import "@/assets/styles/rewrites/vue-sonner.css"
 import "@/assets/styles/rewrites/vue-toasts-lite.css"
+import "@/assets/styles/rewrites/vue-draggable.css"
 
 async function initApp() {
   const pinia = createPinia()

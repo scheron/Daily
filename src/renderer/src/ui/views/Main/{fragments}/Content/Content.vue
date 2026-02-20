@@ -2,7 +2,7 @@
 import {computed, watch} from "vue"
 
 import {ISODate} from "@shared/types/common"
-import {Tag, Task, TaskStatus} from "@shared/types/storage"
+import {MoveTaskByOrderParams, Tag, Task, TaskStatus} from "@shared/types/storage"
 import {removeDuplicates} from "@shared/utils/arrays/removeDuplicates"
 import {sortTags} from "@shared/utils/tags/sortTags"
 import {sortTasksByOrderIndex} from "@shared/utils/tasks/orderIndex"
@@ -81,13 +81,7 @@ const boardTagsByStatus = computed<Record<TaskStatus, Tag[]>>(() => {
 
 const isDndDisabled = computed(() => taskEditorStore.isTaskEditorOpen)
 
-async function moveTaskByOrder(params: {
-  taskId: Task["id"]
-  mode: "list" | "column"
-  targetTaskId?: Task["id"] | null
-  targetStatus?: TaskStatus
-  position?: "before" | "after"
-}) {
+async function moveTaskByOrder(params: MoveTaskByOrderParams) {
   const meta = await tasksStore.moveTaskByOrder(params)
   if (meta) emit("taskMoved", meta)
   return meta

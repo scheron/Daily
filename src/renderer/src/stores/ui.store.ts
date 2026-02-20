@@ -20,6 +20,7 @@ export const useUIStore = defineStore("ui", () => {
   const {isDesktop} = useDevice()
 
   const isMobileSidebarOpen = ref(false)
+
   const columnsCollapsed = computed<ColumnsCollapsed>(() => ({
     active: activeColumnCollapsed.value,
     discarded: discardedColumnCollapsed.value,

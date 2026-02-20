@@ -1,0 +1,15 @@
+.draggable-task-ghost {
+  position: relative;
+  border: 1px dashed color-mix(in oklab, var(--color-base-content) 38%, transparent);
+  border-radius: 0.9rem;
+  background: color-mix(in oklab, var(--color-base-300) 40%, transparent);
+}
+
+.draggable-task-ghost > * {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.draggable-task-dragging {
+  opacity: 1 !important;
+}

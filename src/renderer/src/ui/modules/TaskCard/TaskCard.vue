@@ -2,56 +2,31 @@
 import {computed} from "vue"
 
 import {useTasksStore} from "@/stores/tasks.store"
-import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseCalendar from "@/ui/base/BaseCalendar"
-import BasePopup from "@/ui/base/BasePopup.vue"
 import ContextMenu from "@/ui/common/misc/ContextMenu"
 import DynamicTagsPanel from "@/ui/common/misc/DynamicTagsPanel.vue"
 import MarkdownContent from "@/ui/common/misc/MarkdownContent.vue"
 
 import QuickActions from "./{fragments}/QuickActions.vue"
 import StatusButtons from "./{fragments}/StatusButtons.vue"
+import StatusSelect from "./{fragments}/StatusSelect.vue"
 import TagsMenu from "./{fragments}/TagsMenu.vue"
 import TimeTrackingButton from "./{fragments}/TimeTrackingButton.vue"
 import {useTaskModel} from "./model/useTaskModel"
 
-import type {IconName} from "@/ui/base/BaseIcon"
 import type {ContextMenuItem, ContextMenuSelectEvent} from "@/ui/common/misc/ContextMenu"
-import type {Tag, Task, TaskStatus} from "@shared/types/storage"
+import type {LayoutType, Tag, Task, TaskStatus} from "@shared/types/storage"
 
-type TaskCardView = "list" | "column"
-
-type StatusAction = {
-  label: string
-  value: TaskStatus
-  icon: IconName
-  tooltip: string
-}
-
-const props = withDefaults(
-  defineProps<{
-    task: Task
-    tags?: Tag[]
-    view?: TaskCardView
-  }>(),
-  {
-    tags: () => [],
-    view: "list",
-  },
-)
+const props = withDefaults(defineProps<{task: Task; tags?: Tag[]; view?: LayoutType}>(), {
+  tags: () => [],
+  view: "list",
+})
 
 const tasksStore = useTasksStore()
 
 const {startEdit, changeStatus, deleteTask, rescheduleTask, copyToClipboardTask, updateTaskTags} = useTaskModel(props)
-const isColumnView = computed(() => props.view === "column")
 
-const STATUS_ACTIONS: StatusAction[] = [
-  {label: "Active", value: "active", icon: "fire", tooltip: "Set as active"},
-  {label: "Discarded", value: "discarded", icon: "archive", tooltip: "Discard task"},
-  {label: "Done", value: "done", icon: "check-check", tooltip: "Mark as done"},
-]
-
-const currentStatusAction = computed(() => STATUS_ACTIONS.find((status) => status.value === props.task.status) ?? STATUS_ACTIONS[0])
+const isColumnView = computed(() => props.view === "columns")
 
 const menuItems = computed<ContextMenuItem[]>(() => [
   {value: "edit", label: "Edit", icon: "pencil"},
@@ -89,26 +64,6 @@ function onSelect(event: ContextMenuSelectEvent) {
   if (event.item.value === "copy") copyToClipboardTask()
   if (event.parent && event.parent.item.value === "status") changeStatus(event.item.value as TaskStatus)
 }
-
-function onSelectStatus(status: TaskStatus, hide?: () => void) {
-  changeStatus(status)
-  hide?.()
-}
-
-function getStatusTriggerClass(status: TaskStatus) {
-  if (status === "active") return "text-error hover:bg-error/10"
-  if (status === "discarded") return "text-warning hover:bg-warning/10"
-  if (status === "done") return "text-success hover:bg-success/10"
-  return ""
-}
-
-function getStatusActionClass(status: TaskStatus) {
-  if (props.task.status !== status) return "text-base-content/70 hover:bg-base-200 hover:text-base-content"
-  if (status === "active") return "text-error bg-error/10 hover:bg-error/20"
-  if (status === "discarded") return "text-warning bg-warning/10 hover:bg-warning/20"
-  if (status === "done") return "text-success bg-success/10 hover:bg-success/20"
-  return ""
-}
 </script>
 
 <template>
@@ -137,36 +92,7 @@ function getStatusActionClass(status: TaskStatus) {
           <div class="flex shrink-0 items-center gap-2" data-task-dnd-ignore="true">
             <template v-if="isColumnView">
               <TimeTrackingButton :task="task" />
-
-              <BasePopup hide-header container-class="min-w-32 p-1" position="end" content-class="gap-1">
-                <template #trigger="{toggle}">
-                  <BaseButton
-                    variant="ghost"
-                    class="size-7 p-0"
-                    :class="getStatusTriggerClass(currentStatusAction.value)"
-                    :icon="currentStatusAction.icon"
-                    :tooltip="currentStatusAction.tooltip"
-                    icon-class="size-4"
-                    @click="toggle"
-                  />
-                </template>
-
-                <template #default="{hide}">
-                  <BaseButton
-                    v-for="status in STATUS_ACTIONS"
-                    :key="status.value"
-                    variant="ghost"
-                    class="w-full justify-start px-2 py-1 text-xs"
-                    :class="getStatusActionClass(status.value)"
-                    :icon="status.icon"
-                    icon-class="size-4"
-                    :tooltip="status.tooltip"
-                    @click="onSelectStatus(status.value, hide)"
-                  >
-                    {{ status.label }}
-                  </BaseButton>
-                </template>
-              </BasePopup>
+              <StatusSelect :status="task.status" @update:status="changeStatus" />
             </template>
 
             <template v-else>
