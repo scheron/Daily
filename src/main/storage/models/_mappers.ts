@@ -32,11 +32,13 @@ export function taskToDoc(task: TaskInternal): TaskDoc {
   const createdAt = task.createdAt ?? new Date().toISOString()
   const updatedAt = task.updatedAt ?? createdAt
   const deletedAt = task.deletedAt ?? null
+  const fallbackOrderIndex = Number.isFinite(task.orderIndex) ? task.orderIndex : Date.parse(createdAt)
 
   return {
     _id: docIdMap.task.toDoc(task.id),
     type: "task",
     status: task.status,
+    orderIndex: fallbackOrderIndex,
     scheduled: {
       date: task.scheduled.date,
       time: task.scheduled.time,
@@ -54,9 +56,12 @@ export function taskToDoc(task: TaskInternal): TaskDoc {
 }
 
 export function docToTask(doc: TaskDoc): TaskInternal {
+  const fallbackOrderIndex = typeof doc.orderIndex === "number" && Number.isFinite(doc.orderIndex) ? doc.orderIndex : Date.parse(doc.createdAt)
+
   return {
     id: docIdMap.task.fromDoc(doc._id),
     status: doc.status,
+    orderIndex: fallbackOrderIndex,
     scheduled: {
       date: doc.scheduled.date,
       time: doc.scheduled.time,

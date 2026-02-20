@@ -1,4 +1,5 @@
 import {removeDuplicates} from "@shared/utils/arrays/removeDuplicates"
+import {sortTasksByOrderIndex} from "@shared/utils/tasks/orderIndex"
 
 import type {ISODate} from "@shared/types/common"
 import type {Day, Tag, Task} from "@shared/types/storage"
@@ -33,7 +34,7 @@ export function groupTasksByDay(params: {tasks: Task[]; tags: Tag[]}): Day[] {
   }
 
   return Array.from(taskDates).map((date) => {
-    const tasks = tasksByDay.get(date) || []
+    const tasks = sortTasksByOrderIndex(tasksByDay.get(date) || [])
     const tags = tagsByDay.get(date) || []
     const countActive = tasks.filter((task) => task.status === "active").length
     const countDone = tasks.filter((task) => task.status === "done").length

@@ -64,6 +64,11 @@ export type Task = {
   spentTime: number
 
   content: string
+  /**
+   * Persistent position index used to sort tasks manually.
+   * Lower values are shown first.
+   */
+  orderIndex: number
   status: "active" | "done" | "discarded"
   tags: Tag[]
   /** Files IDs  */

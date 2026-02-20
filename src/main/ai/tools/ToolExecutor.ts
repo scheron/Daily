@@ -183,6 +183,7 @@ export class ToolExecutor {
       id: nanoid(),
       content,
       status: "active",
+      orderIndex: Date.now(),
       scheduled: {
         date,
         time,

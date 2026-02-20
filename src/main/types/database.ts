@@ -22,6 +22,8 @@ export type TaskDoc = BaseDoc & {
   type: "task"
   /** Task status */
   status: "active" | "done" | "discarded"
+  /** Persistent position index used for manual sorting */
+  orderIndex?: number
   /** Scheduled date/time for the task. */
   scheduled: {
     date: ISODate

@@ -48,6 +48,12 @@ export const useUIStore = defineStore("ui", () => {
     else doneColumnCollapsed.value = !doneColumnCollapsed.value
   }
 
+  function setColumnCollapsed(status: TaskStatus, value: boolean) {
+    if (status === "active") activeColumnCollapsed.value = value
+    else if (status === "discarded") discardedColumnCollapsed.value = value
+    else doneColumnCollapsed.value = value
+  }
+
   return {
     isSidebarCollapsed,
     isMobileSidebarOpen,
@@ -59,5 +65,6 @@ export const useUIStore = defineStore("ui", () => {
     setTasksViewMode,
     toggleColumnsHideEmpty,
     toggleColumnCollapsed,
+    setColumnCollapsed,
   }
 })

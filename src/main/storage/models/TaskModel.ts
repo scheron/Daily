@@ -261,6 +261,10 @@ export class TaskModel {
       nextDoc.status = updates.status
     }
 
+    if (updates.orderIndex !== undefined) {
+      nextDoc.orderIndex = updates.orderIndex
+    }
+
     if (updates.estimatedTime !== undefined) {
       nextDoc.estimatedTime = updates.estimatedTime
     }

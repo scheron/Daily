@@ -2,14 +2,17 @@ import {computed, ref} from "vue"
 import {DateTime} from "luxon"
 import {defineStore} from "pinia"
 
+import {getNextTaskOrderIndex} from "@shared/utils/tasks/orderIndex"
 import {objectFilter} from "@shared/utils/objects/filter"
 import {updateDays} from "@/utils/tasks/updateDays"
+import {buildTaskMovePatches} from "@/utils/tasks/reorderTasks"
 import {toRawDeep} from "@/utils/ui/vue"
 
 import {API} from "@/api"
 
 import type {ISODate} from "@shared/types/common"
-import type {Day, Tag, Task} from "@shared/types/storage"
+import type {Day, Tag, Task, TaskStatus} from "@shared/types/storage"
+import type {TaskDropMode, TaskDropPosition, TaskMoveMeta} from "@/utils/tasks/reorderTasks"
 
 export const useTasksStore = defineStore("tasks", () => {
   const isDaysLoaded = ref(false)
@@ -58,6 +61,7 @@ export const useTasksStore = defineStore("tasks", () => {
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         tags,
         estimatedTime: estimatedTime ?? 0,
+        orderIndex: getNextTaskOrderIndex(dailyTasks.value),
       }),
     )
 
@@ -124,6 +128,63 @@ export const useTasksStore = defineStore("tasks", () => {
     return true
   }
 
+  async function moveTaskByOrder(params: {
+    taskId: Task["id"]
+    mode: TaskDropMode
+    targetTaskId?: Task["id"] | null
+    targetStatus?: TaskStatus
+    position?: TaskDropPosition
+  }): Promise<TaskMoveMeta | null> {
+    const day = days.value.find((item) => item.date === activeDay.value)
+    if (!day) return null
+
+    const moveResult = buildTaskMovePatches({
+      tasks: day.tasks,
+      taskId: params.taskId,
+      mode: params.mode,
+      targetTaskId: params.targetTaskId,
+      targetStatus: params.targetStatus,
+      position: params.position,
+    })
+
+    if (!moveResult) return null
+
+    const {patches, meta} = moveResult
+    if (!patches.length) return meta
+
+    let lastDay: Day | null = null
+
+    try {
+      for (const patch of patches) {
+        const updates = objectFilter(
+          {
+            orderIndex: patch.orderIndex,
+            status: patch.status,
+          },
+          (value) => value !== undefined,
+        )
+
+        const nextDay = await API.updateTask(patch.id, toRawDeep(updates))
+        if (!nextDay) {
+          await revalidate()
+          return null
+        }
+
+        lastDay = nextDay
+      }
+
+      if (lastDay) {
+        days.value = updateDays(days.value, lastDay)
+      }
+    } catch (error) {
+      console.error("Failed to reorder tasks", error)
+      await revalidate()
+      return null
+    }
+
+    return meta
+  }
+
   return {
     isDaysLoaded,
     days,
@@ -140,6 +201,7 @@ export const useTasksStore = defineStore("tasks", () => {
     updateTask,
     deleteTask,
     moveTask,
+    moveTaskByOrder,
     revalidate,
   }
 })

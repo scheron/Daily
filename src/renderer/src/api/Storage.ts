@@ -19,7 +19,7 @@ export class StorageAPI implements Storage {
   //#region TASKS
   async createTask(
     content: string,
-    params: {date?: string; time?: string; timezone?: string; tags?: Tag[]; estimatedTime?: number},
+    params: {date?: string; time?: string; timezone?: string; tags?: Tag[]; estimatedTime?: number; orderIndex?: number},
   ): Promise<Day | null> {
     try {
       const now = DateTime.now()
@@ -33,6 +33,7 @@ export class StorageAPI implements Storage {
         tags: params.tags ?? [],
         estimatedTime: params.estimatedTime ?? 0,
         spentTime: 0,
+        orderIndex: params.orderIndex ?? Date.now(),
         scheduled: {
           date: scheduledDate,
           time: scheduledTime,

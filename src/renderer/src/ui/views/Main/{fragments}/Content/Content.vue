@@ -5,6 +5,8 @@ import {ISODate} from "@shared/types/common"
 import {Tag, Task, TaskStatus} from "@shared/types/storage"
 import {removeDuplicates} from "@shared/utils/arrays/removeDuplicates"
 import {sortTags} from "@shared/utils/tags/sortTags"
+import {sortTasksByOrderIndex} from "@shared/utils/tasks/orderIndex"
+import {provideTaskDnd, useTaskDnd} from "@/composables/useTaskDnd"
 import {useFilterStore} from "@/stores/filter.store"
 import {useTagsStore} from "@/stores/tags.store"
 import {useTaskEditorStore} from "@/stores/taskEditor.store"
@@ -21,10 +23,14 @@ import ContentListView from "./{fragments}/ContentListView.vue"
 import NoTasksPlaceholder from "./{fragments}/NoTasksPlaceholder.vue"
 
 import type {TasksFilter} from "@/types/common"
+import type {TaskMoveMeta} from "@/utils/tasks/reorderTasks"
 
 defineProps<{taskEditorOpen: boolean}>()
 
-const emit = defineEmits<{createTask: []}>()
+const emit = defineEmits<{
+  createTask: []
+  taskMoved: [meta: TaskMoveMeta]
+}>()
 
 const tasksStore = useTasksStore()
 const filterStore = useFilterStore()
@@ -32,14 +38,16 @@ const tagsStore = useTagsStore()
 const taskEditorStore = useTaskEditorStore()
 const uiStore = useUIStore()
 
+const sortedDailyTasks = computed(() => sortTasksByOrderIndex(tasksStore.dailyTasks))
+
 const listTasks = computed(() => {
-  return filterTasksByStatus(tasksStore.dailyTasks, filterStore.activeFilter).filter((task) => {
+  return filterTasksByStatus(sortedDailyTasks.value, filterStore.activeFilter).filter((task) => {
     if (!filterStore.activeTagIds.size) return true
     return task.tags.some((tag) => filterStore.activeTagIds.has(tag.id))
   })
 })
 const boardTasks = computed(() => {
-  return tasksStore.dailyTasks.filter((task) => {
+  return sortedDailyTasks.value.filter((task) => {
     if (!filterStore.activeTagIds.size) return true
     return task.tags.some((tag) => filterStore.activeTagIds.has(tag.id))
   })
@@ -58,7 +66,7 @@ const boardTasksByStatus = computed<Record<TaskStatus, Task[]>>(() => {
   )
 })
 const boardTagsByStatus = computed<Record<TaskStatus, Tag[]>>(() => {
-  const rawTagsByStatus = tasksStore.dailyTasks.reduce(
+  const rawTagsByStatus = sortedDailyTasks.value.reduce(
     (acc, task) => {
       acc[task.status].push(...task.tags)
       return acc
@@ -72,6 +80,15 @@ const boardTagsByStatus = computed<Record<TaskStatus, Tag[]>>(() => {
     done: sortTags(removeDuplicates(rawTagsByStatus.done, "name")),
   }
 })
+
+const taskDnd = useTaskDnd({
+  tasks: sortedDailyTasks,
+  disabled: computed(() => taskEditorStore.isTaskEditorOpen),
+  onMove: (params) => tasksStore.moveTaskByOrder(params),
+  onMoved: (meta) => emit("taskMoved", meta),
+})
+
+provideTaskDnd(taskDnd)
 
 function isEditing(task: Task): boolean {
   if (!taskEditorStore.isTaskEditorOpen) return false
@@ -95,6 +112,7 @@ function createTaskPlaceholder(date: ISODate): Task {
     id: NEW_TASK_ID,
     content: "",
     status: "active",
+    orderIndex: Number.MAX_SAFE_INTEGER,
     tags: [],
     estimatedTime: 0,
     spentTime: 0,

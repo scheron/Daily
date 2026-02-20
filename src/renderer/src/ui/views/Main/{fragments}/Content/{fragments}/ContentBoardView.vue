@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {computed, ref} from "vue"
 
+import {useInjectedTaskDnd} from "@/composables/useTaskDnd"
 import {useUIStore} from "@/stores/ui.store"
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseIcon from "@/ui/base/BaseIcon"
@@ -46,6 +47,7 @@ const props = defineProps<{
 }>()
 
 const uiStore = useUIStore()
+const taskDnd = useInjectedTaskDnd()
 const activeTagIdsByStatus = ref<Record<TaskStatus, Tag["id"][]>>({
   active: [],
   discarded: [],
@@ -76,6 +78,17 @@ function isColumnCollapsed(status: TaskStatus) {
 
 function onToggleColumn(status: TaskStatus) {
   uiStore.toggleColumnCollapsed(status)
+}
+
+function onColumnDragEnter(status: TaskStatus) {
+  if (!taskDnd.isDragging.value) return
+  if (!isColumnCollapsed(status)) return
+
+  uiStore.setColumnCollapsed(status, false)
+}
+
+function getColumnDropContext(status: TaskStatus) {
+  return {mode: "column" as const, status}
 }
 
 function getSelectedTagIdsSet(status: TaskStatus) {
@@ -109,6 +122,7 @@ function onSelectTag(status: TaskStatus, id: Tag["id"]) {
         :key="column.status"
         class="bg-base-100 border-base-300 flex h-full flex-col rounded-xl border"
         :class="isColumnCollapsed(column.status) ? 'max-w-20 min-w-20' : 'min-w-88 flex-1'"
+        @dragenter="onColumnDragEnter(column.status)"
       >
         <template v-if="isColumnCollapsed(column.status)">
           <div class="flex h-full flex-col items-center justify-start gap-3 py-3">
@@ -142,22 +156,59 @@ function onSelectTag(status: TaskStatus, id: Tag["id"]) {
             />
           </div>
 
-          <div class="flex flex-1 flex-col gap-2 overflow-y-auto p-2">
+          <div
+            class="flex flex-1 flex-col gap-2 overflow-y-auto p-2"
+            @dragover="taskDnd.onContainerDragOver($event, getColumnDropContext(column.status))"
+            @drop="taskDnd.onContainerDrop($event, getColumnDropContext(column.status))"
+          >
             <template v-if="filteredTasksByStatus[column.status].length">
-              <TaskCard
+              <div
                 v-for="task in filteredTasksByStatus[column.status]"
                 :key="task.id"
-                :task="task"
-                :tags="getTaskTags(task)"
-                view="column"
-                class="w-full shrink-0"
-              />
+                class="relative"
+                @dragover.stop="taskDnd.onCardDragOver($event, task.id, getColumnDropContext(column.status))"
+                @drop.stop="taskDnd.onCardDrop($event, task.id, getColumnDropContext(column.status))"
+              >
+                <div
+                  v-if="taskDnd.isCardDropTarget(task.id, getColumnDropContext(column.status), 'before')"
+                  class="border-accent/60 mb-2 h-2 rounded-md border-2 border-dashed"
+                />
+                <div
+                  draggable="true"
+                  class="cursor-grab active:cursor-grabbing"
+                  :class="{'opacity-45': taskDnd.isTaskDragging(task.id)}"
+                  @dragstart="taskDnd.onDragStart(task.id, $event)"
+                  @dragend="taskDnd.onDragEnd"
+                >
+                  <TaskCard :task="task" :tags="getTaskTags(task)" view="column" class="w-full shrink-0" />
+                </div>
+                <div
+                  v-if="taskDnd.isCardDropTarget(task.id, getColumnDropContext(column.status), 'after')"
+                  class="border-accent/60 mt-2 h-2 rounded-md border-2 border-dashed"
+                />
+              </div>
+
+              <div
+                v-if="taskDnd.isDragging"
+                class="border-base-300 mt-1 flex min-h-8 items-center justify-center rounded-lg border border-dashed text-xs transition-colors"
+                :class="
+                  taskDnd.isContainerDropTarget(getColumnDropContext(column.status))
+                    ? 'border-accent text-accent bg-accent/5'
+                    : 'text-base-content/45'
+                "
+              >
+                Drop here to move to the end
+              </div>
             </template>
-            <div v-else class="text-base-content/70 flex h-full flex-1 flex-col items-center justify-center gap-2 text-center">
+            <div
+              v-else
+              class="text-base-content/70 flex h-full flex-1 flex-col items-center justify-center gap-2 rounded-lg border border-dashed text-center transition-colors"
+              :class="taskDnd.isContainerDropTarget(getColumnDropContext(column.status)) ? 'border-accent text-accent bg-accent/5' : 'border-transparent'"
+            >
               <div class="bg-base-200 rounded-full p-3">
                 <BaseIcon name="empty" class="size-5" />
               </div>
-              <span class="text-sm">No {{ column.emptyLabel }} tasks</span>
+              <span class="text-sm">{{ taskDnd.isDragging ? "Drop task here" : `No ${column.emptyLabel} tasks` }}</span>
             </div>
           </div>
         </template>

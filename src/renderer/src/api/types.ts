@@ -29,7 +29,7 @@ export interface Storage {
    * @param params.estimatedTime - The estimated time of the task
    * @returns The day that matches the query
    */
-  createTask(content: string, params: {date?: ISODate; time?: ISOTime; timezone?: Timezone; tags?: Tag[]; estimatedTime?: number}): Promise<Day | null>
+  createTask(content: string, params: {date?: ISODate; time?: ISOTime; timezone?: Timezone; tags?: Tag[]; estimatedTime?: number; orderIndex?: number}): Promise<Day | null>
   /**
    * Update a task in the database
    * @param id - The id of the task to update
