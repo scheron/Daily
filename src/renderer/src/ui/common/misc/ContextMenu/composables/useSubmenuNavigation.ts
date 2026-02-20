@@ -37,6 +37,8 @@ export function useSubmenuNavigation(submenuPanelRef: Ref<HTMLElement | null>) {
   }
 
   function onItemHover(item: ContextMenuItem, el: HTMLElement) {
+    stopLeaveTimer()
+
     hoveredItem.value = item
     hoveredEl.value = el
 

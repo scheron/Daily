@@ -34,9 +34,11 @@ export function useTaskModel(rawProps: MaybeRefOrGetter<TaskModelProps>) {
   }
 
   async function deleteTask() {
-    if (!task.value) return
-    await tasksStore.deleteTask(task.value.id)
+    if (!task.value) return false
+    const isDeleted = await tasksStore.deleteTask(task.value.id)
+    if (!isDeleted) return false
     toasts.success("Task deleted")
+    return true
   }
 
   async function rescheduleTask(targetDate: ISODate) {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed} from "vue"
+import {computed, useTemplateRef} from "vue"
 
 import {useTasksStore} from "@/stores/tasks.store"
 import BaseCalendar from "@/ui/base/BaseCalendar"
@@ -7,6 +7,7 @@ import ContextMenu from "@/ui/common/misc/ContextMenu"
 import DynamicTagsPanel from "@/ui/common/misc/DynamicTagsPanel.vue"
 import MarkdownContent from "@/ui/common/misc/MarkdownContent.vue"
 
+import DeleteMenuItem from "./{fragments}/DeleteMenuItem.vue"
 import QuickActions from "./{fragments}/QuickActions.vue"
 import StatusButtons from "./{fragments}/StatusButtons.vue"
 import StatusSelect from "./{fragments}/StatusSelect.vue"
@@ -23,6 +24,7 @@ const props = withDefaults(defineProps<{task: Task; tags?: Tag[]; view?: LayoutT
 })
 
 const tasksStore = useTasksStore()
+const contextMenuRef = useTemplateRef<InstanceType<typeof ContextMenu>>("contextMenu")
 
 const {startEdit, changeStatus, deleteTask, rescheduleTask, copyToClipboardTask, updateTaskTags} = useTaskModel(props)
 
@@ -45,6 +47,15 @@ const menuItems = computed<ContextMenuItem[]>(() => [
   {value: "reschedule", label: "Reschedule", icon: "calendar", children: true},
   {separator: true},
   {value: "copy", label: "Copy", icon: "copy"},
+  {separator: true},
+  {
+    value: "delete",
+    label: "Delete",
+    icon: "trash",
+    class: "text-error hover:bg-error/10",
+    classIcon: "text-error",
+    classLabel: "text-error",
+  },
 ])
 
 function getStatusClass(status: TaskStatus) {
@@ -64,10 +75,15 @@ function onSelect(event: ContextMenuSelectEvent) {
   if (event.item.value === "copy") copyToClipboardTask()
   if (event.parent && event.parent.item.value === "status") changeStatus(event.item.value as TaskStatus)
 }
+
+async function onDeleteFromMenu() {
+  const isDeleted = await deleteTask()
+  if (isDeleted) contextMenuRef.value?.close()
+}
 </script>
 
 <template>
-  <ContextMenu :items="menuItems" @select="onSelect">
+  <ContextMenu ref="contextMenuRef" :items="menuItems" @select="onSelect">
     <div
       :id="task.id"
       class="group min-h-card bg-base-100 hover:shadow-accent/5 relative overflow-hidden rounded-xl border transition-all duration-200 hover:shadow-lg"
@@ -122,6 +138,10 @@ function onSelect(event: ContextMenuSelectEvent) {
       <div class="p-1">
         <BaseCalendar mode="single" :days="tasksStore.days" :selected-date="task.scheduled.date" size="sm" @select-date="rescheduleTask" />
       </div>
+    </template>
+
+    <template #item-delete="item">
+      <DeleteMenuItem :item="item" @select="onDeleteFromMenu" />
     </template>
   </ContextMenu>
 </template>

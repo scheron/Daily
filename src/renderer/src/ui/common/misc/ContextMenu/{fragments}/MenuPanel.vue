@@ -68,6 +68,7 @@ onBeforeUnmount(() => {
   <MenuList
     :items="items"
     :active-value="activeSubmenuItem && !activeSubmenuItem.separator ? activeSubmenuItem.value : null"
+    :item-slots="contextMenuSlots"
     @select="onLeafSelect"
     @item-hover="navigation.onItemHover"
     @item-leave="navigation.onItemLeave"

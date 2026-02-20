@@ -2,9 +2,12 @@
 import {cn} from "@/utils/ui/tailwindcss"
 import BaseIcon from "@/ui/base/BaseIcon"
 
+import type {Slot} from "vue"
 import type {ContextMenuItem} from "../types"
 
-const props = defineProps<{items: ContextMenuItem[]; activeValue?: string | null}>()
+type MenuItem = Extract<ContextMenuItem, {separator?: false}>
+
+const props = defineProps<{items: ContextMenuItem[]; activeValue?: string | null; itemSlots?: Record<string, Slot>}>()
 const emit = defineEmits<{select: [ContextMenuItem]; "item-hover": [item: ContextMenuItem, el: HTMLElement]; "item-leave": []}>()
 
 function getItemClass(item: ContextMenuItem): string {
@@ -24,9 +27,29 @@ function hasSubmenu(item: ContextMenuItem): boolean {
   return !!item.children
 }
 
+function isMenuItem(item: ContextMenuItem): item is MenuItem {
+  return !item.separator
+}
+
+function getItemSlotName(item: MenuItem) {
+  return `item-${item.value}`
+}
+
+function hasItemSlot(item: ContextMenuItem): boolean {
+  if (!isMenuItem(item)) return false
+  return !!props.itemSlots?.[getItemSlotName(item)]
+}
+
 function onItemMouseenter(item: ContextMenuItem, event: MouseEvent) {
   if (item.separator || item.disabled) return
   emit("item-hover", item, event.currentTarget as HTMLElement)
+}
+
+function renderItemSlot(item: ContextMenuItem) {
+  if (!isMenuItem(item)) return null
+
+  const slot = props.itemSlots?.[getItemSlotName(item)]
+  return slot?.(item) ?? null
 }
 
 function onItemClick(item: ContextMenuItem) {
@@ -41,6 +64,8 @@ function onItemClick(item: ContextMenuItem) {
       <div v-if="item.separator" class="relative h-px w-full">
         <span class="bg-base-300 absolute inset-0 block h-px w-full scale-x-200"></span>
       </div>
+
+      <component :is="() => renderItemSlot(item)" v-else-if="hasItemSlot(item)" />
 
       <button
         v-else
