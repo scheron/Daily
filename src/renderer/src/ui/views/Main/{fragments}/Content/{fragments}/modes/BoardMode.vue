@@ -1,8 +1,12 @@
 <script setup lang="ts">
-import {computed, ref, watch} from "vue"
+import {computed, reactive, ref, watch} from "vue"
 import VueDraggable from "vuedraggable"
 
+import {removeDuplicates} from "@shared/utils/arrays/removeDuplicates"
 import {deepClone} from "@shared/utils/common/deepClone"
+import {sortTags} from "@shared/utils/tags/sortTags"
+import {useTagsStore} from "@/stores/tags.store"
+import {useTasksStore} from "@/stores/tasks.store"
 import {useUIStore} from "@/stores/ui.store"
 import {resolveMoveTarget, useTaskDragDrop} from "@/composables/useTaskDragDrop"
 import BaseButton from "@/ui/base/BaseButton.vue"
@@ -10,65 +14,53 @@ import BaseIcon from "@/ui/base/BaseIcon"
 import DynamicTagsPanel from "@/ui/common/misc/DynamicTagsPanel.vue"
 import TaskCard from "@/ui/modules/TaskCard"
 
-import type {IconName} from "@/ui/base/BaseIcon"
-import type {TaskMoveMeta} from "@/utils/tasks/reorderTasks"
+import {BOARD_COLUMNS, DRAGGABLE_ATTRS, SORTABLE_ANIMATION_MS} from "../../model/constants"
+
 import type {MoveTaskByOrderParams, Tag, Task, TaskStatus} from "@shared/types/storage"
 
-type BoardColumn = {
-  status: TaskStatus
-  label: string
-  emptyLabel: string
-  icon: IconName
-  titleClass: string
-  counterClass: string
-}
-
-const BOARD_COLUMNS: BoardColumn[] = [
-  {status: "active", label: "Active", emptyLabel: "active", icon: "fire", titleClass: "text-error", counterClass: "bg-error/10 text-error"},
-  {
-    status: "discarded",
-    label: "Discarded",
-    emptyLabel: "discarded",
-    icon: "archive",
-    titleClass: "text-warning",
-    counterClass: "bg-warning/10 text-warning",
-  },
-  {
-    status: "done",
-    label: "Done",
-    emptyLabel: "completed",
-    icon: "check-check",
-    titleClass: "text-success",
-    counterClass: "bg-success/10 text-success",
-  },
-]
-
-const props = defineProps<{
-  tasksByStatus: Record<TaskStatus, Task[]>
-  tagsByStatus: Record<TaskStatus, Tag[]>
-  getTaskTags: (task: Task) => Tag[]
-  dndDisabled: boolean
-  moveTaskByOrder: (params: MoveTaskByOrderParams) => Promise<TaskMoveMeta | null>
-}>()
+const props = defineProps<{tasks: Task[]; dndDisabled: boolean}>()
 
 const uiStore = useUIStore()
-const activeTagIdsByStatus = ref<Record<TaskStatus, Tag["id"][]>>({
-  active: [],
-  discarded: [],
-  done: [],
-})
-const localTasksByStatus = ref<Record<TaskStatus, Task[]>>({
-  active: [],
-  discarded: [],
-  done: [],
-})
+const tasksStore = useTasksStore()
+const tagsStore = useTagsStore()
+
+const activeTagIdsByStatus = reactive<Record<TaskStatus, Tag["id"][]>>({active: [], discarded: [], done: []})
+const localTasksByStatus = reactive<Record<TaskStatus, Task[]>>({active: [], discarded: [], done: []})
+
 const pendingCrossColumnMove = ref<MoveTaskByOrderParams | null>(null)
-const SORTABLE_ANIMATION_MS = 140
+
 const {isDragging, isCommitting, isDragDisabled, onDragStart, onDragEnd, onDragOver, runWithCommit} = useTaskDragDrop({
   dndDisabled: () => props.dndDisabled,
   onDragEnd: flushPendingCrossColumnMove,
 })
+
+const tasksByStatus = computed<Record<TaskStatus, Task[]>>(() => {
+  return props.tasks.reduce(
+    (acc, task) => {
+      acc[task.status].push(task)
+      return acc
+    },
+    {active: [], discarded: [], done: []} as Record<TaskStatus, Task[]>,
+  )
+})
+const tagsByStatus = computed<Record<TaskStatus, Tag[]>>(() => {
+  const rawTagsByStatus = tasksStore.dailyTasks.reduce(
+    (acc, task) => {
+      acc[task.status].push(...task.tags)
+      return acc
+    },
+    {active: [], discarded: [], done: []} as Record<TaskStatus, Tag[]>,
+  )
+
+  return {
+    active: sortTags(removeDuplicates(rawTagsByStatus.active, "name")),
+    discarded: sortTags(removeDuplicates(rawTagsByStatus.discarded, "name")),
+    done: sortTags(removeDuplicates(rawTagsByStatus.done, "name")),
+  }
+})
+
 const visibleColumns = computed(() => BOARD_COLUMNS.filter((column) => !isColumnHidden(column.status)))
+
 const filteredTasksByStatus = computed<Record<TaskStatus, Task[]>>(() => {
   return {
     active: getFilteredTasksByStatus("active"),
@@ -78,24 +70,13 @@ const filteredTasksByStatus = computed<Record<TaskStatus, Task[]>>(() => {
 })
 
 function syncLocalTasks() {
-  localTasksByStatus.value = {
-    active: filteredTasksByStatus.value.active.map((task) => deepClone(task)),
-    discarded: filteredTasksByStatus.value.discarded.map((task) => deepClone(task)),
-    done: filteredTasksByStatus.value.done.map((task) => deepClone(task)),
-  }
+  localTasksByStatus.active = filteredTasksByStatus.value.active.map((task) => deepClone(task))
+  localTasksByStatus.discarded = filteredTasksByStatus.value.discarded.map((task) => deepClone(task))
+  localTasksByStatus.done = filteredTasksByStatus.value.done.map((task) => deepClone(task))
 }
 
-watch(
-  filteredTasksByStatus,
-  () => {
-    if (isDragging.value || isCommitting.value) return
-    syncLocalTasks()
-  },
-  {immediate: true},
-)
-
 function isColumnEmpty(status: TaskStatus) {
-  return props.tasksByStatus[status].length === 0
+  return tasksByStatus.value[status].length === 0
 }
 
 function isColumnHidden(status: TaskStatus) {
@@ -118,26 +99,31 @@ function onColumnDragEnter(status: TaskStatus) {
   uiStore.setColumnCollapsed(status, false)
 }
 
+function getTaskTags(task: Task): Tag[] {
+  const tags = task.tags.map((tag) => tagsStore.tagsMap.get(tag.id)).filter(Boolean) as Tag[]
+  return sortTags(tags)
+}
+
 function getSelectedTagIdsSet(status: TaskStatus) {
-  return new Set(activeTagIdsByStatus.value[status])
+  return new Set(activeTagIdsByStatus[status])
 }
 
 function getFilteredTasksByStatus(status: TaskStatus) {
-  const selectedTagIds = activeTagIdsByStatus.value[status]
-  if (!selectedTagIds.length) return props.tasksByStatus[status]
+  const selectedTagIds = activeTagIdsByStatus[status]
+  if (!selectedTagIds.length) return tasksByStatus.value[status]
 
   const selectedTagIdsSet = new Set(selectedTagIds)
-  return props.tasksByStatus[status].filter((task) => task.tags.some((tag) => selectedTagIdsSet.has(tag.id)))
+  return tasksByStatus.value[status].filter((task) => task.tags.some((tag) => selectedTagIdsSet.has(tag.id)))
 }
 
 function onSelectTag(status: TaskStatus, id: Tag["id"]) {
-  const selectedTagIds = activeTagIdsByStatus.value[status]
+  const selectedTagIds = activeTagIdsByStatus[status]
   if (selectedTagIds.includes(id)) {
-    activeTagIdsByStatus.value[status] = selectedTagIds.filter((tagId) => tagId !== id)
+    activeTagIdsByStatus[status] = selectedTagIds.filter((tagId) => tagId !== id)
     return
   }
 
-  activeTagIdsByStatus.value[status] = [...selectedTagIds, id]
+  activeTagIdsByStatus[status] = [...selectedTagIds, id]
 }
 
 function flushPendingCrossColumnMove() {
@@ -145,7 +131,7 @@ function flushPendingCrossColumnMove() {
   if (!pendingMove) return
   pendingCrossColumnMove.value = null
 
-  setTimeout(() => commitColumnMove(pendingMove), SORTABLE_ANIMATION_MS + 16)
+  setTimeout(() => commitColumnMove(pendingMove), SORTABLE_ANIMATION_MS)
 }
 
 async function onColumnChange(status: TaskStatus, event: {added?: {newIndex: number}; moved?: {newIndex: number; oldIndex: number}}) {
@@ -155,12 +141,12 @@ async function onColumnChange(status: TaskStatus, event: {added?: {newIndex: num
   const newIndex = event.added?.newIndex ?? event.moved?.newIndex
   if (newIndex === undefined) return
 
-  const movedTask = localTasksByStatus.value[status][newIndex]
+  const movedTask = localTasksByStatus[status][newIndex]
   if (!movedTask) return
 
   movedTask.status = status
 
-  const {targetTaskId, position} = resolveMoveTarget(localTasksByStatus.value[status], newIndex)
+  const {targetTaskId, position} = resolveMoveTarget(localTasksByStatus[status], newIndex)
 
   const moveParams = {
     taskId: movedTask.id,
@@ -179,7 +165,7 @@ async function onColumnChange(status: TaskStatus, event: {added?: {newIndex: num
 
 async function commitColumnMove(params: MoveTaskByOrderParams) {
   await runWithCommit(async () => {
-    const result = await props.moveTaskByOrder({
+    const result = await tasksStore.moveTaskByOrder({
       taskId: params.taskId,
       mode: "column",
       targetStatus: params.targetStatus,
@@ -192,6 +178,15 @@ async function commitColumnMove(params: MoveTaskByOrderParams) {
     }
   })
 }
+
+watch(
+  filteredTasksByStatus,
+  () => {
+    if (isDragging.value || isCommitting.value) return
+    syncLocalTasks()
+  },
+  {immediate: true},
+)
 </script>
 
 <template>
@@ -226,11 +221,10 @@ async function commitColumnMove(params: MoveTaskByOrderParams) {
             <BaseButton variant="ghost" icon="chevron-left" tooltip="Collapse column" class="size-6 p-0" @click="onToggleColumn(column.status)" />
           </div>
 
-          <div class="border-base-300 border-b px-2 py-2">
+          <div class="border-base-300 h-header border-b px-2 py-2">
             <DynamicTagsPanel
               :tags="tagsByStatus[column.status]"
               :selected-tags="getSelectedTagIdsSet(column.status)"
-              empty-message="No tags"
               selectable
               @select="onSelectTag(column.status, $event)"
             />
@@ -240,24 +234,15 @@ async function commitColumnMove(params: MoveTaskByOrderParams) {
             <VueDraggable
               :list="localTasksByStatus[column.status]"
               item-key="id"
-              group="daily-board"
-              filter="[data-draggable-task-ignore], [data-draggable-task-ignore] *, button, a, input, textarea, select, [role='button']"
-              :prevent-on-filter="false"
-              :force-fallback="true"
-              :fallback-on-body="true"
-              :fallback-tolerance="2"
-              ghost-class="draggable-task-ghost"
-              chosen-class="draggable-task-chosen"
-              drag-class="draggable-task-dragging"
-              :animation="140"
               :disabled="isDragDisabled"
               class="flex min-h-full w-full min-w-0 flex-col overflow-x-hidden"
+              v-bind="DRAGGABLE_ATTRS"
               @start="onDragStart"
               @end="onDragEnd"
               @change="onColumnChange(column.status, $event)"
             >
               <template #item="{element: task}">
-                <div class="relative mb-2 last:mb-0">
+                <div class="relative mx-2 mb-2 last:mb-0">
                   <div class="w-full shrink-0">
                     <TaskCard :task="task" :tags="getTaskTags(task)" view="columns" />
                   </div>

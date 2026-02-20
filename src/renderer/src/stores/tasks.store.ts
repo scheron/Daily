@@ -3,7 +3,7 @@ import {DateTime} from "luxon"
 import {defineStore} from "pinia"
 
 import {objectFilter} from "@shared/utils/objects/filter"
-import {getNextTaskOrderIndex} from "@shared/utils/tasks/orderIndex"
+import {getNextTaskOrderIndex, sortTasksByOrderIndex} from "@shared/utils/tasks/orderIndex"
 import {updateDays} from "@/utils/tasks/updateDays"
 import {toRawDeep} from "@/utils/ui/vue"
 
@@ -25,7 +25,7 @@ export const useTasksStore = defineStore("tasks", () => {
 
   const dailyTasks = computed(() => {
     const day = days.value.find((day) => day.date === activeDay.value)
-    return day ? day.tasks : []
+    return day ? sortTasksByOrderIndex(day.tasks) : []
   })
 
   const dailyTags = computed(() => {
