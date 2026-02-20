@@ -40,9 +40,9 @@ async function onSelectTag(tagId?: Tag["id"] | null) {
 </script>
 
 <template>
-  <BaseMenu :items="menuItems" class="flex flex-col gap-1" @select="onSelectTag">
+  <BaseMenu :items="menuItems" class="flex flex-col gap-1.5" @select="onSelectTag">
     <template #item="{value}">
-      <BaseTag :tag="tagsStore.tagsMap.get(value!)!" :active="taskTags.includes(value!)" class="w-full justify-start text-start" />
+      <BaseTag :tag="tagsStore.tagsMap.get(value!)!" :active="taskTags.includes(value!)" class="h-7 w-full justify-start text-start" />
     </template>
   </BaseMenu>
 </template>

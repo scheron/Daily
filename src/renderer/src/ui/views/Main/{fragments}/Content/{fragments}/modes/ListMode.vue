@@ -74,7 +74,7 @@ watch(
 </script>
 
 <template>
-  <div class="flex flex-1 flex-col gap-2 p-2" @dragover="onDragOver">
+  <div class="flex flex-1 flex-col gap-1.5 p-1.5" @dragover="onDragOver">
     <template v-if="isNewTaskEditing && newTaskPlaceholder">
       <TaskEditorCard v-if="isEditing(newTaskPlaceholder)" />
       <TaskCard v-else :key="newTaskPlaceholder.id" :task="newTaskPlaceholder" :tags="[]" />
@@ -98,7 +98,7 @@ watch(
       @change="onListChange"
     >
       <template #item="{element: task}">
-        <div class="relative mb-2 last:mb-0">
+        <div class="relative mb-1.5 last:mb-0">
           <div class="">
             <TaskCard :task="task" :tags="getTaskTags(task)" />
           </div>

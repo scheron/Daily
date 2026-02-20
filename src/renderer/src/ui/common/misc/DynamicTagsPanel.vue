@@ -108,18 +108,18 @@ useResizeObserver(containerRef, calculateVisibleTags)
         @click="onSelectTag(tag.id)"
       />
 
-      <BasePopup v-if="hiddenTags.length" hide-header hide-close-btn container-class="min-w-44 p-1" content-class="gap-1">
+      <BasePopup v-if="hiddenTags.length" hide-header hide-close-btn container-class="min-w-44 p-1" content-class="gap-1.5">
         <template #trigger="{toggle}">
           <BaseButton
             variant="outline"
             size="sm"
-            class="h-7 shrink-0 rounded-md px-2"
+            class="h-7 shrink-0 rounded-md px-3 py-1.5"
             :class="[hasSelectedInPopup ? 'bg-accent/20 border-accent text-accent' : 'opacity-70 hover:opacity-90']"
             icon="tags"
-            icon-class="size-3.5"
+            icon-class="size-4"
             @click="toggle"
           >
-            <span class="text-xs font-medium">{{ hiddenTags.length }}</span>
+            <span class="text-sm font-medium">{{ hiddenTags.length }}</span>
           </BaseButton>
         </template>
 
@@ -129,7 +129,7 @@ useResizeObserver(containerRef, calculateVisibleTags)
           :tag="tag"
           :active="isActiveTag(tag.id)"
           :selectable="selectable"
-          class="w-full justify-start text-start"
+          class="w-full justify-start rounded-md px-3 py-1.5 text-start [&>span:first-child]:text-sm [&>span:last-child]:text-sm"
           @click="onSelectTag(tag.id)"
         />
       </BasePopup>

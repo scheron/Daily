@@ -190,8 +190,8 @@ watch(
 </script>
 
 <template>
-  <div class="h-full w-full overflow-x-auto overflow-y-hidden p-2" @dragover="onDragOver">
-    <div class="flex h-full min-w-full gap-2">
+  <div class="h-full w-full overflow-x-auto overflow-y-hidden p-1.5" @dragover="onDragOver">
+    <div class="flex h-full min-w-full gap-1.5">
       <div
         v-for="column in visibleColumns"
         :key="column.status"
@@ -200,9 +200,9 @@ watch(
         @dragenter="onColumnDragEnter(column.status)"
       >
         <template v-if="isColumnCollapsed(column.status)">
-          <div class="flex h-full flex-col items-center justify-start gap-3 py-3">
+          <div class="flex h-full flex-col items-center justify-start gap-2 py-3">
             <BaseIcon :name="column.icon" class="size-4" :class="column.titleClass" />
-            <span class="rounded-full px-2 py-0.5 text-xs font-semibold" :class="column.counterClass">
+            <span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="column.counterClass">
               {{ filteredTasksByStatus[column.status].length }}
             </span>
             <BaseButton variant="ghost" icon="chevron-right" tooltip="Expand column" class="size-6 p-0" @click="onToggleColumn(column.status)" />
@@ -210,10 +210,10 @@ watch(
         </template>
 
         <template v-else>
-          <div class="border-base-300 flex items-center justify-between border-b px-3 py-2">
+          <div class="border-base-300 flex items-center justify-between border-b px-3 py-1.5">
             <div class="flex items-center gap-2" :class="column.titleClass">
               <BaseIcon :name="column.icon" class="size-4" />
-              <span class="text-sm font-semibold">{{ column.label }}</span>
+              <span class="text-sm font-medium">{{ column.label }}</span>
               <span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="column.counterClass">
                 {{ filteredTasksByStatus[column.status].length }}
               </span>
@@ -221,7 +221,7 @@ watch(
             <BaseButton variant="ghost" icon="chevron-left" tooltip="Collapse column" class="size-6 p-0" @click="onToggleColumn(column.status)" />
           </div>
 
-          <div class="border-base-300 h-header border-b px-2 py-2">
+          <div class="border-base-300 h-header border-b px-3 py-1.5">
             <DynamicTagsPanel
               :tags="tagsByStatus[column.status]"
               :selected-tags="getSelectedTagIdsSet(column.status)"
@@ -230,7 +230,7 @@ watch(
             />
           </div>
 
-          <div class="relative flex min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-2">
+          <div class="relative flex min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-1.5">
             <VueDraggable
               :list="localTasksByStatus[column.status]"
               item-key="id"
@@ -242,7 +242,7 @@ watch(
               @change="onColumnChange(column.status, $event)"
             >
               <template #item="{element: task}">
-                <div class="relative mx-2 mb-2 last:mb-0">
+                <div class="relative mx-1.5 mb-1.5 last:mb-0">
                   <div class="w-full shrink-0">
                     <TaskCard :task="task" :tags="getTaskTags(task)" view="columns" />
                   </div>
@@ -252,7 +252,7 @@ watch(
 
             <div
               v-if="!localTasksByStatus[column.status].length && !isDragging"
-              class="text-base-content/70 pointer-events-none absolute inset-2 flex flex-col items-center justify-center gap-2 rounded-lg text-center"
+              class="text-base-content/70 pointer-events-none absolute inset-1.5 flex flex-col items-center justify-center gap-2 rounded-lg text-center"
             >
               <div class="bg-base-200 rounded-full p-3">
                 <BaseIcon name="empty" class="size-5" />

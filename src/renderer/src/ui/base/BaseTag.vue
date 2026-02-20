@@ -15,7 +15,7 @@ defineProps<{
   <BaseButton
     variant="outline"
     size="sm"
-    class="base-tag focus-visible-ring focus-visible:ring-offset-base-100 focus-visible:ring-accent relative shrink-0 gap-0 rounded-md px-1.5 py-1 transition-all duration-200"
+    class="base-tag focus-visible-ring focus-visible:ring-offset-base-100 focus-visible:ring-accent relative h-7 shrink-0 gap-0 rounded-md px-1.5 py-1 transition-all duration-200"
     :class="{active, selectable}"
     :style="{'--tag-color': tag.color}"
   >
