@@ -3,7 +3,7 @@ import {DateTime} from "luxon"
 import {defineStore} from "pinia"
 
 import {objectFilter} from "@shared/utils/objects/filter"
-import {getNextTaskOrderIndex, sortTasksByOrderIndex} from "@shared/utils/tasks/orderIndex"
+import {getPreviousTaskOrderIndex, sortTasksByOrderIndex} from "@shared/utils/tasks/orderIndex"
 import {updateDays} from "@/utils/tasks/updateDays"
 import {toRawDeep} from "@/utils/ui/vue"
 
@@ -60,7 +60,7 @@ export const useTasksStore = defineStore("tasks", () => {
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         tags,
         estimatedTime: estimatedTime ?? 0,
-        orderIndex: getNextTaskOrderIndex(dailyTasks.value),
+        orderIndex: getPreviousTaskOrderIndex(dailyTasks.value),
       }),
     )
 

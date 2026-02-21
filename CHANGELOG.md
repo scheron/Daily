@@ -6,6 +6,18 @@ This release adds a context menu for tasks, improves tag handling and calendar n
 
 ### ✨ New Features
 
+- **Task Card Minimize/Maximize** — Persistent content collapse for large task cards
+  - Added `Minimize/Maximize` action to task context menu in both `List` and `Columns` layouts
+  - Added quick-action button in list cards for faster collapse/expand
+  - Collapse state is persisted per task via new `minimized` field
+  - Content truncation applies only to rendered task content (CodeMirror), preserving tags and action controls
+  - Added dedicated IPC method for this flow: `tasks:toggle-minimized`
+
+- **Context Menu Reordering** — Move tasks directly from card context menu
+  - Added `Move Up` and `Move Down` actions for task reordering
+  - Actions are disabled when movement is not possible (top/bottom boundaries)
+  - Works with existing manual ordering behavior in list and column scopes
+
 - **Task Board Layout** — New kanban-like board mode for daily tasks
   - Added two layout modes: `List` and `Columns`
   - Tasks are automatically move across columns when status changes

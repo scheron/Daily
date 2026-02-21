@@ -42,6 +42,13 @@ export function getNextTaskOrderIndex(tasks: Pick<Task, "orderIndex" | "createdA
   return maxOrder + step
 }
 
+export function getPreviousTaskOrderIndex(tasks: Pick<Task, "orderIndex" | "createdAt">[], step = ORDER_INDEX_STEP): number {
+  if (!tasks.length) return ORDER_INDEX_START
+
+  const minOrder = tasks.reduce((min, task) => Math.min(min, getTaskOrderValue(task)), Number.POSITIVE_INFINITY)
+  return minOrder - step
+}
+
 export function normalizeTaskOrderIndexes<T extends Pick<Task, "id" | "orderIndex" | "createdAt">>(
   tasks: T[],
   options: {start?: number; step?: number} = {},

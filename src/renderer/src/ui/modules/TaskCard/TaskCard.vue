@@ -26,7 +26,19 @@ const props = withDefaults(defineProps<{task: Task; tags?: Tag[]; view?: LayoutT
 const tasksStore = useTasksStore()
 const contextMenuRef = useTemplateRef<InstanceType<typeof ContextMenu>>("contextMenu")
 
-const {startEdit, changeStatus, toggleMinimized, deleteTask, rescheduleTask, copyToClipboardTask, updateTaskTags} = useTaskModel(props)
+const {
+  startEdit,
+  changeStatus,
+  canMoveUp,
+  canMoveDown,
+  moveUp,
+  moveDown,
+  toggleMinimized,
+  deleteTask,
+  rescheduleTask,
+  copyToClipboardTask,
+  updateTaskTags,
+} = useTaskModel(props)
 const canMinimize = ref(false)
 
 const isColumnView = computed(() => props.view === "columns")
@@ -48,15 +60,17 @@ const menuItems = computed<ContextMenuItem[]>(() => {
     {value: "tags", label: "Tags", icon: "tags", children: true},
     {value: "reschedule", label: "Reschedule", icon: "calendar", children: true},
     {separator: true},
+    {value: "move-up", label: "Move Up", icon: "chevron-up", disabled: !canMoveUp.value},
+    {value: "move-down", label: "Move Down", icon: "chevron-down", disabled: !canMoveDown.value},
+    {separator: true},
   ]
 
-  if (canMinimize.value) {
-    items.push({
-      value: "toggle-minimized",
-      label: props.task.minimized ? "Maximize" : "Minimize",
-      icon: props.task.minimized ? "maximize" : "minimize",
-    })
-  }
+  items.push({
+    value: "toggle-minimized",
+    label: props.task.minimized ? "Maximize" : "Minimize",
+    icon: props.task.minimized ? "maximize" : "minimize",
+    disabled: !canMinimize.value,
+  })
 
   items.push(
     {value: "copy", label: "Copy", icon: "copy"},
@@ -88,6 +102,8 @@ function getStatusClass(status: TaskStatus) {
 
 function onSelect(event: ContextMenuSelectEvent) {
   if (event.item.value === "edit") startEdit()
+  if (event.item.value === "move-up") moveUp()
+  if (event.item.value === "move-down") moveDown()
   if (event.item.value === "toggle-minimized") toggleMinimized()
   if (event.item.value === "copy") copyToClipboardTask()
   if (event.parent && event.parent.item.value === "status") changeStatus(event.item.value as TaskStatus)

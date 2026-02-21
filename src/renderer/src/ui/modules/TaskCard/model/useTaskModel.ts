@@ -7,10 +7,10 @@ import {useTasksStore} from "@/stores/tasks.store"
 import {buildTaskDetails} from "@/utils/tasks/buildTaskDetails"
 
 import type {ISODate} from "@shared/types/common"
-import type {Tag, Task, TaskStatus} from "@shared/types/storage"
+import type {LayoutType, Tag, Task, TaskStatus} from "@shared/types/storage"
 import type {MaybeRefOrGetter} from "vue"
 
-type TaskModelProps = {task: Task; tags?: Tag[]}
+type TaskModelProps = {task: Task; tags?: Tag[]; view?: LayoutType}
 
 export function useTaskModel(rawProps: MaybeRefOrGetter<TaskModelProps>) {
   const tasksStore = useTasksStore()
@@ -20,6 +20,19 @@ export function useTaskModel(rawProps: MaybeRefOrGetter<TaskModelProps>) {
 
   const task = computed(() => toValue(rawProps).task)
   const tags = computed(() => toValue(rawProps).tags ?? [])
+  const view = computed(() => toValue(rawProps).view ?? "list")
+  const moveScope = computed(() => {
+    if (!task.value) return []
+
+    if (view.value === "columns") {
+      return tasksStore.dailyTasks.filter((item) => item.status === task.value.status)
+    }
+
+    return tasksStore.dailyTasks
+  })
+  const moveIndex = computed(() => moveScope.value.findIndex((item) => item.id === task.value?.id))
+  const canMoveUp = computed(() => moveIndex.value > 0)
+  const canMoveDown = computed(() => moveIndex.value > -1 && moveIndex.value < moveScope.value.length - 1)
 
   function startEdit() {
     taskEditorStore.setCurrentEditingTask(task.value ?? null)
@@ -75,9 +88,47 @@ export function useTaskModel(rawProps: MaybeRefOrGetter<TaskModelProps>) {
     if (!isUpdated) toasts.error("Failed to update tags")
   }
 
+  async function moveUp() {
+    if (!task.value || !canMoveUp.value) return
+
+    const previousTask = moveScope.value[moveIndex.value - 1]
+    if (!previousTask) return
+
+    const result = await tasksStore.moveTaskByOrder({
+      taskId: task.value.id,
+      mode: view.value === "columns" ? "column" : "list",
+      targetTaskId: previousTask.id,
+      targetStatus: view.value === "columns" ? task.value.status : undefined,
+      position: "before",
+    })
+
+    if (!result) toasts.error("Failed to move task")
+  }
+
+  async function moveDown() {
+    if (!task.value || !canMoveDown.value) return
+
+    const nextTask = moveScope.value[moveIndex.value + 1]
+    if (!nextTask) return
+
+    const result = await tasksStore.moveTaskByOrder({
+      taskId: task.value.id,
+      mode: view.value === "columns" ? "column" : "list",
+      targetTaskId: nextTask.id,
+      targetStatus: view.value === "columns" ? task.value.status : undefined,
+      position: "after",
+    })
+
+    if (!result) toasts.error("Failed to move task")
+  }
+
   return {
     startEdit,
     changeStatus,
+    canMoveUp,
+    canMoveDown,
+    moveUp,
+    moveDown,
     toggleMinimized,
     deleteTask,
     rescheduleTask,

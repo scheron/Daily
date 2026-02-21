@@ -59,13 +59,13 @@ function withOpenDayPicker(show: () => void) {
     </div>
 
     <BaseButton
-      v-if="canMinimize"
       variant="ghost"
       size="sm"
       :icon="minimized ? 'maximize' : 'minimize'"
       :tooltip="minimized ? 'Maximize' : 'Minimize'"
       class="hover:text-accent hover:bg-accent/10 size-7"
       icon-class="size-4"
+      :disabled="!canMinimize"
       @click="emit('toggle-minimized')"
     />
 

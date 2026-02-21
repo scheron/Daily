@@ -2,7 +2,7 @@ import {nanoid} from "nanoid"
 
 import {TAG_QUICK_COLORS} from "@shared/constants/theme/colorPalette"
 import {toDurationLabel} from "@shared/utils/date/formatters"
-import {getNextTaskOrderIndex} from "@shared/utils/tasks/orderIndex"
+import {getPreviousTaskOrderIndex} from "@shared/utils/tasks/orderIndex"
 import {logger} from "@/utils/logger"
 
 import type {StorageController} from "@/storage/StorageController"
@@ -186,7 +186,7 @@ export class ToolExecutor {
       content,
       status: "active",
       minimized: false,
-      orderIndex: getNextTaskOrderIndex(dayTasks),
+      orderIndex: getPreviousTaskOrderIndex(dayTasks),
       scheduled: {
         date,
         time,
