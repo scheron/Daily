@@ -12,11 +12,14 @@ export async function setupAiIPC(getAi: () => AIController | null, getMainWindow
   ipcMain.handle("ai:clear-history", () => getAi()?.clearHistory())
   ipcMain.handle("ai:update-config", (_event, config: AIConfig) => getAi()?.updateConfig(config))
 
-  ipcMain.handle("ai:local-list-models", () => getAi()?.getLocalModel().listModels() ?? [])
-  ipcMain.handle("ai:local-get-state", () => getAi()?.getLocalState() ?? {status: "not_installed"})
-  ipcMain.handle("ai:local-get-disk-usage", () => getAi()?.getLocalModel().getDiskUsage() ?? {total: 0, models: {}})
-  ipcMain.handle("ai:local-cancel-download", (_event, modelId: LocalModelId) => getAi()?.getLocalModel().cancelDownload(modelId) ?? false)
-  ipcMain.handle("ai:local-delete-model", (_event, modelId: LocalModelId) => getAi()?.getLocalModel().deleteModel(modelId) ?? false)
+  ipcMain.handle("ai:local-list-models", async () => (await getAi()?.getLocalModel().listModels()) ?? [])
+  ipcMain.handle("ai:local-get-state", async () => (await getAi()?.getLocalState()) ?? {status: "not_installed"})
+  ipcMain.handle("ai:local-get-disk-usage", async () => (await getAi()?.getLocalModel().getDiskUsage()) ?? {total: 0, models: {}})
+  ipcMain.handle(
+    "ai:local-cancel-download",
+    async (_event, modelId: LocalModelId) => (await getAi()?.getLocalModel().cancelDownload(modelId)) ?? false,
+  )
+  ipcMain.handle("ai:local-delete-model", async (_event, modelId: LocalModelId) => (await getAi()?.getLocalModel().deleteModel(modelId)) ?? false)
   ipcMain.handle("ai:local-download-model", async (_event, modelId: LocalModelId) => {
     const ai = getAi()
     if (!ai) return false
