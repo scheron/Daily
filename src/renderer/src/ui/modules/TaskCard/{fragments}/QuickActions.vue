@@ -9,18 +9,8 @@ import {oklchToHex} from "@/utils/colors/oklchToHex"
 import BaseButton from "@/ui/base/BaseButton.vue"
 import DayPicker from "@/ui/common/pickers/DayPicker.vue"
 
-const emit = defineEmits<{
-  edit: []
-  "toggle-minimized": []
-  "move-date": [date: ISODate]
-  delete: []
-}>()
-
-defineProps<{
-  taskDate: ISODate
-  minimized: boolean
-  canMinimize: boolean
-}>()
+defineProps<{taskDate: ISODate}>()
+const emit = defineEmits<{edit: []; "move-date": [date: ISODate]; delete: []}>()
 
 const tasksStore = useTasksStore()
 const themeStore = useThemeStore()
@@ -57,17 +47,6 @@ function withOpenDayPicker(show: () => void) {
         icon-class="size-4"
       />
     </div>
-
-    <BaseButton
-      variant="ghost"
-      size="sm"
-      :icon="minimized ? 'maximize' : 'minimize'"
-      :tooltip="minimized ? 'Maximize' : 'Minimize'"
-      class="hover:text-accent hover:bg-accent/10 size-7"
-      icon-class="size-4"
-      :disabled="!canMinimize"
-      @click="emit('toggle-minimized')"
-    />
 
     <DayPicker
       title="Move to day"

@@ -31,8 +31,12 @@ const {
   changeStatus,
   canMoveUp,
   canMoveDown,
+  canMoveToTop,
+  canMoveToBottom,
   moveUp,
   moveDown,
+  moveToTop,
+  moveToBottom,
   toggleMinimized,
   deleteTask,
   rescheduleTask,
@@ -60,14 +64,23 @@ const menuItems = computed<ContextMenuItem[]>(() => {
     {value: "tags", label: "Tags", icon: "tags", children: true},
     {value: "reschedule", label: "Reschedule", icon: "calendar", children: true},
     {separator: true},
-    {value: "move-up", label: "Move Up", icon: "chevron-up", disabled: !canMoveUp.value},
-    {value: "move-down", label: "Move Down", icon: "chevron-down", disabled: !canMoveDown.value},
+    {
+      value: "move",
+      label: "Move",
+      icon: "move",
+      children: [
+        {value: "move-top", label: "Move to Top", icon: "chevrons-up", disabled: !canMoveToTop.value},
+        {value: "move-up", label: "Move Up", icon: "chevron-up", disabled: !canMoveUp.value},
+        {value: "move-down", label: "Move Down", icon: "chevron-down", disabled: !canMoveDown.value},
+        {value: "move-bottom", label: "Move to Bottom", icon: "chevrons-down", disabled: !canMoveToBottom.value},
+      ],
+    },
     {separator: true},
   ]
 
   items.push({
     value: "toggle-minimized",
-    label: props.task.minimized ? "Maximize" : "Minimize",
+    label: props.task.minimized ? "Expand" : "Collapse",
     icon: props.task.minimized ? "maximize" : "minimize",
     disabled: !canMinimize.value,
   })
@@ -102,8 +115,10 @@ function getStatusClass(status: TaskStatus) {
 
 function onSelect(event: ContextMenuSelectEvent) {
   if (event.item.value === "edit") startEdit()
+  if (event.item.value === "move-top") moveToTop()
   if (event.item.value === "move-up") moveUp()
   if (event.item.value === "move-down") moveDown()
+  if (event.item.value === "move-bottom") moveToBottom()
   if (event.item.value === "toggle-minimized") toggleMinimized()
   if (event.item.value === "copy") copyToClipboardTask()
   if (event.parent && event.parent.item.value === "status") changeStatus(event.item.value as TaskStatus)
@@ -152,9 +167,7 @@ async function onDeleteFromMenu() {
               <QuickActions
                 :task-date="task.scheduled.date"
                 :minimized="task.minimized"
-                :can-minimize="canMinimize"
                 @move-date="rescheduleTask"
-                @toggle-minimized="toggleMinimized"
                 @edit="startEdit"
                 @delete="deleteTask"
               />

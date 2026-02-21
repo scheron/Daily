@@ -2,83 +2,59 @@
 
 ## [Unreleased]
 
-This release adds a context menu for tasks, improves tag handling and calendar navigation, introduces inline tag commands in the editor, adds list/board task layouts, and brings manual task ordering with drag-and-drop.
+This release focuses on faster task organization, clearer layouts, and smoother day-to-day planning.
 
 ### ✨ New Features
 
-- **Task Card Minimize/Maximize** — Persistent content collapse for large task cards
-  - Added `Minimize/Maximize` action to task context menu in both `List` and `Columns` layouts
-  - Added quick-action button in list cards for faster collapse/expand
-  - Collapse state is persisted per task via new `minimized` field
-  - Content truncation applies only to rendered task content (CodeMirror), preserving tags and action controls
-  - Added dedicated IPC method for this flow: `tasks:toggle-minimized`
-
-- **Context Menu Reordering** — Move tasks directly from card context menu
-  - Added `Move Up` and `Move Down` actions for task reordering
-  - Actions are disabled when movement is not possible (top/bottom boundaries)
-  - Works with existing manual ordering behavior in list and column scopes
-
-- **Task Board Layout** — New kanban-like board mode for daily tasks
-  - Added two layout modes: `List` and `Columns`
-  - Tasks are automatically move across columns when status changes
-
-- **Layout Settings** — New settings section for layout behavior
-  - Added `Layout` section with clickable preview cards for `List` and `Board` modes
-  - Added empty-column behavior: hide empty columns or keep them visible in a collapsed state
-  - In `Board` mode, task editing opens in a modal
-    ![Columns View](./media/columns-view.png)
-
-- **Drag & Drop Behavior** — drag and drop support is now implemented for tasks
-  - Reorder tasks in list view
-  - Rearrange tasks within the same column in board view
-  - Move tasks between columns in board view
+- **Flexible Task Layouts** — Choose the view that fits your workflow
+  - Switch between `List` and `Board` layouts
+  - Keep empty board columns hidden or collapsed
+  - In board view, tasks move between columns automatically when status changes
 
 ![Task DnD Preview](./media/task-dnd-preview.gif)
 
-- **Context Menu for Tasks** — Quick access to common commands from the task list
-  - Right-click or long-press on a task to open the context menu with actions
+- **Drag-and-Drop Task Management** — Organize tasks directly on screen
+  - Reorder tasks in list view
+  - Reorder tasks within columns in board view
+  - Move tasks across board columns
 
 ![Context Menu Preview](./media/context-menu.png)
 
-- **Inline Tag Commands in Task Editor** — Attach and detach tags without leaving the editor
+- **Task Context Menu** — Faster access to common actions
+  - Open actions with right-click or long-press
+  - Move tasks up or down without leaving the current view
+  - Collapse or expand task cards for a cleaner workspace
+
+- **Inline Tag Commands in Editor** — Manage tags while you type
   - Type `#tag` to attach a tag and `-#tag` to detach
-  - Predictions and quick selection while typing
+  - Use autocomplete suggestions for faster selection
 
 ![Tags Predict Preview](./media/tags-predict.png)
 
 ### 🎨 UI/UX Improvements
 
-- **Board-Specific Task Presentation** — Dedicated task card variant for board columns
-  - Kept list-mode card unchanged
-  - In board mode, replaced status button group with a single status trigger + popup menu
-  - Removed quick actions from board-mode cards for cleaner compact layout
+- **Clearer Board Experience** — Improved readability and focus in board mode
+  - Cleaner task cards tailored for columns
+  - Status updates are quicker and less visually noisy
+  - Better scrolling behavior on narrow screens
 
-- **Layout-Aware Main View** — Separate list/board rendering paths
-  - Split content rendering into dedicated list and board view components
-  - Toolbar with global filters is shown only in list mode
-  - In board mode, tags are shown and filtered per column
-  - Board scrolling is handled by the columns container (including horizontal scroll on narrow screens)
+- **Refined Layout & Tags Settings** — Easier control over workspace behavior
+  - New settings section with layout previews
+  - Improved tag controls and clearer tag display
+  - Extended tag name limit for better naming flexibility
 
-- **Tag Components** — Refined tag-related UI and behavior
-  - Improved tag components for clearer display and interaction
-  - Increased character limit for tag names in the tag form
+- **Cleaner Interface Copy** — Reduced clutter across actions and labels
 
-- **Minimal Interface** — Simplified copy and actions across the app
-  - Cleaner labels and fewer redundant controls for a more focused experience
+- **Updated About Window** — Compact in-app about panel with key app information
 
-- **Custom About Window** — Replaced the native About dialog with a compact in-app window
-  - Shows app logo, version, and copyright in a minimal layout
-
-- **Month Calendar Navigation** — Easier navigation in the month calendar
-  - Mouse wheel and horizontal swipe (touchpad/touch) change months with one gesture per step
+- **Smoother Month Navigation** — Navigate calendar months with wheel or horizontal swipe gestures
 
 ### 🐛 Bug Fixes
 
-- Fixed an issue where task editor content could shrink in scrollable board columns while editing.
-- Fixed an issue where relative dates were not shown correctly as "Today" and "Yesterday".
-- Fixed an issue where tags could appear in different orders.
-- Fixed the Remote thinking-models tool-call flow by preserving and sending `reasoning_content` in assistant history messages.
-- Fixed an issue where the current day was not highlighted in the Quick Actions "Move to day" date picker.
+- Fixed an issue where task editor content could shrink while editing in scrollable board columns.
+- Fixed incorrect relative date labels for `Today` and `Yesterday`.
+- Fixed inconsistent tag ordering.
+- Fixed an issue where the current day was not highlighted in the Quick Actions date picker.
 
 ## v0.10.0 - 2026-02-09
 

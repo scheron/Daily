@@ -67,6 +67,9 @@ export type IconName =
   | "layout"
   | "minimize"
   | "maximize"
+  | "move"
+  | "chevrons-down"
+  | "chevrons-up"
 </script>
 
 <template>
@@ -537,16 +540,48 @@ export type IconName =
       <rect width="7" height="7" x="14" y="14" rx="1"></rect>
     </symbol>
     <symbol id="minimize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-      <path d="m14 10 7-7"></path>
-      <path d="M20 10h-6V4"></path>
-      <path d="m3 21 7-7"></path>
-      <path d="M4 14h6v6"></path>
+      <path d="M12 22v-6"></path>
+      <path d="M12 8V2"></path>
+      <path d="M4 12H2"></path>
+      <path d="M10 12H8"></path>
+      <path d="M16 12h-2"></path>
+      <path d="M22 12h-2"></path>
+      <path d="m15 19-3-3-3 3"></path>
+      <path d="m15 5-3 3-3-3"></path>
     </symbol>
     <symbol id="maximize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M15 3h6v6"></path>
-      <path d="m21 3-7 7"></path>
-      <path d="m3 21 7-7"></path>
-      <path d="M9 21H3v-6"></path>
+      <path d="M12 22v-6"></path>
+      <path d="M12 8V2"></path>
+      <path d="M4 12H2"></path>
+      <path d="M10 12H8"></path>
+      <path d="M16 12h-2"></path>
+      <path d="M22 12h-2"></path>
+      <path d="m15 19-3 3-3-3"></path>
+      <path d="m15 5-3-3-3 3"></path>
+    </symbol>
+    <symbol id="move" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2v20"></path>
+      <path d="m15 19-3 3-3-3"></path>
+      <path d="m19 9 3 3-3 3"></path>
+      <path d="M2 12h20"></path>
+      <path d="m5 9-3 3 3 3"></path>
+      <path d="m9 5 3-3 3 3"></path>
+    </symbol>
+    <symbol
+      id="chevrons-down"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <path d="m7 6 5 5 5-5"></path>
+      <path d="m7 13 5 5 5-5"></path>
+    </symbol>
+    <symbol id="chevrons-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="m17 11-5-5-5 5"></path>
+      <path d="m17 18-5-5-5 5"></path>
     </symbol>
   </svg>
 </template>
