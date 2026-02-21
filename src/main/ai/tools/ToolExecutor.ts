@@ -185,6 +185,7 @@ export class ToolExecutor {
       id: nanoid(),
       content,
       status: "active",
+      minimized: false,
       orderIndex: getNextTaskOrderIndex(dayTasks),
       scheduled: {
         date,

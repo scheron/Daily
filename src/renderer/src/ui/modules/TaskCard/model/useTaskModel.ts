@@ -33,6 +33,13 @@ export function useTaskModel(rawProps: MaybeRefOrGetter<TaskModelProps>) {
     toasts.success(`Task status updated to ${status}`, {id: "task-status"})
   }
 
+  async function toggleMinimized() {
+    if (!task.value) return
+
+    const nextState = !task.value.minimized
+    await tasksStore.toggleTaskMinimized(task.value.id, nextState)
+  }
+
   async function deleteTask() {
     if (!task.value) return false
     const isDeleted = await tasksStore.deleteTask(task.value.id)
@@ -71,6 +78,7 @@ export function useTaskModel(rawProps: MaybeRefOrGetter<TaskModelProps>) {
   return {
     startEdit,
     changeStatus,
+    toggleMinimized,
     deleteTask,
     rescheduleTask,
     copyToClipboardTask,

@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import {onMounted, ref, watch} from "vue"
+import {nextTick, onMounted, ref, watch} from "vue"
 
+import {TASK_CONTENT_MINIMIZED_HEIGHT} from "@/constants/ui"
 import {createCodeSyntaxExtension} from "@/utils/codemirror/extensions/codeSyntax"
 import {createMarkdownLanguageExtension} from "@/utils/codemirror/extensions/markdownLanguage"
 import {createThemeExtension} from "@/utils/codemirror/extensions/theme"
@@ -11,10 +12,33 @@ import {EditorView} from "@codemirror/view"
 
 const props = defineProps<{
   content: string
+  minimized?: boolean
+}>()
+const emit = defineEmits<{
+  "minimize-availability": [isAvailable: boolean]
 }>()
 
 const container = ref<HTMLDivElement>()
+const canMinimize = ref(false)
+const shouldClamp = ref(false)
 let view: EditorView | null = null
+
+function measureClampState() {
+  if (!container.value) {
+    canMinimize.value = false
+    shouldClamp.value = false
+    emit("minimize-availability", false)
+    return
+  }
+
+  const contentElement = container.value.querySelector(".cm-content") as HTMLElement | null
+  const contentHeight = contentElement?.scrollHeight ?? 0
+
+  const nextCanMinimize = contentHeight > TASK_CONTENT_MINIMIZED_HEIGHT
+  canMinimize.value = nextCanMinimize
+  shouldClamp.value = Boolean(props.minimized) && nextCanMinimize
+  emit("minimize-availability", nextCanMinimize)
+}
 
 function createReadonlyEditor(content: string) {
   if (!container.value) return
@@ -49,6 +73,10 @@ function createReadonlyEditor(content: string) {
     state,
     parent: container.value,
   })
+
+  nextTick(() => {
+    requestAnimationFrame(() => measureClampState())
+  })
 }
 
 watch(
@@ -59,13 +87,22 @@ watch(
   {immediate: true},
 )
 
+watch(
+  () => props.minimized,
+  () => {
+    nextTick(() => {
+      requestAnimationFrame(() => measureClampState())
+    })
+  },
+)
+
 onMounted(() => {
   createReadonlyEditor(props.content)
 })
 </script>
 
 <template>
-  <div ref="container" class="markdown-view"></div>
+  <div ref="container" class="markdown-view" :class="{'is-minimized': shouldClamp}"></div>
 </template>
 
 <style scoped>
@@ -91,5 +128,29 @@ onMounted(() => {
 .markdown-view :deep(.cm-codeblock-line) {
   white-space: pre !important;
   overflow-x: visible !important;
+}
+
+.markdown-view.is-minimized {
+  position: relative;
+  max-height: var(--task-content-minimized-height);
+  overflow: hidden;
+}
+
+.markdown-view.is-minimized::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 24px;
+  background: linear-gradient(to bottom, transparent, var(--color-base-100));
+}
+
+.markdown-view.is-minimized :deep(.cm-editor) {
+  max-height: var(--task-content-minimized-height);
+}
+
+.markdown-view.is-minimized :deep(.cm-scroller) {
+  overflow: hidden;
 }
 </style>

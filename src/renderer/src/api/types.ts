@@ -37,6 +37,7 @@ export interface Storage {
    * @returns The day that matches the query
    */
   updateTask(id: Task["id"], updates: Partial<Omit<Task, "id" | "createdAt" | "updatedAt">>): Promise<Day | null>
+  toggleTaskMinimized(id: Task["id"], minimized: boolean): Promise<Day | null>
   moveTaskByOrder(params: MoveTaskByOrderParams): Promise<Day | null>
   /**
    * Delete a task in the database

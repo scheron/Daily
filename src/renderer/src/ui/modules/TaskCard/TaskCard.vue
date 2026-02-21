@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, useTemplateRef} from "vue"
+import {computed, ref, useTemplateRef} from "vue"
 
 import {useTasksStore} from "@/stores/tasks.store"
 import BaseCalendar from "@/ui/base/BaseCalendar"
@@ -26,37 +26,53 @@ const props = withDefaults(defineProps<{task: Task; tags?: Tag[]; view?: LayoutT
 const tasksStore = useTasksStore()
 const contextMenuRef = useTemplateRef<InstanceType<typeof ContextMenu>>("contextMenu")
 
-const {startEdit, changeStatus, deleteTask, rescheduleTask, copyToClipboardTask, updateTaskTags} = useTaskModel(props)
+const {startEdit, changeStatus, toggleMinimized, deleteTask, rescheduleTask, copyToClipboardTask, updateTaskTags} = useTaskModel(props)
+const canMinimize = ref(false)
 
 const isColumnView = computed(() => props.view === "columns")
 
-const menuItems = computed<ContextMenuItem[]>(() => [
-  {value: "edit", label: "Edit", icon: "pencil"},
-  {separator: true},
-  {
-    value: "status",
-    label: "Status",
-    icon: "circle-pulse",
-    children: [
-      {value: "active", label: "Active", icon: "fire", class: getStatusClass("active")},
-      {value: "discarded", label: "Discarded", icon: "archive", class: getStatusClass("discarded")},
-      {value: "done", label: "Done", icon: "check-check", class: getStatusClass("done")},
-    ],
-  },
-  {value: "tags", label: "Tags", icon: "tags", children: true},
-  {value: "reschedule", label: "Reschedule", icon: "calendar", children: true},
-  {separator: true},
-  {value: "copy", label: "Copy", icon: "copy"},
-  {separator: true},
-  {
-    value: "delete",
-    label: "Delete",
-    icon: "trash",
-    class: "text-error hover:bg-error/10",
-    classIcon: "text-error",
-    classLabel: "text-error",
-  },
-])
+const menuItems = computed<ContextMenuItem[]>(() => {
+  const items: ContextMenuItem[] = [
+    {value: "edit", label: "Edit", icon: "pencil"},
+    {separator: true},
+    {
+      value: "status",
+      label: "Status",
+      icon: "circle-pulse",
+      children: [
+        {value: "active", label: "Active", icon: "fire", class: getStatusClass("active")},
+        {value: "discarded", label: "Discarded", icon: "archive", class: getStatusClass("discarded")},
+        {value: "done", label: "Done", icon: "check-check", class: getStatusClass("done")},
+      ],
+    },
+    {value: "tags", label: "Tags", icon: "tags", children: true},
+    {value: "reschedule", label: "Reschedule", icon: "calendar", children: true},
+    {separator: true},
+  ]
+
+  if (canMinimize.value) {
+    items.push({
+      value: "toggle-minimized",
+      label: props.task.minimized ? "Maximize" : "Minimize",
+      icon: props.task.minimized ? "maximize" : "minimize",
+    })
+  }
+
+  items.push(
+    {value: "copy", label: "Copy", icon: "copy"},
+    {separator: true},
+    {
+      value: "delete",
+      label: "Delete",
+      icon: "trash",
+      class: "text-error hover:bg-error/10",
+      classIcon: "text-error",
+      classLabel: "text-error",
+    },
+  )
+
+  return items
+})
 
 function getStatusClass(status: TaskStatus) {
   if (status !== props.task.status) return ""
@@ -72,8 +88,13 @@ function getStatusClass(status: TaskStatus) {
 
 function onSelect(event: ContextMenuSelectEvent) {
   if (event.item.value === "edit") startEdit()
+  if (event.item.value === "toggle-minimized") toggleMinimized()
   if (event.item.value === "copy") copyToClipboardTask()
   if (event.parent && event.parent.item.value === "status") changeStatus(event.item.value as TaskStatus)
+}
+
+function onMinimizeAvailabilityChange(isAvailable: boolean) {
+  canMinimize.value = isAvailable
 }
 
 async function onDeleteFromMenu() {
@@ -112,7 +133,15 @@ async function onDeleteFromMenu() {
             </template>
 
             <template v-else>
-              <QuickActions :task-date="task.scheduled.date" @move-date="rescheduleTask" @edit="startEdit" @delete="deleteTask" />
+              <QuickActions
+                :task-date="task.scheduled.date"
+                :minimized="task.minimized"
+                :can-minimize="canMinimize"
+                @move-date="rescheduleTask"
+                @toggle-minimized="toggleMinimized"
+                @edit="startEdit"
+                @delete="deleteTask"
+              />
               <TimeTrackingButton :task="task" />
               <StatusButtons :status="task.status" @update:status="changeStatus" />
             </template>
@@ -123,7 +152,7 @@ async function onDeleteFromMenu() {
           class="transition-opacity duration-200"
           :class="[{'opacity-50': ['done', 'discarded'].includes(task.status)}, isColumnView ? 'mb-2' : 'mb-5']"
         >
-          <MarkdownContent :content="task.content" />
+          <MarkdownContent :content="task.content" :minimized="task.minimized" @minimize-availability="onMinimizeAvailabilityChange" />
         </div>
       </div>
     </div>

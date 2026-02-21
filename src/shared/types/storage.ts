@@ -72,6 +72,11 @@ export type Task = {
 
   content: string
   /**
+   * Indicates whether task content is visually collapsed in cards.
+   * @default false
+   */
+  minimized: boolean
+  /**
    * Persistent position index used to sort tasks manually.
    * Lower values are shown first.
    */

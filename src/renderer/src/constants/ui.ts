@@ -1,0 +1,1 @@
+export const TASK_CONTENT_MINIMIZED_HEIGHT = 200

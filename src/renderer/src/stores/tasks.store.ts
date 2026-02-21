@@ -79,6 +79,14 @@ export const useTasksStore = defineStore("tasks", () => {
     return true
   }
 
+  async function toggleTaskMinimized(taskId: string, minimized: boolean) {
+    const updatedDay = await API.toggleTaskMinimized(taskId, minimized)
+    if (!updatedDay) return false
+
+    days.value = updateDays(days.value, updatedDay)
+    return true
+  }
+
   async function deleteTask(taskId: string) {
     const task = findDailyTaskById(taskId)
     if (!task) return false
@@ -196,6 +204,7 @@ export const useTasksStore = defineStore("tasks", () => {
     findTaskById,
     createTask,
     updateTask,
+    toggleTaskMinimized,
     deleteTask,
     moveTask,
     moveTaskByOrder,

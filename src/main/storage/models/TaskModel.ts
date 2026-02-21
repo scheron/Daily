@@ -277,6 +277,10 @@ export class TaskModel {
       nextDoc.content = updates.content
     }
 
+    if (updates.minimized !== undefined) {
+      nextDoc.minimized = updates.minimized
+    }
+
     if (updates.scheduled !== undefined) {
       nextDoc.scheduled = {...nextDoc.scheduled, ...updates.scheduled}
     }

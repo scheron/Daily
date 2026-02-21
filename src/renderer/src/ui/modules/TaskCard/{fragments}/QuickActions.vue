@@ -11,12 +11,15 @@ import DayPicker from "@/ui/common/pickers/DayPicker.vue"
 
 const emit = defineEmits<{
   edit: []
+  "toggle-minimized": []
   "move-date": [date: ISODate]
   delete: []
 }>()
 
 defineProps<{
   taskDate: ISODate
+  minimized: boolean
+  canMinimize: boolean
 }>()
 
 const tasksStore = useTasksStore()
@@ -55,6 +58,17 @@ function withOpenDayPicker(show: () => void) {
       />
     </div>
 
+    <BaseButton
+      v-if="canMinimize"
+      variant="ghost"
+      size="sm"
+      :icon="minimized ? 'maximize' : 'minimize'"
+      :tooltip="minimized ? 'Maximize' : 'Minimize'"
+      class="hover:text-accent hover:bg-accent/10 size-7"
+      icon-class="size-4"
+      @click="emit('toggle-minimized')"
+    />
+
     <DayPicker
       title="Move to day"
       :days="tasksStore.days"
@@ -68,7 +82,7 @@ function withOpenDayPicker(show: () => void) {
           variant="ghost"
           size="sm"
           icon="calendar"
-          tooltip="Move day"
+          tooltip="Reschedule"
           class="hover:text-accent hover:bg-accent/10 size-7"
           icon-class="size-5"
           @click="withOpenDayPicker(show)"

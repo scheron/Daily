@@ -156,6 +156,10 @@ export class StorageController implements IStorageController {
     return updatedTask
   }
 
+  async toggleTaskMinimized(id: Task["id"], minimized: boolean): Promise<Task | null> {
+    return this.updateTask(id, {minimized})
+  }
+
   async moveTaskByOrder(params: MoveTaskByOrderParams): Promise<Task | null> {
     const updatedTask = await this.tasksService.moveTaskByOrder(params)
     if (updatedTask) {

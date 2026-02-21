@@ -8,6 +8,7 @@ export function createTaskPlaceholder(date: ISODate): Task {
     id: NEW_TASK_ID,
     content: "",
     status: "active",
+    minimized: false,
     orderIndex: Number.MAX_SAFE_INTEGER,
     tags: [],
     estimatedTime: 0,

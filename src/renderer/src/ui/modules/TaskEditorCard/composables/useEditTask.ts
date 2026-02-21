@@ -26,6 +26,7 @@ export function useEditTask() {
     return await tasksStore.updateTask(taskEditorStore.currentEditingTask.id, {
       content: text,
       tags: taskEditorStore.editorTags,
+      minimized: true,
     })
   }
 

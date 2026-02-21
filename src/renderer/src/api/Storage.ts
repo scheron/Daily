@@ -30,6 +30,7 @@ export class StorageAPI implements Storage {
       const newTask = {
         content,
         status: "active" as TaskStatus,
+        minimized: false,
         tags: params.tags ?? [],
         estimatedTime: params.estimatedTime ?? 0,
         spentTime: 0,
@@ -60,6 +61,18 @@ export class StorageAPI implements Storage {
       return this.getDay(updatedTask.scheduled.date)
     } catch (error) {
       console.error("Failed to update task", error)
+      return null
+    }
+  }
+
+  async toggleTaskMinimized(id: Task["id"], minimized: boolean): Promise<Day | null> {
+    try {
+      const updatedTask = await window.BridgeIPC["tasks:toggle-minimized"](id, minimized)
+      if (!updatedTask) return null
+
+      return this.getDay(updatedTask.scheduled.date)
+    } catch (error) {
+      console.error("Failed to toggle task minimized state", error)
       return null
     }
   }

@@ -46,6 +46,7 @@ export interface BridgeIPC {
   "tasks:get-many": (params?: {from?: ISODate; to?: ISODate; limit?: number}) => Promise<Task[]>
   "tasks:get-one": (id: Task["id"]) => Promise<Task | null>
   "tasks:update": (id: Task["id"], updates: PartialDeep<Task>) => Promise<Task | null>
+  "tasks:toggle-minimized": (id: Task["id"], minimized: boolean) => Promise<Task | null>
   "tasks:create": (task: Omit<Task, "id" | "createdAt" | "updatedAt" | "deletedAt" | "attachments">) => Promise<Task | null>
   "tasks:move-by-order": (params: MoveTaskByOrderParams) => Promise<Task | null>
   "tasks:delete": (id: Task["id"]) => Promise<boolean>

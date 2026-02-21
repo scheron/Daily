@@ -36,6 +36,8 @@ export type TaskDoc = BaseDoc & {
   spentTime: number
   /** Task content (markdown) */
   content: string
+  /** Visual collapse state for task content. */
+  minimized?: boolean
   /**
    * Tag IDs referenced by this task
    */

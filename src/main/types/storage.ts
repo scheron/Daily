@@ -16,6 +16,7 @@ export interface IStorageController {
   getTaskList(params?: {from?: ISODate; to?: ISODate; limit?: number}): Promise<Task[]>
   getTask(id: Task["id"]): Promise<Task | null>
   updateTask(id: Task["id"], updates: PartialDeep<Task>): Promise<Task | null>
+  toggleTaskMinimized(id: Task["id"], minimized: boolean): Promise<Task | null>
   moveTaskByOrder(params: MoveTaskByOrderParams): Promise<Task | null>
   createTask(task: Omit<Task, "id" | "createdAt" | "updatedAt">): Promise<Task | null>
   deleteTask(id: Task["id"]): Promise<boolean>

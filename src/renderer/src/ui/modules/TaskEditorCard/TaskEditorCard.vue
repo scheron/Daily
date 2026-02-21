@@ -150,6 +150,7 @@ async function onSave() {
       content: text,
       tags: taskEditorStore.editorTags,
       status: "active",
+      minimized: true,
       estimatedTime: estimated.hours * 3600 + estimated.minutes * 60,
     })
 
@@ -193,6 +194,7 @@ async function onSaveAndContinue() {
       content: text,
       tags: taskEditorStore.editorTags,
       status: "active",
+      minimized: true,
       estimatedTime: estimated.hours * 3600 + estimated.minutes * 60,
     })
 

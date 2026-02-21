@@ -7,6 +7,7 @@
   --sidebar-collapsed-width: 80px;
   --header-height: 40px;
   --card-min-height: 100px;
+  --task-content-minimized-height: 200px;
   --glass-surface: color-mix(in oklab, var(--color-base-100) 62%, transparent);
   --glass-border: color-mix(in oklab, var(--color-base-content) 14%, transparent);
   --glass-blur: 18px;
@@ -18,6 +19,7 @@
   --spacing-sidebar-collapsed: var(--sidebar-collapsed-width);
   --spacing-header: var(--header-height);
   --spacing-card: var(--card-min-height);
+  --spacing-task-content-minimized: var(--task-content-minimized-height);
 }
 
 html {
