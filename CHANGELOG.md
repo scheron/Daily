@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## v0.11.0 - 2026-02-21
+
 This release focuses on faster task organization, clearer layouts, and smoother day-to-day planning.
 
 ### ✨ New Features
