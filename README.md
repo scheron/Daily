@@ -1,217 +1,156 @@
 # <img src="./src/renderer/public/favicon.svg" width="25" height="25" /> Daily
 
-**Daily** — An AI-powered task management application focused on productivity, minimalism, and convenience.
+**Daily** is an AI-powered task manager focused on productivity, minimalism, aesthetics, and day-to-day planning.
 
-![Desktop Demo](./media/Demo-super-new.png)
-
----
-
-### Idea 🤔
-
-The idea came from my habit of organizing daily tasks in markdown, like:
-
-```md
-## Tuesday, Dec 17
-
-- [x] Deploy to staging
-- [ ] Write documentation
-- [ ] Plan next sprint
-
-## Monday, Dec 16
-
-- [x] Review pull requests
-- [x] Team standup meeting
-- [ ] Complete feature implementation
-```
-
-I typically maintain my tasks organized by days, which allows me to revisit and track progress later.
-
-This stems from the standard workflow requirement: "What I did yesterday, what I'm doing today" 📊
-
-No bloat. No accounts. No complexity.
-Just a lightweight, local-first tool to help you stay on track, one day at a time.
+![Daily Desktop](./media/Demo-super-new.png)
 
 ---
 
-### ✨ Features
+## Overview
 
-- **Day-centric workflow** 📅 — organize tasks by date, focus on what matters today
-- **Calendar navigation** 📆 — jump to any day, review past work, plan ahead
-- **AI Agent** 🤖 — executes tasks, tracks time, and manages your workflow — not just a chatbot
-- **Local AI models** 🧠 — run the agent fully offline with llama.cpp and Metal GPU acceleration
-- **iCloud sync** ☁️ — optional cross-device synchronization for seamless workflow
-- **Fuzzy search** 🔍 — find any task instantly with intelligent fuzzy matching that handles typos
-- **Rich task content** 📝 — markdown formatting, embedded images, file attachments
-- **Time tracking** ⏱️ — estimate how long tasks will take, track actual time spent
-- **Quick retrospectives** 🔄 — see what you did yesterday, plan what you'll do today
-- **Smart organization** 🏷️ — group tasks by project, priority, or context with tags
-- **Beautiful themes** 🎨 — choose from 9+ UI themes including Glass UI with blur effects
-- **Local-first** 📁 — everything stored locally, works completely offline
+Daily is built around a simple question:
+**What did I do yesterday, and what matters today?**
+
+It combines day-based planning, fast task operations, and an execution-focused AI assistant in a local-first app for macOS.
+
+## Core Principles
+
+- **Day-first workflow**: tasks are organized by date, not buried in endless lists.
+- **Local-first architecture**: your data stays on your Mac and works offline.
+- **Action over chat**: AI is built to execute operations, not just answer questions.
 
 ---
 
-## 🎬 Showcase
+## Features
 
-See Daily in action with these feature demonstrations:
+### Plan your day
 
-<div align="center">
-
-### ✅ Managing Tasks
+#### Tasks are grouped by day, with fast date switching, month navigation (wheel/swipe), and keyboard-driven flow.
 
 ![Managing Tasks](./media/showcase/tasks-managment.gif)
 
-### 🏷️ Tag Management
+### Organize work visually
 
-![Tag Management](./media/showcase/tags-managment.gif)
+#### Use both **List** and **Board** layouts. Empty columns can be hidden/collapsed, and tasks can be moved or reordered.
 
-### ♻️ Delete & Restore Tasks
+![List and Board Layouts](./media/columns-view.png)
 
-![Delete Restore](./media/showcase/delete-restore.gif)
+#### Context menu provides quick task actions without leaving the current view.
 
-### ↔️ Move Task
+![Task Context Menu](./media/context-menu.png)
+
+#### Tasks can be rescheduled to another day in a few steps.
 
 ![Move Tasks](./media/showcase/move-tasks.gif)
 
-### 🔍 Search Tasks
+### Capture rich task details
+
+#### Task content supports markdown, file/image attachments, and tag-based organization.
+
+![Tag Management](./media/showcase/tags-managment.gif)
+
+#### Inline commands work in-editor: `#tag` adds, `-#tag` removes, with autocomplete.
+
+![Inline Tag Commands](./media/tags-predict.png)
+
+### Find and recover quickly
+
+#### Fuzzy search scans all tasks, tolerates typos, and jumps directly to the target date.
 
 ![Search Tasks](./media/showcase/search.gif)
 
-### ☁️ iCloud Sync
+#### Deleted tasks can be restored or permanently removed.
 
+![Delete Restore](./media/showcase/delete-restore.gif)
+
+### Stay local, sync when needed
+
+iCloud sync is optional. The app remains local-first and fully usable offline.
 ![Sync](./media/showcase/sync.gif)
 
-</div>
-
----
-
-## 🤖 AI Assistant
-
-Daily includes a built-in AI agent — not just a chatbot, but an assistant that executes tasks in your app.
-
-![Sync](./media/showcase/ai-assistant-demo.gif)
-
-### What it can do
-
-- **Execute actions** ⚡ — creates, updates, and manages tasks
-- **Multi-step operations** 🔄 — handles complex requests that require multiple actions
-- **Work with your data** 📊 — searches tasks, reads schedules, analyzes your day
-- **Understand context** 🧠 — knows dates, priorities, and your task organization
-
-### Capabilities
-
-- **Task management** ✅ — create, update, complete, discard, or delete tasks
-- **Search and organize** 🔍 — find tasks across dates, move between days, batch operations
-- **Tag management** 🏷️ — create tags, assign to tasks, organize by project or priority
-- **Time tracking** ⏱️ — log time spent, adjust entries, compare estimates vs actual
-- **Day summaries** 📊 — get overview of completion progress, time breakdown, what's left
-- **Attachments** 📎 — view and remove file attachments from tasks
-
-### Example interactions
-
-- 💬 "Create a task to review the PR tomorrow at 2pm" → creates and schedules the task
-- 💬 "I spent 2 hours on the documentation task" → logs time automatically
-- 💬 "Complete all my work tasks for today" → finds and marks all work tasks as done
-- 💬 "How's my day going?" → shows day summary with progress and time breakdown
-
-### Two ways to run
-
-| **Local models**                                                                          | **Remote models(OpenAI)**                                                                                                                            |
-| ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| Run everything offline with llama.cpp         |  Connect your API key for cloud-based models (e.g., GPT-4, DeepSeek, etc.)                                                                                                   |
-| - Metal GPU acceleration on macOS for fast inference<br>- Three curated models: fast, balanced, or quality<br>- No data leaves your machine | - Access to advanced cloud models<br>- Always up-to-date<br>- No downloads required|
-| Download and manage models directly in the app                                           | Configure API key and model in settings                                                                                             |
-| ![Local Model Settings](./media/ai-settings-local.png)                          |   ![Remote Model Settings](./media/ai-settings-remote.png)                                                                                      |
-
----
-
-## 🎨 Glass UI
-
-A translucent interface style with blur effects
-
+UI customization includes 9+ themes, including Glass UI.
 ![Glass UI Demo](./media/glass-ui-demo.png)
 
 ---
 
-## 💾 Data Privacy & Control
+## AI Assistant
 
-Daily stores everything locally on Mac — no accounts, no mandatory cloud dependency, no subscription fees.
+Daily includes an in-app AI assistant that executes real operations in your workspace.
 
-### Rich Task Content
+![AI Assistant](./media/showcase/ai-assistant-demo.gif)
 
-Create tasks with everything you need:
+### What it can do
 
-- **📝 Markdown formatting** — headers, lists, links, code blocks
-- **🖼️ Images & Screenshots** — paste images directly with `Cmd+V` or drag & drop
-- **⏱️ Time Tracking** — set estimates and track actual time spent
-- **🏷️ Tags** — organize tasks by project, priority, or context
+The assistant performs real in-app operations: task CRUD, status updates, date-based search, batch actions, tag/time/attachment management, and day summaries.
 
-### Why Local-First Storage?
+### Typical prompts
 
-- 🔒 Private by default - tasks stay on the device unless sync is enabled
-- ✅ Always available - work offline anytime, no internet required
-- 💰 Zero cost - no required subscriptions or storage fees
-- 🛡️ Safe and reliable - automatic conflict prevention and data integrity safeguards to reduce data loss risk
-- 💾 Easy backup - simple export for backups or migration
-- ☁️ Optional sync - enable iCloud sync when cross-device access is needed
+- "Create a task to review the PR tomorrow at 2pm"
+- "I spent 2 hours on the documentation task"
+- "Complete all my work tasks for today"
+- "How's my day going?"
+
+### Model options
+
+Both runtime modes are supported: local models and remote API models.
+
+| Local models                                           | Remote models (OpenAI-compatible)                        |
+| ------------------------------------------------------ | -------------------------------------------------------- |
+| ![Local Model Settings](./media/ai-settings-local.png) | ![Remote Model Settings](./media/ai-settings-remote.png) |
+| Run fully offline with llama.cpp                       | Use cloud models with your API key                       |
+| Metal acceleration on macOS                            | No local model download required                         |
+| Three curated local profiles: fast, balanced, quality  | Access latest hosted models                              |
 
 ---
 
-### 🗺️ Coming Soon
+## Privacy and Data Control
 
-- **Voice to task** 🎤 — voice recording to task
+Daily stores data locally on your Mac by default.
+
+- No account required
+- No mandatory cloud dependency
+- Works offline
+- Optional iCloud sync
+- Local-first storage with data integrity safeguards
 
 ---
 
-## 🚀 Installation
+## Platform Support
 
 > [!NOTE]
 > **macOS Only**: Daily currently supports only macOS. While Electron supports cross-platform deployment, Windows/Linux builds are not officially supported yet due to limited testing coverage.(or I'm just lazy 🤷‍♂️).
 
-1. 📥 Go to [Releases](https://github.com/scheron/Daily/releases)
-2. ⬇️ Download the `.dmg` file for macOS
-
-> [!NOTE]
-> The app is currently **not signed or notarized**:
->
-> - **macOS** will show a Gatekeeper warning. Follow the terminal instructions below to remove quarantine.
->
-> This is intentional, as Daily is open-source and not distributed through centralized stores.
-
 ---
 
-### 💻 macOS
+## Installation
 
-You can either:
+1. Open [Releases](https://github.com/scheron/Daily/releases)
+2. Download the latest macOS `.dmg`
+3. Move **Daily.app** to **Applications**
 
-- 📂 Open the downloaded `.dmg`
-- 🖱️ Drag **Daily.app** to **Applications**
-- 💻 Run this in terminal:
-  ```bash
-  xattr -rd com.apple.quarantine /Applications/Daily.app
-  ```
+If macOS blocks launch because the app is not notarized, run:
 
-Or ⚡ quick install via terminal:
+```bash
+xattr -rd com.apple.quarantine /Applications/Daily.app
+```
+
+Quick install (optional):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/scheron/Daily/main/scripts/install/install-mac.sh | sh
 ```
 
 > [!WARNING]
-> `curl | sh` executes a remote script directly. Prefer downloading from Releases when possible.
-> If you use the script, review it first
+> `curl | sh` executes a remote script. Prefer the Releases package when possible, or review the script first.
 
 ---
 
-## 🔄 Updating
+## Updating
 
-If installed via terminal script, 🔄 update using:
+If installed via script, update with:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/scheron/Daily/main/scripts/install/update-mac.sh | sh
 ```
 
-Or just ⬇️ download the latest version from the [Releases](https://github.com/scheron/Daily/releases) page.
-
----
-
-Enjoy using **Daily** — organize tasks, own the days. ☀️
+Or download the latest release manually from [Releases](https://github.com/scheron/Daily/releases).
