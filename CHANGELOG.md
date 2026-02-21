@@ -6,24 +6,19 @@ This release focuses on faster task organization, clearer layouts, and smoother 
 
 ### ✨ New Features
 
-- **Flexible Task Layouts** — Choose the view that fits your workflow
-  - Switch between `List` and `Board` layouts
+- **Flexible Task Layouts** — Switch between `List` and `Board` layouts
   - Keep empty board columns hidden or collapsed
   - In board view, tasks move between columns automatically when status changes
 
-![Task DnD Preview](./media/task-dnd-preview.gif)
-
-- **Drag-and-Drop Task Management** — Organize tasks directly on screen
+- **Drag-and-Drop Task Management** — Move tasks across board columns
   - Reorder tasks in list view
   - Reorder tasks within columns in board view
-  - Move tasks across board columns
 
-![Context Menu Preview](./media/context-menu.png)
+![D&D Priview](./media/columns-view.png)
 
 - **Task Context Menu** — Faster access to common actions
-  - Open actions with right-click or long-press
-  - Move tasks up or down without leaving the current view
-  - Collapse or expand task cards for a cleaner workspace
+
+![Context Menu Preview](./media/context-menu.png)
 
 - **Inline Tag Commands in Editor** — Manage tags while you type
   - Type `#tag` to attach a tag and `-#tag` to detach
@@ -33,19 +28,10 @@ This release focuses on faster task organization, clearer layouts, and smoother 
 
 ### 🎨 UI/UX Improvements
 
-- **Clearer Board Experience** — Improved readability and focus in board mode
-  - Cleaner task cards tailored for columns
-  - Status updates are quicker and less visually noisy
-  - Better scrolling behavior on narrow screens
-
 - **Refined Layout & Tags Settings** — Easier control over workspace behavior
   - New settings section with layout previews
   - Improved tag controls and clearer tag display
   - Extended tag name limit for better naming flexibility
-
-- **Cleaner Interface Copy** — Reduced clutter across actions and labels
-
-- **Updated About Window** — Compact in-app about panel with key app information
 
 - **Smoother Month Navigation** — Navigate calendar months with wheel or horizontal swipe gestures
 
