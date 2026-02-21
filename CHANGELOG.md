@@ -35,6 +35,8 @@ This release focuses on faster task organization, clearer layouts, and smoother 
 
 - **Smoother Month Navigation** — Navigate calendar months with wheel or horizontal swipe gestures
 
+- **Expanded Global Shortcuts** — Faster workspace navigation and actions
+
 ### 🐛 Bug Fixes
 
 - Fixed an issue where task editor content could shrink while editing in scrollable board columns.

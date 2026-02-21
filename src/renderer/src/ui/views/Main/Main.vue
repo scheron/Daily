@@ -36,10 +36,14 @@ function onCreateTask() {
   taskEditorStore.setIsTaskEditorOpen(true)
 }
 
-window.BridgeIPC["menu:on-new-task"]((action) => {
-  if (action === "new-task") onCreateTask()
-  else if (action === "toggle-sidebar") uiStore.toggleSidebarCollapse()
-})
+window.BridgeIPC["shortcut:tasks:create"](() => onCreateTask())
+window.BridgeIPC["shortcut:ui:toggle-sidebar"](() => uiStore.toggleSidebarCollapse())
+window.BridgeIPC["shortcut:ui:open-calendar-panel"](() => uiStore.openSidebarSection("calendar"))
+window.BridgeIPC["shortcut:ui:open-tags-panel"](() => uiStore.openSidebarSection("tags"))
+window.BridgeIPC["shortcut:ui:open-search-panel"](() => uiStore.openSidebarSection("search"))
+window.BridgeIPC["shortcut:ui:open-assistant-panel"](() => uiStore.openSidebarSection("assistant"))
+window.BridgeIPC["shortcut:ui:open-settings-panel"](() => uiStore.openSidebarSection("settings"))
+window.BridgeIPC["shortcut:ui:toggle-tasks-view-mode"](() => uiStore.toggleTasksViewMode())
 </script>
 
 <template>

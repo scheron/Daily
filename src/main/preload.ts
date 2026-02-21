@@ -1,5 +1,7 @@
 import {contextBridge, ipcRenderer} from "electron"
 
+import {ShortcutsMap} from "@shared/constants/shortcuts"
+
 import type {AIConfig, AIResponse, LocalModelDownloadProgress, LocalModelId, LocalModelInfo, LocalRuntimeState} from "@shared/types/ai"
 import type {ISODate} from "@shared/types/common"
 import type {BridgeIPC} from "@shared/types/ipc"
@@ -26,8 +28,6 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "platform:is-linux": () => process.platform === "linux",
 
   "shell:open-external": (url: string) => ipcRenderer.invoke("shell:open-external", url) as Promise<boolean>,
-
-  "menu:on-new-task": (callback: (action: "new-task") => void) => ipcRenderer.on("menu:new-task", () => callback("new-task")),
 
   "storage-sync:activate": () => ipcRenderer.invoke("storage-sync:activate") as Promise<void>,
   "storage-sync:deactivate": () => ipcRenderer.invoke("storage-sync:deactivate") as Promise<void>,
@@ -83,4 +83,13 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
 
   "ai:on-local-state-changed": (callback: (state: LocalRuntimeState) => void) => ipcRenderer.on("ai:local-state-changed", (_event, state: LocalRuntimeState) => callback(state)),
   "ai:on-local-download-progress": (callback: (progress: LocalModelDownloadProgress) => void) => ipcRenderer.on("ai:local-download-progress", (_event, progress: LocalModelDownloadProgress) => callback(progress)),
+
+  "shortcut:tasks:create": (callback: () => void) => ipcRenderer.on(ShortcutsMap["tasks:create"].channel, () => callback()),
+  "shortcut:ui:toggle-sidebar": (callback: () => void) => ipcRenderer.on(ShortcutsMap["ui:toggle-sidebar"].channel, () => callback()),
+  "shortcut:ui:open-calendar-panel": (callback: () => void) => ipcRenderer.on(ShortcutsMap["ui:open-calendar-panel"].channel, () => callback()),
+  "shortcut:ui:open-tags-panel": (callback: () => void) => ipcRenderer.on(ShortcutsMap["ui:open-tags-panel"].channel, () => callback()),
+  "shortcut:ui:open-search-panel": (callback: () => void) => ipcRenderer.on(ShortcutsMap["ui:open-search-panel"].channel, () => callback()),
+  "shortcut:ui:open-assistant-panel": (callback: () => void) => ipcRenderer.on(ShortcutsMap["ui:open-assistant-panel"].channel, () => callback()),
+  "shortcut:ui:open-settings-panel": (callback: () => void) => ipcRenderer.on(ShortcutsMap["ui:open-settings-panel"].channel, () => callback()),
+  "shortcut:ui:toggle-tasks-view-mode": (callback: () => void) => ipcRenderer.on(ShortcutsMap["ui:toggle-tasks-view-mode"].channel, () => callback()),
 } satisfies BridgeIPC)

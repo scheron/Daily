@@ -1,5 +1,7 @@
 import {breakpointsTailwind, useBreakpoints} from "@vueuse/core"
 
+import {isMacOS, isWindows} from "@/constants/env"
+
 export function useDevice() {
   const breakpoint = useBreakpoints(breakpointsTailwind)
 
@@ -8,7 +10,7 @@ export function useDevice() {
     isTablet: breakpoint.between("sm", "lg"),
     isDesktop: breakpoint.greaterOrEqual("lg"),
 
-    isMacOS: window.BridgeIPC["platform:is-mac"](),
-    isWindows: window.BridgeIPC["platform:is-windows"]() || window.BridgeIPC["platform:is-linux"](),
+    isMacOS: isMacOS,
+    isWindows: isWindows,
   }
 }

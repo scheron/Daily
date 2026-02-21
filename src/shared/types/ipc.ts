@@ -22,10 +22,6 @@ export interface BridgeIPC {
   // === SHELL ===
   "shell:open-external": (url: string) => Promise<boolean>
 
-  // === WINDOW MENU SHORTCUTS ===
-  /**@deprecated remote with menu*/
-  "menu:on-new-task": (callback: (action: "new-task") => void) => void
-
   // === STORAGE  ===
   "storage-sync:activate": () => Promise<void>
   "storage-sync:deactivate": () => Promise<void>
@@ -90,4 +86,14 @@ export interface BridgeIPC {
   // === AI LOCAL EVENTS ===
   "ai:on-local-state-changed": (callback: (state: LocalRuntimeState) => void) => void
   "ai:on-local-download-progress": (callback: (progress: LocalModelDownloadProgress) => void) => void
+
+  // === SHORTCUTS ===
+  "shortcut:tasks:create": (callback: () => void) => void
+  "shortcut:ui:toggle-sidebar": (callback: () => void) => void
+  "shortcut:ui:open-calendar-panel": (callback: () => void) => void
+  "shortcut:ui:open-tags-panel": (callback: () => void) => void
+  "shortcut:ui:open-search-panel": (callback: () => void) => void
+  "shortcut:ui:open-assistant-panel": (callback: () => void) => void
+  "shortcut:ui:open-settings-panel": (callback: () => void) => void
+  "shortcut:ui:toggle-tasks-view-mode": (callback: () => void) => void
 }

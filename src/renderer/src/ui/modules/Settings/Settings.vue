@@ -7,9 +7,9 @@ import About from "./{fragments}/About.vue"
 import AiSettings from "./{fragments}/AiSettings"
 import DeletedTasks from "./{fragments}/DeletedTasks"
 import IconsList from "./{fragments}/IconsList.vue"
-import LayoutSettings from "./{fragments}/LayoutSettings.vue"
+import LayoutSettings from "./{fragments}/LayoutSettings"
 import SyncSettings from "./{fragments}/SyncSettings.vue"
-import Themes from "./{fragments}/Themes.vue"
+import ThemesSettings from "./{fragments}/ThemesSettings"
 
 const COMMON_GROUP = "settings"
 </script>
@@ -36,7 +36,7 @@ const COMMON_GROUP = "settings"
         </h3>
       </template>
       <div class="overflow-y-auto">
-        <Themes />
+        <ThemesSettings />
       </div>
     </ExpansionPanel>
 

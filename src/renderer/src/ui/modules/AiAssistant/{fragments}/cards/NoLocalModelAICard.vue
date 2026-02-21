@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {toShortcutKeys} from "@/utils/shortcuts/toShortcutKey"
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseIcon from "@/ui/base/BaseIcon"
 
@@ -45,7 +46,7 @@ const emit = defineEmits<{
         class="border-info text-info size-8 p-0 text-sm"
         size="sm"
         icon="sidebar"
-        tooltip="Settings"
+        :tooltip="`Settings (${toShortcutKeys('ui:open-settings-panel')})`"
         variant="outline"
         @click="emit('go-to-settings')"
       />

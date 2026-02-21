@@ -5,7 +5,7 @@ import {useUIStore} from "@/stores/ui.store"
 import BaseSwitch from "@/ui/base/BaseSwitch.vue"
 import BlockUI from "@/ui/common/misc/BlockUI.vue"
 
-import LayoutPreview from "./LayoutPreview.vue"
+import LayoutPreview from "./{fragments}/LayoutPreview.vue"
 
 import type {LayoutType} from "@shared/types/storage"
 

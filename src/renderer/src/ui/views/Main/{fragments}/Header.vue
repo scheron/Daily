@@ -4,6 +4,7 @@ import {computed} from "vue"
 import {toFullDate} from "@shared/utils/date/formatters"
 import {useUIStore} from "@/stores/ui.store"
 import {useDevice} from "@/composables/useDevice"
+import {toShortcutKeys} from "@/utils/shortcuts/toShortcutKey"
 import BaseButton from "@/ui/base/BaseButton.vue"
 
 const props = defineProps<{taskEditorOpen: boolean; activeDay: string}>()
@@ -27,7 +28,7 @@ const showToggleButton = computed(() => {
         v-if="showToggleButton"
         variant="ghost"
         icon="sidebar"
-        :tooltip="isDesktop ? 'Expand' : 'Menu'"
+        :tooltip="isDesktop ? `Expand (${toShortcutKeys('ui:toggle-sidebar')})` : 'Menu'"
         :class="{'ml-16': isMobile}"
         style="-webkit-app-region: no-drag"
         @click="emit('toggleSidebar')"
@@ -43,7 +44,7 @@ const showToggleButton = computed(() => {
       variant="text"
       class="text-accent hover:bg-accent/10 focus-visible-ring focus-visible:ring-accent size-8 shrink-0 p-0"
       icon="plus"
-      tooltip="Create"
+      :tooltip="`Create (${toShortcutKeys('tasks:create')})`"
       style="-webkit-app-region: no-drag"
       @click="emit('createTask')"
     />

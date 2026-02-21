@@ -7,7 +7,7 @@ import BaseIcon from "@/ui/base/BaseIcon"
 import BaseSwitch from "@/ui/base/BaseSwitch.vue"
 import BlockUI from "@/ui/common/misc/BlockUI.vue"
 
-import ThemesPreview from "./ThemesPreview.vue"
+import ThemesPreview from "./{fragments}/ThemesPreview.vue"
 
 const themeStore = useThemeStore()
 

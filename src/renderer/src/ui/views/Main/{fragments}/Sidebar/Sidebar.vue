@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import {computed, ref} from "vue"
+import {computed} from "vue"
 
 import {useUIStore} from "@/stores/ui.store"
 import {useDevice} from "@/composables/useDevice"
+import {toShortcutKeys} from "@/utils/shortcuts/toShortcutKey"
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseSpinner from "@/ui/base/BaseSpinner.vue"
 import AnimatedTabs from "@/ui/common/misc/AnimatedTabs"
@@ -15,8 +16,6 @@ import TagsForm from "@/ui/modules/TagsForm"
 
 import {BOTTOM_MENU_ITEMS} from "./model/constants"
 
-import type {SidebarSection} from "./model/types"
-
 defineProps<{
   dataLoaded: boolean
   contentHeight: number
@@ -26,7 +25,6 @@ const uiStore = useUIStore()
 
 const {isMacOS, isDesktop} = useDevice()
 
-const activeSection = ref<SidebarSection>("calendar")
 const showCollapseButton = computed(() => {
   if (isDesktop.value) return !uiStore.isSidebarCollapsed
   return false
@@ -49,7 +47,7 @@ const showCollapseButton = computed(() => {
         v-if="showCollapseButton"
         variant="ghost"
         icon="sidebar"
-        :tooltip="isDesktop ? 'Collapse' : 'Close'"
+        :tooltip="isDesktop ? `Collapse (${toShortcutKeys('ui:toggle-sidebar')})` : 'Close'"
         style="-webkit-app-region: no-drag"
         @click="uiStore.toggleSidebarCollapse()"
       />
@@ -60,16 +58,20 @@ const showCollapseButton = computed(() => {
 
       <template v-else>
         <div class="hide-scrollbar flex-1 overflow-y-auto">
-          <CalendarMonth v-if="activeSection === 'calendar'" />
-          <TagsForm v-else-if="activeSection === 'tags'" class="h-full" />
-          <SearchForm v-else-if="activeSection === 'search'" class="h-full" />
-          <AiAssistant v-else-if="activeSection === 'assistant'" class="h-full" @navigate-settings="activeSection = 'settings'" />
-          <Settings v-else-if="activeSection === 'settings'" class="h-full" />
+          <CalendarMonth v-if="uiStore.activeSidebarSection === 'calendar'" />
+          <TagsForm v-else-if="uiStore.activeSidebarSection === 'tags'" class="h-full" />
+          <SearchForm v-else-if="uiStore.activeSidebarSection === 'search'" class="h-full" />
+          <AiAssistant
+            v-else-if="uiStore.activeSidebarSection === 'assistant'"
+            class="h-full"
+            @navigate-settings="uiStore.setActiveSidebarSection('settings')"
+          />
+          <Settings v-else-if="uiStore.activeSidebarSection === 'settings'" class="h-full" />
         </div>
 
         <div class="app-sidebar-footer border-base-300 bg-base-100 border-t px-2 py-2">
           <AnimatedTabs
-            v-model:tab="activeSection"
+            v-model:tab="uiStore.activeSidebarSection"
             :tabs="BOTTOM_MENU_ITEMS"
             class="flex items-center justify-between gap-1"
             tab-class="flex items-center justify-center gap-1 rounded-md px-1.5 py-1 transition-colors duration-200 outline-none focus-visible-ring focus-visible:ring-offset-base-100 focus-visible:ring-accent"

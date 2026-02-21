@@ -45,7 +45,7 @@ watch(
     <button
       v-for="item in tabs"
       :key="item.id"
-      v-tooltip="{disabled: activeTab === item.id, content: item.label, placement: 'top'}"
+      v-tooltip="{disabled: activeTab === item.id, content: item.tooltip || item.label, placement: 'top'}"
       :data-tab="item.id"
       :class="cn(tabClass, activeTab === item.id ? item.activeClass : item.inactiveClass)"
       @click="onTabSelect(item.id)"
