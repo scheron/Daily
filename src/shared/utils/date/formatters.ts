@@ -9,12 +9,13 @@ import type {ISODate, ISODateTime} from "../../types/common"
  * @returns The formatted date
  * @example toFullDate("2021-01-01") // "Jan 1, 2021"
  */
-export function toFullDate(date: ISODate | string, options: {short?: boolean} = {}) {
+export function toFullDate(date: ISODate | string, options: {short?: boolean; month?: boolean; year?: boolean} = {}) {
+  const {short = false, month = true, year = true} = options
   return DateTime.fromISO(date).toLocaleString({
-    year: "numeric",
-    month: "short",
+    year: year ? "numeric" : undefined,
+    month: month ? "short" : undefined,
     day: "numeric",
-    weekday: options?.short ? undefined : "short",
+    weekday: short ? undefined : "short",
   })
 }
 

@@ -12,9 +12,9 @@ import BaseAnimation from "@/ui/base/BaseAnimation.vue"
 
 import {useContentSize} from "./composables/useContentSize"
 import Content from "./{fragments}/Content"
+import Footer from "./{fragments}/Footer.vue"
 import Header from "./{fragments}/Header.vue"
 import Sidebar from "./{fragments}/Sidebar"
-import SidebarMini from "./{fragments}/SidebarMini"
 import Toolbar from "./{fragments}/Toolbar"
 
 const tasksStore = useTasksStore()
@@ -26,7 +26,7 @@ useStorageStore()
 useThemeStore()
 
 const {isDesktop, isMobile, isTablet} = useDevice()
-const {contentHeight, contentWidth} = useContentSize("container")
+const {contentHeight, contentWidth, footerHeight} = useContentSize("container")
 
 const isDataLoaded = computed(() => tasksStore.isDaysLoaded && tagsStore.isTagsLoaded)
 
@@ -48,14 +48,9 @@ window.BridgeIPC["shortcut:ui:toggle-tasks-view-mode"](() => uiStore.toggleTasks
 
 <template>
   <div ref="container" class="app-shell bg-base-300 flex h-dvh w-dvw overflow-hidden">
-    <template v-if="isDesktop">
-      <SidebarMini v-if="uiStore.isSidebarCollapsed" :content-height="contentHeight" :data-loaded="isDataLoaded" />
-      <Sidebar v-else :content-height="contentHeight" :data-loaded="isDataLoaded" />
-    </template>
+    <Sidebar v-if="isDesktop && !uiStore.isSidebarCollapsed" :content-height="contentHeight" :data-loaded="isDataLoaded" />
 
     <template v-else-if="isTablet">
-      <SidebarMini :content-height="contentHeight" :data-loaded="isDataLoaded" />
-
       <BaseAnimation name="slideRight" :duration="200">
         <div v-if="uiStore.isMobileSidebarOpen" class="fixed top-0 left-0 z-40">
           <Sidebar :content-height="contentHeight" :data-loaded="isDataLoaded" />
@@ -65,7 +60,7 @@ window.BridgeIPC["shortcut:ui:toggle-tasks-view-mode"](() => uiStore.toggleTasks
 
     <BaseAnimation name="slideRight" :duration="200">
       <div v-if="isMobile && uiStore.isMobileSidebarOpen" class="fixed top-0 left-0 z-40">
-        <Sidebar :content-height="contentHeight" :data-loaded="isDataLoaded" />
+        <Sidebar :content-height="contentHeight + footerHeight" :data-loaded="isDataLoaded" />
       </div>
     </BaseAnimation>
 
@@ -88,6 +83,8 @@ window.BridgeIPC["shortcut:ui:toggle-tasks-view-mode"](() => uiStore.toggleTasks
 
         <Content :task-editor-open="taskEditorStore.isTaskEditorOpen" @create-task="onCreateTask" />
       </div>
+
+      <Footer v-if="footerHeight > 0" :active-day="tasksStore.activeDay" />
     </main>
   </div>
 </template>
