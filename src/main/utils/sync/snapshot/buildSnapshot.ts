@@ -19,9 +19,10 @@ export function buildSnapshot(docs: SnapshotDocs): Snapshot {
 export function buildSnapshotMeta(docs: SnapshotDocs): SnapshotMeta {
   const tasksHash = computeCollectionHash(docs.tasks)
   const tagsHash = computeCollectionHash(docs.tags)
+  const branchesHash = computeCollectionHash(docs.branches)
   const filesHash = computeCollectionHash(docs.files)
   const settingsHash = computeSettingsHash(docs.settings)
-  const combinedHash = computeCombinedHash(tasksHash, tagsHash, filesHash, settingsHash)
+  const combinedHash = computeCombinedHash(tasksHash, tagsHash, branchesHash, filesHash, settingsHash)
 
   return {
     updatedAt: new Date().toISOString(),
@@ -29,8 +30,8 @@ export function buildSnapshotMeta(docs: SnapshotDocs): SnapshotMeta {
   }
 }
 
-function computeCombinedHash(tasksHash: string, tagsHash: string, filesHash: string, settingsHash: string): string {
-  const combined = tasksHash + tagsHash + filesHash + settingsHash
+function computeCombinedHash(tasksHash: string, tagsHash: string, branchesHash: string, filesHash: string, settingsHash: string): string {
+  const combined = tasksHash + tagsHash + branchesHash + filesHash + settingsHash
   return crypto.createHash("sha256").update(combined).digest("hex")
 }
 

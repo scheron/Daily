@@ -1,5 +1,5 @@
 import type {ISODateTime} from "@shared/types/common"
-import type {BaseDoc, FileDoc, SettingsDoc, TagDoc, TaskDoc} from "./database"
+import type {BaseDoc, BranchDoc, FileDoc, SettingsDoc, TagDoc, TaskDoc} from "./database"
 
 export type SyncDoc = Omit<BaseDoc, "_rev"> & Record<string, any>
 
@@ -17,6 +17,7 @@ export type SnapshotMeta = {
 export type SnapshotDocs = {
   tasks: TaskDoc[]
   tags: TagDoc[]
+  branches: BranchDoc[]
   files: FileDoc[]
   settings: SettingsDoc | null
 }

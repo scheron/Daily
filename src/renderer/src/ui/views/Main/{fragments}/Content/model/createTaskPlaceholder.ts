@@ -1,3 +1,5 @@
+import {MAIN_BRANCH_ID} from "@shared/constants/storage"
+
 import {NEW_TASK_ID} from "./constants"
 
 import type {ISODate} from "@shared/types/common"
@@ -14,6 +16,7 @@ export function createTaskPlaceholder(date: ISODate): Task {
     estimatedTime: 0,
     spentTime: 0,
     deletedAt: null,
+    branchId: MAIN_BRANCH_ID,
     attachments: [],
     scheduled: {
       date,

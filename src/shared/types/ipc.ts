@@ -3,7 +3,7 @@ import type {PartialDeep} from "type-fest"
 import type {AIConfig, AIResponse, LocalModelDownloadProgress, LocalModelId, LocalModelInfo, LocalRuntimeState} from "./ai"
 import type {ISODate} from "./common"
 import type {TaskSearchResult} from "./search"
-import type {Day, File, MoveTaskByOrderParams, Settings, SyncStatus, Tag, Task} from "./storage"
+import type {Branch, Day, File, MoveTaskByOrderParams, Settings, SyncStatus, Tag, Task} from "./storage"
 
 export interface BridgeIPC {
   // === GENERAL IPC ===
@@ -35,23 +35,34 @@ export interface BridgeIPC {
   "settings:save": (settings: Partial<Settings>) => Promise<void>
 
   // === DAYS  ===
-  "days:get-many": (params?: {from?: ISODate; to?: ISODate}) => Promise<Day[]>
+  "days:get-many": (params?: {from?: ISODate; to?: ISODate; branchId?: Branch["id"]}) => Promise<Day[]>
   "days:get-one": (date: ISODate) => Promise<Day | null>
 
   // === TASKS  ===
-  "tasks:get-many": (params?: {from?: ISODate; to?: ISODate; limit?: number}) => Promise<Task[]>
+  "tasks:get-many": (params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: Branch["id"]}) => Promise<Task[]>
   "tasks:get-one": (id: Task["id"]) => Promise<Task | null>
   "tasks:update": (id: Task["id"], updates: PartialDeep<Task>) => Promise<Task | null>
   "tasks:toggle-minimized": (id: Task["id"], minimized: boolean) => Promise<Task | null>
-  "tasks:create": (task: Omit<Task, "id" | "createdAt" | "updatedAt" | "deletedAt" | "attachments">) => Promise<Task | null>
+  "tasks:create": (
+    task: Omit<Task, "id" | "createdAt" | "updatedAt" | "deletedAt" | "attachments" | "branchId"> & {branchId?: Task["branchId"]},
+  ) => Promise<Task | null>
   "tasks:move-by-order": (params: MoveTaskByOrderParams) => Promise<Task | null>
+  "tasks:move-to-branch": (taskId: Task["id"], branchId: Branch["id"]) => Promise<boolean>
   "tasks:delete": (id: Task["id"]) => Promise<boolean>
   "tasks:add-tags": (taskId: Task["id"], tagIds: Tag["id"][]) => Promise<Task | null>
   "tasks:remove-tags": (taskId: Task["id"], tagIds: Tag["id"][]) => Promise<Task | null>
-  "tasks:get-deleted": (params?: {limit?: number}) => Promise<Task[]>
+  "tasks:get-deleted": (params?: {limit?: number; branchId?: Branch["id"]}) => Promise<Task[]>
   "tasks:restore": (id: Task["id"]) => Promise<Task | null>
   "tasks:delete-permanently": (id: Task["id"]) => Promise<boolean>
   "tasks:delete-all-permanently": () => Promise<number>
+
+  // === BRANCHES ===
+  "branches:get-many": () => Promise<Branch[]>
+  "branches:get-one": (id: Branch["id"]) => Promise<Branch | null>
+  "branches:create": (branch: Omit<Branch, "id" | "createdAt" | "updatedAt" | "deletedAt">) => Promise<Branch | null>
+  "branches:update": (id: Branch["id"], updates: Pick<Branch, "name">) => Promise<Branch | null>
+  "branches:delete": (id: Branch["id"]) => Promise<boolean>
+  "branches:set-active": (id: Branch["id"]) => Promise<void>
 
   // === SEARCH  ===
   "search:query": (query: string) => Promise<TaskSearchResult[]>

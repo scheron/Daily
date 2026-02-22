@@ -1,4 +1,4 @@
-import type {Task} from "./storage"
+import type {Branch, Task} from "./storage"
 
 /**
  * Match information for highlighting
@@ -19,6 +19,8 @@ export type SearchMatch = {
 export type TaskSearchResult = {
   /** Full task with enriched tags */
   task: Task
+  /** Branch where this task is located */
+  branch: Branch | null
   /** Match positions in the original content */
   matches?: SearchMatch[]
   /** Relevance score (lower is better) */

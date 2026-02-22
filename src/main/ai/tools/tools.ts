@@ -31,8 +31,15 @@ export type ToolName =
   | "remove_task_tags"
   | "search_tasks"
   | "move_task"
+  | "move_task_to_project"
   // Time tracking
   | "log_time"
+  // Projects
+  | "list_projects"
+  | "create_project"
+  | "rename_project"
+  | "delete_project"
+  | "switch_project"
   // Day overview
   | "get_day_summary"
   // Attachments

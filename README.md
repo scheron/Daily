@@ -39,6 +39,10 @@ It combines day-based planning, fast task operations, and an execution-focused A
 
 ![Task Context Menu](./media/context-menu.png)
 
+#### Projects/branches let you isolate task spaces. Switch branch in header, manage projects in Settings, move tasks across projects, and navigate from search with automatic branch switch.
+
+![Projects and Branches](./media/showcase/branch-demo.gif)
+
 #### Tasks can be rescheduled to another day in a few steps.
 
 ![Move Tasks](./media/showcase/move-tasks.gif)

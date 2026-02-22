@@ -2,7 +2,7 @@ import {ipcMain} from "electron"
 
 import type {IStorageController} from "@/types/storage"
 import type {ISODate} from "@shared/types/common"
-import type {MoveTaskByOrderParams, Tag, Task} from "@shared/types/storage"
+import type {Branch, MoveTaskByOrderParams, Tag, Task} from "@shared/types/storage"
 import type {PartialDeep} from "type-fest"
 
 // prettier-ignore
@@ -10,20 +10,28 @@ export function setupStorageIPC(getStorage: () => IStorageController | null): vo
   ipcMain.handle("settings:load", (_e) => getStorage()?.loadSettings())
   ipcMain.handle("settings:save", (_e, newSettings: Partial<Record<string, any>>) => getStorage()?.saveSettings(newSettings))
 
-  ipcMain.handle("days:get-many", (_e, params?: {from?: ISODate; to?: ISODate}) => getStorage()?.getDays(params))
+  ipcMain.handle("days:get-many", (_e, params?: {from?: ISODate; to?: ISODate; branchId?: Branch["id"]}) => getStorage()?.getDays(params))
   ipcMain.handle("days:get-one", (_e, date: ISODate) => getStorage()?.getDay(date))
 
-  ipcMain.handle("tasks:get-many", (_e, params?: {from?: ISODate; to?: ISODate; limit?: number}) => getStorage()?.getTaskList(params))
+  ipcMain.handle("tasks:get-many", (_e, params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: Branch["id"]}) => getStorage()?.getTaskList(params))
   ipcMain.handle("tasks:get-one", (_e, id: Task["id"]) => getStorage()?.getTask(id))
   ipcMain.handle("tasks:update", (_e, id: Task["id"], updates: PartialDeep<Task>) => getStorage()?.updateTask(id, updates))
   ipcMain.handle("tasks:toggle-minimized", (_e, id: Task["id"], minimized: boolean) => getStorage()?.toggleTaskMinimized(id, minimized))
-  ipcMain.handle("tasks:create", (_e, task: Omit<Task, "id" | "createdAt" | "updatedAt">) => getStorage()?.createTask(task))
+  ipcMain.handle("tasks:create", (_e, task: Omit<Task, "id" | "createdAt" | "updatedAt" | "branchId"> & {branchId?: Task["branchId"]}) => getStorage()?.createTask(task as Task))
   ipcMain.handle("tasks:move-by-order", (_e, params: MoveTaskByOrderParams) => getStorage()?.moveTaskByOrder(params))
+  ipcMain.handle("tasks:move-to-branch", (_e, taskId: Task["id"], branchId: Branch["id"]) => getStorage()?.moveTaskToBranch(taskId, branchId))
   ipcMain.handle("tasks:delete", (_e, id: Task["id"]) => getStorage()?.deleteTask(id))
-  ipcMain.handle("tasks:get-deleted", (_e, params?: {limit?: number}) => getStorage()?.getDeletedTasks(params))
+  ipcMain.handle("tasks:get-deleted", (_e, params?: {limit?: number; branchId?: Branch["id"]}) => getStorage()?.getDeletedTasks(params))
   ipcMain.handle("tasks:restore", (_e, id: Task["id"]) => getStorage()?.restoreTask(id))
   ipcMain.handle("tasks:delete-permanently", (_e, id: Task["id"]) => getStorage()?.permanentlyDeleteTask(id))
   ipcMain.handle("tasks:delete-all-permanently", () => getStorage()?.permanentlyDeleteAllDeletedTasks())
+
+  ipcMain.handle("branches:get-many", () => getStorage()?.getBranchList())
+  ipcMain.handle("branches:get-one", (_e, id: Branch["id"]) => getStorage()?.getBranch(id))
+  ipcMain.handle("branches:create", (_e, branch: Omit<Branch, "id" | "createdAt" | "updatedAt" | "deletedAt">) => getStorage()?.createBranch(branch))
+  ipcMain.handle("branches:update", (_e, id: Branch["id"], updates: Pick<Branch, "name">) => getStorage()?.updateBranch(id, updates))
+  ipcMain.handle("branches:delete", (_e, id: Branch["id"]) => getStorage()?.deleteBranch(id))
+  ipcMain.handle("branches:set-active", (_e, id: Branch["id"]) => getStorage()?.setActiveBranch(id))
 
   ipcMain.handle("search:query", (_e, query: string) => getStorage()?.searchTasks(query))
 

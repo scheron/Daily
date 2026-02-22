@@ -1,7 +1,7 @@
-import type {ISODate, ISODateTime, ISOTime, Timezone} from "@shared/types/common"
-import type {Settings, Tag} from "@shared/types/storage"
+import type {ID, ISODate, ISODateTime, ISOTime, Timezone} from "@shared/types/common"
+import type {Branch, Settings, Tag} from "@shared/types/storage"
 
-export type DocType = "task" | "tag" | "settings" | "file"
+export type DocType = "task" | "tag" | "branch" | "settings" | "file"
 /** Base document type with common PouchDB fields. All documents extend this base.  */
 export type BaseDoc = {
   /** Document ID. Must be unique and immutable. */
@@ -36,6 +36,8 @@ export type TaskDoc = BaseDoc & {
   spentTime: number
   /** Task content (markdown) */
   content: string
+  /** Branch ID (project scope). Missing field is treated as MAIN for backward compatibility. */
+  branchId?: ID
   /** Visual collapse state for task content. */
   minimized?: boolean
   /**
@@ -44,6 +46,12 @@ export type TaskDoc = BaseDoc & {
   tags: Tag["id"][]
   /** File URLs attached to this task (e.g., "daily://file/abc123") */
   attachments: string[]
+}
+
+export type BranchDoc = BaseDoc & {
+  type: "branch"
+  /** Branch name */
+  name: Branch["name"]
 }
 
 export type TagDoc = BaseDoc & {
@@ -90,4 +98,4 @@ export type FileDoc = BaseDoc & {
   }
 }
 
-export type AnyDoc = TaskDoc | TagDoc | SettingsDoc | FileDoc
+export type AnyDoc = TaskDoc | TagDoc | BranchDoc | SettingsDoc | FileDoc

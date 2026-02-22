@@ -2,12 +2,12 @@ import {DateTime} from "luxon"
 
 import type {ISODate} from "@shared/types/common"
 import type {TaskSearchResult} from "@shared/types/search"
-import type {Day, MoveTaskByOrderParams, Tag, Task, TaskStatus} from "@shared/types/storage"
+import type {Branch, Day, MoveTaskByOrderParams, Tag, Task, TaskStatus} from "@shared/types/storage"
 import type {Storage} from "./types"
 
 export class StorageAPI implements Storage {
   //#region DAYS
-  async getDays(params: {from?: ISODate; to?: ISODate} = {}): Promise<Day[]> {
+  async getDays(params: {from?: ISODate; to?: ISODate; branchId?: Branch["id"]} = {}): Promise<Day[]> {
     return window.BridgeIPC["days:get-many"](params)
   }
 
@@ -19,7 +19,7 @@ export class StorageAPI implements Storage {
   //#region TASKS
   async createTask(
     content: string,
-    params: {date?: string; time?: string; timezone?: string; tags?: Tag[]; estimatedTime?: number; orderIndex?: number},
+    params: {date?: string; time?: string; timezone?: string; tags?: Tag[]; estimatedTime?: number; orderIndex?: number; branchId?: Branch["id"]},
   ): Promise<Day | null> {
     try {
       const now = DateTime.now()
@@ -35,6 +35,7 @@ export class StorageAPI implements Storage {
         estimatedTime: params.estimatedTime ?? 0,
         spentTime: 0,
         orderIndex: params.orderIndex ?? 0,
+        branchId: params.branchId,
         scheduled: {
           date: scheduledDate,
           time: scheduledTime,
@@ -108,6 +109,15 @@ export class StorageAPI implements Storage {
     }
   }
 
+  async moveTaskToBranch(taskId: Task["id"], branchId: Branch["id"]): Promise<boolean> {
+    try {
+      return await window.BridgeIPC["tasks:move-to-branch"](taskId, branchId)
+    } catch (error) {
+      console.error("Failed to move task to branch", error)
+      return false
+    }
+  }
+
   async searchTasks(query: string): Promise<TaskSearchResult[]> {
     try {
       return await window.BridgeIPC["search:query"](query)
@@ -117,7 +127,7 @@ export class StorageAPI implements Storage {
     }
   }
 
-  async getDeletedTasks(params?: {limit?: number}): Promise<Task[]> {
+  async getDeletedTasks(params?: {limit?: number; branchId?: Branch["id"]}): Promise<Task[]> {
     try {
       return await window.BridgeIPC["tasks:get-deleted"](params)
     } catch (error) {
@@ -182,6 +192,28 @@ export class StorageAPI implements Storage {
 
   async removeTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Promise<Task | null> {
     return await window.BridgeIPC["tasks:remove-tags"](taskId, tagIds)
+  }
+  //#endregion
+
+  //#region BRANCHES
+  async getBranchList(): Promise<Branch[]> {
+    return await window.BridgeIPC["branches:get-many"]()
+  }
+
+  async createBranch(branch: Omit<Branch, "id" | "createdAt" | "updatedAt" | "deletedAt">): Promise<Branch | null> {
+    return await window.BridgeIPC["branches:create"](branch)
+  }
+
+  async updateBranch(id: Branch["id"], updates: Pick<Branch, "name">): Promise<Branch | null> {
+    return await window.BridgeIPC["branches:update"](id, updates)
+  }
+
+  async deleteBranch(id: Branch["id"]): Promise<boolean> {
+    return await window.BridgeIPC["branches:delete"](id)
+  }
+
+  async setActiveBranch(id: Branch["id"]): Promise<void> {
+    await window.BridgeIPC["branches:set-active"](id)
   }
   //#endregion
 }

@@ -23,6 +23,9 @@ export type Settings = {
     enabled: boolean
   }
   ai: AIConfig | null
+  branch: {
+    activeId: ID
+  }
   layout: {
     type: LayoutType
     /**
@@ -52,6 +55,8 @@ export type Task = {
   updatedAt: ISODateTime
   /** ISO timestamp when task was soft-deleted. Null if not deleted. */
   deletedAt: ISODateTime | null
+  /** Branch ID (project scope). */
+  branchId: ID
 
   scheduled: {
     date: ISODate
@@ -95,6 +100,15 @@ export type Tag = {
 
   name: string
   color: string
+}
+
+export type Branch = {
+  id: ID
+  createdAt: ISODateTime
+  updatedAt: ISODateTime
+  deletedAt: ISODateTime | null
+
+  name: string
 }
 
 export type File = {

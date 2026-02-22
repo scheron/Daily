@@ -71,7 +71,13 @@ export class RemoteStorageAdapter implements IRemoteStorage {
         return getDefaultSnapshot()
       }
 
-      return parsed as Snapshot
+      return {
+        ...parsed,
+        docs: {
+          ...parsed.docs,
+          branches: parsed.docs.branches ?? [],
+        },
+      } as Snapshot
     } catch (error) {
       console.error("[deserializeSnapshot] Error parsing snapshot:", error)
       return getDefaultSnapshot()

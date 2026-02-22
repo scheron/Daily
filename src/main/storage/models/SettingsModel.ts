@@ -1,5 +1,6 @@
 import {nanoid} from "nanoid"
 
+import {MAIN_BRANCH_ID} from "@shared/constants/storage"
 import {deepMerge} from "@shared/utils/common/deepMerge"
 import {AsyncMutex} from "@/utils/AsyncMutex"
 import {createCacheLoader} from "@/utils/createCacheLoader"
@@ -41,6 +42,9 @@ export class SettingsModel {
         enabled: false,
       },
       ai: null,
+      branch: {
+        activeId: MAIN_BRANCH_ID,
+      },
       layout: {
         type: "list",
         columnsHideEmpty: false,

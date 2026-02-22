@@ -4,6 +4,7 @@ import {defineStore} from "pinia"
 
 import {objectFilter} from "@shared/utils/objects/filter"
 import {getPreviousTaskOrderIndex, sortTasksByOrderIndex} from "@shared/utils/tasks/orderIndex"
+import {useSettingsStore} from "@/stores/settings.store"
 import {updateDays} from "@/utils/tasks/updateDays"
 import {toRawDeep} from "@/utils/ui/vue"
 
@@ -11,12 +12,14 @@ import {API} from "@/api"
 
 import type {TaskDropMode, TaskDropPosition, TaskMoveMeta} from "@/utils/tasks/reorderTasks"
 import type {ISODate} from "@shared/types/common"
-import type {Day, Tag, Task, TaskStatus} from "@shared/types/storage"
+import type {Branch, Day, Tag, Task, TaskStatus} from "@shared/types/storage"
 
 export const useTasksStore = defineStore("tasks", () => {
+  const settingsStore = useSettingsStore()
   const isDaysLoaded = ref(false)
   const days = ref<Day[]>([])
   const activeDay = ref<ISODate>(DateTime.now().toISODate()!)
+  const activeBranchId = computed(() => settingsStore.settings?.branch?.activeId)
 
   const activeDayInfo = computed(() => {
     const day = days.value.find((day) => day.date === activeDay.value)
@@ -41,7 +44,7 @@ export const useTasksStore = defineStore("tasks", () => {
     isDaysLoaded.value = false
 
     try {
-      const dailyTasks = await API.getDays()
+      const dailyTasks = await API.getDays({branchId: activeBranchId.value})
       console.log("[TASKS] Loaded tasks:", dailyTasks)
       days.value = dailyTasks
     } catch (error) {
@@ -61,6 +64,7 @@ export const useTasksStore = defineStore("tasks", () => {
         tags,
         estimatedTime: estimatedTime ?? 0,
         orderIndex: getPreviousTaskOrderIndex(dailyTasks.value),
+        branchId: activeBranchId.value,
       }),
     )
 
@@ -107,7 +111,7 @@ export const useTasksStore = defineStore("tasks", () => {
 
   async function revalidate() {
     try {
-      const dailyTasks = await API.getDays()
+      const dailyTasks = await API.getDays({branchId: activeBranchId.value})
       days.value = dailyTasks
       console.log("tasks revalidated")
     } catch (error) {
@@ -132,6 +136,18 @@ export const useTasksStore = defineStore("tasks", () => {
 
     await revalidate()
 
+    return true
+  }
+
+  async function moveTaskToBranch(taskId: Task["id"], branchId: Branch["id"]) {
+    const task = findTaskById(taskId)
+    if (!task) return false
+    if (task.branchId === branchId) return true
+
+    const isSuccess = await API.moveTaskToBranch(taskId, branchId)
+    if (!isSuccess) return false
+
+    await revalidate()
     return true
   }
 
@@ -207,6 +223,7 @@ export const useTasksStore = defineStore("tasks", () => {
     toggleTaskMinimized,
     deleteTask,
     moveTask,
+    moveTaskToBranch,
     moveTaskByOrder,
     revalidate,
   }

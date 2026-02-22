@@ -8,6 +8,7 @@ import type {TaskStatus} from "@shared/types/storage"
 
 export type TasksViewMode = "list" | "columns"
 export type SidebarSection = "calendar" | "tags" | "themes" | "settings" | "search" | "deleted" | "assistant"
+export type SettingsPanel = "ai" | "themes" | "layout" | "projects" | "sync" | "deleted" | "icons" | null
 type ColumnsCollapsed = Record<TaskStatus, boolean>
 
 export const useUIStore = defineStore("ui", () => {
@@ -23,6 +24,7 @@ export const useUIStore = defineStore("ui", () => {
 
   const isMobileSidebarOpen = ref(false)
   const activeSidebarSection = ref<SidebarSection>("calendar")
+  const activeSettingsPanel = ref<SettingsPanel>(null)
 
   const columnsCollapsed = computed<ColumnsCollapsed>(() => ({
     active: activeColumnCollapsed.value,
@@ -59,6 +61,15 @@ export const useUIStore = defineStore("ui", () => {
     }
 
     isMobileSidebarOpen.value = true
+  }
+
+  function setActiveSettingsPanel(panel: SettingsPanel) {
+    activeSettingsPanel.value = panel
+  }
+
+  function openSettingsPanel(panel: Exclude<SettingsPanel, null>) {
+    activeSettingsPanel.value = panel
+    openSidebarSection("settings")
   }
 
   function toggleColumnsHideEmpty(value?: boolean) {
@@ -102,6 +113,7 @@ export const useUIStore = defineStore("ui", () => {
     isSidebarCollapsed,
     isMobileSidebarOpen,
     activeSidebarSection,
+    activeSettingsPanel,
     tasksViewMode,
     columnsHideEmpty,
     columnsAutoCollapseEmpty,
@@ -111,6 +123,8 @@ export const useUIStore = defineStore("ui", () => {
     setTasksViewMode,
     toggleTasksViewMode,
     setActiveSidebarSection,
+    setActiveSettingsPanel,
+    openSettingsPanel,
     openSidebarSection,
     toggleColumnsHideEmpty,
     toggleColumnsAutoCollapseEmpty,

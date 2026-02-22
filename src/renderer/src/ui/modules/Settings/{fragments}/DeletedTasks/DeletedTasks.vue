@@ -3,6 +3,7 @@ import {onMounted, ref} from "vue"
 import {toasts} from "vue-toasts-lite"
 
 import {withElapsedDelay} from "@shared/utils/common/withElapsedDelay"
+import {useSettingsStore} from "@/stores/settings.store"
 import {useStorageStore} from "@/stores/storage.store"
 import {useTasksStore} from "@/stores/tasks.store"
 import {useLoadingState} from "@/composables/useLoadingState"
@@ -19,6 +20,7 @@ import type {Task} from "@shared/types/storage"
 
 const tasksStore = useTasksStore()
 const storageStore = useStorageStore()
+const settingsStore = useSettingsStore()
 
 const deletedTasks = ref<Task[]>([])
 const {isLoading, isLoaded, setState} = useLoadingState("IDLE")
@@ -42,12 +44,12 @@ async function onRestore(task: Task) {
 
 onMounted(async () => {
   setState("LOADING")
-  deletedTasks.value = await withElapsedDelay(() => API.getDeletedTasks(), 500)
+  deletedTasks.value = await withElapsedDelay(() => API.getDeletedTasks({branchId: settingsStore.settings?.branch?.activeId}), 500)
   setState("LOADED")
 })
 
 storageStore.onStorageDataChanged(async () => {
-  deletedTasks.value = await API.getDeletedTasks()
+  deletedTasks.value = await API.getDeletedTasks({branchId: settingsStore.settings?.branch?.activeId})
 })
 
 async function onDeleteAll() {
@@ -58,7 +60,7 @@ async function onDeleteAll() {
   const deletedCount = await API.permanentlyDeleteAllDeletedTasks()
   if (deletedCount > 0) {
     toasts.success(`${deletedCount} task${deletedCount === 1 ? "" : "s"} permanently deleted`)
-    deletedTasks.value = await API.getDeletedTasks()
+    deletedTasks.value = await API.getDeletedTasks({branchId: settingsStore.settings?.branch?.activeId})
   } else {
     toasts.error("Failed to permanently delete tasks")
   }

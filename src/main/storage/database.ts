@@ -43,6 +43,8 @@ export function getDB(dbPath: string): Promise<DailyDB> {
 async function createIndexes(db: DailyDB) {
   await db.createIndex({index: {fields: ["type"]}})
   await db.createIndex({index: {fields: ["type", "scheduled.date"]}})
+  await db.createIndex({index: {fields: ["type", "branchId"]}})
+  await db.createIndex({index: {fields: ["type", "branchId", "scheduled.date"]}})
   await db.createIndex({index: {fields: ["type", "status"]}})
   await db.createIndex({index: {fields: ["type", "createdAt"]}})
   await db.createIndex({index: {fields: ["type", "updatedAt"]}})

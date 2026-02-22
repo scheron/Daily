@@ -34,6 +34,7 @@ const statusColorClass = computed(() => {
 })
 
 const sortedTags = computed(() => sortTags(props.result.task.tags))
+const branchName = computed(() => props.result.branch?.name ?? "Main")
 
 function createReadonlyEditor(content: string) {
   if (!containerRef.value) return
@@ -83,7 +84,10 @@ onUnmounted(() => view?.destroy())
 <template>
   <div class="hover:border-accent border-base-300 flex flex-col gap-2 rounded-lg border px-2 py-2 shadow-xs transition-colors duration-200">
     <div class="flex items-center justify-between gap-2">
-      <span class="text-base-content/60 text-xs"> {{ toFullDate(result.task.scheduled.date) }} </span>
+      <div class="flex items-center gap-1.5">
+        <span class="text-base-content/60 text-xs"> {{ toFullDate(result.task.scheduled.date) }} </span>
+        <span class="bg-base-300 text-base-content/70 rounded px-1.5 py-0.5 text-[9px] font-medium">{{ branchName }}</span>
+      </div>
       <BaseIcon :name="statusIcon" class="size-4" :class="statusColorClass" />
     </div>
 

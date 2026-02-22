@@ -15,10 +15,12 @@ import {logger} from "@/utils/logger"
 
 import {fsPaths} from "@/config"
 import {getDB} from "@/storage/database"
+import {BranchModel} from "@/storage/models/BranchModel"
 import {FileModel} from "@/storage/models/FileModel"
 import {SettingsModel} from "@/storage/models/SettingsModel"
 import {TagModel} from "@/storage/models/TagModel"
 import {TaskModel} from "@/storage/models/TaskModel"
+import {BranchesService} from "@/storage/services/BranchesService"
 import {DaysService} from "@/storage/services/DaysService"
 import {FilesService} from "@/storage/services/FilesService"
 import {SearchService} from "@/storage/services/SearchService"
@@ -32,13 +34,14 @@ import {SyncEngine} from "@/storage/sync/SyncEngine"
 import type {IStorageController} from "@/types/storage"
 import type {ISODate} from "@shared/types/common"
 import type {TaskSearchResult} from "@shared/types/search"
-import type {Day, File, MoveTaskByOrderParams, Settings, SyncStatus, Tag, Task} from "@shared/types/storage"
+import type {Branch, Day, File, MoveTaskByOrderParams, Settings, SyncStatus, Tag, Task} from "@shared/types/storage"
 import type {PartialDeep} from "type-fest"
 
 export class StorageController implements IStorageController {
   rootDir: string = fsPaths.appDataRoot()
 
   private settingsService!: SettingsService
+  private branchesService!: BranchesService
   private tasksService!: TasksService
   private tagsService!: TagsService
   private filesService!: FilesService
@@ -55,16 +58,18 @@ export class StorageController implements IStorageController {
     const db = await getDB(fsPaths.dbPath())
 
     const settingsModel = new SettingsModel(db)
+    const branchModel = new BranchModel(db)
     const taskModel = new TaskModel(db)
     const tagModel = new TagModel(db)
     const fileModel = new FileModel(db)
 
+    this.settingsService = new SettingsService(settingsModel)
+    this.branchesService = new BranchesService(branchModel, this.settingsService)
     this.tasksService = new TasksService(taskModel, tagModel)
     this.tagsService = new TagsService(taskModel, tagModel)
-    this.settingsService = new SettingsService(settingsModel)
     this.filesService = new FilesService(fileModel)
     this.daysService = new DaysService(taskModel, tagModel)
-    this.searchService = new SearchService(taskModel, tagModel)
+    this.searchService = new SearchService(taskModel, tagModel, branchModel)
 
     const remoteAdapter = new RemoteStorageAdapter(fsPaths.remoteSyncPath())
     const localAdapter = new LocalStorageAdapter(db)
@@ -74,6 +79,7 @@ export class StorageController implements IStorageController {
       onDataChanged: () => {
         settingsModel.invalidateCache()
         tagModel.invalidateCache()
+        branchModel.invalidateCache()
         this.notifyStorageDataChange?.()
       },
     })
@@ -91,7 +97,7 @@ export class StorageController implements IStorageController {
   }
 
   //#region STORAGE
-  setupStorageBroadcasts(callbacks: {onStatusChange: (status: SyncStatus) => void; onDataChange: () => void}): void {
+  setupStorageBroadcasts(callbacks: {onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => void; onDataChange: () => void}): void {
     this.notifyStorageStatusChange = callbacks.onStatusChange
     this.notifyStorageDataChange = callbacks.onDataChange
   }
@@ -129,18 +135,21 @@ export class StorageController implements IStorageController {
   //#endregion
 
   //#region DAYS
-  async getDays(params: {from?: ISODate; to?: ISODate} = {}): Promise<Day[]> {
-    return this.daysService.getDays(params)
+  async getDays(params: {from?: ISODate; to?: ISODate; branchId?: Branch["id"]} = {}): Promise<Day[]> {
+    const branchId = await this.branchesService.resolveBranchId(params.branchId)
+    return this.daysService.getDays({...params, branchId})
   }
 
   async getDay(date: ISODate): Promise<Day | null> {
-    return this.daysService.getDay(date)
+    const branchId = await this.branchesService.getActiveBranchId()
+    return this.daysService.getDay(date, {branchId})
   }
   //#endregion
 
   //#region TASKS
-  async getTaskList(params?: {from?: ISODate; to?: ISODate; limit?: number}): Promise<Task[]> {
-    return this.tasksService.getTaskList(params)
+  async getTaskList(params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: Branch["id"]}): Promise<Task[]> {
+    const branchId = await this.branchesService.resolveBranchId(params?.branchId)
+    return this.tasksService.getTaskList({...params, branchId})
   }
 
   async getTask(id: Task["id"]): Promise<Task | null> {
@@ -169,8 +178,30 @@ export class StorageController implements IStorageController {
     return updatedTask
   }
 
+  async moveTaskToBranch(taskId: Task["id"], branchId: Branch["id"]): Promise<boolean> {
+    try {
+      const branch = await this.branchesService.getBranch(branchId)
+      if (!branch) return false
+
+      const isMoved = await this.tasksService.moveTaskToBranch(taskId, branch.id)
+      if (!isMoved) return false
+
+      const updatedTask = await this.tasksService.getTask(taskId)
+      if (updatedTask) {
+        await this.searchService.updateTaskInIndex(updatedTask)
+      }
+
+      this.notifyStorageDataChange?.()
+      return true
+    } catch (error) {
+      logger.error(logger.CONTEXT.TASKS, `Failed to move task ${taskId} to branch ${branchId}`, error)
+      return false
+    }
+  }
+
   async createTask(task: Task): Promise<Task | null> {
-    const createdTask = await this.tasksService.createTask(task)
+    const branchId = await this.branchesService.resolveBranchId(task?.branchId)
+    const createdTask = await this.tasksService.createTask({...task, branchId})
     if (createdTask) {
       await this.searchService.addTaskToIndex(createdTask)
       this.notifyStorageDataChange?.()
@@ -204,8 +235,9 @@ export class StorageController implements IStorageController {
     return removedTask
   }
 
-  async getDeletedTasks(params?: {limit?: number}): Promise<Task[]> {
-    return this.tasksService.getDeletedTasks(params)
+  async getDeletedTasks(params?: {limit?: number; branchId?: Branch["id"]}): Promise<Task[]> {
+    const branchId = await this.branchesService.resolveBranchId(params?.branchId)
+    return this.tasksService.getDeletedTasks({...params, branchId})
   }
 
   async restoreTask(id: Task["id"]): Promise<Task | null> {
@@ -227,7 +259,8 @@ export class StorageController implements IStorageController {
   }
 
   async permanentlyDeleteAllDeletedTasks(): Promise<number> {
-    const deletedIds = await this.tasksService.permanentlyDeleteAllDeletedTasks()
+    const branchId = await this.branchesService.getActiveBranchId()
+    const deletedIds = await this.tasksService.permanentlyDeleteAllDeletedTasks({branchId})
     if (!deletedIds.length) return 0
 
     for (const id of deletedIds) {
@@ -236,6 +269,45 @@ export class StorageController implements IStorageController {
 
     this.notifyStorageDataChange?.()
     return deletedIds.length
+  }
+  //#endregion
+
+  //#region BRANCHES
+  async getBranchList(): Promise<Branch[]> {
+    return this.branchesService.getBranchList()
+  }
+
+  async getBranch(id: Branch["id"]): Promise<Branch | null> {
+    return this.branchesService.getBranch(id)
+  }
+
+  async createBranch(branch: Omit<Branch, "id" | "createdAt" | "updatedAt" | "deletedAt">): Promise<Branch | null> {
+    const createdBranch = await this.branchesService.createBranch(branch)
+    if (createdBranch) {
+      this.notifyStorageDataChange?.()
+    }
+    return createdBranch
+  }
+
+  async updateBranch(id: Branch["id"], updates: Pick<Branch, "name">): Promise<Branch | null> {
+    const updatedBranch = await this.branchesService.updateBranch(id, updates)
+    if (updatedBranch) {
+      this.notifyStorageDataChange?.()
+    }
+    return updatedBranch
+  }
+
+  async deleteBranch(id: Branch["id"]): Promise<boolean> {
+    const deleted = await this.branchesService.deleteBranch(id)
+    if (deleted) {
+      this.notifyStorageDataChange?.()
+    }
+    return deleted
+  }
+
+  async setActiveBranch(id: Branch["id"]): Promise<void> {
+    await this.branchesService.setActiveBranch(id)
+    this.notifyStorageDataChange?.()
   }
   //#endregion
 

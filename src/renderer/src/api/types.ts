@@ -1,6 +1,6 @@
 import type {ISODate, ISOTime, Timezone} from "@shared/types/common"
 import type {TaskSearchResult} from "@shared/types/search"
-import type {Day, MoveTaskByOrderParams, Tag, Task} from "@shared/types/storage"
+import type {Branch, Day, MoveTaskByOrderParams, Tag, Task} from "@shared/types/storage"
 
 // prettier-ignore
 export interface Storage {
@@ -11,7 +11,7 @@ export interface Storage {
    * @param params.to - The end date formatted as YYYY-MM-DD
    * @returns The tasks that match the query
    */
-  getDays(params?: {from?: ISODate; to?: ISODate}): Promise<Day[]>
+  getDays(params?: {from?: ISODate; to?: ISODate; branchId?: Branch["id"]}): Promise<Day[]>
   /**
    * Get a day from the database
    * @param date - The date formatted as YYYY-MM-DD of the day to get
@@ -53,6 +53,13 @@ export interface Storage {
    */
   moveTask(taskId: Task["id"], targetDate: ISODate): Promise<boolean>
   /**
+   * Move a task to a different project branch
+   * @param taskId - The id of the task to move
+   * @param branchId - The target branch id
+   * @returns true if task was updated, false otherwise
+   */
+  moveTaskToBranch(taskId: Task["id"], branchId: Branch["id"]): Promise<boolean>
+  /**
    * Search for tasks using fuzzy matching
    * @param query - The search query string
    * @returns Array of task search results with match information, sorted by relevance
@@ -64,7 +71,7 @@ export interface Storage {
    * @param params.limit - The limit of the tasks to get
    * @returns The deleted tasks that match the query
    */
-  getDeletedTasks(params?: {limit?: number}): Promise<Task[]>
+  getDeletedTasks(params?: {limit?: number; branchId?: Branch["id"]}): Promise<Task[]>
 
   /**
    * Restore a deleted task 
@@ -86,4 +93,10 @@ export interface Storage {
   createTag(tag: Omit<Tag, "id" | "createdAt" | "updatedAt" | "deletedAt">): Promise<Tag | null>
   updateTag(id: Tag["id"], updates: Partial<Tag>): Promise<Tag | null>
   deleteTag(id: Tag["id"]): Promise<boolean>
+
+  getBranchList(): Promise<Branch[]>
+  createBranch(branch: Omit<Branch, "id" | "createdAt" | "updatedAt" | "deletedAt">): Promise<Branch | null>
+  updateBranch(id: Branch["id"], updates: Pick<Branch, "name">): Promise<Branch | null>
+  deleteBranch(id: Branch["id"]): Promise<boolean>
+  setActiveBranch(id: Branch["id"]): Promise<void>
 }

@@ -6,7 +6,7 @@ import type {AIConfig, AIResponse, LocalModelDownloadProgress, LocalModelId, Loc
 import type {ISODate} from "@shared/types/common"
 import type {BridgeIPC} from "@shared/types/ipc"
 import type {TaskSearchResult} from "@shared/types/search"
-import type {Day, Settings, SyncStatus, Tag, Task} from "@shared/types/storage"
+import type {Branch, Day, Settings, SyncStatus, Tag, Task} from "@shared/types/storage"
 import type {PartialDeep} from "type-fest"
 
 // prettier-ignore
@@ -39,22 +39,31 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "settings:load": () => ipcRenderer.invoke("settings:load") as Promise<Settings>,
   "settings:save": (settings: Partial<Settings>) => ipcRenderer.invoke("settings:save", settings),
 
-  "days:get-many": (params?: {from?: ISODate; to?: ISODate}) => ipcRenderer.invoke("days:get-many", params) as Promise<Day[]>,
+  "days:get-many": (params?: {from?: ISODate; to?: ISODate; branchId?: Branch["id"]}) => ipcRenderer.invoke("days:get-many", params) as Promise<Day[]>,
   "days:get-one": (date: ISODate) => ipcRenderer.invoke("days:get-one", date) as Promise<Day | null>,
 
-  "tasks:get-many": (params?: {from?: ISODate; to?: ISODate; limit?: number}) => ipcRenderer.invoke("tasks:get-many", params) as Promise<Task[]>,
+  "tasks:get-many": (params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: Branch["id"]}) => ipcRenderer.invoke("tasks:get-many", params) as Promise<Task[]>,
   "tasks:get-one": (id: Task["id"]) => ipcRenderer.invoke("tasks:get-one", id) as Promise<Task | null>,
   "tasks:update": (id: Task["id"], updates: PartialDeep<Task>) => ipcRenderer.invoke("tasks:update", id, updates),
   "tasks:toggle-minimized": (id: Task["id"], minimized: boolean) => ipcRenderer.invoke("tasks:toggle-minimized", id, minimized) as Promise<Task | null>,
-  "tasks:create": (task: Omit<Task, "id" | "createdAt" | "updatedAt" | "deletedAt" | "attachments">) => ipcRenderer.invoke("tasks:create", task),
+  "tasks:create": (task: Omit<Task, "id" | "createdAt" | "updatedAt" | "deletedAt" | "attachments" | "branchId"> & {branchId?: Task["branchId"]}) =>
+    ipcRenderer.invoke("tasks:create", task),
   "tasks:move-by-order": (params) => ipcRenderer.invoke("tasks:move-by-order", params) as Promise<Task | null>,
+  "tasks:move-to-branch": (taskId: Task["id"], branchId: Branch["id"]) => ipcRenderer.invoke("tasks:move-to-branch", taskId, branchId) as Promise<boolean>,
   "tasks:delete": (id: Task["id"]) => ipcRenderer.invoke("tasks:delete", id),
   "tasks:add-tags": (taskId: Task["id"], tagIds: Tag["id"][]) => ipcRenderer.invoke("tasks:add-tags", taskId, tagIds),
   "tasks:remove-tags": (taskId: Task["id"], tagIds: Tag["id"][]) => ipcRenderer.invoke("tasks:remove-tags", taskId, tagIds),
-  "tasks:get-deleted": (params?: {limit?: number}) => ipcRenderer.invoke("tasks:get-deleted", params) as Promise<Task[]>,
+  "tasks:get-deleted": (params?: {limit?: number; branchId?: Branch["id"]}) => ipcRenderer.invoke("tasks:get-deleted", params) as Promise<Task[]>,
   "tasks:restore": (id: Task["id"]) => ipcRenderer.invoke("tasks:restore", id) as Promise<Task | null>,
   "tasks:delete-permanently": (id: Task["id"]) => ipcRenderer.invoke("tasks:delete-permanently", id) as Promise<boolean>,
   "tasks:delete-all-permanently": () => ipcRenderer.invoke("tasks:delete-all-permanently") as Promise<number>,
+
+  "branches:get-many": () => ipcRenderer.invoke("branches:get-many") as Promise<Branch[]>,
+  "branches:get-one": (id: Branch["id"]) => ipcRenderer.invoke("branches:get-one", id) as Promise<Branch | null>,
+  "branches:create": (branch: Omit<Branch, "id" | "createdAt" | "updatedAt" | "deletedAt">) => ipcRenderer.invoke("branches:create", branch),
+  "branches:update": (id: Branch["id"], updates: Pick<Branch, "name">) => ipcRenderer.invoke("branches:update", id, updates),
+  "branches:delete": (id: Branch["id"]) => ipcRenderer.invoke("branches:delete", id),
+  "branches:set-active": (id: Branch["id"]) => ipcRenderer.invoke("branches:set-active", id),
 
   "search:query": (query: string) => ipcRenderer.invoke("search:query", query) as Promise<TaskSearchResult[]>,
 

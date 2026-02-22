@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import {TaskSearchResult} from "@shared/types/search"
-import {Task} from "@shared/types/storage"
+import {toasts} from "vue-toasts-lite"
+
+import {useBranchesStore} from "@/stores/branches.store"
 import {useTasksStore} from "@/stores/tasks.store"
 import {useFilter} from "@/composables/useFilter"
 import {useSearch} from "@/composables/useSearch"
@@ -11,9 +12,11 @@ import {API} from "@/api"
 import SearchResultItem from "./{fragments}/SearchResultItem.vue"
 import SearchToolbar from "./{fragments}/SearchToolbar.vue"
 
+import type {TaskSearchResult} from "@shared/types/search"
 import type {TaskStatusFilter} from "./types"
 
 const tasksStore = useTasksStore()
+const branchesStore = useBranchesStore()
 
 const {query, items, isSearching, isLoaded, isIdle} = useSearch<TaskSearchResult>({
   searchFn: async (query) => await API.searchTasks(query),
@@ -29,9 +32,20 @@ const {filter, filteredItems} = useFilter<TaskSearchResult, TaskStatusFilter>({
   },
 })
 
-async function navigateToTask(task: Task) {
-  const date = task.scheduled.date
-  tasksStore.setActiveDay(date)
+async function navigateToTask(result: TaskSearchResult) {
+  const task = result.task
+
+  if (result.branch?.deletedAt) {
+    toasts.error("Task belongs to a deleted project")
+    return
+  }
+
+  if (branchesStore.activeBranchId !== task.branchId) {
+    await branchesStore.setActiveBranch(task.branchId)
+    await tasksStore.getTaskList()
+  }
+
+  tasksStore.setActiveDay(task.scheduled.date)
 
   const scrolled = await scrollToElement(task.id)
   if (scrolled) highlightElement(task.id, {class: "highlight", duration: 2000})
@@ -55,7 +69,7 @@ async function navigateToTask(task: Task) {
         :key="result.task.id"
         :result="result"
         :search-query="query"
-        @click="navigateToTask(result.task)"
+        @click="navigateToTask(result)"
       />
     </div>
 

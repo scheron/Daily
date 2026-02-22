@@ -2,6 +2,7 @@ import {sortTags} from "@shared/utils/tags/sortTags"
 
 import {TaskSearchIndex} from "../search/TaskSearchIndex"
 
+import type {BranchModel} from "@/storage/models/BranchModel"
 import type {TagModel} from "@/storage/models/TagModel"
 import type {TaskModel} from "@/storage/models/TaskModel"
 import type {SearchOptions} from "@/types/search"
@@ -18,6 +19,7 @@ export class SearchService {
   constructor(
     private taskModel: TaskModel,
     private tagModel: TagModel,
+    private branchModel: BranchModel,
   ) {
     this.searchIndex = new TaskSearchIndex()
   }
@@ -44,8 +46,9 @@ export class SearchService {
     const searchResults = this.searchIndex.search(query, options)
 
     // Get all tags for enrichment
-    const allTags = await this.tagModel.getTagList()
+    const [allTags, allBranches] = await Promise.all([this.tagModel.getTagList(), this.branchModel.getBranchList({includeDeleted: true})])
     const tagMap = new Map(allTags.map((t) => [t.id, t]))
+    const branchMap = new Map(allBranches.map((branch) => [branch.id, branch]))
 
     // Get full task data for each result and enrich with tags
     const results: TaskSearchResult[] = []
@@ -55,6 +58,7 @@ export class SearchService {
         const tags = sortTags(task.tags.map((id) => tagMap.get(id)).filter(Boolean) as Tag[])
         results.push({
           task: {...task, tags},
+          branch: branchMap.get(task.branchId) ?? null,
           matches: result.matches,
           score: result.score,
         })

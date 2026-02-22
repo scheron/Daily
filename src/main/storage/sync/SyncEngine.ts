@@ -189,7 +189,8 @@ export class SyncEngine {
 
   private _shouldPush(localDocs: SnapshotDocs, remoteDocs: SnapshotDocs | null): boolean {
     if (!remoteDocs) {
-      const hasAnyData = localDocs.tasks.length > 0 || localDocs.tags.length > 0 || localDocs.files.length > 0 || !!localDocs.settings
+      const hasAnyData =
+        localDocs.tasks.length > 0 || localDocs.tags.length > 0 || localDocs.branches.length > 0 || localDocs.files.length > 0 || !!localDocs.settings
 
       if (hasAnyData) {
         logger.debug(logger.CONTEXT.SYNC_PUSH, "No remote snapshot, local has data, need push")

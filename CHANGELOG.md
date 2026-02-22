@@ -5,9 +5,16 @@
 - Image preview modal for task content images (single-image view).
 - Task context menu now has separate actions: `Copy ID` and `Copy Task`.
 - Added `Delete All` in `Settings -> Deleted Tasks` with confirmation.
-- **Compact Mode Footer Navigation** — Moved compact week navigation from sidebar mini to a dedicated main footer section with `h-header` height.
 
-![Compact Mode Preview](./media/compact-mode.png)
+- **Compact Mode Footer Navigation** — Moved compact week navigation from sidebar mini to a dedicated main footer section with `h-header` height.
+  ![Compact Mode Preview](./media/compact-mode.png)
+
+- **Projects / Branches Workflow** — Added Git-like project branches for task isolation
+  - Added dedicated `Settings -> Project Management` section for create/rename/delete flows
+  - Added move-task-to-project action in task context menu
+  - Search now shows project for each result and switches to the target branch before navigation
+
+![Projects Branches Preview](./media/showcase/branch-demo.gif)
 
 ## v0.11.0 - 2026-02-21
 

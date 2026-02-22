@@ -1,12 +1,13 @@
 import {nanoid} from "nanoid"
 
+import {MAIN_BRANCH_ID} from "@shared/constants/storage"
 import {TAG_QUICK_COLORS} from "@shared/constants/theme/colorPalette"
 import {toDurationLabel} from "@shared/utils/date/formatters"
 import {getPreviousTaskOrderIndex} from "@shared/utils/tasks/orderIndex"
 import {logger} from "@/utils/logger"
 
 import type {StorageController} from "@/storage/StorageController"
-import type {Day, File, Tag, Task} from "@shared/types/storage"
+import type {Branch, Day, File, Tag, Task} from "@shared/types/storage"
 import type {ToolName} from "./tools"
 import type {ToolParams, ToolResult} from "./types"
 
@@ -49,9 +50,22 @@ export class ToolExecutor {
           return await this.searchTasks(params)
         case "move_task":
           return await this.moveTask(params)
+        case "move_task_to_project":
+          return await this.moveTaskToProject(params)
         // Time tracking
         case "log_time":
           return await this.logTime(params)
+        // Projects
+        case "list_projects":
+          return await this.listProjects()
+        case "create_project":
+          return await this.createProject(params)
+        case "rename_project":
+          return await this.renameProject(params)
+        case "delete_project":
+          return await this.deleteProject(params)
+        case "switch_project":
+          return await this.switchProject(params)
         // Day overview
         case "get_day_summary":
           return await this.getDaySummary(params)
@@ -105,13 +119,30 @@ export class ToolExecutor {
     return `🏷️ ${tag.name} (color: ${tag.color}, ID: ${tag.id})`
   }
 
+  private formatProject(branch: Branch, options?: {active?: boolean}): string {
+    const activeLabel = options?.active ? " (active)" : ""
+    return `📁 ${branch.name}${activeLabel} (ID: ${branch.id})`
+  }
+
   // ========== TASKS ==========
 
   private async listTasks(params: ToolParams): Promise<ToolResult> {
     const date = (params.date as string) || this.getTodayDate()
     const includeDone = params.include_done !== false
+    const projectId = params.project_id as string | undefined
+    let branchId: string | undefined
+    let projectName: string | undefined
 
-    let tasks = await this.storage.getTaskList({from: date, to: date})
+    if (projectId) {
+      const branch = await this.storage.getBranch(projectId)
+      if (!branch) {
+        return {success: false, error: `Project not found: ${projectId}`}
+      }
+      branchId = branch.id
+      projectName = branch.name
+    }
+
+    let tasks = await this.storage.getTaskList({from: date, to: date, branchId})
 
     if (!includeDone) {
       tasks = tasks.filter((t) => t.status !== "done")
@@ -120,11 +151,13 @@ export class ToolExecutor {
     tasks.sort((a, b) => a.scheduled.time.localeCompare(b.scheduled.time))
 
     if (tasks.length === 0) {
-      return {success: true, data: `No tasks found for ${date}`}
+      const scope = projectName ? ` in project "${projectName}"` : ""
+      return {success: true, data: `No tasks found for ${date}${scope}`}
     }
 
     const taskList = tasks.map((t, i) => `${i + 1}. ${this.formatTask(t)}`).join("\n")
-    return {success: true, data: `Tasks for ${date} (${tasks.length} total):\n${taskList}`}
+    const scope = projectName ? ` in project "${projectName}"` : ""
+    return {success: true, data: `Tasks for ${date}${scope} (${tasks.length} total):\n${taskList}`}
   }
 
   private async getTask(params: ToolParams): Promise<ToolResult> {
@@ -155,6 +188,9 @@ export class ToolExecutor {
       lines.push(`Attachments: ${task.attachments.length} file(s) — use get_task_attachments for details`)
     }
 
+    const project = await this.storage.getBranch(task.branchId)
+    const projectLabel = project ? `${project.name} (${project.id})` : task.branchId
+    lines.push(`Project: ${projectLabel}`)
     lines.push(`Created: ${task.createdAt}`)
 
     return {success: true, data: lines.join("\n")}
@@ -172,7 +208,21 @@ export class ToolExecutor {
     const tagIds = (params.tag_ids as string[]) || []
     const estimatedMinutes = params.estimated_minutes as number | undefined
     const estimatedTime = estimatedMinutes ? Math.max(0, Math.round(estimatedMinutes)) * 60 : 0
-    const dayTasks = await this.storage.getTaskList({from: date, to: date})
+    const requestedBranchId = params.project_id as string | undefined
+
+    const settings = await this.storage.loadSettings()
+    const activeBranchId = settings.branch?.activeId ?? MAIN_BRANCH_ID
+
+    let targetBranchId = activeBranchId
+    if (requestedBranchId) {
+      const branch = await this.storage.getBranch(requestedBranchId)
+      if (!branch) {
+        return {success: false, error: `Project not found: ${requestedBranchId}`}
+      }
+      targetBranchId = branch.id
+    }
+
+    const dayTasks = await this.storage.getTaskList({from: date, to: date, branchId: targetBranchId})
 
     // Get tags if specified
     let tags: Tag[] = []
@@ -199,6 +249,7 @@ export class ToolExecutor {
       createdAt: now,
       updatedAt: now,
       deletedAt: null,
+      branchId: targetBranchId,
     }
 
     const created = await this.storage.createTask(task)
@@ -229,6 +280,15 @@ export class ToolExecutor {
 
     if (params.estimated_minutes !== undefined) {
       updates.estimatedTime = Math.max(0, Math.round(params.estimated_minutes as number)) * 60
+    }
+
+    if (params.project_id !== undefined) {
+      const projectId = params.project_id as string
+      const branch = await this.storage.getBranch(projectId)
+      if (!branch) {
+        return {success: false, error: `Project not found: ${projectId}`}
+      }
+      updates.branchId = branch.id
     }
 
     const updated = await this.storage.updateTask(taskId, updates)
@@ -302,8 +362,18 @@ export class ToolExecutor {
 
   private async getDeletedTasks(params: ToolParams): Promise<ToolResult> {
     const limit = (params.limit as number) || 20
+    const projectId = params.project_id as string | undefined
+    let targetBranchId: string | undefined
 
-    const tasks = await this.storage.getDeletedTasks({limit})
+    if (projectId) {
+      const branch = await this.storage.getBranch(projectId)
+      if (!branch) {
+        return {success: false, error: `Project not found: ${projectId}`}
+      }
+      targetBranchId = branch.id
+    }
+
+    const tasks = await this.storage.getDeletedTasks({limit, branchId: targetBranchId})
 
     if (tasks.length === 0) {
       return {success: true, data: "No deleted tasks found"}
@@ -395,7 +465,12 @@ export class ToolExecutor {
       return {success: true, data: `No tasks found matching "${query}"`}
     }
 
-    const taskList = results.map((r, i) => `${i + 1}. ${this.formatTask(r.task)} (score: ${r.score.toFixed(2)})`).join("\n")
+    const taskList = results
+      .map((r, i) => {
+        const project = r.branch ? `${r.branch.name} (${r.branch.id})` : `Unknown (${r.task.branchId})`
+        return `${i + 1}. ${this.formatTask(r.task)} [project: ${project}] (score: ${r.score.toFixed(2)})`
+      })
+      .join("\n")
     return {success: true, data: `Search results for "${query}" (${results.length} found):\n${taskList}`}
   }
 
@@ -417,6 +492,119 @@ export class ToolExecutor {
     }
 
     return {success: true, data: `Task moved to ${date}: ${this.formatTask(updated)}`}
+  }
+
+  private async moveTaskToProject(params: ToolParams): Promise<ToolResult> {
+    const taskId = params.task_id as string
+    const projectId = params.project_id as string
+
+    if (!taskId) {
+      return {success: false, error: "task_id is required"}
+    }
+    if (!projectId) {
+      return {success: false, error: "project_id is required"}
+    }
+
+    const [task, branch] = await Promise.all([this.storage.getTask(taskId), this.storage.getBranch(projectId)])
+    if (!task) {
+      return {success: false, error: `Task not found: ${taskId}`}
+    }
+    if (!branch) {
+      return {success: false, error: `Project not found: ${projectId}`}
+    }
+
+    if (task.branchId === branch.id) {
+      return {success: true, data: `Task already in project "${branch.name}": ${this.formatTask(task)}`}
+    }
+
+    const updated = await this.storage.updateTask(taskId, {branchId: branch.id})
+    if (!updated) {
+      return {success: false, error: `Task not found: ${taskId}`}
+    }
+
+    return {success: true, data: `Task moved to project "${branch.name}": ${this.formatTask(updated)}`}
+  }
+
+  // ========== PROJECTS ==========
+
+  private async listProjects(): Promise<ToolResult> {
+    const [projects, settings] = await Promise.all([this.storage.getBranchList(), this.storage.loadSettings()])
+    const activeId = settings.branch?.activeId ?? MAIN_BRANCH_ID
+
+    if (!projects.length) {
+      return {success: true, data: "No projects found"}
+    }
+
+    const sorted = [...projects].sort((a, b) => a.name.localeCompare(b.name, undefined, {sensitivity: "base"}))
+    const rows = sorted.map((project, i) => `${i + 1}. ${this.formatProject(project, {active: project.id === activeId})}`)
+    return {success: true, data: `Projects (${sorted.length} total):\n${rows.join("\n")}`}
+  }
+
+  private async createProject(params: ToolParams): Promise<ToolResult> {
+    const name = (params.name as string | undefined)?.trim()
+    if (!name) {
+      return {success: false, error: "name is required"}
+    }
+
+    const created = await this.storage.createBranch({name})
+    if (!created) {
+      return {success: false, error: `Failed to create project "${name}" (possible duplicate name)`}
+    }
+
+    return {success: true, data: `Project created: ${this.formatProject(created)}`}
+  }
+
+  private async renameProject(params: ToolParams): Promise<ToolResult> {
+    const projectId = params.project_id as string
+    const name = (params.name as string | undefined)?.trim()
+
+    if (!projectId) {
+      return {success: false, error: "project_id is required"}
+    }
+    if (!name) {
+      return {success: false, error: "name is required"}
+    }
+
+    const updated = await this.storage.updateBranch(projectId, {name})
+    if (!updated) {
+      return {success: false, error: `Failed to rename project: ${projectId}`}
+    }
+
+    return {success: true, data: `Project renamed: ${this.formatProject(updated)}`}
+  }
+
+  private async deleteProject(params: ToolParams): Promise<ToolResult> {
+    const projectId = params.project_id as string
+    if (!projectId) {
+      return {success: false, error: "project_id is required"}
+    }
+
+    const project = await this.storage.getBranch(projectId)
+    if (!project) {
+      return {success: false, error: `Project not found: ${projectId}`}
+    }
+
+    const deleted = await this.storage.deleteBranch(projectId)
+    if (!deleted) {
+      return {success: false, error: `Failed to delete project: ${projectId}`}
+    }
+
+    return {success: true, data: `Project deleted: ${project.name} (${project.id})`}
+  }
+
+  private async switchProject(params: ToolParams): Promise<ToolResult> {
+    const projectId = params.project_id as string
+    if (!projectId) {
+      return {success: false, error: "project_id is required"}
+    }
+
+    const project = await this.storage.getBranch(projectId)
+    if (!project) {
+      return {success: false, error: `Project not found: ${projectId}`}
+    }
+
+    await this.storage.setActiveBranch(project.id)
+    return {success: true, data: `Active project switched to: ${project.name} (${project.id})`}
   }
 
   // ========== TIME TRACKING ==========
@@ -471,8 +659,19 @@ export class ToolExecutor {
 
   private async getDaySummary(params: ToolParams): Promise<ToolResult> {
     const date = (params.date as string) || this.getTodayDate()
+    const projectId = params.project_id as string | undefined
+    let branchId: string | undefined
 
-    const day: Day | null = await this.storage.getDay(date)
+    if (projectId) {
+      const branch = await this.storage.getBranch(projectId)
+      if (!branch) {
+        return {success: false, error: `Project not found: ${projectId}`}
+      }
+      branchId = branch.id
+    }
+
+    const days = await this.storage.getDays({from: date, to: date, branchId})
+    const day: Day | null = days[0] ?? null
 
     if (!day || day.tasks.length === 0) {
       return {success: true, data: `No tasks scheduled for ${date}.`}

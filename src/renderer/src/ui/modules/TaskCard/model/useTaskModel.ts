@@ -2,11 +2,12 @@ import {computed, toValue} from "vue"
 import {toasts} from "vue-toasts-lite"
 import {useClipboard} from "@vueuse/core"
 
+import {useBranchesStore} from "@/stores/branches.store"
 import {useTaskEditorStore} from "@/stores/taskEditor.store"
 import {useTasksStore} from "@/stores/tasks.store"
 
 import type {ISODate} from "@shared/types/common"
-import type {LayoutType, Tag, Task, TaskStatus} from "@shared/types/storage"
+import type {Branch, LayoutType, Tag, Task, TaskStatus} from "@shared/types/storage"
 import type {MaybeRefOrGetter} from "vue"
 
 type TaskModelProps = {task: Task; tags?: Tag[]; view?: LayoutType}
@@ -14,6 +15,7 @@ type TaskModelProps = {task: Task; tags?: Tag[]; view?: LayoutType}
 export function useTaskModel(rawProps: MaybeRefOrGetter<TaskModelProps>) {
   const tasksStore = useTasksStore()
   const taskEditorStore = useTaskEditorStore()
+  const branchesStore = useBranchesStore()
 
   const {copy} = useClipboard({legacy: true})
 
@@ -98,6 +100,21 @@ export function useTaskModel(rawProps: MaybeRefOrGetter<TaskModelProps>) {
     if (!isUpdated) toasts.error("Failed to update tags")
   }
 
+  async function moveTaskToBranch(branchId: Branch["id"]) {
+    if (!task.value) return false
+    if (task.value.branchId === branchId) return true
+
+    const isMoved = await tasksStore.moveTaskToBranch(task.value.id, branchId)
+    if (!isMoved) {
+      toasts.error("Failed to move task")
+      return false
+    }
+
+    const branch = branchesStore.branchesMap.get(branchId)
+    toasts.success(`Task moved to "${branch?.name}"`)
+    return true
+  }
+
   async function moveUp() {
     if (!task.value || !canMoveUp.value) return
 
@@ -180,5 +197,6 @@ export function useTaskModel(rawProps: MaybeRefOrGetter<TaskModelProps>) {
     copyTaskIdToClipboard,
     copyTaskContentToClipboard,
     updateTaskTags,
+    moveTaskToBranch,
   }
 }

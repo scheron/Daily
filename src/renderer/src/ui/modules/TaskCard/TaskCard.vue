@@ -7,6 +7,7 @@ import ContextMenu from "@/ui/common/misc/ContextMenu"
 import DynamicTagsPanel from "@/ui/common/misc/DynamicTagsPanel.vue"
 import MarkdownContent from "@/ui/common/misc/MarkdownContent.vue"
 
+import BranchesMenu from "./{fragments}/BranchesMenu.vue"
 import DeleteMenuItem from "./{fragments}/DeleteMenuItem.vue"
 import QuickActions from "./{fragments}/QuickActions.vue"
 import StatusButtons from "./{fragments}/StatusButtons.vue"
@@ -47,6 +48,7 @@ const menuItems = computed<ContextMenuItem[]>(() => {
     },
     {value: "tags", label: "Tags", icon: "tags", children: true},
     {value: "reschedule", label: "Reschedule", icon: "calendar", children: true},
+    {value: "branch", label: "Move to Project", icon: "project", children: true},
     {separator: true},
     {
       value: "toggle-minimized",
@@ -105,6 +107,11 @@ async function onDeleteFromMenu() {
   const isDeleted = await taskModel.deleteTask()
   if (isDeleted) contextMenuRef.value?.close()
 }
+
+async function onMoveToBranch(branchId: Task["branchId"]) {
+  const moved = await taskModel.moveTaskToBranch(branchId)
+  if (moved) contextMenuRef.value?.close()
+}
 </script>
 
 <template>
@@ -160,7 +167,7 @@ async function onDeleteFromMenu() {
     </div>
 
     <template #child-tags>
-      <div class="max-h-72 overflow-y-auto p-1">
+      <div class="max-h-72 overflow-y-auto">
         <TagsMenu :task="task" @update="taskModel.updateTaskTags" />
       </div>
     </template>
@@ -168,6 +175,12 @@ async function onDeleteFromMenu() {
     <template #child-reschedule>
       <div class="p-1">
         <BaseCalendar mode="single" :days="tasksStore.days" :selected-date="task.scheduled.date" size="sm" @select-date="taskModel.rescheduleTask" />
+      </div>
+    </template>
+
+    <template #child-branch>
+      <div class="max-h-72 overflow-y-auto">
+        <BranchesMenu :task="task" @move="onMoveToBranch" />
       </div>
     </template>
 

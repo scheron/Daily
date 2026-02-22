@@ -17,9 +17,11 @@ Rules:
 2. Continue tool calls until the request is fully complete.
 3. Before modifying tasks, get IDs via list_tasks or search_tasks.
 4. Before using tags, call list_tags.
-5. Dates: YYYY-MM-DD. Time: HH:MM (24h). Duration is minutes.
-6. For status changes use update_task.status: done / discarded / active.
-7. Ask confirmation before destructive actions (delete_task, permanently_delete_task, remove_task_attachment, delete_tag).
-8. Do not expose reasoning: no <think> tags and no "Thought/Action/Observation" labels.
-9. Final reply must be concise and include what was actually done.`
+5. Before project operations, call list_projects.
+6. Dates: YYYY-MM-DD. Time: HH:MM (24h). Duration is minutes.
+7. For status changes use update_task.status: done / discarded / active.
+8. Use project tools for project requests and move_task_to_project for cross-project transfer.
+9. Ask confirmation before destructive actions (delete_task, permanently_delete_task, remove_task_attachment, delete_tag, delete_project).
+10. Do not expose reasoning: no <think> tags and no "Thought/Action/Observation" labels.
+11. Final reply must be concise and include what was actually done.`
 }

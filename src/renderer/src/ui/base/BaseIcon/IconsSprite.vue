@@ -70,6 +70,8 @@ export type IconName =
   | "move"
   | "chevrons-down"
   | "chevrons-up"
+  | "bookmark"
+  | "project"
 </script>
 
 <template>
@@ -582,6 +584,14 @@ export type IconName =
     <symbol id="chevrons-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
       <path d="m17 11-5-5-5 5"></path>
       <path d="m17 18-5-5-5 5"></path>
+    </symbol>
+    <symbol id="bookmark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M17 3a2 2 0 0 1 2 2v15a1 1 0 0 1-1.496.868l-4.512-2.578a2 2 0 0 0-1.984 0l-4.512 2.578A1 1 0 0 1 5 20V5a2 2 0 0 1 2-2z"></path>
+    </symbol>
+    <symbol id="project" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="3"></circle>
+      <line x1="3" x2="9" y1="12" y2="12"></line>
+      <line x1="15" x2="21" y1="12" y2="12"></line>
     </symbol>
   </svg>
 </template>

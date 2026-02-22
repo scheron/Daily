@@ -1,5 +1,6 @@
 import {nanoid} from "nanoid"
 
+import {MAIN_BRANCH_ID} from "@shared/constants/storage"
 import {logger} from "@/utils/logger"
 import {withRetryOnConflict} from "@/utils/withRetryOnConflict"
 
@@ -14,7 +15,13 @@ import type {PartialDeep} from "type-fest"
 export class TaskModel {
   constructor(private db: PouchDB.Database) {}
 
-  async getTaskList(params?: {from?: ISODate; to?: ISODate; limit?: number; includeDeleted?: boolean}): Promise<TaskInternal[]> {
+  async getTaskList(params?: {
+    from?: ISODate
+    to?: ISODate
+    limit?: number
+    includeDeleted?: boolean
+    branchId?: TaskInternal["branchId"] | null
+  }): Promise<TaskInternal[]> {
     try {
       let selector: PouchDB.Find.Selector = {type: "task"}
 
@@ -31,6 +38,8 @@ export class TaskModel {
           "scheduled.date": dateSelector,
         })
       }
+
+      selector = this.applyBranchSelector(selector, params?.branchId)
 
       const result = (await this.db.find({selector, limit})) as PouchDB.Find.FindResponse<TaskDoc>
 
@@ -64,7 +73,7 @@ export class TaskModel {
     const id = nanoid()
 
     try {
-      const doc = taskToDoc({...task, id, tags: task.tags ?? []})
+      const doc = taskToDoc({...task, id, tags: task.tags ?? [], branchId: task.branchId ?? MAIN_BRANCH_ID})
 
       const res = await this.db.put(doc)
 
@@ -150,12 +159,14 @@ export class TaskModel {
     return Boolean(isDeleted)
   }
 
-  async getDeletedTasks(params?: {limit?: number}): Promise<TaskInternal[]> {
+  async getDeletedTasks(params?: {limit?: number; branchId?: TaskInternal["branchId"] | null}): Promise<TaskInternal[]> {
     try {
-      const selector: PouchDB.Find.Selector = {
+      let selector: PouchDB.Find.Selector = {
         type: "task",
         deletedAt: {$ne: null},
       }
+
+      selector = this.applyBranchSelector(selector, params?.branchId)
 
       const limit = params?.limit ?? Infinity
       const result = (await this.db.find({selector, limit})) as PouchDB.Find.FindResponse<TaskDoc>
@@ -297,6 +308,28 @@ export class TaskModel {
       nextDoc.deletedAt = updates.deletedAt
     }
 
+    if (updates.branchId !== undefined) {
+      nextDoc.branchId = updates.branchId
+    }
+
     return nextDoc
+  }
+
+  private applyBranchSelector(selector: PouchDB.Find.Selector, branchId?: TaskInternal["branchId"] | null): PouchDB.Find.Selector {
+    if (!branchId) {
+      return selector
+    }
+
+    if (branchId === MAIN_BRANCH_ID) {
+      return {
+        ...selector,
+        $or: [{branchId: MAIN_BRANCH_ID}, {branchId: {$exists: false}}],
+      }
+    }
+
+    return {
+      ...selector,
+      branchId,
+    }
   }
 }

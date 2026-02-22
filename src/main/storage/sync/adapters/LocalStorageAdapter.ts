@@ -1,7 +1,7 @@
 import {isNewerOrEqual} from "@shared/utils/date/validators"
 import {withRetryOnConflict} from "@/utils/withRetryOnConflict"
 
-import type {FileDoc, SettingsDoc, TagDoc, TaskDoc} from "@/types/database"
+import type {BranchDoc, FileDoc, SettingsDoc, TagDoc, TaskDoc} from "@/types/database"
 import type {ILocalStorage, Snapshot, SyncDoc} from "@/types/sync"
 
 export class LocalStorageAdapter implements ILocalStorage {
@@ -16,6 +16,7 @@ export class LocalStorageAdapter implements ILocalStorage {
 
     const tasks: TaskDoc[] = []
     const tags: TagDoc[] = []
+    const branches: BranchDoc[] = []
     const files: FileDoc[] = []
     let settings: SettingsDoc | null = null
 
@@ -30,6 +31,9 @@ export class LocalStorageAdapter implements ILocalStorage {
         case "tag":
           tags.push(this._stripServiceFields(doc) as TagDoc)
           break
+        case "branch":
+          branches.push(this._stripServiceFields(doc) as BranchDoc)
+          break
         case "file":
           files.push(this._stripServiceFields(doc) as FileDoc)
           break
@@ -39,7 +43,7 @@ export class LocalStorageAdapter implements ILocalStorage {
       }
     }
 
-    return {tasks, tags, files, settings}
+    return {tasks, tags, branches, files, settings}
   }
 
   /**

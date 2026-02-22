@@ -21,12 +21,14 @@ export async function mergeRemoteIntoLocal(
   const resultDocs: SnapshotDocs = {
     tasks: localDocs.tasks,
     tags: localDocs.tags,
+    branches: localDocs.branches,
     files: localDocs.files,
     settings: localDocs.settings,
   }
 
   const {result: mergedTasks, toGc: gcTasks} = mergeCollections(localDocs.tasks, remoteDocs.tasks, strategy, gcIntervalMs)
   const {result: mergedTags, toGc: gcTags} = mergeCollections(localDocs.tags, remoteDocs.tags, strategy, gcIntervalMs)
+  const {result: mergedBranches, toGc: gcBranches} = mergeCollections(localDocs.branches, remoteDocs.branches, strategy, gcIntervalMs)
   const {result: mergedFiles, toGc: gcFiles} = mergeCollections(localDocs.files, remoteDocs.files, strategy, gcIntervalMs)
   const mergedSettings = mergeSettings(localDocs.settings, remoteDocs.settings)
 
@@ -42,6 +44,13 @@ export async function mergeRemoteIntoLocal(
     toRemove.push(...gcTags)
     changes += mergedTags.length + gcTags.length
     resultDocs.tags = mergedTags
+  }
+
+  if (mergedBranches.length !== localDocs.branches.length || hasDocChanges(localDocs.branches, mergedBranches) || gcBranches.length) {
+    toUpsert.push(...mergedBranches)
+    toRemove.push(...gcBranches)
+    changes += mergedBranches.length + gcBranches.length
+    resultDocs.branches = mergedBranches
   }
 
   if (mergedFiles.length !== localDocs.files.length || hasDocChanges(localDocs.files, mergedFiles) || gcFiles.length) {

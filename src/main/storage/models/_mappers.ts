@@ -1,7 +1,9 @@
-import type {FileDoc, SettingsDoc, TagDoc, TaskDoc} from "@/types/database"
+import {MAIN_BRANCH_ID} from "@shared/constants/storage"
+
+import type {BranchDoc, FileDoc, SettingsDoc, TagDoc, TaskDoc} from "@/types/database"
 import type {TaskInternal} from "@/types/storage"
 import type {ISODateTime} from "@shared/types/common"
-import type {File, Settings, Tag} from "@shared/types/storage"
+import type {Branch, File, Settings, Tag} from "@shared/types/storage"
 
 /**
  * Domain Model <-> Storage Document Mappers
@@ -13,6 +15,10 @@ export const docIdMap = {
   },
   tag: {
     toDoc: (id: string) => `tag:${id}`,
+    fromDoc: (id: string) => id.split(":")[1],
+  },
+  branch: {
+    toDoc: (id: string) => `branch:${id}`,
     fromDoc: (id: string) => id.split(":")[1],
   },
   settings: {
@@ -47,6 +53,7 @@ export function taskToDoc(task: TaskInternal): TaskDoc {
     estimatedTime: task.estimatedTime,
     spentTime: task.spentTime,
     content: task.content,
+    branchId: task.branchId ?? MAIN_BRANCH_ID,
     minimized: task.minimized ?? false,
     tags: task.tags,
     attachments: task.attachments ?? [],
@@ -72,6 +79,7 @@ export function docToTask(doc: TaskDoc): TaskInternal {
     tags: doc.tags,
     spentTime: doc.spentTime,
     content: doc.content,
+    branchId: doc.branchId ?? MAIN_BRANCH_ID,
     minimized: doc.minimized ?? false,
     attachments: doc.attachments ?? [],
     createdAt: doc.createdAt,
@@ -110,6 +118,34 @@ export function docToTag(doc: TagDoc): Tag {
   }
 }
 
+/* ========================================== */
+/* ============ BRANCH <-> DOC ============= */
+/* ========================================= */
+export function branchToDoc(branch: Branch): BranchDoc {
+  const createdAt = branch.createdAt ?? new Date().toISOString()
+  const updatedAt = branch.updatedAt ?? createdAt
+  const deletedAt = branch.deletedAt ?? null
+
+  return {
+    _id: docIdMap.branch.toDoc(branch.id),
+    type: "branch",
+    name: branch.name,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  }
+}
+
+export function docToBranch(doc: BranchDoc): Branch {
+  return {
+    id: docIdMap.branch.fromDoc(doc._id),
+    createdAt: doc.createdAt,
+    updatedAt: doc.updatedAt,
+    deletedAt: doc.deletedAt,
+    name: doc.name,
+  }
+}
+
 /* ============================================ */
 /* ============ SETTINGS <-> DOC ============ */
 /* ============================================ */
@@ -138,6 +174,9 @@ export function docToSettings(doc: SettingsDoc): Settings {
     sidebar: doc.data.sidebar,
     sync: doc.data.sync,
     ai: doc.data.ai,
+    branch: {
+      activeId: doc.data.branch?.activeId ?? MAIN_BRANCH_ID,
+    },
     layout: {
       type: doc.data.layout?.type ?? "list",
       columnsHideEmpty: doc.data.layout?.columnsHideEmpty ?? false,

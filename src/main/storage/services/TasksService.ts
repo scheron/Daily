@@ -5,7 +5,7 @@ import type {TagModel} from "@/storage/models/TagModel"
 import type {TaskModel} from "@/storage/models/TaskModel"
 import type {TaskInternal} from "@/types/storage"
 import type {ISODate} from "@shared/types/common"
-import type {File, MoveTaskByOrderParams, Tag, Task, TaskMovePosition} from "@shared/types/storage"
+import type {Branch, File, MoveTaskByOrderParams, Tag, Task, TaskMovePosition} from "@shared/types/storage"
 import type {PartialDeep} from "type-fest"
 
 export class TasksService {
@@ -14,7 +14,7 @@ export class TasksService {
     private tagModel: TagModel,
   ) {}
 
-  async getTaskList(params?: {from?: ISODate; to?: ISODate; limit?: number}): Promise<Task[]> {
+  async getTaskList(params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: Branch["id"]}): Promise<Task[]> {
     const [tasks, allTags] = await Promise.all([this.taskModel.getTaskList(params), this.tagModel.getTagList()])
 
     const tagMap = new Map(allTags.map((t) => [t.id, t]))
@@ -81,6 +81,7 @@ export class TasksService {
     const dayTasks = await this.taskModel.getTaskList({
       from: sourceTask.scheduled.date,
       to: sourceTask.scheduled.date,
+      branchId: sourceTask.branchId,
     })
 
     const dayTaskById = new Map(dayTasks.map((task) => [task.id, task]))
@@ -128,11 +129,22 @@ export class TasksService {
     return this.getTask(sourceTask.id)
   }
 
+  async moveTaskToBranch(taskId: Task["id"], branchId: Branch["id"]): Promise<boolean> {
+    const task = await this.taskModel.getTask(taskId)
+    if (!task) return false
+    if (task.branchId === branchId) return true
+
+    const updatedTask = await this.taskModel.updateTask(taskId, {branchId})
+    if (!updatedTask) return false
+
+    return true
+  }
+
   async deleteTask(id: Task["id"]): Promise<boolean> {
     return this.taskModel.deleteTask(id)
   }
 
-  async getDeletedTasks(params?: {limit?: number}): Promise<Task[]> {
+  async getDeletedTasks(params?: {limit?: number; branchId?: Branch["id"]}): Promise<Task[]> {
     const [deletedTasks, allTags] = await Promise.all([this.taskModel.getDeletedTasks(params), this.tagModel.getTagList()])
 
     const tagMap = new Map(allTags.map((t) => [t.id, t]))
@@ -158,8 +170,8 @@ export class TasksService {
     return this.taskModel.permanentlyDeleteTask(id)
   }
 
-  async permanentlyDeleteAllDeletedTasks(): Promise<Task["id"][]> {
-    const deletedTasks = await this.taskModel.getDeletedTasks()
+  async permanentlyDeleteAllDeletedTasks(params?: {branchId?: Branch["id"]}): Promise<Task["id"][]> {
+    const deletedTasks = await this.taskModel.getDeletedTasks({branchId: params?.branchId})
     if (!deletedTasks.length) return []
 
     const deletedIds: Task["id"][] = []

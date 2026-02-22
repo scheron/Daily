@@ -4,6 +4,7 @@ export function getDefaultSnapshot(): Snapshot {
   const docs = {
     tasks: [],
     tags: [],
+    branches: [],
     files: [],
     settings: null,
   }

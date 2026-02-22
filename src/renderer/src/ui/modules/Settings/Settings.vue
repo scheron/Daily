@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {useUIStore} from "@/stores/ui.store"
 import {isDevMode} from "@/constants/env"
 import BaseIcon from "@/ui/base/BaseIcon"
 import ExpansionPanel from "@/ui/common/misc/ExpansionPanel/ExpansionPanel.vue"
@@ -8,17 +9,19 @@ import AiSettings from "./{fragments}/AiSettings"
 import DeletedTasks from "./{fragments}/DeletedTasks"
 import IconsList from "./{fragments}/IconsList.vue"
 import LayoutSettings from "./{fragments}/LayoutSettings"
+import ProjectsSettings from "./{fragments}/ProjectsSettings"
 import SyncSettings from "./{fragments}/SyncSettings.vue"
 import ThemesSettings from "./{fragments}/ThemesSettings"
 
 const COMMON_GROUP = "settings"
+const uiStore = useUIStore()
 </script>
 
 <template>
-  <div>
+  <div :key="uiStore.activeSettingsPanel ?? 'default'">
     <About class="px-4 pt-4" />
 
-    <ExpansionPanel :group="COMMON_GROUP">
+    <ExpansionPanel :group="COMMON_GROUP" :opened="uiStore.activeSettingsPanel === 'ai'">
       <template #header>
         <h3 class="text-base-content flex items-center gap-2 text-sm font-semibold">
           <BaseIcon name="ai" class="text-accent size-4" />
@@ -28,7 +31,7 @@ const COMMON_GROUP = "settings"
       <AiSettings />
     </ExpansionPanel>
 
-    <ExpansionPanel :group="COMMON_GROUP">
+    <ExpansionPanel :group="COMMON_GROUP" :opened="uiStore.activeSettingsPanel === 'themes'">
       <template #header>
         <h3 class="text-base-content flex items-center gap-2 text-sm font-semibold">
           <BaseIcon name="background" class="text-accent size-4" />
@@ -40,7 +43,7 @@ const COMMON_GROUP = "settings"
       </div>
     </ExpansionPanel>
 
-    <ExpansionPanel :group="COMMON_GROUP">
+    <ExpansionPanel :group="COMMON_GROUP" :opened="uiStore.activeSettingsPanel === 'layout'">
       <template #header>
         <h3 class="text-base-content flex items-center gap-2 text-sm font-semibold">
           <BaseIcon name="layout" class="text-accent size-4" />
@@ -50,7 +53,17 @@ const COMMON_GROUP = "settings"
       <LayoutSettings />
     </ExpansionPanel>
 
-    <ExpansionPanel :group="COMMON_GROUP">
+    <ExpansionPanel :group="COMMON_GROUP" :opened="uiStore.activeSettingsPanel === 'projects'">
+      <template #header>
+        <h3 class="text-base-content flex items-center gap-2 text-sm font-semibold">
+          <BaseIcon name="project" class="text-accent size-4" />
+          Project Management
+        </h3>
+      </template>
+      <ProjectsSettings />
+    </ExpansionPanel>
+
+    <ExpansionPanel :group="COMMON_GROUP" :opened="uiStore.activeSettingsPanel === 'sync'">
       <template #header>
         <h3 class="text-base-content flex items-center gap-2 text-sm font-semibold">
           <BaseIcon name="cloud" class="text-accent size-4" />
@@ -60,7 +73,7 @@ const COMMON_GROUP = "settings"
       <SyncSettings />
     </ExpansionPanel>
 
-    <ExpansionPanel :group="COMMON_GROUP">
+    <ExpansionPanel :group="COMMON_GROUP" :opened="uiStore.activeSettingsPanel === 'deleted'">
       <template #header>
         <h3 class="text-base-content flex items-center gap-2 text-sm font-semibold">
           <BaseIcon name="book-x" class="text-accent size-4" />
