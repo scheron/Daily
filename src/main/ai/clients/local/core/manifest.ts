@@ -4,7 +4,7 @@ import type {ModelManifestEntry} from "../types"
 export const MODEL_MANIFEST: ModelManifestEntry[] = [
   {
     id: "daily-fast",
-    title: "Minimal (3B)",
+    title: "Minimal",
     description: "Stronger baseline for everyday agent tasks with tools",
     promptTier: "tiny",
     sizeBytes: 2_080_000_000,
@@ -15,8 +15,8 @@ export const MODEL_MANIFEST: ModelManifestEntry[] = [
   },
   {
     id: "daily-balanced",
-    title: "Balanced (Mistral 7B)",
-    description: "Balanced speed/quality profile using Mistral 7B Instruct",
+    title: "Balanced",
+    description: "Balanced speed/quality profile",
     promptTier: "medium",
     sizeBytes: 4_370_000_000,
     requirements: {ramGb: 8, diskGb: 6},
@@ -27,7 +27,7 @@ export const MODEL_MANIFEST: ModelManifestEntry[] = [
   },
   {
     id: "daily-quality",
-    title: "Quality (Mixtral 8x7B)",
+    title: "Quality",
     description: "Highest quality local profile, requires high memory and storage",
     promptTier: "large",
     sizeBytes: 26_440_000_000,
