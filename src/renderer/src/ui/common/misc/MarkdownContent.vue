@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import {nextTick, onMounted, ref, watch} from "vue"
+import {computed, nextTick, onMounted, ref, watch} from "vue"
 
 import {TASK_CONTENT_MINIMIZED_HEIGHT} from "@/constants/ui"
 import {createCodeSyntaxExtension} from "@/utils/codemirror/extensions/codeSyntax"
 import {createMarkdownLanguageExtension} from "@/utils/codemirror/extensions/markdownLanguage"
 import {createThemeExtension} from "@/utils/codemirror/extensions/theme"
 import {createWYSIWYGExtension} from "@/utils/codemirror/extensions/wysiwyg"
+import BaseModal from "@/ui/base/BaseModal.vue"
 
 import {EditorState} from "@codemirror/state"
 import {EditorView} from "@codemirror/view"
@@ -21,7 +22,10 @@ const emit = defineEmits<{
 const container = ref<HTMLDivElement>()
 const canMinimize = ref(false)
 const shouldClamp = ref(false)
+const previewImageSrc = ref<string | null>(null)
+const previewImageAlt = ref("")
 let view: EditorView | null = null
+const isImagePreviewOpen = computed(() => Boolean(previewImageSrc.value))
 
 function measureClampState() {
   if (!container.value) {
@@ -79,6 +83,25 @@ function createReadonlyEditor(content: string) {
   })
 }
 
+function onContentClick(event: MouseEvent) {
+  const target = event.target as HTMLElement | null
+  if (!target) return
+
+  const image = target.closest("img")
+  if (!(image instanceof HTMLImageElement)) return
+  if (!container.value?.contains(image)) return
+
+  event.preventDefault()
+  event.stopPropagation()
+  previewImageSrc.value = image.currentSrc || image.src
+  previewImageAlt.value = image.alt || "Image preview"
+}
+
+function closeImagePreview() {
+  previewImageSrc.value = null
+  previewImageAlt.value = ""
+}
+
 watch(
   () => props.content,
   (newContent) => {
@@ -102,7 +125,19 @@ onMounted(() => {
 </script>
 
 <template>
-  <div ref="container" class="markdown-view" :class="{'is-minimized': shouldClamp}"></div>
+  <div ref="container" class="markdown-view" :class="{'is-minimized': shouldClamp}" @click="onContentClick"></div>
+
+  <BaseModal
+    :open="isImagePreviewOpen"
+    hide-header
+    container-class="h-auto max-h-[90vh] w-fit max-w-5xl"
+    content-class="!p-0"
+    @close="closeImagePreview"
+  >
+    <div class="flex h-full w-full items-center justify-center p-3 md:p-4">
+      <img v-if="previewImageSrc" :src="previewImageSrc" :alt="previewImageAlt" class="max-h-[80vh] max-w-full rounded-md object-contain" />
+    </div>
+  </BaseModal>
 </template>
 
 <style scoped>
@@ -128,6 +163,10 @@ onMounted(() => {
 .markdown-view :deep(.cm-codeblock-line) {
   white-space: pre !important;
   overflow-x: visible !important;
+}
+
+.markdown-view :deep(.cm-image-wrapper img) {
+  cursor: zoom-in;
 }
 
 .markdown-view.is-minimized {

@@ -60,8 +60,11 @@ useEventListener(modalRef, "keydown", (event) => event.key === "Escape" && emit(
           <div v-if="!hideHeader" class="border-base-300 h-header flex items-center justify-between border-b px-4 py-1">
             <slot v-if="!hideToolbar" name="toolbar">
               <div class="text-accent flex items-center gap-2 pl-4">
-                <Logo class="h-5" />
-                <h2 class="font-mono text-xl font-bold">Daily</h2>
+                <span v-if="title" class="text-base-content/70 text-xs font-semibold uppercase">{{ title }}</span>
+                <template v-else>
+                  <Logo class="h-5" />
+                  <h2 class="font-mono text-xl font-bold">Daily</h2>
+                </template>
               </div>
             </slot>
 
