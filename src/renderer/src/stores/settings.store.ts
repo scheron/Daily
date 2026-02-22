@@ -31,7 +31,7 @@ export const useSettingsStore = defineStore("settings", () => {
     if (before === after) return
 
     try {
-      await window.BridgeIPC["settings:save"](toRawDeep(settings.value))
+      await window.BridgeIPC["settings:save"](toRawDeep(updates))
     } catch (error) {
       console.error("Failed to save settings:", error)
       await loadSettings()

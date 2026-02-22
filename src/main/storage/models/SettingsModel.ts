@@ -7,6 +7,7 @@ import {createCacheLoader} from "@/utils/createCacheLoader"
 import {logger} from "@/utils/logger"
 import {withRetryOnConflict} from "@/utils/withRetryOnConflict"
 
+import {APP_CONFIG} from "@/config"
 import {docIdMap, docToSettings, settingsToDoc} from "./_mappers"
 
 import type {SettingsDoc} from "@/types/database"
@@ -53,6 +54,15 @@ export class SettingsModel {
           active: false,
           discarded: false,
           done: false,
+        },
+      },
+      window: {
+        main: {
+          width: APP_CONFIG.window.main.width,
+          height: APP_CONFIG.window.main.height,
+          x: null,
+          y: null,
+          isMaximized: false,
         },
       },
     }

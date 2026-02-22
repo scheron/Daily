@@ -1,5 +1,7 @@
 import {MAIN_BRANCH_ID} from "@shared/constants/storage"
 
+import {APP_CONFIG} from "@/config"
+
 import type {BranchDoc, FileDoc, SettingsDoc, TagDoc, TaskDoc} from "@/types/database"
 import type {TaskInternal} from "@/types/storage"
 import type {ISODateTime} from "@shared/types/common"
@@ -168,6 +170,8 @@ export function docToSettings(doc: SettingsDoc): Settings {
     done: false,
   }
 
+  const mainWindow = doc.data.window?.main
+
   return {
     version: doc.data.version,
     themes: doc.data.themes,
@@ -185,6 +189,15 @@ export function docToSettings(doc: SettingsDoc): Settings {
         active: Boolean(columnsCollapsed.active),
         discarded: Boolean(columnsCollapsed.discarded),
         done: Boolean(columnsCollapsed.done),
+      },
+    },
+    window: {
+      main: {
+        width: typeof mainWindow?.width === "number" ? mainWindow.width : APP_CONFIG.window.main.width,
+        height: typeof mainWindow?.height === "number" ? mainWindow.height : APP_CONFIG.window.main.height,
+        x: typeof mainWindow?.x === "number" ? mainWindow.x : null,
+        y: typeof mainWindow?.y === "number" ? mainWindow.y : null,
+        isMaximized: Boolean(mainWindow?.isMaximized),
       },
     },
   }

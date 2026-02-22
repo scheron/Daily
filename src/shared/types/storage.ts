@@ -7,6 +7,14 @@ export type TaskStatus = "active" | "discarded" | "done"
 export type TaskMoveMode = "list" | "column"
 export type TaskMovePosition = "before" | "after"
 
+export type MainWindowSettings = {
+  width: number
+  height: number
+  x: number | null
+  y: number | null
+  isMaximized: boolean
+}
+
 export type Settings = {
   version: string
   themes: {
@@ -45,6 +53,9 @@ export type Settings = {
      * @default {active: false, discarded: false, done: false}
      */
     columnsCollapsed: Record<TaskStatus, boolean>
+  }
+  window: {
+    main: MainWindowSettings
   }
 }
 

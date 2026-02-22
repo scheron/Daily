@@ -9,6 +9,7 @@ import {setupInstanceAndDeepLinks} from "@/setup/app/instance"
 import {setupActivateHandler, setupAppIdentity, setupDockIcon, setupWindowAllClosedHandler} from "@/setup/app/lifecycle"
 import {setupMenu} from "@/setup/app/menu"
 import {setupStorageSync} from "@/setup/app/storage"
+import {loadSavedMainWindowState, setupMainWindowStatePersistence} from "@/setup/app/windowState"
 import {setupAboutIPC} from "@/setup/ipc/about"
 import {setupAiIPC} from "@/setup/ipc/ai"
 import {setupDbViewerIPC, setupDevToolsIPC} from "@/setup/ipc/devtools"
@@ -22,6 +23,7 @@ import {setupUpdateManager} from "@/setup/updates/updater"
 import {StorageController} from "@/storage/StorageController"
 import {createMainWindow, createSplashWindow, focusWindow} from "@/windows"
 
+import type {MainWindowSettings} from "@shared/types/storage"
 import type {BrowserWindow} from "electron"
 
 type AppWindows = {main: BrowserWindow | null; splash: BrowserWindow | null; devTools: BrowserWindow | null; about: BrowserWindow | null}
@@ -29,6 +31,7 @@ type AppWindows = {main: BrowserWindow | null; splash: BrowserWindow | null; dev
 const windows: AppWindows = {main: null, splash: null, devTools: null, about: null}
 let storage: StorageController | null = null
 let ai: AIController | null = null
+let savedMainWindowState: MainWindowSettings | undefined
 
 setupPrivilegedSchemes()
 setupAppIdentity()
@@ -59,7 +62,7 @@ app.whenReady().then(async () => {
     await ai.init()
 
     await storage.cleanupOrphanFiles()
-    await storage.loadSettings()
+    savedMainWindowState = await loadSavedMainWindowState(storage)
     logger.lifecycle("Storage initialized")
 
     await setupDbViewerIPC()
@@ -112,10 +115,14 @@ app.on("before-quit", async () => {
 function setupMainWindow(windows: AppWindows, options?: {showSplash?: boolean}) {
   const showSplash = options?.showSplash ?? false
 
-  windows.main = createMainWindow()
+  windows.main = createMainWindow(savedMainWindowState)
   const main = windows.main!
 
   setupMenu(() => main)
+  setupMainWindowStatePersistence(
+    () => storage,
+    () => main,
+  )
 
   main.on("closed", () => {
     windows.main = null

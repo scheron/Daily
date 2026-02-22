@@ -3,15 +3,21 @@ import {pathToFileURL} from "node:url"
 import {app, BrowserWindow, nativeImage, shell} from "electron"
 
 import {APP_CONFIG, PATHS} from "@/config"
+import {resolveMainWindowOptions} from "@/setup/app/windowBounds"
 
-export function createMainWindow(): BrowserWindow {
+import type {MainWindowSettings} from "@shared/types/storage"
+
+export function createMainWindow(savedState?: MainWindowSettings): BrowserWindow {
+  const restoredOptions = resolveMainWindowOptions(savedState)
+
   const mainWindow = new BrowserWindow({
     title: APP_CONFIG.name,
-    width: APP_CONFIG.window.main.width,
+    width: restoredOptions.width,
     minWidth: APP_CONFIG.window.main.minWidth,
-    height: APP_CONFIG.window.main.height,
+    height: restoredOptions.height,
     minHeight: APP_CONFIG.window.main.minHeight,
-    center: true,
+    center: restoredOptions.center,
+    ...(typeof restoredOptions.x === "number" && typeof restoredOptions.y === "number" ? {x: restoredOptions.x, y: restoredOptions.y} : {}),
     transparent: true,
     frame: false,
     show: false,
@@ -26,6 +32,10 @@ export function createMainWindow(): BrowserWindow {
       experimentalFeatures: false,
     },
   })
+
+  if (savedState?.isMaximized) {
+    mainWindow.maximize()
+  }
 
   if (typeof PATHS.renderer === "string" && PATHS.renderer.startsWith("http")) {
     mainWindow.loadURL(PATHS.renderer)
