@@ -6,7 +6,7 @@ import type {AIConfig, AIResponse, LocalModelDownloadProgress, LocalModelId, Loc
 import type {ISODate} from "@shared/types/common"
 import type {BridgeIPC} from "@shared/types/ipc"
 import type {TaskSearchResult} from "@shared/types/search"
-import type {Branch, Day, Settings, SyncStatus, Tag, Task} from "@shared/types/storage"
+import type {Branch, Day, Settings, StorageDataChangeReason, SyncStatus, Tag, Task} from "@shared/types/storage"
 import type {PartialDeep} from "type-fest"
 
 // prettier-ignore
@@ -34,7 +34,8 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "storage-sync:sync": () => ipcRenderer.invoke("storage-sync:sync") as Promise<void>,
   "storage-sync:get-status": () => ipcRenderer.invoke("storage-sync:get-status") as Promise<SyncStatus>,
   "storage-sync:on-status-changed": (callback: (status: SyncStatus, prevStatus: SyncStatus) => void) => ipcRenderer.on("storage-sync:status-changed", (_event, status: SyncStatus, prevStatus: SyncStatus) => callback(status, prevStatus)),
-  "storage-sync:on-data-changed": (callback: () => void) => ipcRenderer.on("storage-sync:data-changed", (_event, ) => callback()),
+  "storage-sync:on-data-changed": (callback: (reason: StorageDataChangeReason) => void) =>
+    ipcRenderer.on("storage-sync:data-changed", (_event, reason: StorageDataChangeReason) => callback(reason)),
 
   "settings:load": () => ipcRenderer.invoke("settings:load") as Promise<Settings>,
   "settings:save": (settings: Partial<Settings>) => ipcRenderer.invoke("settings:save", settings),

@@ -3,7 +3,7 @@ import type {PartialDeep} from "type-fest"
 import type {AIConfig, AIResponse, LocalModelDownloadProgress, LocalModelId, LocalModelInfo, LocalRuntimeState} from "./ai"
 import type {ISODate} from "./common"
 import type {TaskSearchResult} from "./search"
-import type {Branch, Day, File, MoveTaskByOrderParams, Settings, SyncStatus, Tag, Task} from "./storage"
+import type {Branch, Day, File, MoveTaskByOrderParams, Settings, StorageDataChangeReason, SyncStatus, Tag, Task} from "./storage"
 
 export interface BridgeIPC {
   // === GENERAL IPC ===
@@ -28,7 +28,7 @@ export interface BridgeIPC {
   "storage-sync:sync": () => Promise<void>
   "storage-sync:get-status": () => Promise<SyncStatus>
   "storage-sync:on-status-changed": (callback: (status: SyncStatus, prevStatus: SyncStatus) => void) => void
-  "storage-sync:on-data-changed": (callback: () => void) => void
+  "storage-sync:on-data-changed": (callback: (reason: StorageDataChangeReason) => void) => void
 
   // === SETTINGS ===
   "settings:load": () => Promise<Settings>

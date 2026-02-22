@@ -10,7 +10,7 @@ import {useTagsStore} from "./tags.store"
 import {useTasksStore} from "./tasks.store"
 
 import type {ISODateTime} from "@shared/types/common"
-import type {SyncStatus} from "@shared/types/storage"
+import type {StorageDataChangeReason, SyncStatus} from "@shared/types/storage"
 
 export const useStorageStore = defineStore("storage", () => {
   const onStorageDataChanged = createEventHook()
@@ -66,9 +66,11 @@ export const useStorageStore = defineStore("storage", () => {
     }
   })
 
-  window.BridgeIPC["storage-sync:on-data-changed"](async () => {
+  window.BridgeIPC["storage-sync:on-data-changed"](async (reason: StorageDataChangeReason) => {
     lastSyncAt.value = new Date().toISOString()
-    await revalidate()
+    if (reason === "sync") {
+      await revalidate()
+    }
     onStorageDataChanged.trigger()
   })
 

@@ -134,7 +134,18 @@ export const useTasksStore = defineStore("tasks", () => {
     const isSuccess = await API.moveTask(taskId, targetDate)
     if (!isSuccess) return false
 
-    await revalidate()
+    const sourceDate = task.scheduled.date
+
+    if (sourceDate !== targetDate) {
+      removeTaskFromDay(taskId, sourceDate)
+    }
+
+    const updatedTargetDay = await API.getDay(targetDate)
+    if (updatedTargetDay) {
+      days.value = updateDays(days.value, updatedTargetDay)
+    } else {
+      await revalidate()
+    }
 
     return true
   }
@@ -147,8 +158,17 @@ export const useTasksStore = defineStore("tasks", () => {
     const isSuccess = await API.moveTaskToBranch(taskId, branchId)
     if (!isSuccess) return false
 
-    await revalidate()
+    removeTaskFromDay(taskId, task.scheduled.date)
     return true
+  }
+
+  function removeTaskFromDay(taskId: Task["id"], sourceDate: ISODate): void {
+    const dayIndex = days.value.findIndex((day) => day.date === sourceDate)
+    if (dayIndex === -1) return
+
+    const dayWithRemovedTask = {...days.value[dayIndex]}
+    dayWithRemovedTask.tasks = dayWithRemovedTask.tasks.filter((task) => task.id !== taskId)
+    days.value = updateDays(days.value, dayWithRemovedTask)
   }
 
   async function moveTaskByOrder(params: {

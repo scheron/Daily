@@ -1,6 +1,6 @@
 import type {ISODate} from "@shared/types/common"
 import type {TaskSearchResult} from "@shared/types/search"
-import type {Branch, Day, File, MoveTaskByOrderParams, Settings, SyncStatus, Tag, Task} from "@shared/types/storage"
+import type {Branch, Day, File, MoveTaskByOrderParams, Settings, StorageDataChangeReason, SyncStatus, Tag, Task} from "@shared/types/storage"
 import type {ReplaceValue} from "@shared/types/utils"
 import type {PartialDeep} from "type-fest"
 
@@ -58,7 +58,10 @@ export interface IStorageController {
 
   cleanupOrphanFiles(): Promise<void>
 
-  setupStorageBroadcasts(callbacks: {onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => void; onDataChange: () => void}): void
+  setupStorageBroadcasts(callbacks: {
+    onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => void
+    onDataChange: (reason: StorageDataChangeReason) => void
+  }): void
 
   activateSync(): Promise<void>
   deactivateSync(): Promise<void>

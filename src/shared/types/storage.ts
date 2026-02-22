@@ -2,6 +2,7 @@ import type {AIConfig} from "./ai"
 import type {ID, ISODate, ISODateTime, ISOTime, Timezone} from "./common"
 
 export type SyncStatus = "inactive" | "active" | "syncing" | "error"
+export type StorageDataChangeReason = "local" | "sync"
 export type LayoutType = "list" | "columns"
 export type TaskStatus = "active" | "discarded" | "done"
 export type TaskMoveMode = "list" | "column"

@@ -34,7 +34,7 @@ import {SyncEngine} from "@/storage/sync/SyncEngine"
 import type {IStorageController} from "@/types/storage"
 import type {ISODate} from "@shared/types/common"
 import type {TaskSearchResult} from "@shared/types/search"
-import type {Branch, Day, File, MoveTaskByOrderParams, Settings, SyncStatus, Tag, Task} from "@shared/types/storage"
+import type {Branch, Day, File, MoveTaskByOrderParams, Settings, StorageDataChangeReason, SyncStatus, Tag, Task} from "@shared/types/storage"
 import type {PartialDeep} from "type-fest"
 
 export class StorageController implements IStorageController {
@@ -50,7 +50,7 @@ export class StorageController implements IStorageController {
   private syncEngine!: SyncEngine
 
   private notifyStorageStatusChange?: (status: SyncStatus, prevStatus: SyncStatus) => void
-  private notifyStorageDataChange?: () => void
+  private notifyStorageDataChange?: (reason: StorageDataChangeReason) => void
 
   async init(): Promise<void> {
     await fs.ensureDir(this.rootDir)
@@ -80,7 +80,7 @@ export class StorageController implements IStorageController {
         settingsModel.invalidateCache()
         tagModel.invalidateCache()
         branchModel.invalidateCache()
-        this.notifyStorageDataChange?.()
+        this.notifyStorageDataChange?.("sync")
       },
     })
 
@@ -97,7 +97,10 @@ export class StorageController implements IStorageController {
   }
 
   //#region STORAGE
-  setupStorageBroadcasts(callbacks: {onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => void; onDataChange: () => void}): void {
+  setupStorageBroadcasts(callbacks: {
+    onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => void
+    onDataChange: (reason: StorageDataChangeReason) => void
+  }): void {
     this.notifyStorageStatusChange = callbacks.onStatusChange
     this.notifyStorageDataChange = callbacks.onDataChange
   }
@@ -160,7 +163,7 @@ export class StorageController implements IStorageController {
     const updatedTask = await this.tasksService.updateTask(id, updates)
     if (updatedTask) {
       await this.searchService.updateTaskInIndex(updatedTask)
-      this.notifyStorageDataChange?.()
+      this.notifyLocalDataChange()
     }
     return updatedTask
   }
@@ -173,7 +176,7 @@ export class StorageController implements IStorageController {
     const updatedTask = await this.tasksService.moveTaskByOrder(params)
     if (updatedTask) {
       await this.searchService.updateTaskInIndex(updatedTask)
-      this.notifyStorageDataChange?.()
+      this.notifyLocalDataChange()
     }
     return updatedTask
   }
@@ -191,7 +194,7 @@ export class StorageController implements IStorageController {
         await this.searchService.updateTaskInIndex(updatedTask)
       }
 
-      this.notifyStorageDataChange?.()
+      this.notifyLocalDataChange()
       return true
     } catch (error) {
       logger.error(logger.CONTEXT.TASKS, `Failed to move task ${taskId} to branch ${branchId}`, error)
@@ -204,7 +207,7 @@ export class StorageController implements IStorageController {
     const createdTask = await this.tasksService.createTask({...task, branchId})
     if (createdTask) {
       await this.searchService.addTaskToIndex(createdTask)
-      this.notifyStorageDataChange?.()
+      this.notifyLocalDataChange()
     }
     return createdTask
   }
@@ -213,7 +216,7 @@ export class StorageController implements IStorageController {
     const deleted = await this.tasksService.deleteTask(id)
     if (deleted) {
       this.searchService.removeTaskFromIndex(id)
-      this.notifyStorageDataChange?.()
+      this.notifyLocalDataChange()
     }
 
     return deleted
@@ -222,7 +225,7 @@ export class StorageController implements IStorageController {
   async addTaskAttachment(taskId: Task["id"], fileId: File["id"]): Promise<Task | null> {
     const addedTask = await this.tasksService.addTaskAttachment(taskId, fileId)
     if (addedTask) {
-      this.notifyStorageDataChange?.()
+      this.notifyLocalDataChange()
     }
     return addedTask
   }
@@ -230,7 +233,7 @@ export class StorageController implements IStorageController {
   async removeTaskAttachment(taskId: Task["id"], fileId: File["id"]): Promise<Task | null> {
     const removedTask = await this.tasksService.removeTaskAttachment(taskId, fileId)
     if (removedTask) {
-      this.notifyStorageDataChange?.()
+      this.notifyLocalDataChange()
     }
     return removedTask
   }
@@ -244,7 +247,7 @@ export class StorageController implements IStorageController {
     const restoredTask = await this.tasksService.restoreTask(id)
     if (restoredTask) {
       await this.searchService.updateTaskInIndex(restoredTask)
-      this.notifyStorageDataChange?.()
+      this.notifyLocalDataChange()
     }
     return restoredTask
   }
@@ -253,7 +256,7 @@ export class StorageController implements IStorageController {
     const deleted = await this.tasksService.permanentlyDeleteTask(id)
     if (deleted) {
       this.searchService.removeTaskFromIndex(id)
-      this.notifyStorageDataChange?.()
+      this.notifyLocalDataChange()
     }
     return deleted
   }
@@ -267,7 +270,7 @@ export class StorageController implements IStorageController {
       this.searchService.removeTaskFromIndex(id)
     }
 
-    this.notifyStorageDataChange?.()
+    this.notifyLocalDataChange()
     return deletedIds.length
   }
   //#endregion
@@ -284,7 +287,7 @@ export class StorageController implements IStorageController {
   async createBranch(branch: Omit<Branch, "id" | "createdAt" | "updatedAt" | "deletedAt">): Promise<Branch | null> {
     const createdBranch = await this.branchesService.createBranch(branch)
     if (createdBranch) {
-      this.notifyStorageDataChange?.()
+      this.notifyLocalDataChange()
     }
     return createdBranch
   }
@@ -292,7 +295,7 @@ export class StorageController implements IStorageController {
   async updateBranch(id: Branch["id"], updates: Pick<Branch, "name">): Promise<Branch | null> {
     const updatedBranch = await this.branchesService.updateBranch(id, updates)
     if (updatedBranch) {
-      this.notifyStorageDataChange?.()
+      this.notifyLocalDataChange()
     }
     return updatedBranch
   }
@@ -300,14 +303,14 @@ export class StorageController implements IStorageController {
   async deleteBranch(id: Branch["id"]): Promise<boolean> {
     const deleted = await this.branchesService.deleteBranch(id)
     if (deleted) {
-      this.notifyStorageDataChange?.()
+      this.notifyLocalDataChange()
     }
     return deleted
   }
 
   async setActiveBranch(id: Branch["id"]): Promise<void> {
     await this.branchesService.setActiveBranch(id)
-    this.notifyStorageDataChange?.()
+    this.notifyLocalDataChange()
   }
   //#endregion
 
@@ -323,7 +326,7 @@ export class StorageController implements IStorageController {
   async updateTag(id: Tag["id"], updates: Partial<Tag>): Promise<Tag | null> {
     const updatedTag = await this.tagsService.updateTag(id, updates)
     if (updatedTag) {
-      this.notifyStorageDataChange?.()
+      this.notifyLocalDataChange()
     }
     return updatedTag
   }
@@ -331,7 +334,7 @@ export class StorageController implements IStorageController {
   async createTag(tag: Omit<Tag, "id" | "createdAt" | "updatedAt">): Promise<Tag | null> {
     const createdTag = await this.tagsService.createTag(tag)
     if (createdTag) {
-      this.notifyStorageDataChange?.()
+      this.notifyLocalDataChange()
     }
     return createdTag
   }
@@ -339,7 +342,7 @@ export class StorageController implements IStorageController {
   async deleteTag(id: Tag["id"]): Promise<boolean> {
     const deleted = await this.tagsService.deleteTag(id)
     if (deleted) {
-      this.notifyStorageDataChange?.()
+      this.notifyLocalDataChange()
     }
     return deleted
   }
@@ -348,7 +351,7 @@ export class StorageController implements IStorageController {
     const updatedTask = await this.tasksService.addTaskTags(taskId, tagIds)
     if (updatedTask) {
       await this.searchService.updateTaskInIndex(updatedTask)
-      this.notifyStorageDataChange?.()
+      this.notifyLocalDataChange()
     }
     return updatedTask
   }
@@ -357,9 +360,9 @@ export class StorageController implements IStorageController {
     const updatedTask = await this.tasksService.removeTaskTags(taskId, tagIds)
     if (updatedTask) {
       await this.searchService.updateTaskInIndex(updatedTask)
-      this.notifyStorageDataChange?.()
+      this.notifyLocalDataChange()
     }
-    this.notifyStorageDataChange?.()
+    this.notifyLocalDataChange()
     return updatedTask
   }
   //#endregion
@@ -396,4 +399,8 @@ export class StorageController implements IStorageController {
     return this.filesService.cleanupOrphanFiles(tasks)
   }
   //#endregion
+
+  private notifyLocalDataChange(): void {
+    this.notifyStorageDataChange?.("local")
+  }
 }

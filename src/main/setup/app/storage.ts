@@ -1,4 +1,5 @@
 import type {IStorageController} from "@/types/storage"
+import type {StorageDataChangeReason} from "@shared/types/storage"
 import type {BrowserWindow} from "electron"
 
 export function setupStorageSync(getStorage: () => IStorageController | null, getMainWindow: () => BrowserWindow | null) {
@@ -16,10 +17,10 @@ export function setupStorageSync(getStorage: () => IStorageController | null, ge
         mainWindow.webContents.send("storage-sync:status-changed", status, prevStatus)
       }
     },
-    onDataChange: () => {
+    onDataChange: (reason: StorageDataChangeReason) => {
       const mainWindow = getMainWindow()
       if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send("storage-sync:data-changed")
+        mainWindow.webContents.send("storage-sync:data-changed", reason)
       }
     },
   })
