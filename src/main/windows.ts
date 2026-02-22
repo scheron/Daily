@@ -16,8 +16,7 @@ export function createMainWindow(savedState?: MainWindowSettings): BrowserWindow
     minWidth: APP_CONFIG.window.main.minWidth,
     height: restoredOptions.height,
     minHeight: APP_CONFIG.window.main.minHeight,
-    center: restoredOptions.center,
-    ...(typeof restoredOptions.x === "number" && typeof restoredOptions.y === "number" ? {x: restoredOptions.x, y: restoredOptions.y} : {}),
+    center: true,
     transparent: true,
     frame: false,
     show: false,
@@ -33,7 +32,11 @@ export function createMainWindow(savedState?: MainWindowSettings): BrowserWindow
     },
   })
 
-  if (savedState?.isMaximized) {
+  if (savedState?.isFullScreen) {
+    mainWindow.once("ready-to-show", () => {
+      mainWindow.setFullScreen(true)
+    })
+  } else if (savedState?.isMaximized) {
     mainWindow.maximize()
   }
 

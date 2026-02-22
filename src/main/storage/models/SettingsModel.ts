@@ -60,9 +60,8 @@ export class SettingsModel {
         main: {
           width: APP_CONFIG.window.main.width,
           height: APP_CONFIG.window.main.height,
-          x: null,
-          y: null,
           isMaximized: false,
+          isFullScreen: false,
         },
       },
     }

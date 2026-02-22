@@ -10,9 +10,8 @@ export type TaskMovePosition = "before" | "after"
 export type MainWindowSettings = {
   width: number
   height: number
-  x: number | null
-  y: number | null
   isMaximized: boolean
+  isFullScreen: boolean
 }
 
 export type Settings = {

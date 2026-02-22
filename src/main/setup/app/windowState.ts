@@ -49,6 +49,8 @@ export function setupMainWindowStatePersistence(getStorage: () => StorageControl
   mainWindow.on("resize", schedulePersist)
   mainWindow.on("maximize", schedulePersist)
   mainWindow.on("unmaximize", schedulePersist)
+  mainWindow.on("enter-full-screen", schedulePersist)
+  mainWindow.on("leave-full-screen", schedulePersist)
   mainWindow.on("close", () => {
     if (saveTimer) {
       clearTimeout(saveTimer)
@@ -60,13 +62,13 @@ export function setupMainWindowStatePersistence(getStorage: () => StorageControl
 
 function getCurrentMainWindowState(mainWindow: BrowserWindow): MainWindowSettings {
   const isMaximized = mainWindow.isMaximized()
-  const bounds = isMaximized ? mainWindow.getNormalBounds() : mainWindow.getBounds()
+  const isFullScreen = mainWindow.isFullScreen()
+  const bounds = isMaximized || isFullScreen ? mainWindow.getNormalBounds() : mainWindow.getBounds()
 
   return {
     width: bounds.width,
     height: bounds.height,
-    x: bounds.x,
-    y: bounds.y,
     isMaximized,
+    isFullScreen,
   }
 }

@@ -195,9 +195,8 @@ export function docToSettings(doc: SettingsDoc): Settings {
       main: {
         width: typeof mainWindow?.width === "number" ? mainWindow.width : APP_CONFIG.window.main.width,
         height: typeof mainWindow?.height === "number" ? mainWindow.height : APP_CONFIG.window.main.height,
-        x: typeof mainWindow?.x === "number" ? mainWindow.x : null,
-        y: typeof mainWindow?.y === "number" ? mainWindow.y : null,
         isMaximized: Boolean(mainWindow?.isMaximized),
+        isFullScreen: Boolean(mainWindow?.isFullScreen),
       },
     },
   }
