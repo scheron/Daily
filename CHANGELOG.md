@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### 🐛 Bug Fixes
+
+- Fixed main window state restore on app restart:
+  - Window size is now persisted and restored correctly.
+  - Fullscreen and maximized states are restored correctly between sessions.
+
 ## v0.12.0 - 2026-02-22
 
 ### ✨ New Features
