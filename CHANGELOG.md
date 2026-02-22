@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## v0.12.2 - 2026-02-22
+
+### 🐛 Bug Fixes
+
+- Fixed extra width in board mode layout
+
 ## v0.12.1 - 2026-02-22
 
 ### 🐛 Bug Fixes
