@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- Image preview modal for task content images (single-image view).
+- Task context menu now has separate actions: `Copy ID` and `Copy Task`.
+- Added `Delete All` in `Settings -> Deleted Tasks` with confirmation.
+
 ## v0.11.0 - 2026-02-21
 
 This release focuses on faster task organization, clearer layouts, and smoother day-to-day planning.
