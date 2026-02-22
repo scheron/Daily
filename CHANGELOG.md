@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## v0.12.1 - 2026-02-22
+
 ### 🐛 Bug Fixes
 
 - Fixed main window state restore on app restart:
