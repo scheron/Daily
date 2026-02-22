@@ -47,7 +47,25 @@ export class LocalAiClient extends OpenAiCompatibleClient implements IAiClient {
   }
 
   protected getChatConfig() {
-    return this.runtimeConfig
+    if (!this.runtimeConfig) return null
+
+    const modelId = this.config?.model
+    if (!modelId) return this.runtimeConfig
+
+    const manifest = getManifestEntry(modelId)
+    if (!manifest) return this.runtimeConfig
+
+    const params = this.config?.params
+    return {
+      ...this.runtimeConfig,
+      temperature: params?.temperature ?? manifest.serverArgs.temperature,
+      top_p: params?.topP,
+      top_k: params?.topK,
+      max_tokens: params?.maxTokens,
+      repeat_penalty: params?.repeatPenalty,
+      repeat_last_n: params?.repeatLastN,
+      seed: params?.seed,
+    }
   }
 
   async checkConnection(): Promise<boolean> {

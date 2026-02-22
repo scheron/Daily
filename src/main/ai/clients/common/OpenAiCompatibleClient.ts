@@ -73,6 +73,19 @@ export abstract class OpenAiCompatibleClient implements IAiClient {
     logger.info(logger.CONTEXT.AI, `${this.getClientName()} chat request`, {model: config.model, messagesCount: messages.length})
 
     const openAiMessages = this.convertMessages(messages, config.model)
+    const requestBody: ChatRequest = {
+      model: config.model,
+      messages: openAiMessages,
+      tools,
+      stream: false,
+      temperature: config.temperature,
+      top_p: config.top_p,
+      top_k: config.top_k,
+      max_tokens: config.max_tokens,
+      repeat_penalty: config.repeat_penalty,
+      repeat_last_n: config.repeat_last_n,
+      seed: config.seed,
+    }
 
     const response = await fetch(`${config.baseUrl}/chat/completions`, {
       method: "POST",
@@ -80,12 +93,7 @@ export abstract class OpenAiCompatibleClient implements IAiClient {
         "Content-Type": "application/json",
         Authorization: `Bearer ${config.apiKey}`,
       },
-      body: JSON.stringify({
-        model: config.model,
-        messages: openAiMessages,
-        tools,
-        stream: false,
-      } satisfies ChatRequest),
+      body: JSON.stringify(requestBody),
       signal,
     })
 

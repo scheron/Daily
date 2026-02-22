@@ -16,6 +16,21 @@ export class LocalModelService implements ILocalModelService {
 
   async init(): Promise<void> {
     await fs.ensureDir(fsPaths.modelsPath())
+    await this.cleanupOrphanedModels()
+  }
+
+  private async cleanupOrphanedModels(): Promise<void> {
+    const modelsDir = fsPaths.modelsPath()
+    const manifestFiles = new Set(MODEL_MANIFEST.map((entry) => entry.ggufFilename))
+    const files = await fs.readdir(modelsDir)
+
+    const orphanedFiles = files.filter((file) => file.toLowerCase().endsWith(".gguf") && !manifestFiles.has(file))
+
+    for (const file of orphanedFiles) {
+      const filePath = path.join(modelsDir, file)
+      await fs.remove(filePath)
+      logger.info(logger.CONTEXT.AI, "Removed orphaned local model file", {file})
+    }
   }
 
   async isInstalled(modelId: LocalModelId): Promise<boolean> {
