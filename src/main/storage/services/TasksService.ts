@@ -158,6 +158,20 @@ export class TasksService {
     return this.taskModel.permanentlyDeleteTask(id)
   }
 
+  async permanentlyDeleteAllDeletedTasks(): Promise<Task["id"][]> {
+    const deletedTasks = await this.taskModel.getDeletedTasks()
+    if (!deletedTasks.length) return []
+
+    const deletedIds: Task["id"][] = []
+
+    for (const task of deletedTasks) {
+      const isDeleted = await this.taskModel.permanentlyDeleteTask(task.id)
+      if (isDeleted) deletedIds.push(task.id)
+    }
+
+    return deletedIds
+  }
+
   async addTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Promise<Task | null> {
     const task = await this.taskModel.getTask(taskId)
     if (!task) return null

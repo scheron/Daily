@@ -143,6 +143,15 @@ export class StorageAPI implements Storage {
       return false
     }
   }
+
+  async permanentlyDeleteAllDeletedTasks(): Promise<number> {
+    try {
+      return await window.BridgeIPC["tasks:delete-all-permanently"]()
+    } catch (error) {
+      console.error("Failed to permanently delete all deleted tasks", error)
+      return 0
+    }
+  }
   //#endregion
 
   //#region TAGS

@@ -78,6 +78,7 @@ export interface Storage {
    * @returns The deleted task
    */
   permanentlyDeleteTask(id: Task["id"]): Promise<boolean>
+  permanentlyDeleteAllDeletedTasks(): Promise<number>
   addTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Promise<Task | null>
   removeTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Promise<Task | null>
 

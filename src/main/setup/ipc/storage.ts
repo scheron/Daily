@@ -23,6 +23,7 @@ export function setupStorageIPC(getStorage: () => IStorageController | null): vo
   ipcMain.handle("tasks:get-deleted", (_e, params?: {limit?: number}) => getStorage()?.getDeletedTasks(params))
   ipcMain.handle("tasks:restore", (_e, id: Task["id"]) => getStorage()?.restoreTask(id))
   ipcMain.handle("tasks:delete-permanently", (_e, id: Task["id"]) => getStorage()?.permanentlyDeleteTask(id))
+  ipcMain.handle("tasks:delete-all-permanently", () => getStorage()?.permanentlyDeleteAllDeletedTasks())
 
   ipcMain.handle("search:query", (_e, query: string) => getStorage()?.searchTasks(query))
 

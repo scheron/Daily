@@ -7,8 +7,10 @@ import {useStorageStore} from "@/stores/storage.store"
 import {useTasksStore} from "@/stores/tasks.store"
 import {useLoadingState} from "@/composables/useLoadingState"
 import {highlightElement, scrollToElement} from "@/utils/ui/dom"
+import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseIcon from "@/ui/base/BaseIcon"
 import BaseSkeleton from "@/ui/base/BaseSkeleton.vue"
+import ConfirmPopup from "@/ui/common/misc/ConfirmPopup.vue"
 
 import {API} from "@/api"
 import DeletedTaskItem from "./{fragments}/DeletedTaskItem.vue"
@@ -20,6 +22,7 @@ const storageStore = useStorageStore()
 
 const deletedTasks = ref<Task[]>([])
 const {isLoading, isLoaded, setState} = useLoadingState("IDLE")
+const isDeletingAll = ref(false)
 
 async function onRestore(task: Task) {
   const restoredTask = await API.restoreTask(task.id)
@@ -46,10 +49,53 @@ onMounted(async () => {
 storageStore.onStorageDataChanged(async () => {
   deletedTasks.value = await API.getDeletedTasks()
 })
+
+async function onDeleteAll() {
+  if (!deletedTasks.value.length || isDeletingAll.value) return
+
+  isDeletingAll.value = true
+
+  const deletedCount = await API.permanentlyDeleteAllDeletedTasks()
+  if (deletedCount > 0) {
+    toasts.success(`${deletedCount} task${deletedCount === 1 ? "" : "s"} permanently deleted`)
+    deletedTasks.value = await API.getDeletedTasks()
+  } else {
+    toasts.error("Failed to permanently delete tasks")
+  }
+
+  isDeletingAll.value = false
+}
 </script>
 
 <template>
   <div class="flex flex-1 flex-col gap-3">
+    <div v-if="isLoaded && deletedTasks.length" class="w-full">
+      <ConfirmPopup
+        title="Delete all forever?"
+        message="All deleted tasks will be removed permanently. This cannot be undone."
+        cancel-text="Cancel"
+        confirm-class="text-error hover:bg-error/10"
+        confirm-text="Delete all"
+        position="end"
+        content-class="max-w-64"
+        @confirm="onDeleteAll"
+      >
+        <template #trigger="{show}">
+          <BaseButton
+            variant="ghost"
+            size="sm"
+            icon="trash"
+            class="text-error hover:bg-error/10 w-full"
+            :loading="isDeletingAll"
+            :disabled="isDeletingAll"
+            @click="show()"
+          >
+            Delete All
+          </BaseButton>
+        </template>
+      </ConfirmPopup>
+    </div>
+
     <div v-if="isLoading" class="text-base-content/60 flex h-full flex-col items-center justify-center gap-3">
       <BaseSkeleton v-for="i in 3" :key="i" class="h-24 w-full" />
     </div>

@@ -23,6 +23,7 @@ export interface IStorageController {
   getDeletedTasks(params?: {limit?: number}): Promise<Task[]>
   restoreTask(id: Task["id"]): Promise<Task | null>
   permanentlyDeleteTask(id: Task["id"]): Promise<boolean>
+  permanentlyDeleteAllDeletedTasks(): Promise<number>
 
   searchTasks(query: string): Promise<TaskSearchResult[]>
 

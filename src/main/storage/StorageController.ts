@@ -225,6 +225,18 @@ export class StorageController implements IStorageController {
     }
     return deleted
   }
+
+  async permanentlyDeleteAllDeletedTasks(): Promise<number> {
+    const deletedIds = await this.tasksService.permanentlyDeleteAllDeletedTasks()
+    if (!deletedIds.length) return 0
+
+    for (const id of deletedIds) {
+      this.searchService.removeTaskFromIndex(id)
+    }
+
+    this.notifyStorageDataChange?.()
+    return deletedIds.length
+  }
   //#endregion
 
   //#region TAGS
