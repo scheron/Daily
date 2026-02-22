@@ -10,16 +10,23 @@ withDefaults(
     title: string
     days: Day[]
     activeDay: string
+    hideOnSelect?: boolean
     selectedDay?: ISODate | null
   }>(),
   {
     days: () => [],
     title: "Select Day",
     selectedDay: null,
+    hideOnSelect: false,
   },
 )
 
 const emit = defineEmits<{select: [date: ISODate]; close: []}>()
+
+function onSelect(date: ISODate, hide: () => void) {
+  emit("select", date)
+  hide()
+}
 </script>
 
 <template>
@@ -28,14 +35,16 @@ const emit = defineEmits<{select: [date: ISODate]; close: []}>()
       <slot name="trigger" :toggle="toggle" :hide="hide" :show="show" />
     </template>
 
-    <BaseCalendar
-      mode="single"
-      :days="days"
-      :selected-date="selectedDay"
-      :show-today-button="false"
-      :initial-month="activeDay"
-      size="sm"
-      @select-date="emit('select', $event)"
-    />
+    <template #default="{hide}">
+      <BaseCalendar
+        mode="single"
+        :days="days"
+        :selected-date="selectedDay"
+        :show-today-button="false"
+        :initial-month="activeDay"
+        size="sm"
+        @select-date="onSelect($event, hide)"
+      />
+    </template>
   </BasePopup>
 </template>
