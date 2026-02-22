@@ -130,6 +130,7 @@ export class AIController {
         tier: promptTier,
         provider: config.provider,
         model: config.openai?.model ?? config.local?.model,
+        systemPromptLength: systemPrompt.length,
       })
 
       while (iterations < maxIterations) {
@@ -148,6 +149,14 @@ export class AIController {
             : []),
           ...this.conversationHistory,
         ]
+
+        const lastUserMessage = [...this.conversationHistory].reverse().find((m) => m.role === "user")
+        logger.debug(logger.CONTEXT.AI, "Prepared LLM messages", {
+          iteration: iterations,
+          messagesCount: messages.length,
+          lastUserMessageLength: lastUserMessage?.content?.length ?? 0,
+          systemPromptLength: systemPrompt.length,
+        })
 
         const response = await this.callLLM(messages, promptTier)
         const assistantMessage = response.message

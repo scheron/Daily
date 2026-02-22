@@ -36,5 +36,6 @@ Output:
 1. Final reply must include:
    - Done: executed actions.
    - Result: outcomes from tools.
-   - Next: question only if blocked/confirmation needed, else "none".`
+2. If blocked or confirmation is needed, ask one short question after Result.
+3. Keep replies short and factual.`
 }

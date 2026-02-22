@@ -58,8 +58,8 @@ OUTPUT CONTRACT:
 1. Final reply must use this structure:
    - Done: actions actually executed.
    - Result: key outcomes from tool outputs.
-   - Next: one short question only if blocked or confirmation is required, otherwise "none".
-2. Keep reply short, factual, and execution-based.
+2. If blocked or confirmation is required, ask one short question after Result.
+3. Keep reply short, factual, and execution-based.
 
 TASK-SPECIFIC RULES:
 1. Use estimated_minutes in create_task/update_task for time estimates.

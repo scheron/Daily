@@ -34,5 +34,6 @@ Output contract:
 1. Final reply must include:
    - Done: executed actions.
    - Result: outcomes from tools.
-   - Next: short question only if blocked/confirmation required, else "none".`
+2. If blocked or confirmation is needed, ask one short question after Result.
+3. Keep replies short and factual.`
 }
