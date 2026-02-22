@@ -198,7 +198,7 @@ watch(
       <div
         v-for="column in visibleColumns"
         :key="column.status"
-        class="bg-base-100 border-base-300 flex h-full min-w-0 flex-col rounded-xl border"
+        class="bg-base-100 border-base-300 flex h-full min-w-0 flex-col overflow-hidden rounded-xl border"
         :class="isColumnCollapsed(column.status) ? 'max-w-20 min-w-20' : 'min-w-88 flex-1'"
         @dragenter="onColumnDragEnter(column.status)"
       >
