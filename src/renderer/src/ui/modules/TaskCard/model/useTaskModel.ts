@@ -4,7 +4,6 @@ import {useClipboard} from "@vueuse/core"
 
 import {useTaskEditorStore} from "@/stores/taskEditor.store"
 import {useTasksStore} from "@/stores/tasks.store"
-import {buildTaskDetails} from "@/utils/tasks/buildTaskDetails"
 
 import type {ISODate} from "@shared/types/common"
 import type {LayoutType, Tag, Task, TaskStatus} from "@shared/types/storage"
@@ -19,7 +18,6 @@ export function useTaskModel(rawProps: MaybeRefOrGetter<TaskModelProps>) {
   const {copy} = useClipboard({legacy: true})
 
   const task = computed(() => toValue(rawProps).task)
-  const tags = computed(() => toValue(rawProps).tags ?? [])
   const view = computed(() => toValue(rawProps).view ?? "list")
   const moveScope = computed(() => {
     if (!task.value) return []
@@ -73,12 +71,22 @@ export function useTaskModel(rawProps: MaybeRefOrGetter<TaskModelProps>) {
     else toasts.error("Failed to move task")
   }
 
-  async function copyToClipboardTask() {
+  async function copyTaskIdToClipboard() {
     if (!task.value) return
 
     try {
-      const text = buildTaskDetails(task.value, tags.value)
-      await copy(text)
+      await copy(task.value.id)
+      toasts.success("Task ID copied to clipboard")
+    } catch {
+      toasts.error("Failed to copy task ID")
+    }
+  }
+
+  async function copyTaskContentToClipboard() {
+    if (!task.value) return
+
+    try {
+      await copy(task.value.content)
       toasts.success("Task copied to clipboard")
     } catch {
       toasts.error("Failed to copy task")
@@ -169,7 +177,8 @@ export function useTaskModel(rawProps: MaybeRefOrGetter<TaskModelProps>) {
     toggleMinimized,
     deleteTask,
     rescheduleTask,
-    copyToClipboardTask,
+    copyTaskIdToClipboard,
+    copyTaskContentToClipboard,
     updateTaskTags,
   }
 }

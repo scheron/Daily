@@ -26,29 +26,13 @@ const props = withDefaults(defineProps<{task: Task; tags?: Tag[]; view?: LayoutT
 const tasksStore = useTasksStore()
 const contextMenuRef = useTemplateRef<InstanceType<typeof ContextMenu>>("contextMenu")
 
-const {
-  startEdit,
-  changeStatus,
-  canMoveUp,
-  canMoveDown,
-  canMoveToTop,
-  canMoveToBottom,
-  moveUp,
-  moveDown,
-  moveToTop,
-  moveToBottom,
-  toggleMinimized,
-  deleteTask,
-  rescheduleTask,
-  copyToClipboardTask,
-  updateTaskTags,
-} = useTaskModel(props)
+const {canMoveUp, canMoveDown, canMoveToTop, canMoveToBottom, ...taskModel} = useTaskModel(props)
 const canMinimize = ref(false)
 
 const isColumnView = computed(() => props.view === "columns")
 
 const menuItems = computed<ContextMenuItem[]>(() => {
-  const items: ContextMenuItem[] = [
+  return [
     {value: "edit", label: "Edit", icon: "pencil"},
     {separator: true},
     {
@@ -65,6 +49,12 @@ const menuItems = computed<ContextMenuItem[]>(() => {
     {value: "reschedule", label: "Reschedule", icon: "calendar", children: true},
     {separator: true},
     {
+      value: "toggle-minimized",
+      label: props.task.minimized ? "Expand" : "Collapse",
+      icon: props.task.minimized ? "maximize" : "minimize",
+      disabled: !canMinimize.value,
+    },
+    {
       value: "move",
       label: "Move",
       icon: "move",
@@ -76,29 +66,11 @@ const menuItems = computed<ContextMenuItem[]>(() => {
       ],
     },
     {separator: true},
-  ]
-
-  items.push({
-    value: "toggle-minimized",
-    label: props.task.minimized ? "Expand" : "Collapse",
-    icon: props.task.minimized ? "maximize" : "minimize",
-    disabled: !canMinimize.value,
-  })
-
-  items.push(
-    {value: "copy", label: "Copy", icon: "copy"},
+    {value: "copy-id", label: "Copy ID", icon: "copy"},
+    {value: "copy-task", label: "Copy Task", icon: "copy"},
     {separator: true},
-    {
-      value: "delete",
-      label: "Delete",
-      icon: "trash",
-      class: "text-error hover:bg-error/10",
-      classIcon: "text-error",
-      classLabel: "text-error",
-    },
-  )
-
-  return items
+    {value: "delete", label: "Delete", icon: "trash", class: "text-error hover:bg-error/10", classIcon: "text-error", classLabel: "text-error"},
+  ]
 })
 
 function getStatusClass(status: TaskStatus) {
@@ -114,14 +86,15 @@ function getStatusClass(status: TaskStatus) {
 }
 
 function onSelect(event: ContextMenuSelectEvent) {
-  if (event.item.value === "edit") startEdit()
-  if (event.item.value === "move-top") moveToTop()
-  if (event.item.value === "move-up") moveUp()
-  if (event.item.value === "move-down") moveDown()
-  if (event.item.value === "move-bottom") moveToBottom()
-  if (event.item.value === "toggle-minimized") toggleMinimized()
-  if (event.item.value === "copy") copyToClipboardTask()
-  if (event.parent && event.parent.item.value === "status") changeStatus(event.item.value as TaskStatus)
+  if (event.item.value === "edit") taskModel.startEdit()
+  if (event.item.value === "move-top") taskModel.moveToTop()
+  if (event.item.value === "move-up") taskModel.moveUp()
+  if (event.item.value === "move-down") taskModel.moveDown()
+  if (event.item.value === "move-bottom") taskModel.moveToBottom()
+  if (event.item.value === "toggle-minimized") taskModel.toggleMinimized()
+  if (event.item.value === "copy-id") taskModel.copyTaskIdToClipboard()
+  if (event.item.value === "copy-task") taskModel.copyTaskContentToClipboard()
+  if (event.parent && event.parent.item.value === "status") taskModel.changeStatus(event.item.value as TaskStatus)
 }
 
 function onMinimizeAvailabilityChange(isAvailable: boolean) {
@@ -129,7 +102,7 @@ function onMinimizeAvailabilityChange(isAvailable: boolean) {
 }
 
 async function onDeleteFromMenu() {
-  const isDeleted = await deleteTask()
+  const isDeleted = await taskModel.deleteTask()
   if (isDeleted) contextMenuRef.value?.close()
 }
 </script>
@@ -160,19 +133,19 @@ async function onDeleteFromMenu() {
           <div class="flex shrink-0 items-center gap-2" data-task-dnd-ignore="true">
             <template v-if="isColumnView">
               <TimeTrackingButton :task="task" />
-              <StatusSelect :status="task.status" @update:status="changeStatus" />
+              <StatusSelect :status="task.status" @update:status="taskModel.changeStatus" />
             </template>
 
             <template v-else>
               <QuickActions
                 :task-date="task.scheduled.date"
                 :minimized="task.minimized"
-                @move-date="rescheduleTask"
-                @edit="startEdit"
-                @delete="deleteTask"
+                @move-date="taskModel.rescheduleTask"
+                @edit="taskModel.startEdit"
+                @delete="taskModel.deleteTask"
               />
               <TimeTrackingButton :task="task" />
-              <StatusButtons :status="task.status" @update:status="changeStatus" />
+              <StatusButtons :status="task.status" @update:status="taskModel.changeStatus" />
             </template>
           </div>
         </div>
@@ -188,13 +161,13 @@ async function onDeleteFromMenu() {
 
     <template #child-tags>
       <div class="max-h-72 overflow-y-auto p-1">
-        <TagsMenu :task="task" @update="updateTaskTags" />
+        <TagsMenu :task="task" @update="taskModel.updateTaskTags" />
       </div>
     </template>
 
     <template #child-reschedule>
       <div class="p-1">
-        <BaseCalendar mode="single" :days="tasksStore.days" :selected-date="task.scheduled.date" size="sm" @select-date="rescheduleTask" />
+        <BaseCalendar mode="single" :days="tasksStore.days" :selected-date="task.scheduled.date" size="sm" @select-date="taskModel.rescheduleTask" />
       </div>
     </template>
 

@@ -51,6 +51,7 @@ export interface BridgeIPC {
   "tasks:get-deleted": (params?: {limit?: number}) => Promise<Task[]>
   "tasks:restore": (id: Task["id"]) => Promise<Task | null>
   "tasks:delete-permanently": (id: Task["id"]) => Promise<boolean>
+  "tasks:delete-all-permanently": () => Promise<number>
 
   // === SEARCH  ===
   "search:query": (query: string) => Promise<TaskSearchResult[]>
