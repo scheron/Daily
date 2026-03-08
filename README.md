@@ -128,6 +128,14 @@ Daily stores data locally on your Mac by default.
 
 ## Installation
 
+Install with Homebrew:
+
+```bash
+brew install --cask scheron/tap/daily
+```
+
+Or install manually:
+
 1. Open [Releases](https://github.com/scheron/Daily/releases)
 2. Download the latest macOS `.dmg`
 3. Move **Daily.app** to **Applications**
@@ -138,23 +146,14 @@ If macOS blocks launch because the app is not notarized, run:
 xattr -rd com.apple.quarantine /Applications/Daily.app
 ```
 
-Quick install (optional):
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/scheron/Daily/main/scripts/install/install-mac.sh | sh
-```
-
-> [!WARNING]
-> `curl | sh` executes a remote script. Prefer the Releases package when possible, or review the script first.
-
 ---
 
 ## Updating
 
-If installed via script, update with:
+If installed via Homebrew, update with:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/scheron/Daily/main/scripts/install/update-mac.sh | sh
+brew upgrade --cask scheron/tap/daily
 ```
 
-Or download the latest release manually from [Releases](https://github.com/scheron/Daily/releases).
+If installed manually, download the latest release from [Releases](https://github.com/scheron/Daily/releases).
