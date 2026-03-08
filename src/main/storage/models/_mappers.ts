@@ -171,6 +171,8 @@ export function docToSettings(doc: SettingsDoc): Settings {
   }
 
   const mainWindow = doc.data.window?.main
+  const updates = doc.data.updates
+  const cachedUpdate = updates?.cached ?? null
 
   return {
     version: doc.data.version,
@@ -198,6 +200,18 @@ export function docToSettings(doc: SettingsDoc): Settings {
         isMaximized: Boolean(mainWindow?.isMaximized),
         isFullScreen: Boolean(mainWindow?.isFullScreen),
       },
+    },
+    updates: {
+      skippedReleaseId: updates?.skippedReleaseId ?? null,
+      cached: cachedUpdate
+        ? {
+            releaseId: cachedUpdate.releaseId,
+            version: cachedUpdate.version,
+            hash: cachedUpdate.hash ?? null,
+            cachePath: cachedUpdate.cachePath ?? null,
+            downloadedAt: cachedUpdate.downloadedAt,
+          }
+        : null,
     },
   }
 }

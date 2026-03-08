@@ -101,7 +101,7 @@ app.whenReady().then(async () => {
 
   const main = setupMainWindow(windows, {showSplash: true})
 
-  setupUpdateManager(main)
+  setupUpdateManager(main, () => storage)
 
   logger.lifecycle(`${APP_CONFIG.name} started`)
 })

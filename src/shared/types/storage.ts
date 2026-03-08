@@ -14,6 +14,18 @@ export type MainWindowSettings = {
   isFullScreen: boolean
 }
 
+export type AppUpdateCacheState = {
+  /**
+   * Stable release identity (version + hash when available).
+   * Used to dedupe prompts and support "Skip this version".
+   */
+  releaseId: string
+  version: string
+  hash: string | null
+  cachePath: string | null
+  downloadedAt: ISODateTime
+}
+
 export type Settings = {
   version: string
   themes: {
@@ -55,6 +67,17 @@ export type Settings = {
   }
   window: {
     main: MainWindowSettings
+  }
+  updates: {
+    /**
+     * Persisted "do not show again" marker for a specific release.
+     * New releaseId resets prompt visibility naturally.
+     */
+    skippedReleaseId: string | null
+    /**
+     * Last release fetched via brew and available for install.
+     */
+    cached: AppUpdateCacheState | null
   }
 }
 

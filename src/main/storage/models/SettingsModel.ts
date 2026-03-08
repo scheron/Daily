@@ -64,6 +64,10 @@ export class SettingsModel {
           isFullScreen: false,
         },
       },
+      updates: {
+        skippedReleaseId: null,
+        cached: null,
+      },
     }
   }
 
