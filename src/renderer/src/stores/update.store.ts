@@ -20,9 +20,15 @@ const DEFAULT_UPDATE_STATE: AppUpdateState = {
 export const useUpdateStore = defineStore("update", () => {
   const state = ref<AppUpdateState>({...DEFAULT_UPDATE_STATE})
   const isInitialized = ref(false)
+  const dismissedVersion = ref<string | null>(null)
 
-  const isReadyToInstall = computed(() => state.value.status === "ready")
-  const isInstalling = computed(() => state.value.status === "installing")
+  const hasAvailableUpdate = computed(() => Boolean(state.value.availableVersion))
+  const isUpdating = computed(() => state.value.status === "downloading" || state.value.status === "installing")
+  const isPanelVisible = computed(() => {
+    if (!hasAvailableUpdate.value) return false
+    if (isUpdating.value) return true
+    return dismissedVersion.value !== state.value.availableVersion
+  })
 
   async function init(): Promise<void> {
     if (isInitialized.value) return
@@ -32,8 +38,12 @@ export const useUpdateStore = defineStore("update", () => {
       const previousState = state.value
       state.value = nextState
 
-      if (nextState.status === "ready" && previousState.status !== "ready" && nextState.availableVersion) {
-        toasts.success(`Update ${nextState.availableVersion} is ready`)
+      if (nextState.availableVersion !== previousState.availableVersion) {
+        dismissedVersion.value = null
+      }
+
+      if (!nextState.availableVersion) {
+        dismissedVersion.value = null
       }
 
       if (nextState.status === "idle" && nextState.reason && nextState.reason !== previousState.reason) {
@@ -53,15 +63,20 @@ export const useUpdateStore = defineStore("update", () => {
   }
 
   async function installUpdate(): Promise<boolean> {
-    if (!isReadyToInstall.value) return false
+    if (!hasAvailableUpdate.value || isUpdating.value || state.value.status === "checking") return false
 
     state.value = {
       ...state.value,
-      status: "installing",
+      status: "downloading",
       reason: null,
     }
 
     return await window.BridgeIPC["updates:install"]()
+  }
+
+  function dismissPanel(): void {
+    if (!state.value.availableVersion || isUpdating.value) return
+    dismissedVersion.value = state.value.availableVersion
   }
 
   invoke(init)
@@ -69,10 +84,12 @@ export const useUpdateStore = defineStore("update", () => {
   return {
     state,
     isInitialized,
-    isReadyToInstall,
-    isInstalling,
+    hasAvailableUpdate,
+    isUpdating,
+    isPanelVisible,
     init,
     checkForUpdates,
     installUpdate,
+    dismissPanel,
   }
 })

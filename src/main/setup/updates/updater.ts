@@ -72,12 +72,10 @@ export function getUpdateState(): AppUpdateState {
 export async function checkForUpdate(options?: {manual?: boolean}): Promise<AppUpdateState> {
   const manual = options?.manual ?? true
 
-  console.log("checkForUpdate", options)
-  console.log("isUpdaterSupported", isUpdaterSupported())
   if (!isUpdaterSupported()) {
     setUpdateState({
       status: "unavailable",
-      reason: "In-app updates are available only in packaged macOS builds.",
+      reason: "In-app updates are available only on macOS.",
       checkedAt: new Date().toISOString(),
     })
     return getUpdateState()
@@ -94,7 +92,6 @@ export async function checkForUpdate(options?: {manual?: boolean}): Promise<AppU
 
   try {
     const settings = await loadSettingsSafe()
-    const cachedUpdate = await getUsableCachedRelease(settings?.updates.cached ?? null)
     const release = await resolveLatestRelease()
     const installedRelease = settings?.updates.installed ?? null
 
@@ -105,9 +102,6 @@ export async function checkForUpdate(options?: {manual?: boolean}): Promise<AppU
       latestVersion: release.version,
       latestHash: release.hash,
       latestSource: release.source,
-      cachedVersion: cachedUpdate?.version ?? null,
-      cachedHash: cachedUpdate?.hash ?? null,
-      cachedSource: cachedUpdate?.source ?? null,
       installedVersion: installedRelease?.version ?? null,
       installedHash: installedRelease?.hash ?? null,
       installedSource: installedRelease?.source ?? null,
@@ -120,7 +114,7 @@ export async function checkForUpdate(options?: {manual?: boolean}): Promise<AppU
         latestHash: release.hash,
       })
 
-      await clearCachedUpdateState(cachedUpdate)
+      await clearCachedUpdateState()
       setUpdateState({
         status: "idle",
         source: release.source,
@@ -134,20 +128,7 @@ export async function checkForUpdate(options?: {manual?: boolean}): Promise<AppU
       return getUpdateState()
     }
 
-    if (isMatchingCachedRelease(cachedUpdate, release)) {
-      logger.info(logger.CONTEXT.UPDATES, "Using cached update release", {
-        currentVersion: app.getVersion(),
-        cachedVersion: cachedUpdate.version,
-        cachedHash: cachedUpdate.hash,
-        latestVersion: release.version,
-        latestHash: release.hash,
-      })
-
-      setReadyState(cachedUpdate, release, manual ? null : updateState.reason)
-      return getUpdateState()
-    }
-
-    logger.info(logger.CONTEXT.UPDATES, "Downloading newer release", {
+    logger.info(logger.CONTEXT.UPDATES, "Update available", {
       currentVersion: app.getVersion(),
       currentHash: installedRelease?.hash ?? null,
       latestVersion: release.version,
@@ -155,24 +136,16 @@ export async function checkForUpdate(options?: {manual?: boolean}): Promise<AppU
       latestSource: release.source,
     })
 
-    const downloaded = await downloadRelease(release)
-    await replaceCachedUpdate(downloaded, cachedUpdate)
-    setReadyState(downloaded, release)
+    await clearCachedUpdateState()
+    setReadyState(release, manual ? `Update ${release.version} is available.` : null)
   } catch (error: any) {
     logger.error(logger.CONTEXT.UPDATES, "Update manager failed", error)
-
-    const settings = await loadSettingsSafe()
-    const cachedUpdate = await getUsableCachedRelease(settings?.updates.cached ?? null)
-    if (cachedUpdate && compareVersions(cachedUpdate.version, app.getVersion()) > 0) {
-      setReadyState(cachedUpdate, cachedUpdate, "Latest check failed. Cached update is still ready to install.")
-    } else {
-      setUpdateState({
-        status: "error",
-        reason: error?.message ?? "Failed to check for updates.",
-        downloadProgress: null,
-        checkedAt: new Date().toISOString(),
-      })
-    }
+    setUpdateState({
+      status: "error",
+      reason: error?.message ?? "Failed to check for updates.",
+      downloadProgress: null,
+      checkedAt: new Date().toISOString(),
+    })
   } finally {
     isCheckingForUpdate = false
   }
@@ -184,31 +157,48 @@ export async function installDownloadedUpdate(): Promise<boolean> {
   if (!isUpdaterSupported()) {
     setUpdateState({
       status: "unavailable",
-      reason: "In-app updates are available only in packaged macOS builds.",
+      reason: "In-app updates are available only on macOS.",
     })
     return false
   }
 
-  const settings = await loadSettingsSafe()
-  const cachedUpdate = await getUsableCachedRelease(settings?.updates.cached ?? null)
-  if (!cachedUpdate) {
+  if (!updateState.availableVersion) {
     setUpdateState({
       status: "error",
-      reason: "Downloaded update was not found. Please check for updates again.",
-    })
-    return false
-  }
-
-  const installerPath = await createInstallerScript(cachedUpdate)
-  if (!installerPath) {
-    setUpdateState({
-      status: "error",
-      reason: "Failed to prepare the update installer.",
+      reason: "No update is available. Please check for updates again.",
     })
     return false
   }
 
   try {
+    const release = await resolveLatestRelease()
+    const settings = await loadSettingsSafe()
+
+    if (isInstalledRelease(release, settings)) {
+      setUpdateState({
+        status: "idle",
+        source: release.source,
+        availableVersion: null,
+        availableHash: null,
+        reason: "You're already using the latest version.",
+        checkedAt: new Date().toISOString(),
+      })
+      return false
+    }
+
+    const downloadedRelease = await downloadRelease(release)
+    const installerPath = await createInstallerScript(downloadedRelease)
+    if (!installerPath) {
+      setUpdateState({
+        status: "error",
+        source: release.source,
+        availableVersion: release.version,
+        availableHash: release.hash,
+        reason: "Failed to prepare the update installer.",
+      })
+      return false
+    }
+
     const child = spawn("/bin/sh", [installerPath], {
       detached: true,
       stdio: "ignore",
@@ -218,6 +208,9 @@ export async function installDownloadedUpdate(): Promise<boolean> {
 
     setUpdateState({
       status: "installing",
+      source: release.source,
+      availableVersion: release.version,
+      availableHash: release.hash,
       reason: null,
       downloadProgress: null,
     })
@@ -225,10 +218,11 @@ export async function installDownloadedUpdate(): Promise<boolean> {
     app.quit()
     return true
   } catch (error: any) {
-    logger.error(logger.CONTEXT.UPDATES, "Failed to launch installer script", error)
+    logger.error(logger.CONTEXT.UPDATES, "Failed to install update", error)
     setUpdateState({
       status: "error",
-      reason: error?.message ?? "Failed to start update installation.",
+      reason: error?.message ?? "Failed to install update.",
+      downloadProgress: null,
     })
     return false
   }
@@ -238,7 +232,7 @@ async function initializeUpdateManager(): Promise<void> {
   if (!isUpdaterSupported()) {
     setUpdateState({
       status: "unavailable",
-      reason: "In-app updates are available only in packaged macOS builds.",
+      reason: "In-app updates are available only on macOS.",
     })
     return
   }
@@ -257,12 +251,12 @@ function createDefaultUpdateState(): AppUpdateState {
     downloadProgress: null,
     downloadedAt: null,
     checkedAt: null,
-    reason: isUpdaterSupported() ? null : "In-app updates are available only in packaged macOS builds.",
+    reason: isUpdaterSupported() ? null : "In-app updates are available only on macOS.",
   }
 }
 
 function isUpdaterSupported(): boolean {
-  return app.isPackaged && process.platform === "darwin"
+  return process.platform === "darwin"
 }
 
 async function resolveLatestRelease(): Promise<ReleaseMeta> {
@@ -344,17 +338,13 @@ async function downloadRelease(release: ReleaseMeta): Promise<AppUpdateCacheStat
   }
 }
 
-function setReadyState(
-  cachedUpdate: AppUpdateCacheState,
-  release: Pick<ReleaseMeta, "source" | "version" | "hash">,
-  reason: string | null = null,
-): void {
+function setReadyState(release: Pick<ReleaseMeta, "source" | "version" | "hash">, reason: string | null = null): void {
   setUpdateState({
     status: "ready",
     source: release.source,
-    availableVersion: cachedUpdate.version,
-    availableHash: cachedUpdate.hash,
-    downloadedAt: cachedUpdate.downloadedAt,
+    availableVersion: release.version,
+    availableHash: release.hash,
+    downloadedAt: null,
     downloadProgress: null,
     checkedAt: new Date().toISOString(),
     reason,
@@ -374,6 +364,7 @@ async function applyPendingInstallResult(): Promise<void> {
         installed: installedRelease,
         skippedReleaseId: null,
       })
+      await removeManagedUpdateFiles()
     }
   } catch (error) {
     logger.error(logger.CONTEXT.UPDATES, "Failed to apply pending install marker", error)
@@ -590,21 +581,6 @@ async function getBrewCachePath(brewBinary: string): Promise<string | null> {
   return existsSync(cachePath) ? cachePath : null
 }
 
-async function getUsableCachedRelease(cached: AppUpdateCacheState | null): Promise<AppUpdateCacheState | null> {
-  if (!cached) return null
-  if (cached.source === "brew") {
-    if (!cached.cachePath) return cached
-    return existsSync(cached.cachePath) ? cached : null
-  }
-
-  if (!cached.cachePath) return null
-  return existsSync(cached.cachePath) ? cached : null
-}
-
-function isMatchingCachedRelease(cached: AppUpdateCacheState | null, release: Pick<ReleaseMeta, "releaseId">): cached is AppUpdateCacheState {
-  return Boolean(cached && cached.releaseId === release.releaseId)
-}
-
 function isInstalledRelease(release: ReleaseMeta, settings: Settings | null): boolean {
   if (compareVersions(app.getVersion(), release.version) !== 0) return false
 
@@ -615,44 +591,16 @@ function isInstalledRelease(release: ReleaseMeta, settings: Settings | null): bo
   return installed.releaseId === release.releaseId || installed.version === release.version
 }
 
-async function replaceCachedUpdate(next: AppUpdateCacheState, previous: AppUpdateCacheState | null): Promise<void> {
-  logger.info(logger.CONTEXT.UPDATES, "Replacing cached update", {
-    previousVersion: previous?.version ?? null,
-    previousHash: previous?.hash ?? null,
-    nextVersion: next.version,
-    nextHash: next.hash,
-    nextSource: next.source,
-  })
-
-  if (previous && previous.releaseId !== next.releaseId) {
-    await removeCachedReleaseFiles(previous)
-  }
-
-  await saveUpdatesPatch({
-    cached: next,
-    skippedReleaseId: null,
-  })
-}
-
-async function clearCachedUpdateState(cached?: AppUpdateCacheState | null): Promise<void> {
-  const nextCached = cached ?? (await loadSettingsSafe())?.updates.cached ?? null
-  if (nextCached) await removeCachedReleaseFiles(nextCached)
-
+async function clearCachedUpdateState(): Promise<void> {
+  await removeManagedUpdateFiles()
   await saveUpdatesPatch({cached: null})
 }
 
-async function removeCachedReleaseFiles(cached: AppUpdateCacheState): Promise<void> {
-  if (!cached.cachePath) return
-
+async function removeManagedUpdateFiles(): Promise<void> {
   try {
-    if (cached.source === "github") {
-      await rm(path.dirname(cached.cachePath), {recursive: true, force: true})
-      return
-    }
-
-    await rm(cached.cachePath, {force: true})
+    await rm(path.join(getManagedUpdatesDir(), "releases"), {recursive: true, force: true})
   } catch (error) {
-    logger.error(logger.CONTEXT.UPDATES, "Failed to remove cached update files", error)
+    logger.error(logger.CONTEXT.UPDATES, "Failed to remove managed update files", error)
   }
 }
 

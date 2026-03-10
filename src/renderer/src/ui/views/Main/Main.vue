@@ -9,6 +9,7 @@ import {useThemeStore} from "@/stores/theme.store"
 import {useUIStore} from "@/stores/ui.store"
 import {useDevice} from "@/composables/useDevice"
 import BaseAnimation from "@/ui/base/BaseAnimation.vue"
+import UpdateBanner from "@/ui/common/misc/UpdateBanner.vue"
 
 import {useContentSize} from "./composables/useContentSize"
 import Content from "./{fragments}/Content"
@@ -48,6 +49,8 @@ window.BridgeIPC["shortcut:ui:toggle-tasks-view-mode"](() => uiStore.toggleTasks
 
 <template>
   <div ref="container" class="app-shell bg-base-300 flex h-dvh w-dvw overflow-hidden">
+    <UpdateBanner />
+
     <Sidebar v-if="isDesktop && !uiStore.isSidebarCollapsed" :content-height="contentHeight" :data-loaded="isDataLoaded" />
 
     <template v-else-if="isTablet">
