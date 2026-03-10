@@ -150,8 +150,6 @@ export async function checkForUpdate(options?: {manual?: boolean}): Promise<AppU
     logger.info(logger.CONTEXT.UPDATES, "Downloading newer release", {
       currentVersion: app.getVersion(),
       currentHash: installedRelease?.hash ?? null,
-      previousCachedVersion: cachedUpdate?.version ?? null,
-      previousCachedHash: cachedUpdate?.hash ?? null,
       latestVersion: release.version,
       latestHash: release.hash,
       latestSource: release.source,
