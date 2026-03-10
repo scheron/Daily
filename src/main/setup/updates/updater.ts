@@ -260,16 +260,21 @@ function isUpdaterSupported(): boolean {
 }
 
 async function resolveLatestRelease(): Promise<ReleaseMeta> {
+  const githubRelease = await getGitHubReleaseMeta()
+  if (!githubRelease) throw new Error("Failed to read GitHub release metadata.")
+
   const brewBinary = await resolveBrewBinary()
   if (brewBinary && (await isCaskInstalled(brewBinary))) {
-    const release = await getBrewReleaseMeta(brewBinary)
-    if (!release) throw new Error("Failed to read Homebrew release metadata.")
-    return release
+    return {
+      source: "brew",
+      brewBinary,
+      version: githubRelease.version,
+      hash: githubRelease.hash,
+      releaseId: githubRelease.releaseId,
+    }
   }
 
-  const release = await getGitHubReleaseMeta()
-  if (!release) throw new Error("Failed to read GitHub release metadata.")
-  return release
+  return githubRelease
 }
 
 async function downloadRelease(release: ReleaseMeta): Promise<AppUpdateCacheState> {
@@ -480,30 +485,6 @@ async function isCaskInstalled(brewBinary: string): Promise<boolean> {
   return result.code === 0
 }
 
-async function getBrewReleaseMeta(brewBinary: string): Promise<BrewReleaseMeta | null> {
-  const result = await runCommand(brewBinary, ["info", "--cask", "--json=v2", BREW_CASK], 30_000)
-  if (result.code !== 0) {
-    logger.error(logger.CONTEXT.UPDATES, "brew info failed", {stdout: result.stdout, stderr: result.stderr})
-    return null
-  }
-
-  const parsed = parseJsonSafe<{casks?: Array<{version?: string; sha256?: unknown}>}>(result.stdout)
-  const cask = parsed?.casks?.[0]
-  const version = cask?.version
-  if (!version) return null
-
-  const hash = normalizeSha256(cask?.sha256)
-  const releaseId = buildReleaseId(version, hash)
-
-  return {
-    source: "brew",
-    brewBinary,
-    version,
-    hash,
-    releaseId,
-  }
-}
-
 async function getGitHubReleaseMeta(): Promise<GitHubReleaseMeta | null> {
   const response = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`, {
     headers: GITHUB_HEADERS,
@@ -543,22 +524,6 @@ async function getGitHubReleaseMeta(): Promise<GitHubReleaseMeta | null> {
 function normalizeVersion(tagName?: string): string | null {
   if (!tagName) return null
   return tagName.replace(/^v/i, "").trim() || null
-}
-
-function normalizeSha256(raw: unknown): string | null {
-  if (typeof raw === "string") {
-    return raw === "no_check" ? null : raw
-  }
-
-  if (raw && typeof raw === "object") {
-    for (const value of Object.values(raw as Record<string, unknown>)) {
-      if (typeof value === "string" && value !== "no_check") {
-        return value
-      }
-    }
-  }
-
-  return null
 }
 
 function normalizeGitHubDigest(digest?: string | null): string | null {
