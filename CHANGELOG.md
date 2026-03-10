@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-## v0.12.5 - 2026-03-10
+## v0.12.6 - 2026-03-10
 
 checking updates
 
