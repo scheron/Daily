@@ -1,46 +1,29 @@
-import Fuse from "fuse.js"
-
 import {calcLevenshteinDistance} from "@shared/utils/strings/calcLevenshteinDistance"
+import {normalize} from "@shared/utils/strings/normalize"
 
-import type {IFuseOptions} from "fuse.js"
 import type {SearchOptions, SearchResult, SearchTask} from "../../types/search"
 
 /**
- * Core fuzzy search engine using Fuse.js
+ * Core fuzzy search engine
  * Handles text normalization and search operations
  */
 export class SearchEngine {
-  private fuse: Fuse<SearchTask> | null = null
+  private isInitialized = false
   private collection: SearchTask[] = []
-  private readonly defaultOptions: IFuseOptions<SearchTask> = {
-    keys: ["content"],
-    threshold: 0.1,
-    ignoreLocation: true,
-    includeMatches: true,
-    includeScore: true,
-    minMatchCharLength: 3,
-    distance: 50,
-    useExtendedSearch: false,
-    ignoreFieldNorm: true,
-    findAllMatches: false,
-  }
 
   /**
    * Build the search index from an array of tasks
    */
   buildIndex(tasks: SearchTask[]): void {
     this.collection = tasks
-    this.fuse = new Fuse(this.collection, this.defaultOptions)
+    this.isInitialized = true
   }
 
   /**
    * Update the index with a modified task
    */
   updateTask(task: SearchTask): void {
-    if (!this.fuse) return
-
-    // Fuse.js doesn't have a native update method
-    // We need to remove and re-add the task
+    if (!this.isInitialized) return
     this.removeTask(task.id)
     this.addTask(task)
   }
@@ -49,27 +32,21 @@ export class SearchEngine {
    * Add a new task to the index
    */
   addTask(task: SearchTask): void {
-    if (!this.fuse) {
-      // If index doesn't exist yet, create it with this single task
+    if (!this.isInitialized) {
       this.buildIndex([task])
       return
     }
 
-    // Add to the collection
     this.collection.push(task)
-    this.fuse = new Fuse(this.collection, this.defaultOptions)
   }
 
   /**
    * Remove a task from the index
    */
   removeTask(taskId: string): void {
-    if (!this.fuse) {
-      return
-    }
+    if (!this.isInitialized) return
 
     this.collection = this.collection.filter((task) => task.id !== taskId)
-    this.fuse = new Fuse(this.collection, this.defaultOptions)
   }
 
   /**
@@ -77,74 +54,95 @@ export class SearchEngine {
    * Returns results sorted by relevance (score), then by updatedAt (newest first)
    */
   search(query: string, options?: SearchOptions): SearchResult[] {
-    if (!this.fuse || !query.trim()) {
+    const normalizedQuery = normalize(query)
+    if (!this.isInitialized || !normalizedQuery) {
       return []
     }
 
-    const lowerQuery = query.toLowerCase()
+    const rawLowerQuery = query.trim().toLowerCase()
     const matchedTasks: SearchResult[] = []
-    const maxDistance = Math.floor(query.length / 4) // Allow 1 error per 4 characters
+    const maxDistance = Math.floor(normalizedQuery.length / 4) // Allow 1 error per 4 characters
 
     for (const task of this.collection) {
       const lowerContent = task.content.toLowerCase()
+      const normalizedContent = task.plainText
+      const rawIndices = this.findExactIndices(lowerContent, rawLowerQuery)
+      const rawExactIndex = rawIndices[0]?.[0] ?? -1
 
-      // First try exact substring match
-      const exactIndex = lowerContent.indexOf(lowerQuery)
-
-      if (exactIndex !== -1) {
-        // Exact match found - calculate all occurrences
-        const indices: [number, number][] = []
-        let searchIndex = 0
-
-        while (searchIndex < lowerContent.length) {
-          const foundIndex = lowerContent.indexOf(lowerQuery, searchIndex)
-          if (foundIndex === -1) break
-
-          indices.push([foundIndex, foundIndex + lowerQuery.length - 1])
-          searchIndex = foundIndex + 1
-        }
-
-        // Scoring for exact matches (lower = better)
-        // Position: 0-100 (start of doc = 0, end = 100)
-        const positionScore = (exactIndex / Math.max(task.content.length, 1)) * 100
-        const matchCountScore = 10 / indices.length
+      // First try exact substring match in original content.
+      if (rawExactIndex !== -1) {
+        const positionScore = (rawExactIndex / Math.max(task.content.length, 1)) * 100
+        const matchCountScore = 10 / rawIndices.length
         const score = positionScore + matchCountScore
 
-        matchedTasks.push({task, score, matches: [{indices, value: query, key: "content"}]})
+        matchedTasks.push({
+          task,
+          score,
+          matches: [{indices: rawIndices, value: query, key: "content"}],
+        })
+        continue
+      }
+
+      const exactIndex = normalizedContent.indexOf(normalizedQuery)
+      if (exactIndex !== -1) {
+        // Scoring for exact matches (lower = better)
+        // Position: 0-100 (start of doc = 0, end = 100)
+        const positionScore = (exactIndex / Math.max(normalizedContent.length, 1)) * 100
+        const matchCountScore = 10
+        const score = positionScore + matchCountScore
+
+        matchedTasks.push({
+          task,
+          score,
+          matches: undefined,
+        })
       } else {
-        const fuzzyMatch = this.findFuzzySubstring(lowerContent, lowerQuery, maxDistance)
+        const fuzzyMatch = this.findFuzzySubstring(normalizedContent, normalizedQuery, maxDistance)
 
         if (fuzzyMatch) {
           // Scoring for fuzzy matches (always higher than exact matches)
-          const positionScore = (fuzzyMatch.index / Math.max(task.content.length, 1)) * 100
-          const errorPenalty = (fuzzyMatch.distance / query.length) * 50 // Each error adds penalty
+          const positionScore = (fuzzyMatch.index / Math.max(normalizedContent.length, 1)) * 100
+          const errorPenalty = (fuzzyMatch.distance / normalizedQuery.length) * 50 // Each error adds penalty
           const fuzzyPenalty = 200 // Base penalty to rank after all exact matches
           const score = fuzzyPenalty + positionScore + errorPenalty
 
           matchedTasks.push({
             task,
             score,
-            matches: [
-              {
-                indices: [[fuzzyMatch.index, fuzzyMatch.index + fuzzyMatch.length - 1]],
-                value: task.content.substring(fuzzyMatch.index, fuzzyMatch.index + fuzzyMatch.length),
-                key: "content",
-              },
-            ],
+            // Fuzzy matching works on normalized text where positions may not map to original markdown.
+            matches: undefined,
           })
         }
       }
     }
 
     const limit = options?.limit ?? 100
-    const limitedResults = matchedTasks.slice(0, limit)
 
-    return limitedResults.sort((a, b) => {
+    const sortedResults = matchedTasks.sort((a, b) => {
       if (a.score !== b.score) {
         return a.score - b.score
       }
       return new Date(b.task.updatedAt).getTime() - new Date(a.task.updatedAt).getTime()
     })
+
+    return sortedResults.slice(0, limit)
+  }
+
+  private findExactIndices(content: string, query: string): [number, number][] {
+    if (!query.length) return []
+
+    const indices: [number, number][] = []
+    let searchIndex = 0
+
+    while (searchIndex < content.length) {
+      const foundIndex = content.indexOf(query, searchIndex)
+      if (foundIndex === -1) break
+
+      indices.push([foundIndex, foundIndex + query.length - 1])
+      searchIndex = foundIndex + 1
+    }
+
+    return indices
   }
 
   /**
@@ -177,7 +175,7 @@ export class SearchEngine {
   }
 
   clear(): void {
-    this.fuse = null
+    this.isInitialized = false
     this.collection = []
   }
 
