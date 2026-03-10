@@ -20,10 +20,7 @@ const description = computed(() => {
   }
 
   if (updateStore.state.status === "downloading") {
-    if (typeof updateStore.state.downloadProgress === "number") {
-      return `Downloading version ${updateStore.state.availableVersion} in the background: ${updateStore.state.downloadProgress}%`
-    }
-
+    if (typeof updateStore.state.downloadProgress === "number") return `Downloading version ${updateStore.state.availableVersion}`
     return `Downloading version ${updateStore.state.availableVersion}. The app will relaunch automatically after installing.`
   }
 
