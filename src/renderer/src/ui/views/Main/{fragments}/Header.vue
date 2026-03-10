@@ -4,6 +4,7 @@ import {computed} from "vue"
 import {toFullDate} from "@shared/utils/date/formatters"
 import {useBranchesStore} from "@/stores/branches.store"
 import {useUIStore} from "@/stores/ui.store"
+import {useUpdateStore} from "@/stores/update.store"
 import {useDevice} from "@/composables/useDevice"
 import {toShortcutKeys} from "@/utils/shortcuts/toShortcutKey"
 import BaseButton from "@/ui/base/BaseButton.vue"
@@ -19,6 +20,7 @@ const {isDesktop} = useDevice()
 
 const uiStore = useUIStore()
 const branchesStore = useBranchesStore()
+const updateStore = useUpdateStore()
 
 const formattedDate = computed(() => toFullDate(props.activeDay ?? new Date()))
 const showToggleButton = computed(() => {
@@ -42,6 +44,10 @@ async function onSelectBranch(id: Branch["id"], hide: () => void) {
   await branchesStore.setActiveBranch(id)
   hide()
 }
+
+async function onInstallUpdate() {
+  await updateStore.installUpdate()
+}
 </script>
 
 <template>
@@ -61,34 +67,51 @@ async function onSelectBranch(id: Branch["id"], hide: () => void) {
       </h1>
     </div>
 
-    <div v-if="!taskEditorOpen" class="flex items-center gap-2">
-      <BasePopup hide-header position="end" container-class="p-0" content-class="gap-2">
-        <template #trigger="{toggle}">
-          <BaseButton
-            icon="project"
-            variant="ghost"
-            class="h-6 min-w-20 text-sm"
-            icon-class="size-4"
-            style="-webkit-app-region: no-drag"
-            @click="toggle"
-          >
-            {{ activeBranchName }}
-          </BaseButton>
-        </template>
-
-        <template #default="{hide}">
-          <BaseMenu :items="menuItems" @select="onSelectBranch($event as string, hide)" />
-        </template>
-      </BasePopup>
-
+    <div class="flex items-center gap-2">
       <BaseButton
-        variant="text"
-        class="text-accent hover:bg-accent/10 focus-visible-ring focus-visible:ring-accent size-8 shrink-0 p-0"
-        icon="plus"
-        :tooltip="`Create (${toShortcutKeys('tasks:create')})`"
+        v-if="updateStore.isReadyToInstall || updateStore.isInstalling"
+        variant="secondary"
+        icon="refresh"
+        size="sm"
+        class="text-accent border-accent/20 bg-accent/10 hover:bg-accent/20 min-w-24"
         style="-webkit-app-region: no-drag"
-        @click="emit('createTask')"
-      />
+        :loading="updateStore.isInstalling"
+        :disabled="updateStore.isInstalling"
+        tooltip="Install downloaded update"
+        @click="onInstallUpdate"
+      >
+        Update
+      </BaseButton>
+
+      <template v-if="!taskEditorOpen">
+        <BasePopup hide-header position="end" container-class="p-0" content-class="gap-2">
+          <template #trigger="{toggle}">
+            <BaseButton
+              icon="project"
+              variant="ghost"
+              class="h-6 min-w-20 text-sm"
+              icon-class="size-4"
+              style="-webkit-app-region: no-drag"
+              @click="toggle"
+            >
+              {{ activeBranchName }}
+            </BaseButton>
+          </template>
+
+          <template #default="{hide}">
+            <BaseMenu :items="menuItems" @select="onSelectBranch($event as string, hide)" />
+          </template>
+        </BasePopup>
+
+        <BaseButton
+          variant="text"
+          class="text-accent hover:bg-accent/10 focus-visible-ring focus-visible:ring-accent size-8 shrink-0 p-0"
+          icon="plus"
+          :tooltip="`Create (${toShortcutKeys('tasks:create')})`"
+          style="-webkit-app-region: no-drag"
+          @click="emit('createTask')"
+        />
+      </template>
     </div>
   </div>
 </template>

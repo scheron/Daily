@@ -36,7 +36,7 @@ function createMacMenu(mainWindow: BrowserWindow): MenuItemConstructorOptions[] 
         },
         {
           label: "Check for Updates...",
-          click: () => checkForUpdate(mainWindow, true),
+          click: () => checkForUpdate({manual: true}),
         },
         {type: "separator"},
         {role: "hide"},

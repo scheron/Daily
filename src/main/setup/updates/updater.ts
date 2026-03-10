@@ -1,28 +1,19 @@
 import {spawn} from "node:child_process"
-import fs from "node:fs"
+import {createHash} from "node:crypto"
+import {createReadStream, existsSync} from "node:fs"
+import {mkdir, readFile, rm, writeFile} from "node:fs/promises"
 import path from "node:path"
-import {app, dialog} from "electron"
+import {app} from "electron"
 
 import {logger} from "@/utils/logger"
 
+import {downloadWithProgress} from "@/ai/utils/downloadWithProgress"
+import {APP_CONFIG} from "@/config"
+
 import type {IStorageController} from "@/types/storage"
-import type {AppUpdateCacheState, Settings} from "@shared/types/storage"
+import type {AppUpdateCacheState, InstalledAppReleaseState, Settings} from "@shared/types/storage"
+import type {AppUpdateState} from "@shared/types/update"
 import type {BrowserWindow} from "electron"
-
-const BREW_CASK = "scheron/tap/daily"
-const BREW_TIMEOUT_MS = 15 * 60_000
-const BREW_ENV = {
-  HOMEBREW_NO_AUTO_UPDATE: "1",
-}
-
-type CaskInfo = {
-  version: string
-  hash: string | null
-}
-
-type ReleaseMeta = CaskInfo & {
-  releaseId: string
-}
 
 type CommandResult = {
   code: number
@@ -31,220 +22,439 @@ type CommandResult = {
   didTimeout: boolean
 }
 
-let getStorageController: (() => IStorageController | null) | null = null
-let isCheckingForUpdate = false
-let isPromptOpen = false
-let dismissedForSession = false
-let resolvedBrewBinary: string | null = null
-
-export function setupUpdateManager(window: BrowserWindow, getStorage: () => IStorageController | null) {
-  getStorageController = getStorage
-
-  if (!app.isPackaged || process.platform !== "darwin") return
-
-  if (window.isVisible()) {
-    void checkForUpdate(window, false)
-    return
-  }
-
-  window.once("ready-to-show", () => {
-    void checkForUpdate(window, false)
-  })
+type BrewReleaseMeta = {
+  source: "brew"
+  brewBinary: string
+  version: string
+  hash: string | null
+  releaseId: string
 }
 
-export async function checkForUpdate(window: BrowserWindow, manual = true): Promise<void> {
-  if (!app.isPackaged || process.platform !== "darwin") {
-    if (manual) {
-      await dialog.showMessageBox(window, {
-        type: "info",
-        title: "Updates Unavailable",
-        message: "Automatic updates are available only in packaged macOS builds.",
-        buttons: ["OK"],
-      })
-    }
+type GitHubReleaseMeta = {
+  source: "github"
+  version: string
+  hash: string | null
+  releaseId: string
+  assetName: string
+  assetUrl: string
+}
+
+type ReleaseMeta = BrewReleaseMeta | GitHubReleaseMeta
+
+let getStorageController: (() => IStorageController | null) | null = null
+let mainWindow: BrowserWindow | null = null
+let resolvedBrewBinary: string | null = null
+let isInitialized = false
+let isCheckingForUpdate = false
+let updateState: AppUpdateState = createDefaultUpdateState()
+
+export function setupUpdateManager(window: BrowserWindow, getStorage: () => IStorageController | null): void {
+  getStorageController = getStorage
+  mainWindow = window
+
+  window.webContents.once("did-finish-load", () => {
+    emitState()
+  })
+
+  if (isInitialized) {
+    emitState()
     return
   }
 
-  if (isCheckingForUpdate) {
-    if (manual) {
-      await dialog.showMessageBox(window, {
-        type: "info",
-        title: "Update Check",
-        message: "An update check is already in progress.",
-        buttons: ["OK"],
-      })
-    }
-    return
+  isInitialized = true
+  void initializeUpdateManager()
+}
+
+export function getUpdateState(): AppUpdateState {
+  return {...updateState}
+}
+
+export async function checkForUpdate(options?: {manual?: boolean}): Promise<AppUpdateState> {
+  const manual = options?.manual ?? true
+
+  console.log("checkForUpdate", options)
+  console.log("isUpdaterSupported", isUpdaterSupported())
+  if (!isUpdaterSupported()) {
+    setUpdateState({
+      status: "unavailable",
+      reason: "In-app updates are available only in packaged macOS builds.",
+      checkedAt: new Date().toISOString(),
+    })
+    return getUpdateState()
   }
+
+  if (isCheckingForUpdate) return getUpdateState()
 
   isCheckingForUpdate = true
+  setUpdateState({
+    status: "checking",
+    reason: null,
+    downloadProgress: null,
+  })
 
   try {
-    const brewBinary = await resolveBrewBinary()
-    if (!brewBinary) {
-      if (manual) {
-        await dialog.showMessageBox(window, {
-          type: "warning",
-          title: "Homebrew Not Found",
-          message: "Homebrew is required for updates but was not found on this Mac.",
-          detail: "Install Homebrew and install Daily via cask to use in-app updates.",
-          buttons: ["OK"],
-        })
-      }
-      return
+    const settings = await loadSettingsSafe()
+    const cachedUpdate = await getUsableCachedRelease(settings?.updates.cached ?? null)
+    const release = await resolveLatestRelease()
+    const installedRelease = settings?.updates.installed ?? null
+
+    logger.info(logger.CONTEXT.UPDATES, "Resolved update versions", {
+      manual,
+      currentVersion: app.getVersion(),
+      currentHash: installedRelease?.hash ?? null,
+      latestVersion: release.version,
+      latestHash: release.hash,
+      latestSource: release.source,
+      cachedVersion: cachedUpdate?.version ?? null,
+      cachedHash: cachedUpdate?.hash ?? null,
+      cachedSource: cachedUpdate?.source ?? null,
+      installedVersion: installedRelease?.version ?? null,
+      installedHash: installedRelease?.hash ?? null,
+      installedSource: installedRelease?.source ?? null,
+    })
+
+    if (isInstalledRelease(release, settings)) {
+      logger.info(logger.CONTEXT.UPDATES, "Update not required: current version matches latest release", {
+        currentVersion: app.getVersion(),
+        latestVersion: release.version,
+        latestHash: release.hash,
+      })
+
+      await clearCachedUpdateState(cachedUpdate)
+      setUpdateState({
+        status: "idle",
+        source: release.source,
+        availableVersion: null,
+        availableHash: null,
+        downloadedAt: null,
+        downloadProgress: null,
+        checkedAt: new Date().toISOString(),
+        reason: manual ? "You're already using the latest version." : null,
+      })
+      return getUpdateState()
     }
 
-    const hasBrewInstall = await isCaskInstalled(brewBinary)
-    if (!hasBrewInstall) {
-      if (manual) {
-        await dialog.showMessageBox(window, {
-          type: "warning",
-          title: "Brew Install Not Detected",
-          message: "Daily is not installed as a Homebrew cask on this machine.",
-          detail: "Auto-update works only for brew installations.",
-          buttons: ["OK"],
-        })
-      }
-      return
+    if (isMatchingCachedRelease(cachedUpdate, release)) {
+      logger.info(logger.CONTEXT.UPDATES, "Using cached update release", {
+        currentVersion: app.getVersion(),
+        cachedVersion: cachedUpdate.version,
+        cachedHash: cachedUpdate.hash,
+        latestVersion: release.version,
+        latestHash: release.hash,
+      })
+
+      setReadyState(cachedUpdate, release, manual ? null : updateState.reason)
+      return getUpdateState()
     }
 
-    logger.debug(logger.CONTEXT.APP, `Checking for updates (current: ${app.getVersion()})`)
+    logger.info(logger.CONTEXT.UPDATES, "Downloading newer release", {
+      currentVersion: app.getVersion(),
+      currentHash: installedRelease?.hash ?? null,
+      previousCachedVersion: cachedUpdate?.version ?? null,
+      previousCachedHash: cachedUpdate?.hash ?? null,
+      latestVersion: release.version,
+      latestHash: release.hash,
+      latestSource: release.source,
+    })
 
-    const isOutdated = await isCaskOutdated(brewBinary)
-    if (!isOutdated) {
-      await clearCachedUpdateState()
-
-      if (manual) {
-        await dialog.showMessageBox(window, {
-          type: "info",
-          title: "No Updates",
-          message: "You're already using the latest version.",
-          buttons: ["OK"],
-        })
-      }
-      return
-    }
-
-    const release = await getReleaseMeta(brewBinary)
-    if (!release) {
-      if (manual) {
-        dialog.showErrorBox("Update Check Failed", "Failed to read cask metadata from Homebrew.")
-      }
-      return
-    }
+    const downloaded = await downloadRelease(release)
+    await replaceCachedUpdate(downloaded, cachedUpdate)
+    setReadyState(downloaded, release)
+  } catch (error: any) {
+    logger.error(logger.CONTEXT.UPDATES, "Update manager failed", error)
 
     const settings = await loadSettingsSafe()
-
-    if (!manual && settings?.updates.skippedReleaseId === release.releaseId) {
-      logger.info(logger.CONTEXT.APP, `Skipping prompt for ignored release ${release.releaseId}`)
-      return
+    const cachedUpdate = await getUsableCachedRelease(settings?.updates.cached ?? null)
+    if (cachedUpdate && compareVersions(cachedUpdate.version, app.getVersion()) > 0) {
+      setReadyState(cachedUpdate, cachedUpdate, "Latest check failed. Cached update is still ready to install.")
+    } else {
+      setUpdateState({
+        status: "error",
+        reason: error?.message ?? "Failed to check for updates.",
+        downloadProgress: null,
+        checkedAt: new Date().toISOString(),
+      })
     }
-
-    let cachedUpdate = settings?.updates.cached ?? null
-    const hasMatchingCache = isMatchingCachedRelease(cachedUpdate, release)
-
-    if (!hasMatchingCache) {
-      const downloaded = await downloadRelease(brewBinary, release)
-      if (!downloaded) {
-        if (manual) dialog.showErrorBox("Update Download Failed", "Failed to download update using Homebrew.")
-        return
-      }
-
-      cachedUpdate = downloaded
-      await saveUpdatesPatch({cached: downloaded})
-    }
-
-    if (!cachedUpdate) return
-
-    await maybeShowUpdatePrompt(window, release, cachedUpdate, manual)
-  } catch (error: any) {
-    logger.error(logger.CONTEXT.APP, "Update manager failed", error)
-    if (manual) dialog.showErrorBox("Update Check Failed", error?.message ?? "Unknown error")
   } finally {
     isCheckingForUpdate = false
   }
+
+  return getUpdateState()
 }
 
-async function maybeShowUpdatePrompt(window: BrowserWindow, release: ReleaseMeta, cachedUpdate: AppUpdateCacheState, manual: boolean): Promise<void> {
-  if (!manual && dismissedForSession) return
-  if (isPromptOpen) return
+export async function installDownloadedUpdate(): Promise<boolean> {
+  if (!isUpdaterSupported()) {
+    setUpdateState({
+      status: "unavailable",
+      reason: "In-app updates are available only in packaged macOS builds.",
+    })
+    return false
+  }
 
-  isPromptOpen = true
+  const settings = await loadSettingsSafe()
+  const cachedUpdate = await getUsableCachedRelease(settings?.updates.cached ?? null)
+  if (!cachedUpdate) {
+    setUpdateState({
+      status: "error",
+      reason: "Downloaded update was not found. Please check for updates again.",
+    })
+    return false
+  }
+
+  const installerPath = await createInstallerScript(cachedUpdate)
+  if (!installerPath) {
+    setUpdateState({
+      status: "error",
+      reason: "Failed to prepare the update installer.",
+    })
+    return false
+  }
+
   try {
-    const detailParts = [
-      `Version: ${release.version}`,
-      release.hash ? `Hash: ${release.hash}` : null,
-      cachedUpdate.cachePath ? `Downloaded to: ${cachedUpdate.cachePath}` : "Downloaded to Homebrew cache.",
-    ].filter(Boolean)
-
-    const {response} = await dialog.showMessageBox(window, {
-      type: "info",
-      title: "Update Ready",
-      message: "A new Daily update has been downloaded.",
-      detail: detailParts.join("\n"),
-      buttons: ["Install and Restart", "Later", "Skip This Version"],
-      defaultId: 0,
-      cancelId: 1,
+    const child = spawn("/bin/sh", [installerPath], {
+      detached: true,
+      stdio: "ignore",
     })
 
-    if (response === 0) {
-      await installDownloadedRelease(release)
-      return
-    }
+    child.unref()
 
-    dismissedForSession = true
+    setUpdateState({
+      status: "installing",
+      reason: null,
+      downloadProgress: null,
+    })
 
-    if (response === 2) {
-      await saveUpdatesPatch({skippedReleaseId: release.releaseId})
-    }
-  } finally {
-    isPromptOpen = false
+    app.quit()
+    return true
+  } catch (error: any) {
+    logger.error(logger.CONTEXT.UPDATES, "Failed to launch installer script", error)
+    setUpdateState({
+      status: "error",
+      reason: error?.message ?? "Failed to start update installation.",
+    })
+    return false
   }
 }
 
-async function installDownloadedRelease(release: ReleaseMeta): Promise<void> {
+async function initializeUpdateManager(): Promise<void> {
+  if (!isUpdaterSupported()) {
+    setUpdateState({
+      status: "unavailable",
+      reason: "In-app updates are available only in packaged macOS builds.",
+    })
+    return
+  }
+
+  await applyPendingInstallResult()
+  await checkForUpdate({manual: false})
+}
+
+function createDefaultUpdateState(): AppUpdateState {
+  return {
+    status: isUpdaterSupported() ? "idle" : "unavailable",
+    currentVersion: app.getVersion(),
+    availableVersion: null,
+    availableHash: null,
+    source: null,
+    downloadProgress: null,
+    downloadedAt: null,
+    checkedAt: null,
+    reason: isUpdaterSupported() ? null : "In-app updates are available only in packaged macOS builds.",
+  }
+}
+
+function isUpdaterSupported(): boolean {
+  return app.isPackaged && process.platform === "darwin"
+}
+
+async function resolveLatestRelease(): Promise<ReleaseMeta> {
   const brewBinary = await resolveBrewBinary()
-  if (!brewBinary) {
-    dialog.showErrorBox("Install Failed", "Homebrew is not available.")
-    return
+  if (brewBinary && (await isCaskInstalled(brewBinary))) {
+    const release = await getBrewReleaseMeta(brewBinary)
+    if (!release) throw new Error("Failed to read Homebrew release metadata.")
+    return release
   }
 
-  logger.info(logger.CONTEXT.APP, `Installing update ${release.version} (${release.releaseId})`)
+  const release = await getGitHubReleaseMeta()
+  if (!release) throw new Error("Failed to read GitHub release metadata.")
+  return release
+}
 
-  const result = await runCommand(brewBinary, ["upgrade", "--cask", BREW_CASK], BREW_TIMEOUT_MS)
-  if (result.code !== 0) {
-    logger.error(logger.CONTEXT.APP, "brew upgrade failed", {stdout: result.stdout, stderr: result.stderr})
-    dialog.showErrorBox("Install Failed", result.stderr || result.stdout || "brew upgrade failed")
-    return
-  }
+async function downloadRelease(release: ReleaseMeta): Promise<AppUpdateCacheState> {
+  logger.info(logger.CONTEXT.UPDATES, `Downloading update ${release.version} via ${release.source}`)
 
-  await saveUpdatesPatch({
-    skippedReleaseId: null,
-    cached: null,
+  setUpdateState({
+    status: "downloading",
+    source: release.source,
+    availableVersion: release.version,
+    availableHash: release.hash,
+    downloadProgress: 0,
+    reason: null,
   })
 
-  app.relaunch()
-  app.exit(0)
-}
+  if (release.source === "brew") {
+    const result = await runCommand(release.brewBinary, ["fetch", "--cask", BREW_CASK], BREW_TIMEOUT_MS)
+    if (result.code !== 0) {
+      logger.error(logger.CONTEXT.UPDATES, "brew fetch failed", {stdout: result.stdout, stderr: result.stderr})
+      throw new Error("Failed to download the Homebrew update.")
+    }
 
-async function downloadRelease(brewBinary: string, release: ReleaseMeta): Promise<AppUpdateCacheState | null> {
-  logger.info(logger.CONTEXT.APP, `Downloading update ${release.version} in background`)
+    const cachePath = await getBrewCachePath(release.brewBinary)
 
-  const result = await runCommand(brewBinary, ["fetch", "--cask", BREW_CASK], BREW_TIMEOUT_MS)
-  if (result.code !== 0) {
-    logger.error(logger.CONTEXT.APP, "brew fetch failed", {stdout: result.stdout, stderr: result.stderr})
-    return null
+    return {
+      releaseId: release.releaseId,
+      version: release.version,
+      hash: release.hash,
+      source: "brew",
+      cachePath,
+      downloadedAt: new Date().toISOString(),
+    }
   }
 
-  const cachePath = await getBrewCachePath(brewBinary)
+  const releaseDir = getManagedReleaseDir(release.releaseId)
+  const destinationPath = path.join(releaseDir, release.assetName)
+  await mkdir(releaseDir, {recursive: true})
+
+  await downloadWithProgress({
+    url: release.assetUrl,
+    destPath: destinationPath,
+    onProgress: (downloadedBytes, totalBytes) => {
+      const progress = totalBytes > 0 ? Math.min(100, Math.round((downloadedBytes / totalBytes) * 100)) : null
+      setUpdateState({
+        status: "downloading",
+        source: release.source,
+        availableVersion: release.version,
+        availableHash: release.hash,
+        downloadProgress: progress,
+      })
+    },
+  })
+
+  const downloadedHash = await computeFileSha256(destinationPath)
+  if (release.hash && release.hash !== downloadedHash) {
+    await rm(releaseDir, {recursive: true, force: true})
+    throw new Error("Downloaded update hash does not match the expected release hash.")
+  }
 
   return {
     releaseId: release.releaseId,
     version: release.version,
-    hash: release.hash,
-    cachePath,
+    hash: release.hash ?? downloadedHash,
+    source: "github",
+    cachePath: destinationPath,
     downloadedAt: new Date().toISOString(),
   }
+}
+
+function setReadyState(
+  cachedUpdate: AppUpdateCacheState,
+  release: Pick<ReleaseMeta, "source" | "version" | "hash">,
+  reason: string | null = null,
+): void {
+  setUpdateState({
+    status: "ready",
+    source: release.source,
+    availableVersion: cachedUpdate.version,
+    availableHash: cachedUpdate.hash,
+    downloadedAt: cachedUpdate.downloadedAt,
+    downloadProgress: null,
+    checkedAt: new Date().toISOString(),
+    reason,
+  })
+}
+
+async function applyPendingInstallResult(): Promise<void> {
+  const markerPath = getInstallMarkerPath()
+  if (!existsSync(markerPath)) return
+
+  try {
+    const content = await readFile(markerPath, "utf8")
+    const installedRelease = parseJsonSafe<InstalledAppReleaseState>(content)
+    if (installedRelease) {
+      await saveUpdatesPatch({
+        cached: null,
+        installed: installedRelease,
+        skippedReleaseId: null,
+      })
+    }
+  } catch (error) {
+    logger.error(logger.CONTEXT.UPDATES, "Failed to apply pending install marker", error)
+  } finally {
+    await rm(markerPath, {force: true})
+  }
+}
+
+async function createInstallerScript(cachedUpdate: AppUpdateCacheState): Promise<string | null> {
+  const appBundlePath = getCurrentAppBundlePath()
+  const installResult: InstalledAppReleaseState = {
+    releaseId: cachedUpdate.releaseId,
+    version: cachedUpdate.version,
+    hash: cachedUpdate.hash,
+    source: cachedUpdate.source,
+    installedAt: new Date().toISOString(),
+  }
+
+  const brewBinary = cachedUpdate.source === "brew" ? await resolveBrewBinary() : null
+  if (cachedUpdate.source === "brew" && !brewBinary) return null
+  if (cachedUpdate.source === "github" && (!cachedUpdate.cachePath || !existsSync(cachedUpdate.cachePath))) return null
+
+  const updatesDir = getManagedUpdatesDir()
+  const scriptPath = path.join(updatesDir, `install-${Date.now()}.sh`)
+  await mkdir(updatesDir, {recursive: true})
+
+  const script = [
+    "#!/bin/sh",
+    "set -eu",
+    `TARGET_PID=${process.pid}`,
+    `PROVIDER=${shellEscape(cachedUpdate.source)}`,
+    `APP_BUNDLE_PATH=${shellEscape(appBundlePath)}`,
+    `BREW_BINARY=${shellEscape(brewBinary ?? "")}`,
+    `BREW_CASK=${shellEscape(BREW_CASK)}`,
+    `DOWNLOAD_PATH=${shellEscape(cachedUpdate.cachePath ?? "")}`,
+    `MARKER_PATH=${shellEscape(getInstallMarkerPath())}`,
+    `MARKER_JSON=${shellEscape(JSON.stringify(installResult))}`,
+    `CLEANUP_PATH=${shellEscape(cachedUpdate.cachePath ?? "")}`,
+    "SUCCESS=0",
+    "MOUNT_POINT=",
+    'BACKUP_PATH="$APP_BUNDLE_PATH.codex-update-backup"',
+    "cleanup() {",
+    '  if [ -n "$MOUNT_POINT" ]; then hdiutil detach "$MOUNT_POINT" >/dev/null 2>&1 || true; fi',
+    '  if [ "$SUCCESS" -ne 1 ]; then',
+    '    if [ -d "$BACKUP_PATH" ] && [ ! -d "$APP_BUNDLE_PATH" ]; then mv "$BACKUP_PATH" "$APP_BUNDLE_PATH"; fi',
+    '    open "$APP_BUNDLE_PATH" >/dev/null 2>&1 || true',
+    "  else",
+    '    rm -rf "$BACKUP_PATH" >/dev/null 2>&1 || true',
+    '    if [ -n "$CLEANUP_PATH" ] && [ -e "$CLEANUP_PATH" ]; then rm -rf "$CLEANUP_PATH" >/dev/null 2>&1 || true; fi',
+    '    if [ -n "$CLEANUP_PATH" ]; then rmdir "$(dirname "$CLEANUP_PATH")" >/dev/null 2>&1 || true; fi',
+    "  fi",
+    '  rm -f "$0" >/dev/null 2>&1 || true',
+    "}",
+    "trap cleanup EXIT",
+    'while kill -0 "$TARGET_PID" >/dev/null 2>&1; do sleep 1; done',
+    'if [ "$PROVIDER" = "brew" ]; then',
+    '  env HOMEBREW_NO_AUTO_UPDATE=1 PATH="$PATH:/opt/homebrew/bin:/usr/local/bin" "$BREW_BINARY" upgrade --cask "$BREW_CASK"',
+    "else",
+    '  MOUNT_POINT=$(hdiutil attach "$DOWNLOAD_PATH" -nobrowse | awk \'/\\/Volumes\\// { $1=$2=""; sub(/^  */, ""); print; exit }\')',
+    '  if [ -z "$MOUNT_POINT" ]; then exit 1; fi',
+    '  rm -rf "$BACKUP_PATH" >/dev/null 2>&1 || true',
+    '  if [ -d "$APP_BUNDLE_PATH" ]; then mv "$APP_BUNDLE_PATH" "$BACKUP_PATH"; fi',
+    '  cp -R "$MOUNT_POINT/Daily.app" "$APP_BUNDLE_PATH"',
+    '  if [ ! -d "$APP_BUNDLE_PATH" ]; then',
+    '    rm -rf "$APP_BUNDLE_PATH" >/dev/null 2>&1 || true',
+    '    if [ -d "$BACKUP_PATH" ]; then mv "$BACKUP_PATH" "$APP_BUNDLE_PATH"; fi',
+    "    exit 1",
+    "  fi",
+    '  xattr -rd com.apple.quarantine "$APP_BUNDLE_PATH" >/dev/null 2>&1 || true',
+    "fi",
+    'mkdir -p "$(dirname "$MARKER_PATH")"',
+    'printf \'%s\' "$MARKER_JSON" > "$MARKER_PATH"',
+    "SUCCESS=1",
+    'open "$APP_BUNDLE_PATH"',
+    "",
+  ].join("\n")
+
+  await writeFile(scriptPath, script, {mode: 0o700})
+  return scriptPath
 }
 
 async function resolveBrewBinary(): Promise<string | null> {
@@ -258,7 +468,7 @@ async function resolveBrewBinary(): Promise<string | null> {
   ].filter(Boolean) as string[]
 
   for (const candidate of candidates) {
-    if (candidate !== "brew" && !fs.existsSync(candidate)) continue
+    if (candidate !== "brew" && !existsSync(candidate)) continue
 
     const check = await runCommand(candidate, ["--version"], 15_000)
     if (check.code === 0) {
@@ -275,21 +485,10 @@ async function isCaskInstalled(brewBinary: string): Promise<boolean> {
   return result.code === 0
 }
 
-async function isCaskOutdated(brewBinary: string): Promise<boolean> {
-  const result = await runCommand(brewBinary, ["outdated", "--cask", "--json=v2", BREW_CASK], 30_000)
-  if (result.code !== 0) {
-    logger.warn(logger.CONTEXT.APP, "Unable to check brew outdated state, assuming no update")
-    return false
-  }
-
-  const parsed = parseJsonSafe<{casks?: unknown[]}>(result.stdout)
-  return Array.isArray(parsed?.casks) && parsed.casks.length > 0
-}
-
-async function getReleaseMeta(brewBinary: string): Promise<ReleaseMeta | null> {
+async function getBrewReleaseMeta(brewBinary: string): Promise<BrewReleaseMeta | null> {
   const result = await runCommand(brewBinary, ["info", "--cask", "--json=v2", BREW_CASK], 30_000)
   if (result.code !== 0) {
-    logger.error(logger.CONTEXT.APP, "brew info failed", {stdout: result.stdout, stderr: result.stderr})
+    logger.error(logger.CONTEXT.UPDATES, "brew info failed", {stdout: result.stdout, stderr: result.stderr})
     return null
   }
 
@@ -299,9 +498,56 @@ async function getReleaseMeta(brewBinary: string): Promise<ReleaseMeta | null> {
   if (!version) return null
 
   const hash = normalizeSha256(cask?.sha256)
-  const releaseId = hash ? `${version}:${hash}` : version
+  const releaseId = buildReleaseId(version, hash)
 
-  return {version, hash, releaseId}
+  return {
+    source: "brew",
+    brewBinary,
+    version,
+    hash,
+    releaseId,
+  }
+}
+
+async function getGitHubReleaseMeta(): Promise<GitHubReleaseMeta | null> {
+  const response = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`, {
+    headers: GITHUB_HEADERS,
+  })
+
+  if (!response.ok) {
+    throw new Error(`GitHub releases API returned ${response.status} ${response.statusText}.`)
+  }
+
+  const payload = (await response.json()) as {
+    tag_name?: string
+    assets?: Array<{
+      id?: number
+      name?: string
+      browser_download_url?: string
+      digest?: string | null
+    }>
+  }
+
+  const version = normalizeVersion(payload.tag_name)
+  const asset = payload.assets?.find((item) => typeof item.name === "string" && /-mac\.dmg$/i.test(item.name))
+  if (!version || !asset?.browser_download_url || !asset.name || typeof asset.id !== "number") return null
+
+  const hash = normalizeGitHubDigest(asset.digest)
+  const releaseId = buildReleaseId(version, hash, asset.id)
+
+  return {
+    source: "github",
+    version,
+    hash,
+    releaseId,
+    assetName: asset.name,
+    assetUrl: asset.browser_download_url,
+  }
+}
+
+function normalizeVersion(tagName?: string): string | null {
+  if (!tagName) return null
+  return tagName.replace(/^v/i, "").trim() || null
 }
 
 function normalizeSha256(raw: unknown): string | null {
@@ -320,6 +566,19 @@ function normalizeSha256(raw: unknown): string | null {
   return null
 }
 
+function normalizeGitHubDigest(digest?: string | null): string | null {
+  if (!digest) return null
+  const normalized = digest.trim()
+  if (!normalized) return null
+  return normalized.startsWith("sha256:") ? normalized.slice("sha256:".length) : normalized
+}
+
+function buildReleaseId(version: string, hash: string | null, fallbackId?: number): string {
+  if (hash) return `${version}:${hash}`
+  if (fallbackId !== undefined) return `${version}:asset-${fallbackId}`
+  return version
+}
+
 async function getBrewCachePath(brewBinary: string): Promise<string | null> {
   const result = await runCommand(brewBinary, ["--cache", "--cask", BREW_CASK], 15_000)
   if (result.code !== 0) return null
@@ -330,19 +589,73 @@ async function getBrewCachePath(brewBinary: string): Promise<string | null> {
     .find(Boolean)
 
   if (!cachePath) return null
-
-  return fs.existsSync(cachePath) ? cachePath : null
+  return existsSync(cachePath) ? cachePath : null
 }
 
-function isMatchingCachedRelease(cached: AppUpdateCacheState | null, release: ReleaseMeta): cached is AppUpdateCacheState {
+async function getUsableCachedRelease(cached: AppUpdateCacheState | null): Promise<AppUpdateCacheState | null> {
+  if (!cached) return null
+  if (cached.source === "brew") {
+    if (!cached.cachePath) return cached
+    return existsSync(cached.cachePath) ? cached : null
+  }
+
+  if (!cached.cachePath) return null
+  return existsSync(cached.cachePath) ? cached : null
+}
+
+function isMatchingCachedRelease(cached: AppUpdateCacheState | null, release: Pick<ReleaseMeta, "releaseId">): cached is AppUpdateCacheState {
   return Boolean(cached && cached.releaseId === release.releaseId)
 }
 
-async function clearCachedUpdateState(): Promise<void> {
-  const settings = await loadSettingsSafe()
-  if (!settings?.updates.cached) return
+function isInstalledRelease(release: ReleaseMeta, settings: Settings | null): boolean {
+  if (compareVersions(app.getVersion(), release.version) !== 0) return false
+
+  const installed = settings?.updates.installed
+  if (!installed || installed.version !== release.version) return true
+  if (release.hash && installed.hash) return release.hash === installed.hash
+
+  return installed.releaseId === release.releaseId || installed.version === release.version
+}
+
+async function replaceCachedUpdate(next: AppUpdateCacheState, previous: AppUpdateCacheState | null): Promise<void> {
+  logger.info(logger.CONTEXT.UPDATES, "Replacing cached update", {
+    previousVersion: previous?.version ?? null,
+    previousHash: previous?.hash ?? null,
+    nextVersion: next.version,
+    nextHash: next.hash,
+    nextSource: next.source,
+  })
+
+  if (previous && previous.releaseId !== next.releaseId) {
+    await removeCachedReleaseFiles(previous)
+  }
+
+  await saveUpdatesPatch({
+    cached: next,
+    skippedReleaseId: null,
+  })
+}
+
+async function clearCachedUpdateState(cached?: AppUpdateCacheState | null): Promise<void> {
+  const nextCached = cached ?? (await loadSettingsSafe())?.updates.cached ?? null
+  if (nextCached) await removeCachedReleaseFiles(nextCached)
 
   await saveUpdatesPatch({cached: null})
+}
+
+async function removeCachedReleaseFiles(cached: AppUpdateCacheState): Promise<void> {
+  if (!cached.cachePath) return
+
+  try {
+    if (cached.source === "github") {
+      await rm(path.dirname(cached.cachePath), {recursive: true, force: true})
+      return
+    }
+
+    await rm(cached.cachePath, {force: true})
+  } catch (error) {
+    logger.error(logger.CONTEXT.UPDATES, "Failed to remove cached update files", error)
+  }
 }
 
 async function loadSettingsSafe(): Promise<Settings | null> {
@@ -352,7 +665,7 @@ async function loadSettingsSafe(): Promise<Settings | null> {
   try {
     return await storage.loadSettings()
   } catch (error) {
-    logger.error(logger.CONTEXT.APP, "Failed to load settings for updater", error)
+    logger.error(logger.CONTEXT.UPDATES, "Failed to load settings for updater", error)
     return null
   }
 }
@@ -370,8 +683,76 @@ async function saveUpdatesPatch(patch: Partial<Settings["updates"]>): Promise<vo
       },
     })
   } catch (error) {
-    logger.error(logger.CONTEXT.APP, "Failed to save updater settings", error)
+    logger.error(logger.CONTEXT.UPDATES, "Failed to save updater settings", error)
   }
+}
+
+function setUpdateState(patch: Partial<AppUpdateState>): void {
+  updateState = {
+    ...updateState,
+    ...patch,
+    currentVersion: app.getVersion(),
+  }
+  emitState()
+}
+
+function emitState(): void {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  mainWindow.webContents.send("updates:state-changed", getUpdateState())
+}
+
+function getManagedUpdatesDir(): string {
+  return path.join(app.getPath("userData"), "updates")
+}
+
+function getManagedReleaseDir(releaseId: string): string {
+  return path.join(getManagedUpdatesDir(), "releases", sanitizePathSegment(releaseId))
+}
+
+function getInstallMarkerPath(): string {
+  return path.join(getManagedUpdatesDir(), "install-result.json")
+}
+
+function sanitizePathSegment(value: string): string {
+  return value.replace(/[^a-zA-Z0-9._-]/g, "_")
+}
+
+function getCurrentAppBundlePath(): string {
+  return path.resolve(process.execPath, "../../..")
+}
+
+function shellEscape(value: string): string {
+  return `'${value.replace(/'/g, `'\\''`)}'`
+}
+
+async function computeFileSha256(filePath: string): Promise<string> {
+  const hash = createHash("sha256")
+  const stream = createReadStream(filePath)
+
+  for await (const chunk of stream) {
+    hash.update(chunk)
+  }
+
+  return hash.digest("hex")
+}
+
+function compareVersions(left: string, right: string): number {
+  const [leftMain, leftPre = ""] = left.split("-", 2)
+  const [rightMain, rightPre = ""] = right.split("-", 2)
+  const leftParts = leftMain.split(".").map((part) => Number.parseInt(part, 10) || 0)
+  const rightParts = rightMain.split(".").map((part) => Number.parseInt(part, 10) || 0)
+  const length = Math.max(leftParts.length, rightParts.length)
+
+  for (let index = 0; index < length; index += 1) {
+    const diff = (leftParts[index] ?? 0) - (rightParts[index] ?? 0)
+    if (diff !== 0) return diff > 0 ? 1 : -1
+  }
+
+  if (!leftPre && !rightPre) return 0
+  if (!leftPre) return 1
+  if (!rightPre) return -1
+
+  return leftPre.localeCompare(rightPre, undefined, {numeric: true})
 }
 
 function parseJsonSafe<T>(text: string): T | null {
@@ -438,3 +819,9 @@ function runCommand(command: string, args: string[], timeoutMs: number): Promise
     })
   })
 }
+
+const BREW_CASK = APP_CONFIG.updates.brewCask
+const BREW_TIMEOUT_MS = APP_CONFIG.updates.brewTimeoutMs
+const GITHUB_REPO = APP_CONFIG.updates.githubRepo
+const BREW_ENV = APP_CONFIG.updates.brewEnv
+const GITHUB_HEADERS = APP_CONFIG.updates.githubHeaders

@@ -2,6 +2,7 @@ export type LogLevel = "DEBUG" | "INFO" | "WARN" | "ERROR"
 
 export const LOG_CONTEXT = {
   APP: "APP",
+  UPDATES: "UPDATES",
   DB: "DB",
   STORAGE: "STORAGE",
   TASKS: "TASKS",

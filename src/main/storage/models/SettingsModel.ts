@@ -67,6 +67,7 @@ export class SettingsModel {
       updates: {
         skippedReleaseId: null,
         cached: null,
+        installed: null,
       },
     }
   }

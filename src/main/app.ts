@@ -16,6 +16,7 @@ import {setupDbViewerIPC, setupDevToolsIPC} from "@/setup/ipc/devtools"
 import {setupMenuIPC} from "@/setup/ipc/menu"
 import {setupShellIPC} from "@/setup/ipc/shell"
 import {setupStorageIPC} from "@/setup/ipc/storage"
+import {setupUpdatesIPC} from "@/setup/ipc/updates"
 import {setupMainWindowIPC} from "@/setup/ipc/windows"
 import {setupCSP} from "@/setup/security/csp"
 import {setupPrivilegedSchemes, setupSafeFileProtocol} from "@/setup/security/protocols"
@@ -78,6 +79,7 @@ app.whenReady().then(async () => {
   setupShellIPC()
   setupMainWindowIPC(() => windows.main)
   setupMenuIPC(() => windows.main)
+  setupUpdatesIPC()
 
   setupDevToolsIPC(
     () => windows.main,
@@ -99,9 +101,7 @@ app.whenReady().then(async () => {
     () => windows.main,
   )
 
-  const main = setupMainWindow(windows, {showSplash: true})
-
-  setupUpdateManager(main, () => storage)
+  setupMainWindow(windows, {showSplash: true})
 
   logger.lifecycle(`${APP_CONFIG.name} started`)
 })
@@ -117,6 +117,7 @@ function setupMainWindow(windows: AppWindows, options?: {showSplash?: boolean}) 
 
   windows.main = createMainWindow(savedMainWindowState)
   const main = windows.main!
+  if (storage) setupUpdateManager(main, () => storage)
 
   setupMenu(() => main)
   setupMainWindowStatePersistence(

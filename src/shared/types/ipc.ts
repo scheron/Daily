@@ -4,6 +4,7 @@ import type {AIConfig, AIResponse, LocalModelDownloadProgress, LocalModelId, Loc
 import type {ISODate} from "./common"
 import type {TaskSearchResult} from "./search"
 import type {Branch, Day, File, MoveTaskByOrderParams, Settings, SyncStatus, Tag, Task} from "./storage"
+import type {AppUpdateState} from "./update"
 
 export interface BridgeIPC {
   // === GENERAL IPC ===
@@ -33,6 +34,12 @@ export interface BridgeIPC {
   // === SETTINGS ===
   "settings:load": () => Promise<Settings>
   "settings:save": (settings: Partial<Settings>) => Promise<void>
+
+  // === UPDATES ===
+  "updates:get-state": () => Promise<AppUpdateState>
+  "updates:check": () => Promise<AppUpdateState>
+  "updates:install": () => Promise<boolean>
+  "updates:on-state-changed": (callback: (state: AppUpdateState) => void) => () => void
 
   // === DAYS  ===
   "days:get-many": (params?: {from?: ISODate; to?: ISODate; branchId?: Branch["id"]}) => Promise<Day[]>

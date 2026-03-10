@@ -208,8 +208,18 @@ export function docToSettings(doc: SettingsDoc): Settings {
             releaseId: cachedUpdate.releaseId,
             version: cachedUpdate.version,
             hash: cachedUpdate.hash ?? null,
+            source: cachedUpdate.source ?? "github",
             cachePath: cachedUpdate.cachePath ?? null,
             downloadedAt: cachedUpdate.downloadedAt,
+          }
+        : null,
+      installed: updates?.installed
+        ? {
+            releaseId: updates.installed.releaseId,
+            version: updates.installed.version,
+            hash: updates.installed.hash ?? null,
+            source: updates.installed.source ?? "github",
+            installedAt: updates.installed.installedAt,
           }
         : null,
     },

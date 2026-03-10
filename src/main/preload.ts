@@ -7,6 +7,7 @@ import type {ISODate} from "@shared/types/common"
 import type {BridgeIPC} from "@shared/types/ipc"
 import type {TaskSearchResult} from "@shared/types/search"
 import type {Branch, Day, Settings, SyncStatus, Tag, Task} from "@shared/types/storage"
+import type {AppUpdateState} from "@shared/types/update"
 import type {PartialDeep} from "type-fest"
 
 // prettier-ignore
@@ -38,6 +39,15 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
 
   "settings:load": () => ipcRenderer.invoke("settings:load") as Promise<Settings>,
   "settings:save": (settings: Partial<Settings>) => ipcRenderer.invoke("settings:save", settings),
+
+  "updates:get-state": () => ipcRenderer.invoke("updates:get-state") as Promise<AppUpdateState>,
+  "updates:check": () => ipcRenderer.invoke("updates:check") as Promise<AppUpdateState>,
+  "updates:install": () => ipcRenderer.invoke("updates:install") as Promise<boolean>,
+  "updates:on-state-changed": (callback: (state: AppUpdateState) => void) => {
+    const subscription = (_event: unknown, state: AppUpdateState) => callback(state)
+    ipcRenderer.on("updates:state-changed", subscription)
+    return () => ipcRenderer.removeListener("updates:state-changed", subscription)
+  },
 
   "days:get-many": (params?: {from?: ISODate; to?: ISODate; branchId?: Branch["id"]}) => ipcRenderer.invoke("days:get-many", params) as Promise<Day[]>,
   "days:get-one": (date: ISODate) => ipcRenderer.invoke("days:get-one", date) as Promise<Day | null>,

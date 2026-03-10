@@ -1,5 +1,6 @@
 import type {AIConfig} from "./ai"
 import type {ID, ISODate, ISODateTime, ISOTime, Timezone} from "./common"
+import type {AppUpdateSource} from "./update"
 
 export type SyncStatus = "inactive" | "active" | "syncing" | "error"
 export type LayoutType = "list" | "columns"
@@ -17,13 +18,22 @@ export type MainWindowSettings = {
 export type AppUpdateCacheState = {
   /**
    * Stable release identity (version + hash when available).
-   * Used to dedupe prompts and support "Skip this version".
+   * Used to dedupe background downloads.
    */
   releaseId: string
   version: string
   hash: string | null
+  source: AppUpdateSource
   cachePath: string | null
   downloadedAt: ISODateTime
+}
+
+export type InstalledAppReleaseState = {
+  releaseId: string
+  version: string
+  hash: string | null
+  source: AppUpdateSource
+  installedAt: ISODateTime
 }
 
 export type Settings = {
@@ -78,6 +88,10 @@ export type Settings = {
      * Last release fetched via brew and available for install.
      */
     cached: AppUpdateCacheState | null
+    /**
+     * Last release successfully applied by the custom updater.
+     */
+    installed: InstalledAppReleaseState | null
   }
 }
 

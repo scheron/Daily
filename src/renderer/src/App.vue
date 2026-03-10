@@ -8,6 +8,7 @@ import {useBranchesStore} from "@/stores/branches.store"
 import {useSettingsStore} from "@/stores/settings.store"
 import {useTagsStore} from "@/stores/tags.store"
 import {useTasksStore} from "@/stores/tasks.store"
+import {useUpdateStore} from "@/stores/update.store"
 import {IconsSprite} from "@/ui/base/BaseIcon"
 
 const settingsStore = useSettingsStore()
@@ -15,6 +16,7 @@ const aiStore = useAiStore()
 const branchesStore = useBranchesStore()
 const tasksStore = useTasksStore()
 const tagsStore = useTagsStore()
+useUpdateStore()
 
 invoke(async () => {
   await until(() => settingsStore.isSettingsLoaded).toBeTruthy()
