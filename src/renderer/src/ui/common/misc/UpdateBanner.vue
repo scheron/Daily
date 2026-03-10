@@ -34,10 +34,6 @@ const progressWidth = computed(() => {
   if (typeof updateStore.state.downloadProgress !== "number") return "0%"
   return `${Math.max(6, Math.min(100, updateStore.state.downloadProgress))}%`
 })
-
-async function onInstall() {
-  await updateStore.installUpdate()
-}
 </script>
 
 <template>
@@ -89,7 +85,7 @@ async function onInstall() {
           class="min-w-28 text-sm"
           :loading="updateStore.isUpdating"
           :disabled="updateStore.isUpdating"
-          @click="onInstall"
+          @click="updateStore.installUpdate"
         >
           {{ updateStore.isUpdating ? "Installing" : "Install" }}
         </BaseButton>
