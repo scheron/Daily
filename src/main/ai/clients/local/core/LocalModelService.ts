@@ -2,9 +2,9 @@ import {stat} from "node:fs/promises"
 import path from "node:path"
 import fs from "fs-extra"
 
+import {downloadWithProgress} from "@/utils/files/downloadWithProgress"
 import {logger} from "@/utils/logger"
 
-import {downloadWithProgress} from "@/ai/utils/downloadWithProgress"
 import {fsPaths} from "@/config"
 import {getManifestEntry, MODEL_MANIFEST} from "./manifest"
 

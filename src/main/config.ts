@@ -143,4 +143,13 @@ export const fsPaths = {
 
   /** Local AI binary (llama-server) */
   binPath: () => path.join(app.getPath("userData"), "bin"),
+
+  /** Updater working directory */
+  updatesPath: () => path.join(app.getPath("userData"), "updates"),
+
+  /** Downloaded update payloads */
+  updatesReleasesPath: () => path.join(app.getPath("userData"), "updates", "releases"),
+
+  /** Pending install result marker */
+  updatesInstallResultPath: () => path.join(app.getPath("userData"), "updates", "install-result.json"),
 }

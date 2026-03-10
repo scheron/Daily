@@ -1,9 +1,9 @@
 import {ipcMain} from "electron"
 
-import {checkForUpdate, getUpdateState, installDownloadedUpdate} from "@/setup/updates/updater"
+import {updaterController} from "@/updates/UpdaterController"
 
 export function setupUpdatesIPC(): void {
-  ipcMain.handle("updates:get-state", () => getUpdateState())
-  ipcMain.handle("updates:check", () => checkForUpdate({manual: true}))
-  ipcMain.handle("updates:install", () => installDownloadedUpdate())
+  ipcMain.handle("updates:get-state", () => updaterController.getState())
+  ipcMain.handle("updates:check", () => updaterController.checkForUpdate({manual: true}))
+  ipcMain.handle("updates:install", () => updaterController.installDownloadedUpdate())
 }

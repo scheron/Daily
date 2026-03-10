@@ -3,7 +3,7 @@ import {app, ipcMain, Menu} from "electron"
 import {ShortcutsMap} from "@shared/constants/shortcuts"
 
 import {ENV} from "@/config"
-import {checkForUpdate} from "@/setup/updates/updater"
+import {updaterController} from "@/updates/UpdaterController"
 
 import type {BrowserWindow, MenuItemConstructorOptions} from "electron"
 
@@ -36,7 +36,7 @@ function createMacMenu(mainWindow: BrowserWindow): MenuItemConstructorOptions[] 
         },
         {
           label: "Check for Updates...",
-          click: () => checkForUpdate({manual: true}),
+          click: () => updaterController.checkForUpdate({manual: true}),
         },
         {type: "separator"},
         {role: "hide"},
