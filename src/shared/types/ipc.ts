@@ -38,6 +38,7 @@ export interface BridgeIPC {
   // === UPDATES ===
   "updates:get-state": () => Promise<AppUpdateState>
   "updates:check": () => Promise<AppUpdateState>
+  "updates:download": () => Promise<boolean>
   "updates:install": () => Promise<boolean>
   "updates:on-state-changed": (callback: (state: AppUpdateState) => void) => () => void
 

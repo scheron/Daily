@@ -42,6 +42,7 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
 
   "updates:get-state": () => ipcRenderer.invoke("updates:get-state") as Promise<AppUpdateState>,
   "updates:check": () => ipcRenderer.invoke("updates:check") as Promise<AppUpdateState>,
+  "updates:download": () => ipcRenderer.invoke("updates:download") as Promise<boolean>,
   "updates:install": () => ipcRenderer.invoke("updates:install") as Promise<boolean>,
   "updates:on-state-changed": (callback: (state: AppUpdateState) => void) => {
     const subscription = (_event: unknown, state: AppUpdateState) => callback(state)

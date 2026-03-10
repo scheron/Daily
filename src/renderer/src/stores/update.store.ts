@@ -23,10 +23,14 @@ export const useUpdateStore = defineStore("update", () => {
   const dismissedVersion = ref<string | null>(null)
 
   const hasAvailableUpdate = computed(() => Boolean(state.value.availableVersion))
-  const isUpdating = computed(() => state.value.status === "downloading" || state.value.status === "installing")
+  const isDownloading = computed(() => state.value.status === "downloading")
+  const isInstalling = computed(() => state.value.status === "installing")
+  const isBusy = computed(() => isDownloading.value || isInstalling.value)
+  const canDownload = computed(() => state.value.status === "available" || (state.value.status === "error" && !state.value.downloadedAt))
+  const canInstall = computed(() => state.value.status === "downloaded" || (state.value.status === "error" && Boolean(state.value.downloadedAt)))
   const isPanelVisible = computed(() => {
     if (!hasAvailableUpdate.value) return false
-    if (isUpdating.value) return true
+    if (isBusy.value) return true
     return dismissedVersion.value !== state.value.availableVersion
   })
 
@@ -62,8 +66,8 @@ export const useUpdateStore = defineStore("update", () => {
     state.value = await window.BridgeIPC["updates:check"]()
   }
 
-  async function installUpdate(): Promise<boolean> {
-    if (!hasAvailableUpdate.value || isUpdating.value || state.value.status === "checking") return false
+  async function downloadUpdate(): Promise<boolean> {
+    if (!canDownload.value || isBusy.value || state.value.status === "checking") return false
 
     state.value = {
       ...state.value,
@@ -71,11 +75,23 @@ export const useUpdateStore = defineStore("update", () => {
       reason: null,
     }
 
+    return await window.BridgeIPC["updates:download"]()
+  }
+
+  async function installUpdate(): Promise<boolean> {
+    if (!canInstall.value || isBusy.value || state.value.status === "checking") return false
+
+    state.value = {
+      ...state.value,
+      status: "installing",
+      reason: null,
+    }
+
     return await window.BridgeIPC["updates:install"]()
   }
 
   function dismissPanel(): void {
-    if (!state.value.availableVersion || isUpdating.value) return
+    if (!state.value.availableVersion || isBusy.value) return
     dismissedVersion.value = state.value.availableVersion
   }
 
@@ -85,10 +101,15 @@ export const useUpdateStore = defineStore("update", () => {
     state,
     isInitialized,
     hasAvailableUpdate,
-    isUpdating,
+    isDownloading,
+    isInstalling,
+    isBusy,
+    canDownload,
+    canInstall,
     isPanelVisible,
     init,
     checkForUpdates,
+    downloadUpdate,
     installUpdate,
     dismissPanel,
   }

@@ -85,7 +85,7 @@ export type Settings = {
      */
     skippedReleaseId: string | null
     /**
-     * Last release fetched via brew and available for install.
+     * Last release downloaded and available for install.
      */
     cached: AppUpdateCacheState | null
     /**

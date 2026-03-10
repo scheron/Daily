@@ -6,12 +6,9 @@ import {APP_CONFIG, fsPaths} from "@/config"
 
 import type {AppUpdateCacheState, InstalledAppReleaseState} from "@shared/types/storage"
 
-export async function createInstallerScript(
-  cachedUpdate: AppUpdateCacheState,
-  resolveBrewBinary: () => Promise<string | null>,
-): Promise<string | null> {
+export async function createInstallerScript(cachedUpdate: AppUpdateCacheState): Promise<string | null> {
   const appBundlePath = path.resolve(process.execPath, "../../..")
-  const relaunchPath = cachedUpdate.source === "brew" ? path.join("/Applications", `${APP_CONFIG.name}.app`) : appBundlePath
+  const relaunchPath = appBundlePath
   const installResult: InstalledAppReleaseState = {
     releaseId: cachedUpdate.releaseId,
     version: cachedUpdate.version,
@@ -20,9 +17,7 @@ export async function createInstallerScript(
     installedAt: new Date().toISOString(),
   }
 
-  const brewBinary = cachedUpdate.source === "brew" ? await resolveBrewBinary() : null
-  if (cachedUpdate.source === "brew" && !brewBinary) return null
-  if (cachedUpdate.source === "github" && (!cachedUpdate.cachePath || !existsSync(cachedUpdate.cachePath))) return null
+  if (!cachedUpdate.cachePath || !existsSync(cachedUpdate.cachePath)) return null
 
   const updatesDir = fsPaths.updatesPath()
   const scriptPath = path.join(updatesDir, `install-${Date.now()}.sh`)
@@ -37,8 +32,6 @@ export async function createInstallerScript(
     `APP_BUNDLE_PATH=${q(appBundlePath)}`,
     `RELAUNCH_PATH=${q(relaunchPath)}`,
     `APP_NAME=${q(APP_CONFIG.name)}`,
-    `BREW_BINARY=${q(brewBinary ?? "")}`,
-    `BREW_CASK=${q(APP_CONFIG.updates.brewCask)}`,
     `DOWNLOAD_PATH=${q(cachedUpdate.cachePath ?? "")}`,
     `MARKER_PATH=${q(fsPaths.updatesInstallResultPath())}`,
     `MARKER_JSON=${q(JSON.stringify(installResult))}`,
@@ -63,9 +56,6 @@ export async function createInstallerScript(
     "}",
     "trap cleanup EXIT",
     'while kill -0 "$TARGET_PID" >/dev/null 2>&1; do sleep 1; done',
-    'if [ "$PROVIDER" = "brew" ]; then',
-    '  env HOMEBREW_NO_AUTO_UPDATE=1 PATH="$PATH:/opt/homebrew/bin:/usr/local/bin" "$BREW_BINARY" upgrade --cask "$BREW_CASK"',
-    "else",
     '  MOUNT_POINT=$(hdiutil attach "$DOWNLOAD_PATH" -nobrowse | awk \'/\\/Volumes\\// { $1=$2=""; sub(/^  */, ""); print; exit }\')',
     '  if [ -z "$MOUNT_POINT" ]; then exit 1; fi',
     '  rm -rf "$BACKUP_PATH" >/dev/null 2>&1 || true',
@@ -77,7 +67,6 @@ export async function createInstallerScript(
     "    exit 1",
     "  fi",
     '  xattr -rd com.apple.quarantine "$APP_BUNDLE_PATH" >/dev/null 2>&1 || true',
-    "fi",
     'mkdir -p "$(dirname "$MARKER_PATH")"',
     'printf \'%s\' "$MARKER_JSON" > "$MARKER_PATH"',
     "SUCCESS=1",

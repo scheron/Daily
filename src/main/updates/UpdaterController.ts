@@ -1,4 +1,5 @@
 import {spawn} from "node:child_process"
+import {existsSync} from "node:fs"
 import {app} from "electron"
 
 import {logger} from "@/utils/logger"
@@ -7,7 +8,7 @@ import {applyPendingInstallResult} from "./utils/applyPendingInstallResult"
 import {compareVersions} from "./utils/compareVersions"
 import {createInstallerScript} from "./utils/createInstallerScript"
 import {removeManagedUpdateFiles} from "./utils/removeManagedUpdateFiles"
-import {downloadRelease, resolveBrewBinary, resolveLatestRelease} from "./release"
+import {downloadRelease, resolveLatestRelease} from "./release"
 
 import type {IStorageController} from "@/types/storage"
 import type {Settings} from "@shared/types/storage"
@@ -96,6 +97,11 @@ export class UpdaterController {
         return this.getState()
       }
 
+      const cachedRelease = this.getCachedRelease(settings, release)
+      if (settings?.updates.cached && !cachedRelease) {
+        await this.clearCachedUpdateState()
+      }
+
       logger.info(logger.CONTEXT.UPDATES, "Update available", {
         currentVersion: app.getVersion(),
         currentHash: installedRelease?.hash ?? null,
@@ -104,13 +110,12 @@ export class UpdaterController {
         latestSource: release.source,
       })
 
-      await this.clearCachedUpdateState()
       this.setUpdateState({
-        status: "ready",
+        status: cachedRelease ? "downloaded" : "available",
         source: release.source,
         availableVersion: release.version,
         availableHash: release.hash,
-        downloadedAt: null,
+        downloadedAt: cachedRelease?.downloadedAt ?? null,
         downloadProgress: null,
         checkedAt: new Date().toISOString(),
         reason: manual ? `Update ${release.version} is available.` : null,
@@ -130,7 +135,7 @@ export class UpdaterController {
     return this.getState()
   }
 
-  async installDownloadedUpdate(): Promise<boolean> {
+  async downloadUpdate(): Promise<boolean> {
     if (!this.isUpdaterSupported()) {
       this.setUpdateState({
         status: "unavailable",
@@ -163,6 +168,25 @@ export class UpdaterController {
         return false
       }
 
+      const cachedRelease = this.getCachedRelease(settings, release)
+      if (cachedRelease) {
+        this.setUpdateState({
+          status: "downloaded",
+          source: release.source,
+          availableVersion: release.version,
+          availableHash: release.hash,
+          downloadedAt: cachedRelease.downloadedAt,
+          downloadProgress: null,
+          checkedAt: new Date().toISOString(),
+          reason: null,
+        })
+        return true
+      }
+
+      if (settings?.updates.cached) {
+        await this.clearCachedUpdateState()
+      }
+
       this.setUpdateState({
         status: "downloading",
         source: release.source,
@@ -182,13 +206,79 @@ export class UpdaterController {
         })
       })
 
-      const installerPath = await createInstallerScript(downloadedRelease, resolveBrewBinary)
+      await this.saveUpdatesPatch({cached: downloadedRelease})
+
+      this.setUpdateState({
+        status: "downloaded",
+        source: release.source,
+        availableVersion: release.version,
+        availableHash: release.hash,
+        downloadedAt: downloadedRelease.downloadedAt,
+        checkedAt: new Date().toISOString(),
+        reason: null,
+        downloadProgress: null,
+      })
+
+      return true
+    } catch (error: any) {
+      logger.error(logger.CONTEXT.UPDATES, "Failed to download update", error)
+      this.setUpdateState({
+        status: "error",
+        reason: error?.message ?? "Failed to download update.",
+        downloadProgress: null,
+      })
+      return false
+    }
+  }
+
+  async installDownloadedUpdate(): Promise<boolean> {
+    if (!this.isUpdaterSupported()) {
+      this.setUpdateState({
+        status: "unavailable",
+        reason: "In-app updates are available only on macOS.",
+      })
+      return false
+    }
+
+    try {
+      const release = await resolveLatestRelease()
+      const settings = await this.loadSettingsSafe()
+
+      if (this.isInstalledRelease(release, settings)) {
+        this.setUpdateState({
+          status: "idle",
+          source: release.source,
+          availableVersion: null,
+          availableHash: null,
+          downloadedAt: null,
+          checkedAt: new Date().toISOString(),
+          reason: "You're already using the latest version.",
+        })
+        return false
+      }
+
+      const cachedRelease = this.getCachedRelease(settings, release)
+      if (!cachedRelease) {
+        this.setUpdateState({
+          status: "error",
+          source: release.source,
+          availableVersion: release.version,
+          availableHash: release.hash,
+          downloadedAt: null,
+          reason: "Download the update first.",
+          checkedAt: new Date().toISOString(),
+        })
+        return false
+      }
+
+      const installerPath = await createInstallerScript(cachedRelease)
       if (!installerPath) {
         this.setUpdateState({
           status: "error",
           source: release.source,
           availableVersion: release.version,
           availableHash: release.hash,
+          downloadedAt: cachedRelease.downloadedAt,
           reason: "Failed to prepare the update installer.",
         })
         return false
@@ -206,6 +296,7 @@ export class UpdaterController {
         source: release.source,
         availableVersion: release.version,
         availableHash: release.hash,
+        downloadedAt: cachedRelease.downloadedAt,
         reason: null,
         downloadProgress: null,
       })
@@ -244,6 +335,17 @@ export class UpdaterController {
     if (release.hash && installed.hash) return release.hash === installed.hash
 
     return installed.releaseId === release.releaseId || installed.version === release.version
+  }
+
+  private getCachedRelease(settings: Settings | null, release: ReleaseMeta) {
+    const cached = settings?.updates.cached
+    if (!cached) return null
+    if (cached.releaseId !== release.releaseId) return null
+    if (cached.version !== release.version) return null
+    if (release.hash && cached.hash && release.hash !== cached.hash) return null
+    if (!cached.cachePath || !existsSync(cached.cachePath)) return null
+
+    return cached
   }
 
   private async clearCachedUpdateState(): Promise<void> {
