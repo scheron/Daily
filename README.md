@@ -145,15 +145,3 @@ If macOS blocks launch because the app is not notarized, run:
 ```bash
 xattr -rd com.apple.quarantine /Applications/Daily.app
 ```
-
----
-
-## Updating
-
-If installed via Homebrew, update with:
-
-```bash
-brew upgrade --cask scheron/tap/daily
-```
-
-If installed manually, download the latest release from [Releases](https://github.com/scheron/Daily/releases).
