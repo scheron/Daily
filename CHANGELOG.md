@@ -2,17 +2,12 @@
 
 ## [Unreleased]
 
-## v0.12.9 - 2026-03-10
+## v0.12.10 - 2026-03-10
 
 ### ✨ New Features
 
 - Replace `sh` install script with homebrew
-
-- refactor: streamline release resolution process by consolidating GitHub and Homebrew metadata retrieval
-
-## v0.12.7 - 2026-03-10
-
-- Add new autoupdate system
+- Add Auto Update App system
 
 ## v0.12.2 - 2026-02-22
 

@@ -1,6 +1,6 @@
 {
   "name": "daily",
-  "version": "0.12.9",
+  "version": "0.12.10",
   "productName": "Daily",
   "description": "Daily - A minimal daily tasks management app",
   "type": "module",
