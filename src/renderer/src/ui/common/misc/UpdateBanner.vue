@@ -9,13 +9,15 @@ import BaseIcon from "@/ui/base/BaseIcon"
 const updateStore = useUpdateStore()
 
 const title = computed(() => {
+  if (updateStore.state.status === "installing") return "Installing update"
   if (updateStore.state.status === "downloading") return "Downloading update"
   return "Update available"
 })
 
 const description = computed(() => {
+  if (updateStore.state.status === "installing") return "Installing the update. The app will relaunch automatically."
   if (updateStore.state.status === "downloading") return "Downloading the update."
-  return "A new version of Daily is available. The app will relaunch automatically after installing.."
+  return "A new version of Daily is available. The app will relaunch automatically after installing."
 })
 
 const progressWidth = computed(() => {
@@ -68,18 +70,6 @@ function handlePrimaryAction() {
         </p>
       </div>
 
-      <div class="flex items-center justify-end gap-3">
-        <BaseButton
-          variant="secondary"
-          class="min-w-28 py-1 text-sm"
-          :loading="updateStore.isBusy"
-          :disabled="updateStore.isBusy"
-          @click="handlePrimaryAction"
-        >
-          {{ buttonLabel }}
-        </BaseButton>
-      </div>
-
       <div v-if="updateStore.state.status === 'downloading'" class="mt-2 flex flex-col gap-2">
         <div class="bg-base-300 h-2 overflow-hidden rounded-full">
           <div class="bg-accent h-full rounded-full transition-all duration-200" :style="{width: progressWidth}" />
@@ -87,6 +77,12 @@ function handlePrimaryAction() {
         <span class="text-base-content/60 self-end text-xs">
           {{ typeof updateStore.state.downloadProgress === "number" ? `${updateStore.state.downloadProgress}% downloaded` : "Preparing download..." }}
         </span>
+      </div>
+
+      <div v-if="!updateStore.isBusy" class="flex items-center justify-end gap-3">
+        <BaseButton variant="secondary" class="min-w-28 py-1 text-sm" @click="handlePrimaryAction">
+          {{ buttonLabel }}
+        </BaseButton>
       </div>
     </div>
   </BaseAnimation>
