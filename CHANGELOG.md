@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## v0.12.3 - 2026-03-10
+
+### ✨ New Features
+
+- Replace `sh` install script with homebrew
+
 ## v0.12.2 - 2026-02-22
 
 ### 🐛 Bug Fixes
