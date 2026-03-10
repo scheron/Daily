@@ -40,13 +40,13 @@ function handlePrimaryAction() {
   <BaseAnimation name="fade">
     <div
       v-if="updateStore.isPanelVisible"
-      class="border-base-300 bg-base-100/90 bottom-header fixed right-4 z-50 flex w-80 flex-col rounded-2xl border px-4 py-3 shadow-2xl"
+      class="border-base-300 bg-base-100/90 bottom-header fixed right-4 z-50 flex w-96 flex-col rounded-2xl border px-4 py-3 shadow-2xl"
     >
-      <div class="mb-2 flex w-full flex-col gap-2">
+      <div class="mb-4 flex w-full flex-col gap-2">
         <div class="flex w-full items-center justify-between gap-2">
           <div class="flex items-center gap-1">
-            <span class="bg-base-200 text-base-content flex size-6 shrink-0 items-center justify-center rounded-full">
-              <BaseIcon :name="updateStore.isBusy ? 'refresh' : 'info'" :class="updateStore.isBusy && 'animate-spin'" class="size-4" />
+            <span class="text-base-content flex size-6 shrink-0 items-center justify-center rounded-full">
+              <BaseIcon :name="updateStore.isBusy ? 'spinner' : 'info'" :class="updateStore.isBusy && 'animate-spin'" class="size-4" />
             </span>
 
             <h3 class="text-sm font-semibold">
@@ -70,7 +70,7 @@ function handlePrimaryAction() {
         </p>
       </div>
 
-      <div v-if="updateStore.state.status === 'downloading'" class="mt-2 flex flex-col gap-2">
+      <div v-if="updateStore.state.status === 'downloading'" class="flex flex-col gap-2">
         <div class="bg-base-300 h-2 overflow-hidden rounded-full">
           <div class="bg-accent h-full rounded-full transition-all duration-200" :style="{width: progressWidth}" />
         </div>
@@ -80,7 +80,7 @@ function handlePrimaryAction() {
       </div>
 
       <div v-if="!updateStore.isBusy" class="flex items-center justify-end gap-3">
-        <BaseButton variant="secondary" class="min-w-28 py-1 text-sm" @click="handlePrimaryAction">
+        <BaseButton variant="secondary" class="min-w-28 py-0 text-sm" @click="handlePrimaryAction">
           {{ buttonLabel }}
         </BaseButton>
       </div>
