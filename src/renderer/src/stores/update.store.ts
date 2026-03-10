@@ -26,8 +26,11 @@ export const useUpdateStore = defineStore("update", () => {
   const isDownloading = computed(() => state.value.status === "downloading")
   const isInstalling = computed(() => state.value.status === "installing")
   const isBusy = computed(() => isDownloading.value || isInstalling.value)
-  const canDownload = computed(() => state.value.status === "available" || (state.value.status === "error" && !state.value.downloadedAt))
-  const canInstall = computed(() => state.value.status === "downloaded" || (state.value.status === "error" && Boolean(state.value.downloadedAt)))
+  const canDownload = computed(() => {
+    if (state.value.status === "available" || state.value.status === "downloaded") return true
+    if (state.value.status === "error" && state.value.availableVersion) return true
+    return false
+  })
   const isPanelVisible = computed(() => {
     if (!hasAvailableUpdate.value) return false
     if (isBusy.value) return true
@@ -78,18 +81,6 @@ export const useUpdateStore = defineStore("update", () => {
     return await window.BridgeIPC["updates:download"]()
   }
 
-  async function installUpdate(): Promise<boolean> {
-    if (!canInstall.value || isBusy.value || state.value.status === "checking") return false
-
-    state.value = {
-      ...state.value,
-      status: "installing",
-      reason: null,
-    }
-
-    return await window.BridgeIPC["updates:install"]()
-  }
-
   function dismissPanel(): void {
     if (!state.value.availableVersion || isBusy.value) return
     dismissedVersion.value = state.value.availableVersion
@@ -105,12 +96,10 @@ export const useUpdateStore = defineStore("update", () => {
     isInstalling,
     isBusy,
     canDownload,
-    canInstall,
     isPanelVisible,
     init,
     checkForUpdates,
     downloadUpdate,
-    installUpdate,
     dismissPanel,
   }
 })

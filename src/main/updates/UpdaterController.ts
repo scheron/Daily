@@ -170,17 +170,7 @@ export class UpdaterController {
 
       const cachedRelease = this.getCachedRelease(settings, release)
       if (cachedRelease) {
-        this.setUpdateState({
-          status: "downloaded",
-          source: release.source,
-          availableVersion: release.version,
-          availableHash: release.hash,
-          downloadedAt: cachedRelease.downloadedAt,
-          downloadProgress: null,
-          checkedAt: new Date().toISOString(),
-          reason: null,
-        })
-        return true
+        return await this.startInstall(release, cachedRelease)
       }
 
       if (settings?.updates.cached) {
@@ -208,18 +198,7 @@ export class UpdaterController {
 
       await this.saveUpdatesPatch({cached: downloadedRelease})
 
-      this.setUpdateState({
-        status: "downloaded",
-        source: release.source,
-        availableVersion: release.version,
-        availableHash: release.hash,
-        downloadedAt: downloadedRelease.downloadedAt,
-        checkedAt: new Date().toISOString(),
-        reason: null,
-        downloadProgress: null,
-      })
-
-      return true
+      return await this.startInstall(release, downloadedRelease)
     } catch (error: any) {
       logger.error(logger.CONTEXT.UPDATES, "Failed to download update", error)
       this.setUpdateState({
@@ -271,38 +250,7 @@ export class UpdaterController {
         return false
       }
 
-      const installerPath = await createInstallerScript(cachedRelease)
-      if (!installerPath) {
-        this.setUpdateState({
-          status: "error",
-          source: release.source,
-          availableVersion: release.version,
-          availableHash: release.hash,
-          downloadedAt: cachedRelease.downloadedAt,
-          reason: "Failed to prepare the update installer.",
-        })
-        return false
-      }
-
-      const child = spawn("/bin/sh", [installerPath], {
-        detached: true,
-        stdio: "ignore",
-      })
-
-      child.unref()
-
-      this.setUpdateState({
-        status: "installing",
-        source: release.source,
-        availableVersion: release.version,
-        availableHash: release.hash,
-        downloadedAt: cachedRelease.downloadedAt,
-        reason: null,
-        downloadProgress: null,
-      })
-
-      app.quit()
-      return true
+      return await this.startInstall(release, cachedRelease)
     } catch (error: any) {
       logger.error(logger.CONTEXT.UPDATES, "Failed to install update", error)
       this.setUpdateState({
@@ -346,6 +294,43 @@ export class UpdaterController {
     if (!cached.cachePath || !existsSync(cached.cachePath)) return null
 
     return cached
+  }
+
+  private async startInstall(release: ReleaseMeta, cachedRelease: Settings["updates"]["cached"]): Promise<boolean> {
+    if (!cachedRelease) return false
+
+    const installerPath = await createInstallerScript(cachedRelease)
+    if (!installerPath) {
+      this.setUpdateState({
+        status: "error",
+        source: release.source,
+        availableVersion: release.version,
+        availableHash: release.hash,
+        downloadedAt: cachedRelease.downloadedAt,
+        reason: "Failed to prepare the update installer.",
+      })
+      return false
+    }
+
+    const child = spawn("/bin/sh", [installerPath], {
+      detached: true,
+      stdio: "ignore",
+    })
+
+    child.unref()
+
+    this.setUpdateState({
+      status: "installing",
+      source: release.source,
+      availableVersion: release.version,
+      availableHash: release.hash,
+      downloadedAt: cachedRelease.downloadedAt,
+      reason: null,
+      downloadProgress: null,
+    })
+
+    app.quit()
+    return true
   }
 
   private async clearCachedUpdateState(): Promise<void> {

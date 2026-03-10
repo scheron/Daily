@@ -9,17 +9,13 @@ import BaseIcon from "@/ui/base/BaseIcon"
 const updateStore = useUpdateStore()
 
 const title = computed(() => {
-  if (updateStore.state.status === "installing") return "Installing update"
   if (updateStore.state.status === "downloading") return "Downloading update"
-  if (updateStore.canInstall) return "Ready to install"
   return "Update available"
 })
 
 const description = computed(() => {
-  if (updateStore.state.status === "installing") return "Daily is applying the update now. The app will relaunch automatically."
-  if (updateStore.state.status === "downloading") return "Downloading version"
-  if (updateStore.canInstall) return "Ready to install"
-  return "A new version of Daily is available."
+  if (updateStore.state.status === "downloading") return "Downloading the update."
+  return "A new version of Daily is available. The app will relaunch automatically after installing.."
 })
 
 const progressWidth = computed(() => {
@@ -30,12 +26,10 @@ const progressWidth = computed(() => {
 const buttonLabel = computed(() => {
   if (updateStore.isDownloading) return "Downloading"
   if (updateStore.isInstalling) return "Installing"
-  if (updateStore.canInstall) return "Install"
   return "Download"
 })
 
 function handlePrimaryAction() {
-  if (updateStore.canInstall) return updateStore.installUpdate()
   return updateStore.downloadUpdate()
 }
 </script>
