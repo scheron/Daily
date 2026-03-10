@@ -2,9 +2,7 @@
 
 ## [Unreleased]
 
-## v0.12.6 - 2026-03-10
-
-checking updates
+## v0.12.7 - 2026-03-10
 
 ### ✨ New Features
 
