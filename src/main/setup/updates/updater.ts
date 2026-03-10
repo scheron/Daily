@@ -375,6 +375,7 @@ async function applyPendingInstallResult(): Promise<void> {
 
 async function createInstallerScript(cachedUpdate: AppUpdateCacheState): Promise<string | null> {
   const appBundlePath = getCurrentAppBundlePath()
+  const relaunchPath = getRelaunchAppPath(cachedUpdate.source, appBundlePath)
   const installResult: InstalledAppReleaseState = {
     releaseId: cachedUpdate.releaseId,
     version: cachedUpdate.version,
@@ -397,6 +398,8 @@ async function createInstallerScript(cachedUpdate: AppUpdateCacheState): Promise
     `TARGET_PID=${process.pid}`,
     `PROVIDER=${shellEscape(cachedUpdate.source)}`,
     `APP_BUNDLE_PATH=${shellEscape(appBundlePath)}`,
+    `RELAUNCH_PATH=${shellEscape(relaunchPath)}`,
+    `APP_NAME=${shellEscape(APP_CONFIG.name)}`,
     `BREW_BINARY=${shellEscape(brewBinary ?? "")}`,
     `BREW_CASK=${shellEscape(BREW_CASK)}`,
     `DOWNLOAD_PATH=${shellEscape(cachedUpdate.cachePath ?? "")}`,
@@ -406,11 +409,14 @@ async function createInstallerScript(cachedUpdate: AppUpdateCacheState): Promise
     "SUCCESS=0",
     "MOUNT_POINT=",
     'BACKUP_PATH="$APP_BUNDLE_PATH.codex-update-backup"',
+    "relaunch_app() {",
+    '  if [ -d "$RELAUNCH_PATH" ]; then open "$RELAUNCH_PATH" >/dev/null 2>&1 || true; else open -a "$APP_NAME" >/dev/null 2>&1 || true; fi',
+    "}",
     "cleanup() {",
     '  if [ -n "$MOUNT_POINT" ]; then hdiutil detach "$MOUNT_POINT" >/dev/null 2>&1 || true; fi',
     '  if [ "$SUCCESS" -ne 1 ]; then',
     '    if [ -d "$BACKUP_PATH" ] && [ ! -d "$APP_BUNDLE_PATH" ]; then mv "$BACKUP_PATH" "$APP_BUNDLE_PATH"; fi',
-    '    open "$APP_BUNDLE_PATH" >/dev/null 2>&1 || true',
+    "    relaunch_app",
     "  else",
     '    rm -rf "$BACKUP_PATH" >/dev/null 2>&1 || true',
     '    if [ -n "$CLEANUP_PATH" ] && [ -e "$CLEANUP_PATH" ]; then rm -rf "$CLEANUP_PATH" >/dev/null 2>&1 || true; fi',
@@ -438,7 +444,7 @@ async function createInstallerScript(cachedUpdate: AppUpdateCacheState): Promise
     'mkdir -p "$(dirname "$MARKER_PATH")"',
     'printf \'%s\' "$MARKER_JSON" > "$MARKER_PATH"',
     "SUCCESS=1",
-    'open "$APP_BUNDLE_PATH"',
+    "relaunch_app",
     "",
   ].join("\n")
 
@@ -665,6 +671,11 @@ function sanitizePathSegment(value: string): string {
 
 function getCurrentAppBundlePath(): string {
   return path.resolve(process.execPath, "../../..")
+}
+
+function getRelaunchAppPath(source: AppUpdateCacheState["source"], appBundlePath: string): string {
+  if (source === "brew") return path.join("/Applications", `${APP_CONFIG.name}.app`)
+  return appBundlePath
 }
 
 function shellEscape(value: string): string {
