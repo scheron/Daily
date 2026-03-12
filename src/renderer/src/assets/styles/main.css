@@ -8,7 +8,7 @@
   --header-height: 40px;
   --card-min-height: 100px;
   --task-content-minimized-height: 200px;
-  --glass-surface: color-mix(in oklab, var(--color-base-100) 62%, transparent);
+  --glass-surface: color-mix(in oklab, var(--color-base-100) 74%, transparent);
   --glass-border: color-mix(in oklab, var(--color-base-content) 14%, transparent);
   --glass-blur: 18px;
   --glass-shadow: 0 10px 40px color-mix(in oklab, var(--color-base-content) 10%, transparent);
@@ -81,7 +81,7 @@ html.glass-ui body {
 html.glass-ui .app-shell {
   position: relative;
   isolation: isolate;
-  background: color-mix(in oklab, var(--color-base-100) 12%, transparent);
+  background: color-mix(in oklab, var(--color-base-100) 22%, transparent);
   border: 1px solid color-mix(in oklab, var(--color-accent) 26%, transparent);
   border-radius: 14px;
   overflow: hidden;
@@ -97,7 +97,7 @@ html.glass-ui .app-shell::before {
   z-index: 0;
   backdrop-filter: blur(40px);
   -webkit-backdrop-filter: blur(40px);
-  background: color-mix(in oklab, var(--color-base-100) 44%, transparent);
+  background: color-mix(in oklab, var(--color-base-100) 56%, transparent);
 }
 
 html.glass-ui .app-sidebar,
@@ -113,11 +113,11 @@ html.glass-ui .app-content {
 }
 
 html.glass-ui .app-sidebar {
-  background: color-mix(in oklab, var(--color-base-100) 26%, transparent) !important;
+  background: color-mix(in oklab, var(--color-base-100) 40%, transparent) !important;
 }
 
 html.glass-ui #app [class*="bg-base-"]:not(.app-shell) {
-  background-color: color-mix(in oklab, var(--color-base-100) 24%, transparent) !important;
+  background-color: color-mix(in oklab, var(--color-base-100) 38%, transparent) !important;
   backdrop-filter: blur(18px) saturate(128%);
   -webkit-backdrop-filter: blur(18px) saturate(128%);
 }

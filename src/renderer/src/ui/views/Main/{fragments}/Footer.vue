@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {computed} from "vue"
+import {useNow} from "@vueuse/core"
 import {DateTime} from "luxon"
 
 import {ISODate} from "@shared/types/common"
@@ -14,7 +15,10 @@ const props = defineProps<{activeDay: string}>()
 
 const tasksStore = useTasksStore()
 
+const now = useNow()
+
 const week = computed(() => getWeekDays(tasksStore.days, tasksStore.activeDay))
+const today = computed(() => DateTime.fromJSDate(now.value).toISODate())
 
 function goToPreviousWeek() {
   tasksStore.setActiveDay(getWeekNavigationDate(-1))
@@ -36,6 +40,10 @@ function getWeekNavigationDate(offset: -1 | 1): ISODate {
 
 function getBadgeText(activeTasksCount: number) {
   return activeTasksCount > 9 ? "9+" : String(activeTasksCount)
+}
+
+function isToday(date: ISODate): boolean {
+  return date === today.value
 }
 </script>
 
@@ -64,10 +72,20 @@ function getBadgeText(activeTasksCount: number) {
           :key="weekDay.date"
           class="relative flex min-w-0 flex-1 items-center justify-center rounded-lg border px-2 py-1 font-semibold transition-colors duration-150"
           :class="[
-            weekDay.date === props.activeDay ? 'text-accent bg-base-100 border-accent/50' : 'bg-base-200 text-base-content/80 border-transparent',
+            weekDay.date === props.activeDay
+              ? isToday(weekDay.date)
+                ? 'text-accent bg-accent/15 border-accent'
+                : 'text-accent bg-base-100 border-accent/50'
+              : isToday(weekDay.date)
+                ? 'border-accent'
+                : 'bg-base-200 text-base-content/80 border-transparent',
           ]"
           @click="tasksStore.setActiveDay(weekDay.date)"
         >
+          <div
+            class="bg-accent absolute top-0 left-0 z-10 w-1 rounded-l-md transition-all duration-200"
+            :class="[isToday(weekDay.date) ? 'h-full opacity-100' : 'h-0 opacity-0']"
+          />
           <span class="truncate text-[10px]">{{ toFullDate(weekDay.date) }}</span>
 
           <span
