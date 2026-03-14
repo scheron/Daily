@@ -166,7 +166,7 @@ useCalendarSwipe({
 </script>
 
 <template>
-  <div ref="calendarRootEl" class="flex-1">
+  <div ref="calendarRootEl" class="flex-1 p-1">
     <div class="mb-4 flex items-center justify-between gap-1">
       <div class="flex flex-1 items-center justify-between gap-1">
         <BaseButton variant="ghost" icon="chevron-left" @click="previousMonth" />
@@ -175,15 +175,7 @@ useCalendarSwipe({
         </h2>
         <BaseButton variant="ghost" icon="chevron-right" @click="nextMonth" />
       </div>
-      <BaseButton
-        v-if="showTodayButton"
-        variant="outline"
-        icon-class="text-accent"
-        class="border-accent"
-        tooltip="Today"
-        icon="today"
-        @click="selectToday"
-      />
+      <BaseButton v-if="showTodayButton" variant="ghost" icon-class="text-accent" tooltip="Today" icon="today" @click="selectToday" />
     </div>
 
     <ul class="grid grid-cols-7 gap-1">

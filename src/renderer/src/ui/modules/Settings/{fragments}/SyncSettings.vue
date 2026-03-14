@@ -51,7 +51,6 @@ async function onForceSync() {
         </div>
       </div>
 
-      <!-- Last Sync & Force Sync -->
       <div class="border-base-300 flex flex-col gap-2 rounded-md border p-3">
         <div class="text-base-content/50 flex items-center justify-between text-xs">
           <span class="flex items-center gap-1.5">

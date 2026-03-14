@@ -5,7 +5,7 @@ type SyncStatusEnum = Record<SyncStatus, {icon: IconName; text: string; descript
 
 export const SYNC_STATUS_ENUM: SyncStatusEnum = {
   syncing: {
-    icon: "refresh",
+    icon: "spinner",
     text: "Syncing...",
     description: "iCloud data is currently syncing...",
     color: "text-accent/80",

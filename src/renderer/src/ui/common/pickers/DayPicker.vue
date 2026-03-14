@@ -7,17 +7,19 @@ import type {Day} from "@shared/types/storage"
 
 withDefaults(
   defineProps<{
-    title: string
+    title?: string
     days: Day[]
     activeDay: string
     hideOnSelect?: boolean
     selectedDay?: ISODate | null
+    showTodayButton?: boolean
   }>(),
   {
     days: () => [],
     title: "Select Day",
     selectedDay: null,
     hideOnSelect: false,
+    showTodayButton: true,
   },
 )
 
@@ -40,7 +42,7 @@ function onSelect(date: ISODate, hide: () => void) {
         mode="single"
         :days="days"
         :selected-date="selectedDay"
-        :show-today-button="false"
+        :show-today-button="showTodayButton"
         :initial-month="activeDay"
         size="sm"
         @select-date="onSelect($event, hide)"
