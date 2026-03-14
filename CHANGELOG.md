@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### 🧹 Cleanup
+
+- Removed PouchDB legacy code and migration bridge
+- Removed `pouchdb` dependencies
+
 ## v0.12.11 - 2026-03-14
 
 ### 🏗️ Storage Migration — PouchDB → SQLite

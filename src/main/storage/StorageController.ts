@@ -13,7 +13,6 @@ import {logger} from "@/utils/logger"
 
 import {fsPaths} from "@/config"
 import {initDatabase} from "@/storage/database/instance"
-import {hasMigrationExport, importMigrationExport} from "@/storage/database/scripts/importMigrationExport"
 import {BranchModel} from "@/storage/models/BranchModel"
 import {FileModel} from "@/storage/models/FileModel"
 import {SettingsModel} from "@/storage/models/SettingsModel"
@@ -56,15 +55,6 @@ export class StorageController implements IStorageController {
     await fs.ensureDir(fsPaths.assetsDir())
 
     const db = initDatabase(fsPaths.dbPath())
-
-    // Import data from PouchDB export (created by the previous version before update)
-    if (hasMigrationExport(this.rootDir)) {
-      try {
-        await importMigrationExport(this.rootDir, db, fsPaths.assetsDir())
-      } catch (error) {
-        logger.error(logger.CONTEXT.STORAGE, "Failed to import migration export", error)
-      }
-    }
 
     const settingsModel = new SettingsModel(db)
     const branchModel = new BranchModel(db)
