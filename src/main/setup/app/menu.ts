@@ -38,6 +38,7 @@ function createMacMenu(mainWindow: BrowserWindow): MenuItemConstructorOptions[] 
           label: "Check for Updates...",
           click: () => updaterController.checkForUpdate({manual: true}),
         },
+        {type: "separator"},
         {
           label: ShortcutsMap["ui:open-settings-panel"].label,
           accelerator: ShortcutsMap["ui:open-settings-panel"].accelerator,
@@ -141,6 +142,7 @@ function createTasksMenu(mainWindow: BrowserWindow): MenuItemConstructorOptions[
       accelerator: ShortcutsMap["ui:toggle-tasks-view-mode"].accelerator,
       click: () => mainWindow.webContents.send(ShortcutsMap["ui:toggle-tasks-view-mode"].channel),
     },
+    {type: "separator"},
     {
       label: ShortcutsMap["ui:open-search-panel"].label,
       accelerator: ShortcutsMap["ui:open-search-panel"].accelerator,
