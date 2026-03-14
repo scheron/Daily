@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### 🧹 Cleanup
+
+- Replaced `floating-vue` tooltip library with custom `vTooltip` directive and `TooltipController`
+
 ## v0.12.12 - 2026-03-14
 
 ### 🏗️ Storage Migration — PouchDB → SQLite

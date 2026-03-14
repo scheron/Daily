@@ -4,19 +4,18 @@ import { createApp } from "vue"
 
 import App from "@/App.vue"
 import router from "@/router"
-import FloatingVue from 'floating-vue'
 
 import vFocusOnMount from "@/directives/vFocusOnMount"
 
-import "floating-vue/dist/style.css"
 import "vue-sonner/style.css"
 import "vue-toasts-lite/style.css"
 
 import "@/assets/styles/main.css"
-import "@/assets/styles/rewrites/floating-vue.css"
+import "@/assets/styles/tooltip.css"
 import "@/assets/styles/rewrites/vue-sonner.css"
 import "@/assets/styles/rewrites/vue-toasts-lite.css"
 import "@/assets/styles/rewrites/vue-draggable.css"
+import vTooltip from "./directives/vTooltip"
 
 async function initApp() {
   const pinia = createPinia()
@@ -24,24 +23,10 @@ async function initApp() {
 
   app.use(pinia)
   app.use(router)
-  app.use(FloatingVue, {
-    themes: {
-      tooltip: {
-        placement: "bottom-end",
-        triggers: ['hover'],
-        distance: 8,
-        delay: {
-          show: 1000,
-          hide: 200,
-        },
-        html: true,
-        loadingContent: "...",
-      },
-    },
-  })
 
   useSettingsStore()
   app.directive("focus-on-mount", vFocusOnMount)
+  app.directive("tooltip", vTooltip)
   app.mount("#app")
 }
 

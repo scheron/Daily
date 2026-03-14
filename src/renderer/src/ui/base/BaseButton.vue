@@ -5,7 +5,7 @@ import {cn} from "@/utils/ui/tailwindcss"
 
 import BaseIcon from "./BaseIcon/BaseIcon.vue"
 
-import type {Placement} from "floating-vue"
+import type {TooltipPlacement} from "@/utils/ui/TooltipController"
 import type {HtmlHTMLAttributes} from "vue"
 import type {IconName} from "./BaseIcon"
 
@@ -16,7 +16,7 @@ const props = defineProps<{
   disabled?: boolean
   loading?: boolean
   tooltip?: string
-  tooltipPosition?: Placement
+  tooltipPosition?: TooltipPlacement
   iconClass?: HtmlHTMLAttributes["class"]
   class?: HtmlHTMLAttributes["class"]
 }>()
