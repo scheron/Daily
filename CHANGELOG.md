@@ -6,6 +6,7 @@
 
 - **Settings as separate window** — Settings now open in a dedicated Electron BrowserWindow instead of an in-app modal. Frameless, non-resizable, with native macOS traffic lights. Shows only the active section instead of a scrollable list. Window displays only after Vue has fully rendered to avoid partial render flash.
 - **Search as modal window** — Search moved from sidebar panel to a floating modal dialog (Cmd+F). Search icon added to the header. Results update without blocking UI — current results stay visible while new search is in progress.
+- **AI Assistant as separate window** — AI Assistant moved from sidebar panel to a dedicated Electron BrowserWindow (Cmd+Shift+A). Resizable, non-always-on-top for side-by-side use. Reopening focuses the existing window. Sidebar now has a standalone AI button instead of a tab.
 
 ### 🐛 Bug Fixes
 

@@ -43,6 +43,11 @@ function createMacMenu(mainWindow: BrowserWindow): MenuItemConstructorOptions[] 
           accelerator: ShortcutsMap["ui:open-settings-panel"].accelerator,
           click: () => ipcMain.emit("settings:open"),
         },
+        {
+          label: ShortcutsMap["ui:open-assistant-panel"].label,
+          accelerator: ShortcutsMap["ui:open-assistant-panel"].accelerator,
+          click: () => ipcMain.emit("assistant:open"),
+        },
         {type: "separator"},
         {role: "hide"},
         {role: "hideOthers"},

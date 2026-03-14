@@ -14,6 +14,11 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import("@/ui/views/Settings"),
   },
   {
+    path: "/assistant",
+    name: "Assistant",
+    component: () => import("@/ui/views/Assistant"),
+  },
+  {
     path: "/:pathMatch(.*)*",
     redirect: "/",
   },

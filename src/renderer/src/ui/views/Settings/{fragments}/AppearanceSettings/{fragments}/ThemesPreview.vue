@@ -13,8 +13,8 @@ defineProps<{
 
 <template>
   <button
-    class="border-base-300 hover:border-accent focus-visible:ring-accent relative flex w-[140px] max-w-[140px] min-w-[140px] shrink-0 flex-col items-center rounded-lg border p-2 transition-colors outline-none focus-visible:ring-2"
-    :class="{'border-accent shadow-lg': selected}"
+    class="focus-visible:ring-accent relative flex w-[140px] max-w-[140px] min-w-[140px] shrink-0 flex-col items-center rounded-lg border p-2 transition-colors outline-none focus-visible:ring-2"
+    :class="[selected ? 'border-accent hover:border-accent' : 'border-base-300 hover:border-accent']"
     tabindex="0"
   >
     <div

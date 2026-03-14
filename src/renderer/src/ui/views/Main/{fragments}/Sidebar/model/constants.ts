@@ -20,14 +20,6 @@ export const BOTTOM_MENU_ITEMS: AnimatedTab<SidebarSection>[] = [
     activeClass: "bg-accent/20 text-accent",
     inactiveClass: "text-base-content hover:bg-base-200",
   },
-  {
-    id: "assistant",
-    icon: "ai",
-    label: "AI Assistant",
-    tooltip: `AI Assistant (${toShortcutKeys("ui:open-assistant-panel")})`,
-    activeClass: "bg-accent/20 text-accent",
-    inactiveClass: "text-base-content hover:bg-base-200",
-  },
 ]
 
-export const SETTINGS_BUTTON_TOOLTIP = `Settings (${toShortcutKeys("ui:open-settings-panel")})`
+export const ASSISTANT_BUTTON_TOOLTIP = `AI Assistant (${toShortcutKeys("ui:open-assistant-panel")})`

@@ -12,10 +12,10 @@ defineProps<{
 
 <template>
   <button
-    class="border-base-300 hover:border-accent focus-visible:ring-accent bg-base-100 relative flex w-full flex-col items-center rounded-lg border p-2 transition-colors outline-none focus-visible:ring-2"
-    :class="{'border-accent shadow-lg': selected}"
+    class="focus-visible:ring-accent bg-base-100 relative flex w-full flex-col items-center rounded-lg border p-2 transition-colors outline-none focus-visible:ring-2"
+    :class="[selected ? 'border-accent hover:border-accent' : 'border-base-300 hover:border-accent']"
   >
-    <div class="bg-base-200 border-base-300 relative flex h-20 w-full overflow-hidden rounded-md border p-1.5">
+    <div class="bg-base-200 border-base-300 relative flex h-24 w-full overflow-hidden rounded-md border p-1.5">
       <template v-if="type === 'list'">
         <div class="flex w-5 flex-col gap-1 border-r pr-1" :class="{'border-base-300': true}">
           <div class="bg-base-300 h-2 rounded-sm" />

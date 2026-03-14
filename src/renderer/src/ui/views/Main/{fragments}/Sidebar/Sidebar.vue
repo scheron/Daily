@@ -8,11 +8,10 @@ import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseSpinner from "@/ui/base/BaseSpinner.vue"
 import AnimatedTabs from "@/ui/common/misc/AnimatedTabs"
 import Logo from "@/ui/common/misc/Logo.vue"
-import AiAssistant from "@/ui/modules/AiAssistant"
 import CalendarMonth from "@/ui/modules/CalendarMonth"
 import TagsForm from "@/ui/modules/TagsForm"
 
-import {BOTTOM_MENU_ITEMS} from "./model/constants"
+import {ASSISTANT_BUTTON_TOOLTIP, BOTTOM_MENU_ITEMS} from "./model/constants"
 
 defineProps<{
   dataLoaded: boolean
@@ -58,7 +57,6 @@ const showCollapseButton = computed(() => {
         <div class="hide-scrollbar flex-1 overflow-y-auto">
           <CalendarMonth v-if="uiStore.activeSidebarSection === 'calendar'" />
           <TagsForm v-else-if="uiStore.activeSidebarSection === 'tags'" class="h-full" />
-          <AiAssistant v-else-if="uiStore.activeSidebarSection === 'assistant'" class="h-full" />
         </div>
 
         <div class="app-sidebar-footer border-base-300 bg-base-100 flex items-center gap-1 border-t px-2 py-2">

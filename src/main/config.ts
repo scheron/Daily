@@ -68,6 +68,10 @@ export const APP_CONFIG = {
       width: 860,
       height: 640,
     },
+    assistant: {
+      width: 480,
+      height: 680,
+    },
   },
   csp: {
     policy:

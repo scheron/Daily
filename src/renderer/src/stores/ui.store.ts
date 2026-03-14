@@ -7,8 +7,8 @@ import {useSettingValue} from "@/composables/useSettingsValue"
 import type {TaskStatus} from "@shared/types/storage"
 
 export type TasksViewMode = "list" | "columns"
-export type SidebarSection = "calendar" | "tags" | "themes" | "deleted" | "assistant"
-export type SettingsPanel = "ai" | "themes" | "layout" | "projects" | "sync" | "deleted" | "icons" | null
+export type SidebarSection = "calendar" | "tags" | "themes" | "deleted"
+export type SettingsPanel = "appearance" | "ai" | "themes" | "layout" | "projects" | "sync" | "deleted" | "icons" | null
 type ColumnsCollapsed = Record<TaskStatus, boolean>
 
 export const useUIStore = defineStore("ui", () => {

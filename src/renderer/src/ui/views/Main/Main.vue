@@ -43,7 +43,7 @@ window.BridgeIPC["shortcut:ui:toggle-sidebar"](() => uiStore.toggleSidebarCollap
 window.BridgeIPC["shortcut:ui:open-calendar-panel"](() => uiStore.openSidebarSection("calendar"))
 window.BridgeIPC["shortcut:ui:open-tags-panel"](() => uiStore.openSidebarSection("tags"))
 window.BridgeIPC["shortcut:ui:open-search-panel"](() => uiStore.toggleSearchModal())
-window.BridgeIPC["shortcut:ui:open-assistant-panel"](() => uiStore.openSidebarSection("assistant"))
+window.BridgeIPC["shortcut:ui:open-assistant-panel"](() => window.BridgeIPC.send("assistant:open"))
 window.BridgeIPC["shortcut:ui:open-settings-panel"](() => window.BridgeIPC.send("settings:open"))
 window.BridgeIPC["shortcut:ui:toggle-tasks-view-mode"](() => uiStore.toggleTasksViewMode())
 </script>
