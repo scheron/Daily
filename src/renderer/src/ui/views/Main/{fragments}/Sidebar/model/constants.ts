@@ -36,12 +36,6 @@ export const BOTTOM_MENU_ITEMS: AnimatedTab<SidebarSection>[] = [
     activeClass: "bg-accent/20 text-accent",
     inactiveClass: "text-base-content hover:bg-base-200",
   },
-  {
-    id: "settings",
-    icon: "logo",
-    label: "Daily",
-    tooltip: `Settings (${toShortcutKeys("ui:open-settings-panel")})`,
-    activeClass: "bg-accent/20 text-accent",
-    inactiveClass: "text-base-content hover:bg-base-200",
-  },
 ]
+
+export const SETTINGS_BUTTON_TOOLTIP = `Settings (${toShortcutKeys("ui:open-settings-panel")})`

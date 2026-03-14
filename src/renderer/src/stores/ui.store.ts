@@ -7,7 +7,7 @@ import {useSettingValue} from "@/composables/useSettingsValue"
 import type {TaskStatus} from "@shared/types/storage"
 
 export type TasksViewMode = "list" | "columns"
-export type SidebarSection = "calendar" | "tags" | "themes" | "settings" | "search" | "deleted" | "assistant"
+export type SidebarSection = "calendar" | "tags" | "themes" | "search" | "deleted" | "assistant"
 export type SettingsPanel = "ai" | "themes" | "layout" | "projects" | "sync" | "deleted" | "icons" | null
 type ColumnsCollapsed = Record<TaskStatus, boolean>
 
@@ -67,11 +67,6 @@ export const useUIStore = defineStore("ui", () => {
     activeSettingsPanel.value = panel
   }
 
-  function openSettingsPanel(panel: Exclude<SettingsPanel, null>) {
-    activeSettingsPanel.value = panel
-    openSidebarSection("settings")
-  }
-
   function toggleColumnsHideEmpty(value?: boolean) {
     const nextValue = value ?? !columnsHideEmpty.value
 
@@ -124,7 +119,6 @@ export const useUIStore = defineStore("ui", () => {
     toggleTasksViewMode,
     setActiveSidebarSection,
     setActiveSettingsPanel,
-    openSettingsPanel,
     openSidebarSection,
     toggleColumnsHideEmpty,
     toggleColumnsAutoCollapseEmpty,

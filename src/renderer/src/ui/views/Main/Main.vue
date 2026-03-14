@@ -43,14 +43,13 @@ window.BridgeIPC["shortcut:ui:open-calendar-panel"](() => uiStore.openSidebarSec
 window.BridgeIPC["shortcut:ui:open-tags-panel"](() => uiStore.openSidebarSection("tags"))
 window.BridgeIPC["shortcut:ui:open-search-panel"](() => uiStore.openSidebarSection("search"))
 window.BridgeIPC["shortcut:ui:open-assistant-panel"](() => uiStore.openSidebarSection("assistant"))
-window.BridgeIPC["shortcut:ui:open-settings-panel"](() => uiStore.openSidebarSection("settings"))
+window.BridgeIPC["shortcut:ui:open-settings-panel"](() => window.BridgeIPC.send("settings:open"))
 window.BridgeIPC["shortcut:ui:toggle-tasks-view-mode"](() => uiStore.toggleTasksViewMode())
 </script>
 
 <template>
   <div ref="container" class="app-shell bg-base-300 flex h-dvh w-dvw overflow-hidden">
     <UpdateBanner />
-
     <Sidebar v-if="isDesktop && !uiStore.isSidebarCollapsed" :content-height="contentHeight" :data-loaded="isDataLoaded" />
 
     <template v-else-if="isTablet">

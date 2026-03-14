@@ -225,7 +225,7 @@ export function createAboutWindow(): BrowserWindow {
     movable: true,
     center: true,
     show: false,
-    backgroundColor: "#0f1116",
+    transparent: true,
     frame: true,
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
     icon: fsPaths.icon(),
@@ -380,6 +380,46 @@ function resolveAboutLogoDataURL(): string | null {
   }
 
   return null
+}
+
+export function createSettingsWindow(): BrowserWindow {
+  const settingsWindow = new BrowserWindow({
+    title: "Settings",
+    width: APP_CONFIG.window.settings.width,
+    height: APP_CONFIG.window.settings.height,
+    resizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    center: true,
+    show: false,
+    frame: false,
+    alwaysOnTop: true,
+    transparent: true,
+    titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
+    icon: fsPaths.icon(),
+    webPreferences: {
+      preload: fsPaths.preload(),
+      nodeIntegration: false,
+      contextIsolation: true,
+      webSecurity: true,
+    },
+  })
+
+  const rendererPath = fsPaths.renderer()
+  if (rendererPath.startsWith("http")) {
+    settingsWindow.loadURL(`${rendererPath}#/settings`)
+  } else {
+    settingsWindow.loadFile(rendererPath, {hash: "/settings"})
+  }
+
+  settingsWindow.webContents.once("ipc-message", (_event, channel) => {
+    if (channel === "window:ready") {
+      settingsWindow.show()
+      focusWindow(settingsWindow)
+    }
+  })
+
+  return settingsWindow
 }
 
 export function focusWindow(win: BrowserWindow) {

@@ -20,10 +20,6 @@ import ChatMessage from "./{fragments}/ChatMessage.vue"
 
 import type {AIProvider} from "@shared/types/ai"
 
-const emit = defineEmits<{
-  "navigate-settings": []
-}>()
-
 const aiStore = useAiStore()
 const {startTyping, stopTyping, renderTyping} = useTyping({duration: 80, endDelay: 1500})
 
@@ -111,11 +107,7 @@ onMounted(async () => {
         <DisabledAICard />
       </div>
       <div v-else-if="aiStore.isConnectionError && isNoLocalModel" class="flex size-full w-full items-center justify-center">
-        <NoLocalModelAICard
-          :remote-models="aiStore.remoteModels"
-          @go-to-settings="emit('navigate-settings')"
-          @select-remote-model="handleSelectRemoteModel"
-        />
+        <NoLocalModelAICard :remote-models="aiStore.remoteModels" @select-remote-model="handleSelectRemoteModel" />
       </div>
       <div v-else-if="aiStore.isConnectionError" class="flex size-full w-full items-center justify-center">
         <ConnectionErrorAICard @retry="aiStore.checkConnection" />

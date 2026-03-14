@@ -14,6 +14,7 @@ import {loadSavedMainWindowState, setupMainWindowStatePersistence} from "@/setup
 import {setupAboutIPC} from "@/setup/ipc/about"
 import {setupAiIPC} from "@/setup/ipc/ai"
 import {setupMenuIPC} from "@/setup/ipc/menu"
+import {setupSettingsIPC} from "@/setup/ipc/settings"
 import {setupShellIPC} from "@/setup/ipc/shell"
 import {setupStorageIPC} from "@/setup/ipc/storage"
 import {setupUpdatesIPC} from "@/setup/ipc/updates"
@@ -26,9 +27,9 @@ import {createMainWindow, createSplashWindow, focusWindow} from "@/windows"
 import type {MainWindowSettings} from "@shared/types/storage"
 import type {BrowserWindow} from "electron"
 
-type AppWindows = {main: BrowserWindow | null; splash: BrowserWindow | null; about: BrowserWindow | null}
+type AppWindows = {main: BrowserWindow | null; splash: BrowserWindow | null; about: BrowserWindow | null; settings: BrowserWindow | null}
 
-const windows: AppWindows = {main: null, splash: null, about: null}
+const windows: AppWindows = {main: null, splash: null, about: null, settings: null}
 let storage: StorageController | null = null
 let ai: AIController | null = null
 let savedMainWindowState: MainWindowSettings | undefined
@@ -81,6 +82,11 @@ app.whenReady().then(async () => {
   setupAboutIPC(
     () => windows.about,
     (win) => (windows.about = win),
+  )
+
+  setupSettingsIPC(
+    () => windows.settings,
+    (win) => (windows.settings = win),
   )
 
   setupStorageIPC(() => storage)

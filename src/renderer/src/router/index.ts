@@ -9,6 +9,11 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import("@/ui/views/Main"),
   },
   {
+    path: "/settings",
+    name: "Settings",
+    component: () => import("@/ui/views/Settings"),
+  },
+  {
     path: "/:pathMatch(.*)*",
     redirect: "/",
   },

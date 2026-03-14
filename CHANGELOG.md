@@ -2,9 +2,18 @@
 
 ## [Unreleased]
 
+### ✨ New Features
+
+- **Settings as separate window** — Settings now open in a dedicated Electron BrowserWindow instead of an in-app modal. Frameless, non-resizable, with native macOS traffic lights. Shows only the active section instead of a scrollable list. Window displays only after Vue has fully rendered to avoid partial render flash.
+
+### 🐛 Bug Fixes
+
+- Fixed settings not syncing via iCloud — `saveSettings()` was missing `notifyStorageDataChange()` call
+
 ### 🧹 Cleanup
 
 - Replaced `floating-vue` tooltip library with custom `vTooltip` directive and `TooltipController`
+- Removed settings modal state from UI store (`isSettingsModalOpen`, `openSettingsModal`, `closeSettingsModal`, `openSettingsPanel`)
 
 ## v0.12.12 - 2026-03-14
 

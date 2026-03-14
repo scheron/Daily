@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, nextTick, useTemplateRef, watchEffect} from "vue"
+import {computed, HTMLAttributes, nextTick, useTemplateRef, watchEffect} from "vue"
 import {useEventListener} from "@vueuse/core"
 
 import {useFocusTrap} from "@/composables/useFocusTrap"
@@ -18,8 +18,8 @@ const props = withDefaults(
     hideHeader?: boolean
     hideToolbar?: boolean
     zIndex?: number
-    contentClass?: string
-    containerClass?: string
+    contentClass?: HTMLAttributes["class"]
+    containerClass?: HTMLAttributes["class"]
   }>(),
   {
     zIndex: 11,

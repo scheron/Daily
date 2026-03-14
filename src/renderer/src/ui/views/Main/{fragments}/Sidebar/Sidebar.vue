@@ -11,7 +11,6 @@ import Logo from "@/ui/common/misc/Logo.vue"
 import AiAssistant from "@/ui/modules/AiAssistant"
 import CalendarMonth from "@/ui/modules/CalendarMonth"
 import SearchForm from "@/ui/modules/SearchForm"
-import Settings from "@/ui/modules/Settings"
 import TagsForm from "@/ui/modules/TagsForm"
 
 import {BOTTOM_MENU_ITEMS} from "./model/constants"
@@ -61,19 +60,14 @@ const showCollapseButton = computed(() => {
           <CalendarMonth v-if="uiStore.activeSidebarSection === 'calendar'" />
           <TagsForm v-else-if="uiStore.activeSidebarSection === 'tags'" class="h-full" />
           <SearchForm v-else-if="uiStore.activeSidebarSection === 'search'" class="h-full" />
-          <AiAssistant
-            v-else-if="uiStore.activeSidebarSection === 'assistant'"
-            class="h-full"
-            @navigate-settings="uiStore.setActiveSidebarSection('settings')"
-          />
-          <Settings v-else-if="uiStore.activeSidebarSection === 'settings'" class="h-full" />
+          <AiAssistant v-else-if="uiStore.activeSidebarSection === 'assistant'" class="h-full" />
         </div>
 
-        <div class="app-sidebar-footer border-base-300 bg-base-100 border-t px-2 py-2">
+        <div class="app-sidebar-footer border-base-300 bg-base-100 flex items-center gap-1 border-t px-2 py-2">
           <AnimatedTabs
             v-model:tab="uiStore.activeSidebarSection"
             :tabs="BOTTOM_MENU_ITEMS"
-            class="flex items-center justify-between gap-1"
+            class="flex flex-1 items-center justify-between gap-1"
             tab-class="flex items-center justify-center gap-1 rounded-md px-1.5 py-1 transition-colors duration-200 outline-none focus-visible-ring focus-visible:ring-offset-base-100 focus-visible:ring-accent"
           />
         </div>

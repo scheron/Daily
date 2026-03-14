@@ -38,6 +38,11 @@ function createMacMenu(mainWindow: BrowserWindow): MenuItemConstructorOptions[] 
           label: "Check for Updates...",
           click: () => updaterController.checkForUpdate({manual: true}),
         },
+        {
+          label: ShortcutsMap["ui:open-settings-panel"].label,
+          accelerator: ShortcutsMap["ui:open-settings-panel"].accelerator,
+          click: () => ipcMain.emit("settings:open"),
+        },
         {type: "separator"},
         {role: "hide"},
         {role: "hideOthers"},
@@ -124,32 +129,6 @@ function createTasksMenu(mainWindow: BrowserWindow): MenuItemConstructorOptions[
       label: ShortcutsMap["tasks:create"].label,
       accelerator: ShortcutsMap["tasks:create"].accelerator,
       click: () => mainWindow.webContents.send(ShortcutsMap["tasks:create"].channel),
-    },
-    {type: "separator"},
-    {
-      label: ShortcutsMap["ui:open-calendar-panel"].label,
-      accelerator: ShortcutsMap["ui:open-calendar-panel"].accelerator,
-      click: () => mainWindow.webContents.send(ShortcutsMap["ui:open-calendar-panel"].channel),
-    },
-    {
-      label: ShortcutsMap["ui:open-tags-panel"].label,
-      accelerator: ShortcutsMap["ui:open-tags-panel"].accelerator,
-      click: () => mainWindow.webContents.send(ShortcutsMap["ui:open-tags-panel"].channel),
-    },
-    {
-      label: ShortcutsMap["ui:open-search-panel"].label,
-      accelerator: ShortcutsMap["ui:open-search-panel"].accelerator,
-      click: () => mainWindow.webContents.send(ShortcutsMap["ui:open-search-panel"].channel),
-    },
-    {
-      label: ShortcutsMap["ui:open-assistant-panel"].label,
-      accelerator: ShortcutsMap["ui:open-assistant-panel"].accelerator,
-      click: () => mainWindow.webContents.send(ShortcutsMap["ui:open-assistant-panel"].channel),
-    },
-    {
-      label: ShortcutsMap["ui:open-settings-panel"].label,
-      accelerator: ShortcutsMap["ui:open-settings-panel"].accelerator,
-      click: () => mainWindow.webContents.send(ShortcutsMap["ui:open-settings-panel"].channel),
     },
     {type: "separator"},
     {

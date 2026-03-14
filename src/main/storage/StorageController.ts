@@ -133,6 +133,7 @@ export class StorageController implements IStorageController {
 
   async saveSettings(newSettings: Partial<Settings>): Promise<void> {
     await this.settingsService.saveSettings(newSettings)
+    this.notifyStorageDataChange?.()
   }
   //#endregion
 

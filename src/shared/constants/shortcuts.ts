@@ -29,6 +29,7 @@ export const ShortcutsMap = {
     accelerator: "CmdOrCtrl+F",
   },
 
+  // todo: move as new window
   "ui:open-assistant-panel": {
     channel: "shortcut:ui:open-assistant-panel",
     label: "AI Assistant",

@@ -64,6 +64,10 @@ export const APP_CONFIG = {
       height: 300,
       resizable: false,
     },
+    settings: {
+      width: 860,
+      height: 640,
+    },
   },
   csp: {
     policy:

@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import {toShortcutKeys} from "@/utils/shortcuts/toShortcutKey"
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseIcon from "@/ui/base/BaseIcon"
 
@@ -8,7 +7,6 @@ defineProps<{
 }>()
 
 const emit = defineEmits<{
-  "go-to-settings": []
   "select-remote-model": [model: string]
 }>()
 </script>
@@ -38,18 +36,7 @@ const emit = defineEmits<{
     </template>
 
     <template v-else>
-      <p class="text-info text-center text-sm">
-        No available models yet. <br />
-        Open settings to set up AI.
-      </p>
-      <BaseButton
-        class="border-info text-info size-8 p-0 text-sm"
-        size="sm"
-        icon="sidebar"
-        :tooltip="`Settings (${toShortcutKeys('ui:open-settings-panel')})`"
-        variant="outline"
-        @click="emit('go-to-settings')"
-      />
+      <p class="text-info text-center text-sm">No available models yet.</p>
     </template>
   </div>
 </template>
