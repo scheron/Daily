@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## v0.12.11 - 2026-03-14
+
 ### 🏗️ Storage Migration — PouchDB → SQLite
 
 - **SQLite Storage Backend** — Replaced PouchDB with SQLite
