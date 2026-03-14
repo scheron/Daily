@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## v0.12.13 - 2026-03-14
+
 ### ✨ New Features
 
 - Redesigned UI: Introduced a new compact interface, removing the sidebar and reorganizing sections for a more minimalist workflow.
@@ -17,6 +19,8 @@
 
 - Fixed settings not syncing via iCloud
 
+---
+
 ## v0.12.12 - 2026-03-14
 
 ### 🏗️ Storage Migration — PouchDB → SQLite
@@ -31,12 +35,16 @@
 - Removed PouchDB legacy code and migration bridge
 - Removed `pouchdb` dependencies
 
+---
+
 ## v0.12.10 - 2026-03-10
 
 ### ✨ New Features
 
 - Replace `sh` install script with homebrew
 - Add Auto Update App system
+
+---
 
 ## v0.12.2 - 2026-02-22
 
@@ -45,6 +53,8 @@
 - Fixed main window state restore on app restart:
   - Window size is now persisted and restored correctly.
   - Fullscreen and maximized states are restored correctly between sessions.
+
+---
 
 ## v0.12.0 - 2026-02-22
 
@@ -65,6 +75,8 @@
 - Image preview modal for task content images
 - Task context menu now has separate actions: `Copy ID` and `Copy Task`.
 - Added `Delete All` in `Settings -> Deleted Tasks` with confirmation.
+
+---
 
 ## v0.11.0 - 2026-02-21
 
@@ -109,6 +121,8 @@ This release focuses on faster task organization, clearer layouts, and smoother 
 - Fixed incorrect relative date labels for `Today` and `Yesterday`.
 - Fixed inconsistent tag ordering.
 - Fixed an issue where the current day was not highlighted in the Quick Actions date picker.
+
+---
 
 ## v0.10.0 - 2026-02-09
 
