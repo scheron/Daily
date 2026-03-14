@@ -21,16 +21,25 @@ export function useTaskModel(rawProps: MaybeRefOrGetter<TaskModelProps>) {
 
   const task = computed(() => toValue(rawProps).task)
   const view = computed(() => toValue(rawProps).view ?? "list")
+  const taskStatus = computed(() => task.value?.status ?? "active")
   const moveScope = computed(() => {
     if (!task.value) return []
 
     if (view.value === "columns") {
-      return tasksStore.dailyTasks.filter((item) => item.status === task.value.status)
+      return tasksStore.dailyTasksByStatus[taskStatus.value] ?? tasksStore.emptyTasksByStatus[taskStatus.value]
     }
 
     return tasksStore.dailyTasks
   })
-  const moveIndex = computed(() => moveScope.value.findIndex((item) => item.id === task.value?.id))
+  const moveIndex = computed(() => {
+    if (!task.value) return -1
+
+    if (view.value === "columns") {
+      return tasksStore.dailyTaskIndexMapByStatus[taskStatus.value]?.get(task.value.id) ?? -1
+    }
+
+    return tasksStore.dailyTaskIndexMap.get(task.value.id) ?? -1
+  })
   const canMoveUp = computed(() => moveIndex.value > 0)
   const canMoveDown = computed(() => moveIndex.value > -1 && moveIndex.value < moveScope.value.length - 1)
   const canMoveToTop = computed(() => canMoveUp.value)

@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import {computed, ref, watch} from "vue"
+import {useDebounceFn} from "@vueuse/core"
 
 import {toFullDate} from "@shared/utils/date/formatters"
 import {useBranchesStore} from "@/stores/branches.store"
 import {useUIStore} from "@/stores/ui.store"
 import {useDevice} from "@/composables/useDevice"
+import {perfMark, perfMeasure} from "@/utils/perf"
 import {toShortcutKeys} from "@/utils/shortcuts/toShortcutKey"
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseIcon from "@/ui/base/BaseIcon"
@@ -35,6 +37,9 @@ const branchesWithActiveTasks = ref<Set<Branch["id"]>>(new Set())
 const hasActiveTasksInOtherBranches = computed(() => branchesWithActiveTasks.value.size > 0)
 let branchesLoadRequestId = 0
 
+const branchTasksCache = new Map<string, Set<Branch["id"]>>()
+const CACHE_TTL = 30_000
+
 const menuItems = computed<BaseMenuItem[]>(() => {
   return branchesStore.orderedBranches.map((branch) => ({
     value: branch.id,
@@ -55,14 +60,28 @@ function hasActiveTasks(branchId?: string | null): boolean {
   return branchesWithActiveTasks.value.has(branchId)
 }
 
-async function loadBranchesWithActiveTasks() {
+function getCacheKey(): string {
+  return `${props.activeDay}:${branchesStore.activeBranchId}`
+}
+
+async function loadBranchesWithActiveTasks(bypassCache = false) {
   const date = props.activeDay
   if (!date) {
     branchesWithActiveTasks.value = new Set()
     return
   }
 
+  const cacheKey = getCacheKey()
+  if (!bypassCache) {
+    const cached = branchTasksCache.get(cacheKey)
+    if (cached) {
+      branchesWithActiveTasks.value = cached
+      return
+    }
+  }
+
   const requestId = ++branchesLoadRequestId
+  perfMark("loadBranchesWithActiveTasks:start")
 
   try {
     const currentBranchId = branchesStore.activeBranchId
@@ -82,22 +101,30 @@ async function loadBranchesWithActiveTasks() {
     )
     if (requestId !== branchesLoadRequestId) return
 
-    branchesWithActiveTasks.value = new Set(checks.filter(Boolean) as Branch["id"][])
+    const result = new Set(checks.filter(Boolean) as Branch["id"][])
+    branchesWithActiveTasks.value = result
+
+    branchTasksCache.set(cacheKey, result)
+    setTimeout(() => branchTasksCache.delete(cacheKey), CACHE_TTL)
   } catch (error) {
     if (requestId !== branchesLoadRequestId) return
     console.error("Failed to load cross-project active tasks", error)
     branchesWithActiveTasks.value = new Set()
+  } finally {
+    perfMeasure("loadBranchesWithActiveTasks", "loadBranchesWithActiveTasks:start")
   }
 }
 
 function onBranchPickerClick(toggle: () => void) {
-  void loadBranchesWithActiveTasks()
+  void loadBranchesWithActiveTasks(true)
   toggle()
 }
 
+const debouncedLoad = useDebounceFn(() => loadBranchesWithActiveTasks(), 500)
+
 watch(
   () => [props.activeDay, branchesStore.activeBranchId],
-  () => void loadBranchesWithActiveTasks(),
+  () => void debouncedLoad(),
   {immediate: true},
 )
 </script>

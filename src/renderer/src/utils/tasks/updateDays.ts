@@ -15,6 +15,14 @@ export function updateDays(days: Day[], updatedDay: Day): Day[] {
   return updatedDays
 }
 
+export function mergeDays(existing: Day[], incoming: Day[]): Day[] {
+  const map = new Map<string, Day>(existing.map((day) => [day.date, day]))
+  for (const day of incoming) {
+    map.set(day.date, updateDayStats(day))
+  }
+  return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date))
+}
+
 function updateDayStats(day: Day): Day {
   const countActive = day.tasks.filter((task) => task.status === "active").length
   const countDone = day.tasks.filter((task) => task.status === "done").length

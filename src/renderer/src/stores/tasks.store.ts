@@ -1,11 +1,12 @@
-import {computed, ref} from "vue"
+import {computed, ref, watch} from "vue"
 import {DateTime} from "luxon"
 import {defineStore} from "pinia"
 
 import {objectFilter} from "@shared/utils/objects/filter"
 import {getPreviousTaskOrderIndex, sortTasksByOrderIndex} from "@shared/utils/tasks/orderIndex"
 import {useSettingsStore} from "@/stores/settings.store"
-import {updateDays} from "@/utils/tasks/updateDays"
+import {perfMark, perfMeasure} from "@/utils/perf"
+import {mergeDays, updateDays} from "@/utils/tasks/updateDays"
 import {toRawDeep} from "@/utils/ui/vue"
 
 import {API} from "@/api"
@@ -14,44 +15,187 @@ import type {TaskDropMode, TaskDropPosition, TaskMoveMeta} from "@/utils/tasks/r
 import type {ISODate} from "@shared/types/common"
 import type {Branch, Day, Tag, Task, TaskStatus} from "@shared/types/storage"
 
+const INITIAL_RANGE_MONTHS = 6
+const EXTEND_RANGE_MONTHS = 3
+const EDGE_BUFFER_DAYS = 21
+
+function addMonths(date: ISODate, months: number): ISODate {
+  return DateTime.fromISO(date).plus({months}).toISODate()!
+}
+
+function diffDays(a: ISODate, b: ISODate): number {
+  return DateTime.fromISO(a).diff(DateTime.fromISO(b), "days").days
+}
+
 export const useTasksStore = defineStore("tasks", () => {
   const settingsStore = useSettingsStore()
   const isDaysLoaded = ref(false)
   const days = ref<Day[]>([])
   const activeDay = ref<ISODate>(DateTime.now().toISODate()!)
   const activeBranchId = computed(() => settingsStore.settings?.branch?.activeId)
+  const emptyTasksByStatus: Record<TaskStatus, Task[]> = {active: [], discarded: [], done: []}
 
-  const activeDayInfo = computed(() => {
-    const day = days.value.find((day) => day.date === activeDay.value)
-    return day ? day : {date: activeDay.value}
+  const loadedRange = ref<{from: ISODate; to: ISODate} | null>(null)
+  const pendingExtend = ref<"past" | "future" | null>(null)
+
+  const activeDayData = computed(() => days.value.find((day) => day.date === activeDay.value) ?? null)
+
+  const activeDayInfo = computed(() => activeDayData.value ?? {date: activeDay.value})
+
+  const dailyTasks = computed(() => (activeDayData.value ? sortTasksByOrderIndex(activeDayData.value.tasks) : []))
+
+  const dailyTags = computed(() => activeDayData.value?.tags ?? [])
+  const dailyTasksByStatus = computed<Record<TaskStatus, Task[]>>(() => {
+    return dailyTasks.value.reduce(
+      (acc, task) => {
+        acc[task.status].push(task)
+        return acc
+      },
+      {active: [], discarded: [], done: []} as Record<TaskStatus, Task[]>,
+    )
   })
-
-  const dailyTasks = computed(() => {
-    const day = days.value.find((day) => day.date === activeDay.value)
-    return day ? sortTasksByOrderIndex(day.tasks) : []
+  const dailyTaskIndexMap = computed(() => {
+    const map = new Map<Task["id"], number>()
+    dailyTasks.value.forEach((task, index) => map.set(task.id, index))
+    return map
   })
-
-  const dailyTags = computed(() => {
-    const day = days.value.find((day) => day.date === activeDay.value)
-    return day ? day.tags : []
+  const dailyTaskIndexMapByStatus = computed<Record<TaskStatus, Map<Task["id"], number>>>(() => {
+    return {
+      active: new Map(dailyTasksByStatus.value.active.map((task, index) => [task.id, index])),
+      discarded: new Map(dailyTasksByStatus.value.discarded.map((task, index) => [task.id, index])),
+      done: new Map(dailyTasksByStatus.value.done.map((task, index) => [task.id, index])),
+    }
   })
 
   function setActiveDay(date: ISODate) {
     activeDay.value = date
+    ensureRangeForDate(date)
   }
 
   async function getTaskList() {
+    await loadInitialRange()
+  }
+
+  async function loadInitialRange() {
     isDaysLoaded.value = false
+    perfMark("loadInitialRange:start")
+
+    const today = DateTime.now().toISODate()!
+    const from = addMonths(today, -INITIAL_RANGE_MONTHS)
+    const to = addMonths(today, INITIAL_RANGE_MONTHS)
 
     try {
-      const dailyTasks = await API.getDays({branchId: activeBranchId.value})
-      console.log("[TASKS] Loaded tasks:", dailyTasks)
-      days.value = dailyTasks
+      const result = await API.getDays({from, to, branchId: activeBranchId.value})
+      console.log("[TASKS] Loaded tasks (range):", result.length, `[${from} → ${to}]`)
+      days.value = result
+      loadedRange.value = {from, to}
     } catch (error) {
       console.error("Failed to load tasks:", error)
     } finally {
       isDaysLoaded.value = true
+      perfMeasure("loadInitialRange", "loadInitialRange:start")
     }
+  }
+
+  function ensureRangeForDate(date: ISODate) {
+    const range = loadedRange.value
+    if (!range) return
+
+    const daysPastStart = diffDays(date, range.from)
+    const daysBeforeEnd = diffDays(range.to, date)
+
+    if (daysPastStart < -EDGE_BUFFER_DAYS || daysBeforeEnd < -EDGE_BUFFER_DAYS) {
+      // Far jump — re-center the window
+      void recenterRange(date)
+      return
+    }
+
+    if (daysPastStart < EDGE_BUFFER_DAYS) {
+      void extendRange("past")
+    } else if (daysBeforeEnd < EDGE_BUFFER_DAYS) {
+      void extendRange("future")
+    }
+  }
+
+  async function recenterRange(date: ISODate) {
+    perfMark("recenterRange:start")
+    const from = addMonths(date, -INITIAL_RANGE_MONTHS)
+    const to = addMonths(date, INITIAL_RANGE_MONTHS)
+
+    try {
+      const result = await API.getDays({from, to, branchId: activeBranchId.value})
+      days.value = result
+      loadedRange.value = {from, to}
+      console.log("[TASKS] Re-centered range:", `[${from} → ${to}]`)
+    } catch (error) {
+      console.error("Failed to re-center range:", error)
+    } finally {
+      perfMeasure("recenterRange", "recenterRange:start")
+    }
+  }
+
+  async function extendRange(direction: "past" | "future") {
+    if (pendingExtend.value === direction) return
+    const range = loadedRange.value
+    if (!range) return
+
+    pendingExtend.value = direction
+    perfMark("extendRange:start")
+
+    const from = direction === "past" ? addMonths(range.from, -EXTEND_RANGE_MONTHS) : range.to
+    const to = direction === "future" ? addMonths(range.to, EXTEND_RANGE_MONTHS) : range.from
+
+    try {
+      const result = await API.getDays({
+        from: direction === "past" ? from : range.to,
+        to: direction === "future" ? to : range.from,
+        branchId: activeBranchId.value,
+      })
+      days.value = mergeDays(days.value, result)
+      loadedRange.value = {
+        from: direction === "past" ? from : range.from,
+        to: direction === "future" ? to : range.to,
+      }
+      console.log("[TASKS] Extended range", direction, `[${loadedRange.value.from} → ${loadedRange.value.to}]`)
+    } catch (error) {
+      console.error("Failed to extend range:", error)
+    } finally {
+      pendingExtend.value = null
+      perfMeasure("extendRange", "extendRange:start")
+    }
+  }
+
+  // Watch branch changes — reset range and reload
+  watch(
+    () => activeBranchId.value,
+    (newId, oldId) => {
+      if (newId !== oldId && isDaysLoaded.value) {
+        void loadInitialRange()
+      }
+    },
+  )
+
+  async function refreshDay(date: ISODate) {
+    perfMark("refreshDay:start")
+    try {
+      const day = await API.getDay(date)
+      if (day) {
+        days.value = updateDays(days.value, day)
+      } else {
+        days.value = days.value.filter((d) => d.date !== date)
+      }
+    } catch (error) {
+      console.error("Failed to refresh day:", error)
+    } finally {
+      perfMeasure("refreshDay", "refreshDay:start")
+    }
+  }
+
+  async function refreshDays(dates: ISODate[]) {
+    perfMark("refreshDays:start")
+    const unique = [...new Set(dates)]
+    await Promise.all(unique.map((d) => refreshDay(d)))
+    perfMeasure("refreshDays", "refreshDays:start")
   }
 
   async function createTask({content, tags, estimatedTime}: {content: string; tags: Tag[]; estimatedTime?: number}) {
@@ -110,10 +254,13 @@ export const useTasksStore = defineStore("tasks", () => {
   }
 
   async function revalidate() {
+    const range = loadedRange.value
+    if (!range) return
+
     try {
-      const dailyTasks = await API.getDays({branchId: activeBranchId.value})
-      days.value = dailyTasks
-      console.log("tasks revalidated")
+      const result = await API.getDays({from: range.from, to: range.to, branchId: activeBranchId.value})
+      days.value = result
+      console.log("tasks revalidated (scoped to range)")
     } catch (error) {
       console.error("Error revalidating tasks:", error)
     }
@@ -131,10 +278,12 @@ export const useTasksStore = defineStore("tasks", () => {
     const task = findDailyTaskById(taskId)
     if (!task) return false
 
+    const sourceDate = task.scheduled.date
+
     const isSuccess = await API.moveTask(taskId, targetDate)
     if (!isSuccess) return false
 
-    await revalidate()
+    await refreshDays([sourceDate, targetDate])
 
     return true
   }
@@ -144,10 +293,12 @@ export const useTasksStore = defineStore("tasks", () => {
     if (!task) return false
     if (task.branchId === branchId) return true
 
+    const taskDate = task.scheduled.date
+
     const isSuccess = await API.moveTaskToBranch(taskId, branchId)
     if (!isSuccess) return false
 
-    await revalidate()
+    await refreshDay(taskDate)
     return true
   }
 
@@ -192,14 +343,14 @@ export const useTasksStore = defineStore("tasks", () => {
         }),
       )
       if (!nextDay) {
-        await revalidate()
+        await refreshDay(activeDay.value)
         return null
       }
 
       days.value = updateDays(days.value, nextDay)
     } catch (error) {
       console.error("Failed to reorder tasks", error)
-      await revalidate()
+      await refreshDay(activeDay.value)
       return null
     }
 
@@ -211,6 +362,9 @@ export const useTasksStore = defineStore("tasks", () => {
     days,
     activeDay,
     dailyTasks,
+    dailyTasksByStatus,
+    dailyTaskIndexMap,
+    dailyTaskIndexMapByStatus,
     dailyTags,
     activeDayInfo,
 
@@ -226,5 +380,6 @@ export const useTasksStore = defineStore("tasks", () => {
     moveTaskToBranch,
     moveTaskByOrder,
     revalidate,
+    emptyTasksByStatus,
   }
 })

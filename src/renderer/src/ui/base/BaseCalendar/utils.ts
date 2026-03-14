@@ -9,11 +9,12 @@ export function formatDaysToMonth(currentMonth: DateTime, days: Day[]): Calendar
   const endOfWeek = endOfMonth.endOf("week")
 
   const calendarDays: CalendarDay[] = []
+  const daysMap = new Map(days.map((day) => [day.date, day]))
   let current = startOfWeek
 
   while (current <= endOfWeek) {
     const isoDate = current.toISODate()!
-    const dayData = days.find((day) => day.date === isoDate)
+    const dayData = daysMap.get(isoDate)
 
     const dayInfo = {
       countCompletedTasks: 0,
@@ -23,10 +24,10 @@ export function formatDaysToMonth(currentMonth: DateTime, days: Day[]): Calendar
     }
 
     if (dayData && dayData.tasks.length > 0) {
-      dayInfo.countCompletedTasks = dayData.tasks.filter((task) => task.status === "done").length
-      dayInfo.countDiscardedTasks = dayData.tasks.filter((task) => task.status === "discarded").length
+      dayInfo.countCompletedTasks = dayData.countDone
+      dayInfo.countDiscardedTasks = dayData.tasks.length - dayData.countDone - dayData.countActive
       dayInfo.countTotalTasks = dayData.tasks.length
-      dayInfo.countActiveTasks = dayData.tasks.length - dayInfo.countCompletedTasks - dayInfo.countDiscardedTasks
+      dayInfo.countActiveTasks = dayData.countActive
     }
 
     calendarDays.push({
