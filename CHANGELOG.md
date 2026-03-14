@@ -2,12 +2,7 @@
 
 ## [Unreleased]
 
-### 🧹 Cleanup
-
-- Removed PouchDB legacy code and migration bridge
-- Removed `pouchdb` dependencies
-
-## v0.12.11 - 2026-03-14
+## v0.12.12 - 2026-03-14
 
 ### 🏗️ Storage Migration — PouchDB → SQLite
 
@@ -15,6 +10,11 @@
 - **Disk-Based File Storage** — Files stored on disk instead of base64-encoded in database
 - **Simplified Storage Layer** — Removed PouchDB-specific complexity
 - **iCloud Sync Improvements** — More reliable cross-device synchronization
+
+### 🧹 Cleanup
+
+- Removed PouchDB legacy code and migration bridge
+- Removed `pouchdb` dependencies
 
 ## v0.12.10 - 2026-03-10
 
