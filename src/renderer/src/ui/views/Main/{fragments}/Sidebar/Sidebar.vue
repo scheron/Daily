@@ -10,7 +10,6 @@ import AnimatedTabs from "@/ui/common/misc/AnimatedTabs"
 import Logo from "@/ui/common/misc/Logo.vue"
 import AiAssistant from "@/ui/modules/AiAssistant"
 import CalendarMonth from "@/ui/modules/CalendarMonth"
-import SearchForm from "@/ui/modules/SearchForm"
 import TagsForm from "@/ui/modules/TagsForm"
 
 import {BOTTOM_MENU_ITEMS} from "./model/constants"
@@ -59,7 +58,6 @@ const showCollapseButton = computed(() => {
         <div class="hide-scrollbar flex-1 overflow-y-auto">
           <CalendarMonth v-if="uiStore.activeSidebarSection === 'calendar'" />
           <TagsForm v-else-if="uiStore.activeSidebarSection === 'tags'" class="h-full" />
-          <SearchForm v-else-if="uiStore.activeSidebarSection === 'search'" class="h-full" />
           <AiAssistant v-else-if="uiStore.activeSidebarSection === 'assistant'" class="h-full" />
         </div>
 

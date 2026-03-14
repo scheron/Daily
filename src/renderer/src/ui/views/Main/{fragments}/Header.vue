@@ -132,15 +132,23 @@ watch(
 <template>
   <div class="app-header border-base-300 h-header flex items-center justify-between border-b px-4 py-2" style="-webkit-app-region: drag">
     <div class="flex min-w-0 items-center gap-2">
-      <BaseButton
-        v-if="showToggleButton"
-        variant="ghost"
-        icon="sidebar"
-        :tooltip="isDesktop ? `Expand (${toShortcutKeys('ui:toggle-sidebar')})` : 'Menu'"
-        style="-webkit-app-region: no-drag"
-        class="ml-16"
-        @click="emit('toggleSidebar')"
-      />
+      <div class="ml-16 flex items-center gap-2">
+        <BaseButton
+          variant="ghost"
+          icon="search"
+          :tooltip="`Search (${toShortcutKeys('ui:open-search-panel')})`"
+          style="-webkit-app-region: no-drag"
+          @click="uiStore.toggleSearchModal()"
+        />
+        <BaseButton
+          v-if="showToggleButton"
+          variant="ghost"
+          icon="sidebar"
+          :tooltip="isDesktop ? `Expand (${toShortcutKeys('ui:toggle-sidebar')})` : 'Menu'"
+          style="-webkit-app-region: no-drag"
+          @click="emit('toggleSidebar')"
+        />
+      </div>
       <h1 class="m-0 cursor-default truncate text-start text-lg font-bold">
         {{ formattedDate }}
       </h1>

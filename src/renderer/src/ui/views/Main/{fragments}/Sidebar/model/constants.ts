@@ -21,14 +21,6 @@ export const BOTTOM_MENU_ITEMS: AnimatedTab<SidebarSection>[] = [
     inactiveClass: "text-base-content hover:bg-base-200",
   },
   {
-    id: "search",
-    icon: "search",
-    label: "Search",
-    tooltip: `Search (${toShortcutKeys("ui:open-search-panel")})`,
-    activeClass: "bg-accent/20 text-accent",
-    inactiveClass: "text-base-content hover:bg-base-200",
-  },
-  {
     id: "assistant",
     icon: "ai",
     label: "AI Assistant",

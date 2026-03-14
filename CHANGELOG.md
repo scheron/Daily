@@ -5,6 +5,7 @@
 ### ✨ New Features
 
 - **Settings as separate window** — Settings now open in a dedicated Electron BrowserWindow instead of an in-app modal. Frameless, non-resizable, with native macOS traffic lights. Shows only the active section instead of a scrollable list. Window displays only after Vue has fully rendered to avoid partial render flash.
+- **Search as modal window** — Search moved from sidebar panel to a floating modal dialog (Cmd+F). Search icon added to the header. Results update without blocking UI — current results stay visible while new search is in progress.
 
 ### 🐛 Bug Fixes
 

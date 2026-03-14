@@ -141,6 +141,11 @@ function createTasksMenu(mainWindow: BrowserWindow): MenuItemConstructorOptions[
       accelerator: ShortcutsMap["ui:toggle-tasks-view-mode"].accelerator,
       click: () => mainWindow.webContents.send(ShortcutsMap["ui:toggle-tasks-view-mode"].channel),
     },
+    {
+      label: ShortcutsMap["ui:open-search-panel"].label,
+      accelerator: ShortcutsMap["ui:open-search-panel"].accelerator,
+      click: () => mainWindow.webContents.send(ShortcutsMap["ui:open-search-panel"].channel),
+    },
     {type: "separator"},
     ...(ENV.isDevelopment ? [{role: "toggleDevTools" as const}] : []),
   ]

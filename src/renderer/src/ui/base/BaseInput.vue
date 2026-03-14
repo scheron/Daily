@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import {computed, onMounted, useTemplateRef} from "vue"
 
+import {sleep} from "@shared/utils/common/sleep"
+
 const props = defineProps<{
   modelValue: string
   placeholder?: string
@@ -36,7 +38,12 @@ function onKeyup(e: KeyboardEvent) {
   }
 }
 
-onMounted(() => props.focusOnMount && inputRef.value?.focus())
+onMounted(async () => {
+  if (props.focusOnMount) {
+    await sleep(100)
+    inputRef.value?.focus()
+  }
+})
 </script>
 
 <template>

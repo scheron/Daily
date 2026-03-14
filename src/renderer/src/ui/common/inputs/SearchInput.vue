@@ -36,7 +36,7 @@ function onClear() {
 
     <div class="absolute top-1/2 right-2 flex -translate-y-1/2 items-center gap-1">
       <div v-if="loading" class="flex size-5 items-center">
-        <BaseIcon name="refresh" class="text-base-content/50 size-4 animate-spin" />
+        <BaseIcon name="spinner" class="text-base-content/50 size-4 animate-spin" />
       </div>
 
       <BaseButton v-if="modelValue && !loading" variant="ghost" icon="x-mark" class="size-5" icon-class="size-4" @click="onClear" />

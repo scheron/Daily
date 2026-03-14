@@ -10,6 +10,7 @@ import {useUIStore} from "@/stores/ui.store"
 import {useDevice} from "@/composables/useDevice"
 import BaseAnimation from "@/ui/base/BaseAnimation.vue"
 import UpdateBanner from "@/ui/common/misc/UpdateBanner.vue"
+import SearchModal from "@/ui/modules/SearchForm/SearchModal.vue"
 
 import {useContentSize} from "./composables/useContentSize"
 import Content from "./{fragments}/Content"
@@ -41,7 +42,7 @@ window.BridgeIPC["shortcut:tasks:create"](() => onCreateTask())
 window.BridgeIPC["shortcut:ui:toggle-sidebar"](() => uiStore.toggleSidebarCollapse())
 window.BridgeIPC["shortcut:ui:open-calendar-panel"](() => uiStore.openSidebarSection("calendar"))
 window.BridgeIPC["shortcut:ui:open-tags-panel"](() => uiStore.openSidebarSection("tags"))
-window.BridgeIPC["shortcut:ui:open-search-panel"](() => uiStore.openSidebarSection("search"))
+window.BridgeIPC["shortcut:ui:open-search-panel"](() => uiStore.toggleSearchModal())
 window.BridgeIPC["shortcut:ui:open-assistant-panel"](() => uiStore.openSidebarSection("assistant"))
 window.BridgeIPC["shortcut:ui:open-settings-panel"](() => window.BridgeIPC.send("settings:open"))
 window.BridgeIPC["shortcut:ui:toggle-tasks-view-mode"](() => uiStore.toggleTasksViewMode())
@@ -49,6 +50,7 @@ window.BridgeIPC["shortcut:ui:toggle-tasks-view-mode"](() => uiStore.toggleTasks
 
 <template>
   <div ref="container" class="app-shell bg-base-300 flex h-dvh w-dvw overflow-hidden">
+    <SearchModal />
     <UpdateBanner />
     <Sidebar v-if="isDesktop && !uiStore.isSidebarCollapsed" :content-height="contentHeight" :data-loaded="isDataLoaded" />
 

@@ -1,19 +1,57 @@
 <script setup lang="ts">
-import {computed} from "vue"
+import {computed, ref} from "vue"
+import {toasts} from "vue-toasts-lite"
 import {useNow} from "@vueuse/core"
 import {DateTime} from "luxon"
 
+import {TAG_QUICK_COLORS} from "@shared/constants/theme/colorPalette"
 import {ISODate} from "@shared/types/common"
 import {toFullDate} from "@shared/utils/date/formatters"
 import {getWeekDays} from "@shared/utils/date/getWeekDays"
+import {useFilterStore} from "@/stores/filter.store"
+import {useTagsStore} from "@/stores/tags.store"
 import {useTasksStore} from "@/stores/tasks.store"
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseIcon from "@/ui/base/BaseIcon"
+import BasePopup from "@/ui/base/BasePopup.vue"
+import TagsInput from "@/ui/common/inputs/TagsInput.vue"
 import DayPicker from "@/ui/common/pickers/DayPicker.vue"
+
+import type {Tag} from "@shared/types/storage"
 
 const props = defineProps<{activeDay: string}>()
 
 const tasksStore = useTasksStore()
+const tagsStore = useTagsStore()
+const filterStore = useFilterStore()
+
+const newTagName = ref("")
+const newTagColor = ref(TAG_QUICK_COLORS[0])
+
+const isTagValid = computed(() => {
+  const name = newTagName.value.trim()
+  return name.length > 0 && !name.includes(" ")
+})
+
+async function createTag() {
+  if (!isTagValid.value) return
+
+  const tagName = newTagName.value.trim()
+  if (tagsStore.tags.some((tag) => tag.name === tagName)) {
+    toasts.error("Tag with this name already exists")
+    return
+  }
+
+  await tagsStore.createTag(tagName, newTagColor.value)
+  newTagName.value = ""
+  newTagColor.value = TAG_QUICK_COLORS[0]
+}
+
+async function deleteTag(id: Tag["id"]) {
+  filterStore.removeActiveTag(id)
+  await tagsStore.deleteTag(id)
+  await tasksStore.revalidate()
+}
 
 const now = useNow()
 
@@ -38,6 +76,48 @@ function isToday(date: ISODate): boolean {
             <BaseButton variant="ghost" icon="calendar" class="p-0.5" tooltip="Select day" @click="toggle" />
           </template>
         </DayPicker>
+
+        <BasePopup title="Tags" position="start" class="w-64" hide-close-btn>
+          <template #trigger="{toggle}">
+            <BaseButton variant="ghost" icon="tags" class="p-0.5" tooltip="Tags" @click="toggle" />
+          </template>
+
+          <form class="flex items-center gap-1" @submit.prevent="createTag">
+            <div class="relative flex flex-1 items-center">
+              <span class="text-base-content/40 pointer-events-none absolute left-2 text-sm">#</span>
+              <TagsInput v-model="newTagName" class="!py-1 !pr-1 !pl-6 text-sm" />
+            </div>
+            <button
+              v-for="color in TAG_QUICK_COLORS.slice(0, 5)"
+              :key="color"
+              type="button"
+              class="size-3.5 shrink-0 rounded-full transition-opacity hover:opacity-100"
+              :class="newTagColor === color ? 'ring-offset-base-100 opacity-100 ring-1 ring-offset-1' : 'opacity-40'"
+              :style="{backgroundColor: color, '--tw-ring-color': color}"
+              @click="newTagColor = color"
+            />
+            <BaseButton type="submit" size="sm" variant="ghost" icon="plus" icon-class="size-3.5" class="shrink-0 p-0.5" :disabled="!isTagValid" />
+          </form>
+
+          <div v-if="tagsStore.tags.length" class="flex flex-wrap gap-1 pt-1">
+            <span
+              v-for="tag in tagsStore.tags"
+              :key="tag.id"
+              class="group inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-xs"
+              :style="{backgroundColor: `${tag.color}15`, color: tag.color}"
+            >
+              <span class="leading-0">#</span>
+              <span class="truncate">{{ tag.name }}</span>
+              <button
+                class="ml-0.5 opacity-0 transition-opacity group-hover:opacity-60 hover:!opacity-100"
+                :style="{color: tag.color}"
+                @click="deleteTag(tag.id)"
+              >
+                <BaseIcon name="x-mark" class="size-3" />
+              </button>
+            </span>
+          </div>
+        </BasePopup>
       </div>
 
       <ul class="flex w-full min-w-0 items-center justify-between gap-1">

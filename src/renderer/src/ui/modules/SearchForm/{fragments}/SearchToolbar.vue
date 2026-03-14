@@ -1,41 +1,51 @@
 <script setup lang="ts">
 import {TASK_FILTERS} from "@/constants/tasks"
+import {cn} from "@/utils/ui/tailwindcss"
+import BaseButton from "@/ui/base/BaseButton.vue"
 import SearchInput from "@/ui/common/inputs/SearchInput.vue"
 import AnimatedTabs from "@/ui/common/misc/AnimatedTabs"
 
 import type {TasksFilter} from "@/types/common"
 
-defineProps<{
+const props = defineProps<{
   filterQuery: string
   filterStatus: TasksFilter
   searching: boolean
+  hasItems: boolean
 }>()
-defineEmits<{
+const emit = defineEmits<{
   "update:filter-query": [value: string]
   "update:filter-status": [value: TasksFilter]
   "clear:filter-query": []
   "clear:filter-status": []
 }>()
+
+function onSelectFilter(filter: TasksFilter) {
+  const status = filter === props.filterStatus ? "all" : filter
+  emit("update:filter-status", status)
+}
 </script>
 
 <template>
-  <div class="flex flex-col gap-4">
+  <div class="flex items-center gap-4">
     <SearchInput
       :model-value="filterQuery"
       :loading="searching"
       focus-on-mount
       @update:model-value="$emit('update:filter-query', $event)"
-      @clear="$emit('clear:filter-query')"
+      @clear="emit('clear:filter-query')"
     />
 
-    <div class="flex w-full items-center gap-2 text-xs">
-      <span class="text-base-content/70 shrink-0">Filter by:</span>
-      <AnimatedTabs
-        :tab="filterStatus"
-        :tabs="TASK_FILTERS.map((filter) => ({...filter, id: filter.value}))"
-        tab-class="flex items-center justify-center gap-x-1.5 rounded-md px-2 py-0.5 text-xs transition-colors outline-none md:flex-none"
-        class="w-full justify-between"
-        @update:tab="$emit('update:filter-status', $event)"
+    <div v-if="hasItems" class="flex items-center gap-2 text-xs">
+      <BaseButton
+        v-for="filter in TASK_FILTERS"
+        :key="filter.value"
+        variant="text"
+        :icon="filter.icon"
+        class="size-7"
+        icon-class="size-5"
+        :class="[filter.value === filterStatus ? filter.activeClass : filter.inactiveClass]"
+        @click="onSelectFilter(filter.value)"
       />
     </div>
   </div>

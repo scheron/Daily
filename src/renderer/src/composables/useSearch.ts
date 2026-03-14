@@ -1,4 +1,4 @@
-import {computed, ref, watch} from "vue"
+import {computed, readonly, ref, watch} from "vue"
 import {useDebounceFn} from "@vueuse/core"
 
 import {useLoadingState} from "./useLoadingState"
@@ -34,46 +34,53 @@ type SearchOptions<T> = {
  * ```
  */
 export function useSearch<T>(options: SearchOptions<T>) {
-  const {initialValue = "", debounce = 300, searchFn, minQueryLength = 1} = options
+  const {initialValue = "", debounce = 500, searchFn, minQueryLength = 1} = options
 
   const searchState = useLoadingState()
   const query = ref<string>(initialValue)
   const items = ref<T[]>([])
+  const isSearching = ref(false)
+  let requestId = 0
 
   const isEmpty = computed(() => searchState.isLoaded && !query.value.trim())
   const hasResults = computed(() => searchState.isLoaded && items.value.length > 0)
   const isQueryTooShort = computed(() => query.value.trim().length < minQueryLength)
 
   async function search(searchQuery: string) {
-    query.value = searchQuery
-
-    if (!searchQuery.trim()) {
+    if (!searchQuery.trim() || searchQuery.trim().length < minQueryLength) {
       items.value = []
       searchState.setState("IDLE")
+      isSearching.value = false
       return
     }
 
-    if (searchQuery.trim().length < minQueryLength) {
-      items.value = []
-      searchState.setState("IDLE")
-      return
+    const currentRequestId = ++requestId
+    isSearching.value = true
+
+    if (!searchState.isLoaded.value) {
+      searchState.setState("LOADING")
     }
 
     try {
-      searchState.setState("LOADING")
       const results = await searchFn(searchQuery)
+      if (currentRequestId !== requestId) return
       items.value = results
       searchState.setState("LOADED")
     } catch (error) {
+      if (currentRequestId !== requestId) return
       console.error("Search failed:", error)
       items.value = []
       searchState.setState("ERROR")
+    } finally {
+      if (currentRequestId === requestId) {
+        isSearching.value = false
+      }
     }
   }
 
   const debouncedSearch = useDebounceFn(search, debounce)
 
-  watch(query, debouncedSearch)
+  watch(query, (value) => debouncedSearch(value))
 
   if (initialValue && initialValue.trim().length >= minQueryLength) {
     search(initialValue)
@@ -84,7 +91,7 @@ export function useSearch<T>(options: SearchOptions<T>) {
     items,
     search,
 
-    isSearching: searchState.isLoading,
+    isSearching: readonly(isSearching),
     isLoaded: searchState.isLoaded,
     isError: searchState.isError,
     isIdle: searchState.isIdle,
