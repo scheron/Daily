@@ -12,6 +12,13 @@ type Filter = {
 
 export const TASK_FILTERS: Filter[] = [
   {
+    label: "All",
+    value: "all",
+    icon: "today",
+    activeClass: "bg-base-100 text-base-content",
+    inactiveClass: "text-base-content/70 hover:text-base-content",
+  },
+  {
     label: "Active",
     value: "active",
     icon: "fire",

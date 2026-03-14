@@ -54,7 +54,6 @@ export function useTaskModel(rawProps: MaybeRefOrGetter<TaskModelProps>) {
   function changeStatus(status: TaskStatus) {
     if (task.value?.status === status || !task.value) return
     tasksStore.updateTask(task.value!.id, {status})
-    toasts.success(`Task status updated to ${status}`, {id: "task-status"})
   }
 
   async function toggleMinimized() {

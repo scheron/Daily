@@ -123,67 +123,58 @@ watch(
 </script>
 
 <template>
-  <div class="app-header border-base-300 h-header flex items-center justify-between border-b px-4 py-2" style="-webkit-app-region: drag">
-    <div class="flex min-w-0 items-center gap-2">
-      <div class="ml-traffic-light flex items-center gap-2" style="-webkit-app-region: no-drag">
+  <div class="app-header border-base-300 h-header flex items-center border-b px-4 py-2" style="-webkit-app-region: drag">
+    <div class="ml-traffic-light flex min-w-0 items-center gap-2">
+      <h1 class="m-0 cursor-default truncate text-start text-lg font-bold">
+        {{ formattedDate }}
+      </h1>
+    </div>
+
+    <template v-if="!taskEditorOpen">
+      <div class="flex-1" />
+      <BasePopup hide-header position="end" container-class="p-0" content-class="gap-2">
+        <template #trigger="{toggle}">
+          <div class="relative" style="-webkit-app-region: no-drag">
+            <BaseButton icon="project" variant="ghost" class="h-6 min-w-20 text-sm" icon-class="size-4" @click="onBranchPickerClick(toggle)">
+              {{ activeBranchName }}
+            </BaseButton>
+            <AccentDotBadge v-if="hasActiveTasksInOtherBranches" size="md" class="ring-base-100 absolute -top-0.5 -right-0.5 ring-2" />
+          </div>
+        </template>
+
+        <template #default="{hide}">
+          <BaseMenu :items="menuItems" @select="onSelectBranch($event as string, hide)">
+            <template #item="{item}">
+              <BaseIcon v-if="item.icon" :name="item.icon" :class="['size-4.5', item.classIcon]" />
+              <span class="flex-1 truncate text-sm" :class="item.classLabel">{{ item.label }}</span>
+              <AccentDotBadge v-if="hasActiveTasks(item.value)" />
+            </template>
+          </BaseMenu>
+        </template>
+      </BasePopup>
+
+      <div class="bg-base-content/15 mx-2 h-4 w-px shrink-0" />
+
+      <div class="flex items-center gap-1" style="-webkit-app-region: no-drag">
+        <BaseButton variant="ghost" icon="tags" :tooltip="`Tags (${toShortcutKeys('ui:open-tags-panel')})`" @click="uiStore.toggleTagsModal()" />
         <BaseButton
           variant="ghost"
           icon="search"
           :tooltip="`Search (${toShortcutKeys('ui:open-search-panel')})`"
           @click="uiStore.toggleSearchModal()"
         />
-        <BaseButton variant="ghost" icon="tags" :tooltip="`Tags (${toShortcutKeys('ui:open-tags-panel')})`" @click="uiStore.toggleTagsModal()" />
-        <BaseButton
-          variant="ghost"
-          icon="book-x"
-          :tooltip="`Deleted Tasks (${toShortcutKeys('ui:open-deleted-tasks-panel')})`"
-          @click="uiStore.toggleDeletedTasksModal()"
-        />
       </div>
-      <h1 class="m-0 cursor-default truncate text-start text-lg font-bold">
-        {{ formattedDate }}
-      </h1>
-    </div>
 
-    <div class="flex items-center gap-2">
-      <template v-if="!taskEditorOpen">
-        <BasePopup hide-header position="end" container-class="p-0" content-class="gap-2">
-          <template #trigger="{toggle}">
-            <div class="relative">
-              <BaseButton
-                icon="project"
-                variant="ghost"
-                class="h-6 min-w-20 text-sm"
-                icon-class="size-4"
-                style="-webkit-app-region: no-drag"
-                @click="onBranchPickerClick(toggle)"
-              >
-                {{ activeBranchName }}
-              </BaseButton>
-              <AccentDotBadge v-if="hasActiveTasksInOtherBranches" size="md" class="ring-base-100 absolute -top-0.5 -right-0.5 ring-2" />
-            </div>
-          </template>
+      <div class="bg-base-content/15 mx-2 h-4 w-px shrink-0" />
 
-          <template #default="{hide}">
-            <BaseMenu :items="menuItems" @select="onSelectBranch($event as string, hide)">
-              <template #item="{item}">
-                <BaseIcon v-if="item.icon" :name="item.icon" :class="['size-4.5', item.classIcon]" />
-                <span class="flex-1 truncate text-sm" :class="item.classLabel">{{ item.label }}</span>
-                <AccentDotBadge v-if="hasActiveTasks(item.value)" />
-              </template>
-            </BaseMenu>
-          </template>
-        </BasePopup>
-
-        <BaseButton
-          variant="text"
-          class="text-accent hover:bg-accent/10 focus-visible-ring focus-visible:ring-accent size-8 shrink-0 p-0"
-          icon="plus"
-          :tooltip="`Create (${toShortcutKeys('tasks:create')})`"
-          style="-webkit-app-region: no-drag"
-          @click="emit('createTask')"
-        />
-      </template>
-    </div>
+      <BaseButton
+        variant="text"
+        class="text-accent hover:bg-accent/10 focus-visible-ring focus-visible:ring-accent size-8 shrink-0 p-0"
+        icon="plus"
+        :tooltip="`Create (${toShortcutKeys('tasks:create')})`"
+        style="-webkit-app-region: no-drag"
+        @click="emit('createTask')"
+      />
+    </template>
   </div>
 </template>
