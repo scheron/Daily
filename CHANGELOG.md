@@ -7,6 +7,8 @@
 - **Settings as separate window** — Settings now open in a dedicated Electron BrowserWindow instead of an in-app modal. Frameless, non-resizable, with native macOS traffic lights. Shows only the active section instead of a scrollable list. Window displays only after Vue has fully rendered to avoid partial render flash.
 - **Search as modal window** — Search moved from sidebar panel to a floating modal dialog (Cmd+F). Search icon added to the header. Results update without blocking UI — current results stay visible while new search is in progress.
 - **AI Assistant as separate window** — AI Assistant moved from sidebar panel to a dedicated Electron BrowserWindow (Cmd+Shift+A). Resizable, non-always-on-top for side-by-side use. Reopening focuses the existing window. Sidebar now has a standalone AI button instead of a tab.
+- **Tags as modal** — Tags form moved from sidebar tab and header popup to a standalone modal (Cmd+Shift+T). Tags tab removed from sidebar. Tags and Deleted Tasks buttons added to the header toolbar.
+- **Deleted Tasks as modal** — Deleted Tasks form moved from Settings to a standalone modal (Cmd+Shift+D). Deleted tasks are pre-loaded at app startup and stay in sync automatically via `deletedTasksStore`.
 
 ### 🐛 Bug Fixes
 
@@ -14,6 +16,7 @@
 
 ### 🧹 Cleanup
 
+- **Removed Sidebar** — Sidebar component and all related code removed entirely (sidebar state, toggle button, shortcuts, CSS variables, glass-ui styles). Calendar is accessible via Footer's DayPicker, tags via TagsModal (Cmd+Shift+T). Content now takes full window width. Footer always visible.
 - Replaced `floating-vue` tooltip library with custom `vTooltip` directive and `TooltipController`
 - Removed settings modal state from UI store (`isSettingsModalOpen`, `openSettingsModal`, `closeSettingsModal`, `openSettingsPanel`)
 

@@ -6,6 +6,7 @@ import {invoke, until} from "@vueuse/core"
 
 import {useAiStore} from "@/stores/ai/ai.store"
 import {useBranchesStore} from "@/stores/branches.store"
+import {useDeletedTasksStore} from "@/stores/deletedTasks.store"
 import {useSettingsStore} from "@/stores/settings.store"
 import {useTagsStore} from "@/stores/tags.store"
 import {useTasksStore} from "@/stores/tasks.store"
@@ -30,9 +31,10 @@ invoke(async () => {
   const branchesStore = useBranchesStore()
   const tasksStore = useTasksStore()
   const tagsStore = useTagsStore()
+  const deletedTasksStore = useDeletedTasksStore()
   useUpdateStore()
 
-  await Promise.all([branchesStore.getBranchList(), tasksStore.getTaskList(), tagsStore.getTagList()])
+  await Promise.all([branchesStore.getBranchList(), tasksStore.getTaskList(), tagsStore.getTagList(), deletedTasksStore.load()])
   await aiStore.checkConnection()
 })
 </script>

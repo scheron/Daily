@@ -106,10 +106,9 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "ai:on-local-download-progress": (callback: (progress: LocalModelDownloadProgress) => void) => ipcRenderer.on("ai:local-download-progress", (_event, progress: LocalModelDownloadProgress) => callback(progress)),
 
   "shortcut:tasks:create": (callback: () => void) => ipcRenderer.on(ShortcutsMap["tasks:create"].channel, () => callback()),
-  "shortcut:ui:toggle-sidebar": (callback: () => void) => ipcRenderer.on(ShortcutsMap["ui:toggle-sidebar"].channel, () => callback()),
-  "shortcut:ui:open-calendar-panel": (callback: () => void) => ipcRenderer.on(ShortcutsMap["ui:open-calendar-panel"].channel, () => callback()),
   "shortcut:ui:open-tags-panel": (callback: () => void) => ipcRenderer.on(ShortcutsMap["ui:open-tags-panel"].channel, () => callback()),
   "shortcut:ui:open-search-panel": (callback: () => void) => ipcRenderer.on(ShortcutsMap["ui:open-search-panel"].channel, () => callback()),
+  "shortcut:ui:open-deleted-tasks-panel": (callback: () => void) => ipcRenderer.on(ShortcutsMap["ui:open-deleted-tasks-panel"].channel, () => callback()),
   "shortcut:ui:open-assistant-panel": (callback: () => void) => ipcRenderer.on(ShortcutsMap["ui:open-assistant-panel"].channel, () => callback()),
   "shortcut:ui:open-settings-panel": (callback: () => void) => ipcRenderer.on(ShortcutsMap["ui:open-settings-panel"].channel, () => callback()),
   "shortcut:ui:toggle-tasks-view-mode": (callback: () => void) => ipcRenderer.on(ShortcutsMap["ui:toggle-tasks-view-mode"].channel, () => callback()),

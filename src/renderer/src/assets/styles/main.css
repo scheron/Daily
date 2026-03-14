@@ -3,11 +3,9 @@
 @import "tailwindcss";
 
 :root {
-  --sidebar-width: 300px;
-  --sidebar-collapsed-width: 80px;
   --header-height: 40px;
   --card-min-height: 100px;
-  --traffic-light-width: 70px;
+  --traffic-light-width: 64px;
   --task-content-minimized-height: 200px;
   --glass-surface: color-mix(in oklab, var(--color-base-100) 74%, transparent);
   --glass-border: color-mix(in oklab, var(--color-base-content) 14%, transparent);
@@ -16,8 +14,6 @@
 }
 
 @theme {
-  --spacing-sidebar: var(--sidebar-width);
-  --spacing-sidebar-collapsed: var(--sidebar-collapsed-width);
   --spacing-header: var(--header-height);
   --spacing-card: var(--card-min-height);
   --spacing-task-content-minimized: var(--task-content-minimized-height);
@@ -102,20 +98,14 @@ html.glass-ui .app-shell::before {
   background: color-mix(in oklab, var(--color-base-100) 56%, transparent);
 }
 
-html.glass-ui .app-sidebar,
 html.glass-ui .app-main-panel,
 html.glass-ui .app-header,
 html.glass-ui .app-toolbar,
-html.glass-ui .app-sidebar-footer,
 html.glass-ui .app-content {
   position: relative;
   z-index: 1;
   background: transparent !important;
   box-shadow: none;
-}
-
-html.glass-ui .app-sidebar {
-  background: color-mix(in oklab, var(--color-base-100) 40%, transparent) !important;
 }
 
 html.glass-ui #app [class*="bg-base-"]:not(.app-shell) {
@@ -129,11 +119,9 @@ html.glass-ui #app [class*="bg-base-"]:not(.app-shell) {
     background: color-mix(in oklab, var(--color-base-300) 72%, transparent);
   }
 
-  html.glass-ui .app-sidebar,
   html.glass-ui .app-main-panel,
   html.glass-ui .app-header,
   html.glass-ui .app-toolbar,
-  html.glass-ui .app-sidebar-footer,
   html.glass-ui .app-content {
     background: color-mix(in oklab, var(--color-base-100) 84%, transparent) !important;
   }

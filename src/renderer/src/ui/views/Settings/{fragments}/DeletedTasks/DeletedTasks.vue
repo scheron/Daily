@@ -1,16 +1,12 @@
 <script setup lang="ts">
-import {onMounted, ref} from "vue"
+import {ref} from "vue"
 import {toasts} from "vue-toasts-lite"
 
-import {withElapsedDelay} from "@shared/utils/common/withElapsedDelay"
-import {useSettingsStore} from "@/stores/settings.store"
-import {useStorageStore} from "@/stores/storage.store"
+import {useDeletedTasksStore} from "@/stores/deletedTasks.store"
 import {useTasksStore} from "@/stores/tasks.store"
-import {useLoadingState} from "@/composables/useLoadingState"
 import {highlightElement, scrollToElement} from "@/utils/ui/dom"
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseIcon from "@/ui/base/BaseIcon"
-import BaseSkeleton from "@/ui/base/BaseSkeleton.vue"
 import ConfirmPopup from "@/ui/common/misc/ConfirmPopup.vue"
 
 import {API} from "@/api"
@@ -19,11 +15,8 @@ import DeletedTaskItem from "./{fragments}/DeletedTaskItem.vue"
 import type {Task} from "@shared/types/storage"
 
 const tasksStore = useTasksStore()
-const storageStore = useStorageStore()
-const settingsStore = useSettingsStore()
+const deletedTasksStore = useDeletedTasksStore()
 
-const deletedTasks = ref<Task[]>([])
-const {isLoading, isLoaded, setState} = useLoadingState("IDLE")
 const isDeletingAll = ref(false)
 
 async function onRestore(task: Task) {
@@ -40,27 +33,19 @@ async function onRestore(task: Task) {
   } else {
     toasts.error("Failed to restore task")
   }
+
+  await deletedTasksStore.revalidate()
 }
 
-onMounted(async () => {
-  setState("LOADING")
-  deletedTasks.value = await withElapsedDelay(() => API.getDeletedTasks({branchId: settingsStore.settings?.branch?.activeId}), 500)
-  setState("LOADED")
-})
-
-storageStore.onStorageDataChanged(async () => {
-  deletedTasks.value = await API.getDeletedTasks({branchId: settingsStore.settings?.branch?.activeId})
-})
-
 async function onDeleteAll() {
-  if (!deletedTasks.value.length || isDeletingAll.value) return
+  if (!deletedTasksStore.deletedTasks.length || isDeletingAll.value) return
 
   isDeletingAll.value = true
 
   const deletedCount = await API.permanentlyDeleteAllDeletedTasks()
   if (deletedCount > 0) {
     toasts.success(`${deletedCount} task${deletedCount === 1 ? "" : "s"} permanently deleted`)
-    deletedTasks.value = await API.getDeletedTasks({branchId: settingsStore.settings?.branch?.activeId})
+    await deletedTasksStore.revalidate()
   } else {
     toasts.error("Failed to permanently delete tasks")
   }
@@ -71,7 +56,7 @@ async function onDeleteAll() {
 
 <template>
   <div class="flex flex-1 flex-col gap-3">
-    <div v-if="isLoaded && deletedTasks.length" class="w-full">
+    <div v-if="deletedTasksStore.deletedTasks.length" class="w-full">
       <ConfirmPopup
         title="Delete all forever?"
         message="All deleted tasks will be removed permanently. This cannot be undone."
@@ -98,12 +83,8 @@ async function onDeleteAll() {
       </ConfirmPopup>
     </div>
 
-    <div v-if="isLoading" class="text-base-content/60 flex h-full flex-col items-center justify-center gap-3">
-      <BaseSkeleton v-for="i in 3" :key="i" class="h-24 w-full" />
-    </div>
-
-    <div v-else-if="isLoaded && deletedTasks.length" class="flex flex-1 flex-col gap-2 overflow-y-auto">
-      <DeletedTaskItem v-for="task in deletedTasks" :key="task.id" :task="task" @restore="onRestore" />
+    <div v-if="deletedTasksStore.deletedTasks.length" class="flex flex-1 flex-col gap-2 overflow-y-auto">
+      <DeletedTaskItem v-for="task in deletedTasksStore.deletedTasks" :key="task.id" :task="task" @restore="onRestore" />
     </div>
 
     <div v-else class="text-base-content/50 flex flex-1 flex-col items-center justify-center gap-3 text-center">

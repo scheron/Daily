@@ -8,7 +8,6 @@ import BaseIcon from "@/ui/base/BaseIcon"
 
 import AiSettings from "./{fragments}/AiSettings"
 import AppearanceSettings from "./{fragments}/AppearanceSettings"
-import DeletedTasks from "./{fragments}/DeletedTasks"
 import IconsList from "./{fragments}/IconsList.vue"
 import ProjectsSettings from "./{fragments}/ProjectsSettings"
 import SyncSettings from "./{fragments}/SyncSettings.vue"
@@ -29,7 +28,6 @@ const SECTIONS: SettingsSection[] = [
   {id: "ai", icon: "ai", label: "AI ", component: AiSettings},
   {id: "projects", icon: "project", label: "Projects", component: ProjectsSettings},
   {id: "sync", icon: "cloud", label: "iCloud Sync", component: SyncSettings},
-  {id: "deleted", icon: "book-x", label: "Deleted Tasks", component: DeletedTasks},
   ...(isDevMode ? [{id: "icons" as const, icon: "heading" as const, label: "Icons", component: IconsList}] : []),
 ]
 

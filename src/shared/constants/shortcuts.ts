@@ -5,18 +5,6 @@ export const ShortcutsMap = {
     accelerator: "CmdOrCtrl+N",
   },
 
-  "ui:toggle-sidebar": {
-    channel: "shortcut:ui:toggle-sidebar",
-    label: "Toggle Sidebar",
-    accelerator: "CmdOrCtrl+I",
-  },
-
-  "ui:open-calendar-panel": {
-    channel: "shortcut:ui:open-calendar-panel",
-    label: "Calendar",
-    accelerator: "CmdOrCtrl+Shift+C",
-  },
-
   "ui:open-tags-panel": {
     channel: "shortcut:ui:open-tags-panel",
     label: "Tags",
@@ -27,6 +15,12 @@ export const ShortcutsMap = {
     channel: "shortcut:ui:open-search-panel",
     label: "Search",
     accelerator: "CmdOrCtrl+F",
+  },
+
+  "ui:open-deleted-tasks-panel": {
+    channel: "shortcut:ui:open-deleted-tasks-panel",
+    label: "Deleted Tasks",
+    accelerator: "CmdOrCtrl+Shift+D",
   },
 
   "ui:open-assistant-panel": {

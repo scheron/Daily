@@ -109,10 +109,9 @@ export interface BridgeIPC {
 
   // === SHORTCUTS ===
   "shortcut:tasks:create": (callback: () => void) => void
-  "shortcut:ui:toggle-sidebar": (callback: () => void) => void
-  "shortcut:ui:open-calendar-panel": (callback: () => void) => void
   "shortcut:ui:open-tags-panel": (callback: () => void) => void
   "shortcut:ui:open-search-panel": (callback: () => void) => void
+  "shortcut:ui:open-deleted-tasks-panel": (callback: () => void) => void
   "shortcut:ui:open-assistant-panel": (callback: () => void) => void
   "shortcut:ui:open-settings-panel": (callback: () => void) => void
   "shortcut:ui:toggle-tasks-view-mode": (callback: () => void) => void

@@ -5,7 +5,6 @@ import {useDebounceFn} from "@vueuse/core"
 import {toFullDate} from "@shared/utils/date/formatters"
 import {useBranchesStore} from "@/stores/branches.store"
 import {useUIStore} from "@/stores/ui.store"
-import {useDevice} from "@/composables/useDevice"
 import {perfMark, perfMeasure} from "@/utils/perf"
 import {toShortcutKeys} from "@/utils/shortcuts/toShortcutKey"
 import BaseButton from "@/ui/base/BaseButton.vue"
@@ -13,25 +12,18 @@ import BaseIcon from "@/ui/base/BaseIcon"
 import BaseMenu, {BaseMenuItem} from "@/ui/base/BaseMenu.vue"
 import BasePopup from "@/ui/base/BasePopup.vue"
 import AccentDotBadge from "@/ui/common/misc/AccentDotBadge.vue"
-import TagsForm from "@/ui/modules/TagsForm"
 
 import {API} from "@/api"
 
 import type {Branch} from "@shared/types/storage"
 
 const props = defineProps<{taskEditorOpen: boolean; activeDay: string}>()
-const emit = defineEmits<{createTask: []; toggleSidebar: []}>()
-
-const {isDesktop} = useDevice()
+const emit = defineEmits<{createTask: []}>()
 
 const uiStore = useUIStore()
 const branchesStore = useBranchesStore()
 
 const formattedDate = computed(() => toFullDate(props.activeDay ?? new Date()))
-const showToggleButton = computed(() => {
-  if (isDesktop.value) return uiStore.isSidebarCollapsed
-  return true
-})
 
 const activeBranchName = computed(() => branchesStore.activeBranch?.name || "Main")
 const branchesWithActiveTasks = ref<Set<Branch["id"]>>(new Set())
@@ -140,23 +132,13 @@ watch(
           :tooltip="`Search (${toShortcutKeys('ui:open-search-panel')})`"
           @click="uiStore.toggleSearchModal()"
         />
+        <BaseButton variant="ghost" icon="tags" :tooltip="`Tags (${toShortcutKeys('ui:open-tags-panel')})`" @click="uiStore.toggleTagsModal()" />
         <BaseButton
-          v-if="showToggleButton"
           variant="ghost"
-          icon="sidebar"
-          :tooltip="isDesktop ? `Expand (${toShortcutKeys('ui:toggle-sidebar')})` : 'Menu'"
-          @click="emit('toggleSidebar')"
+          icon="book-x"
+          :tooltip="`Deleted Tasks (${toShortcutKeys('ui:open-deleted-tasks-panel')})`"
+          @click="uiStore.toggleDeletedTasksModal()"
         />
-
-        <BasePopup title="Tags" hide-close-btn>
-          <template #trigger="{toggle}">
-            <BaseButton variant="ghost" icon="tags" class="p-0.5" @click="toggle" />
-          </template>
-
-          <div class="w-96">
-            <TagsForm />
-          </div>
-        </BasePopup>
       </div>
       <h1 class="m-0 cursor-default truncate text-start text-lg font-bold">
         {{ formattedDate }}

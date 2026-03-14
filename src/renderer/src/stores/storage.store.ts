@@ -5,6 +5,7 @@ import {defineStore} from "pinia"
 import {sleep} from "@shared/utils/common/sleep"
 
 import {useBranchesStore} from "./branches.store"
+import {useDeletedTasksStore} from "./deletedTasks.store"
 import {useSettingsStore} from "./settings.store"
 import {useTagsStore} from "./tags.store"
 import {useTasksStore} from "./tasks.store"
@@ -17,6 +18,7 @@ export const useStorageStore = defineStore("storage", () => {
 
   const tasksStore = useTasksStore()
   const tagsStore = useTagsStore()
+  const deletedTasksStore = useDeletedTasksStore()
   const branchesStore = useBranchesStore()
   const settingsStore = useSettingsStore()
 
@@ -53,7 +55,7 @@ export const useStorageStore = defineStore("storage", () => {
 
   async function revalidate(): Promise<void> {
     await settingsStore.revalidate()
-    await Promise.all([tasksStore.revalidate(), tagsStore.revalidate(), branchesStore.revalidate()])
+    await Promise.all([tasksStore.revalidate(), tagsStore.revalidate(), branchesStore.revalidate(), deletedTasksStore.revalidate()])
   }
 
   window.BridgeIPC["storage-sync:on-status-changed"](async (newStatus, prevStatus) => {

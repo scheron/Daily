@@ -1,36 +1,28 @@
 <script setup lang="ts">
-import {computed} from "vue"
-
 import {useStorageStore} from "@/stores/storage.store"
-import {useTagsStore} from "@/stores/tags.store"
 import {useTaskEditorStore} from "@/stores/taskEditor.store"
 import {useTasksStore} from "@/stores/tasks.store"
 import {useThemeStore} from "@/stores/theme.store"
 import {useUIStore} from "@/stores/ui.store"
-import {useDevice} from "@/composables/useDevice"
-import BaseAnimation from "@/ui/base/BaseAnimation.vue"
 import UpdateBanner from "@/ui/common/misc/UpdateBanner.vue"
 import SearchModal from "@/ui/modules/SearchForm/SearchModal.vue"
+import TagsModal from "@/ui/modules/TagsForm/TagsModal.vue"
+import DeletedTasksModal from "@/ui/views/Settings/{fragments}/DeletedTasks/DeletedTasksModal.vue"
 
 import {useContentSize} from "./composables/useContentSize"
 import Content from "./{fragments}/Content"
 import Footer from "./{fragments}/Footer.vue"
 import Header from "./{fragments}/Header.vue"
-import Sidebar from "./{fragments}/Sidebar"
 import Toolbar from "./{fragments}/Toolbar"
 
 const tasksStore = useTasksStore()
-const tagsStore = useTagsStore()
 const taskEditorStore = useTaskEditorStore()
 const uiStore = useUIStore()
 
 useStorageStore()
 useThemeStore()
 
-const {isDesktop, isMobile, isTablet} = useDevice()
 const {contentHeight, contentWidth, footerHeight} = useContentSize("container")
-
-const isDataLoaded = computed(() => tasksStore.isDaysLoaded && tagsStore.isTagsLoaded)
 
 function onCreateTask() {
   taskEditorStore.setCurrentEditingTask(null)
@@ -39,10 +31,9 @@ function onCreateTask() {
 }
 
 window.BridgeIPC["shortcut:tasks:create"](() => onCreateTask())
-window.BridgeIPC["shortcut:ui:toggle-sidebar"](() => uiStore.toggleSidebarCollapse())
-window.BridgeIPC["shortcut:ui:open-calendar-panel"](() => uiStore.openSidebarSection("calendar"))
-window.BridgeIPC["shortcut:ui:open-tags-panel"](() => uiStore.openSidebarSection("tags"))
+window.BridgeIPC["shortcut:ui:open-tags-panel"](() => uiStore.toggleTagsModal())
 window.BridgeIPC["shortcut:ui:open-search-panel"](() => uiStore.toggleSearchModal())
+window.BridgeIPC["shortcut:ui:open-deleted-tasks-panel"](() => uiStore.toggleDeletedTasksModal())
 window.BridgeIPC["shortcut:ui:open-assistant-panel"](() => window.BridgeIPC.send("assistant:open"))
 window.BridgeIPC["shortcut:ui:open-settings-panel"](() => window.BridgeIPC.send("settings:open"))
 window.BridgeIPC["shortcut:ui:toggle-tasks-view-mode"](() => uiStore.toggleTasksViewMode())
@@ -51,34 +42,12 @@ window.BridgeIPC["shortcut:ui:toggle-tasks-view-mode"](() => uiStore.toggleTasks
 <template>
   <div ref="container" class="app-shell bg-base-300 flex h-dvh w-dvw overflow-hidden">
     <SearchModal />
+    <TagsModal />
+    <DeletedTasksModal />
     <UpdateBanner />
-    <Sidebar v-if="isDesktop && !uiStore.isSidebarCollapsed" :content-height="contentHeight" :data-loaded="isDataLoaded" />
-
-    <template v-else-if="isTablet">
-      <BaseAnimation name="slideRight" :duration="200">
-        <div v-if="uiStore.isMobileSidebarOpen" class="fixed top-0 left-0 z-40">
-          <Sidebar :content-height="contentHeight" :data-loaded="isDataLoaded" />
-        </div>
-      </BaseAnimation>
-    </template>
-
-    <BaseAnimation name="slideRight" :duration="200">
-      <div v-if="isMobile && uiStore.isMobileSidebarOpen" class="fixed top-0 left-0 z-40">
-        <Sidebar :content-height="contentHeight + footerHeight" :data-loaded="isDataLoaded" />
-      </div>
-    </BaseAnimation>
-
-    <BaseAnimation name="fade" :duration="200">
-      <div v-if="!isDesktop && uiStore.isMobileSidebarOpen" class="fixed inset-0 z-30 bg-black/50" @click="uiStore.toggleSidebarCollapse(false)" />
-    </BaseAnimation>
 
     <main class="app-main-panel bg-base-100 flex-1" :style="{width: contentWidth + 'px'}">
-      <Header
-        :task-editor-open="taskEditorStore.isTaskEditorOpen"
-        :active-day="tasksStore.activeDay"
-        @toggle-sidebar="uiStore.toggleSidebarCollapse()"
-        @create-task="onCreateTask"
-      />
+      <Header :task-editor-open="taskEditorStore.isTaskEditorOpen" :active-day="tasksStore.activeDay" @create-task="onCreateTask" />
 
       <div class="app-main-body text-base-content flex size-full flex-col" :style="{height: contentHeight + 'px'}">
         <div v-if="uiStore.tasksViewMode === 'list'" class="app-toolbar border-base-300 md:h-header flex items-center border-b">

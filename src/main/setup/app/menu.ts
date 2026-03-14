@@ -137,11 +137,6 @@ function createTasksMenu(mainWindow: BrowserWindow): MenuItemConstructorOptions[
     },
     {type: "separator"},
     {
-      label: ShortcutsMap["ui:toggle-sidebar"].label,
-      accelerator: ShortcutsMap["ui:toggle-sidebar"].accelerator,
-      click: () => mainWindow.webContents.send(ShortcutsMap["ui:toggle-sidebar"].channel),
-    },
-    {
       label: ShortcutsMap["ui:toggle-tasks-view-mode"].label,
       accelerator: ShortcutsMap["ui:toggle-tasks-view-mode"].accelerator,
       click: () => mainWindow.webContents.send(ShortcutsMap["ui:toggle-tasks-view-mode"].channel),
@@ -150,6 +145,16 @@ function createTasksMenu(mainWindow: BrowserWindow): MenuItemConstructorOptions[
       label: ShortcutsMap["ui:open-search-panel"].label,
       accelerator: ShortcutsMap["ui:open-search-panel"].accelerator,
       click: () => mainWindow.webContents.send(ShortcutsMap["ui:open-search-panel"].channel),
+    },
+    {
+      label: ShortcutsMap["ui:open-tags-panel"].label,
+      accelerator: ShortcutsMap["ui:open-tags-panel"].accelerator,
+      click: () => mainWindow.webContents.send(ShortcutsMap["ui:open-tags-panel"].channel),
+    },
+    {
+      label: ShortcutsMap["ui:open-deleted-tasks-panel"].label,
+      accelerator: ShortcutsMap["ui:open-deleted-tasks-panel"].accelerator,
+      click: () => mainWindow.webContents.send(ShortcutsMap["ui:open-deleted-tasks-panel"].channel),
     },
     {type: "separator"},
     ...(ENV.isDevelopment ? [{role: "toggleDevTools" as const}] : []),

@@ -4,6 +4,7 @@ import {defineStore} from "pinia"
 
 import {objectFilter} from "@shared/utils/objects/filter"
 import {getPreviousTaskOrderIndex, sortTasksByOrderIndex} from "@shared/utils/tasks/orderIndex"
+import {useDeletedTasksStore} from "@/stores/deletedTasks.store"
 import {useSettingsStore} from "@/stores/settings.store"
 import {perfMark, perfMeasure} from "@/utils/perf"
 import {mergeDays, updateDays} from "@/utils/tasks/updateDays"
@@ -249,6 +250,8 @@ export const useTasksStore = defineStore("tasks", () => {
     dayWithRemovedTask.tasks = dayWithRemovedTask.tasks.filter((t) => t.id !== taskId)
 
     days.value = updateDays(days.value, dayWithRemovedTask)
+
+    useDeletedTasksStore().revalidate()
 
     return true
   }
