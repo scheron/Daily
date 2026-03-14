@@ -1,161 +1,112 @@
 import {nanoid} from "nanoid"
 
-import {createCacheLoader} from "@/utils/createCacheLoader"
 import {logger} from "@/utils/logger"
-import {withRetryOnConflict} from "@/utils/withRetryOnConflict"
 
-import {docIdMap, docToTag, tagToDoc} from "./_mappers"
+import {rowToTag} from "./_rowMappers"
 
-import type {TagDoc} from "@/types/database"
+import type {ID} from "@shared/types/common"
 import type {Tag} from "@shared/types/storage"
+import type Database from "better-sqlite3"
 
 export class TagModel {
-  private CACHE_TTL = 5 * 60_000
-  private tagListLoader: ReturnType<typeof createCacheLoader<Tag[]>>
+  constructor(private db: Database.Database) {}
 
-  constructor(private db: PouchDB.Database) {
-    this.tagListLoader = createCacheLoader(() => this.loadTagListFromDB(), this.CACHE_TTL)
+  invalidateCache(): void {
+    // no-op for backward compatibility
   }
 
-  invalidateCache() {
-    this.tagListLoader.clear()
-  }
+  getTagList(params?: {includeDeleted?: boolean}): Tag[] {
+    let sql = `SELECT id, name, color, created_at, updated_at, deleted_at FROM tags`
 
-  async getTagList({includeDeleted = false}: {includeDeleted?: boolean} = {}): Promise<Tag[]> {
-    const tags = await this.tagListLoader.get()
-    return tags.filter((tag) => !includeDeleted && !tag.deletedAt)
-  }
-
-  private async loadTagListFromDB(): Promise<Tag[]> {
-    try {
-      const result = (await this.db.find({selector: {type: "tag"}})) as PouchDB.Find.FindResponse<TagDoc>
-      const tags = result.docs.map(docToTag)
-
-      logger.info(logger.CONTEXT.TAGS, `Loaded ${tags.length} tags from database`)
-      return tags
-    } catch (error) {
-      logger.error(logger.CONTEXT.TAGS, "Failed to load tags from database", error)
-      throw error
+    if (!params?.includeDeleted) {
+      sql += ` WHERE deleted_at IS NULL`
     }
+
+    const rows = this.db.prepare(sql).all() as any[]
+
+    logger.info(logger.CONTEXT.TAGS, `Loaded ${rows.length} tags from database`)
+
+    return rows.map(rowToTag)
   }
 
-  async getTag(id: Tag["id"]): Promise<Tag | null> {
-    try {
-      const doc = await this.db.get<TagDoc>(docIdMap.tag.toDoc(id))
-      return docToTag(doc)
-    } catch (error: any) {
-      if (error?.status === 404) {
-        logger.warn(logger.CONTEXT.TAGS, `Tag not found: ${id}`)
-        return null
-      }
-      logger.error(logger.CONTEXT.TAGS, `Failed to get tag ${id}`, error)
-      throw error
+  getTag(id: ID): Tag | null {
+    const row = this.db
+      .prepare(
+        `
+      SELECT id, name, color, created_at, updated_at, deleted_at FROM tags WHERE id = ?
+    `,
+      )
+      .get(id) as any
+
+    if (!row) {
+      logger.debug(logger.CONTEXT.TAGS, `Tag not found: ${id}`)
+      return null
     }
+
+    return rowToTag(row)
   }
 
-  async createTag(tag: Omit<Tag, "id" | "createdAt" | "updatedAt">): Promise<Tag | null> {
+  createTag(tag: Omit<Tag, "id" | "createdAt" | "updatedAt">): Tag | null {
     const id = nanoid()
     const now = new Date().toISOString()
 
-    try {
-      const doc = tagToDoc({...tag, id, createdAt: now, updatedAt: now})
+    this.db
+      .prepare(
+        `
+      INSERT INTO tags (id, name, color, created_at, updated_at, deleted_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `,
+      )
+      .run(id, tag.name, tag.color, now, now, tag.deletedAt ?? null)
 
-      const res = await this.db.put(doc)
+    logger.storage("Created", "TAGS", id)
+    return this.getTag(id)
+  }
 
-      if (!res.ok) {
-        throw new Error(`Failed to create tag ${id}`)
-      }
+  updateTag(id: ID, updates: Partial<Pick<Tag, "color" | "name">>): Tag | null {
+    const now = new Date().toISOString()
+    const setClauses: string[] = []
+    const values: any[] = []
 
-      logger.storage("Created", "TAGS", id)
-      logger.debug(logger.CONTEXT.TAGS, `Tag rev: ${res.rev}`)
-
-      this.tagListLoader.clear()
-
-      return docToTag(doc)
-    } catch (error: any) {
-      logger.error(logger.CONTEXT.TAGS, `Failed to create tag ${id}`, error)
-      return null
+    if (updates.name !== undefined) {
+      setClauses.push("name = ?")
+      values.push(updates.name)
     }
-  }
-
-  async updateTag(id: Tag["id"], updates: Partial<Tag>): Promise<Tag | null> {
-    return await withRetryOnConflict("[TAG]", async (attempt) => {
-      const existing = await this.db.get<TagDoc>(docIdMap.tag.toDoc(id))
-      const patched = this.applyDiffToDoc(existing, updates)
-
-      const now = new Date().toISOString()
-
-      const updatedDoc: TagDoc = {
-        ...existing,
-        ...patched,
-        createdAt: existing?.createdAt ?? patched?.createdAt ?? now,
-        updatedAt: now,
-        _id: existing._id,
-        _rev: existing._rev,
-      }
-
-      const res = await this.db.put(updatedDoc)
-
-      if (!res.ok) {
-        throw new Error(`Failed to update tag ${id}`)
-      }
-
-      logger.storage("Updated", "TAGS", id)
-      logger.debug(logger.CONTEXT.TAGS, `Tag rev: ${res.rev}, attempt: ${attempt + 1}`)
-
-      this.tagListLoader.clear()
-
-      return docToTag(updatedDoc)
-    })
-  }
-
-  async deleteTag(id: Tag["id"]): Promise<boolean> {
-    const isDeleted = await withRetryOnConflict("[TAG]", async (attempt) => {
-      try {
-        const doc = await this.db.get<TagDoc>(docIdMap.tag.toDoc(id))
-
-        const now = new Date().toISOString()
-        const deletedDoc: TagDoc = {
-          ...doc,
-          deletedAt: now,
-          updatedAt: now,
-        }
-
-        const res = await this.db.put(deletedDoc)
-
-        if (!res.ok) {
-          throw new Error(`Failed to soft-delete tag ${id}`)
-        }
-
-        logger.storage("Deleted", "TAGS", id)
-        logger.debug(logger.CONTEXT.TAGS, `Tag rev: ${res.rev}, attempt: ${attempt + 1}`)
-        this.tagListLoader.clear()
-
-        return true
-      } catch (error: any) {
-        if (error?.status === 404) {
-          logger.warn(logger.CONTEXT.TAGS, `Tag not found for deletion: ${id}`)
-          return false
-        }
-
-        logger.error(logger.CONTEXT.TAGS, `Failed to delete tag ${id}`, error)
-        throw error
-      }
-    })
-    return Boolean(isDeleted)
-  }
-
-  private applyDiffToDoc(doc: TagDoc, updates: Partial<Tag>): TagDoc {
-    const nextDoc = {...doc}
 
     if (updates.color !== undefined) {
-      nextDoc.color = updates.color
+      setClauses.push("color = ?")
+      values.push(updates.color)
     }
 
-    if (updates.deletedAt !== undefined) {
-      nextDoc.deletedAt = updates.deletedAt
+    if (setClauses.length > 0) {
+      this.db
+        .prepare(
+          `
+        UPDATE tags SET ${setClauses.join(", ")}, updated_at = ? WHERE id = ?
+      `,
+        )
+        .run(...values, now, id)
+    } else {
+      this.db.prepare(`UPDATE tags SET updated_at = ? WHERE id = ?`).run(now, id)
     }
 
-    return nextDoc
+    logger.storage("Updated", "TAGS", id)
+    return this.getTag(id)
+  }
+
+  deleteTag(id: ID): boolean {
+    const now = new Date().toISOString()
+
+    let changes = 0
+    const run = this.db.transaction(() => {
+      this.db.prepare(`DELETE FROM task_tags WHERE tag_id = ?`).run(id)
+      const result = this.db.prepare(`UPDATE tags SET deleted_at = ?, updated_at = ? WHERE id = ?`).run(now, now, id)
+      changes = result.changes
+    })
+
+    run()
+
+    logger.storage("Deleted", "TAGS", id)
+    return changes > 0
   }
 }

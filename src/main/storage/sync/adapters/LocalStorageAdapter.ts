@@ -1,213 +1,201 @@
-import {isNewerOrEqual} from "@shared/utils/date/validators"
-import {withRetryOnConflict} from "@/utils/withRetryOnConflict"
-
-import type {BranchDoc, FileDoc, SettingsDoc, TagDoc, TaskDoc} from "@/types/database"
-import type {ILocalStorage, Snapshot, SyncDoc} from "@/types/sync"
+import type {ILocalStorage, SnapshotBranch, SnapshotFile, SnapshotSettings, SnapshotTag, SnapshotTask, SnapshotV2Docs} from "@/types/sync"
+import type Database from "better-sqlite3"
 
 export class LocalStorageAdapter implements ILocalStorage {
-  constructor(private db: PouchDB.Database) {}
+  constructor(private db: Database.Database) {}
 
-  /**
-   * Load all documents for building snapshot.
-   * Internal method - returns just docs without meta.
-   */
-  async loadAllDocs(): Promise<Snapshot["docs"]> {
-    const result = await this.db.allDocs({include_docs: true, attachments: true, binary: false})
-
-    const tasks: TaskDoc[] = []
-    const tags: TagDoc[] = []
-    const branches: BranchDoc[] = []
-    const files: FileDoc[] = []
-    let settings: SettingsDoc | null = null
-
-    for (const row of result.rows) {
-      const doc = row.doc as any
-      if (!doc || doc._deleted) continue
-
-      switch (doc.type) {
-        case "task":
-          tasks.push(this._stripServiceFields(doc) as TaskDoc)
-          break
-        case "tag":
-          tags.push(this._stripServiceFields(doc) as TagDoc)
-          break
-        case "branch":
-          branches.push(this._stripServiceFields(doc) as BranchDoc)
-          break
-        case "file":
-          files.push(this._stripServiceFields(doc) as FileDoc)
-          break
-        case "settings":
-          settings = this._stripServiceFields(doc) as SettingsDoc
-          break
-      }
-    }
+  async loadAllDocs(): Promise<SnapshotV2Docs> {
+    const tasks = this._loadTasks()
+    const tags = this._loadTags()
+    const branches = this._loadBranches()
+    const files = this._loadFiles()
+    const settings = this._loadSettings()
 
     return {tasks, tags, branches, files, settings}
   }
 
-  /**
-   * Upsert batch of documents.
-   *
-   * Logic:
-   * 1. allDocs(keys=ids) to get current _rev.
-   * 2. bulkDocs(docs with correct _rev).
-   * 3. For conflicts (409) — separate retry through withRetryOnConflict:
-   *    - read fresh doc
-   *    - compare updatedAt
-   *      * if incoming.updatedAt > existing.updatedAt → overwrite
-   *      * otherwise — consider local version newer and don't touch.
-   */
-  async upsertDocs(docs: SyncDoc[]): Promise<void> {
-    if (!docs.length) return
-
-    const ids = docs.map((d) => d._id)
-    const docsById = new Map<string, SyncDoc>()
-    for (const d of docs) docsById.set(d._id, d)
-
-    // 1) get current revisions
-    const existing = await this.db.allDocs<{_id: string; _rev: string}>({
-      keys: ids,
-      include_docs: true,
-    })
-
-    const existingById = new Map<string, {_id: string; _rev: string}>()
-    for (const row of existing.rows) {
-      if ("error" in row) continue
-
-      const doc = row.doc
-
-      if (doc && doc._id && doc._rev) {
-        existingById.set(doc._id, {_id: doc._id, _rev: doc._rev})
-      }
-    }
-
-    // 2) build payload for bulkDocs
-    const bulkPayload = docs.map((incoming) => {
-      const base = existingById.get(incoming._id)
-
-      if (base) {
-        // Document already exists locally — substitute actual _rev,
-        // but take other fields from incoming (remote / merged state).
-        return {
-          ...incoming,
-          _id: base._id,
-          _rev: base._rev,
+  async upsertDocs(docs: SnapshotV2Docs): Promise<void> {
+    const transaction = this.db.transaction(() => {
+      // Upsert branches
+      if (docs.branches.length) {
+        const stmt = this.db.prepare(`INSERT OR REPLACE INTO branches (id, name, created_at, updated_at, deleted_at) VALUES (?, ?, ?, ?, ?)`)
+        for (const b of docs.branches) {
+          stmt.run(b.id, b.name, b.created_at, b.updated_at, b.deleted_at)
         }
       }
 
-      // New document — remove _rev if it came from snapshot
-      const copy: any = {...incoming}
-      delete copy._rev
-      return copy
+      // Upsert tags
+      if (docs.tags.length) {
+        const stmt = this.db.prepare(`INSERT OR REPLACE INTO tags (id, name, color, created_at, updated_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?)`)
+        for (const t of docs.tags) {
+          stmt.run(t.id, t.name, t.color, t.created_at, t.updated_at, t.deleted_at)
+        }
+      }
+
+      // Upsert tasks
+      if (docs.tasks.length) {
+        const taskStmt = this.db.prepare(
+          `INSERT OR REPLACE INTO tasks (id, status, content, minimized, order_index, scheduled_date, scheduled_time, scheduled_timezone, estimated_time, spent_time, branch_id, created_at, updated_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        )
+        const deleteTagsStmt = this.db.prepare(`DELETE FROM task_tags WHERE task_id = ?`)
+        const insertTagStmt = this.db.prepare(`INSERT OR IGNORE INTO task_tags (task_id, tag_id) VALUES (?, ?)`)
+        const deleteAttachmentsStmt = this.db.prepare(`DELETE FROM task_attachments WHERE task_id = ?`)
+        const insertAttachmentStmt = this.db.prepare(`INSERT OR IGNORE INTO task_attachments (task_id, file_id) VALUES (?, ?)`)
+
+        for (const t of docs.tasks) {
+          taskStmt.run(
+            t.id,
+            t.status,
+            t.content,
+            t.minimized ? 1 : 0,
+            t.order_index,
+            t.scheduled_date,
+            t.scheduled_time,
+            t.scheduled_timezone,
+            t.estimated_time,
+            t.spent_time,
+            t.branch_id,
+            t.created_at,
+            t.updated_at,
+            t.deleted_at,
+          )
+
+          // Rebuild task_tags
+          deleteTagsStmt.run(t.id)
+          for (const tagId of t.tags) {
+            insertTagStmt.run(t.id, tagId)
+          }
+
+          // Rebuild task_attachments
+          deleteAttachmentsStmt.run(t.id)
+          for (const fileId of t.attachments) {
+            insertAttachmentStmt.run(t.id, fileId)
+          }
+        }
+      }
+
+      // Upsert files
+      if (docs.files.length) {
+        const stmt = this.db.prepare(
+          `INSERT OR REPLACE INTO files (id, name, mime_type, size, created_at, updated_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        )
+        for (const f of docs.files) {
+          stmt.run(f.id, f.name, f.mime_type, f.size, f.created_at, f.updated_at, f.deleted_at)
+        }
+      }
+
+      // Upsert settings
+      if (docs.settings) {
+        const s = docs.settings
+        this.db
+          .prepare(`INSERT OR REPLACE INTO settings (id, version, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`)
+          .run(s.id, s.version, s.data, s.created_at, s.updated_at)
+      }
     })
 
-    const result = await this.db.bulkDocs(bulkPayload as any)
-
-    // 3) Handle conflicts
-    const conflicts = result.filter((r: any) => r && r.error && (r.status === 409 || r.name === "conflict")) as {id: string}[]
-
-    if (!conflicts.length) return
-
-    // For each conflicting document, do a point-wise LWW through withRetryOnConflict
-    for (const {id} of conflicts) {
-      const incoming = docsById.get(id)
-      if (!incoming) continue
-
-      await withRetryOnConflict("[SYNC-UPSERT]", async () => {
-        let existingDoc: SyncDoc
-        try {
-          existingDoc = (await this.db.get(id)) as SyncDoc
-        } catch (err: any) {
-          if (err?.status === 404) {
-            // It was already deleted locally → simply create as new
-            const fresh: any = {...incoming}
-            delete fresh._rev
-            await this.db.put(fresh)
-            return
-          }
-          throw err
-        }
-
-        // If local updatedAt is newer or equal — keep local
-        if (isNewerOrEqual(existingDoc.updatedAt, incoming.updatedAt)) {
-          // Local version won (or is equal) — keep local
-          return
-        }
-
-        // Otherwise incoming is newer — overwrite local
-        const next: SyncDoc = {
-          ...incoming,
-          _id: existingDoc._id,
-          _rev: existingDoc._rev,
-        }
-
-        await this.db.put(next as any)
-      })
-    }
+    transaction()
   }
 
-  /**
-   * Hard delete batch of documents (for garbage collection).
-   *
-   * Logic:
-   * 1. allDocs(keys=ids) → get current _rev
-   * 2. bulkDocs([...{_deleted: true}])
-   * 3. For conflicts — point-wise retry with withRetryOnConflict
-   */
-  async deleteDocs(ids: string[]): Promise<void> {
-    if (!ids.length) return
-
-    // 1) get current revisions
-    const existing = await this.db.allDocs<SyncDoc>({
-      keys: ids,
-      include_docs: true,
+  async deleteDocs(ids: {tasks?: string[]; tags?: string[]; branches?: string[]; files?: string[]}): Promise<void> {
+    const transaction = this.db.transaction(() => {
+      if (ids.tasks?.length) {
+        for (const id of ids.tasks) {
+          this.db.prepare(`DELETE FROM task_tags WHERE task_id = ?`).run(id)
+          this.db.prepare(`DELETE FROM task_attachments WHERE task_id = ?`).run(id)
+          this.db.prepare(`DELETE FROM tasks WHERE id = ?`).run(id)
+        }
+      }
+      if (ids.tags?.length) {
+        for (const id of ids.tags) {
+          this.db.prepare(`DELETE FROM task_tags WHERE tag_id = ?`).run(id)
+          this.db.prepare(`DELETE FROM tags WHERE id = ?`).run(id)
+        }
+      }
+      if (ids.branches?.length) {
+        for (const id of ids.branches) {
+          this.db.prepare(`DELETE FROM branches WHERE id = ?`).run(id)
+        }
+      }
+      if (ids.files?.length) {
+        for (const id of ids.files) {
+          this.db.prepare(`DELETE FROM task_attachments WHERE file_id = ?`).run(id)
+          this.db.prepare(`DELETE FROM files WHERE id = ?`).run(id)
+        }
+      }
     })
 
-    const toDelete: any[] = []
-
-    for (const row of existing.rows) {
-      if ("error" in row) continue
-
-      const doc = row.doc as any
-      if (!doc || !doc._id || !doc._rev) continue
-
-      toDelete.push({
-        _id: doc._id,
-        _rev: doc._rev,
-        _deleted: true,
-      })
-    }
-
-    if (!toDelete.length) return
-
-    const result = await this.db.bulkDocs(toDelete)
-
-    const conflicts = result.filter((r: any) => r && r.error && (r.status === 409 || r.name === "conflict")) as {id: string}[]
-
-    if (!conflicts.length) return
-
-    // 3) For conflicts — separate retry
-    for (const {id} of conflicts) {
-      await withRetryOnConflict("[SYNC-DELETE]", async () => {
-        let existingDoc: SyncDoc
-        try {
-          existingDoc = (await this.db.get(id)) as SyncDoc
-        } catch (err: any) {
-          if (err?.status === 404) {
-            // Already deleted locally — ok
-            return
-          }
-          throw err
-        }
-
-        await this.db.remove(existingDoc as any)
-      })
-    }
+    transaction()
   }
 
-  private _stripServiceFields(doc: SyncDoc): SyncDoc {
-    const {_rev, ...data} = doc
-    return data
+  private _loadTasks(): SnapshotTask[] {
+    const rows = this.db.prepare(`SELECT * FROM tasks`).all() as any[]
+    return rows.map((row) => {
+      const tagRows = this.db.prepare(`SELECT tag_id FROM task_tags WHERE task_id = ?`).all(row.id) as {tag_id: string}[]
+      const attachmentRows = this.db.prepare(`SELECT file_id FROM task_attachments WHERE task_id = ?`).all(row.id) as {file_id: string}[]
+
+      return {
+        id: row.id,
+        status: row.status,
+        content: row.content,
+        minimized: row.minimized === 1,
+        order_index: row.order_index,
+        scheduled_date: row.scheduled_date,
+        scheduled_time: row.scheduled_time,
+        scheduled_timezone: row.scheduled_timezone,
+        estimated_time: row.estimated_time,
+        spent_time: row.spent_time,
+        branch_id: row.branch_id,
+        tags: tagRows.map((r) => r.tag_id),
+        attachments: attachmentRows.map((r) => r.file_id),
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        deleted_at: row.deleted_at,
+      }
+    })
+  }
+
+  private _loadTags(): SnapshotTag[] {
+    return (this.db.prepare(`SELECT * FROM tags`).all() as any[]).map((row) => ({
+      id: row.id,
+      name: row.name,
+      color: row.color,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+      deleted_at: row.deleted_at,
+    }))
+  }
+
+  private _loadBranches(): SnapshotBranch[] {
+    return (this.db.prepare(`SELECT * FROM branches`).all() as any[]).map((row) => ({
+      id: row.id,
+      name: row.name,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+      deleted_at: row.deleted_at,
+    }))
+  }
+
+  private _loadFiles(): SnapshotFile[] {
+    return (this.db.prepare(`SELECT * FROM files`).all() as any[]).map((row) => ({
+      id: row.id,
+      name: row.name,
+      mime_type: row.mime_type,
+      size: row.size,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+      deleted_at: row.deleted_at,
+    }))
+  }
+
+  private _loadSettings(): SnapshotSettings | null {
+    const row = this.db.prepare(`SELECT * FROM settings WHERE id = 'default'`).get() as any
+    if (!row) return null
+    return {
+      id: row.id,
+      version: row.version,
+      data: row.data,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+    }
   }
 }

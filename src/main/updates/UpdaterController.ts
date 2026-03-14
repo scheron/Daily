@@ -4,6 +4,7 @@ import {app} from "electron"
 
 import {logger} from "@/utils/logger"
 
+import {exportDataForMigration} from "@/storage/exportForMigration"
 import {applyPendingInstallResult} from "./utils/applyPendingInstallResult"
 import {compareVersions} from "./utils/compareVersions"
 import {createInstallerScript} from "./utils/createInstallerScript"
@@ -318,6 +319,9 @@ export class UpdaterController {
     })
 
     child.unref()
+
+    // Export PouchDB data before quitting for update
+    await exportDataForMigration(this.getStorageController)
 
     this.setUpdateState({
       status: "installing",

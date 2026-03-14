@@ -9,11 +9,6 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import("@/ui/views/Main"),
   },
   {
-    path: "/db-viewer",
-    name: "DBViewer",
-    component: () => import("@/ui/views/DBViewer"),
-  },
-  {
     path: "/:pathMatch(.*)*",
     redirect: "/",
   },

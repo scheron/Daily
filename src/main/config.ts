@@ -64,12 +64,6 @@ export const APP_CONFIG = {
       height: 300,
       resizable: false,
     },
-    devTools: {
-      width: 1200,
-      minWidth: 610,
-      height: 800,
-      minHeight: 680,
-    },
   },
   csp: {
     policy:
@@ -103,40 +97,38 @@ export const ENV = {
 } as const
 
 /**
- * Utility functions to resolve paths in project.
- */
-export const PATHS = {
-  get icon() {
-    return ENV.isDevelopment ? join(__dirname, "resources", "icon.png") : join(app.getAppPath(), "resources", "icon.png")
-  },
-  get preload() {
-    return ENV.isDevelopment ? join(process.cwd(), "out", "preload", "preload.cjs") : join(app.getAppPath(), "out", "preload", "preload.cjs")
-  },
-  get renderer() {
-    // electron-vite sets ELECTRON_RENDERER_URL environment variable automatically
-    return ENV.isDevelopment && process.env.ELECTRON_RENDERER_URL
-      ? process.env.ELECTRON_RENDERER_URL
-      : ENV.isDevelopment
-        ? "http://localhost:8080"
-        : join(app.getAppPath(), "out", "renderer", "index.html")
-  },
-} as const
-
-/**
- * Utility functions to resolve storage file and directory paths.
+ * Utility functions to resolve file and directory paths.
  */
 export const fsPaths = {
+  /** App icon path */
+  icon: () => (ENV.isDevelopment ? join(__dirname, "resources", "icon.png") : join(app.getAppPath(), "resources", "icon.png")),
+
+  /** Preload script path */
+  preload: () => (ENV.isDevelopment ? join(process.cwd(), "out", "preload", "preload.cjs") : join(app.getAppPath(), "out", "preload", "preload.cjs")),
+
+  /** Renderer URL or file path */
+  renderer: () => {
+    if (ENV.isDevelopment && process.env.ELECTRON_RENDERER_URL) return process.env.ELECTRON_RENDERER_URL
+    return ENV.isDevelopment ? "http://localhost:8080" : join(app.getAppPath(), "out", "renderer", "index.html")
+  },
+
   /** Runtime data root: ~/Library/Application Support/Daily */
   appDataRoot: () => app.getPath("userData"),
 
-  /** PouchDB database path */
-  dbPath: () => path.join(app.getPath("userData"), "db"),
+  /** SQLite database file path */
+  dbPath: () => path.join(app.getPath("userData"), "db", "daily.sqlite"),
+
+  /** Local assets directory */
+  assetsDir: () => path.join(app.getPath("userData"), "assets"),
 
   /** Default export location for vault exports */
   exportRootDefault: () => path.join(app.getPath("documents"), "Daily-Exports"),
 
   /** Remote sync directory */
-  remoteSyncPath: () => path.join(APP_CONFIG.iCloudPath, "Daily"),
+  remoteSyncPath: () => path.join(`${app.getPath("home")}/Library/Mobile Documents/com~apple~CloudDocs`, "Daily"),
+
+  /** Remote sync assets directory */
+  remoteSyncAssetsPath: () => path.join(fsPaths.remoteSyncPath(), "assets"),
 
   /** Local AI model files (GGUF) */
   modelsPath: () => path.join(app.getPath("userData"), "models"),

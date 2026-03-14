@@ -1,24 +1,20 @@
-import {sortTags} from "@shared/utils/tags/sortTags"
-
 import {TaskSearchIndex} from "../search/TaskSearchIndex"
 
 import type {BranchModel} from "@/storage/models/BranchModel"
-import type {TagModel} from "@/storage/models/TagModel"
 import type {TaskModel} from "@/storage/models/TaskModel"
 import type {SearchOptions} from "@/types/search"
 import type {TaskSearchResult} from "@shared/types/search"
-import type {Tag, Task} from "@shared/types/storage"
+import type {Task} from "@shared/types/storage"
 
 /**
  * Service for searching tasks with fuzzy matching
- * Orchestrates search operations and enriches results with full tag objects
+ * Orchestrates search operations and enriches results with branch information
  */
 export class SearchService {
   private searchIndex: TaskSearchIndex
 
   constructor(
     private taskModel: TaskModel,
-    private tagModel: TagModel,
     private branchModel: BranchModel,
   ) {
     this.searchIndex = new TaskSearchIndex()
@@ -29,7 +25,7 @@ export class SearchService {
    * Should be called once on app startup
    */
   async initializeIndex(): Promise<void> {
-    const tasks = await this.getEnrichedTasks()
+    const tasks = this.getEnrichedTasks()
     this.searchIndex.setTasks(tasks)
   }
 
@@ -45,19 +41,17 @@ export class SearchService {
     // Perform the search
     const searchResults = this.searchIndex.search(query, options)
 
-    // Get all tags for enrichment
-    const [allTags, allBranches] = await Promise.all([this.tagModel.getTagList(), this.branchModel.getBranchList({includeDeleted: true})])
-    const tagMap = new Map(allTags.map((t) => [t.id, t]))
+    // Get all branches for enrichment
+    const allBranches = this.branchModel.getBranchList({includeDeleted: true})
     const branchMap = new Map(allBranches.map((branch) => [branch.id, branch]))
 
-    // Get full task data for each result and enrich with tags
+    // Get full task data for each result
     const results: TaskSearchResult[] = []
     for (const result of searchResults) {
-      const task = await this.taskModel.getTask(result.task.id)
+      const task = this.taskModel.getTask(result.task.id)
       if (task) {
-        const tags = sortTags(task.tags.map((id) => tagMap.get(id)).filter(Boolean) as Tag[])
         results.push({
-          task: {...task, tags},
+          task,
           branch: branchMap.get(task.branchId) ?? null,
           matches: result.matches,
           score: result.score,
@@ -105,16 +99,9 @@ export class SearchService {
   }
 
   /**
-   * Get all tasks enriched with full tag objects
+   * Get all tasks enriched with full tag objects (already done by TaskModel via SQL JOINs)
    */
-  private async getEnrichedTasks(): Promise<Task[]> {
-    const [tasks, allTags] = await Promise.all([this.taskModel.getTaskList(), this.tagModel.getTagList()])
-
-    const tagMap = new Map(allTags.map((t) => [t.id, t]))
-
-    return tasks.map((task) => {
-      const tags = sortTags(task.tags.map((id) => tagMap.get(id)).filter(Boolean) as Tag[])
-      return {...task, tags}
-    })
+  private getEnrichedTasks(): Task[] {
+    return this.taskModel.getTaskList()
   }
 }

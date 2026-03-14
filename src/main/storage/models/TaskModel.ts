@@ -2,334 +2,373 @@ import {nanoid} from "nanoid"
 
 import {MAIN_BRANCH_ID} from "@shared/constants/storage"
 import {logger} from "@/utils/logger"
-import {withRetryOnConflict} from "@/utils/withRetryOnConflict"
 
-import {docIdMap, docToTask, taskToDoc} from "./_mappers"
+import {rowToTask} from "./_rowMappers"
 
-import type {TaskDoc} from "@/types/database"
 import type {TaskInternal} from "@/types/storage"
-import type {ISODate} from "@shared/types/common"
+import type {ID, ISODate} from "@shared/types/common"
 import type {Task} from "@shared/types/storage"
-import type {PartialDeep} from "type-fest"
+import type Database from "better-sqlite3"
+
+const TASK_SELECT = `
+  SELECT
+    t.id,
+    t.status,
+    t.content,
+    t.minimized,
+    t.order_index,
+    t.scheduled_date,
+    t.scheduled_time,
+    t.scheduled_timezone,
+    t.estimated_time,
+    t.spent_time,
+    t.branch_id,
+    t.created_at,
+    t.updated_at,
+    t.deleted_at,
+    (SELECT json_group_array(json_object(
+      'id', tg.id, 'name', tg.name, 'color', tg.color,
+      'createdAt', tg.created_at, 'updatedAt', tg.updated_at, 'deletedAt', tg.deleted_at
+    )) FROM task_tags tt JOIN tags tg ON tt.tag_id = tg.id AND tg.deleted_at IS NULL
+     WHERE tt.task_id = t.id) AS tags_json,
+    (SELECT json_group_array(f.id)
+     FROM task_attachments ta JOIN files f ON ta.file_id = f.id
+     WHERE ta.task_id = t.id) AS attachments_json
+  FROM tasks t
+`
 
 export class TaskModel {
-  constructor(private db: PouchDB.Database) {}
+  constructor(private db: Database.Database) {}
 
-  async getTaskList(params?: {
-    from?: ISODate
-    to?: ISODate
-    limit?: number
-    includeDeleted?: boolean
-    branchId?: TaskInternal["branchId"] | null
-  }): Promise<TaskInternal[]> {
-    try {
-      let selector: PouchDB.Find.Selector = {type: "task"}
+  getTaskList(params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: ID; includeDeleted?: boolean}): Task[] {
+    const conditions: string[] = []
+    const values: any[] = []
 
-      // PouchDB find() has default limit of 25
-      const limit = params?.limit ?? Infinity
-
-      if (params?.from || params?.to) {
-        const dateSelector: {$gte?: ISODate; $lte?: ISODate} = {}
-
-        if (params?.from) dateSelector.$gte = params.from
-        if (params?.to) dateSelector.$lte = params.to
-
-        Object.assign(selector, {
-          "scheduled.date": dateSelector,
-        })
-      }
-
-      selector = this.applyBranchSelector(selector, params?.branchId)
-
-      const result = (await this.db.find({selector, limit})) as PouchDB.Find.FindResponse<TaskDoc>
-
-      logger.info(logger.CONTEXT.TASKS, `Loaded ${result.docs.length} tasks from database`)
-
-      return result.docs.map(docToTask).filter((task) => params?.includeDeleted || !task.deletedAt)
-    } catch (error) {
-      logger.error(logger.CONTEXT.TASKS, "Failed to load tasks from database", error)
-      throw error
+    if (!params?.includeDeleted) {
+      conditions.push("t.deleted_at IS NULL")
     }
-  }
 
-  async getTask(id: Task["id"]): Promise<TaskInternal | null> {
-    try {
-      const doc = await this.db.get<TaskDoc>(docIdMap.task.toDoc(id))
-
-      logger.debug(logger.CONTEXT.TASKS, `Returned task: ${id}`)
-
-      return docToTask(doc)
-    } catch (error: any) {
-      if (error?.status === 404) {
-        logger.warn(logger.CONTEXT.TASKS, `Task not found: ${id}`)
-        return null
-      }
-      logger.error(logger.CONTEXT.TASKS, `Failed to get task ${id}`, error)
-      throw error
+    if (params?.from) {
+      conditions.push("t.scheduled_date >= ?")
+      values.push(params.from)
     }
-  }
 
-  async createTask(task: Omit<TaskInternal, "id">): Promise<TaskInternal | null> {
-    const id = nanoid()
+    if (params?.to) {
+      conditions.push("t.scheduled_date <= ?")
+      values.push(params.to)
+    }
 
-    try {
-      const doc = taskToDoc({...task, id, tags: task.tags ?? [], branchId: task.branchId ?? MAIN_BRANCH_ID})
-
-      const res = await this.db.put(doc)
-
-      if (!res.ok) {
-        throw new Error(`Failed to create task ${id}`)
-      }
-
-      logger.storage("Created", "TASKS", id)
-      logger.debug(logger.CONTEXT.TASKS, `Task rev: ${res.rev}`)
-
-      return docToTask(doc)
-    } catch (error: any) {
-      if (error?.status === 409) {
-        logger.warn(logger.CONTEXT.TASKS, `Conflict creating task ${id}: document already exists`)
+    if (params?.branchId) {
+      if (params.branchId === MAIN_BRANCH_ID) {
+        conditions.push("(t.branch_id = ? OR t.branch_id IS NULL)")
+        values.push(MAIN_BRANCH_ID)
       } else {
-        logger.error(logger.CONTEXT.TASKS, `Failed to create task ${id}`, error)
+        conditions.push("t.branch_id = ?")
+        values.push(params.branchId)
       }
-      throw error
     }
-  }
 
-  async updateTask(id: Task["id"], updates: PartialDeep<TaskInternal>): Promise<TaskInternal | null> {
-    return await withRetryOnConflict("[TASK]", async (attempt) => {
-      const existing = await this.db.get<TaskDoc>(docIdMap.task.toDoc(id))
-      const patched = this.applyDiffToDoc(existing, updates)
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : ""
+    let sql = `${TASK_SELECT} ${where} ORDER BY t.scheduled_date, t.order_index`
 
-      const now = new Date().toISOString()
-
-      const updatedDoc: TaskDoc = {
-        ...existing,
-        ...patched,
-        createdAt: existing?.createdAt ?? patched?.createdAt ?? now,
-        updatedAt: now,
-        _id: existing._id,
-        _rev: existing._rev,
-      }
-
-      const res = await this.db.put(updatedDoc)
-
-      if (!res.ok) {
-        throw new Error(`Failed to update task ${id}`)
-      }
-
-      logger.storage("Updated", "TASKS", id)
-      logger.debug(logger.CONTEXT.TASKS, `Task rev: ${res.rev}, attempt: ${attempt + 1}`)
-
-      return docToTask(updatedDoc)
-    })
-  }
-
-  async deleteTask(id: Task["id"]): Promise<boolean> {
-    const isDeleted = await withRetryOnConflict("[TASK]", async (attempt) => {
-      try {
-        const doc = await this.db.get<TaskDoc>(docIdMap.task.toDoc(id))
-        if (!doc) return false
-
-        const now = new Date().toISOString()
-        const deletedDoc: TaskDoc = {
-          ...doc,
-          deletedAt: now,
-          updatedAt: now,
-        }
-
-        const res = await this.db.put(deletedDoc)
-
-        if (!res.ok) {
-          throw new Error(`Failed to soft-delete task ${id}`)
-        }
-
-        logger.storage("Deleted", "TASKS", id)
-        logger.debug(logger.CONTEXT.TASKS, `Task rev: ${res.rev}, attempt: ${attempt + 1}`)
-        return true
-      } catch (error: any) {
-        if (error?.status === 404) {
-          logger.warn(logger.CONTEXT.TASKS, `Task not found for deletion: ${id}`)
-          return false
-        }
-
-        logger.error(logger.CONTEXT.TASKS, `Failed to delete task ${id}`, error)
-        throw error
-      }
-    })
-    return Boolean(isDeleted)
-  }
-
-  async getDeletedTasks(params?: {limit?: number; branchId?: TaskInternal["branchId"] | null}): Promise<TaskInternal[]> {
-    try {
-      let selector: PouchDB.Find.Selector = {
-        type: "task",
-        deletedAt: {$ne: null},
-      }
-
-      selector = this.applyBranchSelector(selector, params?.branchId)
-
-      const limit = params?.limit ?? Infinity
-      const result = (await this.db.find({selector, limit})) as PouchDB.Find.FindResponse<TaskDoc>
-
-      // Filter out permanently deleted documents
-      // Permanently deleted = epoch timestamp (year < 2000)
-      const PERMANENT_DELETE_THRESHOLD = new Date("2000-01-01").getTime()
-      const filteredDocs = result.docs.filter((doc: any) => {
-        if (doc._deleted) return false
-        if (!doc.deletedAt) return false
-        const deletedAtTime = new Date(doc.deletedAt).getTime()
-        return deletedAtTime >= PERMANENT_DELETE_THRESHOLD
-      })
-
-      logger.info(logger.CONTEXT.TASKS, `Loaded ${filteredDocs.length} deleted tasks from database`)
-
-      return filteredDocs.map(docToTask)
-    } catch (error) {
-      logger.error(logger.CONTEXT.TASKS, "Failed to load deleted tasks from database", error)
-      throw error
+    if (params?.limit !== undefined && Number.isFinite(params.limit)) {
+      sql += ` LIMIT ${params.limit}`
     }
+
+    const rows = this.db.prepare(sql).all(...values) as any[]
+
+    logger.info(logger.CONTEXT.TASKS, `Loaded ${rows.length} tasks from database`)
+
+    return rows.map(rowToTask)
   }
 
-  async restoreTask(id: Task["id"]): Promise<TaskInternal | null> {
-    return await withRetryOnConflict("[TASK-RESTORE]", async (attempt) => {
-      try {
-        const doc = await this.db.get<TaskDoc>(docIdMap.task.toDoc(id))
-        if (!doc?.deletedAt) {
-          logger.warn(logger.CONTEXT.TASKS, `Task ${id} not found or not deleted`)
-          return null
-        }
+  getTask(id: ID): Task | null {
+    const sql = `${TASK_SELECT} WHERE t.id = ?`
+    const row = this.db.prepare(sql).get(id) as any
 
-        const now = new Date().toISOString()
-        const restoredDoc: TaskDoc = {
-          ...doc,
-          deletedAt: null,
-          updatedAt: now,
-        }
+    if (!row) {
+      logger.debug(logger.CONTEXT.TASKS, `Task not found: ${id}`)
+      return null
+    }
 
-        const res = await this.db.put(restoredDoc)
+    logger.debug(logger.CONTEXT.TASKS, `Returned task: ${id}`)
+    return rowToTask(row)
+  }
 
-        if (!res.ok) {
-          throw new Error(`Failed to restore task ${id}`)
-        }
+  createTask(task: Omit<TaskInternal, "id" | "createdAt" | "updatedAt">): Task | null {
+    const id = nanoid()
+    const now = new Date().toISOString()
+    const branchId = task.branchId ?? MAIN_BRANCH_ID
+    const tags = task.tags ?? []
+    const attachments = task.attachments ?? []
+    const orderIndex = Number.isFinite(task.orderIndex) ? task.orderIndex : Date.parse(now)
 
-        logger.storage("Restored", "TASKS", id)
-        logger.debug(logger.CONTEXT.TASKS, `Task rev: ${res.rev}, attempt: ${attempt + 1}`)
+    const run = this.db.transaction(() => {
+      this.db
+        .prepare(
+          `
+        INSERT INTO tasks (
+          id, status, content, minimized, order_index,
+          scheduled_date, scheduled_time, scheduled_timezone,
+          estimated_time, spent_time, branch_id,
+          created_at, updated_at, deleted_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+        )
+        .run(
+          id,
+          task.status,
+          task.content,
+          task.minimized ? 1 : 0,
+          orderIndex,
+          task.scheduled.date,
+          task.scheduled.time,
+          task.scheduled.timezone,
+          task.estimatedTime,
+          task.spentTime,
+          branchId,
+          now,
+          now,
+          task.deletedAt ?? null,
+        )
 
-        return docToTask(restoredDoc)
-      } catch (error: any) {
-        if (error?.status === 404) {
-          logger.warn(logger.CONTEXT.TASKS, `Task not found for restoration: ${id}`)
-          return null
-        }
-        logger.error(logger.CONTEXT.TASKS, `Failed to restore task ${id}`, error)
-        throw error
+      for (const tagId of tags) {
+        this.db.prepare(`INSERT OR IGNORE INTO task_tags (task_id, tag_id) VALUES (?, ?)`).run(id, tagId)
       }
-    })
-  }
 
-  async permanentlyDeleteTask(id: Task["id"]): Promise<boolean> {
-    const isDeleted = await withRetryOnConflict("[TASK-PERMANENT-DELETE]", async (attempt) => {
-      try {
-        const doc = await this.db.get<TaskDoc>(docIdMap.task.toDoc(id))
-        if (!doc) return false
-
-        const now = new Date().toISOString()
-        // Use epoch timestamp (1970-01-01) for permanent deletion
-        // This will trigger immediate garbage collection via isExpired() in sync
-        const permanentDeleteDoc: TaskDoc = {
-          ...doc,
-          deletedAt: new Date(0).toISOString(), // Epoch timestamp
-          updatedAt: now,
-        }
-
-        const res = await this.db.put(permanentDeleteDoc)
-
-        if (!res.ok) {
-          throw new Error(`Failed to permanently delete task ${id}`)
-        }
-
-        logger.storage("Permanently Deleted", "TASKS", id)
-        logger.debug(logger.CONTEXT.TASKS, `Task rev: ${res.rev}, attempt: ${attempt + 1}`)
-
-        return true
-      } catch (error: any) {
-        if (error?.status === 404) {
-          logger.warn(logger.CONTEXT.TASKS, `Task not found for permanent deletion: ${id}`)
-          return false
-        }
-        logger.error(logger.CONTEXT.TASKS, `Failed to permanently delete task ${id}`, error)
-        throw error
+      for (const fileId of attachments) {
+        this.db.prepare(`INSERT OR IGNORE INTO task_attachments (task_id, file_id) VALUES (?, ?)`).run(id, fileId)
       }
     })
 
-    return Boolean(isDeleted)
+    run()
+
+    logger.storage("Created", "TASKS", id)
+    return this.getTask(id)
   }
 
-  private applyDiffToDoc(doc: TaskDoc, updates: PartialDeep<TaskInternal>): TaskDoc {
-    const nextDoc = {...doc}
+  updateTask(id: ID, updates: Partial<TaskInternal>): Task | null {
+    const now = new Date().toISOString()
+    const setClauses: string[] = []
+    const values: any[] = []
 
     if (updates.status !== undefined) {
-      nextDoc.status = updates.status
-    }
-
-    if (updates.orderIndex !== undefined) {
-      nextDoc.orderIndex = updates.orderIndex
-    }
-
-    if (updates.estimatedTime !== undefined) {
-      nextDoc.estimatedTime = updates.estimatedTime
-    }
-
-    if (updates.spentTime !== undefined) {
-      nextDoc.spentTime = updates.spentTime
+      setClauses.push("status = ?")
+      values.push(updates.status)
     }
 
     if (updates.content !== undefined) {
-      nextDoc.content = updates.content
+      setClauses.push("content = ?")
+      values.push(updates.content)
     }
 
     if (updates.minimized !== undefined) {
-      nextDoc.minimized = updates.minimized
+      setClauses.push("minimized = ?")
+      values.push(updates.minimized ? 1 : 0)
     }
 
-    if (updates.scheduled !== undefined) {
-      nextDoc.scheduled = {...nextDoc.scheduled, ...updates.scheduled}
+    if (updates.orderIndex !== undefined) {
+      setClauses.push("order_index = ?")
+      values.push(updates.orderIndex)
     }
 
-    if (updates.tags !== undefined) {
-      nextDoc.tags = updates.tags
+    if (updates.estimatedTime !== undefined) {
+      setClauses.push("estimated_time = ?")
+      values.push(updates.estimatedTime)
     }
 
-    if (updates.attachments !== undefined) {
-      nextDoc.attachments = updates.attachments
-    }
-
-    if (updates.deletedAt !== undefined) {
-      nextDoc.deletedAt = updates.deletedAt
+    if (updates.spentTime !== undefined) {
+      setClauses.push("spent_time = ?")
+      values.push(updates.spentTime)
     }
 
     if (updates.branchId !== undefined) {
-      nextDoc.branchId = updates.branchId
+      setClauses.push("branch_id = ?")
+      values.push(updates.branchId)
     }
 
-    return nextDoc
-  }
-
-  private applyBranchSelector(selector: PouchDB.Find.Selector, branchId?: TaskInternal["branchId"] | null): PouchDB.Find.Selector {
-    if (!branchId) {
-      return selector
+    if (updates.deletedAt !== undefined) {
+      setClauses.push("deleted_at = ?")
+      values.push(updates.deletedAt)
     }
 
-    if (branchId === MAIN_BRANCH_ID) {
-      return {
-        ...selector,
-        $or: [{branchId: MAIN_BRANCH_ID}, {branchId: {$exists: false}}],
+    if (updates.scheduled !== undefined) {
+      if (updates.scheduled.date !== undefined) {
+        setClauses.push("scheduled_date = ?")
+        values.push(updates.scheduled.date)
+      }
+      if (updates.scheduled.time !== undefined) {
+        setClauses.push("scheduled_time = ?")
+        values.push(updates.scheduled.time)
+      }
+      if (updates.scheduled.timezone !== undefined) {
+        setClauses.push("scheduled_timezone = ?")
+        values.push(updates.scheduled.timezone)
       }
     }
 
-    return {
-      ...selector,
-      branchId,
+    const run = this.db.transaction(() => {
+      if (setClauses.length > 0) {
+        this.db
+          .prepare(
+            `
+          UPDATE tasks SET ${setClauses.join(", ")}, updated_at = ? WHERE id = ?
+        `,
+          )
+          .run(...values, now, id)
+      } else {
+        this.db.prepare(`UPDATE tasks SET updated_at = ? WHERE id = ?`).run(now, id)
+      }
+
+      if (updates.tags !== undefined) {
+        this.db.prepare(`DELETE FROM task_tags WHERE task_id = ?`).run(id)
+        for (const tagId of updates.tags) {
+          this.db.prepare(`INSERT OR IGNORE INTO task_tags (task_id, tag_id) VALUES (?, ?)`).run(id, tagId)
+        }
+      }
+
+      if (updates.attachments !== undefined) {
+        this.db.prepare(`DELETE FROM task_attachments WHERE task_id = ?`).run(id)
+        for (const fileId of updates.attachments) {
+          this.db.prepare(`INSERT OR IGNORE INTO task_attachments (task_id, file_id) VALUES (?, ?)`).run(id, fileId)
+        }
+      }
+    })
+
+    run()
+
+    logger.storage("Updated", "TASKS", id)
+    return this.getTask(id)
+  }
+
+  deleteTask(id: ID): boolean {
+    const now = new Date().toISOString()
+    const result = this.db.prepare(`UPDATE tasks SET deleted_at = ?, updated_at = ? WHERE id = ?`).run(now, now, id)
+
+    logger.storage("Deleted", "TASKS", id)
+    return result.changes > 0
+  }
+
+  getDeletedTasks(params?: {limit?: number; branchId?: ID}): Task[] {
+    const conditions: string[] = ["t.deleted_at IS NOT NULL", "t.deleted_at >= '2000-01-01'"]
+    const values: any[] = []
+
+    if (params?.branchId) {
+      if (params.branchId === MAIN_BRANCH_ID) {
+        conditions.push("(t.branch_id = ? OR t.branch_id IS NULL)")
+        values.push(MAIN_BRANCH_ID)
+      } else {
+        conditions.push("t.branch_id = ?")
+        values.push(params.branchId)
+      }
     }
+
+    const where = `WHERE ${conditions.join(" AND ")}`
+    let sql = `${TASK_SELECT} ${where} ORDER BY t.deleted_at DESC`
+
+    if (params?.limit !== undefined && Number.isFinite(params.limit)) {
+      sql += ` LIMIT ${params.limit}`
+    }
+
+    const rows = this.db.prepare(sql).all(...values) as any[]
+
+    logger.info(logger.CONTEXT.TASKS, `Loaded ${rows.length} deleted tasks from database`)
+
+    return rows.map(rowToTask)
+  }
+
+  restoreTask(id: ID): Task | null {
+    const now = new Date().toISOString()
+    this.db.prepare(`UPDATE tasks SET deleted_at = NULL, updated_at = ? WHERE id = ?`).run(now, id)
+
+    logger.storage("Restored", "TASKS", id)
+    return this.getTask(id)
+  }
+
+  permanentlyDeleteTask(id: ID): boolean {
+    const now = new Date().toISOString()
+    const result = this.db
+      .prepare(
+        `
+      UPDATE tasks SET deleted_at = '1970-01-01T00:00:00.000Z', updated_at = ? WHERE id = ?
+    `,
+      )
+      .run(now, id)
+
+    logger.storage("Permanently Deleted", "TASKS", id)
+    return result.changes > 0
+  }
+
+  permanentlyDeleteAllDeletedTasks(branchId?: ID): number {
+    const now = new Date().toISOString()
+    let result
+
+    if (branchId) {
+      if (branchId === MAIN_BRANCH_ID) {
+        result = this.db
+          .prepare(
+            `
+          UPDATE tasks SET deleted_at = '1970-01-01T00:00:00.000Z', updated_at = ?
+          WHERE deleted_at IS NOT NULL AND deleted_at >= '2000-01-01'
+          AND (branch_id = ? OR branch_id IS NULL)
+        `,
+          )
+          .run(now, branchId)
+      } else {
+        result = this.db
+          .prepare(
+            `
+          UPDATE tasks SET deleted_at = '1970-01-01T00:00:00.000Z', updated_at = ?
+          WHERE deleted_at IS NOT NULL AND deleted_at >= '2000-01-01'
+          AND branch_id = ?
+        `,
+          )
+          .run(now, branchId)
+      }
+    } else {
+      result = this.db
+        .prepare(
+          `
+        UPDATE tasks SET deleted_at = '1970-01-01T00:00:00.000Z', updated_at = ?
+        WHERE deleted_at IS NOT NULL AND deleted_at >= '2000-01-01'
+      `,
+        )
+        .run(now)
+    }
+
+    logger.info(logger.CONTEXT.TASKS, `Permanently deleted ${result.changes} tasks`)
+    return result.changes
+  }
+
+  addTaskTags(taskId: ID, tagIds: ID[]): Task | null {
+    for (const tagId of tagIds) {
+      this.db.prepare(`INSERT OR IGNORE INTO task_tags (task_id, tag_id) VALUES (?, ?)`).run(taskId, tagId)
+    }
+
+    logger.debug(logger.CONTEXT.TASKS, `Added ${tagIds.length} tags to task ${taskId}`)
+    return this.getTask(taskId)
+  }
+
+  removeTaskTags(taskId: ID, tagIds: ID[]): Task | null {
+    for (const tagId of tagIds) {
+      this.db.prepare(`DELETE FROM task_tags WHERE task_id = ? AND tag_id = ?`).run(taskId, tagId)
+    }
+
+    logger.debug(logger.CONTEXT.TASKS, `Removed ${tagIds.length} tags from task ${taskId}`)
+    return this.getTask(taskId)
+  }
+
+  addTaskAttachment(taskId: ID, fileId: ID): Task | null {
+    this.db.prepare(`INSERT OR IGNORE INTO task_attachments (task_id, file_id) VALUES (?, ?)`).run(taskId, fileId)
+
+    logger.debug(logger.CONTEXT.TASKS, `Added attachment ${fileId} to task ${taskId}`)
+    return this.getTask(taskId)
+  }
+
+  removeTaskAttachment(taskId: ID, fileId: ID): Task | null {
+    this.db.prepare(`DELETE FROM task_attachments WHERE task_id = ? AND file_id = ?`).run(taskId, fileId)
+
+    logger.debug(logger.CONTEXT.TASKS, `Removed attachment ${fileId} from task ${taskId}`)
+    return this.getTask(taskId)
   }
 }

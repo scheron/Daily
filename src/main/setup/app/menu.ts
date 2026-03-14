@@ -97,18 +97,7 @@ function createWindowsMenu(mainWindow: BrowserWindow): MenuItemConstructorOption
       submenu: [
         {role: "reload"},
         {role: "forceReload"},
-        ...(ENV.isDevelopment
-          ? [
-              {role: "toggleDevTools" as const},
-              {
-                label: "DB Viewer",
-                accelerator: "Ctrl+Shift+D",
-                click: () => {
-                  ipcMain.emit("devtools:open")
-                },
-              },
-            ]
-          : []),
+        ...(ENV.isDevelopment ? [{role: "toggleDevTools" as const}] : []),
         {type: "separator"},
         {role: "resetZoom"},
         {role: "zoomIn"},
@@ -174,17 +163,6 @@ function createTasksMenu(mainWindow: BrowserWindow): MenuItemConstructorOptions[
       click: () => mainWindow.webContents.send(ShortcutsMap["ui:toggle-tasks-view-mode"].channel),
     },
     {type: "separator"},
-    ...(ENV.isDevelopment
-      ? [
-          {role: "toggleDevTools" as const},
-          {
-            label: "DB Viewer",
-            accelerator: "CmdOrCtrl+Shift+D",
-            click: () => {
-              ipcMain.emit("devtools:open")
-            },
-          },
-        ]
-      : []),
+    ...(ENV.isDevelopment ? [{role: "toggleDevTools" as const}] : []),
   ]
 }

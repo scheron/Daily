@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### 🏗️ Storage Migration — PouchDB → SQLite
+
+- **SQLite Storage Backend** — Replaced PouchDB with SQLite
+- **Disk-Based File Storage** — Files stored on disk instead of base64-encoded in database
+- **Simplified Storage Layer** — Removed PouchDB-specific complexity
+- **iCloud Sync Improvements** — More reliable cross-device synchronization
+
 ## v0.12.10 - 2026-03-10
 
 ### ✨ New Features

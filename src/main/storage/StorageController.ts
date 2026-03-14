@@ -1,12 +1,10 @@
 /*
-Storage Architecture (PouchDB):
+Storage Architecture (SQLite):
 
 ~/Library/Application Support/Daily/
-└── db/ (PouchDB)
-    ├── tasks (TaskDoc)
-    ├── tags (TagDoc)
-    ├── settings (SettingsDoc)
-    └── files (FileDoc with _attachments)
+├── db/
+│   └── daily.sqlite (SQLite database)
+└── assets/ (binary file assets)
 */
 
 import fs from "fs-extra"
@@ -14,7 +12,8 @@ import fs from "fs-extra"
 import {logger} from "@/utils/logger"
 
 import {fsPaths} from "@/config"
-import {getDB} from "@/storage/database"
+import {initDatabase} from "@/storage/database/instance"
+import {hasMigrationExport, importMigrationExport} from "@/storage/database/scripts/importMigrationExport"
 import {BranchModel} from "@/storage/models/BranchModel"
 import {FileModel} from "@/storage/models/FileModel"
 import {SettingsModel} from "@/storage/models/SettingsModel"
@@ -54,22 +53,35 @@ export class StorageController implements IStorageController {
 
   async init(): Promise<void> {
     await fs.ensureDir(this.rootDir)
+    await fs.ensureDir(fsPaths.assetsDir())
 
-    const db = await getDB(fsPaths.dbPath())
+    const db = initDatabase(fsPaths.dbPath())
+
+    // Import data from PouchDB export (created by the previous version before update)
+    if (hasMigrationExport(this.rootDir)) {
+      try {
+        await importMigrationExport(this.rootDir, db, fsPaths.assetsDir())
+      } catch (error) {
+        logger.error(logger.CONTEXT.STORAGE, "Failed to import migration export", error)
+      }
+    }
 
     const settingsModel = new SettingsModel(db)
     const branchModel = new BranchModel(db)
     const taskModel = new TaskModel(db)
     const tagModel = new TagModel(db)
-    const fileModel = new FileModel(db)
+    const fileModel = new FileModel(db, fsPaths.assetsDir())
+
+    branchModel.ensureMainBranch()
+    fileModel.initAssets()
 
     this.settingsService = new SettingsService(settingsModel)
     this.branchesService = new BranchesService(branchModel, this.settingsService)
-    this.tasksService = new TasksService(taskModel, tagModel)
-    this.tagsService = new TagsService(taskModel, tagModel)
-    this.filesService = new FilesService(fileModel)
-    this.daysService = new DaysService(taskModel, tagModel)
-    this.searchService = new SearchService(taskModel, tagModel, branchModel)
+    this.tasksService = new TasksService(taskModel)
+    this.tagsService = new TagsService(tagModel)
+    this.filesService = new FilesService(fileModel, taskModel)
+    this.daysService = new DaysService(taskModel)
+    this.searchService = new SearchService(taskModel, branchModel)
 
     const remoteAdapter = new RemoteStorageAdapter(fsPaths.remoteSyncPath())
     const localAdapter = new LocalStorageAdapter(db)
@@ -260,15 +272,17 @@ export class StorageController implements IStorageController {
 
   async permanentlyDeleteAllDeletedTasks(): Promise<number> {
     const branchId = await this.branchesService.getActiveBranchId()
-    const deletedIds = await this.tasksService.permanentlyDeleteAllDeletedTasks({branchId})
-    if (!deletedIds.length) return 0
+    const deletedTasks = await this.tasksService.getDeletedTasks({branchId})
+    if (!deletedTasks.length) return 0
 
-    for (const id of deletedIds) {
-      this.searchService.removeTaskFromIndex(id)
+    const count = await this.tasksService.permanentlyDeleteAllDeletedTasks({branchId})
+
+    for (const task of deletedTasks) {
+      this.searchService.removeTaskFromIndex(task.id)
     }
 
     this.notifyStorageDataChange?.()
-    return deletedIds.length
+    return count
   }
   //#endregion
 
@@ -392,8 +406,7 @@ export class StorageController implements IStorageController {
   }
 
   async cleanupOrphanFiles(): Promise<void> {
-    const tasks = await this.getTaskList()
-    return this.filesService.cleanupOrphanFiles(tasks)
+    return this.filesService.cleanupOrphanFiles()
   }
   //#endregion
 }

@@ -1,82 +1,84 @@
 import {mergeCollections} from "./mergeCollections"
 import {mergeSettings} from "./mergeSettings"
 
-import type {BaseDoc, SettingsDoc} from "@/types/database"
-import type {SnapshotDocs, SyncDoc, SyncStrategy} from "@/types/sync"
+import type {MergeResult, SnapshotV2Docs, SyncStrategy} from "@/types/sync"
 
 /**
  * Merge remote snapshot into local using pure LWW strategy.
- * Returns merged docs, array of documents to upsert and number of changes.
+ * Returns merged docs, typed upsert/remove, and change count.
  */
-export async function mergeRemoteIntoLocal(
-  localDocs: SnapshotDocs,
-  remoteDocs: SnapshotDocs,
+export function mergeRemoteIntoLocal(
+  localDocs: SnapshotV2Docs,
+  remoteDocs: SnapshotV2Docs,
   strategy: SyncStrategy,
   gcIntervalMs: number,
-): Promise<{resultDocs: SnapshotDocs; toUpsert: SyncDoc[]; toRemove: SyncDoc["_id"][]; changes: number}> {
-  const toUpsert: SyncDoc[] = []
-  const toRemove: SyncDoc["_id"][] = []
+): MergeResult {
+  const toRemove: MergeResult["toRemove"] = {}
   let changes = 0
-
-  const resultDocs: SnapshotDocs = {
-    tasks: localDocs.tasks,
-    tags: localDocs.tags,
-    branches: localDocs.branches,
-    files: localDocs.files,
-    settings: localDocs.settings,
-  }
 
   const {result: mergedTasks, toGc: gcTasks} = mergeCollections(localDocs.tasks, remoteDocs.tasks, strategy, gcIntervalMs)
   const {result: mergedTags, toGc: gcTags} = mergeCollections(localDocs.tags, remoteDocs.tags, strategy, gcIntervalMs)
   const {result: mergedBranches, toGc: gcBranches} = mergeCollections(localDocs.branches, remoteDocs.branches, strategy, gcIntervalMs)
   const {result: mergedFiles, toGc: gcFiles} = mergeCollections(localDocs.files, remoteDocs.files, strategy, gcIntervalMs)
-  const mergedSettings = mergeSettings(localDocs.settings, remoteDocs.settings)
+  const mergedSettings = mergeSettings(localDocs.settings, remoteDocs.settings, strategy)
 
-  if (mergedTasks.length !== localDocs.tasks.length || hasDocChanges(localDocs.tasks, mergedTasks) || gcTasks.length) {
-    toUpsert.push(...mergedTasks)
-    toRemove.push(...gcTasks)
+  const resultDocs: SnapshotV2Docs = {
+    tasks: mergedTasks,
+    tags: mergedTags,
+    branches: mergedBranches,
+    files: mergedFiles,
+    settings: mergedSettings,
+  }
+
+  // Build toUpsert — only include collections that changed
+  const toUpsert: SnapshotV2Docs = {
+    tasks: [],
+    tags: [],
+    branches: [],
+    files: [],
+    settings: null,
+  }
+
+  if (hasChanges(localDocs.tasks, mergedTasks) || gcTasks.length) {
+    toUpsert.tasks = mergedTasks
+    if (gcTasks.length) toRemove.tasks = gcTasks
     changes += mergedTasks.length + gcTasks.length
-    resultDocs.tasks = mergedTasks
   }
 
-  if (mergedTags.length !== localDocs.tags.length || hasDocChanges(localDocs.tags, mergedTags) || gcTags.length) {
-    toUpsert.push(...mergedTags)
-    toRemove.push(...gcTags)
+  if (hasChanges(localDocs.tags, mergedTags) || gcTags.length) {
+    toUpsert.tags = mergedTags
+    if (gcTags.length) toRemove.tags = gcTags
     changes += mergedTags.length + gcTags.length
-    resultDocs.tags = mergedTags
   }
 
-  if (mergedBranches.length !== localDocs.branches.length || hasDocChanges(localDocs.branches, mergedBranches) || gcBranches.length) {
-    toUpsert.push(...mergedBranches)
-    toRemove.push(...gcBranches)
+  if (hasChanges(localDocs.branches, mergedBranches) || gcBranches.length) {
+    toUpsert.branches = mergedBranches
+    if (gcBranches.length) toRemove.branches = gcBranches
     changes += mergedBranches.length + gcBranches.length
-    resultDocs.branches = mergedBranches
   }
 
-  if (mergedFiles.length !== localDocs.files.length || hasDocChanges(localDocs.files, mergedFiles) || gcFiles.length) {
-    toUpsert.push(...mergedFiles)
-    toRemove.push(...gcFiles)
+  if (hasChanges(localDocs.files, mergedFiles) || gcFiles.length) {
+    toUpsert.files = mergedFiles
+    if (gcFiles.length) toRemove.files = gcFiles
     changes += mergedFiles.length + gcFiles.length
-    resultDocs.files = mergedFiles
   }
 
   if (mergedSettings && hasSettingsChanges(localDocs.settings, mergedSettings)) {
-    toUpsert.push(mergedSettings)
+    toUpsert.settings = mergedSettings
     changes += 1
-    resultDocs.settings = mergedSettings
   }
 
   return {resultDocs, toUpsert, toRemove, changes}
 }
 
-function hasDocChanges<D extends BaseDoc>(oldDocs: D[], newDocs: D[]): boolean {
+function hasChanges<D extends {id: string; updated_at: string}>(oldDocs: D[], newDocs: D[]): boolean {
   if (oldDocs.length !== newDocs.length) return true
 
-  const oldById = new Map(oldDocs.map((d) => [d._id, d]))
+  const oldById = new Map(oldDocs.map((d) => [d.id, d]))
 
   for (const newDoc of newDocs) {
-    const oldDoc = oldById.get(newDoc._id)
-    if (!oldDoc || oldDoc.updatedAt !== newDoc.updatedAt) {
+    const oldDoc = oldById.get(newDoc.id)
+    if (!oldDoc || oldDoc.updated_at !== newDoc.updated_at) {
       return true
     }
   }
@@ -84,6 +86,6 @@ function hasDocChanges<D extends BaseDoc>(oldDocs: D[], newDocs: D[]): boolean {
   return false
 }
 
-function hasSettingsChanges(local: SettingsDoc | null, remote: SettingsDoc | null): boolean {
+function hasSettingsChanges(local: SnapshotV2Docs["settings"], remote: SnapshotV2Docs["settings"]): boolean {
   return JSON.stringify(local) !== JSON.stringify(remote)
 }

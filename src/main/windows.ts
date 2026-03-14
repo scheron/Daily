@@ -2,7 +2,7 @@ import {join} from "node:path"
 import {pathToFileURL} from "node:url"
 import {app, BrowserWindow, nativeImage, shell} from "electron"
 
-import {APP_CONFIG, PATHS} from "@/config"
+import {APP_CONFIG, fsPaths} from "@/config"
 import {resolveMainWindowOptions} from "@/setup/app/windowBounds"
 
 import type {MainWindowSettings} from "@shared/types/storage"
@@ -21,9 +21,9 @@ export function createMainWindow(savedState?: MainWindowSettings): BrowserWindow
     frame: false,
     show: false,
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
-    icon: PATHS.icon,
+    icon: fsPaths.icon(),
     webPreferences: {
-      preload: PATHS.preload,
+      preload: fsPaths.preload(),
       nodeIntegration: false,
       contextIsolation: true,
       webSecurity: true,
@@ -40,10 +40,11 @@ export function createMainWindow(savedState?: MainWindowSettings): BrowserWindow
     mainWindow.maximize()
   }
 
-  if (typeof PATHS.renderer === "string" && PATHS.renderer.startsWith("http")) {
-    mainWindow.loadURL(PATHS.renderer)
+  const rendererPath = fsPaths.renderer()
+  if (rendererPath.startsWith("http")) {
+    mainWindow.loadURL(rendererPath)
   } else {
-    mainWindow.loadFile(PATHS.renderer)
+    mainWindow.loadFile(rendererPath)
   }
 
   mainWindow.webContents.setWindowOpenHandler(({url}) => {
@@ -212,44 +213,6 @@ export function createSplashWindow(): BrowserWindow {
   return splashWindow
 }
 
-export function createDevToolsWindow(): BrowserWindow {
-  const devToolsWindow = new BrowserWindow({
-    title: "Daily · DB Viewer",
-    width: APP_CONFIG.window.devTools.width,
-    minWidth: APP_CONFIG.window.devTools.minWidth,
-    height: APP_CONFIG.window.devTools.height,
-    minHeight: APP_CONFIG.window.devTools.minHeight,
-    show: false,
-    icon: PATHS.icon,
-    frame: false,
-    backgroundColor: "#1c1e2e",
-    webPreferences: {
-      devTools: true,
-      nodeIntegration: false,
-      contextIsolation: true,
-      preload: PATHS.preload,
-      webSecurity: true,
-    },
-  })
-
-  if (typeof PATHS.renderer === "string" && PATHS.renderer.startsWith("http")) {
-    devToolsWindow.loadURL(`${PATHS.renderer}#/db-viewer`)
-  } else {
-    devToolsWindow.loadFile(PATHS.renderer, {hash: "/db-viewer"})
-  }
-
-  devToolsWindow.webContents.setWindowOpenHandler(({url}) => {
-    shell.openExternal(url)
-    return {action: "deny"}
-  })
-
-  devToolsWindow.once("ready-to-show", () => {
-    devToolsWindow.show()
-  })
-
-  return devToolsWindow
-}
-
 export function createAboutWindow(): BrowserWindow {
   const aboutWindow = new BrowserWindow({
     title: "About Daily",
@@ -265,7 +228,7 @@ export function createAboutWindow(): BrowserWindow {
     backgroundColor: "#0f1116",
     frame: true,
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
-    icon: PATHS.icon,
+    icon: fsPaths.icon(),
     webPreferences: {
       devTools: false,
       nodeIntegration: false,
@@ -409,7 +372,7 @@ export function createAboutWindow(): BrowserWindow {
 }
 
 function resolveAboutLogoDataURL(): string | null {
-  const candidates = [PATHS.icon, join(app.getAppPath(), "public", "icon.png"), join(process.cwd(), "public", "icon.png")]
+  const candidates = [fsPaths.icon(), join(app.getAppPath(), "public", "icon.png"), join(process.cwd(), "public", "icon.png")]
 
   for (const iconPath of candidates) {
     const image = nativeImage.createFromPath(iconPath)

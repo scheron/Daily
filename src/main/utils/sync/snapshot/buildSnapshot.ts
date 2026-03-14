@@ -1,13 +1,13 @@
 import crypto from "node:crypto"
 
-import type {SettingsDoc} from "@/types/database"
-import type {Snapshot, SnapshotDocs, SnapshotMeta, SyncDoc} from "@/types/sync"
+import type {SnapshotMeta, SnapshotSettings, SnapshotV2, SnapshotV2Docs} from "@/types/sync"
 
 /**
- * Build complete snapshot with docs and meta.
+ * Build complete V2 snapshot with docs and meta.
  */
-export function buildSnapshot(docs: SnapshotDocs): Snapshot {
+export function buildSnapshot(docs: SnapshotV2Docs): SnapshotV2 {
   return {
+    version: 2,
     docs,
     meta: buildSnapshotMeta(docs),
   }
@@ -16,7 +16,7 @@ export function buildSnapshot(docs: SnapshotDocs): Snapshot {
 /**
  * Build SnapshotMeta from document collections.
  */
-export function buildSnapshotMeta(docs: SnapshotDocs): SnapshotMeta {
+export function buildSnapshotMeta(docs: SnapshotV2Docs): SnapshotMeta {
   const tasksHash = computeCollectionHash(docs.tasks)
   const tagsHash = computeCollectionHash(docs.tags)
   const branchesHash = computeCollectionHash(docs.branches)
@@ -35,13 +35,13 @@ function computeCombinedHash(tasksHash: string, tagsHash: string, branchesHash: 
   return crypto.createHash("sha256").update(combined).digest("hex")
 }
 
-function computeCollectionHash<D extends SyncDoc>(docs: D[]): string {
-  const sorted = docs.map(({_attachments, ...doc}) => doc).toSorted((a, b) => a._id.localeCompare(b._id))
+function computeCollectionHash<D extends {id: string}>(docs: D[]): string {
+  const sorted = [...docs].toSorted((a, b) => a.id.localeCompare(b.id))
   const json = JSON.stringify(sorted)
   return crypto.createHash("sha256").update(json).digest("hex")
 }
 
-function computeSettingsHash(settings: SettingsDoc | null): string {
+function computeSettingsHash(settings: SnapshotSettings | null): string {
   const json = JSON.stringify(settings)
   return crypto.createHash("sha256").update(json).digest("hex")
 }

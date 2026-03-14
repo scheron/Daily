@@ -13,7 +13,6 @@ import {setupUpdateManager} from "@/setup/app/updates"
 import {loadSavedMainWindowState, setupMainWindowStatePersistence} from "@/setup/app/windowState"
 import {setupAboutIPC} from "@/setup/ipc/about"
 import {setupAiIPC} from "@/setup/ipc/ai"
-import {setupDbViewerIPC, setupDevToolsIPC} from "@/setup/ipc/devtools"
 import {setupMenuIPC} from "@/setup/ipc/menu"
 import {setupShellIPC} from "@/setup/ipc/shell"
 import {setupStorageIPC} from "@/setup/ipc/storage"
@@ -27,9 +26,9 @@ import {createMainWindow, createSplashWindow, focusWindow} from "@/windows"
 import type {MainWindowSettings} from "@shared/types/storage"
 import type {BrowserWindow} from "electron"
 
-type AppWindows = {main: BrowserWindow | null; splash: BrowserWindow | null; devTools: BrowserWindow | null; about: BrowserWindow | null}
+type AppWindows = {main: BrowserWindow | null; splash: BrowserWindow | null; about: BrowserWindow | null}
 
-const windows: AppWindows = {main: null, splash: null, devTools: null, about: null}
+const windows: AppWindows = {main: null, splash: null, about: null}
 let storage: StorageController | null = null
 let ai: AIController | null = null
 let savedMainWindowState: MainWindowSettings | undefined
@@ -65,8 +64,6 @@ app.whenReady().then(async () => {
     await storage.cleanupOrphanFiles()
     savedMainWindowState = await loadSavedMainWindowState(storage)
     logger.lifecycle("Storage initialized")
-
-    await setupDbViewerIPC()
   } catch (err) {
     logger.error("APP" as any, "Failed to initialize storage", err)
     app.quit()
@@ -81,11 +78,6 @@ app.whenReady().then(async () => {
   setupMenuIPC(() => windows.main)
   setupUpdatesIPC()
 
-  setupDevToolsIPC(
-    () => windows.main,
-    () => windows.devTools,
-    (win) => (windows.devTools = win),
-  )
   setupAboutIPC(
     () => windows.about,
     (win) => (windows.about = win),

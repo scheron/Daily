@@ -1,15 +1,15 @@
-import type {Snapshot} from "@/types/sync"
+import type {SnapshotV2} from "@/types/sync"
 
-export function getDefaultSnapshot(): Snapshot {
-  const docs = {
-    tasks: [],
-    tags: [],
-    branches: [],
-    files: [],
-    settings: null,
-  }
+export function getDefaultSnapshot(): SnapshotV2 {
   return {
-    docs,
+    version: 2,
+    docs: {
+      tasks: [],
+      tags: [],
+      branches: [],
+      files: [],
+      settings: null,
+    },
     meta: {
       updatedAt: new Date().toISOString(),
       hash: "",

@@ -9,16 +9,8 @@
     "output": "dist"
   },
   "afterPack": "scripts/afterPack-mac.js",
-  "files": [
-    "out/**/*",
-    {"filter": ["**/*"], "from": "public", "to": "resources"},
-    "!dist",
-    "!scripts",
-    "!src",
-    "!*.md",
-    "!.git*",
-    "!.DS_Store"
-  ],
+  "extraResources": [{"from": "resources/file-coordinator", "to": "file-coordinator"}],
+  "files": ["out/**/*", {"filter": ["**/*"], "from": "public", "to": "resources"}, "!dist", "!scripts", "!src", "!*.md", "!.git*", "!.DS_Store"],
   "mac": {
     "artifactName": "${productName}-${version}-mac.${ext}",
     "category": "public.app-category.productivity",

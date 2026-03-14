@@ -1,137 +1,148 @@
-import {nanoid} from "nanoid"
+import path from "node:path"
+import fs from "fs-extra"
 
 import {logger} from "@/utils/logger"
-import {withRetryOnConflict} from "@/utils/withRetryOnConflict"
 
-import {docIdMap, docToFile, fileToDoc} from "./_mappers"
+import {rowToFile} from "./_rowMappers"
 
-import type {FileDoc} from "@/types/database"
+import type {ID} from "@shared/types/common"
 import type {File} from "@shared/types/storage"
+import type Database from "better-sqlite3"
 
 export class FileModel {
-  constructor(private db: PouchDB.Database) {}
+  constructor(
+    private db: Database.Database,
+    private assetsDir: string,
+  ) {}
 
-  async getFileList({includeDeleted = false}: {includeDeleted?: boolean} = {}): Promise<File[]> {
+  initAssets(): void {
+    fs.ensureDirSync(this.assetsDir)
+  }
+
+  async saveAsset(fileId: string, ext: string, data: Buffer): Promise<void> {
+    await fs.writeFile(path.join(this.assetsDir, `${fileId}.${ext}`), data)
+  }
+
+  async readAssetBuffer(fileId: string, ext: string): Promise<Buffer> {
+    return fs.readFile(path.join(this.assetsDir, `${fileId}.${ext}`))
+  }
+
+  async deleteAsset(fileId: string, ext: string): Promise<void> {
     try {
-      const result = (await this.db.find({selector: {type: "file"}})) as PouchDB.Find.FindResponse<FileDoc>
-
-      logger.info(logger.CONTEXT.FILES, `Loaded ${result.docs.length} files from database`)
-      return result.docs.map(docToFile).filter((file) => !includeDeleted && !file.deletedAt)
-    } catch (error) {
-      logger.error(logger.CONTEXT.FILES, "Failed to load files from database", error)
-      throw error
+      await fs.unlink(path.join(this.assetsDir, `${fileId}.${ext}`))
+    } catch (error: any) {
+      if (error?.code !== "ENOENT") throw error
     }
   }
 
-  async getFiles(ids: File["id"][]): Promise<File[]> {
+  async listAssets(): Promise<string[]> {
+    return fs.readdir(this.assetsDir)
+  }
+
+  async cleanupOrphanAssets(validFileIds: Set<string>): Promise<number> {
+    const assets = await this.listAssets()
+    let count = 0
+
+    for (const asset of assets) {
+      const dotIndex = asset.lastIndexOf(".")
+      const fileId = dotIndex !== -1 ? asset.slice(0, dotIndex) : asset
+      const ext = dotIndex !== -1 ? asset.slice(dotIndex + 1) : ""
+
+      if (!validFileIds.has(fileId)) {
+        await this.deleteAsset(fileId, ext)
+        count++
+      }
+    }
+
+    logger.info(logger.CONTEXT.FILES, `Cleaned up ${count} orphan assets`)
+    return count
+  }
+
+  getAssetPath(fileId: string, ext: string): string {
+    return path.join(this.assetsDir, `${fileId}.${ext}`)
+  }
+
+  getFileList(params?: {includeDeleted?: boolean}): File[] {
+    let sql = `SELECT id, name, mime_type, size, created_at, updated_at, deleted_at FROM files`
+
+    if (!params?.includeDeleted) {
+      sql += ` WHERE deleted_at IS NULL`
+    }
+
+    const rows = this.db.prepare(sql).all() as any[]
+
+    logger.info(logger.CONTEXT.FILES, `Loaded ${rows.length} files from database`)
+
+    return rows.map(rowToFile)
+  }
+
+  getFiles(ids: ID[]): File[] {
     if (ids.length === 0) return []
 
-    try {
-      const result = await this.db.allDocs<FileDoc>({
-        keys: ids,
-        include_docs: true,
-      })
+    const placeholders = ids.map(() => "?").join(", ")
+    const rows = this.db
+      .prepare(
+        `
+      SELECT id, name, mime_type, size, created_at, updated_at, deleted_at
+      FROM files WHERE id IN (${placeholders})
+    `,
+      )
+      .all(...ids) as any[]
 
-      const files: File[] = []
+    logger.debug(logger.CONTEXT.FILES, `Retrieved ${rows.length}/${ids.length} files`)
 
-      for (const row of result.rows) {
-        if ("error" in row) {
-          logger.error(logger.CONTEXT.FILES, `Failed to get file ${row.key}`, row.error)
-          continue
-        }
-
-        if (row.doc) files.push(docToFile(row.doc))
-      }
-
-      logger.debug(logger.CONTEXT.FILES, `Retrieved ${files.length}/${ids.length} files`)
-      return files
-    } catch (error) {
-      logger.error(logger.CONTEXT.FILES, "Failed to get files", error)
-      throw error
-    }
+    return rows.map(rowToFile)
   }
 
-  async createFile(name: string, mimeType: string, size: number, data: Buffer): Promise<File | null> {
-    try {
-      const now = new Date().toISOString()
+  createFile(id: ID, name: string, mimeType: string, size: number): File | null {
+    const now = new Date().toISOString()
 
-      const file: File & {fileBuffer: Buffer} = {
-        id: nanoid(),
-        name,
-        mimeType,
-        size,
-        createdAt: now,
-        updatedAt: now,
-        deletedAt: null,
-        fileBuffer: data,
-      }
+    this.db
+      .prepare(
+        `
+      INSERT INTO files (id, name, mime_type, size, created_at, updated_at, deleted_at)
+      VALUES (?, ?, ?, ?, ?, ?, NULL)
+    `,
+      )
+      .run(id, name, mimeType, size, now, now)
 
-      const putResult = await this.db.put(fileToDoc(file))
-
-      logger.storage("Created", "FILES", file.id)
-      logger.debug(logger.CONTEXT.FILES, `File rev: ${putResult.rev}`)
-
-      return file
-    } catch (error) {
-      logger.error(logger.CONTEXT.FILES, `Failed to create file ${name}`, error)
-      throw error
-    }
+    logger.storage("Created", "FILES", id)
+    return this.getFile(id)
   }
 
-  async deleteFile(id: File["id"]): Promise<boolean> {
-    const isDeleted = await withRetryOnConflict("[FILE]", async (attempt) => {
-      try {
-        const doc = await this.db.get<FileDoc>(docIdMap.file.toDoc(id))
-        if (!doc) return false
+  getFile(id: ID): File | null {
+    const row = this.db
+      .prepare(
+        `
+      SELECT id, name, mime_type, size, created_at, updated_at, deleted_at FROM files WHERE id = ?
+    `,
+      )
+      .get(id) as any
 
-        const now = new Date().toISOString()
-        const deletedDoc: FileDoc = {
-          ...doc,
-          deletedAt: now,
-          updatedAt: now,
-        }
+    if (!row) {
+      logger.debug(logger.CONTEXT.FILES, `File not found: ${id}`)
+      return null
+    }
 
-        const res = await this.db.put(deletedDoc)
-
-        if (!res.ok) {
-          return false
-        }
-
-        logger.storage("Deleted", "FILES", id)
-        logger.debug(logger.CONTEXT.FILES, `File rev: ${res.rev}, attempt: ${attempt + 1}`)
-        return true
-      } catch (error: any) {
-        if (error?.status === 404) {
-          logger.warn(logger.CONTEXT.FILES, `File not found for deletion: ${id}`)
-          return false
-        }
-
-        logger.error(logger.CONTEXT.FILES, `Failed to delete file ${id}`, error)
-        return false
-      }
-    })
-    return Boolean(isDeleted)
+    return rowToFile(row)
   }
 
-  async getFileWithAttachment(id: File["id"]): Promise<FileDoc | null> {
-    try {
-      logger.debug(logger.CONTEXT.FILES, `Fetching file with attachment: ${id}`)
+  deleteFile(id: ID): boolean {
+    const now = new Date().toISOString()
+    const result = this.db
+      .prepare(
+        `
+      UPDATE files SET deleted_at = ?, updated_at = ? WHERE id = ?
+    `,
+      )
+      .run(now, now, id)
 
-      const doc = await this.db.get<FileDoc>(docIdMap.file.toDoc(id), {
-        attachments: true,
-        binary: false, // Get as base64 string, not Blob
-      })
+    logger.storage("Deleted", "FILES", id)
+    return result.changes > 0
+  }
 
-      logger.debug(logger.CONTEXT.FILES, `File doc retrieved: ${doc.name} (${doc.size} bytes)`)
-
-      return doc
-    } catch (error: any) {
-      if (error?.status === 404) {
-        logger.warn(logger.CONTEXT.FILES, `File not found: ${id}`)
-        return null
-      }
-      logger.error(logger.CONTEXT.FILES, `Failed to get file with attachment ${id}`, error)
-      throw error
-    }
+  getReferencedFileIds(): Set<ID> {
+    const rows = this.db.prepare(`SELECT DISTINCT file_id FROM task_attachments`).all() as any[]
+    return new Set(rows.map((row: any) => row.file_id))
   }
 }

@@ -10,6 +10,4 @@ export function setupMenuIPC(getMainWindow: () => BrowserWindow | null): void {
     const shortcut = ShortcutsMap[action] as ShortcutDefinition
     ipcMain.on(shortcut.channel, () => getMainWindow()?.webContents.send(shortcut.channel))
   }
-
-  ipcMain.on("menu:devtools", () => ipcMain.emit("devtools:open"))
 }

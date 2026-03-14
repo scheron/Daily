@@ -1,6 +1,6 @@
 import {app, nativeImage} from "electron"
 
-import {APP_CONFIG, PATHS} from "@/config"
+import {APP_CONFIG, fsPaths} from "@/config"
 import {focusWindow} from "@/windows"
 
 import type {StorageController} from "@/storage/StorageController"
@@ -13,7 +13,7 @@ export function setupAppIdentity() {
 export function setupDockIcon() {
   if (process.platform === "darwin" && app.dock) {
     try {
-      app.dock.setIcon(nativeImage.createFromPath(PATHS.icon))
+      app.dock.setIcon(nativeImage.createFromPath(fsPaths.icon()))
     } catch (error) {
       console.warn("Failed to set dock icon:", error)
     }
