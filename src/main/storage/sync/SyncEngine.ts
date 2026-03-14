@@ -7,7 +7,7 @@ import {buildSnapshot, buildSnapshotMeta} from "@/utils/sync/snapshot/buildSnaps
 
 import {APP_CONFIG, fsPaths} from "@/config"
 
-import type {ILocalStorage, IRemoteStorage, MergeResult, Snapshot, SnapshotV2Docs, SyncStrategy} from "@/types/sync"
+import type {ILocalStorage, IRemoteStorage, MergeResult, SnapshotDocs, SyncStrategy} from "@/types/sync"
 import type {SyncStatus} from "@shared/types/storage"
 
 /**
@@ -18,7 +18,6 @@ import type {SyncStatus} from "@shared/types/storage"
  * - Remote storage is treated as a "remote flash drive" - no server-side logic
  * - All merge logic happens locally using pure LWW (Last Write Wins) strategy
  * - AsyncMutex prevents concurrent sync operations
- * - Supports V1 → V2 snapshot conversion for backward compatibility
  */
 export class SyncEngine {
   private _syncStatus: SyncStatus = "inactive"
@@ -102,11 +101,11 @@ export class SyncEngine {
       const localMeta = buildSnapshotMeta(localDocs)
 
       const remoteSnapshot = await this.remoteStore.loadSnapshot()
-      let remoteDocs: SnapshotV2Docs | null = null
+      let remoteDocs: SnapshotDocs | null = null
       let remoteMeta: {updatedAt: string; hash: string} | null = null
 
       if (remoteSnapshot) {
-        remoteDocs = this._extractV2Docs(remoteSnapshot)
+        remoteDocs = this._normalizeSettings(remoteSnapshot.docs)
         remoteMeta = remoteSnapshot.meta
       }
 
@@ -131,102 +130,25 @@ export class SyncEngine {
   }
 
   /**
-   * Extract V2 docs from a snapshot, converting V1 if necessary.
+   * Normalize settings from old snapshot format where `data` was a JSON string.
    */
-  private _extractV2Docs(snapshot: Snapshot): SnapshotV2Docs {
-    if (snapshot.version === 2) {
-      return snapshot.docs
+  private _normalizeSettings(docs: SnapshotDocs): SnapshotDocs {
+    if (docs.settings && "data" in docs.settings && typeof (docs.settings as any).data === "string") {
+      const {id, data, created_at, updated_at} = docs.settings as any
+      const parsed = JSON.parse(data)
+      docs.settings = {id, ...parsed, created_at, updated_at}
     }
-
-    // V1 → V2 conversion
-    return this._convertV1ToV2(snapshot.docs)
-  }
-
-  /**
-   * Convert V1 snapshot docs to V2 format.
-   * V1 docs use legacy `_id` with prefixes and camelCase fields.
-   */
-  private _convertV1ToV2(v1Docs: {tasks: any[]; tags: any[]; branches: any[]; files: any[]; settings: any | null}): SnapshotV2Docs {
-    // Build a tag name→id lookup from v1 tags for resolving task tag references
-    const tagNameToId = new Map<string, string>()
-    const tags = (v1Docs.tags ?? []).map((t: any) => {
-      const id = t._id ? t._id.split(":")[1] : t.id
-      tagNameToId.set(t.name, id)
-      return {
-        id,
-        name: t.name,
-        color: t.color,
-        created_at: t.createdAt ?? t.created_at,
-        updated_at: t.updatedAt ?? t.updated_at,
-        deleted_at: t.deletedAt ?? t.deleted_at ?? null,
-      }
-    })
-
-    const tasks = (v1Docs.tasks ?? []).map((t: any) => {
-      const id = t._id ? t._id.split(":")[1] : t.id
-      // V1 task tags may be tag names — resolve to IDs
-      const taskTags = (t.tags ?? []).map((ref: string) => tagNameToId.get(ref) ?? ref)
-      return {
-        id,
-        status: t.status ?? "active",
-        content: t.content ?? "",
-        minimized: !!(t.minimized ?? false),
-        order_index: t.orderIndex ?? t.order_index ?? Date.parse(t.createdAt ?? t.created_at ?? new Date().toISOString()),
-        scheduled_date: t.scheduled?.date ?? t.scheduled_date ?? "",
-        scheduled_time: t.scheduled?.time ?? t.scheduled_time ?? "",
-        scheduled_timezone: t.scheduled?.timezone ?? t.scheduled_timezone ?? "",
-        estimated_time: t.estimatedTime ?? t.estimated_time ?? 0,
-        spent_time: t.spentTime ?? t.spent_time ?? 0,
-        branch_id: t.branchId ?? t.branch_id ?? "main",
-        tags: taskTags,
-        attachments: t.attachments ?? [],
-        created_at: t.createdAt ?? t.created_at,
-        updated_at: t.updatedAt ?? t.updated_at,
-        deleted_at: t.deletedAt ?? t.deleted_at ?? null,
-      }
-    })
-
-    const branches = (v1Docs.branches ?? []).map((b: any) => ({
-      id: b._id ? b._id.split(":")[1] : b.id,
-      name: b.name,
-      created_at: b.createdAt ?? b.created_at,
-      updated_at: b.updatedAt ?? b.updated_at,
-      deleted_at: b.deletedAt ?? b.deleted_at ?? null,
-    }))
-
-    const files = (v1Docs.files ?? []).map((f: any) => ({
-      id: f._id ? f._id.split(":")[1] : f.id,
-      name: f.name,
-      mime_type: f.mimeType ?? f.mime_type,
-      size: f.size,
-      created_at: f.createdAt ?? f.created_at,
-      updated_at: f.updatedAt ?? f.updated_at,
-      deleted_at: f.deletedAt ?? f.deleted_at ?? null,
-    }))
-
-    let settings: SnapshotV2Docs["settings"] = null
-    if (v1Docs.settings) {
-      const s = v1Docs.settings
-      settings = {
-        id: "default",
-        version: s.data?.version ?? s.version ?? "",
-        data: typeof s.data === "string" ? s.data : JSON.stringify(s.data ?? {}),
-        created_at: s.createdAt ?? s.created_at,
-        updated_at: s.updatedAt ?? s.updated_at,
-      }
-    }
-
-    return {tasks, tags, branches, files, settings}
+    return docs
   }
 
   /**
    * Pull phase: merge remote changes into local
    */
   private async _pull(
-    localDocs: SnapshotV2Docs,
-    remoteDocs: SnapshotV2Docs | null,
+    localDocs: SnapshotDocs,
+    remoteDocs: SnapshotDocs | null,
     strategy: SyncStrategy,
-  ): Promise<{resultDocs: SnapshotV2Docs; hasChanges: boolean}> {
+  ): Promise<{resultDocs: SnapshotDocs; hasChanges: boolean}> {
     logger.info(logger.CONTEXT.SYNC_PULL, "Pulling snapshot")
 
     if (!remoteDocs) {
@@ -262,7 +184,7 @@ export class SyncEngine {
   /**
    * Push phase: send local changes to remote + sync assets
    */
-  private async _push(localDocs: SnapshotV2Docs): Promise<void> {
+  private async _push(localDocs: SnapshotDocs): Promise<void> {
     logger.info(logger.CONTEXT.SYNC_PUSH, "Pushing snapshot")
 
     const snapshot = buildSnapshot(localDocs)
@@ -286,7 +208,7 @@ export class SyncEngine {
     this.onStatusChange(status, prevStatus)
   }
 
-  private _shouldPush(localDocs: SnapshotV2Docs, remoteDocs: SnapshotV2Docs | null): boolean {
+  private _shouldPush(localDocs: SnapshotDocs, remoteDocs: SnapshotDocs | null): boolean {
     if (!remoteDocs) {
       const hasAnyData =
         localDocs.tasks.length > 0 || localDocs.tags.length > 0 || localDocs.branches.length > 0 || localDocs.files.length > 0 || !!localDocs.settings

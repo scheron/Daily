@@ -1,3 +1,5 @@
+import type {Settings} from "@shared/types/storage"
+
 export type SyncStrategy = "pull" | "push"
 
 export type SnapshotMeta = {
@@ -5,15 +7,13 @@ export type SnapshotMeta = {
   hash: string
 }
 
-// --- Snapshot V2 types ---
-
-export type SnapshotV2 = {
+export type Snapshot = {
   version: 2
-  docs: SnapshotV2Docs
+  docs: SnapshotDocs
   meta: SnapshotMeta
 }
 
-export type SnapshotV2Docs = {
+export type SnapshotDocs = {
   tasks: SnapshotTask[]
   tags: SnapshotTag[]
   branches: SnapshotBranch[]
@@ -67,33 +67,17 @@ export type SnapshotFile = {
   deleted_at: string | null
 }
 
-export type SnapshotSettings = {
+export type SnapshotSettings = Settings & {
   id: string
-  version: string
-  data: string
   created_at: string
   updated_at: string
-}
-
-// --- Snapshot V1 types (backward compat) ---
-
-export type SnapshotV1 = {
-  version?: undefined
-  docs: {tasks: any[]; tags: any[]; branches: any[]; files: any[]; settings: any | null}
-  meta: SnapshotMeta
-}
-
-export type Snapshot = SnapshotV1 | SnapshotV2
-
-export function detectSnapshotVersion(snapshot: Snapshot): 1 | 2 {
-  return snapshot.version === 2 ? 2 : 1
 }
 
 // --- Merge result ---
 
 export type MergeResult = {
-  resultDocs: SnapshotV2Docs
-  toUpsert: SnapshotV2Docs
+  resultDocs: SnapshotDocs
+  toUpsert: SnapshotDocs
   toRemove: {tasks?: string[]; tags?: string[]; branches?: string[]; files?: string[]}
   changes: number
 }
@@ -101,13 +85,13 @@ export type MergeResult = {
 // --- Adapter interfaces ---
 
 export interface ILocalStorage {
-  loadAllDocs(): Promise<SnapshotV2Docs>
-  upsertDocs(docs: SnapshotV2Docs): Promise<void>
+  loadAllDocs(): Promise<SnapshotDocs>
+  upsertDocs(docs: SnapshotDocs): Promise<void>
   deleteDocs(ids: {tasks?: string[]; tags?: string[]; branches?: string[]; files?: string[]}): Promise<void>
 }
 
 export interface IRemoteStorage {
   loadSnapshot(): Promise<Snapshot | null>
-  saveSnapshot(snapshot: SnapshotV2): Promise<void>
+  saveSnapshot(snapshot: Snapshot): Promise<void>
   syncAssets(localAssetsDir: string, fileManifest: SnapshotFile[]): Promise<void>
 }

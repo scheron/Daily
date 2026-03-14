@@ -20,7 +20,7 @@ const tasksStore = useTasksStore()
 const branchesStore = useBranchesStore()
 const uiStore = useUIStore()
 
-const {query, items, isSearching, isLoaded, isIdle} = useSearch<TaskSearchResult>({
+const {query, items, isSearching, isLoaded} = useSearch<TaskSearchResult>({
   searchFn: async (query) => await API.searchTasks(query),
   debounce: 300,
 })

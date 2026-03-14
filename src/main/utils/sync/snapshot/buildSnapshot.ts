@@ -1,11 +1,8 @@
 import crypto from "node:crypto"
 
-import type {SnapshotMeta, SnapshotSettings, SnapshotV2, SnapshotV2Docs} from "@/types/sync"
+import type {Snapshot, SnapshotDocs, SnapshotMeta, SnapshotSettings} from "@/types/sync"
 
-/**
- * Build complete V2 snapshot with docs and meta.
- */
-export function buildSnapshot(docs: SnapshotV2Docs): SnapshotV2 {
+export function buildSnapshot(docs: SnapshotDocs): Snapshot {
   return {
     version: 2,
     docs,
@@ -16,7 +13,7 @@ export function buildSnapshot(docs: SnapshotV2Docs): SnapshotV2 {
 /**
  * Build SnapshotMeta from document collections.
  */
-export function buildSnapshotMeta(docs: SnapshotV2Docs): SnapshotMeta {
+export function buildSnapshotMeta(docs: SnapshotDocs): SnapshotMeta {
   const tasksHash = computeCollectionHash(docs.tasks)
   const tagsHash = computeCollectionHash(docs.tags)
   const branchesHash = computeCollectionHash(docs.branches)

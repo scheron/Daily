@@ -1,6 +1,6 @@
-import type {SnapshotV2} from "@/types/sync"
+import type {Snapshot} from "@/types/sync"
 
-export function getDefaultSnapshot(): SnapshotV2 {
+export function getDefaultSnapshot(): Snapshot {
   return {
     version: 2,
     docs: {

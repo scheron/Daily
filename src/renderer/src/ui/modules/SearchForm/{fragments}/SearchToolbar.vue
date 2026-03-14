@@ -1,9 +1,7 @@
 <script setup lang="ts">
 import {TASK_FILTERS} from "@/constants/tasks"
-import {cn} from "@/utils/ui/tailwindcss"
 import BaseButton from "@/ui/base/BaseButton.vue"
 import SearchInput from "@/ui/common/inputs/SearchInput.vue"
-import AnimatedTabs from "@/ui/common/misc/AnimatedTabs"
 
 import type {TasksFilter} from "@/types/common"
 

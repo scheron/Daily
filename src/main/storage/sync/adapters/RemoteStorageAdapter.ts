@@ -5,7 +5,7 @@ import {coordinatedRead, coordinatedWrite, isICloudStub, requestDownload} from "
 import {logger} from "@/utils/logger"
 import {isValidSnapshot} from "@/utils/sync/snapshot/isValidSnapshot"
 
-import type {IRemoteStorage, Snapshot, SnapshotFile, SnapshotV2} from "@/types/sync"
+import type {IRemoteStorage, Snapshot, SnapshotFile} from "@/types/sync"
 
 const SNAPSHOT_FILENAME = "snapshot.v2.json"
 const MAX_RETRIES = 3
@@ -72,7 +72,7 @@ export class RemoteStorageAdapter implements IRemoteStorage {
     return null
   }
 
-  async saveSnapshot(snapshot: SnapshotV2): Promise<void> {
+  async saveSnapshot(snapshot: Snapshot): Promise<void> {
     await this.ensureDir()
 
     const data = Buffer.from(JSON.stringify(snapshot, null, 2), "utf-8")

@@ -393,7 +393,7 @@ export function createSettingsWindow(): BrowserWindow {
     center: true,
     show: false,
     frame: false,
-    alwaysOnTop: true,
+    alwaysOnTop: false,
     transparent: true,
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
     icon: fsPaths.icon(),

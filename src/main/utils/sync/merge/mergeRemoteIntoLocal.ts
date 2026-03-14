@@ -1,18 +1,13 @@
 import {mergeCollections} from "./mergeCollections"
 import {mergeSettings} from "./mergeSettings"
 
-import type {MergeResult, SnapshotV2Docs, SyncStrategy} from "@/types/sync"
+import type {MergeResult, SnapshotDocs, SyncStrategy} from "@/types/sync"
 
 /**
  * Merge remote snapshot into local using pure LWW strategy.
  * Returns merged docs, typed upsert/remove, and change count.
  */
-export function mergeRemoteIntoLocal(
-  localDocs: SnapshotV2Docs,
-  remoteDocs: SnapshotV2Docs,
-  strategy: SyncStrategy,
-  gcIntervalMs: number,
-): MergeResult {
+export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: SnapshotDocs, strategy: SyncStrategy, gcIntervalMs: number): MergeResult {
   const toRemove: MergeResult["toRemove"] = {}
   let changes = 0
 
@@ -22,7 +17,7 @@ export function mergeRemoteIntoLocal(
   const {result: mergedFiles, toGc: gcFiles} = mergeCollections(localDocs.files, remoteDocs.files, strategy, gcIntervalMs)
   const mergedSettings = mergeSettings(localDocs.settings, remoteDocs.settings, strategy)
 
-  const resultDocs: SnapshotV2Docs = {
+  const resultDocs: SnapshotDocs = {
     tasks: mergedTasks,
     tags: mergedTags,
     branches: mergedBranches,
@@ -31,7 +26,7 @@ export function mergeRemoteIntoLocal(
   }
 
   // Build toUpsert — only include collections that changed
-  const toUpsert: SnapshotV2Docs = {
+  const toUpsert: SnapshotDocs = {
     tasks: [],
     tags: [],
     branches: [],
@@ -86,6 +81,6 @@ function hasChanges<D extends {id: string; updated_at: string}>(oldDocs: D[], ne
   return false
 }
 
-function hasSettingsChanges(local: SnapshotV2Docs["settings"], remote: SnapshotV2Docs["settings"]): boolean {
+function hasSettingsChanges(local: SnapshotDocs["settings"], remote: SnapshotDocs["settings"]): boolean {
   return JSON.stringify(local) !== JSON.stringify(remote)
 }

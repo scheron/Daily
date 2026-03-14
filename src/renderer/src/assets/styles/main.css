@@ -7,7 +7,7 @@
   --sidebar-collapsed-width: 80px;
   --header-height: 40px;
   --card-min-height: 100px;
-  --traffic-light-width: 100px;
+  --traffic-light-width: 70px;
   --task-content-minimized-height: 200px;
   --glass-surface: color-mix(in oklab, var(--color-base-100) 74%, transparent);
   --glass-border: color-mix(in oklab, var(--color-base-content) 14%, transparent);

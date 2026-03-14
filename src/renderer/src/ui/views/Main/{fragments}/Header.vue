@@ -13,6 +13,7 @@ import BaseIcon from "@/ui/base/BaseIcon"
 import BaseMenu, {BaseMenuItem} from "@/ui/base/BaseMenu.vue"
 import BasePopup from "@/ui/base/BasePopup.vue"
 import AccentDotBadge from "@/ui/common/misc/AccentDotBadge.vue"
+import TagsForm from "@/ui/modules/TagsForm"
 
 import {API} from "@/api"
 
@@ -132,12 +133,11 @@ watch(
 <template>
   <div class="app-header border-base-300 h-header flex items-center justify-between border-b px-4 py-2" style="-webkit-app-region: drag">
     <div class="flex min-w-0 items-center gap-2">
-      <div class="ml-16 flex items-center gap-2">
+      <div class="ml-traffic-light flex items-center gap-2" style="-webkit-app-region: no-drag">
         <BaseButton
           variant="ghost"
           icon="search"
           :tooltip="`Search (${toShortcutKeys('ui:open-search-panel')})`"
-          style="-webkit-app-region: no-drag"
           @click="uiStore.toggleSearchModal()"
         />
         <BaseButton
@@ -145,9 +145,18 @@ watch(
           variant="ghost"
           icon="sidebar"
           :tooltip="isDesktop ? `Expand (${toShortcutKeys('ui:toggle-sidebar')})` : 'Menu'"
-          style="-webkit-app-region: no-drag"
           @click="emit('toggleSidebar')"
         />
+
+        <BasePopup title="Tags" hide-close-btn>
+          <template #trigger="{toggle}">
+            <BaseButton variant="ghost" icon="tags" class="p-0.5" @click="toggle" />
+          </template>
+
+          <div class="w-96">
+            <TagsForm />
+          </div>
+        </BasePopup>
       </div>
       <h1 class="m-0 cursor-default truncate text-start text-lg font-bold">
         {{ formattedDate }}

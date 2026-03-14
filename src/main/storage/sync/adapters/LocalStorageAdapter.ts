@@ -1,10 +1,10 @@
-import type {ILocalStorage, SnapshotBranch, SnapshotFile, SnapshotSettings, SnapshotTag, SnapshotTask, SnapshotV2Docs} from "@/types/sync"
+import type {ILocalStorage, SnapshotBranch, SnapshotDocs, SnapshotFile, SnapshotSettings, SnapshotTag, SnapshotTask} from "@/types/sync"
 import type Database from "better-sqlite3"
 
 export class LocalStorageAdapter implements ILocalStorage {
   constructor(private db: Database.Database) {}
 
-  async loadAllDocs(): Promise<SnapshotV2Docs> {
+  async loadAllDocs(): Promise<SnapshotDocs> {
     const tasks = this._loadTasks()
     const tags = this._loadTags()
     const branches = this._loadBranches()
@@ -14,7 +14,7 @@ export class LocalStorageAdapter implements ILocalStorage {
     return {tasks, tags, branches, files, settings}
   }
 
-  async upsertDocs(docs: SnapshotV2Docs): Promise<void> {
+  async upsertDocs(docs: SnapshotDocs): Promise<void> {
     const transaction = this.db.transaction(() => {
       // Upsert branches
       if (docs.branches.length) {
@@ -86,10 +86,10 @@ export class LocalStorageAdapter implements ILocalStorage {
 
       // Upsert settings
       if (docs.settings) {
-        const s = docs.settings
+        const {id, created_at, updated_at, ...data} = docs.settings
         this.db
           .prepare(`INSERT OR REPLACE INTO settings (id, version, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`)
-          .run(s.id, s.version, s.data, s.created_at, s.updated_at)
+          .run(id, data.version, JSON.stringify(data), created_at, updated_at)
       }
     })
 
@@ -190,10 +190,10 @@ export class LocalStorageAdapter implements ILocalStorage {
   private _loadSettings(): SnapshotSettings | null {
     const row = this.db.prepare(`SELECT * FROM settings WHERE id = 'default'`).get() as any
     if (!row) return null
+    const data = JSON.parse(row.data)
     return {
       id: row.id,
-      version: row.version,
-      data: row.data,
+      ...data,
       created_at: row.created_at,
       updated_at: row.updated_at,
     }
