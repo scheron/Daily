@@ -37,7 +37,7 @@ function onDownload() {
 
 <template>
   <div class="flex flex-col gap-1">
-    <div class="bg-base-200 border-base-300 flex flex-col gap-2 rounded-lg border p-3">
+    <div class="bg-base-200/40 border-base-300 flex flex-col gap-2 rounded-lg border p-3">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
           <span class="text-base-content text-sm font-medium">{{ model.title }}</span>

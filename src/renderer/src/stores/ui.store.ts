@@ -3,14 +3,13 @@ import {defineStore} from "pinia"
 
 import {useSettingValue} from "@/composables/useSettingsValue"
 
-import type {TaskStatus} from "@shared/types/storage"
+import type {SettingsPanel} from "@/types/common"
+import type {LayoutType, TaskStatus} from "@shared/types/storage"
 
-export type TasksViewMode = "list" | "columns"
-export type SettingsPanel = "appearance" | "ai" | "themes" | "layout" | "projects" | "sync" | "icons" | null
 type ColumnsCollapsed = Record<TaskStatus, boolean>
 
 export const useUIStore = defineStore("ui", () => {
-  const tasksViewMode = useSettingValue("layout.type", "list" as TasksViewMode)
+  const tasksViewMode = useSettingValue("layout.type", "list" as LayoutType)
   const columnsHideEmpty = useSettingValue("layout.columnsHideEmpty", false)
   const columnsAutoCollapseEmpty = useSettingValue("layout.columnsAutoCollapseEmpty", false)
   const activeColumnCollapsed = useSettingValue("layout.columnsCollapsed.active", false)
@@ -19,7 +18,6 @@ export const useUIStore = defineStore("ui", () => {
 
   const activeSettingsPanel = ref<SettingsPanel>(null)
   const isSearchModalOpen = ref(false)
-  const isTagsModalOpen = ref(false)
   const isDeletedTasksModalOpen = ref(false)
 
   const columnsCollapsed = computed<ColumnsCollapsed>(() => ({
@@ -28,7 +26,7 @@ export const useUIStore = defineStore("ui", () => {
     done: doneColumnCollapsed.value,
   }))
 
-  function setTasksViewMode(mode: TasksViewMode) {
+  function setTasksViewMode(mode: LayoutType) {
     tasksViewMode.value = mode
   }
 
@@ -42,14 +40,6 @@ export const useUIStore = defineStore("ui", () => {
 
   function closeSearchModal() {
     isSearchModalOpen.value = false
-  }
-
-  function toggleTagsModal() {
-    isTagsModalOpen.value = !isTagsModalOpen.value
-  }
-
-  function closeTagsModal() {
-    isTagsModalOpen.value = false
   }
 
   function toggleDeletedTasksModal() {
@@ -104,7 +94,6 @@ export const useUIStore = defineStore("ui", () => {
   return {
     activeSettingsPanel,
     isSearchModalOpen,
-    isTagsModalOpen,
     isDeletedTasksModalOpen,
     tasksViewMode,
     columnsHideEmpty,
@@ -116,8 +105,6 @@ export const useUIStore = defineStore("ui", () => {
     setActiveSettingsPanel,
     toggleSearchModal,
     closeSearchModal,
-    toggleTagsModal,
-    closeTagsModal,
     toggleDeletedTasksModal,
     closeDeletedTasksModal,
     toggleColumnsHideEmpty,

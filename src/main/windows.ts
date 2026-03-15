@@ -2,7 +2,7 @@ import {join} from "node:path"
 import {pathToFileURL} from "node:url"
 import {app, BrowserWindow, nativeImage, shell} from "electron"
 
-import {APP_CONFIG, fsPaths} from "@/config"
+import {APP_CONFIG, ENV, fsPaths} from "@/config"
 import {resolveMainWindowOptions} from "@/setup/app/windowBounds"
 
 import type {MainWindowSettings} from "@shared/types/storage"
@@ -382,7 +382,7 @@ function resolveAboutLogoDataURL(): string | null {
   return null
 }
 
-export function createSettingsWindow(): BrowserWindow {
+export function createSettingsWindow(section?: string): BrowserWindow {
   const settingsWindow = new BrowserWindow({
     title: "Settings",
     width: APP_CONFIG.window.settings.width,
@@ -398,6 +398,7 @@ export function createSettingsWindow(): BrowserWindow {
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
     icon: fsPaths.icon(),
     webPreferences: {
+      devTools: ENV.isDevelopment,
       preload: fsPaths.preload(),
       nodeIntegration: false,
       contextIsolation: true,
@@ -405,11 +406,12 @@ export function createSettingsWindow(): BrowserWindow {
     },
   })
 
+  const query = section ? `?section=${section}` : ""
   const rendererPath = fsPaths.renderer()
   if (rendererPath.startsWith("http")) {
-    settingsWindow.loadURL(`${rendererPath}#/settings`)
+    settingsWindow.loadURL(`${rendererPath}#/settings${query}`)
   } else {
-    settingsWindow.loadFile(rendererPath, {hash: "/settings"})
+    settingsWindow.loadFile(rendererPath, {hash: `/settings${query}`})
   }
 
   settingsWindow.webContents.once("ipc-message", (_event, channel) => {

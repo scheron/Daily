@@ -3,7 +3,6 @@ import {computed, onMounted} from "vue"
 
 import {useAiStore} from "@/stores/ai/ai.store"
 import BaseButton from "@/ui/base/BaseButton.vue"
-import BaseIcon from "@/ui/base/BaseIcon"
 
 import LocalModelCard from "./LocalModelCard.vue"
 
@@ -59,10 +58,12 @@ onMounted(() => {
 
 <template>
   <div class="flex flex-col gap-3">
-    <div class="bg-base-200 border-base-300 flex items-center justify-between rounded-lg border py-1 pr-2 pl-3">
-      <div class="flex h-8 items-center gap-2">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-2">
         <div class="size-2 rounded-full" :class="statusDotClass" />
-        <span class="text-base-content text-sm">{{ statusLabel }}</span>
+        <span class="text-sm" :class="aiStore.localRuntimeState.status === 'running' ? 'text-success' : 'text-base-content/70'">
+          {{ statusLabel }}
+        </span>
         <span v-if="aiStore.localRuntimeState.status === 'error' && 'message' in aiStore.localRuntimeState" class="text-error text-xs">
           — {{ aiStore.localRuntimeState.message }}
         </span>
@@ -70,14 +71,14 @@ onMounted(() => {
 
       <BaseButton
         v-if="aiStore.isLocalModelRunning"
-        variant="secondary"
+        variant="ghost"
         size="sm"
-        class="rounded-full p-2"
+        class="text-accent hover:bg-accent/10 -mr-1"
+        icon-class="size-3.5"
+        icon="refresh"
         :loading="aiStore.isLocalModelsLoading"
         @click="aiStore.loadLocalModels"
-      >
-        <BaseIcon name="refresh" class="size-4" :class="{'animate-spin': aiStore.isLocalModelsLoading}" />
-      </BaseButton>
+      />
     </div>
 
     <div class="flex flex-col gap-2">

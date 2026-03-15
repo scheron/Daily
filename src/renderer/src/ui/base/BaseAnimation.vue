@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {computed} from "vue"
 
-type Name = "fade" | "fadeOut" | "slide" | "slideRight" | "slideUp" | "slideDown" | "bounce" | "scale"
+type Name = "fade" | "fadeOut" | "slide" | "slideRight" | "slideUp" | "slideDown" | "bounce" | "scale" | "dropIn"
 
 const props = withDefaults(
   defineProps<{
@@ -64,6 +64,12 @@ const ANIMATION_CLASSES: Record<Name, Partial<{enterFrom: string; leaveTo: strin
     leaveTo: "scale-75 opacity-0",
     enterActive: `transition duration-${props.duration} ease-out transform`,
     leaveActive: `transition duration-${props.duration} ease-in transform`,
+  },
+  dropIn: {
+    enterFrom: "-translate-y-2 opacity-0",
+    leaveTo: "-translate-y-2 opacity-0",
+    enterActive: `transition-all duration-${props.duration} ease-out`,
+    leaveActive: `transition-all duration-${props.duration} ease-in`,
   },
 }
 

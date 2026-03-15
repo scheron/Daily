@@ -77,17 +77,11 @@ async function deleteProject(branch: Branch) {
   await tasksStore.getTaskList()
   toasts.success("Project deleted")
 }
-
-async function setActiveProject(id: Branch["id"]) {
-  if (id === branchesStore.activeBranchId) return
-  await branchesStore.setActiveBranch(id)
-  await tasksStore.getTaskList()
-}
 </script>
 
 <template>
   <div class="flex flex-col gap-3">
-    <div class="flex items-center gap-2">
+    <div class="flex items-center justify-between gap-2">
       <BaseInput v-model="newProjectName" placeholder="New project name" class="h-8 text-xs" @keyup.enter="createProject" />
       <BaseButton icon="plus" variant="ghost" class="h-8 px-3 text-xs" :disabled="!newProjectName.trim()" @click="createProject">Add</BaseButton>
     </div>

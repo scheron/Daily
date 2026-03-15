@@ -34,6 +34,16 @@ export const useTagsStore = defineStore("tags", () => {
     return newTag
   }
 
+  async function updateTag(id: Tag["id"], updates: Partial<Pick<Tag, "name" | "color">>) {
+    const updatedTag = await API.updateTag(id, updates)
+    if (!updatedTag) return null
+
+    const index = tags.value.findIndex((tag) => tag.id === id)
+    if (index !== -1) tags.value[index] = updatedTag
+
+    return updatedTag
+  }
+
   async function deleteTag(id: Tag["id"]) {
     const deletedTag = await API.deleteTag(id)
     if (!deletedTag) return false
@@ -60,6 +70,7 @@ export const useTagsStore = defineStore("tags", () => {
 
     getTagList,
     createTag,
+    updateTag,
     deleteTag,
 
     revalidate,

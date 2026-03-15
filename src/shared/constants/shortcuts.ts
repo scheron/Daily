@@ -5,22 +5,10 @@ export const ShortcutsMap = {
     accelerator: "CmdOrCtrl+N",
   },
 
-  "ui:open-tags-panel": {
-    channel: "shortcut:ui:open-tags-panel",
-    label: "Tags",
-    accelerator: "CmdOrCtrl+Shift+T",
-  },
-
   "ui:open-search-panel": {
     channel: "shortcut:ui:open-search-panel",
     label: "Search",
     accelerator: "CmdOrCtrl+F",
-  },
-
-  "ui:open-deleted-tasks-panel": {
-    channel: "shortcut:ui:open-deleted-tasks-panel",
-    label: "Deleted Tasks",
-    accelerator: "CmdOrCtrl+Shift+D",
   },
 
   "ui:open-assistant-panel": {
@@ -39,5 +27,40 @@ export const ShortcutsMap = {
     channel: "shortcut:ui:toggle-tasks-view-mode",
     label: "Toggle List/Columns view",
     accelerator: "CmdOrCtrl+\\",
+  },
+
+  "settings:themes": {
+    channel: "settings:open:appearance",
+    label: "Themes",
+    accelerator: "CmdOrCtrl+Shift+1",
+    section: "appearance",
+  },
+
+  "settings:tags": {
+    channel: "settings:open:workspace",
+    label: "Tags",
+    accelerator: "CmdOrCtrl+Shift+2",
+    section: "workspace",
+  },
+
+  "settings:ai": {
+    channel: "settings:open:ai",
+    label: "AI Settings",
+    accelerator: "CmdOrCtrl+Shift+3",
+    section: "ai",
+  },
+
+  "settings:sync": {
+    channel: "settings:open:sync",
+    label: "iCloud Settings",
+    accelerator: "CmdOrCtrl+Shift+4",
+    section: "sync",
+  },
+
+  "settings:deleted-tasks": {
+    channel: "settings:open:deleted-tasks",
+    label: "Deleted Tasks",
+    accelerator: "CmdOrCtrl+Shift+5",
+    section: "deleted-tasks",
   },
 } as const

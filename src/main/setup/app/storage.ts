@@ -1,7 +1,18 @@
 import type {IStorageController} from "@/types/storage"
 import type {BrowserWindow} from "electron"
 
-export function setupStorageSync(getStorage: () => IStorageController | null, getMainWindow: () => BrowserWindow | null) {
+type WindowsGetter = () => Record<string, BrowserWindow | null>
+
+function broadcastToAll(getWindows: WindowsGetter, channel: string, ...args: unknown[]) {
+  const windows = getWindows()
+  for (const win of Object.values(windows)) {
+    if (win && !win.isDestroyed()) {
+      win.webContents.send(channel, ...args)
+    }
+  }
+}
+
+export function setupStorageSync(getStorage: () => IStorageController | null, getWindows: WindowsGetter) {
   const storage = getStorage()
 
   if (!storage) {
@@ -11,16 +22,10 @@ export function setupStorageSync(getStorage: () => IStorageController | null, ge
 
   storage.setupStorageBroadcasts({
     onStatusChange: (status, prevStatus) => {
-      const mainWindow = getMainWindow()
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send("storage-sync:status-changed", status, prevStatus)
-      }
+      broadcastToAll(getWindows, "storage-sync:status-changed", status, prevStatus)
     },
     onDataChange: () => {
-      const mainWindow = getMainWindow()
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send("storage-sync:data-changed")
-      }
+      broadcastToAll(getWindows, "storage-sync:data-changed")
     },
   })
 }

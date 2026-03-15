@@ -24,8 +24,6 @@ export function setupMenu(getMainWindow: () => BrowserWindow | null): void {
 }
 
 function createMacMenu(mainWindow: BrowserWindow): MenuItemConstructorOptions[] {
-  const tasksMenu = createTasksMenu(mainWindow)
-
   return [
     {
       label: app.name,
@@ -39,17 +37,6 @@ function createMacMenu(mainWindow: BrowserWindow): MenuItemConstructorOptions[] 
           click: () => updaterController.checkForUpdate({manual: true}),
         },
         {type: "separator"},
-        {
-          label: ShortcutsMap["ui:open-settings-panel"].label,
-          accelerator: ShortcutsMap["ui:open-settings-panel"].accelerator,
-          click: () => ipcMain.emit("settings:open"),
-        },
-        {
-          label: ShortcutsMap["ui:open-assistant-panel"].label,
-          accelerator: ShortcutsMap["ui:open-assistant-panel"].accelerator,
-          click: () => ipcMain.emit("assistant:open"),
-        },
-        {type: "separator"},
         {role: "hide"},
         {role: "hideOthers"},
         {role: "unhide"},
@@ -59,7 +46,19 @@ function createMacMenu(mainWindow: BrowserWindow): MenuItemConstructorOptions[] 
     },
     {
       label: "Tasks",
-      submenu: tasksMenu,
+      submenu: createTasksMenu(mainWindow),
+    },
+    {
+      label: "Settings",
+      submenu: [
+        {
+          label: ShortcutsMap["ui:toggle-tasks-view-mode"].label,
+          accelerator: ShortcutsMap["ui:toggle-tasks-view-mode"].accelerator,
+          click: () => mainWindow.webContents.send(ShortcutsMap["ui:toggle-tasks-view-mode"].channel),
+        },
+        {type: "separator"},
+        ...createSettingsMenu(),
+      ],
     },
     {
       label: "Edit",
@@ -138,27 +137,34 @@ function createTasksMenu(mainWindow: BrowserWindow): MenuItemConstructorOptions[
     },
     {type: "separator"},
     {
-      label: ShortcutsMap["ui:toggle-tasks-view-mode"].label,
-      accelerator: ShortcutsMap["ui:toggle-tasks-view-mode"].accelerator,
-      click: () => mainWindow.webContents.send(ShortcutsMap["ui:toggle-tasks-view-mode"].channel),
-    },
-    {type: "separator"},
-    {
       label: ShortcutsMap["ui:open-search-panel"].label,
       accelerator: ShortcutsMap["ui:open-search-panel"].accelerator,
       click: () => mainWindow.webContents.send(ShortcutsMap["ui:open-search-panel"].channel),
     },
     {
-      label: ShortcutsMap["ui:open-tags-panel"].label,
-      accelerator: ShortcutsMap["ui:open-tags-panel"].accelerator,
-      click: () => mainWindow.webContents.send(ShortcutsMap["ui:open-tags-panel"].channel),
+      label: ShortcutsMap["ui:open-settings-panel"].label,
+      accelerator: ShortcutsMap["ui:open-settings-panel"].accelerator,
+      click: () => ipcMain.emit("settings:open"),
     },
     {
-      label: ShortcutsMap["ui:open-deleted-tasks-panel"].label,
-      accelerator: ShortcutsMap["ui:open-deleted-tasks-panel"].accelerator,
-      click: () => mainWindow.webContents.send(ShortcutsMap["ui:open-deleted-tasks-panel"].channel),
+      label: ShortcutsMap["ui:open-assistant-panel"].label,
+      accelerator: ShortcutsMap["ui:open-assistant-panel"].accelerator,
+      click: () => ipcMain.emit("assistant:open"),
     },
     {type: "separator"},
     ...(ENV.isDevelopment ? [{role: "toggleDevTools" as const}] : []),
   ]
+}
+
+function createSettingsMenu(): MenuItemConstructorOptions[] {
+  const sections = ["settings:themes", "settings:tags", "settings:ai", "settings:sync", "settings:deleted-tasks"] as const
+
+  return sections.map((key) => {
+    const shortcut = ShortcutsMap[key]
+    return {
+      label: shortcut.label,
+      accelerator: shortcut.accelerator,
+      click: () => ipcMain.emit("settings:open", {}, shortcut.section),
+    }
+  })
 }

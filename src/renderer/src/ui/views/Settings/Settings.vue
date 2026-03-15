@@ -1,41 +1,14 @@
 <script setup lang="ts">
-import {computed, onMounted, ref} from "vue"
+import {onMounted} from "vue"
 
 import {useThemeStore} from "@/stores/theme.store"
-import {isDevMode} from "@/constants/env"
 import BaseButton from "@/ui/base/BaseButton.vue"
-import BaseIcon from "@/ui/base/BaseIcon"
 
-import AiSettings from "./{fragments}/AiSettings"
-import AppearanceSettings from "./{fragments}/AppearanceSettings"
-import IconsList from "./{fragments}/IconsList.vue"
-import ProjectsSettings from "./{fragments}/ProjectsSettings"
-import SyncSettings from "./{fragments}/SyncSettings.vue"
-
-import type {SettingsPanel} from "@/stores/ui.store"
-import type {IconName} from "@/ui/base/BaseIcon"
-import type {ComponentInstance} from "vue"
-
-type SettingsSection = {
-  id: Exclude<SettingsPanel, null>
-  icon: IconName
-  label: string
-  component: ComponentInstance<any>
-}
-
-const SECTIONS: SettingsSection[] = [
-  {id: "appearance", icon: "appearance", label: "Appearance", component: AppearanceSettings},
-  {id: "ai", icon: "ai", label: "AI ", component: AiSettings},
-  {id: "projects", icon: "project", label: "Projects", component: ProjectsSettings},
-  {id: "sync", icon: "cloud", label: "iCloud Sync", component: SyncSettings},
-  ...(isDevMode ? [{id: "icons" as const, icon: "heading" as const, label: "Icons", component: IconsList}] : []),
-]
+import {useSettingsNav} from "./model/useSettingsNav"
 
 useThemeStore()
 
-const activeNav = ref<string>("appearance")
-
-const activeSection = computed(() => SECTIONS.find((s) => s.id === activeNav.value) ?? SECTIONS[0])
+const {sections, activeNav, activeSection} = useSettingsNav()
 
 onMounted(() => {
   window.BridgeIPC.send("window:ready")
@@ -48,7 +21,7 @@ onMounted(() => {
       <div class="h-full select-none" style="-webkit-app-region: drag"></div>
 
       <ul class="flex items-center justify-between gap-2">
-        <li v-for="section in SECTIONS" :key="section.id">
+        <li v-for="section in sections" :key="section.id">
           <BaseButton
             v-tooltip="{content: section.label, placement: 'bottom'}"
             variant="ghost"
@@ -70,8 +43,8 @@ onMounted(() => {
       <div class="h-full select-none" style="-webkit-app-region: drag"></div>
     </header>
 
-    <div class="flex-1 overflow-y-auto px-6">
-      <div class="mx-auto max-w-2xl pt-3">
+    <div class="h-[calc(100vh-var(--header-height))] flex-1 overflow-auto px-6">
+      <div class="mx-auto flex h-full max-w-2xl flex-col py-3">
         <component :is="activeSection.component" />
       </div>
     </div>

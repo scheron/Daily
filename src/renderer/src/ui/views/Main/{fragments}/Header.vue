@@ -108,8 +108,8 @@ async function loadBranchesWithActiveTasks(bypassCache = false) {
   }
 }
 
-function onBranchPickerClick(toggle: () => void) {
-  void loadBranchesWithActiveTasks(true)
+function onBranchPick(toggle: () => void) {
+  loadBranchesWithActiveTasks(true)
   toggle()
 }
 
@@ -117,9 +117,13 @@ const debouncedLoad = useDebounceFn(() => loadBranchesWithActiveTasks(), 500)
 
 watch(
   () => [props.activeDay, branchesStore.activeBranchId],
-  () => void debouncedLoad(),
+  () => debouncedLoad(),
   {immediate: true},
 )
+
+function onOpenAssistantPanel() {
+  window.BridgeIPC.send("assistant:open")
+}
 </script>
 
 <template>
@@ -135,7 +139,7 @@ watch(
       <BasePopup hide-header position="end" container-class="p-0" content-class="gap-2">
         <template #trigger="{toggle}">
           <div class="relative" style="-webkit-app-region: no-drag">
-            <BaseButton icon="project" variant="ghost" class="h-6 min-w-20 text-sm" icon-class="size-4" @click="onBranchPickerClick(toggle)">
+            <BaseButton icon="project" variant="ghost" class="h-6 min-w-20 text-sm" icon-class="size-4" @click="onBranchPick(toggle)">
               {{ activeBranchName }}
             </BaseButton>
             <AccentDotBadge v-if="hasActiveTasksInOtherBranches" size="md" class="ring-base-100 absolute -top-0.5 -right-0.5 ring-2" />
@@ -156,7 +160,12 @@ watch(
       <div class="bg-base-content/15 mx-2 h-4 w-px shrink-0" />
 
       <div class="flex items-center gap-1" style="-webkit-app-region: no-drag">
-        <BaseButton variant="ghost" icon="tags" :tooltip="`Tags (${toShortcutKeys('ui:open-tags-panel')})`" @click="uiStore.toggleTagsModal()" />
+        <BaseButton
+          variant="ghost"
+          icon="ai"
+          :tooltip="`AI Assistant (${toShortcutKeys('ui:open-assistant-panel')})`"
+          @click="onOpenAssistantPanel"
+        />
         <BaseButton
           variant="ghost"
           icon="search"

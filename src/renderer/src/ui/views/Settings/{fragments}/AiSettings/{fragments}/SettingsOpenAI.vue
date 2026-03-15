@@ -47,17 +47,15 @@ onBeforeMount(() => {
 
 <template>
   <div class="flex flex-col gap-2">
-    <div class="bg-base-200 border-base-300 flex items-center justify-between rounded-lg border py-1 pr-2 pl-3">
-      <div class="flex h-8 items-center gap-2">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-2">
         <template v-if="aiStore.isConnectionLoading">
           <div class="bg-warning size-2 rounded-full" />
-          <span class="text-base-content text-sm">
-            {{ aiStore.isConnectionLoading ? `Checking connection...` : "" }}
-          </span>
+          <span class="text-base-content/70 text-sm">Checking connection...</span>
         </template>
         <template v-else>
           <div class="size-2 rounded-full" :class="aiStore.isConnectionLoaded ? 'bg-success' : 'bg-error'" />
-          <span class="text-base-content text-sm">
+          <span class="text-sm" :class="aiStore.isConnectionLoaded ? 'text-success' : 'text-base-content/70'">
             {{ aiStore.isConnectionLoaded ? "Connected" : "Not connected" }}
           </span>
         </template>
@@ -65,14 +63,14 @@ onBeforeMount(() => {
 
       <BaseButton
         v-if="aiStore.isConnected"
-        variant="secondary"
+        variant="ghost"
         size="sm"
-        class="rounded-full p-2"
+        class="text-accent hover:bg-accent/10 -mr-1"
+        icon-class="size-3.5"
+        icon="refresh"
         :loading="aiStore.isConnectionLoading"
         @click="aiStore.checkConnection"
-      >
-        <BaseIcon name="refresh" class="size-4" :class="{'animate-spin': aiStore.isConnectionLoading}" />
-      </BaseButton>
+      />
     </div>
 
     <div class="space-y-1">

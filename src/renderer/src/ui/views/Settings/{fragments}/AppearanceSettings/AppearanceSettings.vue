@@ -4,6 +4,7 @@ import {computed} from "vue"
 import {useThemeStore} from "@/stores/theme.store"
 import {useUIStore} from "@/stores/ui.store"
 import BaseButton from "@/ui/base/BaseButton.vue"
+import BaseCard from "@/ui/base/BaseCard.vue"
 import BaseIcon from "@/ui/base/BaseIcon"
 import BaseSwitch from "@/ui/base/BaseSwitch.vue"
 import BlockUI from "@/ui/common/misc/BlockUI.vue"
@@ -66,21 +67,12 @@ function onSelectLayout(type: LayoutType) {
 
       <BlockUI :block="uiStore.tasksViewMode !== 'columns'">
         <div class="flex w-full flex-1 flex-col gap-2">
-          <div class="border-base-300 bg-base-200/60 flex items-start justify-between gap-2 rounded-lg border p-3">
-            <div>
-              <p class="text-base-content text-sm">Auto-hide empty columns</p>
-              <p class="text-base-content/60 text-xs">Hide columns that have no tasks</p>
-            </div>
+          <BaseCard title="Auto-hide empty columns" description="Hide columns that have no tasks">
             <BaseSwitch :model-value="uiStore.columnsHideEmpty" @update:model-value="uiStore.toggleColumnsHideEmpty($event)" />
-          </div>
-
-          <div class="border-base-300 bg-base-200/60 flex items-start justify-between gap-2 rounded-lg border p-3">
-            <div>
-              <p class="text-base-content text-sm">Auto-collapse empty columns</p>
-              <p class="text-base-content/60 text-xs">Collapse columns that have no tasks</p>
-            </div>
+          </BaseCard>
+          <BaseCard title="Auto-collapse empty columns" description="Collapse columns that have no tasks">
             <BaseSwitch :model-value="uiStore.columnsAutoCollapseEmpty" @update:model-value="uiStore.toggleColumnsAutoCollapseEmpty($event)" />
-          </div>
+          </BaseCard>
         </div>
       </BlockUI>
     </div>
@@ -91,20 +83,9 @@ function onSelectLayout(type: LayoutType) {
     </h3>
 
     <div class="flex flex-col gap-4 pb-8">
-      <div class="border-base-300 bg-base-200/60 flex items-start justify-between gap-2 rounded-lg border p-3">
-        <div>
-          <p class="text-base-content flex items-center gap-2 text-sm">
-            <span>Glass UI</span>
-            <span
-              class="text-base-content/65 border-base-content/25 inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-semibold tracking-[0.08em] uppercase"
-            >
-              Beta
-            </span>
-          </p>
-          <p class="text-base-content/60 text-xs">Frosted glass mode for dark themes. Not available with light themes.</p>
-        </div>
+      <BaseCard title="Glass UI" description="Frosted glass mode for dark themes. Not available with light themes." badge="Beta">
         <BaseSwitch :model-value="themeStore.isGlassUIEnabled" @update:model-value="themeStore.toggleGlassUI($event)" />
-      </div>
+      </BaseCard>
 
       <div class="flex flex-col gap-2">
         <div v-if="themeStore.isGlassUIEnabled" class="text-base-content/60 border-base-300 bg-base-200/50 rounded-md border px-3 py-2 text-xs">

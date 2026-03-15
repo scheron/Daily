@@ -108,7 +108,7 @@ app.whenReady().then(async () => {
   )
   setupStorageSync(
     () => storage,
-    () => windows.main,
+    () => windows,
   )
 
   setupMainWindow(windows, {showSplash: true})

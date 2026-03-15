@@ -6,7 +6,7 @@ import {inlineCommands} from "@/utils/codemirror/commands/inlineCommands"
 import BaseButton from "@/ui/base/BaseButton.vue"
 
 import {autoUpdate, flip, offset, shift, useFloating} from "@floating-ui/vue"
-import {useEditorSelection} from "../composables/useEditorSelection"
+import {useEditorSelection} from "../model/useEditorSelection"
 
 import type {EditorView} from "@codemirror/view"
 
