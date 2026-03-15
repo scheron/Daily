@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## v0.12.14 - 2026-03-15
+
+### 🎨 UI/UX Improvements
+
+- Improve a new compact interface
+
 ## v0.12.13 - 2026-03-14
 
 ### ✨ New Features
