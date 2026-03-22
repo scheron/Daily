@@ -112,8 +112,11 @@ export class LocalStorageAdapter implements ILocalStorage {
         }
       }
       if (ids.branches?.length) {
+        const reassignBranchStmt = this.db.prepare(`UPDATE tasks SET branch_id = 'main' WHERE branch_id = ?`)
+        const deleteBranchStmt = this.db.prepare(`DELETE FROM branches WHERE id = ?`)
         for (const id of ids.branches) {
-          this.db.prepare(`DELETE FROM branches WHERE id = ?`).run(id)
+          reassignBranchStmt.run(id)
+          deleteBranchStmt.run(id)
         }
       }
       if (ids.files?.length) {

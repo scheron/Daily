@@ -17,8 +17,13 @@ export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: Snapsh
   const {result: mergedFiles, toGc: gcFiles} = mergeCollections(localDocs.files, remoteDocs.files, strategy, gcIntervalMs)
   const mergedSettings = mergeSettings(localDocs.settings, remoteDocs.settings, strategy)
 
+  const gcBranchSet = new Set(gcBranches)
+  const tasksAfterBranchGc =
+    gcBranches.length > 0 ? mergedTasks.map((t) => (gcBranchSet.has(t.branch_id) ? {...t, branch_id: "main"} : t)) : mergedTasks
+  const branchGcTouchesTasks = gcBranches.length > 0 && mergedTasks.some((t) => gcBranchSet.has(t.branch_id))
+
   const resultDocs: SnapshotDocs = {
-    tasks: mergedTasks,
+    tasks: tasksAfterBranchGc,
     tags: mergedTags,
     branches: mergedBranches,
     files: mergedFiles,
@@ -34,10 +39,10 @@ export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: Snapsh
     settings: null,
   }
 
-  if (hasChanges(localDocs.tasks, mergedTasks) || gcTasks.length) {
-    toUpsert.tasks = mergedTasks
+  if (hasChanges(localDocs.tasks, tasksAfterBranchGc) || gcTasks.length || branchGcTouchesTasks) {
+    toUpsert.tasks = tasksAfterBranchGc
     if (gcTasks.length) toRemove.tasks = gcTasks
-    changes += mergedTasks.length + gcTasks.length
+    changes += tasksAfterBranchGc.length + gcTasks.length
   }
 
   if (hasChanges(localDocs.tags, mergedTags) || gcTags.length) {
