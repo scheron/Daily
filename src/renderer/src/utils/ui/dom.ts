@@ -47,6 +47,15 @@ export function highlightElement(elementId: string, options: {class: string; dur
   return true
 }
 
+export function findClosestAtPoint(x: number, y: number, selector: string): HTMLElement | null {
+  const el = document.elementFromPoint(x, y)
+  return el?.closest<HTMLElement>(selector) ?? null
+}
+
+export function findDragClone(): HTMLElement | null {
+  return document.querySelector<HTMLElement>(".draggable-task-dragging")
+}
+
 export async function scrollToElement(
   elementId: string,
   options: {

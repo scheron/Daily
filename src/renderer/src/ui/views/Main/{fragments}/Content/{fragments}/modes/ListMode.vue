@@ -6,7 +6,7 @@ import {sortTags} from "@shared/utils/tags/sortTags"
 import {useTagsStore} from "@/stores/tags.store"
 import {useTaskEditorStore} from "@/stores/taskEditor.store"
 import {useTasksStore} from "@/stores/tasks.store"
-import {resolveMoveTarget, useTaskDragDrop} from "@/composables/useTaskDragDrop"
+import {resolveMoveTarget, setDraggingTaskId, useTaskDragDrop} from "@/composables/useTaskDragDrop"
 import TaskCard from "@/ui/modules/TaskCard"
 import TaskEditorCard from "@/ui/modules/TaskEditorCard"
 
@@ -23,9 +23,23 @@ const taskEditorStore = useTaskEditorStore()
 
 const draggableTasks = ref<Task[]>([])
 
-const {isDragging, isCommitting, isDragDisabled, onDragStart, onDragEnd, onDragOver, runWithCommit} = useTaskDragDrop({
+const {
+  isDragging,
+  isCommitting,
+  isDragDisabled,
+  onDragStart: onDragStartBase,
+  onDragEnd,
+  onDragOver,
+  runWithCommit,
+} = useTaskDragDrop({
   dndDisabled: () => props.dndDisabled,
 })
+
+function onDragStart(event: {oldIndex: number}) {
+  const task = draggableTasks.value[event.oldIndex]
+  if (task) setDraggingTaskId(task.id)
+  onDragStartBase()
+}
 
 const isNewTaskEditing = computed(() => taskEditorStore.isTaskEditorOpen && !taskEditorStore.currentEditingTask)
 const newTaskPlaceholder = computed<Task | null>(() => (isNewTaskEditing.value ? createTaskPlaceholder(tasksStore.activeDay) : null))

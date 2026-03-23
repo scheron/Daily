@@ -11,6 +11,16 @@ type TaskLike<Id extends string | number = string | number> = {
   id: Id
 }
 
+export const draggingTaskId = ref<string | null>(null)
+
+export function setDraggingTaskId(id: string | null) {
+  draggingTaskId.value = id
+}
+
+export function getDraggingTaskId() {
+  return draggingTaskId.value
+}
+
 export function useTaskDragDrop(options: TaskDragDropOptions) {
   const isDragging = ref(false)
   const isCommitting = ref(false)
@@ -25,6 +35,7 @@ export function useTaskDragDrop(options: TaskDragDropOptions) {
 
   function onDragEnd() {
     isDragging.value = false
+    draggingTaskId.value = null
     window.removeEventListener("dragover", onGlobalDragOver)
     autoScroll.stop()
     options.onDragEnd?.()

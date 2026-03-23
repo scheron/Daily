@@ -192,6 +192,7 @@ useCalendarSwipe({
         :key="day.isoDate"
         variant="ghost"
         :size="sizeConfig.buttonSize"
+        :data-drop-day="day.isoDate"
         class="relative aspect-square w-full shrink-0 select-none"
         :class="[sizeConfig.buttonHeight, sizeConfig.textSize, ...getDateClasses(day)]"
         @click="selectDate(day.isoDate)"

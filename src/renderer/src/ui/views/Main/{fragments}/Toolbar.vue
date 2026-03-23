@@ -16,7 +16,13 @@ import type {Tag, Task} from "@shared/types/storage"
 const tasksStore = useTasksStore()
 const filterStore = useFilterStore()
 
-const taskCounts = computed(() => countTasks(tasksStore.dailyTasks))
+const taskCounts = computed(() => {
+  const tasks = filterStore.activeTagIds.size
+    ? tasksStore.dailyTasks.filter((task) => task.tags.some((tag) => filterStore.activeTagIds.has(tag.id)))
+    : tasksStore.dailyTasks
+
+  return countTasks(tasks)
+})
 
 const filteredTags = computed(() => {
   const filter = filterStore.activeFilter

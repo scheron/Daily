@@ -13,6 +13,7 @@ withDefaults(
     hideOnSelect?: boolean
     selectedDay?: ISODate | null
     showTodayButton?: boolean
+    hoverMode?: boolean
   }>(),
   {
     days: () => [],
@@ -20,6 +21,7 @@ withDefaults(
     selectedDay: null,
     hideOnSelect: false,
     showTodayButton: true,
+    hoverMode: false,
   },
 )
 
@@ -32,7 +34,7 @@ function onSelect(date: ISODate, hide: () => void) {
 </script>
 
 <template>
-  <BasePopup hide-header container-class="p-0" @close="emit('close')">
+  <BasePopup hide-header :hover-mode="hoverMode" container-class="p-0" @close="emit('close')">
     <template #trigger="{toggle, hide, show}">
       <slot name="trigger" :toggle="toggle" :hide="hide" :show="show" />
     </template>

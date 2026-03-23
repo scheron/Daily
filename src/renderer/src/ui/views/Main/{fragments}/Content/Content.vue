@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, watch} from "vue"
+import {computed, ref, watch} from "vue"
 
 import {Task} from "@shared/types/storage"
 import {useFilterStore} from "@/stores/filter.store"
@@ -39,12 +39,18 @@ const boardTasks = computed(() => {
 })
 const hasBoardTasks = computed(() => boardTasks.value.length > 0)
 
+const contentRef = ref<HTMLElement | null>(null)
 const isDndDisabled = computed(() => taskEditorStore.isTaskEditorOpen)
 
 function filterTasksByStatus(tasks: Task[], filter: TasksFilter): Task[] {
   if (filter === "all") return tasks
   return tasks.filter((task) => task.status === filter)
 }
+
+watch(
+  () => tasksStore.activeDay,
+  () => contentRef.value?.scrollTo({top: 0, behavior: "instant"}),
+)
 
 watch(
   () => taskEditorStore.isTaskEditorOpen,
@@ -60,7 +66,7 @@ watch(
 </script>
 
 <template>
-  <div class="app-content bg-base-200 flex-1" :class="uiStore.tasksViewMode === 'columns' ? 'overflow-hidden' : 'overflow-y-auto'">
+  <div ref="contentRef" class="app-content bg-base-200 flex-1" :class="uiStore.tasksViewMode === 'columns' ? 'overflow-hidden' : 'overflow-y-auto'">
     <BaseSpinner v-if="!tasksStore.isDaysLoaded" />
     <NoTasksPlaceholder
       v-else-if="uiStore.tasksViewMode === 'list' && !listTasks.length && !taskEditorOpen"

@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### ✨ New Features
+
+- Drag & drop tasks to footer days or calendar popup to reschedule them to a different day
+
+### 🎨 UI/UX Improvements
+
+- Footer calendar now opens on hover instead of click, and closes when mouse leaves
+
 ## v0.12.14 - 2026-03-15
 
 ### 🎨 UI/UX Improvements

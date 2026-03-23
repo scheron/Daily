@@ -12,4 +12,10 @@
 
 .draggable-task-dragging {
   opacity: 1 !important;
+  pointer-events: none;
+}
+
+.draggable-task-dragging.is-over-footer {
+  opacity: 0 !important;
+  transition: opacity 100ms ease;
 }

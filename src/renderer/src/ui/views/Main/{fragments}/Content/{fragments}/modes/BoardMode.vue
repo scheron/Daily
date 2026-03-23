@@ -8,7 +8,7 @@ import {sortTags} from "@shared/utils/tags/sortTags"
 import {useTagsStore} from "@/stores/tags.store"
 import {useTasksStore} from "@/stores/tasks.store"
 import {useUIStore} from "@/stores/ui.store"
-import {resolveMoveTarget, useTaskDragDrop} from "@/composables/useTaskDragDrop"
+import {resolveMoveTarget, setDraggingTaskId, useTaskDragDrop} from "@/composables/useTaskDragDrop"
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseIcon from "@/ui/base/BaseIcon"
 import DynamicTagsPanel from "@/ui/common/misc/DynamicTagsPanel.vue"
@@ -29,10 +29,27 @@ const localTasksByStatus = reactive<Record<TaskStatus, Task[]>>({active: [], dis
 
 const pendingCrossColumnMove = ref<MoveTaskByOrderParams | null>(null)
 
-const {isDragging, isCommitting, isDragDisabled, onDragStart, onDragEnd, onDragOver, runWithCommit} = useTaskDragDrop({
+const {
+  isDragging,
+  isCommitting,
+  isDragDisabled,
+  onDragStart: onDragStartBase,
+  onDragEnd,
+  onDragOver,
+  runWithCommit,
+} = useTaskDragDrop({
   dndDisabled: () => props.dndDisabled,
   onDragEnd: flushPendingCrossColumnMove,
 })
+
+function onDragStart(event: {oldIndex: number; from: HTMLElement}) {
+  const status = event.from.closest("[data-column-status]")?.getAttribute("data-column-status") as TaskStatus | null
+  if (status) {
+    const task = localTasksByStatus[status]?.[event.oldIndex]
+    if (task) setDraggingTaskId(task.id)
+  }
+  onDragStartBase()
+}
 
 const tasksByStatus = computed<Record<TaskStatus, Task[]>>(() => {
   return props.tasks.reduce(
@@ -183,6 +200,15 @@ async function commitColumnMove(params: MoveTaskByOrderParams) {
 }
 
 watch(
+  () => tasksStore.activeDay,
+  () => {
+    activeTagIdsByStatus.active = []
+    activeTagIdsByStatus.discarded = []
+    activeTagIdsByStatus.done = []
+  },
+)
+
+watch(
   filteredTasksByStatus,
   () => {
     if (isDragging.value || isCommitting.value) return
@@ -194,12 +220,13 @@ watch(
 
 <template>
   <div class="h-full w-full overflow-x-auto overflow-y-hidden p-1.5" @dragover="onDragOver">
-    <div class="inline-flex h-full min-w-full gap-1.5">
+    <div class="flex h-full min-w-full gap-1.5">
       <div
         v-for="column in visibleColumns"
         :key="column.status"
+        :data-column-status="column.status"
         class="bg-base-100 border-base-300 flex h-full min-w-0 flex-col overflow-hidden rounded-xl border"
-        :class="isColumnCollapsed(column.status) ? 'max-w-20 min-w-20' : 'min-w-88 flex-1'"
+        :class="isColumnCollapsed(column.status) ? 'w-20 max-w-20 min-w-20' : 'min-w-[440px] flex-1'"
         @dragenter="onColumnDragEnter(column.status)"
       >
         <template v-if="isColumnCollapsed(column.status)">

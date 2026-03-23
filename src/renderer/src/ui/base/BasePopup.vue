@@ -15,6 +15,7 @@ const props = withDefaults(
     title?: string
     hideHeader?: boolean
     hideCloseBtn?: boolean
+    hoverMode?: boolean
     position?: HorizontalPosition
     triggerClass?: string
     contentClass?: string
@@ -23,6 +24,7 @@ const props = withDefaults(
   {
     hideCloseBtn: false,
     hideHeader: false,
+    hoverMode: false,
     position: "start",
     contentClass: "",
     containerClass: "",
@@ -55,11 +57,27 @@ onClickOutside(popup, (event) => {
   }
 })
 
+let hideTimer: ReturnType<typeof setTimeout> | null = null
+
+function cancelHide() {
+  if (hideTimer) {
+    clearTimeout(hideTimer)
+    hideTimer = null
+  }
+}
+
+function scheduleHide() {
+  if (!props.hoverMode) return
+  hideTimer = setTimeout(hide, 150)
+}
+
 function show() {
+  cancelHide()
   isOpen.value = true
 }
 
 function hide() {
+  cancelHide()
   isOpen.value = false
   emit("close")
 }
@@ -77,7 +95,7 @@ defineExpose({
 </script>
 
 <template>
-  <div ref="trigger" :class="triggerClass">
+  <div ref="trigger" :class="triggerClass" @mouseleave="scheduleHide">
     <slot name="trigger" :show="show" :hide="hide" :toggle="toggle" />
   </div>
 
@@ -85,8 +103,11 @@ defineExpose({
     <div
       v-if="isOpen"
       ref="popup"
+      data-popup
       :class="cn('bg-base-100 border-base-300 z-999 max-h-[300px] min-w-52 overflow-y-auto rounded-lg border p-2 shadow-lg', containerClass)"
       :style="floatingStyles"
+      @mouseenter="cancelHide"
+      @mouseleave="scheduleHide"
     >
       <div :class="cn('flex flex-col gap-1', contentClass)">
         <div v-if="!(hideHeader || hideCloseBtn)" class="border-base-300 flex items-center justify-between border-b pb-1">
