@@ -45,7 +45,6 @@ dist-ssr
 
 .secrets
 
-CLAUDE.md
 .decompose-file-here
 
 # Analysis artifacts
