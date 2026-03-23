@@ -41,6 +41,13 @@
     "lint-staged": "lint-staged",
     "circular": "madge --circular src/",
     "bundle:size": "node scripts/bundle-size.js",
+    "evitest": "ELECTRON_RUN_AS_NODE=1 ./node_modules/.bin/electron ./node_modules/vitest/vitest.mjs",
+    "test": "pnpm evitest run",
+    "test:watch": "pnpm evitest",
+    "test:main": "pnpm evitest run --project main",
+    "test:renderer": "pnpm evitest run --project renderer",
+    "test:shared": "pnpm evitest run --project shared",
+    "test:coverage": "pnpm evitest run --coverage",
     "check:all": "pnpm lint && pnpm typecheck && pnpm circular"
   },
   "lint-staged": {
@@ -71,6 +78,7 @@
     "@typescript-eslint/eslint-plugin": "^8.33.0",
     "@typescript-eslint/parser": "^8.33.0",
     "@vitejs/plugin-vue": "^5.2.4",
+    "@vue/test-utils": "^2.4.6",
     "@vue/tsconfig": "^0.7.0",
     "electron": "^36.3.2",
     "electron-builder": "^26.0.12",
@@ -80,6 +88,7 @@
     "eslint-plugin-import": "^2.31.0",
     "eslint-plugin-unused-imports": "^4.1.4",
     "eslint-plugin-vue": "^10.1.0",
+    "happy-dom": "^20.8.4",
     "husky": "^9.1.7",
     "lint-staged": "^16.1.0",
     "madge": "^8.0.0",
@@ -90,6 +99,7 @@
     "typescript": "^5.8.3",
     "vite": "^6.3.5",
     "vite-tsconfig-paths": "^5.1.4",
+    "vitest": "^4.1.1",
     "vue-eslint-parser": "^10.1.3",
     "vue-tsc": "^2.2.8"
   },
