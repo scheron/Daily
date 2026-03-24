@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## v0.14.0 - 2026-03-24
+
 ### 🔄 iCloud Sync Improvements
 
 Complete sync system overhaul: replaced snapshot-based approach with incremental delta synchronization and field-level merge.
@@ -10,8 +12,8 @@ Complete sync system overhaul: replaced snapshot-based approach with incremental
 
 - **Delta sync engine** — incremental sync of only changed fields via iCloud Drive
 - **Field-level merge** — concurrent edits to different fields of the same document on different devices are both preserved
-- **Change log** — SQLite triggers automatically capture all field-level mutations (17 triggers across all tables)
-- **Offline queue** — changes accumulate in `change_log` and sync when connectivity is restored
+- **Change log** — SQLite triggers automatically capture all field-level mutations
+- **Offline queue** — changes accumulate in local queue and sync when connectivity is restored
 - **Audit trail** — structured log of each sync cycle (`sync_audit`) for debugging
 - **New device bootstrap** — new devices automatically pull data from baseline
 
