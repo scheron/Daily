@@ -4,14 +4,13 @@ import {withElapsedDelay} from "@shared/utils/common/withElapsedDelay"
 import {AsyncMutex} from "@/utils/AsyncMutex"
 import {createIntervalScheduler} from "@/utils/createIntervalScheduler"
 import {logger} from "@/utils/logger"
-import {buildSnapshotMeta} from "@/utils/sync/snapshot/buildSnapshot"
+import {computeDocsHash} from "@/utils/sync/snapshot/computeDocsHash"
 
 import {AuditLogger} from "./AuditLogger"
 import {DeltaPuller} from "./DeltaPuller"
 import {DeltaPusher} from "./DeltaPusher"
-import {MigrationBridge} from "./MigrationBridge"
 
-import type {ILocalStorage, IRemoteStorage, SnapshotV3, SyncAuditEntry, SyncAuditOutcome, SyncConfig, SyncStrategy} from "@/types/sync"
+import type {ILocalStorage, IRemoteStorage, Snapshot, SyncAuditEntry, SyncAuditOutcome, SyncConfig, SyncStrategy} from "@/types/sync"
 import type {SyncStatus} from "@shared/types/storage"
 import type {PullResult} from "./DeltaPuller"
 import type {PushResult} from "./DeltaPusher"
@@ -30,7 +29,6 @@ export class SyncEngine {
   private deltaPusher: DeltaPusher
   private deltaPuller: DeltaPuller
   private auditLogger: AuditLogger
-  private migrationBridge: MigrationBridge
 
   constructor(
     private localStore: ILocalStorage,
@@ -47,7 +45,6 @@ export class SyncEngine {
     this.deltaPusher = new DeltaPusher(localStore, remoteStore, config)
     this.deltaPuller = new DeltaPuller(localStore, remoteStore, config)
     this.auditLogger = new AuditLogger(localStore, config)
-    this.migrationBridge = new MigrationBridge(localStore, remoteStore)
 
     this.autoSyncScheduler = createIntervalScheduler({
       intervalMs: config.remoteSyncInterval,
@@ -67,14 +64,6 @@ export class SyncEngine {
     if (this._isSyncEnabled) return
 
     this._deviceId = await this.localStore.getDeviceId()
-
-    // Check migration
-    if (await this.migrationBridge.needsMigration()) {
-      await this.migrationBridge.migrate(this._deviceId, os.hostname())
-    } else if (await this.migrationBridge.needsBootstrap()) {
-      await this.migrationBridge.bootstrap(this._deviceId, os.hostname(), "pull")
-    }
-
     this._isSyncEnabled = true
     this.autoSyncScheduler.start()
     this._setStatus("active")
@@ -114,7 +103,7 @@ export class SyncEngine {
 
   async compactBaseline(): Promise<void> {
     const allDocs = await this.localStore.loadAllDocs()
-    const meta = buildSnapshotMeta(allDocs)
+    const hash = computeDocsHash(allDocs)
 
     const manifests = await this.remoteStore.listDeviceManifests()
     const watermarks: Record<string, number> = {}
@@ -122,12 +111,12 @@ export class SyncEngine {
       watermarks[m.device_id] = m.last_sequence
     }
 
-    const baseline: SnapshotV3 = {
+    const baseline: Snapshot = {
       version: 3,
       docs: allDocs,
       meta: {
         created_at: new Date().toISOString(),
-        hash: meta.hash,
+        hash,
         watermarks,
       },
     }

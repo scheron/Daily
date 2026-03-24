@@ -32,9 +32,7 @@ export interface BridgeIPC {
   "storage-sync:on-data-changed": (callback: () => void) => void
 
   // === STORAGE SYNC (NEW) ===
-  "storage-sync:get-audit-log": (
-    limit?: number,
-  ) => Promise<
+  "storage-sync:get-audit-log": (limit?: number) => Promise<
     Array<{
       id: number
       started_at: string

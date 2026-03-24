@@ -4,18 +4,7 @@ import type {Settings} from "@shared/types/storage"
 
 export type SyncStrategy = "pull" | "push"
 
-// --- Legacy snapshot types (unchanged) ---
-
-export type SnapshotMeta = {
-  updatedAt: string
-  hash: string
-}
-
-export type Snapshot = {
-  version: 2
-  docs: SnapshotDocs
-  meta: SnapshotMeta
-}
+// --- Snapshot types ---
 
 export type SnapshotDocs = {
   tasks: SnapshotTask[]
@@ -77,20 +66,7 @@ export type SnapshotSettings = Settings & {
   updated_at: string
 }
 
-// --- Legacy alias (migration compatibility) ---
-
-export type LegacySnapshotV2 = Snapshot
-
-// --- Merge result (kept for current merge code until Phase 6) ---
-
-export type MergeResult = {
-  resultDocs: SnapshotDocs
-  toUpsert: SnapshotDocs
-  toRemove: {tasks?: string[]; tags?: string[]; branches?: string[]; files?: string[]}
-  changes: number
-}
-
-// --- Delta sync types (new) ---
+// --- Delta sync types ---
 
 export type ChangeOperation = "insert" | "update" | "delete"
 
@@ -144,13 +120,13 @@ export type DeviceManifest = {
   cursors: Record<string, number>
 }
 
-export type SnapshotV3 = {
+export type Snapshot = {
   version: 3
   docs: SnapshotDocs
-  meta: SnapshotV3Meta
+  meta: SnapshotMeta
 }
 
-export type SnapshotV3Meta = {
+export type SnapshotMeta = {
   created_at: string
   hash: string
   watermarks: Record<string, number>
@@ -205,7 +181,6 @@ export type SyncConfig = {
 // --- Adapter interfaces ---
 
 export interface ILocalStorage {
-  // Existing (unchanged)
   loadAllDocs(): Promise<SnapshotDocs>
   upsertDocs(docs: SnapshotDocs): Promise<void>
   deleteDocs(ids: {tasks?: string[]; tags?: string[]; branches?: string[]; files?: string[]}): Promise<void>
@@ -226,12 +201,11 @@ export interface ILocalStorage {
 }
 
 export interface IRemoteStorage {
-  // Existing (kept for migration compatibility)
   syncAssets(localAssetsDir: string, fileManifest: SnapshotFile[]): Promise<void>
 
   // Baseline operations
-  loadBaseline(): Promise<SnapshotV3 | null>
-  saveBaseline(snapshot: SnapshotV3): Promise<void>
+  loadBaseline(): Promise<Snapshot | null>
+  saveBaseline(snapshot: Snapshot): Promise<void>
 
   // Delta operations
   listDeviceManifests(): Promise<DeviceManifest[]>
@@ -240,8 +214,4 @@ export interface IRemoteStorage {
   loadDeltas(deviceId: string, afterSequence: number): Promise<DeltaRecord[]>
   saveDeltaFile(deltaFile: DeltaFile): Promise<void>
   pruneDeltas(watermarks: Record<string, number>): Promise<number>
-
-  // Legacy (migration)
-  loadLegacySnapshot(): Promise<LegacySnapshotV2 | null>
-  deleteLegacySnapshot(): Promise<void>
 }

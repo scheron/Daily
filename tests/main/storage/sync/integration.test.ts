@@ -49,10 +49,6 @@ vi.mock("@/utils/fileCoordinator", () => ({
   requestDownload: vi.fn(),
 }))
 
-vi.mock("@/utils/sync/snapshot/isValidSnapshot", () => ({
-  isValidSnapshot: vi.fn(() => true),
-}))
-
 vi.mock("@/config", () => ({
   APP_CONFIG: {
     sync: {

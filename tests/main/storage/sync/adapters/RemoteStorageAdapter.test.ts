@@ -30,10 +30,6 @@ vi.mock("@/utils/fileCoordinator", () => ({
   requestDownload: vi.fn(),
 }))
 
-vi.mock("@/utils/sync/snapshot/isValidSnapshot", () => ({
-  isValidSnapshot: vi.fn(() => true),
-}))
-
 describe("RemoteStorageAdapter", () => {
   let syncDir
   let adapter
@@ -82,7 +78,7 @@ describe("RemoteStorageAdapter", () => {
   }
 
   describe("saveBaseline + loadBaseline", () => {
-    it("saves and loads a SnapshotV3", async () => {
+    it("saves and loads a Snapshot", async () => {
       await adapter.saveBaseline(sampleBaseline)
 
       const baselinePath = join(syncDir, "baseline", "snapshot.v3.json")
@@ -197,31 +193,6 @@ describe("RemoteStorageAdapter", () => {
       // 11-20 should remain
       const remaining = await adapter.loadDeltas("device-a", 0)
       expect(remaining.length).toBe(1)
-    })
-  })
-
-  describe("loadLegacySnapshot + deleteLegacySnapshot", () => {
-    it("reads snapshot.v2.json", async () => {
-      const v2Snapshot = {
-        version: 2,
-        docs: {tasks: [], tags: [], branches: [], files: [], settings: null},
-        meta: {updatedAt: "2026-03-24T12:00:00.000Z", hash: "xyz"},
-      }
-      await fs.writeFile(join(syncDir, "snapshot.v2.json"), JSON.stringify(v2Snapshot))
-
-      const loaded = await adapter.loadLegacySnapshot()
-      expect(loaded).toBeDefined()
-      expect(loaded.version).toBe(2)
-    })
-
-    it("deletes snapshot.v2.json", async () => {
-      await fs.writeFile(join(syncDir, "snapshot.v2.json"), "{}")
-      await adapter.deleteLegacySnapshot()
-      expect(await fs.pathExists(join(syncDir, "snapshot.v2.json"))).toBe(false)
-    })
-
-    it("deleteLegacySnapshot is non-fatal when file missing", async () => {
-      await expect(adapter.deleteLegacySnapshot()).resolves.not.toThrow()
     })
   })
 

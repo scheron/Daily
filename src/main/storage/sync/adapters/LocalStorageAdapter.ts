@@ -213,9 +213,9 @@ export class LocalStorageAdapter implements ILocalStorage {
             continue
           }
 
-          // Update: field-level LWW (compare against ALL local changes, not just unsynced)
+          // Update: field-level LWW (compare only local UPDATE changes, not INSERT initial values)
           const localChanges = this.db
-            .prepare("SELECT * FROM change_log WHERE doc_id = ? AND entity = ? ORDER BY changed_at DESC")
+            .prepare("SELECT * FROM change_log WHERE doc_id = ? AND entity = ? AND operation = 'update' ORDER BY changed_at DESC")
             .all(first.doc_id, first.entity) as ChangeLogEntry[]
 
           const fieldsToApply: Record<string, string | null> = {}

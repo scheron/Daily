@@ -3,13 +3,8 @@ import fs from "fs-extra"
 
 import {coordinatedRead, coordinatedWrite, isICloudStub, requestDownload} from "@/utils/fileCoordinator"
 import {logger} from "@/utils/logger"
-import {isValidSnapshot} from "@/utils/sync/snapshot/isValidSnapshot"
 
-import type {DeltaFile, DeltaRecord, DeviceManifest, IRemoteStorage, LegacySnapshotV2, Snapshot, SnapshotFile, SnapshotV3} from "@/types/sync"
-
-const SNAPSHOT_FILENAME = "snapshot.v2.json"
-const MAX_RETRIES = 3
-const RETRY_DELAYS = [500, 1000, 2000]
+import type {DeltaFile, DeltaRecord, DeviceManifest, IRemoteStorage, Snapshot, SnapshotFile} from "@/types/sync"
 
 const BASELINE_DIR = "baseline"
 const BASELINE_FILENAME = "snapshot.v3.json"
@@ -18,63 +13,9 @@ const MANIFEST_FILENAME = "manifest.json"
 
 export class RemoteStorageAdapter implements IRemoteStorage {
   private readonly syncDir: string
-  private readonly snapshotPath: string
 
   constructor(syncDir: string) {
     this.syncDir = syncDir
-    this.snapshotPath = join(this.syncDir, SNAPSHOT_FILENAME)
-  }
-
-  private async ensureDir(): Promise<void> {
-    await fs.ensureDir(this.syncDir)
-  }
-
-  private async _loadSnapshotV2(): Promise<Snapshot | null> {
-    // Check for .icloud stub and request download
-    const stubPath = join(this.syncDir, `.${SNAPSHOT_FILENAME}.icloud`)
-    if (await fs.pathExists(stubPath)) {
-      logger.warn(logger.CONTEXT.SYNC_REMOTE, "Snapshot file is an iCloud stub, requesting download")
-      await requestDownload(stubPath)
-      return null
-    }
-
-    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-      try {
-        const buffer = await coordinatedRead(this.snapshotPath)
-        if (!buffer) return null
-
-        const parsed = JSON.parse(buffer.toString("utf-8"))
-
-        if (!isValidSnapshot(parsed)) {
-          logger.warn(logger.CONTEXT.SYNC_REMOTE, "Invalid snapshot structure, treating as empty")
-          return null
-        }
-
-        // Ensure branches array exists (backward compat)
-        if (parsed.docs) {
-          parsed.docs.branches = parsed.docs.branches ?? []
-        }
-
-        return parsed as Snapshot
-      } catch (err: any) {
-        if (attempt < MAX_RETRIES - 1) {
-          // Check if file became an iCloud stub during retry
-          if (isICloudStub(this.snapshotPath) || (await fs.pathExists(stubPath))) {
-            await requestDownload(stubPath)
-          }
-          logger.warn(
-            logger.CONTEXT.SYNC_REMOTE,
-            `Failed to read snapshot (attempt ${attempt + 1}/${MAX_RETRIES}), retrying in ${RETRY_DELAYS[attempt]}ms`,
-          )
-          await sleep(RETRY_DELAYS[attempt])
-        } else {
-          logger.error(logger.CONTEXT.SYNC_REMOTE, `Failed to read snapshot after ${MAX_RETRIES} attempts`, err)
-          throw new Error(`Failed to load snapshot after ${MAX_RETRIES} attempts: ${err.message}`)
-        }
-      }
-    }
-
-    return null
   }
 
   async syncAssets(localAssetsDir: string, fileManifest: SnapshotFile[]): Promise<void> {
@@ -130,7 +71,7 @@ export class RemoteStorageAdapter implements IRemoteStorage {
     return dir
   }
 
-  async loadBaseline(): Promise<SnapshotV3 | null> {
+  async loadBaseline(): Promise<Snapshot | null> {
     const baselinePath = join(this.syncDir, BASELINE_DIR, BASELINE_FILENAME)
 
     if (!(await fs.pathExists(baselinePath))) {
@@ -158,14 +99,14 @@ export class RemoteStorageAdapter implements IRemoteStorage {
         return null
       }
 
-      return parsed as SnapshotV3
+      return parsed as Snapshot
     } catch (err) {
       logger.error(logger.CONTEXT.SYNC_REMOTE, "Failed to read baseline", err)
       return null
     }
   }
 
-  async saveBaseline(snapshot: SnapshotV3): Promise<void> {
+  async saveBaseline(snapshot: Snapshot): Promise<void> {
     const baselineDir = join(this.syncDir, BASELINE_DIR)
     await fs.ensureDir(baselineDir)
 
@@ -332,20 +273,4 @@ export class RemoteStorageAdapter implements IRemoteStorage {
 
     return totalDeleted
   }
-
-  async loadLegacySnapshot(): Promise<LegacySnapshotV2 | null> {
-    return this._loadSnapshotV2() as Promise<LegacySnapshotV2 | null>
-  }
-
-  async deleteLegacySnapshot(): Promise<void> {
-    try {
-      await fs.remove(this.snapshotPath)
-    } catch {
-      // Non-fatal if file doesn't exist
-    }
-  }
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
 }

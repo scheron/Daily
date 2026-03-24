@@ -53,10 +53,6 @@ const mockPullDeltas = vi
 const mockWriteEntry = vi.fn().mockResolvedValue(undefined)
 const mockGetLog = vi.fn().mockResolvedValue([])
 const mockPrune = vi.fn().mockResolvedValue(0)
-const mockNeedsMigration = vi.fn().mockResolvedValue(false)
-const mockMigrate = vi.fn().mockResolvedValue(undefined)
-const mockNeedsBootstrap = vi.fn().mockResolvedValue(false)
-const mockBootstrap = vi.fn().mockResolvedValue(undefined)
 
 vi.mock("@main/storage/sync/DeltaPusher", () => ({
   DeltaPusher: class {
@@ -75,15 +71,6 @@ vi.mock("@main/storage/sync/AuditLogger", () => ({
     writeEntry = mockWriteEntry
     getLog = mockGetLog
     prune = mockPrune
-  },
-}))
-
-vi.mock("@main/storage/sync/MigrationBridge", () => ({
-  MigrationBridge: class {
-    needsMigration = mockNeedsMigration
-    migrate = mockMigrate
-    needsBootstrap = mockNeedsBootstrap
-    bootstrap = mockBootstrap
   },
 }))
 
@@ -111,10 +98,6 @@ describe("SyncEngine", () => {
     mockWriteEntry.mockResolvedValue(undefined)
     mockGetLog.mockResolvedValue([])
     mockPrune.mockResolvedValue(0)
-    mockNeedsMigration.mockResolvedValue(false)
-    mockMigrate.mockResolvedValue(undefined)
-    mockNeedsBootstrap.mockResolvedValue(false)
-    mockBootstrap.mockResolvedValue(undefined)
 
     localStore = {
       loadAllDocs: vi.fn().mockResolvedValue(emptyDocs()),
@@ -140,8 +123,6 @@ describe("SyncEngine", () => {
       loadDeltas: vi.fn().mockResolvedValue([]),
       saveDeltaFile: vi.fn().mockResolvedValue(undefined),
       pruneDeltas: vi.fn().mockResolvedValue(0),
-      loadLegacySnapshot: vi.fn().mockResolvedValue(null),
-      deleteLegacySnapshot: vi.fn().mockResolvedValue(undefined),
       syncAssets: vi.fn().mockResolvedValue(undefined),
     }
     config = {
@@ -205,19 +186,6 @@ describe("SyncEngine", () => {
     await engine.enableAutoSync()
     await engine.sync()
     expect(onDataChanged).not.toHaveBeenCalled()
-  })
-
-  it("enableAutoSync checks migration", async () => {
-    mockNeedsMigration.mockResolvedValue(true)
-    await engine.enableAutoSync()
-    expect(mockMigrate).toHaveBeenCalled()
-  })
-
-  it("enableAutoSync checks bootstrap", async () => {
-    mockNeedsMigration.mockResolvedValue(false)
-    mockNeedsBootstrap.mockResolvedValue(true)
-    await engine.enableAutoSync()
-    expect(mockBootstrap).toHaveBeenCalled()
   })
 
   it("getPendingChangesCount returns unsynced count", async () => {
