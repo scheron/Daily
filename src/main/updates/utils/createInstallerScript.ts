@@ -19,6 +19,9 @@ export async function createInstallerScript(cachedUpdate: AppUpdateCacheState): 
 
   if (!cachedUpdate.cachePath || !existsSync(cachedUpdate.cachePath)) return null
 
+  const releasesDir = fsPaths.updatesReleasesPath()
+  if (!path.resolve(cachedUpdate.cachePath).startsWith(path.resolve(releasesDir))) return null
+
   const updatesDir = fsPaths.updatesPath()
   const scriptPath = path.join(updatesDir, `install-${Date.now()}.sh`)
   await mkdir(updatesDir, {recursive: true})

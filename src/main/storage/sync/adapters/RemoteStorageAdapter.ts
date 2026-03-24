@@ -1,4 +1,4 @@
-import {extname, join} from "path"
+import {extname, join, resolve} from "path"
 import fs from "fs-extra"
 
 import {coordinatedRead, coordinatedWrite, isICloudStub, requestDownload} from "@/utils/fileCoordinator"
@@ -86,6 +86,11 @@ export class RemoteStorageAdapter implements IRemoteStorage {
       const filename = `${file.id}.${ext}`
       const localPath = join(localAssetsDir, filename)
       const remotePath = join(remoteAssetsDir, filename)
+
+      if (!resolve(localPath).startsWith(resolve(localAssetsDir)) || !resolve(remotePath).startsWith(resolve(remoteAssetsDir))) {
+        logger.warn(logger.CONTEXT.SYNC_REMOTE, `Skipping asset with suspicious path: ${filename}`)
+        continue
+      }
 
       try {
         const localExists = await fs.pathExists(localPath)
