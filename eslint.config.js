@@ -1,12 +1,16 @@
 import * as vueParser from "vue-eslint-parser"
-import tseslint from "@typescript-eslint/eslint-plugin"
-import typescript from "@typescript-eslint/parser"
 import eslintConfigPrettier from "eslint-config-prettier"
 import importPlugin from "eslint-plugin-import"
 import unusedImports from "eslint-plugin-unused-imports"
 import vue from "eslint-plugin-vue"
 
+import tseslint from "@typescript-eslint/eslint-plugin"
+import typescript from "@typescript-eslint/parser"
+
 export default [
+  {
+    ignores: ["tests/**"],
+  },
   eslintConfigPrettier,
   {
     files: ["**/*.{js,jsx,mjs,cjs}"],

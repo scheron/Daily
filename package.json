@@ -21,7 +21,7 @@
   },
   "repository": "https://github.com/scheron/release-electron",
   "author": {
-    "name": "Infected by JS",
+    "name": "Scheron",
     "url": "https://github.com/scheron"
   },
   "scripts": {
@@ -34,9 +34,11 @@
     "postinstall": "electron-builder install-app-deps",
     "lint": "eslint . --ext .vue,.js,.jsx,.ts,.tsx --fix",
     "format": "prettier --write src/",
+    "format:tests": "prettier --write tests/",
     "typecheck:main": "tsc --noEmit --project src/main/tsconfig.json",
     "typecheck:render": "vue-tsc --noEmit --project src/renderer/tsconfig.json",
     "typecheck:shared": "tsc --noEmit --project src/shared/tsconfig.json",
+    "typecheck:all": "pnpm typecheck:main && pnpm typecheck:render && pnpm typecheck:shared",
     "prepare": "husky",
     "lint-staged": "lint-staged",
     "circular": "madge --circular src/",
@@ -48,7 +50,7 @@
     "test:renderer": "pnpm evitest run --project renderer",
     "test:shared": "pnpm evitest run --project shared",
     "test:coverage": "pnpm evitest run --coverage",
-    "check:all": "pnpm lint && pnpm typecheck && pnpm circular"
+    "check:all": "pnpm lint && pnpm typecheck:all && pnpm circular && pnpm test"
   },
   "lint-staged": {
     "*.ts": [
@@ -78,6 +80,7 @@
     "@typescript-eslint/eslint-plugin": "^8.33.0",
     "@typescript-eslint/parser": "^8.33.0",
     "@vitejs/plugin-vue": "^5.2.4",
+    "@vitest/coverage-v8": "^4.1.1",
     "@vue/test-utils": "^2.4.6",
     "@vue/tsconfig": "^0.7.0",
     "electron": "^36.3.2",

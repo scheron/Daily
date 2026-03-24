@@ -6,6 +6,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 
 export default defineConfig({
   test: {
+    silent: true,
     projects: [
       {
         test: {
@@ -16,6 +17,7 @@ export default defineConfig({
         resolve: {
           alias: {
             "@": join(__dirname, "src/main"),
+            "@main": join(__dirname, "src/main"),
             "@shared": join(__dirname, "src/shared"),
           },
         },
@@ -29,6 +31,7 @@ export default defineConfig({
         resolve: {
           alias: {
             "@": join(__dirname, "src/renderer/src"),
+            "@renderer": join(__dirname, "src/renderer/src"),
             "@shared": join(__dirname, "src/shared"),
           },
         },

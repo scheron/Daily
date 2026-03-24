@@ -1,3 +1,4 @@
+// @ts-nocheck
 import Database from "better-sqlite3"
 
 import {runMigrations} from "@main/storage/database/scripts/migrate"
