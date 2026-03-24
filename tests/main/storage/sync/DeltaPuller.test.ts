@@ -146,6 +146,41 @@ describe("DeltaPuller", () => {
     expect(remoteStore.loadDeltas).not.toHaveBeenCalled()
   })
 
+  it("cursor advances to actual delta sequences, not manifest last_sequence", async () => {
+    // Remote device has last_sequence=10, but loadDeltas only returns deltas up to seq 5
+    // (e.g., some delta files were iCloud stubs and got skipped)
+    remoteStore.listDeviceManifests.mockResolvedValue([
+      {version: 3, device_id: "dev2", device_name: "iMac", last_sequence: 10, last_written_at: "", cursors: {}},
+    ])
+    remoteStore.loadDeltas.mockResolvedValue([
+      {
+        doc_id: "t1",
+        entity: "task",
+        operation: "update",
+        field_name: "content",
+        old_value: null,
+        new_value: "'partial'",
+        changed_at: "2026-03-24T12:00:00.000Z",
+        sequence: 5,
+        device_id: "dev2",
+      },
+    ])
+    localStore.applyRemoteDeltas.mockResolvedValue({
+      remote_deltas_processed: 1,
+      docs_upserted: 1,
+      docs_deleted: 0,
+      conflicts: [],
+      conflict_count: 0,
+      updated_cursors: {dev2: 5},
+    })
+
+    await puller.pullDeltas("dev1", "pull")
+
+    // Saved manifest should have cursor=5 (actual max delta seq), NOT 10 (manifest.last_sequence)
+    const savedManifest = remoteStore.saveDeviceManifest.mock.calls[0][0]
+    expect(savedManifest.cursors.dev2).toBe(5)
+  })
+
   it("result reflects merge output", async () => {
     remoteStore.listDeviceManifests.mockResolvedValue([
       {version: 3, device_id: "dev2", device_name: "iMac", last_sequence: 5, last_written_at: "", cursors: {}},

@@ -625,4 +625,138 @@ describe("Sync Integration", () => {
       expect(bUnsyncedForTask.length).toBe(0)
     })
   })
+
+  // ==========================================
+  // 12. Overwrite protection
+  // ==========================================
+
+  describe("overwrite protection", () => {
+    it("first sync: two devices with independent data converge without loss", async () => {
+      // A creates 5 tasks + 2 tags
+      for (let i = 0; i < 5; i++) {
+        insertTask(deviceA.db, `task-a-${i}`, `A task ${i}`)
+      }
+      insertTag(deviceA.db, "tag-a-1", "work", "#0000ff")
+      insertTag(deviceA.db, "tag-a-2", "urgent", "#ff0000")
+
+      // B creates 5 tasks + 2 tags (different IDs)
+      for (let i = 0; i < 5; i++) {
+        insertTask(deviceB.db, `task-b-${i}`, `B task ${i}`)
+      }
+      insertTag(deviceB.db, "tag-b-1", "personal", "#00ff00")
+      insertTag(deviceB.db, "tag-b-2", "home", "#ffff00")
+
+      // Both push
+      await deviceA.pusher.pushDeltas("device-aaa", "Device A")
+      await deviceB.pusher.pushDeltas("device-bbb", "Device B")
+
+      // Both pull
+      await deviceA.puller.pullDeltas("device-aaa", "pull")
+      await deviceB.puller.pullDeltas("device-bbb", "pull")
+
+      // Both should have all 10 tasks + 4 tags
+      expect(getAllTasks(deviceA.db).length).toBe(10)
+      expect(getAllTasks(deviceB.db).length).toBe(10)
+      expect(getAllTags(deviceA.db).length).toBe(4)
+      expect(getAllTags(deviceB.db).length).toBe(4)
+
+      // Verify trigger suppression: B's change_log should NOT have entries
+      // from A's device for tasks that were applied via remote deltas
+      const bChangeLogFromB = deviceB.db.prepare("SELECT * FROM change_log WHERE device_id = 'device-bbb' AND doc_id LIKE 'task-a-%'").all()
+      expect(bChangeLogFromB.length).toBe(0)
+
+      const aChangeLogFromA = deviceA.db.prepare("SELECT * FROM change_log WHERE device_id = 'device-aaa' AND doc_id LIKE 'task-b-%'").all()
+      expect(aChangeLogFromA.length).toBe(0)
+    })
+
+    it("after convergence, no spurious pushes on next cycle", async () => {
+      // Setup: both devices create data and sync
+      insertTask(deviceA.db, "task-a-1", "A task")
+      insertTask(deviceB.db, "task-b-1", "B task")
+
+      await deviceA.pusher.pushDeltas("device-aaa", "A")
+      await deviceB.pusher.pushDeltas("device-bbb", "B")
+      await deviceA.puller.pullDeltas("device-aaa", "pull")
+      await deviceB.puller.pullDeltas("device-bbb", "pull")
+
+      // Now both push again — should be 0 deltas since nothing changed
+      const pushA = await deviceA.pusher.pushDeltas("device-aaa", "A")
+      const pushB = await deviceB.pusher.pushDeltas("device-bbb", "B")
+
+      expect(pushA.deltas_pushed).toBe(0)
+      expect(pushB.deltas_pushed).toBe(0)
+    })
+
+    it("mutual update of same task preserves LWW semantics per field", async () => {
+      // A creates task, both sync
+      insertTask(deviceA.db, "task-shared", "Original content")
+      await pushAndPull(deviceA, deviceB)
+
+      // A updates content at T1
+      const t1 = "2026-03-24T10:00:00.000Z"
+      deviceA.db.prepare("UPDATE tasks SET content = 'Content by A', updated_at = ? WHERE id = 'task-shared'").run(t1)
+
+      // B updates status at T2 (T2 > T1)
+      const t2 = "2026-03-24T11:00:00.000Z"
+      deviceB.db.prepare("UPDATE tasks SET status = 'done', updated_at = ? WHERE id = 'task-shared'").run(t2)
+
+      // Both push, both pull
+      await deviceA.pusher.pushDeltas("device-aaa", "A")
+      await deviceB.pusher.pushDeltas("device-bbb", "B")
+      await deviceA.puller.pullDeltas("device-aaa", "pull")
+      await deviceB.puller.pullDeltas("device-bbb", "pull")
+
+      // Both should converge: content from A, status from B
+      const taskA = getTask(deviceA.db, "task-shared")
+      const taskB = getTask(deviceB.db, "task-shared")
+
+      expect(taskA.content).toBe("Content by A")
+      expect(taskA.status).toBe("done")
+      expect(taskB.content).toBe("Content by A")
+      expect(taskB.status).toBe("done")
+    })
+
+    it("INSERT OR REPLACE in _applyInsert does not leak change_log entries", async () => {
+      // A creates a task and pushes
+      insertTask(deviceA.db, "task-insert-check", "Created on A")
+      await deviceA.pusher.pushDeltas("device-aaa", "A")
+
+      // B pulls — task created via _applyInsert
+      await deviceB.puller.pullDeltas("device-bbb", "pull")
+
+      // Verify B has the task
+      const task = getTask(deviceB.db, "task-insert-check")
+      expect(task).toBeDefined()
+      expect(task.content).toBe("Created on A")
+
+      // B's change_log should NOT have entries for this task with device_id=B
+      const bEntries = deviceB.db.prepare("SELECT * FROM change_log WHERE doc_id = 'task-insert-check' AND device_id = 'device-bbb'").all()
+      expect(bEntries.length).toBe(0)
+    })
+  })
+
+  // ==========================================
+  // 13. Cursor advance correctness
+  // ==========================================
+
+  describe("cursor advance", () => {
+    it("cursor only advances to actually processed delta sequences", async () => {
+      // A creates tasks and pushes
+      insertTask(deviceA.db, "task-cursor-1", "Cursor test 1")
+      insertTask(deviceA.db, "task-cursor-2", "Cursor test 2")
+      await deviceA.pusher.pushDeltas("device-aaa", "A")
+
+      // B pulls
+      await deviceB.puller.pullDeltas("device-bbb", "pull")
+
+      // Verify B's manifest has cursor for A based on actual deltas processed
+      const manifest = await deviceB.remote.loadDeviceManifest("device-bbb")
+      expect(manifest).toBeDefined()
+      expect(manifest.cursors["device-aaa"]).toBeGreaterThan(0)
+
+      // Pulling again should be a no-op
+      const result = await deviceB.puller.pullDeltas("device-bbb", "pull")
+      expect(result.deltas_pulled).toBe(0)
+    })
+  })
 })

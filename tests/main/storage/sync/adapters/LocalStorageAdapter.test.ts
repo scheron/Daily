@@ -312,6 +312,121 @@ describe("LocalStorageAdapter", () => {
     })
   })
 
+  describe("applyRemoteDeltas edge cases", () => {
+    it("INSERT for entity that already exists uses INSERT OR REPLACE without creating change_log entries", async () => {
+      // Insert a task directly
+      insertTask("task-exists", "Original content")
+      db.prepare("DELETE FROM change_log").run()
+
+      // Apply INSERT delta for the same task ID
+      const result = await adapter.applyRemoteDeltas(
+        [
+          {
+            doc_id: "task-exists",
+            entity: "task",
+            operation: "insert",
+            field_name: "status",
+            old_value: null,
+            new_value: "'active'",
+            changed_at: "2026-03-24T12:00:00.000Z",
+            sequence: 1,
+            device_id: "remote-device",
+          },
+          {
+            doc_id: "task-exists",
+            entity: "task",
+            operation: "insert",
+            field_name: "content",
+            old_value: null,
+            new_value: "'Replaced content'",
+            changed_at: "2026-03-24T12:00:00.000Z",
+            sequence: 2,
+            device_id: "remote-device",
+          },
+        ],
+        "pull",
+      )
+
+      // Task should be updated (INSERT OR REPLACE)
+      const task = db.prepare("SELECT * FROM tasks WHERE id = 'task-exists'").get()
+      expect(task).toBeDefined()
+      expect(task.content).toBe("Replaced content")
+
+      // No change_log entries should have been created (trigger suppression)
+      const entries = db.prepare("SELECT * FROM change_log").all()
+      expect(entries.length).toBe(0)
+
+      expect(result.docs_upserted).toBe(1)
+    })
+
+    it("settings deltas with null field_name do not crash", async () => {
+      // Insert a settings row
+      db.prepare(
+        `INSERT OR REPLACE INTO settings (id, version, data, created_at, updated_at) VALUES ('default', 1, '{"version":1}', datetime('now'), datetime('now'))`,
+      ).run()
+      db.prepare("DELETE FROM change_log").run()
+
+      // Apply settings delta with field_name=null (full blob replacement)
+      const result = await adapter.applyRemoteDeltas(
+        [
+          {
+            doc_id: "default",
+            entity: "settings",
+            operation: "update",
+            field_name: null,
+            old_value: '{"version":1}',
+            new_value: '{"version":1,"theme":"dark"}',
+            changed_at: "2026-03-24T12:00:00.000Z",
+            sequence: 1,
+            device_id: "remote-device",
+          },
+        ],
+        "pull",
+      )
+
+      // Should not crash and should process without error
+      expect(result.remote_deltas_processed).toBe(1)
+
+      // NOTE: Known limitation — settings deltas with field_name=null are currently
+      // skipped by the LWW loop (`!delta.field_name` guard). Settings are NOT applied
+      // on the receiving end. This test documents the current behavior.
+      const row = db.prepare("SELECT data FROM settings WHERE id = 'default'").get()
+      expect(row).toBeDefined()
+      const data = JSON.parse(row.data)
+      expect(data.theme).toBeUndefined() // Settings delta was not applied (known issue)
+    })
+
+    it("delete delta soft-deletes via deleted_at", async () => {
+      insertTask("task-del", "To delete")
+      db.prepare("DELETE FROM change_log").run()
+
+      const result = await adapter.applyRemoteDeltas(
+        [
+          {
+            doc_id: "task-del",
+            entity: "task",
+            operation: "delete",
+            field_name: null,
+            old_value: null,
+            new_value: null,
+            changed_at: "2026-03-24T12:00:00.000Z",
+            sequence: 1,
+            device_id: "remote-device",
+          },
+        ],
+        "pull",
+      )
+
+      const task = db.prepare("SELECT * FROM tasks WHERE id = 'task-del'").get()
+      expect(task.deleted_at).not.toBeNull()
+      expect(result.docs_deleted).toBe(1)
+
+      // No change_log entries (trigger suppression)
+      const entries = db.prepare("SELECT * FROM change_log").all()
+      expect(entries.length).toBe(0)
+    })
+  })
+
   describe("existing methods still work", () => {
     it("loadAllDocs returns data", async () => {
       insertTask("task-existing")

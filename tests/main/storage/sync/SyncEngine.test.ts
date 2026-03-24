@@ -101,8 +101,6 @@ describe("SyncEngine", () => {
 
     localStore = {
       loadAllDocs: vi.fn().mockResolvedValue(emptyDocs()),
-      upsertDocs: vi.fn().mockResolvedValue(undefined),
-      deleteDocs: vi.fn().mockResolvedValue(undefined),
       getUnsyncedChanges: vi.fn().mockResolvedValue([]),
       getChangesSince: vi.fn().mockResolvedValue([]),
       markChangesSynced: vi.fn().mockResolvedValue(undefined),

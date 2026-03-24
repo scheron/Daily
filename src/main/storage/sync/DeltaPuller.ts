@@ -65,9 +65,15 @@ export class DeltaPuller {
         cursors: {},
       }
 
-      for (const manifest of remoteManifests) {
-        if (manifest.device_id === deviceId) continue
-        updatedManifest.cursors[manifest.device_id] = manifest.last_sequence
+      // Advance cursors only for deltas we actually processed (not skipped iCloud stubs)
+      const actualCursors: Record<string, number> = {}
+      for (const delta of allRemoteDeltas) {
+        const prev = actualCursors[delta.device_id] ?? 0
+        if (delta.sequence > prev) actualCursors[delta.device_id] = delta.sequence
+      }
+
+      for (const [remoteDeviceId, maxSeq] of Object.entries(actualCursors)) {
+        updatedManifest.cursors[remoteDeviceId] = maxSeq
       }
 
       await this.remoteStore.saveDeviceManifest(updatedManifest)

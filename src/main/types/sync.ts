@@ -182,8 +182,6 @@ export type SyncConfig = {
 
 export interface ILocalStorage {
   loadAllDocs(): Promise<SnapshotDocs>
-  upsertDocs(docs: SnapshotDocs): Promise<void>
-  deleteDocs(ids: {tasks?: string[]; tags?: string[]; branches?: string[]; files?: string[]}): Promise<void>
 
   // Change log operations
   getUnsyncedChanges(): Promise<ChangeLogEntry[]>
