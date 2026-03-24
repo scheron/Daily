@@ -1,46 +1,56 @@
+import os from "node:os"
+
 import {withElapsedDelay} from "@shared/utils/common/withElapsedDelay"
 import {AsyncMutex} from "@/utils/AsyncMutex"
 import {createIntervalScheduler} from "@/utils/createIntervalScheduler"
 import {logger} from "@/utils/logger"
-import {mergeRemoteIntoLocal} from "@/utils/sync/merge/mergeRemoteIntoLocal"
-import {buildSnapshot, buildSnapshotMeta} from "@/utils/sync/snapshot/buildSnapshot"
+import {buildSnapshotMeta} from "@/utils/sync/snapshot/buildSnapshot"
 
-import {APP_CONFIG, fsPaths} from "@/config"
+import {AuditLogger} from "./AuditLogger"
+import {DeltaPuller} from "./DeltaPuller"
+import {DeltaPusher} from "./DeltaPusher"
+import {MigrationBridge} from "./MigrationBridge"
 
-import type {ILocalStorage, IRemoteStorage, MergeResult, SnapshotDocs, SyncStrategy} from "@/types/sync"
+import type {ILocalStorage, IRemoteStorage, SnapshotV3, SyncAuditEntry, SyncAuditOutcome, SyncConfig, SyncStrategy} from "@/types/sync"
 import type {SyncStatus} from "@shared/types/storage"
+import type {PullResult} from "./DeltaPuller"
+import type {PushResult} from "./DeltaPusher"
 
-/**
- * SyncEngine orchestrates pull/push operations between local SQLite and remote storage.
- *
- * Architecture:
- * - Local-first: SQLite is always the source of truth
- * - Remote storage is treated as a "remote flash drive" - no server-side logic
- * - All merge logic happens locally using pure LWW (Last Write Wins) strategy
- * - AsyncMutex prevents concurrent sync operations
- */
 export class SyncEngine {
   private _syncStatus: SyncStatus = "inactive"
   private _isSyncEnabled = false
+  private _deviceId: string | null = null
   private mutex = new AsyncMutex()
 
   private onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => void
   private onDataChanged: () => void
+  private onPendingCountChanged: (count: number) => void
   private autoSyncScheduler: ReturnType<typeof createIntervalScheduler>
+
+  private deltaPusher: DeltaPusher
+  private deltaPuller: DeltaPuller
+  private auditLogger: AuditLogger
+  private migrationBridge: MigrationBridge
 
   constructor(
     private localStore: ILocalStorage,
     private remoteStore: IRemoteStorage,
-    options: {
-      onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => void
-      onDataChanged: () => void
-    },
+    private config: SyncConfig,
+    onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => void,
+    onDataChanged: () => void,
+    onPendingCountChanged: (count: number) => void,
   ) {
-    this.onStatusChange = options.onStatusChange
-    this.onDataChanged = options.onDataChanged
+    this.onStatusChange = onStatusChange
+    this.onDataChanged = onDataChanged
+    this.onPendingCountChanged = onPendingCountChanged
+
+    this.deltaPusher = new DeltaPusher(localStore, remoteStore, config)
+    this.deltaPuller = new DeltaPuller(localStore, remoteStore, config)
+    this.auditLogger = new AuditLogger(localStore, config)
+    this.migrationBridge = new MigrationBridge(localStore, remoteStore)
 
     this.autoSyncScheduler = createIntervalScheduler({
-      intervalMs: APP_CONFIG.sync.remoteSyncInterval,
+      intervalMs: config.remoteSyncInterval,
       onProcess: () => this.sync(),
     })
   }
@@ -49,12 +59,24 @@ export class SyncEngine {
     return this._syncStatus
   }
 
-  enableAutoSync(): void {
+  get deviceId(): string | null {
+    return this._deviceId
+  }
+
+  async enableAutoSync(): Promise<void> {
     if (this._isSyncEnabled) return
+
+    this._deviceId = await this.localStore.getDeviceId()
+
+    // Check migration
+    if (await this.migrationBridge.needsMigration()) {
+      await this.migrationBridge.migrate(this._deviceId, os.hostname())
+    } else if (await this.migrationBridge.needsBootstrap()) {
+      await this.migrationBridge.bootstrap(this._deviceId, os.hostname(), "pull")
+    }
 
     this._isSyncEnabled = true
     this.autoSyncScheduler.start()
-
     this._setStatus("active")
   }
 
@@ -63,13 +85,9 @@ export class SyncEngine {
 
     this._isSyncEnabled = false
     this.autoSyncScheduler.stop()
-
     this._setStatus("inactive")
   }
 
-  /**
-   * Sync with remote storage, guarded by AsyncMutex.
-   */
   async sync(strategy: SyncStrategy = "pull"): Promise<void> {
     if (!this._isSyncEnabled) return
 
@@ -85,120 +103,134 @@ export class SyncEngine {
     })
   }
 
-  /**
-   * Core sync logic.
-   *
-   * @param strategy:
-   *   - "pull" (default): LWW-merge with priority to remote when updated_at is equal
-   *   - "push": LWW-merge with priority to local when updated_at is equal
-   * After merge, if the local snapshot is different from remote, it is pushed to remote.
-   */
+  async getAuditLog(limit?: number): Promise<SyncAuditEntry[]> {
+    return this.auditLogger.getLog(limit)
+  }
+
+  async getPendingChangesCount(): Promise<number> {
+    const changes = await this.localStore.getUnsyncedChanges()
+    return changes.length
+  }
+
+  async compactBaseline(): Promise<void> {
+    const allDocs = await this.localStore.loadAllDocs()
+    const meta = buildSnapshotMeta(allDocs)
+
+    const manifests = await this.remoteStore.listDeviceManifests()
+    const watermarks: Record<string, number> = {}
+    for (const m of manifests) {
+      watermarks[m.device_id] = m.last_sequence
+    }
+
+    const baseline: SnapshotV3 = {
+      version: 3,
+      docs: allDocs,
+      meta: {
+        created_at: new Date().toISOString(),
+        hash: meta.hash,
+        watermarks,
+      },
+    }
+
+    await this.remoteStore.saveBaseline(baseline)
+    await this.remoteStore.pruneDeltas(watermarks)
+  }
+
   private async _sync(strategy: SyncStrategy = "pull"): Promise<void> {
     if (!this._isSyncEnabled) return
 
+    const startedAt = new Date().toISOString()
+    const deviceId = this._deviceId ?? (await this.localStore.getDeviceId())
+    const deviceName = os.hostname()
+
+    let pushResult: PushResult | undefined
+    let pullResult: PullResult | undefined
+    let outcome: SyncAuditOutcome = "success"
+    let errorMessage: string | null = null
+
     try {
-      const localDocs = await this.localStore.loadAllDocs()
-      const localMeta = buildSnapshotMeta(localDocs)
-
-      const remoteSnapshot = await this.remoteStore.loadSnapshot()
-      let remoteDocs: SnapshotDocs | null = null
-      let remoteMeta: {updatedAt: string; hash: string} | null = null
-
-      if (remoteSnapshot) {
-        remoteDocs = this._normalizeSettings(remoteSnapshot.docs)
-        remoteMeta = remoteSnapshot.meta
+      // PUSH
+      pushResult = await this.deltaPusher.pushDeltas(deviceId, deviceName)
+      if (pushResult.error) {
+        outcome = "partial"
+        errorMessage = pushResult.error
       }
 
-      if (remoteDocs && remoteMeta && localMeta.hash === remoteMeta.hash) {
-        logger.debug(logger.CONTEXT.SYNC_ENGINE, "Hashes match, no changes detected")
-        return
+      // PULL
+      pullResult = await this.deltaPuller.pullDeltas(deviceId, strategy)
+      if (pullResult.error) {
+        outcome = "partial"
+        errorMessage = pullResult.error
       }
 
-      const {resultDocs, hasChanges} = await this._pull(localDocs, remoteDocs, strategy)
-
-      if (hasChanges) {
-        this.onDataChanged?.()
+      // Fire data changed if pull applied changes
+      if (pullResult.has_changes) {
+        this.onDataChanged()
       }
 
-      if (this._shouldPush(resultDocs, remoteDocs)) {
-        await this._push(resultDocs)
+      // Broadcast pending count
+      const pendingCount = await this.getPendingChangesCount()
+      this.onPendingCountChanged(pendingCount)
+
+      // Check if no work was done
+      if (pushResult.deltas_pushed === 0 && pullResult.deltas_pulled === 0 && outcome === "success") {
+        outcome = "no_changes"
+      }
+
+      // Sync assets
+      try {
+        const allDocs = await this.localStore.loadAllDocs()
+        if (allDocs.files.length) {
+          const {fsPaths} = await import("@/config")
+          await this.remoteStore.syncAssets(fsPaths.assetsDir(), allDocs.files)
+        }
+      } catch (err) {
+        logger.warn(logger.CONTEXT.SYNC_ENGINE, "Asset sync failed, will retry next cycle", err)
       }
     } catch (error) {
-      logger.error(logger.CONTEXT.SYNC_ENGINE, "Failed to sync", error)
+      outcome = "error"
+      errorMessage = error instanceof Error ? error.message : String(error)
       throw error
-    }
-  }
+    } finally {
+      const completedAt = new Date().toISOString()
+      const durationMs = new Date(completedAt).getTime() - new Date(startedAt).getTime()
 
-  /**
-   * Normalize settings from old snapshot format where `data` was a JSON string.
-   */
-  private _normalizeSettings(docs: SnapshotDocs): SnapshotDocs {
-    if (docs.settings && "data" in docs.settings && typeof (docs.settings as any).data === "string") {
-      const {id, data, created_at, updated_at} = docs.settings as any
-      const parsed = JSON.parse(data)
-      docs.settings = {id, ...parsed, created_at, updated_at}
-    }
-    return docs
-  }
-
-  /**
-   * Pull phase: merge remote changes into local
-   */
-  private async _pull(
-    localDocs: SnapshotDocs,
-    remoteDocs: SnapshotDocs | null,
-    strategy: SyncStrategy,
-  ): Promise<{resultDocs: SnapshotDocs; hasChanges: boolean}> {
-    logger.info(logger.CONTEXT.SYNC_PULL, "Pulling snapshot")
-
-    if (!remoteDocs) {
-      logger.debug(logger.CONTEXT.SYNC_PULL, "Remote snapshot not found")
-      return {resultDocs: localDocs, hasChanges: false}
-    }
-
-    const mergeResult: MergeResult = mergeRemoteIntoLocal(localDocs, remoteDocs, strategy, APP_CONFIG.sync.garbageCollectionInterval)
-
-    const {resultDocs, toUpsert, toRemove, changes} = mergeResult
-
-    const hasUpserts = toUpsert.tasks.length || toUpsert.tags.length || toUpsert.branches.length || toUpsert.files.length || toUpsert.settings
-    if (hasUpserts) {
-      const totalUpserts =
-        toUpsert.tasks.length + toUpsert.tags.length + toUpsert.branches.length + toUpsert.files.length + (toUpsert.settings ? 1 : 0)
-      logger.debug(logger.CONTEXT.SYNC_PULL, `Upserting ${totalUpserts} documents`)
-      await this.localStore.upsertDocs(toUpsert)
-    }
-
-    const hasRemovals = toRemove.tasks?.length || toRemove.tags?.length || toRemove.branches?.length || toRemove.files?.length
-    if (hasRemovals) {
-      const totalRemovals =
-        (toRemove.tasks?.length ?? 0) + (toRemove.tags?.length ?? 0) + (toRemove.branches?.length ?? 0) + (toRemove.files?.length ?? 0)
-      logger.debug(logger.CONTEXT.SYNC_PULL, `Deleting ${totalRemovals} documents`)
-      await this.localStore.deleteDocs(toRemove)
-    }
-
-    logger.info(logger.CONTEXT.SYNC_PULL, `Pull result: ${changes} changes`)
-
-    return {resultDocs, hasChanges: changes > 0}
-  }
-
-  /**
-   * Push phase: send local changes to remote + sync assets
-   */
-  private async _push(localDocs: SnapshotDocs): Promise<void> {
-    logger.info(logger.CONTEXT.SYNC_PUSH, "Pushing snapshot")
-
-    const snapshot = buildSnapshot(localDocs)
-    await this.remoteStore.saveSnapshot(snapshot)
-
-    logger.info(logger.CONTEXT.SYNC_PUSH, `Pushed snapshot ${snapshot.meta.hash}`)
-
-    // Sync file assets after push
-    if (localDocs.files.length) {
       try {
-        await this.remoteStore.syncAssets(fsPaths.assetsDir(), localDocs.files)
-      } catch (error) {
-        logger.warn(logger.CONTEXT.SYNC_PUSH, "Asset sync failed, will retry next cycle", error)
+        await this.auditLogger.writeEntry({
+          started_at: startedAt,
+          completed_at: completedAt,
+          duration_ms: durationMs,
+          strategy,
+          outcome,
+          deltas_pushed: pushResult?.deltas_pushed ?? 0,
+          deltas_pulled: pullResult?.deltas_pulled ?? 0,
+          conflicts_resolved: pullResult?.conflict_count ?? 0,
+          docs_upserted: pullResult?.docs_upserted ?? 0,
+          docs_deleted: pullResult?.docs_deleted ?? 0,
+          error_message: errorMessage,
+          device_id: deviceId,
+        })
+
+        await this.auditLogger.prune()
+        await this._checkCompaction()
+      } catch (err) {
+        logger.warn(logger.CONTEXT.SYNC_ENGINE, "Post-sync audit/compaction failed", err)
       }
+    }
+  }
+
+  private async _checkCompaction(): Promise<void> {
+    try {
+      const manifests = await this.remoteStore.listDeviceManifests()
+      let totalDeltaFiles = 0
+      for (const m of manifests) {
+        totalDeltaFiles += m.last_sequence // Rough approximation
+      }
+      if (totalDeltaFiles > this.config.compactionThreshold) {
+        await this.compactBaseline()
+      }
+    } catch (err) {
+      logger.warn(logger.CONTEXT.SYNC_ENGINE, "Compaction check failed", err)
     }
   }
 
@@ -206,31 +238,5 @@ export class SyncEngine {
     const prevStatus = this._syncStatus
     this._syncStatus = status
     this.onStatusChange(status, prevStatus)
-  }
-
-  private _shouldPush(localDocs: SnapshotDocs, remoteDocs: SnapshotDocs | null): boolean {
-    if (!remoteDocs) {
-      const hasAnyData =
-        localDocs.tasks.length > 0 || localDocs.tags.length > 0 || localDocs.branches.length > 0 || localDocs.files.length > 0 || !!localDocs.settings
-
-      if (hasAnyData) {
-        logger.debug(logger.CONTEXT.SYNC_PUSH, "No remote snapshot, local has data, need push")
-        return true
-      }
-
-      logger.debug(logger.CONTEXT.SYNC_PUSH, "No remote snapshot and no local data, no push needed")
-      return false
-    }
-
-    const localMeta = buildSnapshotMeta(localDocs)
-    const remoteMeta = buildSnapshotMeta(remoteDocs)
-
-    if (localMeta.hash !== remoteMeta.hash) {
-      logger.debug(logger.CONTEXT.SYNC_PUSH, "Hashes mismatch, need push")
-      return true
-    }
-
-    logger.debug(logger.CONTEXT.SYNC_PUSH, "No changes detected, no push")
-    return false
   }
 }

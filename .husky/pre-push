@@ -1,0 +1,6 @@
+branch=$(git rev-parse --abbrev-ref HEAD)
+
+if [ "$branch" = "main" ]; then
+  echo "🧪 Running tests before push to main..."
+  pnpm test
+fi

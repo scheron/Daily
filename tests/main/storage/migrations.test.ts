@@ -37,7 +37,7 @@ describe("migrations", () => {
     runMigrations(db)
 
     const applied = getAppliedMigrations(db)
-    expect(applied).toHaveLength(1)
+    expect(applied).toHaveLength(2)
 
     db.close()
   })
@@ -47,16 +47,17 @@ describe("migrations", () => {
     db.pragma("foreign_keys = ON")
 
     runMigrations(db)
-    expect(getAppliedMigrations(db)).toHaveLength(1)
+    expect(getAppliedMigrations(db)).toHaveLength(2)
 
     const rolledBack = rollbackLastMigration(db)
-    expect(rolledBack).toBe(1)
-    expect(getAppliedMigrations(db)).toHaveLength(0)
+    expect(rolledBack).toBe(2)
+    expect(getAppliedMigrations(db)).toHaveLength(1)
 
-    // Tables should be dropped
+    // v002 tables should be dropped, v001 tables remain
     const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all()
     const names = tables.map((t) => t.name)
-    expect(names).not.toContain("tasks")
+    expect(names).toContain("tasks")
+    expect(names).not.toContain("change_log")
 
     db.close()
   })

@@ -3,7 +3,7 @@ import {beforeEach, describe, expect, it, vi} from "vitest"
 
 import {SyncEngine} from "@main/storage/sync/SyncEngine"
 
-vi.mock("@main/utils/logger", () => ({
+vi.mock("@/utils/logger", () => ({
   logger: {
     info: vi.fn(),
     debug: vi.fn(),
@@ -11,16 +11,25 @@ vi.mock("@main/utils/logger", () => ({
     error: vi.fn(),
     storage: vi.fn(),
     lifecycle: vi.fn(),
-    CONTEXT: {SYNC_ENGINE: "SYNC_ENGINE", SYNC_PULL: "SYNC_PULL", SYNC_PUSH: "SYNC_PUSH"},
+    CONTEXT: {SYNC_ENGINE: "SYNC_ENGINE", SYNC_PULL: "SYNC_PULL", SYNC_PUSH: "SYNC_PUSH", SYNC_REMOTE: "SYNC_REMOTE"},
   },
 }))
 
-vi.mock("@main/config", () => ({
-  APP_CONFIG: {sync: {remoteSyncInterval: 300_000, garbageCollectionInterval: 604_800_000}},
+vi.mock("@/config", () => ({
+  APP_CONFIG: {
+    sync: {
+      remoteSyncInterval: 120000,
+      garbageCollectionInterval: 604800000,
+      maxDeltasPerFile: 500,
+      compactionThreshold: 50,
+      auditRetentionInterval: 2592000000,
+      auditMaxEntries: 1000,
+    },
+  },
   fsPaths: {assetsDir: () => "/tmp/assets"},
 }))
 
-vi.mock("@main/utils/AsyncMutex", () => ({
+vi.mock("@/utils/AsyncMutex", () => ({
   AsyncMutex: class {
     async runExclusive(fn) {
       return fn()
@@ -28,7 +37,7 @@ vi.mock("@main/utils/AsyncMutex", () => ({
   },
 }))
 
-vi.mock("@main/utils/createIntervalScheduler", () => ({
+vi.mock("@/utils/createIntervalScheduler", () => ({
   createIntervalScheduler: () => ({start: vi.fn(), stop: vi.fn()}),
 }))
 
@@ -36,109 +45,184 @@ vi.mock("@shared/utils/common/withElapsedDelay", () => ({
   withElapsedDelay: async (fn) => fn(),
 }))
 
+// Shared mock fns accessible from tests
+const mockPushDeltas = vi.fn().mockResolvedValue({deltas_pushed: 0, last_sequence: 0, error: null})
+const mockPullDeltas = vi
+  .fn()
+  .mockResolvedValue({deltas_pulled: 0, docs_upserted: 0, docs_deleted: 0, conflicts: [], conflict_count: 0, has_changes: false, error: null})
+const mockWriteEntry = vi.fn().mockResolvedValue(undefined)
+const mockGetLog = vi.fn().mockResolvedValue([])
+const mockPrune = vi.fn().mockResolvedValue(0)
+const mockNeedsMigration = vi.fn().mockResolvedValue(false)
+const mockMigrate = vi.fn().mockResolvedValue(undefined)
+const mockNeedsBootstrap = vi.fn().mockResolvedValue(false)
+const mockBootstrap = vi.fn().mockResolvedValue(undefined)
+
+vi.mock("@main/storage/sync/DeltaPusher", () => ({
+  DeltaPusher: class {
+    pushDeltas = mockPushDeltas
+  },
+}))
+
+vi.mock("@main/storage/sync/DeltaPuller", () => ({
+  DeltaPuller: class {
+    pullDeltas = mockPullDeltas
+  },
+}))
+
+vi.mock("@main/storage/sync/AuditLogger", () => ({
+  AuditLogger: class {
+    writeEntry = mockWriteEntry
+    getLog = mockGetLog
+    prune = mockPrune
+  },
+}))
+
+vi.mock("@main/storage/sync/MigrationBridge", () => ({
+  MigrationBridge: class {
+    needsMigration = mockNeedsMigration
+    migrate = mockMigrate
+    needsBootstrap = mockNeedsBootstrap
+    bootstrap = mockBootstrap
+  },
+}))
+
 function emptyDocs() {
   return {tasks: [], tags: [], branches: [], files: [], settings: null}
 }
 
-function makeDocs(overrides = {}) {
-  return {...emptyDocs(), ...overrides}
-}
-
 describe("SyncEngine", () => {
-  let localStore, remoteStore, onStatusChange, onDataChanged, engine
+  let localStore, remoteStore, config, onStatusChange, onDataChanged, onPendingCountChanged, engine
 
   beforeEach(() => {
+    vi.clearAllMocks()
+
+    // Reset default return values after clearAllMocks
+    mockPushDeltas.mockResolvedValue({deltas_pushed: 0, last_sequence: 0, error: null})
+    mockPullDeltas.mockResolvedValue({
+      deltas_pulled: 0,
+      docs_upserted: 0,
+      docs_deleted: 0,
+      conflicts: [],
+      conflict_count: 0,
+      has_changes: false,
+      error: null,
+    })
+    mockWriteEntry.mockResolvedValue(undefined)
+    mockGetLog.mockResolvedValue([])
+    mockPrune.mockResolvedValue(0)
+    mockNeedsMigration.mockResolvedValue(false)
+    mockMigrate.mockResolvedValue(undefined)
+    mockNeedsBootstrap.mockResolvedValue(false)
+    mockBootstrap.mockResolvedValue(undefined)
+
     localStore = {
       loadAllDocs: vi.fn().mockResolvedValue(emptyDocs()),
       upsertDocs: vi.fn().mockResolvedValue(undefined),
       deleteDocs: vi.fn().mockResolvedValue(undefined),
+      getUnsyncedChanges: vi.fn().mockResolvedValue([]),
+      getChangesSince: vi.fn().mockResolvedValue([]),
+      markChangesSynced: vi.fn().mockResolvedValue(undefined),
+      applyRemoteDeltas: vi
+        .fn()
+        .mockResolvedValue({remote_deltas_processed: 0, docs_upserted: 0, docs_deleted: 0, conflicts: [], conflict_count: 0, updated_cursors: {}}),
+      writeSyncAudit: vi.fn().mockResolvedValue(undefined),
+      getSyncAuditLog: vi.fn().mockResolvedValue([]),
+      pruneSyncAudit: vi.fn().mockResolvedValue(0),
+      getDeviceId: vi.fn().mockResolvedValue("test-device"),
     }
     remoteStore = {
-      loadSnapshot: vi.fn().mockResolvedValue(null),
-      saveSnapshot: vi.fn().mockResolvedValue(undefined),
+      loadBaseline: vi.fn().mockResolvedValue(null),
+      saveBaseline: vi.fn().mockResolvedValue(undefined),
+      listDeviceManifests: vi.fn().mockResolvedValue([]),
+      loadDeviceManifest: vi.fn().mockResolvedValue(null),
+      saveDeviceManifest: vi.fn().mockResolvedValue(undefined),
+      loadDeltas: vi.fn().mockResolvedValue([]),
+      saveDeltaFile: vi.fn().mockResolvedValue(undefined),
+      pruneDeltas: vi.fn().mockResolvedValue(0),
+      loadLegacySnapshot: vi.fn().mockResolvedValue(null),
+      deleteLegacySnapshot: vi.fn().mockResolvedValue(undefined),
       syncAssets: vi.fn().mockResolvedValue(undefined),
+    }
+    config = {
+      remoteSyncInterval: 120000,
+      garbageCollectionInterval: 604800000,
+      maxDeltasPerFile: 500,
+      compactionThreshold: 50,
+      auditRetentionInterval: 2592000000,
+      auditMaxEntries: 1000,
     }
     onStatusChange = vi.fn()
     onDataChanged = vi.fn()
+    onPendingCountChanged = vi.fn()
 
-    engine = new SyncEngine(localStore, remoteStore, {onStatusChange, onDataChanged})
+    engine = new SyncEngine(localStore, remoteStore, config, onStatusChange, onDataChanged, onPendingCountChanged)
   })
 
   it("does not sync when not enabled", async () => {
     await engine.sync()
-
-    expect(localStore.loadAllDocs).not.toHaveBeenCalled()
+    expect(onStatusChange).not.toHaveBeenCalledWith("syncing", expect.anything())
   })
 
   it("transitions status: inactive → active → syncing → active", async () => {
-    engine.enableAutoSync()
-
+    await engine.enableAutoSync()
     expect(onStatusChange).toHaveBeenCalledWith("active", "inactive")
 
     await engine.sync()
-
     const calls = onStatusChange.mock.calls.map((c) => c[0])
     expect(calls).toContain("syncing")
     expect(calls[calls.length - 1]).toBe("active")
   })
 
-  it("pushes to remote when no remote snapshot exists and local has data", async () => {
-    const now = new Date().toISOString()
-    localStore.loadAllDocs.mockResolvedValue(
-      makeDocs({
-        tasks: [{id: "t1", updated_at: now, deleted_at: null}],
-      }),
-    )
-    remoteStore.loadSnapshot.mockResolvedValue(null)
-
-    engine.enableAutoSync()
-    await engine.sync()
-
-    expect(remoteStore.saveSnapshot).toHaveBeenCalled()
-  })
-
-  it("skips sync when hashes match", async () => {
-    const now = new Date().toISOString()
-    const docs = makeDocs({branches: [{id: "main", name: "Main", updated_at: now, deleted_at: null, created_at: now}]})
-    localStore.loadAllDocs.mockResolvedValue(docs)
-
-    // Import buildSnapshot to create a valid snapshot
-    const {buildSnapshot, buildSnapshotMeta} = await import("@main/utils/sync/snapshot/buildSnapshot")
-    const snapshot = buildSnapshot(docs)
-    remoteStore.loadSnapshot.mockResolvedValue(snapshot)
-
-    engine.enableAutoSync()
-    await engine.sync()
-
-    // No upsert or push since hashes match
-    expect(localStore.upsertDocs).not.toHaveBeenCalled()
-    expect(remoteStore.saveSnapshot).not.toHaveBeenCalled()
-  })
-
-  it("calls onDataChanged when pull introduces changes", async () => {
-    const now = new Date().toISOString()
-    localStore.loadAllDocs.mockResolvedValue(emptyDocs())
-
-    const {buildSnapshot} = await import("@main/utils/sync/snapshot/buildSnapshot")
-    const remoteDocs = makeDocs({
-      tags: [{id: "t1", name: "Work", color: "#000", updated_at: now, deleted_at: null, created_at: now}],
-    })
-    remoteStore.loadSnapshot.mockResolvedValue(buildSnapshot(remoteDocs))
-
-    engine.enableAutoSync()
-    await engine.sync()
-
-    expect(onDataChanged).toHaveBeenCalled()
-    expect(localStore.upsertDocs).toHaveBeenCalled()
-  })
-
   it("sets status to error when sync fails", async () => {
-    localStore.loadAllDocs.mockRejectedValue(new Error("DB error"))
+    await engine.enableAutoSync()
+    mockPushDeltas.mockRejectedValue(new Error("DB error"))
 
-    engine.enableAutoSync()
     await engine.sync()
 
     const calls = onStatusChange.mock.calls.map((c) => c[0])
     expect(calls).toContain("error")
+  })
+
+  it("fires onDataChanged when pull has changes", async () => {
+    await engine.enableAutoSync()
+    mockPullDeltas.mockResolvedValue({
+      deltas_pulled: 5,
+      docs_upserted: 3,
+      docs_deleted: 0,
+      conflicts: [],
+      conflict_count: 0,
+      has_changes: true,
+      error: null,
+    })
+
+    await engine.sync()
+
+    expect(onDataChanged).toHaveBeenCalled()
+  })
+
+  it("does NOT fire onDataChanged when no changes", async () => {
+    await engine.enableAutoSync()
+    await engine.sync()
+    expect(onDataChanged).not.toHaveBeenCalled()
+  })
+
+  it("enableAutoSync checks migration", async () => {
+    mockNeedsMigration.mockResolvedValue(true)
+    await engine.enableAutoSync()
+    expect(mockMigrate).toHaveBeenCalled()
+  })
+
+  it("enableAutoSync checks bootstrap", async () => {
+    mockNeedsMigration.mockResolvedValue(false)
+    mockNeedsBootstrap.mockResolvedValue(true)
+    await engine.enableAutoSync()
+    expect(mockBootstrap).toHaveBeenCalled()
+  })
+
+  it("getPendingChangesCount returns unsynced count", async () => {
+    localStore.getUnsyncedChanges.mockResolvedValue([{id: 1}, {id: 2}, {id: 3}])
+    const count = await engine.getPendingChangesCount()
+    expect(count).toBe(3)
   })
 })

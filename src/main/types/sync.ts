@@ -1,6 +1,10 @@
 import type {Settings} from "@shared/types/storage"
 
+// --- Strategy ---
+
 export type SyncStrategy = "pull" | "push"
+
+// --- Legacy snapshot types (unchanged) ---
 
 export type SnapshotMeta = {
   updatedAt: string
@@ -73,7 +77,11 @@ export type SnapshotSettings = Settings & {
   updated_at: string
 }
 
-// --- Merge result ---
+// --- Legacy alias (migration compatibility) ---
+
+export type LegacySnapshotV2 = Snapshot
+
+// --- Merge result (kept for current merge code until Phase 6) ---
 
 export type MergeResult = {
   resultDocs: SnapshotDocs
@@ -82,16 +90,158 @@ export type MergeResult = {
   changes: number
 }
 
+// --- Delta sync types (new) ---
+
+export type ChangeOperation = "insert" | "update" | "delete"
+
+export type ChangeEntity = "task" | "tag" | "branch" | "file" | "settings"
+
+export type MergeOutcome = "local_wins" | "remote_wins" | "both_applied" | "no_conflict"
+
+export type SyncAuditOutcome = "success" | "partial" | "error" | "no_changes"
+
+export type ChangeLogEntry = {
+  id: number
+  doc_id: string
+  entity: ChangeEntity
+  operation: ChangeOperation
+  field_name: string | null
+  old_value: string | null
+  new_value: string | null
+  changed_at: string
+  sequence: number
+  device_id: string
+  synced: 0 | 1
+}
+
+export type DeltaRecord = {
+  doc_id: string
+  entity: ChangeEntity
+  operation: ChangeOperation
+  field_name: string | null
+  old_value: string | null
+  new_value: string | null
+  changed_at: string
+  sequence: number
+  device_id: string
+}
+
+export type DeltaFile = {
+  version: 3
+  device_id: string
+  sequence_from: number
+  sequence_to: number
+  created_at: string
+  deltas: DeltaRecord[]
+}
+
+export type DeviceManifest = {
+  version: 3
+  device_id: string
+  device_name: string
+  last_sequence: number
+  last_written_at: string
+  cursors: Record<string, number>
+}
+
+export type SnapshotV3 = {
+  version: 3
+  docs: SnapshotDocs
+  meta: SnapshotV3Meta
+}
+
+export type SnapshotV3Meta = {
+  created_at: string
+  hash: string
+  watermarks: Record<string, number>
+}
+
+export type FieldConflict = {
+  entity: ChangeEntity
+  doc_id: string
+  field_name: string
+  local_value: string | null
+  remote_value: string | null
+  local_changed_at: string
+  remote_changed_at: string
+  outcome: MergeOutcome
+  resolved_value: string | null
+}
+
+export type DeltaMergeResult = {
+  remote_deltas_processed: number
+  docs_upserted: number
+  docs_deleted: number
+  conflicts: FieldConflict[]
+  conflict_count: number
+  updated_cursors: Record<string, number>
+}
+
+export type SyncAuditEntry = {
+  id: number
+  started_at: string
+  completed_at: string
+  duration_ms: number
+  strategy: SyncStrategy
+  outcome: SyncAuditOutcome
+  deltas_pushed: number
+  deltas_pulled: number
+  conflicts_resolved: number
+  docs_upserted: number
+  docs_deleted: number
+  error_message: string | null
+  device_id: string
+}
+
+export type SyncConfig = {
+  remoteSyncInterval: number
+  garbageCollectionInterval: number
+  maxDeltasPerFile: number
+  compactionThreshold: number
+  auditRetentionInterval: number
+  auditMaxEntries: number
+}
+
 // --- Adapter interfaces ---
 
 export interface ILocalStorage {
+  // Existing (unchanged)
   loadAllDocs(): Promise<SnapshotDocs>
   upsertDocs(docs: SnapshotDocs): Promise<void>
   deleteDocs(ids: {tasks?: string[]; tags?: string[]; branches?: string[]; files?: string[]}): Promise<void>
+
+  // Change log operations
+  getUnsyncedChanges(): Promise<ChangeLogEntry[]>
+  getChangesSince(deviceId: string, afterSequence: number): Promise<ChangeLogEntry[]>
+  markChangesSynced(upToSequence: number): Promise<void>
+  applyRemoteDeltas(deltas: DeltaRecord[], strategy: SyncStrategy): Promise<DeltaMergeResult>
+
+  // Audit trail operations
+  writeSyncAudit(entry: Omit<SyncAuditEntry, "id">): Promise<void>
+  getSyncAuditLog(limit?: number): Promise<SyncAuditEntry[]>
+  pruneSyncAudit(retentionMs: number, maxEntries: number): Promise<number>
+
+  // Device identity
+  getDeviceId(): Promise<string>
 }
 
 export interface IRemoteStorage {
-  loadSnapshot(): Promise<Snapshot | null>
-  saveSnapshot(snapshot: Snapshot): Promise<void>
+  // Existing (kept for migration compatibility)
   syncAssets(localAssetsDir: string, fileManifest: SnapshotFile[]): Promise<void>
+
+  // Baseline operations
+  loadBaseline(): Promise<SnapshotV3 | null>
+  saveBaseline(snapshot: SnapshotV3): Promise<void>
+
+  // Delta operations
+  listDeviceManifests(): Promise<DeviceManifest[]>
+  loadDeviceManifest(deviceId: string): Promise<DeviceManifest | null>
+  saveDeviceManifest(manifest: DeviceManifest): Promise<void>
+  loadDeltas(deviceId: string, afterSequence: number): Promise<DeltaRecord[]>
+  saveDeltaFile(deltaFile: DeltaFile): Promise<void>
+  pruneDeltas(watermarks: Record<string, number>): Promise<number>
+
+  // Legacy (migration)
+  loadLegacySnapshot(): Promise<LegacySnapshotV2 | null>
+  deleteLegacySnapshot(): Promise<void>
 }

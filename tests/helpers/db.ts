@@ -11,5 +11,8 @@ export function createTestDatabase(): Database.Database {
 
   runMigrations(db)
 
+  // Seed device_id so triggers can populate change_log.device_id (NOT NULL)
+  db.prepare("INSERT OR IGNORE INTO sync_meta (key, value) VALUES ('device_id', 'test-device-001')").run()
+
   return db
 }

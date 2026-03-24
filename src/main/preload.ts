@@ -36,6 +36,11 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "storage-sync:get-status": () => ipcRenderer.invoke("storage-sync:get-status") as Promise<SyncStatus>,
   "storage-sync:on-status-changed": (callback: (status: SyncStatus, prevStatus: SyncStatus) => void) => ipcRenderer.on("storage-sync:status-changed", (_event, status: SyncStatus, prevStatus: SyncStatus) => callback(status, prevStatus)),
   "storage-sync:on-data-changed": (callback: () => void) => ipcRenderer.on("storage-sync:data-changed", (_event, ) => callback()),
+  "storage-sync:get-audit-log": (limit?: number) => ipcRenderer.invoke("storage-sync:get-audit-log", limit),
+  "storage-sync:get-pending-count": () => ipcRenderer.invoke("storage-sync:get-pending-count"),
+  "storage-sync:compact": () => ipcRenderer.invoke("storage-sync:compact"),
+  "storage-sync:get-device-id": () => ipcRenderer.invoke("storage-sync:get-device-id"),
+  "storage-sync:on-pending-count-changed": (callback: (count: number) => void) => ipcRenderer.on("storage-sync:pending-count-changed", (_event, count: number) => callback(count)),
 
   "settings:load": () => ipcRenderer.invoke("settings:load") as Promise<Settings>,
   "settings:save": (settings: Partial<Settings>) => ipcRenderer.invoke("settings:save", settings),

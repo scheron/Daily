@@ -31,6 +31,31 @@ export interface BridgeIPC {
   "storage-sync:on-status-changed": (callback: (status: SyncStatus, prevStatus: SyncStatus) => void) => void
   "storage-sync:on-data-changed": (callback: () => void) => void
 
+  // === STORAGE SYNC (NEW) ===
+  "storage-sync:get-audit-log": (
+    limit?: number,
+  ) => Promise<
+    Array<{
+      id: number
+      started_at: string
+      completed_at: string
+      duration_ms: number
+      strategy: string
+      outcome: string
+      deltas_pushed: number
+      deltas_pulled: number
+      conflicts_resolved: number
+      docs_upserted: number
+      docs_deleted: number
+      error_message: string | null
+      device_id: string
+    }>
+  >
+  "storage-sync:get-pending-count": () => Promise<number>
+  "storage-sync:compact": () => Promise<void>
+  "storage-sync:get-device-id": () => Promise<string>
+  "storage-sync:on-pending-count-changed": (callback: (count: number) => void) => void
+
   // === SETTINGS ===
   "settings:load": () => Promise<Settings>
   "settings:save": (settings: Partial<Settings>) => Promise<void>
