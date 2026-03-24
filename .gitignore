@@ -52,3 +52,5 @@ deps.svg
 *.svg
 release-notes.md
 .claude
+.ai-workflow
+.features
