@@ -33,6 +33,105 @@ export class LocalStorageAdapter implements ILocalStorage {
     return {tasks, tags, branches, files, settings}
   }
 
+  async restoreFromBaseline(docs: SnapshotDocs): Promise<{tasks: number; tags: number; branches: number; files: number}> {
+    let tasksRestored = 0
+    let tagsRestored = 0
+    let branchesRestored = 0
+    let filesRestored = 0
+
+    logger.info(
+      logger.CONTEXT.SYNC_PULL,
+      `[BASELINE_RESTORE] input: tasks=${docs.tasks.length} tags=${docs.tags.length} branches=${docs.branches.length} files=${docs.files.length}`,
+    )
+
+    const transaction = this.db.transaction(() => {
+      // Suppress triggers so baseline restore doesn't create change_log entries
+      this.db.prepare("INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('applying_remote', '1')").run()
+
+      try {
+        for (const b of docs.branches) {
+          const exists = this.db.prepare("SELECT id FROM branches WHERE id = ?").get(b.id)
+          if (!exists) {
+            this.db
+              .prepare("INSERT INTO branches (id, name, created_at, updated_at, deleted_at) VALUES (?, ?, ?, ?, ?)")
+              .run(b.id, b.name, b.created_at, b.updated_at, b.deleted_at)
+            branchesRestored++
+          }
+        }
+
+        for (const t of docs.tags) {
+          const exists = this.db.prepare("SELECT id FROM tags WHERE id = ?").get(t.id)
+          if (!exists) {
+            this.db
+              .prepare("INSERT INTO tags (id, name, color, created_at, updated_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?)")
+              .run(t.id, t.name, t.color, t.created_at, t.updated_at, t.deleted_at)
+            tagsRestored++
+          }
+        }
+
+        for (const t of docs.tasks) {
+          const exists = this.db.prepare("SELECT id FROM tasks WHERE id = ?").get(t.id)
+          if (!exists) {
+            this.db
+              .prepare(
+                `INSERT INTO tasks (id, status, content, minimized, order_index, scheduled_date, scheduled_time, scheduled_timezone, estimated_time, spent_time, branch_id, created_at, updated_at, deleted_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              )
+              .run(
+                t.id,
+                t.status,
+                t.content,
+                t.minimized ? 1 : 0,
+                t.order_index,
+                t.scheduled_date,
+                t.scheduled_time,
+                t.scheduled_timezone,
+                t.estimated_time,
+                t.spent_time,
+                t.branch_id,
+                t.created_at,
+                t.updated_at,
+                t.deleted_at,
+              )
+
+            // Restore task_tags
+            for (const tagId of t.tags) {
+              this.db.prepare("INSERT OR IGNORE INTO task_tags (task_id, tag_id) VALUES (?, ?)").run(t.id, tagId)
+            }
+
+            // Restore task_attachments
+            for (const fileId of t.attachments) {
+              this.db.prepare("INSERT OR IGNORE INTO task_attachments (task_id, file_id) VALUES (?, ?)").run(t.id, fileId)
+            }
+
+            tasksRestored++
+          }
+        }
+
+        for (const f of docs.files) {
+          const exists = this.db.prepare("SELECT id FROM files WHERE id = ?").get(f.id)
+          if (!exists) {
+            this.db
+              .prepare("INSERT INTO files (id, name, mime_type, size, created_at, updated_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
+              .run(f.id, f.name, f.mime_type, f.size, f.created_at, f.updated_at, f.deleted_at)
+            filesRestored++
+          }
+        }
+      } finally {
+        this.db.prepare("INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('applying_remote', '0')").run()
+      }
+    })
+
+    transaction()
+
+    logger.info(
+      logger.CONTEXT.SYNC_PULL,
+      `[BASELINE_RESTORE] done: tasks=${tasksRestored} tags=${tagsRestored} branches=${branchesRestored} files=${filesRestored} (skipped existing)`,
+    )
+
+    return {tasks: tasksRestored, tags: tagsRestored, branches: branchesRestored, files: filesRestored}
+  }
+
   async getDeviceId(): Promise<string> {
     const row = this.db.prepare("SELECT value FROM sync_meta WHERE key = 'device_id'").get() as {value: string} | undefined
     if (row) return row.value

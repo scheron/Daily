@@ -106,10 +106,33 @@ export class SyncEngine {
     const hash = computeDocsHash(allDocs)
 
     const manifests = await this.remoteStore.listDeviceManifests()
-    const watermarks: Record<string, number> = {}
-    for (const m of manifests) {
-      watermarks[m.device_id] = m.last_sequence
+
+    logger.info(
+      logger.CONTEXT.SYNC_ENGINE,
+      `[COMPACT] starting — ${manifests.length} devices, docs: tasks=${allDocs.tasks.length} tags=${allDocs.tags.length} branches=${allDocs.branches.length} files=${allDocs.files.length}`,
+    )
+
+    // Compute safe watermarks: only prune deltas that ALL devices have consumed.
+    // For each device's deltas, the safe watermark is the MINIMUM cursor across all OTHER devices.
+    const safeWatermarks: Record<string, number> = {}
+
+    for (const source of manifests) {
+      let minCursor = source.last_sequence // Start with max (all consumed)
+
+      for (const consumer of manifests) {
+        if (consumer.device_id === source.device_id) continue
+        const cursor = consumer.cursors[source.device_id] ?? 0
+        logger.info(
+          logger.CONTEXT.SYNC_ENGINE,
+          `[COMPACT] ${consumer.device_id.slice(0, 8)} cursor for ${source.device_id.slice(0, 8)}: ${cursor} (source last_seq=${source.last_sequence})`,
+        )
+        if (cursor < minCursor) minCursor = cursor
+      }
+
+      safeWatermarks[source.device_id] = minCursor
     }
+
+    logger.info(logger.CONTEXT.SYNC_ENGINE, "[COMPACT] safe watermarks (min cursor per source device)", safeWatermarks)
 
     const baseline: Snapshot = {
       version: 3,
@@ -117,12 +140,14 @@ export class SyncEngine {
       meta: {
         created_at: new Date().toISOString(),
         hash,
-        watermarks,
+        watermarks: safeWatermarks,
       },
     }
 
     await this.remoteStore.saveBaseline(baseline)
-    await this.remoteStore.pruneDeltas(watermarks)
+
+    const pruned = await this.remoteStore.pruneDeltas(safeWatermarks)
+    logger.info(logger.CONTEXT.SYNC_ENGINE, `[COMPACT] done — baseline saved, ${pruned} delta files pruned`)
   }
 
   private async _sync(strategy: SyncStrategy = "pull"): Promise<void> {
@@ -218,13 +243,41 @@ export class SyncEngine {
   private async _checkCompaction(): Promise<void> {
     try {
       const manifests = await this.remoteStore.listDeviceManifests()
+
+      // Only compact if there are 2+ devices (otherwise no pruning benefit)
+      if (manifests.length < 2) {
+        logger.info(logger.CONTEXT.SYNC_ENGINE, `[COMPACT_CHECK] skip — only ${manifests.length} device(s)`)
+        return
+      }
+
+      // Sum up last_sequences as rough delta count approximation
       let totalDeltaFiles = 0
       for (const m of manifests) {
-        totalDeltaFiles += m.last_sequence // Rough approximation
+        totalDeltaFiles += m.last_sequence
       }
-      if (totalDeltaFiles > this.config.compactionThreshold) {
-        await this.compactBaseline()
+      if (totalDeltaFiles <= this.config.compactionThreshold) {
+        logger.info(logger.CONTEXT.SYNC_ENGINE, `[COMPACT_CHECK] skip — total=${totalDeltaFiles} <= threshold=${this.config.compactionThreshold}`)
+        return
       }
+
+      // Safety check: only compact if ALL devices have consumed each other's deltas.
+      // If any device has cursor=0 for another device, it hasn't synced yet — don't prune.
+      for (const source of manifests) {
+        for (const consumer of manifests) {
+          if (consumer.device_id === source.device_id) continue
+          const cursor = consumer.cursors[source.device_id] ?? 0
+          if (cursor === 0 && source.last_sequence > 0) {
+            logger.info(
+              logger.CONTEXT.SYNC_ENGINE,
+              `[COMPACT_CHECK] BLOCKED — ${consumer.device_id.slice(0, 8)} hasn't consumed any deltas from ${source.device_id.slice(0, 8)} (cursor=0, last_seq=${source.last_sequence})`,
+            )
+            return
+          }
+        }
+      }
+
+      logger.info(logger.CONTEXT.SYNC_ENGINE, `[COMPACT_CHECK] proceeding — total=${totalDeltaFiles}, all cursors > 0`)
+      await this.compactBaseline()
     } catch (err) {
       logger.warn(logger.CONTEXT.SYNC_ENGINE, "Compaction check failed", err)
     }

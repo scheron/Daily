@@ -182,6 +182,7 @@ export type SyncConfig = {
 
 export interface ILocalStorage {
   loadAllDocs(): Promise<SnapshotDocs>
+  restoreFromBaseline(docs: SnapshotDocs): Promise<{tasks: number; tags: number; branches: number; files: number}>
 
   // Change log operations
   getUnsyncedChanges(): Promise<ChangeLogEntry[]>

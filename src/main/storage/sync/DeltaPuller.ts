@@ -1,7 +1,7 @@
 import {logger} from "@/utils/logger"
 import {mergeFields} from "@/utils/sync/merge/FieldMerger"
 
-import type {DeltaRecord, FieldConflict, ILocalStorage, IRemoteStorage, SyncConfig, SyncStrategy} from "@/types/sync"
+import type {DeltaRecord, DeviceManifest, FieldConflict, ILocalStorage, IRemoteStorage, SyncConfig, SyncStrategy} from "@/types/sync"
 
 export type PullResult = {
   deltas_pulled: number
@@ -56,6 +56,20 @@ export class DeltaPuller {
       }
 
       if (allRemoteDeltas.length === 0) {
+        // Check if we expected deltas but got none (delta files were pruned by compaction)
+        const hasMissingDeltas = remoteManifests.some((m) => {
+          if (m.device_id === deviceId) return false
+          const cursor = cursors[m.device_id] ?? 0
+          return m.last_sequence > cursor
+        })
+
+        if (hasMissingDeltas) {
+          // Delta files were pruned — fall back to baseline snapshot
+          logger.warn(logger.CONTEXT.SYNC_PULL, `[PULL] expected deltas but found none — attempting baseline restore`)
+          const restoreResult = await this._restoreFromBaseline(deviceId, remoteManifests, ownManifest)
+          if (restoreResult) return restoreResult
+        }
+
         logger.info(logger.CONTEXT.SYNC_PULL, `[PULL] no deltas to apply`)
         return {deltas_pulled: 0, docs_upserted: 0, docs_deleted: 0, conflicts: [], conflict_count: 0, has_changes: false, error: null}
       }
@@ -112,6 +126,75 @@ export class DeltaPuller {
       const message = err instanceof Error ? err.message : String(err)
       logger.error(logger.CONTEXT.SYNC_REMOTE, "DeltaPuller failed", err)
       return {deltas_pulled: 0, docs_upserted: 0, docs_deleted: 0, conflicts: [], conflict_count: 0, has_changes: false, error: message}
+    }
+  }
+
+  private async _restoreFromBaseline(
+    deviceId: string,
+    remoteManifests: DeviceManifest[],
+    ownManifest: DeviceManifest | null,
+  ): Promise<PullResult | null> {
+    try {
+      const baseline = await this.remoteStore.loadBaseline()
+      if (!baseline?.docs) {
+        logger.warn(logger.CONTEXT.SYNC_PULL, `[BASELINE] no baseline snapshot found`)
+        return null
+      }
+
+      logger.info(logger.CONTEXT.SYNC_PULL, `[BASELINE] restoring from baseline`, {
+        tasks: baseline.docs.tasks.length,
+        tags: baseline.docs.tags.length,
+        branches: baseline.docs.branches.length,
+        files: baseline.docs.files.length,
+      })
+
+      const result = await this.localStore.restoreFromBaseline(baseline.docs)
+
+      logger.info(logger.CONTEXT.SYNC_PULL, `[BASELINE] restored`, result)
+
+      const totalRestored = result.tasks + result.tags + result.branches + result.files
+
+      // Update cursors to match baseline watermarks so we don't try to re-pull pruned deltas
+      const updatedManifest = ownManifest ?? {
+        version: 3 as const,
+        device_id: deviceId,
+        device_name: "",
+        last_sequence: 0,
+        last_written_at: "",
+        cursors: {},
+      }
+
+      if (baseline.meta?.watermarks) {
+        for (const [remoteDeviceId, watermark] of Object.entries(baseline.meta.watermarks)) {
+          if (remoteDeviceId === deviceId) continue
+          const currentCursor = updatedManifest.cursors[remoteDeviceId] ?? 0
+          if (watermark > currentCursor) {
+            logger.info(logger.CONTEXT.SYNC_PULL, `[BASELINE] cursor ${remoteDeviceId}: ${currentCursor} → ${watermark} (from baseline watermarks)`)
+            updatedManifest.cursors[remoteDeviceId] = watermark
+          }
+        }
+      } else {
+        // No watermarks in baseline — advance cursors to manifest.last_sequence to prevent re-pull attempts
+        for (const manifest of remoteManifests) {
+          if (manifest.device_id === deviceId) continue
+          updatedManifest.cursors[manifest.device_id] = manifest.last_sequence
+        }
+      }
+
+      await this.remoteStore.saveDeviceManifest(updatedManifest)
+
+      return {
+        deltas_pulled: 0,
+        docs_upserted: totalRestored,
+        docs_deleted: 0,
+        conflicts: [],
+        conflict_count: 0,
+        has_changes: totalRestored > 0,
+        error: null,
+      }
+    } catch (err) {
+      logger.error(logger.CONTEXT.SYNC_PULL, "[BASELINE] restore failed", err)
+      return null
     }
   }
 }
