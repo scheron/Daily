@@ -197,6 +197,7 @@ export class RemoteStorageAdapter implements IRemoteStorage {
 
     const entries = await fs.readdir(deviceDir)
     const deltaFiles: {from: number; to: number; filename: string}[] = []
+    const skippedFiles: string[] = []
 
     for (const filename of entries) {
       const match = filename.match(/^(\d+)-(\d+)\.json$/)
@@ -207,11 +208,22 @@ export class RemoteStorageAdapter implements IRemoteStorage {
 
       if (to > afterSequence) {
         deltaFiles.push({from, to, filename})
+      } else {
+        skippedFiles.push(`${filename}(to=${to}<=cursor=${afterSequence})`)
       }
     }
 
     // Sort by from ascending
     deltaFiles.sort((a, b) => a.from - b.from)
+
+    logger.info(
+      logger.CONTEXT.SYNC_REMOTE,
+      `[LOAD_DELTAS] device=${deviceId} afterSeq=${afterSequence} files_on_disk=${entries.length} qualifying=${deltaFiles.length} skipped=${skippedFiles.length}`,
+      {
+        qualifying: deltaFiles.map((f) => f.filename),
+        skipped: skippedFiles,
+      },
+    )
 
     const allDeltas: DeltaRecord[] = []
 
@@ -219,26 +231,33 @@ export class RemoteStorageAdapter implements IRemoteStorage {
       const filePath = join(deviceDir, df.filename)
 
       if (isICloudStub(filePath)) {
-        logger.warn(logger.CONTEXT.SYNC_REMOTE, `Delta file ${df.filename} is a stub, requesting download`)
+        logger.warn(logger.CONTEXT.SYNC_REMOTE, `[LOAD_DELTAS] STUB ${df.filename} — requesting download, deltas LOST for this cycle`)
         await requestDownload(filePath)
         continue
       }
 
       try {
         const buffer = await coordinatedRead(filePath)
-        if (!buffer) continue
+        if (!buffer) {
+          logger.warn(logger.CONTEXT.SYNC_REMOTE, `[LOAD_DELTAS] NULL read for ${df.filename}`)
+          continue
+        }
 
         const deltaFile = JSON.parse(buffer.toString("utf-8")) as DeltaFile
+        let added = 0
         for (const delta of deltaFile.deltas) {
           if (delta.sequence > afterSequence) {
             allDeltas.push(delta)
+            added++
           }
         }
+        logger.info(logger.CONTEXT.SYNC_REMOTE, `[LOAD_DELTAS] read ${df.filename}: ${added} deltas added (total_in_file=${deltaFile.deltas.length})`)
       } catch (err) {
-        logger.warn(logger.CONTEXT.SYNC_REMOTE, `Failed to read delta file ${df.filename}`, err)
+        logger.warn(logger.CONTEXT.SYNC_REMOTE, `[LOAD_DELTAS] FAILED to read ${df.filename}`, err)
       }
     }
 
+    logger.info(logger.CONTEXT.SYNC_REMOTE, `[LOAD_DELTAS] total deltas loaded: ${allDeltas.length}`)
     return allDeltas
   }
 

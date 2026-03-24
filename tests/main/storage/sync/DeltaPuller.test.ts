@@ -4,7 +4,7 @@ import {beforeEach, describe, expect, it, vi} from "vitest"
 import {DeltaPuller} from "@main/storage/sync/DeltaPuller"
 
 vi.mock("@/utils/logger", () => ({
-  logger: {warn: vi.fn(), error: vi.fn(), CONTEXT: {SYNC_REMOTE: "SYNC_REMOTE"}},
+  logger: {info: vi.fn(), warn: vi.fn(), error: vi.fn(), CONTEXT: {SYNC_REMOTE: "SYNC_REMOTE", SYNC_PULL: "SYNC_PULL"}},
 }))
 
 vi.mock("@/utils/sync/merge/FieldMerger", () => ({

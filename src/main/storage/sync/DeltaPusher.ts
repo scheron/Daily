@@ -19,9 +19,18 @@ export class DeltaPusher {
     try {
       const unsynced = await this.localStore.getUnsyncedChanges()
 
+      logger.info(logger.CONTEXT.SYNC_PUSH, `[PUSH] device=${deviceId} unsynced_changes=${unsynced.length}`)
+
       if (unsynced.length === 0) {
         return {deltas_pushed: 0, last_sequence: 0, error: null}
       }
+
+      const seqRange = `${unsynced[0].sequence}-${unsynced[unsynced.length - 1].sequence}`
+      const entities = new Map<string, number>()
+      for (const e of unsynced) {
+        entities.set(`${e.entity}:${e.doc_id}`, (entities.get(`${e.entity}:${e.doc_id}`) ?? 0) + 1)
+      }
+      logger.info(logger.CONTEXT.SYNC_PUSH, `[PUSH] seq_range=${seqRange} unique_docs=${entities.size}`, Object.fromEntries(entities))
 
       // Split into chunks
       const chunks: ChangeLogEntry[][] = []
@@ -54,6 +63,10 @@ export class DeltaPusher {
         }
 
         await this.remoteStore.saveDeltaFile(deltaFile)
+        logger.info(
+          logger.CONTEXT.SYNC_PUSH,
+          `[PUSH] wrote delta file seq=${deltaFile.sequence_from}-${deltaFile.sequence_to} deltas=${deltas.length}`,
+        )
         lastSequence = chunk[chunk.length - 1].sequence
       }
 
@@ -73,10 +86,12 @@ export class DeltaPusher {
       manifest.device_name = deviceName
 
       await this.remoteStore.saveDeviceManifest(manifest)
+      logger.info(logger.CONTEXT.SYNC_PUSH, `[PUSH] manifest saved last_sequence=${lastSequence}`)
 
       // Mark changes as synced
       await this.localStore.markChangesSynced(lastSequence)
 
+      logger.info(logger.CONTEXT.SYNC_PUSH, `[PUSH] done deltas_pushed=${unsynced.length} last_sequence=${lastSequence}`)
       return {deltas_pushed: unsynced.length, last_sequence: lastSequence, error: null}
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)

@@ -4,7 +4,14 @@ import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {LocalStorageAdapter} from "@main/storage/sync/adapters/LocalStorageAdapter"
 import {createTestDatabase} from "../../../../helpers/db"
 
-vi.mock("@/utils/logger")
+vi.mock("@/utils/logger", () => ({
+  logger: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    CONTEXT: {SYNC_PULL: "SYNC_PULL", SYNC_REMOTE: "SYNC_REMOTE"},
+  },
+}))
 vi.mock("@/config")
 
 describe("LocalStorageAdapter", () => {

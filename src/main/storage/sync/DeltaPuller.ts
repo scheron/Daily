@@ -29,6 +29,8 @@ export class DeltaPuller {
       const ownManifest = await this.remoteStore.loadDeviceManifest(deviceId)
       const cursors = ownManifest?.cursors ?? {}
 
+      logger.info(logger.CONTEXT.SYNC_PULL, `[PULL] device=${deviceId} remote_manifests=${remoteManifests.length} own_cursors=`, cursors)
+
       // Collect deltas from all remote devices
       const allRemoteDeltas: DeltaRecord[] = []
 
@@ -36,13 +38,25 @@ export class DeltaPuller {
         if (manifest.device_id === deviceId) continue // Skip self
 
         const cursor = cursors[manifest.device_id] ?? 0
-        if (manifest.last_sequence <= cursor) continue // No new deltas
+        if (manifest.last_sequence <= cursor) {
+          logger.info(logger.CONTEXT.SYNC_PULL, `[PULL] skip ${manifest.device_id} (last_seq=${manifest.last_sequence} <= cursor=${cursor})`)
+          continue // No new deltas
+        }
 
+        logger.info(
+          logger.CONTEXT.SYNC_PULL,
+          `[PULL] loading deltas from ${manifest.device_id} after_seq=${cursor} manifest_last_seq=${manifest.last_sequence}`,
+        )
         const deltas = await this.remoteStore.loadDeltas(manifest.device_id, cursor)
+        logger.info(logger.CONTEXT.SYNC_PULL, `[PULL] loaded ${deltas.length} deltas from ${manifest.device_id}`, {
+          seq_range: deltas.length > 0 ? `${deltas[0].sequence}-${deltas[deltas.length - 1].sequence}` : "empty",
+          unique_docs: new Set(deltas.map((d) => d.doc_id)).size,
+        })
         allRemoteDeltas.push(...deltas)
       }
 
       if (allRemoteDeltas.length === 0) {
+        logger.info(logger.CONTEXT.SYNC_PULL, `[PULL] no deltas to apply`)
         return {deltas_pulled: 0, docs_upserted: 0, docs_deleted: 0, conflicts: [], conflict_count: 0, has_changes: false, error: null}
       }
 
@@ -73,10 +87,17 @@ export class DeltaPuller {
       }
 
       for (const [remoteDeviceId, maxSeq] of Object.entries(actualCursors)) {
+        const prevCursor = updatedManifest.cursors[remoteDeviceId] ?? 0
+        logger.info(logger.CONTEXT.SYNC_PULL, `[PULL] cursor ${remoteDeviceId}: ${prevCursor} → ${maxSeq}`)
         updatedManifest.cursors[remoteDeviceId] = maxSeq
       }
 
       await this.remoteStore.saveDeviceManifest(updatedManifest)
+
+      logger.info(
+        logger.CONTEXT.SYNC_PULL,
+        `[PULL] done deltas=${allRemoteDeltas.length} upserted=${applyResult.docs_upserted} deleted=${applyResult.docs_deleted} conflicts=${mergeResult.conflicts.length}`,
+      )
 
       return {
         deltas_pulled: allRemoteDeltas.length,

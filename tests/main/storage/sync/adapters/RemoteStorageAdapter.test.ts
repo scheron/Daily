@@ -9,6 +9,7 @@ import {RemoteStorageAdapter} from "@main/storage/sync/adapters/RemoteStorageAda
 
 vi.mock("@/utils/logger", () => ({
   logger: {
+    info: vi.fn(),
     warn: vi.fn(),
     error: vi.fn(),
     CONTEXT: {SYNC_REMOTE: "SYNC_REMOTE"},

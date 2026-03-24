@@ -4,7 +4,7 @@ import {beforeEach, describe, expect, it, vi} from "vitest"
 import {DeltaPusher} from "@main/storage/sync/DeltaPusher"
 
 vi.mock("@/utils/logger", () => ({
-  logger: {warn: vi.fn(), error: vi.fn(), CONTEXT: {SYNC_REMOTE: "SYNC_REMOTE"}},
+  logger: {info: vi.fn(), warn: vi.fn(), error: vi.fn(), CONTEXT: {SYNC_REMOTE: "SYNC_REMOTE", SYNC_PUSH: "SYNC_PUSH"}},
 }))
 
 describe("DeltaPusher", () => {

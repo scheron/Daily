@@ -138,6 +138,8 @@ export class SyncEngine {
     let errorMessage: string | null = null
 
     try {
+      logger.info(logger.CONTEXT.SYNC_ENGINE, `[SYNC] ═══ START ═══ device=${deviceId} strategy=${strategy}`)
+
       // PUSH
       pushResult = await this.deltaPusher.pushDeltas(deviceId, deviceName)
       if (pushResult.error) {
@@ -165,6 +167,11 @@ export class SyncEngine {
       if (pushResult.deltas_pushed === 0 && pullResult.deltas_pulled === 0 && outcome === "success") {
         outcome = "no_changes"
       }
+
+      logger.info(
+        logger.CONTEXT.SYNC_ENGINE,
+        `[SYNC] ═══ END ═══ pushed=${pushResult.deltas_pushed} pulled=${pullResult.deltas_pulled} upserted=${pullResult.docs_upserted} outcome=${outcome}`,
+      )
 
       // Sync assets
       try {

@@ -1,6 +1,8 @@
 import crypto from "node:crypto"
 import os from "node:os"
 
+import {logger} from "@/utils/logger"
+
 import type {
   ChangeLogEntry,
   DeltaMergeResult,
@@ -64,6 +66,8 @@ export class LocalStorageAdapter implements ILocalStorage {
     const conflicts: FieldConflict[] = []
     const updatedCursors: Record<string, number> = {}
 
+    logger.info(logger.CONTEXT.SYNC_PULL, `[APPLY] total_deltas=${deltas.length} strategy=${strategy}`)
+
     const transaction = this.db.transaction(() => {
       // Suppress triggers
       this.db.prepare("INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('applying_remote', '1')").run()
@@ -81,21 +85,28 @@ export class LocalStorageAdapter implements ILocalStorage {
           if (delta.sequence > prev) updatedCursors[delta.device_id] = delta.sequence
         }
 
-        for (const [, entityDeltas] of grouped) {
+        logger.info(logger.CONTEXT.SYNC_PULL, `[APPLY] grouped into ${grouped.size} docs`)
+
+        for (const [key, entityDeltas] of grouped) {
           const first = entityDeltas[0]
           const lastOp = entityDeltas[entityDeltas.length - 1].operation
 
           if (lastOp === "delete") {
+            logger.info(logger.CONTEXT.SYNC_PULL, `[APPLY] DELETE ${key}`)
             this._applyDelete(first.entity, first.doc_id)
             docsDeleted++
             continue
           }
 
-          if (lastOp === "insert" || this._entityExists(first.entity, first.doc_id) === false) {
+          const exists = this._entityExists(first.entity, first.doc_id)
+          if (lastOp === "insert" || exists === false) {
+            logger.info(logger.CONTEXT.SYNC_PULL, `[APPLY] INSERT ${key} (lastOp=${lastOp} exists=${exists} fields=${entityDeltas.length})`)
             this._applyInsert(first.entity, first.doc_id, entityDeltas)
             docsUpserted++
             continue
           }
+
+          logger.info(logger.CONTEXT.SYNC_PULL, `[APPLY] UPDATE ${key} (fields=${entityDeltas.length})`)
 
           // Update: field-level LWW (compare only local UPDATE changes, not INSERT initial values)
           const localChanges = this.db
