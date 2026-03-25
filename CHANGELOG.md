@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## v0.14.1 - 2026-03-25
+
+### 🔄 Storage & Sync Improvements
+
+- **Sync Engine Architecture** - Robust synchronization system
+  - SyncEngine orchestrates pull/push operations between local and remote storage
+  - Snapshot-based sync with metadata comparison for efficient updates
+  - Snapshot integrity validation with SHA-256 hashing
+  - Auto-sync scheduler with configurable intervals
+  - Event broadcasting for real-time UI updates
+
 ## v0.14.0 - 2026-03-24
 
 ### 🔄 iCloud Sync Improvements
