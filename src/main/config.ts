@@ -16,10 +16,6 @@ export const APP_CONFIG = {
   sync: {
     garbageCollectionInterval: 7 * 24 * 60 * 60 * 1000,
     remoteSyncInterval: 2 * 60 * 1000,
-    maxDeltasPerFile: 500,
-    compactionThreshold: 50,
-    auditRetentionInterval: 30 * 24 * 60 * 60 * 1000,
-    auditMaxEntries: 1000,
   },
   ai: {
     enabled: false,

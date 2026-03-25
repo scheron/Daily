@@ -11,7 +11,7 @@ import fs from "fs-extra"
 
 import {logger} from "@/utils/logger"
 
-import {APP_CONFIG, fsPaths} from "@/config"
+import {fsPaths} from "@/config"
 import {initDatabase} from "@/storage/database/instance"
 import {BranchModel} from "@/storage/models/BranchModel"
 import {FileModel} from "@/storage/models/FileModel"
@@ -49,7 +49,6 @@ export class StorageController implements IStorageController {
 
   private notifyStorageStatusChange?: (status: SyncStatus, prevStatus: SyncStatus) => void
   private notifyStorageDataChange?: () => void
-  private notifyPendingCountChange?: (count: number) => void
 
   async init(): Promise<void> {
     await fs.ensureDir(this.rootDir)
@@ -77,25 +76,21 @@ export class StorageController implements IStorageController {
     const remoteAdapter = new RemoteStorageAdapter(fsPaths.remoteSyncPath())
     const localAdapter = new LocalStorageAdapter(db)
 
-    this.syncEngine = new SyncEngine(
-      localAdapter,
-      remoteAdapter,
-      APP_CONFIG.sync,
-      (status: SyncStatus, prevStatus: SyncStatus) => this.notifyStorageStatusChange?.(status, prevStatus),
-      () => {
+    this.syncEngine = new SyncEngine(localAdapter, remoteAdapter, {
+      onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => this.notifyStorageStatusChange?.(status, prevStatus),
+      onDataChanged: () => {
         settingsModel.invalidateCache()
         tagModel.invalidateCache()
         branchModel.invalidateCache()
         this.notifyStorageDataChange?.()
       },
-      (count: number) => this.notifyPendingCountChange?.(count),
-    )
+    })
 
     const settings = await this.loadSettings()
 
     if (settings.sync.enabled) {
       logger.info(logger.CONTEXT.STORAGE, "Auto-sync was enabled, restoring")
-      await this.syncEngine.enableAutoSync()
+      this.syncEngine.enableAutoSync()
     }
 
     logger.info(logger.CONTEXT.STORAGE, "Initializing search index")
@@ -104,20 +99,15 @@ export class StorageController implements IStorageController {
   }
 
   //#region STORAGE
-  setupStorageBroadcasts(callbacks: {
-    onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => void
-    onDataChange: () => void
-    onPendingCountChange: (count: number) => void
-  }): void {
+  setupStorageBroadcasts(callbacks: {onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => void; onDataChange: () => void}): void {
     this.notifyStorageStatusChange = callbacks.onStatusChange
     this.notifyStorageDataChange = callbacks.onDataChange
-    this.notifyPendingCountChange = callbacks.onPendingCountChange
   }
 
   async activateSync() {
     logger.info(logger.CONTEXT.STORAGE, "Activating sync")
     await this.settingsService.saveSettings({sync: {enabled: true}})
-    await this.syncEngine.enableAutoSync()
+    this.syncEngine.enableAutoSync()
   }
 
   async deactivateSync() {
@@ -133,22 +123,6 @@ export class StorageController implements IStorageController {
 
   getSyncStatus(): SyncStatus {
     return this.syncEngine.syncStatus
-  }
-
-  async getAuditLog(limit?: number) {
-    return this.syncEngine.getAuditLog(limit)
-  }
-
-  async getPendingChangesCount() {
-    return this.syncEngine.getPendingChangesCount()
-  }
-
-  async compactBaseline() {
-    return this.syncEngine.compactBaseline()
-  }
-
-  async getDeviceId() {
-    return this.syncEngine.deviceId ?? ""
   }
   //#endregion
 

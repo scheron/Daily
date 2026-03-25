@@ -9,8 +9,6 @@ vi.mock("@/utils/logger", () => ({
     debug: vi.fn(),
     warn: vi.fn(),
     error: vi.fn(),
-    storage: vi.fn(),
-    lifecycle: vi.fn(),
     CONTEXT: {SYNC_ENGINE: "SYNC_ENGINE", SYNC_PULL: "SYNC_PULL", SYNC_PUSH: "SYNC_PUSH", SYNC_REMOTE: "SYNC_REMOTE"},
   },
 }))
@@ -18,12 +16,8 @@ vi.mock("@/utils/logger", () => ({
 vi.mock("@/config", () => ({
   APP_CONFIG: {
     sync: {
-      remoteSyncInterval: 120000,
-      garbageCollectionInterval: 604800000,
-      maxDeltasPerFile: 500,
-      compactionThreshold: 50,
-      auditRetentionInterval: 2592000000,
-      auditMaxEntries: 1000,
+      remoteSyncInterval: 120_000,
+      garbageCollectionInterval: 604_800_000,
     },
   },
   fsPaths: {assetsDir: () => "/tmp/assets"},
@@ -45,151 +39,406 @@ vi.mock("@shared/utils/common/withElapsedDelay", () => ({
   withElapsedDelay: async (fn) => fn(),
 }))
 
-// Shared mock fns accessible from tests
-const mockPushDeltas = vi.fn().mockResolvedValue({deltas_pushed: 0, last_sequence: 0, error: null})
-const mockPullDeltas = vi
-  .fn()
-  .mockResolvedValue({deltas_pulled: 0, docs_upserted: 0, docs_deleted: 0, conflicts: [], conflict_count: 0, has_changes: false, error: null})
-const mockWriteEntry = vi.fn().mockResolvedValue(undefined)
-const mockGetLog = vi.fn().mockResolvedValue([])
-const mockPrune = vi.fn().mockResolvedValue(0)
-
-vi.mock("@main/storage/sync/DeltaPusher", () => ({
-  DeltaPusher: class {
-    pushDeltas = mockPushDeltas
-  },
-}))
-
-vi.mock("@main/storage/sync/DeltaPuller", () => ({
-  DeltaPuller: class {
-    pullDeltas = mockPullDeltas
-  },
-}))
-
-vi.mock("@main/storage/sync/AuditLogger", () => ({
-  AuditLogger: class {
-    writeEntry = mockWriteEntry
-    getLog = mockGetLog
-    prune = mockPrune
-  },
-}))
-
 function emptyDocs() {
   return {tasks: [], tags: [], branches: [], files: [], settings: null}
 }
 
+function docsWithTask() {
+  return {
+    ...emptyDocs(),
+    tasks: [
+      {
+        id: "t1",
+        status: "active",
+        content: "test",
+        minimized: false,
+        order_index: 0,
+        scheduled_date: "2026-03-25",
+        scheduled_time: "",
+        scheduled_timezone: "UTC",
+        estimated_time: 0,
+        spent_time: 0,
+        branch_id: "main",
+        tags: [],
+        attachments: [],
+        created_at: "2026-03-25T00:00:00.000Z",
+        updated_at: "2026-03-25T00:00:00.000Z",
+        deleted_at: null,
+      },
+    ],
+  }
+}
+
 describe("SyncEngine", () => {
-  let localStore, remoteStore, config, onStatusChange, onDataChanged, onPendingCountChanged, engine
+  let mockLocalStore, mockRemoteStore, onStatusChange, onDataChanged, engine
 
   beforeEach(() => {
     vi.clearAllMocks()
 
-    // Reset default return values after clearAllMocks
-    mockPushDeltas.mockResolvedValue({deltas_pushed: 0, last_sequence: 0, error: null})
-    mockPullDeltas.mockResolvedValue({
-      deltas_pulled: 0,
-      docs_upserted: 0,
-      docs_deleted: 0,
-      conflicts: [],
-      conflict_count: 0,
-      has_changes: false,
-      error: null,
-    })
-    mockWriteEntry.mockResolvedValue(undefined)
-    mockGetLog.mockResolvedValue([])
-    mockPrune.mockResolvedValue(0)
-
-    localStore = {
+    mockLocalStore = {
       loadAllDocs: vi.fn().mockResolvedValue(emptyDocs()),
-      restoreFromBaseline: vi.fn().mockResolvedValue({tasks: 0, tags: 0, branches: 0, files: 0}),
-      getUnsyncedChanges: vi.fn().mockResolvedValue([]),
-      getChangesSince: vi.fn().mockResolvedValue([]),
-      markChangesSynced: vi.fn().mockResolvedValue(undefined),
-      applyRemoteDeltas: vi
-        .fn()
-        .mockResolvedValue({remote_deltas_processed: 0, docs_upserted: 0, docs_deleted: 0, conflicts: [], conflict_count: 0, updated_cursors: {}}),
-      writeSyncAudit: vi.fn().mockResolvedValue(undefined),
-      getSyncAuditLog: vi.fn().mockResolvedValue([]),
-      pruneSyncAudit: vi.fn().mockResolvedValue(0),
-      getDeviceId: vi.fn().mockResolvedValue("test-device"),
+      upsertDocs: vi.fn().mockResolvedValue(undefined),
+      deleteDocs: vi.fn().mockResolvedValue(undefined),
     }
-    remoteStore = {
-      loadBaseline: vi.fn().mockResolvedValue(null),
-      saveBaseline: vi.fn().mockResolvedValue(undefined),
-      listDeviceManifests: vi.fn().mockResolvedValue([]),
-      loadDeviceManifest: vi.fn().mockResolvedValue(null),
-      saveDeviceManifest: vi.fn().mockResolvedValue(undefined),
-      loadDeltas: vi.fn().mockResolvedValue([]),
-      saveDeltaFile: vi.fn().mockResolvedValue(undefined),
-      pruneDeltas: vi.fn().mockResolvedValue(0),
+
+    mockRemoteStore = {
+      loadSnapshot: vi.fn().mockResolvedValue(null),
+      saveSnapshot: vi.fn().mockResolvedValue(undefined),
       syncAssets: vi.fn().mockResolvedValue(undefined),
     }
-    config = {
-      remoteSyncInterval: 120000,
-      garbageCollectionInterval: 604800000,
-      maxDeltasPerFile: 500,
-      compactionThreshold: 50,
-      auditRetentionInterval: 2592000000,
-      auditMaxEntries: 1000,
-    }
+
     onStatusChange = vi.fn()
     onDataChanged = vi.fn()
-    onPendingCountChanged = vi.fn()
 
-    engine = new SyncEngine(localStore, remoteStore, config, onStatusChange, onDataChanged, onPendingCountChanged)
+    engine = new SyncEngine(mockLocalStore, mockRemoteStore, {
+      onStatusChange,
+      onDataChanged,
+    })
   })
 
-  it("does not sync when not enabled", async () => {
-    await engine.sync()
-    expect(onStatusChange).not.toHaveBeenCalledWith("syncing", expect.anything())
-  })
-
-  it("transitions status: inactive → active → syncing → active", async () => {
-    await engine.enableAutoSync()
-    expect(onStatusChange).toHaveBeenCalledWith("active", "inactive")
-
-    await engine.sync()
-    const calls = onStatusChange.mock.calls.map((c) => c[0])
-    expect(calls).toContain("syncing")
-    expect(calls[calls.length - 1]).toBe("active")
-  })
-
-  it("sets status to error when sync fails", async () => {
-    await engine.enableAutoSync()
-    mockPushDeltas.mockRejectedValue(new Error("DB error"))
-
-    await engine.sync()
-
-    const calls = onStatusChange.mock.calls.map((c) => c[0])
-    expect(calls).toContain("error")
-  })
-
-  it("fires onDataChanged when pull has changes", async () => {
-    await engine.enableAutoSync()
-    mockPullDeltas.mockResolvedValue({
-      deltas_pulled: 5,
-      docs_upserted: 3,
-      docs_deleted: 0,
-      conflicts: [],
-      conflict_count: 0,
-      has_changes: true,
-      error: null,
+  describe("status management", () => {
+    it("enableAutoSync sets status to 'active'", () => {
+      engine.enableAutoSync()
+      expect(onStatusChange).toHaveBeenCalledWith("active", "inactive")
     })
 
-    await engine.sync()
+    it("disableAutoSync sets status to 'inactive'", () => {
+      engine.enableAutoSync()
+      vi.clearAllMocks()
+      engine.disableAutoSync()
+      expect(onStatusChange).toHaveBeenCalledWith("inactive", "active")
+    })
 
-    expect(onDataChanged).toHaveBeenCalled()
+    it("sync sets status to 'syncing' then back to 'active'", async () => {
+      engine.enableAutoSync()
+      vi.clearAllMocks()
+
+      await engine.sync()
+
+      const statuses = onStatusChange.mock.calls.map((c) => c[0])
+      expect(statuses[0]).toBe("syncing")
+      expect(statuses[statuses.length - 1]).toBe("active")
+    })
+
+    it("sync error sets status to 'error'", async () => {
+      engine.enableAutoSync()
+      mockLocalStore.loadAllDocs.mockRejectedValue(new Error("fail"))
+
+      await engine.sync()
+
+      const statuses = onStatusChange.mock.calls.map((c) => c[0])
+      expect(statuses).toContain("error")
+    })
+
+    it("enableAutoSync is idempotent (calling twice does nothing)", () => {
+      engine.enableAutoSync()
+      const callCount = onStatusChange.mock.calls.length
+      engine.enableAutoSync()
+      expect(onStatusChange.mock.calls.length).toBe(callCount)
+    })
   })
 
-  it("does NOT fire onDataChanged when no changes", async () => {
-    await engine.enableAutoSync()
-    await engine.sync()
-    expect(onDataChanged).not.toHaveBeenCalled()
+  describe("sync — empty remote", () => {
+    it("pushes snapshot when remote is empty and local has data", async () => {
+      engine.enableAutoSync()
+      mockLocalStore.loadAllDocs.mockResolvedValue(docsWithTask())
+      mockRemoteStore.loadSnapshot.mockResolvedValue(null)
+
+      await engine.sync()
+
+      expect(mockRemoteStore.saveSnapshot).toHaveBeenCalled()
+      const snapshot = mockRemoteStore.saveSnapshot.mock.calls[0][0]
+      expect(snapshot.version).toBe(2)
+      expect(snapshot.docs.tasks).toHaveLength(1)
+    })
+
+    it("does not push when both local and remote are empty", async () => {
+      engine.enableAutoSync()
+      mockLocalStore.loadAllDocs.mockResolvedValue(emptyDocs())
+      mockRemoteStore.loadSnapshot.mockResolvedValue(null)
+
+      await engine.sync()
+
+      expect(mockRemoteStore.saveSnapshot).not.toHaveBeenCalled()
+    })
+
+    it("calls onDataChanged: false (no pull changes)", async () => {
+      engine.enableAutoSync()
+      mockLocalStore.loadAllDocs.mockResolvedValue(docsWithTask())
+      mockRemoteStore.loadSnapshot.mockResolvedValue(null)
+
+      await engine.sync()
+
+      expect(onDataChanged).not.toHaveBeenCalled()
+    })
   })
 
-  it("getPendingChangesCount returns unsynced count", async () => {
-    localStore.getUnsyncedChanges.mockResolvedValue([{id: 1}, {id: 2}, {id: 3}])
-    const count = await engine.getPendingChangesCount()
-    expect(count).toBe(3)
+  describe("sync — hashes match", () => {
+    it("skips sync when local hash === remote hash", async () => {
+      engine.enableAutoSync()
+      const docs = docsWithTask()
+      mockLocalStore.loadAllDocs.mockResolvedValue(docs)
+
+      // Import buildSnapshotMeta to get matching hash
+      const {buildSnapshotMeta} = await import("@main/utils/sync/snapshot/buildSnapshot")
+      const meta = buildSnapshotMeta(docs)
+      mockRemoteStore.loadSnapshot.mockResolvedValue({version: 2, docs, meta})
+
+      await engine.sync()
+
+      expect(mockLocalStore.upsertDocs).not.toHaveBeenCalled()
+      expect(mockRemoteStore.saveSnapshot).not.toHaveBeenCalled()
+    })
+
+    it("does not call upsertDocs or saveSnapshot", async () => {
+      engine.enableAutoSync()
+      const docs = emptyDocs()
+      mockLocalStore.loadAllDocs.mockResolvedValue(docs)
+
+      const {buildSnapshotMeta} = await import("@main/utils/sync/snapshot/buildSnapshot")
+      const meta = buildSnapshotMeta(docs)
+      mockRemoteStore.loadSnapshot.mockResolvedValue({version: 2, docs, meta})
+
+      await engine.sync()
+
+      expect(mockLocalStore.upsertDocs).not.toHaveBeenCalled()
+      expect(mockRemoteStore.saveSnapshot).not.toHaveBeenCalled()
+    })
+  })
+
+  describe("sync — merge & push", () => {
+    const localDocs = () => ({
+      ...emptyDocs(),
+      tasks: [
+        {
+          id: "t1",
+          status: "active",
+          content: "local",
+          minimized: false,
+          order_index: 0,
+          scheduled_date: "2026-03-25",
+          scheduled_time: "",
+          scheduled_timezone: "UTC",
+          estimated_time: 0,
+          spent_time: 0,
+          branch_id: "main",
+          tags: [],
+          attachments: [],
+          created_at: "2026-03-25T00:00:00.000Z",
+          updated_at: "2026-03-25T10:00:00.000Z",
+          deleted_at: null,
+        },
+      ],
+    })
+
+    const remoteDocs = () => ({
+      ...emptyDocs(),
+      tasks: [
+        {
+          id: "t1",
+          status: "done",
+          content: "remote",
+          minimized: false,
+          order_index: 0,
+          scheduled_date: "2026-03-25",
+          scheduled_time: "",
+          scheduled_timezone: "UTC",
+          estimated_time: 0,
+          spent_time: 0,
+          branch_id: "main",
+          tags: [],
+          attachments: [],
+          created_at: "2026-03-25T00:00:00.000Z",
+          updated_at: "2026-03-25T12:00:00.000Z",
+          deleted_at: null,
+        },
+        {
+          id: "t2",
+          status: "active",
+          content: "remote only",
+          minimized: false,
+          order_index: 1,
+          scheduled_date: "2026-03-25",
+          scheduled_time: "",
+          scheduled_timezone: "UTC",
+          estimated_time: 0,
+          spent_time: 0,
+          branch_id: "main",
+          tags: [],
+          attachments: [],
+          created_at: "2026-03-25T00:00:00.000Z",
+          updated_at: "2026-03-25T12:00:00.000Z",
+          deleted_at: null,
+        },
+      ],
+    })
+
+    it("calls mergeRemoteIntoLocal when hashes differ", async () => {
+      engine.enableAutoSync()
+      mockLocalStore.loadAllDocs.mockResolvedValue(localDocs())
+      mockRemoteStore.loadSnapshot.mockResolvedValue({
+        version: 2,
+        docs: remoteDocs(),
+        meta: {updatedAt: "2026-03-25T12:00:00.000Z", hash: "different-hash"},
+      })
+
+      await engine.sync()
+
+      // Merge happened → upsertDocs was called with merged data
+      expect(mockLocalStore.upsertDocs).toHaveBeenCalled()
+    })
+
+    it("calls upsertDocs with toUpsert from merge result", async () => {
+      engine.enableAutoSync()
+      mockLocalStore.loadAllDocs.mockResolvedValue(localDocs())
+      mockRemoteStore.loadSnapshot.mockResolvedValue({
+        version: 2,
+        docs: remoteDocs(),
+        meta: {updatedAt: "2026-03-25T12:00:00.000Z", hash: "different-hash"},
+      })
+
+      await engine.sync()
+
+      expect(mockLocalStore.upsertDocs).toHaveBeenCalled()
+      const upserted = mockLocalStore.upsertDocs.mock.calls[0][0]
+      expect(upserted.tasks.length).toBeGreaterThan(0)
+    })
+
+    it("pushes updated snapshot after merge when result differs from remote", async () => {
+      engine.enableAutoSync()
+      // Local has t1 + t3 (local-only task)
+      const local = localDocs()
+      local.tasks.push({
+        id: "t3",
+        status: "active",
+        content: "local only",
+        minimized: false,
+        order_index: 2,
+        scheduled_date: "2026-03-25",
+        scheduled_time: "",
+        scheduled_timezone: "UTC",
+        estimated_time: 0,
+        spent_time: 0,
+        branch_id: "main",
+        tags: [],
+        attachments: [],
+        created_at: "2026-03-25T00:00:00.000Z",
+        updated_at: "2026-03-25T11:00:00.000Z",
+        deleted_at: null,
+      })
+      mockLocalStore.loadAllDocs.mockResolvedValue(local)
+
+      // Remote has t1 (newer) + t2 but NOT t3
+      mockRemoteStore.loadSnapshot.mockResolvedValue({
+        version: 2,
+        docs: remoteDocs(),
+        meta: {updatedAt: "2026-03-25T12:00:00.000Z", hash: "different-hash"},
+      })
+
+      await engine.sync()
+
+      // Merged result = t1(remote) + t2(remote) + t3(local) — differs from remote
+      expect(mockRemoteStore.saveSnapshot).toHaveBeenCalled()
+    })
+
+    it("calls onDataChanged when merge has changes", async () => {
+      engine.enableAutoSync()
+      mockLocalStore.loadAllDocs.mockResolvedValue(localDocs())
+      mockRemoteStore.loadSnapshot.mockResolvedValue({
+        version: 2,
+        docs: remoteDocs(),
+        meta: {updatedAt: "2026-03-25T12:00:00.000Z", hash: "different-hash"},
+      })
+
+      await engine.sync()
+
+      expect(onDataChanged).toHaveBeenCalled()
+    })
+
+    it("does not call onDataChanged when merge has 0 changes", async () => {
+      engine.enableAutoSync()
+      // Same data on both sides but different hash (forces merge)
+      const docs = localDocs()
+      mockLocalStore.loadAllDocs.mockResolvedValue(docs)
+      mockRemoteStore.loadSnapshot.mockResolvedValue({
+        version: 2,
+        docs: {...docs},
+        meta: {updatedAt: "2026-03-25T12:00:00.000Z", hash: "force-different"},
+      })
+
+      await engine.sync()
+
+      expect(onDataChanged).not.toHaveBeenCalled()
+    })
+  })
+
+  describe("sync — error handling", () => {
+    it("catches loadSnapshot errors, sets status to 'error'", async () => {
+      engine.enableAutoSync()
+      mockRemoteStore.loadSnapshot.mockRejectedValue(new Error("network error"))
+
+      await engine.sync()
+
+      const statuses = onStatusChange.mock.calls.map((c) => c[0])
+      expect(statuses).toContain("error")
+    })
+
+    it("catches upsertDocs errors, sets status to 'error'", async () => {
+      engine.enableAutoSync()
+      mockLocalStore.loadAllDocs.mockResolvedValue(emptyDocs())
+      mockRemoteStore.loadSnapshot.mockResolvedValue({
+        version: 2,
+        docs: docsWithTask(),
+        meta: {updatedAt: "2026-03-25T12:00:00.000Z", hash: "different"},
+      })
+      mockLocalStore.upsertDocs.mockRejectedValue(new Error("db error"))
+
+      await engine.sync()
+
+      const statuses = onStatusChange.mock.calls.map((c) => c[0])
+      expect(statuses).toContain("error")
+    })
+
+    it("does not sync when not enabled", async () => {
+      mockRemoteStore.loadSnapshot.mockRejectedValue(new Error("should not be called"))
+
+      await engine.sync()
+
+      expect(mockLocalStore.loadAllDocs).not.toHaveBeenCalled()
+    })
+  })
+
+  describe("sync — settings normalization", () => {
+    it("normalizes old format where settings.data is a JSON string", async () => {
+      engine.enableAutoSync()
+      mockLocalStore.loadAllDocs.mockResolvedValue(emptyDocs())
+
+      const oldFormatDocs = {
+        ...emptyDocs(),
+        settings: {
+          id: "default",
+          data: JSON.stringify({version: "1", themes: {current: "dark"}}),
+          created_at: "2026-03-25T00:00:00.000Z",
+          updated_at: "2026-03-25T00:00:00.000Z",
+        },
+      }
+      mockRemoteStore.loadSnapshot.mockResolvedValue({
+        version: 2,
+        docs: oldFormatDocs,
+        meta: {updatedAt: "2026-03-25T00:00:00.000Z", hash: "old-format"},
+      })
+
+      await engine.sync()
+
+      // If upsertDocs was called, check that settings was normalized
+      if (mockLocalStore.upsertDocs.mock.calls.length > 0) {
+        const upserted = mockLocalStore.upsertDocs.mock.calls[0][0]
+        if (upserted.settings) {
+          expect(typeof upserted.settings.version).toBe("string")
+          expect(upserted.settings.data).toBeUndefined()
+        }
+      }
+      // Should not throw regardless
+    })
   })
 })

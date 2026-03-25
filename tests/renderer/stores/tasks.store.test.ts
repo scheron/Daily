@@ -1,10 +1,13 @@
 // @ts-nocheck
+import {DateTime} from "luxon"
 import {createPinia, setActivePinia} from "pinia"
 import {beforeEach, describe, expect, it, vi} from "vitest"
 
 import {API} from "@renderer/api"
 import {useTasksStore} from "@renderer/stores/tasks.store"
 import {mockBridgeIPC} from "../../helpers/bridgeIPC"
+
+const TODAY = DateTime.now().toISODate()
 
 vi.mock("@renderer/utils/ui/vue", () => ({
   toRawDeep: (v) => v,
@@ -41,7 +44,7 @@ function makeTask(overrides = {}) {
     content: "Test",
     minimized: false,
     orderIndex: 1024,
-    scheduled: {date: "2026-03-24", time: "", timezone: "UTC"},
+    scheduled: {date: TODAY, time: "", timezone: "UTC"},
     estimatedTime: 0,
     spentTime: 0,
     branchId: "main",
@@ -70,7 +73,7 @@ describe("tasksStore", () => {
   }
 
   it("loads days and sets isDaysLoaded", async () => {
-    API.getDays.mockResolvedValueOnce([makeDay("2026-03-24")])
+    API.getDays.mockResolvedValueOnce([makeDay(TODAY)])
 
     const store = await getStore()
     await store.getTaskList()
@@ -86,7 +89,7 @@ describe("tasksStore", () => {
       makeTask({id: "3", status: "active", orderIndex: 3}),
       makeTask({id: "4", status: "discarded", orderIndex: 4}),
     ]
-    API.getDays.mockResolvedValueOnce([makeDay("2026-03-24", tasks)])
+    API.getDays.mockResolvedValueOnce([makeDay(TODAY, tasks)])
 
     const store = await getStore()
     await store.getTaskList()
@@ -98,7 +101,7 @@ describe("tasksStore", () => {
 
   it("deleteTask removes task from state and revalidates deletedTasks", async () => {
     const task = makeTask({id: "to-delete"})
-    API.getDays.mockResolvedValueOnce([makeDay("2026-03-24", [task])])
+    API.getDays.mockResolvedValueOnce([makeDay(TODAY, [task])])
 
     const store = await getStore()
     await store.getTaskList()

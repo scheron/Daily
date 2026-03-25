@@ -52,8 +52,4 @@ export function setupStorageIPC(getStorage: () => IStorageController | null): vo
   ipcMain.handle("storage-sync:deactivate", (_e) => getStorage()?.deactivateSync())
   ipcMain.handle("storage-sync:sync", (_e) => getStorage()?.forceSync())
   ipcMain.handle("storage-sync:get-status", (_e) => getStorage()?.getSyncStatus())
-  ipcMain.handle("storage-sync:get-audit-log", (_e, limit?: number) => getStorage()?.getAuditLog(limit))
-  ipcMain.handle("storage-sync:get-pending-count", () => getStorage()?.getPendingChangesCount())
-  ipcMain.handle("storage-sync:compact", () => getStorage()?.compactBaseline())
-  ipcMain.handle("storage-sync:get-device-id", () => getStorage()?.getDeviceId())
 }

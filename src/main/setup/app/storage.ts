@@ -27,8 +27,5 @@ export function setupStorageSync(getStorage: () => IStorageController | null, ge
     onDataChange: () => {
       broadcastToAll(getWindows, "storage-sync:data-changed")
     },
-    onPendingCountChange: (count) => {
-      broadcastToAll(getWindows, "storage-sync:pending-count-changed", count)
-    },
   })
 }

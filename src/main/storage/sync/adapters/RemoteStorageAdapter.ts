@@ -3,19 +3,80 @@ import fs from "fs-extra"
 
 import {coordinatedRead, coordinatedWrite, isICloudStub, requestDownload} from "@/utils/fileCoordinator"
 import {logger} from "@/utils/logger"
+import {isValidSnapshot} from "@/utils/sync/snapshot/isValidSnapshot"
 
-import type {DeltaFile, DeltaRecord, DeviceManifest, IRemoteStorage, Snapshot, SnapshotFile} from "@/types/sync"
+import type {IRemoteStorage, Snapshot, SnapshotFile} from "@/types/sync"
 
-const BASELINE_DIR = "baseline"
-const BASELINE_FILENAME = "snapshot.v3.json"
-const DELTAS_DIR = "deltas"
-const MANIFEST_FILENAME = "manifest.json"
+const SNAPSHOT_FILENAME = "snapshot.json"
+const MAX_RETRIES = 3
+const RETRY_DELAYS = [500, 1000, 2000]
 
 export class RemoteStorageAdapter implements IRemoteStorage {
   private readonly syncDir: string
+  private readonly snapshotPath: string
 
   constructor(syncDir: string) {
     this.syncDir = syncDir
+    this.snapshotPath = join(this.syncDir, SNAPSHOT_FILENAME)
+  }
+
+  private async ensureDir(): Promise<void> {
+    await fs.ensureDir(this.syncDir)
+  }
+
+  async loadSnapshot(): Promise<Snapshot | null> {
+    // Check for .icloud stub and request download
+    const stubPath = join(this.syncDir, `.${SNAPSHOT_FILENAME}.icloud`)
+    if (await fs.pathExists(stubPath)) {
+      logger.warn(logger.CONTEXT.SYNC_REMOTE, "Snapshot file is an iCloud stub, requesting download")
+      await requestDownload(stubPath)
+      return null
+    }
+
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      try {
+        const buffer = await coordinatedRead(this.snapshotPath)
+        if (!buffer) return null
+
+        const parsed = JSON.parse(buffer.toString("utf-8"))
+
+        if (!isValidSnapshot(parsed)) {
+          logger.warn(logger.CONTEXT.SYNC_REMOTE, "Invalid snapshot structure, treating as empty")
+          return null
+        }
+
+        // Ensure branches array exists (backward compat)
+        if (parsed.docs) {
+          parsed.docs.branches = parsed.docs.branches ?? []
+        }
+
+        return parsed as Snapshot
+      } catch (err: any) {
+        if (attempt < MAX_RETRIES - 1) {
+          // Check if file became an iCloud stub during retry
+          if (isICloudStub(this.snapshotPath) || (await fs.pathExists(stubPath))) {
+            await requestDownload(stubPath)
+          }
+          logger.warn(
+            logger.CONTEXT.SYNC_REMOTE,
+            `Failed to read snapshot (attempt ${attempt + 1}/${MAX_RETRIES}), retrying in ${RETRY_DELAYS[attempt]}ms`,
+          )
+          await sleep(RETRY_DELAYS[attempt])
+        } else {
+          logger.error(logger.CONTEXT.SYNC_REMOTE, `Failed to read snapshot after ${MAX_RETRIES} attempts`, err)
+          throw new Error(`Failed to load snapshot after ${MAX_RETRIES} attempts: ${err.message}`)
+        }
+      }
+    }
+
+    return null
+  }
+
+  async saveSnapshot(snapshot: Snapshot): Promise<void> {
+    await this.ensureDir()
+
+    const data = Buffer.from(JSON.stringify(snapshot, null, 2), "utf-8")
+    await coordinatedWrite(this.snapshotPath, data)
   }
 
   async syncAssets(localAssetsDir: string, fileManifest: SnapshotFile[]): Promise<void> {
@@ -64,232 +125,8 @@ export class RemoteStorageAdapter implements IRemoteStorage {
       }
     }
   }
+}
 
-  private async ensureDeviceDir(deviceId: string): Promise<string> {
-    const dir = join(this.syncDir, DELTAS_DIR, deviceId)
-    await fs.ensureDir(dir)
-    return dir
-  }
-
-  async loadBaseline(): Promise<Snapshot | null> {
-    const baselinePath = join(this.syncDir, BASELINE_DIR, BASELINE_FILENAME)
-
-    if (!(await fs.pathExists(baselinePath))) {
-      // Check for iCloud stub
-      const stubPath = join(this.syncDir, BASELINE_DIR, `.${BASELINE_FILENAME}.icloud`)
-      if (await fs.pathExists(stubPath)) {
-        logger.warn(logger.CONTEXT.SYNC_REMOTE, "Baseline is an iCloud stub, requesting download")
-        await requestDownload(stubPath)
-      }
-      return null
-    }
-
-    if (isICloudStub(baselinePath)) {
-      await requestDownload(baselinePath)
-      return null
-    }
-
-    try {
-      const buffer = await coordinatedRead(baselinePath)
-      if (!buffer) return null
-
-      const parsed = JSON.parse(buffer.toString("utf-8"))
-      if (parsed.version !== 3 || !parsed.docs || !parsed.meta) {
-        logger.warn(logger.CONTEXT.SYNC_REMOTE, "Invalid baseline structure")
-        return null
-      }
-
-      return parsed as Snapshot
-    } catch (err) {
-      logger.error(logger.CONTEXT.SYNC_REMOTE, "Failed to read baseline", err)
-      return null
-    }
-  }
-
-  async saveBaseline(snapshot: Snapshot): Promise<void> {
-    const baselineDir = join(this.syncDir, BASELINE_DIR)
-    await fs.ensureDir(baselineDir)
-
-    const data = Buffer.from(JSON.stringify(snapshot, null, 2), "utf-8")
-    await coordinatedWrite(join(baselineDir, BASELINE_FILENAME), data)
-  }
-
-  async listDeviceManifests(): Promise<DeviceManifest[]> {
-    const deltasDir = join(this.syncDir, DELTAS_DIR)
-
-    if (!(await fs.pathExists(deltasDir))) return []
-
-    const entries = await fs.readdir(deltasDir, {withFileTypes: true})
-    const manifests: DeviceManifest[] = []
-
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue
-
-      const manifestPath = join(deltasDir, entry.name, MANIFEST_FILENAME)
-
-      try {
-        if (!(await fs.pathExists(manifestPath))) {
-          // Check for iCloud stub
-          const stubPath = join(deltasDir, entry.name, `.${MANIFEST_FILENAME}.icloud`)
-          if (await fs.pathExists(stubPath)) {
-            await requestDownload(stubPath)
-          }
-          continue
-        }
-
-        if (isICloudStub(manifestPath)) {
-          await requestDownload(manifestPath)
-          continue
-        }
-
-        const buffer = await coordinatedRead(manifestPath)
-        if (!buffer) continue
-
-        const manifest = JSON.parse(buffer.toString("utf-8")) as DeviceManifest
-        if (manifest.version === 3) {
-          manifests.push(manifest)
-        }
-      } catch (err) {
-        logger.warn(logger.CONTEXT.SYNC_REMOTE, `Failed to read manifest for device ${entry.name}`, err)
-      }
-    }
-
-    return manifests
-  }
-
-  async loadDeviceManifest(deviceId: string): Promise<DeviceManifest | null> {
-    const manifestPath = join(this.syncDir, DELTAS_DIR, deviceId, MANIFEST_FILENAME)
-
-    if (!(await fs.pathExists(manifestPath))) {
-      const stubPath = join(this.syncDir, DELTAS_DIR, deviceId, `.${MANIFEST_FILENAME}.icloud`)
-      if (await fs.pathExists(stubPath)) {
-        await requestDownload(stubPath)
-      }
-      return null
-    }
-
-    if (isICloudStub(manifestPath)) {
-      await requestDownload(manifestPath)
-      return null
-    }
-
-    try {
-      const buffer = await coordinatedRead(manifestPath)
-      if (!buffer) return null
-
-      return JSON.parse(buffer.toString("utf-8")) as DeviceManifest
-    } catch (err) {
-      logger.warn(logger.CONTEXT.SYNC_REMOTE, `Failed to read manifest for device ${deviceId}`, err)
-      return null
-    }
-  }
-
-  async saveDeviceManifest(manifest: DeviceManifest): Promise<void> {
-    const dir = await this.ensureDeviceDir(manifest.device_id)
-    const data = Buffer.from(JSON.stringify(manifest, null, 2), "utf-8")
-    await coordinatedWrite(join(dir, MANIFEST_FILENAME), data)
-  }
-
-  async loadDeltas(deviceId: string, afterSequence: number): Promise<DeltaRecord[]> {
-    const deviceDir = join(this.syncDir, DELTAS_DIR, deviceId)
-
-    if (!(await fs.pathExists(deviceDir))) return []
-
-    const entries = await fs.readdir(deviceDir)
-    const deltaFiles: {from: number; to: number; filename: string}[] = []
-    const skippedFiles: string[] = []
-
-    for (const filename of entries) {
-      const match = filename.match(/^(\d+)-(\d+)\.json$/)
-      if (!match) continue
-
-      const from = parseInt(match[1], 10)
-      const to = parseInt(match[2], 10)
-
-      if (to > afterSequence) {
-        deltaFiles.push({from, to, filename})
-      } else {
-        skippedFiles.push(`${filename}(to=${to}<=cursor=${afterSequence})`)
-      }
-    }
-
-    // Sort by from ascending
-    deltaFiles.sort((a, b) => a.from - b.from)
-
-    logger.info(
-      logger.CONTEXT.SYNC_REMOTE,
-      `[LOAD_DELTAS] device=${deviceId} afterSeq=${afterSequence} files_on_disk=${entries.length} qualifying=${deltaFiles.length} skipped=${skippedFiles.length}`,
-      {
-        qualifying: deltaFiles.map((f) => f.filename),
-        skipped: skippedFiles,
-      },
-    )
-
-    const allDeltas: DeltaRecord[] = []
-
-    for (const df of deltaFiles) {
-      const filePath = join(deviceDir, df.filename)
-
-      if (isICloudStub(filePath)) {
-        logger.warn(logger.CONTEXT.SYNC_REMOTE, `[LOAD_DELTAS] STUB ${df.filename} — requesting download, deltas LOST for this cycle`)
-        await requestDownload(filePath)
-        continue
-      }
-
-      try {
-        const buffer = await coordinatedRead(filePath)
-        if (!buffer) {
-          logger.warn(logger.CONTEXT.SYNC_REMOTE, `[LOAD_DELTAS] NULL read for ${df.filename}`)
-          continue
-        }
-
-        const deltaFile = JSON.parse(buffer.toString("utf-8")) as DeltaFile
-        let added = 0
-        for (const delta of deltaFile.deltas) {
-          if (delta.sequence > afterSequence) {
-            allDeltas.push(delta)
-            added++
-          }
-        }
-        logger.info(logger.CONTEXT.SYNC_REMOTE, `[LOAD_DELTAS] read ${df.filename}: ${added} deltas added (total_in_file=${deltaFile.deltas.length})`)
-      } catch (err) {
-        logger.warn(logger.CONTEXT.SYNC_REMOTE, `[LOAD_DELTAS] FAILED to read ${df.filename}`, err)
-      }
-    }
-
-    logger.info(logger.CONTEXT.SYNC_REMOTE, `[LOAD_DELTAS] total deltas loaded: ${allDeltas.length}`)
-    return allDeltas
-  }
-
-  async saveDeltaFile(deltaFile: DeltaFile): Promise<void> {
-    const dir = await this.ensureDeviceDir(deltaFile.device_id)
-    const filename = `${deltaFile.sequence_from}-${deltaFile.sequence_to}.json`
-    const data = Buffer.from(JSON.stringify(deltaFile, null, 2), "utf-8")
-    await coordinatedWrite(join(dir, filename), data)
-  }
-
-  async pruneDeltas(watermarks: Record<string, number>): Promise<number> {
-    let totalDeleted = 0
-
-    for (const [deviceId, watermark] of Object.entries(watermarks)) {
-      const deviceDir = join(this.syncDir, DELTAS_DIR, deviceId)
-
-      if (!(await fs.pathExists(deviceDir))) continue
-
-      const entries = await fs.readdir(deviceDir)
-
-      for (const filename of entries) {
-        const match = filename.match(/^(\d+)-(\d+)\.json$/)
-        if (!match) continue
-
-        const to = parseInt(match[2], 10)
-        if (to <= watermark) {
-          await fs.remove(join(deviceDir, filename))
-          totalDeleted++
-        }
-      }
-    }
-
-    return totalDeleted
-  }
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }

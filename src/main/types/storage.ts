@@ -58,18 +58,10 @@ export interface IStorageController {
 
   cleanupOrphanFiles(): Promise<void>
 
-  setupStorageBroadcasts(callbacks: {
-    onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => void
-    onDataChange: () => void
-    onPendingCountChange: (count: number) => void
-  }): void
+  setupStorageBroadcasts(callbacks: {onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => void; onDataChange: () => void}): void
 
   activateSync(): Promise<void>
   deactivateSync(): Promise<void>
   forceSync(): Promise<void>
   getSyncStatus(): SyncStatus
-  getAuditLog(limit?: number): Promise<any[]>
-  getPendingChangesCount(): Promise<number>
-  compactBaseline(): Promise<void>
-  getDeviceId(): Promise<string>
 }

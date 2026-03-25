@@ -1,17 +1,33 @@
 import crypto from "node:crypto"
 
-import type {SnapshotDocs, SnapshotSettings} from "@/types/sync"
+import type {Snapshot, SnapshotDocs, SnapshotMeta, SnapshotSettings} from "@/types/sync"
+
+export function buildSnapshot(docs: SnapshotDocs): Snapshot {
+  return {
+    version: 2,
+    docs,
+    meta: buildSnapshotMeta(docs),
+  }
+}
 
 /**
- * Compute a deterministic hash of all document collections.
+ * Build SnapshotMeta from document collections.
  */
-export function computeDocsHash(docs: SnapshotDocs): string {
+export function buildSnapshotMeta(docs: SnapshotDocs): SnapshotMeta {
   const tasksHash = computeCollectionHash(docs.tasks)
   const tagsHash = computeCollectionHash(docs.tags)
   const branchesHash = computeCollectionHash(docs.branches)
   const filesHash = computeCollectionHash(docs.files)
   const settingsHash = computeSettingsHash(docs.settings)
+  const combinedHash = computeCombinedHash(tasksHash, tagsHash, branchesHash, filesHash, settingsHash)
 
+  return {
+    updatedAt: new Date().toISOString(),
+    hash: combinedHash,
+  }
+}
+
+function computeCombinedHash(tasksHash: string, tagsHash: string, branchesHash: string, filesHash: string, settingsHash: string): string {
   const combined = tasksHash + tagsHash + branchesHash + filesHash + settingsHash
   return crypto.createHash("sha256").update(combined).digest("hex")
 }

@@ -24,7 +24,6 @@ export const useStorageStore = defineStore("storage", () => {
 
   const status = ref<SyncStatus>("inactive")
   const lastSyncAt = ref<ISODateTime>(new Date().toISOString())
-  const pendingCount = ref(0)
 
   async function loadSyncStatus(): Promise<void> {
     status.value = await window.BridgeIPC["storage-sync:get-status"]()
@@ -75,10 +74,6 @@ export const useStorageStore = defineStore("storage", () => {
     onStorageDataChanged.trigger()
   })
 
-  window.BridgeIPC["storage-sync:on-pending-count-changed"]((count) => {
-    pendingCount.value = count
-  })
-
   onMounted(async () => {
     await loadSyncStatus()
     if (status.value === "active") forceSync()
@@ -87,7 +82,6 @@ export const useStorageStore = defineStore("storage", () => {
   return {
     status,
     lastSyncAt,
-    pendingCount,
 
     forceSync,
     activateSync,
