@@ -1,11 +1,12 @@
 // @ts-nocheck
 import {mkdtemp, rm} from "fs/promises"
 import {tmpdir} from "os"
-import {join} from "path"
+import {basename, dirname, join} from "path"
 import fs from "fs-extra"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
 import {RemoteStorageAdapter} from "@main/storage/sync/adapters/RemoteStorageAdapter"
+import {RemoteSnapshotPendingError} from "@main/storage/sync/errors"
 
 vi.mock("@/utils/logger", () => ({
   logger: {
@@ -19,14 +20,24 @@ vi.mock("@/utils/logger", () => ({
 
 const mockCoordinatedRead = vi.fn()
 const mockCoordinatedWrite = vi.fn()
+const mockGetICloudStubPath = vi.fn((path) => join(dirname(path), `.${basename(path)}.icloud`))
+const mockHasICloudStub = vi.fn(async (path) => fs.pathExists(join(dirname(path), `.${basename(path)}.icloud`)))
 const mockIsICloudStub = vi.fn(() => false)
 const mockRequestDownload = vi.fn()
+const mockRequestDownloadAndWait = vi.fn(async (path) => {
+  const stubPath = join(dirname(path), `.${basename(path)}.icloud`)
+  const [fileExists, stubExists] = await Promise.all([fs.pathExists(path), fs.pathExists(stubPath)])
+  return fileExists && !stubExists
+})
 
 vi.mock("@/utils/fileCoordinator", () => ({
   coordinatedRead: (...args) => mockCoordinatedRead(...args),
   coordinatedWrite: (...args) => mockCoordinatedWrite(...args),
+  getICloudStubPath: (...args) => mockGetICloudStubPath(...args),
+  hasICloudStub: (...args) => mockHasICloudStub(...args),
   isICloudStub: (...args) => mockIsICloudStub(...args),
   requestDownload: (...args) => mockRequestDownload(...args),
+  requestDownloadAndWait: (...args) => mockRequestDownloadAndWait(...args),
 }))
 
 function validSnapshot() {
@@ -57,6 +68,12 @@ describe("RemoteStorageAdapter", () => {
     mockCoordinatedWrite.mockImplementation(async (path, data) => {
       await fs.writeFile(path, data)
     })
+    mockHasICloudStub.mockImplementation(async (path) => fs.pathExists(join(dirname(path), `.${basename(path)}.icloud`)))
+    mockRequestDownloadAndWait.mockImplementation(async (path) => {
+      const stubPath = join(dirname(path), `.${basename(path)}.icloud`)
+      const [fileExists, stubExists] = await Promise.all([fs.pathExists(path), fs.pathExists(stubPath)])
+      return fileExists && !stubExists
+    })
   })
 
   afterEach(async () => {
@@ -86,12 +103,12 @@ describe("RemoteStorageAdapter", () => {
       expect(result).toBeNull()
     })
 
-    it("returns null and requests download for iCloud stub", async () => {
+    it("throws pending error and requests download for iCloud stub", async () => {
       await fs.writeFile(join(syncDir, ".snapshot.json.icloud"), "stub")
+      mockRequestDownloadAndWait.mockResolvedValue(false)
 
-      const result = await adapter.loadSnapshot()
-      expect(result).toBeNull()
-      expect(mockRequestDownload).toHaveBeenCalled()
+      await expect(adapter.loadSnapshot()).rejects.toBeInstanceOf(RemoteSnapshotPendingError)
+      expect(mockRequestDownloadAndWait).toHaveBeenCalledWith(join(syncDir, "snapshot.json"))
     })
 
     it("retries on read failure (up to MAX_RETRIES)", async () => {
@@ -221,12 +238,13 @@ describe("RemoteStorageAdapter", () => {
       const remoteAssetsDir = join(syncDir, "assets")
       await fs.ensureDir(remoteAssetsDir)
       await fs.writeFile(join(remoteAssetsDir, ".f1.txt.icloud"), "stub")
+      mockRequestDownloadAndWait.mockResolvedValue(false)
 
       const manifest = [{id: "f1", name: "file.txt", mime_type: "text/plain", size: 0, created_at: "", updated_at: "", deleted_at: null}]
 
       await adapter.syncAssets(localAssetsDir, manifest)
 
-      expect(mockRequestDownload).toHaveBeenCalled()
+      expect(mockRequestDownloadAndWait).toHaveBeenCalledWith(join(remoteAssetsDir, "f1.txt"), {timeoutMs: 10_000})
     })
 
     it("skips assets with path traversal attempts", async () => {

@@ -6,7 +6,7 @@
  */
 import {mkdtemp, rm} from "fs/promises"
 import {tmpdir} from "os"
-import {join} from "path"
+import {basename, dirname, join} from "path"
 import Database from "better-sqlite3"
 import fs from "fs-extra"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
@@ -37,8 +37,15 @@ vi.mock("@/utils/fileCoordinator", () => ({
   coordinatedWrite: vi.fn(async (path, data) => {
     await fs.writeFile(path, data)
   }),
+  getICloudStubPath: vi.fn((path) => join(dirname(path), `.${basename(path)}.icloud`)),
+  hasICloudStub: vi.fn(async (path) => fs.pathExists(join(dirname(path), `.${basename(path)}.icloud`))),
   isICloudStub: vi.fn(() => false),
   requestDownload: vi.fn(),
+  requestDownloadAndWait: vi.fn(async (path) => {
+    const stubPath = join(dirname(path), `.${basename(path)}.icloud`)
+    const [fileExists, stubExists] = await Promise.all([fs.pathExists(path), fs.pathExists(stubPath)])
+    return fileExists && !stubExists
+  }),
 }))
 
 vi.mock("@/config", () => ({
@@ -369,7 +376,7 @@ describe("Snapshot Sync Integration", () => {
 
   describe("soft-delete propagation", () => {
     it("device A deletes task → sync → device B: task has deleted_at", async () => {
-      insertTask(deviceA.db, "t1", "To delete")
+      insertTask(deviceA.db, "t1", "To delete", {updatedAt: "2026-03-25T08:00:00.000Z"})
       await syncDevice(deviceA)
       await syncDevice(deviceB)
 
@@ -383,7 +390,7 @@ describe("Snapshot Sync Integration", () => {
     })
 
     it("device B restores task (newer updated_at) → sync → device A: task restored", async () => {
-      insertTask(deviceA.db, "t1", "Deleted then restored")
+      insertTask(deviceA.db, "t1", "Deleted then restored", {updatedAt: "2026-03-25T08:00:00.000Z"})
       await syncDevice(deviceA)
       await syncDevice(deviceB)
 
@@ -433,7 +440,7 @@ describe("Snapshot Sync Integration", () => {
 
   describe("tags and junction tables", () => {
     it("device A adds tag to task → sync → device B sees tag on task", async () => {
-      insertTask(deviceA.db, "t1", "Task")
+      insertTask(deviceA.db, "t1", "Task", {updatedAt: "2026-03-25T08:00:00.000Z"})
       insertTag(deviceA.db, "tag1", "work")
       await syncDevice(deviceA)
       await syncDevice(deviceB)
@@ -448,7 +455,7 @@ describe("Snapshot Sync Integration", () => {
     })
 
     it("device A removes tag from task → sync → device B: tag removed", async () => {
-      insertTask(deviceA.db, "t1", "Task")
+      insertTask(deviceA.db, "t1", "Task", {updatedAt: "2026-03-25T08:00:00.000Z"})
       insertTag(deviceA.db, "tag1", "work")
       linkTaskTag(deviceA.db, "t1", "tag1")
       await syncDevice(deviceA)
