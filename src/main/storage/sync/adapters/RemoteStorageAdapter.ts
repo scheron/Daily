@@ -1,9 +1,12 @@
 import {extname, join, resolve} from "path"
 import fs from "fs-extra"
 
-import {coordinatedRead, coordinatedWrite, isICloudStub, requestDownload} from "@/utils/fileCoordinator"
+import {sleep} from "@shared/utils/common/sleep"
+import {coordinatedRead, coordinatedWrite, getICloudStubPath, hasICloudStub, requestDownloadAndWait} from "@/utils/fileCoordinator"
 import {logger} from "@/utils/logger"
 import {isValidSnapshot} from "@/utils/sync/snapshot/isValidSnapshot"
+
+import {RemoteSnapshotPendingError} from "@/storage/sync/errors"
 
 import type {IRemoteStorage, Snapshot, SnapshotFile} from "@/types/sync"
 
@@ -25,11 +28,12 @@ export class RemoteStorageAdapter implements IRemoteStorage {
   }
 
   async loadSnapshot(): Promise<Snapshot | null> {
-    const stubPath = join(this.syncDir, `.${SNAPSHOT_FILENAME}.icloud`)
-    if (await fs.pathExists(stubPath)) {
+    if (await hasICloudStub(this.snapshotPath)) {
       logger.warn(logger.CONTEXT.SYNC_REMOTE, "Snapshot file is an iCloud stub, requesting download")
-      await requestDownload(stubPath)
-      return null
+      const isReady = await requestDownloadAndWait(this.snapshotPath)
+      if (!isReady) {
+        throw new RemoteSnapshotPendingError()
+      }
     }
 
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
@@ -51,9 +55,16 @@ export class RemoteStorageAdapter implements IRemoteStorage {
 
         return parsed as Snapshot
       } catch (err: any) {
+        if (err instanceof RemoteSnapshotPendingError) {
+          throw err
+        }
+
         if (attempt < MAX_RETRIES - 1) {
-          if (isICloudStub(this.snapshotPath) || (await fs.pathExists(stubPath))) {
-            await requestDownload(stubPath)
+          if (await hasICloudStub(this.snapshotPath)) {
+            const isReady = await requestDownloadAndWait(this.snapshotPath)
+            if (!isReady) {
+              throw new RemoteSnapshotPendingError()
+            }
           }
           logger.warn(
             logger.CONTEXT.SYNC_REMOTE,
@@ -96,8 +107,8 @@ export class RemoteStorageAdapter implements IRemoteStorage {
         const localExists = await fs.pathExists(localPath)
         const remoteExists = await fs.pathExists(remotePath)
 
-        const remoteStubPath = join(remoteAssetsDir, `.${filename}.icloud`)
-        const remoteIsStub = await fs.pathExists(remoteStubPath)
+        const remoteStubPath = getICloudStubPath(remotePath)
+        const remoteIsStub = await hasICloudStub(remotePath)
 
         /* If both sides already have the file, skip (no binary comparison). */
         if (localExists && !remoteExists && !remoteIsStub) {
@@ -105,12 +116,16 @@ export class RemoteStorageAdapter implements IRemoteStorage {
           await coordinatedWrite(remotePath, buffer)
         } else if ((remoteExists || remoteIsStub) && !localExists) {
           if (remoteIsStub) {
-            await requestDownload(remoteStubPath)
-          } else {
-            const buffer = await coordinatedRead(remotePath)
-            if (buffer) {
-              await fs.writeFile(localPath, buffer)
+            const isReady = await requestDownloadAndWait(remotePath, {timeoutMs: 10_000})
+            if (!isReady) {
+              logger.info(logger.CONTEXT.SYNC_REMOTE, `Asset is still downloading from iCloud, skipping for now: ${remoteStubPath}`)
+              continue
             }
+          }
+
+          const buffer = await coordinatedRead(remotePath)
+          if (buffer) {
+            await fs.writeFile(localPath, buffer)
           }
         }
       } catch (err) {
@@ -118,8 +133,4 @@ export class RemoteStorageAdapter implements IRemoteStorage {
       }
     }
   }
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
 }

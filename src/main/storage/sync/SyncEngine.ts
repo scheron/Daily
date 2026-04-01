@@ -6,6 +6,7 @@ import {mergeRemoteIntoLocal} from "@/utils/sync/merge/mergeRemoteIntoLocal"
 import {buildSnapshot, buildSnapshotMeta} from "@/utils/sync/snapshot/buildSnapshot"
 
 import {APP_CONFIG, fsPaths} from "@/config"
+import {RemoteSnapshotPendingError} from "@/storage/sync/errors"
 
 import type {ILocalStorage, IRemoteStorage, MergeResult, SnapshotDocs, SyncStrategy} from "@/types/sync"
 import type {SyncStatus} from "@shared/types/storage"
@@ -100,7 +101,18 @@ export class SyncEngine {
       const localDocs = await this.localStore.loadAllDocs()
       const localMeta = buildSnapshotMeta(localDocs)
 
-      const remoteSnapshot = await this.remoteStore.loadSnapshot()
+      let remoteSnapshot: Awaited<ReturnType<IRemoteStorage["loadSnapshot"]>>
+      try {
+        remoteSnapshot = await this.remoteStore.loadSnapshot()
+      } catch (error) {
+        if (error instanceof RemoteSnapshotPendingError) {
+          logger.info(logger.CONTEXT.SYNC_REMOTE, "Remote snapshot is still downloading from iCloud, postponing sync")
+          return
+        }
+
+        throw error
+      }
+
       let remoteDocs: SnapshotDocs | null = null
       let remoteMeta: {updatedAt: string; hash: string} | null = null
 
@@ -111,6 +123,7 @@ export class SyncEngine {
 
       if (remoteDocs && remoteMeta && localMeta.hash === remoteMeta.hash) {
         logger.debug(logger.CONTEXT.SYNC_ENGINE, "Hashes match, no changes detected")
+        await this._syncAssets(localDocs.files)
         return
       }
 
@@ -122,6 +135,8 @@ export class SyncEngine {
 
       if (this._shouldPush(resultDocs, remoteDocs)) {
         await this._push(resultDocs)
+      } else {
+        await this._syncAssets(resultDocs.files)
       }
     } catch (error) {
       logger.error(logger.CONTEXT.SYNC_ENGINE, "Failed to sync", error)
@@ -192,12 +207,16 @@ export class SyncEngine {
 
     logger.info(logger.CONTEXT.SYNC_PUSH, `Pushed snapshot ${snapshot.meta.hash}`)
 
-    if (localDocs.files.length) {
-      try {
-        await this.remoteStore.syncAssets(fsPaths.assetsDir(), localDocs.files)
-      } catch (error) {
-        logger.warn(logger.CONTEXT.SYNC_PUSH, "Asset sync failed, will retry next cycle", error)
-      }
+    await this._syncAssets(localDocs.files)
+  }
+
+  private async _syncAssets(files: SnapshotDocs["files"]): Promise<void> {
+    if (!files.length) return
+
+    try {
+      await this.remoteStore.syncAssets(fsPaths.assetsDir(), files)
+    } catch (error) {
+      logger.warn(logger.CONTEXT.SYNC_PUSH, "Asset sync failed, will retry next cycle", error)
     }
   }
 

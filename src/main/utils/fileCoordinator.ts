@@ -4,9 +4,12 @@ import {promisify} from "util"
 import {app} from "electron"
 import fs from "fs-extra"
 
+import {sleep} from "@shared/utils/common/sleep"
 import {logger} from "@/utils/logger"
 
 const execFile = promisify(execFileCb)
+const DEFAULT_DOWNLOAD_TIMEOUT_MS = 15_000
+const DEFAULT_DOWNLOAD_POLL_INTERVAL_MS = 250
 
 let coordinatorPath: string | null = null
 let coordinatorAvailable: boolean | null = null
@@ -74,9 +77,14 @@ export async function coordinatedWrite(filePath: string, data: Buffer): Promise<
   await fs.rename(tmpPath, filePath)
 }
 
-export function isICloudStub(filePath: string): boolean {
+export function getICloudStubPath(filePath: string): string {
+  const dirname = path.dirname(filePath)
   const basename = path.basename(filePath)
-  return basename.startsWith(".") && basename.endsWith(".icloud")
+  return path.join(dirname, `.${basename}.icloud`)
+}
+
+export async function hasICloudStub(filePath: string): Promise<boolean> {
+  return fs.pathExists(getICloudStubPath(filePath))
 }
 
 export async function requestDownload(filePath: string): Promise<void> {
@@ -87,4 +95,31 @@ export async function requestDownload(filePath: string): Promise<void> {
       logger.warn(logger.CONTEXT.SYNC_REMOTE, "Download request failed", err)
     }
   }
+}
+
+export async function requestDownloadAndWait(
+  filePath: string,
+  options: {
+    timeoutMs?: number
+    pollIntervalMs?: number
+  } = {},
+): Promise<boolean> {
+  const timeoutMs = options.timeoutMs ?? DEFAULT_DOWNLOAD_TIMEOUT_MS
+  const pollIntervalMs = options.pollIntervalMs ?? DEFAULT_DOWNLOAD_POLL_INTERVAL_MS
+  const deadline = Date.now() + timeoutMs
+
+  await requestDownload(filePath)
+
+  while (Date.now() < deadline) {
+    const [fileExists, hasStub] = await Promise.all([fs.pathExists(filePath), hasICloudStub(filePath)])
+
+    if (fileExists && !hasStub) {
+      return true
+    }
+
+    await sleep(pollIntervalMs)
+  }
+
+  const [fileExists, hasStub] = await Promise.all([fs.pathExists(filePath), hasICloudStub(filePath)])
+  return fileExists && !hasStub
 }
