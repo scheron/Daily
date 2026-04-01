@@ -16,31 +16,83 @@ export class LocalStorageAdapter implements ILocalStorage {
 
   async upsertDocs(docs: SnapshotDocs): Promise<void> {
     const transaction = this.db.transaction(() => {
-      // Upsert branches
+      /* Branches: ON CONFLICT DO UPDATE keeps parent rows so tasks.branch_id FK is not violated (no ON DELETE CASCADE). */
       if (docs.branches.length) {
-        const stmt = this.db.prepare(`INSERT OR REPLACE INTO branches (id, name, created_at, updated_at, deleted_at) VALUES (?, ?, ?, ?, ?)`)
+        const stmt = this.db.prepare(`
+          INSERT INTO branches (id, name, created_at, updated_at, deleted_at)
+          VALUES (?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            name       = excluded.name,
+            created_at = excluded.created_at,
+            updated_at = excluded.updated_at,
+            deleted_at = excluded.deleted_at
+        `)
         for (const b of docs.branches) {
           stmt.run(b.id, b.name, b.created_at, b.updated_at, b.deleted_at)
         }
       }
 
-      // Upsert tags
       if (docs.tags.length) {
-        const stmt = this.db.prepare(`INSERT OR REPLACE INTO tags (id, name, color, created_at, updated_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?)`)
+        const stmt = this.db.prepare(`
+          INSERT INTO tags (id, name, color, created_at, updated_at, deleted_at)
+          VALUES (?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            name       = excluded.name,
+            color      = excluded.color,
+            created_at = excluded.created_at,
+            updated_at = excluded.updated_at,
+            deleted_at = excluded.deleted_at
+        `)
         for (const t of docs.tags) {
           stmt.run(t.id, t.name, t.color, t.created_at, t.updated_at, t.deleted_at)
         }
       }
 
-      // Upsert tasks
+      /* Files before tasks: satisfy task_attachments FK to files. */
+      if (docs.files.length) {
+        const stmt = this.db.prepare(`
+          INSERT INTO files (id, name, mime_type, size, created_at, updated_at, deleted_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            name       = excluded.name,
+            mime_type  = excluded.mime_type,
+            size       = excluded.size,
+            created_at = excluded.created_at,
+            updated_at = excluded.updated_at,
+            deleted_at = excluded.deleted_at
+        `)
+        for (const f of docs.files) {
+          stmt.run(f.id, f.name, f.mime_type, f.size, f.created_at, f.updated_at, f.deleted_at)
+        }
+      }
+
       if (docs.tasks.length) {
-        const taskStmt = this.db.prepare(
-          `INSERT OR REPLACE INTO tasks (id, status, content, minimized, order_index, scheduled_date, scheduled_time, scheduled_timezone, estimated_time, spent_time, branch_id, created_at, updated_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        )
+        const taskStmt = this.db.prepare(`
+          INSERT INTO tasks (id, status, content, minimized, order_index, scheduled_date, scheduled_time, scheduled_timezone, estimated_time, spent_time, branch_id, created_at, updated_at, deleted_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            status             = excluded.status,
+            content            = excluded.content,
+            minimized          = excluded.minimized,
+            order_index        = excluded.order_index,
+            scheduled_date     = excluded.scheduled_date,
+            scheduled_time     = excluded.scheduled_time,
+            scheduled_timezone = excluded.scheduled_timezone,
+            estimated_time     = excluded.estimated_time,
+            spent_time         = excluded.spent_time,
+            branch_id          = excluded.branch_id,
+            created_at         = excluded.created_at,
+            updated_at         = excluded.updated_at,
+            deleted_at         = excluded.deleted_at
+        `)
         const deleteTagsStmt = this.db.prepare(`DELETE FROM task_tags WHERE task_id = ?`)
-        const insertTagStmt = this.db.prepare(`INSERT OR IGNORE INTO task_tags (task_id, tag_id) VALUES (?, ?)`)
+        const insertTagStmt = this.db.prepare(
+          `INSERT OR IGNORE INTO task_tags (task_id, tag_id) SELECT ?, ? WHERE EXISTS (SELECT 1 FROM tags WHERE id = ?)`,
+        )
         const deleteAttachmentsStmt = this.db.prepare(`DELETE FROM task_attachments WHERE task_id = ?`)
-        const insertAttachmentStmt = this.db.prepare(`INSERT OR IGNORE INTO task_attachments (task_id, file_id) VALUES (?, ?)`)
+        const insertAttachmentStmt = this.db.prepare(
+          `INSERT OR IGNORE INTO task_attachments (task_id, file_id) SELECT ?, ? WHERE EXISTS (SELECT 1 FROM files WHERE id = ?)`,
+        )
 
         for (const t of docs.tasks) {
           taskStmt.run(
@@ -60,35 +112,32 @@ export class LocalStorageAdapter implements ILocalStorage {
             t.deleted_at,
           )
 
-          // Rebuild task_tags
           deleteTagsStmt.run(t.id)
           for (const tagId of t.tags) {
-            insertTagStmt.run(t.id, tagId)
+            insertTagStmt.run(t.id, tagId, tagId)
           }
 
-          // Rebuild task_attachments
           deleteAttachmentsStmt.run(t.id)
           for (const fileId of t.attachments) {
-            insertAttachmentStmt.run(t.id, fileId)
+            insertAttachmentStmt.run(t.id, fileId, fileId)
           }
         }
       }
 
-      // Upsert files
-      if (docs.files.length) {
-        const stmt = this.db.prepare(
-          `INSERT OR REPLACE INTO files (id, name, mime_type, size, created_at, updated_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        )
-        for (const f of docs.files) {
-          stmt.run(f.id, f.name, f.mime_type, f.size, f.created_at, f.updated_at, f.deleted_at)
-        }
-      }
-
-      // Upsert settings
       if (docs.settings) {
         const {id, created_at, updated_at, ...data} = docs.settings
         this.db
-          .prepare(`INSERT OR REPLACE INTO settings (id, version, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`)
+          .prepare(
+            `
+            INSERT INTO settings (id, version, data, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+              version    = excluded.version,
+              data       = excluded.data,
+              created_at = excluded.created_at,
+              updated_at = excluded.updated_at
+          `,
+          )
           .run(id, data.version, JSON.stringify(data), created_at, updated_at)
       }
     })

@@ -16,17 +16,14 @@ export type MigrationRecord = {
 }
 
 export function runMigrations(db: Database.Database): void {
-  // Create _migrations table if not exists
   db.exec(`CREATE TABLE IF NOT EXISTS _migrations (
     version INTEGER PRIMARY KEY,
     name TEXT NOT NULL,
     applied_at TEXT NOT NULL
   )`)
 
-  // Get applied versions
   const applied = new Set((db.prepare("SELECT version FROM _migrations").all() as {version: number}[]).map((r) => r.version))
 
-  // Apply pending migrations in order
   for (const migration of migrations) {
     if (applied.has(migration.version)) continue
 

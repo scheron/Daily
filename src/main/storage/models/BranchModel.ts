@@ -12,10 +12,6 @@ import type Database from "better-sqlite3"
 export class BranchModel {
   constructor(private db: Database.Database) {}
 
-  invalidateCache(): void {
-    // no-op for backward compatibility
-  }
-
   ensureMainBranch(): void {
     const now = new Date().toISOString()
 

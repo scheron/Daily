@@ -11,10 +11,6 @@ import type Database from "better-sqlite3"
 export class TagModel {
   constructor(private db: Database.Database) {}
 
-  invalidateCache(): void {
-    // no-op for backward compatibility
-  }
-
   getTagList(params?: {includeDeleted?: boolean}): Tag[] {
     let sql = `SELECT id, name, color, created_at, updated_at, deleted_at FROM tags`
 

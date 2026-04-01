@@ -73,16 +73,12 @@ export type SnapshotSettings = Settings & {
   updated_at: string
 }
 
-// --- Merge result ---
-
 export type MergeResult = {
   resultDocs: SnapshotDocs
   toUpsert: SnapshotDocs
   toRemove: {tasks?: string[]; tags?: string[]; branches?: string[]; files?: string[]}
   changes: number
 }
-
-// --- Adapter interfaces ---
 
 export interface ILocalStorage {
   loadAllDocs(): Promise<SnapshotDocs>

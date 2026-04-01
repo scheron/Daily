@@ -30,7 +30,6 @@ export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: Snapsh
     settings: mergedSettings,
   }
 
-  // Build toUpsert — only include collections that changed
   const toUpsert: SnapshotDocs = {
     tasks: [],
     tags: [],

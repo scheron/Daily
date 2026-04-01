@@ -79,9 +79,6 @@ export class StorageController implements IStorageController {
     this.syncEngine = new SyncEngine(localAdapter, remoteAdapter, {
       onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => this.notifyStorageStatusChange?.(status, prevStatus),
       onDataChanged: () => {
-        settingsModel.invalidateCache()
-        tagModel.invalidateCache()
-        branchModel.invalidateCache()
         this.notifyStorageDataChange?.()
       },
     })

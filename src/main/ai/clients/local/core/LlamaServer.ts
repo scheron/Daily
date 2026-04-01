@@ -69,7 +69,7 @@ export class LlamaServer {
     try {
       const {stdout, stderr} = await execFileAsync(this.getBinaryPath(), ["--version"])
       const output = stdout + stderr
-      // NOTE: llama-server outputs version to stderr; manifest uses "b5200", binary outputs "5200"
+      /* Version may appear on stderr; manifest is "b5200" while binary sometimes prints "5200". */
       const numericVersion = SERVER_BINARY.version.replace(/^b/, "")
       return output.includes(SERVER_BINARY.version) || output.includes(numericVersion)
     } catch {
@@ -85,7 +85,7 @@ export class LlamaServer {
       try {
         await fs.remove(fsPaths.binPath())
       } catch {
-        // ignore
+        void 0
       }
     }
 
@@ -135,12 +135,12 @@ export class LlamaServer {
       try {
         await fs.remove(extractDir)
       } catch {
-        // ignore
+        void 0
       }
       try {
         await unlink(zipPath)
       } catch {
-        // ignore
+        void 0
       }
     }
 
@@ -148,12 +148,12 @@ export class LlamaServer {
     try {
       await execFileAsync("xattr", ["-dr", "com.apple.quarantine", fsPaths.binPath()])
     } catch {
-      // ignore
+      void 0
     }
     try {
       await execFileAsync("xattr", ["-dr", "com.apple.provenance", fsPaths.binPath()])
     } catch {
-      // ignore
+      void 0
     }
 
     logger.info(logger.CONTEXT.AI, "llama-server binary installed")
@@ -251,7 +251,7 @@ export class LlamaServer {
         try {
           proc.kill("SIGKILL")
         } catch {
-          // ignore
+          void 0
         }
         resolve()
       }, 5000)
@@ -296,7 +296,7 @@ export class LlamaServer {
           }
         }
       } catch {
-        // ignore
+        void 0
       }
 
       if (!this.process) {

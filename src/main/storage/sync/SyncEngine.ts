@@ -192,7 +192,6 @@ export class SyncEngine {
 
     logger.info(logger.CONTEXT.SYNC_PUSH, `Pushed snapshot ${snapshot.meta.hash}`)
 
-    // Sync file assets after push
     if (localDocs.files.length) {
       try {
         await this.remoteStore.syncAssets(fsPaths.assetsDir(), localDocs.files)

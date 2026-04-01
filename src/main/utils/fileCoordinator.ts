@@ -43,7 +43,6 @@ export async function coordinatedRead(filePath: string): Promise<Buffer | null> 
     }
   }
 
-  // Fallback
   try {
     return await fs.readFile(filePath)
   } catch (err: any) {
@@ -70,7 +69,6 @@ export async function coordinatedWrite(filePath: string, data: Buffer): Promise<
     }
   }
 
-  // Fallback: atomic write via temp+rename
   const tmpPath = `${filePath}.tmp`
   await fs.writeFile(tmpPath, data)
   await fs.rename(tmpPath, filePath)

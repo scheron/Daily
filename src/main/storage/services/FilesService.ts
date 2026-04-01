@@ -88,10 +88,8 @@ export class FilesService {
 
   async cleanupOrphanFiles(): Promise<void> {
     try {
-      // Get file IDs referenced in task_attachments
       const referencedIds = this.fileModel.getReferencedFileIds()
 
-      // Also scan task content for inline image references
       const tasks = this.taskModel.getTaskList()
       for (const task of tasks) {
         const fileIds = extractFileIds(task.content)
@@ -99,7 +97,6 @@ export class FilesService {
         task.attachments.forEach((id) => referencedIds.add(id))
       }
 
-      // Find and soft-delete unreferenced file metadata
       const allFiles = this.fileModel.getFileList()
       const orphans = allFiles.filter((file) => file.deletedAt === null && !referencedIds.has(file.id))
 
@@ -109,7 +106,6 @@ export class FilesService {
         this.fileModel.deleteFile(orphan.id)
       }
 
-      // Clean up orphan asset files on disk
       await this.fileModel.cleanupOrphanAssets(referencedIds)
 
       logger.info(logger.CONTEXT.FILES, `Removed ${orphans.length} orphan files`)

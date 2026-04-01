@@ -11,10 +11,6 @@ import type Database from "better-sqlite3"
 export class SettingsModel {
   constructor(private db: Database.Database) {}
 
-  invalidateCache(): void {
-    // no-op for backward compatibility
-  }
-
   loadSettings(): Settings {
     const row = this.db
       .prepare(

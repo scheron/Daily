@@ -38,14 +38,11 @@ export class SearchService {
       return []
     }
 
-    // Perform the search
     const searchResults = this.searchIndex.search(query, options)
 
-    // Get all branches for enrichment
     const allBranches = this.branchModel.getBranchList({includeDeleted: true})
     const branchMap = new Map(allBranches.map((branch) => [branch.id, branch]))
 
-    // Get full task data for each result
     const results: TaskSearchResult[] = []
     for (const result of searchResults) {
       const task = this.taskModel.getTask(result.task.id)

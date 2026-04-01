@@ -11,10 +11,7 @@ export function mergeSettings(local: SnapshotSettings | null, remote: SnapshotSe
   if (!local) return remote
   if (!remote) return local
 
-  // LWW by updated_at, with strategy-based tie-break
   if (isNewerOrEqual(local.updated_at, remote.updated_at)) {
-    // Local is newer or equal
-    // On tie: push -> local wins, pull -> remote wins
     if (local.updated_at === remote.updated_at) {
       return strategy === "push" ? local : remote
     }

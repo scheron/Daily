@@ -61,7 +61,7 @@ export class SearchEngine {
 
     const rawLowerQuery = query.trim().toLowerCase()
     const matchedTasks: SearchResult[] = []
-    const maxDistance = Math.floor(normalizedQuery.length / 4) // Allow 1 error per 4 characters
+    const maxDistance = Math.floor(normalizedQuery.length / 4)
 
     for (const task of this.collection) {
       const lowerContent = task.content.toLowerCase()
@@ -69,7 +69,6 @@ export class SearchEngine {
       const rawIndices = this.findExactIndices(lowerContent, rawLowerQuery)
       const rawExactIndex = rawIndices[0]?.[0] ?? -1
 
-      // First try exact substring match in original content.
       if (rawExactIndex !== -1) {
         const positionScore = (rawExactIndex / Math.max(task.content.length, 1)) * 100
         const matchCountScore = 10 / rawIndices.length
@@ -85,8 +84,6 @@ export class SearchEngine {
 
       const exactIndex = normalizedContent.indexOf(normalizedQuery)
       if (exactIndex !== -1) {
-        // Scoring for exact matches (lower = better)
-        // Position: 0-100 (start of doc = 0, end = 100)
         const positionScore = (exactIndex / Math.max(normalizedContent.length, 1)) * 100
         const matchCountScore = 10
         const score = positionScore + matchCountScore
@@ -100,16 +97,14 @@ export class SearchEngine {
         const fuzzyMatch = this.findFuzzySubstring(normalizedContent, normalizedQuery, maxDistance)
 
         if (fuzzyMatch) {
-          // Scoring for fuzzy matches (always higher than exact matches)
           const positionScore = (fuzzyMatch.index / Math.max(normalizedContent.length, 1)) * 100
-          const errorPenalty = (fuzzyMatch.distance / normalizedQuery.length) * 50 // Each error adds penalty
-          const fuzzyPenalty = 200 // Base penalty to rank after all exact matches
+          const errorPenalty = (fuzzyMatch.distance / normalizedQuery.length) * 50
+          const fuzzyPenalty = 200
           const score = fuzzyPenalty + positionScore + errorPenalty
 
           matchedTasks.push({
             task,
             score,
-            // Fuzzy matching works on normalized text where positions may not map to original markdown.
             matches: undefined,
           })
         }
@@ -154,7 +149,6 @@ export class SearchEngine {
 
     let bestMatch: {index: number; length: number; distance: number} | null = null
 
-    // Slide a window of query.length (+/- maxDistance) across content
     for (let i = 0; i <= content.length - query.length + maxDistance; i++) {
       const minLen = Math.max(query.length - maxDistance, 1)
       const maxLen = query.length + maxDistance

@@ -22,7 +22,6 @@
  * ```
  */
 export async function forEachConcurrent<T>(arr: T[], cb: (item: T, index: number) => Promise<void>, limit: number = 10): Promise<void> {
-  // For avoid negative limit
   if (limit < 1) limit = 1
 
   if (arr.length === 0) {

@@ -25,7 +25,6 @@ export class RemoteStorageAdapter implements IRemoteStorage {
   }
 
   async loadSnapshot(): Promise<Snapshot | null> {
-    // Check for .icloud stub and request download
     const stubPath = join(this.syncDir, `.${SNAPSHOT_FILENAME}.icloud`)
     if (await fs.pathExists(stubPath)) {
       logger.warn(logger.CONTEXT.SYNC_REMOTE, "Snapshot file is an iCloud stub, requesting download")
@@ -45,7 +44,7 @@ export class RemoteStorageAdapter implements IRemoteStorage {
           return null
         }
 
-        // Ensure branches array exists (backward compat)
+        /* Old snapshots may omit docs.branches; normalize for downstream code. */
         if (parsed.docs) {
           parsed.docs.branches = parsed.docs.branches ?? []
         }
@@ -53,7 +52,6 @@ export class RemoteStorageAdapter implements IRemoteStorage {
         return parsed as Snapshot
       } catch (err: any) {
         if (attempt < MAX_RETRIES - 1) {
-          // Check if file became an iCloud stub during retry
           if (isICloudStub(this.snapshotPath) || (await fs.pathExists(stubPath))) {
             await requestDownload(stubPath)
           }
@@ -98,19 +96,16 @@ export class RemoteStorageAdapter implements IRemoteStorage {
         const localExists = await fs.pathExists(localPath)
         const remoteExists = await fs.pathExists(remotePath)
 
-        // Check for .icloud stub on remote
         const remoteStubPath = join(remoteAssetsDir, `.${filename}.icloud`)
         const remoteIsStub = await fs.pathExists(remoteStubPath)
 
+        /* If both sides already have the file, skip (no binary comparison). */
         if (localExists && !remoteExists && !remoteIsStub) {
-          // Push: local -> remote (coordinated write for iCloud path)
           const buffer = await fs.readFile(localPath)
           await coordinatedWrite(remotePath, buffer)
         } else if ((remoteExists || remoteIsStub) && !localExists) {
-          // Pull: remote -> local
           if (remoteIsStub) {
             await requestDownload(remoteStubPath)
-            // File not available yet, will sync on next cycle
           } else {
             const buffer = await coordinatedRead(remotePath)
             if (buffer) {
@@ -118,10 +113,8 @@ export class RemoteStorageAdapter implements IRemoteStorage {
             }
           }
         }
-        // Both exist: skip (presence check only, no content comparison)
       } catch (err) {
         logger.warn(logger.CONTEXT.SYNC_REMOTE, `Failed to sync asset ${filename}`, err)
-        // Don't abort - continue with next file
       }
     }
   }

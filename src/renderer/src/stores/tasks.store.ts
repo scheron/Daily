@@ -98,7 +98,7 @@ export const useTasksStore = defineStore("tasks", () => {
     }
   }
 
-  function ensureRangeForDate(date: ISODate) {
+  async function ensureRangeForDate(date: ISODate) {
     const range = loadedRange.value
     if (!range) return
 
@@ -106,8 +106,7 @@ export const useTasksStore = defineStore("tasks", () => {
     const daysBeforeEnd = diffDays(range.to, date)
 
     if (daysPastStart < -EDGE_BUFFER_DAYS || daysBeforeEnd < -EDGE_BUFFER_DAYS) {
-      // Far jump — re-center the window
-      void recenterRange(date)
+      await recenterRange(date)
       return
     }
 
@@ -166,7 +165,6 @@ export const useTasksStore = defineStore("tasks", () => {
     }
   }
 
-  // Watch branch changes — reset range and reload
   watch(
     () => activeBranchId.value,
     (newId, oldId) => {

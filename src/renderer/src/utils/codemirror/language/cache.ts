@@ -24,12 +24,10 @@ export function getCachedLanguage(languageName: string): LanguageSupport | null 
  * Returns null if language not found or load fails
  */
 export async function loadLanguage(languageName: string): Promise<LanguageSupport | null> {
-  // Check cache first
   if (languageCache.has(languageName)) {
     return languageCache.get(languageName) || null
   }
 
-  // Find language in CodeMirror's language data
   const langInfo = languages.find(
     (lang) =>
       lang.name.toLowerCase() === languageName.toLowerCase() || lang.alias?.some((alias) => alias.toLowerCase() === languageName.toLowerCase()),
@@ -41,7 +39,6 @@ export async function loadLanguage(languageName: string): Promise<LanguageSuppor
   }
 
   try {
-    // Load language support dynamically
     const language = await langInfo.load()
     languageCache.set(languageName, language)
     return language

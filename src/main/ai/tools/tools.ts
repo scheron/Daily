@@ -15,7 +15,6 @@ export const AI_TOOLS: Tool[] = parseToolsJsonl(toolsRaw)
 export const AI_TOOLS_COMPACT: Tool[] = parseToolsJsonl(toolsCompactRaw)
 
 export type ToolName =
-  // Tasks
   | "list_tasks"
   | "get_task"
   | "create_task"
@@ -32,20 +31,15 @@ export type ToolName =
   | "search_tasks"
   | "move_task"
   | "move_task_to_project"
-  // Time tracking
   | "log_time"
-  // Projects
   | "list_projects"
   | "create_project"
   | "rename_project"
   | "delete_project"
   | "switch_project"
-  // Day overview
   | "get_day_summary"
-  // Attachments
   | "get_task_attachments"
   | "remove_task_attachment"
-  // Tags
   | "list_tags"
   | "get_tag"
   | "create_tag"

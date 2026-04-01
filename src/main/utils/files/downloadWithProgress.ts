@@ -68,7 +68,7 @@ export async function downloadWithProgress(params: DownloadParams): Promise<void
     try {
       await unlink(tempPath)
     } catch {
-      // ignore
+      void 0
     }
     throw err
   }

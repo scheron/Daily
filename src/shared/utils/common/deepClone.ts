@@ -12,7 +12,6 @@ export function deepClone<T>(value: T, cache = new WeakMap<AnyRecord, any>()): T
 
     if (typeof value === "function") return value
 
-    // Circular refs
     const cached = cache.get(value as any)
     if (cached) return cached
 
@@ -49,12 +48,10 @@ export function deepClone<T>(value: T, cache = new WeakMap<AnyRecord, any>()): T
 
     if (value instanceof ArrayBuffer) {
       const buf = value.slice(0)
-      // no need to cache; ArrayBuffer can't self-reference meaningfully
       return buf as any
     }
 
     if (ArrayBuffer.isView(value)) {
-      // TypedArray / DataView
       if (value instanceof DataView) {
         const dv = new DataView(value.buffer.slice(0), value.byteOffset, value.byteLength)
         return dv as any
@@ -63,7 +60,6 @@ export function deepClone<T>(value: T, cache = new WeakMap<AnyRecord, any>()): T
       return new Ctor(value) as any
     }
 
-    // Only deep-clone plain objects. Class instances are returned as-is (safe default).
     if (isPlainObject(value)) {
       const out: AnyRecord = {}
       cache.set(value as any, out)

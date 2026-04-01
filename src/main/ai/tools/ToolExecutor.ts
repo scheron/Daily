@@ -19,7 +19,6 @@ export class ToolExecutor {
 
     try {
       switch (toolName) {
-        // Tasks
         case "list_tasks":
           return await this.listTasks(params)
         case "get_task":
@@ -52,10 +51,8 @@ export class ToolExecutor {
           return await this.moveTask(params)
         case "move_task_to_project":
           return await this.moveTaskToProject(params)
-        // Time tracking
         case "log_time":
           return await this.logTime(params)
-        // Projects
         case "list_projects":
           return await this.listProjects()
         case "create_project":
@@ -66,15 +63,12 @@ export class ToolExecutor {
           return await this.deleteProject(params)
         case "switch_project":
           return await this.switchProject(params)
-        // Day overview
         case "get_day_summary":
           return await this.getDaySummary(params)
-        // Attachments
         case "get_task_attachments":
           return await this.getTaskAttachments(params)
         case "remove_task_attachment":
           return await this.removeTaskAttachment(params)
-        // Tags
         case "list_tags":
           return await this.listTags()
         case "get_tag":
@@ -107,7 +101,6 @@ export class ToolExecutor {
     const statusEmoji = task.status === "done" ? "✅" : task.status === "discarded" ? "❌" : "⬜"
     const time = task.scheduled.time || "no time"
     const tags = task.tags.length > 0 ? ` [${task.tags.map((t) => t.name).join(", ")}]` : ""
-    // In compact mode, only show first line of content to reduce token count
     const content = compact ? task.content.split("\n")[0].slice(0, 100) : task.content
     const est = task.estimatedTime > 0 ? ` (est: ${toDurationLabel(task.estimatedTime)})` : ""
     const spent = task.spentTime > 0 ? ` (spent: ${toDurationLabel(task.spentTime)})` : ""
@@ -123,8 +116,6 @@ export class ToolExecutor {
     const activeLabel = options?.active ? " (active)" : ""
     return `📁 ${branch.name}${activeLabel} (ID: ${branch.id})`
   }
-
-  // ========== TASKS ==========
 
   private async listTasks(params: ToolParams): Promise<ToolResult> {
     const date = (params.date as string) || this.getTodayDate()
@@ -224,7 +215,6 @@ export class ToolExecutor {
 
     const dayTasks = await this.storage.getTaskList({from: date, to: date, branchId: targetBranchId})
 
-    // Get tags if specified
     let tags: Tag[] = []
     if (tagIds.length > 0) {
       const allTags = await this.storage.getTagList()
@@ -525,8 +515,6 @@ export class ToolExecutor {
     return {success: true, data: `Task moved to project "${branch.name}": ${this.formatTask(updated)}`}
   }
 
-  // ========== PROJECTS ==========
-
   private async listProjects(): Promise<ToolResult> {
     const [projects, settings] = await Promise.all([this.storage.getBranchList(), this.storage.loadSettings()])
     const activeId = settings.branch?.activeId ?? MAIN_BRANCH_ID
@@ -607,8 +595,6 @@ export class ToolExecutor {
     return {success: true, data: `Active project switched to: ${project.name} (${project.id})`}
   }
 
-  // ========== TIME TRACKING ==========
-
   private async logTime(params: ToolParams): Promise<ToolResult> {
     const taskId = params.task_id as string
     const minutes = params.minutes as number
@@ -654,8 +640,6 @@ export class ToolExecutor {
     const label = this.formatDuration(newSpentTime)
     return {success: true, data: `Time logged (${operation}): ${this.formatTask(updated)}\nTotal spent: ${label}`}
   }
-
-  // ========== DAY OVERVIEW ==========
 
   private async getDaySummary(params: ToolParams): Promise<ToolResult> {
     const date = (params.date as string) || this.getTodayDate()
@@ -710,8 +694,6 @@ export class ToolExecutor {
 
     return {success: true, data: lines.join("\n")}
   }
-
-  // ========== ATTACHMENTS ==========
 
   private async getTaskAttachments(params: ToolParams): Promise<ToolResult> {
     const taskId = params.task_id as string
@@ -769,8 +751,6 @@ export class ToolExecutor {
 
     return {success: true, data: `Attachment removed from task: ${fileId}`}
   }
-
-  // ========== TAGS ==========
 
   private async listTags(): Promise<ToolResult> {
     const tags = await this.storage.getTagList()

@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### 🐛 Bug Fixes
+
+- **Sync** — fixed crash during pull that caused every sync attempt to fail with a database constraint error
+
 ## v0.14.1 - 2026-03-25
 
 ### 🔄 Storage & Sync Improvements
