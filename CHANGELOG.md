@@ -2,10 +2,14 @@
 
 ## [Unreleased]
 
+## v0.14.2 - 2026-04-01
+
 ### 🐛 Bug Fixes
 
 - **Sync** — fixed crash during pull that caused every sync attempt to fail with a database constraint error
 - **iCloud Sync** — improved snapshot loading so iCloud placeholders no longer behave like missing remote data during sync
+
+---
 
 ## v0.14.1 - 2026-03-25
 
@@ -17,6 +21,8 @@
   - Snapshot integrity validation with SHA-256 hashing
   - Auto-sync scheduler with configurable intervals
   - Event broadcasting for real-time UI updates
+
+---
 
 ## v0.14.0 - 2026-03-24
 
