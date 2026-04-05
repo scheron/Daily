@@ -100,7 +100,7 @@ export const ENV = {
   logging: {
     enabled: process.env.NODE_ENV === "development",
     minLevel: "INFO" as const,
-    contexts: ["SYNC", "SYNC_PULL", "SYNC_PUSH", "SYNC_REMOTE"] as LogContext[],
+    contexts: [] as LogContext[],
   },
 } as const
 
