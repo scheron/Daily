@@ -28,7 +28,7 @@ const progressWidth = computed(() => {
 const buttonLabel = computed(() => {
   if (updateStore.isDownloading) return "Downloading"
   if (updateStore.isInstalling) return "Installing"
-  return "Download"
+  return "Download & Install"
 })
 
 function handlePrimaryAction() {
