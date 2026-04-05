@@ -74,7 +74,9 @@ vi.mock("@shared/utils/common/withElapsedDelay", () => ({
   withElapsedDelay: async (fn) => fn(),
 }))
 
-// --- Helpers ---
+function hoursAgo(h) {
+  return new Date(Date.now() - h * 60 * 60 * 1000).toISOString()
+}
 
 function createDevice(syncDir) {
   const db = new Database(":memory:")
@@ -316,14 +318,14 @@ describe("Snapshot Sync Integration", () => {
 
   describe("conflict resolution — LWW", () => {
     it("both devices edit same task, newer updated_at wins", async () => {
-      insertTask(deviceA.db, "t1", "Original", {updatedAt: "2026-03-25T08:00:00.000Z"})
+      insertTask(deviceA.db, "t1", "Original", {updatedAt: hoursAgo(12)})
       await syncDevice(deviceA)
       await syncDevice(deviceB)
 
       // A edits at older time
-      deviceA.db.prepare("UPDATE tasks SET content = 'A edit', updated_at = '2026-03-25T10:00:00.000Z' WHERE id = 't1'").run()
+      deviceA.db.prepare("UPDATE tasks SET content = 'A edit', updated_at = ? WHERE id = 't1'").run(hoursAgo(10))
       // B edits at newer time
-      deviceB.db.prepare("UPDATE tasks SET content = 'B edit', updated_at = '2026-03-25T12:00:00.000Z' WHERE id = 't1'").run()
+      deviceB.db.prepare("UPDATE tasks SET content = 'B edit', updated_at = ? WHERE id = 't1'").run(hoursAgo(8))
 
       await syncDevice(deviceA, "push")
       await syncDevice(deviceB, "push")
@@ -336,12 +338,12 @@ describe("Snapshot Sync Integration", () => {
     })
 
     it("both devices edit same tag, newer updated_at wins", async () => {
-      insertTag(deviceA.db, "tag1", "original", "#ff0000", "2026-03-25T08:00:00.000Z")
+      insertTag(deviceA.db, "tag1", "original", "#ff0000", hoursAgo(12))
       await syncDevice(deviceA)
       await syncDevice(deviceB)
 
-      deviceA.db.prepare("UPDATE tags SET name = 'A name', updated_at = '2026-03-25T10:00:00.000Z' WHERE id = 'tag1'").run()
-      deviceB.db.prepare("UPDATE tags SET name = 'B name', updated_at = '2026-03-25T12:00:00.000Z' WHERE id = 'tag1'").run()
+      deviceA.db.prepare("UPDATE tags SET name = 'A name', updated_at = ? WHERE id = 'tag1'").run(hoursAgo(10))
+      deviceB.db.prepare("UPDATE tags SET name = 'B name', updated_at = ? WHERE id = 'tag1'").run(hoursAgo(8))
 
       await syncDevice(deviceA, "push")
       await syncDevice(deviceB, "push")
@@ -355,9 +357,9 @@ describe("Snapshot Sync Integration", () => {
       // pull strategy determines which wins during mergeCollections.
       // This is verified at the unit level in mergeCollections.test.ts.
       // At integration level, we verify the simpler case: remote newer wins.
-      const olderTime = "2026-03-25T10:00:00.000Z"
-      const newerTime = "2026-03-25T14:00:00.000Z"
-      insertTask(deviceA.db, "t1", "Original", {updatedAt: "2026-03-25T08:00:00.000Z"})
+      const olderTime = hoursAgo(10)
+      const newerTime = hoursAgo(6)
+      insertTask(deviceA.db, "t1", "Original", {updatedAt: hoursAgo(12)})
       await syncDevice(deviceA)
       await syncDevice(deviceB)
 
@@ -376,11 +378,11 @@ describe("Snapshot Sync Integration", () => {
 
   describe("soft-delete propagation", () => {
     it("device A deletes task → sync → device B: task has deleted_at", async () => {
-      insertTask(deviceA.db, "t1", "To delete", {updatedAt: "2026-03-25T08:00:00.000Z"})
+      insertTask(deviceA.db, "t1", "To delete", {updatedAt: hoursAgo(12)})
       await syncDevice(deviceA)
       await syncDevice(deviceB)
 
-      const deleteTime = "2026-03-25T14:00:00.000Z"
+      const deleteTime = hoursAgo(6)
       deviceA.db.prepare("UPDATE tasks SET deleted_at = ?, updated_at = ? WHERE id = 't1'").run(deleteTime, deleteTime)
       await syncDevice(deviceA, "push")
       await syncDevice(deviceB)
@@ -390,17 +392,18 @@ describe("Snapshot Sync Integration", () => {
     })
 
     it("device B restores task (newer updated_at) → sync → device A: task restored", async () => {
-      insertTask(deviceA.db, "t1", "Deleted then restored", {updatedAt: "2026-03-25T08:00:00.000Z"})
+      insertTask(deviceA.db, "t1", "Deleted then restored", {updatedAt: hoursAgo(12)})
       await syncDevice(deviceA)
       await syncDevice(deviceB)
 
       // A deletes at T1
-      deviceA.db.prepare("UPDATE tasks SET deleted_at = '2026-03-25T14:00:00.000Z', updated_at = '2026-03-25T14:00:00.000Z' WHERE id = 't1'").run()
+      const t1 = hoursAgo(6)
+      deviceA.db.prepare("UPDATE tasks SET deleted_at = ?, updated_at = ? WHERE id = 't1'").run(t1, t1)
       await syncDevice(deviceA, "push")
       await syncDevice(deviceB)
 
       // B restores at T2 (newer)
-      deviceB.db.prepare("UPDATE tasks SET deleted_at = NULL, updated_at = '2026-03-25T16:00:00.000Z' WHERE id = 't1'").run()
+      deviceB.db.prepare("UPDATE tasks SET deleted_at = NULL, updated_at = ? WHERE id = 't1'").run(hoursAgo(4))
       await syncDevice(deviceB, "push")
       await syncDevice(deviceA)
 
@@ -440,14 +443,14 @@ describe("Snapshot Sync Integration", () => {
 
   describe("tags and junction tables", () => {
     it("device A adds tag to task → sync → device B sees tag on task", async () => {
-      insertTask(deviceA.db, "t1", "Task", {updatedAt: "2026-03-25T08:00:00.000Z"})
+      insertTask(deviceA.db, "t1", "Task", {updatedAt: hoursAgo(12)})
       insertTag(deviceA.db, "tag1", "work")
       await syncDevice(deviceA)
       await syncDevice(deviceB)
 
       // A adds tag
       linkTaskTag(deviceA.db, "t1", "tag1")
-      deviceA.db.prepare("UPDATE tasks SET updated_at = '2026-03-25T15:00:00.000Z' WHERE id = 't1'").run()
+      deviceA.db.prepare("UPDATE tasks SET updated_at = ? WHERE id = 't1'").run(hoursAgo(5))
       await syncDevice(deviceA, "push")
       await syncDevice(deviceB)
 
@@ -455,7 +458,7 @@ describe("Snapshot Sync Integration", () => {
     })
 
     it("device A removes tag from task → sync → device B: tag removed", async () => {
-      insertTask(deviceA.db, "t1", "Task", {updatedAt: "2026-03-25T08:00:00.000Z"})
+      insertTask(deviceA.db, "t1", "Task", {updatedAt: hoursAgo(12)})
       insertTag(deviceA.db, "tag1", "work")
       linkTaskTag(deviceA.db, "t1", "tag1")
       await syncDevice(deviceA)
@@ -463,7 +466,7 @@ describe("Snapshot Sync Integration", () => {
 
       // A removes tag
       deviceA.db.prepare("DELETE FROM task_tags WHERE task_id = 't1' AND tag_id = 'tag1'").run()
-      deviceA.db.prepare("UPDATE tasks SET updated_at = '2026-03-25T16:00:00.000Z' WHERE id = 't1'").run()
+      deviceA.db.prepare("UPDATE tasks SET updated_at = ? WHERE id = 't1'").run(hoursAgo(4))
       await syncDevice(deviceA, "push")
       await syncDevice(deviceB)
 
@@ -544,12 +547,12 @@ describe("Snapshot Sync Integration", () => {
     })
 
     it("settings updated on B (newer) → sync → A gets updated settings", async () => {
-      insertSettings(deviceA.db, {version: "1", themes: {current: "light"}}, "2026-03-25T10:00:00.000Z")
+      insertSettings(deviceA.db, {version: "1", themes: {current: "light"}}, hoursAgo(10))
       await syncDevice(deviceA)
       await syncDevice(deviceB)
 
       // B updates with newer timestamp
-      insertSettings(deviceB.db, {version: "1", themes: {current: "dark"}}, "2026-03-25T14:00:00.000Z")
+      insertSettings(deviceB.db, {version: "1", themes: {current: "dark"}}, hoursAgo(6))
       await syncDevice(deviceB, "push")
       await syncDevice(deviceA)
 
