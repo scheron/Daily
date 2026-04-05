@@ -14,6 +14,8 @@ export const widgetStyles: Record<string, StyleSpec> = {
     marginLeft: "0.5rem",
     verticalAlign: "middle",
     lineHeight: "1.8",
+    height: "1.8em",
+    flexShrink: "0",
   },
 
   // Checkbox base styles (matches markdown.css)
@@ -49,10 +51,10 @@ export const widgetStyles: Record<string, StyleSpec> = {
     borderWidth: "0 2px 2px 0",
   },
 
-  // Lines containing task markers should have consistent height
+  // Lines containing task markers should align checkbox to the top
   ".cm-line:has(.cm-task-marker)": {
     minHeight: "1.8em",
     display: "flex",
-    alignItems: "center",
+    alignItems: "flex-start",
   },
 }

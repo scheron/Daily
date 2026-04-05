@@ -6,6 +6,7 @@ import {createCodeSyntaxExtension} from "@/utils/codemirror/extensions/codeSynta
 import {createMarkdownLanguageExtension} from "@/utils/codemirror/extensions/markdownLanguage"
 import {createThemeExtension} from "@/utils/codemirror/extensions/theme"
 import {createWYSIWYGExtension} from "@/utils/codemirror/extensions/wysiwyg"
+import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseModal from "@/ui/base/BaseModal.vue"
 
 import {EditorState} from "@codemirror/state"
@@ -24,6 +25,7 @@ const canMinimize = ref(false)
 const shouldClamp = ref(false)
 const previewImageSrc = ref<string | null>(null)
 const previewImageAlt = ref("")
+const isCopied = ref(false)
 let view: EditorView | null = null
 const isImagePreviewOpen = computed(() => Boolean(previewImageSrc.value))
 
@@ -100,6 +102,35 @@ function onContentClick(event: MouseEvent) {
 function closeImagePreview() {
   previewImageSrc.value = null
   previewImageAlt.value = ""
+  isCopied.value = false
+}
+
+async function copyImageToClipboard(event: MouseEvent) {
+  const button = event.currentTarget as HTMLElement
+  const img = button.parentElement?.querySelector("img")
+  if (!img) return
+
+  try {
+    const canvas = document.createElement("canvas")
+    canvas.width = img.naturalWidth
+    canvas.height = img.naturalHeight
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return
+
+    ctx.drawImage(img, 0, 0)
+
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"))
+    if (!blob) return
+
+    await navigator.clipboard.write([new ClipboardItem({"image/png": blob})])
+
+    isCopied.value = true
+    setTimeout(() => {
+      isCopied.value = false
+    }, 2000)
+  } catch (error) {
+    console.error("Failed to copy image to clipboard:", error)
+  }
 }
 
 watch(
@@ -134,8 +165,19 @@ onMounted(() => {
     content-class="!p-0"
     @close="closeImagePreview"
   >
-    <div class="flex h-full w-full items-center justify-center p-3 md:p-4">
+    <div class="relative flex h-full w-full items-center justify-center p-3 md:p-4">
       <img v-if="previewImageSrc" :src="previewImageSrc" :alt="previewImageAlt" class="max-h-[80vh] max-w-full rounded-md object-contain" />
+
+      <BaseButton
+        variant="secondary"
+        size="sm"
+        :icon="isCopied ? 'check' : 'copy'"
+        icon-class="size-3.5"
+        class="absolute right-5 bottom-5"
+        @click="copyImageToClipboard"
+      >
+        {{ isCopied ? "Copied" : "Copy" }}
+      </BaseButton>
     </div>
   </BaseModal>
 </template>

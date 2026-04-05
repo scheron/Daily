@@ -29,7 +29,9 @@ export class CheckboxWidget extends WidgetType {
     wrapper.style.alignItems = "center"
     wrapper.style.marginRight = "0.5rem"
     wrapper.style.verticalAlign = "middle"
-    wrapper.style.lineHeight = "1.8" // Ensure consistent line height
+    wrapper.style.lineHeight = "1.8"
+    wrapper.style.height = "1.8em"
+    wrapper.style.flexShrink = "0"
 
     // Apply readonly styles to wrapper
     if (this.isReadonly) {

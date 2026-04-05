@@ -25,10 +25,7 @@ const taskCounts = computed(() => {
 })
 
 const filteredTags = computed(() => {
-  const filter = filterStore.activeFilter
-
-  const allTags = filterTasksByStatus(tasksStore.dailyTasks, filter).flatMap((task) => task.tags)
-
+  const allTags = filterTasksByStatus(tasksStore.dailyTasks, filterStore.activeFilter).flatMap((task) => task.tags)
   return sortTags(removeDuplicates(allTags, "name"))
 })
 
@@ -60,6 +57,16 @@ watch(
     filterStore.clearActiveTags()
   },
 )
+
+watch(filteredTags, (tags) => {
+  if (!filterStore.activeTagIds.size) return
+
+  const availableTagIds = new Set(tags.map((tag) => tag.id))
+
+  for (const id of filterStore.activeTagIds) {
+    if (!availableTagIds.has(id)) filterStore.removeActiveTag(id)
+  }
+})
 </script>
 
 <template>

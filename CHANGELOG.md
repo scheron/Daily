@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+- Fixed tag filter not resetting when all tasks with a filtered tag are moved, deleted, or change status.
+- Fixed images getting distorted instead of scaling proportionally in narrow task cards.
+- Added automatic retry for images that fail to load after sync, with a manual retry button as fallback.
+- Fixed markdown checkboxes being vertically centered instead of top-aligned on multi-line text.
+- Added a "Copy" button to the image preview modal for copying images to clipboard.
+
 ## v0.14.2 - 2026-04-01
 
 ### 🐛 Bug Fixes

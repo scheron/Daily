@@ -208,6 +208,18 @@ watch(
   },
 )
 
+watch(tagsByStatus, (newTagsByStatus) => {
+  const statuses: TaskStatus[] = ["active", "done", "discarded"]
+  statuses.forEach((status) => {
+    const selected = activeTagIdsByStatus[status]
+    if (!selected.length) return
+
+    const availableIds = new Set(newTagsByStatus[status].map((tag) => tag.id))
+    const pruned = selected.filter((id) => availableIds.has(id))
+    if (pruned.length !== selected.length) activeTagIdsByStatus[status] = pruned
+  })
+})
+
 watch(
   filteredTasksByStatus,
   () => {
