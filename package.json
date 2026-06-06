@@ -117,6 +117,7 @@
     "@floating-ui/vue": "^1.1.6",
     "@lezer/highlight": "^1.2.3",
     "@lezer/markdown": "^1.6.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@tailwindcss/vite": "^4.1.8",
     "@vueuse/core": "^13.1.0",
     "better-sqlite3": "^12.8.0",

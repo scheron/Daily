@@ -12,6 +12,44 @@ vi.mock("@main/config", () => ({
   ENV: {isDev: false},
 }))
 
+describe("SettingsModel — mcp defaults", () => {
+  let db, model
+
+  beforeEach(() => {
+    db = createTestDatabase()
+    model = new SettingsModel(db)
+  })
+
+  afterEach(() => {
+    db.close()
+  })
+
+  it("returns mcp defaults when no settings row exists", () => {
+    const s = model.loadSettings()
+    expect(s.mcp).toEqual({
+      enabled: false,
+      host: "127.0.0.1",
+      port: 7878,
+      token: "",
+    })
+  })
+
+  it("preserves user mcp values across save/load", () => {
+    model.saveSettings({mcp: {enabled: true, host: "0.0.0.0", port: 9090, token: "abc"}})
+    const s = model.loadSettings()
+    expect(s.mcp).toEqual({enabled: true, host: "0.0.0.0", port: 9090, token: "abc"})
+  })
+
+  it("partial mcp update merges with existing values", () => {
+    model.saveSettings({mcp: {enabled: true, host: "127.0.0.1", port: 7878, token: "first"}})
+    model.saveSettings({mcp: {token: "second"} as any})
+    const s = model.loadSettings()
+    expect(s.mcp.token).toBe("second")
+    expect(s.mcp.enabled).toBe(true)
+    expect(s.mcp.port).toBe(7878)
+  })
+})
+
 describe("SettingsModel", () => {
   let db
   let settingsModel

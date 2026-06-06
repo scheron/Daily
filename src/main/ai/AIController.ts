@@ -76,6 +76,10 @@ export class AIController {
     return this.localClient.modelService
   }
 
+  getToolExecutor(): ToolExecutor {
+    return this.executor
+  }
+
   async getLocalState(): Promise<LocalRuntimeState> {
     const serverState = this.localClient.getState()
 

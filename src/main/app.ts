@@ -5,6 +5,7 @@ import {logger} from "@/utils/logger"
 
 import {AIController} from "@/ai/AIController"
 import {APP_CONFIG} from "@/config"
+import {McpServer} from "@/mcp/McpServer"
 import {setupInstanceAndDeepLinks} from "@/setup/app/instance"
 import {setupActivateHandler, setupAppIdentity, setupDockIcon, setupWindowAllClosedHandler} from "@/setup/app/lifecycle"
 import {setupMenu} from "@/setup/app/menu"
@@ -14,6 +15,7 @@ import {loadSavedMainWindowState, setupMainWindowStatePersistence} from "@/setup
 import {setupAboutIPC} from "@/setup/ipc/about"
 import {setupAiIPC} from "@/setup/ipc/ai"
 import {setupAssistantIPC} from "@/setup/ipc/assistant"
+import {setupMcpIPC} from "@/setup/ipc/mcp"
 import {setupMenuIPC} from "@/setup/ipc/menu"
 import {setupSettingsIPC} from "@/setup/ipc/settings"
 import {setupShellIPC} from "@/setup/ipc/shell"
@@ -39,6 +41,7 @@ type AppWindows = {
 const windows: AppWindows = {main: null, splash: null, about: null, settings: null, assistant: null}
 let storage: StorageController | null = null
 let ai: AIController | null = null
+let mcp: McpServer | null = null
 let savedMainWindowState: MainWindowSettings | undefined
 
 setupPrivilegedSchemes()
@@ -78,6 +81,18 @@ app.whenReady().then(async () => {
     return
   }
 
+  const appVersion = app.getVersion()
+  mcp = new McpServer({
+    executor: ai!.getToolExecutor(),
+    appVersion,
+    onStatusChange: (status) => windows.main?.webContents.send("mcp:status-changed", status),
+  })
+
+  const settings = await storage.loadSettings()
+  if (settings.mcp.enabled) {
+    await mcp.start(settings.mcp)
+  }
+
   setupSafeFileProtocol(storage)
   setupCSP()
 
@@ -106,6 +121,11 @@ app.whenReady().then(async () => {
     () => ai,
     () => windows.main,
   )
+  setupMcpIPC(
+    () => mcp,
+    () => storage,
+    () => windows.main,
+  )
   setupStorageSync(
     () => storage,
     () => windows,
@@ -117,9 +137,8 @@ app.whenReady().then(async () => {
 })
 
 app.on("before-quit", async () => {
-  if (ai) {
-    await ai.dispose()
-  }
+  if (mcp) await mcp.stop()
+  if (ai) await ai.dispose()
 })
 
 function setupMainWindow(windows: AppWindows, options?: {showSplash?: boolean}) {

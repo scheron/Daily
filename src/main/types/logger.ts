@@ -17,6 +17,7 @@ export const LOG_CONTEXT = {
   SETTINGS: "SETTINGS",
   SHELL: "SHELL",
   AI: "AI",
+  MCP: "MCP",
 } as const
 
 export type LogContext = (typeof LOG_CONTEXT)[keyof typeof LOG_CONTEXT]

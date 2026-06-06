@@ -5,8 +5,9 @@ import {ShortcutsMap} from "@shared/constants/shortcuts"
 import type {AIConfig, AIResponse, LocalModelDownloadProgress, LocalModelId, LocalModelInfo, LocalRuntimeState} from "@shared/types/ai"
 import type {ISODate} from "@shared/types/common"
 import type {BridgeIPC} from "@shared/types/ipc"
+import type {McpStatus} from "@shared/types/mcp"
 import type {TaskSearchResult} from "@shared/types/search"
-import type {Branch, Day, Settings, SyncStatus, Tag, Task} from "@shared/types/storage"
+import type {Branch, Day, McpSettings, Settings, SyncStatus, Tag, Task} from "@shared/types/storage"
 import type {AppUpdateState} from "@shared/types/update"
 import type {PartialDeep} from "type-fest"
 
@@ -104,6 +105,17 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
 
   "ai:on-local-state-changed": (callback: (state: LocalRuntimeState) => void) => ipcRenderer.on("ai:local-state-changed", (_event, state: LocalRuntimeState) => callback(state)),
   "ai:on-local-download-progress": (callback: (progress: LocalModelDownloadProgress) => void) => ipcRenderer.on("ai:local-download-progress", (_event, progress: LocalModelDownloadProgress) => callback(progress)),
+
+  "mcp:get-status": () => ipcRenderer.invoke("mcp:get-status") as Promise<McpStatus>,
+  "mcp:get-config": () => ipcRenderer.invoke("mcp:get-config") as Promise<McpSettings>,
+  "mcp:set-config": (config: Partial<McpSettings>) =>
+    ipcRenderer.invoke("mcp:set-config", config) as Promise<McpStatus>,
+  "mcp:rotate-token": () => ipcRenderer.invoke("mcp:rotate-token") as Promise<{token: string}>,
+  "mcp:on-status-changed": (callback: (status: McpStatus) => void) => {
+    const subscription = (_event: unknown, status: McpStatus) => callback(status)
+    ipcRenderer.on("mcp:status-changed", subscription)
+    return () => ipcRenderer.removeListener("mcp:status-changed", subscription)
+  },
 
   "shortcut:tasks:create": (callback: () => void) => ipcRenderer.on(ShortcutsMap["tasks:create"].channel, () => callback()),
   "shortcut:ui:open-search-panel": (callback: () => void) => ipcRenderer.on(ShortcutsMap["ui:open-search-panel"].channel, () => callback()),
