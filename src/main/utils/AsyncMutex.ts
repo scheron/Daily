@@ -13,55 +13,6 @@ export class AsyncMutex {
   private _queue: Array<() => void> = []
 
   /**
-   * Acquires the mutex lock.
-   *
-   * If the mutex is already locked, the caller is added to a queue
-   * and will be resolved when the lock becomes available.
-   *
-   * @param timeoutMs - Optional timeout in milliseconds
-   * @returns Promise that resolves with a release function
-   * @throws Error if timeout is reached before acquiring lock
-   * @private
-   */
-  private async acquire(timeoutMs: number = 0): Promise<() => void> {
-    return new Promise((resolve, reject) => {
-      let timeoutId: ReturnType<typeof setTimeout> | null = null
-
-      const release = () => {
-        if (timeoutId) clearTimeout(timeoutId)
-
-        const next = this._queue.shift()
-        if (next) {
-          next()
-        } else {
-          this._locked = false
-        }
-      }
-
-      const acquireLock = () => {
-        this._locked = true
-        resolve(release)
-      }
-
-      if (!this._locked) {
-        acquireLock()
-      } else {
-        this._queue.push(acquireLock)
-
-        if (timeoutMs) {
-          timeoutId = setTimeout(() => {
-            const index = this._queue.indexOf(acquireLock)
-            if (index !== -1) {
-              this._queue.splice(index, 1)
-              reject(new Error(`Mutex acquire timeout after ${timeoutMs}ms`))
-            }
-          }, timeoutMs)
-        }
-      }
-    })
-  }
-
-  /**
    * Executes a function within a critical section.
    *
    * Acquires the mutex, executes the function, and releases the mutex.
@@ -139,5 +90,54 @@ export class AsyncMutex {
    */
   get queueLength(): number {
     return this._queue.length
+  }
+
+  /**
+   * Acquires the mutex lock.
+   *
+   * If the mutex is already locked, the caller is added to a queue
+   * and will be resolved when the lock becomes available.
+   *
+   * @param timeoutMs - Optional timeout in milliseconds
+   * @returns Promise that resolves with a release function
+   * @throws Error if timeout is reached before acquiring lock
+   * @private
+   */
+  private async acquire(timeoutMs: number = 0): Promise<() => void> {
+    return new Promise((resolve, reject) => {
+      let timeoutId: ReturnType<typeof setTimeout> | null = null
+
+      const release = () => {
+        if (timeoutId) clearTimeout(timeoutId)
+
+        const next = this._queue.shift()
+        if (next) {
+          next()
+        } else {
+          this._locked = false
+        }
+      }
+
+      const acquireLock = () => {
+        this._locked = true
+        resolve(release)
+      }
+
+      if (!this._locked) {
+        acquireLock()
+      } else {
+        this._queue.push(acquireLock)
+
+        if (timeoutMs) {
+          timeoutId = setTimeout(() => {
+            const index = this._queue.indexOf(acquireLock)
+            if (index !== -1) {
+              this._queue.splice(index, 1)
+              reject(new Error(`Mutex acquire timeout after ${timeoutMs}ms`))
+            }
+          }, timeoutMs)
+        }
+      }
+    })
   }
 }

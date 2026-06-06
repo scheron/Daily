@@ -4,7 +4,7 @@
  * @param cb - The callback function to execute for each item.
  * @throws AggregateError containing all errors if any callbacks fail
  */
-export async function forEachParallel<T>(arr: T[], cb: (item: T, index: number) => Promise<void>): Promise<void> {
+export async function forEachParallel<T>(arr: ReadonlyArray<T>, cb: (item: T, index: number) => Promise<void>): Promise<void> {
   if (!arr.length) return
 
   const results = await Promise.allSettled(arr.map((item, index) => cb(item, index)))

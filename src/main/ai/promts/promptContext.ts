@@ -7,6 +7,25 @@ export interface PromptDateContext {
   dayOfWeek: string
 }
 
+export function getPromptDateContext(): PromptDateContext {
+  const now = new Date()
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"
+
+  return {
+    timeZone,
+    today: formatDateYMD(now, timeZone),
+    tomorrow: formatDateYMD(addDays(now, 1), timeZone),
+    nextWeek: formatDateYMD(addDays(now, 7), timeZone),
+    currentTime: now.toLocaleTimeString("en-US", {
+      timeZone,
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }),
+    dayOfWeek: now.toLocaleDateString("en-US", {timeZone, weekday: "long"}),
+  }
+}
+
 function addDays(base: Date, days: number): Date {
   const result = new Date(base)
   result.setDate(result.getDate() + days)
@@ -26,23 +45,4 @@ function formatDateYMD(date: Date, timeZone: string): string {
   const day = parts.find((part) => part.type === "day")?.value ?? "01"
 
   return `${year}-${month}-${day}`
-}
-
-export function getPromptDateContext(): PromptDateContext {
-  const now = new Date()
-  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"
-
-  return {
-    timeZone,
-    today: formatDateYMD(now, timeZone),
-    tomorrow: formatDateYMD(addDays(now, 1), timeZone),
-    nextWeek: formatDateYMD(addDays(now, 7), timeZone),
-    currentTime: now.toLocaleTimeString("en-US", {
-      timeZone,
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    }),
-    dayOfWeek: now.toLocaleDateString("en-US", {timeZone, weekday: "long"}),
-  }
 }

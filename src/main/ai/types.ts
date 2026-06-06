@@ -1,7 +1,5 @@
 import type {AIConfig} from "@shared/types/ai"
 
-export type PromptTier = "tiny" | "medium" | "large"
-
 export type MessageLLM = {
   id?: string
   role: "system" | "user" | "assistant" | "tool"
@@ -37,10 +35,22 @@ export type Tool = {
 
 export type ToolChoice = "auto" | "required" | "none"
 
+export type ChatStreamDelta = {kind: "content"; text: string} | {kind: "reasoning"; text: string}
+
+export type ChatStreamCallbacks = {
+  onDelta?: (delta: ChatStreamDelta) => void
+}
+
 export interface IAiClient {
-  updateConfig(config: AIConfig | null): void
   checkConnection(): Promise<boolean>
   listModels(): Promise<string[]>
-  chat(messages: MessageLLM[], tools?: Tool[], signal?: AbortSignal, toolChoice?: ToolChoice): Promise<{message: MessageLLM; done: boolean}>
+  updateConfig(config: AIConfig | null): void
+  chat(
+    messages: MessageLLM[],
+    tools?: Tool[],
+    signal?: AbortSignal,
+    toolChoice?: ToolChoice,
+    callbacks?: ChatStreamCallbacks,
+  ): Promise<{message: MessageLLM; done: boolean}>
   dispose?(): Promise<void>
 }

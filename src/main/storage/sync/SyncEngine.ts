@@ -1,3 +1,4 @@
+import {RemoteSnapshotPendingError} from "@shared/errors/sync/RemoteSnapshotPendingError"
 import {withElapsedDelay} from "@shared/utils/common/withElapsedDelay"
 import {AsyncMutex} from "@/utils/AsyncMutex"
 import {createIntervalScheduler} from "@/utils/createIntervalScheduler"
@@ -6,7 +7,6 @@ import {mergeRemoteIntoLocal} from "@/utils/sync/merge/mergeRemoteIntoLocal"
 import {buildSnapshot, buildSnapshotMeta} from "@/utils/sync/snapshot/buildSnapshot"
 
 import {APP_CONFIG, fsPaths} from "@/config"
-import {RemoteSnapshotPendingError} from "@/storage/sync/errors"
 
 import type {ILocalStorage, IRemoteStorage, MergeResult, SnapshotDocs, SyncStrategy} from "@/types/sync"
 import type {SyncStatus} from "@shared/types/storage"

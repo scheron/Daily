@@ -1,3 +1,4 @@
+import {ServerStartCancelledError} from "@shared/errors/ai/ServerStartCancelledError"
 import {logger} from "@/utils/logger"
 
 import {OpenAiCompatibleClient} from "@/ai/clients/common/OpenAiCompatibleClient"
@@ -63,7 +64,7 @@ export class LocalAiClient extends OpenAiCompatibleClient implements IAiClient {
       top_p: params?.topP ?? sa.topP,
       top_k: params?.topK ?? sa.topK,
       min_p: params?.minP ?? sa.minP,
-      max_tokens: params?.maxTokens,
+      max_tokens: params?.maxTokens ?? sa.maxTokens,
       repeat_penalty: params?.repeatPenalty ?? sa.repeatPenalty,
       repeat_last_n: params?.repeatLastN ?? sa.repeatLastN,
       presence_penalty: params?.presencePenalty ?? sa.presencePenalty,
@@ -82,6 +83,17 @@ export class LocalAiClient extends OpenAiCompatibleClient implements IAiClient {
       this.ensurePromise = null
     })
     return this.ensurePromise
+  }
+
+  async listModels(): Promise<string[]> {
+    const models = await this.modelService.listModels()
+    return models.filter((m) => m.installed).map((m) => m.id)
+  }
+
+  async dispose(): Promise<void> {
+    await this.server.stop()
+    this.loadedModelId = null
+    this.runtimeConfig = null
   }
 
   private async runConnect(): Promise<boolean> {
@@ -115,19 +127,12 @@ export class LocalAiClient extends OpenAiCompatibleClient implements IAiClient {
       return super.checkConnection()
     } catch (err) {
       this.runtimeConfig = null
+      if (err instanceof ServerStartCancelledError) {
+        logger.info(logger.CONTEXT.AI, "Local LLM start cancelled (server stopped before ready)")
+        return false
+      }
       logger.error(logger.CONTEXT.AI, "Local LLM connection failed", err)
       return false
     }
-  }
-
-  async listModels(): Promise<string[]> {
-    const models = await this.modelService.listModels()
-    return models.filter((m) => m.installed).map((m) => m.id)
-  }
-
-  async dispose(): Promise<void> {
-    await this.server.stop()
-    this.loadedModelId = null
-    this.runtimeConfig = null
   }
 }

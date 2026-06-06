@@ -2,7 +2,7 @@ import {computed, ref, watch} from "vue"
 import {DateTime} from "luxon"
 import {defineStore} from "pinia"
 
-import {objectFilter} from "@shared/utils/objects/filter"
+import {objectFilter} from "@shared/utils/objects/objectFilter"
 import {getPreviousTaskOrderIndex, sortTasksByOrderIndex} from "@shared/utils/tasks/orderIndex"
 import {useDeletedTasksStore} from "@/stores/deletedTasks.store"
 import {useSettingsStore} from "@/stores/settings.store"

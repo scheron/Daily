@@ -1,10 +1,16 @@
+import {NonRetryableError} from "@shared/errors/ai/NonRetryableError"
+import {OpenAiClientErrorCode} from "@shared/errors/ai/OpenAiClientErrorCode"
 import {logger} from "@/utils/logger"
 
 import {APP_CONFIG} from "@/config"
+import {ChatStreamAccumulator} from "./streaming/chatStreamAccumulator"
+import {consumeSseEvents} from "./streaming/sseParser"
 
-import type {IAiClient, MessageLLM, Tool, ToolCallLLM, ToolChoice} from "@/ai/types"
+import type {ChatStreamCallbacks, IAiClient, MessageLLM, Tool, ToolCallLLM, ToolChoice} from "@/ai/types"
 import type {AIConfig} from "@shared/types/ai"
 import type {ChatRequest, OpenAiChatConfig, OpenAiChatResponse, OpenAiConnectionConfig} from "./types"
+
+const backoff = (n: number): number => Math.min(1000 * 2 ** n, 4000)
 
 /**
  * OpenAI-Compatible API Client
@@ -63,37 +69,36 @@ export abstract class OpenAiCompatibleClient implements IAiClient {
     }
   }
 
-  async chat(messages: MessageLLM[], tools?: Tool[], signal?: AbortSignal, toolChoice?: ToolChoice): Promise<{message: MessageLLM; done: boolean}> {
+  async chat(
+    messages: MessageLLM[],
+    tools?: Tool[],
+    signal?: AbortSignal,
+    toolChoice?: ToolChoice,
+    callbacks?: ChatStreamCallbacks,
+  ): Promise<{message: MessageLLM; done: boolean}> {
     const config = this.getChatConfig()
     if (!config) {
       logger.error(logger.CONTEXT.AI, `${this.getClientName()} config is not set`)
       return {message: {role: "assistant", content: `${this.getClientName()} config is not set`}, done: false}
     }
 
+    if (callbacks?.onDelta) {
+      return this.chatStreaming(messages, tools, signal, toolChoice, callbacks, config)
+    }
+    return this.chatSync(messages, tools, signal, toolChoice, config)
+  }
+
+  private async chatSync(
+    messages: MessageLLM[],
+    tools: Tool[] | undefined,
+    signal: AbortSignal | undefined,
+    toolChoice: ToolChoice | undefined,
+    config: OpenAiChatConfig,
+  ): Promise<{message: MessageLLM; done: boolean}> {
     logger.info(logger.CONTEXT.AI, `${this.getClientName()} chat request`, {model: config.model, messagesCount: messages.length, toolChoice})
 
     const openAiMessages = this.convertMessages(messages, config.model)
-    const requestBody: ChatRequest = {
-      model: config.model,
-      messages: openAiMessages,
-      tools,
-      tool_choice: toolChoice,
-      stream: false,
-      temperature: config.temperature,
-      top_p: config.top_p,
-      top_k: config.top_k,
-      min_p: config.min_p,
-      max_tokens: config.max_tokens,
-      repeat_penalty: config.repeat_penalty,
-      repeat_last_n: config.repeat_last_n,
-      presence_penalty: config.presence_penalty,
-      frequency_penalty: config.frequency_penalty,
-      dry_multiplier: config.dry_multiplier,
-      dry_base: config.dry_base,
-      dry_allowed_length: config.dry_allowed_length,
-      dry_penalty_last_n: config.dry_penalty_last_n,
-      seed: config.seed,
-    }
+    const requestBody = this.buildChatRequest(config, openAiMessages, tools, toolChoice, false)
 
     const startedAt = Date.now()
     const HEARTBEAT_MS = 15_000
@@ -129,7 +134,7 @@ export abstract class OpenAiCompatibleClient implements IAiClient {
     if (!response.ok) {
       clearInterval(heartbeat)
       const error = await response.text()
-      throw new Error(`${this.getClientName()} error: ${error}`)
+      throw new Error(`${OpenAiClientErrorCode.ApiError}: ${this.getClientName()}: ${error}`)
     }
 
     let result: OpenAiChatResponse
@@ -147,7 +152,7 @@ export abstract class OpenAiCompatibleClient implements IAiClient {
     const choice = result.choices[0]
 
     if (!choice) {
-      throw new Error(`No response from ${this.getClientName()}`)
+      throw new Error(`${OpenAiClientErrorCode.NoResponse}: ${this.getClientName()}`)
     }
 
     const message = this.convertResponseMessage(choice.message)
@@ -163,6 +168,143 @@ export abstract class OpenAiCompatibleClient implements IAiClient {
     })
 
     return {message, done: true}
+  }
+
+  private async chatStreaming(
+    messages: MessageLLM[],
+    tools: Tool[] | undefined,
+    signal: AbortSignal | undefined,
+    toolChoice: ToolChoice | undefined,
+    callbacks: ChatStreamCallbacks,
+    config: OpenAiChatConfig,
+  ): Promise<{message: MessageLLM; done: boolean}> {
+    const MAX_RETRIES = 2
+
+    const openAiMessages = this.convertMessages(messages, config.model)
+    const requestBody = this.buildChatRequest(config, openAiMessages, tools, toolChoice, true)
+
+    logger.info(logger.CONTEXT.AI, `${this.getClientName()} chat request (stream)`, {
+      model: config.model,
+      messagesCount: messages.length,
+      toolChoice,
+    })
+
+    const startedAt = Date.now()
+    let lastErr: unknown = null
+
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      const accumulator = new ChatStreamAccumulator()
+      try {
+        const response = await fetch(`${config.baseUrl}/chat/completions`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${config.apiKey}`,
+            Accept: "text/event-stream",
+          },
+          body: JSON.stringify(requestBody),
+          signal,
+        })
+
+        if (response.status >= 500) {
+          lastErr = new Error(`${OpenAiClientErrorCode.HttpError}: ${response.status} ${response.statusText}`)
+          await new Promise((r) => setTimeout(r, backoff(attempt)))
+          continue
+        }
+        if (!response.ok) {
+          const errBody = await response.text().catch(() => "")
+          throw new NonRetryableError(
+            `${OpenAiClientErrorCode.HttpError}: ${this.getClientName()} HTTP ${response.status} ${response.statusText} ${errBody}`,
+          )
+        }
+        if (!response.body) throw new Error(OpenAiClientErrorCode.NoResponseBody)
+
+        const reader = response.body.getReader()
+        const decoder = new TextDecoder()
+        let sseBuffer = ""
+
+        try {
+          while (true) {
+            const {done, value} = await reader.read()
+            if (done) break
+            sseBuffer += decoder.decode(value, {stream: true})
+
+            const {events, remainder} = consumeSseEvents(sseBuffer)
+            sseBuffer = remainder
+
+            let shouldBreak = false
+            for (const ev of events) {
+              if (ev === "[DONE]") {
+                shouldBreak = true
+                break
+              }
+              let parsed: any
+              try {
+                parsed = JSON.parse(ev)
+              } catch {
+                logger.warn(logger.CONTEXT.AI, "Skipping malformed SSE event", {ev})
+                continue
+              }
+              const choice = parsed.choices?.[0]
+              if (!choice) continue
+              if (choice.delta) accumulator.feed(choice.delta, callbacks.onDelta!)
+              if (choice.finish_reason) accumulator.setFinishReason(choice.finish_reason)
+            }
+            if (shouldBreak) break
+          }
+          accumulator.flush(callbacks.onDelta!)
+        } finally {
+          reader.releaseLock?.()
+        }
+
+        const message = accumulator.toMessage()
+        logger.info(logger.CONTEXT.AI, `${this.getClientName()} chat response (stream)`, {
+          elapsedSec: Math.round((Date.now() - startedAt) / 1000),
+          hasToolCalls: !!message.tool_calls?.length,
+          toolCallNames: message.tool_calls?.map((tc) => tc.function.name) ?? [],
+          contentLength: message.content?.length ?? 0,
+        })
+        return {message, done: true}
+      } catch (err) {
+        if (signal?.aborted) throw err
+        if (err instanceof NonRetryableError) throw err
+        if (accumulator.hasEmittedAny()) throw err
+        if (attempt >= MAX_RETRIES) throw err
+        lastErr = err
+        await new Promise((r) => setTimeout(r, backoff(attempt)))
+      }
+    }
+    throw lastErr ?? new Error("chatStreaming failed without specific error")
+  }
+
+  private buildChatRequest(
+    config: OpenAiChatConfig,
+    openAiMessages: MessageLLM[],
+    tools: Tool[] | undefined,
+    toolChoice: ToolChoice | undefined,
+    stream: boolean,
+  ): ChatRequest {
+    return {
+      model: config.model,
+      messages: openAiMessages,
+      tools,
+      tool_choice: toolChoice,
+      stream,
+      temperature: config.temperature,
+      top_p: config.top_p,
+      top_k: config.top_k,
+      min_p: config.min_p,
+      max_tokens: config.max_tokens,
+      repeat_penalty: config.repeat_penalty,
+      repeat_last_n: config.repeat_last_n,
+      presence_penalty: config.presence_penalty,
+      frequency_penalty: config.frequency_penalty,
+      dry_multiplier: config.dry_multiplier,
+      dry_base: config.dry_base,
+      dry_allowed_length: config.dry_allowed_length,
+      dry_penalty_last_n: config.dry_penalty_last_n,
+      seed: config.seed,
+    }
   }
 
   private convertMessages(messages: MessageLLM[], model: string): MessageLLM[] {

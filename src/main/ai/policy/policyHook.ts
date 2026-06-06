@@ -3,17 +3,6 @@ import {getRegisteredTool} from "@/ai/tools/registry"
 import type {BeforeToolCallHook} from "@/ai/hooks/types"
 import type {PolicyHookHost} from "./types"
 
-function parseArgs(raw: unknown): Record<string, unknown> {
-  if (raw && typeof raw === "object" && !Array.isArray(raw)) return raw as Record<string, unknown>
-  if (typeof raw !== "string") return {}
-  try {
-    const parsed = JSON.parse(raw)
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {}
-  } catch {
-    return {}
-  }
-}
-
 /**
  * Creates the policy hook that gates destructive tools behind explicit user
  * confirmation. Read-only and non-destructive write tools (create/update/
@@ -39,5 +28,16 @@ export function createPolicyHook(host: PolicyHookHost): BeforeToolCallHook {
     const confirmed = await host.awaitConfirmation(name, params)
     if (confirmed) return {action: "pass"}
     return {action: "skip", reason: "User declined the action"}
+  }
+}
+
+function parseArgs(raw: unknown): Record<string, unknown> {
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) return raw as Record<string, unknown>
+  if (typeof raw !== "string") return {}
+  try {
+    const parsed = JSON.parse(raw)
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {}
+  } catch {
+    return {}
   }
 }

@@ -14,24 +14,6 @@ const DEFAULT_DOWNLOAD_POLL_INTERVAL_MS = 250
 let coordinatorPath: string | null = null
 let coordinatorAvailable: boolean | null = null
 
-function getCoordinatorPath(): string {
-  if (coordinatorPath) return coordinatorPath
-  coordinatorPath = app.isPackaged ? path.join(process.resourcesPath, "file-coordinator") : path.join(process.cwd(), "resources", "file-coordinator")
-  return coordinatorPath
-}
-
-async function checkAvailability(): Promise<boolean> {
-  if (coordinatorAvailable !== null) return coordinatorAvailable
-  try {
-    await fs.access(getCoordinatorPath(), fs.constants.X_OK)
-    coordinatorAvailable = true
-  } catch {
-    logger.warn(logger.CONTEXT.SYNC_REMOTE, "File coordinator binary not found, using uncoordinated I/O")
-    coordinatorAvailable = false
-  }
-  return coordinatorAvailable
-}
-
 export async function coordinatedRead(filePath: string): Promise<Buffer | null> {
   if (await checkAvailability()) {
     try {
@@ -122,4 +104,22 @@ export async function requestDownloadAndWait(
 
   const [fileExists, hasStub] = await Promise.all([fs.pathExists(filePath), hasICloudStub(filePath)])
   return fileExists && !hasStub
+}
+
+function getCoordinatorPath(): string {
+  if (coordinatorPath) return coordinatorPath
+  coordinatorPath = app.isPackaged ? path.join(process.resourcesPath, "file-coordinator") : path.join(process.cwd(), "resources", "file-coordinator")
+  return coordinatorPath
+}
+
+async function checkAvailability(): Promise<boolean> {
+  if (coordinatorAvailable !== null) return coordinatorAvailable
+  try {
+    await fs.access(getCoordinatorPath(), fs.constants.X_OK)
+    coordinatorAvailable = true
+  } catch {
+    logger.warn(logger.CONTEXT.SYNC_REMOTE, "File coordinator binary not found, using uncoordinated I/O")
+    coordinatorAvailable = false
+  }
+  return coordinatorAvailable
 }

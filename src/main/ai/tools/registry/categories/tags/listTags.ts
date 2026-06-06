@@ -1,4 +1,4 @@
-import {formatTag} from "../../helpers"
+import {formatTag} from "@/ai/utils/formatTag"
 
 import type {RegisteredTool} from "../../types"
 

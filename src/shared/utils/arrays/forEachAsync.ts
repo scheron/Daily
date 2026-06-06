@@ -9,7 +9,7 @@
  * // Emails sent one after another
  * ```
  */
-export async function forEachAsync<T>(arr: T[], cb: (item: T, index: number) => Promise<void>): Promise<void> {
+export async function forEachAsync<T>(arr: ReadonlyArray<T>, cb: (item: T, index: number) => Promise<void>): Promise<void> {
   for (let i = 0; i < arr.length; i++) {
     await cb(arr[i], i)
   }

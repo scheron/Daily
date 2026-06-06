@@ -1,4 +1,5 @@
-import {formatDuration, formatTask} from "../../helpers"
+import {formatDuration} from "@/ai/utils/formatDuration"
+import {formatTask} from "@/ai/utils/formatTask"
 
 import type {RegisteredTool} from "../../types"
 

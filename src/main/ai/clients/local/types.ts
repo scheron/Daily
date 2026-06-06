@@ -1,6 +1,11 @@
-import type {LocalModelDownloadProgress, LocalModelId, LocalModelInfo, LocalRuntimeParams} from "@shared/types/ai"
+import type {LocalModelDownloadProgress, LocalModelId, LocalModelInfo, LocalRuntimeParams, LocalToolingMode} from "@shared/types/ai"
 
 export type ModelTier = "fast" | "balanced" | "quality"
+
+export type ModelCapabilities = {
+  /** Whether this model handles tool calling via OpenAI-style API ("native") or via in-prompt descriptions ("compat"). */
+  tools: LocalToolingMode
+}
 
 export type ModelManifestEntry = {
   id: LocalModelId
@@ -19,6 +24,7 @@ export type ModelManifestEntry = {
         | "topP"
         | "topK"
         | "minP"
+        | "maxTokens"
         | "repeatPenalty"
         | "repeatLastN"
         | "presencePenalty"
@@ -31,6 +37,7 @@ export type ModelManifestEntry = {
     >
   accuracy: number | null
   recommended?: boolean
+  capabilities?: ModelCapabilities
 }
 
 export interface ILocalModelService {

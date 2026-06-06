@@ -1,12 +1,12 @@
 import {extname, join, resolve} from "path"
 import fs from "fs-extra"
 
+import {RemoteSnapshotPendingError} from "@shared/errors/sync/RemoteSnapshotPendingError"
+import {SyncErrorCode} from "@shared/errors/sync/SyncErrorCode"
 import {sleep} from "@shared/utils/common/sleep"
 import {coordinatedRead, coordinatedWrite, getICloudStubPath, hasICloudStub, requestDownloadAndWait} from "@/utils/fileCoordinator"
 import {logger} from "@/utils/logger"
 import {isValidSnapshot} from "@/utils/sync/snapshot/isValidSnapshot"
-
-import {RemoteSnapshotPendingError} from "@/storage/sync/errors"
 
 import type {IRemoteStorage, Snapshot, SnapshotFile} from "@/types/sync"
 
@@ -21,10 +21,6 @@ export class RemoteStorageAdapter implements IRemoteStorage {
   constructor(syncDir: string) {
     this.syncDir = syncDir
     this.snapshotPath = join(this.syncDir, SNAPSHOT_FILENAME)
-  }
-
-  private async ensureDir(): Promise<void> {
-    await fs.ensureDir(this.syncDir)
   }
 
   async loadSnapshot(): Promise<Snapshot | null> {
@@ -73,7 +69,7 @@ export class RemoteStorageAdapter implements IRemoteStorage {
           await sleep(RETRY_DELAYS[attempt])
         } else {
           logger.error(logger.CONTEXT.SYNC_REMOTE, `Failed to read snapshot after ${MAX_RETRIES} attempts`, err)
-          throw new Error(`Failed to load snapshot after ${MAX_RETRIES} attempts: ${err.message}`)
+          throw new Error(`${SyncErrorCode.SnapshotLoadFailed} after ${MAX_RETRIES} attempts: ${err.message}`)
         }
       }
     }
@@ -132,5 +128,9 @@ export class RemoteStorageAdapter implements IRemoteStorage {
         logger.warn(logger.CONTEXT.SYNC_REMOTE, `Failed to sync asset ${filename}`, err)
       }
     }
+  }
+
+  private async ensureDir(): Promise<void> {
+    await fs.ensureDir(this.syncDir)
   }
 }

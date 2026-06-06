@@ -2,7 +2,6 @@ import {computed, ref} from "vue"
 import {toasts} from "vue-toasts-lite"
 import {defineStore} from "pinia"
 
-import {withElapsedDelay} from "@shared/utils/common/withElapsedDelay"
 import {toISODate} from "@shared/utils/date/formatters"
 import {useLocalModelStore} from "@/stores/ai/localModel.store"
 import {useRemoteModelStore} from "@/stores/ai/remoteModel.store"
@@ -84,6 +83,151 @@ export const useAiStore = defineStore("ai", () => {
     })
   }
 
+  // Throttle delta flushes: LLM streaming can fire 100+ tokens/sec, each
+  // mutation re-renders ChatMarkdown (O(N) markdown-it). Batching to ~20fps
+  // keeps the UI responsive while still feeling live.
+  const FLUSH_INTERVAL_MS = 50
+  let contentBuffer = ""
+  let reasoningBuffer = ""
+  let flushTimer: ReturnType<typeof setTimeout> | null = null
+
+  function flushStreamingBuffers() {
+    flushTimer = null
+    const live = messages.value.at(-1)
+    if (!live || live.role !== "assistant" || !live.id.startsWith("live_")) {
+      contentBuffer = ""
+      reasoningBuffer = ""
+      return
+    }
+    if (reasoningBuffer) {
+      const segments = (live.segments = live.segments ?? [])
+      const last = segments.at(-1)
+      if (last?.kind === "reasoning") last.text += reasoningBuffer
+      else segments.push({kind: "reasoning", text: reasoningBuffer, startedAt: Date.now()})
+      reasoningBuffer = ""
+    }
+    if (contentBuffer) {
+      live.content += contentBuffer
+      contentBuffer = ""
+    }
+  }
+
+  function finalizeLastReasoning(live: AIMessage) {
+    const segments = live.segments ?? []
+    const last = segments.at(-1)
+    if (last?.kind === "reasoning" && last.durationMs === undefined && last.startedAt !== undefined) {
+      last.durationMs = Date.now() - last.startedAt
+    }
+  }
+
+  function scheduleFlush() {
+    if (flushTimer) return
+    flushTimer = setTimeout(flushStreamingBuffers, FLUSH_INTERVAL_MS)
+  }
+
+  function cancelFlush() {
+    if (flushTimer) {
+      clearTimeout(flushTimer)
+      flushTimer = null
+    }
+  }
+
+  installStreamingListeners()
+  function installStreamingListeners() {
+    window.BridgeIPC["ai:on-event"]((event) => {
+      if (event.type === "turn_started") {
+        cancelFlush()
+        contentBuffer = ""
+        reasoningBuffer = ""
+        messages.value.push({
+          id: `live_${event.turnId}`,
+          role: "assistant",
+          content: "",
+          timestamp: event.startedAt,
+          segments: [],
+          status: "streaming",
+        })
+        return
+      }
+
+      const live = messages.value.at(-1)
+      if (!live || live.role !== "assistant" || !live.id.startsWith(`live_${event.turnId}`)) return
+
+      if (event.type === "model_reasoning_delta") {
+        reasoningBuffer += event.text
+        scheduleFlush()
+        return
+      }
+
+      if (event.type === "model_content_delta") {
+        // First content delta ends the reasoning phase. Flush any pending
+        // reasoning text into its segment and stamp its durationMs.
+        if (reasoningBuffer || (live.segments ?? []).at(-1)?.kind === "reasoning") {
+          flushStreamingBuffers()
+          finalizeLastReasoning(live)
+        }
+        contentBuffer += event.text
+        scheduleFlush()
+        return
+      }
+
+      if (event.type === "tool_started") {
+        cancelFlush()
+        flushStreamingBuffers()
+        finalizeLastReasoning(live)
+        live.segments = live.segments ?? []
+        live.segments.push({
+          kind: "tool",
+          toolCallId: event.toolCallId,
+          name: event.toolName,
+          status: "running",
+        })
+        return
+      }
+
+      if (event.type === "tool_finished") {
+        const segments = live.segments ?? []
+        const tool = segments.find((s) => s.kind === "tool" && s.toolCallId === event.toolCallId)
+        if (tool?.kind === "tool") {
+          tool.status = "done"
+          tool.success = event.success
+          tool.summary = event.summary
+        }
+        return
+      }
+
+      if (event.type === "turn_finished") {
+        cancelFlush()
+        contentBuffer = ""
+        reasoningBuffer = ""
+        finalizeLastReasoning(live)
+        live.content = event.finalMessage
+        live.status = "complete"
+        live.timestamp = event.finishedAt
+        return
+      }
+
+      if (event.type === "turn_failed") {
+        cancelFlush()
+        flushStreamingBuffers()
+        finalizeLastReasoning(live)
+        live.status = "failed"
+        live.error = event.error
+        live.timestamp = event.finishedAt
+        return
+      }
+
+      if (event.type === "turn_cancelled") {
+        cancelFlush()
+        flushStreamingBuffers()
+        finalizeLastReasoning(live)
+        live.status = "cancelled"
+        live.timestamp = event.finishedAt
+        return
+      }
+    })
+  }
+
   const remoteModels = computed(() => remoteModelStore.availableModels)
   const localModels = computed(() => localModelStore.models)
   const installedLocalModels = computed(() => localModelStore.installedModels)
@@ -138,38 +282,52 @@ export const useAiStore = defineStore("ai", () => {
 
     isCancelled.value = false
 
-    await withElapsedDelay(async () => {
-      if (!hasMessages.value) chatTimeStarted.value = toISODate(Date.now())
+    if (!hasMessages.value) chatTimeStarted.value = toISODate(Date.now())
 
-      thinkState.setState("LOADING")
+    thinkState.setState("LOADING")
 
-      const userMessage: AIMessage = {
-        id: `user_${Date.now()}`,
-        role: "user",
-        content: content.trim(),
-        timestamp: Date.now(),
-      }
+    const userMessage: AIMessage = {
+      id: `user_${Date.now()}`,
+      role: "user",
+      content: content.trim(),
+      timestamp: Date.now(),
+    }
 
-      messages.value.push(userMessage)
+    messages.value.push(userMessage)
 
-      try {
-        const response = await window.BridgeIPC["ai:send-message"](content)
+    try {
+      const response = await window.BridgeIPC["ai:send-message"](content)
 
-        if (isCancelled.value) return
+      if (isCancelled.value) return
 
-        if (!response.success || !response.message) {
+      if (!response.success || !response.message) {
+        const last = messages.value.at(-1)
+        const liveAlreadyHandled = last?.id?.startsWith("live_") && (last?.status === "failed" || last?.status === "cancelled")
+        if (!liveAlreadyHandled) {
           thinkState.setState("ERROR")
-          return
+        } else {
+          thinkState.setState("LOADED")
         }
-
-        messages.value.push(response.message)
-        toasts.success("AI response ready")
-        thinkState.setState("LOADED")
-      } catch {
-        if (isCancelled.value) return
-        thinkState.setState("ERROR")
+        return
       }
-    })
+
+      const last = messages.value.at(-1)
+      const liveAlreadyPresent = last?.id?.startsWith("live_") && last?.role === "assistant"
+      if (!liveAlreadyPresent) {
+        messages.value.push(response.message)
+      }
+      toasts.success("AI response ready")
+      thinkState.setState("LOADED")
+    } catch {
+      if (isCancelled.value) return
+      const last = messages.value.at(-1)
+      const liveAlreadyFailed = last?.id?.startsWith("live_") && last?.status === "failed"
+      if (!liveAlreadyFailed) {
+        thinkState.setState("ERROR")
+      } else {
+        thinkState.setState("LOADED")
+      }
+    }
   }
 
   async function retryMessage(): Promise<void> {

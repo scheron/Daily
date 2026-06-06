@@ -9,6 +9,8 @@ import {pipeline} from "node:stream/promises"
 import {promisify} from "node:util"
 import fs from "fs-extra"
 
+import {LlamaServerErrorCode} from "@shared/errors/ai/LlamaServerErrorCode"
+import {ServerStartCancelledError} from "@shared/errors/ai/ServerStartCancelledError"
 import {logger} from "@/utils/logger"
 
 import {APP_CONFIG, fsPaths} from "@/config"
@@ -38,14 +40,11 @@ export class LlamaServer {
   private currentModelId: LocalModelId | null = null
   private state: LocalRuntimeState = {status: "not_installed"}
   private onStateChange: ((state: LocalRuntimeState) => void) | null = null
+  /** Set by stop(); read by waitForReady() to distinguish cancel vs crash. */
+  private stopRequested = false
 
   constructor(onStateChange?: (state: LocalRuntimeState) => void) {
     this.onStateChange = onStateChange ?? null
-  }
-
-  private setState(state: LocalRuntimeState) {
-    this.state = state
-    this.onStateChange?.(state)
   }
 
   getState(): LocalRuntimeState {
@@ -64,24 +63,8 @@ export class LlamaServer {
     return this.process !== null && this.state.status === "running"
   }
 
-  private getBinaryPath(): string {
-    return path.join(fsPaths.binPath(), "llama-server")
-  }
-
   async isBinaryInstalled(): Promise<boolean> {
     return fs.pathExists(this.getBinaryPath())
-  }
-
-  private async isCorrectVersion(): Promise<boolean> {
-    try {
-      const {stdout, stderr} = await execFileAsync(this.getBinaryPath(), ["--version"])
-      const output = stdout + stderr
-      /* Version may appear on stderr; manifest is "b5200" while binary sometimes prints "5200". */
-      const numericVersion = SERVER_BINARY.version.replace(/^b/, "")
-      return output.includes(SERVER_BINARY.version) || output.includes(numericVersion)
-    } catch {
-      return false
-    }
   }
 
   async ensureBinary(): Promise<void> {
@@ -99,7 +82,7 @@ export class LlamaServer {
     const arch = process.arch as "arm64" | "x64"
     const binaryInfo = SERVER_BINARY.macos[arch]
     if (!binaryInfo) {
-      throw new Error(`Unsupported architecture: ${arch}`)
+      throw new Error(`${LlamaServerErrorCode.UnsupportedArchitecture}: ${arch}`)
     }
 
     logger.info(logger.CONTEXT.AI, "Downloading llama-server binary", {arch})
@@ -110,7 +93,7 @@ export class LlamaServer {
 
     const response = await fetch(binaryInfo.url, {redirect: "follow"})
     if (!response.ok || !response.body) {
-      throw new Error(`Failed to download llama-server: HTTP ${response.status}`)
+      throw new Error(`${LlamaServerErrorCode.DownloadHttpFailed}: HTTP ${response.status}`)
     }
 
     const nodeStream = Readable.fromWeb(response.body as any)
@@ -120,7 +103,7 @@ export class LlamaServer {
     const actualSha = await sha256File(archivePath)
     if (actualSha !== binaryInfo.sha256) {
       await unlink(archivePath).catch(() => {})
-      throw new Error(`llama-server checksum mismatch: expected ${binaryInfo.sha256}, got ${actualSha}`)
+      throw new Error(`${LlamaServerErrorCode.ChecksumMismatch}: expected ${binaryInfo.sha256}, got ${actualSha}`)
     }
 
     const extractDir = path.join(fsPaths.binPath(), "_extract")
@@ -131,7 +114,7 @@ export class LlamaServer {
 
       const {stdout} = await execFileAsync("find", [extractDir, "-name", "llama-server", "-type", "f"])
       const binarySource = stdout.trim().split("\n")[0]
-      if (!binarySource) throw new Error("llama-server binary not found in archive")
+      if (!binarySource) throw new Error(LlamaServerErrorCode.BinaryNotFound)
 
       const sourceDir = path.dirname(binarySource)
       const files = await readdir(sourceDir)
@@ -171,6 +154,7 @@ export class LlamaServer {
       await this.stop()
     }
 
+    this.stopRequested = false
     this.setState({status: "starting", modelId})
 
     try {
@@ -195,6 +179,16 @@ export class LlamaServer {
         "--no-warmup",
         "--cache-reuse",
         "256",
+        // Single slot: default --parallel 4 multiplies kv-cache by 4 and
+        // blows up unified-memory on M1/M2 16GB machines.
+        "--parallel",
+        "1",
+        // 8-bit kv-cache halves memory vs. default f16; quality loss is
+        // negligible for chat/agent use.
+        "--cache-type-k",
+        "q8_0",
+        "--cache-type-v",
+        "q8_0",
       ]
 
       logger.info(logger.CONTEXT.AI, "Starting llama-server", {port: this.port, modelPath, args})
@@ -244,16 +238,22 @@ export class LlamaServer {
       logger.info(logger.CONTEXT.AI, "llama-server is ready", {port: this.port, pid: this.process?.pid})
     } catch (err) {
       await this.stop()
-      this.setState({
-        status: "error",
-        modelId,
-        message: err instanceof Error ? err.message : String(err),
-      })
+      // stop() already transitions state to installed/not_installed. Only
+      // surface an error state when the failure is unexpected (not a
+      // user-initiated cancellation via stop()).
+      if (!(err instanceof ServerStartCancelledError)) {
+        this.setState({
+          status: "error",
+          modelId,
+          message: err instanceof Error ? err.message : String(err),
+        })
+      }
       throw err
     }
   }
 
   async stop(): Promise<void> {
+    this.stopRequested = true
     if (!this.process) return
 
     const proc = this.process
@@ -294,6 +294,27 @@ export class LlamaServer {
     })
   }
 
+  private setState(state: LocalRuntimeState) {
+    this.state = state
+    this.onStateChange?.(state)
+  }
+
+  private getBinaryPath(): string {
+    return path.join(fsPaths.binPath(), "llama-server")
+  }
+
+  private async isCorrectVersion(): Promise<boolean> {
+    try {
+      const {stdout, stderr} = await execFileAsync(this.getBinaryPath(), ["--version"])
+      const output = stdout + stderr
+      /* Version may appear on stderr; manifest is "b5200" while binary sometimes prints "5200". */
+      const numericVersion = SERVER_BINARY.version.replace(/^b/, "")
+      return output.includes(SERVER_BINARY.version) || output.includes(numericVersion)
+    } catch {
+      return false
+    }
+  }
+
   private async waitForReady(timeoutMs = 60000): Promise<void> {
     const startTime = Date.now()
     const pollInterval = 500
@@ -315,13 +336,14 @@ export class LlamaServer {
       }
 
       if (!this.process) {
-        throw new Error("llama-server process exited during startup")
+        if (this.stopRequested) throw new ServerStartCancelledError()
+        throw new Error(LlamaServerErrorCode.ProcessExitedDuringStartup)
       }
 
       await new Promise((resolve) => setTimeout(resolve, pollInterval))
     }
 
-    throw new Error(`llama-server failed to start within ${timeoutMs / 1000}s`)
+    throw new Error(`${LlamaServerErrorCode.StartTimeout}: ${timeoutMs / 1000}s`)
   }
 
   private findFreePort(): Promise<number> {

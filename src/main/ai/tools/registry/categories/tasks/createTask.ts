@@ -3,7 +3,8 @@ import {nanoid} from "nanoid"
 import {MAIN_BRANCH_ID} from "@shared/constants/storage"
 import {getPreviousTaskOrderIndex} from "@shared/utils/tasks/orderIndex"
 
-import {formatTask, getTodayDate} from "../../helpers"
+import {formatTask} from "@/ai/utils/formatTask"
+import {getTodayDate} from "@/ai/utils/getTodayDate"
 
 import type {Tag, Task} from "@shared/types/storage"
 import type {RegisteredTool} from "../../types"

@@ -46,6 +46,20 @@ const retryableMessageId = computed(() => {
   return null
 })
 
+const showThinkingSpinner = computed(() => {
+  if (!aiStore.isThinkLoading) return false
+  const last = aiStore.messages.at(-1)
+  if (!last || last.role === "user") return true
+  // streaming live message: keep spinner until the first visible indicator
+  // (content delta, reasoning segment, or tool card) lands.
+  if (last.status === "streaming") {
+    const hasContent = (last.content?.length ?? 0) > 0
+    const hasSegment = (last.segments?.length ?? 0) > 0
+    return !hasContent && !hasSegment
+  }
+  return false
+})
+
 function scrollToBottom() {
   if (!messagesContainerRef.value) return
   messagesContainerRef.value.scrollTop = messagesContainerRef.value.scrollHeight
@@ -127,10 +141,12 @@ onMounted(() => {
 
             <div v-else ref="messagesContainer" class="flex-1 space-y-5 overflow-y-auto px-4 py-3">
               <ChatMessage
-                v-for="msg in aiStore.messages"
+                v-for="(msg, idx) in aiStore.messages"
                 :key="msg.id"
                 :message="msg"
                 :can-retry="msg.id === retryableMessageId"
+                :is-last="idx === aiStore.messages.length - 1"
+                :preceding-is-user="aiStore.messages[idx - 1]?.role === 'user'"
                 @retry="aiStore.retryMessage"
               />
 
@@ -143,7 +159,7 @@ onMounted(() => {
 
               <ThinkErrorAICard v-if="aiStore.isThinkError && retryableMessageId" @retry="aiStore.retryMessage" />
 
-              <div v-if="aiStore.isThinkLoading" class="flex items-start gap-3">
+              <div v-if="showThinkingSpinner" class="flex items-start gap-3">
                 <div class="text-base-content/60 pt-1 text-sm">
                   <WaveText text="Thinking..." />
                 </div>

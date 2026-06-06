@@ -19,10 +19,10 @@ export type AgentTurnStatus = "running" | "completed" | "failed" | "cancelled" |
  * streaming have a single source of structured truth.
  */
 export type AgentStep =
-  | {id: string; type: "model_response"; createdAt: number; message: MessageLLM}
+  | {id: string; type: "model_response"; createdAt: number; message: MessageLLM; reasoning?: string; reasoningDurationMs?: number}
   | {id: string; type: "tool_call"; createdAt: number; toolCallId: string; toolName: string; params: unknown}
   | {id: string; type: "tool_result"; createdAt: number; toolCallId: string; toolName: string; result: ToolResult}
-  | {id: string; type: "respond"; createdAt: number; text: string}
+  | {id: string; type: "respond"; createdAt: number; text: string; reasoning?: string; reasoningDurationMs?: number}
   | {id: string; type: "confirmation_request"; createdAt: number; confirmation: PendingToolConfirmation}
   | {id: string; type: "error"; createdAt: number; message: string}
 

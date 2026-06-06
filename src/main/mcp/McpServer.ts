@@ -1,3 +1,4 @@
+import {McpErrorCode} from "@shared/errors/mcp/McpErrorCode"
 import {logger} from "@/utils/logger"
 
 import {BearerAuth} from "@/mcp/auth/bearerAuth"
@@ -129,7 +130,7 @@ export class McpServer {
 
   private async handleJsonRpc(body: unknown): Promise<JSONRPCMessage | null> {
     const clientSide = this.clientSide
-    if (!clientSide) throw new Error("MCP transport not initialized")
+    if (!clientSide) throw new Error(McpErrorCode.TransportNotInitialized)
 
     const msg = body as JSONRPCMessage
     const id = (msg as any).id

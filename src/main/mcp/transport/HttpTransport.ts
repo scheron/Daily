@@ -1,5 +1,6 @@
 import {createServer} from "node:http"
 
+import {McpErrorCode} from "@shared/errors/mcp/McpErrorCode"
 import {logger} from "@/utils/logger"
 
 import {MCP_SERVER_NAME} from "@/mcp/constants"
@@ -28,7 +29,7 @@ export class HttpTransport {
   }
 
   async start(): Promise<void> {
-    if (this.server) throw new Error("HttpTransport already started")
+    if (this.server) throw new Error(McpErrorCode.TransportAlreadyStarted)
 
     const server = createServer((req, res) => this.handle(req, res))
 

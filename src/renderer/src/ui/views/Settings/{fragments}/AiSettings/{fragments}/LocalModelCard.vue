@@ -54,6 +54,9 @@ function onDownload() {
 
           <template v-else-if="!model.installed && model.partialBytes && model.partialBytes > 0 && !isDownloading">
             <BaseButton variant="secondary" size="sm" tooltip="Continue download" class="h-7 px-2 py-0" @click="onDownload"> Continue </BaseButton>
+            <BaseButton variant="ghost" size="sm" class="size-7 p-0" tooltip="Delete partial download" @click="emit('delete')">
+              <BaseIcon name="trash" class="size-4" />
+            </BaseButton>
           </template>
 
           <template v-else-if="!model.installed && !isDownloading">

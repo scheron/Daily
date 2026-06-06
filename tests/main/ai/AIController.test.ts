@@ -261,6 +261,35 @@ describe("AIController.sendMessage", () => {
     expect(args[3]).toBe("required")
   })
 
+  it("falls back to tool_choice 'auto' for remote thinking models that reject 'required'", async () => {
+    // DeepSeek thinking-mode models (deepseek-reasoner, deepseek-v4-flash,
+    // OpenAI o-series, QwQ) return HTTP 400 on tool_choice='required'.
+    for (const model of ["deepseek-reasoner", "deepseek-v4-flash", "o3-mini", "qwq-32b"]) {
+      const storage: any = {
+        loadSettings: vi.fn(async () => ({
+          ai: {enabled: true, provider: "openai", openai: {model, apiKey: "x"}},
+          branch: {activeId: "main"},
+        })),
+        saveSettings: vi.fn(async () => {}),
+        appendAiTurn: vi.fn(async () => {}),
+        archiveActiveAiSession: vi.fn(async () => false),
+        getActiveAiSessionTurns: vi.fn(async () => []),
+      }
+      const fresh = new AIController(storage)
+      await fresh.updateConfig({enabled: true, provider: "openai", openai: {model, apiKey: "x"}})
+      const chatSpy = vi.spyOn((fresh as any).openaiClient, "chat").mockResolvedValue({
+        message: {
+          role: "assistant",
+          content: null,
+          tool_calls: [{id: "c1", type: "function", function: {name: "respond", arguments: {text: "Hi."}}}],
+        },
+        done: true,
+      })
+      await fresh.sendMessage("hi")
+      expect(chatSpy.mock.calls[0][3]).toBe("auto")
+    }
+  })
+
   it("treats respond() as the final message and skips hook/executor for it", async () => {
     const beforeHook = vi.fn(async () => ({action: "pass"}))
     ctrl.getHooks().registerBeforeToolCall(beforeHook)

@@ -100,10 +100,24 @@ function parseEntry(raw: unknown, index: number): ModelManifestEntry | null {
   if (!inUnitOrNull(e.accuracy)) return reject(`${id}: accuracy`)
   if (e.recommended !== undefined && typeof e.recommended !== "boolean") return reject(`${id}: recommended`)
 
+  const optionalNumKeys2 = [...optionalNumKeys, "maxTokens"] as const
+  for (const key of ["maxTokens"] as const) {
+    const v = sa?.[key]
+    if (v !== undefined && !isNum(v)) return reject(`${id}: serverArgs.${key}`)
+  }
+
   const serverArgs: ModelManifestEntry["serverArgs"] = {ctx, gpuLayers, temperature}
-  for (const key of optionalNumKeys) {
+  for (const key of optionalNumKeys2) {
     const v = sa?.[key]
     if (isNum(v)) (serverArgs as Record<string, number>)[key] = v
+  }
+
+  let capabilities: ModelManifestEntry["capabilities"]
+  const rawCaps = e.capabilities as Record<string, unknown> | undefined
+  if (rawCaps !== undefined) {
+    const toolsCap = rawCaps.tools
+    if (toolsCap !== "compat" && toolsCap !== "native") return reject(`${id}: capabilities.tools`)
+    capabilities = {tools: toolsCap}
   }
 
   const entry: ModelManifestEntry = {
@@ -119,6 +133,7 @@ function parseEntry(raw: unknown, index: number): ModelManifestEntry | null {
     serverArgs,
     accuracy: typeof e.accuracy === "number" ? e.accuracy : null,
     recommended: e.recommended === true,
+    ...(capabilities ? {capabilities} : {}),
   }
   return entry
 }

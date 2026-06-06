@@ -1,7 +1,7 @@
 // @ts-nocheck
 import {describe, expect, it} from "vitest"
 
-import {objectFilter} from "@shared/utils/objects/filter"
+import {objectFilter} from "@shared/utils/objects/objectFilter"
 
 describe("objectFilter", () => {
   it("keeps only entries where callback returns true", () => {

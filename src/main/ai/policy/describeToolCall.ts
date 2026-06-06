@@ -4,11 +4,18 @@ export type ToolCallDescription = {
   details?: string[]
 }
 
-type Builder = (params: Record<string, unknown>) => ToolCallDescription
+export function describeToolCall(toolName: string, rawParams: unknown): ToolCallDescription {
+  const params = (rawParams && typeof rawParams === "object" ? rawParams : {}) as Record<string, unknown>
+  const builder = BUILDERS[toolName]
+  if (builder) return builder(params)
 
-function str(value: unknown): string {
-  return typeof value === "string" && value ? value : "(unspecified)"
+  return {
+    title: `Confirm action: ${toolName}`,
+    summary: `The assistant requested a destructive action (${toolName}) that needs your approval.`,
+  }
 }
+
+type Builder = (params: Record<string, unknown>) => ToolCallDescription
 
 const BUILDERS: Record<string, Builder> = {
   delete_task: (p) => ({
@@ -38,13 +45,6 @@ const BUILDERS: Record<string, Builder> = {
   }),
 }
 
-export function describeToolCall(toolName: string, rawParams: unknown): ToolCallDescription {
-  const params = (rawParams && typeof rawParams === "object" ? rawParams : {}) as Record<string, unknown>
-  const builder = BUILDERS[toolName]
-  if (builder) return builder(params)
-
-  return {
-    title: `Confirm action: ${toolName}`,
-    summary: `The assistant requested a destructive action (${toolName}) that needs your approval.`,
-  }
+function str(value: unknown): string {
+  return typeof value === "string" && value ? value : "(unspecified)"
 }

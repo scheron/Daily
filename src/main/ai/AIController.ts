@@ -4,8 +4,7 @@ import {deepMerge} from "@shared/utils/common/deepMerge"
 import {AsyncMutex} from "@/utils/AsyncMutex"
 import {logger} from "@/utils/logger"
 
-import {LocalAiClient} from "@/ai/clients/local"
-import {UNLOAD_OPTION_MS} from "@/ai/clients/local/core/manifest"
+import {LocalAiClient, UNLOAD_OPTION_MS} from "@/ai/clients/local"
 import {RemoteAiClient} from "@/ai/clients/remote"
 import {HookChain} from "@/ai/hooks/HookChain"
 import {ConversationCompactor} from "@/ai/memory/ConversationCompactor"
@@ -15,6 +14,7 @@ import {DEFAULT_CONFIRMATION_TIMEOUT_MS} from "@/ai/policy/types"
 import {getSystemPrompt} from "@/ai/promts/getSystemPrompt"
 import {getSystemPromptCompact} from "@/ai/promts/getSystemPromptCompact"
 import {getSystemPromptTiny} from "@/ai/promts/getSystemPromptTiny"
+import {parseCompatToolCalls, toolsToCompatPrompt} from "@/ai/tools/compat"
 import {toModelToolMessage, toRendererToolCall} from "@/ai/tools/format"
 import {AI_TOOLS, AI_TOOLS_COMPACT} from "@/ai/tools/registry"
 import {ToolExecutor} from "@/ai/tools/ToolExecutor"
@@ -22,16 +22,24 @@ import {TurnBuilder} from "@/ai/turns/TurnBuilder"
 import {filterThinkBlocks} from "./utils/filterThinkBlocks"
 import {redactAiMessagesForLog, redactToolParamsForLog} from "./utils/redact"
 
-import type {ILocalModelService} from "@/ai/clients/local"
-import type {UnloadOption} from "@/ai/clients/local/core/manifest"
+import type {ILocalModelService, UnloadOption} from "@/ai/clients/local"
 import type {AgentContext} from "@/ai/hooks/types"
 import type {PendingConfirmation} from "@/ai/policy/types"
 import type {ToolName} from "@/ai/tools/registry"
 import type {ToolResult} from "@/ai/tools/types"
 import type {AgentTurn} from "@/ai/turns/types"
-import type {IAiClient, MessageLLM, PromptTier, Tool, ToolCallLLM, ToolChoice} from "@/ai/types"
+import type {ChatStreamCallbacks, IAiClient, MessageLLM, Tool, ToolCallLLM, ToolChoice} from "@/ai/types"
 import type {StorageController} from "@/storage/StorageController"
-import type {AgentTurnSnapshot, AIConfig, AIEvent, AIMessage, AIResponse, LocalRuntimeState, PendingToolConfirmation} from "@shared/types/ai"
+import type {
+  AgentMessageSegment,
+  AgentTurnSnapshot,
+  AIConfig,
+  AIEvent,
+  AIMessage,
+  AIResponse,
+  LocalRuntimeState,
+  PendingToolConfirmation,
+} from "@shared/types/ai"
 
 /**
  * Event emitted to the renderer when a destructive tool call needs user
@@ -55,13 +63,37 @@ export type AIControllerDeps = {
  */
 function turnToSnapshot(turn: AgentTurn): AgentTurnSnapshot {
   const toolCalls: Array<{name: string; result: string}> = []
-  for (const step of turn.steps) {
+  const segments: AgentMessageSegment[] = []
+
+  for (let i = 0; i < turn.steps.length; i++) {
+    const step = turn.steps[i]
+    if (step.type === "model_response") {
+      if (step.reasoning) {
+        // Only emit reasoning from the model_response if this iteration does NOT
+        // end with a respond step. When the model calls `respond` directly, the
+        // respond step will carry the reasoning instead, avoiding a duplicate.
+        const nextBoundary = turn.steps.slice(i + 1).find((s) => s.type === "respond" || s.type === "model_response")
+        if (nextBoundary?.type !== "respond") {
+          segments.push({kind: "reasoning", text: step.reasoning, durationMs: step.reasoningDurationMs})
+        }
+      }
+    }
     if (step.type === "tool_result") {
-      const name = step.toolName
-      const result =
+      const summary =
         step.result?.summary ??
         (typeof step.result?.data === "string" ? step.result.data : (step.result?.error ?? (step.result?.success ? "Done" : "Failed")))
-      toolCalls.push({name, result})
+      toolCalls.push({name: step.toolName, result: summary})
+      segments.push({
+        kind: "tool",
+        toolCallId: step.toolCallId,
+        name: step.toolName,
+        status: "done",
+        success: step.result?.success ?? false,
+        summary,
+      })
+    }
+    if (step.type === "respond" && step.reasoning) {
+      segments.push({kind: "reasoning", text: step.reasoning, durationMs: step.reasoningDurationMs})
     }
   }
   return {
@@ -72,9 +104,43 @@ function turnToSnapshot(turn: AgentTurn): AgentTurnSnapshot {
     finishedAt: turn.finishedAt ?? null,
     status: turn.status,
     toolCalls,
+    segments: segments.length ? segments : undefined,
     error: turn.error,
   }
 }
+
+/**
+ * Rebuild the in-memory conversation history (LLM-side messages) from a
+ * sequence of persisted AgentTurns. Used on app start so the agent picks up
+ * the active session without losing context.
+ *
+ * Each turn produces: {user message} + (per model_response step) assistant
+ * message with any tool_calls + (per tool_result) tool message tied by
+ * tool_call_id. reasoning_content is stripped — it never enters the LLM
+ * context outbound.
+ */
+function restoreConversationHistory(turns: AgentTurn[]): MessageLLM[] {
+  const history: MessageLLM[] = []
+  for (const turn of turns) {
+    history.push({role: "user", content: turn.userMessage})
+    for (const step of turn.steps) {
+      if (step.type === "model_response") {
+        const message: MessageLLM = {...step.message}
+        delete message.reasoning_content
+        history.push(message)
+      } else if (step.type === "tool_result") {
+        history.push({
+          role: "tool",
+          content: toModelToolMessage(step.result),
+          tool_call_id: step.toolCallId,
+        })
+      }
+    }
+  }
+  return history
+}
+
+type PromptTier = "tiny" | "medium" | "large"
 
 export class AIController {
   private openaiClient: RemoteAiClient
@@ -103,18 +169,6 @@ export class AIController {
     this.localClient = deps.localClient ?? new LocalAiClient(broadcastState)
   }
 
-  private emit(event: AIEvent): void {
-    try {
-      this.broadcastEvent?.(event)
-    } catch (err) {
-      logger.warn(logger.CONTEXT.AI, "broadcastEvent failed", err)
-    }
-  }
-
-  private get activeProvider(): IAiClient {
-    return this.config?.provider === "local" ? this.localClient : this.openaiClient
-  }
-
   async init() {
     const config = (await this.storage.loadSettings()).ai
     await this.localClient.modelService.init()
@@ -124,13 +178,19 @@ export class AIController {
     // smaller tiers tolerate it because compaction only kicks in once the
     // threshold is exceeded.
     this.hooks.registerTransformContext(this.compactor.makeHook({threshold: 30, keepLastMessages: 16}))
-    // Seed the summary from the persisted active session, if any, so the
-    // first turn after app start already has memory.
+    // Restore in-memory conversation history + compactor summary from the
+    // persisted active session, so the first turn after app start has full
+    // context (the renderer hydrates from the same source via aiStore).
     try {
       const turns = await this.storage.getActiveAiSessionTurns(50)
       this.compactor.refresh(turns)
+      this.conversationHistory = restoreConversationHistory(turns)
+      logger.info(logger.CONTEXT.AI, "Restored conversation history from active session", {
+        turnsCount: turns.length,
+        messagesCount: this.conversationHistory.length,
+      })
     } catch (err) {
-      logger.warn(logger.CONTEXT.AI, "Compactor initial refresh failed", err)
+      logger.warn(logger.CONTEXT.AI, "Conversation history restore failed", err)
     }
     this.idleTimer = setInterval(() => {
       this.checkIdle().catch((err) => logger.error(logger.CONTEXT.AI, "Idle check failed", err))
@@ -184,6 +244,10 @@ export class AIController {
       const newAi = {...(this.config ?? {}), local: {...(this.config?.local ?? {}), model: null}}
       this.config = newAi as unknown as typeof this.config
       await this.storage.saveSettings({ai: newAi as any})
+      // Propagate the cleared model to clients so subsequent checkConnection
+      // calls don't try to start the just-deleted model.
+      this.localClient.updateConfig(this.config)
+      this.openaiClient.updateConfig(this.config)
     }
 
     return ok
@@ -302,42 +366,6 @@ export class AIController {
     })
   }
 
-  /**
-   * Resolve any pending confirmation. If `expectedId` is provided and does
-   * not match the live confirmation, this is a no-op (stale/late callback)
-   * and returns false. Returns true when a pending confirmation is actually
-   * resolved.
-   */
-  private resolvePendingConfirmation(confirmed: boolean, expectedId?: string): boolean {
-    const pending = this.pendingConfirmation
-    if (!pending) return false
-    if (expectedId !== undefined && pending.id !== expectedId) return false
-
-    clearTimeout(pending.timeoutId)
-    this.pendingConfirmation = null
-
-    try {
-      this.broadcastConfirmation?.({type: "resolved", confirmationId: pending.id})
-    } catch (err) {
-      logger.warn(logger.CONTEXT.AI, "broadcastConfirmation failed", err)
-    }
-
-    pending.resolve(confirmed)
-    return true
-  }
-
-  private async checkIdle(): Promise<void> {
-    if (this.config?.provider !== "local") return
-    const server = (this.localClient as any).server
-    if (!server?.isRunning?.()) return
-    const opt = (this.config.local?.unloadModel ?? "15m") as UnloadOption
-    const ms = UNLOAD_OPTION_MS[opt]
-    if (ms === null) return
-    if (Date.now() - this.lastActivityAt <= ms) return
-    logger.info(logger.CONTEXT.AI, "Idle timeout reached, unloading server")
-    await server.stop()
-  }
-
   async sendMessage(userMessage: string): Promise<AIResponse> {
     if (!this.executor) return {success: false, error: "Storage not initialized"}
 
@@ -382,11 +410,16 @@ export class AIController {
       let iterations = 0
       const maxIterations = 10
       const promptTier = this.resolvePromptTier(config)
-      const toolChoice = this.resolveToolChoice(promptTier)
-      const systemPrompt = this.getSystemPromptByTier(promptTier)
+      const compatMode = this.isCompatMode(config)
+      const toolChoice = compatMode ? undefined : this.resolveToolChoice(promptTier, config)
+      const baseSystemPrompt = this.getSystemPromptByTier(promptTier)
+      const tools = this.getToolsForTier(promptTier)
+      this.currentToolSchemas = new Map(tools.map((tool) => [tool.function.name, tool.function.parameters]))
+      const systemPrompt = compatMode ? `${baseSystemPrompt}\n\n${toolsToCompatPrompt(tools)}` : baseSystemPrompt
       logger.info(logger.CONTEXT.AI, "Agent loop config", {
         tier: promptTier,
         toolChoice,
+        compatMode,
         provider: config.provider,
         model: config.openai?.model ?? config.local?.model,
         systemPromptLength: systemPrompt.length,
@@ -410,10 +443,65 @@ export class AIController {
         })
 
         this.emit({type: "model_requested", turnId: turn.id, iteration: iterations})
-        const response = await this.callLLM(messages, promptTier, toolChoice)
-        const assistantMessage = response.message
 
-        turn.appendStep({type: "model_response", message: assistantMessage})
+        const iterReasoning: string[] = []
+        let reasoningStartedAt: number | null = null
+        let reasoningEndedAt: number | null = null
+
+        const response = await this.callLLM(messages, promptTier, toolChoice, compatMode, {
+          onDelta: (d) => {
+            const now = Date.now()
+            if (d.kind === "reasoning") {
+              // Small local (compat) models often emit verbose, hallucinated
+              // chain-of-thought. Suppress it from the UI and from the
+              // persisted reasoning text — the global "Thinking..." spinner
+              // is enough feedback. Reasoning panels are reserved for
+              // remote / large models where the chain is actually useful.
+              if (compatMode) return
+              if (reasoningStartedAt === null) reasoningStartedAt = now
+              iterReasoning.push(d.text)
+              this.emit({type: "model_reasoning_delta", turnId: turn.id, iteration: iterations, text: d.text})
+            } else {
+              if (reasoningStartedAt !== null && reasoningEndedAt === null) {
+                reasoningEndedAt = now
+              }
+              this.emit({type: "model_content_delta", turnId: turn.id, iteration: iterations, text: d.text})
+            }
+          },
+        })
+
+        if (reasoningStartedAt !== null && reasoningEndedAt === null) {
+          reasoningEndedAt = Date.now()
+        }
+
+        const iterationReasoning = iterReasoning.join("") || undefined
+        const iterationReasoningDurationMs =
+          reasoningStartedAt !== null && reasoningEndedAt !== null ? reasoningEndedAt - reasoningStartedAt : undefined
+
+        let assistantMessage = response.message
+
+        if (compatMode) {
+          const {toolCalls: parsedCalls, remainingContent} = parseCompatToolCalls(assistantMessage.content)
+          if (parsedCalls.length > 0) {
+            assistantMessage = {
+              ...assistantMessage,
+              content: remainingContent || null,
+              tool_calls: parsedCalls,
+            }
+            logger.info(logger.CONTEXT.AI, "Compat-mode tool calls parsed from content", {
+              iteration: iterations,
+              count: parsedCalls.length,
+              names: parsedCalls.map((tc) => tc.function.name),
+            })
+          }
+        }
+
+        turn.appendStep({
+          type: "model_response",
+          message: assistantMessage,
+          reasoning: iterationReasoning,
+          reasoningDurationMs: iterationReasoningDurationMs,
+        })
         this.emit({
           type: "model_responded",
           turnId: turn.id,
@@ -422,7 +510,9 @@ export class AIController {
         })
 
         if (assistantMessage.tool_calls && assistantMessage.tool_calls.length) {
-          this.conversationHistory.push(assistantMessage)
+          const messageForHistory: MessageLLM = {...assistantMessage}
+          delete messageForHistory.reasoning_content
+          this.conversationHistory.push(messageForHistory)
           logger.info(logger.CONTEXT.AI, "LLM requested tool calls", {
             iteration: iterations,
             count: assistantMessage.tool_calls.length,
@@ -445,7 +535,7 @@ export class AIController {
                 textLength: text.length,
                 modelText: text.length > 600 ? `${text.slice(0, 600)}…` : text,
               })
-              turn.appendStep({type: "respond", text})
+              turn.appendStep({type: "respond", text, reasoning: iterationReasoning, reasoningDurationMs: iterationReasoningDurationMs})
               const synthetic: ToolResult = {success: true, summary: text}
               this.conversationHistory.push({
                 role: "tool",
@@ -540,7 +630,7 @@ export class AIController {
             finalContent = "I completed the request, but could not produce a visible final response."
           }
           this.conversationHistory.push({role: "assistant", content: finalContent})
-          turn.appendStep({type: "respond", text: finalContent})
+          turn.appendStep({type: "respond", text: finalContent, reasoning: iterationReasoning, reasoningDurationMs: iterationReasoningDurationMs})
           break
         }
       }
@@ -605,6 +695,54 @@ export class AIController {
     }
   }
 
+  private emit(event: AIEvent): void {
+    try {
+      this.broadcastEvent?.(event)
+    } catch (err) {
+      logger.warn(logger.CONTEXT.AI, "broadcastEvent failed", err)
+    }
+  }
+
+  private get activeProvider(): IAiClient {
+    return this.config?.provider === "local" ? this.localClient : this.openaiClient
+  }
+
+  /**
+   * Resolve any pending confirmation. If `expectedId` is provided and does
+   * not match the live confirmation, this is a no-op (stale/late callback)
+   * and returns false. Returns true when a pending confirmation is actually
+   * resolved.
+   */
+  private resolvePendingConfirmation(confirmed: boolean, expectedId?: string): boolean {
+    const pending = this.pendingConfirmation
+    if (!pending) return false
+    if (expectedId !== undefined && pending.id !== expectedId) return false
+
+    clearTimeout(pending.timeoutId)
+    this.pendingConfirmation = null
+
+    try {
+      this.broadcastConfirmation?.({type: "resolved", confirmationId: pending.id})
+    } catch (err) {
+      logger.warn(logger.CONTEXT.AI, "broadcastConfirmation failed", err)
+    }
+
+    pending.resolve(confirmed)
+    return true
+  }
+
+  private async checkIdle(): Promise<void> {
+    if (this.config?.provider !== "local") return
+    const server = (this.localClient as any).server
+    if (!server?.isRunning?.()) return
+    const opt = (this.config.local?.unloadModel ?? "15m") as UnloadOption
+    const ms = UNLOAD_OPTION_MS[opt]
+    if (ms === null) return
+    if (Date.now() - this.lastActivityAt <= ms) return
+    logger.info(logger.CONTEXT.AI, "Idle timeout reached, unloading server")
+    await server.stop()
+  }
+
   private async persistTurn(turn: TurnBuilder, config: AIConfig): Promise<void> {
     try {
       const meta = {
@@ -641,9 +779,24 @@ export class AIController {
    * generation. For tiny we drop to "auto" and rely on the system prompt to
    * guide tool usage; plain-text replies fall through the fallback branch
    * in `sendMessage`.
+   *
+   * Thinking-mode remote models (DeepSeek-Reasoner, DeepSeek-V4-Flash,
+   * OpenAI o-series, QwQ, etc.) reject `tool_choice="required"` with
+   * `invalid_request_error` — their API spec only allows `auto` / `none`
+   * once chain-of-thought is active. Detect them by model name and fall
+   * back to `auto`.
    */
-  private resolveToolChoice(tier: PromptTier): ToolChoice {
-    return tier === "tiny" ? "auto" : "required"
+  private resolveToolChoice(tier: PromptTier, config: AIConfig | null): ToolChoice {
+    if (tier === "tiny") return "auto"
+    if (this.isRemoteThinkingModel(config)) return "auto"
+    return "required"
+  }
+
+  private isRemoteThinkingModel(config: AIConfig | null): boolean {
+    if (config?.provider !== "openai") return false
+    const modelName = config.openai?.model?.toLowerCase() ?? ""
+    if (!modelName) return false
+    return /reasoner|deepseek-r\d|deepseek-v[4-9]|thinking|qwq|^o[1-9]/.test(modelName)
   }
 
   private resolvePromptTier(config: AIConfig | null): PromptTier {
@@ -673,10 +826,25 @@ export class AIController {
     return "large"
   }
 
-  private async callLLM(messages: MessageLLM[], promptTier: PromptTier, toolChoice?: ToolChoice): Promise<{message: MessageLLM; done: boolean}> {
-    const tools = this.getToolsForTier(promptTier)
-    this.currentToolSchemas = new Map(tools.map((tool) => [tool.function.name, tool.function.parameters]))
-    return this.activeProvider.chat(messages, tools, this.abortController?.signal, toolChoice)
+  private async callLLM(
+    messages: MessageLLM[],
+    promptTier: PromptTier,
+    toolChoice: ToolChoice | undefined,
+    compatMode: boolean,
+    callbacks?: ChatStreamCallbacks,
+  ): Promise<{message: MessageLLM; done: boolean}> {
+    // In compat mode tools are described in the system prompt; we don't send
+    // them through the API and don't force tool_choice.
+    const tools = compatMode ? undefined : this.getToolsForTier(promptTier)
+    return this.activeProvider.chat(messages, tools, this.abortController?.signal, compatMode ? undefined : toolChoice, callbacks)
+  }
+
+  private isCompatMode(config: AIConfig): boolean {
+    if (config.provider !== "local") return false
+    const modelId = config.local?.model
+    if (!modelId) return false
+    const entry = this.localClient.modelService.getEntry(modelId)
+    return entry?.capabilities?.tools === "compat"
   }
 
   private async executeToolCall(toolCall: ToolCallLLM): Promise<{success: boolean; data?: string; error?: string}> {

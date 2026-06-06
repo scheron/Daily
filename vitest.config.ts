@@ -2,6 +2,8 @@ import {dirname, join} from "node:path"
 import {fileURLToPath} from "node:url"
 import {defineConfig} from "vitest/config"
 
+import vue from "@vitejs/plugin-vue"
+
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
 export default defineConfig({
@@ -23,6 +25,7 @@ export default defineConfig({
         },
       },
       {
+        plugins: [vue()],
         test: {
           name: "renderer",
           environment: "happy-dom",

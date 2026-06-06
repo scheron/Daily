@@ -36,6 +36,9 @@ export type AIMessage = {
   content: string
   timestamp: number
   toolCalls?: Array<{name: string; result: string}>
+  segments?: AgentMessageSegment[]
+  status?: "streaming" | "complete" | "cancelled" | "failed"
+  error?: string
 }
 
 export type AIResponse = {
@@ -78,6 +81,12 @@ export type AIEvent =
   | {type: "turn_finished"; turnId: string; finalMessage: string; finishedAt: number}
   | {type: "turn_failed"; turnId: string; error: string; finishedAt: number}
   | {type: "turn_cancelled"; turnId: string; finishedAt: number}
+  | {type: "model_content_delta"; turnId: string; iteration: number; text: string}
+  | {type: "model_reasoning_delta"; turnId: string; iteration: number; text: string}
+
+export type AgentMessageSegment =
+  | {kind: "reasoning"; text: string; durationMs?: number; startedAt?: number}
+  | {kind: "tool"; toolCallId: string; name: string; status: "running" | "done"; success?: boolean; summary?: string}
 
 /**
  * Renderer-safe summary of a persisted AgentTurn. Used by `ai:get-current-session`
@@ -93,6 +102,7 @@ export type AgentTurnSnapshot = {
   status: "running" | "completed" | "failed" | "cancelled" | "waiting_confirmation"
   /** Pairs derived from the turn's tool-call/tool-result steps. */
   toolCalls: Array<{name: string; result: string}>
+  segments?: AgentMessageSegment[]
   error?: string
 }
 

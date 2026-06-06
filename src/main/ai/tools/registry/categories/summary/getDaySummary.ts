@@ -1,4 +1,5 @@
-import {formatDuration, getTodayDate} from "../../helpers"
+import {formatDuration} from "@/ai/utils/formatDuration"
+import {getTodayDate} from "@/ai/utils/getTodayDate"
 
 import type {Day} from "@shared/types/storage"
 import type {RegisteredTool} from "../../types"

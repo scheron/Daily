@@ -45,7 +45,25 @@ export class ConversationCompactor {
         bodyStart++
       }
       const body = messages.slice(bodyStart)
-      const kept = body.slice(-opts.keepLastMessages)
+      let keepStart = Math.max(0, body.length - opts.keepLastMessages)
+      // Skip forward to a safe boundary: tool messages and assistant
+      // messages with tool_calls cannot be the head of the kept window —
+      // OpenAI/DeepSeek API rejects orphan tool messages and orphan
+      // assistant.tool_calls. Walk forward until we land on a user message,
+      // a system message, or an assistant message without tool_calls.
+      while (keepStart < body.length) {
+        const m = body[keepStart]
+        if (m.role === "tool") {
+          keepStart++
+          continue
+        }
+        if (m.role === "assistant" && m.tool_calls && m.tool_calls.length > 0) {
+          keepStart++
+          continue
+        }
+        break
+      }
+      const kept = body.slice(keepStart)
       const summaryMessage: MessageLLM = {
         role: "system",
         content: this.summary,

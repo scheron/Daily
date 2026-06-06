@@ -5,8 +5,9 @@ import {basename, dirname, join} from "path"
 import fs from "fs-extra"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
+import {RemoteSnapshotPendingError} from "@shared/errors/sync/RemoteSnapshotPendingError"
+
 import {RemoteStorageAdapter} from "@main/storage/sync/adapters/RemoteStorageAdapter"
-import {RemoteSnapshotPendingError} from "@main/storage/sync/errors"
 
 vi.mock("@/utils/logger", () => ({
   logger: {

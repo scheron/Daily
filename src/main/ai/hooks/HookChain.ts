@@ -1,3 +1,5 @@
+import {forEachAsync} from "@shared/utils/arrays/forEachAsync"
+
 import type {ToolResult} from "@/ai/tools/types"
 import type {MessageLLM, ToolCallLLM} from "@/ai/types"
 import type {AfterToolCallHook, AgentContext, BeforeToolCallDecision, BeforeToolCallHook, TransformContextHook} from "./types"
@@ -28,9 +30,7 @@ export class HookChain {
   }
 
   async runAfterToolCall(ctx: AgentContext, call: ToolCallLLM, result: ToolResult): Promise<void> {
-    for (const hook of this.after) {
-      await hook(ctx, call, result)
-    }
+    await forEachAsync(this.after, (hook) => hook(ctx, call, result))
   }
 
   runTransformContext(messages: ReadonlyArray<MessageLLM>): ReadonlyArray<MessageLLM> {

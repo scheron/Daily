@@ -21,7 +21,7 @@
  * // Maintains 5 concurrent operations until all are done
  * ```
  */
-export async function forEachConcurrent<T>(arr: T[], cb: (item: T, index: number) => Promise<void>, limit: number = 10): Promise<void> {
+export async function forEachConcurrent<T>(arr: ReadonlyArray<T>, cb: (item: T, index: number) => Promise<void>, limit: number = 10): Promise<void> {
   if (limit < 1) limit = 1
 
   if (arr.length === 0) {

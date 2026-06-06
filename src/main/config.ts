@@ -37,7 +37,7 @@ export const APP_CONFIG = {
       apiKey: "",
     },
     local: {
-      model: "qwen3-4b-instruct",
+      model: "qwen3.5-4b",
     },
   },
   updates: {

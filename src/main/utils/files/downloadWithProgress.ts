@@ -4,6 +4,7 @@ import {rename, stat, unlink} from "node:fs/promises"
 import {Readable, Transform} from "node:stream"
 import {pipeline} from "node:stream/promises"
 
+import {DownloadErrorCode} from "@shared/errors/download/DownloadErrorCode"
 import {logger} from "@/utils/logger"
 
 import type {DownloadPhase} from "@shared/types/ai"
@@ -16,20 +17,6 @@ type DownloadParams = {
   onProgress: (downloadedBytes: number, totalBytes: number, phase: DownloadPhase) => void
   sha256?: string | null
   signal?: AbortSignal
-}
-
-async function fileSize(p: string): Promise<number> {
-  try {
-    return (await stat(p)).size
-  } catch {
-    return 0
-  }
-}
-
-async function hashFile(p: string): Promise<string> {
-  const hash = createHash("sha256")
-  await pipeline(createReadStream(p), hash)
-  return hash.digest("hex")
 }
 
 export async function downloadWithProgress(params: DownloadParams): Promise<void> {
@@ -62,8 +49,8 @@ export async function downloadWithProgress(params: DownloadParams): Promise<void
     logger.info(logger.CONTEXT.AI, "Download: fallback fetch returned", {status: response.status})
   }
 
-  if (!response.ok) throw new Error(`Download failed: HTTP ${response.status} ${response.statusText}`)
-  if (!response.body) throw new Error("Download failed: no response body")
+  if (!response.ok) throw new Error(`${DownloadErrorCode.HttpFailed} ${response.status} ${response.statusText}`)
+  if (!response.body) throw new Error(DownloadErrorCode.NoResponseBody)
 
   const resumed = response.status === 206 && resumeFrom > 0
   if (!resumed) resumeFrom = 0
@@ -118,15 +105,46 @@ export async function downloadWithProgress(params: DownloadParams): Promise<void
 
   if (sha256) {
     logger.info(logger.CONTEXT.AI, "Download: verifying sha256")
-    onProgress(downloadedBytes, totalBytes, "verifying")
-    const actual = await hashFile(tempPath)
+    onProgress(0, downloadedBytes, "verifying")
+    let lastEmittedPct = -1
+    const actual = await hashFile(tempPath, (bytesProcessed) => {
+      // Throttle to one event per 1% so a 4GB hash produces ~100 ticks
+      // instead of ~65k chunk events.
+      const pct = downloadedBytes > 0 ? Math.floor((bytesProcessed / downloadedBytes) * 100) : 0
+      if (pct === lastEmittedPct) return
+      lastEmittedPct = pct
+      onProgress(bytesProcessed, downloadedBytes, "verifying")
+    })
     if (actual !== sha256) {
       await unlink(tempPath).catch(() => {})
-      throw new Error(`Checksum mismatch: expected ${sha256}, got ${actual}`)
+      throw new Error(`${DownloadErrorCode.ChecksumMismatch}: expected ${sha256}, got ${actual}`)
     }
     logger.info(logger.CONTEXT.AI, "Download: sha256 verified")
   }
 
   await rename(tempPath, destPath)
   logger.info(logger.CONTEXT.AI, "Download completed", {destPath, totalBytes: downloadedBytes})
+}
+
+async function fileSize(p: string): Promise<number> {
+  try {
+    return (await stat(p)).size
+  } catch {
+    return 0
+  }
+}
+
+async function hashFile(p: string, onChunk?: (bytesProcessed: number) => void): Promise<string> {
+  const hash = createHash("sha256")
+  const stream = createReadStream(p)
+  let bytesProcessed = 0
+  const counter = new Transform({
+    transform(chunk: Buffer, _enc, cb) {
+      bytesProcessed += chunk.length
+      onChunk?.(bytesProcessed)
+      cb(null, chunk)
+    },
+  })
+  await pipeline(stream, counter, hash)
+  return hash.digest("hex")
 }
