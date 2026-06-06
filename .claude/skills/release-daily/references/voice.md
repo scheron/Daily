@@ -10,11 +10,11 @@ Apple writes release notes for its own apps in a tight, friendly, benefit-first 
 
 ### What this voice does
 
-- **Leads with the outcome the user gets.** Not "we refactored X", but "you can now do Y".
-- **Uses everyday words.** "Faster", "smoother", "now syncs". Never "performant", "throughput", "race condition".
-- **Sentence-case, conversational.** Reads like a friendly note, not a press release or a Jira ticket.
-- **Groups stability/performance/bug fixes under a single catchall line** unless one specific fix is worth calling out by name.
-- **Doesn't apologize for past bugs.** "Fixed an issue where…" is the strongest negative tone you'll see. No "we're sorry", no "finally fixed".
+- **Leads with the outcome the user gets.** "You can now do Y." "Tasks load faster." "Fixed an issue where…" — the bullet opens with the user's experience.
+- **Uses everyday words.** "Faster", "smoother", "now syncs", "stays in place". Reach for vocabulary anyone would use, regardless of technical background.
+- **Sentence-case, conversational.** Reads like a friendly note from the team to the user.
+- **Stays factual and neutral about fixes.** "Fixed an issue where…" is the strongest emotional register. Just state what got fixed.
+- **Uses a single catchall line** like "Also includes stability improvements" when there are many small invisible-but-real changes worth signalling without enumerating.
 
 ### Real-world shape (Apple's own apps)
 
@@ -73,7 +73,7 @@ Custom workflows can be exported to YAML for sharing across workspaces.
 Slack integration: replying to a thread now updates the issue automatically.
 ```
 
-What we borrow: the declarative, noun-first shape. Avoid "We added…" — just "Custom workflows can…".
+What we borrow: the declarative, noun-first shape. Each bullet starts with the thing that changed — "Custom workflows can…", "Triage views now…", "Slack integration:…".
 
 ### Figma — playful, visual, organized by area
 
@@ -202,7 +202,7 @@ Complete sync system overhaul: replaced snapshot-based approach with incremental
 - Trailing `---` separator between versions. Always.
 - Sentence case in bullets. Capitalize first word, lowercase the rest unless proper noun.
 - One bullet per user-visible outcome, not per commit. Multiple commits behind one feature → one bullet.
-- Skip sections that have nothing to put in them — don't write an empty `### ✨ New Features` heading just because the template lists it.
+- Skip sections that have nothing to put in them — omit empty headings; the template is a menu, not a requirement.
 - Pick the bold pattern (feature-name vs area) based on what's clarifying for the reader, not as a rigid rule.
 
 ## 4. Worked example — raw git log to polished CHANGELOG
@@ -240,12 +240,12 @@ m1n2o3p Merge branch 'feat/streaming-polish' into main
 | `fix(sync): handle iCloud snapshot pending state…`            | ✅       | User-observable hang fixed.                                    |
 | `fix(ai): force tool_choice=auto for remote thinking-mode…`   | ✅       | Fixes a real broken interaction.                               |
 | `perf(ai): parallelize FS checks in listModels`               | ✅       | Noticeable speedup in a UI list.                               |
-| `refactor(ai): centralize error classes…`                     | ❌       | Pure internal refactor.                                        |
-| `test(ai): add integration tests for streaming flow`          | ❌       | Test additions.                                                |
-| `chore(deps): bump electron to 36.1.0`                        | ❌       | No behaviour change for the user.                              |
-| `ci: add nightly macos arm64 build runner`                    | ❌       | CI infrastructure.                                             |
-| `docs: update CLAUDE.md architecture section`                 | ❌       | Internal docs.                                                 |
-| `Merge branch 'feat/streaming-polish' into main`              | ❌       | Merge commit.                                                  |
+| `refactor(ai): centralize error classes…`                     | drop     | Pure internal refactor.                                        |
+| `test(ai): add integration tests for streaming flow`          | drop     | Test additions.                                                |
+| `chore(deps): bump electron to 36.1.0`                        | drop     | No behaviour change for the user.                              |
+| `ci: add nightly macos arm64 build runner`                    | drop     | CI infrastructure.                                             |
+| `docs: update CLAUDE.md architecture section`                 | drop     | Internal docs.                                                 |
+| `Merge branch 'feat/streaming-polish' into main`              | drop     | Merge commit.                                                  |
 
 5 of 14 commits drop out immediately by shape (refactor/test/chore/ci/docs/merge). 3 of the survivors collapse into a single "Streaming" feature. Net: 5 distinct user-visible items from 14 raw commits.
 
@@ -274,54 +274,54 @@ m1n2o3p Merge branch 'feat/streaming-polish' into main
 
 Note: bump from `0.14.3` to `0.15.0` (minor) is correct — multiple new features, no breaking changes. A patch wouldn't fit because users got real new capabilities, not just fixes.
 
-## 4. Anti-patterns — engineering log creeping into product notes
+## 4. Six rules for translating engineering work into product notes
 
-These are the failures the App-Store filter exists to catch. Each pair shows the same change written two ways.
+These are the rules the App-Store filter enforces. Each one is stated as the positive shape to write, with a short note on what it's catching so you recognise the situation when you see it in raw commits.
 
-### Implementation-mechanism phrasing
+### Lead with the user's world, not the implementation
 
-❌ "Switched ImageRenderer from `object-fit: cover` to `object-fit: contain` for narrow containers."
+Write bullets that name the thing the user sees, the experience they have. Anchor on UI surfaces ("narrow task cards", "the image preview modal"), data ("scheduled posts", "tag filters"), and observable behaviour ("sync", "loading", "rendering"). The implementation underneath — class names, file paths, CSS properties, algorithms — stays in git.
 
-✅ "Fixed images getting distorted instead of scaling proportionally in narrow task cards."
+**Sounds like:** "Fixed images getting distorted instead of scaling proportionally in narrow task cards."
 
-The user doesn't have an ImageRenderer. They have task cards that show images wrong. Lead with their world.
+Catches: phrasing that names internal classes, file paths, or technical mechanisms (`object-fit`, `ImageRenderer`, `setState`) that the user can't see or act on.
 
-### Conventional-commit prefixes leaking through
+### Translate every commit subject — strip conventional-commit syntax
 
-❌ "feat(ai): redesign agent system with hooks, registry, and durable sessions."
+Drop the `type(scope):` prefix. Rewrite the rest in plain English describing what the user gets.
 
-✅ "The AI assistant is now stateful — it remembers conversations across restarts, and tool calls require confirmation when they could change your data."
+**Sounds like:** "The AI assistant is now stateful — it remembers conversations across restarts, and tool calls that could change your data require explicit confirmation."
 
-The prefix `feat(ai):` is git syntax. Users don't read git. Strip it and translate.
+Catches: subjects with `feat(...)`, `fix(...)`, `refactor(...)`, `chore(...)` leaking through verbatim. That syntax is git's, not the user's.
 
-### Internal refactor in the changelog
+### Omit invisible refactors entirely
 
-❌ "Centralized all error classes into `src/shared/errors/` with one file per error code."
+Internal refactors that preserve behaviour (centralising error classes, renaming exports, switching iteration utilities, reorganising folders) produce zero bullets. They live in git history; that's where curious readers can find them.
 
-✅ (omit entirely)
+**Result:** the refactor produces no text at all in CHANGELOG.md.
 
-This is a real change, but the user can't perceive it. It belongs in git history. Putting it in release notes adds noise that drowns the things they _do_ care about.
+Catches: bullets that exist only because work happened, not because something changed for the reader. Each such bullet dilutes the things readers do care about.
 
-### Apologetic / negative tone
+### Stay factual and neutral on fixes
 
-❌ "We finally fixed the awful crash that's been frustrating users for weeks."
+State what got fixed, with enough specificity that a user who hit the bug recognises it. Skip emotional framing on either side.
 
-✅ "Fixed a crash that could occur when opening a task with an attached file larger than 50 MB."
+**Sounds like:** "Fixed a crash that could occur when opening a task with an attached file larger than 50 MB."
 
-Specific, factual, no emotional baggage. Apple never apologizes in its release notes — neither should we.
+Catches: apologetic wording ("we finally fixed", "sorry for"), self-congratulatory wording ("massive improvement"), and value judgements about past behaviour ("the awful crash"). Apple's release notes are emotion-flat by design, and we follow that.
 
-### Pile of bullets without grouping
+### Group above roughly seven bullets
 
-❌ Twenty unrelated bullets in a flat list under one `🐛 Bug Fixes` heading.
+Once a section grows past seven or so bullets, split it. Either use bold area prefixes inside the bullets (`**Sync** — …`, `**AI Assistant** — …`) or move some items into their own typed section (`🎨 Improvements` next to `🐛 Bug Fixes`).
 
-✅ Group by area when bullet count goes over ~7. Use **module bold** prefix or split into multiple sections (🐛 Bug Fixes, 🔄 Sync, 🤖 AI Assistant).
+**Result:** readers can scan and find what affects them. Long flat lists read as "we shipped a pile this time" and the eye glazes over.
 
-A flat wall of bullets reads as "we threw a lot at the wall this time" and the eye glazes over by item 8. Structure helps the user find what affects _them_.
+Catches: 15+ bullets under one heading with no internal structure.
 
-### "Misc improvements" with no detail
+### Use the catchall as a closing line only
 
-❌ "Various improvements and bug fixes."
+"Also includes stability improvements" is a useful closer when many small invisible fixes deserve a wave-in-the-direction-of but don't each warrant a bullet. Use it as the final line of a section that already has real, specific bullets above it.
 
-✅ "Stability and performance improvements." (only as a catchall trailing line, never as the entire section)
+**Sounds like:** ending a `🐛 Bug Fixes` section with `- Also includes stability and performance improvements across the app.`
 
-"Various" is the lazy version. Apple uses the catchall, but as a closing line under a real-content section — never as the section itself.
+Catches: a section consisting only of "Various improvements and bug fixes" with no specifics. That's the lazy form and reads as "we don't really know what changed".
