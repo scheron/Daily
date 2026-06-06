@@ -7,20 +7,14 @@ description: Cut a release of the Daily app — analyze commits + diffs since th
 
 This skill produces an **App Store-style product changelog** — the kind end users read in the App Store updates list. The voice is "what changed for me", never "what we did in the code".
 
-Examples of the right voice (from the existing CHANGELOG):
+**Before drafting anything, read [`references/voice.md`](references/voice.md).** It captures the voice in detail: how Apple writes release notes for its own apps (the gold standard we anchor on), how Linear and Figma frame product changelogs, what our own house style looks like across past releases, and a curated list of anti-patterns. The patterns in there matter more than any individual example, and the file exists precisely so SKILL.md can stay short while still anchoring you to a reliable bar.
+
+Quick taste, so you know what we're aiming for:
 
 - ✅ "Fixed images getting distorted instead of scaling proportionally in narrow task cards."
 - ❌ "Switched ImageRenderer from object-fit:cover to object-fit:contain."
 
-Examples of changes the user **never sees**:
-
-- Internal refactors that preserve behavior
-- Test additions
-- Dependency bumps that don't change behavior
-- Hook/architecture rework that doesn't surface
-- File renames, module reorganization, lint rule changes
-
-Such changes are EXCLUDED from the changelog entirely. They live in git history; users don't read git history.
+Changes the user never perceives — internal refactors, test additions, dependency bumps without behaviour change, hook/architecture rework that doesn't surface, file renames, lint conventions — are EXCLUDED from the changelog entirely. They live in git history; users don't read git history.
 
 ## The flow
 
@@ -104,45 +98,13 @@ Each option must be a complete, paste-ready section. Don't show fragments; show 
 
 Voice rules for every option:
 
-- Past tense, third-person. "Fixed X", "Added Y", not "We fixed X" or "fix X".
+- Past tense for fixes, present-shaped imperative for new things — "Fixed X", "Add Y". Never "We fixed X" or "fix X".
 - No conventional-commit prefixes (`feat(...)`, `fix(...)`).
 - Lead with the OUTCOME, not the mechanism. "Tasks load 4× faster on big lists" beats "Replaced ListView with virtualized renderer".
-- Bold the module when it's a domain reference: `**Sync** — fixed the snapshot deadlock when iCloud is offline.`
+- Bold the module when bullets span several areas: `**Sync** — fixed the snapshot deadlock when iCloud is offline.`
 - One bullet per user-visible outcome. Multiple commits for one feature → one bullet.
 
-**Reference formatting**:
-
-Single-bullet section:
-
-```markdown
-### 🐛 Bug Fixes
-
-- Fixed tag filter not resetting when all tasks with a filtered tag are moved, deleted, or change status.
-```
-
-Structured section with intro:
-
-```markdown
-### 🔄 iCloud Sync Improvements
-
-Complete sync system overhaul: replaced snapshot-based approach with incremental delta synchronization and field-level merge.
-
-**New architecture:**
-
-- **Delta sync engine** — incremental sync of only changed fields via iCloud Drive
-- **Field-level merge** — concurrent edits to different fields of the same document on different devices are both preserved
-```
-
-Mixed bullets with module emphasis:
-
-```markdown
-### 🐛 Bug Fixes
-
-- **Sync** — fixed crash during pull that caused every sync attempt to fail with a database constraint error
-- **iCloud Sync** — improved snapshot loading so iCloud placeholders no longer behave like missing remote data during sync
-```
-
-Re-read 2-3 of the most recent CHANGELOG entries before drafting. Voice consistency between releases matters.
+For full reference formatting (single-bullet section, structured section with intro paragraph, mixed bullets with module emphasis, plus anti-pattern contrasts), see [`references/voice.md`](references/voice.md). Re-read 2–3 of the most recent CHANGELOG entries every time before drafting — voice consistency between releases is what makes the bar feel maintained.
 
 ### Step 6 — version bump interview
 
