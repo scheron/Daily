@@ -3,6 +3,7 @@
   "appId": "com.dailyapp.daily",
   "productName": "Daily",
   "asar": true,
+  "asarUnpack": ["node_modules/@modelcontextprotocol/**/*", "node_modules/zod/**/*", "node_modules/zod-to-json-schema/**/*"],
   "copyright": "Copyright © 2025 Infected by JS",
   "directories": {
     "buildResources": "public",
