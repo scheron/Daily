@@ -1,7 +1,7 @@
-import {AI_TOOLS} from "@/ai/tools/tools"
-import {MCP_BLOCKED_TOOL_NAMES} from "@/mcp/constants"
+import {REGISTRY} from "@/ai/tools/registry"
+import {MCP_BLOCKED_TOOL_NAMES, MCP_HIDDEN_TOOL_NAMES} from "@/mcp/constants"
 
-export {MCP_BLOCKED_TOOL_NAMES} from "@/mcp/constants"
+export {MCP_BLOCKED_TOOL_NAMES, MCP_HIDDEN_TOOL_NAMES} from "@/mcp/constants"
 
 export type McpTool = {
   name: string
@@ -19,11 +19,11 @@ export type McpToolRegistry = {
 }
 
 export function buildMcpToolRegistry(): McpToolRegistry {
-  const blocked = new Set<string>(MCP_BLOCKED_TOOL_NAMES)
-  const tools: McpTool[] = AI_TOOLS.filter((t) => !blocked.has(t.function.name)).map((t) => ({
-    name: t.function.name,
-    description: t.function.description ?? "",
-    inputSchema: (t.function.parameters ?? {type: "object"}) as McpTool["inputSchema"],
+  const excluded = new Set<string>([...MCP_BLOCKED_TOOL_NAMES, ...MCP_HIDDEN_TOOL_NAMES])
+  const tools: McpTool[] = REGISTRY.filter((t) => !excluded.has(t.name)).map((t) => ({
+    name: t.name,
+    description: t.description,
+    inputSchema: (t.parameters ?? {type: "object"}) as McpTool["inputSchema"],
   }))
 
   const byName = new Map(tools.map((t) => [t.name, t]))

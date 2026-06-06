@@ -35,10 +35,12 @@ export type Tool = {
   }
 }
 
+export type ToolChoice = "auto" | "required" | "none"
+
 export interface IAiClient {
   updateConfig(config: AIConfig | null): void
   checkConnection(): Promise<boolean>
   listModels(): Promise<string[]>
-  chat(messages: MessageLLM[], tools?: Tool[], signal?: AbortSignal): Promise<{message: MessageLLM; done: boolean}>
+  chat(messages: MessageLLM[], tools?: Tool[], signal?: AbortSignal, toolChoice?: ToolChoice): Promise<{message: MessageLLM; done: boolean}>
   dispose?(): Promise<void>
 }

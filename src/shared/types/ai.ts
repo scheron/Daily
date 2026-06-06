@@ -42,6 +42,58 @@ export type AIResponse = {
   error?: string
 }
 
+/**
+ * The structured object the renderer receives when a destructive tool call
+ * is awaiting confirmation. The internal `PendingConfirmation` (in main)
+ * carries an additional `resolve` callback and timeout handle that cannot
+ * cross the IPC boundary — only this serializable subset goes to the
+ * renderer.
+ */
+export type PendingToolConfirmation = {
+  id: string
+  toolName: string
+  /** Short verb-phrase ("Delete task", "Permanently delete task"). */
+  title: string
+  /** Single-line description ("Move 'buy milk' to trash"). */
+  summary: string
+  /** Optional supplementary lines ("Task ID: abc123"). */
+  details?: string[]
+  createdAt: number
+}
+
+/**
+ * Live progress events emitted by the agent loop. The renderer subscribes
+ * via `ai:on-event` to drive richer status UI ("calling LLM…", "running
+ * create_task…"). Tool parameters and full LLM messages are intentionally
+ * NOT included — events stay small and free of user-content leakage.
+ */
+export type AIEvent =
+  | {type: "turn_started"; turnId: string; userMessage: string; startedAt: number}
+  | {type: "model_requested"; turnId: string; iteration: number}
+  | {type: "model_responded"; turnId: string; iteration: number; hasToolCalls: boolean}
+  | {type: "tool_started"; turnId: string; toolCallId: string; toolName: string}
+  | {type: "tool_finished"; turnId: string; toolCallId: string; toolName: string; success: boolean; summary: string}
+  | {type: "turn_finished"; turnId: string; finalMessage: string; finishedAt: number}
+  | {type: "turn_failed"; turnId: string; error: string; finishedAt: number}
+  | {type: "turn_cancelled"; turnId: string; finishedAt: number}
+
+/**
+ * Renderer-safe summary of a persisted AgentTurn. Used by `ai:get-current-session`
+ * to restore the chat view on app start. The full `AgentStep[]` array stays in
+ * main; the renderer only needs enough to draw a chat message bubble.
+ */
+export type AgentTurnSnapshot = {
+  id: string
+  userMessage: string
+  finalMessage: string | null
+  startedAt: number
+  finishedAt: number | null
+  status: "running" | "completed" | "failed" | "cancelled" | "waiting_confirmation"
+  /** Pairs derived from the turn's tool-call/tool-result steps. */
+  toolCalls: Array<{name: string; result: string}>
+  error?: string
+}
+
 export type LocalRuntimeParams = {
   /** Context length (tokens). Default from manifest. */
   ctx?: number

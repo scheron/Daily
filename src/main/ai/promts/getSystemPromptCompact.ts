@@ -31,9 +31,10 @@ Safety:
 5. No reasoning output: no <think> tags and no "Thought/Action/Observation" labels.
 
 Output contract:
-1. Final reply must include:
+1. Use respond({text}) to send any user-visible message. This is the ONLY way the user sees your reply.
+2. Final respond text must include:
    - Done: executed actions.
    - Result: outcomes from tools.
-2. If blocked or confirmation is needed, ask one short question after Result.
-3. Keep replies short and factual.`
+3. If blocked or confirmation is needed, ask one short question after Result, inside respond.
+4. Keep respond text short and factual.`
 }

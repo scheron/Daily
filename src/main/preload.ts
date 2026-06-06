@@ -2,7 +2,17 @@ import {contextBridge, ipcRenderer} from "electron"
 
 import {ShortcutsMap} from "@shared/constants/shortcuts"
 
-import type {AIConfig, AIResponse, LocalModelDownloadProgress, LocalModelId, LocalModelInfo, LocalRuntimeState} from "@shared/types/ai"
+import type {
+  AgentTurnSnapshot,
+  AIConfig,
+  AIEvent,
+  AIResponse,
+  LocalModelDownloadProgress,
+  LocalModelId,
+  LocalModelInfo,
+  LocalRuntimeState,
+  PendingToolConfirmation,
+} from "@shared/types/ai"
 import type {ISODate} from "@shared/types/common"
 import type {BridgeIPC} from "@shared/types/ipc"
 import type {McpStatus} from "@shared/types/mcp"
@@ -95,6 +105,9 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "ai:cancel": () => ipcRenderer.invoke("ai:cancel") as Promise<boolean>,
   "ai:clear-history": () => ipcRenderer.invoke("ai:clear-history") as Promise<boolean>,
   "ai:update-config": (config: Partial<AIConfig>) => ipcRenderer.invoke("ai:update-config", config) as Promise<boolean>,
+  "ai:confirm-tool-call": (confirmationId: string) => ipcRenderer.invoke("ai:confirm-tool-call", confirmationId) as Promise<boolean>,
+  "ai:cancel-tool-call": (confirmationId: string) => ipcRenderer.invoke("ai:cancel-tool-call", confirmationId) as Promise<boolean>,
+  "ai:get-current-session": () => ipcRenderer.invoke("ai:get-current-session") as Promise<{turns: AgentTurnSnapshot[]}>,
 
   "ai:local-list-models": () => ipcRenderer.invoke("ai:local-list-models") as Promise<LocalModelInfo[]>,
   "ai:local-download-model": (modelId: LocalModelId) => ipcRenderer.invoke("ai:local-download-model", modelId) as Promise<boolean>,
@@ -105,6 +118,22 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
 
   "ai:on-local-state-changed": (callback: (state: LocalRuntimeState) => void) => ipcRenderer.on("ai:local-state-changed", (_event, state: LocalRuntimeState) => callback(state)),
   "ai:on-local-download-progress": (callback: (progress: LocalModelDownloadProgress) => void) => ipcRenderer.on("ai:local-download-progress", (_event, progress: LocalModelDownloadProgress) => callback(progress)),
+
+  "ai:on-confirmation-required": (callback: (confirmation: PendingToolConfirmation) => void) => {
+    const subscription = (_event: unknown, confirmation: PendingToolConfirmation) => callback(confirmation)
+    ipcRenderer.on("ai:confirmation-required", subscription)
+    return () => ipcRenderer.removeListener("ai:confirmation-required", subscription)
+  },
+  "ai:on-confirmation-resolved": (callback: (payload: {confirmationId: string}) => void) => {
+    const subscription = (_event: unknown, payload: {confirmationId: string}) => callback(payload)
+    ipcRenderer.on("ai:confirmation-resolved", subscription)
+    return () => ipcRenderer.removeListener("ai:confirmation-resolved", subscription)
+  },
+  "ai:on-event": (callback: (event: AIEvent) => void) => {
+    const subscription = (_event: unknown, payload: AIEvent) => callback(payload)
+    ipcRenderer.on("ai:event", subscription)
+    return () => ipcRenderer.removeListener("ai:event", subscription)
+  },
 
   "mcp:get-status": () => ipcRenderer.invoke("mcp:get-status") as Promise<McpStatus>,
   "mcp:get-config": () => ipcRenderer.invoke("mcp:get-config") as Promise<McpSettings>,

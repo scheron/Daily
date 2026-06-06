@@ -11,6 +11,9 @@ export async function setupAiIPC(getAi: () => AIController | null, getMainWindow
   ipcMain.handle("ai:cancel", () => getAi()?.cancel())
   ipcMain.handle("ai:clear-history", () => getAi()?.clearHistory())
   ipcMain.handle("ai:update-config", (_event, config: AIConfig) => getAi()?.updateConfig(config))
+  ipcMain.handle("ai:confirm-tool-call", (_event, confirmationId: string) => getAi()?.confirmToolCall(confirmationId) ?? false)
+  ipcMain.handle("ai:cancel-tool-call", (_event, confirmationId: string) => getAi()?.cancelToolCall(confirmationId) ?? false)
+  ipcMain.handle("ai:get-current-session", async () => (await getAi()?.getCurrentSession()) ?? {turns: []})
 
   ipcMain.handle("ai:local-list-models", async () => (await getAi()?.getLocalModel().listModels()) ?? [])
   ipcMain.handle("ai:local-get-state", async () => (await getAi()?.getLocalState()) ?? {status: "not_installed"})

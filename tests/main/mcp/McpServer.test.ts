@@ -83,7 +83,7 @@ describe("McpServer (integration)", () => {
       arguments: {content: "buy milk"},
     })
     expect(status).toBe(200)
-    expect(executor.execute).toHaveBeenCalledWith("create_task", {content: "buy milk"})
+    expect(executor.execute).toHaveBeenCalledWith("create_task", {content: "buy milk"}, "mcp")
     expect(body.result).toBeDefined()
   })
 

@@ -64,9 +64,25 @@ app.whenReady().then(async () => {
   windows.splash = createSplashWindow()
 
   storage = new StorageController()
-  ai = new AIController(storage, (state) => {
-    windows.main?.webContents.send("ai:local-state-changed", state)
-  })
+  ai = new AIController(
+    storage,
+    (state) => {
+      windows.main?.webContents.send("ai:local-state-changed", state)
+    },
+    (event) => {
+      const target = windows.assistant ?? windows.main
+      if (!target) return
+      if (event.type === "required") {
+        target.webContents.send("ai:confirmation-required", event.confirmation)
+      } else {
+        target.webContents.send("ai:confirmation-resolved", {confirmationId: event.confirmationId})
+      }
+    },
+    (event) => {
+      const target = windows.assistant ?? windows.main
+      target?.webContents.send("ai:event", event)
+    },
+  )
 
   try {
     await storage.init()

@@ -33,9 +33,10 @@ Safety:
 5. No reasoning output: no <think> tags, no "Thought/Action/Observation" labels.
 
 Output:
-1. Final reply must include:
+1. Use respond({text}) for the user-visible reply. Nothing else reaches the user.
+2. respond text must include:
    - Done: executed actions.
    - Result: outcomes from tools.
-2. If blocked or confirmation is needed, ask one short question after Result.
-3. Keep replies short and factual.`
+3. If blocked or confirmation is needed, ask one short question inside respond.
+4. Keep respond text short and factual.`
 }

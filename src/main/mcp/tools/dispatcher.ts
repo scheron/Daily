@@ -22,7 +22,7 @@ export class McpToolDispatcher {
     }
 
     try {
-      return await this.executor.execute(name as any, params)
+      return await this.executor.execute(name as any, params, "mcp")
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       logger.error(logger.CONTEXT.MCP, `Tool '${name}' threw`, err)

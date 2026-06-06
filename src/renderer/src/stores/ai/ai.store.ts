@@ -10,7 +10,7 @@ import {useSettingsStore} from "@/stores/settings.store"
 import {useLoadingState} from "@/composables/useLoadingState"
 import {toRawDeep} from "@/utils/ui/vue"
 
-import type {AIConfig, AIMessage, AIProvider, LocalModelId} from "@shared/types/ai"
+import type {AgentTurnSnapshot, AIConfig, AIMessage, AIProvider, LocalModelId, PendingToolConfirmation} from "@shared/types/ai"
 import type {ISODate} from "@shared/types/common"
 
 export const useAiStore = defineStore("ai", () => {
@@ -25,6 +25,64 @@ export const useAiStore = defineStore("ai", () => {
   const isCancelled = ref(false)
   const messages = ref<AIMessage[]>([])
   const chatTimeStarted = ref<ISODate | null>(null)
+  const pendingConfirmation = ref<PendingToolConfirmation | null>(null)
+
+  // Hydrate the chat from the persisted active session (if any). Skips
+  // when there's already in-memory chat (e.g. after live messages have
+  // been sent). The promise is fire-and-forget — the chat view tolerates
+  // late population.
+  hydrateFromActiveSession()
+  async function hydrateFromActiveSession() {
+    if (messages.value.length > 0) return
+    try {
+      const {turns} = await window.BridgeIPC["ai:get-current-session"]()
+      if (messages.value.length > 0) return
+      if (!turns.length) return
+      messages.value = turnsToMessages(turns)
+      chatTimeStarted.value = toISODate(turns[0].startedAt)
+    } catch {
+      // Best-effort; chat starts empty.
+    }
+  }
+
+  function turnsToMessages(turns: AgentTurnSnapshot[]): AIMessage[] {
+    const out: AIMessage[] = []
+    for (const turn of turns) {
+      out.push({
+        id: `user_${turn.id}`,
+        role: "user",
+        content: turn.userMessage,
+        timestamp: turn.startedAt,
+      })
+      const finalText =
+        turn.finalMessage ??
+        (turn.status === "failed" ? `Error: ${turn.error ?? "unknown"}` : turn.status === "cancelled" ? "Request cancelled." : "")
+      if (finalText) {
+        out.push({
+          id: `msg_${turn.id}`,
+          role: "assistant",
+          content: finalText,
+          timestamp: turn.finishedAt ?? turn.startedAt,
+          toolCalls: turn.toolCalls.length ? turn.toolCalls : [],
+        })
+      }
+    }
+    return out
+  }
+
+  // Install the confirmation listeners once per store instance. Pinia stores
+  // are singletons per app, so this fires at most once.
+  installConfirmationListeners()
+  function installConfirmationListeners() {
+    window.BridgeIPC["ai:on-confirmation-required"]((c) => {
+      pendingConfirmation.value = c
+    })
+    window.BridgeIPC["ai:on-confirmation-resolved"](({confirmationId}) => {
+      if (pendingConfirmation.value?.id === confirmationId) {
+        pendingConfirmation.value = null
+      }
+    })
+  }
 
   const remoteModels = computed(() => remoteModelStore.availableModels)
   const localModels = computed(() => localModelStore.models)
@@ -131,6 +189,7 @@ export const useAiStore = defineStore("ai", () => {
     isCancelled.value = true
     window.BridgeIPC["ai:cancel"]()
     thinkState.setState("IDLE")
+    pendingConfirmation.value = null
   }
 
   async function clearHistory(): Promise<void> {
@@ -140,7 +199,24 @@ export const useAiStore = defineStore("ai", () => {
 
     chatTimeStarted.value = null
     messages.value = []
+    pendingConfirmation.value = null
     thinkState.setState("IDLE")
+  }
+
+  async function confirmPendingToolCall(): Promise<void> {
+    const id = pendingConfirmation.value?.id
+    if (!id) return
+    await window.BridgeIPC["ai:confirm-tool-call"](id)
+    // The "resolved" broadcast clears the ref; clear locally too in case
+    // the event hasn't arrived yet.
+    pendingConfirmation.value = null
+  }
+
+  async function cancelPendingToolCall(): Promise<void> {
+    const id = pendingConfirmation.value?.id
+    if (!id) return
+    await window.BridgeIPC["ai:cancel-tool-call"](id)
+    pendingConfirmation.value = null
   }
 
   async function selectModel(provider: AIProvider, model: string) {
@@ -214,6 +290,7 @@ export const useAiStore = defineStore("ai", () => {
 
     hasMessages,
     lastMessage,
+    pendingConfirmation,
 
     updateConfig,
     checkConnection,
@@ -221,6 +298,8 @@ export const useAiStore = defineStore("ai", () => {
     retryMessage,
     cancelRequest,
     clearHistory,
+    confirmPendingToolCall,
+    cancelPendingToolCall,
     selectModel,
     getLocalDownloadProgress,
     isLocalModelPending,

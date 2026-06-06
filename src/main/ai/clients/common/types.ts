@@ -14,6 +14,7 @@ export type ChatRequest = {
   model: string
   messages: MessageLLM[]
   tools?: Tool[]
+  tool_choice?: "auto" | "required" | "none"
   stream?: boolean
 } & ChatSamplingParams
 

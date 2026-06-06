@@ -1,6 +1,16 @@
 import type {Buffer} from "buffer"
 import type {PartialDeep} from "type-fest"
-import type {AIConfig, AIResponse, LocalModelDownloadProgress, LocalModelId, LocalModelInfo, LocalRuntimeState} from "./ai"
+import type {
+  AgentTurnSnapshot,
+  AIConfig,
+  AIEvent,
+  AIResponse,
+  LocalModelDownloadProgress,
+  LocalModelId,
+  LocalModelInfo,
+  LocalRuntimeState,
+  PendingToolConfirmation,
+} from "./ai"
 import type {ISODate} from "./common"
 import type {McpStatus} from "./mcp"
 import type {TaskSearchResult} from "./search"
@@ -95,6 +105,9 @@ export interface BridgeIPC {
   "ai:cancel": () => Promise<boolean>
   "ai:clear-history": () => Promise<boolean>
   "ai:update-config": (config: Partial<AIConfig>) => Promise<boolean>
+  "ai:confirm-tool-call": (confirmationId: string) => Promise<boolean>
+  "ai:cancel-tool-call": (confirmationId: string) => Promise<boolean>
+  "ai:get-current-session": () => Promise<{turns: AgentTurnSnapshot[]}>
 
   // === AI LOCAL MODEL MANAGEMENT ===
   "ai:local-list-models": () => Promise<LocalModelInfo[]>
@@ -103,6 +116,11 @@ export interface BridgeIPC {
   "ai:local-delete-model": (modelId: LocalModelId) => Promise<boolean>
   "ai:local-get-state": () => Promise<LocalRuntimeState>
   "ai:local-get-disk-usage": () => Promise<{total: number; models: Record<string, number>}>
+
+  // === AI EVENTS ===
+  "ai:on-confirmation-required": (callback: (confirmation: PendingToolConfirmation) => void) => () => void
+  "ai:on-confirmation-resolved": (callback: (payload: {confirmationId: string}) => void) => () => void
+  "ai:on-event": (callback: (event: AIEvent) => void) => () => void
 
   // === AI LOCAL EVENTS ===
   "ai:on-local-state-changed": (callback: (state: LocalRuntimeState) => void) => void

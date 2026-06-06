@@ -2,7 +2,7 @@ import {logger} from "@/utils/logger"
 
 import {APP_CONFIG} from "@/config"
 
-import type {IAiClient, MessageLLM, Tool, ToolCallLLM} from "@/ai/types"
+import type {IAiClient, MessageLLM, Tool, ToolCallLLM, ToolChoice} from "@/ai/types"
 import type {AIConfig} from "@shared/types/ai"
 import type {ChatRequest, OpenAiChatConfig, OpenAiChatResponse, OpenAiConnectionConfig} from "./types"
 
@@ -63,20 +63,21 @@ export abstract class OpenAiCompatibleClient implements IAiClient {
     }
   }
 
-  async chat(messages: MessageLLM[], tools?: Tool[], signal?: AbortSignal): Promise<{message: MessageLLM; done: boolean}> {
+  async chat(messages: MessageLLM[], tools?: Tool[], signal?: AbortSignal, toolChoice?: ToolChoice): Promise<{message: MessageLLM; done: boolean}> {
     const config = this.getChatConfig()
     if (!config) {
       logger.error(logger.CONTEXT.AI, `${this.getClientName()} config is not set`)
       return {message: {role: "assistant", content: `${this.getClientName()} config is not set`}, done: false}
     }
 
-    logger.info(logger.CONTEXT.AI, `${this.getClientName()} chat request`, {model: config.model, messagesCount: messages.length})
+    logger.info(logger.CONTEXT.AI, `${this.getClientName()} chat request`, {model: config.model, messagesCount: messages.length, toolChoice})
 
     const openAiMessages = this.convertMessages(messages, config.model)
     const requestBody: ChatRequest = {
       model: config.model,
       messages: openAiMessages,
       tools,
+      tool_choice: toolChoice,
       stream: false,
       temperature: config.temperature,
       top_p: config.top_p,

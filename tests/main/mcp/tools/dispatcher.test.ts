@@ -24,7 +24,7 @@ describe("McpToolDispatcher", () => {
     const d = new McpToolDispatcher(buildMcpToolRegistry(), executor as any)
 
     const r = await d.call("list_tasks", {})
-    expect(executor.execute).toHaveBeenCalledWith("list_tasks", {})
+    expect(executor.execute).toHaveBeenCalledWith("list_tasks", {}, "mcp")
     expect(r).toEqual({success: true, data: {ok: 1}})
   })
 
@@ -57,5 +57,13 @@ describe("McpToolDispatcher", () => {
     const r = await d.call("list_tasks", {})
     expect(r.success).toBe(false)
     expect(r.error).toBe("boom")
+  })
+
+  it("passes 'mcp' as the caller to ToolExecutor", async () => {
+    const executor = makeExecutor(() => ({success: true}))
+    const d = new McpToolDispatcher(buildMcpToolRegistry(), executor as any)
+
+    await d.call("list_tasks", {})
+    expect(executor.execute).toHaveBeenCalledWith("list_tasks", {}, "mcp")
   })
 })

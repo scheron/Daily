@@ -17,6 +17,7 @@ import DisabledAICard from "./{fragments}/cards/DisabledAICard.vue"
 import NoLocalModelAICard from "./{fragments}/cards/NoLocalModelAICard.vue"
 import OnboardingAICard from "./{fragments}/cards/OnboardingAICard.vue"
 import ThinkErrorAICard from "./{fragments}/cards/ThinkErrorAICard.vue"
+import ToolConfirmationCard from "./{fragments}/cards/ToolConfirmationCard.vue"
 import ChatForm from "./{fragments}/ChatForm.vue"
 import ChatMessage from "./{fragments}/ChatMessage.vue"
 
@@ -131,6 +132,13 @@ onMounted(() => {
                 :message="msg"
                 :can-retry="msg.id === retryableMessageId"
                 @retry="aiStore.retryMessage"
+              />
+
+              <ToolConfirmationCard
+                v-if="aiStore.pendingConfirmation"
+                :confirmation="aiStore.pendingConfirmation"
+                @confirm="aiStore.confirmPendingToolCall"
+                @cancel="aiStore.cancelPendingToolCall"
               />
 
               <ThinkErrorAICard v-if="aiStore.isThinkError && retryableMessageId" @retry="aiStore.retryMessage" />

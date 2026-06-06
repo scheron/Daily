@@ -37,7 +37,7 @@ describe("migrations", () => {
     runMigrations(db)
 
     const applied = getAppliedMigrations(db)
-    expect(applied).toHaveLength(3)
+    expect(applied).toHaveLength(4)
 
     db.close()
   })
@@ -47,13 +47,57 @@ describe("migrations", () => {
     db.pragma("foreign_keys = ON")
 
     runMigrations(db)
-    expect(getAppliedMigrations(db)).toHaveLength(3)
+    expect(getAppliedMigrations(db)).toHaveLength(4)
 
     const rolledBack = rollbackLastMigration(db)
-    expect(rolledBack).toBe(3)
-    expect(getAppliedMigrations(db)).toHaveLength(2)
+    expect(rolledBack).toBe(4)
+    expect(getAppliedMigrations(db)).toHaveLength(3)
 
     db.close()
+  })
+
+  describe("v004 — ai sessions", () => {
+    it("creates ai_sessions, ai_turns, ai_steps tables with indexes", () => {
+      const db = new Database(":memory:")
+      db.pragma("foreign_keys = ON")
+      runMigrations(db)
+
+      const tables = db
+        .prepare("SELECT name FROM sqlite_master WHERE type='table'")
+        .all()
+        .map((t) => t.name)
+      expect(tables).toContain("ai_sessions")
+      expect(tables).toContain("ai_turns")
+      expect(tables).toContain("ai_steps")
+
+      const indexes = db
+        .prepare("SELECT name FROM sqlite_master WHERE type='index'")
+        .all()
+        .map((i) => i.name)
+      expect(indexes).toContain("idx_ai_turns_session_started")
+      expect(indexes).toContain("idx_ai_steps_turn_created")
+      expect(indexes).toContain("idx_ai_sessions_active")
+
+      db.close()
+    })
+
+    it("cascade deletes turns and steps when session is deleted", () => {
+      const db = new Database(":memory:")
+      db.pragma("foreign_keys = ON")
+      runMigrations(db)
+
+      const now = new Date().toISOString()
+      db.prepare("INSERT INTO ai_sessions (id, status, created_at, updated_at) VALUES ('s1', 'active', ?, ?)").run(now, now)
+      db.prepare("INSERT INTO ai_turns (id, session_id, user_message, status, started_at) VALUES ('t1', 's1', 'hi', 'completed', ?)").run(now)
+      db.prepare("INSERT INTO ai_steps (id, turn_id, type, payload_json, created_at) VALUES ('st1', 't1', 'respond', '{}', ?)").run(now)
+
+      db.prepare("DELETE FROM ai_sessions WHERE id = 's1'").run()
+
+      expect(db.prepare("SELECT COUNT(*) as c FROM ai_turns").get().c).toBe(0)
+      expect(db.prepare("SELECT COUNT(*) as c FROM ai_steps").get().c).toBe(0)
+
+      db.close()
+    })
   })
 
   describe("v003 — remove delta sync", () => {

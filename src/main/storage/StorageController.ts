@@ -13,6 +13,7 @@ import {logger} from "@/utils/logger"
 
 import {fsPaths} from "@/config"
 import {initDatabase} from "@/storage/database/instance"
+import {AISessionModel} from "@/storage/models/AISessionModel"
 import {BranchModel} from "@/storage/models/BranchModel"
 import {FileModel} from "@/storage/models/FileModel"
 import {SettingsModel} from "@/storage/models/SettingsModel"
@@ -29,6 +30,8 @@ import {LocalStorageAdapter} from "@/storage/sync/adapters/LocalStorageAdapter"
 import {RemoteStorageAdapter} from "@/storage/sync/adapters/RemoteStorageAdapter"
 import {SyncEngine} from "@/storage/sync/SyncEngine"
 
+import type {AgentTurn} from "@/ai/turns/types"
+import type {SessionMeta} from "@/storage/models/AISessionModel"
 import type {IStorageController} from "@/types/storage"
 import type {ISODate} from "@shared/types/common"
 import type {TaskSearchResult} from "@shared/types/search"
@@ -46,6 +49,7 @@ export class StorageController implements IStorageController {
   private daysService!: DaysService
   private searchService!: SearchService
   private syncEngine!: SyncEngine
+  private aiSessionModel!: AISessionModel
 
   private notifyStorageStatusChange?: (status: SyncStatus, prevStatus: SyncStatus) => void
   private notifyStorageDataChange?: () => void
@@ -64,6 +68,8 @@ export class StorageController implements IStorageController {
 
     branchModel.ensureMainBranch()
     fileModel.initAssets()
+
+    this.aiSessionModel = new AISessionModel(db)
 
     this.settingsService = new SettingsService(settingsModel)
     this.branchesService = new BranchesService(branchModel, this.settingsService)
@@ -395,6 +401,31 @@ export class StorageController implements IStorageController {
 
   async cleanupOrphanFiles(): Promise<void> {
     return this.filesService.cleanupOrphanFiles()
+  }
+  //#endregion
+
+  //#region AI SESSIONS
+  /**
+   * Append a finished turn to the active session, creating the session lazily
+   * on the first call after a fresh app start (or after `archiveActiveAiSession`).
+   */
+  async appendAiTurn(turn: AgentTurn, meta: SessionMeta = {}): Promise<void> {
+    let session = this.aiSessionModel.getActiveSession()
+    if (!session) session = this.aiSessionModel.createSession(meta)
+    this.aiSessionModel.appendTurn(session.id, turn)
+  }
+
+  async archiveActiveAiSession(): Promise<boolean> {
+    const active = this.aiSessionModel.getActiveSession()
+    if (!active) return false
+    return this.aiSessionModel.archiveSession(active.id)
+  }
+
+  /** Returns the last N turns of the active session, oldest first; empty when no session. */
+  async getActiveAiSessionTurns(limit = 20): Promise<AgentTurn[]> {
+    const active = this.aiSessionModel.getActiveSession()
+    if (!active) return []
+    return this.aiSessionModel.getSessionTurns(active.id, limit)
   }
   //#endregion
 }

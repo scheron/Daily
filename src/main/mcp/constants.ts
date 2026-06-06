@@ -17,3 +17,14 @@ export const MCP_TOKEN_BYTES = 24
 export const MCP_BLOCKED_TOOL_NAMES = ["permanently_delete_task", "delete_project", "delete_tag", "remove_task_attachment"] as const
 
 export type McpBlockedToolName = (typeof MCP_BLOCKED_TOOL_NAMES)[number]
+
+/**
+ * Protocol-level tools that are part of the in-app agent loop and have no
+ * meaning for external MCP clients. They are hidden from MCP, but they are
+ * NOT destructive — kept in a separate list so the security boundary
+ * (MCP_BLOCKED_TOOL_NAMES) and the protocol boundary (this list) stay
+ * conceptually distinct.
+ */
+export const MCP_HIDDEN_TOOL_NAMES = ["respond"] as const
+
+export type McpHiddenToolName = (typeof MCP_HIDDEN_TOOL_NAMES)[number]
