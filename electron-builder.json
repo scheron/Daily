@@ -2,8 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
   "appId": "com.dailyapp.daily",
   "productName": "Daily",
-  "asar": true,
-  "asarUnpack": ["node_modules/@modelcontextprotocol/**/*", "node_modules/zod/**/*", "node_modules/zod-to-json-schema/**/*"],
+  "asar": false,
   "copyright": "Copyright © 2025 Infected by JS",
   "directories": {
     "buildResources": "public",
