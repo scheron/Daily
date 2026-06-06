@@ -1,8 +1,20 @@
 # Release notes voice — reference
 
-The release-daily skill writes **product-style** release notes — the kind end users read in the App Store update list, not the kind engineers read in `git log`. This file captures what that voice sounds like in the wild, so the skill can match the bar.
+The release-daily skill writes **product-style** release notes — the kind end users read in the App Store update list, the kind written for the lived user experience. This file captures what that voice sounds like in the wild, so the skill can match the bar.
 
-Read this whenever you're about to draft a CHANGELOG section. The patterns matter more than any single example.
+Read the whole file once when drafting; jump back to specific sections via the TOC when verifying a pattern.
+
+## Contents
+
+| §   | Section                                                                                                                           | When to read it                                                                                       |
+| --- | --------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| 1   | [The App Store gold standard](#1-the-app-store-gold-standard)                                                                     | Always — sets the baseline voice                                                                      |
+| 2   | [Other strong product changelogs — Linear, Figma](#2-other-strong-product-changelogs--linear-figma)                               | When deciding tone for a section heavier on specifics                                                 |
+| 3   | [Our own house style](#3-our-own-house-style)                                                                                     | Before drafting any release in this project                                                           |
+| 4   | [Worked example — raw git log to polished CHANGELOG](#4-worked-example--raw-git-log-to-polished-changelog)                        | When the filter feels ambiguous — the side-by-side teaches the transformation                         |
+| 5   | [Six rules for translating engineering work into product notes](#5-six-rules-for-translating-engineering-work-into-product-notes) | Pull the matching rule when revising a draft bullet                                                   |
+| 6   | [Special notations for unstable or transitional changes](#6-special-notations-for-unstable-or-transitional-changes)               | When asking the user about experimental features, upcoming changes, or a milestone-release intro note |
+| 7   | [PR and issue links](#7-pr-and-issue-links)                                                                                       | When a bullet's PR carries genuinely useful context worth linking                                     |
 
 ## 1. The App Store gold standard
 
