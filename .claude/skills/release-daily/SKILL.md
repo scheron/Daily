@@ -76,6 +76,12 @@ Auto-excludes by commit shape (these drop out at the filter step without further
 
 When a commit mixes user-facing + invisible work (e.g. "add MCP server + refactor tools to registry"), keep the MCP server bullet only. Users got MCP; the refactor was an implementation detail.
 
+**Filter intra-release fixes.** The release notes describe what changed _relative to the previously released version_ — the bar is "what state did the user see before, and what state do they see now". A bug introduced AND fixed within the same release window never reached a user, so it doesn't belong in the changelog.
+
+Concrete test for each `fix:` commit: does the bug it fixes also exist in the previously released version? If the broken behaviour lives entirely inside functionality added in this same release cycle, drop the fix bullet — the feature description in `✨ New Features` already covers the final state. Keep `fix:` bullets only when the bug was reachable in the previously released version.
+
+Example for v0.15.0: a fix for "live progress events reaching every window" looks like a Bug Fix on paper, but the live event stream itself was introduced in this same release. The user goes straight from "no event stream at all" (previous version) to "event stream that works" (this version) — they never experienced the broken intermediate. The fix drops out; the working stream is described in the New Features section.
+
 ### Step 4 — group into sections
 
 Group changes by **type of change** (what kind of thing it is), not by area of the codebase. This is the App Store / Linear / Figma pattern — readers scan for "what's new vs what got fixed" first, then dive into specifics.
@@ -115,13 +121,12 @@ Voice rules for every option:
 - Use **bold** to anchor each bullet on the most useful word: the feature's name when introducing it, or the area when several bullets need disambiguation.
 - One bullet per user-visible outcome. Several commits behind one feature collapse into one bullet.
 
-For the full reference — Apple/Linear/Figma examples, the worked example with a real input-to-output transformation, three house-style example releases, six positive rules with their catches, plus special notations (experimental features, upcoming behavior changes, breaking-changes top-level note) and PR/issue link conventions — open [`references/voice.md`](references/voice.md). Also re-read the 2–3 most recent CHANGELOG entries every time before drafting — voice consistency between releases is what makes the bar feel maintained.
+For the full reference — Apple/Linear/Figma examples, the worked example with a real input-to-output transformation, three house-style example releases, six positive rules with their catches, and special notations (experimental features, upcoming behavior changes, breaking-changes top-level note) — open [`references/voice.md`](references/voice.md). Also re-read the 2–3 most recent CHANGELOG entries every time before drafting — voice consistency between releases is what makes the bar feel maintained.
 
 **Check for special situations before assembling.** Ask the user during the interview when any of these apply (most routine releases use none of them):
 
-- **Anything experimental in this release?** A new feature whose shape might still shift — the assistant streaming, MCP server in early days, anything labelled beta or behind a flag. If yes, use the experimental marker pattern from `references/voice.md` §6.
+- **Anything experimental in this release?** A new feature whose shape might still shift — anything labelled beta or behind a flag. If yes, use the experimental marker pattern from `references/voice.md` §6.
 - **Any upcoming behavior changes worth announcing?** A deprecation or breaking switch scheduled for a future version. If yes, add an `### ⚠️ Upcoming behavior changes` section per the same reference.
-- **PR or issue links worth attaching to specific bullets?** Mention the option for bullets where the linked discussion adds real context (root-cause analysis, design rationale, tracking issue for feedback). Skip linking on the routine bullets — the link adds noise without signal there.
 
 ### Step 6 — version bump interview
 

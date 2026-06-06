@@ -14,7 +14,6 @@ Read the whole file once when drafting; jump back to specific sections via the T
 | 4   | [Worked example — raw git log to polished CHANGELOG](#4-worked-example--raw-git-log-to-polished-changelog)                        | When the filter feels ambiguous — the side-by-side teaches the transformation                         |
 | 5   | [Six rules for translating engineering work into product notes](#5-six-rules-for-translating-engineering-work-into-product-notes) | Pull the matching rule when revising a draft bullet                                                   |
 | 6   | [Special notations for unstable or transitional changes](#6-special-notations-for-unstable-or-transitional-changes)               | When asking the user about experimental features, upcoming changes, or a milestone-release intro note |
-| 7   | [PR and issue links](#7-pr-and-issue-links)                                                                                       | When a bullet's PR carries genuinely useful context worth linking                                     |
 
 ## 1. The App Store gold standard
 
@@ -395,36 +394,3 @@ This release stabilises the v0.x APIs that became reliable over the last six mon
 ```
 
 Reserve the top-level note for milestone releases where the user benefits from a paragraph of context before scanning bullets. Routine releases let the sections speak for themselves.
-
-## 7. PR and issue links
-
-For traceability — especially once external contributors join — link bullets to the PR or issue that introduced the change. Inline reference syntax, with the URL defined at the end of the version section. The pattern mirrors what the Rust ecosystem (nextest, cargo, etc.) uses, and it stays readable without inline URL clutter.
-
-### Inline reference + footnote definition
-
-```
-### 🐛 Bug Fixes
-
-- **Sync** — fixed sync sometimes hanging when iCloud was still downloading the remote snapshot. See [#127] for the root-cause analysis.
-- **AI Assistant** — confirmed tool calls now release the mutex even if the assistant is cancelled mid-execution. See [#134].
-
-[#127]: https://github.com/scheron/Daily/pull/127
-[#134]: https://github.com/scheron/Daily/pull/134
-
----
-```
-
-Place the link definitions at the bottom of the version section, before the `---` separator. They stay attached to the version they relate to as the file grows.
-
-Use the `/pull/` URL for pull requests and `/issues/` for standalone issues. GitHub redirects PR-issue cross-references correctly either way, but matching the path keeps intent obvious.
-
-### When to add a link, when to skip
-
-Most bullets in routine releases skip the link entirely — it adds noise without adding signal. Add the link when the PR or issue carries genuinely useful context that a curious user might want to read:
-
-- Root-cause analysis for a tricky bug
-- Design discussion for a notable feature
-- Breaking-change rationale, especially when there's a community thread
-- The tracking issue for an experimental feature (so users have a place to send feedback)
-
-Skip the link when the PR is just "did the obvious thing" — typo fixes, mechanical refactors that produced a user-visible side effect, dependency bumps. The bullet text already says everything.
