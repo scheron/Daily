@@ -40,9 +40,6 @@ importers:
       "@modelcontextprotocol/sdk":
         specifier: ^1.29.0
         version: 1.29.0(zod@4.4.3)
-      "@tailwindcss/vite":
-        specifier: ^4.1.8
-        version: 4.1.18(vite@6.4.1(@types/node@22.19.8)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.46.0)(yaml@2.8.2))
       "@vueuse/core":
         specifier: ^13.1.0
         version: 13.9.0(vue@3.5.27(typescript@5.9.3))
@@ -88,9 +85,6 @@ importers:
       tailwind-merge:
         specifier: ^3.2.0
         version: 3.4.0
-      tailwindcss:
-        specifier: ^4.1.8
-        version: 4.1.18
       vue:
         specifier: ^3.5.16
         version: 3.5.27(typescript@5.9.3)
@@ -119,6 +113,9 @@ importers:
       "@ianvs/prettier-plugin-sort-imports":
         specifier: ^4.4.2
         version: 4.7.1(@vue/compiler-sfc@3.5.27)(prettier@3.8.1)
+      "@tailwindcss/vite":
+        specifier: ^4.1.8
+        version: 4.1.18(vite@6.4.1(@types/node@22.19.8)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.46.0)(yaml@2.8.2))
       "@types/better-sqlite3":
         specifier: ^7.6.13
         version: 7.6.13
@@ -194,6 +191,9 @@ importers:
       prettier-plugin-tailwindcss:
         specifier: ^0.6.12
         version: 0.6.14(@ianvs/prettier-plugin-sort-imports@4.7.1(@vue/compiler-sfc@3.5.27)(prettier@3.8.1))(prettier@3.8.1)
+      tailwindcss:
+        specifier: ^4.1.8
+        version: 4.1.18
       terser:
         specifier: ^5.40.0
         version: 5.46.0
