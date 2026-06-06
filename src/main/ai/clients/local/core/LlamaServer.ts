@@ -1,5 +1,6 @@
 import {execFile, spawn} from "node:child_process"
-import {createWriteStream} from "node:fs"
+import {createHash} from "node:crypto"
+import {createReadStream, createWriteStream} from "node:fs"
 import {chmod, readdir, rename, unlink} from "node:fs/promises"
 import {createServer} from "node:net"
 import path from "node:path"
@@ -18,6 +19,12 @@ import type {ChildProcess} from "node:child_process"
 import type {ModelManifestEntry} from "../types"
 
 const execFileAsync = promisify(execFile)
+
+async function sha256File(filePath: string): Promise<string> {
+  const hash = createHash("sha256")
+  await pipeline(createReadStream(filePath), hash)
+  return hash.digest("hex")
+}
 
 /**
  * Manages the llama-server subprocess.
@@ -89,17 +96,17 @@ export class LlamaServer {
       }
     }
 
-    logger.info(logger.CONTEXT.AI, "Downloading llama-server binary")
-
     const arch = process.arch as "arm64" | "x64"
     const binaryInfo = SERVER_BINARY.macos[arch]
     if (!binaryInfo) {
       throw new Error(`Unsupported architecture: ${arch}`)
     }
 
+    logger.info(logger.CONTEXT.AI, "Downloading llama-server binary", {arch})
+
     await fs.ensureDir(fsPaths.binPath())
 
-    const zipPath = path.join(fsPaths.binPath(), "llama-server.zip")
+    const archivePath = path.join(fsPaths.binPath(), "llama-server.tar.gz")
 
     const response = await fetch(binaryInfo.url, {redirect: "follow"})
     if (!response.ok || !response.body) {
@@ -107,29 +114,29 @@ export class LlamaServer {
     }
 
     const nodeStream = Readable.fromWeb(response.body as any)
-    const writeStream = createWriteStream(zipPath)
+    const writeStream = createWriteStream(archivePath)
     await pipeline(nodeStream, writeStream)
+
+    const actualSha = await sha256File(archivePath)
+    if (actualSha !== binaryInfo.sha256) {
+      await unlink(archivePath).catch(() => {})
+      throw new Error(`llama-server checksum mismatch: expected ${binaryInfo.sha256}, got ${actualSha}`)
+    }
 
     const extractDir = path.join(fsPaths.binPath(), "_extract")
     await fs.ensureDir(extractDir)
 
     try {
-      await execFileAsync("unzip", ["-o", zipPath, "-d", extractDir])
+      await execFileAsync("tar", ["-xzf", archivePath, "-C", extractDir])
 
       const {stdout} = await execFileAsync("find", [extractDir, "-name", "llama-server", "-type", "f"])
       const binarySource = stdout.trim().split("\n")[0]
-
-      if (!binarySource) {
-        throw new Error("llama-server binary not found in zip archive")
-      }
+      if (!binarySource) throw new Error("llama-server binary not found in archive")
 
       const sourceDir = path.dirname(binarySource)
       const files = await readdir(sourceDir)
-
       for (const file of files) {
-        const src = path.join(sourceDir, file)
-        const dest = path.join(fsPaths.binPath(), file)
-        await rename(src, dest)
+        await rename(path.join(sourceDir, file), path.join(fsPaths.binPath(), file))
       }
     } finally {
       try {
@@ -138,7 +145,7 @@ export class LlamaServer {
         void 0
       }
       try {
-        await unlink(zipPath)
+        await unlink(archivePath)
       } catch {
         void 0
       }
@@ -182,6 +189,7 @@ export class LlamaServer {
         APP_CONFIG.ai.runtime.local.host,
         "--jinja",
         "--flash-attn",
+        "on",
         "--cont-batching",
         "--mlock",
         "--no-warmup",
@@ -214,7 +222,14 @@ export class LlamaServer {
       })
 
       this.process.stderr?.on("data", (data: Buffer) => {
-        logger.debug(logger.CONTEXT.AI, `llama-server stderr: ${data.toString().trim()}`)
+        const text = data.toString().trim()
+        if (!text) return
+        const noisy = /^(slot|update_slots|kv cache rm|n_past|n_tokens|prompt eval|eval time|sample time|total time)/i.test(text)
+        if (noisy) {
+          logger.debug(logger.CONTEXT.AI, `llama-server stderr: ${text}`)
+        } else {
+          logger.info(logger.CONTEXT.AI, `llama-server stderr: ${text}`)
+        }
       })
 
       await this.waitForReady()

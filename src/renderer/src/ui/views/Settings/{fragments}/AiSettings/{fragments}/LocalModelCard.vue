@@ -47,7 +47,13 @@ function onDownload() {
 
         <div class="flex items-center gap-1">
           <template v-if="isPending && !isDownloading">
-            <BaseIcon name="refresh" class="text-base-content/50 size-4 animate-spin" />
+            <div class="flex size-7 items-center justify-center">
+              <BaseIcon name="refresh" class="text-base-content/50 size-4 animate-spin" />
+            </div>
+          </template>
+
+          <template v-else-if="!model.installed && model.partialBytes && model.partialBytes > 0 && !isDownloading">
+            <BaseButton variant="secondary" size="sm" tooltip="Continue download" class="h-7 px-2 py-0" @click="onDownload"> Continue </BaseButton>
           </template>
 
           <template v-else-if="!model.installed && !isDownloading">
@@ -80,7 +86,13 @@ function onDownload() {
         </div>
       </div>
 
-      <div class="text-base-content/60 text-xs">{{ sizeLabel }} · Requires {{ model.requirements.ramGb }}GB RAM</div>
+      <div class="text-base-content/60 text-xs">
+        {{ sizeLabel }} · Requires {{ model.requirements.ramGb }}GB RAM
+        <span v-if="isDownloading && downloadProgress" class="text-warning ml-2"> {{ downloadProgress.percent }}% downloaded </span>
+        <span v-else-if="model.partialBytes && !model.installed" class="text-warning ml-2">
+          {{ Math.round((model.partialBytes / model.sizeBytes) * 100) }}% downloaded
+        </span>
+      </div>
 
       <div v-if="isDownloading && downloadProgress" class="flex flex-col gap-1">
         <div class="bg-base-300 relative h-1.5 w-full overflow-hidden rounded-full">
@@ -89,7 +101,7 @@ function onDownload() {
             :style="{width: `${downloadProgress.percent}%`}"
           />
         </div>
-        <span class="text-base-content/50 text-xs"> {{ downloadProgress.percent }}% </span>
+        <span v-if="downloadProgress.phase === 'verifying'" class="text-base-content/50 text-xs">Verifying checksum…</span>
       </div>
     </div>
 

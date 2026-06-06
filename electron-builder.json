@@ -9,7 +9,10 @@
     "output": "dist"
   },
   "afterPack": "scripts/afterPack-mac.js",
-  "extraResources": [{"from": "resources/file-coordinator", "to": "file-coordinator"}],
+  "extraResources": [
+    {"from": "resources/file-coordinator", "to": "file-coordinator"},
+    {"from": "resources/models.json", "to": "resources/models.json"}
+  ],
   "files": ["out/**/*", {"filter": ["**/*"], "from": "public", "to": "resources"}, "!dist", "!scripts", "!src", "!*.md", "!.git*", "!.DS_Store"],
   "mac": {
     "artifactName": "${productName}-${version}-mac.${ext}",

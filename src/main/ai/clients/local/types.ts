@@ -1,20 +1,42 @@
 import type {LocalModelDownloadProgress, LocalModelId, LocalModelInfo, LocalRuntimeParams} from "@shared/types/ai"
 
+export type ModelTier = "fast" | "balanced" | "quality"
+
 export type ModelManifestEntry = {
   id: LocalModelId
   title: string
   description: string
-  promptTier: "tiny" | "medium" | "large"
+  tier: ModelTier
   sizeBytes: number
   requirements: {ramGb: number; diskGb: number}
   ggufUrl: string
   ggufFilename: string
-  serverArgs: Required<Pick<LocalRuntimeParams, "ctx" | "gpuLayers" | "temperature">>
+  sha256: string | null
+  serverArgs: Required<Pick<LocalRuntimeParams, "ctx" | "gpuLayers" | "temperature">> &
+    Partial<
+      Pick<
+        LocalRuntimeParams,
+        | "topP"
+        | "topK"
+        | "minP"
+        | "repeatPenalty"
+        | "repeatLastN"
+        | "presencePenalty"
+        | "frequencyPenalty"
+        | "dryMultiplier"
+        | "dryBase"
+        | "dryAllowedLength"
+        | "dryPenaltyLastN"
+      >
+    >
+  accuracy: number | null
   recommended?: boolean
 }
 
 export interface ILocalModelService {
   init(): Promise<void>
+  getEntry(modelId: LocalModelId): ModelManifestEntry | undefined
+  getCatalog(): ReadonlyArray<ModelManifestEntry>
   isInstalled(modelId: LocalModelId): Promise<boolean>
   getModelPath(modelId: LocalModelId): string
   listModels(): Promise<LocalModelInfo[]>

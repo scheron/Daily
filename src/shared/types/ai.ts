@@ -1,5 +1,5 @@
 export type AIProvider = "openai" | "local"
-export type LocalModelId = "daily-fast" | "daily-balanced" | "daily-quality"
+export type LocalModelId = string
 
 export type AIConfig = {
   enabled: boolean
@@ -25,6 +25,8 @@ export type AIConfig = {
     params?: LocalRuntimeParams
     /** Cached list of models fetched from local provider */
     availableModels?: string[]
+    /** When to unload the model from RAM after inactivity. Default "15m". */
+    unloadModel?: "never" | "5m" | "15m" | "30m"
   } | null
 }
 
@@ -101,9 +103,10 @@ export type LocalRuntimeParams = {
   /** Temperature. Default from manifest. */
   temperature?: number
 
-  /** Top-p / Top-k. */
+  /** Top-p / Top-k / Min-p. */
   topP?: number
   topK?: number
+  minP?: number
 
   /** Max tokens to generate. */
   maxTokens?: number
@@ -111,6 +114,16 @@ export type LocalRuntimeParams = {
   /** Repeat penalty family (llama.cpp supports these). */
   repeatPenalty?: number
   repeatLastN?: number
+
+  /** OpenAI-style penalties. */
+  presencePenalty?: number
+  frequencyPenalty?: number
+
+  /** DRY (Don't Repeat Yourself) sampler. Catches token-sequence loops. */
+  dryMultiplier?: number
+  dryBase?: number
+  dryAllowedLength?: number
+  dryPenaltyLastN?: number
 
   /** Seed for reproducibility */
   seed?: number
@@ -173,11 +186,20 @@ export type LocalModelInfo = {
   requirements: {ramGb: number; diskGb: number}
   installed: boolean
   recommended?: boolean
+  /** Set when a `.download` partial file exists for an uninstalled model. */
+  partialBytes?: number
+  /** Catalog-provided rough quality score (0..1). */
+  accuracy?: number
+  /** Catalog-provided tier label (fast / balanced / quality). */
+  tier?: "fast" | "balanced" | "quality"
 }
+
+export type DownloadPhase = "downloading" | "verifying"
 
 export type LocalModelDownloadProgress = {
   modelId: LocalModelId
   percent: number
   downloadedBytes: number
   totalBytes: number
+  phase: DownloadPhase
 }

@@ -82,28 +82,68 @@ export abstract class OpenAiCompatibleClient implements IAiClient {
       temperature: config.temperature,
       top_p: config.top_p,
       top_k: config.top_k,
+      min_p: config.min_p,
       max_tokens: config.max_tokens,
       repeat_penalty: config.repeat_penalty,
       repeat_last_n: config.repeat_last_n,
+      presence_penalty: config.presence_penalty,
+      frequency_penalty: config.frequency_penalty,
+      dry_multiplier: config.dry_multiplier,
+      dry_base: config.dry_base,
+      dry_allowed_length: config.dry_allowed_length,
+      dry_penalty_last_n: config.dry_penalty_last_n,
       seed: config.seed,
     }
 
-    const response = await fetch(`${config.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${config.apiKey}`,
-      },
-      body: JSON.stringify(requestBody),
-      signal,
-    })
+    const startedAt = Date.now()
+    const HEARTBEAT_MS = 15_000
+    const heartbeat = setInterval(() => {
+      logger.info(logger.CONTEXT.AI, `${this.getClientName()} still waiting for response`, {
+        elapsedSec: Math.round((Date.now() - startedAt) / 1000),
+        model: config.model,
+        baseUrl: config.baseUrl,
+      })
+    }, HEARTBEAT_MS)
+    heartbeat.unref?.()
+
+    let response: Response
+    try {
+      response = await fetch(`${config.baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${config.apiKey}`,
+        },
+        body: JSON.stringify(requestBody),
+        signal,
+      })
+    } catch (err) {
+      clearInterval(heartbeat)
+      logger.error(logger.CONTEXT.AI, `${this.getClientName()} chat fetch failed`, {
+        elapsedSec: Math.round((Date.now() - startedAt) / 1000),
+        error: err instanceof Error ? `${err.name}: ${err.message}` : String(err),
+      })
+      throw err
+    }
 
     if (!response.ok) {
+      clearInterval(heartbeat)
       const error = await response.text()
       throw new Error(`${this.getClientName()} error: ${error}`)
     }
 
-    const result = (await response.json()) as OpenAiChatResponse
+    let result: OpenAiChatResponse
+    try {
+      result = (await response.json()) as OpenAiChatResponse
+    } catch (err) {
+      clearInterval(heartbeat)
+      logger.error(logger.CONTEXT.AI, `${this.getClientName()} chat body parse failed`, {
+        elapsedSec: Math.round((Date.now() - startedAt) / 1000),
+        error: err instanceof Error ? `${err.name}: ${err.message}` : String(err),
+      })
+      throw err
+    }
+    clearInterval(heartbeat)
     const choice = result.choices[0]
 
     if (!choice) {
@@ -111,10 +151,15 @@ export abstract class OpenAiCompatibleClient implements IAiClient {
     }
 
     const message = this.convertResponseMessage(choice.message)
+    const elapsedSec = Math.round((Date.now() - startedAt) / 1000)
 
     logger.info(logger.CONTEXT.AI, `${this.getClientName()} chat response`, {
+      elapsedSec,
       hasToolCalls: !!message.tool_calls?.length,
+      toolCallNames: message.tool_calls?.map((tc) => tc.function.name) ?? [],
       contentLength: message.content?.length ?? 0,
+      contentPreview: message.content ? `${message.content.slice(0, 120)}${message.content.length > 120 ? "…" : ""}` : null,
+      finishReason: choice.finish_reason ?? null,
     })
 
     return {message, done: true}
@@ -123,7 +168,7 @@ export abstract class OpenAiCompatibleClient implements IAiClient {
   private convertMessages(messages: MessageLLM[], model: string): MessageLLM[] {
     const needsReasoningContent = /deepseek-reasoner/i.test(model)
 
-    logger.info(logger.CONTEXT.AI, "Converting messages to OpenAI format", {messages})
+    logger.debug(logger.CONTEXT.AI, "Converting messages to OpenAI format", {model, messagesCount: messages.length})
     return messages.map((msg) => {
       const message: MessageLLM = {
         role: msg.role,

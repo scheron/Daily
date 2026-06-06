@@ -5,7 +5,7 @@ import {AsyncMutex} from "@/utils/AsyncMutex"
 import {logger} from "@/utils/logger"
 
 import {LocalAiClient} from "@/ai/clients/local"
-import {getManifestEntry} from "@/ai/clients/local/core/manifest"
+import {UNLOAD_OPTION_MS} from "@/ai/clients/local/core/manifest"
 import {RemoteAiClient} from "@/ai/clients/remote"
 import {HookChain} from "@/ai/hooks/HookChain"
 import {ConversationCompactor} from "@/ai/memory/ConversationCompactor"
@@ -20,8 +20,10 @@ import {AI_TOOLS, AI_TOOLS_COMPACT} from "@/ai/tools/registry"
 import {ToolExecutor} from "@/ai/tools/ToolExecutor"
 import {TurnBuilder} from "@/ai/turns/TurnBuilder"
 import {filterThinkBlocks} from "./utils/filterThinkBlocks"
+import {redactAiMessagesForLog, redactToolParamsForLog} from "./utils/redact"
 
 import type {ILocalModelService} from "@/ai/clients/local"
+import type {UnloadOption} from "@/ai/clients/local/core/manifest"
 import type {AgentContext} from "@/ai/hooks/types"
 import type {PendingConfirmation} from "@/ai/policy/types"
 import type {ToolName} from "@/ai/tools/registry"
@@ -38,6 +40,12 @@ import type {AgentTurnSnapshot, AIConfig, AIEvent, AIMessage, AIResponse, LocalR
  * `ai:on-confirmation-resolved` IPC channels.
  */
 export type ConfirmationBroadcastEvent = {type: "required"; confirmation: PendingToolConfirmation} | {type: "resolved"; confirmationId: string}
+
+export type AIControllerDeps = {
+  remoteClient?: RemoteAiClient
+  localClient?: LocalAiClient
+  executor?: ToolExecutor
+}
 
 /**
  * Reduce a persisted AgentTurn to the renderer-safe snapshot used by the
@@ -80,16 +88,19 @@ export class AIController {
   private hooks = new HookChain()
   private pendingConfirmation: PendingConfirmation | null = null
   private compactor = new ConversationCompactor()
+  private lastActivityAt = Date.now()
+  private idleTimer: ReturnType<typeof setInterval> | null = null
 
   constructor(
     private storage: StorageController,
     broadcastState?: (state: LocalRuntimeState) => void,
     private broadcastConfirmation?: (event: ConfirmationBroadcastEvent) => void,
     private broadcastEvent?: (event: AIEvent) => void,
+    deps: AIControllerDeps = {},
   ) {
-    this.executor = new ToolExecutor(storage)
-    this.openaiClient = new RemoteAiClient()
-    this.localClient = new LocalAiClient(broadcastState)
+    this.executor = deps.executor ?? new ToolExecutor(storage)
+    this.openaiClient = deps.remoteClient ?? new RemoteAiClient()
+    this.localClient = deps.localClient ?? new LocalAiClient(broadcastState)
   }
 
   private emit(event: AIEvent): void {
@@ -121,6 +132,10 @@ export class AIController {
     } catch (err) {
       logger.warn(logger.CONTEXT.AI, "Compactor initial refresh failed", err)
     }
+    this.idleTimer = setInterval(() => {
+      this.checkIdle().catch((err) => logger.error(logger.CONTEXT.AI, "Idle check failed", err))
+    }, 60_000)
+    this.idleTimer.unref?.()
   }
 
   async updateConfig(config: AIConfig | null) {
@@ -143,6 +158,7 @@ export class AIController {
   }
 
   async checkConnection(): Promise<boolean> {
+    this.lastActivityAt = Date.now()
     return this.activeProvider.checkConnection()
   }
 
@@ -152,6 +168,25 @@ export class AIController {
 
   getLocalModel(): ILocalModelService {
     return this.localClient.modelService
+  }
+
+  async deleteLocalModel(modelId: string): Promise<boolean> {
+    const server = (this.localClient as any).server
+    const currentModelId = server?.getCurrentModelId?.()
+
+    if (currentModelId === modelId) {
+      await server.stop()
+    }
+
+    const ok = await this.localClient.modelService.deleteModel(modelId)
+
+    if (this.config?.local?.model === modelId) {
+      const newAi = {...(this.config ?? {}), local: {...(this.config?.local ?? {}), model: null}}
+      this.config = newAi as unknown as typeof this.config
+      await this.storage.saveSettings({ai: newAi as any})
+    }
+
+    return ok
   }
 
   getToolExecutor(): ToolExecutor {
@@ -177,6 +212,10 @@ export class AIController {
   }
 
   async dispose(): Promise<void> {
+    if (this.idleTimer) {
+      clearInterval(this.idleTimer)
+      this.idleTimer = null
+    }
     this.resolvePendingConfirmation(false)
     await this.localClient.dispose()
   }
@@ -287,8 +326,22 @@ export class AIController {
     return true
   }
 
+  private async checkIdle(): Promise<void> {
+    if (this.config?.provider !== "local") return
+    const server = (this.localClient as any).server
+    if (!server?.isRunning?.()) return
+    const opt = (this.config.local?.unloadModel ?? "15m") as UnloadOption
+    const ms = UNLOAD_OPTION_MS[opt]
+    if (ms === null) return
+    if (Date.now() - this.lastActivityAt <= ms) return
+    logger.info(logger.CONTEXT.AI, "Idle timeout reached, unloading server")
+    await server.stop()
+  }
+
   async sendMessage(userMessage: string): Promise<AIResponse> {
     if (!this.executor) return {success: false, error: "Storage not initialized"}
+
+    this.lastActivityAt = Date.now()
 
     const release = this.sendMutex.tryLock()
     if (!release) {
@@ -301,7 +354,11 @@ export class AIController {
       return {success: false, error: "AI assistant is disabled"}
     }
 
-    logger.info(logger.CONTEXT.AI, "Processing message", {messageLength: userMessage.length, provider: config.provider})
+    logger.info(logger.CONTEXT.AI, "Processing message", {
+      messageLength: userMessage.length,
+      provider: config.provider,
+      userText: userMessage.length > 400 ? `${userMessage.slice(0, 400)}…` : userMessage,
+    })
 
     const historyStartIndex = this.conversationHistory.length
     this.abortController = new AbortController()
@@ -325,9 +382,11 @@ export class AIController {
       let iterations = 0
       const maxIterations = 10
       const promptTier = this.resolvePromptTier(config)
+      const toolChoice = this.resolveToolChoice(promptTier)
       const systemPrompt = this.getSystemPromptByTier(promptTier)
-      logger.debug(logger.CONTEXT.AI, "Prompt tier selected", {
+      logger.info(logger.CONTEXT.AI, "Agent loop config", {
         tier: promptTier,
+        toolChoice,
         provider: config.provider,
         model: config.openai?.model ?? config.local?.model,
         systemPromptLength: systemPrompt.length,
@@ -340,16 +399,18 @@ export class AIController {
 
         const messages = [...this.hooks.runTransformContext(baseMessages)]
 
-        const lastUserMessage = [...this.conversationHistory].reverse().find((m) => m.role === "user")
+        logger.info(logger.CONTEXT.AI, `Agent loop iteration ${iterations}/${maxIterations}`, {
+          turnId: turn.id,
+          messagesCount: messages.length,
+        })
         logger.debug(logger.CONTEXT.AI, "Prepared LLM messages", {
           iteration: iterations,
-          messagesCount: messages.length,
-          lastUserMessageLength: lastUserMessage?.content?.length ?? 0,
           systemPromptLength: systemPrompt.length,
+          ...redactAiMessagesForLog(messages),
         })
 
         this.emit({type: "model_requested", turnId: turn.id, iteration: iterations})
-        const response = await this.callLLM(messages, promptTier, "required")
+        const response = await this.callLLM(messages, promptTier, toolChoice)
         const assistantMessage = response.message
 
         turn.appendStep({type: "model_response", message: assistantMessage})
@@ -362,6 +423,11 @@ export class AIController {
 
         if (assistantMessage.tool_calls && assistantMessage.tool_calls.length) {
           this.conversationHistory.push(assistantMessage)
+          logger.info(logger.CONTEXT.AI, "LLM requested tool calls", {
+            iteration: iterations,
+            count: assistantMessage.tool_calls.length,
+            names: assistantMessage.tool_calls.map((tc) => tc.function.name),
+          })
 
           let respondTextForTurn: string | null = null
 
@@ -374,6 +440,11 @@ export class AIController {
               const args = toolCall.function.arguments
               const params = typeof args === "object" && args !== null ? (args as Record<string, unknown>) : {}
               const text = typeof params.text === "string" ? params.text : ""
+              logger.info(logger.CONTEXT.AI, "Respond tool intercepted (model → user)", {
+                iteration: iterations,
+                textLength: text.length,
+                modelText: text.length > 600 ? `${text.slice(0, 600)}…` : text,
+              })
               turn.appendStep({type: "respond", text})
               const synthetic: ToolResult = {success: true, summary: text}
               this.conversationHistory.push({
@@ -386,6 +457,12 @@ export class AIController {
             }
 
             const decision = await this.hooks.runBeforeToolCall(ctx, toolCall)
+            logger.info(logger.CONTEXT.AI, "Executing tool", {
+              iteration: iterations,
+              tool: toolCall.function.name,
+              decision: decision.action,
+              ...(decision.action === "skip" ? {reason: decision.reason} : {}),
+            })
 
             turn.appendStep({
               type: "tool_call",
@@ -402,6 +479,17 @@ export class AIController {
               toolResult = await this.executeToolCall(toolCall)
             }
 
+            const resultSummary =
+              toolResult.summary ??
+              (typeof toolResult.data === "string" ? toolResult.data : (toolResult.error ?? (toolResult.success ? "Done" : "Failed")))
+            logger.info(logger.CONTEXT.AI, "Tool result", {
+              iteration: iterations,
+              tool: toolCall.function.name,
+              success: toolResult.success,
+              summaryPreview: typeof resultSummary === "string" ? resultSummary.slice(0, 160) + (resultSummary.length > 160 ? "…" : "") : null,
+              ...(toolResult.error ? {error: toolResult.error} : {}),
+            })
+
             await this.hooks.runAfterToolCall(ctx, toolCall, toolResult)
 
             turn.appendStep({
@@ -416,9 +504,7 @@ export class AIController {
               toolCallId: toolCall.id,
               toolName: toolCall.function.name,
               success: toolResult.success,
-              summary:
-                toolResult.summary ??
-                (typeof toolResult.data === "string" ? toolResult.data : (toolResult.error ?? (toolResult.success ? "Done" : "Failed"))),
+              summary: resultSummary,
             })
 
             toolCalls.push(toRendererToolCall(toolCall.function.name, toolResult))
@@ -430,15 +516,26 @@ export class AIController {
           }
 
           if (respondTextForTurn !== null) {
+            logger.info(logger.CONTEXT.AI, "Agent loop ended via respond", {
+              iteration: iterations,
+              finalLength: respondTextForTurn.length,
+            })
             finalContent = respondTextForTurn
             break
           }
         } else {
-          // Degraded provider: ignored tool_choice and returned plain
-          // content. Use it as a fallback final message so the assistant
-          // remains usable on non-compliant backends.
+          // Plain-content reply path. For tiny-tier (tool_choice="auto") this
+          // is the EXPECTED way the model signals "I'm done, here is the
+          // answer". For medium/large tiers this only happens when a backend
+          // ignores tool_choice="required" — still usable as fallback.
           const rawContent = assistantMessage.content ?? ""
           finalContent = filterThinkBlocks(rawContent)
+          logger.info(logger.CONTEXT.AI, "Agent loop ended via fallback content (no tool calls)", {
+            iteration: iterations,
+            rawContentLength: rawContent.length,
+            filteredLength: finalContent.length,
+            modelText: finalContent.length > 600 ? `${finalContent.slice(0, 600)}…` : finalContent,
+          })
           if (!finalContent) {
             finalContent = "I completed the request, but could not produce a visible final response."
           }
@@ -446,6 +543,14 @@ export class AIController {
           turn.appendStep({type: "respond", text: finalContent})
           break
         }
+      }
+
+      if (iterations >= maxIterations && !finalContent) {
+        logger.warn(logger.CONTEXT.AI, `Agent loop hit max iterations (${maxIterations}) without final respond`, {
+          turnId: turn.id,
+          toolCallsCount: toolCalls.length,
+          toolNames: toolCalls.map((tc) => tc.name),
+        })
       }
 
       if (!finalContent) {
@@ -527,11 +632,27 @@ export class AIController {
     return getSystemPrompt()
   }
 
+  /**
+   * Tier-aware tool_choice. Strong models (medium / large) are forced to use
+   * a tool every turn so every reply flows through the `respond` envelope —
+   * makes structured output reliable. Tiny models (Qwen3-4B Q4 etc.) collapse
+   * under that load: they have to keep the JSON wrapper coherent while also
+   * generating the answer, which frequently triggers repetition loops mid-
+   * generation. For tiny we drop to "auto" and rely on the system prompt to
+   * guide tool usage; plain-text replies fall through the fallback branch
+   * in `sendMessage`.
+   */
+  private resolveToolChoice(tier: PromptTier): ToolChoice {
+    return tier === "tiny" ? "auto" : "required"
+  }
+
   private resolvePromptTier(config: AIConfig | null): PromptTier {
     if (config?.provider === "local") {
       const modelId = config.local?.model
       if (!modelId) return "medium"
-      return getManifestEntry(modelId)?.promptTier ?? "medium"
+      const entry = this.localClient.modelService.getEntry(modelId)
+      if (!entry) return "medium"
+      return tierToPromptTier(entry.tier)
     }
 
     const modelName = config?.openai?.model?.toLowerCase() ?? ""
@@ -562,11 +683,11 @@ export class AIController {
     if (!this.executor) return {success: false, error: "Executor not initialized"}
 
     const {name, arguments: args} = toolCall.function
-    logger.debug(logger.CONTEXT.AI, `Tool call: ${name}`, args)
+    logger.debug(logger.CONTEXT.AI, `Tool call: ${name}`, redactToolParamsForLog(name, args))
 
     const validationError = this.validateToolArguments(name, args)
     if (validationError) {
-      logger.warn(logger.CONTEXT.AI, `Tool call rejected: ${name}`, {error: validationError, args})
+      logger.warn(logger.CONTEXT.AI, `Tool call rejected: ${name}`, {error: validationError, ...redactToolParamsForLog(name, args)})
       return {success: false, error: validationError}
     }
 
@@ -623,4 +744,10 @@ export class AIController {
     if (expectedType === "object") return typeof value === "object" && value !== null && !Array.isArray(value)
     return true
   }
+}
+
+function tierToPromptTier(tier: "fast" | "balanced" | "quality"): PromptTier {
+  if (tier === "fast") return "tiny"
+  if (tier === "balanced") return "medium"
+  return "large"
 }

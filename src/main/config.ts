@@ -37,7 +37,7 @@ export const APP_CONFIG = {
       apiKey: "",
     },
     local: {
-      model: "daily-balanced",
+      model: "qwen3-4b-instruct",
     },
   },
   updates: {
@@ -152,4 +152,7 @@ export const fsPaths = {
 
   /** Pending install result marker */
   updatesInstallResultPath: () => path.join(app.getPath("userData"), "updates", "install-result.json"),
+
+  /** Bundled models catalog (JSON) */
+  modelsCatalogPath: () => (ENV.isDevelopment ? join(process.cwd(), "resources", "models.json") : join(app.getAppPath(), "resources", "models.json")),
 }

@@ -1,10 +1,14 @@
 import {ipcMain} from "electron"
 
-import type {AIController} from "@/ai/AIController"
-import type {AIConfig, LocalModelId} from "@shared/types/ai"
-import type {BrowserWindow} from "electron"
+import {logger} from "@/utils/logger"
 
-export async function setupAiIPC(getAi: () => AIController | null, getMainWindow: () => BrowserWindow | null) {
+import {broadcastToAll} from "@/setup/app/storage"
+
+import type {AIController} from "@/ai/AIController"
+import type {WindowsGetter} from "@/setup/app/storage"
+import type {AIConfig, LocalModelId} from "@shared/types/ai"
+
+export async function setupAiIPC(getAi: () => AIController | null, getWindows: WindowsGetter) {
   ipcMain.handle("ai:check-connection", () => getAi()?.checkConnection() ?? false)
   ipcMain.handle("ai:list-models", () => getAi()?.listModels() ?? [])
   ipcMain.handle("ai:send-message", (_event, message: string) => getAi()?.sendMessage(message))
@@ -22,10 +26,29 @@ export async function setupAiIPC(getAi: () => AIController | null, getMainWindow
     "ai:local-cancel-download",
     async (_event, modelId: LocalModelId) => (await getAi()?.getLocalModel().cancelDownload(modelId)) ?? false,
   )
-  ipcMain.handle("ai:local-delete-model", async (_event, modelId: LocalModelId) => (await getAi()?.getLocalModel().deleteModel(modelId)) ?? false)
+  ipcMain.handle("ai:local-delete-model", async (_event, modelId: LocalModelId) => (await getAi()?.deleteLocalModel(modelId)) ?? false)
   ipcMain.handle("ai:local-download-model", async (_event, modelId: LocalModelId) => {
     const ai = getAi()
     if (!ai) return false
-    return ai.getLocalModel().downloadModel(modelId, (progress) => getMainWindow()?.webContents.send("ai:local-download-progress", progress))
+    logger.info(logger.CONTEXT.AI, "IPC: ai:local-download-model invoked", {modelId})
+    let progressTick = 0
+    return ai.getLocalModel().downloadModel(modelId, (progress) => {
+      progressTick++
+      if (progressTick === 1 || progressTick % 200 === 0 || progress.phase === "verifying") {
+        const openWindows = Object.entries(getWindows())
+          .filter(([, win]) => win && !win.isDestroyed())
+          .map(([name]) => name)
+        logger.info(logger.CONTEXT.AI, "IPC: forwarding download progress", {
+          modelId,
+          tick: progressTick,
+          phase: progress.phase,
+          percent: progress.percent,
+          downloadedBytes: progress.downloadedBytes,
+          totalBytes: progress.totalBytes,
+          openWindows,
+        })
+      }
+      broadcastToAll(getWindows, "ai:local-download-progress", progress)
+    })
   })
 }

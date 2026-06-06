@@ -1,9 +1,9 @@
 import type {IStorageController} from "@/types/storage"
 import type {BrowserWindow} from "electron"
 
-type WindowsGetter = () => Record<string, BrowserWindow | null>
+export type WindowsGetter = () => Record<string, BrowserWindow | null>
 
-function broadcastToAll(getWindows: WindowsGetter, channel: string, ...args: unknown[]) {
+export function broadcastToAll(getWindows: WindowsGetter, channel: string, ...args: unknown[]) {
   const windows = getWindows()
   for (const win of Object.values(windows)) {
     if (win && !win.isDestroyed()) {

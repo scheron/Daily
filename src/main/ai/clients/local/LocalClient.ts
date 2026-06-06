@@ -4,7 +4,6 @@ import {OpenAiCompatibleClient} from "@/ai/clients/common/OpenAiCompatibleClient
 import {APP_CONFIG} from "@/config"
 import {LlamaServer} from "./core/LlamaServer"
 import {LocalModelService} from "./core/LocalModelService"
-import {getManifestEntry} from "./core/manifest"
 
 import type {OpenAiChatConfig} from "@/ai/clients/common/types"
 import type {IAiClient} from "@/ai/types"
@@ -17,6 +16,7 @@ export class LocalAiClient extends OpenAiCompatibleClient implements IAiClient {
   private config: AIConfig["local"] | null = null
   private loadedModelId: LocalModelId | null = null
   private runtimeConfig: OpenAiChatConfig | null = null
+  private ensurePromise: Promise<boolean> | null = null
 
   constructor(onStateChange?: (state: LocalRuntimeState) => void) {
     super()
@@ -52,23 +52,39 @@ export class LocalAiClient extends OpenAiCompatibleClient implements IAiClient {
     const modelId = this.config?.model
     if (!modelId) return this.runtimeConfig
 
-    const manifest = getManifestEntry(modelId)
+    const manifest = this.modelService.getEntry(modelId)
     if (!manifest) return this.runtimeConfig
 
     const params = this.config?.params
+    const sa = manifest.serverArgs
     return {
       ...this.runtimeConfig,
-      temperature: params?.temperature ?? manifest.serverArgs.temperature,
-      top_p: params?.topP,
-      top_k: params?.topK,
+      temperature: params?.temperature ?? sa.temperature,
+      top_p: params?.topP ?? sa.topP,
+      top_k: params?.topK ?? sa.topK,
+      min_p: params?.minP ?? sa.minP,
       max_tokens: params?.maxTokens,
-      repeat_penalty: params?.repeatPenalty,
-      repeat_last_n: params?.repeatLastN,
+      repeat_penalty: params?.repeatPenalty ?? sa.repeatPenalty,
+      repeat_last_n: params?.repeatLastN ?? sa.repeatLastN,
+      presence_penalty: params?.presencePenalty ?? sa.presencePenalty,
+      frequency_penalty: params?.frequencyPenalty ?? sa.frequencyPenalty,
+      dry_multiplier: params?.dryMultiplier ?? sa.dryMultiplier,
+      dry_base: params?.dryBase ?? sa.dryBase,
+      dry_allowed_length: params?.dryAllowedLength ?? sa.dryAllowedLength,
+      dry_penalty_last_n: params?.dryPenaltyLastN ?? sa.dryPenaltyLastN,
       seed: params?.seed,
     }
   }
 
   async checkConnection(): Promise<boolean> {
+    if (this.ensurePromise) return this.ensurePromise
+    this.ensurePromise = this.runConnect().finally(() => {
+      this.ensurePromise = null
+    })
+    return this.ensurePromise
+  }
+
+  private async runConnect(): Promise<boolean> {
     if (!this.config?.model) return false
 
     const modelId = this.config.model
@@ -82,7 +98,7 @@ export class LocalAiClient extends OpenAiCompatibleClient implements IAiClient {
         await this.server.stop()
 
         const modelPath = this.modelService.getModelPath(modelId)
-        const manifest = getManifestEntry(modelId)
+        const manifest = this.modelService.getEntry(modelId)
         if (!manifest) return false
 
         await this.server.start(modelPath, modelId, manifest.serverArgs)

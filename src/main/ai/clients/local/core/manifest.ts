@@ -1,57 +1,22 @@
-import type {LocalModelId} from "@shared/types/ai"
-import type {ModelManifestEntry} from "../types"
-
-export const MODEL_MANIFEST: ModelManifestEntry[] = [
-  {
-    id: "daily-fast",
-    title: "Minimal",
-    description: "Stronger baseline for everyday agent tasks with tools",
-    promptTier: "tiny",
-    sizeBytes: 2_080_000_000,
-    requirements: {ramGb: 6, diskGb: 3},
-    ggufUrl: "https://huggingface.co/bartowski/Qwen2.5-3B-Instruct-GGUF/resolve/main/Qwen2.5-3B-Instruct-Q4_K_M.gguf",
-    ggufFilename: "Qwen2.5-3B-Instruct-Q4_K_M.gguf",
-    serverArgs: {ctx: 4096, gpuLayers: 99, temperature: 0.3},
-  },
-  {
-    id: "daily-balanced",
-    title: "Balanced",
-    description: "Balanced speed/quality profile",
-    promptTier: "medium",
-    sizeBytes: 4_370_000_000,
-    requirements: {ramGb: 8, diskGb: 6},
-    recommended: true,
-    ggufUrl: "https://huggingface.co/bartowski/Mistral-7B-Instruct-v0.3-GGUF/resolve/main/Mistral-7B-Instruct-v0.3-Q4_K_M.gguf",
-    ggufFilename: "Mistral-7B-Instruct-v0.3-Q4_K_M.gguf",
-    serverArgs: {ctx: 8192, gpuLayers: 99, temperature: 0.3},
-  },
-  {
-    id: "daily-quality",
-    title: "Quality",
-    description: "Highest quality local profile, requires high memory and storage",
-    promptTier: "large",
-    sizeBytes: 26_440_000_000,
-    requirements: {ramGb: 32, diskGb: 30},
-    ggufUrl: "https://huggingface.co/TheBloke/Mixtral-8x7B-Instruct-v0.1-GGUF/resolve/main/mixtral-8x7b-instruct-v0.1.Q4_K_M.gguf",
-    ggufFilename: "mixtral-8x7b-instruct-v0.1.Q4_K_M.gguf",
-    serverArgs: {ctx: 8192, gpuLayers: 99, temperature: 0.3},
-  },
-]
-
 export const SERVER_BINARY = {
-  version: "b5200",
+  version: "b9374",
   macos: {
     arm64: {
-      url: "https://github.com/ggml-org/llama.cpp/releases/download/b5200/llama-b5200-bin-macos-arm64.zip",
-      size: 50_000_000,
+      url: "https://github.com/ggml-org/llama.cpp/releases/download/b9374/llama-b9374-bin-macos-arm64.tar.gz",
+      sha256: "cb475c7c15d823008b9a66e13e2716b5cb57d47f7c66b1221902d390c67dc8e8",
     },
     x64: {
-      url: "https://github.com/ggml-org/llama.cpp/releases/download/b5200/llama-b5200-bin-macos-x64.zip",
-      size: 50_000_000,
+      url: "https://github.com/ggml-org/llama.cpp/releases/download/b9374/llama-b9374-bin-macos-x64.tar.gz",
+      sha256: "4ec614cce05b2ca1db510c0a2ee05f92cc0263b04e71b82b2f77a8a97d99dea9",
     },
   },
 } as const
 
-export function getManifestEntry(modelId: LocalModelId): ModelManifestEntry | undefined {
-  return MODEL_MANIFEST.find((m) => m.id === modelId)
+export type UnloadOption = "never" | "5m" | "15m" | "30m"
+
+export const UNLOAD_OPTION_MS: Record<UnloadOption, number | null> = {
+  never: null,
+  "5m": 5 * 60 * 1000,
+  "15m": 15 * 60 * 1000,
+  "30m": 30 * 60 * 1000,
 }

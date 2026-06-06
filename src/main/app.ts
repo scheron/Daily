@@ -9,7 +9,7 @@ import {McpServer} from "@/mcp/McpServer"
 import {setupInstanceAndDeepLinks} from "@/setup/app/instance"
 import {setupActivateHandler, setupAppIdentity, setupDockIcon, setupWindowAllClosedHandler} from "@/setup/app/lifecycle"
 import {setupMenu} from "@/setup/app/menu"
-import {setupStorageSync} from "@/setup/app/storage"
+import {broadcastToAll, setupStorageSync} from "@/setup/app/storage"
 import {setupUpdateManager} from "@/setup/app/updates"
 import {loadSavedMainWindowState, setupMainWindowStatePersistence} from "@/setup/app/windowState"
 import {setupAboutIPC} from "@/setup/ipc/about"
@@ -67,7 +67,7 @@ app.whenReady().then(async () => {
   ai = new AIController(
     storage,
     (state) => {
-      windows.main?.webContents.send("ai:local-state-changed", state)
+      broadcastToAll(() => windows, "ai:local-state-changed", state)
     },
     (event) => {
       const target = windows.assistant ?? windows.main
@@ -135,7 +135,7 @@ app.whenReady().then(async () => {
   setupStorageIPC(() => storage)
   setupAiIPC(
     () => ai,
-    () => windows.main,
+    () => windows,
   )
   setupMcpIPC(
     () => mcp,

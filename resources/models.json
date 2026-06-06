@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 1,
+  "models": [
+    {
+      "id": "qwen3-4b-instruct",
+      "title": "Qwen3 4B Instruct",
+      "description": "Fast everyday model with strong function calling.",
+      "tier": "fast",
+      "sizeBytes": 2497280736,
+      "requirements": {"ramGb": 6, "diskGb": 3},
+      "ggufUrl": "https://huggingface.co/bartowski/Qwen_Qwen3-4B-Instruct-2507-GGUF/resolve/main/Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf",
+      "ggufFilename": "Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf",
+      "sha256": "2fde00ce69dd4899c70d020845e2638353015bba0fdf161b3eb965f2bca4464e",
+      "serverArgs": {
+        "ctx": 8192,
+        "gpuLayers": 99,
+        "temperature": 0.7,
+        "topP": 0.8,
+        "topK": 20,
+        "minP": 0.05,
+        "repeatPenalty": 1.1,
+        "repeatLastN": 256,
+        "presencePenalty": 1.5,
+        "frequencyPenalty": 0.5,
+        "dryMultiplier": 0.8,
+        "dryBase": 1.75,
+        "dryAllowedLength": 2,
+        "dryPenaltyLastN": 1024
+      },
+      "recommended": false,
+      "accuracy": 0.7
+    },
+    {
+      "id": "hermes-3-llama-3.1-8b",
+      "title": "Hermes 3 Llama 3.1 8B",
+      "description": "Fine-tuned for tool calling — recommended default.",
+      "tier": "balanced",
+      "sizeBytes": 4920734624,
+      "requirements": {"ramGb": 10, "diskGb": 6},
+      "ggufUrl": "https://huggingface.co/bartowski/Hermes-3-Llama-3.1-8B-GGUF/resolve/main/Hermes-3-Llama-3.1-8B-Q4_K_M.gguf",
+      "ggufFilename": "Hermes-3-Llama-3.1-8B-Q4_K_M.gguf",
+      "sha256": "44b5c529dffaf34657a4c44a7919e5958b4270fbd365eed3b87d3444b45a378a",
+      "serverArgs": {
+        "ctx": 8192,
+        "gpuLayers": 99,
+        "temperature": 0.7,
+        "topP": 0.8,
+        "topK": 20,
+        "minP": 0.05,
+        "repeatPenalty": 1.1,
+        "repeatLastN": 256,
+        "presencePenalty": 1.5,
+        "frequencyPenalty": 0.5,
+        "dryMultiplier": 0.8,
+        "dryBase": 1.75,
+        "dryAllowedLength": 2,
+        "dryPenaltyLastN": 1024
+      },
+      "recommended": true,
+      "accuracy": 0.82
+    },
+    {
+      "id": "qwen3-14b",
+      "title": "Qwen3 14B",
+      "description": "High-quality, slower. Best for complex multi-step tasks.",
+      "tier": "quality",
+      "sizeBytes": 9001753632,
+      "requirements": {"ramGb": 16, "diskGb": 12},
+      "ggufUrl": "https://huggingface.co/bartowski/Qwen_Qwen3-14B-GGUF/resolve/main/Qwen_Qwen3-14B-Q4_K_M.gguf",
+      "ggufFilename": "Qwen_Qwen3-14B-Q4_K_M.gguf",
+      "sha256": "915913e22399475dbe6c968ac014d9f1fbe08975e489279aede9d5c7b2c98eb6",
+      "serverArgs": {
+        "ctx": 16384,
+        "gpuLayers": 99,
+        "temperature": 0.7,
+        "topP": 0.8,
+        "topK": 20,
+        "minP": 0.05,
+        "repeatPenalty": 1.1,
+        "repeatLastN": 256,
+        "presencePenalty": 1.5,
+        "frequencyPenalty": 0.5,
+        "dryMultiplier": 0.8,
+        "dryBase": 1.75,
+        "dryAllowedLength": 2,
+        "dryPenaltyLastN": 1024
+      },
+      "recommended": false,
+      "accuracy": 0.9
+    }
+  ]
+}

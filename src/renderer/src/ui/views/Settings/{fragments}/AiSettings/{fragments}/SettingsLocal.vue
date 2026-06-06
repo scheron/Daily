@@ -51,6 +51,25 @@ const diskUsageLabel = computed(() => {
   return gb >= 1 ? `${gb.toFixed(1)} GB` : `${(total / 1_000_000).toFixed(0)} MB`
 })
 
+const unloadModelOptions = [
+  {value: "never", label: "Never"},
+  {value: "5m", label: "5 minutes"},
+  {value: "15m", label: "15 minutes"},
+  {value: "30m", label: "30 minutes"},
+] as const
+
+const unloadModel = computed({
+  get: () => aiStore.config?.local?.unloadModel ?? "15m",
+  set: (value: "never" | "5m" | "15m" | "30m") => {
+    aiStore.updateConfig({
+      local: {
+        ...(aiStore.config?.local ?? {model: ""}),
+        unloadModel: value,
+      },
+    })
+  },
+})
+
 onMounted(() => {
   aiStore.loadLocalModels()
 })
@@ -98,6 +117,13 @@ onMounted(() => {
         @clear-error="aiStore.clearLocalDownloadError(model.id)"
       />
     </div>
+
+    <label class="flex items-center justify-between gap-2 text-sm">
+      <span class="text-base-content/80">Unload model after idle</span>
+      <select v-model="unloadModel" class="bg-base-200/40 border-base-300 text-base-content/80 rounded-md border px-2 py-1 text-xs">
+        <option v-for="opt in unloadModelOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+      </select>
+    </label>
 
     <div v-if="diskUsageLabel" class="text-base-content/50 text-xs">Total disk usage: {{ diskUsageLabel }}</div>
   </div>
