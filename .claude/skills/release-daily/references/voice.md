@@ -274,7 +274,7 @@ m1n2o3p Merge branch 'feat/streaming-polish' into main
 
 Note: bump from `0.14.3` to `0.15.0` (minor) is correct — multiple new features, no breaking changes. A patch wouldn't fit because users got real new capabilities, not just fixes.
 
-## 4. Six rules for translating engineering work into product notes
+## 5. Six rules for translating engineering work into product notes
 
 These are the rules the App-Store filter enforces. Each one is stated as the positive shape to write, with a short note on what it's catching so you recognise the situation when you see it in raw commits.
 
@@ -325,3 +325,94 @@ Catches: 15+ bullets under one heading with no internal structure.
 **Sounds like:** ending a `🐛 Bug Fixes` section with `- Also includes stability and performance improvements across the app.`
 
 Catches: a section consisting only of "Various improvements and bug fixes" with no specifics. That's the lazy form and reads as "we don't really know what changed".
+
+## 6. Special notations for unstable or transitional changes
+
+Some releases ship work the user should know is "in motion" — early-access, scheduled to change, or actively breaking. Three notations cover that ground. Most routine releases use none of these; reach for them when a release genuinely calls for one.
+
+### Experimental features
+
+When shipping a feature behind a known boundary — beta quality, limited surface area, the shape may still change — flag it explicitly so users opt in eyes-open and know to expect rough edges.
+
+**Sounds like (bold-label form):**
+
+```
+- **Experimental:** Live AI Streaming — the assistant streams responses as they're generated. Please try it out and report feedback in [#42] if anything looks off.
+```
+
+**Sounds like (emoji form):**
+
+```
+- 🧪 Live AI Streaming — the assistant streams responses as they're generated.
+```
+
+Either form works. The label or icon sets expectations, the rest of the bullet describes the experience.
+
+Reach for this when shipping a feature confidently but the final shape might shift based on usage feedback. Once it stabilises in a later release, drop the marker.
+
+### Upcoming behavior changes
+
+When a future release will change behaviour in a way users should plan for — typically a deprecation or a scheduled breaking switch — announce it ahead of time with a dedicated section.
+
+**Sounds like:**
+
+```
+### ⚠️ Upcoming behavior changes
+
+Starting with v0.16.0, the iCloud sync engine will require macOS 14 or newer. macOS 13 users will get a one-time warning in this release before the cutoff lands. See [#127] for the discussion.
+```
+
+Place this section near the top of the release, right under `💥 Breaking Changes` if both are present, or just under the version header otherwise. Keep it short — one paragraph per upcoming change, with a link to the discussion or tracking issue.
+
+Use this once a decision is made and dated; that lets users plan rather than be surprised next release.
+
+### Breaking-changes top-level note
+
+For releases that include significant breaking changes — usually major bumps, occasionally a meaningful minor — add a one-paragraph note immediately under the version header, before any sections. One paragraph, no bullets, no apology, just orientation.
+
+**Sounds like:**
+
+```
+## v1.0.0 - 2027-01-15
+
+This release stabilises the v0.x APIs that became reliable over the last six months. Migration takes 5–10 minutes for most setups; the [migration guide] walks through the four affected settings. If you hit anything unexpected, [file an issue].
+
+### 💥 Breaking Changes
+
+- ...
+```
+
+Reserve the top-level note for milestone releases where the user benefits from a paragraph of context before scanning bullets. Routine releases let the sections speak for themselves.
+
+## 7. PR and issue links
+
+For traceability — especially once external contributors join — link bullets to the PR or issue that introduced the change. Inline reference syntax, with the URL defined at the end of the version section. The pattern mirrors what the Rust ecosystem (nextest, cargo, etc.) uses, and it stays readable without inline URL clutter.
+
+### Inline reference + footnote definition
+
+```
+### 🐛 Bug Fixes
+
+- **Sync** — fixed sync sometimes hanging when iCloud was still downloading the remote snapshot. See [#127] for the root-cause analysis.
+- **AI Assistant** — confirmed tool calls now release the mutex even if the assistant is cancelled mid-execution. See [#134].
+
+[#127]: https://github.com/scheron/Daily/pull/127
+[#134]: https://github.com/scheron/Daily/pull/134
+
+---
+```
+
+Place the link definitions at the bottom of the version section, before the `---` separator. They stay attached to the version they relate to as the file grows.
+
+Use the `/pull/` URL for pull requests and `/issues/` for standalone issues. GitHub redirects PR-issue cross-references correctly either way, but matching the path keeps intent obvious.
+
+### When to add a link, when to skip
+
+Most bullets in routine releases skip the link entirely — it adds noise without adding signal. Add the link when the PR or issue carries genuinely useful context that a curious user might want to read:
+
+- Root-cause analysis for a tricky bug
+- Design discussion for a notable feature
+- Breaking-change rationale, especially when there's a community thread
+- The tracking issue for an experimental feature (so users have a place to send feedback)
+
+Skip the link when the PR is just "did the obvious thing" — typo fixes, mechanical refactors that produced a user-visible side effect, dependency bumps. The bullet text already says everything.

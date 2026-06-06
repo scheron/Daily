@@ -115,7 +115,13 @@ Voice rules for every option:
 - Use **bold** to anchor each bullet on the most useful word: the feature's name when introducing it, or the area when several bullets need disambiguation.
 - One bullet per user-visible outcome. Several commits behind one feature collapse into one bullet.
 
-For the full reference (Apple/Linear/Figma examples, the worked example with a real input-to-output transformation, three house-style example releases, and six positive rules with their catches), open [`references/voice.md`](references/voice.md). Also re-read the 2–3 most recent CHANGELOG entries every time before drafting — voice consistency between releases is what makes the bar feel maintained.
+For the full reference — Apple/Linear/Figma examples, the worked example with a real input-to-output transformation, three house-style example releases, six positive rules with their catches, plus special notations (experimental features, upcoming behavior changes, breaking-changes top-level note) and PR/issue link conventions — open [`references/voice.md`](references/voice.md). Also re-read the 2–3 most recent CHANGELOG entries every time before drafting — voice consistency between releases is what makes the bar feel maintained.
+
+**Check for special situations before assembling.** Ask the user during the interview when any of these apply (most routine releases use none of them):
+
+- **Anything experimental in this release?** A new feature whose shape might still shift — the assistant streaming, MCP server in early days, anything labelled beta or behind a flag. If yes, use the experimental marker pattern from `references/voice.md` §6.
+- **Any upcoming behavior changes worth announcing?** A deprecation or breaking switch scheduled for a future version. If yes, add an `### ⚠️ Upcoming behavior changes` section per the same reference.
+- **PR or issue links worth attaching to specific bullets?** Mention the option for bullets where the linked discussion adds real context (root-cause analysis, design rationale, tracking issue for feedback). Skip linking on the routine bullets — the link adds noise without signal there.
 
 ### Step 6 — version bump interview
 
