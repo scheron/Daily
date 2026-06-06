@@ -66,21 +66,32 @@ Quick filter heuristics:
 | Updated dependencies without behavior change                              | ❌ NO                         |
 | Documentation in the repo                                                 | ❌ NO                         |
 
-When a commit mixes both (e.g. "add MCP server + refactor tools to registry"), keep ONLY the MCP server bullet; drop the refactor. Users got MCP, the refactor was an implementation detail.
+Auto-excludes by commit shape (drop these without even thinking about them):
+
+- Conventional prefixes that never ship to users: `chore:`, `ci:`, `test:`, `refactor:`, `style:`, `build:`, `docs:` (unless the docs describe a new user-facing feature — then describe the feature instead).
+- Merge commits — `Merge branch …`, `Merge pull request …` — they contribute nothing on their own.
+- Bot commits — dependabot, renovate, `*-bot[bot]` — unless they ship a behaviour change worth surfacing.
+- Release commits — `release: v…`, `chore: release v…`. The previous release already counted.
+- Revert commits paired with their original — if both land in the same range, both drop out.
+
+When a commit mixes user-facing + invisible work (e.g. "add MCP server + refactor tools to registry"), keep ONLY the MCP server bullet; drop the refactor. Users got MCP, the refactor was an implementation detail.
 
 ### Step 4 — group into sections
 
-Use this project's existing section headings. Pick whichever apply; small releases can be a single `🐛 Bug Fixes` section, big releases group by domain:
+Group changes by **type of change** (what kind of thing it is), not by area of the codebase. This is the App Store / Linear / Figma pattern — readers scan for "what's new vs what got fixed" first, then dive into specifics.
 
-- 🤖 AI Assistant — anything about the chat/agent
-- 🌐 MCP Server — external integrations
-- 🔧 Local Models — model catalog, downloads, llama-server
-- 🔄 Storage & Sync — iCloud sync, snapshots, conflict resolution
-- 🎨 UI / UX — visible UI changes that aren't fixes
-- ⚙️ Settings — preference changes users will touch
-- 🐛 Bug Fixes — anything that was broken before
+Use these section headings, in this order. Skip any section that has no entries:
 
-If you're unsure of the section structure, propose 1-2 alternatives to the user along with the bullets (see step 5).
+- 💥 **Breaking Changes** — anything that breaks existing user data, settings, or workflows. Always at the top when present.
+- ✨ **New Features** — new capabilities the user can now do
+- 🎨 **Improvements** — existing things that now work better (refined UX, new options on an old feature, smarter defaults)
+- 🐛 **Bug Fixes** — anything that was broken before
+- ⚡ **Performance** — noticeable speed / memory / responsiveness wins
+- 🔒 **Security** — credential handling, sandboxing, vulnerability patches that affect users
+
+When several bullets in one section belong to distinct areas (e.g. one Bug Fix in Sync, another in the AI assistant), use **bold area prefixes** inside the bullet — `**Sync** — fixed the snapshot deadlock…`. This keeps the type-based grouping while still telling the reader where the fix landed.
+
+**Exception — architectural release**: when the entire release is one architectural jump dominated by a single area (like the v0.14.0 "iCloud Sync Improvements" overhaul), it's fine to use a single area-named section with an intro paragraph + nested bullets, instead of forcing it into the type grid. The intro paragraph carries the "what's the headline" and the bullets carry the parts. See `references/voice.md` for the v0.14.0 example.
 
 ### Step 5 — per-section interview (the CORE of this skill)
 

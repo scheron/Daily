@@ -95,9 +95,51 @@ What we borrow: the section-by-area structure (we already do this with 🤖 AI /
 
 ## 3. Our own house style
 
-Our project's existing CHANGELOG (read it in `CHANGELOG.md` before drafting) sits between Apple and Linear — closer to Apple in voice (friendly, benefit-first), closer to Linear in structure (occasional area prefix in bold). Examples worth re-reading every release:
+Our project's existing CHANGELOG (read it in `CHANGELOG.md` before drafting) sits between Apple and Linear — closer to Apple in voice (friendly, benefit-first), closer to Linear in structure (occasional area prefix in bold).
 
-### Small fix-only release (v0.14.3)
+### Section structure: type-based, not area-based
+
+Group bullets by **type of change** — what kind of thing it is, not where in the code it lives. Readers scan for "is this new, fixed, or improved?" before they care which subsystem it touched.
+
+The standard section set, in order of priority. Skip any section that has no entries:
+
+| Section             | What goes here                                                                              |
+| ------------------- | ------------------------------------------------------------------------------------------- |
+| 💥 Breaking Changes | Anything that breaks existing data, settings, or workflows. Always at the top when present. |
+| ✨ New Features     | Capabilities the user can now do that they couldn't before.                                 |
+| 🎨 Improvements     | Existing things that now work better — refined UX, new options on an old feature.           |
+| 🐛 Bug Fixes        | Anything that was broken before.                                                            |
+| ⚡ Performance      | Noticeable speed / memory / responsiveness wins.                                            |
+| 🔒 Security         | Credential handling, sandboxing, vulnerability patches affecting users.                     |
+
+### Two valid bullet-bolding patterns
+
+Pick the one that fits the moment — sometimes a section uses both.
+
+**Bold the feature name** when introducing a new capability with a memorable handle. The bold word becomes the headline of the bullet:
+
+```
+✨ New Features
+
+- **Live AI Streaming** — the assistant now streams responses as they're generated, with reasoning shown in a collapsible panel that times itself.
+- **MCP Server** — expose your tasks and projects over a local MCP endpoint so external tools can read and edit them with your permission.
+```
+
+**Bold the area/module** when several bullets in one section need disambiguation. The bold word tells the reader where the change landed:
+
+```
+🐛 Bug Fixes
+
+- **Sync** — fixed sync sometimes hanging when iCloud was still downloading the remote snapshot.
+- **AI Assistant** — confirmed tool calls no longer hang if the assistant is cancelled mid-execution.
+- Fixed images getting distorted instead of scaling proportionally in narrow task cards.
+```
+
+Note the third bullet has no bold — when the affected area is obvious from the description ("narrow task cards" only happens in one place in the app), the bold is just noise.
+
+### Example releases — three sizes
+
+#### Small fix-only release (v0.14.3-style)
 
 ```
 ## v0.14.3 - 2026-04-05
@@ -113,20 +155,30 @@ Our project's existing CHANGELOG (read it in `CHANGELOG.md` before drafting) sit
 ---
 ```
 
-### Mid-size release with module emphasis (v0.14.2)
+#### Mid-size release with multiple types
 
 ```
-## v0.14.2 - 2026-04-01
+## v0.14.5 - 2026-05-12
+
+### ✨ New Features
+
+- **Recurring tasks** — tasks can now repeat daily, weekly, or on custom intervals. Completing a recurring task spawns the next instance automatically.
 
 ### 🐛 Bug Fixes
 
-- **Sync** — fixed crash during pull that caused every sync attempt to fail with a database constraint error
-- **iCloud Sync** — improved snapshot loading so iCloud placeholders no longer behave like missing remote data during sync
+- **Sync** — fixed crash during pull that caused every sync attempt to fail with a database constraint error.
+- **iCloud Sync** — improved snapshot loading so iCloud placeholders no longer behave like missing remote data during sync.
+
+### ⚡ Performance
+
+- Opening a day with a large attachment list is now noticeably faster — attachments load lazily as you scroll, not all at once.
 
 ---
 ```
 
-### Architectural release with intro paragraph (v0.14.0)
+#### Architectural release with intro paragraph (exception)
+
+When the entire release is one architectural jump dominated by a single area, drop the type grid for that section and use a single area-named section with an intro paragraph + nested bullets:
 
 ```
 ## v0.14.0 - 2026-03-24
@@ -145,13 +197,82 @@ Complete sync system overhaul: replaced snapshot-based approach with incremental
 ---
 ```
 
-### Our house-style rules
+### House-style rules
 
-- Bold the module name when bullets span several modules — `**Sync** — …`, `**iCloud Sync** — …`. When all bullets are in the same area, the section heading covers it; no need to repeat in every bullet.
 - Trailing `---` separator between versions. Always.
 - Sentence case in bullets. Capitalize first word, lowercase the rest unless proper noun.
 - One bullet per user-visible outcome, not per commit. Multiple commits behind one feature → one bullet.
-- For architectural releases (lots of internal work that adds up to one user-visible jump), use the intro-paragraph + nested bullets pattern from v0.14.0. Don't bury the headline in a long flat list.
+- Skip sections that have nothing to put in them — don't write an empty `### ✨ New Features` heading just because the template lists it.
+- Pick the bold pattern (feature-name vs area) based on what's clarifying for the reader, not as a rigid rule.
+
+## 4. Worked example — raw git log to polished CHANGELOG
+
+This is the transformation in action. The raw input is a realistic ~2-week stretch of commits in Daily. The output is what the skill should produce after filtering, regrouping, and rewriting.
+
+### Input — raw `git log` since last tag
+
+```
+a1b2c3d feat(ai): wire streaming callbacks in AIController loop with timing
+d4e5f6a feat(ai): add ChatStreamAccumulator for unified delta protocol
+b7c8d9e feat(ui): render streaming segments + Retry button + caret in ChatMessage
+f0a1b2c feat(mcp): add MCP server with HTTP transport and tool dispatcher
+9z8y7x6 feat(ai): redesign agent system with hooks, registry, durable sessions
+e3d4f5a fix(sync): handle iCloud snapshot pending state gracefully
+c1d2e3f fix(ai): force tool_choice=auto for remote thinking-mode models
+a4b5c6d perf(ai): parallelize FS checks in LocalModelService.listModels
+g6h7i8j refactor(ai): centralize error classes into shared/errors/
+k9l0m1n test(ai): add integration tests for streaming flow
+o2p3q4r chore(deps): bump electron to 36.1.0
+s5t6u7v ci: add nightly macos arm64 build runner
+w8x9y0z docs: update CLAUDE.md architecture section
+m1n2o3p Merge branch 'feat/streaming-polish' into main
+```
+
+### Filtering pass — what survives
+
+| Commit                                                        | Decision | Reason                                                         |
+| ------------------------------------------------------------- | -------- | -------------------------------------------------------------- |
+| `feat(ai): wire streaming callbacks…`                         | ✅       | Streaming is user-visible.                                     |
+| `feat(ai): add ChatStreamAccumulator…`                        | ✅ merge | Same feature as the first one — collapse together.             |
+| `feat(ui): render streaming segments + Retry button + caret…` | ✅ merge | Same feature, UI side. Collapse with the above.                |
+| `feat(mcp): add MCP server…`                                  | ✅       | New product surface.                                           |
+| `feat(ai): redesign agent system with hooks, registry…`       | ✅       | New stateful assistant behaviour — translate the user benefit. |
+| `fix(sync): handle iCloud snapshot pending state…`            | ✅       | User-observable hang fixed.                                    |
+| `fix(ai): force tool_choice=auto for remote thinking-mode…`   | ✅       | Fixes a real broken interaction.                               |
+| `perf(ai): parallelize FS checks in listModels`               | ✅       | Noticeable speedup in a UI list.                               |
+| `refactor(ai): centralize error classes…`                     | ❌       | Pure internal refactor.                                        |
+| `test(ai): add integration tests for streaming flow`          | ❌       | Test additions.                                                |
+| `chore(deps): bump electron to 36.1.0`                        | ❌       | No behaviour change for the user.                              |
+| `ci: add nightly macos arm64 build runner`                    | ❌       | CI infrastructure.                                             |
+| `docs: update CLAUDE.md architecture section`                 | ❌       | Internal docs.                                                 |
+| `Merge branch 'feat/streaming-polish' into main`              | ❌       | Merge commit.                                                  |
+
+5 of 14 commits drop out immediately by shape (refactor/test/chore/ci/docs/merge). 3 of the survivors collapse into a single "Streaming" feature. Net: 5 distinct user-visible items from 14 raw commits.
+
+### Output — polished CHANGELOG section
+
+```
+## v0.15.0 - 2026-06-07
+
+### ✨ New Features
+
+- **Live AI Streaming** — the assistant now streams responses as they're generated, with reasoning shown in a collapsible panel that times itself. Stop and retry mid-stream with the new Retry button.
+- **MCP Server** — expose Daily's task and project actions over a local MCP endpoint so external tools can read and edit your data with your permission.
+- **Stateful AI Assistant** — the assistant now remembers conversations across restarts, and tool calls that could change your data require explicit confirmation.
+
+### 🐛 Bug Fixes
+
+- **Sync** — fixed sync sometimes hanging when iCloud was still downloading the remote snapshot in the background.
+- **AI Assistant** — fixed an issue where remote thinking-mode models would stop responding after the first tool call.
+
+### ⚡ Performance
+
+- Listing installed local models is now noticeably faster, especially when several models are installed.
+
+---
+```
+
+Note: bump from `0.14.3` to `0.15.0` (minor) is correct — multiple new features, no breaking changes. A patch wouldn't fit because users got real new capabilities, not just fixes.
 
 ## 4. Anti-patterns — engineering log creeping into product notes
 
