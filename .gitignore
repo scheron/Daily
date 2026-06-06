@@ -51,6 +51,7 @@ dist-ssr
 deps.svg
 *.svg
 release-notes.md
-.claude
+.claude/*.local.*
+.claude/*.lock
 .ai-workflow
 .features
