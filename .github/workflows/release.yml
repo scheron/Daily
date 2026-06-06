@@ -11,13 +11,13 @@ permissions:
 jobs:
   build-and-release:
     name: Build & Release on macOS
-    runs-on: macos-latest
+    runs-on: macos-14
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "22.5.0"
 
@@ -25,10 +25,24 @@ jobs:
         run: npm install -g pnpm@10.12.1
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: Build app
+        env:
+          DEBUG: electron-builder
         run: pnpm run build
+
+      - name: Verify .dmg was produced
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! ls dist/*.dmg 1>/dev/null 2>&1; then
+            echo "::error::electron-builder did not produce a .dmg"
+            echo "=== dist/ contents ==="
+            ls -la dist/ 2>&1 || echo "(dist/ does not exist)"
+            exit 1
+          fi
+          ls -lh dist/*.dmg
 
       - name: Extract version from tag
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
@@ -41,13 +55,14 @@ jobs:
           node scripts/release-notes.js "$VERSION"
 
       - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
           body_path: release-notes.md
           draft: false
           prerelease: false
+          fail_on_unmatched_files: true
           files: |
             dist/*.dmg
 
