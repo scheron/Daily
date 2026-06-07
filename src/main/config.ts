@@ -154,5 +154,5 @@ export const fsPaths = {
   updatesInstallResultPath: () => path.join(app.getPath("userData"), "updates", "install-result.json"),
 
   /** Bundled models catalog (JSON) */
-  modelsCatalogPath: () => (ENV.isDevelopment ? join(process.cwd(), "resources", "models.json") : join(app.getAppPath(), "resources", "models.json")),
+  modelsCatalogPath: () => (ENV.isDevelopment ? join(process.cwd(), "resources", "models.json") : join(process.resourcesPath, "models.json")),
 }
