@@ -2,8 +2,6 @@
 import {describe, expect, it} from "vitest"
 
 import {AI_TOOLS, AI_TOOLS_COMPACT, getRegisteredTool, REGISTRY} from "@main/ai/tools/registry"
-import {MCP_BLOCKED_TOOL_NAMES, MCP_HIDDEN_TOOL_NAMES} from "@main/mcp/constants"
-import {buildMcpToolRegistry} from "@main/mcp/tools/registry"
 
 describe("Tool registry invariants", () => {
   it("contains exactly 31 tools (30 domain + respond meta)", () => {
@@ -40,33 +38,5 @@ describe("Tool registry invariants", () => {
 
   it("getRegisteredTool returns undefined for unknown names", () => {
     expect(getRegisteredTool("nonexistent")).toBeUndefined()
-  })
-
-  it("MCP blocked tool names all exist in the registry", () => {
-    for (const name of MCP_BLOCKED_TOOL_NAMES) {
-      expect(getRegisteredTool(name), `blocked tool ${name} not in registry`).toBeDefined()
-    }
-  })
-
-  it("every MCP-blocked tool is marked isDestructive", () => {
-    for (const name of MCP_BLOCKED_TOOL_NAMES) {
-      const t = getRegisteredTool(name)
-      expect(t?.isDestructive, `${name} should be isDestructive`).toBe(true)
-    }
-  })
-
-  it("MCP-hidden tools (respond, etc) are non-destructive protocol tools", () => {
-    for (const name of MCP_HIDDEN_TOOL_NAMES) {
-      const t = getRegisteredTool(name)
-      expect(t, `hidden tool ${name} not in registry`).toBeDefined()
-      expect(t?.isDestructive, `${name} should not be isDestructive`).toBe(false)
-    }
-  })
-
-  it("buildMcpToolRegistry excludes both blocked and hidden tools", () => {
-    const mcp = buildMcpToolRegistry()
-    const exposedNames = new Set(mcp.list().map((t) => t.name))
-    for (const name of MCP_BLOCKED_TOOL_NAMES) expect(exposedNames.has(name), `blocked ${name} should not be exposed`).toBe(false)
-    for (const name of MCP_HIDDEN_TOOL_NAMES) expect(exposedNames.has(name), `hidden ${name} should not be exposed`).toBe(false)
   })
 })

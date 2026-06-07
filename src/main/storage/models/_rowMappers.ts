@@ -170,12 +170,6 @@ export function getDefaultSettings(): Settings {
       },
     },
     updates: {skippedReleaseId: null, cached: null, installed: null},
-    mcp: {
-      enabled: false,
-      host: "127.0.0.1",
-      port: 7878,
-      token: "",
-    },
   }
 }
 

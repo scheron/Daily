@@ -12,9 +12,8 @@ import type {
   PendingToolConfirmation,
 } from "./ai"
 import type {ISODate} from "./common"
-import type {McpStatus} from "./mcp"
 import type {TaskSearchResult} from "./search"
-import type {Branch, Day, File, McpSettings, MoveTaskByOrderParams, Settings, SyncStatus, Tag, Task} from "./storage"
+import type {Branch, Day, File, MoveTaskByOrderParams, Settings, SyncStatus, Tag, Task} from "./storage"
 import type {AppUpdateState} from "./update"
 
 export interface BridgeIPC {
@@ -125,13 +124,6 @@ export interface BridgeIPC {
   // === AI LOCAL EVENTS ===
   "ai:on-local-state-changed": (callback: (state: LocalRuntimeState) => void) => void
   "ai:on-local-download-progress": (callback: (progress: LocalModelDownloadProgress) => void) => void
-
-  // === MCP SERVER ===
-  "mcp:get-status": () => Promise<McpStatus>
-  "mcp:get-config": () => Promise<McpSettings>
-  "mcp:set-config": (config: Partial<McpSettings>) => Promise<McpStatus>
-  "mcp:rotate-token": () => Promise<{token: string}>
-  "mcp:on-status-changed": (callback: (status: McpStatus) => void) => () => void
 
   // === SHORTCUTS ===
   "shortcut:tasks:create": (callback: () => void) => void

@@ -7,9 +7,6 @@ import type {PolicyHookHost} from "./types"
  * Creates the policy hook that gates destructive tools behind explicit user
  * confirmation. Read-only and non-destructive write tools (create/update/
  * complete/etc) pass straight through.
- *
- * MCP calls do not fire this hook — they bypass the hook chain entirely
- * because confirmation happens on the MCP client surface.
  */
 export function createPolicyHook(host: PolicyHookHost): BeforeToolCallHook {
   return async (_ctx, call) => {

@@ -6,7 +6,5 @@ export {OpenAiClientErrorCode} from "./ai/OpenAiClientErrorCode"
 
 export {DownloadErrorCode} from "./download/DownloadErrorCode"
 
-export {McpErrorCode} from "./mcp/McpErrorCode"
-
 export {RemoteSnapshotPendingError} from "./sync/RemoteSnapshotPendingError"
 export {SyncErrorCode} from "./sync/SyncErrorCode"

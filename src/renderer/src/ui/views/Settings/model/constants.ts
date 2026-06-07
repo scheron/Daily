@@ -4,7 +4,6 @@ import AiSettings from "../{fragments}/AiSettings"
 import AppearanceSettings from "../{fragments}/AppearanceSettings"
 import DeletedTasks from "../{fragments}/DeletedTasks"
 import IconsList from "../{fragments}/IconsList.vue"
-import McpSection from "../{fragments}/McpSection.vue"
 import SyncSettings from "../{fragments}/SyncSettings.vue"
 import WorkspaceSettings from "../{fragments}/WorkspaceSettings"
 
@@ -23,7 +22,6 @@ export const SECTIONS: SettingsSection[] = [
   {id: "appearance", icon: "appearance", label: "Appearance", component: AppearanceSettings},
   {id: "workspace", icon: "monitor", label: "Workspace", component: WorkspaceSettings},
   {id: "ai", icon: "ai", label: "AI ", component: AiSettings},
-  {id: "mcp", icon: "tool", label: "MCP Server", component: McpSection},
   {id: "sync", icon: "cloud", label: "iCloud Sync", component: SyncSettings},
   {id: "deleted-tasks", icon: "trash", label: "Deleted Tasks", component: DeletedTasks},
   ...(isDevMode ? [{id: "icons" as const, icon: "heading" as const, label: "Icons", component: IconsList}] : []),

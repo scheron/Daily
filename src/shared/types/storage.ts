@@ -36,17 +36,6 @@ export type InstalledAppReleaseState = {
   installedAt: ISODateTime
 }
 
-export type McpSettings = {
-  enabled: boolean
-  host: string
-  port: number
-  /**
-   * Bearer token sent by external MCP clients in the Authorization header.
-   * Empty string means "not yet generated" (i.e. server has never been enabled).
-   */
-  token: string
-}
-
 export type Settings = {
   version: string
   themes: {
@@ -104,7 +93,6 @@ export type Settings = {
      */
     installed: InstalledAppReleaseState | null
   }
-  mcp: McpSettings
 }
 
 export type Task = {
