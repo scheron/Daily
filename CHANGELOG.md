@@ -1,6 +1,48 @@
 # Changelog
 
-## [Unreleased]
+## v0.15.0 - 2026-06-07
+
+### ✨ New Features
+
+This release focuses on the AI assistant — it now streams responses live, remembers conversations, and ships a new local model catalog.
+
+**Live AI Streaming**
+
+- Responses stream as they're generated, with reasoning shown in a collapsible panel that displays how long the model spent thinking.
+- Markdown rendering and syntax-highlighted code blocks for replies.
+- New Retry button to redo a response from scratch.
+
+**Stateful AI Assistant**
+
+- Conversations persist across app restarts, so the assistant remembers context from yesterday.
+- Destructive tool calls require explicit confirmation before running.
+- Live status updates show what the assistant is working on at each step.
+- Backed by a scenario-based eval harness — destructive-confirmation, cancellation mid-execution, and respond-tool invariants run on every change to the agent loop.
+
+**Local Models — Qwen3 and Hermes 3**
+
+- New agent-friendly model catalog with Qwen3 and Hermes 3.
+- Pause and resume large downloads without starting from zero.
+- Models unload automatically after a configurable idle window to free memory.
+- Every sampling control (temperature, top_p, top_k, min_p, repeat penalties, etc.) is exposed in settings.
+
+### 🎨 Improvements
+
+- **Local model setup** — clearer feedback while downloading: Continue button when paused, verifying spinner during sha256 check, and a live percent for partial downloads.
+- **Compatibility mode for older models** — tool calls now work for OpenAI-compatible models that don't natively support function calls, including Qwen 3.5 and similar fine-tunes.
+
+### 🐛 Bug Fixes
+
+- **Sync** — fixed sync hanging when iCloud was still downloading the remote snapshot in the background.
+- **AI Assistant** — fixed remote thinking-mode models (DeepSeek R1 and similar) failing to make tool calls.
+- **Local Models** — fixed the local server staying loaded after the active model was deleted. Concurrent connection checks no longer create overlapping retry loops.
+- **Stability** — reduced memory pressure on M1/M2 machines during model verification (sha256 is now chunked).
+
+### ⚡ Performance
+
+- Listing installed local models is noticeably faster, especially when several models are installed — disk checks now run in parallel instead of one at a time.
+
+---
 
 ## v0.14.3 - 2026-04-05
 
