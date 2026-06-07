@@ -1,13 +1,33 @@
 :root {
   --tl-font-family: var(--default-font-family);
+  --tl-shadow: var(--shadow-md);
+
   --tl-bg: var(--color-base-100);
   --tl-text: var(--color-base-content);
   --tl-border: var(--color-base-300);
-  --tl-shadow: var(--shadow-md);
+
   --tl-success: var(--color-success);
   --tl-error: var(--color-error);
   --tl-warn: var(--color-warning);
+  --tl-info: var(--color-info);
+
   --tl-icon-color: var(--color-base-100);
-  --tl-loading-border: var(--color-base-300);
-  --tl-loading-bg: var(--color-base-100);
+  --tl-spinner-color: var(--color-base-content);
+
+  --tl-bg-success: var(--tl-bg);
+  --tl-bg-error: var(--tl-bg);
+  --tl-bg-warn: var(--tl-bg);
+  --tl-bg-info: var(--tl-bg);
+  --tl-bg-loading: var(--tl-bg);
+
+  --tl-border-success: var(--tl-border);
+  --tl-border-error: var(--tl-border);
+  --tl-border-warn: var(--tl-border);
+  --tl-border-info: var(--tl-border);
+
+  --tl-text-success: var(--tl-text);
+  --tl-text-error: var(--tl-text);
+  --tl-text-warn: var(--tl-text);
+  --tl-text-info: var(--tl-text);
+  --tl-text-loading: var(--tl-text);
 }
