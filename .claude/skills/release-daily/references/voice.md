@@ -6,14 +6,14 @@ Read the whole file once when drafting; jump back to specific sections via the T
 
 ## Contents
 
-| §   | Section                                                                                                                           | When to read it                                                                                       |
-| --- | --------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| 1   | [The App Store gold standard](#1-the-app-store-gold-standard)                                                                     | Always — sets the baseline voice                                                                      |
-| 2   | [Other strong product changelogs — Linear, Figma](#2-other-strong-product-changelogs--linear-figma)                               | When deciding tone for a section heavier on specifics                                                 |
-| 3   | [Our own house style](#3-our-own-house-style)                                                                                     | Before drafting any release in this project                                                           |
-| 4   | [Worked example — raw git log to polished CHANGELOG](#4-worked-example--raw-git-log-to-polished-changelog)                        | When the filter feels ambiguous — the side-by-side teaches the transformation                         |
-| 5   | [Six rules for translating engineering work into product notes](#5-six-rules-for-translating-engineering-work-into-product-notes) | Pull the matching rule when revising a draft bullet                                                   |
-| 6   | [Special notations for unstable or transitional changes](#6-special-notations-for-unstable-or-transitional-changes)               | When asking the user about experimental features, upcoming changes, or a milestone-release intro note |
+| §   | Section                                                                                                                   | When to read it                                                                                       |
+| --- | ------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| 1   | [The App Store gold standard](#1-the-app-store-gold-standard)                                                             | Always — sets the baseline voice                                                                      |
+| 2   | [Other strong product changelogs — Linear, Figma](#2-other-strong-product-changelogs--linear-figma)                       | When deciding tone for a section heavier on specifics                                                 |
+| 3   | [Our own house style](#3-our-own-house-style)                                                                             | Before drafting any release in this project                                                           |
+| 4   | [Worked example — raw git log to polished CHANGELOG](#4-worked-example--raw-git-log-to-polished-changelog)                | When the filter feels ambiguous — the side-by-side teaches the transformation                         |
+| 5   | [Rules for translating engineering work into product notes](#5-rules-for-translating-engineering-work-into-product-notes) | Pull the matching rule when revising a draft bullet                                                   |
+| 6   | [Special notations for unstable or transitional changes](#6-special-notations-for-unstable-or-transitional-changes)       | When asking the user about experimental features, upcoming changes, or a milestone-release intro note |
 
 ## 1. The App Store gold standard
 
@@ -133,7 +133,7 @@ Pick the one that fits the moment — sometimes a section uses both.
 ✨ New Features
 
 - **Live AI Streaming** — the assistant now streams responses as they're generated, with reasoning shown in a collapsible panel that times itself.
-- **MCP Server** — expose your tasks and projects over a local MCP endpoint so external tools can read and edit them with your permission.
+- **MCP Server** — expose Daily's tasks and projects over a local MCP endpoint so external tools can read and edit them with explicit permission.
 ```
 
 **Bold the area/module** when several bullets in one section need disambiguation. The bold word tells the reader where the change landed:
@@ -268,8 +268,8 @@ m1n2o3p Merge branch 'feat/streaming-polish' into main
 ### ✨ New Features
 
 - **Live AI Streaming** — the assistant now streams responses as they're generated, with reasoning shown in a collapsible panel that times itself. Stop and retry mid-stream with the new Retry button.
-- **MCP Server** — expose Daily's task and project actions over a local MCP endpoint so external tools can read and edit your data with your permission.
-- **Stateful AI Assistant** — the assistant now remembers conversations across restarts, and tool calls that could change your data require explicit confirmation.
+- **MCP Server** — expose Daily's task and project actions over a local MCP endpoint so external tools can read and edit them with explicit permission.
+- **Stateful AI Assistant** — the assistant now remembers conversations across restarts, and destructive tool calls require explicit confirmation before running.
 
 ### 🐛 Bug Fixes
 
@@ -285,7 +285,7 @@ m1n2o3p Merge branch 'feat/streaming-polish' into main
 
 Note: bump from `0.14.3` to `0.15.0` (minor) is correct — multiple new features, no breaking changes. A patch wouldn't fit because users got real new capabilities, not just fixes.
 
-## 5. Six rules for translating engineering work into product notes
+## 5. Rules for translating engineering work into product notes
 
 These are the rules the App-Store filter enforces. Each one is stated as the positive shape to write, with a short note on what it's catching so you recognise the situation when you see it in raw commits.
 
@@ -297,11 +297,19 @@ Write bullets that name the thing the user sees, the experience they have. Ancho
 
 Catches: phrasing that names internal classes, file paths, or technical mechanisms (`object-fit`, `ImageRenderer`, `setState`) that the user can't see or act on.
 
+### Keep pronouns impersonal — favour the noun
+
+State what changed by naming the thing. "Tasks", "Conversations", "Tool calls", "Sync" — the noun reads as a system fact. Apple's release notes do use "you" and "your" softly, but our house voice leans impersonal: it reads less like marketing copy aimed at a single reader and more like a neutral record of what shipped.
+
+**Sounds like:** "Conversations persist across app restarts, so the assistant remembers context from yesterday." "Destructive tool calls require explicit confirmation before running."
+
+Catches: bullets that address the reader directly inside our type-grid sections — "your tasks", "your data", "your settings", "you can now…". The fix is usually to substitute the noun or restate as a fact about the system: "Tasks now…", "Settings include…", "The assistant remembers…".
+
 ### Translate every commit subject — strip conventional-commit syntax
 
 Drop the `type(scope):` prefix. Rewrite the rest in plain English describing what the user gets.
 
-**Sounds like:** "The AI assistant is now stateful — it remembers conversations across restarts, and tool calls that could change your data require explicit confirmation."
+**Sounds like:** "The AI assistant is now stateful — it remembers conversations across restarts, and destructive tool calls require explicit confirmation before running."
 
 Catches: subjects with `feat(...)`, `fix(...)`, `refactor(...)`, `chore(...)` leaking through verbatim. That syntax is git's, not the user's.
 

@@ -7,7 +7,7 @@ description: Cut a release of the Daily app — analyze commits + diffs since th
 
 This skill produces an **App Store-style product changelog** — the kind end users read in the App Store updates list. The voice describes the lived user experience: what they can now do, what now works better, what got fixed.
 
-**Before drafting anything, read [`references/voice.md`](references/voice.md).** It captures the voice in detail: how Apple writes release notes for its own apps (the gold standard we anchor on), how Linear and Figma frame product changelogs, our own house style across past releases, a full worked example (raw git log → polished CHANGELOG), and six positive rules for translating engineering work into product copy. The patterns in there matter more than any individual example, and the file exists precisely so SKILL.md can stay short while still anchoring you to a reliable bar.
+**Before drafting anything, read [`references/voice.md`](references/voice.md).** It captures the voice in detail: how Apple writes release notes for its own apps (the gold standard we anchor on), how Linear and Figma frame product changelogs, our own house style across past releases, a full worked example (raw git log → polished CHANGELOG), and positive rules for translating engineering work into product copy. The patterns in there matter more than any individual example, and the file exists precisely so SKILL.md can stay short while still anchoring you to a reliable bar.
 
 Quick taste, so you know the target voice:
 
@@ -121,7 +121,7 @@ Voice rules for every option:
 - Use **bold** to anchor each bullet on the most useful word: the feature's name when introducing it, or the area when several bullets need disambiguation.
 - One bullet per user-visible outcome. Several commits behind one feature collapse into one bullet.
 
-For the full reference — Apple/Linear/Figma examples, the worked example with a real input-to-output transformation, three house-style example releases, six positive rules with their catches, and special notations (experimental features, upcoming behavior changes, breaking-changes top-level note) — open [`references/voice.md`](references/voice.md). Also re-read the 2–3 most recent CHANGELOG entries every time before drafting — voice consistency between releases is what makes the bar feel maintained.
+For the full reference — Apple/Linear/Figma examples, the worked example with a real input-to-output transformation, three house-style example releases, positive rules with their catches, and special notations (experimental features, upcoming behavior changes, breaking-changes top-level note) — open [`references/voice.md`](references/voice.md). Also re-read the 2–3 most recent CHANGELOG entries every time before drafting — voice consistency between releases is what makes the bar feel maintained.
 
 **Check for special situations before assembling.** Ask the user during the interview when any of these apply (most routine releases use none of them):
 
