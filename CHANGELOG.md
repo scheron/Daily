@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.15.1 - 2026-06-07
+
+### 🐛 Bug Fixes
+
+- **Local Models** — fixed the model catalog appearing empty in AI settings after the v0.15.0 update.
+
+---
+
 ## v0.15.0 - 2026-06-07
 
 ### ✨ New Features
