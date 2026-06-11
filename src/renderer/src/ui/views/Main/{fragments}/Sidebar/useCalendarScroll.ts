@@ -1,35 +1,36 @@
 import {onBeforeUnmount, onMounted, watch} from "vue"
 
-import {dateAtViewportCenter, ROW_HEIGHT, scrollTopForDate} from "./weekLattice"
-
 import type {ISODate} from "@shared/types/common"
 import type {Ref} from "vue"
 
-// ~2 months of rows; extendRange adds ~13 rows (3 months), so one extension
-// always clears the threshold after compensation.
-const EDGE_THRESHOLD_PX = ROW_HEIGHT * 8
+// ~1.5–2 typical month sections; extendRange adds 3 months (~700px+), so one
+// extension always clears the threshold after compensation.
+const EDGE_THRESHOLD_PX = 480
 
 export function useCalendarScroll(params: {
   scrollEl: Ref<HTMLElement | null>
-  firstWeekIndex: Ref<number | null>
-  onFocusDateChange: (date: ISODate) => void
+  firstMonthKey: Ref<string | null>
+  onFocusMonthChange: (key: string) => void
   onReachEdge: (direction: "past" | "future") => void
 }) {
-  const {scrollEl, firstWeekIndex} = params
+  const {scrollEl, firstMonthKey} = params
   let rafId: number | null = null
+  let heightBeforePatch: number | null = null
 
   function scrollToDate(date: ISODate, behavior: ScrollBehavior = "smooth") {
     const el = scrollEl.value
-    // clientHeight 0 = layout not settled yet; centering math would clamp to an
-    // arbitrary edge. The viewport-size watch in the component retries later.
-    if (!el || el.clientHeight === 0 || firstWeekIndex.value === null) return
+    // clientHeight 0 = layout not settled yet; the viewport-size watch in the
+    // component retries later. A missing cell means the date isn't rendered yet;
+    // the queued-scroll mechanism re-issues once the range loads.
+    if (!el || el.clientHeight === 0) return
 
-    const top = scrollTopForDate({date, firstWeekIndex: firstWeekIndex.value, clientHeight: el.clientHeight})
-    if (typeof el.scrollTo === "function") el.scrollTo({top, behavior})
-    else el.scrollTop = top
+    const cell = el.querySelector<HTMLElement>(`[data-drop-day="${date}"]`)
+    if (cell && typeof cell.scrollIntoView === "function") {
+      cell.scrollIntoView({block: "center", behavior})
+    }
   }
 
-  /** Recompute the focus date and edge state from the current scroll position (e.g. after a resize). */
+  /** Recompute the focus month and edge state from the current scroll position (e.g. after a resize). */
   function refresh() {
     onScroll()
   }
@@ -40,9 +41,15 @@ export function useCalendarScroll(params: {
     rafId = requestAnimationFrame(() => {
       rafId = null
       const el = scrollEl.value
-      if (!el || firstWeekIndex.value === null) return
+      if (!el) return
 
-      params.onFocusDateChange(dateAtViewportCenter({scrollTop: el.scrollTop, clientHeight: el.clientHeight, firstWeekIndex: firstWeekIndex.value}))
+      const centerY = el.scrollTop + el.clientHeight / 2
+      for (const section of Array.from(el.querySelectorAll<HTMLElement>("[data-month]"))) {
+        if (section.offsetTop <= centerY && centerY < section.offsetTop + section.offsetHeight) {
+          params.onFocusMonthChange(section.dataset.month!)
+          break
+        }
+      }
 
       if (el.scrollTop < EDGE_THRESHOLD_PX) {
         params.onReachEdge("past")
@@ -52,14 +59,23 @@ export function useCalendarScroll(params: {
     })
   }
 
-  // Week-index changes in either direction are compensated (flush: "post" = after
-  // the DOM patch, before paint) so the same dates stay under the viewport.
+  // When the first rendered month changes (prepend or range replacement), the
+  // content above the viewport shifts. Capture the height before the DOM patch
+  // (pre-flush) and shift scrollTop by the delta after it (post-flush, before
+  // paint) so the same dates stay under the viewport.
+  watch(firstMonthKey, (next, prev) => {
+    const el = scrollEl.value
+    if (!el || !next || !prev || next === prev) return
+    heightBeforePatch = el.scrollHeight
+  })
+
   watch(
-    firstWeekIndex,
-    (next, prev) => {
+    firstMonthKey,
+    () => {
       const el = scrollEl.value
-      if (!el || next === null || prev === null || prev === undefined) return
-      if (next !== prev) el.scrollTop += (prev - next) * ROW_HEIGHT
+      if (!el || heightBeforePatch === null) return
+      el.scrollTop += el.scrollHeight - heightBeforePatch
+      heightBeforePatch = null
     },
     {flush: "post"},
   )

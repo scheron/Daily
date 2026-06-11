@@ -9,12 +9,13 @@ import {useUIStore} from "@/stores/ui.store"
 import {dropTargetDate} from "@/composables/useDayDropTarget"
 import BaseButton from "@/ui/base/BaseButton.vue"
 import {WEEKDAYS} from "@/ui/base/BaseCalendar/constants"
+import BaseIcon from "@/ui/base/BaseIcon"
 
+import {buildMonthCounts, buildMonthSections, dayOfMonth, getDayDotStatus, monthKey} from "./monthSections"
 import {useCalendarScroll} from "./useCalendarScroll"
-import {buildWeekRange, dayOfMonth, getDayDotStatus, monthKey} from "./weekLattice"
 
 import type {ISODate} from "@shared/types/common"
-import type {WeekRow} from "./weekLattice"
+import type {MonthSection} from "./monthSections"
 
 const RANGE_SETTLE_WINDOW_MS = 10_000
 
@@ -39,20 +40,22 @@ const dotByDate = computed(() => {
   return map
 })
 
-const weeks = computed<WeekRow[]>(() => {
+const monthCounts = computed(() => buildMonthCounts(tasksStore.days))
+
+const months = computed<MonthSection[]>(() => {
   const range = tasksStore.loadedRange
   if (!range) return []
-  return buildWeekRange(range.from, range.to)
+  return buildMonthSections(range.from, range.to)
 })
 
-const firstWeekIndex = computed(() => weeks.value[0]?.index ?? null)
+const firstMonthKey = computed(() => months.value[0]?.key ?? null)
 let suppressFollow = false
 let queuedScroll: {date: ISODate; queuedAt: number} | null = null
 
 const {scrollToDate, refresh} = useCalendarScroll({
   scrollEl,
-  firstWeekIndex,
-  onFocusDateChange: (date) => (focusMonth.value = monthKey(date)),
+  firstMonthKey,
+  onFocusMonthChange: (key) => (focusMonth.value = key),
   onReachEdge: (direction) => void tasksStore.extendRange(direction),
 })
 
@@ -132,16 +135,8 @@ function onCellClick(date: ISODate) {
   tasksStore.setActiveDay(date)
 }
 
-function isFocusMonth(date: ISODate): boolean {
-  return monthKey(date) === focusMonth.value
-}
-
 function cellClass(date: ISODate): string[] {
-  const classes = [isFocusMonth(date) ? "text-base-content" : "text-base-content/50"]
-
-  // Stepped month boundary: each column has exactly one cell with day-of-month ≤ 7,
-  // so a top border on those cells traces the month's starting edge.
-  if (dayOfMonth(date) <= 7) classes.push("border-t", "border-t-base-300")
+  const classes: string[] = []
 
   if (dropTargetDate.value === date) classes.push("ring-accent border-accent ring-1")
   else if (date === props.activeDay) classes.push("bg-accent/30 text-accent hover:bg-accent/40")
@@ -169,11 +164,32 @@ function cellClass(date: ISODate): string[] {
     </ul>
     <div class="border-accent/10 mx-2 mb-1 border-b" />
 
-    <div ref="scrollEl" class="flex-1 overflow-y-auto px-2 pb-2" style="overflow-anchor: none">
-      <div class="grid grid-cols-7 gap-1">
-        <template v-for="week in weeks" :key="week.index">
+    <div ref="scrollEl" class="relative flex-1 overflow-y-auto px-2 pb-2" style="overflow-anchor: none">
+      <section v-for="month in months" :key="month.key" :data-month="month.key" class="pt-2">
+        <div class="flex items-baseline justify-between gap-2 px-1 pb-1">
+          <h3 class="text-base-content/80 truncate text-xs font-semibold capitalize">{{ toMonthYear(month.firstDay) }}</h3>
+
+          <div v-if="monthCounts.get(month.key)" class="flex shrink-0 items-center gap-1.5 text-[10px] font-semibold">
+            <span class="text-error flex items-center gap-0.5">
+              <BaseIcon name="fire" class="size-3" />
+              {{ monthCounts.get(month.key)!.active }}
+            </span>
+            <span class="text-warning flex items-center gap-0.5">
+              <BaseIcon name="archive" class="size-3" />
+              {{ monthCounts.get(month.key)!.discarded }}
+            </span>
+            <span class="text-success flex items-center gap-0.5">
+              <BaseIcon name="check-check" class="size-3" />
+              {{ monthCounts.get(month.key)!.done }}
+            </span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-7 gap-1">
+          <div v-for="blank in month.leadingBlanks" :key="`blank-${blank}`" />
+
           <BaseButton
-            v-for="date in week.days"
+            v-for="date in month.days"
             :key="date"
             variant="ghost"
             type="button"
@@ -188,8 +204,8 @@ function cellClass(date: ISODate): string[] {
 
             <div v-if="dotByDate.get(date)" class="absolute top-0.5 right-0.5 size-2 rounded-full shadow-xs" :class="dotByDate.get(date)" />
           </BaseButton>
-        </template>
-      </div>
+        </div>
+      </section>
     </div>
   </aside>
 </template>

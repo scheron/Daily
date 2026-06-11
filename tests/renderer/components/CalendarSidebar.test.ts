@@ -51,11 +51,26 @@ describe("CalendarSidebar", () => {
     const cells = wrapper.findAll("[data-drop-day]")
 
     expect(cells.length).toBeGreaterThan(0)
-    expect(cells.length % 7).toBe(0)
 
     const dates = cells.map((cell) => cell.attributes("data-drop-day"))
     expect(new Set(dates).size).toBe(dates.length)
     expect(dates).toContain(TODAY)
+  })
+
+  it("renders a section per month with task counts in the header", async () => {
+    const day = {date: TODAY, tasks: [{id: "t1", status: "active", tags: []}], tags: [], countActive: 1, countDone: 0}
+    const {wrapper} = await mountSidebar([day])
+
+    const currentMonthKey = TODAY.slice(0, 7)
+    const section = wrapper.find(`[data-month="${currentMonthKey}"]`)
+    expect(section.exists()).toBe(true)
+    expect(section.find("h3").exists()).toBe(true)
+    expect(section.find(".text-error").text()).toBe("1")
+    expect(section.find(".text-warning").text()).toBe("0")
+    expect(section.find(".text-success").text()).toBe("0")
+
+    const sections = wrapper.findAll("[data-month]")
+    expect(sections.length).toBeGreaterThanOrEqual(12) // ±6 months loaded
   })
 
   it("selects a day on click", async () => {
