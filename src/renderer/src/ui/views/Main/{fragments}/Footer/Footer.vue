@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, onBeforeUnmount, ref, watch} from "vue"
+import {onBeforeUnmount, ref, watch} from "vue"
 
 import {ISODate} from "@shared/types/common"
 import {useTasksStore} from "@/stores/tasks.store"
@@ -8,16 +8,13 @@ import {draggingTaskId} from "@/composables/useTaskDragDrop"
 import {findClosestAtPoint, findDragClone} from "@/utils/ui/dom"
 import BaseButton from "@/ui/base/BaseButton.vue"
 
-import {FOOTER_EXPANDED_HEIGHT, FOOTER_HEIGHT} from "../../model/useContentSize"
 import ContinuousCalendar from "./ContinuousCalendar.vue"
 import WeekStrip from "./WeekStrip.vue"
 
-const props = defineProps<{activeDay: string}>()
+const props = defineProps<{activeDay: string; footerHeight: number}>()
 
 const tasksStore = useTasksStore()
 const uiStore = useUIStore()
-
-const footerHeight = computed(() => (uiStore.calendarExpanded ? FOOTER_EXPANDED_HEIGHT : FOOTER_HEIGHT))
 
 const dropTargetDate = ref<ISODate | null>(null)
 const pendingDrop = ref<{taskId: string; date: ISODate} | null>(null)
@@ -79,7 +76,7 @@ onBeforeUnmount(cleanup)
 </script>
 
 <template>
-  <div class="app-footer border-base-300 border-t px-4" :style="{height: `${footerHeight}px`}">
+  <div class="app-footer border-base-300 border-t px-4" :style="{height: `${props.footerHeight}px`}">
     <div v-if="!uiStore.calendarExpanded" class="flex h-full w-full items-center justify-between gap-2">
       <WeekStrip :active-day="props.activeDay" :drop-target-date="dropTargetDate" />
       <BaseButton variant="ghost" icon="chevron-up" class="p-0.5" tooltip="Expand calendar" @click="uiStore.toggleCalendarExpanded()" />
@@ -87,9 +84,13 @@ onBeforeUnmount(cleanup)
 
     <div v-else class="flex h-full w-full items-stretch gap-1 py-1">
       <ContinuousCalendar :active-day="props.activeDay" :drop-target-date="dropTargetDate" class="min-w-0 flex-1" />
-      <div class="flex flex-col">
-        <BaseButton variant="ghost" icon="chevron-down" class="p-0.5" tooltip="Collapse calendar" @click="uiStore.toggleCalendarExpanded()" />
-      </div>
+      <BaseButton
+        variant="ghost"
+        icon="chevron-down"
+        class="self-start p-0.5"
+        tooltip="Collapse calendar"
+        @click="uiStore.toggleCalendarExpanded()"
+      />
     </div>
   </div>
 </template>

@@ -51,7 +51,7 @@ window.BridgeIPC["shortcut:ui:toggle-tasks-view-mode"](() => uiStore.toggleTasks
         <Content :task-editor-open="taskEditorStore.isTaskEditorOpen" @create-task="onCreateTask" />
       </div>
 
-      <Footer v-if="footerHeight > 0" :active-day="tasksStore.activeDay" />
+      <Footer v-if="footerHeight > 0" :active-day="tasksStore.activeDay" :footer-height="footerHeight" />
     </main>
 
     <BaseModal
