@@ -1,7 +1,7 @@
 # Continuous Calendar Footer — Design
 
 **Date:** 2026-06-11
-**Status:** Approved (brainstormed interactively)
+**Status:** Superseded by `2026-06-11-calendar-sidebar-design.md` — after evaluating the built footer version, the continuous calendar moved to a left sidebar (vertical orientation); the footer reverts to the week strip.
 
 ## Summary
 
