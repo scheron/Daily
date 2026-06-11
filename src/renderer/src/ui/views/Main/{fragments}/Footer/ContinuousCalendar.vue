@@ -49,7 +49,11 @@ const {scrollToDate} = useCalendarScroll({
 let queuedScroll: {date: ISODate; queuedAt: number} | null = null
 
 function queueScroll(date: ISODate, behavior: ScrollBehavior) {
-  queuedScroll = {date, queuedAt: Date.now()}
+  // Queue only when the target needs a range change to become reachable (no data
+  // yet, or outside the loaded window — a recenter is coming); otherwise the
+  // immediate scroll suffices and a lingering queue would later yank the viewport.
+  const range = tasksStore.loadedRange
+  queuedScroll = !range || date < range.from || date > range.to ? {date, queuedAt: Date.now()} : null
   scrollToDate(date, behavior)
 }
 
