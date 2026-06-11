@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, ref} from "vue"
+import {computed, nextTick, onMounted, ref, watch} from "vue"
 import {useNow} from "@vueuse/core"
 import {DateTime} from "luxon"
 
@@ -10,10 +10,13 @@ import {dropTargetDate} from "@/composables/useDayDropTarget"
 import BaseButton from "@/ui/base/BaseButton.vue"
 import {WEEKDAYS} from "@/ui/base/BaseCalendar/constants"
 
+import {useCalendarScroll} from "./useCalendarScroll"
 import {buildWeekRange, dayOfMonth, getDayDotStatus, monthKey} from "./weekLattice"
 
 import type {ISODate} from "@shared/types/common"
 import type {WeekRow} from "./weekLattice"
+
+const RANGE_SETTLE_WINDOW_MS = 10_000
 
 const props = defineProps<{activeDay: ISODate}>()
 
@@ -42,8 +45,71 @@ const weeks = computed<WeekRow[]>(() => {
   return buildWeekRange(range.from, range.to)
 })
 
+const firstWeekIndex = computed(() => weeks.value[0]?.index ?? null)
+let suppressFollow = false
+let queuedScroll: {date: ISODate; queuedAt: number} | null = null
+
+const {scrollToDate} = useCalendarScroll({
+  scrollEl,
+  firstWeekIndex,
+  onFocusDateChange: (date) => (focusMonth.value = monthKey(date)),
+  onReachEdge: (direction) => void tasksStore.extendRange(direction),
+})
+
+function queueScroll(date: ISODate, behavior: ScrollBehavior) {
+  // Queue only when the target needs a range change to become reachable (no data
+  // yet, or outside the loaded window — a recenter is coming); otherwise the
+  // immediate scroll suffices and a lingering queue would later yank the viewport.
+  const range = tasksStore.loadedRange
+  queuedScroll = !range || date < range.from || date > range.to ? {date, queuedAt: Date.now()} : null
+  scrollToDate(date, behavior)
+}
+
+function scrollToToday() {
+  queueScroll(today.value, "smooth")
+}
+
+function scrollToMonth(offset: 1 | -1) {
+  const target = DateTime.fromISO(`${focusMonth.value}-01`).plus({months: offset}).toISODate()!
+  queueScroll(target, "smooth")
+}
+
+watch(
+  () => tasksStore.activeDay,
+  (date) => {
+    if (suppressFollow) {
+      suppressFollow = false
+      return
+    }
+    queueScroll(date, "smooth")
+  },
+)
+
+// Re-issue the queued scroll when the loaded range changes underneath it: initial
+// data arrival (cold launch) and recenterRange after a far jump both land here.
+// The freshness window keeps stale targets from hijacking unrelated later extends.
+watch(
+  () => tasksStore.loadedRange,
+  async () => {
+    if (!queuedScroll) return
+    if (Date.now() - queuedScroll.queuedAt > RANGE_SETTLE_WINDOW_MS) {
+      queuedScroll = null
+      return
+    }
+    await nextTick()
+    scrollToDate(queuedScroll.date, "auto")
+    queuedScroll = null
+  },
+)
+
+onMounted(async () => {
+  await nextTick()
+  queueScroll(today.value, "auto")
+})
+
 function onCellClick(date: ISODate) {
   if (date === tasksStore.activeDay) return
+  suppressFollow = true
   tasksStore.setActiveDay(date)
 }
 
@@ -66,8 +132,11 @@ function cellClass(date: ISODate): string[] {
 <template>
   <aside class="app-sidebar border-base-300 bg-base-100 flex h-full shrink-0 flex-col border-r">
     <div class="border-base-300 h-header flex shrink-0 items-center border-b px-2" style="-webkit-app-region: drag">
-      <div class="ml-traffic-light flex min-w-0 flex-1 items-center justify-between gap-1" style="-webkit-app-region: no-drag">
-        <h2 class="truncate text-sm font-semibold capitalize">{{ headerLabel }}</h2>
+      <div class="ml-traffic-light flex min-w-0 flex-1 items-center gap-0.5" style="-webkit-app-region: no-drag">
+        <BaseButton variant="ghost" icon="chevron-left" class="p-0.5" tooltip="Previous month" @click="scrollToMonth(-1)" />
+        <h2 class="min-w-0 flex-1 truncate text-center text-sm font-semibold capitalize">{{ headerLabel }}</h2>
+        <BaseButton variant="ghost" icon="chevron-right" class="p-0.5" tooltip="Next month" @click="scrollToMonth(1)" />
+        <BaseButton variant="ghost" icon="today" icon-class="text-accent" class="p-0.5" tooltip="Today" @click="scrollToToday" />
         <BaseButton variant="ghost" icon="sidebar" class="p-0.5" tooltip="Hide calendar" @click="uiStore.toggleSidebarCollapsed()" />
       </div>
     </div>
