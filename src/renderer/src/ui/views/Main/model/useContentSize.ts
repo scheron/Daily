@@ -3,8 +3,7 @@ import {tryOnMounted, useElementSize} from "@vueuse/core"
 
 import {useUIStore} from "@/stores/ui.store"
 
-export const SIDEBAR_WIDTH = 288
-
+const SIDEBAR_WIDTH = 288
 const FOOTER_HEIGHT = 40
 const HEADER_HEIGHT = 62
 

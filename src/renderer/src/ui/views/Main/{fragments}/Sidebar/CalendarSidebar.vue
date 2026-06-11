@@ -153,7 +153,6 @@ function cellClass(date: ISODate): string[] {
             v-for="date in week.days"
             :key="date"
             variant="ghost"
-            size="md"
             type="button"
             :data-drop-day="date"
             :aria-label="date"
