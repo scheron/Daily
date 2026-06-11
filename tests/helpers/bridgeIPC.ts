@@ -23,6 +23,7 @@ export function mockBridgeIPC(overrides = {}) {
       updates: {skippedReleaseId: null, cached: null, installed: null},
     }),
     "settings:save": noop,
+    "settings:on-changed": noopOn,
     "days:get-many": vi.fn().mockResolvedValue([]),
     "days:get-one": vi.fn().mockResolvedValue(null),
     "tasks:create": noop,

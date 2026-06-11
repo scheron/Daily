@@ -44,6 +44,7 @@ export interface BridgeIPC {
   // === SETTINGS ===
   "settings:load": () => Promise<Settings>
   "settings:save": (settings: Partial<Settings>) => Promise<void>
+  "settings:on-changed": (callback: () => void) => void
 
   // === UPDATES ===
   "updates:get-state": () => Promise<AppUpdateState>

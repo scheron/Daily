@@ -53,6 +53,7 @@ export class StorageController implements IStorageController {
 
   private notifyStorageStatusChange?: (status: SyncStatus, prevStatus: SyncStatus) => void
   private notifyStorageDataChange?: () => void
+  private notifySettingsChange?: () => void
 
   async init(): Promise<void> {
     await fs.ensureDir(this.rootDir)
@@ -102,9 +103,14 @@ export class StorageController implements IStorageController {
   }
 
   //#region STORAGE
-  setupStorageBroadcasts(callbacks: {onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => void; onDataChange: () => void}): void {
+  setupStorageBroadcasts(callbacks: {
+    onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => void
+    onDataChange: () => void
+    onSettingsChange: () => void
+  }): void {
     this.notifyStorageStatusChange = callbacks.onStatusChange
     this.notifyStorageDataChange = callbacks.onDataChange
+    this.notifySettingsChange = callbacks.onSettingsChange
   }
 
   async activateSync() {
@@ -136,7 +142,9 @@ export class StorageController implements IStorageController {
 
   async saveSettings(newSettings: Partial<Settings>): Promise<void> {
     await this.settingsService.saveSettings(newSettings)
-    this.notifyStorageDataChange?.()
+    // Settings-only broadcast: a full data-changed here would make every settings
+    // write (sidebar toggle, window-bounds autosave) reload all stores in every window.
+    this.notifySettingsChange?.()
   }
   //#endregion
 

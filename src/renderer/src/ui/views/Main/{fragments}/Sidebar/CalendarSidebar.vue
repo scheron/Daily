@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {computed, nextTick, onMounted, ref, watch} from "vue"
-import {useElementSize, useNow} from "@vueuse/core"
+import {useElementSize, useNow, watchDebounced} from "@vueuse/core"
 import {DateTime} from "luxon"
 
 import {toMonthYear} from "@shared/utils/date/formatters"
@@ -49,7 +49,7 @@ const firstMonthKey = computed(() => months.value[0]?.key ?? null)
 let suppressFollow = false
 let queuedScroll: {date: ISODate; queuedAt: number} | null = null
 
-const {scrollToDate, refresh} = useCalendarScroll({
+const {scrollToDate} = useCalendarScroll({
   scrollEl,
   firstMonthKey,
   onReachEdge: (direction) => void tasksStore.extendRange(direction),
@@ -57,7 +57,7 @@ const {scrollToDate, refresh} = useCalendarScroll({
 
 // The window can resize after mount (size restore, maximize), invalidating the
 // mount-time centering. Until the user touches the calendar, re-center on today
-// whenever the viewport height settles; afterwards only refresh the focus month.
+// once the viewport height settles (debounced — resize fires per frame).
 const {height: viewportHeight} = useElementSize(scrollEl)
 let userInteracted = false
 
@@ -65,12 +65,15 @@ function markUserInteracted() {
   userInteracted = true
 }
 
-watch(viewportHeight, async (height) => {
-  if (height <= 0) return
-  await nextTick()
-  if (userInteracted) refresh()
-  else scrollToDate(today.value, "auto")
-})
+watchDebounced(
+  viewportHeight,
+  async (height) => {
+    if (height <= 0 || userInteracted) return
+    await nextTick()
+    scrollToDate(today.value, "auto")
+  },
+  {debounce: 200},
+)
 
 // The sidebar is hidden via v-show (kept alive to make reopening instant), so
 // mount-time centering doesn't re-run — re-center on today on every reopen.

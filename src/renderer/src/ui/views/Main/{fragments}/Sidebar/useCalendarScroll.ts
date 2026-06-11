@@ -29,11 +29,6 @@ export function useCalendarScroll(params: {
     }
   }
 
-  /** Recheck the edge state from the current scroll position (e.g. after a resize). */
-  function refresh() {
-    onScroll()
-  }
-
   function onScroll() {
     if (rafId !== null) return
 
@@ -80,5 +75,5 @@ export function useCalendarScroll(params: {
     if (rafId !== null) cancelAnimationFrame(rafId)
   })
 
-  return {scrollToDate, refresh}
+  return {scrollToDate}
 }

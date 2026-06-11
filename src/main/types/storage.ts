@@ -58,7 +58,11 @@ export interface IStorageController {
 
   cleanupOrphanFiles(): Promise<void>
 
-  setupStorageBroadcasts(callbacks: {onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => void; onDataChange: () => void}): void
+  setupStorageBroadcasts(callbacks: {
+    onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => void
+    onDataChange: () => void
+    onSettingsChange: () => void
+  }): void
 
   activateSync(): Promise<void>
   deactivateSync(): Promise<void>

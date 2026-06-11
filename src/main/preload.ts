@@ -49,6 +49,7 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
 
   "settings:load": () => ipcRenderer.invoke("settings:load") as Promise<Settings>,
   "settings:save": (settings: Partial<Settings>) => ipcRenderer.invoke("settings:save", settings),
+  "settings:on-changed": (callback: () => void) => ipcRenderer.on("settings:changed", () => callback()),
 
   "updates:get-state": () => ipcRenderer.invoke("updates:get-state") as Promise<AppUpdateState>,
   "updates:check": () => ipcRenderer.invoke("updates:check") as Promise<AppUpdateState>,

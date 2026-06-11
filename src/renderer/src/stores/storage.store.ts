@@ -74,6 +74,12 @@ export const useStorageStore = defineStore("storage", () => {
     onStorageDataChanged.trigger()
   })
 
+  // Settings writes only refresh the settings cache (cross-window propagation);
+  // they must not trigger the full data revalidation above.
+  window.BridgeIPC["settings:on-changed"](async () => {
+    await settingsStore.revalidate()
+  })
+
   onMounted(async () => {
     await loadSyncStatus()
     if (status.value === "active") forceSync()

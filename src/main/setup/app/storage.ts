@@ -27,5 +27,8 @@ export function setupStorageSync(getStorage: () => IStorageController | null, ge
     onDataChange: () => {
       broadcastToAll(getWindows, "storage-sync:data-changed")
     },
+    onSettingsChange: () => {
+      broadcastToAll(getWindows, "settings:changed")
+    },
   })
 }
