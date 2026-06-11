@@ -41,6 +41,13 @@ function dotFor(date: ISODate): DayDotStatus | null {
   return getDayDotStatus(daysMap.value.get(date))
 }
 
+function dotClass(date: ISODate): string {
+  const dot = dotFor(date)
+  if (dot === "active") return "bg-warning"
+  if (dot === "done") return "bg-success"
+  return ""
+}
+
 function isFocusMonth(date: ISODate): boolean {
   return monthKey(date) === focusMonth.value
 }
@@ -50,7 +57,9 @@ function cellClass(date: ISODate): string[] {
     props.dropTargetDate === date
       ? "ring-accent border-accent ring-1"
       : date === props.activeDay
-        ? "text-accent bg-accent/15 border-accent/50"
+        ? date === today.value
+          ? "text-accent bg-accent/15 border-accent"
+          : "text-accent bg-accent/15 border-accent/50"
         : date === today.value
           ? "border-accent"
           : "border-transparent"
@@ -78,13 +87,16 @@ function cellClass(date: ISODate): string[] {
           <button
             v-for="date in weekRow"
             :key="date"
+            type="button"
             :data-drop-day="date"
+            :aria-label="date"
+            :aria-current="date === today ? 'date' : undefined"
             class="flex flex-col items-center justify-center rounded-md border transition-opacity duration-150"
             :class="cellClass(date)"
             @click="onCellClick(date)"
           >
             <span class="text-[11px] font-semibold">{{ dayOfMonth(date) }}</span>
-            <span class="size-1 rounded-full" :class="dotFor(date) === 'active' ? 'bg-warning' : dotFor(date) === 'done' ? 'bg-success' : ''" />
+            <span class="size-1 rounded-full" :class="dotClass(date)" />
           </button>
         </div>
       </section>
