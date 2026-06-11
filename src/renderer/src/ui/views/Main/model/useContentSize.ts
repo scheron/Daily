@@ -3,9 +3,8 @@ import {tryOnMounted, useElementSize} from "@vueuse/core"
 
 import {useUIStore} from "@/stores/ui.store"
 
-export const FOOTER_HEIGHT = 40
-export const FOOTER_EXPANDED_HEIGHT = 260
-
+const FOOTER_HEIGHT = 40
+const FOOTER_EXPANDED_HEIGHT = 260
 const HEADER_HEIGHT = 62
 
 export function useContentSize(contentId: string) {
