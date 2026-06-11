@@ -67,6 +67,7 @@ onMounted(async () => {
 defineExpose({scrollToToday})
 
 function onCellClick(date: ISODate) {
+  if (date === tasksStore.activeDay) return
   suppressFollow = true
   tasksStore.setActiveDay(date)
 }
