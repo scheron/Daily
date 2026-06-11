@@ -12,6 +12,7 @@ import SearchForm from "@/ui/modules/SearchForm"
 import Content from "./{fragments}/Content"
 import Footer from "./{fragments}/Footer"
 import Header from "./{fragments}/Header.vue"
+import CalendarSidebar from "./{fragments}/Sidebar"
 import Toolbar from "./{fragments}/Toolbar.vue"
 import {useContentSize} from "./model/useContentSize"
 
@@ -23,7 +24,7 @@ useStorageStore()
 useThemeStore()
 useDayDropTarget()
 
-const {contentHeight, contentWidth, footerHeight} = useContentSize("container")
+const {contentHeight, contentWidth, footerHeight, sidebarWidth} = useContentSize("container")
 
 function onCreateTask() {
   taskEditorStore.setCurrentEditingTask(null)
@@ -41,6 +42,8 @@ window.BridgeIPC["shortcut:ui:toggle-tasks-view-mode"](() => uiStore.toggleTasks
 <template>
   <div ref="container" class="app-shell bg-base-300 flex h-dvh w-dvw overflow-hidden">
     <UpdateBanner />
+
+    <CalendarSidebar v-if="sidebarWidth > 0" :active-day="tasksStore.activeDay" :style="{width: `${sidebarWidth}px`}" />
 
     <main class="app-main-panel bg-base-100 flex-1" :style="{width: contentWidth + 'px'}">
       <Header :task-editor-open="taskEditorStore.isTaskEditorOpen" :active-day="tasksStore.activeDay" @create-task="onCreateTask" />

@@ -128,7 +128,15 @@ function onOpenAssistantPanel() {
 
 <template>
   <div class="app-header border-base-300 h-header flex items-center border-b px-4 py-2" style="-webkit-app-region: drag">
-    <div class="ml-traffic-light flex min-w-0 items-center gap-2">
+    <div class="flex min-w-0 items-center gap-2" :class="{'ml-traffic-light': uiStore.sidebarCollapsed}">
+      <BaseButton
+        v-if="uiStore.sidebarCollapsed"
+        variant="ghost"
+        icon="sidebar"
+        tooltip="Show calendar"
+        style="-webkit-app-region: no-drag"
+        @click="uiStore.toggleSidebarCollapsed()"
+      />
       <h1 class="m-0 cursor-default truncate text-start text-lg font-bold">
         {{ formattedDate }}
       </h1>
