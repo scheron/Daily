@@ -29,7 +29,7 @@ function isToday(date: ISODate): boolean {
 </script>
 
 <template>
-  <div class="flex h-full w-full items-center justify-between gap-3">
+  <div class="flex h-full w-full min-w-0 items-center justify-between gap-3">
     <div class="flex items-center justify-between gap-1">
       <DayPicker
         hover-mode
