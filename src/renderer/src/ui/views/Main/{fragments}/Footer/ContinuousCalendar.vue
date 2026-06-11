@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, ref} from "vue"
+import {computed, nextTick, onMounted, ref, watch} from "vue"
 import {useNow} from "@vueuse/core"
 import {DateTime, Info} from "luxon"
 
@@ -7,6 +7,7 @@ import {toMonthYear} from "@shared/utils/date/formatters"
 import {useTasksStore} from "@/stores/tasks.store"
 
 import {buildChunkRange, CELL_SIZE, CHUNK_PADDING_X, dayOfMonth, getDayDotStatus, monthKey} from "./lattice"
+import {useCalendarScroll} from "./useCalendarScroll"
 
 import type {ISODate} from "@shared/types/common"
 import type {DayDotStatus, LatticeChunk} from "./lattice"
@@ -33,7 +34,40 @@ const chunks = computed<LatticeChunk[]>(() => {
   return buildChunkRange(range.from, range.to)
 })
 
+const firstChunkIndex = computed(() => chunks.value[0]?.index ?? null)
+let suppressFollow = false
+
+const {scrollToDate} = useCalendarScroll({
+  scrollEl,
+  firstChunkIndex,
+  onFocusDateChange: (date) => (focusMonth.value = monthKey(date)),
+  onReachEdge: (direction) => void tasksStore.extendRange(direction),
+})
+
+function scrollToToday() {
+  scrollToDate(today.value, "smooth")
+}
+
+watch(
+  () => tasksStore.activeDay,
+  (date) => {
+    if (suppressFollow) {
+      suppressFollow = false
+      return
+    }
+    scrollToDate(date, "smooth")
+  },
+)
+
+onMounted(async () => {
+  await nextTick()
+  scrollToDate(today.value, "auto")
+})
+
+defineExpose({scrollToToday})
+
 function onCellClick(date: ISODate) {
+  suppressFollow = true
   tasksStore.setActiveDay(date)
 }
 

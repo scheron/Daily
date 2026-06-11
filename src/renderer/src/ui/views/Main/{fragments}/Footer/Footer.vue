@@ -16,6 +16,7 @@ const props = defineProps<{activeDay: string; footerHeight: number}>()
 const tasksStore = useTasksStore()
 const uiStore = useUIStore()
 
+const calendarRef = ref<InstanceType<typeof ContinuousCalendar> | null>(null)
 const dropTargetDate = ref<ISODate | null>(null)
 const pendingDrop = ref<{taskId: string; date: ISODate} | null>(null)
 
@@ -83,7 +84,8 @@ onBeforeUnmount(cleanup)
     </div>
 
     <div v-else class="flex h-full w-full items-stretch gap-1 py-1">
-      <ContinuousCalendar :active-day="props.activeDay" :drop-target-date="dropTargetDate" class="min-w-0 flex-1" />
+      <BaseButton variant="ghost" icon="calendar" class="self-start p-0.5" tooltip="Scroll to today" @click="calendarRef?.scrollToToday()" />
+      <ContinuousCalendar ref="calendarRef" :active-day="props.activeDay" :drop-target-date="dropTargetDate" class="min-w-0 flex-1" />
       <BaseButton
         variant="ghost"
         icon="chevron-down"
