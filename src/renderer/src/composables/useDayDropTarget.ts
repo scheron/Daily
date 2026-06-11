@@ -15,6 +15,12 @@ export const dropTargetDate = ref<ISODate | null>(null)
 
 /** Activate the global pointer tracking. Call once from Main.vue. */
 export function useDayDropTarget() {
+  if (isActivated) {
+    console.warn("useDayDropTarget is already activated; ignoring repeated call")
+    return
+  }
+  isActivated = true
+
   const tasksStore = useTasksStore()
   const pendingDrop = ref<{taskId: string; date: ISODate} | null>(null)
 
@@ -74,5 +80,10 @@ export function useDayDropTarget() {
     }
   })
 
-  onScopeDispose(cleanup)
+  onScopeDispose(() => {
+    isActivated = false
+    cleanup()
+  })
 }
+
+let isActivated = false

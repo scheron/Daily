@@ -1,4 +1,3 @@
-<!-- src/renderer/src/ui/views/Main/{fragments}/Footer/Footer.vue -->
 <script setup lang="ts">
 import {dropTargetDate} from "@/composables/useDayDropTarget"
 
