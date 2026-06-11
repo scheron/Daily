@@ -160,6 +160,7 @@ export function getDefaultSettings(): Settings {
       columnsHideEmpty: false,
       columnsAutoCollapseEmpty: false,
       columnsCollapsed: {active: false, discarded: false, done: false},
+      calendarExpanded: true,
     },
     window: {
       main: {
