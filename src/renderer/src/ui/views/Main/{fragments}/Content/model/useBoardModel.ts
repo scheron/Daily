@@ -232,6 +232,7 @@ export function useBoardModel(options: UseBoardModelOptions) {
     isDragging,
     isDragDisabled,
     localTasksByStatus,
+    tasksByStatus,
     filteredTasksByStatus,
     tagsByStatus,
     visibleColumns,

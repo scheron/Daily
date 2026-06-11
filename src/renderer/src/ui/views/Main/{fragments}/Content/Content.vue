@@ -13,7 +13,7 @@ import TaskEditorCard from "@/ui/modules/TaskEditorCard"
 
 import BoardMode from "./{fragments}/modes/BoardMode.vue"
 import ListMode from "./{fragments}/modes/ListMode.vue"
-import RowsMode from "./{fragments}/modes/RowsMode.vue"
+import RowsMode from "./{fragments}/modes/rows/RowsMode.vue"
 import NoTasksPlaceholder from "./{fragments}/NoTasksPlaceholder.vue"
 
 import type {TasksFilter} from "@/types/common"
