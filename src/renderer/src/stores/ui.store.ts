@@ -15,6 +15,7 @@ export const useUIStore = defineStore("ui", () => {
   const activeColumnCollapsed = useSettingValue("layout.columnsCollapsed.active", false)
   const discardedColumnCollapsed = useSettingValue("layout.columnsCollapsed.discarded", false)
   const doneColumnCollapsed = useSettingValue("layout.columnsCollapsed.done", false)
+  const calendarExpanded = useSettingValue("layout.calendarExpanded", true)
 
   const activeSettingsPanel = ref<SettingsPanel>(null)
   const isSearchModalOpen = ref(false)
@@ -34,6 +35,10 @@ export const useUIStore = defineStore("ui", () => {
     if (tasksViewMode.value === "list") tasksViewMode.value = "columns"
     else if (tasksViewMode.value === "columns") tasksViewMode.value = "rows"
     else tasksViewMode.value = "list"
+  }
+
+  function toggleCalendarExpanded() {
+    calendarExpanded.value = !calendarExpanded.value
   }
 
   function toggleSearchModal() {
@@ -101,9 +106,11 @@ export const useUIStore = defineStore("ui", () => {
     columnsHideEmpty,
     columnsAutoCollapseEmpty,
     columnsCollapsed,
+    calendarExpanded,
 
     setTasksViewMode,
     toggleTasksViewMode,
+    toggleCalendarExpanded,
     setActiveSettingsPanel,
     toggleSearchModal,
     closeSearchModal,
