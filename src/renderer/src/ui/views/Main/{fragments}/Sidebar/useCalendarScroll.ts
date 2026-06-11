@@ -20,11 +20,18 @@ export function useCalendarScroll(params: {
 
   function scrollToDate(date: ISODate, behavior: ScrollBehavior = "smooth") {
     const el = scrollEl.value
-    if (!el || firstWeekIndex.value === null) return
+    // clientHeight 0 = layout not settled yet; centering math would clamp to an
+    // arbitrary edge. The viewport-size watch in the component retries later.
+    if (!el || el.clientHeight === 0 || firstWeekIndex.value === null) return
 
     const top = scrollTopForDate({date, firstWeekIndex: firstWeekIndex.value, clientHeight: el.clientHeight})
     if (typeof el.scrollTo === "function") el.scrollTo({top, behavior})
     else el.scrollTop = top
+  }
+
+  /** Recompute the focus date and edge state from the current scroll position (e.g. after a resize). */
+  function refresh() {
+    onScroll()
   }
 
   function onScroll() {
@@ -66,5 +73,5 @@ export function useCalendarScroll(params: {
     if (rafId !== null) cancelAnimationFrame(rafId)
   })
 
-  return {scrollToDate}
+  return {scrollToDate, refresh}
 }

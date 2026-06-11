@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {computed, nextTick, onMounted, ref, watch} from "vue"
-import {useNow} from "@vueuse/core"
+import {useElementSize, useNow} from "@vueuse/core"
 import {DateTime} from "luxon"
 
 import {toMonthYear} from "@shared/utils/date/formatters"
@@ -49,11 +49,28 @@ const firstWeekIndex = computed(() => weeks.value[0]?.index ?? null)
 let suppressFollow = false
 let queuedScroll: {date: ISODate; queuedAt: number} | null = null
 
-const {scrollToDate} = useCalendarScroll({
+const {scrollToDate, refresh} = useCalendarScroll({
   scrollEl,
   firstWeekIndex,
   onFocusDateChange: (date) => (focusMonth.value = monthKey(date)),
   onReachEdge: (direction) => void tasksStore.extendRange(direction),
+})
+
+// The window can resize after mount (size restore, maximize), invalidating the
+// mount-time centering. Until the user touches the calendar, re-center on today
+// whenever the viewport height settles; afterwards only refresh the focus month.
+const {height: viewportHeight} = useElementSize(scrollEl)
+let userInteracted = false
+
+function markUserInteracted() {
+  userInteracted = true
+}
+
+watch(viewportHeight, async (height) => {
+  if (height <= 0) return
+  await nextTick()
+  if (userInteracted) refresh()
+  else scrollToDate(today.value, "auto")
 })
 
 function queueScroll(date: ISODate, behavior: ScrollBehavior) {
@@ -103,6 +120,8 @@ watch(
 )
 
 onMounted(async () => {
+  scrollEl.value?.addEventListener("wheel", markUserInteracted, {passive: true, once: true})
+  scrollEl.value?.addEventListener("pointerdown", markUserInteracted, {passive: true, once: true})
   await nextTick()
   queueScroll(today.value, "auto")
 })
@@ -119,6 +138,10 @@ function isFocusMonth(date: ISODate): boolean {
 
 function cellClass(date: ISODate): string[] {
   const classes = [isFocusMonth(date) ? "text-base-content" : "text-base-content/50"]
+
+  // Stepped month boundary: each column has exactly one cell with day-of-month ≤ 7,
+  // so a top border on those cells traces the month's starting edge.
+  if (dayOfMonth(date) <= 7) classes.push("border-t", "border-t-base-300")
 
   if (dropTargetDate.value === date) classes.push("ring-accent border-accent ring-1")
   else if (date === props.activeDay) classes.push("bg-accent/30 text-accent hover:bg-accent/40")
