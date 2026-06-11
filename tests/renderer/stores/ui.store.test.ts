@@ -56,18 +56,6 @@ describe("uiStore", () => {
     expect(store.columnsHideEmpty).toBe(false)
   })
 
-  it("calendarExpanded defaults to true and toggleCalendarExpanded flips it", async () => {
-    const store = await getStore()
-
-    expect(store.calendarExpanded).toBe(true)
-
-    store.toggleCalendarExpanded()
-    expect(store.calendarExpanded).toBe(false)
-
-    store.toggleCalendarExpanded()
-    expect(store.calendarExpanded).toBe(true)
-  })
-
   it("sidebarCollapsed defaults to false and toggleSidebarCollapsed flips it", async () => {
     const store = await getStore()
 

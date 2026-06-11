@@ -74,12 +74,6 @@ export type Settings = {
      * @default {active: false, discarded: false, done: false}
      */
     columnsCollapsed: Record<TaskStatus, boolean>
-    /**
-     * Indicates whether the footer calendar is expanded (continuous month lattice)
-     * or collapsed to the single-week strip.
-     * @default true
-     */
-    calendarExpanded: boolean
   }
   window: {
     main: MainWindowSettings

@@ -4,6 +4,7 @@ import {useTaskEditorStore} from "@/stores/taskEditor.store"
 import {useTasksStore} from "@/stores/tasks.store"
 import {useThemeStore} from "@/stores/theme.store"
 import {useUIStore} from "@/stores/ui.store"
+import {useDayDropTarget} from "@/composables/useDayDropTarget"
 import BaseModal from "@/ui/base/BaseModal.vue"
 import UpdateBanner from "@/ui/common/misc/UpdateBanner.vue"
 import SearchForm from "@/ui/modules/SearchForm"
@@ -20,6 +21,7 @@ const uiStore = useUIStore()
 
 useStorageStore()
 useThemeStore()
+useDayDropTarget()
 
 const {contentHeight, contentWidth, footerHeight} = useContentSize("container")
 
@@ -51,7 +53,7 @@ window.BridgeIPC["shortcut:ui:toggle-tasks-view-mode"](() => uiStore.toggleTasks
         <Content :task-editor-open="taskEditorStore.isTaskEditorOpen" @create-task="onCreateTask" />
       </div>
 
-      <Footer v-if="footerHeight > 0" :active-day="tasksStore.activeDay" :footer-height="footerHeight" />
+      <Footer v-if="footerHeight > 0" :active-day="tasksStore.activeDay" />
     </main>
 
     <BaseModal
