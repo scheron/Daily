@@ -9,7 +9,7 @@ import UpdateBanner from "@/ui/common/misc/UpdateBanner.vue"
 import SearchForm from "@/ui/modules/SearchForm"
 
 import Content from "./{fragments}/Content"
-import Footer from "./{fragments}/Footer.vue"
+import Footer from "./{fragments}/Footer"
 import Header from "./{fragments}/Header.vue"
 import Toolbar from "./{fragments}/Toolbar.vue"
 import {useContentSize} from "./model/useContentSize"
