@@ -120,4 +120,32 @@ describe("tasksStore", () => {
 
     expect(store.activeDay).toBe("2026-04-01")
   })
+
+  it("exposes loadedRange after the initial load", async () => {
+    const store = await getStore()
+    await store.getTaskList()
+
+    expect(store.loadedRange).not.toBeNull()
+    expect(store.loadedRange.from < store.loadedRange.to).toBe(true)
+  })
+
+  it("extendRange('future') pushes loadedRange.to forward", async () => {
+    const store = await getStore()
+    await store.getTaskList()
+    const before = store.loadedRange.to
+
+    await store.extendRange("future")
+
+    expect(store.loadedRange.to > before).toBe(true)
+  })
+
+  it("extendRange('past') pulls loadedRange.from backward", async () => {
+    const store = await getStore()
+    await store.getTaskList()
+    const before = store.loadedRange.from
+
+    await store.extendRange("past")
+
+    expect(store.loadedRange.from < before).toBe(true)
+  })
 })

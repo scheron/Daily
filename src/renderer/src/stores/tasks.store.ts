@@ -362,6 +362,7 @@ export const useTasksStore = defineStore("tasks", () => {
     isDaysLoaded,
     days,
     activeDay,
+    loadedRange,
     dailyTasks,
     dailyTasksByStatus,
     dailyTaskIndexMap,
@@ -371,6 +372,7 @@ export const useTasksStore = defineStore("tasks", () => {
 
     setActiveDay,
     getTaskList,
+    extendRange,
     findDailyTaskById,
     findTaskById,
     createTask,
