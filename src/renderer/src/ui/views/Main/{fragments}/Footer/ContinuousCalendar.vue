@@ -12,6 +12,8 @@ import {useCalendarScroll} from "./useCalendarScroll"
 import type {ISODate} from "@shared/types/common"
 import type {DayDotStatus, LatticeChunk} from "./lattice"
 
+const RANGE_SETTLE_WINDOW_MS = 10_000
+
 const props = defineProps<{activeDay: ISODate; dropTargetDate: ISODate | null}>()
 
 const tasksStore = useTasksStore()
@@ -44,8 +46,15 @@ const {scrollToDate} = useCalendarScroll({
   onReachEdge: (direction) => void tasksStore.extendRange(direction),
 })
 
+let queuedScroll: {date: ISODate; queuedAt: number} | null = null
+
+function queueScroll(date: ISODate, behavior: ScrollBehavior) {
+  queuedScroll = {date, queuedAt: Date.now()}
+  scrollToDate(date, behavior)
+}
+
 function scrollToToday() {
-  scrollToDate(today.value, "smooth")
+  queueScroll(today.value, "smooth")
 }
 
 watch(
@@ -55,13 +64,30 @@ watch(
       suppressFollow = false
       return
     }
-    scrollToDate(date, "smooth")
+    queueScroll(date, "smooth")
+  },
+)
+
+// Re-issue the queued scroll when the loaded range changes underneath it: initial
+// data arrival (cold launch) and recenterRange after a far jump both land here.
+// The freshness window keeps stale targets from hijacking unrelated later extends.
+watch(
+  () => tasksStore.loadedRange,
+  async () => {
+    if (!queuedScroll) return
+    if (Date.now() - queuedScroll.queuedAt > RANGE_SETTLE_WINDOW_MS) {
+      queuedScroll = null
+      return
+    }
+    await nextTick()
+    scrollToDate(queuedScroll.date, "auto")
+    queuedScroll = null
   },
 )
 
 onMounted(async () => {
   await nextTick()
-  scrollToDate(today.value, "auto")
+  queueScroll(today.value, "auto")
 })
 
 defineExpose({scrollToToday})

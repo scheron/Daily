@@ -43,14 +43,16 @@ export function useCalendarScroll(params: {
     })
   }
 
-  // Chunks prepended to the past shift content right; compensate after the DOM
-  // patch but before paint (flush: "post") so the viewport doesn't visibly jump.
+  // Chunk-index changes in either direction are compensated so the same dates
+  // stay under the viewport: prepends shift content right (scrollLeft grows),
+  // replacements or future-side recenters shift it left (scrollLeft shrinks).
+  // The browser clamps negative results to 0.
   watch(
     firstChunkIndex,
     (next, prev) => {
       const el = scrollEl.value
       if (!el || next === null || prev === null || prev === undefined) return
-      if (next < prev) el.scrollLeft += (prev - next) * CHUNK_WIDTH
+      if (next !== prev) el.scrollLeft += (prev - next) * CHUNK_WIDTH
     },
     {flush: "post"},
   )

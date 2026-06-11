@@ -152,9 +152,10 @@ export const useTasksStore = defineStore("tasks", () => {
         branchId: activeBranchId.value,
       })
       days.value = mergeDays(days.value, result)
+      const current = loadedRange.value ?? range
       loadedRange.value = {
-        from: direction === "past" ? from : range.from,
-        to: direction === "future" ? to : range.to,
+        from: direction === "past" ? from : current.from,
+        to: direction === "future" ? to : current.to,
       }
       console.log("[TASKS] Extended range", direction, `[${loadedRange.value.from} → ${loadedRange.value.to}]`)
     } catch (error) {
