@@ -13,6 +13,8 @@ export const CHUNK_WIDTH = CELL_SIZE * 7 + CHUNK_PADDING_X * 2
 /** Fixed epoch Monday; chunk boundaries never move relative to it */
 export const LATTICE_EPOCH: ISODate = "2001-01-01"
 
+export type DayDotStatus = "active" | "done"
+
 export type LatticeChunk = {
   index: number
   /** Monday opening the chunk */
@@ -28,7 +30,7 @@ export function chunkIndexForDate(date: ISODate): number {
 }
 
 export function buildChunk(index: number): LatticeChunk {
-  const start = DateTime.fromISO(LATTICE_EPOCH).plus({days: index * DAYS_PER_CHUNK})
+  const start = EPOCH_DATE.plus({days: index * DAYS_PER_CHUNK})
   const weeks: ISODate[][] = []
 
   for (let row = 0; row < WEEKS_PER_CHUNK; row++) {
@@ -55,7 +57,7 @@ export function buildChunkRange(from: ISODate, to: ISODate): LatticeChunk[] {
   return chunks
 }
 
-export function getDayDotStatus(day: Day | null | undefined): "active" | "done" | null {
+export function getDayDotStatus(day: Day | null | undefined): DayDotStatus | null {
   if (!day || day.tasks.length === 0) return null
   return day.countActive > 0 ? "active" : "done"
 }
@@ -69,7 +71,7 @@ export function dateAtViewportCenter(params: {scrollLeft: number; clientWidth: n
   const middleRow = Math.floor(WEEKS_PER_CHUNK / 2)
   const dayOffset = (params.firstChunkIndex + chunkOffset) * DAYS_PER_CHUNK + middleRow * 7 + col
 
-  return DateTime.fromISO(LATTICE_EPOCH).plus({days: dayOffset}).toISODate()!
+  return EPOCH_DATE.plus({days: dayOffset}).toISODate()!
 }
 
 /** scrollLeft that horizontally centers the chunk containing the date */
@@ -86,6 +88,8 @@ export function monthKey(date: ISODate): string {
   return date.slice(0, 7)
 }
 
+const EPOCH_DATE = DateTime.fromISO(LATTICE_EPOCH)
+
 function daysFromEpoch(date: ISODate): number {
-  return Math.round(DateTime.fromISO(date).diff(DateTime.fromISO(LATTICE_EPOCH), "days").days)
+  return Math.round(DateTime.fromISO(date).diff(EPOCH_DATE, "days").days)
 }
