@@ -31,7 +31,7 @@ It combines day-based planning, fast task operations, and an execution-focused A
 
 ### Organize work visually
 
-#### Use both **List** and **Board** layouts. Empty columns can be hidden/collapsed, and tasks can be moved or reordered.
+#### Use **List**, **Board**, and **Rows** layouts. Empty sections can be hidden/collapsed, and tasks can be moved or reordered.
 
 ![List and Board Layouts](./media/columns-view.png)
 

@@ -19,13 +19,16 @@ describe("uiStore", () => {
     return store
   }
 
-  it("toggleTasksViewMode switches between list and columns", async () => {
+  it("toggleTasksViewMode cycles list → columns → rows → list", async () => {
     const store = await getStore()
 
     expect(store.tasksViewMode).toBe("list")
 
     store.toggleTasksViewMode()
     expect(store.tasksViewMode).toBe("columns")
+
+    store.toggleTasksViewMode()
+    expect(store.tasksViewMode).toBe("rows")
 
     store.toggleTasksViewMode()
     expect(store.tasksViewMode).toBe("list")

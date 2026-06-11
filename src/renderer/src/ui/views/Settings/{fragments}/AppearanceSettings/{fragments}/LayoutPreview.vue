@@ -29,7 +29,7 @@ defineProps<{
         </div>
       </template>
 
-      <template v-else>
+      <template v-else-if="type === 'columns'">
         <div class="flex w-5 flex-col gap-1 border-r pr-1" :class="{'border-base-300': true}">
           <div class="bg-base-300 h-2 rounded-sm" />
           <div class="bg-base-300 h-2 rounded-sm" />
@@ -39,6 +39,30 @@ defineProps<{
           <div class="bg-base-100 border-base-300 flex-1 rounded-sm border" />
           <div class="bg-base-100 border-base-300 flex-1 rounded-sm border" />
           <div class="bg-base-100 border-base-300 flex-1 rounded-sm border" />
+        </div>
+      </template>
+
+      <template v-else>
+        <div class="flex w-5 flex-col gap-1 border-r pr-1" :class="{'border-base-300': true}">
+          <div class="bg-base-300 h-2 rounded-sm" />
+          <div class="bg-base-300 h-2 rounded-sm" />
+          <div class="bg-base-300 h-2 rounded-sm" />
+        </div>
+        <div class="flex flex-1 flex-col gap-1 pl-1.5">
+          <div class="bg-base-100 border-base-300 flex flex-1 gap-0.5 rounded-sm border p-0.5">
+            <div class="bg-base-300 aspect-square h-full rounded-sm" />
+            <div class="bg-base-300 aspect-square h-full rounded-sm" />
+            <div class="bg-base-300 aspect-square h-full rounded-sm" />
+          </div>
+          <div class="bg-base-100 border-base-300 flex flex-1 gap-0.5 rounded-sm border p-0.5">
+            <div class="bg-base-300 aspect-square h-full rounded-sm" />
+            <div class="bg-base-300 aspect-square h-full rounded-sm" />
+          </div>
+          <div class="bg-base-100 border-base-300 flex flex-1 gap-0.5 rounded-sm border p-0.5">
+            <div class="bg-base-300 aspect-square h-full rounded-sm" />
+            <div class="bg-base-300 aspect-square h-full rounded-sm" />
+            <div class="bg-base-300 aspect-square h-full rounded-sm" />
+          </div>
         </div>
       </template>
     </div>

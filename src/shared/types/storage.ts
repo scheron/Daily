@@ -3,7 +3,7 @@ import type {ID, ISODate, ISODateTime, ISOTime, Timezone} from "./common"
 import type {AppUpdateSource} from "./update"
 
 export type SyncStatus = "inactive" | "active" | "syncing" | "error"
-export type LayoutType = "list" | "columns"
+export type LayoutType = "list" | "columns" | "rows"
 export type TaskStatus = "active" | "discarded" | "done"
 export type TaskMoveMode = "list" | "column"
 export type TaskMovePosition = "before" | "after"
@@ -59,17 +59,17 @@ export type Settings = {
     type: LayoutType
     /**
      * Indicates whether columns with no tasks should be hidden.
-     * Applies only to the "columns" layout type.
+     * Applies to the "columns" and "rows" layout types.
      */
     columnsHideEmpty: boolean
     /**
      * Indicates whether empty columns should be automatically collapsed.
-     * Applies only to the "columns" layout type.
+     * Applies to the "columns" and "rows" layout types.
      */
     columnsAutoCollapseEmpty: boolean
     /**
      * Indicates whether columns have been manually collapsed.
-     * Applies only to the "columns" layout type.
+     * Applies to the "columns" and "rows" layout types.
      * @example {active: true, discarded: false, done: false} means that "active" and "done" columns are collapsed by user
      * @default {active: false, discarded: false, done: false}
      */

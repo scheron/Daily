@@ -21,11 +21,12 @@ export function useTaskModel(rawProps: MaybeRefOrGetter<TaskModelProps>) {
 
   const task = computed(() => toValue(rawProps).task)
   const view = computed(() => toValue(rawProps).view ?? "list")
+  const isBoardView = computed(() => view.value !== "list")
   const taskStatus = computed(() => task.value?.status ?? "active")
   const moveScope = computed(() => {
     if (!task.value) return []
 
-    if (view.value === "columns") {
+    if (isBoardView.value) {
       return tasksStore.dailyTasksByStatus[taskStatus.value] ?? tasksStore.emptyTasksByStatus[taskStatus.value]
     }
 
@@ -34,7 +35,7 @@ export function useTaskModel(rawProps: MaybeRefOrGetter<TaskModelProps>) {
   const moveIndex = computed(() => {
     if (!task.value) return -1
 
-    if (view.value === "columns") {
+    if (isBoardView.value) {
       return tasksStore.dailyTaskIndexMapByStatus[taskStatus.value]?.get(task.value.id) ?? -1
     }
 
@@ -131,9 +132,9 @@ export function useTaskModel(rawProps: MaybeRefOrGetter<TaskModelProps>) {
 
     const result = await tasksStore.moveTaskByOrder({
       taskId: task.value.id,
-      mode: view.value === "columns" ? "column" : "list",
+      mode: isBoardView.value ? "column" : "list",
       targetTaskId: previousTask.id,
-      targetStatus: view.value === "columns" ? task.value.status : undefined,
+      targetStatus: isBoardView.value ? task.value.status : undefined,
       position: "before",
     })
 
@@ -148,9 +149,9 @@ export function useTaskModel(rawProps: MaybeRefOrGetter<TaskModelProps>) {
 
     const result = await tasksStore.moveTaskByOrder({
       taskId: task.value.id,
-      mode: view.value === "columns" ? "column" : "list",
+      mode: isBoardView.value ? "column" : "list",
       targetTaskId: nextTask.id,
-      targetStatus: view.value === "columns" ? task.value.status : undefined,
+      targetStatus: isBoardView.value ? task.value.status : undefined,
       position: "after",
     })
 
@@ -165,9 +166,9 @@ export function useTaskModel(rawProps: MaybeRefOrGetter<TaskModelProps>) {
 
     const result = await tasksStore.moveTaskByOrder({
       taskId: task.value.id,
-      mode: view.value === "columns" ? "column" : "list",
+      mode: isBoardView.value ? "column" : "list",
       targetTaskId: firstTask.id,
-      targetStatus: view.value === "columns" ? task.value.status : undefined,
+      targetStatus: isBoardView.value ? task.value.status : undefined,
       position: "before",
     })
 
@@ -179,9 +180,9 @@ export function useTaskModel(rawProps: MaybeRefOrGetter<TaskModelProps>) {
 
     const result = await tasksStore.moveTaskByOrder({
       taskId: task.value.id,
-      mode: view.value === "columns" ? "column" : "list",
+      mode: isBoardView.value ? "column" : "list",
       targetTaskId: null,
-      targetStatus: view.value === "columns" ? task.value.status : undefined,
+      targetStatus: isBoardView.value ? task.value.status : undefined,
       position: "after",
     })
 

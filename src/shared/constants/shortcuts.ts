@@ -25,7 +25,7 @@ export const ShortcutsMap = {
 
   "ui:toggle-tasks-view-mode": {
     channel: "shortcut:ui:toggle-tasks-view-mode",
-    label: "Toggle List/Columns view",
+    label: "Cycle List/Columns/Rows view",
     accelerator: "CmdOrCtrl+\\",
   },
 

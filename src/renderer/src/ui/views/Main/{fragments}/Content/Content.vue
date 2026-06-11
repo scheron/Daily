@@ -13,6 +13,7 @@ import TaskEditorCard from "@/ui/modules/TaskEditorCard"
 
 import BoardMode from "./{fragments}/modes/BoardMode.vue"
 import ListMode from "./{fragments}/modes/ListMode.vue"
+import RowsMode from "./{fragments}/modes/RowsMode.vue"
 import NoTasksPlaceholder from "./{fragments}/NoTasksPlaceholder.vue"
 
 import type {TasksFilter} from "@/types/common"
@@ -41,6 +42,7 @@ const hasBoardTasks = computed(() => boardTasks.value.length > 0)
 
 const contentRef = ref<HTMLElement | null>(null)
 const isDndDisabled = computed(() => taskEditorStore.isTaskEditorOpen)
+const isBoardMode = computed(() => uiStore.tasksViewMode !== "list")
 
 function filterTasksByStatus(tasks: Task[], filter: TasksFilter): Task[] {
   if (filter === "all") return tasks
@@ -55,7 +57,7 @@ watch(
 watch(
   () => taskEditorStore.isTaskEditorOpen,
   (isOpen) => {
-    if (uiStore.tasksViewMode === "columns") return
+    if (isBoardMode.value) return
 
     if (isOpen) {
       const editorId = taskEditorStore.currentEditingTask ? `task-editor-${taskEditorStore.currentEditingTask.id}` : "task-editor-new-task"
@@ -66,7 +68,7 @@ watch(
 </script>
 
 <template>
-  <div ref="contentRef" class="app-content bg-base-200 flex-1" :class="uiStore.tasksViewMode === 'columns' ? 'overflow-hidden' : 'overflow-y-auto'">
+  <div ref="contentRef" class="app-content bg-base-200 flex-1" :class="isBoardMode ? 'overflow-hidden' : 'overflow-y-auto'">
     <BaseSpinner v-if="!tasksStore.isDaysLoaded" />
     <NoTasksPlaceholder
       v-else-if="uiStore.tasksViewMode === 'list' && !listTasks.length && !taskEditorOpen"
@@ -75,16 +77,17 @@ watch(
       @create-task="emit('createTask')"
     />
     <NoTasksPlaceholder
-      v-else-if="uiStore.tasksViewMode === 'columns' && !hasBoardTasks && !taskEditorOpen"
+      v-else-if="isBoardMode && !hasBoardTasks && !taskEditorOpen"
       :date="tasksStore.activeDay"
       filter="all"
       @create-task="emit('createTask')"
     />
     <ListMode v-else-if="uiStore.tasksViewMode === 'list'" :tasks="listTasks" :dnd-disabled="isDndDisabled" />
-    <BoardMode v-else :tasks="boardTasks" :dnd-disabled="isDndDisabled" />
+    <BoardMode v-else-if="uiStore.tasksViewMode === 'columns'" :tasks="boardTasks" :dnd-disabled="isDndDisabled" />
+    <RowsMode v-else :tasks="boardTasks" :dnd-disabled="isDndDisabled" />
 
     <BaseModal
-      v-if="uiStore.tasksViewMode === 'columns'"
+      v-if="isBoardMode"
       :open="taskEditorStore.isTaskEditorOpen"
       hide-header
       container-class="h-auto w-[min(780px,94vw)] max-h-[84vh] rounded-xl"

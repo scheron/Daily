@@ -31,7 +31,9 @@ export const useUIStore = defineStore("ui", () => {
   }
 
   function toggleTasksViewMode() {
-    tasksViewMode.value = tasksViewMode.value === "list" ? "columns" : "list"
+    if (tasksViewMode.value === "list") tasksViewMode.value = "columns"
+    else if (tasksViewMode.value === "columns") tasksViewMode.value = "rows"
+    else tasksViewMode.value = "list"
   }
 
   function toggleSearchModal() {

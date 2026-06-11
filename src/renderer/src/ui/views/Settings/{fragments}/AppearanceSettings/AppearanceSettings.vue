@@ -39,6 +39,7 @@ function setPreferredDarkTheme(event: Event) {
 const layoutOptions = computed<{label: string; value: LayoutType}[]>(() => [
   {label: "List", value: "list"},
   {label: "Board", value: "columns"},
+  {label: "Rows", value: "rows"},
 ])
 
 function onSelectLayout(type: LayoutType) {
@@ -53,8 +54,8 @@ function onSelectLayout(type: LayoutType) {
       Layout
     </h3>
 
-    <div class="grid grid-cols-2 gap-4">
-      <div class="flex w-full gap-3">
+    <div class="flex flex-col gap-4">
+      <div class="grid w-full grid-cols-3 gap-3">
         <LayoutPreview
           v-for="option in layoutOptions"
           :key="option.value"
@@ -65,12 +66,12 @@ function onSelectLayout(type: LayoutType) {
         />
       </div>
 
-      <BlockUI :block="uiStore.tasksViewMode !== 'columns'">
-        <div class="flex w-full flex-1 flex-col gap-2">
-          <BaseCard title="Auto-hide empty columns" description="Hide columns that have no tasks">
+      <BlockUI :block="uiStore.tasksViewMode === 'list'">
+        <div class="flex w-full flex-col gap-2">
+          <BaseCard title="Auto-hide empty sections" description="Hide columns or rows that have no tasks">
             <BaseSwitch :model-value="uiStore.columnsHideEmpty" @update:model-value="uiStore.toggleColumnsHideEmpty($event)" />
           </BaseCard>
-          <BaseCard title="Auto-collapse empty columns" description="Collapse columns that have no tasks">
+          <BaseCard title="Auto-collapse empty sections" description="Collapse columns or rows that have no tasks">
             <BaseSwitch :model-value="uiStore.columnsAutoCollapseEmpty" @update:model-value="uiStore.toggleColumnsAutoCollapseEmpty($event)" />
           </BaseCard>
         </div>

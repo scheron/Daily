@@ -15,12 +15,14 @@ const props = withDefaults(
     preventAutoOpen?: boolean
     preventAutoClose?: boolean
     disabled?: boolean
+    triggerClass?: string
   }>(),
   {
     submenuPrefersLeft: false,
     preventAutoOpen: false,
     preventAutoClose: false,
     disabled: false,
+    triggerClass: undefined,
   },
 )
 
@@ -99,7 +101,7 @@ defineExpose({
 </script>
 
 <template>
-  <div ref="trigger">
+  <div ref="trigger" :class="triggerClass">
     <slot :open="openAt" :close="close" :is-open="isOpen" />
   </div>
 
