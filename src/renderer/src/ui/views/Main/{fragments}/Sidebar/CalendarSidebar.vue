@@ -13,7 +13,7 @@ import {WEEKDAYS} from "@/ui/base/BaseCalendar/constants"
 import {buildWeekRange, dayOfMonth, getDayDotStatus, monthKey} from "./weekLattice"
 
 import type {ISODate} from "@shared/types/common"
-import type {DayDotStatus, WeekRow} from "./weekLattice"
+import type {WeekRow} from "./weekLattice"
 
 const props = defineProps<{activeDay: ISODate}>()
 
@@ -26,7 +26,15 @@ const today = computed(() => DateTime.fromJSDate(now.value).toISODate()!)
 const focusMonth = ref(monthKey(DateTime.now().toISODate()!))
 
 const headerLabel = computed(() => toMonthYear(`${focusMonth.value}-01`))
-const daysMap = computed(() => new Map(tasksStore.days.map((day) => [day.date, day])))
+
+const dotByDate = computed(() => {
+  const map = new Map<ISODate, string>()
+  for (const day of tasksStore.days) {
+    const dot = getDayDotStatus(day)
+    if (dot) map.set(day.date, dot === "active" ? "bg-warning" : "bg-success")
+  }
+  return map
+})
 
 const weeks = computed<WeekRow[]>(() => {
   const range = tasksStore.loadedRange
@@ -37,13 +45,6 @@ const weeks = computed<WeekRow[]>(() => {
 function onCellClick(date: ISODate) {
   if (date === tasksStore.activeDay) return
   tasksStore.setActiveDay(date)
-}
-
-function dotClass(date: ISODate): string {
-  const dot: DayDotStatus | null = getDayDotStatus(daysMap.value.get(date))
-  if (dot === "active") return "bg-warning"
-  if (dot === "done") return "bg-success"
-  return ""
 }
 
 function isFocusMonth(date: ISODate): boolean {
@@ -88,13 +89,13 @@ function cellClass(date: ISODate): string[] {
             :data-drop-day="date"
             :aria-label="date"
             :aria-current="date === today ? 'date' : undefined"
-            class="relative aspect-square h-9 w-full shrink-0 text-sm select-none"
+            class="relative h-9 w-full shrink-0 text-sm select-none"
             :class="cellClass(date)"
             @click="onCellClick(date)"
           >
             {{ dayOfMonth(date) }}
 
-            <div v-if="dotClass(date)" class="absolute top-0.5 right-0.5 size-2 rounded-full shadow-xs" :class="dotClass(date)" />
+            <div v-if="dotByDate.get(date)" class="absolute top-0.5 right-0.5 size-2 rounded-full shadow-xs" :class="dotByDate.get(date)" />
           </BaseButton>
         </template>
       </div>

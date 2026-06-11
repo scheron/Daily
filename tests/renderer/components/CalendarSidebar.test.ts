@@ -1,9 +1,11 @@
 // @ts-nocheck
+import {nextTick} from "vue"
 import {DateTime} from "luxon"
 import {createPinia, setActivePinia} from "pinia"
 import {beforeEach, describe, expect, it, vi} from "vitest"
 
 import {API} from "@renderer/api"
+import {dropTargetDate} from "@renderer/composables/useDayDropTarget"
 import {useTasksStore} from "@renderer/stores/tasks.store"
 import CalendarSidebar from "@renderer/ui/views/Main/{fragments}/Sidebar/CalendarSidebar.vue"
 import {mount} from "@vue/test-utils"
@@ -74,5 +76,17 @@ describe("CalendarSidebar", () => {
 
     expect(wrapper.find(`[data-drop-day="${TODAY}"] .bg-warning`).exists()).toBe(true)
     expect(wrapper.find(`[data-drop-day="${doneDate}"] .bg-success`).exists()).toBe(true)
+  })
+
+  it("highlights the drop target cell with a ring", async () => {
+    const {wrapper} = await mountSidebar()
+    const target = DateTime.now().plus({days: 3}).toISODate()
+
+    dropTargetDate.value = target
+    await nextTick()
+
+    expect(wrapper.find(`[data-drop-day="${target}"]`).classes()).toContain("ring-accent")
+
+    dropTargetDate.value = null
   })
 })
