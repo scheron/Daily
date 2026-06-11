@@ -10,7 +10,6 @@ const EDGE_THRESHOLD_PX = 480
 export function useCalendarScroll(params: {
   scrollEl: Ref<HTMLElement | null>
   firstMonthKey: Ref<string | null>
-  onFocusMonthChange: (key: string) => void
   onReachEdge: (direction: "past" | "future") => void
 }) {
   const {scrollEl, firstMonthKey} = params
@@ -30,7 +29,7 @@ export function useCalendarScroll(params: {
     }
   }
 
-  /** Recompute the focus month and edge state from the current scroll position (e.g. after a resize). */
+  /** Recheck the edge state from the current scroll position (e.g. after a resize). */
   function refresh() {
     onScroll()
   }
@@ -42,14 +41,6 @@ export function useCalendarScroll(params: {
       rafId = null
       const el = scrollEl.value
       if (!el) return
-
-      const centerY = el.scrollTop + el.clientHeight / 2
-      for (const section of Array.from(el.querySelectorAll<HTMLElement>("[data-month]"))) {
-        if (section.offsetTop <= centerY && centerY < section.offsetTop + section.offsetHeight) {
-          params.onFocusMonthChange(section.dataset.month!)
-          break
-        }
-      }
 
       if (el.scrollTop < EDGE_THRESHOLD_PX) {
         params.onReachEdge("past")

@@ -11,7 +11,7 @@ import BaseButton from "@/ui/base/BaseButton.vue"
 import {WEEKDAYS} from "@/ui/base/BaseCalendar/constants"
 import BaseIcon from "@/ui/base/BaseIcon"
 
-import {buildMonthCounts, buildMonthSections, dayOfMonth, getDayDotStatus, monthKey} from "./monthSections"
+import {buildMonthCounts, buildMonthSections, dayOfMonth, getDayDotStatus} from "./monthSections"
 import {useCalendarScroll} from "./useCalendarScroll"
 
 import type {ISODate} from "@shared/types/common"
@@ -27,9 +27,6 @@ const now = useNow()
 
 const scrollEl = ref<HTMLElement | null>(null)
 const today = computed(() => DateTime.fromJSDate(now.value).toISODate()!)
-const focusMonth = ref(monthKey(DateTime.now().toISODate()!))
-
-const headerLabel = computed(() => toMonthYear(`${focusMonth.value}-01`))
 
 const dotByDate = computed(() => {
   const map = new Map<ISODate, string>()
@@ -55,7 +52,6 @@ let queuedScroll: {date: ISODate; queuedAt: number} | null = null
 const {scrollToDate, refresh} = useCalendarScroll({
   scrollEl,
   firstMonthKey,
-  onFocusMonthChange: (key) => (focusMonth.value = key),
   onReachEdge: (direction) => void tasksStore.extendRange(direction),
 })
 
@@ -87,11 +83,6 @@ function queueScroll(date: ISODate, behavior: ScrollBehavior) {
 
 function scrollToToday() {
   queueScroll(today.value, "smooth")
-}
-
-function scrollToMonth(offset: 1 | -1) {
-  const target = DateTime.fromISO(`${focusMonth.value}-01`).plus({months: offset}).toISODate()!
-  queueScroll(target, "smooth")
 }
 
 watch(
@@ -150,10 +141,7 @@ function cellClass(date: ISODate): string[] {
 <template>
   <aside class="app-sidebar border-base-300 bg-base-100 flex h-full shrink-0 flex-col border-r">
     <div class="border-base-300 h-header flex shrink-0 items-center border-b px-2" style="-webkit-app-region: drag">
-      <div class="ml-traffic-light flex min-w-0 flex-1 items-center gap-0.5" style="-webkit-app-region: no-drag">
-        <BaseButton variant="ghost" icon="chevron-left" class="p-0.5" tooltip="Previous month" @click="scrollToMonth(-1)" />
-        <h2 class="min-w-0 flex-1 truncate text-center text-sm font-semibold capitalize">{{ headerLabel }}</h2>
-        <BaseButton variant="ghost" icon="chevron-right" class="p-0.5" tooltip="Next month" @click="scrollToMonth(1)" />
+      <div class="ml-traffic-light flex min-w-0 flex-1 items-center justify-end gap-0.5" style="-webkit-app-region: no-drag">
         <BaseButton variant="ghost" icon="today" icon-class="text-accent" class="p-0.5" tooltip="Today" @click="scrollToToday" />
         <BaseButton variant="ghost" icon="sidebar" class="p-0.5" tooltip="Hide calendar" @click="uiStore.toggleSidebarCollapsed()" />
       </div>
@@ -165,7 +153,7 @@ function cellClass(date: ISODate): string[] {
     <div class="border-accent/10 mx-2 mb-1 border-b" />
 
     <div ref="scrollEl" class="relative flex-1 overflow-y-auto px-2 pb-2" style="overflow-anchor: none">
-      <section v-for="month in months" :key="month.key" :data-month="month.key" class="pt-2">
+      <section v-for="month in months" :key="month.key" :data-month="month.key" class="pt-6 first:pt-2">
         <div class="flex items-baseline justify-between gap-2 px-1 pb-1">
           <h3 class="text-base-content/80 truncate text-xs font-semibold capitalize">{{ toMonthYear(month.firstDay) }}</h3>
 
