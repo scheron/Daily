@@ -15,6 +15,7 @@ const tasksStore = useTasksStore()
 const dropTargetDate = ref<ISODate | null>(null)
 const pendingDrop = ref<{taskId: string; date: ISODate} | null>(null)
 
+// DOM contract: all droppable day cells inside `.app-footer` must render `data-drop-day="<ISODate>"` so this handler can resolve the target date.
 function onPointerMove(event: PointerEvent) {
   const {clientX, clientY} = event
   const dayEl = findClosestAtPoint(clientX, clientY, "[data-drop-day]")
