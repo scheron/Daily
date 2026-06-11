@@ -43,7 +43,8 @@ window.BridgeIPC["shortcut:ui:toggle-tasks-view-mode"](() => uiStore.toggleTasks
   <div ref="container" class="app-shell bg-base-300 flex h-dvh w-dvw overflow-hidden">
     <UpdateBanner />
 
-    <CalendarSidebar v-if="sidebarWidth > 0" :active-day="tasksStore.activeDay" :style="{width: `${sidebarWidth}px`}" />
+    <!-- v-show keeps the rendered calendar alive: opening the sidebar is an instant unhide instead of a ~400-cell remount -->
+    <CalendarSidebar v-show="sidebarWidth > 0" :active-day="tasksStore.activeDay" :style="{width: `${sidebarWidth}px`}" />
 
     <main class="app-main-panel bg-base-100 flex-1" :style="{width: contentWidth + 'px'}">
       <Header :task-editor-open="taskEditorStore.isTaskEditorOpen" :active-day="tasksStore.activeDay" @create-task="onCreateTask" />

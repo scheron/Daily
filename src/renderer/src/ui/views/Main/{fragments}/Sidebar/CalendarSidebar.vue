@@ -72,6 +72,18 @@ watch(viewportHeight, async (height) => {
   else scrollToDate(today.value, "auto")
 })
 
+// The sidebar is hidden via v-show (kept alive to make reopening instant), so
+// mount-time centering doesn't re-run — re-center on today on every reopen.
+watch(
+  () => uiStore.sidebarCollapsed,
+  async (collapsed) => {
+    if (collapsed) return
+    userInteracted = false
+    await nextTick()
+    scrollToDate(today.value, "auto")
+  },
+)
+
 function queueScroll(date: ISODate, behavior: ScrollBehavior) {
   // Queue only when the target needs a range change to become reachable (no data
   // yet, or outside the loaded window — a recenter is coming); otherwise the
@@ -154,10 +166,10 @@ function cellClass(date: ISODate): string[] {
 
     <div ref="scrollEl" class="relative flex-1 overflow-y-auto px-2 pb-2" style="overflow-anchor: none">
       <section v-for="month in months" :key="month.key" :data-month="month.key" class="pt-6 first:pt-2">
-        <div class="flex items-baseline justify-between gap-2 px-1 pb-1">
-          <h3 class="text-base-content/80 truncate text-xs font-semibold capitalize">{{ toMonthYear(month.firstDay) }}</h3>
+        <div class="flex items-baseline justify-between gap-2 px-1 pb-2">
+          <h3 class="text-base-content/80 truncate text-sm font-semibold capitalize">{{ toMonthYear(month.firstDay) }}</h3>
 
-          <div v-if="monthCounts.get(month.key)" class="flex shrink-0 items-center gap-1.5 text-[10px] font-semibold">
+          <div v-if="monthCounts.get(month.key)" class="flex shrink-0 items-center gap-1.5 text-xs font-semibold">
             <span class="text-error flex items-center gap-0.5">
               <BaseIcon name="fire" class="size-3" />
               {{ monthCounts.get(month.key)!.active }}
