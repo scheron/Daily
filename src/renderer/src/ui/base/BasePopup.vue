@@ -96,7 +96,7 @@ defineExpose({
 
 <template>
   <div ref="trigger" :class="triggerClass" @mouseleave="scheduleHide">
-    <slot name="trigger" :show="show" :hide="hide" :toggle="toggle" />
+    <slot name="trigger" :show="show" :hide="hide" :toggle="toggle" :open="isOpen" />
   </div>
 
   <Teleport to="body">
@@ -126,7 +126,7 @@ defineExpose({
           />
         </div>
 
-        <slot :hide="hide" :show="show" :toggle="toggle" :is-open="isOpen" />
+        <slot :hide="hide" :show="show" :toggle="toggle" :open="isOpen" />
       </div>
     </div>
   </Teleport>

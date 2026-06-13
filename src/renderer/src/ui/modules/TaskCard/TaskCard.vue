@@ -3,7 +3,6 @@ import {computed, ref, useTemplateRef} from "vue"
 
 import {toDurationLabel} from "@shared/utils/date/formatters"
 import {useTasksStore} from "@/stores/tasks.store"
-import {extractTaskTitle} from "@/utils/tasks/extractTaskTitle"
 import BaseCalendar from "@/ui/base/BaseCalendar"
 import BaseIcon from "@/ui/base/BaseIcon"
 import ContextMenu from "@/ui/common/misc/ContextMenu"
@@ -35,7 +34,6 @@ const canMinimize = ref(false)
 
 const isBoardView = computed(() => props.view === "columns" || props.view === "rows")
 const isRowsView = computed(() => props.view === "rows")
-const tileTitle = computed(() => extractTaskTitle(props.task.content))
 const tileTimeLabel = computed(() => toDurationLabel(props.task.status === "active" ? props.task.estimatedTime : props.task.spentTime))
 
 const menuItems = computed<ContextMenuItem[]>(() => {
@@ -121,32 +119,28 @@ async function onMoveToBranch(branchId: Task["branchId"]) {
 </script>
 
 <template>
-  <ContextMenu ref="contextMenuRef" :items="menuItems" :trigger-class="isRowsView ? 'h-full' : undefined" @select="onSelect">
+  <ContextMenu ref="contextMenuRef" :items="menuItems" @select="onSelect">
     <div
       v-if="isRowsView"
       :id="task.id"
-      class="group bg-base-100 hover:shadow-accent/5 relative flex h-full w-full flex-col overflow-hidden rounded-xl border p-3 transition-all duration-200 hover:shadow-lg"
+      class="group bg-base-100 hover:shadow-accent/5 relative flex w-full flex-col overflow-hidden rounded-xl border p-3 transition-all duration-200 hover:shadow-lg"
       :class="{
         'border-success/30 hover:border-success/40': task.status === 'done',
         'border-warning/30 hover:border-warning/40': task.status === 'discarded',
         'border-base-300 hover:border-base-content/20': task.status === 'active',
       }"
     >
-      <div v-if="tags.length" class="mb-1.5 flex min-w-0 items-center gap-1.5 text-xs">
-        <span class="flex min-w-0 items-center" :style="{color: tags[0].color}">
-          <span class="leading-none">#</span>
-          <span class="truncate">{{ tags[0].name }}</span>
-        </span>
-        <span v-if="tags.length > 1" class="text-base-content/50 shrink-0">+{{ tags.length - 1 }}</span>
+      <div v-if="tags.length" class="mb-2">
+        <DynamicTagsPanel :tags="tags" />
       </div>
 
-      <div class="line-clamp-3 text-sm leading-snug font-medium" :class="{'opacity-50': ['done', 'discarded'].includes(task.status)}">
-        {{ tileTitle }}
+      <div class="transition-opacity duration-200" :class="{'opacity-50': ['done', 'discarded'].includes(task.status)}">
+        <MarkdownContent :content="task.content" :minimized="task.minimized" @minimize-availability="onMinimizeAvailabilityChange" />
       </div>
 
       <div
         v-if="task.estimatedTime > 0"
-        class="mt-auto flex items-center gap-1 pt-1.5 text-xs"
+        class="mt-2 flex items-center gap-1 text-xs"
         :class="{
           'text-accent': task.status === 'active',
           'text-success': task.status === 'done',

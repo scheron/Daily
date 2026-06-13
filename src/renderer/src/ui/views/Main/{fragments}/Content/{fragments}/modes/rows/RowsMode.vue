@@ -9,6 +9,7 @@ import TaskCard from "@/ui/modules/TaskCard"
 
 import {BOARD_COLUMNS, DRAGGABLE_ATTRS} from "../../../model/constants"
 import {useBoardModel} from "../../../model/useBoardModel"
+import MasonryItem from "./MasonryItem.vue"
 import StatusDropZones from "./StatusDropZones.vue"
 import StatusSwitcher from "./StatusSwitcher.vue"
 
@@ -78,16 +79,16 @@ watch(
             item-key="id"
             :disabled="isDragDisabled"
             class="grid gap-1.5"
-            style="grid-template-columns: repeat(auto-fill, 294px)"
+            style="grid-template-columns: repeat(auto-fill, minmax(294px, 1fr)); grid-auto-rows: 4px"
             v-bind="DRAGGABLE_ATTRS"
             @start="onDragStart"
             @end="onDragEnd"
             @change="onColumnChange(currentView, $event)"
           >
             <template #item="{element: task}">
-              <div class="relative h-[134px] w-[294px]">
+              <MasonryItem>
                 <TaskCard :task="task" :tags="getTaskTags(task)" view="rows" />
-              </div>
+              </MasonryItem>
             </template>
           </VueDraggable>
 

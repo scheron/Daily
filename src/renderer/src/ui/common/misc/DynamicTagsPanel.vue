@@ -2,6 +2,7 @@
 import {computed, nextTick, ref, watch} from "vue"
 import {useResizeObserver} from "@vueuse/core"
 
+import BaseAnimation from "@/ui/base/BaseAnimation.vue"
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseIcon from "@/ui/base/BaseIcon"
 import BasePopup from "@/ui/base/BasePopup.vue"
@@ -109,17 +110,17 @@ useResizeObserver(containerRef, calculateVisibleTags)
       />
 
       <BasePopup v-if="hiddenTags.length" hide-header hide-close-btn container-class="min-w-44 p-1" content-class="gap-1.5">
-        <template #trigger="{toggle}">
+        <template #trigger="{toggle, open}">
           <BaseButton
-            variant="outline"
+            variant="text"
             size="sm"
-            class="h-7 shrink-0 rounded-md px-3 py-1.5"
+            class="h-7 shrink-0 flex-row-reverse rounded-md px-3 py-1.5"
             :class="[hasSelectedInPopup ? 'bg-accent/20 border-accent text-accent' : 'opacity-70 hover:opacity-90']"
             icon="tags"
             icon-class="size-4"
             @click="toggle"
           >
-            <span class="text-sm font-medium">{{ hiddenTags.length }}</span>
+            <span class="text-sm font-medium">+{{ hiddenTags.length }}</span>
           </BaseButton>
         </template>
 

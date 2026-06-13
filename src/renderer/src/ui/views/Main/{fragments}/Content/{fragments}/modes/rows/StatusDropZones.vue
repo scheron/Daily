@@ -42,7 +42,7 @@ const zones = computed(() => otherStatuses(props.currentView).map((status) => BO
         item-key="id"
         :sort="false"
         v-bind="DRAGGABLE_ATTRS"
-        class="bg-base-100/95 border-base-300 flex h-20 flex-1 items-center justify-center gap-2 rounded-xl border-2 border-dashed backdrop-blur-sm transition-colors"
+        class="bg-base-100/95 border-base-300 flex h-20 flex-1 items-center justify-center gap-2 rounded-xl border-2 border-dashed backdrop-blur-sm transition-colors [&_.draggable-task-ghost]:hidden"
         :class="[zone.titleClass, ZONE_HIGHLIGHT[zone.status]]"
         @change="emit('change', zone.status, $event)"
       >
@@ -50,8 +50,8 @@ const zones = computed(() => otherStatuses(props.currentView).map((status) => BO
           <BaseIcon :name="zone.icon" class="pointer-events-none size-5" />
           <span class="pointer-events-none text-sm font-semibold">{{ zone.label }}</span>
         </template>
-        <template #item>
-          <div class="hidden" />
+        <template #item="{element}">
+          <div class="hidden" :data-id="element.id" />
         </template>
       </VueDraggable>
     </div>
