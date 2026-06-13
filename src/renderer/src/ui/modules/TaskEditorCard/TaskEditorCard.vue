@@ -13,9 +13,13 @@ import {createAutoPairsExtension} from "@/utils/codemirror/extensions/autoPairs"
 import {createBlockContinuationExtension} from "@/utils/codemirror/extensions/blockContinuation"
 import {createCodeBlockAutocomplete} from "@/utils/codemirror/extensions/codeBlockAutocomplete"
 import {createCodeSyntaxExtension} from "@/utils/codemirror/extensions/codeSyntax"
+import {createCompletionNavigationExtension} from "@/utils/codemirror/extensions/completionNavigation"
+import {createMarkdownListIndentExtension} from "@/utils/codemirror/extensions/markdownListIndent"
+import {createOrderedListRenumberExtension} from "@/utils/codemirror/extensions/orderedListRenumber"
 import {createTagsAutocompleteExtension} from "@/utils/codemirror/extensions/tagsAutocomplete"
 import {createThemeExtension} from "@/utils/codemirror/extensions/theme"
 import {createWYSIWYGExtension} from "@/utils/codemirror/extensions/wysiwyg"
+import {countMarkdownWords} from "@/utils/codemirror/wordCount"
 import BaseButton from "@/ui/base/BaseButton.vue"
 import BaseIcon from "@/ui/base/BaseIcon"
 import BasePopup from "@/ui/base/BasePopup.vue"
@@ -66,6 +70,15 @@ const hasChanges = computed(() => {
   return contentChanged || tagsChanged || estimatedChanged
 })
 
+const editorStats = computed(() => {
+  const words = countMarkdownWords(content.value)
+  const characters = content.value.length
+  const wordsLabel = words === 1 ? "word" : "words"
+  const charactersLabel = characters === 1 ? "char" : "chars"
+
+  return `${words} ${wordsLabel} · ${characters} ${charactersLabel}`
+})
+
 const {uploadImageFile} = useImageUpload()
 
 function addSelectedTag(tag: Tag) {
@@ -88,7 +101,10 @@ const {view, container, setContent, insertText, focus} = useCodeMirror({
     createThemeExtension(),
     createWYSIWYGExtension(),
     createCodeSyntaxExtension(),
+    createMarkdownListIndentExtension(),
+    createOrderedListRenumberExtension(),
     createCodeBlockAutocomplete(),
+    createCompletionNavigationExtension(),
     createTagsAutocompleteExtension({
       getTags: () => tagsStore.tags,
       getAttachedTags: () => Array.from(selectedTags.value.values()),
@@ -349,48 +365,56 @@ const {isDraggingOver} = useFileDrop(container, {
       ></div>
       <FloatingToolbar v-if="view" :editor-view="view" />
 
-      <div class="text-base-content/60 hidden shrink-0 items-center justify-center gap-6 text-[10px] md:flex">
-        <div class="flex items-center gap-1.5">
-          <kbd class="bg-base-content/10 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1">#tag</kbd>
-          <span>Attach tag</span>
-          <span>/</span>
-          <kbd class="bg-base-content/10 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1">-#tag</kbd>
-          <span>Detach tag</span>
-        </div>
+      <div class="text-base-content/60 hidden shrink-0 items-center justify-between gap-4 text-[10px] md:flex">
+        <span class="shrink-0 tabular-nums">{{ editorStats }}</span>
 
-        <div class="flex items-center gap-1.5">
-          <kbd class="bg-base-content/10 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1">Esc</kbd>
-          <span>Cancel</span>
-        </div>
+        <div class="flex min-w-0 flex-wrap items-center justify-end gap-x-6 gap-y-2">
+          <div class="flex items-center gap-1.5">
+            <kbd class="bg-base-content/10 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1">#tag</kbd>
+            <span>Attach tag</span>
+            <span>/</span>
+            <kbd class="bg-base-content/10 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1">-#tag</kbd>
+            <span>Detach tag</span>
+          </div>
 
-        <div class="flex items-center gap-1.5">
-          <kbd class="bg-base-content/10 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1"> ⌘ </kbd>
-          <span>+</span>
-          <kbd class="bg-base-content/10 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1">Enter</kbd>
-          <span>Save & Close</span>
-        </div>
+          <div class="flex items-center gap-1.5">
+            <kbd class="bg-base-content/10 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1">Esc</kbd>
+            <span>Cancel</span>
+          </div>
 
-        <div class="flex items-center gap-1.5">
-          <kbd class="bg-base-content/10 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1"> ⌘ </kbd>
-          <span>+</span>
-          <kbd class="bg-base-content/10 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1"> ⇧ </kbd>
-          <span>+</span>
-          <kbd class="bg-base-content/10 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1">Enter</kbd>
-          <span>Save & Continue</span>
+          <div class="flex items-center gap-1.5">
+            <kbd class="bg-base-content/10 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1"> ⌘ </kbd>
+            <span>+</span>
+            <kbd class="bg-base-content/10 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1">Enter</kbd>
+            <span>Save & Close</span>
+          </div>
+
+          <div class="flex items-center gap-1.5">
+            <kbd class="bg-base-content/10 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1"> ⌘ </kbd>
+            <span>+</span>
+            <kbd class="bg-base-content/10 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1"> ⇧ </kbd>
+            <span>+</span>
+            <kbd class="bg-base-content/10 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1">Enter</kbd>
+            <span>Save & Continue</span>
+          </div>
         </div>
       </div>
 
-      <div class="text-base-content/60 flex shrink-0 items-center justify-center gap-4 text-[10px] md:hidden">
-        <div class="flex items-center gap-1.5">
-          <kbd class="bg-base-content/10 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1">Esc</kbd>
-          <span>Cancel</span>
-        </div>
+      <div class="text-base-content/60 flex shrink-0 items-center justify-between gap-4 text-[10px] md:hidden">
+        <span class="shrink-0 tabular-nums">{{ editorStats }}</span>
 
-        <div class="flex items-center gap-1.5">
-          <kbd class="bg-base-content/10 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1"> ⌘ </kbd>
-          <span>+</span>
-          <kbd class="bg-base-content/10 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1">Enter</kbd>
-          <span>Save</span>
+        <div class="flex min-w-0 items-center justify-end gap-4">
+          <div class="flex items-center gap-1.5">
+            <kbd class="bg-base-content/10 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1">Esc</kbd>
+            <span>Cancel</span>
+          </div>
+
+          <div class="flex items-center gap-1.5">
+            <kbd class="bg-base-content/10 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1"> ⌘ </kbd>
+            <span>+</span>
+            <kbd class="bg-base-content/10 border-base-300 inline-flex h-5 items-center justify-center rounded border px-1">Enter</kbd>
+            <span>Save</span>
+          </div>
         </div>
       </div>
     </div>

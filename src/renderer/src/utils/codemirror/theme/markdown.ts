@@ -117,6 +117,11 @@ export const markdownStyles: Record<string, StyleSpec> = {
     paddingLeft: "1em",
   },
 
+  ".cm-markdown-list-line": {
+    paddingLeft: "var(--daily-list-hanging-indent)",
+    textIndent: "calc(-1 * var(--daily-list-hanging-indent))",
+  },
+
   // Horizontal rule
   ".cm-hr": {
     display: "block",
