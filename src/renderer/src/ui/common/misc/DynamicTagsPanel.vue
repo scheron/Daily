@@ -2,10 +2,10 @@
 import {computed, nextTick, ref, watch} from "vue"
 import {useResizeObserver} from "@vueuse/core"
 
-import BaseButton from "@/ui/base/BaseButton.vue"
+import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
 import BasePopup from "@/ui/base/BasePopup.vue"
-import BaseTag from "@/ui/base/BaseTag.vue"
+import BaseTag from "@/ui/base/BaseTag"
 
 import type {Tag} from "@shared/types/storage"
 
@@ -15,10 +15,12 @@ const props = withDefaults(
     selectable?: boolean
     selectedTags?: Set<Tag["id"]>
     emptyMessage?: string
+    size?: "sm" | "md"
   }>(),
   {
     selectedTags: () => new Set(),
     emptyMessage: "No tags",
+    size: "md",
   },
 )
 
@@ -95,8 +97,8 @@ useResizeObserver(containerRef, calculateVisibleTags)
     </slot>
 
     <template v-else>
-      <div ref="tagsRef" class="pointer-events-none absolute top-0 left-0 flex items-center gap-2 opacity-0">
-        <BaseTag v-for="tag in tags" :key="tag.id" :tag="tag" :active="isActiveTag(tag.id)" :selectable="selectable" />
+      <div ref="tagsRef" class="pointer-events-none absolute top-0 left-0 flex items-center gap-2 opacity-0" style="">
+        <BaseTag v-for="tag in tags" :key="tag.id" :tag="tag" :active="isActiveTag(tag.id)" :selectable="selectable" :size="size" />
       </div>
 
       <BaseTag
@@ -105,21 +107,24 @@ useResizeObserver(containerRef, calculateVisibleTags)
         :tag="tag"
         :active="isActiveTag(tag.id)"
         :selectable="selectable"
+        :size="size"
+        style="-webkit-app-region: no-drag"
         @click="onSelectTag(tag.id)"
       />
 
       <BasePopup v-if="hiddenTags.length" hide-header hide-close-btn container-class="min-w-44 p-1" content-class="gap-1.5">
-        <template #trigger="{toggle}">
+        <template #trigger="{toggle, open}">
           <BaseButton
-            variant="outline"
+            variant="text"
             size="sm"
-            class="h-7 shrink-0 rounded-md px-3 py-1.5"
+            class="h-7 shrink-0 flex-row-reverse rounded-md px-3 py-1.5"
             :class="[hasSelectedInPopup ? 'bg-accent/20 border-accent text-accent' : 'opacity-70 hover:opacity-90']"
             icon="tags"
             icon-class="size-4"
-            @click="toggle"
+            style="-webkit-app-region: no-drag"
+            @click.stop="toggle"
           >
-            <span class="text-sm font-medium">{{ hiddenTags.length }}</span>
+            <span class="text-sm font-medium">+{{ hiddenTags.length }}</span>
           </BaseButton>
         </template>
 
@@ -129,7 +134,8 @@ useResizeObserver(containerRef, calculateVisibleTags)
           :tag="tag"
           :active="isActiveTag(tag.id)"
           :selectable="selectable"
-          class="w-full justify-start rounded-md px-3 py-1.5 text-start [&>span:first-child]:text-sm [&>span:last-child]:text-sm"
+          :size="size"
+          class="w-full justify-start text-start"
           @click="onSelectTag(tag.id)"
         />
       </BasePopup>

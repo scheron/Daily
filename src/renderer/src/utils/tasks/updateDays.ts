@@ -1,3 +1,5 @@
+import {sort} from "fast-sort"
+
 import {removeDuplicates} from "@shared/utils/arrays/removeDuplicates"
 
 import type {Day} from "@shared/types/storage"
@@ -20,7 +22,7 @@ export function mergeDays(existing: Day[], incoming: Day[]): Day[] {
   for (const day of incoming) {
     map.set(day.date, updateDayStats(day))
   }
-  return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date))
+  return sort(Array.from(map.values())).asc((d) => d.date)
 }
 
 function updateDayStats(day: Day): Day {

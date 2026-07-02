@@ -1,5 +1,8 @@
 import {onBeforeUnmount} from "vue"
 
+import {isNull, notNull} from "@shared/utils/common/validators"
+import {clamp} from "@shared/utils/numbers/clamp"
+
 type DragAutoScrollOptions = {
   edgeOffset?: number
   maxSpeed?: number
@@ -19,7 +22,7 @@ export function useDragAutoScroll(options: DragAutoScrollOptions = {}) {
   function stop() {
     velocity = 0
     activeContainer = null
-    if (rafId === null) return
+    if (isNull(rafId)) return
     window.cancelAnimationFrame(rafId)
     rafId = null
   }
@@ -75,14 +78,14 @@ export function useDragAutoScroll(options: DragAutoScrollOptions = {}) {
     velocity = nextVelocity
 
     if (velocity === 0) {
-      if (rafId !== null) {
+      if (notNull(rafId)) {
         cancelAnimationFrame(rafId)
         rafId = null
       }
       return
     }
 
-    if (rafId === null) {
+    if (isNull(rafId)) {
       rafId = requestAnimationFrame(tick)
     }
   }
@@ -93,24 +96,4 @@ export function useDragAutoScroll(options: DragAutoScrollOptions = {}) {
     update,
     stop,
   }
-}
-
-export function resolveVerticalScrollableAncestor(target: EventTarget | null): HTMLElement | null {
-  if (!(target instanceof HTMLElement)) return null
-
-  let current: HTMLElement | null = target
-  while (current) {
-    const style = window.getComputedStyle(current)
-    const isScrollableY = /(auto|scroll|overlay)/.test(style.overflowY)
-    if (isScrollableY && current.scrollHeight > current.clientHeight) {
-      return current
-    }
-    current = current.parentElement
-  }
-
-  return null
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(Math.max(value, min), max)
 }

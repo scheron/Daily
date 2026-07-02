@@ -15,7 +15,7 @@
   pointer-events: none;
 }
 
-.draggable-task-dragging.is-over-footer {
+.draggable-task-dragging.is-over-drop-zone {
   opacity: 0 !important;
   transition: opacity 100ms ease;
 }

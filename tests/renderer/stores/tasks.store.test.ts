@@ -4,7 +4,7 @@ import {createPinia, setActivePinia} from "pinia"
 import {beforeEach, describe, expect, it, vi} from "vitest"
 
 import {API} from "@renderer/api"
-import {useTasksStore} from "@renderer/stores/tasks.store"
+import {useTasksStore} from "@renderer/stores/tasks/tasks.store"
 import {mockBridgeIPC} from "../../helpers/bridgeIPC"
 
 const TODAY = DateTime.now().toISODate()
@@ -119,5 +119,53 @@ describe("tasksStore", () => {
     store.setActiveDay("2026-04-01")
 
     expect(store.activeDay).toBe("2026-04-01")
+  })
+
+  it("exposes loadedRange after the initial load", async () => {
+    const store = await getStore()
+    await store.getTaskList()
+
+    expect(store.loadedRange).not.toBeNull()
+    expect(store.loadedRange.from < store.loadedRange.to).toBe(true)
+  })
+
+  it("extendRange('future') pushes loadedRange.to forward", async () => {
+    const store = await getStore()
+    await store.getTaskList()
+    const before = store.loadedRange.to
+
+    await store.extendRange("future")
+
+    expect(store.loadedRange.to > before).toBe(true)
+  })
+
+  it("extendRange('past') pulls loadedRange.from backward", async () => {
+    const store = await getStore()
+    await store.getTaskList()
+    const before = store.loadedRange.from
+
+    await store.extendRange("past")
+
+    expect(store.loadedRange.from < before).toBe(true)
+  })
+
+  it("createTask honors date, branchId, and status overrides", async () => {
+    const store = useTasksStore()
+    store.activeDay = TODAY
+    store.days = [makeDay(TODAY), makeDay("2099-01-01")]
+
+    const createdTask = makeTask({id: "task-99", scheduled: {date: "2099-01-01", time: "", timezone: "UTC"}, branchId: "other", status: "done"})
+    ;(API.createTask as any).mockResolvedValueOnce({date: "2099-01-01", tasks: [createdTask], tags: []})
+
+    await store.createTask({
+      content: "Future task",
+      tags: [],
+      estimatedTime: 0,
+      date: "2099-01-01",
+      branchId: "other",
+      status: "done",
+    })
+
+    expect(API.createTask).toHaveBeenCalledWith("Future task", expect.objectContaining({date: "2099-01-01", branchId: "other", status: "done"}))
   })
 })

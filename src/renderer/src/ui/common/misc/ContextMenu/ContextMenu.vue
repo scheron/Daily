@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {nextTick, ref, toRef, useSlots, useTemplateRef} from "vue"
+import {HTMLAttributes, nextTick, ref, toRef, useSlots, useTemplateRef} from "vue"
 import {useEventListener} from "@vueuse/core"
 
 import {useContextMenuProvider} from "./composables/useContextMenuProvider"
@@ -15,12 +15,14 @@ const props = withDefaults(
     preventAutoOpen?: boolean
     preventAutoClose?: boolean
     disabled?: boolean
+    triggerClass?: HTMLAttributes["class"]
   }>(),
   {
     submenuPrefersLeft: false,
     preventAutoOpen: false,
     preventAutoClose: false,
     disabled: false,
+    triggerClass: undefined,
   },
 )
 
@@ -34,6 +36,7 @@ const slots = useSlots()
 
 const isOpen = ref(false)
 const isVisible = ref(false)
+
 const triggerRef = useTemplateRef("trigger")
 const menuRef = useTemplateRef("menu")
 
@@ -99,7 +102,7 @@ defineExpose({
 </script>
 
 <template>
-  <div ref="trigger">
+  <div ref="trigger" :class="triggerClass">
     <slot :open="openAt" :close="close" :is-open="isOpen" />
   </div>
 

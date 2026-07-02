@@ -71,7 +71,7 @@ function onItemClick(item: ContextMenuItem) {
         v-else
         type="button"
         :data-menu-item="item.value"
-        class="focus-visible-ring focus-visible:ring-offset-base-100 focus-visible:ring-accent w-full rounded-md outline-none"
+        class="focus-visible-accent w-full rounded-md outline-none"
         :disabled="item.disabled"
         @click="onItemClick(item)"
         @mouseenter="onItemMouseenter(item, $event)"

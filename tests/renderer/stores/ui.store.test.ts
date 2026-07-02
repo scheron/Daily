@@ -13,43 +13,41 @@ describe("uiStore", () => {
   })
 
   async function getStore() {
-    const {useUIStore} = await import("@renderer/stores/ui.store")
+    const {useUIStore} = await import("@renderer/stores/ui/ui.store")
     const store = useUIStore()
     await new Promise((r) => setTimeout(r, 0))
     return store
   }
 
-  it("toggleTasksViewMode switches between list and columns", async () => {
+  it("emptySectionsMode 'hide' disables auto-collapse (mutual exclusion)", async () => {
     const store = await getStore()
 
-    expect(store.tasksViewMode).toBe("list")
+    store.emptySectionsMode = "collapse"
+    expect(store.sectionsAutoCollapseEmpty).toBe(true)
 
-    store.toggleTasksViewMode()
-    expect(store.tasksViewMode).toBe("columns")
-
-    store.toggleTasksViewMode()
-    expect(store.tasksViewMode).toBe("list")
+    store.emptySectionsMode = "hide"
+    expect(store.sectionsHideEmpty).toBe(true)
+    expect(store.sectionsAutoCollapseEmpty).toBe(false)
   })
 
-  it("toggleColumnsHideEmpty disables autoCollapseEmpty (mutual exclusion)", async () => {
+  it("emptySectionsMode 'collapse' disables hide (mutual exclusion)", async () => {
     const store = await getStore()
 
-    store.toggleColumnsAutoCollapseEmpty(true)
-    expect(store.columnsAutoCollapseEmpty).toBe(true)
+    store.emptySectionsMode = "hide"
+    expect(store.sectionsHideEmpty).toBe(true)
 
-    store.toggleColumnsHideEmpty(true)
-    expect(store.columnsHideEmpty).toBe(true)
-    expect(store.columnsAutoCollapseEmpty).toBe(false)
+    store.emptySectionsMode = "collapse"
+    expect(store.sectionsAutoCollapseEmpty).toBe(true)
+    expect(store.sectionsHideEmpty).toBe(false)
   })
 
-  it("toggleColumnsAutoCollapseEmpty disables hideEmpty (mutual exclusion)", async () => {
+  it("toggleLeftPanel flips and respects an explicit value", async () => {
     const store = await getStore()
 
-    store.toggleColumnsHideEmpty(true)
-    expect(store.columnsHideEmpty).toBe(true)
-
-    store.toggleColumnsAutoCollapseEmpty(true)
-    expect(store.columnsAutoCollapseEmpty).toBe(true)
-    expect(store.columnsHideEmpty).toBe(false)
+    expect(store.leftPanelVisible).toBe(true)
+    store.toggleLeftPanel()
+    expect(store.leftPanelVisible).toBe(false)
+    store.toggleLeftPanel(true)
+    expect(store.leftPanelVisible).toBe(true)
   })
 })

@@ -1,8 +1,9 @@
 import {computed, ref, useTemplateRef} from "vue"
 import {tryOnMounted, useElementSize} from "@vueuse/core"
 
-const HEADER_HEIGHT = 62
-const FOOTER_HEIGHT = 40
+import {getCssVariable} from "@/utils/ui/dom"
+
+const HEADER_HEIGHT = parseFloat(getCssVariable("--header-height") || "44")
 
 export function useContentSize(contentId: string) {
   const headerHeight = ref(HEADER_HEIGHT)
@@ -10,13 +11,12 @@ export function useContentSize(contentId: string) {
   const containerRef = useTemplateRef<HTMLDivElement>(contentId)
   const {height, width} = useElementSize(containerRef)
 
-  const footerHeight = FOOTER_HEIGHT
-  const contentHeight = computed(() => height.value - headerHeight.value - footerHeight)
+  const contentHeight = computed(() => height.value - headerHeight.value)
   const contentWidth = computed(() => width.value)
 
   tryOnMounted(() => {
-    headerHeight.value = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--header-height"))
+    headerHeight.value = parseFloat(getCssVariable("--header-height"))
   })
 
-  return {contentHeight, contentWidth, headerHeight, footerHeight}
+  return {contentHeight, contentWidth, headerHeight}
 }

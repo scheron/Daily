@@ -1,67 +1,70 @@
 <script setup lang="ts">
+import {useBranchesStore} from "@/stores/branches.store"
 import {useStorageStore} from "@/stores/storage.store"
-import {useTaskEditorStore} from "@/stores/taskEditor.store"
-import {useTasksStore} from "@/stores/tasks.store"
+import {useTaskEditorStore} from "@/stores/task-editor"
+import {useTasksStore} from "@/stores/tasks"
 import {useThemeStore} from "@/stores/theme.store"
-import {useUIStore} from "@/stores/ui.store"
-import BaseModal from "@/ui/base/BaseModal.vue"
-import UpdateBanner from "@/ui/common/misc/UpdateBanner.vue"
-import SearchForm from "@/ui/modules/SearchForm"
+import {useUIStore} from "@/stores/ui"
+import {STORAGE_KEY_LEFT_PANEL_WIDTH, STORAGE_KEY_RIGHT_PANEL_WIDTH} from "@/constants/storageKeys"
+import {LEFT_PANEL_SIZE, RIGHT_PANEL_SIZE} from "@/constants/ui"
+import MainDragIndicator from "@/ui/common/indicators/MainDragIndicator.vue"
+import Header from "@/ui/modules/Header"
+import LeftPanel from "@/ui/modules/LeftPanel"
+import RightPanel from "@/ui/modules/RightPanel"
+import TaskBoard from "@/ui/modules/TaskBoard"
+import {useConfirmUnsavedModal} from "@/ui/overlays/ConfirmUnsavedModal"
+import {useSearchModal} from "@/ui/overlays/SearchModal"
+import {UpdateBanner} from "@/ui/overlays/UpdateBanner"
+import {usePanelSize} from "@/ui/views/Main/model/usePanelSize"
 
-import Content from "./{fragments}/Content"
-import Footer from "./{fragments}/Footer.vue"
-import Header from "./{fragments}/Header.vue"
-import Toolbar from "./{fragments}/Toolbar.vue"
 import {useContentSize} from "./model/useContentSize"
 
 const tasksStore = useTasksStore()
-const taskEditorStore = useTaskEditorStore()
 const uiStore = useUIStore()
+const taskEditorStore = useTaskEditorStore()
+const branchesStore = useBranchesStore()
+
+const confirmUnsavedModal = useConfirmUnsavedModal()
+const searchModal = useSearchModal()
 
 useStorageStore()
 useThemeStore()
 
-const {contentHeight, contentWidth, footerHeight} = useContentSize("container")
+const {contentHeight} = useContentSize("container")
 
-function onCreateTask() {
-  taskEditorStore.setCurrentEditingTask(null)
-  taskEditorStore.setEditorTags([])
-  taskEditorStore.setIsTaskEditorOpen(true)
+const {size: leftWidth, setSize: setLeftWidth} = usePanelSize(STORAGE_KEY_LEFT_PANEL_WIDTH, LEFT_PANEL_SIZE)
+const {size: rightWidth, setSize: setRightWidth} = usePanelSize(STORAGE_KEY_RIGHT_PANEL_WIDTH, RIGHT_PANEL_SIZE)
+
+async function onCreateTask() {
+  const proceed = await confirmUnsavedModal.open()
+  if (!proceed) return
+  taskEditorStore.openNew({
+    date: tasksStore.activeDay,
+    branchId: branchesStore.activeBranchId,
+  })
 }
 
 window.BridgeIPC["shortcut:tasks:create"](() => onCreateTask())
-window.BridgeIPC["shortcut:ui:open-search-panel"](() => uiStore.toggleSearchModal())
+window.BridgeIPC["shortcut:ui:open-search-panel"](() => searchModal.toggle())
 window.BridgeIPC["shortcut:ui:open-assistant-panel"](() => window.BridgeIPC.send("assistant:open"))
 window.BridgeIPC["shortcut:ui:open-settings-panel"](() => window.BridgeIPC.send("settings:open"))
-window.BridgeIPC["shortcut:ui:toggle-tasks-view-mode"](() => uiStore.toggleTasksViewMode())
+window.BridgeIPC["shortcut:ui:left-panel:toggle"](() => uiStore.toggleLeftPanel())
 </script>
 
 <template>
-  <div ref="container" class="app-shell bg-base-300 flex h-dvh w-dvw overflow-hidden">
+  <div ref="container" class="app-shell bg-base-100 relative flex h-dvh w-dvw overflow-hidden">
     <UpdateBanner />
 
-    <main class="app-main-panel bg-base-100 flex-1" :style="{width: contentWidth + 'px'}">
-      <Header :task-editor-open="taskEditorStore.isTaskEditorOpen" :active-day="tasksStore.activeDay" @create-task="onCreateTask" />
+    <main class="app-main-panel bg-base-100 min-w-0 flex-1">
+      <Header @create-task="onCreateTask" />
 
-      <div class="app-main-body text-base-content flex size-full flex-col" :style="{height: contentHeight + 'px'}">
-        <div v-if="uiStore.tasksViewMode === 'list'" class="app-toolbar border-base-300 md:h-header flex items-center border-b">
-          <Toolbar />
-        </div>
-
-        <Content :task-editor-open="taskEditorStore.isTaskEditorOpen" @create-task="onCreateTask" />
+      <div class="text-base-content flex size-full" :style="{height: contentHeight + 'px'}">
+        <LeftPanel :width="leftWidth" />
+        <MainDragIndicator v-if="uiStore.leftPanelVisible" :size="leftWidth" side="left" @update:size="setLeftWidth" />
+        <TaskBoard @create-task="onCreateTask" />
+        <MainDragIndicator v-if="taskEditorStore.isOpen && !uiStore.isCompact" :size="rightWidth" side="right" @update:size="setRightWidth" />
+        <RightPanel :width="rightWidth" />
       </div>
-
-      <Footer v-if="footerHeight > 0" :active-day="tasksStore.activeDay" />
     </main>
-
-    <BaseModal
-      :open="uiStore.isSearchModalOpen"
-      hide-header
-      container-class="max-h-[70vh] w-[600px]"
-      content-class="overflow-hidden"
-      @close="uiStore.closeSearchModal()"
-    >
-      <SearchForm />
-    </BaseModal>
   </div>
 </template>

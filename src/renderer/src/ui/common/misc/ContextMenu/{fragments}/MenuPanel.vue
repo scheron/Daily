@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import {computed, onBeforeUnmount, useTemplateRef, watch} from "vue"
 
+import {isArray} from "@shared/utils/common/validators"
+
 import {autoUpdate, flip, offset, shift, useFloating} from "@floating-ui/vue"
 import {useContextMenuConsumer} from "../composables/useContextMenuProvider"
 import {useSubmenuNavigation} from "../composables/useSubmenuNavigation"
@@ -26,7 +28,7 @@ const {floatingStyles} = useFloating(activeSubmenuEl, submenuPanelRef, {
 })
 
 const hasChildrenSubmenu = computed(() => {
-  return !!(activeSubmenuItem.value && !activeSubmenuItem.value.separator && Array.isArray(activeSubmenuItem.value.children))
+  return !!(activeSubmenuItem.value && !activeSubmenuItem.value.separator && isArray(activeSubmenuItem.value.children))
 })
 const hasSlotSubmenu = computed(() => {
   return !!(activeSubmenuItem.value && !activeSubmenuItem.value.separator && activeSubmenuItem.value.children === true)

@@ -1,3 +1,4 @@
+import {isNull} from "../common/validators"
 import {toTs} from "../date/formatters"
 
 import type {Task} from "../../types/storage"
@@ -13,9 +14,9 @@ export function getTaskOrderValue(task: Pick<Task, "orderIndex" | "createdAt">):
 export function getOrderIndexBetween(prev: number | null, next: number | null, options: {start?: number; step?: number} = {}): number | null {
   const {start = ORDER_INDEX_START, step = ORDER_INDEX_STEP} = options
 
-  if (prev === null && next === null) return start
-  if (prev === null) return Math.floor(next! - step)
-  if (next === null) return Math.floor(prev + step)
+  if (isNull(prev) && isNull(next)) return start
+  if (isNull(prev)) return Math.floor(next! - step)
+  if (isNull(next)) return Math.floor(prev + step)
 
   const candidate = Math.floor((prev + next) / 2)
   if (candidate <= prev || candidate >= next) return null

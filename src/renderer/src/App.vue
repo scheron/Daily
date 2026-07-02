@@ -1,17 +1,16 @@
 <script setup lang="ts">
 import {useRoute} from "vue-router"
-import {Toaster} from "vue-sonner"
 import {ToastsLiteProvider} from "vue-toasts-lite"
 import {invoke, until} from "@vueuse/core"
 
-import {useAiStore} from "@/stores/ai/ai.store"
+import {useAiStore} from "@/stores/ai"
 import {useBranchesStore} from "@/stores/branches.store"
-import {useDeletedTasksStore} from "@/stores/deletedTasks.store"
 import {useSettingsStore} from "@/stores/settings.store"
 import {useTagsStore} from "@/stores/tags.store"
-import {useTasksStore} from "@/stores/tasks.store"
+import {useTasksStore} from "@/stores/tasks"
 import {useUpdateStore} from "@/stores/update.store"
 import {IconsSprite} from "@/ui/base/BaseIcon"
+import {BaseModalProvider} from "@/ui/base/BaseModal"
 
 const route = useRoute()
 const isLightRoute = route.name === "Settings" || route.name === "Assistant"
@@ -31,10 +30,9 @@ invoke(async () => {
   const branchesStore = useBranchesStore()
   const tasksStore = useTasksStore()
   const tagsStore = useTagsStore()
-  const deletedTasksStore = useDeletedTasksStore()
   useUpdateStore()
 
-  await Promise.all([branchesStore.getBranchList(), tasksStore.getTaskList(), tagsStore.getTagList(), deletedTasksStore.load()])
+  await Promise.all([branchesStore.getBranchList(), tasksStore.getTaskList(), tagsStore.getTagList()])
   await aiStore.checkConnection()
 })
 </script>
@@ -42,7 +40,7 @@ invoke(async () => {
 <template>
   <RouterView />
 
+  <BaseModalProvider />
   <IconsSprite />
-  <Toaster class="toaster" :duration="3000" close-button />
   <ToastsLiteProvider />
 </template>
