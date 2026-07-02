@@ -108,6 +108,114 @@
       },
       "recommended": false,
       "accuracy": 0.93
+    },
+    {
+      "id": "glm-4-9b",
+      "title": "GLM-4 9B",
+      "description": "Strong tool-calling all-rounder (GLM-4-0414).",
+      "tier": "balanced",
+      "sizeBytes": 6166574464,
+      "requirements": {
+        "ramGb": 10,
+        "diskGb": 7
+      },
+      "ggufUrl": "https://huggingface.co/bartowski/THUDM_GLM-4-9B-0414-GGUF/resolve/main/THUDM_GLM-4-9B-0414-Q4_K_M.gguf",
+      "ggufFilename": "THUDM_GLM-4-9B-0414-Q4_K_M.gguf",
+      "sha256": "2b95f0b88eca423bfb874c4f8e7b9574ec76acab2befd272076e8a8dce31216a",
+      "serverArgs": {
+        "ctx": 8192,
+        "gpuLayers": 99,
+        "temperature": 0.6,
+        "topP": 0.95,
+        "topK": 40,
+        "minP": 0,
+        "maxTokens": 4096,
+        "repeatPenalty": 1.0,
+        "repeatLastN": 64,
+        "presencePenalty": 0,
+        "frequencyPenalty": 0,
+        "dryMultiplier": 0.5,
+        "dryBase": 1.75,
+        "dryAllowedLength": 3,
+        "dryPenaltyLastN": 1024
+      },
+      "capabilities": {
+        "tools": "compat"
+      },
+      "recommended": false,
+      "accuracy": 0.84
+    },
+    {
+      "id": "mistral-nemo-12b",
+      "title": "Mistral Nemo 12B",
+      "description": "Reliable tool use with a large context window.",
+      "tier": "balanced",
+      "sizeBytes": 7477208192,
+      "requirements": {
+        "ramGb": 14,
+        "diskGb": 9
+      },
+      "ggufUrl": "https://huggingface.co/bartowski/Mistral-Nemo-Instruct-2407-GGUF/resolve/main/Mistral-Nemo-Instruct-2407-Q4_K_M.gguf",
+      "ggufFilename": "Mistral-Nemo-Instruct-2407-Q4_K_M.gguf",
+      "sha256": "7c1a10d202d8788dbe5628dc962254d10654c853cae6aaeca0618f05490d4a46",
+      "serverArgs": {
+        "ctx": 8192,
+        "gpuLayers": 99,
+        "temperature": 0.35,
+        "topP": 0.95,
+        "topK": 40,
+        "minP": 0,
+        "maxTokens": 4096,
+        "repeatPenalty": 1.0,
+        "repeatLastN": 64,
+        "presencePenalty": 0,
+        "frequencyPenalty": 0,
+        "dryMultiplier": 0.5,
+        "dryBase": 1.75,
+        "dryAllowedLength": 3,
+        "dryPenaltyLastN": 1024
+      },
+      "capabilities": {
+        "tools": "compat"
+      },
+      "recommended": false,
+      "accuracy": 0.82
+    },
+    {
+      "id": "llama-3.1-8b",
+      "title": "Llama 3.1 8B",
+      "description": "Popular general-purpose model with tool use.",
+      "tier": "fast",
+      "sizeBytes": 4920739232,
+      "requirements": {
+        "ramGb": 8,
+        "diskGb": 6
+      },
+      "ggufUrl": "https://huggingface.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF/resolve/main/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
+      "ggufFilename": "Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf",
+      "sha256": "7b064f5842bf9532c91456deda288a1b672397a54fa729aa665952863033557c",
+      "serverArgs": {
+        "ctx": 8192,
+        "gpuLayers": 99,
+        "temperature": 0.6,
+        "topP": 0.9,
+        "topK": 40,
+        "minP": 0,
+        "maxTokens": 4096,
+        "repeatPenalty": 1.0,
+        "repeatLastN": 64,
+        "presencePenalty": 0,
+        "frequencyPenalty": 0,
+        "dryMultiplier": 0.5,
+        "dryBase": 1.75,
+        "dryAllowedLength": 3,
+        "dryPenaltyLastN": 1024
+      },
+      "capabilities": {
+        "tools": "compat"
+      },
+      "recommended": false,
+      "accuracy": 0.8
     }
   ]
 }
