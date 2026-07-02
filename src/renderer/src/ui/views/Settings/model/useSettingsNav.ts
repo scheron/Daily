@@ -1,6 +1,8 @@
 import {computed, onUnmounted, ref, watch} from "vue"
 import {useRoute, useRouter} from "vue-router"
 
+import {isString} from "@shared/utils/common/validators"
+
 import {SECTION_IDS, SECTIONS} from "./constants"
 
 import type {SettingsPanel} from "@/types/common"
@@ -10,9 +12,7 @@ export function useSettingsNav() {
   const router = useRouter()
 
   const initialSection =
-    typeof route.query.section === "string" && SECTION_IDS.has(route.query.section as SettingsPanel)
-      ? (route.query.section as SettingsPanel)
-      : "appearance"
+    isString(route.query.section) && SECTION_IDS.has(route.query.section as SettingsPanel) ? (route.query.section as SettingsPanel) : "general"
 
   const activeNav = ref<SettingsPanel>(initialSection)
   const activeSection = computed(() => SECTIONS.find((s) => s.id === activeNav.value) ?? SECTIONS[0])

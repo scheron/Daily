@@ -10,6 +10,10 @@ const props = defineProps<{
   disabled?: boolean
   class?: string
   focusOnMount?: boolean
+  /** Suppress the focus/tab outline (no accent ring); the native outline stays off too. */
+  hideOutline?: boolean
+  /** Strip the border, background and padding for an inline, transparent field. */
+  bare?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -20,8 +24,8 @@ const emit = defineEmits<{
 const inputRef = useTemplateRef<HTMLInputElement>("input")
 
 const classes = computed(() => [
-  "w-full px-3 py-1.5 rounded-lg bg-base-100 border border-base-300",
-  "focus-visible-ring focus-visible:ring-offset-base-100 focus-visible:ring-accent/80",
+  props.bare ? "w-full bg-transparent" : "w-full px-3 py-1.5 rounded-lg bg-base-100 border border-base-300",
+  props.hideOutline ? "" : "focus-visible-accent",
   "disabled:opacity-50 disabled:cursor-not-allowed outline-none",
   "placeholder:text-base-content/50",
   props.class,
@@ -37,6 +41,12 @@ function onKeyup(e: KeyboardEvent) {
     emit("keyup.enter")
   }
 }
+
+function focus() {
+  inputRef.value?.focus()
+}
+
+defineExpose({focus})
 
 onMounted(async () => {
   if (props.focusOnMount) {

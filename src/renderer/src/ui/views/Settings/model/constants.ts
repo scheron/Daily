@@ -1,10 +1,9 @@
 import {isDevMode} from "@/constants/env"
 
 import AiSettings from "../{fragments}/AiSettings"
-import AppearanceSettings from "../{fragments}/AppearanceSettings"
-import DeletedTasks from "../{fragments}/DeletedTasks"
-import IconsList from "../{fragments}/IconsList.vue"
-import SyncSettings from "../{fragments}/SyncSettings.vue"
+import DebugSettings from "../{fragments}/DebugSettings"
+import GeneralSettings from "../{fragments}/GeneralSettings"
+import IcloudSettings from "../{fragments}/IcloudSettings"
 import WorkspaceSettings from "../{fragments}/WorkspaceSettings"
 
 import type {SettingsPanel} from "@/types/common"
@@ -19,12 +18,11 @@ type SettingsSection = {
 }
 
 export const SECTIONS: SettingsSection[] = [
-  {id: "appearance", icon: "appearance", label: "Appearance", component: AppearanceSettings},
-  {id: "workspace", icon: "monitor", label: "Workspace", component: WorkspaceSettings},
-  {id: "ai", icon: "ai", label: "AI ", component: AiSettings},
-  {id: "sync", icon: "cloud", label: "iCloud Sync", component: SyncSettings},
-  {id: "deleted-tasks", icon: "trash", label: "Deleted Tasks", component: DeletedTasks},
-  ...(isDevMode ? [{id: "icons" as const, icon: "heading" as const, label: "Icons", component: IconsList}] : []),
+  {id: "general", icon: "cog", label: "General", component: GeneralSettings},
+  {id: "workflow", icon: "monitor", label: "Workflow", component: WorkspaceSettings},
+  {id: "icloud", icon: "cloud", label: "iCloud", component: IcloudSettings},
+  {id: "ai", icon: "ai", label: "AI", component: AiSettings},
+  ...(isDevMode ? [{id: "debug", icon: "code", label: "DEBUG", component: DebugSettings} as SettingsSection] : []),
 ]
 
 export const SECTION_IDS = new Set<SettingsPanel>(SECTIONS.map((s) => s.id))

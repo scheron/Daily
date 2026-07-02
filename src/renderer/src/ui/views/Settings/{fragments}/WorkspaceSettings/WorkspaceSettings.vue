@@ -1,28 +1,18 @@
 <script setup lang="ts">
-import BaseIcon from "@/ui/base/BaseIcon"
+import ProjectsForm from "@/ui/common/projects/ProjectsForm.vue"
+import TagsForm from "@/ui/common/tags/TagsForm.vue"
 
-import ProjectsForm from "./{fragments}/ProjectsForm.vue"
-import TagsForm from "./{fragments}/TagsForm.vue"
+import SettingsGroup from "../SettingsGroup.vue"
 </script>
 
 <template>
-  <div class="grid h-full grid-cols-2 gap-10">
-    <div class="flex h-full flex-col gap-4 overflow-hidden px-2">
-      <h3 class="text-base-content flex items-center gap-2 text-sm font-semibold">
-        <BaseIcon name="tags" class="text-accent size-4" />
-        Tags
-      </h3>
-
+  <div class="grid grid-cols-2 items-start gap-6 py-2">
+    <SettingsGroup label="Tags" icon="tags">
       <TagsForm />
-    </div>
+    </SettingsGroup>
 
-    <div class="flex h-full flex-col gap-4 overflow-hidden px-2">
-      <h3 class="text-base-content flex items-center gap-2 text-sm font-semibold">
-        <BaseIcon name="project" class="text-accent size-4" />
-        Projects
-      </h3>
-
+    <SettingsGroup label="Projects" icon="project">
       <ProjectsForm />
-    </div>
+    </SettingsGroup>
   </div>
 </template>

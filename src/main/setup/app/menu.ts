@@ -1,13 +1,13 @@
 import {app, ipcMain, Menu} from "electron"
 
-import {ShortcutsMap} from "@shared/constants/shortcuts"
+import {SHORTCUTS_MAP} from "@shared/constants/shortcuts"
 
 import {ENV} from "@/config"
 import {updaterController} from "@/updates/UpdaterController"
 
 import type {BrowserWindow, MenuItemConstructorOptions} from "electron"
 
-export function setupMenu(getMainWindow: () => BrowserWindow | null): void {
+export function setupMenu(getMainWindow: () => BrowserWindow | null) {
   let template: MenuItemConstructorOptions[]
 
   const mainWindow = getMainWindow()
@@ -50,15 +50,7 @@ function createMacMenu(mainWindow: BrowserWindow): MenuItemConstructorOptions[] 
     },
     {
       label: "Settings",
-      submenu: [
-        {
-          label: ShortcutsMap["ui:toggle-tasks-view-mode"].label,
-          accelerator: ShortcutsMap["ui:toggle-tasks-view-mode"].accelerator,
-          click: () => mainWindow.webContents.send(ShortcutsMap["ui:toggle-tasks-view-mode"].channel),
-        },
-        {type: "separator"},
-        ...createSettingsMenu(),
-      ],
+      submenu: createSettingsMenu(),
     },
     {
       label: "Edit",
@@ -131,36 +123,49 @@ function createWindowsMenu(mainWindow: BrowserWindow): MenuItemConstructorOption
 function createTasksMenu(mainWindow: BrowserWindow): MenuItemConstructorOptions[] {
   return [
     {
-      label: ShortcutsMap["tasks:create"].label,
-      accelerator: ShortcutsMap["tasks:create"].accelerator,
-      click: () => mainWindow.webContents.send(ShortcutsMap["tasks:create"].channel),
+      label: SHORTCUTS_MAP["tasks:create"].label,
+      accelerator: SHORTCUTS_MAP["tasks:create"].accelerator,
+      click: () => mainWindow.webContents.send(SHORTCUTS_MAP["tasks:create"].channel),
     },
     {type: "separator"},
     {
-      label: ShortcutsMap["ui:open-search-panel"].label,
-      accelerator: ShortcutsMap["ui:open-search-panel"].accelerator,
-      click: () => mainWindow.webContents.send(ShortcutsMap["ui:open-search-panel"].channel),
+      label: SHORTCUTS_MAP["ui:open-search-panel"].label,
+      accelerator: SHORTCUTS_MAP["ui:open-search-panel"].accelerator,
+      click: () => mainWindow.webContents.send(SHORTCUTS_MAP["ui:open-search-panel"].channel),
     },
     {
-      label: ShortcutsMap["ui:open-settings-panel"].label,
-      accelerator: ShortcutsMap["ui:open-settings-panel"].accelerator,
+      label: SHORTCUTS_MAP["ui:open-settings-panel"].label,
+      accelerator: SHORTCUTS_MAP["ui:open-settings-panel"].accelerator,
       click: () => ipcMain.emit("settings:open"),
     },
     {
-      label: ShortcutsMap["ui:open-assistant-panel"].label,
-      accelerator: ShortcutsMap["ui:open-assistant-panel"].accelerator,
+      label: SHORTCUTS_MAP["ui:open-assistant-panel"].label,
+      accelerator: SHORTCUTS_MAP["ui:open-assistant-panel"].accelerator,
       click: () => ipcMain.emit("assistant:open"),
     },
+    {type: "separator"},
+    {
+      label: SHORTCUTS_MAP["ui:left-panel:toggle"].label,
+      accelerator: SHORTCUTS_MAP["ui:left-panel:toggle"].accelerator,
+      click: () => mainWindow.webContents.send(SHORTCUTS_MAP["ui:left-panel:toggle"].channel),
+    },
+
     {type: "separator"},
     ...(ENV.isDevelopment ? [{role: "toggleDevTools" as const}] : []),
   ]
 }
 
 function createSettingsMenu(): MenuItemConstructorOptions[] {
-  const sections = ["settings:themes", "settings:tags", "settings:ai", "settings:sync", "settings:deleted-tasks"] as const
+  const sections = [
+    "settings:general",
+    "settings:workflow",
+    "settings:icloud",
+    "settings:ai",
+    ...(ENV.isDevelopment ? (["settings:debug"] as const) : []),
+  ] as const
 
   return sections.map((key) => {
-    const shortcut = ShortcutsMap[key]
+    const shortcut = SHORTCUTS_MAP[key]
     return {
       label: shortcut.label,
       accelerator: shortcut.accelerator,

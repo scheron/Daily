@@ -2,7 +2,7 @@
 import {onMounted} from "vue"
 
 import {useThemeStore} from "@/stores/theme.store"
-import BaseButton from "@/ui/base/BaseButton.vue"
+import BaseButton from "@/ui/base/BaseButton"
 
 import {useSettingsNav} from "./model/useSettingsNav"
 
@@ -23,7 +23,6 @@ onMounted(() => {
       <ul class="flex items-center justify-between gap-2">
         <li v-for="section in sections" :key="section.id">
           <BaseButton
-            v-tooltip="{content: section.label, placement: 'bottom'}"
             variant="ghost"
             :icon="section.icon"
             icon-class="size-4 shrink-0"
@@ -44,7 +43,7 @@ onMounted(() => {
     </header>
 
     <div class="h-[calc(100vh-var(--header-height))] flex-1 overflow-auto px-6">
-      <div class="mx-auto flex h-full max-w-2xl flex-col py-3">
+      <div class="mx-auto flex h-full max-w-2xl flex-col pt-3 pb-12">
         <component :is="activeSection.component" />
       </div>
     </div>
