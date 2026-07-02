@@ -1,6 +1,6 @@
 import {contextBridge, ipcRenderer} from "electron"
 
-import {ShortcutsMap} from "@shared/constants/shortcuts"
+import {SHORTCUTS_MAP} from "@shared/constants/shortcuts"
 
 import type {
   AgentTurnSnapshot,
@@ -16,7 +16,8 @@ import type {
 import type {ISODate} from "@shared/types/common"
 import type {BridgeIPC} from "@shared/types/ipc"
 import type {TaskSearchResult} from "@shared/types/search"
-import type {Branch, Day, Settings, SyncStatus, Tag, Task} from "@shared/types/storage"
+import type {StatsAggregate, StatsPeriod} from "@shared/types/stats"
+import type {Branch, Day, Settings, SyncStatus, Tag, Task, TaskEvent} from "@shared/types/storage"
 import type {AppUpdateState} from "@shared/types/update"
 import type {PartialDeep} from "type-fest"
 
@@ -49,6 +50,7 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
 
   "settings:load": () => ipcRenderer.invoke("settings:load") as Promise<Settings>,
   "settings:save": (settings: Partial<Settings>) => ipcRenderer.invoke("settings:save", settings),
+  "settings:on-changed": (callback: () => void) => ipcRenderer.on("settings:changed", () => callback()),
 
   "updates:get-state": () => ipcRenderer.invoke("updates:get-state") as Promise<AppUpdateState>,
   "updates:check": () => ipcRenderer.invoke("updates:check") as Promise<AppUpdateState>,
@@ -62,6 +64,9 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
 
   "days:get-many": (params?: {from?: ISODate; to?: ISODate; branchId?: Branch["id"]}) => ipcRenderer.invoke("days:get-many", params) as Promise<Day[]>,
   "days:get-one": (date: ISODate) => ipcRenderer.invoke("days:get-one", date) as Promise<Day | null>,
+  "activity:get-by-day": (date: ISODate, branchId?: Branch["id"]) => ipcRenderer.invoke("activity:get-by-day", date, branchId) as Promise<TaskEvent[]>,
+  "activity:get-by-task": (taskId: Task["id"]) => ipcRenderer.invoke("activity:get-by-task", taskId) as Promise<TaskEvent[]>,
+  "stats:get": (period: StatsPeriod, anchor: ISODate, branchId?: Branch["id"]) => ipcRenderer.invoke("stats:get", period, anchor, branchId) as Promise<StatsAggregate>,
 
   "tasks:get-many": (params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: Branch["id"]}) => ipcRenderer.invoke("tasks:get-many", params) as Promise<Task[]>,
   "tasks:get-one": (id: Task["id"]) => ipcRenderer.invoke("tasks:get-one", id) as Promise<Task | null>,
@@ -134,9 +139,9 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
     return () => ipcRenderer.removeListener("ai:event", subscription)
   },
 
-  "shortcut:tasks:create": (callback: () => void) => ipcRenderer.on(ShortcutsMap["tasks:create"].channel, () => callback()),
-  "shortcut:ui:open-search-panel": (callback: () => void) => ipcRenderer.on(ShortcutsMap["ui:open-search-panel"].channel, () => callback()),
-  "shortcut:ui:open-assistant-panel": (callback: () => void) => ipcRenderer.on(ShortcutsMap["ui:open-assistant-panel"].channel, () => callback()),
-  "shortcut:ui:open-settings-panel": (callback: () => void) => ipcRenderer.on(ShortcutsMap["ui:open-settings-panel"].channel, () => callback()),
-  "shortcut:ui:toggle-tasks-view-mode": (callback: () => void) => ipcRenderer.on(ShortcutsMap["ui:toggle-tasks-view-mode"].channel, () => callback()),
+  "shortcut:tasks:create": (callback: () => void) => ipcRenderer.on(SHORTCUTS_MAP["tasks:create"].channel, () => callback()),
+  "shortcut:ui:open-search-panel": (callback: () => void) => ipcRenderer.on(SHORTCUTS_MAP["ui:open-search-panel"].channel, () => callback()),
+  "shortcut:ui:open-assistant-panel": (callback: () => void) => ipcRenderer.on(SHORTCUTS_MAP["ui:open-assistant-panel"].channel, () => callback()),
+  "shortcut:ui:open-settings-panel": (callback: () => void) => ipcRenderer.on(SHORTCUTS_MAP["ui:open-settings-panel"].channel, () => callback()),
+  "shortcut:ui:left-panel:toggle": (callback: () => void) => ipcRenderer.on(SHORTCUTS_MAP["ui:left-panel:toggle"].channel, () => callback()),
 } satisfies BridgeIPC)

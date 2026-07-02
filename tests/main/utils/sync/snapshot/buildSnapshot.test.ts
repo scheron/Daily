@@ -4,7 +4,7 @@ import {describe, expect, it} from "vitest"
 import {buildSnapshot, buildSnapshotMeta} from "@main/utils/sync/snapshot/buildSnapshot"
 
 function emptyDocs() {
-  return {tasks: [], tags: [], branches: [], files: [], settings: null}
+  return {tasks: [], tags: [], branches: [], files: [], events: [], settings: null}
 }
 
 function makeTask(id, overrides = {}) {
@@ -42,9 +42,9 @@ function makeTag(id, overrides = {}) {
 }
 
 describe("buildSnapshot", () => {
-  it("creates snapshot with version 2", () => {
+  it("creates snapshot with version 3", () => {
     const snapshot = buildSnapshot(emptyDocs())
-    expect(snapshot.version).toBe(2)
+    expect(snapshot.version).toBe(3)
   })
 
   it("includes docs and meta", () => {

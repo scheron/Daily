@@ -25,9 +25,14 @@ describe("isValidSnapshot", () => {
     expect(isValidSnapshot(validSnapshot())).toBe(true)
   })
 
-  it("returns false when version !== 2", () => {
+  it("accepts version 2 and 3", () => {
+    expect(isValidSnapshot({...validSnapshot(), version: 2})).toBe(true)
+    expect(isValidSnapshot({...validSnapshot(), version: 3})).toBe(true)
+  })
+
+  it("returns false for unsupported versions", () => {
     expect(isValidSnapshot({...validSnapshot(), version: 1})).toBe(false)
-    expect(isValidSnapshot({...validSnapshot(), version: 3})).toBe(false)
+    expect(isValidSnapshot({...validSnapshot(), version: 4})).toBe(false)
   })
 
   it("returns false when docs missing", () => {

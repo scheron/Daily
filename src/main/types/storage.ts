@@ -1,6 +1,7 @@
 import type {ISODate} from "@shared/types/common"
 import type {TaskSearchResult} from "@shared/types/search"
-import type {Branch, Day, File, MoveTaskByOrderParams, Settings, SyncStatus, Tag, Task} from "@shared/types/storage"
+import type {StatsAggregate, StatsPeriod} from "@shared/types/stats"
+import type {Branch, Day, File, MoveTaskByOrderParams, Settings, SyncStatus, Tag, Task, TaskEvent} from "@shared/types/storage"
 import type {ReplaceValue} from "@shared/types/utils"
 import type {PartialDeep} from "type-fest"
 
@@ -12,6 +13,10 @@ export interface IStorageController {
 
   getDays(params?: {from?: ISODate; to?: ISODate; branchId?: Branch["id"]}): Promise<Day[]>
   getDay(date: ISODate): Promise<Day | null>
+
+  getActivityByDay(date: ISODate, branchId?: Branch["id"]): Promise<TaskEvent[]>
+  getTaskHistory(taskId: Task["id"]): Promise<TaskEvent[]>
+  getStats(period: StatsPeriod, anchor: ISODate, branchId?: Branch["id"]): Promise<StatsAggregate>
 
   getTaskList(params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: Branch["id"]}): Promise<Task[]>
   getTask(id: Task["id"]): Promise<Task | null>
@@ -55,13 +60,16 @@ export interface IStorageController {
   deleteFile(fileId: File["id"]): Promise<boolean>
   getFiles(fileIds: File["id"][]): Promise<File[]>
   createFileResponse(id: File["id"]): Promise<Response>
-
   cleanupOrphanFiles(): Promise<void>
-
-  setupStorageBroadcasts(callbacks: {onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => void; onDataChange: () => void}): void
 
   activateSync(): Promise<void>
   deactivateSync(): Promise<void>
   forceSync(): Promise<void>
   getSyncStatus(): SyncStatus
+
+  setupStorageBroadcasts(callbacks: {
+    onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => void
+    onDataChange: () => void
+    onSettingsChange: () => void
+  }): void
 }

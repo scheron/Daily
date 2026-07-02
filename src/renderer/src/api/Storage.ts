@@ -2,7 +2,8 @@ import {DateTime} from "luxon"
 
 import type {ISODate} from "@shared/types/common"
 import type {TaskSearchResult} from "@shared/types/search"
-import type {Branch, Day, MoveTaskByOrderParams, Tag, Task, TaskStatus} from "@shared/types/storage"
+import type {StatsAggregate, StatsPeriod} from "@shared/types/stats"
+import type {Branch, Day, MoveTaskByOrderParams, Tag, Task, TaskEvent, TaskStatus} from "@shared/types/storage"
 import type {Storage} from "./types"
 
 export class StorageAPI implements Storage {
@@ -14,12 +15,37 @@ export class StorageAPI implements Storage {
   async getDay(date: ISODate): Promise<Day | null> {
     return window.BridgeIPC["days:get-one"](date)
   }
+
+  async getActivityByDay(date: ISODate, branchId?: Branch["id"]): Promise<TaskEvent[]> {
+    return window.BridgeIPC["activity:get-by-day"](date, branchId)
+  }
+
+  async getTaskHistory(taskId: Task["id"]): Promise<TaskEvent[]> {
+    return window.BridgeIPC["activity:get-by-task"](taskId)
+  }
+
+  async getStats(period: StatsPeriod, anchor: ISODate, branchId?: Branch["id"]): Promise<StatsAggregate> {
+    return window.BridgeIPC["stats:get"](period, anchor, branchId)
+  }
   //#endregion
 
   //#region TASKS
+  async getTask(id: Task["id"]): Promise<Task | null> {
+    return window.BridgeIPC["tasks:get-one"](id)
+  }
+
   async createTask(
     content: string,
-    params: {date?: string; time?: string; timezone?: string; tags?: Tag[]; estimatedTime?: number; orderIndex?: number; branchId?: Branch["id"]},
+    params: {
+      date?: string
+      time?: string
+      timezone?: string
+      tags?: Tag[]
+      estimatedTime?: number
+      orderIndex?: number
+      branchId?: Branch["id"]
+      status?: TaskStatus
+    },
   ): Promise<Day | null> {
     try {
       const now = DateTime.now()
@@ -29,7 +55,7 @@ export class StorageAPI implements Storage {
 
       const newTask = {
         content,
-        status: "active" as TaskStatus,
+        status: params.status ?? ("active" as TaskStatus),
         minimized: false,
         tags: params.tags ?? [],
         estimatedTime: params.estimatedTime ?? 0,

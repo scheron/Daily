@@ -1,14 +1,14 @@
 <script lang="ts" setup>
-import {computed, ref} from "vue"
+import {computed, onBeforeUnmount, ref, StyleValue} from "vue"
 import {onClickOutside} from "@vueuse/core"
 
 import {cn} from "@/utils/ui/tailwindcss"
+import BaseButton from "@/ui/base/BaseButton"
 
 // @ts-ignore
 import {autoUpdate, flip, offset, shift, useFloating} from "@floating-ui/vue"
-import BaseButton from "./BaseButton.vue"
 
-type HorizontalPosition = "start" | "center" | "end"
+export type HorizontalPosition = "start" | "center" | "end"
 
 const props = withDefaults(
   defineProps<{
@@ -16,15 +16,18 @@ const props = withDefaults(
     hideHeader?: boolean
     hideCloseBtn?: boolean
     hoverMode?: boolean
+    side?: "top" | "bottom"
     position?: HorizontalPosition
     triggerClass?: string
     contentClass?: string
     containerClass?: string
+    style?: StyleValue
   }>(),
   {
     hideCloseBtn: false,
     hideHeader: false,
     hoverMode: false,
+    side: "bottom",
     position: "start",
     contentClass: "",
     containerClass: "",
@@ -40,6 +43,11 @@ const trigger = ref<HTMLElement | null>(null)
 const popup = ref<HTMLElement | null>(null)
 
 const placement = computed(() => {
+  if (props.side === "top") {
+    if (props.position === "start") return "top-start"
+    if (props.position === "end") return "top-end"
+    return "top"
+  }
   if (props.position === "start") return "bottom-start"
   if (props.position === "end") return "bottom-end"
   return "bottom"
@@ -86,6 +94,11 @@ function toggle() {
   isOpen.value ? hide() : show()
 }
 
+onBeforeUnmount(() => {
+  if (isOpen.value) isOpen.value = false
+  cancelHide()
+})
+
 defineExpose({
   show,
   hide,
@@ -95,8 +108,8 @@ defineExpose({
 </script>
 
 <template>
-  <div ref="trigger" :class="triggerClass" @mouseleave="scheduleHide">
-    <slot name="trigger" :show="show" :hide="hide" :toggle="toggle" />
+  <div ref="trigger" :style="style" :class="triggerClass" @mouseleave="scheduleHide">
+    <slot name="trigger" :show="show" :hide="hide" :toggle="toggle" :open="isOpen" />
   </div>
 
   <Teleport to="body">
@@ -104,7 +117,7 @@ defineExpose({
       v-if="isOpen"
       ref="popup"
       data-popup
-      :class="cn('bg-base-100 border-base-300 z-999 max-h-[300px] min-w-52 overflow-y-auto rounded-lg border p-2 shadow-lg', containerClass)"
+      :class="cn('bg-base-100 border-base-300 z-999 max-h-[300px] min-w-52 overflow-y-auto rounded-lg border p-1 shadow-lg', containerClass)"
       :style="floatingStyles"
       @mouseenter="cancelHide"
       @mouseleave="scheduleHide"
@@ -121,12 +134,12 @@ defineExpose({
             variant="ghost"
             size="sm"
             icon-class="size-4"
-            class="focus-visible-ring text-base-content/70 hover:text-base-content ml-auto rounded-full p-1"
+            class="focus-visible-accent text-base-content/70 hover:text-base-content ml-auto rounded-full p-1"
             @click="hide"
           />
         </div>
 
-        <slot :hide="hide" :show="show" :toggle="toggle" :is-open="isOpen" />
+        <slot :hide="hide" :show="show" :toggle="toggle" :open="isOpen" />
       </div>
     </div>
   </Teleport>

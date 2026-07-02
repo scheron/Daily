@@ -2,7 +2,9 @@ import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
 import {BranchModel} from "@main/storage/models/BranchModel"
 import {TagModel} from "@main/storage/models/TagModel"
+import {TaskEventModel} from "@main/storage/models/TaskEventModel"
 import {TaskModel} from "@main/storage/models/TaskModel"
+import {TaskEventsService} from "@main/storage/services/TaskEventsService"
 import {TasksService} from "@main/storage/services/TasksService"
 import {createTestDatabase} from "../../../helpers/db"
 
@@ -49,7 +51,7 @@ describe("TasksService", () => {
     tagModel = new TagModel(db)
     const branchModel = new BranchModel(db)
     branchModel.ensureMainBranch()
-    tasksService = new TasksService(taskModel)
+    tasksService = new TasksService(taskModel, new TaskEventsService(new TaskEventModel(db)))
   })
 
   afterEach(() => {

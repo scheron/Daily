@@ -13,7 +13,8 @@ import type {
 } from "./ai"
 import type {ISODate} from "./common"
 import type {TaskSearchResult} from "./search"
-import type {Branch, Day, File, MoveTaskByOrderParams, Settings, SyncStatus, Tag, Task} from "./storage"
+import type {StatsAggregate, StatsPeriod} from "./stats"
+import type {Branch, Day, File, MoveTaskByOrderParams, Settings, SyncStatus, Tag, Task, TaskEvent} from "./storage"
 import type {AppUpdateState} from "./update"
 
 export interface BridgeIPC {
@@ -44,6 +45,7 @@ export interface BridgeIPC {
   // === SETTINGS ===
   "settings:load": () => Promise<Settings>
   "settings:save": (settings: Partial<Settings>) => Promise<void>
+  "settings:on-changed": (callback: () => void) => void
 
   // === UPDATES ===
   "updates:get-state": () => Promise<AppUpdateState>
@@ -55,6 +57,11 @@ export interface BridgeIPC {
   // === DAYS  ===
   "days:get-many": (params?: {from?: ISODate; to?: ISODate; branchId?: Branch["id"]}) => Promise<Day[]>
   "days:get-one": (date: ISODate) => Promise<Day | null>
+
+  "activity:get-by-day": (date: ISODate, branchId?: Branch["id"]) => Promise<TaskEvent[]>
+  "activity:get-by-task": (taskId: Task["id"]) => Promise<TaskEvent[]>
+
+  "stats:get": (period: StatsPeriod, anchor: ISODate, branchId?: Branch["id"]) => Promise<StatsAggregate>
 
   // === TASKS  ===
   "tasks:get-many": (params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: Branch["id"]}) => Promise<Task[]>
@@ -130,5 +137,5 @@ export interface BridgeIPC {
   "shortcut:ui:open-search-panel": (callback: () => void) => void
   "shortcut:ui:open-assistant-panel": (callback: () => void) => void
   "shortcut:ui:open-settings-panel": (callback: () => void) => void
-  "shortcut:ui:toggle-tasks-view-mode": (callback: () => void) => void
+  "shortcut:ui:left-panel:toggle": (callback: () => void) => void
 }

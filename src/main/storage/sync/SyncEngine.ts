@@ -1,4 +1,5 @@
 import {RemoteSnapshotPendingError} from "@shared/errors/sync/RemoteSnapshotPendingError"
+import {isString} from "@shared/utils/common/validators"
 import {withElapsedDelay} from "@shared/utils/common/withElapsedDelay"
 import {AsyncMutex} from "@/utils/AsyncMutex"
 import {createIntervalScheduler} from "@/utils/createIntervalScheduler"
@@ -8,7 +9,7 @@ import {buildSnapshot, buildSnapshotMeta} from "@/utils/sync/snapshot/buildSnaps
 
 import {APP_CONFIG, fsPaths} from "@/config"
 
-import type {ILocalStorage, IRemoteStorage, MergeResult, SnapshotDocs, SyncStrategy} from "@/types/sync"
+import type {ILocalStorage, IRemoteStorage, SnapshotDocs, SyncStrategy} from "@/types/sync"
 import type {SyncStatus} from "@shared/types/storage"
 
 /**
@@ -50,7 +51,7 @@ export class SyncEngine {
     return this._syncStatus
   }
 
-  enableAutoSync(): void {
+  enableAutoSync() {
     if (this._isSyncEnabled) return
 
     this._isSyncEnabled = true
@@ -59,7 +60,7 @@ export class SyncEngine {
     this._setStatus("active")
   }
 
-  disableAutoSync(): void {
+  disableAutoSync() {
     if (!this._isSyncEnabled) return
 
     this._isSyncEnabled = false
@@ -148,7 +149,7 @@ export class SyncEngine {
    * Normalize settings from old snapshot format where `data` was a JSON string.
    */
   private _normalizeSettings(docs: SnapshotDocs): SnapshotDocs {
-    if (docs.settings && "data" in docs.settings && typeof (docs.settings as any).data === "string") {
+    if (docs.settings && "data" in docs.settings && isString((docs.settings as any).data)) {
       const {id, data, created_at, updated_at} = docs.settings as any
       const parsed = JSON.parse(data)
       docs.settings = {id, ...parsed, created_at, updated_at}
@@ -171,29 +172,43 @@ export class SyncEngine {
       return {resultDocs: localDocs, hasChanges: false}
     }
 
-    const mergeResult: MergeResult = mergeRemoteIntoLocal(localDocs, remoteDocs, strategy, APP_CONFIG.sync.garbageCollectionInterval)
+    const mergeResult = mergeRemoteIntoLocal(localDocs, remoteDocs, strategy, APP_CONFIG.sync.garbageCollectionInterval)
 
     const {resultDocs, toUpsert, toRemove, changes} = mergeResult
 
-    const hasUpserts = toUpsert.tasks.length || toUpsert.tags.length || toUpsert.branches.length || toUpsert.files.length || toUpsert.settings
-    if (hasUpserts) {
-      const totalUpserts =
-        toUpsert.tasks.length + toUpsert.tags.length + toUpsert.branches.length + toUpsert.files.length + (toUpsert.settings ? 1 : 0)
-      logger.debug(logger.CONTEXT.SYNC_PULL, `Upserting ${totalUpserts} documents`)
+    const upsertCount = this.countDocs(toUpsert)
+    if (upsertCount) {
+      logger.debug(logger.CONTEXT.SYNC_PULL, `Upserting ${upsertCount} documents`)
       await this.localStore.upsertDocs(toUpsert)
     }
 
-    const hasRemovals = toRemove.tasks?.length || toRemove.tags?.length || toRemove.branches?.length || toRemove.files?.length
-    if (hasRemovals) {
-      const totalRemovals =
-        (toRemove.tasks?.length ?? 0) + (toRemove.tags?.length ?? 0) + (toRemove.branches?.length ?? 0) + (toRemove.files?.length ?? 0)
-      logger.debug(logger.CONTEXT.SYNC_PULL, `Deleting ${totalRemovals} documents`)
+    const removalCount = this.countDocs(toRemove)
+    if (removalCount) {
+      logger.debug(logger.CONTEXT.SYNC_PULL, `Deleting ${removalCount} documents`)
       await this.localStore.deleteDocs(toRemove)
     }
 
     logger.info(logger.CONTEXT.SYNC_PULL, `Pull result: ${changes} changes`)
 
     return {resultDocs, hasChanges: changes > 0}
+  }
+
+  private countDocs(docs: {
+    tasks?: unknown[]
+    tags?: unknown[]
+    branches?: unknown[]
+    files?: unknown[]
+    events?: unknown[]
+    settings?: unknown
+  }): number {
+    return (
+      (docs.tasks?.length ?? 0) +
+      (docs.tags?.length ?? 0) +
+      (docs.branches?.length ?? 0) +
+      (docs.files?.length ?? 0) +
+      (docs.events?.length ?? 0) +
+      (docs.settings ? 1 : 0)
+    )
   }
 
   /**
@@ -220,7 +235,7 @@ export class SyncEngine {
     }
   }
 
-  private _setStatus(status: SyncStatus): void {
+  private _setStatus(status: SyncStatus) {
     const prevStatus = this._syncStatus
     this._syncStatus = status
     this.onStatusChange(status, prevStatus)

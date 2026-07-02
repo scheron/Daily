@@ -536,14 +536,14 @@ describe("Snapshot Sync Integration", () => {
 
   describe("settings sync", () => {
     it("settings created on A → sync → B gets settings", async () => {
-      insertSettings(deviceA.db, {version: "1", themes: {current: "dark"}, sidebar: {collapsed: true}})
+      insertSettings(deviceA.db, {version: "1", themes: {current: "dark"}, sync: {enabled: true}})
       await syncDevice(deviceA)
       await syncDevice(deviceB)
 
       const settings = getSettings(deviceB.db)
       expect(settings).not.toBeNull()
       expect(settings.themes.current).toBe("dark")
-      expect(settings.sidebar.collapsed).toBe(true)
+      expect(settings.sync.enabled).toBe(true)
     })
 
     it("settings updated on B (newer) → sync → A gets updated settings", async () => {

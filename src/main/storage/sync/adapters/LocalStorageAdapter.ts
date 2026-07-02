@@ -1,4 +1,13 @@
-import type {ILocalStorage, SnapshotBranch, SnapshotDocs, SnapshotFile, SnapshotSettings, SnapshotTag, SnapshotTask} from "@/types/sync"
+import type {
+  ILocalStorage,
+  SnapshotBranch,
+  SnapshotDocs,
+  SnapshotFile,
+  SnapshotSettings,
+  SnapshotTag,
+  SnapshotTask,
+  SnapshotTaskEvent,
+} from "@/types/sync"
 import type Database from "better-sqlite3"
 
 export class LocalStorageAdapter implements ILocalStorage {
@@ -9,9 +18,10 @@ export class LocalStorageAdapter implements ILocalStorage {
     const tags = this._loadTags()
     const branches = this._loadBranches()
     const files = this._loadFiles()
+    const events = this._loadTaskEvents()
     const settings = this._loadSettings()
 
-    return {tasks, tags, branches, files, settings}
+    return {tasks, tags, branches, files, events, settings}
   }
 
   async upsertDocs(docs: SnapshotDocs): Promise<void> {
@@ -140,9 +150,41 @@ export class LocalStorageAdapter implements ILocalStorage {
           )
           .run(id, data.version, JSON.stringify(data), created_at, updated_at)
       }
+
+      /* Append-only events: INSERT OR IGNORE (immutable, never updated or deleted). */
+      if (docs.events.length) {
+        const stmt = this.db.prepare(`
+          INSERT OR IGNORE INTO task_events (id, task_id, branch_id, type, event_date, from_date, to_date, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `)
+        for (const e of docs.events) {
+          stmt.run(e.id, e.task_id, e.branch_id, e.type, e.event_date, e.from_date ?? null, e.to_date ?? null, e.created_at)
+        }
+      }
     })
 
     transaction()
+  }
+
+  /**
+   * Hard-delete soft-deleted rows whose `deleted_at` is older than `ttlMs`.
+   * Mirrors the sync GC's TTL so local-only purging can't resurrect records that
+   * a synced peer still holds: both sides drop the same tombstone past the same age.
+   * @returns per-collection counts of physically removed rows.
+   */
+  async purgeExpiredDeleted(ttlMs: number): Promise<{tasks: number; tags: number; branches: number; files: number}> {
+    const cutoff = new Date(Date.now() - ttlMs).toISOString()
+    const expiredIds = (table: string): string[] =>
+      (this.db.prepare(`SELECT id FROM ${table} WHERE deleted_at IS NOT NULL AND deleted_at <= ?`).all(cutoff) as {id: string}[]).map((row) => row.id)
+
+    const tasks = expiredIds("tasks")
+    const tags = expiredIds("tags")
+    const branches = expiredIds("branches")
+    const files = expiredIds("files")
+
+    await this.deleteDocs({tasks, tags, branches, files})
+
+    return {tasks: tasks.length, tags: tags.length, branches: branches.length, files: files.length}
   }
 
   async deleteDocs(ids: {tasks?: string[]; tags?: string[]; branches?: string[]; files?: string[]}): Promise<void> {
@@ -236,6 +278,19 @@ export class LocalStorageAdapter implements ILocalStorage {
       created_at: row.created_at,
       updated_at: row.updated_at,
       deleted_at: row.deleted_at,
+    }))
+  }
+
+  private _loadTaskEvents(): SnapshotTaskEvent[] {
+    return (this.db.prepare(`SELECT * FROM task_events`).all() as any[]).map((row) => ({
+      id: row.id,
+      task_id: row.task_id,
+      branch_id: row.branch_id,
+      type: row.type,
+      event_date: row.event_date,
+      from_date: row.from_date ?? null,
+      to_date: row.to_date ?? null,
+      created_at: row.created_at,
     }))
   }
 

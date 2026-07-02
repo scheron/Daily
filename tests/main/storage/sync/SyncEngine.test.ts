@@ -40,7 +40,7 @@ vi.mock("@shared/utils/common/withElapsedDelay", () => ({
 }))
 
 function emptyDocs() {
-  return {tasks: [], tags: [], branches: [], files: [], settings: null}
+  return {tasks: [], tags: [], branches: [], files: [], events: [], settings: null}
 }
 
 function docsWithTask() {
@@ -148,7 +148,7 @@ describe("SyncEngine", () => {
 
       expect(mockRemoteStore.saveSnapshot).toHaveBeenCalled()
       const snapshot = mockRemoteStore.saveSnapshot.mock.calls[0][0]
-      expect(snapshot.version).toBe(2)
+      expect(snapshot.version).toBe(3)
       expect(snapshot.docs.tasks).toHaveLength(1)
     })
 

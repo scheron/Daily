@@ -142,6 +142,7 @@ describe("LocalStorageAdapter", () => {
         tags: [],
         branches: [],
         files: [],
+        events: [],
         settings: null,
       }
 
@@ -181,6 +182,7 @@ describe("LocalStorageAdapter", () => {
         tags: [],
         branches: [],
         files: [],
+        events: [],
         settings: null,
       })
 
@@ -219,6 +221,7 @@ describe("LocalStorageAdapter", () => {
         tags: [],
         branches: [],
         files: [],
+        events: [],
         settings: null,
       })
 
@@ -259,6 +262,7 @@ describe("LocalStorageAdapter", () => {
         tags: [],
         branches: [],
         files: [],
+        events: [],
         settings: null,
       })
 
@@ -275,6 +279,7 @@ describe("LocalStorageAdapter", () => {
         tags: [{id: "tag1", name: "work", color: "#00f", created_at: now, updated_at: now, deleted_at: null}],
         branches: [{id: "b1", name: "feat", created_at: now, updated_at: now, deleted_at: null}],
         files: [{id: "f1", name: "pic.png", mime_type: "image/png", size: 500, created_at: now, updated_at: now, deleted_at: null}],
+        events: [],
         settings: null,
       })
 
@@ -289,6 +294,7 @@ describe("LocalStorageAdapter", () => {
         tags: [],
         branches: [],
         files: [],
+        events: [],
         settings: {id: "default", version: "1", themes: {current: "dark"}, created_at: now, updated_at: now},
       })
 
@@ -337,6 +343,33 @@ describe("LocalStorageAdapter", () => {
       // Tag should NOT be inserted due to transaction rollback
       const tagsAfter = db.prepare("SELECT COUNT(*) as c FROM tags").get().c
       expect(tagsAfter).toBe(tasksBefore)
+    })
+
+    it("round-trips a moved event with from_date/to_date", async () => {
+      await adapter.upsertDocs({
+        tasks: [],
+        tags: [],
+        branches: [],
+        files: [],
+        settings: null,
+        events: [
+          {
+            id: "e1",
+            task_id: "t1",
+            branch_id: "main",
+            type: "moved",
+            task_title: "Buy milk",
+            event_date: "2026-06-23",
+            from_date: "2026-06-23",
+            to_date: "2026-06-24",
+            created_at: "2026-06-23T10:00:00.000Z",
+          },
+        ],
+      })
+
+      const loaded = (await adapter.loadAllDocs()).events.find((e) => e.id === "e1")
+      expect(loaded.from_date).toBe("2026-06-23")
+      expect(loaded.to_date).toBe("2026-06-24")
     })
   })
 
@@ -394,6 +427,44 @@ describe("LocalStorageAdapter", () => {
       await adapter.deleteDocs({tasks: [], tags: [], branches: [], files: []})
 
       expect(db.prepare("SELECT * FROM tasks WHERE id = 't1'").get()).toBeDefined()
+    })
+  })
+
+  describe("purgeExpiredDeleted", () => {
+    const TTL = 7 * 24 * 60 * 60 * 1000
+    const daysAgo = (n) => new Date(Date.now() - n * 24 * 60 * 60 * 1000).toISOString()
+
+    it("hard-deletes records past the TTL (and epoch-marked), keeps live and recent ones", async () => {
+      insertTask(db, "live", "still here")
+      insertTask(db, "recent", "recently deleted", {deletedAt: daysAgo(1)})
+      insertTask(db, "old", "long deleted", {deletedAt: daysAgo(8)})
+      insertTask(db, "epoch", "manually purged", {deletedAt: "1970-01-01T00:00:00.000Z"})
+
+      const purged = await adapter.purgeExpiredDeleted(TTL)
+
+      expect(purged.tasks).toBe(2)
+      expect(
+        db
+          .prepare("SELECT id FROM tasks ORDER BY id")
+          .all()
+          .map((r) => r.id),
+      ).toEqual(["live", "recent"])
+    })
+
+    it("cascades junctions and covers tags and files", async () => {
+      insertTask(db, "t-old", "task", {deletedAt: daysAgo(8)})
+      insertTag(db, "tag-old", "x")
+      db.prepare("UPDATE tags SET deleted_at = ? WHERE id = 'tag-old'").run(daysAgo(8))
+      linkTaskTag(db, "t-old", "tag-old")
+      insertFile(db, "f-old", "f.txt")
+      db.prepare("UPDATE files SET deleted_at = ? WHERE id = 'f-old'").run(daysAgo(8))
+
+      const purged = await adapter.purgeExpiredDeleted(TTL)
+
+      expect(purged.tasks).toBe(1)
+      expect(purged.tags).toBe(1)
+      expect(purged.files).toBe(1)
+      expect(db.prepare("SELECT * FROM task_tags").all()).toHaveLength(0)
     })
   })
 })

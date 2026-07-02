@@ -11,20 +11,24 @@ import fs from "fs-extra"
 
 import {logger} from "@/utils/logger"
 
-import {ENV, fsPaths} from "@/config"
+import {APP_CONFIG, ENV, fsPaths} from "@/config"
 import {initDatabase} from "@/storage/database/instance"
 import {AISessionModel} from "@/storage/models/AISessionModel"
 import {BranchModel} from "@/storage/models/BranchModel"
 import {FileModel} from "@/storage/models/FileModel"
 import {SettingsModel} from "@/storage/models/SettingsModel"
+import {StatsModel} from "@/storage/models/StatsModel"
 import {TagModel} from "@/storage/models/TagModel"
+import {TaskEventModel} from "@/storage/models/TaskEventModel"
 import {TaskModel} from "@/storage/models/TaskModel"
 import {BranchesService} from "@/storage/services/BranchesService"
 import {DaysService} from "@/storage/services/DaysService"
 import {FilesService} from "@/storage/services/FilesService"
 import {SearchService} from "@/storage/services/SearchService"
 import {SettingsService} from "@/storage/services/SettingsService"
+import {StatsService} from "@/storage/services/StatsService"
 import {TagsService} from "@/storage/services/TagsService"
+import {TaskEventsService} from "@/storage/services/TaskEventsService"
 import {TasksService} from "@/storage/services/TasksService"
 import {LocalStorageAdapter} from "@/storage/sync/adapters/LocalStorageAdapter"
 import {RemoteStorageAdapter} from "@/storage/sync/adapters/RemoteStorageAdapter"
@@ -35,7 +39,8 @@ import type {SessionMeta} from "@/storage/models/AISessionModel"
 import type {IStorageController} from "@/types/storage"
 import type {ISODate} from "@shared/types/common"
 import type {TaskSearchResult} from "@shared/types/search"
-import type {Branch, Day, File, MoveTaskByOrderParams, Settings, SyncStatus, Tag, Task} from "@shared/types/storage"
+import type {StatsAggregate, StatsPeriod} from "@shared/types/stats"
+import type {Branch, Day, File, MoveTaskByOrderParams, Settings, SyncStatus, Tag, Task, TaskEvent} from "@shared/types/storage"
 import type {PartialDeep} from "type-fest"
 
 export class StorageController implements IStorageController {
@@ -47,12 +52,15 @@ export class StorageController implements IStorageController {
   private tagsService!: TagsService
   private filesService!: FilesService
   private daysService!: DaysService
+  private statsService!: StatsService
   private searchService!: SearchService
   private syncEngine!: SyncEngine
+  private localAdapter!: LocalStorageAdapter
   private aiSessionModel!: AISessionModel
 
   private notifyStorageStatusChange?: (status: SyncStatus, prevStatus: SyncStatus) => void
   private notifyStorageDataChange?: () => void
+  private notifySettingsChange?: () => void
 
   async init(): Promise<void> {
     await fs.ensureDir(this.rootDir)
@@ -63,6 +71,7 @@ export class StorageController implements IStorageController {
     const settingsModel = new SettingsModel(db)
     const branchModel = new BranchModel(db)
     const taskModel = new TaskModel(db)
+    const taskEventModel = new TaskEventModel(db)
     const tagModel = new TagModel(db)
     const fileModel = new FileModel(db, fsPaths.assetsDir())
 
@@ -73,16 +82,17 @@ export class StorageController implements IStorageController {
 
     this.settingsService = new SettingsService(settingsModel)
     this.branchesService = new BranchesService(branchModel, this.settingsService)
-    this.tasksService = new TasksService(taskModel)
+    this.tasksService = new TasksService(taskModel, new TaskEventsService(taskEventModel))
     this.tagsService = new TagsService(tagModel)
     this.filesService = new FilesService(fileModel, taskModel)
     this.daysService = new DaysService(taskModel)
+    this.statsService = new StatsService(new StatsModel(db))
     this.searchService = new SearchService(taskModel, branchModel)
 
     const remoteAdapter = new RemoteStorageAdapter(fsPaths.remoteSyncPath())
-    const localAdapter = new LocalStorageAdapter(db)
+    this.localAdapter = new LocalStorageAdapter(db)
 
-    this.syncEngine = new SyncEngine(localAdapter, remoteAdapter, {
+    this.syncEngine = new SyncEngine(this.localAdapter, remoteAdapter, {
       onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => this.notifyStorageStatusChange?.(status, prevStatus),
       onDataChanged: () => {
         this.notifyStorageDataChange?.()
@@ -104,9 +114,14 @@ export class StorageController implements IStorageController {
   }
 
   //#region STORAGE
-  setupStorageBroadcasts(callbacks: {onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => void; onDataChange: () => void}): void {
+  setupStorageBroadcasts(callbacks: {
+    onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => void
+    onDataChange: () => void
+    onSettingsChange: () => void
+  }) {
     this.notifyStorageStatusChange = callbacks.onStatusChange
     this.notifyStorageDataChange = callbacks.onDataChange
+    this.notifySettingsChange = callbacks.onSettingsChange
   }
 
   async activateSync() {
@@ -143,7 +158,7 @@ export class StorageController implements IStorageController {
 
   async saveSettings(newSettings: Partial<Settings>): Promise<void> {
     await this.settingsService.saveSettings(newSettings)
-    this.notifyStorageDataChange?.()
+    this.notifySettingsChange?.()
   }
   //#endregion
 
@@ -156,6 +171,25 @@ export class StorageController implements IStorageController {
   async getDay(date: ISODate): Promise<Day | null> {
     const branchId = await this.branchesService.getActiveBranchId()
     return this.daysService.getDay(date, {branchId})
+  }
+  //#endregion
+
+  //#region ACTIVITY
+  async getActivityByDay(date: ISODate, branchId?: Branch["id"]): Promise<TaskEvent[]> {
+    const resolvedBranchId = await this.branchesService.resolveBranchId(branchId)
+    return this.tasksService.getActivityByDay(date, resolvedBranchId)
+  }
+
+  async getTaskHistory(taskId: Task["id"]): Promise<TaskEvent[]> {
+    return this.tasksService.getHistoryByTask(taskId)
+  }
+  //#endregion
+
+  //#region STATS
+  async getStats(period: StatsPeriod, anchor: ISODate, branchId?: Branch["id"]): Promise<StatsAggregate> {
+    const resolvedBranchId = await this.branchesService.resolveBranchId(branchId)
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    return this.statsService.getStats(period, anchor, resolvedBranchId, timezone)
   }
   //#endregion
 
@@ -408,6 +442,17 @@ export class StorageController implements IStorageController {
 
   async cleanupOrphanFiles(): Promise<void> {
     return this.filesService.cleanupOrphanFiles()
+  }
+
+  /**
+   * Hard-delete soft-deleted records past the GC TTL, independent of sync.
+   * The sync engine only purges during merges, so without iCloud the trash would
+   * grow forever; this runs the same TTL-based purge once on startup.
+   */
+  async collectGarbage(): Promise<void> {
+    const purged = await this.localAdapter.purgeExpiredDeleted(APP_CONFIG.sync.garbageCollectionInterval)
+    const total = purged.tasks + purged.tags + purged.branches + purged.files
+    if (total > 0) logger.info(logger.CONTEXT.STORAGE, `Garbage collected ${total} expired soft-deleted records`, purged)
   }
   //#endregion
 

@@ -1,11 +1,9 @@
 import type {AIConfig} from "./ai"
-import type {ID, ISODate, ISODateTime, ISOTime, Timezone} from "./common"
+import type {ISODate, ISODateTime, ISOTime, Timezone} from "./common"
 import type {AppUpdateSource} from "./update"
 
 export type SyncStatus = "inactive" | "active" | "syncing" | "error"
-export type LayoutType = "list" | "columns"
 export type TaskStatus = "active" | "discarded" | "done"
-export type TaskMoveMode = "list" | "column"
 export type TaskMovePosition = "before" | "after"
 
 export type MainWindowSettings = {
@@ -36,44 +34,32 @@ export type InstalledAppReleaseState = {
   installedAt: ISODateTime
 }
 
+export type AppearanceMode = "light" | "dark" | "system"
+
 export type Settings = {
   version: string
-  themes: {
-    current: string
-    preferredLight: string
-    preferredDark: string
-    useSystem: boolean
-    glassUI: boolean
-  }
-  sidebar: {
-    collapsed: boolean
+  appearance: {
+    mode: AppearanceMode
+    accent: string
   }
   sync: {
     enabled: boolean
   }
   ai: AIConfig | null
   branch: {
-    activeId: ID
+    activeId: Branch["id"]
   }
   layout: {
-    type: LayoutType
-    /**
-     * Indicates whether columns with no tasks should be hidden.
-     * Applies only to the "columns" layout type.
-     */
-    columnsHideEmpty: boolean
-    /**
-     * Indicates whether empty columns should be automatically collapsed.
-     * Applies only to the "columns" layout type.
-     */
-    columnsAutoCollapseEmpty: boolean
-    /**
-     * Indicates whether columns have been manually collapsed.
-     * Applies only to the "columns" layout type.
-     * @example {active: true, discarded: false, done: false} means that "active" and "done" columns are collapsed by user
-     * @default {active: false, discarded: false, done: false}
-     */
-    columnsCollapsed: Record<TaskStatus, boolean>
+    /** Hide sections with no tasks. */
+    sectionsHideEmpty: boolean
+    /** Auto-collapse sections with no tasks. */
+    sectionsAutoCollapseEmpty: boolean
+    /** Manual collapse state per status. */
+    sectionsCollapsed: Record<TaskStatus, boolean>
+    /** Left widget panel. */
+    leftPanel: {
+      visible: boolean
+    }
   }
   window: {
     main: MainWindowSettings
@@ -97,13 +83,13 @@ export type Settings = {
 
 export type Task = {
   /** Task ID (task:ID) */
-  id: ID
+  id: string
   createdAt: ISODateTime
   updatedAt: ISODateTime
   /** ISO timestamp when task was soft-deleted. Null if not deleted. */
   deletedAt: ISODateTime | null
   /** Branch ID (project scope). */
-  branchId: ID
+  branchId: Branch["id"]
 
   scheduled: {
     date: ISODate
@@ -140,7 +126,7 @@ export type Task = {
 }
 
 export type Tag = {
-  id: ID
+  id: string
   createdAt: ISODateTime
   updatedAt: ISODateTime
   deletedAt: ISODateTime | null
@@ -150,7 +136,7 @@ export type Tag = {
 }
 
 export type Branch = {
-  id: ID
+  id: string
   createdAt: ISODateTime
   updatedAt: ISODateTime
   deletedAt: ISODateTime | null
@@ -159,7 +145,7 @@ export type Branch = {
 }
 
 export type File = {
-  id: ID
+  id: string
   createdAt: ISODateTime
   updatedAt: ISODateTime
   deletedAt: ISODateTime | null
@@ -170,7 +156,7 @@ export type File = {
 }
 
 export type Day = {
-  id: ID
+  id: string
   date: ISODate
   tasks: Task[]
   tags: Tag[]
@@ -178,9 +164,26 @@ export type Day = {
   countDone: number
 }
 
+export type TaskEventType = "created" | "completed" | "discarded" | "reactivated" | "edited" | "deleted" | "restored" | "moved"
+
+export type TaskEvent = {
+  id: string
+
+  taskId: Task["id"]
+  branchId: Branch["id"]
+  type: TaskEventType
+  /** The task's day this event belongs to (its scheduled date at event time). */
+  eventDate: ISODate
+  /** Move source day; null for non-move events. */
+  fromDate: ISODate | null
+  /** Move target day; null for non-move events. */
+  toDate: ISODate | null
+  /** Instant of the action — used for ordering and time-of-day display. */
+  createdAt: ISODateTime
+}
+
 export type MoveTaskByOrderParams = {
   taskId: Task["id"]
-  mode: TaskMoveMode
   targetTaskId?: Task["id"] | null
   targetStatus?: TaskStatus
   position?: TaskMovePosition

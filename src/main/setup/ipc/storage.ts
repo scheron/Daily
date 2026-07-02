@@ -2,16 +2,21 @@ import {ipcMain} from "electron"
 
 import type {IStorageController} from "@/types/storage"
 import type {ISODate} from "@shared/types/common"
+import type {StatsPeriod} from "@shared/types/stats"
 import type {Branch, MoveTaskByOrderParams, Tag, Task} from "@shared/types/storage"
 import type {PartialDeep} from "type-fest"
 
 // prettier-ignore
-export function setupStorageIPC(getStorage: () => IStorageController | null): void {
+export function setupStorageIPC(getStorage: () => IStorageController | null) {
   ipcMain.handle("settings:load", (_e) => getStorage()?.loadSettings())
   ipcMain.handle("settings:save", (_e, newSettings: Partial<Record<string, any>>) => getStorage()?.saveSettings(newSettings))
 
   ipcMain.handle("days:get-many", (_e, params?: {from?: ISODate; to?: ISODate; branchId?: Branch["id"]}) => getStorage()?.getDays(params))
   ipcMain.handle("days:get-one", (_e, date: ISODate) => getStorage()?.getDay(date))
+
+  ipcMain.handle("activity:get-by-day", (_e, date: ISODate, branchId?: Branch["id"]) => getStorage()?.getActivityByDay(date, branchId))
+  ipcMain.handle("activity:get-by-task", (_e, taskId: Task["id"]) => getStorage()?.getTaskHistory(taskId))
+  ipcMain.handle("stats:get", (_e, period: StatsPeriod, anchor: ISODate, branchId?: Branch["id"]) => getStorage()?.getStats(period, anchor, branchId))
 
   ipcMain.handle("tasks:get-many", (_e, params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: Branch["id"]}) => getStorage()?.getTaskList(params))
   ipcMain.handle("tasks:get-one", (_e, id: Task["id"]) => getStorage()?.getTask(id))

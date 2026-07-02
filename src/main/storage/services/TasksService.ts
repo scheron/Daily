@@ -1,13 +1,26 @@
+import {notNull, notUndefined} from "@shared/utils/common/validators"
 import {getOrderIndexBetween, getTaskOrderValue, normalizeTaskOrderIndexes, sortTasksByOrderIndex} from "@shared/utils/tasks/orderIndex"
 
 import type {TaskModel} from "@/storage/models/TaskModel"
+import type {TaskEventsService} from "@/storage/services/TaskEventsService"
 import type {TaskInternal} from "@/types/storage"
 import type {ISODate} from "@shared/types/common"
-import type {Branch, File, MoveTaskByOrderParams, Tag, Task, TaskMovePosition} from "@shared/types/storage"
+import type {Branch, File, MoveTaskByOrderParams, Tag, Task, TaskEvent, TaskMovePosition, TaskStatus} from "@shared/types/storage"
 import type {PartialDeep} from "type-fest"
 
 export class TasksService {
-  constructor(private taskModel: TaskModel) {}
+  constructor(
+    private taskModel: TaskModel,
+    private taskEvents: TaskEventsService,
+  ) {}
+
+  async getActivityByDay(date: ISODate, branchId: Branch["id"]): Promise<TaskEvent[]> {
+    return this.taskEvents.getActivityByDay(date, branchId)
+  }
+
+  async getHistoryByTask(taskId: Task["id"]): Promise<TaskEvent[]> {
+    return this.taskEvents.getHistoryByTask(taskId)
+  }
 
   async getTaskList(params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: Branch["id"]}): Promise<Task[]> {
     return this.taskModel.getTaskList(params)
@@ -20,11 +33,15 @@ export class TasksService {
   async updateTask(id: Task["id"], updates: PartialDeep<Task>): Promise<Task | null> {
     const updatesTask: PartialDeep<TaskInternal> = {...updates} as any
 
-    if (updates.tags !== undefined) {
+    if (notUndefined(updates.tags)) {
       updatesTask.tags = (updates.tags as Tag[]).map((t) => t.id)
     }
 
-    return this.taskModel.updateTask(id, updatesTask as Partial<TaskInternal>)
+    const before = this.taskModel.getTask(id)
+    const after = this.taskModel.updateTask(id, updatesTask as Partial<TaskInternal>)
+    if (before && after) this.taskEvents.recordUpdate(before, after)
+
+    return after
   }
 
   async createTask(task: Task): Promise<Task | null> {
@@ -33,7 +50,10 @@ export class TasksService {
       tags: task.tags ? task.tags.map((t) => t.id) : [],
     } as Omit<TaskInternal, "id" | "createdAt" | "updatedAt">
 
-    return this.taskModel.createTask(newTask)
+    const created = this.taskModel.createTask(newTask)
+    if (created) this.taskEvents.record(created, "created")
+
+    return created
   }
 
   async moveTaskByOrder(params: MoveTaskByOrderParams): Promise<Task | null> {
@@ -56,7 +76,7 @@ export class TasksService {
 
     const dayTaskById = new Map(dayTasks.map((task) => [task.id, task]))
     const tasksWithoutSource = dayTasks.filter((task) => task.id !== sourceTask.id)
-    const destinationScope = params.mode === "column" ? tasksWithoutSource.filter((task) => task.status === targetStatus) : tasksWithoutSource
+    const destinationScope = tasksWithoutSource.filter((task) => task.status === targetStatus)
     const orderedDestinationScope = sortTasksByOrderIndex(destinationScope)
     const insertAt = resolveInsertIndex(orderedDestinationScope, targetTaskId, position)
 
@@ -64,14 +84,14 @@ export class TasksService {
     const nextTask = orderedDestinationScope[insertAt] ?? null
     const nextOrderIndex = getOrderIndexBetween(prevTask ? getTaskOrderValue(prevTask) : null, nextTask ? getTaskOrderValue(nextTask) : null)
 
-    if (nextOrderIndex !== null) {
+    if (notNull(nextOrderIndex)) {
       const updates: Partial<TaskInternal> = {orderIndex: nextOrderIndex}
       if (targetStatus !== sourceTask.status) {
         updates.status = targetStatus
       }
 
       this.taskModel.updateTask(sourceTask.id, updates as Partial<TaskInternal>)
-      return this.getTask(sourceTask.id)
+      return this.finalizeMove(sourceTask, targetStatus)
     }
 
     const movedTask: Task = {...sourceTask, status: targetStatus}
@@ -96,7 +116,7 @@ export class TasksService {
       this.taskModel.updateTask(existing.id, updates)
     }
 
-    return this.getTask(sourceTask.id)
+    return this.finalizeMove(sourceTask, targetStatus)
   }
 
   async moveTaskToBranch(taskId: Task["id"], branchId: Branch["id"]): Promise<boolean> {
@@ -111,7 +131,11 @@ export class TasksService {
   }
 
   async deleteTask(id: Task["id"]): Promise<boolean> {
-    return this.taskModel.deleteTask(id)
+    const task = this.taskModel.getTask(id)
+    const deleted = this.taskModel.deleteTask(id)
+    if (deleted && task) this.taskEvents.record(task, "deleted")
+
+    return deleted
   }
 
   async getDeletedTasks(params?: {limit?: number; branchId?: Branch["id"]}): Promise<Task[]> {
@@ -119,7 +143,10 @@ export class TasksService {
   }
 
   async restoreTask(id: Task["id"]): Promise<Task | null> {
-    return this.taskModel.restoreTask(id)
+    const restored = this.taskModel.restoreTask(id)
+    if (restored) this.taskEvents.record(restored, "restored")
+
+    return restored
   }
 
   async permanentlyDeleteTask(id: Task["id"]): Promise<boolean> {
@@ -144,6 +171,15 @@ export class TasksService {
 
   async removeTaskAttachment(taskId: Task["id"], fileId: File["id"]): Promise<Task | null> {
     return this.taskModel.removeTaskAttachment(taskId, fileId)
+  }
+
+  private finalizeMove(sourceTask: Task, targetStatus: TaskStatus): Task | null {
+    const finalTask = this.taskModel.getTask(sourceTask.id)
+    if (finalTask && targetStatus !== sourceTask.status) {
+      this.taskEvents.recordStatusChange(finalTask, targetStatus)
+    }
+
+    return finalTask
   }
 }
 

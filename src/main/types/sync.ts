@@ -8,7 +8,7 @@ export type SnapshotMeta = {
 }
 
 export type Snapshot = {
-  version: 2
+  version: 2 | 3
   docs: SnapshotDocs
   meta: SnapshotMeta
 }
@@ -18,7 +18,19 @@ export type SnapshotDocs = {
   tags: SnapshotTag[]
   branches: SnapshotBranch[]
   files: SnapshotFile[]
+  events: SnapshotTaskEvent[]
   settings: SnapshotSettings | null
+}
+
+export type SnapshotTaskEvent = {
+  id: string
+  task_id: string
+  branch_id: string
+  type: string
+  event_date: string
+  from_date: string | null
+  to_date: string | null
+  created_at: string
 }
 
 export type SnapshotTask = {

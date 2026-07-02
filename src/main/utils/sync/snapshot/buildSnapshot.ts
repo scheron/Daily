@@ -4,7 +4,7 @@ import type {Snapshot, SnapshotDocs, SnapshotMeta, SnapshotSettings} from "@/typ
 
 export function buildSnapshot(docs: SnapshotDocs): Snapshot {
   return {
-    version: 2,
+    version: 3,
     docs,
     meta: buildSnapshotMeta(docs),
   }
@@ -18,8 +18,9 @@ export function buildSnapshotMeta(docs: SnapshotDocs): SnapshotMeta {
   const tagsHash = computeCollectionHash(docs.tags)
   const branchesHash = computeCollectionHash(docs.branches)
   const filesHash = computeCollectionHash(docs.files)
+  const eventsHash = computeCollectionHash(docs.events)
   const settingsHash = computeSettingsHash(docs.settings)
-  const combinedHash = computeCombinedHash(tasksHash, tagsHash, branchesHash, filesHash, settingsHash)
+  const combinedHash = computeCombinedHash(tasksHash, tagsHash, branchesHash, filesHash, eventsHash, settingsHash)
 
   return {
     updatedAt: new Date().toISOString(),
@@ -27,8 +28,15 @@ export function buildSnapshotMeta(docs: SnapshotDocs): SnapshotMeta {
   }
 }
 
-function computeCombinedHash(tasksHash: string, tagsHash: string, branchesHash: string, filesHash: string, settingsHash: string): string {
-  const combined = tasksHash + tagsHash + branchesHash + filesHash + settingsHash
+function computeCombinedHash(
+  tasksHash: string,
+  tagsHash: string,
+  branchesHash: string,
+  filesHash: string,
+  eventsHash: string,
+  settingsHash: string,
+): string {
+  const combined = [tasksHash, tagsHash, branchesHash, filesHash, eventsHash, settingsHash].join("")
   return crypto.createHash("sha256").update(combined).digest("hex")
 }
 
