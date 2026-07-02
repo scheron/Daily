@@ -2,19 +2,25 @@
 @import "./fonts.css";
 @import "tailwindcss";
 
+/** Below the `md` breakpoint (`compact:rounded-none`, etc.) — mirrors `useUIStore().isCompact`. */
+@custom-variant compact (@media (width < 48rem));
+
+/** Dark theme — applied via the `.dark` class on `<html>`. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
-  --header-height: 40px;
+  --header-height: 44px;
+  --toolbar-height: 36px;
+  --footer-height: 42px;
   --card-min-height: 100px;
-  --traffic-light-width: 64px;
-  --task-content-minimized-height: 200px;
-  --glass-surface: color-mix(in oklab, var(--color-base-100) 74%, transparent);
-  --glass-border: color-mix(in oklab, var(--color-base-content) 14%, transparent);
-  --glass-blur: 18px;
-  --glass-shadow: 0 10px 40px color-mix(in oklab, var(--color-base-content) 10%, transparent);
+  --traffic-light-width: 80px;
+  --task-content-minimized-height: 220px;
 }
 
 @theme {
   --spacing-header: var(--header-height);
+  --spacing-toolbar: var(--toolbar-height);
+  --spacing-footer: var(--footer-height);
   --spacing-card: var(--card-min-height);
   --spacing-task-content-minimized: var(--task-content-minimized-height);
   --spacing-traffic-light: var(--traffic-light-width);
@@ -38,6 +44,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   user-select: none;
+  overflow: hidden;
 }
 
 ::-webkit-scrollbar {
@@ -72,61 +79,6 @@ body {
   box-shadow: 0 0 8px 1px var(--color-accent);
 }
 
-html.glass-ui body {
-  background: transparent;
-}
-
-html.glass-ui .app-shell {
-  position: relative;
-  isolation: isolate;
-  background: color-mix(in oklab, var(--color-base-100) 22%, transparent);
-  border: 1px solid color-mix(in oklab, var(--color-accent) 26%, transparent);
-  border-radius: 14px;
-  overflow: hidden;
-  backdrop-filter: blur(34px);
-  -webkit-backdrop-filter: blur(34px);
-}
-
-html.glass-ui .app-shell::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  backdrop-filter: blur(40px);
-  -webkit-backdrop-filter: blur(40px);
-  background: color-mix(in oklab, var(--color-base-100) 56%, transparent);
-}
-
-html.glass-ui .app-main-panel,
-html.glass-ui .app-header,
-html.glass-ui .app-toolbar,
-html.glass-ui .app-content {
-  position: relative;
-  z-index: 1;
-  background: transparent !important;
-  box-shadow: none;
-}
-
-html.glass-ui #app [class*="bg-base-"]:not(.app-shell) {
-  background-color: color-mix(in oklab, var(--color-base-100) 38%, transparent) !important;
-  backdrop-filter: blur(18px) saturate(128%);
-  -webkit-backdrop-filter: blur(18px) saturate(128%);
-}
-
-@supports not ((backdrop-filter: blur(1px))) {
-  html.glass-ui .app-shell {
-    background: color-mix(in oklab, var(--color-base-300) 72%, transparent);
-  }
-
-  html.glass-ui .app-main-panel,
-  html.glass-ui .app-header,
-  html.glass-ui .app-toolbar,
-  html.glass-ui .app-content {
-    background: color-mix(in oklab, var(--color-base-100) 84%, transparent) !important;
-  }
-
-  html.glass-ui #app [class*="bg-base-"]:not(.app-shell) {
-    background-color: color-mix(in oklab, var(--color-base-100) 84%, transparent) !important;
-  }
+@utility drag-region {
+  -webkit-app-region: drag;
 }
