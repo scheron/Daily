@@ -1,4 +1,5 @@
 import {computed, ref} from "vue"
+import {sort} from "fast-sort"
 import {defineStore} from "pinia"
 
 import {useSettingsStore} from "@/stores/settings.store"
@@ -17,7 +18,7 @@ export const useBranchesStore = defineStore("branches", () => {
   const activeBranchId = computed(() => settingsStore.settings?.branch?.activeId ?? null)
   const activeBranch = computed(() => (activeBranchId.value ? (branchesMap.value.get(activeBranchId.value) ?? null) : null))
   const orderedBranches = computed(() => {
-    return [...branches.value].sort((a, b) => a.name.localeCompare(b.name, undefined, {sensitivity: "base"}))
+    return sort(branches.value).asc((b) => b.name.toLowerCase())
   })
 
   async function getBranchList() {

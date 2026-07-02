@@ -33,7 +33,7 @@ function onItemClick(value: BaseMenuItem["value"]) {
 </script>
 
 <template>
-  <ul :class="cn('size-full p-1', props.class)">
+  <ul :class="cn('size-full', props.class)">
     <li v-for="(item, i) in items" :key="item.separator ? `sep-${i}` : item.value" :class="{'my-1': item.separator}">
       <div v-if="item.separator" class="relative h-px w-full">
         <span class="bg-base-300 absolute inset-0 block h-px w-full scale-x-200"></span>
@@ -43,7 +43,7 @@ function onItemClick(value: BaseMenuItem["value"]) {
         v-else
         type="button"
         :data-menu-item="item.value"
-        class="focus-visible-ring focus-visible:ring-offset-base-100 focus-visible:ring-accent w-full rounded-md outline-none"
+        class="focus-visible-accent w-full rounded-md outline-none"
         :disabled="item.disabled"
         @click="onItemClick(item.value)"
       >
