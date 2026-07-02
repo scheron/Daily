@@ -30,7 +30,8 @@ describe("SettingsModel", () => {
 
     expect(settings.sync.enabled).toBe(false)
     expect(settings.branch.activeId).toBe("main")
-    expect(settings.themes.current).toBe("github-light")
+    expect(settings.appearance.mode).toBe("system")
+    expect(settings.appearance.accent).toBe("teal")
   })
 
   it("saves and loads settings preserving values", () => {

@@ -1,5 +1,7 @@
 import {MAIN_BRANCH_ID} from "@shared/constants/storage"
+import {DEFAULT_ACCENT_ID} from "@shared/constants/theme"
 import {deepMerge} from "@shared/utils/common/deepMerge"
+import {isNumber, notNull} from "@shared/utils/common/validators"
 
 import {APP_CONFIG} from "@/config"
 
@@ -65,7 +67,7 @@ export function rowToTask(row: TaskRow): Task {
     try {
       const parsed = JSON.parse(row.tags_json)
       if (Array.isArray(parsed)) {
-        tags = parsed.filter((t: any) => t !== null && t.id !== null)
+        tags = parsed.filter((t: any) => notNull(t) && notNull(t.id))
       }
     } catch {
       /* empty */
@@ -77,14 +79,14 @@ export function rowToTask(row: TaskRow): Task {
     try {
       const parsed = JSON.parse(row.attachments_json)
       if (Array.isArray(parsed)) {
-        attachments = parsed.filter((a: any) => a !== null)
+        attachments = parsed.filter((a: any) => notNull(a))
       }
     } catch {
       /* empty */
     }
   }
 
-  const orderIndex = typeof row.order_index === "number" && Number.isFinite(row.order_index) ? row.order_index : Date.parse(row.created_at)
+  const orderIndex = isNumber(row.order_index) && Number.isFinite(row.order_index) ? row.order_index : Date.parse(row.created_at)
 
   return {
     id: row.id,
@@ -144,22 +146,18 @@ export function rowToFile(row: FileRow): File {
 export function getDefaultSettings(): Settings {
   return {
     version: "",
-    themes: {
-      current: "github-light",
-      preferredLight: "github-light",
-      preferredDark: "github-dark",
-      useSystem: true,
-      glassUI: false,
+    appearance: {
+      mode: "system",
+      accent: DEFAULT_ACCENT_ID,
     },
-    sidebar: {collapsed: false},
     sync: {enabled: false},
     ai: null,
     branch: {activeId: MAIN_BRANCH_ID},
     layout: {
-      type: "list",
-      columnsHideEmpty: false,
-      columnsAutoCollapseEmpty: false,
-      columnsCollapsed: {active: false, discarded: false, done: false},
+      sectionsHideEmpty: false,
+      sectionsAutoCollapseEmpty: false,
+      sectionsCollapsed: {active: false, discarded: false, done: false},
+      leftPanel: {visible: true},
     },
     window: {
       main: {
@@ -173,10 +171,27 @@ export function getDefaultSettings(): Settings {
   }
 }
 
+/**
+ * Migrates a persisted settings blob from the old `themes` shape to `appearance`.
+ * No-op (returns the input) when the blob already has `appearance` or has no `themes`.
+ * @example migrateSettingsShape({themes: {current: "aurora", useSystem: false}})
+ */
+export function migrateSettingsShape(parsed: any): any {
+  if (!parsed || typeof parsed !== "object") return parsed
+  if (parsed.appearance || !parsed.themes) return parsed
+
+  const old = parsed.themes
+  const mode = old.useSystem ? "system" : (OLD_THEME_TYPE[old.current] ?? "dark")
+  const accent = OLD_THEME_ACCENT[old.current] ?? DEFAULT_ACCENT_ID
+
+  const {themes: _themes, ...rest} = parsed
+  return {...rest, appearance: {mode, accent}}
+}
+
 export function rowToSettings(row: SettingsRow): Settings {
   const defaults = getDefaultSettings()
   try {
-    const parsed = JSON.parse(row.data)
+    const parsed = migrateSettingsShape(JSON.parse(row.data))
     return deepMerge<Settings>(defaults, parsed)
   } catch {
     return defaults
@@ -184,3 +199,37 @@ export function rowToSettings(row: SettingsRow): Settings {
 }
 
 export type {TaskRow, TagRow, BranchRow, FileRow, SettingsRow}
+
+const OLD_THEME_TYPE: Record<string, "light" | "dark"> = {
+  "github-light": "light",
+  lofi: "light",
+  "aurora-light": "light",
+  "tokyo-light": "light",
+  "bamboo-grove": "light",
+  "ayu-light": "light",
+  night: "dark",
+  "github-dark": "dark",
+  luxury: "dark",
+  aurora: "dark",
+  "tokyo-dark": "dark",
+  "lofi-dark": "dark",
+  neon: "dark",
+  "ayu-dark": "dark",
+}
+
+const OLD_THEME_ACCENT: Record<string, string> = {
+  "github-light": "blue",
+  lofi: "teal",
+  "aurora-light": "teal",
+  "tokyo-light": "indigo",
+  "bamboo-grove": "amber",
+  "ayu-light": "orange",
+  night: "blue",
+  "github-dark": "blue",
+  luxury: "teal",
+  aurora: "teal",
+  "tokyo-dark": "indigo",
+  "lofi-dark": "teal",
+  neon: "pink",
+  "ayu-dark": "amber",
+}
