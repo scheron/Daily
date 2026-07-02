@@ -44,9 +44,10 @@ export class RemoteStorageAdapter implements IRemoteStorage {
           return null
         }
 
-        /* Old snapshots may omit docs.branches; normalize for downstream code. */
+        /* Old snapshots (v2) may omit docs.branches / docs.events; normalize for downstream code. */
         if (parsed.docs) {
           parsed.docs.branches = parsed.docs.branches ?? []
+          parsed.docs.events = parsed.docs.events ?? []
         }
 
         return parsed as Snapshot

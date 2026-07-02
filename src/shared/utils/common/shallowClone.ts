@@ -1,3 +1,5 @@
+import {isArray, isObjectLike} from "./validators"
+
 type AnyRecord = Record<string, any>
 
 /**
@@ -8,9 +10,9 @@ type AnyRecord = Record<string, any>
  */
 export function shallowClone<T>(value: T): T {
   try {
-    if (value === null || typeof value !== "object") return value
+    if (!isObjectLike(value)) return value
 
-    if (Array.isArray(value)) return value.slice() as any
+    if (isArray(value)) return value.slice() as any
 
     if (value instanceof Date) return new Date(value.getTime()) as any
     if (value instanceof RegExp) return new RegExp(value.source, value.flags) as any
@@ -35,8 +37,8 @@ export function shallowClone<T>(value: T): T {
 }
 
 function isPlainObject(value: any): value is AnyRecord {
-  if (value === null || typeof value !== "object") return false
-  if (Array.isArray(value)) return false
+  if (!isObjectLike(value)) return false
+  if (isArray(value)) return false
   const proto = Object.getPrototypeOf(value)
   return proto === Object.prototype || proto === null
 }

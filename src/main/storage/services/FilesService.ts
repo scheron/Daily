@@ -1,6 +1,7 @@
 import path from "node:path"
 import {nanoid} from "nanoid"
 
+import {isNull, notNull} from "@shared/utils/common/validators"
 import {extractFileIds} from "@/utils/files/extractFileIds"
 import {getMimeType} from "@/utils/files/getMimeType"
 import {logger} from "@/utils/logger"
@@ -61,7 +62,7 @@ export class FilesService {
         })
       }
 
-      if (file.deletedAt !== null) {
+      if (notNull(file.deletedAt)) {
         logger.warn(logger.CONTEXT.FILES, `File is deleted: ${id}`)
         return new Response("File not found", {
           status: 404,
@@ -98,7 +99,7 @@ export class FilesService {
       }
 
       const allFiles = this.fileModel.getFileList()
-      const orphans = allFiles.filter((file) => file.deletedAt === null && !referencedIds.has(file.id))
+      const orphans = allFiles.filter((file) => isNull(file.deletedAt) && !referencedIds.has(file.id))
 
       for (const orphan of orphans) {
         const ext = path.extname(orphan.name).slice(1)

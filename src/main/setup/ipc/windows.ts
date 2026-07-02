@@ -2,7 +2,7 @@ import {ipcMain} from "electron"
 
 import type {BrowserWindow} from "electron"
 
-export function setupMainWindowIPC(getMainWindow: () => BrowserWindow | null): void {
+export function setupMainWindowIPC(getMainWindow: () => BrowserWindow | null) {
   ipcMain.on("window:minimize", () => getMainWindow()?.minimize())
   ipcMain.on("window:maximize", () => {
     const mainWindow = getMainWindow()

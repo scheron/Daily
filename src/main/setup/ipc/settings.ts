@@ -1,10 +1,10 @@
 import {ipcMain} from "electron"
 
-import {createSettingsWindow} from "@/windows"
+import {createSettingsWindow} from "@/windows/settings.window"
 
 import type {BrowserWindow} from "electron"
 
-export function setupSettingsIPC(getSettingsWindow: () => BrowserWindow | null, setSettingsWindow: (window: BrowserWindow | null) => void): void {
+export function setupSettingsIPC(getSettingsWindow: () => BrowserWindow | null, setSettingsWindow: (window: BrowserWindow | null) => void) {
   ipcMain.on("settings:open", (_event, section?: string) => {
     const existing = getSettingsWindow()
 

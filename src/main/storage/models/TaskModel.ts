@@ -1,13 +1,14 @@
 import {nanoid} from "nanoid"
 
 import {MAIN_BRANCH_ID} from "@shared/constants/storage"
+import {notUndefined} from "@shared/utils/common/validators"
 import {logger} from "@/utils/logger"
 
 import {rowToTask} from "./_rowMappers"
 
 import type {TaskInternal} from "@/types/storage"
-import type {ID, ISODate} from "@shared/types/common"
-import type {Task} from "@shared/types/storage"
+import type {ISODate} from "@shared/types/common"
+import type {Branch, File, Tag, Task} from "@shared/types/storage"
 import type Database from "better-sqlite3"
 
 const TASK_SELECT = `
@@ -40,7 +41,7 @@ const TASK_SELECT = `
 export class TaskModel {
   constructor(private db: Database.Database) {}
 
-  getTaskList(params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: ID; includeDeleted?: boolean}): Task[] {
+  getTaskList(params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: Branch["id"]; includeDeleted?: boolean}): Task[] {
     const conditions: string[] = []
     const values: any[] = []
 
@@ -71,7 +72,7 @@ export class TaskModel {
     const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : ""
     let sql = `${TASK_SELECT} ${where} ORDER BY t.scheduled_date, t.order_index`
 
-    if (params?.limit !== undefined && Number.isFinite(params.limit)) {
+    if (notUndefined(params?.limit) && Number.isFinite(params.limit)) {
       sql += ` LIMIT ${params.limit}`
     }
 
@@ -82,7 +83,7 @@ export class TaskModel {
     return rows.map(rowToTask)
   }
 
-  getTask(id: ID): Task | null {
+  getTask(id: Task["id"]): Task | null {
     const sql = `${TASK_SELECT} WHERE t.id = ?`
     const row = this.db.prepare(sql).get(id) as any
 
@@ -147,61 +148,61 @@ export class TaskModel {
     return this.getTask(id)
   }
 
-  updateTask(id: ID, updates: Partial<TaskInternal>): Task | null {
+  updateTask(id: Task["id"], updates: Partial<TaskInternal>): Task | null {
     const now = new Date().toISOString()
     const setClauses: string[] = []
     const values: any[] = []
 
-    if (updates.status !== undefined) {
+    if (notUndefined(updates.status)) {
       setClauses.push("status = ?")
       values.push(updates.status)
     }
 
-    if (updates.content !== undefined) {
+    if (notUndefined(updates.content)) {
       setClauses.push("content = ?")
       values.push(updates.content)
     }
 
-    if (updates.minimized !== undefined) {
+    if (notUndefined(updates.minimized)) {
       setClauses.push("minimized = ?")
       values.push(updates.minimized ? 1 : 0)
     }
 
-    if (updates.orderIndex !== undefined) {
+    if (notUndefined(updates.orderIndex)) {
       setClauses.push("order_index = ?")
       values.push(updates.orderIndex)
     }
 
-    if (updates.estimatedTime !== undefined) {
+    if (notUndefined(updates.estimatedTime)) {
       setClauses.push("estimated_time = ?")
       values.push(updates.estimatedTime)
     }
 
-    if (updates.spentTime !== undefined) {
+    if (notUndefined(updates.spentTime)) {
       setClauses.push("spent_time = ?")
       values.push(updates.spentTime)
     }
 
-    if (updates.branchId !== undefined) {
+    if (notUndefined(updates.branchId)) {
       setClauses.push("branch_id = ?")
       values.push(updates.branchId)
     }
 
-    if (updates.deletedAt !== undefined) {
+    if (notUndefined(updates.deletedAt)) {
       setClauses.push("deleted_at = ?")
       values.push(updates.deletedAt)
     }
 
-    if (updates.scheduled !== undefined) {
-      if (updates.scheduled.date !== undefined) {
+    if (notUndefined(updates.scheduled)) {
+      if (notUndefined(updates.scheduled.date)) {
         setClauses.push("scheduled_date = ?")
         values.push(updates.scheduled.date)
       }
-      if (updates.scheduled.time !== undefined) {
+      if (notUndefined(updates.scheduled.time)) {
         setClauses.push("scheduled_time = ?")
         values.push(updates.scheduled.time)
       }
-      if (updates.scheduled.timezone !== undefined) {
+      if (notUndefined(updates.scheduled.timezone)) {
         setClauses.push("scheduled_timezone = ?")
         values.push(updates.scheduled.timezone)
       }
@@ -220,14 +221,14 @@ export class TaskModel {
         this.db.prepare(`UPDATE tasks SET updated_at = ? WHERE id = ?`).run(now, id)
       }
 
-      if (updates.tags !== undefined) {
+      if (notUndefined(updates.tags)) {
         this.db.prepare(`DELETE FROM task_tags WHERE task_id = ?`).run(id)
         for (const tagId of updates.tags) {
           this.db.prepare(`INSERT OR IGNORE INTO task_tags (task_id, tag_id) VALUES (?, ?)`).run(id, tagId)
         }
       }
 
-      if (updates.attachments !== undefined) {
+      if (notUndefined(updates.attachments)) {
         this.db.prepare(`DELETE FROM task_attachments WHERE task_id = ?`).run(id)
         for (const fileId of updates.attachments) {
           this.db.prepare(`INSERT OR IGNORE INTO task_attachments (task_id, file_id) VALUES (?, ?)`).run(id, fileId)
@@ -241,7 +242,7 @@ export class TaskModel {
     return this.getTask(id)
   }
 
-  deleteTask(id: ID): boolean {
+  deleteTask(id: Task["id"]): boolean {
     const now = new Date().toISOString()
     const result = this.db.prepare(`UPDATE tasks SET deleted_at = ?, updated_at = ? WHERE id = ?`).run(now, now, id)
 
@@ -249,7 +250,7 @@ export class TaskModel {
     return result.changes > 0
   }
 
-  getDeletedTasks(params?: {limit?: number; branchId?: ID}): Task[] {
+  getDeletedTasks(params?: {limit?: number; branchId?: Branch["id"]}): Task[] {
     const conditions: string[] = ["t.deleted_at IS NOT NULL", "t.deleted_at >= '2000-01-01'"]
     const values: any[] = []
 
@@ -266,7 +267,7 @@ export class TaskModel {
     const where = `WHERE ${conditions.join(" AND ")}`
     let sql = `${TASK_SELECT} ${where} ORDER BY t.deleted_at DESC`
 
-    if (params?.limit !== undefined && Number.isFinite(params.limit)) {
+    if (notUndefined(params?.limit) && Number.isFinite(params.limit)) {
       sql += ` LIMIT ${params.limit}`
     }
 
@@ -277,7 +278,7 @@ export class TaskModel {
     return rows.map(rowToTask)
   }
 
-  restoreTask(id: ID): Task | null {
+  restoreTask(id: Task["id"]): Task | null {
     const now = new Date().toISOString()
     this.db.prepare(`UPDATE tasks SET deleted_at = NULL, updated_at = ? WHERE id = ?`).run(now, id)
 
@@ -285,7 +286,7 @@ export class TaskModel {
     return this.getTask(id)
   }
 
-  permanentlyDeleteTask(id: ID): boolean {
+  permanentlyDeleteTask(id: Task["id"]): boolean {
     const now = new Date().toISOString()
     const result = this.db
       .prepare(
@@ -299,7 +300,7 @@ export class TaskModel {
     return result.changes > 0
   }
 
-  permanentlyDeleteAllDeletedTasks(branchId?: ID): number {
+  permanentlyDeleteAllDeletedTasks(branchId?: Branch["id"]): number {
     const now = new Date().toISOString()
     let result
 
@@ -340,7 +341,7 @@ export class TaskModel {
     return result.changes
   }
 
-  addTaskTags(taskId: ID, tagIds: ID[]): Task | null {
+  addTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Task | null {
     for (const tagId of tagIds) {
       this.db.prepare(`INSERT OR IGNORE INTO task_tags (task_id, tag_id) VALUES (?, ?)`).run(taskId, tagId)
     }
@@ -349,7 +350,7 @@ export class TaskModel {
     return this.getTask(taskId)
   }
 
-  removeTaskTags(taskId: ID, tagIds: ID[]): Task | null {
+  removeTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Task | null {
     for (const tagId of tagIds) {
       this.db.prepare(`DELETE FROM task_tags WHERE task_id = ? AND tag_id = ?`).run(taskId, tagId)
     }
@@ -358,14 +359,14 @@ export class TaskModel {
     return this.getTask(taskId)
   }
 
-  addTaskAttachment(taskId: ID, fileId: ID): Task | null {
+  addTaskAttachment(taskId: Task["id"], fileId: File["id"]): Task | null {
     this.db.prepare(`INSERT OR IGNORE INTO task_attachments (task_id, file_id) VALUES (?, ?)`).run(taskId, fileId)
 
     logger.debug(logger.CONTEXT.TASKS, `Added attachment ${fileId} to task ${taskId}`)
     return this.getTask(taskId)
   }
 
-  removeTaskAttachment(taskId: ID, fileId: ID): Task | null {
+  removeTaskAttachment(taskId: Task["id"], fileId: File["id"]): Task | null {
     this.db.prepare(`DELETE FROM task_attachments WHERE task_id = ? AND file_id = ?`).run(taskId, fileId)
 
     logger.debug(logger.CONTEXT.TASKS, `Removed attachment ${fileId} from task ${taskId}`)

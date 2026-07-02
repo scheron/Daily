@@ -3,7 +3,7 @@ import {computed} from "vue"
 
 import {TAG_COLOR_PALETTE} from "@shared/constants/theme/colorPalette"
 import {generateGradient} from "@/utils/colors/generateGradient"
-import BaseButton from "@/ui/base/BaseButton.vue"
+import BaseButton from "@/ui/base/BaseButton"
 
 const props = withDefaults(defineProps<{steps?: number}>(), {steps: 5})
 const emit = defineEmits<{selected: [color: string]}>()
@@ -14,7 +14,7 @@ const palette = computed(() => {
 </script>
 
 <template>
-  <div class="flex flex-wrap gap-[2px]">
+  <div class="flex flex-nowrap gap-[2px]">
     <div v-for="(column, colIndex) in palette" :key="colIndex" class="flex flex-col gap-[2px]">
       <BaseButton
         v-for="(color, rowIndex) in column"

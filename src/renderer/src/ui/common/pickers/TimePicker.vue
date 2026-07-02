@@ -2,7 +2,7 @@
 import {computed} from "vue"
 
 import {withRepeatAction} from "@/utils/withRepeatAction"
-import BaseButton from "@/ui/base/BaseButton.vue"
+import BaseButton from "@/ui/base/BaseButton"
 import BasePopup from "@/ui/base/BasePopup.vue"
 import NumberInput from "@/ui/common/inputs/NumberInput.vue"
 

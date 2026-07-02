@@ -76,7 +76,7 @@ export class SearchService {
   /**
    * Remove a task from the search index
    */
-  removeTaskFromIndex(taskId: string): void {
+  removeTaskFromIndex(taskId: string) {
     this.searchIndex.removeTask(taskId)
   }
 

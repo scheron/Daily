@@ -34,7 +34,7 @@ pnpm build:compress         # electron-vite build only (no packaging)
 
 # Type Checking (run all three before committing)
 pnpm typecheck:main         # Check main process types
-pnpm typecheck:render       # Check renderer process types
+pnpm typecheck:renderer     # Check renderer process types
 pnpm typecheck:shared       # Check shared types
 pnpm typecheck:all          # Run all three sequentially
 
@@ -271,6 +271,7 @@ Promise resolves → Store updates state → Component re-renders
 - **Auto-Sync:** 5-minute interval when enabled
 - **Snapshot-Based:** Compares local vs remote snapshots, merges, and pushes if different
 - **iCloud handling:** `RemoteStorageAdapter` recognises iCloud placeholders and waits for download completion before treating a snapshot as missing.
+- **Snapshot versioning:** The `Snapshot.version` field in `src/main/types/sync.ts` is the on-disk snapshot schema version. **Whenever the snapshot shape changes (e.g. adding/removing a `SnapshotDocs` collection), bump this version** and handle the older version when reading remote snapshots, so existing synced data stays compatible across app updates.
 
 ### State Management Pattern
 
@@ -359,6 +360,17 @@ These conventions are enforced project-wide.
 ### Public-before-private
 
 In every class body, public methods come first, private methods last. In every file, exported functions/constants come first, non-exported helpers last. The reading order is "what this code offers" → "how it does it internally". Constructor stays at the conventional spot just after fields.
+
+### Comments and JSDoc
+
+Don't write inline code comments — code should read clearly on its own. Document with JSDoc instead, but only where it earns its place, not blindly everywhere. JSDoc the following:
+
+- **Public methods & properties** — the contract (what it does, what it returns).
+- **Function / composable parameters** — incoming params (`@param`).
+- **Component props** — each prop's purpose.
+- **Utilities / pure functions** — including a usage example (`@example`).
+
+Skip JSDoc on private helpers, internal one-liners, and self-explanatory code.
 
 ### Errors live in `shared/errors/`
 

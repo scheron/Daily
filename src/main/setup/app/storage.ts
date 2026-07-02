@@ -1,31 +1,26 @@
+import {logger} from "@/utils/logger"
+import {broadcastToWindows} from "@/utils/windows/broadcastToWindows"
+
 import type {IStorageController} from "@/types/storage"
-import type {BrowserWindow} from "electron"
-
-export type WindowsGetter = () => Record<string, BrowserWindow | null>
-
-export function broadcastToAll(getWindows: WindowsGetter, channel: string, ...args: unknown[]) {
-  const windows = getWindows()
-  for (const win of Object.values(windows)) {
-    if (win && !win.isDestroyed()) {
-      win.webContents.send(channel, ...args)
-    }
-  }
-}
+import type {WindowsGetter} from "@/utils/windows/broadcastToWindows"
 
 export function setupStorageSync(getStorage: () => IStorageController | null, getWindows: WindowsGetter) {
   const storage = getStorage()
 
   if (!storage) {
-    console.error("Storage is not initialized")
+    logger.error("STORAGE", "Storage is not initialized")
     return
   }
 
   storage.setupStorageBroadcasts({
     onStatusChange: (status, prevStatus) => {
-      broadcastToAll(getWindows, "storage-sync:status-changed", status, prevStatus)
+      broadcastToWindows(getWindows, "storage-sync:status-changed", status, prevStatus)
     },
     onDataChange: () => {
-      broadcastToAll(getWindows, "storage-sync:data-changed")
+      broadcastToWindows(getWindows, "storage-sync:data-changed")
+    },
+    onSettingsChange: () => {
+      broadcastToWindows(getWindows, "settings:changed")
     },
   })
 }

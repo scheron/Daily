@@ -5,7 +5,6 @@ import {logger} from "@/utils/logger"
 
 import {rowToFile} from "./_rowMappers"
 
-import type {ID} from "@shared/types/common"
 import type {File} from "@shared/types/storage"
 import type Database from "better-sqlite3"
 
@@ -15,7 +14,7 @@ export class FileModel {
     private assetsDir: string,
   ) {}
 
-  initAssets(): void {
+  initAssets() {
     fs.ensureDirSync(this.assetsDir)
   }
 
@@ -76,7 +75,7 @@ export class FileModel {
     return rows.map(rowToFile)
   }
 
-  getFiles(ids: ID[]): File[] {
+  getFiles(ids: File["id"][]): File[] {
     if (ids.length === 0) return []
 
     const placeholders = ids.map(() => "?").join(", ")
@@ -94,7 +93,7 @@ export class FileModel {
     return rows.map(rowToFile)
   }
 
-  createFile(id: ID, name: string, mimeType: string, size: number): File | null {
+  createFile(id: File["id"], name: string, mimeType: string, size: number): File | null {
     const now = new Date().toISOString()
 
     this.db
@@ -110,7 +109,7 @@ export class FileModel {
     return this.getFile(id)
   }
 
-  getFile(id: ID): File | null {
+  getFile(id: File["id"]): File | null {
     const row = this.db
       .prepare(
         `
@@ -127,7 +126,7 @@ export class FileModel {
     return rowToFile(row)
   }
 
-  deleteFile(id: ID): boolean {
+  deleteFile(id: File["id"]): boolean {
     const now = new Date().toISOString()
     const result = this.db
       .prepare(
@@ -141,7 +140,7 @@ export class FileModel {
     return result.changes > 0
   }
 
-  getReferencedFileIds(): Set<ID> {
+  getReferencedFileIds(): Set<File["id"]> {
     const rows = this.db.prepare(`SELECT DISTINCT file_id FROM task_attachments`).all() as any[]
     return new Set(rows.map((row: any) => row.file_id))
   }

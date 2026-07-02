@@ -22,15 +22,15 @@ export class UpdaterController {
   private isCheckingForUpdate = false
   private updateState: AppUpdateState = this.createDefaultUpdateState()
 
-  setStorageController(getStorage: () => IStorageController | null): void {
+  setStorageController(getStorage: () => IStorageController | null) {
     this.getStorageController = getStorage
   }
 
-  setMainWindow(window: BrowserWindow): void {
+  setMainWindow(window: BrowserWindow) {
     this.mainWindow = window
   }
 
-  syncState(): void {
+  syncState() {
     this.emitState()
   }
 
@@ -385,7 +385,7 @@ export class UpdaterController {
     return process.platform === "darwin"
   }
 
-  private setUpdateState(patch: Partial<AppUpdateState>): void {
+  private setUpdateState(patch: Partial<AppUpdateState>) {
     this.updateState = {
       ...this.updateState,
       ...patch,
@@ -394,7 +394,7 @@ export class UpdaterController {
     this.emitState()
   }
 
-  private emitState(): void {
+  private emitState() {
     if (!this.mainWindow || this.mainWindow.isDestroyed()) return
     this.mainWindow.webContents.send("updates:state-changed", this.getState())
   }

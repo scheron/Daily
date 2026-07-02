@@ -102,3 +102,7 @@ export async function scrollToElement(
   element.scrollIntoView({behavior, block})
   return true
 }
+
+export function getCssVariable(name: string, root: HTMLElement = document.documentElement): string {
+  return getComputedStyle(root).getPropertyValue(name).trim()
+}

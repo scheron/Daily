@@ -1,16 +1,10 @@
 import {ref} from "vue"
 import {defineStore} from "pinia"
 
-import type {TasksFilter} from "@/types/common"
 import type {Tag} from "@shared/types/storage"
 
 export const useFilterStore = defineStore("filter", () => {
-  const activeFilter = ref<TasksFilter>("all")
   const activeTagIds = ref<Set<Tag["id"]>>(new Set())
-
-  function setActiveFilter(filter: TasksFilter) {
-    activeFilter.value = filter
-  }
 
   function setActiveTags(id: Tag["id"]) {
     if (activeTagIds.value.has(id)) activeTagIds.value.delete(id)
@@ -26,11 +20,9 @@ export const useFilterStore = defineStore("filter", () => {
   }
 
   return {
-    activeFilter,
     activeTagIds,
 
     removeActiveTag,
-    setActiveFilter,
     setActiveTags,
     clearActiveTags,
   }

@@ -2,6 +2,7 @@
 import Database from "better-sqlite3"
 import {describe, expect, it} from "vitest"
 
+import {migrations} from "@main/storage/database/migrations"
 import {getAppliedMigrations, rollbackLastMigration, runMigrations} from "@main/storage/database/scripts/migrate"
 
 describe("migrations", () => {
@@ -25,6 +26,56 @@ describe("migrations", () => {
     expect(names).toContain("task_tags")
     expect(names).toContain("task_attachments")
     expect(names).toContain("files")
+    expect(names).toContain("task_events")
+
+    db.close()
+  })
+
+  it("v005 task_events carries move columns from_date and to_date", () => {
+    const db = new Database(":memory:")
+    db.pragma("foreign_keys = ON")
+    runMigrations(db)
+
+    const cols = db
+      .prepare("PRAGMA table_info(task_events)")
+      .all()
+      .map((c) => c.name)
+    expect(cols).toContain("from_date")
+    expect(cols).toContain("to_date")
+    expect(cols).not.toContain("task_title")
+
+    db.close()
+  })
+
+  it("upgrades an existing v4 database by adding task_events", () => {
+    const db = new Database(":memory:")
+    db.pragma("foreign_keys = ON")
+
+    // Seed the DB as a user stuck on v4 (before the activity feed).
+    db.exec(`CREATE TABLE _migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)`)
+    for (const migration of migrations.filter((m) => m.version <= 4)) {
+      db.exec(migration.up)
+      db.prepare("INSERT INTO _migrations (version, name, applied_at) VALUES (?, ?, ?)").run(
+        migration.version,
+        migration.name,
+        "2026-01-01T00:00:00.000Z",
+      )
+    }
+
+    const tablesBefore = db
+      .prepare("SELECT name FROM sqlite_master WHERE type='table'")
+      .all()
+      .map((t) => t.name)
+    expect(tablesBefore).not.toContain("task_events")
+
+    runMigrations(db)
+
+    const tablesAfter = db
+      .prepare("SELECT name FROM sqlite_master WHERE type='table'")
+      .all()
+      .map((t) => t.name)
+    expect(tablesAfter).toContain("task_events")
+    expect(getAppliedMigrations(db).map((m) => m.version)).toEqual(migrations.map((m) => m.version))
 
     db.close()
   })
@@ -37,7 +88,7 @@ describe("migrations", () => {
     runMigrations(db)
 
     const applied = getAppliedMigrations(db)
-    expect(applied).toHaveLength(4)
+    expect(applied).toHaveLength(migrations.length)
 
     db.close()
   })
@@ -47,11 +98,11 @@ describe("migrations", () => {
     db.pragma("foreign_keys = ON")
 
     runMigrations(db)
-    expect(getAppliedMigrations(db)).toHaveLength(4)
+    expect(getAppliedMigrations(db)).toHaveLength(migrations.length)
 
     const rolledBack = rollbackLastMigration(db)
-    expect(rolledBack).toBe(4)
-    expect(getAppliedMigrations(db)).toHaveLength(3)
+    expect(rolledBack).toBe(migrations[migrations.length - 1].version)
+    expect(getAppliedMigrations(db)).toHaveLength(migrations.length - 1)
 
     db.close()
   })

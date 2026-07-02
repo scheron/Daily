@@ -1,3 +1,5 @@
+import {isNumber, isString} from "@shared/utils/common/validators"
+
 import type {GitHubReleaseMeta} from "@/types/updates"
 
 type GitHubLatestReleasePayload = {
@@ -12,8 +14,8 @@ type GitHubLatestReleasePayload = {
 
 export function parseGitHubReleaseMeta(payload: GitHubLatestReleasePayload): GitHubReleaseMeta | null {
   const version = payload.tag_name?.replace(/^v/i, "").trim()
-  const asset = payload.assets?.find((item) => typeof item.name === "string" && /-mac\.dmg$/i.test(item.name))
-  if (!version || !asset?.browser_download_url || !asset.name || typeof asset.id !== "number") return null
+  const asset = payload.assets?.find((item) => isString(item.name) && /-mac\.dmg$/i.test(item.name))
+  if (!version || !asset?.browser_download_url || !asset.name || !isNumber(asset.id)) return null
 
   const hash = asset.digest?.trim() ? asset.digest.replace(/^sha256:/, "") : null
   const releaseId = hash ? `${version}:${hash}` : `${version}:asset-${asset.id}`

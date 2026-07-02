@@ -46,7 +46,7 @@ export function getDatabase(): Database.Database {
   return db
 }
 
-export function closeDatabase(): void {
+export function closeDatabase() {
   if (!db) return
 
   db.close()

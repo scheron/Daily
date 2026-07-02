@@ -33,21 +33,57 @@ describe("settingsStore", () => {
     expect(store.settings.branch.activeId).toBe("main")
   })
 
-  it("updateSettings merges and calls IPC save", async () => {
+  it("updateSettings merges immediately and calls IPC save after debounce", async () => {
     const store = await getStore()
+    vi.useFakeTimers()
+    try {
+      store.updateSettings({sync: {enabled: true}})
 
-    await store.updateSettings({sync: {enabled: true}})
+      expect(store.settings.sync.enabled).toBe(true)
+      expect(bridge["settings:save"]).not.toHaveBeenCalled()
 
-    expect(store.settings.sync.enabled).toBe(true)
-    expect(bridge["settings:save"]).toHaveBeenCalledWith({sync: {enabled: true}})
+      await vi.runAllTimersAsync()
+
+      expect(bridge["settings:save"]).toHaveBeenCalledWith({sync: {enabled: true}})
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("rapid updateSettings calls coalesce into a single IPC save", async () => {
+    const store = await getStore()
+    vi.useFakeTimers()
+    try {
+      store.updateSettings({sync: {enabled: true}})
+      store.updateSettings({branch: {activeId: "other"}})
+      store.updateSettings({themes: {current: "github-dark"}})
+
+      expect(bridge["settings:save"]).not.toHaveBeenCalled()
+
+      await vi.runAllTimersAsync()
+
+      expect(bridge["settings:save"]).toHaveBeenCalledTimes(1)
+      expect(bridge["settings:save"]).toHaveBeenCalledWith({
+        sync: {enabled: true},
+        branch: {activeId: "other"},
+        themes: {current: "github-dark"},
+      })
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it("updateSettings skips IPC when data is identical", async () => {
     const store = await getStore()
+    vi.useFakeTimers()
+    try {
+      store.updateSettings({branch: {activeId: "main"}})
+      await vi.runAllTimersAsync()
 
-    await store.updateSettings({branch: {activeId: "main"}})
-
-    expect(bridge["settings:save"]).not.toHaveBeenCalled()
+      expect(bridge["settings:save"]).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it("revalidate reloads settings from IPC", async () => {

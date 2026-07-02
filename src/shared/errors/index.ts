@@ -8,3 +8,6 @@ export {DownloadErrorCode} from "./download/DownloadErrorCode"
 
 export {RemoteSnapshotPendingError} from "./sync/RemoteSnapshotPendingError"
 export {SyncErrorCode} from "./sync/SyncErrorCode"
+
+export {WebFetchError} from "./web/WebFetchError"
+export {WebFetchErrorCode} from "./web/WebFetchErrorCode"

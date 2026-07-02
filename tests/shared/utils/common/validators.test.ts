@@ -6,7 +6,7 @@ import {
   isBoolean,
   isFunction,
   isNull,
-  isNullOrUndefined,
+  isNullish,
   isNumber,
   isObject,
   isPrimitive,
@@ -106,16 +106,16 @@ describe("validators", () => {
     })
   })
 
-  describe("isNullOrUndefined", () => {
+  describe("isNullish", () => {
     it("returns true for null and undefined", () => {
-      expect(isNullOrUndefined(null)).toBe(true)
-      expect(isNullOrUndefined(undefined)).toBe(true)
+      expect(isNullish(null)).toBe(true)
+      expect(isNullish(undefined)).toBe(true)
     })
 
     it("returns false for other falsy values", () => {
-      expect(isNullOrUndefined(0)).toBe(false)
-      expect(isNullOrUndefined("")).toBe(false)
-      expect(isNullOrUndefined(false)).toBe(false)
+      expect(isNullish(0)).toBe(false)
+      expect(isNullish("")).toBe(false)
+      expect(isNullish(false)).toBe(false)
     })
   })
 

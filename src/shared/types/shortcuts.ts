@@ -1,9 +1,9 @@
-import type {ShortcutsMap} from "../constants/shortcuts"
+import type {SHORTCUTS_MAP} from "../constants/shortcuts"
 
-export type ShortcutAction = keyof typeof ShortcutsMap
-export type ShortcutChannel = (typeof ShortcutsMap)[ShortcutAction]["channel"]
+export type ShortcutAction = keyof typeof SHORTCUTS_MAP
 export type ShortcutPlatform = "mac" | "win"
-export type ShortcutDefinition = (typeof ShortcutsMap)[ShortcutAction]
+export type ShortcutDefinition = (typeof SHORTCUTS_MAP)[ShortcutAction]
+export type ShortcutChannel = Extract<ShortcutDefinition, {channel: string}>["channel"]
 
 export type ParsedAccelerator = {
   mac: string[]

@@ -3,7 +3,7 @@ import {computed, HtmlHTMLAttributes} from "vue"
 
 import {TaskStatus} from "@shared/types/storage"
 import {cn} from "@/utils/ui/tailwindcss"
-import BaseButton from "@/ui/base/BaseButton.vue"
+import BaseButton from "@/ui/base/BaseButton"
 import {IconName} from "@/ui/base/BaseIcon"
 import BasePopup from "@/ui/base/BasePopup.vue"
 
@@ -67,7 +67,7 @@ function getButtonClass(classes: HtmlHTMLAttributes["class"]) {
   const baseClass = `
     rounded-md px-2 py-0.5 text-xs
     text-base-content/50
-    focus-visible-ring focus-visible:ring-offset-base-100 focus-visible:ring-accent
+    focus-visible-accent
     transition-colors duration-200 outline-none
   `
 
@@ -87,7 +87,7 @@ function getButtonClass(classes: HtmlHTMLAttributes["class"]) {
         variant="secondary"
         @click="toggle"
       >
-        {{ currentStatus!.label }}
+        <span class="tracking-wide uppercase">{{ currentStatus!.label }}</span>
       </BaseButton>
     </template>
 
@@ -104,7 +104,7 @@ function getButtonClass(classes: HtmlHTMLAttributes["class"]) {
           :tooltip="status.tooltip"
           @click="onChangeStatus(status.value)"
         >
-          {{ status.label }}
+          <span class="tracking-wide uppercase">{{ status.label }}</span>
         </BaseButton>
       </div>
     </div>

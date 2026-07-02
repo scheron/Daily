@@ -1,11 +1,11 @@
-import type {CanonMod, ParsedAccelerator, ShortcutDefinition, ShortcutPlatform} from "../../types/shortcuts"
+import type {CanonMod, ParsedAccelerator, ShortcutPlatform} from "../../types/shortcuts"
 
 const MOD_RANK: Record<ShortcutPlatform, Record<CanonMod, number>> = {
   mac: {Cmd: 0, Ctrl: 1, Alt: 2, Shift: 3},
   win: {Ctrl: 0, Cmd: 1, Alt: 2, Shift: 3},
 }
 
-export function parseAccelerator(accelerator: ShortcutDefinition["accelerator"]): ParsedAccelerator {
+export function parseAccelerator(accelerator: string): ParsedAccelerator {
   const parts = accelerator
     .split("+")
     .map((s) => s.trim())

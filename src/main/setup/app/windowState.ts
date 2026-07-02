@@ -9,7 +9,7 @@ export async function loadSavedMainWindowState(storage: StorageController): Prom
   return settings.window.main
 }
 
-export function setupMainWindowStatePersistence(getStorage: () => StorageController | null, getMainWindow: () => BrowserWindow | null): void {
+export function setupMainWindowStatePersistence(getStorage: () => StorageController | null, getMainWindow: () => BrowserWindow | null) {
   let saveTimer: ReturnType<typeof setTimeout> | null = null
   let lastSavedStateJson = ""
 

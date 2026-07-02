@@ -5,7 +5,7 @@ import type {BrowserWindow} from "electron"
 
 let isUpdateManagerInitialized = false
 
-export function setupUpdateManager(window: BrowserWindow, getStorage: () => IStorageController | null): void {
+export function setupUpdateManager(window: BrowserWindow, getStorage: () => IStorageController | null) {
   updaterController.setStorageController(getStorage)
   updaterController.setMainWindow(window)
 
@@ -19,5 +19,5 @@ export function setupUpdateManager(window: BrowserWindow, getStorage: () => ISto
   }
 
   isUpdateManagerInitialized = true
-  void updaterController.initialize()
+  updaterController.initialize()
 }

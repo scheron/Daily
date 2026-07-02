@@ -41,6 +41,7 @@ export const useUpdateStore = defineStore("update", () => {
     if (isInitialized.value) return
 
     state.value = await window.BridgeIPC["updates:get-state"]()
+
     window.BridgeIPC["updates:on-state-changed"]((nextState) => {
       const previousState = state.value
       state.value = nextState
@@ -81,7 +82,7 @@ export const useUpdateStore = defineStore("update", () => {
     return await window.BridgeIPC["updates:download"]()
   }
 
-  function dismissPanel(): void {
+  function dismissPanel() {
     if (!state.value.availableVersion || isBusy.value) return
     dismissedVersion.value = state.value.availableVersion
   }

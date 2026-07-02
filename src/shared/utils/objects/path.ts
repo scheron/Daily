@@ -1,3 +1,5 @@
+import {isObjectLike} from "../common/validators"
+
 /**
  * Gets a nested value from an object using a path string with a delimiter
  * @example
@@ -24,7 +26,7 @@ export function getObjectValueFromPath<T>(obj: Record<string, any>, path: string
 
     if (!restParts.length) return obj[firstPart] as T
 
-    if (!(firstPart in obj) || typeof obj[firstPart] !== "object" || obj[firstPart] === null) return
+    if (!(firstPart in obj) || !isObjectLike(obj[firstPart])) return
 
     return getValue<T>(obj[firstPart], restParts)
   }

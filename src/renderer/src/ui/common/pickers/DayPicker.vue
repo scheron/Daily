@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import {ISODate} from "@shared/types/common"
 import BaseCalendar from "@/ui/base/BaseCalendar"
-import BasePopup from "@/ui/base/BasePopup.vue"
+import BasePopup, {HorizontalPosition} from "@/ui/base/BasePopup.vue"
 
 import type {Day} from "@shared/types/storage"
 
@@ -12,15 +12,14 @@ withDefaults(
     activeDay: string
     hideOnSelect?: boolean
     selectedDay?: ISODate | null
-    showTodayButton?: boolean
     hoverMode?: boolean
+    position?: HorizontalPosition
   }>(),
   {
     days: () => [],
     title: "Select Day",
     selectedDay: null,
     hideOnSelect: false,
-    showTodayButton: true,
     hoverMode: false,
   },
 )
@@ -34,7 +33,7 @@ function onSelect(date: ISODate, hide: () => void) {
 </script>
 
 <template>
-  <BasePopup hide-header :hover-mode="hoverMode" container-class="p-0" @close="emit('close')">
+  <BasePopup hide-header :hover-mode="hoverMode" :position="position" container-class="p-0" @close="emit('close')">
     <template #trigger="{toggle, hide, show}">
       <slot name="trigger" :toggle="toggle" :hide="hide" :show="show" />
     </template>
@@ -44,7 +43,6 @@ function onSelect(date: ISODate, hide: () => void) {
         mode="single"
         :days="days"
         :selected-date="selectedDay"
-        :show-today-button="showTodayButton"
         :initial-month="activeDay"
         size="sm"
         @select-date="onSelect($event, hide)"

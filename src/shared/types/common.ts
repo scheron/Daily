@@ -6,4 +6,3 @@ export type ISOTime = string
 export type ISODateTime = string
 /** Format: `Asia/Tokyo` */
 export type Timezone = string
-export type ID = string

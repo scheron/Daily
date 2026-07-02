@@ -1,10 +1,10 @@
 import {ipcMain} from "electron"
 
-import {createAssistantWindow} from "@/windows"
+import {createAssistantWindow} from "@/windows/assistant.window"
 
 import type {BrowserWindow} from "electron"
 
-export function setupAssistantIPC(getAssistantWindow: () => BrowserWindow | null, setAssistantWindow: (window: BrowserWindow | null) => void): void {
+export function setupAssistantIPC(getAssistantWindow: () => BrowserWindow | null, setAssistantWindow: (window: BrowserWindow | null) => void) {
   ipcMain.on("assistant:open", () => {
     const existing = getAssistantWindow()
 

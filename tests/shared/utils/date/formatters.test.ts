@@ -2,15 +2,16 @@
 import {describe, expect, it} from "vitest"
 
 import {
+  toDateLabel,
   toDay,
   toDurationLabel,
-  toFullDate,
   toISODate,
   toISODateTime,
   toLocaleDateRange,
   toLocaleDateTime,
   toLocaleTime,
   toMonthYear,
+  toRelativeTime,
   toTs,
 } from "@shared/utils/date/formatters"
 
@@ -62,16 +63,16 @@ describe("date formatters", () => {
     })
   })
 
-  describe("toFullDate", () => {
+  describe("toDateLabel", () => {
     it("returns a non-empty string for a valid date", () => {
-      const result = toFullDate("2026-01-01")
+      const result = toDateLabel("2026-01-01")
       expect(typeof result).toBe("string")
       expect(result.length).toBeGreaterThan(0)
     })
 
     it("respects short option (no weekday)", () => {
-      const full = toFullDate("2026-01-01", {short: false})
-      const short = toFullDate("2026-01-01", {short: true})
+      const full = toDateLabel("2026-01-01", {short: false})
+      const short = toDateLabel("2026-01-01", {short: true})
       expect(full.length).toBeGreaterThanOrEqual(short.length)
     })
   })
@@ -102,6 +103,15 @@ describe("date formatters", () => {
 
     it("returns only minutes when exactly 30 seconds rounds up", () => {
       expect(toDurationLabel(30)).toBe("1 min.")
+    })
+
+    it("returns the empty label for non-positive durations when provided", () => {
+      expect(toDurationLabel(0, "none")).toBe("none")
+      expect(toDurationLabel(-10, "none")).toBe("none")
+    })
+
+    it("ignores the empty label for positive durations", () => {
+      expect(toDurationLabel(3660, "none")).toBe("1 h. 1 min.")
     })
   })
 
@@ -134,6 +144,24 @@ describe("date formatters", () => {
     it("returns range with dash when both dates provided", () => {
       const result = toLocaleDateRange([new Date("2026-01-01"), new Date("2026-01-15")])
       expect(result).toContain("—")
+    })
+  })
+
+  describe("toRelativeTime", () => {
+    it("says 'just now' for the last few seconds", () => {
+      const iso = new Date(Date.now() - 10_000).toISOString()
+      expect(toRelativeTime(iso)).toBe("just now")
+    })
+
+    it("reports minutes, hours and days", () => {
+      expect(toRelativeTime(new Date(Date.now() - 5 * 60_000).toISOString())).toBe("5m ago")
+      expect(toRelativeTime(new Date(Date.now() - 2 * 3_600_000).toISOString())).toBe("2h ago")
+      expect(toRelativeTime(new Date(Date.now() - 3 * 86_400_000).toISOString())).toBe("3d ago")
+    })
+
+    it("falls back to a date label past a week", () => {
+      const iso = new Date(Date.now() - 40 * 86_400_000).toISOString()
+      expect(toRelativeTime(iso)).toBe(toDateLabel(toISODate(new Date(iso)), {short: true}))
     })
   })
 })

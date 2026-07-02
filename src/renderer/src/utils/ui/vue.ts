@@ -1,8 +1,10 @@
 import {isProxy, isReactive, isRef, toRaw} from "vue"
 
+import {isArray} from "@shared/utils/common/validators"
+
 export function toRawDeep<T>(sourceObj: T): T {
   const objectIterator = <U>(input: U): U => {
-    if (Array.isArray(input)) return input.map((item) => objectIterator(item)) as U
+    if (isArray(input)) return input.map((item) => objectIterator(item)) as U
 
     if (isRef(input) || isReactive(input) || isProxy(input)) {
       return objectIterator(toRaw(input))

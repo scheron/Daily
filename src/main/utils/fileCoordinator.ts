@@ -5,6 +5,7 @@ import {app} from "electron"
 import fs from "fs-extra"
 
 import {sleep} from "@shared/utils/common/sleep"
+import {notNull} from "@shared/utils/common/validators"
 import {logger} from "@/utils/logger"
 
 const execFile = promisify(execFileCb)
@@ -113,7 +114,7 @@ function getCoordinatorPath(): string {
 }
 
 async function checkAvailability(): Promise<boolean> {
-  if (coordinatorAvailable !== null) return coordinatorAvailable
+  if (notNull(coordinatorAvailable)) return coordinatorAvailable
   try {
     await fs.access(getCoordinatorPath(), fs.constants.X_OK)
     coordinatorAvailable = true

@@ -1,3 +1,5 @@
+import {isArray, isNullish, isObjectLike} from "../common/validators"
+
 type FilterOptions = {
   /** drop null/undefined values from incoming */
   skipNullish?: boolean
@@ -11,9 +13,9 @@ export function stripUnknown<S>(shape: S, incoming: any, options: FilterOptions 
 
   if (incoming == null) return incoming
 
-  if (Array.isArray(shape)) {
+  if (isArray(shape)) {
     if (!allowArrays) return undefined as any
-    return Array.isArray(incoming) ? (incoming as any) : (undefined as any)
+    return isArray(incoming) ? (incoming as any) : (undefined as any)
   }
 
   if (isPlainObject(shape) && isPlainObject(incoming)) {
@@ -22,7 +24,7 @@ export function stripUnknown<S>(shape: S, incoming: any, options: FilterOptions 
       if (!(key in (shape as any))) continue
 
       const val = incoming[key]
-      if (skipNullish && (val === null || val === undefined)) continue
+      if (skipNullish && isNullish(val)) continue
 
       const shapeVal = (shape as any)[key]
       out[key] = stripUnknown(shapeVal, val, options)
@@ -34,8 +36,8 @@ export function stripUnknown<S>(shape: S, incoming: any, options: FilterOptions 
 }
 
 function isPlainObject(x: any): x is Record<string, any> {
-  if (x === null || typeof x !== "object") return false
-  if (Array.isArray(x)) return false
+  if (!isObjectLike(x)) return false
+  if (isArray(x)) return false
   const proto = Object.getPrototypeOf(x)
   return proto === Object.prototype || proto === null
 }

@@ -14,7 +14,7 @@ export class SearchEngine {
   /**
    * Build the search index from an array of tasks
    */
-  buildIndex(tasks: SearchTask[]): void {
+  buildIndex(tasks: SearchTask[]) {
     this.collection = tasks
     this.isInitialized = true
   }
@@ -22,7 +22,7 @@ export class SearchEngine {
   /**
    * Update the index with a modified task
    */
-  updateTask(task: SearchTask): void {
+  updateTask(task: SearchTask) {
     if (!this.isInitialized) return
     this.removeTask(task.id)
     this.addTask(task)
@@ -31,7 +31,7 @@ export class SearchEngine {
   /**
    * Add a new task to the index
    */
-  addTask(task: SearchTask): void {
+  addTask(task: SearchTask) {
     if (!this.isInitialized) {
       this.buildIndex([task])
       return
@@ -43,7 +43,7 @@ export class SearchEngine {
   /**
    * Remove a task from the index
    */
-  removeTask(taskId: string): void {
+  removeTask(taskId: string) {
     if (!this.isInitialized) return
 
     this.collection = this.collection.filter((task) => task.id !== taskId)
@@ -168,7 +168,7 @@ export class SearchEngine {
     return bestMatch
   }
 
-  clear(): void {
+  clear() {
     this.isInitialized = false
     this.collection = []
   }

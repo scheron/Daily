@@ -1,10 +1,10 @@
 import {ipcMain} from "electron"
 
-import {createAboutWindow} from "@/windows"
+import {createAboutWindow} from "@/windows/about.window"
 
 import type {BrowserWindow} from "electron"
 
-export function setupAboutIPC(getAboutWindow: () => BrowserWindow | null, setAboutWindow: (window: BrowserWindow | null) => void): void {
+export function setupAboutIPC(getAboutWindow: () => BrowserWindow | null, setAboutWindow: (window: BrowserWindow | null) => void) {
   ipcMain.on("about:open", () => {
     const existing = getAboutWindow()
 

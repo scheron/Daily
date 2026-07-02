@@ -1,3 +1,4 @@
+import {mergeAppendOnly} from "./mergeAppendOnly"
 import {mergeCollections} from "./mergeCollections"
 import {mergeSettings} from "./mergeSettings"
 
@@ -15,7 +16,9 @@ export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: Snapsh
   const {result: mergedTags, toGc: gcTags} = mergeCollections(localDocs.tags, remoteDocs.tags, strategy, gcIntervalMs)
   const {result: mergedBranches, toGc: gcBranches} = mergeCollections(localDocs.branches, remoteDocs.branches, strategy, gcIntervalMs)
   const {result: mergedFiles, toGc: gcFiles} = mergeCollections(localDocs.files, remoteDocs.files, strategy, gcIntervalMs)
+
   const mergedSettings = mergeSettings(localDocs.settings, remoteDocs.settings, strategy)
+  const {result: mergedEvents, added: addedEvents} = mergeAppendOnly(localDocs.events, remoteDocs.events)
 
   const gcBranchSet = new Set(gcBranches)
   const tasksAfterBranchGc =
@@ -27,6 +30,7 @@ export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: Snapsh
     tags: mergedTags,
     branches: mergedBranches,
     files: mergedFiles,
+    events: mergedEvents,
     settings: mergedSettings,
   }
 
@@ -35,6 +39,7 @@ export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: Snapsh
     tags: [],
     branches: [],
     files: [],
+    events: [],
     settings: null,
   }
 
@@ -65,6 +70,11 @@ export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: Snapsh
   if (mergedSettings && hasSettingsChanges(localDocs.settings, mergedSettings)) {
     toUpsert.settings = mergedSettings
     changes += 1
+  }
+
+  if (addedEvents.length) {
+    toUpsert.events = addedEvents
+    changes += addedEvents.length
   }
 
   return {resultDocs, toUpsert, toRemove, changes}

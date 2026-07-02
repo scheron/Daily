@@ -2,7 +2,7 @@ import {ipcMain} from "electron"
 
 import {updaterController} from "@/updates/UpdaterController"
 
-export function setupUpdatesIPC(): void {
+export function setupUpdatesIPC() {
   ipcMain.handle("updates:get-state", () => updaterController.getState())
   ipcMain.handle("updates:check", () => updaterController.checkForUpdate({manual: true}))
   ipcMain.handle("updates:download", () => updaterController.downloadUpdate())

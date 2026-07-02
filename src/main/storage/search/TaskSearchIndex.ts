@@ -19,7 +19,7 @@ export class TaskSearchIndex {
   /**
    * Build or rebuild the entire search index from tasks
    */
-  setTasks(tasks: Task[]): void {
+  setTasks(tasks: Task[]) {
     const searchTasks = tasks.map((task) => this.taskToSearchTask(task))
     this.engine.buildIndex(searchTasks)
   }
@@ -27,7 +27,7 @@ export class TaskSearchIndex {
   /**
    * Add a new task to the index
    */
-  addTask(task: Task): void {
+  addTask(task: Task) {
     const searchTask = this.taskToSearchTask(task)
     this.engine.addTask(searchTask)
   }
@@ -35,7 +35,7 @@ export class TaskSearchIndex {
   /**
    * Update an existing task in the index
    */
-  updateTask(task: Task): void {
+  updateTask(task: Task) {
     const searchTask = this.taskToSearchTask(task)
     this.engine.updateTask(searchTask)
   }
@@ -43,7 +43,7 @@ export class TaskSearchIndex {
   /**
    * Remove a task from the index
    */
-  removeTask(taskId: string): void {
+  removeTask(taskId: string) {
     this.engine.removeTask(taskId)
   }
 
@@ -57,7 +57,7 @@ export class TaskSearchIndex {
   /**
    * Clear the entire index
    */
-  clear(): void {
+  clear() {
     this.engine.clear()
   }
 

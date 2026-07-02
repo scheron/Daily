@@ -5,14 +5,13 @@ import {logger} from "@/utils/logger"
 
 import {rowToBranch} from "./_rowMappers"
 
-import type {ID} from "@shared/types/common"
 import type {Branch} from "@shared/types/storage"
 import type Database from "better-sqlite3"
 
 export class BranchModel {
   constructor(private db: Database.Database) {}
 
-  ensureMainBranch(): void {
+  ensureMainBranch() {
     const now = new Date().toISOString()
 
     this.db
@@ -47,7 +46,7 @@ export class BranchModel {
     return rows.map(rowToBranch)
   }
 
-  getBranch(id: ID, params?: {includeDeleted?: boolean}): Branch | null {
+  getBranch(id: Branch["id"], params?: {includeDeleted?: boolean}): Branch | null {
     const row = this.db
       .prepare(
         `
@@ -87,7 +86,7 @@ export class BranchModel {
     return this.getBranch(id, {includeDeleted: true})
   }
 
-  updateBranch(id: ID, updates: Pick<Branch, "name">): Branch | null {
+  updateBranch(id: Branch["id"], updates: Pick<Branch, "name">): Branch | null {
     if (id === MAIN_BRANCH_ID) {
       logger.warn(logger.CONTEXT.BRANCHES, "Main branch cannot be renamed")
       return null
@@ -107,7 +106,7 @@ export class BranchModel {
     return this.getBranch(id)
   }
 
-  deleteBranch(id: ID): boolean {
+  deleteBranch(id: Branch["id"]): boolean {
     if (id === MAIN_BRANCH_ID) {
       logger.warn(logger.CONTEXT.BRANCHES, "Main branch cannot be deleted")
       return false

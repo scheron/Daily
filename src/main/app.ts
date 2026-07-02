@@ -2,13 +2,15 @@ import {app} from "electron"
 
 import {sleep} from "@shared/utils/common/sleep"
 import {logger} from "@/utils/logger"
+import {broadcastToWindows} from "@/utils/windows/broadcastToWindows"
+import {focusWindow} from "@/utils/windows/focusWindow"
 
 import {AIController} from "@/ai/AIController"
 import {APP_CONFIG} from "@/config"
 import {setupInstanceAndDeepLinks} from "@/setup/app/instance"
-import {setupActivateHandler, setupAppIdentity, setupDockIcon, setupWindowAllClosedHandler} from "@/setup/app/lifecycle"
+import {setupActivateHandler, setupAppBoot, setupDockIcon, setupWindowAllClosedHandler} from "@/setup/app/lifecycle"
 import {setupMenu} from "@/setup/app/menu"
-import {broadcastToAll, setupStorageSync} from "@/setup/app/storage"
+import {setupStorageSync} from "@/setup/app/storage"
 import {setupUpdateManager} from "@/setup/app/updates"
 import {loadSavedMainWindowState, setupMainWindowStatePersistence} from "@/setup/app/windowState"
 import {setupAboutIPC} from "@/setup/ipc/about"
@@ -23,7 +25,8 @@ import {setupMainWindowIPC} from "@/setup/ipc/windows"
 import {setupCSP} from "@/setup/security/csp"
 import {setupPrivilegedSchemes, setupSafeFileProtocol} from "@/setup/security/protocols"
 import {StorageController} from "@/storage/StorageController"
-import {createMainWindow, createSplashWindow, focusWindow} from "@/windows"
+import {createMainWindow} from "./windows/main.window"
+import {createSplashWindow} from "./windows/splash.window"
 
 import type {MainWindowSettings} from "@shared/types/storage"
 import type {BrowserWindow} from "electron"
@@ -36,13 +39,19 @@ type AppWindows = {
   assistant: BrowserWindow | null
 }
 
-const windows: AppWindows = {main: null, splash: null, about: null, settings: null, assistant: null}
+const windows: AppWindows = {
+  main: null,
+  splash: null,
+  about: null,
+  settings: null,
+  assistant: null,
+}
 let storage: StorageController | null = null
 let ai: AIController | null = null
 let savedMainWindowState: MainWindowSettings | undefined
 
 setupPrivilegedSchemes()
-setupAppIdentity()
+setupAppBoot()
 setupDockIcon()
 setupWindowAllClosedHandler()
 
@@ -64,16 +73,14 @@ app.whenReady().then(async () => {
   ai = new AIController(
     storage,
     (state) => {
-      broadcastToAll(() => windows, "ai:local-state-changed", state)
+      broadcastToWindows(() => windows, "ai:local-state-changed", state)
     },
     (event) => {
       const target = windows.assistant ?? windows.main
       if (!target) return
-      if (event.type === "required") {
-        target.webContents.send("ai:confirmation-required", event.confirmation)
-      } else {
-        target.webContents.send("ai:confirmation-resolved", {confirmationId: event.confirmationId})
-      }
+
+      if (event.type === "required") target.webContents.send("ai:confirmation-required", event.confirmation)
+      else target.webContents.send("ai:confirmation-resolved", {confirmationId: event.confirmationId})
     },
     (event) => {
       const target = windows.assistant ?? windows.main
@@ -86,6 +93,7 @@ app.whenReady().then(async () => {
     await ai.init()
 
     await storage.cleanupOrphanFiles()
+    await storage.collectGarbage()
     savedMainWindowState = await loadSavedMainWindowState(storage)
     logger.lifecycle("Storage initialized")
   } catch (err) {

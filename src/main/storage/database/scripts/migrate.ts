@@ -15,7 +15,7 @@ export type MigrationRecord = {
   applied_at: string
 }
 
-export function runMigrations(db: Database.Database): void {
+export function runMigrations(db: Database.Database) {
   db.exec(`CREATE TABLE IF NOT EXISTS _migrations (
     version INTEGER PRIMARY KEY,
     name TEXT NOT NULL,

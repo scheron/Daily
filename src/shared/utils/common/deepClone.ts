@@ -1,3 +1,5 @@
+import {isArray, isFunction, isObjectLike} from "./validators"
+
 type AnyRecord = Record<string, any>
 
 /**
@@ -8,14 +10,14 @@ type AnyRecord = Record<string, any>
  */
 export function deepClone<T>(value: T, cache = new WeakMap<AnyRecord, any>()): T {
   try {
-    if (value === null || typeof value !== "object") return value
+    if (!isObjectLike(value)) return value
 
-    if (typeof value === "function") return value
+    if (isFunction(value)) return value
 
     const cached = cache.get(value as any)
     if (cached) return cached
 
-    if (Array.isArray(value)) {
+    if (isArray(value)) {
       const arr: any[] = new Array(value.length)
       cache.set(value as any, arr)
       for (let i = 0; i < value.length; i++) arr[i] = deepClone((value as any)[i], cache)
@@ -77,8 +79,8 @@ export function deepClone<T>(value: T, cache = new WeakMap<AnyRecord, any>()): T
 }
 
 function isPlainObject(value: any): value is AnyRecord {
-  if (value === null || typeof value !== "object") return false
-  if (Array.isArray(value)) return false
+  if (!isObjectLike(value)) return false
+  if (isArray(value)) return false
   const proto = Object.getPrototypeOf(value)
   return proto === Object.prototype || proto === null
 }

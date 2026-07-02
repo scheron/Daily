@@ -1,10 +1,10 @@
 import {nanoid} from "nanoid"
 
+import {notUndefined} from "@shared/utils/common/validators"
 import {logger} from "@/utils/logger"
 
 import {rowToTag} from "./_rowMappers"
 
-import type {ID} from "@shared/types/common"
 import type {Tag} from "@shared/types/storage"
 import type Database from "better-sqlite3"
 
@@ -25,7 +25,7 @@ export class TagModel {
     return rows.map(rowToTag)
   }
 
-  getTag(id: ID): Tag | null {
+  getTag(id: Tag["id"]): Tag | null {
     const row = this.db
       .prepare(
         `
@@ -59,17 +59,17 @@ export class TagModel {
     return this.getTag(id)
   }
 
-  updateTag(id: ID, updates: Partial<Pick<Tag, "color" | "name">>): Tag | null {
+  updateTag(id: Tag["id"], updates: Partial<Pick<Tag, "color" | "name">>): Tag | null {
     const now = new Date().toISOString()
     const setClauses: string[] = []
     const values: any[] = []
 
-    if (updates.name !== undefined) {
+    if (notUndefined(updates.name)) {
       setClauses.push("name = ?")
       values.push(updates.name)
     }
 
-    if (updates.color !== undefined) {
+    if (notUndefined(updates.color)) {
       setClauses.push("color = ?")
       values.push(updates.color)
     }
@@ -90,7 +90,7 @@ export class TagModel {
     return this.getTag(id)
   }
 
-  deleteTag(id: ID): boolean {
+  deleteTag(id: Tag["id"]): boolean {
     const now = new Date().toISOString()
 
     let changes = 0

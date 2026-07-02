@@ -6,7 +6,7 @@ import {logger} from "@/utils/logger"
  * Setup IPC handlers for shell operations
  * Currently handles opening external URLs in the system browser
  */
-export function setupShellIPC(): void {
+export function setupShellIPC() {
   ipcMain.handle("shell:open-external", async (_event, url: string) => {
     try {
       const urlObj = new URL(url)

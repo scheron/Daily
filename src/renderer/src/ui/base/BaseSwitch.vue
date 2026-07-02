@@ -43,7 +43,7 @@ function toggle() {
 <template>
   <div
     tabindex="0"
-    class="focus-visible:ring-offset-base-100 focus-visible:ring-accent focus-visible-ring inline-flex items-center rounded-xl border border-transparent outline-none"
+    class="focus-visible-accent inline-flex items-center rounded-xl border border-transparent outline-none"
     role="button"
     :class="[disabled ? 'cursor-auto opacity-30' : 'cursor-pointer']"
     @click="toggle"

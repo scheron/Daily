@@ -28,9 +28,4 @@ describe("filterStore", () => {
 
     expect(store.activeTagIds.size).toBe(0)
   })
-
-  it("setActiveFilter changes the filter", () => {
-    store.setActiveFilter("done")
-    expect(store.activeFilter).toBe("done")
-  })
 })

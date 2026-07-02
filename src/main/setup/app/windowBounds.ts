@@ -1,3 +1,5 @@
+import {isPositive} from "@shared/utils/common/validators"
+
 import {APP_CONFIG} from "@/config"
 
 import type {MainWindowSettings} from "@shared/types/storage"
@@ -13,8 +15,8 @@ export function resolveMainWindowOptions(savedState?: MainWindowSettings): Resto
   const defaultWidth = APP_CONFIG.window.main.width
   const defaultHeight = APP_CONFIG.window.main.height
 
-  const width = typeof savedState?.width === "number" && savedState.width > 0 ? Math.max(savedState.width, minWidth) : defaultWidth
-  const height = typeof savedState?.height === "number" && savedState.height > 0 ? Math.max(savedState.height, minHeight) : defaultHeight
+  const width = isPositive(savedState?.width) ? Math.max(savedState.width, minWidth) : defaultWidth
+  const height = isPositive(savedState?.height) ? Math.max(savedState.height, minHeight) : defaultHeight
 
   return {width, height}
 }

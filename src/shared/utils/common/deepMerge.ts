@@ -1,3 +1,5 @@
+import {isArray, isObject, notUndefined} from "./validators"
+
 /**
  * Deep merge two objects in-place.
  * @param target - The target object to merge into.
@@ -11,7 +13,7 @@ export function deepMerge<T>(target: T, source: Partial<T>, getId: (data: any) =
     if (!target) return source as T
 
     if (Array.isArray(target) && Array.isArray(source)) {
-      const hasIds = source.every((item) => isMergeableObject(item) && getId(item) !== undefined)
+      const hasIds = source.every((item) => isMergeableObject(item) && notUndefined(getId(item)))
 
       if (hasIds) {
         const targetMap = new Map(target.filter(isMergeableObject).map((item) => [getId(item), item]))
@@ -21,7 +23,7 @@ export function deepMerge<T>(target: T, source: Partial<T>, getId: (data: any) =
           const targetItem = targetMap.get(srcId)
 
           if (targetItem) deepMerge(targetItem, srcItem, getId)
-          else target.push(srcItem as any)
+          else target.push(srcItem)
         })
 
         return target
@@ -35,8 +37,7 @@ export function deepMerge<T>(target: T, source: Partial<T>, getId: (data: any) =
         const value = source[key]
         const targetValue = (target as any)[key]
 
-        const canMerge =
-          targetValue && (isMergeableObject(targetValue) || Array.isArray(targetValue)) && (isMergeableObject(value) || Array.isArray(value))
+        const canMerge = targetValue && (isMergeableObject(targetValue) || isArray(targetValue)) && (isMergeableObject(value) || isArray(value))
 
         if (canMerge) {
           ;(target as any)[key] = deepMerge(targetValue, value, getId)
@@ -55,5 +56,5 @@ export function deepMerge<T>(target: T, source: Partial<T>, getId: (data: any) =
 }
 
 function isMergeableObject(item: any): item is Record<string, any> {
-  return item !== null && typeof item === "object" && !Array.isArray(item)
+  return isObject(item)
 }

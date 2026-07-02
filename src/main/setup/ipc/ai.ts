@@ -1,11 +1,10 @@
 import {ipcMain} from "electron"
 
 import {logger} from "@/utils/logger"
-
-import {broadcastToAll} from "@/setup/app/storage"
+import {broadcastToWindows} from "@/utils/windows/broadcastToWindows"
 
 import type {AIController} from "@/ai/AIController"
-import type {WindowsGetter} from "@/setup/app/storage"
+import type {WindowsGetter} from "@/utils/windows/broadcastToWindows"
 import type {AIConfig, LocalModelId} from "@shared/types/ai"
 
 export async function setupAiIPC(getAi: () => AIController | null, getWindows: WindowsGetter) {
@@ -48,7 +47,7 @@ export async function setupAiIPC(getAi: () => AIController | null, getWindows: W
           openWindows,
         })
       }
-      broadcastToAll(getWindows, "ai:local-download-progress", progress)
+      broadcastToWindows(getWindows, "ai:local-download-progress", progress)
     })
   })
 }

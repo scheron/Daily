@@ -1,3 +1,5 @@
+import {notNull, notUndefined} from "@shared/utils/common/validators"
+
 import {ENV} from "@/config"
 import {LOG_CONTEXT} from "@/types/logger"
 
@@ -20,28 +22,28 @@ class Logger {
     return Logger.CONTEXT
   }
 
-  debug(context: LogContext, message: string, data?: any): void {
+  debug(context: LogContext, message: string, data?: any) {
     this.log("DEBUG", context, message, data)
   }
 
-  info(context: LogContext, message: string, data?: any): void {
+  info(context: LogContext, message: string, data?: any) {
     this.log("INFO", context, message, data)
   }
 
-  warn(context: LogContext, message: string, data?: any): void {
+  warn(context: LogContext, message: string, data?: any) {
     this.log("WARN", context, message, data)
   }
 
-  error(context: LogContext, message: string, error?: any): void {
+  error(context: LogContext, message: string, error?: any) {
     const errorData = error instanceof Error ? {message: error.message, stack: error.stack} : error
     this.log("ERROR", context, message, errorData)
   }
 
-  lifecycle(message: string): void {
+  lifecycle(message: string) {
     this.log("INFO", "APP", message)
   }
 
-  storage(operation: string, context: LogContext, id?: string): void {
+  storage(operation: string, context: LogContext, id?: string) {
     const message = id ? `${operation} ${context}: ${id}` : `${operation} ${context}`
     this.log("INFO", context, message)
   }
@@ -63,7 +65,7 @@ class Logger {
     BOLD: "\x1b[1m",
   }
 
-  private log(level: LogLevel, context: LogContext | undefined, message: string, data?: any): void {
+  private log(level: LogLevel, context: LogContext | undefined, message: string, data?: any) {
     if (!this.enabled) return
     if (this.levelPriority[level] < this.levelPriority[this.minLevel]) return
     if (this.allowedContexts && (!context || !this.allowedContexts.has(context))) return
@@ -90,8 +92,8 @@ class Logger {
 
     const consoleMethod = level === "ERROR" ? console.error : level === "WARN" ? console.warn : console.log
 
-    if (data !== undefined) {
-      if (typeof data === "object" && data !== null && !(data instanceof Error)) {
+    if (notUndefined(data)) {
+      if (typeof data === "object" && notNull(data) && !(data instanceof Error)) {
         consoleMethod(logLine)
         console.dir(data, {depth: 3, colors: true})
       } else {

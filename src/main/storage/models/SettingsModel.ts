@@ -3,7 +3,7 @@ import {nanoid} from "nanoid"
 import {deepMerge} from "@shared/utils/common/deepMerge"
 import {logger} from "@/utils/logger"
 
-import {getDefaultSettings} from "./_rowMappers"
+import {getDefaultSettings, migrateSettingsShape} from "./_rowMappers"
 
 import type {Settings} from "@shared/types/storage"
 import type Database from "better-sqlite3"
@@ -27,14 +27,14 @@ export class SettingsModel {
 
     const defaults = getDefaultSettings()
     try {
-      const parsed = JSON.parse(row.data)
+      const parsed = migrateSettingsShape(JSON.parse(row.data))
       return deepMerge<Settings>(defaults, parsed)
     } catch {
       return defaults
     }
   }
 
-  saveSettings(partial: Partial<Settings>): void {
+  saveSettings(partial: Partial<Settings>) {
     const current = this.loadSettings()
     const merged = deepMerge<Settings>(current, partial)
     merged.version = nanoid()
