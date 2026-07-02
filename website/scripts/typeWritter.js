@@ -12,8 +12,8 @@ document.addEventListener("DOMContentLoaded", () => {
     "Minimal. Beautiful. Powerful.",
     "Markdown meets productivity",
     "See your progress by day",
-    "Theme your focus",
-    "AI-assisted productivity",
+    "An AI agent, not just a chat",
+    "Local-first. Works offline.",
   ]
 
   function animateTypewriter(element, phrases, config) {

@@ -1,22 +1,24 @@
-document.addEventListener("DOMContentLoaded", () => {
-  const platformLinks = {
-    mac: "https://github.com/scheron/Daily?tab=readme-ov-file#-installation",
-  }
+const INSTALL_URL = "https://github.com/scheron/Daily?tab=readme-ov-file#install"
+const RELEASES_API = "https://api.github.com/repos/scheron/Daily/releases/latest"
 
-  function detectPlatform() {
-    const {platform} = navigator
-    if (/Mac/i.test(platform)) return "mac"
-    return null
-  }
+document.addEventListener("DOMContentLoaded", async () => {
+  const downloadButtons = document.querySelectorAll(".js-download")
+  if (!downloadButtons.length) return
 
-  const downloadBtn = document.querySelector("#download")
-  const platform = detectPlatform()
+  try {
+    const response = await fetch(RELEASES_API)
+    if (!response.ok) throw new Error(`GitHub API responded ${response.status}`)
 
-  if (downloadBtn && platform && platformLinks[platform]) {
-    downloadBtn.href = platformLinks[platform]
-    downloadBtn.textContent = `Download for macOS`
-  } else if (downloadBtn) {
-    downloadBtn.href = platformLinks.mac
-    downloadBtn.textContent = `Download for macOS`
+    const release = await response.json()
+    const dmg = release.assets?.find((asset) => asset.name.endsWith(".dmg"))
+    if (!dmg) return
+
+    for (const button of downloadButtons) {
+      button.href = dmg.browser_download_url
+    }
+  } catch {
+    for (const button of downloadButtons) {
+      button.href = INSTALL_URL
+    }
   }
 })
