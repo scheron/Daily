@@ -37,10 +37,18 @@ const rendered = computed(() => md.render(props.text ?? ""))
 
 .chat-markdown {
   word-wrap: break-word;
+  overflow-wrap: anywhere;
+  max-width: 100%;
 }
 .chat-markdown pre {
   border-radius: 0.375rem;
   padding: 0.5rem 0.75rem;
+  overflow-x: auto;
+  max-width: 100%;
+}
+.chat-markdown table {
+  display: block;
+  max-width: 100%;
   overflow-x: auto;
 }
 .chat-markdown code {

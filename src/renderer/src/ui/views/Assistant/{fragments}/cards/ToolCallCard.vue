@@ -15,11 +15,18 @@ const iconClass = computed(() => {
   if (props.segment.status === "running") return "text-warning animate-spin"
   return props.segment.success ? "text-success" : "text-error"
 })
+const display = computed(() => {
+  const s = props.segment
+  if (s.name === "read_url" && s.status === "running") {
+    return s.label ? `Reading «${s.label}»` : "Reading a web page…"
+  }
+  return s.name
+})
 </script>
 
 <template>
-  <div class="bg-base-300/30 border-base-300/50 flex items-center gap-1.5 rounded border px-2 py-1">
-    <BaseIcon :name="iconName" :class="iconClass" class="size-3" />
-    <span class="text-base-content/60 font-mono text-xs">{{ segment.name }}</span>
+  <div class="flex min-w-0 items-center gap-1.5 py-0.5">
+    <BaseIcon :name="iconName" :class="iconClass" class="size-3 shrink-0" />
+    <span class="text-base-content/70 truncate font-mono text-xs">{{ display }}</span>
   </div>
 </template>

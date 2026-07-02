@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import BaseButton from "@/ui/base/BaseButton.vue"
+import BaseButton from "@/ui/base/BaseButton"
 
 const emit = defineEmits<{
   retry: []
