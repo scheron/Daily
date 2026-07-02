@@ -1,5 +1,35 @@
 # Changelog
 
+## v0.16.0 - 2026-07-02
+
+### ✨ New Features
+
+- **Kanban Task Board** — tasks now live on a persistent three-column board (active, discarded, done) with drag-and-drop between columns and statuses. Clicking a task opens a resizable slide-in editor with property rows (status, date, project, time, tags), a markdown body with a floating toolbar, and prev/next navigation; duplicate, copy, and delete are available right from the editor header. Tasks can be dropped onto the calendar widget to reschedule.
+- **Task Activity History** — every meaningful task change (created, completed, edited, moved, deleted, restored) is logged and synced across devices. The new Activity widget shows a day-by-day feed of what changed, with inline restore for tasks deleted the same day, and each task gets its own history popover in the editor.
+- **Markdown Editor Upgrades** — fenced code blocks get real syntax highlighting with a copy button, markdown tables render as live click-to-edit tables, and typing "/" opens a menu for inserting headings, lists, quotes, checkboxes, and other blocks.
+- **Assistant Web Access** — the assistant can now read a web page on request. Fetches are guarded: private and internal addresses are blocked, page content is treated as untrusted, and the first fetch asks for confirmation (with a settings toggle to allow it automatically). Long pages can be read in parts.
+- **Context-Window Indicator** — a ring next to the send button shows how full the model's context window is, sized to the active model and tracked per turn.
+- **More Local Models** — GLM-4 9B, Mistral Nemo 12B, and Llama 3.1 8B join the downloadable catalog alongside the Qwen3.5 family.
+
+### 🎨 Improvements
+
+- **Refreshed design** — flat full-bleed panels with hairline dividers replace bordered cards across the app, and the 14 named themes are simplified to a light/dark/system mode plus 9 accent presets (existing settings migrate automatically).
+- **Settings redesign** — reorganized into General, iCloud, AI, Workflow, and Debug sections, with drag-to-reorder widget management and a cleaner AI provider setup.
+- **Stats widget** — redesigned with resolution and tag-composition rings, weekday/hour histograms, peak highlights, and a week/month toggle.
+- **Pickers** — project and tag pickers are now searchable comboboxes with inline create.
+- **Editor ergonomics** — hanging indents for wrapped list items, automatic ordered-list renumbering, and keyboard navigation for autocomplete.
+- **Assistant chat** — copy and clear actions, smarter auto-scroll while streaming, grouped collapsing tool calls, and polished markdown output that formats tasks and tables properly.
+- **Trash cleanup** — old deleted items are cleaned up automatically on every launch; the Trash settings page is replaced by same-day restore in the Activity widget.
+
+### 🐛 Bug Fixes
+
+- Fixed selected text in the task editor being nearly invisible instead of clearly highlighted.
+- **AI Settings** — fixed hitting "Connect" resetting an already-chosen model back to the first one in the list.
+- **Assistant chat** — fixed long unbroken text and wide tables overflowing the chat bubble width.
+- Fixed raw markdown syntax staying visible on a line after the editor loses focus.
+
+---
+
 ## v0.15.1 - 2026-06-07
 
 ### 🐛 Bug Fixes
@@ -138,8 +168,6 @@ Complete sync system overhaul: replaced snapshot-based approach with incremental
 - Tags Management: Now a modal in the main window; accessible via toolbar, menu, or shortcut.
 - Deleted Tasks: Managed through a dedicated modal window; accessible from the menu or shortcut.
 
-![Compact Mode Preview](./media/compact-mode.png)
-
 ### 🐛 Bug Fixes
 
 - Fixed settings not syncing via iCloud
@@ -186,14 +214,11 @@ Complete sync system overhaul: replaced snapshot-based approach with incremental
 ### ✨ New Features
 
 - **Compact Mode Footer Navigation** — Introduce new compact navigation UI mode
-  ![Compact Mode Preview](./media/compact-mode.png)
 
 - **Projects / Branches Workflow** — Added Git-like project branches for task isolation
   - Added dedicated `Settings -> Project Management` section for create/rename/delete flows
   - Added move-task-to-project action in task context menu
   - Search now shows project for each result and switches to the target branch before navigation
-
-![Projects Branches Preview](./media/showcase/branch-demo.gif)
 
 ### 🎨 UI/UX Improvements
 
@@ -217,17 +242,11 @@ This release focuses on faster task organization, clearer layouts, and smoother 
   - Reorder tasks in list view
   - Reorder tasks within columns in board view
 
-![D&D Priview](./media/columns-view.png)
-
 - **Task Context Menu** — Faster access to common actions
-
-![Context Menu Preview](./media/context-menu.png)
 
 - **Inline Tag Commands in Editor** — Manage tags while you type
   - Type `#tag` to attach a tag and `-#tag` to detach
   - Use autocomplete suggestions for faster selection
-
-![Tags Predict Preview](./media/tags-predict.png)
 
 ### 🎨 UI/UX Improvements
 
@@ -258,13 +277,9 @@ This release focuses on faster task organization, clearer layouts, and smoother 
   - AI can create, update, complete, and manage tasks
   - Configurable OpenAI API key and model selection in settings
 
-![AI Assistant](./media/ai-assistant.png)
-
 - **Glass UI Theme** — New theme with semi-transparent background
   - Glass UI theme with semi-transparent background for modern aesthetic
   - Can be applied simultaneously with other themes for layered visual effects
-
-![Glass UI](./media/glass-ui-demo.png)
 
 - **Deleted Tasks Management** — Enhanced control over recently deleted tasks
   - Restore deleted tasks to their original dates
@@ -331,8 +346,6 @@ This release focuses on faster task organization, clearer layouts, and smoother 
   - Tasks are highlighted when navigated from search results for easy identification
   - Filter search results by task status (all, active, done, discarded)
   - Results sorted by relevance score and recency
-
-![Search](./media//showcase/search.gif)
 
 ---
 
@@ -531,11 +544,7 @@ This release focuses on faster task organization, clearer layouts, and smoother 
 
 ### 🎨 UI/UX Improvements
 
-- **🎨 Major Interface Redesign**
-
-  | Before                             | After                             |
-  | ---------------------------------- | --------------------------------- |
-  | ![Previous Design](media/Demo.png) | ![New Design](media/Demo-new.png) |
+- **🎨 Major Interface Redesign** - Complete visual overhaul of the interface
 
 - **Enhanced Task Cards** - Redesigned task items with better visual hierarchy
   - Better visual indicators for task status
