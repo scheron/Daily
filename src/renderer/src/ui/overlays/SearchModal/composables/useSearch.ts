@@ -1,7 +1,7 @@
 import {computed, readonly, ref, watch} from "vue"
 import {useDebounceFn} from "@vueuse/core"
 
-import {useLoadingState} from "./useLoadingState"
+import {useLoadingState} from "@/composables/useLoadingState"
 
 type SearchOptions<T> = {
   /** Initial search query value @default "" */

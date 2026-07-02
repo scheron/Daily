@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {useVModel} from "@vueuse/core"
 
-import BaseButton from "@/ui/base/BaseButton.vue"
+import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
 import BaseInput from "@/ui/base/BaseInput.vue"
 

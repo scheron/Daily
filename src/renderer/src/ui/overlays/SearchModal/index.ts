@@ -1,0 +1,1 @@
+export {useSearchModal} from "./useSearchModal"

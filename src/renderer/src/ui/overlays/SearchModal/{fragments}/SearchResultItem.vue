@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import {computed, onMounted, onUnmounted, useTemplateRef, watch} from "vue"
 
-import {toFullDate} from "@shared/utils/date/formatters"
+import {toDateLabel} from "@shared/utils/date/formatters"
 import {sortTags} from "@shared/utils/tags/sortTags"
-import {createCodeSyntaxExtension} from "@/utils/codemirror/extensions/codeSyntax"
-import {createMarkdownLanguageExtension} from "@/utils/codemirror/extensions/markdownLanguage"
-import {createSearchHighlightExtension} from "@/utils/codemirror/extensions/searchHighlight"
-import {createThemeExtension} from "@/utils/codemirror/extensions/theme"
-import {createWYSIWYGExtension} from "@/utils/codemirror/extensions/wysiwyg"
+import {
+  createCodeSyntaxExtension,
+  createMarkdownLanguageExtension,
+  createSearchHighlightExtension,
+  createTablesExtension,
+  createThemeExtension,
+  createWYSIWYGExtension,
+} from "@/utils/codemirror/extensions"
 import BaseIcon from "@/ui/base/BaseIcon"
-import BaseTag from "@/ui/base/BaseTag.vue"
+import BaseTag from "@/ui/base/BaseTag"
 
 import {EditorState} from "@codemirror/state"
 import {EditorView} from "@codemirror/view"
@@ -52,6 +55,7 @@ function createReadonlyEditor(content: string) {
 
       createThemeExtension(),
       createWYSIWYGExtension({readonly: true}),
+      createTablesExtension(),
       createCodeSyntaxExtension(),
       createSearchHighlightExtension(props.result.matches),
       EditorView.theme({
@@ -85,7 +89,7 @@ onUnmounted(() => view?.destroy())
   <div class="hover:border-accent border-base-300 flex flex-col gap-2 rounded-lg border px-2 py-2 shadow-xs transition-colors duration-200">
     <div class="flex items-center justify-between gap-2">
       <div class="flex items-center gap-1.5">
-        <span class="text-base-content/60 text-xs"> {{ toFullDate(result.task.scheduled.date) }} </span>
+        <span class="text-base-content/60 text-xs"> {{ toDateLabel(result.task.scheduled.date) }} </span>
         <span class="bg-base-300 text-base-content/70 rounded px-1.5 py-0.5 text-[9px] font-medium">{{ branchName }}</span>
       </div>
       <BaseIcon :name="statusIcon" class="size-4" :class="statusColorClass" />

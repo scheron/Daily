@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {TASK_FILTERS} from "@/constants/tasks"
-import BaseButton from "@/ui/base/BaseButton.vue"
+import BaseButton from "@/ui/base/BaseButton"
 import SearchInput from "@/ui/common/inputs/SearchInput.vue"
 
 import type {TasksFilter} from "@/types/common"
