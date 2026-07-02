@@ -211,14 +211,71 @@ describe("migrations", () => {
       db.close()
     })
 
-    it("rollback drops the usage columns", () => {
+    it("rollback of v006 drops the usage columns", () => {
       const db = new Database(":memory:")
       runMigrations(db)
 
+      rollbackLastMigration(db)
       const rolledBack = rollbackLastMigration(db)
 
       expect(rolledBack).toBe(6)
       expect(usageColumns(db)).toHaveLength(0)
+
+      db.close()
+    })
+  })
+
+  describe("v007 — repair poisoned migration history", () => {
+    it("recreates task_events and usage columns when _migrations claims v5/v6 but the schema lacks them", () => {
+      const db = new Database(":memory:")
+      db.exec(`CREATE TABLE _migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)`)
+      for (const migration of migrations.filter((m) => m.version <= 4)) {
+        db.exec(migration.up)
+        db.prepare("INSERT INTO _migrations (version, name, applied_at) VALUES (?, ?, ?)").run(
+          migration.version,
+          migration.name,
+          "2026-06-01T00:00:00.000Z",
+        )
+      }
+      db.prepare("INSERT INTO _migrations (version, name, applied_at) VALUES (5, 'task-events', '2026-06-15T00:00:00.000Z')").run()
+      db.prepare("INSERT INTO _migrations (version, name, applied_at) VALUES (6, 'ai-turn-usage', '2026-06-15T00:00:00.000Z')").run()
+
+      const tablesBefore = db
+        .prepare("SELECT name FROM sqlite_master WHERE type='table'")
+        .all()
+        .map((t) => t.name)
+      expect(tablesBefore).not.toContain("task_events")
+
+      runMigrations(db)
+
+      const tablesAfter = db
+        .prepare("SELECT name FROM sqlite_master WHERE type='table'")
+        .all()
+        .map((t) => t.name)
+      expect(tablesAfter).toContain("task_events")
+
+      const cols = db
+        .prepare("PRAGMA table_info(ai_turns)")
+        .all()
+        .map((c) => c.name)
+      expect(cols).toContain("prompt_tokens")
+      expect(cols).toContain("completion_tokens")
+      expect(cols).toContain("total_tokens")
+
+      db.close()
+    })
+
+    it("no-ops on a healthy database", () => {
+      const db = new Database(":memory:")
+      runMigrations(db)
+
+      const indexes = db
+        .prepare("SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='task_events'")
+        .all()
+        .map((i) => i.name)
+      expect(indexes).toContain("idx_task_events_branch_date")
+      expect(indexes).toContain("idx_task_events_task")
+      expect(getAppliedMigrations(db).map((m) => m.version)).toEqual(migrations.map((m) => m.version))
 
       db.close()
     })
