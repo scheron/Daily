@@ -1,3 +1,5 @@
+import {isObject, isString} from "@shared/utils/common/validators"
+
 import {getRegisteredTool} from "@/ai/tools/registry"
 
 import type {BeforeToolCallHook} from "@/ai/hooks/types"
@@ -17,11 +19,18 @@ export function createPolicyHook(host: PolicyHookHost): BeforeToolCallHook {
       return {action: "skip", reason: `Unknown tool: ${name}`}
     }
 
-    if (!tool.isDestructive) {
+    if (!tool.isDestructive && !tool.isExternalEgress) {
       return {action: "pass"}
     }
 
     const params = parseArgs(call.function.arguments)
+
+    if (tool.isExternalEgress && !tool.isDestructive) {
+      if (host.isEgressAutoApproved()) return {action: "pass"}
+      // No confirmation when this call won't actually leave the machine (e.g. cache hit).
+      if (tool.willEgress && !tool.willEgress(params, host.getWebPageCache())) return {action: "pass"}
+    }
+
     const confirmed = await host.awaitConfirmation(name, params)
     if (confirmed) return {action: "pass"}
     return {action: "skip", reason: "User declined the action"}
@@ -29,11 +38,11 @@ export function createPolicyHook(host: PolicyHookHost): BeforeToolCallHook {
 }
 
 function parseArgs(raw: unknown): Record<string, unknown> {
-  if (raw && typeof raw === "object" && !Array.isArray(raw)) return raw as Record<string, unknown>
-  if (typeof raw !== "string") return {}
+  if (isObject(raw)) return raw as Record<string, unknown>
+  if (!isString(raw)) return {}
   try {
     const parsed = JSON.parse(raw)
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {}
+    return isObject(parsed) ? (parsed as Record<string, unknown>) : {}
   } catch {
     return {}
   }

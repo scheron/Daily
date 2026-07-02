@@ -1,3 +1,5 @@
+import {isObject, isString} from "@shared/utils/common/validators"
+
 import type {Tool, ToolCallLLM} from "@/ai/types"
 
 /**
@@ -31,26 +33,28 @@ export function toolsToCompatPrompt(tools: Tool[]): string {
     }
   }
 
-  lines.push("")
-  lines.push("TOOL CALL FORMAT — emit each call as either:")
-  lines.push("")
-  lines.push("```tool_call")
-  lines.push(`{"name": "tool_name", "arguments": {"param1": "value1"}}`)
-  lines.push("```")
-  lines.push("")
-  lines.push("OR using XML tags:")
-  lines.push("")
-  lines.push("<tool_call>")
-  lines.push(`{"name": "tool_name", "arguments": {"param1": "value1"}}`)
-  lines.push("</tool_call>")
-  lines.push("")
-  lines.push("Rules:")
-  lines.push("- Each tool_call contains a single JSON object with `name` and `arguments`.")
-  lines.push("- For multiple tool calls in one turn, emit multiple tool_call blocks in sequence.")
-  lines.push("- To send a user-visible reply, call the `respond` tool with your final text.")
+  lines.push(TOOL_CALL_FORMAT)
 
   return lines.join("\n")
 }
+
+const TOOL_CALL_FORMAT = `
+TOOL CALL FORMAT — emit each call as either:
+
+\`\`\`tool_call
+{"name": "tool_name", "arguments": {"param1": "value1"}}
+\`\`\`
+
+OR using XML tags:
+
+<tool_call>
+{"name": "tool_name", "arguments": {"param1": "value1"}}
+</tool_call>
+
+Rules:
+- Each tool_call contains a single JSON object with \`name\` and \`arguments\`.
+- For multiple tool calls in one turn, emit multiple tool_call blocks in sequence.
+- To send a user-visible reply, call the \`respond\` tool with your final text.`
 
 let _compatIdCounter = 0
 
@@ -100,24 +104,24 @@ function tryParseLoose(body: string): unknown {
   }
 }
 
-function collectFenced(content: string, calls: RawCall[]): void {
+function collectFenced(content: string, calls: RawCall[]) {
   for (const m of content.matchAll(FENCED_RE)) {
     const body = (m[1] ?? "").trim()
     const parsed = tryParseLoose(body) as Record<string, unknown> | undefined
-    if (parsed && typeof parsed.name === "string") {
+    if (parsed && isString(parsed.name)) {
       calls.push({full: m[0], name: normalizeName(parsed.name), argsBody: JSON.stringify(parsed.arguments ?? {})})
     }
   }
 }
 
-function collectXml(content: string, calls: RawCall[]): void {
+function collectXml(content: string, calls: RawCall[]) {
   for (const m of content.matchAll(XML_RE)) {
     const inner = (m[1] ?? "").trim()
     if (!inner) continue
 
     // Format A: <tool_call>{"name": "...", "arguments": {...}}</tool_call>
     const parsed = tryParseLoose(inner) as Record<string, unknown> | undefined
-    if (parsed && typeof parsed.name === "string") {
+    if (parsed && isString(parsed.name)) {
       calls.push({full: m[0], name: normalizeName(parsed.name), argsBody: JSON.stringify(parsed.arguments ?? {})})
       continue
     }
@@ -162,7 +166,7 @@ export function parseCompatToolCalls(content: string | null): {
   for (const call of raw) {
     let args: Record<string, unknown> = {}
     const parsed = tryParseLoose(call.argsBody)
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+    if (isObject(parsed)) {
       args = parsed as Record<string, unknown>
     }
     _compatIdCounter += 1

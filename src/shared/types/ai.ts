@@ -1,6 +1,18 @@
 export type AIProvider = "openai" | "local"
 export type LocalModelId = string
 
+export type UnloadModelTime = "never" | "5m" | "15m" | "30m"
+
+/** A known LLM: display label, context window, and (remote-only) endpoint + provider. */
+export type LlmModelInfo = {
+  label: string
+  contextWindow: number
+  /** Remote API base URL; absent for local models. */
+  url?: string
+  /** Remote provider label (e.g. "OpenAI"); absent for local models. */
+  provider?: string
+}
+
 export type AIConfig = {
   enabled: boolean
   provider: AIProvider
@@ -26,8 +38,24 @@ export type AIConfig = {
     /** Cached list of models fetched from local provider */
     availableModels?: string[]
     /** When to unload the model from RAM after inactivity. Default "15m". */
-    unloadModel?: "never" | "5m" | "15m" | "30m"
+    unloadModel?: UnloadModelTime
   } | null
+
+  /**
+   * Web access (read a specific URL) is always available to the agent.
+   * `autoApprove` lets read_url run without a per-fetch confirmation card.
+   * null / false == confirm every fetch (default).
+   */
+  webAccess: {
+    autoApprove: boolean
+  } | null
+}
+
+/** Token accounting for a request (prompt) and its generation (completion). */
+export type TokenUsage = {
+  promptTokens: number
+  completionTokens: number
+  totalTokens: number
 }
 
 export type AIMessage = {
@@ -37,6 +65,7 @@ export type AIMessage = {
   timestamp: number
   toolCalls?: Array<{name: string; result: string}>
   segments?: AgentMessageSegment[]
+  usage?: TokenUsage
   status?: "streaming" | "complete" | "cancelled" | "failed"
   error?: string
 }
@@ -76,9 +105,9 @@ export type AIEvent =
   | {type: "turn_started"; turnId: string; userMessage: string; startedAt: number}
   | {type: "model_requested"; turnId: string; iteration: number}
   | {type: "model_responded"; turnId: string; iteration: number; hasToolCalls: boolean}
-  | {type: "tool_started"; turnId: string; toolCallId: string; toolName: string}
+  | {type: "tool_started"; turnId: string; toolCallId: string; toolName: string; label?: string}
   | {type: "tool_finished"; turnId: string; toolCallId: string; toolName: string; success: boolean; summary: string}
-  | {type: "turn_finished"; turnId: string; finalMessage: string; finishedAt: number}
+  | {type: "turn_finished"; turnId: string; finalMessage: string; finishedAt: number; usage?: TokenUsage}
   | {type: "turn_failed"; turnId: string; error: string; finishedAt: number}
   | {type: "turn_cancelled"; turnId: string; finishedAt: number}
   | {type: "model_content_delta"; turnId: string; iteration: number; text: string}
@@ -86,7 +115,7 @@ export type AIEvent =
 
 export type AgentMessageSegment =
   | {kind: "reasoning"; text: string; durationMs?: number; startedAt?: number}
-  | {kind: "tool"; toolCallId: string; name: string; status: "running" | "done"; success?: boolean; summary?: string}
+  | {kind: "tool"; toolCallId: string; name: string; status: "running" | "done"; success?: boolean; summary?: string; label?: string}
 
 /**
  * Renderer-safe summary of a persisted AgentTurn. Used by `ai:get-current-session`
@@ -103,6 +132,8 @@ export type AgentTurnSnapshot = {
   /** Pairs derived from the turn's tool-call/tool-result steps. */
   toolCalls: Array<{name: string; result: string}>
   segments?: AgentMessageSegment[]
+  /** Token usage accumulated across the turn's LLM calls. */
+  usage?: TokenUsage
   error?: string
 }
 

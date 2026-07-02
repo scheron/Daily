@@ -1,3 +1,5 @@
+import {isString, notUndefined} from "@shared/utils/common/validators"
+
 import type {ToolResult} from "./types"
 
 /**
@@ -8,10 +10,10 @@ import type {ToolResult} from "./types"
 export function toModelToolMessage(result: ToolResult): string {
   if (result.error) return JSON.stringify({success: false, error: result.error})
 
-  const summary = result.summary ?? (typeof result.data === "string" ? result.data : "")
+  const summary = result.summary ?? (isString(result.data) ? result.data : "")
   if (summary) return JSON.stringify({success: result.success, data: summary})
 
-  if (result.data !== undefined) return JSON.stringify({success: result.success, data: result.data})
+  if (notUndefined(result.data)) return JSON.stringify({success: result.success, data: result.data})
 
   return JSON.stringify({success: result.success})
 }
@@ -22,7 +24,7 @@ export function toModelToolMessage(result: ToolResult): string {
  * human-readable line available.
  */
 export function toRendererToolCall(toolName: string, result: ToolResult): {name: string; result: string} {
-  const summary = result.summary ?? (typeof result.data === "string" ? result.data : "")
+  const summary = result.summary ?? (isString(result.data) ? result.data : "")
   const text = summary || result.error || (result.success ? "Done" : "Failed")
   return {name: toolName, result: text}
 }

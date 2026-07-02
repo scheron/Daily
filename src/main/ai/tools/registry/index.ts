@@ -4,6 +4,7 @@ import {PROJECT_TOOLS} from "./categories/projects"
 import {SUMMARY_TOOLS} from "./categories/summary"
 import {TAG_TOOLS} from "./categories/tags"
 import {TASK_TOOLS} from "./categories/tasks"
+import {WEB_TOOLS} from "./categories/web"
 
 import type {Tool} from "@/ai/types"
 import type {RegisteredTool} from "./types"
@@ -16,7 +17,15 @@ import type {RegisteredTool} from "./types"
  * META_TOOLS come first so the `respond` protocol tool is always present
  * in every tier's tool list.
  */
-export const REGISTRY: ReadonlyArray<RegisteredTool> = [...META_TOOLS, ...TASK_TOOLS, ...TAG_TOOLS, ...PROJECT_TOOLS, ...FILE_TOOLS, ...SUMMARY_TOOLS]
+export const REGISTRY: ReadonlyArray<RegisteredTool> = [
+  ...META_TOOLS,
+  ...TASK_TOOLS,
+  ...TAG_TOOLS,
+  ...PROJECT_TOOLS,
+  ...FILE_TOOLS,
+  ...SUMMARY_TOOLS,
+  ...WEB_TOOLS,
+]
 
 export type ToolName = (typeof REGISTRY)[number]["name"]
 
