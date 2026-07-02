@@ -101,11 +101,13 @@ export class StorageController implements IStorageController {
 
     const settings = await this.loadSettings()
 
-    if (settings.sync.enabled && !ENV.isDevelopment) {
-      logger.info(logger.CONTEXT.STORAGE, "Auto-sync was enabled, restoring")
-      this.syncEngine.enableAutoSync()
-    } else if (settings.sync.enabled && ENV.isDevelopment) {
-      logger.warn(logger.CONTEXT.STORAGE, "Auto-sync stays off in development (isolated dev environment)")
+    if (settings.sync.enabled) {
+      if (!ENV.isDevelopment) {
+        logger.info(logger.CONTEXT.STORAGE, "Auto-sync was enabled, restoring")
+        this.syncEngine.enableAutoSync()
+      } else {
+        logger.warn(logger.CONTEXT.STORAGE, "Auto-sync stays off in development (isolated dev environment)")
+      }
     }
 
     logger.info(logger.CONTEXT.STORAGE, "Initializing search index")
