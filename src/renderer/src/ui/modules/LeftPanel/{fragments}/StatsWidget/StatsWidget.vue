@@ -71,12 +71,12 @@ function pad(n: number): string {
     </div>
 
     <div>
-      <p class="text-base-content/40 mb-1.5 text-[11px]">Day of week</p>
+      <p class="text-base-content/40 mb-1.5 text-[11px]">Done by weekday</p>
       <BarChart :items="weekdayItems" />
     </div>
 
     <div>
-      <p class="text-base-content/40 mb-1.5 text-[11px]">Time of day</p>
+      <p class="text-base-content/40 mb-1.5 text-[11px]">Done by hour</p>
       <BarChart :items="hourItems" dense />
     </div>
 

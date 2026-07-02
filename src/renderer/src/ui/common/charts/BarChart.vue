@@ -16,6 +16,7 @@ type BarItem = {
 const MIN_LABEL_GAP_PX = 6
 const DENSE_BAR_GAP_PX = 1
 const SPACED_BAR_GAP_PX = 4
+const EMPTY_BAR_PX = 3
 
 const props = withDefaults(
   defineProps<{
@@ -112,8 +113,8 @@ onMounted(() => nextTick(measure))
       >
         <div
           class="w-full transition-[height] duration-500"
-          :class="[dense ? 'rounded-[1px]' : 'rounded-sm', item.active ? 'bg-accent' : 'bg-accent/60']"
-          :style="{height: `${(item.value / max) * 100}%`}"
+          :class="[dense ? 'rounded-[1px]' : 'rounded-sm', item.value === 0 ? 'bg-base-content/10' : item.active ? 'bg-accent' : 'bg-accent/60']"
+          :style="item.value === 0 ? {height: `${EMPTY_BAR_PX}px`} : {height: `${(item.value / max) * 100}%`, minHeight: `${EMPTY_BAR_PX}px`}"
         />
       </div>
     </div>
