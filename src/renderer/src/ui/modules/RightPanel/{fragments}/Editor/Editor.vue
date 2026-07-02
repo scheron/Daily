@@ -8,11 +8,15 @@ const editorRef = useTemplateRef<InstanceType<typeof MarkdownEditor>>("editorRef
 
 const {activeTask, localContent, isOpen, isNew, onBodyChange} = useTaskEditor()
 
-watch(isOpen, async (open) => {
-  if (!open || !isNew.value) return
-  await nextTick()
-  editorRef.value?.focus()
-})
+watch(
+  () => isOpen.value && isNew.value,
+  async (isCreating) => {
+    if (!isCreating) return
+    await nextTick()
+    editorRef.value?.focus()
+  },
+  {immediate: true},
+)
 </script>
 
 <template>

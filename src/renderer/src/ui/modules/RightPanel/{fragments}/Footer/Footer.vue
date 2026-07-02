@@ -19,7 +19,7 @@ const {isEditing, editingTaskId, close} = useTaskEditor()
 const tasksStore = useTasksStore()
 
 const historyTask = computed(() => (editingTaskId.value ? tasksStore.findTaskById(editingTaskId.value) : null))
-const {events, lastEvent} = useTaskHistory(historyTask)
+const {events, isEmpty, lastEvent} = useTaskHistory(historyTask)
 
 const summary = computed(() => {
   if (!lastEvent.value) return null
@@ -37,17 +37,20 @@ async function onDelete() {
 </script>
 
 <template>
-  <div v-if="historyTask && isEditing" class="border-base-300 text-base-content/60 flex items-center border-t px-4 py-1">
-    <BasePopup hover-mode side="top" position="start" hide-header container-class="w-72 max-h-80 overflow-y-auto p-0">
+  <div v-if="historyTask && isEditing" class="border-base-300 text-base-content/60 flex h-10 items-center border-t px-4">
+    <BasePopup
+      v-if="!isEmpty"
+      hover-mode
+      side="top"
+      position="start"
+      hide-header
+      container-class="w-72 max-h-80 overflow-y-auto p-0"
+      trigger-class="h-full text-base-content/60 hover:text-base-content cursor-default  text-xs"
+    >
       <template #trigger="{show}">
-        <div
-          class="border-base-300 text-base-content/60 hover:text-base-content flex cursor-default items-center justify-between text-xs"
-          @mouseenter="show"
-        >
-          <span class="flex h-full items-center gap-1.5">
-            <BaseIcon name="history" class="size-3.5" />
-            {{ summary }}
-          </span>
+        <div class="flex h-full items-center gap-1.5" @mouseenter="show">
+          <BaseIcon name="history" class="size-3.5" />
+          {{ summary }}
         </div>
       </template>
 
@@ -65,7 +68,7 @@ async function onDelete() {
       @confirm="onDelete"
     >
       <template #trigger="{show}">
-        <BaseButton variant="ghost" icon="trash" size="sm" class="text-error hover:bg-error/10" @click="show" />
+        <BaseButton variant="ghost" icon="trash" icon-class="size-4.5" size="sm" class="text-error hover:bg-error/10" @click="show" />
       </template>
     </ConfirmPopup>
   </div>

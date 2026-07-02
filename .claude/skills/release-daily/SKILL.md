@@ -165,6 +165,8 @@ Show the full text to the user one more time. Print it as a single markdown bloc
 
 > "Шипим v${nextVersion} с этим текстом? (yes/no/edit)"
 
+**Print the complete assembled markdown — the exact text that will land in CHANGELOG.md — immediately before asking, in the same turn as the confirmation question.** Not "as agreed earlier", not a summary, not a link back to the per-section interview: the full final text, every time, right above the question. The user reads it there and then answers.
+
 - `yes` → step 9
 - `no` → STOP and stay out of the git/tag/push side until the user comes back.
 - `edit` → ask what to change, redo step 5 or 6 for the affected section, then re-confirm.

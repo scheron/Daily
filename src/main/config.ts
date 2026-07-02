@@ -132,7 +132,7 @@ export const fsPaths = {
   /** Default export location for vault exports */
   exportRootDefault: () => path.join(app.getPath("documents"), "Daily-Exports"),
 
-  /** Remote sync directory (dev uses an isolated folder; sync is also hard-disabled in dev) */
+  /** Remote sync directory (dev syncs through an isolated `-dev` folder, never the production one) */
   remoteSyncPath: () =>
     path.join(`${app.getPath("home")}/Library/Mobile Documents/com~apple~CloudDocs`, ENV.isDevelopment ? `${APP_CONFIG.name}-dev` : APP_CONFIG.name),
 

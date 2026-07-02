@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.16.1 - 2026-07-02
+
+### 🎨 Improvements
+
+- Tag lists are now sorted alphabetically — in Settings, pickers, and comboboxes.
+- **Stats** — periods without completed tasks show a clean empty chart instead of bare axis labels, and the histograms have clearer titles.
+- New tasks open with the cursor already in the body, ready to type.
+
+### 🐛 Bug Fixes
+
+- Fixed an empty history popover showing on tasks that have no recorded changes yet.
+
+---
+
 ## v0.16.0 - 2026-07-02
 
 ### ✨ New Features
