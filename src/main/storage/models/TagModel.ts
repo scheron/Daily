@@ -18,6 +18,8 @@ export class TagModel {
       sql += ` WHERE deleted_at IS NULL`
     }
 
+    sql += ` ORDER BY name COLLATE NOCASE`
+
     const rows = this.db.prepare(sql).all() as any[]
 
     logger.info(logger.CONTEXT.TAGS, `Loaded ${rows.length} tags from database`)

@@ -29,7 +29,7 @@ export const useTagsStore = defineStore("tags", () => {
     const newTag = await API.createTag({name, color})
     if (!newTag) return null
 
-    tags.value.push(newTag)
+    tags.value = sortByName([...tags.value, newTag])
 
     return newTag
   }
@@ -38,8 +38,7 @@ export const useTagsStore = defineStore("tags", () => {
     const updatedTag = await API.updateTag(id, updates)
     if (!updatedTag) return null
 
-    const index = tags.value.findIndex((tag) => tag.id === id)
-    if (index !== -1) tags.value[index] = updatedTag
+    tags.value = sortByName(tags.value.map((tag) => (tag.id === id ? updatedTag : tag)))
 
     return updatedTag
   }
@@ -76,3 +75,7 @@ export const useTagsStore = defineStore("tags", () => {
     revalidate,
   }
 })
+
+function sortByName(list: Tag[]): Tag[] {
+  return [...list].sort((a, b) => a.name.localeCompare(b.name, undefined, {sensitivity: "base"}))
+}
