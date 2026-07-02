@@ -1,4 +1,6 @@
-import {formatTag} from "@/ai/utils/formatTag"
+import {notUndefined} from "@shared/utils/common/validators"
+
+import {formatTag} from "@/ai/utils/formatters"
 
 import type {Tag} from "@shared/types/storage"
 import type {RegisteredTool} from "../../types"
@@ -24,8 +26,8 @@ export const updateTag: RegisteredTool = {
     }
 
     const updates: Partial<Tag> = {}
-    if (params.name !== undefined) updates.name = params.name as string
-    if (params.color !== undefined) updates.color = params.color as string
+    if (notUndefined(params.name)) updates.name = params.name as string
+    if (notUndefined(params.color)) updates.color = params.color as string
 
     const updated = await ctx.storage.updateTag(tagId, updates)
 

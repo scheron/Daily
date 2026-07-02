@@ -1,5 +1,6 @@
-import {formatTask} from "@/ai/utils/formatTask"
-import {getTodayDate} from "@/ai/utils/getTodayDate"
+import {getToday} from "@shared/utils/date/getToday"
+
+import {formatTask} from "@/ai/utils/formatters"
 
 import type {RegisteredTool} from "../../types"
 
@@ -18,7 +19,7 @@ export const listTasks: RegisteredTool = {
   isWrite: false,
   isDestructive: false,
   async execute(params, ctx) {
-    const date = (params.date as string) || getTodayDate()
+    const date = (params.date as string) || getToday()
     const includeDone = params.include_done !== false
     const projectId = params.project_id as string | undefined
     let branchId: string | undefined

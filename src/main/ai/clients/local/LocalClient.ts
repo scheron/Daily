@@ -25,7 +25,7 @@ export class LocalAiClient extends OpenAiCompatibleClient implements IAiClient {
     this.modelService = new LocalModelService()
   }
 
-  updateConfig(config: AIConfig | null): void {
+  updateConfig(config: AIConfig | null) {
     const previousModel = this.config?.model
     this.config = config?.local ?? null
 

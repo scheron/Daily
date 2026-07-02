@@ -1,3 +1,5 @@
+import {isString} from "@shared/utils/common/validators"
+
 import type {RegisteredTool} from "../../types"
 
 /**
@@ -25,7 +27,7 @@ export const respond: RegisteredTool = {
   isWrite: false,
   isDestructive: false,
   async execute(params) {
-    const text = typeof params.text === "string" ? params.text : ""
+    const text = isString(params.text) ? params.text : ""
     return {success: true, data: text}
   },
 }

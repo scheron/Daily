@@ -1,3 +1,4 @@
+import {sort} from "fast-sort"
 import {DateTime} from "luxon"
 
 import type {ISODate} from "../../types/common"
@@ -65,14 +66,12 @@ export function groupActiveDays(days: Day[]): ActiveDaysGroup[] {
     else if (isOlder) older.push({date: day.date, count: day.countActive})
   }
 
-  const sortDesc = (a: GroupedActiveDay, b: GroupedActiveDay) => b.date.localeCompare(a.date)
-
   return [
-    {label: "today", count: todayItems.length, items: todayItems.sort(sortDesc)},
-    {label: "yesterday", count: yesterdayItems.length, items: yesterdayItems.sort(sortDesc)},
-    {label: "this week", count: thisWeek.length, items: thisWeek.sort(sortDesc)},
-    {label: "last week", count: lastWeek.length, items: lastWeek.sort(sortDesc)},
-    {label: "last month", count: lastMonth.length, items: lastMonth.sort(sortDesc)},
-    {label: "older", count: older.length, items: older.sort(sortDesc)},
+    {label: "today", count: todayItems.length, items: sort(todayItems).desc((d) => d.date)},
+    {label: "yesterday", count: yesterdayItems.length, items: sort(yesterdayItems).desc((d) => d.date)},
+    {label: "this week", count: thisWeek.length, items: sort(thisWeek).desc((d) => d.date)},
+    {label: "last week", count: lastWeek.length, items: sort(lastWeek).desc((d) => d.date)},
+    {label: "last month", count: lastMonth.length, items: sort(lastMonth).desc((d) => d.date)},
+    {label: "older", count: older.length, items: sort(older).desc((d) => d.date)},
   ]
 }

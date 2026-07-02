@@ -9,15 +9,15 @@ export class HookChain {
   private after: AfterToolCallHook[] = []
   private transform: TransformContextHook[] = []
 
-  registerBeforeToolCall(hook: BeforeToolCallHook): void {
+  registerBeforeToolCall(hook: BeforeToolCallHook) {
     this.before.push(hook)
   }
 
-  registerAfterToolCall(hook: AfterToolCallHook): void {
+  registerAfterToolCall(hook: AfterToolCallHook) {
     this.after.push(hook)
   }
 
-  registerTransformContext(hook: TransformContextHook): void {
+  registerTransformContext(hook: TransformContextHook) {
     this.transform.push(hook)
   }
 

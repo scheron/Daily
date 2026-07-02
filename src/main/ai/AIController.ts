@@ -1,10 +1,13 @@
 import {nanoid} from "nanoid"
 
+import {UNLOAD_MODEL_TIME} from "@shared/constants/ai"
 import {deepMerge} from "@shared/utils/common/deepMerge"
+import {LRU} from "@shared/utils/common/LRU"
+import {isArray, isBoolean, isNull, isNullish, isNumber, isObject, isString, notNull, notUndefined} from "@shared/utils/common/validators"
 import {AsyncMutex} from "@/utils/AsyncMutex"
 import {logger} from "@/utils/logger"
 
-import {LocalAiClient, UNLOAD_OPTION_MS} from "@/ai/clients/local"
+import {LocalAiClient} from "@/ai/clients/local"
 import {RemoteAiClient} from "@/ai/clients/remote"
 import {HookChain} from "@/ai/hooks/HookChain"
 import {ConversationCompactor} from "@/ai/memory/ConversationCompactor"
@@ -14,24 +17,30 @@ import {DEFAULT_CONFIRMATION_TIMEOUT_MS} from "@/ai/policy/types"
 import {getSystemPrompt} from "@/ai/promts/getSystemPrompt"
 import {getSystemPromptCompact} from "@/ai/promts/getSystemPromptCompact"
 import {getSystemPromptTiny} from "@/ai/promts/getSystemPromptTiny"
+import {getWebAccessPrompt} from "@/ai/promts/getWebAccessPrompt"
 import {parseCompatToolCalls, toolsToCompatPrompt} from "@/ai/tools/compat"
 import {toModelToolMessage, toRendererToolCall} from "@/ai/tools/format"
 import {AI_TOOLS, AI_TOOLS_COMPACT} from "@/ai/tools/registry"
+import {toolEventLabel} from "@/ai/tools/toolEventLabel"
 import {ToolExecutor} from "@/ai/tools/ToolExecutor"
 import {TurnBuilder} from "@/ai/turns/TurnBuilder"
+import {WEB_LIMITS} from "@/ai/web/constants"
+import {computeWebReadBudget} from "@/ai/web/utils/computeWebReadBudget"
 import {filterThinkBlocks} from "./utils/filterThinkBlocks"
-import {redactAiMessagesForLog, redactToolParamsForLog} from "./utils/redact"
+import {redactAiMessagesForLog} from "./utils/logs/redactAiMessagesForLog"
+import {redactToolParamsForLog} from "./utils/logs/redactToolParamsForLog"
+import {restoreConversationHistory} from "./memory/restoreConversationHistory"
+import {turnToSnapshot} from "./turns/turnToSnapshot"
 
-import type {ILocalModelService, UnloadOption} from "@/ai/clients/local"
+import type {ILocalModelService} from "@/ai/clients/local"
 import type {AgentContext} from "@/ai/hooks/types"
 import type {PendingConfirmation} from "@/ai/policy/types"
 import type {ToolName} from "@/ai/tools/registry"
 import type {ToolResult} from "@/ai/tools/types"
-import type {AgentTurn} from "@/ai/turns/types"
 import type {ChatStreamCallbacks, IAiClient, MessageLLM, Tool, ToolCallLLM, ToolChoice} from "@/ai/types"
+import type {CachedPage} from "@/ai/web/types"
 import type {StorageController} from "@/storage/StorageController"
 import type {
-  AgentMessageSegment,
   AgentTurnSnapshot,
   AIConfig,
   AIEvent,
@@ -39,6 +48,8 @@ import type {
   AIResponse,
   LocalRuntimeState,
   PendingToolConfirmation,
+  TokenUsage,
+  UnloadModelTime,
 } from "@shared/types/ai"
 
 /**
@@ -47,97 +58,12 @@ import type {
  * The renderer subscribes via the `ai:on-confirmation-required` /
  * `ai:on-confirmation-resolved` IPC channels.
  */
-export type ConfirmationBroadcastEvent = {type: "required"; confirmation: PendingToolConfirmation} | {type: "resolved"; confirmationId: string}
+type ConfirmationBroadcastEvent = {type: "required"; confirmation: PendingToolConfirmation} | {type: "resolved"; confirmationId: string}
 
-export type AIControllerDeps = {
+type AIControllerDeps = {
   remoteClient?: RemoteAiClient
   localClient?: LocalAiClient
   executor?: ToolExecutor
-}
-
-/**
- * Reduce a persisted AgentTurn to the renderer-safe snapshot used by the
- * chat restore path. Pairs up tool_call + tool_result steps by toolCallId,
- * skips internal model_response noise, and never leaks step ids or step
- * payloads.
- */
-function turnToSnapshot(turn: AgentTurn): AgentTurnSnapshot {
-  const toolCalls: Array<{name: string; result: string}> = []
-  const segments: AgentMessageSegment[] = []
-
-  for (let i = 0; i < turn.steps.length; i++) {
-    const step = turn.steps[i]
-    if (step.type === "model_response") {
-      if (step.reasoning) {
-        // Only emit reasoning from the model_response if this iteration does NOT
-        // end with a respond step. When the model calls `respond` directly, the
-        // respond step will carry the reasoning instead, avoiding a duplicate.
-        const nextBoundary = turn.steps.slice(i + 1).find((s) => s.type === "respond" || s.type === "model_response")
-        if (nextBoundary?.type !== "respond") {
-          segments.push({kind: "reasoning", text: step.reasoning, durationMs: step.reasoningDurationMs})
-        }
-      }
-    }
-    if (step.type === "tool_result") {
-      const summary =
-        step.result?.summary ??
-        (typeof step.result?.data === "string" ? step.result.data : (step.result?.error ?? (step.result?.success ? "Done" : "Failed")))
-      toolCalls.push({name: step.toolName, result: summary})
-      segments.push({
-        kind: "tool",
-        toolCallId: step.toolCallId,
-        name: step.toolName,
-        status: "done",
-        success: step.result?.success ?? false,
-        summary,
-      })
-    }
-    if (step.type === "respond" && step.reasoning) {
-      segments.push({kind: "reasoning", text: step.reasoning, durationMs: step.reasoningDurationMs})
-    }
-  }
-  return {
-    id: turn.id,
-    userMessage: turn.userMessage,
-    finalMessage: turn.finalMessage ?? null,
-    startedAt: turn.startedAt,
-    finishedAt: turn.finishedAt ?? null,
-    status: turn.status,
-    toolCalls,
-    segments: segments.length ? segments : undefined,
-    error: turn.error,
-  }
-}
-
-/**
- * Rebuild the in-memory conversation history (LLM-side messages) from a
- * sequence of persisted AgentTurns. Used on app start so the agent picks up
- * the active session without losing context.
- *
- * Each turn produces: {user message} + (per model_response step) assistant
- * message with any tool_calls + (per tool_result) tool message tied by
- * tool_call_id. reasoning_content is stripped — it never enters the LLM
- * context outbound.
- */
-function restoreConversationHistory(turns: AgentTurn[]): MessageLLM[] {
-  const history: MessageLLM[] = []
-  for (const turn of turns) {
-    history.push({role: "user", content: turn.userMessage})
-    for (const step of turn.steps) {
-      if (step.type === "model_response") {
-        const message: MessageLLM = {...step.message}
-        delete message.reasoning_content
-        history.push(message)
-      } else if (step.type === "tool_result") {
-        history.push({
-          role: "tool",
-          content: toModelToolMessage(step.result),
-          tool_call_id: step.toolCallId,
-        })
-      }
-    }
-  }
-  return history
 }
 
 type PromptTier = "tiny" | "medium" | "large"
@@ -150,12 +76,18 @@ export class AIController {
   private abortController: AbortController | null = null
   private config: AIConfig | null = null
   private currentToolSchemas = new Map<string, Tool["function"]["parameters"]>()
+  private currentWebAccess: AIConfig["webAccess"] = null
+  private currentWebReadBudget: ReturnType<typeof computeWebReadBudget> | null = null
+  private pageCache = new LRU<string, CachedPage>(WEB_LIMITS.pageCacheEntries, WEB_LIMITS.pageCacheTtlMs)
   private sendMutex = new AsyncMutex()
   private hooks = new HookChain()
   private pendingConfirmation: PendingConfirmation | null = null
   private compactor = new ConversationCompactor()
   private lastActivityAt = Date.now()
   private idleTimer: ReturnType<typeof setInterval> | null = null
+
+  /** Name-based heuristic for detecting remote reasoning/thinking models. Extend as new families ship. */
+  private readonly REASONING_MODEL_PATTERNS: RegExp[] = [/reasoner/, /deepseek-r\d/, /deepseek-v[4-9]/, /thinking/, /qwq/, /^o[1-9]/]
 
   constructor(
     private storage: StorageController,
@@ -318,6 +250,16 @@ export class AIController {
     return this.resolvePendingConfirmation(false, confirmationId)
   }
 
+  /** PolicyHookHost: whether external-egress tools may run without user confirmation. */
+  isEgressAutoApproved(): boolean {
+    return this.currentWebAccess?.autoApprove === true
+  }
+
+  /** PolicyHookHost: the page cache so cache-hit reads skip confirmation. */
+  getWebPageCache(): LRU<string, CachedPage> {
+    return this.pageCache
+  }
+
   /**
    * Called from the policy hook. Returns when the user confirms, cancels,
    * or the timer fires. Resolves to `true` on confirm, `false` otherwise.
@@ -411,11 +353,14 @@ export class AIController {
       const maxIterations = 10
       const promptTier = this.resolvePromptTier(config)
       const compatMode = this.isCompatMode(config)
+      this.currentWebAccess = config.webAccess
+      this.currentWebReadBudget = computeWebReadBudget(this.resolveContextTokens(config))
       const toolChoice = compatMode ? undefined : this.resolveToolChoice(promptTier, config)
       const baseSystemPrompt = this.getSystemPromptByTier(promptTier)
+      const baseSystemPromptWithWeb = `${baseSystemPrompt}\n\n${getWebAccessPrompt()}`
       const tools = this.getToolsForTier(promptTier)
       this.currentToolSchemas = new Map(tools.map((tool) => [tool.function.name, tool.function.parameters]))
-      const systemPrompt = compatMode ? `${baseSystemPrompt}\n\n${toolsToCompatPrompt(tools)}` : baseSystemPrompt
+      const systemPrompt = compatMode ? `${baseSystemPromptWithWeb}\n\n${toolsToCompatPrompt(tools)}` : baseSystemPromptWithWeb
       logger.info(logger.CONTEXT.AI, "Agent loop config", {
         tier: promptTier,
         toolChoice,
@@ -458,11 +403,11 @@ export class AIController {
               // is enough feedback. Reasoning panels are reserved for
               // remote / large models where the chain is actually useful.
               if (compatMode) return
-              if (reasoningStartedAt === null) reasoningStartedAt = now
+              if (isNull(reasoningStartedAt)) reasoningStartedAt = now
               iterReasoning.push(d.text)
               this.emit({type: "model_reasoning_delta", turnId: turn.id, iteration: iterations, text: d.text})
             } else {
-              if (reasoningStartedAt !== null && reasoningEndedAt === null) {
+              if (notNull(reasoningStartedAt) && isNull(reasoningEndedAt)) {
                 reasoningEndedAt = now
               }
               this.emit({type: "model_content_delta", turnId: turn.id, iteration: iterations, text: d.text})
@@ -470,15 +415,16 @@ export class AIController {
           },
         })
 
-        if (reasoningStartedAt !== null && reasoningEndedAt === null) {
+        if (notNull(reasoningStartedAt) && isNull(reasoningEndedAt)) {
           reasoningEndedAt = Date.now()
         }
 
         const iterationReasoning = iterReasoning.join("") || undefined
         const iterationReasoningDurationMs =
-          reasoningStartedAt !== null && reasoningEndedAt !== null ? reasoningEndedAt - reasoningStartedAt : undefined
+          notNull(reasoningStartedAt) && notNull(reasoningEndedAt) ? reasoningEndedAt - reasoningStartedAt : undefined
 
         let assistantMessage = response.message
+        if (response.usage) turn.recordUsage(response.usage)
 
         if (compatMode) {
           const {toolCalls: parsedCalls, remainingContent} = parseCompatToolCalls(assistantMessage.content)
@@ -528,8 +474,8 @@ export class AIController {
             // message and the outer loop breaks after this iteration.
             if (toolCall.function.name === "respond") {
               const args = toolCall.function.arguments
-              const params = typeof args === "object" && args !== null ? (args as Record<string, unknown>) : {}
-              const text = typeof params.text === "string" ? params.text : ""
+              const params = typeof args === "object" && notNull(args) ? (args as Record<string, unknown>) : {}
+              const text = isString(params.text) ? params.text : ""
               logger.info(logger.CONTEXT.AI, "Respond tool intercepted (model → user)", {
                 iteration: iterations,
                 textLength: text.length,
@@ -560,7 +506,13 @@ export class AIController {
               toolName: toolCall.function.name,
               params: toolCall.function.arguments,
             })
-            this.emit({type: "tool_started", turnId: turn.id, toolCallId: toolCall.id, toolName: toolCall.function.name})
+            this.emit({
+              type: "tool_started",
+              turnId: turn.id,
+              toolCallId: toolCall.id,
+              toolName: toolCall.function.name,
+              label: toolEventLabel(toolCall.function.name, toolCall.function.arguments),
+            })
 
             let toolResult: ToolResult
             if (decision.action === "skip") {
@@ -570,13 +522,12 @@ export class AIController {
             }
 
             const resultSummary =
-              toolResult.summary ??
-              (typeof toolResult.data === "string" ? toolResult.data : (toolResult.error ?? (toolResult.success ? "Done" : "Failed")))
+              toolResult.summary ?? (isString(toolResult.data) ? toolResult.data : (toolResult.error ?? (toolResult.success ? "Done" : "Failed")))
             logger.info(logger.CONTEXT.AI, "Tool result", {
               iteration: iterations,
               tool: toolCall.function.name,
               success: toolResult.success,
-              summaryPreview: typeof resultSummary === "string" ? resultSummary.slice(0, 160) + (resultSummary.length > 160 ? "…" : "") : null,
+              summaryPreview: isString(resultSummary) ? resultSummary.slice(0, 160) + (resultSummary.length > 160 ? "…" : "") : null,
               ...(toolResult.error ? {error: toolResult.error} : {}),
             })
 
@@ -605,7 +556,7 @@ export class AIController {
             })
           }
 
-          if (respondTextForTurn !== null) {
+          if (notNull(respondTextForTurn)) {
             logger.info(logger.CONTEXT.AI, "Agent loop ended via respond", {
               iteration: iterations,
               finalLength: respondTextForTurn.length,
@@ -665,7 +616,7 @@ export class AIController {
         responseLength: finalContent.length,
       })
 
-      this.emit({type: "turn_finished", turnId: turn.id, finalMessage: finalContent, finishedAt: Date.now()})
+      this.emit({type: "turn_finished", turnId: turn.id, finalMessage: finalContent, finishedAt: Date.now(), usage: turn.usage})
       await this.persistTurn(turn, config)
 
       return {success: true, message: responseMessage}
@@ -695,7 +646,7 @@ export class AIController {
     }
   }
 
-  private emit(event: AIEvent): void {
+  private emit(event: AIEvent) {
     try {
       this.broadcastEvent?.(event)
     } catch (err) {
@@ -716,7 +667,7 @@ export class AIController {
   private resolvePendingConfirmation(confirmed: boolean, expectedId?: string): boolean {
     const pending = this.pendingConfirmation
     if (!pending) return false
-    if (expectedId !== undefined && pending.id !== expectedId) return false
+    if (notUndefined(expectedId) && pending.id !== expectedId) return false
 
     clearTimeout(pending.timeoutId)
     this.pendingConfirmation = null
@@ -735,9 +686,9 @@ export class AIController {
     if (this.config?.provider !== "local") return
     const server = (this.localClient as any).server
     if (!server?.isRunning?.()) return
-    const opt = (this.config.local?.unloadModel ?? "15m") as UnloadOption
-    const ms = UNLOAD_OPTION_MS[opt]
-    if (ms === null) return
+    const opt = (this.config.local?.unloadModel ?? "15m") as UnloadModelTime
+    const ms = UNLOAD_MODEL_TIME[opt]
+    if (isNull(ms)) return
     if (Date.now() - this.lastActivityAt <= ms) return
     logger.info(logger.CONTEXT.AI, "Idle timeout reached, unloading server")
     await server.stop()
@@ -796,7 +747,17 @@ export class AIController {
     if (config?.provider !== "openai") return false
     const modelName = config.openai?.model?.toLowerCase() ?? ""
     if (!modelName) return false
-    return /reasoner|deepseek-r\d|deepseek-v[4-9]|thinking|qwq|^o[1-9]/.test(modelName)
+    return this.isReasoningModelName(modelName)
+  }
+
+  private isReasoningModelName(modelName: string): boolean {
+    return this.REASONING_MODEL_PATTERNS.some((pattern) => pattern.test(modelName))
+  }
+
+  private tierToPromptTier(tier: "fast" | "balanced" | "quality"): PromptTier {
+    if (tier === "fast") return "tiny"
+    if (tier === "balanced") return "medium"
+    return "large"
   }
 
   private resolvePromptTier(config: AIConfig | null): PromptTier {
@@ -805,7 +766,7 @@ export class AIController {
       if (!modelId) return "medium"
       const entry = this.localClient.modelService.getEntry(modelId)
       if (!entry) return "medium"
-      return tierToPromptTier(entry.tier)
+      return this.tierToPromptTier(entry.tier)
     }
 
     const modelName = config?.openai?.model?.toLowerCase() ?? ""
@@ -826,13 +787,23 @@ export class AIController {
     return "large"
   }
 
+  private resolveContextTokens(config: AIConfig): number | null {
+    if (config.provider !== "local") return null
+    const override = config.local?.params?.ctx
+    if (typeof override === "number" && override > 0) return override
+    const modelId = config.local?.model
+    if (!modelId) return null
+    const entry = this.localClient.modelService.getEntry(modelId)
+    return entry?.serverArgs?.ctx ?? null
+  }
+
   private async callLLM(
     messages: MessageLLM[],
     promptTier: PromptTier,
     toolChoice: ToolChoice | undefined,
     compatMode: boolean,
     callbacks?: ChatStreamCallbacks,
-  ): Promise<{message: MessageLLM; done: boolean}> {
+  ): Promise<{message: MessageLLM; done: boolean; usage?: TokenUsage}> {
     // In compat mode tools are described in the system prompt; we don't send
     // them through the API and don't force tool_choice.
     const tools = compatMode ? undefined : this.getToolsForTier(promptTier)
@@ -859,10 +830,13 @@ export class AIController {
       return {success: false, error: validationError}
     }
 
-    const result = await this.executor.execute(name as ToolName, args as any, "in-app")
+    const result = await this.executor.execute(name as ToolName, args as any, "in-app", {
+      webRead: this.currentWebReadBudget ?? undefined,
+      pageCache: this.pageCache,
+    })
     return {
       success: result.success,
-      data: typeof result.data === "string" ? result.data : JSON.stringify(result.data),
+      data: isString(result.data) ? result.data : JSON.stringify(result.data),
       error: result.error,
     }
   }
@@ -875,21 +849,21 @@ export class AIController {
     const schema = this.currentToolSchemas.get(toolName)
     if (!schema) return `Tool '${toolName}' is not available for this model tier`
 
-    if (!args || typeof args !== "object" || Array.isArray(args)) {
+    if (!args || typeof args !== "object" || isArray(args)) {
       return `Invalid arguments for '${toolName}': expected an object`
     }
 
     const params = args as Record<string, unknown>
 
     for (const key of schema.required ?? []) {
-      if (params[key] === undefined || params[key] === null) {
+      if (isNullish(params[key])) {
         return `Invalid arguments for '${toolName}': '${key}' is required`
       }
     }
 
     for (const [key, descriptor] of Object.entries(schema.properties)) {
       const value = params[key]
-      if (value === undefined || value === null) continue
+      if (isNullish(value)) continue
 
       const typeMatches = this.isArgumentTypeValid(descriptor.type, value)
       if (!typeMatches) {
@@ -905,17 +879,11 @@ export class AIController {
   }
 
   private isArgumentTypeValid(expectedType: string, value: unknown): boolean {
-    if (expectedType === "array") return Array.isArray(value)
-    if (expectedType === "number") return typeof value === "number" && Number.isFinite(value)
-    if (expectedType === "string") return typeof value === "string"
-    if (expectedType === "boolean") return typeof value === "boolean"
-    if (expectedType === "object") return typeof value === "object" && value !== null && !Array.isArray(value)
+    if (expectedType === "array") return isArray(value)
+    if (expectedType === "number") return isNumber(value) && Number.isFinite(value)
+    if (expectedType === "string") return isString(value)
+    if (expectedType === "boolean") return isBoolean(value)
+    if (expectedType === "object") return isObject(value)
     return true
   }
-}
-
-function tierToPromptTier(tier: "fast" | "balanced" | "quality"): PromptTier {
-  if (tier === "fast") return "tiny"
-  if (tier === "balanced") return "medium"
-  return "large"
 }

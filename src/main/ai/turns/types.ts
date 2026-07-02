@@ -1,6 +1,6 @@
 import type {ToolResult} from "@/ai/tools/types"
 import type {MessageLLM} from "@/ai/types"
-import type {PendingToolConfirmation} from "@shared/types/ai"
+import type {PendingToolConfirmation, TokenUsage} from "@shared/types/ai"
 
 /**
  * Lifecycle states of an AgentTurn.
@@ -41,4 +41,5 @@ export type AgentTurn = {
   steps: AgentStep[]
   finalMessage?: string
   error?: string
+  usage?: TokenUsage
 }

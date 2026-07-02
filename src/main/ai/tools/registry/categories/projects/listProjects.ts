@@ -1,6 +1,6 @@
 import {MAIN_BRANCH_ID} from "@shared/constants/storage"
 
-import {formatProject} from "@/ai/utils/formatProject"
+import {formatProject} from "@/ai/utils/formatters"
 
 import type {RegisteredTool} from "../../types"
 

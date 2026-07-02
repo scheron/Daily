@@ -1,4 +1,6 @@
-import {formatTask} from "@/ai/utils/formatTask"
+import {notUndefined} from "@shared/utils/common/validators"
+
+import {formatTask} from "@/ai/utils/formatters"
 
 import type {RegisteredTool} from "../../types"
 
@@ -36,20 +38,20 @@ export const updateTask: RegisteredTool = {
 
     const updates: Record<string, unknown> = {}
 
-    if (params.content !== undefined) updates.content = params.content
-    if (params.status !== undefined) updates.status = params.status
+    if (notUndefined(params.content)) updates.content = params.content
+    if (notUndefined(params.status)) updates.status = params.status
 
-    if (params.date !== undefined || params.time !== undefined) {
+    if (notUndefined(params.date) || notUndefined(params.time)) {
       updates.scheduled = {}
-      if (params.date !== undefined) (updates.scheduled as Record<string, string>).date = params.date as string
-      if (params.time !== undefined) (updates.scheduled as Record<string, string>).time = params.time as string
+      if (notUndefined(params.date)) (updates.scheduled as Record<string, string>).date = params.date as string
+      if (notUndefined(params.time)) (updates.scheduled as Record<string, string>).time = params.time as string
     }
 
-    if (params.estimated_minutes !== undefined) {
+    if (notUndefined(params.estimated_minutes)) {
       updates.estimatedTime = Math.max(0, Math.round(params.estimated_minutes as number)) * 60
     }
 
-    if (params.project_id !== undefined) {
+    if (notUndefined(params.project_id)) {
       const projectId = params.project_id as string
       const branch = await ctx.storage.getBranch(projectId)
       if (!branch) {

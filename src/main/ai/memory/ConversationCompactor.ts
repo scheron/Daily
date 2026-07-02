@@ -25,7 +25,7 @@ export type CompactorOptions = {
 export class ConversationCompactor {
   private summary = ""
 
-  refresh(turns: AgentTurn[]): void {
+  refresh(turns: AgentTurn[]) {
     this.summary = summarizeTurns(turns)
   }
 

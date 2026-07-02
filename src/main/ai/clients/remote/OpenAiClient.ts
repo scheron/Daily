@@ -5,7 +5,7 @@ import type {AIConfig} from "@shared/types/ai"
 export class RemoteAiClient extends OpenAiCompatibleClient {
   private config: AIConfig["openai"] | null = null
 
-  updateConfig(config: AIConfig | null): void {
+  updateConfig(config: AIConfig | null) {
     this.config = config?.openai ?? null
   }
 

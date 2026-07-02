@@ -11,12 +11,3 @@ export const SERVER_BINARY = {
     },
   },
 } as const
-
-export type UnloadOption = "never" | "5m" | "15m" | "30m"
-
-export const UNLOAD_OPTION_MS: Record<UnloadOption, number | null> = {
-  never: null,
-  "5m": 5 * 60 * 1000,
-  "15m": 15 * 60 * 1000,
-  "30m": 30 * 60 * 1000,
-}

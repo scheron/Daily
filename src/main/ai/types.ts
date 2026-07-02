@@ -1,4 +1,4 @@
-import type {AIConfig} from "@shared/types/ai"
+import type {AIConfig, TokenUsage} from "@shared/types/ai"
 
 export type MessageLLM = {
   id?: string
@@ -51,6 +51,6 @@ export interface IAiClient {
     signal?: AbortSignal,
     toolChoice?: ToolChoice,
     callbacks?: ChatStreamCallbacks,
-  ): Promise<{message: MessageLLM; done: boolean}>
+  ): Promise<{message: MessageLLM; done: boolean; usage?: TokenUsage}>
   dispose?(): Promise<void>
 }

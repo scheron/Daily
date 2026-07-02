@@ -411,6 +411,28 @@ describe("AIController.sendMessage", () => {
     expect(storage.archiveActiveAiSession).toHaveBeenCalledOnce()
   })
 
+  // ===== Phase 5: web tool is always available; toggle drives auto-approval =====
+
+  it("always includes read_url in the tools list", async () => {
+    const tools = (ctrl as any).getToolsForTier("large")
+    const names = tools.map((t) => t.function.name)
+    expect(names).toContain("read_url")
+  })
+
+  it("isEgressAutoApproved reads autoApprove from the web-access snapshot", async () => {
+    ;(ctrl as any).currentWebAccess = null
+    expect((ctrl as any).isEgressAutoApproved()).toBe(false)
+    ;(ctrl as any).currentWebAccess = {autoApprove: false}
+    expect((ctrl as any).isEgressAutoApproved()).toBe(false)
+    ;(ctrl as any).currentWebAccess = {autoApprove: true}
+    expect((ctrl as any).isEgressAutoApproved()).toBe(true)
+  })
+
+  it("resolveContextTokens returns null for remote and the local ctx override", () => {
+    expect((ctrl as any).resolveContextTokens({provider: "openai"})).toBe(null)
+    expect((ctrl as any).resolveContextTokens({provider: "local", local: {model: "m", params: {ctx: 8192}}})).toBe(8192)
+  })
+
   it("processes a write tool then respond in two iterations", async () => {
     ;(ctrl as any).currentToolSchemas = new Map([["create_task", {type: "object", properties: {content: {type: "string"}}, required: ["content"]}]])
     vi.spyOn((ctrl as any).executor, "execute").mockResolvedValue({success: true, data: "Task created: x"})

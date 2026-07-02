@@ -11,6 +11,7 @@ import fs from "fs-extra"
 
 import {LlamaServerErrorCode} from "@shared/errors/ai/LlamaServerErrorCode"
 import {ServerStartCancelledError} from "@shared/errors/ai/ServerStartCancelledError"
+import {isString, notNull} from "@shared/utils/common/validators"
 import {logger} from "@/utils/logger"
 
 import {APP_CONFIG, fsPaths} from "@/config"
@@ -60,7 +61,7 @@ export class LlamaServer {
   }
 
   isRunning(): boolean {
-    return this.process !== null && this.state.status === "running"
+    return notNull(this.process) && this.state.status === "running"
   }
 
   async isBinaryInstalled(): Promise<boolean> {
@@ -351,7 +352,7 @@ export class LlamaServer {
       const server = createServer()
       server.listen(0, APP_CONFIG.ai.runtime.local.host, () => {
         const address = server.address()
-        if (!address || typeof address === "string") {
+        if (!address || isString(address)) {
           server.close()
           reject(new Error("Failed to find free port"))
           return

@@ -1,5 +1,6 @@
-import {formatDuration} from "@/ai/utils/formatDuration"
-import {formatTask} from "@/ai/utils/formatTask"
+import {toDurationLabel} from "@shared/utils/date/formatters"
+
+import {formatTask} from "@/ai/utils/formatters"
 
 import type {RegisteredTool} from "../../types"
 
@@ -33,8 +34,8 @@ export const getTask: RegisteredTool = {
     const lines = [`Task details:\n${formatTask(task, false)}`, `Date: ${task.scheduled.date}`]
 
     if (task.estimatedTime > 0 || task.spentTime > 0) {
-      const est = formatDuration(task.estimatedTime)
-      const spent = formatDuration(task.spentTime)
+      const est = toDurationLabel(task.estimatedTime, "none")
+      const spent = toDurationLabel(task.spentTime, "none")
       let timeLine = `Time — estimated: ${est}, spent: ${spent}`
       if (task.estimatedTime > 0 && task.spentTime > 0) {
         const pct = Math.round((task.spentTime / task.estimatedTime) * 100)

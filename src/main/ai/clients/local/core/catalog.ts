@@ -1,5 +1,6 @@
 import fs from "fs-extra"
 
+import {isArray, isBoolean, isNull, isNumber, isObject, isString, notNullish, notUndefined} from "@shared/utils/common/validators"
 import {logger} from "@/utils/logger"
 
 import type {ModelManifestEntry} from "../types"
@@ -27,7 +28,7 @@ export async function loadCatalog(filePath: string): Promise<ModelManifestEntry[
     return []
   }
 
-  if (!Array.isArray(raw.models)) {
+  if (!isArray(raw.models)) {
     logger.error(logger.CONTEXT.AI, "Catalog 'models' is not an array", {filePath})
     return []
   }
@@ -45,11 +46,11 @@ function parseEntry(raw: unknown, index: number): ModelManifestEntry | null {
     logger.warn(logger.CONTEXT.AI, "Skipping invalid catalog entry", {index, reason})
     return null
   }
-  const isStr = (v: unknown): v is string => typeof v === "string" && v.length > 0
-  const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v)
-  const inUnitOrNull = (v: unknown): v is number | null => v === null || (isNum(v) && v >= 0 && v <= 1)
+  const isStr = (v: unknown): v is string => isString(v) && v.length > 0
+  const isNum = (v: unknown): v is number => isNumber(v) && Number.isFinite(v)
+  const inUnitOrNull = (v: unknown): v is number | null => isNull(v) || (isNum(v) && v >= 0 && v <= 1)
 
-  if (typeof raw !== "object" || raw === null) return reject("not an object")
+  if (!isObject(raw)) return reject("not an object")
   const e = raw as Record<string, unknown>
 
   const id = e.id
@@ -93,17 +94,17 @@ function parseEntry(raw: unknown, index: number): ModelManifestEntry | null {
   ] as const
   for (const key of optionalNumKeys) {
     const v = sa?.[key]
-    if (v !== undefined && !isNum(v)) return reject(`${id}: serverArgs.${key}`)
+    if (notUndefined(v) && !isNum(v)) return reject(`${id}: serverArgs.${key}`)
   }
 
-  if (e.sha256 !== null && e.sha256 !== undefined && !isStr(e.sha256)) return reject(`${id}: sha256`)
+  if (notNullish(e.sha256) && !isStr(e.sha256)) return reject(`${id}: sha256`)
   if (!inUnitOrNull(e.accuracy)) return reject(`${id}: accuracy`)
-  if (e.recommended !== undefined && typeof e.recommended !== "boolean") return reject(`${id}: recommended`)
+  if (notUndefined(e.recommended) && !isBoolean(e.recommended)) return reject(`${id}: recommended`)
 
   const optionalNumKeys2 = [...optionalNumKeys, "maxTokens"] as const
   for (const key of ["maxTokens"] as const) {
     const v = sa?.[key]
-    if (v !== undefined && !isNum(v)) return reject(`${id}: serverArgs.${key}`)
+    if (notUndefined(v) && !isNum(v)) return reject(`${id}: serverArgs.${key}`)
   }
 
   const serverArgs: ModelManifestEntry["serverArgs"] = {ctx, gpuLayers, temperature}
@@ -114,7 +115,7 @@ function parseEntry(raw: unknown, index: number): ModelManifestEntry | null {
 
   let capabilities: ModelManifestEntry["capabilities"]
   const rawCaps = e.capabilities as Record<string, unknown> | undefined
-  if (rawCaps !== undefined) {
+  if (notUndefined(rawCaps)) {
     const toolsCap = rawCaps.tools
     if (toolsCap !== "compat" && toolsCap !== "native") return reject(`${id}: capabilities.tools`)
     capabilities = {tools: toolsCap}
@@ -131,7 +132,7 @@ function parseEntry(raw: unknown, index: number): ModelManifestEntry | null {
     ggufFilename,
     sha256: isStr(e.sha256) ? e.sha256 : null,
     serverArgs,
-    accuracy: typeof e.accuracy === "number" ? e.accuracy : null,
+    accuracy: isNumber(e.accuracy) ? e.accuracy : null,
     recommended: e.recommended === true,
     ...(capabilities ? {capabilities} : {}),
   }

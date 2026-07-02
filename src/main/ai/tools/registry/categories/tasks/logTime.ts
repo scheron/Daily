@@ -1,5 +1,7 @@
-import {formatDuration} from "@/ai/utils/formatDuration"
-import {formatTask} from "@/ai/utils/formatTask"
+import {isNullish} from "@shared/utils/common/validators"
+import {toDurationLabel} from "@shared/utils/date/formatters"
+
+import {formatTask} from "@/ai/utils/formatters"
 
 import type {RegisteredTool} from "../../types"
 
@@ -33,7 +35,7 @@ export const logTime: RegisteredTool = {
     if (!taskId) {
       return {success: false, error: "task_id is required"}
     }
-    if (minutes === undefined || minutes === null) {
+    if (isNullish(minutes)) {
       return {success: false, error: "minutes is required"}
     }
     if (minutes < 0) {
@@ -67,7 +69,7 @@ export const logTime: RegisteredTool = {
       return {success: false, error: `Failed to update task: ${taskId}`}
     }
 
-    const label = formatDuration(newSpentTime)
+    const label = toDurationLabel(newSpentTime, "none")
     return {
       success: true,
       data: `Time logged (${operation}): ${formatTask(updated)}\nTotal spent: ${label}`,

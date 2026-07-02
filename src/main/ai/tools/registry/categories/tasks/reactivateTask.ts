@@ -1,4 +1,4 @@
-import {formatTask} from "@/ai/utils/formatTask"
+import {formatTask} from "@/ai/utils/formatters"
 
 import type {RegisteredTool} from "../../types"
 

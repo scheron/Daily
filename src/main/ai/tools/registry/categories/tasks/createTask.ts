@@ -1,10 +1,10 @@
 import {nanoid} from "nanoid"
 
 import {MAIN_BRANCH_ID} from "@shared/constants/storage"
+import {getToday} from "@shared/utils/date/getToday"
 import {getPreviousTaskOrderIndex} from "@shared/utils/tasks/orderIndex"
 
-import {formatTask} from "@/ai/utils/formatTask"
-import {getTodayDate} from "@/ai/utils/getTodayDate"
+import {formatTask} from "@/ai/utils/formatters"
 
 import type {Tag, Task} from "@shared/types/storage"
 import type {RegisteredTool} from "../../types"
@@ -37,7 +37,7 @@ export const createTask: RegisteredTool = {
     }
 
     const now = new Date().toISOString()
-    const date = (params.date as string) || getTodayDate()
+    const date = (params.date as string) || getToday()
     const time = (params.time as string) || ""
     const tagIds = (params.tag_ids as string[]) || []
     const estimatedMinutes = params.estimated_minutes as number | undefined

@@ -1,6 +1,6 @@
 import {TAG_QUICK_COLORS} from "@shared/constants/theme/colorPalette"
 
-import {formatTag} from "@/ai/utils/formatTag"
+import {formatTag} from "@/ai/utils/formatters"
 
 import type {RegisteredTool} from "../../types"
 

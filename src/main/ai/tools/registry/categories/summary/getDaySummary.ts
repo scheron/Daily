@@ -1,5 +1,5 @@
-import {formatDuration} from "@/ai/utils/formatDuration"
-import {getTodayDate} from "@/ai/utils/getTodayDate"
+import {toDurationLabel} from "@shared/utils/date/formatters"
+import {getToday} from "@shared/utils/date/getToday"
 
 import type {Day} from "@shared/types/storage"
 import type {RegisteredTool} from "../../types"
@@ -18,7 +18,7 @@ export const getDaySummary: RegisteredTool = {
   isWrite: false,
   isDestructive: false,
   async execute(params, ctx) {
-    const date = (params.date as string) || getTodayDate()
+    const date = (params.date as string) || getToday()
     const projectId = params.project_id as string | undefined
     let branchId: string | undefined
 
@@ -57,7 +57,7 @@ export const getDaySummary: RegisteredTool = {
     ]
 
     if (totalEstimated > 0 || totalSpent > 0) {
-      lines.push(`Time — estimated: ${formatDuration(totalEstimated)}, spent: ${formatDuration(totalSpent)}`)
+      lines.push(`Time — estimated: ${toDurationLabel(totalEstimated, "none")}, spent: ${toDurationLabel(totalSpent, "none")}`)
       if (totalEstimated > 0 && totalSpent > 0) {
         const timePct = Math.round((totalSpent / totalEstimated) * 100)
         lines.push(`Time usage: ${timePct}% of estimated`)
