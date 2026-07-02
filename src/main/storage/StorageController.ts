@@ -11,7 +11,7 @@ import fs from "fs-extra"
 
 import {logger} from "@/utils/logger"
 
-import {fsPaths} from "@/config"
+import {ENV, fsPaths} from "@/config"
 import {initDatabase} from "@/storage/database/instance"
 import {AISessionModel} from "@/storage/models/AISessionModel"
 import {BranchModel} from "@/storage/models/BranchModel"
@@ -91,9 +91,11 @@ export class StorageController implements IStorageController {
 
     const settings = await this.loadSettings()
 
-    if (settings.sync.enabled) {
+    if (settings.sync.enabled && !ENV.isDevelopment) {
       logger.info(logger.CONTEXT.STORAGE, "Auto-sync was enabled, restoring")
       this.syncEngine.enableAutoSync()
+    } else if (settings.sync.enabled && ENV.isDevelopment) {
+      logger.warn(logger.CONTEXT.STORAGE, "Auto-sync stays off in development (isolated dev environment)")
     }
 
     logger.info(logger.CONTEXT.STORAGE, "Initializing search index")
@@ -108,6 +110,11 @@ export class StorageController implements IStorageController {
   }
 
   async activateSync() {
+    if (ENV.isDevelopment) {
+      logger.warn(logger.CONTEXT.STORAGE, "Sync activation ignored in development (isolated dev environment)")
+      return
+    }
+
     logger.info(logger.CONTEXT.STORAGE, "Activating sync")
     await this.settingsService.saveSettings({sync: {enabled: true}})
     this.syncEngine.enableAutoSync()

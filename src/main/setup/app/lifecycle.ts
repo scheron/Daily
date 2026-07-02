@@ -1,13 +1,22 @@
+import {join} from "node:path"
 import {app, nativeImage} from "electron"
 
-import {APP_CONFIG, fsPaths} from "@/config"
-import {focusWindow} from "@/windows"
+import {logger} from "@/utils/logger"
+import {focusWindow} from "@/utils/windows/focusWindow"
+
+import {APP_CONFIG, ENV, fsPaths} from "@/config"
 
 import type {StorageController} from "@/storage/StorageController"
 import type {BrowserWindow} from "electron"
 
-export function setupAppIdentity() {
+export function setupAppBoot() {
   app.setName(APP_CONFIG.name)
+
+  if (ENV.isDevelopment) {
+    const devUserData = join(app.getPath("appData"), `${APP_CONFIG.name}-dev`)
+    app.setPath("userData", devUserData)
+    logger.info(logger.CONTEXT.STORAGE, `Development build — isolated userData at ${devUserData}`)
+  }
 }
 
 export function setupDockIcon() {
