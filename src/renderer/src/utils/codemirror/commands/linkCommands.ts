@@ -1,11 +1,17 @@
 import type {EditorView} from "@codemirror/view"
 
-export type MarkdownCommand = (view: EditorView) => boolean
+/**
+ * Link and image commands
+ */
+export const linkCommands = {
+  insertLink,
+  insertImage,
+}
 
 /**
  * Insert link
  */
-export function insertLink(view: EditorView): boolean {
+function insertLink(view: EditorView): boolean {
   const {state} = view
   const {from, to} = state.selection.main
   const selectedText = state.doc.sliceString(from, to)
@@ -37,7 +43,7 @@ export function insertLink(view: EditorView): boolean {
  * Insert image
  * Returns command that needs async image upload
  */
-export function insertImage(onImageUpload?: () => Promise<string>): (view: EditorView) => Promise<boolean> {
+function insertImage(onImageUpload?: () => Promise<string>): (view: EditorView) => Promise<boolean> {
   return async (view: EditorView): Promise<boolean> => {
     if (!onImageUpload) {
       const template = "![alt text](image-url)"
@@ -66,12 +72,4 @@ export function insertImage(onImageUpload?: () => Promise<string>): (view: Edito
       return false
     }
   }
-}
-
-/**
- * Link and image commands
- */
-export const linkCommands = {
-  insertLink,
-  insertImage,
 }

@@ -1,11 +1,5 @@
 import {EditorView} from "@codemirror/view"
-import {codeBlockStyles} from "../theme/codeBlocks"
-import {editorStyles} from "../theme/editor"
-import {markdownStyles} from "../theme/markdown"
-import {searchHighlightStyles} from "../theme/searchHighlight"
-import {syntaxHighlightingStyles} from "../theme/syntaxHighlighting"
-import {utilityStyles} from "../theme/utilities"
-import {widgetStyles} from "../theme/widgets"
+import {codeBlockStyles, editorStyles, markdownStyles, searchHighlightStyles, utilityStyles, widgetStyles} from "../theme"
 
 import type {Extension} from "@codemirror/state"
 
@@ -19,7 +13,6 @@ export function createThemeExtension(dark: boolean = true): Extension {
       ...editorStyles,
       ...markdownStyles,
       ...codeBlockStyles,
-      ...syntaxHighlightingStyles,
       ...widgetStyles,
       ...utilityStyles,
       ...searchHighlightStyles,

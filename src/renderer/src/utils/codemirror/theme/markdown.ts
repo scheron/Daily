@@ -25,11 +25,11 @@ export const markdownStyles: Record<string, StyleSpec> = {
   ".cm-code": {
     fontFamily: "var(--font-mono)",
     backgroundColor: "var(--color-base-300)",
-    padding: "0.2em 0.4em",
+    padding: "0.1em 0.3em",
     margin: "0",
-    lineHeight: "1.6",
-    whiteSpace: "break-spaces",
-    borderRadius: "2px",
+    borderRadius: "3px",
+    boxDecorationBreak: "clone",
+    WebkitBoxDecorationBreak: "clone",
   },
 
   // Links
@@ -129,14 +129,17 @@ export const markdownStyles: Record<string, StyleSpec> = {
   },
 
   // Tables
+  ".cm-table-wrapper": {
+    display: "block",
+    maxWidth: "100%",
+    overflowX: "auto",
+    margin: "0.5rem 0",
+  },
+
   ".cm-table": {
     borderSpacing: "0",
     borderCollapse: "collapse",
-    display: "block",
     width: "max-content",
-    maxWidth: "100%",
-    overflow: "auto",
-    margin: "0.5rem 0",
     fontSize: "0.8em",
   },
 

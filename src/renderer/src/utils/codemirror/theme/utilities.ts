@@ -115,4 +115,32 @@ export const utilityStyles: Record<string, StyleSpec> = {
   ".cm-tags-autocomplete .cm-tag-option-remove .cm-tag-option-chip": {
     color: "var(--color-error)",
   },
+
+  // Slash command option rows — styled to match BaseCombobox items
+  ".cm-tags-autocomplete .cm-slash-option-row": {
+    display: "flex",
+    alignItems: "center",
+    gap: "0.625rem",
+    width: "100%",
+    padding: "0.375rem 0.5rem",
+    borderRadius: "0.375rem",
+    fontSize: "0.875rem",
+    color: "var(--color-base-content)",
+    transition: "background-color 0.12s ease",
+  },
+
+  ".cm-tags-autocomplete .cm-slash-option-icon": {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: "0",
+    width: "1.1rem",
+    height: "1.1rem",
+    color: "var(--color-base-content)",
+    opacity: "0.7",
+  },
+
+  ".cm-tags-autocomplete li[aria-selected] .cm-slash-option-row": {
+    backgroundColor: "var(--color-base-200)",
+  },
 }

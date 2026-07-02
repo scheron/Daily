@@ -1,3 +1,5 @@
+import {sort} from "fast-sort"
+
 import {Decoration, ViewPlugin} from "@codemirror/view"
 
 import type {Extension} from "@codemirror/state"
@@ -18,9 +20,7 @@ function createHighlightDecorations(matches?: SearchMatch[]): DecorationSet {
       }
     }
   }
-  decorations.sort((a, b) => a.from - b.from)
-
-  return Decoration.set(decorations)
+  return Decoration.set(sort(decorations).asc((d) => d.from))
 }
 
 export function createSearchHighlightExtension(matches?: SearchMatch[]): Extension {

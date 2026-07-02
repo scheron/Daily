@@ -51,10 +51,10 @@ export const widgetStyles: Record<string, StyleSpec> = {
     borderWidth: "0 2px 2px 0",
   },
 
-  // Lines containing task markers should align checkbox to the top
+  // Task lines keep normal inline flow: a flex line collapses the leading
+  // indentation whitespace (breaking nested-list indent) and ignores the
+  // list hanging-indent's text-indent. The checkbox aligns via the widget.
   ".cm-line:has(.cm-task-marker)": {
     minHeight: "1.8em",
-    display: "flex",
-    alignItems: "flex-start",
   },
 }

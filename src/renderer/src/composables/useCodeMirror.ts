@@ -1,6 +1,6 @@
 import {onBeforeUnmount, ref, watch} from "vue"
 
-import {createMarkdownLanguageExtension} from "@/utils/codemirror/extensions/markdownLanguage"
+import {createMarkdownLanguageExtension, skipOrderedListRenumber} from "@/utils/codemirror/extensions"
 
 import {defaultKeymap, history, historyKeymap} from "@codemirror/commands"
 import {EditorState} from "@codemirror/state"
@@ -10,7 +10,7 @@ import type {Extension} from "@codemirror/state"
 import type {KeyBinding, ViewUpdate} from "@codemirror/view"
 import type {Ref} from "vue"
 
-export type UseCodeMirrorOptions = {
+type UseCodeMirrorOptions = {
   content?: string
   onUpdate?: (content: string) => void
   extensions?: Extension[]
@@ -75,6 +75,7 @@ export function useCodeMirror(options: UseCodeMirrorOptions = {}) {
         to: view.value.state.doc.length,
         insert: newContent,
       },
+      annotations: skipOrderedListRenumber.of(true),
     })
     isExternalUpdate = false
   }
