@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import {computed} from "vue"
 
-import BaseButton from "@/ui/base/BaseButton.vue"
+import {notNull} from "@shared/utils/common/validators"
+import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
 
 import type {LocalModelDownloadProgress, LocalModelInfo} from "@shared/types/ai"
@@ -22,7 +23,7 @@ const emit = defineEmits<{
   clearError: []
 }>()
 
-const isDownloading = computed(() => props.downloadProgress !== null)
+const isDownloading = computed(() => notNull(props.downloadProgress))
 
 const sizeLabel = computed(() => {
   const gb = props.model.sizeBytes / 1_000_000_000

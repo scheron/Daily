@@ -1,17 +1,16 @@
 <script setup lang="ts">
-import {onBeforeMount, reactive, ref} from "vue"
+import {computed, onBeforeMount, reactive, ref} from "vue"
 
+import {REMOTE_API_PROVIDERS} from "@shared/constants/ai"
 import {AIConfig} from "@shared/types/ai"
-import {useAiStore} from "@/stores/ai/ai.store"
-import BaseButton from "@/ui/base/BaseButton.vue"
+import {useAiStore} from "@/stores/ai"
+import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
 import BaseInput from "@/ui/base/BaseInput.vue"
-import SelectableButton from "@/ui/common/buttons/SelectableButton.vue"
+import BaseSegmented from "@/ui/base/BaseSegmented.vue"
+import ModelPicker from "@/ui/common/pickers/ModelPicker.vue"
 
-const MODEL_API_LIST = [
-  {label: "OpenAI", value: "https://api.openai.com/v1"},
-  {label: "DeepSeek", value: "https://api.deepseek.com/v1"},
-]
+import SettingRow from "../../SettingRow.vue"
 
 const aiStore = useAiStore()
 
@@ -21,105 +20,64 @@ const aiConfig = reactive<NonNullable<AIConfig["openai"]>>({
   model: "",
 })
 
-const showApiKey = ref(false)
+const isApiKeyVisible = ref(false)
+
+const storedKey = computed(() => aiStore.config?.openai?.apiKey ?? "")
+const storedBaseUrl = computed(() => aiStore.config?.openai?.baseUrl ?? "")
+
+const isKeyChanged = computed(() => aiConfig.apiKey !== storedKey.value)
+const isProviderChanged = computed(() => aiConfig.baseUrl !== storedBaseUrl.value)
+const isConfigChanged = computed(() => isKeyChanged.value || isProviderChanged.value)
 
 async function onConnect() {
   await aiStore.updateConfig({openai: aiConfig})
   await aiStore.checkConnection()
 
-  if (aiStore.availableModels.length) {
+  if (!aiConfig.model && aiStore.availableModels.length) {
     aiConfig.model = aiStore.availableModels[0]
     await aiStore.updateConfig({openai: aiConfig})
   }
 }
 
-function setBaseUrl(event: Event) {
-  const select = event.target as HTMLSelectElement
-  aiConfig.baseUrl = select.value
+function onSelectModel(model: string) {
+  aiConfig.model = model
+  aiStore.updateConfig({openai: aiConfig})
 }
 
 onBeforeMount(() => {
-  aiConfig.baseUrl = aiStore.config?.openai?.baseUrl ?? MODEL_API_LIST[0].value
+  aiConfig.baseUrl = aiStore.config?.openai?.baseUrl ?? REMOTE_API_PROVIDERS[0].value
   aiConfig.apiKey = aiStore.config?.openai?.apiKey ?? ""
   aiConfig.model = aiStore.config?.openai?.model ?? ""
 })
 </script>
 
 <template>
-  <div class="flex flex-col gap-2">
-    <div class="flex items-center justify-between">
-      <div class="flex items-center gap-2">
-        <template v-if="aiStore.isConnectionLoading">
-          <div class="bg-warning size-2 rounded-full" />
-          <span class="text-base-content/70 text-sm">Checking connection...</span>
-        </template>
-        <template v-else>
-          <div class="size-2 rounded-full" :class="aiStore.isConnectionLoaded ? 'bg-success' : 'bg-error'" />
-          <span class="text-sm" :class="aiStore.isConnectionLoaded ? 'text-success' : 'text-base-content/70'">
-            {{ aiStore.isConnectionLoaded ? "Connected" : "Not connected" }}
-          </span>
-        </template>
-      </div>
+  <div class="flex flex-col gap-1">
+    <SettingRow title="API Provider" description="OpenAI-compatible endpoint">
+      <BaseSegmented v-model="aiConfig.baseUrl" :options="REMOTE_API_PROVIDERS" />
+    </SettingRow>
 
-      <BaseButton
-        v-if="aiStore.isConnected"
-        variant="ghost"
-        size="sm"
-        class="text-accent hover:bg-accent/10 -mr-1"
-        icon-class="size-3.5"
-        icon="refresh"
-        :loading="aiStore.isConnectionLoading"
-        @click="aiStore.checkConnection"
-      />
-    </div>
-
-    <div class="space-y-1">
-      <span class="text-base-content/80 text-xs">API Provider</span>
-      <div class="mt-1 flex gap-2">
-        <select
-          class="text-base-content bg-base-100 border-base-300 hover:border-accent focus:border-accent w-full rounded-md border px-2 py-1.5 text-sm transition-colors outline-none select-none"
-          :value="aiConfig.baseUrl"
-          @change="setBaseUrl"
-        >
-          <option v-for="model in MODEL_API_LIST" :key="model.value" :value="model.value">
-            {{ model.label }}
-          </option>
-        </select>
-      </div>
-    </div>
-
-    <div class="space-y-1">
-      <span class="text-base-content/80 text-xs">API Key</span>
-      <div class="mt-1 flex gap-2">
-        <BaseInput v-model="aiConfig.apiKey" :type="showApiKey ? 'text' : 'password'" placeholder="sk-..." class="flex-1" />
-        <BaseButton variant="ghost" size="sm" class="p-1" @click="showApiKey = !showApiKey">
-          <BaseIcon :name="showApiKey ? 'eye-off' : 'eye'" class="size-4" />
+    <SettingRow title="API Key" description="Stored on this device; included in iCloud sync when sync is on.">
+      <div class="flex items-center gap-1">
+        <BaseButton variant="ghost" size="sm" class="shrink-0 p-1" @click="isApiKeyVisible = !isApiKeyVisible">
+          <BaseIcon :name="isApiKeyVisible ? 'eye-off' : 'eye'" class="size-4" />
         </BaseButton>
+        <div class="w-52 flex-1">
+          <BaseInput v-model="aiConfig.apiKey" :type="isApiKeyVisible ? 'text' : 'password'" placeholder="sk-..." class="flex-1 text-xs" />
+        </div>
       </div>
-    </div>
+    </SettingRow>
 
-    <div v-if="aiStore.availableModels.length" class="space-y-1">
-      <span class="text-base-content/80 text-xs">Model</span>
-      <div class="mt-2 flex flex-wrap gap-1">
-        <SelectableButton
-          v-for="availableModel in aiStore.availableModels"
-          :key="availableModel"
-          :active="availableModel === aiConfig.model"
-          class="flex w-fit items-center justify-center px-2 py-1.5 text-xs text-nowrap"
-          size="sm"
-          @click="aiConfig.model = availableModel"
-        >
-          {{ availableModel }}
-        </SelectableButton>
-      </div>
-    </div>
+    <SettingRow v-if="aiStore.availableModels.length" title="Model" description="The language model that serves as the assistant's brain">
+      <ModelPicker :model-value="aiConfig.model" :options="aiStore.availableModels" trigger-class="w-52" @update:model-value="onSelectModel" />
+    </SettingRow>
 
     <BaseButton
-      v-if="!aiStore.isConnected"
+      v-if="!aiStore.isConnected || isConfigChanged"
       :loading="aiStore.isConnectionLoading"
       variant="primary"
       size="sm"
-      class="mt-2 w-full py-1"
+      class="mt-3 w-full py-1"
       @click="onConnect"
     >
       Connect

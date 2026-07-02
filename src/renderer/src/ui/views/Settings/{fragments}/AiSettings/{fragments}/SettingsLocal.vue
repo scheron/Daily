@@ -1,47 +1,25 @@
 <script setup lang="ts">
 import {computed, onMounted} from "vue"
+import {sort} from "fast-sort"
 
-import {useAiStore} from "@/stores/ai/ai.store"
-import BaseButton from "@/ui/base/BaseButton.vue"
+import {UNLOAD_MODEL_TIME} from "@shared/constants/ai"
+import {useAiStore} from "@/stores/ai"
+import BaseSegmented from "@/ui/base/BaseSegmented.vue"
 
+import SettingRow from "../../SettingRow.vue"
 import LocalModelCard from "./LocalModelCard.vue"
+
+import type {UnloadModelTime} from "@shared/types/ai"
+import type {LabeledOption} from "../../../model/types"
 
 const aiStore = useAiStore()
 
-const statusLabel = computed(() => {
-  const state = aiStore.localRuntimeState
-  switch (state.status) {
-    case "running":
-      return "Running"
-    case "starting":
-      return "Starting..."
-    case "error":
-      return "Error"
-    case "downloading":
-      return "Downloading..."
-    case "installed":
-      return "Ready"
-    case "not_installed":
-      return "No model installed"
-    default:
-      return "Unknown"
-  }
-})
+const sortedModels = computed(() => sort(aiStore.localModels).asc((model) => model.sizeBytes))
 
-const statusDotClass = computed(() => {
-  const state = aiStore.localRuntimeState
-  switch (state.status) {
-    case "running":
-      return "bg-success"
-    case "starting":
-    case "downloading":
-      return "bg-warning animate-pulse"
-    case "error":
-      return "bg-error"
-    default:
-      return "bg-base-content/30"
-  }
-})
+const unloadOptions: LabeledOption<UnloadModelTime>[] = (Object.keys(UNLOAD_MODEL_TIME) as UnloadModelTime[]).map((value) => ({
+  value,
+  label: value === "never" ? "Never" : value,
+}))
 
 const diskUsageLabel = computed(() => {
   const total = aiStore.localDiskUsage.total
@@ -51,16 +29,9 @@ const diskUsageLabel = computed(() => {
   return gb >= 1 ? `${gb.toFixed(1)} GB` : `${(total / 1_000_000).toFixed(0)} MB`
 })
 
-const unloadModelOptions = [
-  {value: "never", label: "Never"},
-  {value: "5m", label: "5 minutes"},
-  {value: "15m", label: "15 minutes"},
-  {value: "30m", label: "30 minutes"},
-] as const
-
-const unloadModel = computed({
+const unloadModel = computed<UnloadModelTime>({
   get: () => aiStore.config?.local?.unloadModel ?? "15m",
-  set: (value: "never" | "5m" | "15m" | "30m") => {
+  set: (value) => {
     aiStore.updateConfig({
       local: {
         ...(aiStore.config?.local ?? {model: ""}),
@@ -76,55 +47,34 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="flex flex-col gap-3">
-    <div class="flex items-center justify-between">
-      <div class="flex items-center gap-2">
-        <div class="size-2 rounded-full" :class="statusDotClass" />
-        <span class="text-sm" :class="aiStore.localRuntimeState.status === 'running' ? 'text-success' : 'text-base-content/70'">
-          {{ statusLabel }}
-        </span>
-        <span v-if="aiStore.localRuntimeState.status === 'error' && 'message' in aiStore.localRuntimeState" class="text-error text-xs">
-          — {{ aiStore.localRuntimeState.message }}
-        </span>
-      </div>
+  <div class="flex flex-col">
+    <SettingRow title="Models">
+      <template #below>
+        <div class="grid grid-cols-2 gap-2 pt-1">
+          <LocalModelCard
+            v-for="model in sortedModels"
+            :key="model.id"
+            :model="model"
+            :is-active="aiStore.config?.local?.model === model.id && model.installed"
+            :download-progress="aiStore.getLocalDownloadProgress(model.id)"
+            :is-pending="aiStore.isLocalModelPending(model.id)"
+            :error="aiStore.getLocalDownloadError(model.id)"
+            @download="aiStore.downloadLocalModel(model.id)"
+            @delete="aiStore.deleteLocalModel(model.id)"
+            @select="aiStore.selectLocalModel(model.id)"
+            @cancel-download="aiStore.cancelLocalModelDownload(model.id)"
+            @clear-error="aiStore.clearLocalDownloadError(model.id)"
+          />
+        </div>
+      </template>
+    </SettingRow>
 
-      <BaseButton
-        v-if="aiStore.isLocalModelRunning"
-        variant="ghost"
-        size="sm"
-        class="text-accent hover:bg-accent/10 -mr-1"
-        icon-class="size-3.5"
-        icon="refresh"
-        :loading="aiStore.isLocalModelsLoading"
-        @click="aiStore.loadLocalModels"
-      />
-    </div>
+    <SettingRow title="Unload model after idle" description="Free memory by stopping the model after it sits idle.">
+      <BaseSegmented v-model="unloadModel" :options="unloadOptions" />
 
-    <div class="flex flex-col gap-2">
-      <span class="text-base-content/80 text-xs">Models</span>
-      <LocalModelCard
-        v-for="model in aiStore.localModels"
-        :key="model.id"
-        :model="model"
-        :is-active="aiStore.config?.local?.model === model.id && model.installed"
-        :download-progress="aiStore.getLocalDownloadProgress(model.id)"
-        :is-pending="aiStore.isLocalModelPending(model.id)"
-        :error="aiStore.getLocalDownloadError(model.id)"
-        @download="aiStore.downloadLocalModel(model.id)"
-        @delete="aiStore.deleteLocalModel(model.id)"
-        @select="aiStore.selectLocalModel(model.id)"
-        @cancel-download="aiStore.cancelLocalModelDownload(model.id)"
-        @clear-error="aiStore.clearLocalDownloadError(model.id)"
-      />
-    </div>
-
-    <label class="flex items-center justify-between gap-2 text-sm">
-      <span class="text-base-content/80">Unload model after idle</span>
-      <select v-model="unloadModel" class="bg-base-200/40 border-base-300 text-base-content/80 rounded-md border px-2 py-1 text-xs">
-        <option v-for="opt in unloadModelOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-      </select>
-    </label>
-
-    <div v-if="diskUsageLabel" class="text-base-content/50 text-xs">Total disk usage: {{ diskUsageLabel }}</div>
+      <template v-if="diskUsageLabel" #below>
+        <p class="text-base-content/50 text-xs">Total disk usage: {{ diskUsageLabel }}</p>
+      </template>
+    </SettingRow>
   </div>
 </template>
