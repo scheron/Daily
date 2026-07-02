@@ -48,8 +48,10 @@ export class CheckboxWidget extends WidgetType {
     // Apply CSS classes from theme (checkmark is created via ::after pseudo-element)
     checkbox.className = this.checked ? "cm-task-checkbox cm-task-checkbox-checked" : "cm-task-checkbox"
 
-    // Only add click formatr in edit mode
+    checkbox.tabIndex = -1
+
     if (!this.isReadonly) {
+      checkbox.onmousedown = (e) => e.preventDefault()
       checkbox.onclick = (e) => {
         e.preventDefault()
         this.toggleCheckbox(view)
