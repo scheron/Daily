@@ -1,3 +1,5 @@
+import {notNull} from "@shared/utils/common/validators"
+
 export type TooltipPlacement =
   | "top"
   | "top-start"
@@ -33,7 +35,7 @@ export class TooltipController {
   private isVisible = false
   private refCount = 0
 
-  show(element: HTMLElement, options: TooltipOptions): void {
+  show(element: HTMLElement, options: TooltipOptions) {
     if (options.disabled || !options.content) return
 
     this.clear()
@@ -48,7 +50,7 @@ export class TooltipController {
     }
   }
 
-  hide(): void {
+  hide() {
     this.clear()
     if (!this.container || !this.isVisible) return
 
@@ -57,26 +59,26 @@ export class TooltipController {
     this.target = null
   }
 
-  hideIfTarget(element: HTMLElement): void {
+  hideIfTarget(element: HTMLElement) {
     if (this.target === element) this.hide()
   }
 
-  register(): void {
+  register() {
     this.refCount++
   }
 
-  unregister(): void {
+  unregister() {
     if (--this.refCount <= 0) this.destroy()
   }
 
-  private clear(): void {
-    if (this.timerId !== null) {
+  private clear() {
+    if (notNull(this.timerId)) {
       clearTimeout(this.timerId)
       this.timerId = null
     }
   }
 
-  private render(): void {
+  private render() {
     if (!this.target || !this.options.content) return
 
     const container = this.getContainer()
@@ -108,7 +110,7 @@ export class TooltipController {
     return el
   }
 
-  private position(): void {
+  private position() {
     if (!this.target || !this.container) return
 
     const placement = this.options.placement ?? "top"
@@ -171,7 +173,7 @@ export class TooltipController {
     }
   }
 
-  private destroy(): void {
+  private destroy() {
     this.clear()
     this.container?.remove()
     this.container = null

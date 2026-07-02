@@ -1,3 +1,4 @@
+import {isString} from "@shared/utils/common/validators"
 import {TooltipController} from "@/utils/ui/TooltipController"
 
 import type {TooltipOptions} from "@/utils/ui/TooltipController"
@@ -54,12 +55,12 @@ declare global {
 
 function parse(binding: DirectiveBinding<TooltipBinding>): TooltipOptions {
   const v = binding.value
-  if (typeof v === "string") return {content: v}
+  if (isString(v)) return {content: v}
   if (v && typeof v === "object") return v
   return {content: ""}
 }
 
-function attach(el: HTMLElement, opts: TooltipOptions): void {
+function attach(el: HTMLElement, opts: TooltipOptions) {
   detach(el)
 
   const handlers = {
@@ -75,7 +76,7 @@ function attach(el: HTMLElement, opts: TooltipOptions): void {
   el[HANDLERS] = handlers
 }
 
-function detach(el: HTMLElement): void {
+function detach(el: HTMLElement) {
   const h = el[HANDLERS]
   if (!h) return
 
