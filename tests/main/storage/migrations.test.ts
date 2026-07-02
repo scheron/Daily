@@ -151,6 +151,79 @@ describe("migrations", () => {
     })
   })
 
+  describe("v006 — ai turn usage", () => {
+    function seedThroughV5(db) {
+      db.exec(`CREATE TABLE _migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)`)
+      for (const migration of migrations.filter((m) => m.version <= 5)) {
+        db.exec(migration.up)
+        db.prepare("INSERT INTO _migrations (version, name, applied_at) VALUES (?, ?, ?)").run(
+          migration.version,
+          migration.name,
+          "2026-06-01T00:00:00.000Z",
+        )
+      }
+    }
+
+    function usageColumns(db) {
+      return db
+        .prepare("PRAGMA table_info(ai_turns)")
+        .all()
+        .map((c) => c.name)
+        .filter((name) => ["prompt_tokens", "completion_tokens", "total_tokens"].includes(name))
+    }
+
+    it("fresh database gets the usage columns", () => {
+      const db = new Database(":memory:")
+      runMigrations(db)
+
+      expect(usageColumns(db)).toHaveLength(3)
+
+      db.close()
+    })
+
+    it("adds the columns to a database that ran the original v005 without them", () => {
+      const db = new Database(":memory:")
+      seedThroughV5(db)
+      expect(usageColumns(db)).toHaveLength(0)
+
+      runMigrations(db)
+
+      expect(usageColumns(db)).toHaveLength(3)
+      expect(getAppliedMigrations(db).map((m) => m.version)).toContain(6)
+
+      db.close()
+    })
+
+    it("does not fail on a database where v0.16.0 already added the columns via v005", () => {
+      const db = new Database(":memory:")
+      seedThroughV5(db)
+      db.exec(`
+        ALTER TABLE ai_turns ADD COLUMN prompt_tokens INTEGER;
+        ALTER TABLE ai_turns ADD COLUMN completion_tokens INTEGER;
+        ALTER TABLE ai_turns ADD COLUMN total_tokens INTEGER;
+      `)
+
+      expect(() => runMigrations(db)).not.toThrow()
+
+      expect(usageColumns(db)).toHaveLength(3)
+      expect(getAppliedMigrations(db).map((m) => m.version)).toContain(6)
+
+      db.close()
+    })
+
+    it("rollback drops the usage columns", () => {
+      const db = new Database(":memory:")
+      runMigrations(db)
+
+      const rolledBack = rollbackLastMigration(db)
+
+      expect(rolledBack).toBe(6)
+      expect(usageColumns(db)).toHaveLength(0)
+
+      db.close()
+    })
+  })
+
   describe("v003 — remove delta sync", () => {
     it("drops change_log table", () => {
       const db = new Database(":memory:")

@@ -2,11 +2,13 @@ import {migrations} from "../migrations"
 
 import type Database from "better-sqlite3"
 
+export type MigrationStep = string | ((db: Database.Database) => void)
+
 export type Migration = {
   version: number
   name: string
-  up: string
-  down: string
+  up: MigrationStep
+  down: MigrationStep
 }
 
 export type MigrationRecord = {
@@ -28,7 +30,7 @@ export function runMigrations(db: Database.Database) {
     if (applied.has(migration.version)) continue
 
     const transaction = db.transaction(() => {
-      db.exec(migration.up)
+      runStep(db, migration.up)
       db.prepare("INSERT INTO _migrations (version, name, applied_at) VALUES (?, ?, ?)").run(
         migration.version,
         migration.name,
@@ -47,7 +49,7 @@ export function rollbackLastMigration(db: Database.Database): number | null {
   if (!migration) return null
 
   const transaction = db.transaction(() => {
-    db.exec(migration.down)
+    runStep(db, migration.down)
     db.prepare("DELETE FROM _migrations WHERE version = ?").run(last.version)
   })
   transaction()
@@ -57,4 +59,9 @@ export function rollbackLastMigration(db: Database.Database): number | null {
 
 export function getAppliedMigrations(db: Database.Database): MigrationRecord[] {
   return db.prepare("SELECT version, name, applied_at FROM _migrations ORDER BY version ASC").all() as MigrationRecord[]
+}
+
+function runStep(db: Database.Database, step: MigrationStep) {
+  if (typeof step === "string") db.exec(step)
+  else step(db)
 }
