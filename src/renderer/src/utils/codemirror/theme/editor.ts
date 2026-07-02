@@ -32,6 +32,11 @@ export const editorStyles: Record<string, StyleSpec> = {
     padding: "0",
   },
 
+  ".cm-placeholder": {
+    color: "var(--color-base-content)",
+    opacity: "0.4",
+  },
+
   ".cm-cursor, .cm-dropCursor": {
     borderLeftColor: "var(--color-accent)",
     borderLeftWidth: "2px",
@@ -44,12 +49,10 @@ export const editorStyles: Record<string, StyleSpec> = {
 
   "&.cm-focused .cm-selectionBackground, ::selection": {
     backgroundColor: "color-mix(in srgb, var(--color-accent) 50%, transparent)",
-    opacity: "0.05",
   },
 
   ".cm-selectionBackground": {
     backgroundColor: "color-mix(in srgb, var(--color-accent) 50%, transparent)",
-    opacity: "0.05",
   },
 
   ".cm-activeLine": {
