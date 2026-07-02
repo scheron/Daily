@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import {ref} from "vue"
 
-import BaseButton from "@/ui/base/BaseButton.vue"
+import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
 import BasePopup from "@/ui/base/BasePopup.vue"
 import AutoSizeInput from "@/ui/common/inputs/AutoSizeInput.vue"
+
+import ContextRing from "./ContextRing.vue"
 
 import type {AIConfig, AIProvider, LocalModelInfo} from "@shared/types/ai"
 
@@ -113,14 +115,17 @@ function handleSelectModel(provider: AIProvider, model: string) {
           </template>
         </BasePopup>
 
-        <BaseButton
-          variant="secondary"
-          size="sm"
-          :icon="loading ? 'stop' : 'arrow-up'"
-          class="bg-base-content/80 text-base-100 hover:bg-base-content/90 hover:text-base-100 flex aspect-square items-center justify-center rounded-full p-1"
-          icon-class="size-4"
-          @click="loading ? cancelRequest() : sendRequest()"
-        />
+        <div class="flex items-center gap-2">
+          <ContextRing />
+          <BaseButton
+            variant="secondary"
+            size="sm"
+            :icon="loading ? 'stop' : 'arrow-up'"
+            class="bg-base-content/80 text-base-100 hover:bg-base-content/90 hover:text-base-100 flex aspect-square items-center justify-center rounded-full p-1"
+            icon-class="size-4"
+            @click="loading ? cancelRequest() : sendRequest()"
+          />
+        </div>
       </div>
     </div>
   </div>

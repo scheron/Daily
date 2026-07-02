@@ -1,14 +1,17 @@
 <script setup lang="ts">
 import {computed, nextTick, onMounted, useTemplateRef, watch} from "vue"
+import {toasts} from "vue-toasts-lite"
 import {until} from "@vueuse/core"
 
 import {AIProvider} from "@shared/types/ai"
-import {toFullDate} from "@shared/utils/date/formatters"
-import {useAiStore} from "@/stores/ai/ai.store"
+import {toDateLabel} from "@shared/utils/date/formatters"
+import {useAiStore} from "@/stores/ai"
 import {useThemeStore} from "@/stores/theme.store"
+import {useCopyToClipboard} from "@/composables/useCopyToClipboard"
+import {useStickToBottom} from "@/composables/useStickToBottom"
 import {useTyping} from "@/composables/useTyping"
 import {getProviderConfig} from "@/utils/ai/getProviderConfig"
-import BaseButton from "@/ui/base/BaseButton.vue"
+import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
 import WaveText from "@/ui/common/misc/WaveText.vue"
 
@@ -23,9 +26,11 @@ import ChatMessage from "./{fragments}/ChatMessage.vue"
 
 useThemeStore()
 const aiStore = useAiStore()
+const {copyToClipboard, isCopied: isConversationCopied} = useCopyToClipboard({onSuccess: () => toasts.success("Conversation copied")})
 const {startTyping, stopTyping, renderTyping} = useTyping({duration: 80, endDelay: 1500})
 
 const messagesContainerRef = useTemplateRef<HTMLElement>("messagesContainer")
+const {isAwayFromBottom, scrollToBottom} = useStickToBottom(messagesContainerRef)
 
 const aiConfig = computed(() => (aiStore.config ? getProviderConfig(aiStore.config.provider, aiStore.config) : null))
 const activeProvider = computed(() => aiStore.config?.provider ?? "openai")
@@ -50,8 +55,6 @@ const showThinkingSpinner = computed(() => {
   if (!aiStore.isThinkLoading) return false
   const last = aiStore.messages.at(-1)
   if (!last || last.role === "user") return true
-  // streaming live message: keep spinner until the first visible indicator
-  // (content delta, reasoning segment, or tool card) lands.
   if (last.status === "streaming") {
     const hasContent = (last.content?.length ?? 0) > 0
     const hasSegment = (last.segments?.length ?? 0) > 0
@@ -60,9 +63,9 @@ const showThinkingSpinner = computed(() => {
   return false
 })
 
-function scrollToBottom() {
-  if (!messagesContainerRef.value) return
-  messagesContainerRef.value.scrollTop = messagesContainerRef.value.scrollHeight
+function copyConversation() {
+  const text = aiStore.messages.map((message) => `**${message.role === "user" ? "You" : "Assistant"}:** ${message.content}`).join("\n\n")
+  copyToClipboard(text)
 }
 
 async function handleSelectModel(provider: AIProvider, model: string) {
@@ -84,29 +87,36 @@ watch(
   },
 )
 
-watch(
-  () => [aiStore.messages.length, aiStore.isThinkLoading, aiStore.isThinkError],
-  async () => {
-    await nextTick()
-    scrollToBottom()
-  },
-)
-
 onMounted(async () => {
+  window.BridgeIPC.send("window:ready")
   aiStore.loadLocalModels()
   await until(messagesContainerRef).toBeTruthy()
   await nextTick()
   scrollToBottom()
 })
-
-onMounted(() => {
-  window.BridgeIPC.send("window:ready")
-})
 </script>
 
 <template>
   <div class="bg-base-100 flex h-dvh w-dvw flex-col overflow-hidden">
-    <header class="pl-traffic-light h-10 shrink-0 select-none" style="-webkit-app-region: drag" />
+    <header class="h-header grid shrink-0 grid-cols-[1fr_auto_1fr] items-center select-none" style="-webkit-app-region: drag">
+      <div></div>
+      <span v-if="aiStore.chatTimeStarted && aiStore.hasMessages" class="text-base-content/70 text-sm">
+        {{ toDateLabel(aiStore.chatTimeStarted) }}
+      </span>
+      <span v-else></span>
+      <div v-if="aiStore.hasMessages" class="flex items-center justify-end gap-1 pr-3" style="-webkit-app-region: no-drag">
+        <BaseButton
+          variant="ghost"
+          size="sm"
+          :icon="isConversationCopied ? 'check' : 'copy'"
+          icon-class="size-4"
+          tooltip="Copy conversation"
+          @click="copyConversation"
+        />
+        <BaseButton variant="ghost" size="sm" icon="trash" icon-class="size-4" tooltip="Clear chat" @click="aiStore.clearHistory" />
+      </div>
+      <div v-else></div>
+    </header>
     <div class="min-h-0 flex-1">
       <div class="flex h-full flex-col">
         <template v-if="aiStore.isConnectionLoading">
@@ -121,11 +131,6 @@ onMounted(() => {
         </template>
 
         <template v-else>
-          <div v-if="aiStore.chatTimeStarted && aiStore.hasMessages" class="h-header flex items-center justify-between px-4 py-1 text-sm">
-            <span class="text-base-content/80 flex-1 rounded-md px-2 py-1 text-sm">{{ toFullDate(aiStore.chatTimeStarted) }}</span>
-            <BaseButton variant="ghost" size="sm" icon="trash" icon-class="size-4" class="" tooltip="Clear chat" @click="aiStore.clearHistory" />
-          </div>
-
           <div v-if="aiStore.isDisabled" class="flex size-full w-full items-center justify-center">
             <DisabledAICard />
           </div>
@@ -139,31 +144,42 @@ onMounted(() => {
           <template v-else>
             <OnboardingAICard v-if="!aiStore.hasMessages" />
 
-            <div v-else ref="messagesContainer" class="flex-1 space-y-5 overflow-y-auto px-4 py-3">
-              <ChatMessage
-                v-for="(msg, idx) in aiStore.messages"
-                :key="msg.id"
-                :message="msg"
-                :can-retry="msg.id === retryableMessageId"
-                :is-last="idx === aiStore.messages.length - 1"
-                :preceding-is-user="aiStore.messages[idx - 1]?.role === 'user'"
-                @retry="aiStore.retryMessage"
-              />
+            <div v-else class="relative min-h-0 flex-1">
+              <div ref="messagesContainer" class="h-full space-y-5 overflow-y-auto px-4 pt-3 pb-10">
+                <ChatMessage
+                  v-for="(msg, idx) in aiStore.messages"
+                  :key="msg.id"
+                  :message="msg"
+                  :can-retry="msg.id === retryableMessageId"
+                  :is-last="idx === aiStore.messages.length - 1"
+                  :preceding-is-user="aiStore.messages[idx - 1]?.role === 'user'"
+                  @retry="aiStore.retryMessage"
+                />
 
-              <ToolConfirmationCard
-                v-if="aiStore.pendingConfirmation"
-                :confirmation="aiStore.pendingConfirmation"
-                @confirm="aiStore.confirmPendingToolCall"
-                @cancel="aiStore.cancelPendingToolCall"
-              />
+                <ToolConfirmationCard
+                  v-if="aiStore.pendingConfirmation"
+                  :confirmation="aiStore.pendingConfirmation"
+                  @confirm="aiStore.confirmPendingToolCall"
+                  @cancel="aiStore.cancelPendingToolCall"
+                />
 
-              <ThinkErrorAICard v-if="aiStore.isThinkError && retryableMessageId" @retry="aiStore.retryMessage" />
+                <ThinkErrorAICard v-if="aiStore.isThinkError && retryableMessageId" @retry="aiStore.retryMessage" />
 
-              <div v-if="showThinkingSpinner" class="flex items-start gap-3">
-                <div class="text-base-content/60 pt-1 text-sm">
-                  <WaveText text="Thinking..." />
+                <div v-if="showThinkingSpinner" class="flex items-start gap-3">
+                  <div class="text-base-content/60 pt-1 text-sm">
+                    <WaveText text="Thinking..." />
+                  </div>
                 </div>
               </div>
+
+              <button
+                v-if="isAwayFromBottom"
+                type="button"
+                class="bg-base-200 border-base-300 text-base-content/70 hover:text-base-content absolute right-4 bottom-3 flex size-8 items-center justify-center rounded-full border shadow-sm transition-colors"
+                @click="scrollToBottom"
+              >
+                <BaseIcon name="chevron-down" class="size-4" />
+              </button>
             </div>
 
             <ChatForm

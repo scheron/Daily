@@ -10,15 +10,21 @@ describe("MessageReasoning", () => {
   beforeEach(() => vi.useFakeTimers())
   afterEach(() => vi.useRealTimers())
 
-  it("shows the text by default (expanded)", () => {
+  it("is collapsed by default when not streaming", () => {
     const w = mount(MessageReasoning, {props: {text: "thinking..."}})
+    expect(w.html()).not.toContain("thinking...")
+  })
+
+  it("is expanded while streaming", () => {
+    const w = mount(MessageReasoning, {props: {text: "thinking...", streaming: true}})
     expect(w.html()).toContain("thinking...")
   })
 
-  it("toggles collapse on header click", async () => {
+  it("expands on header click", async () => {
     const w = mount(MessageReasoning, {props: {text: "thinking..."}})
-    await w.find("button").trigger("click")
     expect(w.html()).not.toContain("thinking...")
+    await w.find("button").trigger("click")
+    expect(w.html()).toContain("thinking...")
   })
 
   it("shows durationMs label when not streaming", () => {

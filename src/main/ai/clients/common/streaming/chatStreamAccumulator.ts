@@ -24,7 +24,7 @@ export class ChatStreamAccumulator {
   private finishReason: string | null = null
   private emittedAny = false
 
-  feed(delta: RawDelta, emit: (d: ChatStreamDelta) => void): void {
+  feed(delta: RawDelta, emit: (d: ChatStreamDelta) => void) {
     const wrappedEmit = (d: ChatStreamDelta) => {
       this.emittedAny = true
       if (d.kind === "content") this.contentBuffer += d.text
@@ -59,11 +59,11 @@ export class ChatStreamAccumulator {
     }
   }
 
-  setFinishReason(reason: string): void {
+  setFinishReason(reason: string) {
     this.finishReason = reason
   }
 
-  flush(emit: (d: ChatStreamDelta) => void): void {
+  flush(emit: (d: ChatStreamDelta) => void) {
     this.splitter.flush((kind, text) => {
       if (!text) return
       this.emittedAny = true

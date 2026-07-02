@@ -8,13 +8,13 @@ export class ThinkBlockSplitter {
   private buffer = ""
   private inside = false
 
-  push(text: string, emit: EmitFn): void {
+  push(text: string, emit: EmitFn) {
     if (!text) return
     this.buffer += text
     this.drain(emit, false)
   }
 
-  flush(emit: EmitFn): void {
+  flush(emit: EmitFn) {
     this.drain(emit, true)
     if (this.buffer) {
       emit(this.inside ? "reasoning" : "content", this.buffer)
@@ -22,7 +22,7 @@ export class ThinkBlockSplitter {
     }
   }
 
-  private drain(emit: EmitFn, isFlush: boolean): void {
+  private drain(emit: EmitFn, isFlush: boolean) {
     while (true) {
       const ltIdx = this.buffer.indexOf("<")
 

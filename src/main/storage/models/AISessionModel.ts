@@ -76,10 +76,10 @@ export class AISessionModel {
    * Insert a turn and all of its steps in one transaction. The turn's status
    * may still be terminal at call time (completed / failed / cancelled).
    */
-  appendTurn(sessionId: string, turn: AgentTurn): void {
+  appendTurn(sessionId: string, turn: AgentTurn) {
     const insertTurn = this.db.prepare(
-      `INSERT INTO ai_turns (id, session_id, user_message, status, final_message, error, started_at, finished_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO ai_turns (id, session_id, user_message, status, final_message, error, started_at, finished_at, prompt_tokens, completion_tokens, total_tokens)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     const insertStep = this.db.prepare(`INSERT INTO ai_steps (id, turn_id, type, payload_json, created_at) VALUES (?, ?, ?, ?, ?)`)
     const touchSession = this.db.prepare(`UPDATE ai_sessions SET updated_at = ? WHERE id = ?`)
@@ -94,6 +94,9 @@ export class AISessionModel {
         turn.error ?? null,
         new Date(turn.startedAt).toISOString(),
         turn.finishedAt ? new Date(turn.finishedAt).toISOString() : null,
+        turn.usage?.promptTokens ?? null,
+        turn.usage?.completionTokens ?? null,
+        turn.usage?.totalTokens ?? null,
       )
       for (const step of turn.steps) {
         const {id, type, createdAt, ...payload} = step as any
@@ -114,7 +117,8 @@ export class AISessionModel {
     const turnRows = this.db
       .prepare(
         `SELECT id, user_message AS userMessage, status, final_message AS finalMessage, error,
-                started_at AS startedAt, finished_at AS finishedAt
+                started_at AS startedAt, finished_at AS finishedAt,
+                prompt_tokens AS promptTokens, completion_tokens AS completionTokens, total_tokens AS totalTokens
          FROM ai_turns
          WHERE session_id = ?
          ORDER BY started_at DESC
@@ -128,6 +132,9 @@ export class AISessionModel {
       error: string | null
       startedAt: string
       finishedAt: string | null
+      promptTokens: number | null
+      completionTokens: number | null
+      totalTokens: number | null
     }>
 
     if (turnRows.length === 0) return []
@@ -158,6 +165,10 @@ export class AISessionModel {
         startedAt: new Date(row.startedAt).getTime(),
         finishedAt: row.finishedAt ? new Date(row.finishedAt).getTime() : undefined,
         steps: parsedSteps,
+        usage:
+          row.totalTokens != null
+            ? {promptTokens: row.promptTokens ?? 0, completionTokens: row.completionTokens ?? 0, totalTokens: row.totalTokens}
+            : undefined,
       }
     })
 

@@ -1,3 +1,5 @@
+import {notNull} from "@shared/utils/common/validators"
+
 const EVENT_SEP = "\n\n"
 
 export function consumeSseEvents(buffer: string): {events: string[]; remainder: string} {
@@ -22,7 +24,7 @@ export function consumeSseEvents(buffer: string): {events: string[]; remainder: 
         break
       }
     }
-    if (payload !== null) events.push(payload)
+    if (notNull(payload)) events.push(payload)
   }
 
   return {events, remainder}

@@ -8,7 +8,7 @@ import ChatMarkdown from "./ChatMarkdown.vue"
 
 const props = defineProps<{text: string; durationMs?: number; streaming?: boolean; collapsed?: boolean}>()
 
-const isOpen = ref(true)
+const isOpen = ref(Boolean(props.streaming) && !props.collapsed)
 const liveSeconds = ref(0)
 let timer: ReturnType<typeof setInterval> | null = null
 const startedAt = Date.now()

@@ -26,13 +26,22 @@ export type ChatRequest = {
   tools?: Tool[]
   tool_choice?: "auto" | "required" | "none"
   stream?: boolean
+  stream_options?: {include_usage?: boolean}
 } & ChatSamplingParams
+
+/** Raw OpenAI-style usage returned by the provider. */
+export type OpenAiUsage = {
+  prompt_tokens?: number
+  completion_tokens?: number
+  total_tokens?: number
+}
 
 export type OpenAiChatResponse = {
   choices: Array<{
     message: MessageLLM
     finish_reason?: string
   }>
+  usage?: OpenAiUsage
 }
 
 export type OpenAiConnectionConfig = {

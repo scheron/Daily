@@ -1,5 +1,9 @@
 import {nanoid} from "nanoid"
 
+import {deepClone} from "@shared/utils/common/deepClone"
+import {isNullish} from "@shared/utils/common/validators"
+
+import type {TokenUsage} from "@shared/types/ai"
 import type {AgentStep, AgentTurn, AgentTurnStatus} from "./types"
 
 /**
@@ -36,29 +40,42 @@ export class TurnBuilder {
     return this.turn.status
   }
 
+  get usage(): TokenUsage | undefined {
+    return this.turn.usage
+  }
+
   appendStep(step: AgentStepInput): AgentStep {
     const full = {...step, id: nanoid(), createdAt: Date.now()} as AgentStep
     this.turn.steps.push(full)
     return full
   }
 
-  setStatus(status: AgentTurnStatus): void {
+  recordUsage(usage: TokenUsage) {
+    const current = this.turn.usage
+    this.turn.usage = {
+      promptTokens: usage.promptTokens,
+      completionTokens: (current?.completionTokens ?? 0) + usage.completionTokens,
+      totalTokens: (current?.totalTokens ?? 0) + usage.totalTokens,
+    }
+  }
+
+  setStatus(status: AgentTurnStatus) {
     this.turn.status = status
-    if (status !== "running" && status !== "waiting_confirmation" && this.turn.finishedAt == null) {
+    if (status !== "running" && status !== "waiting_confirmation" && isNullish(this.turn.finishedAt)) {
       this.turn.finishedAt = Date.now()
     }
   }
 
-  setFinalMessage(text: string): void {
+  setFinalMessage(text: string) {
     this.turn.finalMessage = text
   }
 
-  setError(message: string): void {
+  setError(message: string) {
     this.turn.error = message
   }
 
   /** Deep-clone snapshot for safe handoff (e.g. to Phase 5 persistence later). */
   snapshot(): AgentTurn {
-    return JSON.parse(JSON.stringify(this.turn))
+    return deepClone(this.turn)
   }
 }

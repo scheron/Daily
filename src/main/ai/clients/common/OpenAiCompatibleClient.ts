@@ -1,5 +1,6 @@
 import {NonRetryableError} from "@shared/errors/ai/NonRetryableError"
 import {OpenAiClientErrorCode} from "@shared/errors/ai/OpenAiClientErrorCode"
+import {notUndefined} from "@shared/utils/common/validators"
 import {logger} from "@/utils/logger"
 
 import {APP_CONFIG} from "@/config"
@@ -7,8 +8,8 @@ import {ChatStreamAccumulator} from "./streaming/chatStreamAccumulator"
 import {consumeSseEvents} from "./streaming/sseParser"
 
 import type {ChatStreamCallbacks, IAiClient, MessageLLM, Tool, ToolCallLLM, ToolChoice} from "@/ai/types"
-import type {AIConfig} from "@shared/types/ai"
-import type {ChatRequest, OpenAiChatConfig, OpenAiChatResponse, OpenAiConnectionConfig} from "./types"
+import type {AIConfig, TokenUsage} from "@shared/types/ai"
+import type {ChatRequest, OpenAiChatConfig, OpenAiChatResponse, OpenAiConnectionConfig, OpenAiUsage} from "./types"
 
 const backoff = (n: number): number => Math.min(1000 * 2 ** n, 4000)
 
@@ -75,7 +76,7 @@ export abstract class OpenAiCompatibleClient implements IAiClient {
     signal?: AbortSignal,
     toolChoice?: ToolChoice,
     callbacks?: ChatStreamCallbacks,
-  ): Promise<{message: MessageLLM; done: boolean}> {
+  ): Promise<{message: MessageLLM; done: boolean; usage?: TokenUsage}> {
     const config = this.getChatConfig()
     if (!config) {
       logger.error(logger.CONTEXT.AI, `${this.getClientName()} config is not set`)
@@ -94,7 +95,7 @@ export abstract class OpenAiCompatibleClient implements IAiClient {
     signal: AbortSignal | undefined,
     toolChoice: ToolChoice | undefined,
     config: OpenAiChatConfig,
-  ): Promise<{message: MessageLLM; done: boolean}> {
+  ): Promise<{message: MessageLLM; done: boolean; usage?: TokenUsage}> {
     logger.info(logger.CONTEXT.AI, `${this.getClientName()} chat request`, {model: config.model, messagesCount: messages.length, toolChoice})
 
     const openAiMessages = this.convertMessages(messages, config.model)
@@ -167,7 +168,7 @@ export abstract class OpenAiCompatibleClient implements IAiClient {
       finishReason: choice.finish_reason ?? null,
     })
 
-    return {message, done: true}
+    return {message, done: true, usage: this.toTokenUsage(result.usage)}
   }
 
   private async chatStreaming(
@@ -177,7 +178,7 @@ export abstract class OpenAiCompatibleClient implements IAiClient {
     toolChoice: ToolChoice | undefined,
     callbacks: ChatStreamCallbacks,
     config: OpenAiChatConfig,
-  ): Promise<{message: MessageLLM; done: boolean}> {
+  ): Promise<{message: MessageLLM; done: boolean; usage?: TokenUsage}> {
     const MAX_RETRIES = 2
 
     const openAiMessages = this.convertMessages(messages, config.model)
@@ -194,6 +195,7 @@ export abstract class OpenAiCompatibleClient implements IAiClient {
 
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       const accumulator = new ChatStreamAccumulator()
+      let usage: OpenAiUsage | undefined
       try {
         const response = await fetch(`${config.baseUrl}/chat/completions`, {
           method: "POST",
@@ -245,6 +247,7 @@ export abstract class OpenAiCompatibleClient implements IAiClient {
                 logger.warn(logger.CONTEXT.AI, "Skipping malformed SSE event", {ev})
                 continue
               }
+              if (parsed.usage) usage = parsed.usage
               const choice = parsed.choices?.[0]
               if (!choice) continue
               if (choice.delta) accumulator.feed(choice.delta, callbacks.onDelta!)
@@ -264,7 +267,7 @@ export abstract class OpenAiCompatibleClient implements IAiClient {
           toolCallNames: message.tool_calls?.map((tc) => tc.function.name) ?? [],
           contentLength: message.content?.length ?? 0,
         })
-        return {message, done: true}
+        return {message, done: true, usage: this.toTokenUsage(usage)}
       } catch (err) {
         if (signal?.aborted) throw err
         if (err instanceof NonRetryableError) throw err
@@ -275,6 +278,13 @@ export abstract class OpenAiCompatibleClient implements IAiClient {
       }
     }
     throw lastErr ?? new Error("chatStreaming failed without specific error")
+  }
+
+  private toTokenUsage(u?: OpenAiUsage): TokenUsage | undefined {
+    if (!u) return undefined
+    const promptTokens = u.prompt_tokens ?? 0
+    const completionTokens = u.completion_tokens ?? 0
+    return {promptTokens, completionTokens, totalTokens: u.total_tokens ?? promptTokens + completionTokens}
   }
 
   private buildChatRequest(
@@ -290,6 +300,7 @@ export abstract class OpenAiCompatibleClient implements IAiClient {
       tools,
       tool_choice: toolChoice,
       stream,
+      ...(stream ? {stream_options: {include_usage: true}} : {}),
       temperature: config.temperature,
       top_p: config.top_p,
       top_k: config.top_k,
@@ -317,7 +328,7 @@ export abstract class OpenAiCompatibleClient implements IAiClient {
         content: msg.content || null,
       }
 
-      if (msg.reasoning_content !== undefined) {
+      if (notUndefined(msg.reasoning_content)) {
         message.reasoning_content = msg.reasoning_content
       } else if (needsReasoningContent && msg.role === "assistant") {
         // DeepSeek thinking models require this field in assistant history entries.
@@ -349,7 +360,7 @@ export abstract class OpenAiCompatibleClient implements IAiClient {
       content: msg.content ?? "",
     }
 
-    if (msg.reasoning_content !== undefined) {
+    if (notUndefined(msg.reasoning_content)) {
       message.reasoning_content = msg.reasoning_content
     }
 
