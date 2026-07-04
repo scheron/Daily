@@ -2,7 +2,7 @@
 import {computed, ref} from "vue"
 import {toasts} from "vue-toasts-lite"
 
-import {TAG_PRESET_COLORS} from "@shared/constants/theme/colorPalette"
+import {TAG_PRESET_COLORS} from "@shared/constants/tagColorPalette"
 import {sortTags} from "@shared/utils/tags/sortTags"
 import {findTagByName, normalizeTagName} from "@shared/utils/tags/tagName"
 import {useTagsStore} from "@/stores/tags.store"

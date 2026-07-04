@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {computed} from "vue"
 
-import {TAG_COLOR_PALETTE} from "@shared/constants/theme/colorPalette"
+import {TAG_COLOR_PALETTE} from "@shared/constants/tagColorPalette"
 import {generateGradient} from "@/utils/colors/generateGradient"
 import BaseButton from "@/ui/base/BaseButton"
 

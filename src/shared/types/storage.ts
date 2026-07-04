@@ -41,6 +41,7 @@ export type Settings = {
   appearance: {
     mode: AppearanceMode
     accent: string
+    base: string
   }
   sync: {
     enabled: boolean

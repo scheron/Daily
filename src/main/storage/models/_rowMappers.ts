@@ -1,5 +1,5 @@
 import {MAIN_BRANCH_ID} from "@shared/constants/storage"
-import {DEFAULT_ACCENT_ID} from "@shared/constants/theme"
+import {DEFAULT_ACCENT_ID, DEFAULT_BASE_ID} from "@shared/constants/theme"
 import {deepMerge} from "@shared/utils/common/deepMerge"
 import {isNumber, notNull} from "@shared/utils/common/validators"
 
@@ -149,6 +149,7 @@ export function getDefaultSettings(): Settings {
     appearance: {
       mode: "system",
       accent: DEFAULT_ACCENT_ID,
+      base: DEFAULT_BASE_ID,
     },
     sync: {enabled: false},
     ai: null,

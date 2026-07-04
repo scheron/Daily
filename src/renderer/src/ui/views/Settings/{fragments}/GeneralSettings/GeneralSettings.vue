@@ -3,6 +3,7 @@ import {useThemeStore} from "@/stores/theme.store"
 import {useUIStore} from "@/stores/ui"
 import BaseSegmented from "@/ui/base/BaseSegmented.vue"
 import AccentPicker from "@/ui/common/pickers/AccentPicker.vue"
+import MainColorPicker from "@/ui/common/pickers/MainColorPicker.vue"
 
 import AboutSection from "./{fragments}/AboutSection.vue"
 import WidgetsSection from "./{fragments}/WidgetsSection.vue"
@@ -35,7 +36,11 @@ const emptySectionsOptions: {value: EmptySectionsMode; label: string}[] = [
         <BaseSegmented :model-value="themeStore.mode" :options="themeOptions" @update:model-value="themeStore.setMode" />
       </SettingRow>
 
-      <SettingRow title="Main Color" description="Pick the accent used across the app">
+      <SettingRow title="Main Color" description="Tint of the app background across light and dark themes">
+        <MainColorPicker />
+      </SettingRow>
+
+      <SettingRow title="Accent Color" description="Pick the accent used across the app">
         <AccentPicker />
       </SettingRow>
     </SettingsGroup>

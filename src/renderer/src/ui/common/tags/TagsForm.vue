@@ -2,7 +2,7 @@
 import {nextTick, ref, useTemplateRef} from "vue"
 import {toasts} from "vue-toasts-lite"
 
-import {TAG_QUICK_COLORS} from "@shared/constants/theme/colorPalette"
+import {TAG_QUICK_COLORS} from "@shared/constants/tagColorPalette"
 import {findTagByName, isValidTagName, normalizeTagName} from "@shared/utils/tags/tagName"
 import {useFilterStore} from "@/stores/filter.store"
 import {useTagsStore} from "@/stores/tags.store"

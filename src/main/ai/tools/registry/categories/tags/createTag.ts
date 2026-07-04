@@ -1,4 +1,4 @@
-import {TAG_QUICK_COLORS} from "@shared/constants/theme/colorPalette"
+import {TAG_QUICK_COLORS} from "@shared/constants/tagColorPalette"
 
 import {formatTag} from "@/ai/utils/formatters"
 
