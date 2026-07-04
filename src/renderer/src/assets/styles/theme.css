@@ -14,6 +14,7 @@
   --c-base-content: oklch(20% 0.02 265.754);
 
   --c-accent: oklch(72% 0.17 190);
+  --c-editor-selection: color-mix(in srgb, var(--c-accent) 32%, var(--c-base-100));
 
   --c-info: oklch(75% 0.15 200);
   --c-success: oklch(75% 0.15 120);
@@ -30,6 +31,7 @@
   --c-base-content: oklch(85% 0.01 265);
 
   --c-accent: oklch(72% 0.17 190);
+  --c-editor-selection: color-mix(in srgb, var(--c-accent) 45%, var(--c-base-100));
 
   --c-info: oklch(80% 0.15 200);
   --c-success: oklch(75% 0.2 150);
@@ -44,6 +46,7 @@
   --color-base-content: var(--c-base-content);
 
   --color-accent: var(--c-accent);
+  --color-editor-selection: var(--c-editor-selection);
 
   --color-info: var(--c-info);
   --color-success: var(--c-success);

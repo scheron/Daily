@@ -47,12 +47,17 @@ export const editorStyles: Record<string, StyleSpec> = {
     outline: "none",
   },
 
-  "&.cm-focused .cm-selectionBackground, ::selection": {
-    backgroundColor: "color-mix(in srgb, var(--color-accent) 50%, transparent)",
+  "&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground": {
+    background: "var(--color-editor-selection) !important",
   },
 
   ".cm-selectionBackground": {
-    backgroundColor: "color-mix(in srgb, var(--color-accent) 50%, transparent)",
+    background: "var(--color-editor-selection) !important",
+  },
+
+  "& ::selection, &::selection": {
+    backgroundColor: "var(--color-editor-selection)",
+    color: "var(--color-base-content)",
   },
 
   ".cm-activeLine": {
