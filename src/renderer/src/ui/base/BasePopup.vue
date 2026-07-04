@@ -117,7 +117,7 @@ defineExpose({
       v-if="isOpen"
       ref="popup"
       data-popup
-      :class="cn('bg-base-100 border-base-300 z-999 max-h-[300px] min-w-52 overflow-y-auto rounded-lg border p-1 shadow-lg', containerClass)"
+      :class="cn('bg-base-100 border-base-300 z-999 max-h-[300px] min-w-52 overflow-y-auto rounded-2xl border p-1 shadow-lg', containerClass)"
       :style="floatingStyles"
       @mouseenter="cancelHide"
       @mouseleave="scheduleHide"

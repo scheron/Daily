@@ -42,5 +42,5 @@ watch(filteredTags, (tags) => {
 </script>
 
 <template>
-  <DynamicTagsPanel :tags="filteredTags" :selected-tags="filterStore.activeTagIds" selectable size="md" @select="onSelectTag" />
+  <DynamicTagsPanel :tags="filteredTags" :selected-tags="filterStore.activeTagIds" popup-hover-mode selectable size="md" @select="onSelectTag" />
 </template>

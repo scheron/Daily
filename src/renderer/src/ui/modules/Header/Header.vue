@@ -50,8 +50,11 @@ async function onSelectBranch(branch: Branch) {
 </script>
 
 <template>
-  <div class="pl-traffic-light bg-base-100 border-base-300 h-header relative flex items-center border-b px-4" style="-webkit-app-region: drag">
-    <div class="flex h-full min-w-0 flex-1 items-center gap-2">
+  <div
+    class="bg-base-100 border-base-300 h-header relative grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center border-b px-4"
+    style="-webkit-app-region: drag"
+  >
+    <div class="pl-traffic-light flex h-full min-w-0 items-center gap-2">
       <BaseButton
         variant="ghost-primary"
         icon="sidebar"
@@ -61,10 +64,10 @@ async function onSelectBranch(branch: Branch) {
         :tooltip="uiStore.leftPanelVisible ? 'Hide panel' : 'Show panel'"
         @click="uiStore.toggleLeftPanel()"
       />
-      <TagsFilter />
+      <TagsFilter class="min-w-0 flex-1" />
     </div>
 
-    <div class="absolute left-1/2 -translate-x-1/2" style="-webkit-app-region: no-drag">
+    <div class="justify-self-center" style="-webkit-app-region: no-drag">
       <div class="flex items-center gap-1">
         <BaseButton variant="ghost" size="sm" icon="chevron-left" class="size-7" icon-class="size-4" tooltip="Previous day" @click="step(-1)" />
 
@@ -95,7 +98,7 @@ async function onSelectBranch(branch: Branch) {
       </div>
     </div>
 
-    <div class="flex h-full flex-1 justify-end">
+    <div class="flex h-full min-w-0 justify-end">
       <div class="flex items-center gap-2" style="-webkit-app-region: no-drag">
         <BranchPicker :selected-id="branchesStore.activeBranchId" position="end" @select="onSelectBranch">
           <template #trigger="{toggle}">

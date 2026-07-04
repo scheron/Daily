@@ -15,11 +15,13 @@ const props = withDefaults(
     selectable?: boolean
     selectedTags?: Set<Tag["id"]>
     emptyMessage?: string
+    popupHoverMode?: boolean
     size?: "sm" | "md"
   }>(),
   {
     selectedTags: () => new Set(),
     emptyMessage: "No tags",
+    popupHoverMode: false,
     size: "md",
   },
 )
@@ -88,7 +90,7 @@ useResizeObserver(containerRef, calculateVisibleTags)
 </script>
 
 <template>
-  <div ref="containerRef" class="relative flex w-full items-center gap-2">
+  <div ref="containerRef" class="relative flex w-full min-w-0 items-center gap-2">
     <slot v-if="!tags.length" name="empty">
       <span class="text-base-content/70 text-sm">
         <BaseIcon name="tags" class="size-4" />
@@ -112,17 +114,25 @@ useResizeObserver(containerRef, calculateVisibleTags)
         @click="onSelectTag(tag.id)"
       />
 
-      <BasePopup v-if="hiddenTags.length" hide-header hide-close-btn container-class="min-w-44 p-1" content-class="gap-1.5">
-        <template #trigger="{toggle, open}">
+      <BasePopup
+        v-if="hiddenTags.length"
+        hide-header
+        hide-close-btn
+        :hover-mode="popupHoverMode"
+        container-class="min-w-44 p-1"
+        content-class="gap-1.5"
+      >
+        <template #trigger="{toggle, show}">
           <BaseButton
             variant="text"
             size="sm"
-            class="h-7 shrink-0 flex-row-reverse rounded-md px-3 py-1.5"
+            class="h-7 shrink-0 flex-row-reverse rounded-full px-3 py-1.5"
             :class="[hasSelectedInPopup ? 'bg-accent/20 border-accent text-accent' : 'opacity-70 hover:opacity-90']"
             icon="tags"
             icon-class="size-4"
             style="-webkit-app-region: no-drag"
-            @click.stop="toggle"
+            @mouseenter="popupHoverMode ? show() : undefined"
+            @click.stop="popupHoverMode ? show() : toggle()"
           >
             <span class="text-sm font-medium">+{{ hiddenTags.length }}</span>
           </BaseButton>
