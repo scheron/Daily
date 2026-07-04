@@ -101,7 +101,7 @@ function createEditor(initialContent: string) {
       drawSelection(),
       createMarkdownLanguageExtension(),
       createMarkdownListIndentExtension(),
-      placeholder("Write something…"),
+      placeholder("Type / for commands"),
       EditorView.lineWrapping,
       EditorView.updateListener.of((update) => {
         if (update.docChanged) emit("update:content", update.state.doc.toString())

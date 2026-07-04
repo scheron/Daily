@@ -6,7 +6,8 @@ import type {IconName} from "@/ui/base/BaseIcon"
 import type {Completion, CompletionContext, CompletionResult} from "@codemirror/autocomplete"
 import type {EditorView} from "@codemirror/view"
 
-type SlashItem = {label: string; icon: IconName; run: (view: EditorView) => boolean}
+export type SlashItem = {label: string; icon: IconName; run: (view: EditorView) => boolean}
+type SlashItemsSource = SlashItem[] | (() => SlashItem[])
 
 const ITEMS: SlashItem[] = [
   {label: "Divider", icon: "minus", run: blockCommands.insertHorizontalRule},
@@ -37,18 +38,25 @@ export const slashIconByLabel = new Map<string, IconName>(ITEMS.map((item) => [`
  * Option labels are `/`-prefixed so CodeMirror's matcher filters them against
  * the typed `/query`; selecting one removes the `/query` and runs the command.
  */
-export function slashCompletionSource(context: CompletionContext): CompletionResult | null {
-  const match = context.matchBefore(/\/[\w-]*/)
-  if (!match) return null
-  if (!context.explicit && match.from === match.to) return null
+export function createSlashCompletionSource(extraItems: SlashItemsSource = []): (context: CompletionContext) => CompletionResult | null {
+  return (context) => {
+    const match = context.matchBefore(/\/[\w-]*/)
+    if (!match) return null
+    if (!context.explicit && match.from === match.to) return null
 
-  const charBefore = match.from > 0 ? context.state.sliceDoc(match.from - 1, match.from) : "\n"
-  if (charBefore !== "\n" && !/\s/.test(charBefore)) return null
+    const charBefore = match.from > 0 ? context.state.sliceDoc(match.from - 1, match.from) : "\n"
+    if (charBefore !== "\n" && !/\s/.test(charBefore)) return null
 
-  if (isInsideCode(context)) return null
+    if (isInsideCode(context)) return null
 
-  return {from: match.from, to: match.to, options: ITEMS.map(toCompletion), validFor: /^\/[\w-]*$/}
+    const resolvedExtraItems = typeof extraItems === "function" ? extraItems() : extraItems
+    const items = [...ITEMS.slice(0, 1), ...resolvedExtraItems, ...ITEMS.slice(1)]
+
+    return {from: match.from, to: match.to, options: items.map(toCompletion), validFor: /^\/[\w-]*$/}
+  }
 }
+
+export const slashCompletionSource = createSlashCompletionSource()
 
 function toCompletion(item: SlashItem, index: number): Completion {
   return {

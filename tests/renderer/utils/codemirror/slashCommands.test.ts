@@ -1,7 +1,7 @@
 import {describe, expect, it} from "vitest"
 
 import {createMarkdownLanguageExtension} from "@/utils/codemirror/extensions/markdownLanguage"
-import {slashCompletionSource, slashIconByLabel} from "@/utils/codemirror/extensions/slashCommands"
+import {createSlashCompletionSource, slashCompletionSource, slashIconByLabel} from "@/utils/codemirror/extensions/slashCommands"
 
 import {CompletionContext} from "@codemirror/autocomplete"
 import {EditorState} from "@codemirror/state"
@@ -36,6 +36,35 @@ describe("slashCompletionSource", () => {
 
   it("does not trigger inside a fenced code block", () => {
     expect(complete("```js\n/\n```\n", 7)).toBeNull()
+  })
+
+  it("can insert extra command items after divider", () => {
+    const source = createSlashCompletionSource([{label: "Add Tag", icon: "tags", run: () => true}])
+    const state = EditorState.create({doc: "/", selection: {anchor: 1}, extensions: [createMarkdownLanguageExtension()]})
+    const res = source(new CompletionContext(state, 1, false))
+
+    expect(res?.options[0].label).toBe("/Divider")
+    expect(res?.options[1].label).toBe("/Add Tag")
+    expect(res?.options.map((o) => o.label)).toContain("/Heading 1")
+  })
+
+  it("can resolve extra command items dynamically", () => {
+    let includeRemove = false
+    const source = createSlashCompletionSource(() =>
+      includeRemove
+        ? [
+            {label: "Add Tag", icon: "tags", run: () => true},
+            {label: "Remove Tag", icon: "tags-off", run: () => true},
+          ]
+        : [{label: "Add Tag", icon: "tags", run: () => true}],
+    )
+    const state = EditorState.create({doc: "/", selection: {anchor: 1}, extensions: [createMarkdownLanguageExtension()]})
+
+    expect(source(new CompletionContext(state, 1, false))?.options.map((o) => o.label)).not.toContain("/Remove Tag")
+
+    includeRemove = true
+
+    expect(source(new CompletionContext(state, 1, false))?.options.map((o) => o.label)).toContain("/Remove Tag")
   })
 })
 

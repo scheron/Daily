@@ -1,12 +1,14 @@
 import {sort} from "fast-sort"
 
-import {slashCompletionSource, slashIconByLabel} from "@/utils/codemirror/extensions/slashCommands"
+import {slashIconByLabel as baseSlashIconByLabel, createSlashCompletionSource} from "@/utils/codemirror/extensions/slashCommands"
 
-import {autocompletion, completionKeymap} from "@codemirror/autocomplete"
-import {EditorView, keymap} from "@codemirror/view"
+import {autocompletion, completionKeymap, startCompletion} from "@codemirror/autocomplete"
+import {keymap} from "@codemirror/view"
 
+import type {SlashItem} from "@/utils/codemirror/extensions/slashCommands"
 import type {Completion, CompletionContext, CompletionResult} from "@codemirror/autocomplete"
 import type {Extension} from "@codemirror/state"
+import type {EditorView} from "@codemirror/view"
 import type {Tag} from "@shared/types/storage"
 
 type TagsAutocompleteOptions = {
@@ -16,15 +18,14 @@ type TagsAutocompleteOptions = {
   onRemoveTag?: (tag: Tag) => void
 }
 
-function getTagByNameMap(tags: Tag[]): Map<string, Tag> {
-  return new Map(tags.map((tag) => [tag.name.toLowerCase(), tag]))
-}
+type TagCommandMode = "add" | "remove"
 
 function createTagCompletions(
   tags: Tag[],
   query: string,
-  mode: "add" | "remove",
-  metaByLabel: Map<string, {color: string; mode: "add" | "remove"}>,
+  mode: TagCommandMode,
+  commandFrom: number,
+  metaByLabel: Map<string, {color: string; mode: TagCommandMode}>,
   onApply?: (tag: Tag) => void,
 ): Completion[] {
   const normalizedQuery = query.toLowerCase()
@@ -36,7 +37,7 @@ function createTagCompletions(
       return !normalizedQuery || name.includes(normalizedQuery)
     })
     .map((tag) => {
-      const label = `${mode === "remove" ? "-#" : "#"}${tag.name}`
+      const label = tag.name
       metaByLabel.set(label, {color: tag.color, mode})
 
       return {
@@ -44,91 +45,80 @@ function createTagCompletions(
         type: "keyword",
         apply: (view: EditorView, _completion: Completion, from: number, to: number) => {
           view.dispatch({
-            changes: {from, to, insert: ""},
-            selection: {anchor: from},
+            changes: {from: commandFrom, to, insert: ""},
+            selection: {anchor: commandFrom},
           })
           onApply?.(tag)
+          view.focus()
         },
       } satisfies Completion
     })
 }
 
-function findTrailingCommand(textBeforeCursor: string) {
-  const match = textBeforeCursor.match(/(?:^|[\s([{])(-?#([\w-]+))$/)
-  if (!match) return null
+export function createTagSlashItems(showRemove = true): SlashItem[] {
+  const addItem: SlashItem = {label: "Add Tag", icon: "tags", run: insertTagCommand("add")}
+  const removeItem: SlashItem = {label: "Remove Tag", icon: "tags-off", run: insertTagCommand("remove")}
 
-  const command = match[1]
-  const name = match[2]
-  const mode = command.startsWith("-#") ? "remove" : "add"
-  const from = textBeforeCursor.length - command.length
-
-  return {mode, name, from}
+  return showRemove ? [addItem, removeItem] : [addItem]
 }
 
-function createCommandApplyExtension(options: TagsAutocompleteOptions): Extension {
-  return EditorView.inputHandler.of((view, from, to, text) => {
-    if (![" ", "\n", "\t"].includes(text)) return false
+function insertTagCommand(mode: TagCommandMode): (view: EditorView) => boolean {
+  return (view) => {
+    const {from, to} = view.state.selection.main
+    const label = mode === "remove" ? "Remove Tag" : "Add Tag"
+    const command = `/${label} `
 
-    const line = view.state.doc.lineAt(from)
-    const lineTextBeforeCursor = view.state.doc.sliceString(line.from, from)
-    const command = findTrailingCommand(lineTextBeforeCursor)
-
-    if (!command) return false
-
-    const availableTags = command.mode === "remove" ? (options.getAttachedTags?.() ?? options.getTags()) : options.getTags()
-    const tag = getTagByNameMap(availableTags).get(command.name.toLowerCase())
-    if (!tag) return false
-
-    if (command.mode === "remove") options.onRemoveTag?.(tag)
-    else options.onAddTag?.(tag)
-
-    const commandFrom = line.from + command.from
-    const prevChar = commandFrom > 0 ? view.state.doc.sliceString(commandFrom - 1, commandFrom) : ""
-    const insert = text === " " && /\s/.test(prevChar) ? "" : text
-
-    view.dispatch({
-      changes: {from: commandFrom, to, insert},
-      selection: {anchor: commandFrom + insert.length},
-    })
-
+    view.dispatch({changes: {from, to, insert: command}, selection: {anchor: from + command.length}})
+    setTimeout(() => startCompletion(view), 0)
     return true
-  })
+  }
 }
 
-export function createCompletionExtension(options: TagsAutocompleteOptions): Extension {
-  const metaByLabel = new Map<string, {color: string; mode: "add" | "remove"}>()
+export function createTagSlashCompletionSource(
+  options: TagsAutocompleteOptions,
+  metaByLabel: Map<string, {color: string; mode: TagCommandMode}> = new Map(),
+): (context: CompletionContext) => CompletionResult | null {
+  return (context) => {
+    const line = context.state.doc.lineAt(context.pos)
+    const textBeforeCursor = context.state.sliceDoc(line.from, context.pos)
+    const match = textBeforeCursor.match(/(^|[\s([{])\/(Add Tag|Remove Tag)\s+([\w-]*)$/i)
 
-  const source = (context: CompletionContext): CompletionResult | null => {
-    // Strict trigger: only #tag or -#tag, never plain "#" or "# ".
-    const match = context.matchBefore(/-?#[\w-]+/)
     if (!match) return null
+    if (context.pos < line.from) return null
 
-    if (!context.explicit && match.from === match.to) return null
-
-    const charBeforeHash = match.from > 0 ? context.state.sliceDoc(match.from - 1, match.from) : ""
-    if (charBeforeHash && /[\w-]/.test(charBeforeHash)) return null
-    const isRemove = match.text.startsWith("-#")
-    const query = match.text.slice(isRemove ? 2 : 1)
+    const mode = match[2].toLowerCase() === "remove tag" ? "remove" : "add"
+    const query = match[3] ?? ""
+    const commandFrom = line.from + (match.index ?? 0) + match[1].length
+    const queryFrom = context.pos - query.length
+    const sourceTags = mode === "remove" ? (options.getAttachedTags?.() ?? options.getTags()) : options.getTags()
 
     metaByLabel.clear()
-    const sourceTags = isRemove ? (options.getAttachedTags?.() ?? options.getTags()) : options.getTags()
     const completions = createTagCompletions(
       sourceTags,
       query,
-      isRemove ? "remove" : "add",
+      mode,
+      commandFrom,
       metaByLabel,
-      isRemove ? options.onRemoveTag : options.onAddTag,
+      mode === "remove" ? options.onRemoveTag : options.onAddTag,
     )
+
     if (!completions.length) return null
 
-    const result = {
-      from: match.from,
-      to: match.to,
+    return {
+      from: queryFrom,
+      to: context.pos,
       options: completions,
-      validFor: /-?#[\w-]*/,
+      validFor: /^[\w-]*$/,
     }
-    return result
   }
+}
+
+export function createCompletionExtension(options: TagsAutocompleteOptions): Extension {
+  const tagMetaByLabel = new Map<string, {color: string; mode: TagCommandMode}>()
+  const tagSlashItems = createTagSlashItems()
+  const slashIconByLabel = new Map(baseSlashIconByLabel)
+
+  tagSlashItems.forEach((item) => slashIconByLabel.set(`/${item.label}`, item.icon))
 
   return [
     autocompletion({
@@ -136,7 +126,7 @@ export function createCompletionExtension(options: TagsAutocompleteOptions): Ext
       icons: false,
       tooltipClass: () => "cm-tags-autocomplete",
       optionClass: (completion) => {
-        const meta = metaByLabel.get(completion.label)
+        const meta = tagMetaByLabel.get(completion.label)
         if (meta) return meta.mode === "remove" ? "cm-tag-option cm-tag-option-remove" : "cm-tag-option cm-tag-option-add"
         return "cm-slash-option"
       },
@@ -144,12 +134,12 @@ export function createCompletionExtension(options: TagsAutocompleteOptions): Ext
         {
           position: 45,
           render: (completion) => {
-            const meta = metaByLabel.get(completion.label)
+            const meta = tagMetaByLabel.get(completion.label)
             if (meta) {
               const chip = document.createElement("span")
               chip.className = `cm-tag-option-chip ${meta.mode === "remove" ? "cm-tag-option-chip-remove" : "cm-tag-option-chip-add"}`
               chip.style.setProperty("--tag-color", meta.color)
-              chip.textContent = completion.label.replace(/^-?#/, "")
+              chip.textContent = completion.label
               return chip
             }
 
@@ -169,9 +159,11 @@ export function createCompletionExtension(options: TagsAutocompleteOptions): Ext
           },
         },
       ],
-      override: [source, slashCompletionSource],
+      override: [
+        createTagSlashCompletionSource(options, tagMetaByLabel),
+        createSlashCompletionSource(() => createTagSlashItems(Boolean(options.getAttachedTags?.().length))),
+      ],
     }),
-    createCommandApplyExtension(options),
     keymap.of(completionKeymap),
   ]
 }

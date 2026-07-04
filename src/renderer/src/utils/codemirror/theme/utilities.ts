@@ -104,7 +104,7 @@ export const utilityStyles: Record<string, StyleSpec> = {
   },
 
   ".cm-tags-autocomplete .cm-tag-option-chip-remove::before": {
-    content: '"-#"',
+    content: '"#"',
   },
 
   ".cm-tags-autocomplete li[aria-selected] .cm-tag-option-chip": {
