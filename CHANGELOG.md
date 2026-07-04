@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.16.2 - 2026-07-04
+
+### ✨ New Features
+
+- **Main Color** — Settings now includes five base palettes that tint the app background and text across light and dark themes, separate from the accent color.
+- **Tag slash commands** — the task editor slash menu now includes Add Tag and Remove Tag actions with tag autocomplete, so task tags can be changed without leaving the editor body.
+
+### 🐛 Bug Fixes
+
+- Fixed header tag filters crowding the toolbar when a day has many tags; extra tags now stay in a compact hover menu.
+- Fixed selected text in the task editor being too dark to read on light themes.
+
+---
+
 ## v0.16.1 - 2026-07-02
 
 ### 🎨 Improvements
