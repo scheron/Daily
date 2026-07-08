@@ -29,6 +29,8 @@ export const APP_CONFIG = {
         host: "127.0.0.1",
         apiPath: "/v1",
         apiKey: "no-key",
+        catalogUrl: "https://raw.githubusercontent.com/scheron/Daily/main/resources/models.json",
+        catalogTimeoutMs: 10_000,
       },
     },
     openai: {
@@ -156,4 +158,7 @@ export const fsPaths = {
 
   /** Bundled models catalog (JSON) */
   modelsCatalogPath: () => (ENV.isDevelopment ? join(process.cwd(), "resources", "models.json") : join(process.resourcesPath, "models.json")),
+
+  /** Cached remote models catalog (JSON) */
+  modelsCatalogCachePath: () => path.join(app.getPath("userData"), "models-catalog.json"),
 }

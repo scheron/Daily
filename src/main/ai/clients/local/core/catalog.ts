@@ -11,30 +11,40 @@ const VALID_TIERS = new Set(["fast", "balanced", "quality"])
 type RawCatalog = {schemaVersion?: number; models?: unknown[]}
 
 export async function loadCatalog(filePath: string): Promise<ModelManifestEntry[]> {
-  let raw: RawCatalog
+  let raw: string
   try {
-    raw = JSON.parse(await fs.readFile(filePath, "utf8")) as RawCatalog
+    raw = await fs.readFile(filePath, "utf8")
   } catch (err) {
     logger.error(logger.CONTEXT.AI, "Failed to read model catalog", {filePath, error: err})
     return []
   }
+  return parseCatalog(raw)
+}
 
-  if (raw?.schemaVersion !== SUPPORTED_SCHEMA_VERSION) {
+export function parseCatalog(raw: string): ModelManifestEntry[] {
+  let data: RawCatalog
+  try {
+    data = JSON.parse(raw) as RawCatalog
+  } catch (err) {
+    logger.error(logger.CONTEXT.AI, "Failed to parse model catalog JSON", {error: err})
+    return []
+  }
+
+  if (data?.schemaVersion !== SUPPORTED_SCHEMA_VERSION) {
     logger.error(logger.CONTEXT.AI, "Unsupported catalog schemaVersion", {
-      filePath,
-      got: raw?.schemaVersion,
+      got: data?.schemaVersion,
       expected: SUPPORTED_SCHEMA_VERSION,
     })
     return []
   }
 
-  if (!isArray(raw.models)) {
-    logger.error(logger.CONTEXT.AI, "Catalog 'models' is not an array", {filePath})
+  if (!isArray(data.models)) {
+    logger.error(logger.CONTEXT.AI, "Catalog 'models' is not an array")
     return []
   }
 
   const out: ModelManifestEntry[] = []
-  raw.models.forEach((item, index) => {
+  data.models.forEach((item, index) => {
     const entry = parseEntry(item, index)
     if (entry) out.push(entry)
   })
@@ -119,6 +129,12 @@ function parseEntry(raw: unknown, index: number): ModelManifestEntry | null {
     const toolsCap = rawCaps.tools
     if (toolsCap !== "compat" && toolsCap !== "native") return reject(`${id}: capabilities.tools`)
     capabilities = {tools: toolsCap}
+  }
+
+  const launchArgs = sa?.launchArgs
+  if (notUndefined(launchArgs)) {
+    if (!isArray(launchArgs) || !launchArgs.every(isString)) return reject(`${id}: serverArgs.launchArgs`)
+    serverArgs.launchArgs = launchArgs
   }
 
   const entry: ModelManifestEntry = {
