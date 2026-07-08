@@ -1,6 +1,6 @@
 ---
 name: release-daily
-description: Cut a release of the Daily app — analyze commits + diffs since the last tag, filter to user-facing changes only (App Store-style product changelog), interactively propose 2-3 phrasing options per section and a version bump with recommendations, then on user approval invoke `pnpm release` non-interactively with the agreed values. Use this skill whenever the user says "release", "релиз", "выпустить", "новый релиз", "новая версия", "bump version", asks what changed since the last release, or wants help drafting CHANGELOG entries or deciding what version to ship. Also triggers when the user mentions CHANGELOG.md, `scripts/release.js`, or version-tag workflows in this project.
+description: Cut a release of the Daily app — analyze commits + diffs since the last tag, filter to user-facing changes only (App Store-style product changelog), interactively propose 2-3 phrasing options per section and a version bump with recommendations, then on user approval invoke `pnpm release` non-interactively with the agreed values. Use this skill whenever the user says "release", "bump version", asks what changed since the last release, or wants help drafting CHANGELOG entries or deciding what version to ship. Also triggers when the user mentions CHANGELOG.md, `scripts/release.js`, or version-tag workflows in this project.
 ---
 
 # Release the Daily project
@@ -163,7 +163,7 @@ Stitch the selected per-section options together with:
 
 Show the full text to the user one more time. Print it as a single markdown block. Then ask:
 
-> "Шипим v${nextVersion} с этим текстом? (yes/no/edit)"
+> "Ship v${nextVersion} with this text? (yes/no/edit)"
 
 **Print the complete assembled markdown — the exact text that will land in CHANGELOG.md — immediately before asking, in the same turn as the confirmation question.** Not "as agreed earlier", not a summary, not a link back to the per-section interview: the full final text, every time, right above the question. The user reads it there and then answers.
 
