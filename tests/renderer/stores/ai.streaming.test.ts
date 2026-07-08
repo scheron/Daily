@@ -18,6 +18,7 @@ beforeEach(() => {
     "ai:get-current-session": vi.fn(async () => ({turns: []})),
     "ai:on-local-state-changed": vi.fn(),
     "ai:on-local-download-progress": vi.fn(),
+    "ai:on-local-catalog-changed": vi.fn(),
   })
   setActivePinia(createPinia())
 })

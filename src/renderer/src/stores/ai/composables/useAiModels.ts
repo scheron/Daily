@@ -90,6 +90,10 @@ export function useAiModels(ctx: AiModelsContext) {
     await localModelStore.loadModels()
   }
 
+  async function refreshLocalCatalog() {
+    return localModelStore.refreshCatalog()
+  }
+
   async function downloadLocalModel(modelId: LocalModelId) {
     await localModelStore.downloadModel(modelId)
   }
@@ -120,6 +124,7 @@ export function useAiModels(ctx: AiModelsContext) {
     isLocalModelRunning: localModelStore.isModelRunning,
     isLocalModelStarting: localModelStore.isModelStarting,
     isLocalServerError: localModelStore.isServerError,
+    isRefreshingLocalCatalog: localModelStore.isRefreshingCatalog,
 
     updateConfig,
     checkConnection,
@@ -129,6 +134,7 @@ export function useAiModels(ctx: AiModelsContext) {
     getLocalDownloadError,
     clearLocalDownloadError,
     loadLocalModels,
+    refreshLocalCatalog,
     downloadLocalModel,
     cancelLocalModelDownload,
     deleteLocalModel,

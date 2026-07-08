@@ -4,7 +4,7 @@ import {defineStore} from "pinia"
 import {useSettingsStore} from "@/stores/settings.store"
 import {toRawDeep} from "@/utils/ui/vue"
 
-import type {AIConfig, LocalModelDownloadProgress, LocalModelId, LocalModelInfo, LocalRuntimeState} from "@shared/types/ai"
+import type {AIConfig, CatalogRefreshResult, LocalModelDownloadProgress, LocalModelId, LocalModelInfo, LocalRuntimeState} from "@shared/types/ai"
 
 export const useLocalModelStore = defineStore("localModel", () => {
   const settingsStore = useSettingsStore()
@@ -16,6 +16,7 @@ export const useLocalModelStore = defineStore("localModel", () => {
   const pendingDownloads = ref<Set<LocalModelId>>(new Set())
   const diskUsage = ref<{total: number; models: Record<string, number>}>({total: 0, models: {}})
   const isLoadingModels = ref(false)
+  const isRefreshingCatalog = ref(false)
 
   const installedModels = computed(() => models.value.filter((m) => m.installed))
   const isModelRunning = computed(() => runtimeState.value.status === "running")
@@ -74,6 +75,17 @@ export const useLocalModelStore = defineStore("localModel", () => {
     }
   }
 
+  async function refreshCatalog(): Promise<CatalogRefreshResult> {
+    isRefreshingCatalog.value = true
+    try {
+      const result = await window.BridgeIPC["ai:local-refresh-catalog"]()
+      if (result === "updated") await loadModels()
+      return result
+    } finally {
+      isRefreshingCatalog.value = false
+    }
+  }
+
   async function downloadModel(modelId: LocalModelId) {
     pendingDownloads.value.add(modelId)
     pendingDownloads.value = new Set(pendingDownloads.value)
@@ -116,6 +128,10 @@ export const useLocalModelStore = defineStore("localModel", () => {
     downloadProgress.value = new Map(downloadProgress.value)
   })
 
+  window.BridgeIPC["ai:on-local-catalog-changed"](() => {
+    loadModels()
+  })
+
   return {
     models,
     runtimeState,
@@ -124,6 +140,7 @@ export const useLocalModelStore = defineStore("localModel", () => {
     pendingDownloads,
     diskUsage,
     isLoadingModels,
+    isRefreshingCatalog,
 
     installedModels,
     isModelRunning,
@@ -141,6 +158,7 @@ export const useLocalModelStore = defineStore("localModel", () => {
     setAvailableModels,
     selectModel,
     loadModels,
+    refreshCatalog,
     downloadModel,
     cancelDownload,
     deleteModel,
