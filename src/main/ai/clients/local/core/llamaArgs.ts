@@ -46,8 +46,8 @@ export function buildLlamaArgs(opts: {modelPath: string; port: number; host: str
 function stripReserved(args: string[]): string[] {
   const out: string[] = []
   for (let i = 0; i < args.length; i++) {
-    if (RESERVED_FLAGS.has(args[i])) {
-      i++
+    if (RESERVED_FLAGS.has(args[i].split("=")[0])) {
+      if (!args[i].includes("=")) i++
       continue
     }
     out.push(args[i])

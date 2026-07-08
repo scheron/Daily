@@ -33,4 +33,16 @@ describe("buildLlamaArgs", () => {
     expect(args[args.indexOf("--port") + 1]).toBe("8080")
     expect(args).not.toContain("/evil.gguf")
   })
+
+  it("strips reserved flags in --flag=value equals-form too", () => {
+    const args = buildLlamaArgs({
+      ...base,
+      params: {ctx: 4096, gpuLayers: 99, temperature: 0.6, launchArgs: ["--model=/evil.gguf", "--host=0.0.0.0", "--rope-scaling", "yarn"]},
+    })
+    expect(args).not.toContain("--model=/evil.gguf")
+    expect(args).not.toContain("--host=0.0.0.0")
+    expect(args[args.indexOf("--model") + 1]).toBe("/models/x.gguf")
+    expect(args[args.indexOf("--host") + 1]).toBe("127.0.0.1")
+    expect(args[args.indexOf("--rope-scaling") + 1]).toBe("yarn")
+  })
 })

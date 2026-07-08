@@ -32,6 +32,19 @@ describe("remoteCatalog", () => {
     await expect(fetchRemoteCatalog("https://x/models.json", {timeoutMs: 1000})).rejects.toThrow()
   })
 
+  it("fetchRemoteCatalog rejects when the timeout aborts a hanging request", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        (_url: string, opts: {signal: AbortSignal}) =>
+          new Promise((_resolve, reject) => {
+            opts.signal.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")))
+          }),
+      ),
+    )
+    await expect(fetchRemoteCatalog("https://x/models.json", {timeoutMs: 5})).rejects.toThrow()
+  })
+
   it("readCachedCatalog returns null when the file is missing", async () => {
     await expect(readCachedCatalog(join(dir, "nope.json"))).resolves.toBeNull()
   })
