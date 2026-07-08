@@ -50,4 +50,12 @@ export async function setupAiIPC(getAi: () => AIController | null, getWindows: W
       broadcastToWindows(getWindows, "ai:local-download-progress", progress)
     })
   })
+
+  ipcMain.handle("ai:local-refresh-catalog", async () => {
+    const ai = getAi()
+    if (!ai) return "failed"
+    const result = await ai.getLocalModel().refreshCatalog()
+    if (result === "updated") broadcastToWindows(getWindows, "ai:local-catalog-changed", undefined)
+    return result
+  })
 }

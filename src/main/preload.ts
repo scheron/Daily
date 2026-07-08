@@ -7,6 +7,7 @@ import type {
   AIConfig,
   AIEvent,
   AIResponse,
+  CatalogRefreshResult,
   LocalModelDownloadProgress,
   LocalModelId,
   LocalModelInfo,
@@ -119,9 +120,11 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "ai:local-delete-model": (modelId: LocalModelId) => ipcRenderer.invoke("ai:local-delete-model", modelId) as Promise<boolean>,
   "ai:local-get-state": () => ipcRenderer.invoke("ai:local-get-state") as Promise<LocalRuntimeState>,
   "ai:local-get-disk-usage": () => ipcRenderer.invoke("ai:local-get-disk-usage") as Promise<{total: number; models: Record<string, number>}>,
+  "ai:local-refresh-catalog": () => ipcRenderer.invoke("ai:local-refresh-catalog") as Promise<CatalogRefreshResult>,
 
   "ai:on-local-state-changed": (callback: (state: LocalRuntimeState) => void) => ipcRenderer.on("ai:local-state-changed", (_event, state: LocalRuntimeState) => callback(state)),
   "ai:on-local-download-progress": (callback: (progress: LocalModelDownloadProgress) => void) => ipcRenderer.on("ai:local-download-progress", (_event, progress: LocalModelDownloadProgress) => callback(progress)),
+  "ai:on-local-catalog-changed": (callback: () => void) => ipcRenderer.on("ai:local-catalog-changed", () => callback()),
 
   "ai:on-confirmation-required": (callback: (confirmation: PendingToolConfirmation) => void) => {
     const subscription = (_event: unknown, confirmation: PendingToolConfirmation) => callback(confirmation)

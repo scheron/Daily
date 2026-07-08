@@ -5,6 +5,7 @@ import type {
   AIConfig,
   AIEvent,
   AIResponse,
+  CatalogRefreshResult,
   LocalModelDownloadProgress,
   LocalModelId,
   LocalModelInfo,
@@ -122,6 +123,7 @@ export interface BridgeIPC {
   "ai:local-delete-model": (modelId: LocalModelId) => Promise<boolean>
   "ai:local-get-state": () => Promise<LocalRuntimeState>
   "ai:local-get-disk-usage": () => Promise<{total: number; models: Record<string, number>}>
+  "ai:local-refresh-catalog": () => Promise<CatalogRefreshResult>
 
   // === AI EVENTS ===
   "ai:on-confirmation-required": (callback: (confirmation: PendingToolConfirmation) => void) => () => void
@@ -131,6 +133,7 @@ export interface BridgeIPC {
   // === AI LOCAL EVENTS ===
   "ai:on-local-state-changed": (callback: (state: LocalRuntimeState) => void) => void
   "ai:on-local-download-progress": (callback: (progress: LocalModelDownloadProgress) => void) => void
+  "ai:on-local-catalog-changed": (callback: () => void) => void
 
   // === SHORTCUTS ===
   "shortcut:tasks:create": (callback: () => void) => void

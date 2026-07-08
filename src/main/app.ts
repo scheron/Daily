@@ -137,6 +137,14 @@ app.whenReady().then(async () => {
 
   setupMainWindow(windows, {showSplash: true})
 
+  void ai
+    .getLocalModel()
+    .refreshCatalog()
+    .then((result) => {
+      if (result === "updated") broadcastToWindows(() => windows, "ai:local-catalog-changed", undefined)
+    })
+    .catch((err) => logger.error(logger.CONTEXT.AI, "Background catalog refresh failed", err))
+
   logger.lifecycle(`${APP_CONFIG.name} started`)
 })
 
