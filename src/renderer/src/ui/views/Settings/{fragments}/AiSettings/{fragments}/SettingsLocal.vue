@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import {computed, onMounted} from "vue"
+import {toasts} from "vue-toasts-lite"
 import {sort} from "fast-sort"
 
 import {UNLOAD_MODEL_TIME} from "@shared/constants/ai"
 import {useAiStore} from "@/stores/ai"
+import BaseButton from "@/ui/base/BaseButton"
+import BaseIcon from "@/ui/base/BaseIcon"
 import BaseSegmented from "@/ui/base/BaseSegmented.vue"
 
 import SettingRow from "../../SettingRow.vue"
@@ -41,6 +44,13 @@ const unloadModel = computed<UnloadModelTime>({
   },
 })
 
+async function onRefreshCatalog() {
+  const result = await aiStore.refreshLocalCatalog()
+  if (result === "updated") toasts.success("Model list updated")
+  else if (result === "unchanged") toasts.info("Model list is up to date")
+  else toasts.error("Couldn't update the model list")
+}
+
 onMounted(() => {
   aiStore.loadLocalModels()
 })
@@ -49,6 +59,17 @@ onMounted(() => {
 <template>
   <div class="flex flex-col">
     <SettingRow title="Models">
+      <BaseButton
+        variant="ghost"
+        size="sm"
+        class="h-7 px-2 py-0"
+        tooltip="Refresh model list from GitHub"
+        :disabled="aiStore.isRefreshingLocalCatalog"
+        @click="onRefreshCatalog"
+      >
+        <BaseIcon name="refresh" class="size-4" :class="{'animate-spin': aiStore.isRefreshingLocalCatalog}" />
+      </BaseButton>
+
       <template #below>
         <div class="grid grid-cols-2 gap-2 pt-1">
           <LocalModelCard

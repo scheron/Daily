@@ -47,7 +47,13 @@ function onDownload() {
         </div>
 
         <div class="flex items-center gap-1">
-          <template v-if="isPending && !isDownloading">
+          <template v-if="model.orphaned">
+            <BaseButton variant="ghost" size="sm" class="size-7 p-0" tooltip="Delete (no longer in catalog)" @click="emit('delete')">
+              <BaseIcon name="trash" class="size-4" />
+            </BaseButton>
+          </template>
+
+          <template v-else-if="isPending && !isDownloading">
             <div class="flex size-7 items-center justify-center">
               <BaseIcon name="refresh" class="text-base-content/50 size-4 animate-spin" />
             </div>
@@ -91,11 +97,14 @@ function onDownload() {
       </div>
 
       <div class="text-base-content/60 text-xs">
-        {{ sizeLabel }} · Requires {{ model.requirements.ramGb }}GB RAM
-        <span v-if="isDownloading && downloadProgress" class="text-warning ml-2"> {{ downloadProgress.percent }}% downloaded </span>
-        <span v-else-if="model.partialBytes && !model.installed" class="text-warning ml-2">
-          {{ Math.round((model.partialBytes / model.sizeBytes) * 100) }}% downloaded
-        </span>
+        <template v-if="model.orphaned">{{ sizeLabel }} · No longer in catalog</template>
+        <template v-else>
+          {{ sizeLabel }} · Requires {{ model.requirements.ramGb }}GB RAM
+          <span v-if="isDownloading && downloadProgress" class="text-warning ml-2"> {{ downloadProgress.percent }}% downloaded </span>
+          <span v-else-if="model.partialBytes && !model.installed" class="text-warning ml-2">
+            {{ Math.round((model.partialBytes / model.sizeBytes) * 100) }}% downloaded
+          </span>
+        </template>
       </div>
 
       <div v-if="isDownloading && downloadProgress" class="flex flex-col gap-1">
