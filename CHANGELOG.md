@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.16.3 - 2026-07-08
+
+### ✨ New Features
+
+- **Self-updating model catalog** — the local AI model list now refreshes from an online catalog, so new models appear without updating the app.
+- **Qwythos 9B** — a Claude-style reasoning model (Qwen3.5-9B fine-tune) joins the downloadable catalog.
+
+### 🎨 Improvements
+
+- Local models dropped from the catalog now stay installed and can be removed manually, instead of disappearing on their own.
+
+---
+
 ## v0.16.2 - 2026-07-04
 
 ### ✨ New Features
