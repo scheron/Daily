@@ -34,7 +34,10 @@ export type ModelManifestEntry = {
         | "dryAllowedLength"
         | "dryPenaltyLastN"
       >
-    >
+    > & {
+      /** Extra raw flags appended to the llama-server argv (e.g. rope-scaling). App-controlled flags cannot be overridden. */
+      launchArgs?: string[]
+    }
   accuracy: number | null
   recommended?: boolean
   capabilities?: ModelCapabilities

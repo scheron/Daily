@@ -110,7 +110,7 @@ function parseEntry(raw: unknown, index: number): ModelManifestEntry | null {
   const serverArgs: ModelManifestEntry["serverArgs"] = {ctx, gpuLayers, temperature}
   for (const key of optionalNumKeys2) {
     const v = sa?.[key]
-    if (isNum(v)) (serverArgs as Record<string, number>)[key] = v
+    if (isNum(v)) (serverArgs as Record<string, number | string[] | undefined>)[key] = v
   }
 
   let capabilities: ModelManifestEntry["capabilities"]

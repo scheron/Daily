@@ -15,6 +15,7 @@ import {isString, notNull} from "@shared/utils/common/validators"
 import {logger} from "@/utils/logger"
 
 import {APP_CONFIG, fsPaths} from "@/config"
+import {buildLlamaArgs} from "./llamaArgs"
 import {SERVER_BINARY} from "./manifest"
 
 import type {LocalModelId, LocalRuntimeState} from "@shared/types/ai"
@@ -161,36 +162,12 @@ export class LlamaServer {
     try {
       this.port = await this.findFreePort()
 
-      const args = [
-        "--model",
+      const args = buildLlamaArgs({
         modelPath,
-        "--port",
-        String(this.port),
-        "--ctx-size",
-        String(params.ctx),
-        "--n-gpu-layers",
-        String(params.gpuLayers),
-        "--host",
-        APP_CONFIG.ai.runtime.local.host,
-        "--jinja",
-        "--flash-attn",
-        "on",
-        "--cont-batching",
-        "--mlock",
-        "--no-warmup",
-        "--cache-reuse",
-        "256",
-        // Single slot: default --parallel 4 multiplies kv-cache by 4 and
-        // blows up unified-memory on M1/M2 16GB machines.
-        "--parallel",
-        "1",
-        // 8-bit kv-cache halves memory vs. default f16; quality loss is
-        // negligible for chat/agent use.
-        "--cache-type-k",
-        "q8_0",
-        "--cache-type-v",
-        "q8_0",
-      ]
+        port: this.port,
+        host: APP_CONFIG.ai.runtime.local.host,
+        params,
+      })
 
       logger.info(logger.CONTEXT.AI, "Starting llama-server", {port: this.port, modelPath, args})
 
