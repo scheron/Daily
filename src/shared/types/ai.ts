@@ -213,6 +213,8 @@ export type LocalModelManifest = {
 
 export type LocalToolingMode = "compat" | "native"
 
+export type CatalogRefreshResult = "updated" | "unchanged" | "failed"
+
 export type LocalConfig = {
   modelId: LocalModelId
   toolingMode?: LocalToolingMode

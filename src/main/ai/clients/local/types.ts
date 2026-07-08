@@ -1,4 +1,11 @@
-import type {LocalModelDownloadProgress, LocalModelId, LocalModelInfo, LocalRuntimeParams, LocalToolingMode} from "@shared/types/ai"
+import type {
+  CatalogRefreshResult,
+  LocalModelDownloadProgress,
+  LocalModelId,
+  LocalModelInfo,
+  LocalRuntimeParams,
+  LocalToolingMode,
+} from "@shared/types/ai"
 
 export type ModelTier = "fast" | "balanced" | "quality"
 
@@ -45,6 +52,7 @@ export type ModelManifestEntry = {
 
 export interface ILocalModelService {
   init(): Promise<void>
+  refreshCatalog(): Promise<CatalogRefreshResult>
   getEntry(modelId: LocalModelId): ModelManifestEntry | undefined
   getCatalog(): ReadonlyArray<ModelManifestEntry>
   isInstalled(modelId: LocalModelId): Promise<boolean>

@@ -7,27 +7,56 @@ import {forEachParallel} from "@shared/utils/arrays/forEachParallel"
 import {downloadWithProgress} from "@/utils/files/downloadWithProgress"
 import {logger} from "@/utils/logger"
 
-import {fsPaths} from "@/config"
-import {loadCatalog} from "./catalog"
+import {APP_CONFIG, fsPaths} from "@/config"
+import {loadCatalog, parseCatalog} from "./catalog"
+import {fetchRemoteCatalog, readCachedCatalog, writeCachedCatalog} from "./remoteCatalog"
 
-import type {LocalModelDownloadProgress, LocalModelId, LocalModelInfo} from "@shared/types/ai"
+import type {CatalogRefreshResult, LocalModelDownloadProgress, LocalModelId, LocalModelInfo} from "@shared/types/ai"
 import type {ILocalModelService, ModelManifestEntry} from "../types"
+
+type CatalogSource = {url: string; cachePath: string; bundledPath: string}
 
 export class LocalModelService implements ILocalModelService {
   private readonly modelsDirOverride: string | null
   private readonly injectedCatalog: ModelManifestEntry[] | null
+  private readonly catalogSourceOverride: CatalogSource | null
   private catalog: ModelManifestEntry[] = []
   private activeDownloads = new Map<string, AbortController>()
 
-  constructor(modelsDir?: string, catalog?: ModelManifestEntry[]) {
+  constructor(modelsDir?: string, catalog?: ModelManifestEntry[], catalogSource?: CatalogSource) {
     this.modelsDirOverride = modelsDir ?? null
     this.injectedCatalog = catalog ?? null
+    this.catalogSourceOverride = catalogSource ?? null
   }
 
   async init(): Promise<void> {
-    this.catalog = this.injectedCatalog ?? (await loadCatalog(fsPaths.modelsCatalogPath()))
+    this.catalog = this.injectedCatalog ?? (await this.loadInitialCatalog())
     await fs.ensureDir(this.modelsDir)
     await this.cleanupOrphanedModels()
+  }
+
+  async refreshCatalog(): Promise<CatalogRefreshResult> {
+    if (this.injectedCatalog) return "unchanged"
+    const {url, cachePath} = this.catalogSource
+
+    let raw: string
+    try {
+      raw = await fetchRemoteCatalog(url, {timeoutMs: APP_CONFIG.ai.runtime.local.catalogTimeoutMs})
+    } catch (err) {
+      logger.warn(logger.CONTEXT.AI, "Remote catalog fetch failed", {error: err})
+      return "failed"
+    }
+
+    const parsed = parseCatalog(raw)
+    if (parsed.length === 0) {
+      logger.warn(logger.CONTEXT.AI, "Remote catalog rejected (empty/invalid/unsupported); keeping current")
+      return "failed"
+    }
+
+    const previous = await readCachedCatalog(cachePath)
+    this.catalog = parsed
+    await writeCachedCatalog(cachePath, raw)
+    return previous === raw ? "unchanged" : "updated"
   }
 
   getEntry(modelId: LocalModelId): ModelManifestEntry | undefined {
@@ -161,6 +190,26 @@ export class LocalModelService implements ILocalModelService {
 
   private get modelsDir(): string {
     return this.modelsDirOverride ?? fsPaths.modelsPath()
+  }
+
+  private get catalogSource(): CatalogSource {
+    return (
+      this.catalogSourceOverride ?? {
+        url: APP_CONFIG.ai.runtime.local.catalogUrl,
+        cachePath: fsPaths.modelsCatalogCachePath(),
+        bundledPath: fsPaths.modelsCatalogPath(),
+      }
+    )
+  }
+
+  private async loadInitialCatalog(): Promise<ModelManifestEntry[]> {
+    const {cachePath, bundledPath} = this.catalogSource
+    const cached = await readCachedCatalog(cachePath)
+    if (cached) {
+      const parsed = parseCatalog(cached)
+      if (parsed.length > 0) return parsed
+    }
+    return loadCatalog(bundledPath)
   }
 
   private async cleanupOrphanedModels(): Promise<void> {
