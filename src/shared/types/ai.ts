@@ -235,6 +235,8 @@ export type LocalModelInfo = {
   accuracy?: number
   /** Catalog-provided tier label (fast / balanced / quality). */
   tier?: "fast" | "balanced" | "quality"
+  /** Set when an installed .gguf is no longer present in the catalog. Delete-only in the UI. */
+  orphaned?: boolean
 }
 
 export type DownloadPhase = "downloading" | "verifying"

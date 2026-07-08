@@ -1,4 +1,4 @@
-import {mkdtempSync, rmSync, writeFileSync} from "node:fs"
+import {existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
@@ -94,5 +94,53 @@ describe("LocalModelService catalog", () => {
     const result = await svc.refreshCatalog()
     expect(result).toBe("failed")
     expect(svc.getCatalog().map((m) => m.id)).toEqual(["bundled"])
+  })
+})
+
+describe("LocalModelService orphans", () => {
+  let dir: string
+  let modelsDir: string
+  let source: {url: string; cachePath: string; bundledPath: string}
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), "lms-orphan-"))
+    modelsDir = join(dir, "models")
+    mkdirSync(modelsDir, {recursive: true})
+    source = {url: "https://x/models.json", cachePath: join(dir, "cache.json"), bundledPath: join(dir, "bundled.json")}
+    writeFileSync(source.bundledPath, catalogJson("known"))
+  })
+  afterEach(() => rmSync(dir, {recursive: true, force: true}))
+
+  it("keeps an installed .gguf that is absent from the catalog and surfaces it as orphaned", async () => {
+    writeFileSync(join(modelsDir, "known.gguf"), "x")
+    writeFileSync(join(modelsDir, "ghost.gguf"), "y")
+    const svc = new LocalModelService(modelsDir, undefined, source)
+    await svc.init()
+    expect(existsSync(join(modelsDir, "ghost.gguf"))).toBe(true)
+    const models = await svc.listModels()
+    const ghost = models.find((m) => m.id === "ghost.gguf")
+    expect(ghost?.orphaned).toBe(true)
+    expect(ghost?.installed).toBe(true)
+  })
+
+  it("still deletes an orphaned .download partial", async () => {
+    writeFileSync(join(modelsDir, "ghost.gguf.download"), "y")
+    const svc = new LocalModelService(modelsDir, undefined, source)
+    await svc.init()
+    expect(existsSync(join(modelsDir, "ghost.gguf.download"))).toBe(false)
+  })
+
+  it("deleteModel removes an orphaned file by filename", async () => {
+    writeFileSync(join(modelsDir, "ghost.gguf"), "y")
+    const svc = new LocalModelService(modelsDir, undefined, source)
+    await svc.init()
+    expect(await svc.deleteModel("ghost.gguf")).toBe(true)
+    expect(existsSync(join(modelsDir, "ghost.gguf"))).toBe(false)
+  })
+
+  it("deleteModel refuses a filename outside the models dir", async () => {
+    const svc = new LocalModelService(modelsDir, undefined, source)
+    await svc.init()
+    expect(await svc.deleteModel("../escape.gguf")).toBe(false)
   })
 })

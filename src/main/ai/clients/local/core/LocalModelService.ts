@@ -100,7 +100,8 @@ export class LocalModelService implements ILocalModelService {
       }
       results[index] = info
     })
-    return results
+    const orphans = await this.listOrphanedModels()
+    return [...results, ...orphans]
   }
 
   async downloadModel(modelId: LocalModelId, onProgress: (progress: LocalModelDownloadProgress) => void): Promise<boolean> {
@@ -162,8 +163,10 @@ export class LocalModelService implements ILocalModelService {
 
   async deleteModel(modelId: LocalModelId): Promise<boolean> {
     const entry = this.getEntry(modelId)
-    if (!entry) return false
-    const modelPath = this.getModelPath(modelId)
+    const filename = entry?.ggufFilename ?? modelId
+    if (!filename.toLowerCase().endsWith(".gguf") || filename.includes("/") || filename.includes("..")) return false
+
+    const modelPath = path.join(this.modelsDir, filename)
     const partialPath = `${modelPath}.download`
     const hadModel = await fs.pathExists(modelPath)
     const hadPartial = await fs.pathExists(partialPath)
@@ -213,19 +216,38 @@ export class LocalModelService implements ILocalModelService {
   }
 
   private async cleanupOrphanedModels(): Promise<void> {
-    const knownGguf = new Set(this.catalog.map((entry) => entry.ggufFilename))
     const knownPartials = new Set(this.catalog.map((entry) => `${entry.ggufFilename}.download`))
     const files = await fs.readdir(this.modelsDir)
-    const orphans = files.filter((file) => {
-      const lower = file.toLowerCase()
-      if (lower.endsWith(".download")) return !knownPartials.has(file)
-      if (lower.endsWith(".gguf")) return !knownGguf.has(file)
-      return false
-    })
-    await forEachParallel(orphans, async (file) => {
+    const orphanPartials = files.filter((file) => file.toLowerCase().endsWith(".download") && !knownPartials.has(file))
+    await forEachParallel(orphanPartials, async (file) => {
       await fs.remove(path.join(this.modelsDir, file))
-      logger.info(logger.CONTEXT.AI, "Removed orphaned model file", {file})
+      logger.info(logger.CONTEXT.AI, "Removed orphaned partial download", {file})
     })
+  }
+
+  private async listOrphanedModels(): Promise<LocalModelInfo[]> {
+    const known = new Set(this.catalog.map((entry) => entry.ggufFilename))
+    let files: string[]
+    try {
+      files = await fs.readdir(this.modelsDir)
+    } catch {
+      return []
+    }
+    const orphanFiles = files.filter((file) => file.toLowerCase().endsWith(".gguf") && !known.has(file))
+    return Promise.all(
+      orphanFiles.map(async (file) => {
+        const size = (await stat(path.join(this.modelsDir, file))).size
+        return {
+          id: file,
+          title: file.replace(/\.gguf$/i, ""),
+          description: "No longer in the catalog.",
+          sizeBytes: size,
+          requirements: {ramGb: 0, diskGb: 0},
+          installed: true,
+          orphaned: true,
+        } satisfies LocalModelInfo
+      }),
+    )
   }
 
   private async partialBytes(entry: ModelManifestEntry): Promise<number> {
