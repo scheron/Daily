@@ -62,7 +62,7 @@ onMounted(() => {
       <BaseButton
         variant="ghost"
         size="sm"
-        class="h-7 px-2 py-0"
+        class="size-7"
         tooltip="Refresh model list from GitHub"
         :disabled="aiStore.isRefreshingLocalCatalog"
         @click="onRefreshCatalog"
