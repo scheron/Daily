@@ -248,6 +248,38 @@
       },
       "recommended": false,
       "accuracy": null
+    },
+    {
+      "id": "ornith-1.0-9b",
+      "title": "Ornith 1.0 9B",
+      "description": "Agentic coding model — Qwen3.5-9B post-train with strong SWE-bench and terminal-agent scores; opens every reply with a think block.",
+      "tier": "balanced",
+      "sizeBytes": 5629108704,
+      "requirements": {
+        "ramGb": 12,
+        "diskGb": 7
+      },
+      "ggufUrl": "https://huggingface.co/deepreinforce-ai/Ornith-1.0-9B-GGUF/resolve/main/ornith-1.0-9b-Q4_K_M.gguf",
+      "ggufFilename": "ornith-1.0-9b-Q4_K_M.gguf",
+      "sha256": "5720d1f671b4996481274fffe01868c3c36e87c135cc8538471cc7bd6087b106",
+      "serverArgs": {
+        "ctx": 16384,
+        "gpuLayers": 99,
+        "temperature": 0.6,
+        "topP": 0.95,
+        "topK": 20,
+        "minP": 0,
+        "maxTokens": 8192,
+        "repeatPenalty": 1.05,
+        "repeatLastN": 64,
+        "presencePenalty": 0,
+        "frequencyPenalty": 0
+      },
+      "capabilities": {
+        "tools": "native"
+      },
+      "recommended": false,
+      "accuracy": null
     }
   ]
 }
