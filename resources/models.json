@@ -216,6 +216,38 @@
       },
       "recommended": false,
       "accuracy": 0.8
+    },
+    {
+      "id": "qwythos-9b",
+      "title": "Qwythos 9B (Claude Mythos)",
+      "description": "Uncensored Qwen3.5-9B reasoning fine-tune trained on Claude Mythos/Fable traces; opens every reply with a think block.",
+      "tier": "balanced",
+      "sizeBytes": 5629109152,
+      "requirements": {
+        "ramGb": 12,
+        "diskGb": 7
+      },
+      "ggufUrl": "https://huggingface.co/empero-ai/Qwythos-9B-Claude-Mythos-5-1M-GGUF/resolve/main/Qwythos-9B-Claude-Mythos-5-1M-Q4_K_M.gguf",
+      "ggufFilename": "Qwythos-9B-Claude-Mythos-5-1M-Q4_K_M.gguf",
+      "sha256": "88c75f5a2684d07ac4b08e47f06cf6f65045072b1aeb29b33cf50cdae2d8cea1",
+      "serverArgs": {
+        "ctx": 16384,
+        "gpuLayers": 99,
+        "temperature": 0.6,
+        "topP": 0.95,
+        "topK": 20,
+        "minP": 0,
+        "maxTokens": 8192,
+        "repeatPenalty": 1.05,
+        "repeatLastN": 64,
+        "presencePenalty": 0,
+        "frequencyPenalty": 0
+      },
+      "capabilities": {
+        "tools": "native"
+      },
+      "recommended": false,
+      "accuracy": null
     }
   ]
 }
