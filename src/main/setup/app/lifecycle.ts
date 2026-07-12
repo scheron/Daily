@@ -1,10 +1,12 @@
 import {join} from "node:path"
 import {app, nativeImage} from "electron"
 
+import {APP_CONFIG} from "@shared/config/app"
+import {ENV} from "@shared/config/env"
 import {logger} from "@/utils/logger"
 import {focusWindow} from "@/utils/windows/focusWindow"
 
-import {APP_CONFIG, ENV, fsPaths} from "@/config"
+import {electronPaths} from "@/runtime/electronPaths"
 
 import type {StorageController} from "@/storage/StorageController"
 import type {BrowserWindow} from "electron"
@@ -22,7 +24,7 @@ export function setupAppBoot() {
 export function setupDockIcon() {
   if (process.platform === "darwin" && app.dock) {
     try {
-      app.dock.setIcon(nativeImage.createFromPath(fsPaths.icon()))
+      app.dock.setIcon(nativeImage.createFromPath(electronPaths.icon()))
     } catch (error) {
       console.warn("Failed to set dock icon:", error)
     }

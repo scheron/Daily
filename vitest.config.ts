@@ -14,13 +14,14 @@ export default defineConfig({
         test: {
           name: "main",
           environment: "node",
-          include: ["tests/main/**/*.test.ts"],
+          include: ["tests/main/**/*.test.ts", "tests/cli/**/*.test.ts"],
         },
         resolve: {
           alias: {
             "@": join(__dirname, "src/main"),
             "@main": join(__dirname, "src/main"),
             "@shared": join(__dirname, "src/shared"),
+            "@cli": join(__dirname, "src/cli"),
           },
         },
       },

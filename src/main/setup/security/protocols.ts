@@ -1,8 +1,8 @@
 import {protocol} from "electron"
 
+import {APP_CONFIG} from "@shared/config/app"
+import {PRIVILEGED_SCHEMES} from "@shared/config/security"
 import {logger} from "@/utils/logger"
-
-import {APP_CONFIG} from "@/config"
 
 import type {StorageController} from "@/storage/StorageController"
 
@@ -29,5 +29,5 @@ export function setupSafeFileProtocol(storage: StorageController) {
 }
 
 export function setupPrivilegedSchemes() {
-  APP_CONFIG.privilegedSchemes.forEach((scheme) => protocol.registerSchemesAsPrivileged([scheme]))
+  PRIVILEGED_SCHEMES.forEach((scheme) => protocol.registerSchemesAsPrivileged([scheme]))
 }

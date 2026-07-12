@@ -1,8 +1,8 @@
 import {app} from "electron"
 
+import {APP_CONFIG} from "@shared/config/app"
 import {focusWindow} from "@/utils/windows/focusWindow"
 
-import {APP_CONFIG} from "@/config"
 import {handleDeepLink} from "./deeplinks"
 
 import type {StorageController} from "@/storage/StorageController"

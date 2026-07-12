@@ -33,6 +33,20 @@ Builds are ad-hoc signed, not notarized. If macOS blocks the first launch, run:
 xattr -rd com.apple.quarantine /Applications/Daily.app
 ```
 
+## CLI
+
+The app bundle includes a `daily` command-line launcher. Homebrew installs it into
+your `PATH`; manual `.dmg` installs can enable it from **Settings → General →
+Command Line**.
+
+```bash
+daily tasks
+daily tasks add "Review PR"
+daily task <id-or-prefix>
+daily tags
+daily projects
+```
+
 ## What Daily is for
 
 - planning around a single question: what did I do yesterday, and what matters today

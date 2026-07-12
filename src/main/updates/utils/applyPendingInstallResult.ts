@@ -3,13 +3,13 @@ import {readFile, rm} from "node:fs/promises"
 
 import {logger} from "@/utils/logger"
 
-import {fsPaths} from "@/config"
+import {electronPaths} from "@/runtime/electronPaths"
 import {removeManagedUpdateFiles} from "./removeManagedUpdateFiles"
 
 import type {InstalledAppReleaseState, Settings} from "@shared/types/storage"
 
 export async function applyPendingInstallResult(saveUpdatesPatch: (patch: Partial<Settings["updates"]>) => Promise<void>) {
-  const markerPath = fsPaths.updatesInstallResultPath()
+  const markerPath = electronPaths.updatesInstallResultPath()
   if (!existsSync(markerPath)) return
 
   try {

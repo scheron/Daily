@@ -1,8 +1,8 @@
+import {AI_CONFIG} from "@shared/config/ai"
 import {ServerStartCancelledError} from "@shared/errors/ai/ServerStartCancelledError"
 import {logger} from "@/utils/logger"
 
 import {OpenAiCompatibleClient} from "@/ai/clients/common/OpenAiCompatibleClient"
-import {APP_CONFIG} from "@/config"
 import {LlamaServer} from "./core/LlamaServer"
 import {LocalModelService} from "./core/LocalModelService"
 
@@ -119,8 +119,8 @@ export class LocalAiClient extends OpenAiCompatibleClient implements IAiClient {
       }
 
       this.runtimeConfig = {
-        baseUrl: `http://${APP_CONFIG.ai.runtime.local.host}:${this.server.getPort()}${APP_CONFIG.ai.runtime.local.apiPath}`,
-        apiKey: APP_CONFIG.ai.runtime.local.apiKey,
+        baseUrl: `http://${AI_CONFIG.runtime.local.host}:${this.server.getPort()}${AI_CONFIG.runtime.local.apiPath}`,
+        apiKey: AI_CONFIG.runtime.local.apiKey,
         model: modelId,
       }
 

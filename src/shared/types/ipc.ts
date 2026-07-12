@@ -14,6 +14,7 @@ import type {
 } from "./ai"
 import type {ISODate} from "./common"
 import type {TaskSearchResult} from "./search"
+import type {CliInstallResult, CliInstallState} from "./shell"
 import type {StatsAggregate, StatsPeriod} from "./stats"
 import type {Branch, Day, File, MoveTaskByOrderParams, Settings, SyncStatus, Tag, Task, TaskEvent} from "./storage"
 import type {AppUpdateState} from "./update"
@@ -34,6 +35,9 @@ export interface BridgeIPC {
 
   // === SHELL ===
   "shell:open-external": (url: string) => Promise<boolean>
+  "shell:get-cli-install-state": () => Promise<CliInstallState>
+  "shell:install-cli": () => Promise<CliInstallResult>
+  "shell:configure-cli-path": () => Promise<CliInstallResult>
 
   // === STORAGE  ===
   "storage-sync:activate": () => Promise<void>

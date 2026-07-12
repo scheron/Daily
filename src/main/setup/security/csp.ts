@@ -1,13 +1,13 @@
 import {session} from "electron"
 
-import {APP_CONFIG} from "@/config"
+import {CSP_POLICY} from "@shared/config/security"
 
 export function setupCSP() {
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     callback({
       responseHeaders: {
         ...details.responseHeaders,
-        "Content-Security-Policy": [APP_CONFIG.csp.policy],
+        "Content-Security-Policy": [CSP_POLICY],
       },
     })
   })

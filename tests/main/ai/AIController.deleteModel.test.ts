@@ -7,7 +7,7 @@ vi.mock("@main/utils/logger", () => ({
   logger: {info: vi.fn(), debug: vi.fn(), warn: vi.fn(), error: vi.fn(), CONTEXT: {AI: "AI"}},
 }))
 
-// LocalModelService.init() calls fsPaths.modelsCatalogPath() which needs electron app — stub it.
+// LocalModelService.init() calls electronPaths.modelsCatalogPath() which needs electron app — stub it.
 vi.mock("@main/ai/clients/local/core/LocalModelService", () => {
   return {
     LocalModelService: class {

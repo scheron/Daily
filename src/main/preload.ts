@@ -41,6 +41,9 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "platform:is-linux": () => process.platform === "linux",
 
   "shell:open-external": (url: string) => ipcRenderer.invoke("shell:open-external", url) as Promise<boolean>,
+  "shell:get-cli-install-state": () => ipcRenderer.invoke("shell:get-cli-install-state"),
+  "shell:install-cli": () => ipcRenderer.invoke("shell:install-cli"),
+  "shell:configure-cli-path": () => ipcRenderer.invoke("shell:configure-cli-path"),
 
   "storage-sync:activate": () => ipcRenderer.invoke("storage-sync:activate") as Promise<void>,
   "storage-sync:deactivate": () => ipcRenderer.invoke("storage-sync:deactivate") as Promise<void>,

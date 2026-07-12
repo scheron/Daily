@@ -9,12 +9,13 @@ import {pipeline} from "node:stream/promises"
 import {promisify} from "node:util"
 import fs from "fs-extra"
 
+import {AI_CONFIG} from "@shared/config/ai"
 import {LlamaServerErrorCode} from "@shared/errors/ai/LlamaServerErrorCode"
 import {ServerStartCancelledError} from "@shared/errors/ai/ServerStartCancelledError"
 import {isString, notNull} from "@shared/utils/common/validators"
 import {logger} from "@/utils/logger"
 
-import {APP_CONFIG, fsPaths} from "@/config"
+import {electronPaths} from "@/runtime/electronPaths"
 import {buildLlamaArgs} from "./llamaArgs"
 import {SERVER_BINARY} from "./manifest"
 
@@ -75,7 +76,7 @@ export class LlamaServer {
 
       logger.info(logger.CONTEXT.AI, "llama-server version mismatch, updating binary")
       try {
-        await fs.remove(fsPaths.binPath())
+        await fs.remove(electronPaths.binPath())
       } catch {
         void 0
       }
@@ -89,9 +90,9 @@ export class LlamaServer {
 
     logger.info(logger.CONTEXT.AI, "Downloading llama-server binary", {arch})
 
-    await fs.ensureDir(fsPaths.binPath())
+    await fs.ensureDir(electronPaths.binPath())
 
-    const archivePath = path.join(fsPaths.binPath(), "llama-server.tar.gz")
+    const archivePath = path.join(electronPaths.binPath(), "llama-server.tar.gz")
 
     const response = await fetch(binaryInfo.url, {redirect: "follow"})
     if (!response.ok || !response.body) {
@@ -108,7 +109,7 @@ export class LlamaServer {
       throw new Error(`${LlamaServerErrorCode.ChecksumMismatch}: expected ${binaryInfo.sha256}, got ${actualSha}`)
     }
 
-    const extractDir = path.join(fsPaths.binPath(), "_extract")
+    const extractDir = path.join(electronPaths.binPath(), "_extract")
     await fs.ensureDir(extractDir)
 
     try {
@@ -121,7 +122,7 @@ export class LlamaServer {
       const sourceDir = path.dirname(binarySource)
       const files = await readdir(sourceDir)
       for (const file of files) {
-        await rename(path.join(sourceDir, file), path.join(fsPaths.binPath(), file))
+        await rename(path.join(sourceDir, file), path.join(electronPaths.binPath(), file))
       }
     } finally {
       try {
@@ -138,12 +139,12 @@ export class LlamaServer {
 
     await chmod(this.getBinaryPath(), 0o755)
     try {
-      await execFileAsync("xattr", ["-dr", "com.apple.quarantine", fsPaths.binPath()])
+      await execFileAsync("xattr", ["-dr", "com.apple.quarantine", electronPaths.binPath()])
     } catch {
       void 0
     }
     try {
-      await execFileAsync("xattr", ["-dr", "com.apple.provenance", fsPaths.binPath()])
+      await execFileAsync("xattr", ["-dr", "com.apple.provenance", electronPaths.binPath()])
     } catch {
       void 0
     }
@@ -165,7 +166,7 @@ export class LlamaServer {
       const args = buildLlamaArgs({
         modelPath,
         port: this.port,
-        host: APP_CONFIG.ai.runtime.local.host,
+        host: AI_CONFIG.runtime.local.host,
         params,
       })
 
@@ -278,7 +279,7 @@ export class LlamaServer {
   }
 
   private getBinaryPath(): string {
-    return path.join(fsPaths.binPath(), "llama-server")
+    return path.join(electronPaths.binPath(), "llama-server")
   }
 
   private async isCorrectVersion(): Promise<boolean> {
@@ -299,7 +300,7 @@ export class LlamaServer {
 
     while (Date.now() - startTime < timeoutMs) {
       try {
-        const response = await fetch(`http://${APP_CONFIG.ai.runtime.local.host}:${this.port}/health`, {
+        const response = await fetch(`http://${AI_CONFIG.runtime.local.host}:${this.port}/health`, {
           signal: AbortSignal.timeout(2000),
         })
 
@@ -327,7 +328,7 @@ export class LlamaServer {
   private findFreePort(): Promise<number> {
     return new Promise((resolve, reject) => {
       const server = createServer()
-      server.listen(0, APP_CONFIG.ai.runtime.local.host, () => {
+      server.listen(0, AI_CONFIG.runtime.local.host, () => {
         const address = server.address()
         if (!address || isString(address)) {
           server.close()

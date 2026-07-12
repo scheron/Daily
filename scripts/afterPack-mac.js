@@ -1,6 +1,6 @@
 import {execSync} from "child_process"
-import path from "path"
 import fs from "fs"
+import path from "path"
 
 const entitlementsContent = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -28,7 +28,9 @@ export default async function (context) {
 
   const appName = context.packager.appInfo.productFilename
   const appPath = path.join(context.appOutDir, `${appName}.app`)
-  const entitlementsPath = path.join(context.appOutDir, 'entitlements.plist')
+  const entitlementsPath = path.join(context.appOutDir, "entitlements.plist")
+  const resourcesPath = path.join(appPath, "Contents", "Resources")
+  const launcherPath = path.join(resourcesPath, "daily")
 
   if (!fs.existsSync(appPath)) {
     console.error(`❌ App not found at ${appPath}`)
@@ -40,6 +42,32 @@ export default async function (context) {
     fs.writeFileSync(entitlementsPath, entitlementsContent)
   } catch (error) {
     console.error(`❌ Error creating entitlements file: ${error.message}`)
+    return
+  }
+
+  try {
+    console.log(`🧰 Creating CLI launcher at ${launcherPath}...`)
+    fs.writeFileSync(
+      launcherPath,
+      `#!/bin/sh
+PRG="$0"
+while [ -h "$PRG" ]; do
+  DIR="$(CDPATH= cd -P -- "$(dirname -- "$PRG")" && pwd)"
+  PRG="$(readlink "$PRG")"
+  case "$PRG" in
+    /*) ;;
+    *) PRG="$DIR/$PRG" ;;
+  esac
+done
+SCRIPT_DIR="$(CDPATH= cd -P -- "$(dirname -- "$PRG")" && pwd)"
+export ELECTRON_RUN_AS_NODE=1
+exec "$SCRIPT_DIR/../MacOS/${appName}" "$SCRIPT_DIR/app/out/cli/index.js" "$@"
+`,
+      {mode: 0o755},
+    )
+    fs.chmodSync(launcherPath, 0o755)
+  } catch (error) {
+    console.error(`❌ Error creating CLI launcher: ${error.message}`)
     return
   }
 

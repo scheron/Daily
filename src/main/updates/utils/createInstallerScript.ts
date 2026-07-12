@@ -2,7 +2,9 @@ import {existsSync} from "node:fs"
 import {mkdir, writeFile} from "node:fs/promises"
 import path from "node:path"
 
-import {APP_CONFIG, fsPaths} from "@/config"
+import {APP_CONFIG} from "@shared/config/app"
+
+import {electronPaths} from "@/runtime/electronPaths"
 
 import type {AppUpdateCacheState, InstalledAppReleaseState} from "@shared/types/storage"
 
@@ -19,10 +21,10 @@ export async function createInstallerScript(cachedUpdate: AppUpdateCacheState): 
 
   if (!cachedUpdate.cachePath || !existsSync(cachedUpdate.cachePath)) return null
 
-  const releasesDir = fsPaths.updatesReleasesPath()
+  const releasesDir = electronPaths.updatesReleasesPath()
   if (!path.resolve(cachedUpdate.cachePath).startsWith(path.resolve(releasesDir))) return null
 
-  const updatesDir = fsPaths.updatesPath()
+  const updatesDir = electronPaths.updatesPath()
   const scriptPath = path.join(updatesDir, `install-${Date.now()}.sh`)
   await mkdir(updatesDir, {recursive: true})
 
@@ -36,7 +38,7 @@ export async function createInstallerScript(cachedUpdate: AppUpdateCacheState): 
     `RELAUNCH_PATH=${q(relaunchPath)}`,
     `APP_NAME=${q(APP_CONFIG.name)}`,
     `DOWNLOAD_PATH=${q(cachedUpdate.cachePath ?? "")}`,
-    `MARKER_PATH=${q(fsPaths.updatesInstallResultPath())}`,
+    `MARKER_PATH=${q(electronPaths.updatesInstallResultPath())}`,
     `MARKER_JSON=${q(JSON.stringify(installResult))}`,
     `CLEANUP_PATH=${q(cachedUpdate.cachePath ?? "")}`,
     "SUCCESS=0",

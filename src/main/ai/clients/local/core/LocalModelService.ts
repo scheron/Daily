@@ -2,12 +2,13 @@ import {stat} from "node:fs/promises"
 import path from "node:path"
 import fs from "fs-extra"
 
+import {AI_CONFIG} from "@shared/config/ai"
 import {LocalModelErrorCode} from "@shared/errors/ai/LocalModelErrorCode"
 import {forEachParallel} from "@shared/utils/arrays/forEachParallel"
 import {downloadWithProgress} from "@/utils/files/downloadWithProgress"
 import {logger} from "@/utils/logger"
 
-import {APP_CONFIG, fsPaths} from "@/config"
+import {electronPaths} from "@/runtime/electronPaths"
 import {loadCatalog, parseCatalog} from "./catalog"
 import {fetchRemoteCatalog, readCachedCatalog, writeCachedCatalog} from "./remoteCatalog"
 
@@ -41,7 +42,7 @@ export class LocalModelService implements ILocalModelService {
 
     let raw: string
     try {
-      raw = await fetchRemoteCatalog(url, {timeoutMs: APP_CONFIG.ai.runtime.local.catalogTimeoutMs})
+      raw = await fetchRemoteCatalog(url, {timeoutMs: AI_CONFIG.runtime.local.catalogTimeoutMs})
     } catch (err) {
       logger.warn(logger.CONTEXT.AI, "Remote catalog fetch failed", {error: err})
       return "failed"
@@ -192,15 +193,15 @@ export class LocalModelService implements ILocalModelService {
   }
 
   private get modelsDir(): string {
-    return this.modelsDirOverride ?? fsPaths.modelsPath()
+    return this.modelsDirOverride ?? electronPaths.modelsPath()
   }
 
   private get catalogSource(): CatalogSource {
     return (
       this.catalogSourceOverride ?? {
-        url: APP_CONFIG.ai.runtime.local.catalogUrl,
-        cachePath: fsPaths.modelsCatalogCachePath(),
-        bundledPath: fsPaths.modelsCatalogPath(),
+        url: AI_CONFIG.runtime.local.catalogUrl,
+        cachePath: electronPaths.modelsCatalogCachePath(),
+        bundledPath: electronPaths.modelsCatalogPath(),
       }
     )
   }

@@ -1,14 +1,16 @@
 import {BrowserWindow} from "electron"
 
+import {ENV} from "@shared/config/env"
+import {WINDOWS_CONFIG} from "@shared/config/windows"
 import {focusWindow} from "@/utils/windows/focusWindow"
 
-import {APP_CONFIG, ENV, fsPaths} from "@/config"
+import {electronPaths} from "@/runtime/electronPaths"
 
 export function createSettingsWindow(section?: string): BrowserWindow {
   const settingsWindow = new BrowserWindow({
     title: "Settings",
-    width: APP_CONFIG.window.settings.width,
-    height: APP_CONFIG.window.settings.height,
+    width: WINDOWS_CONFIG.settings.width,
+    height: WINDOWS_CONFIG.settings.height,
     resizable: false,
     maximizable: false,
     fullscreenable: false,
@@ -18,10 +20,10 @@ export function createSettingsWindow(section?: string): BrowserWindow {
     alwaysOnTop: false,
     transparent: true,
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
-    icon: fsPaths.icon(),
+    icon: electronPaths.icon(),
     webPreferences: {
       devTools: ENV.isDevelopment,
-      preload: fsPaths.preload(),
+      preload: electronPaths.preload(),
       nodeIntegration: false,
       contextIsolation: true,
       webSecurity: true,
@@ -29,7 +31,7 @@ export function createSettingsWindow(section?: string): BrowserWindow {
   })
 
   const query = section ? `?section=${section}` : ""
-  const rendererPath = fsPaths.renderer()
+  const rendererPath = electronPaths.renderer()
   if (rendererPath.startsWith("http")) {
     settingsWindow.loadURL(`${rendererPath}#/settings${query}`)
   } else {

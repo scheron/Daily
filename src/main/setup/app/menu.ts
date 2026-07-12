@@ -1,8 +1,8 @@
 import {app, ipcMain, Menu} from "electron"
 
+import {ENV} from "@shared/config/env"
 import {SHORTCUTS_MAP} from "@shared/constants/shortcuts"
 
-import {ENV} from "@/config"
 import {updaterController} from "@/updates/UpdaterController"
 
 import type {BrowserWindow, MenuItemConstructorOptions} from "electron"

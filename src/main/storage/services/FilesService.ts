@@ -1,12 +1,11 @@
 import path from "node:path"
 import {nanoid} from "nanoid"
 
+import {APP_CONFIG} from "@shared/config/app"
 import {isNull, notNull} from "@shared/utils/common/validators"
 import {extractFileIds} from "@/utils/files/extractFileIds"
 import {getMimeType} from "@/utils/files/getMimeType"
 import {logger} from "@/utils/logger"
-
-import {APP_CONFIG} from "@/config"
 
 import type {FileModel} from "@/storage/models/FileModel"
 import type {TaskModel} from "@/storage/models/TaskModel"

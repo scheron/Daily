@@ -1,9 +1,8 @@
+import {ENV} from "@shared/config/env"
+import {LOG_CONTEXT} from "@shared/types/logger"
 import {notNull, notUndefined} from "@shared/utils/common/validators"
 
-import {ENV} from "@/config"
-import {LOG_CONTEXT} from "@/types/logger"
-
-import type {LogContext, LogLevel} from "@/types/logger"
+import type {LogContext, LogLevel} from "@shared/types/logger"
 
 class Logger {
   static readonly CONTEXT = LOG_CONTEXT

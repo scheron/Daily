@@ -9,32 +9,17 @@ Storage Architecture (SQLite):
 
 import fs from "fs-extra"
 
+import {SYNC_CONFIG} from "@shared/config/sync"
 import {logger} from "@/utils/logger"
 
-import {APP_CONFIG, fsPaths} from "@/config"
+import {electronPaths} from "@/runtime/electronPaths"
+import {createStorageCore} from "@/storage/createStorageCore"
 import {initDatabase} from "@/storage/database/instance"
-import {AISessionModel} from "@/storage/models/AISessionModel"
-import {BranchModel} from "@/storage/models/BranchModel"
-import {FileModel} from "@/storage/models/FileModel"
-import {SettingsModel} from "@/storage/models/SettingsModel"
-import {StatsModel} from "@/storage/models/StatsModel"
-import {TagModel} from "@/storage/models/TagModel"
-import {TaskEventModel} from "@/storage/models/TaskEventModel"
-import {TaskModel} from "@/storage/models/TaskModel"
-import {BranchesService} from "@/storage/services/BranchesService"
-import {DaysService} from "@/storage/services/DaysService"
-import {FilesService} from "@/storage/services/FilesService"
-import {SearchService} from "@/storage/services/SearchService"
-import {SettingsService} from "@/storage/services/SettingsService"
-import {StatsService} from "@/storage/services/StatsService"
-import {TagsService} from "@/storage/services/TagsService"
-import {TaskEventsService} from "@/storage/services/TaskEventsService"
-import {TasksService} from "@/storage/services/TasksService"
-import {LocalStorageAdapter} from "@/storage/sync/adapters/LocalStorageAdapter"
 import {RemoteStorageAdapter} from "@/storage/sync/adapters/RemoteStorageAdapter"
 import {SyncEngine} from "@/storage/sync/SyncEngine"
 
 import type {AgentTurn} from "@/ai/turns/types"
+import type {StorageCore} from "@/storage/createStorageCore"
 import type {SessionMeta} from "@/storage/models/AISessionModel"
 import type {IStorageController} from "@/types/storage"
 import type {ISODate} from "@shared/types/common"
@@ -44,19 +29,19 @@ import type {Branch, Day, File, MoveTaskByOrderParams, Settings, SyncStatus, Tag
 import type {PartialDeep} from "type-fest"
 
 export class StorageController implements IStorageController {
-  rootDir: string = fsPaths.appDataRoot()
+  rootDir: string = electronPaths.appDataRoot()
 
-  private settingsService!: SettingsService
-  private branchesService!: BranchesService
-  private tasksService!: TasksService
-  private tagsService!: TagsService
-  private filesService!: FilesService
-  private daysService!: DaysService
-  private statsService!: StatsService
-  private searchService!: SearchService
+  private settingsService!: StorageCore["settingsService"]
+  private branchesService!: StorageCore["branchesService"]
+  private tasksService!: StorageCore["tasksService"]
+  private tagsService!: StorageCore["tagsService"]
+  private filesService!: StorageCore["filesService"]
+  private daysService!: StorageCore["daysService"]
+  private statsService!: StorageCore["statsService"]
+  private searchService!: StorageCore["searchService"]
   private syncEngine!: SyncEngine
-  private localAdapter!: LocalStorageAdapter
-  private aiSessionModel!: AISessionModel
+  private localAdapter!: StorageCore["localAdapter"]
+  private aiSessionModel!: StorageCore["aiSessionModel"]
 
   private notifyStorageStatusChange?: (status: SyncStatus, prevStatus: SyncStatus) => void
   private notifyStorageDataChange?: () => void
@@ -64,34 +49,23 @@ export class StorageController implements IStorageController {
 
   async init(): Promise<void> {
     await fs.ensureDir(this.rootDir)
-    await fs.ensureDir(fsPaths.assetsDir())
+    await fs.ensureDir(electronPaths.assetsDir())
 
-    const db = initDatabase(fsPaths.dbPath())
+    const db = initDatabase(electronPaths.dbPath())
+    const core = createStorageCore(db, electronPaths)
 
-    const settingsModel = new SettingsModel(db)
-    const branchModel = new BranchModel(db)
-    const taskModel = new TaskModel(db)
-    const taskEventModel = new TaskEventModel(db)
-    const tagModel = new TagModel(db)
-    const fileModel = new FileModel(db, fsPaths.assetsDir())
+    this.settingsService = core.settingsService
+    this.branchesService = core.branchesService
+    this.tasksService = core.tasksService
+    this.tagsService = core.tagsService
+    this.filesService = core.filesService
+    this.daysService = core.daysService
+    this.statsService = core.statsService
+    this.searchService = core.searchService
+    this.localAdapter = core.localAdapter
+    this.aiSessionModel = core.aiSessionModel
 
-    branchModel.ensureMainBranch()
-    fileModel.initAssets()
-
-    this.aiSessionModel = new AISessionModel(db)
-
-    this.settingsService = new SettingsService(settingsModel)
-    this.branchesService = new BranchesService(branchModel, this.settingsService)
-    this.tasksService = new TasksService(taskModel, new TaskEventsService(taskEventModel))
-    this.tagsService = new TagsService(tagModel)
-    this.filesService = new FilesService(fileModel, taskModel)
-    this.daysService = new DaysService(taskModel)
-    this.statsService = new StatsService(new StatsModel(db))
-    this.searchService = new SearchService(taskModel, branchModel)
-
-    const remoteAdapter = new RemoteStorageAdapter(fsPaths.remoteSyncPath())
-    this.localAdapter = new LocalStorageAdapter(db)
-
+    const remoteAdapter = new RemoteStorageAdapter(electronPaths.remoteSyncPath())
     this.syncEngine = new SyncEngine(this.localAdapter, remoteAdapter, {
       onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => this.notifyStorageStatusChange?.(status, prevStatus),
       onDataChanged: () => {
@@ -141,6 +115,12 @@ export class StorageController implements IStorageController {
 
   getSyncStatus(): SyncStatus {
     return this.syncEngine.syncStatus
+  }
+
+  /** Reacts to a mutation made by an external process (e.g. the CLI): rebuilds the search index and refreshes the renderer. */
+  async handleExternalDataChange(): Promise<void> {
+    await this.searchService.rebuildIndex()
+    this.notifyStorageDataChange?.()
   }
   //#endregion
 
@@ -443,7 +423,7 @@ export class StorageController implements IStorageController {
    * grow forever; this runs the same TTL-based purge once on startup.
    */
   async collectGarbage(): Promise<void> {
-    const purged = await this.localAdapter.purgeExpiredDeleted(APP_CONFIG.sync.garbageCollectionInterval)
+    const purged = await this.localAdapter.purgeExpiredDeleted(SYNC_CONFIG.garbageCollectionInterval)
     const total = purged.tasks + purged.tags + purged.branches + purged.files
     if (total > 0) logger.info(logger.CONTEXT.STORAGE, `Garbage collected ${total} expired soft-deleted records`, purged)
   }

@@ -13,14 +13,12 @@ vi.mock("@/utils/logger", () => ({
   },
 }))
 
-vi.mock("@/config", () => ({
-  APP_CONFIG: {
-    sync: {
-      remoteSyncInterval: 120_000,
-      garbageCollectionInterval: 604_800_000,
-    },
+vi.mock("@shared/config/paths", () => ({createElectronPaths: () => ({assetsDir: () => "/tmp/assets"})}))
+vi.mock("@shared/config/sync", () => ({
+  SYNC_CONFIG: {
+    remoteSyncInterval: 120_000,
+    garbageCollectionInterval: 604_800_000,
   },
-  fsPaths: {assetsDir: () => "/tmp/assets"},
 }))
 
 vi.mock("@/utils/AsyncMutex", () => ({

@@ -66,6 +66,7 @@ export interface IStorageController {
   deactivateSync(): Promise<void>
   forceSync(): Promise<void>
   getSyncStatus(): SyncStatus
+  handleExternalDataChange(): Promise<void>
 
   setupStorageBroadcasts(callbacks: {
     onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => void

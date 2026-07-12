@@ -1,3 +1,4 @@
+import {SYNC_CONFIG} from "@shared/config/sync"
 import {RemoteSnapshotPendingError} from "@shared/errors/sync/RemoteSnapshotPendingError"
 import {isString} from "@shared/utils/common/validators"
 import {withElapsedDelay} from "@shared/utils/common/withElapsedDelay"
@@ -7,7 +8,7 @@ import {logger} from "@/utils/logger"
 import {mergeRemoteIntoLocal} from "@/utils/sync/merge/mergeRemoteIntoLocal"
 import {buildSnapshot, buildSnapshotMeta} from "@/utils/sync/snapshot/buildSnapshot"
 
-import {APP_CONFIG, fsPaths} from "@/config"
+import {electronPaths} from "@/runtime/electronPaths"
 
 import type {ILocalStorage, IRemoteStorage, SnapshotDocs, SyncStrategy} from "@/types/sync"
 import type {SyncStatus} from "@shared/types/storage"
@@ -42,7 +43,7 @@ export class SyncEngine {
     this.onDataChanged = options.onDataChanged
 
     this.autoSyncScheduler = createIntervalScheduler({
-      intervalMs: APP_CONFIG.sync.remoteSyncInterval,
+      intervalMs: SYNC_CONFIG.remoteSyncInterval,
       onProcess: () => this.sync(),
     })
   }
@@ -172,7 +173,7 @@ export class SyncEngine {
       return {resultDocs: localDocs, hasChanges: false}
     }
 
-    const mergeResult = mergeRemoteIntoLocal(localDocs, remoteDocs, strategy, APP_CONFIG.sync.garbageCollectionInterval)
+    const mergeResult = mergeRemoteIntoLocal(localDocs, remoteDocs, strategy, SYNC_CONFIG.garbageCollectionInterval)
 
     const {resultDocs, toUpsert, toRemove, changes} = mergeResult
 
@@ -229,7 +230,7 @@ export class SyncEngine {
     if (!files.length) return
 
     try {
-      await this.remoteStore.syncAssets(fsPaths.assetsDir(), files)
+      await this.remoteStore.syncAssets(electronPaths.assetsDir(), files)
     } catch (error) {
       logger.warn(logger.CONTEXT.SYNC_PUSH, "Asset sync failed, will retry next cycle", error)
     }

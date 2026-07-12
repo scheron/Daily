@@ -2,10 +2,11 @@ import {join} from "node:path"
 import {pathToFileURL} from "node:url"
 import {app, BrowserWindow} from "electron"
 
+import {APP_CONFIG} from "@shared/config/app"
 import {focusWindow} from "@/utils/windows/focusWindow"
 import {resolveAboutLogoURL} from "@/utils/windows/resolveAboutLogoDataURL"
 
-import {APP_CONFIG, fsPaths} from "@/config"
+import {electronPaths} from "@/runtime/electronPaths"
 
 export function createAboutWindow(): BrowserWindow {
   const aboutWindow = new BrowserWindow({
@@ -22,7 +23,7 @@ export function createAboutWindow(): BrowserWindow {
     transparent: true,
     frame: true,
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
-    icon: fsPaths.icon(),
+    icon: electronPaths.icon(),
     webPreferences: {
       devTools: false,
       nodeIntegration: false,

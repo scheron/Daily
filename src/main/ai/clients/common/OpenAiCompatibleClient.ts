@@ -1,9 +1,9 @@
+import {AI_CONFIG} from "@shared/config/ai"
 import {NonRetryableError} from "@shared/errors/ai/NonRetryableError"
 import {OpenAiClientErrorCode} from "@shared/errors/ai/OpenAiClientErrorCode"
 import {notUndefined} from "@shared/utils/common/validators"
 import {logger} from "@/utils/logger"
 
-import {APP_CONFIG} from "@/config"
 import {ChatStreamAccumulator} from "./streaming/chatStreamAccumulator"
 import {consumeSseEvents} from "./streaming/sseParser"
 
@@ -18,8 +18,8 @@ const backoff = (n: number): number => Math.min(1000 * 2 ** n, 4000)
  * (DeepSeek, Groq, Together, etc. and Local LLM (llama.cpp))
  */
 export abstract class OpenAiCompatibleClient implements IAiClient {
-  private readonly MODELS_LIMIT_COUNT = APP_CONFIG.ai.runtime.openAiCompatible.modelsLimitCount
-  private readonly CONNECTION_TIMEOUT_MS = APP_CONFIG.ai.runtime.openAiCompatible.connectionTimeoutMs
+  private readonly MODELS_LIMIT_COUNT = AI_CONFIG.runtime.openAiCompatible.modelsLimitCount
+  private readonly CONNECTION_TIMEOUT_MS = AI_CONFIG.runtime.openAiCompatible.connectionTimeoutMs
 
   abstract updateConfig(config: AIConfig | null): void
 

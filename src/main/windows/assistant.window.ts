@@ -1,14 +1,16 @@
 import {BrowserWindow} from "electron"
 
+import {ENV} from "@shared/config/env"
+import {WINDOWS_CONFIG} from "@shared/config/windows"
 import {focusWindow} from "@/utils/windows/focusWindow"
 
-import {APP_CONFIG, ENV, fsPaths} from "@/config"
+import {electronPaths} from "@/runtime/electronPaths"
 
 export function createAssistantWindow(): BrowserWindow {
   const assistantWindow = new BrowserWindow({
     title: "AI Assistant",
-    width: APP_CONFIG.window.assistant.width,
-    height: APP_CONFIG.window.assistant.height,
+    width: WINDOWS_CONFIG.assistant.width,
+    height: WINDOWS_CONFIG.assistant.height,
     minWidth: 380,
     minHeight: 500,
     resizable: true,
@@ -20,17 +22,17 @@ export function createAssistantWindow(): BrowserWindow {
     alwaysOnTop: false,
     transparent: true,
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
-    icon: fsPaths.icon(),
+    icon: electronPaths.icon(),
     webPreferences: {
       devTools: ENV.isDevelopment,
-      preload: fsPaths.preload(),
+      preload: electronPaths.preload(),
       nodeIntegration: false,
       contextIsolation: true,
       webSecurity: true,
     },
   })
 
-  const rendererPath = fsPaths.renderer()
+  const rendererPath = electronPaths.renderer()
   if (rendererPath.startsWith("http")) {
     assistantWindow.loadURL(`${rendererPath}#/assistant`)
   } else {

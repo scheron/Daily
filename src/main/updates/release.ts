@@ -3,10 +3,11 @@ import {createReadStream} from "node:fs"
 import {mkdir, rm} from "node:fs/promises"
 import path from "node:path"
 
+import {UPDATES_CONFIG} from "@shared/config/updates"
 import {downloadWithProgress} from "@/utils/files/downloadWithProgress"
 import {logger} from "@/utils/logger"
 
-import {APP_CONFIG, fsPaths} from "@/config"
+import {electronPaths} from "@/runtime/electronPaths"
 import {parseGitHubReleaseMeta} from "./utils/parseGitHubReleaseMeta"
 
 import type {AppUpdateCacheState} from "@shared/types/storage"
@@ -21,7 +22,7 @@ export async function resolveLatestRelease(): Promise<ReleaseMeta> {
 export async function downloadRelease(release: ReleaseMeta, onProgress: (progress: number | null) => void): Promise<AppUpdateCacheState> {
   logger.info(logger.CONTEXT.UPDATES, `Downloading update ${release.version} via ${release.source}`)
 
-  const releaseDir = path.join(fsPaths.updatesReleasesPath(), release.releaseId.replace(/[^a-zA-Z0-9._-]/g, "_"))
+  const releaseDir = path.join(electronPaths.updatesReleasesPath(), release.releaseId.replace(/[^a-zA-Z0-9._-]/g, "_"))
   const destinationPath = path.join(releaseDir, release.assetName)
   await mkdir(releaseDir, {recursive: true})
 
@@ -51,8 +52,8 @@ export async function downloadRelease(release: ReleaseMeta, onProgress: (progres
 }
 
 async function getGitHubReleaseMeta(): Promise<ReleaseMeta | null> {
-  const response = await fetch(`https://api.github.com/repos/${APP_CONFIG.updates.githubRepo}/releases/latest`, {
-    headers: APP_CONFIG.updates.githubHeaders,
+  const response = await fetch(`https://api.github.com/repos/${UPDATES_CONFIG.githubRepo}/releases/latest`, {
+    headers: UPDATES_CONFIG.githubHeaders,
   })
 
   if (!response.ok) {

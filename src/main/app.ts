@@ -1,12 +1,14 @@
 import {app} from "electron"
 
+import {APP_CONFIG} from "@shared/config/app"
 import {sleep} from "@shared/utils/common/sleep"
 import {logger} from "@/utils/logger"
 import {broadcastToWindows} from "@/utils/windows/broadcastToWindows"
 import {focusWindow} from "@/utils/windows/focusWindow"
 
 import {AIController} from "@/ai/AIController"
-import {APP_CONFIG} from "@/config"
+import {electronPaths} from "@/runtime/electronPaths"
+import {setupCliSignalWatcher} from "@/setup/app/cliSignalWatcher"
 import {setupInstanceAndDeepLinks} from "@/setup/app/instance"
 import {setupActivateHandler, setupAppBoot, setupDockIcon, setupWindowAllClosedHandler} from "@/setup/app/lifecycle"
 import {setupMenu} from "@/setup/app/menu"
@@ -134,6 +136,7 @@ app.whenReady().then(async () => {
     () => storage,
     () => windows,
   )
+  setupCliSignalWatcher(() => storage, electronPaths.mutationSignalPath())
 
   setupMainWindow(windows, {showSplash: true})
 

@@ -1,9 +1,8 @@
+import {WINDOWS_CONFIG} from "@shared/config/windows"
 import {MAIN_BRANCH_ID} from "@shared/constants/storage"
 import {DEFAULT_ACCENT_ID, DEFAULT_BASE_ID} from "@shared/constants/theme"
 import {deepMerge} from "@shared/utils/common/deepMerge"
 import {isNumber, notNull} from "@shared/utils/common/validators"
-
-import {APP_CONFIG} from "@/config"
 
 import type {Branch, File, Settings, Tag, Task} from "@shared/types/storage"
 
@@ -162,8 +161,8 @@ export function getDefaultSettings(): Settings {
     },
     window: {
       main: {
-        width: APP_CONFIG.window.main.width,
-        height: APP_CONFIG.window.main.height,
+        width: WINDOWS_CONFIG.main.width,
+        height: WINDOWS_CONFIG.main.height,
         isMaximized: false,
         isFullScreen: false,
       },

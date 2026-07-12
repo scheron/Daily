@@ -1,16 +1,16 @@
 import {BrowserWindow} from "electron"
 
-import {APP_CONFIG} from "@/config"
+import {WINDOWS_CONFIG} from "@shared/config/windows"
 
 export function createSplashWindow(): BrowserWindow {
   const splashWindow = new BrowserWindow({
-    width: APP_CONFIG.window.splash.width,
-    height: APP_CONFIG.window.splash.height,
+    width: WINDOWS_CONFIG.splash.width,
+    height: WINDOWS_CONFIG.splash.height,
     frame: false,
     transparent: true,
     alwaysOnTop: true,
     center: true,
-    resizable: APP_CONFIG.window.splash.resizable,
+    resizable: WINDOWS_CONFIG.splash.resizable,
     movable: false,
     hasShadow: false,
     webPreferences: {

@@ -7,10 +7,8 @@ vi.mock("@main/utils/logger", () => ({
   logger: {info: vi.fn(), debug: vi.fn(), warn: vi.fn(), error: vi.fn(), storage: vi.fn(), lifecycle: vi.fn(), CONTEXT: {BRANCHES: "BRANCHES"}},
 }))
 
-vi.mock("@main/config", () => ({
-  APP_CONFIG: {window: {main: {width: 800, height: 600}}},
-  ENV: {isDev: false},
-}))
+vi.mock("@shared/config/windows", () => ({WINDOWS_CONFIG: {main: {width: 800, height: 600}}}))
+vi.mock("@shared/config/env", () => ({ENV: {isDev: false}}))
 
 describe("BranchModel", () => {
   let db
