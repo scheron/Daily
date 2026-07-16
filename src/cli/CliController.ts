@@ -49,6 +49,17 @@ export class CliController {
     return this.core.tagsService.getTagList()
   }
 
+  async deleteTag(idOrName: string): Promise<Tag> {
+    const tags = await this.core.tagsService.getTagList()
+    const target = tags.find((t) => t.id === idOrName) ?? tags.find((t) => t.name === idOrName)
+    if (!target) throw new CliError(CliErrorCode.TAG_NOT_FOUND, `Tag not found: ${idOrName}`)
+
+    const deleted = await this.core.tagsService.deleteTag(target.id)
+    if (!deleted) throw new CliError(CliErrorCode.REFUSED, `Failed to delete tag: ${idOrName}`)
+    this.signalMutation()
+    return target
+  }
+
   async listProjects(): Promise<Branch[]> {
     return this.core.branchesService.getBranchList()
   }
@@ -149,6 +160,12 @@ export class CliController {
     return this.afterWrite(updated, idOrPrefix)
   }
 
+  async setEstimate(idOrPrefix: string, minutes: number, opts: CliScope): Promise<Task> {
+    const current = await this.getResolved(idOrPrefix, opts)
+    const updated = await this.core.tasksService.updateTask(current.id, {estimatedTime: minutes * 60})
+    return this.afterWrite(updated, idOrPrefix)
+  }
+
   async moveTask(idOrPrefix: string, to: {date: string; time?: string}, opts: CliScope): Promise<Task> {
     const current = await this.getResolved(idOrPrefix, opts)
     const updated = await this.core.tasksService.updateTask(current.id, {
@@ -157,23 +174,9 @@ export class CliController {
     return this.afterWrite(updated, idOrPrefix)
   }
 
-  async updateTaskFields(
-    idOrPrefix: string,
-    fields: {content?: string; date?: string; time?: string; estimateMinutes?: number},
-    opts: CliScope,
-  ): Promise<Task> {
+  async updateContent(idOrPrefix: string, content: string, opts: CliScope): Promise<Task> {
     const current = await this.getResolved(idOrPrefix, opts)
-    const patch: Record<string, unknown> = {}
-    if (fields.content !== undefined) patch.content = fields.content
-    if (fields.estimateMinutes !== undefined) patch.estimatedTime = fields.estimateMinutes * 60
-    if (fields.date !== undefined || fields.time !== undefined) {
-      patch.scheduled = {
-        date: fields.date ?? current.scheduled.date,
-        time: fields.time ?? current.scheduled.time,
-        timezone: current.scheduled.timezone,
-      }
-    }
-    const updated = await this.core.tasksService.updateTask(current.id, patch)
+    const updated = await this.core.tasksService.updateTask(current.id, {content})
     return this.afterWrite(updated, idOrPrefix)
   }
 

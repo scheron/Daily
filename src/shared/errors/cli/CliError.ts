@@ -3,6 +3,7 @@ import {CliErrorCode} from "./CliErrorCode"
 const EXIT_CODE: Record<CliErrorCode, number> = {
   [CliErrorCode.TASK_NOT_FOUND]: 3,
   [CliErrorCode.PROJECT_NOT_FOUND]: 3,
+  [CliErrorCode.TAG_NOT_FOUND]: 3,
   [CliErrorCode.AMBIGUOUS_ID]: 2,
   [CliErrorCode.INVALID_DATE]: 2,
   [CliErrorCode.INVALID_TIME]: 2,

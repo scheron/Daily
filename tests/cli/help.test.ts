@@ -16,12 +16,12 @@ describe("daily --help", () => {
     expect(help).toContain("task")
     expect(help).toContain("tags")
     expect(help).toContain("projects")
-    expect(help).toContain("Overview:")
-    expect(help).toContain("Command model:")
-    expect(help).toContain("Machine-readable output:")
-    expect(help).toContain("Process behavior:")
-    expect(help).toContain("Agent guidance:")
-    expect(help).toContain("Exit codes: 0 success")
+    expect(help).toContain('Task management (subcommands of "tasks"):')
+    expect(help).toContain("Scope:")
+    expect(help).toContain("Formats:")
+    expect(help).toContain("JSON output:")
+    expect(help).toContain("Agents:")
+    expect(help).toContain("Exit codes: 0 ok")
   })
 
   it("documents task examples and lookup rules", () => {
@@ -29,37 +29,37 @@ describe("daily --help", () => {
     const tasks = program.commands.find((command) => command.name() === "tasks")!
     const task = program.commands.find((command) => command.name() === "task")!
 
-    expect(tasks.helpInformation()).toContain("Examples:")
-    expect(tasks.helpInformation()).toContain("daily tasks add")
-    expect(tasks.helpInformation()).toContain("Task ids:")
-    expect(tasks.helpInformation()).toContain("JSON result:")
-    expect(tasks.helpInformation()).toContain("Subcommands:")
-    expect(tasks.helpInformation()).toContain("help [command]")
-    expect(task.helpInformation()).toContain("Task lookup:")
-    expect(task.helpInformation()).toContain("Failure cases:")
-    expect(task.helpInformation()).toContain("daily task abc123")
+    const tasksHelp = tasks.helpInformation()
+    expect(tasksHelp).toContain("daily tasks add")
+    expect(tasksHelp).toContain("daily tasks 2026-07-20")
+    expect(tasksHelp).toContain("estimate")
+    expect(tasksHelp).toContain("help [command]")
+    expect(task.helpInformation()).toContain("Reads one task")
+    expect(task.helpInformation()).toContain("exits 3")
+    expect(task.helpInformation()).toContain("daily task a1b2")
   })
 
   it("documents each task mutation as an automation contract", () => {
     const program = buildProgram()
     const tasks = program.commands.find((command) => command.name() === "tasks")!
     const expected = {
-      search: ["Behavior:", "results", "global"],
-      add: ["Arguments and defaults:", "Unknown values create new tags", "task.id"],
-      done: ["Resolution and effect:", "updated task"],
-      reactivate: ["Resolution and effect:", "updated task"],
-      discard: ["Resolution and effect:", "updated task"],
-      "log-time": ["Arguments and effect:", "stored in seconds"],
-      move: ["Arguments and effect:", "current task time is preserved"],
-      update: ["Editable fields:", "Omitted fields are left unchanged"],
-      delete: ["trash", "--force", "irreversible", "Emptying the trash:"],
-      restore: ["trash", "restored task"],
+      search: ["Full-text search", "ranked by score"],
+      add: ["Unknown tags are created automatically", "task.id"],
+      done: ["Sets status to", "full id or unique prefix"],
+      reactivate: ["Sets status to", "full id or unique prefix"],
+      discard: ["Sets status to", "full id or unique prefix"],
+      move: ["Reschedules a task", "the current time is"],
+      update: ["Replaces a task's content", 'use "move"'],
+      estimate: ["Sets the task's estimate", "stored in seconds"],
+      "log-time": ["accumulates", "stored in seconds"],
+      delete: ["trash", "--force", "irreversible", "empties the trash"],
+      restore: ["trash", "previous status"],
       deleted: ["trash", "most recently deleted first"],
     }
 
     for (const [name, fragments] of Object.entries(expected)) {
       const help = tasks.commands.find((command) => command.name() === name)!.helpInformation()
-      for (const fragment of fragments) expect(help).toContain(fragment)
+      for (const fragment of fragments) expect(help, `${name} help should mention ${fragment}`).toContain(fragment)
     }
 
     expect(tasks.commands.map((command) => command.name())).not.toContain("purge-deleted")
@@ -70,5 +70,12 @@ describe("daily --help", () => {
     expect(program.commands.find((command) => command.name() === "today")!.helpInformation()).toContain('"date":"YYYY-MM-DD"|null')
     expect(program.commands.find((command) => command.name() === "tags")!.helpInformation()).toContain('"tags":[Tag,...]')
     expect(program.commands.find((command) => command.name() === "projects")!.helpInformation()).toContain('"branches":[Branch,...]')
+  })
+
+  it("exposes tags delete as a tag mutation", () => {
+    const program = buildProgram()
+    const tags = program.commands.find((command) => command.name() === "tags")!
+    expect(tags.commands.map((command) => command.name())).toContain("delete")
+    expect(tags.commands.find((command) => command.name() === "delete")!.helpInformation()).toContain("Deletes a tag")
   })
 })

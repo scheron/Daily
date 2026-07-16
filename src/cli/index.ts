@@ -13,6 +13,7 @@ import {PROGRAM_HELP} from "./program.help"
 export function buildProgram(): Command {
   const program = new Command()
   program.name("daily").description("Daily task automation from the shell").version(pkg.version).option("--json", "output stable JSON")
+  program.enablePositionalOptions()
   configureHelp(program)
   addHelpDetails(program, PROGRAM_HELP)
 

@@ -32,7 +32,7 @@ const base = {
   attachments: [],
 }
 
-describe("logTime / moveTask / updateTaskFields", () => {
+describe("logTime / moveTask / updateContent / setEstimate", () => {
   let db, core, cli
   beforeEach(() => {
     db = createTestDatabase()
@@ -52,10 +52,15 @@ describe("logTime / moveTask / updateTaskFields", () => {
     expect(moved.scheduled.date).toBe("2026-07-12")
     expect(moved.scheduled.time).toBe("09:00:00")
   })
-  it("updates content and estimate", async () => {
-    const t = await core.tasksService.createTask(base)
-    const up = await cli.updateTaskFields(t.id, {content: "New", estimateMinutes: 10}, {})
+  it("replaces content only, leaving the estimate untouched", async () => {
+    const t = await core.tasksService.createTask({...base, estimatedTime: 600})
+    const up = await cli.updateContent(t.id, "New", {})
     expect(up.content).toBe("New")
     expect(up.estimatedTime).toBe(600)
+  })
+  it("sets the estimate in seconds, replacing any prior value", async () => {
+    const t = await core.tasksService.createTask({...base, estimatedTime: 600})
+    const up = await cli.setEstimate(t.id, 45, {})
+    expect(up.estimatedTime).toBe(2700)
   })
 })

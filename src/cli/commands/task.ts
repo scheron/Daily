@@ -7,6 +7,7 @@ import {
   TASK_ADD_HELP,
   TASK_DELETE_HELP,
   TASK_DELETED_HELP,
+  TASK_ESTIMATE_HELP,
   TASK_HELP,
   TASK_LOG_TIME_HELP,
   TASK_MOVE_HELP,
@@ -21,21 +22,21 @@ import type {TaskStatus} from "@shared/types/storage"
 import type {Command} from "commander"
 
 type TaskScopeOptions = {project?: string; all?: boolean; json?: boolean}
-type TaskListOptions = TaskScopeOptions & {date?: string}
 type TaskAddOptions = {date?: string; time?: string; tag?: string[]; tags?: string; project?: string; estimate?: string; json?: boolean}
-type TaskMutateOptions = TaskScopeOptions & {date?: string; time?: string; content?: string; estimate?: string; minutes?: string}
+type TaskMoveOptions = TaskScopeOptions & {time?: string}
 type TaskDeleteOptions = TaskScopeOptions & {force?: boolean}
 
 export function registerTaskCommands(program: Command): void {
   const tasks = program
     .command("tasks")
     .description("List and manage tasks")
+    .argument("[date]", "list tasks for this date (default today)")
     .addHelpCommand()
-    .option("--date <YYYY-MM-DD>", "filter by date (default today)")
     .option("--project <id_or_name>", "scope to a project")
     .option("--all", "span every project")
     .option("--json", "output stable JSON")
-  tasks.action((opts, command) => runListTasks(readOptions(opts, command)))
+  tasks.enablePositionalOptions()
+  tasks.action((date, opts, command) => runListTasks(date, readOptions(opts, command)))
   addHelpDetails(tasks, TASKS_HELP)
 
   registerTaskMutations(tasks)
@@ -94,40 +95,44 @@ function registerTaskMutations(task: Command): void {
 
   addHelpDetails(
     task
-      .command("log-time <taskId>")
-      .description("Log time spent on a task")
-      .requiredOption("--minutes <n>", "minutes to add")
-      .option("--project <id_or_name>", "scope for id resolution")
-      .option("--all", "resolve id across every project")
-      .option("--json", "output stable JSON"),
-    TASK_LOG_TIME_HELP,
-  ).action((taskId, opts, command) => runLogTime(taskId, readOptions(opts, command)))
-
-  addHelpDetails(
-    task
-      .command("move <taskId>")
-      .description("Move a task to a new date (and optionally time)")
-      .requiredOption("--date <YYYY-MM-DD>", "new scheduled date")
+      .command("move <taskId> <date>")
+      .description("Reschedule a task to a new date")
       .option("--time <HH:MM>", "new scheduled time")
       .option("--project <id_or_name>", "scope for id resolution")
       .option("--all", "resolve id across every project")
       .option("--json", "output stable JSON"),
     TASK_MOVE_HELP,
-  ).action((taskId, opts, command) => runMoveTask(taskId, readOptions(opts, command)))
+  ).action((taskId, date, opts, command) => runMoveTask(taskId, date, readOptions(opts, command)))
 
   addHelpDetails(
     task
-      .command("update <taskId>")
-      .description("Update task fields")
-      .option("--content <text>", "new content")
-      .option("--date <YYYY-MM-DD>", "new scheduled date")
-      .option("--time <HH:MM>", "new scheduled time")
-      .option("--estimate <minutes>", "new estimate in minutes")
+      .command("update <taskId> <content>")
+      .description("Replace a task's content")
       .option("--project <id_or_name>", "scope for id resolution")
       .option("--all", "resolve id across every project")
       .option("--json", "output stable JSON"),
     TASK_UPDATE_HELP,
-  ).action((taskId, opts, command) => runUpdateTask(taskId, readOptions(opts, command)))
+  ).action((taskId, content, opts, command) => runUpdateTask(taskId, content, readOptions(opts, command)))
+
+  addHelpDetails(
+    task
+      .command("estimate <taskId> <minutes>")
+      .description("Set a task's estimate")
+      .option("--project <id_or_name>", "scope for id resolution")
+      .option("--all", "resolve id across every project")
+      .option("--json", "output stable JSON"),
+    TASK_ESTIMATE_HELP,
+  ).action((taskId, minutes, opts, command) => runSetEstimate(taskId, minutes, readOptions(opts, command)))
+
+  addHelpDetails(
+    task
+      .command("log-time <taskId> <minutes>")
+      .description("Add to a task's spent time")
+      .option("--project <id_or_name>", "scope for id resolution")
+      .option("--all", "resolve id across every project")
+      .option("--json", "output stable JSON"),
+    TASK_LOG_TIME_HELP,
+  ).action((taskId, minutes, opts, command) => runLogTime(taskId, minutes, readOptions(opts, command)))
 
   addHelpDetails(
     task
@@ -161,10 +166,10 @@ function registerTaskMutations(task: Command): void {
   ).action((opts, command) => runListDeletedTasks(readOptions(opts, command)))
 }
 
-async function runListTasks(opts: TaskListOptions): Promise<void> {
+async function runListTasks(date: string | undefined, opts: TaskScopeOptions): Promise<void> {
   await runCliCommand(opts, async (cli) => {
-    const date = opts.date ? assertValidDate(opts.date) : undefined
-    const tasks = await cli.listTasks({date, project: opts.project, all: opts.all})
+    const validDate = date ? assertValidDate(date) : undefined
+    const tasks = await cli.listTasks({date: validDate, project: opts.project, all: opts.all})
     console.log(opts.json ? renderJsonOk({tasks}) : formatTaskList(tasks))
   })
 }
@@ -215,30 +220,34 @@ async function runSetStatus(name: string, taskId: string, status: TaskStatus, op
   })
 }
 
-async function runLogTime(taskId: string, opts: TaskMutateOptions): Promise<void> {
+async function runLogTime(taskId: string, minutesInput: string, opts: TaskScopeOptions): Promise<void> {
   await runCliCommand(opts, async (cli) => {
-    const minutes = assertPositiveMinutes(opts.minutes!)
+    const minutes = assertPositiveMinutes(minutesInput)
     const task = await cli.logTime(taskId, minutes, {project: opts.project, all: opts.all})
     console.log(opts.json ? renderJsonOk({task}) : `logged ${minutes}m on ${task.id}`)
   })
 }
 
-async function runMoveTask(taskId: string, opts: TaskMutateOptions): Promise<void> {
+async function runSetEstimate(taskId: string, minutesInput: string, opts: TaskScopeOptions): Promise<void> {
   await runCliCommand(opts, async (cli) => {
-    const date = assertValidDate(opts.date!)
+    const minutes = assertPositiveMinutes(minutesInput)
+    const task = await cli.setEstimate(taskId, minutes, {project: opts.project, all: opts.all})
+    console.log(opts.json ? renderJsonOk({task}) : `estimated ${task.id} at ${minutes}m`)
+  })
+}
+
+async function runMoveTask(taskId: string, dateInput: string, opts: TaskMoveOptions): Promise<void> {
+  await runCliCommand(opts, async (cli) => {
+    const date = assertValidDate(dateInput)
     const time = opts.time ? assertValidTime(opts.time) : undefined
     const task = await cli.moveTask(taskId, {date, time}, {project: opts.project, all: opts.all})
     console.log(opts.json ? renderJsonOk({task}) : `moved ${task.id} to ${task.scheduled.date}`)
   })
 }
 
-async function runUpdateTask(taskId: string, opts: TaskMutateOptions): Promise<void> {
+async function runUpdateTask(taskId: string, content: string, opts: TaskScopeOptions): Promise<void> {
   await runCliCommand(opts, async (cli) => {
-    const date = opts.date ? assertValidDate(opts.date) : undefined
-    const time = opts.time ? assertValidTime(opts.time) : undefined
-    const estimateMinutes = opts.estimate ? assertPositiveMinutes(opts.estimate) : undefined
-
-    const task = await cli.updateTaskFields(taskId, {content: opts.content, date, time, estimateMinutes}, {project: opts.project, all: opts.all})
+    const task = await cli.updateContent(taskId, content, {project: opts.project, all: opts.all})
     console.log(opts.json ? renderJsonOk({task}) : `updated ${task.id}`)
   })
 }

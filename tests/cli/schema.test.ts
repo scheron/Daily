@@ -34,9 +34,62 @@ describe("buildCliSchema", () => {
     const names = buildCliSchema(buildProgram()).commands.map((c) => c.name)
 
     expect(names).toEqual(
-      expect.arrayContaining(["today", "tasks", "tasks add", "tasks delete", "tasks restore", "tasks deleted", "task", "tags", "projects", "schema"]),
+      expect.arrayContaining([
+        "today",
+        "tasks",
+        "tasks add",
+        "tasks move",
+        "tasks update",
+        "tasks estimate",
+        "tasks log-time",
+        "tasks delete",
+        "tasks restore",
+        "tasks deleted",
+        "task",
+        "tags",
+        "tags delete",
+        "projects",
+        "schema",
+      ]),
     )
     expect(names.some((n) => n === "tasks help" || n.endsWith(" help"))).toBe(false)
+  })
+
+  it("models scheduling, content, and time inputs as positional arguments", () => {
+    const commands = buildCliSchema(buildProgram()).commands
+
+    const tasks = commands.find((c) => c.name === "tasks")
+    expect(tasks.arguments).toEqual([expect.objectContaining({name: "date", required: false})])
+    expect(tasks.options.map((o) => o.flags)).not.toContain("--date <YYYY-MM-DD>")
+
+    const move = commands.find((c) => c.name === "tasks move")
+    expect(move.arguments).toEqual([
+      expect.objectContaining({name: "taskId", required: true}),
+      expect.objectContaining({name: "date", required: true}),
+    ])
+    expect(move.options.map((o) => o.flags)).not.toContain("--date <YYYY-MM-DD>")
+
+    const update = commands.find((c) => c.name === "tasks update")
+    expect(update.arguments).toEqual([
+      expect.objectContaining({name: "taskId", required: true}),
+      expect.objectContaining({name: "content", required: true}),
+    ])
+
+    const estimate = commands.find((c) => c.name === "tasks estimate")
+    expect(estimate.arguments).toEqual([
+      expect.objectContaining({name: "taskId", required: true}),
+      expect.objectContaining({name: "minutes", required: true}),
+    ])
+
+    const logTime = commands.find((c) => c.name === "tasks log-time")
+    expect(logTime.arguments).toEqual([
+      expect.objectContaining({name: "taskId", required: true}),
+      expect.objectContaining({name: "minutes", required: true}),
+    ])
+    expect(logTime.options.map((o) => o.flags)).not.toContain("--minutes <n>")
+
+    const tagDelete = commands.find((c) => c.name === "tags delete")
+    expect(tagDelete.arguments).toEqual([expect.objectContaining({name: "id_or_name", required: true})])
   })
 
   it("describes arguments, options, output shape, and prose contract per command", () => {
