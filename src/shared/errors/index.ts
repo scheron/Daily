@@ -7,6 +7,7 @@ export {OpenAiClientErrorCode} from "./ai/OpenAiClientErrorCode"
 export {DownloadErrorCode} from "./download/DownloadErrorCode"
 
 export {RemoteSnapshotPendingError} from "./sync/RemoteSnapshotPendingError"
+export {SnapshotVersionAheadError} from "./sync/SnapshotVersionAheadError"
 export {SyncErrorCode} from "./sync/SyncErrorCode"
 
 export {WebFetchError} from "./web/WebFetchError"

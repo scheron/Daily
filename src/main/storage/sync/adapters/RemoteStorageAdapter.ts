@@ -2,10 +2,12 @@ import {extname, join, resolve} from "path"
 import fs from "fs-extra"
 
 import {RemoteSnapshotPendingError} from "@shared/errors/sync/RemoteSnapshotPendingError"
+import {SnapshotVersionAheadError} from "@shared/errors/sync/SnapshotVersionAheadError"
 import {SyncErrorCode} from "@shared/errors/sync/SyncErrorCode"
 import {sleep} from "@shared/utils/common/sleep"
 import {coordinatedRead, coordinatedWrite, getICloudStubPath, hasICloudStub, requestDownloadAndWait} from "@/utils/fileCoordinator"
 import {logger} from "@/utils/logger"
+import {assertKnownSnapshotVersion} from "@/utils/sync/snapshot/assertKnownSnapshotVersion"
 import {isValidSnapshot} from "@/utils/sync/snapshot/isValidSnapshot"
 
 import type {IRemoteStorage, Snapshot, SnapshotFile} from "@/types/sync"
@@ -38,6 +40,7 @@ export class RemoteStorageAdapter implements IRemoteStorage {
         if (!buffer) return null
 
         const parsed = JSON.parse(buffer.toString("utf-8"))
+        assertKnownSnapshotVersion(parsed)
 
         if (!isValidSnapshot(parsed)) {
           logger.warn(logger.CONTEXT.SYNC_REMOTE, "Invalid snapshot structure, treating as empty")
@@ -52,7 +55,7 @@ export class RemoteStorageAdapter implements IRemoteStorage {
 
         return parsed as Snapshot
       } catch (err: any) {
-        if (err instanceof RemoteSnapshotPendingError) {
+        if (err instanceof RemoteSnapshotPendingError || err instanceof SnapshotVersionAheadError) {
           throw err
         }
 
