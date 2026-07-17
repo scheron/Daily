@@ -84,12 +84,18 @@ describe("FolderRemoteAdapter", () => {
     expect(await fs.readFile(join(dir, "assets", "both.txt"), "utf-8")).toBe("remote-version")
   })
 
-  it("skips assets whose id escapes the assets directory", async () => {
-    await fs.writeFile(join(assetsDir, "innocent.txt"), "x", "utf-8")
+  it("skips assets whose id escapes into a prefix-sharing sibling directory", async () => {
+    const localBase = mkdtempSync(join(tmpdir(), "daily-escape-"))
+    const localAssets = join(localBase, "assets")
+    await fs.ensureDir(localAssets)
+    await fs.ensureDir(join(localBase, "assets-evil"))
+    await fs.writeFile(join(localBase, "assets-evil", "payload.txt"), "boom", "utf-8")
 
-    await adapter.syncAssets(assetsDir, [makeFile("../escape", "evil.txt")])
+    await adapter.syncAssets(localAssets, [makeFile("../assets-evil/payload", "p.txt")])
 
-    expect(await fs.pathExists(join(dir, "escape.txt"))).toBe(false)
-    expect(await fs.pathExists(join(dir, "assets", "escape.txt"))).toBe(false)
+    expect(await fs.pathExists(join(dir, "assets-evil", "payload.txt"))).toBe(false)
+    expect(await fs.pathExists(join(dir, "assets", "payload.txt"))).toBe(false)
+
+    rmSync(localBase, {recursive: true, force: true})
   })
 })
