@@ -5,4 +5,6 @@
  */
 export enum SyncErrorCode {
   SnapshotLoadFailed = "Failed to load snapshot",
+  SnapshotSaveFailed = "Failed to save snapshot",
+  AssetSyncFailed = "Failed to sync assets",
 }
