@@ -15,11 +15,17 @@ type CliScope = {project?: string; all?: boolean}
 /** Thin CLI facade over a StorageCore. No renderer broadcasts, no incremental index maintenance. */
 export class CliController {
   private searchIndexReady = false
+  private _didMutate = false
 
   constructor(
     private core: StorageCore,
     private paths: AppPaths,
   ) {}
+
+  /** True once any mutating operation ran — the CLI runtime uses it to decide whether to push after the command. */
+  get didMutate(): boolean {
+    return this._didMutate
+  }
 
   async today(): Promise<Day | null> {
     const branchId = await this.core.branchesService.getActiveBranchId()
@@ -270,6 +276,7 @@ export class CliController {
   }
 
   private signalMutation(): void {
+    this._didMutate = true
     try {
       fs.writeFileSync(this.paths.mutationSignalPath(), String(Date.now()))
     } catch {

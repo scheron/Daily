@@ -12,7 +12,12 @@ import {PROGRAM_HELP} from "./program.help"
 
 export function buildProgram(): Command {
   const program = new Command()
-  program.name("daily").description("Daily task automation from the shell").version(pkg.version).option("--json", "output stable JSON")
+  program
+    .name("daily")
+    .description("Daily task automation from the shell")
+    .version(pkg.version)
+    .option("--json", "output stable JSON")
+    .option("--no-sync", "skip sync around this command (node mode)")
   program.enablePositionalOptions()
   configureHelp(program)
   addHelpDetails(program, PROGRAM_HELP)
