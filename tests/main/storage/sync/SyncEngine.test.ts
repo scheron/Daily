@@ -182,4 +182,88 @@ describe("SyncEngine (multi-remote)", () => {
     expect(states.find((s) => s.id === "a")?.lastSyncAt).toBe(before?.lastSyncAt)
     expect(states.find((s) => s.id === "b")?.lastSyncAt).toBeNull()
   })
+
+  describe("auto-sync lifecycle", () => {
+    it("transitions inactive -> active -> inactive and is idempotent on double-enable", () => {
+      const onStatusChange = vi.fn()
+      const remote = new FakeRemote()
+      const engine = new SyncEngine(local, [{id: "a", label: "a", adapter: remote}], {
+        assetsDir: () => "/tmp/unused-assets",
+        onStatusChange,
+        onDataChanged: vi.fn(),
+      })
+
+      expect(engine.syncStatus).toBe("inactive")
+
+      engine.enableAutoSync()
+      expect(engine.syncStatus).toBe("active")
+      expect(onStatusChange).toHaveBeenCalledWith("active", "inactive")
+
+      const callCountAfterFirstEnable = onStatusChange.mock.calls.length
+      engine.enableAutoSync()
+      expect(onStatusChange.mock.calls.length).toBe(callCountAfterFirstEnable)
+
+      engine.disableAutoSync()
+      expect(engine.syncStatus).toBe("inactive")
+      expect(onStatusChange).toHaveBeenCalledWith("inactive", "active")
+    })
+  })
+
+  describe("sync()", () => {
+    it("is a no-op when auto-sync is not enabled", async () => {
+      const remote = new FakeRemote()
+      local.docs.tasks = [makeTask("t1", "2026-07-18T10:00:00.000Z")]
+      const {engine} = makeEngine(local, [{id: "a", adapter: remote}])
+
+      await engine.sync()
+
+      expect(remote.saveCount).toBe(0)
+    })
+
+    it("swallows a total sync failure into the 'error' status instead of throwing", async () => {
+      const onStatusChange = vi.fn()
+      const dead = new FakeRemote()
+      dead.failLoad = true
+      const engine = new SyncEngine(local, [{id: "dead", label: "dead", adapter: dead}], {
+        assetsDir: () => "/tmp/unused-assets",
+        onStatusChange,
+        onDataChanged: vi.fn(),
+      })
+      engine.enableAutoSync()
+      onStatusChange.mockClear()
+
+      await expect(engine.sync()).resolves.toBeUndefined()
+
+      expect(engine.syncStatus).toBe("error")
+      const statuses = onStatusChange.mock.calls.map((c) => c[0])
+      expect(statuses).toContain("error")
+
+      engine.disableAutoSync()
+    })
+  })
+
+  describe("_normalizeSettings", () => {
+    it("parses an old-format settings.data JSON string and spreads it before merging", async () => {
+      const remote = new FakeRemote()
+      const oldFormatDocs = {
+        ...emptyDocs(),
+        settings: {
+          id: "settings",
+          data: JSON.stringify({version: "1", themes: {current: "dark"}}),
+          created_at: "2026-07-18T00:00:00.000Z",
+          updated_at: "2026-07-18T00:00:00.000Z",
+        } as never,
+      }
+      remote.snapshot = buildSnapshot(oldFormatDocs)
+      const {engine} = makeEngine(local, [{id: "a", adapter: remote}])
+
+      await engine.syncOnce("pull")
+
+      expect(local.docs.settings).not.toBeNull()
+      expect((local.docs.settings as never as {data?: string}).data).toBeUndefined()
+      expect((local.docs.settings as never as {version: string}).version).toBe("1")
+      expect((local.docs.settings as never as {themes: {current: string}}).themes.current).toBe("dark")
+      expect((local.docs.settings as never as {id: string}).id).toBe("settings")
+    })
+  })
 })
