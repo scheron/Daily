@@ -57,4 +57,5 @@ export function setupStorageIPC(getStorage: () => IStorageController | null) {
   ipcMain.handle("storage-sync:deactivate", (_e) => getStorage()?.deactivateSync())
   ipcMain.handle("storage-sync:sync", (_e) => getStorage()?.forceSync())
   ipcMain.handle("storage-sync:get-status", (_e) => getStorage()?.getSyncStatus())
+  ipcMain.handle("storage-sync:get-remote-states", (_e) => getStorage()?.getSyncRemoteStates())
 }

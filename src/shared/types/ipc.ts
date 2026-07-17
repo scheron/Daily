@@ -16,7 +16,7 @@ import type {ISODate} from "./common"
 import type {TaskSearchResult} from "./search"
 import type {CliInstallResult, CliInstallState} from "./shell"
 import type {StatsAggregate, StatsPeriod} from "./stats"
-import type {Branch, Day, File, MoveTaskByOrderParams, Settings, SyncStatus, Tag, Task, TaskEvent} from "./storage"
+import type {Branch, Day, File, MoveTaskByOrderParams, Settings, SyncRemoteState, SyncStatus, Tag, Task, TaskEvent} from "./storage"
 import type {AppUpdateState} from "./update"
 
 export interface BridgeIPC {
@@ -44,6 +44,7 @@ export interface BridgeIPC {
   "storage-sync:deactivate": () => Promise<void>
   "storage-sync:sync": () => Promise<void>
   "storage-sync:get-status": () => Promise<SyncStatus>
+  "storage-sync:get-remote-states": () => Promise<SyncRemoteState[]>
   "storage-sync:on-status-changed": (callback: (status: SyncStatus, prevStatus: SyncStatus) => void) => void
   "storage-sync:on-data-changed": (callback: () => void) => void
 

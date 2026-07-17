@@ -150,7 +150,7 @@ export function getDefaultSettings(): Settings {
       accent: DEFAULT_ACCENT_ID,
       base: DEFAULT_BASE_ID,
     },
-    sync: {enabled: false},
+    sync: {enabled: false, ssh: null},
     ai: null,
     branch: {activeId: MAIN_BRANCH_ID},
     layout: {

@@ -16,16 +16,18 @@ import {electronPaths} from "@/runtime/electronPaths"
 import {createStorageCore} from "@/storage/createStorageCore"
 import {initDatabase} from "@/storage/database/instance"
 import {ICloudRemoteAdapter} from "@/storage/sync/adapters/ICloudRemoteAdapter"
+import {SshRemoteAdapter} from "@/storage/sync/adapters/SshRemoteAdapter"
 import {SyncEngine} from "@/storage/sync/SyncEngine"
 
 import type {AgentTurn} from "@/ai/turns/types"
 import type {StorageCore} from "@/storage/createStorageCore"
 import type {SessionMeta} from "@/storage/models/AISessionModel"
 import type {IStorageController} from "@/types/storage"
+import type {SyncRemote} from "@/types/sync"
 import type {ISODate} from "@shared/types/common"
 import type {TaskSearchResult} from "@shared/types/search"
 import type {StatsAggregate, StatsPeriod} from "@shared/types/stats"
-import type {Branch, Day, File, MoveTaskByOrderParams, Settings, SyncStatus, Tag, Task, TaskEvent} from "@shared/types/storage"
+import type {Branch, Day, File, MoveTaskByOrderParams, Settings, SyncRemoteState, SyncStatus, Tag, Task, TaskEvent} from "@shared/types/storage"
 import type {PartialDeep} from "type-fest"
 
 export class StorageController implements IStorageController {
@@ -65,16 +67,15 @@ export class StorageController implements IStorageController {
     this.localAdapter = core.localAdapter
     this.aiSessionModel = core.aiSessionModel
 
-    const remoteAdapter = new ICloudRemoteAdapter(electronPaths.remoteSyncPath())
-    this.syncEngine = new SyncEngine(this.localAdapter, [{id: "icloud", label: "iCloud", adapter: remoteAdapter}], {
+    const settings = await this.loadSettings()
+
+    this.syncEngine = new SyncEngine(this.localAdapter, this.buildRemotes(settings), {
       assetsDir: () => electronPaths.assetsDir(),
       onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => this.notifyStorageStatusChange?.(status, prevStatus),
       onDataChanged: () => {
         this.notifyStorageDataChange?.()
       },
     })
-
-    const settings = await this.loadSettings()
 
     if (settings.sync.enabled) {
       logger.info(logger.CONTEXT.STORAGE, "Auto-sync was enabled, restoring")
@@ -99,13 +100,15 @@ export class StorageController implements IStorageController {
 
   async activateSync() {
     logger.info(logger.CONTEXT.STORAGE, "Activating sync")
-    await this.settingsService.saveSettings({sync: {enabled: true}})
+    const settings = await this.loadSettings()
+    await this.saveSettings({sync: {...settings.sync, enabled: true}})
     this.syncEngine.enableAutoSync()
   }
 
   async deactivateSync() {
     logger.info(logger.CONTEXT.STORAGE, "Deactivating sync")
-    await this.settingsService.saveSettings({sync: {enabled: false}})
+    const settings = await this.loadSettings()
+    await this.saveSettings({sync: {...settings.sync, enabled: false}})
     this.syncEngine.disableAutoSync()
   }
 
@@ -116,6 +119,10 @@ export class StorageController implements IStorageController {
 
   getSyncStatus(): SyncStatus {
     return this.syncEngine.syncStatus
+  }
+
+  getSyncRemoteStates(): SyncRemoteState[] {
+    return this.syncEngine.getRemoteStates()
   }
 
   /** Reacts to a mutation made by an external process (e.g. the CLI): rebuilds the search index and refreshes the renderer. */
@@ -132,6 +139,10 @@ export class StorageController implements IStorageController {
 
   async saveSettings(newSettings: Partial<Settings>): Promise<void> {
     await this.settingsService.saveSettings(newSettings)
+    if (newSettings.sync) {
+      const settings = await this.loadSettings()
+      this.syncEngine.setRemotes(this.buildRemotes(settings))
+    }
     this.notifySettingsChange?.()
   }
   //#endregion
@@ -454,4 +465,15 @@ export class StorageController implements IStorageController {
     return this.aiSessionModel.getSessionTurns(active.id, limit)
   }
   //#endregion
+
+  private buildRemotes(settings: Settings): SyncRemote[] {
+    const remotes: SyncRemote[] = [{id: "icloud", label: "iCloud", adapter: new ICloudRemoteAdapter(electronPaths.remoteSyncPath())}]
+
+    const ssh = settings.sync.ssh
+    if (ssh?.enabled && ssh.host && ssh.dir) {
+      remotes.push({id: "ssh", label: `SSH (${ssh.host})`, adapter: new SshRemoteAdapter({host: ssh.host, dir: ssh.dir})})
+    }
+
+    return remotes
+  }
 }

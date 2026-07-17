@@ -42,6 +42,12 @@ export type InstalledAppReleaseState = {
 
 export type AppearanceMode = "light" | "dark" | "system"
 
+export type SshSyncSettings = {
+  enabled: boolean
+  host: string
+  dir: string
+}
+
 export type Settings = {
   version: string
   appearance: {
@@ -51,6 +57,7 @@ export type Settings = {
   }
   sync: {
     enabled: boolean
+    ssh: SshSyncSettings | null
   }
   ai: AIConfig | null
   branch: {

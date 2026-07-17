@@ -1,7 +1,7 @@
 import type {ISODate} from "@shared/types/common"
 import type {TaskSearchResult} from "@shared/types/search"
 import type {StatsAggregate, StatsPeriod} from "@shared/types/stats"
-import type {Branch, Day, File, MoveTaskByOrderParams, Settings, SyncStatus, Tag, Task, TaskEvent} from "@shared/types/storage"
+import type {Branch, Day, File, MoveTaskByOrderParams, Settings, SyncRemoteState, SyncStatus, Tag, Task, TaskEvent} from "@shared/types/storage"
 import type {ReplaceValue} from "@shared/types/utils"
 import type {PartialDeep} from "type-fest"
 
@@ -66,6 +66,7 @@ export interface IStorageController {
   deactivateSync(): Promise<void>
   forceSync(): Promise<void>
   getSyncStatus(): SyncStatus
+  getSyncRemoteStates(): SyncRemoteState[]
   handleExternalDataChange(): Promise<void>
 
   setupStorageBroadcasts(callbacks: {
