@@ -12,8 +12,8 @@ import fs from "fs-extra"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
 import {runMigrations} from "@main/storage/database/scripts/migrate"
+import {ICloudRemoteAdapter} from "@main/storage/sync/adapters/ICloudRemoteAdapter"
 import {LocalStorageAdapter} from "@main/storage/sync/adapters/LocalStorageAdapter"
-import {RemoteStorageAdapter} from "@main/storage/sync/adapters/RemoteStorageAdapter"
 import {SyncEngine} from "@main/storage/sync/SyncEngine"
 
 vi.mock("@/utils/logger", () => ({
@@ -83,7 +83,7 @@ function createDevice(syncDir) {
   runMigrations(db)
 
   const local = new LocalStorageAdapter(db)
-  const remote = new RemoteStorageAdapter(syncDir)
+  const remote = new ICloudRemoteAdapter(syncDir)
   return {db, local, remote}
 }
 

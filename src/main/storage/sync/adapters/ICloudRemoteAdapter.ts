@@ -16,7 +16,7 @@ const SNAPSHOT_FILENAME = "snapshot.json"
 const MAX_RETRIES = 3
 const RETRY_DELAYS = [500, 1000, 2000]
 
-export class RemoteStorageAdapter implements IRemoteStorage {
+export class ICloudRemoteAdapter implements IRemoteStorage {
   private readonly syncDir: string
   private readonly snapshotPath: string
 

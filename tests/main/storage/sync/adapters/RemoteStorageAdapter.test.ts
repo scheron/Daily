@@ -7,7 +7,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
 import {RemoteSnapshotPendingError} from "@shared/errors/sync/RemoteSnapshotPendingError"
 
-import {RemoteStorageAdapter} from "@main/storage/sync/adapters/RemoteStorageAdapter"
+import {ICloudRemoteAdapter} from "@main/storage/sync/adapters/ICloudRemoteAdapter"
 
 vi.mock("@/utils/logger", () => ({
   logger: {
@@ -49,14 +49,14 @@ function validSnapshot() {
   }
 }
 
-describe("RemoteStorageAdapter", () => {
+describe("ICloudRemoteAdapter", () => {
   let syncDir
   let adapter
 
   beforeEach(async () => {
     vi.clearAllMocks()
     syncDir = await mkdtemp(join(tmpdir(), "remote-adapter-"))
-    adapter = new RemoteStorageAdapter(syncDir)
+    adapter = new ICloudRemoteAdapter(syncDir)
 
     // Default: coordinatedRead reads real file, coordinatedWrite writes real file
     mockCoordinatedRead.mockImplementation(async (path) => {
@@ -150,7 +150,7 @@ describe("RemoteStorageAdapter", () => {
   describe("saveSnapshot", () => {
     it("creates sync directory if missing", async () => {
       const nestedDir = join(syncDir, "nested", "dir")
-      const nestedAdapter = new RemoteStorageAdapter(nestedDir)
+      const nestedAdapter = new ICloudRemoteAdapter(nestedDir)
 
       // Mock ensureDir behavior through coordinatedWrite
       mockCoordinatedWrite.mockImplementation(async (path, data) => {

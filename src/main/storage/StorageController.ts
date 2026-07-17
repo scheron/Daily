@@ -15,7 +15,7 @@ import {logger} from "@/utils/logger"
 import {electronPaths} from "@/runtime/electronPaths"
 import {createStorageCore} from "@/storage/createStorageCore"
 import {initDatabase} from "@/storage/database/instance"
-import {RemoteStorageAdapter} from "@/storage/sync/adapters/RemoteStorageAdapter"
+import {ICloudRemoteAdapter} from "@/storage/sync/adapters/ICloudRemoteAdapter"
 import {SyncEngine} from "@/storage/sync/SyncEngine"
 
 import type {AgentTurn} from "@/ai/turns/types"
@@ -65,7 +65,7 @@ export class StorageController implements IStorageController {
     this.localAdapter = core.localAdapter
     this.aiSessionModel = core.aiSessionModel
 
-    const remoteAdapter = new RemoteStorageAdapter(electronPaths.remoteSyncPath())
+    const remoteAdapter = new ICloudRemoteAdapter(electronPaths.remoteSyncPath())
     this.syncEngine = new SyncEngine(this.localAdapter, [{id: "icloud", label: "iCloud", adapter: remoteAdapter}], {
       assetsDir: () => electronPaths.assetsDir(),
       onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => this.notifyStorageStatusChange?.(status, prevStatus),
