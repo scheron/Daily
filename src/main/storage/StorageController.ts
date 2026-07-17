@@ -66,7 +66,8 @@ export class StorageController implements IStorageController {
     this.aiSessionModel = core.aiSessionModel
 
     const remoteAdapter = new RemoteStorageAdapter(electronPaths.remoteSyncPath())
-    this.syncEngine = new SyncEngine(this.localAdapter, remoteAdapter, {
+    this.syncEngine = new SyncEngine(this.localAdapter, [{id: "icloud", label: "iCloud", adapter: remoteAdapter}], {
+      assetsDir: () => electronPaths.assetsDir(),
       onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => this.notifyStorageStatusChange?.(status, prevStatus),
       onDataChanged: () => {
         this.notifyStorageDataChange?.()

@@ -103,3 +103,9 @@ export interface IRemoteStorage {
   saveSnapshot(snapshot: Snapshot): Promise<void>
   syncAssets(localAssetsDir: string, fileManifest: SnapshotFile[]): Promise<void>
 }
+
+export type SyncRemote = {
+  id: string
+  label: string
+  adapter: IRemoteStorage
+}

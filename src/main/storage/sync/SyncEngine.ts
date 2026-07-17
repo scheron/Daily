@@ -8,37 +8,46 @@ import {logger} from "@/utils/logger"
 import {mergeRemoteIntoLocal} from "@/utils/sync/merge/mergeRemoteIntoLocal"
 import {buildSnapshot, buildSnapshotMeta} from "@/utils/sync/snapshot/buildSnapshot"
 
-import {electronPaths} from "@/runtime/electronPaths"
-
-import type {ILocalStorage, IRemoteStorage, SnapshotDocs, SyncStrategy} from "@/types/sync"
-import type {SyncStatus} from "@shared/types/storage"
+import type {ILocalStorage, SnapshotDocs, SyncRemote, SyncStrategy} from "@/types/sync"
+import type {SyncRemoteState, SyncStatus} from "@shared/types/storage"
 
 /**
- * SyncEngine orchestrates pull/push operations between local SQLite and remote storage.
+ * SyncEngine orchestrates pull/push operations between local SQLite and a set
+ * of remote storages.
  *
  * Architecture:
  * - Local-first: SQLite is always the source of truth
- * - Remote storage is treated as a "remote flash drive" - no server-side logic
+ * - Each remote is a "remote flash drive" - no server-side logic
  * - All merge logic happens locally using pure LWW (Last Write Wins) strategy
+ * - Remotes are merged sequentially, then every remote whose hash differs from
+ *   the merged local state receives a push (the node acts as a bridge)
+ * - A failing remote is isolated: its error lands in per-remote state, the
+ *   others continue; the whole sync fails only when every remote failed
  * - AsyncMutex prevents concurrent sync operations
  */
 export class SyncEngine {
   private _syncStatus: SyncStatus = "inactive"
   private _isSyncEnabled = false
   private mutex = new AsyncMutex()
+  private remotes: SyncRemote[]
+  private remoteStates = new Map<string, {lastSyncAt: string | null; lastError: string | null}>()
 
+  private readonly assetsDir: () => string
   private onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => void
   private onDataChanged: () => void
   private autoSyncScheduler: ReturnType<typeof createIntervalScheduler>
 
   constructor(
     private localStore: ILocalStorage,
-    private remoteStore: IRemoteStorage,
+    remotes: SyncRemote[],
     options: {
+      assetsDir: () => string
       onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => void
       onDataChanged: () => void
     },
   ) {
+    this.remotes = remotes
+    this.assetsDir = options.assetsDir
     this.onStatusChange = options.onStatusChange
     this.onDataChanged = options.onDataChanged
 
@@ -46,10 +55,26 @@ export class SyncEngine {
       intervalMs: SYNC_CONFIG.remoteSyncInterval,
       onProcess: () => this.sync(),
     })
+
+    this._initRemoteStates()
   }
 
   get syncStatus(): SyncStatus {
     return this._syncStatus
+  }
+
+  /** Replaces the remote set (e.g. when SSH settings change). State of removed remotes is dropped. */
+  setRemotes(remotes: SyncRemote[]): void {
+    this.remotes = remotes
+    this._initRemoteStates()
+  }
+
+  /** Per-remote sync bookkeeping (last successful sync, last error) for the settings UI. */
+  getRemoteStates(): SyncRemoteState[] {
+    return this.remotes.map((remote) => {
+      const state = this.remoteStates.get(remote.id) ?? {lastSyncAt: null, lastError: null}
+      return {id: remote.id, label: remote.label, ...state}
+    })
   }
 
   enableAutoSync() {
@@ -71,7 +96,8 @@ export class SyncEngine {
   }
 
   /**
-   * Sync with remote storage, guarded by AsyncMutex.
+   * Sync with all remotes, guarded by AsyncMutex. No-op unless auto-sync is
+   * enabled; failures are swallowed into the "error" status (app cycle behavior).
    */
   async sync(strategy: SyncStrategy = "pull"): Promise<void> {
     if (!this._isSyncEnabled) return
@@ -89,60 +115,88 @@ export class SyncEngine {
   }
 
   /**
+   * One-shot sync that works without enableAutoSync — used by the CLI around
+   * commands. Unlike sync(), a total failure propagates to the caller.
+   */
+  async syncOnce(strategy: SyncStrategy = "pull"): Promise<void> {
+    await this.mutex.runExclusive(async () => {
+      this._setStatus("syncing")
+
+      try {
+        await this._sync(strategy)
+        this._setStatus(this._isSyncEnabled ? "active" : "inactive")
+      } catch (error) {
+        this._setStatus("error")
+        throw error
+      }
+    })
+  }
+
+  /**
    * Core sync logic.
    *
    * @param strategy:
    *   - "pull" (default): LWW-merge with priority to remote when updated_at is equal
    *   - "push": LWW-merge with priority to local when updated_at is equal
-   * After merge, if the local snapshot is different from remote, it is pushed to remote.
+   * Remotes are merged into local sequentially; afterwards every remote whose
+   * snapshot differs from the merged state is pushed.
    */
   private async _sync(strategy: SyncStrategy = "pull"): Promise<void> {
-    if (!this._isSyncEnabled) return
+    let localDocs = await this.localStore.loadAllDocs()
+    let anyChanges = false
+    let succeeded = 0
+    const pushTargets: Array<{remote: SyncRemote; remoteDocs: SnapshotDocs | null}> = []
+    const errors: unknown[] = []
 
-    try {
-      const localDocs = await this.localStore.loadAllDocs()
-      const localMeta = buildSnapshotMeta(localDocs)
-
-      let remoteSnapshot: Awaited<ReturnType<IRemoteStorage["loadSnapshot"]>>
+    for (const remote of this.remotes) {
       try {
-        remoteSnapshot = await this.remoteStore.loadSnapshot()
-      } catch (error) {
-        if (error instanceof RemoteSnapshotPendingError) {
-          logger.info(logger.CONTEXT.SYNC_REMOTE, "Remote snapshot is still downloading from iCloud, postponing sync")
-          return
+        const snapshot = await remote.adapter.loadSnapshot()
+        const remoteDocs = snapshot ? this._normalizeSettings(snapshot.docs) : null
+
+        if (remoteDocs && buildSnapshotMeta(localDocs).hash === snapshot!.meta.hash) {
+          logger.debug(logger.CONTEXT.SYNC_ENGINE, `Remote "${remote.id}": hashes match, no merge needed`)
+          pushTargets.push({remote, remoteDocs})
+          continue
         }
 
-        throw error
+        const {resultDocs, hasChanges} = await this._pull(localDocs, remoteDocs, strategy)
+        localDocs = resultDocs
+        anyChanges ||= hasChanges
+        pushTargets.push({remote, remoteDocs})
+      } catch (error) {
+        if (error instanceof RemoteSnapshotPendingError) {
+          logger.info(logger.CONTEXT.SYNC_REMOTE, `Remote "${remote.id}": snapshot still downloading, postponing`)
+          continue
+        }
+
+        logger.error(logger.CONTEXT.SYNC_ENGINE, `Remote "${remote.id}": failed to load/merge`, error)
+        this._recordRemoteError(remote.id, error)
+        errors.push(error)
       }
+    }
 
-      let remoteDocs: SnapshotDocs | null = null
-      let remoteMeta: {updatedAt: string; hash: string} | null = null
+    if (anyChanges) {
+      this.onDataChanged?.()
+    }
 
-      if (remoteSnapshot) {
-        remoteDocs = this._normalizeSettings(remoteSnapshot.docs)
-        remoteMeta = remoteSnapshot.meta
+    for (const {remote, remoteDocs} of pushTargets) {
+      try {
+        if (this._shouldPush(localDocs, remoteDocs)) {
+          await this._push(remote, localDocs)
+        } else {
+          await this._syncAssets(remote, localDocs.files)
+        }
+        succeeded++
+        this._recordRemoteSuccess(remote.id)
+      } catch (error) {
+        logger.error(logger.CONTEXT.SYNC_PUSH, `Remote "${remote.id}": failed to push`, error)
+        this._recordRemoteError(remote.id, error)
+        errors.push(error)
       }
+    }
 
-      if (remoteDocs && remoteMeta && localMeta.hash === remoteMeta.hash) {
-        logger.debug(logger.CONTEXT.SYNC_ENGINE, "Hashes match, no changes detected")
-        await this._syncAssets(localDocs.files)
-        return
-      }
-
-      const {resultDocs, hasChanges} = await this._pull(localDocs, remoteDocs, strategy)
-
-      if (hasChanges) {
-        this.onDataChanged?.()
-      }
-
-      if (this._shouldPush(resultDocs, remoteDocs)) {
-        await this._push(resultDocs)
-      } else {
-        await this._syncAssets(resultDocs.files)
-      }
-    } catch (error) {
-      logger.error(logger.CONTEXT.SYNC_ENGINE, "Failed to sync", error)
-      throw error
+    if (this.remotes.length > 0 && succeeded === 0 && errors.length > 0) {
+      throw errors[0]
     }
   }
 
@@ -213,27 +267,47 @@ export class SyncEngine {
   }
 
   /**
-   * Push phase: send local changes to remote + sync assets
+   * Push phase: send merged local state to one remote + sync its assets
    */
-  private async _push(localDocs: SnapshotDocs): Promise<void> {
-    logger.info(logger.CONTEXT.SYNC_PUSH, "Pushing snapshot")
+  private async _push(remote: SyncRemote, localDocs: SnapshotDocs): Promise<void> {
+    logger.info(logger.CONTEXT.SYNC_PUSH, `Pushing snapshot to "${remote.id}"`)
 
     const snapshot = buildSnapshot(localDocs)
-    await this.remoteStore.saveSnapshot(snapshot)
+    await remote.adapter.saveSnapshot(snapshot)
 
-    logger.info(logger.CONTEXT.SYNC_PUSH, `Pushed snapshot ${snapshot.meta.hash}`)
+    logger.info(logger.CONTEXT.SYNC_PUSH, `Pushed snapshot ${snapshot.meta.hash} to "${remote.id}"`)
 
-    await this._syncAssets(localDocs.files)
+    await this._syncAssets(remote, localDocs.files)
   }
 
-  private async _syncAssets(files: SnapshotDocs["files"]): Promise<void> {
+  private async _syncAssets(remote: SyncRemote, files: SnapshotDocs["files"]): Promise<void> {
     if (!files.length) return
 
     try {
-      await this.remoteStore.syncAssets(electronPaths.assetsDir(), files)
+      await remote.adapter.syncAssets(this.assetsDir(), files)
     } catch (error) {
-      logger.warn(logger.CONTEXT.SYNC_PUSH, "Asset sync failed, will retry next cycle", error)
+      logger.warn(logger.CONTEXT.SYNC_PUSH, `Asset sync failed for "${remote.id}", will retry next cycle`, error)
     }
+  }
+
+  private _initRemoteStates(): void {
+    const next = new Map<string, {lastSyncAt: string | null; lastError: string | null}>()
+    for (const remote of this.remotes) {
+      next.set(remote.id, this.remoteStates.get(remote.id) ?? {lastSyncAt: null, lastError: null})
+    }
+    this.remoteStates = next
+  }
+
+  private _recordRemoteSuccess(id: string): void {
+    this.remoteStates.set(id, {lastSyncAt: new Date().toISOString(), lastError: null})
+  }
+
+  private _recordRemoteError(id: string, error: unknown): void {
+    const prev = this.remoteStates.get(id)
+    this.remoteStates.set(id, {
+      lastSyncAt: prev?.lastSyncAt ?? null,
+      lastError: error instanceof Error ? error.message : String(error),
+    })
   }
 
   private _setStatus(status: SyncStatus) {

@@ -3,6 +3,12 @@ import type {ISODate, ISODateTime, ISOTime, Timezone} from "./common"
 import type {AppUpdateSource} from "./update"
 
 export type SyncStatus = "inactive" | "active" | "syncing" | "error"
+export type SyncRemoteState = {
+  id: string
+  label: string
+  lastSyncAt: string | null
+  lastError: string | null
+}
 export type TaskStatus = "active" | "discarded" | "done"
 export type TaskMovePosition = "before" | "after"
 

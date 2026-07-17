@@ -90,7 +90,11 @@ function createDevice(syncDir) {
 async function syncDevice(device, strategy = "pull") {
   const onStatusChange = vi.fn()
   const onDataChanged = vi.fn()
-  const engine = new SyncEngine(device.local, device.remote, {onStatusChange, onDataChanged})
+  const engine = new SyncEngine(device.local, [{id: "remote", label: "remote", adapter: device.remote}], {
+    assetsDir: () => "/tmp/assets",
+    onStatusChange,
+    onDataChanged,
+  })
   engine.enableAutoSync()
   await engine.sync(strategy)
   return {engine, onStatusChange, onDataChanged}
