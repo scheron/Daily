@@ -4,6 +4,7 @@ import {Command} from "commander"
 import pkg from "../../package.json"
 import {registerProjectCommands} from "./commands/project"
 import {registerSchemaCommand} from "./commands/schema"
+import {registerSyncCommands} from "./commands/sync"
 import {registerTagCommands} from "./commands/tag"
 import {registerTaskCommands} from "./commands/task"
 import {registerTodayCommand} from "./commands/today"
@@ -27,6 +28,7 @@ export function buildProgram(): Command {
   registerTagCommands(program)
   registerProjectCommands(program)
   registerSchemaCommand(program)
+  registerSyncCommands(program)
 
   return program
 }

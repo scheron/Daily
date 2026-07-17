@@ -10,6 +10,8 @@ const EXIT_CODE: Record<CliErrorCode, number> = {
   [CliErrorCode.INVALID_MINUTES]: 2,
   [CliErrorCode.INVALID_ARGUMENT]: 2,
   [CliErrorCode.REFUSED]: 4,
+  [CliErrorCode.SYNC_NOT_CONFIGURED]: 2,
+  [CliErrorCode.SYNC_FAILED]: 5,
 }
 
 /** Lists every CLI error code together with its process exit code. */
