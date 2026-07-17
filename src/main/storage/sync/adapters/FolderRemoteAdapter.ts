@@ -1,4 +1,4 @@
-import {extname, join, resolve} from "path"
+import {extname, join, resolve, sep} from "path"
 import fs from "fs-extra"
 
 import {logger} from "@/utils/logger"
@@ -65,13 +65,16 @@ export class FolderRemoteAdapter implements IRemoteStorage {
     await fs.ensureDir(remoteAssetsDir)
     await fs.ensureDir(localAssetsDir)
 
+    const localRoot = resolve(localAssetsDir) + sep
+    const remoteRoot = resolve(remoteAssetsDir) + sep
+
     for (const file of fileManifest) {
       const ext = extname(file.name).slice(1) || "bin"
       const filename = `${file.id}.${ext}`
       const localPath = join(localAssetsDir, filename)
       const remotePath = join(remoteAssetsDir, filename)
 
-      if (!resolve(localPath).startsWith(resolve(localAssetsDir)) || !resolve(remotePath).startsWith(resolve(remoteAssetsDir))) {
+      if (!resolve(localPath).startsWith(localRoot) || !resolve(remotePath).startsWith(remoteRoot)) {
         logger.warn(logger.CONTEXT.SYNC_REMOTE, `Skipping asset with suspicious path: ${filename}`)
         continue
       }
