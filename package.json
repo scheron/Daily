@@ -32,6 +32,7 @@
     "dev": "electron-vite dev",
     "prebuild": "bash scripts/build-file-coordinator.sh",
     "build:cli": "vite build -c vite.config.cli.ts",
+    "build:cli:package": "pnpm build:cli && node scripts/build-cli-package.js",
     "build": "pnpm build:cli && electron-vite build && electron-builder --mac",
     "build:compress": "pnpm build:cli && electron-vite build",
     "preview": "electron-vite preview",

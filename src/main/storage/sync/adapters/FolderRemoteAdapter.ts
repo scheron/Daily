@@ -1,4 +1,4 @@
-import {extname, join, resolve, sep} from "path"
+import {extname, join, resolve, sep} from "node:path"
 import fs from "fs-extra"
 
 import {logger} from "@/utils/logger"

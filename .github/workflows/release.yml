@@ -20,6 +20,7 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: "22.5.0"
+          registry-url: "https://registry.npmjs.org"
 
       - name: Install pnpm
         run: npm install -g pnpm@10.12.1
@@ -43,6 +44,18 @@ jobs:
             exit 1
           fi
           ls -lh dist/*.dmg
+
+      - name: Build CLI npm package
+        run: pnpm run build:cli:package
+
+      - name: Smoke test CLI package
+        run: node dist-cli/index.js --help
+
+      - name: Publish daily-cli to npm
+        working-directory: dist-cli
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
 
       - name: Extract version from tag
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
