@@ -59,6 +59,16 @@ export const cliPaths: AppPaths = {
   remoteSyncPath,
 }
 
+/**
+ * Electron-free path set for a standalone CLI node (no app installed):
+ * XDG data layout. remoteSyncPath is unused in node mode — the sync folder
+ * comes from the CLI config instead — but stays for AppPaths compatibility.
+ */
+export function createCliNodePaths(): AppPaths {
+  const dataRoot = () => path.join(process.env.XDG_DATA_HOME || path.join(process.env.HOME ?? "", ".local", "share"), "daily")
+  return {...dataPaths(dataRoot), remoteSyncPath}
+}
+
 function dataPaths(root: () => string) {
   return {
     appDataRoot: root,
