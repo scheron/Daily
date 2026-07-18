@@ -160,29 +160,6 @@ You can configure more than one remote. An unreachable remote does not block the
 | Local AI models | Download required; available disk space and memory vary by model |
 | Desktop builds for Windows/Linux | Not shipped or tested |
 
-## Development
-
-Daily uses Node.js `22.5.0` and pnpm `10.12.1` or newer.
-
-```bash
-pnpm install --frozen-lockfile
-pnpm dev
-```
-
-Run the full local quality suite before contributing:
-
-```bash
-pnpm check:all
-```
-
-Useful commands:
-
-```bash
-pnpm test              # Full Vitest suite
-pnpm typecheck:all     # Main, renderer, shared, and CLI type checks
-pnpm build:compress    # Build without packaging a macOS installer
-pnpm build             # Build and package the macOS app
-```
 
 ## License
 
