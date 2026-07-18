@@ -45,18 +45,6 @@ jobs:
           fi
           ls -lh dist/*.dmg
 
-      - name: Build CLI npm package
-        run: pnpm run build:cli:package
-
-      - name: Smoke test CLI package
-        run: node dist-cli/index.js --help
-
-      - name: Publish daily-cli to npm
-        working-directory: dist-cli
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --access public
-
       - name: Extract version from tag
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
@@ -91,3 +79,15 @@ jobs:
             -H "Authorization: Bearer ${TAP_REPO_TOKEN}" \
             https://api.github.com/repos/scheron/homebrew-tap/dispatches \
             -d "{\"event_type\":\"update-cask\",\"client_payload\":{\"version\":\"${VERSION}\"}}"
+
+      - name: Build CLI npm package
+        run: pnpm run build:cli:package
+
+      - name: Smoke test CLI package
+        run: node dist-cli/index.js --help
+
+      - name: Publish daily-cli to npm
+        working-directory: dist-cli
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
