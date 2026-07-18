@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.17.2 - 2026-07-18
+
+### 🎨 Improvements
+
+- **Sync** — the Sync settings are cleaner: each remote shows its status as a dot next to its name (a spinner while syncing), and the last-sync time plus a single **Sync Now** button now sit in one shared footer for iCloud and SSH together.
+
+---
+
 ## v0.17.1 - 2026-07-18
 
 ### 🎨 Improvements
