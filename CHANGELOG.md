@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.17.1 - 2026-07-18
+
+### 🎨 Improvements
+
+- **Daily CLI** — the `@scheron/daily-cli` package now ships with its own documentation on npm.
+
+---
+
 ## v0.17.0 - 2026-07-18
 
 ### ✨ New Features
