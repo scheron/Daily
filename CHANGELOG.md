@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.17.0 - 2026-07-18
+
+### ✨ New Features
+
+- **Daily CLI** — a companion `daily` command-line tool (via `@scheron/daily-cli`) to manage tasks, tags, and projects from the terminal. It outputs stable JSON and ships a `daily schema` contract so scripts and AI agents can drive it, and runs against the desktop app's database or standalone as its own sync node.
+- **Sync over SSH** — Daily can now sync with an external node over SSH, alongside iCloud, so a headless machine or server running the CLI stays in sync. The renamed **Remote** settings section configures the SSH host and folder and shows per-remote sync status.
+- **Ornith 1.0 9B** — an agentic coding model (Qwen3.5-9B fine-tune) with native tool calling joins the downloadable local model catalog.
+
+### 🔒 Security
+
+- **Sync** — hardened attachment syncing against a path-traversal edge case where a folder named like the assets directory could be used to read or write files outside it.
+
+---
+
 ## v0.16.3 - 2026-07-08
 
 ### ✨ New Features
