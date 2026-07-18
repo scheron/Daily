@@ -2,6 +2,7 @@
 import {ISODate} from "@shared/types/common"
 import {TaskEvent} from "@shared/types/storage"
 import {toDateLabel, toLocaleDateTime, toTime} from "@shared/utils/date/formatters"
+import {toTaskIdHash} from "@shared/utils/tasks/toTaskIdHash"
 import {TASK_EVENT_META} from "@/constants/taskEvents"
 import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
@@ -12,10 +13,6 @@ const {events, goToDay, openTask, isRestorable, restore} = useActivityModel()
 
 function isMovedOut(event: TaskEvent): boolean {
   return event.type === "moved" && event.eventDate === event.fromDate
-}
-
-function toTaskIdHash(taskId: TaskEvent["taskId"]): string {
-  return taskId.slice(-6)
 }
 
 function moveDay(event: TaskEvent): ISODate | null {

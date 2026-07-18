@@ -3,6 +3,7 @@ import {computed, useTemplateRef} from "vue"
 
 import {toDurationLabel} from "@shared/utils/date/formatters"
 import {sortTags} from "@shared/utils/tags/sortTags"
+import {toTaskIdHash} from "@shared/utils/tasks/toTaskIdHash"
 import {useTagsStore} from "@/stores/tags.store"
 import {useTaskEditorStore} from "@/stores/task-editor"
 import {useTasksStore} from "@/stores/tasks"
@@ -159,6 +160,9 @@ async function onMoveToBranch(branch: Branch) {
         <div class="flex w-full items-center gap-3">
           <DynamicTagsPanel :tags="tags" empty-message="No tags" size="sm" />
           <div class="ml-auto flex shrink-0 items-center gap-2" data-task-dnd-ignore="true" @click.stop>
+            <span v-tooltip="{content: 'Task ID', placement: 'top'}" class="text-base-content/50 font-mono text-xs leading-none whitespace-nowrap">
+              {{ toTaskIdHash(task.id) }}
+            </span>
             <StatusSelect :status="task.status" @update:status="taskModel.changeStatus" />
           </div>
         </div>
