@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import {computed, onMounted, ref} from "vue"
+import {computed, onMounted, ref, watch} from "vue"
 
-import {toLocaleTime} from "@shared/utils/date/formatters"
 import {useSettingsStore} from "@/stores/settings.store"
+import {useStorageStore} from "@/stores/storage.store"
 import BaseButton from "@/ui/base/BaseButton"
+import BaseIcon from "@/ui/base/BaseIcon"
 import BaseSwitch from "@/ui/base/BaseSwitch.vue"
 
 import SettingRow from "../../SettingRow.vue"
@@ -13,6 +14,7 @@ import type {SyncRemoteState} from "@shared/types/storage"
 import type {SshNodeConfig} from "./useSshNodeModal"
 
 const settingsStore = useSettingsStore()
+const storageStore = useStorageStore()
 const {open: openSshModal} = useSshNodeModal()
 
 const remoteStates = ref<SyncRemoteState[]>([])
@@ -21,15 +23,21 @@ const ssh = computed(() => settingsStore.settings?.sync?.ssh ?? null)
 const isEnabled = computed(() => ssh.value?.enabled ?? false)
 const isConfigured = computed(() => Boolean(ssh.value?.host && ssh.value?.dir))
 const sshState = computed(() => remoteStates.value.find((state) => state.id === "ssh") ?? null)
+const isSyncing = computed(() => storageStore.status === "syncing" && isEnabled.value)
 
-const statusInfo = computed(() => {
-  if (sshState.value?.lastError) return {label: "Error", dot: "bg-error", title: sshState.value.lastError}
-  if (sshState.value?.lastSyncAt) return {label: "Active", dot: "bg-success", title: `Last sync: ${toLocaleTime(sshState.value.lastSyncAt)}`}
-  return {label: "Never synced", dot: "bg-base-content/30", title: ""}
+const dotClass = computed(() => {
+  if (!isEnabled.value) return "bg-base-content/30"
+  if (sshState.value?.lastError) return "bg-error"
+  if (sshState.value?.lastSyncAt) return "bg-success"
+  return "bg-base-content/30"
 })
 
 onMounted(() => {
   void refreshStates()
+})
+
+watch(isSyncing, (syncing, wasSyncing) => {
+  if (wasSyncing && !syncing) void refreshStates()
 })
 
 async function onConfigure() {
@@ -70,13 +78,19 @@ async function refreshStates() {
 </script>
 
 <template>
-  <SettingRow title="SSH Node" description="Sync with an external CLI node over SSH">
-    <div class="flex items-center gap-2.5">
-      <span v-if="isEnabled" class="text-base-content/60 flex items-center gap-1.5 text-xs" :title="statusInfo.title">
-        <span class="size-2 rounded-full" :class="statusInfo.dot" />
-        {{ statusInfo.label }}
-      </span>
+  <SettingRow description="Sync with an external CLI node over SSH">
+    <template #title>
+      <div class="flex items-center gap-2">
+        <p class="text-base-content text-sm">SSH Node</p>
 
+        <span class="flex size-4 shrink-0 items-center justify-center">
+          <BaseIcon v-if="isSyncing" name="spinner" class="text-accent size-3.5 animate-spin" />
+          <span v-else class="size-2 rounded-full" :class="dotClass" />
+        </span>
+      </div>
+    </template>
+
+    <div class="flex items-center gap-2.5">
       <BaseButton variant="outline" size="sm" class="text-xs" @click="onConfigure"> Configure </BaseButton>
 
       <BaseSwitch :modelValue="isEnabled" @update:modelValue="onToggle" />
