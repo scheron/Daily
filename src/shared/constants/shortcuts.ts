@@ -9,7 +9,7 @@ export const SHORTCUTS_MAP = {
   "ui:open-settings-panel": {channel: "shortcut:ui:open-settings-panel", label: "Settings", accelerator: "CmdOrCtrl+,"},
   "settings:general": {channel: "settings:open:general", label: "General", accelerator: "CmdOrCtrl+Shift+1", section: "general"},
   "settings:workflow": {channel: "settings:open:workflow", label: "Workflow", accelerator: "CmdOrCtrl+Shift+2", section: "workflow"},
-  "settings:icloud": {channel: "settings:open:icloud", label: "iCloud", accelerator: "CmdOrCtrl+Shift+3", section: "icloud"},
+  "settings:icloud": {channel: "settings:open:icloud", label: "Remote", accelerator: "CmdOrCtrl+Shift+3", section: "icloud"},
   "settings:ai": {channel: "settings:open:ai", label: "AI", accelerator: "CmdOrCtrl+Shift+4", section: "ai"},
   "settings:debug": {channel: "settings:open:debug", label: "DEBUG", accelerator: "CmdOrCtrl+Shift+5", section: "debug"},
 

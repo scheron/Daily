@@ -20,7 +20,7 @@ type SettingsSection = {
 export const SECTIONS: SettingsSection[] = [
   {id: "general", icon: "cog", label: "General", component: GeneralSettings},
   {id: "workflow", icon: "monitor", label: "Workflow", component: WorkspaceSettings},
-  {id: "icloud", icon: "cloud", label: "iCloud", component: IcloudSettings},
+  {id: "icloud", icon: "cloud", label: "Remote", component: IcloudSettings},
   {id: "ai", icon: "ai", label: "AI", component: AiSettings},
   ...(isDevMode ? [{id: "debug", icon: "code", label: "DEBUG", component: DebugSettings} as SettingsSection] : []),
 ]

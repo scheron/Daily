@@ -7,44 +7,61 @@ import BaseButton from "@/ui/base/BaseButton"
 import BaseSwitch from "@/ui/base/BaseSwitch.vue"
 
 import SettingRow from "../../SettingRow.vue"
+import {useSshNodeModal} from "./useSshNodeModal"
 
 import type {SyncRemoteState} from "@shared/types/storage"
+import type {SshNodeConfig} from "./useSshNodeModal"
 
 const settingsStore = useSettingsStore()
+const {open: openSshModal} = useSshNodeModal()
 
-const host = ref("")
-const dir = ref("")
 const remoteStates = ref<SyncRemoteState[]>([])
 
 const ssh = computed(() => settingsStore.settings?.sync?.ssh ?? null)
 const isEnabled = computed(() => ssh.value?.enabled ?? false)
+const isConfigured = computed(() => Boolean(ssh.value?.host && ssh.value?.dir))
 const sshState = computed(() => remoteStates.value.find((state) => state.id === "ssh") ?? null)
-const canApply = computed(() => host.value.trim().length > 0 && dir.value.trim().length > 0)
+
+const statusInfo = computed(() => {
+  if (sshState.value?.lastError) return {label: "Error", dot: "bg-error", title: sshState.value.lastError}
+  if (sshState.value?.lastSyncAt) return {label: "Active", dot: "bg-success", title: `Last sync: ${toLocaleTime(sshState.value.lastSyncAt)}`}
+  return {label: "Never synced", dot: "bg-base-content/30", title: ""}
+})
 
 onMounted(() => {
-  host.value = ssh.value?.host ?? ""
-  dir.value = ssh.value?.dir ?? ""
   void refreshStates()
 })
 
-function saveSsh(enabled: boolean) {
+async function onConfigure() {
+  const config = await openSshModal(currentConfig())
+  if (!config) return
+  saveSsh(isEnabled.value, config)
+  await refreshStates()
+}
+
+async function onToggle(enabled: boolean) {
+  if (!enabled) return saveSsh(false, currentConfig())
+  if (isConfigured.value) return saveSsh(true, currentConfig())
+
+  const config = await openSshModal(currentConfig())
+  if (!config) return
+  saveSsh(true, config)
+  await refreshStates()
+}
+
+function currentConfig(): SshNodeConfig {
+  return {host: ssh.value?.host ?? "", dir: ssh.value?.dir ?? ""}
+}
+
+function saveSsh(enabled: boolean, config: SshNodeConfig) {
   if (!settingsStore.settings) return
 
   settingsStore.updateSettings({
     sync: {
       ...settingsStore.settings.sync,
-      ssh: {enabled, host: host.value.trim(), dir: dir.value.trim()},
+      ssh: {enabled, host: config.host.trim(), dir: config.dir.trim()},
     },
   })
-}
-
-function onToggle(enabled: boolean) {
-  saveSsh(enabled && canApply.value)
-}
-
-function onApply() {
-  saveSsh(isEnabled.value)
-  void refreshStates()
 }
 
 async function refreshStates() {
@@ -54,42 +71,15 @@ async function refreshStates() {
 
 <template>
   <SettingRow title="SSH Node" description="Sync with an external CLI node over SSH">
-    <BaseSwitch :modelValue="isEnabled" :disabled="!canApply && !isEnabled" @update:modelValue="onToggle" />
+    <div class="flex items-center gap-2.5">
+      <span v-if="isEnabled" class="text-base-content/60 flex items-center gap-1.5 text-xs" :title="statusInfo.title">
+        <span class="size-2 rounded-full" :class="statusInfo.dot" />
+        {{ statusInfo.label }}
+      </span>
 
-    <template #below>
-      <div class="flex flex-col gap-2 py-2.5">
-        <label class="flex flex-col gap-1">
-          <span class="text-base-content/60 text-xs">Host (alias from ~/.ssh/config)</span>
-          <input
-            v-model="host"
-            type="text"
-            placeholder="my-server"
-            class="border-base-300 bg-base-200 text-base-content rounded-md border px-2 py-1.5 text-sm outline-none"
-          />
-        </label>
+      <BaseButton variant="outline" size="sm" class="text-xs" @click="onConfigure"> Configure </BaseButton>
 
-        <label class="flex flex-col gap-1">
-          <span class="text-base-content/60 text-xs">Remote sync folder</span>
-          <input
-            v-model="dir"
-            type="text"
-            placeholder="/home/agent/.local/share/daily/sync"
-            class="border-base-300 bg-base-200 text-base-content rounded-md border px-2 py-1.5 text-sm outline-none"
-          />
-        </label>
-
-        <div class="border-base-300 flex items-center justify-between border-t py-1">
-          <span class="text-base-content/40 text-xs">
-            <template v-if="sshState?.lastError">Last error: {{ sshState.lastError }}</template>
-            <template v-else-if="sshState?.lastSyncAt">Last sync: {{ toLocaleTime(sshState.lastSyncAt) }}</template>
-            <template v-else>Never synced</template>
-          </span>
-
-          <BaseButton variant="ghost" size="sm" class="text-accent hover:bg-accent/10 -mr-1 text-xs" :disabled="!canApply" @click="onApply">
-            Apply
-          </BaseButton>
-        </div>
-      </div>
-    </template>
+      <BaseSwitch :modelValue="isEnabled" @update:modelValue="onToggle" />
+    </div>
   </SettingRow>
 </template>
