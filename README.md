@@ -1,207 +1,188 @@
-# <img src="./src/renderer/public/favicon.svg" width="25" height="25" /> Daily
+<p align="center">
+  <img src="./src/renderer/public/favicon.svg" width="72" alt="Daily logo" />
+</p>
 
-Daily is a local-first, day-centric task manager for macOS with a built-in AI assistant that executes real operations instead of just answering questions.
+<h1 align="center">Daily</h1>
 
-Tasks are organized by date rather than in endless lists, live on a three-column Kanban board, and are written in full Markdown. All data is stored in SQLite on your Mac; iCloud sync is optional. The AI assistant runs an agent loop over the same task operations the UI uses — with local models that run entirely in-app with zero extra setup, or optionally any OpenAI-compatible remote API.
+<p align="center">
+  <strong>Plan the day. Keep the context. Let the assistant do the task work.</strong>
+</p>
 
-[![Latest release](https://img.shields.io/github/v/release/scheron/Daily?label=release)](https://github.com/scheron/Daily/releases)
-[![Downloads](https://img.shields.io/github/downloads/scheron/Daily/total)](https://github.com/scheron/Daily/releases)
-[![License](https://img.shields.io/github/license/scheron/Daily)](./LICENSE)
-[![Platform](https://img.shields.io/badge/platform-macOS-black)](https://github.com/scheron/Daily/releases)
+<p align="center">
+  A local-first, day-first task manager for Apple Silicon Macs.<br />
+  Markdown tasks, SQLite storage, optional sync, a built-in task agent, and a CLI for automation.
+</p>
 
-![Daily Desktop](./media/ui.png)
+<p align="center">
+  <a href="https://github.com/scheron/Daily/releases">Download</a> ·
+  <a href="#custom-task-agent">Task agent</a> ·
+  <a href="#cli-for-automation">CLI</a> ·
+  <a href="#privacy-and-data">Privacy</a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/scheron/Daily/releases">
+    <img src="https://img.shields.io/github/v/release/scheron/Daily?label=release" alt="Latest release" />
+  </a>
+  <a href="https://github.com/scheron/Daily/releases">
+    <img src="https://img.shields.io/github/downloads/scheron/Daily/total" alt="Downloads" />
+  </a>
+  <a href="./LICENSE">
+    <img src="https://img.shields.io/github/license/scheron/Daily" alt="MIT License" />
+  </a>
+  <img src="https://img.shields.io/badge/platform-macOS%20Apple%20Silicon-black" alt="macOS Apple Silicon" />
+</p>
+
+![Daily board, calendar, Markdown task editor, and stats](./media/ui.png)
+
+## How Daily works
+
+### A day-first workspace
+
+Daily is built around a simple question: **what matters today, and what changed since yesterday?**
+
+Tasks belong to days instead of an endless backlog. Plan on a calendar-linked board, move work through **active**, **discarded**, and **done**, and keep notes, code, links, Markdown, and attachments inside the task.
+
+| What you get | How Daily does it |
+| --- | --- |
+| **Day-first planning** | Calendar navigation and drag-and-drop rescheduling |
+| **Context-rich tasks** | Markdown, code blocks, tables, tags, files, estimates, and logged time |
+| **Separate workspaces** | Projects isolate task spaces and let you switch quickly |
+| **Find old work** | Fuzzy full-text search across projects, dates, and task content |
+| **See progress** | Activity history, task timelines, and daily, weekly, and monthly statistics |
+
+### Built for daily task work
+
+- A three-column board for active, discarded, and completed work
+- A Markdown editor with syntax highlighting, live tables, slash commands, and attachments
+- Projects, tags, estimates, time logging, duplicate/copy actions, and soft deletion with recovery
+- Activity history that records meaningful task changes
+- Light, dark, and system appearance modes with configurable accent colors and widgets
+
+## Custom task agent
+
+Daily has its own built-in task-agent runtime. It is not a chat widget connected to a model: Daily runs an agent loop that streams responses, executes registered task tools, preserves conversations, and gates destructive actions behind an explicit confirmation step.
+
+The agent works through Daily's own task, project, tag, time, attachment, and summary operations. It does not claim to control arbitrary apps or files on your Mac.
+
+<p align="center">
+  <img src="./media/ai.png" width="420" alt="Daily AI assistant creating a task through a tool call" />
+</p>
+
+<p align="center">
+  <em>The assistant streams its work and requests confirmation before destructive actions.</em>
+</p>
+
+Ask it to do task work such as:
+
+- “Move unfinished work from today to tomorrow.”
+- “Add 45 minutes to the release-notes task.”
+- “What did I complete this week?”
+- “Create follow-up tasks from these notes.”
+
+### Choose your model
+
+Use a downloadable local model to run inference on your Mac, or connect an OpenAI-compatible provider. Daily manages the local-model runtime and downloads, but local models still require disk space, memory, and an initial download.
+
+## Privacy and data
+
+Task data and conversation history are stored locally in SQLite. Attachments and downloaded local models are regular files on disk. No account is required.
+
+Data leaves your Mac only when you choose a feature that needs it:
+
+- A configured remote AI provider receives the relevant assistant prompts and context.
+- Optional iCloud Drive or SSH sync stores sync snapshots in the remote you configure.
+- Web-page reads are requested by the assistant and require confirmation before the first fetch.
 
 ## Install
 
-Install with Homebrew:
+### Homebrew
 
 ```bash
 brew install --cask scheron/tap/daily
 ```
 
-Or install manually:
+### Manual install
 
-1. Open [Releases](https://github.com/scheron/Daily/releases/latest)
-2. Download the macOS `.dmg` (Apple Silicon)
-3. Move **Daily.app** to **Applications**
+1. Download the Apple Silicon `.dmg` from [Releases](https://github.com/scheron/Daily/releases/latest).
+2. Move **Daily.app** to **Applications**.
+3. Open Daily.
 
-The app checks GitHub Releases and updates itself in place, so you only download once.
+Daily checks GitHub Releases for updates on launch. When an update is available, it can download and install the new app.
 
-Builds are ad-hoc signed, not notarized. If macOS blocks the first launch, run:
+<details>
+<summary>macOS blocks the first launch</summary>
+
+Current builds may need this one-time command:
 
 ```bash
 xattr -rd com.apple.quarantine /Applications/Daily.app
 ```
 
-## CLI
+</details>
 
-Daily ships a standalone command-line companion, published on npm:
+## CLI for automation
+
+Daily ships a command-line companion for working with the same task workspace from a terminal.
 
 ```bash
-npm install -g @scheron/daily-cli   # Node >= 22.5.0, provides the `daily` binary
+npm install -g @scheron/daily-cli
 ```
 
-The desktop `.app` bundles the same launcher too — Homebrew adds it to your `PATH`, and manual `.dmg` installs can enable it from **Settings → General → Command Line**.
-
-Manage tasks, tags, and projects without leaving the terminal:
-
 ```bash
-daily today                              # today's tasks in the active project
-daily tasks                              # list a day (default today)
-daily tasks 2026-07-20 --project Work
+daily today
 daily tasks add "Review PR" --tags focus --estimate 90
-daily tasks done a1b2                    # <id> = full id or a unique prefix
-daily tasks move a1b2 2026-07-20 --time 09:30
-daily tasks log-time a1b2 25
-daily tasks delete a1b2                  # soft delete; --force purges
+daily tasks done a1b2
 daily tasks search "release notes"
-daily tags
 daily projects
 ```
 
-Other task subcommands: `reactivate`, `discard`, `update`, `estimate`, `restore`, `deleted`, plus `tags delete`.
-
-### Built for scripts and agents
-
-Every command accepts `--json` (or set `DAILY_JSON=1` for the session) and prints a stable envelope — `{"ok":true,"data":{…}}` on success, `{"ok":false,"error":{"code","message"}}` on stderr for failures — with predictable exit codes (`0` ok · `2` invalid/ambiguous · `3` not found · `4` refused · `5` sync failed). Run `daily schema --json` once for the full machine-readable contract: every command with its arguments, options, output shapes, error codes, and type definitions. An AI agent can drive Daily entirely from that.
-
-### Direct and node modes
-
-By default the CLI works directly on the installed app's database — a running app watches for CLI edits and refreshes live. Alternatively, run it as a standalone **sync node** with its own database:
+For scripts and agents, commands support `--json`. Run this once for a machine-readable description of commands, arguments, outputs, and error codes:
 
 ```bash
-daily sync enable --dir ~/daily-sync   # switch to node mode
-daily sync status
-daily sync                             # one-shot pull-merge-push (also runs around each command)
-daily sync disable                     # back to direct mode
+daily schema --json
 ```
 
-In node mode the CLI syncs through the configured folder — which the desktop app can push to over SSH — so a headless machine or server stays in sync with your Mac. See [Sync](#sync).
+By default, the CLI can work directly with the installed desktop app's database. It can also run as a standalone sync node with its own database and configured sync folder. See the [CLI documentation](./src/cli/README.md) for all commands and node-mode details.
 
-## What Daily is for
+## Optional sync
 
-- planning around a single question: what did I do yesterday, and what matters today
-- moving tasks through a board (active / discarded / done) instead of maintaining lists
-- writing task content in real Markdown with code, tables, and attachments
-- keeping separate task spaces per project and switching between them instantly
-- tracking where the time goes — estimates, time spent, and activity stats per day
-- delegating routine task operations to an AI assistant that acts, not chats
-- owning the data: plain SQLite on disk, no account, no mandatory cloud
+Daily is fully usable offline. Sync is optional: SQLite remains the local source of truth, while iCloud Drive and SSH remotes carry snapshots that Daily merges locally with a last-write-wins strategy.
 
-## Core ideas
+You can configure more than one remote. An unreachable remote does not block the others.
 
-### Day-first workflow
+## Requirements and limits
 
-Every task belongs to a date. The calendar is the primary navigation surface and shows at a glance which days carry open work; tasks reschedule via drag-and-drop onto a date.
+| Component | Support |
+| --- | --- |
+| Desktop app | macOS on Apple Silicon only |
+| CLI | macOS or Linux, with Node.js 22.5.0 or newer |
+| Local AI models | Download required; available disk space and memory vary by model |
+| Desktop builds for Windows/Linux | Not shipped or tested |
 
-### Local-first storage
+## Development
 
-SQLite on your Mac is the single source of truth. The app is fully functional offline. Sync, when enabled, treats iCloud as a transport — never as the primary store.
+Daily uses Node.js `22.5.0` and pnpm `10.12.1` or newer.
 
-### Action over chat
+```bash
+pnpm install --frozen-lockfile
+pnpm dev
+```
 
-The assistant executes the same operations the UI exposes: creating and editing tasks, changing statuses, managing tags and time, searching by date, summarizing the day. Destructive operations always suspend and ask for explicit confirmation before running.
+Run the full local quality suite before contributing:
 
-## Feature overview
+```bash
+pnpm check:all
+```
 
-### Board and task editor
+Useful commands:
 
-- three-column Kanban board (active / discarded / done) with drag-and-drop reordering and cross-status moves
-- a resizable slide-in editor with property rows: status, date, project, estimate, time spent, tags
-- prev/next navigation between tasks without leaving the editor
-- quick task actions: duplicate, copy ID or content, delete
-- unsaved changes are guarded with a save/discard prompt
-
-### Markdown editor
-
-The editor is CodeMirror-based with live-preview behavior:
-
-- syntax highlighting for fenced code blocks, with a copy button and auto-closing fences
-- Markdown tables render as live, click-to-edit tables
-- slash commands for inserting headings, lists, quotes, checkboxes, and other blocks
-- wrapped list items keep a hanging indent; ordered lists renumber automatically
-- file and image attachments, stored as regular files on disk
-- inline tag commands (`#tag`, `-#tag`) with autocomplete
-
-### Projects
-
-Projects (branches) isolate task spaces, with instant switching, inline project creation, and task moves between projects. Search resolves matches across all projects and switches context automatically.
-
-### Activity history
-
-Every meaningful task change — created, completed, discarded, reactivated, edited, moved, restored, deleted — is recorded in an append-only event log that syncs across devices.
-
-- the Activity widget shows a day-by-day feed of what changed
-- same-day restore for deleted tasks, directly from the feed
-- a per-task timeline of every change
-
-Soft-deleted items past the retention window are cleaned up automatically on app start.
-
-### Search
-
-Fuzzy full-text search across all tasks: tolerates typos, matches on content, and jumps directly to the task's date (switching project if needed).
-
-### Stats
-
-Per-day and per-period statistics are computed in SQL and rendered in the sidebar widget: a resolution ring, a tag-composition ring, weekday and hour histograms, and peak hour / peak weekday / top tag for the period, with a week/month toggle.
-
-### Appearance
-
-- light, dark, or follow-the-system mode with 9 accent color presets
-- configurable sidebar widgets (calendar, stats, activity) with drag-to-reorder
-
-### Sync
-
-Sync is off by default and optional — there is never an account or a server, just a place to drop a snapshot. SQLite stays the source of truth; remotes are merged locally with last-write-wins and a periodic auto-sync.
-
-- **iCloud Drive** — the built-in remote. Snapshots sync through your own iCloud; placeholder files are downloaded before being treated as data.
-- **SSH node** — point Daily at a folder on any SSH-reachable host from **Settings → Remote**. The app pushes snapshots over `ssh`/`scp` using your `~/.ssh/config`, and a `daily` CLI node running against that same folder converges with it — so a server or headless Mac stays in sync.
-
-Multiple remotes work at once: Daily bridges them and tracks each one's status independently, so an unreachable remote never blocks the others.
-
-## AI assistant
-
-The assistant is not a chat bolted onto the app — it is a full agent with tool calling. It runs in its own window and operates on the workspace through the same storage layer as the UI: task CRUD, status updates, date-based search, batch actions, tag/time/attachment management, and day summaries.
-
-<p align="center">
-  <img src="./media/ai.png" width="520" alt="AI Assistant window" />
-</p>
-
-How it works:
-
-- each message runs an agent loop: the model calls tools, observes results, and iterates until done
-- responses stream live, with model reasoning shown in a collapsible timed panel
-- destructive tool calls suspend until explicitly confirmed in the UI
-- conversations persist across app restarts; long histories are compacted automatically
-- a live indicator tracks how full the model's context window is
-- the assistant can read web pages on request: private/internal addresses are blocked, fetched content is treated as untrusted, and the first fetch asks for permission
-
-Typical prompts:
-
-- "Create a task to review the PR tomorrow at 2pm"
-- "I spent 2 hours on the documentation task"
-- "Complete all my work tasks for today"
-- "How's my day going?"
-
-### Models
-
-Both local and remote models are supported, switchable from the same settings screen — and both run the full agent loop.
-
-**Local** — zero-setup and fully offline. No Ollama, LM Studio, or command line required: models are downloaded from a curated in-app catalog and are ready to use immediately — Daily manages its own llama.cpp server with Metal acceleration under the hood. The catalog spans three Qwen3.5 sizes (4B, 9B, and 27B), GLM-4 9B, Mistral Nemo 12B, Llama 3.1 8B, and two reasoning fine-tunes — Qwythos 9B and Ornith 1.0 9B — with Qwen3.5 9B as the recommended default. Downloads are resumable and sha256-verified; idle models unload automatically to free memory (configurable, 15 minutes by default).
-
-**Remote** — any OpenAI-compatible API with your key. Presets for OpenAI and DeepSeek models, or a custom base URL. Models without native function calling (Qwen 3.5-style fine-tunes) are supported through a compatibility mode.
-
-## Data storage and privacy
-
-- all data is stored locally in SQLite
-- attachments are regular files on disk, tracked by the database
-- no account, no telemetry, no mandatory cloud dependency
-- deletes are soft: records are tombstoned, recoverable same-day, and purged after a retention window
-- with sync enabled, data leaves the machine only as snapshots in your own iCloud Drive
-
-## Platform support
-
-macOS (Apple Silicon) only. Electron would allow Windows/Linux builds, but they are not shipped due to limited testing coverage (or I'm just lazy 🤷‍♂️).
+```bash
+pnpm test              # Full Vitest suite
+pnpm typecheck:all     # Main, renderer, shared, and CLI type checks
+pnpm build:compress    # Build without packaging a macOS installer
+pnpm build             # Build and package the macOS app
+```
 
 ## License
 
