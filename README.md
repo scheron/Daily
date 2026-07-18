@@ -35,17 +35,48 @@ xattr -rd com.apple.quarantine /Applications/Daily.app
 
 ## CLI
 
-The app bundle includes a `daily` command-line launcher. Homebrew installs it into
-your `PATH`; manual `.dmg` installs can enable it from **Settings → General →
-Command Line**.
+Daily ships a standalone command-line companion, published on npm:
 
 ```bash
-daily tasks
-daily tasks add "Review PR"
-daily task <id-or-prefix>
+npm install -g @scheron/daily-cli   # Node >= 22.5.0, provides the `daily` binary
+```
+
+The desktop `.app` bundles the same launcher too — Homebrew adds it to your `PATH`, and manual `.dmg` installs can enable it from **Settings → General → Command Line**.
+
+Manage tasks, tags, and projects without leaving the terminal:
+
+```bash
+daily today                              # today's tasks in the active project
+daily tasks                              # list a day (default today)
+daily tasks 2026-07-20 --project Work
+daily tasks add "Review PR" --tags focus --estimate 90
+daily tasks done a1b2                    # <id> = full id or a unique prefix
+daily tasks move a1b2 2026-07-20 --time 09:30
+daily tasks log-time a1b2 25
+daily tasks delete a1b2                  # soft delete; --force purges
+daily tasks search "release notes"
 daily tags
 daily projects
 ```
+
+Other task subcommands: `reactivate`, `discard`, `update`, `estimate`, `restore`, `deleted`, plus `tags delete`.
+
+### Built for scripts and agents
+
+Every command accepts `--json` (or set `DAILY_JSON=1` for the session) and prints a stable envelope — `{"ok":true,"data":{…}}` on success, `{"ok":false,"error":{"code","message"}}` on stderr for failures — with predictable exit codes (`0` ok · `2` invalid/ambiguous · `3` not found · `4` refused · `5` sync failed). Run `daily schema --json` once for the full machine-readable contract: every command with its arguments, options, output shapes, error codes, and type definitions. An AI agent can drive Daily entirely from that.
+
+### Direct and node modes
+
+By default the CLI works directly on the installed app's database — a running app watches for CLI edits and refreshes live. Alternatively, run it as a standalone **sync node** with its own database:
+
+```bash
+daily sync enable --dir ~/daily-sync   # switch to node mode
+daily sync status
+daily sync                             # one-shot pull-merge-push (also runs around each command)
+daily sync disable                     # back to direct mode
+```
+
+In node mode the CLI syncs through the configured folder — which the desktop app can push to over SSH — so a headless machine or server stays in sync with your Mac. See [Sync](#sync).
 
 ## What Daily is for
 
@@ -119,9 +150,14 @@ Per-day and per-period statistics are computed in SQL and rendered in the sideba
 - light, dark, or follow-the-system mode with 9 accent color presets
 - configurable sidebar widgets (calendar, stats, activity) with drag-to-reorder
 
-### iCloud sync
+### Sync
 
-Sync is off by default and optional. When enabled, Daily syncs snapshots through iCloud Drive with last-write-wins merge and a periodic auto-sync. iCloud placeholder files are recognized and downloaded before being treated as data. The app never requires an account or a server.
+Sync is off by default and optional — there is never an account or a server, just a place to drop a snapshot. SQLite stays the source of truth; remotes are merged locally with last-write-wins and a periodic auto-sync.
+
+- **iCloud Drive** — the built-in remote. Snapshots sync through your own iCloud; placeholder files are downloaded before being treated as data.
+- **SSH node** — point Daily at a folder on any SSH-reachable host from **Settings → Remote**. The app pushes snapshots over `ssh`/`scp` using your `~/.ssh/config`, and a `daily` CLI node running against that same folder converges with it — so a server or headless Mac stays in sync.
+
+Multiple remotes work at once: Daily bridges them and tracks each one's status independently, so an unreachable remote never blocks the others.
 
 ## AI assistant
 
@@ -151,7 +187,7 @@ Typical prompts:
 
 Both local and remote models are supported, switchable from the same settings screen — and both run the full agent loop.
 
-**Local** — zero-setup and fully offline. No Ollama, LM Studio, or command line required: models are downloaded from a curated in-app catalog and are ready to use immediately — Daily manages its own llama.cpp server with Metal acceleration under the hood. The catalog includes the Qwen3.5 family, GLM-4 9B, Mistral Nemo 12B, and Llama 3.1 8B. Downloads are resumable and sha256-verified; idle models unload automatically to free memory (configurable, 15 minutes by default).
+**Local** — zero-setup and fully offline. No Ollama, LM Studio, or command line required: models are downloaded from a curated in-app catalog and are ready to use immediately — Daily manages its own llama.cpp server with Metal acceleration under the hood. The catalog spans three Qwen3.5 sizes (4B, 9B, and 27B), GLM-4 9B, Mistral Nemo 12B, Llama 3.1 8B, and two reasoning fine-tunes — Qwythos 9B and Ornith 1.0 9B — with Qwen3.5 9B as the recommended default. Downloads are resumable and sha256-verified; idle models unload automatically to free memory (configurable, 15 minutes by default).
 
 **Remote** — any OpenAI-compatible API with your key. Presets for OpenAI and DeepSeek models, or a custom base URL. Models without native function calling (Qwen 3.5-style fine-tunes) are supported through a compatibility mode.
 
