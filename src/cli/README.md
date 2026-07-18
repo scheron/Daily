@@ -62,7 +62,32 @@ daily sync                             # one-shot pull-merge-push
 daily sync disable                     # back to direct mode
 ```
 
-In node mode the CLI pulls before and pushes after every mutating command (skip with `--no-sync`). The desktop Daily app can push snapshots to that same folder over SSH (**Settings → Remote**), so a server running this CLI stays in sync with your Mac.
+In node mode the CLI pulls before and pushes after every mutating command (skip with `--no-sync`). The desktop Daily app can sync with that same folder over SSH (**Settings → Remote**), so a server running this CLI stays in sync with your Mac.
+
+## How it works
+
+The desktop app and a CLI node are equal sync peers. Each keeps a local SQLite database and exchanges an atomic snapshot through the configured folder; the folder is storage, not a server or a process that must stay running.
+
+```mermaid
+flowchart LR
+  app["Daily app (Mac)<br/>local SQLite"]
+  folder[("SSH sync folder<br/>atomic snapshots")]
+  node["daily CLI node (server)<br/>local SQLite"]
+
+  app -->|syncs changes| folder
+  folder -->|pulls and merges| node
+  node -->|pushes merged snapshot| folder
+  folder -->|syncs and merges| app
+```
+
+1. The app syncs its local changes to the configured SSH folder.
+2. Before a node command, the CLI reads that snapshot and merges it into its own database.
+3. After a node command changes data, the CLI writes the merged snapshot back to the folder.
+4. On its next sync, the app reads and merges the node's changes.
+
+This communication is **bidirectional**: create or edit tasks, tags, and projects from either the app or the CLI node. Sync is local-first and uses Last Write Wins when the same record changed on both sides; the newest `updated_at` value wins. You can run `daily sync` at any time to perform a one-shot merge and push without making a change.
+
+The CLI never opens a connection to the app directly. It only needs access to the shared sync folder; the app needs SSH access to that same folder.
 
 Config lives at `~/.config/daily/config.json`.
 
