@@ -34,7 +34,7 @@ JSON output:
 
 Process behavior:
   Mutations apply immediately with no prompt. Irreversible removal needs --force.
-  Exit codes: 0 ok · 1 usage · 2 invalid/ambiguous · 3 not found · 4 refused.
+  Exit codes: 0 ok · 1 usage · 2 invalid/ambiguous · 3 not found · 4 refused · 5 sync failed.
 
 Examples:
   daily tasks                       daily tasks add "Review PR"

@@ -43,6 +43,7 @@ export function buildCliSchema(program: Command) {
       "2": "invalid or ambiguous input",
       "3": "task or project not found",
       "4": "mutation refused",
+      "5": "sync failed",
     },
     errorCodes: listCliErrorCodes(),
     types: SCHEMA_TYPES,
