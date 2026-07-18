@@ -20,10 +20,11 @@ export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: Snapsh
   const mergedSettings = mergeSettings(localDocs.settings, remoteDocs.settings, strategy)
   const {result: mergedEvents, added: addedEvents} = mergeAppendOnly(localDocs.events, remoteDocs.events)
 
-  const gcBranchSet = new Set(gcBranches)
-  const tasksAfterBranchGc =
-    gcBranches.length > 0 ? mergedTasks.map((t) => (gcBranchSet.has(t.branch_id) ? {...t, branch_id: "main"} : t)) : mergedTasks
-  const branchGcTouchesTasks = gcBranches.length > 0 && mergedTasks.some((t) => gcBranchSet.has(t.branch_id))
+  const survivingBranchIds = new Set(mergedBranches.map((b) => b.id))
+  const branchReassignTouchesTasks = mergedTasks.some((t) => !survivingBranchIds.has(t.branch_id))
+  const tasksAfterBranchGc = branchReassignTouchesTasks
+    ? mergedTasks.map((t) => (survivingBranchIds.has(t.branch_id) ? t : {...t, branch_id: "main"}))
+    : mergedTasks
 
   const resultDocs: SnapshotDocs = {
     tasks: tasksAfterBranchGc,
@@ -43,7 +44,7 @@ export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: Snapsh
     settings: null,
   }
 
-  if (hasChanges(localDocs.tasks, tasksAfterBranchGc) || gcTasks.length || branchGcTouchesTasks) {
+  if (hasChanges(localDocs.tasks, tasksAfterBranchGc) || gcTasks.length || branchReassignTouchesTasks) {
     toUpsert.tasks = tasksAfterBranchGc
     if (gcTasks.length) toRemove.tasks = gcTasks
     changes += tasksAfterBranchGc.length + gcTasks.length
