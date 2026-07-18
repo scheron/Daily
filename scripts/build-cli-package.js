@@ -27,6 +27,8 @@ for (const name of [...bareImports].sort()) {
 rmSync(outDir, {recursive: true, force: true})
 mkdirSync(outDir, {recursive: true})
 copyFileSync(bundlePath, join(outDir, "index.js"))
+copyFileSync(join(root, "src", "cli", "README.md"), join(outDir, "README.md"))
+copyFileSync(join(root, "LICENSE"), join(outDir, "LICENSE"))
 
 const pkg = {
   name: "@scheron/daily-cli",
