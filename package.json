@@ -22,7 +22,10 @@
     "npm": ">=10.9.2",
     "pnpm": ">=10.12.1"
   },
-  "repository": "https://github.com/scheron/release-electron",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/scheron/Daily.git"
+  },
   "author": {
     "name": "Scheron",
     "url": "https://github.com/scheron"
