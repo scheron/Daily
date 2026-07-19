@@ -58,6 +58,7 @@ daily schema --json
 ```bash
 daily sync enable --dir ~/daily-sync   # switch to node mode
 daily sync status                      # mode, folder, snapshot info
+daily sync doctor                      # read-only node-folder diagnostics
 daily sync                             # one-shot pull-merge-push
 daily sync disable                     # back to direct mode
 ```
