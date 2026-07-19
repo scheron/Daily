@@ -9,7 +9,8 @@ import {addHelpDetails} from "../help"
 import {readOptions} from "../options"
 import {renderJsonOk} from "../output"
 import {createNodeSyncEngine, runCliCoreCommand} from "../runtime"
-import {SYNC_DISABLE_HELP, SYNC_ENABLE_HELP, SYNC_HELP, SYNC_STATUS_HELP} from "./sync.help"
+import {runSyncDoctor} from "./sync.doctor"
+import {SYNC_DISABLE_HELP, SYNC_DOCTOR_HELP, SYNC_ENABLE_HELP, SYNC_HELP, SYNC_STATUS_HELP} from "./sync.help"
 
 import type {Command} from "commander"
 
@@ -39,6 +40,11 @@ export function registerSyncCommands(program: Command): void {
     sync.command("status").description("Show sync mode, folder, and snapshot info").option("--json", "output stable JSON"),
     SYNC_STATUS_HELP,
   ).action((opts, command) => runSyncStatus(readOptions(opts, command)))
+
+  addHelpDetails(
+    sync.command("doctor").description("Diagnose node sync-folder configuration without changing data").option("--json", "output stable JSON"),
+    SYNC_DOCTOR_HELP,
+  ).action((opts, command) => runSyncDoctor(readOptions(opts, command)))
 }
 
 function runSyncNow(opts: SyncOptions): Promise<void> {

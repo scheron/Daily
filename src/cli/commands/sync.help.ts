@@ -3,9 +3,11 @@ import type {CommandHelp} from "../help"
 export const SYNC_HELP: CommandHelp = {
   output: '{"synced":true,"dir":string}',
   details: `
-One-shot sync of the node database with the configured sync folder
-(pull-merge, then push if anything differs). Requires node mode — run
-"daily sync enable" first; direct mode (app database on this Mac) exits 2.
+One-shot sync of the node database with the configured sync folder:
+merge remote and local snapshots, then conditionally push the merged result.
+"pull" selects the remote record when updated_at values are equal; it is not a
+one-way transfer. Requires node mode — run "daily sync enable" first; direct
+mode (app database on this Mac) exits 2.
 A failed sync exits 5 so agents and cron can react.
 JSON: {"ok":true,"data":{"synced":true,"dir":string}}.
 
@@ -45,5 +47,19 @@ meta if one exists. Never mutates anything.
 
   daily sync status
   daily sync status --json
+`,
+}
+
+export const SYNC_DOCTOR_HELP: CommandHelp = {
+  output: '{"healthy":boolean,"mode":"direct"|"node",...}',
+  details: `
+Reads the active CLI configuration and, in node mode, checks the configured
+folder and snapshot without writing to the database, snapshot, config, or
+assets. Reports a blocking problem with exit code 5. Normal sync always merges
+both sides and conditionally pushes the merged snapshot; "pull" only chooses
+the remote record when timestamps are equal.
+
+  daily sync doctor
+  daily sync doctor --json
 `,
 }

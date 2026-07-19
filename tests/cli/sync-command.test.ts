@@ -4,6 +4,7 @@ import {join} from "node:path"
 import fs from "fs-extra"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
+import {inspectSync} from "@cli/commands/sync.doctor"
 import {loadCliConfig, saveCliConfig} from "@cli/config"
 import {buildProgram} from "@cli/index"
 
@@ -96,4 +97,77 @@ describe("daily sync commands", () => {
     expect(parsed.data.dir).toBe(syncDir)
     expect(parsed.data.snapshot).not.toBeNull()
   })
+
+  it("sync doctor explains direct mode without a node snapshot", async () => {
+    await runDaily(["sync", "doctor", "--json"])
+
+    const parsed = readJsonOutput(logSpy)
+    expect(parsed.data).toMatchObject({healthy: true, mode: "direct", snapshot: null})
+  })
+
+  it("sync doctor reports a valid node snapshot without changing it", async () => {
+    const syncDir = join(home, "sync")
+    const snapshotPath = join(syncDir, "snapshot.json")
+    const snapshot = {
+      version: 3,
+      meta: {hash: "snapshot-hash", updatedAt: "2026-07-19T00:00:00.000Z"},
+      docs: {branches: [], events: [], files: [], settings: null, tags: [], tasks: []},
+    }
+    saveCliConfig({sync: {dir: syncDir}})
+    await fs.outputJson(snapshotPath, snapshot)
+    const before = await fs.readFile(snapshotPath, "utf-8")
+
+    await runDaily(["sync", "doctor", "--json"])
+
+    expect(readJsonOutput(logSpy).data).toMatchObject({
+      healthy: true,
+      mode: "node",
+      folder: {path: syncDir, status: "accessible"},
+      snapshot: {counts: {branches: 0, files: 0, tags: 0, tasks: 0}, hash: "snapshot-hash", status: "valid", version: 3},
+    })
+    expect(await fs.readFile(snapshotPath, "utf-8")).toBe(before)
+  })
+
+  it("sync doctor reports invalid and newer snapshots", async () => {
+    const syncDir = join(home, "sync")
+    const snapshotPath = join(syncDir, "snapshot.json")
+    saveCliConfig({sync: {dir: syncDir}})
+
+    await fs.outputFile(snapshotPath, "not json")
+    await expect(inspectSync()).resolves.toMatchObject({
+      healthy: false,
+      snapshot: {path: snapshotPath, status: "invalid-json"},
+    })
+
+    await fs.outputJson(snapshotPath, {version: 4})
+    await expect(inspectSync()).resolves.toMatchObject({
+      healthy: false,
+      snapshot: {path: snapshotPath, status: "unsupported-version", version: 4},
+    })
+  })
+
+  it("sync doctor reports a missing node folder and exits non-zero", async () => {
+    const syncDir = join(home, "missing-sync")
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation((() => {
+      throw new Error("exit called")
+    }) as never)
+    saveCliConfig({sync: {dir: syncDir}})
+
+    await expect(runDaily(["sync", "doctor", "--json"])).rejects.toThrow("exit called")
+
+    expect(readJsonOutput(logSpy).data).toMatchObject({
+      healthy: false,
+      mode: "node",
+      folder: {path: syncDir, status: "missing"},
+      snapshot: null,
+    })
+    expect(await fs.pathExists(syncDir)).toBe(false)
+    expect(exitSpy).toHaveBeenCalledWith(5)
+    exitSpy.mockRestore()
+  })
 })
+
+function readJsonOutput(logSpy: ReturnType<typeof vi.spyOn>): {data: unknown} {
+  const jsonLine = logSpy.mock.calls.flat().find((line) => typeof line === "string" && line.startsWith("{"))
+  return JSON.parse(jsonLine as string) as {data: unknown}
+}
