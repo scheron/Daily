@@ -73,9 +73,6 @@ importers:
       "@isaacs/ttlcache":
         specifier: ^2.1.5
         version: 2.1.5
-      "@lezer/common":
-        specifier: ^1.5.1
-        version: 1.5.1
       "@lezer/highlight":
         specifier: ^1.2.3
         version: 1.2.3
@@ -167,6 +164,9 @@ importers:
       "@ianvs/prettier-plugin-sort-imports":
         specifier: ^4.4.2
         version: 4.7.1(@vue/compiler-sfc@3.5.27)(prettier@3.8.1)
+      "@lezer/common":
+        specifier: ^1.5.1
+        version: 1.5.1
       "@tailwindcss/vite":
         specifier: ^4.1.8
         version: 4.1.18(vite@6.4.1(@types/node@22.19.8)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.46.0)(yaml@2.8.2))
