@@ -32,7 +32,8 @@ describe("isValidSnapshot", () => {
 
   it("returns false for unsupported versions", () => {
     expect(isValidSnapshot({...validSnapshot(), version: 1})).toBe(false)
-    expect(isValidSnapshot({...validSnapshot(), version: 4})).toBe(false)
+    expect(isValidSnapshot({...validSnapshot(), version: 4})).toBe(true)
+    expect(isValidSnapshot({...validSnapshot(), version: 5})).toBe(false)
   })
 
   it("returns false when docs missing", () => {

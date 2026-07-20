@@ -204,10 +204,14 @@ export class SyncEngine {
    * Normalize settings from old snapshot format where `data` was a JSON string.
    */
   private _normalizeSettings(docs: SnapshotDocs): SnapshotDocs {
-    if (docs.settings && "data" in docs.settings && isString((docs.settings as any).data)) {
-      const {id, data, created_at, updated_at} = docs.settings as any
-      const parsed = JSON.parse(data)
-      docs.settings = {id, ...parsed, created_at, updated_at}
+    if (docs.settings) {
+      let settings: any = docs.settings
+      if ("data" in settings && isString(settings.data)) {
+        const {id, data, created_at, updated_at} = settings
+        settings = {id, ...JSON.parse(data), created_at, updated_at}
+      }
+      const {sync: _localSync, ...syncable} = settings
+      docs.settings = syncable
     }
     return docs
   }

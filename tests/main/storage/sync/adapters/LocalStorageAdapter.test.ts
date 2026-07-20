@@ -107,6 +107,12 @@ describe("LocalStorageAdapter", () => {
       expect(docs.settings.themes.current).toBe("dark")
     })
 
+    it("excludes legacy local sync settings from snapshot docs", async () => {
+      insertSettings(db, {sync: {enabled: true, ssh: {enabled: true, host: "host", dir: "/remote"}}})
+      const docs = await adapter.loadAllDocs()
+      expect(docs.settings).not.toHaveProperty("sync")
+    })
+
     it("includes soft-deleted records (deleted_at IS NOT NULL)", async () => {
       insertTask(db, "t1", "Deleted task", {deletedAt: now})
 

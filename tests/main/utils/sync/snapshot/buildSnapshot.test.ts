@@ -42,9 +42,9 @@ function makeTag(id, overrides = {}) {
 }
 
 describe("buildSnapshot", () => {
-  it("creates snapshot with version 3", () => {
+  it("creates snapshot with version 4", () => {
     const snapshot = buildSnapshot(emptyDocs())
-    expect(snapshot.version).toBe(3)
+    expect(snapshot.version).toBe(4)
   })
 
   it("includes docs and meta", () => {

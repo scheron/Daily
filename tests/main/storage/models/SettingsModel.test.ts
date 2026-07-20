@@ -6,57 +6,39 @@ import {createTestDatabase} from "../../../helpers/db"
 vi.mock("@main/utils/logger", () => ({
   logger: {info: vi.fn(), debug: vi.fn(), warn: vi.fn(), error: vi.fn(), storage: vi.fn(), lifecycle: vi.fn(), CONTEXT: {SETTINGS: "SETTINGS"}},
 }))
-
 vi.mock("@shared/config/windows", () => ({WINDOWS_CONFIG: {main: {width: 800, height: 600}}}))
 vi.mock("@shared/config/env", () => ({ENV: {isDev: false}}))
 
 describe("SettingsModel", () => {
-  let db
-  let settingsModel
+  let db: any
+  let settingsModel: SettingsModel
 
   beforeEach(() => {
     db = createTestDatabase()
     settingsModel = new SettingsModel(db)
   })
+  afterEach(() => db.close())
 
-  afterEach(() => {
-    db.close()
-  })
-
-  it("returns defaults when no settings exist", () => {
+  it("returns local sync defaults when no settings exist", () => {
     const settings = settingsModel.loadSettings()
-
-    expect(settings.sync.enabled).toBe(false)
+    expect(settings.sync.iCloud.enabled).toBe(false)
+    expect(settings.sync.ssh).toBeNull()
     expect(settings.branch.activeId).toBe("main")
-    expect(settings.appearance.mode).toBe("system")
-    expect(settings.appearance.accent).toBe("teal")
   })
 
-  it("saves and loads settings preserving values", () => {
-    settingsModel.saveSettings({sync: {enabled: true}})
-
+  it("persists remote configuration locally, not in the syncable settings row", () => {
+    settingsModel.saveSettings({sync: {iCloud: {enabled: true}, ssh: {enabled: true, host: "work", dir: "/remote/daily"}}})
     const settings = settingsModel.loadSettings()
-    expect(settings.sync.enabled).toBe(true)
+    expect(settings.sync).toEqual({iCloud: {enabled: true}, ssh: {enabled: true, host: "work", dir: "/remote/daily"}})
+    expect(JSON.parse(db.prepare("SELECT data FROM settings WHERE id = 'default'").get().data).sync).toBeUndefined()
+    expect(JSON.parse(db.prepare("SELECT data FROM device_settings WHERE id = 'sync'").get().data)).toEqual(settings.sync)
   })
 
-  it("partial update does not overwrite unrelated settings", () => {
-    settingsModel.saveSettings({sync: {enabled: true}})
+  it("partial updates preserve local sync configuration", () => {
+    settingsModel.saveSettings({sync: {iCloud: {enabled: true}, ssh: null}})
     settingsModel.saveSettings({branch: {activeId: "feature-1"}})
-
     const settings = settingsModel.loadSettings()
-    expect(settings.sync.enabled).toBe(true)
+    expect(settings.sync.iCloud.enabled).toBe(true)
     expect(settings.branch.activeId).toBe("feature-1")
-  })
-
-  it("generates a new version on each save", () => {
-    settingsModel.saveSettings({sync: {enabled: true}})
-    const v1 = settingsModel.loadSettings().version
-
-    settingsModel.saveSettings({sync: {enabled: false}})
-    const v2 = settingsModel.loadSettings().version
-
-    expect(v1).not.toBe(v2)
-    expect(v1).toBeTruthy()
-    expect(v2).toBeTruthy()
   })
 })

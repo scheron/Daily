@@ -8,7 +8,7 @@ export type SnapshotMeta = {
 }
 
 export type Snapshot = {
-  version: 2 | 3
+  version: 2 | 3 | 4
   docs: SnapshotDocs
   meta: SnapshotMeta
 }
@@ -79,7 +79,7 @@ export type SnapshotFile = {
   deleted_at: string | null
 }
 
-export type SnapshotSettings = Settings & {
+export type SnapshotSettings = Omit<Settings, "sync"> & {
   id: string
   created_at: string
   updated_at: string

@@ -65,7 +65,7 @@ describe("FolderRemoteAdapter", () => {
   })
 
   it("throws SnapshotVersionAheadError on a snapshot from a newer schema", async () => {
-    await fs.writeFile(join(dir, "snapshot.json"), JSON.stringify({version: 4, docs: {}, meta: {updatedAt: "x", hash: "y"}}), "utf-8")
+    await fs.writeFile(join(dir, "snapshot.json"), JSON.stringify({version: 5, docs: {}, meta: {updatedAt: "x", hash: "y"}}), "utf-8")
     await expect(adapter.loadSnapshot()).rejects.toThrow(SnapshotVersionAheadError)
   })
 

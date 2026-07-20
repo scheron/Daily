@@ -215,8 +215,9 @@ describe("migrations", () => {
       const db = new Database(":memory:")
       runMigrations(db)
 
-      rollbackLastMigration(db)
-      const rolledBack = rollbackLastMigration(db)
+      rollbackLastMigration(db) // v008
+      rollbackLastMigration(db) // v007
+      const rolledBack = rollbackLastMigration(db) // v006
 
       expect(rolledBack).toBe(6)
       expect(usageColumns(db)).toHaveLength(0)

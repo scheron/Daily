@@ -218,7 +218,7 @@ export class LocalModelService implements ILocalModelService {
 
   private async cleanupOrphanedModels(): Promise<void> {
     const knownPartials = new Set(this.catalog.map((entry) => `${entry.ggufFilename}.download`))
-    const files = await fs.readdir(this.modelsDir)
+    const files = (await fs.readdir(this.modelsDir)) as string[]
     const orphanPartials = files.filter((file) => file.toLowerCase().endsWith(".download") && !knownPartials.has(file))
     await forEachParallel(orphanPartials, async (file) => {
       await fs.remove(path.join(this.modelsDir, file))

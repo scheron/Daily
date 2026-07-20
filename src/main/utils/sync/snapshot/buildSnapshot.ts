@@ -4,7 +4,7 @@ import type {Snapshot, SnapshotDocs, SnapshotMeta, SnapshotSettings} from "@/typ
 
 export function buildSnapshot(docs: SnapshotDocs): Snapshot {
   return {
-    version: 3,
+    version: 4,
     docs,
     meta: buildSnapshotMeta(docs),
   }
