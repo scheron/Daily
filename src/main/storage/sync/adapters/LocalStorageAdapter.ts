@@ -135,7 +135,7 @@ export class LocalStorageAdapter implements ILocalStorage {
       }
 
       if (docs.settings) {
-        const {id, created_at, updated_at, ...data} = docs.settings
+        const {id, created_at, updated_at, sync: _localSync, ...data} = docs.settings as SnapshotSettings & {sync?: unknown}
         this.db
           .prepare(
             `
@@ -297,7 +297,7 @@ export class LocalStorageAdapter implements ILocalStorage {
   private _loadSettings(): SnapshotSettings | null {
     const row = this.db.prepare(`SELECT * FROM settings WHERE id = 'default'`).get() as any
     if (!row) return null
-    const data = JSON.parse(row.data)
+    const {sync: _localSync, ...data} = JSON.parse(row.data)
     return {
       id: row.id,
       ...data,

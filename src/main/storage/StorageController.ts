@@ -77,8 +77,8 @@ export class StorageController implements IStorageController {
       },
     })
 
-    if (settings.sync.enabled) {
-      logger.info(logger.CONTEXT.STORAGE, "Auto-sync was enabled, restoring")
+    if (this.hasEnabledRemote(settings)) {
+      logger.info(logger.CONTEXT.STORAGE, "A local sync remote is enabled, restoring auto-sync")
       this.syncEngine.enableAutoSync()
     }
 
@@ -101,14 +101,14 @@ export class StorageController implements IStorageController {
   async activateSync() {
     logger.info(logger.CONTEXT.STORAGE, "Activating sync")
     const settings = await this.loadSettings()
-    await this.saveSettings({sync: {...settings.sync, enabled: true}})
+    await this.saveSettings({sync: {...settings.sync, iCloud: {enabled: true}}})
     this.syncEngine.enableAutoSync()
   }
 
   async deactivateSync() {
     logger.info(logger.CONTEXT.STORAGE, "Deactivating sync")
     const settings = await this.loadSettings()
-    await this.saveSettings({sync: {...settings.sync, enabled: false}})
+    await this.saveSettings({sync: {...settings.sync, iCloud: {enabled: false}}})
     this.syncEngine.disableAutoSync()
   }
 
@@ -142,6 +142,8 @@ export class StorageController implements IStorageController {
     if (newSettings.sync) {
       const settings = await this.loadSettings()
       this.syncEngine.setRemotes(this.buildRemotes(settings))
+      if (this.hasEnabledRemote(settings)) this.syncEngine.enableAutoSync()
+      else this.syncEngine.disableAutoSync()
     }
     this.notifySettingsChange?.()
   }
@@ -467,7 +469,10 @@ export class StorageController implements IStorageController {
   //#endregion
 
   private buildRemotes(settings: Settings): SyncRemote[] {
-    const remotes: SyncRemote[] = [{id: "icloud", label: "iCloud", adapter: new ICloudRemoteAdapter(electronPaths.remoteSyncPath())}]
+    const remotes: SyncRemote[] = []
+    if (settings.sync.iCloud.enabled) {
+      remotes.push({id: "icloud", label: "iCloud", adapter: new ICloudRemoteAdapter(electronPaths.remoteSyncPath())})
+    }
 
     const ssh = settings.sync.ssh
     if (ssh?.enabled && ssh.host && ssh.dir) {
@@ -475,5 +480,9 @@ export class StorageController implements IStorageController {
     }
 
     return remotes
+  }
+
+  private hasEnabledRemote(settings: Settings): boolean {
+    return settings.sync.iCloud.enabled || Boolean(settings.sync.ssh?.enabled && settings.sync.ssh.host && settings.sync.ssh.dir)
   }
 }

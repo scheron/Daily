@@ -1,7 +1,7 @@
 import {SnapshotVersionAheadError} from "@shared/errors/sync/SnapshotVersionAheadError"
 import {isObject} from "@shared/utils/common/validators"
 
-export const KNOWN_SNAPSHOT_VERSION = 3
+export const KNOWN_SNAPSHOT_VERSION = 4
 
 /**
  * Aborts syncing when a parsed snapshot claims a schema version newer than this

@@ -48,6 +48,17 @@ export type SshSyncSettings = {
   dir: string
 }
 
+/**
+ * Remote configuration belongs to this device only. It persists locally but is
+ * deliberately excluded from sync snapshots.
+ */
+export type LocalSyncSettings = {
+  iCloud: {
+    enabled: boolean
+  }
+  ssh: SshSyncSettings | null
+}
+
 export type Settings = {
   version: string
   appearance: {
@@ -55,10 +66,7 @@ export type Settings = {
     accent: string
     base: string
   }
-  sync: {
-    enabled: boolean
-    ssh: SshSyncSettings | null
-  }
+  sync: LocalSyncSettings
   ai: AIConfig | null
   branch: {
     activeId: Branch["id"]

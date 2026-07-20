@@ -15,7 +15,7 @@ const storageStore = useStorageStore()
 const settingsStore = useSettingsStore()
 
 const isSyncing = computed(() => storageStore.status === "syncing")
-const isICloudEnabled = computed(() => ["active", "syncing"].includes(storageStore.status))
+const isICloudEnabled = computed(() => settingsStore.settings?.sync.iCloud.enabled ?? false)
 const isSshEnabled = computed(() => settingsStore.settings?.sync?.ssh?.enabled ?? false)
 const isAnyEnabled = computed(() => isICloudEnabled.value || isSshEnabled.value)
 
