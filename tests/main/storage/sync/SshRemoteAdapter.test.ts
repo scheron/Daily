@@ -68,7 +68,7 @@ describe("SshRemoteAdapter", () => {
   })
 
   it("loadSnapshot throws SnapshotVersionAheadError on a newer schema", async () => {
-    const {run} = makeRunner(() => ok(JSON.stringify({version: 4, docs: {}, meta: {updatedAt: "x", hash: "y"}})))
+    const {run} = makeRunner(() => ok(JSON.stringify({version: 5, docs: {}, meta: {updatedAt: "x", hash: "y"}})))
     await expect(new SshRemoteAdapter(config, run).loadSnapshot()).rejects.toThrow(SnapshotVersionAheadError)
   })
 

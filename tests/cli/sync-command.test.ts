@@ -139,10 +139,10 @@ describe("daily sync commands", () => {
       snapshot: {path: snapshotPath, status: "invalid-json"},
     })
 
-    await fs.outputJson(snapshotPath, {version: 4})
+    await fs.outputJson(snapshotPath, {version: 5})
     await expect(inspectSync()).resolves.toMatchObject({
       healthy: false,
-      snapshot: {path: snapshotPath, status: "unsupported-version", version: 4},
+      snapshot: {path: snapshotPath, status: "unsupported-version", version: 5},
     })
   })
 
