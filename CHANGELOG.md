@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.17.3 - 2026-07-20
+
+### ✨ New Features
+
+- **CLI sync doctor** — the `daily` CLI gains a `sync doctor` command that inspects the sync setup without changing anything: whether the sync folder is reachable, whether the snapshot is valid, its version, and how many tasks, tags, branches, and files it holds. Exits non-zero on a blocking problem so scripts and cron can react, and `--json` emits a machine-readable report.
+
+### 🎨 Improvements
+
+- **Task IDs** — a short task ID now shows on each board card and in the task editor's details, so a specific task is easy to reference.
+- **Sync** — each device now keeps its own remote configuration (iCloud on/off, SSH host and folder) locally instead of carrying it in the synced data, so setting up a remote on one Mac no longer overwrites another device's sync settings.
+
+---
+
 ## v0.17.2 - 2026-07-18
 
 ### 🎨 Improvements
