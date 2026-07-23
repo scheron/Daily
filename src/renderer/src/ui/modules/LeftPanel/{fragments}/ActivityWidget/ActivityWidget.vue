@@ -40,9 +40,10 @@ function canOpen(event: TaskEvent): boolean {
 
         <p class="flex min-w-0 flex-1 flex-wrap items-center gap-1 text-xs leading-snug">
           <span>{{ TASK_EVENT_META[event.type].verb }}</span>
-          <ActivityTaskPreview v-if="canOpen(event)" :task-id="event.taskId" @open="openTask(event)">
+          <ActivityTaskPreview :task-id="event.taskId" :is-deleted="!canOpen(event)" @open="openTask(event)">
             <template #trigger="{show, cancel, open}">
               <BaseButton
+                v-if="canOpen(event)"
                 variant="link"
                 size="sm"
                 class="inline-flex flex-row-reverse items-center gap-0.5 p-0 text-xs"
@@ -52,10 +53,10 @@ function canOpen(event: TaskEvent): boolean {
               >
                 {{ toTaskIdHash(event.taskId) }}
               </BaseButton>
+
+              <span v-else class="text-base-content/60" @mouseenter="show" @mouseleave="cancel">{{ toTaskIdHash(event.taskId) }}</span>
             </template>
           </ActivityTaskPreview>
-
-          <span v-else class="text-base-content/60">{{ toTaskIdHash(event.taskId) }}</span>
 
           <template v-if="event.type === 'moved' && moveDay(event)">
             <span class="text-base-content/60"> {{ movePreposition(event) }} </span>

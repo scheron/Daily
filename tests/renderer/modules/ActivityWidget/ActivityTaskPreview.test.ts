@@ -66,9 +66,9 @@ describe("ActivityTaskPreview", () => {
   })
   afterEach(() => vi.useRealTimers())
 
-  function mountPreview() {
+  function mountPreview(props: {isDeleted?: boolean} = {}) {
     return mount(ActivityTaskPreview, {
-      props: {taskId: "task-1"},
+      props: {taskId: "task-1", ...props},
       slots: {
         trigger: ({show, cancel, open}: {show: () => void; cancel: () => void; open: () => void}) =>
           h("button", {onMouseenter: show, onMouseleave: cancel, onClick: open}, "#task-1"),
@@ -97,7 +97,7 @@ describe("ActivityTaskPreview", () => {
     expect(wrapper.emitted("open")).toHaveLength(1)
   })
 
-  it("does not render a preview card for a deleted task", async () => {
+  it("shows a deleted-task tooltip for soft-deleted tasks", async () => {
     vi.mocked(API.getTask).mockResolvedValue(makeTask({deletedAt: "2026-07-23T10:00:00.000Z"}))
     const wrapper = mountPreview()
 
@@ -107,7 +107,17 @@ describe("ActivityTaskPreview", () => {
 
     expect(API.getTask).toHaveBeenCalledWith("task-1")
     expect(wrapper.find("[data-task-preview-card]").exists()).toBe(false)
-    expect(wrapper.find("[data-popup]").exists()).toBe(false)
+    expect(wrapper.find("[data-popup]").text()).toContain("Task deleted")
+  })
+
+  it("shows a deleted-task tooltip without loading a deleted activity event", async () => {
+    const wrapper = mountPreview({isDeleted: true})
+
+    await wrapper.get("button").trigger("mouseenter")
+    await flushPromises()
+
+    expect(API.getTask).not.toHaveBeenCalled()
+    expect(wrapper.find("[data-popup]").text()).toContain("Task deleted")
   })
 
   it("cancels a pending request when another task link is hovered", async () => {
