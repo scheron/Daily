@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import {ref} from "vue"
+import {computed, ref} from "vue"
 
+import BaseIcon from "@/ui/base/BaseIcon"
 import BasePopup from "@/ui/base/BasePopup.vue"
 
 import {API} from "@/api"
@@ -20,6 +21,9 @@ const emit = defineEmits<{open: []}>()
 
 const task = ref<Task | null>(null)
 const message = ref<string | null>(null)
+const popupContainerClass = computed(() =>
+  task.value ? "w-80 max-h-[min(24rem,calc(100vh-2rem))] overflow-hidden p-0" : "w-fit min-w-0 max-w-52 overflow-hidden rounded-xl p-0",
+)
 const {start, cancel, finish, waitForHover} = useHoverAbortController()
 
 async function showTask(show: () => void) {
@@ -55,14 +59,20 @@ async function showTask(show: () => void) {
 </script>
 
 <template>
-  <BasePopup hover-mode hide-header container-class="w-80 max-h-[min(24rem,calc(100vh-2rem))] overflow-hidden p-0" content-class="block">
+  <BasePopup hover-mode hide-header :container-class="popupContainerClass" content-class="block">
     <template #trigger="{show}">
       <slot name="trigger" :show="showTask.bind(null, show)" :cancel="cancel" :open="() => emit('open')" />
     </template>
 
     <div class="pointer-events-none">
       <ActivityTaskPreviewCard v-if="task" :task="task" />
-      <p v-else-if="message" class="text-base-content/60 px-3 py-2 text-xs">{{ message }}</p>
+      <div v-else-if="message" class="flex items-center gap-2 px-3 py-2">
+        <BaseIcon
+          :name="message === 'Task deleted' ? 'trash' : 'info'"
+          :class="message === 'Task deleted' ? 'text-error/70 size-3.5' : 'text-base-content/45 size-3.5'"
+        />
+        <span class="text-base-content/70 text-xs whitespace-nowrap">{{ message }}</span>
+      </div>
     </div>
   </BasePopup>
 </template>
