@@ -1,5 +1,5 @@
 import {defineComponent, h, ref} from "vue"
-import {beforeEach, describe, expect, it, vi} from "vitest"
+import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
 import ActivityTaskPreview from "@/ui/modules/LeftPanel/{fragments}/ActivityWidget/{fragments}/ActivityTaskPreview.vue"
 
@@ -60,7 +60,11 @@ function makeTask(overrides: Partial<Task> = {}): Task {
 }
 
 describe("ActivityTaskPreview", () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.useFakeTimers()
+  })
+  afterEach(() => vi.useRealTimers())
 
   function mountPreview() {
     return mount(ActivityTaskPreview, {
@@ -83,6 +87,7 @@ describe("ActivityTaskPreview", () => {
     const wrapper = mountPreview()
 
     await wrapper.get("button").trigger("mouseenter")
+    await vi.advanceTimersByTimeAsync(150)
     await flushPromises()
 
     expect(API.getTask).toHaveBeenCalledWith("task-1")
@@ -97,10 +102,59 @@ describe("ActivityTaskPreview", () => {
     const wrapper = mountPreview()
 
     await wrapper.get("button").trigger("mouseenter")
+    await vi.advanceTimersByTimeAsync(150)
     await flushPromises()
 
     expect(API.getTask).toHaveBeenCalledWith("task-1")
     expect(wrapper.find("[data-task-preview-card]").exists()).toBe(false)
+    expect(wrapper.find("[data-popup]").exists()).toBe(false)
+  })
+
+  it("cancels a pending request when another task link is hovered", async () => {
+    vi.mocked(API.getTask).mockResolvedValue(makeTask({id: "task-2"}))
+
+    const wrapper = mount(
+      defineComponent({
+        setup() {
+          const taskLink =
+            (id: string) =>
+            ({show, cancel}: {show: () => void; cancel: () => void}) =>
+              h("button", {"data-task-id": id, onMouseenter: show, onMouseleave: cancel}, `#${id}`)
+
+          return () =>
+            h("div", [
+              h(ActivityTaskPreview, {taskId: "task-1"}, {trigger: taskLink("task-1")}),
+              h(ActivityTaskPreview, {taskId: "task-2"}, {trigger: taskLink("task-2")}),
+            ])
+        },
+      }),
+      {
+        global: {
+          stubs: {
+            BasePopup: BasePopupStub,
+            ActivityTaskPreviewCard: ActivityTaskPreviewCardStub,
+          },
+        },
+      },
+    )
+
+    await wrapper.get('[data-task-id="task-1"]').trigger("mouseenter")
+    await wrapper.get('[data-task-id="task-2"]').trigger("mouseenter")
+    await vi.advanceTimersByTimeAsync(150)
+    await flushPromises()
+
+    expect(API.getTask).toHaveBeenCalledTimes(1)
+    expect(API.getTask).toHaveBeenCalledWith("task-2")
+  })
+
+  it("does not request a task when the pointer leaves before the hover delay", async () => {
+    const wrapper = mountPreview()
+
+    await wrapper.get("button").trigger("mouseenter")
+    await wrapper.get("button").trigger("mouseleave")
+    await vi.advanceTimersByTimeAsync(150)
+
+    expect(API.getTask).not.toHaveBeenCalled()
     expect(wrapper.find("[data-popup]").exists()).toBe(false)
   })
 
@@ -110,6 +164,9 @@ describe("ActivityTaskPreview", () => {
     const wrapper = mountPreview()
 
     await wrapper.get("button").trigger("mouseenter")
+    await vi.advanceTimersByTimeAsync(150)
+    expect(API.getTask).toHaveBeenCalledWith("task-1")
+
     await wrapper.get("button").trigger("mouseleave")
     pendingTask.resolve(makeTask())
     await flushPromises()

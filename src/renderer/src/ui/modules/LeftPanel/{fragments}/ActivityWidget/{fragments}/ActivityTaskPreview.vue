@@ -1,3 +1,7 @@
+<script lang="ts">
+let activePreviewController: AbortController | null = null
+</script>
+
 <script setup lang="ts">
 import {ref} from "vue"
 
@@ -8,29 +12,54 @@ import ActivityTaskPreviewCard from "./ActivityTaskPreviewCard.vue"
 
 import type {Task} from "@shared/types/storage"
 
+const HOVER_DELAY_MS = 150
+
 const props = defineProps<{taskId: Task["id"]}>()
 const emit = defineEmits<{open: []}>()
 
 const task = ref<Task | null>(null)
-let requestId = 0
+let controller: AbortController | null = null
+
+function waitForHover(signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timeoutId = window.setTimeout(resolve, HOVER_DELAY_MS)
+
+    signal.addEventListener(
+      "abort",
+      () => {
+        window.clearTimeout(timeoutId)
+        reject(signal.reason)
+      },
+      {once: true},
+    )
+  })
+}
 
 async function showTask(show: () => void) {
-  const currentRequestId = ++requestId
+  activePreviewController?.abort()
+
+  const previewController = new AbortController()
+  controller = previewController
+  activePreviewController = previewController
   task.value = null
 
   try {
+    await waitForHover(previewController.signal)
     const loadedTask = await API.getTask(props.taskId)
-    if (currentRequestId !== requestId || !loadedTask || loadedTask.deletedAt) return
+    if (previewController.signal.aborted || !loadedTask || loadedTask.deletedAt) return
 
     task.value = loadedTask
     show()
   } catch {
-    task.value = null
+    if (!previewController.signal.aborted) task.value = null
+  } finally {
+    if (activePreviewController === previewController) activePreviewController = null
+    if (controller === previewController) controller = null
   }
 }
 
 function cancelTaskPreview() {
-  requestId += 1
+  controller?.abort()
 }
 </script>
 
