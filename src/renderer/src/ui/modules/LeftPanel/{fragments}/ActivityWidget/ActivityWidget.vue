@@ -7,6 +7,7 @@ import {TASK_EVENT_META} from "@/constants/taskEvents"
 import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
 
+import ActivityTaskPreview from "./{fragments}/ActivityTaskPreview.vue"
 import {useActivityModel} from "./model/useActivityModel"
 
 const {events, goToDay, openTask, isRestorable, restore} = useActivityModel()
@@ -39,15 +40,20 @@ function canOpen(event: TaskEvent): boolean {
 
         <p class="flex min-w-0 flex-1 flex-wrap items-center gap-1 text-xs leading-snug">
           <span>{{ TASK_EVENT_META[event.type].verb }}</span>
-          <BaseButton
-            v-if="canOpen(event)"
-            variant="link"
-            size="sm"
-            class="inline-flex flex-row-reverse items-center gap-0.5 p-0 text-xs"
-            @click="openTask(event)"
-          >
-            {{ toTaskIdHash(event.taskId) }}
-          </BaseButton>
+          <ActivityTaskPreview v-if="canOpen(event)" :task-id="event.taskId" @open="openTask(event)">
+            <template #trigger="{show, cancel, open}">
+              <BaseButton
+                variant="link"
+                size="sm"
+                class="inline-flex flex-row-reverse items-center gap-0.5 p-0 text-xs"
+                @mouseenter="show"
+                @mouseleave="cancel"
+                @click="open"
+              >
+                {{ toTaskIdHash(event.taskId) }}
+              </BaseButton>
+            </template>
+          </ActivityTaskPreview>
 
           <span v-else class="text-base-content/60">{{ toTaskIdHash(event.taskId) }}</span>
 
