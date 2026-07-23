@@ -7,6 +7,7 @@ import {TASK_EVENT_META} from "@/constants/taskEvents"
 import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
 
+import ActivityTaskPreview from "./{fragments}/ActivityTaskPreview.vue"
 import {useActivityModel} from "./model/useActivityModel"
 
 const {events, goToDay, openTask, isRestorable, restore} = useActivityModel()
@@ -39,17 +40,23 @@ function canOpen(event: TaskEvent): boolean {
 
         <p class="flex min-w-0 flex-1 flex-wrap items-center gap-1 text-xs leading-snug">
           <span>{{ TASK_EVENT_META[event.type].verb }}</span>
-          <BaseButton
-            v-if="canOpen(event)"
-            variant="link"
-            size="sm"
-            class="inline-flex flex-row-reverse items-center gap-0.5 p-0 text-xs"
-            @click="openTask(event)"
-          >
-            {{ toTaskIdHash(event.taskId) }}
-          </BaseButton>
+          <ActivityTaskPreview :task-id="event.taskId" :is-deleted="!canOpen(event)" @open="openTask(event)">
+            <template #trigger="{show, cancel, open}">
+              <BaseButton
+                v-if="canOpen(event)"
+                variant="link"
+                size="sm"
+                class="inline-flex flex-row-reverse items-center gap-0.5 p-0 text-xs"
+                @mouseenter="show"
+                @mouseleave="cancel"
+                @click="open"
+              >
+                {{ toTaskIdHash(event.taskId) }}
+              </BaseButton>
 
-          <span v-else class="text-base-content/60">{{ toTaskIdHash(event.taskId) }}</span>
+              <span v-else class="text-base-content/60" @mouseenter="show" @mouseleave="cancel">{{ toTaskIdHash(event.taskId) }}</span>
+            </template>
+          </ActivityTaskPreview>
 
           <template v-if="event.type === 'moved' && moveDay(event)">
             <span class="text-base-content/60"> {{ movePreposition(event) }} </span>
