@@ -49,7 +49,7 @@ export function useActivityModel() {
 
   async function revalidate(): Promise<void> {
     const [activity, deleted] = await Promise.all([API.getActivityByDay(tasksStore.activeDay), API.getDeletedTasks()])
-    events.value = latestPerTask(activity)
+    events.value = activity
     restorableIds.value = new Set(deleted.map((task) => task.id))
   }
 
@@ -66,16 +66,4 @@ export function useActivityModel() {
     isRestorable,
     restore,
   }
-}
-
-/** Collapses a day's events to one row per task — the most recent event, newest first. */
-function latestPerTask(list: TaskEvent[]): TaskEvent[] {
-  const latest = new Map<TaskEvent["taskId"], TaskEvent>()
-
-  for (const event of list) {
-    const existing = latest.get(event.taskId)
-    if (!existing || event.createdAt > existing.createdAt) latest.set(event.taskId, event)
-  }
-
-  return [...latest.values()].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
 }
