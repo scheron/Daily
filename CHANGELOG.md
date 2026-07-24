@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.17.4 - 2026-07-25
+
+### ✨ New Features
+
+- **Activity previews** — hovering a task ID in the Activity feed shows a preview card with the task's content, tags, status, and tracked time. Tasks that no longer exist show a short "Task deleted" note instead.
+
+### 🐛 Bug Fixes
+
+- **Activity** — the feed now lists every event recorded for a task on a day, instead of collapsing them to the most recent one.
+
+---
+
 ## v0.17.3 - 2026-07-20
 
 ### ✨ New Features
