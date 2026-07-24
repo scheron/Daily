@@ -1,6 +1,18 @@
-branch=$(git rev-parse --abbrev-ref HEAD)
+should_test=false
+saw_ref=false
 
-if [ "$branch" = "main" ]; then
-  echo "🧪 Running tests before push to main..."
+while read -r local_ref _local_sha remote_ref _remote_sha; do
+  saw_ref=true
+  if [ "$local_ref" = "refs/heads/main" ] || [ "$remote_ref" = "refs/heads/main" ]; then
+    should_test=true
+  fi
+done
+
+if [ "$saw_ref" = false ] && [ "$(git rev-parse --abbrev-ref HEAD)" = "main" ]; then
+  should_test=true
+fi
+
+if [ "$should_test" = true ]; then
+  echo "Running tests before push to main..."
   pnpm test
 fi
