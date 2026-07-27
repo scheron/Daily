@@ -1,6 +1,8 @@
 // @ts-nocheck
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
+import {CliErrorCode} from "@shared/errors/cli/CliErrorCode"
+
 import {CliController} from "@cli/CliController"
 import {createStorageCore} from "@main/storage/createStorageCore"
 import {createTestDatabase} from "../helpers/db"
@@ -32,7 +34,7 @@ const base = {
   attachments: [],
 }
 
-describe("logTime / moveTask / updateContent / setEstimate", () => {
+describe("logTime / moveTask / updateContent / setEstimate / task tags", () => {
   let db, core, cli
   beforeEach(() => {
     db = createTestDatabase()
@@ -62,5 +64,36 @@ describe("logTime / moveTask / updateContent / setEstimate", () => {
     const t = await core.tasksService.createTask({...base, estimatedTime: 600})
     const up = await cli.setEstimate(t.id, 45, {})
     expect(up.estimatedTime).toBe(2700)
+  })
+  it("adds and removes an existing tag without changing other task fields", async () => {
+    const tag = await core.tagsService.createTag({name: "work", color: "#111"})
+    const t = await core.tasksService.createTask({...base, estimatedTime: 600, spentTime: 120})
+
+    const tagged = await cli.addTaskTag(t.id, tag.name, {})
+    expect(tagged.tags.map((item) => item.id)).toEqual([tag.id])
+    expect(tagged).toMatchObject({content: t.content, scheduled: t.scheduled, estimatedTime: 600, spentTime: 120, status: "active"})
+
+    const untagged = await cli.removeTaskTag(t.id, tag.id, {})
+    expect(untagged.tags).toEqual([])
+    expect(untagged).toMatchObject({content: t.content, scheduled: t.scheduled, estimatedTime: 600, spentTime: 120, status: "active"})
+  })
+  it("rejects an unknown task tag without creating it", async () => {
+    const t = await core.tasksService.createTask(base)
+    await expect(cli.addTaskTag(t.id, "missing", {})).rejects.toMatchObject({code: CliErrorCode.TAG_NOT_FOUND})
+    expect((await core.tagsService.getTagList()).map((tag) => tag.name)).not.toContain("missing")
+  })
+  it("makes repeated task-tag mutations no-ops", async () => {
+    const tag = await core.tagsService.createTag({name: "work", color: "#111"})
+    const t = await core.tasksService.createTask({...base, tags: [tag]})
+
+    const addAgain = new CliController(core, paths)
+    expect((await addAgain.addTaskTag(t.id, tag.id, {})).tags.map((item) => item.id)).toEqual([tag.id])
+    expect(addAgain.didMutate).toBe(false)
+
+    const remove = await cli.removeTaskTag(t.id, tag.name, {})
+    expect(remove.tags).toEqual([])
+    const removeAgain = new CliController(core, paths)
+    expect((await removeAgain.removeTaskTag(t.id, tag.id, {})).tags).toEqual([])
+    expect(removeAgain.didMutate).toBe(false)
   })
 })

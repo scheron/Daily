@@ -99,6 +99,39 @@ estimate. <content> is required; quote it. <id> is a full id or unique prefix.
 `,
 }
 
+export const TASK_TAG_HELP: CommandHelp = {
+  output: "Use a subcommand",
+  details: `
+Manage tags on an existing task. Tags must already exist; use a tag's exact name
+or full ID. Task lookup follows the usual --project / --all scope rules.
+
+  daily tasks tag add a1b2 work
+  daily tasks tag remove a1b2 work --all --json
+`,
+}
+
+export const TASK_TAG_ADD_HELP: CommandHelp = {
+  output: '{"task":Task}',
+  details: `
+Attaches an existing tag to a task. Re-running when the tag is already attached
+is safe and returns the task unchanged. No other task field is changed.
+
+  daily tasks tag add a1b2 work
+  daily tasks tag add a1b2 tag-id --project Main --json
+`,
+}
+
+export const TASK_TAG_REMOVE_HELP: CommandHelp = {
+  output: '{"task":Task}',
+  details: `
+Detaches an existing tag from a task. Re-running when the tag is absent is safe
+and returns the task unchanged. Other tags and task fields are preserved.
+
+  daily tasks tag remove a1b2 work
+  daily tasks tag remove a1b2 tag-id --all --json
+`,
+}
+
 export const TASK_ESTIMATE_HELP: CommandHelp = {
   output: '{"task":Task}',
   details: `

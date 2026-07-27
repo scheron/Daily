@@ -19,6 +19,8 @@ const cliMock = vi.hoisted(() => ({
   logTime: vi.fn(async () => ({id: "abc123"})),
   setEstimate: vi.fn(async () => ({id: "abc123"})),
   updateContent: vi.fn(async () => ({id: "abc123"})),
+  addTaskTag: vi.fn(async () => ({id: "abc123"})),
+  removeTaskTag: vi.fn(async () => ({id: "abc123"})),
   deleteTask: vi.fn(async () => ({id: "abc123"})),
   deleteTag: vi.fn(async () => ({id: "t1"})),
 }))
@@ -58,6 +60,14 @@ describe("argv parsing through the real commander tree", () => {
   it("passes positional content to update", async () => {
     await runArgv("tasks", "update", "abc123", "new body")
     expect(cliMock.updateContent).toHaveBeenCalledWith("abc123", "new body", expect.anything())
+  })
+
+  it("routes task-tag mutations with task scope", async () => {
+    await runArgv("tasks", "tag", "add", "abc123", "work", "--project", "main")
+    expect(cliMock.addTaskTag).toHaveBeenCalledWith("abc123", "work", expect.objectContaining({project: "main"}))
+
+    await runArgv("tasks", "tag", "remove", "abc123", "work", "--all")
+    expect(cliMock.removeTaskTag).toHaveBeenCalledWith("abc123", "work", expect.objectContaining({all: true}))
   })
 
   it("treats the tasks operand as a list date, not a subcommand", async () => {

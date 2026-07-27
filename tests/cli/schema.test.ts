@@ -40,6 +40,9 @@ describe("buildCliSchema", () => {
         "tasks add",
         "tasks move",
         "tasks update",
+        "tasks tag",
+        "tasks tag add",
+        "tasks tag remove",
         "tasks estimate",
         "tasks log-time",
         "tasks delete",
@@ -74,6 +77,13 @@ describe("buildCliSchema", () => {
       expect.objectContaining({name: "taskId", required: true}),
       expect.objectContaining({name: "content", required: true}),
     ])
+
+    const taskTagAdd = commands.find((c) => c.name === "tasks tag add")
+    expect(taskTagAdd.arguments).toEqual([
+      expect.objectContaining({name: "taskId", required: true}),
+      expect.objectContaining({name: "tag", required: true}),
+    ])
+    expect(taskTagAdd.options.map((o) => o.flags)).toEqual(expect.arrayContaining(["--project <id_or_name>", "--all", "--json"]))
 
     const estimate = commands.find((c) => c.name === "tasks estimate")
     expect(estimate.arguments).toEqual([

@@ -50,6 +50,7 @@ describe("daily --help", () => {
       discard: ["Sets status to", "full id or unique prefix"],
       move: ["Reschedules a task", "the current time is"],
       update: ["Replaces a task's content", 'use "move"'],
+      tag: ["Manage tags", "exact name"],
       estimate: ["Sets the task's estimate", "stored in seconds"],
       "log-time": ["accumulates", "stored in seconds"],
       delete: ["trash", "--force", "irreversible", "empties the trash"],

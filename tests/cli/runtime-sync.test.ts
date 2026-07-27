@@ -48,6 +48,18 @@ describe("sync around CLI commands (node mode)", () => {
     expect(snapshot.docs.tasks.map((t: {content: string}) => t.content)).toContain("from node")
   })
 
+  it("pushes a task-tag mutation to the snapshot", async () => {
+    let taskId = ""
+    await withCliStorage({}, async (cli) => {
+      const task = await cli.addTask({content: "tagged", tags: ["work"]})
+      taskId = task.id
+      await cli.removeTaskTag(task.id, "work", {})
+    })
+
+    const snapshot = JSON.parse(await fs.readFile(join(syncDir, "snapshot.json"), "utf-8"))
+    expect(snapshot.docs.tasks.find((task: {id: string}) => task.id === taskId).tags).toEqual([])
+  })
+
   it("does not push after a read-only command", async () => {
     await withCliStorage({}, async (cli) => {
       await cli.listTasks({})
