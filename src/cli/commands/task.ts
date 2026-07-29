@@ -13,6 +13,9 @@ import {
   TASK_MOVE_HELP,
   TASK_RESTORE_HELP,
   TASK_SEARCH_HELP,
+  TASK_TAG_ADD_HELP,
+  TASK_TAG_HELP,
+  TASK_TAG_REMOVE_HELP,
   TASK_UPDATE_HELP,
   TASKS_HELP,
   taskStatusHelp,
@@ -113,6 +116,22 @@ function registerTaskMutations(task: Command): void {
       .option("--json", "output stable JSON"),
     TASK_UPDATE_HELP,
   ).action((taskId, content, opts, command) => runUpdateTask(taskId, content, readOptions(opts, command)))
+
+  const tag = addHelpDetails(task.command("tag").description("Manage tags on an existing task").addHelpCommand(), TASK_TAG_HELP)
+  for (const action of [
+    {name: "add", description: "Attach an existing tag to a task", help: TASK_TAG_ADD_HELP},
+    {name: "remove", description: "Detach a tag from a task", help: TASK_TAG_REMOVE_HELP},
+  ] as const) {
+    addHelpDetails(
+      tag
+        .command(`${action.name} <taskId> <tag>`)
+        .description(action.description)
+        .option("--project <id_or_name>", "scope for id resolution")
+        .option("--all", "resolve id across every project")
+        .option("--json", "output stable JSON"),
+      action.help,
+    ).action((taskId, tagName, opts, command) => runTaskTag(action.name, taskId, tagName, readOptions(opts, command)))
+  }
 
   addHelpDetails(
     task
@@ -249,6 +268,16 @@ async function runUpdateTask(taskId: string, content: string, opts: TaskScopeOpt
   await runCliCommand(opts, async (cli) => {
     const task = await cli.updateContent(taskId, content, {project: opts.project, all: opts.all})
     console.log(opts.json ? renderJsonOk({task}) : `updated ${task.id}`)
+  })
+}
+
+async function runTaskTag(action: "add" | "remove", taskId: string, tag: string, opts: TaskScopeOptions): Promise<void> {
+  await runCliCommand(opts, async (cli) => {
+    const task =
+      action === "add"
+        ? await cli.addTaskTag(taskId, tag, {project: opts.project, all: opts.all})
+        : await cli.removeTaskTag(taskId, tag, {project: opts.project, all: opts.all})
+    console.log(opts.json ? renderJsonOk({task}) : `${action === "add" ? "tagged" : "untagged"} ${task.id}`)
   })
 }
 

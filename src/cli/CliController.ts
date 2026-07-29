@@ -56,9 +56,7 @@ export class CliController {
   }
 
   async deleteTag(idOrName: string): Promise<Tag> {
-    const tags = await this.core.tagsService.getTagList()
-    const target = tags.find((t) => t.id === idOrName) ?? tags.find((t) => t.name === idOrName)
-    if (!target) throw new CliError(CliErrorCode.TAG_NOT_FOUND, `Tag not found: ${idOrName}`)
+    const target = await this.getTag(idOrName)
 
     const deleted = await this.core.tagsService.deleteTag(target.id)
     if (!deleted) throw new CliError(CliErrorCode.REFUSED, `Failed to delete tag: ${idOrName}`)
@@ -186,6 +184,24 @@ export class CliController {
     return this.afterWrite(updated, idOrPrefix)
   }
 
+  async addTaskTag(idOrPrefix: string, idOrName: string, opts: CliScope): Promise<Task> {
+    const current = await this.getResolved(idOrPrefix, opts)
+    const tag = await this.getTag(idOrName)
+    if (current.tags.some((existing) => existing.id === tag.id)) return current
+
+    const updated = await this.core.tasksService.updateTask(current.id, {tags: [...current.tags, tag]})
+    return this.afterWrite(updated, idOrPrefix)
+  }
+
+  async removeTaskTag(idOrPrefix: string, idOrName: string, opts: CliScope): Promise<Task> {
+    const current = await this.getResolved(idOrPrefix, opts)
+    const tag = await this.getTag(idOrName)
+    if (!current.tags.some((existing) => existing.id === tag.id)) return current
+
+    const updated = await this.core.tasksService.updateTask(current.id, {tags: current.tags.filter((existing) => existing.id !== tag.id)})
+    return this.afterWrite(updated, idOrPrefix)
+  }
+
   async deleteTask(idOrPrefix: string, opts: CliScope): Promise<Task> {
     const current = await this.getResolved(idOrPrefix, opts)
     const deleted = await this.core.tasksService.deleteTask(current.id)
@@ -222,6 +238,13 @@ export class CliController {
     const count = await this.core.tasksService.permanentlyDeleteAllDeletedTasks({branchId})
     if (count > 0) this.signalMutation()
     return count
+  }
+
+  private async getTag(idOrName: string): Promise<Tag> {
+    const tags = await this.core.tagsService.getTagList()
+    const target = tags.find((tag) => tag.id === idOrName) ?? tags.find((tag) => tag.name === idOrName)
+    if (!target) throw new CliError(CliErrorCode.TAG_NOT_FOUND, `Tag not found: ${idOrName}`)
+    return target
   }
 
   private async getResolved(idOrPrefix: string, opts: CliScope): Promise<Task> {
