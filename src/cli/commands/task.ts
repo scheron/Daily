@@ -11,6 +11,7 @@ import {
   TASK_HELP,
   TASK_LOG_TIME_HELP,
   TASK_MOVE_HELP,
+  TASK_MOVE_PROJECT_HELP,
   TASK_RESTORE_HELP,
   TASK_SEARCH_HELP,
   TASK_TAG_ADD_HELP,
@@ -106,6 +107,16 @@ function registerTaskMutations(task: Command): void {
       .option("--json", "output stable JSON"),
     TASK_MOVE_HELP,
   ).action((taskId, date, opts, command) => runMoveTask(taskId, date, readOptions(opts, command)))
+
+  addHelpDetails(
+    task
+      .command("move-project <taskId> <project>")
+      .description("Move a task to another project")
+      .option("--project <id_or_name>", "scope for id resolution")
+      .option("--all", "resolve id across every project")
+      .option("--json", "output stable JSON"),
+    TASK_MOVE_PROJECT_HELP,
+  ).action((taskId, project, opts, command) => runMoveProject(taskId, project, readOptions(opts, command)))
 
   addHelpDetails(
     task
@@ -261,6 +272,13 @@ async function runMoveTask(taskId: string, dateInput: string, opts: TaskMoveOpti
     const time = opts.time ? assertValidTime(opts.time) : undefined
     const task = await cli.moveTask(taskId, {date, time}, {project: opts.project, all: opts.all})
     console.log(opts.json ? renderJsonOk({task}) : `moved ${task.id} to ${task.scheduled.date}`)
+  })
+}
+
+async function runMoveProject(taskId: string, project: string, opts: TaskScopeOptions): Promise<void> {
+  await runCliCommand(opts, async (cli) => {
+    const task = await cli.moveTaskToProject(taskId, project, {project: opts.project, all: opts.all})
+    console.log(opts.json ? renderJsonOk({task}) : `moved ${task.id} to project ${task.branchId}`)
   })
 }
 

@@ -15,3 +15,41 @@ JSON: {"ok":true,"data":{"branches":[Branch,...]}}.
   daily tasks --project Work
 `,
 }
+
+export const PROJECTS_CREATE_HELP: CommandHelp = {
+  output: '{"branch":Branch}',
+  details: `
+Creates a project. Names are trimmed and must be unique case-insensitively.
+
+  daily projects create Work
+  daily projects create Work --json
+`,
+}
+
+export const PROJECTS_RENAME_HELP: CommandHelp = {
+  output: '{"branch":Branch}',
+  details: `
+Renames a project by full id or exact name. The protected main project cannot be renamed.
+
+  daily projects rename Work Client-Work
+`,
+}
+
+export const PROJECTS_DELETE_HELP: CommandHelp = {
+  output: '{"branch":Branch}',
+  details: `
+Soft-deletes a project by full id or exact name. The protected main project cannot
+be deleted. If it was active, the active project falls back to main.
+
+  daily projects delete Work --json
+`,
+}
+
+export const PROJECTS_USE_HELP: CommandHelp = {
+  output: '{"branch":Branch}',
+  details: `
+Sets the active project used by task commands that do not specify --project or --all.
+
+  daily projects use Work
+`,
+}

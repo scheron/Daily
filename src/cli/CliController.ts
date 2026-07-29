@@ -68,6 +68,48 @@ export class CliController {
     return this.core.branchesService.getBranchList()
   }
 
+  async createProject(name: string): Promise<Branch> {
+    const created = await this.core.branchesService.createBranch({name})
+    if (!created) throw new CliError(CliErrorCode.REFUSED, `Invalid or duplicate project name: ${name}`)
+    this.signalMutation()
+    return created
+  }
+
+  async renameProject(idOrName: string, name: string): Promise<Branch> {
+    const project = await this.getProject(idOrName)
+    const updated = await this.core.branchesService.updateBranch(project.id, {name})
+    if (!updated) throw new CliError(CliErrorCode.REFUSED, `Cannot rename project: ${idOrName}`)
+    this.signalMutation()
+    return updated
+  }
+
+  async deleteProject(idOrName: string): Promise<Branch> {
+    const project = await this.getProject(idOrName)
+    const deleted = await this.core.branchesService.deleteBranch(project.id)
+    if (!deleted) throw new CliError(CliErrorCode.REFUSED, `Cannot delete project: ${idOrName}`)
+    this.signalMutation()
+    return project
+  }
+
+  async useProject(idOrName: string): Promise<Branch> {
+    const project = await this.getProject(idOrName)
+    await this.core.branchesService.setActiveBranch(project.id)
+    this.signalMutation()
+    return project
+  }
+
+  async moveTaskToProject(idOrPrefix: string, targetProject: string, opts: CliScope): Promise<Task> {
+    const task = await this.getResolved(idOrPrefix, opts)
+    const project = await this.getProject(targetProject)
+    if (task.branchId === project.id) return task
+    const moved = await this.core.tasksService.moveTaskToBranch(task.id, project.id)
+    if (!moved) throw new CliError(CliErrorCode.REFUSED, `Failed to move task: ${idOrPrefix}`)
+    const updated = await this.core.tasksService.getTask(task.id)
+    if (!updated) throw new CliError(CliErrorCode.TASK_NOT_FOUND, `Task not found: ${idOrPrefix}`)
+    this.signalMutation()
+    return updated
+  }
+
   async searchTasks(query: string): Promise<TaskSearchResult[]> {
     await this.ensureSearchIndex()
     return this.core.searchService.searchTasks(query)
@@ -148,14 +190,8 @@ export class CliController {
     if (opts.all) return undefined
     if (!opts.project) return this.core.branchesService.getActiveBranchId()
 
-    const byId = await this.core.branchesService.getBranch(opts.project)
-    if (byId) return byId.id
-
-    const branches = await this.core.branchesService.getBranchList()
-    const byName = branches.find((b) => b.name === opts.project)
-    if (byName) return byName.id
-
-    throw new CliError(CliErrorCode.PROJECT_NOT_FOUND, `Project not found: ${opts.project}`)
+    const project = await this.getProject(opts.project)
+    return project.id
   }
 
   async logTime(idOrPrefix: string, minutes: number, opts: CliScope): Promise<Task> {
@@ -238,6 +274,16 @@ export class CliController {
     const count = await this.core.tasksService.permanentlyDeleteAllDeletedTasks({branchId})
     if (count > 0) this.signalMutation()
     return count
+  }
+
+  private async getProject(idOrName: string): Promise<Branch> {
+    const byId = await this.core.branchesService.getBranch(idOrName)
+    if (byId) return byId
+
+    const projects = await this.listProjects()
+    const byName = projects.find((project) => project.name === idOrName)
+    if (byName) return byName
+    throw new CliError(CliErrorCode.PROJECT_NOT_FOUND, `Project not found: ${idOrName}`)
   }
 
   private async getTag(idOrName: string): Promise<Tag> {

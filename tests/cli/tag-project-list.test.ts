@@ -37,6 +37,20 @@ describe("listTags / listProjects", () => {
     expect(names).toEqual(expect.arrayContaining(["Main", "Feature"]))
   })
 
+  it("manages projects and moves tasks without changing task fields", async () => {
+    const project = await cli.createProject("Work")
+    const renamed = await cli.renameProject(project.id, "Client Work")
+    await cli.useProject(renamed.id)
+    expect(await core.branchesService.getActiveBranchId()).toBe(renamed.id)
+
+    const task = await cli.addTask({content: "Preserve me", tags: ["tag"], estimateMinutes: 30})
+    const moved = await cli.moveTaskToProject(task.id, "main", {all: true})
+    expect(moved).toMatchObject({id: task.id, branchId: "main", content: task.content, estimatedTime: task.estimatedTime, tags: task.tags})
+
+    await cli.deleteProject(renamed.id)
+    expect(await core.branchesService.getActiveBranchId()).toBe("main")
+  })
+
   it("deletes a tag by name and drops it from the list", async () => {
     await core.tagsService.createTag({name: "throwaway", color: "#111"})
     const deleted = await cli.deleteTag("throwaway")
