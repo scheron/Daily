@@ -1,4 +1,5 @@
-import {pathToFileURL} from "node:url"
+import {realpathSync} from "node:fs"
+import {fileURLToPath} from "node:url"
 import {Command} from "commander"
 
 import pkg from "../../package.json"
@@ -33,8 +34,11 @@ export function buildProgram(): Command {
   return program
 }
 
-const isMain = Boolean(process.argv[1]) && import.meta.url === pathToFileURL(process.argv[1]).href
-if (isMain) {
+export function isCliEntryPoint(entryPath = process.argv[1], moduleUrl = import.meta.url): boolean {
+  return Boolean(entryPath) && realpathSync(entryPath) === realpathSync(fileURLToPath(moduleUrl))
+}
+
+if (isCliEntryPoint()) {
   buildProgram()
     .parseAsync(process.argv)
     .catch((err) => {
