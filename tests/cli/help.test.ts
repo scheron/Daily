@@ -73,10 +73,12 @@ describe("daily --help", () => {
     expect(program.commands.find((command) => command.name() === "projects")!.helpInformation()).toContain('"branches":[Branch,...]')
   })
 
-  it("exposes tags delete as a tag mutation", () => {
+  it("exposes tag catalog mutations", () => {
     const program = buildProgram()
     const tags = program.commands.find((command) => command.name() === "tags")!
-    expect(tags.commands.map((command) => command.name())).toContain("delete")
+    expect(tags.commands.map((command) => command.name())).toEqual(expect.arrayContaining(["create", "update", "delete"]))
+    expect(tags.commands.find((command) => command.name() === "create")!.helpInformation()).toContain("Creates a tag")
+    expect(tags.commands.find((command) => command.name() === "update")!.helpInformation()).toContain("Renames and/or recolors")
     expect(tags.commands.find((command) => command.name() === "delete")!.helpInformation()).toContain("Deletes a tag")
   })
 })

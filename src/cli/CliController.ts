@@ -4,6 +4,7 @@ import {DateTime} from "luxon"
 import {TAG_QUICK_COLORS} from "@shared/constants/tagColorPalette"
 import {CliError} from "@shared/errors/cli/CliError"
 import {CliErrorCode} from "@shared/errors/cli/CliErrorCode"
+import {findTagByName, isValidTagName, normalizeTagName} from "@shared/utils/tags/tagName"
 
 import type {StorageCore} from "@/storage/createStorageCore"
 import type {AppPaths} from "@shared/config/paths"
@@ -53,6 +54,38 @@ export class CliController {
 
   async listTags(): Promise<Tag[]> {
     return this.core.tagsService.getTagList()
+  }
+
+  async createTag(name: string, color: string): Promise<Tag> {
+    const normalizedName = this.normalizeTagName(name)
+    const normalizedColor = this.normalizeTagColor(color)
+    const existing = findTagByName(await this.listTags(), normalizedName)
+    if (existing) throw new CliError(CliErrorCode.REFUSED, `Tag already exists: ${existing.name}`)
+
+    const created = await this.core.tagsService.createTag({name: normalizedName, color: normalizedColor, deletedAt: null})
+    if (!created) throw new CliError(CliErrorCode.REFUSED, `Failed to create tag: ${normalizedName}`)
+    this.signalMutation()
+    return created
+  }
+
+  async updateTag(idOrName: string, updates: {name?: string; color?: string}): Promise<Tag> {
+    if (updates.name === undefined && updates.color === undefined) {
+      throw new CliError(CliErrorCode.INVALID_ARGUMENT, "Provide --name and/or --color")
+    }
+
+    const target = await this.getTag(idOrName)
+    const name = updates.name === undefined ? undefined : this.normalizeTagName(updates.name)
+    const color = updates.color === undefined ? undefined : this.normalizeTagColor(updates.color)
+    if (name) {
+      const existing = findTagByName(await this.listTags(), name)
+      if (existing && existing.id !== target.id) throw new CliError(CliErrorCode.REFUSED, `Tag already exists: ${existing.name}`)
+    }
+    if ((name === undefined || name === target.name) && (color === undefined || color === target.color)) return target
+
+    const updated = await this.core.tagsService.updateTag(target.id, {name, color})
+    if (!updated) throw new CliError(CliErrorCode.TAG_NOT_FOUND, `Tag not found: ${idOrName}`)
+    this.signalMutation()
+    return updated
   }
 
   async deleteTag(idOrName: string): Promise<Tag> {
@@ -274,6 +307,18 @@ export class CliController {
     const count = await this.core.tasksService.permanentlyDeleteAllDeletedTasks({branchId})
     if (count > 0) this.signalMutation()
     return count
+  }
+
+  private normalizeTagName(value: string): string {
+    if (!isValidTagName(value)) throw new CliError(CliErrorCode.INVALID_ARGUMENT, "Tag name must not be empty")
+    return normalizeTagName(value)
+  }
+
+  private normalizeTagColor(value: string): string {
+    if (!/^#[0-9a-fA-F]{6}$/.test(value)) {
+      throw new CliError(CliErrorCode.INVALID_ARGUMENT, `Invalid tag color (expected #RRGGBB): ${value}`)
+    }
+    return value.toUpperCase()
   }
 
   private async getProject(idOrName: string): Promise<Branch> {
