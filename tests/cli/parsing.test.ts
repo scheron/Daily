@@ -22,6 +22,11 @@ const cliMock = vi.hoisted(() => ({
   addTaskTag: vi.fn(async () => ({id: "abc123"})),
   removeTaskTag: vi.fn(async () => ({id: "abc123"})),
   deleteTask: vi.fn(async () => ({id: "abc123"})),
+  moveTaskToProject: vi.fn(async () => ({id: "abc123", branchId: "project-id"})),
+  createProject: vi.fn(async () => ({id: "p1"})),
+  renameProject: vi.fn(async () => ({id: "p1"})),
+  deleteProject: vi.fn(async () => ({id: "p1"})),
+  useProject: vi.fn(async () => ({id: "p1"})),
   deleteTag: vi.fn(async () => ({id: "t1"})),
 }))
 
@@ -73,6 +78,19 @@ describe("argv parsing through the real commander tree", () => {
   it("treats the tasks operand as a list date, not a subcommand", async () => {
     await runArgv("tasks", "2026-07-20", "--all")
     expect(cliMock.listTasks).toHaveBeenCalledWith(expect.objectContaining({date: "2026-07-20", all: true}))
+  })
+
+  it("routes project and move-project mutations", async () => {
+    await runArgv("projects", "create", "Work")
+    expect(cliMock.createProject).toHaveBeenCalledWith("Work")
+    await runArgv("projects", "rename", "Work", "Client Work")
+    expect(cliMock.renameProject).toHaveBeenCalledWith("Work", "Client Work")
+    await runArgv("projects", "use", "Work")
+    expect(cliMock.useProject).toHaveBeenCalledWith("Work")
+    await runArgv("projects", "delete", "Work")
+    expect(cliMock.deleteProject).toHaveBeenCalledWith("Work")
+    await runArgv("tasks", "move-project", "abc123", "Work", "--all")
+    expect(cliMock.moveTaskToProject).toHaveBeenCalledWith("abc123", "Work", {project: undefined, all: true})
   })
 
   it("routes tags delete with its positional identifier", async () => {

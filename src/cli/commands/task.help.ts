@@ -87,6 +87,18 @@ kept. <date> is required (YYYY-MM-DD), <id> is a full id or unique prefix.
 `,
 }
 
+export const TASK_MOVE_PROJECT_HELP: CommandHelp = {
+  output: '{"task":Task}',
+  details: `
+Moves a task to another project by full id or exact name. The move changes only
+project scope; content, schedule, status, tags, estimates, time, and attachments
+are preserved. Use --project or --all to resolve the source task.
+
+  daily tasks move-project a1b2 Work
+  daily tasks move-project a1b2 project-id --all --json
+`,
+}
+
 export const TASK_UPDATE_HELP: CommandHelp = {
   output: '{"task":Task}',
   details: `
