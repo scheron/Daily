@@ -22,6 +22,8 @@ const cliMock = vi.hoisted(() => ({
   addTaskTag: vi.fn(async () => ({id: "abc123"})),
   removeTaskTag: vi.fn(async () => ({id: "abc123"})),
   deleteTask: vi.fn(async () => ({id: "abc123"})),
+  createTag: vi.fn(async () => ({id: "t1"})),
+  updateTag: vi.fn(async () => ({id: "t1"})),
   deleteTag: vi.fn(async () => ({id: "t1"})),
 }))
 
@@ -73,6 +75,14 @@ describe("argv parsing through the real commander tree", () => {
   it("treats the tasks operand as a list date, not a subcommand", async () => {
     await runArgv("tasks", "2026-07-20", "--all")
     expect(cliMock.listTasks).toHaveBeenCalledWith(expect.objectContaining({date: "2026-07-20", all: true}))
+  })
+
+  it("routes tag catalog mutations with their explicit options", async () => {
+    await runArgv("tags", "create", "Asana", "--color", "#4ECDC4")
+    expect(cliMock.createTag).toHaveBeenCalledWith("Asana", "#4ECDC4")
+
+    await runArgv("tags", "update", "Asana", "--name", "Asana Import", "--color", "#FF1744")
+    expect(cliMock.updateTag).toHaveBeenCalledWith("Asana", {name: "Asana Import", color: "#FF1744"})
   })
 
   it("routes tags delete with its positional identifier", async () => {

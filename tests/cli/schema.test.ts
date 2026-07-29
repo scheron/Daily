@@ -50,6 +50,8 @@ describe("buildCliSchema", () => {
         "tasks deleted",
         "task",
         "tags",
+        "tags create",
+        "tags update",
         "tags delete",
         "projects",
         "schema",
@@ -97,6 +99,14 @@ describe("buildCliSchema", () => {
       expect.objectContaining({name: "minutes", required: true}),
     ])
     expect(logTime.options.map((o) => o.flags)).not.toContain("--minutes <n>")
+
+    const tagCreate = commands.find((c) => c.name === "tags create")
+    expect(tagCreate.arguments).toEqual([expect.objectContaining({name: "name", required: true})])
+    expect(tagCreate.options.map((o) => o.flags)).toEqual(expect.arrayContaining(["--color <#RRGGBB>", "--json"]))
+
+    const tagUpdate = commands.find((c) => c.name === "tags update")
+    expect(tagUpdate.arguments).toEqual([expect.objectContaining({name: "id_or_name", required: true})])
+    expect(tagUpdate.options.map((o) => o.flags)).toEqual(expect.arrayContaining(["--name <name>", "--color <#RRGGBB>", "--json"]))
 
     const tagDelete = commands.find((c) => c.name === "tags delete")
     expect(tagDelete.arguments).toEqual([expect.objectContaining({name: "id_or_name", required: true})])

@@ -12,6 +12,30 @@ JSON: {"ok":true,"data":{"tags":[Tag,...]}}.
 `,
 }
 
+export const TAG_CREATE_HELP: CommandHelp = {
+  output: '{"tag":Tag}',
+  details: `
+Creates a tag with an explicit #RRGGBB color. Names are trimmed and normalized;
+blank or duplicate names are rejected. Output is "created <id>" or
+{"ok":true,"data":{"tag":Tag}} as JSON.
+
+  daily tags create Asana --color '#4ECDC4'
+  daily tags create Important --color '#FF1744' --json
+`,
+}
+
+export const TAG_UPDATE_HELP: CommandHelp = {
+  output: '{"tag":Tag}',
+  details: `
+Renames and/or recolors a tag by full id or exact name. Supply --name, --color,
+or both. Tag names must remain unique after normalized case-insensitive comparison;
+colors use #RRGGBB. Existing task assignments remain attached to the same tag.
+
+  daily tags update Asana --name Asana-import --color '#4ECDC4'
+  daily tags update 8FGNzAuKdjNmCWTqjMfZO --color '#FF1744' --json
+`,
+}
+
 export const TAG_DELETE_HELP: CommandHelp = {
   output: '{"tag":Tag}',
   details: `

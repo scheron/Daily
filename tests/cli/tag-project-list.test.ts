@@ -31,6 +31,25 @@ describe("listTags / listProjects", () => {
     await core.tagsService.createTag({name: "work", color: "#111"})
     expect((await cli.listTags()).map((t) => t.name)).toContain("work")
   })
+  it("creates an explicitly named and colored tag", async () => {
+    const created = await cli.createTag("  Asana Import  ", "#4ecdc4")
+    expect(created).toMatchObject({name: "Asana Import", color: "#4ECDC4"})
+    expect(cli.didMutate).toBe(true)
+  })
+
+  it("updates a tag without changing its id", async () => {
+    const tag = await core.tagsService.createTag({name: "old", color: "#111111"})
+    const updated = await cli.updateTag(tag.id, {name: "new", color: "#4ECDC4"})
+    expect(updated).toMatchObject({id: tag.id, name: "new", color: "#4ECDC4"})
+  })
+
+  it("rejects duplicate names, blank names, and invalid colors", async () => {
+    await core.tagsService.createTag({name: "existing", color: "#111111"})
+    await expect(cli.createTag(" Existing ", "#4ECDC4")).rejects.toBeInstanceOf(CliError)
+    await expect(cli.createTag("   ", "#4ECDC4")).rejects.toBeInstanceOf(CliError)
+    await expect(cli.createTag("new", "blue")).rejects.toBeInstanceOf(CliError)
+  })
+
   it("lists projects including main", async () => {
     await core.branchesService.createBranch({name: "Feature"})
     const names = (await cli.listProjects()).map((b) => b.name)
