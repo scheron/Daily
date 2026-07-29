@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.17.5 - 2026-07-29
+
+### ✨ New Features
+
+- **CLI task tags** — the `daily` CLI gains `tasks tag add` and `tasks tag remove` for attaching and detaching an existing tag on a task, without touching any other field.
+
+---
+
 ## v0.17.4 - 2026-07-25
 
 ### ✨ New Features
