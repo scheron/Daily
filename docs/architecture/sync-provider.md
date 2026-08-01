@@ -4,7 +4,7 @@
 
 ## Decision
 
-A Daily profile has exactly one active synchronization provider:
+A Daily workspace has exactly one active bidirectional synchronization provider:
 
 - iCloud Drive; or
 - a self-hosted backend compatible with the versioned Daily Sync Protocol.
@@ -23,6 +23,16 @@ During synchronization, Daily:
 4. re-reads, merges, and retries when another device has advanced the revision.
 
 A self-hosted backend provides authenticated, isolated storage for snapshots and assets, revision-aware conditional writes, and health/diagnostic endpoints. It does not become Daily's application database and does not own task business logic or conflict resolution.
+
+## Provider topology and device settings
+
+The provider kind and stable provider identity are shared workspace topology. Changing them is a controlled provider migration.
+
+Each installation keeps `LocalSyncSettings` strictly device-local. It contains endpoint URLs, credentials and tokens, local paths, account selection, and connection state. It is excluded from snapshots and is never copied to another device.
+
+When a new device joins a workspace, Daily shows the required provider and opens its connection wizard. The user supplies that device's local connection details and signs in; Daily must not silently enable a different provider or fall back to one.
+
+A provider mismatch blocks bidirectional synchronization and reports a connection or migration action. This prevents devices using iCloud and a custom backend as independent writable authorities for the same workspace.
 
 ## Backend compatibility
 
@@ -47,11 +57,11 @@ Authentication is part of the protocol, not a backend-specific convenience.
 - The official embedded identity mode uses WebAuthn passkeys as the primary sign-in method and provides secure recovery and device revocation.
 - A server may delegate identity to an external OpenID Connect provider for advanced or organizational deployments.
 - API access uses short-lived bearer access tokens, refresh-token rotation, explicit scopes, and token revocation.
-- Tokens, remote configuration, credentials, and local paths remain device-local and are excluded from synchronized snapshots.
+- Tokens and credentials remain only in `LocalSyncSettings` and are excluded from synchronized snapshots.
 
 ## Invariants
 
-- A profile must not have iCloud and a custom backend active for bidirectional synchronization at the same time.
+- A workspace must not have iCloud and a custom backend active for bidirectional synchronization at the same time.
 - Additional remote locations may be implemented only as explicitly one-way backup or export targets. They must not independently participate in pull/merge/push.
 - A provider written by a newer protocol or snapshot version must not be overwritten by an older client.
 - Provider failure must preserve local data and report an actionable sync status; it must not block normal local work.
@@ -64,7 +74,7 @@ Changing the active provider is a controlled migration, not a settings toggle.
 2. Inspect the local state and any existing state at the new provider.
 3. Require an explicit migration direction: publish the current synchronized state to the new provider, adopt the existing provider state, or cancel.
 4. Perform the required client-side merge and establish a confirmed revision at the new provider.
-5. Mark the new provider active only after confirmation, then deactivate the old provider.
+5. Update the shared provider topology only after confirmation, then deactivate the old provider on every connected device.
 
 Daily must never enable two bidirectional providers during migration.
 
