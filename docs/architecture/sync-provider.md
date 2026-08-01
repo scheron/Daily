@@ -24,15 +24,23 @@ During synchronization, Daily:
 
 A self-hosted backend provides authenticated, isolated storage for snapshots and assets, revision-aware conditional writes, and health/diagnostic endpoints. It does not become Daily's application database and does not own task business logic or conflict resolution.
 
-## Provider topology and device settings
+## Provider binding and device settings
 
-The provider kind and stable provider identity are shared workspace topology. Changing them is a controlled provider migration.
+The provider binding is shared workspace topology. It contains the provider kind, stable server identity, workspace identifier, public endpoint and identity-provider metadata. Changing the binding is a controlled provider migration.
 
-Each installation keeps `LocalSyncSettings` strictly device-local. It contains endpoint URLs, credentials and tokens, local paths, account selection, and connection state. It is excluded from snapshots and is never copied to another device.
+A new device reads this binding and must connect to the same provider. It verifies the pinned server identity before sign-in; an endpoint or identity change requires an explicit migration or trust-confirmation flow, never a silent redirect.
 
-When a new device joins a workspace, Daily shows the required provider and opens its connection wizard. The user supplies that device's local connection details and signs in; Daily must not silently enable a different provider or fall back to one.
+Each installation keeps `LocalSyncSettings` strictly device-local. It contains access and refresh tokens, the device identifier and private key material, local paths, and transient connection state. It is excluded from snapshots and is never copied to another device.
 
-A provider mismatch blocks bidirectional synchronization and reports a connection or migration action. This prevents devices using iCloud and a custom backend as independent writable authorities for the same workspace.
+## Workspace and device authorization
+
+Initial server claim creates the server owner, the workspace, and its provider binding. A claim code proves control of an unclaimed server only; it is not a reusable login credential.
+
+When another device joins, Daily opens the connection wizard for the shared provider binding. The user signs in on that device and the server authorizes the connection only when the authenticated account is a member of the specified workspace.
+
+The server creates a separate device record for every successful connection. Device membership is determined by the stable server identity, workspace identifier, authenticated account membership, and device record—not by copying credentials or sharing a device key.
+
+A provider or workspace mismatch blocks bidirectional synchronization and reports a connection or migration action. This prevents iCloud and a custom backend from becoming independent writable authorities for the same workspace.
 
 ## Backend compatibility
 
@@ -46,7 +54,7 @@ The official Daily Sync Server must provide a guided first-run setup. A normal u
 
 The setup flow must validate persistent storage, server secrets, public URL and HTTPS or private-network binding, initial workspace ownership, and backup configuration. It must report actionable failures rather than leave a partially configured server online.
 
-Daily Desktop must provide a connection wizard: enter or discover the server URL, verify protocol compatibility, open browser sign-in, select a workspace, test read/write access, and show the connected device and sync status.
+Daily Desktop must provide a connection wizard: enter or discover the server URL, verify server identity and protocol compatibility, open browser sign-in, select a workspace, test read/write access, and show the connected device and sync status.
 
 ## Authentication profile
 
@@ -57,7 +65,7 @@ Authentication is part of the protocol, not a backend-specific convenience.
 - The official embedded identity mode uses WebAuthn passkeys as the primary sign-in method and provides secure recovery and device revocation.
 - A server may delegate identity to an external OpenID Connect provider for advanced or organizational deployments.
 - API access uses short-lived bearer access tokens, refresh-token rotation, explicit scopes, and token revocation.
-- Tokens and credentials remain only in `LocalSyncSettings` and are excluded from synchronized snapshots.
+- Tokens and private device credentials remain only in `LocalSyncSettings` and are excluded from synchronized snapshots.
 
 ## Invariants
 
@@ -70,11 +78,11 @@ Authentication is part of the protocol, not a backend-specific convenience.
 
 Changing the active provider is a controlled migration, not a settings toggle.
 
-1. Verify the new provider's endpoint, authentication, protocol version, and writable namespace.
+1. Verify the new provider's endpoint, server identity, authentication, protocol version, and writable namespace.
 2. Inspect the local state and any existing state at the new provider.
 3. Require an explicit migration direction: publish the current synchronized state to the new provider, adopt the existing provider state, or cancel.
 4. Perform the required client-side merge and establish a confirmed revision at the new provider.
-5. Update the shared provider topology only after confirmation, then deactivate the old provider on every connected device.
+5. Update the shared provider binding only after confirmation, then deactivate the old provider on every connected device.
 
 Daily must never enable two bidirectional providers during migration.
 
