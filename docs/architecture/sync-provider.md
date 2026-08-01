@@ -38,6 +38,8 @@ Initial server claim creates the server owner, the workspace, and its provider b
 
 When another device joins, Daily opens the connection wizard for the shared provider binding. The user signs in on that device and the server authorizes the connection only when the authenticated account is a member of the specified workspace.
 
+After initial claim, attaching another personal device must not require server-console access or a claim code. Browser authentication and workspace membership are sufficient; console bootstrap is reserved for an unclaimed server and explicit administrative recovery.
+
 The server creates a separate device record for every successful connection. Device membership is determined by the stable server identity, workspace identifier, authenticated account membership, and device record—not by copying credentials or sharing a device key.
 
 A provider or workspace mismatch blocks bidirectional synchronization and reports a connection or migration action. This prevents iCloud and a custom backend from becoming independent writable authorities for the same workspace.
