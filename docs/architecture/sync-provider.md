@@ -30,11 +30,29 @@ A self-hosted backend must implement the Daily Sync Protocol. Daily will provide
 
 The user-facing provider name is **Self-hosted Daily Sync Server** or **Custom Sync Server**, not "backend with SDK".
 
+## Installation and connection
+
+The official Daily Sync Server must provide a guided first-run setup. A normal user must be able to deploy and claim a personal server without implementing storage, synchronization, or authentication.
+
+The setup flow must validate persistent storage, server secrets, public URL and HTTPS or private-network binding, initial workspace ownership, and backup configuration. It must report actionable failures rather than leave a partially configured server online.
+
+Daily Desktop must provide a connection wizard: enter or discover the server URL, verify protocol compatibility, open browser sign-in, select a workspace, test read/write access, and show the connected device and sync status.
+
+## Authentication profile
+
+Authentication is part of the protocol, not a backend-specific convenience.
+
+- Desktop uses OAuth Authorization Code Flow with PKCE in the system browser; embedded webviews are not used for sign-in.
+- CLI and headless environments use OAuth Device Authorization Grant.
+- The official embedded identity mode uses WebAuthn passkeys as the primary sign-in method and provides secure recovery and device revocation.
+- A server may delegate identity to an external OpenID Connect provider for advanced or organizational deployments.
+- API access uses short-lived bearer access tokens, refresh-token rotation, explicit scopes, and token revocation.
+- Tokens, remote configuration, credentials, and local paths remain device-local and are excluded from synchronized snapshots.
+
 ## Invariants
 
 - A profile must not have iCloud and a custom backend active for bidirectional synchronization at the same time.
 - Additional remote locations may be implemented only as explicitly one-way backup or export targets. They must not independently participate in pull/merge/push.
-- Remote connection configuration, credentials, and local paths remain device-local and are excluded from synchronized snapshots.
 - A provider written by a newer protocol or snapshot version must not be overwritten by an older client.
 - Provider failure must preserve local data and report an actionable sync status; it must not block normal local work.
 
