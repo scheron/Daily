@@ -64,8 +64,13 @@ export class SettingsModel {
     const row = this.db.prepare(`SELECT data FROM device_settings WHERE id = 'typography'`).get() as any
     if (!row) return defaults
     try {
-      const typography = deepMerge<LocalTypographySettings>(defaults, JSON.parse(row.data))
-      return ["small", "normal", "large"].includes(typography.fontSize) ? typography : getDefaultLocalTypographySettings()
+      const stored = JSON.parse(row.data)
+      const typography = deepMerge<LocalTypographySettings>(defaults, stored)
+      if (!["small", "normal", "large"].includes(typography.fontSize)) return getDefaultLocalTypographySettings()
+      if (stored.version === 2) return typography
+
+      const fontSize = typography.fontSize === "large" ? "normal" : "small"
+      return {fontSize, version: 2}
     } catch {
       return getDefaultLocalTypographySettings()
     }

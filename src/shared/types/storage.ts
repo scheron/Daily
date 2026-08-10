@@ -46,6 +46,7 @@ export type FontSize = "small" | "normal" | "large"
 /** UI preferences that are deliberately stored per device. */
 export type LocalTypographySettings = {
   fontSize: FontSize
+  version: 2
 }
 
 export type SshSyncSettings = {

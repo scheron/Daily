@@ -5,6 +5,7 @@ import {defineStore} from "pinia"
 import {ACCENT_PRESETS, BASE_PRESETS, DEFAULT_ACCENT_ID, DEFAULT_BASE_ID} from "@shared/constants/theme"
 import {useSettingValue} from "@/composables/useSettingsValue"
 import {BROADCAST_CHANNELS} from "@/constants/events"
+import {FONT_SIZE_PX} from "@/constants/typography"
 import {resolveAppearanceMode} from "@/utils/theme/resolveAppearanceMode"
 
 import type {AppearanceMode, FontSize} from "@shared/types/storage"
@@ -15,12 +16,6 @@ type AppearanceSnapshot = {
   accent: string
   base: BasePalette
   fontSize: FontSize
-}
-
-const FONT_SIZE_VALUES: Record<FontSize, string> = {
-  small: "13px",
-  normal: "15px",
-  large: "17px",
 }
 
 export const useThemeStore = defineStore("theme", () => {
@@ -67,7 +62,7 @@ export const useThemeStore = defineStore("theme", () => {
     root.style.setProperty("--c-base-200", snapshot.base.base200)
     root.style.setProperty("--c-base-300", snapshot.base.base300)
     root.style.setProperty("--c-base-content", snapshot.base.content)
-    root.style.setProperty("--app-font-size", FONT_SIZE_VALUES[snapshot.fontSize])
+    root.style.setProperty("--app-font-size", `${FONT_SIZE_PX[snapshot.fontSize]}px`)
   }
 
   /**

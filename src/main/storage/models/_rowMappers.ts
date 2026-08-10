@@ -147,7 +147,7 @@ export function getDefaultLocalSyncSettings(): LocalSyncSettings {
 }
 
 export function getDefaultLocalTypographySettings(): LocalTypographySettings {
-  return {fontSize: "normal"}
+  return {fontSize: "normal", version: 2}
 }
 
 export function getDefaultSettings(): Settings {

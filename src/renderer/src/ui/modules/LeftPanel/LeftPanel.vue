@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import {defineAsyncComponent} from "vue"
 
+import {useThemeStore} from "@/stores/theme.store"
 import {useUIStore} from "@/stores/ui"
 import {useAnimation} from "@/composables/useAnimation"
+import {FONT_SIZE_SCALE} from "@/constants/typography"
 import {WIDGET_DEFS} from "@/constants/widgets"
 import {cn} from "@/utils/ui/tailwindcss"
 import PanelDragIndicator from "@/ui/common/indicators/PanelDragIndicator.vue"
@@ -19,6 +21,7 @@ const Widgets = {
 } satisfies Record<WidgetId, ReturnType<typeof defineAsyncComponent>>
 
 const uiStore = useUIStore()
+const themeStore = useThemeStore()
 
 const {onEnter, onLeave} = useAnimation("slide")
 
@@ -36,12 +39,13 @@ function getWidgetClass(index: number, slot: WidgetSlot) {
 
 function getWidgetStyle(index: number, slot: WidgetSlot): StyleValue {
   const def = WIDGET_DEFS[slot.id]
-  if (isLastWidget(index)) return {minHeight: def.minHeight + "px"}
+  const scale = FONT_SIZE_SCALE[themeStore.fontSize]
+  if (isLastWidget(index)) return {minHeight: def.minHeight * scale + "px"}
   if (!def.resizable) return {}
   return {
-    height: slot.height + "px",
-    minHeight: def.minHeight + "px",
-    maxHeight: def.maxHeight + "px",
+    height: slot.height * scale + "px",
+    minHeight: def.minHeight * scale + "px",
+    maxHeight: def.maxHeight * scale + "px",
   }
 }
 

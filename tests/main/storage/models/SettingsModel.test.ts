@@ -36,12 +36,21 @@ describe("SettingsModel", () => {
   })
 
   it("persists typography locally, not in the syncable settings row", () => {
-    settingsModel.saveSettings({typography: {fontSize: "large"}})
+    settingsModel.saveSettings({typography: {fontSize: "large", version: 2}})
     const settings = settingsModel.loadSettings()
 
-    expect(settings.typography).toEqual({fontSize: "large"})
+    expect(settings.typography).toEqual({fontSize: "large", version: 2})
     expect(JSON.parse(db.prepare("SELECT data FROM settings WHERE id = 'default'").get().data).typography).toBeUndefined()
     expect(JSON.parse(db.prepare("SELECT data FROM device_settings WHERE id = 'typography'").get().data)).toEqual(settings.typography)
+  })
+
+  it("migrates v1 typography presets to the revised scale", () => {
+    const now = new Date().toISOString()
+    db.prepare(`INSERT INTO device_settings (id, data, updated_at) VALUES ('typography', ?, ?)`).run(JSON.stringify({fontSize: "normal"}), now)
+    expect(settingsModel.loadSettings().typography).toEqual({fontSize: "small", version: 2})
+
+    db.prepare(`UPDATE device_settings SET data = ?, updated_at = ? WHERE id = 'typography'`).run(JSON.stringify({fontSize: "large"}), now)
+    expect(settingsModel.loadSettings().typography).toEqual({fontSize: "normal", version: 2})
   })
 
   it("falls back to normal for an invalid local typography value", () => {
