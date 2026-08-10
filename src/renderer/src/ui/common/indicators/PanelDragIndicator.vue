@@ -26,13 +26,12 @@ function onPointerDown(event: PointerEvent) {
   const filler = handle.parentElement?.lastElementChild
   if (!(prev instanceof HTMLElement) || !(filler instanceof HTMLElement)) return
 
-  const a = props.boundary
   const scale = FONT_SIZE_SCALE[themeStore.fontSize]
   const startSizes = [prev.offsetHeight / scale, filler.offsetHeight / scale]
 
   startDrag(event, (delta) => {
-    const sizes = resizePanes(startSizes, 0, delta / scale, slotBounds(a), fillerBounds())
-    uiStore.setSlotHeight(a, sizes[0])
+    const sizes = resizePanes(startSizes, 0, delta / scale, slotBounds(props.boundary), fillerBounds())
+    uiStore.setSlotHeight(props.boundary, sizes[0])
   })
 }
 

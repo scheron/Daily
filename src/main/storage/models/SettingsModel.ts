@@ -3,9 +3,9 @@ import {nanoid} from "nanoid"
 import {deepMerge} from "@shared/utils/common/deepMerge"
 import {logger} from "@/utils/logger"
 
-import {getDefaultLocalSyncSettings, getDefaultLocalTypographySettings, getDefaultSettings, migrateSettingsShape} from "./_rowMappers"
+import {getDefaultSettings, getDefaultSyncSettings, getDefaultTypographySettings, migrateSettingsShape} from "./_rowMappers"
 
-import type {LocalSyncSettings, LocalTypographySettings, Settings} from "@shared/types/storage"
+import type {Settings, SyncSettings, TypographySettings} from "@shared/types/storage"
 import type Database from "better-sqlite3"
 
 export class SettingsModel {
@@ -13,17 +13,17 @@ export class SettingsModel {
 
   loadSettings(): Settings {
     const defaults = getDefaultSettings()
-    const localSync = this.loadLocalSyncSettings()
-    const localTypography = this.loadLocalTypographySettings()
+    const sync = this.loadSyncSettings()
+    const typography = this.loadTypographySettings()
     const row = this.db.prepare(`SELECT id, version, data, created_at, updated_at FROM settings WHERE id = 'default'`).get() as any
-    if (!row) return {...defaults, sync: localSync, typography: localTypography}
+    if (!row) return {...defaults, sync, typography}
 
     try {
       const parsed = migrateSettingsShape(JSON.parse(row.data))
-      const {sync: _legacySync, typography: _legacyTypography, ...syncable} = parsed
-      return {...deepMerge<Settings>(defaults, syncable), sync: localSync, typography: localTypography}
+      const {sync: _sync, typography: _typography, ...syncable} = parsed
+      return {...deepMerge<Settings>(defaults, syncable), sync, typography}
     } catch {
-      return {...defaults, sync: localSync, typography: localTypography}
+      return {...defaults, sync, typography}
     }
   }
 
@@ -49,30 +49,25 @@ export class SettingsModel {
     logger.storage("Updated", "SETTINGS", "default")
   }
 
-  private loadLocalSyncSettings(): LocalSyncSettings {
+  private loadSyncSettings(): SyncSettings {
     const row = this.db.prepare(`SELECT data FROM device_settings WHERE id = 'sync'`).get() as any
-    if (!row) return getDefaultLocalSyncSettings()
+    if (!row) return getDefaultSyncSettings()
     try {
-      return deepMerge<LocalSyncSettings>(getDefaultLocalSyncSettings(), JSON.parse(row.data))
+      return deepMerge<SyncSettings>(getDefaultSyncSettings(), JSON.parse(row.data))
     } catch {
-      return getDefaultLocalSyncSettings()
+      return getDefaultSyncSettings()
     }
   }
 
-  private loadLocalTypographySettings(): LocalTypographySettings {
-    const defaults = getDefaultLocalTypographySettings()
+  private loadTypographySettings(): TypographySettings {
+    const defaults = getDefaultTypographySettings()
     const row = this.db.prepare(`SELECT data FROM device_settings WHERE id = 'typography'`).get() as any
     if (!row) return defaults
     try {
-      const stored = JSON.parse(row.data)
-      const typography = deepMerge<LocalTypographySettings>(defaults, stored)
-      if (!["small", "normal", "large"].includes(typography.fontSize)) return getDefaultLocalTypographySettings()
-      if (stored.version === 2) return typography
-
-      const fontSize = typography.fontSize === "large" ? "normal" : "small"
-      return {fontSize, version: 2}
+      const typography = deepMerge<TypographySettings>(defaults, JSON.parse(row.data))
+      return ["small", "normal", "large"].includes(typography.fontSize) ? typography : getDefaultTypographySettings()
     } catch {
-      return getDefaultLocalTypographySettings()
+      return getDefaultTypographySettings()
     }
   }
 }
