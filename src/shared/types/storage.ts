@@ -41,6 +41,12 @@ export type InstalledAppReleaseState = {
 }
 
 export type AppearanceMode = "light" | "dark" | "system"
+export type FontSize = "small" | "normal" | "large"
+
+/** UI preferences that are deliberately stored per device. */
+export type LocalTypographySettings = {
+  fontSize: FontSize
+}
 
 export type SshSyncSettings = {
   enabled: boolean
@@ -66,6 +72,7 @@ export type Settings = {
     accent: string
     base: string
   }
+  typography: LocalTypographySettings
   sync: LocalSyncSettings
   ai: AIConfig | null
   branch: {

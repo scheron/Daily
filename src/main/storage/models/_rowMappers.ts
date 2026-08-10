@@ -4,7 +4,7 @@ import {DEFAULT_ACCENT_ID, DEFAULT_BASE_ID} from "@shared/constants/theme"
 import {deepMerge} from "@shared/utils/common/deepMerge"
 import {isNumber, notNull} from "@shared/utils/common/validators"
 
-import type {Branch, File, LocalSyncSettings, Settings, Tag, Task} from "@shared/types/storage"
+import type {Branch, File, LocalSyncSettings, LocalTypographySettings, Settings, Tag, Task} from "@shared/types/storage"
 
 type TaskRow = {
   id: string
@@ -146,6 +146,10 @@ export function getDefaultLocalSyncSettings(): LocalSyncSettings {
   return {iCloud: {enabled: false}, ssh: null}
 }
 
+export function getDefaultLocalTypographySettings(): LocalTypographySettings {
+  return {fontSize: "normal"}
+}
+
 export function getDefaultSettings(): Settings {
   return {
     version: "",
@@ -154,6 +158,7 @@ export function getDefaultSettings(): Settings {
       accent: DEFAULT_ACCENT_ID,
       base: DEFAULT_BASE_ID,
     },
+    typography: getDefaultLocalTypographySettings(),
     sync: getDefaultLocalSyncSettings(),
     ai: null,
     branch: {activeId: MAIN_BRANCH_ID},

@@ -16,7 +16,7 @@ import SettingsGroup from "../SettingsGroup.vue"
 
 import type {EmptySectionsMode} from "@/stores/ui/composables/useSectionPrefs"
 import type {CliInstallState} from "@shared/types/shell"
-import type {AppearanceMode} from "@shared/types/storage"
+import type {AppearanceMode, FontSize} from "@shared/types/storage"
 
 const uiStore = useUIStore()
 const themeStore = useThemeStore()
@@ -25,6 +25,12 @@ const themeOptions: {value: AppearanceMode; label: string}[] = [
   {value: "light", label: "Light"},
   {value: "dark", label: "Dark"},
   {value: "system", label: "System"},
+]
+
+const fontSizeOptions: {value: FontSize; label: string}[] = [
+  {value: "small", label: "Small"},
+  {value: "normal", label: "Normal"},
+  {value: "large", label: "Large"},
 ]
 
 const emptySectionsOptions: {value: EmptySectionsMode; label: string}[] = [
@@ -105,6 +111,10 @@ onMounted(async () => {
     </SettingsGroup>
 
     <SettingsGroup label="Content" icon="layout">
+      <SettingRow title="Text size" description="Choose the text size used throughout Daily">
+        <BaseSegmented v-model="themeStore.fontSize" :options="fontSizeOptions" />
+      </SettingRow>
+
       <SettingRow title="Empty columns" description="How columns appear when a day has no tasks">
         <BaseSegmented v-model="uiStore.emptySectionsMode" :options="emptySectionsOptions" />
       </SettingRow>

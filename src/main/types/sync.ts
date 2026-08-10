@@ -79,7 +79,7 @@ export type SnapshotFile = {
   deleted_at: string | null
 }
 
-export type SnapshotSettings = Omit<Settings, "sync"> & {
+export type SnapshotSettings = Omit<Settings, "sync" | "typography"> & {
   id: string
   created_at: string
   updated_at: string
