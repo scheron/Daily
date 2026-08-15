@@ -27,7 +27,7 @@
 }
 
 html {
-  font-size: 15px;
+  font-size: var(--app-font-size, 15px);
   line-height: 1.2;
 }
 

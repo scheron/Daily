@@ -23,6 +23,7 @@ describe("SettingsModel", () => {
     const settings = settingsModel.loadSettings()
     expect(settings.sync.iCloud.enabled).toBe(false)
     expect(settings.sync.ssh).toBeNull()
+    expect(settings.typography.fontSize).toBe("normal")
     expect(settings.branch.activeId).toBe("main")
   })
 
@@ -32,6 +33,24 @@ describe("SettingsModel", () => {
     expect(settings.sync).toEqual({iCloud: {enabled: true}, ssh: {enabled: true, host: "work", dir: "/remote/daily"}})
     expect(JSON.parse(db.prepare("SELECT data FROM settings WHERE id = 'default'").get().data).sync).toBeUndefined()
     expect(JSON.parse(db.prepare("SELECT data FROM device_settings WHERE id = 'sync'").get().data)).toEqual(settings.sync)
+  })
+
+  it("persists typography locally, not in the syncable settings row", () => {
+    settingsModel.saveSettings({typography: {fontSize: "large"}})
+    const settings = settingsModel.loadSettings()
+
+    expect(settings.typography).toEqual({fontSize: "large"})
+    expect(JSON.parse(db.prepare("SELECT data FROM settings WHERE id = 'default'").get().data).typography).toBeUndefined()
+    expect(JSON.parse(db.prepare("SELECT data FROM device_settings WHERE id = 'typography'").get().data)).toEqual(settings.typography)
+  })
+
+  it("falls back to normal for an invalid local typography value", () => {
+    db.prepare(`INSERT INTO device_settings (id, data, updated_at) VALUES ('typography', ?, ?)`).run(
+      JSON.stringify({fontSize: "huge"}),
+      new Date().toISOString(),
+    )
+
+    expect(settingsModel.loadSettings().typography.fontSize).toBe("normal")
   })
 
   it("partial updates preserve local sync configuration", () => {

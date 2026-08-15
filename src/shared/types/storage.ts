@@ -41,6 +41,12 @@ export type InstalledAppReleaseState = {
 }
 
 export type AppearanceMode = "light" | "dark" | "system"
+export type FontSize = "small" | "normal" | "large"
+
+/** UI preferences. */
+export type TypographySettings = {
+  fontSize: FontSize
+}
 
 export type SshSyncSettings = {
   enabled: boolean
@@ -48,11 +54,8 @@ export type SshSyncSettings = {
   dir: string
 }
 
-/**
- * Remote configuration belongs to this device only. It persists locally but is
- * deliberately excluded from sync snapshots.
- */
-export type LocalSyncSettings = {
+/** Remote synchronization configuration. */
+export type SyncSettings = {
   iCloud: {
     enabled: boolean
   }
@@ -66,7 +69,8 @@ export type Settings = {
     accent: string
     base: string
   }
-  sync: LocalSyncSettings
+  typography: TypographySettings
+  sync: SyncSettings
   ai: AIConfig | null
   branch: {
     activeId: Branch["id"]

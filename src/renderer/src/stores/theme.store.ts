@@ -5,15 +5,17 @@ import {defineStore} from "pinia"
 import {ACCENT_PRESETS, BASE_PRESETS, DEFAULT_ACCENT_ID, DEFAULT_BASE_ID} from "@shared/constants/theme"
 import {useSettingValue} from "@/composables/useSettingsValue"
 import {BROADCAST_CHANNELS} from "@/constants/events"
+import {FONT_SIZE_PX} from "@/constants/typography"
 import {resolveAppearanceMode} from "@/utils/theme/resolveAppearanceMode"
 
-import type {AppearanceMode} from "@shared/types/storage"
+import type {AppearanceMode, FontSize} from "@shared/types/storage"
 import type {BasePalette, BasePreset} from "@shared/types/theme"
 
 type AppearanceSnapshot = {
   isDark: boolean
   accent: string
   base: BasePalette
+  fontSize: FontSize
 }
 
 export const useThemeStore = defineStore("theme", () => {
@@ -24,6 +26,7 @@ export const useThemeStore = defineStore("theme", () => {
   const mode = useSettingValue<"appearance.mode", AppearanceMode>("appearance.mode", "system")
   const accentId = useSettingValue("appearance.accent", DEFAULT_ACCENT_ID)
   const baseId = useSettingValue("appearance.base", DEFAULT_BASE_ID)
+  const fontSize = useSettingValue<"typography.fontSize", FontSize>("typography.fontSize", "normal")
 
   const systemPrefersDark = ref(window.matchMedia("(prefers-color-scheme: dark)").matches)
 
@@ -47,6 +50,10 @@ export const useThemeStore = defineStore("theme", () => {
     baseId.value = id
   }
 
+  function setFontSize(value: FontSize) {
+    fontSize.value = value
+  }
+
   function applySnapshot(snapshot: AppearanceSnapshot) {
     const root = document.documentElement
     root.classList.toggle("dark", snapshot.isDark)
@@ -55,6 +62,7 @@ export const useThemeStore = defineStore("theme", () => {
     root.style.setProperty("--c-base-200", snapshot.base.base200)
     root.style.setProperty("--c-base-300", snapshot.base.base300)
     root.style.setProperty("--c-base-content", snapshot.base.content)
+    root.style.setProperty("--app-font-size", `${FONT_SIZE_PX[snapshot.fontSize]}px`)
   }
 
   /**
@@ -80,12 +88,13 @@ export const useThemeStore = defineStore("theme", () => {
   }
 
   watch(
-    [resolvedMode, accentValue, basePalette],
+    [resolvedMode, accentValue, basePalette, fontSize],
     () => {
       const snapshot: AppearanceSnapshot = {
         isDark: resolvedMode.value === "dark",
         accent: accentValue.value,
         base: basePalette.value,
+        fontSize: fontSize.value,
       }
       applySnapshot(snapshot)
       post(snapshot)
@@ -104,10 +113,12 @@ export const useThemeStore = defineStore("theme", () => {
     accentId,
     accentValue,
     baseId,
+    fontSize,
     resolvedMode,
 
     setMode,
     setAccent,
     setBase,
+    setFontSize,
   }
 })

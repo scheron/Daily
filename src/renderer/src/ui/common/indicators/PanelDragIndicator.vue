@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import {useThemeStore} from "@/stores/theme.store"
 import {useUIStore} from "@/stores/ui"
 import {useAxisDrag} from "@/composables/useAxisDrag"
+import {FONT_SIZE_SCALE} from "@/constants/typography"
 import {WIDGET_DEFS} from "@/constants/widgets"
 import {resizePanes} from "@/utils/ui/resizePanes"
 import BaseDragIndicator from "@/ui/base/BaseDragIndicator.vue"
@@ -15,6 +17,7 @@ const props = defineProps<{
 }>()
 
 const uiStore = useUIStore()
+const themeStore = useThemeStore()
 const {isDragging, startDrag} = useAxisDrag("vertical")
 
 function onPointerDown(event: PointerEvent) {
@@ -23,12 +26,12 @@ function onPointerDown(event: PointerEvent) {
   const filler = handle.parentElement?.lastElementChild
   if (!(prev instanceof HTMLElement) || !(filler instanceof HTMLElement)) return
 
-  const a = props.boundary
-  const startSizes = [prev.offsetHeight, filler.offsetHeight]
+  const scale = FONT_SIZE_SCALE[themeStore.fontSize]
+  const startSizes = [prev.offsetHeight / scale, filler.offsetHeight / scale]
 
   startDrag(event, (delta) => {
-    const sizes = resizePanes(startSizes, 0, delta, slotBounds(a), fillerBounds())
-    uiStore.setSlotHeight(a, sizes[0])
+    const sizes = resizePanes(startSizes, 0, delta / scale, slotBounds(props.boundary), fillerBounds())
+    uiStore.setSlotHeight(props.boundary, sizes[0])
   })
 }
 
