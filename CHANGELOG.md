@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.18.0 - 2026-08-15
+
+### ✨ New Features
+
+- **Text size** — General settings gains small, normal, and large text size. The setting stays on the device it's set on, and panel widths scale with it.
+- **CLI projects** — the `daily` CLI can now create, rename, delete, and switch the active project, and `tasks move-project` moves a task between projects without touching its content, schedule, status, tags, or time.
+- **CLI tags** — `tags create` and `tags update` round out tag management from the terminal: create a tag with a color, rename or recolor an existing one, with task assignments preserved.
+- **CLI task details** — `daily task <id>` now prints a full field view — status, schedule, project, tags, estimate, tracked time, timestamps, and attached files with their paths on disk — instead of a one-line row. The same view is available as `--full` on `tasks`, `today`, and `tasks deleted`.
+
+### 🐛 Bug Fixes
+
+- **Attachments** — pasted and uploaded images are re-encoded to WebP, but were saved under the original file's extension and type, so a screenshot landed on disk as `.png` while its contents were WebP. The extension and type are now read from the file's actual contents, and the alt text an image gets on upload no longer carries an extension at all.
+- **Editor** — fixed the source of a link or image showing up mangled when the cursor entered its line, leaving fragments like `image.png =500x209)` behind instead of the full markup.
+- **Daily CLI** — fixed `daily` exiting silently without running the command when installed globally from npm.
+
+---
+
 ## v0.17.5 - 2026-07-29
 
 ### ✨ New Features
