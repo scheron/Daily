@@ -3,6 +3,7 @@ import {ref} from "vue"
 import {blobToBuffer} from "@/utils/images/blobToBuffer"
 import {calcProportionSize} from "@/utils/images/calcProportionSize"
 import {compressImageFile} from "@/utils/images/compressImageFile"
+import {toImageAltText} from "@/utils/images/toImageAltText"
 
 import type {CompressionOptions} from "@/utils/images/compressImageFile"
 
@@ -46,8 +47,7 @@ export function useImageUpload(options: UseImageUploadOptions = {}) {
 
       const {width: displayWidth, height: displayHeight} = calcProportionSize(width, height, displayMaxSize)
 
-      const filename = file.name || "image"
-      const markdown = `![${filename} =${displayWidth}x${displayHeight}](${url})`
+      const markdown = `![${toImageAltText(file.name)} =${displayWidth}x${displayHeight}](${url})`
 
       return markdown
     } catch (e: any) {
