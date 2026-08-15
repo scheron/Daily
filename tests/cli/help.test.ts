@@ -73,6 +73,22 @@ describe("daily --help", () => {
     expect(program.commands.find((command) => command.name() === "projects")!.helpInformation()).toContain('"branches":[Branch,...]')
   })
 
+  it("TC-20: documents the detailed default for `task` and the --full flag for `tasks`, `today`, and `tasks deleted`", () => {
+    const program = buildProgram()
+    const task = program.commands.find((command) => command.name() === "task")!
+    const tasks = program.commands.find((command) => command.name() === "tasks")!
+    const today = program.commands.find((command) => command.name() === "today")!
+    const deleted = tasks.commands.find((command) => command.name() === "deleted")!
+
+    const taskHelp = task.helpInformation()
+    expect(taskHelp).toContain("Reads one task")
+    expect(taskHelp).toContain("files")
+
+    expect(tasks.helpInformation()).toContain("--full")
+    expect(today.helpInformation()).toContain("--full")
+    expect(deleted.helpInformation()).toContain("--full")
+  })
+
   it("exposes tag catalog mutations", () => {
     const program = buildProgram()
     const tags = program.commands.find((command) => command.name() === "tags")!

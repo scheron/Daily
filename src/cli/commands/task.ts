@@ -1,6 +1,6 @@
 import {addHelpDetails} from "../help"
 import {readOptions} from "../options"
-import {formatTaskList, renderJsonOk} from "../output"
+import {formatTaskDetails, formatTaskList, renderJsonOk} from "../output"
 import {runCliCommand} from "../runtime"
 import {assertDeleteTarget, assertPositiveMinutes, assertValidDate, assertValidTime} from "../validate"
 import {
@@ -26,6 +26,7 @@ import type {TaskStatus} from "@shared/types/storage"
 import type {Command} from "commander"
 
 type TaskScopeOptions = {project?: string; all?: boolean; json?: boolean}
+type TaskListOptions = TaskScopeOptions & {full?: boolean}
 type TaskAddOptions = {date?: string; time?: string; tag?: string[]; tags?: string; project?: string; estimate?: string; json?: boolean}
 type TaskMoveOptions = TaskScopeOptions & {time?: string}
 type TaskDeleteOptions = TaskScopeOptions & {force?: boolean}
@@ -38,6 +39,7 @@ export function registerTaskCommands(program: Command): void {
     .addHelpCommand()
     .option("--project <id_or_name>", "scope to a project")
     .option("--all", "span every project")
+    .option("--full", "print the detailed layout for every task")
     .option("--json", "output stable JSON")
   tasks.enablePositionalOptions()
   tasks.action((date, opts, command) => runListTasks(date, readOptions(opts, command)))
@@ -191,23 +193,26 @@ function registerTaskMutations(task: Command): void {
       .description("List trashed tasks")
       .option("--project <id_or_name>", "scope to a project")
       .option("--all", "span every project")
+      .option("--full", "print the detailed layout for every task")
       .option("--json", "output stable JSON"),
     TASK_DELETED_HELP,
   ).action((opts, command) => runListDeletedTasks(readOptions(opts, command)))
 }
 
-async function runListTasks(date: string | undefined, opts: TaskScopeOptions): Promise<void> {
+async function runListTasks(date: string | undefined, opts: TaskListOptions): Promise<void> {
   await runCliCommand(opts, async (cli) => {
     const validDate = date ? assertValidDate(date) : undefined
     const tasks = await cli.listTasks({date: validDate, project: opts.project, all: opts.all})
-    console.log(opts.json ? renderJsonOk({tasks}) : formatTaskList(tasks))
+    if (opts.json) return console.log(renderJsonOk({tasks}))
+    console.log(opts.full ? formatTaskDetails(await cli.describeTasks(tasks)) : formatTaskList(tasks))
   })
 }
 
 async function runGetTask(taskId: string, opts: TaskScopeOptions): Promise<void> {
   await runCliCommand(opts, async (cli) => {
     const task = await cli.getTask(taskId, {project: opts.project, all: opts.all})
-    console.log(opts.json ? renderJsonOk({task}) : formatTaskList([task]))
+    if (opts.json) return console.log(renderJsonOk({task}))
+    console.log(formatTaskDetails(await cli.describeTasks([task])))
   })
 }
 
@@ -322,9 +327,10 @@ async function runRestoreTask(taskId: string, opts: TaskScopeOptions): Promise<v
   })
 }
 
-async function runListDeletedTasks(opts: TaskScopeOptions): Promise<void> {
+async function runListDeletedTasks(opts: TaskListOptions): Promise<void> {
   await runCliCommand(opts, async (cli) => {
     const tasks = await cli.listDeletedTasks({project: opts.project, all: opts.all})
-    console.log(opts.json ? renderJsonOk({tasks}) : formatTaskList(tasks))
+    if (opts.json) return console.log(renderJsonOk({tasks}))
+    console.log(opts.full ? formatTaskDetails(await cli.describeTasks(tasks)) : formatTaskList(tasks))
   })
 }

@@ -61,6 +61,10 @@ export class FileModel {
     return path.join(this.assetsDir, `${fileId}.${ext}`)
   }
 
+  async assetExists(fileId: string, ext: string): Promise<boolean> {
+    return fs.pathExists(this.getAssetPath(fileId, ext))
+  }
+
   getFileList(params?: {includeDeleted?: boolean}): File[] {
     let sql = `SELECT id, name, mime_type, size, created_at, updated_at, deleted_at FROM files`
 

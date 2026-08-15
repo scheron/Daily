@@ -14,6 +14,7 @@ Pass a date to list another day; use a subcommand to change tasks.
 
 Scope: --project <id|name> one project · --all every project (wins over --project).
 Rows show scheduled time, status, first content line, and full id ("--:--" = no time).
+--full prints the detailed layout of each task, records separated by a blank line.
 Empty lists print "(no tasks)" and exit 0. JSON: {"ok":true,"data":{"tasks":[Task,...]}}.
 Run "daily tasks help <subcommand>" for a mutation's full contract.
 `,
@@ -25,6 +26,13 @@ export const TASK_HELP: CommandHelp = {
 Reads one task by full id or unique prefix. A full id resolves across projects;
 a prefix resolves in the active project unless --project or --all is given.
 Ambiguous prefixes exit 2; no match exits 3.
+
+Without --json, prints the detailed layout: a field header (id, status,
+scheduled, project, tags, estimate, spent, created, updated, files, and
+deleted/attached when set) followed by a blank line and the task's full
+content verbatim. The files block lists every file referenced from the
+content with its full path on disk, or "(file not found)" when missing.
+--json is unchanged: {"ok":true,"data":{"task":Task}}.
 
   daily task a1b2
   daily task a1b2 --all --json
@@ -201,7 +209,8 @@ export const TASK_DELETED_HELP: CommandHelp = {
   details: `
 Lists trashed tasks, most recently deleted first. Defaults to the active project;
 --project selects one, --all lists every project's trash. Rows match the "daily
-tasks" format; an empty trash prints "(no tasks)".
+tasks" format; an empty trash prints "(no tasks)". --full prints the detailed
+layout of each task, records separated by a blank line.
 
   daily tasks deleted
   daily tasks deleted --all --json

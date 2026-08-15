@@ -6,7 +6,8 @@ export const TODAY_HELP: CommandHelp = {
 Shows today's tasks in the active project — a shortcut for "daily tasks" with no
 date. "Today" is the computer's local calendar; there is no date or project
 override here (use "daily tasks" for that). Rows match "daily tasks" and an empty
-day prints "(no tasks)". JSON: {"ok":true,"data":{"date":"YYYY-MM-DD"|null,"tasks":[Task,...]}}
+day prints "(no tasks)". --full prints the detailed layout of each task, records
+separated by a blank line. JSON: {"ok":true,"data":{"date":"YYYY-MM-DD"|null,"tasks":[Task,...]}}
 (date may be null when no day record exists).
 
   daily today

@@ -66,7 +66,7 @@ const SCHEMA_TYPES = {
     orderIndex: "number",
     status: '"active" | "done" | "discarded"',
     tags: "Tag[]",
-    attachments: "Attachment[]",
+    attachments: "string[] (file ids)",
   },
   Tag: {
     id: "string",

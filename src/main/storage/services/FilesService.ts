@@ -39,6 +39,18 @@ export class FilesService {
     return `${APP_CONFIG.filesProtocol}/${id}`
   }
 
+  /** Absolute path of the stored asset for `id`, or null when the file record is unknown or the asset is missing on disk. */
+  async resolveAssetPath(id: File["id"]): Promise<string | null> {
+    const file = this.fileModel.getFile(id)
+    if (!file) return null
+
+    const ext = path.extname(file.name).slice(1)
+    const exists = await this.fileModel.assetExists(id, ext)
+    if (!exists) return null
+
+    return this.fileModel.getAssetPath(id, ext)
+  }
+
   async deleteFile(fileId: File["id"]): Promise<boolean> {
     const file = this.fileModel.getFile(fileId)
     if (file) {

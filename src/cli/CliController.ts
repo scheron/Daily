@@ -5,11 +5,13 @@ import {TAG_QUICK_COLORS} from "@shared/constants/tagColorPalette"
 import {CliError} from "@shared/errors/cli/CliError"
 import {CliErrorCode} from "@shared/errors/cli/CliErrorCode"
 import {findTagByName, isValidTagName, normalizeTagName} from "@shared/utils/tags/tagName"
+import {extractFileIds} from "@/utils/files/extractFileIds"
 
 import type {StorageCore} from "@/storage/createStorageCore"
 import type {AppPaths} from "@shared/config/paths"
 import type {TaskSearchResult} from "@shared/types/search"
 import type {Branch, Day, Tag, Task, TaskStatus} from "@shared/types/storage"
+import type {TaskDetail} from "./output"
 
 type CliScope = {project?: string; all?: boolean}
 
@@ -50,6 +52,19 @@ export class CliController {
     const date = opts.date ?? DateTime.now().toISODate()!
     const range = {from: date, to: date}
     return this.core.tasksService.getTaskList({...range, branchId})
+  }
+
+  /** Resolves everything the detailed output needs beyond the task row: the project name and the files referenced from the content. */
+  async describeTasks(tasks: Task[]): Promise<TaskDetail[]> {
+    const projectNameById = new Map((await this.listProjects()).map((project) => [project.id, project.name]))
+
+    return Promise.all(
+      tasks.map(async (task) => {
+        const fileIds = extractFileIds(task.content)
+        const files = await Promise.all(fileIds.map(async (id) => ({id, path: await this.core.filesService.resolveAssetPath(id)})))
+        return {task, projectName: projectNameById.get(task.branchId) ?? task.branchId, files}
+      }),
+    )
   }
 
   async listTags(): Promise<Tag[]> {

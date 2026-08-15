@@ -93,3 +93,42 @@ describe("FilesService.saveFile", () => {
     expect(diskFiles).not.toContain(`${fileId}.webp`)
   })
 })
+
+describe("FilesService.resolveAssetPath", () => {
+  let db, assetsDir, fileModel, filesService
+
+  beforeEach(() => {
+    db = createTestDatabase()
+    assetsDir = mkdtempSync(join(tmpdir(), "daily-files-service-"))
+    fileModel = new FileModel(db, assetsDir)
+    fileModel.initAssets()
+    filesService = new FilesService(fileModel, new TaskModel(db))
+  })
+
+  afterEach(() => {
+    db.close()
+    rmSync(assetsDir, {recursive: true, force: true})
+  })
+
+  it("TC-7: resolves the absolute disk path for a file whose asset exists, built from the test's own assetsDir", async () => {
+    const id = await filesService.saveFile("image.png", Buffer.from("pixel"))
+
+    const resolved = await filesService.resolveAssetPath(id)
+
+    expect(resolved).toBe(join(assetsDir, `${id}.png`))
+  })
+
+  it("TC-8: returns null when no file record matches the id", async () => {
+    const resolved = await filesService.resolveAssetPath("does-not-exist")
+
+    expect(resolved).toBeNull()
+  })
+
+  it("TC-9: returns null when the file record exists but its asset is missing on disk", async () => {
+    const file = fileModel.createFile("ghost-file", "ghost.png", "image/png", 10)
+
+    const resolved = await filesService.resolveAssetPath(file.id)
+
+    expect(resolved).toBeNull()
+  })
+})

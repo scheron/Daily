@@ -134,6 +134,14 @@ describe("buildCliSchema", () => {
     }
   })
 
+  it("TC-19: describes Task.attachments as file ids, not the nonexistent Attachment type", () => {
+    const schema = buildCliSchema(buildProgram())
+
+    expect(schema.types.Task.attachments).not.toMatch(/Attachment\[\]/)
+    expect(schema.types.Task.attachments).toContain("string[]")
+    expect(JSON.stringify(schema)).not.toContain("Attachment[]")
+  })
+
   it("exposes error codes with their exit codes", () => {
     const schema = buildCliSchema(buildProgram())
 
