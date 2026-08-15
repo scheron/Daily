@@ -5,6 +5,7 @@ import {APP_CONFIG} from "@shared/config/app"
 import {isNull, notNull} from "@shared/utils/common/validators"
 import {extractFileIds} from "@/utils/files/extractFileIds"
 import {getMimeType} from "@/utils/files/getMimeType"
+import {sniffImageExt} from "@/utils/files/sniffImageExt"
 import {logger} from "@/utils/logger"
 
 import type {FileModel} from "@/storage/models/FileModel"
@@ -19,11 +20,13 @@ export class FilesService {
 
   async saveFile(filename: string, data: Buffer): Promise<File["id"]> {
     const fileId = nanoid()
-    const ext = path.extname(filename).slice(1)
+    const sniffed = sniffImageExt(data)
+    const ext = sniffed ?? path.extname(filename).slice(1)
+    const name = sniffed ? `${path.basename(filename, path.extname(filename))}.${sniffed}` : filename
     const mimeType = getMimeType(ext)
 
     await this.fileModel.saveAsset(fileId, ext, data)
-    const file = this.fileModel.createFile(fileId, filename, mimeType, data.length)
+    const file = this.fileModel.createFile(fileId, name, mimeType, data.length)
 
     if (!file) {
       throw new Error(`Failed to save file: ${filename}`)
