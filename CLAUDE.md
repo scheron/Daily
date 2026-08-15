@@ -13,6 +13,20 @@ pnpm test                # full vitest suite (Electron runtime via evitest)
 pnpm check:all           # lint + typecheck:all + circular + test
 ```
 
+## Environment
+
+**Build.** `pnpm build` — packages the macOS `.dmg`. CLI alone: `pnpm build:cli`, output in `out/cli/`.
+**Typecheck.** `pnpm typecheck:all`
+**Lint.** `pnpm lint`
+**Tests.** `pnpm test` — vitest under the Electron runtime; `tests/cli/**` runs inside the `main` project.
+**Single test file.** `pnpm evitest run tests/cli/output.test.ts`
+**Dev server.** `pnpm dev` — opens the Electron window, no URL.
+**E2E.** none
+**Runtime.** The app is driven through its Electron window (`pnpm dev`). The CLI is driven through the local build — `pnpm build:cli`, then `ELECTRON_RUN_AS_NODE=1 ./node_modules/.bin/electron out/cli/index.js <args>` — never through a globally installed `daily`, which is a different published version.
+
+**bootstrap.** `pnpm install` (its `postinstall` runs `electron-builder install-app-deps`)
+**link.** `.env`
+
 ## Architecture
 
 - **Layers:** Model (SQLite CRUD, `_rowMappers` maps snake_case↔camelCase) → Service (business logic) → Controller (`StorageController`) → IPC → renderer store → component.
