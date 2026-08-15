@@ -67,6 +67,38 @@ describe("createWYSIWYGDecorations", () => {
     expect(entries.some((e) => e.widget === "LinkWidget" && e.from === 0)).toBe(true)
   })
 
+  it("reveals the whole image source while the cursor is on its line", () => {
+    const doc = "![image.png =500x209](daily://file/abc)"
+    const entries = collect(createWYSIWYGDecorations(buildState(doc, doc.length), true))
+
+    expect(entries.some((e) => e.widget === "ImageWidget")).toBe(false)
+    expect(hiddenRange(entries, 0, 2)).toBe(false) // "!["
+    expect(hiddenRange(entries, 20, 21)).toBe(false) // "]"
+    expect(hiddenRange(entries, 21, 22)).toBe(false) // "("
+    expect(hiddenRange(entries, 22, 38)).toBe(false) // the URL
+  })
+
+  it("reveals the whole link source while the cursor is on its line", () => {
+    const doc = "[text](http://x)"
+    const entries = collect(createWYSIWYGDecorations(buildState(doc, 2), true))
+
+    expect(hiddenRange(entries, 0, 1)).toBe(false) // "["
+    expect(hiddenRange(entries, 5, 6)).toBe(false) // "]"
+    expect(hiddenRange(entries, 6, 7)).toBe(false) // "("
+    expect(hiddenRange(entries, 7, 15)).toBe(false) // the URL
+  })
+
+  it("still hides image and link syntax on inactive lines", () => {
+    const image = collect(createWYSIWYGDecorations(buildState("![a](u)\n\nx", 9), true))
+    expect(image.some((e) => e.widget === "ImageWidget")).toBe(true)
+
+    const link = collect(createWYSIWYGDecorations(buildState("[text](http://x)\n\nx", 18), true))
+    expect(hiddenRange(link, 0, 1)).toBe(true) // "["
+    expect(hiddenRange(link, 5, 6)).toBe(true) // "]"
+    expect(hiddenRange(link, 6, 7)).toBe(true) // "("
+    expect(hiddenRange(link, 7, 15)).toBe(true) // the URL
+  })
+
   it("leaves fenced code fence lines navigable (does not collapse them)", () => {
     // Collapsing fence lines to zero height traps the cursor and blocks exiting
     // the block — fences stay as real lines, like zennotes.

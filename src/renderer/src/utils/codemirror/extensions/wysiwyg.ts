@@ -102,14 +102,14 @@ export function createWYSIWYGDecorations(state: EditorState, isFocused: boolean)
         // of the block with the arrow keys.
 
         case "LinkMark": {
-          if (selectionTouches(from, to)) break
+          if (lineActive(from)) break
           decorations.push(hide.range(from, to))
           break
         }
 
         case "URL": {
           if (state.doc.sliceString(from - 1, from) !== "(") break
-          if (selectionTouches(from, to)) break
+          if (lineActive(from)) break
           decorations.push(hide.range(from, to))
           break
         }
