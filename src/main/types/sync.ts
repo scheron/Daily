@@ -104,6 +104,25 @@ export interface IRemoteStorage {
   syncAssets(localAssetsDir: string, fileManifest: SnapshotFile[]): Promise<void>
 }
 
+export type SnapshotRevision = string
+
+export type RemoteReadResult = {
+  snapshot: Snapshot | null
+  revision: SnapshotRevision | null
+}
+
+/**
+ * A remote that supports conditional writes: it can be read together with the
+ * revision it was read at, and written back only if that revision still
+ * matches what the provider currently holds. `saveSnapshotIfUnchanged` rejects
+ * with `RemoteWriteConflictError` when it does not.
+ */
+export interface IRevisionedRemoteStorage extends IRemoteStorage {
+  readonly supportsRevisions: true
+  loadSnapshotWithRevision(): Promise<RemoteReadResult>
+  saveSnapshotIfUnchanged(snapshot: Snapshot, expectedRevision: SnapshotRevision | null): Promise<SnapshotRevision>
+}
+
 export type SyncRemote = {
   id: string
   label: string

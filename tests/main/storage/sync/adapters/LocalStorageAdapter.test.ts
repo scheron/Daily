@@ -108,7 +108,7 @@ describe("LocalStorageAdapter", () => {
     })
 
     it("excludes legacy local sync settings from snapshot docs", async () => {
-      insertSettings(db, {sync: {enabled: true, ssh: {enabled: true, host: "host", dir: "/remote"}}})
+      insertSettings(db, {sync: {enabled: true}})
       const docs = await adapter.loadAllDocs()
       expect(docs.settings).not.toHaveProperty("sync")
     })

@@ -1,9 +1,22 @@
 import {beforeEach, describe, expect, it, vi} from "vitest"
 
+import {SYNC_CONFIG} from "@shared/config/sync"
+import {RemoteWriteConflictError} from "@shared/errors/sync/RemoteWriteConflictError"
+
 import {SyncEngine} from "@main/storage/sync/SyncEngine"
 import {buildSnapshot} from "@main/utils/sync/snapshot/buildSnapshot"
 
-import type {ILocalStorage, IRemoteStorage, Snapshot, SnapshotDocs, SnapshotFile, SnapshotTask} from "@main/types/sync"
+import type {
+  ILocalStorage,
+  IRemoteStorage,
+  IRevisionedRemoteStorage,
+  RemoteReadResult,
+  Snapshot,
+  SnapshotDocs,
+  SnapshotFile,
+  SnapshotRevision,
+  SnapshotTask,
+} from "@main/types/sync"
 
 vi.mock("@main/utils/logger", () => ({
   logger: {
@@ -69,8 +82,10 @@ class FakeRemote implements IRemoteStorage {
   snapshot: Snapshot | null = null
   failLoad = false
   saveCount = 0
+  loadCount = 0
 
   async loadSnapshot(): Promise<Snapshot | null> {
+    this.loadCount++
     if (this.failLoad) throw new Error("unreachable")
     return this.snapshot ? structuredClone(this.snapshot) : null
   }
@@ -81,6 +96,79 @@ class FakeRemote implements IRemoteStorage {
   }
 
   async syncAssets(_localAssetsDir: string, _fileManifest: SnapshotFile[]): Promise<void> {}
+}
+
+/**
+ * A remote that declares revision support. `loadSnapshotWithRevision` and
+ * `saveSnapshotIfUnchanged` are the only methods a conforming caller should
+ * ever use against it; `loadSnapshot` / `saveSnapshot` are implemented only
+ * to satisfy `IRemoteStorage`, unconditionally and without regard to
+ * revisions, so that a caller which still goes through the plain path (the
+ * pre-retry-loop behaviour) observably loses another device's concurrent
+ * write instead of merging it — which is the bug this fake exists to catch.
+ *
+ * `advanceAfterNextRead` simulates another device winning a race: the next
+ * call to `loadSnapshotWithRevision` returns the state that was current at
+ * the time of the read, then immediately moves the remote's own state
+ * forward, so that a write attempted against the revision just read is
+ * rejected, and only a fresh re-read observes the advance.
+ */
+class FakeRevisionedRemote implements IRevisionedRemoteStorage {
+  readonly supportsRevisions = true as const
+  revision: SnapshotRevision | null
+  snapshot: Snapshot | null
+  acceptedSnapshot: Snapshot | null = null
+  rejectAllWrites = false
+  loadWithRevisionCount = 0
+  saveAttempts = 0
+  rejectedWrites = 0
+  private pendingAdvance: {revision: SnapshotRevision; snapshot: Snapshot} | null = null
+
+  constructor(initial: {revision: SnapshotRevision | null; snapshot: Snapshot | null}) {
+    this.revision = initial.revision
+    this.snapshot = initial.snapshot
+  }
+
+  advanceAfterNextRead(next: {revision: SnapshotRevision; snapshot: Snapshot}): void {
+    this.pendingAdvance = next
+  }
+
+  async loadSnapshot(): Promise<Snapshot | null> {
+    return this.snapshot ? structuredClone(this.snapshot) : null
+  }
+
+  async saveSnapshot(snapshot: Snapshot): Promise<void> {
+    this.snapshot = structuredClone(snapshot)
+    this.acceptedSnapshot = structuredClone(snapshot)
+  }
+
+  async syncAssets(_localAssetsDir: string, _fileManifest: SnapshotFile[]): Promise<void> {}
+
+  async loadSnapshotWithRevision(): Promise<RemoteReadResult> {
+    this.loadWithRevisionCount++
+    const result: RemoteReadResult = {
+      snapshot: this.snapshot ? structuredClone(this.snapshot) : null,
+      revision: this.revision,
+    }
+    if (this.pendingAdvance) {
+      this.revision = this.pendingAdvance.revision
+      this.snapshot = this.pendingAdvance.snapshot
+      this.pendingAdvance = null
+    }
+    return result
+  }
+
+  async saveSnapshotIfUnchanged(snapshot: Snapshot, expectedRevision: SnapshotRevision | null): Promise<SnapshotRevision> {
+    this.saveAttempts++
+    if (this.rejectAllWrites || expectedRevision !== this.revision) {
+      this.rejectedWrites++
+      throw new RemoteWriteConflictError()
+    }
+    this.snapshot = structuredClone(snapshot)
+    this.acceptedSnapshot = structuredClone(snapshot)
+    this.revision = `r${this.saveAttempts + 1}`
+    return this.revision
+  }
 }
 
 function makeEngine(local: FakeLocalStore, remotes: Array<{id: string; adapter: IRemoteStorage}>) {
@@ -108,6 +196,68 @@ describe("SyncEngine (multi-remote)", () => {
     await engine.syncOnce("pull")
 
     expect(remote.snapshot?.docs.tasks.map((t) => t.id)).toEqual(["t1"])
+  })
+
+  it("reads_TC-7_and_writes_a_non_revisioned_remote_once_unconditionally_with_no_retry", async () => {
+    local.docs.tasks = [makeTask("t1", "2026-07-18T10:00:00.000Z")]
+    const remote = new FakeRemote()
+    const {engine} = makeEngine(local, [{id: "a", adapter: remote}])
+
+    await engine.syncOnce("pull")
+
+    expect(remote.loadCount).toBe(1)
+    expect(remote.saveCount).toBe(1)
+    expect(remote.snapshot?.docs.tasks.map((t) => t.id)).toEqual(["t1"])
+  })
+
+  it("retries_TC-5_a_lost_conditional_write_against_fresh_remote_state_and_lands_the_merge_locally", async () => {
+    const taskA = makeTask("tA", "2026-07-18T10:00:00.000Z")
+    const taskB = makeTask("tB", "2026-07-18T09:00:00.000Z")
+    const taskC = makeTask("tC", "2026-07-18T09:30:00.000Z")
+    local.docs.tasks = [taskA]
+
+    const remote = new FakeRevisionedRemote({
+      revision: "r1",
+      snapshot: buildSnapshot({...emptyDocs(), tasks: [taskB]}),
+    })
+    remote.advanceAfterNextRead({
+      revision: "r2",
+      snapshot: buildSnapshot({...emptyDocs(), tasks: [taskB, taskC]}),
+    })
+    const {engine} = makeEngine(local, [{id: "a", adapter: remote}])
+
+    await engine.syncOnce("pull")
+
+    expect(remote.rejectedWrites).toBe(1)
+    expect(remote.loadWithRevisionCount).toBe(2)
+    expect(remote.acceptedSnapshot?.docs.tasks.map((t) => t.id).toSorted()).toEqual(["tA", "tB", "tC"])
+    expect(local.docs.tasks.map((t) => t.id).toSorted()).toEqual(["tA", "tB", "tC"])
+  })
+
+  it("defers_TC-6_after_exhausting_conditional_write_attempts_without_failing_the_cycle", async () => {
+    const taskA = makeTask("tA", "2026-07-18T10:00:00.000Z")
+    local.docs.tasks = [taskA]
+
+    const remote = new FakeRevisionedRemote({revision: null, snapshot: null})
+    remote.rejectAllWrites = true
+    const onStatusChange = vi.fn()
+    const engine = new SyncEngine(local, [{id: "a", label: "a", adapter: remote}], {
+      assetsDir: () => "/tmp/unused-assets",
+      onStatusChange,
+      onDataChanged: vi.fn(),
+    })
+    engine.enableAutoSync()
+
+    await expect(engine.sync()).resolves.toBeUndefined()
+
+    expect(remote.saveAttempts).toBe(SYNC_CONFIG.conditionalWriteMaxAttempts)
+    expect(remote.loadWithRevisionCount).toBe(SYNC_CONFIG.conditionalWriteMaxAttempts)
+    expect(remote.acceptedSnapshot).toBeNull()
+    expect(engine.syncStatus).toBe("active")
+    expect(engine.getRemoteStates().find((s) => s.id === "a")?.lastError).toBeTruthy()
+    expect(local.docs.tasks.map((t) => t.id)).toEqual(["tA"])
+
+    engine.disableAutoSync()
   })
 
   it("bridges remotes: a doc pulled from remote A is pushed to remote B", async () => {

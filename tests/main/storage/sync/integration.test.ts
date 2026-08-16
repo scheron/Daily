@@ -538,7 +538,7 @@ describe("Snapshot Sync Integration", () => {
 
   describe("settings sync", () => {
     it("settings created on A sync without remote configuration", async () => {
-      insertSettings(deviceA.db, {version: "1", themes: {current: "dark"}, sync: {iCloud: {enabled: true}, ssh: null}})
+      insertSettings(deviceA.db, {version: "1", themes: {current: "dark"}, sync: {iCloud: {enabled: true}}})
       await syncDevice(deviceA)
       await syncDevice(deviceB)
 

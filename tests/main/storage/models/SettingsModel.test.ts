@@ -21,16 +21,15 @@ describe("SettingsModel", () => {
 
   it("returns local sync defaults when no settings exist", () => {
     const settings = settingsModel.loadSettings()
-    expect(settings.sync.iCloud.enabled).toBe(false)
-    expect(settings.sync.ssh).toBeNull()
+    expect(settings.sync).toEqual({iCloud: {enabled: false}})
     expect(settings.typography.fontSize).toBe("normal")
     expect(settings.branch.activeId).toBe("main")
   })
 
   it("persists remote configuration locally, not in the syncable settings row", () => {
-    settingsModel.saveSettings({sync: {iCloud: {enabled: true}, ssh: {enabled: true, host: "work", dir: "/remote/daily"}}})
+    settingsModel.saveSettings({sync: {iCloud: {enabled: true}}})
     const settings = settingsModel.loadSettings()
-    expect(settings.sync).toEqual({iCloud: {enabled: true}, ssh: {enabled: true, host: "work", dir: "/remote/daily"}})
+    expect(settings.sync).toEqual({iCloud: {enabled: true}})
     expect(JSON.parse(db.prepare("SELECT data FROM settings WHERE id = 'default'").get().data).sync).toBeUndefined()
     expect(JSON.parse(db.prepare("SELECT data FROM device_settings WHERE id = 'sync'").get().data)).toEqual(settings.sync)
   })
@@ -54,7 +53,7 @@ describe("SettingsModel", () => {
   })
 
   it("partial updates preserve local sync configuration", () => {
-    settingsModel.saveSettings({sync: {iCloud: {enabled: true}, ssh: null}})
+    settingsModel.saveSettings({sync: {iCloud: {enabled: true}}})
     settingsModel.saveSettings({branch: {activeId: "feature-1"}})
     const settings = settingsModel.loadSettings()
     expect(settings.sync.iCloud.enabled).toBe(true)

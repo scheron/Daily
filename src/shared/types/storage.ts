@@ -48,18 +48,11 @@ export type TypographySettings = {
   fontSize: FontSize
 }
 
-export type SshSyncSettings = {
-  enabled: boolean
-  host: string
-  dir: string
-}
-
 /** Remote synchronization configuration. */
 export type SyncSettings = {
   iCloud: {
     enabled: boolean
   }
-  ssh: SshSyncSettings | null
 }
 
 export type Settings = {

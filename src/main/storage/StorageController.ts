@@ -16,7 +16,6 @@ import {electronPaths} from "@/runtime/electronPaths"
 import {createStorageCore} from "@/storage/createStorageCore"
 import {initDatabase} from "@/storage/database/instance"
 import {ICloudRemoteAdapter} from "@/storage/sync/adapters/ICloudRemoteAdapter"
-import {SshRemoteAdapter} from "@/storage/sync/adapters/SshRemoteAdapter"
 import {SyncEngine} from "@/storage/sync/SyncEngine"
 
 import type {AgentTurn} from "@/ai/turns/types"
@@ -474,15 +473,10 @@ export class StorageController implements IStorageController {
       remotes.push({id: "icloud", label: "iCloud", adapter: new ICloudRemoteAdapter(electronPaths.remoteSyncPath())})
     }
 
-    const ssh = settings.sync.ssh
-    if (ssh?.enabled && ssh.host && ssh.dir) {
-      remotes.push({id: "ssh", label: `SSH (${ssh.host})`, adapter: new SshRemoteAdapter({host: ssh.host, dir: ssh.dir})})
-    }
-
     return remotes
   }
 
   private hasEnabledRemote(settings: Settings): boolean {
-    return settings.sync.iCloud.enabled || Boolean(settings.sync.ssh?.enabled && settings.sync.ssh.host && settings.sync.ssh.dir)
+    return settings.sync.iCloud.enabled
   }
 }

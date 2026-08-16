@@ -7,7 +7,6 @@ import {useStorageStore} from "@/stores/storage.store"
 import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
 
-import SshSyncSection from "./{fragments}/SshSyncSection.vue"
 import SyncSection from "./{fragments}/SyncSection.vue"
 import SettingsGroup from "../SettingsGroup.vue"
 
@@ -16,8 +15,6 @@ const settingsStore = useSettingsStore()
 
 const isSyncing = computed(() => storageStore.status === "syncing")
 const isICloudEnabled = computed(() => settingsStore.settings?.sync.iCloud.enabled ?? false)
-const isSshEnabled = computed(() => settingsStore.settings?.sync?.ssh?.enabled ?? false)
-const isAnyEnabled = computed(() => isICloudEnabled.value || isSshEnabled.value)
 
 async function onForceSync() {
   await storageStore.forceSync()
@@ -28,9 +25,8 @@ async function onForceSync() {
   <div class="flex flex-col gap-8 py-2">
     <SettingsGroup label="Sync" icon="cloud">
       <SyncSection />
-      <SshSyncSection class="mt-8" />
 
-      <div v-if="isAnyEnabled" class="border-base-300 mt-8 flex items-center justify-between border-t py-1">
+      <div v-if="isICloudEnabled" class="border-base-300 mt-8 flex items-center justify-between border-t py-1">
         <span class="text-base-content/40 flex items-center gap-1.5 text-xs">
           <BaseIcon name="stopwatch" class="size-3.5 shrink-0" />
           {{ storageStore.lastSyncAt ? toLocaleTime(storageStore.lastSyncAt) : "Never synced" }}
