@@ -2,6 +2,7 @@ import path from "node:path"
 import Database from "better-sqlite3"
 import fs from "fs-extra"
 
+import {ensureAssetsDir, sweepPartialUploads} from "../assets/AssetStore"
 import {loadIdentity} from "../identity/ServerIdentityStore"
 import {runMigrations} from "./migrate"
 import {migrations} from "./migrations"
@@ -28,6 +29,8 @@ export function openServerStore(dataDir: string): ServerStore {
   }
 
   loadIdentity(store)
+  ensureAssetsDir(store)
+  sweepPartialUploads(store)
 
   return store
 }

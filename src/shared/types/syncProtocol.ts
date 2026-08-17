@@ -11,6 +11,10 @@ export const SYNC_PROTOCOL_PATHS = {
   enrollPending: "/v1/enroll/pending",
   enrollApprove: "/v1/enroll/approve",
   enrollDeny: "/v1/enroll/deny",
+  revision: "/v1/revision",
+  snapshot: "/v1/snapshot",
+  assets: "/v1/assets",
+  assetItem: "/v1/assets/",
 } as const
 
 export type ProtocolOk<T> = {ok: true; data: T}
@@ -42,3 +46,13 @@ export type DenyEnrollmentBody = {requestId: string}
 
 export type ConsoleEnrollBody = {token: string; deviceName: string}
 export type ConsoleEnrollResponse = IssuedCredential
+
+/** `snapshot` carries a Daily snapshot document; `src/shared` cannot name its type, so it crosses the wire as `unknown`. */
+export type SnapshotReadResponse = {snapshot: unknown; revision: string | null}
+export type SnapshotWriteBody = {snapshot: unknown; expectedRevision: string | null}
+export type SnapshotWriteResponse = {revision: string}
+export type RevisionProbe = {revision: string | null; pendingEnrollment: boolean}
+
+export type AssetEntry = {name: string; size: number; sha256: string; uploadedAt: string}
+export type AssetManifestResponse = {assets: AssetEntry[]}
+export type AssetUploadResponse = AssetEntry

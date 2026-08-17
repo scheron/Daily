@@ -6,6 +6,7 @@ import pkg from "../../package.json"
 import {registerClaimCodeCommand} from "./commands/claimCode"
 import {registerDeviceCommand} from "./commands/device"
 import {registerStartCommand} from "./commands/start"
+import {registerStatusCommand} from "./commands/status"
 
 export function buildProgram(): Command {
   const program = new Command()
@@ -14,6 +15,7 @@ export function buildProgram(): Command {
   registerStartCommand(program)
   registerClaimCodeCommand(program)
   registerDeviceCommand(program)
+  registerStatusCommand(program)
 
   return program
 }

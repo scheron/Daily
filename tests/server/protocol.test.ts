@@ -1,27 +1,39 @@
-import {mkdtempSync, rmSync} from "node:fs"
+import {createHash} from "node:crypto"
+import {existsSync, mkdtempSync, readdirSync, rmSync, unlinkSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
+import {Readable} from "node:stream"
+import {gzipSync} from "node:zlib"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
 import {SYNC_PROTOCOL_CONFIG} from "@shared/config/syncProtocol"
 import {SYNC_PROTOCOL_PATHS} from "@shared/types/syncProtocol"
 
+import {writeAsset} from "@server/assets/AssetStore"
 import {resolveServerConfig} from "@server/config/resolveServerConfig"
 import {authenticateRequest} from "@server/devices/authenticateRequest"
 import {listDevices, revokeDevice} from "@server/devices/DeviceStore"
 import {createConsoleEnrollment} from "@server/enrollment/EnrollmentStore"
 import {createHttpServer} from "@server/http/createHttpServer"
 import {ensureClaimCode, regenerateClaimCode} from "@server/identity/ServerIdentityStore"
+import {readSnapshot as readStoredSnapshot} from "@server/snapshot/SnapshotStore"
 import {openServerStore} from "@server/store/instance"
 
+import type {ServerConfigOptions} from "@server/config/resolveServerConfig"
 import type {ServerStore} from "@server/store/instance"
 import type {
+  AssetManifestResponse,
+  AssetUploadResponse,
   ClaimResponse,
   ConsoleEnrollResponse,
   EnrollmentStatus,
   EnrollRequestResponse,
+  IssuedCredential,
   PendingEnrollmentResponse,
+  RevisionProbe,
   ServerInfo,
+  SnapshotReadResponse,
+  SnapshotWriteResponse,
 } from "@shared/types/syncProtocol"
 import type {IncomingMessage} from "node:http"
 import type {AddressInfo} from "node:net"
@@ -36,8 +48,8 @@ function bearer(token: string): IncomingMessage {
   return {headers: {authorization: `Bearer ${token}`}} as IncomingMessage
 }
 
-function bootServer(dataDir: string): Promise<BootedServer> {
-  const config = resolveServerConfig({dataDir, host: "127.0.0.1", port: 0})
+function bootServer(dataDir: string, overrides: ServerConfigOptions = {}): Promise<BootedServer> {
+  const config = resolveServerConfig({dataDir, host: "127.0.0.1", port: 0, ...overrides})
   const store = openServerStore(config.dataDir)
   const server = createHttpServer(store, config)
 
@@ -96,12 +108,12 @@ describe("protocol http surface", () => {
     expect(wrongMethod.status).toBe(405)
     expect(await wrongMethod.json()).toEqual({ok: false, error: {code: "METHOD_NOT_ALLOWED", message: expect.any(String)}})
 
-    const notJson = await fetch(`${booted.baseUrl}/v1/server`, {method: "POST", body: "not json"})
+    const notJson = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.claim}`, {method: "POST", body: "not json"})
     expect(notJson.status).toBe(400)
     expect(await notJson.json()).toEqual({ok: false, error: {code: "MALFORMED_REQUEST", message: expect.any(String)}})
 
     const oversizedBody = "x".repeat(SYNC_PROTOCOL_CONFIG.maxControlRequestBodyBytes + 1024)
-    const tooLarge = await fetch(`${booted.baseUrl}/v1/server`, {method: "POST", body: oversizedBody})
+    const tooLarge = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.claim}`, {method: "POST", body: oversizedBody})
     expect(tooLarge.status).toBe(413)
     expect(await tooLarge.json()).toEqual({ok: false, error: {code: "PAYLOAD_TOO_LARGE", message: expect.any(String)}})
 
@@ -429,5 +441,471 @@ describe("console recovery", () => {
     expect(expired.status).toBe(401)
     expect(await expired.json()).toEqual({ok: false, error: {code: "INVALID_ENROLLMENT_TOKEN", message: expect.any(String)}})
     expect(listDevices(booted.store)).toHaveLength(2)
+  })
+})
+
+describe("snapshot and revision http surface", () => {
+  let dataDir: string
+  let booted: BootedServer
+
+  beforeEach(async () => {
+    dataDir = mkdtempSync(join(tmpdir(), "daily-server-snapshot-http-"))
+    booted = await bootServer(dataDir)
+  })
+
+  afterEach(async () => {
+    vi.useRealTimers()
+    await booted.close()
+    rmSync(dataDir, {recursive: true, force: true})
+  })
+
+  async function claimFirstDevice(deviceName = "MacBook Air"): Promise<ClaimResponse> {
+    const code = ensureClaimCode(booted.store)
+    const res = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.claim}`, {
+      method: "POST",
+      body: JSON.stringify({code, deviceName}),
+    })
+
+    return ((await res.json()) as {ok: true; data: ClaimResponse}).data
+  }
+
+  async function bindSecondDevice(deviceName: string): Promise<IssuedCredential> {
+    const issued = createConsoleEnrollment(booted.store)
+    const res = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollConsole}`, {
+      method: "POST",
+      body: JSON.stringify({token: issued.token, deviceName}),
+    })
+
+    return readData<IssuedCredential>(res)
+  }
+
+  async function readData<T>(res: Response): Promise<T> {
+    return ((await res.json()) as {ok: true; data: T}).data
+  }
+
+  function readSnapshot(token: string): Promise<Response> {
+    return fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.snapshot}`, {headers: {authorization: `Bearer ${token}`}})
+  }
+
+  function writeSnapshot(token: string, snapshot: unknown, expectedRevision: string | null): Promise<Response> {
+    return fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.snapshot}`, {
+      method: "POST",
+      headers: {authorization: `Bearer ${token}`, "content-type": "application/json"},
+      body: JSON.stringify({snapshot, expectedRevision}),
+    })
+  }
+
+  function readRevision(token: string): Promise<Response> {
+    return fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.revision}`, {headers: {authorization: `Bearer ${token}`}})
+  }
+
+  function snapshotDocument(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+    return {
+      version: 4,
+      meta: {updatedAt: "2026-08-10T12:00:00.000Z", hash: "hash-a"},
+      docs: {tasks: {}},
+      ...overrides,
+    }
+  }
+
+  it("TC-8: a bound device's first read reports two nulls when nothing has ever been written", async () => {
+    const first = await claimFirstDevice()
+
+    const res = await readSnapshot(first.token)
+    expect(res.status).toBe(200)
+    expect(await readData<SnapshotReadResponse>(res)).toEqual({snapshot: null, revision: null})
+  })
+
+  it("TC-9: a conditional write is accepted from whichever bound device read the current revision, and refused from the one that did not", async () => {
+    const first = await claimFirstDevice("MacBook Air")
+    const second = await bindSecondDevice("Mac mini")
+
+    const doc1 = snapshotDocument({meta: {updatedAt: "2026-08-10T12:00:00.000Z", hash: "hash-a"}})
+    const firstWrite = await writeSnapshot(first.token, doc1, null)
+    expect(firstWrite.status).toBe(200)
+    expect(await readData<SnapshotWriteResponse>(firstWrite)).toEqual({revision: "1"})
+
+    const firstRead = await readData<SnapshotReadResponse>(await readSnapshot(first.token))
+    const secondRead = await readData<SnapshotReadResponse>(await readSnapshot(second.token))
+    expect(firstRead).toEqual({snapshot: doc1, revision: "1"})
+    expect(secondRead).toEqual({snapshot: doc1, revision: "1"})
+
+    const doc2 = snapshotDocument({meta: {updatedAt: "2026-08-11T12:00:00.000Z", hash: "hash-b"}})
+    const secondWrite = await writeSnapshot(second.token, doc2, secondRead.revision)
+    expect(secondWrite.status).toBe(200)
+    expect(await readData<SnapshotWriteResponse>(secondWrite)).toEqual({revision: "2"})
+
+    const staleWrite = await writeSnapshot(first.token, snapshotDocument(), firstRead.revision)
+    expect(staleWrite.status).toBe(409)
+    expect(await staleWrite.json()).toEqual({ok: false, error: {code: "REVISION_CONFLICT", message: expect.any(String)}})
+
+    const finalRead = await readData<SnapshotReadResponse>(await readSnapshot(first.token))
+    expect(finalRead).toEqual({snapshot: doc2, revision: "2"})
+  })
+
+  it("TC-10: a write whose declared version is behind the stored one is refused, and a read afterwards is unchanged", async () => {
+    const first = await claimFirstDevice()
+    const doc = snapshotDocument({version: 4})
+    const written = await writeSnapshot(first.token, doc, null)
+    const {revision} = await readData<SnapshotWriteResponse>(written)
+
+    const behind = await writeSnapshot(first.token, snapshotDocument({version: 3}), revision)
+    expect(behind.status).toBe(409)
+    expect(await behind.json()).toEqual({ok: false, error: {code: "SNAPSHOT_VERSION_BEHIND", message: expect.any(String)}})
+
+    const after = await readData<SnapshotReadResponse>(await readSnapshot(first.token))
+    expect(after).toEqual({snapshot: doc, revision})
+  })
+
+  it("TC-11: an invalid snapshot, a non-JSON body and an oversized body are each refused with their own code while the server keeps serving", async () => {
+    const capped = await bootServer(dataDir, {maxSnapshotBodyBytes: 4096})
+
+    try {
+      const code = ensureClaimCode(capped.store)
+      const claimRes = await fetch(`${capped.baseUrl}${SYNC_PROTOCOL_PATHS.claim}`, {
+        method: "POST",
+        body: JSON.stringify({code, deviceName: "MacBook Air"}),
+      })
+      const first = ((await claimRes.json()) as {ok: true; data: ClaimResponse}).data
+
+      const doc = snapshotDocument()
+      const seeded = await fetch(`${capped.baseUrl}${SYNC_PROTOCOL_PATHS.snapshot}`, {
+        method: "POST",
+        headers: {authorization: `Bearer ${first.token}`},
+        body: JSON.stringify({snapshot: doc, expectedRevision: null}),
+      })
+      const {revision} = await readData<SnapshotWriteResponse>(seeded)
+
+      const notASnapshot = await fetch(`${capped.baseUrl}${SYNC_PROTOCOL_PATHS.snapshot}`, {
+        method: "POST",
+        headers: {authorization: `Bearer ${first.token}`},
+        body: JSON.stringify({snapshot: {nope: 1}, expectedRevision: revision}),
+      })
+      expect(notASnapshot.status).toBe(400)
+      expect(await notASnapshot.json()).toEqual({ok: false, error: {code: "INVALID_SNAPSHOT", message: expect.any(String)}})
+
+      const notJson = await fetch(`${capped.baseUrl}${SYNC_PROTOCOL_PATHS.snapshot}`, {
+        method: "POST",
+        headers: {authorization: `Bearer ${first.token}`},
+        body: "not json",
+      })
+      expect(notJson.status).toBe(400)
+      expect(await notJson.json()).toEqual({ok: false, error: {code: "MALFORMED_REQUEST", message: expect.any(String)}})
+
+      const oversized = await fetch(`${capped.baseUrl}${SYNC_PROTOCOL_PATHS.snapshot}`, {
+        method: "POST",
+        headers: {authorization: `Bearer ${first.token}`},
+        body: JSON.stringify({snapshot: snapshotDocument({docs: {tasks: {blob: "x".repeat(8192)}}}), expectedRevision: revision}),
+      })
+      expect(oversized.status).toBe(413)
+      expect(await oversized.json()).toEqual({ok: false, error: {code: "PAYLOAD_TOO_LARGE", message: expect.any(String)}})
+
+      const stillServing = await fetch(`${capped.baseUrl}${SYNC_PROTOCOL_PATHS.server}`)
+      expect(stillServing.status).toBe(200)
+
+      const after = await readData<SnapshotReadResponse>(
+        await fetch(`${capped.baseUrl}${SYNC_PROTOCOL_PATHS.snapshot}`, {headers: {authorization: `Bearer ${first.token}`}}),
+      )
+      expect(after).toEqual({snapshot: doc, revision})
+    } finally {
+      await capped.close()
+    }
+  })
+
+  it("TC-12: a gzip-encoded write is stored correctly, and a gzip-accepting read comes back compressed while a plain read stays uncompressed", async () => {
+    const first = await claimFirstDevice()
+    const doc = snapshotDocument({
+      docs: {tasks: {}, padding: "x".repeat(4096)},
+      meta: {updatedAt: "2026-08-10T12:00:00.000Z", hash: "hash-gzip"},
+    })
+
+    const gzippedBody = gzipSync(Buffer.from(JSON.stringify({snapshot: doc, expectedRevision: null})))
+    const written = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.snapshot}`, {
+      method: "POST",
+      headers: {authorization: `Bearer ${first.token}`, "content-encoding": "gzip", "content-type": "application/json"},
+      body: gzippedBody,
+    })
+    expect(written.status).toBe(200)
+    expect(await readData<SnapshotWriteResponse>(written)).toEqual({revision: "1"})
+
+    const gzipRead = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.snapshot}`, {
+      headers: {authorization: `Bearer ${first.token}`, "accept-encoding": "gzip"},
+    })
+    expect(gzipRead.headers.get("content-encoding")).toBe("gzip")
+    expect((await readData<SnapshotReadResponse>(gzipRead)).snapshot).toEqual(doc)
+
+    const plainRead = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.snapshot}`, {
+      headers: {authorization: `Bearer ${first.token}`, "accept-encoding": "identity"},
+    })
+    expect(plainRead.headers.get("content-encoding")).not.toBe("gzip")
+    expect((await readData<SnapshotReadResponse>(plainRead)).snapshot).toEqual(doc)
+  })
+
+  it("TC-13: the probe carries exactly revision and pendingEnrollment, and the revision moves only when the snapshot is written", async () => {
+    const first = await claimFirstDevice()
+
+    const beforeAnyWrite = await readData<RevisionProbe>(await readRevision(first.token))
+    expect(Object.keys(beforeAnyWrite).sort()).toEqual(["pendingEnrollment", "revision"])
+    expect(beforeAnyWrite).toEqual({revision: null, pendingEnrollment: false})
+
+    const doc = snapshotDocument()
+    const written = await writeSnapshot(first.token, doc, null)
+    const {revision} = await readData<SnapshotWriteResponse>(written)
+
+    const afterWrite = await readData<RevisionProbe>(await readRevision(first.token))
+    expect(Object.keys(afterWrite).sort()).toEqual(["pendingEnrollment", "revision"])
+    expect(afterWrite.revision).toBe(revision)
+
+    const currentSnapshot = await readData<SnapshotReadResponse>(await readSnapshot(first.token))
+    expect(afterWrite.revision).toBe(currentSnapshot.revision)
+
+    await readSnapshot(first.token)
+    const afterPlainRead = await readData<RevisionProbe>(await readRevision(first.token))
+    expect(afterPlainRead.revision).toBe(revision)
+
+    await writeAsset(booted.store, "abc123.png", Readable.from(Buffer.from("attachment-bytes")), first.device.id, 10 * 1024 * 1024)
+    const afterAssetUpload = await readData<RevisionProbe>(await readRevision(first.token))
+    expect(afterAssetUpload.revision).toBe(revision)
+  })
+
+  it("TC-14: pendingEnrollment is true while a peer request waits and false once it is resolved", async () => {
+    const first = await claimFirstDevice()
+
+    const requested = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollRequest}`, {
+      method: "POST",
+      body: JSON.stringify({deviceName: "Mac mini"}),
+    })
+    const request = await readData<EnrollRequestResponse>(requested)
+
+    const whileWaiting = await readData<RevisionProbe>(await readRevision(first.token))
+    expect(whileWaiting.pendingEnrollment).toBe(true)
+
+    const denied = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollDeny}`, {
+      method: "POST",
+      headers: {authorization: `Bearer ${first.token}`},
+      body: JSON.stringify({requestId: request.requestId}),
+    })
+    expect(denied.status).toBe(204)
+
+    const afterResolution = await readData<RevisionProbe>(await readRevision(first.token))
+    expect(afterResolution.pendingEnrollment).toBe(false)
+  })
+
+  it("TC-17: every snapshot and revision endpoint refuses no credential and a revoked one, and touches nothing", async () => {
+    const first = await claimFirstDevice()
+    const doc = snapshotDocument()
+    const written = await writeSnapshot(first.token, doc, null)
+    const {revision} = await readData<SnapshotWriteResponse>(written)
+
+    revokeDevice(booted.store, first.device.id)
+
+    const endpoints: {method: "GET" | "POST"; url: string; body?: unknown}[] = [
+      {method: "GET", url: SYNC_PROTOCOL_PATHS.snapshot},
+      {method: "POST", url: SYNC_PROTOCOL_PATHS.snapshot, body: {snapshot: snapshotDocument(), expectedRevision: revision}},
+      {method: "GET", url: SYNC_PROTOCOL_PATHS.revision},
+    ]
+
+    for (const endpoint of endpoints) {
+      const noAuth = await fetch(`${booted.baseUrl}${endpoint.url}`, {
+        method: endpoint.method,
+        body: endpoint.body ? JSON.stringify(endpoint.body) : undefined,
+      })
+      expect(noAuth.status).toBe(401)
+      expect(await noAuth.json()).toEqual({ok: false, error: {code: "UNAUTHORIZED", message: expect.any(String)}})
+
+      const revokedAuth = await fetch(`${booted.baseUrl}${endpoint.url}`, {
+        method: endpoint.method,
+        headers: {authorization: `Bearer ${first.token}`},
+        body: endpoint.body ? JSON.stringify(endpoint.body) : undefined,
+      })
+      expect(revokedAuth.status).toBe(403)
+      expect(await revokedAuth.json()).toEqual({ok: false, error: {code: "DEVICE_REVOKED", message: expect.any(String)}})
+    }
+
+    const untouched = readStoredSnapshot(booted.store)
+    expect(untouched?.revision).toBe(revision)
+    expect(untouched?.document).toEqual(doc)
+  })
+})
+
+describe("asset http surface", () => {
+  let dataDir: string
+  let booted: BootedServer
+
+  beforeEach(async () => {
+    dataDir = mkdtempSync(join(tmpdir(), "daily-server-assets-http-"))
+    booted = await bootServer(dataDir)
+  })
+
+  afterEach(async () => {
+    await booted.close()
+    rmSync(dataDir, {recursive: true, force: true})
+  })
+
+  async function claimFirstDevice(deviceName = "MacBook Air"): Promise<ClaimResponse> {
+    const code = ensureClaimCode(booted.store)
+    const res = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.claim}`, {
+      method: "POST",
+      body: JSON.stringify({code, deviceName}),
+    })
+
+    return ((await res.json()) as {ok: true; data: ClaimResponse}).data
+  }
+
+  async function bindSecondDevice(deviceName: string): Promise<IssuedCredential> {
+    const issued = createConsoleEnrollment(booted.store)
+    const res = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollConsole}`, {
+      method: "POST",
+      body: JSON.stringify({token: issued.token, deviceName}),
+    })
+
+    return readData<IssuedCredential>(res)
+  }
+
+  async function readData<T>(res: Response): Promise<T> {
+    return ((await res.json()) as {ok: true; data: T}).data
+  }
+
+  function assetUrl(baseUrl: string, name: string): string {
+    return `${baseUrl}${SYNC_PROTOCOL_PATHS.assetItem}${name}`
+  }
+
+  function uploadAsset(token: string, name: string, bytes: Buffer): Promise<Response> {
+    return fetch(assetUrl(booted.baseUrl, name), {method: "PUT", headers: {authorization: `Bearer ${token}`}, body: bytes})
+  }
+
+  function downloadAsset(token: string, name: string): Promise<Response> {
+    return fetch(assetUrl(booted.baseUrl, name), {headers: {authorization: `Bearer ${token}`}})
+  }
+
+  function listManifest(token: string): Promise<Response> {
+    return fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.assets}`, {headers: {authorization: `Bearer ${token}`}})
+  }
+
+  function payload(byteLength: number): Buffer {
+    return Buffer.from(Array.from({length: byteLength}, (_, i) => i % 256))
+  }
+
+  it("TC-15: an upload no snapshot mentions is accepted, listed once, and downloads byte-identical from another device", async () => {
+    const first = await claimFirstDevice()
+    const second = await bindSecondDevice("Mac mini")
+
+    const bytes = payload(4096)
+    const uploaded = await uploadAsset(first.token, "abc123.png", bytes)
+    expect(uploaded.status).toBe(200)
+
+    const expectedHash = createHash("sha256").update(bytes).digest("hex")
+    const uploadData = await readData<AssetUploadResponse>(uploaded)
+    expect(uploadData).toEqual({name: "abc123.png", size: bytes.length, sha256: expectedHash, uploadedAt: expect.any(String)})
+
+    const manifestFromFirst = await readData<AssetManifestResponse>(await listManifest(first.token))
+    const manifestFromSecond = await readData<AssetManifestResponse>(await listManifest(second.token))
+    expect(manifestFromFirst.assets).toHaveLength(1)
+    expect(manifestFromFirst.assets[0]).toEqual(uploadData)
+    expect(manifestFromSecond.assets).toEqual(manifestFromFirst.assets)
+
+    const downloaded = await downloadAsset(second.token, "abc123.png")
+    expect(downloaded.status).toBe(200)
+    const downloadedBytes = Buffer.from(await downloaded.arrayBuffer())
+    expect(downloadedBytes.equals(bytes)).toBe(true)
+  })
+
+  it("TC-16: a never-uploaded name, a missing blob, a path-escaping name and an oversized upload are each refused with their own code", async () => {
+    const capped = await bootServer(dataDir, {maxAssetBytes: 4096})
+
+    try {
+      const code = ensureClaimCode(capped.store)
+      const claimRes = await fetch(`${capped.baseUrl}${SYNC_PROTOCOL_PATHS.claim}`, {
+        method: "POST",
+        body: JSON.stringify({code, deviceName: "MacBook Air"}),
+      })
+      const first = ((await claimRes.json()) as {ok: true; data: ClaimResponse}).data
+
+      const bytes = payload(1024)
+      const uploaded = await fetch(assetUrl(capped.baseUrl, "abc123.png"), {
+        method: "PUT",
+        headers: {authorization: `Bearer ${first.token}`},
+        body: bytes,
+      })
+      expect(uploaded.status).toBe(200)
+
+      unlinkSync(join(dataDir, "assets", "abc123.png"))
+
+      const neverUploaded = await fetch(assetUrl(capped.baseUrl, "never-uploaded.png"), {
+        headers: {authorization: `Bearer ${first.token}`},
+      })
+      expect(neverUploaded.status).toBe(404)
+      expect(await neverUploaded.json()).toEqual({ok: false, error: {code: "ASSET_NOT_FOUND", message: expect.any(String)}})
+
+      const missingBlob = await fetch(assetUrl(capped.baseUrl, "abc123.png"), {
+        headers: {authorization: `Bearer ${first.token}`},
+      })
+      expect(missingBlob.status).toBe(404)
+      expect(await missingBlob.json()).toEqual({ok: false, error: {code: "ASSET_NOT_FOUND", message: expect.any(String)}})
+
+      const escaping = await fetch(`${capped.baseUrl}${SYNC_PROTOCOL_PATHS.assetItem}..%2Fescape.png`, {
+        method: "PUT",
+        headers: {authorization: `Bearer ${first.token}`},
+        body: Buffer.from("x"),
+      })
+      expect(escaping.status).toBe(400)
+      expect(await escaping.json()).toEqual({ok: false, error: {code: "INVALID_ASSET_NAME", message: expect.any(String)}})
+
+      const oversized = await fetch(assetUrl(capped.baseUrl, "oversized.png"), {
+        method: "PUT",
+        headers: {authorization: `Bearer ${first.token}`},
+        body: payload(8192),
+      })
+      expect(oversized.status).toBe(413)
+      expect(await oversized.json()).toEqual({ok: false, error: {code: "PAYLOAD_TOO_LARGE", message: expect.any(String)}})
+
+      const stillServing = await fetch(`${capped.baseUrl}${SYNC_PROTOCOL_PATHS.server}`)
+      expect(stillServing.status).toBe(200)
+
+      const manifest = await readData<AssetManifestResponse>(
+        await fetch(`${capped.baseUrl}${SYNC_PROTOCOL_PATHS.assets}`, {headers: {authorization: `Bearer ${first.token}`}}),
+      )
+      expect(manifest.assets.map((entry) => entry.name)).toContain("abc123.png")
+
+      expect(existsSync(join(dataDir, "assets", "oversized.png"))).toBe(false)
+      expect(existsSync(join(dataDir, "escape.png"))).toBe(false)
+      const remainingFiles = readdirSync(join(dataDir, "assets"))
+      expect(remainingFiles.some((entry) => entry.startsWith(".tmp-"))).toBe(false)
+      expect(remainingFiles).toEqual([])
+    } finally {
+      await capped.close()
+    }
+  })
+
+  it("TC-18: every asset endpoint refuses no credential and a revoked one, and leaves the asset directory unchanged", async () => {
+    const first = await claimFirstDevice()
+    const bytes = payload(512)
+    await uploadAsset(first.token, "abc123.png", bytes)
+
+    revokeDevice(booted.store, first.device.id)
+
+    const before = readdirSync(join(dataDir, "assets")).sort()
+
+    const attempts: {method: "GET" | "PUT"; url: string; body?: Buffer}[] = [
+      {method: "GET", url: SYNC_PROTOCOL_PATHS.assets},
+      {method: "GET", url: `${SYNC_PROTOCOL_PATHS.assetItem}abc123.png`},
+      {method: "PUT", url: `${SYNC_PROTOCOL_PATHS.assetItem}abc123.png`, body: Buffer.from("nope")},
+    ]
+
+    for (const attempt of attempts) {
+      const noAuth = await fetch(`${booted.baseUrl}${attempt.url}`, {method: attempt.method, body: attempt.body})
+      expect(noAuth.status).toBe(401)
+      expect(await noAuth.json()).toEqual({ok: false, error: {code: "UNAUTHORIZED", message: expect.any(String)}})
+
+      const revokedAuth = await fetch(`${booted.baseUrl}${attempt.url}`, {
+        method: attempt.method,
+        headers: {authorization: `Bearer ${first.token}`},
+        body: attempt.body,
+      })
+      expect(revokedAuth.status).toBe(403)
+      expect(await revokedAuth.json()).toEqual({ok: false, error: {code: "DEVICE_REVOKED", message: expect.any(String)}})
+    }
+
+    expect(readdirSync(join(dataDir, "assets")).sort()).toEqual(before)
   })
 })

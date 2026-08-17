@@ -1,6 +1,8 @@
+import {assetDownloadRoute, assetsManifestRoute, assetUploadRoute} from "./assets"
 import {claimRoute} from "./claim"
 import {enrollApproveRoute, enrollConsoleRoute, enrollDenyRoute, enrollPendingRoute, enrollRequestRoute, enrollStatusRoute} from "./enroll"
 import {serverInfoRoute} from "./serverInfo"
+import {revisionRoute, snapshotReadRoute, snapshotWriteRoute} from "./snapshot"
 
 import type {Route} from "../createHttpServer"
 
@@ -14,4 +16,10 @@ export const routes: Route[] = [
   enrollApproveRoute,
   enrollDenyRoute,
   enrollConsoleRoute,
+  snapshotReadRoute,
+  snapshotWriteRoute,
+  revisionRoute,
+  assetsManifestRoute,
+  assetDownloadRoute,
+  assetUploadRoute,
 ]

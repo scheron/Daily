@@ -7,4 +7,8 @@ export const SYNC_PROTOCOL_CONFIG = {
   enrollmentTtlMs: 5 * 60 * 1000,
   consoleEnrollmentTtlMs: 15 * 60 * 1000,
   maxControlRequestBodyBytes: 8 * 1024,
+  maxAssetBytes: 100 * 1024 * 1024,
+  maxSnapshotBodyBytes: 32 * 1024 * 1024,
+  gzipResponseThresholdBytes: 1024,
+  revisionProbeIntervalMs: 12_000,
 } as const

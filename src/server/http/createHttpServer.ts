@@ -1,12 +1,13 @@
 import {readFileSync} from "node:fs"
 import http from "node:http"
 import https from "node:https"
+import {gunzipSync} from "node:zlib"
 
 import {SYNC_PROTOCOL_CONFIG} from "@shared/config/syncProtocol"
 import {ProtocolError} from "@shared/errors/protocol/ProtocolError"
 import {ProtocolErrorCode} from "@shared/errors/protocol/ProtocolErrorCode"
 
-import {respondError, respondOk} from "./respond"
+import {respondError, respondOk, RESPONSE_SENT} from "./respond"
 import {routes} from "./routes"
 
 import type {ServerConfig} from "@server/config/resolveServerConfig"
@@ -20,25 +21,35 @@ export type RouteContext = {
   config: ServerConfig
   body: unknown
 }
-export type Route = {method: "GET" | "POST"; path: string; handler: (ctx: RouteContext) => Promise<unknown>}
+export type Route = {
+  method: "GET" | "POST" | "PUT"
+  path: string
+  prefix?: true
+  body?: "json" | "stream"
+  bodyLimit?: "control" | "snapshot"
+  handler: (ctx: RouteContext) => Promise<unknown>
+}
 
 const RESPONSE_ALREADY_SENT = Symbol("response-already-sent")
 
 /**
  * Creates the Daily Sync Protocol HTTP(S) listener. It matches requests against the route
- * table, reads and caps a `POST` body, dispatches to the matched handler, and maps whatever
- * comes back — a value, a thrown `ProtocolError`, or an unexpected exception — onto the wire
- * envelope. The listener is created but not started; `commands/start.ts` binds it.
+ * table, reads and caps a `POST` body under the matched route's own limit, dispatches to the
+ * matched handler, and maps whatever comes back — a value, a thrown `ProtocolError`, or an
+ * unexpected exception — onto the wire envelope. The listener is created but not started;
+ * `commands/start.ts` binds it.
  */
 export function createHttpServer(store: ServerStore, config: ServerConfig): Server {
   const listener = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
     try {
-      const body = req.method === "POST" ? await readRequestBody(req, res) : undefined
       const pathname = new URL(req.url ?? "/", "http://placeholder").pathname
       const route = matchRoute(req.method ?? "", pathname)
 
+      const body =
+        route.body === "stream" ? undefined : req.method === "POST" ? await readRequestBody(req, res, resolveBodyLimit(route, config)) : undefined
+
       const data = await route.handler({req, res, store, config, body})
-      respondOk(res, data)
+      if (data !== RESPONSE_SENT) respondOk(res, data, acceptsGzip(req))
     } catch (err) {
       if (err === RESPONSE_ALREADY_SENT) return
 
@@ -60,7 +71,8 @@ export function createHttpServer(store: ServerStore, config: ServerConfig): Serv
 }
 
 function matchRoute(method: string, pathname: string): Route {
-  const atPath = routes.filter((route) => route.path === pathname)
+  const exact = routes.filter((route) => !route.prefix && route.path === pathname)
+  const atPath = exact.length > 0 ? exact : routes.filter((route) => route.prefix && pathname.startsWith(route.path))
   if (atPath.length === 0) throw new ProtocolError(ProtocolErrorCode.UNKNOWN_ROUTE, `No route for ${pathname}`)
 
   const route = atPath.find((candidate) => candidate.method === method)
@@ -69,7 +81,16 @@ function matchRoute(method: string, pathname: string): Route {
   return route
 }
 
-function readRequestBody(req: IncomingMessage, res: ServerResponse): Promise<unknown> {
+function resolveBodyLimit(route: Route, config: ServerConfig): number {
+  return route.bodyLimit === "snapshot" ? config.maxSnapshotBodyBytes : SYNC_PROTOCOL_CONFIG.maxControlRequestBodyBytes
+}
+
+function acceptsGzip(req: IncomingMessage): boolean {
+  const header = req.headers["accept-encoding"]
+  return typeof header === "string" && header.includes("gzip")
+}
+
+function readRequestBody(req: IncomingMessage, res: ServerResponse, maxBytes: number): Promise<unknown> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = []
     let received = 0
@@ -79,7 +100,7 @@ function readRequestBody(req: IncomingMessage, res: ServerResponse): Promise<unk
       if (settled) return
 
       received += chunk.length
-      if (received > SYNC_PROTOCOL_CONFIG.maxControlRequestBodyBytes) {
+      if (received > maxBytes) {
         settled = true
         respondError(res, new ProtocolError(ProtocolErrorCode.PAYLOAD_TOO_LARGE, "Request body too large"))
         req.destroy()
@@ -94,16 +115,17 @@ function readRequestBody(req: IncomingMessage, res: ServerResponse): Promise<unk
       if (settled) return
       settled = true
 
-      const raw = Buffer.concat(chunks).toString("utf8")
-      if (raw.length === 0) {
+      const compressed = Buffer.concat(chunks)
+      if (compressed.length === 0) {
         resolve(undefined)
         return
       }
 
       try {
-        resolve(JSON.parse(raw))
-      } catch {
-        reject(new ProtocolError(ProtocolErrorCode.MALFORMED_REQUEST, "Request body is not valid JSON"))
+        const raw = decodeBody(compressed, req.headers["content-encoding"], maxBytes)
+        resolve(JSON.parse(raw.toString("utf8")))
+      } catch (err) {
+        reject(err instanceof ProtocolError ? err : new ProtocolError(ProtocolErrorCode.MALFORMED_REQUEST, "Request body is not valid JSON"))
       }
     })
 
@@ -113,4 +135,19 @@ function readRequestBody(req: IncomingMessage, res: ServerResponse): Promise<unk
       reject(err)
     })
   })
+}
+
+function decodeBody(compressed: Buffer, contentEncoding: string | undefined, maxBytes: number): Buffer {
+  if (contentEncoding === undefined) return compressed
+  if (contentEncoding !== "gzip") throw new ProtocolError(ProtocolErrorCode.MALFORMED_REQUEST, `Unsupported content-encoding: ${contentEncoding}`)
+
+  try {
+    return gunzipSync(compressed, {maxOutputLength: maxBytes})
+  } catch (err) {
+    if (err instanceof Error && (err as NodeJS.ErrnoException).code === "ERR_BUFFER_TOO_LARGE") {
+      throw new ProtocolError(ProtocolErrorCode.PAYLOAD_TOO_LARGE, "Decompressed request body too large")
+    }
+
+    throw new ProtocolError(ProtocolErrorCode.MALFORMED_REQUEST, "Request body is not valid gzip")
+  }
 }

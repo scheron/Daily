@@ -7,7 +7,15 @@ import {openServerStore} from "@server/store/instance"
 import type {ServerConfigOptions} from "@server/config/resolveServerConfig"
 import type {Command} from "commander"
 
-type StartOptions = {host?: string; port?: string; dataDir?: string; cert?: string; key?: string}
+type StartOptions = {
+  host?: string
+  port?: string
+  dataDir?: string
+  cert?: string
+  key?: string
+  maxAssetBytes?: string
+  maxSnapshotBytes?: string
+}
 
 /** Registers `daily-server start`: opens the store, binds the configured host and port, and serves. */
 export function registerStartCommand(program: Command): void {
@@ -19,6 +27,8 @@ export function registerStartCommand(program: Command): void {
     .option("--data-dir <path>", "server data directory")
     .option("--cert <path>", "TLS certificate path")
     .option("--key <path>", "TLS private key path")
+    .option("--max-asset-bytes <bytes>", "maximum size of a single asset upload")
+    .option("--max-snapshot-bytes <bytes>", "maximum size of a snapshot write body")
     .action((opts: StartOptions) => runStart(opts))
 }
 
@@ -29,6 +39,8 @@ function runStart(opts: StartOptions): void {
     dataDir: opts.dataDir,
     cert: opts.cert,
     key: opts.key,
+    maxAssetBytes: opts.maxAssetBytes !== undefined ? Number(opts.maxAssetBytes) : undefined,
+    maxSnapshotBodyBytes: opts.maxSnapshotBytes !== undefined ? Number(opts.maxSnapshotBytes) : undefined,
   }
   const config = resolveServerConfig(configOptions)
 

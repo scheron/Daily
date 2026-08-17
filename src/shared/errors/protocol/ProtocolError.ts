@@ -16,6 +16,11 @@ const STATUS: Record<ProtocolErrorCode, number> = {
   [ProtocolErrorCode.ENROLLMENT_NOT_PENDING]: 409,
   [ProtocolErrorCode.ENROLLMENT_CODE_MISMATCH]: 409,
   [ProtocolErrorCode.INVALID_ENROLLMENT_TOKEN]: 401,
+  [ProtocolErrorCode.REVISION_CONFLICT]: 409,
+  [ProtocolErrorCode.SNAPSHOT_VERSION_BEHIND]: 409,
+  [ProtocolErrorCode.INVALID_SNAPSHOT]: 400,
+  [ProtocolErrorCode.INVALID_ASSET_NAME]: 400,
+  [ProtocolErrorCode.ASSET_NOT_FOUND]: 404,
   [ProtocolErrorCode.INTERNAL]: 500,
 }
 
