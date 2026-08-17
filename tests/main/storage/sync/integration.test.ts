@@ -11,10 +11,14 @@ import Database from "better-sqlite3"
 import fs from "fs-extra"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
+import {SYNC_PROTOCOL_PATHS} from "@shared/types/syncProtocol"
+
 import {runMigrations} from "@main/storage/database/scripts/migrate"
+import {DailyServerRemoteAdapter} from "@main/storage/sync/adapters/DailyServerRemoteAdapter"
 import {ICloudRemoteAdapter} from "@main/storage/sync/adapters/ICloudRemoteAdapter"
 import {LocalStorageAdapter} from "@main/storage/sync/adapters/LocalStorageAdapter"
 import {SyncEngine} from "@main/storage/sync/SyncEngine"
+import {bootSyncServer, claimFirstDevice, enrollSecondDevice} from "../../../helpers/syncServer"
 
 vi.mock("@/utils/logger", () => ({
   logger: {
@@ -53,6 +57,7 @@ vi.mock("@shared/config/sync", () => ({
   SYNC_CONFIG: {
     remoteSyncInterval: 120_000,
     garbageCollectionInterval: 7 * 24 * 60 * 60 * 1000,
+    conditionalWriteMaxAttempts: 5,
   },
 }))
 
@@ -561,5 +566,94 @@ describe("Snapshot Sync Integration", () => {
       const settings = getSettings(deviceA.db)
       expect(settings.themes.current).toBe("dark")
     })
+  })
+})
+
+function createServerBoundDevice(binding) {
+  const db = new Database(":memory:")
+  db.pragma("journal_mode = WAL")
+  db.pragma("foreign_keys = ON")
+  runMigrations(db)
+
+  const local = new LocalStorageAdapter(db)
+  const remote = new DailyServerRemoteAdapter(binding)
+  return {db, local, remote}
+}
+
+async function readServerRevision(server, token) {
+  const res = await fetch(`${server.baseUrl}${SYNC_PROTOCOL_PATHS.revision}`, {headers: {authorization: `Bearer ${token}`}})
+  const json = await res.json()
+  return json.data.revision
+}
+
+describe("Snapshot sync through a real Daily Sync Server", () => {
+  let server
+  let bindingA
+  let bindingB
+  let deviceA
+  let deviceB
+
+  beforeEach(async () => {
+    server = await bootSyncServer()
+    const first = await claimFirstDevice(server, "MacBook Air")
+    const second = await enrollSecondDevice(server, "Mac mini")
+
+    bindingA = {
+      baseUrl: server.baseUrl,
+      serverId: "srv-1",
+      serverName: "Home Server",
+      deviceId: first.device.id,
+      deviceName: first.device.name,
+      token: first.token,
+      fingerprint: null,
+      insecure: true,
+      boundAt: new Date().toISOString(),
+    }
+    bindingB = {...bindingA, deviceId: second.device.id, deviceName: second.device.name, token: second.token}
+
+    deviceA = createServerBoundDevice(bindingA)
+    deviceB = createServerBoundDevice(bindingB)
+  })
+
+  afterEach(async () => {
+    deviceA.db.close()
+    deviceB.db.close()
+    await server.close()
+  })
+
+  it("carries_TC-11_a_task_between_two_devices_through_one_server_advancing_the_revision_once_per_accepted_write", async () => {
+    insertTask(deviceA.db, "t-a", "From A")
+    await syncDevice(deviceA)
+
+    expect(await readServerRevision(server, bindingA.token)).toBe("1")
+
+    await syncDevice(deviceB)
+    expect(getTasks(deviceB.db).some((t) => t.id === "t-a")).toBe(true)
+
+    // Device A has nothing new to push: the revision must not move on a no-op sync.
+    await syncDevice(deviceA)
+    expect(await readServerRevision(server, bindingA.token)).toBe("1")
+
+    // Concurrent creation on both sides, through the engine's existing retry loop.
+    insertTask(deviceA.db, "t-concurrent-a", "Concurrent from A")
+    insertTask(deviceB.db, "t-concurrent-b", "Concurrent from B")
+
+    await syncDevice(deviceA, "push")
+    await syncDevice(deviceB, "push")
+    await syncDevice(deviceA)
+    await syncDevice(deviceB)
+
+    const idsA = getTasks(deviceA.db)
+      .map((t) => t.id)
+      .sort()
+    const idsB = getTasks(deviceB.db)
+      .map((t) => t.id)
+      .sort()
+    expect(idsA).toEqual(idsB)
+    expect(idsA).toContain("t-concurrent-a")
+    expect(idsA).toContain("t-concurrent-b")
+
+    const finalRevision = Number(await readServerRevision(server, bindingA.token))
+    expect(finalRevision).toBeGreaterThan(1)
   })
 })

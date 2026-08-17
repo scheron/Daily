@@ -3,6 +3,7 @@ import {computed} from "vue"
 
 import {useSettingsStore} from "@/stores/settings.store"
 import {useStorageStore} from "@/stores/storage.store"
+import {useSyncServerStore} from "@/stores/syncServer.store"
 import BaseIcon from "@/ui/base/BaseIcon"
 import BaseSwitch from "@/ui/base/BaseSwitch.vue"
 
@@ -10,9 +11,11 @@ import SettingRow from "../../SettingRow.vue"
 
 const settingsStore = useSettingsStore()
 const storageStore = useStorageStore()
+const syncServerStore = useSyncServerStore()
 
 const isSyncEnabled = computed(() => settingsStore.settings?.sync.iCloud.enabled ?? false)
 const isSyncing = computed(() => storageStore.status === "syncing" && isSyncEnabled.value)
+const isServerBound = computed(() => syncServerStore.binding !== null)
 
 const dotClass = computed(() => {
   if (storageStore.status === "active") return "bg-success"
@@ -21,6 +24,7 @@ const dotClass = computed(() => {
 })
 
 function onToggleAutoSync(enabled: boolean) {
+  if (isServerBound.value) return
   const sync = settingsStore.settings?.sync
   if (!sync) return
   settingsStore.updateSettings({sync: {...sync, iCloud: {enabled}}})
@@ -38,6 +42,10 @@ function onToggleAutoSync(enabled: boolean) {
         </span>
       </div>
     </template>
-    <BaseSwitch :modelValue="isSyncEnabled" :disabled="isSyncing" @update:modelValue="onToggleAutoSync" />
+    <BaseSwitch :modelValue="isSyncEnabled" :disabled="isSyncing || isServerBound" @update:modelValue="onToggleAutoSync" />
+
+    <template #below>
+      <p v-if="isServerBound" class="text-base-content/50 text-xs">Disconnect Self-hosted Daily below to use iCloud sync</p>
+    </template>
   </SettingRow>
 </template>

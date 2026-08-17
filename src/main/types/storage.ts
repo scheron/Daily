@@ -2,10 +2,31 @@ import type {ISODate} from "@shared/types/common"
 import type {TaskSearchResult} from "@shared/types/search"
 import type {StatsAggregate, StatsPeriod} from "@shared/types/stats"
 import type {Branch, Day, File, MoveTaskByOrderParams, Settings, SyncRemoteState, SyncStatus, Tag, Task, TaskEvent} from "@shared/types/storage"
+import type {EnrollmentPollView, EnrollmentTicketView, PendingApprovalView, ServerBindingView, ServerProbeView} from "@shared/types/syncServer"
 import type {ReplaceValue} from "@shared/types/utils"
 import type {PartialDeep} from "type-fest"
 
 export type TaskInternal = ReplaceValue<Task, "tags", Tag["id"][]>
+
+/**
+ * The Daily Sync Server provider, as the controller exposes it: probing an address, binding this
+ * device, peer approval and disconnecting. Declared here rather than imported so that nothing
+ * reachable from the CLI names the protocol client, and no method of it carries a credential.
+ */
+export interface IServerProvider {
+  defaultDeviceName(): string
+  getBinding(): Promise<ServerBindingView | null>
+  probe(baseUrl: string): Promise<ServerProbeView>
+  claim(code: string, deviceName: string, confirmInsecure: boolean): Promise<ServerBindingView>
+  requestEnrollment(deviceName: string, confirmInsecure: boolean): Promise<EnrollmentTicketView>
+  pollEnrollment(): Promise<EnrollmentPollView>
+  cancelConnection(): void
+  disconnect(): Promise<void>
+
+  pendingApproval(): Promise<PendingApprovalView | null>
+  approve(requestId: string, code: string): Promise<void>
+  deny(requestId: string): Promise<void>
+}
 
 export interface IStorageController {
   rootDir: string
@@ -67,6 +88,7 @@ export interface IStorageController {
   forceSync(): Promise<void>
   getSyncStatus(): SyncStatus
   getSyncRemoteStates(): SyncRemoteState[]
+  getServerProvider(): IServerProvider
   handleExternalDataChange(): Promise<void>
 
   setupStorageBroadcasts(callbacks: {

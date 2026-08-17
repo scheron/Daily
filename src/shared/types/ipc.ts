@@ -16,7 +16,8 @@ import type {ISODate} from "./common"
 import type {TaskSearchResult} from "./search"
 import type {CliInstallResult, CliInstallState} from "./shell"
 import type {StatsAggregate, StatsPeriod} from "./stats"
-import type {Branch, Day, File, MoveTaskByOrderParams, Settings, SyncRemoteState, SyncStatus, Tag, Task, TaskEvent} from "./storage"
+import type {Branch, Day, File, MoveTaskByOrderParams, SettingsView, SyncRemoteState, SyncStatus, Tag, Task, TaskEvent} from "./storage"
+import type {EnrollmentPollView, EnrollmentTicketView, PendingApprovalView, ServerBindingView, ServerProbeView} from "./syncServer"
 import type {AppUpdateState} from "./update"
 
 export interface BridgeIPC {
@@ -48,9 +49,23 @@ export interface BridgeIPC {
   "storage-sync:on-status-changed": (callback: (status: SyncStatus, prevStatus: SyncStatus) => void) => void
   "storage-sync:on-data-changed": (callback: () => void) => void
 
+  // === SELF-HOSTED DAILY SYNC SERVER ===
+  "sync-server:get-binding": () => Promise<ServerBindingView | null>
+  "sync-server:default-device-name": () => Promise<string>
+  "sync-server:probe": (baseUrl: string) => Promise<ServerProbeView>
+  "sync-server:claim": (code: string, deviceName: string, confirmInsecure: boolean) => Promise<ServerBindingView>
+  "sync-server:request-enrollment": (deviceName: string, confirmInsecure: boolean) => Promise<EnrollmentTicketView>
+  "sync-server:poll-enrollment": () => Promise<EnrollmentPollView>
+  "sync-server:cancel-connection": () => Promise<void>
+  "sync-server:disconnect": () => Promise<void>
+  "sync-server:get-pending-approval": () => Promise<PendingApprovalView | null>
+  "sync-server:approve": (requestId: string, code: string) => Promise<void>
+  "sync-server:deny": (requestId: string) => Promise<void>
+  "sync-server:on-approval-requested": (callback: () => void) => void
+
   // === SETTINGS ===
-  "settings:load": () => Promise<Settings>
-  "settings:save": (settings: Partial<Settings>) => Promise<void>
+  "settings:load": () => Promise<SettingsView>
+  "settings:save": (settings: Partial<SettingsView>) => Promise<void>
   "settings:on-changed": (callback: () => void) => void
 
   // === UPDATES ===

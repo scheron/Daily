@@ -48,10 +48,29 @@ export type TypographySettings = {
   fontSize: FontSize
 }
 
+/** Everything this device needs to talk to one Daily Sync Server. Lives in `device_settings`, never in a snapshot. */
+export type ServerSyncBinding = {
+  baseUrl: string
+  serverId: string
+  serverName: string
+  deviceId: string
+  deviceName: string
+  token: string
+  /** SHA-256 of the pinned certificate, uppercase colon-separated as `tls` reports it. Null for plain HTTP and for a chain that validates against the system store. */
+  fingerprint: string | null
+  /** True when the binding was made over plain HTTP. Permanent for the life of the binding. */
+  insecure: boolean
+  boundAt: string
+}
+
 /** Remote synchronization configuration. */
 export type SyncSettings = {
   iCloud: {
     enabled: boolean
+  }
+  server: {
+    enabled: boolean
+    binding: ServerSyncBinding | null
   }
 }
 
@@ -97,6 +116,18 @@ export type Settings = {
      * Last release successfully applied by the custom updater.
      */
     installed: InstalledAppReleaseState | null
+  }
+}
+
+/**
+ * `Settings` as it crosses to the renderer: identical except that the server binding arrives
+ * without the credential that authenticates it. The stored `ServerSyncBinding` keeps that
+ * credential — the storage layer and the CLI read it from `device_settings`; only what leaves the
+ * main process is narrowed.
+ */
+export type SettingsView = Omit<Settings, "sync"> & {
+  sync: Omit<SyncSettings, "server"> & {
+    server: {enabled: boolean; binding: Omit<ServerSyncBinding, "token"> | null}
   }
 }
 

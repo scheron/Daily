@@ -6,6 +6,7 @@ import {invoke, until} from "@vueuse/core"
 import {useAiStore} from "@/stores/ai"
 import {useBranchesStore} from "@/stores/branches.store"
 import {useSettingsStore} from "@/stores/settings.store"
+import {useSyncServerStore} from "@/stores/syncServer.store"
 import {useTagsStore} from "@/stores/tags.store"
 import {useTasksStore} from "@/stores/tasks"
 import {useUpdateStore} from "@/stores/update.store"
@@ -16,6 +17,8 @@ const route = useRoute()
 const isLightRoute = route.name === "Settings" || route.name === "Assistant"
 
 const settingsStore = useSettingsStore()
+
+if (!isLightRoute) useSyncServerStore().watchForApprovals()
 
 invoke(async () => {
   await until(() => settingsStore.isSettingsLoaded).toBeTruthy()

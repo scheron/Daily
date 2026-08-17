@@ -11,11 +11,12 @@ import fs from "fs-extra"
 
 import {SYNC_CONFIG} from "@shared/config/sync"
 import {logger} from "@/utils/logger"
+import {assertICloudCanBeEnabled, buildSyncRemotes, resolveActiveProvider} from "@/utils/sync/syncProvider"
 
 import {electronPaths} from "@/runtime/electronPaths"
 import {createStorageCore} from "@/storage/createStorageCore"
 import {initDatabase} from "@/storage/database/instance"
-import {ICloudRemoteAdapter} from "@/storage/sync/adapters/ICloudRemoteAdapter"
+import {ServerProviderService} from "@/storage/sync/server/ServerProviderService"
 import {SyncEngine} from "@/storage/sync/SyncEngine"
 
 import type {AgentTurn} from "@/ai/turns/types"
@@ -41,12 +42,14 @@ export class StorageController implements IStorageController {
   private statsService!: StorageCore["statsService"]
   private searchService!: StorageCore["searchService"]
   private syncEngine!: SyncEngine
+  private serverProvider!: ServerProviderService
   private localAdapter!: StorageCore["localAdapter"]
   private aiSessionModel!: StorageCore["aiSessionModel"]
 
   private notifyStorageStatusChange?: (status: SyncStatus, prevStatus: SyncStatus) => void
   private notifyStorageDataChange?: () => void
   private notifySettingsChange?: () => void
+  private notifyApprovalRequested?: () => void
 
   async init(): Promise<void> {
     await fs.ensureDir(this.rootDir)
@@ -76,10 +79,21 @@ export class StorageController implements IStorageController {
       },
     })
 
+    this.serverProvider = new ServerProviderService({
+      loadSettings: () => this.loadSettings(),
+      saveSettings: (partial) => this.saveSettings(partial),
+      onBindingChanged: () => this.applyRemoteConfiguration(),
+      runSyncCycle: () => this.forceSync(),
+      onApprovalRequested: () => this.notifyApprovalRequested?.(),
+      disableAutoSync: () => this.syncEngine.disableAutoSync(),
+    })
+
     if (this.hasEnabledRemote(settings)) {
       logger.info(logger.CONTEXT.STORAGE, "A local sync remote is enabled, restoring auto-sync")
       this.syncEngine.enableAutoSync()
     }
+
+    if (resolveActiveProvider(settings.sync) === "server") this.serverProvider.startProbe()
 
     logger.info(logger.CONTEXT.STORAGE, "Initializing search index")
     await this.searchService.initializeIndex()
@@ -91,15 +105,18 @@ export class StorageController implements IStorageController {
     onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => void
     onDataChange: () => void
     onSettingsChange: () => void
+    onApprovalRequested?: () => void
   }) {
     this.notifyStorageStatusChange = callbacks.onStatusChange
     this.notifyStorageDataChange = callbacks.onDataChange
     this.notifySettingsChange = callbacks.onSettingsChange
+    this.notifyApprovalRequested = callbacks.onApprovalRequested
   }
 
   async activateSync() {
     logger.info(logger.CONTEXT.STORAGE, "Activating sync")
     const settings = await this.loadSettings()
+    assertICloudCanBeEnabled(settings.sync)
     await this.saveSettings({sync: {...settings.sync, iCloud: {enabled: true}}})
     this.syncEngine.enableAutoSync()
   }
@@ -124,6 +141,11 @@ export class StorageController implements IStorageController {
     return this.syncEngine.getRemoteStates()
   }
 
+  /** The Daily Sync Server provider: probing an address, binding this device, peer approval and disconnecting. */
+  getServerProvider(): ServerProviderService {
+    return this.serverProvider
+  }
+
   /** Reacts to a mutation made by an external process (e.g. the CLI): rebuilds the search index and refreshes the renderer. */
   async handleExternalDataChange(): Promise<void> {
     await this.searchService.rebuildIndex()
@@ -138,12 +160,7 @@ export class StorageController implements IStorageController {
 
   async saveSettings(newSettings: Partial<Settings>): Promise<void> {
     await this.settingsService.saveSettings(newSettings)
-    if (newSettings.sync) {
-      const settings = await this.loadSettings()
-      this.syncEngine.setRemotes(this.buildRemotes(settings))
-      if (this.hasEnabledRemote(settings)) this.syncEngine.enableAutoSync()
-      else this.syncEngine.disableAutoSync()
-    }
+    if (newSettings.sync) await this.applyRemoteConfiguration()
     this.notifySettingsChange?.()
   }
   //#endregion
@@ -467,16 +484,21 @@ export class StorageController implements IStorageController {
   }
   //#endregion
 
-  private buildRemotes(settings: Settings): SyncRemote[] {
-    const remotes: SyncRemote[] = []
-    if (settings.sync.iCloud.enabled) {
-      remotes.push({id: "icloud", label: "iCloud", adapter: new ICloudRemoteAdapter(electronPaths.remoteSyncPath())})
-    }
+  private async applyRemoteConfiguration(): Promise<void> {
+    const settings = await this.loadSettings()
+    this.syncEngine.setRemotes(this.buildRemotes(settings))
+    if (this.hasEnabledRemote(settings)) this.syncEngine.enableAutoSync()
+    else this.syncEngine.disableAutoSync()
 
-    return remotes
+    if (resolveActiveProvider(settings.sync) === "server") this.serverProvider.startProbe()
+    else this.serverProvider.stopProbe()
+  }
+
+  private buildRemotes(settings: Settings): SyncRemote[] {
+    return buildSyncRemotes(settings.sync, {icloudSyncDir: electronPaths.remoteSyncPath()})
   }
 
   private hasEnabledRemote(settings: Settings): boolean {
-    return settings.sync.iCloud.enabled
+    return resolveActiveProvider(settings.sync) !== "off"
   }
 }

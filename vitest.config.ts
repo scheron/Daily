@@ -22,6 +22,7 @@ export default defineConfig({
             "@main": join(__dirname, "src/main"),
             "@shared": join(__dirname, "src/shared"),
             "@cli": join(__dirname, "src/cli"),
+            "@server": join(__dirname, "src/server"),
           },
         },
       },

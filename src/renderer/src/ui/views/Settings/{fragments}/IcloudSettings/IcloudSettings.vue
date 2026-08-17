@@ -7,6 +7,7 @@ import {useStorageStore} from "@/stores/storage.store"
 import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
 
+import ServerSyncSection from "./{fragments}/ServerSyncSection.vue"
 import SyncSection from "./{fragments}/SyncSection.vue"
 import SettingsGroup from "../SettingsGroup.vue"
 
@@ -44,6 +45,10 @@ async function onForceSync() {
           Sync Now
         </BaseButton>
       </div>
+    </SettingsGroup>
+
+    <SettingsGroup label="Self-hosted Daily" icon="cloud">
+      <ServerSyncSection />
     </SettingsGroup>
   </div>
 </template>

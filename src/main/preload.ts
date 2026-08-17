@@ -18,7 +18,8 @@ import type {ISODate} from "@shared/types/common"
 import type {BridgeIPC} from "@shared/types/ipc"
 import type {TaskSearchResult} from "@shared/types/search"
 import type {StatsAggregate, StatsPeriod} from "@shared/types/stats"
-import type {Branch, Day, Settings, SyncRemoteState, SyncStatus, Tag, Task, TaskEvent} from "@shared/types/storage"
+import type {Branch, Day, SettingsView, SyncRemoteState, SyncStatus, Tag, Task, TaskEvent} from "@shared/types/storage"
+import type {EnrollmentPollView, EnrollmentTicketView, PendingApprovalView, ServerBindingView, ServerProbeView} from "@shared/types/syncServer"
 import type {AppUpdateState} from "@shared/types/update"
 import type {PartialDeep} from "type-fest"
 
@@ -53,8 +54,21 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "storage-sync:on-status-changed": (callback: (status: SyncStatus, prevStatus: SyncStatus) => void) => ipcRenderer.on("storage-sync:status-changed", (_event, status: SyncStatus, prevStatus: SyncStatus) => callback(status, prevStatus)),
   "storage-sync:on-data-changed": (callback: () => void) => ipcRenderer.on("storage-sync:data-changed", (_event, ) => callback()),
 
-  "settings:load": () => ipcRenderer.invoke("settings:load") as Promise<Settings>,
-  "settings:save": (settings: Partial<Settings>) => ipcRenderer.invoke("settings:save", settings),
+  "sync-server:get-binding": () => ipcRenderer.invoke("sync-server:get-binding") as Promise<ServerBindingView | null>,
+  "sync-server:default-device-name": () => ipcRenderer.invoke("sync-server:default-device-name") as Promise<string>,
+  "sync-server:probe": (baseUrl: string) => ipcRenderer.invoke("sync-server:probe", baseUrl) as Promise<ServerProbeView>,
+  "sync-server:claim": (code: string, deviceName: string, confirmInsecure: boolean) => ipcRenderer.invoke("sync-server:claim", code, deviceName, confirmInsecure) as Promise<ServerBindingView>,
+  "sync-server:request-enrollment": (deviceName: string, confirmInsecure: boolean) => ipcRenderer.invoke("sync-server:request-enrollment", deviceName, confirmInsecure) as Promise<EnrollmentTicketView>,
+  "sync-server:poll-enrollment": () => ipcRenderer.invoke("sync-server:poll-enrollment") as Promise<EnrollmentPollView>,
+  "sync-server:cancel-connection": () => ipcRenderer.invoke("sync-server:cancel-connection") as Promise<void>,
+  "sync-server:disconnect": () => ipcRenderer.invoke("sync-server:disconnect") as Promise<void>,
+  "sync-server:get-pending-approval": () => ipcRenderer.invoke("sync-server:get-pending-approval") as Promise<PendingApprovalView | null>,
+  "sync-server:approve": (requestId: string, code: string) => ipcRenderer.invoke("sync-server:approve", requestId, code) as Promise<void>,
+  "sync-server:deny": (requestId: string) => ipcRenderer.invoke("sync-server:deny", requestId) as Promise<void>,
+  "sync-server:on-approval-requested": (callback: () => void) => ipcRenderer.on("sync-server:approval-requested", (_event, ) => callback()),
+
+  "settings:load": () => ipcRenderer.invoke("settings:load") as Promise<SettingsView>,
+  "settings:save": (settings: Partial<SettingsView>) => ipcRenderer.invoke("settings:save", settings),
   "settings:on-changed": (callback: () => void) => ipcRenderer.on("settings:changed", () => callback()),
 
   "updates:get-state": () => ipcRenderer.invoke("updates:get-state") as Promise<AppUpdateState>,

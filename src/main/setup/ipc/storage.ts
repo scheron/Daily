@@ -3,12 +3,12 @@ import {ipcMain} from "electron"
 import type {IStorageController} from "@/types/storage"
 import type {ISODate} from "@shared/types/common"
 import type {StatsPeriod} from "@shared/types/stats"
-import type {Branch, MoveTaskByOrderParams, Tag, Task} from "@shared/types/storage"
+import type {Branch, MoveTaskByOrderParams, Settings, SettingsView, Tag, Task} from "@shared/types/storage"
 import type {PartialDeep} from "type-fest"
 
 // prettier-ignore
 export function setupStorageIPC(getStorage: () => IStorageController | null) {
-  ipcMain.handle("settings:load", (_e) => getStorage()?.loadSettings())
+  ipcMain.handle("settings:load", async (_e) => withoutDeviceToken(await getStorage()?.loadSettings()))
   ipcMain.handle("settings:save", (_e, newSettings: Partial<Record<string, any>>) => getStorage()?.saveSettings(newSettings))
 
   ipcMain.handle("days:get-many", (_e, params?: {from?: ISODate; to?: ISODate; branchId?: Branch["id"]}) => getStorage()?.getDays(params))
@@ -58,4 +58,16 @@ export function setupStorageIPC(getStorage: () => IStorageController | null) {
   ipcMain.handle("storage-sync:sync", (_e) => getStorage()?.forceSync())
   ipcMain.handle("storage-sync:get-status", (_e) => getStorage()?.getSyncStatus())
   ipcMain.handle("storage-sync:get-remote-states", (_e) => getStorage()?.getSyncRemoteStates())
+}
+
+/**
+ * Strips the Daily Sync Server device credential out of the settings before they cross to the
+ * renderer. The stored row keeps it: this is the boundary, not the storage layer.
+ */
+function withoutDeviceToken(settings: Settings | undefined): SettingsView | undefined {
+  const binding = settings?.sync.server.binding
+  if (!settings || !binding) return settings
+
+  const {token: _token, ...bindingView} = binding
+  return {...settings, sync: {...settings.sync, server: {...settings.sync.server, binding: bindingView}}}
 }
