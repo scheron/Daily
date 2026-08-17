@@ -52,6 +52,19 @@ export default defineConfig({
           },
         },
       },
+      {
+        test: {
+          name: "server",
+          environment: "node",
+          include: ["tests/server/**/*.test.ts"],
+        },
+        resolve: {
+          alias: {
+            "@server": join(__dirname, "src/server"),
+            "@shared": join(__dirname, "src/shared"),
+          },
+        },
+      },
     ],
   },
 })
