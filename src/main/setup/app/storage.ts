@@ -25,5 +25,8 @@ export function setupStorageSync(getStorage: () => StorageController | null, get
     onApprovalRequested: () => {
       broadcastToWindows(getWindows, "sync-server:approval-requested")
     },
+    onRevoked: () => {
+      broadcastToWindows(getWindows, "sync-server:revoked")
+    },
   })
 }

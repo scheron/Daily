@@ -1,14 +1,19 @@
 import {ipcMain} from "electron"
 
+import {toSettingsView} from "@/utils/sync/settingsViews"
+
 import type {IStorageController} from "@/types/storage"
 import type {ISODate} from "@shared/types/common"
 import type {StatsPeriod} from "@shared/types/stats"
-import type {Branch, MoveTaskByOrderParams, Settings, SettingsView, Tag, Task} from "@shared/types/storage"
+import type {Branch, MoveTaskByOrderParams, Tag, Task} from "@shared/types/storage"
 import type {PartialDeep} from "type-fest"
 
 // prettier-ignore
 export function setupStorageIPC(getStorage: () => IStorageController | null) {
-  ipcMain.handle("settings:load", async (_e) => withoutDeviceToken(await getStorage()?.loadSettings()))
+  ipcMain.handle("settings:load", async (_e) => {
+    const settings = await getStorage()?.loadSettings()
+    return settings ? toSettingsView(settings) : undefined
+  })
   ipcMain.handle("settings:save", (_e, newSettings: Partial<Record<string, any>>) => getStorage()?.saveSettings(newSettings))
 
   ipcMain.handle("days:get-many", (_e, params?: {from?: ISODate; to?: ISODate; branchId?: Branch["id"]}) => getStorage()?.getDays(params))
@@ -53,21 +58,7 @@ export function setupStorageIPC(getStorage: () => IStorageController | null) {
   ipcMain.handle("files:delete", (_e, filename: string) => getStorage()?.deleteFile(filename))
   ipcMain.handle("files:get-path", (_e, id: string) => getStorage()?.getFilePath(id))
 
-  ipcMain.handle("storage-sync:activate", (_e) => getStorage()?.activateSync())
-  ipcMain.handle("storage-sync:deactivate", (_e) => getStorage()?.deactivateSync())
   ipcMain.handle("storage-sync:sync", (_e) => getStorage()?.forceSync())
   ipcMain.handle("storage-sync:get-status", (_e) => getStorage()?.getSyncStatus())
   ipcMain.handle("storage-sync:get-remote-states", (_e) => getStorage()?.getSyncRemoteStates())
-}
-
-/**
- * Strips the Daily Sync Server device credential out of the settings before they cross to the
- * renderer. The stored row keeps it: this is the boundary, not the storage layer.
- */
-function withoutDeviceToken(settings: Settings | undefined): SettingsView | undefined {
-  const binding = settings?.sync.server.binding
-  if (!settings || !binding) return settings
-
-  const {token: _token, ...bindingView} = binding
-  return {...settings, sync: {...settings.sync, server: {...settings.sync.server, binding: bindingView}}}
 }

@@ -1,5 +1,6 @@
 import type {AIConfig} from "./ai"
 import type {ISODate, ISODateTime, ISOTime, Timezone} from "./common"
+import type {ServerBindingView} from "./syncServer"
 import type {AppUpdateSource} from "./update"
 
 export type SyncStatus = "inactive" | "active" | "syncing" | "error"
@@ -127,7 +128,7 @@ export type Settings = {
  */
 export type SettingsView = Omit<Settings, "sync"> & {
   sync: Omit<SyncSettings, "server"> & {
-    server: {enabled: boolean; binding: Omit<ServerSyncBinding, "token"> | null}
+    server: {enabled: boolean; binding: ServerBindingView | null}
   }
 }
 

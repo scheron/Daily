@@ -17,7 +17,15 @@ import type {TaskSearchResult} from "./search"
 import type {CliInstallResult, CliInstallState} from "./shell"
 import type {StatsAggregate, StatsPeriod} from "./stats"
 import type {Branch, Day, File, MoveTaskByOrderParams, SettingsView, SyncRemoteState, SyncStatus, Tag, Task, TaskEvent} from "./storage"
-import type {EnrollmentPollView, EnrollmentTicketView, PendingApprovalView, ServerBindingView, ServerProbeView} from "./syncServer"
+import type {MigrationDirection, MigrationPreview, SyncProvider} from "./syncProvider"
+import type {
+  EnrollmentPollView,
+  EnrollmentTicketView,
+  PendingApprovalView,
+  ServerBindingView,
+  ServerConnectionStateView,
+  ServerProbeView,
+} from "./syncServer"
 import type {AppUpdateState} from "./update"
 
 export interface BridgeIPC {
@@ -41,8 +49,6 @@ export interface BridgeIPC {
   "shell:configure-cli-path": () => Promise<CliInstallResult>
 
   // === STORAGE  ===
-  "storage-sync:activate": () => Promise<void>
-  "storage-sync:deactivate": () => Promise<void>
   "storage-sync:sync": () => Promise<void>
   "storage-sync:get-status": () => Promise<SyncStatus>
   "storage-sync:get-remote-states": () => Promise<SyncRemoteState[]>
@@ -50,7 +56,7 @@ export interface BridgeIPC {
   "storage-sync:on-data-changed": (callback: () => void) => void
 
   // === SELF-HOSTED DAILY SYNC SERVER ===
-  "sync-server:get-binding": () => Promise<ServerBindingView | null>
+  "sync-server:get-state": () => Promise<ServerConnectionStateView>
   "sync-server:default-device-name": () => Promise<string>
   "sync-server:probe": (baseUrl: string) => Promise<ServerProbeView>
   "sync-server:claim": (code: string, deviceName: string, confirmInsecure: boolean) => Promise<ServerBindingView>
@@ -62,6 +68,11 @@ export interface BridgeIPC {
   "sync-server:approve": (requestId: string, code: string) => Promise<void>
   "sync-server:deny": (requestId: string) => Promise<void>
   "sync-server:on-approval-requested": (callback: () => void) => void
+  "sync-server:on-revoked": (callback: () => void) => void
+
+  // === SYNC PROVIDER ===
+  "sync-provider:preview": (target: Exclude<SyncProvider, "off">) => Promise<MigrationPreview>
+  "sync-provider:migrate": (target: SyncProvider, direction: MigrationDirection | null) => Promise<void>
 
   // === SETTINGS ===
   "settings:load": () => Promise<SettingsView>

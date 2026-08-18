@@ -6,9 +6,12 @@ import {SyncServerErrorCode} from "@shared/errors/sync/SyncServerErrorCode"
 import {SYNC_PROTOCOL_PATHS} from "@shared/types/syncProtocol"
 import {isBlockedAddress} from "@shared/utils/web/isBlockedAddress"
 
+import {createStorageCore} from "@main/storage/createStorageCore"
 import {getDefaultSettings} from "@main/storage/models/_rowMappers"
+import {StorageController} from "@main/storage/StorageController"
 import {ServerProviderService} from "@main/storage/sync/server/ServerProviderService"
-import {assertICloudCanBeEnabled, assertServerCanBeBound, buildSyncRemotes, resolveActiveProvider} from "@main/utils/sync/syncProvider"
+import {toBindingView, toSettingsView} from "@main/utils/sync/settingsViews"
+import {assertSingleActiveProvider, buildSyncRemotes, resolveActiveProvider} from "@main/utils/sync/syncProvider"
 import {revokeDevice} from "@server/devices/DeviceStore"
 import {ensureClaimCode, isClaimed} from "@server/identity/ServerIdentityStore"
 import {createTestDatabase} from "../../../../helpers/db"
@@ -17,6 +20,22 @@ import {bootSyncServer, claimFirstDevice, enrollSecondDevice} from "../../../../
 import type {ServerSyncBinding, Settings, SyncSettings} from "@shared/types/storage"
 import type {IssuedCredential} from "@shared/types/syncProtocol"
 import type {BootedSyncServer} from "../../../../helpers/syncServer"
+
+/**
+ * `StorageController`'s field initializer calls `electronPaths.appDataRoot()`; mocking the module
+ * (the technique `tests/main/storage/handleExternalDataChange.test.ts` already uses) keeps TC-1's
+ * `new StorageController()` off the real Electron `app` under evitest. Nothing else imported by
+ * this file reads `@main/runtime/electronPaths`, so the mock is inert for every other case here.
+ */
+vi.mock("@main/runtime/electronPaths", () => ({
+  electronPaths: {
+    appDataRoot: () => "/tmp/daily-server-provider-test",
+    assetsDir: () => "/tmp/daily-server-provider-test/assets",
+    dbPath: () => "/tmp/daily-server-provider-test/db",
+    remoteSyncPath: () => "/tmp/daily-server-provider-test/remote",
+    mutationSignalPath: () => "/tmp/daily-server-provider-test/.s",
+  },
+}))
 
 /**
  * `isPrivateServerAddress` (phase 2) has no injectable lookup, and this sandbox cannot manufacture
@@ -55,6 +74,8 @@ function makeService(
     onBindingChanged?: () => Promise<void>
     runSyncCycle?: () => Promise<void>
     onApprovalRequested?: () => void
+    disableAutoSync?: () => void
+    onRevoked?: () => void
   } = {},
 ): ServerProviderService {
   return new ServerProviderService({
@@ -63,6 +84,8 @@ function makeService(
     onBindingChanged: overrides.onBindingChanged ?? (async () => {}),
     runSyncCycle: overrides.runSyncCycle ?? (async () => {}),
     onApprovalRequested: overrides.onApprovalRequested ?? (() => {}),
+    disableAutoSync: overrides.disableAutoSync ?? (() => {}),
+    onRevoked: overrides.onRevoked ?? (() => {}),
   } as never)
 }
 
@@ -123,15 +146,84 @@ describe("resolveActiveProvider and buildSyncRemotes agree on exactly one writab
     expect(buildSyncRemotes(serverOnly, paths)).toHaveLength(1)
     expect(buildSyncRemotes(both, paths).length).toBeLessThanOrEqual(1)
 
-    expect(() => assertICloudCanBeEnabled(off)).not.toThrow()
-    expect(() => assertServerCanBeBound(off)).not.toThrow()
-    expect(() => assertICloudCanBeEnabled(icloudOnly)).not.toThrow()
-    expect(() => assertServerCanBeBound(serverOnly)).not.toThrow()
+    expect(() => assertSingleActiveProvider(off)).not.toThrow()
+    expect(() => assertSingleActiveProvider(icloudOnly)).not.toThrow()
+    expect(() => assertSingleActiveProvider(serverOnly)).not.toThrow()
+    expect(throwsProviderConflict(() => assertSingleActiveProvider(both))).toBe(SyncServerErrorCode.PROVIDER_CONFLICT)
+  })
+})
 
-    expect(throwsProviderConflict(() => assertServerCanBeBound(icloudOnly))).toBe(SyncServerErrorCode.PROVIDER_CONFLICT)
-    expect(throwsProviderConflict(() => assertICloudCanBeEnabled(serverOnly))).toBe(SyncServerErrorCode.PROVIDER_CONFLICT)
-    expect(throwsProviderConflict(() => assertICloudCanBeEnabled(both))).toBe(SyncServerErrorCode.PROVIDER_CONFLICT)
-    expect(throwsProviderConflict(() => assertServerCanBeBound(both))).toBe(SyncServerErrorCode.PROVIDER_CONFLICT)
+describe("the single guard on every settings write", () => {
+  it("throws_TC-1_PROVIDER_CONFLICT_only_on_the_fourth_combination_and_saveSettings_rejects_leaving_the_stored_row_untouched", async () => {
+    const off: SyncSettings = {iCloud: {enabled: false}, server: {enabled: false, binding: null}}
+    const icloudOnly: SyncSettings = {iCloud: {enabled: true}, server: {enabled: false, binding: null}}
+    const serverOnly: SyncSettings = {iCloud: {enabled: false}, server: {enabled: true, binding: makeBinding()}}
+    const both: SyncSettings = {iCloud: {enabled: true}, server: {enabled: true, binding: makeBinding()}}
+
+    expect(() => assertSingleActiveProvider(off)).not.toThrow()
+    expect(() => assertSingleActiveProvider(icloudOnly)).not.toThrow()
+    expect(() => assertSingleActiveProvider(serverOnly)).not.toThrow()
+    expect(throwsProviderConflict(() => assertSingleActiveProvider(both))).toBe(SyncServerErrorCode.PROVIDER_CONFLICT)
+
+    const db = createTestDatabase()
+    const core = createStorageCore(db, {
+      appDataRoot: () => "/tmp/daily-tc1",
+      dbPath: () => "/tmp/daily-tc1/db",
+      assetsDir: () => "/tmp/daily-tc1/assets",
+      remoteSyncPath: () => "/tmp/daily-tc1/remote",
+      mutationSignalPath: () => "/tmp/daily-tc1/.s",
+    })
+
+    // The stored state already holds an enabled binding (the third combination above); a partial
+    // that only turns iCloud on merges onto it into the fourth, forbidden combination.
+    await core.settingsService.saveSettings({sync: serverOnly})
+    const before = db.prepare(`SELECT data, updated_at FROM device_settings WHERE id = 'sync'`).get()
+
+    const controller = new StorageController()
+    ;(controller as unknown as {settingsService: typeof core.settingsService}).settingsService = core.settingsService
+
+    const rejection = await controller.saveSettings({sync: {iCloud: {enabled: true}}}).then(
+      () => null,
+      (error: unknown) => error,
+    )
+
+    expect(rejection).toBeInstanceOf(SyncServerError)
+    expect((rejection as SyncServerError).code).toBe(SyncServerErrorCode.PROVIDER_CONFLICT)
+
+    const after = db.prepare(`SELECT data, updated_at FROM device_settings WHERE id = 'sync'`).get()
+    expect(after).toEqual(before)
+
+    db.close()
+  })
+})
+
+describe("claiming a credential while iCloud remains the active provider", () => {
+  it("claims_TC-2_a_server_credential_without_activating_it_while_iCloud_stays_writable", async () => {
+    const server = await bootSyncServer()
+    try {
+      const store = makeSettingsStore({iCloud: {enabled: true}})
+      const service = makeService(store)
+
+      await service.probe(server.baseUrl)
+      const code = ensureClaimCode(server.store)
+      if (!code) throw new Error("expected an unclaimed test server to hold a claim code")
+
+      const bound = await service.claim(code, "MacBook Air", false)
+
+      const settingsAfter = store.snapshot()
+      expect(settingsAfter.sync.server.enabled).toBe(false)
+      expect(settingsAfter.sync.server.binding).not.toBeNull()
+      expect(settingsAfter.sync.server.binding?.deviceId).toBe(bound.deviceId)
+      expect(settingsAfter.sync.iCloud.enabled).toBe(true)
+
+      expect(resolveActiveProvider(settingsAfter.sync)).toBe("icloud")
+
+      const remotes = buildSyncRemotes(settingsAfter.sync, {icloudSyncDir: "/tmp/daily-icloud-sync-dir"})
+      expect(remotes).toHaveLength(1)
+      expect(remotes[0].id).toBe("icloud")
+    } finally {
+      await server.close()
+    }
   })
 })
 
@@ -365,11 +457,80 @@ describe("the revision probe", () => {
       const after = store.snapshot()
       expect(after.sync.server.binding).toEqual(binding)
 
-      const view = await service.getBinding()
-      expect(view?.deviceId).toBe(binding.deviceId)
-      expect(view?.baseUrl).toBe(binding.baseUrl)
+      const state = await service.getState()
+      expect(state.binding?.deviceId).toBe(binding.deviceId)
+      expect(state.binding?.baseUrl).toBe(binding.baseUrl)
     } finally {
       await server.close()
     }
+  })
+
+  it("reports_TC-10_a_typed_revocation_through_getState_firing_onRevoked_once_and_clearing_on_a_later_bind", async () => {
+    const server = await bootSyncServer()
+    try {
+      const credential = await claimFirstDevice(server, "MacBook Air")
+      const binding = bindingFromCredential(server, credential)
+      const store = makeSettingsStore({server: {enabled: true, binding}})
+      const runSyncCycle = vi.fn(async () => {})
+      const disableAutoSync = vi.fn()
+      const onRevoked = vi.fn()
+      const service = makeService(store, {runSyncCycle, disableAutoSync, onRevoked})
+
+      revokeDevice(server.store, credential.device.id)
+
+      service.startProbe()
+      await fireProbeTick()
+
+      expect(runSyncCycle).not.toHaveBeenCalled()
+      expect(disableAutoSync).toHaveBeenCalledTimes(1)
+      expect(onRevoked).toHaveBeenCalledTimes(1)
+
+      const stateAfterRevocation = await service.getState()
+      expect(stateAfterRevocation.revoked).toBe(true)
+      expect(stateAfterRevocation.binding?.deviceId).toBe(binding.deviceId)
+      expect(stateAfterRevocation.binding?.baseUrl).toBe(binding.baseUrl)
+
+      await fireProbeTick()
+      await fireProbeTick()
+      expect(onRevoked).toHaveBeenCalledTimes(1)
+
+      const freshServer = await bootSyncServer()
+      try {
+        await service.probe(freshServer.baseUrl)
+        const freshCode = ensureClaimCode(freshServer.store)
+        if (!freshCode) throw new Error("expected an unclaimed test server to hold a claim code")
+        await service.claim(freshCode, "MacBook Air", false)
+
+        const stateAfterRebind = await service.getState()
+        expect(stateAfterRebind.revoked).toBe(false)
+      } finally {
+        await freshServer.close()
+      }
+    } finally {
+      await server.close()
+    }
+  })
+})
+
+describe("narrowing a server binding for the renderer", () => {
+  it("narrows_TC-11_toBindingView_toSettingsView_and_getState_to_exactly_the_eight_renderer-safe_fields", async () => {
+    const binding = makeBinding()
+    const expectedKeys = ["baseUrl", "serverId", "serverName", "deviceId", "deviceName", "fingerprint", "insecure", "boundAt"].sort()
+
+    const bindingView = toBindingView(binding)
+    expect(Object.keys(bindingView).sort()).toEqual(expectedKeys)
+    expect("token" in bindingView).toBe(false)
+
+    const settings: Settings = {...getDefaultSettings(), sync: {iCloud: {enabled: false}, server: {enabled: true, binding}}}
+    const settingsView = toSettingsView(settings)
+    const settingsViewBinding = settingsView.sync.server.binding
+    expect(settingsViewBinding).not.toBeNull()
+    expect(Object.keys(settingsViewBinding as object).sort()).toEqual(expectedKeys)
+
+    const store = makeSettingsStore({server: {enabled: true, binding}})
+    const service = makeService(store)
+    const state = await service.getState()
+    expect(state.binding).not.toBeNull()
+    expect(Object.keys(state.binding as object).sort()).toEqual(expectedKeys)
   })
 })

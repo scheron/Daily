@@ -22,6 +22,7 @@ import {setupMenuIPC} from "@/setup/ipc/menu"
 import {setupSettingsIPC} from "@/setup/ipc/settings"
 import {setupShellIPC} from "@/setup/ipc/shell"
 import {setupStorageIPC} from "@/setup/ipc/storage"
+import {setupSyncProviderIPC} from "@/setup/ipc/syncProvider"
 import {setupSyncServerIPC} from "@/setup/ipc/syncServer"
 import {setupUpdatesIPC} from "@/setup/ipc/updates"
 import {setupMainWindowIPC} from "@/setup/ipc/windows"
@@ -130,6 +131,7 @@ app.whenReady().then(async () => {
 
   setupStorageIPC(() => storage)
   setupSyncServerIPC(() => storage)
+  setupSyncProviderIPC(() => storage)
   setupAiIPC(
     () => ai,
     () => windows,

@@ -1,25 +1,15 @@
 import {SyncServerError} from "@shared/errors/sync/SyncServerError"
 import {SyncServerErrorCode} from "@shared/errors/sync/SyncServerErrorCode"
+import {resolveActiveProvider} from "@shared/utils/sync/resolveActiveProvider"
 
 import {DailyServerRemoteAdapter} from "@/storage/sync/adapters/DailyServerRemoteAdapter"
 import {ICloudRemoteAdapter} from "@/storage/sync/adapters/ICloudRemoteAdapter"
 
 import type {SyncRemote} from "@/types/sync"
 import type {SyncSettings} from "@shared/types/storage"
+import type {SyncProvider} from "@shared/types/syncProvider"
 
-export type ActiveSyncProvider = "off" | "icloud" | "server"
-
-/**
- * Which single sync provider is active for a device's settings, never more than one. A server
- * binding wins a state where both flags are somehow set, since that state is unreachable through
- * `assertICloudCanBeEnabled`/`assertServerCanBeBound` and resolving it to two remotes is the one
- * outcome the spec forbids outright.
- */
-export function resolveActiveProvider(sync: SyncSettings): ActiveSyncProvider {
-  if (sync.server.enabled && sync.server.binding) return "server"
-  if (sync.iCloud.enabled) return "icloud"
-  return "off"
-}
+export {resolveActiveProvider}
 
 /** Builds the remotes `SyncEngine` should run against: at most one, matching `resolveActiveProvider`. */
 export function buildSyncRemotes(sync: SyncSettings, paths: {icloudSyncDir: string}): SyncRemote[] {
@@ -36,16 +26,29 @@ export function buildSyncRemotes(sync: SyncSettings, paths: {icloudSyncDir: stri
   return []
 }
 
-/** Throws when enabling iCloud would leave a server binding writable alongside it. */
-export function assertICloudCanBeEnabled(sync: SyncSettings): void {
-  if (sync.server.enabled && sync.server.binding) {
-    throw new SyncServerError(SyncServerErrorCode.PROVIDER_CONFLICT, "Self-hosted Daily is connected; disconnect it before turning on iCloud sync")
+/** Throws when a settings value would leave both iCloud and a bound server writable at once. */
+export function assertSingleActiveProvider(sync: SyncSettings): void {
+  if (sync.iCloud.enabled && sync.server.enabled && sync.server.binding !== null) {
+    throw new SyncServerError(SyncServerErrorCode.PROVIDER_CONFLICT, "Only one sync provider can be active at a time")
   }
 }
 
-/** Throws when binding a server would leave iCloud writable alongside it. */
-export function assertServerCanBeBound(sync: SyncSettings): void {
-  if (sync.iCloud.enabled) {
-    throw new SyncServerError(SyncServerErrorCode.PROVIDER_CONFLICT, "iCloud sync is on; turn it off before connecting Self-hosted Daily")
+/**
+ * The sync settings a device would hold once `target` is its provider: one position enabled and
+ * the other two off. The server credential survives every target, including `"off"` — unbinding
+ * this Mac from its server is a separate explicit act.
+ *
+ * @param sync - The sync settings as they stand now.
+ * @param target - The position being moved to.
+ * @throws SyncServerError NO_BINDING when the server is asked for without a stored credential.
+ */
+export function nextSyncSettings(sync: SyncSettings, target: SyncProvider): SyncSettings {
+  if (target === "server" && !sync.server.binding) {
+    throw new SyncServerError(SyncServerErrorCode.NO_BINDING, "This device is not connected to a Daily Sync Server")
+  }
+
+  return {
+    iCloud: {enabled: target === "icloud"},
+    server: {enabled: target === "server", binding: sync.server.binding},
   }
 }

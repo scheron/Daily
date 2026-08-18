@@ -91,3 +91,58 @@ describe("mergeRemoteIntoLocal — branch_id integrity", () => {
     assertNoDanglingBranchRefs(merge)
   })
 })
+
+describe("mergeRemoteIntoLocal — a tie resolved by direction reaches the local write", () => {
+  const CONTESTED_ID = "contested"
+  const OTHER_ID = "unchanged"
+
+  function tiedState() {
+    const local = docs({
+      branches: [branch("main")],
+      tasks: [task(CONTESTED_ID, "main", {content: "this Mac's edit"}), task(OTHER_ID, "main", {content: "same on both sides"})],
+    })
+    const remote = docs({
+      branches: [branch("main")],
+      tasks: [task(CONTESTED_ID, "main", {content: "the target's edit"}), task(OTHER_ID, "main", {content: "same on both sides"})],
+    })
+    return {local, remote}
+  }
+
+  it("carries_TC-18_the_targets_content_into_the_local_write_when_pull_resolves_a_tie", () => {
+    const {local, remote} = tiedState()
+
+    const merge = mergeRemoteIntoLocal(local, remote, "pull", GC)
+
+    expect(merge.changes).toBeGreaterThan(0)
+    const written = merge.toUpsert.tasks.find((t) => t.id === CONTESTED_ID)
+    expect(written?.content).toBe("the target's edit")
+    expect(merge.toUpsert.tasks.some((t) => t.id === OTHER_ID)).toBe(false)
+  })
+
+  it("keeps_TC-18_this_Macs_content_and_reports_no_local_write_when_push_resolves_the_same_tie", () => {
+    const {local, remote} = tiedState()
+
+    const merge = mergeRemoteIntoLocal(local, remote, "push", GC)
+
+    expect(merge.changes).toBe(0)
+    expect(merge.toUpsert.tasks.some((t) => t.id === CONTESTED_ID)).toBe(false)
+    expect(merge.toUpsert.tasks.some((t) => t.id === OTHER_ID)).toBe(false)
+    expect(merge.resultDocs.tasks.find((t) => t.id === CONTESTED_ID)?.content).toBe("this Mac's edit")
+  })
+
+  it("reports_TC-18_no_changes_at_all_when_both_sides_are_already_byte-identical", () => {
+    const local = docs({
+      branches: [branch("main")],
+      tasks: [task(CONTESTED_ID, "main", {content: "agreed everywhere"})],
+    })
+    const remote = docs({
+      branches: [branch("main")],
+      tasks: [task(CONTESTED_ID, "main", {content: "agreed everywhere"})],
+    })
+
+    const merge = mergeRemoteIntoLocal(local, remote, "pull", GC)
+
+    expect(merge.changes).toBe(0)
+    expect(merge.toUpsert.tasks).toEqual([])
+  })
+})

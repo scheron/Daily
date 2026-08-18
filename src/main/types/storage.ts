@@ -2,7 +2,15 @@ import type {ISODate} from "@shared/types/common"
 import type {TaskSearchResult} from "@shared/types/search"
 import type {StatsAggregate, StatsPeriod} from "@shared/types/stats"
 import type {Branch, Day, File, MoveTaskByOrderParams, Settings, SyncRemoteState, SyncStatus, Tag, Task, TaskEvent} from "@shared/types/storage"
-import type {EnrollmentPollView, EnrollmentTicketView, PendingApprovalView, ServerBindingView, ServerProbeView} from "@shared/types/syncServer"
+import type {MigrationDirection, MigrationPreview, SyncProvider} from "@shared/types/syncProvider"
+import type {
+  EnrollmentPollView,
+  EnrollmentTicketView,
+  PendingApprovalView,
+  ServerBindingView,
+  ServerConnectionStateView,
+  ServerProbeView,
+} from "@shared/types/syncServer"
 import type {ReplaceValue} from "@shared/types/utils"
 import type {PartialDeep} from "type-fest"
 
@@ -15,7 +23,7 @@ export type TaskInternal = ReplaceValue<Task, "tags", Tag["id"][]>
  */
 export interface IServerProvider {
   defaultDeviceName(): string
-  getBinding(): Promise<ServerBindingView | null>
+  getState(): Promise<ServerConnectionStateView>
   probe(baseUrl: string): Promise<ServerProbeView>
   claim(code: string, deviceName: string, confirmInsecure: boolean): Promise<ServerBindingView>
   requestEnrollment(deviceName: string, confirmInsecure: boolean): Promise<EnrollmentTicketView>
@@ -83,17 +91,18 @@ export interface IStorageController {
   createFileResponse(id: File["id"]): Promise<Response>
   cleanupOrphanFiles(): Promise<void>
 
-  activateSync(): Promise<void>
-  deactivateSync(): Promise<void>
   forceSync(): Promise<void>
   getSyncStatus(): SyncStatus
   getSyncRemoteStates(): SyncRemoteState[]
   getServerProvider(): IServerProvider
+  previewMigration(target: Exclude<SyncProvider, "off">): Promise<MigrationPreview>
+  migrateProvider(target: SyncProvider, direction: MigrationDirection | null): Promise<void>
   handleExternalDataChange(): Promise<void>
 
   setupStorageBroadcasts(callbacks: {
     onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => void
     onDataChange: () => void
     onSettingsChange: () => void
+    onRevoked?: () => void
   }): void
 }

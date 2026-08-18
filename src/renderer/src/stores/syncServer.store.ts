@@ -3,7 +3,7 @@ import {invoke} from "@vueuse/core"
 import {defineStore} from "pinia"
 
 import {useBaseModal} from "@/ui/base/BaseModal"
-import ApproveDeviceModal from "@/ui/views/Settings/{fragments}/IcloudSettings/{fragments}/ApproveDeviceModal.vue"
+import ApproveDeviceModal from "@/ui/views/Settings/{fragments}/SyncSettings/{fragments}/ApproveDeviceModal.vue"
 
 import type {EnrollmentPollView, EnrollmentTicketView, PendingApprovalView, ServerBindingView, ServerProbeView} from "@shared/types/syncServer"
 
@@ -11,15 +11,18 @@ const APPROVE_DEVICE_MODAL_ID = "sync-server-approve-device"
 
 export const useSyncServerStore = defineStore("syncServer", () => {
   const binding = ref<ServerBindingView | null>(null)
+  const revoked = ref(false)
   let isWatchingApprovals = false
 
   const {show: showApproval, hide: hideApproval} = useBaseModal(APPROVE_DEVICE_MODAL_ID)
 
-  async function loadBinding(): Promise<void> {
+  async function loadState(): Promise<void> {
     try {
-      binding.value = await window.BridgeIPC["sync-server:get-binding"]()
+      const state = await window.BridgeIPC["sync-server:get-state"]()
+      binding.value = state.binding
+      revoked.value = state.revoked
     } catch (error) {
-      console.error("Failed to load the Daily Sync Server binding:", error)
+      console.error("Failed to load the Daily Sync Server state:", error)
     }
   }
 
@@ -33,7 +36,7 @@ export const useSyncServerStore = defineStore("syncServer", () => {
 
   async function claim(code: string, deviceName: string, confirmInsecure: boolean): Promise<ServerBindingView> {
     const result = await window.BridgeIPC["sync-server:claim"](code, deviceName, confirmInsecure)
-    await loadBinding()
+    await loadState()
     return result
   }
 
@@ -43,7 +46,7 @@ export const useSyncServerStore = defineStore("syncServer", () => {
 
   async function pollEnrollment(): Promise<EnrollmentPollView> {
     const result = await window.BridgeIPC["sync-server:poll-enrollment"]()
-    if (result.state === "approved") await loadBinding()
+    if (result.state === "approved") await loadState()
     return result
   }
 
@@ -57,7 +60,7 @@ export const useSyncServerStore = defineStore("syncServer", () => {
 
   async function disconnect(): Promise<void> {
     await window.BridgeIPC["sync-server:disconnect"]()
-    await loadBinding()
+    await loadState()
   }
 
   async function getPendingApproval(): Promise<PendingApprovalView | null> {
@@ -110,12 +113,17 @@ export const useSyncServerStore = defineStore("syncServer", () => {
     openApprovalDialog()
   }
 
-  invoke(loadBinding)
+  window.BridgeIPC["sync-server:on-revoked"](() => {
+    revoked.value = true
+  })
+
+  invoke(loadState)
 
   return {
     binding,
+    revoked,
 
-    loadBinding,
+    loadState,
     defaultDeviceName,
     probe,
     claim,

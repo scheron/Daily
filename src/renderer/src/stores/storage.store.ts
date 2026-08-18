@@ -1,8 +1,9 @@
-import {onMounted, ref} from "vue"
+import {computed, onMounted, ref} from "vue"
 import {createEventHook} from "@vueuse/core"
 import {defineStore} from "pinia"
 
 import {sleep} from "@shared/utils/common/sleep"
+import {resolveActiveProvider} from "@shared/utils/sync/resolveActiveProvider"
 
 import {useBranchesStore} from "./branches.store"
 import {useSettingsStore} from "./settings.store"
@@ -11,6 +12,7 @@ import {useTasksStore} from "./tasks"
 
 import type {ISODateTime} from "@shared/types/common"
 import type {SyncStatus} from "@shared/types/storage"
+import type {MigrationDirection, MigrationPreview, SyncProvider} from "@shared/types/syncProvider"
 
 export const useStorageStore = defineStore("storage", () => {
   const onStorageDataChanged = createEventHook()
@@ -23,24 +25,21 @@ export const useStorageStore = defineStore("storage", () => {
   const status = ref<SyncStatus>("inactive")
   const lastSyncAt = ref<ISODateTime>(new Date().toISOString())
 
+  const provider = computed<SyncProvider>(() => {
+    const sync = settingsStore.settings?.sync
+    return sync ? resolveActiveProvider(sync) : "off"
+  })
+
+  async function previewMigration(target: Exclude<SyncProvider, "off">): Promise<MigrationPreview> {
+    return window.BridgeIPC["sync-provider:preview"](target)
+  }
+
+  async function migrateProvider(target: SyncProvider, direction: MigrationDirection | null): Promise<void> {
+    await window.BridgeIPC["sync-provider:migrate"](target, direction)
+  }
+
   async function loadSyncStatus(): Promise<void> {
     status.value = await window.BridgeIPC["storage-sync:get-status"]()
-  }
-
-  async function activateSync(): Promise<void> {
-    try {
-      await window.BridgeIPC["storage-sync:activate"]()
-    } catch (error: any) {
-      console.error("Failed to activate sync:", error)
-    }
-  }
-
-  async function deactivateSync(): Promise<void> {
-    try {
-      await window.BridgeIPC["storage-sync:deactivate"]()
-    } catch (error: any) {
-      console.error("Failed to deactivate sync:", error)
-    }
   }
 
   async function forceSync(): Promise<void> {
@@ -82,10 +81,11 @@ export const useStorageStore = defineStore("storage", () => {
   return {
     status,
     lastSyncAt,
+    provider,
 
     forceSync,
-    activateSync,
-    deactivateSync,
+    previewMigration,
+    migrateProvider,
 
     revalidate,
     onStorageDataChanged: onStorageDataChanged.on,

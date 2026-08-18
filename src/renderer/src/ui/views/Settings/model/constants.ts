@@ -3,7 +3,7 @@ import {isDevMode} from "@/constants/env"
 import AiSettings from "../{fragments}/AiSettings"
 import DebugSettings from "../{fragments}/DebugSettings"
 import GeneralSettings from "../{fragments}/GeneralSettings"
-import IcloudSettings from "../{fragments}/IcloudSettings"
+import SyncSettings from "../{fragments}/SyncSettings"
 import WorkspaceSettings from "../{fragments}/WorkspaceSettings"
 
 import type {SettingsPanel} from "@/types/common"
@@ -20,7 +20,7 @@ type SettingsSection = {
 export const SECTIONS: SettingsSection[] = [
   {id: "general", icon: "cog", label: "General", component: GeneralSettings},
   {id: "workflow", icon: "monitor", label: "Workflow", component: WorkspaceSettings},
-  {id: "icloud", icon: "cloud", label: "Remote", component: IcloudSettings},
+  {id: "icloud", icon: "cloud", label: "Remote", component: SyncSettings},
   {id: "ai", icon: "ai", label: "AI", component: AiSettings},
   ...(isDevMode ? [{id: "debug", icon: "code", label: "DEBUG", component: DebugSettings} as SettingsSection] : []),
 ]

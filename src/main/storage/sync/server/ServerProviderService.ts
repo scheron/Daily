@@ -7,7 +7,7 @@ import {SyncServerError} from "@shared/errors/sync/SyncServerError"
 import {SyncServerErrorCode} from "@shared/errors/sync/SyncServerErrorCode"
 import {createIntervalScheduler} from "@/utils/createIntervalScheduler"
 import {logger} from "@/utils/logger"
-import {assertServerCanBeBound} from "@/utils/sync/syncProvider"
+import {toBindingView} from "@/utils/sync/settingsViews"
 
 import {DailySyncClient} from "@/storage/sync/server/DailySyncClient"
 import {probeTransport} from "@/storage/sync/server/serverTransport"
@@ -17,7 +17,14 @@ import type {IServerProvider} from "@/types/storage"
 import type {Scheduler} from "@/utils/createIntervalScheduler"
 import type {ServerSyncBinding, Settings} from "@shared/types/storage"
 import type {IssuedCredential, RevisionProbe, ServerInfo} from "@shared/types/syncProtocol"
-import type {EnrollmentPollView, EnrollmentTicketView, PendingApprovalView, ServerBindingView, ServerProbeView} from "@shared/types/syncServer"
+import type {
+  EnrollmentPollView,
+  EnrollmentTicketView,
+  PendingApprovalView,
+  ServerBindingView,
+  ServerConnectionStateView,
+  ServerProbeView,
+} from "@shared/types/syncServer"
 
 type ServerProviderDeps = {
   loadSettings: () => Promise<Settings>
@@ -29,6 +36,8 @@ type ServerProviderDeps = {
   onApprovalRequested: () => void
   /** Asked to stop the two-minute auto-sync cycle when a probe tick learns this device was revoked. */
   disableAutoSync?: () => void
+  /** Fires once when a probe tick learns the server refused this device's credential. */
+  onRevoked: () => void
 }
 
 type EnrollmentTicket = {requestId: string; code: string; pollToken: string; expiresAt: string}
@@ -53,6 +62,7 @@ export class ServerProviderService implements IServerProvider {
   private probeScheduler: Scheduler | null = null
   private lastProbedRevision: string | null | undefined = undefined
   private hadPendingEnrollment = false
+  private revoked = false
 
   constructor(private readonly deps: ServerProviderDeps) {}
 
@@ -61,9 +71,10 @@ export class ServerProviderService implements IServerProvider {
     return hostname().replace(/\.local$/i, "")
   }
 
-  async getBinding(): Promise<ServerBindingView | null> {
+  /** The binding this device holds and whether the server has since refused its credential, in one call. */
+  async getState(): Promise<ServerConnectionStateView> {
     const binding = (await this.deps.loadSettings()).sync.server.binding
-    return binding ? toBindingView(binding) : null
+    return {binding: binding ? toBindingView(binding) : null, revoked: this.revoked}
   }
 
   /**
@@ -143,6 +154,7 @@ export class ServerProviderService implements IServerProvider {
     logger.info(logger.CONTEXT.SYNC_REMOTE, "Disconnecting from the Daily Sync Server")
     this.stopProbe()
     this.attempt = null
+    this.revoked = false
 
     const settings = await this.deps.loadSettings()
     await this.deps.saveSettings({sync: {...settings.sync, server: {enabled: false, binding: null}}})
@@ -196,9 +208,6 @@ export class ServerProviderService implements IServerProvider {
   }
 
   private async assertCanBind(confirmInsecure: boolean): Promise<ConnectionAttempt> {
-    const settings = await this.deps.loadSettings()
-    assertServerCanBeBound(settings.sync)
-
     const attempt = this.attempt
     if (!attempt) throw new SyncServerError(SyncServerErrorCode.NO_BINDING, "No server has been probed yet")
 
@@ -214,7 +223,6 @@ export class ServerProviderService implements IServerProvider {
 
   private async bind(attempt: ConnectionAttempt, credential: IssuedCredential): Promise<ServerBindingView> {
     const settings = await this.deps.loadSettings()
-    assertServerCanBeBound(settings.sync)
 
     const binding: ServerSyncBinding = {
       baseUrl: attempt.baseUrl,
@@ -228,7 +236,8 @@ export class ServerProviderService implements IServerProvider {
       boundAt: new Date().toISOString(),
     }
 
-    await this.deps.saveSettings({sync: {...settings.sync, server: {enabled: true, binding}}})
+    await this.deps.saveSettings({sync: {...settings.sync, server: {enabled: false, binding}}})
+    this.revoked = false
     await this.deps.onBindingChanged()
     logger.info(logger.CONTEXT.SYNC_REMOTE, `Bound this device to the Daily Sync Server "${binding.serverName}" as "${binding.deviceName}"`)
 
@@ -254,8 +263,10 @@ export class ServerProviderService implements IServerProvider {
     } catch (error) {
       if (error instanceof ProtocolError && error.code === ProtocolErrorCode.DEVICE_REVOKED) {
         logger.warn(logger.CONTEXT.SYNC_REMOTE, "This device's credential was revoked; stopping the revision probe and auto-sync")
+        this.revoked = true
         this.stopProbe()
         this.deps.disableAutoSync?.()
+        this.deps.onRevoked()
         return
       }
 
@@ -272,18 +283,5 @@ export class ServerProviderService implements IServerProvider {
       this.deps.onApprovalRequested()
     }
     this.hadPendingEnrollment = probe.pendingEnrollment
-  }
-}
-
-function toBindingView(binding: ServerSyncBinding): ServerBindingView {
-  return {
-    baseUrl: binding.baseUrl,
-    serverId: binding.serverId,
-    serverName: binding.serverName,
-    deviceId: binding.deviceId,
-    deviceName: binding.deviceName,
-    fingerprint: binding.fingerprint,
-    insecure: binding.insecure,
-    boundAt: binding.boundAt,
   }
 }

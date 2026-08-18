@@ -19,7 +19,15 @@ import type {BridgeIPC} from "@shared/types/ipc"
 import type {TaskSearchResult} from "@shared/types/search"
 import type {StatsAggregate, StatsPeriod} from "@shared/types/stats"
 import type {Branch, Day, SettingsView, SyncRemoteState, SyncStatus, Tag, Task, TaskEvent} from "@shared/types/storage"
-import type {EnrollmentPollView, EnrollmentTicketView, PendingApprovalView, ServerBindingView, ServerProbeView} from "@shared/types/syncServer"
+import type {MigrationDirection, MigrationPreview, SyncProvider} from "@shared/types/syncProvider"
+import type {
+  EnrollmentPollView,
+  EnrollmentTicketView,
+  PendingApprovalView,
+  ServerBindingView,
+  ServerConnectionStateView,
+  ServerProbeView,
+} from "@shared/types/syncServer"
 import type {AppUpdateState} from "@shared/types/update"
 import type {PartialDeep} from "type-fest"
 
@@ -46,15 +54,13 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "shell:install-cli": () => ipcRenderer.invoke("shell:install-cli"),
   "shell:configure-cli-path": () => ipcRenderer.invoke("shell:configure-cli-path"),
 
-  "storage-sync:activate": () => ipcRenderer.invoke("storage-sync:activate") as Promise<void>,
-  "storage-sync:deactivate": () => ipcRenderer.invoke("storage-sync:deactivate") as Promise<void>,
   "storage-sync:sync": () => ipcRenderer.invoke("storage-sync:sync") as Promise<void>,
   "storage-sync:get-status": () => ipcRenderer.invoke("storage-sync:get-status") as Promise<SyncStatus>,
   "storage-sync:get-remote-states": () => ipcRenderer.invoke("storage-sync:get-remote-states") as Promise<SyncRemoteState[]>,
   "storage-sync:on-status-changed": (callback: (status: SyncStatus, prevStatus: SyncStatus) => void) => ipcRenderer.on("storage-sync:status-changed", (_event, status: SyncStatus, prevStatus: SyncStatus) => callback(status, prevStatus)),
   "storage-sync:on-data-changed": (callback: () => void) => ipcRenderer.on("storage-sync:data-changed", (_event, ) => callback()),
 
-  "sync-server:get-binding": () => ipcRenderer.invoke("sync-server:get-binding") as Promise<ServerBindingView | null>,
+  "sync-server:get-state": () => ipcRenderer.invoke("sync-server:get-state") as Promise<ServerConnectionStateView>,
   "sync-server:default-device-name": () => ipcRenderer.invoke("sync-server:default-device-name") as Promise<string>,
   "sync-server:probe": (baseUrl: string) => ipcRenderer.invoke("sync-server:probe", baseUrl) as Promise<ServerProbeView>,
   "sync-server:claim": (code: string, deviceName: string, confirmInsecure: boolean) => ipcRenderer.invoke("sync-server:claim", code, deviceName, confirmInsecure) as Promise<ServerBindingView>,
@@ -66,6 +72,10 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "sync-server:approve": (requestId: string, code: string) => ipcRenderer.invoke("sync-server:approve", requestId, code) as Promise<void>,
   "sync-server:deny": (requestId: string) => ipcRenderer.invoke("sync-server:deny", requestId) as Promise<void>,
   "sync-server:on-approval-requested": (callback: () => void) => ipcRenderer.on("sync-server:approval-requested", (_event, ) => callback()),
+  "sync-server:on-revoked": (callback: () => void) => ipcRenderer.on("sync-server:revoked", (_event, ) => callback()),
+
+  "sync-provider:preview": (target: Exclude<SyncProvider, "off">) => ipcRenderer.invoke("sync-provider:preview", target) as Promise<MigrationPreview>,
+  "sync-provider:migrate": (target: SyncProvider, direction: MigrationDirection | null) => ipcRenderer.invoke("sync-provider:migrate", target, direction) as Promise<void>,
 
   "settings:load": () => ipcRenderer.invoke("settings:load") as Promise<SettingsView>,
   "settings:save": (settings: Partial<SettingsView>) => ipcRenderer.invoke("settings:save", settings),

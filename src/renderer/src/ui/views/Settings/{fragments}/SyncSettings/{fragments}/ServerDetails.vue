@@ -5,31 +5,19 @@ import {useStorageStore} from "@/stores/storage.store"
 import {useSyncServerStore} from "@/stores/syncServer.store"
 import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
-import {useBaseModal} from "@/ui/base/BaseModal"
 
 import SettingRow from "../../SettingRow.vue"
-import ServerConnectModal from "./ServerConnectModal.vue"
-
-const CONNECT_MODAL_ID = "sync-server-connect"
-/** `authenticateRequest` on the server throws this code, unchanged, for a revoked device — and
- * for nothing else. `ProtocolError`'s message defaults to the code itself, and the protocol
- * client rethrows the server's code with "no wrapping, no re-coding", so it survives the
- * Electron IPC round trip as a literal substring of the error message the renderer catches. */
-const DEVICE_REVOKED_SIGNATURE = "DEVICE_REVOKED"
 
 const storageStore = useStorageStore()
 const syncServerStore = useSyncServerStore()
 
-const {show, hide} = useBaseModal(CONNECT_MODAL_ID)
-
 const isDisconnecting = ref(false)
-const isRevoked = ref(false)
 const remoteError = ref<string | null>(null)
 
 const binding = computed(() => syncServerStore.binding)
 
 const dotClass = computed(() => {
-  if (isRevoked.value || storageStore.status === "error") return "bg-error"
+  if (syncServerStore.revoked || storageStore.status === "error") return "bg-error"
   if (storageStore.status === "syncing") return "bg-accent"
   if (storageStore.status === "active") return "bg-success"
   return "bg-base-content/30"
@@ -42,34 +30,9 @@ watch(
   },
 )
 
-/**
- * Whether this Mac's own credential still authenticates, checked by making the one
- * already-frozen authenticated read the section otherwise has no reason to make. A network or
- * server failure throws a different error class entirely (`SyncServerError`, not
- * `ProtocolError`), so only the server's own explicit refusal can ever set this true — never a
- * dropped connection, a sleeping laptop or a wrong address.
- */
-async function checkRevoked() {
-  if (!binding.value) {
-    isRevoked.value = false
-    return
-  }
-
-  try {
-    await syncServerStore.getPendingApproval()
-    isRevoked.value = false
-  } catch (error) {
-    isRevoked.value = error instanceof Error && error.message.includes(DEVICE_REVOKED_SIGNATURE)
-  }
-}
-
 async function loadRemoteError() {
   const states = await window.BridgeIPC["storage-sync:get-remote-states"]()
   remoteError.value = states.find((state) => state.id === "daily-server")?.lastError ?? null
-}
-
-function onConnect() {
-  show(ServerConnectModal, {onClose: () => hide()})
 }
 
 async function onDisconnect() {
@@ -81,19 +44,13 @@ async function onDisconnect() {
   }
 }
 
-watch(binding, () => checkRevoked(), {immediate: true})
-
 onMounted(() => {
   if (storageStore.status === "error") loadRemoteError()
 })
 </script>
 
 <template>
-  <SettingRow v-if="!binding" title="Self-hosted Daily" description="Connect this Mac to your own Daily Sync Server">
-    <BaseButton variant="primary" size="sm" @click="onConnect">Connect</BaseButton>
-  </SettingRow>
-
-  <SettingRow v-else>
+  <SettingRow v-if="binding">
     <template #title>
       <div class="flex items-center gap-2">
         <p class="text-base-content text-sm">{{ binding.serverName }}</p>
@@ -118,7 +75,7 @@ onMounted(() => {
           Insecure connection — traffic is not encrypted
         </div>
 
-        <div v-if="isRevoked" class="text-error bg-error/10 flex items-center gap-1.5 rounded-md px-2 py-1 text-xs">
+        <div v-if="syncServerStore.revoked" class="text-error bg-error/10 flex items-center gap-1.5 rounded-md px-2 py-1 text-xs">
           <BaseIcon name="alert-circle" class="size-3.5 shrink-0" />
           This Mac's access to the server was revoked. Disconnect and reconnect to sync again.
         </div>

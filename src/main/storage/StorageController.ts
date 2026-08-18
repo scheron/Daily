@@ -10,12 +10,14 @@ Storage Architecture (SQLite):
 import fs from "fs-extra"
 
 import {SYNC_CONFIG} from "@shared/config/sync"
+import {deepMerge} from "@shared/utils/common/deepMerge"
 import {logger} from "@/utils/logger"
-import {assertICloudCanBeEnabled, buildSyncRemotes, resolveActiveProvider} from "@/utils/sync/syncProvider"
+import {assertSingleActiveProvider, buildSyncRemotes, resolveActiveProvider} from "@/utils/sync/syncProvider"
 
 import {electronPaths} from "@/runtime/electronPaths"
 import {createStorageCore} from "@/storage/createStorageCore"
 import {initDatabase} from "@/storage/database/instance"
+import {ProviderMigrationService} from "@/storage/sync/ProviderMigrationService"
 import {ServerProviderService} from "@/storage/sync/server/ServerProviderService"
 import {SyncEngine} from "@/storage/sync/SyncEngine"
 
@@ -28,6 +30,7 @@ import type {ISODate} from "@shared/types/common"
 import type {TaskSearchResult} from "@shared/types/search"
 import type {StatsAggregate, StatsPeriod} from "@shared/types/stats"
 import type {Branch, Day, File, MoveTaskByOrderParams, Settings, SyncRemoteState, SyncStatus, Tag, Task, TaskEvent} from "@shared/types/storage"
+import type {MigrationDirection, MigrationPreview, SyncProvider} from "@shared/types/syncProvider"
 import type {PartialDeep} from "type-fest"
 
 export class StorageController implements IStorageController {
@@ -43,6 +46,7 @@ export class StorageController implements IStorageController {
   private searchService!: StorageCore["searchService"]
   private syncEngine!: SyncEngine
   private serverProvider!: ServerProviderService
+  private providerMigration!: ProviderMigrationService
   private localAdapter!: StorageCore["localAdapter"]
   private aiSessionModel!: StorageCore["aiSessionModel"]
 
@@ -50,6 +54,7 @@ export class StorageController implements IStorageController {
   private notifyStorageDataChange?: () => void
   private notifySettingsChange?: () => void
   private notifyApprovalRequested?: () => void
+  private notifyRevoked?: () => void
 
   async init(): Promise<void> {
     await fs.ensureDir(this.rootDir)
@@ -86,6 +91,20 @@ export class StorageController implements IStorageController {
       runSyncCycle: () => this.forceSync(),
       onApprovalRequested: () => this.notifyApprovalRequested?.(),
       disableAutoSync: () => this.syncEngine.disableAutoSync(),
+      onRevoked: () => this.notifyRevoked?.(),
+    })
+
+    this.providerMigration = new ProviderMigrationService({
+      loadSettings: () => this.loadSettings(),
+      saveSettings: (partial) => this.saveSettings(partial),
+      loadLocalDocs: () => this.localAdapter.loadAllDocs(),
+      buildRemotes: (sync) => buildSyncRemotes(sync, {icloudSyncDir: electronPaths.remoteSyncPath()}),
+      setRemotes: (remotes) => this.syncEngine.setRemotes(remotes),
+      getRemoteStates: () => this.syncEngine.getRemoteStates(),
+      disableAutoSync: () => this.syncEngine.disableAutoSync(),
+      syncOnce: (strategy) => this.syncEngine.syncOnce(strategy),
+      applyRemoteConfiguration: () => this.applyRemoteConfiguration(),
+      stopProbe: () => this.serverProvider.stopProbe(),
     })
 
     if (this.hasEnabledRemote(settings)) {
@@ -106,26 +125,13 @@ export class StorageController implements IStorageController {
     onDataChange: () => void
     onSettingsChange: () => void
     onApprovalRequested?: () => void
+    onRevoked?: () => void
   }) {
     this.notifyStorageStatusChange = callbacks.onStatusChange
     this.notifyStorageDataChange = callbacks.onDataChange
     this.notifySettingsChange = callbacks.onSettingsChange
     this.notifyApprovalRequested = callbacks.onApprovalRequested
-  }
-
-  async activateSync() {
-    logger.info(logger.CONTEXT.STORAGE, "Activating sync")
-    const settings = await this.loadSettings()
-    assertICloudCanBeEnabled(settings.sync)
-    await this.saveSettings({sync: {...settings.sync, iCloud: {enabled: true}}})
-    this.syncEngine.enableAutoSync()
-  }
-
-  async deactivateSync() {
-    logger.info(logger.CONTEXT.STORAGE, "Deactivating sync")
-    const settings = await this.loadSettings()
-    await this.saveSettings({sync: {...settings.sync, iCloud: {enabled: false}}})
-    this.syncEngine.disableAutoSync()
+    this.notifyRevoked = callbacks.onRevoked
   }
 
   async forceSync() {
@@ -146,6 +152,16 @@ export class StorageController implements IStorageController {
     return this.serverProvider
   }
 
+  /** What a provider holds and how it differs from this Mac, read without activating it or writing to it. */
+  async previewMigration(target: Exclude<SyncProvider, "off">): Promise<MigrationPreview> {
+    return this.providerMigration.preview(target)
+  }
+
+  /** Moves this Mac to another provider, or leaves it on the one it is already syncing with. */
+  async migrateProvider(target: SyncProvider, direction: MigrationDirection | null): Promise<void> {
+    await this.providerMigration.migrate(target, direction)
+  }
+
   /** Reacts to a mutation made by an external process (e.g. the CLI): rebuilds the search index and refreshes the renderer. */
   async handleExternalDataChange(): Promise<void> {
     await this.searchService.rebuildIndex()
@@ -159,6 +175,11 @@ export class StorageController implements IStorageController {
   }
 
   async saveSettings(newSettings: Partial<Settings>): Promise<void> {
+    if (newSettings.sync) {
+      const current = await this.loadSettings()
+      assertSingleActiveProvider(deepMerge(structuredClone(current.sync), newSettings.sync))
+    }
+
     await this.settingsService.saveSettings(newSettings)
     if (newSettings.sync) await this.applyRemoteConfiguration()
     this.notifySettingsChange?.()
