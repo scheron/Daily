@@ -1,6 +1,10 @@
 import path from "node:path"
 
 import {SYNC_PROTOCOL_CONFIG} from "@shared/config/syncProtocol"
+import {ServerSetupError} from "@shared/errors/server/ServerSetupError"
+import {ServerSetupErrorCode} from "@shared/errors/server/ServerSetupErrorCode"
+
+export type ServerTransportChoice = "plain" | "self-signed" | "own-certificate"
 
 export type ServerConfigOptions = {
   host?: string
@@ -18,12 +22,14 @@ export type ServerConfig = {
   tls: {certPath: string; keyPath: string} | null
   maxAssetBytes: number
   maxSnapshotBodyBytes: number
+  publicUrl: string | null
+  transport: ServerTransportChoice
 }
 
 /**
  * Resolves the server's runtime configuration from explicit options, then environment
  * variables, then the protocol defaults. Pure over its inputs — no filesystem or database
- * access, and no check that a given certificate or key path exists.
+ * access, and no check that a given certificate, key or data path exists.
  */
 export function resolveServerConfig(options: ServerConfigOptions): ServerConfig {
   const host = options.host ?? process.env.DAILY_SERVER_HOST ?? SYNC_PROTOCOL_CONFIG.defaultHost
@@ -34,10 +40,8 @@ export function resolveServerConfig(options: ServerConfigOptions): ServerConfig 
 
   const certPath = options.cert ?? process.env.DAILY_SERVER_CERT
   const keyPath = options.key ?? process.env.DAILY_SERVER_KEY
-
-  if (Boolean(certPath) !== Boolean(keyPath)) {
-    throw new Error("--cert and --key must be given together")
-  }
+  const publicUrl = process.env.DAILY_SERVER_PUBLIC_URL ?? null
+  const transport = resolveTransport(certPath, keyPath, process.env.DAILY_SERVER_TLS, publicUrl)
 
   return {
     host,
@@ -46,7 +50,46 @@ export function resolveServerConfig(options: ServerConfigOptions): ServerConfig 
     tls: certPath && keyPath ? {certPath, keyPath} : null,
     maxAssetBytes,
     maxSnapshotBodyBytes,
+    publicUrl,
+    transport,
   }
+}
+
+function resolveTransport(
+  certPath: string | undefined,
+  keyPath: string | undefined,
+  tlsChoice: string | undefined,
+  publicUrl: string | null,
+): ServerTransportChoice {
+  if (Boolean(certPath) !== Boolean(keyPath)) {
+    throw new ServerSetupError(ServerSetupErrorCode.INVALID_ENVIRONMENT, "DAILY_SERVER_CERT and DAILY_SERVER_KEY must both be set, or neither")
+  }
+
+  if (tlsChoice !== undefined && tlsChoice !== "plain" && tlsChoice !== "self-signed") {
+    throw new ServerSetupError(ServerSetupErrorCode.INVALID_ENVIRONMENT, `DAILY_SERVER_TLS must be "plain" or "self-signed", got "${tlsChoice}"`)
+  }
+
+  if (certPath && keyPath) {
+    if (tlsChoice === "self-signed") {
+      throw new ServerSetupError(
+        ServerSetupErrorCode.INVALID_ENVIRONMENT,
+        "DAILY_SERVER_TLS=self-signed conflicts with DAILY_SERVER_CERT and DAILY_SERVER_KEY: unset one to resolve which certificate the server should use",
+      )
+    }
+    return "own-certificate"
+  }
+
+  if (tlsChoice === "self-signed") {
+    if (!publicUrl) {
+      throw new ServerSetupError(
+        ServerSetupErrorCode.INVALID_ENVIRONMENT,
+        "DAILY_SERVER_TLS=self-signed needs DAILY_SERVER_PUBLIC_URL: a self-signed certificate must name the host it covers",
+      )
+    }
+    return "self-signed"
+  }
+
+  return "plain"
 }
 
 function envPort(): number | undefined {

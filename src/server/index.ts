@@ -7,6 +7,7 @@ import {registerClaimCodeCommand} from "./commands/claimCode"
 import {registerDeviceCommand} from "./commands/device"
 import {registerStartCommand} from "./commands/start"
 import {registerStatusCommand} from "./commands/status"
+import {registerVerifyCommand} from "./commands/verify"
 
 export function buildProgram(): Command {
   const program = new Command()
@@ -16,6 +17,7 @@ export function buildProgram(): Command {
   registerClaimCodeCommand(program)
   registerDeviceCommand(program)
   registerStatusCommand(program)
+  registerVerifyCommand(program)
 
   return program
 }

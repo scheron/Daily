@@ -1,10 +1,12 @@
 import {resolveServerConfig} from "@server/config/resolveServerConfig"
 import {clearExpiredIssuedTokens} from "@server/enrollment/EnrollmentStore"
 import {createHttpServer} from "@server/http/createHttpServer"
-import {ensureClaimCode} from "@server/identity/ServerIdentityStore"
+import {ensureClaimCode, loadIdentity} from "@server/identity/ServerIdentityStore"
 import {openServerStore} from "@server/store/instance"
+import {ensureTlsMaterial} from "@server/tls/ensureTlsMaterial"
+import {verifyPublicUrl} from "@server/verify/verifyPublicUrl"
 
-import type {ServerConfigOptions} from "@server/config/resolveServerConfig"
+import type {ServerConfig, ServerConfigOptions} from "@server/config/resolveServerConfig"
 import type {Command} from "commander"
 
 type StartOptions = {
@@ -47,13 +49,37 @@ function runStart(opts: StartOptions): void {
   const store = openServerStore(config.dataDir)
   clearExpiredIssuedTokens(store)
 
+  const tlsMaterial = ensureTlsMaterial(config)
+  if (tlsMaterial) config.tls = {certPath: tlsMaterial.certPath, keyPath: tlsMaterial.keyPath}
+  if (tlsMaterial?.fingerprint) console.log(`Self-signed certificate fingerprint (SHA-256): ${tlsMaterial.fingerprint}`)
+
   const claimCode = ensureClaimCode(store)
+  const identity = loadIdentity(store)
   const server = createHttpServer(store, config)
 
   server.listen(config.port, config.host, () => {
     const scheme = config.tls ? "https" : "http"
     console.log(`Daily Sync Server listening on ${scheme}://${config.host}:${config.port}`)
 
-    if (claimCode) console.log(`This server is unclaimed. Claim code: ${claimCode}`)
+    if (claimCode) {
+      console.log(`This server is unclaimed. Claim code: ${claimCode}`)
+      reportPublicUrlVerification(config, identity.serverId)
+    }
   })
+}
+
+/**
+ * Fires the public-address check for an unclaimed server and logs the result once it settles,
+ * without ever blocking `listen`. Skipped, with a line saying so, when `config.publicUrl` is
+ * unset — nobody is obliged to set one on the plain in-container default.
+ */
+export function reportPublicUrlVerification(config: ServerConfig, expectedServerId: string): void {
+  if (!config.publicUrl) {
+    console.log("Public address not verified: DAILY_SERVER_PUBLIC_URL is not set.")
+    return
+  }
+
+  verifyPublicUrl(config.publicUrl, expectedServerId, config.transport === "self-signed")
+    .then(() => console.log(`Public address verified: ${config.publicUrl} reaches this server.`))
+    .catch((err: unknown) => console.log(`Public address verification failed: ${err instanceof Error ? err.message : String(err)}`))
 }

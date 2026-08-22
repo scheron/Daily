@@ -37,6 +37,7 @@
     "build:cli": "vite build -c vite.config.cli.ts",
     "build:cli:package": "pnpm build:cli && node scripts/build-cli-package.js",
     "build:server": "vite build -c vite.config.server.ts",
+    "build:server:package": "pnpm build:server && node scripts/build-server-package.js",
     "build": "pnpm build:cli && electron-vite build && electron-builder --mac",
     "build:compress": "pnpm build:cli && electron-vite build",
     "preview": "electron-vite preview",

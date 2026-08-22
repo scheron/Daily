@@ -43,13 +43,13 @@ Daily is built around a simple question: **what matters today, and what changed 
 
 Tasks belong to days instead of an endless backlog. Plan on a calendar-linked board, move work through **active**, **discarded**, and **done**, and keep notes, code, links, Markdown, and attachments inside the task.
 
-| What you get | How Daily does it |
-| --- | --- |
-| **Day-first planning** | Calendar navigation and drag-and-drop rescheduling |
-| **Context-rich tasks** | Markdown, code blocks, tables, tags, files, estimates, and logged time |
-| **Separate workspaces** | Projects isolate task spaces and let you switch quickly |
-| **Find old work** | Fuzzy full-text search across projects, dates, and task content |
-| **See progress** | Activity history, task timelines, and daily, weekly, and monthly statistics |
+| What you get            | How Daily does it                                                           |
+| ----------------------- | --------------------------------------------------------------------------- |
+| **Day-first planning**  | Calendar navigation and drag-and-drop rescheduling                          |
+| **Context-rich tasks**  | Markdown, code blocks, tables, tags, files, estimates, and logged time      |
+| **Separate workspaces** | Projects isolate task spaces and let you switch quickly                     |
+| **Find old work**       | Fuzzy full-text search across projects, dates, and task content             |
+| **See progress**        | Activity history, task timelines, and daily, weekly, and monthly statistics |
 
 ### Built for daily task work
 
@@ -147,18 +147,18 @@ By default, the CLI can work directly with the installed desktop app's database.
 
 ## Optional sync
 
-Daily is fully usable offline. Sync is optional: SQLite remains the local source of truth, while iCloud Drive and SSH remotes carry snapshots that Daily merges locally with a last-write-wins strategy.
+Daily is fully usable offline. Sync is optional: SQLite remains the local source of truth, and one provider carries the snapshot at a time — off, iCloud Drive, or a [Self-hosted Daily Sync Server](./src/server/README.md) — merged locally with a last-write-wins strategy.
 
-You can configure more than one remote. An unreachable remote does not block the others.
+Changing providers is a migration, not a settings flip: Daily previews what each side holds before moving, and only switches once the merge has landed on both sides.
 
 ## Requirements and limits
 
-| Component | Support |
-| --- | --- |
-| Desktop app | macOS on Apple Silicon only |
-| CLI | macOS or Linux, with Node.js 22.5.0 or newer |
-| Local AI models | Download required; available disk space and memory vary by model |
-| Desktop builds for Windows/Linux | Not shipped or tested |
+| Component                        | Support                                                          |
+| -------------------------------- | ---------------------------------------------------------------- |
+| Desktop app                      | macOS on Apple Silicon only                                      |
+| CLI                              | macOS or Linux, with Node.js 22.5.0 or newer                     |
+| Local AI models                  | Download required; available disk space and memory vary by model |
+| Desktop builds for Windows/Linux | Not shipped or tested                                            |
 
 ## License
 
