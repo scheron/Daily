@@ -19,6 +19,15 @@ describe("release-server.yml", () => {
 })
 
 describe("src/server/README.md", () => {
+  it("inlines deploy/compose.yaml verbatim, so the copy people paste cannot drift from the one that is tested", () => {
+    const readme = readFileSync(join(rootDir, "src/server/README.md"), "utf-8")
+    const compose = readFileSync(join(rootDir, "deploy/compose.yaml"), "utf-8")
+
+    const block = readme.match(/```yaml\n([\s\S]*?)```/)
+    expect(block).not.toBeNull()
+    expect(block?.[1].trimEnd()).toBe(compose.trimEnd())
+  })
+
   it("TC-19: names the image and the rolling tag, and carries nothing about the retired bare-metal delivery", () => {
     const readmePath = join(rootDir, "src/server/README.md")
     expect(existsSync(readmePath)).toBe(true)

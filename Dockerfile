@@ -48,5 +48,14 @@ ENV DAILY_SERVER_DATA_DIR=/var/lib/daily-server
 
 USER daily
 
+ARG DAILY_SERVER_PACKAGE_VERSION
+LABEL org.opencontainers.image.title="Daily Sync Server" \
+  org.opencontainers.image.description="Self-hosted sync server for Daily — the Daily Sync Protocol in one container, configured from the environment." \
+  org.opencontainers.image.source="https://github.com/scheron/Daily" \
+  org.opencontainers.image.documentation="https://github.com/scheron/Daily/blob/main/src/server/README.md" \
+  org.opencontainers.image.licenses="MIT" \
+  org.opencontainers.image.vendor="Scheron" \
+  org.opencontainers.image.version="${DAILY_SERVER_PACKAGE_VERSION}"
+
 ENTRYPOINT ["daily-server"]
 CMD ["start"]
