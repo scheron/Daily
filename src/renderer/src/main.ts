@@ -25,6 +25,8 @@ async function initApp() {
   useSettingsStore()
   app.directive("focus-on-mount", vFocusOnMount)
   app.directive("tooltip", vTooltip)
+
+  await router.isReady().catch(() => {})
   app.mount("#app")
 }
 

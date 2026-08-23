@@ -22,6 +22,7 @@ export default defineConfig({
             "@main": join(__dirname, "src/main"),
             "@shared": join(__dirname, "src/shared"),
             "@cli": join(__dirname, "src/cli"),
+            "@server": join(__dirname, "src/server"),
           },
         },
       },
@@ -48,6 +49,19 @@ export default defineConfig({
         },
         resolve: {
           alias: {
+            "@shared": join(__dirname, "src/shared"),
+          },
+        },
+      },
+      {
+        test: {
+          name: "server",
+          environment: "node",
+          include: ["tests/server/**/*.test.ts"],
+        },
+        resolve: {
+          alias: {
+            "@server": join(__dirname, "src/server"),
             "@shared": join(__dirname, "src/shared"),
           },
         },

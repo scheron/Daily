@@ -2,6 +2,7 @@ node_modules/
 dist/
 out/
 dist-cli
+dist-server
 
 *.txt
 *.tsbuildinfo
@@ -57,3 +58,6 @@ release-notes.md
 
 docs/superpowers
 .superpowers/
+
+tests/server/stand/certs/*
+!tests/server/stand/certs/mkcerts.sh

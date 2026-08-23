@@ -12,10 +12,14 @@ export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: Snapsh
   const toRemove: MergeResult["toRemove"] = {}
   let changes = 0
 
-  const {result: mergedTasks, toGc: gcTasks} = mergeCollections(localDocs.tasks, remoteDocs.tasks, strategy, gcIntervalMs)
-  const {result: mergedTags, toGc: gcTags} = mergeCollections(localDocs.tags, remoteDocs.tags, strategy, gcIntervalMs)
-  const {result: mergedBranches, toGc: gcBranches} = mergeCollections(localDocs.branches, remoteDocs.branches, strategy, gcIntervalMs)
-  const {result: mergedFiles, toGc: gcFiles} = mergeCollections(localDocs.files, remoteDocs.files, strategy, gcIntervalMs)
+  const {result: mergedTasks, toGc: gcTasks, adoptedOnTie: adoptedTasks} = mergeCollections(localDocs.tasks, remoteDocs.tasks, strategy, gcIntervalMs)
+  const {result: mergedTags, toGc: gcTags, adoptedOnTie: adoptedTags} = mergeCollections(localDocs.tags, remoteDocs.tags, strategy, gcIntervalMs)
+  const {
+    result: mergedBranches,
+    toGc: gcBranches,
+    adoptedOnTie: adoptedBranches,
+  } = mergeCollections(localDocs.branches, remoteDocs.branches, strategy, gcIntervalMs)
+  const {result: mergedFiles, toGc: gcFiles, adoptedOnTie: adoptedFiles} = mergeCollections(localDocs.files, remoteDocs.files, strategy, gcIntervalMs)
 
   const mergedSettings = mergeSettings(localDocs.settings, remoteDocs.settings, strategy)
   const {result: mergedEvents, added: addedEvents} = mergeAppendOnly(localDocs.events, remoteDocs.events)
@@ -48,24 +52,36 @@ export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: Snapsh
     toUpsert.tasks = tasksAfterBranchGc
     if (gcTasks.length) toRemove.tasks = gcTasks
     changes += tasksAfterBranchGc.length + gcTasks.length
+  } else if (adoptedTasks.length) {
+    toUpsert.tasks = adoptedTasks
+    changes += adoptedTasks.length
   }
 
   if (hasChanges(localDocs.tags, mergedTags) || gcTags.length) {
     toUpsert.tags = mergedTags
     if (gcTags.length) toRemove.tags = gcTags
     changes += mergedTags.length + gcTags.length
+  } else if (adoptedTags.length) {
+    toUpsert.tags = adoptedTags
+    changes += adoptedTags.length
   }
 
   if (hasChanges(localDocs.branches, mergedBranches) || gcBranches.length) {
     toUpsert.branches = mergedBranches
     if (gcBranches.length) toRemove.branches = gcBranches
     changes += mergedBranches.length + gcBranches.length
+  } else if (adoptedBranches.length) {
+    toUpsert.branches = adoptedBranches
+    changes += adoptedBranches.length
   }
 
   if (hasChanges(localDocs.files, mergedFiles) || gcFiles.length) {
     toUpsert.files = mergedFiles
     if (gcFiles.length) toRemove.files = gcFiles
     changes += mergedFiles.length + gcFiles.length
+  } else if (adoptedFiles.length) {
+    toUpsert.files = adoptedFiles
+    changes += adoptedFiles.length
   }
 
   if (mergedSettings && hasSettingsChanges(localDocs.settings, mergedSettings)) {

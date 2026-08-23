@@ -1,0 +1,36 @@
+name: daily-stand-proxy
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      UPSTREAM: ${UPSTREAM:-daily-server:8787}
+    ports:
+      - "8443:8443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ../certs/proxy.pem:/etc/caddy/certs/proxy.pem:ro
+      - ../certs/proxy.key:/etc/caddy/certs/proxy.key:ro
+    networks:
+      daily:
+        aliases:
+          - daily.test
+
+  daily-decoy:
+    image: ghcr.io/scheron/daily-server:p1
+    restart: unless-stopped
+    expose:
+      - "8787"
+    volumes:
+      - decoy:/var/lib/daily-server
+    networks:
+      - daily
+
+volumes:
+  decoy:
+
+networks:
+  daily:
+    name: daily
+    external: true

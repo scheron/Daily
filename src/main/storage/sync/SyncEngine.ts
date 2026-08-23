@@ -1,15 +1,23 @@
 import {SYNC_CONFIG} from "@shared/config/sync"
 import {RemoteSnapshotPendingError} from "@shared/errors/sync/RemoteSnapshotPendingError"
+import {RemoteWriteConflictError} from "@shared/errors/sync/RemoteWriteConflictError"
 import {isString} from "@shared/utils/common/validators"
 import {withElapsedDelay} from "@shared/utils/common/withElapsedDelay"
 import {AsyncMutex} from "@/utils/AsyncMutex"
 import {createIntervalScheduler} from "@/utils/createIntervalScheduler"
 import {logger} from "@/utils/logger"
+import {isRevisionedRemote} from "@/utils/sync/isRevisionedRemote"
 import {mergeRemoteIntoLocal} from "@/utils/sync/merge/mergeRemoteIntoLocal"
 import {buildSnapshot, buildSnapshotMeta} from "@/utils/sync/snapshot/buildSnapshot"
 
-import type {ILocalStorage, SnapshotDocs, SyncRemote, SyncStrategy} from "@/types/sync"
+import type {ILocalStorage, IRevisionedRemoteStorage, SnapshotDocs, SyncRemote, SyncStrategy} from "@/types/sync"
 import type {SyncRemoteState, SyncStatus} from "@shared/types/storage"
+
+type RevisionedSyncOutcome = {
+  resultDocs: SnapshotDocs
+  hasChanges: boolean
+  conflict: RemoteWriteConflictError | null
+}
 
 /**
  * SyncEngine orchestrates pull/push operations between local SQLite and a set
@@ -63,7 +71,7 @@ export class SyncEngine {
     return this._syncStatus
   }
 
-  /** Replaces the remote set (e.g. when SSH settings change). State of removed remotes is dropped. */
+  /** Replaces the remote set (e.g. when iCloud settings change). State of removed remotes is dropped. */
   setRemotes(remotes: SyncRemote[]): void {
     this.remotes = remotes
     this._initRemoteStates()
@@ -139,16 +147,26 @@ export class SyncEngine {
    *   - "pull" (default): LWW-merge with priority to remote when updated_at is equal
    *   - "push": LWW-merge with priority to local when updated_at is equal
    * Remotes are merged into local sequentially; afterwards every remote whose
-   * snapshot differs from the merged state is pushed.
+   * snapshot differs from the merged state is pushed. A remote declaring
+   * revision support is handled apart from that two-pass shape, in a bounded
+   * read-merge-write loop of its own.
    */
   private async _sync(strategy: SyncStrategy = "pull"): Promise<void> {
+    const revisionedRemotes: Array<{remote: SyncRemote; adapter: IRevisionedRemoteStorage}> = []
+    const plainRemotes: SyncRemote[] = []
+
+    for (const remote of this.remotes) {
+      if (isRevisionedRemote(remote.adapter)) revisionedRemotes.push({remote, adapter: remote.adapter})
+      else plainRemotes.push(remote)
+    }
+
     let localDocs = await this.localStore.loadAllDocs()
     let anyChanges = false
     let succeeded = 0
     const pushTargets: Array<{remote: SyncRemote; remoteDocs: SnapshotDocs | null}> = []
     const errors: unknown[] = []
 
-    for (const remote of this.remotes) {
+    for (const remote of plainRemotes) {
       try {
         const snapshot = await remote.adapter.loadSnapshot()
         const remoteDocs = snapshot ? this._normalizeSettings(snapshot.docs) : null
@@ -170,6 +188,35 @@ export class SyncEngine {
         }
 
         logger.error(logger.CONTEXT.SYNC_ENGINE, `Remote "${remote.id}": failed to load/merge`, error)
+        this._recordRemoteError(remote.id, error)
+        errors.push(error)
+      }
+    }
+
+    for (const {remote, adapter} of revisionedRemotes) {
+      try {
+        const {resultDocs, hasChanges, conflict} = await this._syncRevisionedRemote(remote, adapter, localDocs, strategy)
+        localDocs = resultDocs
+        anyChanges ||= hasChanges
+
+        if (conflict) {
+          logger.warn(
+            logger.CONTEXT.SYNC_PUSH,
+            `Remote "${remote.id}": conditional write lost ${SYNC_CONFIG.conditionalWriteMaxAttempts} races, deferring to the next cycle`,
+          )
+          this._recordRemoteError(remote.id, conflict)
+          continue
+        }
+
+        succeeded++
+        this._recordRemoteSuccess(remote.id)
+      } catch (error) {
+        if (error instanceof RemoteSnapshotPendingError) {
+          logger.info(logger.CONTEXT.SYNC_REMOTE, `Remote "${remote.id}": snapshot still downloading, postponing`)
+          continue
+        }
+
+        logger.error(logger.CONTEXT.SYNC_ENGINE, `Remote "${remote.id}": conditional sync failed`, error)
         this._recordRemoteError(remote.id, error)
         errors.push(error)
       }
@@ -198,6 +245,63 @@ export class SyncEngine {
     if (this.remotes.length > 0 && succeeded === 0 && errors.length > 0) {
       throw errors[0]
     }
+  }
+
+  /**
+   * Conditional-write path for a remote that declares revision support: read
+   * the snapshot together with its revision, merge it into local through the
+   * same `_pull` the plain remotes use, then write back only if that revision
+   * still holds. A rejected write starts the next attempt from a fresh read,
+   * never from the snapshot that lost the race.
+   *
+   * Attempts are bounded by `SYNC_CONFIG.conditionalWriteMaxAttempts`;
+   * exhausting them is reported as a conflict for the caller to record, not
+   * thrown, so a lost race defers to the next cycle instead of failing it.
+   */
+  private async _syncRevisionedRemote(
+    remote: SyncRemote,
+    adapter: IRevisionedRemoteStorage,
+    localDocs: SnapshotDocs,
+    strategy: SyncStrategy,
+  ): Promise<RevisionedSyncOutcome> {
+    let docs = localDocs
+    let anyChanges = false
+    let lastConflict: RemoteWriteConflictError | null = null
+
+    for (let attempt = 1; attempt <= SYNC_CONFIG.conditionalWriteMaxAttempts; attempt++) {
+      const {snapshot, revision} = await adapter.loadSnapshotWithRevision()
+      const remoteDocs = snapshot ? this._normalizeSettings(snapshot.docs) : null
+
+      const {resultDocs, hasChanges} = await this._pull(docs, remoteDocs, strategy)
+      docs = resultDocs
+      anyChanges ||= hasChanges
+
+      if (!this._shouldPush(docs, remoteDocs)) {
+        await this._syncAssets(remote, docs.files)
+        return {resultDocs: docs, hasChanges: anyChanges, conflict: null}
+      }
+
+      try {
+        const nextSnapshot = buildSnapshot(docs)
+        await adapter.saveSnapshotIfUnchanged(nextSnapshot, revision)
+
+        logger.info(logger.CONTEXT.SYNC_PUSH, `Pushed snapshot ${nextSnapshot.meta.hash} to "${remote.id}" at revision ${revision ?? "none"}`)
+
+        await this._syncAssets(remote, docs.files)
+
+        return {resultDocs: docs, hasChanges: anyChanges, conflict: null}
+      } catch (error) {
+        if (!(error instanceof RemoteWriteConflictError)) throw error
+
+        lastConflict = error
+        logger.info(
+          logger.CONTEXT.SYNC_PUSH,
+          `Remote "${remote.id}": conditional write rejected at revision ${revision ?? "none"} (attempt ${attempt}), re-reading`,
+        )
+      }
+    }
+
+    return {resultDocs: docs, hasChanges: anyChanges, conflict: lastConflict}
   }
 
   /**

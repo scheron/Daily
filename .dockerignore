@@ -1,0 +1,13 @@
+*
+
+!.npmrc
+!LICENSE
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!vite.config.server.ts
+!scripts/build-server-package.js
+!src/server
+!src/shared
+
+**/.DS_Store

@@ -215,6 +215,7 @@ describe("migrations", () => {
       const db = new Database(":memory:")
       runMigrations(db)
 
+      rollbackLastMigration(db) // v009
       rollbackLastMigration(db) // v008
       rollbackLastMigration(db) // v007
       const rolledBack = rollbackLastMigration(db) // v006
@@ -373,6 +374,48 @@ describe("migrations", () => {
       expect(db.prepare("SELECT * FROM tags WHERE id = 'tag1'").get()).toBeDefined()
 
       db.close()
+    })
+  })
+
+  describe("v009 — remove ssh sync settings", () => {
+    function seedSyncRow(data: string) {
+      const db = new Database(":memory:")
+      db.pragma("foreign_keys = ON")
+      db.exec(`CREATE TABLE _migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)`)
+      for (const migration of migrations.filter((m) => m.version <= 8)) {
+        if (typeof migration.up === "string") db.exec(migration.up)
+        else migration.up(db)
+        db.prepare("INSERT INTO _migrations (version, name, applied_at) VALUES (?, ?, ?)").run(
+          migration.version,
+          migration.name,
+          "2026-01-01T00:00:00.000Z",
+        )
+      }
+      db.prepare("INSERT INTO device_settings (id, data, updated_at) VALUES ('sync', ?, ?)").run(data, "2026-01-01T00:00:00.000Z")
+      return db
+    }
+
+    function readSyncData(db) {
+      return db.prepare("SELECT data FROM device_settings WHERE id = 'sync'").get().data
+    }
+
+    it("removes_TC-4_only_the_ssh_key_from_a_sync_row_and_leaves_ssh_free_and_invalid_json_rows_byte_identical", () => {
+      const withSsh = seedSyncRow(JSON.stringify({iCloud: {enabled: true}, ssh: {host: "example.com", enabled: true}}))
+      runMigrations(withSsh)
+      expect(readSyncData(withSsh)).toBe(JSON.stringify({iCloud: {enabled: true}}))
+      withSsh.close()
+
+      const withoutSsh = seedSyncRow(JSON.stringify({iCloud: {enabled: false}}))
+      const beforeWithoutSsh = readSyncData(withoutSsh)
+      runMigrations(withoutSsh)
+      expect(readSyncData(withoutSsh)).toBe(beforeWithoutSsh)
+      withoutSsh.close()
+
+      const invalidJson = seedSyncRow("{not valid json")
+      const beforeInvalid = readSyncData(invalidJson)
+      expect(() => runMigrations(invalidJson)).not.toThrow()
+      expect(readSyncData(invalidJson)).toBe(beforeInvalid)
+      invalidJson.close()
     })
   })
 })

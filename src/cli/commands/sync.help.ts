@@ -21,7 +21,7 @@ export const SYNC_ENABLE_HELP: CommandHelp = {
   details: `
 Switches the CLI to node mode: an own database (XDG data dir) synced through
 a folder. The folder default is ~/.local/share/daily/sync; pass --dir to use
-another (e.g. a directory the Daily app reaches over SSH). Takes effect for
+another (e.g. a folder shared over a mounted network drive). Takes effect for
 every subsequent command; each mutating command then pushes automatically.
 
   daily sync enable

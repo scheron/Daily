@@ -143,7 +143,7 @@ export function rowToFile(row: FileRow): File {
 }
 
 export function getDefaultSyncSettings(): SyncSettings {
-  return {iCloud: {enabled: false}, ssh: null}
+  return {iCloud: {enabled: false}, server: {enabled: false, binding: null}}
 }
 
 export function getDefaultTypographySettings(): TypographySettings {
