@@ -1,0 +1,124 @@
+<script setup lang="ts">
+import {computed} from "vue"
+
+import {notNull} from "@daily/std"
+
+import BaseButton from "../../../../../base/BaseButton"
+import BaseIcon from "../../../../../base/BaseIcon"
+
+import type {LocalModelDownloadProgress, LocalModelInfo} from "../../../../../../../../shared/types/ai"
+
+const props = defineProps<{
+  model: LocalModelInfo
+  isActive: boolean
+  downloadProgress: LocalModelDownloadProgress | null
+  isPending?: boolean
+  error?: string | null
+}>()
+
+const emit = defineEmits<{
+  download: []
+  delete: []
+  select: []
+  cancelDownload: []
+  clearError: []
+}>()
+
+const isDownloading = computed(() => notNull(props.downloadProgress))
+
+const sizeLabel = computed(() => {
+  const gb = props.model.sizeBytes / 1_000_000_000
+  return gb >= 1 ? `~${gb.toFixed(1)} GB` : `~${(props.model.sizeBytes / 1_000_000).toFixed(0)} MB`
+})
+
+function onDownload() {
+  emit("clearError")
+  emit("download")
+}
+</script>
+
+<template>
+  <div class="flex flex-col gap-1">
+    <div class="bg-base-200/40 border-base-300 flex flex-col gap-2 rounded-lg border p-3">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="text-base-content text-sm font-medium">{{ model.title }}</span>
+          <BaseIcon v-if="model.recommended" v-tooltip="'Recommended'" name="award" class="text-accent size-4" />
+          <span v-if="isActive" class="text-accent text-xs font-medium">Active</span>
+        </div>
+
+        <div class="flex items-center gap-1">
+          <template v-if="model.orphaned">
+            <BaseButton variant="ghost" size="sm" class="size-7 p-0" tooltip="Delete (no longer in catalog)" @click="emit('delete')">
+              <BaseIcon name="trash" class="size-4" />
+            </BaseButton>
+          </template>
+
+          <template v-else-if="isPending && !isDownloading">
+            <div class="flex size-7 items-center justify-center">
+              <BaseIcon name="refresh" class="text-base-content/50 size-4 animate-spin" />
+            </div>
+          </template>
+
+          <template v-else-if="!model.installed && model.partialBytes && model.partialBytes > 0 && !isDownloading">
+            <BaseButton variant="secondary" size="sm" tooltip="Continue download" class="h-7 px-2 py-0" @click="onDownload"> Continue </BaseButton>
+            <BaseButton variant="ghost" size="sm" class="size-7 p-0" tooltip="Delete partial download" @click="emit('delete')">
+              <BaseIcon name="trash" class="size-4" />
+            </BaseButton>
+          </template>
+
+          <template v-else-if="!model.installed && !isDownloading">
+            <BaseButton variant="secondary" size="sm" icon="plus" tooltip="Download" class="size-7 p-0" @click="onDownload" />
+          </template>
+
+          <template v-else-if="isDownloading">
+            <BaseButton
+              variant="ghost"
+              size="sm"
+              icon="x-mark"
+              tooltip="Cancel"
+              class="text-warning hover:text-warning size-7 p-0"
+              @click="emit('cancelDownload')"
+            />
+          </template>
+
+          <template v-else-if="model.installed && !isActive">
+            <BaseButton variant="secondary" size="sm" icon="check" tooltip="Select" class="size-7 p-0" @click="emit('select')" />
+            <BaseButton variant="ghost" size="sm" class="size-7 p-0" tooltip="Delete" @click="emit('delete')">
+              <BaseIcon name="trash" class="size-4" />
+            </BaseButton>
+          </template>
+
+          <template v-else-if="model.installed && isActive">
+            <BaseButton variant="ghost" size="sm" class="size-7 p-0" tooltip="Delete" @click="emit('delete')">
+              <BaseIcon name="trash" class="size-4" />
+            </BaseButton>
+          </template>
+        </div>
+      </div>
+
+      <div class="text-base-content/60 text-xs">
+        <template v-if="model.orphaned">{{ sizeLabel }} · No longer in catalog</template>
+        <template v-else>
+          {{ sizeLabel }} · Requires {{ model.requirements.ramGb }}GB RAM
+          <span v-if="isDownloading && downloadProgress" class="text-warning ml-2"> {{ downloadProgress.percent }}% downloaded </span>
+          <span v-else-if="model.partialBytes && !model.installed" class="text-warning ml-2">
+            {{ Math.round((model.partialBytes / model.sizeBytes) * 100) }}% downloaded
+          </span>
+        </template>
+      </div>
+
+      <div v-if="isDownloading && downloadProgress" class="flex flex-col gap-1">
+        <div class="bg-base-300 relative h-1.5 w-full overflow-hidden rounded-full">
+          <div
+            class="bg-accent absolute top-0 left-0 h-full transition-all duration-200 ease-in-out"
+            :style="{width: `${downloadProgress.percent}%`}"
+          />
+        </div>
+        <span v-if="downloadProgress.phase === 'verifying'" class="text-base-content/50 text-xs">Verifying checksum…</span>
+      </div>
+    </div>
+
+    <p v-if="error" class="text-error px-1 text-xs">{{ error }}</p>
+  </div>
+</template>

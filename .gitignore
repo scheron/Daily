@@ -59,5 +59,11 @@ release-notes.md
 docs/superpowers
 .superpowers/
 
-tests/server/stand/certs/*
-!tests/server/stand/certs/mkcerts.sh
+apps/server/tests/stand/certs/*
+!apps/server/tests/stand/certs/mkcerts.sh
+
+# The website's own assets. The blanket *.svg and *.txt rules above would otherwise
+# swallow them: they were tracked under website/public/ from before those rules existed,
+# and git's grandfathering is tied to the path, so the move to apps/ made them invisible.
+!apps/website/public/*.svg
+!apps/website/public/*.txt

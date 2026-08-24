@@ -1,0 +1,16 @@
+{
+  "name": "@daily/protocol",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@daily/std": "workspace:*",
+    "fast-sort": "^3.4.1",
+    "luxon": "^3.6.1"
+  }
+}

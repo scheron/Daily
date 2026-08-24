@@ -9,7 +9,7 @@ import typescript from "@typescript-eslint/parser"
 
 export default [
   {
-    ignores: ["tests/**", "migration_assets/**", "out/**", "dist/**"],
+    ignores: ["migration_assets/**", "out/**", "dist/**"],
   },
   eslintConfigPrettier,
   {

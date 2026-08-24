@@ -1,0 +1,101 @@
+// @ts-nocheck
+import {createPinia, setActivePinia} from "pinia"
+import {beforeEach, describe, expect, it, vi} from "vitest"
+
+import {mockBridgeIPC} from "../../helpers/bridgeIPC"
+
+vi.mock("../../../src/renderer/src/utils/ui/vue", () => ({
+  toRawDeep: (v) => v,
+}))
+
+let bridge
+
+describe("settingsStore", () => {
+  beforeEach(() => {
+    bridge = mockBridgeIPC()
+    setActivePinia(createPinia())
+  })
+
+  async function getStore() {
+    const {useSettingsStore} = await import("../../../src/renderer/src/stores/settings.store")
+    const store = useSettingsStore()
+    await vi.dynamicImportSettled()
+    // wait for invoke(loadSettings)
+    await new Promise((r) => setTimeout(r, 0))
+    return store
+  }
+
+  it("loads settings via IPC on creation", async () => {
+    const store = await getStore()
+
+    expect(store.isSettingsLoaded).toBe(true)
+    expect(store.settings).not.toBeNull()
+    expect(store.settings.branch.activeId).toBe("main")
+  })
+
+  it("updateSettings merges immediately and calls IPC save after debounce", async () => {
+    const store = await getStore()
+    vi.useFakeTimers()
+    try {
+      store.updateSettings({sync: {enabled: true}})
+
+      expect(store.settings.sync.enabled).toBe(true)
+      expect(bridge["settings:save"]).not.toHaveBeenCalled()
+
+      await vi.runAllTimersAsync()
+
+      expect(bridge["settings:save"]).toHaveBeenCalledWith({sync: {enabled: true}})
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("rapid updateSettings calls coalesce into a single IPC save", async () => {
+    const store = await getStore()
+    vi.useFakeTimers()
+    try {
+      store.updateSettings({sync: {enabled: true}})
+      store.updateSettings({branch: {activeId: "other"}})
+      store.updateSettings({themes: {current: "github-dark"}})
+
+      expect(bridge["settings:save"]).not.toHaveBeenCalled()
+
+      await vi.runAllTimersAsync()
+
+      expect(bridge["settings:save"]).toHaveBeenCalledTimes(1)
+      expect(bridge["settings:save"]).toHaveBeenCalledWith({
+        sync: {enabled: true},
+        branch: {activeId: "other"},
+        themes: {current: "github-dark"},
+      })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("updateSettings skips IPC when data is identical", async () => {
+    const store = await getStore()
+    vi.useFakeTimers()
+    try {
+      store.updateSettings({branch: {activeId: "main"}})
+      await vi.runAllTimersAsync()
+
+      expect(bridge["settings:save"]).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("revalidate reloads settings from IPC", async () => {
+    const store = await getStore()
+
+    bridge["settings:load"].mockResolvedValueOnce({
+      ...store.settings,
+      sync: {enabled: true},
+    })
+
+    await store.revalidate()
+
+    expect(store.settings.sync.enabled).toBe(true)
+  })
+})
