@@ -5,9 +5,6 @@
   "description": "Daily - A minimal daily tasks management app",
   "private": true,
   "type": "module",
-  "bin": {
-    "daily": "out/cli/index.js"
-  },
   "license": "MIT",
   "keywords": [
     "daily",
@@ -33,11 +30,8 @@
   "scripts": {
     "release": "node scripts/release.js",
     "prebuild": "bash scripts/build-file-coordinator.sh",
-    "build:cli": "vite build -c apps/cli/vite.config.cli.ts",
-    "build:cli:package": "pnpm build:cli && node scripts/build-cli-package.js",
     "build:server": "vite build -c apps/server/vite.config.ts",
     "build:server:package": "pnpm build:server && node scripts/build-server-package.js",
-    "cli": "pnpm build:cli && ELECTRON_RUN_AS_NODE=1 ./node_modules/.bin/electron out/cli/index.js",
     "server": "pnpm build:server && ELECTRON_RUN_AS_NODE=1 ./node_modules/.bin/electron out/server/index.js",
     "fix:assets": "ELECTRON_RUN_AS_NODE=1 ./node_modules/.bin/electron scripts/fix-asset-extensions.js",
     "postinstall": "electron-builder install-app-deps",
@@ -48,10 +42,9 @@
     "typecheck:core": "tsc --noEmit --project packages/core/src/tsconfig.json",
     "typecheck:main": "pnpm --filter @daily/desktop typecheck:main",
     "typecheck:renderer": "pnpm --filter @daily/desktop typecheck:renderer",
-    "typecheck:cli": "pnpm --filter @daily/cli-app typecheck",
     "typecheck:server": "tsc --noEmit --project apps/server/src/tsconfig.json",
     "typecheck:website": "tsc --noEmit --project apps/website/tsconfig.json",
-    "typecheck:all": "pnpm typecheck:protocol && pnpm typecheck:std && pnpm typecheck:core && pnpm typecheck:main && pnpm typecheck:renderer && pnpm typecheck:cli && pnpm typecheck:server && pnpm typecheck:website",
+    "typecheck:all": "pnpm typecheck:protocol && pnpm typecheck:std && pnpm typecheck:core && pnpm typecheck:main && pnpm typecheck:renderer && pnpm typecheck:server && pnpm typecheck:website",
     "prepare": "husky",
     "lint-staged": "lint-staged",
     "circular": "node scripts/check-circular.js",

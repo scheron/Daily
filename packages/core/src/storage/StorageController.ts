@@ -181,12 +181,6 @@ export class StorageController implements IStorageController {
   async migrateProvider(target: SyncProvider, direction: MigrationDirection | null): Promise<void> {
     await this.providerMigration.migrate(target, direction)
   }
-
-  /** Reacts to a mutation made by an external process (e.g. the CLI): rebuilds the search index and refreshes the renderer. */
-  async handleExternalDataChange(): Promise<void> {
-    await this.searchService.rebuildIndex()
-    this.notifyStorageDataChange?.()
-  }
   //#endregion
 
   //#region SETTINGS

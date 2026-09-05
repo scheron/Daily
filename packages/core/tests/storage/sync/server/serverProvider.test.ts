@@ -151,7 +151,6 @@ describe("the single guard on every settings write", () => {
       dbPath: () => "/tmp/daily-tc1/db",
       assetsDir: () => "/tmp/daily-tc1/assets",
       remoteSyncPath: () => "/tmp/daily-tc1/remote",
-      mutationSignalPath: () => "/tmp/daily-tc1/.s",
     }
     const core = createStorageCore(db, paths)
 

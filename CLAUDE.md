@@ -1,13 +1,13 @@
 # CLAUDE.md
 
-**Daily** — local-first macOS task manager. Electron main + Vue 3 renderer + a shared, Electron-free storage core (`src/main/storage/createStorageCore.ts`) that also powers a CLI (`src/cli/`, `@scheron/daily-cli`). SQLite is the source of truth; sync is local-first multi-remote (iCloud / folder / SSH) with Last-Write-Wins.
+**Daily** — local-first macOS task manager. Electron main + Vue 3 renderer + a shared, Electron-free storage core (`src/main/storage/createStorageCore.ts`). SQLite is the source of truth; sync is local-first multi-remote (iCloud / folder / SSH) with Last-Write-Wins.
 
 ## Commands
 
 ```bash
 pnpm dev                 # dev server, hot reload
 pnpm build               # package macOS .dmg
-pnpm typecheck:all       # main + renderer + shared + cli — run before committing
+pnpm typecheck:all       # main + renderer + shared — run before committing
 pnpm lint                # ESLint --fix
 pnpm test                # full vitest suite (Electron runtime via evitest)
 pnpm check:all           # lint + typecheck:all + circular + test
@@ -15,14 +15,14 @@ pnpm check:all           # lint + typecheck:all + circular + test
 
 ## Environment
 
-**Build.** `pnpm build` — packages the macOS `.dmg`. CLI alone: `pnpm build:cli`, output in `out/cli/`.
+**Build.** `pnpm build` — packages the macOS `.dmg`.
 **Typecheck.** `pnpm typecheck:all`
 **Lint.** `pnpm lint`
-**Tests.** `pnpm test` — vitest under the Electron runtime; `tests/cli/**` runs inside the `main` project.
-**Single test file.** `pnpm evitest run tests/cli/output.test.ts`
+**Tests.** `pnpm test` — vitest under the Electron runtime.
+**Single test file.** `pnpm evitest run packages/core/tests/storage/sync/convergence.test.ts`
 **Dev server.** `pnpm dev` — opens the Electron window, no URL.
 **E2E.** none
-**Runtime.** The app is driven through its Electron window (`pnpm dev`). The CLI is driven through the local build — `pnpm build:cli`, then `ELECTRON_RUN_AS_NODE=1 ./node_modules/.bin/electron out/cli/index.js <args>` — never through a globally installed `daily`, which is a different published version.
+**Runtime.** The app is driven through its Electron window (`pnpm dev`).
 
 **bootstrap.** `pnpm install` (its `postinstall` runs `electron-builder install-app-deps`)
 **link.** `.env`

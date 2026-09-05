@@ -127,7 +127,6 @@ function makeAppPaths(assetsDir: string, icloudSyncDir: string, root: string): A
     dbPath: () => join(root, "db"),
     assetsDir: () => assetsDir,
     remoteSyncPath: () => icloudSyncDir,
-    mutationSignalPath: () => join(root, ".s"),
   }
 }
 

@@ -1,7 +1,6 @@
 node_modules/
 dist/
 out/
-dist-cli
 dist-server
 
 *.txt

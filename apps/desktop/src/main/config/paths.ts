@@ -15,7 +15,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 
 /**
  * Builds the full electron path set over a live `app` instance. The electron
- * import stays in main's runtime glue so this module remains loadable by the CLI.
+ * import stays in main's runtime glue so this module stays free of it.
  */
 export function createElectronPaths(app: ElectronApp, resourcesPath: string) {
   return {

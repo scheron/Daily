@@ -118,8 +118,8 @@ export class SyncEngine {
   }
 
   /**
-   * One-shot sync that works without enableAutoSync — used by the CLI around
-   * commands. Unlike sync(), a total failure propagates to the caller.
+   * One-shot sync that works without enableAutoSync — used around provider
+   * migrations. Unlike sync(), a total failure propagates to the caller.
    */
   async syncOnce(strategy: SyncStrategy = "pull"): Promise<void> {
     await this.mutex.runExclusive(async () => {

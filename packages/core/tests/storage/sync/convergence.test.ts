@@ -1,10 +1,11 @@
 import {mkdtempSync, rmSync} from "node:fs"
 import {tmpdir} from "node:os"
-import {join} from "node:path"
+import {basename, dirname, join} from "node:path"
+import fs from "fs-extra"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
 import {createStorageCore} from "../../../src/storage/createStorageCore"
-import {FolderRemoteAdapter} from "../../../src/storage/sync/adapters/FolderRemoteAdapter"
+import {ICloudRemoteAdapter} from "../../../src/storage/sync/adapters/ICloudRemoteAdapter"
 import {SyncEngine} from "../../../src/storage/sync/SyncEngine"
 import {createTestDatabase} from "../../helpers/db"
 
@@ -24,9 +25,37 @@ vi.mock("../../../src/utils/logger", () => ({
   },
 }))
 
+/**
+ * `ICloudRemoteAdapter` reads and writes through `../../../src/utils/fileCoordinator`, whose real
+ * implementation assumes a genuine iCloud-managed path. Standing a plain temp directory in for
+ * iCloud (the technique `integration.test.ts` and `providerMigration.test.ts` already use) needs
+ * this same mock.
+ */
+vi.mock("../../../src/utils/fileCoordinator", () => ({
+  coordinatedRead: vi.fn(async (path: string) => {
+    try {
+      return await fs.readFile(path)
+    } catch {
+      return null
+    }
+  }),
+  coordinatedWrite: vi.fn(async (path: string, data: Buffer) => {
+    await fs.writeFile(path, data)
+  }),
+  getICloudStubPath: vi.fn((path: string) => join(dirname(path), `.${basename(path)}.icloud`)),
+  hasICloudStub: vi.fn(async (path: string) => fs.pathExists(join(dirname(path), `.${basename(path)}.icloud`))),
+  isICloudStub: vi.fn(() => false),
+  requestDownload: vi.fn(),
+  requestDownloadAndWait: vi.fn(async (path: string) => {
+    const stubPath = join(dirname(path), `.${basename(path)}.icloud`)
+    const [fileExists, stubExists] = await Promise.all([fs.pathExists(path), fs.pathExists(stubPath)])
+    return fileExists && !stubExists
+  }),
+}))
+
 type Node = {db: Database.Database; core: StorageCore; engine: SyncEngine; root: string}
 
-describe("two-node convergence through a shared folder", () => {
+describe("two-node convergence through a shared sync directory", () => {
   let syncDir: string
   let nodeA: Node
   let nodeB: Node
@@ -37,12 +66,11 @@ describe("two-node convergence through a shared folder", () => {
       appDataRoot: () => root,
       dbPath: () => join(root, "db.sqlite"),
       assetsDir: () => join(root, "assets"),
-      remoteSyncPath: () => join(root, "unused-icloud"),
-      mutationSignalPath: () => join(root, ".signal"),
+      remoteSyncPath: () => syncDir,
     }
     const db = createTestDatabase()
     const core = createStorageCore(db, paths)
-    const engine = new SyncEngine(core.localAdapter, [{id: "folder", label: "folder", adapter: new FolderRemoteAdapter(syncDir)}], {
+    const engine = new SyncEngine(core.localAdapter, [{id: "icloud", label: "iCloud", adapter: new ICloudRemoteAdapter(syncDir)}], {
       assetsDir: paths.assetsDir,
       onStatusChange: vi.fn(),
       onDataChanged: vi.fn(),

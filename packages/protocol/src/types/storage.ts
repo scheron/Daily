@@ -123,7 +123,7 @@ export type Settings = {
 /**
  * `Settings` as it crosses to the renderer: identical except that the server binding arrives
  * without the credential that authenticates it. The stored `ServerSyncBinding` keeps that
- * credential — the storage layer and the CLI read it from `device_settings`; only what leaves the
+ * credential — the storage layer reads it from `device_settings`; only what leaves the
  * main process is narrowed.
  */
 export type SettingsView = Omit<Settings, "sync"> & {

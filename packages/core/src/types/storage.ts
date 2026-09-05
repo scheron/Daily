@@ -30,8 +30,8 @@ export type TaskInternal = ReplaceValue<Task, "tags", Tag["id"][]>
 
 /**
  * The Daily Sync Server provider, as the controller exposes it: probing an address, binding this
- * device, peer approval and disconnecting. Declared here rather than imported so that nothing
- * reachable from the CLI names the protocol client, and no method of it carries a credential.
+ * device, peer approval and disconnecting. Declared here rather than imported so that the
+ * controller surface never names the protocol client, and no method of it carries a credential.
  */
 export interface IServerProvider {
   defaultDeviceName(): string
@@ -109,7 +109,6 @@ export interface IStorageController {
   getServerProvider(): IServerProvider
   previewMigration(target: Exclude<SyncProvider, "off">): Promise<MigrationPreview>
   migrateProvider(target: SyncProvider, direction: MigrationDirection | null): Promise<void>
-  handleExternalDataChange(): Promise<void>
 
   setupStorageBroadcasts(callbacks: {
     onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => void

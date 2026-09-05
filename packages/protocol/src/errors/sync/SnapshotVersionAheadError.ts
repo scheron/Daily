@@ -4,7 +4,7 @@
  */
 export class SnapshotVersionAheadError extends Error {
   constructor(readonly remoteVersion: number) {
-    super(`Remote snapshot has schema version ${remoteVersion}, newer than this build supports. Update the app/CLI before syncing.`)
+    super(`Remote snapshot has schema version ${remoteVersion}, newer than this build supports. Update the app before syncing.`)
     this.name = "SnapshotVersionAheadError"
   }
 }

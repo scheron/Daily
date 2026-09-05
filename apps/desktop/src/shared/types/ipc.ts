@@ -37,7 +37,6 @@ import type {
   LocalRuntimeState,
   PendingToolConfirmation,
 } from "./ai"
-import type {CliInstallResult, CliInstallState} from "./shell"
 import type {AppUpdateState} from "./update"
 
 export interface BridgeIPC {
@@ -56,9 +55,6 @@ export interface BridgeIPC {
 
   // === SHELL ===
   "shell:open-external": (url: string) => Promise<boolean>
-  "shell:get-cli-install-state": () => Promise<CliInstallState>
-  "shell:install-cli": () => Promise<CliInstallResult>
-  "shell:configure-cli-path": () => Promise<CliInstallResult>
 
   // === STORAGE  ===
   "storage-sync:sync": () => Promise<void>

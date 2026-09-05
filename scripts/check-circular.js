@@ -5,7 +5,7 @@ import madge from "madge"
 
 const rootDir = join(fileURLToPath(import.meta.url), "..", "..")
 
-const targets = ["apps/desktop/src", "apps/cli/src", "apps/server/src", "packages/core/src", "packages/protocol/src", "packages/std/src"]
+const targets = ["apps/desktop/src", "apps/server/src", "packages/core/src", "packages/protocol/src", "packages/std/src"]
   .map((dir) => join(rootDir, dir))
   .filter((dir) => existsSync(dir))
 

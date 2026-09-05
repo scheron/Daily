@@ -10,7 +10,6 @@ import {focusWindow} from "./utils/windows/focusWindow"
 import {AIController} from "./ai/AIController"
 import {createBetterSqliteDriver} from "./database/betterSqliteDriver"
 import {electronPaths} from "./runtime/electronPaths"
-import {setupCliSignalWatcher} from "./setup/app/cliSignalWatcher"
 import {setupInstanceAndDeepLinks} from "./setup/app/instance"
 import {setupActivateHandler, setupAppBoot, setupDockIcon, setupWindowAllClosedHandler} from "./setup/app/lifecycle"
 import {setupMenu} from "./setup/app/menu"
@@ -145,8 +144,6 @@ app.whenReady().then(async () => {
     () => storage,
     () => windows,
   )
-  setupCliSignalWatcher(() => storage, electronPaths.mutationSignalPath())
-
   setupMainWindow(windows, {showSplash: true})
 
   void ai

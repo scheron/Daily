@@ -10,13 +10,13 @@
 
 <p align="center">
   A local-first, day-first task manager for Apple Silicon Macs.<br />
-  Markdown tasks, SQLite storage, optional sync, a built-in task agent, and a CLI for automation.
+  Markdown tasks, SQLite storage, optional sync, and a built-in task agent.
 </p>
 
 <p align="center">
   <a href="https://github.com/scheron/Daily/releases">Download</a> ·
   <a href="#custom-task-agent">Task agent</a> ·
-  <a href="#cli-for-automation">CLI</a> ·
+  <a href="#optional-sync">Sync</a> ·
   <a href="#privacy-and-data">Privacy</a>
 </p>
 
@@ -121,30 +121,6 @@ xattr -rd com.apple.quarantine /Applications/Daily.app
 
 </details>
 
-## CLI for automation
-
-Daily ships a command-line companion for working with the same task workspace from a terminal.
-
-```bash
-npm install -g @scheron/daily-cli
-```
-
-```bash
-daily today
-daily tasks add "Review PR" --tags focus --estimate 90
-daily tasks done a1b2
-daily tasks search "release notes"
-daily projects
-```
-
-For scripts and agents, commands support `--json`. Run this once for a machine-readable description of commands, arguments, outputs, and error codes:
-
-```bash
-daily schema --json
-```
-
-By default, the CLI can work directly with the installed desktop app's database. It can also run as a standalone sync node with its own database and configured sync folder. See the [CLI documentation](./src/cli/README.md) for all commands and node-mode details.
-
 ## Optional sync
 
 Daily is fully usable offline. Sync is optional: SQLite remains the local source of truth, and one provider carries the snapshot at a time — off, iCloud Drive, or a [Self-hosted Daily Sync Server](./src/server/README.md) — merged locally with a last-write-wins strategy.
@@ -156,7 +132,6 @@ Changing providers is a migration, not a settings flip: Daily previews what each
 | Component                        | Support                                                          |
 | -------------------------------- | ---------------------------------------------------------------- |
 | Desktop app                      | macOS on Apple Silicon only                                      |
-| CLI                              | macOS or Linux, with Node.js 22.5.0 or newer                     |
 | Local AI models                  | Download required; available disk space and memory vary by model |
 | Desktop builds for Windows/Linux | Not shipped or tested                                            |
 

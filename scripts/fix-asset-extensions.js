@@ -16,14 +16,10 @@ const RIFF_SIGNATURE = [0x52, 0x49, 0x46, 0x46]
 const WEBP_SIGNATURE = [0x57, 0x45, 0x42, 0x50]
 const WEBP_SIGNATURE_OFFSET = 8
 
-/** Name duplicated from `src/shared/constants/storage.ts`; watched by `cliSignalWatcher`. */
-const CLI_MUTATION_SIGNAL_FILE = ".cli-signal"
-
 const flags = parseFlags(process.argv.slice(2))
 const dataDir = flags.dataDir ?? path.join(os.homedir(), "Library", "Application Support", "Daily")
 const dbPath = path.join(dataDir, "db", "daily.sqlite")
 const assetsDir = path.join(dataDir, "assets")
-const signalPath = path.join(dataDir, CLI_MUTATION_SIGNAL_FILE)
 
 console.log("fix-asset-extensions: for best results, close Daily before running with --apply")
 
@@ -78,7 +74,6 @@ for (const entry of entries) {
 
 if (flags.apply) {
   console.log(`fix-asset-extensions: ${fixed} of ${entries.length} assets fixed`)
-  if (fixed > 0) signalMutation()
 } else {
   console.log(`fix-asset-extensions: ${mismatched} of ${entries.length} assets mismatched (dry run, nothing changed)`)
 }
@@ -151,11 +146,4 @@ function getMimeType(ext) {
     default:
       return "application/octet-stream"
   }
-}
-
-/** Best-effort: a closed app has no watcher, and a failed write must not fail the run. */
-function signalMutation() {
-  try {
-    fs.writeFileSync(signalPath, String(Date.now()))
-  } catch {}
 }

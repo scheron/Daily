@@ -17,7 +17,7 @@ describe("config is electron-free", () => {
 
   it("electronPaths exposes the AppPaths surface", async () => {
     const mod = await import("../../../src/main/runtime/electronPaths")
-    for (const key of ["appDataRoot", "dbPath", "assetsDir", "remoteSyncPath", "mutationSignalPath"]) {
+    for (const key of ["appDataRoot", "dbPath", "assetsDir", "remoteSyncPath"]) {
       expect(typeof mod.electronPaths[key]).toBe("function")
     }
   })
