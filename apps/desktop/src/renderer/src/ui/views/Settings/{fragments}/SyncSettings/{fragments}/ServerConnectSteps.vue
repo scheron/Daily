@@ -11,6 +11,8 @@ import BaseInput from "../../../../../base/BaseInput.vue"
 import type {EnrollmentTicketView, ServerProbeView} from "@daily/protocol"
 import type {ConnectStep} from "./connectSteps"
 
+const SERVER_DOCS_URL = "https://github.com/scheron/Daily/blob/main/apps/server/README.md"
+
 const CODE_LENGTH = SYNC_PROTOCOL_CONFIG.codeLength
 const CODE_LAST_INDEX = CODE_LENGTH - 1
 
@@ -58,6 +60,10 @@ const canContinueFromConfirm = computed(() => {
   if (needsFingerprintAck.value && !fingerprintAck.value) return false
   return true
 })
+
+function onOpenServerDocs() {
+  window.BridgeIPC["shell:open-external"](SERVER_DOCS_URL)
+}
 
 async function onProbe() {
   if (!baseUrl.value.trim() || isLoading.value) return
@@ -236,6 +242,14 @@ onBeforeUnmount(() => {
       <BaseInput v-model="baseUrl" placeholder="http://192.168.1.10:8787" focus-on-mount @keyup.enter="onProbe" />
     </div>
     <BaseButton variant="primary" size="sm" class="w-full py-1.5" :loading="isLoading" @click="onProbe">Continue</BaseButton>
+
+    <button
+      type="button"
+      class="text-base-content/50 hover:text-base-content self-center text-xs underline underline-offset-2 transition-colors"
+      @click="onOpenServerDocs"
+    >
+      No server yet? One command sets one up
+    </button>
   </div>
 
   <div v-else-if="step === 'confirm' && probeResult" class="flex flex-col gap-4">
@@ -250,7 +264,7 @@ onBeforeUnmount(() => {
       </div>
       <div v-if="probeResult.transport.fingerprint" class="flex flex-col gap-1">
         <span class="text-base-content/60">Fingerprint</span>
-        <span class="text-base-content bg-base-100 rounded px-2 py-1 font-mono text-xs break-all">{{ probeResult.transport.fingerprint }}</span>
+        <span class="text-base-content bg-base-100 break-all rounded px-2 py-1 font-mono text-xs">{{ probeResult.transport.fingerprint }}</span>
       </div>
     </div>
 
