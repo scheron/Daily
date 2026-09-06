@@ -3,11 +3,26 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/scheron/Daily.git"
+  },
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./*": "./src/*.ts"
+    "./config/resolveServerConfig": "./src/config/resolveServerConfig.ts",
+    "./devices/DeviceStore": "./src/devices/DeviceStore.ts",
+    "./enrollment/EnrollmentStore": "./src/enrollment/EnrollmentStore.ts",
+    "./http/createHttpServer": "./src/http/createHttpServer.ts",
+    "./identity/ServerIdentityStore": "./src/identity/ServerIdentityStore.ts",
+    "./store/instance": "./src/store/instance.ts"
+  },
+  "scripts": {
+    "build": "vite build",
+    "typecheck": "tsc --noEmit --project src/tsconfig.json",
+    "test": "ELECTRON_RUN_AS_NODE=1 ../../node_modules/.bin/electron ../../node_modules/vitest/vitest.mjs run"
   },
   "dependencies": {
     "@daily/protocol": "workspace:*",

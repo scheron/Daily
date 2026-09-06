@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./src/renderer/public/favicon.svg" width="72" alt="Daily logo" />
+  <img src="./apps/desktop/public/icon.png" width="72" alt="Daily logo" />
 </p>
 
 <h1 align="center">Daily</h1>
@@ -91,7 +91,7 @@ Task data and conversation history are stored locally in SQLite. Attachments and
 Data leaves your Mac only when you choose a feature that needs it:
 
 - A configured remote AI provider receives the relevant assistant prompts and context.
-- Optional iCloud Drive or SSH sync stores sync snapshots in the remote you configure.
+- An optional iCloud Drive or self-hosted sync server stores sync snapshots in the remote you configure.
 - Web-page reads are requested by the assistant and require confirmation before the first fetch.
 
 ## Install
@@ -123,7 +123,7 @@ xattr -rd com.apple.quarantine /Applications/Daily.app
 
 ## Optional sync
 
-Daily is fully usable offline. Sync is optional: SQLite remains the local source of truth, and one provider carries the snapshot at a time — off, iCloud Drive, or a [Self-hosted Daily Sync Server](./src/server/README.md) — merged locally with a last-write-wins strategy.
+Daily is fully usable offline. Sync is optional: SQLite remains the local source of truth, and one provider carries the snapshot at a time — off, iCloud Drive, or a [Self-hosted Daily Sync Server](./apps/server/README.md) — merged locally with a last-write-wins strategy.
 
 Changing providers is a migration, not a settings flip: Daily previews what each side holds before moving, and only switches once the merge has landed on both sides.
 

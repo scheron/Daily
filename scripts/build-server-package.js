@@ -2,13 +2,14 @@ import {copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync} from "node
 import {join} from "node:path"
 
 const root = process.cwd()
-const bundlePath = join(root, "out", "server", "index.js")
-const outDir = join(root, "dist-server")
+const serverDir = join(root, "apps", "server")
+const bundlePath = join(serverDir, "out", "index.js")
+const outDir = join(serverDir, "dist-server")
 
-const rootPkg = JSON.parse(readFileSync(join(root, "package.json"), "utf-8"))
+const serverPkg = JSON.parse(readFileSync(join(serverDir, "package.json"), "utf-8"))
 const bundle = readFileSync(bundlePath, "utf-8")
 
-const version = process.env.DAILY_SERVER_PACKAGE_VERSION?.trim() || rootPkg.version
+const version = process.env.DAILY_SERVER_PACKAGE_VERSION?.trim() || serverPkg.version
 
 const bareImports = new Set()
 for (const match of bundle.matchAll(/(?:^|\n)import\s[^"']*["']([^."'/][^"']*)["']/g)) {
@@ -18,7 +19,7 @@ for (const match of bundle.matchAll(/(?:^|\n)import\s[^"']*["']([^."'/][^"']*)["
 const dependencies = {}
 for (const name of [...bareImports].sort()) {
   if (name.startsWith("node:")) continue
-  const declared = rootPkg.dependencies?.[name]
+  const declared = serverPkg.dependencies?.[name]
   if (!declared) {
     console.error(`Bundle imports "${name}" which is not in package.json dependencies`)
     process.exit(1)
@@ -37,8 +38,8 @@ const pkg = {
   type: "module",
   bin: {"daily-server": "./index.js"},
   engines: {node: ">=22.5.0"},
-  license: rootPkg.license,
-  repository: rootPkg.repository,
+  license: serverPkg.license,
+  repository: serverPkg.repository,
   dependencies,
 }
 

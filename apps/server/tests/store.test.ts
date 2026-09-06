@@ -9,7 +9,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
 import {ProtocolErrorCode} from "@daily/protocol"
 
-import pkg from "../../../package.json"
+import pkg from "../package.json"
 import {findAsset, listAssets, writeAsset} from "../src/assets/AssetStore"
 import {authenticateRequest} from "../src/devices/authenticateRequest"
 import {createDevice, listDevices, revokeDevice} from "../src/devices/DeviceStore"
@@ -29,18 +29,28 @@ function requestWithAuthorization(authorization?: string): IncomingMessage {
 }
 
 const rootDir = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..")
-const builtEntry = join(rootDir, "out/server/index.js")
+const serverDir = join(rootDir, "apps", "server")
+const builtEntry = join(serverDir, "out", "index.js")
+const buildServerPackageScript = join(rootDir, "scripts", "build-server-package.js")
 
 describe("server toolchain", () => {
-  it("TC-1: builds src/server into a runnable entry that prints the package version", () => {
-    execSync("pnpm build:server", {cwd: rootDir, stdio: "pipe"})
+  // The rest of TC-1 — the bundle started by a plain `node`, migrating its SQLite and answering
+  // `GET /v1/server` — cannot run here: this workspace's one `better-sqlite3` is compiled for
+  // Electron's ABI, and a plain `node` can never load it. Gate B drives that half, per
+  // final-gate scenario 1; this test only carries what it can check honestly, offline.
+  it("TC-1: builds apps/server into a bundle at apps/server/out/index.js that prints apps/server's own version, not the root's, and resolves only bare imports apps/server itself declares", () => {
+    execSync("pnpm --filter @daily/server build", {cwd: rootDir, stdio: "pipe"})
 
     expect(existsSync(builtEntry)).toBe(true)
 
-    const output = execFileSync("node", [builtEntry, "--version"], {cwd: rootDir}).toString().trim()
+    const versionOutput = execFileSync("node", [builtEntry, "--version"], {cwd: rootDir}).toString().trim()
+    expect(versionOutput).toBe(pkg.version)
 
-    expect(output).toBe(pkg.version)
-  }, 30000)
+    const rootPkg = JSON.parse(readFileSync(join(rootDir, "package.json"), "utf-8")) as {version: string}
+    expect(versionOutput).not.toBe(rootPkg.version)
+
+    expect(() => execFileSync("node", [buildServerPackageScript], {cwd: rootDir, stdio: "pipe"})).not.toThrow()
+  }, 60000)
 })
 
 describe("server store", () => {

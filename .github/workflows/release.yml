@@ -31,19 +31,19 @@ jobs:
       - name: Build app
         env:
           DEBUG: electron-builder
-        run: pnpm run build
+        run: pnpm --filter @daily/desktop build
 
       - name: Verify .dmg was produced
         shell: bash
         run: |
           set -euo pipefail
-          if ! ls dist/*.dmg 1>/dev/null 2>&1; then
+          if ! ls apps/desktop/dist/*.dmg 1>/dev/null 2>&1; then
             echo "::error::electron-builder did not produce a .dmg"
-            echo "=== dist/ contents ==="
-            ls -la dist/ 2>&1 || echo "(dist/ does not exist)"
+            echo "=== apps/desktop/dist/ contents ==="
+            ls -la apps/desktop/dist/ 2>&1 || echo "(apps/desktop/dist/ does not exist)"
             exit 1
           fi
-          ls -lh dist/*.dmg
+          ls -lh apps/desktop/dist/*.dmg
 
       - name: Extract version from tag
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
@@ -65,7 +65,7 @@ jobs:
           prerelease: false
           fail_on_unmatched_files: true
           files: |
-            dist/*.dmg
+            apps/desktop/dist/*.dmg
 
       - name: Trigger Homebrew tap update
         shell: bash

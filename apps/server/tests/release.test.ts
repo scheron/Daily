@@ -6,15 +6,17 @@ import {describe, expect, it} from "vitest"
 const rootDir = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..")
 
 describe("release-server.yml", () => {
-  it("TC-17: derives the rolling tag from SYNC_PROTOCOL_VERSION in the source, never typing p1 by hand", () => {
+  it("TC-17/TC-9: derives the rolling tag from SYNC_PROTOCOL_VERSION in packages/protocol, never typing p1 by hand, and still exits 1 if the constant cannot be found", () => {
     const workflowPath = join(rootDir, ".github/workflows/release-server.yml")
     expect(existsSync(workflowPath)).toBe(true)
 
     const workflow = readFileSync(workflowPath, "utf-8")
 
     expect(workflow).toContain("SYNC_PROTOCOL_VERSION")
-    expect(workflow).toContain("src/shared/types/syncProtocol.ts")
+    expect(workflow).toContain("packages/protocol/src/types/syncProtocol.ts")
+    expect(workflow).not.toContain("src/shared/types/syncProtocol.ts")
     expect(workflow).not.toContain("p1")
+    expect(workflow).toMatch(/exit 1/)
   })
 })
 

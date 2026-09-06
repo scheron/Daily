@@ -11,12 +11,16 @@ WORKDIR /build
 RUN npm install --global pnpm@10.12.1
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY apps/server/package.json ./apps/server/package.json
+COPY packages/protocol/package.json ./packages/protocol/package.json
+COPY packages/std/package.json ./packages/std/package.json
 RUN pnpm install --frozen-lockfile --ignore-scripts
 
-COPY vite.config.server.ts LICENSE ./
+COPY LICENSE ./
 COPY scripts/build-server-package.js ./scripts/build-server-package.js
-COPY src/server ./src/server
-COPY src/shared ./src/shared
+COPY apps/server ./apps/server
+COPY packages/protocol ./packages/protocol
+COPY packages/std ./packages/std
 
 ARG DAILY_SERVER_PACKAGE_VERSION
 ENV DAILY_SERVER_PACKAGE_VERSION=${DAILY_SERVER_PACKAGE_VERSION}
@@ -36,7 +40,7 @@ RUN groupadd --system daily \
 
 WORKDIR /app
 
-COPY --from=builder /build/dist-server/ ./
+COPY --from=builder /build/apps/server/dist-server/ ./
 
 RUN npm install --omit=dev --no-audit --no-fund \
   && npm cache clean --force \
@@ -52,7 +56,7 @@ ARG DAILY_SERVER_PACKAGE_VERSION
 LABEL org.opencontainers.image.title="Daily Sync Server" \
   org.opencontainers.image.description="Self-hosted sync server for Daily — the Daily Sync Protocol in one container, configured from the environment." \
   org.opencontainers.image.source="https://github.com/scheron/Daily" \
-  org.opencontainers.image.documentation="https://github.com/scheron/Daily/blob/main/src/server/README.md" \
+  org.opencontainers.image.documentation="https://github.com/scheron/Daily/blob/main/apps/server/README.md" \
   org.opencontainers.image.licenses="MIT" \
   org.opencontainers.image.vendor="Scheron" \
   org.opencontainers.image.version="${DAILY_SERVER_PACKAGE_VERSION}"

@@ -6,14 +6,36 @@ import chalk from "chalk"
 
 const BRANCH = "main"
 
+const ARTIFACTS = {
+  app: {
+    manifestPath: "apps/desktop/package.json",
+    tagPrefix: "v",
+    commitPrefix: "release: v",
+    hasChangelog: true,
+  },
+  server: {
+    manifestPath: "apps/server/package.json",
+    tagPrefix: "server-v",
+    commitPrefix: "release: server-v",
+    hasChangelog: false,
+  },
+}
+
 const flags = parseFlags(process.argv.slice(2))
-const isNonInteractive = !!flags.version && !!flags.changelogFile
+const artifact = ARTIFACTS[flags.artifact]
+
+if (!artifact) {
+  console.error(chalk.red(`❌ Error: usage: node scripts/release.js <app|server> [--dry-run] [--version=X.Y.Z] [--changelog-file=path]`))
+  process.exit(0)
+}
+
+const isNonInteractive = artifact.hasChangelog ? !!flags.version && !!flags.changelogFile : !!flags.version
 
 ;(async () => {
   try {
     const branch = await run("git rev-parse --abbrev-ref HEAD")
 
-    if (branch !== BRANCH) {
+    if (!flags.dryRun && branch !== BRANCH) {
       console.error(chalk.red(`❌ Error: run from ${BRANCH} branch.`))
       process.exit(0)
     }
@@ -25,10 +47,18 @@ const isNonInteractive = !!flags.version && !!flags.changelogFile
     }
 
     const cwd = process.cwd()
-    const pkgPath = path.join(cwd, "package.json")
+    const pkgPath = path.join(cwd, artifact.manifestPath)
     const pkg = JSON.parse(await fs.readFile(pkgPath, "utf8"))
     const oldVersion = pkg.version
-    const nextVersion = isNonInteractive ? flags.version : await promptVersion(oldVersion)
+
+    let nextVersion
+    if (flags.dryRun) {
+      nextVersion = flags.version || incrementPatchVersion(oldVersion)
+    } else if (isNonInteractive) {
+      nextVersion = flags.version
+    } else {
+      nextVersion = await promptVersion(oldVersion)
+    }
 
     if (!isValidVersion(nextVersion)) {
       console.error(chalk.red(`❌ Error: invalid version format: ${nextVersion}`))
@@ -36,40 +66,64 @@ const isNonInteractive = !!flags.version && !!flags.changelogFile
     }
 
     const changelogPath = path.join(cwd, "CHANGELOG.md")
-    let changelog = ""
-    try {
-      changelog = await fs.readFile(changelogPath, "utf8")
-    } catch {
-      changelog = "# Changelog\n\n"
+    let newSection = null
+
+    if (artifact.hasChangelog) {
+      let changelog = ""
+      try {
+        changelog = await fs.readFile(changelogPath, "utf8")
+      } catch {
+        changelog = "# Changelog\n\n"
+      }
+
+      newSection = flags.changelogFile ? await loadCuratedSection(flags.changelogFile, nextVersion) : await buildAutoSection(nextVersion)
+
+      if (!flags.dryRun) {
+        changelog = insertSection(changelog, newSection)
+        await fs.writeFile(changelogPath, changelog, "utf8")
+
+        if (!isNonInteractive) {
+          console.log(chalk.cyan("Opening CHANGELOG.md for editing..."))
+          await openEditor(changelogPath)
+
+          const confirm = await question(chalk.cyan("Continue with this release description? (y/n/q): "))
+          if (confirm !== "y") {
+            console.log(chalk.yellow("❌ Release aborted"))
+            process.exit(0)
+          }
+        }
+      }
     }
 
-    const newSection = isNonInteractive ? await loadCuratedSection(flags.changelogFile, nextVersion) : await buildAutoSection(nextVersion)
+    const tag = `${artifact.tagPrefix}${nextVersion}`
+    const commitMessage = `${artifact.commitPrefix}${nextVersion}`
 
-    changelog = insertSection(changelog, newSection)
-    await fs.writeFile(changelogPath, changelog, "utf8")
-
-    if (!isNonInteractive) {
-      console.log(chalk.cyan("Opening CHANGELOG.md for editing..."))
-      await openEditor(changelogPath)
-
-      const confirm = await question(chalk.cyan("Continue with this release description? (y/n/q): "))
-      if (confirm !== "y") {
-        console.log(chalk.yellow("❌ Release aborted"))
-        process.exit(0)
+    if (flags.dryRun) {
+      console.log(chalk.cyan(`Dry run for ${flags.artifact}:`))
+      console.log(chalk.cyan(`  manifest: ${artifact.manifestPath}`))
+      console.log(chalk.cyan(`  version:  ${oldVersion} -> ${nextVersion}`))
+      if (artifact.hasChangelog) {
+        console.log(chalk.cyan("  changelog section:"))
+        console.log(newSection)
       }
+      console.log(chalk.cyan(`  tag:      ${tag}`))
+      console.log(chalk.cyan(`  commit:   ${commitMessage}`))
+      console.log(chalk.yellow("Dry run: no file written, no commit, no tag, no push."))
+      return
     }
 
     pkg.version = nextVersion
     await fs.writeFile(pkgPath, JSON.stringify(pkg, null, 2) + "\n")
 
-    await run(`git add package.json CHANGELOG.md`)
-    await run(`git commit -m "release: v${nextVersion}"`)
+    const filesToAdd = artifact.hasChangelog ? `${artifact.manifestPath} CHANGELOG.md` : artifact.manifestPath
+    await run(`git add ${filesToAdd}`)
+    await run(`git commit -m "${commitMessage}"`)
 
-    await run(`git tag v${nextVersion}`)
+    await run(`git tag ${tag}`)
 
-    await Promise.all([run(`git push origin ${BRANCH}`), run(`git push origin v${nextVersion}`)])
+    await Promise.all([run(`git push origin ${BRANCH}`), run(`git push origin ${tag}`)])
 
-    console.log(chalk.green(`🚀 Released v${nextVersion}`))
+    console.log(chalk.green(`🚀 Released ${tag}`))
   } catch (error) {
     console.error(chalk.red("❌ Error during release:"), error)
     process.exit(0)
@@ -77,14 +131,25 @@ const isNonInteractive = !!flags.version && !!flags.changelogFile
 })()
 
 /**
- * Parse CLI args. Supports `--version=X.Y.Z` / `--version X.Y.Z` and
- * `--changelog-file=path.md` / `--changelog-file path.md`. When both are
- * present the script runs non-interactively (no prompts, no editor).
+ * Parse CLI args. The first positional argument is the required artifact,
+ * `app` or `server`. Also supports `--dry-run`, and `--version=X.Y.Z` /
+ * `--version X.Y.Z` and `--changelog-file=path.md` / `--changelog-file path.md`.
+ * When both `--version` and `--changelog-file` are present (or just
+ * `--version` for an artifact with no changelog) the script runs
+ * non-interactively (no prompts, no editor).
  */
 function parseFlags(argv) {
-  const out = {version: null, changelogFile: null}
+  const out = {artifact: null, dryRun: false, version: null, changelogFile: null}
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
+    if (arg === "--dry-run") {
+      out.dryRun = true
+      continue
+    }
+    if (!arg.startsWith("--")) {
+      out.artifact = out.artifact ?? arg
+      continue
+    }
     const [key, inlineValue] = arg.includes("=") ? arg.split("=") : [arg, null]
     const value = inlineValue ?? argv[i + 1]
     if (key === "--version") {

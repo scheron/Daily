@@ -1,16 +1,31 @@
 {
   "name": "@daily/desktop",
-  "version": "0.0.0",
+  "version": "0.18.0",
+  "productName": "Daily",
+  "description": "Daily - A minimal daily tasks management app",
   "private": true,
   "type": "module",
   "main": "out/main/main.js",
+  "keywords": [
+    "daily",
+    "daily-app",
+    "daily-tasks",
+    "tasks-management",
+    "todos",
+    "productivity"
+  ],
+  "author": {
+    "name": "Scheron",
+    "url": "https://github.com/scheron"
+  },
   "scripts": {
     "dev": "electron-vite dev",
-    "build": "electron-vite build && electron-builder --mac",
+    "build": "bash scripts/build-file-coordinator.sh && electron-vite build && electron-builder --mac",
     "build:compress": "electron-vite build",
     "preview": "electron-vite preview",
     "typecheck:main": "tsc --noEmit --project src/main/tsconfig.json",
-    "typecheck:renderer": "vue-tsc --noEmit --project src/renderer/tsconfig.json"
+    "typecheck:renderer": "vue-tsc --noEmit --project src/renderer/tsconfig.json",
+    "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.0",
@@ -37,14 +52,21 @@
     "@daily/protocol": "workspace:*",
     "@daily/std": "workspace:*",
     "@floating-ui/vue": "^1.1.6",
+    "@isaacs/ttlcache": "^2.1.5",
     "@lezer/highlight": "^1.2.3",
+    "@lezer/markdown": "^1.6.0",
     "@mozilla/readability": "^0.6.0",
     "@vueuse/core": "^13.1.0",
     "better-sqlite3": "^12.8.0",
     "buffer": "^5.7.1",
     "clsx": "^2.1.1",
+    "commander": "^15.0.0",
+    "electron-store": "^10.0.1",
+    "electron-updater": "^6.6.2",
     "fast-sort": "^3.4.1",
     "fs-extra": "^11.3.0",
+    "fuse.js": "^7.1.0",
+    "gray-matter": "^4.0.3",
     "highlight.js": "^11.11.1",
     "linkedom": "^0.18.12",
     "luxon": "^3.6.1",

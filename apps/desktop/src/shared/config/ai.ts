@@ -10,7 +10,7 @@ export const AI_CONFIG = {
       host: "127.0.0.1",
       apiPath: "/v1",
       apiKey: "no-key",
-      catalogUrl: "https://raw.githubusercontent.com/scheron/Daily/main/resources/models.json",
+      catalogUrl: "https://raw.githubusercontent.com/scheron/Daily/main/apps/desktop/resources/models.json",
       catalogTimeoutMs: 10_000,
     },
   },

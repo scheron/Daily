@@ -173,7 +173,7 @@ Show the full text to the user one more time. Print it as a single markdown bloc
 
 ### Step 9 — invoke the script non-interactively
 
-Write the agreed section to a temp file and invoke `pnpm release` with flags:
+Write the agreed section to a temp file and invoke `pnpm release` with the `app` artifact and flags:
 
 ```bash
 SECTION_FILE=$(mktemp -t release-section.XXXXXX.md)
@@ -181,10 +181,10 @@ cat > "$SECTION_FILE" <<'EOF'
 <the full section text the user approved>
 EOF
 
-pnpm release --version="$NEXT_VERSION" --changelog-file="$SECTION_FILE"
+pnpm release app --version="$NEXT_VERSION" --changelog-file="$SECTION_FILE"
 ```
 
-With both flags set, the script runs in non-interactive mode: it replaces the `## [Unreleased]` placeholder (or inserts after `# Changelog` if no placeholder), bumps `package.json`, commits `release: v${nextVersion}`, tags `v${nextVersion}`, and pushes both branch and tag to origin.
+With both flags set, the script runs in non-interactive mode: it replaces the `## [Unreleased]` placeholder (or inserts after `# Changelog` if no placeholder), bumps `apps/desktop/package.json`, commits `release: v${nextVersion}`, tags `v${nextVersion}`, and pushes both branch and tag to origin.
 
 After the push completes, report success and the tag URL. If the project ships through electron-builder with auto-update, mention that CI/manual `pnpm build` is what publishes the artifacts the updater will pick up.
 

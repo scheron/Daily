@@ -2,7 +2,7 @@ import {realpathSync} from "node:fs"
 import {fileURLToPath} from "node:url"
 import {Command} from "commander"
 
-import pkg from "../../../package.json"
+import pkg from "../package.json"
 import {registerClaimCodeCommand} from "./commands/claimCode"
 import {registerDeviceCommand} from "./commands/device"
 import {registerStartCommand} from "./commands/start"

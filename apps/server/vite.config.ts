@@ -10,7 +10,7 @@ const external = [/^node:/, ...Object.keys(pkg.dependencies ?? {}).filter((name)
 
 export default defineConfig({
   build: {
-    outDir: join(__dirname, "../../out/server"),
+    outDir: join(__dirname, "out"),
     emptyOutDir: true,
     minify: false,
     target: "node22",
