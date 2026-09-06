@@ -135,10 +135,100 @@ terminating TLS for other services. Set `DAILY_SERVER_PUBLIC_URL` to the address
 for this server — `https://daily.example.com`, say — and bring the service up as shown above.
 
 The server itself speaks plain HTTP inside the compose project's own network; the compose file
-`expose`s its port to that network only, never to the host. Point the reverse proxy at the
-`daily-server` service on the `daily` network the compose file defines — a proxy already running its
-own compose project joins that network as an external one, under the same name — and it reaches the
-container without anything else published.
+`expose`s its port to that network only, never to the host. The proxy reaches it as
+`daily-server:8787` on the `daily` network, without anything published to the host at all.
+
+Three edits, in this order. Nothing here is optional and nothing else is needed.
+
+### 1. Bring this server up first
+
+The compose file above is what creates the `daily` network, and a proxy running in its own compose
+project joins that same network as an _external_ one. An external network has to exist before
+anything can join it, so this server goes up before the proxy is touched:
+
+```bash
+docker compose up -d
+```
+
+The other order fails with `network daily declared as external, but could not be found`. Nothing is
+wrong when that happens except the order — and pre-creating the network by hand does not help, since
+Compose refuses a network it did not label itself.
+
+### 2. Join the proxy to that network
+
+In the proxy's own compose file, put the network on the proxy service and declare it external at the
+bottom. Only these two fragments change; the rest of that file stays as it is:
+
+```yaml
+services:
+  caddy:
+    networks:
+      - daily
+
+networks:
+  daily:
+    name: daily
+    external: true
+```
+
+### 3. Route the address to `daily-server:8787`
+
+Caddy, in the `Caddyfile`:
+
+```
+daily.example.com {
+	reverse_proxy daily-server:8787
+}
+```
+
+nginx — note the body limit, which has to clear `DAILY_SERVER_MAX_ASSET_BYTES` (100 MB by default)
+or attachments fail to upload while everything else looks healthy:
+
+```nginx
+server {
+	server_name daily.example.com;
+
+	location / {
+		proxy_pass http://daily-server:8787;
+		proxy_set_header Host $host;
+		client_max_body_size 128m;
+	}
+}
+```
+
+Traefik, as labels on this server's own service in the compose file above:
+
+```yaml
+labels:
+  traefik.enable: "true"
+  traefik.http.routers.daily.rule: Host(`daily.example.com`)
+  traefik.http.routers.daily.entrypoints: websecure
+  traefik.http.routers.daily.tls.certresolver: letsencrypt
+  traefik.http.services.daily.loadbalancer.server.port: "8787"
+```
+
+Then `docker compose up -d` in the proxy's project. The address is live.
+
+### The first start reports a failed address, and that is expected
+
+Because this server has to come up before the proxy can join its network, the very first start
+happens while nothing yet routes to the public address. It says so, right under the claim code:
+
+```
+This server is unclaimed. Claim code: 547560
+Public address verification failed: Could not reach https://daily.example.com/v1/server: …
+```
+
+Nothing is wrong. While the server is unclaimed the check repeats every 30 seconds for ten minutes,
+so finishing the proxy in that window turns the failure into a confirmation on its own, with no
+restart:
+
+```
+Public address verified: https://daily.example.com reaches this server.
+```
+
+Past that window, `docker compose exec daily-server daily-server verify` re-checks on demand and
+prints the same answer.
 
 ## A bare VPS, no reverse proxy
 
