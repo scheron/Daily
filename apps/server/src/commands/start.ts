@@ -9,6 +9,9 @@ import {verifyPublicUrl} from "../verify/verifyPublicUrl"
 import type {Command} from "commander"
 import type {ServerConfig, ServerConfigOptions} from "../config/resolveServerConfig"
 
+const VERIFY_RETRY_INTERVAL_MS = 30_000
+const VERIFY_RETRY_WINDOW_MS = 10 * 60_000
+
 type StartOptions = {
   host?: string
   port?: string
@@ -70,8 +73,10 @@ function runStart(opts: StartOptions): void {
 
 /**
  * Fires the public-address check for an unclaimed server and logs the result once it settles,
- * without ever blocking `listen`. Skipped, with a line saying so, when `config.publicUrl` is
- * unset — nobody is obliged to set one on the plain in-container default.
+ * without ever blocking `listen`. A failed check is retried quietly until it passes or the
+ * window runs out, so a reverse proxy wired up after this server started turns the first
+ * failure into a confirmation on its own. Skipped, with a line saying so, when
+ * `config.publicUrl` is unset — nobody is obliged to set one on the plain in-container default.
  */
 export function reportPublicUrlVerification(config: ServerConfig, expectedServerId: string): void {
   if (!config.publicUrl) {
@@ -79,7 +84,31 @@ export function reportPublicUrlVerification(config: ServerConfig, expectedServer
     return
   }
 
-  verifyPublicUrl(config.publicUrl, expectedServerId, config.transport === "self-signed")
-    .then(() => console.log(`Public address verified: ${config.publicUrl} reaches this server.`))
-    .catch((err: unknown) => console.log(`Public address verification failed: ${err instanceof Error ? err.message : String(err)}`))
+  const publicUrl = config.publicUrl
+  const allowSelfSigned = config.transport === "self-signed"
+  const deadline = Date.now() + VERIFY_RETRY_WINDOW_MS
+
+  const attempt = (isFirst: boolean): void => {
+    verifyPublicUrl(publicUrl, expectedServerId, allowSelfSigned)
+      .then(() => console.log(`Public address verified: ${publicUrl} reaches this server.`))
+      .catch((error: unknown) => {
+        if (isFirst) {
+          console.log(`Public address verification failed: ${error instanceof Error ? error.message : String(error)}`)
+          console.log(
+            "If a reverse proxy in front of this server is not routing to it yet, that is expected on a first start: finish wiring the proxy and this check confirms the address on its own. To check by hand at any time: daily-server verify.",
+          )
+        }
+
+        if (Date.now() >= deadline) {
+          console.log(
+            `Public address still unverified after ${VERIFY_RETRY_WINDOW_MS / 60_000} minutes. Re-check at any time with: daily-server verify.`,
+          )
+          return
+        }
+
+        setTimeout(() => attempt(false), VERIFY_RETRY_INTERVAL_MS).unref()
+      })
+  }
+
+  attempt(true)
 }
