@@ -8,31 +8,39 @@ const BRANCH = "main"
 
 const ARTIFACTS = {
   app: {
+    label: "desktop",
     manifestPath: "apps/desktop/package.json",
     tagPrefix: "v",
     commitPrefix: "release: v",
     hasChangelog: true,
+    paths: ["apps/desktop", "packages/core", "packages/protocol", "packages/std"],
   },
   server: {
+    label: "server",
     manifestPath: "apps/server/package.json",
     tagPrefix: "server-v",
     commitPrefix: "release: server-v",
     hasChangelog: false,
+    paths: ["apps/server", "packages/protocol", "Dockerfile", "deploy"],
   },
 }
 
-const flags = parseFlags(process.argv.slice(2))
-const artifact = ARTIFACTS[flags.artifact]
+const USAGE = `usage: node scripts/release.js [app|server] [--status] [--dry-run] [--version=X.Y.Z] [--changelog-file=path]`
 
-if (!artifact) {
-  console.error(chalk.red(`❌ Error: usage: node scripts/release.js <app|server> [--dry-run] [--version=X.Y.Z] [--changelog-file=path]`))
+const flags = parseFlags(process.argv.slice(2))
+
+if (flags.artifact && !ARTIFACTS[flags.artifact]) {
+  console.error(chalk.red(`❌ Error: unknown artifact "${flags.artifact}". ${USAGE}`))
   process.exit(0)
 }
 
-const isNonInteractive = artifact.hasChangelog ? !!flags.version && !!flags.changelogFile : !!flags.version
-
 ;(async () => {
   try {
+    const statuses = await surveyArtifacts()
+    printSurvey(statuses)
+
+    if (flags.status) return
+
     const branch = await run("git rev-parse --abbrev-ref HEAD")
 
     if (!flags.dryRun && branch !== BRANCH) {
@@ -46,84 +54,18 @@ const isNonInteractive = artifact.hasChangelog ? !!flags.version && !!flags.chan
       process.exit(0)
     }
 
-    const cwd = process.cwd()
-    const pkgPath = path.join(cwd, artifact.manifestPath)
-    const pkg = JSON.parse(await fs.readFile(pkgPath, "utf8"))
-    const oldVersion = pkg.version
+    const queue = flags.artifact ? [flags.artifact] : await pickArtifacts(statuses)
 
-    let nextVersion
-    if (flags.dryRun) {
-      nextVersion = flags.version || incrementPatchVersion(oldVersion)
-    } else if (isNonInteractive) {
-      nextVersion = flags.version
-    } else {
-      nextVersion = await promptVersion(oldVersion)
-    }
-
-    if (!isValidVersion(nextVersion)) {
-      console.error(chalk.red(`❌ Error: invalid version format: ${nextVersion}`))
-      process.exit(0)
-    }
-
-    const changelogPath = path.join(cwd, "CHANGELOG.md")
-    let newSection = null
-
-    if (artifact.hasChangelog) {
-      let changelog = ""
-      try {
-        changelog = await fs.readFile(changelogPath, "utf8")
-      } catch {
-        changelog = "# Changelog\n\n"
-      }
-
-      newSection = flags.changelogFile ? await loadCuratedSection(flags.changelogFile, nextVersion) : await buildAutoSection(nextVersion)
-
-      if (!flags.dryRun) {
-        changelog = insertSection(changelog, newSection)
-        await fs.writeFile(changelogPath, changelog, "utf8")
-
-        if (!isNonInteractive) {
-          console.log(chalk.cyan("Opening CHANGELOG.md for editing..."))
-          await openEditor(changelogPath)
-
-          const confirm = await question(chalk.cyan("Continue with this release description? (y/n/q): "))
-          if (confirm !== "y") {
-            console.log(chalk.yellow("❌ Release aborted"))
-            process.exit(0)
-          }
-        }
-      }
-    }
-
-    const tag = `${artifact.tagPrefix}${nextVersion}`
-    const commitMessage = `${artifact.commitPrefix}${nextVersion}`
-
-    if (flags.dryRun) {
-      console.log(chalk.cyan(`Dry run for ${flags.artifact}:`))
-      console.log(chalk.cyan(`  manifest: ${artifact.manifestPath}`))
-      console.log(chalk.cyan(`  version:  ${oldVersion} -> ${nextVersion}`))
-      if (artifact.hasChangelog) {
-        console.log(chalk.cyan("  changelog section:"))
-        console.log(newSection)
-      }
-      console.log(chalk.cyan(`  tag:      ${tag}`))
-      console.log(chalk.cyan(`  commit:   ${commitMessage}`))
-      console.log(chalk.yellow("Dry run: no file written, no commit, no tag, no push."))
+    if (!queue.length) {
+      console.log(chalk.yellow("Nothing selected — no release cut."))
       return
     }
 
-    pkg.version = nextVersion
-    await fs.writeFile(pkgPath, JSON.stringify(pkg, null, 2) + "\n")
+    if (flags.artifact) warnAboutUnreleased(statuses, flags.artifact)
 
-    const filesToAdd = artifact.hasChangelog ? `${artifact.manifestPath} CHANGELOG.md` : artifact.manifestPath
-    await run(`git add ${filesToAdd}`)
-    await run(`git commit -m "${commitMessage}"`)
-
-    await run(`git tag ${tag}`)
-
-    await Promise.all([run(`git push origin ${BRANCH}`), run(`git push origin ${tag}`)])
-
-    console.log(chalk.green(`🚀 Released ${tag}`))
+    for (const key of queue) {
+      await releaseArtifact(key, statuses[key])
+    }
   } catch (error) {
     console.error(chalk.red("❌ Error during release:"), error)
     process.exit(0)
@@ -131,19 +73,173 @@ const isNonInteractive = artifact.hasChangelog ? !!flags.version && !!flags.chan
 })()
 
 /**
- * Parse CLI args. The first positional argument is the required artifact,
- * `app` or `server`. Also supports `--dry-run`, and `--version=X.Y.Z` /
- * `--version X.Y.Z` and `--changelog-file=path.md` / `--changelog-file path.md`.
- * When both `--version` and `--changelog-file` are present (or just
- * `--version` for an artifact with no changelog) the script runs
- * non-interactively (no prompts, no editor).
+ * Read every artifact's released version, its own last tag, and how many
+ * commits have touched its paths since that tag. Each artifact is measured
+ * against tags of its own prefix, so releasing one never shifts the other's
+ * baseline.
+ */
+async function surveyArtifacts() {
+  const entries = await Promise.all(
+    Object.entries(ARTIFACTS).map(async ([key, artifact]) => {
+      const pkg = JSON.parse(await fs.readFile(path.join(process.cwd(), artifact.manifestPath), "utf8"))
+      const lastTag = await lastTagFor(artifact.tagPrefix)
+      const pending = await countPendingCommits(lastTag, artifact.paths)
+      return [key, {key, artifact, version: pkg.version, lastTag, pending}]
+    }),
+  )
+  return Object.fromEntries(entries)
+}
+
+function printSurvey(statuses) {
+  console.log(chalk.bold("\nRelease status\n"))
+
+  for (const {artifact, version, lastTag, pending} of Object.values(statuses)) {
+    const name = artifact.label.padEnd(10)
+    const current = String(version).padEnd(10)
+    const detail = pending
+      ? chalk.yellow(`${pending} unreleased commit${pending === 1 ? "" : "s"} since ${lastTag ?? "the beginning"}`)
+      : chalk.gray(`up to date (${lastTag ?? "never released"})`)
+    console.log(`  ${name}${current}${detail}`)
+  }
+
+  console.log("")
+}
+
+async function pickArtifacts(statuses) {
+  const pending = Object.values(statuses).filter((status) => status.pending)
+
+  if (!pending.length) {
+    console.log(chalk.gray("Every artifact is up to date with its last tag."))
+    return []
+  }
+
+  const selected = []
+
+  for (const status of pending) {
+    const next = incrementPatchVersion(status.version)
+    const ans = await question(chalk.cyan(`Release ${status.artifact.label} ${status.version} -> ${next} or higher? (y/n/q): `))
+    if (ans === "y") selected.push(status.key)
+  }
+
+  return selected
+}
+
+function warnAboutUnreleased(statuses, releasingKey) {
+  for (const status of Object.values(statuses)) {
+    if (status.key === releasingKey || !status.pending) continue
+
+    const plural = status.pending === 1 ? "" : "s"
+    const since = status.lastTag ?? "the beginning"
+    console.log(
+      chalk.yellow(`⚠️  ${status.artifact.label} also has ${status.pending} unreleased commit${plural} since ${since} — not part of this release.`),
+    )
+  }
+}
+
+async function releaseArtifact(key, status) {
+  const {artifact, version: oldVersion} = status
+  const cwd = process.cwd()
+  const pkgPath = path.join(cwd, artifact.manifestPath)
+  const pkg = JSON.parse(await fs.readFile(pkgPath, "utf8"))
+  const isNonInteractive = artifact.hasChangelog ? !!flags.version && !!flags.changelogFile : !!flags.version
+
+  let nextVersion
+  if (flags.dryRun) {
+    nextVersion = flags.version || incrementPatchVersion(oldVersion)
+  } else if (isNonInteractive) {
+    nextVersion = flags.version
+  } else {
+    nextVersion = await promptVersion(oldVersion)
+  }
+
+  if (!isValidVersion(nextVersion)) {
+    console.error(chalk.red(`❌ Error: invalid version format: ${nextVersion}`))
+    process.exit(0)
+  }
+
+  const changelogPath = path.join(cwd, "CHANGELOG.md")
+  let newSection = null
+
+  if (artifact.hasChangelog) {
+    let changelog = ""
+    try {
+      changelog = await fs.readFile(changelogPath, "utf8")
+    } catch {
+      changelog = "# Changelog\n\n"
+    }
+
+    newSection = flags.changelogFile
+      ? await loadCuratedSection(flags.changelogFile, nextVersion)
+      : await buildAutoSection(nextVersion, status.lastTag)
+
+    if (!flags.dryRun) {
+      changelog = insertSection(changelog, newSection)
+      await fs.writeFile(changelogPath, changelog, "utf8")
+
+      if (!isNonInteractive) {
+        console.log(chalk.cyan("Opening CHANGELOG.md for editing..."))
+        await openEditor(changelogPath)
+
+        const confirm = await question(chalk.cyan("Continue with this release description? (y/n/q): "))
+        if (confirm !== "y") {
+          console.log(chalk.yellow("❌ Release aborted"))
+          process.exit(0)
+        }
+      }
+    }
+  }
+
+  const tag = `${artifact.tagPrefix}${nextVersion}`
+  const commitMessage = `${artifact.commitPrefix}${nextVersion}`
+
+  if (flags.dryRun) {
+    console.log(chalk.cyan(`Dry run for ${key}:`))
+    console.log(chalk.cyan(`  manifest: ${artifact.manifestPath}`))
+    console.log(chalk.cyan(`  version:  ${oldVersion} -> ${nextVersion}`))
+    console.log(chalk.cyan(`  since:    ${status.lastTag ?? "the beginning"} (${status.pending} commit${status.pending === 1 ? "" : "s"})`))
+    if (artifact.hasChangelog) {
+      console.log(chalk.cyan("  changelog section:"))
+      console.log(newSection)
+    }
+    console.log(chalk.cyan(`  tag:      ${tag}`))
+    console.log(chalk.cyan(`  commit:   ${commitMessage}`))
+    console.log(chalk.yellow("Dry run: no file written, no commit, no tag, no push."))
+    return
+  }
+
+  pkg.version = nextVersion
+  await fs.writeFile(pkgPath, JSON.stringify(pkg, null, 2) + "\n")
+
+  const filesToAdd = artifact.hasChangelog ? `${artifact.manifestPath} CHANGELOG.md` : artifact.manifestPath
+  await run(`git add ${filesToAdd}`)
+  await run(`git commit -m "${commitMessage}"`)
+
+  await run(`git tag ${tag}`)
+
+  await Promise.all([run(`git push origin ${BRANCH}`), run(`git push origin ${tag}`)])
+
+  console.log(chalk.green(`🚀 Released ${tag}`))
+}
+
+/**
+ * Parse CLI args. The first positional argument optionally names one artifact,
+ * `app` or `server`; with none, the script surveys both and asks which to cut.
+ * Also supports `--status` (survey and exit), `--dry-run`, and
+ * `--version=X.Y.Z` / `--version X.Y.Z` and `--changelog-file=path.md` /
+ * `--changelog-file path.md`. When an artifact is named and both `--version`
+ * and `--changelog-file` are present (or just `--version` for an artifact with
+ * no changelog) the script runs non-interactively (no prompts, no editor).
  */
 function parseFlags(argv) {
-  const out = {artifact: null, dryRun: false, version: null, changelogFile: null}
+  const out = {artifact: null, status: false, dryRun: false, version: null, changelogFile: null}
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
     if (arg === "--dry-run") {
       out.dryRun = true
+      continue
+    }
+    if (arg === "--status") {
+      out.status = true
       continue
     }
     if (!arg.startsWith("--")) {
@@ -173,8 +269,7 @@ async function promptVersion(oldVersion) {
   return nextVersion
 }
 
-async function buildAutoSection(nextVersion) {
-  const lastTag = await getLastTag()
+async function buildAutoSection(nextVersion, lastTag) {
   const commits = await getCommitMessagesSinceLastTag(lastTag)
   const date = new Date().toISOString().split("T")[0]
   return `## v${nextVersion} - ${date}\n\n${commits}\n\n`
@@ -245,13 +340,19 @@ async function run(cmd, exitOnError = true) {
   })
 }
 
-async function getLastTag() {
-  try {
-    return await run("git describe --tags --abbrev=0", false)
-  } catch {
-    console.log(chalk.yellow("No tags found."))
-    return null
-  }
+/**
+ * The most recent tag carrying this artifact's own prefix. Matching on the
+ * prefix is what keeps `server-v0.1.0` from becoming the app's baseline.
+ */
+async function lastTagFor(tagPrefix) {
+  const tag = await run(`git describe --tags --abbrev=0 --match '${tagPrefix}[0-9]*' HEAD`, false)
+  return tag || null
+}
+
+async function countPendingCommits(lastTag, paths) {
+  const range = lastTag ? `${lastTag}..HEAD` : "HEAD"
+  const commits = await run(`git log ${range} --no-merges --pretty=format:%h -- ${paths.join(" ")}`, false)
+  return commits ? commits.split("\n").length : 0
 }
 
 async function getCommitMessagesSinceLastTag(lastTag) {

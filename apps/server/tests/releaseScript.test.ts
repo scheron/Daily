@@ -16,8 +16,20 @@ function readVersion(manifestPath: string): string {
   return (JSON.parse(readFileSync(manifestPath, "utf-8")) as {version: string}).version
 }
 
+function runScript(cwd: string, args: string[]): string {
+  return execFileSync("node", [releaseScriptPath, ...args], {cwd, input: "", timeout: 10000}).toString()
+}
+
 function runDryRun(cwd: string, artifact: "app" | "server"): string {
-  return execFileSync("node", [releaseScriptPath, artifact, "--dry-run"], {cwd, input: "", timeout: 10000}).toString()
+  return runScript(cwd, [artifact, "--dry-run"])
+}
+
+function commitTouching(cwd: string, filePath: string, message: string): void {
+  const absolute = join(cwd, filePath)
+  mkdirSync(dirname(absolute), {recursive: true})
+  writeFileSync(absolute, `${message}\n`)
+  execFileSync("git", ["add", "-A"], {cwd})
+  execFileSync("git", ["commit", "-q", "-m", message], {cwd})
 }
 
 describe("scripts/release.js --dry-run", () => {
@@ -62,5 +74,41 @@ describe("scripts/release.js --dry-run", () => {
     expect(readVersion(join(repo, "apps", "desktop", "package.json"))).toBe("1.2.3")
     expect(readVersion(join(repo, "apps", "server", "package.json"))).toBe("4.5.6")
     expect(readFileSync(join(repo, "CHANGELOG.md"), "utf-8")).toBe("# Changelog\n\n## [Unreleased]\n\n")
+  }, 30000)
+
+  it("measures each artifact against a tag of its own prefix, so a server release does not become the app's baseline", () => {
+    execFileSync("git", ["tag", "v1.2.3"], {cwd: repo})
+    commitTouching(repo, "apps/desktop/feature.ts", "feat: a desktop change")
+    execFileSync("git", ["tag", "server-v4.5.6"], {cwd: repo})
+
+    const output = runScript(repo, ["--status"])
+
+    expect(output).toMatch(/desktop\s+1\.2\.3\s+1 unreleased commit since v1\.2\.3/)
+    expect(output).not.toContain("since server-v4.5.6")
+    expect(output).toMatch(/server\s+4\.5\.6\s+up to date \(server-v4\.5\.6\)/)
+  }, 30000)
+
+  it("--status surveys both artifacts and stops there, touching nothing", () => {
+    const headBefore = git(repo, ["rev-parse", "HEAD"])
+
+    const output = runScript(repo, ["--status"])
+
+    expect(output).toContain("Release status")
+    expect(output).toContain("desktop")
+    expect(output).toContain("server")
+    expect(output).not.toContain("Dry run")
+    expect(git(repo, ["rev-parse", "HEAD"])).toBe(headBefore)
+    expect(git(repo, ["tag"])).toBe("")
+    expect(git(repo, ["status", "--porcelain"])).toBe("")
+  }, 30000)
+
+  it("warns that the other artifact has unreleased commits when only one is named", () => {
+    execFileSync("git", ["tag", "v1.2.3"], {cwd: repo})
+    execFileSync("git", ["tag", "server-v4.5.6"], {cwd: repo})
+    commitTouching(repo, "apps/server/handler.ts", "feat: a server change")
+
+    const output = runDryRun(repo, "app")
+
+    expect(output).toContain("server also has 1 unreleased commit since server-v4.5.6")
   }, 30000)
 })

@@ -1,6 +1,6 @@
 ---
 name: release-daily
-description: Cut a release of the Daily app — analyze commits + diffs since the last tag, filter to user-facing changes only (App Store-style product changelog), interactively propose 2-3 phrasing options per section and a version bump with recommendations, then on user approval invoke `pnpm release` non-interactively with the agreed values. Use this skill whenever the user says "release", "bump version", asks what changed since the last release, or wants help drafting CHANGELOG entries or deciding what version to ship. Also triggers when the user mentions CHANGELOG.md, `scripts/release.js`, or version-tag workflows in this project.
+description: Cut a release of the Daily app — survey what each artifact (app and sync server) has pending, analyze commits + diffs since the app's own last tag, filter to user-facing changes only (App Store-style product changelog), interactively propose 2-3 phrasing options per section and a version bump with recommendations, then on user approval invoke `pnpm release` non-interactively with the agreed values. Use this skill whenever the user says "release", "bump version", asks what changed since the last release, or wants help drafting CHANGELOG entries or deciding what version to ship. Also triggers when the user mentions CHANGELOG.md, `scripts/release.js`, or version-tag workflows in this project.
 ---
 
 # Release the Daily project
@@ -18,16 +18,28 @@ Changes that live entirely inside the implementation — internal refactors, tes
 
 ## The flow
 
-The skill is interactive end-to-end. The user signs off on both the CHANGELOG text and the version before anything is committed, tagged, or pushed. `pnpm release` runs only after explicit approval at step 8.
+The skill is interactive end-to-end. The user signs off on both the CHANGELOG text and the version before anything is committed, tagged, or pushed. `pnpm release` runs only after explicit approval at step 8, and the server's own release at step 10 needs its own yes.
 
-### Step 1 — preconditions
+### Step 1 — preconditions and release status
 
 ```bash
 git rev-parse --abbrev-ref HEAD    # must be "main"
 git status --porcelain             # must be empty
+pnpm release --status              # what each artifact has pending
 ```
 
 If the branch isn't `main` or the tree has uncommitted changes, STOP and tell the user — finishing/merging first is the right next step, and the release script will refuse anyway.
+
+`pnpm release --status` surveys **both** artifacts — the app (`apps/desktop`, tags `v*`) and the sync server (`apps/server`, tags `server-v*`) — and prints each one's version, its own last tag, and how many commits have touched it since:
+
+```
+Release status
+
+  desktop   0.18.0    11 unreleased commits since v0.18.0
+  server    0.1.0      2 unreleased commits since server-v0.1.0
+```
+
+The two artifacts version independently, and the survey is the only thing standing between "released the server" and "thought the app went too". **Report both lines to the user before drafting anything.** If the server also has pending commits, say so now and ask whether it ships in this session too — its release is step 10, after the app's.
 
 If the user explicitly asks for "just a preview, no release yet", run steps 2–7 from any branch and stop before step 8.
 
@@ -35,8 +47,10 @@ If the user explicitly asks for "just a preview, no release yet", run steps 2–
 
 Read commit subjects AND bodies AND diffs — subjects compress a lot, especially in squashed merges, and the body often carries the real shape of the work.
 
+**Match the tag prefix.** A bare `git describe --tags --abbrev=0` returns whichever tag is newest across _both_ namespaces, so right after a `server-v*` release it silently hands you the wrong baseline and the changelog covers the wrong range. Always constrain to the app's own prefix:
+
 ```bash
-LAST_TAG=$(git describe --tags --abbrev=0)
+LAST_TAG=$(git describe --tags --abbrev=0 --match 'v[0-9]*' HEAD)
 git log "${LAST_TAG}..HEAD" --pretty=format:"%H%n%s%n%b%n---" --no-merges
 
 # For each commit, also check the file scope:
@@ -184,9 +198,21 @@ EOF
 pnpm release app --version="$NEXT_VERSION" --changelog-file="$SECTION_FILE"
 ```
 
-With both flags set, the script runs in non-interactive mode: it replaces the `## [Unreleased]` placeholder (or inserts after `# Changelog` if no placeholder), bumps `apps/desktop/package.json`, commits `release: v${nextVersion}`, tags `v${nextVersion}`, and pushes both branch and tag to origin.
+With both flags set, the script runs in non-interactive mode: it replaces the `## [Unreleased]` placeholder (or inserts after `# Changelog` if no placeholder), bumps `apps/desktop/package.json`, commits `release: v${nextVersion}`, tags `v${nextVersion}`, and pushes both branch and tag to origin. Naming `app` also makes it print a `⚠️ server also has N unreleased commits` line when the server is behind — that line is step 10's cue, not noise to skip past.
 
-After the push completes, report success and the tag URL. If the project ships through electron-builder with auto-update, mention that CI/manual `pnpm build` is what publishes the artifacts the updater will pick up.
+After the push completes, report success and the tag URL. Pushing `v*` triggers `.github/workflows/release.yml`, which builds the `.dmg` and publishes the GitHub Release.
+
+### Step 10 — the sync server, if it is behind
+
+The server is a separate artifact with its own tag namespace (`server-v*`) and its own workflow (`release-server.yml`, which builds and pushes the Docker image). It has no changelog, so its release is one prompt, not an interview:
+
+```bash
+pnpm release server --version="$SERVER_VERSION"
+```
+
+Confirm the version with the user first — the survey from step 1 gives the current one and the pending count. Self-hosters pin the rolling protocol tag (`ghcr.io/scheron/daily-server:p<N>`), not the semver, so this number is for humans reading the release list.
+
+If the server is up to date, say so explicitly and stop — a release with nothing in it is noise for everyone running `daily.sh upgrade`.
 
 ## Edge cases worth handling proactively
 

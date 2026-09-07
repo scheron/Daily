@@ -8,6 +8,8 @@
 pnpm dev                              # dev server, hot reload
 pnpm --filter @daily/desktop build    # package macOS .dmg
 pnpm --filter @daily/server build     # bundle the sync server
+node scripts/release.js --status      # what each artifact has pending since its own tag
+node scripts/release.js               # survey both, then ask which to release
 node scripts/release.js app           # release the app (--dry-run supported)
 node scripts/release.js server        # release the server (--dry-run supported)
 pnpm typecheck:all       # every package — run before committing
