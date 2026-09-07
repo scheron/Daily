@@ -295,6 +295,18 @@ describe("disconnecting", () => {
   })
 })
 
+describe("an unbound device", () => {
+  it("answers pendingApproval with null instead of throwing, and still refuses approve and deny", async () => {
+    const store = makeSettingsStore({server: {enabled: false, binding: null}})
+    const service = makeService(store)
+
+    await expect(service.pendingApproval()).resolves.toBeNull()
+
+    await expect(service.approve("req-1", "000000")).rejects.toMatchObject({code: SyncServerErrorCode.NO_BINDING})
+    await expect(service.deny("req-1")).rejects.toMatchObject({code: SyncServerErrorCode.NO_BINDING})
+  })
+})
+
 describe("the enrollment wait", () => {
   it("clears_TC-23_a_lapsed_enrollment_wait_and_never_reuses_its_code_on_a_fresh_request", async () => {
     const server = await bootSyncServer()

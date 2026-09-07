@@ -160,9 +160,12 @@ export class ServerProviderService implements IServerProvider {
     await this.deps.onBindingChanged()
   }
 
-  /** The one enrollment request waiting on this server, for a human on this Mac to recognise. */
+  /** The one enrollment request waiting on this server, or `null` when none waits and when no server is connected. */
   async pendingApproval(): Promise<PendingApprovalView | null> {
-    const pending = await (await this.boundClient()).pendingEnrollment()
+    const client = await this.clientIfBound()
+    if (!client) return null
+
+    const pending = await client.pendingEnrollment()
     if (!pending) return null
 
     return {
@@ -247,11 +250,18 @@ export class ServerProviderService implements IServerProvider {
     return new DailySyncClient({baseUrl: attempt.baseUrl, token: null, fingerprint: attempt.transport.fingerprint})
   }
 
-  private async boundClient(): Promise<DailySyncClient> {
+  private async clientIfBound(): Promise<DailySyncClient | null> {
     const binding = (await this.deps.loadSettings()).sync.server.binding
-    if (!binding) throw new SyncServerError(SyncServerErrorCode.NO_BINDING, "This device is not connected to a Daily Sync Server")
+    if (!binding) return null
 
     return new DailySyncClient({baseUrl: binding.baseUrl, token: binding.token, fingerprint: binding.fingerprint})
+  }
+
+  private async boundClient(): Promise<DailySyncClient> {
+    const client = await this.clientIfBound()
+    if (!client) throw new SyncServerError(SyncServerErrorCode.NO_BINDING, "This device is not connected to a Daily Sync Server")
+
+    return client
   }
 
   private async probeTick(): Promise<void> {
