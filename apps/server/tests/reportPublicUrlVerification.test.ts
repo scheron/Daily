@@ -50,14 +50,6 @@ describe("reportPublicUrlVerification", () => {
     expect(verifyPublicUrlMock).toHaveBeenCalledWith("http://example.test", "server-id", false)
   })
 
-  it("passes allowSelfSigned=false for the own-certificate transport", () => {
-    verifyPublicUrlMock.mockResolvedValue({serverId: "server-id", protocol: 1, claimed: false})
-
-    reportPublicUrlVerification(config({publicUrl: "https://example.test", transport: "own-certificate"}), "server-id")
-
-    expect(verifyPublicUrlMock).toHaveBeenCalledWith("https://example.test", "server-id", false)
-  })
-
   it("passes allowSelfSigned=true for the self-signed transport", () => {
     verifyPublicUrlMock.mockResolvedValue({serverId: "server-id", protocol: 1, claimed: false})
 

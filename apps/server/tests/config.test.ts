@@ -11,8 +11,6 @@ const ENV_KEYS = [
   "DAILY_SERVER_HOST",
   "DAILY_SERVER_PORT",
   "DAILY_SERVER_DATA_DIR",
-  "DAILY_SERVER_CERT",
-  "DAILY_SERVER_KEY",
   "DAILY_SERVER_MAX_ASSET_BYTES",
   "DAILY_SERVER_MAX_SNAPSHOT_BYTES",
   "DAILY_SERVER_PUBLIC_URL",
@@ -67,16 +65,6 @@ describe("resolveServerConfig", () => {
     expect(config.publicUrl).toBeNull()
   })
 
-  it("TC-3: DAILY_SERVER_CERT and DAILY_SERVER_KEY both set resolve to the own-certificate transport, carrying both paths", () => {
-    process.env.DAILY_SERVER_CERT = "/fixtures/cert.pem"
-    process.env.DAILY_SERVER_KEY = "/fixtures/key.pem"
-
-    const config = resolveServerConfig({})
-
-    expect(config.transport).toBe("own-certificate")
-    expect(config.tls).toEqual({certPath: "/fixtures/cert.pem", keyPath: "/fixtures/key.pem"})
-  })
-
   it("TC-4: a config.json in the data directory is ignored entirely — the result is the same as with no file at all", () => {
     writeFileSync(
       join(dataDir, "config.json"),
@@ -100,22 +88,36 @@ describe("resolveServerConfig", () => {
     expect(err.message).toContain("DAILY_SERVER_PUBLIC_URL")
   })
 
-  it("TC-6: DAILY_SERVER_TLS=self-signed together with DAILY_SERVER_CERT and DAILY_SERVER_KEY throws INVALID_ENVIRONMENT naming all three variables", () => {
-    process.env.DAILY_SERVER_TLS = "self-signed"
-    process.env.DAILY_SERVER_CERT = "/fixtures/cert.pem"
-    process.env.DAILY_SERVER_KEY = "/fixtures/key.pem"
-
-    const err = expectServerSetupError(() => resolveServerConfig({}), ServerSetupErrorCode.INVALID_ENVIRONMENT)
-    expect(err.message).toContain("DAILY_SERVER_TLS")
-    expect(err.message).toContain("DAILY_SERVER_CERT")
-    expect(err.message).toContain("DAILY_SERVER_KEY")
-  })
-
   it("TC-7: DAILY_SERVER_TLS set to a value that is neither plain nor self-signed throws INVALID_ENVIRONMENT naming the variable and the two accepted values", () => {
     process.env.DAILY_SERVER_TLS = "insecure-public"
 
     const err = expectServerSetupError(() => resolveServerConfig({}), ServerSetupErrorCode.INVALID_ENVIRONMENT)
     expect(err.message).toContain("DAILY_SERVER_TLS")
+    expect(err.message).toContain("plain")
+    expect(err.message).toContain("self-signed")
+  })
+
+  it("TC-1: DAILY_SERVER_CERT and DAILY_SERVER_KEY no longer influence the resolved config — plain transport, no TLS, and nothing thrown", () => {
+    process.env.DAILY_SERVER_CERT = "/fixtures/cert.pem"
+    process.env.DAILY_SERVER_KEY = "/fixtures/key.pem"
+
+    const config = resolveServerConfig({})
+
+    expect(config.transport).toBe("plain")
+    expect(config.tls).toBeNull()
+  })
+
+  it("TC-2: DAILY_SERVER_TLS=self-signed with no DAILY_SERVER_PUBLIC_URL throws INVALID_ENVIRONMENT naming the missing public URL", () => {
+    process.env.DAILY_SERVER_TLS = "self-signed"
+
+    const err = expectServerSetupError(() => resolveServerConfig({}), ServerSetupErrorCode.INVALID_ENVIRONMENT)
+    expect(err.message).toContain("DAILY_SERVER_PUBLIC_URL")
+  })
+
+  it("TC-3: DAILY_SERVER_TLS=letsencrypt throws INVALID_ENVIRONMENT naming the accepted values plain and self-signed", () => {
+    process.env.DAILY_SERVER_TLS = "letsencrypt"
+
+    const err = expectServerSetupError(() => resolveServerConfig({}), ServerSetupErrorCode.INVALID_ENVIRONMENT)
     expect(err.message).toContain("plain")
     expect(err.message).toContain("self-signed")
   })

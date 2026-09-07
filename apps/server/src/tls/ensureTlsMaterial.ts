@@ -11,16 +11,14 @@ export type TlsMaterial = {certPath: string; keyPath: string; fingerprint: strin
 
 /**
  * Resolves the TLS material `createHttpServer` should be given for `config.transport`: `null`
- * for plain HTTP, the configured pair as-is for `own-certificate`, and for `self-signed` a
- * certificate under `<dataDir>/tls/` — reused when it already covers the public URL's host,
- * minted with `generateSelfSignedCertificate` when the directory is empty. A certificate on disk
- * covering a different host refuses rather than being replaced.
+ * for plain HTTP, and for `self-signed` a certificate under `<dataDir>/tls/` — reused when it
+ * already covers the public URL's host, minted with `generateSelfSignedCertificate` when the
+ * directory is empty. A certificate on disk covering a different host refuses rather than being
+ * replaced.
  */
 export function ensureTlsMaterial(config: ServerConfig): TlsMaterial | null {
   if (config.transport === "self-signed") return ensureSelfSignedMaterial(config)
-  if (!config.tls) return null
-
-  return {certPath: config.tls.certPath, keyPath: config.tls.keyPath, fingerprint: null}
+  return null
 }
 
 function ensureSelfSignedMaterial(config: ServerConfig): TlsMaterial {

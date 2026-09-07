@@ -1,4 +1,4 @@
 services:
   daily-server:
     environment:
-      DAILY_SERVER_PUBLIC_URL: https://elsewhere.test:8787
+      DAILY_SERVER_PUBLIC_URL: https://elsewhere.test

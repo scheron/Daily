@@ -87,6 +87,9 @@ importers:
       vue-eslint-parser:
         specifier: ^10.1.3
         version: 10.2.0(eslint@9.39.2(jiti@2.6.1)(supports-color@7.2.0))(supports-color@7.2.0)
+      yaml:
+        specifier: ^2.8.2
+        version: 2.8.2
 
   apps/desktop:
     dependencies:

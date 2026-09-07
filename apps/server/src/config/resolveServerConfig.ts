@@ -5,14 +5,12 @@ import {SYNC_PROTOCOL_CONFIG} from "@daily/protocol"
 import {ServerSetupError} from "../errors/server/ServerSetupError"
 import {ServerSetupErrorCode} from "../errors/server/ServerSetupErrorCode"
 
-export type ServerTransportChoice = "plain" | "self-signed" | "own-certificate"
+export type ServerTransportChoice = "plain" | "self-signed"
 
 export type ServerConfigOptions = {
   host?: string
   port?: number
   dataDir?: string
-  cert?: string
-  key?: string
   maxAssetBytes?: number
   maxSnapshotBodyBytes?: number
 }
@@ -39,16 +37,14 @@ export function resolveServerConfig(options: ServerConfigOptions): ServerConfig 
   const maxAssetBytes = options.maxAssetBytes ?? envMaxAssetBytes() ?? SYNC_PROTOCOL_CONFIG.maxAssetBytes
   const maxSnapshotBodyBytes = options.maxSnapshotBodyBytes ?? envMaxSnapshotBodyBytes() ?? SYNC_PROTOCOL_CONFIG.maxSnapshotBodyBytes
 
-  const certPath = options.cert ?? process.env.DAILY_SERVER_CERT
-  const keyPath = options.key ?? process.env.DAILY_SERVER_KEY
   const publicUrl = process.env.DAILY_SERVER_PUBLIC_URL ?? null
-  const transport = resolveTransport(certPath, keyPath, process.env.DAILY_SERVER_TLS, publicUrl)
+  const transport = resolveTransport(process.env.DAILY_SERVER_TLS, publicUrl)
 
   return {
     host,
     port,
     dataDir,
-    tls: certPath && keyPath ? {certPath, keyPath} : null,
+    tls: null,
     maxAssetBytes,
     maxSnapshotBodyBytes,
     publicUrl,
@@ -56,28 +52,9 @@ export function resolveServerConfig(options: ServerConfigOptions): ServerConfig 
   }
 }
 
-function resolveTransport(
-  certPath: string | undefined,
-  keyPath: string | undefined,
-  tlsChoice: string | undefined,
-  publicUrl: string | null,
-): ServerTransportChoice {
-  if (Boolean(certPath) !== Boolean(keyPath)) {
-    throw new ServerSetupError(ServerSetupErrorCode.INVALID_ENVIRONMENT, "DAILY_SERVER_CERT and DAILY_SERVER_KEY must both be set, or neither")
-  }
-
+function resolveTransport(tlsChoice: string | undefined, publicUrl: string | null): ServerTransportChoice {
   if (tlsChoice !== undefined && tlsChoice !== "plain" && tlsChoice !== "self-signed") {
     throw new ServerSetupError(ServerSetupErrorCode.INVALID_ENVIRONMENT, `DAILY_SERVER_TLS must be "plain" or "self-signed", got "${tlsChoice}"`)
-  }
-
-  if (certPath && keyPath) {
-    if (tlsChoice === "self-signed") {
-      throw new ServerSetupError(
-        ServerSetupErrorCode.INVALID_ENVIRONMENT,
-        "DAILY_SERVER_TLS=self-signed conflicts with DAILY_SERVER_CERT and DAILY_SERVER_KEY: unset one to resolve which certificate the server should use",
-      )
-    }
-    return "own-certificate"
   }
 
   if (tlsChoice === "self-signed") {

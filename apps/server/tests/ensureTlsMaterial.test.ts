@@ -48,12 +48,6 @@ describe("ensureTlsMaterial", () => {
     expect(ensureTlsMaterial(config({transport: "plain"}))).toBeNull()
   })
 
-  it("own-certificate transport passes the configured pair through untouched, with no fingerprint to pin", () => {
-    const material = ensureTlsMaterial(config({transport: "own-certificate", tls: {certPath: "/fixtures/cert.pem", keyPath: "/fixtures/key.pem"}}))
-
-    expect(material).toEqual({certPath: "/fixtures/cert.pem", keyPath: "/fixtures/key.pem", fingerprint: null})
-  })
-
   it("self-signed mints a certificate under <dataDir>/tls/ on the first call, and reuses it with the same fingerprint on the next", () => {
     const cfg = config({transport: "self-signed", publicUrl: "https://example.test:8787"})
 

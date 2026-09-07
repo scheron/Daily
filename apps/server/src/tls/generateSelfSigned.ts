@@ -91,7 +91,7 @@ function ensureOpensslAvailable(): void {
   } catch {
     throw new ServerSetupError(
       ServerSetupErrorCode.OPENSSL_MISSING,
-      "openssl was not found on PATH. Set DAILY_SERVER_CERT and DAILY_SERVER_KEY to use your own certificate instead, or leave DAILY_SERVER_TLS unset for plain HTTP if this server is only reachable on a private network.",
+      "openssl was not found on PATH. Install openssl to mint a self-signed certificate, or leave DAILY_SERVER_TLS unset for plain HTTP if this server is only reachable on a private network.",
     )
   }
 }

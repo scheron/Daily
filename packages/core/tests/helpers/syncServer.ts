@@ -46,7 +46,8 @@ export function bootSyncServer(overrides: ServerConfigOptions = {}): Promise<Boo
 export function bootHttpsSyncServer(overrides: ServerConfigOptions = {}): Promise<BootedHttpsSyncServer> {
   const dataDir = overrides.dataDir ?? mkdtempSync(join(tmpdir(), "daily-sync-server-https-"))
   const {certPath, keyPath, fingerprint} = generateSelfSignedCertificate(dataDir)
-  const config = resolveServerConfig({host: "127.0.0.1", port: 0, ...overrides, dataDir, cert: certPath, key: keyPath})
+  const base = resolveServerConfig({host: "127.0.0.1", port: 0, ...overrides, dataDir})
+  const config: ServerConfig = {...base, tls: {certPath, keyPath}, transport: "self-signed"}
 
   return startServer(config, dataDir).then((server) => ({...server, fingerprint}))
 }

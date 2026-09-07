@@ -113,3 +113,34 @@ jobs:
         run: pnpm --filter @daily/desktop build:compress
         env:
           NODE_ENV: production
+
+  lint-deploy-script:
+    name: Lint & Validate Deploy Script
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install shellcheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+
+      - name: Shellcheck deploy/install.sh
+        run: shellcheck deploy/install.sh
+
+      - name: Generate the three topologies with install.sh --dry-run
+        run: |
+          mkdir -p /tmp/daily-domain /tmp/daily-ip /tmp/daily-no-proxy
+          sh deploy/install.sh --domain daily.example.com --dir /tmp/daily-domain --dry-run
+          sh deploy/install.sh --ip 203.0.113.10 --dir /tmp/daily-ip --dry-run
+          sh deploy/install.sh --domain daily.example.com --no-proxy --dir /tmp/daily-no-proxy --dry-run
+
+      - name: Shellcheck the generated daily.sh
+        run: shellcheck /tmp/daily-domain/daily.sh
+
+      - name: Validate generated compose files
+        run: |
+          (cd /tmp/daily-domain && docker compose -f compose.yaml config -q)
+          (cd /tmp/daily-ip && docker compose -f compose.yaml config -q)
+          (cd /tmp/daily-no-proxy && docker compose -f compose.yaml config -q)
