@@ -4,6 +4,28 @@ import {describe, expect, it} from "vitest"
 import {deepMerge} from "@daily/std"
 
 describe("deepMerge", () => {
+  it("ignores __proto__ from a parsed payload instead of polluting Object.prototype", () => {
+    const target = {a: 1}
+    const source = JSON.parse('{"__proto__": {"polluted": "yes"}, "a": 2}')
+
+    deepMerge(target, source)
+
+    expect(({} as any).polluted).toBeUndefined()
+    expect(Object.prototype).not.toHaveProperty("polluted")
+    expect(target).toEqual({a: 2})
+  })
+
+  it("ignores constructor and prototype keys", () => {
+    const target = {a: 1}
+
+    deepMerge(target, JSON.parse('{"constructor": {"prototype": {"polluted": "yes"}}}'))
+    deepMerge(target, JSON.parse('{"prototype": {"polluted": "yes"}}'))
+
+    expect(({} as any).polluted).toBeUndefined()
+    expect(target.constructor).toBe(Object)
+    expect(target).toEqual({a: 1})
+  })
+
   it("copies source properties into target in-place", () => {
     const target = {a: 1, b: 2}
     const result = deepMerge(target, {b: 3, c: 4})

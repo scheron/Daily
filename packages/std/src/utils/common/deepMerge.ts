@@ -1,5 +1,7 @@
 import {isArray, isObject, notUndefined} from "./validators"
 
+const PROTOTYPE_KEYS = new Set(["__proto__", "constructor", "prototype"])
+
 /**
  * Deep merge two objects in-place.
  * @param target - The target object to merge into.
@@ -34,6 +36,8 @@ export function deepMerge<T>(target: T, source: Partial<T>, getId: (data: any) =
 
     if (isMergeableObject(target) && isMergeableObject(source)) {
       for (const key in source) {
+        if (PROTOTYPE_KEYS.has(key)) continue
+
         const value = source[key]
         const targetValue = (target as any)[key]
 
