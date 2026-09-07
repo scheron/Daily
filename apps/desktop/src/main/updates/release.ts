@@ -8,15 +8,38 @@ import {logger} from "@daily/core"
 import {electronPaths} from "@main/runtime/electronPaths"
 import {downloadWithProgress} from "@main/utils/files/downloadWithProgress"
 import {UPDATES_CONFIG} from "@shared/config/updates"
+import {GitHubRateLimitError} from "@shared/errors/updates/GitHubRateLimitError"
 import {parseGitHubReleaseMeta} from "./utils/parseGitHubReleaseMeta"
 
 import type {AppUpdateCacheState} from "@daily/protocol"
 import type {ReleaseMeta} from "@main/types/updates"
 
-export async function resolveLatestRelease(): Promise<ReleaseMeta> {
-  const githubRelease = await getGitHubReleaseMeta()
-  if (!githubRelease) throw new Error("Failed to read GitHub release metadata.")
-  return githubRelease
+export type ReleaseLookupResult = {status: "not-modified"} | {status: "fresh"; release: ReleaseMeta; etag: string | null}
+
+/**
+ * Reads the latest release from GitHub, replaying `etag` as a conditional request.
+ * A `not-modified` result means the caller's cached release is still current — GitHub
+ * does not charge rate-limit budget for it.
+ * @param etag ETag of the response the cached release came from, or null to fetch unconditionally.
+ * @throws GitHubRateLimitError when the unauthenticated rate limit is exhausted.
+ */
+export async function fetchLatestRelease(etag: string | null): Promise<ReleaseLookupResult> {
+  const response = await fetch(`https://api.github.com/repos/${UPDATES_CONFIG.githubRepo}/releases/latest`, {
+    headers: etag ? {...UPDATES_CONFIG.githubHeaders, "If-None-Match": etag} : UPDATES_CONFIG.githubHeaders,
+  })
+
+  if (response.status === 304) return {status: "not-modified"}
+
+  if (isRateLimited(response)) throw new GitHubRateLimitError(readRateLimitReset(response))
+
+  if (!response.ok) {
+    throw new Error(`GitHub releases API returned ${response.status} ${response.statusText}.`)
+  }
+
+  const release = parseGitHubReleaseMeta((await response.json()) as Parameters<typeof parseGitHubReleaseMeta>[0])
+  if (!release) throw new Error("Failed to read GitHub release metadata.")
+
+  return {status: "fresh", release, etag: response.headers.get("etag")}
 }
 
 export async function downloadRelease(release: ReleaseMeta, onProgress: (progress: number | null) => void): Promise<AppUpdateCacheState> {
@@ -51,16 +74,19 @@ export async function downloadRelease(release: ReleaseMeta, onProgress: (progres
   }
 }
 
-async function getGitHubReleaseMeta(): Promise<ReleaseMeta | null> {
-  const response = await fetch(`https://api.github.com/repos/${UPDATES_CONFIG.githubRepo}/releases/latest`, {
-    headers: UPDATES_CONFIG.githubHeaders,
-  })
+function isRateLimited(response: Response): boolean {
+  if (response.status !== 403 && response.status !== 429) return false
+  return response.headers.get("x-ratelimit-remaining") === "0" || response.headers.has("retry-after")
+}
 
-  if (!response.ok) {
-    throw new Error(`GitHub releases API returned ${response.status} ${response.statusText}.`)
-  }
+function readRateLimitReset(response: Response): Date | null {
+  const retryAfter = Number(response.headers.get("retry-after"))
+  if (Number.isFinite(retryAfter) && retryAfter > 0) return new Date(Date.now() + retryAfter * 1000)
 
-  return parseGitHubReleaseMeta((await response.json()) as Parameters<typeof parseGitHubReleaseMeta>[0])
+  const resetAt = Number(response.headers.get("x-ratelimit-reset"))
+  if (Number.isFinite(resetAt) && resetAt > 0) return new Date(resetAt * 1000)
+
+  return null
 }
 
 async function computeFileSha256(filePath: string): Promise<string> {

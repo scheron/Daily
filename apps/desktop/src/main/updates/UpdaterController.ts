@@ -4,14 +4,16 @@ import {app} from "electron"
 
 import {logger} from "@daily/core"
 
+import {UPDATES_CONFIG} from "@shared/config/updates"
+import {GitHubRateLimitError} from "@shared/errors/updates/GitHubRateLimitError"
 import {applyPendingInstallResult} from "./utils/applyPendingInstallResult"
 import {compareVersions} from "./utils/compareVersions"
 import {createInstallerScript} from "./utils/createInstallerScript"
 import {removeManagedUpdateFiles} from "./utils/removeManagedUpdateFiles"
-import {downloadRelease, resolveLatestRelease} from "./release"
+import {downloadRelease, fetchLatestRelease} from "./release"
 
 import type {IStorageController} from "@daily/core"
-import type {Settings} from "@daily/protocol"
+import type {AppUpdateLookupState, Settings} from "@daily/protocol"
 import type {ReleaseMeta} from "@main/types/updates"
 import type {AppUpdateState} from "@shared/types/update"
 import type {BrowserWindow} from "electron"
@@ -61,7 +63,7 @@ export class UpdaterController {
 
     try {
       const settings = await this.loadSettingsSafe()
-      const release = await resolveLatestRelease()
+      const release = await this.resolveRelease(settings, {force: manual})
       const installedRelease = settings?.updates.installed ?? null
 
       logger.info(logger.CONTEXT.UPDATES, "Resolved update versions", {
@@ -121,6 +123,14 @@ export class UpdaterController {
         reason: manual ? `Update ${release.version} is available.` : null,
       })
     } catch (error: any) {
+      if (error instanceof GitHubRateLimitError && !manual) {
+        logger.warn(logger.CONTEXT.UPDATES, "Skipped background update check: GitHub rate limit reached", {
+          resetAt: error.resetAt?.toISOString() ?? null,
+        })
+        this.setUpdateState({status: "idle", reason: null, downloadProgress: null})
+        return this.getState()
+      }
+
       logger.error(logger.CONTEXT.UPDATES, "Update manager failed", error)
       this.setUpdateState({
         status: "error",
@@ -153,8 +163,8 @@ export class UpdaterController {
     }
 
     try {
-      const release = await resolveLatestRelease()
       const settings = await this.loadSettingsSafe()
+      const release = await this.resolveRelease(settings)
 
       if (this.isInstalledRelease(release, settings)) {
         this.setUpdateState({
@@ -220,8 +230,8 @@ export class UpdaterController {
     }
 
     try {
-      const release = await resolveLatestRelease()
       const settings = await this.loadSettingsSafe()
+      const release = await this.resolveRelease(settings)
 
       if (this.isInstalledRelease(release, settings)) {
         this.setUpdateState({
@@ -294,6 +304,49 @@ export class UpdaterController {
     if (!cached.cachePath || !existsSync(cached.cachePath)) return null
 
     return cached
+  }
+
+  private async resolveRelease(settings: Settings | null, options?: {force?: boolean}): Promise<ReleaseMeta> {
+    const lookup = settings?.updates.lookup ?? null
+    const cachedRelease = lookup?.release ?? null
+
+    if (!options?.force && cachedRelease && this.isLookupFresh(lookup)) {
+      logger.info(logger.CONTEXT.UPDATES, "Reusing cached release metadata", {
+        version: cachedRelease.version,
+        checkedAt: lookup?.checkedAt ?? null,
+      })
+      return cachedRelease
+    }
+
+    try {
+      const result = await fetchLatestRelease(cachedRelease ? (lookup?.etag ?? null) : null)
+
+      if (result.status === "not-modified" && cachedRelease) {
+        await this.saveUpdatesPatch({lookup: {checkedAt: new Date().toISOString(), etag: lookup?.etag ?? null, release: cachedRelease}})
+        return cachedRelease
+      }
+
+      if (result.status === "not-modified") throw new Error("Failed to read GitHub release metadata.")
+
+      await this.saveUpdatesPatch({lookup: {checkedAt: new Date().toISOString(), etag: result.etag, release: result.release}})
+      return result.release
+    } catch (error) {
+      if (error instanceof GitHubRateLimitError && cachedRelease) {
+        logger.warn(logger.CONTEXT.UPDATES, "GitHub rate limit reached, serving the last known release", {
+          version: cachedRelease.version,
+          checkedAt: lookup?.checkedAt ?? null,
+        })
+        return cachedRelease
+      }
+      throw error
+    }
+  }
+
+  private isLookupFresh(lookup: AppUpdateLookupState | null): boolean {
+    if (!lookup) return false
+
+    const age = Date.now() - new Date(lookup.checkedAt).getTime()
+    return Number.isFinite(age) && age >= 0 && age < UPDATES_CONFIG.githubLookupTtlMs
   }
 
   private async startInstall(release: ReleaseMeta, cachedRelease: Settings["updates"]["cached"]): Promise<boolean> {
