@@ -195,9 +195,12 @@ describe("deploy/install.sh --dry-run", () => {
     expect(content).toContain("tar -czf")
     expect(content).toMatch(/daily-backup-.*\.tar\.gz/)
 
+    expect(content, "the archive must not be world-readable — it holds the database").toContain("umask 077")
+    expect(content, "a failed backup must not leave the service stopped").toMatch(/trap .*compose up -d daily-server.* EXIT/)
+
     const stopIndex = content.indexOf("compose stop daily-server")
     const cpIndex = content.indexOf("compose cp daily-server:/var/lib/daily-server")
-    const upIndex = content.indexOf("compose up -d daily-server")
+    const upIndex = content.lastIndexOf("compose up -d daily-server")
     expect(stopIndex, "backup should stop the service before copying its data").toBeGreaterThan(-1)
     expect(cpIndex, "the copy should happen after the stop").toBeGreaterThan(stopIndex)
     expect(upIndex, "the service should come back up after the copy").toBeGreaterThan(cpIndex)

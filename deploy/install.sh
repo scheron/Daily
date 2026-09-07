@@ -29,12 +29,12 @@ EOF
 }
 
 write_compose_caddy() {
-  cat <<'EOF' > "$1/compose.yaml"
+  sed "s#__IMAGE__#$IMAGE#g" > "$1/compose.yaml" <<'EOF'
 name: daily-server
 
 services:
   daily-server:
-    image: ghcr.io/scheron/daily-server:p1
+    image: __IMAGE__
     restart: unless-stopped
     env_file:
       - .env
@@ -75,12 +75,12 @@ EOF
 }
 
 write_compose_self_signed() {
-  cat <<'EOF' > "$1/compose.yaml"
+  sed "s#__IMAGE__#$IMAGE#g" > "$1/compose.yaml" <<'EOF'
 name: daily-server
 
 services:
   daily-server:
-    image: ghcr.io/scheron/daily-server:p1
+    image: __IMAGE__
     restart: unless-stopped
     env_file:
       - .env
@@ -101,12 +101,12 @@ EOF
 }
 
 write_compose_no_proxy() {
-  cat <<'EOF' > "$1/compose.yaml"
+  sed "s#__IMAGE__#$IMAGE#g" > "$1/compose.yaml" <<'EOF'
 name: daily-server
 
 services:
   daily-server:
-    image: ghcr.io/scheron/daily-server:p1
+    image: __IMAGE__
     restart: unless-stopped
     env_file:
       - .env
@@ -183,15 +183,17 @@ compose() {
 
 cmd_backup() {
   compose stop daily-server
+  trap 'compose up -d daily-server >/dev/null 2>&1 || true' EXIT INT TERM
 
   tmp_dir=$(mktemp -d)
   compose cp daily-server:/var/lib/daily-server "$tmp_dir/data"
 
   timestamp=$(date -u +%Y%m%dT%H%M%SZ)
   archive="$INSTALL_DIR/daily-backup-$timestamp.tar.gz"
-  tar -czf "$archive" -C "$tmp_dir" data
+  (umask 077 && tar -czf "$archive" -C "$tmp_dir" data)
   rm -rf "$tmp_dir"
 
+  trap - EXIT INT TERM
   compose up -d daily-server
 
   echo "daily.sh: backup written to $archive"
