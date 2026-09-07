@@ -216,6 +216,25 @@ describe("deploy/install.sh --dry-run", () => {
     expect(content).toContain("compose exec -T daily-server daily-server claim-code")
   })
 
+  it("daily.sh upgrade refreshes the management script itself, and never fails the upgrade when it cannot", () => {
+    const content = readIfExists(caddyInstall.dailyShPath) as string
+    expect(content, "daily.sh").not.toBeNull()
+
+    expect(content, "upgrade should refresh the script after the image").toMatch(/compose up -d daily-server\n\s*refresh_self/)
+    expect(content, "the refresh needs the published install.sh").toContain("raw.githubusercontent.com/scheron/Daily/main/deploy/install.sh")
+    expect(content, "a missing curl must not fail the upgrade").toMatch(/command -v curl .* \|\| return 0/)
+    expect(content, "a failed fetch must not fail the upgrade").toMatch(/if curl [^\n]*&&[^\n]*--write-manager/)
+  })
+
+  it("install.sh --write-manager rewrites daily.sh atomically and refuses a directory that is not an installation", () => {
+    const script = readFileSync(join(rootDir, "deploy/install.sh"), "utf-8")
+
+    expect(script, "the running daily.sh replaces itself, so the write must not truncate it in place").toMatch(
+      /mv "\$1\/\.daily\.sh\.new" "\$1\/daily\.sh"/,
+    )
+    expect(script, "--write-manager must refuse a directory holding no compose.yaml").toMatch(/compose\.yaml.*\n.*not an installation/)
+  })
+
   it("daily.sh uninstall asks before removing volumes and keeps them on the default answer", () => {
     const content = readIfExists(caddyInstall.dailyShPath) as string
     expect(content, "daily.sh").not.toBeNull()

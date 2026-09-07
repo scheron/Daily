@@ -2,6 +2,7 @@
 set -eu
 
 IMAGE="ghcr.io/scheron/daily-server:p1"
+INSTALL_URL="https://raw.githubusercontent.com/scheron/Daily/main/deploy/install.sh"
 PROJECT="daily-server"
 HEALTH_ATTEMPTS=60
 HEALTH_INTERVAL=2
@@ -12,6 +13,7 @@ no_proxy=0
 dir=""
 dry_run=0
 yes=0
+write_manager=""
 
 usage() {
   cat <<EOF
@@ -23,6 +25,8 @@ Usage: install.sh [--domain <host> | --ip <address>] [--no-proxy] [--dir <path>]
   --dir <path>        installation directory (default /opt/daily-server, else ~/daily-server)
   --dry-run           write the files and start nothing
   --yes               do not prompt; proceed past a failed pre-flight
+  --write-manager <path>
+                      rewrite only daily.sh in an existing installation
 
 Pinned image: $IMAGE
 EOF
@@ -153,11 +157,12 @@ EOF
 }
 
 write_daily_sh() {
-  sed "s#__INSTALL_DIR__#$1#g" > "$1/daily.sh" <<'EOF'
+  sed -e "s#__INSTALL_DIR__#$1#g" -e "s#__INSTALL_URL__#$INSTALL_URL#g" > "$1/.daily.sh.new" <<'EOF'
 #!/bin/sh
 set -eu
 
 INSTALL_DIR="__INSTALL_DIR__"
+INSTALL_URL="__INSTALL_URL__"
 COMPOSE_FILE="$INSTALL_DIR/compose.yaml"
 cd "$INSTALL_DIR"
 
@@ -179,6 +184,16 @@ USAGE
 
 compose() {
   docker compose -f "$COMPOSE_FILE" "$@"
+}
+
+refresh_self() {
+  command -v curl > /dev/null 2>&1 || return 0
+
+  tmp=$(mktemp) || return 0
+  if curl -fsSL "$INSTALL_URL" -o "$tmp" 2> /dev/null && sh "$tmp" --write-manager "$INSTALL_DIR" 2> /dev/null; then
+    echo "daily.sh: management script refreshed"
+  fi
+  rm -f "$tmp"
 }
 
 cmd_backup() {
@@ -229,6 +244,7 @@ case "$verb" in
   upgrade)
     compose pull daily-server
     compose up -d daily-server
+    refresh_self
     ;;
   backup)
     cmd_backup
@@ -248,7 +264,8 @@ case "$verb" in
     ;;
 esac
 EOF
-  chmod +x "$1/daily.sh"
+  chmod +x "$1/.daily.sh.new"
+  mv "$1/.daily.sh.new" "$1/daily.sh"
 }
 
 have() {
@@ -589,6 +606,11 @@ while [ $# -gt 0 ]; do
       yes=1
       shift
       ;;
+    --write-manager)
+      [ $# -ge 2 ] || { echo "install.sh: --write-manager needs a value" >&2; exit 1; }
+      write_manager="$2"
+      shift 2
+      ;;
     -h|--help)
       usage
       exit 0
@@ -600,6 +622,16 @@ while [ $# -gt 0 ]; do
       ;;
   esac
 done
+
+if [ -n "$write_manager" ]; then
+  if [ ! -f "$write_manager/compose.yaml" ]; then
+    echo "install.sh: $write_manager holds no compose.yaml, so it is not an installation" >&2
+    exit 1
+  fi
+
+  write_daily_sh "$write_manager"
+  exit 0
+fi
 
 if [ -n "$domain" ] && [ -n "$ip" ]; then
   echo "install.sh: pass only one of --domain or --ip" >&2
