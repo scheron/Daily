@@ -61,7 +61,7 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
         content: next.content,
         tags: next.tags,
         estimatedTime: next.estimatedTime,
-        date: next.scheduled.date,
+        date: next.scheduled?.date ?? null,
         branchId: next.branchId ?? undefined,
         status: next.status,
       })
@@ -73,7 +73,9 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
     const base = draftBase.value
 
     if (base) {
-      if (next.scheduled.date !== base.scheduled.date) await tasksStore.moveTask(id, next.scheduled.date)
+      if (next.scheduled && base.scheduled && next.scheduled.date !== base.scheduled.date) {
+        await tasksStore.moveTask(id, next.scheduled.date)
+      }
       if (next.branchId !== base.branchId) await tasksStore.moveTaskToBranch(id, next.branchId ?? "")
 
       const restPatch = buildRestPatch(next, base)
@@ -110,7 +112,7 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
       spentTime: task.spentTime,
       status: task.status,
       branchId: task.branchId || null,
-      scheduled: {...task.scheduled},
+      scheduled: task.scheduled ? {...task.scheduled} : null,
     }
     draft.value = next
     draftBase.value = deepClone(next)

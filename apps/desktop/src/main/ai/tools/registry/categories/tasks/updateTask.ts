@@ -17,8 +17,8 @@ export const updateTask: RegisteredTool = {
       time: {type: "string", description: "New scheduled time (HH:MM 24h format)."},
       status: {
         type: "string",
-        description: "New status: 'active' (in progress), 'done' (completed), 'discarded' (cancelled).",
-        enum: ["active", "done", "discarded"],
+        description: "New status: 'backlog' (no day — clears the task's date), 'active' (in progress), 'done' (completed), 'discarded' (cancelled).",
+        enum: ["backlog", "active", "done", "discarded"],
       },
       estimated_minutes: {
         type: "number",

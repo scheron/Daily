@@ -13,14 +13,14 @@ import type {
   ServerConnectionStateView,
   ServerProbeView,
   Settings,
-  StatsAggregate,
-  StatsPeriod,
   SyncProvider,
   SyncRemoteState,
   SyncStatus,
   Tag,
   Task,
   TaskEvent,
+  TaskMovePosition,
+  TaskSchedule,
   TaskSearchResult,
 } from "@daily/protocol"
 import type {ReplaceValue} from "@daily/std"
@@ -57,18 +57,21 @@ export interface IStorageController {
 
   getActivityByDay(date: ISODate, branchId?: Branch["id"]): Promise<TaskEvent[]>
   getTaskHistory(taskId: Task["id"]): Promise<TaskEvent[]>
-  getStats(period: StatsPeriod, anchor: ISODate, branchId?: Branch["id"]): Promise<StatsAggregate>
 
   getTaskList(params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: Branch["id"]}): Promise<Task[]>
+  getBacklogList(params?: {limit?: number; branchId?: Branch["id"]}): Promise<Task[]>
   getTask(id: Task["id"]): Promise<Task | null>
-  updateTask(id: Task["id"], updates: PartialDeep<Task>): Promise<Task | null>
+  updateTask(id: Task["id"], updates: PartialDeep<Task>, activeDay?: ISODate): Promise<Task | null>
   toggleTaskMinimized(id: Task["id"], minimized: boolean): Promise<Task | null>
   moveTaskByOrder(params: MoveTaskByOrderParams): Promise<Task | null>
+  scheduleTask(taskId: Task["id"], schedule: TaskSchedule): Promise<Task | null>
+  moveTaskToBacklog(taskId: Task["id"]): Promise<Task | null>
   moveTaskToBranch(taskId: Task["id"], branchId: Branch["id"]): Promise<boolean>
   createTask(task: Omit<Task, "id" | "createdAt" | "updatedAt">): Promise<Task | null>
   deleteTask(id: Task["id"]): Promise<boolean>
   getDeletedTasks(params?: {limit?: number; branchId?: Branch["id"]}): Promise<Task[]>
-  restoreTask(id: Task["id"]): Promise<Task | null>
+  moveTaskInTrash(taskId: Task["id"], targetTaskId: Task["id"] | null, position: TaskMovePosition): Promise<Task | null>
+  restoreTask(id: Task["id"], activeDay?: ISODate): Promise<Task | null>
   permanentlyDeleteTask(id: Task["id"]): Promise<boolean>
   permanentlyDeleteAllDeletedTasks(): Promise<number>
 

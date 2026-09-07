@@ -9,7 +9,7 @@ import type {Branch, Tag, Task} from "@daily/protocol"
  */
 export function formatTask(task: Task, compact = true): string {
   const statusEmoji = task.status === "done" ? "✅" : task.status === "discarded" ? "❌" : "⬜"
-  const time = task.scheduled.time || "no time"
+  const time = task.scheduled ? task.scheduled.time || "no time" : "backlog"
   const tags = task.tags.length > 0 ? ` [${task.tags.map((t) => t.name).join(", ")}]` : ""
   const content = compact ? task.content.split("\n")[0].slice(0, 100) : task.content
   const est = task.estimatedTime > 0 ? ` (est: ${toDurationLabel(task.estimatedTime)})` : ""

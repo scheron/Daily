@@ -5,7 +5,7 @@ import type {RegisteredTool} from "@main/ai/tools/registry/types"
 export const moveTask: RegisteredTool = {
   name: "move_task",
   description:
-    "Move/reschedule a task to a different date. Use when user says 'move to', 'reschedule', 'postpone', 'push to tomorrow'. Example: 'move the dentist task to next Monday'.",
+    "Move/reschedule a task to a different date. Also works on a backlog task — it schedules the task onto this date. Use when user says 'move to', 'reschedule', 'postpone', 'push to tomorrow'. Example: 'move the dentist task to next Monday'.",
   parameters: {
     type: "object",
     properties: {
@@ -27,7 +27,11 @@ export const moveTask: RegisteredTool = {
       return {success: false, error: "date is required"}
     }
 
-    const updated = await ctx.storage.updateTask(taskId, {scheduled: {date}})
+    const updated = await ctx.storage.scheduleTask(taskId, {
+      date,
+      time: "",
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    })
 
     if (!updated) {
       return {success: false, error: `Task not found: ${taskId}`}

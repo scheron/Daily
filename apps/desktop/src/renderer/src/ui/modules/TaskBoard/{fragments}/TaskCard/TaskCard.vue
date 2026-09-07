@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import {computed, useTemplateRef} from "vue"
+import {toasts} from "vue-toasts-lite"
 
 import {sortTags, toTaskIdHash} from "@daily/protocol"
 import {toDurationLabel} from "@daily/std"
 
+import {STATUS_ACTIONS, statusOptionClass} from "@/constants/taskStatus"
 import {useTagsStore} from "@/stores/tags.store"
 import {useTaskEditorStore} from "@/stores/task-editor"
 import {useTasksStore} from "@/stores/tasks"
+import BaseButton from "@/ui/base/BaseButton"
 import BaseCalendar from "@/ui/base/BaseCalendar"
 import BaseIcon from "@/ui/base/BaseIcon"
 import BranchCombobox from "@/ui/common/comboboxes/BranchCombobox.vue"
@@ -14,6 +17,7 @@ import TagsCombobox from "@/ui/common/comboboxes/TagsCombobox.vue"
 import ContextMenu from "@/ui/common/misc/ContextMenu"
 import DynamicTagsPanel from "@/ui/common/misc/DynamicTagsPanel.vue"
 import EstimationPicker from "@/ui/common/pickers/EstimationPicker.vue"
+import {ConfirmPopup} from "@/ui/overlays/ConfirmPopup"
 import {useConfirmUnsavedModal} from "@/ui/overlays/ConfirmUnsavedModal"
 import {countMarkdownImages} from "@/utils/codemirror/wordCount"
 import DeleteMenuItem from "./{fragments}/DeleteMenuItem.vue"
@@ -24,7 +28,7 @@ import {useTaskModel} from "./model/useTaskModel"
 import type {ContextMenuItem, ContextMenuSelectEvent} from "@/ui/common/misc/ContextMenu"
 import type {Branch, Tag, Task, TaskStatus} from "@daily/protocol"
 
-const props = defineProps<{task: Task}>()
+const props = defineProps<{task: Task; trashed?: boolean}>()
 
 const tasksStore = useTasksStore()
 const tagsStore = useTagsStore()
@@ -43,6 +47,20 @@ const spentLabel = computed(() => (showTime.value && props.task.spentTime > 0 ? 
 const hasFooter = computed(() => imageCount.value > 0 || showTime.value)
 
 const menuItems = computed<ContextMenuItem[]>(() => {
+  if (props.trashed) {
+    return [
+      {value: "restore", label: "Restore", icon: "undo"},
+      {
+        value: "delete-permanently",
+        label: "Delete permanently",
+        icon: "trash",
+        class: "text-error hover:bg-error/10",
+        classIcon: "text-error",
+        classLabel: "text-error",
+      },
+    ]
+  }
+
   return [
     {value: "open-editor", label: "Open editor", icon: "pencil"},
     {separator: true},
@@ -50,11 +68,12 @@ const menuItems = computed<ContextMenuItem[]>(() => {
       value: "status",
       label: "Status",
       icon: "circle-pulse",
-      children: [
-        {value: "active", label: "Active", icon: "fire", class: getStatusClass("active")},
-        {value: "discarded", label: "Discarded", icon: "archive", class: getStatusClass("discarded")},
-        {value: "done", label: "Done", icon: "check-check", class: getStatusClass("done")},
-      ],
+      children: STATUS_ACTIONS.map((action) => ({
+        value: action.value,
+        label: action.label,
+        icon: action.icon,
+        class: statusOptionClass(action.value, props.task.status),
+      })),
     },
     {value: "tags", label: "Tags", icon: "tags", children: true},
     {value: "reschedule", label: "Reschedule", icon: "calendar", children: true},
@@ -104,19 +123,11 @@ async function onCardClick() {
   taskEditorStore.open(props.task.id)
 }
 
-function getStatusClass(status: TaskStatus) {
-  if (status !== props.task.status) return ""
-  const isMatch = status === props.task.status
-
-  if (!isMatch) return ""
-
-  if (status === "active") return "text-error hover:bg-error/10 bg-error/10"
-  if (status === "discarded") return "text-warning hover:bg-warning/10 bg-warning/10 "
-  if (status === "done") return "text-success hover:bg-success/10 bg-success/10 "
-  return ""
-}
-
 async function onSelect(event: ContextMenuSelectEvent) {
+  if (event.item.value === "restore") {
+    await onRestore()
+    contextMenuRef.value?.close()
+  }
   if (event.item.value === "open-editor") {
     const proceed = await confirmLeaveIfDirty()
     if (proceed) taskEditorStore.open(props.task.id)
@@ -136,6 +147,29 @@ async function onDeleteFromMenu() {
   if (isDeleted) contextMenuRef.value?.close()
 }
 
+async function onRestore() {
+  const restored = await tasksStore.restoreTask(props.task.id)
+  if (!restored) {
+    toasts.error("Failed to restore task")
+    return
+  }
+  toasts.success("Task restored")
+}
+
+async function onPermanentlyDeleteFromMenu() {
+  await onPermanentlyDelete()
+  contextMenuRef.value?.close()
+}
+
+async function onPermanentlyDelete() {
+  const isDeleted = await tasksStore.permanentlyDeleteTask(props.task.id)
+  if (!isDeleted) {
+    toasts.error("Failed to permanently delete task")
+    return
+  }
+  toasts.success("Task permanently deleted")
+}
+
 async function onMoveToBranch(branch: Branch) {
   if (branch.id === props.task.branchId) return
   const moved = await taskModel.moveTaskToBranch(branch.id)
@@ -151,7 +185,8 @@ async function onMoveToBranch(branch: Branch) {
       :class="{
         'border-success/30 hover:border-success/40': task.status === 'done',
         'border-warning/30 hover:border-warning/40': task.status === 'discarded',
-        'border-base-300/50 hover:border-base-content/15': task.status === 'active',
+        'border-base-300/50 hover:border-base-content/15': task.status === 'active' || task.status === 'backlog',
+        'border-dashed opacity-75': trashed,
       }"
       @click.stop="onCardClick"
     >
@@ -159,10 +194,31 @@ async function onMoveToBranch(branch: Branch) {
         <div class="flex w-full items-center gap-3">
           <DynamicTagsPanel :tags="tags" empty-message="No tags" size="sm" />
           <div class="ml-auto flex shrink-0 items-center gap-2" data-task-dnd-ignore="true" @click.stop>
-            <span v-tooltip="{content: 'Task ID', placement: 'top'}" class="text-base-content/50 font-mono text-xs leading-none whitespace-nowrap">
+            <span v-tooltip="{content: 'Task ID', placement: 'top'}" class="text-base-content/50 whitespace-nowrap font-mono text-xs leading-none">
               {{ toTaskIdHash(task.id) }}
             </span>
-            <StatusSelect :status="task.status" @update:status="taskModel.changeStatus" />
+            <template v-if="trashed">
+              <BaseButton icon="undo" variant="ghost" tooltip="Restore" icon-class="size-4" class="size-6 p-0" @click="onRestore" />
+              <ConfirmPopup
+                title="Delete permanently?"
+                message="This task will be gone for good."
+                confirm-text="Delete"
+                position="end"
+                @confirm="onPermanentlyDelete"
+              >
+                <template #trigger="{show}">
+                  <BaseButton
+                    icon="trash"
+                    variant="ghost"
+                    tooltip="Delete permanently"
+                    icon-class="size-4"
+                    class="text-error hover:bg-error/10 size-6 p-0"
+                    @click="show"
+                  />
+                </template>
+              </ConfirmPopup>
+            </template>
+            <StatusSelect v-else :status="task.status" @update:status="taskModel.changeStatus" />
           </div>
         </div>
 
@@ -194,13 +250,23 @@ async function onMoveToBranch(branch: Branch) {
       <DeleteMenuItem :item="item" @select="onDeleteFromMenu" />
     </template>
 
+    <template #item-delete-permanently="item">
+      <DeleteMenuItem :item="item" @select="onPermanentlyDeleteFromMenu" />
+    </template>
+
     <template #child-tags>
       <TagsCombobox :task="task" @update="taskModel.updateTaskTags" @close="contextMenuRef?.close()" />
     </template>
 
     <template #child-reschedule>
       <div class="p-1">
-        <BaseCalendar mode="single" :days="tasksStore.days" :selected-date="task.scheduled.date" size="sm" @select-date="taskModel.rescheduleTask" />
+        <BaseCalendar
+          mode="single"
+          :days="tasksStore.days"
+          :selected-date="task.scheduled?.date ?? null"
+          size="sm"
+          @select-date="taskModel.rescheduleTask"
+        />
       </div>
     </template>
 

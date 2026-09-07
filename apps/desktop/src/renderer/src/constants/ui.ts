@@ -5,15 +5,19 @@ export const TASK_CONTENT_MINIMIZED_HEIGHT = 200
 /** Marks a day cell as a drop target; its value is the target `ISODate` (`data-drop-day="2026-06-28"`). */
 export const DROP_DAY_SELECTOR = "[data-drop-day]"
 
-/** Surfaces that accept a dragged task (footer, popups, explicit drop zones); the dragged clone hides while over any of them. */
-export const DROP_ZONE_SELECTOR = ".app-footer, [data-popup], [data-day-drop-zone]"
+/**
+ * Surfaces that hide the dragged card while it is over them, so the day
+ * highlight underneath stays visible. Whole containers, not day cells: hiding
+ * per cell makes the card flicker in the gaps between them.
+ */
+export const DROP_HIDE_SELECTOR = ".app-footer, [data-popup], [data-calendar]"
 
-/** Applied to the dragged clone while it hovers a drop zone. */
+/** Applied to the dragged clone while it hovers a surface from `DROP_HIDE_SELECTOR`. */
 export const OVER_DROP_ZONE_CLASS = "is-over-drop-zone"
 
 export const LEFT_PANEL_SIZE = {
-  defaultSize: 300,
-  minSize: 280,
+  defaultSize: 320,
+  minSize: 320,
   maxSize: 460,
   viewportReserve: 520,
 }
@@ -28,6 +32,14 @@ export const RIGHT_PANEL_SIZE = {
 export const COLUMN_MIN_WIDTH = 370
 
 export const TASK_COLUMNS: TaskColumn[] = [
+  {
+    status: "backlog",
+    label: "Backlog",
+    emptyLabel: "backlog",
+    icon: "inbox",
+    titleClass: "text-base-content/60",
+    counterClass: "bg-base-content/10 text-base-content/65",
+  },
   {
     status: "active",
     label: "Active",

@@ -8,7 +8,7 @@ import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
 import {calcMonthStatistics} from "@/utils/days/calcMonthStatistics"
 import {useCalendarSwipe} from "./composables/useCalendarSwipe"
-import {useDropToDay} from "./composables/useDropToDay"
+import {useTaskDropTarget} from "./composables/useTaskDropTarget"
 import {formatDaysToMonth} from "./utils/formatDaysToMonth"
 
 import type {Day, ISODate} from "@daily/protocol"
@@ -81,7 +81,7 @@ const sizeConfig = computed(() => {
   return configs[props.size]
 })
 
-const {dropTargetDate} = useDropToDay()
+const {dropTargetDate} = useTaskDropTarget()
 
 useCalendarSwipe({
   target: calendarRootRef,
@@ -140,17 +140,18 @@ function isDateInRange(isoDate: ISODate) {
 
 function getDateClasses(day: ReturnType<typeof formatDaysToMonth>[0]) {
   const classes = [day.isCurrentMonth ? "text-base-content" : "text-base-content/50"]
+  const isDropTarget = dropTargetDate.value === day.isoDate
 
-  if (dropTargetDate.value === day.isoDate) {
-    classes.push("ring-accent border-accent ring-1")
-  } else if (props.mode === "single") {
-    if (isDateSelected(day.isoDate)) classes.push("bg-accent/30 text-accent hover:bg-accent/40")
-  } else {
-    if (isDateSelected(day.isoDate)) classes.push("bg-accent/30 text-accent hover:bg-accent/40")
-    else if (isDateInRange(day.isoDate)) classes.push("bg-accent/20 hover:bg-accent/30")
+  if (!isDropTarget) {
+    if (props.mode === "single") {
+      if (isDateSelected(day.isoDate)) classes.push("bg-accent/30 text-accent hover:bg-accent/40")
+    } else {
+      if (isDateSelected(day.isoDate)) classes.push("bg-accent/30 text-accent hover:bg-accent/40")
+      else if (isDateInRange(day.isoDate)) classes.push("bg-accent/20 hover:bg-accent/30")
+    }
   }
 
-  if (isToday(day.isoDate) && dropTargetDate.value !== day.isoDate) {
+  if (isToday(day.isoDate) && !isDropTarget) {
     classes.push("border-accent border-1")
   }
 
@@ -179,7 +180,7 @@ onBeforeMount(() => {
 </script>
 
 <template>
-  <div ref="calendarRootEl" class="flex-1 p-1">
+  <div ref="calendarRootEl" data-calendar class="flex-1 p-1">
     <div class="mb-3 flex items-center justify-between gap-2">
       <div class="flex shrink-0 items-center">
         <BaseButton variant="ghost" size="sm" icon="chevron-left" @click="previousMonth" />
@@ -206,7 +207,7 @@ onBeforeMount(() => {
     </div>
 
     <ul class="grid grid-cols-7 gap-1">
-      <li v-for="day in WEEKDAYS" :key="day" class="text-accent/70 w-full shrink-0 py-2 text-center select-none" :class="sizeConfig.weekdayTextSize">
+      <li v-for="day in WEEKDAYS" :key="day" class="text-accent/70 w-full shrink-0 select-none py-2 text-center" :class="sizeConfig.weekdayTextSize">
         {{ day }}
       </li>
     </ul>
@@ -220,7 +221,7 @@ onBeforeMount(() => {
         variant="ghost"
         :size="sizeConfig.buttonSize"
         :data-drop-day="day.isoDate"
-        class="relative aspect-square w-full shrink-0 rounded-lg select-none"
+        class="relative aspect-square w-full shrink-0 select-none rounded-lg"
         :class="[sizeConfig.buttonHeight, sizeConfig.textSize, ...getDateClasses(day)]"
         @click="selectDate(day.isoDate)"
       >
@@ -228,8 +229,13 @@ onBeforeMount(() => {
 
         <div
           v-if="day.dayInfo.countTotalTasks"
-          class="absolute top-0.5 right-0.5 size-2 rounded-full shadow-xs"
+          class="shadow-xs absolute right-0.5 top-0.5 size-2 rounded-full"
           :class="[day.dayInfo.countActiveTasks === 0 ? 'bg-success' : 'bg-warning']"
+        />
+
+        <span
+          v-if="dropTargetDate === day.isoDate"
+          class="border-accent bg-accent/22 pointer-events-none absolute -inset-0.5 rounded-[9px] border-[1.5px] border-dashed"
         />
       </BaseButton>
     </ul>

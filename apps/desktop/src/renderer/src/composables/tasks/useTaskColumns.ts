@@ -27,19 +27,27 @@ export const useTaskColumns = createSharedComposable(() => {
     return tasksStore.dailyTasks.filter((task) => task.tags.some((tag) => filterStore.activeTagIds.has(tag.id)))
   })
 
+  const filteredBacklogTasks = computed(() => {
+    if (!filterStore.activeTagIds.size) return tasksStore.backlogTasks
+    return tasksStore.backlogTasks.filter((task) => task.tags.some((tag) => filterStore.activeTagIds.has(tag.id)))
+  })
+
   const tasksByStatus = computed<Record<TaskStatus, Task[]>>(() => {
-    return filteredTasks.value.reduce(
+    const grouped = filteredTasks.value.reduce(
       (acc, task) => {
         acc[task.status].push(task)
         return acc
       },
-      {active: [], discarded: [], done: []} as Record<TaskStatus, Task[]>,
+      {backlog: [], active: [], discarded: [], done: []} as Record<TaskStatus, Task[]>,
     )
+    grouped.backlog = filteredBacklogTasks.value
+    return grouped
   })
 
-  const localTasksByStatus = reactive<Record<TaskStatus, Task[]>>({active: [], discarded: [], done: []})
+  const localTasksByStatus = reactive<Record<TaskStatus, Task[]>>({backlog: [], active: [], discarded: [], done: []})
 
   const pendingCrossColumnMove = ref<MoveTaskByOrderParams | null>(null)
+  const isSettling = ref(false)
 
   const {
     isDragging,
@@ -53,28 +61,30 @@ export const useTaskColumns = createSharedComposable(() => {
     onDragEnd: flushPendingCrossColumnMove,
   })
 
-  const visibleColumns = computed<TaskColumn[]>(() => TASK_COLUMNS.filter((s) => !isColumnHidden(s.status)))
+  const isBusy = computed(() => isDragging.value || isCommitting.value || isSettling.value)
 
-  function onDragStart(event: {oldIndex: number; from: HTMLElement}) {
-    const status = event.from.closest("[data-column-status]")?.getAttribute("data-column-status") as TaskStatus | null
-    if (status) {
-      const task = localTasksByStatus[status]?.[event.oldIndex]
-      if (task) dragDropStore.setDraggingTaskId(task.id)
-    }
+  const visibleColumns = computed<TaskColumn[]>(() => TASK_COLUMNS.filter((s) => s.status !== "backlog" && !isColumnHidden(s.status)))
+
+  function onDragStart(event: {item: HTMLElement}) {
+    const taskId = event.item?.dataset?.taskId
+    if (taskId) dragDropStore.setDraggingTaskId(taskId)
     onDragStartBase()
   }
 
   function isColumnCollapsed(status: TaskStatus) {
-    if (uiStore.sectionsAutoCollapseEmpty) return !isDragging.value && isColumnEmpty(status)
+    if (status === "backlog") return false
+    if (uiStore.sectionsAutoCollapseEmpty) return !isBusy.value && isColumnEmpty(status)
     return Boolean(uiStore.sectionsCollapsed[status])
   }
 
   function onToggleColumn(status: TaskStatus) {
+    if (status === "backlog") return
     if (uiStore.sectionsAutoCollapseEmpty) return
     uiStore.toggleSectionCollapsed(status)
   }
 
   function onColumnDragEnter(status: TaskStatus) {
+    if (status === "backlog") return
     if (uiStore.sectionsAutoCollapseEmpty) return
     if (!isDragging.value) return
     if (!isColumnCollapsed(status)) return
@@ -85,6 +95,11 @@ export const useTaskColumns = createSharedComposable(() => {
   async function onColumnChange(status: TaskStatus, event: {added?: {newIndex: number}; moved?: {newIndex: number; oldIndex: number}}) {
     if (event.moved && event.moved.newIndex === event.moved.oldIndex) return
     if (!event.added && !event.moved) return
+
+    if (dragDropStore.dayDropHandled) {
+      syncLocalTasks()
+      return
+    }
 
     const newIndex = event.added?.newIndex ?? event.moved?.newIndex
     if (isUndefined(newIndex)) return
@@ -101,10 +116,12 @@ export const useTaskColumns = createSharedComposable(() => {
       targetStatus: status,
       targetTaskId,
       position,
+      activeDay: tasksStore.activeDay,
     } as MoveTaskByOrderParams
 
     if (event.added) {
       pendingCrossColumnMove.value = moveParams
+      isSettling.value = true
       return
     }
 
@@ -112,13 +129,14 @@ export const useTaskColumns = createSharedComposable(() => {
   }
 
   function syncLocalTasks() {
+    localTasksByStatus.backlog = tasksByStatus.value.backlog.map((task) => deepClone(task))
     localTasksByStatus.active = tasksByStatus.value.active.map((task) => deepClone(task))
     localTasksByStatus.discarded = tasksByStatus.value.discarded.map((task) => deepClone(task))
     localTasksByStatus.done = tasksByStatus.value.done.map((task) => deepClone(task))
   }
 
   function isColumnEmpty(status: TaskStatus) {
-    return tasksByStatus.value[status].length === 0
+    return localTasksByStatus[status].length === 0
   }
 
   function isColumnHidden(status: TaskStatus) {
@@ -128,24 +146,34 @@ export const useTaskColumns = createSharedComposable(() => {
 
   function flushPendingCrossColumnMove() {
     const pendingMove = pendingCrossColumnMove.value
-    if (!pendingMove) return
     pendingCrossColumnMove.value = null
 
-    setTimeout(() => commitColumnMove(pendingMove), SORTABLE_ANIMATION_MS)
+    if (!pendingMove || dragDropStore.dayDropHandled) {
+      isSettling.value = false
+      syncLocalTasks()
+      return
+    }
+
+    setTimeout(async () => {
+      try {
+        await commitColumnMove(pendingMove)
+      } finally {
+        isSettling.value = false
+      }
+    }, SORTABLE_ANIMATION_MS)
   }
 
   async function commitColumnMove(params: MoveTaskByOrderParams) {
     await runWithCommit(async () => {
-      const result = await tasksStore.moveTaskByOrder({
+      await tasksStore.moveTaskByOrder({
         taskId: params.taskId,
         targetStatus: params.targetStatus,
         targetTaskId: params.targetTaskId,
         position: params.position,
+        activeDay: params.activeDay,
       })
 
-      if (!result) {
-        syncLocalTasks()
-      }
+      syncLocalTasks()
     })
   }
 
@@ -163,6 +191,7 @@ export const useTaskColumns = createSharedComposable(() => {
     tasksByStatus,
     localTasksByStatus,
     isDragging,
+    isBusy,
     isDragDisabled,
     isColumnCollapsed,
     onToggleColumn,

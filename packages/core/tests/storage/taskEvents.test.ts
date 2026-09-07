@@ -1,4 +1,5 @@
 // @ts-nocheck
+import {DateTime} from "luxon"
 import {beforeEach, describe, expect, it} from "vitest"
 
 import {TaskEventModel} from "../../src/storage/models/TaskEventModel"
@@ -132,6 +133,48 @@ describe("task activity recording", () => {
     await service.restoreTask(task.id)
     const afterRestore = events.getByDay(TASK_DAY, "main").filter((e) => e.taskId === task.id)
     expect(afterRestore.map((e) => e.type).sort()).toEqual(["completed", "created", "deleted", "restored"])
+  })
+
+  it("TC-11: moving a task to the backlog records a backlogged event, not a moved pair", async () => {
+    const task = await service.createTask(makeTask())
+
+    await service.moveTaskToBacklog(task.id)
+
+    const types = events.getByTask(task.id).map((e) => e.type)
+    expect(types).toEqual(["backlogged", "created"])
+  })
+
+  it("TC-10: sending a scheduled task to the backlog records a backlogged event, not reactivated", async () => {
+    const today = DateTime.now().toISODate()
+    const task = await service.createTask(makeTask())
+
+    await service.moveTaskToBacklog(task.id)
+
+    const types = events
+      .getByDay(today, "main")
+      .filter((e) => e.taskId === task.id)
+      .map((e) => e.type)
+    expect(types).toContain("backlogged")
+    expect(types).not.toContain("reactivated")
+  })
+
+  it("TC-12: scheduling a backlog task records a reactivated event, not a moved pair", async () => {
+    const task = await service.createTask(makeTask({scheduled: null}))
+
+    await service.scheduleTask(task.id, {date: NEXT_DAY, time: "10:00:00", timezone: "UTC"})
+
+    const types = events.getByTask(task.id).map((e) => e.type)
+    expect(types).toEqual(["reactivated", "created"])
+  })
+
+  it("TC-13: creating a task directly in the backlog stamps the created event on today, not nowhere", async () => {
+    const today = DateTime.now().toISODate()
+
+    const created = await service.createTask(makeTask({scheduled: null, content: "In the backlog"}))
+
+    const recorded = events.getByDay(today, "main").filter((e) => e.taskId === created.id)
+    expect(recorded).toHaveLength(1)
+    expect(recorded[0].type).toBe("created")
   })
 
   it("scopes getByDay to the branch", async () => {

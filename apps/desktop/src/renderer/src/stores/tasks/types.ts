@@ -24,7 +24,12 @@ export type TaskMutationsContext = {
   activeBranchId: ComputedRef<Branch["id"] | undefined>
   activeDayData: ComputedRef<Day | null>
   dailyTasks: ComputedRef<Task[]>
+  backlogTasks: Ref<Task[]>
   findTaskById: (taskId: Task["id"]) => Task | null
   refreshDay: (date: ISODate) => Promise<void>
   refreshDays: (dates: ISODate[]) => Promise<void>
+  getBacklogList: () => Promise<void>
+  refreshTrash: () => Promise<void>
+  dropFromTrash: (taskId: Task["id"]) => void
+  clearTrash: () => void
 }

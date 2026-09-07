@@ -1,7 +1,7 @@
 import type {AIConfig} from "./ai"
 import type {ISODate, ISODateTime, ISOTime, Timezone} from "./common"
 import type {ServerBindingView} from "./syncServer"
-import type {AppUpdateSource} from "./update"
+import type {AppUpdateSource, GitHubReleaseMeta} from "./update"
 
 export type SyncStatus = "inactive" | "active" | "syncing" | "error"
 export type SyncRemoteState = {
@@ -10,7 +10,9 @@ export type SyncRemoteState = {
   lastSyncAt: string | null
   lastError: string | null
 }
-export type TaskStatus = "active" | "discarded" | "done"
+export type TaskStatus = "backlog" | "active" | "discarded" | "done"
+/** The three statuses shown as board columns; excludes `backlog`, which lives in the sidebar. */
+export type BoardStatus = Exclude<TaskStatus, "backlog">
 export type TaskMovePosition = "before" | "after"
 
 export type MainWindowSettings = {
@@ -39,6 +41,18 @@ export type InstalledAppReleaseState = {
   hash: string | null
   source: AppUpdateSource
   installedAt: ISODateTime
+}
+
+/**
+ * Result of the last GitHub release lookup, kept so the updater can answer from
+ * disk instead of spending the unauthenticated GitHub API budget (60 requests
+ * per hour, per IP) on every app launch.
+ */
+export type AppUpdateLookupState = {
+  checkedAt: ISODateTime
+  /** ETag of the response the release was read from; replayed as `If-None-Match` so an unchanged release costs no rate-limit budget. */
+  etag: string | null
+  release: GitHubReleaseMeta | null
 }
 
 export type AppearanceMode = "light" | "dark" | "system"
@@ -93,8 +107,8 @@ export type Settings = {
     sectionsHideEmpty: boolean
     /** Auto-collapse sections with no tasks. */
     sectionsAutoCollapseEmpty: boolean
-    /** Manual collapse state per status. */
-    sectionsCollapsed: Record<TaskStatus, boolean>
+    /** Manual collapse state per board column; the backlog has no collapse state. */
+    sectionsCollapsed: Record<BoardStatus, boolean>
     /** Left widget panel. */
     leftPanel: {
       visible: boolean
@@ -117,6 +131,10 @@ export type Settings = {
      * Last release successfully applied by the custom updater.
      */
     installed: InstalledAppReleaseState | null
+    /**
+     * Last release lookup answered by GitHub, used to skip redundant API calls.
+     */
+    lookup: AppUpdateLookupState | null
   }
 }
 
@@ -132,6 +150,13 @@ export type SettingsView = Omit<Settings, "sync"> & {
   }
 }
 
+/** The day, time and timezone a task is placed on. */
+export type TaskSchedule = {
+  date: ISODate
+  time: ISOTime
+  timezone: Timezone
+}
+
 export type Task = {
   /** Task ID (task:ID) */
   id: string
@@ -142,11 +167,8 @@ export type Task = {
   /** Branch ID (project scope). */
   branchId: Branch["id"]
 
-  scheduled: {
-    date: ISODate
-    time: ISOTime
-    timezone: Timezone
-  }
+  /** Null when the task has no day and waits in the backlog. */
+  scheduled: TaskSchedule | null
   /**
    * The estimated time of the task in seconds
    * @default 0
@@ -170,7 +192,7 @@ export type Task = {
    * Lower values are shown first.
    */
   orderIndex: number
-  status: "active" | "done" | "discarded"
+  status: TaskStatus
   tags: Tag[]
   /** Files IDs  */
   attachments: string[]
@@ -215,7 +237,7 @@ export type Day = {
   countDone: number
 }
 
-export type TaskEventType = "created" | "completed" | "discarded" | "reactivated" | "edited" | "deleted" | "restored" | "moved"
+export type TaskEventType = "created" | "completed" | "discarded" | "reactivated" | "backlogged" | "edited" | "deleted" | "restored" | "moved"
 
 export type TaskEvent = {
   id: string
@@ -238,4 +260,5 @@ export type MoveTaskByOrderParams = {
   targetTaskId?: Task["id"] | null
   targetStatus?: TaskStatus
   position?: TaskMovePosition
+  activeDay?: ISODate
 }

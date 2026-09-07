@@ -49,7 +49,7 @@ async function navigateToTask(result: TaskSearchResult) {
     await tasksStore.getTaskList()
   }
 
-  tasksStore.setActiveDay(task.scheduled.date)
+  if (task.scheduled) tasksStore.setActiveDay(task.scheduled.date)
 
   const scrolled = await scrollToElement(task.id)
   if (scrolled) highlightElement(task.id, {class: "highlight", duration: 2000})

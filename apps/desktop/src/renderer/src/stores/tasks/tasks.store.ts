@@ -5,8 +5,10 @@ import {defineStore} from "pinia"
 import {sortTasksByOrderIndex} from "@daily/protocol"
 
 import {useSettingsStore} from "@/stores/settings.store"
+import {useBacklog} from "./composables/useBacklog"
 import {useTaskMutations} from "./composables/useTaskMutations"
 import {useTaskRange} from "./composables/useTaskRange"
+import {useTrash} from "./composables/useTrash"
 
 import type {Day, ISODate, Task, TaskStatus} from "@daily/protocol"
 
@@ -29,7 +31,7 @@ export const useTasksStore = defineStore("tasks", () => {
         acc[task.status].push(task)
         return acc
       },
-      {active: [], discarded: [], done: []} as Record<TaskStatus, Task[]>,
+      {backlog: [], active: [], discarded: [], done: []} as Record<TaskStatus, Task[]>,
     )
   })
 
@@ -41,6 +43,7 @@ export const useTasksStore = defineStore("tasks", () => {
 
   const dailyTaskIndexMapByStatus = computed<Record<TaskStatus, Map<Task["id"], number>>>(() => {
     return {
+      backlog: new Map(backlog.backlogTasks.value.map((task, index) => [task.id, index])),
       active: new Map(dailyTasksByStatus.value.active.map((task, index) => [task.id, index])),
       discarded: new Map(dailyTasksByStatus.value.discarded.map((task, index) => [task.id, index])),
       done: new Map(dailyTasksByStatus.value.done.map((task, index) => [task.id, index])),
@@ -48,6 +51,8 @@ export const useTasksStore = defineStore("tasks", () => {
   })
 
   const range = useTaskRange({days, activeDay, isDaysLoaded, activeBranchId})
+  const backlog = useBacklog({activeBranchId})
+  const trash = useTrash({activeBranchId})
 
   const mutations = useTaskMutations({
     days,
@@ -55,13 +60,18 @@ export const useTasksStore = defineStore("tasks", () => {
     activeBranchId,
     activeDayData,
     dailyTasks,
+    backlogTasks: backlog.backlogTasks,
     findTaskById,
     refreshDay: range.refreshDay,
     refreshDays: range.refreshDays,
+    getBacklogList: backlog.getBacklogList,
+    refreshTrash: trash.refreshTrash,
+    dropFromTrash: trash.dropFromTrash,
+    clearTrash: trash.clearTrash,
   })
 
   function findTaskById(taskId: Task["id"]): Task | null {
-    return days.value.flatMap((day) => day.tasks).find((t) => t.id === taskId) || null
+    return days.value.flatMap((day) => day.tasks).find((t) => t.id === taskId) || backlog.backlogTasks.value.find((t) => t.id === taskId) || null
   }
 
   function setActiveDay(date: ISODate) {
@@ -80,9 +90,13 @@ export const useTasksStore = defineStore("tasks", () => {
     dailyTaskIndexMapByStatus,
     dailyTags,
     activeDayInfo,
+    backlogTasks: backlog.backlogTasks,
+    trashTasks: trash.trashTasks,
 
     setActiveDay,
     getTaskList: range.getTaskList,
+    getBacklogList: backlog.getBacklogList,
+    getTrashList: trash.getTrashList,
     extendRange: range.extendRange,
     findTaskById,
     revalidate: range.revalidate,

@@ -9,9 +9,9 @@ type TaskRow = {
   content: string
   minimized: number
   order_index: number
-  scheduled_date: string
-  scheduled_time: string
-  scheduled_timezone: string
+  scheduled_date: string | null
+  scheduled_time: string | null
+  scheduled_timezone: string | null
   estimated_time: number
   spent_time: number
   branch_id: string
@@ -84,17 +84,18 @@ export function rowToTask(row: TaskRow): Task {
 
   const orderIndex = isNumber(row.order_index) && Number.isFinite(row.order_index) ? row.order_index : Date.parse(row.created_at)
 
+  const scheduled =
+    notNull(row.scheduled_date) && notNull(row.scheduled_time) && notNull(row.scheduled_timezone)
+      ? {date: row.scheduled_date, time: row.scheduled_time, timezone: row.scheduled_timezone}
+      : null
+
   return {
     id: row.id,
     status: row.status as Task["status"],
     content: row.content,
     minimized: row.minimized === 1,
     orderIndex,
-    scheduled: {
-      date: row.scheduled_date,
-      time: row.scheduled_time,
-      timezone: row.scheduled_timezone,
-    },
+    scheduled,
     estimatedTime: row.estimated_time,
     spentTime: row.spent_time,
     branchId: row.branch_id || MAIN_BRANCH_ID,
@@ -173,7 +174,7 @@ export function getDefaultSettings(): Settings {
         isFullScreen: false,
       },
     },
-    updates: {skippedReleaseId: null, cached: null, installed: null},
+    updates: {skippedReleaseId: null, cached: null, installed: null, lookup: null},
   }
 }
 

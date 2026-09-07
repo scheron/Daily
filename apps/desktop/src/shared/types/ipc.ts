@@ -15,14 +15,14 @@ import type {
   ServerConnectionStateView,
   ServerProbeView,
   SettingsView,
-  StatsAggregate,
-  StatsPeriod,
   SyncProvider,
   SyncRemoteState,
   SyncStatus,
   Tag,
   Task,
   TaskEvent,
+  TaskMovePosition,
+  TaskSchedule,
   TaskSearchResult,
 } from "@daily/protocol"
 import type {Buffer} from "buffer"
@@ -101,23 +101,25 @@ export interface BridgeIPC {
   "activity:get-by-day": (date: ISODate, branchId?: Branch["id"]) => Promise<TaskEvent[]>
   "activity:get-by-task": (taskId: Task["id"]) => Promise<TaskEvent[]>
 
-  "stats:get": (period: StatsPeriod, anchor: ISODate, branchId?: Branch["id"]) => Promise<StatsAggregate>
-
   // === TASKS  ===
   "tasks:get-many": (params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: Branch["id"]}) => Promise<Task[]>
+  "tasks:get-backlog": (params?: {limit?: number; branchId?: Branch["id"]}) => Promise<Task[]>
   "tasks:get-one": (id: Task["id"]) => Promise<Task | null>
-  "tasks:update": (id: Task["id"], updates: PartialDeep<Task>) => Promise<Task | null>
+  "tasks:update": (id: Task["id"], updates: PartialDeep<Task>, activeDay?: ISODate) => Promise<Task | null>
   "tasks:toggle-minimized": (id: Task["id"], minimized: boolean) => Promise<Task | null>
   "tasks:create": (
     task: Omit<Task, "id" | "createdAt" | "updatedAt" | "deletedAt" | "attachments" | "branchId"> & {branchId?: Task["branchId"]},
   ) => Promise<Task | null>
   "tasks:move-by-order": (params: MoveTaskByOrderParams) => Promise<Task | null>
+  "tasks:schedule": (id: Task["id"], schedule: TaskSchedule) => Promise<Task | null>
+  "tasks:move-to-backlog": (id: Task["id"]) => Promise<Task | null>
   "tasks:move-to-branch": (taskId: Task["id"], branchId: Branch["id"]) => Promise<boolean>
   "tasks:delete": (id: Task["id"]) => Promise<boolean>
   "tasks:add-tags": (taskId: Task["id"], tagIds: Tag["id"][]) => Promise<Task | null>
   "tasks:remove-tags": (taskId: Task["id"], tagIds: Tag["id"][]) => Promise<Task | null>
   "tasks:get-deleted": (params?: {limit?: number; branchId?: Branch["id"]}) => Promise<Task[]>
-  "tasks:restore": (id: Task["id"]) => Promise<Task | null>
+  "tasks:move-in-trash": (taskId: Task["id"], targetTaskId: Task["id"] | null, position: TaskMovePosition) => Promise<Task | null>
+  "tasks:restore": (id: Task["id"], activeDay?: ISODate) => Promise<Task | null>
   "tasks:delete-permanently": (id: Task["id"]) => Promise<boolean>
   "tasks:delete-all-permanently": () => Promise<number>
 

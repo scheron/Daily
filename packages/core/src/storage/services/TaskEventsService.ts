@@ -1,3 +1,5 @@
+import {DateTime} from "luxon"
+
 import type {Branch, ISODate, Tag, Task, TaskEvent, TaskEventType, TaskStatus} from "@daily/protocol"
 import type {TaskEventModel} from "../models/TaskEventModel"
 
@@ -21,13 +23,13 @@ export class TaskEventsService {
     return collapseMoves(this.taskEventModel.getByTask(taskId))
   }
 
-  /** Records a single event for a task at its scheduled date. */
+  /** Records a single event for a task, at its scheduled date, or today when it has none. */
   record(task: Task, type: TaskEventType) {
     this.taskEventModel.record({
       taskId: task.id,
       branchId: task.branchId,
       type,
-      eventDate: task.scheduled.date,
+      eventDate: task.scheduled?.date ?? DateTime.now().toISODate()!,
       fromDate: null,
       toDate: null,
       createdAt: new Date().toISOString(),
@@ -46,8 +48,11 @@ export class TaskEventsService {
       return
     }
 
-    if (before.scheduled.date !== after.scheduled.date) {
-      this.recordMove(after, before.scheduled.date, after.scheduled.date)
+    const beforeDate = before.scheduled?.date ?? null
+    const afterDate = after.scheduled?.date ?? null
+
+    if (beforeDate !== afterDate) {
+      this.recordMove(after, beforeDate, afterDate)
     }
 
     if (hasNonDateEdit(before, after) && this.shouldRecordEdit(after.id)) {
@@ -55,7 +60,8 @@ export class TaskEventsService {
     }
   }
 
-  private recordMove(task: Task, fromDate: ISODate, toDate: ISODate) {
+  /** Records a move between two days. When one end is empty (the backlog), writes a single row instead of a pair. */
+  private recordMove(task: Task, fromDate: ISODate | null, toDate: ISODate | null) {
     const createdAt = new Date().toISOString()
     const base = {
       taskId: task.id,
@@ -65,6 +71,12 @@ export class TaskEventsService {
       toDate,
       createdAt,
     }
+
+    if (fromDate === null || toDate === null) {
+      this.taskEventModel.record({...base, eventDate: (fromDate ?? toDate)!})
+      return
+    }
+
     this.taskEventModel.record({...base, eventDate: fromDate})
     this.taskEventModel.record({...base, eventDate: toDate})
   }
@@ -97,16 +109,14 @@ function collapseMoves(events: TaskEvent[]): TaskEvent[] {
 function statusEventType(status: TaskStatus): TaskEventType {
   if (status === "done") return "completed"
   if (status === "discarded") return "discarded"
+  if (status === "backlog") return "backlogged"
   return "reactivated"
 }
 
 function hasNonDateEdit(before: Task, after: Task): boolean {
-  return (
-    before.content !== after.content ||
-    before.scheduled.time !== after.scheduled.time ||
-    before.estimatedTime !== after.estimatedTime ||
-    !sameTagIds(before.tags, after.tags)
-  )
+  const timeChanged = before.scheduled !== null && after.scheduled !== null && before.scheduled.time !== after.scheduled.time
+
+  return before.content !== after.content || timeChanged || before.estimatedTime !== after.estimatedTime || !sameTagIds(before.tags, after.tags)
 }
 
 function sameTagIds(a: Tag[], b: Tag[]): boolean {

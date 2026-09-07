@@ -17,10 +17,10 @@ const props = defineProps<{task: Task}>()
 const tasksStore = useTasksStore()
 const taskEditorStore = useTaskEditorStore()
 
-const dateLabel = computed(() => toDateLabel(props.task.scheduled.date, {short: true}))
+const dateLabel = computed(() => (props.task.scheduled ? toDateLabel(props.task.scheduled.date, {short: true}) : "—"))
 
 function selectDate(date: ISODate, hide: () => void) {
-  if (date !== props.task.scheduled.date) {
+  if (props.task.scheduled && date !== props.task.scheduled.date) {
     taskEditorStore.patch({scheduled: {...props.task.scheduled, date}})
   }
   hide()
@@ -28,7 +28,7 @@ function selectDate(date: ISODate, hide: () => void) {
 </script>
 
 <template>
-  <BasePopup hide-header position="start">
+  <BasePopup v-if="task.scheduled" hide-header position="start">
     <template #trigger="{toggle}">
       <BaseButton type="button" class="inline-flex items-center justify-start gap-1 p-0" size="sm" variant="text" @click.stop="toggle">
         <BaseIcon name="calendar" class="size-3.5" />
@@ -42,4 +42,8 @@ function selectDate(date: ISODate, hide: () => void) {
       </div>
     </template>
   </BasePopup>
+  <span v-else class="text-base-content/60 inline-flex items-center gap-1 leading-none">
+    <BaseIcon name="calendar" class="size-3.5" />
+    <span>{{ dateLabel }}</span>
+  </span>
 </template>

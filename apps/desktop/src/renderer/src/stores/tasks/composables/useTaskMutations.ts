@@ -6,7 +6,7 @@ import {updateDays} from "@/utils/tasks/updateDays"
 import {toRawDeep} from "@/utils/ui/vue"
 
 import type {TaskDropPosition, TaskMoveMeta, TaskMutationsContext} from "@/stores/tasks/types"
-import type {Branch, ISODate, Tag, Task, TaskStatus} from "@daily/protocol"
+import type {Branch, Day, ISODate, Tag, Task, TaskSchedule, TaskStatus} from "@daily/protocol"
 
 /**
  * Task write operations: create, duplicate, update, move, and delete. Each call
@@ -14,35 +14,44 @@ import type {Branch, ISODate, Tag, Task, TaskStatus} from "@daily/protocol"
  * @param ctx - Shared task state refs, active-day selectors, and day-refresh helpers
  */
 export function useTaskMutations(ctx: TaskMutationsContext) {
-  const {days, activeDay, activeBranchId, activeDayData, dailyTasks, findTaskById, refreshDay, refreshDays} = ctx
+  const {days, activeDay, activeBranchId, dailyTasks, backlogTasks, findTaskById, refreshDay, refreshDays, getBacklogList} = ctx
+  const {refreshTrash, dropFromTrash, clearTrash} = ctx
 
   async function createTask(params: {
     content: string
     tags: Tag[]
     estimatedTime?: number
-    date?: ISODate
+    date?: ISODate | null
     branchId?: Branch["id"]
     status?: TaskStatus
   }): Promise<Task | null> {
-    const previousIds = new Set(dailyTasks.value.map((t) => t.id))
-    const updatedDay = await API.createTask(
+    const isBacklog = params.date === null
+    const siblingTasks = isBacklog ? backlogTasks.value : dailyTasks.value
+    const previousIds = new Set(siblingTasks.map((t) => t.id))
+
+    const result = await API.createTask(
       params.content,
       toRawDeep({
-        date: params.date ?? activeDay.value,
+        date: params.date === undefined ? activeDay.value : params.date,
         time: getTime(),
         timezone: getTimezone(),
         tags: params.tags,
         estimatedTime: params.estimatedTime ?? 0,
-        orderIndex: getPreviousTaskOrderIndex(dailyTasks.value),
+        orderIndex: getPreviousTaskOrderIndex(siblingTasks),
         branchId: params.branchId ?? activeBranchId.value,
         status: params.status,
       }),
     )
 
-    if (!updatedDay) return null
+    if (!result) return null
 
-    days.value = updateDays(days.value, updatedDay)
-    return updatedDay.tasks.find((t) => !previousIds.has(t.id)) ?? null
+    if (isDayResult(result)) {
+      days.value = updateDays(days.value, result)
+      return result.tasks.find((t) => !previousIds.has(t.id)) ?? null
+    }
+
+    backlogTasks.value = [result, ...backlogTasks.value]
+    return result
   }
 
   async function duplicateTask(taskId: Task["id"]) {
@@ -53,7 +62,7 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
       content: task.content,
       tags: task.tags,
       estimatedTime: task.estimatedTime,
-      date: task.scheduled.date,
+      date: task.scheduled?.date ?? null,
       branchId: task.branchId,
       status: "active",
     })
@@ -63,10 +72,24 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
 
   async function updateTask(taskId: Task["id"], updates: Partial<Omit<Task, "id" | "createdAt" | "updatedAt">>) {
     const payload = objectFilter(updates, (value) => notUndefined(value))
-    const updatedDay = await API.updateTask(taskId, toRawDeep(payload))
-    if (!updatedDay) return false
+    const before = findTaskById(taskId)
 
-    days.value = updateDays(days.value, updatedDay)
+    const updated = await API.updateTask(taskId, toRawDeep(payload), activeDay.value)
+    if (!updated) return false
+
+    const beforeDate = before?.scheduled?.date ?? null
+    const afterDate = updated.scheduled?.date ?? null
+
+    if (!patchTaskInDay(updated, beforeDate, notUndefined(payload.tags))) {
+      const affectedDates = new Set<ISODate>()
+      if (beforeDate) affectedDates.add(beforeDate)
+      if (afterDate) affectedDates.add(afterDate)
+
+      if (affectedDates.size) await refreshDays([...affectedDates])
+    }
+
+    if (before?.status === "backlog" || updated.status === "backlog") await getBacklogList()
+
     return true
   }
 
@@ -85,18 +108,60 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
     const isSuccess = await API.deleteTask(taskId)
     if (!isSuccess) return false
 
-    const day = days.value.find((d) => d.date === task.scheduled.date)
-    if (!day) return false
+    const taskDate = task.scheduled?.date ?? null
 
-    const dayWithRemovedTask = {...day, tasks: day.tasks.filter((t) => t.id !== taskId)}
-    days.value = updateDays(days.value, dayWithRemovedTask)
+    if (taskDate) {
+      const day = days.value.find((d) => d.date === taskDate)
+      if (day) days.value = updateDays(days.value, {...day, tasks: day.tasks.filter((t) => t.id !== taskId)})
+    } else {
+      backlogTasks.value = backlogTasks.value.filter((t) => t.id !== taskId)
+    }
+
+    await refreshTrash()
 
     return true
   }
 
+  async function moveTaskInTrash(taskId: Task["id"], targetTaskId: Task["id"] | null, position: TaskDropPosition) {
+    const moved = await API.moveTaskInTrash(taskId, targetTaskId, position)
+    if (!moved) return false
+
+    await refreshTrash()
+
+    return true
+  }
+
+  async function restoreTask(taskId: Task["id"], landingDay?: ISODate): Promise<Task | null> {
+    const restored = await API.restoreTask(taskId, landingDay ?? activeDay.value)
+    if (!restored) return null
+
+    dropFromTrash(taskId)
+
+    if (restored.scheduled) await refreshDay(restored.scheduled.date)
+    else await getBacklogList()
+
+    return restored
+  }
+
+  async function permanentlyDeleteTask(taskId: Task["id"]) {
+    const isSuccess = await API.permanentlyDeleteTask(taskId)
+    if (!isSuccess) return false
+
+    dropFromTrash(taskId)
+
+    return true
+  }
+
+  async function emptyTrash() {
+    const count = await API.permanentlyDeleteAllDeletedTasks()
+    if (count > 0) clearTrash()
+
+    return count
+  }
+
   async function moveTask(taskId: Task["id"], targetDate: ISODate) {
     const task = findTaskById(taskId)
-    if (!task) return false
+    if (!task || !task.scheduled) return false
 
     const sourceDate = task.scheduled.date
 
@@ -108,10 +173,36 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
     return true
   }
 
+  async function scheduleTask(taskId: Task["id"], schedule: TaskSchedule) {
+    const isSuccess = await API.scheduleTask(taskId, schedule)
+    if (!isSuccess) return false
+
+    backlogTasks.value = backlogTasks.value.filter((t) => t.id !== taskId)
+    await refreshDay(schedule.date)
+
+    return true
+  }
+
+  async function moveTaskToBacklog(taskId: Task["id"]) {
+    const task = findTaskById(taskId)
+    if (!task || !task.scheduled) return false
+
+    const sourceDate = task.scheduled.date
+
+    const updated = await API.moveTaskToBacklog(taskId)
+    if (!updated) return false
+
+    await refreshDay(sourceDate)
+    backlogTasks.value = [updated, ...backlogTasks.value]
+
+    return true
+  }
+
   async function moveTaskToBranch(taskId: Task["id"], branchId: Branch["id"]) {
     const task = findTaskById(taskId)
     if (!task) return false
     if (task.branchId === branchId) return true
+    if (!task.scheduled) return false
 
     const taskDate = task.scheduled.date
 
@@ -127,12 +218,16 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
     targetTaskId?: Task["id"] | null
     targetStatus?: TaskStatus
     position?: TaskDropPosition
+    activeDay?: ISODate
   }): Promise<TaskMoveMeta | null> {
-    const day = activeDayData.value
-    if (!day) return null
+    let sourceTask = findTaskById(params.taskId)
 
-    const sourceTask = day.tasks.find((task) => task.id === params.taskId)
-    if (!sourceTask) return null
+    if (!sourceTask) {
+      const restored = await restoreTask(params.taskId, params.activeDay)
+      if (!restored) return null
+
+      sourceTask = findTaskById(params.taskId) ?? restored
+    }
 
     const targetTaskId = params.targetTaskId ?? null
     const position = params.position ?? "before"
@@ -150,28 +245,53 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
       return meta
     }
 
+    const sourceDate = sourceTask.scheduled?.date ?? null
+    const destinationDate = toStatus === "backlog" ? null : (params.activeDay ?? sourceDate ?? activeDay.value)
+    const touchesBacklog = sourceTask.status === "backlog" || toStatus === "backlog"
+
     try {
-      const nextDay = await API.moveTaskByOrder(
+      const updated = await API.moveTaskByOrder(
         toRawDeep({
           taskId: params.taskId,
           targetTaskId,
           targetStatus: params.targetStatus,
           position,
+          activeDay: params.activeDay,
         }),
       )
-      if (!nextDay) {
-        await refreshDay(activeDay.value)
+
+      if (!updated) {
+        if (sourceDate) await refreshDay(sourceDate)
+        if (touchesBacklog) await getBacklogList()
         return null
       }
-
-      days.value = updateDays(days.value, nextDay)
     } catch (error) {
       console.error("Failed to reorder tasks", error)
-      await refreshDay(activeDay.value)
+      if (sourceDate) await refreshDay(sourceDate)
+      if (touchesBacklog) await getBacklogList()
       return null
     }
 
+    const affectedDates = new Set<ISODate>()
+    if (sourceDate) affectedDates.add(sourceDate)
+    if (destinationDate) affectedDates.add(destinationDate)
+
+    if (affectedDates.size) await refreshDays([...affectedDates])
+    if (touchesBacklog) await getBacklogList()
+
     return meta
+  }
+
+  function patchTaskInDay(task: Task, previousDate: ISODate | null, tagsChanged: boolean): boolean {
+    if (tagsChanged) return false
+    if (!task.scheduled || task.scheduled.date !== previousDate) return false
+
+    const day = days.value.find((d) => d.date === previousDate)
+    if (!day) return false
+
+    days.value = updateDays(days.value, {...day, tasks: day.tasks.map((t) => (t.id === task.id ? task : t))})
+
+    return true
   }
 
   return {
@@ -180,8 +300,18 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
     updateTask,
     toggleTaskMinimized,
     deleteTask,
+    moveTaskInTrash,
+    restoreTask,
+    permanentlyDeleteTask,
+    emptyTrash,
     moveTask,
+    scheduleTask,
+    moveTaskToBacklog,
     moveTaskToBranch,
     moveTaskByOrder,
   }
+}
+
+function isDayResult(result: Day | Task): result is Day {
+  return "tasks" in result
 }

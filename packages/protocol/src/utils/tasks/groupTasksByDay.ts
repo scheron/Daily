@@ -19,6 +19,8 @@ export function groupTasksByDay(params: {tasks: Task[]; tags: Tag[]}): Day[] {
   }
 
   for (const task of tasks) {
+    if (!task.scheduled) continue
+
     const taskDate = task.scheduled.date
     const dayTasks = tasksByDay.get(taskDate) || []
 

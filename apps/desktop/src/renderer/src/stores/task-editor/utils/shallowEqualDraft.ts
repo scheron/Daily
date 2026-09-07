@@ -13,9 +13,12 @@ export function shallowEqualDraft(a: TaskDraft, b: TaskDraft): boolean {
     a.spentTime === b.spentTime &&
     a.status === b.status &&
     a.branchId === b.branchId &&
-    a.scheduled.date === b.scheduled.date &&
-    a.scheduled.time === b.scheduled.time &&
-    a.scheduled.timezone === b.scheduled.timezone &&
+    sameSchedule(a.scheduled, b.scheduled) &&
     sameTagIds(a.tags, b.tags)
   )
+}
+
+function sameSchedule(a: TaskDraft["scheduled"], b: TaskDraft["scheduled"]): boolean {
+  if (!a || !b) return a === b
+  return a.date === b.date && a.time === b.time && a.timezone === b.timezone
 }

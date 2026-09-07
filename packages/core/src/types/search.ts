@@ -7,7 +7,8 @@ export type SearchTask = {
   /** Normalized text for searching (lowercase, no markdown) */
   plainText: string
   updatedAt: Task["updatedAt"]
-  date: ISODate
+  /** Null for a backlog task, which has no day. */
+  date: ISODate | null
 }
 
 export type SearchResult = {

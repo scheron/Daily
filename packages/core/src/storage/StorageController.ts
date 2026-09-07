@@ -29,8 +29,6 @@ import type {
   MigrationPreview,
   MoveTaskByOrderParams,
   Settings,
-  StatsAggregate,
-  StatsPeriod,
   SyncProvider,
   SyncRemote,
   SyncRemoteState,
@@ -38,6 +36,8 @@ import type {
   Tag,
   Task,
   TaskEvent,
+  TaskMovePosition,
+  TaskSchedule,
   TaskSearchResult,
 } from "@daily/protocol"
 import type {PartialDeep} from "type-fest"
@@ -56,7 +56,6 @@ export class StorageController implements IStorageController {
   private tagsService!: StorageCore["tagsService"]
   private filesService!: StorageCore["filesService"]
   private daysService!: StorageCore["daysService"]
-  private statsService!: StorageCore["statsService"]
   private searchService!: StorageCore["searchService"]
   private syncEngine!: SyncEngine
   private serverProvider!: ServerProviderService
@@ -89,7 +88,6 @@ export class StorageController implements IStorageController {
     this.tagsService = core.tagsService
     this.filesService = core.filesService
     this.daysService = core.daysService
-    this.statsService = core.statsService
     this.searchService = core.searchService
     this.localAdapter = core.localAdapter
     this.aiSessionModel = core.aiSessionModel
@@ -223,26 +221,23 @@ export class StorageController implements IStorageController {
   }
   //#endregion
 
-  //#region STATS
-  async getStats(period: StatsPeriod, anchor: ISODate, branchId?: Branch["id"]): Promise<StatsAggregate> {
-    const resolvedBranchId = await this.branchesService.resolveBranchId(branchId)
-    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
-    return this.statsService.getStats(period, anchor, resolvedBranchId, timezone)
-  }
-  //#endregion
-
   //#region TASKS
   async getTaskList(params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: Branch["id"]}): Promise<Task[]> {
     const branchId = await this.branchesService.resolveBranchId(params?.branchId)
     return this.tasksService.getTaskList({...params, branchId})
   }
 
+  async getBacklogList(params?: {limit?: number; branchId?: Branch["id"]}): Promise<Task[]> {
+    const branchId = await this.branchesService.resolveBranchId(params?.branchId)
+    return this.tasksService.getBacklogList({...params, branchId})
+  }
+
   async getTask(id: Task["id"]): Promise<Task | null> {
     return this.tasksService.getTask(id)
   }
 
-  async updateTask(id: Task["id"], updates: PartialDeep<Task>): Promise<Task | null> {
-    const updatedTask = await this.tasksService.updateTask(id, updates)
+  async updateTask(id: Task["id"], updates: PartialDeep<Task>, activeDay?: ISODate): Promise<Task | null> {
+    const updatedTask = await this.tasksService.updateTask(id, updates, activeDay)
     if (updatedTask) {
       await this.searchService.updateTaskInIndex(updatedTask)
       this.notifyStorageDataChange?.()
@@ -261,6 +256,24 @@ export class StorageController implements IStorageController {
       this.notifyStorageDataChange?.()
     }
     return updatedTask
+  }
+
+  async scheduleTask(taskId: Task["id"], schedule: TaskSchedule): Promise<Task | null> {
+    const scheduledTask = await this.tasksService.scheduleTask(taskId, schedule)
+    if (scheduledTask) {
+      await this.searchService.updateTaskInIndex(scheduledTask)
+      this.notifyStorageDataChange?.()
+    }
+    return scheduledTask
+  }
+
+  async moveTaskToBacklog(taskId: Task["id"]): Promise<Task | null> {
+    const backlogTask = await this.tasksService.moveTaskToBacklog(taskId)
+    if (backlogTask) {
+      await this.searchService.updateTaskInIndex(backlogTask)
+      this.notifyStorageDataChange?.()
+    }
+    return backlogTask
   }
 
   async moveTaskToBranch(taskId: Task["id"], branchId: Branch["id"]): Promise<boolean> {
@@ -325,8 +338,16 @@ export class StorageController implements IStorageController {
     return this.tasksService.getDeletedTasks({...params, branchId})
   }
 
-  async restoreTask(id: Task["id"]): Promise<Task | null> {
-    const restoredTask = await this.tasksService.restoreTask(id)
+  async moveTaskInTrash(taskId: Task["id"], targetTaskId: Task["id"] | null, position: TaskMovePosition): Promise<Task | null> {
+    const movedTask = await this.tasksService.moveTaskInTrash(taskId, targetTaskId, position)
+    if (movedTask) {
+      this.notifyStorageDataChange?.()
+    }
+    return movedTask
+  }
+
+  async restoreTask(id: Task["id"], activeDay?: ISODate): Promise<Task | null> {
+    const restoredTask = await this.tasksService.restoreTask(id, activeDay)
     if (restoredTask) {
       await this.searchService.updateTaskInIndex(restoredTask)
       this.notifyStorageDataChange?.()

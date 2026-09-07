@@ -8,7 +8,7 @@ export type SnapshotMeta = {
 }
 
 export type Snapshot = {
-  version: 2 | 3 | 4
+  version: 2 | 3 | 4 | 5
   docs: SnapshotDocs
   meta: SnapshotMeta
 }
@@ -39,9 +39,9 @@ export type SnapshotTask = {
   content: string
   minimized: boolean
   order_index: number
-  scheduled_date: string
-  scheduled_time: string
-  scheduled_timezone: string
+  scheduled_date: string | null
+  scheduled_time: string | null
+  scheduled_timezone: string | null
   estimated_time: number
   spent_time: number
   branch_id: string

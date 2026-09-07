@@ -4,8 +4,8 @@ import {describe, expect, it} from "vitest"
 import {AI_TOOLS, AI_TOOLS_COMPACT, getRegisteredTool, REGISTRY} from "../../../../../src/main/ai/tools/registry"
 
 describe("Tool registry invariants", () => {
-  it("contains exactly 32 tools (31 domain + respond meta)", () => {
-    expect(REGISTRY.length).toBe(32)
+  it("contains exactly 34 tools (33 domain + respond meta)", () => {
+    expect(REGISTRY.length).toBe(34)
   })
 
   it("includes the respond meta tool with non-destructive flags", () => {

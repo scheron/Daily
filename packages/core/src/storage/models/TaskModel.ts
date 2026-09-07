@@ -1,6 +1,6 @@
 import {nanoid} from "nanoid"
 
-import {MAIN_BRANCH_ID} from "@daily/protocol"
+import {MAIN_BRANCH_ID, sortTasksByOrderIndex} from "@daily/protocol"
 import {notUndefined} from "@daily/std"
 
 import {logger} from "../../utils/logger"
@@ -48,6 +48,8 @@ export class TaskModel {
       conditions.push("t.deleted_at IS NULL")
     }
 
+    conditions.push("t.scheduled_date IS NOT NULL")
+
     if (params?.from) {
       conditions.push("t.scheduled_date >= ?")
       values.push(params.from)
@@ -78,6 +80,37 @@ export class TaskModel {
     const rows = this.db.prepare(sql).all(...values) as any[]
 
     logger.info(logger.CONTEXT.TASKS, `Loaded ${rows.length} tasks from database`)
+
+    return rows.map(rowToTask)
+  }
+
+  getBacklogList(params?: {limit?: number; branchId?: Branch["id"]; includeDeleted?: boolean}): Task[] {
+    const conditions: string[] = ["t.status = 'backlog'"]
+    const values: any[] = []
+
+    if (!params?.includeDeleted) {
+      conditions.push("t.deleted_at IS NULL")
+    }
+
+    if (params?.branchId) {
+      if (params.branchId === MAIN_BRANCH_ID) {
+        conditions.push("(t.branch_id = ? OR t.branch_id IS NULL)")
+        values.push(MAIN_BRANCH_ID)
+      } else {
+        conditions.push("t.branch_id = ?")
+        values.push(params.branchId)
+      }
+    }
+
+    let sql = `${TASK_SELECT} WHERE ${conditions.join(" AND ")} ORDER BY t.order_index`
+
+    if (notUndefined(params?.limit) && Number.isFinite(params.limit)) {
+      sql += ` LIMIT ${params.limit}`
+    }
+
+    const rows = this.db.prepare(sql).all(...values) as any[]
+
+    logger.info(logger.CONTEXT.TASKS, `Loaded ${rows.length} backlog tasks from database`)
 
     return rows.map(rowToTask)
   }
@@ -121,9 +154,9 @@ export class TaskModel {
           task.content,
           task.minimized ? 1 : 0,
           orderIndex,
-          task.scheduled.date,
-          task.scheduled.time,
-          task.scheduled.timezone,
+          task.scheduled?.date ?? null,
+          task.scheduled?.time ?? null,
+          task.scheduled?.timezone ?? null,
           task.estimatedTime,
           task.spentTime,
           branchId,
@@ -192,7 +225,9 @@ export class TaskModel {
       values.push(updates.deletedAt)
     }
 
-    if (notUndefined(updates.scheduled)) {
+    if (updates.scheduled === null) {
+      setClauses.push("scheduled_date = NULL", "scheduled_time = NULL", "scheduled_timezone = NULL")
+    } else if (notUndefined(updates.scheduled)) {
       if (notUndefined(updates.scheduled.date)) {
         setClauses.push("scheduled_date = ?")
         values.push(updates.scheduled.date)
@@ -274,7 +309,7 @@ export class TaskModel {
 
     logger.info(logger.CONTEXT.TASKS, `Loaded ${rows.length} deleted tasks from database`)
 
-    return rows.map(rowToTask)
+    return sortTasksByOrderIndex(rows.map(rowToTask))
   }
 
   restoreTask(id: Task["id"]): Task | null {

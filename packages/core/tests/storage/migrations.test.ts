@@ -215,6 +215,7 @@ describe("migrations", () => {
       const db = new Database(":memory:")
       runMigrations(db)
 
+      rollbackLastMigration(db) // v010
       rollbackLastMigration(db) // v009
       rollbackLastMigration(db) // v008
       rollbackLastMigration(db) // v007
@@ -416,6 +417,97 @@ describe("migrations", () => {
       expect(() => runMigrations(invalidJson)).not.toThrow()
       expect(readSyncData(invalidJson)).toBe(beforeInvalid)
       invalidJson.close()
+    })
+  })
+  describe("v010 — backlog status", () => {
+    function seedThroughV9(db) {
+      db.exec(`CREATE TABLE _migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)`)
+      for (const migration of migrations.filter((m) => m.version <= 9)) {
+        if (typeof migration.up === "string") db.exec(migration.up)
+        else migration.up(db)
+        db.prepare("INSERT INTO _migrations (version, name, applied_at) VALUES (?, ?, ?)").run(
+          migration.version,
+          migration.name,
+          "2026-09-01T00:00:00.000Z",
+        )
+      }
+    }
+
+    it("TC-1: the rebuild keeps a task's tags, attachments and schedule intact", () => {
+      const db = new Database(":memory:")
+      db.pragma("foreign_keys = ON")
+      seedThroughV9(db)
+
+      const now = "2026-09-01T00:00:00.000Z"
+      db.prepare(
+        `INSERT INTO tasks (id, status, content, minimized, order_index, scheduled_date, scheduled_time, scheduled_timezone, estimated_time, spent_time, branch_id, created_at, updated_at)
+         VALUES ('t1', 'active', 'Keep me', 0, 0, '2026-09-05', '10:00:00', 'UTC', 0, 0, 'main', ?, ?)`,
+      ).run(now, now)
+      db.prepare(`INSERT INTO tags (id, name, color, created_at, updated_at) VALUES ('tag1', 'work', '#ff0000', ?, ?)`).run(now, now)
+      db.prepare(`INSERT INTO task_tags (task_id, tag_id) VALUES ('t1', 'tag1')`).run()
+      db.prepare(`INSERT INTO files (id, name, mime_type, size, created_at, updated_at) VALUES ('f1', 'a.png', 'image/png', 10, ?, ?)`).run(now, now)
+      db.prepare(`INSERT INTO task_attachments (task_id, file_id) VALUES ('t1', 'f1')`).run()
+
+      runMigrations(db)
+
+      expect(getAppliedMigrations(db).map((m) => m.version)).toContain(10)
+
+      const task = db.prepare("SELECT * FROM tasks WHERE id = 't1'").get()
+      expect(task.scheduled_date).toBe("2026-09-05")
+      expect(task.scheduled_time).toBe("10:00:00")
+      expect(task.scheduled_timezone).toBe("UTC")
+      expect(db.prepare("SELECT COUNT(*) AS c FROM task_tags WHERE task_id = 't1'").get().c).toBe(1)
+      expect(db.prepare("SELECT COUNT(*) AS c FROM task_attachments WHERE task_id = 't1'").get().c).toBe(1)
+
+      db.close()
+    })
+
+    it("TC-2: a task may hold no schedule at all, but never half of one", () => {
+      const db = new Database(":memory:")
+      db.pragma("foreign_keys = ON")
+      runMigrations(db)
+
+      const now = new Date().toISOString()
+
+      expect(() =>
+        db
+          .prepare(
+            `INSERT INTO tasks (id, status, content, minimized, order_index, scheduled_date, scheduled_time, scheduled_timezone, estimated_time, spent_time, branch_id, created_at, updated_at)
+             VALUES ('t1', 'backlog', 'x', 0, 0, NULL, NULL, NULL, 0, 0, 'main', ?, ?)`,
+          )
+          .run(now, now),
+      ).not.toThrow()
+
+      expect(() =>
+        db
+          .prepare(
+            `INSERT INTO tasks (id, status, content, minimized, order_index, scheduled_date, scheduled_time, scheduled_timezone, estimated_time, spent_time, branch_id, created_at, updated_at)
+             VALUES ('t2', 'active', 'x', 0, 0, NULL, '10:00:00', 'UTC', 0, 0, 'main', ?, ?)`,
+          )
+          .run(now, now),
+      ).toThrow()
+
+      db.close()
+    })
+
+    it("TC-3: backlog joins the statuses the table accepts, and nothing else does", () => {
+      const db = new Database(":memory:")
+      db.pragma("foreign_keys = ON")
+      runMigrations(db)
+
+      const now = new Date().toISOString()
+      const insert = (id, status) =>
+        db
+          .prepare(
+            `INSERT INTO tasks (id, status, content, minimized, order_index, scheduled_date, scheduled_time, scheduled_timezone, estimated_time, spent_time, branch_id, created_at, updated_at)
+             VALUES (?, ?, 'x', 0, 0, NULL, NULL, NULL, 0, 0, 'main', ?, ?)`,
+          )
+          .run(id, status, now, now)
+
+      expect(() => insert("t1", "backlog")).not.toThrow()
+      expect(() => insert("t2", "parked")).toThrow()
+
+      db.close()
     })
   })
 })

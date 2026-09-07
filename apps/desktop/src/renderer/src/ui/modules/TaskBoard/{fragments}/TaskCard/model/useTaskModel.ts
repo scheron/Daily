@@ -1,6 +1,8 @@
 import {computed, toValue} from "vue"
 import {toasts} from "vue-toasts-lite"
 
+import {getTime, getTimezone} from "@daily/std"
+
 import {useCopyToClipboard} from "@/composables/useCopyToClipboard"
 import {useBranchesStore} from "@/stores/branches.store"
 import {useTaskEditorStore} from "@/stores/task-editor"
@@ -23,6 +25,7 @@ export function useTaskModel(rawProps: MaybeRefOrGetter<TaskModelProps>) {
   const taskStatus = computed(() => task.value?.status ?? "active")
   const moveScope = computed(() => {
     if (!task.value) return []
+    if (taskStatus.value === "backlog") return tasksStore.backlogTasks
     return tasksStore.dailyTasksByStatus[taskStatus.value] ?? []
   })
   const moveIndex = computed(() => {
@@ -61,9 +64,11 @@ export function useTaskModel(rawProps: MaybeRefOrGetter<TaskModelProps>) {
 
   async function rescheduleTask(targetDate: ISODate) {
     if (!task.value || !targetDate) return
-    if (targetDate === task.value.scheduled.date) return
+    if (targetDate === task.value.scheduled?.date) return
 
-    const isMoved = await tasksStore.moveTask(task.value.id, targetDate)
+    const isMoved = task.value.scheduled
+      ? await tasksStore.moveTask(task.value.id, targetDate)
+      : await tasksStore.scheduleTask(task.value.id, {date: targetDate, time: getTime(), timezone: getTimezone()})
 
     if (isMoved) toasts.success("Task moved successfully")
     else toasts.error("Failed to move task")

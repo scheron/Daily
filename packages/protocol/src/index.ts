@@ -1,7 +1,6 @@
 export * from "./types/ai"
 export * from "./types/common"
 export * from "./types/search"
-export * from "./types/stats"
 export * from "./types/storage"
 export * from "./types/sync"
 export * from "./types/syncProtocol"

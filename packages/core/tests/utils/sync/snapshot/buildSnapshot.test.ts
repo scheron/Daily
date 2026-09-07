@@ -42,9 +42,20 @@ function makeTag(id, overrides = {}) {
 }
 
 describe("buildSnapshot", () => {
-  it("creates snapshot with version 4", () => {
+  it("creates snapshot with version 5", () => {
     const snapshot = buildSnapshot(emptyDocs())
-    expect(snapshot.version).toBe(4)
+    expect(snapshot.version).toBe(5)
+  })
+
+  it("TC-6: collects a backlog task at version 5, with every schedule field empty", () => {
+    const backlogTask = makeTask("t1", {scheduled_date: null, scheduled_time: null, scheduled_timezone: null})
+    const snapshot = buildSnapshot({...emptyDocs(), tasks: [backlogTask]})
+
+    expect(snapshot.version).toBe(5)
+    const task = snapshot.docs.tasks.find((t) => t.id === "t1")
+    expect(task?.scheduled_date).toBeNull()
+    expect(task?.scheduled_time).toBeNull()
+    expect(task?.scheduled_timezone).toBeNull()
   })
 
   it("includes docs and meta", () => {

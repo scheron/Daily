@@ -2,32 +2,37 @@ import {watch} from "vue"
 import {storeToRefs} from "pinia"
 
 import {createSharedComposable} from "@/composables/createSharedComposable"
-import {DROP_DAY_SELECTOR, DROP_ZONE_SELECTOR, OVER_DROP_ZONE_CLASS} from "@/constants/ui"
+import {DROP_DAY_SELECTOR, DROP_HIDE_SELECTOR, OVER_DROP_ZONE_CLASS} from "@/constants/ui"
 import {useDragDropStore} from "@/stores/dragDrop.store"
 import {findClosestAtPoint, findDragClone} from "@/utils/ui/dom"
 
 import type {ISODate} from "@daily/protocol"
 
+type PendingDrop = {taskId: string; date: ISODate}
+
 /**
- * Tracks the dragged task over day cells and asks the store to drop it. Shared by every
- * day-cell surface. DOM contract: droppable day cells inside `.app-footer`, `[data-popup]`,
- * or `[data-day-drop-zone]` must render `data-drop-day="<ISODate>"` so this handler can
- * resolve the target date. The dragged card is hidden while over any of those surfaces.
+ * Tracks the dragged task over day cells and asks the store to drop it on
+ * whichever it's released over. Shared by every day-cell surface. DOM
+ * contract: droppable day cells inside `.app-footer`, `[data-popup]`, or
+ * `[data-day-drop-zone]` must render `data-drop-day="<ISODate>"`. The dragged
+ * card is hidden while over a whole calendar container, so the day highlight
+ * underneath stays visible and the card does not flicker in the gaps between
+ * cells; over the sidebar's task column it stays in hand.
  */
-export const useDropToDay = createSharedComposable(() => {
+export const useTaskDropTarget = createSharedComposable(() => {
   const dragDropStore = useDragDropStore()
   const {draggingTaskId, dropTargetDate} = storeToRefs(dragDropStore)
 
-  let pendingDrop: {taskId: string; date: ISODate} | null = null
+  let pendingDrop: PendingDrop | null = null
 
   function onPointerMove(event: PointerEvent) {
     const {clientX, clientY} = event
     const dayEl = findClosestAtPoint(clientX, clientY, DROP_DAY_SELECTOR)
     const dragClone = findDragClone()
 
-    const isOverDropZone = Boolean(findClosestAtPoint(clientX, clientY, DROP_ZONE_SELECTOR))
+    const isOverHideSurface = Boolean(findClosestAtPoint(clientX, clientY, DROP_HIDE_SELECTOR))
 
-    if (isOverDropZone) dragClone?.classList.add(OVER_DROP_ZONE_CLASS)
+    if (isOverHideSurface) dragClone?.classList.add(OVER_DROP_ZONE_CLASS)
     else dragClone?.classList.remove(OVER_DROP_ZONE_CLASS)
 
     if (dayEl) {
@@ -45,6 +50,7 @@ export const useDropToDay = createSharedComposable(() => {
       const {taskId, date} = pendingDrop
       pendingDrop = null
       dragDropStore.setDropTargetDate(null)
+
       dragDropStore.dropOnDay(taskId, date)
     }
     cleanup()

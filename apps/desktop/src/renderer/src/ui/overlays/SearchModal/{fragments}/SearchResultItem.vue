@@ -25,12 +25,14 @@ const containerRef = useTemplateRef<HTMLDivElement>("container")
 let view: EditorView | null = null
 
 const statusIcon = computed(() => {
+  if (props.result.task.status === "backlog") return "inbox"
   if (props.result.task.status === "done") return "check-check"
   if (props.result.task.status === "discarded") return "archive"
   return "fire"
 })
 
 const statusColorClass = computed(() => {
+  if (props.result.task.status === "backlog") return "text-base-content/60"
   if (props.result.task.status === "done") return "text-success"
   if (props.result.task.status === "discarded") return "text-warning"
   return "text-error"
@@ -86,10 +88,10 @@ onUnmounted(() => view?.destroy())
 </script>
 
 <template>
-  <div class="hover:border-accent border-base-300 flex flex-col gap-2 rounded-lg border px-2 py-2 shadow-xs transition-colors duration-200">
+  <div class="hover:border-accent border-base-300 shadow-xs flex flex-col gap-2 rounded-lg border px-2 py-2 transition-colors duration-200">
     <div class="flex items-center justify-between gap-2">
       <div class="flex items-center gap-1.5">
-        <span class="text-base-content/60 text-xs"> {{ toDateLabel(result.task.scheduled.date) }} </span>
+        <span v-if="result.task.scheduled" class="text-base-content/60 text-xs"> {{ toDateLabel(result.task.scheduled.date) }} </span>
         <span class="bg-base-300 text-base-content/70 rounded px-1.5 py-0.5 text-[9px] font-medium">{{ branchName }}</span>
       </div>
       <BaseIcon :name="statusIcon" class="size-4" :class="statusColorClass" />

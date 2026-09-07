@@ -5,11 +5,11 @@ import type {
   Day,
   ISODate,
   MoveTaskByOrderParams,
-  StatsAggregate,
-  StatsPeriod,
   Tag,
   Task,
   TaskEvent,
+  TaskMovePosition,
+  TaskSchedule,
   TaskSearchResult,
   TaskStatus,
 } from "@daily/protocol"
@@ -32,10 +32,6 @@ export class StorageAPI implements Storage {
   async getTaskHistory(taskId: Task["id"]): Promise<TaskEvent[]> {
     return window.BridgeIPC["activity:get-by-task"](taskId)
   }
-
-  async getStats(period: StatsPeriod, anchor: ISODate, branchId?: Branch["id"]): Promise<StatsAggregate> {
-    return window.BridgeIPC["stats:get"](period, anchor, branchId)
-  }
   //#endregion
 
   //#region TASKS
@@ -43,10 +39,19 @@ export class StorageAPI implements Storage {
     return window.BridgeIPC["tasks:get-one"](id)
   }
 
+  async getBacklog(params?: {limit?: number; branchId?: Branch["id"]}): Promise<Task[]> {
+    try {
+      return await window.BridgeIPC["tasks:get-backlog"](params)
+    } catch (error) {
+      console.error("Failed to get backlog", error)
+      return []
+    }
+  }
+
   async createTask(
     content: string,
     params: {
-      date?: string
+      date?: string | null
       time?: string
       timezone?: string
       tags?: Tag[]
@@ -55,8 +60,22 @@ export class StorageAPI implements Storage {
       branchId?: Branch["id"]
       status?: TaskStatus
     },
-  ): Promise<Day | null> {
+  ): Promise<Day | Task | null> {
     try {
+      if (params.date === null) {
+        return await window.BridgeIPC["tasks:create"]({
+          content,
+          status: params.status ?? ("active" as TaskStatus),
+          minimized: false,
+          tags: params.tags ?? [],
+          estimatedTime: params.estimatedTime ?? 0,
+          spentTime: 0,
+          orderIndex: params.orderIndex ?? 0,
+          branchId: params.branchId,
+          scheduled: null,
+        })
+      }
+
       const now = DateTime.now()
       const scheduledDate = params.date ? params.date : now.toISODate()!
       const scheduledTime = params.time ? params.time : now.toFormat("HH:mm:ss")
@@ -89,12 +108,10 @@ export class StorageAPI implements Storage {
     }
   }
 
-  async updateTask(id: Task["id"], updates: Partial<Omit<Task, "id" | "createdAt" | "updatedAt">>): Promise<Day | null> {
+  async updateTask(id: Task["id"], updates: Partial<Omit<Task, "id" | "createdAt" | "updatedAt">>, activeDay?: ISODate): Promise<Task | null> {
     try {
-      const updatedTask = await window.BridgeIPC["tasks:update"](id, updates)
-      if (!updatedTask) return null
-
-      return this.getDay(updatedTask.scheduled.date)
+      const updatedTask = await window.BridgeIPC["tasks:update"](id, updates, activeDay)
+      return updatedTask ?? null
     } catch (error) {
       console.error("Failed to update task", error)
       return null
@@ -104,7 +121,7 @@ export class StorageAPI implements Storage {
   async toggleTaskMinimized(id: Task["id"], minimized: boolean): Promise<Day | null> {
     try {
       const updatedTask = await window.BridgeIPC["tasks:toggle-minimized"](id, minimized)
-      if (!updatedTask) return null
+      if (!updatedTask || !updatedTask.scheduled) return null
 
       return this.getDay(updatedTask.scheduled.date)
     } catch (error) {
@@ -116,7 +133,7 @@ export class StorageAPI implements Storage {
   async moveTaskByOrder(params: MoveTaskByOrderParams): Promise<Day | null> {
     try {
       const updatedTask = await window.BridgeIPC["tasks:move-by-order"](params)
-      if (!updatedTask) return null
+      if (!updatedTask || !updatedTask.scheduled) return null
 
       return this.getDay(updatedTask.scheduled.date)
     } catch (error) {
@@ -141,6 +158,24 @@ export class StorageAPI implements Storage {
     } catch (error) {
       console.error("Failed to move task", error)
       return false
+    }
+  }
+
+  async scheduleTask(taskId: Task["id"], schedule: TaskSchedule): Promise<Task | null> {
+    try {
+      return await window.BridgeIPC["tasks:schedule"](taskId, schedule)
+    } catch (error) {
+      console.error("Failed to schedule task", error)
+      return null
+    }
+  }
+
+  async moveTaskToBacklog(taskId: Task["id"]): Promise<Task | null> {
+    try {
+      return await window.BridgeIPC["tasks:move-to-backlog"](taskId)
+    } catch (error) {
+      console.error("Failed to move task to backlog", error)
+      return null
     }
   }
 
@@ -171,9 +206,18 @@ export class StorageAPI implements Storage {
     }
   }
 
-  async restoreTask(id: Task["id"]): Promise<Task | null> {
+  async moveTaskInTrash(taskId: Task["id"], targetTaskId: Task["id"] | null, position: TaskMovePosition): Promise<Task | null> {
     try {
-      return await window.BridgeIPC["tasks:restore"](id)
+      return await window.BridgeIPC["tasks:move-in-trash"](taskId, targetTaskId, position)
+    } catch (error) {
+      console.error("Failed to move task in trash", error)
+      return null
+    }
+  }
+
+  async restoreTask(id: Task["id"], activeDay?: ISODate): Promise<Task | null> {
+    try {
+      return await window.BridgeIPC["tasks:restore"](id, activeDay)
     } catch (error) {
       console.error("Failed to restore task", error)
       return null

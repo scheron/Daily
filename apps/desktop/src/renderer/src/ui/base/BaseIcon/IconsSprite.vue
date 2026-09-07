@@ -97,6 +97,7 @@ export type IconName =
   | "heading-6"
   | "chevron-up-down"
   | "drag-vertical"
+  | "inbox"
 </script>
 
 <template>
@@ -367,6 +368,11 @@ export type IconName =
         stroke-linejoin="round"
         d="M3.5 7.5h14v7.998a2 2 0 0 1-2 2h-10a2 2 0 0 1-2-2zm0-3.978h14a1 1 0 0 1 1 1V6.5a1 1 0 0 1-1 1h-14a1 1 0 0 1-1-1V4.522a1 1 0 0 1 1-1m5 6.978h4"
       />
+    </symbol>
+
+    <symbol id="inbox" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M22 12h-6l-2 3h-4l-2-3H2" />
+      <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11Z" />
     </symbol>
 
     <symbol id="history" viewBox="0 0 24 24">

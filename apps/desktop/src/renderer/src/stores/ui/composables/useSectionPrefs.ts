@@ -2,9 +2,9 @@ import {computed} from "vue"
 
 import {useSettingValue} from "@/composables/useSettingsValue"
 
-import type {TaskStatus} from "@daily/protocol"
+import type {BoardStatus, TaskStatus} from "@daily/protocol"
 
-type SectionsCollapsed = Record<TaskStatus, boolean>
+type SectionsCollapsed = Record<BoardStatus, boolean>
 
 /** How empty task columns behave: shown as-is, auto-collapsed, or hidden entirely. */
 export type EmptySectionsMode = "show" | "collapse" | "hide"

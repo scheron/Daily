@@ -4,11 +4,11 @@ import type {
   ISODate,
   ISOTime,
   MoveTaskByOrderParams,
-  StatsAggregate,
-  StatsPeriod,
   Tag,
   Task,
   TaskEvent,
+  TaskMovePosition,
+  TaskSchedule,
   TaskSearchResult,
   TaskStatus,
   Timezone,
@@ -44,40 +44,55 @@ export interface Storage {
    */
   getTaskHistory(taskId: Task["id"]): Promise<TaskEvent[]>
   /**
-   * Aggregated stats for the widget over a week or month.
-   * @param period - "week" or "month"
-   * @param anchor - Any ISO date inside the period (e.g. the active day)
-   * @param branchId - Branch to scope to; defaults to the active branch
-   */
-  getStats(period: StatsPeriod, anchor: ISODate, branchId?: Branch["id"]): Promise<StatsAggregate>
-  /**
    * Load a single task by id, regardless of which day it is scheduled on.
    * @param id - The task id
    * @returns The task, or null if it does not exist
    */
   getTask(id: Task["id"]): Promise<Task | null>
   /**
-   * Create a task and return the day it was added to. Omitted fields fall back to
-   * defaults (today/now, status "active", minimized false, orderIndex 0).
+   * List the tasks waiting in the backlog — active tasks with no schedule — in manual order.
+   * @param params.limit - Max number of tasks to return
+   * @param params.branchId - Branch to scope to; defaults to the active branch
+   * @returns The backlog tasks, ordered by orderIndex
+   */
+  getBacklog(params?: {limit?: number; branchId?: Branch["id"]}): Promise<Task[]>
+  /**
+   * Create a task and return the day it was added to — or the task itself when
+   * `params.date` is `null`, since a backlog task belongs to no day. Omitted
+   * fields fall back to defaults (today/now, status "active", minimized false,
+   * orderIndex 0).
    * @param content - The task body text
-   * @param params.date - Scheduled day, YYYY-MM-DD; defaults to today
+   * @param params.date - Scheduled day, YYYY-MM-DD; omit to default to today, or pass `null` to create it in the backlog with no schedule
    * @param params.time - Scheduled time, HH:MM:SS; defaults to now
    * @param params.timezone - Scheduled timezone; defaults to the local zone
    * @param params.tags - Tags to attach
    * @param params.estimatedTime - Estimate in seconds
-   * @param params.orderIndex - Manual sort index within the day
+   * @param params.orderIndex - Manual sort index within the day or the backlog
    * @param params.branchId - Owning branch; defaults to the active branch
    * @param params.status - Initial status; defaults to "active"
-   * @returns The day the task was added to, or null on failure
+   * @returns The day the task was added to, the created task when it has no day, or null on failure
    */
-  createTask(content: string, params: {date?: ISODate; time?: ISOTime; timezone?: Timezone; tags?: Tag[]; estimatedTime?: number; orderIndex?: number; branchId?: Branch["id"]; status?: TaskStatus}): Promise<Day | null>
+  createTask(
+    content: string,
+    params: {
+      date?: ISODate | null
+      time?: ISOTime
+      timezone?: Timezone
+      tags?: Tag[]
+      estimatedTime?: number
+      orderIndex?: number
+      branchId?: Branch["id"]
+      status?: TaskStatus
+    },
+  ): Promise<Day | Task | null>
   /**
-   * Apply a partial update to a task and return its day.
+   * Apply a partial update to a task.
    * @param id - The task to update
    * @param updates - Fields to change (id, createdAt and updatedAt are not updatable)
-   * @returns The day the task belongs to after the update, or null on failure
+   * @param activeDay - The day a task leaving the backlog lands on; without it such a task lands on today
+   * @returns The updated task, or null on failure
    */
-  updateTask(id: Task["id"], updates: Partial<Omit<Task, "id" | "createdAt" | "updatedAt">>): Promise<Day | null>
+  updateTask(id: Task["id"], updates: Partial<Omit<Task, "id" | "createdAt" | "updatedAt">>, activeDay?: ISODate): Promise<Task | null>
   /**
    * Set a task's collapsed (minimized) state and return its day.
    * @param id - The task to toggle
@@ -110,6 +125,19 @@ export interface Storage {
    */
   moveTask(taskId: Task["id"], targetDate: ISODate): Promise<boolean>
   /**
+   * Assign a full schedule to a task, moving it out of the backlog and onto a day.
+   * @param taskId - The task to schedule
+   * @param schedule - The day, time and timezone to assign
+   * @returns The scheduled task, or null on failure
+   */
+  scheduleTask(taskId: Task["id"], schedule: TaskSchedule): Promise<Task | null>
+  /**
+   * Clear a task's schedule, moving it into the backlog.
+   * @param taskId - The task to move
+   * @returns The task with its schedule cleared, or null on failure
+   */
+  moveTaskToBacklog(taskId: Task["id"]): Promise<Task | null>
+  /**
    * Move a task to a different project branch.
    * @param taskId - The task to move
    * @param branchId - The destination branch
@@ -125,16 +153,25 @@ export interface Storage {
   /**
    * List soft-deleted tasks.
    * @param params.limit - Max number of tasks to return
-   * @param params.branchId - Optional branch filter
+   * @param params.branchId - Branch to scope to; defaults to the active branch
    * @returns The soft-deleted tasks
    */
   getDeletedTasks(params?: {limit?: number; branchId?: Branch["id"]}): Promise<Task[]>
   /**
-   * Restore a soft-deleted task: a "restored" activity event is recorded.
+   * Reorder a soft-deleted task inside the trash.
+   * @param taskId - The task to place
+   * @param targetTaskId - The task it lands next to, or null for the end of the list
+   * @param position - Whether it lands before or after the target
+   * @returns The moved task, or null on failure
+   */
+  moveTaskInTrash(taskId: Task["id"], targetTaskId: Task["id"] | null, position: TaskMovePosition): Promise<Task | null>
+  /**
+   * Restore a soft-deleted task onto a day: a "restored" activity event is recorded.
    * @param id - The task to restore
+   * @param activeDay - The day the task lands on; a backlog task ignores it, and without it the task stays on the day it was deleted from
    * @returns The restored task, or null if it could not be restored
    */
-  restoreTask(id: Task["id"]): Promise<Task | null>
+  restoreTask(id: Task["id"], activeDay?: ISODate): Promise<Task | null>
   /**
    * Permanently remove a soft-deleted task from the database (irreversible).
    * @param id - The task to delete permanently

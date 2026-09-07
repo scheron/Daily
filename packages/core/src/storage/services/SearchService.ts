@@ -95,9 +95,10 @@ export class SearchService {
   }
 
   /**
-   * Get all tasks enriched with full tag objects (already done by TaskModel via SQL JOINs)
+   * Get all tasks enriched with full tag objects (already done by TaskModel via SQL JOINs).
+   * Scheduled tasks and the backlog are indexed alike, so search finds a task with no day too.
    */
   private getEnrichedTasks(): Task[] {
-    return this.taskModel.getTaskList()
+    return [...this.taskModel.getTaskList(), ...this.taskModel.getBacklogList()]
   }
 }

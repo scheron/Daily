@@ -3,7 +3,7 @@ import {ipcMain} from "electron"
 import {toSettingsView} from "@daily/core"
 
 import type {IStorageController} from "@daily/core"
-import type {Branch, ISODate, MoveTaskByOrderParams, StatsPeriod, Tag, Task} from "@daily/protocol"
+import type {Branch, ISODate, MoveTaskByOrderParams, Tag, Task, TaskMovePosition, TaskSchedule} from "@daily/protocol"
 import type {PartialDeep} from "type-fest"
 
 // prettier-ignore
@@ -19,18 +19,21 @@ export function setupStorageIPC(getStorage: () => IStorageController | null) {
 
   ipcMain.handle("activity:get-by-day", (_e, date: ISODate, branchId?: Branch["id"]) => getStorage()?.getActivityByDay(date, branchId))
   ipcMain.handle("activity:get-by-task", (_e, taskId: Task["id"]) => getStorage()?.getTaskHistory(taskId))
-  ipcMain.handle("stats:get", (_e, period: StatsPeriod, anchor: ISODate, branchId?: Branch["id"]) => getStorage()?.getStats(period, anchor, branchId))
 
   ipcMain.handle("tasks:get-many", (_e, params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: Branch["id"]}) => getStorage()?.getTaskList(params))
+  ipcMain.handle("tasks:get-backlog", (_e, params?: {limit?: number; branchId?: Branch["id"]}) => getStorage()?.getBacklogList(params))
   ipcMain.handle("tasks:get-one", (_e, id: Task["id"]) => getStorage()?.getTask(id))
-  ipcMain.handle("tasks:update", (_e, id: Task["id"], updates: PartialDeep<Task>) => getStorage()?.updateTask(id, updates))
+  ipcMain.handle("tasks:update", (_e, id: Task["id"], updates: PartialDeep<Task>, activeDay?: ISODate) => getStorage()?.updateTask(id, updates, activeDay))
   ipcMain.handle("tasks:toggle-minimized", (_e, id: Task["id"], minimized: boolean) => getStorage()?.toggleTaskMinimized(id, minimized))
   ipcMain.handle("tasks:create", (_e, task: Omit<Task, "id" | "createdAt" | "updatedAt" | "branchId"> & {branchId?: Task["branchId"]}) => getStorage()?.createTask(task as Task))
   ipcMain.handle("tasks:move-by-order", (_e, params: MoveTaskByOrderParams) => getStorage()?.moveTaskByOrder(params))
+  ipcMain.handle("tasks:schedule", (_e, id: Task["id"], schedule: TaskSchedule) => getStorage()?.scheduleTask(id, schedule))
+  ipcMain.handle("tasks:move-to-backlog", (_e, id: Task["id"]) => getStorage()?.moveTaskToBacklog(id))
   ipcMain.handle("tasks:move-to-branch", (_e, taskId: Task["id"], branchId: Branch["id"]) => getStorage()?.moveTaskToBranch(taskId, branchId))
   ipcMain.handle("tasks:delete", (_e, id: Task["id"]) => getStorage()?.deleteTask(id))
   ipcMain.handle("tasks:get-deleted", (_e, params?: {limit?: number; branchId?: Branch["id"]}) => getStorage()?.getDeletedTasks(params))
-  ipcMain.handle("tasks:restore", (_e, id: Task["id"]) => getStorage()?.restoreTask(id))
+  ipcMain.handle("tasks:move-in-trash", (_e, taskId: Task["id"], targetTaskId: Task["id"] | null, position: TaskMovePosition) => getStorage()?.moveTaskInTrash(taskId, targetTaskId, position))
+  ipcMain.handle("tasks:restore", (_e, id: Task["id"], activeDay?: ISODate) => getStorage()?.restoreTask(id, activeDay))
   ipcMain.handle("tasks:delete-permanently", (_e, id: Task["id"]) => getStorage()?.permanentlyDeleteTask(id))
   ipcMain.handle("tasks:delete-all-permanently", () => getStorage()?.permanentlyDeleteAllDeletedTasks())
 

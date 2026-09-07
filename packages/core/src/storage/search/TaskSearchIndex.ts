@@ -78,7 +78,7 @@ export class TaskSearchIndex {
       content: task.content,
       plainText: normalize(task.content),
       updatedAt: task.updatedAt,
-      date: task.scheduled.date,
+      date: task.scheduled?.date ?? null,
     }
   }
 }

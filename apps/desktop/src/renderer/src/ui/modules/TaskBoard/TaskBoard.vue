@@ -20,7 +20,7 @@ const tasksStore = useTasksStore()
 const columns = useTaskColumns()
 
 const hasAnyTasks = computed(
-  () => columns.tasksByStatus.value.active.length + columns.tasksByStatus.value.done.length + columns.tasksByStatus.value.discarded.length > 0,
+  () => columns.localTasksByStatus.active.length + columns.localTasksByStatus.done.length + columns.localTasksByStatus.discarded.length > 0,
 )
 
 useDragScroll(boardRef)
@@ -34,7 +34,12 @@ watch(
 <template>
   <div ref="containerRef" class="min-w-0 flex-1 overflow-hidden">
     <BaseSpinner v-if="!tasksStore.isDaysLoaded" />
-    <NoTasksPlaceholder v-else-if="!hasAnyTasks" :date="tasksStore.activeDay" filter="all" @create-task="emit('createTask')" />
+    <NoTasksPlaceholder
+      v-else-if="!hasAnyTasks && !columns.isBusy.value"
+      :date="tasksStore.activeDay"
+      filter="all"
+      @create-task="emit('createTask')"
+    />
 
     <div v-else ref="boardRef" class="flex size-full overflow-x-auto overflow-y-hidden" @dragover="columns.onDragOver">
       <template v-for="(column, index) in columns.visibleColumns.value" :key="column.status">
@@ -50,7 +55,7 @@ watch(
             @change="columns.onColumnChange(column.status, $event)"
           >
             <template #item="{element: task}">
-              <div class="relative mx-1.5 mb-1.5 last:mb-0" data-task-card>
+              <div class="relative mx-1.5 mb-1.5 last:mb-0" data-task-card :data-task-id="task.id">
                 <div class="w-full shrink-0">
                   <TaskCard :task="task" />
                 </div>

@@ -21,7 +21,7 @@ const {activeTask, isNew, editingTaskId, flatOrderedTasks, currentIndex, canPrev
     <PropertyRow label="Status" class="relative">
       <StatusProperty :task="activeTask" />
 
-      <div v-if="!(isNew || flatOrderedTasks.length <= 1)" class="absolute top-1/2 right-0 shrink-0 -translate-y-1/2">
+      <div v-if="!(isNew || flatOrderedTasks.length <= 1)" class="absolute right-0 top-1/2 shrink-0 -translate-y-1/2">
         <TaskNavigator
           :index="currentIndex"
           :total="flatOrderedTasks.length"
@@ -32,7 +32,7 @@ const {activeTask, isNew, editingTaskId, flatOrderedTasks, currentIndex, canPrev
         />
       </div>
     </PropertyRow>
-    <PropertyRow label="Date">
+    <PropertyRow label="Date" :disabled="activeTask.status === 'backlog'">
       <DateProperty :task="activeTask" />
     </PropertyRow>
     <PropertyRow label="Project">

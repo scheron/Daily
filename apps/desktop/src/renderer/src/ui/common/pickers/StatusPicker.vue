@@ -1,112 +1,59 @@
-<script lang="ts" setup>
-import {computed, HtmlHTMLAttributes} from "vue"
+<script setup lang="ts">
+import {computed, useTemplateRef} from "vue"
 
-import {TaskStatus} from "@daily/protocol"
-
-import {TasksFilter} from "@/types/common"
+import {findStatusAction, STATUS_ACTIONS, STATUS_COLOR_CLASS, statusOptionClass} from "@/constants/taskStatus"
 import BaseButton from "@/ui/base/BaseButton"
-import {IconName} from "@/ui/base/BaseIcon"
+import BaseIcon from "@/ui/base/BaseIcon"
 import BasePopup from "@/ui/base/BasePopup.vue"
-import {cn} from "@/utils/ui/tailwindcss"
+
+import type {TaskStatus} from "@daily/protocol"
 
 const props = withDefaults(
   defineProps<{
-    status?: TaskStatus
+    /** Which side of the trigger the menu opens from. */
+    position?: "start" | "end"
+    /** Extra classes for the popup container, for call sites that need a narrower menu. */
+    containerClass?: string
   }>(),
-  {
-    status: "active",
-  },
+  {position: "start", containerClass: "min-w-36 p-1"},
 )
 
-const emit = defineEmits<{"update:status": [status: TaskStatus]}>()
+const model = defineModel<TaskStatus>({required: true})
 
-type StatusButton = {
-  label: string
-  icon: IconName
-  value: Exclude<TasksFilter, "all">
-  activeClass: HtmlHTMLAttributes["class"]
-  inactiveClass: HtmlHTMLAttributes["class"]
-  tooltip: string
+const popupRef = useTemplateRef<InstanceType<typeof BasePopup>>("popup")
+
+const current = computed(() => findStatusAction(model.value))
+
+function optionClass(status: TaskStatus) {
+  return statusOptionClass(status, model.value)
 }
 
-const TASKS_STATUSES: StatusButton[] = [
-  {
-    label: "Active",
-    icon: "fire",
-    value: "active",
-    tooltip: "Set as active",
-    activeClass: "bg-error/20 text-base-content hover:text-base-content",
-    inactiveClass: "hover:text-base-content hover:bg-error/20",
-  },
-  {
-    label: "Discarded",
-    icon: "archive",
-    value: "discarded",
-    tooltip: "Discard task",
-    activeClass: "hover:bg-warning/30 bg-warning/20 text-base-content hover:text-base-content",
-    inactiveClass: "hover:text-base-content hover:bg-warning/30",
-  },
-  {
-    label: "Done",
-    icon: "check-check",
-    value: "done",
-    tooltip: "Mark as done",
-    activeClass: "bg-success/30 hover:bg-success/40 text-base-content hover:text-base-content",
-    inactiveClass: "hover:text-base-content hover:bg-success/30",
-  },
-]
-
-const currentStatus = computed(() => TASKS_STATUSES.find((status) => status.value === props.status))
-
-function onChangeStatus(status: TaskStatus) {
-  if (props.status === status) return
-  emit("update:status", status)
-}
-
-function getButtonClass(classes: HtmlHTMLAttributes["class"]) {
-  const baseClass = `
-    rounded-md px-2 py-0.5 text-xs
-    text-base-content/50
-    focus-visible-accent
-    transition-colors duration-200 outline-none
-  `
-
-  return cn(baseClass, classes)
+function select(status: TaskStatus) {
+  popupRef.value?.hide()
+  if (status !== model.value) model.value = status
 }
 </script>
 
 <template>
-  <BasePopup hide-header container-class="p-0 min-w-20" position="center" content-class="p-0 py-2">
+  <BasePopup ref="popup" hide-header :position="props.position" :container-class="props.containerClass" content-class="gap-0.5">
     <template #trigger="{toggle}">
-      <BaseButton
-        :icon="currentStatus!.icon"
-        class="justify-start py-0.5"
-        :tooltip="currentStatus!.tooltip"
-        icon-class="size-4"
-        :class="getButtonClass('')"
-        variant="secondary"
-        @click="toggle"
-      >
-        <span class="tracking-wide uppercase">{{ currentStatus!.label }}</span>
-      </BaseButton>
+      <slot name="trigger" :toggle="toggle" :current="current" :color-class="STATUS_COLOR_CLASS[model]" />
     </template>
 
-    <div class="flex flex-col items-center gap-2 text-xs">
-      <div class="text-base-content/60 flex flex-col items-center justify-center gap-2 px-1 py-0.5 font-mono font-bold">
-        <BaseButton
-          v-for="status in TASKS_STATUSES"
-          :key="status.value"
-          class="w-full justify-start px-2 py-0.5"
-          icon-class="size-4"
-          variant="ghost"
-          :class="getButtonClass(props.status === status.value ? status.activeClass : status.inactiveClass)"
-          :icon="status.icon"
-          :tooltip="status.tooltip"
-          @click="onChangeStatus(status.value)"
-        >
-          <span class="tracking-wide uppercase">{{ status.label }}</span>
-        </BaseButton>
-      </div>
-    </div>
+    <template #default>
+      <BaseButton
+        v-for="option in STATUS_ACTIONS"
+        :key="option.value"
+        variant="ghost"
+        size="sm"
+        class="w-full justify-start gap-2 px-2 py-1 text-left"
+        :class="optionClass(option.value)"
+        :tooltip="option.tooltip"
+        @click.stop="select(option.value)"
+      >
+        <BaseIcon :name="option.icon" class="size-4 shrink-0" />
+        <span class="text-sm uppercase tracking-wide">{{ option.label }}</span>
+      </BaseButton>
+    </template>
   </BasePopup>
 </template>

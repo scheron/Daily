@@ -227,6 +227,49 @@ describe("TaskModel", () => {
     expect(tasks).toHaveLength(2)
   })
 
+  it("TC-3: creates a task without a schedule and reads scheduled back as null", () => {
+    const task = taskModel.createTask(makeTaskInput({content: "Someday", scheduled: null}))
+
+    expect(task.scheduled).toBeNull()
+    expect(task.content).toBe("Someday")
+
+    const reloaded = taskModel.getTask(task.id)
+    expect(reloaded.scheduled).toBeNull()
+  })
+
+  it("TC-4: getTaskList excludes backlog tasks even without a date range", () => {
+    taskModel.createTask(makeTaskInput({content: "Scheduled", scheduled: {date: "2026-03-24", time: "", timezone: "UTC"}}))
+    taskModel.createTask(makeTaskInput({content: "Backlog", scheduled: null}))
+
+    const tasks = taskModel.getTaskList()
+
+    expect(tasks.map((t) => t.content)).toEqual(["Scheduled"])
+  })
+
+  it("TC-5: getBacklogList returns only backlog-status tasks, ordered by orderIndex", () => {
+    taskModel.createTask(makeTaskInput({content: "Day task", scheduled: {date: "2026-03-24", time: "", timezone: "UTC"}, orderIndex: 1}))
+    taskModel.createTask(makeTaskInput({content: "Second", status: "backlog", scheduled: null, orderIndex: 2048}))
+    taskModel.createTask(makeTaskInput({content: "First", status: "backlog", scheduled: null, orderIndex: 1024}))
+
+    const backlog = taskModel.getBacklogList({branchId: "main"})
+
+    expect(backlog.map((t) => t.content)).toEqual(["First", "Second"])
+  })
+
+  it("getDeletedTasks lists tasks in the order the columns use, not in deletion order", () => {
+    const first = taskModel.createTask(makeTaskInput({content: "First", orderIndex: 1024}))
+    const second = taskModel.createTask(makeTaskInput({content: "Second", orderIndex: 2048}))
+    const third = taskModel.createTask(makeTaskInput({content: "Third", orderIndex: 3072}))
+
+    taskModel.deleteTask(second.id)
+    taskModel.deleteTask(third.id)
+    taskModel.deleteTask(first.id)
+
+    const deleted = taskModel.getDeletedTasks()
+
+    expect(deleted.map((t) => t.content)).toEqual(["First", "Second", "Third"])
+  })
+
   it("getDeletedTasks respects limit parameter", () => {
     const t1 = taskModel.createTask(makeTaskInput({content: "T1"}))
     const t2 = taskModel.createTask(makeTaskInput({content: "T2"}))
