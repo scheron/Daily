@@ -69,15 +69,34 @@ removes the data volumes, and keeps them unless you answer yes.
 Everything is read from the environment; there is no configuration file, and `daily.sh` is not
 meant to be hand-edited.
 
-| Variable                          | Default                                  | Meaning                                                                                                       |
-| --------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `DAILY_SERVER_HOST`               | `0.0.0.0`                                | address the server binds                                                                                      |
-| `DAILY_SERVER_PORT`               | `8787`                                   | port the server binds                                                                                         |
-| `DAILY_SERVER_DATA_DIR`           | `/var/lib/daily-server` inside the image | where the SQLite store, the assets, and any minted certificate live                                           |
-| `DAILY_SERVER_PUBLIC_URL`         | unset                                    | the address Daily connects to                                                                                 |
-| `DAILY_SERVER_TLS`                | unset (plain HTTP)                       | `self-signed` mints and serves a certificate for `DAILY_SERVER_PUBLIC_URL`'s host; any other value is refused |
-| `DAILY_SERVER_MAX_ASSET_BYTES`    | 100 MB                                   | largest single attachment the server accepts                                                                  |
-| `DAILY_SERVER_MAX_SNAPSHOT_BYTES` | 32 MB                                    | largest snapshot write body the server accepts                                                                |
+| Variable                             | Default                                  | Meaning                                                                                                       |
+| ------------------------------------ | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `DAILY_SERVER_HOST`                  | `0.0.0.0`                                | address the server binds                                                                                      |
+| `DAILY_SERVER_PORT`                  | `8787`                                   | port the server binds                                                                                         |
+| `DAILY_SERVER_DATA_DIR`              | `/var/lib/daily-server` inside the image | where the SQLite store, the assets, and any minted certificate live                                           |
+| `DAILY_SERVER_PUBLIC_URL`            | unset                                    | the address Daily connects to                                                                                 |
+| `DAILY_SERVER_TLS`                   | unset (plain HTTP)                       | `self-signed` mints and serves a certificate for `DAILY_SERVER_PUBLIC_URL`'s host; any other value is refused |
+| `DAILY_SERVER_MAX_ASSET_BYTES`       | 100 MB                                   | largest single attachment the server accepts                                                                  |
+| `DAILY_SERVER_MAX_SNAPSHOT_BYTES`    | 32 MB                                    | largest snapshot write body the server accepts                                                                |
+| `DAILY_SERVER_BACKUP_INTERVAL_HOURS` | `24`                                     | hours between scheduled backups; `0` turns the schedule off                                                   |
+| `DAILY_SERVER_BACKUP_KEEP`           | `14`                                     | how many backups to keep; the oldest beyond this are removed                                                  |
+| `DAILY_SERVER_BACKUP_DIR`            | `backups` under the data directory       | where scheduled backups are written                                                                           |
+
+## Backups
+
+The server backs itself up on a schedule, out of the box — every 24 hours, keeping the last 14.
+Nothing needs to be scheduled by hand, and nothing stops to do it: SQLite's online backup copies a
+consistent snapshot of the live database while the server keeps serving.
+
+Each backup is a directory holding `server.sqlite` and an `assets` directory. The assets are
+hard-linked rather than copied, so a backup costs one directory entry per attachment instead of a
+second copy of the bytes, and still holds the bytes each attachment had when the backup ran.
+Restoring one is a file copy: stop the stack, put `server.sqlite` and `assets` back under the data
+directory, start it again.
+
+These backups sit on the same disk as the data they protect. That covers a database that got
+corrupted, a bad restore, a change you want to undo — not the machine going away. For that, take
+the archive `./daily.sh backup` writes and keep it somewhere else.
 
 ## Recovery
 

@@ -7,6 +7,11 @@ import {ServerSetupErrorCode} from "../errors/server/ServerSetupErrorCode"
 
 export type ServerTransportChoice = "plain" | "self-signed"
 
+const DEFAULT_BACKUP_INTERVAL_HOURS = 24
+const DEFAULT_BACKUP_KEEP = 14
+
+export type ServerBackupConfig = {intervalMs: number; keep: number; dir: string}
+
 export type ServerConfigOptions = {
   host?: string
   port?: number
@@ -23,6 +28,7 @@ export type ServerConfig = {
   maxSnapshotBodyBytes: number
   publicUrl: string | null
   transport: ServerTransportChoice
+  backup: ServerBackupConfig | null
 }
 
 /**
@@ -49,6 +55,7 @@ export function resolveServerConfig(options: ServerConfigOptions): ServerConfig 
     maxSnapshotBodyBytes,
     publicUrl,
     transport,
+    backup: resolveBackup(dataDir),
   }
 }
 
@@ -68,6 +75,39 @@ function resolveTransport(tlsChoice: string | undefined, publicUrl: string | nul
   }
 
   return "plain"
+}
+
+/**
+ * Reads the scheduled-backup settings, returning `null` when the interval is zero — the one
+ * way to turn the schedule off. Refuses a negative interval or a retention below one rather
+ * than quietly picking a default: both mean the operator asked for something impossible, and
+ * a retention of zero would delete every backup the moment it was written.
+ */
+function resolveBackup(dataDir: string): ServerBackupConfig | null {
+  const hours = envNumber("DAILY_SERVER_BACKUP_INTERVAL_HOURS") ?? DEFAULT_BACKUP_INTERVAL_HOURS
+  if (hours < 0) {
+    throw new ServerSetupError(ServerSetupErrorCode.INVALID_ENVIRONMENT, `DAILY_SERVER_BACKUP_INTERVAL_HOURS must not be negative, got "${hours}"`)
+  }
+  if (hours === 0) return null
+
+  const keep = envNumber("DAILY_SERVER_BACKUP_KEEP") ?? DEFAULT_BACKUP_KEEP
+  if (keep < 1) {
+    throw new ServerSetupError(ServerSetupErrorCode.INVALID_ENVIRONMENT, `DAILY_SERVER_BACKUP_KEEP must be at least 1, got "${keep}"`)
+  }
+
+  return {
+    intervalMs: hours * 60 * 60 * 1000,
+    keep: Math.floor(keep),
+    dir: process.env.DAILY_SERVER_BACKUP_DIR ?? path.join(dataDir, "backups"),
+  }
+}
+
+function envNumber(name: string): number | undefined {
+  const raw = process.env[name]
+  if (!raw) return undefined
+
+  const parsed = Number(raw)
+  return Number.isFinite(parsed) ? parsed : undefined
 }
 
 function envPort(): number | undefined {

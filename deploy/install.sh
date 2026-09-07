@@ -202,6 +202,7 @@ cmd_backup() {
 
   tmp_dir=$(mktemp -d)
   compose cp daily-server:/var/lib/daily-server "$tmp_dir/data"
+  rm -rf "$tmp_dir/data/backups"
 
   timestamp=$(date -u +%Y%m%dT%H%M%SZ)
   archive="$INSTALL_DIR/daily-backup-$timestamp.tar.gz"

@@ -1,3 +1,4 @@
+import {scheduleBackups} from "../backup/scheduleBackups"
 import {resolveServerConfig} from "../config/resolveServerConfig"
 import {clearExpiredIssuedTokens} from "../enrollment/EnrollmentStore"
 import {createHttpServer} from "../http/createHttpServer"
@@ -57,6 +58,11 @@ function runStart(opts: StartOptions): void {
   server.listen(config.port, config.host, () => {
     const scheme = config.tls ? "https" : "http"
     console.log(`Daily Sync Server listening on ${scheme}://${config.host}:${config.port}`)
+
+    if (config.backup) {
+      console.log(`Backups every ${config.backup.intervalMs / 3_600_000}h in ${config.backup.dir}, keeping ${config.backup.keep}.`)
+      scheduleBackups(store, config.backup)
+    }
 
     if (claimCode) {
       console.log(`This server is unclaimed. Claim code: ${claimCode}`)

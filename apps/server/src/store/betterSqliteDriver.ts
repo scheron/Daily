@@ -20,6 +20,7 @@ export type SqliteDriver = {
   exec(sql: string): void
   pragma(statement: string): void
   transaction<T>(fn: () => T): SqliteTransaction<T>
+  backup(destinationPath: string): Promise<void>
   close(): void
 }
 
@@ -46,6 +47,10 @@ export function createBetterSqliteDriver(dbPath: string): SqliteDriver {
     exec: (sql: string) => void db.exec(sql),
     pragma: (statement: string) => void db.pragma(statement),
     transaction: <T>(fn: () => T) => db.transaction(fn) as SqliteTransaction<T>,
+    backup: async (destinationPath: string) => {
+      fs.ensureDirSync(path.dirname(destinationPath))
+      await db.backup(destinationPath)
+    },
     close: () => void db.close(),
   }
 }
