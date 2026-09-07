@@ -13,6 +13,7 @@
     "url": "git+https://github.com/scheron/Daily.git"
   },
   "scripts": {
+    "dev": "pnpm --filter @daily/desktop dev",
     "release": "node scripts/release.js",
     "build:server": "pnpm --filter @daily/server build",
     "build:server:package": "pnpm build:server && node scripts/build-server-package.js",

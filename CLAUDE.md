@@ -5,7 +5,7 @@
 ## Commands
 
 ```bash
-pnpm --filter @daily/desktop dev      # dev server, hot reload
+pnpm dev                              # dev server, hot reload
 pnpm --filter @daily/desktop build    # package macOS .dmg
 pnpm --filter @daily/server build     # bundle the sync server
 node scripts/release.js app           # release the app (--dry-run supported)
@@ -23,9 +23,9 @@ pnpm check:all           # lint + typecheck:all + circular + test
 **Lint.** `pnpm lint`
 **Tests.** `pnpm test` — vitest under the Electron runtime.
 **Single test file.** `pnpm evitest run packages/core/tests/storage/sync/convergence.test.ts`
-**Dev server.** `pnpm --filter @daily/desktop dev` — opens the Electron window, no URL.
+**Dev server.** `pnpm dev` — opens the Electron window, no URL.
 **E2E.** none
-**Runtime.** The app is driven through its Electron window (`pnpm --filter @daily/desktop dev`). The server runs as the `ghcr.io/scheron/daily-server` image, or from the package `pnpm build:server:package` emits — `cd apps/server/dist-server && npm install --omit=dev && node index.js start`. That install is not optional: the workspace's `better-sqlite3` is built for Electron's ABI, so a plain `node` cannot load the bundle.
+**Runtime.** The app is driven through its Electron window (`pnpm dev`). The server runs as the `ghcr.io/scheron/daily-server` image, or from the package `pnpm build:server:package` emits — `cd apps/server/dist-server && npm install --omit=dev && node index.js start`. That install is not optional: the workspace's `better-sqlite3` is built for Electron's ABI, so a plain `node` cannot load the bundle.
 
 **bootstrap.** `pnpm install` (`apps/desktop`'s `postinstall` runs `electron-builder install-app-deps`)
 **link.** `.env`
