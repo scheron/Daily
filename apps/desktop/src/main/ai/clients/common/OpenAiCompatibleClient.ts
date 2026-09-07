@@ -1,14 +1,14 @@
 import {logger} from "@daily/core"
 import {notUndefined} from "@daily/std"
 
-import {AI_CONFIG} from "../../../../shared/config/ai"
-import {NonRetryableError} from "../../../../shared/errors/ai/NonRetryableError"
-import {OpenAiClientErrorCode} from "../../../../shared/errors/ai/OpenAiClientErrorCode"
+import {AI_CONFIG} from "@shared/config/ai"
+import {NonRetryableError} from "@shared/errors/ai/NonRetryableError"
+import {OpenAiClientErrorCode} from "@shared/errors/ai/OpenAiClientErrorCode"
 import {ChatStreamAccumulator} from "./streaming/chatStreamAccumulator"
 import {consumeSseEvents} from "./streaming/sseParser"
 
 import type {AIConfig} from "@daily/protocol"
-import type {TokenUsage} from "../../../../shared/types/ai"
+import type {TokenUsage} from "@shared/types/ai"
 import type {ChatStreamCallbacks, IAiClient, MessageLLM, Tool, ToolCallLLM, ToolChoice} from "../../types"
 import type {ChatRequest, OpenAiChatConfig, OpenAiChatResponse, OpenAiConnectionConfig, OpenAiUsage} from "./types"
 

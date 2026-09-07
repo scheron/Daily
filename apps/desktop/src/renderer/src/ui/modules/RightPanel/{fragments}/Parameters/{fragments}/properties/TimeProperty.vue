@@ -3,14 +3,14 @@ import {computed} from "vue"
 
 import {toDurationLabel} from "@daily/std"
 
-import {useTaskEditorStore} from "../../../../../../../stores/task-editor"
-import BaseButton from "../../../../../../base/BaseButton"
-import BaseIcon from "../../../../../../base/BaseIcon"
-import BasePopup from "../../../../../../base/BasePopup.vue"
-import EstimationPicker from "../../../../../../common/pickers/EstimationPicker.vue"
+import {useTaskEditorStore} from "@/stores/task-editor"
+import BaseButton from "@/ui/base/BaseButton"
+import BaseIcon from "@/ui/base/BaseIcon"
+import BasePopup from "@/ui/base/BasePopup.vue"
+import EstimationPicker from "@/ui/common/pickers/EstimationPicker.vue"
 
+import type {IconName} from "@/ui/base/BaseIcon"
 import type {Task} from "@daily/protocol"
-import type {IconName} from "../../../../../../base/BaseIcon"
 
 const props = withDefaults(
   defineProps<{

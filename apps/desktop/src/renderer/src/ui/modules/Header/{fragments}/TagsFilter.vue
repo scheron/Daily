@@ -4,9 +4,9 @@ import {computed, watch} from "vue"
 import {sortTags} from "@daily/protocol"
 import {removeDuplicates} from "@daily/std"
 
-import {useFilterStore} from "../../../../stores/filter.store"
-import {useTasksStore} from "../../../../stores/tasks"
-import DynamicTagsPanel from "../../../common/misc/DynamicTagsPanel.vue"
+import {useFilterStore} from "@/stores/filter.store"
+import {useTasksStore} from "@/stores/tasks"
+import DynamicTagsPanel from "@/ui/common/misc/DynamicTagsPanel.vue"
 
 import type {Tag} from "@daily/protocol"
 

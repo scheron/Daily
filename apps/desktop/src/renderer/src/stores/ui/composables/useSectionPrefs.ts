@@ -1,6 +1,6 @@
 import {computed} from "vue"
 
-import {useSettingValue} from "../../../composables/useSettingsValue"
+import {useSettingValue} from "@/composables/useSettingsValue"
 
 import type {TaskStatus} from "@daily/protocol"
 

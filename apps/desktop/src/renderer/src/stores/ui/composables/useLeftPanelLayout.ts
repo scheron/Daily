@@ -2,11 +2,11 @@ import {useLocalStorage} from "@vueuse/core"
 
 import {deepClone} from "@daily/std"
 
-import {useSettingValue} from "../../../composables/useSettingsValue"
-import {STORAGE_KEY_LEFT_PANEL} from "../../../constants/storageKeys"
-import {DEFAULT_LAYOUT, WIDGET_DEFS} from "../../../constants/widgets"
+import {useSettingValue} from "@/composables/useSettingsValue"
+import {STORAGE_KEY_LEFT_PANEL} from "@/constants/storageKeys"
+import {DEFAULT_LAYOUT, WIDGET_DEFS} from "@/constants/widgets"
 
-import type {WidgetId, WidgetLayout} from "../../../types/widgets"
+import type {WidgetId, WidgetLayout} from "@/types/widgets"
 
 /**
  * Left panel state: its persisted visibility and the widget-slot layout (validated

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {cn} from "../../../utils/ui/tailwindcss"
+import {cn} from "@/utils/ui/tailwindcss"
 import Header from "./{fragments}/Header.vue"
 
 import type {HTMLAttributes} from "vue"

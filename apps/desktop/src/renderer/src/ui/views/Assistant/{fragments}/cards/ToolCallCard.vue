@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import {computed} from "vue"
 
-import BaseIcon from "../../../../base/BaseIcon"
+import BaseIcon from "@/ui/base/BaseIcon"
 
-import type {AgentMessageSegment} from "../../../../../../../shared/types/ai"
+import type {AgentMessageSegment} from "@shared/types/ai"
 
 const props = defineProps<{segment: Extract<AgentMessageSegment, {kind: "tool"}>}>()
 

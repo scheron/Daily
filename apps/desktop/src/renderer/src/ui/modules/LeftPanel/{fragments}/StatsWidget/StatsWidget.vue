@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import {computed} from "vue"
 
-import BaseIcon from "../../../../base/BaseIcon"
-import BaseSegmented from "../../../../base/BaseSegmented.vue"
-import BarChart from "../../../../common/charts/BarChart.vue"
-import DonutChart from "../../../../common/charts/DonutChart.vue"
-import RingChart from "../../../../common/charts/RingChart.vue"
+import BaseIcon from "@/ui/base/BaseIcon"
+import BaseSegmented from "@/ui/base/BaseSegmented.vue"
+import BarChart from "@/ui/common/charts/BarChart.vue"
+import DonutChart from "@/ui/common/charts/DonutChart.vue"
+import RingChart from "@/ui/common/charts/RingChart.vue"
 import {useStats} from "./model/useStats"
 
+import type {IconName} from "@/ui/base/BaseIcon"
 import type {StatsPeriod} from "@daily/protocol"
-import type {IconName} from "../../../../base/BaseIcon"
 
 const WEEKDAY_LABELS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
 const FULL_WEEKDAY_LABELS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]

@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import {computed} from "vue"
 
-import {useTaskEditorStore} from "../../../../../../../stores/task-editor"
-import {TASK_COLUMNS} from "../../../../../../../constants/ui"
-import BaseButton from "../../../../../../base/BaseButton"
-import BaseIcon from "../../../../../../base/BaseIcon"
-import BasePopup from "../../../../../../base/BasePopup.vue"
+import {TASK_COLUMNS} from "@/constants/ui"
+import {useTaskEditorStore} from "@/stores/task-editor"
+import BaseButton from "@/ui/base/BaseButton"
+import BaseIcon from "@/ui/base/BaseIcon"
+import BasePopup from "@/ui/base/BasePopup.vue"
 
 import type {Task, TaskStatus} from "@daily/protocol"
 

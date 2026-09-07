@@ -2,14 +2,14 @@
 import {computed, ref} from "vue"
 import VueDraggable from "vuedraggable"
 
-import {useUIStore} from "../../../../../../stores/ui"
-import {WIDGET_DEFS} from "../../../../../../constants/widgets"
-import BaseButton from "../../../../../base/BaseButton"
-import BaseMenu from "../../../../../base/BaseMenu.vue"
-import BasePopup from "../../../../../base/BasePopup.vue"
-import WidgetPicker from "../../../../../common/pickers/WidgetPicker.vue"
+import {WIDGET_DEFS} from "@/constants/widgets"
+import {useUIStore} from "@/stores/ui"
+import BaseButton from "@/ui/base/BaseButton"
+import BaseMenu from "@/ui/base/BaseMenu.vue"
+import BasePopup from "@/ui/base/BasePopup.vue"
+import WidgetPicker from "@/ui/common/pickers/WidgetPicker.vue"
 
-import type {WidgetId, WidgetSlot} from "../../../../../../types/widgets"
+import type {WidgetId, WidgetSlot} from "@/types/widgets"
 
 const uiStore = useUIStore()
 

@@ -1,16 +1,16 @@
 <script setup lang="ts">
-import {useThemeStore} from "../../../../../stores/theme.store"
-import {useUIStore} from "../../../../../stores/ui"
+import {useThemeStore} from "@/stores/theme.store"
+import {useUIStore} from "@/stores/ui"
+import BaseSegmented from "@/ui/base/BaseSegmented.vue"
+import AccentPicker from "@/ui/common/pickers/AccentPicker.vue"
+import MainColorPicker from "@/ui/common/pickers/MainColorPicker.vue"
 import AboutSection from "./{fragments}/AboutSection.vue"
 import WidgetsSection from "./{fragments}/WidgetsSection.vue"
-import BaseSegmented from "../../../../base/BaseSegmented.vue"
-import AccentPicker from "../../../../common/pickers/AccentPicker.vue"
-import MainColorPicker from "../../../../common/pickers/MainColorPicker.vue"
 import SettingRow from "../SettingRow.vue"
 import SettingsGroup from "../SettingsGroup.vue"
 
+import type {EmptySectionsMode} from "@/stores/ui/composables/useSectionPrefs"
 import type {AppearanceMode, FontSize} from "@daily/protocol"
-import type {EmptySectionsMode} from "../../../../../stores/ui/composables/useSectionPrefs"
 
 const uiStore = useUIStore()
 const themeStore = useThemeStore()

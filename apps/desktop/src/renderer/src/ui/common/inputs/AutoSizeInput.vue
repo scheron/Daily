@@ -2,7 +2,7 @@
 import {computed, HTMLAttributes, nextTick, onMounted, useTemplateRef, watch} from "vue"
 import {until} from "@vueuse/core"
 
-import {cn} from "../../../utils/ui/tailwindcss"
+import {cn} from "@/utils/ui/tailwindcss"
 
 const props = withDefaults(defineProps<{maxHeight?: number; placeholder: string; modelValue: string; class?: HTMLAttributes["class"]}>(), {
   maxHeight: 300,

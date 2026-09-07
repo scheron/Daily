@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import {ref} from "vue"
 
-import BaseButton from "../../../base/BaseButton"
-import BaseIcon from "../../../base/BaseIcon"
-import BasePopup from "../../../base/BasePopup.vue"
-import AutoSizeInput from "../../../common/inputs/AutoSizeInput.vue"
+import BaseButton from "@/ui/base/BaseButton"
+import BaseIcon from "@/ui/base/BaseIcon"
+import BasePopup from "@/ui/base/BasePopup.vue"
+import AutoSizeInput from "@/ui/common/inputs/AutoSizeInput.vue"
 import ContextRing from "./ContextRing.vue"
 
 import type {AIConfig, AIProvider} from "@daily/protocol"
-import type {LocalModelInfo} from "../../../../../../shared/types/ai"
+import type {LocalModelInfo} from "@shared/types/ai"
 
 defineProps<{
   aiConfig: AIConfig["openai"] | AIConfig["local"] | null

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {ACCENT_PRESETS} from "@daily/protocol"
 
-import {useThemeStore} from "../../../stores/theme.store"
+import {useThemeStore} from "@/stores/theme.store"
 import BaseButton from "../../base/BaseButton"
 import BaseIcon from "../../base/BaseIcon"
 

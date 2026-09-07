@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {BASE_PRESETS} from "@daily/protocol"
 
-import {useThemeStore} from "../../../stores/theme.store"
+import {useThemeStore} from "@/stores/theme.store"
 import BaseButton from "../../base/BaseButton"
 
 const themeStore = useThemeStore()

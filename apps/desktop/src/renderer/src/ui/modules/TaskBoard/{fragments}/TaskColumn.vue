@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import {computed} from "vue"
 
-import {useUIStore} from "../../../../stores/ui"
-import {useTaskColumns} from "../../../../composables/tasks/useTaskColumns"
-import {COLUMN_MIN_WIDTH, TASK_COLUMNS} from "../../../../constants/ui"
-import BaseButton from "../../../base/BaseButton"
-import BaseIcon from "../../../base/BaseIcon"
-import BaseMenu, {BaseMenuItem} from "../../../base/BaseMenu.vue"
-import BasePopup from "../../../base/BasePopup.vue"
+import {useTaskColumns} from "@/composables/tasks/useTaskColumns"
+import {COLUMN_MIN_WIDTH, TASK_COLUMNS} from "@/constants/ui"
+import {useUIStore} from "@/stores/ui"
+import BaseButton from "@/ui/base/BaseButton"
+import BaseIcon from "@/ui/base/BaseIcon"
+import BaseMenu, {BaseMenuItem} from "@/ui/base/BaseMenu.vue"
+import BasePopup from "@/ui/base/BasePopup.vue"
 
 import type {TaskStatus} from "@daily/protocol"
 

@@ -3,9 +3,9 @@ import {lookup as nodeLookup} from "node:dns/promises"
 import {isBlockedAddress} from "@daily/core"
 import {stripBrackets} from "@daily/std"
 
-import {normalizeIpLiteral} from "../../../../shared/utils/web/normalizeIpLiteral"
-import {WebFetchError} from "../../../../shared/errors/web/WebFetchError"
-import {WebFetchErrorCode} from "../../../../shared/errors/web/WebFetchErrorCode"
+import {WebFetchError} from "@shared/errors/web/WebFetchError"
+import {WebFetchErrorCode} from "@shared/errors/web/WebFetchErrorCode"
+import {normalizeIpLiteral} from "@shared/utils/web/normalizeIpLiteral"
 
 import type {LookupFn, LookupResult} from "../types"
 

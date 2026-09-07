@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import {computed, onMounted, ref, watch} from "vue"
 
-import {useStorageStore} from "../../../../../../stores/storage.store"
-import {useSyncServerStore} from "../../../../../../stores/syncServer.store"
-import BaseButton from "../../../../../base/BaseButton"
-import BaseIcon from "../../../../../base/BaseIcon"
+import {useStorageStore} from "@/stores/storage.store"
+import {useSyncServerStore} from "@/stores/syncServer.store"
+import BaseButton from "@/ui/base/BaseButton"
+import BaseIcon from "@/ui/base/BaseIcon"
 import SettingRow from "../../SettingRow.vue"
 
 const storageStore = useStorageStore()

@@ -3,10 +3,10 @@ import {computed, onBeforeUnmount, onMounted, ref, useTemplateRef} from "vue"
 
 import {SYNC_PROTOCOL_CONFIG} from "@daily/protocol"
 
-import {useSyncServerStore} from "../../../../../../stores/syncServer.store"
-import BaseButton from "../../../../../base/BaseButton"
-import BaseIcon from "../../../../../base/BaseIcon"
-import BaseInput from "../../../../../base/BaseInput.vue"
+import {useSyncServerStore} from "@/stores/syncServer.store"
+import BaseButton from "@/ui/base/BaseButton"
+import BaseIcon from "@/ui/base/BaseIcon"
+import BaseInput from "@/ui/base/BaseInput.vue"
 
 import type {EnrollmentTicketView, ServerProbeView} from "@daily/protocol"
 import type {ConnectStep} from "./connectSteps"
@@ -264,7 +264,7 @@ onBeforeUnmount(() => {
       </div>
       <div v-if="probeResult.transport.fingerprint" class="flex flex-col gap-1">
         <span class="text-base-content/60">Fingerprint</span>
-        <span class="text-base-content bg-base-100 break-all rounded px-2 py-1 font-mono text-xs">{{ probeResult.transport.fingerprint }}</span>
+        <span class="text-base-content bg-base-100 rounded px-2 py-1 font-mono text-xs break-all">{{ probeResult.transport.fingerprint }}</span>
       </div>
     </div>
 

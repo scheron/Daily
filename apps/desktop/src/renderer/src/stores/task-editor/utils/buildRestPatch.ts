@@ -1,7 +1,7 @@
 import {sameTagIds} from "./sameTagIds"
 
+import type {TaskDraft} from "@/types/tasks"
 import type {Tag, TaskStatus} from "@daily/protocol"
-import type {TaskDraft} from "../../../types/tasks"
 
 type RestPatch = {
   content: string

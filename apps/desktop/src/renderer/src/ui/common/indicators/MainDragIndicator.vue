@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {useAxisDrag} from "../../../composables/useAxisDrag"
+import {useAxisDrag} from "@/composables/useAxisDrag"
 import BaseDragIndicator from "../../base/BaseDragIndicator.vue"
 
 const props = defineProps<{

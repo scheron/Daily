@@ -3,13 +3,13 @@ import {computed, onBeforeMount, reactive, ref} from "vue"
 
 import {AIConfig} from "@daily/protocol"
 
-import {useAiStore} from "../../../../../../stores/ai"
-import {REMOTE_API_PROVIDERS} from "../../../../../../../../shared/constants/ai"
-import BaseButton from "../../../../../base/BaseButton"
-import BaseIcon from "../../../../../base/BaseIcon"
-import BaseInput from "../../../../../base/BaseInput.vue"
-import BaseSegmented from "../../../../../base/BaseSegmented.vue"
-import ModelPicker from "../../../../../common/pickers/ModelPicker.vue"
+import {useAiStore} from "@/stores/ai"
+import BaseButton from "@/ui/base/BaseButton"
+import BaseIcon from "@/ui/base/BaseIcon"
+import BaseInput from "@/ui/base/BaseInput.vue"
+import BaseSegmented from "@/ui/base/BaseSegmented.vue"
+import ModelPicker from "@/ui/common/pickers/ModelPicker.vue"
+import {REMOTE_API_PROVIDERS} from "@shared/constants/ai"
 import SettingRow from "../../SettingRow.vue"
 
 const aiStore = useAiStore()

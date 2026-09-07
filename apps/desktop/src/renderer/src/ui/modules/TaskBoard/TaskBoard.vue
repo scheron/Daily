@@ -2,10 +2,10 @@
 import {computed, ref, watch} from "vue"
 import VueDraggable from "vuedraggable"
 
-import {useTasksStore} from "../../../stores/tasks"
-import {useTaskColumns} from "../../../composables/tasks/useTaskColumns"
+import {useTaskColumns} from "@/composables/tasks/useTaskColumns"
+import {DRAGGABLE_ATTRS} from "@/constants/ui"
+import {useTasksStore} from "@/stores/tasks"
 import {useDragScroll} from "./composables/useDragScroll"
-import {DRAGGABLE_ATTRS} from "../../../constants/ui"
 import NoTasksPlaceholder from "./{fragments}/NoTasksPlaceholder.vue"
 import TaskCard from "./{fragments}/TaskCard"
 import TaskColumn from "./{fragments}/TaskColumn.vue"

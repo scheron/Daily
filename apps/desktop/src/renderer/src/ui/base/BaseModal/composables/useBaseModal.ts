@@ -1,6 +1,6 @@
 import {computed, markRaw, ref} from "vue"
 
-import {createSharedComposable} from "../../../../composables/createSharedComposable"
+import {createSharedComposable} from "@/composables/createSharedComposable"
 
 import type {Component, ModalComponent, ModalComponentProps, ModalHandle, ModalItem, ModalShowOptions} from "../types"
 

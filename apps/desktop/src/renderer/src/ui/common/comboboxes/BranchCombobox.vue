@@ -2,7 +2,7 @@
 import {ref} from "vue"
 import {toasts} from "vue-toasts-lite"
 
-import {useBranchesStore} from "../../../stores/branches.store"
+import {useBranchesStore} from "@/stores/branches.store"
 import BaseCombobox from "../../base/BaseCombobox"
 import BaseIcon from "../../base/BaseIcon"
 

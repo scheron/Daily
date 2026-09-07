@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import {TASK_FILTERS} from "../../../../constants/tasks"
-import BaseButton from "../../../base/BaseButton"
-import SearchInput from "../../../common/inputs/SearchInput.vue"
+import {TASK_FILTERS} from "@/constants/tasks"
+import BaseButton from "@/ui/base/BaseButton"
+import SearchInput from "@/ui/common/inputs/SearchInput.vue"
 
-import type {TasksFilter} from "../../../../types/common"
+import type {TasksFilter} from "@/types/common"
 
 const props = defineProps<{
   filterQuery: string

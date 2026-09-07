@@ -1,4 +1,4 @@
-import {defineVariant} from "../../../utils/ui/tailwindcss"
+import {defineVariant} from "@/utils/ui/tailwindcss"
 
 export type TagSize = "sm" | "md"
 

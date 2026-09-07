@@ -2,9 +2,9 @@
 import {computed, onBeforeUnmount, onMounted, ref} from "vue"
 import {useEventListener} from "@vueuse/core"
 
-import {useFocusTrap} from "../../../../composables/useFocusTrap"
+import {useFocusTrap} from "@/composables/useFocusTrap"
+import {findFocusableEl} from "@/utils/ui/dom"
 import {useBaseModal} from "../composables/useBaseModal"
-import {findFocusableEl} from "../../../../utils/ui/dom"
 
 import type {ModalItem} from "../types"
 

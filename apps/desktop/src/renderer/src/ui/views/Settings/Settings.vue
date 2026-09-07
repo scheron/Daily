@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {onMounted} from "vue"
 
-import {useThemeStore} from "../../../stores/theme.store"
+import {useThemeStore} from "@/stores/theme.store"
 import BaseButton from "../../base/BaseButton"
 import {useSettingsNav} from "./model/useSettingsNav"
 

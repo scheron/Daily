@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import {cn} from "../../../utils/ui/tailwindcss"
+import {cn} from "@/utils/ui/tailwindcss"
 
 import type {IconName} from "./IconsSprite.vue"
 

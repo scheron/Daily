@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import ProjectsForm from "../../../../common/projects/ProjectsForm.vue"
-import TagsForm from "../../../../common/tags/TagsForm.vue"
+import ProjectsForm from "@/ui/common/projects/ProjectsForm.vue"
+import TagsForm from "@/ui/common/tags/TagsForm.vue"
 import SettingsGroup from "../SettingsGroup.vue"
 </script>
 

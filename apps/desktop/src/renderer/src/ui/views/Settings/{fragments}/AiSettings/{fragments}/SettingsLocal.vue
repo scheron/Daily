@@ -3,16 +3,16 @@ import {computed, onMounted} from "vue"
 import {toasts} from "vue-toasts-lite"
 import {sort} from "fast-sort"
 
-import {useAiStore} from "../../../../../../stores/ai"
-import {UNLOAD_MODEL_TIME} from "../../../../../../../../shared/constants/ai"
-import BaseButton from "../../../../../base/BaseButton"
-import BaseIcon from "../../../../../base/BaseIcon"
-import BaseSegmented from "../../../../../base/BaseSegmented.vue"
+import {useAiStore} from "@/stores/ai"
+import BaseButton from "@/ui/base/BaseButton"
+import BaseIcon from "@/ui/base/BaseIcon"
+import BaseSegmented from "@/ui/base/BaseSegmented.vue"
+import {UNLOAD_MODEL_TIME} from "@shared/constants/ai"
 import SettingRow from "../../SettingRow.vue"
 import LocalModelCard from "./LocalModelCard.vue"
 
+import type {LabeledOption} from "@/ui/views/Settings/model/types"
 import type {UnloadModelTime} from "@daily/protocol"
-import type {LabeledOption} from "../../../model/types"
 
 const aiStore = useAiStore()
 

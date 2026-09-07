@@ -1,15 +1,15 @@
 import {LRU} from "@daily/std"
 
-import {extractReadable} from "../../../../../../shared/utils/web/extractReadable"
-import {getHostname} from "../../../../../../shared/utils/web/getHostname"
-import {getTextWindow} from "../../../../web/utils/getTextWindow"
-import {wrapUntrusted} from "../../../../web/utils/wrapUntrusted"
-import {WebFetchError} from "../../../../../../shared/errors/web/WebFetchError"
-import {WebFetchErrorCode} from "../../../../../../shared/errors/web/WebFetchErrorCode"
-import {WEB_LIMITS} from "../../../../web/constants"
-import {SafeWebFetcher} from "../../../../web/SafeWebFetcher"
+import {WEB_LIMITS} from "@main/ai/web/constants"
+import {SafeWebFetcher} from "@main/ai/web/SafeWebFetcher"
+import {getTextWindow} from "@main/ai/web/utils/getTextWindow"
+import {wrapUntrusted} from "@main/ai/web/utils/wrapUntrusted"
+import {WebFetchError} from "@shared/errors/web/WebFetchError"
+import {WebFetchErrorCode} from "@shared/errors/web/WebFetchErrorCode"
+import {extractReadable} from "@shared/utils/web/extractReadable"
+import {getHostname} from "@shared/utils/web/getHostname"
 
-import type {CachedPage, SafeFetchResult} from "../../../../web/types"
+import type {CachedPage, SafeFetchResult} from "@main/ai/web/types"
 import type {RegisteredTool} from "../../types"
 
 type Fetcher = {fetch: (u: string) => Promise<SafeFetchResult>}

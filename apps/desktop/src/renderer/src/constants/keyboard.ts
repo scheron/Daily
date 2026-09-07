@@ -1,4 +1,4 @@
-import type {CanonMod} from "../../../shared/types/shortcuts"
+import type {CanonMod} from "@shared/types/shortcuts"
 
 export const MAC_MODS: Record<CanonMod, string> = {
   Cmd: "⌘",

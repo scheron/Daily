@@ -1,7 +1,7 @@
 import {computed, onScopeDispose, ref, toValue, watch} from "vue"
 
-import {useStorageStore} from "../../../../../../stores/storage.store"
-import {API} from "../../../../../../api"
+import {API} from "@/api"
+import {useStorageStore} from "@/stores/storage.store"
 
 import type {Task, TaskEvent} from "@daily/protocol"
 import type {MaybeRefOrGetter} from "vue"

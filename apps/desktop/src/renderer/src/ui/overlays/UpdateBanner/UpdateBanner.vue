@@ -3,7 +3,7 @@ import {computed} from "vue"
 
 import {isNumber} from "@daily/std"
 
-import {useUpdateStore} from "../../../stores/update.store"
+import {useUpdateStore} from "@/stores/update.store"
 import BaseAnimation from "../../base/BaseAnimation.vue"
 import BaseButton from "../../base/BaseButton"
 import BaseIcon from "../../base/BaseIcon"

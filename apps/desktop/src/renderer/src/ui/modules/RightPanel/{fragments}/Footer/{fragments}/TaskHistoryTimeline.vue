@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import {toDateLabel, toTime} from "@daily/std"
 
-import {TASK_EVENT_META} from "../../../../../../constants/taskEvents"
-import BaseIcon from "../../../../../base/BaseIcon"
+import {TASK_EVENT_META} from "@/constants/taskEvents"
+import BaseIcon from "@/ui/base/BaseIcon"
 
 import type {TaskEvent} from "@daily/protocol"
 

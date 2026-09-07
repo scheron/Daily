@@ -4,16 +4,16 @@ import {defineStore} from "pinia"
 
 import {toISODate} from "@daily/std"
 
+import {LLM_MODELS} from "@shared/constants/ai"
 import {useLoadingState} from "../../composables/useLoadingState"
 import {useAiModels} from "./composables/useAiModels"
 import {useAiSession} from "./composables/useAiSession"
 import {useAiStreaming} from "./composables/useAiStreaming"
 import {useToolConfirmations} from "./composables/useToolConfirmations"
-import {LLM_MODELS} from "../../../../shared/constants/ai"
 import {useSettingsStore} from "../settings.store"
 
 import type {ISODate} from "@daily/protocol"
-import type {AIMessage} from "../../../../shared/types/ai"
+import type {AIMessage} from "@shared/types/ai"
 
 export const useAiStore = defineStore("ai", () => {
   const settingsStore = useSettingsStore()

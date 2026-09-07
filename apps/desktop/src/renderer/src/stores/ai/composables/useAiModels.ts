@@ -1,6 +1,6 @@
 import {computed} from "vue"
 
-import {toRawDeep} from "../../../utils/ui/vue"
+import {toRawDeep} from "@/utils/ui/vue"
 import {useSettingsStore} from "../../settings.store"
 import {useLocalModelStore} from "../localModel.store"
 import {useRemoteModelStore} from "../remoteModel.store"

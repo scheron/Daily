@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {computed} from "vue"
 
-import {cn} from "../../../utils/ui/tailwindcss"
+import {cn} from "@/utils/ui/tailwindcss"
 import BaseIcon from "../BaseIcon"
 import {checkboxBaseVariant, checkboxColorVariant, checkboxIconVariant} from "./variants"
 

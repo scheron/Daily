@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import {computed, ref} from "vue"
 
-import {WIDGET_DEFS} from "../../../constants/widgets"
-import {cn} from "../../../utils/ui/tailwindcss"
+import {WIDGET_DEFS} from "@/constants/widgets"
+import {cn} from "@/utils/ui/tailwindcss"
 import BaseButton from "../../base/BaseButton"
 import BaseIcon from "../../base/BaseIcon"
 import BaseMenu from "../../base/BaseMenu.vue"
 import BasePopup from "../../base/BasePopup.vue"
 
+import type {WidgetId} from "@/types/widgets"
 import type {HTMLAttributes} from "vue"
-import type {WidgetId} from "../../../types/widgets"
 import type {BaseMenuItem} from "../../base/BaseMenu.vue"
 
 const props = defineProps<{

@@ -1,5 +1,5 @@
+import type {IconName} from "@/ui/base/BaseIcon"
 import type {TaskStatus} from "@daily/protocol"
-import type {IconName} from "../../../../../base/BaseIcon"
 
 export const STATUS_ACTIONS: Array<{label: string; value: TaskStatus; icon: IconName; tooltip: string}> = [
   {label: "Active", value: "active", icon: "fire", tooltip: "Set as active"},

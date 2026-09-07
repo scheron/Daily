@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import {useThemeStore} from "../../../stores/theme.store"
-import {useUIStore} from "../../../stores/ui"
-import {useAxisDrag} from "../../../composables/useAxisDrag"
-import {FONT_SIZE_SCALE} from "../../../constants/typography"
-import {WIDGET_DEFS} from "../../../constants/widgets"
-import {resizePanes} from "../../../utils/ui/resizePanes"
+import {useAxisDrag} from "@/composables/useAxisDrag"
+import {FONT_SIZE_SCALE} from "@/constants/typography"
+import {WIDGET_DEFS} from "@/constants/widgets"
+import {useThemeStore} from "@/stores/theme.store"
+import {useUIStore} from "@/stores/ui"
+import {resizePanes} from "@/utils/ui/resizePanes"
 import BaseDragIndicator from "../../base/BaseDragIndicator.vue"
 
-import type {PaneBounds} from "../../../utils/ui/resizePanes"
+import type {PaneBounds} from "@/utils/ui/resizePanes"
 
 const FALLBACK_BOUNDS: PaneBounds = {min: 80, max: 600}
 

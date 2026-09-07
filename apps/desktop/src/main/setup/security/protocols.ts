@@ -3,7 +3,7 @@ import {protocol} from "electron"
 import {logger} from "@daily/core"
 import {APP_CONFIG} from "@daily/protocol"
 
-import {PRIVILEGED_SCHEMES} from "../../../shared/config/security"
+import {PRIVILEGED_SCHEMES} from "@shared/config/security"
 
 import type {StorageController} from "@daily/core"
 

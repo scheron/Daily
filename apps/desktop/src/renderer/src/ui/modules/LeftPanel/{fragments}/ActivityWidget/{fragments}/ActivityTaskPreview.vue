@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import {computed, ref} from "vue"
 
+import {API} from "@/api"
+import BaseIcon from "@/ui/base/BaseIcon"
+import BasePopup from "@/ui/base/BasePopup.vue"
 import {useHoverAbortController} from "../composables/useHoverAbortController"
-import {API} from "../../../../../../api"
-import BaseIcon from "../../../../../base/BaseIcon"
-import BasePopup from "../../../../../base/BasePopup.vue"
 import ActivityTaskPreviewCard from "./ActivityTaskPreviewCard.vue"
 
 import type {Task} from "@daily/protocol"

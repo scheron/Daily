@@ -2,7 +2,7 @@ import {invoke} from "@vueuse/core"
 
 import {toISODate} from "@daily/std"
 
-import type {AgentTurnSnapshot, AIMessage} from "../../../../../shared/types/ai"
+import type {AgentTurnSnapshot, AIMessage} from "@shared/types/ai"
 import type {AiSessionContext} from "../types"
 
 /**

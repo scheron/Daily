@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {useTemplateRef} from "vue"
 
-import {useProgressFill} from "../../../composables/useProgressFill"
+import {useProgressFill} from "@/composables/useProgressFill"
 import BaseButton from "../../base/BaseButton"
 import BasePopup from "../../base/BasePopup.vue"
 

@@ -1,6 +1,6 @@
 import {session} from "electron"
 
-import {CSP_POLICY} from "../../../shared/config/security"
+import {CSP_POLICY} from "@shared/config/security"
 
 export function setupCSP() {
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {

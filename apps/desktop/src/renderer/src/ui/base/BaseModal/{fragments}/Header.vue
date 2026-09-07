@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import Logo from "../../../common/misc/Logo.vue"
+import Logo from "@/ui/common/misc/Logo.vue"
 import BaseButton from "../../BaseButton"
 
 defineProps<{

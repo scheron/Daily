@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import {ref, watch} from "vue"
 
-import BaseIcon from "../../../../base/BaseIcon"
+import BaseIcon from "@/ui/base/BaseIcon"
 import ToolCallCard from "./ToolCallCard.vue"
 
-import type {AgentMessageSegment} from "../../../../../../../shared/types/ai"
+import type {AgentMessageSegment} from "@shared/types/ai"
 
 type ToolSegment = Extract<AgentMessageSegment, {kind: "tool"}>
 

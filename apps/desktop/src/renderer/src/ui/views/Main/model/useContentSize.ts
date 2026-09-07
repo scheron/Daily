@@ -1,7 +1,7 @@
 import {computed, ref, useTemplateRef} from "vue"
 import {tryOnMounted, useElementSize} from "@vueuse/core"
 
-import {getCssVariable} from "../../../../utils/ui/dom"
+import {getCssVariable} from "@/utils/ui/dom"
 
 const HEADER_HEIGHT = parseFloat(getCssVariable("--header-height") || "44")
 

@@ -1,11 +1,11 @@
 import {ref} from "vue"
 
-import {blobToBuffer} from "../../../../../../utils/images/blobToBuffer"
-import {calcProportionSize} from "../../../../../../utils/images/calcProportionSize"
-import {compressImageFile} from "../../../../../../utils/images/compressImageFile"
-import {toImageAltText} from "../../../../../../utils/images/toImageAltText"
+import {blobToBuffer} from "@/utils/images/blobToBuffer"
+import {calcProportionSize} from "@/utils/images/calcProportionSize"
+import {compressImageFile} from "@/utils/images/compressImageFile"
+import {toImageAltText} from "@/utils/images/toImageAltText"
 
-import type {CompressionOptions} from "../../../../../../utils/images/compressImageFile"
+import type {CompressionOptions} from "@/utils/images/compressImageFile"
 
 type UseImageUploadOptions = {
   /**

@@ -1,4 +1,4 @@
-import type {PendingToolConfirmation, TokenUsage} from "../../../shared/types/ai"
+import type {PendingToolConfirmation, TokenUsage} from "@shared/types/ai"
 import type {ToolResult} from "../tools/types"
 import type {MessageLLM} from "../types"
 

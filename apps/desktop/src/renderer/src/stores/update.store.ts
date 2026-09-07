@@ -3,7 +3,7 @@ import {toasts} from "vue-toasts-lite"
 import {invoke} from "@vueuse/core"
 import {defineStore} from "pinia"
 
-import type {AppUpdateState} from "../../../shared/types/update"
+import type {AppUpdateState} from "@shared/types/update"
 
 const DEFAULT_UPDATE_STATE: AppUpdateState = {
   status: "idle",

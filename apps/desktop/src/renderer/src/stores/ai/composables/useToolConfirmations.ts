@@ -1,6 +1,6 @@
 import {ref} from "vue"
 
-import type {PendingToolConfirmation} from "../../../../../shared/types/ai"
+import type {PendingToolConfirmation} from "@shared/types/ai"
 
 /**
  * Owns the pending destructive-tool confirmation raised by the agent loop: tracks it,

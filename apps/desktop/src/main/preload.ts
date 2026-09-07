@@ -1,6 +1,6 @@
 import {contextBridge, ipcRenderer} from "electron"
 
-import {SHORTCUTS_MAP} from "../shared/constants/shortcuts"
+import {SHORTCUTS_MAP} from "@shared/constants/shortcuts"
 
 import type {
   AIConfig,
@@ -27,7 +27,6 @@ import type {
   TaskEvent,
   TaskSearchResult,
 } from "@daily/protocol"
-import type {PartialDeep} from "type-fest"
 import type {
   AgentTurnSnapshot,
   AIEvent,
@@ -37,9 +36,10 @@ import type {
   LocalModelInfo,
   LocalRuntimeState,
   PendingToolConfirmation,
-} from "../shared/types/ai"
-import type {BridgeIPC} from "../shared/types/ipc"
-import type {AppUpdateState} from "../shared/types/update"
+} from "@shared/types/ai"
+import type {BridgeIPC} from "@shared/types/ipc"
+import type {AppUpdateState} from "@shared/types/update"
+import type {PartialDeep} from "type-fest"
 
 // prettier-ignore
 contextBridge.exposeInMainWorld("BridgeIPC", {

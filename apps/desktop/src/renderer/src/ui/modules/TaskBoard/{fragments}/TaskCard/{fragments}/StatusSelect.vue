@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import {computed} from "vue"
 
-import BaseButton from "../../../../../base/BaseButton"
-import BasePopup from "../../../../../base/BasePopup.vue"
+import BaseButton from "@/ui/base/BaseButton"
+import BasePopup from "@/ui/base/BasePopup.vue"
 import {STATUS_ACTIONS} from "../model/constants"
 
 import type {TaskStatus} from "@daily/protocol"

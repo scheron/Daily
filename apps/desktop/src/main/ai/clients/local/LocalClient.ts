@@ -1,13 +1,13 @@
 import {logger} from "@daily/core"
 
-import {AI_CONFIG} from "../../../../shared/config/ai"
-import {ServerStartCancelledError} from "../../../../shared/errors/ai/ServerStartCancelledError"
+import {AI_CONFIG} from "@shared/config/ai"
+import {ServerStartCancelledError} from "@shared/errors/ai/ServerStartCancelledError"
 import {OpenAiCompatibleClient} from "../common/OpenAiCompatibleClient"
 import {LlamaServer} from "./core/LlamaServer"
 import {LocalModelService} from "./core/LocalModelService"
 
 import type {AIConfig, LocalModelId} from "@daily/protocol"
-import type {LocalRuntimeState} from "../../../../shared/types/ai"
+import type {LocalRuntimeState} from "@shared/types/ai"
 import type {IAiClient} from "../../types"
 import type {OpenAiChatConfig} from "../common/types"
 

@@ -1,6 +1,6 @@
 import {sameTagIds} from "./sameTagIds"
 
-import type {TaskDraft} from "../../../types/tasks"
+import type {TaskDraft} from "@/types/tasks"
 
 /**
  * Whether two drafts are equal across every editable field (used to compute dirtiness).

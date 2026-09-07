@@ -1,10 +1,10 @@
 import {useEventListener} from "@vueuse/core"
 
-import {SHORTCUTS_MAP} from "../../../shared/constants/shortcuts"
-import {acceleratorsMatch} from "../../../shared/utils/shortcuts/acceleratorsMatch"
-import {formatEventToAccelerator} from "../../../shared/utils/shortcuts/formatEventToAccelerator"
+import {SHORTCUTS_MAP} from "@shared/constants/shortcuts"
+import {acceleratorsMatch} from "@shared/utils/shortcuts/acceleratorsMatch"
+import {formatEventToAccelerator} from "@shared/utils/shortcuts/formatEventToAccelerator"
 
-import type {ShortcutAction} from "../../../shared/types/shortcuts"
+import type {ShortcutAction} from "@shared/types/shortcuts"
 
 /**
  * Return `false` from a handler to leave the keystroke unhandled — the default

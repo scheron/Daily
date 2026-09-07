@@ -4,16 +4,16 @@ import {toasts} from "vue-toasts-lite"
 
 import {toRelativeTime} from "@daily/std"
 
-import {useTasksStore} from "../../../../../stores/tasks"
+import {TASK_EVENT_META} from "@/constants/taskEvents"
+import {useTasksStore} from "@/stores/tasks"
+import BaseButton from "@/ui/base/BaseButton"
+import BaseIcon from "@/ui/base/BaseIcon"
+import BasePopup from "@/ui/base/BasePopup.vue"
+import Spacer from "@/ui/common/misc/Spacer.vue"
+import {ConfirmPopup} from "@/ui/overlays/ConfirmPopup"
 import {useTaskEditor} from "../../composables/useTaskEditor"
 import {useTaskHistory} from "./composables/useTaskHistory"
-import {TASK_EVENT_META} from "../../../../../constants/taskEvents"
 import TaskHistoryTimeline from "./{fragments}/TaskHistoryTimeline.vue"
-import BaseButton from "../../../../base/BaseButton"
-import BaseIcon from "../../../../base/BaseIcon"
-import BasePopup from "../../../../base/BasePopup.vue"
-import Spacer from "../../../../common/misc/Spacer.vue"
-import {ConfirmPopup} from "../../../../overlays/ConfirmPopup"
 
 const {isEditing, editingTaskId, close} = useTaskEditor()
 const tasksStore = useTasksStore()

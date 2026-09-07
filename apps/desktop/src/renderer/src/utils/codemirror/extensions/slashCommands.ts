@@ -1,9 +1,9 @@
 import {syntaxTree} from "@codemirror/language"
 import {blockCommands, linkCommands} from "../commands"
 
+import type {IconName} from "@/ui/base/BaseIcon"
 import type {Completion, CompletionContext, CompletionResult} from "@codemirror/autocomplete"
 import type {EditorView} from "@codemirror/view"
-import type {IconName} from "../../../ui/base/BaseIcon"
 
 export type SlashItem = {label: string; icon: IconName; run: (view: EditorView) => boolean}
 type SlashItemsSource = SlashItem[] | (() => SlashItem[])

@@ -1,10 +1,10 @@
 import {watch} from "vue"
 import {storeToRefs} from "pinia"
 
-import {useDragDropStore} from "../../../../stores/dragDrop.store"
-import {createSharedComposable} from "../../../../composables/createSharedComposable"
-import {DROP_DAY_SELECTOR, DROP_ZONE_SELECTOR, OVER_DROP_ZONE_CLASS} from "../../../../constants/ui"
-import {findClosestAtPoint, findDragClone} from "../../../../utils/ui/dom"
+import {createSharedComposable} from "@/composables/createSharedComposable"
+import {DROP_DAY_SELECTOR, DROP_ZONE_SELECTOR, OVER_DROP_ZONE_CLASS} from "@/constants/ui"
+import {useDragDropStore} from "@/stores/dragDrop.store"
+import {findClosestAtPoint, findDragClone} from "@/utils/ui/dom"
 
 import type {ISODate} from "@daily/protocol"
 

@@ -3,8 +3,8 @@ import {Agent} from "undici"
 
 import {isBlockedAddress} from "@daily/core"
 
-import {WebFetchError} from "../../../../shared/errors/web/WebFetchError"
-import {WebFetchErrorCode} from "../../../../shared/errors/web/WebFetchErrorCode"
+import {WebFetchError} from "@shared/errors/web/WebFetchError"
+import {WebFetchErrorCode} from "@shared/errors/web/WebFetchErrorCode"
 
 type Address = {address: string; family: number}
 type LookupCallback = (err: Error | null, addressOrList?: string | Address[], family?: number) => void

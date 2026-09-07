@@ -3,10 +3,10 @@ import {computed} from "vue"
 
 import {sortTags} from "@daily/protocol"
 
-import {useTagsStore} from "../../../../../../../stores/tags.store"
-import {useTaskEditorStore} from "../../../../../../../stores/task-editor"
-import BaseTag from "../../../../../../base/BaseTag"
-import TagsPicker from "../../../../../../common/pickers/TagsPicker.vue"
+import {useTagsStore} from "@/stores/tags.store"
+import {useTaskEditorStore} from "@/stores/task-editor"
+import BaseTag from "@/ui/base/BaseTag"
+import TagsPicker from "@/ui/common/pickers/TagsPicker.vue"
 
 import type {Tag, Task} from "@daily/protocol"
 

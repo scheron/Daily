@@ -1,6 +1,6 @@
-import {defineVariant} from "../../../utils/ui/tailwindcss"
+import {defineVariant} from "@/utils/ui/tailwindcss"
 
-import type {VariantProps} from "../../../utils/ui/tailwindcss"
+import type {VariantProps} from "@/utils/ui/tailwindcss"
 
 export const checkboxBaseVariant = defineVariant({
   baseClass: `

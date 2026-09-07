@@ -12,16 +12,16 @@ import fs from "fs-extra"
 import {logger} from "@daily/core"
 import {isString, notNull} from "@daily/std"
 
-import {AI_CONFIG} from "../../../../../shared/config/ai"
-import {LlamaServerErrorCode} from "../../../../../shared/errors/ai/LlamaServerErrorCode"
-import {ServerStartCancelledError} from "../../../../../shared/errors/ai/ServerStartCancelledError"
-import {electronPaths} from "../../../../runtime/electronPaths"
+import {electronPaths} from "@main/runtime/electronPaths"
+import {AI_CONFIG} from "@shared/config/ai"
+import {LlamaServerErrorCode} from "@shared/errors/ai/LlamaServerErrorCode"
+import {ServerStartCancelledError} from "@shared/errors/ai/ServerStartCancelledError"
 import {buildLlamaArgs} from "./llamaArgs"
 import {SERVER_BINARY} from "./manifest"
 
 import type {LocalModelId} from "@daily/protocol"
+import type {LocalRuntimeState} from "@shared/types/ai"
 import type {ChildProcess} from "node:child_process"
-import type {LocalRuntimeState} from "../../../../../shared/types/ai"
 import type {ModelManifestEntry} from "../types"
 
 const execFileAsync = promisify(execFile)

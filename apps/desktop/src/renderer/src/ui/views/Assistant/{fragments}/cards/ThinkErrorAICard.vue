@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import BaseButton from "../../../../base/BaseButton"
+import BaseButton from "@/ui/base/BaseButton"
 
 const emit = defineEmits<{
   retry: []

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {computed, HtmlHTMLAttributes} from "vue"
 
-import {cn} from "../../../utils/ui/tailwindcss"
+import {cn} from "@/utils/ui/tailwindcss"
 
 const props = withDefaults(
   defineProps<{

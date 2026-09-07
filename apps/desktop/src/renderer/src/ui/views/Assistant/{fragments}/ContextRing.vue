@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import {computed} from "vue"
 
-import {useAiStore} from "../../../../stores/ai"
-import BaseIcon from "../../../base/BaseIcon"
-import BasePopup from "../../../base/BasePopup.vue"
-import RingChart from "../../../common/charts/RingChart.vue"
+import {useAiStore} from "@/stores/ai"
+import BaseIcon from "@/ui/base/BaseIcon"
+import BasePopup from "@/ui/base/BasePopup.vue"
+import RingChart from "@/ui/common/charts/RingChart.vue"
 
 const aiStore = useAiStore()
 

@@ -2,10 +2,10 @@
 import {ISODate, TaskEvent, toTaskIdHash} from "@daily/protocol"
 import {toDateLabel, toLocaleDateTime, toTime} from "@daily/std"
 
-import {TASK_EVENT_META} from "../../../../../constants/taskEvents"
+import {TASK_EVENT_META} from "@/constants/taskEvents"
+import BaseButton from "@/ui/base/BaseButton"
+import BaseIcon from "@/ui/base/BaseIcon"
 import ActivityTaskPreview from "./{fragments}/ActivityTaskPreview.vue"
-import BaseButton from "../../../../base/BaseButton"
-import BaseIcon from "../../../../base/BaseIcon"
 import {useActivityModel} from "./model/useActivityModel"
 
 const {events, goToDay, openTask, isRestorable, restore} = useActivityModel()

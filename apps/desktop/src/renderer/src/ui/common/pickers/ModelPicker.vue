@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {computed, HTMLAttributes, ref} from "vue"
 
-import {cn} from "../../../utils/ui/tailwindcss"
+import {cn} from "@/utils/ui/tailwindcss"
 import BaseButton from "../../base/BaseButton"
 import BaseIcon from "../../base/BaseIcon"
 import BaseMenu from "../../base/BaseMenu.vue"

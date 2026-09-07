@@ -5,7 +5,7 @@ import {toRawDeep} from "../../utils/ui/vue"
 import {useSettingsStore} from "../settings.store"
 
 import type {AIConfig, LocalModelId} from "@daily/protocol"
-import type {CatalogRefreshResult, LocalModelDownloadProgress, LocalModelInfo, LocalRuntimeState} from "../../../../shared/types/ai"
+import type {CatalogRefreshResult, LocalModelDownloadProgress, LocalModelInfo, LocalRuntimeState} from "@shared/types/ai"
 
 export const useLocalModelStore = defineStore("localModel", () => {
   const settingsStore = useSettingsStore()

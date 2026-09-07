@@ -4,8 +4,8 @@ import {computed, onMounted, onUnmounted, useTemplateRef, watch} from "vue"
 import {sortTags} from "@daily/protocol"
 import {toDateLabel} from "@daily/std"
 
-import {EditorState} from "@codemirror/state"
-import {EditorView} from "@codemirror/view"
+import BaseIcon from "@/ui/base/BaseIcon"
+import BaseTag from "@/ui/base/BaseTag"
 import {
   createCodeSyntaxExtension,
   createMarkdownLanguageExtension,
@@ -13,9 +13,9 @@ import {
   createTablesExtension,
   createThemeExtension,
   createWYSIWYGExtension,
-} from "../../../../utils/codemirror/extensions"
-import BaseIcon from "../../../base/BaseIcon"
-import BaseTag from "../../../base/BaseTag"
+} from "@/utils/codemirror/extensions"
+import {EditorState} from "@codemirror/state"
+import {EditorView} from "@codemirror/view"
 
 import type {TaskSearchResult} from "@daily/protocol"
 

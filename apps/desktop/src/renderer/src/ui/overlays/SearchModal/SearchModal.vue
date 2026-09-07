@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import {toasts} from "vue-toasts-lite"
 
-import {useBranchesStore} from "../../../stores/branches.store"
-import {useTasksStore} from "../../../stores/tasks"
+import {API} from "@/api"
+import {useBranchesStore} from "@/stores/branches.store"
+import {useTasksStore} from "@/stores/tasks"
+import {highlightElement, scrollToElement} from "@/utils/ui/dom"
 import {useFilter} from "./composables/useFilter"
 import {useSearch} from "./composables/useSearch"
-import {highlightElement, scrollToElement} from "../../../utils/ui/dom"
 import SearchResultItem from "./{fragments}/SearchResultItem.vue"
 import SearchToolbar from "./{fragments}/SearchToolbar.vue"
-import {API} from "../../../api"
 import BaseIcon from "../../base/BaseIcon"
 import {BaseModal} from "../../base/BaseModal"
 

@@ -1,9 +1,9 @@
 import {getPreviousTaskOrderIndex} from "@daily/protocol"
 import {getTime, getTimezone, notNull, notUndefined, objectFilter} from "@daily/std"
 
-import {updateDays} from "../../../utils/tasks/updateDays"
-import {toRawDeep} from "../../../utils/ui/vue"
-import {API} from "../../../api"
+import {API} from "@/api"
+import {updateDays} from "@/utils/tasks/updateDays"
+import {toRawDeep} from "@/utils/ui/vue"
 
 import type {Branch, ISODate, Tag, Task, TaskStatus} from "@daily/protocol"
 import type {TaskDropPosition, TaskMoveMeta, TaskMutationsContext} from "../types"

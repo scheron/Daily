@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import StepNav from "../../../../../common/misc/StepNav.vue"
+import StepNav from "@/ui/common/misc/StepNav.vue"
 
 withDefaults(
   defineProps<{

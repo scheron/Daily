@@ -12,8 +12,8 @@ import {downloadRelease, resolveLatestRelease} from "./release"
 
 import type {IStorageController} from "@daily/core"
 import type {Settings} from "@daily/protocol"
+import type {AppUpdateState} from "@shared/types/update"
 import type {BrowserWindow} from "electron"
-import type {AppUpdateState} from "../../shared/types/update"
 import type {ReleaseMeta} from "../types/updates"
 
 export class UpdaterController {

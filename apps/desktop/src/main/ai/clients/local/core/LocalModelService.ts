@@ -5,15 +5,15 @@ import fs from "fs-extra"
 import {logger} from "@daily/core"
 import {forEachParallel} from "@daily/std"
 
-import {downloadWithProgress} from "../../../../utils/files/downloadWithProgress"
-import {AI_CONFIG} from "../../../../../shared/config/ai"
-import {LocalModelErrorCode} from "../../../../../shared/errors/ai/LocalModelErrorCode"
-import {electronPaths} from "../../../../runtime/electronPaths"
+import {electronPaths} from "@main/runtime/electronPaths"
+import {downloadWithProgress} from "@main/utils/files/downloadWithProgress"
+import {AI_CONFIG} from "@shared/config/ai"
+import {LocalModelErrorCode} from "@shared/errors/ai/LocalModelErrorCode"
 import {loadCatalog, parseCatalog} from "./catalog"
 import {fetchRemoteCatalog, readCachedCatalog, writeCachedCatalog} from "./remoteCatalog"
 
 import type {LocalModelId} from "@daily/protocol"
-import type {CatalogRefreshResult, LocalModelDownloadProgress, LocalModelInfo} from "../../../../../shared/types/ai"
+import type {CatalogRefreshResult, LocalModelDownloadProgress, LocalModelInfo} from "@shared/types/ai"
 import type {ILocalModelService, ModelManifestEntry} from "../types"
 
 type CatalogSource = {url: string; cachePath: string; bundledPath: string}

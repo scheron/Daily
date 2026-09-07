@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import BaseIcon from "../../../base/BaseIcon"
+import BaseIcon from "@/ui/base/BaseIcon"
 
-import type {IconName} from "../../../base/BaseIcon"
+import type {IconName} from "@/ui/base/BaseIcon"
 
 defineProps<{
   /** Section heading shown centered between two divider lines. */

@@ -3,13 +3,13 @@ import {computed} from "vue"
 
 import {AIProvider} from "@daily/protocol"
 
-import {useAiStore} from "../../../../../stores/ai"
+import {useAiStore} from "@/stores/ai"
+import BaseAnimation from "@/ui/base/BaseAnimation.vue"
+import BaseButton from "@/ui/base/BaseButton"
+import BaseSegmented from "@/ui/base/BaseSegmented.vue"
+import BaseSwitch from "@/ui/base/BaseSwitch.vue"
 import SettingsLocal from "./{fragments}/SettingsLocal.vue"
 import SettingsOpenAI from "./{fragments}/SettingsOpenAI.vue"
-import BaseAnimation from "../../../../base/BaseAnimation.vue"
-import BaseButton from "../../../../base/BaseButton"
-import BaseSegmented from "../../../../base/BaseSegmented.vue"
-import BaseSwitch from "../../../../base/BaseSwitch.vue"
 import SettingRow from "../SettingRow.vue"
 import SettingsGroup from "../SettingsGroup.vue"
 

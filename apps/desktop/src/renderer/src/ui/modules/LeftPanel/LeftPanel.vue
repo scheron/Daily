@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import {defineAsyncComponent} from "vue"
 
-import {useThemeStore} from "../../../stores/theme.store"
-import {useUIStore} from "../../../stores/ui"
-import {useAnimation} from "../../../composables/useAnimation"
-import {FONT_SIZE_SCALE} from "../../../constants/typography"
-import {WIDGET_DEFS} from "../../../constants/widgets"
-import {cn} from "../../../utils/ui/tailwindcss"
+import {useAnimation} from "@/composables/useAnimation"
+import {FONT_SIZE_SCALE} from "@/constants/typography"
+import {WIDGET_DEFS} from "@/constants/widgets"
+import {useThemeStore} from "@/stores/theme.store"
+import {useUIStore} from "@/stores/ui"
+import {cn} from "@/utils/ui/tailwindcss"
 import PanelDragIndicator from "../../common/indicators/PanelDragIndicator.vue"
 
+import type {WidgetId, WidgetSlot} from "@/types/widgets"
 import type {StyleValue} from "vue"
-import type {WidgetId, WidgetSlot} from "../../../types/widgets"
 
 defineProps<{width: number}>()
 

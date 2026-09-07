@@ -3,10 +3,10 @@ import {computed} from "vue"
 
 import {toDayLabel} from "@daily/std"
 
-import BaseButton from "../../../base/BaseButton"
-import BaseIcon from "../../../base/BaseIcon"
+import BaseButton from "@/ui/base/BaseButton"
+import BaseIcon from "@/ui/base/BaseIcon"
 
-import type {TasksFilter} from "../../../../types/common"
+import type {TasksFilter} from "@/types/common"
 
 const props = defineProps<{date?: string; filter: TasksFilter}>()
 const emit = defineEmits<{createTask: []}>()

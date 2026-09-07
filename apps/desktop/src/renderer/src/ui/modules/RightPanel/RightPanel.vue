@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import {computed, nextTick, useTemplateRef, watch} from "vue"
 
-import {useUIStore} from "../../../stores/ui"
-import {useAnimation} from "../../../composables/useAnimation"
-import {useFocusTrap} from "../../../composables/useFocusTrap"
-import {useShortcutsScope} from "../../../composables/useShortcutsScope"
+import {useAnimation} from "@/composables/useAnimation"
+import {useFocusTrap} from "@/composables/useFocusTrap"
+import {useShortcutsScope} from "@/composables/useShortcutsScope"
+import {useUIStore} from "@/stores/ui"
 import {useTaskEditor} from "./composables/useTaskEditor"
 import Editor from "./{fragments}/Editor/Editor.vue"
 import Footer from "./{fragments}/Footer/Footer.vue"

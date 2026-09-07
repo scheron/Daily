@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import {nextTick, onBeforeUnmount, onMounted, ref, watch} from "vue"
 
-import {EditorState} from "@codemirror/state"
-import {EditorView} from "@codemirror/view"
-import {TASK_CONTENT_MINIMIZED_HEIGHT} from "../../../../../../constants/ui"
+import {TASK_CONTENT_MINIMIZED_HEIGHT} from "@/constants/ui"
 import {
   createCodeSyntaxExtension,
   createMarkdownLanguageExtension,
   createTablesExtension,
   createThemeExtension,
   createWYSIWYGExtension,
-} from "../../../../../../utils/codemirror/extensions"
+} from "@/utils/codemirror/extensions"
+import {EditorState} from "@codemirror/state"
+import {EditorView} from "@codemirror/view"
 
 const props = defineProps<{
   content: string

@@ -6,9 +6,9 @@ import {pipeline} from "node:stream/promises"
 
 import {logger} from "@daily/core"
 
-import {DownloadErrorCode} from "../../../shared/errors/download/DownloadErrorCode"
+import {DownloadErrorCode} from "@shared/errors/download/DownloadErrorCode"
 
-import type {DownloadPhase} from "../../../shared/types/ai"
+import type {DownloadPhase} from "@shared/types/ai"
 
 const USER_AGENT = "Daily-App/1.0"
 

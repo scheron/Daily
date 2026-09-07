@@ -3,8 +3,8 @@ import {DateTime} from "luxon"
 
 import {addMonths, diffDays} from "@daily/std"
 
-import {mergeDays, updateDays} from "../../../utils/tasks/updateDays"
-import {API} from "../../../api"
+import {API} from "@/api"
+import {mergeDays, updateDays} from "@/utils/tasks/updateDays"
 
 import type {ISODate} from "@daily/protocol"
 import type {TaskRangeContext} from "../types"

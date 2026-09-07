@@ -1,6 +1,6 @@
 import {ThinkBlockSplitter} from "./thinkBlockSplitter"
 
-import type {ChatStreamDelta, MessageLLM, ToolCallLLM} from "../../../types"
+import type {ChatStreamDelta, MessageLLM, ToolCallLLM} from "@main/ai/types"
 
 type RawDelta = {
   role?: string

@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import {computed, HTMLAttributes} from "vue"
 
-import {cn} from "../../../utils/ui/tailwindcss"
+import {cn} from "@/utils/ui/tailwindcss"
 import BaseIcon from "../BaseIcon"
 import {tagHashVariant, tagNameVariant, tagRemoveIconVariant, tagRemoveVariant, tagVariant} from "./variants"
 

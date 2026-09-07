@@ -1,9 +1,9 @@
 import {fetch as undiciFetch} from "undici"
 
+import {WebFetchError} from "@shared/errors/web/WebFetchError"
+import {WebFetchErrorCode} from "@shared/errors/web/WebFetchErrorCode"
 import {assertUrlAllowed} from "./utils/assertUrlAllowed"
 import {createPinnedAgent} from "./utils/createPinnedAgent"
-import {WebFetchError} from "../../../shared/errors/web/WebFetchError"
-import {WebFetchErrorCode} from "../../../shared/errors/web/WebFetchErrorCode"
 import {ALLOWED_CONTENT_TYPES, WEB_LIMITS} from "./constants"
 
 import type {Agent} from "undici"

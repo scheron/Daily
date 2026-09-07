@@ -3,8 +3,8 @@ import {computed, HtmlHTMLAttributes} from "vue"
 
 import {TaskStatus} from "@daily/protocol"
 
-import {cn} from "../../../utils/ui/tailwindcss"
-import {TasksFilter} from "../../../types/common"
+import {TasksFilter} from "@/types/common"
+import {cn} from "@/utils/ui/tailwindcss"
 import BaseButton from "../../base/BaseButton"
 import {IconName} from "../../base/BaseIcon"
 import BasePopup from "../../base/BasePopup.vue"

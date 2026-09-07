@@ -1,9 +1,9 @@
 import {ipcMain} from "electron"
 
-import {SHORTCUTS_MAP} from "../../../shared/constants/shortcuts"
+import {SHORTCUTS_MAP} from "@shared/constants/shortcuts"
 
+import type {ShortcutDefinition} from "@shared/types/shortcuts"
 import type {BrowserWindow} from "electron"
-import type {ShortcutDefinition} from "../../../shared/types/shortcuts"
 
 export function setupMenuIPC(getMainWindow: () => BrowserWindow | null) {
   for (const action in SHORTCUTS_MAP) {

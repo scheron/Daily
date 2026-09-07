@@ -4,8 +4,8 @@ import {toasts} from "vue-toasts-lite"
 
 import {MAIN_BRANCH_ID} from "@daily/protocol"
 
-import {useBranchesStore} from "../../../stores/branches.store"
-import {useTasksStore} from "../../../stores/tasks"
+import {useBranchesStore} from "@/stores/branches.store"
+import {useTasksStore} from "@/stores/tasks"
 import BaseButton from "../../base/BaseButton"
 import BaseIcon from "../../base/BaseIcon"
 import BaseInput from "../../base/BaseInput.vue"

@@ -1,6 +1,6 @@
 import {breakpointsTailwind, useBreakpoints} from "@vueuse/core"
 
-import {isMacOS, isWindows} from "../../../constants/env"
+import {isMacOS, isWindows} from "@/constants/env"
 
 export function useDevice() {
   const breakpoint = useBreakpoints(breakpointsTailwind)

@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import {computed, useTemplateRef} from "vue"
 
-import {useProgressFill} from "../../../../../../composables/useProgressFill"
-import {cn} from "../../../../../../utils/ui/tailwindcss"
-import BaseIcon from "../../../../../base/BaseIcon"
+import {useProgressFill} from "@/composables/useProgressFill"
+import BaseIcon from "@/ui/base/BaseIcon"
+import {cn} from "@/utils/ui/tailwindcss"
 
-import type {ContextMenuItem} from "../../../../../common/misc/ContextMenu"
+import type {ContextMenuItem} from "@/ui/common/misc/ContextMenu"
 
 type MenuItem = Extract<ContextMenuItem, {separator?: false}>
 

@@ -2,7 +2,7 @@ import {nanoid} from "nanoid"
 
 import {deepClone, isNullish} from "@daily/std"
 
-import type {TokenUsage} from "../../../shared/types/ai"
+import type {TokenUsage} from "@shared/types/ai"
 import type {AgentStep, AgentTurn, AgentTurnStatus} from "./types"
 
 /**

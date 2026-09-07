@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import {computed, onMounted, ref} from "vue"
 
-import {useStorageStore} from "../../../../../../stores/storage.store"
-import {useSyncServerStore} from "../../../../../../stores/syncServer.store"
-import BaseButton from "../../../../../base/BaseButton"
-import BaseIcon from "../../../../../base/BaseIcon"
-import {BaseModal} from "../../../../../base/BaseModal"
+import {useStorageStore} from "@/stores/storage.store"
+import {useSyncServerStore} from "@/stores/syncServer.store"
+import BaseButton from "@/ui/base/BaseButton"
+import BaseIcon from "@/ui/base/BaseIcon"
+import {BaseModal} from "@/ui/base/BaseModal"
 import {CONNECT_STEP_TITLES} from "./connectSteps"
 import ServerConnectSteps from "./ServerConnectSteps.vue"
 

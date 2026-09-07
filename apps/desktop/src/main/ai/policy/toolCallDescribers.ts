@@ -1,6 +1,6 @@
 import {isString} from "@daily/std"
 
-import {getHostname} from "../../../shared/utils/web/getHostname"
+import {getHostname} from "@shared/utils/web/getHostname"
 
 import type {ToolCallDescription} from "./types"
 

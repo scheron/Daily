@@ -1,6 +1,6 @@
 import {withResolvers} from "@daily/std"
 
-import {useTaskEditorStore} from "../../../stores/task-editor"
+import {useTaskEditorStore} from "@/stores/task-editor"
 import {useBaseModal} from "../../base/BaseModal"
 import ConfirmUnsavedModal from "./ConfirmUnsavedModal.vue"
 

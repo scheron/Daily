@@ -10,9 +10,20 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 
 const workspacePackages = ["@daily/protocol", "@daily/std", "@daily/core"]
 
+const mainAlias = {
+  "@main": join(__dirname, "src/main"),
+  "@shared": join(__dirname, "src/shared"),
+}
+
+const rendererAlias = {
+  "@": join(__dirname, "src/renderer/src"),
+  "@shared": join(__dirname, "src/shared"),
+}
+
 export default defineConfig({
   main: {
     plugins: [externalizeDepsPlugin({exclude: workspacePackages}), tsconfigPaths()],
+    resolve: {alias: mainAlias},
     build: {
       outDir: "out/main",
       rollupOptions: {
@@ -25,6 +36,7 @@ export default defineConfig({
 
   preload: {
     plugins: [externalizeDepsPlugin({exclude: workspacePackages}), tsconfigPaths()],
+    resolve: {alias: mainAlias},
     build: {
       outDir: "out/preload",
       rollupOptions: {
@@ -42,6 +54,7 @@ export default defineConfig({
   renderer: {
     root: join(__dirname, "src/renderer"),
     publicDir: "public",
+    resolve: {alias: rendererAlias},
     build: {
       outDir: join(__dirname, "out/renderer"),
       emptyOutDir: true,

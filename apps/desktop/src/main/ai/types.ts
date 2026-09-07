@@ -1,5 +1,5 @@
 import type {AIConfig} from "@daily/protocol"
-import type {TokenUsage} from "../../shared/types/ai"
+import type {TokenUsage} from "@shared/types/ai"
 
 export type MessageLLM = {
   id?: string

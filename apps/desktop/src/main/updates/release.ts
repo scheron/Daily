@@ -5,9 +5,9 @@ import path from "node:path"
 
 import {logger} from "@daily/core"
 
+import {UPDATES_CONFIG} from "@shared/config/updates"
 import {downloadWithProgress} from "../utils/files/downloadWithProgress"
 import {parseGitHubReleaseMeta} from "./utils/parseGitHubReleaseMeta"
-import {UPDATES_CONFIG} from "../../shared/config/updates"
 import {electronPaths} from "../runtime/electronPaths"
 
 import type {AppUpdateCacheState} from "@daily/protocol"

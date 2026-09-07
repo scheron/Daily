@@ -4,9 +4,9 @@ import {DateTime} from "luxon"
 
 import {isInRange, isToday} from "@daily/std"
 
+import {calcMonthStatistics} from "@/utils/days/calcMonthStatistics"
 import {useCalendarSwipe} from "./composables/useCalendarSwipe"
 import {useDropToDay} from "./composables/useDropToDay"
-import {calcMonthStatistics} from "../../../utils/days/calcMonthStatistics"
 import {formatDaysToMonth} from "./utils/formatDaysToMonth"
 import BaseButton from "../BaseButton"
 import BaseIcon from "../BaseIcon"

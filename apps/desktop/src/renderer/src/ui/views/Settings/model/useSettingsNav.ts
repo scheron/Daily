@@ -5,7 +5,7 @@ import {isString} from "@daily/std"
 
 import {SECTION_IDS, SECTIONS} from "./constants"
 
-import type {SettingsPanel} from "../../../../types/common"
+import type {SettingsPanel} from "@/types/common"
 
 export function useSettingsNav() {
   const route = useRoute()

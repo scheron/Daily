@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import BaseSegmented from "../../../../../base/BaseSegmented.vue"
+import BaseSegmented from "@/ui/base/BaseSegmented.vue"
 import SettingRow from "../../SettingRow.vue"
 
 import type {SyncProvider} from "@daily/protocol"

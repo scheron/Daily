@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import {onMounted, onUnmounted, ref, watch} from "vue"
 
-import BaseIcon from "../../../base/BaseIcon"
-import WaveText from "../../../common/misc/WaveText.vue"
+import BaseIcon from "@/ui/base/BaseIcon"
+import WaveText from "@/ui/common/misc/WaveText.vue"
 import ChatMarkdown from "./ChatMarkdown.vue"
 
 const props = defineProps<{text: string; durationMs?: number; streaming?: boolean; collapsed?: boolean}>()

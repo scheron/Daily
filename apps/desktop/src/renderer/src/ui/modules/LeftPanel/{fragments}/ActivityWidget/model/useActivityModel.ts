@@ -1,10 +1,10 @@
 import {computed, onScopeDispose, ref, watch} from "vue"
 import {toasts} from "vue-toasts-lite"
 
-import {useStorageStore} from "../../../../../../stores/storage.store"
-import {useTaskEditorStore} from "../../../../../../stores/task-editor"
-import {useTasksStore} from "../../../../../../stores/tasks"
-import {API} from "../../../../../../api"
+import {API} from "@/api"
+import {useStorageStore} from "@/stores/storage.store"
+import {useTaskEditorStore} from "@/stores/task-editor"
+import {useTasksStore} from "@/stores/tasks"
 
 import type {ISODate, Task, TaskEvent} from "@daily/protocol"
 

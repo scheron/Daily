@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import {toasts} from "vue-toasts-lite"
 
-import {useCopyToClipboard} from "../../../../composables/useCopyToClipboard"
+import {useCopyToClipboard} from "@/composables/useCopyToClipboard"
+import BaseButton from "@/ui/base/BaseButton"
 import {useTaskEditor} from "../composables/useTaskEditor"
-import BaseButton from "../../../base/BaseButton"
 
 const {isEditing, canSave, activeTask, editingTaskId, close, commitDraftAndClose} = useTaskEditor()
 

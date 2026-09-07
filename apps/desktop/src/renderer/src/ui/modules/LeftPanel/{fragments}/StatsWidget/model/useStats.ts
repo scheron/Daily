@@ -1,10 +1,10 @@
 import {computed, onScopeDispose, ref, watch} from "vue"
 import {DateTime} from "luxon"
 
-import {useBranchesStore} from "../../../../../../stores/branches.store"
-import {useStorageStore} from "../../../../../../stores/storage.store"
-import {useTasksStore} from "../../../../../../stores/tasks"
-import {API} from "../../../../../../api"
+import {API} from "@/api"
+import {useBranchesStore} from "@/stores/branches.store"
+import {useStorageStore} from "@/stores/storage.store"
+import {useTasksStore} from "@/stores/tasks"
 
 import type {StatsAggregate, StatsPeriod} from "@daily/protocol"
 

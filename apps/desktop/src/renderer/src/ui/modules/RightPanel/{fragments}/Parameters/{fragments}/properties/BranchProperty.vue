@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import {computed} from "vue"
 
-import {useBranchesStore} from "../../../../../../../stores/branches.store"
-import {useTaskEditorStore} from "../../../../../../../stores/task-editor"
-import BaseButton from "../../../../../../base/BaseButton"
-import BaseIcon from "../../../../../../base/BaseIcon"
-import BranchPicker from "../../../../../../common/pickers/BranchPicker.vue"
+import {useBranchesStore} from "@/stores/branches.store"
+import {useTaskEditorStore} from "@/stores/task-editor"
+import BaseButton from "@/ui/base/BaseButton"
+import BaseIcon from "@/ui/base/BaseIcon"
+import BranchPicker from "@/ui/common/pickers/BranchPicker.vue"
 
 import type {Branch, Task} from "@daily/protocol"
 

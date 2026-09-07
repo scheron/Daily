@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import {cn} from "../../../../../utils/ui/tailwindcss"
-import BaseIcon from "../../../../base/BaseIcon"
+import BaseIcon from "@/ui/base/BaseIcon"
+import {cn} from "@/utils/ui/tailwindcss"
 
 import type {Slot} from "vue"
 import type {ContextMenuItem} from "../types"

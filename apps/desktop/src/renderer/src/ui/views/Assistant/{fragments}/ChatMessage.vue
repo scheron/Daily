@@ -4,14 +4,14 @@ import {toasts} from "vue-toasts-lite"
 
 import {toLocaleTime} from "@daily/std"
 
-import {useAiStore} from "../../../../stores/ai"
-import {useCopyToClipboard} from "../../../../composables/useCopyToClipboard"
-import BaseButton from "../../../base/BaseButton"
+import {useCopyToClipboard} from "@/composables/useCopyToClipboard"
+import {useAiStore} from "@/stores/ai"
+import BaseButton from "@/ui/base/BaseButton"
 import ToolCallGroup from "./cards/ToolCallGroup.vue"
 import ChatMarkdown from "./ChatMarkdown.vue"
 import MessageReasoning from "./MessageReasoning.vue"
 
-import type {AgentMessageSegment, AIMessage} from "../../../../../../shared/types/ai"
+import type {AgentMessageSegment, AIMessage} from "@shared/types/ai"
 
 type ReasoningSegment = Extract<AgentMessageSegment, {kind: "reasoning"}>
 type ToolSegment = Extract<AgentMessageSegment, {kind: "tool"}>

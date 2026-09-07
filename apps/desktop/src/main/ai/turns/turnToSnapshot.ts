@@ -1,6 +1,6 @@
 import {isString} from "@daily/std"
 
-import type {AgentMessageSegment, AgentTurnSnapshot} from "../../../shared/types/ai"
+import type {AgentMessageSegment, AgentTurnSnapshot} from "@shared/types/ai"
 import type {AgentTurn} from "./types"
 
 /**

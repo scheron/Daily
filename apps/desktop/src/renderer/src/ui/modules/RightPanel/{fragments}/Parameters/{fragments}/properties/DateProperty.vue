@@ -3,12 +3,12 @@ import {computed} from "vue"
 
 import {toDateLabel} from "@daily/std"
 
-import {useTaskEditorStore} from "../../../../../../../stores/task-editor"
-import {useTasksStore} from "../../../../../../../stores/tasks"
-import BaseButton from "../../../../../../base/BaseButton"
-import BaseCalendar from "../../../../../../base/BaseCalendar"
-import BaseIcon from "../../../../../../base/BaseIcon"
-import BasePopup from "../../../../../../base/BasePopup.vue"
+import {useTaskEditorStore} from "@/stores/task-editor"
+import {useTasksStore} from "@/stores/tasks"
+import BaseButton from "@/ui/base/BaseButton"
+import BaseCalendar from "@/ui/base/BaseCalendar"
+import BaseIcon from "@/ui/base/BaseIcon"
+import BasePopup from "@/ui/base/BasePopup.vue"
 
 import type {ISODate, Task} from "@daily/protocol"
 

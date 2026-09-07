@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import BaseIcon from "../../../../base/BaseIcon"
+import BaseIcon from "@/ui/base/BaseIcon"
 </script>
 
 <template>

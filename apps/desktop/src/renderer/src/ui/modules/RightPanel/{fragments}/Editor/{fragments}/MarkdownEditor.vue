@@ -2,15 +2,12 @@
 import {onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch} from "vue"
 import {toasts} from "vue-toasts-lite"
 
-import {defaultKeymap, history, historyKeymap, indentWithTab} from "@codemirror/commands"
-import {EditorState, Prec} from "@codemirror/state"
-import {drawSelection, EditorView, keymap, placeholder} from "@codemirror/view"
-import {useTagsStore} from "../../../../../../stores/tags.store"
-import {useTaskEditorStore} from "../../../../../../stores/task-editor"
-import {useClipboardPaste} from "../../../../../../composables/useClipboardPaste"
-import {useFileDrop} from "../../../../../../composables/useFileDrop"
-import {useImageUpload} from "../composables/useImageUpload"
-import {markdownKeymap} from "../../../../../../utils/codemirror/commands"
+import {useClipboardPaste} from "@/composables/useClipboardPaste"
+import {useFileDrop} from "@/composables/useFileDrop"
+import {useTagsStore} from "@/stores/tags.store"
+import {useTaskEditorStore} from "@/stores/task-editor"
+import {useImagePreviewModal} from "@/ui/overlays/ImagePreviewModal"
+import {markdownKeymap} from "@/utils/codemirror/commands"
 import {
   createCodeSyntaxExtension,
   createCompletionExtension,
@@ -19,8 +16,11 @@ import {
   createTablesExtension,
   createThemeExtension,
   createWYSIWYGExtension,
-} from "../../../../../../utils/codemirror/extensions"
-import {useImagePreviewModal} from "../../../../../overlays/ImagePreviewModal"
+} from "@/utils/codemirror/extensions"
+import {defaultKeymap, history, historyKeymap, indentWithTab} from "@codemirror/commands"
+import {EditorState, Prec} from "@codemirror/state"
+import {drawSelection, EditorView, keymap, placeholder} from "@codemirror/view"
+import {useImageUpload} from "../composables/useImageUpload"
 import FloatingToolbar from "./FloatingToolbar.vue"
 
 import type {Tag, Task} from "@daily/protocol"

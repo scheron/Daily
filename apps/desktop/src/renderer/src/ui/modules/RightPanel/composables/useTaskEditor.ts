@@ -1,12 +1,12 @@
 import {computed, ref, watch} from "vue"
 
-import {useTaskEditorStore} from "../../../../stores/task-editor"
-import {createSharedComposable} from "../../../../composables/createSharedComposable"
-import {useTaskColumns} from "../../../../composables/tasks/useTaskColumns"
-import {useConfirmUnsavedModal} from "../../../overlays/ConfirmUnsavedModal"
+import {createSharedComposable} from "@/composables/createSharedComposable"
+import {useTaskColumns} from "@/composables/tasks/useTaskColumns"
+import {useTaskEditorStore} from "@/stores/task-editor"
+import {useConfirmUnsavedModal} from "@/ui/overlays/ConfirmUnsavedModal"
 
+import type {TaskDraft} from "@/types/tasks"
 import type {Task} from "@daily/protocol"
-import type {TaskDraft} from "../../../../types/tasks"
 
 export const useTaskEditor = createSharedComposable(() => {
   const taskEditorStore = useTaskEditorStore()

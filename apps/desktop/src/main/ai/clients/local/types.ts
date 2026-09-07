@@ -1,5 +1,5 @@
 import type {LocalModelId, LocalRuntimeParams} from "@daily/protocol"
-import type {CatalogRefreshResult, LocalModelDownloadProgress, LocalModelInfo, LocalToolingMode} from "../../../../shared/types/ai"
+import type {CatalogRefreshResult, LocalModelDownloadProgress, LocalModelInfo, LocalToolingMode} from "@shared/types/ai"
 
 export type ModelTier = "fast" | "balanced" | "quality"
 

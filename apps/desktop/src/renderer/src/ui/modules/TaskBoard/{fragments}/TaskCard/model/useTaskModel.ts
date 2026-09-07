@@ -1,10 +1,10 @@
 import {computed, toValue} from "vue"
 import {toasts} from "vue-toasts-lite"
 
-import {useBranchesStore} from "../../../../../../stores/branches.store"
-import {useTaskEditorStore} from "../../../../../../stores/task-editor"
-import {useTasksStore} from "../../../../../../stores/tasks"
-import {useCopyToClipboard} from "../../../../../../composables/useCopyToClipboard"
+import {useCopyToClipboard} from "@/composables/useCopyToClipboard"
+import {useBranchesStore} from "@/stores/branches.store"
+import {useTaskEditorStore} from "@/stores/task-editor"
+import {useTasksStore} from "@/stores/tasks"
 
 import type {Branch, ISODate, Tag, Task, TaskStatus} from "@daily/protocol"
 import type {MaybeRefOrGetter} from "vue"

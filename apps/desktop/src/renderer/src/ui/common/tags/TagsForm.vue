@@ -4,9 +4,9 @@ import {toasts} from "vue-toasts-lite"
 
 import {findTagByName, isValidTagName, normalizeTagName, TAG_QUICK_COLORS} from "@daily/protocol"
 
-import {useFilterStore} from "../../../stores/filter.store"
-import {useTagsStore} from "../../../stores/tags.store"
-import {useTasksStore} from "../../../stores/tasks"
+import {useFilterStore} from "@/stores/filter.store"
+import {useTagsStore} from "@/stores/tags.store"
+import {useTasksStore} from "@/stores/tasks"
 import BaseButton from "../../base/BaseButton"
 import BaseInput from "../../base/BaseInput.vue"
 import BasePopup from "../../base/BasePopup.vue"

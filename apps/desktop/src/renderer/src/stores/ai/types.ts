@@ -1,6 +1,6 @@
 import type {AIConfig, ISODate} from "@daily/protocol"
+import type {AIMessage} from "@shared/types/ai"
 import type {ComputedRef, Ref} from "vue"
-import type {AIMessage} from "../../../../shared/types/ai"
 import type {useLoadingState} from "../../composables/useLoadingState"
 
 type LoadingState = ReturnType<typeof useLoadingState>

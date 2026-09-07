@@ -1,13 +1,13 @@
-import {isDevMode} from "../../../../constants/env"
+import {isDevMode} from "@/constants/env"
 import AiSettings from "../{fragments}/AiSettings"
 import DebugSettings from "../{fragments}/DebugSettings"
 import GeneralSettings from "../{fragments}/GeneralSettings"
 import SyncSettings from "../{fragments}/SyncSettings"
 import WorkspaceSettings from "../{fragments}/WorkspaceSettings"
 
+import type {SettingsPanel} from "@/types/common"
+import type {IconName} from "@/ui/base/BaseIcon"
 import type {ComponentInstance} from "vue"
-import type {SettingsPanel} from "../../../../types/common"
-import type {IconName} from "../../../base/BaseIcon"
 
 type SettingsSection = {
   id: Exclude<SettingsPanel, null>

@@ -1,7 +1,7 @@
 import {toValue} from "vue"
 import {tryOnScopeDispose, useEventListener} from "@vueuse/core"
 
-import {findVerticalScrollAncestor} from "../../../../utils/ui/findVerticalScrollAncestor"
+import {findVerticalScrollAncestor} from "@/utils/ui/findVerticalScrollAncestor"
 
 import type {MaybeRefOrGetter} from "vue"
 
