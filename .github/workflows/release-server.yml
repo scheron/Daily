@@ -21,14 +21,7 @@ jobs:
         run: echo "VERSION=${GITHUB_REF#refs/tags/server-v}" >> $GITHUB_ENV
 
       - name: Derive rolling protocol tag from SYNC_PROTOCOL_VERSION
-        run: |
-          set -euo pipefail
-          PROTOCOL=$(grep -oE 'SYNC_PROTOCOL_VERSION = [0-9]+' packages/protocol/src/types/syncProtocol.ts | grep -oE '[0-9]+$')
-          if [ -z "$PROTOCOL" ]; then
-            echo "::error::could not read SYNC_PROTOCOL_VERSION from packages/protocol/src/types/syncProtocol.ts"
-            exit 1
-          fi
-          echo "PROTOCOL_TAG=p${PROTOCOL}" >> "$GITHUB_ENV"
+        run: scripts/ci/derive-protocol-tag.sh
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3

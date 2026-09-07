@@ -5,12 +5,10 @@ import {describe, expect, it} from "vitest"
 
 const rootDir = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..")
 
-const WORKFLOW_FILES = [
-  ".github/workflows/ci.yml",
-  ".github/workflows/release.yml",
-  ".github/workflows/release-server.yml",
-  ".github/workflows/deploy-website.yml",
-]
+const WORKFLOW_FILES = readdirSync(join(rootDir, ".github/workflows"))
+  .filter((entry) => entry.endsWith(".yml") || entry.endsWith(".yaml"))
+  .sort()
+  .map((entry) => `.github/workflows/${entry}`)
 
 const FORBIDDEN_SRC_ROOTS = ["main", "renderer", "shared"]
 
@@ -54,7 +52,7 @@ function hasBareSrcRoot(text: string, root: string): boolean {
   return new RegExp(`(?<![\\w/])src/${root}\\b`).test(text)
 }
 
-function extractRunBodies(text: string): string {
+function extractRunStepBodies(text: string): string[] {
   const lines = text.split("\n")
   const bodies: string[] = []
 
@@ -81,7 +79,11 @@ function extractRunBodies(text: string): string {
     bodies.push(blockLines.join("\n"))
   }
 
-  return bodies.join("\n")
+  return bodies
+}
+
+function extractRunBodies(text: string): string {
+  return extractRunStepBodies(text).join("\n")
 }
 
 function extractProjectPaths(text: string): string[] {
@@ -135,6 +137,10 @@ function declaresScript(pkgDir: string, script: string): boolean {
   const manifestPath = join(pkgDir, "package.json")
   const manifest = JSON.parse(readFileSync(manifestPath, "utf-8")) as {scripts?: Record<string, string>}
   return Boolean(manifest.scripts?.[script])
+}
+
+function extractScriptCiInvocations(body: string): string[] {
+  return [...body.matchAll(/\bscripts\/ci\/([\w.-]+\.sh)\b/g)].map((match) => match[1])
 }
 
 describe("workflow files reference paths, scripts and targets that exist", () => {
@@ -207,6 +213,31 @@ describe("workflow files reference paths, scripts and targets that exist", () =>
         if (pkgDir) expect(declaresScript(pkgDir, script), `${relativePath} ${filterTarget} has no "${script}" script`).toBe(true)
       } else {
         expect(declaresScript(rootDir, script), `${relativePath} root package.json has no "${script}" script`).toBe(true)
+      }
+    }
+  })
+})
+
+describe("workflow run: steps carry no inline scripts", () => {
+  it.each(WORKFLOW_FILES)("no run: step in %s spans more than one line of shell logic", (relativePath) => {
+    const workflow = readWorkflow(relativePath)
+
+    for (const body of extractRunStepBodies(workflow)) {
+      const meaningfulLines = body
+        .trim()
+        .split("\n")
+        .filter((line) => line.trim() !== "")
+
+      expect(meaningfulLines.length, `${relativePath} has a run: step with inline shell logic:\n${body.trim()}`).toBeLessThanOrEqual(1)
+    }
+  })
+
+  it.each(WORKFLOW_FILES)("every scripts/ci/ invocation in %s names a script that exists", (relativePath) => {
+    const workflow = readWorkflow(relativePath)
+
+    for (const body of extractRunStepBodies(workflow)) {
+      for (const scriptName of extractScriptCiInvocations(body)) {
+        expect(existsSync(join(rootDir, "scripts/ci", scriptName)), `${relativePath} scripts/ci/${scriptName}`).toBe(true)
       }
     }
   })

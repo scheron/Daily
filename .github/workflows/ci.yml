@@ -24,8 +24,7 @@ jobs:
 
       - name: Get pnpm store directory
         shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+        run: scripts/ci/pnpm-store-path.sh
 
       - name: Setup pnpm cache
         uses: actions/cache@v4
@@ -61,8 +60,7 @@ jobs:
 
       - name: Get pnpm store directory
         shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+        run: scripts/ci/pnpm-store-path.sh
 
       - name: Setup pnpm cache
         uses: actions/cache@v4
@@ -95,8 +93,7 @@ jobs:
 
       - name: Get pnpm store directory
         shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+        run: scripts/ci/pnpm-store-path.sh
 
       - name: Setup pnpm cache
         uses: actions/cache@v4
@@ -122,25 +119,16 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install shellcheck
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y shellcheck
+        run: scripts/ci/install-shellcheck.sh
 
-      - name: Shellcheck deploy/install.sh
-        run: shellcheck deploy/install.sh
+      - name: Shellcheck deploy/install.sh and scripts/ci/
+        run: shellcheck deploy/install.sh scripts/ci/*.sh
 
       - name: Generate the three topologies with install.sh --dry-run
-        run: |
-          mkdir -p /tmp/daily-domain /tmp/daily-ip /tmp/daily-no-proxy
-          sh deploy/install.sh --domain daily.example.com --dir /tmp/daily-domain --dry-run
-          sh deploy/install.sh --ip 203.0.113.10 --dir /tmp/daily-ip --dry-run
-          sh deploy/install.sh --domain daily.example.com --no-proxy --dir /tmp/daily-no-proxy --dry-run
+        run: scripts/ci/generate-install-dry-runs.sh
 
       - name: Shellcheck the generated daily.sh
         run: shellcheck /tmp/daily-domain/daily.sh
 
       - name: Validate generated compose files
-        run: |
-          (cd /tmp/daily-domain && docker compose -f compose.yaml config -q)
-          (cd /tmp/daily-ip && docker compose -f compose.yaml config -q)
-          (cd /tmp/daily-no-proxy && docker compose -f compose.yaml config -q)
+        run: scripts/ci/validate-compose-configs.sh
