@@ -2,7 +2,7 @@ import {MAIN_BRANCH_ID} from "@daily/protocol"
 
 import {formatProject} from "@main/ai/utils/formatters"
 
-import type {RegisteredTool} from "../../types"
+import type {RegisteredTool} from "@main/ai/tools/registry/types"
 
 export const listProjects: RegisteredTool = {
   name: "list_projects",

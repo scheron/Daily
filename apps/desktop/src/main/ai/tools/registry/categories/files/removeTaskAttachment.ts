@@ -1,4 +1,4 @@
-import type {RegisteredTool} from "../../types"
+import type {RegisteredTool} from "@main/ai/tools/registry/types"
 
 export const removeTaskAttachment: RegisteredTool = {
   name: "remove_task_attachment",

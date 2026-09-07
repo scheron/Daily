@@ -20,9 +20,9 @@ import {buildLlamaArgs} from "./llamaArgs"
 import {SERVER_BINARY} from "./manifest"
 
 import type {LocalModelId} from "@daily/protocol"
+import type {ModelManifestEntry} from "@main/ai/clients/local/types"
 import type {LocalRuntimeState} from "@shared/types/ai"
 import type {ChildProcess} from "node:child_process"
-import type {ModelManifestEntry} from "../types"
 
 const execFileAsync = promisify(execFile)
 

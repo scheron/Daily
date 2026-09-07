@@ -2,8 +2,8 @@ import {BrowserWindow, shell} from "electron"
 
 import {APP_CONFIG, WINDOWS_CONFIG} from "@daily/protocol"
 
-import {electronPaths} from "../runtime/electronPaths"
-import {resolveMainWindowOptions} from "../setup/app/windowBounds"
+import {electronPaths} from "@main/runtime/electronPaths"
+import {resolveMainWindowOptions} from "@main/setup/app/windowBounds"
 
 import type {MainWindowSettings} from "@daily/protocol"
 

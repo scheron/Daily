@@ -5,13 +5,13 @@ import path from "node:path"
 
 import {logger} from "@daily/core"
 
+import {electronPaths} from "@main/runtime/electronPaths"
+import {downloadWithProgress} from "@main/utils/files/downloadWithProgress"
 import {UPDATES_CONFIG} from "@shared/config/updates"
-import {downloadWithProgress} from "../utils/files/downloadWithProgress"
 import {parseGitHubReleaseMeta} from "./utils/parseGitHubReleaseMeta"
-import {electronPaths} from "../runtime/electronPaths"
 
 import type {AppUpdateCacheState} from "@daily/protocol"
-import type {ReleaseMeta} from "../types/updates"
+import type {ReleaseMeta} from "@main/types/updates"
 
 export async function resolveLatestRelease(): Promise<ReleaseMeta> {
   const githubRelease = await getGitHubReleaseMeta()

@@ -2,8 +2,8 @@ import {invoke} from "@vueuse/core"
 
 import {toISODate} from "@daily/std"
 
+import type {AiSessionContext} from "@/stores/ai/types"
 import type {AgentTurnSnapshot, AIMessage} from "@shared/types/ai"
-import type {AiSessionContext} from "../types"
 
 /**
  * Restores the last durable AI session into the in-memory message list when the store

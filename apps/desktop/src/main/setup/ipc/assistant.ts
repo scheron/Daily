@@ -1,6 +1,6 @@
 import {ipcMain} from "electron"
 
-import {createAssistantWindow} from "../../windows/assistant.window"
+import {createAssistantWindow} from "@main/windows/assistant.window"
 
 import type {BrowserWindow} from "electron"
 

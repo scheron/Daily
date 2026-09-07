@@ -4,10 +4,10 @@ import {defineStore} from "pinia"
 
 import {ACCENT_PRESETS, BASE_PRESETS, DEFAULT_ACCENT_ID, DEFAULT_BASE_ID} from "@daily/protocol"
 
-import {useSettingValue} from "../composables/useSettingsValue"
-import {BROADCAST_CHANNELS} from "../constants/events"
-import {FONT_SIZE_PX} from "../constants/typography"
-import {resolveAppearanceMode} from "../utils/theme/resolveAppearanceMode"
+import {useSettingValue} from "@/composables/useSettingsValue"
+import {BROADCAST_CHANNELS} from "@/constants/events"
+import {FONT_SIZE_PX} from "@/constants/typography"
+import {resolveAppearanceMode} from "@/utils/theme/resolveAppearanceMode"
 
 import type {AppearanceMode, BasePalette, BasePreset, FontSize} from "@daily/protocol"
 

@@ -1,5 +1,5 @@
 import type {LRU} from "@daily/std"
-import type {CachedPage} from "../web/types"
+import type {CachedPage} from "@main/ai/web/types"
 
 /**
  * A one-line description of a tool call for the confirmation card.

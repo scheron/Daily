@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {nextTick, useTemplateRef, watch} from "vue"
 
-import {useTaskEditor} from "../../composables/useTaskEditor"
+import {useTaskEditor} from "@/ui/modules/RightPanel/composables/useTaskEditor"
 import MarkdownEditor from "./{fragments}/MarkdownEditor.vue"
 
 const editorRef = useTemplateRef<InstanceType<typeof MarkdownEditor>>("editorRef")

@@ -1,12 +1,12 @@
 import {computed} from "vue"
 
+import {useLocalModelStore} from "@/stores/ai/localModel.store"
+import {useRemoteModelStore} from "@/stores/ai/remoteModel.store"
+import {useSettingsStore} from "@/stores/settings.store"
 import {toRawDeep} from "@/utils/ui/vue"
-import {useSettingsStore} from "../../settings.store"
-import {useLocalModelStore} from "../localModel.store"
-import {useRemoteModelStore} from "../remoteModel.store"
 
+import type {AiModelsContext} from "@/stores/ai/types"
 import type {AIConfig, AIProvider, LocalModelId} from "@daily/protocol"
-import type {AiModelsContext} from "../types"
 
 /**
  * Model catalog and provider connection: exposes the available/remote/local model lists

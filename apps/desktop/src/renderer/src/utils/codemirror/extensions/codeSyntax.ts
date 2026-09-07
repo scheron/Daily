@@ -1,7 +1,7 @@
+import {getCodeContentRange, getLanguageFromCodeFence} from "@/utils/codemirror/language"
+import {CopyButtonWidget} from "@/utils/codemirror/widgets"
 import {syntaxTree} from "@codemirror/language"
 import {Decoration, ViewPlugin} from "@codemirror/view"
-import {getCodeContentRange, getLanguageFromCodeFence} from "../language"
-import {CopyButtonWidget} from "../widgets"
 import {readonlyMode} from "./wysiwyg"
 
 import type {Extension, Range} from "@codemirror/state"

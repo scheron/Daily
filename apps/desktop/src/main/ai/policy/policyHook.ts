@@ -1,8 +1,8 @@
 import {isObject, isString} from "@daily/std"
 
-import {getRegisteredTool} from "../tools/registry"
+import {getRegisteredTool} from "@main/ai/tools/registry"
 
-import type {BeforeToolCallHook} from "../hooks/types"
+import type {BeforeToolCallHook} from "@main/ai/hooks/types"
 import type {PolicyHookHost} from "./types"
 
 /**

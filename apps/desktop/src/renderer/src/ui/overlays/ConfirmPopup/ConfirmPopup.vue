@@ -2,8 +2,8 @@
 import {useTemplateRef} from "vue"
 
 import {useProgressFill} from "@/composables/useProgressFill"
-import BaseButton from "../../base/BaseButton"
-import BasePopup from "../../base/BasePopup.vue"
+import BaseButton from "@/ui/base/BaseButton"
+import BasePopup from "@/ui/base/BasePopup.vue"
 
 type HorizontalPosition = "start" | "center" | "end"
 

@@ -1,9 +1,9 @@
 import {onBeforeUnmount, ref, watch} from "vue"
 
+import {createMarkdownLanguageExtension, skipOrderedListRenumber} from "@/utils/codemirror/extensions"
 import {defaultKeymap, history, historyKeymap} from "@codemirror/commands"
 import {EditorState} from "@codemirror/state"
 import {EditorView, keymap} from "@codemirror/view"
-import {createMarkdownLanguageExtension, skipOrderedListRenumber} from "../utils/codemirror/extensions"
 
 import type {Extension} from "@codemirror/state"
 import type {KeyBinding, ViewUpdate} from "@codemirror/view"

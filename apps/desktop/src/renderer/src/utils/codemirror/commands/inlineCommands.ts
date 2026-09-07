@@ -1,6 +1,6 @@
+import type {MarkdownCommand} from "@/utils/codemirror/types"
 import type {ChangeSpec, EditorState} from "@codemirror/state"
 import type {EditorView} from "@codemirror/view"
-import type {MarkdownCommand} from "../types"
 
 /** Symmetric inline markers, longest first so `**`/`__`/`~~` win over `*`/`_`. */
 const SURROUND_MARKERS = ["**", "__", "~~", "*", "_", "`"]

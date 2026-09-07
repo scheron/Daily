@@ -2,11 +2,11 @@ import {ipcMain} from "electron"
 
 import {logger} from "@daily/core"
 
-import {broadcastToWindows} from "../../utils/windows/broadcastToWindows"
+import {broadcastToWindows} from "@main/utils/windows/broadcastToWindows"
 
 import type {AIConfig, LocalModelId} from "@daily/protocol"
-import type {AIController} from "../../ai/AIController"
-import type {WindowsGetter} from "../../utils/windows/broadcastToWindows"
+import type {AIController} from "@main/ai/AIController"
+import type {WindowsGetter} from "@main/utils/windows/broadcastToWindows"
 
 export async function setupAiIPC(getAi: () => AIController | null, getWindows: WindowsGetter) {
   ipcMain.handle("ai:check-connection", () => getAi()?.checkConnection() ?? false)

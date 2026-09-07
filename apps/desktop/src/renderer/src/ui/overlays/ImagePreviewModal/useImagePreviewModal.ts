@@ -1,4 +1,4 @@
-import {useBaseModal} from "../../base/BaseModal"
+import {useBaseModal} from "@/ui/base/BaseModal"
 import ImagePreviewModal from "./ImagePreviewModal.vue"
 
 const IMAGE_PREVIEW_MODAL_ID = "image-preview"

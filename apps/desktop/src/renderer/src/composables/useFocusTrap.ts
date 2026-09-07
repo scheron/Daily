@@ -2,7 +2,7 @@ import {onBeforeUnmount, watchEffect} from "vue"
 
 import {isBoolean} from "@daily/std"
 
-import {findAllFocusableElements} from "../utils/ui/dom"
+import {findAllFocusableElements} from "@/utils/ui/dom"
 
 import type {Ref} from "vue"
 

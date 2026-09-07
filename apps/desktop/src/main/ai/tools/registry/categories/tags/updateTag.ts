@@ -3,7 +3,7 @@ import {notUndefined} from "@daily/std"
 import {formatTag} from "@main/ai/utils/formatters"
 
 import type {Tag} from "@daily/protocol"
-import type {RegisteredTool} from "../../types"
+import type {RegisteredTool} from "@main/ai/tools/registry/types"
 
 export const updateTag: RegisteredTool = {
   name: "update_tag",

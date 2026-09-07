@@ -4,7 +4,7 @@ import {defineStore} from "pinia"
 
 import {batchDebounce, deepMerge} from "@daily/std"
 
-import {toRawDeep} from "../utils/ui/vue"
+import {toRawDeep} from "@/utils/ui/vue"
 
 import type {SettingsView} from "@daily/protocol"
 

@@ -2,8 +2,8 @@
 import BaseIcon from "@/ui/base/BaseIcon"
 import {cn} from "@/utils/ui/tailwindcss"
 
+import type {ContextMenuItem} from "@/ui/common/misc/ContextMenu/types"
 import type {Slot} from "vue"
-import type {ContextMenuItem} from "../types"
 
 type MenuItem = Extract<ContextMenuItem, {separator?: false}>
 

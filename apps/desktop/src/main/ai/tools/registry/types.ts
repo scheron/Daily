@@ -1,8 +1,8 @@
 import type {StorageController} from "@daily/core"
 import type {LRU} from "@daily/std"
-import type {Tool} from "../../types"
-import type {CachedPage} from "../../web/types"
-import type {ToolResult} from "../types"
+import type {ToolResult} from "@main/ai/tools/types"
+import type {Tool} from "@main/ai/types"
+import type {CachedPage} from "@main/ai/web/types"
 
 export type ToolParameters = Tool["function"]["parameters"]
 

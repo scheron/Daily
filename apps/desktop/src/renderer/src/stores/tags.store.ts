@@ -1,7 +1,7 @@
 import {computed, ref} from "vue"
 import {defineStore} from "pinia"
 
-import {API} from "../api"
+import {API} from "@/api"
 
 import type {Tag} from "@daily/protocol"
 

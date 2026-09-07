@@ -1,10 +1,10 @@
 <script lang="ts" setup>
 import {computed} from "vue"
 
+import BaseButton from "@/ui/base/BaseButton"
+import BasePopup from "@/ui/base/BasePopup.vue"
+import NumberInput from "@/ui/common/inputs/NumberInput.vue"
 import {withRepeatAction} from "@/utils/withRepeatAction"
-import BaseButton from "../../base/BaseButton"
-import BasePopup from "../../base/BasePopup.vue"
-import NumberInput from "../inputs/NumberInput.vue"
 
 const props = withDefaults(
   defineProps<{

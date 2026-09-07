@@ -13,8 +13,8 @@ import {loadCatalog, parseCatalog} from "./catalog"
 import {fetchRemoteCatalog, readCachedCatalog, writeCachedCatalog} from "./remoteCatalog"
 
 import type {LocalModelId} from "@daily/protocol"
+import type {ILocalModelService, ModelManifestEntry} from "@main/ai/clients/local/types"
 import type {CatalogRefreshResult, LocalModelDownloadProgress, LocalModelInfo} from "@shared/types/ai"
-import type {ILocalModelService, ModelManifestEntry} from "../types"
 
 type CatalogSource = {url: string; cachePath: string; bundledPath: string}
 

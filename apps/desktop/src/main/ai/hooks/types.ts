@@ -1,5 +1,5 @@
-import type {ToolResult} from "../tools/types"
-import type {MessageLLM, ToolCallLLM} from "../types"
+import type {ToolResult} from "@main/ai/tools/types"
+import type {MessageLLM, ToolCallLLM} from "@main/ai/types"
 
 /**
  * Minimal turn shape available to hooks. Phase 4 will expand this when the

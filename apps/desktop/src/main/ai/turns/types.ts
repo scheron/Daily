@@ -1,6 +1,6 @@
+import type {ToolResult} from "@main/ai/tools/types"
+import type {MessageLLM} from "@main/ai/types"
 import type {PendingToolConfirmation, TokenUsage} from "@shared/types/ai"
-import type {ToolResult} from "../tools/types"
-import type {MessageLLM} from "../types"
 
 /**
  * Lifecycle states of an AgentTurn.

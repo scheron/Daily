@@ -1,6 +1,6 @@
 import {isNumber, isString} from "@daily/std"
 
-import type {GitHubReleaseMeta} from "../../types/updates"
+import type {GitHubReleaseMeta} from "@main/types/updates"
 
 type GitHubLatestReleasePayload = {
   tag_name?: string

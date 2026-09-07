@@ -4,8 +4,8 @@ import {FONT_SIZE_SCALE} from "@/constants/typography"
 import {WIDGET_DEFS} from "@/constants/widgets"
 import {useThemeStore} from "@/stores/theme.store"
 import {useUIStore} from "@/stores/ui"
+import BaseDragIndicator from "@/ui/base/BaseDragIndicator.vue"
 import {resizePanes} from "@/utils/ui/resizePanes"
-import BaseDragIndicator from "../../base/BaseDragIndicator.vue"
 
 import type {PaneBounds} from "@/utils/ui/resizePanes"
 

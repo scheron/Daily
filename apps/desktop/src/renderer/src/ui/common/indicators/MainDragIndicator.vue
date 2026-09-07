@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {useAxisDrag} from "@/composables/useAxisDrag"
-import BaseDragIndicator from "../../base/BaseDragIndicator.vue"
+import BaseDragIndicator from "@/ui/base/BaseDragIndicator.vue"
 
 const props = defineProps<{
   /** Current panel size in px (the drag baseline) */

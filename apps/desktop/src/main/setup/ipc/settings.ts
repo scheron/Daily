@@ -1,6 +1,6 @@
 import {ipcMain} from "electron"
 
-import {createSettingsWindow} from "../../windows/settings.window"
+import {createSettingsWindow} from "@main/windows/settings.window"
 
 import type {BrowserWindow} from "electron"
 

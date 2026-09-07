@@ -1,5 +1,5 @@
+import type {MarkdownCommand} from "@/utils/codemirror/types"
 import type {EditorView} from "@codemirror/view"
-import type {MarkdownCommand} from "../types"
 
 /**
  * Block formatting commands

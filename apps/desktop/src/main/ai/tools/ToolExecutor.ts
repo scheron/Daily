@@ -1,11 +1,11 @@
 import {logger} from "@daily/core"
 
-import {redactToolParamsForLog} from "../utils/logs/redactToolParamsForLog"
+import {redactToolParamsForLog} from "@main/ai/utils/logs/redactToolParamsForLog"
 import {getRegisteredTool} from "./registry"
 
 import type {StorageController} from "@daily/core"
 import type {LRU} from "@daily/std"
-import type {CachedPage} from "../web/types"
+import type {CachedPage} from "@main/ai/web/types"
 import type {ToolCaller, ToolName} from "./registry"
 import type {ToolParams, ToolResult} from "./types"
 

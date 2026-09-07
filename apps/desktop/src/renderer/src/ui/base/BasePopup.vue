@@ -2,9 +2,9 @@
 import {computed, onBeforeUnmount, ref, StyleValue} from "vue"
 import {onClickOutside} from "@vueuse/core"
 
+import {cn} from "@/utils/ui/tailwindcss"
 // @ts-ignore
 import {autoUpdate, flip, offset, shift, useFloating} from "@floating-ui/vue"
-import {cn} from "../../utils/ui/tailwindcss"
 import BaseButton from "./BaseButton"
 
 export type HorizontalPosition = "start" | "center" | "end"

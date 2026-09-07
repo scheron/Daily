@@ -4,10 +4,10 @@ import {computed, HtmlHTMLAttributes} from "vue"
 import {TaskStatus} from "@daily/protocol"
 
 import {TasksFilter} from "@/types/common"
+import BaseButton from "@/ui/base/BaseButton"
+import {IconName} from "@/ui/base/BaseIcon"
+import BasePopup from "@/ui/base/BasePopup.vue"
 import {cn} from "@/utils/ui/tailwindcss"
-import BaseButton from "../../base/BaseButton"
-import {IconName} from "../../base/BaseIcon"
-import BasePopup from "../../base/BasePopup.vue"
 
 const props = withDefaults(
   defineProps<{

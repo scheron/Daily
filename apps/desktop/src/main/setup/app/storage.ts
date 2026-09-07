@@ -1,9 +1,9 @@
 import {logger} from "@daily/core"
 
-import {broadcastToWindows} from "../../utils/windows/broadcastToWindows"
+import {broadcastToWindows} from "@main/utils/windows/broadcastToWindows"
 
 import type {StorageController} from "@daily/core"
-import type {WindowsGetter} from "../../utils/windows/broadcastToWindows"
+import type {WindowsGetter} from "@main/utils/windows/broadcastToWindows"
 
 export function setupStorageSync(getStorage: () => StorageController | null, getWindows: WindowsGetter) {
   const storage = getStorage()

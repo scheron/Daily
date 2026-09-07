@@ -2,7 +2,7 @@ import {rm} from "node:fs/promises"
 
 import {logger} from "@daily/core"
 
-import {electronPaths} from "../../runtime/electronPaths"
+import {electronPaths} from "@main/runtime/electronPaths"
 
 export async function removeManagedUpdateFiles() {
   try {

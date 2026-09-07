@@ -1,15 +1,15 @@
 import {logger} from "@daily/core"
 
+import {OpenAiCompatibleClient} from "@main/ai/clients/common/OpenAiCompatibleClient"
 import {AI_CONFIG} from "@shared/config/ai"
 import {ServerStartCancelledError} from "@shared/errors/ai/ServerStartCancelledError"
-import {OpenAiCompatibleClient} from "../common/OpenAiCompatibleClient"
 import {LlamaServer} from "./core/LlamaServer"
 import {LocalModelService} from "./core/LocalModelService"
 
 import type {AIConfig, LocalModelId} from "@daily/protocol"
+import type {OpenAiChatConfig} from "@main/ai/clients/common/types"
+import type {IAiClient} from "@main/ai/types"
 import type {LocalRuntimeState} from "@shared/types/ai"
-import type {IAiClient} from "../../types"
-import type {OpenAiChatConfig} from "../common/types"
 
 export class LocalAiClient extends OpenAiCompatibleClient implements IAiClient {
   private server: LlamaServer

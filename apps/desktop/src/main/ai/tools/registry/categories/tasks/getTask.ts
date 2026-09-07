@@ -2,7 +2,7 @@ import {toDurationLabel} from "@daily/std"
 
 import {formatTask} from "@main/ai/utils/formatters"
 
-import type {RegisteredTool} from "../../types"
+import type {RegisteredTool} from "@main/ai/tools/registry/types"
 
 export const getTask: RegisteredTool = {
   name: "get_task",

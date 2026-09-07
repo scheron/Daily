@@ -1,6 +1,6 @@
 import {formatTag} from "@main/ai/utils/formatters"
 
-import type {RegisteredTool} from "../../types"
+import type {RegisteredTool} from "@main/ai/tools/registry/types"
 
 export const listTags: RegisteredTool = {
   name: "list_tags",

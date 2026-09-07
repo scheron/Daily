@@ -4,8 +4,8 @@ import {app, nativeImage} from "electron"
 import {ENV, logger} from "@daily/core"
 import {APP_CONFIG} from "@daily/protocol"
 
-import {focusWindow} from "../../utils/windows/focusWindow"
-import {electronPaths} from "../../runtime/electronPaths"
+import {electronPaths} from "@main/runtime/electronPaths"
+import {focusWindow} from "@main/utils/windows/focusWindow"
 
 import type {StorageController} from "@daily/core"
 import type {BrowserWindow} from "electron"

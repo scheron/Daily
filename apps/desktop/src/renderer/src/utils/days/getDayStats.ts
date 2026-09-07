@@ -1,5 +1,5 @@
+import type {DayStatistics} from "@/types/days"
 import type {Day} from "@daily/protocol"
-import type {DayStatistics} from "../../types/days"
 
 /**
  * Per-day task counts. `discarded` is whatever is left after active and done.

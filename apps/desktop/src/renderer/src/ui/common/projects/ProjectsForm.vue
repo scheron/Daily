@@ -6,10 +6,10 @@ import {MAIN_BRANCH_ID} from "@daily/protocol"
 
 import {useBranchesStore} from "@/stores/branches.store"
 import {useTasksStore} from "@/stores/tasks"
-import BaseButton from "../../base/BaseButton"
-import BaseIcon from "../../base/BaseIcon"
-import BaseInput from "../../base/BaseInput.vue"
-import {ConfirmPopup} from "../../overlays/ConfirmPopup"
+import BaseButton from "@/ui/base/BaseButton"
+import BaseIcon from "@/ui/base/BaseIcon"
+import BaseInput from "@/ui/base/BaseInput.vue"
+import {ConfirmPopup} from "@/ui/overlays/ConfirmPopup"
 
 import type {Branch} from "@daily/protocol"
 

@@ -1,5 +1,5 @@
+import {renderInlineMarkdown} from "@/utils/codemirror/inlineMarkdown"
 import {WidgetType} from "@codemirror/view"
-import {renderInlineMarkdown} from "../inlineMarkdown"
 
 import type {EditorView} from "@codemirror/view"
 

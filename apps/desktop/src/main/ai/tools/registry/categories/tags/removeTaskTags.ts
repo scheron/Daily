@@ -1,6 +1,6 @@
 import {formatTask} from "@main/ai/utils/formatters"
 
-import type {RegisteredTool} from "../../types"
+import type {RegisteredTool} from "@main/ai/tools/registry/types"
 
 export const removeTaskTags: RegisteredTool = {
   name: "remove_task_tags",

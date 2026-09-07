@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import {ref} from "vue"
 
-import BaseButton from "../../base/BaseButton"
-import {BaseModal} from "../../base/BaseModal"
+import BaseButton from "@/ui/base/BaseButton"
+import {BaseModal} from "@/ui/base/BaseModal"
 
 defineProps<{
   src: string | null

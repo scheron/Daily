@@ -1,4 +1,4 @@
-import type {WidgetDef, WidgetId, WidgetLayout} from "../types/widgets"
+import type {WidgetDef, WidgetId, WidgetLayout} from "@/types/widgets"
 
 export const WIDGET_DEFS = {
   "calendar-month": {id: "calendar-month", name: "Monthly calendar", icon: "calendar", minHeight: 280, maxHeight: 300, resizable: false},

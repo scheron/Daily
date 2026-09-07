@@ -4,13 +4,13 @@ import {defineStore} from "pinia"
 
 import {toISODate} from "@daily/std"
 
+import {useLoadingState} from "@/composables/useLoadingState"
+import {useSettingsStore} from "@/stores/settings.store"
 import {LLM_MODELS} from "@shared/constants/ai"
-import {useLoadingState} from "../../composables/useLoadingState"
 import {useAiModels} from "./composables/useAiModels"
 import {useAiSession} from "./composables/useAiSession"
 import {useAiStreaming} from "./composables/useAiStreaming"
 import {useToolConfirmations} from "./composables/useToolConfirmations"
-import {useSettingsStore} from "../settings.store"
 
 import type {ISODate} from "@daily/protocol"
 import type {AIMessage} from "@shared/types/ai"

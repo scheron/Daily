@@ -1,4 +1,4 @@
-import type {ModelManifestEntry} from "../types"
+import type {ModelManifestEntry} from "@main/ai/clients/local/types"
 
 const RESERVED_FLAGS = new Set(["--model", "-m", "--port", "--host"])
 

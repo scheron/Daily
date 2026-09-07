@@ -1,7 +1,7 @@
+import {resolveCodeLanguage} from "@/utils/codemirror/language/codeLanguages"
+import {codeHighlightStyle} from "@/utils/codemirror/theme/highlightStyle"
 import {markdown, markdownLanguage} from "@codemirror/lang-markdown"
 import {syntaxHighlighting} from "@codemirror/language"
-import {resolveCodeLanguage} from "../language/codeLanguages"
-import {codeHighlightStyle} from "../theme/highlightStyle"
 
 import type {Extension} from "@codemirror/state"
 

@@ -1,4 +1,4 @@
-import type {StyleSpec} from "../types"
+import type {StyleSpec} from "@/utils/codemirror/types"
 
 /**
  * Markdown element styles

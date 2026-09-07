@@ -2,17 +2,17 @@ import {computed, reactive, ref, watch} from "vue"
 
 import {deepClone, isUndefined} from "@daily/std"
 
-import {useDragDropStore} from "../../stores/dragDrop.store"
-import {useFilterStore} from "../../stores/filter.store"
-import {useTasksStore} from "../../stores/tasks"
-import {useUIStore} from "../../stores/ui"
-import {TASK_COLUMNS} from "../../constants/ui"
-import {resolveMoveTarget} from "../../utils/tasks/resolveMoveTarget"
-import {createSharedComposable} from "../createSharedComposable"
+import {createSharedComposable} from "@/composables/createSharedComposable"
+import {TASK_COLUMNS} from "@/constants/ui"
+import {useDragDropStore} from "@/stores/dragDrop.store"
+import {useFilterStore} from "@/stores/filter.store"
+import {useTasksStore} from "@/stores/tasks"
+import {useUIStore} from "@/stores/ui"
+import {resolveMoveTarget} from "@/utils/tasks/resolveMoveTarget"
 import {useTaskDragDrop} from "./useTaskDragDrop"
 
+import type {TaskColumn} from "@/types/ui"
 import type {MoveTaskByOrderParams, Task, TaskStatus} from "@daily/protocol"
-import type {TaskColumn} from "../../types/ui"
 
 const SORTABLE_ANIMATION_MS = 160
 

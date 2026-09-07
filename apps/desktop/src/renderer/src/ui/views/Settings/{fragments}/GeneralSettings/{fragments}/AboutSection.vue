@@ -2,7 +2,7 @@
 import {computed} from "vue"
 
 import {useUpdateStore} from "@/stores/update.store"
-import SettingRow from "../../SettingRow.vue"
+import SettingRow from "@/ui/views/Settings/{fragments}/SettingRow.vue"
 
 const REPOSITORY_URL = "https://github.com/scheron/Daily"
 

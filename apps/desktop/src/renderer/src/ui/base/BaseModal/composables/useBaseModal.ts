@@ -2,7 +2,7 @@ import {computed, markRaw, ref} from "vue"
 
 import {createSharedComposable} from "@/composables/createSharedComposable"
 
-import type {Component, ModalComponent, ModalComponentProps, ModalHandle, ModalItem, ModalShowOptions} from "../types"
+import type {Component, ModalComponent, ModalComponentProps, ModalHandle, ModalItem, ModalShowOptions} from "@/ui/base/BaseModal/types"
 
 const DEFAULT_KEY = "__base-modal__"
 

@@ -2,8 +2,8 @@ import {ref} from "vue"
 import {invoke} from "@vueuse/core"
 import {defineStore} from "pinia"
 
-import ApproveDeviceModal from "../ui/views/Settings/{fragments}/SyncSettings/{fragments}/ApproveDeviceModal.vue"
-import {useBaseModal} from "../ui/base/BaseModal"
+import {useBaseModal} from "@/ui/base/BaseModal"
+import ApproveDeviceModal from "@/ui/views/Settings/{fragments}/SyncSettings/{fragments}/ApproveDeviceModal.vue"
 
 import type {EnrollmentPollView, EnrollmentTicketView, PendingApprovalView, ServerBindingView, ServerProbeView} from "@daily/protocol"
 

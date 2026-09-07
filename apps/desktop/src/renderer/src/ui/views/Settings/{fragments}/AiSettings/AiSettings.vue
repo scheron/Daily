@@ -8,10 +8,10 @@ import BaseAnimation from "@/ui/base/BaseAnimation.vue"
 import BaseButton from "@/ui/base/BaseButton"
 import BaseSegmented from "@/ui/base/BaseSegmented.vue"
 import BaseSwitch from "@/ui/base/BaseSwitch.vue"
+import SettingRow from "@/ui/views/Settings/{fragments}/SettingRow.vue"
+import SettingsGroup from "@/ui/views/Settings/{fragments}/SettingsGroup.vue"
 import SettingsLocal from "./{fragments}/SettingsLocal.vue"
 import SettingsOpenAI from "./{fragments}/SettingsOpenAI.vue"
-import SettingRow from "../SettingRow.vue"
-import SettingsGroup from "../SettingsGroup.vue"
 
 const aiStore = useAiStore()
 

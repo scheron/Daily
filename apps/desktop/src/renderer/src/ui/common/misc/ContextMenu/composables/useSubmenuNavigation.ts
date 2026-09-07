@@ -3,8 +3,8 @@ import {useTimeoutFn} from "@vueuse/core"
 
 import {useSubmenuIntent} from "./useSubmenuIntent"
 
+import type {ContextMenuItem} from "@/ui/common/misc/ContextMenu/types"
 import type {Ref} from "vue"
-import type {ContextMenuItem} from "../types"
 
 export function useSubmenuNavigation(submenuPanelRef: Ref<HTMLElement | null>) {
   const hoveredItem = ref<ContextMenuItem | null>(null)

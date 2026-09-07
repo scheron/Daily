@@ -1,8 +1,8 @@
 import {computed, ref} from "vue"
 import {defineStore} from "pinia"
 
-import {toRawDeep} from "../../utils/ui/vue"
-import {useSettingsStore} from "../settings.store"
+import {useSettingsStore} from "@/stores/settings.store"
+import {toRawDeep} from "@/utils/ui/vue"
 
 import type {AIConfig, LocalModelId} from "@daily/protocol"
 import type {CatalogRefreshResult, LocalModelDownloadProgress, LocalModelInfo, LocalRuntimeState} from "@shared/types/ai"

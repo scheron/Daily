@@ -3,7 +3,7 @@ import {computed} from "vue"
 
 import BaseButton from "@/ui/base/BaseButton"
 import BasePopup from "@/ui/base/BasePopup.vue"
-import {STATUS_ACTIONS} from "../model/constants"
+import {STATUS_ACTIONS} from "@/ui/modules/TaskBoard/{fragments}/TaskCard/model/constants"
 
 import type {TaskStatus} from "@daily/protocol"
 

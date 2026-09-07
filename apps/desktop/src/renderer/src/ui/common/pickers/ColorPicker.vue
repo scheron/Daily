@@ -3,8 +3,8 @@ import {computed} from "vue"
 
 import {TAG_COLOR_PALETTE} from "@daily/protocol"
 
+import BaseButton from "@/ui/base/BaseButton"
 import {generateGradient} from "@/utils/colors/generateGradient"
-import BaseButton from "../../base/BaseButton"
 
 const props = withDefaults(defineProps<{steps?: number}>(), {steps: 5})
 const emit = defineEmits<{selected: [color: string]}>()

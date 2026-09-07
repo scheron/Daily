@@ -4,7 +4,7 @@ import path from "node:path"
 
 import {APP_CONFIG} from "@daily/protocol"
 
-import {electronPaths} from "../../runtime/electronPaths"
+import {electronPaths} from "@main/runtime/electronPaths"
 
 import type {AppUpdateCacheState, InstalledAppReleaseState} from "@daily/protocol"
 

@@ -3,8 +3,8 @@ import {ref} from "vue"
 import {toasts} from "vue-toasts-lite"
 
 import {useBranchesStore} from "@/stores/branches.store"
-import BaseCombobox from "../../base/BaseCombobox"
-import BaseIcon from "../../base/BaseIcon"
+import BaseCombobox from "@/ui/base/BaseCombobox"
+import BaseIcon from "@/ui/base/BaseIcon"
 
 import type {Branch} from "@daily/protocol"
 

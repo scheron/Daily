@@ -1,9 +1,9 @@
 import {isString} from "@daily/std"
 
-import {TooltipController} from "../utils/ui/TooltipController"
+import {TooltipController} from "@/utils/ui/TooltipController"
 
+import type {TooltipOptions} from "@/utils/ui/TooltipController"
 import type {Directive, DirectiveBinding} from "vue"
-import type {TooltipOptions} from "../utils/ui/TooltipController"
 
 type TooltipBinding = string | TooltipOptions
 

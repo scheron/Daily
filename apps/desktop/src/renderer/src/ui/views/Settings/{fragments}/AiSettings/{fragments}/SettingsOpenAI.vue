@@ -9,8 +9,8 @@ import BaseIcon from "@/ui/base/BaseIcon"
 import BaseInput from "@/ui/base/BaseInput.vue"
 import BaseSegmented from "@/ui/base/BaseSegmented.vue"
 import ModelPicker from "@/ui/common/pickers/ModelPicker.vue"
+import SettingRow from "@/ui/views/Settings/{fragments}/SettingRow.vue"
 import {REMOTE_API_PROVIDERS} from "@shared/constants/ai"
-import SettingRow from "../../SettingRow.vue"
 
 const aiStore = useAiStore()
 

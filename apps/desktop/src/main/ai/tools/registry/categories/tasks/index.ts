@@ -13,7 +13,7 @@ import {restoreTask} from "./restoreTask"
 import {searchTasks} from "./searchTasks"
 import {updateTask} from "./updateTask"
 
-import type {RegisteredTool} from "../../types"
+import type {RegisteredTool} from "@main/ai/tools/registry/types"
 
 export const TASK_TOOLS: RegisteredTool[] = [
   listTasks,

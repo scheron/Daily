@@ -1,7 +1,7 @@
+import {CheckboxWidget, ImageWidget, LinkWidget} from "@/utils/codemirror/widgets"
 import {syntaxTree} from "@codemirror/language"
 import {Facet} from "@codemirror/state"
 import {Decoration, ViewPlugin} from "@codemirror/view"
-import {CheckboxWidget, ImageWidget, LinkWidget} from "../widgets"
 
 import type {EditorState, Extension, Range} from "@codemirror/state"
 import type {DecorationSet, EditorView, ViewUpdate} from "@codemirror/view"

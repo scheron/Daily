@@ -6,7 +6,7 @@ import {TAG_TOOLS} from "./categories/tags"
 import {TASK_TOOLS} from "./categories/tasks"
 import {WEB_TOOLS} from "./categories/web"
 
-import type {Tool} from "../../types"
+import type {Tool} from "@main/ai/types"
 import type {RegisteredTool} from "./types"
 
 /**

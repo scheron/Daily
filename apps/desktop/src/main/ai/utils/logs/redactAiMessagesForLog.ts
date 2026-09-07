@@ -1,6 +1,6 @@
 import {isString} from "@daily/std"
 
-import type {MessageLLM} from "../../types"
+import type {MessageLLM} from "@main/ai/types"
 
 /**
  * Redact AI messages for log output. Keeps structural shape (roles,

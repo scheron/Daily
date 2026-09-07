@@ -1,5 +1,5 @@
+import type {IconName} from "@/ui/base/BaseIcon"
 import type {SyncStatus} from "@daily/protocol"
-import type {IconName} from "../ui/base/BaseIcon"
 
 type SyncStatusEnum = Record<SyncStatus, {icon: IconName; text: string; description: string; color: string}>
 

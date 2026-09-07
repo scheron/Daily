@@ -1,8 +1,8 @@
 <script setup lang="ts" generic="T">
 import {computed, ref, useSlots} from "vue"
 
+import BaseCheckbox from "@/ui/base/BaseCheckbox"
 import {useCombobox} from "./composables/useCombobox"
-import BaseCheckbox from "../BaseCheckbox"
 
 const props = withDefaults(
   defineProps<{

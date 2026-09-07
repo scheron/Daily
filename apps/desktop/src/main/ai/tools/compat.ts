@@ -1,6 +1,6 @@
 import {isObject, isString} from "@daily/std"
 
-import type {Tool, ToolCallLLM} from "../types"
+import type {Tool, ToolCallLLM} from "@main/ai/types"
 
 /**
  * Convert OpenAI-style function-call tool definitions into a plain-text section

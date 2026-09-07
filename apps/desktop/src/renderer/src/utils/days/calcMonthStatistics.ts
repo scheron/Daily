@@ -1,5 +1,5 @@
+import type {DayStatistics} from "@/types/days"
 import type {Day} from "@daily/protocol"
-import type {DayStatistics} from "../../types/days"
 
 /**
  * Aggregates task statistics per calendar month, keyed by `YYYY-MM`. Empty days are skipped.

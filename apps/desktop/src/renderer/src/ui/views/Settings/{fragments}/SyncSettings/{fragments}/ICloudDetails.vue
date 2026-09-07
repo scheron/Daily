@@ -6,7 +6,7 @@ import {toLocaleTime} from "@daily/std"
 import {useStorageStore} from "@/stores/storage.store"
 import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
-import SettingRow from "../../SettingRow.vue"
+import SettingRow from "@/ui/views/Settings/{fragments}/SettingRow.vue"
 
 const storageStore = useStorageStore()
 

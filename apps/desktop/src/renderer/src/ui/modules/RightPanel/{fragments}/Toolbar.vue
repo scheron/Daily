@@ -3,7 +3,7 @@ import {toasts} from "vue-toasts-lite"
 
 import {useCopyToClipboard} from "@/composables/useCopyToClipboard"
 import BaseButton from "@/ui/base/BaseButton"
-import {useTaskEditor} from "../composables/useTaskEditor"
+import {useTaskEditor} from "@/ui/modules/RightPanel/composables/useTaskEditor"
 
 const {isEditing, canSave, activeTask, editingTaskId, close, commitDraftAndClose} = useTaskEditor()
 

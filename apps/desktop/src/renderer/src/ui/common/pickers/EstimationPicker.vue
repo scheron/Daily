@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import {reactive, watch} from "vue"
 
-import BaseButton from "../../base/BaseButton"
-import BaseIcon from "../../base/BaseIcon"
+import BaseButton from "@/ui/base/BaseButton"
+import BaseIcon from "@/ui/base/BaseIcon"
 import TimePicker from "./TimePicker.vue"
 
 const props = defineProps<{

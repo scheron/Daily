@@ -1,8 +1,8 @@
 import {computed, onBeforeUnmount, ref, toValue} from "vue"
 
-import {useDragDropStore} from "../../stores/dragDrop.store"
-import {findVerticalScrollAncestor} from "../../utils/ui/findVerticalScrollAncestor"
-import {useDragAutoScroll} from "../useDragAutoScroll"
+import {useDragAutoScroll} from "@/composables/useDragAutoScroll"
+import {useDragDropStore} from "@/stores/dragDrop.store"
+import {findVerticalScrollAncestor} from "@/utils/ui/findVerticalScrollAncestor"
 
 type TaskDragDropOptions = {
   dndDisabled?: boolean | (() => boolean)

@@ -1,8 +1,8 @@
 <script lang="ts" setup>
 import {ISODate} from "@daily/protocol"
 
-import BaseCalendar from "../../base/BaseCalendar"
-import BasePopup, {HorizontalPosition} from "../../base/BasePopup.vue"
+import BaseCalendar from "@/ui/base/BaseCalendar"
+import BasePopup, {HorizontalPosition} from "@/ui/base/BasePopup.vue"
 
 import type {Day} from "@daily/protocol"
 

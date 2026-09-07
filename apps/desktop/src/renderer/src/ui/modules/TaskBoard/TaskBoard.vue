@@ -5,11 +5,11 @@ import VueDraggable from "vuedraggable"
 import {useTaskColumns} from "@/composables/tasks/useTaskColumns"
 import {DRAGGABLE_ATTRS} from "@/constants/ui"
 import {useTasksStore} from "@/stores/tasks"
+import BaseSpinner from "@/ui/base/BaseSpinner.vue"
 import {useDragScroll} from "./composables/useDragScroll"
 import NoTasksPlaceholder from "./{fragments}/NoTasksPlaceholder.vue"
 import TaskCard from "./{fragments}/TaskCard"
 import TaskColumn from "./{fragments}/TaskColumn.vue"
-import BaseSpinner from "../../base/BaseSpinner.vue"
 
 const emit = defineEmits<{createTask: []}>()
 

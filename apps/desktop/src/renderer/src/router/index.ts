@@ -6,17 +6,17 @@ const routes: Array<RouteRecordRaw> = [
   {
     path: "/",
     name: "MainApp",
-    component: () => import("../ui/views/Main"),
+    component: () => import("@/ui/views/Main"),
   },
   {
     path: "/settings",
     name: "Settings",
-    component: () => import("../ui/views/Settings"),
+    component: () => import("@/ui/views/Settings"),
   },
   {
     path: "/assistant",
     name: "Assistant",
-    component: () => import("../ui/views/Assistant"),
+    component: () => import("@/ui/views/Assistant"),
   },
   {
     path: "/:pathMatch(.*)*",

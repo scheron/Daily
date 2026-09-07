@@ -2,7 +2,7 @@ import {TAG_QUICK_COLORS} from "@daily/protocol"
 
 import {formatTag} from "@main/ai/utils/formatters"
 
-import type {RegisteredTool} from "../../types"
+import type {RegisteredTool} from "@main/ai/tools/registry/types"
 
 export const createTag: RegisteredTool = {
   name: "create_tag",

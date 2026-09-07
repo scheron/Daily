@@ -1,7 +1,7 @@
 import {isUndefined, notUndefined, throttle} from "@daily/std"
 
+import type {AiStreamingContext} from "@/stores/ai/types"
 import type {AIMessage} from "@shared/types/ai"
-import type {AiStreamingContext} from "../types"
 
 const FLUSH_INTERVAL_MS = 50
 

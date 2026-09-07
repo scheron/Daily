@@ -5,8 +5,8 @@ import {API} from "@/api"
 import {updateDays} from "@/utils/tasks/updateDays"
 import {toRawDeep} from "@/utils/ui/vue"
 
+import type {TaskDropPosition, TaskMoveMeta, TaskMutationsContext} from "@/stores/tasks/types"
 import type {Branch, ISODate, Tag, Task, TaskStatus} from "@daily/protocol"
-import type {TaskDropPosition, TaskMoveMeta, TaskMutationsContext} from "../types"
 
 /**
  * Task write operations: create, duplicate, update, move, and delete. Each call

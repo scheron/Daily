@@ -1,8 +1,8 @@
 import {summarizeTurns} from "./deterministicSummary"
 
-import type {TransformContextHook} from "../hooks/types"
-import type {AgentTurn} from "../turns/types"
-import type {MessageLLM} from "../types"
+import type {TransformContextHook} from "@main/ai/hooks/types"
+import type {AgentTurn} from "@main/ai/turns/types"
+import type {MessageLLM} from "@main/ai/types"
 
 export type CompactorOptions = {
   /** Minimum messages in conversation prefix before compaction kicks in. */

@@ -3,12 +3,12 @@ import {computed, onBeforeUnmount, useTemplateRef, watch} from "vue"
 
 import {isArray} from "@daily/std"
 
+import {useContextMenuConsumer} from "@/ui/common/misc/ContextMenu/composables/useContextMenuProvider"
+import {useSubmenuNavigation} from "@/ui/common/misc/ContextMenu/composables/useSubmenuNavigation"
 import {autoUpdate, flip, offset, shift, useFloating} from "@floating-ui/vue"
-import {useContextMenuConsumer} from "../composables/useContextMenuProvider"
-import {useSubmenuNavigation} from "../composables/useSubmenuNavigation"
 import MenuList from "./MenuList.vue"
 
-import type {ContextMenuItem, ContextMenuSelectEvent} from "../types"
+import type {ContextMenuItem, ContextMenuSelectEvent} from "@/ui/common/misc/ContextMenu/types"
 
 const SUBMENU_PREFIX = "child-"
 

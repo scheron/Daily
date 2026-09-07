@@ -1,4 +1,4 @@
-import type {CanonMod, ParsedAccelerator, ShortcutPlatform} from "../../types/shortcuts"
+import type {CanonMod, ParsedAccelerator, ShortcutPlatform} from "@shared/types/shortcuts"
 
 const MOD_RANK: Record<ShortcutPlatform, Record<CanonMod, number>> = {
   mac: {Cmd: 0, Ctrl: 1, Alt: 2, Shift: 3},

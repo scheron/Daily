@@ -4,9 +4,9 @@ import {app, BrowserWindow} from "electron"
 
 import {APP_CONFIG} from "@daily/protocol"
 
-import {focusWindow} from "../utils/windows/focusWindow"
-import {resolveAboutLogoURL} from "../utils/windows/resolveAboutLogoDataURL"
-import {electronPaths} from "../runtime/electronPaths"
+import {electronPaths} from "@main/runtime/electronPaths"
+import {focusWindow} from "@main/utils/windows/focusWindow"
+import {resolveAboutLogoURL} from "@main/utils/windows/resolveAboutLogoDataURL"
 
 export function createAboutWindow(): BrowserWindow {
   const aboutWindow = new BrowserWindow({

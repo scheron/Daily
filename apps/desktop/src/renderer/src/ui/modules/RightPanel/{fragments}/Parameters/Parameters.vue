@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {toTaskIdHash} from "@daily/protocol"
 
-import {useTaskEditor} from "../../composables/useTaskEditor"
+import {useTaskEditor} from "@/ui/modules/RightPanel/composables/useTaskEditor"
 import BranchProperty from "./{fragments}/properties/BranchProperty.vue"
 import DateProperty from "./{fragments}/properties/DateProperty.vue"
 import StatusProperty from "./{fragments}/properties/StatusProperty.vue"

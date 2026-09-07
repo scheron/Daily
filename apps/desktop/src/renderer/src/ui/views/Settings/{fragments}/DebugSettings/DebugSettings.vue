@@ -1,6 +1,6 @@
 <script setup lang="ts">
+import SettingsGroup from "@/ui/views/Settings/{fragments}/SettingsGroup.vue"
 import IconsSection from "./{fragments}/IconsSection.vue"
-import SettingsGroup from "../SettingsGroup.vue"
 </script>
 
 <template>

@@ -2,7 +2,7 @@
 import {onMounted} from "vue"
 
 import {useThemeStore} from "@/stores/theme.store"
-import BaseButton from "../../base/BaseButton"
+import BaseButton from "@/ui/base/BaseButton"
 import {useSettingsNav} from "./model/useSettingsNav"
 
 useThemeStore()

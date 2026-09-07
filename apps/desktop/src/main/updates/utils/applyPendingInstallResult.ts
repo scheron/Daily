@@ -3,7 +3,7 @@ import {readFile, rm} from "node:fs/promises"
 
 import {logger} from "@daily/core"
 
-import {electronPaths} from "../../runtime/electronPaths"
+import {electronPaths} from "@main/runtime/electronPaths"
 import {removeManagedUpdateFiles} from "./removeManagedUpdateFiles"
 
 import type {InstalledAppReleaseState, Settings} from "@daily/protocol"

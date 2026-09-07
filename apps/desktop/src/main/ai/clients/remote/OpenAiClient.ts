@@ -1,4 +1,4 @@
-import {OpenAiCompatibleClient} from "../common/OpenAiCompatibleClient"
+import {OpenAiCompatibleClient} from "@main/ai/clients/common/OpenAiCompatibleClient"
 
 import type {AIConfig} from "@daily/protocol"
 

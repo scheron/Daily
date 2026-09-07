@@ -8,8 +8,8 @@ import {ChatStreamAccumulator} from "./streaming/chatStreamAccumulator"
 import {consumeSseEvents} from "./streaming/sseParser"
 
 import type {AIConfig} from "@daily/protocol"
+import type {ChatStreamCallbacks, IAiClient, MessageLLM, Tool, ToolCallLLM, ToolChoice} from "@main/ai/types"
 import type {TokenUsage} from "@shared/types/ai"
-import type {ChatStreamCallbacks, IAiClient, MessageLLM, Tool, ToolCallLLM, ToolChoice} from "../../types"
 import type {ChatRequest, OpenAiChatConfig, OpenAiChatResponse, OpenAiConnectionConfig, OpenAiUsage} from "./types"
 
 const backoff = (n: number): number => Math.min(1000 * 2 ** n, 4000)

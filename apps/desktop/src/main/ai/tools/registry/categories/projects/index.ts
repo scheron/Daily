@@ -5,6 +5,6 @@ import {moveTaskToProject} from "./moveTaskToProject"
 import {renameProject} from "./renameProject"
 import {switchProject} from "./switchProject"
 
-import type {RegisteredTool} from "../../types"
+import type {RegisteredTool} from "@main/ai/tools/registry/types"
 
 export const PROJECT_TOOLS: RegisteredTool[] = [listProjects, createProject, renameProject, deleteProject, switchProject, moveTaskToProject]

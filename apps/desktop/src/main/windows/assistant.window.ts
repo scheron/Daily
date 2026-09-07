@@ -3,8 +3,8 @@ import {BrowserWindow} from "electron"
 import {ENV} from "@daily/core"
 import {WINDOWS_CONFIG} from "@daily/protocol"
 
-import {focusWindow} from "../utils/windows/focusWindow"
-import {electronPaths} from "../runtime/electronPaths"
+import {electronPaths} from "@main/runtime/electronPaths"
+import {focusWindow} from "@main/utils/windows/focusWindow"
 
 export function createAssistantWindow(): BrowserWindow {
   const assistantWindow = new BrowserWindow({

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import {computed} from "vue"
 
+import BaseIcon from "@/ui/base/BaseIcon"
 import {cn} from "@/utils/ui/tailwindcss"
-import BaseIcon from "../BaseIcon"
 import {checkboxBaseVariant, checkboxColorVariant, checkboxIconVariant} from "./variants"
 
 import type {CheckboxColorVariant, CheckboxSize} from "./variants"

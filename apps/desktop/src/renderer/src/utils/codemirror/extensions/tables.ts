@@ -1,7 +1,7 @@
+import {TableWidget} from "@/utils/codemirror/widgets"
 import {syntaxTree} from "@codemirror/language"
 import {StateField} from "@codemirror/state"
 import {Decoration, EditorView} from "@codemirror/view"
-import {TableWidget} from "../widgets"
 import {readonlyMode} from "./wysiwyg"
 
 import type {EditorState, Extension, Range} from "@codemirror/state"

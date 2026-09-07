@@ -1,8 +1,8 @@
 import {clamp} from "@daily/std"
 
-import {WEB_LIMITS, WEB_READ_BUDGET} from "../constants"
+import {WEB_LIMITS, WEB_READ_BUDGET} from "@main/ai/web/constants"
 
-import type {WebReadBudget} from "../types"
+import type {WebReadBudget} from "@main/ai/web/types"
 
 /**
  * Scales how much fetched page text may enter the model context to the model's

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import BaseInput from "../../base/BaseInput.vue"
+import BaseInput from "@/ui/base/BaseInput.vue"
 
 defineProps<{
   modelValue: string

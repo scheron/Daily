@@ -1,4 +1,4 @@
-import type {IconName} from "../ui/base/BaseIcon"
+import type {IconName} from "@/ui/base/BaseIcon"
 
 export type WidgetId = "calendar-month" | "stats" | "activity"
 

@@ -1,5 +1,5 @@
+import type {IconName} from "@/ui/base/BaseIcon"
 import type {TaskEventType} from "@daily/protocol"
-import type {IconName} from "../ui/base/BaseIcon"
 
 /** Icon, verb and chip styling for each task event type, shared across activity views. */
 export const TASK_EVENT_META: Record<TaskEventType, {icon: IconName; verb: string; chipClass: string}> = {

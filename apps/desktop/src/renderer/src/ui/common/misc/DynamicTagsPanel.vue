@@ -2,10 +2,10 @@
 import {computed, nextTick, ref, watch} from "vue"
 import {useResizeObserver} from "@vueuse/core"
 
-import BaseButton from "../../base/BaseButton"
-import BaseIcon from "../../base/BaseIcon"
-import BasePopup from "../../base/BasePopup.vue"
-import BaseTag from "../../base/BaseTag"
+import BaseButton from "@/ui/base/BaseButton"
+import BaseIcon from "@/ui/base/BaseIcon"
+import BasePopup from "@/ui/base/BasePopup.vue"
+import BaseTag from "@/ui/base/BaseTag"
 
 import type {Tag} from "@daily/protocol"
 

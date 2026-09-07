@@ -1,4 +1,4 @@
-import type {MessageLLM, Tool} from "../../types"
+import type {MessageLLM, Tool} from "@main/ai/types"
 
 export type ChatSamplingParams = {
   temperature?: number

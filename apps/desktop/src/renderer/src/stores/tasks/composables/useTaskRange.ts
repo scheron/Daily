@@ -6,8 +6,8 @@ import {addMonths, diffDays} from "@daily/std"
 import {API} from "@/api"
 import {mergeDays, updateDays} from "@/utils/tasks/updateDays"
 
+import type {TaskRangeContext} from "@/stores/tasks/types"
 import type {ISODate} from "@daily/protocol"
-import type {TaskRangeContext} from "../types"
 
 const INITIAL_RANGE_MONTHS = 6
 const EXTEND_RANGE_MONTHS = 3

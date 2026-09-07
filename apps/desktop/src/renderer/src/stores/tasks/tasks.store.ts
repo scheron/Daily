@@ -4,9 +4,9 @@ import {defineStore} from "pinia"
 
 import {sortTasksByOrderIndex} from "@daily/protocol"
 
+import {useSettingsStore} from "@/stores/settings.store"
 import {useTaskMutations} from "./composables/useTaskMutations"
 import {useTaskRange} from "./composables/useTaskRange"
-import {useSettingsStore} from "../settings.store"
 
 import type {Day, ISODate, Task, TaskStatus} from "@daily/protocol"
 

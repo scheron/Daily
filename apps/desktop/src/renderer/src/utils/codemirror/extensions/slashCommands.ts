@@ -1,5 +1,5 @@
+import {blockCommands, linkCommands} from "@/utils/codemirror/commands"
 import {syntaxTree} from "@codemirror/language"
-import {blockCommands, linkCommands} from "../commands"
 
 import type {IconName} from "@/ui/base/BaseIcon"
 import type {Completion, CompletionContext, CompletionResult} from "@codemirror/autocomplete"

@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import {computed, HTMLAttributes, ref} from "vue"
 
+import BaseButton from "@/ui/base/BaseButton"
+import BaseIcon from "@/ui/base/BaseIcon"
+import BaseMenu from "@/ui/base/BaseMenu.vue"
+import BasePopup from "@/ui/base/BasePopup.vue"
 import {cn} from "@/utils/ui/tailwindcss"
-import BaseButton from "../../base/BaseButton"
-import BaseIcon from "../../base/BaseIcon"
-import BaseMenu from "../../base/BaseMenu.vue"
-import BasePopup from "../../base/BasePopup.vue"
 
-import type {BaseMenuItem} from "../../base/BaseMenu.vue"
+import type {BaseMenuItem} from "@/ui/base/BaseMenu.vue"
 
 const props = defineProps<{
   /** Currently selected model id. */

@@ -3,10 +3,10 @@ import {computed, onBeforeUnmount, onMounted, ref} from "vue"
 import {useEventListener} from "@vueuse/core"
 
 import {useFocusTrap} from "@/composables/useFocusTrap"
+import {useBaseModal} from "@/ui/base/BaseModal/composables/useBaseModal"
 import {findFocusableEl} from "@/utils/ui/dom"
-import {useBaseModal} from "../composables/useBaseModal"
 
-import type {ModalItem} from "../types"
+import type {ModalItem} from "@/ui/base/BaseModal/types"
 
 const props = defineProps<{
   item: ModalItem

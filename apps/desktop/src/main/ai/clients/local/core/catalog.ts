@@ -3,7 +3,7 @@ import fs from "fs-extra"
 import {logger} from "@daily/core"
 import {isArray, isBoolean, isNull, isNumber, isObject, isString, notNullish, notUndefined} from "@daily/std"
 
-import type {ModelManifestEntry} from "../types"
+import type {ModelManifestEntry} from "@main/ai/clients/local/types"
 
 const SUPPORTED_SCHEMA_VERSION = 1
 const VALID_TIERS = new Set(["fast", "balanced", "quality"])

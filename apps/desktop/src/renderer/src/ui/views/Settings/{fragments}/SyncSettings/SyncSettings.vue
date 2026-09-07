@@ -3,11 +3,11 @@ import {useSettingsStore} from "@/stores/settings.store"
 import {useStorageStore} from "@/stores/storage.store"
 import {useSyncServerStore} from "@/stores/syncServer.store"
 import {useBaseModal} from "@/ui/base/BaseModal"
+import SettingsGroup from "@/ui/views/Settings/{fragments}/SettingsGroup.vue"
 import ICloudDetails from "./{fragments}/ICloudDetails.vue"
 import ProviderMigrationModal from "./{fragments}/ProviderMigrationModal.vue"
 import ProviderSection from "./{fragments}/ProviderSection.vue"
 import ServerDetails from "./{fragments}/ServerDetails.vue"
-import SettingsGroup from "../SettingsGroup.vue"
 
 import type {SyncProvider} from "@daily/protocol"
 

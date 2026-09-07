@@ -1,4 +1,4 @@
-import type {SHORTCUTS_MAP} from "../constants/shortcuts"
+import type {SHORTCUTS_MAP} from "@shared/constants/shortcuts"
 
 export type ShortcutAction = keyof typeof SHORTCUTS_MAP
 export type ShortcutPlatform = "mac" | "win"

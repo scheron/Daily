@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import BaseButton from "../../base/BaseButton"
-import BaseIcon from "../../base/BaseIcon"
-import {BaseModal} from "../../base/BaseModal"
+import BaseButton from "@/ui/base/BaseButton"
+import BaseIcon from "@/ui/base/BaseIcon"
+import {BaseModal} from "@/ui/base/BaseModal"
 
 defineEmits<{
   save: []

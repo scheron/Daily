@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {HTMLAttributes} from "vue"
 
-import {cn} from "../../utils/ui/tailwindcss"
+import {cn} from "@/utils/ui/tailwindcss"
 import BaseIcon from "./BaseIcon"
 
 import type {IconName} from "./BaseIcon"

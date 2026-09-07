@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import {computed, useSlots} from "vue"
 
+import BaseIcon from "@/ui/base/BaseIcon"
 import {cn} from "@/utils/ui/tailwindcss"
-import BaseIcon from "../BaseIcon"
 import {buttonColorVariant, ButtonColorVariant, buttonSizeVariant, ButtonSizeVariant} from "./variants"
 
+import type {IconName} from "@/ui/base/BaseIcon"
 import type {TooltipPlacement} from "@/utils/ui/TooltipController"
 import type {HtmlHTMLAttributes} from "vue"
-import type {IconName} from "../BaseIcon"
 
 const props = defineProps<{
   variant?: ButtonColorVariant

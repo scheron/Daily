@@ -1,6 +1,6 @@
+import type {TasksFilter} from "@/types/common"
+import type {IconName} from "@/ui/base/BaseIcon"
 import type {HTMLAttributes} from "vue"
-import type {TasksFilter} from "../types/common"
-import type {IconName} from "../ui/base/BaseIcon"
 
 type Filter = {
   label: string

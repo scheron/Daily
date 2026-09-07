@@ -1,6 +1,6 @@
 import {isString} from "@daily/std"
 
-import type {RegisteredTool} from "../../types"
+import type {RegisteredTool} from "@main/ai/tools/registry/types"
 
 /**
  * Protocol-level tool: the ONLY channel for user-visible messages from the

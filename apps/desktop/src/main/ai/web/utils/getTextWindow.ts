@@ -1,6 +1,6 @@
 import {clamp} from "@daily/std"
 
-import type {TextWindow, WindowOptions} from "../types"
+import type {TextWindow, WindowOptions} from "@main/ai/web/types"
 
 /**
  * Returns a window of `text`, either from `offset` or starting at the first

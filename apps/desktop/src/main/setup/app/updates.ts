@@ -1,4 +1,4 @@
-import {updaterController} from "../../updates/UpdaterController"
+import {updaterController} from "@main/updates/UpdaterController"
 
 import type {IStorageController} from "@daily/core"
 import type {BrowserWindow} from "electron"

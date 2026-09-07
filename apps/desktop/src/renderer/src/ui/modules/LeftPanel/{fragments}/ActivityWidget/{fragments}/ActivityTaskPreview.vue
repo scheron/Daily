@@ -4,7 +4,7 @@ import {computed, ref} from "vue"
 import {API} from "@/api"
 import BaseIcon from "@/ui/base/BaseIcon"
 import BasePopup from "@/ui/base/BasePopup.vue"
-import {useHoverAbortController} from "../composables/useHoverAbortController"
+import {useHoverAbortController} from "@/ui/modules/LeftPanel/{fragments}/ActivityWidget/composables/useHoverAbortController"
 import ActivityTaskPreviewCard from "./ActivityTaskPreviewCard.vue"
 
 import type {Task} from "@daily/protocol"

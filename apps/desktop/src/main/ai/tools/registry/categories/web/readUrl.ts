@@ -9,8 +9,8 @@ import {WebFetchErrorCode} from "@shared/errors/web/WebFetchErrorCode"
 import {extractReadable} from "@shared/utils/web/extractReadable"
 import {getHostname} from "@shared/utils/web/getHostname"
 
+import type {RegisteredTool} from "@main/ai/tools/registry/types"
 import type {CachedPage, SafeFetchResult} from "@main/ai/web/types"
-import type {RegisteredTool} from "../../types"
 
 type Fetcher = {fetch: (u: string) => Promise<SafeFetchResult>}
 type ReadUrlCtx = {__fetcher?: Fetcher}

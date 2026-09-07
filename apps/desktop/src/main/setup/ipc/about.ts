@@ -1,6 +1,6 @@
 import {ipcMain} from "electron"
 
-import {createAboutWindow} from "../../windows/about.window"
+import {createAboutWindow} from "@main/windows/about.window"
 
 import type {BrowserWindow} from "electron"
 

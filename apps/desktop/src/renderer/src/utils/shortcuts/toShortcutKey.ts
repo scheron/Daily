@@ -1,7 +1,7 @@
+import {devicePlatform} from "@/constants/env"
+import {MAC_MODS, WIN_MODS} from "@/constants/keyboard"
 import {SHORTCUTS_MAP} from "@shared/constants/shortcuts"
 import {parseAccelerator} from "@shared/utils/shortcuts/parseAccelerator"
-import {devicePlatform} from "../../constants/env"
-import {MAC_MODS, WIN_MODS} from "../../constants/keyboard"
 
 import type {CanonMod, ShortcutAction, ShortcutDefinition} from "@shared/types/shortcuts"
 

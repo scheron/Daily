@@ -6,6 +6,7 @@ import {useClipboardPaste} from "@/composables/useClipboardPaste"
 import {useFileDrop} from "@/composables/useFileDrop"
 import {useTagsStore} from "@/stores/tags.store"
 import {useTaskEditorStore} from "@/stores/task-editor"
+import {useImageUpload} from "@/ui/modules/RightPanel/{fragments}/Editor/composables/useImageUpload"
 import {useImagePreviewModal} from "@/ui/overlays/ImagePreviewModal"
 import {markdownKeymap} from "@/utils/codemirror/commands"
 import {
@@ -20,7 +21,6 @@ import {
 import {defaultKeymap, history, historyKeymap, indentWithTab} from "@codemirror/commands"
 import {EditorState, Prec} from "@codemirror/state"
 import {drawSelection, EditorView, keymap, placeholder} from "@codemirror/view"
-import {useImageUpload} from "../composables/useImageUpload"
 import FloatingToolbar from "./FloatingToolbar.vue"
 
 import type {Tag, Task} from "@daily/protocol"

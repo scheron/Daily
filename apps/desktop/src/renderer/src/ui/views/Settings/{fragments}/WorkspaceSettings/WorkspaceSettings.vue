@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import ProjectsForm from "@/ui/common/projects/ProjectsForm.vue"
 import TagsForm from "@/ui/common/tags/TagsForm.vue"
-import SettingsGroup from "../SettingsGroup.vue"
+import SettingsGroup from "@/ui/views/Settings/{fragments}/SettingsGroup.vue"
 </script>
 
 <template>

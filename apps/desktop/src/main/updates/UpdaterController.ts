@@ -12,9 +12,9 @@ import {downloadRelease, resolveLatestRelease} from "./release"
 
 import type {IStorageController} from "@daily/core"
 import type {Settings} from "@daily/protocol"
+import type {ReleaseMeta} from "@main/types/updates"
 import type {AppUpdateState} from "@shared/types/update"
 import type {BrowserWindow} from "electron"
-import type {ReleaseMeta} from "../types/updates"
 
 export class UpdaterController {
   private mainWindow: BrowserWindow | null = null

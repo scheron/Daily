@@ -2,7 +2,7 @@ import {computed} from "vue"
 
 import {getObjectValueFromPath, transformObjectFromPath} from "@daily/std"
 
-import {useSettingsStore} from "../stores/settings.store"
+import {useSettingsStore} from "@/stores/settings.store"
 
 import type {Settings} from "@daily/protocol"
 

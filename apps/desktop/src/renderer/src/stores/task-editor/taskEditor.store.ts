@@ -4,13 +4,13 @@ import {defineStore} from "pinia"
 
 import {deepClone, isNull, notNull} from "@daily/std"
 
+import {API} from "@/api"
+import {useTasksStore} from "@/stores/tasks"
 import {buildRestPatch} from "./utils/buildRestPatch"
 import {shallowEqualDraft} from "./utils/shallowEqualDraft"
-import {API} from "../../api"
-import {useTasksStore} from "../tasks"
 
+import type {TaskDraft} from "@/types/tasks"
 import type {Branch, ISODate, Task} from "@daily/protocol"
-import type {TaskDraft} from "../../types/tasks"
 
 export const useTaskEditorStore = defineStore("taskEditor", () => {
   const tasksStore = useTasksStore()

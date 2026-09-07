@@ -1,4 +1,4 @@
-import type {TaskColumn} from "../types/ui"
+import type {TaskColumn} from "@/types/ui"
 
 export const TASK_CONTENT_MINIMIZED_HEIGHT = 200
 

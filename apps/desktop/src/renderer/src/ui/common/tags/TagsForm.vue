@@ -7,11 +7,11 @@ import {findTagByName, isValidTagName, normalizeTagName, TAG_QUICK_COLORS} from 
 import {useFilterStore} from "@/stores/filter.store"
 import {useTagsStore} from "@/stores/tags.store"
 import {useTasksStore} from "@/stores/tasks"
-import BaseButton from "../../base/BaseButton"
-import BaseInput from "../../base/BaseInput.vue"
-import BasePopup from "../../base/BasePopup.vue"
-import {ConfirmPopup} from "../../overlays/ConfirmPopup"
-import ColorPicker from "../pickers/ColorPicker.vue"
+import BaseButton from "@/ui/base/BaseButton"
+import BaseInput from "@/ui/base/BaseInput.vue"
+import BasePopup from "@/ui/base/BasePopup.vue"
+import ColorPicker from "@/ui/common/pickers/ColorPicker.vue"
+import {ConfirmPopup} from "@/ui/overlays/ConfirmPopup"
 
 import type {Tag} from "@daily/protocol"
 

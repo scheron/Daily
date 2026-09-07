@@ -1,4 +1,4 @@
-import {WEB_LIMITS} from "../constants"
+import {WEB_LIMITS} from "@main/ai/web/constants"
 
 /**
  * Wraps page text in explicit untrusted-content delimiters and caps it at

@@ -1,5 +1,5 @@
-import type {ChangedEntity} from "../tools/types"
-import type {AgentStep, AgentTurn} from "../turns/types"
+import type {ChangedEntity} from "@main/ai/tools/types"
+import type {AgentStep, AgentTurn} from "@main/ai/turns/types"
 
 /**
  * Build a deterministic, model-friendly summary of past turns. The output is

@@ -1,7 +1,7 @@
-import {toModelToolMessage} from "../tools/format"
+import {toModelToolMessage} from "@main/ai/tools/format"
 
-import type {AgentTurn} from "../turns/types"
-import type {MessageLLM} from "../types"
+import type {AgentTurn} from "@main/ai/turns/types"
+import type {MessageLLM} from "@main/ai/types"
 
 /**
  * Rebuild the in-memory conversation history (LLM-side messages) from a

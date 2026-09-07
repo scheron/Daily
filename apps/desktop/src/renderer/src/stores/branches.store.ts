@@ -2,7 +2,7 @@ import {computed, ref} from "vue"
 import {sort} from "fast-sort"
 import {defineStore} from "pinia"
 
-import {API} from "../api"
+import {API} from "@/api"
 import {useSettingsStore} from "./settings.store"
 
 import type {Branch} from "@daily/protocol"

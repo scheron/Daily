@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import {useTemplateRef} from "vue"
 
-import BaseButton from "../../base/BaseButton"
-import BaseIcon from "../../base/BaseIcon"
-import BasePopup from "../../base/BasePopup.vue"
-import TagsCombobox from "../comboboxes/TagsCombobox.vue"
+import BaseButton from "@/ui/base/BaseButton"
+import BaseIcon from "@/ui/base/BaseIcon"
+import BasePopup from "@/ui/base/BasePopup.vue"
+import TagsCombobox from "@/ui/common/comboboxes/TagsCombobox.vue"
 
+import type {HorizontalPosition} from "@/ui/base/BasePopup.vue"
 import type {Tag, Task} from "@daily/protocol"
-import type {HorizontalPosition} from "../../base/BasePopup.vue"
 
 withDefaults(defineProps<{task: Task; position?: HorizontalPosition; triggerClass?: string}>(), {
   position: "start",

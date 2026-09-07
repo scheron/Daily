@@ -1,4 +1,4 @@
-import {useBaseModal} from "../../base/BaseModal"
+import {useBaseModal} from "@/ui/base/BaseModal"
 import SearchModal from "./SearchModal.vue"
 
 const SEARCH_MODAL_ID = "search"

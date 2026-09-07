@@ -5,9 +5,9 @@ import {toasts} from "vue-toasts-lite"
 import {findTagByName, normalizeTagName, sortTags, TAG_PRESET_COLORS} from "@daily/protocol"
 
 import {useTagsStore} from "@/stores/tags.store"
-import BaseButton from "../../base/BaseButton"
-import BaseCombobox from "../../base/BaseCombobox"
-import BaseIcon from "../../base/BaseIcon"
+import BaseButton from "@/ui/base/BaseButton"
+import BaseCombobox from "@/ui/base/BaseCombobox"
+import BaseIcon from "@/ui/base/BaseIcon"
 
 import type {Tag, TagPresetColor, Task} from "@daily/protocol"
 

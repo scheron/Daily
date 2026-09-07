@@ -1,4 +1,4 @@
-import type {RegisteredTool} from "../../types"
+import type {RegisteredTool} from "@main/ai/tools/registry/types"
 
 export const permanentlyDeleteTask: RegisteredTool = {
   name: "permanently_delete_task",

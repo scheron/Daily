@@ -1,4 +1,4 @@
-import {findFocusableEl} from "../utils/ui/dom"
+import {findFocusableEl} from "@/utils/ui/dom"
 
 export default {
   mounted(el: HTMLElement) {

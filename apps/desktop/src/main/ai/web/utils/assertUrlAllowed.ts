@@ -7,7 +7,7 @@ import {WebFetchError} from "@shared/errors/web/WebFetchError"
 import {WebFetchErrorCode} from "@shared/errors/web/WebFetchErrorCode"
 import {normalizeIpLiteral} from "@shared/utils/web/normalizeIpLiteral"
 
-import type {LookupFn, LookupResult} from "../types"
+import type {LookupFn, LookupResult} from "@main/ai/web/types"
 
 export type SsrfGuardDeps = {lookup?: LookupFn}
 

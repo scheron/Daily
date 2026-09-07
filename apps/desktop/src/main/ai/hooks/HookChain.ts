@@ -1,7 +1,7 @@
 import {forEachAsync} from "@daily/std"
 
-import type {ToolResult} from "../tools/types"
-import type {MessageLLM, ToolCallLLM} from "../types"
+import type {ToolResult} from "@main/ai/tools/types"
+import type {MessageLLM, ToolCallLLM} from "@main/ai/types"
 import type {AfterToolCallHook, AgentContext, BeforeToolCallDecision, BeforeToolCallHook, TransformContextHook} from "./types"
 
 export class HookChain {

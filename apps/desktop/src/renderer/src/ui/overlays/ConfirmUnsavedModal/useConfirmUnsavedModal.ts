@@ -1,7 +1,7 @@
 import {withResolvers} from "@daily/std"
 
 import {useTaskEditorStore} from "@/stores/task-editor"
-import {useBaseModal} from "../../base/BaseModal"
+import {useBaseModal} from "@/ui/base/BaseModal"
 import ConfirmUnsavedModal from "./ConfirmUnsavedModal.vue"
 
 const CONFIRM_UNSAVED_MODAL_ID = "confirm-unsaved"

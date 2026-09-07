@@ -6,6 +6,6 @@ import {listTags} from "./listTags"
 import {removeTaskTags} from "./removeTaskTags"
 import {updateTag} from "./updateTag"
 
-import type {RegisteredTool} from "../../types"
+import type {RegisteredTool} from "@main/ai/tools/registry/types"
 
 export const TAG_TOOLS: RegisteredTool[] = [listTags, getTag, createTag, updateTag, deleteTag, addTaskTags, removeTaskTags]

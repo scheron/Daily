@@ -1,5 +1,5 @@
+import {codeBlockStyles, editorStyles, markdownStyles, searchHighlightStyles, utilityStyles, widgetStyles} from "@/utils/codemirror/theme"
 import {EditorView} from "@codemirror/view"
-import {codeBlockStyles, editorStyles, markdownStyles, searchHighlightStyles, utilityStyles, widgetStyles} from "../theme"
 
 import type {Extension} from "@codemirror/state"
 

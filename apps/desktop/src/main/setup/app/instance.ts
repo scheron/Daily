@@ -2,7 +2,7 @@ import {app} from "electron"
 
 import {APP_CONFIG} from "@daily/protocol"
 
-import {focusWindow} from "../../utils/windows/focusWindow"
+import {focusWindow} from "@main/utils/windows/focusWindow"
 import {handleDeepLink} from "./deeplinks"
 
 import type {StorageController} from "@daily/core"

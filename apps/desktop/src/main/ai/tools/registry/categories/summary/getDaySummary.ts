@@ -1,7 +1,7 @@
 import {getToday, toDurationLabel} from "@daily/std"
 
 import type {Day} from "@daily/protocol"
-import type {RegisteredTool} from "../../types"
+import type {RegisteredTool} from "@main/ai/tools/registry/types"
 
 export const getDaySummary: RegisteredTool = {
   name: "get_day_summary",

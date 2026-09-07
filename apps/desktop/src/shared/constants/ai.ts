@@ -1,5 +1,5 @@
 import type {UnloadModelTime} from "@daily/protocol"
-import type {LlmModelInfo} from "../types/ai"
+import type {LlmModelInfo} from "@shared/types/ai"
 
 /**
  * Known LLM models keyed by id (local) or name (remote). Single source for

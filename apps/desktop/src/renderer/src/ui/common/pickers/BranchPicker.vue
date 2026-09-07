@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import {useTemplateRef} from "vue"
 
-import BasePopup from "../../base/BasePopup.vue"
-import BranchCombobox from "../comboboxes/BranchCombobox.vue"
+import BasePopup from "@/ui/base/BasePopup.vue"
+import BranchCombobox from "@/ui/common/comboboxes/BranchCombobox.vue"
 
+import type {HorizontalPosition} from "@/ui/base/BasePopup.vue"
 import type {Branch} from "@daily/protocol"
-import type {HorizontalPosition} from "../../base/BasePopup.vue"
 
 withDefaults(defineProps<{selectedId: Branch["id"] | null; position?: HorizontalPosition; triggerClass?: string}>(), {
   position: "start",
