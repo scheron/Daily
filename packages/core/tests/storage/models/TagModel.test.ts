@@ -1,6 +1,6 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
-import {TagModel} from "../../../src/storage/models/TagModel"
+import {TagModel} from "@core/storage/models/TagModel"
 import {createTestDatabase} from "../../helpers/db"
 
 vi.mock("../../../src/utils/logger", () => ({

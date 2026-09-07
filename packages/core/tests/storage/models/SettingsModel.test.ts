@@ -1,8 +1,8 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
-import {buildSnapshot} from "../../../src/utils/sync/snapshot/buildSnapshot"
-import {SettingsModel} from "../../../src/storage/models/SettingsModel"
-import {LocalStorageAdapter} from "../../../src/storage/sync/adapters/LocalStorageAdapter"
+import {SettingsModel} from "@core/storage/models/SettingsModel"
+import {LocalStorageAdapter} from "@core/storage/sync/adapters/LocalStorageAdapter"
+import {buildSnapshot} from "@core/utils/sync/snapshot/buildSnapshot"
 import {createTestDatabase} from "../../helpers/db"
 
 import type {ServerSyncBinding} from "@daily/protocol"

@@ -5,9 +5,9 @@ import {tmpdir} from "node:os"
 import {join} from "node:path"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
-import {FileModel} from "../../../src/storage/models/FileModel"
-import {TaskModel} from "../../../src/storage/models/TaskModel"
-import {FilesService} from "../../../src/storage/services/FilesService"
+import {FileModel} from "@core/storage/models/FileModel"
+import {TaskModel} from "@core/storage/models/TaskModel"
+import {FilesService} from "@core/storage/services/FilesService"
 import {createTestDatabase} from "../../helpers/db"
 
 vi.mock("../../../src/utils/logger", () => ({

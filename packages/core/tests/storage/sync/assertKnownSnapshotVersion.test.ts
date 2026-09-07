@@ -2,7 +2,7 @@ import {describe, expect, it} from "vitest"
 
 import {SnapshotVersionAheadError} from "@daily/protocol"
 
-import {assertKnownSnapshotVersion, KNOWN_SNAPSHOT_VERSION} from "../../../src/utils/sync/snapshot/assertKnownSnapshotVersion"
+import {assertKnownSnapshotVersion, KNOWN_SNAPSHOT_VERSION} from "@core/utils/sync/snapshot/assertKnownSnapshotVersion"
 
 describe("assertKnownSnapshotVersion", () => {
   it("throws SnapshotVersionAheadError for a snapshot from the future", () => {

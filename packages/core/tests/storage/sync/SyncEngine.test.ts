@@ -2,8 +2,8 @@ import {beforeEach, describe, expect, it, vi} from "vitest"
 
 import {RemoteWriteConflictError, SYNC_CONFIG} from "@daily/protocol"
 
-import {buildSnapshot} from "../../../src/utils/sync/snapshot/buildSnapshot"
-import {SyncEngine} from "../../../src/storage/sync/SyncEngine"
+import {SyncEngine} from "@core/storage/sync/SyncEngine"
+import {buildSnapshot} from "@core/utils/sync/snapshot/buildSnapshot"
 
 import type {
   ILocalStorage,

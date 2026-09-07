@@ -1,6 +1,6 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
-import {BranchModel} from "../../../src/storage/models/BranchModel"
+import {BranchModel} from "@core/storage/models/BranchModel"
 import {createTestDatabase} from "../../helpers/db"
 
 vi.mock("../../../src/utils/logger", () => ({

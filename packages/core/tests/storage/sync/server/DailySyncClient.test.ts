@@ -4,8 +4,8 @@ import {ProtocolErrorCode, SYNC_PROTOCOL_VERSION, SyncServerErrorCode} from "@da
 import {listDevices} from "@daily/server/devices/DeviceStore"
 import {ensureClaimCode} from "@daily/server/identity/ServerIdentityStore"
 
-import {DailySyncClient} from "../../../../src/storage/sync/server/DailySyncClient"
-import {isPrivateServerAddress, probeTransport} from "../../../../src/storage/sync/server/serverTransport"
+import {DailySyncClient} from "@core/storage/sync/server/DailySyncClient"
+import {isPrivateServerAddress, probeTransport} from "@core/storage/sync/server/serverTransport"
 import {bootHttpsSyncServer, bootSyncServer, claimFirstDevice} from "../../../helpers/syncServer"
 
 /** Flips one hex byte of a `AA:BB:...` fingerprint so the result differs from the input in exactly one byte, as TC-5 requires. */

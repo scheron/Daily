@@ -1,7 +1,7 @@
 // @ts-nocheck
 import {beforeEach, describe, expect, it} from "vitest"
 
-import {SearchEngine} from "../../../src/storage/search/SearchEngine"
+import {SearchEngine} from "@core/storage/search/SearchEngine"
 
 function makeSearchTask(overrides = {}) {
   return {

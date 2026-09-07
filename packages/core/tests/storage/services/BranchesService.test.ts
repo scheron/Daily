@@ -1,10 +1,10 @@
 // @ts-nocheck
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
-import {BranchModel} from "../../../src/storage/models/BranchModel"
-import {SettingsModel} from "../../../src/storage/models/SettingsModel"
-import {BranchesService} from "../../../src/storage/services/BranchesService"
-import {SettingsService} from "../../../src/storage/services/SettingsService"
+import {BranchModel} from "@core/storage/models/BranchModel"
+import {SettingsModel} from "@core/storage/models/SettingsModel"
+import {BranchesService} from "@core/storage/services/BranchesService"
+import {SettingsService} from "@core/storage/services/SettingsService"
 import {createTestDatabase} from "../../helpers/db"
 
 vi.mock("../../../src/utils/logger", () => ({

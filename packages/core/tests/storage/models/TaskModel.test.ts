@@ -1,9 +1,9 @@
 // @ts-nocheck
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
-import {BranchModel} from "../../../src/storage/models/BranchModel"
-import {TagModel} from "../../../src/storage/models/TagModel"
-import {TaskModel} from "../../../src/storage/models/TaskModel"
+import {BranchModel} from "@core/storage/models/BranchModel"
+import {TagModel} from "@core/storage/models/TagModel"
+import {TaskModel} from "@core/storage/models/TaskModel"
 import {createTestDatabase} from "../../helpers/db"
 
 vi.mock("../../../src/utils/logger", () => ({

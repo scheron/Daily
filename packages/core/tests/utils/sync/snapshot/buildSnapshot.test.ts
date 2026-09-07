@@ -1,7 +1,7 @@
 // @ts-nocheck
 import {describe, expect, it} from "vitest"
 
-import {buildSnapshot, buildSnapshotMeta} from "../../../../src/utils/sync/snapshot/buildSnapshot"
+import {buildSnapshot, buildSnapshotMeta} from "@core/utils/sync/snapshot/buildSnapshot"
 
 function emptyDocs() {
   return {tasks: [], tags: [], branches: [], files: [], events: [], settings: null}

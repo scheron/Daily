@@ -4,14 +4,14 @@ import {basename, dirname, join} from "node:path"
 import fs from "fs-extra"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
-import {createStorageCore} from "../../../src/storage/createStorageCore"
-import {ICloudRemoteAdapter} from "../../../src/storage/sync/adapters/ICloudRemoteAdapter"
-import {SyncEngine} from "../../../src/storage/sync/SyncEngine"
+import {createStorageCore} from "@core/storage/createStorageCore"
+import {ICloudRemoteAdapter} from "@core/storage/sync/adapters/ICloudRemoteAdapter"
+import {SyncEngine} from "@core/storage/sync/SyncEngine"
 import {createTestDatabase} from "../../helpers/db"
 
+import type {StorageCore} from "@core/storage/createStorageCore"
 import type {Task} from "@daily/protocol"
 import type Database from "better-sqlite3"
-import type {StorageCore} from "../../../src/storage/createStorageCore"
 
 vi.mock("../../../src/utils/logger", () => ({
   logger: {

@@ -1,7 +1,7 @@
 // @ts-nocheck
 import {afterEach, beforeEach, describe, expect, it} from "vitest"
 
-import {LocalStorageAdapter} from "../../../../src/storage/sync/adapters/LocalStorageAdapter"
+import {LocalStorageAdapter} from "@core/storage/sync/adapters/LocalStorageAdapter"
 import {createTestDatabase} from "../../../helpers/db"
 
 const now = "2026-03-25T12:00:00.000Z"

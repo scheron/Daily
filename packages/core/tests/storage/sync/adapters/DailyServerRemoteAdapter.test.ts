@@ -5,10 +5,10 @@ import {describe, expect, it} from "vitest"
 
 import {RemoteWriteConflictError, SnapshotVersionAheadError} from "@daily/protocol"
 
-import {KNOWN_SNAPSHOT_VERSION} from "../../../../src/utils/sync/snapshot/assertKnownSnapshotVersion"
-import {buildSnapshot} from "../../../../src/utils/sync/snapshot/buildSnapshot"
-import {DailyServerRemoteAdapter} from "../../../../src/storage/sync/adapters/DailyServerRemoteAdapter"
-import {DailySyncClient} from "../../../../src/storage/sync/server/DailySyncClient"
+import {DailyServerRemoteAdapter} from "@core/storage/sync/adapters/DailyServerRemoteAdapter"
+import {DailySyncClient} from "@core/storage/sync/server/DailySyncClient"
+import {KNOWN_SNAPSHOT_VERSION} from "@core/utils/sync/snapshot/assertKnownSnapshotVersion"
+import {buildSnapshot} from "@core/utils/sync/snapshot/buildSnapshot"
 import {bootSyncServer, claimFirstDevice, enrollSecondDevice} from "../../../helpers/syncServer"
 
 import type {IssuedCredential, ServerSyncBinding, SnapshotDocs, SnapshotFile} from "@daily/protocol"

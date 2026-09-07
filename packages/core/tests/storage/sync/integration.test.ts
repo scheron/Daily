@@ -13,11 +13,11 @@ import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
 import {SYNC_PROTOCOL_PATHS} from "@daily/protocol"
 
-import {runMigrations} from "../../../src/storage/database/scripts/migrate"
-import {DailyServerRemoteAdapter} from "../../../src/storage/sync/adapters/DailyServerRemoteAdapter"
-import {ICloudRemoteAdapter} from "../../../src/storage/sync/adapters/ICloudRemoteAdapter"
-import {LocalStorageAdapter} from "../../../src/storage/sync/adapters/LocalStorageAdapter"
-import {SyncEngine} from "../../../src/storage/sync/SyncEngine"
+import {runMigrations} from "@core/storage/database/scripts/migrate"
+import {DailyServerRemoteAdapter} from "@core/storage/sync/adapters/DailyServerRemoteAdapter"
+import {ICloudRemoteAdapter} from "@core/storage/sync/adapters/ICloudRemoteAdapter"
+import {LocalStorageAdapter} from "@core/storage/sync/adapters/LocalStorageAdapter"
+import {SyncEngine} from "@core/storage/sync/SyncEngine"
 import {bootSyncServer, claimFirstDevice, enrollSecondDevice} from "../../helpers/syncServer"
 
 vi.mock("../../../src/utils/logger", () => ({

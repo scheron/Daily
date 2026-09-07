@@ -1,7 +1,7 @@
 // @ts-nocheck
 import {describe, expect, it} from "vitest"
 
-import {mergeSettings} from "../../../../src/utils/sync/merge/mergeSettings"
+import {mergeSettings} from "@core/utils/sync/merge/mergeSettings"
 
 const now = "2026-03-25T12:00:00.000Z"
 const old = "2026-03-25T10:00:00.000Z"

@@ -1,7 +1,7 @@
 // @ts-nocheck
 import {describe, expect, it} from "vitest"
 
-import {mergeCollections} from "../../../../src/utils/sync/merge/mergeCollections"
+import {mergeCollections} from "@core/utils/sync/merge/mergeCollections"
 
 const now = new Date().toISOString()
 const old = new Date(Date.now() - 10_000).toISOString()

@@ -1,7 +1,7 @@
 // @ts-nocheck
 import {describe, expect, it} from "vitest"
 
-import {sniffImageExt} from "../../../src/utils/files/sniffImageExt"
+import {sniffImageExt} from "@core/utils/files/sniffImageExt"
 
 describe("sniffImageExt", () => {
   it("returns_TC-1_png_for_the_png_signature", () => {

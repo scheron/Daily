@@ -7,7 +7,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
 import {RemoteSnapshotPendingError} from "@daily/protocol"
 
-import {ICloudRemoteAdapter} from "../../../../src/storage/sync/adapters/ICloudRemoteAdapter"
+import {ICloudRemoteAdapter} from "@core/storage/sync/adapters/ICloudRemoteAdapter"
 
 vi.mock("../../../../src/utils/logger", () => ({
   logger: {

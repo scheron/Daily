@@ -1,11 +1,11 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
-import {BranchModel} from "../../../src/storage/models/BranchModel"
-import {TagModel} from "../../../src/storage/models/TagModel"
-import {TaskEventModel} from "../../../src/storage/models/TaskEventModel"
-import {TaskModel} from "../../../src/storage/models/TaskModel"
-import {TaskEventsService} from "../../../src/storage/services/TaskEventsService"
-import {TasksService} from "../../../src/storage/services/TasksService"
+import {BranchModel} from "@core/storage/models/BranchModel"
+import {TagModel} from "@core/storage/models/TagModel"
+import {TaskEventModel} from "@core/storage/models/TaskEventModel"
+import {TaskModel} from "@core/storage/models/TaskModel"
+import {TaskEventsService} from "@core/storage/services/TaskEventsService"
+import {TasksService} from "@core/storage/services/TasksService"
 import {createTestDatabase} from "../../helpers/db"
 
 vi.mock("../../../src/utils/logger", () => ({
@@ -195,7 +195,7 @@ describe("TasksService", () => {
     })
 
     it("returns deleted tasks filtered by branchId", async () => {
-      const branch = new (await import("../../../src/storage/models/BranchModel")).BranchModel(db)
+      const branch = new (await import("@core/storage/models/BranchModel")).BranchModel(db)
       const b = branch.createBranch({name: "Work"})
       const task = taskModel.createTask(makeTask({branchId: b.id}))
       taskModel.deleteTask(task.id)
@@ -248,7 +248,7 @@ describe("TasksService", () => {
 
   describe("moveTaskToBranch", () => {
     it("moves task to another branch", async () => {
-      const branchModel = new (await import("../../../src/storage/models/BranchModel")).BranchModel(db)
+      const branchModel = new (await import("@core/storage/models/BranchModel")).BranchModel(db)
       const branch = branchModel.createBranch({name: "Feature"})
       const task = taskModel.createTask(makeTask({branchId: "main"}))
 

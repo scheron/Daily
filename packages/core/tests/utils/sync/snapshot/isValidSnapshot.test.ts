@@ -1,7 +1,7 @@
 // @ts-nocheck
 import {describe, expect, it} from "vitest"
 
-import {isValidSnapshot} from "../../../../src/utils/sync/snapshot/isValidSnapshot"
+import {isValidSnapshot} from "@core/utils/sync/snapshot/isValidSnapshot"
 
 function validSnapshot() {
   return {

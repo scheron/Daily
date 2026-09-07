@@ -2,8 +2,8 @@
 import Database from "better-sqlite3"
 import {beforeEach, describe, expect, it} from "vitest"
 
-import {runMigrations} from "../../../src/storage/database/scripts/migrate"
-import {AISessionModel} from "../../../src/storage/models/AISessionModel"
+import {runMigrations} from "@core/storage/database/scripts/migrate"
+import {AISessionModel} from "@core/storage/models/AISessionModel"
 
 function freshDb() {
   const db = new Database(":memory:")
