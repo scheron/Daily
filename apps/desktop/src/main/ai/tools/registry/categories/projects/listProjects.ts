@@ -1,6 +1,6 @@
 import {MAIN_BRANCH_ID} from "@daily/protocol"
 
-import {formatProject} from "../../../../utils/formatters"
+import {formatProject} from "@main/ai/utils/formatters"
 
 import type {RegisteredTool} from "../../types"
 

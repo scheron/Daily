@@ -1,4 +1,4 @@
-import {formatProject} from "../../../../utils/formatters"
+import {formatProject} from "@main/ai/utils/formatters"
 
 import type {RegisteredTool} from "../../types"
 

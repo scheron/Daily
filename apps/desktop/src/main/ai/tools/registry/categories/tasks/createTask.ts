@@ -3,7 +3,7 @@ import {nanoid} from "nanoid"
 import {getPreviousTaskOrderIndex, MAIN_BRANCH_ID} from "@daily/protocol"
 import {getToday} from "@daily/std"
 
-import {formatTask} from "../../../../utils/formatters"
+import {formatTask} from "@main/ai/utils/formatters"
 
 import type {Tag, Task} from "@daily/protocol"
 import type {RegisteredTool} from "../../types"

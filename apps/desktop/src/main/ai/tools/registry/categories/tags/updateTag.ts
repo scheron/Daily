@@ -1,6 +1,6 @@
 import {notUndefined} from "@daily/std"
 
-import {formatTag} from "../../../../utils/formatters"
+import {formatTag} from "@main/ai/utils/formatters"
 
 import type {Tag} from "@daily/protocol"
 import type {RegisteredTool} from "../../types"

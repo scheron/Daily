@@ -1,6 +1,6 @@
 import {TAG_QUICK_COLORS} from "@daily/protocol"
 
-import {formatTag} from "../../../../utils/formatters"
+import {formatTag} from "@main/ai/utils/formatters"
 
 import type {RegisteredTool} from "../../types"
 
