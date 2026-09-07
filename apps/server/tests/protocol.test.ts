@@ -14,6 +14,7 @@ import {authenticateRequest} from "../src/devices/authenticateRequest"
 import {listDevices, revokeDevice} from "../src/devices/DeviceStore"
 import {createConsoleEnrollment} from "../src/enrollment/EnrollmentStore"
 import {createHttpServer} from "../src/http/createHttpServer"
+import {HEALTH_PATH} from "../src/http/routes/health"
 import {ensureClaimCode, regenerateClaimCode} from "../src/identity/ServerIdentityStore"
 import {readSnapshot as readStoredSnapshot} from "../src/snapshot/SnapshotStore"
 import {openServerStore} from "../src/store/instance"
@@ -118,6 +119,48 @@ describe("protocol http surface", () => {
 
     const stillServing = await fetch(`${booted.baseUrl}/v1/server`)
     expect(stillServing.status).toBe(200)
+  })
+})
+
+describe("health route", () => {
+  let dataDir: string
+  let booted: BootedServer
+
+  beforeEach(async () => {
+    dataDir = mkdtempSync(join(tmpdir(), "daily-server-health-"))
+    booted = await bootServer(dataDir)
+  })
+
+  afterEach(async () => {
+    await booted.close()
+    rmSync(dataDir, {recursive: true, force: true})
+  })
+
+  it("answers without credentials, outside the protocol envelope", async () => {
+    const res = await fetch(`${booted.baseUrl}${HEALTH_PATH}`)
+
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({status: "ok"})
+  })
+
+  it("says the same thing before and after the server is claimed, so it never reveals what /v1/server does", async () => {
+    const before = await (await fetch(`${booted.baseUrl}${HEALTH_PATH}`)).json()
+
+    const claimed = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.claim}`, {
+      method: "POST",
+      body: JSON.stringify({code: ensureClaimCode(booted.store), deviceName: "a-mac"}),
+    })
+    expect(claimed.status).toBe(200)
+
+    const after = await (await fetch(`${booted.baseUrl}${HEALTH_PATH}`)).json()
+
+    expect(after).toEqual(before)
+    expect(JSON.stringify(after)).not.toContain("claimed")
+    expect(JSON.stringify(after)).not.toContain("serverId")
+  })
+
+  it("is not a protocol path, so raising the protocol version cannot move it", () => {
+    expect(Object.values(SYNC_PROTOCOL_PATHS)).not.toContain(HEALTH_PATH)
   })
 })
 

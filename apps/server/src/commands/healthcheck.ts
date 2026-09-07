@@ -1,9 +1,8 @@
 import http from "node:http"
 import https from "node:https"
 
-import {SYNC_PROTOCOL_PATHS} from "@daily/protocol"
-
 import {resolveServerConfig} from "../config/resolveServerConfig"
+import {HEALTH_PATH} from "../http/routes/health"
 
 import type {Command} from "commander"
 import type {IncomingMessage} from "node:http"
@@ -17,6 +16,9 @@ const HEALTHCHECK_TIMEOUT_MS = 5_000
  * exiting non-zero when it does not. Unlike `verify`, which confirms a *public* address reaches
  * this server by identity (and needs the store to know that identity), this only confirms the
  * loopback surface responds — the store stays untouched, so this can answer while it is busy.
+ *
+ * It probes `/health` rather than a `/v1` route, so a future protocol version cannot move the
+ * container's own liveness probe, and the probe reads nothing about the server's identity.
  */
 export function registerHealthcheckCommand(program: Command): void {
   program
@@ -29,7 +31,7 @@ export function registerHealthcheckCommand(program: Command): void {
 async function runHealthcheck(opts: HealthcheckOptions): Promise<void> {
   const config = resolveServerConfig({dataDir: opts.dataDir})
   const scheme = config.transport === "self-signed" ? "https" : "http"
-  const target = `${scheme}://127.0.0.1:${config.port}${SYNC_PROTOCOL_PATHS.server}`
+  const target = `${scheme}://127.0.0.1:${config.port}${HEALTH_PATH}`
 
   await requestOnce(target, config.transport === "self-signed")
 }

@@ -98,6 +98,22 @@ These backups sit on the same disk as the data they protect. That covers a datab
 corrupted, a bad restore, a change you want to undo — not the machine going away. For that, take
 the archive `./daily.sh backup` writes and keep it somewhere else.
 
+## Monitoring
+
+```bash
+curl https://your-server/health
+{"status":"ok"}
+```
+
+`GET /health` needs no credentials and answers `{"status":"ok"}` and nothing else. It is the
+address to give an uptime monitor.
+
+It sits outside `/v1` on purpose. Monitoring is a contract with whoever watches this server, not
+with the app, so raising the protocol version never moves it. And it deliberately says nothing
+else: `GET /v1/server` would answer a monitor too, but it publishes the server's id, its name and
+whether it has been claimed — which would turn the one route guaranteed to be reachable into the
+one that tells a stranger which servers are still there for the claiming.
+
 ## Recovery
 
 ```bash
