@@ -8,7 +8,7 @@ ENV PATH=$PNPM_HOME:$PATH
 
 WORKDIR /build
 
-RUN npm install --global pnpm@10.12.1
+RUN npm install --global pnpm@10.30.1
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY apps/server/package.json ./apps/server/package.json
