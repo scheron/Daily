@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.19.0 - 2026-09-07
+
+### 💥 Breaking Changes
+
+Sync has been rebuilt around two providers — iCloud and a self-hosted Daily Sync Server — and the pieces that no longer fit have been removed.
+
+- **Sync over SSH** — the SSH remote is gone. A Mac that synced over SSH keeps its local data and reverts to no remote until iCloud or a Daily Sync Server is chosen; the stored SSH host and folder are cleared on first launch.
+- **Daily CLI** — the `daily` command-line tool and the settings row that installed it have been removed. The CLI ran as its own sync node over the SSH remote, so it went with it.
+
+### ✨ New Features
+
+- **Daily Sync Server** — a self-hosted alternative to iCloud sync. Run the server on a machine of your own with a single install command, then bind each Mac to it: the first with the six-digit claim code the server prints, the rest by approval from a Mac already connected. A self-signed certificate is pinned by fingerprint on first use, and a later certificate that does not match is refused before any credential is sent.
+- **Switching providers is a migration** — Sync settings hold one control with three positions: Off, iCloud, Self-hosted. Moving between them compares what each side holds, asks for a direction only where the two genuinely disagree, and completes only once both sides carry the merged result. A migration that fails rolls back and leaves sync running where it started.
+
+### 🔒 Security
+
+- **Sync** — hardened settings merging against a crafted key in a synced snapshot that could reach shared app internals.
+
+---
+
 ## v0.18.0 - 2026-08-15
 
 ### ✨ New Features
