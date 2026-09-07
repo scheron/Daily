@@ -1,0 +1,11 @@
+services:
+  daily-server:
+    environment:
+      DAILY_SERVER_PUBLIC_URL: https://daily.test:8443
+      NODE_EXTRA_CA_CERTS: /stand/ca.pem
+    volumes:
+      - ../certs/ca.pem:/stand/ca.pem:ro
+
+networks:
+  daily:
+    name: daily

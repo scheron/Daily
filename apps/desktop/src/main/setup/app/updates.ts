@@ -1,0 +1,23 @@
+import {updaterController} from "@main/updates/UpdaterController"
+
+import type {IStorageController} from "@daily/core"
+import type {BrowserWindow} from "electron"
+
+let isUpdateManagerInitialized = false
+
+export function setupUpdateManager(window: BrowserWindow, getStorage: () => IStorageController | null) {
+  updaterController.setStorageController(getStorage)
+  updaterController.setMainWindow(window)
+
+  window.webContents.once("did-finish-load", () => {
+    updaterController.syncState()
+  })
+
+  if (isUpdateManagerInitialized) {
+    updaterController.syncState()
+    return
+  }
+
+  isUpdateManagerInitialized = true
+  updaterController.initialize()
+}

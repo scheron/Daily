@@ -1,6 +1,16 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
 allowBuilds:
   better-sqlite3: false
   electron: true
   electron-winstaller: true
   esbuild: true
   vue-demi: true
+
+packageExtensions:
+  "@codemirror/lang-jinja":
+    dependencies:
+      "@codemirror/state": "*"
+      "@codemirror/view": "*"

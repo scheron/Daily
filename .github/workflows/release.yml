@@ -23,7 +23,7 @@ jobs:
           registry-url: "https://registry.npmjs.org"
 
       - name: Install pnpm
-        run: npm install -g pnpm@10.12.1
+        run: npm install -g pnpm@10.30.1
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -31,29 +31,18 @@ jobs:
       - name: Build app
         env:
           DEBUG: electron-builder
-        run: pnpm run build
+        run: pnpm --filter @daily/desktop build
 
       - name: Verify .dmg was produced
         shell: bash
-        run: |
-          set -euo pipefail
-          if ! ls dist/*.dmg 1>/dev/null 2>&1; then
-            echo "::error::electron-builder did not produce a .dmg"
-            echo "=== dist/ contents ==="
-            ls -la dist/ 2>&1 || echo "(dist/ does not exist)"
-            exit 1
-          fi
-          ls -lh dist/*.dmg
+        run: scripts/ci/verify-dmg.sh
 
       - name: Extract version from tag
-        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+        run: scripts/ci/extract-version.sh
 
       - name: Generate release notes from CHANGELOG.md
         shell: bash
-        run: |
-          VERSION="${GITHUB_REF#refs/tags/}"
-          echo "Using version: $VERSION"
-          node scripts/release-notes.js "$VERSION"
+        run: scripts/ci/generate-release-notes.sh
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
@@ -65,29 +54,10 @@ jobs:
           prerelease: false
           fail_on_unmatched_files: true
           files: |
-            dist/*.dmg
+            apps/desktop/dist/*.dmg
 
       - name: Trigger Homebrew tap update
         shell: bash
         env:
           TAP_REPO_TOKEN: ${{ secrets.TAP_REPO_TOKEN }}
-        run: |
-          set -euo pipefail
-          curl -fsSL \
-            -X POST \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${TAP_REPO_TOKEN}" \
-            https://api.github.com/repos/scheron/homebrew-tap/dispatches \
-            -d "{\"event_type\":\"update-cask\",\"client_payload\":{\"version\":\"${VERSION}\"}}"
-
-      - name: Build CLI npm package
-        run: pnpm run build:cli:package
-
-      - name: Smoke test CLI package
-        run: node dist-cli/index.js --help
-
-      - name: Publish daily-cli to npm
-        working-directory: dist-cli
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --access public
+        run: scripts/ci/trigger-homebrew-tap-update.sh

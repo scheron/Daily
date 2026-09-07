@@ -1,0 +1,31 @@
+import {isNumber, isString} from "@daily/std"
+
+import type {GitHubReleaseMeta} from "@main/types/updates"
+
+type GitHubLatestReleasePayload = {
+  tag_name?: string
+  assets?: Array<{
+    id?: number
+    name?: string
+    browser_download_url?: string
+    digest?: string | null
+  }>
+}
+
+export function parseGitHubReleaseMeta(payload: GitHubLatestReleasePayload): GitHubReleaseMeta | null {
+  const version = payload.tag_name?.replace(/^v/i, "").trim()
+  const asset = payload.assets?.find((item) => isString(item.name) && /-mac\.dmg$/i.test(item.name))
+  if (!version || !asset?.browser_download_url || !asset.name || !isNumber(asset.id)) return null
+
+  const hash = asset.digest?.trim() ? asset.digest.replace(/^sha256:/, "") : null
+  const releaseId = hash ? `${version}:${hash}` : `${version}:asset-${asset.id}`
+
+  return {
+    source: "github",
+    version,
+    hash,
+    releaseId,
+    assetName: asset.name,
+    assetUrl: asset.browser_download_url,
+  }
+}

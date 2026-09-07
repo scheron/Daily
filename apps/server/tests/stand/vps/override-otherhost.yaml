@@ -1,0 +1,4 @@
+services:
+  daily-server:
+    environment:
+      DAILY_SERVER_PUBLIC_URL: https://elsewhere.test

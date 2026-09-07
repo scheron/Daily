@@ -1,0 +1,154 @@
+<script lang="ts" setup>
+import {computed, nextTick, ref, watch} from "vue"
+import {useResizeObserver} from "@vueuse/core"
+
+import BaseButton from "@/ui/base/BaseButton"
+import BaseIcon from "@/ui/base/BaseIcon"
+import BasePopup from "@/ui/base/BasePopup.vue"
+import BaseTag from "@/ui/base/BaseTag"
+
+import type {Tag} from "@daily/protocol"
+
+const props = withDefaults(
+  defineProps<{
+    tags: Tag[]
+    selectable?: boolean
+    selectedTags?: Set<Tag["id"]>
+    emptyMessage?: string
+    popupHoverMode?: boolean
+    size?: "sm" | "md"
+  }>(),
+  {
+    selectedTags: () => new Set(),
+    emptyMessage: "No tags",
+    popupHoverMode: false,
+    size: "md",
+  },
+)
+
+const emit = defineEmits<{select: [name: string]}>()
+
+const containerRef = ref<HTMLElement | null>(null)
+const tagsRef = ref<HTMLElement | null>(null)
+const visibleTags = ref<Tag[]>([])
+const hiddenTags = ref<Tag[]>([])
+
+const hasSelectedInPopup = computed(() => hiddenTags.value.some((tag) => props.selectedTags.has(tag.id)))
+
+function isActiveTag(id: Tag["id"]) {
+  return props.selectedTags.has(id)
+}
+
+function onSelectTag(id: Tag["id"]) {
+  emit("select", id)
+}
+
+async function calculateVisibleTags() {
+  if (!containerRef.value || !tagsRef.value || !props.tags.length) {
+    visibleTags.value = props.tags
+    hiddenTags.value = []
+    return
+  }
+
+  await nextTick()
+
+  const containerWidth = containerRef.value.offsetWidth
+  if (containerWidth === 0) {
+    visibleTags.value = []
+    hiddenTags.value = props.tags
+    return
+  }
+
+  const tagElements = tagsRef.value.children
+  const gap = 8
+  const moreButtonWidth = 60
+
+  let currentWidth = 0
+  let visibleCount = 0
+
+  for (let i = 0; i < tagElements.length; i++) {
+    const element = tagElements[i] as HTMLElement
+    const elementWidth = element.offsetWidth
+
+    const newWidth = currentWidth + (i > 0 ? gap : 0) + elementWidth
+
+    const needsMoreButton = i < props.tags.length - 1
+    const totalWidth = newWidth + (needsMoreButton ? gap + moreButtonWidth : 0)
+
+    if (totalWidth > containerWidth) break
+
+    currentWidth = newWidth
+    visibleCount++
+  }
+
+  visibleTags.value = props.tags.slice(0, visibleCount)
+  hiddenTags.value = props.tags.slice(visibleCount)
+}
+
+watch(() => props.tags, calculateVisibleTags, {deep: true})
+useResizeObserver(containerRef, calculateVisibleTags)
+</script>
+
+<template>
+  <div ref="containerRef" class="relative flex w-full min-w-0 items-center gap-2">
+    <slot v-if="!tags.length" name="empty">
+      <span class="text-base-content/70 text-sm">
+        <BaseIcon name="tags" class="size-4" />
+        {{ emptyMessage }}
+      </span>
+    </slot>
+
+    <template v-else>
+      <div ref="tagsRef" class="pointer-events-none absolute top-0 left-0 flex items-center gap-2 opacity-0" style="">
+        <BaseTag v-for="tag in tags" :key="tag.id" :tag="tag" :active="isActiveTag(tag.id)" :selectable="selectable" :size="size" />
+      </div>
+
+      <BaseTag
+        v-for="tag in visibleTags"
+        :key="tag.id"
+        :tag="tag"
+        :active="isActiveTag(tag.id)"
+        :selectable="selectable"
+        :size="size"
+        style="-webkit-app-region: no-drag"
+        @click="onSelectTag(tag.id)"
+      />
+
+      <BasePopup
+        v-if="hiddenTags.length"
+        hide-header
+        hide-close-btn
+        :hover-mode="popupHoverMode"
+        container-class="min-w-44 p-1"
+        content-class="gap-1.5"
+      >
+        <template #trigger="{toggle, show}">
+          <BaseButton
+            variant="text"
+            size="sm"
+            class="h-7 shrink-0 flex-row-reverse rounded-full px-3 py-1.5"
+            :class="[hasSelectedInPopup ? 'bg-accent/20 border-accent text-accent' : 'opacity-70 hover:opacity-90']"
+            icon="tags"
+            icon-class="size-4"
+            style="-webkit-app-region: no-drag"
+            @mouseenter="popupHoverMode ? show() : undefined"
+            @click.stop="popupHoverMode ? show() : toggle()"
+          >
+            <span class="text-sm font-medium">+{{ hiddenTags.length }}</span>
+          </BaseButton>
+        </template>
+
+        <BaseTag
+          v-for="tag in hiddenTags"
+          :key="tag.id"
+          :tag="tag"
+          :active="isActiveTag(tag.id)"
+          :selectable="selectable"
+          :size="size"
+          class="w-full justify-start text-start"
+          @click="onSelectTag(tag.id)"
+        />
+      </BasePopup>
+    </template>
+  </div>
+</template>

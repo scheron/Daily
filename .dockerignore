@@ -1,0 +1,17 @@
+*
+
+!.npmrc
+!LICENSE
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!scripts/build-server-package.js
+!apps/server
+!packages/protocol
+!packages/std
+
+**/node_modules
+**/tests
+apps/server/out
+apps/server/dist-server
+**/.DS_Store

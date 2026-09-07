@@ -2,9 +2,9 @@ name: Deploy Website
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
     paths:
-      - 'website/**'
+      - "apps/website/**"
   workflow_dispatch:
 
 permissions:
@@ -15,33 +15,43 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: website
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22.5.0'
-          cache: 'npm'
-          cache-dependency-path: 'website/package-lock.json'
-          
+          node-version: "22.5.0"
+
+      - name: Install pnpm
+        run: npm install -g pnpm@10.30.1
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: scripts/ci/pnpm-store-path.sh
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
       - name: Install dependencies
-        run: npm i
-        
+        run: pnpm install --frozen-lockfile
+
       - name: Build website
-        run: npm run build
-        
+        run: pnpm --filter @daily/website build
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
-        
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: website/dist
-          
+          path: apps/website/dist
+
   deploy:
     needs: build
     runs-on: ubuntu-latest
@@ -51,4 +61,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4 
+        uses: actions/deploy-pages@v4
