@@ -1,6 +1,6 @@
 import type {ProtocolErrorCode} from "../errors/protocol/ProtocolErrorCode"
 
-export const SYNC_PROTOCOL_VERSION = 1
+export const SYNC_PROTOCOL_VERSION = 2
 
 export const SYNC_PROTOCOL_PATHS = {
   server: "/v1/server",
@@ -51,7 +51,7 @@ export type ConsoleEnrollResponse = IssuedCredential
 export type SnapshotReadResponse = {snapshot: unknown; revision: string | null}
 export type SnapshotWriteBody = {snapshot: unknown; expectedRevision: string | null}
 export type SnapshotWriteResponse = {revision: string}
-export type RevisionProbe = {revision: string | null; pendingEnrollment: boolean}
+export type RevisionProbe = {revision: string | null; pendingEnrollment: boolean; protocol: number}
 
 export type AssetEntry = {name: string; size: number; sha256: string; uploadedAt: string}
 export type AssetManifestResponse = {assets: AssetEntry[]}

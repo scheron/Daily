@@ -5,13 +5,21 @@ import {defineStore} from "pinia"
 import {useBaseModal} from "@/ui/base/BaseModal"
 import ApproveDeviceModal from "@/ui/views/Settings/{fragments}/SyncSettings/{fragments}/ApproveDeviceModal.vue"
 
-import type {EnrollmentPollView, EnrollmentTicketView, PendingApprovalView, ServerBindingView, ServerProbeView} from "@daily/protocol"
+import type {
+  EnrollmentPollView,
+  EnrollmentTicketView,
+  PendingApprovalView,
+  ProtocolMismatchView,
+  ServerBindingView,
+  ServerProbeView,
+} from "@daily/protocol"
 
 const APPROVE_DEVICE_MODAL_ID = "sync-server-approve-device"
 
 export const useSyncServerStore = defineStore("syncServer", () => {
   const binding = ref<ServerBindingView | null>(null)
   const revoked = ref(false)
+  const mismatch = ref<ProtocolMismatchView | null>(null)
   let isWatchingApprovals = false
 
   const {show: showApproval, hide: hideApproval} = useBaseModal(APPROVE_DEVICE_MODAL_ID)
@@ -21,6 +29,7 @@ export const useSyncServerStore = defineStore("syncServer", () => {
       const state = await window.BridgeIPC["sync-server:get-state"]()
       binding.value = state.binding
       revoked.value = state.revoked
+      mismatch.value = state.mismatch
     } catch (error) {
       console.error("Failed to load the Daily Sync Server state:", error)
     }
@@ -117,11 +126,16 @@ export const useSyncServerStore = defineStore("syncServer", () => {
     revoked.value = true
   })
 
+  window.BridgeIPC["sync-server:on-protocol-mismatch-changed"]((nextMismatch) => {
+    mismatch.value = nextMismatch
+  })
+
   invoke(loadState)
 
   return {
     binding,
     revoked,
+    mismatch,
 
     loadState,
     defaultDeviceName,

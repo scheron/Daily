@@ -6,7 +6,7 @@ import {Readable} from "node:stream"
 import {gzipSync} from "node:zlib"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
-import {SYNC_PROTOCOL_CONFIG, SYNC_PROTOCOL_PATHS} from "@daily/protocol"
+import {SYNC_PROTOCOL_CONFIG, SYNC_PROTOCOL_PATHS, SYNC_PROTOCOL_VERSION} from "@daily/protocol"
 
 import {writeAsset} from "../src/assets/AssetStore"
 import {resolveServerConfig} from "../src/config/resolveServerConfig"
@@ -95,7 +95,7 @@ describe("protocol http surface", () => {
 
     expect(json).toEqual({
       ok: true,
-      data: {protocol: 1, serverId: row.server_id, name: expect.any(String), claimed: false},
+      data: {protocol: SYNC_PROTOCOL_VERSION, serverId: row.server_id, name: expect.any(String), claimed: false},
     })
   })
 
@@ -683,19 +683,19 @@ describe("snapshot and revision http surface", () => {
     expect((await readData<SnapshotReadResponse>(plainRead)).snapshot).toEqual(doc)
   })
 
-  it("TC-13: the probe carries exactly revision and pendingEnrollment, and the revision moves only when the snapshot is written", async () => {
+  it("TC-13: the probe carries exactly revision, pendingEnrollment and protocol, and the revision moves only when the snapshot is written", async () => {
     const first = await claimFirstDevice()
 
     const beforeAnyWrite = await readData<RevisionProbe>(await readRevision(first.token))
-    expect(Object.keys(beforeAnyWrite).sort()).toEqual(["pendingEnrollment", "revision"])
-    expect(beforeAnyWrite).toEqual({revision: null, pendingEnrollment: false})
+    expect(Object.keys(beforeAnyWrite).sort()).toEqual(["pendingEnrollment", "protocol", "revision"])
+    expect(beforeAnyWrite).toEqual({revision: null, pendingEnrollment: false, protocol: SYNC_PROTOCOL_VERSION})
 
     const doc = snapshotDocument()
     const written = await writeSnapshot(first.token, doc, null)
     const {revision} = await readData<SnapshotWriteResponse>(written)
 
     const afterWrite = await readData<RevisionProbe>(await readRevision(first.token))
-    expect(Object.keys(afterWrite).sort()).toEqual(["pendingEnrollment", "revision"])
+    expect(Object.keys(afterWrite).sort()).toEqual(["pendingEnrollment", "protocol", "revision"])
     expect(afterWrite.revision).toBe(revision)
 
     const currentSnapshot = await readData<SnapshotReadResponse>(await readSnapshot(first.token))
@@ -950,4 +950,178 @@ describe("asset http surface", () => {
 
     expect(readdirSync(join(dataDir, "assets")).sort()).toEqual(before)
   })
+})
+
+describe("the revision probe reports the protocol it speaks — TC-1, TC-15", () => {
+  let dataDir: string
+  let booted: BootedServer
+
+  beforeEach(async () => {
+    dataDir = mkdtempSync(join(tmpdir(), "daily-server-protocol-revision-"))
+    booted = await bootServer(dataDir)
+  })
+
+  afterEach(async () => {
+    await booted.close()
+    rmSync(dataDir, {recursive: true, force: true})
+  })
+
+  async function claimFirstDevice(): Promise<ClaimResponse> {
+    const code = ensureClaimCode(booted.store)
+    const res = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.claim}`, {
+      method: "POST",
+      body: JSON.stringify({code, deviceName: "MacBook Air"}),
+    })
+    return ((await res.json()) as {ok: true; data: ClaimResponse}).data
+  }
+
+  it("TC-1: the answer to a revision request carries the protocol version this server was built with", async () => {
+    const first = await claimFirstDevice()
+
+    const res = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.revision}`, {headers: {authorization: `Bearer ${first.token}`}})
+    expect(res.status).toBe(200)
+
+    const probe = ((await res.json()) as {ok: true; data: RevisionProbe & {protocol?: number}}).data
+    expect(probe.protocol).toBe(SYNC_PROTOCOL_VERSION)
+  })
+
+  it("TC-15: a request that names no revision it already knows is answered immediately", async () => {
+    const first = await claimFirstDevice()
+
+    const startedAt = Date.now()
+    const res = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.revision}`, {headers: {authorization: `Bearer ${first.token}`}})
+    const elapsedMs = Date.now() - startedAt
+
+    expect(res.status).toBe(200)
+    expect(elapsedMs).toBeLessThan(1000)
+  })
+})
+
+/**
+ * The plan freezes `RevisionProbe`'s post-phase-1 shape and the 45-second hold duration
+ * ("How", phase 4), but not the wire mechanism a client uses to say "I already know this
+ * revision" — phase 4's own "Frozen for later phases" is empty. `knownRevision` as a query
+ * parameter is this suite's own choice, made so these cases have something concrete to drive
+ * the HTTP surface with; it is flagged in the test-writer's report as an assumption phase 4
+ * may need to rename this suite to match, not a decision the plan itself took.
+ */
+describe("the revision probe holds a request naming a known revision — TC-12, TC-13, TC-14, TC-16", () => {
+  let dataDir: string
+  let booted: BootedServer
+
+  beforeEach(async () => {
+    dataDir = mkdtempSync(join(tmpdir(), "daily-server-protocol-hold-"))
+    booted = await bootServer(dataDir)
+  })
+
+  afterEach(async () => {
+    await booted.close()
+    rmSync(dataDir, {recursive: true, force: true})
+  })
+
+  async function claimFirstDevice(deviceName = "MacBook Air"): Promise<ClaimResponse> {
+    const code = ensureClaimCode(booted.store)
+    const res = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.claim}`, {method: "POST", body: JSON.stringify({code, deviceName})})
+    return ((await res.json()) as {ok: true; data: ClaimResponse}).data
+  }
+
+  async function bindSecondDevice(deviceName: string): Promise<IssuedCredential> {
+    const issued = createConsoleEnrollment(booted.store)
+    const res = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollConsole}`, {
+      method: "POST",
+      body: JSON.stringify({token: issued.token, deviceName}),
+    })
+    return ((await res.json()) as {ok: true; data: IssuedCredential}).data
+  }
+
+  function readRevisionKnowing(token: string, knownRevision: string | null): Promise<Response> {
+    const query = knownRevision === null ? "" : `?knownRevision=${encodeURIComponent(knownRevision)}`
+    return fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.revision}${query}`, {headers: {authorization: `Bearer ${token}`}})
+  }
+
+  async function writeSnapshotAs(token: string, expectedRevision: string | null): Promise<string> {
+    const res = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.snapshot}`, {
+      method: "POST",
+      headers: {authorization: `Bearer ${token}`, "content-type": "application/json"},
+      body: JSON.stringify({
+        snapshot: {version: 4, meta: {updatedAt: new Date().toISOString(), hash: `hash-${Date.now()}-${Math.random()}`}, docs: {tasks: {}}},
+        expectedRevision,
+      }),
+    })
+    if (!res.ok) throw new Error(`Could not write a test snapshot: ${res.status} ${await res.text()}`)
+    return ((await res.json()) as {ok: true; data: {revision: string}}).data.revision
+  }
+
+  it("TC-12: a request naming the revision the client already knows does not come back at once", async () => {
+    const first = await claimFirstDevice()
+    const knownRevision = await writeSnapshotAs(first.token, null)
+
+    let settled = false
+    const pending = readRevisionKnowing(first.token, knownRevision).then((res) => {
+      settled = true
+      return res
+    })
+
+    await new Promise((resolve) => setTimeout(resolve, 1500))
+    expect(settled).toBe(false)
+
+    // Move the revision so the still-open request resolves and this test can close cleanly.
+    await writeSnapshotAs(first.token, knownRevision)
+    const res = await pending
+    expect(res.status).toBe(200)
+  }, 15000)
+
+  it("TC-13: a held request answers at once, carrying the new revision, when another client writes a new snapshot", async () => {
+    const first = await claimFirstDevice("MacBook Air")
+    const second = await bindSecondDevice("Mac mini")
+    const knownRevision = await writeSnapshotAs(first.token, null)
+
+    const pending = readRevisionKnowing(first.token, knownRevision)
+    await new Promise((resolve) => setTimeout(resolve, 300))
+
+    const newRevision = await writeSnapshotAs(second.token, knownRevision)
+
+    const res = await pending
+    expect(res.status).toBe(200)
+    const probe = ((await res.json()) as {ok: true; data: RevisionProbe}).data
+    expect(probe.revision).toBe(newRevision)
+    expect(probe.revision).not.toBe(knownRevision)
+  }, 15000)
+
+  it("TC-14: a held request answers at once, saying one is waiting, when an enrollment request starts waiting", async () => {
+    const first = await claimFirstDevice()
+    const knownRevision = await writeSnapshotAs(first.token, null)
+
+    const pending = readRevisionKnowing(first.token, knownRevision)
+    await new Promise((resolve) => setTimeout(resolve, 300))
+
+    await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollRequest}`, {method: "POST", body: JSON.stringify({deviceName: "Mac Studio"})})
+
+    const res = await pending
+    expect(res.status).toBe(200)
+    const probe = ((await res.json()) as {ok: true; data: RevisionProbe}).data
+    expect(probe.pendingEnrollment).toBe(true)
+  }, 15000)
+
+  it("TC-16: a hold that reaches its end with nothing changed answers as an ordinary response, not an error", async () => {
+    const first = await claimFirstDevice()
+    const knownRevision = await writeSnapshotAs(first.token, null)
+
+    // The plan's own "How" names the hold at 45 seconds; this waits it out rather than guessing shorter.
+    const startedAt = Date.now()
+    const res = await readRevisionKnowing(first.token, knownRevision)
+    const elapsedMs = Date.now() - startedAt
+
+    // Answering fast would just be "no hold happened"; TC-16 is specifically about a hold that ran to its
+    // full 45-second end. Without this, an unheld immediate answer would satisfy every assertion below too.
+    expect(elapsedMs).toBeGreaterThan(40000)
+
+    expect(res.status).toBe(200)
+    const probe = ((await res.json()) as {ok: true; data: RevisionProbe}).data
+    expect(probe.revision).toBe(knownRevision)
+
+    // The caller (a client whose hold just ended) simply asks again, exactly as it would after any answer.
+    const again = await readRevisionKnowing(first.token, knownRevision)
+    expect(again.status).toBe(200)
+  }, 120000)
 })

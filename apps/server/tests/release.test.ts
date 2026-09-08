@@ -28,7 +28,7 @@ describe("release-server.yml", () => {
 })
 
 describe("deploy/install.sh", () => {
-  it("pins the image to the current SYNC_PROTOCOL_VERSION everywhere the rolling tag appears", () => {
+  it("TC-3: pins the image to the current SYNC_PROTOCOL_VERSION everywhere the rolling tag appears", () => {
     const protocolPath = join(rootDir, "packages/protocol/src/types/syncProtocol.ts")
     expect(existsSync(protocolPath)).toBe(true)
 

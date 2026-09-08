@@ -11,4 +11,6 @@ export const SYNC_PROTOCOL_CONFIG = {
   maxSnapshotBodyBytes: 32 * 1024 * 1024,
   gzipResponseThresholdBytes: 1024,
   revisionProbeIntervalMs: 12_000,
+  protocolRecheckIntervalMs: 60_000,
+  revisionHoldMs: 45_000,
 } as const

@@ -15,6 +15,17 @@ const remoteError = ref<string | null>(null)
 
 const binding = computed(() => syncServerStore.binding)
 
+const mismatchMessage = computed(() => {
+  const mismatch = syncServerStore.mismatch
+  if (!mismatch) return null
+
+  if (mismatch.serverProtocol < mismatch.appProtocol) {
+    return `This Mac speaks sync protocol ${mismatch.appProtocol}, but the server still speaks protocol ${mismatch.serverProtocol}. Run "daily.sh upgrade" on the server to bring it up to date — edits made here stay on this Mac and go up once the two sides agree.`
+  }
+
+  return `The server has moved to sync protocol ${mismatch.serverProtocol}, but this Mac still speaks protocol ${mismatch.appProtocol}. Update Daily on this Mac to sync again — edits made here stay on this Mac and go up once the two sides agree.`
+})
+
 const dotClass = computed(() => {
   if (syncServerStore.revoked || storageStore.status === "error") return "bg-error"
   if (storageStore.status === "syncing") return "bg-accent"
@@ -72,6 +83,11 @@ onMounted(() => {
         <div v-if="binding.insecure" class="text-warning bg-warning/10 flex items-center gap-1.5 rounded-md px-2 py-1 text-xs">
           <BaseIcon name="alert-triangle" class="size-3.5 shrink-0" />
           Insecure connection — traffic is not encrypted
+        </div>
+
+        <div v-if="mismatchMessage" class="text-warning bg-warning/10 flex items-center gap-1.5 rounded-md px-2 py-1 text-xs">
+          <BaseIcon name="alert-triangle" class="size-3.5 shrink-0" />
+          {{ mismatchMessage }}
         </div>
 
         <div v-if="syncServerStore.revoked" class="text-error bg-error/10 flex items-center gap-1.5 rounded-md px-2 py-1 text-xs">

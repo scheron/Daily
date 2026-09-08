@@ -22,8 +22,15 @@ export type ServerBindingView = {
   boundAt: string
 }
 
-/** The binding this device holds and whether the server has since refused its credential. */
-export type ServerConnectionStateView = {binding: ServerBindingView | null; revoked: boolean}
+/** The two protocol versions a bound device found disagreeing, the last time it checked. */
+export type ProtocolMismatchView = {appProtocol: number; serverProtocol: number}
+
+/** The binding this device holds, whether the server has since refused its credential, and any protocol mismatch. */
+export type ServerConnectionStateView = {
+  binding: ServerBindingView | null
+  revoked: boolean
+  mismatch: ProtocolMismatchView | null
+}
 
 /** The short code this device displays while it waits for a peer to approve its enrollment. */
 export type EnrollmentTicketView = {code: string; expiresAt: string}

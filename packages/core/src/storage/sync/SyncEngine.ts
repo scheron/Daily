@@ -14,6 +14,8 @@ type RevisionedSyncOutcome = {
   conflict: RemoteWriteConflictError | null
 }
 
+const PUSH_DEBOUNCE_MS = 2_000
+
 /**
  * SyncEngine orchestrates pull/push operations between local SQLite and a set
  * of remote storages.
@@ -39,6 +41,7 @@ export class SyncEngine {
   private onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => void
   private onDataChanged: () => void
   private autoSyncScheduler: ReturnType<typeof createIntervalScheduler>
+  private pushDebounceTimer: ReturnType<typeof setTimeout> | null = null
 
   constructor(
     private localStore: ILocalStorage,
@@ -94,8 +97,25 @@ export class SyncEngine {
 
     this._isSyncEnabled = false
     this.autoSyncScheduler.stop()
+    this._cancelPendingPush()
 
     this._setStatus("inactive")
+  }
+
+  /**
+   * Requests a sync a couple of seconds after the last call, restarting the
+   * timer on each call so a burst of edits produces one sync rather than one
+   * per edit. Runs the same `sync()` the periodic scheduler runs, so the
+   * mutex, the status transitions and the failure handling are not
+   * duplicated. Meant for local mutations; a change that arrived from a
+   * remote should not call this.
+   */
+  requestPush(): void {
+    this._cancelPendingPush()
+    this.pushDebounceTimer = setTimeout(() => {
+      this.pushDebounceTimer = null
+      void this.sync()
+    }, PUSH_DEBOUNCE_MS)
   }
 
   /**
@@ -411,6 +431,12 @@ export class SyncEngine {
       lastSyncAt: prev?.lastSyncAt ?? null,
       lastError: error instanceof Error ? error.message : String(error),
     })
+  }
+
+  private _cancelPendingPush(): void {
+    if (this.pushDebounceTimer === null) return
+    clearTimeout(this.pushDebounceTimer)
+    this.pushDebounceTimer = null
   }
 
   private _setStatus(status: SyncStatus) {

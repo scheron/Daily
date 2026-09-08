@@ -1,4 +1,4 @@
-import {beforeEach, describe, expect, it, vi} from "vitest"
+import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
 import {RemoteWriteConflictError, SYNC_CONFIG} from "@daily/protocol"
 
@@ -413,6 +413,115 @@ describe("SyncEngine (multi-remote)", () => {
       expect((local.docs.settings as never as {version: string}).version).toBe("1")
       expect((local.docs.settings as never as {themes: {current: string}}).themes.current).toBe("dark")
       expect((local.docs.settings as never as {id: string}).id).toBe("settings")
+    })
+  })
+
+  /**
+   * `SyncEngine` gets a new debounced push-request method in phase 5 ("Changes": "a debounced
+   * request-to-push"); the plan does not freeze its name — phase 5's own "Frozen for later phases"
+   * is empty. `requestPush` is this suite's own name for it, taken directly from that phrase, cast
+   * onto the real engine so these cases exercise real behaviour once it exists rather than a mock —
+   * flagged in the test-writer's report as an assumption, not a decision the plan took.
+   *
+   * Until phase 5 adds it, the method does not exist at all, so every case below first asserts that
+   * it does rather than crashing on a call to nothing: each is NOT-YET-RUNNABLE for that reason.
+   */
+  function requestsAPush(engine: SyncEngine): {requestPush: () => void} {
+    const withPush = engine as unknown as Partial<{requestPush: () => void}>
+    expect(typeof withPush.requestPush, "NOT-YET-RUNNABLE until phase 5 adds a debounced push-request method to SyncEngine").toBe("function")
+    return withPush as {requestPush: () => void}
+  }
+
+  describe("the debounced push request — TC-17, TC-18, TC-19, TC-20", () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it("runs_TC-17_a_sync_two_seconds_after_the_last_request_without_waiting_for_the_periodic_timer", async () => {
+      local.docs.tasks = [makeTask("t1", "2026-07-18T10:00:00.000Z")]
+      const remote = new FakeRemote()
+      const {engine} = makeEngine(local, [{id: "a", adapter: remote}])
+      engine.enableAutoSync()
+
+      requestsAPush(engine).requestPush()
+
+      await vi.advanceTimersByTimeAsync(1000)
+      expect(remote.saveCount).toBe(0)
+
+      await vi.advanceTimersByTimeAsync(1500)
+      expect(remote.saveCount).toBe(1)
+
+      engine.disableAutoSync()
+    })
+
+    it("runs_TC-18_exactly_one_sync_for_several_requests_made_in_quick_succession", async () => {
+      local.docs.tasks = [makeTask("t1", "2026-07-18T10:00:00.000Z")]
+      const remote = new FakeRemote()
+      const {engine} = makeEngine(local, [{id: "a", adapter: remote}])
+      engine.enableAutoSync()
+      const push = requestsAPush(engine)
+
+      push.requestPush()
+      await vi.advanceTimersByTimeAsync(800)
+      push.requestPush()
+      await vi.advanceTimersByTimeAsync(800)
+      push.requestPush()
+
+      await vi.advanceTimersByTimeAsync(2500)
+
+      expect(remote.saveCount).toBe(1)
+
+      engine.disableAutoSync()
+    })
+
+    it("schedules_TC-19_no_extra_push_when_a_change_that_arrived_from_the_server_is_written_locally", async () => {
+      local.docs.tasks = [makeTask("local", "2026-07-18T10:00:00.000Z")]
+      const remote = new FakeRemote()
+      const {engine} = makeEngine(local, [{id: "a", adapter: remote}])
+      engine.enableAutoSync()
+
+      // The positive half this negative claim is measured against: a local-mutation request really
+      // does schedule a real push (TC-17 proves this on its own too; repeated here as the baseline).
+      requestsAPush(engine).requestPush()
+      await vi.advanceTimersByTimeAsync(2500)
+      const saveCountAfterTheLocalPush = remote.saveCount
+      expect(saveCountAfterTheLocalPush).toBeGreaterThan(0)
+
+      // sync() holds the mutex for its own one-second minimum-duration floor after the push
+      // completes; let it release before driving a second sync through the same engine.
+      await vi.advanceTimersByTimeAsync(1000)
+
+      // Another device now writes a change straight to the remote. A pull merges it in locally;
+      // that merge alone must not add another push.
+      remote.snapshot = buildSnapshot({
+        ...emptyDocs(),
+        tasks: [...remote.snapshot!.docs.tasks, makeTask("fromServer", "2026-07-18T11:00:00.000Z")],
+      })
+      await engine.syncOnce("pull")
+      expect(local.docs.tasks.map((t) => t.id).toSorted()).toEqual(["fromServer", "local"])
+
+      await vi.advanceTimersByTimeAsync(2500)
+      expect(remote.saveCount).toBe(saveCountAfterTheLocalPush)
+
+      engine.disableAutoSync()
+    })
+
+    it("cancels_TC-20_a_scheduled_push_the_moment_auto_sync_is_turned_off", async () => {
+      local.docs.tasks = [makeTask("t1", "2026-07-18T10:00:00.000Z")]
+      const remote = new FakeRemote()
+      const {engine} = makeEngine(local, [{id: "a", adapter: remote}])
+      engine.enableAutoSync()
+
+      requestsAPush(engine).requestPush()
+      engine.disableAutoSync()
+
+      await vi.advanceTimersByTimeAsync(3000)
+
+      expect(remote.saveCount).toBe(0)
     })
   })
 })

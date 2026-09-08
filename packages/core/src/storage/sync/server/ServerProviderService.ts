@@ -1,6 +1,6 @@
 import {hostname} from "node:os"
 
-import {ProtocolError, ProtocolErrorCode, SYNC_PROTOCOL_CONFIG, SyncServerError, SyncServerErrorCode} from "@daily/protocol"
+import {ProtocolError, ProtocolErrorCode, SYNC_PROTOCOL_CONFIG, SYNC_PROTOCOL_VERSION, SyncServerError, SyncServerErrorCode} from "@daily/protocol"
 import {createIntervalScheduler} from "@daily/std"
 
 import {logger} from "../../../utils/logger"
@@ -13,6 +13,7 @@ import type {
   EnrollmentTicketView,
   IssuedCredential,
   PendingApprovalView,
+  ProtocolMismatchView,
   RevisionProbe,
   ServerBindingView,
   ServerConnectionStateView,
@@ -33,10 +34,14 @@ type ServerProviderDeps = {
   runSyncCycle: () => Promise<void>
   /** Fires once when a peer's enrollment request starts waiting, not again while it still is. */
   onApprovalRequested: () => void
-  /** Asked to stop the two-minute auto-sync cycle when a probe tick learns this device was revoked. */
+  /** Asked to stop the two-minute auto-sync cycle when a probe tick learns this device was revoked, or that its protocol no longer matches the server's. */
   disableAutoSync?: () => void
+  /** Asked to resume the two-minute auto-sync cycle once a protocol mismatch clears. */
+  enableAutoSync?: () => void
   /** Fires once when a probe tick learns the server refused this device's credential. */
   onRevoked: () => void
+  /** Fires on the tick that first finds the app and server disagreeing on protocol, and again on the tick that first finds them agreeing again. */
+  onProtocolMismatchChanged?: (mismatch: ProtocolMismatchView | null) => void
 }
 
 type EnrollmentTicket = {requestId: string; code: string; pollToken: string; expiresAt: string}
@@ -59,9 +64,14 @@ type ConnectionAttempt = {
 export class ServerProviderService implements IServerProvider {
   private attempt: ConnectionAttempt | null = null
   private probeScheduler: Scheduler | null = null
+  private probeAbort: AbortController | null = null
+  private probeRearm: ReturnType<typeof setTimeout> | null = null
+  private probeInFlight = false
+  private probeGeneration = 0
   private lastProbedRevision: string | null | undefined = undefined
   private hadPendingEnrollment = false
   private revoked = false
+  private mismatch: ProtocolMismatchView | null = null
 
   constructor(private readonly deps: ServerProviderDeps) {}
 
@@ -70,10 +80,10 @@ export class ServerProviderService implements IServerProvider {
     return hostname().replace(/\.local$/i, "")
   }
 
-  /** The binding this device holds and whether the server has since refused its credential, in one call. */
+  /** The binding this device holds, whether the server has since refused its credential, and any protocol mismatch, in one call. */
   async getState(): Promise<ServerConnectionStateView> {
     const binding = (await this.deps.loadSettings()).sync.server.binding
-    return {binding: binding ? toBindingView(binding) : null, revoked: this.revoked}
+    return {binding: binding ? toBindingView(binding) : null, revoked: this.revoked, mismatch: this.mismatch}
   }
 
   /**
@@ -193,20 +203,33 @@ export class ServerProviderService implements IServerProvider {
    */
   startProbe(): void {
     if (this.probeScheduler) return
-
-    this.probeScheduler = createIntervalScheduler({
-      intervalMs: SYNC_PROTOCOL_CONFIG.revisionProbeIntervalMs,
-      onProcess: () => this.probeTick(),
-    })
-    this.probeScheduler.start()
+    this.startProbeScheduler(SYNC_PROTOCOL_CONFIG.revisionProbeIntervalMs)
   }
 
-  /** Stops the probe; a no-op if it is not running. */
+  /**
+   * Stops the probe; a no-op if it is not running. Cancels a held request rather than abandoning
+   * it, cancels a pending re-arm rather than letting it resurrect the loop afterward, and clears
+   * `probeInFlight` so a `startProbe()` right after this is never left waiting on a flag a tick
+   * already being torn down would otherwise still clear for itself, a moment later, on its own.
+   *
+   * `probeGeneration` is bumped every call, not just reset — it is what a tick still unwinding
+   * from before this call checks against before touching state a later `startProbe()` now owns.
+   * `probeAbort`/`clearTimeout(probeRearm)` only reach requests and timers that exist; they do
+   * nothing about a tick already past its network call and into `runSyncCycle()`, which nothing
+   * here can cancel — the generation check is what stops that tick's *return*, once it finally
+   * happens, from clobbering a tick this call had nothing to do with.
+   */
   stopProbe(): void {
     this.probeScheduler?.stop()
     this.probeScheduler = null
     this.lastProbedRevision = undefined
     this.hadPendingEnrollment = false
+    this.probeAbort?.abort()
+    this.probeAbort = null
+    if (this.probeRearm !== null) clearTimeout(this.probeRearm)
+    this.probeRearm = null
+    this.probeInFlight = false
+    this.probeGeneration++
   }
 
   private async assertCanBind(confirmInsecure: boolean): Promise<ConnectionAttempt> {
@@ -264,33 +287,119 @@ export class ServerProviderService implements IServerProvider {
     return client
   }
 
+  /**
+   * Runs one probe, and re-arms the next one immediately when this one made real progress — a
+   * moved revision, a freshly pending enrollment, or a hold that ran to its own end with nothing
+   * new — rather than waiting for the scheduler's own interval. `createIntervalScheduler` stays
+   * the only scheduler; the re-arm is one cancellable `setTimeout(…, 0)` calling this method again.
+   *
+   * `probeInFlight` keeps this method single-flight across its two entry points: the scheduler's
+   * own `perform()`, and a re-arm's direct call, which `perform()`'s serialisation does not cover.
+   * `probeGeneration`, bumped by every `stopProbe()`, is what a tick still alive after a
+   * `stopProbe()`/`startProbe()` — since nothing here can cancel `runSyncCycle()` mid-flight —
+   * checks before touching state or the flag a newer tick now owns.
+   *
+   * A still-pending enrollment, and a probe sent with no known revision (before the first exists,
+   * or while mismatched), answer at once and must not re-arm, or neither would bound how often it
+   * asks again.
+   */
   private async probeTick(): Promise<void> {
-    let probe: RevisionProbe
+    if (this.probeInFlight || !this.probeScheduler) return
+    this.probeInFlight = true
+    const generation = this.probeGeneration
 
     try {
-      probe = await (await this.boundClient()).probeRevision()
-    } catch (error) {
-      if (error instanceof ProtocolError && error.code === ProtocolErrorCode.DEVICE_REVOKED) {
-        logger.warn(logger.CONTEXT.SYNC_REMOTE, "This device's credential was revoked; stopping the revision probe and auto-sync")
-        this.revoked = true
-        this.stopProbe()
-        this.deps.disableAutoSync?.()
-        this.deps.onRevoked()
+      let probe: RevisionProbe
+
+      const knownRevision = this.mismatch ? null : this.lastProbedRevision
+      const askedToHold = knownRevision != null
+      const abort = new AbortController()
+      this.probeAbort = abort
+
+      try {
+        probe = await (await this.boundClient()).probeRevision(knownRevision, abort.signal)
+      } catch (error) {
+        if (error instanceof ProtocolError && error.code === ProtocolErrorCode.DEVICE_REVOKED) {
+          if (this.probeGeneration !== generation) return
+
+          logger.warn(logger.CONTEXT.SYNC_REMOTE, "This device's credential was revoked; stopping the revision probe and auto-sync")
+          this.revoked = true
+          this.stopProbe()
+          this.deps.disableAutoSync?.()
+          this.deps.onRevoked()
+          return
+        }
+
+        logger.debug(logger.CONTEXT.SYNC_REMOTE, "Revision probe tick failed; will retry on the next interval", error)
         return
+      } finally {
+        if (this.probeAbort === abort) this.probeAbort = null
       }
 
-      logger.debug(logger.CONTEXT.SYNC_REMOTE, "Revision probe tick failed; will retry on the next interval", error)
-      return
-    }
+      if (this.probeGeneration !== generation) return
 
-    if (this.lastProbedRevision !== undefined && probe.revision !== this.lastProbedRevision) {
-      await this.deps.runSyncCycle()
-    }
-    this.lastProbedRevision = probe.revision
+      const serverProtocol = probe.protocol ?? 1
+      if (serverProtocol !== SYNC_PROTOCOL_VERSION) {
+        this.enterMismatch(serverProtocol)
+        return
+      }
+      if (this.mismatch) this.exitMismatch()
 
-    if (probe.pendingEnrollment && !this.hadPendingEnrollment) {
-      this.deps.onApprovalRequested()
+      const stillPendingEnrollment = probe.pendingEnrollment && this.hadPendingEnrollment
+
+      const revisionMoved = this.lastProbedRevision !== undefined && probe.revision !== this.lastProbedRevision
+      if (revisionMoved) await this.deps.runSyncCycle()
+
+      if (this.probeGeneration !== generation) return
+
+      this.lastProbedRevision = probe.revision
+
+      const enrollmentNewlyPending = probe.pendingEnrollment && !this.hadPendingEnrollment
+      if (enrollmentNewlyPending) this.deps.onApprovalRequested()
+      this.hadPendingEnrollment = probe.pendingEnrollment
+
+      const shouldRearm = revisionMoved || enrollmentNewlyPending || (askedToHold && !stillPendingEnrollment)
+
+      if (shouldRearm && this.probeScheduler) {
+        this.probeRearm = setTimeout(() => {
+          this.probeRearm = null
+          void this.probeTick()
+        }, 0)
+      }
+    } finally {
+      if (this.probeGeneration === generation) this.probeInFlight = false
     }
-    this.hadPendingEnrollment = probe.pendingEnrollment
+  }
+
+  private startProbeScheduler(intervalMs: number): void {
+    this.probeScheduler = createIntervalScheduler({intervalMs, onProcess: () => this.probeTick()})
+    this.probeScheduler.start()
+  }
+
+  private switchProbeCadence(intervalMs: number): void {
+    this.probeScheduler?.stop()
+    this.startProbeScheduler(intervalMs)
+  }
+
+  /**
+   * Enters (or renews, without re-triggering side effects) the protocol mismatch this device just
+   * found on the wire. Distinct from `revoked`: this fact clears itself the moment the two sides
+   * agree again, so it gets its own field, its own dep and its own recovery — never the revoked one.
+   */
+  private enterMismatch(serverProtocol: number): void {
+    const alreadyMismatched = this.mismatch !== null
+    this.mismatch = {appProtocol: SYNC_PROTOCOL_VERSION, serverProtocol}
+    if (alreadyMismatched) return
+
+    this.switchProbeCadence(SYNC_PROTOCOL_CONFIG.protocolRecheckIntervalMs)
+    this.deps.disableAutoSync?.()
+    this.deps.onProtocolMismatchChanged?.(this.mismatch)
+  }
+
+  private exitMismatch(): void {
+    this.mismatch = null
+    this.switchProbeCadence(SYNC_PROTOCOL_CONFIG.revisionProbeIntervalMs)
+    this.deps.enableAutoSync?.()
+    this.deps.onProtocolMismatchChanged?.(null)
   }
 }

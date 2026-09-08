@@ -1,7 +1,7 @@
 import {gzipSync} from "node:zlib"
 import {fetch as undiciFetch} from "undici"
 
-import {ProtocolError, SYNC_PROTOCOL_PATHS, SyncServerError, SyncServerErrorCode} from "@daily/protocol"
+import {ProtocolError, SYNC_PROTOCOL_CONFIG, SYNC_PROTOCOL_PATHS, SyncServerError, SyncServerErrorCode} from "@daily/protocol"
 
 import {createServerDispatcher} from "./serverTransport"
 
@@ -35,12 +35,16 @@ type RequestOptions = {
   json?: unknown
   gzipJson?: unknown
   rawBody?: Buffer
+  /** Cancels the request from this side, in addition to (not instead of) `timeout`. */
+  signal?: AbortSignal
 }
 
 const TIMEOUTS = {
   probe: 8_000,
   snapshot: 30_000,
   asset: 120_000,
+  /** Outlasts the server's `revisionHoldMs` hold, so a held request never times out client-side while it waits. */
+  revisionHold: SYNC_PROTOCOL_CONFIG.revisionHoldMs + 15_000,
 } as const
 
 /**
@@ -105,8 +109,17 @@ export class DailySyncClient {
     })
   }
 
-  probeRevision(): Promise<RevisionProbe> {
-    return this.request<RevisionProbe>("GET", SYNC_PROTOCOL_PATHS.revision, {timeout: TIMEOUTS.probe, token: this.token})
+  /**
+   * Reads the server's revision. Passing the revision this device already knows asks the server to
+   * hold the answer until it moves, an enrollment starts waiting, or its hold ends — passing nothing
+   * (the default) gets an immediate answer, as any caller that is not this loop wants. `signal`
+   * cancels a held request early, e.g. when the caller stops probing altogether.
+   */
+  probeRevision(knownRevision?: string | null, signal?: AbortSignal): Promise<RevisionProbe> {
+    if (knownRevision == null) return this.request<RevisionProbe>("GET", SYNC_PROTOCOL_PATHS.revision, {timeout: TIMEOUTS.probe, token: this.token})
+
+    const path = `${SYNC_PROTOCOL_PATHS.revision}?knownRevision=${encodeURIComponent(knownRevision)}`
+    return this.request<RevisionProbe>("GET", path, {timeout: TIMEOUTS.revisionHold, token: this.token, signal})
   }
 
   async listAssets(): Promise<AssetEntry[]> {
@@ -147,12 +160,14 @@ export class DailySyncClient {
 
     if (options.token) headers.authorization = `Bearer ${options.token}`
 
+    const timeoutSignal = AbortSignal.timeout(options.timeout)
+
     try {
       return await this.fetchFn(`${this.baseUrl}${path}`, {
         method,
         headers,
         body,
-        signal: AbortSignal.timeout(options.timeout),
+        signal: options.signal ? AbortSignal.any([timeoutSignal, options.signal]) : timeoutSignal,
         dispatcher: this.dispatcher,
       } as RequestInit)
     } catch (err) {

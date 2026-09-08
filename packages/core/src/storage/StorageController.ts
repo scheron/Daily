@@ -28,6 +28,7 @@ import type {
   MigrationDirection,
   MigrationPreview,
   MoveTaskByOrderParams,
+  ProtocolMismatchView,
   Settings,
   StatsAggregate,
   StatsPeriod,
@@ -69,6 +70,7 @@ export class StorageController implements IStorageController {
   private notifySettingsChange?: () => void
   private notifyApprovalRequested?: () => void
   private notifyRevoked?: () => void
+  private notifyProtocolMismatchChanged?: (mismatch: ProtocolMismatchView | null) => void
 
   constructor(
     private db: SqliteDriver,
@@ -111,7 +113,9 @@ export class StorageController implements IStorageController {
       runSyncCycle: () => this.forceSync(),
       onApprovalRequested: () => this.notifyApprovalRequested?.(),
       disableAutoSync: () => this.syncEngine.disableAutoSync(),
+      enableAutoSync: () => this.syncEngine.enableAutoSync(),
       onRevoked: () => this.notifyRevoked?.(),
+      onProtocolMismatchChanged: (mismatch) => this.notifyProtocolMismatchChanged?.(mismatch),
     })
 
     this.providerMigration = new ProviderMigrationService({
@@ -146,12 +150,14 @@ export class StorageController implements IStorageController {
     onSettingsChange: () => void
     onApprovalRequested?: () => void
     onRevoked?: () => void
+    onProtocolMismatchChanged?: (mismatch: ProtocolMismatchView | null) => void
   }) {
     this.notifyStorageStatusChange = callbacks.onStatusChange
     this.notifyStorageDataChange = callbacks.onDataChange
     this.notifySettingsChange = callbacks.onSettingsChange
     this.notifyApprovalRequested = callbacks.onApprovalRequested
     this.notifyRevoked = callbacks.onRevoked
+    this.notifyProtocolMismatchChanged = callbacks.onProtocolMismatchChanged
   }
 
   async forceSync() {
@@ -245,7 +251,7 @@ export class StorageController implements IStorageController {
     const updatedTask = await this.tasksService.updateTask(id, updates)
     if (updatedTask) {
       await this.searchService.updateTaskInIndex(updatedTask)
-      this.notifyStorageDataChange?.()
+      this.notifyLocalChange()
     }
     return updatedTask
   }
@@ -258,7 +264,7 @@ export class StorageController implements IStorageController {
     const updatedTask = await this.tasksService.moveTaskByOrder(params)
     if (updatedTask) {
       await this.searchService.updateTaskInIndex(updatedTask)
-      this.notifyStorageDataChange?.()
+      this.notifyLocalChange()
     }
     return updatedTask
   }
@@ -276,7 +282,7 @@ export class StorageController implements IStorageController {
         await this.searchService.updateTaskInIndex(updatedTask)
       }
 
-      this.notifyStorageDataChange?.()
+      this.notifyLocalChange()
       return true
     } catch (error) {
       logger.error(logger.CONTEXT.TASKS, `Failed to move task ${taskId} to branch ${branchId}`, error)
@@ -289,7 +295,7 @@ export class StorageController implements IStorageController {
     const createdTask = await this.tasksService.createTask({...task, branchId})
     if (createdTask) {
       await this.searchService.addTaskToIndex(createdTask)
-      this.notifyStorageDataChange?.()
+      this.notifyLocalChange()
     }
     return createdTask
   }
@@ -298,7 +304,7 @@ export class StorageController implements IStorageController {
     const deleted = await this.tasksService.deleteTask(id)
     if (deleted) {
       this.searchService.removeTaskFromIndex(id)
-      this.notifyStorageDataChange?.()
+      this.notifyLocalChange()
     }
 
     return deleted
@@ -307,7 +313,7 @@ export class StorageController implements IStorageController {
   async addTaskAttachment(taskId: Task["id"], fileId: File["id"]): Promise<Task | null> {
     const addedTask = await this.tasksService.addTaskAttachment(taskId, fileId)
     if (addedTask) {
-      this.notifyStorageDataChange?.()
+      this.notifyLocalChange()
     }
     return addedTask
   }
@@ -315,7 +321,7 @@ export class StorageController implements IStorageController {
   async removeTaskAttachment(taskId: Task["id"], fileId: File["id"]): Promise<Task | null> {
     const removedTask = await this.tasksService.removeTaskAttachment(taskId, fileId)
     if (removedTask) {
-      this.notifyStorageDataChange?.()
+      this.notifyLocalChange()
     }
     return removedTask
   }
@@ -329,7 +335,7 @@ export class StorageController implements IStorageController {
     const restoredTask = await this.tasksService.restoreTask(id)
     if (restoredTask) {
       await this.searchService.updateTaskInIndex(restoredTask)
-      this.notifyStorageDataChange?.()
+      this.notifyLocalChange()
     }
     return restoredTask
   }
@@ -338,7 +344,7 @@ export class StorageController implements IStorageController {
     const deleted = await this.tasksService.permanentlyDeleteTask(id)
     if (deleted) {
       this.searchService.removeTaskFromIndex(id)
-      this.notifyStorageDataChange?.()
+      this.notifyLocalChange()
     }
     return deleted
   }
@@ -354,7 +360,7 @@ export class StorageController implements IStorageController {
       this.searchService.removeTaskFromIndex(task.id)
     }
 
-    this.notifyStorageDataChange?.()
+    this.notifyLocalChange()
     return count
   }
   //#endregion
@@ -371,7 +377,7 @@ export class StorageController implements IStorageController {
   async createBranch(branch: Omit<Branch, "id" | "createdAt" | "updatedAt" | "deletedAt">): Promise<Branch | null> {
     const createdBranch = await this.branchesService.createBranch(branch)
     if (createdBranch) {
-      this.notifyStorageDataChange?.()
+      this.notifyLocalChange()
     }
     return createdBranch
   }
@@ -379,7 +385,7 @@ export class StorageController implements IStorageController {
   async updateBranch(id: Branch["id"], updates: Pick<Branch, "name">): Promise<Branch | null> {
     const updatedBranch = await this.branchesService.updateBranch(id, updates)
     if (updatedBranch) {
-      this.notifyStorageDataChange?.()
+      this.notifyLocalChange()
     }
     return updatedBranch
   }
@@ -387,14 +393,14 @@ export class StorageController implements IStorageController {
   async deleteBranch(id: Branch["id"]): Promise<boolean> {
     const deleted = await this.branchesService.deleteBranch(id)
     if (deleted) {
-      this.notifyStorageDataChange?.()
+      this.notifyLocalChange()
     }
     return deleted
   }
 
   async setActiveBranch(id: Branch["id"]): Promise<void> {
     await this.branchesService.setActiveBranch(id)
-    this.notifyStorageDataChange?.()
+    this.notifyLocalChange()
   }
   //#endregion
 
@@ -410,7 +416,7 @@ export class StorageController implements IStorageController {
   async updateTag(id: Tag["id"], updates: Partial<Tag>): Promise<Tag | null> {
     const updatedTag = await this.tagsService.updateTag(id, updates)
     if (updatedTag) {
-      this.notifyStorageDataChange?.()
+      this.notifyLocalChange()
     }
     return updatedTag
   }
@@ -418,7 +424,7 @@ export class StorageController implements IStorageController {
   async createTag(tag: Omit<Tag, "id" | "createdAt" | "updatedAt">): Promise<Tag | null> {
     const createdTag = await this.tagsService.createTag(tag)
     if (createdTag) {
-      this.notifyStorageDataChange?.()
+      this.notifyLocalChange()
     }
     return createdTag
   }
@@ -426,7 +432,7 @@ export class StorageController implements IStorageController {
   async deleteTag(id: Tag["id"]): Promise<boolean> {
     const deleted = await this.tagsService.deleteTag(id)
     if (deleted) {
-      this.notifyStorageDataChange?.()
+      this.notifyLocalChange()
     }
     return deleted
   }
@@ -435,7 +441,7 @@ export class StorageController implements IStorageController {
     const updatedTask = await this.tasksService.addTaskTags(taskId, tagIds)
     if (updatedTask) {
       await this.searchService.updateTaskInIndex(updatedTask)
-      this.notifyStorageDataChange?.()
+      this.notifyLocalChange()
     }
     return updatedTask
   }
@@ -444,9 +450,9 @@ export class StorageController implements IStorageController {
     const updatedTask = await this.tasksService.removeTaskTags(taskId, tagIds)
     if (updatedTask) {
       await this.searchService.updateTaskInIndex(updatedTask)
-      this.notifyStorageDataChange?.()
+      this.notifyLocalChange()
     }
-    this.notifyStorageDataChange?.()
+    this.notifyLocalChange()
     return updatedTask
   }
   //#endregion
@@ -518,6 +524,11 @@ export class StorageController implements IStorageController {
     return this.aiSessionModel.getSessionTurns(active.id, limit)
   }
   //#endregion
+
+  private notifyLocalChange(): void {
+    this.notifyStorageDataChange?.()
+    this.syncEngine.requestPush()
+  }
 
   private async applyRemoteConfiguration(): Promise<void> {
     const settings = await this.loadSettings()

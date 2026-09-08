@@ -1,12 +1,13 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
-import {SYNC_PROTOCOL_CONFIG, SYNC_PROTOCOL_PATHS, SyncServerError, SyncServerErrorCode} from "@daily/protocol"
+import {SYNC_PROTOCOL_CONFIG, SYNC_PROTOCOL_PATHS, SYNC_PROTOCOL_VERSION, SyncServerError, SyncServerErrorCode} from "@daily/protocol"
 import {revokeDevice} from "@daily/server/devices/DeviceStore"
 import {ensureClaimCode, isClaimed} from "@daily/server/identity/ServerIdentityStore"
 
 import {createStorageCore} from "@core/storage/createStorageCore"
 import {getDefaultSettings} from "@core/storage/models/_rowMappers"
 import {StorageController} from "@core/storage/StorageController"
+import {DailySyncClient} from "@core/storage/sync/server/DailySyncClient"
 import {ServerProviderService} from "@core/storage/sync/server/ServerProviderService"
 import {toBindingView, toSettingsView} from "@core/utils/sync/settingsViews"
 import {assertSingleActiveProvider, buildSyncRemotes, resolveActiveProvider} from "@core/utils/sync/syncProvider"
@@ -14,7 +15,7 @@ import {isBlockedAddress} from "@core/utils/web/isBlockedAddress"
 import {createTestDatabase} from "../../../helpers/db"
 import {bootSyncServer, claimFirstDevice, enrollSecondDevice} from "../../../helpers/syncServer"
 
-import type {IssuedCredential, ServerSyncBinding, Settings, SyncSettings} from "@daily/protocol"
+import type {IssuedCredential, ProtocolMismatchView, RevisionProbe, ServerSyncBinding, Settings, SyncSettings} from "@daily/protocol"
 import type {BootedSyncServer} from "../../../helpers/syncServer"
 
 /**
@@ -502,6 +503,556 @@ describe("the revision probe", () => {
       await server.close()
     }
   })
+})
+
+describe("the protocol mismatch a probe tick can find — TC-2, TC-4 through TC-8", () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.useRealTimers()
+  })
+
+  async function settleProbeIO(rounds = 20): Promise<void> {
+    for (let i = 0; i < rounds; i++) {
+      await vi.advanceTimersByTimeAsync(0)
+    }
+  }
+
+  async function fireProbeTick(): Promise<void> {
+    await vi.advanceTimersByTimeAsync(SYNC_PROTOCOL_CONFIG.revisionProbeIntervalMs)
+    await settleProbeIO()
+  }
+
+  async function fireProtocolRecheckTick(): Promise<void> {
+    await vi.advanceTimersByTimeAsync(SYNC_PROTOCOL_CONFIG.protocolRecheckIntervalMs)
+    await settleProbeIO()
+  }
+
+  function makeMismatchService(
+    store: ReturnType<typeof makeSettingsStore>,
+    overrides: {
+      runSyncCycle?: () => Promise<void>
+      onApprovalRequested?: () => void
+      disableAutoSync?: () => void
+      enableAutoSync?: () => void
+      onProtocolMismatchChanged?: (mismatch: ProtocolMismatchView | null) => void
+    } = {},
+  ): ServerProviderService {
+    return new ServerProviderService({
+      loadSettings: store.loadSettings,
+      saveSettings: store.saveSettings,
+      onBindingChanged: async () => {},
+      runSyncCycle: overrides.runSyncCycle ?? (async () => {}),
+      onApprovalRequested: overrides.onApprovalRequested ?? (() => {}),
+      disableAutoSync: overrides.disableAutoSync ?? (() => {}),
+      enableAutoSync: overrides.enableAutoSync ?? (() => {}),
+      onRevoked: () => {},
+      onProtocolMismatchChanged: overrides.onProtocolMismatchChanged ?? (() => {}),
+    } as never)
+  }
+
+  async function bindService(overrides: Parameters<typeof makeMismatchService>[1] = {}) {
+    const server = await bootSyncServer()
+    const credential = await claimFirstDevice(server, "MacBook Air")
+    const binding = bindingFromCredential(server, credential)
+    const store = makeSettingsStore({server: {enabled: true, binding}})
+    const service = makeMismatchService(store, overrides)
+    return {server, service}
+  }
+
+  function mockProbeOnce(probe: RevisionProbe): void {
+    vi.spyOn(DailySyncClient.prototype, "probeRevision").mockResolvedValueOnce(probe)
+  }
+
+  function mockProbeFromNowOn(probe: RevisionProbe): void {
+    vi.spyOn(DailySyncClient.prototype, "probeRevision").mockResolvedValue(probe)
+  }
+
+  it("treats_TC-2_a_probe_with_no_protocol_field_exactly_as_it_would_treat_an_explicit_protocol_1", async () => {
+    const {server, service} = await bindService()
+    try {
+      mockProbeOnce({revision: null, pendingEnrollment: false} as RevisionProbe)
+      service.startProbe()
+      await fireProbeTick()
+      service.stopProbe()
+
+      const state = await service.getState()
+
+      expect(state.mismatch).toEqual({appProtocol: SYNC_PROTOCOL_VERSION, serverProtocol: 1})
+    } finally {
+      await server.close()
+    }
+  })
+
+  it("holds_TC-4_a_mismatch_naming_both_versions_once_a_tick_reads_a_different_protocol", async () => {
+    const {server, service} = await bindService()
+    try {
+      mockProbeOnce({revision: null, pendingEnrollment: false, protocol: SYNC_PROTOCOL_VERSION + 1} as RevisionProbe)
+      service.startProbe()
+      await fireProbeTick()
+      service.stopProbe()
+
+      const state = await service.getState()
+      expect(state.mismatch).toEqual({appProtocol: SYNC_PROTOCOL_VERSION, serverProtocol: SYNC_PROTOCOL_VERSION + 1})
+    } finally {
+      await server.close()
+    }
+  })
+
+  it("turns_TC-5_auto_sync_off_the_moment_the_mismatch_is_entered", async () => {
+    const disableAutoSync = vi.fn()
+    const {server, service} = await bindService({disableAutoSync})
+    try {
+      mockProbeOnce({revision: null, pendingEnrollment: false, protocol: SYNC_PROTOCOL_VERSION + 1} as RevisionProbe)
+      service.startProbe()
+      await fireProbeTick()
+      service.stopProbe()
+
+      expect(disableAutoSync).toHaveBeenCalledTimes(1)
+    } finally {
+      await server.close()
+    }
+  })
+
+  it("runs_TC-6_no_sync_cycle_and_acts_on_no_waiting_enrollment_while_a_mismatch_holds", async () => {
+    const runSyncCycle = vi.fn(async () => {})
+    const onApprovalRequested = vi.fn()
+    const {server, service} = await bindService({runSyncCycle, onApprovalRequested})
+    try {
+      mockProbeOnce({revision: null, pendingEnrollment: false, protocol: SYNC_PROTOCOL_VERSION + 1} as RevisionProbe)
+      service.startProbe()
+      await fireProbeTick()
+
+      // Further ticks, still mismatched, now also report a revision change and a waiting enrollment —
+      // the two things that would normally act — and TC-6 says neither may while the mismatch holds.
+      mockProbeFromNowOn({revision: "r1", pendingEnrollment: true, protocol: SYNC_PROTOCOL_VERSION + 1} as RevisionProbe)
+      await fireProtocolRecheckTick()
+      await fireProtocolRecheckTick()
+
+      service.stopProbe()
+
+      expect(runSyncCycle).not.toHaveBeenCalled()
+      expect(onApprovalRequested).not.toHaveBeenCalled()
+    } finally {
+      await server.close()
+    }
+  })
+
+  it("clears_TC-7_the_mismatch_and_turns_auto_sync_on_again_by_itself_once_the_server_agrees", async () => {
+    const disableAutoSync = vi.fn()
+    const enableAutoSync = vi.fn()
+    const onProtocolMismatchChanged = vi.fn()
+    const runSyncCycle = vi.fn(async () => {})
+    const {server, service} = await bindService({disableAutoSync, enableAutoSync, onProtocolMismatchChanged, runSyncCycle})
+    try {
+      const probeSpy = vi.spyOn(DailySyncClient.prototype, "probeRevision")
+
+      mockProbeOnce({revision: "r0", pendingEnrollment: false, protocol: SYNC_PROTOCOL_VERSION} as RevisionProbe)
+      service.startProbe()
+      await fireProbeTick()
+      expect(runSyncCycle).not.toHaveBeenCalled()
+
+      mockProbeOnce({revision: "r0", pendingEnrollment: false, protocol: SYNC_PROTOCOL_VERSION + 1} as RevisionProbe)
+      await fireProbeTick()
+
+      const midway = await service.getState()
+      expect(midway.mismatch).not.toBeNull()
+      expect(disableAutoSync).toHaveBeenCalledTimes(1)
+
+      mockProbeOnce({revision: "r0", pendingEnrollment: false, protocol: SYNC_PROTOCOL_VERSION + 1} as RevisionProbe)
+      await fireProtocolRecheckTick()
+
+      expect(probeSpy.mock.calls.at(-1)?.[0]).toBeNull()
+
+      mockProbeFromNowOn({revision: "r1", pendingEnrollment: false, protocol: SYNC_PROTOCOL_VERSION} as RevisionProbe)
+      await fireProtocolRecheckTick()
+      service.stopProbe()
+
+      expect(probeSpy.mock.calls.at(-1)?.[0]).toBeNull()
+
+      const after = await service.getState()
+      expect(after.mismatch).toBeNull()
+      expect(enableAutoSync).toHaveBeenCalledTimes(1)
+      expect(onProtocolMismatchChanged).toHaveBeenCalledWith(null)
+      expect(runSyncCycle).toHaveBeenCalledTimes(1)
+    } finally {
+      await server.close()
+    }
+  })
+
+  it("leaves_TC-8_a_matching_device_free_of_any_mismatch_across_every_tick", async () => {
+    const runSyncCycle = vi.fn(async () => {})
+    const {server, service} = await bindService({runSyncCycle})
+    try {
+      mockProbeFromNowOn({revision: null, pendingEnrollment: false, protocol: SYNC_PROTOCOL_VERSION} as RevisionProbe)
+      service.startProbe()
+      await fireProbeTick()
+      await fireProbeTick()
+      service.stopProbe()
+
+      const state = await service.getState()
+      expect(state.mismatch).toBeNull()
+      expect(runSyncCycle).not.toHaveBeenCalled()
+    } finally {
+      await server.close()
+    }
+  })
+})
+
+/**
+ * `DailySyncClient.prototype.probeRevision` is mocked directly here, exactly as the mismatch
+ * block above does — no real hold is ever asked for, so nothing here depends on real elapsed time
+ * or on the server's own `holdForRevisionChange`. That keeps these cases deterministic and fast,
+ * and it is what makes it safe to assert on a re-arm firing without waiting out a real hold.
+ */
+describe("the re-arm after a successful probe", () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.useRealTimers()
+  })
+
+  async function settleProbeIO(rounds = 20): Promise<void> {
+    for (let i = 0; i < rounds; i++) {
+      await vi.advanceTimersByTimeAsync(0)
+    }
+  }
+
+  async function fireProbeTick(): Promise<void> {
+    await vi.advanceTimersByTimeAsync(SYNC_PROTOCOL_CONFIG.revisionProbeIntervalMs)
+    await settleProbeIO()
+  }
+
+  function makeRearmService(
+    store: ReturnType<typeof makeSettingsStore>,
+    overrides: {runSyncCycle?: () => Promise<void>; onApprovalRequested?: () => void; disableAutoSync?: () => void} = {},
+  ): ServerProviderService {
+    return new ServerProviderService({
+      loadSettings: store.loadSettings,
+      saveSettings: store.saveSettings,
+      onBindingChanged: async () => {},
+      runSyncCycle: overrides.runSyncCycle ?? (async () => {}),
+      onApprovalRequested: overrides.onApprovalRequested ?? (() => {}),
+      disableAutoSync: overrides.disableAutoSync ?? (() => {}),
+      onRevoked: () => {},
+    } as never)
+  }
+
+  async function bindRearmService(overrides: Parameters<typeof makeRearmService>[1] = {}) {
+    const server = await bootSyncServer()
+    const credential = await claimFirstDevice(server, "MacBook Air")
+    const binding = bindingFromCredential(server, credential)
+    const store = makeSettingsStore({server: {enabled: true, binding}})
+    const service = makeRearmService(store, overrides)
+    return {server, service, store, binding}
+  }
+
+  function probe(revision: string, protocol = SYNC_PROTOCOL_VERSION, pendingEnrollment = false): RevisionProbe {
+    return {revision, pendingEnrollment, protocol} as RevisionProbe
+  }
+
+  it("catches a second revision move within one interval window instead of waiting for the next", async () => {
+    const runSyncCycle = vi.fn(async () => {})
+    const {server, service} = await bindRearmService({runSyncCycle})
+    try {
+      const probeSpy = vi.spyOn(DailySyncClient.prototype, "probeRevision")
+      probeSpy.mockResolvedValueOnce(probe("r0"))
+      probeSpy.mockResolvedValueOnce(probe("r1"))
+      probeSpy.mockResolvedValueOnce(probe("r2"))
+      probeSpy.mockResolvedValue(probe("r2"))
+
+      service.startProbe()
+      await fireProbeTick()
+      expect(runSyncCycle).not.toHaveBeenCalled()
+
+      // The scheduler's second fire reaches "r1" — the move that ends that hold — and the re-arm
+      // this phase adds is what reaches "r2" too, without a third twelve-second wait: a
+      // millisecond-scale advance, not another interval.
+      await fireProbeTick()
+      await vi.advanceTimersByTimeAsync(1)
+      await settleProbeIO()
+      service.stopProbe()
+
+      expect(runSyncCycle).toHaveBeenCalledTimes(2)
+    } finally {
+      await server.close()
+    }
+  })
+
+  it("ends the loop on stopProbe rather than letting an already-scheduled re-arm fire", async () => {
+    const runSyncCycle = vi.fn(async () => {})
+    const {server, service} = await bindRearmService({runSyncCycle})
+    try {
+      const probeSpy = vi.spyOn(DailySyncClient.prototype, "probeRevision")
+      probeSpy.mockResolvedValueOnce(probe("r0"))
+      probeSpy.mockResolvedValueOnce(probe("r1"))
+      // A safety net, not the case under test: if the re-arm this test means to cancel fired anyway,
+      // it would find "r1" unchanged and stop there rather than reaching for a real, unmocked call.
+      probeSpy.mockResolvedValue(probe("r1"))
+
+      service.startProbe()
+      await fireProbeTick()
+      expect(runSyncCycle).not.toHaveBeenCalled()
+
+      // The scheduler's second fire is the move that ends that hold and schedules a re-arm.
+      await fireProbeTick()
+      expect(runSyncCycle).toHaveBeenCalledTimes(1)
+
+      const callsBeforeStop = probeSpy.mock.calls.length
+      service.stopProbe()
+
+      // Twice the ordinary interval — ample room for a re-arm to have fired had it survived.
+      await fireProbeTick()
+      await fireProbeTick()
+
+      expect(probeSpy.mock.calls.length).toBe(callsBeforeStop)
+      expect(runSyncCycle).toHaveBeenCalledTimes(1)
+    } finally {
+      await server.close()
+    }
+  })
+
+  it("does not re-arm when a re-armed probe itself finds a protocol mismatch", async () => {
+    const runSyncCycle = vi.fn(async () => {})
+    const disableAutoSync = vi.fn()
+    const {server, service} = await bindRearmService({runSyncCycle, disableAutoSync})
+    try {
+      const probeSpy = vi.spyOn(DailySyncClient.prototype, "probeRevision")
+      probeSpy.mockResolvedValueOnce(probe("r0"))
+      probeSpy.mockResolvedValueOnce(probe("r1"))
+      probeSpy.mockResolvedValueOnce(probe("r1", SYNC_PROTOCOL_VERSION + 1))
+      probeSpy.mockResolvedValue(probe("r1", SYNC_PROTOCOL_VERSION + 1))
+
+      service.startProbe()
+      await fireProbeTick()
+      expect(runSyncCycle).not.toHaveBeenCalled()
+
+      // The scheduler's second fire moves to "r1" and schedules a re-arm; that re-armed probe is
+      // the one that finds the mismatch — the scenario the plan means by "a re-arm must not outlive
+      // a switch into mismatch". A millisecond-scale advance, not another interval, is what lets it
+      // resolve here.
+      await fireProbeTick()
+      await vi.advanceTimersByTimeAsync(1)
+      await settleProbeIO()
+
+      expect(runSyncCycle).toHaveBeenCalledTimes(1)
+      expect(disableAutoSync).toHaveBeenCalledTimes(1)
+      const state = await service.getState()
+      expect(state.mismatch).toEqual({appProtocol: SYNC_PROTOCOL_VERSION, serverProtocol: SYNC_PROTOCOL_VERSION + 1})
+
+      const callsAfterMismatch = probeSpy.mock.calls.length
+      // Still well under the sixty-second mismatch cadence phase 2 switched to — nothing further is
+      // due yet, whether from a stray re-arm or from that recheck itself.
+      await fireProbeTick()
+      expect(probeSpy.mock.calls.length).toBe(callsAfterMismatch)
+
+      service.stopProbe()
+    } finally {
+      await server.close()
+    }
+  })
+
+  it("re-arms after a hold that expired with nothing new to report, not just after one that moved", async () => {
+    const runSyncCycle = vi.fn(async () => {})
+    const {server, service} = await bindRearmService({runSyncCycle})
+    try {
+      const probeSpy = vi.spyOn(DailySyncClient.prototype, "probeRevision")
+      probeSpy.mockResolvedValueOnce(probe("r0"))
+      // The second probe reports the same revision and no pending enrollment — the shape of a hold
+      // that ran to its own end with nothing changed, not a move and not a fresh enrollment.
+      probeSpy.mockResolvedValueOnce(probe("r0"))
+      probeSpy.mockResolvedValueOnce(probe("r1"))
+      probeSpy.mockResolvedValue(probe("r1"))
+
+      service.startProbe()
+      await fireProbeTick()
+      expect(runSyncCycle).not.toHaveBeenCalled()
+
+      // The scheduler's second fire finds "r0" unchanged — an expired hold, nothing new — and still
+      // re-arms: the re-armed probe, within this same call, is what reaches "r1" and runs the sync
+      // cycle, without a third twelve-second wait.
+      await fireProbeTick()
+      await vi.advanceTimersByTimeAsync(1)
+      await settleProbeIO()
+      service.stopProbe()
+
+      expect(runSyncCycle).toHaveBeenCalledTimes(1)
+    } finally {
+      await server.close()
+    }
+  })
+
+  it("does not keep re-arming while an enrollment stays pending across ticks", async () => {
+    const onApprovalRequested = vi.fn()
+    const {server, service} = await bindRearmService({onApprovalRequested})
+    try {
+      const probeSpy = vi.spyOn(DailySyncClient.prototype, "probeRevision")
+      probeSpy.mockResolvedValueOnce(probe("r0"))
+      // Newly pending: re-arms once, and this is the only call `onApprovalRequested` should see.
+      probeSpy.mockResolvedValueOnce(probe("r0", SYNC_PROTOCOL_VERSION, true))
+      // Still pending on the re-armed probe: this is the case that must not re-arm again.
+      probeSpy.mockResolvedValue(probe("r0", SYNC_PROTOCOL_VERSION, true))
+
+      service.startProbe()
+      await fireProbeTick()
+
+      // The scheduler's second fire finds the enrollment newly pending and re-arms once; the
+      // re-armed probe, within this same call, finds it still pending and must not re-arm again.
+      await fireProbeTick()
+      await vi.advanceTimersByTimeAsync(1)
+      await settleProbeIO()
+
+      expect(onApprovalRequested).toHaveBeenCalledTimes(1)
+      const callsAfterSettling = probeSpy.mock.calls.length
+
+      // Ordinary interval cadence from here — no further call is due until the scheduler's own next
+      // fire, confirming the loop fell back rather than continuing to re-arm on its own.
+      await settleProbeIO()
+      expect(probeSpy.mock.calls.length).toBe(callsAfterSettling)
+
+      service.stopProbe()
+    } finally {
+      await server.close()
+    }
+  })
+
+  it("does not let the scheduler start a second concurrent probe while a re-armed one is still holding", async () => {
+    const runSyncCycle = vi.fn(async () => {})
+    const {server, service} = await bindRearmService({runSyncCycle})
+    try {
+      const probeSpy = vi.spyOn(DailySyncClient.prototype, "probeRevision")
+      let inFlight = 0
+      let peakInFlight = 0
+      let releaseHeldCall: (() => void) | null = null
+
+      probeSpy.mockResolvedValueOnce(probe("r0"))
+      probeSpy.mockResolvedValueOnce(probe("r1"))
+      // The re-armed probe this schedules is held open on purpose — the exact shape of a real
+      // 45-second hold from the caller's side — released explicitly once the scheduler's own next
+      // boundary has had its chance to race it.
+      probeSpy.mockImplementationOnce(async () => {
+        inFlight++
+        peakInFlight = Math.max(peakInFlight, inFlight)
+        await new Promise<void>((resolve) => {
+          releaseHeldCall = resolve
+        })
+        inFlight--
+        return probe("r1")
+      })
+      probeSpy.mockResolvedValue(probe("r1"))
+
+      service.startProbe()
+      await fireProbeTick()
+      expect(runSyncCycle).not.toHaveBeenCalled()
+
+      // The scheduler's second fire moves to "r1" and schedules a re-arm; that re-armed probe,
+      // within this same call, is the one now held open above.
+      await fireProbeTick()
+      await vi.advanceTimersByTimeAsync(1)
+      await settleProbeIO()
+      expect(runSyncCycle).toHaveBeenCalledTimes(1)
+      expect(probeSpy.mock.calls.length).toBe(3)
+
+      // The scheduler's own next boundary, a full interval later, with the re-armed hold from the
+      // third call still open. Before this round's fix, `isSyncing` had already gone false the
+      // moment that third call was scheduled, so this is exactly where a second, concurrent probe
+      // would have started.
+      await fireProbeTick()
+
+      expect(probeSpy.mock.calls.length).toBe(3)
+      expect(peakInFlight).toBe(1)
+
+      releaseHeldCall?.()
+      await settleProbeIO()
+      service.stopProbe()
+    } finally {
+      await server.close()
+    }
+  }, 20000)
+
+  it("does not let a tick still unwinding after disconnect clobber a tick a later reconnect started", async () => {
+    let releaseStaleSyncCycle: (() => void) | null = null
+    const runSyncCycle = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          releaseStaleSyncCycle = resolve
+        }),
+    )
+    const {server, service, store, binding} = await bindRearmService({runSyncCycle})
+    try {
+      const probeSpy = vi.spyOn(DailySyncClient.prototype, "probeRevision")
+      let inFlight = 0
+      let peakInFlight = 0
+      let releaseReconnectedHold: (() => void) | null = null
+
+      probeSpy.mockResolvedValueOnce(probe("r0"))
+      // The move that sends this tick into `runSyncCycle()` — held open above, standing in for
+      // work nothing here can cancel, exactly like a real sync cycle already running.
+      probeSpy.mockResolvedValueOnce(probe("r1"))
+
+      service.startProbe()
+      await fireProbeTick()
+      expect(runSyncCycle).not.toHaveBeenCalled()
+
+      // The scheduler's second fire moves to "r1" and calls `runSyncCycle()`, which this test holds
+      // open rather than letting resolve — this tick is now stuck exactly where the coordinator's
+      // sequence puts it: past its network call, inside the one await nothing can cancel.
+      await fireProbeTick()
+      expect(runSyncCycle).toHaveBeenCalledTimes(1)
+      expect(probeSpy.mock.calls.length).toBe(2)
+
+      // Disconnect while that tick is still stuck — its own `stopProbe()` cannot touch a running
+      // sync cycle — and reconnect immediately after, exactly the coordinator's steps 2 and 3.
+      // `disconnect()` clears the binding as a real one would; restoring it through the same
+      // settings store a real re-bind writes through is what lets the reconnected probe run at
+      // all, without reaching into the service's own privates to do it.
+      await service.disconnect()
+      await store.saveSettings({sync: {...store.snapshot().sync, server: {enabled: true, binding}}})
+      probeSpy.mockImplementationOnce(async () => {
+        inFlight++
+        peakInFlight = Math.max(peakInFlight, inFlight)
+        await new Promise<void>((resolve) => {
+          releaseReconnectedHold = resolve
+        })
+        inFlight--
+        return probe("r0")
+      })
+      probeSpy.mockResolvedValue(probe("r0"))
+      service.startProbe()
+
+      // The reconnected scheduler's own first fire opens a hold of its own — held open above,
+      // exactly the coordinator's step 4.
+      await fireProbeTick()
+      expect(probeSpy.mock.calls.length).toBe(3)
+
+      // Now let the stale tick from before the disconnect finish — the coordinator's step 5. Before
+      // this round's fix, its `finally` cleared the in-flight flag the reconnected tick owns.
+      releaseStaleSyncCycle?.()
+      await settleProbeIO()
+
+      // The reconnected scheduler's own next boundary, a full interval later, with its own hold
+      // from above still open. If the stale tick's finish had cleared a flag it no longer owned,
+      // this is exactly where a second, concurrent probe would start.
+      await fireProbeTick()
+
+      expect(probeSpy.mock.calls.length).toBe(3)
+      expect(peakInFlight).toBe(1)
+      // The stale tick returned without writing anything — its own revision report never lands.
+      expect(runSyncCycle).toHaveBeenCalledTimes(1)
+
+      releaseReconnectedHold?.()
+      await settleProbeIO()
+      service.stopProbe()
+    } finally {
+      await server.close()
+    }
+  }, 20000)
 })
 
 describe("narrowing a server binding for the renderer", () => {

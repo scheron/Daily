@@ -11,6 +11,7 @@ import type {
   MigrationPreview,
   MoveTaskByOrderParams,
   PendingApprovalView,
+  ProtocolMismatchView,
   ServerBindingView,
   ServerConnectionStateView,
   ServerProbeView,
@@ -77,6 +78,7 @@ export interface BridgeIPC {
   "sync-server:deny": (requestId: string) => Promise<void>
   "sync-server:on-approval-requested": (callback: () => void) => void
   "sync-server:on-revoked": (callback: () => void) => void
+  "sync-server:on-protocol-mismatch-changed": (callback: (mismatch: ProtocolMismatchView | null) => void) => void
 
   // === SYNC PROVIDER ===
   "sync-provider:preview": (target: Exclude<SyncProvider, "off">) => Promise<MigrationPreview>

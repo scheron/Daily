@@ -29,5 +29,8 @@ export function setupStorageSync(getStorage: () => StorageController | null, get
     onRevoked: () => {
       broadcastToWindows(getWindows, "sync-server:revoked")
     },
+    onProtocolMismatchChanged: (mismatch) => {
+      broadcastToWindows(getWindows, "sync-server:protocol-mismatch-changed", mismatch)
+    },
   })
 }

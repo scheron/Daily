@@ -8,6 +8,8 @@ import {DailySyncClient} from "@core/storage/sync/server/DailySyncClient"
 import {isPrivateServerAddress, probeTransport} from "@core/storage/sync/server/serverTransport"
 import {bootHttpsSyncServer, bootSyncServer, claimFirstDevice} from "../../../helpers/syncServer"
 
+import type {RevisionProbe} from "@daily/protocol"
+
 /** Flips one hex byte of a `AA:BB:...` fingerprint so the result differs from the input in exactly one byte, as TC-5 requires. */
 function corruptFingerprint(fingerprint: string): string {
   const parts = fingerprint.split(":")
@@ -167,3 +169,76 @@ describe("peer enrollment through the client", () => {
 function readClaimAttempts(server: Awaited<ReturnType<typeof bootHttpsSyncServer>>): number {
   return (server.store.db.prepare("SELECT claim_attempts FROM server_identity WHERE id = 1").get() as {claim_attempts: number}).claim_attempts
 }
+
+/**
+ * `probeRevision()` takes no argument today; phase 4 gives it one (the revision this device
+ * already knows) but the plan does not freeze that parameter's name or type ("Frozen for later
+ * phases" is empty for phase 4). This local type is the test-writer's own guess at the eventual
+ * shape, cast onto the real client so these cases drive a real HTTP round trip rather than a
+ * mock — flagged in the report as an assumption, not a decision the plan took.
+ */
+type ProbesAKnownRevision = {probeRevision: (known?: string | null) => Promise<RevisionProbe>}
+
+function snapshotDocument(hash: string): Record<string, unknown> {
+  return {version: 4, meta: {updatedAt: new Date().toISOString(), hash}, docs: {tasks: {}}}
+}
+
+describe("probeRevision holds for a known revision and answers ordinarily once the hold ends", () => {
+  it("waits_TC-12_for_the_revision_the_client_already_knows_and_settles_the_moment_it_moves", async () => {
+    const server = await bootSyncServer()
+
+    try {
+      const first = await claimFirstDevice(server, "MacBook Air")
+      const client = new DailySyncClient({baseUrl: server.baseUrl, token: first.token, fingerprint: null}) as unknown as DailySyncClient &
+        ProbesAKnownRevision
+
+      await client.writeSnapshot(snapshotDocument("hash-a"), null)
+      const knownRevision = (await client.probeRevision(null)).revision
+      if (!knownRevision) throw new Error("expected a revision after the first write")
+
+      let settled = false
+      const held = client.probeRevision(knownRevision).then((probe) => {
+        settled = true
+        return probe
+      })
+
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+      expect(settled).toBe(false)
+
+      const newRevision = (await client.writeSnapshot(snapshotDocument("hash-b"), knownRevision)).revision
+
+      const probe = await held
+      expect(probe.revision).toBe(newRevision)
+    } finally {
+      await server.close()
+    }
+  }, 20000)
+
+  it("loops_TC-16_on_an_expired_hold_by_asking_again_without_the_wait_ever_becoming_an_error", async () => {
+    const server = await bootSyncServer()
+
+    try {
+      const first = await claimFirstDevice(server, "MacBook Air")
+      const client = new DailySyncClient({baseUrl: server.baseUrl, token: first.token, fingerprint: null}) as unknown as DailySyncClient &
+        ProbesAKnownRevision
+
+      await client.writeSnapshot(snapshotDocument("hash-a"), null)
+      const known = (await client.probeRevision(null)).revision
+      if (!known) throw new Error("expected a revision after the write")
+
+      // The plan's own "How" names the hold at 45 seconds; this waits it out rather than guessing shorter.
+      const startedAt = Date.now()
+      const firstAnswer = await client.probeRevision(known)
+      const elapsedMs = Date.now() - startedAt
+
+      expect(elapsedMs).toBeGreaterThan(40000)
+      expect(firstAnswer.revision).toBe(known)
+
+      // An ended hold is treated as an ordinary answer: the very next call succeeds too, not a rejection.
+      const secondAnswer = await client.probeRevision(known)
+      expect(secondAnswer.revision).toBe(known)
+    } finally {
+      await server.close()
+    }
+  }, 120000)
+})
