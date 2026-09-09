@@ -17,6 +17,8 @@ const {createInstallerScript} = await import("../../../src/main/updates/utils/cr
 
 const BUNDLE_FILLER_COUNT = 40
 
+const INSTALLER_TEST_TIMEOUT_MS = 30_000
+
 const isMac = process.platform === "darwin"
 
 describe.skipIf(!isMac)("createInstallerScript", () => {
@@ -53,62 +55,78 @@ describe.skipIf(!isMac)("createInstallerScript", () => {
     rmSync(root, {recursive: true, force: true})
   })
 
-  it("installs the new bundle and clears both the current and the legacy backup", async () => {
-    const legacyBackup = `${appBundlePath}.codex-update-backup`
-    writeBundle(legacyBackup, "0.19.0")
+  it(
+    "installs the new bundle and clears both the current and the legacy backup",
+    async () => {
+      const legacyBackup = `${appBundlePath}.codex-update-backup`
+      writeBundle(legacyBackup, "0.19.0")
 
-    const result = runInstaller(await script(dmgPath), stubBin)
+      const result = runInstaller(await script(dmgPath), stubBin)
 
-    expect(result.status).toBe(0)
-    expect(bundleVersion(appBundlePath)).toBe("0.21.0")
-    expect(bundleFileCount(appBundlePath)).toBe(BUNDLE_FILLER_COUNT)
-    expect(existsSync(`${appBundlePath}.daily-update-backup`)).toBe(false)
-    expect(existsSync(`${appBundlePath}.daily-update-staging`)).toBe(false)
-    expect(existsSync(legacyBackup)).toBe(false)
-    expect(existsSync(path.join(userDataDir, "updates", "install-result.json"))).toBe(true)
-    expect(readFileSync(openLog, "utf8").trim()).toBe(appBundlePath)
-  })
+      expect(result.status).toBe(0)
+      expect(bundleVersion(appBundlePath)).toBe("0.21.0")
+      expect(bundleFileCount(appBundlePath)).toBe(BUNDLE_FILLER_COUNT)
+      expect(existsSync(`${appBundlePath}.daily-update-backup`)).toBe(false)
+      expect(existsSync(`${appBundlePath}.daily-update-staging`)).toBe(false)
+      expect(existsSync(legacyBackup)).toBe(false)
+      expect(existsSync(path.join(userDataDir, "updates", "install-result.json"))).toBe(true)
+      expect(readFileSync(openLog, "utf8").trim()).toBe(appBundlePath)
+    },
+    INSTALLER_TEST_TIMEOUT_MS,
+  )
 
-  it("rolls back when the copy finishes short of the whole bundle", async () => {
-    const legacyBackup = `${appBundlePath}.codex-update-backup`
-    writeBundle(legacyBackup, "0.19.0")
-    writePartialCopyStubs(stubBin)
+  it(
+    "rolls back when the copy finishes short of the whole bundle",
+    async () => {
+      const legacyBackup = `${appBundlePath}.codex-update-backup`
+      writeBundle(legacyBackup, "0.19.0")
+      writePartialCopyStubs(stubBin)
 
-    const result = runInstaller(await script(dmgPath), stubBin)
+      const result = runInstaller(await script(dmgPath), stubBin)
 
-    expect(result.status).not.toBe(0)
-    expect(bundleVersion(appBundlePath)).toBe("0.20.0")
-    expect(bundleFileCount(appBundlePath)).toBe(BUNDLE_FILLER_COUNT)
-    expect(existsSync(`${appBundlePath}.daily-update-staging`)).toBe(false)
-    expect(existsSync(path.join(userDataDir, "updates", "install-result.json"))).toBe(false)
-    expect(existsSync(legacyBackup)).toBe(true)
-    expect(readFileSync(openLog, "utf8").trim()).toBe(appBundlePath)
-  })
+      expect(result.status).not.toBe(0)
+      expect(bundleVersion(appBundlePath)).toBe("0.20.0")
+      expect(bundleFileCount(appBundlePath)).toBe(BUNDLE_FILLER_COUNT)
+      expect(existsSync(`${appBundlePath}.daily-update-staging`)).toBe(false)
+      expect(existsSync(path.join(userDataDir, "updates", "install-result.json"))).toBe(false)
+      expect(existsSync(legacyBackup)).toBe(true)
+      expect(readFileSync(openLog, "utf8").trim()).toBe(appBundlePath)
+    },
+    INSTALLER_TEST_TIMEOUT_MS,
+  )
 
-  it("rolls back when the copy is killed partway", async () => {
-    writePartialCopyStubs(stubBin, "kill -9 $$\n")
+  it(
+    "rolls back when the copy is killed partway",
+    async () => {
+      writePartialCopyStubs(stubBin, "kill -9 $$\n")
 
-    const result = runInstaller(await script(dmgPath), stubBin)
+      const result = runInstaller(await script(dmgPath), stubBin)
 
-    expect(result.status).not.toBe(0)
-    expect(bundleVersion(appBundlePath)).toBe("0.20.0")
-    expect(bundleFileCount(appBundlePath)).toBe(BUNDLE_FILLER_COUNT)
-    expect(existsSync(`${appBundlePath}.daily-update-staging`)).toBe(false)
-    expect(existsSync(path.join(userDataDir, "updates", "install-result.json"))).toBe(false)
-    expect(readFileSync(openLog, "utf8").trim()).toBe(appBundlePath)
-  })
+      expect(result.status).not.toBe(0)
+      expect(bundleVersion(appBundlePath)).toBe("0.20.0")
+      expect(bundleFileCount(appBundlePath)).toBe(BUNDLE_FILLER_COUNT)
+      expect(existsSync(`${appBundlePath}.daily-update-staging`)).toBe(false)
+      expect(existsSync(path.join(userDataDir, "updates", "install-result.json"))).toBe(false)
+      expect(readFileSync(openLog, "utf8").trim()).toBe(appBundlePath)
+    },
+    INSTALLER_TEST_TIMEOUT_MS,
+  )
 
-  it("keeps the backup and launches nothing when no bundle survives", async () => {
-    writeStub(path.join(stubBin, "mv"), `if [ "$2" = "${appBundlePath}" ]; then exit 1; fi\n/bin/mv "$@"\n`)
+  it(
+    "keeps the backup and launches nothing when no bundle survives",
+    async () => {
+      writeStub(path.join(stubBin, "mv"), `if [ "$2" = "${appBundlePath}" ]; then exit 1; fi\n/bin/mv "$@"\n`)
 
-    const result = runInstaller(await script(dmgPath), stubBin)
+      const result = runInstaller(await script(dmgPath), stubBin)
 
-    expect(result.status).not.toBe(0)
-    expect(existsSync(appBundlePath)).toBe(false)
-    expect(bundleVersion(`${appBundlePath}.daily-update-backup`)).toBe("0.20.0")
-    expect(existsSync(openLog)).toBe(false)
-    expect(readFileSync(path.join(userDataDir, "updates", "install.log"), "utf8")).toContain("not relaunching")
-  })
+      expect(result.status).not.toBe(0)
+      expect(existsSync(appBundlePath)).toBe(false)
+      expect(bundleVersion(`${appBundlePath}.daily-update-backup`)).toBe("0.20.0")
+      expect(existsSync(openLog)).toBe(false)
+      expect(readFileSync(path.join(userDataDir, "updates", "install.log"), "utf8")).toContain("not relaunching")
+    },
+    INSTALLER_TEST_TIMEOUT_MS,
+  )
 
   async function script(dmg: string): Promise<string> {
     const scriptPath = await createInstallerScript({
