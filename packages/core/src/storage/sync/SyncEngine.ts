@@ -1,4 +1,4 @@
-import {RemoteSnapshotPendingError, RemoteWriteConflictError, SYNC_CONFIG} from "@daily/protocol"
+import {RemoteSnapshotPendingError, RemoteWriteConflictError, SYNC_CONFIG, syncPacingFor} from "@daily/protocol"
 import {AsyncMutex, createIntervalScheduler, isString, withElapsedDelay} from "@daily/std"
 
 import {logger} from "../../utils/logger"
@@ -6,15 +6,22 @@ import {isRevisionedRemote} from "../../utils/sync/isRevisionedRemote"
 import {mergeRemoteIntoLocal} from "../../utils/sync/merge/mergeRemoteIntoLocal"
 import {buildSnapshot, buildSnapshotMeta} from "../../utils/sync/snapshot/buildSnapshot"
 
-import type {ILocalStorage, IRevisionedRemoteStorage, SnapshotDocs, SyncRemote, SyncRemoteState, SyncStatus, SyncStrategy} from "@daily/protocol"
+import type {
+  ILocalStorage,
+  IRevisionedRemoteStorage,
+  SnapshotDocs,
+  SyncPacing,
+  SyncRemote,
+  SyncRemoteState,
+  SyncStatus,
+  SyncStrategy,
+} from "@daily/protocol"
 
 type RevisionedSyncOutcome = {
   resultDocs: SnapshotDocs
   hasChanges: boolean
   conflict: RemoteWriteConflictError | null
 }
-
-const PUSH_DEBOUNCE_MS = 2_000
 
 /**
  * SyncEngine orchestrates pull/push operations between local SQLite and a set
@@ -42,6 +49,7 @@ export class SyncEngine {
   private onDataChanged: () => void
   private autoSyncScheduler: ReturnType<typeof createIntervalScheduler>
   private pushDebounceTimer: ReturnType<typeof setTimeout> | null = null
+  private pacing: SyncPacing
 
   constructor(
     private localStore: ILocalStorage,
@@ -57,10 +65,8 @@ export class SyncEngine {
     this.onStatusChange = options.onStatusChange
     this.onDataChanged = options.onDataChanged
 
-    this.autoSyncScheduler = createIntervalScheduler({
-      intervalMs: SYNC_CONFIG.remoteSyncInterval,
-      onProcess: () => this.sync(),
-    })
+    this.pacing = syncPacingFor(this.remotes[0]?.id)
+    this.autoSyncScheduler = this._createAutoSyncScheduler()
 
     this._initRemoteStates()
   }
@@ -72,6 +78,7 @@ export class SyncEngine {
   /** Replaces the remote set (e.g. when iCloud settings change). State of removed remotes is dropped. */
   setRemotes(remotes: SyncRemote[]): void {
     this.remotes = remotes
+    this._applyPacing()
     this._initRemoteStates()
   }
 
@@ -103,19 +110,20 @@ export class SyncEngine {
   }
 
   /**
-   * Requests a sync a couple of seconds after the last call, restarting the
-   * timer on each call so a burst of edits produces one sync rather than one
-   * per edit. Runs the same `sync()` the periodic scheduler runs, so the
-   * mutex, the status transitions and the failure handling are not
-   * duplicated. Meant for local mutations; a change that arrived from a
-   * remote should not call this.
+   * Requests a sync once the active provider's debounce has passed since the
+   * last call, restarting the timer on each call so a burst of edits produces
+   * one sync rather than one per edit. How long that is belongs to the
+   * provider: iCloud pays for every write, the server does not. Runs the same
+   * `sync()` the periodic scheduler runs, so the mutex, the status transitions
+   * and the failure handling are not duplicated. Meant for local mutations; a
+   * change that arrived from a remote should not call this.
    */
   requestPush(): void {
     this._cancelPendingPush()
     this.pushDebounceTimer = setTimeout(() => {
       this.pushDebounceTimer = null
       void this.sync()
-    }, PUSH_DEBOUNCE_MS)
+    }, this.pacing.pushDebounceMs)
   }
 
   /**
@@ -437,6 +445,26 @@ export class SyncEngine {
     if (this.pushDebounceTimer === null) return
     clearTimeout(this.pushDebounceTimer)
     this.pushDebounceTimer = null
+  }
+
+  private _createAutoSyncScheduler(): ReturnType<typeof createIntervalScheduler> {
+    return createIntervalScheduler({intervalMs: this.pacing.remoteSyncInterval, onProcess: () => this.sync()})
+  }
+
+  /**
+   * Moves to the pacing the new remote set asks for. A changed debounce needs
+   * nothing but the field; a changed interval has to be rebuilt, because the
+   * scheduler takes its interval once, at construction.
+   */
+  private _applyPacing(): void {
+    const previousInterval = this.pacing.remoteSyncInterval
+    this.pacing = syncPacingFor(this.remotes[0]?.id)
+
+    if (this.pacing.remoteSyncInterval === previousInterval) return
+
+    this.autoSyncScheduler.stop()
+    this.autoSyncScheduler = this._createAutoSyncScheduler()
+    if (this._isSyncEnabled) this.autoSyncScheduler.start()
   }
 
   private _setStatus(status: SyncStatus) {

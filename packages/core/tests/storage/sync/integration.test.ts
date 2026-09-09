@@ -66,7 +66,6 @@ vi.mock("../../../src/utils/fileCoordinator", () => ({
 vi.mock("@daily/protocol", async (importOriginal) => ({
   ...(await importOriginal()),
   SYNC_CONFIG: {
-    remoteSyncInterval: 120_000,
     garbageCollectionInterval: 7 * 24 * 60 * 60 * 1000,
     conditionalWriteMaxAttempts: 5,
   },

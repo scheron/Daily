@@ -1,4 +1,4 @@
-import {resolveActiveProvider, SyncServerError, SyncServerErrorCode} from "@daily/protocol"
+import {resolveActiveProvider, SYNC_REMOTE_ID, SyncServerError, SyncServerErrorCode} from "@daily/protocol"
 
 import {DailyServerRemoteAdapter} from "../../storage/sync/adapters/DailyServerRemoteAdapter"
 import {ICloudRemoteAdapter} from "../../storage/sync/adapters/ICloudRemoteAdapter"
@@ -12,11 +12,11 @@ export function buildSyncRemotes(sync: SyncSettings, paths: {icloudSyncDir: stri
   const provider = resolveActiveProvider(sync)
 
   if (provider === "icloud") {
-    return [{id: "icloud", label: "iCloud", adapter: new ICloudRemoteAdapter(paths.icloudSyncDir)}]
+    return [{id: SYNC_REMOTE_ID.icloud, label: "iCloud", adapter: new ICloudRemoteAdapter(paths.icloudSyncDir)}]
   }
 
   if (provider === "server" && sync.server.binding) {
-    return [{id: "daily-server", label: "Self-hosted Daily", adapter: new DailyServerRemoteAdapter(sync.server.binding)}]
+    return [{id: SYNC_REMOTE_ID.server, label: "Self-hosted Daily", adapter: new DailyServerRemoteAdapter(sync.server.binding)}]
   }
 
   return []

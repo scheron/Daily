@@ -1,6 +1,6 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
-import {RemoteWriteConflictError, SYNC_CONFIG} from "@daily/protocol"
+import {RemoteWriteConflictError, SYNC_CONFIG, SYNC_REMOTE_ID} from "@daily/protocol"
 
 import {SyncEngine} from "@core/storage/sync/SyncEngine"
 import {buildSnapshot} from "@core/utils/sync/snapshot/buildSnapshot"
@@ -454,6 +454,37 @@ describe("SyncEngine (multi-remote)", () => {
 
       await vi.advanceTimersByTimeAsync(1500)
       expect(remote.saveCount).toBe(1)
+
+      engine.disableAutoSync()
+    })
+
+    it("pushes to the server on its own shorter debounce, before iCloud's would have fired", async () => {
+      local.docs.tasks = [makeTask("t1", "2026-07-18T10:00:00.000Z")]
+      const server = new FakeRemote()
+      const {engine} = makeEngine(local, [{id: SYNC_REMOTE_ID.server, adapter: server}])
+      engine.enableAutoSync()
+
+      requestsAPush(engine).requestPush()
+
+      await vi.advanceTimersByTimeAsync(600)
+      expect(server.saveCount, "the server pays nothing per write, so it does not wait iCloud's two seconds").toBe(1)
+
+      engine.disableAutoSync()
+    })
+
+    it("leaves iCloud on its slower debounce, untouched by the server's", async () => {
+      local.docs.tasks = [makeTask("t1", "2026-07-18T10:00:00.000Z")]
+      const icloud = new FakeRemote()
+      const {engine} = makeEngine(local, [{id: SYNC_REMOTE_ID.icloud, adapter: icloud}])
+      engine.enableAutoSync()
+
+      requestsAPush(engine).requestPush()
+
+      await vi.advanceTimersByTimeAsync(600)
+      expect(icloud.saveCount, "iCloud must not start writing on the server's debounce").toBe(0)
+
+      await vi.advanceTimersByTimeAsync(1500)
+      expect(icloud.saveCount).toBe(1)
 
       engine.disableAutoSync()
     })
