@@ -12,6 +12,8 @@ import {mockBridgeIPC} from "../../helpers/bridgeIPC"
 const TODAY = DateTime.now().toISODate()
 const TOMORROW = DateTime.now().plus({days: 1}).toISODate()
 
+const importMilestonesStore = () => import(["@", "stores", "milestones.store"].join("/"))
+
 vi.mock("@/utils/ui/vue", () => ({toRawDeep: (v) => v}))
 vi.mock("@/utils/perf", () => ({perfMark: vi.fn(), perfMeasure: vi.fn()}))
 
@@ -33,6 +35,12 @@ vi.mock("@/api", () => ({
     toggleTaskMinimized: vi.fn().mockResolvedValue(null),
     scheduleTask: vi.fn().mockResolvedValue(null),
     moveTaskToBacklog: vi.fn().mockResolvedValue(null),
+    getMilestoneList: vi.fn().mockResolvedValue([]),
+    getMilestoneTasks: vi.fn().mockResolvedValue([]),
+    createMilestone: vi.fn().mockResolvedValue(null),
+    updateMilestone: vi.fn().mockResolvedValue(null),
+    deleteMilestone: vi.fn().mockResolvedValue(true),
+    setTaskMilestone: vi.fn().mockResolvedValue(null),
   },
 }))
 
@@ -109,5 +117,38 @@ describe("useTaskColumns", () => {
 
     expect(dragDropStore.draggingTaskId).toBe("trashed-1")
     expect(dragDropStore.dayDropHandled).toBe(false)
+  })
+
+  it("TC-18: a milestone's dayless backlog task lands in the active column, while a day's own backlog task still stays out of the board", async () => {
+    const {useTaskColumns} = await import("@/composables/tasks/useTaskColumns")
+    const columns = useTaskColumns()
+    columns.onDragEnd()
+
+    const milestoneBacklogTask = makeTask({id: "milestone-backlog-task", status: "backlog", scheduled: null})
+    API.getMilestoneTasks.mockResolvedValueOnce([milestoneBacklogTask])
+
+    const {useMilestonesStore} = await importMilestonesStore()
+    const milestonesStore = useMilestonesStore()
+    milestonesStore.selectMilestone("m1")
+    milestonesStore.setMode("milestone")
+    await new Promise((r) => setTimeout(r, 0))
+    await nextTick()
+
+    expect(columns.localTasksByStatus.active.some((t) => t.id === "milestone-backlog-task")).toBe(true)
+    expect(columns.localTasksByStatus.backlog.some((t) => t.id === "milestone-backlog-task")).toBe(false)
+
+    milestonesStore.setMode("day")
+    await new Promise((r) => setTimeout(r, 0))
+    await nextTick()
+
+    const dayBacklogTask = makeTask({id: "day-backlog-task", status: "backlog", scheduled: null})
+    API.getBacklog.mockResolvedValueOnce([dayBacklogTask])
+
+    const tasksStore = useTasksStore()
+    await tasksStore.getBacklogList()
+    await nextTick()
+
+    expect(columns.localTasksByStatus.active.some((t) => t.id === "day-backlog-task")).toBe(false)
+    expect(columns.localTasksByStatus.backlog.some((t) => t.id === "day-backlog-task")).toBe(true)
   })
 })

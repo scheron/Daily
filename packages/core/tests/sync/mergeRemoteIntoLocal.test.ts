@@ -37,6 +37,10 @@ function task(id, branchId, over = {}) {
   }
 }
 
+function milestone(id, over = {}) {
+  return {id, branch_id: "main", name: id, date: null, description: null, created_at: iso(0), updated_at: NOW, deleted_at: null, ...over}
+}
+
 function assertNoDanglingBranchRefs(merge) {
   const branchIds = new Set(merge.resultDocs.branches.map((b) => b.id))
   for (const t of merge.toUpsert.tasks) {
@@ -144,5 +148,62 @@ describe("mergeRemoteIntoLocal — a tie resolved by direction reaches the local
 
     expect(merge.changes).toBe(0)
     expect(merge.toUpsert.tasks).toEqual([])
+  })
+})
+
+describe("mergeRemoteIntoLocal — milestones", () => {
+  it("TC-13: a version-5 remote with no milestones collection merges without throwing, leaving tasks intact and no task holding a milestone", () => {
+    const local = docs({branches: [branch("main")]})
+    const remote = docs({branches: [branch("main")], tasks: [task("t1", "main", {content: "carried over from v5"})]})
+
+    let merge
+    expect(() => {
+      merge = mergeRemoteIntoLocal(local, remote, "pull", GC)
+    }).not.toThrow()
+
+    const mergedTask = merge.resultDocs.tasks.find((t) => t.id === "t1")
+    expect(mergedTask).toBeDefined()
+    expect(mergedTask.content).toBe("carried over from v5")
+    expect(mergedTask.milestone_id ?? null).toBeNull()
+    expect(merge.resultDocs.milestones ?? []).toHaveLength(0)
+  })
+
+  it("resolves_TC-15_each_milestones_last_write_independently_by_its_own_updated_at", () => {
+    const local = docs({
+      branches: [branch("main")],
+      milestones: [
+        milestone("mA", {name: "local wins A", updated_at: iso(2_000_000)}),
+        milestone("mB", {name: "stale B", updated_at: iso(1_000_000)}),
+      ],
+    })
+    const remote = docs({
+      branches: [branch("main")],
+      milestones: [
+        milestone("mA", {name: "stale remote A", updated_at: iso(1_000_000)}),
+        milestone("mB", {name: "remote wins B", updated_at: iso(2_000_000)}),
+      ],
+    })
+
+    const merge = mergeRemoteIntoLocal(local, remote, "pull", GC)
+    const result = merge.resultDocs.milestones ?? []
+
+    expect(result.find((m) => m.id === "mA")?.name).toBe("local wins A")
+    expect(result.find((m) => m.id === "mB")?.name).toBe("remote wins B")
+  })
+
+  it("nulls_TC-16_a_tasks_milestone_reference_when_the_milestone_it_points_to_does_not_survive_the_merge", () => {
+    const local = docs({branches: [branch("main")]})
+    const remote = docs({
+      branches: [branch("main")],
+      milestones: [milestone("gone", {deleted_at: iso(0)})],
+      tasks: [task("t1", "main", {milestone_id: "gone"})],
+    })
+
+    const merge = mergeRemoteIntoLocal(local, remote, "pull", GC)
+
+    expect((merge.resultDocs.milestones ?? []).some((m) => m.id === "gone")).toBe(false)
+    const resultTask = merge.resultDocs.tasks.find((t) => t.id === "t1")
+    expect(resultTask).toBeDefined()
+    expect(resultTask.milestone_id ?? null).toBeNull()
   })
 })

@@ -37,4 +37,8 @@ describe("assertKnownSnapshotVersion", () => {
     expect(() => assertKnownSnapshotVersion({version: 5})).not.toThrow()
     expect(() => assertKnownSnapshotVersion({version: 6})).toThrow(SnapshotVersionAheadError)
   })
+
+  it("TC-14: a version-7 snapshot, one past whatever version this build currently knows, aborts sync with SnapshotVersionAheadError", () => {
+    expect(() => assertKnownSnapshotVersion({version: 7})).toThrow(SnapshotVersionAheadError)
+  })
 })

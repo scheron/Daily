@@ -41,10 +41,39 @@ function makeTag(id, overrides = {}) {
   }
 }
 
+function makeMilestone(id, overrides = {}) {
+  return {
+    id,
+    branch_id: "main",
+    name: "Launch",
+    date: null,
+    description: null,
+    created_at: "2026-03-25T00:00:00.000Z",
+    updated_at: "2026-03-25T00:00:00.000Z",
+    deleted_at: null,
+    ...overrides,
+  }
+}
+
 describe("buildSnapshot", () => {
   it("creates snapshot with version 5", () => {
     const snapshot = buildSnapshot(emptyDocs())
     expect(snapshot.version).toBe(5)
+  })
+
+  it("TC-12: builds a version-6 snapshot carrying the milestones collection and a task's milestone_id, with the hash sensitive to milestones", () => {
+    const milestone = makeMilestone("m1")
+    const task = makeTask("t1", {milestone_id: "m1"})
+
+    const snapshot = buildSnapshot({...emptyDocs(), milestones: [milestone], tasks: [task]})
+
+    expect(snapshot.version).toBe(6)
+    expect(snapshot.docs.milestones).toEqual([milestone])
+    expect(snapshot.docs.tasks.find((t) => t.id === "t1")?.milestone_id).toBe("m1")
+
+    const hashWithMilestone = buildSnapshotMeta({...emptyDocs(), milestones: [milestone]}).hash
+    const hashWithoutMilestone = buildSnapshotMeta({...emptyDocs(), milestones: []}).hash
+    expect(hashWithMilestone).not.toBe(hashWithoutMilestone)
   })
 
   it("TC-6: collects a backlog task at version 5, with every schedule field empty", () => {

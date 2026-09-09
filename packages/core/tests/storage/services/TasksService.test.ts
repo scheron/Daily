@@ -17,7 +17,7 @@ vi.mock("../../../src/utils/logger", () => ({
     error: vi.fn(),
     storage: vi.fn(),
     lifecycle: vi.fn(),
-    CONTEXT: {TASKS: "TASKS", TAGS: "TAGS", BRANCHES: "BRANCHES"},
+    CONTEXT: {TASKS: "TASKS", TAGS: "TAGS", BRANCHES: "BRANCHES", MILESTONES: "MILESTONES"},
   },
 }))
 
@@ -570,6 +570,43 @@ describe("TasksService", () => {
       expect(movedToActive.status).toBe("active")
       expect(movedToActive.scheduled).not.toBeNull()
       expect(movedToActive.orderIndex).toBeLessThan(dayC.orderIndex)
+    })
+  })
+
+  describe("milestones", () => {
+    it("TC-8: assigning then clearing a task's milestone changes only milestoneId, never status or scheduled", async () => {
+      const {MilestoneModel} = await import("@core/storage/models/MilestoneModel")
+      const milestoneModel = new MilestoneModel(db)
+      const milestone = milestoneModel.createMilestone({branchId: "main", name: "v1.0", date: null, description: null, deletedAt: null})
+      const task = taskModel.createTask(makeTask({status: "active", scheduled: {date: "2026-03-24", time: "09:00:00", timezone: "UTC"}}))
+
+      const assigned = await tasksService.setTaskMilestone(task.id, milestone.id)
+      expect(assigned.milestoneId).toBe(milestone.id)
+      expect(assigned.status).toBe("active")
+      expect(assigned.scheduled).toEqual({date: "2026-03-24", time: "09:00:00", timezone: "UTC"})
+
+      const cleared = await tasksService.setTaskMilestone(task.id, null)
+      expect(cleared.milestoneId ?? null).toBeNull()
+      expect(cleared.status).toBe("active")
+      expect(cleared.scheduled).toEqual({date: "2026-03-24", time: "09:00:00", timezone: "UTC"})
+    })
+
+    it("TC-10: fetching a branch's milestone tasks with no milestoneId returns every milestone's tasks but never a milestone-less one", async () => {
+      const {MilestoneModel} = await import("@core/storage/models/MilestoneModel")
+      const milestoneModel = new MilestoneModel(db)
+      const milestoneA = milestoneModel.createMilestone({branchId: "main", name: "A", date: null, description: null, deletedAt: null})
+      const milestoneB = milestoneModel.createMilestone({branchId: "main", name: "B", date: null, description: null, deletedAt: null})
+
+      const taskA = taskModel.createTask(makeTask({content: "in A", milestoneId: milestoneA.id}))
+      const taskB = taskModel.createTask(makeTask({content: "in B", milestoneId: milestoneB.id}))
+      const taskNone = taskModel.createTask(makeTask({content: "no milestone"}))
+
+      const tasks = await tasksService.getMilestoneTasks({branchId: "main"})
+      const ids = tasks.map((t) => t.id)
+
+      expect(ids).toContain(taskA.id)
+      expect(ids).toContain(taskB.id)
+      expect(ids).not.toContain(taskNone.id)
     })
   })
 })
