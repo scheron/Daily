@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.20.2 - 2026-09-09
+
+### 🐛 Bug Fixes
+
+- **Daily Sync Server** — two problems in setting up and maintaining a server are fixed: a domain with both IPv4 and IPv6 records was reported as pointing elsewhere, and the upgrade command that Sync settings names was not on the server's path.
+
+### ⚡ Performance
+
+- **Sync** — changes now reach a self-hosted server about half a second after the last edit, down from two seconds. iCloud keeps its own pace, where each write costs more.
+
+---
+
 ## v0.20.1 - 2026-09-09
 
 ### 💥 Breaking Changes
