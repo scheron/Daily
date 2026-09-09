@@ -4,6 +4,8 @@ set -eu
 IMAGE="ghcr.io/scheron/daily-server:p3"
 INSTALL_URL="https://raw.githubusercontent.com/scheron/Daily/main/deploy/install.sh"
 PROJECT="daily-server"
+MANAGER_COMMAND="daily-server"
+MANAGER_LINK_DIR="/usr/local/bin"
 HEALTH_ATTEMPTS=60
 HEALTH_INTERVAL=2
 
@@ -17,6 +19,7 @@ write_manager=""
 upgrade_dir=""
 previous_image=""
 upgrade_archive=""
+manager_link=""
 
 usage() {
   cat <<EOF
@@ -169,11 +172,12 @@ set -eu
 INSTALL_DIR="__INSTALL_DIR__"
 INSTALL_URL="__INSTALL_URL__"
 COMPOSE_FILE="$INSTALL_DIR/compose.yaml"
+SELF=$(basename "$0")
 cd "$INSTALL_DIR"
 
 usage() {
-  cat <<'USAGE'
-Usage: daily.sh <verb>
+  cat <<USAGE
+Usage: $SELF <verb>
 
 Verbs:
   status       show the installation's status
@@ -193,7 +197,7 @@ compose() {
 
 cmd_upgrade() {
   if ! command -v curl > /dev/null 2>&1; then
-    echo "daily.sh: curl is needed to upgrade — install it, then run this again." >&2
+    echo "$SELF: curl is needed to upgrade — install it, then run this again." >&2
     exit 1
   fi
 
@@ -201,7 +205,7 @@ cmd_upgrade() {
 
   if ! curl -fsSL "$INSTALL_URL" -o "$tmp"; then
     rm -f "$tmp"
-    echo "daily.sh: could not download the installer from $INSTALL_URL. Nothing was changed." >&2
+    echo "$SELF: could not download the installer from $INSTALL_URL. Nothing was changed." >&2
     exit 1
   fi
 
@@ -227,7 +231,7 @@ cmd_backup() {
   trap - EXIT INT TERM
   compose up -d daily-server
 
-  echo "daily.sh: backup written to $archive"
+  echo "$SELF: backup written to $archive"
 }
 
 cmd_uninstall() {
@@ -240,7 +244,7 @@ cmd_uninstall() {
       ;;
     *)
       compose down
-      echo "daily.sh: containers removed; data volumes kept."
+      echo "$SELF: containers removed; data volumes kept."
       ;;
   esac
 }
@@ -280,6 +284,14 @@ esac
 EOF
   chmod +x "$1/.daily.sh.new"
   mv "$1/.daily.sh.new" "$1/daily.sh"
+}
+
+link_manager() {
+  [ -d "$MANAGER_LINK_DIR" ] || return 1
+  [ -w "$MANAGER_LINK_DIR" ] || return 1
+  ln -sf "$1/daily.sh" "$MANAGER_LINK_DIR/$MANAGER_COMMAND" 2> /dev/null || return 1
+
+  printf '%s' "$MANAGER_LINK_DIR/$MANAGER_COMMAND"
 }
 
 have() {
@@ -688,6 +700,7 @@ run_upgrade() {
   fi
 
   write_daily_sh "$dir"
+  link_manager "$dir" > /dev/null 2>&1 || true
 
   echo "Installed: $previous_image"
   echo "Release:   $IMAGE"
@@ -767,6 +780,12 @@ daily_network_name() {
 print_report() {
   claim_code=$(read_claim_code)
 
+  if [ -n "$manager_link" ]; then
+    manage_with="$MANAGER_COMMAND"
+  else
+    manage_with="$dir/daily.sh"
+  fi
+
   echo ""
   echo "Daily sync server installed in $dir"
   echo ""
@@ -775,10 +794,10 @@ print_report() {
   if [ -n "$claim_code" ]; then
     echo "  Claim code:  $claim_code"
   else
-    echo "  Claim code:  already claimed — $dir/daily.sh claim-code"
+    echo "  Claim code:  already claimed — $manage_with claim-code"
   fi
 
-  echo "  Manage it:   $dir/daily.sh"
+  echo "  Manage it:   $manage_with  (try: $manage_with status)"
 
   case "$topology" in
     self-signed)
@@ -789,7 +808,7 @@ print_report() {
         echo "The app shows the same fingerprint when it connects, so the two can be compared."
       else
         echo ""
-        echo "The certificate fingerprint could not be read here; $dir/daily.sh logs prints it at startup."
+        echo "The certificate fingerprint could not be read here; $manage_with logs prints it at startup."
       fi
       ;;
     caddy)
@@ -865,6 +884,7 @@ if [ -n "$write_manager" ]; then
   fi
 
   write_daily_sh "$write_manager"
+  link_manager "$write_manager" > /dev/null 2>&1 || true
 
   pinned=$(read_pin "$write_manager")
 
@@ -957,6 +977,8 @@ if [ "$dry_run" -eq 1 ]; then
   echo "Wrote installation to $dir (dry run — nothing started)"
   exit 0
 fi
+
+manager_link=$(link_manager "$dir" || true)
 
 echo "Starting the stack in $dir"
 compose up -d

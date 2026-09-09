@@ -23,7 +23,7 @@ const mismatchMessage = computed(() => {
   if (!mismatch) return null
 
   if (mismatch.serverProtocol < mismatch.appProtocol) {
-    return `This Mac speaks sync protocol ${mismatch.appProtocol}, but the server still speaks protocol ${mismatch.serverProtocol}. Run "daily.sh upgrade" on the server to bring it up to date — edits made here stay on this Mac and go up once the two sides agree.`
+    return `This Mac speaks sync protocol ${mismatch.appProtocol}, but the server still speaks protocol ${mismatch.serverProtocol}. Run "daily-server upgrade" on the server to bring it up to date — edits made here stay on this Mac and go up once the two sides agree.`
   }
 
   return `The server has moved to sync protocol ${mismatch.serverProtocol}, but this Mac still speaks protocol ${mismatch.appProtocol}. Update Daily on this Mac to sync again — edits made here stay on this Mac and go up once the two sides agree.`
