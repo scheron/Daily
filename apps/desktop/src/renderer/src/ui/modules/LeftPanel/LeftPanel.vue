@@ -33,7 +33,13 @@ watch(calendarHeight, (height) => {
       <div class="flex h-full min-h-0 w-full flex-col" :style="{width: width + 'px'}">
         <div class="grid shrink-0 px-1 py-2" :style="{minHeight: topAreaMinHeight + 'px'}">
           <div v-if="milestonesStore.mode === 'day'" ref="calendarRef">
-            <BaseCalendar size="sm" :days="tasksStore.days" :selected-date="tasksStore.activeDay" @select-date="tasksStore.setActiveDay" />
+            <BaseCalendar
+              size="sm"
+              header-height-class="h-8.5"
+              :days="tasksStore.days"
+              :selected-date="tasksStore.activeDay"
+              @select-date="tasksStore.setActiveDay"
+            />
           </div>
           <MilestoneList v-else />
         </div>

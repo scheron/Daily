@@ -17,10 +17,10 @@ onMounted(() => {
 
 <template>
   <div class="flex flex-col p-1">
-    <div class="mb-3 flex items-center gap-2 px-1">
-      <BaseIcon name="bookmark" class="text-base-content/60 size-3.5" />
-      <span class="text-base-content/60 text-[11px] font-semibold uppercase tracking-wide">Milestones</span>
-      <span class="bg-base-content/10 text-base-content/60 shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold">
+    <div class="h-8.5 mb-3 flex items-center gap-2 px-2">
+      <BaseIcon name="bookmark" class="text-base-content/60 size-4" />
+      <span class="text-base-content/60 text-sm font-medium uppercase tracking-wide">Milestones</span>
+      <span class="bg-base-content/10 text-base-content/60 shrink-0 rounded-full px-2 py-0.5 text-xs font-medium">
         {{ milestonesStore.milestones.length }}
       </span>
 

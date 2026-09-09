@@ -12,6 +12,7 @@ import {useTaskDropTarget} from "./composables/useTaskDropTarget"
 import {formatDaysToMonth} from "./utils/formatDaysToMonth"
 
 import type {Day, ISODate} from "@daily/protocol"
+import type {HtmlHTMLAttributes} from "vue"
 
 type DateRange = {start: ISODate | null; end: ISODate | null}
 
@@ -25,6 +26,8 @@ const props = withDefaults(
     selectedRange?: DateRange | null
     initialMonth?: ISODate
     size?: "sm" | "md" | "lg"
+    /** Overrides the header row buttons' height; omit to keep the current auto height. */
+    headerHeightClass?: HtmlHTMLAttributes["class"]
   }>(),
   {
     mode: "single",
@@ -183,11 +186,17 @@ onBeforeMount(() => {
   <div ref="calendarRootEl" data-calendar class="flex-1 p-1">
     <div class="mb-3 flex items-center justify-between gap-2">
       <div class="flex shrink-0 items-center">
-        <BaseButton variant="ghost" size="sm" icon="chevron-left" @click="previousMonth" />
-        <BaseButton variant="ghost" size="sm" tooltip="Jump to current month" :class="sizeConfig.headerTextSize" @click="jumpToCurrentMonth">
+        <BaseButton variant="ghost" size="sm" icon="chevron-left" :class="headerHeightClass" @click="previousMonth" />
+        <BaseButton
+          variant="ghost"
+          size="sm"
+          tooltip="Jump to current month"
+          :class="[sizeConfig.headerTextSize, headerHeightClass]"
+          @click="jumpToCurrentMonth"
+        >
           {{ monthYearDisplay }}
         </BaseButton>
-        <BaseButton variant="ghost" size="sm" icon="chevron-right" @click="nextMonth" />
+        <BaseButton variant="ghost" size="sm" icon="chevron-right" :class="headerHeightClass" @click="nextMonth" />
       </div>
 
       <div class="flex shrink-0 items-center gap-1.5 px-3 font-semibold" :class="sizeConfig.statsTextSize">
