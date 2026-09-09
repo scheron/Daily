@@ -331,19 +331,35 @@ detect_machine_address() {
   printf '%s' "$found"
 }
 
+detect_machine_addresses() {
+  external=$(detect_machine_address)
+  locals=""
+
+  if have ip; then
+    locals=$(ip -o addr show scope global 2> /dev/null | awk '{print $4}' | cut -d/ -f1 || true)
+  fi
+
+  printf '%s\n%s\n' "$external" "$locals" | grep -v '^$' | sort -u
+}
+
 resolve_domain_addresses() {
   found=""
 
   if have getent; then
-    found=$(getent hosts "$1" 2> /dev/null | awk '{print $1}' || true)
+    found=$(getent ahosts "$1" 2> /dev/null | awk '{print $1}' | sort -u || true)
   fi
 
   if [ -z "$found" ] && have dig; then
-    found=$(dig +short "$1" 2> /dev/null | grep -E '^[0-9a-fA-F.:]+$' || true)
+    found=$(
+      {
+        dig +short A "$1" 2> /dev/null || true
+        dig +short AAAA "$1" 2> /dev/null || true
+      } | grep -E '^[0-9a-fA-F.:]+$' | sort -u || true
+    )
   fi
 
   if [ -z "$found" ] && have host; then
-    found=$(host "$1" 2> /dev/null | sed -n 's/.* has address //p' || true)
+    found=$(host "$1" 2> /dev/null | sed -n -e 's/.* has address //p' -e 's/.* has IPv6 address //p' | sort -u || true)
   fi
 
   printf '%s' "$found"
@@ -396,7 +412,7 @@ require_docker() {
 
 check_domain_points_here() {
   resolved=$(resolve_domain_addresses "$1")
-  machine=$(detect_machine_address)
+  machine=$(detect_machine_addresses)
 
   if [ -z "$resolved" ]; then
     echo "Could not resolve $1 from this machine, so the DNS check is skipped."
@@ -408,31 +424,39 @@ check_domain_points_here() {
     return 0
   fi
 
-  if printf '%s\n' "$resolved" | grep -Fqx "$machine"; then
-    echo "$1 points at this machine ($machine)."
+  match=$(printf '%s\n' "$resolved" | grep -Fx "$machine" | head -n 1 || true)
+
+  if [ -n "$match" ]; then
+    echo "$1 points at this machine ($match)."
     return 0
   fi
 
-  echo "Warning: $1 resolves to $(printf '%s' "$resolved" | tr '\n' ' ')"
-  echo "but this machine's external address is $machine."
-  echo "A proxied record (Cloudflare) or one that has not propagated yet both look like this."
+  echo "$1 does not point at this machine yet."
+  echo ""
+  echo "  it resolves to:  $(printf '%s' "$resolved" | tr '\n' ' ')"
+  echo "  this machine is: $(printf '%s' "$machine" | tr '\n' ' ')"
+  echo ""
+  echo "That is expected if the DNS record was just created, or if the domain sits behind"
+  echo "a proxy such as Cloudflare. The install works either way — the domain only has to"
+  echo "reach this machine for the certificate."
+  echo ""
 
   if [ "$yes" -eq 1 ]; then
-    echo "Proceeding unverified (--yes)."
+    echo "Continuing (--yes)."
     return 0
   fi
 
   if ! tty_available; then
-    echo "install.sh: no terminal to ask on. Re-run with --yes to proceed unverified." >&2
+    echo "install.sh: no terminal to ask on. Re-run with --yes to proceed." >&2
     exit 1
   fi
 
-  case "$(ask "Continue anyway? [y/N] " "n")" in
-    y | Y | yes | Yes | YES) return 0 ;;
-    *)
+  case "$(ask "Continue? [Y/n] " "y")" in
+    n | N | no | No | NO)
       echo "Stopped. Nothing was written."
       exit 1
       ;;
+    *) return 0 ;;
   esac
 }
 
