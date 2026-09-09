@@ -6,6 +6,7 @@ import {sortTasksByOrderIndex} from "@daily/protocol"
 
 import {useSettingsStore} from "@/stores/settings.store"
 import {useBacklog} from "./composables/useBacklog"
+import {useMilestoneTasks} from "./composables/useMilestoneTasks"
 import {useTaskMutations} from "./composables/useTaskMutations"
 import {useTaskRange} from "./composables/useTaskRange"
 import {useTrash} from "./composables/useTrash"
@@ -22,7 +23,10 @@ export const useTasksStore = defineStore("tasks", () => {
 
   const activeDayData = computed(() => days.value.find((day) => day.date === activeDay.value) ?? null)
   const activeDayInfo = computed(() => activeDayData.value ?? {date: activeDay.value})
-  const dailyTasks = computed(() => (activeDayData.value ? sortTasksByOrderIndex(activeDayData.value.tasks) : []))
+  const dailyTasks = computed(() => {
+    if (milestone.isMilestoneMode.value) return sortTasksByOrderIndex(milestone.milestoneTasks.value)
+    return activeDayData.value ? sortTasksByOrderIndex(activeDayData.value.tasks) : []
+  })
   const dailyTags = computed(() => activeDayData.value?.tags ?? [])
 
   const dailyTasksByStatus = computed<Record<TaskStatus, Task[]>>(() => {
@@ -53,6 +57,7 @@ export const useTasksStore = defineStore("tasks", () => {
   const range = useTaskRange({days, activeDay, isDaysLoaded, activeBranchId})
   const backlog = useBacklog({activeBranchId})
   const trash = useTrash({activeBranchId})
+  const milestone = useMilestoneTasks({activeBranchId})
 
   const mutations = useTaskMutations({
     days,
@@ -97,6 +102,7 @@ export const useTasksStore = defineStore("tasks", () => {
     getTaskList: range.getTaskList,
     getBacklogList: backlog.getBacklogList,
     getTrashList: trash.getTrashList,
+    getMilestoneTaskList: milestone.getMilestoneTaskList,
     extendRange: range.extendRange,
     findTaskById,
     revalidate: range.revalidate,

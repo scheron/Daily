@@ -6,6 +6,7 @@ import {createSharedComposable} from "@/composables/createSharedComposable"
 import {TASK_COLUMNS} from "@/constants/ui"
 import {useDragDropStore} from "@/stores/dragDrop.store"
 import {useFilterStore} from "@/stores/filter.store"
+import {useMilestonesStore} from "@/stores/milestones.store"
 import {useTasksStore} from "@/stores/tasks"
 import {useUIStore} from "@/stores/ui"
 import {resolveMoveTarget} from "@/utils/tasks/resolveMoveTarget"
@@ -19,6 +20,7 @@ const SORTABLE_ANIMATION_MS = 160
 export const useTaskColumns = createSharedComposable(() => {
   const tasksStore = useTasksStore()
   const filterStore = useFilterStore()
+  const milestonesStore = useMilestonesStore()
   const uiStore = useUIStore()
   const dragDropStore = useDragDropStore()
 
@@ -33,9 +35,11 @@ export const useTaskColumns = createSharedComposable(() => {
   })
 
   const tasksByStatus = computed<Record<TaskStatus, Task[]>>(() => {
+    const isMilestoneMode = milestonesStore.mode === "milestone"
+
     const grouped = filteredTasks.value.reduce(
       (acc, task) => {
-        acc[task.status].push(task)
+        acc[isMilestoneMode && task.status === "backlog" ? "active" : task.status].push(task)
         return acc
       },
       {backlog: [], active: [], discarded: [], done: []} as Record<TaskStatus, Task[]>,
