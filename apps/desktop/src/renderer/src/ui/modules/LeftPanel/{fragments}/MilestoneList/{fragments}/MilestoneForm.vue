@@ -1,29 +1,24 @@
 <script setup lang="ts">
 import {ref} from "vue"
 import {toasts} from "vue-toasts-lite"
-import {DateTime} from "luxon"
-
-import {toDateLabel} from "@daily/std"
 
 import {useMilestonesStore} from "@/stores/milestones.store"
 import BaseButton from "@/ui/base/BaseButton"
+import BaseCalendar from "@/ui/base/BaseCalendar"
 import BaseIcon from "@/ui/base/BaseIcon"
 import BaseInput from "@/ui/base/BaseInput.vue"
 import AutoSizeInput from "@/ui/common/inputs/AutoSizeInput.vue"
-import DayPicker from "@/ui/common/pickers/DayPicker.vue"
 
 import type {ISODate, Milestone} from "@daily/protocol"
 
 const props = withDefaults(defineProps<{milestone?: Milestone | null}>(), {milestone: null})
 const emit = defineEmits<{done: []; cancel: []}>()
 
-const TODAY = DateTime.now().toISODate()!
-
 const milestonesStore = useMilestonesStore()
 
 const name = ref(props.milestone?.name ?? "")
-const date = ref<ISODate | null>(props.milestone?.date ?? null)
 const description = ref(props.milestone?.description ?? "")
+const date = ref<ISODate | null>(props.milestone?.date ?? null)
 const isSaving = ref(false)
 
 function clearDate() {
@@ -68,41 +63,28 @@ async function submit() {
     </div>
 
     <div class="flex flex-col gap-1.5">
-      <span class="text-base-content/55 text-[11px] font-semibold uppercase tracking-wide">
-        Date <span class="text-base-content/40 normal-case">— optional</span>
-      </span>
-      <DayPicker :days="[]" :active-day="date ?? TODAY" :selected-day="date" hide-on-select position="start" @select="date = $event">
-        <template #trigger="{toggle}">
-          <div
-            class="border-base-300 hover:border-base-content/30 flex h-8 w-full cursor-pointer items-center gap-2 rounded-lg border px-2.5 text-xs transition-colors"
-            :class="date ? 'text-base-content' : 'text-base-content/45'"
-            @click="toggle"
-          >
-            <BaseIcon name="calendar" class="size-3.5 shrink-0" />
-            <span class="flex-1 truncate">{{ date ? toDateLabel(date, {short: true}) : "Pick a day" }}</span>
-            <BaseButton v-if="date" icon="x" variant="ghost" icon-class="size-2.5" class="size-4 shrink-0 p-0" @click.stop="clearDate" />
-          </div>
-        </template>
-      </DayPicker>
-    </div>
-
-    <div class="flex flex-col gap-1.5">
-      <span class="text-base-content/55 text-[11px] font-semibold uppercase tracking-wide">
-        Description <span class="text-base-content/40 normal-case">— optional</span>
-      </span>
+      <span class="text-base-content/55 text-[11px] font-semibold uppercase tracking-wide">Description</span>
       <AutoSizeInput
         v-model="description"
         placeholder="What counts as finished"
-        class="border-base-300 rounded-lg border text-xs"
+        class="border-base-300 min-h-16 rounded-lg border text-xs"
         :max-height="120"
       />
     </div>
 
+    <div class="flex flex-col gap-1.5">
+      <div class="flex items-center justify-between">
+        <span class="text-base-content/55 text-[11px] font-semibold uppercase tracking-wide">Date</span>
+        <BaseButton v-if="date" variant="text" size="sm" class="text-[11px]" @click="clearDate">Clear</BaseButton>
+      </div>
+      <BaseCalendar mode="single" :days="[]" :selected-date="date" size="sm" @select-date="date = $event" />
+    </div>
+
     <div class="flex items-center gap-2 pt-1">
-      <BaseButton variant="primary" size="sm" class="rounded-full px-4" :disabled="!name.trim() || isSaving" @click="submit">
+      <BaseButton variant="text" size="sm" class="h-8 flex-1" @click="emit('cancel')">Cancel</BaseButton>
+      <BaseButton variant="primary" size="sm" class="h-8 flex-1" :disabled="!name.trim() || isSaving" @click="submit">
         {{ milestone ? "Save" : "Create" }}
       </BaseButton>
-      <BaseButton variant="text" size="sm" @click="emit('cancel')">Cancel</BaseButton>
     </div>
   </div>
 </template>

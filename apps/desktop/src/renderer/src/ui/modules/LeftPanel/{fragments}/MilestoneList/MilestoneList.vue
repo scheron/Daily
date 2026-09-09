@@ -24,7 +24,7 @@ onMounted(() => {
         {{ milestonesStore.milestones.length }}
       </span>
 
-      <BasePopup hide-header position="end" trigger-class="ml-auto" container-class="w-72 p-0">
+      <BasePopup hide-header position="end" trigger-class="ml-auto" container-class="w-88 p-0">
         <template #trigger="{toggle}">
           <BaseButton
             icon="plus"
@@ -45,7 +45,7 @@ onMounted(() => {
       <BaseIcon name="bookmark" class="text-base-content/25 size-7" />
       <p class="text-base-content/60 text-xs leading-relaxed">No milestones in this project yet.</p>
 
-      <BasePopup hide-header position="center" container-class="w-72 p-0">
+      <BasePopup hide-header position="center" container-class="w-88 p-0">
         <template #trigger="{toggle}">
           <BaseButton variant="primary-ghost-outline" size="sm" icon="plus" icon-class="size-3.5" @click="toggle"> New milestone </BaseButton>
         </template>
