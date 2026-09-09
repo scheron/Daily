@@ -38,7 +38,7 @@ export class MilestoneModel {
 
     const rows = this.db.prepare(sql).all(...values) as any[]
 
-    logger.info(logger.CONTEXT.STORAGE, `Loaded ${rows.length} milestones from database`)
+    logger.info(logger.CONTEXT.MILESTONES, `Loaded ${rows.length} milestones from database`)
 
     return rows.map(rowToMilestone)
   }
@@ -53,7 +53,7 @@ export class MilestoneModel {
       .get(id) as any
 
     if (!row) {
-      logger.debug(logger.CONTEXT.STORAGE, `Milestone not found: ${id}`)
+      logger.debug(logger.CONTEXT.MILESTONES, `Milestone not found: ${id}`)
       return null
     }
 
@@ -73,7 +73,7 @@ export class MilestoneModel {
       )
       .run(id, milestone.branchId, milestone.name, milestone.date ?? null, milestone.description ?? null, now, now, milestone.deletedAt ?? null)
 
-    logger.storage("Created", logger.CONTEXT.STORAGE, id)
+    logger.storage("Created", logger.CONTEXT.MILESTONES, id)
     return this.getMilestone(id)
   }
 
@@ -109,7 +109,7 @@ export class MilestoneModel {
       this.db.prepare(`UPDATE milestones SET updated_at = ? WHERE id = ?`).run(now, id)
     }
 
-    logger.storage("Updated", logger.CONTEXT.STORAGE, id)
+    logger.storage("Updated", logger.CONTEXT.MILESTONES, id)
     return this.getMilestone(id)
   }
 
@@ -125,7 +125,7 @@ export class MilestoneModel {
 
     run()
 
-    logger.storage("Deleted", logger.CONTEXT.STORAGE, id)
+    logger.storage("Deleted", logger.CONTEXT.MILESTONES, id)
     return changes > 0
   }
 }

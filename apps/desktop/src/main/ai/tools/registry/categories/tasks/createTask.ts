@@ -82,6 +82,7 @@ export const createTask: RegisteredTool = {
       updatedAt: now,
       deletedAt: null,
       branchId: targetBranchId,
+      milestoneId: null,
     }
 
     const created = await ctx.storage.createTask(task)
