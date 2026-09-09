@@ -25,7 +25,7 @@ const segments = computed(() => [
 ])
 
 function select() {
-  milestonesStore.selectMilestone(props.milestone.id)
+  milestonesStore.selectMilestone(isSelected.value ? null : props.milestone.id)
 }
 
 async function onDelete() {

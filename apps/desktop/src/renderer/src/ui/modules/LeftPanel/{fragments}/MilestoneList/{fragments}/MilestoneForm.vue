@@ -67,7 +67,7 @@ async function submit() {
       <AutoSizeInput
         v-model="description"
         placeholder="What counts as finished"
-        class="border-base-300 min-h-16 rounded-lg border text-xs"
+        class="border-base-300 focus-visible-accent min-h-16 rounded-lg border text-xs"
         :max-height="120"
       />
     </div>
@@ -75,7 +75,7 @@ async function submit() {
     <div class="flex flex-col gap-1.5">
       <div class="flex items-center justify-between">
         <span class="text-base-content/55 text-[11px] font-semibold uppercase tracking-wide">Date</span>
-        <BaseButton v-if="date" variant="text" size="sm" class="text-[11px]" @click="clearDate">Clear</BaseButton>
+        <BaseButton variant="text" size="sm" :disabled="!date" :class="['text-[11px]', !date && 'invisible']" @click="clearDate"> Clear </BaseButton>
       </div>
       <BaseCalendar mode="single" :days="[]" :selected-date="date" size="sm" @select-date="date = $event" />
     </div>
