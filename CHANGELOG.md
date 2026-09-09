@@ -1,25 +1,5 @@
 # Changelog
 
-## v0.20.0 - 2026-09-09
-
-### 💥 Breaking Changes
-
-- **Sync protocol** — this version speaks a new protocol, so a self-hosted server has to be upgraded alongside the app. Until it is, the Mac stops syncing and Sync settings names the side that is behind and the command to run. Syncing resumes on its own once both match.
-- **Server membership** — the Mac that set up a server is now the only one that can add another Mac or take a Mac's access away. Every other Mac bound to it syncs and nothing more. If that Mac is lost, the server console moves the role to one you still have.
-
-### ✨ New Features
-
-- **Devices on your server** — Sync settings on the Mac that set the server up lists every Mac bound to it: which one you are on, when each was last seen, and when it was added. A Mac that lost access stays in the list, marked, rather than disappearing.
-- **Add a device** — adding a Mac starts here. Press it and the server accepts a request for five minutes. The other Mac shows a six-digit code, and an approval card opens on its own naming the code, the device, and the address the request came from — tagged when it came from your own network.
-- **Revoke a Mac** — every other Mac in the list has a Revoke button. That Mac stops syncing and its row stays, marked.
-- **On a Mac you don't administer from** — Sync shows what this Mac is called, which Mac approved it and when, and where devices are managed.
-
-### ⚡ Performance
-
-- **Sync** — an edit made on one Mac now reaches the others within seconds instead of minutes. Changes are sent a couple of seconds after you stop editing, and the other Mac picks them up as they arrive rather than on a timer.
-
----
-
 ## v0.19.0 - 2026-09-07
 
 ### 💥 Breaking Changes
