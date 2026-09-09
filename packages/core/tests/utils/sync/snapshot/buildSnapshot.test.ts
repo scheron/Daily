@@ -56,9 +56,9 @@ function makeMilestone(id, overrides = {}) {
 }
 
 describe("buildSnapshot", () => {
-  it("creates snapshot with version 5", () => {
+  it("creates snapshot with version 6", () => {
     const snapshot = buildSnapshot(emptyDocs())
-    expect(snapshot.version).toBe(5)
+    expect(snapshot.version).toBe(6)
   })
 
   it("TC-12: builds a version-6 snapshot carrying the milestones collection and a task's milestone_id, with the hash sensitive to milestones", () => {
@@ -76,11 +76,11 @@ describe("buildSnapshot", () => {
     expect(hashWithMilestone).not.toBe(hashWithoutMilestone)
   })
 
-  it("TC-6: collects a backlog task at version 5, with every schedule field empty", () => {
+  it("TC-6: collects a backlog task at version 6, with every schedule field empty", () => {
     const backlogTask = makeTask("t1", {scheduled_date: null, scheduled_time: null, scheduled_timezone: null})
     const snapshot = buildSnapshot({...emptyDocs(), tasks: [backlogTask]})
 
-    expect(snapshot.version).toBe(5)
+    expect(snapshot.version).toBe(6)
     const task = snapshot.docs.tasks.find((t) => t.id === "t1")
     expect(task?.scheduled_date).toBeNull()
     expect(task?.scheduled_time).toBeNull()

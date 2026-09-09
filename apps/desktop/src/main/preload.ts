@@ -12,6 +12,8 @@ import type {
   LocalModelId,
   MigrationDirection,
   MigrationPreview,
+  Milestone,
+  MilestoneWithProgress,
   PendingApprovalView,
   ServerBindingView,
   ServerConnectionStateView,
@@ -138,6 +140,14 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "tags:update": (id: Tag["id"], updates: Partial<Tag>) => ipcRenderer.invoke("tags:update", id, updates),
   "tags:create": (tag: Omit<Tag, "id" | "createdAt" | "updatedAt" | "deletedAt">) => ipcRenderer.invoke("tags:create", tag),
   "tags:delete": (id: Tag["id"]) => ipcRenderer.invoke("tags:delete", id),
+
+  "milestones:get-many": (params?: {branchId?: Branch["id"]}) => ipcRenderer.invoke("milestones:get-many", params) as Promise<MilestoneWithProgress[]>,
+  "milestones:get-one": (id: Milestone["id"]) => ipcRenderer.invoke("milestones:get-one", id) as Promise<Milestone | null>,
+  "milestones:create": (input: {branchId: Branch["id"]; name: string; date?: ISODate | null; description?: string | null}) => ipcRenderer.invoke("milestones:create", input) as Promise<Milestone | null>,
+  "milestones:update": (id: Milestone["id"], updates: Partial<Pick<Milestone, "name" | "date" | "description">>) => ipcRenderer.invoke("milestones:update", id, updates) as Promise<Milestone | null>,
+  "milestones:delete": (id: Milestone["id"]) => ipcRenderer.invoke("milestones:delete", id) as Promise<boolean>,
+  "tasks:get-by-milestone": (params: {milestoneId?: Milestone["id"]; branchId?: Branch["id"]}) => ipcRenderer.invoke("tasks:get-by-milestone", params) as Promise<Task[]>,
+  "tasks:set-milestone": (taskId: Task["id"], milestoneId: Milestone["id"] | null) => ipcRenderer.invoke("tasks:set-milestone", taskId, milestoneId) as Promise<Task | null>,
 
   "files:save": (filename: string, data: Buffer) => ipcRenderer.invoke("files:save", filename, data),
   "files:delete": (filename: string) => ipcRenderer.invoke("files:delete", filename),

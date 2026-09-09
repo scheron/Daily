@@ -9,6 +9,8 @@ import type {
   LocalModelId,
   MigrationDirection,
   MigrationPreview,
+  Milestone,
+  MilestoneWithProgress,
   MoveTaskByOrderParams,
   PendingApprovalView,
   ServerBindingView,
@@ -140,6 +142,20 @@ export interface BridgeIPC {
   "tags:update": (id: Tag["id"], updates: Partial<Tag>) => Promise<Tag | null>
   "tags:create": (tag: Omit<Tag, "id" | "createdAt" | "updatedAt" | "deletedAt">) => Promise<Tag | null>
   "tags:delete": (id: Tag["id"]) => Promise<boolean>
+
+  // === MILESTONES ===
+  "milestones:get-many": (params?: {branchId?: Branch["id"]}) => Promise<MilestoneWithProgress[]>
+  "milestones:get-one": (id: Milestone["id"]) => Promise<Milestone | null>
+  "milestones:create": (input: {
+    branchId: Branch["id"]
+    name: string
+    date?: ISODate | null
+    description?: string | null
+  }) => Promise<Milestone | null>
+  "milestones:update": (id: Milestone["id"], updates: Partial<Pick<Milestone, "name" | "date" | "description">>) => Promise<Milestone | null>
+  "milestones:delete": (id: Milestone["id"]) => Promise<boolean>
+  "tasks:get-by-milestone": (params: {milestoneId?: Milestone["id"]; branchId?: Branch["id"]}) => Promise<Task[]>
+  "tasks:set-milestone": (taskId: Task["id"], milestoneId: Milestone["id"] | null) => Promise<Task | null>
 
   // === FILES ===
   "files:save": (filename: string, data: Buffer) => Promise<File["id"]>

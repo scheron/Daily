@@ -3,7 +3,7 @@ import {ipcMain} from "electron"
 import {toSettingsView} from "@daily/core"
 
 import type {IStorageController} from "@daily/core"
-import type {Branch, ISODate, MoveTaskByOrderParams, Tag, Task, TaskMovePosition, TaskSchedule} from "@daily/protocol"
+import type {Branch, ISODate, Milestone, MoveTaskByOrderParams, Tag, Task, TaskMovePosition, TaskSchedule} from "@daily/protocol"
 import type {PartialDeep} from "type-fest"
 
 // prettier-ignore
@@ -54,6 +54,14 @@ export function setupStorageIPC(getStorage: () => IStorageController | null) {
 
   ipcMain.handle("tasks:add-tags", (_e, taskId: Task["id"], tags: Tag["id"][]) => getStorage()?.addTaskTags(taskId, tags))
   ipcMain.handle("tasks:remove-tags", (_e, taskId: Task["id"], tags: Tag["id"][]) => getStorage()?.removeTaskTags(taskId, tags))
+
+  ipcMain.handle("milestones:get-many", (_e, params?: {branchId?: Branch["id"]}) => getStorage()?.getMilestoneList(params))
+  ipcMain.handle("milestones:get-one", (_e, id: Milestone["id"]) => getStorage()?.getMilestone(id))
+  ipcMain.handle("milestones:create", (_e, input: {branchId: Branch["id"]; name: string; date?: ISODate | null; description?: string | null}) => getStorage()?.createMilestone(input))
+  ipcMain.handle("milestones:update", (_e, id: Milestone["id"], updates: Partial<Pick<Milestone, "name" | "date" | "description">>) => getStorage()?.updateMilestone(id, updates))
+  ipcMain.handle("milestones:delete", (_e, id: Milestone["id"]) => getStorage()?.deleteMilestone(id))
+  ipcMain.handle("tasks:get-by-milestone", (_e, params: {milestoneId?: Milestone["id"]; branchId?: Branch["id"]}) => getStorage()?.getMilestoneTasks(params))
+  ipcMain.handle("tasks:set-milestone", (_e, taskId: Task["id"], milestoneId: Milestone["id"] | null) => getStorage()?.setTaskMilestone(taskId, milestoneId))
 
   ipcMain.handle("files:save", (_e, filename: string, data: any) => getStorage()?.saveFile(filename, Buffer.isBuffer(data) ? data : Buffer.from(data)))
   ipcMain.handle("files:delete", (_e, filename: string) => getStorage()?.deleteFile(filename))

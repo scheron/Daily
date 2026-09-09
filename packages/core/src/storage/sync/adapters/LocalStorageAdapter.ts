@@ -3,6 +3,7 @@ import type {
   SnapshotBranch,
   SnapshotDocs,
   SnapshotFile,
+  SnapshotMilestone,
   SnapshotSettings,
   SnapshotTag,
   SnapshotTask,
@@ -15,13 +16,14 @@ export class LocalStorageAdapter implements ILocalStorage {
 
   async loadAllDocs(): Promise<SnapshotDocs> {
     const tasks = this._loadTasks()
+    const milestones = this._loadMilestones()
     const tags = this._loadTags()
     const branches = this._loadBranches()
     const files = this._loadFiles()
     const events = this._loadTaskEvents()
     const settings = this._loadSettings()
 
-    return {tasks, tags, branches, files, events, settings}
+    return {tasks, milestones, tags, branches, files, events, settings}
   }
 
   async upsertDocs(docs: SnapshotDocs): Promise<void> {
@@ -76,10 +78,29 @@ export class LocalStorageAdapter implements ILocalStorage {
         }
       }
 
+      /* Milestones before tasks: satisfy tasks.milestone_id FK to milestones. */
+      if (docs.milestones?.length) {
+        const stmt = this.db.prepare(`
+          INSERT INTO milestones (id, branch_id, name, date, description, created_at, updated_at, deleted_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            branch_id   = excluded.branch_id,
+            name        = excluded.name,
+            date        = excluded.date,
+            description = excluded.description,
+            created_at  = excluded.created_at,
+            updated_at  = excluded.updated_at,
+            deleted_at  = excluded.deleted_at
+        `)
+        for (const m of docs.milestones) {
+          stmt.run(m.id, m.branch_id, m.name, m.date, m.description, m.created_at, m.updated_at, m.deleted_at)
+        }
+      }
+
       if (docs.tasks.length) {
         const taskStmt = this.db.prepare(`
-          INSERT INTO tasks (id, status, content, minimized, order_index, scheduled_date, scheduled_time, scheduled_timezone, estimated_time, spent_time, branch_id, created_at, updated_at, deleted_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO tasks (id, status, content, minimized, order_index, scheduled_date, scheduled_time, scheduled_timezone, estimated_time, spent_time, branch_id, milestone_id, created_at, updated_at, deleted_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           ON CONFLICT(id) DO UPDATE SET
             status             = excluded.status,
             content            = excluded.content,
@@ -91,6 +112,7 @@ export class LocalStorageAdapter implements ILocalStorage {
             estimated_time     = excluded.estimated_time,
             spent_time         = excluded.spent_time,
             branch_id          = excluded.branch_id,
+            milestone_id       = excluded.milestone_id,
             created_at         = excluded.created_at,
             updated_at         = excluded.updated_at,
             deleted_at         = excluded.deleted_at
@@ -117,6 +139,7 @@ export class LocalStorageAdapter implements ILocalStorage {
             t.estimated_time,
             t.spent_time,
             t.branch_id,
+            t.milestone_id ?? null,
             t.created_at,
             t.updated_at,
             t.deleted_at,
@@ -187,13 +210,21 @@ export class LocalStorageAdapter implements ILocalStorage {
     return {tasks: tasks.length, tags: tags.length, branches: branches.length, files: files.length}
   }
 
-  async deleteDocs(ids: {tasks?: string[]; tags?: string[]; branches?: string[]; files?: string[]}): Promise<void> {
+  async deleteDocs(ids: {tasks?: string[]; milestones?: string[]; tags?: string[]; branches?: string[]; files?: string[]}): Promise<void> {
     const transaction = this.db.transaction(() => {
       if (ids.tasks?.length) {
         for (const id of ids.tasks) {
           this.db.prepare(`DELETE FROM task_tags WHERE task_id = ?`).run(id)
           this.db.prepare(`DELETE FROM task_attachments WHERE task_id = ?`).run(id)
           this.db.prepare(`DELETE FROM tasks WHERE id = ?`).run(id)
+        }
+      }
+      if (ids.milestones?.length) {
+        const nullifyMilestoneStmt = this.db.prepare(`UPDATE tasks SET milestone_id = NULL WHERE milestone_id = ?`)
+        const deleteMilestoneStmt = this.db.prepare(`DELETE FROM milestones WHERE id = ?`)
+        for (const id of ids.milestones) {
+          nullifyMilestoneStmt.run(id)
+          deleteMilestoneStmt.run(id)
         }
       }
       if (ids.tags?.length) {
@@ -239,6 +270,7 @@ export class LocalStorageAdapter implements ILocalStorage {
         estimated_time: row.estimated_time,
         spent_time: row.spent_time,
         branch_id: row.branch_id,
+        milestone_id: row.milestone_id ?? null,
         tags: tagRows.map((r) => r.tag_id),
         attachments: attachmentRows.map((r) => r.file_id),
         created_at: row.created_at,
@@ -246,6 +278,19 @@ export class LocalStorageAdapter implements ILocalStorage {
         deleted_at: row.deleted_at,
       }
     })
+  }
+
+  private _loadMilestones(): SnapshotMilestone[] {
+    return (this.db.prepare(`SELECT * FROM milestones`).all() as any[]).map((row) => ({
+      id: row.id,
+      branch_id: row.branch_id,
+      name: row.name,
+      date: row.date,
+      description: row.description,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+      deleted_at: row.deleted_at,
+    }))
   }
 
   private _loadTags(): SnapshotTag[] {

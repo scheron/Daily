@@ -31,11 +31,11 @@ describe("assertKnownSnapshotVersion", () => {
     expect(() => assertKnownSnapshotVersion({version: "4"})).not.toThrow()
   })
 
-  it("TC-8: the known version has moved to 5, so v4 and v5 both stay readable and only a newer version is rejected", () => {
-    expect(KNOWN_SNAPSHOT_VERSION).toBe(5)
-    expect(() => assertKnownSnapshotVersion({version: 4})).not.toThrow()
+  it("TC-8: the known version has moved to 6, so v5 and v6 both stay readable and only a newer version is rejected", () => {
+    expect(KNOWN_SNAPSHOT_VERSION).toBe(6)
     expect(() => assertKnownSnapshotVersion({version: 5})).not.toThrow()
-    expect(() => assertKnownSnapshotVersion({version: 6})).toThrow(SnapshotVersionAheadError)
+    expect(() => assertKnownSnapshotVersion({version: 6})).not.toThrow()
+    expect(() => assertKnownSnapshotVersion({version: 7})).toThrow(SnapshotVersionAheadError)
   })
 
   it("TC-14: a version-7 snapshot, one past whatever version this build currently knows, aborts sync with SnapshotVersionAheadError", () => {

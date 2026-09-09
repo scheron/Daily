@@ -8,13 +8,14 @@ export type SnapshotMeta = {
 }
 
 export type Snapshot = {
-  version: 2 | 3 | 4 | 5
+  version: 2 | 3 | 4 | 5 | 6
   docs: SnapshotDocs
   meta: SnapshotMeta
 }
 
 export type SnapshotDocs = {
   tasks: SnapshotTask[]
+  milestones: SnapshotMilestone[]
   tags: SnapshotTag[]
   branches: SnapshotBranch[]
   files: SnapshotFile[]
@@ -45,8 +46,20 @@ export type SnapshotTask = {
   estimated_time: number
   spent_time: number
   branch_id: string
+  milestone_id: string | null
   tags: string[]
   attachments: string[]
+  created_at: string
+  updated_at: string
+  deleted_at: string | null
+}
+
+export type SnapshotMilestone = {
+  id: string
+  branch_id: string
+  name: string
+  date: string | null
+  description: string | null
   created_at: string
   updated_at: string
   deleted_at: string | null
@@ -88,14 +101,14 @@ export type SnapshotSettings = Omit<Settings, "sync" | "typography"> & {
 export type MergeResult = {
   resultDocs: SnapshotDocs
   toUpsert: SnapshotDocs
-  toRemove: {tasks?: string[]; tags?: string[]; branches?: string[]; files?: string[]}
+  toRemove: {tasks?: string[]; milestones?: string[]; tags?: string[]; branches?: string[]; files?: string[]}
   changes: number
 }
 
 export interface ILocalStorage {
   loadAllDocs(): Promise<SnapshotDocs>
   upsertDocs(docs: SnapshotDocs): Promise<void>
-  deleteDocs(ids: {tasks?: string[]; tags?: string[]; branches?: string[]; files?: string[]}): Promise<void>
+  deleteDocs(ids: {tasks?: string[]; milestones?: string[]; tags?: string[]; branches?: string[]; files?: string[]}): Promise<void>
 }
 
 export interface IRemoteStorage {

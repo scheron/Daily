@@ -4,6 +4,8 @@ import type {
   Branch,
   Day,
   ISODate,
+  Milestone,
+  MilestoneWithProgress,
   MoveTaskByOrderParams,
   Tag,
   Task,
@@ -72,6 +74,7 @@ export class StorageAPI implements Storage {
           spentTime: 0,
           orderIndex: params.orderIndex ?? 0,
           branchId: params.branchId,
+          milestoneId: null,
           scheduled: null,
         })
       }
@@ -90,6 +93,7 @@ export class StorageAPI implements Storage {
         spentTime: 0,
         orderIndex: params.orderIndex ?? 0,
         branchId: params.branchId,
+        milestoneId: null,
         scheduled: {
           date: scheduledDate,
           time: scheduledTime,
@@ -271,6 +275,56 @@ export class StorageAPI implements Storage {
 
   async removeTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Promise<Task | null> {
     return await window.BridgeIPC["tasks:remove-tags"](taskId, tagIds)
+  }
+  //#endregion
+
+  //#region MILESTONES
+  async getMilestoneList(params?: {branchId?: Branch["id"]}): Promise<MilestoneWithProgress[]> {
+    try {
+      return await window.BridgeIPC["milestones:get-many"](params)
+    } catch (error) {
+      console.error("Failed to get milestone list", error)
+      return []
+    }
+  }
+
+  async getMilestone(id: Milestone["id"]): Promise<Milestone | null> {
+    return await window.BridgeIPC["milestones:get-one"](id)
+  }
+
+  async createMilestone(input: {
+    branchId: Branch["id"]
+    name: string
+    date?: ISODate | null
+    description?: string | null
+  }): Promise<Milestone | null> {
+    return await window.BridgeIPC["milestones:create"](input)
+  }
+
+  async updateMilestone(id: Milestone["id"], updates: Partial<Pick<Milestone, "name" | "date" | "description">>): Promise<Milestone | null> {
+    return await window.BridgeIPC["milestones:update"](id, updates)
+  }
+
+  async deleteMilestone(id: Milestone["id"]): Promise<boolean> {
+    try {
+      return await window.BridgeIPC["milestones:delete"](id)
+    } catch (error) {
+      console.error("Failed to delete milestone", error)
+      return false
+    }
+  }
+
+  async getMilestoneTasks(params: {milestoneId?: Milestone["id"]; branchId?: Branch["id"]}): Promise<Task[]> {
+    try {
+      return await window.BridgeIPC["tasks:get-by-milestone"](params)
+    } catch (error) {
+      console.error("Failed to get milestone tasks", error)
+      return []
+    }
+  }
+
+  async setTaskMilestone(taskId: Task["id"], milestoneId: Milestone["id"] | null): Promise<Task | null> {
+    return await window.BridgeIPC["tasks:set-milestone"](taskId, milestoneId)
   }
   //#endregion
 

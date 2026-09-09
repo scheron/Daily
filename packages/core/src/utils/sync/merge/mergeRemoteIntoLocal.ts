@@ -13,6 +13,11 @@ export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: Snapsh
   let changes = 0
 
   const {result: mergedTasks, toGc: gcTasks, adoptedOnTie: adoptedTasks} = mergeCollections(localDocs.tasks, remoteDocs.tasks, strategy, gcIntervalMs)
+  const {
+    result: mergedMilestones,
+    toGc: gcMilestones,
+    adoptedOnTie: adoptedMilestones,
+  } = mergeCollections(localDocs.milestones ?? [], remoteDocs.milestones ?? [], strategy, gcIntervalMs)
   const {result: mergedTags, toGc: gcTags, adoptedOnTie: adoptedTags} = mergeCollections(localDocs.tags, remoteDocs.tags, strategy, gcIntervalMs)
   const {
     result: mergedBranches,
@@ -30,8 +35,15 @@ export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: Snapsh
     ? mergedTasks.map((t) => (survivingBranchIds.has(t.branch_id) ? t : {...t, branch_id: "main"}))
     : mergedTasks
 
+  const survivingMilestoneIds = new Set(mergedMilestones.map((m) => m.id))
+  const milestoneReassignTouchesTasks = tasksAfterBranchGc.some((t) => !!t.milestone_id && !survivingMilestoneIds.has(t.milestone_id))
+  const tasksAfterMilestoneGc = milestoneReassignTouchesTasks
+    ? tasksAfterBranchGc.map((t) => (!t.milestone_id || survivingMilestoneIds.has(t.milestone_id) ? t : {...t, milestone_id: null}))
+    : tasksAfterBranchGc
+
   const resultDocs: SnapshotDocs = {
-    tasks: tasksAfterBranchGc,
+    tasks: tasksAfterMilestoneGc,
+    milestones: mergedMilestones,
     tags: mergedTags,
     branches: mergedBranches,
     files: mergedFiles,
@@ -41,6 +53,7 @@ export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: Snapsh
 
   const toUpsert: SnapshotDocs = {
     tasks: [],
+    milestones: [],
     tags: [],
     branches: [],
     files: [],
@@ -48,13 +61,22 @@ export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: Snapsh
     settings: null,
   }
 
-  if (hasChanges(localDocs.tasks, tasksAfterBranchGc) || gcTasks.length || branchReassignTouchesTasks) {
-    toUpsert.tasks = tasksAfterBranchGc
+  if (hasChanges(localDocs.tasks, tasksAfterMilestoneGc) || gcTasks.length || branchReassignTouchesTasks || milestoneReassignTouchesTasks) {
+    toUpsert.tasks = tasksAfterMilestoneGc
     if (gcTasks.length) toRemove.tasks = gcTasks
-    changes += tasksAfterBranchGc.length + gcTasks.length
+    changes += tasksAfterMilestoneGc.length + gcTasks.length
   } else if (adoptedTasks.length) {
     toUpsert.tasks = adoptedTasks
     changes += adoptedTasks.length
+  }
+
+  if (hasChanges(localDocs.milestones ?? [], mergedMilestones) || gcMilestones.length) {
+    toUpsert.milestones = mergedMilestones
+    if (gcMilestones.length) toRemove.milestones = gcMilestones
+    changes += mergedMilestones.length + gcMilestones.length
+  } else if (adoptedMilestones.length) {
+    toUpsert.milestones = adoptedMilestones
+    changes += adoptedMilestones.length
   }
 
   if (hasChanges(localDocs.tags, mergedTags) || gcTags.length) {

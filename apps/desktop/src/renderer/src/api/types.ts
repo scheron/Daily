@@ -3,6 +3,8 @@ import type {
   Day,
   ISODate,
   ISOTime,
+  Milestone,
+  MilestoneWithProgress,
   MoveTaskByOrderParams,
   Tag,
   Task,
@@ -222,6 +224,55 @@ export interface Storage {
    * @returns true if the tag was deleted
    */
   deleteTag(id: Tag["id"]): Promise<boolean>
+
+  /**
+   * List a branch's milestones, each with its own progress (done/total/percent).
+   * @param params.branchId - Branch to scope to; defaults to the active branch
+   * @returns The milestones, each carrying its own progress
+   */
+  getMilestoneList(params?: {branchId?: Branch["id"]}): Promise<MilestoneWithProgress[]>
+  /**
+   * Load a single milestone by id.
+   * @param id - The milestone id
+   * @returns The milestone, or null if it does not exist
+   */
+  getMilestone(id: Milestone["id"]): Promise<Milestone | null>
+  /**
+   * Create a milestone. Only the name is required.
+   * @param input.branchId - Owning branch
+   * @param input.name - The milestone's name
+   * @param input.date - Target date, YYYY-MM-DD
+   * @param input.description - Free-text description
+   * @returns The created milestone, or null on failure
+   */
+  createMilestone(input: {branchId: Branch["id"]; name: string; date?: ISODate | null; description?: string | null}): Promise<Milestone | null>
+  /**
+   * Apply a partial update to a milestone.
+   * @param id - The milestone to update
+   * @param updates - Fields to change
+   * @returns The updated milestone, or null on failure
+   */
+  updateMilestone(id: Milestone["id"], updates: Partial<Pick<Milestone, "name" | "date" | "description">>): Promise<Milestone | null>
+  /**
+   * Soft-delete a milestone. Its tasks keep their place, with their milestone cleared.
+   * @param id - The milestone to delete
+   * @returns true if the milestone was deleted
+   */
+  deleteMilestone(id: Milestone["id"]): Promise<boolean>
+  /**
+   * List a branch's tasks that belong to a milestone.
+   * @param params.milestoneId - Milestone to scope to; omit to return every milestone's tasks
+   * @param params.branchId - Branch to scope to; defaults to the active branch
+   * @returns The tasks belonging to a milestone; a task with no milestone is never returned
+   */
+  getMilestoneTasks(params: {milestoneId?: Milestone["id"]; branchId?: Branch["id"]}): Promise<Task[]>
+  /**
+   * Assign or clear a task's milestone.
+   * @param taskId - The task to update
+   * @param milestoneId - The milestone to assign, or null to clear it
+   * @returns The updated task, or null on failure
+   */
+  setTaskMilestone(taskId: Task["id"], milestoneId: Milestone["id"] | null): Promise<Task | null>
 
   /**
    * List all project branches.
