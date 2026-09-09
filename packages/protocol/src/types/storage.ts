@@ -166,6 +166,8 @@ export type Task = {
   deletedAt: ISODateTime | null
   /** Branch ID (project scope). */
   branchId: Branch["id"]
+  /** Milestone ID; null when the task isn't assigned to one. */
+  milestoneId: Milestone["id"] | null
 
   /** Null when the task has no day and waits in the backlog. */
   scheduled: TaskSchedule | null
@@ -216,6 +218,21 @@ export type Branch = {
 
   name: string
 }
+
+export type Milestone = {
+  id: string
+  createdAt: ISODateTime
+  updatedAt: ISODateTime
+  deletedAt: ISODateTime | null
+
+  branchId: Branch["id"]
+  name: string
+  date: ISODate | null
+  description: string | null
+}
+
+export type MilestoneProgress = {done: number; total: number; percent: number}
+export type MilestoneWithProgress = Milestone & {progress: MilestoneProgress}
 
 export type File = {
   id: string

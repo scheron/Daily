@@ -1,6 +1,7 @@
 import {AISessionModel} from "./models/AISessionModel"
 import {BranchModel} from "./models/BranchModel"
 import {FileModel} from "./models/FileModel"
+import {MilestoneModel} from "./models/MilestoneModel"
 import {SettingsModel} from "./models/SettingsModel"
 import {TagModel} from "./models/TagModel"
 import {TaskEventModel} from "./models/TaskEventModel"
@@ -28,6 +29,7 @@ export type StorageCore = {
   searchService: SearchService
   localAdapter: LocalStorageAdapter
   aiSessionModel: AISessionModel
+  milestoneModel: MilestoneModel
 }
 
 /** Constructs all models and services over an open database. Runs main-branch/asset bootstrapping. No sync engine, no search-index build, no auto-sync. */
@@ -38,6 +40,7 @@ export function createStorageCore(db: SqliteDriver, paths: AppPaths): StorageCor
   const taskEventModel = new TaskEventModel(db)
   const tagModel = new TagModel(db)
   const fileModel = new FileModel(db, paths.assetsDir())
+  const milestoneModel = new MilestoneModel(db)
 
   branchModel.ensureMainBranch()
   fileModel.initAssets()
@@ -54,5 +57,6 @@ export function createStorageCore(db: SqliteDriver, paths: AppPaths): StorageCor
     searchService: new SearchService(taskModel, branchModel),
     localAdapter: new LocalStorageAdapter(db),
     aiSessionModel: new AISessionModel(db),
+    milestoneModel,
   }
 }

@@ -8,7 +8,8 @@ import {v007} from "./v007-repair-activity-and-usage"
 import {v008} from "./v008-local-sync-settings"
 import {v009} from "./v009-remove-ssh-sync-settings"
 import {v010} from "./v010-backlog-status"
+import {v011} from "./v011-milestones"
 
 import type {Migration} from "../scripts/migrate"
 
-export const migrations: Migration[] = [v001, v002, v003, v004, v005, v006, v007, v008, v009, v010]
+export const migrations: Migration[] = [v001, v002, v003, v004, v005, v006, v007, v008, v009, v010, v011]

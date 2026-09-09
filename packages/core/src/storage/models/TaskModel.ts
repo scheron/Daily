@@ -23,6 +23,7 @@ const TASK_SELECT = `
     t.estimated_time,
     t.spent_time,
     t.branch_id,
+    t.milestone_id,
     t.created_at,
     t.updated_at,
     t.deleted_at,
@@ -143,9 +144,9 @@ export class TaskModel {
         INSERT INTO tasks (
           id, status, content, minimized, order_index,
           scheduled_date, scheduled_time, scheduled_timezone,
-          estimated_time, spent_time, branch_id,
+          estimated_time, spent_time, branch_id, milestone_id,
           created_at, updated_at, deleted_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
         )
         .run(
@@ -160,6 +161,7 @@ export class TaskModel {
           task.estimatedTime,
           task.spentTime,
           branchId,
+          task.milestoneId ?? null,
           now,
           now,
           task.deletedAt ?? null,
@@ -218,6 +220,11 @@ export class TaskModel {
     if (notUndefined(updates.branchId)) {
       setClauses.push("branch_id = ?")
       values.push(updates.branchId)
+    }
+
+    if (notUndefined(updates.milestoneId)) {
+      setClauses.push("milestone_id = ?")
+      values.push(updates.milestoneId)
     }
 
     if (notUndefined(updates.deletedAt)) {

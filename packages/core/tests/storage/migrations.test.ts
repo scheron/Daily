@@ -215,6 +215,7 @@ describe("migrations", () => {
       const db = new Database(":memory:")
       runMigrations(db)
 
+      rollbackLastMigration(db) // v011
       rollbackLastMigration(db) // v010
       rollbackLastMigration(db) // v009
       rollbackLastMigration(db) // v008
