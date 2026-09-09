@@ -52,4 +52,4 @@ pnpm check:all           # lint + typecheck:all + circular + test
 - **Soft deletes only** — set `deletedAt`, never hard-delete. Tasks are always scoped to a branch (`main` always exists).
 - **Snapshot version:** on any change to the sync snapshot shape, bump `Snapshot.version` in `packages/protocol/src/types/sync.ts` and handle older versions on read (a newer version aborts sync via `SnapshotVersionAheadError`).
 - **Tailwind stays in devDependencies** — as a prod dep it drags Rust natives into the asar.
-- macOS/arm64 only; Node ≥ 22.5.0, pnpm ≥ 10.26.0.
+- macOS/arm64 only; Node ≥ 24.0.0, pnpm ≥ 10.26.0.
