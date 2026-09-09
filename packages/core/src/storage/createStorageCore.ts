@@ -9,6 +9,7 @@ import {TaskModel} from "./models/TaskModel"
 import {BranchesService} from "./services/BranchesService"
 import {DaysService} from "./services/DaysService"
 import {FilesService} from "./services/FilesService"
+import {MilestonesService} from "./services/MilestonesService"
 import {SearchService} from "./services/SearchService"
 import {SettingsService} from "./services/SettingsService"
 import {TagsService} from "./services/TagsService"
@@ -29,7 +30,7 @@ export type StorageCore = {
   searchService: SearchService
   localAdapter: LocalStorageAdapter
   aiSessionModel: AISessionModel
-  milestoneModel: MilestoneModel
+  milestonesService: MilestonesService
 }
 
 /** Constructs all models and services over an open database. Runs main-branch/asset bootstrapping. No sync engine, no search-index build, no auto-sync. */
@@ -57,6 +58,6 @@ export function createStorageCore(db: SqliteDriver, paths: AppPaths): StorageCor
     searchService: new SearchService(taskModel, branchModel),
     localAdapter: new LocalStorageAdapter(db),
     aiSessionModel: new AISessionModel(db),
-    milestoneModel,
+    milestonesService: new MilestonesService(milestoneModel, taskModel),
   }
 }

@@ -3,7 +3,19 @@ import {DateTime} from "luxon"
 import {getOrderIndexBetween, getPreviousTaskOrderIndex, getTaskOrderValue, normalizeTaskOrderIndexes, sortTasksByOrderIndex} from "@daily/protocol"
 import {notNull, notUndefined} from "@daily/std"
 
-import type {Branch, File, ISODate, MoveTaskByOrderParams, Tag, Task, TaskEvent, TaskMovePosition, TaskSchedule, TaskStatus} from "@daily/protocol"
+import type {
+  Branch,
+  File,
+  ISODate,
+  Milestone,
+  MoveTaskByOrderParams,
+  Tag,
+  Task,
+  TaskEvent,
+  TaskMovePosition,
+  TaskSchedule,
+  TaskStatus,
+} from "@daily/protocol"
 import type {PartialDeep} from "type-fest"
 import type {TaskInternal} from "../../types/storage"
 import type {TaskModel} from "../models/TaskModel"
@@ -31,6 +43,10 @@ export class TasksService {
 
   async getBacklogList(params?: {limit?: number; branchId?: Branch["id"]}): Promise<Task[]> {
     return this.taskModel.getBacklogList(params)
+  }
+
+  async getMilestoneTasks(params: {milestoneId?: Milestone["id"]; branchId?: Branch["id"]}): Promise<Task[]> {
+    return this.taskModel.getMilestoneTaskList(params)
   }
 
   async getTask(id: Task["id"]): Promise<Task | null> {
@@ -151,6 +167,10 @@ export class TasksService {
     if (!updatedTask) return false
 
     return true
+  }
+
+  async setTaskMilestone(taskId: Task["id"], milestoneId: Milestone["id"] | null): Promise<Task | null> {
+    return this.taskModel.updateTask(taskId, {milestoneId})
   }
 
   async deleteTask(id: Task["id"]): Promise<boolean> {

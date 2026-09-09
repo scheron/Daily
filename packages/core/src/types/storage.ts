@@ -7,6 +7,8 @@ import type {
   ISODate,
   MigrationDirection,
   MigrationPreview,
+  Milestone,
+  MilestoneWithProgress,
   MoveTaskByOrderParams,
   PendingApprovalView,
   ServerBindingView,
@@ -60,6 +62,7 @@ export interface IStorageController {
 
   getTaskList(params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: Branch["id"]}): Promise<Task[]>
   getBacklogList(params?: {limit?: number; branchId?: Branch["id"]}): Promise<Task[]>
+  getMilestoneTasks(params?: {milestoneId?: Milestone["id"]; branchId?: Branch["id"]}): Promise<Task[]>
   getTask(id: Task["id"]): Promise<Task | null>
   updateTask(id: Task["id"], updates: PartialDeep<Task>, activeDay?: ISODate): Promise<Task | null>
   toggleTaskMinimized(id: Task["id"], minimized: boolean): Promise<Task | null>
@@ -67,6 +70,7 @@ export interface IStorageController {
   scheduleTask(taskId: Task["id"], schedule: TaskSchedule): Promise<Task | null>
   moveTaskToBacklog(taskId: Task["id"]): Promise<Task | null>
   moveTaskToBranch(taskId: Task["id"], branchId: Branch["id"]): Promise<boolean>
+  setTaskMilestone(taskId: Task["id"], milestoneId: Milestone["id"] | null): Promise<Task | null>
   createTask(task: Omit<Task, "id" | "createdAt" | "updatedAt">): Promise<Task | null>
   deleteTask(id: Task["id"]): Promise<boolean>
   getDeletedTasks(params?: {limit?: number; branchId?: Branch["id"]}): Promise<Task[]>
@@ -85,6 +89,12 @@ export interface IStorageController {
 
   addTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Promise<Task | null>
   removeTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Promise<Task | null>
+
+  getMilestoneList(params?: {branchId?: Branch["id"]}): Promise<MilestoneWithProgress[]>
+  getMilestone(id: Milestone["id"]): Promise<Milestone | null>
+  createMilestone(input: {branchId?: Branch["id"]; name: string; date?: ISODate | null; description?: string | null}): Promise<Milestone | null>
+  updateMilestone(id: Milestone["id"], updates: Partial<Pick<Milestone, "name" | "date" | "description">>): Promise<Milestone | null>
+  deleteMilestone(id: Milestone["id"]): Promise<boolean>
 
   getBranchList(): Promise<Branch[]>
   getBranch(id: Branch["id"]): Promise<Branch | null>

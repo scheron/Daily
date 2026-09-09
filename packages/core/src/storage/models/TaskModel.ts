@@ -6,7 +6,7 @@ import {notUndefined} from "@daily/std"
 import {logger} from "../../utils/logger"
 import {rowToTask} from "./_rowMappers"
 
-import type {Branch, File, ISODate, Tag, Task} from "@daily/protocol"
+import type {Branch, File, ISODate, Milestone, Tag, Task} from "@daily/protocol"
 import type {SqliteDriver} from "../../database/SqliteDriver"
 import type {TaskInternal} from "../../types/storage"
 
@@ -112,6 +112,38 @@ export class TaskModel {
     const rows = this.db.prepare(sql).all(...values) as any[]
 
     logger.info(logger.CONTEXT.TASKS, `Loaded ${rows.length} backlog tasks from database`)
+
+    return rows.map(rowToTask)
+  }
+
+  getMilestoneTaskList(params?: {milestoneId?: Milestone["id"]; branchId?: Branch["id"]; includeDeleted?: boolean}): Task[] {
+    const conditions: string[] = ["t.milestone_id IS NOT NULL"]
+    const values: any[] = []
+
+    if (!params?.includeDeleted) {
+      conditions.push("t.deleted_at IS NULL")
+    }
+
+    if (params?.milestoneId) {
+      conditions.push("t.milestone_id = ?")
+      values.push(params.milestoneId)
+    }
+
+    if (params?.branchId) {
+      if (params.branchId === MAIN_BRANCH_ID) {
+        conditions.push("(t.branch_id = ? OR t.branch_id IS NULL)")
+        values.push(MAIN_BRANCH_ID)
+      } else {
+        conditions.push("t.branch_id = ?")
+        values.push(params.branchId)
+      }
+    }
+
+    const sql = `${TASK_SELECT} WHERE ${conditions.join(" AND ")} ORDER BY t.order_index`
+
+    const rows = this.db.prepare(sql).all(...values) as any[]
+
+    logger.info(logger.CONTEXT.TASKS, `Loaded ${rows.length} milestone tasks from database`)
 
     return rows.map(rowToTask)
   }

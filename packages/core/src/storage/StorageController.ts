@@ -27,6 +27,8 @@ import type {
   ISODate,
   MigrationDirection,
   MigrationPreview,
+  Milestone,
+  MilestoneWithProgress,
   MoveTaskByOrderParams,
   Settings,
   SyncProvider,
@@ -54,6 +56,7 @@ export class StorageController implements IStorageController {
   private branchesService!: StorageCore["branchesService"]
   private tasksService!: StorageCore["tasksService"]
   private tagsService!: StorageCore["tagsService"]
+  private milestonesService!: StorageCore["milestonesService"]
   private filesService!: StorageCore["filesService"]
   private daysService!: StorageCore["daysService"]
   private searchService!: StorageCore["searchService"]
@@ -86,6 +89,7 @@ export class StorageController implements IStorageController {
     this.branchesService = core.branchesService
     this.tasksService = core.tasksService
     this.tagsService = core.tagsService
+    this.milestonesService = core.milestonesService
     this.filesService = core.filesService
     this.daysService = core.daysService
     this.searchService = core.searchService
@@ -232,6 +236,11 @@ export class StorageController implements IStorageController {
     return this.tasksService.getBacklogList({...params, branchId})
   }
 
+  async getMilestoneTasks(params?: {milestoneId?: Milestone["id"]; branchId?: Branch["id"]}): Promise<Task[]> {
+    const branchId = await this.branchesService.resolveBranchId(params?.branchId)
+    return this.tasksService.getMilestoneTasks({...params, branchId})
+  }
+
   async getTask(id: Task["id"]): Promise<Task | null> {
     return this.tasksService.getTask(id)
   }
@@ -295,6 +304,14 @@ export class StorageController implements IStorageController {
       logger.error(logger.CONTEXT.TASKS, `Failed to move task ${taskId} to branch ${branchId}`, error)
       return false
     }
+  }
+
+  async setTaskMilestone(taskId: Task["id"], milestoneId: Milestone["id"] | null): Promise<Task | null> {
+    const updatedTask = await this.tasksService.setTaskMilestone(taskId, milestoneId)
+    if (updatedTask) {
+      this.notifyStorageDataChange?.()
+    }
+    return updatedTask
   }
 
   async createTask(task: Task): Promise<Task | null> {
@@ -469,6 +486,47 @@ export class StorageController implements IStorageController {
     }
     this.notifyStorageDataChange?.()
     return updatedTask
+  }
+  //#endregion
+
+  //#region MILESTONES
+  async getMilestoneList(params?: {branchId?: Branch["id"]}): Promise<MilestoneWithProgress[]> {
+    const branchId = await this.branchesService.resolveBranchId(params?.branchId)
+    return this.milestonesService.getMilestoneList({branchId})
+  }
+
+  async getMilestone(id: Milestone["id"]): Promise<Milestone | null> {
+    return this.milestonesService.getMilestone(id)
+  }
+
+  async createMilestone(input: {
+    branchId?: Branch["id"]
+    name: string
+    date?: ISODate | null
+    description?: string | null
+  }): Promise<Milestone | null> {
+    const branchId = await this.branchesService.resolveBranchId(input.branchId)
+    const createdMilestone = await this.milestonesService.createMilestone({...input, branchId})
+    if (createdMilestone) {
+      this.notifyStorageDataChange?.()
+    }
+    return createdMilestone
+  }
+
+  async updateMilestone(id: Milestone["id"], updates: Partial<Pick<Milestone, "name" | "date" | "description">>): Promise<Milestone | null> {
+    const updatedMilestone = await this.milestonesService.updateMilestone(id, updates)
+    if (updatedMilestone) {
+      this.notifyStorageDataChange?.()
+    }
+    return updatedMilestone
+  }
+
+  async deleteMilestone(id: Milestone["id"]): Promise<boolean> {
+    const deleted = await this.milestonesService.deleteMilestone(id)
+    if (deleted) {
+      this.notifyStorageDataChange?.()
+    }
+    return deleted
   }
   //#endregion
 
