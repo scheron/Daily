@@ -92,7 +92,7 @@
     "@vitejs/plugin-vue": "^5.2.4",
     "@vue/test-utils": "^2.4.6",
     "electron": "^36.3.2",
-    "electron-builder": "^26.0.12",
+    "electron-builder": "^26.15.3",
     "electron-vite": "^4.0.1",
     "happy-dom": "^20.8.4",
     "tailwindcss": "^4.1.8",

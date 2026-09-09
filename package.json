@@ -66,7 +66,7 @@
     "@vue/tsconfig": "^0.7.0",
     "chalk": "^4.1.2",
     "electron": "^36.3.2",
-    "electron-builder": "^26.0.12",
+    "electron-builder": "^26.15.3",
     "eslint": "^9.28.0",
     "eslint-config-prettier": "^10.1.5",
     "eslint-plugin-import": "^2.31.0",
