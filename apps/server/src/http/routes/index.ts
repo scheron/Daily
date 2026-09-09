@@ -1,6 +1,16 @@
 import {assetDownloadRoute, assetsManifestRoute, assetUploadRoute} from "./assets"
 import {claimRoute} from "./claim"
-import {enrollApproveRoute, enrollConsoleRoute, enrollDenyRoute, enrollPendingRoute, enrollRequestRoute, enrollStatusRoute} from "./enroll"
+import {deviceRevokeRoute, devicesRoute} from "./devices"
+import {
+  enrollApproveRoute,
+  enrollConsoleRoute,
+  enrollDenyRoute,
+  enrollPendingRoute,
+  enrollRequestRoute,
+  enrollStatusRoute,
+  enrollWindowCloseRoute,
+  enrollWindowOpenRoute,
+} from "./enroll"
 import {healthRoute} from "./health"
 import {serverInfoRoute} from "./serverInfo"
 import {revisionRoute, snapshotReadRoute, snapshotWriteRoute} from "./snapshot"
@@ -17,7 +27,11 @@ export const routes: Route[] = [
   enrollPendingRoute,
   enrollApproveRoute,
   enrollDenyRoute,
+  enrollWindowOpenRoute,
+  enrollWindowCloseRoute,
   enrollConsoleRoute,
+  devicesRoute,
+  deviceRevokeRoute,
   snapshotReadRoute,
   snapshotWriteRoute,
   revisionRoute,

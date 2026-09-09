@@ -15,7 +15,7 @@ import {listDevices, revokeDevice} from "../src/devices/DeviceStore"
 import {createConsoleEnrollment} from "../src/enrollment/EnrollmentStore"
 import {createHttpServer} from "../src/http/createHttpServer"
 import {HEALTH_PATH} from "../src/http/routes/health"
-import {ensureClaimCode, regenerateClaimCode} from "../src/identity/ServerIdentityStore"
+import {ensureClaimCode, openEnrollmentWindow, regenerateClaimCode} from "../src/identity/ServerIdentityStore"
 import {readSnapshot as readStoredSnapshot} from "../src/snapshot/SnapshotStore"
 import {openServerStore} from "../src/store/instance"
 
@@ -24,6 +24,7 @@ import type {
   AssetUploadResponse,
   ClaimResponse,
   ConsoleEnrollResponse,
+  DeviceListResponse,
   EnrollmentStatus,
   EnrollRequestResponse,
   IssuedCredential,
@@ -266,7 +267,9 @@ describe("peer enrollment", () => {
     return ((await res.json()) as {ok: true; data: ClaimResponse}).data
   }
 
+  /** This block is not about the enrollment window, so every request opens it fresh rather than tracking its lifecycle by hand. */
   function requestEnrollment(deviceName: string): Promise<Response> {
+    openEnrollmentWindow(booted.store)
     return fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollRequest}`, {method: "POST", body: JSON.stringify({deviceName})})
   }
 
@@ -319,6 +322,7 @@ describe("peer enrollment", () => {
       deviceName: "Mac mini",
       requestedAt: expect.any(String),
       expiresAt: request.expiresAt,
+      requestedFrom: {address: "127.0.0.1", isPrivate: true},
     })
 
     const approved = await approve(first.token, {requestId: request.requestId, code: request.code})
@@ -336,9 +340,10 @@ describe("peer enrollment", () => {
 
     expect(authenticateRequest(booted.store, bearer(collected.token)).id).toBe(collected.device.id)
 
+    // The newly enrolled device is a Child, and only the Parent may read the waiting request.
     const fromTheNewDevice = await readPending(collected.token)
-    expect(fromTheNewDevice.status).toBe(200)
-    expect(await readData<PendingEnrollmentResponse>(fromTheNewDevice)).toEqual({request: null})
+    expect(fromTheNewDevice.status).toBe(403)
+    expect(await fromTheNewDevice.json()).toEqual({ok: false, error: {code: "NOT_PARENT", message: expect.any(String)}})
   })
 
   it("TC-9: only one request is live at a time, a lapsed request expires without blocking a fresh one, and an uncollected approval expires too", async () => {
@@ -683,19 +688,19 @@ describe("snapshot and revision http surface", () => {
     expect((await readData<SnapshotReadResponse>(plainRead)).snapshot).toEqual(doc)
   })
 
-  it("TC-13: the probe carries exactly revision, pendingEnrollment and protocol, and the revision moves only when the snapshot is written", async () => {
+  it("TC-13: the probe carries exactly revision, pendingEnrollment, protocol and role, and the revision moves only when the snapshot is written", async () => {
     const first = await claimFirstDevice()
 
     const beforeAnyWrite = await readData<RevisionProbe>(await readRevision(first.token))
-    expect(Object.keys(beforeAnyWrite).sort()).toEqual(["pendingEnrollment", "protocol", "revision"])
-    expect(beforeAnyWrite).toEqual({revision: null, pendingEnrollment: false, protocol: SYNC_PROTOCOL_VERSION})
+    expect(Object.keys(beforeAnyWrite).sort()).toEqual(["pendingEnrollment", "protocol", "revision", "role"])
+    expect(beforeAnyWrite).toEqual({revision: null, pendingEnrollment: false, protocol: SYNC_PROTOCOL_VERSION, role: "parent"})
 
     const doc = snapshotDocument()
     const written = await writeSnapshot(first.token, doc, null)
     const {revision} = await readData<SnapshotWriteResponse>(written)
 
     const afterWrite = await readData<RevisionProbe>(await readRevision(first.token))
-    expect(Object.keys(afterWrite).sort()).toEqual(["pendingEnrollment", "protocol", "revision"])
+    expect(Object.keys(afterWrite).sort()).toEqual(["pendingEnrollment", "protocol", "revision", "role"])
     expect(afterWrite.revision).toBe(revision)
 
     const currentSnapshot = await readData<SnapshotReadResponse>(await readSnapshot(first.token))
@@ -713,6 +718,7 @@ describe("snapshot and revision http surface", () => {
   it("TC-14: pendingEnrollment is true while a peer request waits and false once it is resolved", async () => {
     const first = await claimFirstDevice()
 
+    openEnrollmentWindow(booted.store)
     const requested = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollRequest}`, {
       method: "POST",
       body: JSON.stringify({deviceName: "Mac mini"}),
@@ -1095,6 +1101,7 @@ describe("the revision probe holds a request naming a known revision — TC-12, 
     const pending = readRevisionKnowing(first.token, knownRevision)
     await new Promise((resolve) => setTimeout(resolve, 300))
 
+    openEnrollmentWindow(booted.store)
     await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollRequest}`, {method: "POST", body: JSON.stringify({deviceName: "Mac Studio"})})
 
     const res = await pending
@@ -1124,4 +1131,529 @@ describe("the revision probe holds a request naming a known revision — TC-12, 
     const again = await readRevisionKnowing(first.token, knownRevision)
     expect(again.status).toBe(200)
   }, 120000)
+})
+
+/**
+ * The plan freezes the four wire codes phase 1 adds to `ProtocolErrorCode`
+ * (`NOT_PARENT`, `ENROLLMENT_WINDOW_CLOSED`, `DEVICE_NOT_FOUND`, `CANNOT_REVOKE_PARENT`) but not
+ * the HTTP status each one answers at — `ProtocolError`'s `STATUS` table is not part of the
+ * plan's frozen wire contract. The suites below assume each new code lands in the same family as
+ * the existing code it reads closest to: `NOT_PARENT` beside `DEVICE_REVOKED`/`CLAIM_CODE_LOCKED`
+ * (403 — the caller is known, the action is refused), `ENROLLMENT_WINDOW_CLOSED` and
+ * `CANNOT_REVOKE_PARENT` beside `SERVER_NOT_CLAIMED`/`ENROLLMENT_IN_PROGRESS`/`ALREADY_CLAIMED`
+ * (409 — the system's own state forbids this right now), and `DEVICE_NOT_FOUND` beside
+ * `ENROLLMENT_NOT_FOUND`/`ASSET_NOT_FOUND` (404 — the literal, established convention for a
+ * "no such thing" code in this file). Flagged here rather than settled silently: if an
+ * implementer's `STATUS` table disagrees, the fix is in `ProtocolError`, not in these numbers.
+ */
+describe("only the Parent may act on a waiting enrollment — TC-5", () => {
+  let dataDir: string
+  let booted: BootedServer
+
+  beforeEach(async () => {
+    dataDir = mkdtempSync(join(tmpdir(), "daily-server-membership-approve-"))
+    booted = await bootServer(dataDir)
+  })
+
+  afterEach(async () => {
+    await booted.close()
+    rmSync(dataDir, {recursive: true, force: true})
+  })
+
+  async function claimFirstDevice(): Promise<ClaimResponse> {
+    const code = ensureClaimCode(booted.store)
+    const res = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.claim}`, {
+      method: "POST",
+      body: JSON.stringify({code, deviceName: "MacBook Air"}),
+    })
+    return ((await res.json()) as {ok: true; data: ClaimResponse}).data
+  }
+
+  async function bindSecondDevice(deviceName: string): Promise<IssuedCredential> {
+    const issued = createConsoleEnrollment(booted.store)
+    const res = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollConsole}`, {
+      method: "POST",
+      body: JSON.stringify({token: issued.token, deviceName}),
+    })
+    return ((await res.json()) as {ok: true; data: IssuedCredential}).data
+  }
+
+  async function readData<T>(res: Response): Promise<T> {
+    return ((await res.json()) as {ok: true; data: T}).data
+  }
+
+  it("TC-5: a Child is refused NOT_PARENT reading, approving or denying the waiting request, which stays pending; the Parent's own calls are answered", async () => {
+    const parent = await claimFirstDevice()
+    const child = await bindSecondDevice("Mac mini")
+
+    await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollWindowOpen}`, {method: "POST", headers: {authorization: `Bearer ${parent.token}`}})
+    const request = await readData<EnrollRequestResponse>(
+      await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollRequest}`, {method: "POST", body: JSON.stringify({deviceName: "Mac Studio"})}),
+    )
+
+    const childPending = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollPending}`, {headers: {authorization: `Bearer ${child.token}`}})
+    expect(childPending.status).toBe(403)
+    expect(await childPending.json()).toEqual({ok: false, error: {code: "NOT_PARENT", message: expect.any(String)}})
+
+    const childApprove = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollApprove}`, {
+      method: "POST",
+      headers: {authorization: `Bearer ${child.token}`},
+      body: JSON.stringify({requestId: request.requestId, code: request.code}),
+    })
+    expect(childApprove.status).toBe(403)
+    expect(await childApprove.json()).toEqual({ok: false, error: {code: "NOT_PARENT", message: expect.any(String)}})
+
+    const childDeny = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollDeny}`, {
+      method: "POST",
+      headers: {authorization: `Bearer ${child.token}`},
+      body: JSON.stringify({requestId: request.requestId}),
+    })
+    expect(childDeny.status).toBe(403)
+    expect(await childDeny.json()).toEqual({ok: false, error: {code: "NOT_PARENT", message: expect.any(String)}})
+
+    const stillPending = await readData<PendingEnrollmentResponse>(
+      await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollPending}`, {headers: {authorization: `Bearer ${parent.token}`}}),
+    )
+    expect(stillPending.request?.requestId).toBe(request.requestId)
+
+    const parentApprove = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollApprove}`, {
+      method: "POST",
+      headers: {authorization: `Bearer ${parent.token}`},
+      body: JSON.stringify({requestId: request.requestId, code: request.code}),
+    })
+    expect(parentApprove.status).toBe(204)
+  })
+})
+
+describe("the revision probe reports each device's own role and scopes the waiting enrollment to the Parent — TC-6", () => {
+  let dataDir: string
+  let booted: BootedServer
+
+  beforeEach(async () => {
+    dataDir = mkdtempSync(join(tmpdir(), "daily-server-membership-role-probe-"))
+    booted = await bootServer(dataDir)
+  })
+
+  afterEach(async () => {
+    await booted.close()
+    rmSync(dataDir, {recursive: true, force: true})
+  })
+
+  async function claimFirstDevice(): Promise<ClaimResponse> {
+    const code = ensureClaimCode(booted.store)
+    const res = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.claim}`, {
+      method: "POST",
+      body: JSON.stringify({code, deviceName: "MacBook Air"}),
+    })
+    return ((await res.json()) as {ok: true; data: ClaimResponse}).data
+  }
+
+  async function bindSecondDevice(deviceName: string): Promise<IssuedCredential> {
+    const issued = createConsoleEnrollment(booted.store)
+    const res = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollConsole}`, {
+      method: "POST",
+      body: JSON.stringify({token: issued.token, deviceName}),
+    })
+    return ((await res.json()) as {ok: true; data: IssuedCredential}).data
+  }
+
+  async function readData<T>(res: Response): Promise<T> {
+    return ((await res.json()) as {ok: true; data: T}).data
+  }
+
+  it("TC-6: each device is told its own role on the revision probe, and only the Parent is told an enrollment is waiting", async () => {
+    const parent = await claimFirstDevice()
+    const child = await bindSecondDevice("Mac mini")
+
+    await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollWindowOpen}`, {method: "POST", headers: {authorization: `Bearer ${parent.token}`}})
+    await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollRequest}`, {method: "POST", body: JSON.stringify({deviceName: "Mac Studio"})})
+
+    const parentProbe = await readData<RevisionProbe>(
+      await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.revision}`, {headers: {authorization: `Bearer ${parent.token}`}}),
+    )
+    expect(parentProbe.role).toBe("parent")
+    expect(parentProbe.pendingEnrollment).toBe(true)
+
+    const childProbe = await readData<RevisionProbe>(
+      await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.revision}`, {headers: {authorization: `Bearer ${child.token}`}}),
+    )
+    expect(childProbe.role).toBe("child")
+    expect(childProbe.pendingEnrollment).toBe(false)
+  })
+})
+
+describe("the enrollment window gates asking to enroll — TC-7, TC-8", () => {
+  let dataDir: string
+  let booted: BootedServer
+
+  beforeEach(async () => {
+    dataDir = mkdtempSync(join(tmpdir(), "daily-server-enroll-window-"))
+    booted = await bootServer(dataDir)
+  })
+
+  afterEach(async () => {
+    vi.useRealTimers()
+    await booted.close()
+    rmSync(dataDir, {recursive: true, force: true})
+  })
+
+  async function claimFirstDevice(): Promise<ClaimResponse> {
+    const code = ensureClaimCode(booted.store)
+    const res = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.claim}`, {
+      method: "POST",
+      body: JSON.stringify({code, deviceName: "MacBook Air"}),
+    })
+    return ((await res.json()) as {ok: true; data: ClaimResponse}).data
+  }
+
+  async function bindSecondDevice(deviceName: string): Promise<IssuedCredential> {
+    const issued = createConsoleEnrollment(booted.store)
+    const res = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollConsole}`, {
+      method: "POST",
+      body: JSON.stringify({token: issued.token, deviceName}),
+    })
+    return ((await res.json()) as {ok: true; data: IssuedCredential}).data
+  }
+
+  it("TC-7: an enrollment request is refused until the Parent opens a window, accepted while it is open, and refused again once that window has run out", async () => {
+    const parent = await claimFirstDevice()
+
+    const beforeWindow = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollRequest}`, {
+      method: "POST",
+      body: JSON.stringify({deviceName: "Mac mini"}),
+    })
+    expect(beforeWindow.status).toBe(409)
+    expect(await beforeWindow.json()).toEqual({ok: false, error: {code: "ENROLLMENT_WINDOW_CLOSED", message: expect.any(String)}})
+
+    await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollWindowOpen}`, {method: "POST", headers: {authorization: `Bearer ${parent.token}`}})
+
+    const duringWindow = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollRequest}`, {
+      method: "POST",
+      body: JSON.stringify({deviceName: "Mac mini"}),
+    })
+    expect(duringWindow.status).toBe(200)
+    const request = ((await duringWindow.json()) as {ok: true; data: EnrollRequestResponse}).data
+
+    // Denied so the second attempt below is refused only because the window has run out, not because a request is already pending.
+    await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollDeny}`, {
+      method: "POST",
+      headers: {authorization: `Bearer ${parent.token}`},
+      body: JSON.stringify({requestId: request.requestId}),
+    })
+
+    vi.useFakeTimers({toFake: ["Date"]})
+    vi.setSystemTime(Date.now() + SYNC_PROTOCOL_CONFIG.enrollmentWindowMs + 1000)
+
+    const afterWindow = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollRequest}`, {
+      method: "POST",
+      body: JSON.stringify({deviceName: "Mac Studio"}),
+    })
+    expect(afterWindow.status).toBe(409)
+    expect(await afterWindow.json()).toEqual({ok: false, error: {code: "ENROLLMENT_WINDOW_CLOSED", message: expect.any(String)}})
+  })
+
+  it("TC-8: a Child cannot open the enrollment window, and no window opens from its attempt", async () => {
+    await claimFirstDevice()
+    const child = await bindSecondDevice("Mac mini")
+
+    const opened = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollWindowOpen}`, {
+      method: "POST",
+      headers: {authorization: `Bearer ${child.token}`},
+    })
+    expect(opened.status).toBe(403)
+    expect(await opened.json()).toEqual({ok: false, error: {code: "NOT_PARENT", message: expect.any(String)}})
+
+    const stillClosed = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollRequest}`, {
+      method: "POST",
+      body: JSON.stringify({deviceName: "Mac Studio"}),
+    })
+    expect(stillClosed.status).toBe(409)
+    expect(await stillClosed.json()).toEqual({ok: false, error: {code: "ENROLLMENT_WINDOW_CLOSED", message: expect.any(String)}})
+  })
+})
+
+describe("the enrollment window gates asking, never approving — TC-9", () => {
+  let dataDir: string
+  let booted: BootedServer
+
+  beforeEach(async () => {
+    dataDir = mkdtempSync(join(tmpdir(), "daily-server-window-lifecycle-"))
+    booted = await bootServer(dataDir)
+  })
+
+  afterEach(async () => {
+    vi.useRealTimers()
+    await booted.close()
+    rmSync(dataDir, {recursive: true, force: true})
+  })
+
+  async function claimFirstDevice(): Promise<ClaimResponse> {
+    const code = ensureClaimCode(booted.store)
+    const res = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.claim}`, {
+      method: "POST",
+      body: JSON.stringify({code, deviceName: "MacBook Air"}),
+    })
+    return ((await res.json()) as {ok: true; data: ClaimResponse}).data
+  }
+
+  async function readData<T>(res: Response): Promise<T> {
+    return ((await res.json()) as {ok: true; data: T}).data
+  }
+
+  function openWindow(token: string): Promise<Response> {
+    return fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollWindowOpen}`, {method: "POST", headers: {authorization: `Bearer ${token}`}})
+  }
+
+  function requestEnrollment(deviceName: string): Promise<Response> {
+    return fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollRequest}`, {method: "POST", body: JSON.stringify({deviceName})})
+  }
+
+  it("TC-9: approving the one request waiting closes the enrollment window", async () => {
+    const parent = await claimFirstDevice()
+    await openWindow(parent.token)
+    const request = await readData<EnrollRequestResponse>(await requestEnrollment("Mac mini"))
+
+    const approved = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollApprove}`, {
+      method: "POST",
+      headers: {authorization: `Bearer ${parent.token}`},
+      body: JSON.stringify({requestId: request.requestId, code: request.code}),
+    })
+    expect(approved.status).toBe(204)
+
+    const afterApproval = await requestEnrollment("Mac Studio")
+    expect(afterApproval.status).toBe(409)
+    expect(await afterApproval.json()).toEqual({ok: false, error: {code: "ENROLLMENT_WINDOW_CLOSED", message: expect.any(String)}})
+  })
+
+  it("TC-9: denying the one request waiting leaves the enrollment window open, so the other Mac can ask again", async () => {
+    const parent = await claimFirstDevice()
+    await openWindow(parent.token)
+    const request = await readData<EnrollRequestResponse>(await requestEnrollment("Mac mini"))
+
+    const denied = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollDeny}`, {
+      method: "POST",
+      headers: {authorization: `Bearer ${parent.token}`},
+      body: JSON.stringify({requestId: request.requestId}),
+    })
+    expect(denied.status).toBe(204)
+
+    const retried = await requestEnrollment("Mac mini")
+    expect(retried.status).toBe(200)
+  })
+
+  it("TC-9: a request made inside a window stays approvable for its own lifetime after that window has run out, because the window gates asking and never approving", async () => {
+    const parent = await claimFirstDevice()
+
+    vi.useFakeTimers({toFake: ["Date"]})
+    const openedAt = Date.now()
+
+    await openWindow(parent.token)
+
+    vi.setSystemTime(openedAt + 2000)
+    const request = await readData<EnrollRequestResponse>(await requestEnrollment("Mac mini"))
+
+    vi.setSystemTime(openedAt + SYNC_PROTOCOL_CONFIG.enrollmentWindowMs + 1000)
+
+    const stillClosed = await requestEnrollment("Mac Studio")
+    expect(stillClosed.status).toBe(409)
+    expect(await stillClosed.json()).toEqual({ok: false, error: {code: "ENROLLMENT_WINDOW_CLOSED", message: expect.any(String)}})
+
+    const approved = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollApprove}`, {
+      method: "POST",
+      headers: {authorization: `Bearer ${parent.token}`},
+      body: JSON.stringify({requestId: request.requestId, code: request.code}),
+    })
+    expect(approved.status).toBe(204)
+  })
+})
+
+describe("reading and revoking the device list — TC-10, TC-11", () => {
+  let dataDir: string
+  let booted: BootedServer
+
+  beforeEach(async () => {
+    dataDir = mkdtempSync(join(tmpdir(), "daily-server-devices-http-"))
+    booted = await bootServer(dataDir)
+  })
+
+  afterEach(async () => {
+    await booted.close()
+    rmSync(dataDir, {recursive: true, force: true})
+  })
+
+  async function claimFirstDevice(): Promise<ClaimResponse> {
+    const code = ensureClaimCode(booted.store)
+    const res = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.claim}`, {
+      method: "POST",
+      body: JSON.stringify({code, deviceName: "MacBook Air"}),
+    })
+    return ((await res.json()) as {ok: true; data: ClaimResponse}).data
+  }
+
+  async function bindSecondDevice(deviceName: string): Promise<IssuedCredential> {
+    const issued = createConsoleEnrollment(booted.store)
+    const res = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollConsole}`, {
+      method: "POST",
+      body: JSON.stringify({token: issued.token, deviceName}),
+    })
+    return ((await res.json()) as {ok: true; data: IssuedCredential}).data
+  }
+
+  async function readData<T>(res: Response): Promise<T> {
+    return ((await res.json()) as {ok: true; data: T}).data
+  }
+
+  it("TC-10: the Parent reads every device — active oldest-first, then revoked — each with its role and timestamps, plus the enrollment window; a Child is refused NOT_PARENT", async () => {
+    const parent = await claimFirstDevice()
+    // Created before the active Child below, so a listing that just kept creation order (rather than
+    // sorting revoked devices after active ones) would put this one in the middle, not last.
+    const toRevoke = await bindSecondDevice("iMac")
+    const activeChild = await bindSecondDevice("Mac mini")
+    revokeDevice(booted.store, toRevoke.device.id)
+
+    await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollWindowOpen}`, {method: "POST", headers: {authorization: `Bearer ${parent.token}`}})
+
+    const parentRead = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.devices}`, {headers: {authorization: `Bearer ${parent.token}`}})
+    expect(parentRead.status).toBe(200)
+    const listing = await readData<DeviceListResponse>(parentRead)
+
+    expect(listing.devices.map((d) => d.name)).toEqual(["MacBook Air", "Mac mini", "iMac"])
+    expect(listing.devices.map((d) => d.role)).toEqual(["parent", "child", "child"])
+    expect(listing.devices.every((d) => typeof d.createdAt === "string" && d.createdAt.length > 0)).toBe(true)
+    expect(listing.devices.find((d) => d.id === parent.device.id)?.lastSeenAt).toBeTruthy()
+    expect(listing.devices.find((d) => d.id === activeChild.device.id)?.revokedAt).toBeNull()
+    expect(listing.devices.find((d) => d.id === toRevoke.device.id)?.revokedAt).toBeTruthy()
+    expect(listing.enrollmentWindow?.expiresAt).toBeTruthy()
+
+    const childRead = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.devices}`, {headers: {authorization: `Bearer ${activeChild.token}`}})
+    expect(childRead.status).toBe(403)
+    expect(await childRead.json()).toEqual({ok: false, error: {code: "NOT_PARENT", message: expect.any(String)}})
+  })
+
+  it("TC-11: the Parent revokes a Child over the wire, cannot revoke itself, and an unknown id is refused — each answer carries the list as it now stands", async () => {
+    const parent = await claimFirstDevice()
+    const child = await bindSecondDevice("Mac mini")
+
+    const revoked = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.deviceRevoke}`, {
+      method: "POST",
+      headers: {authorization: `Bearer ${parent.token}`, "content-type": "application/json"},
+      body: JSON.stringify({deviceId: child.device.id}),
+    })
+    expect(revoked.status).toBe(200)
+    const afterRevoke = await readData<DeviceListResponse>(revoked)
+    expect(afterRevoke.devices.find((d) => d.id === child.device.id)?.revokedAt).toBeTruthy()
+
+    const childRequest = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.revision}`, {headers: {authorization: `Bearer ${child.token}`}})
+    expect(childRequest.status).toBe(403)
+    expect(await childRequest.json()).toEqual({ok: false, error: {code: "DEVICE_REVOKED", message: expect.any(String)}})
+
+    const selfRevoke = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.deviceRevoke}`, {
+      method: "POST",
+      headers: {authorization: `Bearer ${parent.token}`, "content-type": "application/json"},
+      body: JSON.stringify({deviceId: parent.device.id}),
+    })
+    expect(selfRevoke.status).toBe(409)
+    expect(await selfRevoke.json()).toEqual({ok: false, error: {code: "CANNOT_REVOKE_PARENT", message: expect.any(String)}})
+
+    const stillBound = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.revision}`, {headers: {authorization: `Bearer ${parent.token}`}})
+    expect(stillBound.status).toBe(200)
+
+    const unknown = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.deviceRevoke}`, {
+      method: "POST",
+      headers: {authorization: `Bearer ${parent.token}`, "content-type": "application/json"},
+      body: JSON.stringify({deviceId: "not-a-real-device-id"}),
+    })
+    expect(unknown.status).toBe(404)
+    expect(await unknown.json()).toEqual({ok: false, error: {code: "DEVICE_NOT_FOUND", message: expect.any(String)}})
+  })
+})
+
+describe("the approval card knows where a request came from, and a new device knows who approved it — TC-12, TC-13", () => {
+  let dataDir: string
+  let booted: BootedServer
+
+  beforeEach(async () => {
+    dataDir = mkdtempSync(join(tmpdir(), "daily-server-request-origin-"))
+    booted = await bootServer(dataDir)
+  })
+
+  afterEach(async () => {
+    await booted.close()
+    rmSync(dataDir, {recursive: true, force: true})
+  })
+
+  async function claimFirstDevice(): Promise<ClaimResponse> {
+    const code = ensureClaimCode(booted.store)
+    const res = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.claim}`, {
+      method: "POST",
+      body: JSON.stringify({code, deviceName: "MacBook Air"}),
+    })
+    return ((await res.json()) as {ok: true; data: ClaimResponse}).data
+  }
+
+  async function readData<T>(res: Response): Promise<T> {
+    return ((await res.json()) as {ok: true; data: T}).data
+  }
+
+  function requestFrom(remoteAddress: string, forwardedFor?: string): IncomingMessage {
+    return {socket: {remoteAddress}, headers: forwardedFor ? {"x-forwarded-for": forwardedFor} : {}} as unknown as IncomingMessage
+  }
+
+  /**
+   * `readRequestOrigin`'s "public peer" branch cannot be driven through `fetch()` against this
+   * suite's own loopback-bound server — the immediate TCP peer of any request made here is always
+   * `127.0.0.1`, itself private, so there is no honest way to make a *real* request arrive from a
+   * public address. That branch is exercised directly against the frozen `readRequestOrigin(req)`
+   * function instead, with a minimal fabricated `IncomingMessage` — the same fabrication
+   * `store.test.ts` already uses for `authenticateRequest`'s request shape. The "private peer"
+   * branch, and the recording/reporting `then` clause, are driven through the real booted server.
+   */
+  it("TC-12: a request from a private peer carrying a forwarding header is recorded at the forwarded address; a public peer's header is ignored and its own address is used instead; each carries whether the address it settled on is private", async () => {
+    // Imported dynamically, and only here: `../src/http/requestOrigin` is phase 5's own new file, so a
+    // static import of it would fail the whole suite's module load — including every case that has
+    // nothing to do with it — for every phase before phase 5 lands.
+    const {readRequestOrigin} = await import("../src/http/requestOrigin")
+
+    const trustedForward = readRequestOrigin(requestFrom("192.168.1.10", "10.0.0.55"))
+    expect(trustedForward).toEqual({address: "10.0.0.55", isPrivate: true})
+
+    const ignoredForward = readRequestOrigin(requestFrom("203.0.113.9", "10.0.0.66"))
+    expect(ignoredForward).toEqual({address: "203.0.113.9", isPrivate: false})
+
+    const parent = await claimFirstDevice()
+    await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollWindowOpen}`, {method: "POST", headers: {authorization: `Bearer ${parent.token}`}})
+
+    const requested = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollRequest}`, {
+      method: "POST",
+      headers: {"x-forwarded-for": "10.0.0.77"},
+      body: JSON.stringify({deviceName: "Mac mini"}),
+    })
+    expect(requested.status).toBe(200)
+
+    const pending = await readData<PendingEnrollmentResponse>(
+      await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollPending}`, {headers: {authorization: `Bearer ${parent.token}`}}),
+    )
+    expect(pending.request?.requestedFrom).toEqual({address: "10.0.0.77", isPrivate: true})
+  })
+
+  it("TC-13: the enrolled device is told the approving device's name on its status", async () => {
+    const parent = await claimFirstDevice()
+    await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollWindowOpen}`, {method: "POST", headers: {authorization: `Bearer ${parent.token}`}})
+
+    const request = await readData<EnrollRequestResponse>(
+      await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollRequest}`, {method: "POST", body: JSON.stringify({deviceName: "Mac mini"})}),
+    )
+
+    await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollApprove}`, {
+      method: "POST",
+      headers: {authorization: `Bearer ${parent.token}`},
+      body: JSON.stringify({requestId: request.requestId, code: request.code}),
+    })
+
+    const status = await readData<EnrollmentStatus>(
+      await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollStatus}`, {headers: {authorization: `Bearer ${request.pollToken}`}}),
+    )
+    if (status.state !== "approved") throw new Error(`expected an approved status, got ${status.state}`)
+    expect(status.approvedBy).toBe("MacBook Air")
+  })
 })

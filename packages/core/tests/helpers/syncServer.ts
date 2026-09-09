@@ -7,10 +7,10 @@ import {SYNC_PROTOCOL_PATHS} from "@daily/protocol"
 import {resolveServerConfig} from "@daily/server/config/resolveServerConfig"
 import {createConsoleEnrollment} from "@daily/server/enrollment/EnrollmentStore"
 import {createHttpServer} from "@daily/server/http/createHttpServer"
-import {ensureClaimCode} from "@daily/server/identity/ServerIdentityStore"
+import {ensureClaimCode, openEnrollmentWindow as openStoreEnrollmentWindow} from "@daily/server/identity/ServerIdentityStore"
 import {openServerStore} from "@daily/server/store/instance"
 
-import type {ClaimResponse, ConsoleEnrollResponse, IssuedCredential} from "@daily/protocol"
+import type {ClaimResponse, ConsoleEnrollResponse, EnrollmentWindow, IssuedCredential} from "@daily/protocol"
 import type {ServerConfig, ServerConfigOptions} from "@daily/server/config/resolveServerConfig"
 import type {ServerStore} from "@daily/server/store/instance"
 import type {AddressInfo} from "node:net"
@@ -82,6 +82,14 @@ export async function enrollSecondDevice(server: BootedSyncServer, deviceName: s
   if (!response.ok) throw new Error(`Could not enroll a second test device: ${response.status} ${await response.text()}`)
 
   return ((await response.json()) as {ok: true; data: ConsoleEnrollResponse}).data
+}
+
+/**
+ * Opens the enrollment window directly on the server's store, without a Parent's own HTTP round
+ * trip — for tests that need a request to succeed and are not themselves testing the window.
+ */
+export function openEnrollmentWindow(server: BootedSyncServer): EnrollmentWindow {
+  return openStoreEnrollmentWindow(server.store)
 }
 
 function startServer(config: ServerConfig, dataDir: string): Promise<BootedSyncServer> {

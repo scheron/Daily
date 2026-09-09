@@ -23,6 +23,7 @@ import {SyncEngine} from "./sync/SyncEngine"
 import type {
   Branch,
   Day,
+  DeviceRole,
   File,
   ISODate,
   MigrationDirection,
@@ -71,6 +72,7 @@ export class StorageController implements IStorageController {
   private notifyApprovalRequested?: () => void
   private notifyRevoked?: () => void
   private notifyProtocolMismatchChanged?: (mismatch: ProtocolMismatchView | null) => void
+  private notifyRoleChanged?: (role: DeviceRole) => void
 
   constructor(
     private db: SqliteDriver,
@@ -116,6 +118,7 @@ export class StorageController implements IStorageController {
       enableAutoSync: () => this.syncEngine.enableAutoSync(),
       onRevoked: () => this.notifyRevoked?.(),
       onProtocolMismatchChanged: (mismatch) => this.notifyProtocolMismatchChanged?.(mismatch),
+      onRoleChanged: (role) => this.notifyRoleChanged?.(role),
     })
 
     this.providerMigration = new ProviderMigrationService({
@@ -151,6 +154,7 @@ export class StorageController implements IStorageController {
     onApprovalRequested?: () => void
     onRevoked?: () => void
     onProtocolMismatchChanged?: (mismatch: ProtocolMismatchView | null) => void
+    onRoleChanged?: (role: DeviceRole) => void
   }) {
     this.notifyStorageStatusChange = callbacks.onStatusChange
     this.notifyStorageDataChange = callbacks.onDataChange
@@ -158,6 +162,7 @@ export class StorageController implements IStorageController {
     this.notifyApprovalRequested = callbacks.onApprovalRequested
     this.notifyRevoked = callbacks.onRevoked
     this.notifyProtocolMismatchChanged = callbacks.onProtocolMismatchChanged
+    this.notifyRoleChanged = callbacks.onRoleChanged
   }
 
   async forceSync() {

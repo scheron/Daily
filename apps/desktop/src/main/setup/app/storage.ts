@@ -32,5 +32,8 @@ export function setupStorageSync(getStorage: () => StorageController | null, get
     onProtocolMismatchChanged: (mismatch) => {
       broadcastToWindows(getWindows, "sync-server:protocol-mismatch-changed", mismatch)
     },
+    onRoleChanged: (role) => {
+      broadcastToWindows(getWindows, "sync-server:role-changed", role)
+    },
   })
 }

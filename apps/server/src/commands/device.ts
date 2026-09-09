@@ -1,5 +1,5 @@
 import {resolveServerConfig} from "../config/resolveServerConfig"
-import {countActiveDevices, listDevices, revokeDevice} from "../devices/DeviceStore"
+import {countActiveDevices, findParentDevice, listDevices, promoteDevice, revokeDevice} from "../devices/DeviceStore"
 import {createConsoleEnrollment} from "../enrollment/EnrollmentStore"
 import {openServerStore} from "../store/instance"
 
@@ -11,9 +11,10 @@ type DeviceOptions = {dataDir?: string}
 
 const PAD_ID = 22
 const PAD_NAME = 20
+const PAD_ROLE = 8
 const PAD_SEEN = 26
 
-/** Registers `daily-server device`: `enroll`, `list` and `revoke`, run on the server host against the store directly — no HTTP surface. */
+/** Registers `daily-server device`: `enroll`, `list`, `promote` and `revoke`, run on the server host against the store directly — no HTTP surface. */
 export function registerDeviceCommand(program: Command): void {
   const device = program.command("device").description("Manage bound devices")
 
@@ -34,6 +35,12 @@ export function registerDeviceCommand(program: Command): void {
     .description("Revoke a device's credential")
     .option("--data-dir <path>", "server data directory")
     .action((id: string, opts: DeviceOptions) => runDeviceRevoke(id, opts))
+
+  device
+    .command("promote <id>")
+    .description("Move the Parent role onto another bound device")
+    .option("--data-dir <path>", "server data directory")
+    .action((id: string, opts: DeviceOptions) => runDevicePromote(id, opts))
 }
 
 function runDeviceEnroll(opts: DeviceOptions): void {
@@ -76,11 +83,41 @@ function runDeviceRevoke(id: string, opts: DeviceOptions): void {
       return
     }
 
+    const wasParent = existing.role === "parent"
     revokeDevice(store, id)
     console.log(`Revoked device ${id} (${existing.name}).`)
 
     if (countActiveDevices(store) === 0) {
       console.log(`Warning: no active device remains. Run "daily-server device enroll" to bind a new one.`)
+    }
+
+    if (wasParent) {
+      console.log(`Warning: no device administers this server. Run "daily-server device promote <id>" to give one the role.`)
+    }
+  } finally {
+    store.close()
+  }
+}
+
+function runDevicePromote(id: string, opts: DeviceOptions): void {
+  const store = openStore(opts)
+
+  try {
+    const existing = listDevices(store).find((device) => device.id === id)
+    if (!existing) throw new Error(`No such device: ${id}`)
+
+    if (existing.role === "parent") {
+      console.log(`${existing.name} is already the Parent.`)
+      return
+    }
+
+    const previousParent = findParentDevice(store)
+    const promoted = promoteDevice(store, id)
+
+    if (previousParent) {
+      console.log(`${promoted.name} is now the Parent (was ${previousParent.name}).`)
+    } else {
+      console.log(`${promoted.name} is now the Parent. No device held the role before.`)
     }
   } finally {
     store.close()
@@ -96,5 +133,5 @@ function formatDeviceRow(device: DeviceRecord): string {
   const status = device.revokedAt ? `revoked ${device.revokedAt}` : "active"
   const lastSeen = device.lastSeenAt ?? "never"
 
-  return `${device.id.padEnd(PAD_ID)}  ${device.name.padEnd(PAD_NAME)}  ${lastSeen.padEnd(PAD_SEEN)}  ${status}`
+  return `${device.id.padEnd(PAD_ID)}  ${device.name.padEnd(PAD_NAME)}  ${device.role.padEnd(PAD_ROLE)}  ${lastSeen.padEnd(PAD_SEEN)}  ${status}`
 }

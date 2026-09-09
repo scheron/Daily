@@ -11,6 +11,8 @@ export function toBindingView(binding: ServerSyncBinding): ServerBindingView {
     fingerprint: binding.fingerprint,
     insecure: binding.insecure,
     boundAt: binding.boundAt,
+    role: binding.role ?? null,
+    approvedBy: binding.approvedBy ?? null,
   }
 }
 

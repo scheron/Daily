@@ -16,4 +16,9 @@ export function setupSyncServerIPC(getStorage: () => IStorageController | null) 
   ipcMain.handle("sync-server:get-pending-approval", (_e) => getStorage()?.getServerProvider().pendingApproval())
   ipcMain.handle("sync-server:approve", (_e, requestId: string, code: string) => getStorage()?.getServerProvider().approve(requestId, code))
   ipcMain.handle("sync-server:deny", (_e, requestId: string) => getStorage()?.getServerProvider().deny(requestId))
+
+  ipcMain.handle("sync-server:list-membership", (_e) => getStorage()?.getServerProvider().listMembership())
+  ipcMain.handle("sync-server:revoke-device", (_e, deviceId: string) => getStorage()?.getServerProvider().revokeDevice(deviceId))
+  ipcMain.handle("sync-server:open-enrollment-window", (_e) => getStorage()?.getServerProvider().openEnrollmentWindow())
+  ipcMain.handle("sync-server:close-enrollment-window", (_e) => getStorage()?.getServerProvider().closeEnrollmentWindow())
 }

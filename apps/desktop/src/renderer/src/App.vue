@@ -15,10 +15,11 @@ import {BaseModalProvider} from "./ui/base/BaseModal"
 
 const route = useRoute()
 const isLightRoute = route.name === "Settings" || route.name === "Assistant"
+const isSettingsRoute = route.name === "Settings"
 
 const settingsStore = useSettingsStore()
 
-if (!isLightRoute) useSyncServerStore().watchForApprovals()
+if (!isLightRoute || isSettingsRoute) useSyncServerStore().watchForApprovals()
 
 invoke(async () => {
   await until(() => settingsStore.isSettingsLoaded).toBeTruthy()

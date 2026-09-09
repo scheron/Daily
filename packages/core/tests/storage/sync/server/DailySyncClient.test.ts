@@ -6,7 +6,7 @@ import {ensureClaimCode} from "@daily/server/identity/ServerIdentityStore"
 
 import {DailySyncClient} from "@core/storage/sync/server/DailySyncClient"
 import {isPrivateServerAddress, probeTransport} from "@core/storage/sync/server/serverTransport"
-import {bootHttpsSyncServer, bootSyncServer, claimFirstDevice} from "../../../helpers/syncServer"
+import {bootHttpsSyncServer, bootSyncServer, claimFirstDevice, openEnrollmentWindow} from "../../../helpers/syncServer"
 
 import type {RevisionProbe} from "@daily/protocol"
 
@@ -131,6 +131,7 @@ describe("peer enrollment through the client", () => {
       const boundClient = new DailySyncClient({baseUrl: server.baseUrl, token: first.token, fingerprint: null})
       const askingClient = new DailySyncClient({baseUrl: server.baseUrl, token: null, fingerprint: null})
 
+      openEnrollmentWindow(server)
       const requested = await askingClient.requestEnrollment("Mac mini")
       expect(requested.code).toMatch(/^\d{6}$/)
       expect(requested.requestId).toBeTruthy()
@@ -154,6 +155,7 @@ describe("peer enrollment through the client", () => {
 
       expect(listDevices(server.store).map((device) => device.name)).toEqual(["MacBook Air", "Mac mini"])
 
+      openEnrollmentWindow(server)
       const secondRequest = await askingClient.requestEnrollment("Mac Studio")
       await boundClient.denyEnrollment(secondRequest.requestId)
 

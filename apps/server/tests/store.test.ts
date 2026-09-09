@@ -1,4 +1,4 @@
-import {execFileSync, execSync} from "node:child_process"
+import {execFileSync, execSync, spawnSync} from "node:child_process"
 import {createHash} from "node:crypto"
 import {existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, unlinkSync} from "node:fs"
 import {tmpdir} from "node:os"
@@ -12,13 +12,18 @@ import {ProtocolErrorCode} from "@daily/protocol"
 import pkg from "../package.json"
 import {findAsset, listAssets, writeAsset} from "../src/assets/AssetStore"
 import {authenticateRequest} from "../src/devices/authenticateRequest"
-import {createDevice, listDevices, revokeDevice} from "../src/devices/DeviceStore"
-import {approveEnrollment, createEnrollmentRequest} from "../src/enrollment/EnrollmentStore"
+import {createDevice, findParentDevice, listDevices, promoteDevice, revokeDevice} from "../src/devices/DeviceStore"
+import {approveEnrollment, consumeConsoleEnrollment, createConsoleEnrollment, createEnrollmentRequest} from "../src/enrollment/EnrollmentStore"
 import {claimServer} from "../src/http/routes/claim"
-import {ensureClaimCode} from "../src/identity/ServerIdentityStore"
+import {ensureClaimCode, openEnrollmentWindow} from "../src/identity/ServerIdentityStore"
 import {buildProgram} from "../src/index"
 import {readRevision, readSnapshot, writeSnapshotIfUnchanged} from "../src/snapshot/SnapshotStore"
+import {createBetterSqliteDriver} from "../src/store/betterSqliteDriver"
 import {openServerStore} from "../src/store/instance"
+import {runMigrations} from "../src/store/migrate"
+import {v001} from "../src/store/migrations/v001-initial-schema"
+import {v002} from "../src/store/migrations/v002-snapshot"
+import {v003} from "../src/store/migrations/v003-assets"
 
 import type {IncomingMessage} from "node:http"
 import type {StoredSnapshotDocument} from "../src/snapshot/SnapshotStore"
@@ -74,7 +79,7 @@ describe("server store", () => {
     const serverId = identityRows[0].server_id
 
     const appliedAfterFirstOpen = first.db.prepare("SELECT version FROM _migrations").all()
-    expect(appliedAfterFirstOpen).toHaveLength(3)
+    expect(appliedAfterFirstOpen).toHaveLength(4)
 
     first.close()
 
@@ -85,7 +90,7 @@ describe("server store", () => {
     expect(identityRowsAfterSecondOpen[0].server_id).toBe(serverId)
 
     const appliedAfterSecondOpen = second.db.prepare("SELECT version FROM _migrations").all()
-    expect(appliedAfterSecondOpen).toHaveLength(3)
+    expect(appliedAfterSecondOpen).toHaveLength(4)
 
     second.close()
   })
@@ -181,6 +186,7 @@ describe("two connections to one database", () => {
 
     expect(listDevices(consoleSide)).toHaveLength(1)
 
+    openEnrollmentWindow(serving)
     const {record} = createEnrollmentRequest(serving, "Mac mini")
     const approved = approveEnrollment(serving, record.id, record.code, claimed.device.id)
 
@@ -202,6 +208,135 @@ describe("two connections to one database", () => {
 
     serving.close()
     consoleSide.close()
+  })
+})
+
+describe("device roles", () => {
+  let dataDir: string
+
+  beforeEach(() => {
+    dataDir = mkdtempSync(join(tmpdir(), "daily-server-device-roles-"))
+  })
+
+  afterEach(() => {
+    rmSync(dataDir, {recursive: true, force: true})
+  })
+
+  it("TC-1: an existing store, upgraded, gives its oldest active device the Parent role, every other device the Child role, and the database itself refuses a second Parent", () => {
+    const dbPath = join(dataDir, "server.sqlite")
+    const preUpgrade = createBetterSqliteDriver(dbPath)
+    runMigrations(preUpgrade, [v001, v002, v003])
+
+    const oldestActive = {id: "device-oldest-active", name: "Oldest Active Mac", createdAt: "2026-01-01T00:00:00.000Z"}
+    const revoked = {id: "device-revoked", name: "Revoked Mac", createdAt: "2026-01-02T00:00:00.000Z"}
+    const otherActive = {id: "device-other-active", name: "Other Active Mac", createdAt: "2026-01-03T00:00:00.000Z"}
+
+    preUpgrade
+      .prepare(`INSERT INTO devices (id, name, token_hash, created_at, last_seen_at, revoked_at) VALUES (?, ?, ?, ?, NULL, NULL)`)
+      .run(oldestActive.id, oldestActive.name, "hash-oldest-active", oldestActive.createdAt)
+    preUpgrade
+      .prepare(`INSERT INTO devices (id, name, token_hash, created_at, last_seen_at, revoked_at) VALUES (?, ?, ?, ?, NULL, ?)`)
+      .run(revoked.id, revoked.name, "hash-revoked", revoked.createdAt, "2026-01-05T00:00:00.000Z")
+    preUpgrade
+      .prepare(`INSERT INTO devices (id, name, token_hash, created_at, last_seen_at, revoked_at) VALUES (?, ?, ?, ?, NULL, NULL)`)
+      .run(otherActive.id, otherActive.name, "hash-other-active", otherActive.createdAt)
+
+    preUpgrade.close()
+
+    const store = openServerStore(dataDir)
+
+    const devices = listDevices(store)
+    expect(devices.find((d) => d.id === oldestActive.id)?.role).toBe("parent")
+    expect(devices.find((d) => d.id === revoked.id)?.role).toBe("child")
+    expect(devices.find((d) => d.id === otherActive.id)?.role).toBe("child")
+
+    expect(() => store.db.prepare(`UPDATE devices SET role = 'parent' WHERE id = ?`).run(otherActive.id)).toThrow()
+    expect(listDevices(store).find((d) => d.id === oldestActive.id)?.role).toBe("parent")
+
+    store.close()
+  })
+
+  it("TC-2: the device that claims a fresh server is its Parent, and a device bound by approval is a Child", () => {
+    const store = openServerStore(dataDir)
+    const code = ensureClaimCode(store)
+    if (code === null) throw new Error("expected an unclaimed server to have a claim code")
+
+    const claimed = claimServer(store, code, "MacBook Air")
+    openEnrollmentWindow(store)
+    const {record} = createEnrollmentRequest(store, "Mac mini")
+    const approved = approveEnrollment(store, record.id, record.code, claimed.device.id)
+
+    const devices = listDevices(store)
+    expect(devices.find((d) => d.id === claimed.device.id)?.role).toBe("parent")
+    expect(devices.find((d) => d.id === approved.device.id)?.role).toBe("child")
+
+    store.close()
+  })
+
+  it("TC-3: revoking the Parent leaves no active Parent, and only then does a console enrollment take the vacant role", () => {
+    const store = openServerStore(dataDir)
+    const code = ensureClaimCode(store)
+    if (code === null) throw new Error("expected an unclaimed server to have a claim code")
+
+    const parent = claimServer(store, code, "MacBook Air")
+    openEnrollmentWindow(store)
+    const {record} = createEnrollmentRequest(store, "Mac mini")
+    approveEnrollment(store, record.id, record.code, parent.device.id)
+
+    const whileParentActive = createConsoleEnrollment(store)
+    const consoleWhileParentActive = consumeConsoleEnrollment(store, whileParentActive.token, "iMac")
+    expect(consoleWhileParentActive.device.role).toBe("child")
+
+    revokeDevice(store, parent.device.id)
+    expect(findParentDevice(store)).toBeNull()
+    expect(listDevices(store).find((d) => d.id === parent.device.id)?.role).toBe("child")
+
+    const afterRevoke = createConsoleEnrollment(store)
+    const consoleAfterRevoke = consumeConsoleEnrollment(store, afterRevoke.token, "iPad")
+    expect(consoleAfterRevoke.device.role).toBe("parent")
+
+    store.close()
+  })
+
+  it("TC-4: promoting a Child moves the role atomically, and a promotion that fails leaves every role untouched", () => {
+    const store = openServerStore(dataDir)
+    const code = ensureClaimCode(store)
+    if (code === null) throw new Error("expected an unclaimed server to have a claim code")
+
+    const parent = claimServer(store, code, "MacBook Air")
+    openEnrollmentWindow(store)
+    const {record: recordA} = createEnrollmentRequest(store, "Mac mini")
+    const childA = approveEnrollment(store, recordA.id, recordA.code, parent.device.id)
+    openEnrollmentWindow(store)
+    const {record: recordB} = createEnrollmentRequest(store, "iMac")
+    const childB = approveEnrollment(store, recordB.id, recordB.code, parent.device.id)
+    revokeDevice(store, childB.device.id)
+
+    const promoted = promoteDevice(store, childA.device.id)
+    expect(promoted.role).toBe("parent")
+
+    const rolesAfterPromotion = listDevices(store)
+    expect(rolesAfterPromotion.find((d) => d.id === childA.device.id)?.role).toBe("parent")
+    expect(rolesAfterPromotion.find((d) => d.id === parent.device.id)?.role).toBe("child")
+    expect(rolesAfterPromotion.filter((d) => d.role === "parent")).toHaveLength(1)
+
+    try {
+      promoteDevice(store, "not-a-real-device-id")
+      expect.unreachable()
+    } catch (err) {
+      expect(err.code).toBe(ProtocolErrorCode.DEVICE_NOT_FOUND)
+    }
+    expect(listDevices(store)).toEqual(rolesAfterPromotion)
+
+    try {
+      promoteDevice(store, childB.device.id)
+      expect.unreachable()
+    } catch (err) {
+      expect(err.code).toBe(ProtocolErrorCode.NOT_PARENT)
+    }
+    expect(listDevices(store)).toEqual(rolesAfterPromotion)
+
+    store.close()
   })
 })
 
@@ -273,6 +408,195 @@ describe("device management console", () => {
     logSpy.mockRestore()
     store.close()
   })
+
+  it("TC-14: device list shows each device's role with revoked ones last, promote moves the role and names both sides, and revoking the Parent warns that nobody can administer the server until one is promoted", async () => {
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {})
+
+    const store = openServerStore(dataDir)
+    const code = ensureClaimCode(store)
+    if (code === null) throw new Error("expected an unclaimed server to have a claim code")
+
+    const parent = claimServer(store, code, "MacBook Air")
+    openEnrollmentWindow(store)
+    const {record: recordA} = createEnrollmentRequest(store, "Mac mini")
+    const childA = approveEnrollment(store, recordA.id, recordA.code, parent.device.id)
+    openEnrollmentWindow(store)
+    const {record: recordB} = createEnrollmentRequest(store, "iMac")
+    const childB = approveEnrollment(store, recordB.id, recordB.code, parent.device.id)
+    revokeDevice(store, childB.device.id)
+
+    await runDevice("list")
+    const listingLines = logSpy.mock.calls
+      .map((call) => call[0] as string)
+      .join("\n")
+      .split("\n")
+      .filter((line) => line.trim().length > 0)
+    const macBookAirLine = listingLines.find((line) => line.includes("MacBook Air"))
+    const macMiniLine = listingLines.find((line) => line.includes("Mac mini"))
+    const iMacLine = listingLines.find((line) => line.includes("iMac"))
+    expect(macBookAirLine).toMatch(/parent/i)
+    expect(macMiniLine).toMatch(/child/i)
+    expect(iMacLine).toMatch(/child/i)
+    expect(iMacLine).toMatch(/revoked/i)
+    expect(listingLines.indexOf(iMacLine as string)).toBeGreaterThan(listingLines.indexOf(macMiniLine as string))
+
+    logSpy.mockClear()
+    await runDevice("promote", childA.device.id)
+    const promoteOutput = logSpy.mock.calls.map((call) => call[0]).join("\n")
+    expect(promoteOutput).toContain("Mac mini")
+    expect(promoteOutput).toContain("MacBook Air")
+
+    logSpy.mockClear()
+    await runDevice("list")
+    const afterPromoteLines = logSpy.mock.calls.map((call) => call[0] as string)
+    const macBookAirLineAfter = afterPromoteLines.find((line) => line.includes("MacBook Air"))
+    const macMiniLineAfter = afterPromoteLines.find((line) => line.includes("Mac mini"))
+    expect(macBookAirLineAfter).toMatch(/child/i)
+    expect(macMiniLineAfter).toMatch(/parent/i)
+
+    logSpy.mockClear()
+    await runDevice("revoke", childA.device.id)
+    const revokeParentOutput = logSpy.mock.calls.map((call) => call[0]).join("\n")
+    expect(revokeParentOutput).toMatch(/revoked/i)
+    expect(revokeParentOutput).toContain("daily-server device promote")
+
+    logSpy.mockRestore()
+    store.close()
+  })
+})
+
+describe("device ids the console can address", () => {
+  let dataDir: string
+
+  beforeEach(() => {
+    dataDir = mkdtempSync(join(tmpdir(), "daily-server-device-ids-"))
+  })
+
+  afterEach(() => {
+    rmSync(dataDir, {recursive: true, force: true})
+  })
+
+  it("TC-24: minted device ids never begin with a character the console reads as an option, and are drawn from an alphabet without '-' or '_'", () => {
+    const store = openServerStore(dataDir)
+
+    const ids: string[] = []
+    for (let i = 0; i < 5000; i++) {
+      const {device} = createDevice(store, `Device ${i}`)
+      ids.push(device.id)
+    }
+
+    store.close()
+
+    expect(ids.every((id) => !id.startsWith("-"))).toBe(true)
+
+    const alphabetUsed = new Set(ids.join(""))
+    expect(alphabetUsed.has("-")).toBe(false)
+    expect(alphabetUsed.has("_")).toBe(false)
+  })
+
+  /**
+   * The escape hatch commander's own argument parsing already leaves open, and the only one that
+   * works: options before `--data-dir`, then `--`, then the id — not the shape `runDevice` (above)
+   * produces, which appends `--data-dir` after the id and cannot address one that begins with `-`.
+   */
+  async function runDeviceIdFirst(verb: "revoke" | "promote", id: string): Promise<void> {
+    await buildProgram().parseAsync(["node", "daily-server", "device", verb, "--data-dir", dataDir, "--", id], {from: "node"})
+  }
+
+  it("TC-25: a device id beginning with '-', written directly rather than generated, is still revocable and promotable in the form that works today", async () => {
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {})
+
+    const store = openServerStore(dataDir)
+    const code = ensureClaimCode(store)
+    if (code === null) throw new Error("expected an unclaimed server to have a claim code")
+    claimServer(store, code, "MacBook Air")
+
+    const {device: toRevoke} = createDevice(store, "Dashed Revoke Target")
+    const {device: toPromote} = createDevice(store, "Dashed Promote Target")
+    store.db.prepare(`UPDATE devices SET id = ? WHERE id = ?`).run("-dashed-revoke-target", toRevoke.id)
+    store.db.prepare(`UPDATE devices SET id = ? WHERE id = ?`).run("-dashed-promote-target", toPromote.id)
+    store.close()
+
+    await runDeviceIdFirst("revoke", "-dashed-revoke-target")
+    const revokeOutput = logSpy.mock.calls.map((call) => call[0]).join("\n")
+    expect(revokeOutput).toMatch(/revoked/i)
+    expect(revokeOutput).toContain("-dashed-revoke-target")
+
+    logSpy.mockClear()
+    await runDeviceIdFirst("promote", "-dashed-promote-target")
+    const promoteOutput = logSpy.mock.calls.map((call) => call[0]).join("\n")
+    expect(promoteOutput).toContain("Dashed Promote Target")
+    expect(promoteOutput).toContain("is now the Parent")
+
+    logSpy.mockRestore()
+
+    const verify = openServerStore(dataDir)
+    const devices = listDevices(verify)
+    expect(devices.find((d) => d.id === "-dashed-revoke-target")?.revokedAt).toBeTruthy()
+    expect(devices.find((d) => d.id === "-dashed-promote-target")?.role).toBe("parent")
+    verify.close()
+  })
+
+  /**
+   * Run through the real bundle, as `node` alone would run it (the "server toolchain" describe
+   * above builds the same bundle for the same reason): what commander itself calls `process.exit`
+   * with, and how it phrases a refusal, are only observable from outside the process an in-process
+   * `parseAsync()` call runs in — this vitest worker's own `process.exit` is not the real one.
+   */
+  function runBuiltCli(args: string[]): {status: number | null; combined: string} {
+    const result = spawnSync("node", [builtEntry, ...args], {cwd: rootDir, encoding: "utf-8"})
+    return {status: result.status, combined: `${result.stdout ?? ""}\n${result.stderr ?? ""}`}
+  }
+
+  /**
+   * True only if the text names the order that actually works: `--data-dir` before a standalone
+   * `--`. A message that mentions `--` without ever mentioning an option first would send the
+   * reader into `revoke -- <id> --data-dir <path>`, which fails with "too many arguments" — so
+   * that shape must not satisfy this check.
+   */
+  function namesAWorkingForm(output: string): boolean {
+    const dataDirIndex = output.indexOf("--data-dir")
+    if (dataDirIndex === -1) return false
+
+    const afterDataDir = output.slice(dataDirIndex + "--data-dir".length)
+    return /(^|\s)--(\s|$)/.test(afterDataDir)
+  }
+
+  it("TC-26: a refusal for an id beginning with '-', given without the separator, names a form that actually works, and --help/--version are unaffected", () => {
+    execSync("pnpm --filter @daily/server build", {cwd: rootDir, stdio: "pipe"})
+
+    const refusal = runBuiltCli(["device", "revoke", "-abc123", "--data-dir", dataDir])
+    expect(refusal.status).not.toBe(0)
+    expect(namesAWorkingForm(refusal.combined)).toBe(true)
+
+    const help = runBuiltCli(["--help"])
+    expect(help.status).toBe(0)
+    expect(help.combined).toContain("Usage:")
+
+    const version = runBuiltCli(["--version"])
+    expect(version.status).toBe(0)
+    expect(version.combined.trim()).toBe(pkg.version)
+  }, 60000)
+
+  it("an unrelated commander error — an unknown command, a mistyped long option, excess arguments, a missing argument — prints no dashed-id hint", () => {
+    execSync("pnpm --filter @daily/server build", {cwd: rootDir, stdio: "pipe"})
+
+    const unknownCommand = runBuiltCli(["statsu"])
+    expect(unknownCommand.status).not.toBe(0)
+    expect(unknownCommand.combined).not.toContain("still works")
+
+    const mistypedLongOption = runBuiltCli(["device", "revoke", "someid", "--dta-dir", dataDir])
+    expect(mistypedLongOption.status).not.toBe(0)
+    expect(mistypedLongOption.combined).not.toContain("still works")
+
+    const excessArguments = runBuiltCli(["device", "revoke", "--", "someid", "extra", "--data-dir", dataDir])
+    expect(excessArguments.status).not.toBe(0)
+    expect(excessArguments.combined).not.toContain("still works")
+
+    const missingArgument = runBuiltCli(["device", "revoke", "--data-dir", dataDir])
+    expect(missingArgument.status).not.toBe(0)
+    expect(missingArgument.combined).not.toContain("still works")
+  }, 60000)
 })
 
 describe("snapshot store", () => {

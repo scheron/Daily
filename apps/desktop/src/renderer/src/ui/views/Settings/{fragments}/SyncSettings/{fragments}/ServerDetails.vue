@@ -6,6 +6,9 @@ import {useSyncServerStore} from "@/stores/syncServer.store"
 import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
 import SettingRow from "@/ui/views/Settings/{fragments}/SettingRow.vue"
+import AddDeviceRow from "./AddDeviceRow.vue"
+import ConnectedDetails from "./ConnectedDetails.vue"
+import DeviceTable from "./DeviceTable.vue"
 
 const storageStore = useStorageStore()
 const syncServerStore = useSyncServerStore()
@@ -71,7 +74,7 @@ onMounted(() => {
       </div>
     </template>
     <template #description>
-      <p class="text-base-content/60 text-xs">{{ binding.baseUrl }} · connected as {{ binding.deviceName }}</p>
+      <p class="text-base-content/60 text-xs">{{ binding.baseUrl }}</p>
     </template>
 
     <BaseButton variant="ghost" size="sm" class="text-error hover:bg-error/10" :loading="isDisconnecting" @click="onDisconnect"
@@ -105,4 +108,13 @@ onMounted(() => {
       </div>
     </template>
   </SettingRow>
+
+  <template v-if="binding">
+    <template v-if="binding.role === 'parent'">
+      <DeviceTable :devices="syncServerStore.membership?.devices ?? []" />
+      <AddDeviceRow />
+    </template>
+    <ConnectedDetails v-else-if="binding.role === 'child'" :binding="binding" />
+    <p v-else class="text-base-content/50 py-2 text-xs">Checking this Mac's role…</p>
+  </template>
 </template>

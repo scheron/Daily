@@ -1,3 +1,4 @@
+import {execFileSync} from "node:child_process"
 import {existsSync, readFileSync} from "node:fs"
 import {dirname, join} from "node:path"
 import {fileURLToPath} from "node:url"
@@ -28,6 +29,16 @@ describe("release-server.yml", () => {
 })
 
 describe("deploy/install.sh", () => {
+  /**
+   * [CORRECTED, per the plan's "Test cases" and "Corrections during execution"] This case was
+   * titled "everywhere the rolling tag appears" while its assertion read one file. Widened here,
+   * before phase 1, to scan every `ghcr.io/scheron/daily-server:p<N>` occurrence `git grep` finds
+   * in the tracked tree (excluding this file's own source, which mentions the pattern only in a
+   * literal `p<N>` string that the digit-requiring regex below does not match). It stays one
+   * test — no second assertion added beside it. Green at baseline: both known pins
+   * (`deploy/install.sh` and `apps/server/tests/stand/proxy/proxy.compose.yaml`) read `p2`, and
+   * `SYNC_PROTOCOL_VERSION` is `2`.
+   */
   it("TC-3: pins the image to the current SYNC_PROTOCOL_VERSION everywhere the rolling tag appears", () => {
     const protocolPath = join(rootDir, "packages/protocol/src/types/syncProtocol.ts")
     expect(existsSync(protocolPath)).toBe(true)
@@ -37,16 +48,18 @@ describe("deploy/install.sh", () => {
     expect(versionMatch, "packages/protocol/src/types/syncProtocol.ts should declare SYNC_PROTOCOL_VERSION").not.toBeNull()
     const protocolVersion = (versionMatch as RegExpExecArray)[1]
 
-    const installScriptPath = join(rootDir, "deploy/install.sh")
-    expect(existsSync(installScriptPath)).toBe(true)
+    const grepOutput = execFileSync(
+      "git",
+      ["grep", "-nE", String.raw`ghcr\.io/scheron/daily-server:p[0-9]+`, "--", ".", ":!apps/server/tests/release.test.ts"],
+      {cwd: rootDir},
+    ).toString()
 
-    const installScript = readFileSync(installScriptPath, "utf-8")
-    const pinnedTags = [...installScript.matchAll(/ghcr\.io\/scheron\/daily-server:p(\d+)/g)].map((match) => match[1])
+    const occurrences = [...grepOutput.matchAll(/^(.+?):\d+:.*ghcr\.io\/scheron\/daily-server:p(\d+)/gm)].map(([, file, tag]) => ({file, tag}))
 
-    expect(pinnedTags.length, "deploy/install.sh should pin ghcr.io/scheron/daily-server:p<N> at least once").toBeGreaterThan(0)
+    expect(occurrences.length, "no ghcr.io/scheron/daily-server:p<N> pin was found anywhere in the tree").toBeGreaterThan(0)
 
-    for (const tag of pinnedTags) {
-      expect(tag, `deploy/install.sh pins p${tag}, but SYNC_PROTOCOL_VERSION is ${protocolVersion}`).toBe(protocolVersion)
+    for (const {file, tag} of occurrences) {
+      expect(tag, `${file} pins p${tag}, but SYNC_PROTOCOL_VERSION is ${protocolVersion}`).toBe(protocolVersion)
     }
   })
 })

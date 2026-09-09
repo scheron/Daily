@@ -8,7 +8,9 @@ import {createServerDispatcher} from "./serverTransport"
 import type {
   AssetEntry,
   AssetManifestResponse,
+  DeviceListResponse,
   EnrollmentStatus,
+  EnrollmentWindow,
   EnrollRequestResponse,
   IssuedCredential,
   PendingEnrollment,
@@ -95,6 +97,22 @@ export class DailySyncClient {
 
   async denyEnrollment(requestId: string): Promise<void> {
     await this.request<void>("POST", SYNC_PROTOCOL_PATHS.enrollDeny, {timeout: TIMEOUTS.probe, token: this.token, json: {requestId}})
+  }
+
+  listDevices(): Promise<DeviceListResponse> {
+    return this.request<DeviceListResponse>("GET", SYNC_PROTOCOL_PATHS.devices, {timeout: TIMEOUTS.probe, token: this.token})
+  }
+
+  revokeDevice(deviceId: string): Promise<DeviceListResponse> {
+    return this.request<DeviceListResponse>("POST", SYNC_PROTOCOL_PATHS.deviceRevoke, {timeout: TIMEOUTS.probe, token: this.token, json: {deviceId}})
+  }
+
+  openEnrollmentWindow(): Promise<EnrollmentWindow> {
+    return this.request<EnrollmentWindow>("POST", SYNC_PROTOCOL_PATHS.enrollWindowOpen, {timeout: TIMEOUTS.probe, token: this.token})
+  }
+
+  closeEnrollmentWindow(): Promise<void> {
+    return this.request<void>("POST", SYNC_PROTOCOL_PATHS.enrollWindowClose, {timeout: TIMEOUTS.probe, token: this.token})
   }
 
   readSnapshot(): Promise<SnapshotReadResponse> {

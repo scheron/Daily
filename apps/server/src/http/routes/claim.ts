@@ -40,7 +40,7 @@ export function claimServer(store: ServerStore, code: string, deviceName: string
       return {outcome: "invalid-code"}
     }
 
-    const {device, token} = createDevice(store, deviceName)
+    const {device, token} = createDevice(store, deviceName, "parent")
     markClaimed(store, new Date().toISOString())
     store.db.prepare(`UPDATE server_identity SET claim_code = NULL WHERE id = 1`).run()
 

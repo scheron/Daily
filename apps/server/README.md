@@ -119,13 +119,27 @@ one that tells a stranger which servers are still there for the claiming.
 ```bash
 docker compose exec daily-server daily-server device enroll
 docker compose exec daily-server daily-server device list
+docker compose exec daily-server daily-server device promote <id>
 docker compose exec daily-server daily-server device revoke <id>
 ```
 
 `device enroll` is the way back once every bound device is lost: it prints a single-use token,
 good for fifteen minutes, that binds a new device directly — no other bound device needs to be
-online to approve it. `device list` and `device revoke <id>` manage bound devices the rest of the
-time, for a Mac that was lost or decommissioned.
+online to approve it. `device list` shows each bound device's role alongside its name and last-seen
+time, with revoked devices listed after the ones still active.
+
+One bound device is always the Parent — the one that claimed the server, or was later promoted to
+it — and only the Parent may approve an enrollment or revoke another device; every other bound
+device is a Child that syncs and nothing more. `device promote <id>` moves the Parent role onto
+another bound device, for when the Mac that held it is gone and nothing left can approve or revoke
+anything. `device revoke <id>` still works the rest of the time, for a Mac that was lost or
+decommissioned — revoking the current Parent leaves the server with none until `device promote`
+gives the role to someone else.
+
+Newly minted device ids never begin with `-`, but an id already in the database might, from before
+this was true. If one does, address it with options before the separator, then the id:
+`daily-server device revoke --data-dir <path> -- <id>` (and the same for `device promote`) — not
+`--` first, which commander reads as "no more options" and then refuses the extra argument.
 
 ## Updating
 

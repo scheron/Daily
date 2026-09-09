@@ -9,6 +9,7 @@ import {isStorableSnapshot, readRevision, readSnapshot, writeSnapshotIfUnchanged
 import {RESPONSE_SENT} from "../respond"
 
 import type {RevisionProbe, SnapshotReadResponse, SnapshotWriteBody, SnapshotWriteResponse} from "@daily/protocol"
+import type {DeviceRecord} from "../../devices/DeviceStore"
 import type {ServerStore} from "../../store/instance"
 import type {Route, RouteContext} from "../createHttpServer"
 
@@ -73,19 +74,20 @@ const REVISION_HOLD_POLL_INTERVAL_MS = 250
 
 async function getRevision(ctx: RouteContext): Promise<RevisionProbe | typeof RESPONSE_SENT> {
   requireClaimedServer(ctx.store)
-  authenticateRequest(ctx.store, ctx.req)
+  const device = authenticateRequest(ctx.store, ctx.req)
 
   const knownRevision = new URL(ctx.req.url ?? "/", "http://placeholder").searchParams.get("knownRevision")
-  if (knownRevision === null) return readRevisionProbe(ctx.store)
+  if (knownRevision === null) return readRevisionProbe(ctx.store, device)
 
-  return holdForRevisionChange(ctx, knownRevision)
+  return holdForRevisionChange(ctx, knownRevision, device)
 }
 
-function readRevisionProbe(store: RouteContext["store"]): RevisionProbe {
+function readRevisionProbe(store: RouteContext["store"], device: DeviceRecord): RevisionProbe {
   return {
     revision: readRevision(store),
-    pendingEnrollment: findPendingEnrollment(store) !== null,
+    pendingEnrollment: device.role === "parent" && findPendingEnrollment(store) !== null,
     protocol: SYNC_PROTOCOL_VERSION,
+    role: device.role,
   }
 }
 
@@ -98,7 +100,7 @@ function readRevisionProbe(store: RouteContext["store"]): RevisionProbe {
  * connection from its side; this is noticed via `res`'s `close` event so the loop stops re-reading
  * the store and returns `RESPONSE_SENT` rather than writing to a socket nobody is reading anymore.
  */
-async function holdForRevisionChange(ctx: RouteContext, knownRevision: string): Promise<RevisionProbe | typeof RESPONSE_SENT> {
+async function holdForRevisionChange(ctx: RouteContext, knownRevision: string, device: DeviceRecord): Promise<RevisionProbe | typeof RESPONSE_SENT> {
   let callerGone = false
   const onCallerGone = (): void => {
     callerGone = true
@@ -111,7 +113,7 @@ async function holdForRevisionChange(ctx: RouteContext, knownRevision: string): 
     while (true) {
       if (callerGone) return RESPONSE_SENT
 
-      const probe = readRevisionProbe(ctx.store)
+      const probe = readRevisionProbe(ctx.store, device)
       if (probe.revision !== knownRevision || probe.pendingEnrollment) return probe
 
       const remainingMs = deadline - Date.now()

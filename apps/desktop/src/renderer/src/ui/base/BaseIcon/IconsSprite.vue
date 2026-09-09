@@ -19,6 +19,7 @@ export type IconName =
   | "background"
   | "check"
   | "check-check"
+  | "check-circle"
   | "undo"
   | "hand-raised"
   | "empty"
@@ -69,6 +70,7 @@ export type IconName =
   | "arrow-up"
   | "stop"
   | "spinner"
+  | "spinner-arc"
   | "copy"
   | "copy-id"
   | "layout"
@@ -188,6 +190,11 @@ export type IconName =
         <path d="M18 6 7 17l-5-5"></path>
         <path d="m22 10-7.5 7.5L13 16"></path>
       </g>
+    </symbol>
+
+    <symbol id="check-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+      <path d="M22 4 12 14.01 9 11.01" />
     </symbol>
 
     <symbol id="undo" fill="none" viewBox="0 0 24 24">
@@ -672,6 +679,11 @@ export type IconName =
       <path d="M2 12h4"></path>
       <path d="m4.9 4.9 2.9 2.9"></path>
     </symbol>
+
+    <symbol id="spinner-arc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <path d="M21 12a9 9 0 1 1-6.22-8.56" />
+    </symbol>
+
     <symbol id="copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
       <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect>
       <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>

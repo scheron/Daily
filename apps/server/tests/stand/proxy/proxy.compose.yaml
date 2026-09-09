@@ -18,7 +18,7 @@ services:
           - daily.test
 
   daily-decoy:
-    image: ghcr.io/scheron/daily-server:p2
+    image: ghcr.io/scheron/daily-server:p3
     restart: unless-stopped
     expose:
       - "8787"

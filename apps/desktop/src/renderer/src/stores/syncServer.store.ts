@@ -8,9 +8,11 @@ import ApproveDeviceModal from "@/ui/views/Settings/{fragments}/SyncSettings/{fr
 import type {
   EnrollmentPollView,
   EnrollmentTicketView,
+  EnrollmentWindowView,
   PendingApprovalView,
   ProtocolMismatchView,
   ServerBindingView,
+  ServerMembershipView,
   ServerProbeView,
 } from "@daily/protocol"
 
@@ -20,6 +22,7 @@ export const useSyncServerStore = defineStore("syncServer", () => {
   const binding = ref<ServerBindingView | null>(null)
   const revoked = ref(false)
   const mismatch = ref<ProtocolMismatchView | null>(null)
+  const membership = ref<ServerMembershipView | null>(null)
   let isWatchingApprovals = false
 
   const {show: showApproval, hide: hideApproval} = useBaseModal(APPROVE_DEVICE_MODAL_ID)
@@ -30,9 +33,35 @@ export const useSyncServerStore = defineStore("syncServer", () => {
       binding.value = state.binding
       revoked.value = state.revoked
       mismatch.value = state.mismatch
+      if (binding.value?.role === "parent") await listMembership()
     } catch (error) {
       console.error("Failed to load the Daily Sync Server state:", error)
     }
+  }
+
+  async function listMembership(): Promise<void> {
+    try {
+      membership.value = await window.BridgeIPC["sync-server:list-membership"]()
+    } catch (error) {
+      console.error("Failed to load the Daily Sync Server's membership:", error)
+    }
+  }
+
+  async function revokeDevice(deviceId: string): Promise<ServerMembershipView> {
+    const result = await window.BridgeIPC["sync-server:revoke-device"](deviceId)
+    membership.value = result
+    return result
+  }
+
+  async function openEnrollmentWindow(): Promise<EnrollmentWindowView> {
+    const result = await window.BridgeIPC["sync-server:open-enrollment-window"]()
+    await listMembership()
+    return result
+  }
+
+  async function closeEnrollmentWindow(): Promise<void> {
+    await window.BridgeIPC["sync-server:close-enrollment-window"]()
+    await listMembership()
   }
 
   async function defaultDeviceName(): Promise<string> {
@@ -78,6 +107,7 @@ export const useSyncServerStore = defineStore("syncServer", () => {
 
   async function approve(requestId: string, code: string): Promise<void> {
     await window.BridgeIPC["sync-server:approve"](requestId, code)
+    await listMembership()
   }
 
   async function deny(requestId: string): Promise<void> {
@@ -91,11 +121,19 @@ export const useSyncServerStore = defineStore("syncServer", () => {
     showApproval(ApproveDeviceModal, {
       request: pending,
       onApprove: async () => {
-        await approve(pending.requestId, pending.code)
+        try {
+          await approve(pending.requestId, pending.code)
+        } catch (error) {
+          console.error("Failed to approve the device:", error)
+        }
         hideApproval()
       },
       onDeny: async () => {
-        await deny(pending.requestId)
+        try {
+          await deny(pending.requestId)
+        } catch (error) {
+          console.error("Failed to deny the device:", error)
+        }
         hideApproval()
       },
       onClose: () => hideApproval(),
@@ -109,8 +147,12 @@ export const useSyncServerStore = defineStore("syncServer", () => {
    * app was closed, or open only in a window that never called this — is still found once this
    * does run.
    *
-   * The broadcast reaches every window's renderer process, so call this from exactly one of
-   * them; calling it from more than one opens the dialog twice for the same request.
+   * The broadcast reaches every window's renderer process. `App.vue` calls this from both the
+   * main window and Settings — each shows membership or approves on the person's behalf, so each
+   * needs its own card — but never from Assistant. When both are open at once, both cards open
+   * for the same request; acting on whichever one is stale fails against a request the other
+   * window already resolved, and `onApprove`/`onDeny` above close the card on that failure the
+   * same as on success, so the stale card never sits unresponsive.
    */
   function watchForApprovals(): void {
     if (isWatchingApprovals) return
@@ -130,14 +172,24 @@ export const useSyncServerStore = defineStore("syncServer", () => {
     mismatch.value = nextMismatch
   })
 
+  window.BridgeIPC["sync-server:on-role-changed"]((role) => {
+    if (binding.value) binding.value.role = role
+    listMembership()
+  })
+
   invoke(loadState)
 
   return {
     binding,
     revoked,
     mismatch,
+    membership,
 
     loadState,
+    listMembership,
+    revokeDevice,
+    openEnrollmentWindow,
+    closeEnrollmentWindow,
     defaultDeviceName,
     probe,
     claim,

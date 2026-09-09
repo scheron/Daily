@@ -2,8 +2,10 @@ import type {
   AIConfig,
   Branch,
   Day,
+  DeviceRole,
   EnrollmentPollView,
   EnrollmentTicketView,
+  EnrollmentWindowView,
   File,
   ISODate,
   LocalModelId,
@@ -14,6 +16,7 @@ import type {
   ProtocolMismatchView,
   ServerBindingView,
   ServerConnectionStateView,
+  ServerMembershipView,
   ServerProbeView,
   SettingsView,
   StatsAggregate,
@@ -76,9 +79,14 @@ export interface BridgeIPC {
   "sync-server:get-pending-approval": () => Promise<PendingApprovalView | null>
   "sync-server:approve": (requestId: string, code: string) => Promise<void>
   "sync-server:deny": (requestId: string) => Promise<void>
+  "sync-server:list-membership": () => Promise<ServerMembershipView>
+  "sync-server:revoke-device": (deviceId: string) => Promise<ServerMembershipView>
+  "sync-server:open-enrollment-window": () => Promise<EnrollmentWindowView>
+  "sync-server:close-enrollment-window": () => Promise<void>
   "sync-server:on-approval-requested": (callback: () => void) => void
   "sync-server:on-revoked": (callback: () => void) => void
   "sync-server:on-protocol-mismatch-changed": (callback: (mismatch: ProtocolMismatchView | null) => void) => void
+  "sync-server:on-role-changed": (callback: (role: DeviceRole) => void) => void
 
   // === SYNC PROVIDER ===
   "sync-provider:preview": (target: Exclude<SyncProvider, "off">) => Promise<MigrationPreview>

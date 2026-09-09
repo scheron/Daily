@@ -27,3 +27,14 @@ export function authenticateRequest(store: ServerStore, req: IncomingMessage): D
 
   return {...device, lastSeenAt}
 }
+
+/**
+ * Resolves the request's bearer token to its device, exactly as `authenticateRequest`, and refuses
+ * anything but the Parent with `ProtocolError(NOT_PARENT)`.
+ */
+export function authenticateParent(store: ServerStore, req: IncomingMessage): DeviceRecord {
+  const device = authenticateRequest(store, req)
+  if (device.role !== "parent") throw new ProtocolError(ProtocolErrorCode.NOT_PARENT)
+
+  return device
+}

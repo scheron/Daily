@@ -7,6 +7,7 @@ import {useSyncServerStore} from "@/stores/syncServer.store"
 import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
 import BaseInput from "@/ui/base/BaseInput.vue"
+import EnrollmentCode from "./EnrollmentCode.vue"
 
 import type {EnrollmentTicketView, ServerProbeView} from "@daily/protocol"
 import type {ConnectStep} from "./connectSteps"
@@ -236,21 +237,25 @@ onBeforeUnmount(() => {
 <template>
   <p v-if="errorMessage" class="bg-error/10 text-error mb-4 rounded-lg px-3 py-2 text-sm">{{ errorMessage }}</p>
 
-  <div v-if="step === 'address'" class="flex flex-col gap-3">
-    <div class="flex flex-col gap-1.5">
-      <label class="text-base-content/70 text-xs font-medium">Server address</label>
-      <BaseInput v-model="baseUrl" placeholder="http://192.168.1.10:8787" focus-on-mount @keyup.enter="onProbe" />
+  <template v-if="step === 'address'">
+    <div class="flex flex-col gap-3">
+      <div class="flex flex-col gap-1.5">
+        <label class="text-base-content/70 text-xs font-medium">Server address</label>
+        <BaseInput v-model="baseUrl" placeholder="http://192.168.1.10:8787" focus-on-mount @keyup.enter="onProbe" />
+      </div>
+      <BaseButton variant="primary" size="sm" class="w-full py-1.5" :loading="isLoading" @click="onProbe">Continue</BaseButton>
     </div>
-    <BaseButton variant="primary" size="sm" class="w-full py-1.5" :loading="isLoading" @click="onProbe">Continue</BaseButton>
 
-    <button
-      type="button"
-      class="text-base-content/50 hover:text-base-content self-center text-xs underline underline-offset-2 transition-colors"
-      @click="onOpenServerDocs"
-    >
-      No server yet? One command sets one up
-    </button>
-  </div>
+    <div class="border-base-300 -mx-5 -mb-5 mt-5 flex flex-col border-t px-5 py-4">
+      <button
+        type="button"
+        class="text-base-content/50 hover:text-base-content self-center text-xs underline underline-offset-2 transition-colors"
+        @click="onOpenServerDocs"
+      >
+        No server yet?
+      </button>
+    </div>
+  </template>
 
   <div v-else-if="step === 'confirm' && probeResult" class="flex flex-col gap-4">
     <div class="border-base-300 bg-base-200/40 flex flex-col gap-2 rounded-lg border p-3 text-sm">
@@ -264,7 +269,7 @@ onBeforeUnmount(() => {
       </div>
       <div v-if="probeResult.transport.fingerprint" class="flex flex-col gap-1">
         <span class="text-base-content/60">Fingerprint</span>
-        <span class="text-base-content bg-base-100 rounded px-2 py-1 font-mono text-xs break-all">{{ probeResult.transport.fingerprint }}</span>
+        <span class="text-base-content bg-base-100 break-all rounded px-2 py-1 font-mono text-xs">{{ probeResult.transport.fingerprint }}</span>
       </div>
     </div>
 
@@ -315,16 +320,18 @@ onBeforeUnmount(() => {
     <BaseButton variant="primary" size="sm" class="w-full py-1.5" :disabled="!code.trim()" :loading="isLoading" @click="onClaim">Connect</BaseButton>
   </div>
 
-  <div v-else-if="step === 'waiting' && ticket" class="flex flex-col items-center gap-4 py-2 text-center">
-    <h3 class="text-base-content text-base font-semibold">Confirm on your other Mac</h3>
-    <p class="text-base-content/60 text-sm">Match this code with the one next to <span class="text-base-content font-medium">Approve</span> there</p>
+  <div v-else-if="step === 'waiting' && ticket" class="flex flex-col items-center py-2 text-center">
+    <h3 class="text-base-content text-lg font-semibold">Confirm on your other Mac</h3>
+    <p class="text-base-content/60 mt-1.5 text-xs leading-normal">
+      Match this code with the one next to <span class="text-base-content font-medium">Approve</span> there
+    </p>
 
-    <div class="border-base-300 bg-base-200 w-full rounded-2xl border px-6 py-8">
-      <p class="text-base-content text-center font-mono text-4xl font-semibold tracking-[0.35em]">{{ ticket.code }}</p>
+    <div class="-mx-5 my-[18px] self-stretch">
+      <EnrollmentCode :code="ticket.code" />
     </div>
 
     <div class="text-base-content/50 flex items-center gap-1.5 text-xs">
-      <BaseIcon name="spinner" class="size-3.5 animate-spin" />
+      <BaseIcon name="spinner-arc" class="size-3.5 animate-spin" />
       Waiting for approval…
     </div>
   </div>

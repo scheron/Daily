@@ -1,3 +1,5 @@
+import type {DeviceRole, RequestOrigin} from "./syncProtocol"
+
 /**
  * Renderer-facing views of a Daily Sync Server connection. Every type here crosses the IPC
  * boundary, so none of them carries a credential: the renderer holds an address, a name, a
@@ -20,6 +22,10 @@ export type ServerBindingView = {
   fingerprint: string | null
   insecure: boolean
   boundAt: string
+  /** This device's role on the server, learned from a probe tick. `null` until the first tick corrects it. */
+  role: DeviceRole | null
+  /** The name of the device that approved this one's enrollment, or `null` for the device that claimed the server. */
+  approvedBy: string | null
 }
 
 /** The two protocol versions a bound device found disagreeing, the last time it checked. */
@@ -39,4 +45,28 @@ export type EnrollmentTicketView = {code: string; expiresAt: string}
 export type EnrollmentPollView = {state: "pending" | "approved" | "denied" | "expired"}
 
 /** The one enrollment request a bound device can approve or deny on a peer's behalf. */
-export type PendingApprovalView = {requestId: string; code: string; deviceName: string; requestedAt: string; expiresAt: string}
+export type PendingApprovalView = {
+  requestId: string
+  code: string
+  deviceName: string
+  requestedAt: string
+  expiresAt: string
+  requestedFrom: RequestOrigin | null
+}
+
+/** One Mac bound to the server, as the Parent's membership list shows it. */
+export type ServerDeviceView = {
+  id: string
+  name: string
+  role: DeviceRole
+  addedAt: string
+  lastSeenAt: string | null
+  revokedAt: string | null
+  isThisMac: boolean
+}
+
+/** The enrollment window's current state, as the Parent sees it. */
+export type EnrollmentWindowView = {expiresAt: string}
+
+/** Every Mac bound to the server, and the enrollment window's current state — the Parent's own read of its server's membership. */
+export type ServerMembershipView = {devices: ServerDeviceView[]; enrollmentWindow: EnrollmentWindowView | null}

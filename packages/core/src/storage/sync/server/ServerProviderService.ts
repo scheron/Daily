@@ -9,8 +9,11 @@ import {DailySyncClient} from "./DailySyncClient"
 import {probeTransport} from "./serverTransport"
 
 import type {
+  DeviceListResponse,
+  DeviceRole,
   EnrollmentPollView,
   EnrollmentTicketView,
+  EnrollmentWindowView,
   IssuedCredential,
   PendingApprovalView,
   ProtocolMismatchView,
@@ -18,6 +21,7 @@ import type {
   ServerBindingView,
   ServerConnectionStateView,
   ServerInfo,
+  ServerMembershipView,
   ServerProbeView,
   ServerSyncBinding,
   Settings,
@@ -42,6 +46,8 @@ type ServerProviderDeps = {
   onRevoked: () => void
   /** Fires on the tick that first finds the app and server disagreeing on protocol, and again on the tick that first finds them agreeing again. */
   onProtocolMismatchChanged?: (mismatch: ProtocolMismatchView | null) => void
+  /** Fires once on the tick that first finds this device's role changed. */
+  onRoleChanged?: (role: DeviceRole) => void
 }
 
 type EnrollmentTicket = {requestId: string; code: string; pollToken: string; expiresAt: string}
@@ -109,7 +115,7 @@ export class ServerProviderService implements IServerProvider {
     const attempt = await this.assertCanBind(confirmInsecure)
     const credential = await this.attemptClient(attempt).claim(code, deviceName)
 
-    return this.bind(attempt, credential)
+    return this.bind(attempt, credential, "parent", null)
   }
 
   /**
@@ -138,7 +144,7 @@ export class ServerProviderService implements IServerProvider {
 
     if (status.state === "approved") {
       attempt.enrollment = null
-      await this.bind(attempt, {device: status.device, token: status.token})
+      await this.bind(attempt, {device: status.device, token: status.token}, "child", status.approvedBy)
       return {state: "approved"}
     }
 
@@ -184,16 +190,51 @@ export class ServerProviderService implements IServerProvider {
       deviceName: pending.deviceName,
       requestedAt: pending.requestedAt,
       expiresAt: pending.expiresAt,
+      requestedFrom: pending.requestedFrom,
     }
   }
 
-  /** Approves a peer's enrollment. The code is passed through untouched: the server checks it as a race guard. */
+  /**
+   * Approves a peer's enrollment. The code is passed through untouched: the server checks it as a
+   * race guard. Clears `hadPendingEnrollment` so the next probe reporting a waiting request is read
+   * as a genuine edge rather than the one this call just resolved.
+   */
   async approve(requestId: string, code: string): Promise<void> {
     await (await this.boundClient()).approveEnrollment(requestId, code)
+    this.hadPendingEnrollment = false
   }
 
+  /** Denies a peer's enrollment. Clears `hadPendingEnrollment` for the same reason `approve` does. */
   async deny(requestId: string): Promise<void> {
     await (await this.boundClient()).denyEnrollment(requestId)
+    this.hadPendingEnrollment = false
+  }
+
+  /** The Parent's own read of its server's membership: every device bound, and the enrollment window's current state. */
+  async listMembership(): Promise<ServerMembershipView> {
+    const thisDeviceId = (await this.deps.loadSettings()).sync.server.binding?.deviceId ?? null
+    const response = await (await this.boundClient()).listDevices()
+
+    return this.toMembershipView(response, thisDeviceId)
+  }
+
+  /** Withdraws one device's access and returns the membership as it now stands, so the caller never reconciles two shapes. */
+  async revokeDevice(deviceId: string): Promise<ServerMembershipView> {
+    const thisDeviceId = (await this.deps.loadSettings()).sync.server.binding?.deviceId ?? null
+    const response = await (await this.boundClient()).revokeDevice(deviceId)
+
+    return this.toMembershipView(response, thisDeviceId)
+  }
+
+  /** Opens the enrollment window, so a peer's request is accepted rather than refused `ENROLLMENT_WINDOW_CLOSED`. */
+  async openEnrollmentWindow(): Promise<EnrollmentWindowView> {
+    const window = await (await this.boundClient()).openEnrollmentWindow()
+    return {expiresAt: window.expiresAt}
+  }
+
+  /** Closes the enrollment window early. */
+  async closeEnrollmentWindow(): Promise<void> {
+    await (await this.boundClient()).closeEnrollmentWindow()
   }
 
   /**
@@ -246,7 +287,12 @@ export class ServerProviderService implements IServerProvider {
     return attempt
   }
 
-  private async bind(attempt: ConnectionAttempt, credential: IssuedCredential): Promise<ServerBindingView> {
+  private async bind(
+    attempt: ConnectionAttempt,
+    credential: IssuedCredential,
+    role: DeviceRole,
+    approvedBy: string | null,
+  ): Promise<ServerBindingView> {
     const settings = await this.deps.loadSettings()
 
     const binding: ServerSyncBinding = {
@@ -259,6 +305,8 @@ export class ServerProviderService implements IServerProvider {
       fingerprint: attempt.transport.fingerprint,
       insecure: attempt.transport.mode === "plain",
       boundAt: new Date().toISOString(),
+      role,
+      approvedBy,
     }
 
     await this.deps.saveSettings({sync: {...settings.sync, server: {enabled: false, binding}}})
@@ -285,6 +333,22 @@ export class ServerProviderService implements IServerProvider {
     if (!client) throw new SyncServerError(SyncServerErrorCode.NO_BINDING, "This device is not connected to a Daily Sync Server")
 
     return client
+  }
+
+  /** Maps the wire's `DeviceListResponse` onto the renderer-safe `ServerMembershipView`, renaming `createdAt` to `addedAt` and deriving `isThisMac` here so the renderer never has to hold two device ids at once. */
+  private toMembershipView(response: DeviceListResponse, thisDeviceId: string | null): ServerMembershipView {
+    return {
+      devices: response.devices.map((device) => ({
+        id: device.id,
+        name: device.name,
+        role: device.role,
+        addedAt: device.createdAt,
+        lastSeenAt: device.lastSeenAt,
+        revokedAt: device.revokedAt,
+        isThisMac: device.id === thisDeviceId,
+      })),
+      enrollmentWindow: response.enrollmentWindow ? {expiresAt: response.enrollmentWindow.expiresAt} : null,
+    }
   }
 
   /**
@@ -352,6 +416,10 @@ export class ServerProviderService implements IServerProvider {
 
       if (this.probeGeneration !== generation) return
 
+      await this.applyRoleIfChanged(probe.role)
+
+      if (this.probeGeneration !== generation) return
+
       this.lastProbedRevision = probe.revision
 
       const enrollmentNewlyPending = probe.pendingEnrollment && !this.hadPendingEnrollment
@@ -369,6 +437,20 @@ export class ServerProviderService implements IServerProvider {
     } finally {
       if (this.probeGeneration === generation) this.probeInFlight = false
     }
+  }
+
+  /**
+   * The typed-fact-on-tick mechanism, reused for role: a tick that finds `RevisionProbe.role`
+   * differs from the binding's own writes it through `saveSettings` and fires `onRoleChanged`
+   * once. A tick that agrees writes nothing and fires nothing.
+   */
+  private async applyRoleIfChanged(role: DeviceRole): Promise<void> {
+    const settings = await this.deps.loadSettings()
+    const binding = settings.sync.server.binding
+    if (!binding || binding.role === role) return
+
+    await this.deps.saveSettings({sync: {...settings.sync, server: {...settings.sync.server, binding: {...binding, role}}}})
+    this.deps.onRoleChanged?.(role)
   }
 
   private startProbeScheduler(intervalMs: number): void {

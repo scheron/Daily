@@ -1,8 +1,10 @@
 import type {
   Branch,
   Day,
+  DeviceRole,
   EnrollmentPollView,
   EnrollmentTicketView,
+  EnrollmentWindowView,
   File,
   ISODate,
   MigrationDirection,
@@ -11,6 +13,7 @@ import type {
   PendingApprovalView,
   ServerBindingView,
   ServerConnectionStateView,
+  ServerMembershipView,
   ServerProbeView,
   Settings,
   StatsAggregate,
@@ -46,6 +49,11 @@ export interface IServerProvider {
   pendingApproval(): Promise<PendingApprovalView | null>
   approve(requestId: string, code: string): Promise<void>
   deny(requestId: string): Promise<void>
+
+  listMembership(): Promise<ServerMembershipView>
+  revokeDevice(deviceId: string): Promise<ServerMembershipView>
+  openEnrollmentWindow(): Promise<EnrollmentWindowView>
+  closeEnrollmentWindow(): Promise<void>
 }
 
 export interface IStorageController {
@@ -115,5 +123,6 @@ export interface IStorageController {
     onDataChange: () => void
     onSettingsChange: () => void
     onRevoked?: () => void
+    onRoleChanged?: (role: DeviceRole) => void
   }): void
 }

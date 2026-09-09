@@ -22,6 +22,7 @@ function bridgeWithState(mismatch: {appProtocol: number; serverProtocol: number}
     "sync-server:on-revoked": vi.fn(),
     "sync-server:on-approval-requested": vi.fn(),
     [MISMATCH_CHANNEL]: vi.fn(),
+    "sync-server:on-role-changed": vi.fn(),
   })
 }
 
@@ -93,3 +94,69 @@ describe("syncServerStore — the mismatch flag reaches the renderer without reo
  * comparing the test's own copy of the string to the component's, which would just prove the two
  * copies match each other. TC-10 is left to gate-b (browser), consistent with its own label.
  */
+
+/**
+ * `sync-server:on-role-changed` and `sync-server:list-membership` are both named verbatim in the
+ * plan's own "Frozen for later phases" block for phase 7, unlike `MISMATCH_CHANNEL` above — no
+ * inference needed for either name here.
+ */
+const ROLE_CHANGED_CHANNEL = "sync-server:on-role-changed"
+const LIST_MEMBERSHIP_CHANNEL = "sync-server:list-membership"
+
+function bridgeWithChildBinding() {
+  return mockBridgeIPC({
+    "sync-server:get-state": vi.fn().mockResolvedValue({
+      binding: {
+        baseUrl: "http://127.0.0.1:8787",
+        serverId: "srv-1",
+        serverName: "Home Server",
+        deviceId: "dev-1",
+        deviceName: "MacBook Air",
+        fingerprint: null,
+        insecure: true,
+        boundAt: "2026-08-10T00:00:00.000Z",
+        role: "child",
+        approvedBy: "Mac mini",
+      },
+      revoked: false,
+      mismatch: null,
+    }),
+    "sync-server:on-revoked": vi.fn(),
+    "sync-server:on-approval-requested": vi.fn(),
+    [MISMATCH_CHANNEL]: vi.fn(),
+    [ROLE_CHANGED_CHANNEL]: vi.fn(),
+    [LIST_MEMBERSHIP_CHANNEL]: vi.fn().mockResolvedValue({devices: [], enrollmentWindow: null}),
+  })
+}
+
+describe("syncServerStore — a role learned on the tick updates the store and reloads membership without reopening Settings (TC-17)", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  async function getStore() {
+    const {useSyncServerStore} = await import("../../../src/renderer/src/stores/syncServer.store")
+    const store = useSyncServerStore()
+    await new Promise((r) => setTimeout(r, 0))
+    return store
+  }
+
+  function capturedRoleListener(bridge: ReturnType<typeof bridgeWithChildBinding>): (role: string) => void {
+    expect(bridge[ROLE_CHANGED_CHANNEL], `expected the store to subscribe to ${ROLE_CHANGED_CHANNEL} on creation`).toHaveBeenCalledTimes(1)
+    return bridge[ROLE_CHANGED_CHANNEL].mock.calls[0][0]
+  }
+
+  it("reflects_TC-17_the_new_role_and_reloads_membership_the_moment_the_subscribed_callback_fires", async () => {
+    const bridge = bridgeWithChildBinding()
+    const store = await getStore()
+
+    expect(store.binding?.role).toBe("child")
+    // Membership is the Parent's alone; a Child's binding must not have triggered a read of it on creation.
+    expect(bridge[LIST_MEMBERSHIP_CHANNEL]).not.toHaveBeenCalled()
+
+    capturedRoleListener(bridge)("parent")
+
+    expect(store.binding?.role).toBe("parent")
+    expect(bridge[LIST_MEMBERSHIP_CHANNEL]).toHaveBeenCalledTimes(1)
+  })
+})

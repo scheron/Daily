@@ -13,9 +13,9 @@ import {toBindingView, toSettingsView} from "@core/utils/sync/settingsViews"
 import {assertSingleActiveProvider, buildSyncRemotes, resolveActiveProvider} from "@core/utils/sync/syncProvider"
 import {isBlockedAddress} from "@core/utils/web/isBlockedAddress"
 import {createTestDatabase} from "../../../helpers/db"
-import {bootSyncServer, claimFirstDevice, enrollSecondDevice} from "../../../helpers/syncServer"
+import {bootSyncServer, claimFirstDevice, enrollSecondDevice, openEnrollmentWindow} from "../../../helpers/syncServer"
 
-import type {IssuedCredential, ProtocolMismatchView, RevisionProbe, ServerSyncBinding, Settings, SyncSettings} from "@daily/protocol"
+import type {DeviceRole, IssuedCredential, ProtocolMismatchView, RevisionProbe, ServerSyncBinding, Settings, SyncSettings} from "@daily/protocol"
 import type {BootedSyncServer} from "../../../helpers/syncServer"
 
 /**
@@ -81,6 +81,8 @@ function makeBinding(overrides: Partial<ServerSyncBinding> = {}): ServerSyncBind
     fingerprint: null,
     insecure: true,
     boundAt: "2026-08-10T00:00:00.000Z",
+    role: null,
+    approvedBy: null,
     ...overrides,
   }
 }
@@ -318,6 +320,7 @@ describe("the enrollment wait", () => {
       const service = makeService(store)
 
       await service.probe(server.baseUrl)
+      openEnrollmentWindow(server)
       const ticket = await service.requestEnrollment("MacBook Air", false)
       expect(ticket.code).toMatch(/^\d{6}$/)
 
@@ -328,6 +331,7 @@ describe("the enrollment wait", () => {
       const lapsed = await service.pollEnrollment()
       expect(lapsed.state).toBe("expired")
 
+      openEnrollmentWindow(server)
       const fresh = await service.requestEnrollment("MacBook Air", false)
       expect(fresh.code).toMatch(/^\d{6}$/)
       expect(fresh.code).not.toBe(ticket.code)
@@ -400,6 +404,7 @@ describe("the revision probe", () => {
       await fireProbeTick()
       expect(runSyncCycle).toHaveBeenCalledTimes(1)
 
+      openEnrollmentWindow(server)
       await fetch(`${server.baseUrl}${SYNC_PROTOCOL_PATHS.enrollRequest}`, {
         method: "POST",
         body: JSON.stringify({deviceName: "Mac C"}),
@@ -499,6 +504,76 @@ describe("the revision probe", () => {
       } finally {
         await freshServer.close()
       }
+    } finally {
+      await server.close()
+    }
+  })
+})
+
+describe("the role a probe tick learns from the server — TC-16", () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.useRealTimers()
+  })
+
+  async function settleProbeIO(rounds = 20): Promise<void> {
+    for (let i = 0; i < rounds; i++) {
+      await vi.advanceTimersByTimeAsync(0)
+    }
+  }
+
+  async function fireProbeTick(): Promise<void> {
+    await vi.advanceTimersByTimeAsync(SYNC_PROTOCOL_CONFIG.revisionProbeIntervalMs)
+    await settleProbeIO()
+  }
+
+  function mockProbeOnce(probe: RevisionProbe): void {
+    vi.spyOn(DailySyncClient.prototype, "probeRevision").mockResolvedValueOnce(probe)
+  }
+
+  function makeRoleService(store: ReturnType<typeof makeSettingsStore>, onRoleChanged: (role: DeviceRole) => void): ServerProviderService {
+    return new ServerProviderService({
+      loadSettings: store.loadSettings,
+      saveSettings: store.saveSettings,
+      onBindingChanged: async () => {},
+      runSyncCycle: async () => {},
+      onApprovalRequested: () => {},
+      disableAutoSync: () => {},
+      onRevoked: () => {},
+      onRoleChanged,
+    } as never)
+  }
+
+  it("learns_TC-16_a_new_role_exactly_once_per_change_rewriting_the_binding_and_surviving_a_reload", async () => {
+    const server = await bootSyncServer()
+    try {
+      const credential = await claimFirstDevice(server, "MacBook Air")
+      const binding = bindingFromCredential(server, credential, {role: "child", approvedBy: null})
+      const store = makeSettingsStore({server: {enabled: true, binding}})
+      const onRoleChanged = vi.fn()
+      const service = makeRoleService(store, onRoleChanged)
+
+      mockProbeOnce({revision: null, pendingEnrollment: false, protocol: SYNC_PROTOCOL_VERSION, role: "parent"} as RevisionProbe)
+      service.startProbe()
+      await fireProbeTick()
+
+      expect(onRoleChanged).toHaveBeenCalledTimes(1)
+      expect(onRoleChanged).toHaveBeenCalledWith("parent")
+      expect(store.snapshot().sync.server.binding?.role).toBe("parent")
+
+      mockProbeOnce({revision: null, pendingEnrollment: false, protocol: SYNC_PROTOCOL_VERSION, role: "parent"} as RevisionProbe)
+      await fireProbeTick()
+
+      expect(onRoleChanged).toHaveBeenCalledTimes(1)
+
+      service.stopProbe()
+
+      const reloaded = await service.getState()
+      expect(reloaded.binding?.role).toBe("parent")
     } finally {
       await server.close()
     }
@@ -1055,10 +1130,149 @@ describe("the re-arm after a successful probe", () => {
   }, 20000)
 })
 
-describe("narrowing a server binding for the renderer", () => {
-  it("narrows_TC-11_toBindingView_toSettingsView_and_getState_to_exactly_the_eight_renderer-safe_fields", async () => {
+describe("the trigger after a request the client itself resolved — TC-27, TC-28", () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.useRealTimers()
+  })
+
+  async function settleProbeIO(rounds = 20): Promise<void> {
+    for (let i = 0; i < rounds; i++) {
+      await vi.advanceTimersByTimeAsync(0)
+    }
+  }
+
+  async function fireProbeTick(): Promise<void> {
+    await vi.advanceTimersByTimeAsync(SYNC_PROTOCOL_CONFIG.revisionProbeIntervalMs)
+    await settleProbeIO()
+  }
+
+  function probe(revision: string, pendingEnrollment = false): RevisionProbe {
+    return {revision, pendingEnrollment, protocol: SYNC_PROTOCOL_VERSION} as RevisionProbe
+  }
+
+  /**
+   * `approveEnrollment`/`denyEnrollment` are mocked on `DailySyncClient.prototype` alongside
+   * `probeRevision`, exactly as this file already mocks the probe alone elsewhere: nothing here
+   * needs a real server, since what is under test is the client's own bookkeeping around the wire,
+   * not the wire itself.
+   */
+  function bindTriggerService(onApprovalRequested: () => void): ServerProviderService {
     const binding = makeBinding()
-    const expectedKeys = ["baseUrl", "serverId", "serverName", "deviceId", "deviceName", "fingerprint", "insecure", "boundAt"].sort()
+    const store = makeSettingsStore({server: {enabled: true, binding}})
+    return makeService(store, {onApprovalRequested})
+  }
+
+  it("fires_TC-27_the_approval_callback_again_after_the_client_s_own_approval_resolved_the_last_request", async () => {
+    const onApprovalRequested = vi.fn()
+    const service = bindTriggerService(onApprovalRequested)
+
+    const probeSpy = vi.spyOn(DailySyncClient.prototype, "probeRevision")
+    const approveSpy = vi.spyOn(DailySyncClient.prototype, "approveEnrollment").mockResolvedValue(undefined)
+
+    probeSpy.mockResolvedValueOnce(probe("r0"))
+    probeSpy.mockResolvedValue(probe("r0", true))
+
+    service.startProbe()
+    await fireProbeTick()
+    await fireProbeTick()
+    await vi.advanceTimersByTimeAsync(1)
+    await settleProbeIO()
+
+    expect(onApprovalRequested).toHaveBeenCalledTimes(1)
+
+    await service.approve("request-a", "code-a")
+    expect(approveSpy).toHaveBeenCalledWith("request-a", "code-a")
+
+    // The next probe still reports `pendingEnrollment: true` — not because the first request is
+    // still open (the approval above resolved it), but because a further request is now waiting.
+    // Nothing in this mock distinguishes the two; only the client's own flag can.
+    await fireProbeTick()
+
+    expect(onApprovalRequested).toHaveBeenCalledTimes(2)
+
+    service.stopProbe()
+  })
+
+  it("fires_TC-27_the_approval_callback_again_after_the_client_s_own_denial_resolved_the_last_request", async () => {
+    const onApprovalRequested = vi.fn()
+    const service = bindTriggerService(onApprovalRequested)
+
+    const probeSpy = vi.spyOn(DailySyncClient.prototype, "probeRevision")
+    const denySpy = vi.spyOn(DailySyncClient.prototype, "denyEnrollment").mockResolvedValue(undefined)
+
+    probeSpy.mockResolvedValueOnce(probe("r0"))
+    probeSpy.mockResolvedValue(probe("r0", true))
+
+    service.startProbe()
+    await fireProbeTick()
+    await fireProbeTick()
+    await vi.advanceTimersByTimeAsync(1)
+    await settleProbeIO()
+
+    expect(onApprovalRequested).toHaveBeenCalledTimes(1)
+
+    await service.deny("request-a")
+    expect(denySpy).toHaveBeenCalledWith("request-a")
+
+    await fireProbeTick()
+
+    expect(onApprovalRequested).toHaveBeenCalledTimes(2)
+
+    service.stopProbe()
+  })
+
+  it("does_not_refire_TC-28_for_a_request_that_is_merely_still_waiting_and_leaves_re_arm_behaviour_unchanged", async () => {
+    const onApprovalRequested = vi.fn()
+    const service = bindTriggerService(onApprovalRequested)
+
+    const probeSpy = vi.spyOn(DailySyncClient.prototype, "probeRevision")
+    probeSpy.mockResolvedValueOnce(probe("r0"))
+    probeSpy.mockResolvedValue(probe("r0", true))
+
+    service.startProbe()
+    await fireProbeTick()
+    await fireProbeTick()
+    await vi.advanceTimersByTimeAsync(1)
+    await settleProbeIO()
+
+    expect(onApprovalRequested).toHaveBeenCalledTimes(1)
+    const callsAfterRaise = probeSpy.mock.calls.length
+
+    await fireProbeTick()
+    expect(onApprovalRequested).toHaveBeenCalledTimes(1)
+
+    await fireProbeTick()
+    expect(onApprovalRequested).toHaveBeenCalledTimes(1)
+
+    // Re-arm behaviour unchanged: exactly one `probeRevision` call per ordinary interval tick from
+    // here, not the immediate re-arm a newly-pending request gets — no hot loop over a request
+    // sitting unanswered.
+    expect(probeSpy.mock.calls.length).toBe(callsAfterRaise + 2)
+
+    service.stopProbe()
+  })
+})
+
+describe("narrowing a server binding for the renderer", () => {
+  it("narrows_TC-11_toBindingView_toSettingsView_and_getState_to_exactly_the_ten_renderer-safe_fields", async () => {
+    const binding = makeBinding()
+    const expectedKeys = [
+      "baseUrl",
+      "serverId",
+      "serverName",
+      "deviceId",
+      "deviceName",
+      "fingerprint",
+      "insecure",
+      "boundAt",
+      "role",
+      "approvedBy",
+    ].sort()
 
     const bindingView = toBindingView(binding)
     expect(Object.keys(bindingView).sort()).toEqual(expectedKeys)
@@ -1075,5 +1289,75 @@ describe("narrowing a server binding for the renderer", () => {
     const state = await service.getState()
     expect(state.binding).not.toBeNull()
     expect(Object.keys(state.binding as object).sort()).toEqual(expectedKeys)
+  })
+})
+
+describe("who approved this device, as its own binding reports it — TC-13", () => {
+  it("names_TC-13_the_approving_device_on_an_enrolled_binding_and_nobody_on_a_claimed_one", async () => {
+    const server = await bootSyncServer()
+    try {
+      const parentStore = makeSettingsStore()
+      const parentService = makeService(parentStore)
+      await parentService.probe(server.baseUrl)
+      const code = ensureClaimCode(server.store)
+      if (!code) throw new Error("expected an unclaimed test server to hold a claim code")
+
+      const parentBinding = await parentService.claim(code, "MacBook Air", false)
+      expect(parentBinding.approvedBy).toBeNull()
+
+      const childStore = makeSettingsStore()
+      const childService = makeService(childStore)
+      await childService.probe(server.baseUrl)
+      openEnrollmentWindow(server)
+      await childService.requestEnrollment("Mac mini", false)
+
+      const pending = await parentService.pendingApproval()
+      if (!pending) throw new Error("expected a pending approval to approve")
+      await parentService.approve(pending.requestId, pending.code)
+
+      const polled = await childService.pollEnrollment()
+      expect(polled.state).toBe("approved")
+
+      const childState = await childService.getState()
+      expect(childState.binding?.approvedBy).toBe("MacBook Air")
+    } finally {
+      await server.close()
+    }
+  })
+})
+
+describe("the Parent's membership view — TC-15", () => {
+  it("marks_TC-15_this_Mac_carries_no_credential_anywhere_and_revoking_returns_the_refreshed_list_with_the_device_moved_into_the_revoked_group", async () => {
+    const server = await bootSyncServer()
+    try {
+      const parentCredential = await claimFirstDevice(server, "MacBook Air")
+      const activeChildCredential = await enrollSecondDevice(server, "Mac mini")
+      const preRevokedCredential = await enrollSecondDevice(server, "iMac")
+      revokeDevice(server.store, preRevokedCredential.device.id)
+
+      const binding = bindingFromCredential(server, parentCredential, {role: "parent", approvedBy: null})
+      const store = makeSettingsStore({server: {enabled: true, binding}})
+      const service = makeService(store)
+
+      const membership = await service.listMembership()
+
+      const parentRow = membership.devices.find((d) => d.id === parentCredential.device.id)
+      expect(parentRow?.isThisMac).toBe(true)
+      expect(membership.devices.filter((d) => d.isThisMac)).toHaveLength(1)
+
+      const serialized = JSON.stringify(membership)
+      expect(serialized).not.toContain(parentCredential.token)
+      expect(serialized).not.toContain(activeChildCredential.token)
+      expect(serialized).not.toContain(preRevokedCredential.token)
+
+      const afterRevoke = await service.revokeDevice(activeChildCredential.device.id)
+      const revokedRow = afterRevoke.devices.find((d) => d.id === activeChildCredential.device.id)
+      expect(revokedRow?.revokedAt).toBeTruthy()
+
+      const revokedNames = afterRevoke.devices.filter((d) => d.revokedAt !== null).map((d) => d.name)
+      expect(revokedNames.sort()).toEqual(["Mac mini", "iMac"].sort())
+    } finally {
+      await server.close()
+    }
   })
 })

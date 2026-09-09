@@ -1,5 +1,6 @@
 import type {AIConfig} from "./ai"
 import type {ISODate, ISODateTime, ISOTime, Timezone} from "./common"
+import type {DeviceRole} from "./syncProtocol"
 import type {ServerBindingView} from "./syncServer"
 import type {AppUpdateSource} from "./update"
 
@@ -62,6 +63,10 @@ export type ServerSyncBinding = {
   /** True when the binding was made over plain HTTP. Permanent for the life of the binding. */
   insecure: boolean
   boundAt: string
+  /** This device's role on the server, learned from a probe tick. `null` until the first tick corrects it — a permanent, honest state for a binding made before roles existed, not a transitional one. */
+  role: DeviceRole | null
+  /** The name of the device that approved this one's enrollment, or `null` for the device that claimed the server. */
+  approvedBy: string | null
 }
 
 /** Remote synchronization configuration. */

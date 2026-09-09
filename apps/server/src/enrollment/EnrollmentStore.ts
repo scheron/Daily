@@ -3,9 +3,11 @@ import {nanoid} from "nanoid"
 import {ProtocolError, ProtocolErrorCode, SYNC_PROTOCOL_CONFIG} from "@daily/protocol"
 
 import {generateCode} from "../codes"
-import {createDevice} from "../devices/DeviceStore"
+import {createDevice, findParentDevice} from "../devices/DeviceStore"
 import {hashToken, mintToken} from "../devices/tokens"
+import {closeEnrollmentWindow, readEnrollmentWindow} from "../identity/ServerIdentityStore"
 
+import type {DeviceRole, RequestOrigin} from "@daily/protocol"
 import type {DeviceRecord} from "../devices/DeviceStore"
 import type {ServerStore} from "../store/instance"
 
@@ -18,6 +20,8 @@ export type EnrollmentRecord = {
   expiresAt: string
   resolvedAt: string | null
   issuedDeviceId: string | null
+  requestedFrom: string | null
+  approvedByDeviceId: string | null
 }
 
 type EnrollmentRow = {
@@ -29,21 +33,43 @@ type EnrollmentRow = {
   expires_at: string
   resolved_at: string | null
   issued_device_id: string | null
+  requested_from_address: string | null
+  approved_by_device_id: string | null
 }
 
-type DeviceRow = {id: string; name: string; created_at: string; last_seen_at: string | null; revoked_at: string | null}
+type DeviceRow = {
+  id: string
+  name: string
+  role: DeviceRole
+  created_at: string
+  last_seen_at: string | null
+  revoked_at: string | null
+}
 
-const COLUMNS = `id, device_name, code, state, created_at, expires_at, resolved_at, issued_device_id`
+const COLUMNS = `id, device_name, code, state, created_at, expires_at, resolved_at, issued_device_id, requested_from_address, approved_by_device_id`
 
 /**
  * Opens an enrollment request for an unbound device: a six-digit code the owner compares by eye,
  * and a poll token that authenticates nothing but `GET /v1/enroll/status`. Only the poll token's
- * hash is stored.
+ * hash is stored. `requestedFrom` is the caller's own resolved origin — this store never reads
+ * `node:http` itself — and only its address is persisted; whether that address is private is
+ * derived on read, never stored.
  */
-export function createEnrollmentRequest(store: ServerStore, deviceName: string): {record: EnrollmentRecord; pollToken: string} {
+export function createEnrollmentRequest(
+  store: ServerStore,
+  deviceName: string,
+  requestedFrom: RequestOrigin | null = null,
+): {record: EnrollmentRecord; pollToken: string} {
   const pollToken = mintToken()
 
   const create = store.db.transaction((): EnrollmentRecord => {
+    if (!readEnrollmentWindow(store)) {
+      throw new ProtocolError(
+        ProtocolErrorCode.ENROLLMENT_WINDOW_CLOSED,
+        "This server is not expecting a new device right now. Ask the Mac that administers it to add a device, then try again.",
+      )
+    }
+
     if (findPendingEnrollment(store)) {
       throw new ProtocolError(ProtocolErrorCode.ENROLLMENT_IN_PROGRESS, "Another device is already waiting to be enrolled")
     }
@@ -58,14 +84,16 @@ export function createEnrollmentRequest(store: ServerStore, deviceName: string):
       expiresAt: new Date(now.getTime() + SYNC_PROTOCOL_CONFIG.enrollmentTtlMs).toISOString(),
       resolvedAt: null,
       issuedDeviceId: null,
+      requestedFrom: requestedFrom?.address ?? null,
+      approvedByDeviceId: null,
     }
 
     store.db
       .prepare(
-        `INSERT INTO enrollment_requests (id, device_name, code, poll_token_hash, state, created_at, expires_at, resolved_at, approved_by_device_id, issued_device_id)
-         VALUES (?, ?, ?, ?, 'pending', ?, ?, NULL, NULL, NULL)`,
+        `INSERT INTO enrollment_requests (id, device_name, code, poll_token_hash, state, created_at, expires_at, resolved_at, approved_by_device_id, issued_device_id, requested_from_address)
+         VALUES (?, ?, ?, ?, 'pending', ?, ?, NULL, NULL, NULL, ?)`,
       )
-      .run(record.id, record.deviceName, record.code, hashToken(pollToken), record.createdAt, record.expiresAt)
+      .run(record.id, record.deviceName, record.code, hashToken(pollToken), record.createdAt, record.expiresAt, record.requestedFrom)
 
     return record
   })
@@ -112,12 +140,13 @@ export function approveEnrollment(store: ServerStore, requestId: string, code: s
       throw new ProtocolError(ProtocolErrorCode.ENROLLMENT_CODE_MISMATCH, "This code does not match the request waiting for approval")
     }
 
-    const {device, token} = createDevice(store, record.deviceName)
+    const {device, token} = createDevice(store, record.deviceName, "child")
     store.db
       .prepare(
         `UPDATE enrollment_requests SET state = 'approved', resolved_at = ?, approved_by_device_id = ?, issued_device_id = ?, issued_token = ? WHERE id = ?`,
       )
       .run(new Date().toISOString(), approvedBy, device.id, token, record.id)
+    closeEnrollmentWindow(store)
 
     return {device, token}
   })
@@ -140,10 +169,13 @@ export function denyEnrollment(store: ServerStore, requestId: string): void {
  * Hands the asking device the credential its approval minted, read back unchanged from
  * `issued_token`. The token is minted once, at approval, and never re-minted: a later poll returns
  * the identical string, so a device that already authenticated with an earlier response keeps
- * working.
+ * working. Also names the device that approved it, `null` when the enrollment carries none.
  */
-export function issueEnrolledCredential(store: ServerStore, record: EnrollmentRecord): {device: DeviceRecord; token: string} {
-  const row = store.db.prepare(`SELECT id, name, created_at, last_seen_at, revoked_at FROM devices WHERE id = ?`).get(record.issuedDeviceId) as
+export function issueEnrolledCredential(
+  store: ServerStore,
+  record: EnrollmentRecord,
+): {device: DeviceRecord; token: string; approvedBy: string | null} {
+  const row = store.db.prepare(`SELECT id, name, role, created_at, last_seen_at, revoked_at FROM devices WHERE id = ?`).get(record.issuedDeviceId) as
     | DeviceRow
     | undefined
 
@@ -153,8 +185,9 @@ export function issueEnrolledCredential(store: ServerStore, record: EnrollmentRe
   if (!issued.issued_token) throw new ProtocolError(ProtocolErrorCode.ENROLLMENT_NOT_FOUND, "This enrollment has no credential left to hand over")
 
   return {
-    device: {id: row.id, name: row.name, createdAt: row.created_at, lastSeenAt: row.last_seen_at, revokedAt: row.revoked_at},
+    device: {id: row.id, name: row.name, role: row.role, createdAt: row.created_at, lastSeenAt: row.last_seen_at, revokedAt: row.revoked_at},
     token: issued.issued_token,
+    approvedBy: record.approvedByDeviceId ? readDeviceName(store, record.approvedByDeviceId) : null,
   }
 }
 
@@ -212,7 +245,8 @@ export function consumeConsoleEnrollment(store: ServerStore, token: string, devi
       throw new ProtocolError(ProtocolErrorCode.INVALID_ENROLLMENT_TOKEN, "This enrollment token is not valid")
     }
 
-    const {device, token: deviceToken} = createDevice(store, deviceName)
+    const role: DeviceRole = findParentDevice(store) === null ? "parent" : "child"
+    const {device, token: deviceToken} = createDevice(store, deviceName, role)
     store.db
       .prepare(`UPDATE console_enrollments SET consumed_at = ?, issued_device_id = ? WHERE id = ?`)
       .run(new Date().toISOString(), device.id, row.id)
@@ -267,5 +301,13 @@ function toEnrollmentRecord(row: EnrollmentRow): EnrollmentRecord {
     expiresAt: row.expires_at,
     resolvedAt: row.resolved_at,
     issuedDeviceId: row.issued_device_id,
+    requestedFrom: row.requested_from_address,
+    approvedByDeviceId: row.approved_by_device_id,
   }
+}
+
+function readDeviceName(store: ServerStore, deviceId: string): string | null {
+  const row = store.db.prepare(`SELECT name FROM devices WHERE id = ?`).get(deviceId) as {name: string} | undefined
+
+  return row ? row.name : null
 }

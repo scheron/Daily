@@ -1,10 +1,11 @@
 import {hostname} from "node:os"
 import {nanoid} from "nanoid"
 
-import {ProtocolError, ProtocolErrorCode} from "@daily/protocol"
+import {ProtocolError, ProtocolErrorCode, SYNC_PROTOCOL_CONFIG} from "@daily/protocol"
 
 import {generateCode} from "../codes"
 
+import type {EnrollmentWindow} from "@daily/protocol"
 import type {ServerStore} from "../store/instance"
 
 export type ServerIdentity = {serverId: string; name: string; createdAt: string; claimedAt: string | null}
@@ -76,6 +77,36 @@ export function regenerateClaimCode(store: ServerStore): string {
 /** Reports whether the server has been claimed by its first device. */
 export function isClaimed(store: ServerStore): boolean {
   return readClaimState(store).claimed_at !== null
+}
+
+/**
+ * Opens the door for one device to ask to enroll, for `SYNC_PROTOCOL_CONFIG.enrollmentWindowMs`
+ * from now. Opening while one is already open replaces it — the person pressed the button again,
+ * and the honest reading of that is "start the clock over".
+ */
+export function openEnrollmentWindow(store: ServerStore): EnrollmentWindow {
+  const expiresAt = new Date(Date.now() + SYNC_PROTOCOL_CONFIG.enrollmentWindowMs).toISOString()
+
+  store.db.prepare(`UPDATE server_identity SET enrollment_window_expires_at = ? WHERE id = 1`).run(expiresAt)
+
+  return {expiresAt}
+}
+
+/** Closes the enrollment window, if one is open. */
+export function closeEnrollmentWindow(store: ServerStore): void {
+  store.db.prepare(`UPDATE server_identity SET enrollment_window_expires_at = NULL WHERE id = 1`).run()
+}
+
+/** The open enrollment window, or `null` when none is open or the open one has run out. */
+export function readEnrollmentWindow(store: ServerStore): EnrollmentWindow | null {
+  const row = store.db.prepare(`SELECT enrollment_window_expires_at FROM server_identity WHERE id = 1`).get() as {
+    enrollment_window_expires_at: string | null
+  }
+
+  if (!row.enrollment_window_expires_at) return null
+  if (Date.parse(row.enrollment_window_expires_at) <= Date.now()) return null
+
+  return {expiresAt: row.enrollment_window_expires_at}
 }
 
 function readClaimState(store: ServerStore): ClaimStateRow {
