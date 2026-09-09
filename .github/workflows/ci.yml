@@ -132,3 +132,40 @@ jobs:
 
       - name: Validate generated compose files
         run: scripts/ci/validate-compose-configs.sh
+
+  package-check:
+    name: Package Check
+    runs-on: macos-14
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.5.0"
+
+      - name: Install pnpm
+        run: npm install -g pnpm@10.30.1
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: scripts/ci/pnpm-store-path.sh
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build the macOS package
+        run: pnpm --filter @daily/desktop build
+
+      - name: Verify the packaged bundle
+        shell: bash
+        run: scripts/ci/verify-dmg.sh
