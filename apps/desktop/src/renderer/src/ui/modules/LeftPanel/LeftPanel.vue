@@ -31,7 +31,7 @@ watch(calendarHeight, (height) => {
   <Transition :css="false" @enter="onEnter" @leave="onLeave">
     <aside v-if="uiStore.leftPanelVisible" data-day-drop-zone class="bg-base-100 relative h-full shrink-0" :style="{width: width + 'px'}">
       <div class="flex h-full min-h-0 w-full flex-col" :style="{width: width + 'px'}">
-        <div class="shrink-0 px-1 py-2" :style="{minHeight: topAreaMinHeight + 'px'}">
+        <div class="grid shrink-0 px-1 py-2" :style="{minHeight: topAreaMinHeight + 'px'}">
           <div v-if="milestonesStore.mode === 'day'" ref="calendarRef">
             <BaseCalendar size="sm" :days="tasksStore.days" :selected-date="tasksStore.activeDay" @select-date="tasksStore.setActiveDay" />
           </div>

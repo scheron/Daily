@@ -16,8 +16,8 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="flex flex-col gap-2 p-1">
-    <div class="flex items-center gap-2 px-1">
+  <div class="flex flex-col p-1">
+    <div class="mb-3 flex items-center gap-2 px-1">
       <BaseIcon name="bookmark" class="text-base-content/60 size-3.5" />
       <span class="text-base-content/60 text-[11px] font-semibold uppercase tracking-wide">Milestones</span>
       <span class="bg-base-content/10 text-base-content/60 shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold">
@@ -30,7 +30,7 @@ onMounted(() => {
             icon="plus"
             variant="ghost-primary"
             icon-class="size-3.5"
-            class="text-accent size-6 shrink-0 p-0"
+            class="text-accent size-7 shrink-0 p-0"
             tooltip="New milestone"
             @click="toggle"
           />
@@ -41,7 +41,7 @@ onMounted(() => {
       </BasePopup>
     </div>
 
-    <div v-if="milestonesStore.milestones.length === 0" class="flex flex-col items-center gap-2 px-4 py-6 text-center">
+    <div v-if="milestonesStore.milestones.length === 0" class="flex flex-1 flex-col items-center justify-center gap-2 px-4 py-6 text-center">
       <BaseIcon name="bookmark" class="text-base-content/25 size-7" />
       <p class="text-base-content/60 text-xs leading-relaxed">No milestones in this project yet.</p>
 
