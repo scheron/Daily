@@ -17,7 +17,9 @@ const {createInstallerScript} = await import("../../../src/main/updates/utils/cr
 
 const BUNDLE_FILLER_COUNT = 40
 
-describe("createInstallerScript", () => {
+const isMac = process.platform === "darwin"
+
+describe.skipIf(!isMac)("createInstallerScript", () => {
   let root = ""
   let appBundlePath = ""
   let dmgPath = ""
