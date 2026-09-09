@@ -18,7 +18,7 @@ Changes that live entirely inside the implementation — internal refactors, tes
 
 ## The flow
 
-The skill is interactive end-to-end. The user signs off on both the CHANGELOG text and the version before anything is committed, tagged, or pushed. `pnpm release` runs only after explicit approval at step 8, and the server's own release at step 10 needs its own yes.
+The skill is interactive end-to-end. The user signs off on both the CHANGELOG text and the version before anything is committed, tagged, or pushed. `pnpm release` runs only after explicit approval at step 9, and the server's own release at step 2 needs its own yes.
 
 ### Step 1 — preconditions and release status
 
@@ -39,11 +39,31 @@ Release status
   server    0.1.0      2 unreleased commits since server-v0.1.0
 ```
 
-The two artifacts version independently, and the survey is the only thing standing between "released the server" and "thought the app went too". **Report both lines to the user before drafting anything.** If the server also has pending commits, say so now and ask whether it ships in this session too — its release is step 10, after the app's.
+The two artifacts version independently, and the survey is the only thing standing between "released the server" and "thought the app went too". **Report both lines to the user before drafting anything.** If the server also has pending commits, say so now and ask whether it ships in this session too — its release is step 2, and it goes **before** the app's for the reason given there.
 
-If the user explicitly asks for "just a preview, no release yet", run steps 2–7 from any branch and stop before step 8.
+If the user explicitly asks for "just a preview, no release yet", run steps 3–8 from any branch and stop before step 9.
 
-### Step 2 — gather everything that changed
+### Step 2 — the sync server, if it is behind
+
+**The server ships before the app, and the order is not arbitrary.** When the app moves to a new
+sync protocol, a Mac on the new version stops syncing with a server still on the old one and tells
+the person to upgrade it. That instruction has to be followable the moment it is shown — which
+means the `p<N>` image must already be in the registry when the app release lands. Ship the app
+first and you publish a banner pointing at an image that does not exist yet.
+
+The server is a separate artifact with its own tag namespace (`server-v*`) and its own workflow (`release-server.yml`, which builds and pushes the Docker image). It has no changelog, so its release is one prompt, not an interview:
+
+```bash
+pnpm release server --version="$SERVER_VERSION"
+```
+
+Confirm the version with the user first — the survey from step 1 gives the current one and the pending count. Self-hosters pin the rolling protocol tag (`ghcr.io/scheron/daily-server:p<N>`), not the semver, so this number is for humans reading the release list.
+
+If the server is up to date, say so explicitly and move on to the app — a release with nothing in it
+is noise for everyone running `daily.sh upgrade`. A server with nothing pending is the common case
+and is not a reason to pause.
+
+### Step 3 — gather everything that changed
 
 Read commit subjects AND bodies AND diffs — subjects compress a lot, especially in squashed merges, and the body often carries the real shape of the work.
 
@@ -62,7 +82,7 @@ git show <SHA> -- <path-of-interest>
 
 If `git describe` fails (no tags yet), this is the first release. Use `git log HEAD` and confirm with the user before treating all of history as "new".
 
-### Step 3 — filter to user-facing changes (the App Store filter)
+### Step 4 — filter to user-facing changes (the App Store filter)
 
 For every change you discovered, ask: **"Would a non-technical user reading the release notes care about this?"** Only changes that pass this question survive into the draft.
 
@@ -96,7 +116,7 @@ Concrete test for each `fix:` commit: does the bug it fixes also exist in the pr
 
 Example for v0.15.0: a fix for "live progress events reaching every window" looks like a Bug Fix on paper, but the live event stream itself was introduced in this same release. The user goes straight from "no event stream at all" (previous version) to "event stream that works" (this version) — they never experienced the broken intermediate. The fix drops out; the working stream is described in the New Features section.
 
-### Step 4 — group into sections
+### Step 5 — group into sections
 
 Group changes by **type of change** (what kind of thing it is), not by area of the codebase. This is the App Store / Linear / Figma pattern — readers scan for "what's new vs what got fixed" first, then dive into specifics.
 
@@ -113,9 +133,9 @@ When several bullets in one section belong to distinct areas (e.g. one Bug Fix i
 
 **Exception — architectural release**: when the entire release is one architectural jump dominated by a single area (like the v0.14.0 "iCloud Sync Improvements" overhaul), use a single area-named section with an intro paragraph + nested bullets instead of forcing it into the type grid. The intro paragraph carries the headline and the bullets carry the parts. See `references/voice.md` for the v0.14.0 example.
 
-### Step 5 — per-section interview (the CORE of this skill)
+### Step 6 — per-section interview (the CORE of this skill)
 
-For **each section** identified in step 4, draft **2-3 distinct phrasing options** and ask the user to pick. Use the `AskUserQuestion` tool. Mark one option as **(Recommended)**.
+For **each section** identified in step 5, draft **2-3 distinct phrasing options** and ask the user to pick. Use the `AskUserQuestion` tool. Mark one option as **(Recommended)**.
 
 The options should differ meaningfully — different angle, different structure, not just synonym swaps. For example:
 
@@ -142,7 +162,7 @@ For the full reference — Apple/Linear/Figma examples, the worked example with 
 - **Anything experimental in this release?** A new feature whose shape might still shift — anything labelled beta or behind a flag. If yes, use the experimental marker pattern from `references/voice.md` §6.
 - **Any upcoming behavior changes worth announcing?** A deprecation or breaking switch scheduled for a future version. If yes, add an `### ⚠️ Upcoming behavior changes` section per the same reference.
 
-### Step 6 — version bump interview
+### Step 7 — version bump interview
 
 Show **all three** options (patch / minor / major) with reasoning, and mark the recommended one. Use `AskUserQuestion`. Reasoning shapes:
 
@@ -154,7 +174,7 @@ Show **all three** options (patch / minor / major) with reasoning, and mark the 
 
 Let the user override the recommendation — they know intent you can't infer.
 
-### Step 7 — pre-flight verification
+### Step 8 — pre-flight verification
 
 Run every gate before invoking the script. A red gate post-tag means a hotfix and a wasted version number.
 
@@ -166,7 +186,7 @@ That runs lint + typecheck (main / render / shared) + circular + tests. If any g
 
 **About test failures:** the project may have pre-existing test failures unrelated to current changes (you've seen baselines like "11 failed / 68 passed" as a stable baseline). Treat those as the bar — what matters is that the baseline didn't worsen. Compare against `main` if needed.
 
-### Step 8 — assemble and confirm the final text
+### Step 9 — assemble and confirm the final text
 
 Stitch the selected per-section options together with:
 
@@ -181,11 +201,11 @@ Show the full text to the user one more time. Print it as a single markdown bloc
 
 **Print the complete assembled markdown — the exact text that will land in CHANGELOG.md — immediately before asking, in the same turn as the confirmation question.** Not "as agreed earlier", not a summary, not a link back to the per-section interview: the full final text, every time, right above the question. The user reads it there and then answers.
 
-- `yes` → step 9
+- `yes` → step 10
 - `no` → STOP and stay out of the git/tag/push side until the user comes back.
-- `edit` → ask what to change, redo step 5 or 6 for the affected section, then re-confirm.
+- `edit` → ask what to change, redo step 6 or 7 for the affected section, then re-confirm.
 
-### Step 9 — invoke the script non-interactively
+### Step 10 — invoke the script non-interactively
 
 Write the agreed section to a temp file and invoke `pnpm release` with the `app` artifact and flags:
 
@@ -198,25 +218,13 @@ EOF
 pnpm release app --version="$NEXT_VERSION" --changelog-file="$SECTION_FILE"
 ```
 
-With both flags set, the script runs in non-interactive mode: it replaces the `## [Unreleased]` placeholder (or inserts after `# Changelog` if no placeholder), bumps `apps/desktop/package.json`, commits `release: v${nextVersion}`, tags `v${nextVersion}`, and pushes both branch and tag to origin. Naming `app` also makes it print a `⚠️ server also has N unreleased commits` line when the server is behind — that line is step 10's cue, not noise to skip past.
+With both flags set, the script runs in non-interactive mode: it replaces the `## [Unreleased]` placeholder (or inserts after `# Changelog` if no placeholder), bumps `apps/desktop/package.json`, commits `release: v${nextVersion}`, tags `v${nextVersion}`, and pushes both branch and tag to origin. Naming `app` also makes it print a `⚠️ server also has N unreleased commits` line when the server is behind. By this point step 2 should have cleared it; if the line still appears, the server was skipped and the app is about to ship a protocol its published image cannot serve — stop and say so.
 
 After the push completes, report success and the tag URL. Pushing `v*` triggers `.github/workflows/release.yml`, which builds the `.dmg` and publishes the GitHub Release.
 
-### Step 10 — the sync server, if it is behind
-
-The server is a separate artifact with its own tag namespace (`server-v*`) and its own workflow (`release-server.yml`, which builds and pushes the Docker image). It has no changelog, so its release is one prompt, not an interview:
-
-```bash
-pnpm release server --version="$SERVER_VERSION"
-```
-
-Confirm the version with the user first — the survey from step 1 gives the current one and the pending count. Self-hosters pin the rolling protocol tag (`ghcr.io/scheron/daily-server:p<N>`), not the semver, so this number is for humans reading the release list.
-
-If the server is up to date, say so explicitly and stop — a release with nothing in it is noise for everyone running `daily.sh upgrade`.
-
 ## Edge cases worth handling proactively
 
-- **Huge squashed commits.** A single commit body lists 8 phases of work and 100+ files. Read the body and pull each user-facing phase into its own bullet — one bullet per outcome, not one bullet per commit. Internal phases (refactors, test additions) flow off via the filter at step 3.
+- **Huge squashed commits.** A single commit body lists 8 phases of work and 100+ files. Read the body and pull each user-facing phase into its own bullet — one bullet per outcome, not one bullet per commit. Internal phases (refactors, test additions) flow off via the filter at step 4.
 - **No `## [Unreleased]` placeholder.** The script falls back to inserting after `# Changelog` automatically — proceed as usual.
 - **Multiple features that touch the same area.** Group them under one section heading even if they came from different phases. The user reads by topic, not by phase.
 - **One ambiguous commit.** When the subject/body/diff leave it unclear whether a change is user-facing, ask the user. One extra question is cheaper than a wrong inclusion.
@@ -226,4 +234,4 @@ If the server is up to date, say so explicitly and stop — a release with nothi
 
 ## Skill boundary
 
-This skill produces the CHANGELOG entry + version + script invocation. Marketing copy, App Store metadata beyond the CHANGELOG, deciding whether a change is worth shipping, bypassing pre-flight gates, and pushing without approval at step 8 all stay outside the boundary — they belong to the user's judgement.
+This skill produces the CHANGELOG entry + version + script invocation. Marketing copy, App Store metadata beyond the CHANGELOG, deciding whether a change is worth shipping, bypassing pre-flight gates, and pushing without approval at step 9 all stay outside the boundary — they belong to the user's judgement.
