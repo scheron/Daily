@@ -5,6 +5,7 @@ import path from "node:path"
 import {APP_CONFIG} from "@daily/protocol"
 
 import {electronPaths} from "@main/runtime/electronPaths"
+import {UpdateInstallFailureCode} from "@shared/errors/updates/UpdateInstallFailureCode"
 
 import type {AppUpdateCacheState, InstalledAppReleaseState} from "@daily/protocol"
 
@@ -17,18 +18,26 @@ const STAGE_SUFFIX = ".daily-update-staging"
  *
  * The script stages the new bundle next to the installed one, proves the copy is
  * whole, and only then renames it into place. Anything short of a verified copy
- * restores the backup instead of leaving a half-written bundle behind.
+ * restores the backup instead of leaving a half-written bundle behind, and records
+ * why in a marker the next launch reads so the person is told.
  */
 export async function createInstallerScript(cachedUpdate: AppUpdateCacheState): Promise<string | null> {
   const appBundlePath = path.resolve(process.execPath, "../../..")
   const relaunchPath = appBundlePath
+  const attemptedAt = new Date().toISOString()
   const installResult: InstalledAppReleaseState = {
     releaseId: cachedUpdate.releaseId,
     version: cachedUpdate.version,
     hash: cachedUpdate.hash,
     source: cachedUpdate.source,
-    installedAt: new Date().toISOString(),
+    installedAt: attemptedAt,
   }
+  const failureFields = [
+    `"releaseId":${JSON.stringify(cachedUpdate.releaseId)}`,
+    `"version":${JSON.stringify(cachedUpdate.version)}`,
+    `"source":${JSON.stringify(cachedUpdate.source)}`,
+    `"attemptedAt":${JSON.stringify(attemptedAt)}`,
+  ].join(",")
 
   if (!cachedUpdate.cachePath || !existsSync(cachedUpdate.cachePath)) return null
 
@@ -52,6 +61,9 @@ export async function createInstallerScript(cachedUpdate: AppUpdateCacheState): 
     `MARKER_PATH=${q(electronPaths.updatesInstallResultPath())}`,
     `MARKER_JSON=${q(JSON.stringify(installResult))}`,
     `LOG_PATH=${q(electronPaths.updatesInstallLogPath())}`,
+    `FAILURE_PATH=${q(electronPaths.updatesInstallFailurePath())}`,
+    `FAILURE_FIELDS=${q(failureFields)}`,
+    `FAILURE_CODE=${q(UpdateInstallFailureCode.Interrupted)}`,
     `CLEANUP_PATH=${q(cachedUpdate.cachePath ?? "")}`,
     "SUCCESS=0",
     "MOUNT_POINT=",
@@ -64,8 +76,13 @@ export async function createInstallerScript(cachedUpdate: AppUpdateCacheState): 
     '  printf \'%s %s\\n\' "$(date -u \'+%Y-%m-%dT%H:%M:%SZ\')" "$1" >>"$LOG_PATH" 2>/dev/null || true',
     "}",
     "fail() {",
+    `  FAILURE_CODE=\${2:-${UpdateInstallFailureCode.Interrupted}}`,
     '  log "install failed: $1"',
     "  exit 1",
+    "}",
+    "write_failure_marker() {",
+    '  mkdir -p "$(dirname "$FAILURE_PATH")" >/dev/null 2>&1 || true',
+    '  printf \'{%s,"code":"%s"}\' "$FAILURE_FIELDS" "$FAILURE_CODE" >"$FAILURE_PATH" 2>/dev/null || true',
     "}",
     "bundle_entries() {",
     "  find \"$1\" 2>/dev/null | wc -l | tr -d ' '",
@@ -108,9 +125,11 @@ export async function createInstallerScript(cachedUpdate: AppUpdateCacheState): 
     '    rm -rf "$LEGACY_BACKUP_PATH" >/dev/null 2>&1',
     '    if [ -n "$CLEANUP_PATH" ] && [ -e "$CLEANUP_PATH" ]; then rm -rf "$CLEANUP_PATH" >/dev/null 2>&1; fi',
     '    if [ -n "$CLEANUP_PATH" ]; then rmdir "$(dirname "$CLEANUP_PATH")" >/dev/null 2>&1; fi',
+    '    rm -f "$FAILURE_PATH" >/dev/null 2>&1',
     '    log "installed $APP_NAME at $APP_BUNDLE_PATH"',
     "  else",
     '    log "install did not complete (status $status); restoring the previous bundle"',
+    "    write_failure_marker",
     '    if ! verify_bundle "$APP_BUNDLE_PATH"; then',
     '      rm -rf "$APP_BUNDLE_PATH" >/dev/null 2>&1',
     '      if [ -d "$BACKUP_PATH" ]; then',
@@ -134,16 +153,16 @@ export async function createInstallerScript(cachedUpdate: AppUpdateCacheState): 
     'while kill -0 "$TARGET_PID" >/dev/null 2>&1; do sleep 1; done',
     'rm -rf "$STAGE_PATH" >/dev/null 2>&1 || true',
     'MOUNT_POINT=$(hdiutil attach "$DOWNLOAD_PATH" -nobrowse | awk \'/\\/Volumes\\// { $1=$2=""; sub(/^  */, ""); print; exit }\')',
-    '[ -n "$MOUNT_POINT" ] || fail "could not mount $DOWNLOAD_PATH"',
+    `[ -n "$MOUNT_POINT" ] || fail "could not mount $DOWNLOAD_PATH" ${UpdateInstallFailureCode.MountFailed}`,
     'SOURCE_APP="$MOUNT_POINT/$APP_NAME.app"',
-    'verify_bundle "$SOURCE_APP" || fail "the downloaded disk image has no usable $APP_NAME.app"',
-    'ditto --noqtn "$SOURCE_APP" "$STAGE_PATH" || fail "could not copy the new bundle to $STAGE_PATH"',
+    `verify_bundle "$SOURCE_APP" || fail "the downloaded disk image has no usable $APP_NAME.app" ${UpdateInstallFailureCode.SourceMissing}`,
+    `ditto --noqtn "$SOURCE_APP" "$STAGE_PATH" || fail "could not copy the new bundle to $STAGE_PATH" ${UpdateInstallFailureCode.CopyFailed}`,
     'xattr -rd com.apple.quarantine "$STAGE_PATH" >/dev/null 2>&1 || true',
-    'verify_copy "$SOURCE_APP" "$STAGE_PATH" || fail "the copy at $STAGE_PATH is incomplete"',
+    `verify_copy "$SOURCE_APP" "$STAGE_PATH" || fail "the copy at $STAGE_PATH is incomplete" ${UpdateInstallFailureCode.CopyIncomplete}`,
     'rm -rf "$BACKUP_PATH" >/dev/null 2>&1 || true',
     'if [ -e "$APP_BUNDLE_PATH" ]; then mv "$APP_BUNDLE_PATH" "$BACKUP_PATH"; fi',
     'mv "$STAGE_PATH" "$APP_BUNDLE_PATH"',
-    'verify_bundle "$APP_BUNDLE_PATH" || fail "the installed bundle at $APP_BUNDLE_PATH is not launchable"',
+    `verify_bundle "$APP_BUNDLE_PATH" || fail "the installed bundle at $APP_BUNDLE_PATH is not launchable" ${UpdateInstallFailureCode.InstalledBundleUnusable}`,
     'mkdir -p "$(dirname "$MARKER_PATH")"',
     'printf \'%s\' "$MARKER_JSON" > "$MARKER_PATH"',
     "SUCCESS=1",

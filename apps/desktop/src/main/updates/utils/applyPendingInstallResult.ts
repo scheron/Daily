@@ -4,6 +4,7 @@ import {readFile, rm} from "node:fs/promises"
 import {logger} from "@daily/core"
 
 import {electronPaths} from "@main/runtime/electronPaths"
+import {clearPendingInstallFailure} from "./clearPendingInstallFailure"
 import {removeManagedUpdateFiles} from "./removeManagedUpdateFiles"
 
 import type {InstalledAppReleaseState, Settings} from "@daily/protocol"
@@ -21,6 +22,7 @@ export async function applyPendingInstallResult(saveUpdatesPatch: (patch: Partia
       skippedReleaseId: null,
     })
     await removeManagedUpdateFiles()
+    await clearPendingInstallFailure()
   } catch (error) {
     logger.error(logger.CONTEXT.UPDATES, "Failed to apply pending install marker", error)
   } finally {

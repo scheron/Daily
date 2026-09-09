@@ -5,21 +5,26 @@ import {app} from "electron"
 import {logger} from "@daily/core"
 
 import {applyPendingInstallResult} from "./utils/applyPendingInstallResult"
+import {clearPendingInstallFailure} from "./utils/clearPendingInstallFailure"
 import {compareVersions} from "./utils/compareVersions"
 import {createInstallerScript} from "./utils/createInstallerScript"
+import {readPendingInstallFailure} from "./utils/readPendingInstallFailure"
 import {removeManagedUpdateFiles} from "./utils/removeManagedUpdateFiles"
 import {downloadRelease, resolveLatestRelease} from "./release"
 
 import type {IStorageController} from "@daily/core"
 import type {Settings} from "@daily/protocol"
-import type {ReleaseMeta} from "@main/types/updates"
-import type {AppUpdateState} from "@shared/types/update"
+import type {PendingInstallFailure, ReleaseMeta} from "@main/types/updates"
+import type {AppUpdateInstallFailure, AppUpdateState} from "@shared/types/update"
 import type {BrowserWindow} from "electron"
+
+const INSTALL_FAILED_REASON = "The last update could not be installed."
 
 export class UpdaterController {
   private mainWindow: BrowserWindow | null = null
   private getStorageController: (() => IStorageController | null) | null = null
   private isCheckingForUpdate = false
+  private pendingInstallFailure: PendingInstallFailure | null = null
   private updateState: AppUpdateState = this.createDefaultUpdateState()
 
   setStorageController(getStorage: () => IStorageController | null) {
@@ -84,6 +89,7 @@ export class UpdaterController {
         })
 
         await this.clearCachedUpdateState()
+        await this.forgetInstallFailure()
         this.setUpdateState({
           status: "idle",
           source: release.source,
@@ -93,6 +99,7 @@ export class UpdaterController {
           downloadProgress: null,
           checkedAt: new Date().toISOString(),
           reason: manual ? "You're already using the latest version." : null,
+          installFailure: null,
         })
         return this.getState()
       }
@@ -110,6 +117,8 @@ export class UpdaterController {
         latestSource: release.source,
       })
 
+      const installFailure = await this.resolveInstallFailure(release)
+
       this.setUpdateState({
         status: cachedRelease ? "downloaded" : "available",
         source: release.source,
@@ -118,7 +127,8 @@ export class UpdaterController {
         downloadedAt: cachedRelease?.downloadedAt ?? null,
         downloadProgress: null,
         checkedAt: new Date().toISOString(),
-        reason: manual ? `Update ${release.version} is available.` : null,
+        reason: installFailure ? INSTALL_FAILED_REASON : manual ? `Update ${release.version} is available.` : null,
+        installFailure,
       })
     } catch (error: any) {
       logger.error(logger.CONTEXT.UPDATES, "Update manager failed", error)
@@ -157,6 +167,7 @@ export class UpdaterController {
       const settings = await this.loadSettingsSafe()
 
       if (this.isInstalledRelease(release, settings)) {
+        await this.forgetInstallFailure()
         this.setUpdateState({
           status: "idle",
           source: release.source,
@@ -164,6 +175,7 @@ export class UpdaterController {
           availableHash: null,
           reason: "You're already using the latest version.",
           checkedAt: new Date().toISOString(),
+          installFailure: null,
         })
         return false
       }
@@ -184,6 +196,7 @@ export class UpdaterController {
         availableHash: release.hash,
         downloadProgress: 0,
         reason: null,
+        installFailure: null,
       })
 
       const downloadedRelease = await downloadRelease(release, (progress) => {
@@ -224,6 +237,7 @@ export class UpdaterController {
       const settings = await this.loadSettingsSafe()
 
       if (this.isInstalledRelease(release, settings)) {
+        await this.forgetInstallFailure()
         this.setUpdateState({
           status: "idle",
           source: release.source,
@@ -232,6 +246,7 @@ export class UpdaterController {
           downloadedAt: null,
           checkedAt: new Date().toISOString(),
           reason: "You're already using the latest version.",
+          installFailure: null,
         })
         return false
       }
@@ -272,6 +287,7 @@ export class UpdaterController {
     }
 
     await applyPendingInstallResult((patch) => this.saveUpdatesPatch(patch))
+    this.pendingInstallFailure = await readPendingInstallFailure()
     await this.checkForUpdate({manual: false})
   }
 
@@ -327,10 +343,30 @@ export class UpdaterController {
       downloadedAt: cachedRelease.downloadedAt,
       reason: null,
       downloadProgress: null,
+      installFailure: null,
     })
 
     app.quit()
     return true
+  }
+
+  private async resolveInstallFailure(release: ReleaseMeta): Promise<AppUpdateInstallFailure | null> {
+    const failure = this.pendingInstallFailure
+    if (!failure) return null
+
+    if (failure.releaseId !== release.releaseId) {
+      await this.forgetInstallFailure()
+      return null
+    }
+
+    return {version: failure.version, attemptedAt: failure.attemptedAt, code: failure.code}
+  }
+
+  private async forgetInstallFailure(): Promise<void> {
+    if (!this.pendingInstallFailure) return
+
+    this.pendingInstallFailure = null
+    await clearPendingInstallFailure()
   }
 
   private async clearCachedUpdateState(): Promise<void> {
@@ -378,6 +414,7 @@ export class UpdaterController {
       downloadedAt: null,
       checkedAt: null,
       reason: this.isUpdaterSupported() ? null : "In-app updates are available only on macOS.",
+      installFailure: null,
     }
   }
 

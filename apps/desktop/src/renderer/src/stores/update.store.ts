@@ -16,10 +16,12 @@ export const useUpdateStore = defineStore("update", () => {
     downloadedAt: null,
     checkedAt: null,
     reason: null,
+    installFailure: null,
   })
   const dismissedVersion = ref<string | null>(null)
 
   const hasAvailableUpdate = computed(() => Boolean(state.value.availableVersion))
+  const installFailure = computed(() => state.value.installFailure)
   const isDownloading = computed(() => state.value.status === "downloading")
   const isInstalling = computed(() => state.value.status === "installing")
   const isBusy = computed(() => isDownloading.value || isInstalling.value)
@@ -66,6 +68,7 @@ export const useUpdateStore = defineStore("update", () => {
       ...state.value,
       status: "downloading",
       reason: null,
+      installFailure: null,
     }
 
     return await window.BridgeIPC["updates:download"]()
@@ -80,6 +83,7 @@ export const useUpdateStore = defineStore("update", () => {
 
   return {
     state,
+    installFailure,
     isDownloading,
     isInstalling,
     isBusy,
