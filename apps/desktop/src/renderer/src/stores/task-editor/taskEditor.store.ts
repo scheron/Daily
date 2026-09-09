@@ -87,6 +87,7 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
         estimatedTime: next.estimatedTime,
         spentTime: next.spentTime,
         status: next.status,
+        milestoneId: next.milestoneId,
       })
     }
 
@@ -113,6 +114,7 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
       status: task.status,
       branchId: task.branchId || null,
       scheduled: task.scheduled ? {...task.scheduled} : null,
+      milestoneId: task.milestoneId,
     }
     draft.value = next
     draftBase.value = deepClone(next)
@@ -128,6 +130,7 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
       spentTime: 0,
       status: "active",
       branchId: params.branchId,
+      milestoneId: null,
       scheduled: {
         date: params.date,
         time: now.toFormat("HH:mm:ss"),

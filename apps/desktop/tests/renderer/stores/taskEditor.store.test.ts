@@ -207,6 +207,26 @@ describe("taskEditorStore — commit", () => {
     expect(tasks.moveTaskToBranch).toHaveBeenCalledWith("task-1", "personal")
   })
 
+  it("commit on a milestone change calls updateTask with the new milestoneId", async () => {
+    const {tasks, editor} = await setupStores()
+    tasks.findTaskById = vi.fn().mockReturnValue(makeTask({milestoneId: null}))
+    await editor.open("task-1")
+    editor.patch({milestoneId: "m1"})
+
+    await editor.commit()
+    expect(tasks.updateTask).toHaveBeenCalledWith("task-1", expect.objectContaining({milestoneId: "m1"}))
+  })
+
+  it("leaving the milestone untouched does not send milestoneId in the commit patch", async () => {
+    const {tasks, editor} = await setupStores()
+    tasks.findTaskById = vi.fn().mockReturnValue(makeTask({milestoneId: "m1", content: "before"}))
+    await editor.open("task-1")
+    editor.patch({content: "after"})
+
+    await editor.commit()
+    expect(tasks.updateTask).toHaveBeenCalledWith("task-1", expect.not.objectContaining({milestoneId: expect.anything()}))
+  })
+
   it("commit on a new draft calls createTask", async () => {
     const {tasks, editor} = await setupStores()
     editor.openNew({date: "2026-06-20", branchId: "main"})

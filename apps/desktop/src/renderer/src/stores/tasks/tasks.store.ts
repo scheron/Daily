@@ -73,10 +73,17 @@ export const useTasksStore = defineStore("tasks", () => {
     refreshTrash: trash.refreshTrash,
     dropFromTrash: trash.dropFromTrash,
     clearTrash: trash.clearTrash,
+    isMilestoneMode: milestone.isMilestoneMode,
+    getMilestoneTaskList: milestone.getMilestoneTaskList,
   })
 
   function findTaskById(taskId: Task["id"]): Task | null {
-    return days.value.flatMap((day) => day.tasks).find((t) => t.id === taskId) || backlog.backlogTasks.value.find((t) => t.id === taskId) || null
+    return (
+      days.value.flatMap((day) => day.tasks).find((t) => t.id === taskId) ||
+      backlog.backlogTasks.value.find((t) => t.id === taskId) ||
+      milestone.milestoneTasks.value.find((t) => t.id === taskId) ||
+      null
+    )
   }
 
   function setActiveDay(date: ISODate) {

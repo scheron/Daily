@@ -37,7 +37,7 @@ const {activeTask, isNew, editingTaskId, flatOrderedTasks, currentIndex, canPrev
       <DateProperty :task="activeTask" />
     </PropertyRow>
     <PropertyRow label="Milestone" :disabled="isNew">
-      <MilestoneProperty />
+      <MilestoneProperty :task="activeTask" />
     </PropertyRow>
     <PropertyRow label="Project">
       <BranchProperty :task="activeTask" />

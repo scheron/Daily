@@ -160,4 +160,68 @@ describe("milestones.store", () => {
     expect(milestonesStore.selectedMilestoneId).toBeNull()
     expect(API.getMilestoneList.mock.calls.length).toBeGreaterThan(callsBeforeSwitch)
   })
+
+  it("findTaskById also finds a task that lives only in the milestone task list", async () => {
+    const milestoneTask = makeTask({id: "milestone-task", content: "milestone task"})
+
+    API.getDays.mockResolvedValueOnce([makeDay(TODAY, [])])
+    API.getMilestoneTasks.mockResolvedValue([milestoneTask])
+
+    const tasksStore = await getTasksStore()
+    await tasksStore.getTaskList()
+
+    expect(tasksStore.findTaskById("milestone-task")).toBeNull()
+
+    const {useMilestonesStore} = await importMilestonesStore()
+    const milestonesStore = useMilestonesStore()
+    milestonesStore.selectMilestone("m1")
+    milestonesStore.setMode("milestone")
+    await new Promise((r) => setTimeout(r, 0))
+
+    expect(tasksStore.findTaskById("milestone-task")?.id).toBe("milestone-task")
+  })
+
+  it("clearing a task's milestone refreshes the milestones list and, in milestone mode, the board's milestone tasks", async () => {
+    const boardTask = makeTask({id: "board-task", milestoneId: "m1"})
+
+    API.getDays.mockResolvedValueOnce([makeDay(TODAY, [boardTask])])
+    API.getMilestoneTasks.mockResolvedValue([])
+    API.getMilestoneList.mockResolvedValue([])
+
+    const tasksStore = await getTasksStore()
+    await tasksStore.getTaskList()
+
+    const {useMilestonesStore} = await importMilestonesStore()
+    const milestonesStore = useMilestonesStore()
+    milestonesStore.setMode("milestone")
+    await new Promise((r) => setTimeout(r, 0))
+
+    API.getMilestoneList.mockClear()
+    API.getMilestoneTasks.mockClear()
+    API.updateTask.mockResolvedValueOnce({...boardTask, milestoneId: null})
+
+    await tasksStore.updateTask("board-task", {milestoneId: null})
+
+    expect(API.getMilestoneList).toHaveBeenCalledTimes(1)
+    expect(API.getMilestoneTasks).toHaveBeenCalledTimes(1)
+  })
+
+  it("assigning a task's milestone while the board shows a day refreshes only the milestones list, not the board", async () => {
+    const dayTask = makeTask({id: "day-task", milestoneId: null})
+
+    API.getDays.mockResolvedValueOnce([makeDay(TODAY, [dayTask])])
+    API.getMilestoneList.mockResolvedValue([])
+
+    const tasksStore = await getTasksStore()
+    await tasksStore.getTaskList()
+
+    API.getMilestoneList.mockClear()
+    API.getMilestoneTasks.mockClear()
+    API.updateTask.mockResolvedValueOnce({...dayTask, milestoneId: "m1"})
+
+    await tasksStore.updateTask("day-task", {milestoneId: "m1"})
+
+    expect(API.getMilestoneList).toHaveBeenCalledTimes(1)
+    expect(API.getMilestoneTasks).not.toHaveBeenCalled()
+  })
 })

@@ -1,4 +1,4 @@
-import type {Branch, Tag, Task, TaskStatus} from "@daily/protocol"
+import type {Branch, Milestone, Tag, Task, TaskStatus} from "@daily/protocol"
 
 export type TaskDraft = {
   content: string
@@ -8,4 +8,5 @@ export type TaskDraft = {
   status: TaskStatus
   branchId: Branch["id"] | null
   scheduled: Task["scheduled"]
+  milestoneId: Milestone["id"] | null
 }

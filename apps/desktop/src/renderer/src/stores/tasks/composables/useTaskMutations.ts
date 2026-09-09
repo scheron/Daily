@@ -2,6 +2,7 @@ import {getPreviousTaskOrderIndex} from "@daily/protocol"
 import {getTime, getTimezone, notNull, notUndefined, objectFilter} from "@daily/std"
 
 import {API} from "@/api"
+import {useMilestonesStore} from "@/stores/milestones.store"
 import {updateDays} from "@/utils/tasks/updateDays"
 import {toRawDeep} from "@/utils/ui/vue"
 
@@ -15,7 +16,9 @@ import type {Branch, Day, ISODate, Tag, Task, TaskSchedule, TaskStatus} from "@d
  */
 export function useTaskMutations(ctx: TaskMutationsContext) {
   const {days, activeDay, activeBranchId, dailyTasks, backlogTasks, findTaskById, refreshDay, refreshDays, getBacklogList} = ctx
-  const {refreshTrash, dropFromTrash, clearTrash} = ctx
+  const {refreshTrash, dropFromTrash, clearTrash, isMilestoneMode, getMilestoneTaskList} = ctx
+
+  const milestonesStore = useMilestonesStore()
 
   async function createTask(params: {
     content: string
@@ -89,6 +92,11 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
     }
 
     if (before?.status === "backlog" || updated.status === "backlog") await getBacklogList()
+
+    if (before && before.milestoneId !== updated.milestoneId) {
+      await milestonesStore.getMilestoneList()
+      if (isMilestoneMode.value) await getMilestoneTaskList()
+    }
 
     return true
   }

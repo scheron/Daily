@@ -119,7 +119,7 @@ function buildDraftTask(draft: TaskDraft): Task {
     createdAt: "",
     updatedAt: "",
     deletedAt: null,
-    milestoneId: null,
+    milestoneId: draft.milestoneId,
     scheduled: draft.scheduled,
     estimatedTime: draft.estimatedTime,
     spentTime: draft.spentTime,

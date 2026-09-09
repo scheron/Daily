@@ -32,4 +32,6 @@ export type TaskMutationsContext = {
   refreshTrash: () => Promise<void>
   dropFromTrash: (taskId: Task["id"]) => void
   clearTrash: () => void
+  isMilestoneMode: ComputedRef<boolean>
+  getMilestoneTaskList: () => Promise<void>
 }

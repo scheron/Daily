@@ -13,6 +13,7 @@ export function shallowEqualDraft(a: TaskDraft, b: TaskDraft): boolean {
     a.spentTime === b.spentTime &&
     a.status === b.status &&
     a.branchId === b.branchId &&
+    a.milestoneId === b.milestoneId &&
     sameSchedule(a.scheduled, b.scheduled) &&
     sameTagIds(a.tags, b.tags)
   )
