@@ -35,7 +35,7 @@ watch(calendarHeight, (height) => {
           <div v-if="milestonesStore.mode === 'day'" ref="calendarRef">
             <BaseCalendar
               size="sm"
-              header-height-class="h-8.5"
+              header-height-class="h-panel-header"
               :days="tasksStore.days"
               :selected-date="tasksStore.activeDay"
               @select-date="tasksStore.setActiveDay"

@@ -17,14 +17,14 @@ onMounted(() => {
 
 <template>
   <div class="flex flex-col p-1">
-    <div class="h-8.5 mb-3 flex items-center gap-2 px-2">
+    <div class="h-panel-header mb-3 flex items-center gap-2 px-2">
       <BaseIcon name="bookmark" class="text-base-content/60 size-4" />
       <span class="text-base-content/60 text-sm font-medium uppercase tracking-wide">Milestones</span>
       <span class="bg-base-content/10 text-base-content/60 shrink-0 rounded-full px-2 py-0.5 text-xs font-medium">
         {{ milestonesStore.milestones.length }}
       </span>
 
-      <BasePopup hide-header position="end" trigger-class="ml-auto" container-class="w-88 p-0">
+      <BasePopup hide-header position="end" trigger-class="ml-auto" container-class="w-88 max-h-[580px] p-0">
         <template #trigger="{toggle}">
           <BaseButton
             icon="plus"
@@ -45,7 +45,7 @@ onMounted(() => {
       <BaseIcon name="bookmark" class="text-base-content/25 size-7" />
       <p class="text-base-content/60 text-xs leading-relaxed">No milestones in this project yet.</p>
 
-      <BasePopup hide-header position="center" container-class="w-88 p-0">
+      <BasePopup hide-header position="center" container-class="w-88 max-h-[580px] p-0">
         <template #trigger="{toggle}">
           <BaseButton variant="primary-ghost-outline" size="sm" icon="plus" icon-class="size-3.5" @click="toggle"> New milestone </BaseButton>
         </template>

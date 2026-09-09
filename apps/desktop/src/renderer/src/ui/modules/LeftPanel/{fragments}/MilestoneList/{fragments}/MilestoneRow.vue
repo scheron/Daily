@@ -57,7 +57,7 @@ async function onDelete() {
     </div>
 
     <div class="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
-      <BasePopup hide-header position="end" container-class="w-88 p-0">
+      <BasePopup hide-header position="end" container-class="w-88 max-h-[580px] p-0">
         <template #trigger="{toggle}">
           <BaseButton icon="pencil" variant="ghost" icon-class="size-3.5" class="size-6 p-0" @click.stop="toggle" />
         </template>
