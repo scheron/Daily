@@ -10,6 +10,7 @@ import {useBranchesStore} from "@/stores/branches.store"
 import {useTasksStore} from "@/stores/tasks"
 import {useUIStore} from "@/stores/ui"
 import BaseButton from "@/ui/base/BaseButton"
+import PanelModeSwitch from "@/ui/common/misc/PanelModeSwitch"
 import BranchPicker from "@/ui/common/pickers/BranchPicker.vue"
 import DayPicker from "@/ui/common/pickers/DayPicker.vue"
 import {useSearchModal} from "@/ui/overlays/SearchModal"
@@ -67,7 +68,7 @@ async function onSelectBranch(branch: Branch) {
       <TagsFilter class="min-w-0 flex-1" />
     </div>
 
-    <div class="justify-self-center" style="-webkit-app-region: no-drag">
+    <div class="flex items-center gap-2 justify-self-center" style="-webkit-app-region: no-drag">
       <div class="flex items-center gap-1">
         <BaseButton variant="ghost" size="sm" icon="chevron-left" class="size-7" icon-class="size-4" tooltip="Previous day" @click="step(-1)" />
 
@@ -96,6 +97,8 @@ async function onSelectBranch(branch: Branch) {
 
         <BaseButton variant="ghost" size="sm" icon="chevron-right" class="size-7" icon-class="size-4" tooltip="Next day" @click="step(1)" />
       </div>
+
+      <PanelModeSwitch />
     </div>
 
     <div class="flex h-full min-w-0 justify-end">
