@@ -35,6 +35,7 @@ export function createElectronPaths(app: ElectronApp, resourcesPath: string) {
     updatesPath: () => path.join(app.getPath("userData"), "updates"),
     updatesReleasesPath: () => path.join(app.getPath("userData"), "updates", "releases"),
     updatesInstallResultPath: () => path.join(app.getPath("userData"), "updates", "install-result.json"),
+    updatesInstallLogPath: () => path.join(app.getPath("userData"), "updates", "install.log"),
     modelsCatalogPath: () => (ENV.isDevelopment ? join(process.cwd(), "resources", "models.json") : join(resourcesPath, "models.json")),
     modelsCatalogCachePath: () => path.join(app.getPath("userData"), "models-catalog.json"),
   } satisfies AppPaths & Record<string, () => string>
