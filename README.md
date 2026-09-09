@@ -127,6 +127,14 @@ Daily is fully usable offline. Sync is optional: SQLite remains the local source
 
 Changing providers is a migration, not a settings flip: Daily previews what each side holds before moving, and only switches once the merge has landed on both sides.
 
+### Self-hosted sync server
+
+For keeping several Macs in step without iCloud, Daily ships a server of its own. It installs onto any VPS running Docker with one command, and asks a single question — the address you will reach it at. Point a domain at the machine and it puts Caddy in front with a Let's Encrypt certificate; give it nothing and it serves the machine's own address with a self-signed certificate the app shows you the fingerprint of. It backs itself up every day, and upgrades with one verb that takes an archive first and rolls back if the new version will not start.
+
+The first Mac to claim it becomes the Parent — the only one that may admit or remove another Mac. Every Mac after that joins as a Child, which syncs and nothing more. Whoever runs the machine can read the tasks stored on it, so run it on one you control.
+
+**[Install and operate it →](./apps/server/README.md)**
+
 ## Requirements and limits
 
 | Component                        | Support                                                          |

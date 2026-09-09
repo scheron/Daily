@@ -41,13 +41,33 @@ Type the domain when asked, same as the first scenario.
 - Once your proxy is routing, the server's log confirms the address works — nothing needs
   restarting.
 
+## Connecting your Macs
+
+The first Mac claims the server with the six-digit code the install printed, in Settings → Sync.
+That Mac becomes the **Parent**. There is exactly one, and only it may let another Mac in or put
+one out. Every Mac after it joins as a **Child**, which syncs and nothing more.
+
+Adding a Child takes both Macs, in this order:
+
+1. On the Parent, open Settings → Sync and press **Add a device**. The last row of the device
+   table turns into a five-minute countdown; the server accepts one request while it runs.
+2. On the new Mac, enter the server's address in Settings → Sync and connect.
+3. The Parent shows a card naming the Mac that asked. Approve it, and the two are bound.
+
+In the wrong order the new Mac is turned away with _"This server is not expecting a new device
+right now."_ Nothing is broken — the window is simply shut. Open it on the Parent and connect again.
+
+The Parent can revoke any Child: that Mac stops syncing at once and keeps what it had locally, and
+rejoining means the three steps again. Revoking the Parent itself leaves the server with none, and
+only the console can appoint another — see [Recovery](#recovery).
+
 ## Managing it
 
-Every installation gets its own `daily.sh`, printed at the end of the install and left beside the
-files it manages:
+The install puts a `daily-server` command on your `PATH`. Where it could not — installing as an
+ordinary user, say — it prints the full path to the same script instead, and the verbs match:
 
 ```
-Usage: daily.sh <verb>
+Usage: daily-server <verb>
 
 Verbs:
   status       show the installation's status
@@ -85,18 +105,15 @@ meant to be hand-edited.
 ## Backups
 
 The server backs itself up on a schedule, out of the box — every 24 hours, keeping the last 14.
-Nothing needs to be scheduled by hand, and nothing stops to do it: SQLite's online backup copies a
-consistent snapshot of the live database while the server keeps serving.
+Nothing needs scheduling by hand, and the server keeps serving while it happens.
 
-Each backup is a directory holding `server.sqlite` and an `assets` directory. The assets are
-hard-linked rather than copied, so a backup costs one directory entry per attachment instead of a
-second copy of the bytes, and still holds the bytes each attachment had when the backup ran.
-Restoring one is a file copy: stop the stack, put `server.sqlite` and `assets` back under the data
-directory, start it again.
+Each backup is a directory holding `server.sqlite` and an `assets` directory, and costs almost no
+disk beyond the database itself. Restoring one is a file copy: stop the stack, put `server.sqlite`
+and `assets` back under the data directory, start it again.
 
 These backups sit on the same disk as the data they protect. That covers a database that got
 corrupted, a bad restore, a change you want to undo — not the machine going away. For that, take
-the archive `./daily.sh backup` writes and keep it somewhere else.
+the archive `daily-server backup` writes and keep it somewhere else.
 
 ## Monitoring
 
@@ -106,15 +123,12 @@ curl https://your-server/health
 ```
 
 `GET /health` needs no credentials and answers `{"status":"ok"}` and nothing else. It is the
-address to give an uptime monitor.
-
-It sits outside `/v1` on purpose. Monitoring is a contract with whoever watches this server, not
-with the app, so raising the protocol version never moves it. And it deliberately says nothing
-else: `GET /v1/server` would answer a monitor too, but it publishes the server's id, its name and
-whether it has been claimed — which would turn the one route guaranteed to be reachable into the
-one that tells a stranger which servers are still there for the claiming.
+address to give an uptime monitor, and it stays put across protocol versions.
 
 ## Recovery
+
+When no Mac can get you there — the Parent is gone, or every bound Mac is — the server's own
+console can:
 
 ```bash
 docker compose exec daily-server daily-server device enroll
@@ -123,56 +137,42 @@ docker compose exec daily-server daily-server device promote <id>
 docker compose exec daily-server daily-server device revoke <id>
 ```
 
-`device enroll` is the way back once every bound device is lost: it prints a single-use token,
-good for fifteen minutes, that binds a new device directly — no other bound device needs to be
-online to approve it. `device list` shows each bound device's role alongside its name and last-seen
-time, with revoked devices listed after the ones still active.
-
-One bound device is always the Parent — the one that claimed the server, or was later promoted to
-it — and only the Parent may approve an enrollment or revoke another device; every other bound
-device is a Child that syncs and nothing more. `device promote <id>` moves the Parent role onto
-another bound device, for when the Mac that held it is gone and nothing left can approve or revoke
-anything. `device revoke <id>` still works the rest of the time, for a Mac that was lost or
-decommissioned — revoking the current Parent leaves the server with none until `device promote`
-gives the role to someone else.
+`device enroll` is the way back once every bound Mac is lost: it prints a single-use token, good
+for fifteen minutes, that binds a new Mac directly, with no Parent to approve it. `device promote
+<id>` hands the Parent role to another bound Mac, for when the one that held it is gone and nothing
+left can approve or revoke anything. `device list` shows each Mac's role, name and last-seen time,
+with revoked ones after the active ones.
 
 Newly minted device ids never begin with `-`, but an id already in the database might, from before
 this was true. If one does, address it with options before the separator, then the id:
-`daily-server device revoke --data-dir <path> -- <id>` (and the same for `device promote`) — not
-`--` first, which commander reads as "no more options" and then refuses the extra argument.
+`docker compose exec daily-server daily-server device revoke --data-dir <path> -- <id>` (and the
+same for `device promote`) — not `--` first, which commander reads as "no more options" and then
+refuses the extra argument.
 
 ## Updating
 
 ```bash
-./daily.sh upgrade
+daily-server upgrade
 ```
 
-One command; nothing is edited by hand. Every release carries three tags on
-`ghcr.io/scheron/daily-server`: the version, `latest`, and a rolling `p<N>` naming the protocol it
-speaks. The compose file pins a `p<N>`, so a server's image never changes underneath it; `upgrade`
-alone moves that pin, reading it out of the `install.sh` it downloads.
+One command; nothing is edited by hand. Your server runs `ghcr.io/scheron/daily-server`, pinned to
+a `p<N>` tag naming the sync protocol it speaks; that pin never moves on its own, only `upgrade`
+moves it.
 
-Before the pin moves, `upgrade` writes `daily-preupgrade-<timestamp>.tar.gz` beside `daily.sh`,
-asked for or not: a new image can migrate the database. If it will not start, will not report
-healthy in time, or exits on its own — what a throwing migration looks like from outside — the pin
-and the archive both go back and the previous image is started again. A failed pull changes nothing.
-
-One exception, once: an installation whose `daily.sh` predates this needs `upgrade` twice, because
-the first run replaces the script that crosses. It says so. Later upgrades are one command.
+Before it does, `upgrade` writes `daily-preupgrade-<timestamp>.tar.gz` beside `daily.sh`, asked for
+or not: a new image can migrate the database. If it will not start, will not report healthy in
+time, or exits on its own, the archive and the previous image both go back and the server is
+started again on what it was running. A failed download changes nothing.
 
 ## Confidentiality
 
 Whoever controls this server can read the tasks stored on it. The snapshot Daily writes here is kept
-in a form the server can parse — not an opaque, end-to-end-encrypted blob, and end-to-end encryption
-is not offered and is not planned. This is a permanent property of the design, not a limitation of
-the current version: the intended future for this server is one that can act on the data it holds —
-task automation, integrations, tools bound to an agent — and none of that is possible against
-ciphertext the server itself cannot read.
+in a form the server can parse — not an end-to-end-encrypted blob. End-to-end encryption is not
+offered and is not planned.
 
-In practice, that means anyone with access to this machine — its operator, its root user, anyone who
-can read its disk or its backups — can read every task synced through it. Run this server only on a
-machine whose owner already trusts with the data: a VPS under one's own control, not a shared or
-third-party host operated by someone else.
+So anyone with access to this machine — its operator, its root user, anyone who can read its disk
+or its backups — can read every task synced through it. Run it only on a machine you control: a VPS
+of your own, not a shared or third-party host someone else operates.
 
 ## License
 
