@@ -53,7 +53,7 @@ Verbs:
   status       show the installation's status
   logs         follow the server's logs
   claim-code   print the unclaimed server's claim code
-  upgrade      pull the newer image and restart with the same data
+  upgrade      back up, move to the current release's image, and undo it if that fails
   backup       write a single archive with the database and the assets
   restart      restart the stack
   stop         stop the stack
@@ -61,8 +61,8 @@ Verbs:
 ```
 
 `backup` writes one `.tar.gz` beside `daily.sh`, holding the database and the assets directory.
-`upgrade` never touches that data — only the image is replaced. `uninstall` asks before it
-removes the data volumes, and keeps them unless you answer yes.
+`upgrade` writes one of its own first — see below. `uninstall` asks before it removes the data
+volumes, and keeps them unless you answer yes.
 
 ## Configuration
 
@@ -147,11 +147,18 @@ this was true. If one does, address it with options before the separator, then t
 ./daily.sh upgrade
 ```
 
-Every published release carries three tags on `ghcr.io/scheron/daily-server`: the exact version,
-`latest`, and a rolling `p<N>`, where `N` is this build's own `SYNC_PROTOCOL_VERSION`. The
-generated compose file pins the image to a `p<N>` tag, not `latest`: every build under the same
-`p<N>` tag speaks the same Daily Sync Protocol, and a build that would speak a different protocol
-is published under a different one, so pulling within a tag is always safe.
+One command; nothing is edited by hand. Every release carries three tags on
+`ghcr.io/scheron/daily-server`: the version, `latest`, and a rolling `p<N>` naming the protocol it
+speaks. The compose file pins a `p<N>`, so a server's image never changes underneath it; `upgrade`
+alone moves that pin, reading it out of the `install.sh` it downloads.
+
+Before the pin moves, `upgrade` writes `daily-preupgrade-<timestamp>.tar.gz` beside `daily.sh`,
+asked for or not: a new image can migrate the database. If it will not start, will not report
+healthy in time, or exits on its own — what a throwing migration looks like from outside — the pin
+and the archive both go back and the previous image is started again. A failed pull changes nothing.
+
+One exception, once: an installation whose `daily.sh` predates this needs `upgrade` twice, because
+the first run replaces the script that crosses. It says so. Later upgrades are one command.
 
 ## Confidentiality
 

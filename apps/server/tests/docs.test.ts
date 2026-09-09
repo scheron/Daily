@@ -87,7 +87,14 @@ describe("TC-12: README.md, CLAUDE.md and the Dockerfile labels name paths that 
 })
 
 describe("TC-16: apps/server/README.md describes the three deploy scenarios and nothing that no longer exists", () => {
-  it("every relative link resolves, none of the removed variables or the own-certificate mode survive, and the file stays under 175 lines", () => {
+  /**
+   * [CORRECTED] The cap was 175, set for a README whose Updating section was five lines of prose
+   * about what a `p<N>` tag is. `upgrade` now moves that pin itself, takes a backup nobody asked
+   * for, and undoes itself when the new image will not run — three behaviours a self-hoster meets
+   * without warning and has to be able to look up. Raised to 180, which is the same three lines of
+   * headroom the cap left before, so it still catches sprawl.
+   */
+  it("every relative link resolves, none of the removed variables or the own-certificate mode survive, and the file stays under 180 lines", () => {
     const readme = read("apps/server/README.md")
 
     for (const link of extractMarkdownRelativeLinks(readme)) {
@@ -99,7 +106,7 @@ describe("TC-16: apps/server/README.md describes the three deploy scenarios and 
     }
 
     const lineCount = readme.trimEnd().split("\n").length
-    expect(lineCount, "apps/server/README.md should be under 175 lines").toBeLessThan(175)
+    expect(lineCount, "apps/server/README.md should be under 180 lines").toBeLessThan(180)
   })
 })
 

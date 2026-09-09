@@ -70,5 +70,7 @@ _Avoid_: incompatible, out of date, version error
 
 **Rolling protocol tag**:
 The `p<N>` image tag naming the protocol a server image speaks, derived from the source rather than
-typed. A self-hoster pins it, so an ordinary image pull cannot carry them across a protocol change.
+typed. A self-hoster's compose file pins one, so the image under a running server never changes
+underneath it; `daily.sh upgrade` is the only thing that moves the pin, reading the tag the current
+release wants out of the installer it downloads. A self-hoster never types it or edits it.
 _Avoid_: latest, version tag, release tag

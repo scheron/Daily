@@ -14,6 +14,9 @@ dir=""
 dry_run=0
 yes=0
 write_manager=""
+upgrade_dir=""
+previous_image=""
+upgrade_archive=""
 
 usage() {
   cat <<EOF
@@ -27,6 +30,8 @@ Usage: install.sh [--domain <host> | --ip <address>] [--no-proxy] [--dir <path>]
   --yes               do not prompt; proceed past a failed pre-flight
   --write-manager <path>
                       rewrite only daily.sh in an existing installation
+  --upgrade <path>    move an existing installation to the image pinned above,
+                      backing it up first and undoing it if the move fails
 
 Pinned image: $IMAGE
 EOF
@@ -174,7 +179,7 @@ Verbs:
   status       show the installation's status
   logs         follow the server's logs
   claim-code   print the unclaimed server's claim code
-  upgrade      pull the newer image and restart with the same data
+  upgrade      back up, move to the current release's image, and undo it if that fails
   backup       write a single archive with the database and the assets
   restart      restart the stack
   stop         stop the stack
@@ -186,14 +191,24 @@ compose() {
   docker compose -f "$COMPOSE_FILE" "$@"
 }
 
-refresh_self() {
-  command -v curl > /dev/null 2>&1 || return 0
-
-  tmp=$(mktemp) || return 0
-  if curl -fsSL "$INSTALL_URL" -o "$tmp" 2> /dev/null && sh "$tmp" --write-manager "$INSTALL_DIR" 2> /dev/null; then
-    echo "daily.sh: management script refreshed"
+cmd_upgrade() {
+  if ! command -v curl > /dev/null 2>&1; then
+    echo "daily.sh: curl is needed to upgrade — install it, then run this again." >&2
+    exit 1
   fi
+
+  tmp=$(mktemp) || exit 1
+
+  if ! curl -fsSL "$INSTALL_URL" -o "$tmp"; then
+    rm -f "$tmp"
+    echo "daily.sh: could not download the installer from $INSTALL_URL. Nothing was changed." >&2
+    exit 1
+  fi
+
+  status=0
+  sh "$tmp" --upgrade "$INSTALL_DIR" || status=$?
   rm -f "$tmp"
+  exit "$status"
 }
 
 cmd_backup() {
@@ -206,7 +221,7 @@ cmd_backup() {
 
   timestamp=$(date -u +%Y%m%dT%H%M%SZ)
   archive="$INSTALL_DIR/daily-backup-$timestamp.tar.gz"
-  (umask 077 && tar -czf "$archive" -C "$tmp_dir" data)
+  (umask 077 && COPYFILE_DISABLE=1 tar -czf "$archive" -C "$tmp_dir" data)
   rm -rf "$tmp_dir"
 
   trap - EXIT INT TERM
@@ -243,9 +258,7 @@ case "$verb" in
     compose exec -T daily-server daily-server claim-code
     ;;
   upgrade)
-    compose pull daily-server
-    compose up -d daily-server
-    refresh_self
+    cmd_upgrade
     ;;
   backup)
     cmd_backup
@@ -500,6 +513,11 @@ wait_for_health() {
       return 0
     fi
 
+    if container_is_failing; then
+      echo ""
+      return 1
+    fi
+
     printf '.'
     sleep "$HEALTH_INTERVAL"
     attempt=$((attempt + 1))
@@ -507,6 +525,193 @@ wait_for_health() {
 
   echo ""
   return 1
+}
+
+container_id() {
+  compose ps -aq daily-server 2> /dev/null | head -n 1
+}
+
+container_is_failing() {
+  state=$(compose_field daily-server State)
+  [ "$state" != "exited" ] || return 0
+
+  cid=$(container_id)
+  [ -n "$cid" ] || return 1
+
+  count=$(docker inspect -f '{{.RestartCount}}' "$cid" 2> /dev/null || echo 0)
+
+  case "$count" in
+    '' | *[!0-9]*) return 1 ;;
+  esac
+
+  [ "$count" -gt 0 ]
+}
+
+read_pin() {
+  sed -n 's#^[[:space:]]*image:[[:space:]]*\(ghcr\.io/scheron/daily-server:[^[:space:]]*\).*#\1#p' "$1/compose.yaml" 2> /dev/null | head -n 1
+}
+
+write_pin() {
+  sed "s#^\([[:space:]]*image:[[:space:]]*\)ghcr\.io/scheron/daily-server:[^[:space:]]*#\1$2#" "$1/compose.yaml" > "$1/.compose.yaml.new"
+  mv "$1/.compose.yaml.new" "$1/compose.yaml"
+}
+
+image_id() {
+  docker image inspect -f '{{.Id}}' "$1" 2> /dev/null || true
+}
+
+running_image_id() {
+  cid=$(container_id)
+  [ -n "$cid" ] || return 0
+  docker inspect -f '{{.Image}}' "$cid" 2> /dev/null || true
+}
+
+data_volume_name() {
+  cid=$(container_id)
+
+  if [ -n "$cid" ]; then
+    found=$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/var/lib/daily-server"}}{{.Name}}{{end}}{{end}}' "$cid" 2> /dev/null || true)
+    if [ -n "$found" ]; then
+      printf '%s' "$found"
+      return 0
+    fi
+  fi
+
+  printf '%s' "${PROJECT}_data"
+}
+
+create_upgrade_backup() {
+  tmp_dir=$(mktemp -d) || return 1
+
+  if ! compose cp daily-server:/var/lib/daily-server "$tmp_dir/data" > /dev/null 2>&1; then
+    rm -rf "$tmp_dir"
+    return 1
+  fi
+
+  rm -rf "$tmp_dir/data/backups"
+
+  timestamp=$(date -u +%Y%m%dT%H%M%SZ)
+  upgrade_archive="$dir/daily-preupgrade-$timestamp.tar.gz"
+
+  if ! (umask 077 && COPYFILE_DISABLE=1 tar -czf "$upgrade_archive" -C "$tmp_dir" data); then
+    rm -rf "$tmp_dir" "$upgrade_archive"
+    return 1
+  fi
+
+  rm -rf "$tmp_dir"
+}
+
+put_back_upgrade_backup() {
+  volume=$(data_volume_name)
+  [ -n "$volume" ] || return 1
+
+  gzip -dc "$upgrade_archive" \
+    | docker run --rm -i --user 0 --entrypoint sh -v "$volume:/var/lib/daily-server" "$previous_image" -c \
+      'set -e
+       owner=$(stat -c "%u:%g" /var/lib/daily-server)
+       find /var/lib/daily-server -mindepth 1 -maxdepth 1 ! -name backups -exec rm -rf {} +
+       tar -xf - -C /var/lib/daily-server --strip-components=1 --no-same-owner
+       chown -R "$owner" /var/lib/daily-server'
+}
+
+undo_upgrade() {
+  echo "" >&2
+  echo "install.sh: $1." >&2
+  echo "Putting $previous_image and the pre-upgrade backup back." >&2
+
+  compose stop daily-server > /dev/null 2>&1 || true
+
+  if ! put_back_upgrade_backup; then
+    echo "install.sh: the pre-upgrade data could not be put back automatically." >&2
+    echo "Nothing in $upgrade_archive has been touched; it holds the database and the assets as they were." >&2
+  fi
+
+  mv "$dir/.compose.yaml.rollback" "$dir/compose.yaml"
+
+  if ! compose up -d daily-server; then
+    echo "install.sh: $previous_image could not be started again. The pre-upgrade backup is at $upgrade_archive." >&2
+    exit 1
+  fi
+
+  printf 'Waiting for the server on %s' "$previous_image"
+
+  if ! wait_for_health; then
+    echo "install.sh: $previous_image did not become healthy either. The pre-upgrade backup is at $upgrade_archive." >&2
+    compose logs --tail 40 daily-server >&2 || true
+    exit 1
+  fi
+
+  echo ""
+  echo "The upgrade was undone. The server is running $previous_image again, with the data it had before."
+  echo "The pre-upgrade backup is kept at $upgrade_archive"
+  exit 1
+}
+
+run_upgrade() {
+  if [ ! -f "$dir/compose.yaml" ]; then
+    echo "install.sh: $dir holds no compose.yaml, so it is not an installation" >&2
+    exit 1
+  fi
+
+  require_docker
+
+  previous_image=$(read_pin "$dir")
+
+  if [ -z "$previous_image" ]; then
+    echo "install.sh: $dir/compose.yaml pins no ghcr.io/scheron/daily-server image, so this cannot tell what it would be replacing." >&2
+    echo "Nothing was changed." >&2
+    exit 1
+  fi
+
+  write_daily_sh "$dir"
+
+  echo "Installed: $previous_image"
+  echo "Release:   $IMAGE"
+  echo ""
+
+  was_running=$(running_image_id)
+  docker pull "$IMAGE" || {
+    echo "install.sh: $IMAGE could not be pulled. Nothing was changed; the server is still running $previous_image." >&2
+    exit 1
+  }
+
+  if [ "$previous_image" = "$IMAGE" ] && [ -n "$was_running" ] && [ "$was_running" = "$(image_id "$IMAGE")" ]; then
+    echo ""
+    echo "Already running the current image. Nothing to change."
+    exit 0
+  fi
+
+  echo ""
+  echo "Backing up before anything moves"
+  compose stop daily-server
+
+  if ! create_upgrade_backup; then
+    compose up -d daily-server > /dev/null 2>&1 || true
+    echo "install.sh: the backup could not be taken, so nothing was upgraded." >&2
+    exit 1
+  fi
+
+  echo "Backup written to $upgrade_archive"
+
+  cp "$dir/compose.yaml" "$dir/.compose.yaml.rollback"
+  write_pin "$dir" "$IMAGE"
+
+  if ! compose up -d daily-server; then
+    undo_upgrade "the server could not be started on $IMAGE"
+  fi
+
+  printf 'Waiting for the server'
+
+  if ! wait_for_health; then
+    compose logs --tail 40 daily-server >&2 || true
+    undo_upgrade "the server did not become healthy on $IMAGE"
+  fi
+
+  rm -f "$dir/.compose.yaml.rollback"
+
+  echo ""
+  echo "Upgraded: $previous_image -> $IMAGE"
+  echo "The pre-upgrade backup is kept at $upgrade_archive"
 }
 
 read_claim_code() {
@@ -612,6 +817,11 @@ while [ $# -gt 0 ]; do
       write_manager="$2"
       shift 2
       ;;
+    --upgrade)
+      [ $# -ge 2 ] || { echo "install.sh: --upgrade needs a value" >&2; exit 1; }
+      upgrade_dir="$2"
+      shift 2
+      ;;
     -h|--help)
       usage
       exit 0
@@ -631,6 +841,20 @@ if [ -n "$write_manager" ]; then
   fi
 
   write_daily_sh "$write_manager"
+
+  pinned=$(read_pin "$write_manager")
+
+  if [ -n "$pinned" ] && [ "$pinned" != "$IMAGE" ]; then
+    echo "This installation runs $pinned; this release is $IMAGE."
+    echo "Run $write_manager/daily.sh upgrade once more to move it across."
+  fi
+
+  exit 0
+fi
+
+if [ -n "$upgrade_dir" ]; then
+  dir="$upgrade_dir"
+  run_upgrade
   exit 0
 fi
 

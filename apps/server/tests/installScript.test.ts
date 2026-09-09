@@ -206,24 +206,58 @@ describe("deploy/install.sh --dry-run", () => {
     expect(upIndex, "the service should come back up after the copy").toBeGreaterThan(cpIndex)
   })
 
-  it("daily.sh upgrade pulls the newer image and brings the service back up, and status/claim-code delegate to the server's own commands", () => {
+  it("daily.sh upgrade hands the whole upgrade to the release's own installer, and status/claim-code delegate to the server's own commands", () => {
     const content = readIfExists(caddyInstall.dailyShPath) as string
     expect(content, "daily.sh").not.toBeNull()
 
-    expect(content).toContain("compose pull daily-server")
-    expect(content).toContain("compose up -d daily-server")
+    expect(content, "the upgrade needs the published install.sh").toContain("raw.githubusercontent.com/scheron/Daily/main/deploy/install.sh")
+    expect(content, "the downloaded installer runs the upgrade, so its pin is the one that lands").toMatch(/sh "\$tmp" --upgrade "\$INSTALL_DIR"/)
+    expect(content, "a management script that cannot reach the installer must not pretend to upgrade").toMatch(/command -v curl[\s\S]*?exit 1/)
+    expect(content, "a failed download must stop the upgrade rather than proceed").toMatch(/could not download the installer[\s\S]*?exit 1/)
+    expect(content, "the installer's exit status is the upgrade's exit status").toMatch(/exit "\$status"/)
+
     expect(content).toContain("compose exec -T daily-server daily-server status")
     expect(content).toContain("compose exec -T daily-server daily-server claim-code")
   })
 
-  it("daily.sh upgrade refreshes the management script itself, and never fails the upgrade when it cannot", () => {
-    const content = readIfExists(caddyInstall.dailyShPath) as string
-    expect(content, "daily.sh").not.toBeNull()
+  it("install.sh --upgrade moves the pin itself, backs up first, and puts the backup back when the new image will not run", () => {
+    const script = readFileSync(installScriptPath, "utf-8")
 
-    expect(content, "upgrade should refresh the script after the image").toMatch(/compose up -d daily-server\n\s*refresh_self/)
-    expect(content, "the refresh needs the published install.sh").toContain("raw.githubusercontent.com/scheron/Daily/main/deploy/install.sh")
-    expect(content, "a missing curl must not fail the upgrade").toMatch(/command -v curl .* \|\| return 0/)
-    expect(content, "a failed fetch must not fail the upgrade").toMatch(/if curl [^\n]*&&[^\n]*--write-manager/)
+    expect(script, "--upgrade must be a documented mode of the installer").toMatch(/--upgrade <path>/)
+
+    const upgradeMatch = script.match(/run_upgrade\(\) \{[\s\S]*?\n\}/)
+    expect(upgradeMatch, "run_upgrade function").not.toBeNull()
+    const upgrade = (upgradeMatch as RegExpMatchArray)[0]
+
+    expect(upgrade, "nobody should have to open compose.yaml — the installer rewrites the pin").toMatch(/write_pin "\$dir" "\$IMAGE"/)
+    expect(upgrade, "the pin written is the one this installer carries, never a typed tag").toContain('"$IMAGE"')
+    expect(upgrade, "a backup is taken without being asked for").toContain("create_upgrade_backup")
+    expect(upgrade, "a failed pull must change nothing at all").toMatch(/could not be pulled[\s\S]*?Nothing was changed/)
+
+    const backupIndex = upgrade.indexOf("create_upgrade_backup")
+    const pinIndex = upgrade.indexOf('write_pin "$dir" "$IMAGE"')
+    expect(backupIndex, "the backup must be taken before the pin moves").toBeGreaterThan(-1)
+    expect(pinIndex).toBeGreaterThan(backupIndex)
+
+    for (const failure of ["the server could not be started on $IMAGE", "the server did not become healthy on $IMAGE"]) {
+      expect(upgrade, `${failure} must undo the upgrade`).toContain(`undo_upgrade "${failure}"`)
+    }
+
+    const undoMatch = script.match(/undo_upgrade\(\) \{[\s\S]*?\n\}/)
+    expect(undoMatch, "undo_upgrade function").not.toBeNull()
+    const undo = (undoMatch as RegExpMatchArray)[0]
+
+    expect(undo, "the data recorded before the upgrade goes back").toContain("put_back_upgrade_backup")
+    expect(undo, "the previous image's pin goes back").toMatch(/mv "\$dir\/\.compose\.yaml\.rollback" "\$dir\/compose\.yaml"/)
+    expect(undo, "a person must not be left with a stopped server").toContain("compose up -d daily-server")
+    expect(undo, "an undone upgrade is still a failed one").toMatch(/exit 1/)
+
+    const putBackMatch = script.match(/put_back_upgrade_backup\(\) \{[\s\S]*?\n\}/)
+    expect(putBackMatch, "put_back_upgrade_backup function").not.toBeNull()
+    const putBack = (putBackMatch as RegExpMatchArray)[0]
+
+    expect(putBack, "the server's own scheduled backups are not part of the archive and must survive").toContain("! -name backups")
+    expect(putBack, "the data directory's owner must survive the round trip through the host archive").toContain("chown -R")
   })
 
   it("install.sh --write-manager rewrites daily.sh atomically and refuses a directory that is not an installation", () => {
