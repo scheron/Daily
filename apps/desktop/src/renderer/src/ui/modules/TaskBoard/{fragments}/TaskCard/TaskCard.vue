@@ -6,6 +6,7 @@ import {sortTags, toTaskIdHash} from "@daily/protocol"
 import {toDurationLabel} from "@daily/std"
 
 import {STATUS_ACTIONS, statusOptionClass} from "@/constants/taskStatus"
+import {useMilestonesStore} from "@/stores/milestones.store"
 import {useTagsStore} from "@/stores/tags.store"
 import {useTaskEditorStore} from "@/stores/task-editor"
 import {useTasksStore} from "@/stores/tasks"
@@ -22,6 +23,7 @@ import {useConfirmUnsavedModal} from "@/ui/overlays/ConfirmUnsavedModal"
 import {countMarkdownImages} from "@/utils/codemirror/wordCount"
 import DeleteMenuItem from "./{fragments}/DeleteMenuItem.vue"
 import MarkdownContent from "./{fragments}/MarkdownContent.vue"
+import MilestoneChip from "./{fragments}/MilestoneChip.vue"
 import StatusSelect from "./{fragments}/StatusSelect.vue"
 import {useTaskModel} from "./model/useTaskModel"
 
@@ -32,6 +34,7 @@ const props = defineProps<{task: Task; trashed?: boolean}>()
 
 const tasksStore = useTasksStore()
 const tagsStore = useTagsStore()
+const milestonesStore = useMilestonesStore()
 const taskEditorStore = useTaskEditorStore()
 
 const contextMenuRef = useTemplateRef<InstanceType<typeof ContextMenu>>("contextMenu")
@@ -39,6 +42,8 @@ const contextMenuRef = useTemplateRef<InstanceType<typeof ContextMenu>>("context
 const {canMoveUp, canMoveDown, canMoveToTop, canMoveToBottom, ...taskModel} = useTaskModel(props)
 
 const tags = computed<Tag[]>(() => sortTags(props.task.tags.map((t) => tagsStore.tagsMap.get(t.id)).filter(Boolean) as Tag[]))
+const milestone = computed(() => milestonesStore.milestones.find((m) => m.id === props.task.milestoneId) ?? null)
+const hasNoDay = computed(() => props.task.scheduled === null)
 
 const imageCount = computed(() => countMarkdownImages(props.task.content))
 const showTime = computed(() => props.task.estimatedTime > 0)
@@ -193,6 +198,14 @@ async function onMoveToBranch(branch: Branch) {
       <div class="relative z-10 flex w-full flex-col gap-3 px-5 py-4">
         <div class="flex w-full items-center gap-3">
           <DynamicTagsPanel :tags="tags" empty-message="No tags" size="sm" />
+          <MilestoneChip v-if="milestone" :milestone="milestone" />
+          <span
+            v-if="hasNoDay"
+            class="border-base-content/15 text-base-content/50 inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-dashed px-2 text-xs"
+          >
+            <BaseIcon name="calendar" class="size-3" />
+            No day
+          </span>
           <div class="ml-auto flex shrink-0 items-center gap-2" data-task-dnd-ignore="true" @click.stop>
             <span v-tooltip="{content: 'Task ID', placement: 'top'}" class="text-base-content/50 whitespace-nowrap font-mono text-xs leading-none">
               {{ toTaskIdHash(task.id) }}

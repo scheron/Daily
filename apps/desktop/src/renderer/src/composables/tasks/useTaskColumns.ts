@@ -25,13 +25,19 @@ export const useTaskColumns = createSharedComposable(() => {
   const dragDropStore = useDragDropStore()
 
   const filteredTasks = computed(() => {
-    if (!filterStore.activeTagIds.size) return tasksStore.dailyTasks
-    return tasksStore.dailyTasks.filter((task) => task.tags.some((tag) => filterStore.activeTagIds.has(tag.id)))
+    let tasks = tasksStore.dailyTasks
+    if (filterStore.activeTagIds.size) tasks = tasks.filter((task) => task.tags.some((tag) => filterStore.activeTagIds.has(tag.id)))
+    if (filterStore.activeMilestoneIds.size)
+      tasks = tasks.filter((task) => task.milestoneId !== null && filterStore.activeMilestoneIds.has(task.milestoneId))
+    return tasks
   })
 
   const filteredBacklogTasks = computed(() => {
-    if (!filterStore.activeTagIds.size) return tasksStore.backlogTasks
-    return tasksStore.backlogTasks.filter((task) => task.tags.some((tag) => filterStore.activeTagIds.has(tag.id)))
+    let tasks = tasksStore.backlogTasks
+    if (filterStore.activeTagIds.size) tasks = tasks.filter((task) => task.tags.some((tag) => filterStore.activeTagIds.has(tag.id)))
+    if (filterStore.activeMilestoneIds.size)
+      tasks = tasks.filter((task) => task.milestoneId !== null && filterStore.activeMilestoneIds.has(task.milestoneId))
+    return tasks
   })
 
   const tasksByStatus = computed<Record<TaskStatus, Task[]>>(() => {

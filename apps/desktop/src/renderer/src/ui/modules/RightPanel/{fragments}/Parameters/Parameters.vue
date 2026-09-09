@@ -4,6 +4,7 @@ import {toTaskIdHash} from "@daily/protocol"
 import {useTaskEditor} from "@/ui/modules/RightPanel/composables/useTaskEditor"
 import BranchProperty from "./{fragments}/properties/BranchProperty.vue"
 import DateProperty from "./{fragments}/properties/DateProperty.vue"
+import MilestoneProperty from "./{fragments}/properties/MilestoneProperty.vue"
 import StatusProperty from "./{fragments}/properties/StatusProperty.vue"
 import TagsProperty from "./{fragments}/properties/TagsProperty.vue"
 import TimeProperty from "./{fragments}/properties/TimeProperty.vue"
@@ -34,6 +35,9 @@ const {activeTask, isNew, editingTaskId, flatOrderedTasks, currentIndex, canPrev
     </PropertyRow>
     <PropertyRow label="Date" :disabled="activeTask.status === 'backlog'">
       <DateProperty :task="activeTask" />
+    </PropertyRow>
+    <PropertyRow label="Milestone" :disabled="isNew">
+      <MilestoneProperty />
     </PropertyRow>
     <PropertyRow label="Project">
       <BranchProperty :task="activeTask" />
