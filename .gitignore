@@ -66,3 +66,4 @@ apps/server/tests/stand/certs/*
 # and git's grandfathering is tied to the path, so the move to apps/ made them invisible.
 !apps/website/public/*.svg
 !apps/website/public/*.txt
+.impeccable
