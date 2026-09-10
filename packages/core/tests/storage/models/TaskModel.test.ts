@@ -239,4 +239,29 @@ describe("TaskModel", () => {
 
     expect(deleted).toHaveLength(2)
   })
+
+  it("round_trips_TC-3_a_backlog_task_created_with_no_schedule_and_keeps_it_out_of_a_dated_list", () => {
+    const created = taskModel.createTask(makeTaskInput({status: "backlog", scheduled: null}))
+
+    expect(created.status).toBe("backlog")
+    expect(created.scheduled).toBeNull()
+
+    const reloaded = taskModel.getTask(created.id)
+    expect(reloaded.scheduled).toBeNull()
+    expect(reloaded.status).toBe("backlog")
+
+    const dated = taskModel.getTaskList({from: "0001-01-01", to: "9999-12-31"})
+    expect(dated.find((t) => t.id === created.id)).toBeUndefined()
+  })
+
+  it("returns_TC-4_only_the_dateless_tasks_of_a_branch_in_manual_order_and_never_a_dated_one", () => {
+    const dated = taskModel.createTask(makeTaskInput({content: "Dated"}))
+    const backlogA = taskModel.createTask(makeTaskInput({content: "Backlog A", status: "backlog", scheduled: null, orderIndex: 2048}))
+    const backlogB = taskModel.createTask(makeTaskInput({content: "Backlog B", status: "backlog", scheduled: null, orderIndex: 1024}))
+
+    const backlog = taskModel.getBacklogTasks({branchId: "main"})
+
+    expect(backlog.map((t) => t.id)).toEqual([backlogB.id, backlogA.id])
+    expect(backlog.find((t) => t.id === dated.id)).toBeUndefined()
+  })
 })

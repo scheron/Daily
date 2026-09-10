@@ -40,7 +40,7 @@ export const listTasks: RegisteredTool = {
       tasks = tasks.filter((t) => t.status !== "done")
     }
 
-    tasks.sort((a, b) => a.scheduled.time.localeCompare(b.scheduled.time))
+    tasks.sort((a, b) => (a.scheduled?.time ?? "").localeCompare(b.scheduled?.time ?? ""))
 
     if (tasks.length === 0) {
       const scope = projectName ? ` in project "${projectName}"` : ""

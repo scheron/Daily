@@ -1,9 +1,10 @@
-import {computed, ref} from "vue"
+import {computed, ref, watch} from "vue"
 import {DateTime} from "luxon"
 import {defineStore} from "pinia"
 
 import {sortTasksByOrderIndex} from "@daily/protocol"
 
+import {API} from "@/api"
 import {useSettingsStore} from "@/stores/settings.store"
 import {useTaskMutations} from "./composables/useTaskMutations"
 import {useTaskRange} from "./composables/useTaskRange"
@@ -14,6 +15,7 @@ export const useTasksStore = defineStore("tasks", () => {
   const settingsStore = useSettingsStore()
 
   const days = ref<Day[]>([])
+  const backlogTasks = ref<Task[]>([])
   const activeDay = ref<ISODate>(DateTime.now().toISODate()!)
   const isDaysLoaded = ref(false)
   const activeBranchId = computed(() => settingsStore.settings?.branch?.activeId)
@@ -24,13 +26,15 @@ export const useTasksStore = defineStore("tasks", () => {
   const dailyTags = computed(() => activeDayData.value?.tags ?? [])
 
   const dailyTasksByStatus = computed<Record<TaskStatus, Task[]>>(() => {
-    return dailyTasks.value.reduce(
+    const grouped = dailyTasks.value.reduce(
       (acc, task) => {
         acc[task.status].push(task)
         return acc
       },
-      {active: [], discarded: [], done: []} as Record<TaskStatus, Task[]>,
+      {active: [], discarded: [], done: [], backlog: []} as Record<TaskStatus, Task[]>,
     )
+    grouped.backlog = backlogTasks.value
+    return grouped
   })
 
   const dailyTaskIndexMap = computed(() => {
@@ -44,6 +48,7 @@ export const useTasksStore = defineStore("tasks", () => {
       active: new Map(dailyTasksByStatus.value.active.map((task, index) => [task.id, index])),
       discarded: new Map(dailyTasksByStatus.value.discarded.map((task, index) => [task.id, index])),
       done: new Map(dailyTasksByStatus.value.done.map((task, index) => [task.id, index])),
+      backlog: new Map(dailyTasksByStatus.value.backlog.map((task, index) => [task.id, index])),
     }
   })
 
@@ -55,13 +60,15 @@ export const useTasksStore = defineStore("tasks", () => {
     activeBranchId,
     activeDayData,
     dailyTasks,
+    backlogTasks,
     findTaskById,
     refreshDay: range.refreshDay,
     refreshDays: range.refreshDays,
+    refreshBacklog,
   })
 
   function findTaskById(taskId: Task["id"]): Task | null {
-    return days.value.flatMap((day) => day.tasks).find((t) => t.id === taskId) || null
+    return days.value.flatMap((day) => day.tasks).find((t) => t.id === taskId) ?? backlogTasks.value.find((t) => t.id === taskId) ?? null
   }
 
   function setActiveDay(date: ISODate) {
@@ -69,9 +76,29 @@ export const useTasksStore = defineStore("tasks", () => {
     range.ensureRangeForDate(date)
   }
 
+  async function refreshBacklog() {
+    try {
+      backlogTasks.value = await API.getBacklog(activeBranchId.value)
+    } catch (error) {
+      console.error("Failed to refresh backlog:", error)
+    }
+  }
+
+  async function revalidate() {
+    await Promise.all([range.revalidate(), refreshBacklog()])
+  }
+
+  watch(
+    () => activeBranchId.value,
+    (newId, oldId) => {
+      if (newId !== oldId && isDaysLoaded.value) refreshBacklog()
+    },
+  )
+
   return {
     isDaysLoaded,
     days,
+    backlogTasks,
     activeDay,
     loadedRange: range.loadedRange,
     dailyTasks,
@@ -85,7 +112,8 @@ export const useTasksStore = defineStore("tasks", () => {
     getTaskList: range.getTaskList,
     extendRange: range.extendRange,
     findTaskById,
-    revalidate: range.revalidate,
+    refreshBacklog,
+    revalidate,
 
     ...mutations,
   }

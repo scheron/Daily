@@ -29,6 +29,14 @@ export const COLUMN_MIN_WIDTH = 370
 
 export const TASK_COLUMNS: TaskColumn[] = [
   {
+    status: "backlog",
+    label: "Backlog",
+    emptyLabel: "backlog",
+    icon: "bookmark",
+    titleClass: "text-base-content/70 hover:text-base-content",
+    counterClass: "bg-base-content/10 text-base-content/70",
+  },
+  {
     status: "active",
     label: "Active",
     emptyLabel: "active",

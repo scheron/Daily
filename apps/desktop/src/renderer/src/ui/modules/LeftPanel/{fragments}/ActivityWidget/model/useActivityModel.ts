@@ -18,7 +18,7 @@ export function useActivityModel() {
 
   const activeDaySignature = computed(() => {
     const day = tasksStore.days.find((d) => d.date === tasksStore.activeDay)
-    return (day?.tasks ?? []).map((t) => `${t.id}:${t.status}:${t.scheduled.date}:${t.updatedAt}`).join("|")
+    return (day?.tasks ?? []).map((t) => `${t.id}:${t.status}:${t.scheduled?.date ?? ""}:${t.updatedAt}`).join("|")
   })
 
   function goToDay(date: ISODate) {

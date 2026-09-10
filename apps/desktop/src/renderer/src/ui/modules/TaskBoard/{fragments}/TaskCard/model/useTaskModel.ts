@@ -4,7 +4,7 @@ import {toasts} from "vue-toasts-lite"
 import {useCopyToClipboard} from "@/composables/useCopyToClipboard"
 import {useBranchesStore} from "@/stores/branches.store"
 import {useTaskEditorStore} from "@/stores/task-editor"
-import {useTasksStore} from "@/stores/tasks"
+import {isBacklogStatus, useTasksStore} from "@/stores/tasks"
 
 import type {Branch, ISODate, Tag, Task, TaskStatus} from "@daily/protocol"
 import type {MaybeRefOrGetter} from "vue"
@@ -39,9 +39,20 @@ export function useTaskModel(rawProps: MaybeRefOrGetter<TaskModelProps>) {
     taskEditorStore.open(task.value.id)
   }
 
-  function changeStatus(status: TaskStatus) {
+  async function changeStatus(status: TaskStatus) {
     if (task.value?.status === status || !task.value) return
-    tasksStore.updateTask(task.value!.id, {status})
+
+    if (task.value.status === "backlog") {
+      tasksStore.moveTaskByOrder({
+        taskId: task.value.id,
+        targetStatus: status,
+        activeDate: tasksStore.activeDay,
+      })
+      return
+    }
+
+    await tasksStore.updateTask(task.value.id, {status})
+    if (isBacklogStatus(status)) await tasksStore.refreshBacklog()
   }
 
   async function toggleMinimized() {
@@ -61,7 +72,7 @@ export function useTaskModel(rawProps: MaybeRefOrGetter<TaskModelProps>) {
 
   async function rescheduleTask(targetDate: ISODate) {
     if (!task.value || !targetDate) return
-    if (targetDate === task.value.scheduled.date) return
+    if (targetDate === task.value.scheduled?.date) return
 
     const isMoved = await tasksStore.moveTask(task.value.id, targetDate)
 
@@ -119,6 +130,7 @@ export function useTaskModel(rawProps: MaybeRefOrGetter<TaskModelProps>) {
       targetTaskId: previousTask.id,
       targetStatus: task.value.status,
       position: "before",
+      activeDate: tasksStore.activeDay,
     })
 
     if (!result) toasts.error("Failed to move task")
@@ -135,6 +147,7 @@ export function useTaskModel(rawProps: MaybeRefOrGetter<TaskModelProps>) {
       targetTaskId: nextTask.id,
       targetStatus: task.value.status,
       position: "after",
+      activeDate: tasksStore.activeDay,
     })
 
     if (!result) toasts.error("Failed to move task")
@@ -151,6 +164,7 @@ export function useTaskModel(rawProps: MaybeRefOrGetter<TaskModelProps>) {
       targetTaskId: firstTask.id,
       targetStatus: task.value.status,
       position: "before",
+      activeDate: tasksStore.activeDay,
     })
 
     if (!result) toasts.error("Failed to move task")
@@ -164,6 +178,7 @@ export function useTaskModel(rawProps: MaybeRefOrGetter<TaskModelProps>) {
       targetTaskId: null,
       targetStatus: task.value.status,
       position: "after",
+      activeDate: tasksStore.activeDay,
     })
 
     if (!result) toasts.error("Failed to move task")

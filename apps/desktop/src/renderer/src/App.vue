@@ -36,7 +36,7 @@ invoke(async () => {
   const tagsStore = useTagsStore()
   useUpdateStore()
 
-  await Promise.all([branchesStore.getBranchList(), tasksStore.getTaskList(), tagsStore.getTagList()])
+  await Promise.all([branchesStore.getBranchList(), tasksStore.getTaskList(), tasksStore.refreshBacklog(), tagsStore.getTagList()])
   await aiStore.checkConnection()
 })
 </script>

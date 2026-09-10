@@ -3,6 +3,7 @@ import {toasts} from "vue-toasts-lite"
 
 import {API} from "@/api"
 import {useBranchesStore} from "@/stores/branches.store"
+import {useTaskEditorStore} from "@/stores/task-editor"
 import {useTasksStore} from "@/stores/tasks"
 import BaseIcon from "@/ui/base/BaseIcon"
 import {BaseModal} from "@/ui/base/BaseModal"
@@ -21,6 +22,7 @@ const emit = defineEmits<{
 
 const tasksStore = useTasksStore()
 const branchesStore = useBranchesStore()
+const taskEditorStore = useTaskEditorStore()
 
 const {query, items, isSearching, isLoaded} = useSearch<TaskSearchResult>({
   searchFn: async (query) => await API.searchTasks(query),
@@ -47,6 +49,12 @@ async function navigateToTask(result: TaskSearchResult) {
   if (branchesStore.activeBranchId !== task.branchId) {
     await branchesStore.setActiveBranch(task.branchId)
     await tasksStore.getTaskList()
+  }
+
+  if (!task.scheduled) {
+    taskEditorStore.open(task.id)
+    emit("close")
+    return
   }
 
   tasksStore.setActiveDay(task.scheduled.date)

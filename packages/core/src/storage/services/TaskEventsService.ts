@@ -21,8 +21,10 @@ export class TaskEventsService {
     return collapseMoves(this.taskEventModel.getByTask(taskId))
   }
 
-  /** Records a single event for a task at its scheduled date. */
+  /** Records a single event for a task at its scheduled date. A dateless (backlog) task records no event. */
   record(task: Task, type: TaskEventType) {
+    if (!task.scheduled) return
+
     this.taskEventModel.record({
       taskId: task.id,
       branchId: task.branchId,
@@ -46,7 +48,7 @@ export class TaskEventsService {
       return
     }
 
-    if (before.scheduled.date !== after.scheduled.date) {
+    if (before.scheduled && after.scheduled && before.scheduled.date !== after.scheduled.date) {
       this.recordMove(after, before.scheduled.date, after.scheduled.date)
     }
 
@@ -103,7 +105,7 @@ function statusEventType(status: TaskStatus): TaskEventType {
 function hasNonDateEdit(before: Task, after: Task): boolean {
   return (
     before.content !== after.content ||
-    before.scheduled.time !== after.scheduled.time ||
+    (!!before.scheduled && !!after.scheduled && before.scheduled.time !== after.scheduled.time) ||
     before.estimatedTime !== after.estimatedTime ||
     !sameTagIds(before.tags, after.tags)
   )

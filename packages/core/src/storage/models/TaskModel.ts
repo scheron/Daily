@@ -40,12 +40,24 @@ const TASK_SELECT = `
 export class TaskModel {
   constructor(private db: SqliteDriver) {}
 
-  getTaskList(params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: Branch["id"]; includeDeleted?: boolean}): Task[] {
+  getTaskList(params?: {
+    from?: ISODate
+    to?: ISODate
+    limit?: number
+    branchId?: Branch["id"]
+    includeDeleted?: boolean
+    /** Include tasks with no schedule. Defaults to false: every existing caller keeps meaning "dated tasks only". */
+    includeBacklog?: boolean
+  }): Task[] {
     const conditions: string[] = []
     const values: any[] = []
 
     if (!params?.includeDeleted) {
       conditions.push("t.deleted_at IS NULL")
+    }
+
+    if (!params?.includeBacklog) {
+      conditions.push("t.scheduled_date IS NOT NULL")
     }
 
     if (params?.from) {
@@ -82,6 +94,31 @@ export class TaskModel {
     return rows.map(rowToTask)
   }
 
+  /** Tasks with no schedule, in manual order. Never returns a dated task. */
+  getBacklogTasks(params?: {branchId?: Branch["id"]}): Task[] {
+    const conditions: string[] = ["t.deleted_at IS NULL", "t.scheduled_date IS NULL"]
+    const values: any[] = []
+
+    if (params?.branchId) {
+      if (params.branchId === MAIN_BRANCH_ID) {
+        conditions.push("(t.branch_id = ? OR t.branch_id IS NULL)")
+        values.push(MAIN_BRANCH_ID)
+      } else {
+        conditions.push("t.branch_id = ?")
+        values.push(params.branchId)
+      }
+    }
+
+    const where = `WHERE ${conditions.join(" AND ")}`
+    const sql = `${TASK_SELECT} ${where} ORDER BY t.order_index`
+
+    const rows = this.db.prepare(sql).all(...values) as any[]
+
+    logger.info(logger.CONTEXT.TASKS, `Loaded ${rows.length} backlog tasks from database`)
+
+    return rows.map(rowToTask)
+  }
+
   getTask(id: Task["id"]): Task | null {
     const sql = `${TASK_SELECT} WHERE t.id = ?`
     const row = this.db.prepare(sql).get(id) as any
@@ -102,6 +139,9 @@ export class TaskModel {
     const tags = task.tags ?? []
     const attachments = task.attachments ?? []
     const orderIndex = Number.isFinite(task.orderIndex) ? task.orderIndex : Date.parse(now)
+    const scheduledDate = task.scheduled?.date ?? null
+    const scheduledTime = task.scheduled?.time ?? null
+    const scheduledTimezone = task.scheduled?.timezone ?? null
 
     const run = this.db.transaction(() => {
       this.db
@@ -121,9 +161,9 @@ export class TaskModel {
           task.content,
           task.minimized ? 1 : 0,
           orderIndex,
-          task.scheduled.date,
-          task.scheduled.time,
-          task.scheduled.timezone,
+          scheduledDate,
+          scheduledTime,
+          scheduledTimezone,
           task.estimatedTime,
           task.spentTime,
           branchId,
@@ -193,17 +233,21 @@ export class TaskModel {
     }
 
     if (notUndefined(updates.scheduled)) {
-      if (notUndefined(updates.scheduled.date)) {
-        setClauses.push("scheduled_date = ?")
-        values.push(updates.scheduled.date)
-      }
-      if (notUndefined(updates.scheduled.time)) {
-        setClauses.push("scheduled_time = ?")
-        values.push(updates.scheduled.time)
-      }
-      if (notUndefined(updates.scheduled.timezone)) {
-        setClauses.push("scheduled_timezone = ?")
-        values.push(updates.scheduled.timezone)
+      if (updates.scheduled === null) {
+        setClauses.push("scheduled_date = NULL", "scheduled_time = NULL", "scheduled_timezone = NULL")
+      } else {
+        if (notUndefined(updates.scheduled.date)) {
+          setClauses.push("scheduled_date = ?")
+          values.push(updates.scheduled.date)
+        }
+        if (notUndefined(updates.scheduled.time)) {
+          setClauses.push("scheduled_time = ?")
+          values.push(updates.scheduled.time)
+        }
+        if (notUndefined(updates.scheduled.timezone)) {
+          setClauses.push("scheduled_timezone = ?")
+          values.push(updates.scheduled.timezone)
+        }
       }
     }
 

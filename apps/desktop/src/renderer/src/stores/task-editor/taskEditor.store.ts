@@ -1,16 +1,15 @@
 import {computed, ref, watch} from "vue"
-import {DateTime} from "luxon"
 import {defineStore} from "pinia"
 
 import {deepClone, isNull, notNull} from "@daily/std"
 
 import {API} from "@/api"
-import {useTasksStore} from "@/stores/tasks"
+import {crossesBacklog, useTasksStore} from "@/stores/tasks"
 import {buildRestPatch} from "./utils/buildRestPatch"
 import {shallowEqualDraft} from "./utils/shallowEqualDraft"
 
 import type {TaskDraft} from "@/types/tasks"
-import type {Branch, ISODate, Task} from "@daily/protocol"
+import type {Branch, Task} from "@daily/protocol"
 
 export const useTaskEditorStore = defineStore("taskEditor", () => {
   const tasksStore = useTasksStore()
@@ -34,13 +33,18 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
     seedFrom(task)
   }
 
-  function openNew(params: {date: ISODate; branchId: Branch["id"] | null}) {
+  function openNew(params: {branchId: Branch["id"] | null}) {
     seedNew(params)
   }
 
   function patch(updates: Partial<TaskDraft>) {
     if (!draft.value) return
-    draft.value = {...draft.value, ...updates}
+    const next = {...draft.value, ...updates}
+
+    if (updates.status === "backlog") next.scheduled = null
+    else if (updates.scheduled && draft.value.status === "backlog") next.status = "active"
+
+    draft.value = next
   }
 
   function discard() {
@@ -61,7 +65,7 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
         content: next.content,
         tags: next.tags,
         estimatedTime: next.estimatedTime,
-        date: next.scheduled.date,
+        date: next.scheduled?.date,
         branchId: next.branchId ?? undefined,
         status: next.status,
       })
@@ -73,11 +77,26 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
     const base = draftBase.value
 
     if (base) {
-      if (next.scheduled.date !== base.scheduled.date) await tasksStore.moveTask(id, next.scheduled.date)
+      const resolvedWithoutDate = next.status !== "backlog" && !next.scheduled
+      const restPatch = buildRestPatch(next, base)
+
       if (next.branchId !== base.branchId) await tasksStore.moveTaskToBranch(id, next.branchId ?? "")
 
-      const restPatch = buildRestPatch(next, base)
-      if (Object.keys(restPatch).length) await tasksStore.updateTask(id, restPatch)
+      if (resolvedWithoutDate) {
+        if (Object.keys(restPatch).length) await tasksStore.updateTask(id, restPatch)
+        await tasksStore.moveTaskByOrder({taskId: id, targetStatus: next.status, activeDate: tasksStore.activeDay})
+      } else {
+        const scheduleChanged = Boolean(next.scheduled) && next.scheduled?.date !== base.scheduled?.date
+
+        if (scheduleChanged && "status" in restPatch) {
+          await tasksStore.updateTask(id, {...restPatch, scheduled: next.scheduled})
+        } else {
+          if (Object.keys(restPatch).length) await tasksStore.updateTask(id, restPatch)
+          if (scheduleChanged && next.scheduled) await tasksStore.moveTask(id, next.scheduled.date)
+        }
+
+        if (crossesBacklog(base.status, next.status)) await tasksStore.refreshBacklog()
+      }
     } else {
       await tasksStore.updateTask(id, {
         content: next.content,
@@ -110,27 +129,22 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
       spentTime: task.spentTime,
       status: task.status,
       branchId: task.branchId || null,
-      scheduled: {...task.scheduled},
+      scheduled: task.scheduled ? {...task.scheduled} : null,
     }
     draft.value = next
     draftBase.value = deepClone(next)
     editingTaskId.value = task.id
   }
 
-  function seedNew(params: {date: ISODate; branchId: Branch["id"] | null}) {
-    const now = DateTime.now()
+  function seedNew(params: {branchId: Branch["id"] | null}) {
     draft.value = {
       content: "",
       tags: [],
       estimatedTime: 0,
       spentTime: 0,
-      status: "active",
+      status: "backlog",
       branchId: params.branchId,
-      scheduled: {
-        date: params.date,
-        time: now.toFormat("HH:mm:ss"),
-        timezone: now.zoneName ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
-      },
+      scheduled: null,
     }
     draftBase.value = null
     editingTaskId.value = null

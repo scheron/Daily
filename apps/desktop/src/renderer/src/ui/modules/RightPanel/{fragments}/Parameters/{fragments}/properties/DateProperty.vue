@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {computed} from "vue"
 
-import {toDateLabel} from "@daily/std"
+import {getTime, getTimezone, toDateLabel} from "@daily/std"
 
 import {useTaskEditorStore} from "@/stores/task-editor"
 import {useTasksStore} from "@/stores/tasks"
@@ -17,11 +17,12 @@ const props = defineProps<{task: Task}>()
 const tasksStore = useTasksStore()
 const taskEditorStore = useTaskEditorStore()
 
-const dateLabel = computed(() => toDateLabel(props.task.scheduled.date, {short: true}))
+const dateLabel = computed(() => (props.task.scheduled ? toDateLabel(props.task.scheduled.date, {short: true}) : "No date"))
 
 function selectDate(date: ISODate, hide: () => void) {
-  if (date !== props.task.scheduled.date) {
-    taskEditorStore.patch({scheduled: {...props.task.scheduled, date}})
+  if (date !== props.task.scheduled?.date) {
+    const scheduled = props.task.scheduled
+    taskEditorStore.patch({scheduled: scheduled ? {...scheduled, date} : {date, time: getTime(), timezone: getTimezone()}})
   }
   hide()
 }
@@ -38,7 +39,13 @@ function selectDate(date: ISODate, hide: () => void) {
 
     <template #default="{hide}">
       <div class="p-1">
-        <BaseCalendar mode="single" :days="tasksStore.days" :selected-date="task.scheduled.date" size="sm" @select-date="selectDate($event, hide)" />
+        <BaseCalendar
+          mode="single"
+          :days="tasksStore.days"
+          :selected-date="task.scheduled?.date ?? null"
+          size="sm"
+          @select-date="selectDate($event, hide)"
+        />
       </div>
     </template>
   </BasePopup>

@@ -115,6 +115,7 @@ export interface BridgeIPC {
 
   // === TASKS  ===
   "tasks:get-many": (params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: Branch["id"]}) => Promise<Task[]>
+  "tasks:get-backlog": (branchId?: Branch["id"]) => Promise<Task[]>
   "tasks:get-one": (id: Task["id"]) => Promise<Task | null>
   "tasks:update": (id: Task["id"], updates: PartialDeep<Task>) => Promise<Task | null>
   "tasks:toggle-minimized": (id: Task["id"], minimized: boolean) => Promise<Task | null>

@@ -20,7 +20,12 @@ const tasksStore = useTasksStore()
 const columns = useTaskColumns()
 
 const hasAnyTasks = computed(
-  () => columns.tasksByStatus.value.active.length + columns.tasksByStatus.value.done.length + columns.tasksByStatus.value.discarded.length > 0,
+  () =>
+    columns.tasksByStatus.value.active.length +
+      columns.tasksByStatus.value.done.length +
+      columns.tasksByStatus.value.discarded.length +
+      columns.tasksByStatus.value.backlog.length >
+    0,
 )
 
 useDragScroll(boardRef)

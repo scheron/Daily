@@ -22,6 +22,7 @@ export function setupStorageIPC(getStorage: () => IStorageController | null) {
   ipcMain.handle("stats:get", (_e, period: StatsPeriod, anchor: ISODate, branchId?: Branch["id"]) => getStorage()?.getStats(period, anchor, branchId))
 
   ipcMain.handle("tasks:get-many", (_e, params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: Branch["id"]}) => getStorage()?.getTaskList(params))
+  ipcMain.handle("tasks:get-backlog", (_e, branchId?: Branch["id"]) => getStorage()?.getBacklog({branchId}))
   ipcMain.handle("tasks:get-one", (_e, id: Task["id"]) => getStorage()?.getTask(id))
   ipcMain.handle("tasks:update", (_e, id: Task["id"], updates: PartialDeep<Task>) => getStorage()?.updateTask(id, updates))
   ipcMain.handle("tasks:toggle-minimized", (_e, id: Task["id"], minimized: boolean) => getStorage()?.toggleTaskMinimized(id, minimized))

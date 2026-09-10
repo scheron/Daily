@@ -1,7 +1,15 @@
-import {getOrderIndexBetween, getTaskOrderValue, normalizeTaskOrderIndexes, sortTasksByOrderIndex} from "@daily/protocol"
-import {notNull, notUndefined} from "@daily/std"
+import {
+  getOrderIndexBetween,
+  getPreviousTaskOrderIndex,
+  getTaskOrderValue,
+  MAIN_BRANCH_ID,
+  normalizeTaskOrderIndexes,
+  schedulingForStatus,
+  sortTasksByOrderIndex,
+} from "@daily/protocol"
+import {getToday, notNull, notUndefined} from "@daily/std"
 
-import type {Branch, File, ISODate, MoveTaskByOrderParams, Tag, Task, TaskEvent, TaskMovePosition, TaskStatus} from "@daily/protocol"
+import type {Branch, File, ISODate, MoveTaskByOrderParams, Tag, Task, TaskEvent, TaskMovePosition, TaskScheduled, TaskStatus} from "@daily/protocol"
 import type {PartialDeep} from "type-fest"
 import type {TaskInternal} from "../../types/storage"
 import type {TaskModel} from "../models/TaskModel"
@@ -25,6 +33,10 @@ export class TasksService {
     return this.taskModel.getTaskList(params)
   }
 
+  async getBacklogTasks(params?: {branchId?: Branch["id"]}): Promise<Task[]> {
+    return this.taskModel.getBacklogTasks(params)
+  }
+
   async getTask(id: Task["id"]): Promise<Task | null> {
     return this.taskModel.getTask(id)
   }
@@ -37,6 +49,18 @@ export class TasksService {
     }
 
     const before = this.taskModel.getTask(id)
+
+    if (before && (notUndefined(updates.status) || notUndefined(updates.scheduled))) {
+      const status = (updates.status as TaskStatus | undefined) ?? before.status
+      const current = notUndefined(updates.scheduled) ? (updates.scheduled as TaskScheduled | null) : before.scheduled
+
+      updatesTask.scheduled = schedulingForStatus(status, current, getToday())
+
+      if (status === "backlog" && before.status !== "backlog") {
+        updatesTask.orderIndex = getPreviousTaskOrderIndex(this.taskModel.getBacklogTasks({branchId: before.branchId}))
+      }
+    }
+
     const after = this.taskModel.updateTask(id, updatesTask as Partial<TaskInternal>)
     if (before && after) this.taskEvents.recordUpdate(before, after)
 
@@ -44,8 +68,14 @@ export class TasksService {
   }
 
   async createTask(task: Task): Promise<Task | null> {
+    const scheduled = schedulingForStatus(task.status, task.scheduled ?? null, getToday())
+    const branchId = task.branchId ?? MAIN_BRANCH_ID
+    const orderIndex = task.status === "backlog" ? getPreviousTaskOrderIndex(this.taskModel.getBacklogTasks({branchId})) : task.orderIndex
+
     const newTask = {
       ...task,
+      scheduled,
+      orderIndex,
       tags: task.tags ? task.tags.map((t) => t.id) : [],
     } as Omit<TaskInternal, "id" | "createdAt" | "updatedAt">
 
@@ -67,14 +97,15 @@ export class TasksService {
       return this.getTask(sourceTask.id)
     }
 
-    const dayTasks = this.taskModel.getTaskList({
-      from: sourceTask.scheduled.date,
-      to: sourceTask.scheduled.date,
-      branchId: sourceTask.branchId,
-    })
+    const scheduled = schedulingForStatus(targetStatus, sourceTask.scheduled, params.activeDate)
 
-    const dayTaskById = new Map(dayTasks.map((task) => [task.id, task]))
-    const tasksWithoutSource = dayTasks.filter((task) => task.id !== sourceTask.id)
+    const scopeTasks =
+      targetStatus === "backlog"
+        ? this.taskModel.getBacklogTasks({branchId: sourceTask.branchId})
+        : this.taskModel.getTaskList({from: scheduled!.date, to: scheduled!.date, branchId: sourceTask.branchId})
+
+    const scopeTaskById = new Map(scopeTasks.map((task) => [task.id, task]))
+    const tasksWithoutSource = scopeTasks.filter((task) => task.id !== sourceTask.id)
     const destinationScope = tasksWithoutSource.filter((task) => task.status === targetStatus)
     const orderedDestinationScope = sortTasksByOrderIndex(destinationScope)
     const insertAt = resolveInsertIndex(orderedDestinationScope, targetTaskId, position)
@@ -84,7 +115,7 @@ export class TasksService {
     const nextOrderIndex = getOrderIndexBetween(prevTask ? getTaskOrderValue(prevTask) : null, nextTask ? getTaskOrderValue(nextTask) : null)
 
     if (notNull(nextOrderIndex)) {
-      const updates: Partial<TaskInternal> = {orderIndex: nextOrderIndex}
+      const updates: Partial<TaskInternal> = {orderIndex: nextOrderIndex, scheduled}
       if (targetStatus !== sourceTask.status) {
         updates.status = targetStatus
       }
@@ -93,14 +124,14 @@ export class TasksService {
       return this.finalizeMove(sourceTask, targetStatus)
     }
 
-    const movedTask: Task = {...sourceTask, status: targetStatus}
+    const movedTask: Task = {...sourceTask, status: targetStatus, scheduled}
     const reorderedScope: Task[] = [...orderedDestinationScope]
     reorderedScope.splice(insertAt, 0, movedTask)
 
     const normalized = normalizeTaskOrderIndexes(reorderedScope)
 
     for (const patch of normalized) {
-      const existing = dayTaskById.get(patch.id)
+      const existing = scopeTaskById.get(patch.id)
       if (!existing) continue
 
       const shouldChangeOrder = existing.orderIndex !== patch.orderIndex
@@ -110,6 +141,7 @@ export class TasksService {
       const updates: Partial<TaskInternal> = {orderIndex: patch.orderIndex}
       if (shouldChangeStatus) {
         updates.status = targetStatus
+        updates.scheduled = scheduled
       }
 
       this.taskModel.updateTask(existing.id, updates)

@@ -4,7 +4,7 @@ import type {Snapshot, SnapshotDocs, SnapshotMeta, SnapshotSettings} from "@dail
 
 export function buildSnapshot(docs: SnapshotDocs): Snapshot {
   return {
-    version: 4,
+    version: 5,
     docs,
     meta: buildSnapshotMeta(docs),
   }

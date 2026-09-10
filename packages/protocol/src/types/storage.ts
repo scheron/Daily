@@ -11,7 +11,7 @@ export type SyncRemoteState = {
   lastSyncAt: string | null
   lastError: string | null
 }
-export type TaskStatus = "active" | "discarded" | "done"
+export type TaskStatus = "active" | "backlog" | "discarded" | "done"
 export type TaskMovePosition = "before" | "after"
 
 export type MainWindowSettings = {
@@ -137,6 +137,12 @@ export type SettingsView = Omit<Settings, "sync"> & {
   }
 }
 
+export type TaskScheduled = {
+  date: ISODate
+  time: ISOTime
+  timezone: Timezone
+}
+
 export type Task = {
   /** Task ID (task:ID) */
   id: string
@@ -147,11 +153,8 @@ export type Task = {
   /** Branch ID (project scope). */
   branchId: Branch["id"]
 
-  scheduled: {
-    date: ISODate
-    time: ISOTime
-    timezone: Timezone
-  }
+  /** Null exactly when `status === "backlog"`. Enforced in `TasksService`, nowhere else. */
+  scheduled: TaskScheduled | null
   /**
    * The estimated time of the task in seconds
    * @default 0
@@ -175,7 +178,7 @@ export type Task = {
    * Lower values are shown first.
    */
   orderIndex: number
-  status: "active" | "done" | "discarded"
+  status: TaskStatus
   tags: Tag[]
   /** Files IDs  */
   attachments: string[]
@@ -243,4 +246,6 @@ export type MoveTaskByOrderParams = {
   targetTaskId?: Task["id"] | null
   targetStatus?: TaskStatus
   position?: TaskMovePosition
+  /** The day the board is showing. Used when a move leaves the backlog; required so no caller can omit it silently. */
+  activeDate: ISODate
 }

@@ -51,9 +51,10 @@ const menuItems = computed<ContextMenuItem[]>(() => {
       label: "Status",
       icon: "circle-pulse",
       children: [
+        {value: "backlog", label: "Backlog", icon: "bookmark", class: getStatusClass("backlog")},
         {value: "active", label: "Active", icon: "fire", class: getStatusClass("active")},
-        {value: "discarded", label: "Discarded", icon: "archive", class: getStatusClass("discarded")},
         {value: "done", label: "Done", icon: "check-check", class: getStatusClass("done")},
+        {value: "discarded", label: "Discarded", icon: "archive", class: getStatusClass("discarded")},
       ],
     },
     {value: "tags", label: "Tags", icon: "tags", children: true},
@@ -113,6 +114,7 @@ function getStatusClass(status: TaskStatus) {
   if (status === "active") return "text-error hover:bg-error/10 bg-error/10"
   if (status === "discarded") return "text-warning hover:bg-warning/10 bg-warning/10 "
   if (status === "done") return "text-success hover:bg-success/10 bg-success/10 "
+  if (status === "backlog") return "text-base-content hover:bg-base-content/10 bg-base-content/10 "
   return ""
 }
 
@@ -149,6 +151,7 @@ async function onMoveToBranch(branch: Branch) {
       :id="task.id"
       class="bg-base-100 hover:shadow-accent/5 group relative overflow-hidden rounded-2xl border transition-all duration-200 hover:shadow-lg"
       :class="{
+        'border-base-content/15 border-dashed': task.status === 'backlog',
         'border-success/30 hover:border-success/40': task.status === 'done',
         'border-warning/30 hover:border-warning/40': task.status === 'discarded',
         'border-base-300/50 hover:border-base-content/15': task.status === 'active',
@@ -200,7 +203,13 @@ async function onMoveToBranch(branch: Branch) {
 
     <template #child-reschedule>
       <div class="p-1">
-        <BaseCalendar mode="single" :days="tasksStore.days" :selected-date="task.scheduled.date" size="sm" @select-date="taskModel.rescheduleTask" />
+        <BaseCalendar
+          mode="single"
+          :days="tasksStore.days"
+          :selected-date="task.scheduled?.date ?? null"
+          size="sm"
+          @select-date="taskModel.rescheduleTask"
+        />
       </div>
     </template>
 

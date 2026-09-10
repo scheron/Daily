@@ -145,6 +145,67 @@ describe("two-node convergence through a shared sync directory", () => {
     expect(taskOnB?.content).toBe("edit from B")
   })
 
+  it("loads_TC-12_a_v4_snapshot_from_the_previous_release_with_task_schedules_intact", async () => {
+    const previousReleaseSnapshot = {
+      version: 4,
+      docs: {
+        tasks: [
+          {
+            id: "legacy-task",
+            status: "active",
+            content: "from the old release",
+            minimized: false,
+            order_index: 1024,
+            scheduled_date: "2026-02-14",
+            scheduled_time: "09:30:00",
+            scheduled_timezone: "UTC",
+            estimated_time: 0,
+            spent_time: 0,
+            branch_id: "main",
+            tags: [],
+            attachments: [],
+            created_at: "2026-02-10T00:00:00.000Z",
+            updated_at: "2026-02-10T00:00:00.000Z",
+            deleted_at: null,
+          },
+        ],
+        tags: [],
+        branches: [],
+        files: [],
+        events: [],
+        settings: null,
+      },
+      meta: {updatedAt: "2026-02-10T00:00:00.000Z", hash: "legacy-hash"},
+    }
+
+    await fs.writeFile(join(syncDir, "snapshot.json"), JSON.stringify(previousReleaseSnapshot))
+
+    await nodeB.engine.syncOnce("pull")
+
+    const loaded = await nodeB.core.tasksService.getTask("legacy-task")
+    expect(loaded).not.toBeNull()
+    expect(loaded?.scheduled).toEqual({date: "2026-02-14", time: "09:30:00", timezone: "UTC"})
+  })
+
+  it("carries_TC-13_a_backlog_task_across_a_full_sync_round_trip_still_dateless_and_still_backlog", async () => {
+    const now = new Date().toISOString()
+    const taskId = "backlog-task"
+    nodeA.db
+      .prepare(
+        `INSERT INTO tasks (id, status, content, minimized, order_index, scheduled_date, scheduled_time, scheduled_timezone, estimated_time, spent_time, branch_id, created_at, updated_at, deleted_at)
+         VALUES (?, 'backlog', 'no day yet', 0, 1024, NULL, NULL, NULL, 0, 0, 'main', ?, ?, NULL)`,
+      )
+      .run(taskId, now, now)
+
+    await nodeA.engine.syncOnce("push")
+    await nodeB.engine.syncOnce("pull")
+
+    const onB = await nodeB.core.tasksService.getTask(taskId)
+    expect(onB).not.toBeNull()
+    expect(onB?.status).toBe("backlog")
+    expect(onB?.scheduled).toBeNull()
+  })
+
   it("a soft delete on node A propagates to node B", async () => {
     const task = await addTask(nodeA, "to delete")
     await nodeA.engine.syncOnce("push")

@@ -22,22 +22,27 @@ export const useTaskColumns = createSharedComposable(() => {
   const uiStore = useUIStore()
   const dragDropStore = useDragDropStore()
 
-  const filteredTasks = computed(() => {
-    if (!filterStore.activeTagIds.size) return tasksStore.dailyTasks
-    return tasksStore.dailyTasks.filter((task) => task.tags.some((tag) => filterStore.activeTagIds.has(tag.id)))
-  })
+  function filterByTag(tasks: Task[]) {
+    if (!filterStore.activeTagIds.size) return tasks
+    return tasks.filter((task) => task.tags.some((tag) => filterStore.activeTagIds.has(tag.id)))
+  }
+
+  const filteredTasks = computed(() => filterByTag(tasksStore.dailyTasks))
+  const filteredBacklogTasks = computed(() => filterByTag(tasksStore.backlogTasks))
 
   const tasksByStatus = computed<Record<TaskStatus, Task[]>>(() => {
-    return filteredTasks.value.reduce(
+    const grouped = filteredTasks.value.reduce(
       (acc, task) => {
         acc[task.status].push(task)
         return acc
       },
-      {active: [], discarded: [], done: []} as Record<TaskStatus, Task[]>,
+      {active: [], discarded: [], done: [], backlog: []} as Record<TaskStatus, Task[]>,
     )
+    grouped.backlog = filteredBacklogTasks.value
+    return grouped
   })
 
-  const localTasksByStatus = reactive<Record<TaskStatus, Task[]>>({active: [], discarded: [], done: []})
+  const localTasksByStatus = reactive<Record<TaskStatus, Task[]>>({active: [], discarded: [], done: [], backlog: []})
 
   const pendingCrossColumnMove = ref<MoveTaskByOrderParams | null>(null)
 
@@ -96,12 +101,13 @@ export const useTaskColumns = createSharedComposable(() => {
 
     const {targetTaskId, position} = resolveMoveTarget(localTasksByStatus[status], newIndex)
 
-    const moveParams = {
+    const moveParams: MoveTaskByOrderParams = {
       taskId: movedTask.id,
       targetStatus: status,
       targetTaskId,
       position,
-    } as MoveTaskByOrderParams
+      activeDate: tasksStore.activeDay,
+    }
 
     if (event.added) {
       pendingCrossColumnMove.value = moveParams
@@ -115,6 +121,7 @@ export const useTaskColumns = createSharedComposable(() => {
     localTasksByStatus.active = tasksByStatus.value.active.map((task) => deepClone(task))
     localTasksByStatus.discarded = tasksByStatus.value.discarded.map((task) => deepClone(task))
     localTasksByStatus.done = tasksByStatus.value.done.map((task) => deepClone(task))
+    localTasksByStatus.backlog = tasksByStatus.value.backlog.map((task) => deepClone(task))
   }
 
   function isColumnEmpty(status: TaskStatus) {
@@ -141,6 +148,7 @@ export const useTaskColumns = createSharedComposable(() => {
         targetStatus: params.targetStatus,
         targetTaskId: params.targetTaskId,
         position: params.position,
+        activeDate: params.activeDate,
       })
 
       if (!result) {

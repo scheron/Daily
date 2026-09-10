@@ -248,6 +248,11 @@ export class StorageController implements IStorageController {
     return this.tasksService.getTaskList({...params, branchId})
   }
 
+  async getBacklog(params?: {branchId?: Branch["id"]}): Promise<Task[]> {
+    const branchId = await this.branchesService.resolveBranchId(params?.branchId)
+    return this.tasksService.getBacklogTasks({branchId})
+  }
+
   async getTask(id: Task["id"]): Promise<Task | null> {
     return this.tasksService.getTask(id)
   }

@@ -134,6 +134,18 @@ describe("task activity recording", () => {
     expect(afterRestore.map((e) => e.type).sort()).toEqual(["completed", "created", "deleted", "restored"])
   })
 
+  it("records_TC-10_no_event_for_a_dateless_task_through_create_edit_and_status_change_and_never_throws", async () => {
+    const created = await service.createTask(makeTask({status: "backlog", scheduled: null, content: "no day yet"}))
+
+    expect(events.getByTask(created.id)).toHaveLength(0)
+
+    await expect(service.updateTask(created.id, {content: "still no day"})).resolves.toBeDefined()
+    expect(events.getByTask(created.id)).toHaveLength(0)
+
+    await expect(service.updateTask(created.id, {status: "backlog"})).resolves.toBeDefined()
+    expect(events.getByTask(created.id)).toHaveLength(0)
+  })
+
   it("scopes getByDay to the branch", async () => {
     const now = new Date().toISOString()
     db.prepare("INSERT INTO branches (id, name, created_at, updated_at) VALUES (?, ?, ?, ?)").run("work", "Work", now, now)

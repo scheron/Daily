@@ -19,11 +19,13 @@ export function useSectionPrefs() {
   const activeSectionCollapsed = useSettingValue("layout.sectionsCollapsed.active", false)
   const discardedSectionCollapsed = useSettingValue("layout.sectionsCollapsed.discarded", false)
   const doneSectionCollapsed = useSettingValue("layout.sectionsCollapsed.done", false)
+  const backlogSectionCollapsed = useSettingValue("layout.sectionsCollapsed.backlog", false)
 
   const sectionsCollapsed = computed<SectionsCollapsed>(() => ({
     active: activeSectionCollapsed.value,
     discarded: discardedSectionCollapsed.value,
     done: doneSectionCollapsed.value,
+    backlog: backlogSectionCollapsed.value,
   }))
 
   const emptySectionsMode = computed<EmptySectionsMode>({
@@ -37,12 +39,14 @@ export function useSectionPrefs() {
   function toggleSectionCollapsed(status: TaskStatus) {
     if (status === "active") activeSectionCollapsed.value = !activeSectionCollapsed.value
     else if (status === "discarded") discardedSectionCollapsed.value = !discardedSectionCollapsed.value
+    else if (status === "backlog") backlogSectionCollapsed.value = !backlogSectionCollapsed.value
     else doneSectionCollapsed.value = !doneSectionCollapsed.value
   }
 
   function setSectionCollapsed(status: TaskStatus, value: boolean) {
     if (status === "active") activeSectionCollapsed.value = value
     else if (status === "discarded") discardedSectionCollapsed.value = value
+    else if (status === "backlog") backlogSectionCollapsed.value = value
     else doneSectionCollapsed.value = value
   }
 

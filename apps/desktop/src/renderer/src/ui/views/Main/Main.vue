@@ -4,7 +4,6 @@ import {LEFT_PANEL_SIZE, RIGHT_PANEL_SIZE} from "@/constants/ui"
 import {useBranchesStore} from "@/stores/branches.store"
 import {useStorageStore} from "@/stores/storage.store"
 import {useTaskEditorStore} from "@/stores/task-editor"
-import {useTasksStore} from "@/stores/tasks"
 import {useThemeStore} from "@/stores/theme.store"
 import {useUIStore} from "@/stores/ui"
 import MainDragIndicator from "@/ui/common/indicators/MainDragIndicator.vue"
@@ -18,7 +17,6 @@ import {UpdateBanner} from "@/ui/overlays/UpdateBanner"
 import {useContentSize} from "./model/useContentSize"
 import {usePanelSize} from "./model/usePanelSize"
 
-const tasksStore = useTasksStore()
 const uiStore = useUIStore()
 const taskEditorStore = useTaskEditorStore()
 const branchesStore = useBranchesStore()
@@ -38,7 +36,6 @@ async function onCreateTask() {
   const proceed = await confirmUnsavedModal.open()
   if (!proceed) return
   taskEditorStore.openNew({
-    date: tasksStore.activeDay,
     branchId: branchesStore.activeBranchId,
   })
 }

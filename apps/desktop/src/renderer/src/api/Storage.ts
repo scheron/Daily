@@ -13,7 +13,7 @@ import type {
   TaskSearchResult,
   TaskStatus,
 } from "@daily/protocol"
-import type {Storage} from "./types"
+import type {Storage, TaskWriteResult} from "./types"
 
 export class StorageAPI implements Storage {
   //#region DAYS
@@ -43,6 +43,10 @@ export class StorageAPI implements Storage {
     return window.BridgeIPC["tasks:get-one"](id)
   }
 
+  async getBacklog(branchId?: Branch["id"]): Promise<Task[]> {
+    return window.BridgeIPC["tasks:get-backlog"](branchId)
+  }
+
   async createTask(
     content: string,
     params: {
@@ -57,10 +61,8 @@ export class StorageAPI implements Storage {
     },
   ): Promise<Day | null> {
     try {
+      const isBacklog = params.status === "backlog"
       const now = DateTime.now()
-      const scheduledDate = params.date ? params.date : now.toISODate()!
-      const scheduledTime = params.time ? params.time : now.toFormat("HH:mm:ss")
-      const scheduledTimezone = params.timezone ?? now.zoneName
 
       const newTask = {
         content,
@@ -71,52 +73,56 @@ export class StorageAPI implements Storage {
         spentTime: 0,
         orderIndex: params.orderIndex ?? 0,
         branchId: params.branchId,
-        scheduled: {
-          date: scheduledDate,
-          time: scheduledTime,
-          timezone: scheduledTimezone,
-        },
+        scheduled: isBacklog
+          ? null
+          : {
+              date: params.date ? params.date : now.toISODate()!,
+              time: params.time ? params.time : now.toFormat("HH:mm:ss"),
+              timezone: params.timezone ?? now.zoneName,
+            },
       }
 
       await window.BridgeIPC["tasks:create"](newTask)
 
-      const day = await this.getDay(scheduledDate)
+      if (!newTask.scheduled) return null
 
-      return day
+      return await this.getDay(newTask.scheduled.date)
     } catch (error) {
       console.error(error)
       return null
     }
   }
 
-  async updateTask(id: Task["id"], updates: Partial<Omit<Task, "id" | "createdAt" | "updatedAt">>): Promise<Day | null> {
+  async updateTask(id: Task["id"], updates: Partial<Omit<Task, "id" | "createdAt" | "updatedAt">>): Promise<TaskWriteResult> {
     try {
       const updatedTask = await window.BridgeIPC["tasks:update"](id, updates)
-      if (!updatedTask) return null
+      if (!updatedTask) return {success: false}
+      if (!updatedTask.scheduled) return {success: true, day: null}
 
-      return this.getDay(updatedTask.scheduled.date)
+      return {success: true, day: await this.getDay(updatedTask.scheduled.date)}
     } catch (error) {
       console.error("Failed to update task", error)
-      return null
+      return {success: false}
     }
   }
 
-  async toggleTaskMinimized(id: Task["id"], minimized: boolean): Promise<Day | null> {
+  async toggleTaskMinimized(id: Task["id"], minimized: boolean): Promise<TaskWriteResult> {
     try {
       const updatedTask = await window.BridgeIPC["tasks:toggle-minimized"](id, minimized)
-      if (!updatedTask) return null
+      if (!updatedTask) return {success: false}
+      if (!updatedTask.scheduled) return {success: true, day: null}
 
-      return this.getDay(updatedTask.scheduled.date)
+      return {success: true, day: await this.getDay(updatedTask.scheduled.date)}
     } catch (error) {
       console.error("Failed to toggle task minimized state", error)
-      return null
+      return {success: false}
     }
   }
 
   async moveTaskByOrder(params: MoveTaskByOrderParams): Promise<Day | null> {
     try {
       const updatedTask = await window.BridgeIPC["tasks:move-by-order"](params)
-      if (!updatedTask) return null
+      if (!updatedTask?.scheduled) return null
 
       return this.getDay(updatedTask.scheduled.date)
     } catch (error) {

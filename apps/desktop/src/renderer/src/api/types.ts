@@ -14,6 +14,13 @@ import type {
   Timezone,
 } from "@daily/protocol"
 
+/**
+ * Outcome of a task write that may leave the task without a day. `success` is the
+ * only signal for whether the write happened at all; `day` then says where the
+ * task landed — the day it now belongs to, or `null` if it has none (backlog).
+ */
+export type TaskWriteResult = {success: true; day: Day | null} | {success: false}
+
 // prettier-ignore
 export interface Storage {
   /**
@@ -57,10 +64,17 @@ export interface Storage {
    */
   getTask(id: Task["id"]): Promise<Task | null>
   /**
+   * Load the backlog: every task with no schedule, in manual order.
+   * @param branchId - Branch to scope to; defaults to the active branch
+   * @returns The dateless tasks for that branch
+   */
+  getBacklog(branchId?: Branch["id"]): Promise<Task[]>
+  /**
    * Create a task and return the day it was added to. Omitted fields fall back to
-   * defaults (today/now, status "active", minimized false, orderIndex 0).
+   * defaults (today/now, status "active", minimized false, orderIndex 0). A
+   * task created with status "backlog" gets no date and no day is returned.
    * @param content - The task body text
-   * @param params.date - Scheduled day, YYYY-MM-DD; defaults to today
+   * @param params.date - Scheduled day, YYYY-MM-DD; defaults to today unless `status` is "backlog"
    * @param params.time - Scheduled time, HH:MM:SS; defaults to now
    * @param params.timezone - Scheduled timezone; defaults to the local zone
    * @param params.tags - Tags to attach
@@ -68,23 +82,25 @@ export interface Storage {
    * @param params.orderIndex - Manual sort index within the day
    * @param params.branchId - Owning branch; defaults to the active branch
    * @param params.status - Initial status; defaults to "active"
-   * @returns The day the task was added to, or null on failure
+   * @returns The day the task was added to, or null on failure or when the task is backlog
    */
   createTask(content: string, params: {date?: ISODate; time?: ISOTime; timezone?: Timezone; tags?: Tag[]; estimatedTime?: number; orderIndex?: number; branchId?: Branch["id"]; status?: TaskStatus}): Promise<Day | null>
   /**
-   * Apply a partial update to a task and return its day.
+   * Apply a partial update to a task.
    * @param id - The task to update
    * @param updates - Fields to change (id, createdAt and updatedAt are not updatable)
-   * @returns The day the task belongs to after the update, or null on failure
+   * @returns `{success: false}` on failure; otherwise `{success: true, day}` with the
+   *   task's day, or `day: null` if the update left it with no schedule
    */
-  updateTask(id: Task["id"], updates: Partial<Omit<Task, "id" | "createdAt" | "updatedAt">>): Promise<Day | null>
+  updateTask(id: Task["id"], updates: Partial<Omit<Task, "id" | "createdAt" | "updatedAt">>): Promise<TaskWriteResult>
   /**
-   * Set a task's collapsed (minimized) state and return its day.
+   * Set a task's collapsed (minimized) state.
    * @param id - The task to toggle
    * @param minimized - true to collapse the task, false to expand it
-   * @returns The day the task belongs to, or null on failure
+   * @returns `{success: false}` on failure; otherwise `{success: true, day}` with the
+   *   task's day, or `day: null` if it has no schedule
    */
-  toggleTaskMinimized(id: Task["id"], minimized: boolean): Promise<Day | null>
+  toggleTaskMinimized(id: Task["id"], minimized: boolean): Promise<TaskWriteResult>
   /**
    * Reorder a task within its day, optionally moving it to another status group.
    * Positions it before/after an anchor task (or at the end) via a fractional order
