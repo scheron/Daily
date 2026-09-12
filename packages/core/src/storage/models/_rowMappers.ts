@@ -1,7 +1,7 @@
 import {DEFAULT_ACCENT_ID, DEFAULT_BASE_ID, MAIN_BRANCH_ID, WINDOWS_CONFIG} from "@daily/protocol"
 import {deepMerge, isNumber, notNull} from "@daily/std"
 
-import type {Branch, File, Settings, SyncSettings, Tag, Task, TypographySettings} from "@daily/protocol"
+import type {Branch, File, Milestone, Settings, SyncSettings, Tag, Task, TypographySettings} from "@daily/protocol"
 
 type TaskRow = {
   id: string
@@ -15,6 +15,7 @@ type TaskRow = {
   estimated_time: number
   spent_time: number
   branch_id: string
+  milestone_id: string | null
   created_at: string
   updated_at: string
   deleted_at: string | null
@@ -24,6 +25,7 @@ type TaskRow = {
 
 type TagRow = {
   id: string
+  branch_id: string
   name: string
   color: string
   created_at: string
@@ -34,6 +36,19 @@ type TagRow = {
 type BranchRow = {
   id: string
   name: string
+  description: string
+  created_at: string
+  updated_at: string
+  deleted_at: string | null
+}
+
+type MilestoneRow = {
+  id: string
+  branch_id: string
+  name: string
+  description: string
+  target_date: string | null
+  order_index: number
   created_at: string
   updated_at: string
   deleted_at: string | null
@@ -101,6 +116,7 @@ export function rowToTask(row: TaskRow): Task {
     estimatedTime: row.estimated_time,
     spentTime: row.spent_time,
     branchId: row.branch_id || MAIN_BRANCH_ID,
+    milestoneId: row.milestone_id ?? null,
     tags,
     attachments,
     createdAt: row.created_at,
@@ -112,6 +128,7 @@ export function rowToTask(row: TaskRow): Task {
 export function rowToTag(row: TagRow): Tag {
   return {
     id: row.id,
+    branchId: row.branch_id || MAIN_BRANCH_ID,
     name: row.name,
     color: row.color,
     createdAt: row.created_at,
@@ -124,6 +141,21 @@ export function rowToBranch(row: BranchRow): Branch {
   return {
     id: row.id,
     name: row.name,
+    description: row.description ?? "",
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    deletedAt: row.deleted_at,
+  }
+}
+
+export function rowToMilestone(row: MilestoneRow): Milestone {
+  return {
+    id: row.id,
+    branchId: row.branch_id || MAIN_BRANCH_ID,
+    name: row.name,
+    description: row.description ?? "",
+    targetDate: row.target_date ?? null,
+    orderIndex: row.order_index,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     deletedAt: row.deleted_at,
@@ -206,7 +238,7 @@ export function rowToSettings(row: SettingsRow): Settings {
   }
 }
 
-export type {TaskRow, TagRow, BranchRow, FileRow, SettingsRow}
+export type {TaskRow, TagRow, BranchRow, MilestoneRow, FileRow, SettingsRow}
 
 const OLD_THEME_TYPE: Record<string, "light" | "dark"> = {
   "github-light": "light",

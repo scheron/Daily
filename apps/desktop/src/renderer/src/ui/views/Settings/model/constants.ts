@@ -19,7 +19,7 @@ type SettingsSection = {
 
 export const SECTIONS: SettingsSection[] = [
   {id: "general", icon: "cog", label: "General", component: GeneralSettings},
-  {id: "workflow", icon: "monitor", label: "Workflow", component: WorkspaceSettings},
+  {id: "workflow", icon: "monitor", label: "Projects", component: WorkspaceSettings},
   {id: "icloud", icon: "cloud", label: "Remote", component: SyncSettings},
   {id: "ai", icon: "ai", label: "AI", component: AiSettings},
   {id: "deleted-tasks", icon: "trash", label: "Deleted Tasks", component: DeletedTasks},

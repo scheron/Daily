@@ -9,6 +9,8 @@ import type {
   ISODate,
   MigrationDirection,
   MigrationPreview,
+  Milestone,
+  MilestoneView,
   MoveTaskByOrderParams,
   PendingApprovalView,
   ServerBindingView,
@@ -79,7 +81,7 @@ export interface IStorageController {
 
   searchTasks(query: string): Promise<TaskSearchResult[]>
 
-  getTagList(): Promise<Tag[]>
+  getTagList(branchId?: Branch["id"]): Promise<Tag[]>
   getTag(id: Tag["id"]): Promise<Tag | null>
   updateTag(id: Tag["id"], updates: Partial<Tag>): Promise<Tag | null>
   createTag(tag: Omit<Tag, "id" | "createdAt" | "updatedAt">): Promise<Tag | null>
@@ -88,10 +90,19 @@ export interface IStorageController {
   addTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Promise<Task | null>
   removeTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Promise<Task | null>
 
+  getMilestoneList(branchId?: Branch["id"]): Promise<MilestoneView[]>
+  getMilestone(id: Milestone["id"]): Promise<MilestoneView | null>
+  createMilestone(milestone: Omit<Milestone, "id" | "createdAt" | "updatedAt" | "orderIndex">): Promise<MilestoneView | null>
+  updateMilestone(
+    id: Milestone["id"],
+    updates: Partial<Pick<Milestone, "name" | "description" | "targetDate" | "orderIndex">>,
+  ): Promise<MilestoneView | null>
+  deleteMilestone(id: Milestone["id"]): Promise<boolean>
+
   getBranchList(): Promise<Branch[]>
   getBranch(id: Branch["id"]): Promise<Branch | null>
-  createBranch(branch: Omit<Branch, "id" | "createdAt" | "updatedAt" | "deletedAt">): Promise<Branch | null>
-  updateBranch(id: Branch["id"], updates: Pick<Branch, "name">): Promise<Branch | null>
+  createBranch(branch: Pick<Branch, "name"> & Partial<Pick<Branch, "description">>): Promise<Branch | null>
+  updateBranch(id: Branch["id"], updates: Partial<Pick<Branch, "description" | "name">>): Promise<Branch | null>
   deleteBranch(id: Branch["id"]): Promise<boolean>
   setActiveBranch(id: Branch["id"]): Promise<void>
 

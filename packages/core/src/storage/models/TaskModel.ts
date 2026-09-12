@@ -6,7 +6,7 @@ import {notUndefined} from "@daily/std"
 import {logger} from "../../utils/logger"
 import {rowToTask} from "./_rowMappers"
 
-import type {Branch, File, ISODate, Tag, Task} from "@daily/protocol"
+import type {Branch, File, ISODate, Milestone, Tag, Task} from "@daily/protocol"
 import type {SqliteDriver} from "../../database/SqliteDriver"
 import type {TaskInternal} from "../../types/storage"
 
@@ -23,11 +23,12 @@ const TASK_SELECT = `
     t.estimated_time,
     t.spent_time,
     t.branch_id,
+    t.milestone_id,
     t.created_at,
     t.updated_at,
     t.deleted_at,
     (SELECT json_group_array(json_object(
-      'id', tg.id, 'name', tg.name, 'color', tg.color,
+      'id', tg.id, 'branchId', tg.branch_id, 'name', tg.name, 'color', tg.color,
       'createdAt', tg.created_at, 'updatedAt', tg.updated_at, 'deletedAt', tg.deleted_at
     )) FROM task_tags tt JOIN tags tg ON tt.tag_id = tg.id AND tg.deleted_at IS NULL
      WHERE tt.task_id = t.id) AS tags_json,
@@ -150,9 +151,9 @@ export class TaskModel {
         INSERT INTO tasks (
           id, status, content, minimized, order_index,
           scheduled_date, scheduled_time, scheduled_timezone,
-          estimated_time, spent_time, branch_id,
+          estimated_time, spent_time, branch_id, milestone_id,
           created_at, updated_at, deleted_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
         )
         .run(
@@ -167,6 +168,7 @@ export class TaskModel {
           task.estimatedTime,
           task.spentTime,
           branchId,
+          task.milestoneId ?? null,
           now,
           now,
           task.deletedAt ?? null,
@@ -185,6 +187,12 @@ export class TaskModel {
 
     logger.storage("Created", "TASKS", id)
     return this.getTask(id)
+  }
+
+  /** Whether a milestone exists and belongs to the given project. Used to refuse a cross-project reference before it is written. */
+  milestoneBelongsToBranch(milestoneId: Milestone["id"], branchId: Branch["id"]): boolean {
+    const row = this.db.prepare(`SELECT 1 FROM milestones WHERE id = ? AND branch_id = ?`).get(milestoneId, branchId)
+    return Boolean(row)
   }
 
   updateTask(id: Task["id"], updates: Partial<TaskInternal>): Task | null {
@@ -225,6 +233,11 @@ export class TaskModel {
     if (notUndefined(updates.branchId)) {
       setClauses.push("branch_id = ?")
       values.push(updates.branchId)
+    }
+
+    if (notUndefined(updates.milestoneId)) {
+      setClauses.push("milestone_id = ?")
+      values.push(updates.milestoneId)
     }
 
     if (notUndefined(updates.deletedAt)) {
@@ -291,6 +304,17 @@ export class TaskModel {
 
     logger.storage("Deleted", "TASKS", id)
     return result.changes > 0
+  }
+
+  /** Soft-deletes every task in a project in one statement. Returns the ids it touched, so the caller can drop exactly those from the search index. */
+  deleteTasksByBranch(branchId: Branch["id"]): Task["id"][] {
+    const now = new Date().toISOString()
+    const rows = this.db
+      .prepare(`UPDATE tasks SET deleted_at = ?, updated_at = ? WHERE branch_id = ? AND deleted_at IS NULL RETURNING id`)
+      .all<{id: string}>(now, now, branchId)
+
+    logger.info(logger.CONTEXT.TASKS, `Deleted ${rows.length} tasks for branch ${branchId}`)
+    return rows.map((row) => row.id)
   }
 
   getDeletedTasks(params?: {limit?: number; branchId?: Branch["id"]}): Task[] {

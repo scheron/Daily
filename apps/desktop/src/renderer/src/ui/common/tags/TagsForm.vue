@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {nextTick, ref, useTemplateRef} from "vue"
+import {computed, nextTick, ref, useTemplateRef} from "vue"
 import {toasts} from "vue-toasts-lite"
 
 import {findTagByName, isValidTagName, normalizeTagName, TAG_QUICK_COLORS} from "@daily/protocol"
@@ -7,27 +7,38 @@ import {findTagByName, isValidTagName, normalizeTagName, TAG_QUICK_COLORS} from 
 import {useFilterStore} from "@/stores/filter.store"
 import {useTagsStore} from "@/stores/tags.store"
 import {useTasksStore} from "@/stores/tasks"
-import BaseButton from "@/ui/base/BaseButton"
 import BaseInput from "@/ui/base/BaseInput.vue"
 import BasePopup from "@/ui/base/BasePopup.vue"
 import ColorPicker from "@/ui/common/pickers/ColorPicker.vue"
 import {ConfirmPopup} from "@/ui/overlays/ConfirmPopup"
 
-import type {Tag} from "@daily/protocol"
+import type {Branch, Tag} from "@daily/protocol"
+
+const props = defineProps<{branchId: Branch["id"]}>()
 
 const tagsStore = useTagsStore()
 const tasksStore = useTasksStore()
 const filterStore = useFilterStore()
 
-const createInput = useTemplateRef<{focus: () => void}>("createInput")
-const editInput = ref<{focus: () => void} | null>(null)
+const projectTags = computed(() => tagsStore.tagsForBranch(props.branchId))
 
+const createInput = useTemplateRef<{focus: () => void}>("createInput")
+
+const isCreating = ref(false)
 const newTagName = ref("")
 const newTagColor = ref(TAG_QUICK_COLORS[0])
 
-const editingId = ref<Tag["id"] | null>(null)
-const editingName = ref("")
-const editingColor = ref("")
+function startCreate() {
+  isCreating.value = true
+  newTagName.value = ""
+  newTagColor.value = TAG_QUICK_COLORS[0]
+  nextTick(() => createInput.value?.focus())
+}
+
+function cancelCreate() {
+  isCreating.value = false
+  newTagName.value = ""
+}
 
 function onSelectColor(color: string, hide: () => void) {
   newTagColor.value = color
@@ -35,60 +46,31 @@ function onSelectColor(color: string, hide: () => void) {
   nextTick(() => createInput.value?.focus())
 }
 
-function setEditInputRef(el: unknown) {
-  editInput.value = el as {focus: () => void} | null
-}
-
-function onSelectEditColor(color: string, hide: () => void) {
-  editingColor.value = color
-  hide()
-  nextTick(() => editInput.value?.focus())
-}
-
-function startEdit(tag: Tag) {
-  editingId.value = tag.id
-  editingName.value = tag.name
-  editingColor.value = tag.color
-}
-
-function cancelEdit() {
-  editingId.value = null
-  editingName.value = ""
-  editingColor.value = ""
+function onNameKeydown(event: KeyboardEvent) {
+  if (event.key === "Enter") createTag()
+  if (event.key === "Escape") cancelCreate()
 }
 
 async function createTag() {
   const name = normalizeTagName(newTagName.value)
-  if (!isValidTagName(name)) return
+  if (!isValidTagName(name)) {
+    cancelCreate()
+    return
+  }
 
-  if (findTagByName(tagsStore.tags, name)) {
+  if (findTagByName(projectTags.value, name)) {
     toasts.error("Tag with this name already exists")
     return
   }
 
-  const created = await tagsStore.createTag(name, newTagColor.value)
+  const created = await tagsStore.createTag(name, newTagColor.value, props.branchId)
   if (!created) {
     toasts.error("Failed to create tag")
     return
   }
 
-  newTagName.value = ""
-  newTagColor.value = TAG_QUICK_COLORS[0]
+  cancelCreate()
   toasts.success("Tag created")
-}
-
-async function renameTag(id: Tag["id"]) {
-  const name = normalizeTagName(editingName.value)
-  if (!isValidTagName(name)) return
-
-  const updated = await tagsStore.updateTag(id, {name, color: editingColor.value})
-  if (!updated) {
-    toasts.error("Failed to update tag")
-    return
-  }
-
-  cancelEdit()
-  toasts.success("Tag updated")
 }
 
 async function deleteTag(tag: Tag) {
@@ -105,8 +87,18 @@ async function deleteTag(tag: Tag) {
 </script>
 
 <template>
-  <div class="flex h-full flex-col gap-2">
-    <div class="border-base-300 focus-within:border-accent group flex h-8 items-center gap-2 rounded-md border border-dashed px-2 transition-colors">
+  <div class="flex flex-wrap items-center gap-x-5 gap-y-2">
+    <button
+      v-if="!isCreating"
+      type="button"
+      class="text-base-content/70 hover:text-base-content inline-flex items-center gap-1.5 text-sm font-medium transition-colors"
+      @click="startCreate"
+    >
+      <span class="text-base leading-none">+</span>
+      <span>Add tag</span>
+    </button>
+
+    <div v-else class="border-base-300 focus-within:border-accent flex h-8 items-center gap-2 rounded-md border border-dashed px-2 transition-colors">
       <BasePopup triggerClass="flex shrink-0 items-center justify-center" hide-header position="center">
         <template #trigger="{toggle}">
           <button type="button" class="relative size-3.5 shrink-0 overflow-hidden rounded-full" @click="toggle">
@@ -125,10 +117,9 @@ async function deleteTag(tag: Tag) {
         v-model="newTagName"
         bare
         hide-outline
-        focus-on-mount
         placeholder="New tag"
-        class="h-full flex-1 text-xs"
-        @keyup.enter="createTag"
+        class="h-full w-32 text-xs"
+        @keydown="onNameKeydown"
       />
 
       <button
@@ -141,56 +132,22 @@ async function deleteTag(tag: Tag) {
       </button>
     </div>
 
-    <div class="flex w-full flex-col gap-0.5 overflow-y-auto">
-      <div v-for="tag in tagsStore.tags" :key="tag.id">
-        <div v-if="editingId === tag.id" class="border-base-300 focus-within:border-accent flex h-8 items-center gap-2 rounded-md border px-2">
-          <BasePopup triggerClass="flex shrink-0 items-center justify-center" hide-header position="center">
-            <template #trigger="{toggle}">
-              <button type="button" class="size-3.5 shrink-0 rounded-full" :style="{backgroundColor: editingColor}" @click="toggle" />
-            </template>
+    <div v-for="tag in projectTags" :key="tag.id" class="inline-flex items-baseline gap-1 text-sm font-medium" :style="{color: tag.color}">
+      <span>#{{ tag.name }}</span>
 
-            <template #default="{hide}">
-              <ColorPicker @selected="onSelectEditColor($event, hide)" />
-            </template>
-          </BasePopup>
-
-          <BaseInput
-            :ref="setEditInputRef"
-            v-model="editingName"
-            bare
-            hide-outline
-            focus-on-mount
-            class="h-full flex-1 text-xs"
-            @keyup.enter="renameTag(tag.id)"
-          />
-
-          <BaseButton icon="check" variant="ghost" icon-class="size-4" class="size-6 shrink-0 p-0" @click="renameTag(tag.id)" />
-          <BaseButton icon="x-mark" variant="ghost" icon-class="size-4" class="size-6 shrink-0 p-0" @click="cancelEdit" />
-        </div>
-
-        <div v-else class="hover:bg-base-200 group flex h-8 items-center gap-2 rounded-md px-2 transition-colors">
-          <span class="size-3 shrink-0 rounded-full" :style="{backgroundColor: tag.color}" />
-          <span class="text-base-content/80 flex-1 truncate text-left text-xs">#{{ tag.name }}</span>
-
-          <div class="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
-            <BaseButton icon="pencil" variant="ghost" icon-class="size-4" class="size-6 p-0" @click="startEdit(tag)" />
-
-            <ConfirmPopup
-              title="Delete tag?"
-              message="This tag will be removed from all tasks!"
-              confirm-text="Delete"
-              cancel-text="Cancel"
-              position="end"
-              content-class="max-w-72"
-              @confirm="deleteTag(tag)"
-            >
-              <template #trigger="{show}">
-                <BaseButton icon="trash" variant="ghost" icon-class="size-4" class="text-error hover:bg-error/10 size-6 p-0" @click="show" />
-              </template>
-            </ConfirmPopup>
-          </div>
-        </div>
-      </div>
+      <ConfirmPopup
+        title="Delete tag?"
+        message="This tag will be removed from all tasks!"
+        confirm-text="Delete"
+        cancel-text="Cancel"
+        position="start"
+        content-class="max-w-72"
+        @confirm="deleteTag(tag)"
+      >
+        <template #trigger="{show}">
+          <button type="button" class="opacity-55 transition-opacity hover:opacity-100" @click="show">×</button>
+        </template>
+      </ConfirmPopup>
     </div>
   </div>
 </template>

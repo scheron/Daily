@@ -36,7 +36,7 @@ export const useBranchesStore = defineStore("branches", () => {
     const trimmed = name.trim()
     if (!trimmed) return null
 
-    const created = await API.createBranch({name: trimmed})
+    const created = await API.createBranch({name: trimmed, description: ""})
     if (!created) return null
 
     await getBranchList()
@@ -48,6 +48,14 @@ export const useBranchesStore = defineStore("branches", () => {
     if (!trimmed) return null
 
     const updated = await API.updateBranch(id, {name: trimmed})
+    if (!updated) return null
+
+    await getBranchList()
+    return updated
+  }
+
+  async function updateBranchDescription(id: Branch["id"], description: string): Promise<Branch | null> {
+    const updated = await API.updateBranch(id, {description})
     if (!updated) return null
 
     await getBranchList()
@@ -84,6 +92,7 @@ export const useBranchesStore = defineStore("branches", () => {
     getBranchList,
     createBranch,
     updateBranchName,
+    updateBranchDescription,
     deleteBranch,
     setActiveBranch,
     revalidate,

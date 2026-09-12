@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch} from "vue"
+import {onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef, watch} from "vue"
 import {toasts} from "vue-toasts-lite"
 
 import {useClipboardPaste} from "@/composables/useClipboardPaste"
@@ -25,7 +25,7 @@ import FloatingToolbar from "./FloatingToolbar.vue"
 
 import type {Tag, Task} from "@daily/protocol"
 
-const props = defineProps<{content: string; task: Task}>()
+const props = defineProps<{content: string; task?: Task}>()
 const emit = defineEmits<{"update:content": [value: string]}>()
 
 const tagsStore = useTagsStore()
@@ -38,22 +38,26 @@ const view = shallowRef<EditorView | null>(null)
 const {open: openImagePreview} = useImagePreviewModal()
 const {uploadImageFile} = useImageUpload()
 
-useClipboardPaste(container, {
-  onImagePaste: async (file) => {
-    const md = await uploadImageFile(file)
-    if (md) insertText(md)
-  },
-})
+if (props.task) {
+  useClipboardPaste(container, {
+    onImagePaste: async (file) => {
+      const md = await uploadImageFile(file)
+      if (md) insertText(md)
+    },
+  })
+}
 
-const {isDraggingOver} = useFileDrop(container, {
-  onFileDrop: async (file) => {
-    const md = await uploadImageFile(file)
-    if (md) insertText(md)
-  },
-  onRejectedFile: (file) => {
-    toasts.error(`Only image files are supported. "${file.name}" is not an image.`)
-  },
-})
+const {isDraggingOver} = props.task
+  ? useFileDrop(container, {
+      onFileDrop: async (file) => {
+        const md = await uploadImageFile(file)
+        if (md) insertText(md)
+      },
+      onRejectedFile: (file) => {
+        toasts.error(`Only image files are supported. "${file.name}" is not an image.`)
+      },
+    })
+  : {isDraggingOver: ref(false)}
 
 function onContentClick(event: MouseEvent) {
   const target = event.target as HTMLElement | null
@@ -70,11 +74,13 @@ function onContentClick(event: MouseEvent) {
 }
 
 function addTaskTag(tag: Tag) {
+  if (!props.task) return
   if (props.task.tags.some((t) => t.id === tag.id)) return
   taskEditorStore.patch({tags: [...props.task.tags, tag]})
 }
 
 function removeTaskTag(tag: Tag) {
+  if (!props.task) return
   if (!props.task.tags.some((t) => t.id === tag.id)) return
   taskEditorStore.patch({tags: props.task.tags.filter((t) => t.id !== tag.id)})
 }
@@ -111,12 +117,16 @@ function createEditor(initialContent: string) {
       createCodeSyntaxExtension(),
       Prec.high(keymap.of(markdownKeymap)),
       keymap.of([...defaultKeymap, ...historyKeymap]),
-      createCompletionExtension({
-        getTags: () => tagsStore.tags,
-        getAttachedTags: () => props.task.tags,
-        onAddTag: addTaskTag,
-        onRemoveTag: removeTaskTag,
-      }),
+      ...(props.task
+        ? [
+            createCompletionExtension({
+              getTags: () => tagsStore.tagsForBranch(props.task!.branchId),
+              getAttachedTags: () => props.task!.tags,
+              onAddTag: addTaskTag,
+              onRemoveTag: removeTaskTag,
+            }),
+          ]
+        : []),
       Prec.low(keymap.of([indentWithTab])),
     ],
   })

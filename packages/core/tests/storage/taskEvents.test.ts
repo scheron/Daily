@@ -211,4 +211,14 @@ describe("task activity recording", () => {
     expect(deletedHistory.filter((e) => e.type === "deleted")[0].eventDate).toBe(TASK_DAY)
     expect(deletedHistory.filter((e) => e.type === "restored")[0].eventDate).toBe(TASK_DAY)
   })
+
+  it("records_TC-4_one_reactivated_event_dated_the_given_day_when_updateTask_alone_hands_a_backlog_task_a_day", async () => {
+    const task = await service.createTask(makeTask({status: "backlog", scheduled: null, content: "no day yet"}))
+
+    await service.updateTask(task.id, {scheduled: {date: NEXT_DAY, time: "", timezone: "UTC"}})
+
+    const reactivated = events.getByTask(task.id).filter((e) => e.type === "reactivated")
+    expect(reactivated).toHaveLength(1)
+    expect(reactivated[0].eventDate).toBe(NEXT_DAY)
+  })
 })

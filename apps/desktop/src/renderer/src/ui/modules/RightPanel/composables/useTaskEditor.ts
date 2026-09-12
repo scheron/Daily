@@ -127,6 +127,7 @@ function buildDraftTask(draft: TaskDraft): Task {
     orderIndex: 0,
     status: draft.status,
     tags: draft.tags,
+    milestoneId: draft.milestoneId ?? null,
     attachments: [] as string[],
   }
 }

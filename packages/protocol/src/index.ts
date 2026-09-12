@@ -27,6 +27,7 @@ export * from "./errors/sync/SyncErrorCode"
 export * from "./errors/sync/SyncServerError"
 export * from "./errors/sync/SyncServerErrorCode"
 
+export * from "./utils/milestones/milestoneState"
 export * from "./utils/sync/resolveActiveProvider"
 export * from "./utils/tags/sortTags"
 export * from "./utils/tags/tagName"

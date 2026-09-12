@@ -29,7 +29,7 @@ vi.mock("../../../src/utils/logger", () => ({
 }))
 
 function emptyDocs(): SnapshotDocs {
-  return {tasks: [], tags: [], branches: [], files: [], events: [], settings: null}
+  return {tasks: [], tags: [], branches: [], milestones: [], files: [], events: [], settings: null}
 }
 
 function makeTask(id: string, updatedAt: string): SnapshotTask {
@@ -45,6 +45,7 @@ function makeTask(id: string, updatedAt: string): SnapshotTask {
     estimated_time: 0,
     spent_time: 0,
     branch_id: "main",
+    milestone_id: null,
     tags: [],
     attachments: [],
     created_at: updatedAt,

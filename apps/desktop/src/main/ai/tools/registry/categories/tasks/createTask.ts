@@ -59,8 +59,8 @@ export const createTask: RegisteredTool = {
 
     let tags: Tag[] = []
     if (tagIds.length > 0) {
-      const allTags = await ctx.storage.getTagList()
-      tags = allTags.filter((t) => tagIds.includes(t.id))
+      const projectTags = await ctx.storage.getTagList(targetBranchId)
+      tags = projectTags.filter((t) => tagIds.includes(t.id))
     }
 
     const task: Task = {
@@ -82,6 +82,7 @@ export const createTask: RegisteredTool = {
       updatedAt: now,
       deletedAt: null,
       branchId: targetBranchId,
+      milestoneId: null,
     }
 
     const created = await ctx.storage.createTask(task)

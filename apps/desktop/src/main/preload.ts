@@ -14,6 +14,8 @@ import type {
   LocalModelId,
   MigrationDirection,
   MigrationPreview,
+  Milestone,
+  MilestoneView,
   PendingApprovalView,
   ProtocolMismatchView,
   ServerBindingView,
@@ -130,7 +132,7 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "branches:get-many": () => ipcRenderer.invoke("branches:get-many") as Promise<Branch[]>,
   "branches:get-one": (id: Branch["id"]) => ipcRenderer.invoke("branches:get-one", id) as Promise<Branch | null>,
   "branches:create": (branch: Omit<Branch, "id" | "createdAt" | "updatedAt" | "deletedAt">) => ipcRenderer.invoke("branches:create", branch),
-  "branches:update": (id: Branch["id"], updates: Pick<Branch, "name">) => ipcRenderer.invoke("branches:update", id, updates),
+  "branches:update": (id: Branch["id"], updates: Partial<Pick<Branch, "name" | "description">>) => ipcRenderer.invoke("branches:update", id, updates),
   "branches:delete": (id: Branch["id"]) => ipcRenderer.invoke("branches:delete", id),
   "branches:set-active": (id: Branch["id"]) => ipcRenderer.invoke("branches:set-active", id),
 
@@ -141,6 +143,13 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "tags:update": (id: Tag["id"], updates: Partial<Tag>) => ipcRenderer.invoke("tags:update", id, updates),
   "tags:create": (tag: Omit<Tag, "id" | "createdAt" | "updatedAt" | "deletedAt">) => ipcRenderer.invoke("tags:create", tag),
   "tags:delete": (id: Tag["id"]) => ipcRenderer.invoke("tags:delete", id),
+
+  "milestones:get-many": (branchId?: Branch["id"]) => ipcRenderer.invoke("milestones:get-many", branchId) as Promise<MilestoneView[]>,
+  "milestones:get-one": (id: Milestone["id"]) => ipcRenderer.invoke("milestones:get-one", id) as Promise<MilestoneView | null>,
+  "milestones:create": (milestone: Omit<Milestone, "id" | "createdAt" | "updatedAt" | "orderIndex">) => ipcRenderer.invoke("milestones:create", milestone),
+  "milestones:update": (id: Milestone["id"], updates: Partial<Pick<Milestone, "name" | "description" | "targetDate" | "orderIndex">>) =>
+    ipcRenderer.invoke("milestones:update", id, updates),
+  "milestones:delete": (id: Milestone["id"]) => ipcRenderer.invoke("milestones:delete", id),
 
   "files:save": (filename: string, data: Buffer) => ipcRenderer.invoke("files:save", filename, data),
   "files:delete": (filename: string) => ipcRenderer.invoke("files:delete", filename),

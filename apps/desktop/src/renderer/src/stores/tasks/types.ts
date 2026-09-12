@@ -29,4 +29,5 @@ export type TaskMutationsContext = {
   refreshDay: (date: ISODate) => Promise<void>
   refreshDays: (dates: ISODate[]) => Promise<void>
   refreshBacklog: () => Promise<void>
+  refreshMilestones: () => Promise<void>
 }

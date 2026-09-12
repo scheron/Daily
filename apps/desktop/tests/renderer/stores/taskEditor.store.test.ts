@@ -267,7 +267,7 @@ describe("taskEditorStore — backlog coupling", () => {
     expect(editor.draft?.scheduled).toBeNull()
   })
 
-  it("commits a picked date on a backlog task as one combined write, never a status update followed by a move", async () => {
+  it("commits_TC-6_a_picked_date_on_a_backlog_task_as_one_combined_write_never_a_status_update_followed_by_a_move", async () => {
     const {tasks, editor} = await setupStores()
     tasks.findTaskById = vi.fn().mockReturnValue(makeTask({status: "backlog", scheduled: null}))
     await editor.open("task-1")

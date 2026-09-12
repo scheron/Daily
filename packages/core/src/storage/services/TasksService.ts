@@ -1,4 +1,5 @@
 import {
+  completeScheduling,
   getOrderIndexBetween,
   getPreviousTaskOrderIndex,
   getTaskOrderValue,
@@ -6,10 +7,23 @@ import {
   normalizeTaskOrderIndexes,
   schedulingForStatus,
   sortTasksByOrderIndex,
+  statusForScheduling,
 } from "@daily/protocol"
 import {getToday, notNull, notUndefined} from "@daily/std"
 
-import type {Branch, File, ISODate, MoveTaskByOrderParams, Tag, Task, TaskEvent, TaskMovePosition, TaskScheduled, TaskStatus} from "@daily/protocol"
+import type {
+  Branch,
+  File,
+  ISODate,
+  Milestone,
+  MoveTaskByOrderParams,
+  Tag,
+  Task,
+  TaskEvent,
+  TaskMovePosition,
+  TaskScheduled,
+  TaskStatus,
+} from "@daily/protocol"
 import type {PartialDeep} from "type-fest"
 import type {TaskInternal} from "../../types/storage"
 import type {TaskModel} from "../models/TaskModel"
@@ -47,13 +61,40 @@ export class TasksService {
     const before = this.taskModel.getTask(id)
 
     if (before && (notUndefined(updates.status) || notUndefined(updates.scheduled))) {
-      const status = (updates.status as TaskStatus | undefined) ?? before.status
+      const explicitStatus = updates.status as TaskStatus | undefined
       const current = notUndefined(updates.scheduled) ? (updates.scheduled as TaskScheduled | null) : before.scheduled
+      const leavesBacklog = !explicitStatus && before.status === "backlog" && notNull(current)
+
+      const status = explicitStatus ?? (leavesBacklog ? statusForScheduling(before.status, current) : before.status)
 
       updatesTask.scheduled = schedulingForStatus(status, current, getToday())
 
       if (status === "backlog" && before.status !== "backlog") {
         updatesTask.orderIndex = getPreviousTaskOrderIndex(this.taskModel.getBacklogTasks({branchId: before.branchId}))
+      }
+
+      if (leavesBacklog) {
+        const completed = completeScheduling(updatesTask.scheduled as TaskScheduled)
+
+        updatesTask.status = status
+        updatesTask.scheduled = completed
+        updatesTask.orderIndex = getPreviousTaskOrderIndex(
+          this.taskModel.getTaskList({from: completed.date, to: completed.date, branchId: before.branchId}),
+        )
+      }
+    }
+
+    if (before) {
+      const branchId = (notUndefined(updates.branchId) ? updates.branchId : before.branchId) as Branch["id"]
+      const branchChanged = notUndefined(updates.branchId) && updates.branchId !== before.branchId
+
+      if (notUndefined(updates.milestoneId) && updates.milestoneId !== null) {
+        const milestoneId = updates.milestoneId as Milestone["id"]
+        if (!this.taskModel.milestoneBelongsToBranch(milestoneId, branchId)) {
+          updatesTask.milestoneId = null
+        }
+      } else if (branchChanged && !notUndefined(updates.milestoneId)) {
+        updatesTask.milestoneId = null
       }
     }
 
@@ -151,7 +192,7 @@ export class TasksService {
     if (!task) return false
     if (task.branchId === branchId) return true
 
-    const updatedTask = this.taskModel.updateTask(taskId, {branchId})
+    const updatedTask = this.taskModel.updateTask(taskId, {branchId, milestoneId: null})
     if (!updatedTask) return false
 
     return true

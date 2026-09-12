@@ -11,6 +11,8 @@ import type {
   LocalModelId,
   MigrationDirection,
   MigrationPreview,
+  Milestone,
+  MilestoneView,
   MoveTaskByOrderParams,
   PendingApprovalView,
   ProtocolMismatchView,
@@ -131,7 +133,7 @@ export interface BridgeIPC {
   "branches:get-many": () => Promise<Branch[]>
   "branches:get-one": (id: Branch["id"]) => Promise<Branch | null>
   "branches:create": (branch: Omit<Branch, "id" | "createdAt" | "updatedAt" | "deletedAt">) => Promise<Branch | null>
-  "branches:update": (id: Branch["id"], updates: Pick<Branch, "name">) => Promise<Branch | null>
+  "branches:update": (id: Branch["id"], updates: Partial<Pick<Branch, "name" | "description">>) => Promise<Branch | null>
   "branches:delete": (id: Branch["id"]) => Promise<boolean>
   "branches:set-active": (id: Branch["id"]) => Promise<void>
 
@@ -144,6 +146,16 @@ export interface BridgeIPC {
   "tags:update": (id: Tag["id"], updates: Partial<Tag>) => Promise<Tag | null>
   "tags:create": (tag: Omit<Tag, "id" | "createdAt" | "updatedAt" | "deletedAt">) => Promise<Tag | null>
   "tags:delete": (id: Tag["id"]) => Promise<boolean>
+
+  // === MILESTONES ===
+  "milestones:get-many": (branchId?: Branch["id"]) => Promise<MilestoneView[]>
+  "milestones:get-one": (id: Milestone["id"]) => Promise<MilestoneView | null>
+  "milestones:create": (milestone: Omit<Milestone, "id" | "createdAt" | "updatedAt" | "orderIndex">) => Promise<MilestoneView | null>
+  "milestones:update": (
+    id: Milestone["id"],
+    updates: Partial<Pick<Milestone, "name" | "description" | "targetDate" | "orderIndex">>,
+  ) => Promise<MilestoneView | null>
+  "milestones:delete": (id: Milestone["id"]) => Promise<boolean>
 
   // === FILES ===
   "files:save": (filename: string, data: Buffer) => Promise<File["id"]>

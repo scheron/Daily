@@ -51,7 +51,7 @@ describe("branchesStore", () => {
     const result = await store.createBranch("  Feature  ")
 
     expect(result.name).toBe("Feature")
-    expect(API.createBranch).toHaveBeenCalledWith({name: "Feature"})
+    expect(API.createBranch).toHaveBeenCalledWith({name: "Feature", description: ""})
   })
 
   it("orderedBranches sorts by name case-insensitive", async () => {

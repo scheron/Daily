@@ -6,7 +6,7 @@ import {useBranchesStore} from "@/stores/branches.store"
 import {useTaskEditorStore} from "@/stores/task-editor"
 import {isBacklogStatus, useTasksStore} from "@/stores/tasks"
 
-import type {Branch, ISODate, Tag, Task, TaskStatus} from "@daily/protocol"
+import type {Branch, ISODate, Milestone, Tag, Task, TaskStatus} from "@daily/protocol"
 import type {MaybeRefOrGetter} from "vue"
 
 type TaskModelProps = {task: Task}
@@ -102,6 +102,12 @@ export function useTaskModel(rawProps: MaybeRefOrGetter<TaskModelProps>) {
   async function updateTaskTags(tags: Tag[]) {
     const isUpdated = await tasksStore.updateTask(task.value.id, {tags})
     if (!isUpdated) toasts.error("Failed to update tags")
+  }
+
+  async function updateTaskMilestone(milestoneId: Milestone["id"] | null) {
+    if (!task.value) return
+    const isUpdated = await tasksStore.updateTask(task.value.id, {milestoneId})
+    if (!isUpdated) toasts.error("Failed to update milestone")
   }
 
   async function moveTaskToBranch(branchId: Branch["id"]) {
@@ -202,6 +208,7 @@ export function useTaskModel(rawProps: MaybeRefOrGetter<TaskModelProps>) {
     copyTaskIdToClipboard,
     copyTaskContentToClipboard,
     updateTaskTags,
+    updateTaskMilestone,
     moveTaskToBranch,
   }
 }

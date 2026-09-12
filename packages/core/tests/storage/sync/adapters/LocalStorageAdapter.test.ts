@@ -2,6 +2,8 @@
 import {afterEach, beforeEach, describe, expect, it} from "vitest"
 
 import {LocalStorageAdapter} from "@core/storage/sync/adapters/LocalStorageAdapter"
+import {mergeRemoteIntoLocal} from "@core/utils/sync/merge/mergeRemoteIntoLocal"
+import {buildSnapshot} from "@core/utils/sync/snapshot/buildSnapshot"
 import {createTestDatabase} from "../../../helpers/db"
 
 const now = "2026-03-25T12:00:00.000Z"
@@ -147,6 +149,7 @@ describe("LocalStorageAdapter", () => {
         ],
         tags: [],
         branches: [],
+        milestones: [],
         files: [],
         events: [],
         settings: null,
@@ -187,6 +190,7 @@ describe("LocalStorageAdapter", () => {
         ],
         tags: [],
         branches: [],
+        milestones: [],
         files: [],
         events: [],
         settings: null,
@@ -226,6 +230,7 @@ describe("LocalStorageAdapter", () => {
         ],
         tags: [],
         branches: [],
+        milestones: [],
         files: [],
         events: [],
         settings: null,
@@ -267,6 +272,7 @@ describe("LocalStorageAdapter", () => {
         ],
         tags: [],
         branches: [],
+        milestones: [],
         files: [],
         events: [],
         settings: null,
@@ -282,8 +288,9 @@ describe("LocalStorageAdapter", () => {
     it("inserts tags, branches, files", async () => {
       await adapter.upsertDocs({
         tasks: [],
-        tags: [{id: "tag1", name: "work", color: "#00f", created_at: now, updated_at: now, deleted_at: null}],
-        branches: [{id: "b1", name: "feat", created_at: now, updated_at: now, deleted_at: null}],
+        tags: [{id: "tag1", branch_id: "main", name: "work", color: "#00f", created_at: now, updated_at: now, deleted_at: null}],
+        branches: [{id: "b1", name: "feat", description: "", created_at: now, updated_at: now, deleted_at: null}],
+        milestones: [],
         files: [{id: "f1", name: "pic.png", mime_type: "image/png", size: 500, created_at: now, updated_at: now, deleted_at: null}],
         events: [],
         settings: null,
@@ -299,6 +306,7 @@ describe("LocalStorageAdapter", () => {
         tasks: [],
         tags: [],
         branches: [],
+        milestones: [],
         files: [],
         events: [],
         settings: {id: "default", version: "1", themes: {current: "dark"}, created_at: now, updated_at: now},
@@ -339,6 +347,7 @@ describe("LocalStorageAdapter", () => {
           ],
           tags: [{id: "tag-new", name: "new", color: "#000", created_at: now, updated_at: now, deleted_at: null}],
           branches: [],
+          milestones: [],
           files: [],
           settings: null,
         })
@@ -356,6 +365,7 @@ describe("LocalStorageAdapter", () => {
         tasks: [],
         tags: [],
         branches: [],
+        milestones: [],
         files: [],
         settings: null,
         events: [
@@ -416,6 +426,46 @@ describe("LocalStorageAdapter", () => {
       expect(task.branch_id).toBe("main")
     })
 
+    it("takes a branch's tags and milestones with it so the branch delete cannot violate a foreign key", async () => {
+      insertBranch(db, "b1", "feature")
+      insertTag(db, "tag1", "work")
+      db.prepare("UPDATE tags SET branch_id = 'b1' WHERE id = 'tag1'").run()
+      db.prepare(
+        `INSERT INTO milestones (id, branch_id, name, description, target_date, order_index, created_at, updated_at, deleted_at)
+         VALUES ('m1', 'b1', 'Launch', '', NULL, 0, ?, ?, NULL)`,
+      ).run(now, now)
+      insertTask(db, "t1", "task", {branchId: "b1"})
+      db.prepare("UPDATE tasks SET milestone_id = 'm1' WHERE id = 't1'").run()
+      linkTaskTag(db, "t1", "tag1")
+
+      await adapter.deleteDocs({branches: ["b1"]})
+
+      expect(db.prepare("SELECT * FROM branches WHERE id = 'b1'").get()).toBeUndefined()
+      expect(db.prepare("SELECT * FROM tags WHERE id = 'tag1'").get()).toBeUndefined()
+      expect(db.prepare("SELECT * FROM milestones WHERE id = 'm1'").get()).toBeUndefined()
+      expect(db.prepare("SELECT * FROM task_tags WHERE tag_id = 'tag1'").all()).toHaveLength(0)
+
+      const task = db.prepare("SELECT * FROM tasks WHERE id = 't1'").get()
+      expect(task.branch_id).toBe("main")
+      expect(task.milestone_id).toBeNull()
+    })
+
+    it("leaves another branch's tags and milestones alone", async () => {
+      insertBranch(db, "b1", "feature")
+      insertBranch(db, "b2", "other")
+      insertTag(db, "tag2", "keep")
+      db.prepare("UPDATE tags SET branch_id = 'b2' WHERE id = 'tag2'").run()
+      db.prepare(
+        `INSERT INTO milestones (id, branch_id, name, description, target_date, order_index, created_at, updated_at, deleted_at)
+         VALUES ('m2', 'b2', 'Keep', '', NULL, 0, ?, ?, NULL)`,
+      ).run(now, now)
+
+      await adapter.deleteDocs({branches: ["b1"]})
+
+      expect(db.prepare("SELECT * FROM tags WHERE id = 'tag2'").get()).toBeDefined()
+      expect(db.prepare("SELECT * FROM milestones WHERE id = 'm2'").get()).toBeDefined()
+    })
+
     it("hard-deletes files and cleans task_attachments", async () => {
       insertTask(db, "t1", "task")
       insertFile(db, "f1", "file.txt")
@@ -471,6 +521,71 @@ describe("LocalStorageAdapter", () => {
       expect(purged.tags).toBe(1)
       expect(purged.files).toBe(1)
       expect(db.prepare("SELECT * FROM task_tags").all()).toHaveLength(0)
+    })
+  })
+
+  describe("a task's milestone, a tag's project and a project's description survive a snapshot round trip", () => {
+    it("round-trips_TC-20_all_three_fields_through_loadAllDocs_buildSnapshot_and_upsertDocs_into_an_empty_database", async () => {
+      insertBranch(db, "proj", "Project")
+      db.prepare("UPDATE branches SET description = ? WHERE id = 'proj'").run("What this project is")
+
+      db.prepare(
+        `INSERT INTO milestones (id, branch_id, name, description, target_date, order_index, created_at, updated_at, deleted_at)
+         VALUES ('m1', 'proj', 'Launch', '', NULL, 0, ?, ?, NULL)`,
+      ).run(now, now)
+
+      insertTag(db, "tag1", "bug")
+      db.prepare("UPDATE tags SET branch_id = 'proj' WHERE id = 'tag1'").run()
+
+      insertTask(db, "t1", "Ship it", {branchId: "proj"})
+      db.prepare("UPDATE tasks SET milestone_id = 'm1' WHERE id = 't1'").run()
+
+      const sourceDocs = await adapter.loadAllDocs()
+      const snapshot = buildSnapshot(sourceDocs)
+
+      const otherDb = createTestDatabase()
+      const otherAdapter = new LocalStorageAdapter(otherDb)
+      await otherAdapter.upsertDocs(snapshot.docs)
+
+      const roundTripped = await otherAdapter.loadAllDocs()
+      expect(roundTripped.tasks.find((t) => t.id === "t1")?.milestone_id).toBe("m1")
+      expect(roundTripped.tags.find((t) => t.id === "tag1")?.branch_id).toBe("proj")
+      expect(roundTripped.branches.find((b) => b.id === "proj")?.description).toBe("What this project is")
+
+      otherDb.close()
+    })
+  })
+
+  describe("the snapshot a branch GC publishes", () => {
+    const GC = 7 * 24 * 60 * 60 * 1000
+
+    it("writes back on the next cycle without a foreign key violation", async () => {
+      db.prepare("INSERT INTO branches (id, name, created_at, updated_at, deleted_at) VALUES ('old', 'Old', ?, ?, ?)").run(
+        now,
+        now,
+        "1970-01-01T00:00:00.000Z",
+      )
+      db.prepare(
+        `INSERT INTO milestones (id, branch_id, name, description, target_date, order_index, created_at, updated_at, deleted_at)
+         VALUES ('m1', 'old', 'Launch', '', NULL, 0, ?, ?, NULL)`,
+      ).run(now, now)
+      insertTask(db, "t1", "Ship it", {branchId: "old"})
+      db.prepare("UPDATE tasks SET milestone_id = 'm1' WHERE id = 't1'").run()
+
+      const beforeGc = await adapter.loadAllDocs()
+      const gcCycle = mergeRemoteIntoLocal(beforeGc, beforeGc, "pull", GC)
+      await adapter.upsertDocs(gcCycle.toUpsert)
+      await adapter.deleteDocs(gcCycle.toRemove)
+
+      const published = gcCycle.resultDocs
+      const afterGc = await adapter.loadAllDocs()
+      const nextCycle = mergeRemoteIntoLocal(afterGc, published, "pull", GC)
+
+      await expect(adapter.upsertDocs(nextCycle.toUpsert)).resolves.toBeUndefined()
+
+      const task = db.prepare("SELECT * FROM tasks WHERE id = 't1'").get()
+      expect(task.branch_id).toBe("main")
+      expect(task.milestone_id).toBeNull()
     })
   })
 })

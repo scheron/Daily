@@ -8,4 +8,5 @@ export type TaskDraft = {
   status: TaskStatus
   branchId: Branch["id"] | null
   scheduled: Task["scheduled"]
+  milestoneId: Task["milestoneId"]
 }

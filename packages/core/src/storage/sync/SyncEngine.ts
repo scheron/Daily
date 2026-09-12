@@ -383,6 +383,7 @@ export class SyncEngine {
     tasks?: unknown[]
     tags?: unknown[]
     branches?: unknown[]
+    milestones?: unknown[]
     files?: unknown[]
     events?: unknown[]
     settings?: unknown
@@ -391,6 +392,7 @@ export class SyncEngine {
       (docs.tasks?.length ?? 0) +
       (docs.tags?.length ?? 0) +
       (docs.branches?.length ?? 0) +
+      (docs.milestones?.length ?? 0) +
       (docs.files?.length ?? 0) +
       (docs.events?.length ?? 0) +
       (docs.settings ? 1 : 0)

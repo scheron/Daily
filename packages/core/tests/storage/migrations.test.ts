@@ -215,6 +215,7 @@ describe("migrations", () => {
       const db = new Database(":memory:")
       runMigrations(db)
 
+      rollbackLastMigration(db) // v011
       rollbackLastMigration(db) // v010
       rollbackLastMigration(db) // v009
       rollbackLastMigration(db) // v008
@@ -503,6 +504,87 @@ describe("migrations", () => {
       expect(indexes).toContain("idx_tasks_date")
       expect(indexes).toContain("idx_tasks_status")
       expect(indexes).toContain("idx_tasks_deleted")
+
+      db.close()
+    })
+  })
+
+  describe("v011 — milestones, project tags and project descriptions", () => {
+    function seedThroughV10(db) {
+      db.exec(`CREATE TABLE _migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)`)
+      for (const migration of migrations.filter((m) => m.version <= 10)) {
+        if (typeof migration.up === "string") db.exec(migration.up)
+        else migration.up(db)
+        db.prepare("INSERT INTO _migrations (version, name, applied_at) VALUES (?, ?, ?)").run(
+          migration.version,
+          migration.name,
+          "2026-01-01T00:00:00.000Z",
+        )
+      }
+    }
+
+    it("gives_TC-8_a_fresh_database_the_milestones_table_and_the_three_new_columns", () => {
+      const db = new Database(":memory:")
+      db.pragma("foreign_keys = ON")
+      runMigrations(db)
+
+      const tables = db
+        .prepare("SELECT name FROM sqlite_master WHERE type='table'")
+        .all()
+        .map((t) => t.name)
+      expect(tables).toContain("milestones")
+
+      const milestoneColumns = db
+        .prepare("PRAGMA table_info(milestones)")
+        .all()
+        .map((c) => c.name)
+      expect(milestoneColumns).toEqual(expect.arrayContaining(["id", "branch_id", "name", "description", "target_date", "order_index"]))
+
+      const taskColumns = db
+        .prepare("PRAGMA table_info(tasks)")
+        .all()
+        .map((c) => c.name)
+      expect(taskColumns).toContain("milestone_id")
+
+      const tagColumns = db
+        .prepare("PRAGMA table_info(tags)")
+        .all()
+        .map((c) => c.name)
+      expect(tagColumns).toContain("branch_id")
+
+      const branchColumns = db
+        .prepare("PRAGMA table_info(branches)")
+        .all()
+        .map((c) => c.name)
+      expect(branchColumns).toContain("description")
+
+      db.close()
+    })
+
+    it("lands_TC-9_every_pre-existing_tag_on_main_keeping_its_id_name_colour_and_task_links", () => {
+      const db = new Database(":memory:")
+      db.pragma("foreign_keys = ON")
+      seedThroughV10(db)
+
+      const now = new Date().toISOString()
+      db.prepare(
+        `INSERT INTO tasks (id, status, content, minimized, order_index, scheduled_date, scheduled_time, scheduled_timezone, estimated_time, spent_time, branch_id, created_at, updated_at)
+         VALUES ('t1', 'active', 'Keep me', 0, 1024, '2026-03-24', '10:00:00', 'UTC', 0, 0, 'main', ?, ?)`,
+      ).run(now, now)
+      db.prepare("INSERT INTO tags (id, name, color, created_at, updated_at) VALUES ('tag1', 'urgent', '#ff0000', ?, ?)").run(now, now)
+      db.prepare("INSERT INTO task_tags (task_id, tag_id) VALUES ('t1', 'tag1')").run()
+
+      runMigrations(db)
+
+      const tag = db.prepare("SELECT * FROM tags WHERE id = 'tag1'").get()
+      expect(tag).toBeDefined()
+      expect(tag.branch_id).toBe("main")
+      expect(tag.name).toBe("urgent")
+      expect(tag.color).toBe("#ff0000")
+
+      const links = db.prepare("SELECT * FROM task_tags WHERE task_id = 't1'").all()
+      expect(links).toHaveLength(1)
+      expect(links[0].tag_id).toBe("tag1")
 
       db.close()
     })

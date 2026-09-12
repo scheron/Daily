@@ -16,3 +16,27 @@ export function schedulingForStatus(status: TaskStatus, current: TaskScheduled |
 
   return {date: activeDate, time: getTime(), timezone: getTimezone()}
 }
+
+/**
+ * The backlog invariant read in the other direction: the status a task must carry once a
+ * schedule is written to it. A task given a day while in the backlog becomes `active`; any
+ * other status is preserved. No schedule always means `backlog`.
+ */
+export function statusForScheduling(currentStatus: TaskStatus, nextScheduled: TaskScheduled | null): TaskStatus {
+  if (!nextScheduled) return "backlog"
+  if (currentStatus === "backlog") return "active"
+
+  return currentStatus
+}
+
+/**
+ * Fills the parts of a schedule a caller left out. A task leaving the backlog is given a day
+ * and almost never a time, and there is no such thing as a half-written schedule in the row.
+ */
+export function completeScheduling(partial: Partial<TaskScheduled> & {date: ISODate}): TaskScheduled {
+  return {
+    date: partial.date,
+    time: partial.time ?? getTime(),
+    timezone: partial.timezone ?? getTimezone(),
+  }
+}

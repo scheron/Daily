@@ -21,7 +21,8 @@ const mode = ref<"list" | "create">("list")
 const isCreating = ref(false)
 
 const selectedIds = computed(() => new Set(props.task.tags.map((tag) => tag.id)))
-const sortedTags = computed(() => sortTags(tagsStore.tags))
+const projectTags = computed(() => tagsStore.tagsForBranch(props.task.branchId))
+const sortedTags = computed(() => sortTags(projectTags.value))
 const trimmedQuery = computed(() => normalizeTagName(query.value))
 
 function isSelected(tag: Tag): boolean {
@@ -34,7 +35,7 @@ function toggleTag(tag: Tag) {
 }
 
 function enterCreateMode() {
-  if (!trimmedQuery.value || findTagByName(tagsStore.tags, trimmedQuery.value)) return
+  if (!trimmedQuery.value || findTagByName(projectTags.value, trimmedQuery.value)) return
   mode.value = "create"
 }
 
@@ -49,7 +50,7 @@ async function createWithColor(color: TagPresetColor) {
   if (!name) return
 
   isCreating.value = true
-  const created = await tagsStore.createTag(name, color.value)
+  const created = await tagsStore.createTag(name, color.value, props.task.branchId)
   isCreating.value = false
 
   if (!created) {

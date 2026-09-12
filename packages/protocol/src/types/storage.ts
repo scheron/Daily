@@ -176,6 +176,8 @@ export type Task = {
   orderIndex: number
   status: TaskStatus
   tags: Tag[]
+  /** The milestone this task is part of. Always one of its own project's, or `null`. */
+  milestoneId: Milestone["id"] | null
   /** Files IDs  */
   attachments: string[]
 }
@@ -186,6 +188,8 @@ export type Tag = {
   updatedAt: ISODateTime
   deletedAt: ISODateTime | null
 
+  /** The project that owns this tag. Tags never span projects. */
+  branchId: Branch["id"]
   name: string
   color: string
 }
@@ -197,7 +201,33 @@ export type Branch = {
   deletedAt: ISODateTime | null
 
   name: string
+  /** Markdown, written with the same editor as task content. Empty when never written. */
+  description: string
 }
+
+export type Milestone = {
+  id: string
+  createdAt: ISODateTime
+  updatedAt: ISODateTime
+  deletedAt: ISODateTime | null
+  /** The project that owns it. A milestone never spans projects. */
+  branchId: Branch["id"]
+  name: string
+  /** Markdown, written with the same editor as task content. Empty when never written. */
+  description: string
+  /** `null` is a deliberate state, not a missing value — POST MVP is the case it exists for. */
+  targetDate: ISODate | null
+  orderIndex: number
+}
+
+/** The counts a milestone's state is derived from. Never stored. `resolved` counts `done` and `discarded` together. */
+export type MilestoneProgress = {
+  total: number
+  resolved: number
+}
+
+/** A milestone as every reader outside the model sees it: the row plus the counts computed with it. */
+export type MilestoneView = Milestone & {progress: MilestoneProgress}
 
 export type File = {
   id: string

@@ -28,6 +28,8 @@ import type {
   ISODate,
   MigrationDirection,
   MigrationPreview,
+  Milestone,
+  MilestoneView,
   MoveTaskByOrderParams,
   ProtocolMismatchView,
   Settings,
@@ -54,6 +56,7 @@ export class StorageController implements IStorageController {
   private branchesService!: StorageCore["branchesService"]
   private tasksService!: StorageCore["tasksService"]
   private tagsService!: StorageCore["tagsService"]
+  private milestonesService!: StorageCore["milestonesService"]
   private filesService!: StorageCore["filesService"]
   private daysService!: StorageCore["daysService"]
   private searchService!: StorageCore["searchService"]
@@ -88,6 +91,7 @@ export class StorageController implements IStorageController {
     this.branchesService = core.branchesService
     this.tasksService = core.tasksService
     this.tagsService = core.tagsService
+    this.milestonesService = core.milestonesService
     this.filesService = core.filesService
     this.daysService = core.daysService
     this.searchService = core.searchService
@@ -367,7 +371,7 @@ export class StorageController implements IStorageController {
     return this.branchesService.getBranch(id)
   }
 
-  async createBranch(branch: Omit<Branch, "id" | "createdAt" | "updatedAt" | "deletedAt">): Promise<Branch | null> {
+  async createBranch(branch: Pick<Branch, "name"> & Partial<Pick<Branch, "description">>): Promise<Branch | null> {
     const createdBranch = await this.branchesService.createBranch(branch)
     if (createdBranch) {
       this.notifyLocalChange()
@@ -375,7 +379,7 @@ export class StorageController implements IStorageController {
     return createdBranch
   }
 
-  async updateBranch(id: Branch["id"], updates: Pick<Branch, "name">): Promise<Branch | null> {
+  async updateBranch(id: Branch["id"], updates: Partial<Pick<Branch, "description" | "name">>): Promise<Branch | null> {
     const updatedBranch = await this.branchesService.updateBranch(id, updates)
     if (updatedBranch) {
       this.notifyLocalChange()
@@ -384,11 +388,15 @@ export class StorageController implements IStorageController {
   }
 
   async deleteBranch(id: Branch["id"]): Promise<boolean> {
-    const deleted = await this.branchesService.deleteBranch(id)
-    if (deleted) {
-      this.notifyLocalChange()
+    const result = await this.branchesService.deleteBranch(id)
+    if (!result) return false
+
+    for (const taskId of result.deletedTaskIds) {
+      this.searchService.removeTaskFromIndex(taskId)
     }
-    return deleted
+
+    this.notifyLocalChange()
+    return true
   }
 
   async setActiveBranch(id: Branch["id"]): Promise<void> {
@@ -398,8 +406,8 @@ export class StorageController implements IStorageController {
   //#endregion
 
   //#region TAGS
-  async getTagList(): Promise<Tag[]> {
-    return this.tagsService.getTagList()
+  async getTagList(branchId?: Branch["id"]): Promise<Tag[]> {
+    return this.tagsService.getTagList(branchId)
   }
 
   async getTag(id: Tag["id"]): Promise<Tag | null> {
@@ -447,6 +455,43 @@ export class StorageController implements IStorageController {
     }
     this.notifyLocalChange()
     return updatedTask
+  }
+  //#endregion
+
+  //#region MILESTONES
+  async getMilestoneList(branchId?: Branch["id"]): Promise<MilestoneView[]> {
+    return this.milestonesService.getMilestoneList(branchId)
+  }
+
+  async getMilestone(id: Milestone["id"]): Promise<MilestoneView | null> {
+    return this.milestonesService.getMilestone(id)
+  }
+
+  async createMilestone(milestone: Omit<Milestone, "id" | "createdAt" | "updatedAt" | "orderIndex">): Promise<MilestoneView | null> {
+    const createdMilestone = await this.milestonesService.createMilestone(milestone)
+    if (createdMilestone) {
+      this.notifyLocalChange()
+    }
+    return createdMilestone
+  }
+
+  async updateMilestone(
+    id: Milestone["id"],
+    updates: Partial<Pick<Milestone, "name" | "description" | "targetDate" | "orderIndex">>,
+  ): Promise<MilestoneView | null> {
+    const updatedMilestone = await this.milestonesService.updateMilestone(id, updates)
+    if (updatedMilestone) {
+      this.notifyLocalChange()
+    }
+    return updatedMilestone
+  }
+
+  async deleteMilestone(id: Milestone["id"]): Promise<boolean> {
+    const deleted = await this.milestonesService.deleteMilestone(id)
+    if (deleted) {
+      this.notifyLocalChange()
+    }
+    return deleted
   }
   //#endregion
 

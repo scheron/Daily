@@ -6,6 +6,7 @@ import {resolveActiveProvider} from "@daily/protocol"
 import {sleep} from "@daily/std"
 
 import {useBranchesStore} from "./branches.store"
+import {useMilestonesStore} from "./milestones.store"
 import {useSettingsStore} from "./settings.store"
 import {useTagsStore} from "./tags.store"
 import {useTasksStore} from "./tasks"
@@ -18,6 +19,7 @@ export const useStorageStore = defineStore("storage", () => {
   const tasksStore = useTasksStore()
   const tagsStore = useTagsStore()
   const branchesStore = useBranchesStore()
+  const milestonesStore = useMilestonesStore()
   const settingsStore = useSettingsStore()
 
   const status = ref<SyncStatus>("inactive")
@@ -50,7 +52,7 @@ export const useStorageStore = defineStore("storage", () => {
 
   async function revalidate(): Promise<void> {
     await settingsStore.revalidate()
-    await Promise.all([tasksStore.revalidate(), tagsStore.revalidate(), branchesStore.revalidate()])
+    await Promise.all([tasksStore.revalidate(), tagsStore.revalidate(), branchesStore.revalidate(), milestonesStore.revalidate()])
   }
 
   window.BridgeIPC["storage-sync:on-status-changed"](async (newStatus, prevStatus) => {

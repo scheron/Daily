@@ -4,19 +4,21 @@ import {computed, useTemplateRef} from "vue"
 import {sortTags, toTaskIdHash} from "@daily/protocol"
 import {toDurationLabel} from "@daily/std"
 
+import {useMilestonesStore} from "@/stores/milestones.store"
 import {useTagsStore} from "@/stores/tags.store"
 import {useTaskEditorStore} from "@/stores/task-editor"
 import {useTasksStore} from "@/stores/tasks"
 import BaseCalendar from "@/ui/base/BaseCalendar"
 import BaseIcon from "@/ui/base/BaseIcon"
 import BranchCombobox from "@/ui/common/comboboxes/BranchCombobox.vue"
+import MilestoneCombobox from "@/ui/common/comboboxes/MilestoneCombobox.vue"
 import TagsCombobox from "@/ui/common/comboboxes/TagsCombobox.vue"
+import MilestoneChip from "@/ui/common/milestones/MilestoneChip.vue"
 import ContextMenu from "@/ui/common/misc/ContextMenu"
 import DynamicTagsPanel from "@/ui/common/misc/DynamicTagsPanel.vue"
 import MarkdownContent from "@/ui/common/misc/MarkdownContent.vue"
 import EstimationPicker from "@/ui/common/pickers/EstimationPicker.vue"
 import {useConfirmUnsavedModal} from "@/ui/overlays/ConfirmUnsavedModal"
-import {countMarkdownImages} from "@/utils/codemirror/wordCount"
 import DeleteMenuItem from "./{fragments}/DeleteMenuItem.vue"
 import StatusSelect from "./{fragments}/StatusSelect.vue"
 import {useTaskModel} from "./model/useTaskModel"
@@ -29,6 +31,7 @@ const props = defineProps<{task: Task}>()
 const tasksStore = useTasksStore()
 const tagsStore = useTagsStore()
 const taskEditorStore = useTaskEditorStore()
+const milestonesStore = useMilestonesStore()
 
 const contextMenuRef = useTemplateRef<InstanceType<typeof ContextMenu>>("contextMenu")
 
@@ -36,11 +39,11 @@ const {canMoveUp, canMoveDown, canMoveToTop, canMoveToBottom, ...taskModel} = us
 
 const tags = computed<Tag[]>(() => sortTags(props.task.tags.map((t) => tagsStore.tagsMap.get(t.id)).filter(Boolean) as Tag[]))
 
-const imageCount = computed(() => countMarkdownImages(props.task.content))
+const milestone = computed(() => (props.task.milestoneId ? (milestonesStore.milestonesMap.get(props.task.milestoneId) ?? null) : null))
 const showTime = computed(() => props.task.estimatedTime > 0)
 const estimateLabel = computed(() => (showTime.value ? toDurationLabel(props.task.estimatedTime) : ""))
 const spentLabel = computed(() => (showTime.value && props.task.spentTime > 0 ? toDurationLabel(props.task.spentTime) : ""))
-const hasFooter = computed(() => imageCount.value > 0 || showTime.value)
+const hasFooter = computed(() => Boolean(milestone.value) || showTime.value)
 
 const menuItems = computed<ContextMenuItem[]>(() => {
   return [
@@ -58,6 +61,7 @@ const menuItems = computed<ContextMenuItem[]>(() => {
       ],
     },
     {value: "tags", label: "Tags", icon: "tags", children: true},
+    {value: "milestone", label: "Milestone", icon: "milestone", children: true},
     {value: "reschedule", label: "Reschedule", icon: "calendar", children: true},
     {value: "branch", label: "Move to Project", icon: "project", children: true},
     {separator: true},
@@ -174,10 +178,7 @@ async function onMoveToBranch(branch: Branch) {
         </div>
 
         <div v-if="hasFooter" class="flex items-center gap-2 text-xs">
-          <div v-if="imageCount > 0" class="text-base-content/70 inline-flex items-center gap-1 px-2.5 py-1">
-            <BaseIcon name="image" class="size-3.5" />
-            <span>{{ imageCount }}</span>
-          </div>
+          <MilestoneChip v-if="milestone" :milestone="milestone" :size="12" />
 
           <div v-if="showTime" class="ml-auto flex items-center gap-2">
             <div class="text-base-content/80 inline-flex items-center gap-1 px-2.5 py-1">
@@ -199,6 +200,10 @@ async function onMoveToBranch(branch: Branch) {
 
     <template #child-tags>
       <TagsCombobox :task="task" @update="taskModel.updateTaskTags" @close="contextMenuRef?.close()" />
+    </template>
+
+    <template #child-milestone>
+      <MilestoneCombobox :task="task" @update="taskModel.updateTaskMilestone" @close="contextMenuRef?.close()" />
     </template>
 
     <template #child-reschedule>

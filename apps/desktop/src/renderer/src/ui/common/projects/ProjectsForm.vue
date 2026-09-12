@@ -5,6 +5,8 @@ import {toasts} from "vue-toasts-lite"
 import {MAIN_BRANCH_ID} from "@daily/protocol"
 
 import {useBranchesStore} from "@/stores/branches.store"
+import {useMilestonesStore} from "@/stores/milestones.store"
+import {useTagsStore} from "@/stores/tags.store"
 import {useTasksStore} from "@/stores/tasks"
 import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
@@ -13,8 +15,13 @@ import {ConfirmPopup} from "@/ui/overlays/ConfirmPopup"
 
 import type {Branch} from "@daily/protocol"
 
+const props = defineProps<{selectedId: Branch["id"]}>()
+const emit = defineEmits<{select: [id: Branch["id"]]}>()
+
 const branchesStore = useBranchesStore()
 const tasksStore = useTasksStore()
+const tagsStore = useTagsStore()
+const milestonesStore = useMilestonesStore()
 
 const newProjectName = ref("")
 const editingId = ref<Branch["id"] | null>(null)
@@ -75,7 +82,7 @@ async function deleteProject(branch: Branch) {
     return
   }
 
-  await tasksStore.getTaskList()
+  await Promise.all([tasksStore.revalidate(), tagsStore.revalidate(), milestonesStore.revalidate()])
   toasts.success("Project deleted")
 }
 </script>
@@ -108,7 +115,12 @@ async function deleteProject(branch: Branch) {
           <BaseButton icon="x-mark" variant="ghost" icon-class="size-4" class="size-6 shrink-0 p-0" @click="cancelEdit" />
         </div>
 
-        <div v-else class="hover:bg-base-200 group flex h-8 items-center gap-2 rounded-md px-2 transition-colors">
+        <div
+          v-else
+          class="hover:bg-base-200 group flex h-8 cursor-pointer items-center gap-2 rounded-md px-2 transition-colors"
+          :class="{'bg-base-200': props.selectedId === branch.id}"
+          @click="emit('select', branch.id)"
+        >
           <BaseIcon
             name="project"
             class="size-3.5 shrink-0"
@@ -128,12 +140,12 @@ async function deleteProject(branch: Branch) {
               icon-class="size-4"
               class="size-6 p-0"
               :disabled="branch.id === MAIN_BRANCH_ID"
-              @click="startEdit(branch)"
+              @click.stop="startEdit(branch)"
             />
 
             <ConfirmPopup
               title="Delete project?"
-              message="All tasks in this project will be deleted!"
+              message="This project's tasks, milestones and tags will be deleted with it!"
               confirm-text="Delete"
               cancel-text="Cancel"
               position="end"
@@ -147,7 +159,7 @@ async function deleteProject(branch: Branch) {
                   icon-class="size-4"
                   class="text-error hover:bg-error/10 size-6 p-0"
                   :disabled="branch.id === MAIN_BRANCH_ID"
-                  @click="show"
+                  @click.stop="show"
                 />
               </template>
             </ConfirmPopup>

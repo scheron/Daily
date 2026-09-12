@@ -229,8 +229,8 @@ describe("tasksStore", () => {
     expect(store.dailyTasks.map((t) => t.id)).not.toContain("t1")
   })
 
-  it("updateTask cleans the day a task left when a combined update also moves it to a different day", async () => {
-    const OTHER = "2026-09-12"
+  it("cleans_TC-7_the_day_a_task_left_when_a_combined_update_also_moves_it_to_a_different_day_on_any_calendar_day", async () => {
+    const OTHER = DateTime.fromISO(TODAY).plus({days: 1}).toISODate()
     const task = makeTask({id: "t1", status: "active", scheduled: {date: TODAY, time: "", timezone: "UTC"}})
     API.getDays.mockResolvedValueOnce([makeDay(TODAY, [task])])
 
@@ -281,6 +281,27 @@ describe("tasksStore", () => {
 
     expect(isToggled).toBe(true)
     expect(store.backlogTasks.find((t) => t.id === "b1")?.minimized).toBe(true)
+  })
+
+  it("moves_TC-1_a_dateless_backlog_task_onto_the_day_it_is_dropped_on_and_out_of_the_backlog", async () => {
+    const backlogTask = makeTask({id: "b1", status: "backlog", scheduled: null})
+    API.getBacklog.mockResolvedValueOnce([backlogTask])
+
+    const store = await getStore()
+    await store.refreshBacklog()
+    expect(store.backlogTasks.map((t) => t.id)).toContain("b1")
+
+    const targetDate = "2026-09-20"
+    const activeTask = makeTask({id: "b1", status: "active", scheduled: {date: targetDate, time: "09:00:00", timezone: "UTC"}})
+    API.getDay.mockResolvedValueOnce(makeDay(targetDate, [activeTask]))
+    API.getBacklog.mockResolvedValueOnce([])
+
+    const moved = await store.moveTask("b1", targetDate)
+
+    expect(moved).toBe(true)
+    expect(API.moveTask).toHaveBeenCalledWith("b1", targetDate)
+    expect(store.backlogTasks.map((t) => t.id)).not.toContain("b1")
+    expect(store.days.find((d) => d.date === targetDate)?.tasks.map((t) => t.id)).toContain("b1")
   })
 
   it("updateTask reports failure without touching state when the write genuinely fails", async () => {

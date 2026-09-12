@@ -1,6 +1,18 @@
 import {DateTime} from "luxon"
 
-import type {Branch, Day, ISODate, MoveTaskByOrderParams, Tag, Task, TaskEvent, TaskSearchResult, TaskStatus} from "@daily/protocol"
+import type {
+  Branch,
+  Day,
+  ISODate,
+  Milestone,
+  MilestoneView,
+  MoveTaskByOrderParams,
+  Tag,
+  Task,
+  TaskEvent,
+  TaskSearchResult,
+  TaskStatus,
+} from "@daily/protocol"
 import type {Storage, TaskWriteResult} from "./types"
 
 export class StorageAPI implements Storage {
@@ -38,6 +50,7 @@ export class StorageAPI implements Storage {
       orderIndex?: number
       branchId?: Branch["id"]
       status?: TaskStatus
+      milestoneId?: Task["milestoneId"]
     },
   ): Promise<Day | null> {
     try {
@@ -53,6 +66,7 @@ export class StorageAPI implements Storage {
         spentTime: 0,
         orderIndex: params.orderIndex ?? 0,
         branchId: params.branchId,
+        milestoneId: params.milestoneId ?? null,
         scheduled: isBacklog
           ? null
           : {
@@ -216,6 +230,36 @@ export class StorageAPI implements Storage {
   }
   //#endregion
 
+  //#region MILESTONES
+  async getMilestoneList(branchId?: Branch["id"]): Promise<MilestoneView[]> {
+    return await window.BridgeIPC["milestones:get-many"](branchId)
+  }
+
+  async getMilestone(id: Milestone["id"]): Promise<MilestoneView | null> {
+    return await window.BridgeIPC["milestones:get-one"](id)
+  }
+
+  async createMilestone(milestone: Omit<Milestone, "id" | "createdAt" | "updatedAt" | "orderIndex">): Promise<MilestoneView | null> {
+    return await window.BridgeIPC["milestones:create"](milestone)
+  }
+
+  async updateMilestone(
+    id: Milestone["id"],
+    updates: Partial<Pick<Milestone, "name" | "description" | "targetDate" | "orderIndex">>,
+  ): Promise<MilestoneView | null> {
+    return await window.BridgeIPC["milestones:update"](id, updates)
+  }
+
+  async deleteMilestone(id: Milestone["id"]): Promise<boolean> {
+    try {
+      return await window.BridgeIPC["milestones:delete"](id)
+    } catch (error) {
+      console.error("Failed to delete milestone", error)
+      return false
+    }
+  }
+  //#endregion
+
   //#region BRANCHES
   async getBranchList(): Promise<Branch[]> {
     return await window.BridgeIPC["branches:get-many"]()
@@ -225,7 +269,7 @@ export class StorageAPI implements Storage {
     return await window.BridgeIPC["branches:create"](branch)
   }
 
-  async updateBranch(id: Branch["id"], updates: Pick<Branch, "name">): Promise<Branch | null> {
+  async updateBranch(id: Branch["id"], updates: Partial<Pick<Branch, "name" | "description">>): Promise<Branch | null> {
     return await window.BridgeIPC["branches:update"](id, updates)
   }
 

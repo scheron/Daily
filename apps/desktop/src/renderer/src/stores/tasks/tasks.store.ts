@@ -5,6 +5,7 @@ import {defineStore} from "pinia"
 import {sortTasksByOrderIndex} from "@daily/protocol"
 
 import {API} from "@/api"
+import {useMilestonesStore} from "@/stores/milestones.store"
 import {useSettingsStore} from "@/stores/settings.store"
 import {useTaskMutations} from "./composables/useTaskMutations"
 import {useTaskRange} from "./composables/useTaskRange"
@@ -13,6 +14,7 @@ import type {Day, ISODate, Task, TaskStatus} from "@daily/protocol"
 
 export const useTasksStore = defineStore("tasks", () => {
   const settingsStore = useSettingsStore()
+  const milestonesStore = useMilestonesStore()
 
   const days = ref<Day[]>([])
   const backlogTasks = ref<Task[]>([])
@@ -65,6 +67,7 @@ export const useTasksStore = defineStore("tasks", () => {
     refreshDay: range.refreshDay,
     refreshDays: range.refreshDays,
     refreshBacklog,
+    refreshMilestones,
   })
 
   function findTaskById(taskId: Task["id"]): Task | null {
@@ -82,6 +85,10 @@ export const useTasksStore = defineStore("tasks", () => {
     } catch (error) {
       console.error("Failed to refresh backlog:", error)
     }
+  }
+
+  async function refreshMilestones() {
+    await milestonesStore.revalidate()
   }
 
   async function revalidate() {

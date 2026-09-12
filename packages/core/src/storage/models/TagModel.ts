@@ -1,26 +1,39 @@
 import {nanoid} from "nanoid"
 
+import {MAIN_BRANCH_ID} from "@daily/protocol"
 import {notUndefined} from "@daily/std"
 
 import {logger} from "../../utils/logger"
 import {rowToTag} from "./_rowMappers"
 
-import type {Tag} from "@daily/protocol"
+import type {Branch, Tag} from "@daily/protocol"
 import type {SqliteDriver} from "../../database/SqliteDriver"
 
 export class TagModel {
   constructor(private db: SqliteDriver) {}
 
-  getTagList(params?: {includeDeleted?: boolean}): Tag[] {
-    let sql = `SELECT id, name, color, created_at, updated_at, deleted_at FROM tags`
+  getTagList(params?: {branchId?: Branch["id"]; includeDeleted?: boolean}): Tag[] {
+    const conditions: string[] = []
+    const values: any[] = []
 
     if (!params?.includeDeleted) {
-      sql += ` WHERE deleted_at IS NULL`
+      conditions.push("deleted_at IS NULL")
     }
 
-    sql += ` ORDER BY name COLLATE NOCASE`
+    if (params?.branchId) {
+      if (params.branchId === MAIN_BRANCH_ID) {
+        conditions.push("(branch_id = ? OR branch_id IS NULL)")
+        values.push(MAIN_BRANCH_ID)
+      } else {
+        conditions.push("branch_id = ?")
+        values.push(params.branchId)
+      }
+    }
 
-    const rows = this.db.prepare(sql).all() as any[]
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : ""
+    const sql = `SELECT id, branch_id, name, color, created_at, updated_at, deleted_at FROM tags ${where} ORDER BY name COLLATE NOCASE`
+
+    const rows = this.db.prepare(sql).all(...values) as any[]
 
     logger.info(logger.CONTEXT.TAGS, `Loaded ${rows.length} tags from database`)
 
@@ -31,7 +44,7 @@ export class TagModel {
     const row = this.db
       .prepare(
         `
-      SELECT id, name, color, created_at, updated_at, deleted_at FROM tags WHERE id = ?
+      SELECT id, branch_id, name, color, created_at, updated_at, deleted_at FROM tags WHERE id = ?
     `,
       )
       .get(id) as any
@@ -51,11 +64,11 @@ export class TagModel {
     this.db
       .prepare(
         `
-      INSERT INTO tags (id, name, color, created_at, updated_at, deleted_at)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO tags (id, branch_id, name, color, created_at, updated_at, deleted_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `,
       )
-      .run(id, tag.name, tag.color, now, now, tag.deletedAt ?? null)
+      .run(id, tag.branchId, tag.name, tag.color, now, now, tag.deletedAt ?? null)
 
     logger.storage("Created", "TAGS", id)
     return this.getTag(id)
@@ -106,5 +119,16 @@ export class TagModel {
 
     logger.storage("Deleted", "TAGS", id)
     return changes > 0
+  }
+
+  /** Soft-deletes every tag in a project in one statement. Returns the ids it touched. */
+  deleteTagsByBranch(branchId: Branch["id"]): Tag["id"][] {
+    const now = new Date().toISOString()
+    const rows = this.db
+      .prepare(`UPDATE tags SET deleted_at = ?, updated_at = ? WHERE branch_id = ? AND deleted_at IS NULL RETURNING id`)
+      .all<{id: string}>(now, now, branchId)
+
+    logger.info(logger.CONTEXT.TAGS, `Deleted ${rows.length} tags for branch ${branchId}`)
+    return rows.map((row) => row.id)
   }
 }

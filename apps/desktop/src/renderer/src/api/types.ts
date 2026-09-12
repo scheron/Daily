@@ -3,6 +3,8 @@ import type {
   Day,
   ISODate,
   ISOTime,
+  Milestone,
+  MilestoneView,
   MoveTaskByOrderParams,
   Tag,
   Task,
@@ -187,6 +189,41 @@ export interface Storage {
   deleteTag(id: Tag["id"]): Promise<boolean>
 
   /**
+   * List milestones, optionally scoped to a project.
+   * @param branchId - The project to scope to; omit for every project's
+   * @returns The milestones, each with its progress counts
+   */
+  getMilestoneList(branchId?: Branch["id"]): Promise<MilestoneView[]>
+  /**
+   * Read a single milestone.
+   * @param id - The milestone to read
+   * @returns The milestone, or null if it does not exist
+   */
+  getMilestone(id: Milestone["id"]): Promise<MilestoneView | null>
+  /**
+   * Create a milestone.
+   * @param milestone - The milestone to create; id, timestamps and order are assigned
+   * @returns The created milestone, or null on failure
+   */
+  createMilestone(milestone: Omit<Milestone, "id" | "createdAt" | "updatedAt" | "orderIndex">): Promise<MilestoneView | null>
+  /**
+   * Apply a partial update to a milestone. Its project never changes.
+   * @param id - The milestone to update
+   * @param updates - Fields to change
+   * @returns The updated milestone, or null on failure
+   */
+  updateMilestone(
+    id: Milestone["id"],
+    updates: Partial<Pick<Milestone, "name" | "description" | "targetDate" | "orderIndex">>,
+  ): Promise<MilestoneView | null>
+  /**
+   * Soft-delete a milestone. Every task it held keeps existing, cleared of it.
+   * @param id - The milestone to delete
+   * @returns true if the milestone was deleted
+   */
+  deleteMilestone(id: Milestone["id"]): Promise<boolean>
+
+  /**
    * List all project branches.
    * @returns The branches
    */
@@ -198,12 +235,13 @@ export interface Storage {
    */
   createBranch(branch: Omit<Branch, "id" | "createdAt" | "updatedAt" | "deletedAt">): Promise<Branch | null>
   /**
-   * Rename a project branch. The default "main" branch cannot be renamed.
+   * Apply a partial update to a project branch. The default "main" branch can carry a
+   * description but cannot be renamed.
    * @param id - The branch to update
-   * @param updates - The new name (trimmed; empty or duplicate names are rejected)
-   * @returns The updated branch, or null if the rename was rejected
+   * @param updates - The new name (trimmed; empty or duplicate names are rejected) and/or description
+   * @returns The updated branch, or null if the update was rejected
    */
-  updateBranch(id: Branch["id"], updates: Pick<Branch, "name">): Promise<Branch | null>
+  updateBranch(id: Branch["id"], updates: Partial<Pick<Branch, "name" | "description">>): Promise<Branch | null>
   /**
    * Delete a project branch. If it was the active branch, the active branch resets to "main".
    * @param id - The branch to delete

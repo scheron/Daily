@@ -22,7 +22,7 @@ export function crossesBacklog(fromStatus: TaskStatus, toStatus: TaskStatus): bo
  * @param ctx - Shared task state refs, active-day selectors, and day-refresh helpers
  */
 export function useTaskMutations(ctx: TaskMutationsContext) {
-  const {days, activeDay, activeBranchId, dailyTasks, backlogTasks, findTaskById, refreshDay, refreshDays, refreshBacklog} = ctx
+  const {days, activeDay, activeBranchId, dailyTasks, backlogTasks, findTaskById, refreshDay, refreshDays, refreshBacklog, refreshMilestones} = ctx
 
   async function createTask(params: {
     content: string
@@ -31,6 +31,7 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
     date?: ISODate
     branchId?: Branch["id"]
     status?: TaskStatus
+    milestoneId?: Task["milestoneId"]
   }): Promise<Task | null> {
     const isBacklog = params.status === "backlog"
 
@@ -48,17 +49,20 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
         orderIndex: getPreviousTaskOrderIndex(dailyTasks.value),
         branchId: params.branchId ?? activeBranchId.value,
         status: params.status,
+        milestoneId: params.milestoneId,
       }),
     )
 
     if (isBacklog) {
       await refreshBacklog()
+      await refreshMilestones()
       return backlogTasks.value.find((t) => !previousBacklogIds.has(t.id)) ?? null
     }
 
     if (!updatedDay) return null
 
     days.value = updateDays(days.value, updatedDay)
+    await refreshMilestones()
     return updatedDay.tasks.find((t) => !previousDailyIds.has(t.id)) ?? null
   }
 
@@ -91,11 +95,13 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
     if (!result.day) {
       if (sourceDate) await refreshDay(sourceDate)
       await refreshBacklog()
+      await refreshMilestones()
       return true
     }
 
     days.value = updateDays(days.value, result.day)
     if (sourceDate && sourceDate !== result.day.date) await refreshDay(sourceDate)
+    await refreshMilestones()
 
     return true
   }
@@ -122,6 +128,7 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
 
     if (!task.scheduled) {
       backlogTasks.value = backlogTasks.value.filter((t) => t.id !== taskId)
+      await refreshMilestones()
       return true
     }
 
@@ -131,6 +138,7 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
 
     const dayWithRemovedTask = {...day, tasks: day.tasks.filter((t) => t.id !== taskId)}
     days.value = updateDays(days.value, dayWithRemovedTask)
+    await refreshMilestones()
 
     return true
   }
@@ -138,14 +146,19 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
   async function moveTask(taskId: Task["id"], targetDate: ISODate) {
     const task = findTaskById(taskId)
     if (!task) return false
-    if (!task.scheduled) return true
 
-    const sourceDate = task.scheduled.date
+    const sourceDate = task.scheduled?.date ?? null
 
     const isSuccess = await API.moveTask(taskId, targetDate)
     if (!isSuccess) return false
 
-    await refreshDays([sourceDate, targetDate])
+    if (sourceDate) {
+      await refreshDays([sourceDate, targetDate])
+    } else {
+      await refreshDay(targetDate)
+      await refreshBacklog()
+    }
+    await refreshMilestones()
 
     return true
   }
@@ -160,6 +173,7 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
 
     if (task.scheduled) await refreshDay(task.scheduled.date)
     else await refreshBacklog()
+    await refreshMilestones()
 
     return true
   }
@@ -221,6 +235,7 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
       return null
     }
 
+    await refreshMilestones()
     return meta
   }
 

@@ -206,6 +206,22 @@ describe("two-node convergence through a shared sync directory", () => {
     expect(onB?.scheduled).toBeNull()
   })
 
+  it("converges_TC-18_a_milestone_created_on_node_A_onto_node_B", async () => {
+    const branchIdA = await nodeA.core.branchesService.getActiveBranchId()
+    const milestone = await nodeA.core.milestonesService.createMilestone({
+      branchId: branchIdA,
+      name: "Launch",
+      description: "",
+      targetDate: null,
+    })
+
+    await nodeA.engine.syncOnce("push")
+    await nodeB.engine.syncOnce("pull")
+
+    const onB = await nodeB.core.milestonesService.getMilestoneList()
+    expect(onB.some((m) => m.id === milestone.id)).toBe(true)
+  })
+
   it("a soft delete on node A propagates to node B", async () => {
     const task = await addTask(nodeA, "to delete")
     await nodeA.engine.syncOnce("push")

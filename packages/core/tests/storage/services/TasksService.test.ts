@@ -60,7 +60,7 @@ describe("TasksService", () => {
 
   describe("createTask", () => {
     it("transforms Tag objects to tag IDs before saving", async () => {
-      const tag = tagModel.createTag({name: "work", color: "#000"})
+      const tag = tagModel.createTag({name: "work", color: "#000", branchId: "main"})
       const task = await tasksService.createTask(makeTask({tags: [tag]}))
 
       expect(task.tags).toHaveLength(1)
@@ -280,7 +280,7 @@ describe("TasksService", () => {
 
   describe("addTaskTags / removeTaskTags", () => {
     it("adds tags to a task", async () => {
-      const tag = tagModel.createTag({name: "urgent", color: "#f00"})
+      const tag = tagModel.createTag({name: "urgent", color: "#f00", branchId: "main"})
       const task = taskModel.createTask(makeTask())
 
       const updated = await tasksService.addTaskTags(task.id, [tag.id])
@@ -289,7 +289,7 @@ describe("TasksService", () => {
     })
 
     it("removes specific tags from a task", async () => {
-      const tag = tagModel.createTag({name: "temp", color: "#00f"})
+      const tag = tagModel.createTag({name: "temp", color: "#00f", branchId: "main"})
       const task = taskModel.createTask(makeTask({tags: [tag.id]}))
 
       const updated = await tasksService.removeTaskTags(task.id, [tag.id])
@@ -395,6 +395,97 @@ describe("TasksService", () => {
 
       const created = await tasksService.createTask(makeTask({status: "backlog", scheduled: null}))
       expect(created.orderIndex).toBeLessThan(movedByStatusChange.orderIndex)
+    })
+  })
+
+  describe("a backlog task given a day through updateTask", () => {
+    it("gives_TC-3_a_dateless_task_a_real_time_and_timezone_and_flips_it_active_when_only_a_date_is_sent", async () => {
+      const task = taskModel.createTask(makeTask({status: "backlog", scheduled: null}))
+
+      const updated = await tasksService.updateTask(task.id, {scheduled: {date: "2026-04-10"}})
+
+      expect(updated.status).toBe("active")
+      expect(updated.scheduled?.date).toBe("2026-04-10")
+      expect(updated.scheduled?.time).toBeTruthy()
+      expect(updated.scheduled?.timezone).toBeTruthy()
+    })
+
+    it("moves_TC-5_a_dated_tasks_day_without_touching_its_status", async () => {
+      const doneTask = taskModel.createTask(makeTask({status: "done", scheduled: {date: "2026-04-01", time: "09:00:00", timezone: "UTC"}}))
+      const discardedTask = taskModel.createTask(makeTask({status: "discarded", scheduled: {date: "2026-04-01", time: "09:00:00", timezone: "UTC"}}))
+
+      const movedDone = await tasksService.updateTask(doneTask.id, {scheduled: {date: "2026-04-15"}})
+      const movedDiscarded = await tasksService.updateTask(discardedTask.id, {scheduled: {date: "2026-04-15"}})
+
+      expect(movedDone.status).toBe("done")
+      expect(movedDone.scheduled?.date).toBe("2026-04-15")
+      expect(movedDiscarded.status).toBe("discarded")
+      expect(movedDiscarded.scheduled?.date).toBe("2026-04-15")
+    })
+  })
+
+  describe("a task's milestone", () => {
+    function insertMilestoneRow(id: string, branchId: string, name: string) {
+      const now = new Date().toISOString()
+      db.prepare(
+        `INSERT INTO milestones (id, branch_id, name, description, target_date, order_index, created_at, updated_at, deleted_at)
+         VALUES (?, ?, ?, '', NULL, 0, ?, ?, NULL)`,
+      ).run(id, branchId, name, now, now)
+    }
+
+    it("sets_TC-28_a_tasks_milestoneId_through_updateTask", async () => {
+      const task = taskModel.createTask(makeTask())
+      insertMilestoneRow("m1", "main", "Launch")
+
+      const updated = await tasksService.updateTask(task.id, {milestoneId: "m1"})
+
+      expect(updated.milestoneId).toBe("m1")
+    })
+
+    it("clears_TC-31_a_tasks_milestone_when_it_moves_to_another_project_leaving_everything_else_unchanged", async () => {
+      const branchModel = new (await import("@core/storage/models/BranchModel")).BranchModel(db)
+      const branchB = branchModel.createBranch({name: "Other"})
+      insertMilestoneRow("m1", "main", "Launch")
+
+      const task = taskModel.createTask(
+        makeTask({branchId: "main", content: "keep me", status: "active", scheduled: {date: "2026-05-01", time: "09:00:00", timezone: "UTC"}}),
+      )
+      await tasksService.updateTask(task.id, {milestoneId: "m1"})
+
+      const moved = await tasksService.moveTaskToBranch(task.id, branchB.id)
+      expect(moved).toBe(true)
+
+      const after = await tasksService.getTask(task.id)
+      expect(after.milestoneId).toBeNull()
+      expect(after.branchId).toBe(branchB.id)
+      expect(after.status).toBe("active")
+      expect(after.scheduled?.date).toBe("2026-05-01")
+      expect(after.content).toBe("keep me")
+    })
+
+    it("refuses a milestoneId that belongs to a different project", async () => {
+      const branchModel = new (await import("@core/storage/models/BranchModel")).BranchModel(db)
+      const branchB = branchModel.createBranch({name: "Other"})
+      insertMilestoneRow("m1", "main", "Launch")
+
+      const task = taskModel.createTask(makeTask({branchId: branchB.id}))
+
+      const updated = await tasksService.updateTask(task.id, {milestoneId: "m1"})
+
+      expect(updated.milestoneId).toBeNull()
+    })
+
+    it("clears a task's milestone when updateTask changes its project without naming a milestone", async () => {
+      const branchModel = new (await import("@core/storage/models/BranchModel")).BranchModel(db)
+      const branchB = branchModel.createBranch({name: "Other"})
+      insertMilestoneRow("m1", "main", "Launch")
+
+      const task = taskModel.createTask(makeTask({branchId: "main"}))
+      await tasksService.updateTask(task.id, {milestoneId: "m1"})
+
+      const updated = await tasksService.updateTask(task.id, {branchId: branchB.id})
+
+      expect(updated.milestoneId).toBeNull()
     })
   })
 })
