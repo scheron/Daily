@@ -112,12 +112,19 @@ export function createTagSlashCompletionSource(
   }
 }
 
-export function createCompletionExtension(options: TagsAutocompleteOptions): Extension {
+/**
+ * Autocomplete for the markdown editor: the `/` insert menu, plus the tag
+ * commands when `options` is given. Omit `options` where there is nothing to
+ * tag — a project or milestone description — and `/` still offers every block
+ * command, only without "Add Tag" and "Remove Tag".
+ */
+export function createCompletionExtension(options?: TagsAutocompleteOptions): Extension {
   const tagMetaByLabel = new Map<string, {color: string; mode: TagCommandMode}>()
-  const tagSlashItems = createTagSlashItems()
   const slashIconByLabel = new Map(baseSlashIconByLabel)
 
-  tagSlashItems.forEach((item) => slashIconByLabel.set(`/${item.label}`, item.icon))
+  if (options) {
+    createTagSlashItems().forEach((item) => slashIconByLabel.set(`/${item.label}`, item.icon))
+  }
 
   return [
     autocompletion({
@@ -158,10 +165,12 @@ export function createCompletionExtension(options: TagsAutocompleteOptions): Ext
           },
         },
       ],
-      override: [
-        createTagSlashCompletionSource(options, tagMetaByLabel),
-        createSlashCompletionSource(() => createTagSlashItems(Boolean(options.getAttachedTags?.().length))),
-      ],
+      override: options
+        ? [
+            createTagSlashCompletionSource(options, tagMetaByLabel),
+            createSlashCompletionSource(() => createTagSlashItems(Boolean(options.getAttachedTags?.().length))),
+          ]
+        : [createSlashCompletionSource()],
     }),
     keymap.of(completionKeymap),
   ]

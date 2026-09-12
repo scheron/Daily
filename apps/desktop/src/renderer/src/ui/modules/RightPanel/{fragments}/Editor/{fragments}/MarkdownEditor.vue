@@ -117,16 +117,16 @@ function createEditor(initialContent: string) {
       createCodeSyntaxExtension(),
       Prec.high(keymap.of(markdownKeymap)),
       keymap.of([...defaultKeymap, ...historyKeymap]),
-      ...(props.task
-        ? [
-            createCompletionExtension({
+      createCompletionExtension(
+        props.task
+          ? {
               getTags: () => tagsStore.tagsForBranch(props.task!.branchId),
               getAttachedTags: () => props.task!.tags,
               onAddTag: addTaskTag,
               onRemoveTag: removeTaskTag,
-            }),
-          ]
-        : []),
+            }
+          : undefined,
+      ),
       Prec.low(keymap.of([indentWithTab])),
     ],
   })

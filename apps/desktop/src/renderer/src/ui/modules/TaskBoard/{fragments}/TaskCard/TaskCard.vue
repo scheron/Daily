@@ -199,7 +199,7 @@ async function onMoveToBranch(branch: Branch) {
     </template>
 
     <template #child-tags>
-      <TagsCombobox :task="task" @update="taskModel.updateTaskTags" @close="contextMenuRef?.close()" />
+      <TagsCombobox :branch-id="task.branchId" :attached="task.tags" @update="taskModel.updateTaskTags" @close="contextMenuRef?.close()" />
     </template>
 
     <template #child-milestone>

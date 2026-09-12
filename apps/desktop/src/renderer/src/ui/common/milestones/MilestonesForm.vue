@@ -8,6 +8,7 @@ import {deepClone} from "@daily/std"
 
 import {useMilestonesStore} from "@/stores/milestones.store"
 import {useTasksStore} from "@/stores/tasks"
+import BaseButton from "@/ui/base/BaseButton"
 import BaseInput from "@/ui/base/BaseInput.vue"
 import MilestoneRow from "./{fragments}/MilestoneRow.vue"
 
@@ -119,14 +120,14 @@ function onDragEnd() {
     <div class="border-base-300 focus-within:border-accent group flex h-8 items-center gap-2 rounded-md border border-dashed px-2 transition-colors">
       <BaseInput v-model="newMilestoneName" bare hide-outline placeholder="New milestone" class="h-full flex-1 text-xs" @keydown="onNameKeydown" />
 
-      <button
-        type="button"
+      <BaseButton
+        variant="outline"
         :disabled="!newMilestoneName.trim()"
-        class="text-base-content/50 border-base-300 hover:text-base-content hover:border-base-content/30 disabled:hover:text-base-content/50 disabled:hover:border-base-300 shrink-0 rounded border px-1.5 text-[11px] leading-5 transition-colors disabled:opacity-40"
+        class="shrink-0 rounded px-1.5 py-0 text-[11px] leading-5"
         @click="createMilestone"
       >
         ↵
-      </button>
+      </BaseButton>
     </div>
 
     <p v-if="!sortedMilestones.length" class="text-base-content/40 px-2 py-3 text-xs">No milestones yet</p>

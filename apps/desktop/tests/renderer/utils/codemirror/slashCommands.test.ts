@@ -29,6 +29,13 @@ describe("slashCompletionSource", () => {
     expect(labels.every((l) => l.startsWith("/"))).toBe(true)
   })
 
+  it("offers no tag commands without extra items, as in a project or milestone description", () => {
+    const labels = complete("/", 1)!.options.map((o) => o.label)
+    expect(labels).not.toContain("/Add Tag")
+    expect(labels).not.toContain("/Remove Tag")
+    expect(labels).toContain("/Bullet List")
+  })
+
   it("triggers after whitespace too", () => {
     expect(complete("text /", 6)).not.toBeNull()
   })

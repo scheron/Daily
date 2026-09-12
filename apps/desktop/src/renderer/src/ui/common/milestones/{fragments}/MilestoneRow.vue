@@ -104,11 +104,13 @@ function saveDescription() {
       @click="emit('toggle')"
     >
       <span
-        class="ms-drag-handle text-base-content/40 flex shrink-0 cursor-grab items-center opacity-0 transition-opacity group-hover:opacity-100"
+        class="ms-drag-handle text-base-content/25 hover:text-base-content/60 flex shrink-0 cursor-grab items-center transition-colors"
         @click.stop
       >
         <BaseIcon name="drag-vertical" class="size-3.5" />
       </span>
+
+      <BaseIcon :name="expanded ? 'chevron-down' : 'chevron-right'" class="text-base-content/40 size-3 shrink-0" />
 
       <MilestoneDiamond :completion="completion" :overdue="overdue" :size="13" />
 
@@ -125,19 +127,20 @@ function saveDescription() {
       />
       <span v-else class="min-w-0 flex-1 truncate font-medium">{{ milestone.name }}</span>
 
-      <BaseIcon :name="expanded ? 'chevron-down' : 'chevron-right'" class="text-base-content/40 size-3 shrink-0" />
-
-      <div class="text-base-content/55 ml-auto flex shrink-0 items-center gap-3 text-xs">
-        <BasePopup hide-header position="end">
+      <div class="text-base-content/55 ml-auto flex shrink-0 items-center text-xs">
+        <BasePopup hide-header position="end" trigger-class="w-24 shrink-0" container-class="max-h-none">
           <template #trigger="{toggle}">
-            <button
-              type="button"
-              class="whitespace-nowrap"
-              :class="{'text-base-content/35 italic': !milestone.targetDate, 'text-error font-semibold': overdue}"
+            <BaseButton
+              variant="text"
+              :class="[
+                'w-full justify-end truncate p-0 text-right text-xs whitespace-nowrap',
+                !milestone.targetDate && 'text-base-content/35 italic',
+                overdue && 'text-error font-semibold',
+              ]"
               @click.stop="toggle"
             >
               {{ dateLabel ?? "Set a date" }}
-            </button>
+            </BaseButton>
           </template>
 
           <template #default="{hide}">
@@ -156,10 +159,12 @@ function saveDescription() {
           </template>
         </BasePopup>
 
-        <span class="tabular-nums">{{ milestone.progress.total }} tasks</span>
-        <span class="w-9 text-right tabular-nums">{{ percentLabel }}</span>
+        <span class="w-16 shrink-0 text-right tabular-nums">{{ milestone.progress.total }} tasks</span>
+        <span class="w-10 shrink-0 text-right tabular-nums">{{ percentLabel }}</span>
 
-        <div class="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+        <div
+          class="flex w-14 shrink-0 items-center justify-end gap-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
+        >
           <BaseButton icon="pencil" variant="ghost" icon-class="size-3.5" class="size-6 p-0" @click.stop="startEdit" />
 
           <ConfirmPopup
@@ -179,7 +184,7 @@ function saveDescription() {
       </div>
     </div>
 
-    <div v-if="expanded" class="pb-3 pl-9">
+    <div v-if="expanded" class="pb-3 pl-18">
       <MarkdownEditor class="h-28" :content="localDescription" @update:content="localDescription = $event" @focusout="saveDescription" />
     </div>
   </div>

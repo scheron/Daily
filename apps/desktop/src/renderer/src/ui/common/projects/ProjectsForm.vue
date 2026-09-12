@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {ref} from "vue"
+import {nextTick, ref, useTemplateRef} from "vue"
 import {toasts} from "vue-toasts-lite"
 
 import {MAIN_BRANCH_ID} from "@daily/protocol"
@@ -23,9 +23,31 @@ const tasksStore = useTasksStore()
 const tagsStore = useTagsStore()
 const milestonesStore = useMilestonesStore()
 
+const createInput = useTemplateRef<{focus: () => void}>("createInput")
+
+const isCreating = ref(false)
 const newProjectName = ref("")
 const editingId = ref<Branch["id"] | null>(null)
 const editingName = ref("")
+
+function isSelected(branch: Branch): boolean {
+  return props.selectedId === branch.id
+}
+
+function isActive(branch: Branch): boolean {
+  return branchesStore.activeBranchId === branch.id
+}
+
+function startCreate() {
+  isCreating.value = true
+  newProjectName.value = ""
+  nextTick(() => createInput.value?.focus())
+}
+
+function cancelCreate() {
+  isCreating.value = false
+  newProjectName.value = ""
+}
 
 function startEdit(branch: Branch) {
   if (branch.id === MAIN_BRANCH_ID) return
@@ -48,7 +70,7 @@ async function createProject() {
     return
   }
 
-  newProjectName.value = ""
+  cancelCreate()
   toasts.success("Project created")
 }
 
@@ -88,84 +110,85 @@ async function deleteProject(branch: Branch) {
 </script>
 
 <template>
-  <div class="flex flex-col gap-2">
-    <div class="focus-within:border-accent border-base-300 group flex h-8 items-center gap-2 rounded-md border border-dashed px-2 transition-colors">
-      <BaseIcon name="project" class="text-base-content/50 size-3.5 shrink-0" />
+  <div class="flex flex-wrap items-center gap-2">
+    <BaseButton
+      v-if="!isCreating"
+      variant="dashed"
+      icon="plus"
+      icon-class="size-4 shrink-0"
+      class="flex shrink-0 gap-2 px-2 py-0.5 text-sm whitespace-nowrap"
+      @click="startCreate"
+    >
+      New project
+    </BaseButton>
 
-      <BaseInput v-model="newProjectName" bare hide-outline placeholder="New project" class="h-full flex-1 text-xs" @keyup.enter="createProject" />
+    <div v-else class="border-accent flex w-45 shrink-0 items-center gap-2 rounded-full border-2 border-dashed px-4 py-0.5 text-sm">
+      <BaseIcon name="project" class="text-base-content/50 size-4 shrink-0" />
 
-      <button
-        type="button"
-        :disabled="!newProjectName.trim()"
-        class="text-base-content/50 border-base-300 hover:text-base-content hover:border-base-content/30 disabled:hover:text-base-content/50 disabled:hover:border-base-300 shrink-0 rounded border px-1.5 text-[11px] leading-5 transition-colors disabled:opacity-40"
-        @click="createProject"
-      >
-        ↵
-      </button>
+      <BaseInput
+        ref="createInput"
+        v-model="newProjectName"
+        bare
+        hide-outline
+        placeholder="New project"
+        class="min-w-0 flex-1 text-sm"
+        @keyup.enter="createProject"
+        @keyup.escape="cancelCreate"
+      />
+
+      <BaseButton variant="ghost" :disabled="!newProjectName.trim()" class="size-5 shrink-0 p-0 text-[11px]" @click="createProject">↵</BaseButton>
     </div>
 
-    <div class="flex w-full flex-col gap-0.5">
-      <div v-for="branch in branchesStore.orderedBranches" :key="branch.id">
-        <div v-if="editingId === branch.id" class="border-base-300 focus-within:border-accent flex h-8 items-center gap-2 rounded-md border px-2">
-          <BaseIcon name="project" class="text-base-content/50 size-3.5 shrink-0" />
+    <template v-for="branch in branchesStore.orderedBranches" :key="branch.id">
+      <div v-if="editingId === branch.id" class="border-accent flex w-45 shrink-0 items-center gap-2 rounded-full border-2 px-4 py-0.5 text-sm">
+        <BaseIcon name="project" class="text-base-content/50 size-4 shrink-0" />
 
-          <BaseInput v-model="editingName" bare hide-outline focus-on-mount class="h-full flex-1 text-xs" @keyup.enter="renameProject(branch.id)" />
+        <BaseInput
+          v-model="editingName"
+          bare
+          hide-outline
+          focus-on-mount
+          class="min-w-0 flex-1 text-sm"
+          @keyup.enter="renameProject(branch.id)"
+          @keyup.escape="cancelEdit"
+        />
 
-          <BaseButton icon="check" variant="ghost" icon-class="size-4" class="size-6 shrink-0 p-0" @click="renameProject(branch.id)" />
-          <BaseButton icon="x-mark" variant="ghost" icon-class="size-4" class="size-6 shrink-0 p-0" @click="cancelEdit" />
-        </div>
+        <BaseButton icon="check" variant="ghost" icon-class="size-3.5" class="size-5 shrink-0 p-0" @click="renameProject(branch.id)" />
+        <BaseButton icon="x-mark" variant="ghost" icon-class="size-3.5" class="size-5 shrink-0 p-0" @click="cancelEdit" />
+      </div>
 
-        <div
-          v-else
-          class="hover:bg-base-200 group flex h-8 cursor-pointer items-center gap-2 rounded-md px-2 transition-colors"
-          :class="{'bg-base-200': props.selectedId === branch.id}"
+      <div v-else class="flex shrink-0 items-center gap-0.5">
+        <BaseButton
+          variant="ghost"
+          icon="project"
+          :icon-class="['size-4 shrink-0', isActive(branch) && !isSelected(branch) && 'text-accent']"
+          class="flex max-w-56 gap-2 px-4 py-0.5 text-sm"
+          :class="[
+            isSelected(branch) ? 'bg-accent/15 hover:bg-accent/20 text-accent' : 'text-base-content/70 hover:bg-base-200 hover:text-base-content',
+          ]"
           @click="emit('select', branch.id)"
         >
-          <BaseIcon
-            name="project"
-            class="size-3.5 shrink-0"
-            :class="branchesStore.activeBranchId === branch.id ? 'text-accent' : 'text-base-content/50'"
-          />
-          <span
-            class="text-base-content/80 flex-1 truncate text-left text-xs"
-            :class="{'text-accent font-medium': branchesStore.activeBranchId === branch.id}"
+          <span class="truncate" :class="isActive(branch) && 'font-medium'">{{ branch.name }}</span>
+        </BaseButton>
+
+        <template v-if="isSelected(branch) && branch.id !== MAIN_BRANCH_ID">
+          <BaseButton icon="pencil" variant="ghost" icon-class="size-3.5" class="size-7 shrink-0 p-0" @click="startEdit(branch)" />
+
+          <ConfirmPopup
+            title="Delete project?"
+            message="This project's tasks, milestones and tags will be deleted with it!"
+            confirm-text="Delete"
+            cancel-text="Cancel"
+            position="end"
+            content-class="max-w-72"
+            @confirm="deleteProject(branch)"
           >
-            {{ branch.name }}
-          </span>
-
-          <div class="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
-            <BaseButton
-              icon="pencil"
-              variant="ghost"
-              icon-class="size-4"
-              class="size-6 p-0"
-              :disabled="branch.id === MAIN_BRANCH_ID"
-              @click.stop="startEdit(branch)"
-            />
-
-            <ConfirmPopup
-              title="Delete project?"
-              message="This project's tasks, milestones and tags will be deleted with it!"
-              confirm-text="Delete"
-              cancel-text="Cancel"
-              position="end"
-              content-class="max-w-72"
-              @confirm="deleteProject(branch)"
-            >
-              <template #trigger="{show}">
-                <BaseButton
-                  icon="trash"
-                  variant="ghost"
-                  icon-class="size-4"
-                  class="text-error hover:bg-error/10 size-6 p-0"
-                  :disabled="branch.id === MAIN_BRANCH_ID"
-                  @click.stop="show"
-                />
-              </template>
-            </ConfirmPopup>
-          </div>
-        </div>
+            <template #trigger="{show}">
+              <BaseButton icon="trash" variant="ghost" icon-class="size-3.5" class="text-error hover:bg-error/10 size-7 shrink-0 p-0" @click="show" />
+            </template>
+          </ConfirmPopup>
+        </template>
       </div>
-    </div>
+    </template>
   </div>
 </template>

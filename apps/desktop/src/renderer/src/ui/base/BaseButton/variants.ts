@@ -54,6 +54,11 @@ export const buttonColorVariant = defineVariant({
           hover:bg-base-200 hover:border-base-content/50
           disabled:hover:bg-transparent 
       `,
+      dashed: `
+          bg-transparent text-base-content/50 border-2 border-dashed border-base-300
+          hover:text-base-content hover:border-base-content/30
+          disabled:hover:text-base-content/50 disabled:hover:border-base-300
+      `,
       link: `
           bg-transparent text-accent 
           hover:underline

@@ -18,23 +18,19 @@ const selectedBranchId = ref<Branch["id"]>(branchesStore.activeBranchId ?? MAIN_
 </script>
 
 <template>
-  <div class="grid grid-cols-[200px_1fr] items-start gap-6 py-2">
-    <SettingsGroup label="Projects" icon="project">
-      <ProjectsForm :selected-id="selectedBranchId" @select="selectedBranchId = $event" />
+  <div class="flex flex-col gap-6 py-2">
+    <ProjectsForm :selected-id="selectedBranchId" @select="selectedBranchId = $event" />
+
+    <SettingsGroup label="Description" icon="pencil">
+      <ProjectDescription :branch-id="selectedBranchId" />
     </SettingsGroup>
 
-    <div class="flex flex-col gap-6">
-      <SettingsGroup label="Description" icon="pencil">
-        <ProjectDescription :branch-id="selectedBranchId" />
-      </SettingsGroup>
+    <SettingsGroup label="Milestones" icon="milestone">
+      <MilestonesForm :branch-id="selectedBranchId" />
+    </SettingsGroup>
 
-      <SettingsGroup label="Milestones" icon="milestone">
-        <MilestonesForm :branch-id="selectedBranchId" />
-      </SettingsGroup>
-
-      <SettingsGroup label="Tags" icon="tags">
-        <TagsForm :branch-id="selectedBranchId" />
-      </SettingsGroup>
-    </div>
+    <SettingsGroup label="Tags" icon="tags">
+      <TagsForm :branch-id="selectedBranchId" />
+    </SettingsGroup>
   </div>
 </template>

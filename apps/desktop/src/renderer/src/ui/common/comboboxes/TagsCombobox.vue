@@ -9,9 +9,14 @@ import BaseButton from "@/ui/base/BaseButton"
 import BaseCombobox from "@/ui/base/BaseCombobox"
 import BaseIcon from "@/ui/base/BaseIcon"
 
-import type {Tag, TagPresetColor, Task} from "@daily/protocol"
+import type {Branch, Tag, TagPresetColor} from "@daily/protocol"
 
-const props = defineProps<{task: Task}>()
+const props = defineProps<{
+  /** Project the tags belong to. */
+  branchId: Branch["id"]
+  /** Tags already attached to the subject. Omit it to only browse and create, with no checkboxes. */
+  attached?: readonly Tag[]
+}>()
 const emit = defineEmits<{update: [tags: Tag[]]; close: []}>()
 
 const tagsStore = useTagsStore()
@@ -20,17 +25,21 @@ const query = ref("")
 const mode = ref<"list" | "create">("list")
 const isCreating = ref(false)
 
-const selectedIds = computed(() => new Set(props.task.tags.map((tag) => tag.id)))
-const projectTags = computed(() => tagsStore.tagsForBranch(props.task.branchId))
+const isAttaching = computed(() => props.attached !== undefined)
+const attachedTags = computed(() => props.attached ?? [])
+const attachedIds = computed(() => new Set(attachedTags.value.map((tag) => tag.id)))
+const projectTags = computed(() => tagsStore.tagsForBranch(props.branchId))
 const sortedTags = computed(() => sortTags(projectTags.value))
 const trimmedQuery = computed(() => normalizeTagName(query.value))
 
-function isSelected(tag: Tag): boolean {
-  return selectedIds.value.has(tag.id)
+function isAttached(tag: Tag): boolean {
+  return attachedIds.value.has(tag.id)
 }
 
 function toggleTag(tag: Tag) {
-  const next = isSelected(tag) ? props.task.tags.filter((t) => t.id !== tag.id) : [...props.task.tags, tag]
+  if (!isAttaching.value) return
+
+  const next = isAttached(tag) ? attachedTags.value.filter((t) => t.id !== tag.id) : [...attachedTags.value, tag]
   emit("update", next)
 }
 
@@ -50,7 +59,7 @@ async function createWithColor(color: TagPresetColor) {
   if (!name) return
 
   isCreating.value = true
-  const created = await tagsStore.createTag(name, color.value, props.task.branchId)
+  const created = await tagsStore.createTag(name, color.value, props.branchId)
   isCreating.value = false
 
   if (!created) {
@@ -58,7 +67,8 @@ async function createWithColor(color: TagPresetColor) {
     return
   }
 
-  emit("update", [...props.task.tags, created])
+  if (isAttaching.value) emit("update", [...attachedTags.value, created])
+
   query.value = ""
   mode.value = "list"
 }
@@ -93,7 +103,7 @@ async function createWithColor(color: TagPresetColor) {
       :items="sortedTags"
       :item-key="(tag) => tag.id"
       :filter-by="(tag) => tag.name"
-      :selected="isSelected"
+      :selected="isAttaching ? isAttached : undefined"
       placeholder="Search or create tags..."
       empty-text="No tags found"
       @update:query="query = $event"
