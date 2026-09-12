@@ -51,10 +51,6 @@ function toggleExpanded(id: Milestone["id"]) {
   expandedIds.value = next
 }
 
-function onNameKeydown(event: KeyboardEvent) {
-  if (event.key === "Enter") createMilestone()
-}
-
 async function createMilestone() {
   const name = newMilestoneName.value.trim()
   if (!name) return
@@ -118,7 +114,14 @@ function onDragEnd() {
 <template>
   <div class="flex flex-col gap-1">
     <div class="border-base-300 focus-within:border-accent group flex h-8 items-center gap-2 rounded-md border border-dashed px-2 transition-colors">
-      <BaseInput v-model="newMilestoneName" bare hide-outline placeholder="New milestone" class="h-full flex-1 text-xs" @keydown="onNameKeydown" />
+      <BaseInput
+        v-model="newMilestoneName"
+        bare
+        hide-outline
+        placeholder="New milestone"
+        class="h-full flex-1 text-xs"
+        @keyup.enter="createMilestone"
+      />
 
       <BaseButton
         variant="outline"

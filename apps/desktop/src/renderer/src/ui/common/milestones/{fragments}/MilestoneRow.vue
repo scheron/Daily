@@ -69,11 +69,6 @@ async function saveRename() {
   if (!updated) toasts.error("Failed to rename milestone")
 }
 
-function onNameKeydown(event: KeyboardEvent) {
-  if (event.key === "Enter") saveRename()
-  if (event.key === "Escape") cancelEdit()
-}
-
 async function selectDate(date: ISODate, hide: () => void) {
   hide()
   if (date === props.milestone.targetDate) return
@@ -122,7 +117,8 @@ function saveDescription() {
         focus-on-mount
         class="h-full max-w-40 flex-none text-sm font-medium"
         @click.stop
-        @keydown="onNameKeydown"
+        @keyup.enter="saveRename"
+        @keyup.escape="cancelEdit"
         @blur="saveRename"
       />
       <span v-else class="min-w-0 flex-1 truncate font-medium">{{ milestone.name }}</span>

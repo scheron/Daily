@@ -167,14 +167,17 @@ describe("BranchesService — deleting a project takes its tasks, milestones and
 
     for (const task of first.tasks) {
       const after = await core.tasksService.getTask(task.id)
+      expect(after).not.toBeNull()
       expect(after?.deletedAt).not.toBeNull()
     }
     for (const milestone of first.milestones) {
       const after = await core.milestonesService.getMilestone(milestone.id)
+      expect(after).not.toBeNull()
       expect(after?.deletedAt).not.toBeNull()
     }
     for (const tag of first.tags) {
       const after = await core.tagsService.getTag(tag.id)
+      expect(after).not.toBeNull()
       expect(after?.deletedAt).not.toBeNull()
     }
 
