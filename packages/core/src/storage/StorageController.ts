@@ -240,6 +240,10 @@ export class StorageController implements IStorageController {
     return this.tasksService.getBacklogTasks({branchId})
   }
 
+  async getTasksByMilestone(milestoneId: Milestone["id"]): Promise<Task[]> {
+    return this.tasksService.getTasksByMilestone(milestoneId)
+  }
+
   async getTask(id: Task["id"]): Promise<Task | null> {
     return this.tasksService.getTask(id)
   }

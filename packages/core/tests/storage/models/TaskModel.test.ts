@@ -2,6 +2,7 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
 import {BranchModel} from "@core/storage/models/BranchModel"
+import {MilestoneModel} from "@core/storage/models/MilestoneModel"
 import {TagModel} from "@core/storage/models/TagModel"
 import {TaskModel} from "@core/storage/models/TaskModel"
 import {createTestDatabase} from "../../helpers/db"
@@ -36,6 +37,7 @@ describe("TaskModel", () => {
   let taskModel
   let tagModel
   let branchModel
+  let milestoneModel
 
   beforeEach(() => {
     db = createTestDatabase()
@@ -43,6 +45,7 @@ describe("TaskModel", () => {
     tagModel = new TagModel(db)
     branchModel = new BranchModel(db)
     branchModel.ensureMainBranch()
+    milestoneModel = new MilestoneModel(db)
   })
 
   afterEach(() => {
@@ -263,5 +266,42 @@ describe("TaskModel", () => {
 
     expect(backlog.map((t) => t.id)).toEqual([backlogB.id, backlogA.id])
     expect(backlog.find((t) => t.id === dated.id)).toBeUndefined()
+  })
+
+  it("reads_TC-1_a_milestones_tasks_from_every_day_including_the_dateless_one_and_no_other_task", () => {
+    const milestone = milestoneModel.createMilestone({branchId: "main", name: "Launch", description: "", targetDate: null})
+    const otherMilestone = milestoneModel.createMilestone({branchId: "main", name: "Other", description: "", targetDate: null})
+
+    const dayA = taskModel.createTask(
+      makeTaskInput({content: "Day A", milestoneId: milestone.id, scheduled: {date: "2026-09-10", time: "", timezone: "UTC"}}),
+    )
+    const dayB = taskModel.createTask(
+      makeTaskInput({content: "Day B", milestoneId: milestone.id, scheduled: {date: "2026-09-12", time: "", timezone: "UTC"}}),
+    )
+    const dayC = taskModel.createTask(
+      makeTaskInput({content: "Day C", milestoneId: milestone.id, scheduled: {date: "2026-09-14", time: "", timezone: "UTC"}}),
+    )
+    const dateless = taskModel.createTask(makeTaskInput({content: "No day", milestoneId: milestone.id, status: "backlog", scheduled: null}))
+
+    const otherMilestoneTask = taskModel.createTask(makeTaskInput({content: "Other milestone", milestoneId: otherMilestone.id}))
+    const noMilestoneTask = taskModel.createTask(makeTaskInput({content: "No milestone"}))
+
+    const tasks = taskModel.getTasksByMilestone(milestone.id)
+
+    expect(tasks.map((t) => t.id).sort()).toEqual([dayA.id, dayB.id, dayC.id, dateless.id].sort())
+    expect(tasks.find((t) => t.id === otherMilestoneTask.id)).toBeUndefined()
+    expect(tasks.find((t) => t.id === noMilestoneTask.id)).toBeUndefined()
+  })
+
+  it("excludes_TC-2_a_soft_deleted_task_from_a_milestones_tasks", () => {
+    const milestone = milestoneModel.createMilestone({branchId: "main", name: "Launch", description: "", targetDate: null})
+    const live = taskModel.createTask(makeTaskInput({content: "Live", milestoneId: milestone.id}))
+    const deleted = taskModel.createTask(makeTaskInput({content: "Deleted", milestoneId: milestone.id}))
+
+    taskModel.deleteTask(deleted.id)
+
+    const tasks = taskModel.getTasksByMilestone(milestone.id)
+
+    expect(tasks.map((t) => t.id)).toEqual([live.id])
   })
 })

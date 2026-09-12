@@ -56,6 +56,12 @@ export interface Storage {
    */
   getBacklog(branchId?: Branch["id"]): Promise<Task[]>
   /**
+   * Load a milestone's tasks: every live task it holds, from every day, dateless ones included.
+   * @param milestoneId - The milestone to read
+   * @returns The milestone's tasks
+   */
+  getTasksByMilestone(milestoneId: Milestone["id"]): Promise<Task[]>
+  /**
    * Create a task and return the day it was added to. Omitted fields fall back to
    * defaults (today/now, status "active", minimized false, orderIndex 0). A
    * task created with status "backlog" gets no date and no day is returned.

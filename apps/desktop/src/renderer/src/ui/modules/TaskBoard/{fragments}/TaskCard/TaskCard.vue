@@ -2,8 +2,9 @@
 import {computed, useTemplateRef} from "vue"
 
 import {sortTags, toTaskIdHash} from "@daily/protocol"
-import {toDurationLabel} from "@daily/std"
+import {toDateLabel, toDurationLabel} from "@daily/std"
 
+import {useFilterStore} from "@/stores/filter.store"
 import {useMilestonesStore} from "@/stores/milestones.store"
 import {useTagsStore} from "@/stores/tags.store"
 import {useTaskEditorStore} from "@/stores/task-editor"
@@ -32,6 +33,7 @@ const tasksStore = useTasksStore()
 const tagsStore = useTagsStore()
 const taskEditorStore = useTaskEditorStore()
 const milestonesStore = useMilestonesStore()
+const filterStore = useFilterStore()
 
 const contextMenuRef = useTemplateRef<InstanceType<typeof ContextMenu>>("contextMenu")
 
@@ -43,7 +45,14 @@ const milestone = computed(() => (props.task.milestoneId ? (milestonesStore.mile
 const showTime = computed(() => props.task.estimatedTime > 0)
 const estimateLabel = computed(() => (showTime.value ? toDurationLabel(props.task.estimatedTime) : ""))
 const spentLabel = computed(() => (showTime.value && props.task.spentTime > 0 ? toDurationLabel(props.task.spentTime) : ""))
-const hasFooter = computed(() => Boolean(milestone.value) || showTime.value)
+
+const footerMilestone = computed(() => (filterStore.frame === "milestone" ? null : milestone.value))
+const footerDayLabel = computed(() => {
+  if (filterStore.frame !== "milestone" || !props.task.scheduled) return ""
+  return toDateLabel(props.task.scheduled.date, {short: true})
+})
+
+const hasFooter = computed(() => Boolean(footerMilestone.value) || Boolean(footerDayLabel.value) || showTime.value)
 
 const menuItems = computed<ContextMenuItem[]>(() => {
   return [
@@ -178,7 +187,8 @@ async function onMoveToBranch(branch: Branch) {
         </div>
 
         <div v-if="hasFooter" class="flex items-center gap-2 text-xs">
-          <MilestoneChip v-if="milestone" :milestone="milestone" :size="12" />
+          <MilestoneChip v-if="footerMilestone" :milestone="footerMilestone" :size="12" />
+          <span v-else-if="footerDayLabel" class="text-base-content/80 text-xs">{{ footerDayLabel }}</span>
 
           <div v-if="showTime" class="ml-auto flex items-center gap-2">
             <div class="text-base-content/80 inline-flex items-center gap-1 px-2.5 py-1">

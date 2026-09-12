@@ -5,6 +5,7 @@ import {defineStore} from "pinia"
 import {sortTasksByOrderIndex} from "@daily/protocol"
 
 import {API} from "@/api"
+import {useFilterStore} from "@/stores/filter.store"
 import {useMilestonesStore} from "@/stores/milestones.store"
 import {useSettingsStore} from "@/stores/settings.store"
 import {useTaskMutations} from "./composables/useTaskMutations"
@@ -15,9 +16,14 @@ import type {Day, ISODate, Task, TaskStatus} from "@daily/protocol"
 export const useTasksStore = defineStore("tasks", () => {
   const settingsStore = useSettingsStore()
   const milestonesStore = useMilestonesStore()
+  const filterStore = useFilterStore()
 
   const days = ref<Day[]>([])
   const backlogTasks = ref<Task[]>([])
+  const milestoneTasks = ref<Task[]>([])
+  const isMilestoneTasksLoaded = ref(false)
+
+  let loadedMilestoneKey: string | null = null
   const activeDay = ref<ISODate>(DateTime.now().toISODate()!)
   const isDaysLoaded = ref(false)
   const activeBranchId = computed(() => settingsStore.settings?.branch?.activeId)
@@ -87,25 +93,64 @@ export const useTasksStore = defineStore("tasks", () => {
     }
   }
 
+  /**
+   * Loads the tasks the milestone frame draws: the selected milestone's, or every milestone's when
+   * nothing is selected. What is already loaded is kept and reused — switching frames must not
+   * refetch, because rebuilding the columns blocks the main thread and the dock animates there too.
+   * @param force - Discard what is loaded and read again; every task write passes this.
+   */
+  async function refreshMilestoneTasks(force = false) {
+    if (force) loadedMilestoneKey = null
+
+    if (filterStore.frame === "day") return
+
+    const milestoneId = filterStore.activeMilestoneId
+    const key = milestoneId ?? "*"
+    if (loadedMilestoneKey === key) return
+
+    const ids = milestoneId ? [milestoneId] : milestonesStore.activeMilestones.map((milestone) => milestone.id)
+
+    if (!milestoneTasks.value.length) isMilestoneTasksLoaded.value = false
+    try {
+      const lists = await Promise.all(ids.map((id) => API.getTasksByMilestone(id)))
+      milestoneTasks.value = lists.flat()
+      loadedMilestoneKey = key
+    } catch (error) {
+      console.error("Failed to refresh milestone tasks:", error)
+    } finally {
+      isMilestoneTasksLoaded.value = true
+    }
+  }
+
   async function refreshMilestones() {
-    await milestonesStore.revalidate()
+    await Promise.all([milestonesStore.revalidate(), refreshMilestoneTasks(true)])
   }
 
   async function revalidate() {
-    await Promise.all([range.revalidate(), refreshBacklog()])
+    await Promise.all([range.revalidate(), refreshBacklog(), refreshMilestoneTasks(true)])
   }
 
   watch(
     () => activeBranchId.value,
     (newId, oldId) => {
-      if (newId !== oldId && isDaysLoaded.value) refreshBacklog()
+      if (newId === oldId) return
+      loadedMilestoneKey = null
+      if (isDaysLoaded.value) refreshBacklog()
     },
+  )
+
+  watch(
+    () => [filterStore.frame, filterStore.activeMilestoneId].join(":"),
+    () => refreshMilestoneTasks(),
+    {immediate: true},
   )
 
   return {
     isDaysLoaded,
     days,
     backlogTasks,
+    milestoneTasks,
+    isMilestoneTasksLoaded,
     activeDay,
     loadedRange: range.loadedRange,
     dailyTasks,

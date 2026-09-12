@@ -3,6 +3,7 @@ import {DateTime} from "luxon"
 import {createPinia, setActivePinia} from "pinia"
 import {beforeEach, describe, expect, it, vi} from "vitest"
 
+import {useFilterStore} from "../../../src/renderer/src/stores/filter.store"
 import {useTasksStore} from "../../../src/renderer/src/stores/tasks/tasks.store"
 import {API} from "../../../src/renderer/src/api"
 import {mockBridgeIPC} from "../../helpers/bridgeIPC"
@@ -31,6 +32,7 @@ vi.mock("../../../src/renderer/src/api", () => ({
     moveTaskByOrder: vi.fn().mockResolvedValue(null),
     moveTaskToBranch: vi.fn().mockResolvedValue(true),
     toggleTaskMinimized: vi.fn().mockResolvedValue({success: false}),
+    getTasksByMilestone: vi.fn().mockResolvedValue([]),
   },
 }))
 
@@ -317,5 +319,28 @@ describe("tasksStore", () => {
 
     expect(isUpdated).toBe(false)
     expect(store.dailyTasks.find((t) => t.id === "t1")?.content).toBe("Test")
+  })
+
+  it("holds_TC-6_a_framed_milestones_tasks_and_refreshes_them_after_a_write", async () => {
+    const filterStore = useFilterStore()
+    const store = await getStore()
+
+    const milestoneTask = makeTask({id: "m1", milestoneId: "milestone-1", scheduled: null, status: "backlog"})
+    API.getTasksByMilestone.mockResolvedValueOnce([milestoneTask])
+
+    filterStore.setFrame("milestone")
+    filterStore.setActiveMilestone("milestone-1")
+    await new Promise((r) => setTimeout(r, 0))
+
+    expect(API.getTasksByMilestone).toHaveBeenCalledWith("milestone-1")
+    expect(store.milestoneTasks.map((t) => t.id)).toEqual(["m1"])
+
+    const renamedMilestoneTask = makeTask({id: "m1", milestoneId: "milestone-1", scheduled: null, status: "backlog", content: "Renamed"})
+    API.getTasksByMilestone.mockResolvedValueOnce([renamedMilestoneTask])
+    API.updateTask.mockResolvedValueOnce({success: true, day: null})
+
+    await store.updateTask("m1", {content: "Renamed"})
+
+    expect(store.milestoneTasks.find((t) => t.id === "m1")?.content).toBe("Renamed")
   })
 })

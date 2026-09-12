@@ -16,7 +16,7 @@ const filterStore = useFilterStore()
 const filteredTags = computed(() =>
   sortTags(
     removeDuplicates(
-      tasksStore.dailyTasks.flatMap((task) => task.tags),
+      (filterStore.frame === "milestone" ? tasksStore.milestoneTasks : tasksStore.dailyTasks).flatMap((task) => task.tags),
       "name",
     ),
   ),
@@ -27,7 +27,7 @@ function onSelectTag(name: Tag["name"]) {
 }
 
 watch(
-  () => tasksStore.activeDay,
+  () => [tasksStore.activeDay, filterStore.activeMilestoneId],
   () => filterStore.clearActiveTags(),
 )
 

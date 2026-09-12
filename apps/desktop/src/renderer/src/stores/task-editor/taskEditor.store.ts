@@ -9,7 +9,7 @@ import {buildRestPatch} from "./utils/buildRestPatch"
 import {shallowEqualDraft} from "./utils/shallowEqualDraft"
 
 import type {TaskDraft} from "@/types/tasks"
-import type {Branch, Task} from "@daily/protocol"
+import type {Branch, Milestone, Task} from "@daily/protocol"
 
 export const useTaskEditorStore = defineStore("taskEditor", () => {
   const tasksStore = useTasksStore()
@@ -33,7 +33,7 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
     seedFrom(task)
   }
 
-  function openNew(params: {branchId: Branch["id"] | null}) {
+  function openNew(params: {branchId: Branch["id"] | null; milestoneId: Milestone["id"] | null}) {
     seedNew(params)
   }
 
@@ -139,7 +139,7 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
     editingTaskId.value = task.id
   }
 
-  function seedNew(params: {branchId: Branch["id"] | null}) {
+  function seedNew(params: {branchId: Branch["id"] | null; milestoneId: Milestone["id"] | null}) {
     draft.value = {
       content: "",
       tags: [],
@@ -148,7 +148,7 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
       status: "backlog",
       branchId: params.branchId,
       scheduled: null,
-      milestoneId: null,
+      milestoneId: params.milestoneId,
     }
     draftBase.value = null
     editingTaskId.value = null

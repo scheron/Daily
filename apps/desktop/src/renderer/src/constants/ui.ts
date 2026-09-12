@@ -5,6 +5,9 @@ export const TASK_CONTENT_MINIMIZED_HEIGHT = 200
 /** Marks a day cell as a drop target; its value is the target `ISODate` (`data-drop-day="2026-06-28"`). */
 export const DROP_DAY_SELECTOR = "[data-drop-day]"
 
+/** Marks a milestone row as a drop target; its value is the target milestone's id (`data-drop-milestone="m1"`). */
+export const DROP_MILESTONE_SELECTOR = "[data-drop-milestone]"
+
 /** Surfaces that accept a dragged task (popups, explicit drop zones); the dragged clone hides while over any of them. */
 export const DROP_ZONE_SELECTOR = "[data-popup], [data-day-drop-zone]"
 

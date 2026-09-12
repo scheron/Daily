@@ -2,6 +2,7 @@
 import {STORAGE_KEY_RIGHT_PANEL_WIDTH} from "@/constants/storageKeys"
 import {RIGHT_PANEL_SIZE} from "@/constants/ui"
 import {useBranchesStore} from "@/stores/branches.store"
+import {useFilterStore} from "@/stores/filter.store"
 import {useStorageStore} from "@/stores/storage.store"
 import {useTaskEditorStore} from "@/stores/task-editor"
 import {useThemeStore} from "@/stores/theme.store"
@@ -19,6 +20,7 @@ import {usePanelSize} from "./model/usePanelSize"
 const uiStore = useUIStore()
 const taskEditorStore = useTaskEditorStore()
 const branchesStore = useBranchesStore()
+const filterStore = useFilterStore()
 
 const confirmUnsavedModal = useConfirmUnsavedModal()
 const searchModal = useSearchModal()
@@ -35,6 +37,7 @@ async function onCreateTask() {
   if (!proceed) return
   taskEditorStore.openNew({
     branchId: branchesStore.activeBranchId,
+    milestoneId: filterStore.activeMilestoneId,
   })
 }
 

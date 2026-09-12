@@ -1,5 +1,6 @@
 import {computed, reactive, ref, watch} from "vue"
 
+import {sortTasksByDateThenOrder, sortTasksByOrderIndex} from "@daily/protocol"
 import {deepClone, isUndefined} from "@daily/std"
 
 import {createSharedComposable} from "@/composables/createSharedComposable"
@@ -27,17 +28,33 @@ export const useTaskColumns = createSharedComposable(() => {
     return tasks.filter((task) => task.tags.some((tag) => filterStore.activeTagIds.has(tag.id)))
   }
 
-  const filteredTasks = computed(() => filterByTag(tasksStore.dailyTasks))
-  const filteredBacklogTasks = computed(() => filterByTag(tasksStore.backlogTasks))
-
-  const tasksByStatus = computed<Record<TaskStatus, Task[]>>(() => {
-    const grouped = filteredTasks.value.reduce(
+  function groupByStatus(tasks: Task[]): Record<TaskStatus, Task[]> {
+    return tasks.reduce(
       (acc, task) => {
         acc[task.status].push(task)
         return acc
       },
       {active: [], discarded: [], done: [], backlog: []} as Record<TaskStatus, Task[]>,
     )
+  }
+
+  const filteredTasks = computed(() => filterByTag(tasksStore.dailyTasks))
+  const filteredBacklogTasks = computed(() => filterByTag(tasksStore.backlogTasks))
+  const filteredMilestoneTasks = computed(() => filterByTag(tasksStore.milestoneTasks))
+
+  const tasksByStatus = computed<Record<TaskStatus, Task[]>>(() => {
+    if (filterStore.frame === "milestone") {
+      const framed = groupByStatus(filteredMilestoneTasks.value)
+
+      return {
+        active: sortTasksByDateThenOrder(framed.active),
+        discarded: sortTasksByDateThenOrder(framed.discarded),
+        done: sortTasksByDateThenOrder(framed.done),
+        backlog: sortTasksByOrderIndex(framed.backlog),
+      }
+    }
+
+    const grouped = groupByStatus(filteredTasks.value)
     grouped.backlog = filteredBacklogTasks.value
     return grouped
   })
@@ -45,6 +62,7 @@ export const useTaskColumns = createSharedComposable(() => {
   const localTasksByStatus = reactive<Record<TaskStatus, Task[]>>({active: [], discarded: [], done: [], backlog: []})
 
   const pendingCrossColumnMove = ref<MoveTaskByOrderParams | null>(null)
+  const pendingLocalResync = ref(false)
 
   const {
     isDragging,
@@ -92,6 +110,13 @@ export const useTaskColumns = createSharedComposable(() => {
     if (event.moved && event.moved.newIndex === event.moved.oldIndex) return
     if (!event.added && !event.moved) return
 
+    const isMilestoneFrame = filterStore.frame === "milestone"
+
+    if (isMilestoneFrame && event.moved) {
+      pendingLocalResync.value = true
+      return
+    }
+
     const newIndex = event.added?.newIndex ?? event.moved?.newIndex
     if (isUndefined(newIndex)) return
 
@@ -100,7 +125,9 @@ export const useTaskColumns = createSharedComposable(() => {
 
     movedTask.status = status
 
-    const {targetTaskId, position} = resolveMoveTarget(localTasksByStatus[status], newIndex)
+    const {targetTaskId, position} = isMilestoneFrame
+      ? {targetTaskId: null, position: "after" as const}
+      : resolveMoveTarget(localTasksByStatus[status], newIndex)
 
     const moveParams: MoveTaskByOrderParams = {
       taskId: movedTask.id,
@@ -137,8 +164,14 @@ export const useTaskColumns = createSharedComposable(() => {
   function flushPendingCrossColumnMove() {
     if (dragDropStore.releasedInsideDropZone) {
       pendingCrossColumnMove.value = null
+      pendingLocalResync.value = false
       syncLocalTasks()
       return
+    }
+
+    if (pendingLocalResync.value) {
+      pendingLocalResync.value = false
+      syncLocalTasks()
     }
 
     const pendingMove = pendingCrossColumnMove.value

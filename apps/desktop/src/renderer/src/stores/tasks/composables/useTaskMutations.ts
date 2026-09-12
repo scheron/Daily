@@ -112,10 +112,12 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
 
     if (!result.day) {
       await refreshBacklog()
+      await refreshMilestones()
       return true
     }
 
     days.value = updateDays(days.value, result.day)
+    await refreshMilestones()
     return true
   }
 
@@ -226,12 +228,14 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
         if (sourceDate) await refreshDay(sourceDate)
       } else {
         await refreshDay(activeDay.value)
+        await refreshMilestones()
         return null
       }
     } catch (error) {
       console.error("Failed to reorder tasks", error)
       if (touchesBacklog) await refreshBacklog()
       await refreshDay(sourceDate ?? activeDay.value)
+      await refreshMilestones()
       return null
     }
 

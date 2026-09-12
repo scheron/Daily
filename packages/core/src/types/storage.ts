@@ -67,6 +67,7 @@ export interface IStorageController {
 
   getTaskList(params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: Branch["id"]}): Promise<Task[]>
   getBacklog(params?: {branchId?: Branch["id"]}): Promise<Task[]>
+  getTasksByMilestone(milestoneId: Milestone["id"]): Promise<Task[]>
   getTask(id: Task["id"]): Promise<Task | null>
   updateTask(id: Task["id"], updates: PartialDeep<Task>): Promise<Task | null>
   toggleTaskMinimized(id: Task["id"], minimized: boolean): Promise<Task | null>

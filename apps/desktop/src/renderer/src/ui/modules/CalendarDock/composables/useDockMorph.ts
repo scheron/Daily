@@ -6,6 +6,7 @@ type DockFrame = {width: string; height: string; borderRadius: string}
 
 const EXPAND_TIMING: KeyframeAnimationOptions = {duration: 400, easing: "cubic-bezier(0.22, 1, 0.36, 1)"}
 const COLLAPSE_TIMING: KeyframeAnimationOptions = {duration: 300, easing: "cubic-bezier(0.4, 0, 1, 1)"}
+const RESIZE_TIMING: KeyframeAnimationOptions = {duration: 260, easing: "cubic-bezier(0.22, 1, 0.36, 1)"}
 
 /**
  * Animates the dock between its collapsed and expanded size, measuring the element before the
@@ -14,40 +15,51 @@ const COLLAPSE_TIMING: KeyframeAnimationOptions = {duration: 300, easing: "cubic
  * is nothing about the animating box that can change in a single step.
  * @param target - The dock's visible surface; it keeps its identity across both states and pins its content bottom-centre.
  * @param expanded - Whether the dock is expanded; every change of it runs one morph.
+ * @param tab - Which surface the expanded dock is showing; the two differ in size, so changing it morphs as well.
  */
-export function useDockMorph(target: Ref<HTMLElement | null>, expanded: () => boolean): void {
+export function useDockMorph(target: Ref<HTMLElement | null>, expanded: () => boolean, tab: () => string): void {
   let running: Animation | null = null
   let overflowBeforeMorph: string | null = null
+  let wasExpanded = expanded()
 
-  watch(expanded, async (isExpanded) => {
-    const before = target.value
-    if (!canAnimate(before)) return
+  watch(
+    () => `${expanded()}:${tab()}`,
+    async () => {
+      const isExpanded = expanded()
+      const toggled = isExpanded !== wasExpanded
+      wasExpanded = isExpanded
 
-    const from = measure(before)
-    await nextTick()
+      if (!isExpanded && !toggled) return
 
-    const node = target.value
-    if (!canAnimate(node)) return
+      const before = target.value
+      if (!canAnimate(before)) return
 
-    const to = measure(node)
+      const from = measure(before)
+      await nextTick()
 
-    node.getAnimations().forEach((animation) => animation.cancel())
+      const node = target.value
+      if (!canAnimate(node)) return
 
-    if (overflowBeforeMorph === null) overflowBeforeMorph = node.style.overflow
-    node.style.overflow = "hidden"
+      const to = measure(node)
 
-    const timing = isExpanded ? EXPAND_TIMING : COLLAPSE_TIMING
-    const animation = node.animate([from, to], timing)
-    running = animation
+      node.getAnimations().forEach((animation) => animation.cancel())
 
-    const settle = () => {
-      if (running !== animation) return
-      running = null
-      node.style.overflow = overflowBeforeMorph ?? ""
-      overflowBeforeMorph = null
-    }
-    animation.finished.then(settle, settle)
-  })
+      if (overflowBeforeMorph === null) overflowBeforeMorph = node.style.overflow
+      node.style.overflow = "hidden"
+
+      const timing = toggled ? (isExpanded ? EXPAND_TIMING : COLLAPSE_TIMING) : RESIZE_TIMING
+      const animation = node.animate([from, to], timing)
+      running = animation
+
+      const settle = () => {
+        if (running !== animation) return
+        running = null
+        node.style.overflow = overflowBeforeMorph ?? ""
+        overflowBeforeMorph = null
+      }
+      animation.finished.then(settle, settle)
+    },
+  )
 }
 
 function canAnimate(node: HTMLElement | null): node is HTMLElement {

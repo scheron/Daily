@@ -120,6 +120,17 @@ export class TaskModel {
     return rows.map(rowToTask)
   }
 
+  /** A milestone's tasks, from every day, dateless ones included. A milestone belongs to one project, so its id already scopes the read. */
+  getTasksByMilestone(milestoneId: Milestone["id"]): Task[] {
+    const sql = `${TASK_SELECT} WHERE t.deleted_at IS NULL AND t.milestone_id = ? ORDER BY t.scheduled_date, t.order_index`
+
+    const rows = this.db.prepare(sql).all(milestoneId) as any[]
+
+    logger.info(logger.CONTEXT.TASKS, `Loaded ${rows.length} tasks for milestone ${milestoneId} from database`)
+
+    return rows.map(rowToTask)
+  }
+
   getTask(id: Task["id"]): Task | null {
     const sql = `${TASK_SELECT} WHERE t.id = ?`
     const row = this.db.prepare(sql).get(id) as any

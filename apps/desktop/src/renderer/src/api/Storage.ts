@@ -39,6 +39,10 @@ export class StorageAPI implements Storage {
     return window.BridgeIPC["tasks:get-backlog"](branchId)
   }
 
+  async getTasksByMilestone(milestoneId: Milestone["id"]): Promise<Task[]> {
+    return window.BridgeIPC["tasks:get-by-milestone"](milestoneId)
+  }
+
   async createTask(
     content: string,
     params: {

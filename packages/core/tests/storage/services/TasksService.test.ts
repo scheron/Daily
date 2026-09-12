@@ -487,5 +487,27 @@ describe("TasksService", () => {
 
       expect(updated.milestoneId).toBeNull()
     })
+
+    it("proxies getTasksByMilestone straight to the model", async () => {
+      insertMilestoneRow("m1", "main", "Launch")
+      const inMilestone = taskModel.createTask(makeTask({content: "In it", milestoneId: "m1"}))
+      taskModel.createTask(makeTask({content: "Not in it"}))
+
+      const tasks = await tasksService.getTasksByMilestone("m1")
+
+      expect(tasks.map((t) => t.id)).toEqual([inMilestone.id])
+    })
+
+    it("leaves_TC-24_a_tasks_status_and_schedule_untouched_when_only_its_milestone_is_updated", async () => {
+      insertMilestoneRow("m1", "main", "Launch")
+      const task = taskModel.createTask(makeTask({status: "active", scheduled: {date: "2026-05-01", time: "09:00:00", timezone: "UTC"}}))
+
+      const updated = await tasksService.updateTask(task.id, {milestoneId: "m1"})
+
+      expect(updated.milestoneId).toBe("m1")
+      expect(updated.status).toBe("active")
+      expect(updated.scheduled?.date).toBe("2026-05-01")
+      expect(updated.scheduled?.time).toBe("09:00:00")
+    })
   })
 })

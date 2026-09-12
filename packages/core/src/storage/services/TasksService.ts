@@ -47,6 +47,10 @@ export class TasksService {
     return this.taskModel.getBacklogTasks(params)
   }
 
+  async getTasksByMilestone(milestoneId: Milestone["id"]): Promise<Task[]> {
+    return this.taskModel.getTasksByMilestone(milestoneId)
+  }
+
   async getTask(id: Task["id"]): Promise<Task | null> {
     return this.taskModel.getTask(id)
   }

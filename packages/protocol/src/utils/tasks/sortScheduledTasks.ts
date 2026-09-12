@@ -23,3 +23,15 @@ export function sortScheduledTasks<T extends {scheduled: {date: ISODate; time?: 
       return direction === "asc" ? aMillis - bMillis : bMillis - aMillis
     })
 }
+
+export function sortTasksByDateThenOrder<T extends {scheduled: {date: ISODate} | null; orderIndex: number}>(tasks: T[]): T[] {
+  return tasks.toSorted((a, b) => {
+    if (a.scheduled === null && b.scheduled === null) return a.orderIndex - b.orderIndex
+    if (a.scheduled === null) return -1
+    if (b.scheduled === null) return 1
+
+    if (a.scheduled.date !== b.scheduled.date) return a.scheduled.date < b.scheduled.date ? -1 : 1
+
+    return a.orderIndex - b.orderIndex
+  })
+}

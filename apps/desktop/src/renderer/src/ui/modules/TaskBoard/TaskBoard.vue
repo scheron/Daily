@@ -4,6 +4,8 @@ import VueDraggable from "vuedraggable"
 
 import {useTaskColumns} from "@/composables/tasks/useTaskColumns"
 import {DRAGGABLE_ATTRS} from "@/constants/ui"
+import {useFilterStore} from "@/stores/filter.store"
+import {useMilestonesStore} from "@/stores/milestones.store"
 import {useTasksStore} from "@/stores/tasks"
 import BaseSpinner from "@/ui/base/BaseSpinner.vue"
 import CalendarDock from "@/ui/modules/CalendarDock"
@@ -18,7 +20,19 @@ const containerRef = ref<HTMLElement | null>(null)
 const boardRef = ref<HTMLElement | null>(null)
 
 const tasksStore = useTasksStore()
+const filterStore = useFilterStore()
+const milestonesStore = useMilestonesStore()
 const columns = useTaskColumns()
+
+const isLoading = computed(() => (filterStore.frame === "milestone" ? !tasksStore.isMilestoneTasksLoaded : !tasksStore.isDaysLoaded))
+
+const framedMilestoneName = computed(() => {
+  if (filterStore.frame !== "milestone") return undefined
+  if (!filterStore.activeMilestoneId) return "All milestones"
+  return milestonesStore.milestonesMap.get(filterStore.activeMilestoneId)?.name
+})
+
+const placeholderDate = computed(() => (filterStore.frame === "milestone" ? undefined : tasksStore.activeDay))
 
 const hasAnyTasks = computed(
   () =>
@@ -39,8 +53,14 @@ watch(
 
 <template>
   <div ref="containerRef" class="relative min-w-0 flex-1 overflow-hidden">
-    <BaseSpinner v-if="!tasksStore.isDaysLoaded" />
-    <NoTasksPlaceholder v-else-if="!hasAnyTasks" :date="tasksStore.activeDay" filter="all" @create-task="emit('createTask')" />
+    <BaseSpinner v-if="isLoading" />
+    <NoTasksPlaceholder
+      v-else-if="!hasAnyTasks"
+      :date="placeholderDate"
+      :milestone-name="framedMilestoneName"
+      filter="all"
+      @create-task="emit('createTask')"
+    />
 
     <div v-else ref="boardRef" class="flex size-full overflow-x-auto overflow-y-hidden" @dragover="columns.onDragOver">
       <template v-for="(column, index) in columns.visibleColumns.value" :key="column.status">
