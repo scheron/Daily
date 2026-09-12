@@ -3,7 +3,7 @@ import {ipcMain} from "electron"
 import {toSettingsView} from "@daily/core"
 
 import type {IStorageController} from "@daily/core"
-import type {Branch, ISODate, MoveTaskByOrderParams, StatsPeriod, Tag, Task} from "@daily/protocol"
+import type {Branch, ISODate, MoveTaskByOrderParams, Tag, Task} from "@daily/protocol"
 import type {PartialDeep} from "type-fest"
 
 // prettier-ignore
@@ -17,9 +17,7 @@ export function setupStorageIPC(getStorage: () => IStorageController | null) {
   ipcMain.handle("days:get-many", (_e, params?: {from?: ISODate; to?: ISODate; branchId?: Branch["id"]}) => getStorage()?.getDays(params))
   ipcMain.handle("days:get-one", (_e, date: ISODate) => getStorage()?.getDay(date))
 
-  ipcMain.handle("activity:get-by-day", (_e, date: ISODate, branchId?: Branch["id"]) => getStorage()?.getActivityByDay(date, branchId))
   ipcMain.handle("activity:get-by-task", (_e, taskId: Task["id"]) => getStorage()?.getTaskHistory(taskId))
-  ipcMain.handle("stats:get", (_e, period: StatsPeriod, anchor: ISODate, branchId?: Branch["id"]) => getStorage()?.getStats(period, anchor, branchId))
 
   ipcMain.handle("tasks:get-many", (_e, params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: Branch["id"]}) => getStorage()?.getTaskList(params))
   ipcMain.handle("tasks:get-backlog", (_e, branchId?: Branch["id"]) => getStorage()?.getBacklog({branchId}))

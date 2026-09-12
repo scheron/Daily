@@ -84,7 +84,7 @@ const containerStyle = computed(() => (collapsed.value ? undefined : {flexBasis:
         </BasePopup>
       </div>
 
-      <div class="relative flex min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-1.5 py-4">
+      <div class="relative flex min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-1.5 pt-4 pb-16">
         <slot />
 
         <div

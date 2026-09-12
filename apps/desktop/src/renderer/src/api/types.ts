@@ -4,8 +4,6 @@ import type {
   ISODate,
   ISOTime,
   MoveTaskByOrderParams,
-  StatsAggregate,
-  StatsPeriod,
   Tag,
   Task,
   TaskEvent,
@@ -38,25 +36,11 @@ export interface Storage {
    */
   getDay(date: ISODate): Promise<Day | null>
   /**
-   * Load the activity journal for a day (events recorded on that local date).
-   * @param date - The day, YYYY-MM-DD
-   * @param branchId - Branch to scope to; defaults to the active branch
-   * @returns The events for that day, newest first
-   */
-  getActivityByDay(date: ISODate, branchId?: Branch["id"]): Promise<TaskEvent[]>
-  /**
    * Full event history of a single task, newest first (the `moved` pair collapsed to one row).
    * @param taskId - The task to fetch history for
    * @returns The task's events, newest first
    */
   getTaskHistory(taskId: Task["id"]): Promise<TaskEvent[]>
-  /**
-   * Aggregated stats for the widget over a week or month.
-   * @param period - "week" or "month"
-   * @param anchor - Any ISO date inside the period (e.g. the active day)
-   * @param branchId - Branch to scope to; defaults to the active branch
-   */
-  getStats(period: StatsPeriod, anchor: ISODate, branchId?: Branch["id"]): Promise<StatsAggregate>
   /**
    * Load a single task by id, regardless of which day it is scheduled on.
    * @param id - The task id

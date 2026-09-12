@@ -31,8 +31,6 @@ import type {
   MoveTaskByOrderParams,
   ProtocolMismatchView,
   Settings,
-  StatsAggregate,
-  StatsPeriod,
   SyncProvider,
   SyncRemote,
   SyncRemoteState,
@@ -58,7 +56,6 @@ export class StorageController implements IStorageController {
   private tagsService!: StorageCore["tagsService"]
   private filesService!: StorageCore["filesService"]
   private daysService!: StorageCore["daysService"]
-  private statsService!: StorageCore["statsService"]
   private searchService!: StorageCore["searchService"]
   private syncEngine!: SyncEngine
   private serverProvider!: ServerProviderService
@@ -93,7 +90,6 @@ export class StorageController implements IStorageController {
     this.tagsService = core.tagsService
     this.filesService = core.filesService
     this.daysService = core.daysService
-    this.statsService = core.statsService
     this.searchService = core.searchService
     this.localAdapter = core.localAdapter
     this.aiSessionModel = core.aiSessionModel
@@ -224,21 +220,8 @@ export class StorageController implements IStorageController {
   //#endregion
 
   //#region ACTIVITY
-  async getActivityByDay(date: ISODate, branchId?: Branch["id"]): Promise<TaskEvent[]> {
-    const resolvedBranchId = await this.branchesService.resolveBranchId(branchId)
-    return this.tasksService.getActivityByDay(date, resolvedBranchId)
-  }
-
   async getTaskHistory(taskId: Task["id"]): Promise<TaskEvent[]> {
     return this.tasksService.getHistoryByTask(taskId)
-  }
-  //#endregion
-
-  //#region STATS
-  async getStats(period: StatsPeriod, anchor: ISODate, branchId?: Branch["id"]): Promise<StatsAggregate> {
-    const resolvedBranchId = await this.branchesService.resolveBranchId(branchId)
-    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
-    return this.statsService.getStats(period, anchor, resolvedBranchId, timezone)
   }
   //#endregion
 

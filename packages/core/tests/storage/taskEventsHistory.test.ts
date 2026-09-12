@@ -65,4 +65,12 @@ describe("task history (per task)", () => {
     expect(history.every((e) => e.taskId === a.id)).toBe(true)
     expect(history.some((e) => e.taskId === b.id)).toBe(false)
   })
+
+  it("lists_TC-6_reactivated_then_created_for_a_task_that_started_in_the_backlog", async () => {
+    const task = await tasks.createTask(makeTask({status: "backlog", scheduled: null, content: "no day yet"}))
+    await tasks.moveTaskByOrder({taskId: task.id, targetStatus: "active", activeDate: TASK_DAY})
+
+    const history = await taskEvents.getHistoryByTask(task.id)
+    expect(history.map((e) => e.type)).toEqual(["reactivated", "created"])
+  })
 })

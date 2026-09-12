@@ -21,10 +21,6 @@ export class TasksService {
     private taskEvents: TaskEventsService,
   ) {}
 
-  async getActivityByDay(date: ISODate, branchId: Branch["id"]): Promise<TaskEvent[]> {
-    return this.taskEvents.getActivityByDay(date, branchId)
-  }
-
   async getHistoryByTask(taskId: Task["id"]): Promise<TaskEvent[]> {
     return this.taskEvents.getHistoryByTask(taskId)
   }

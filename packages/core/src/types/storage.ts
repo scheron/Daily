@@ -16,8 +16,6 @@ import type {
   ServerMembershipView,
   ServerProbeView,
   Settings,
-  StatsAggregate,
-  StatsPeriod,
   SyncProvider,
   SyncRemoteState,
   SyncStatus,
@@ -63,9 +61,7 @@ export interface IStorageController {
   getDays(params?: {from?: ISODate; to?: ISODate; branchId?: Branch["id"]}): Promise<Day[]>
   getDay(date: ISODate): Promise<Day | null>
 
-  getActivityByDay(date: ISODate, branchId?: Branch["id"]): Promise<TaskEvent[]>
   getTaskHistory(taskId: Task["id"]): Promise<TaskEvent[]>
-  getStats(period: StatsPeriod, anchor: ISODate, branchId?: Branch["id"]): Promise<StatsAggregate>
 
   getTaskList(params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: Branch["id"]}): Promise<Task[]>
   getBacklog(params?: {branchId?: Branch["id"]}): Promise<Task[]>

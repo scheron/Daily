@@ -6,6 +6,7 @@ import {useTaskColumns} from "@/composables/tasks/useTaskColumns"
 import {DRAGGABLE_ATTRS} from "@/constants/ui"
 import {useTasksStore} from "@/stores/tasks"
 import BaseSpinner from "@/ui/base/BaseSpinner.vue"
+import CalendarDock from "@/ui/modules/CalendarDock"
 import {useDragScroll} from "./composables/useDragScroll"
 import NoTasksPlaceholder from "./{fragments}/NoTasksPlaceholder.vue"
 import TaskCard from "./{fragments}/TaskCard"
@@ -37,7 +38,7 @@ watch(
 </script>
 
 <template>
-  <div ref="containerRef" class="min-w-0 flex-1 overflow-hidden">
+  <div ref="containerRef" class="relative min-w-0 flex-1 overflow-hidden">
     <BaseSpinner v-if="!tasksStore.isDaysLoaded" />
     <NoTasksPlaceholder v-else-if="!hasAnyTasks" :date="tasksStore.activeDay" filter="all" @create-task="emit('createTask')" />
 
@@ -67,5 +68,7 @@ watch(
         <div v-if="index < columns.visibleColumns.value.length - 1" class="bg-base-300/50 h-full w-px shrink-0 last:hidden" />
       </template>
     </div>
+
+    <CalendarDock />
   </div>
 </template>

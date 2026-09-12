@@ -145,9 +145,9 @@ function createTasksMenu(mainWindow: BrowserWindow): MenuItemConstructorOptions[
     },
     {type: "separator"},
     {
-      label: SHORTCUTS_MAP["ui:left-panel:toggle"].label,
-      accelerator: SHORTCUTS_MAP["ui:left-panel:toggle"].accelerator,
-      click: () => mainWindow.webContents.send(SHORTCUTS_MAP["ui:left-panel:toggle"].channel),
+      label: SHORTCUTS_MAP["ui:calendar-dock:toggle"].label,
+      accelerator: SHORTCUTS_MAP["ui:calendar-dock:toggle"].accelerator,
+      click: () => mainWindow.webContents.send(SHORTCUTS_MAP["ui:calendar-dock:toggle"].channel),
     },
 
     {type: "separator"},
@@ -161,6 +161,7 @@ function createSettingsMenu(): MenuItemConstructorOptions[] {
     "settings:workflow",
     "settings:icloud",
     "settings:ai",
+    "settings:deleted-tasks",
     ...(ENV.isDevelopment ? (["settings:debug"] as const) : []),
   ] as const
 

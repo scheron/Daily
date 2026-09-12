@@ -1,4 +1,6 @@
-import type {Branch, ISODate, Tag, Task, TaskEvent, TaskEventType, TaskStatus} from "@daily/protocol"
+import {getToday} from "@daily/std"
+
+import type {ISODate, Tag, Task, TaskEvent, TaskEventType, TaskStatus} from "@daily/protocol"
 import type {TaskEventModel} from "../models/TaskEventModel"
 
 const EDIT_DEBOUNCE_MS = 5 * 60 * 1000
@@ -11,33 +13,28 @@ const EDIT_DEBOUNCE_MS = 5 * 60 * 1000
 export class TaskEventsService {
   constructor(private taskEventModel: TaskEventModel) {}
 
-  /** Returns the activity events for a given day/branch. */
-  async getActivityByDay(date: ISODate, branchId: Branch["id"]): Promise<TaskEvent[]> {
-    return this.taskEventModel.getByDay(date, branchId)
-  }
-
   /** Full history of one task, newest first, with the `moved` pair collapsed to one row. */
   async getHistoryByTask(taskId: Task["id"]): Promise<TaskEvent[]> {
     return collapseMoves(this.taskEventModel.getByTask(taskId))
   }
 
-  /** Records a single event for a task at its scheduled date. A dateless (backlog) task records no event. */
+  /** Records a single event for a task, dated on the task's day, or on today when the task has none. */
   record(task: Task, type: TaskEventType) {
-    if (!task.scheduled) return
-
     this.taskEventModel.record({
       taskId: task.id,
       branchId: task.branchId,
       type,
-      eventDate: task.scheduled.date,
+      eventDate: task.scheduled?.date ?? getToday(),
       fromDate: null,
       toDate: null,
       createdAt: new Date().toISOString(),
     })
   }
 
-  /** Records the appropriate status-change event for a task's new status. */
+  /** Records the appropriate status-change event for a task's new status. Moving into the backlog records nothing. */
   recordStatusChange(task: Task, status: TaskStatus) {
+    if (status === "backlog") return
+
     this.record(task, statusEventType(status))
   }
 

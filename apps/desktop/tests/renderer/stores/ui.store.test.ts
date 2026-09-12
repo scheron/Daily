@@ -41,13 +41,17 @@ describe("uiStore", () => {
     expect(store.sectionsHideEmpty).toBe(false)
   })
 
-  it("toggleLeftPanel flips and respects an explicit value", async () => {
+  it("toggleCalendarDock_TC-10_flips_with_no_argument_and_sets_with_one", async () => {
     const store = await getStore()
 
-    expect(store.leftPanelVisible).toBe(true)
-    store.toggleLeftPanel()
-    expect(store.leftPanelVisible).toBe(false)
-    store.toggleLeftPanel(true)
-    expect(store.leftPanelVisible).toBe(true)
+    expect(store.calendarDockExpanded).toBe(false)
+    store.toggleCalendarDock()
+    expect(store.calendarDockExpanded).toBe(true)
+    store.toggleCalendarDock()
+    expect(store.calendarDockExpanded).toBe(false)
+    store.toggleCalendarDock(true)
+    expect(store.calendarDockExpanded).toBe(true)
+    store.toggleCalendarDock(false)
+    expect(store.calendarDockExpanded).toBe(false)
   })
 })

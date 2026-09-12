@@ -100,10 +100,6 @@ export type Settings = {
     sectionsAutoCollapseEmpty: boolean
     /** Manual collapse state per status. */
     sectionsCollapsed: Record<TaskStatus, boolean>
-    /** Left widget panel. */
-    leftPanel: {
-      visible: boolean
-    }
   }
   window: {
     main: MainWindowSettings

@@ -10,8 +10,8 @@ import type {ISODate} from "@daily/protocol"
 
 /**
  * Tracks the dragged task over day cells and asks the store to drop it. Shared by every
- * day-cell surface. DOM contract: droppable day cells inside `.app-footer`, `[data-popup]`,
- * or `[data-day-drop-zone]` must render `data-drop-day="<ISODate>"` so this handler can
+ * day-cell surface. DOM contract: droppable day cells inside `[data-popup]` or
+ * `[data-day-drop-zone]` must render `data-drop-day="<ISODate>"` so this handler can
  * resolve the target date. The dragged card is hidden while over any of those surfaces.
  */
 export const useDropToDay = createSharedComposable(() => {
@@ -40,7 +40,10 @@ export const useDropToDay = createSharedComposable(() => {
     }
   }
 
-  function onPointerUp() {
+  function onPointerUp(event: PointerEvent) {
+    const releasedInsideDropZone = Boolean(findClosestAtPoint(event.clientX, event.clientY, DROP_ZONE_SELECTOR))
+    if (releasedInsideDropZone) dragDropStore.setReleasedInsideDropZone(true)
+
     if (pendingDrop) {
       const {taskId, date} = pendingDrop
       pendingDrop = null

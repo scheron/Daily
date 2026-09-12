@@ -2,7 +2,6 @@ import {AISessionModel} from "./models/AISessionModel"
 import {BranchModel} from "./models/BranchModel"
 import {FileModel} from "./models/FileModel"
 import {SettingsModel} from "./models/SettingsModel"
-import {StatsModel} from "./models/StatsModel"
 import {TagModel} from "./models/TagModel"
 import {TaskEventModel} from "./models/TaskEventModel"
 import {TaskModel} from "./models/TaskModel"
@@ -11,7 +10,6 @@ import {DaysService} from "./services/DaysService"
 import {FilesService} from "./services/FilesService"
 import {SearchService} from "./services/SearchService"
 import {SettingsService} from "./services/SettingsService"
-import {StatsService} from "./services/StatsService"
 import {TagsService} from "./services/TagsService"
 import {TaskEventsService} from "./services/TaskEventsService"
 import {TasksService} from "./services/TasksService"
@@ -27,7 +25,6 @@ export type StorageCore = {
   tagsService: TagsService
   filesService: FilesService
   daysService: DaysService
-  statsService: StatsService
   searchService: SearchService
   localAdapter: LocalStorageAdapter
   aiSessionModel: AISessionModel
@@ -54,7 +51,6 @@ export function createStorageCore(db: SqliteDriver, paths: AppPaths): StorageCor
     tagsService: new TagsService(tagModel),
     filesService: new FilesService(fileModel, taskModel),
     daysService: new DaysService(taskModel),
-    statsService: new StatsService(new StatsModel(db)),
     searchService: new SearchService(taskModel, branchModel),
     localAdapter: new LocalStorageAdapter(db),
     aiSessionModel: new AISessionModel(db),

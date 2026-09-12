@@ -7,7 +7,6 @@ import MainColorPicker from "@/ui/common/pickers/MainColorPicker.vue"
 import SettingRow from "@/ui/views/Settings/{fragments}/SettingRow.vue"
 import SettingsGroup from "@/ui/views/Settings/{fragments}/SettingsGroup.vue"
 import AboutSection from "./{fragments}/AboutSection.vue"
-import WidgetsSection from "./{fragments}/WidgetsSection.vue"
 
 import type {EmptySectionsMode} from "@/stores/ui/composables/useSectionPrefs"
 import type {AppearanceMode, FontSize} from "@daily/protocol"
@@ -59,10 +58,6 @@ const emptySectionsOptions: {value: EmptySectionsMode; label: string}[] = [
         <BaseSegmented v-model="uiStore.emptySectionsMode" :options="emptySectionsOptions" />
       </SettingRow>
     </SettingsGroup>
-
-    <SettingRow title="Left panel widgets" description="Add, remove, and drag to reorder the widgets shown in the left panel">
-      <WidgetsSection class="w-80" />
-    </SettingRow>
 
     <SettingsGroup label="About" icon="info">
       <AboutSection />

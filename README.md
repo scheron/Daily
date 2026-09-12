@@ -57,7 +57,7 @@ Tasks belong to days instead of an endless backlog. Plan on a calendar-linked bo
 - A Markdown editor with syntax highlighting, live tables, slash commands, and attachments
 - Projects, tags, estimates, time logging, duplicate/copy actions, and soft deletion with recovery
 - Activity history that records meaningful task changes
-- Light, dark, and system appearance modes with configurable accent colors and widgets
+- Light, dark, and system appearance modes with configurable accent colors
 
 ## Custom task agent
 

@@ -1,18 +1,6 @@
 import {DateTime} from "luxon"
 
-import type {
-  Branch,
-  Day,
-  ISODate,
-  MoveTaskByOrderParams,
-  StatsAggregate,
-  StatsPeriod,
-  Tag,
-  Task,
-  TaskEvent,
-  TaskSearchResult,
-  TaskStatus,
-} from "@daily/protocol"
+import type {Branch, Day, ISODate, MoveTaskByOrderParams, Tag, Task, TaskEvent, TaskSearchResult, TaskStatus} from "@daily/protocol"
 import type {Storage, TaskWriteResult} from "./types"
 
 export class StorageAPI implements Storage {
@@ -25,16 +13,8 @@ export class StorageAPI implements Storage {
     return window.BridgeIPC["days:get-one"](date)
   }
 
-  async getActivityByDay(date: ISODate, branchId?: Branch["id"]): Promise<TaskEvent[]> {
-    return window.BridgeIPC["activity:get-by-day"](date, branchId)
-  }
-
   async getTaskHistory(taskId: Task["id"]): Promise<TaskEvent[]> {
     return window.BridgeIPC["activity:get-by-task"](taskId)
-  }
-
-  async getStats(period: StatsPeriod, anchor: ISODate, branchId?: Branch["id"]): Promise<StatsAggregate> {
-    return window.BridgeIPC["stats:get"](period, anchor, branchId)
   }
   //#endregion
 

@@ -19,8 +19,6 @@ import type {
   ServerMembershipView,
   ServerProbeView,
   SettingsView,
-  StatsAggregate,
-  StatsPeriod,
   SyncProvider,
   SyncRemoteState,
   SyncStatus,
@@ -108,10 +106,7 @@ export interface BridgeIPC {
   "days:get-many": (params?: {from?: ISODate; to?: ISODate; branchId?: Branch["id"]}) => Promise<Day[]>
   "days:get-one": (date: ISODate) => Promise<Day | null>
 
-  "activity:get-by-day": (date: ISODate, branchId?: Branch["id"]) => Promise<TaskEvent[]>
   "activity:get-by-task": (taskId: Task["id"]) => Promise<TaskEvent[]>
-
-  "stats:get": (period: StatsPeriod, anchor: ISODate, branchId?: Branch["id"]) => Promise<StatsAggregate>
 
   // === TASKS  ===
   "tasks:get-many": (params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: Branch["id"]}) => Promise<Task[]>
@@ -190,5 +185,5 @@ export interface BridgeIPC {
   "shortcut:ui:open-search-panel": (callback: () => void) => void
   "shortcut:ui:open-assistant-panel": (callback: () => void) => void
   "shortcut:ui:open-settings-panel": (callback: () => void) => void
-  "shortcut:ui:left-panel:toggle": (callback: () => void) => void
+  "shortcut:ui:calendar-dock:toggle": (callback: () => void) => void
 }

@@ -27,7 +27,6 @@ export function mockBridgeIPC(overrides = {}) {
     "platform:is-linux": vi.fn().mockReturnValue(false),
     "days:get-many": vi.fn().mockResolvedValue([]),
     "days:get-one": vi.fn().mockResolvedValue(null),
-    "activity:get-by-day": vi.fn().mockResolvedValue([]),
     "tasks:get-one": vi.fn().mockResolvedValue(null),
     "tasks:create": noop,
     "tasks:update": noop,

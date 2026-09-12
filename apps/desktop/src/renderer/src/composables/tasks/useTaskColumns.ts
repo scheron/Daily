@@ -88,6 +88,7 @@ export const useTaskColumns = createSharedComposable(() => {
   }
 
   async function onColumnChange(status: TaskStatus, event: {added?: {newIndex: number}; moved?: {newIndex: number; oldIndex: number}}) {
+    if (dragDropStore.releasedInsideDropZone) return
     if (event.moved && event.moved.newIndex === event.moved.oldIndex) return
     if (!event.added && !event.moved) return
 
@@ -134,6 +135,12 @@ export const useTaskColumns = createSharedComposable(() => {
   }
 
   function flushPendingCrossColumnMove() {
+    if (dragDropStore.releasedInsideDropZone) {
+      pendingCrossColumnMove.value = null
+      syncLocalTasks()
+      return
+    }
+
     const pendingMove = pendingCrossColumnMove.value
     if (!pendingMove) return
     pendingCrossColumnMove.value = null

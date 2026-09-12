@@ -21,8 +21,6 @@ import type {
   ServerMembershipView,
   ServerProbeView,
   SettingsView,
-  StatsAggregate,
-  StatsPeriod,
   SyncProvider,
   SyncRemoteState,
   SyncStatus,
@@ -110,9 +108,7 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
 
   "days:get-many": (params?: {from?: ISODate; to?: ISODate; branchId?: Branch["id"]}) => ipcRenderer.invoke("days:get-many", params) as Promise<Day[]>,
   "days:get-one": (date: ISODate) => ipcRenderer.invoke("days:get-one", date) as Promise<Day | null>,
-  "activity:get-by-day": (date: ISODate, branchId?: Branch["id"]) => ipcRenderer.invoke("activity:get-by-day", date, branchId) as Promise<TaskEvent[]>,
   "activity:get-by-task": (taskId: Task["id"]) => ipcRenderer.invoke("activity:get-by-task", taskId) as Promise<TaskEvent[]>,
-  "stats:get": (period: StatsPeriod, anchor: ISODate, branchId?: Branch["id"]) => ipcRenderer.invoke("stats:get", period, anchor, branchId) as Promise<StatsAggregate>,
 
   "tasks:get-many": (params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: Branch["id"]}) => ipcRenderer.invoke("tasks:get-many", params) as Promise<Task[]>,
   "tasks:get-backlog": (branchId?: Branch["id"]) => ipcRenderer.invoke("tasks:get-backlog", branchId) as Promise<Task[]>,
@@ -192,5 +188,5 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "shortcut:ui:open-search-panel": (callback: () => void) => ipcRenderer.on(SHORTCUTS_MAP["ui:open-search-panel"].channel, () => callback()),
   "shortcut:ui:open-assistant-panel": (callback: () => void) => ipcRenderer.on(SHORTCUTS_MAP["ui:open-assistant-panel"].channel, () => callback()),
   "shortcut:ui:open-settings-panel": (callback: () => void) => ipcRenderer.on(SHORTCUTS_MAP["ui:open-settings-panel"].channel, () => callback()),
-  "shortcut:ui:left-panel:toggle": (callback: () => void) => ipcRenderer.on(SHORTCUTS_MAP["ui:left-panel:toggle"].channel, () => callback()),
+  "shortcut:ui:calendar-dock:toggle": (callback: () => void) => ipcRenderer.on(SHORTCUTS_MAP["ui:calendar-dock:toggle"].channel, () => callback()),
 } satisfies BridgeIPC)
