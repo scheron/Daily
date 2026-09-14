@@ -2,6 +2,7 @@
 import {useThemeStore} from "@/stores/theme.store"
 import {useUIStore} from "@/stores/ui"
 import BaseSegmented from "@/ui/base/BaseSegmented.vue"
+import BaseSwitch from "@/ui/base/BaseSwitch.vue"
 import AccentPicker from "@/ui/common/pickers/AccentPicker.vue"
 import MainColorPicker from "@/ui/common/pickers/MainColorPicker.vue"
 import SettingRow from "@/ui/views/Settings/{fragments}/SettingRow.vue"
@@ -56,6 +57,13 @@ const emptySectionsOptions: {value: EmptySectionsMode; label: string}[] = [
 
       <SettingRow title="Empty columns" description="How columns appear when a day has no tasks">
         <BaseSegmented v-model="uiStore.emptySectionsMode" :options="emptySectionsOptions" />
+      </SettingRow>
+
+      <SettingRow
+        title="Open calendar while dragging"
+        description="Expand the calendar as soon as a card is picked up. When off, hold the card on the calendar button to open it"
+      >
+        <BaseSwitch v-model="uiStore.shouldOpenCalendarDockOnDrag" />
       </SettingRow>
     </SettingsGroup>
 

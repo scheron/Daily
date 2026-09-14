@@ -96,7 +96,7 @@ describe("CalendarDock", () => {
 
     const dock = mountDock()
 
-    expect(ui.calendarDockExpanded).toBe(false)
+    expect(ui.isCalendarDockExpanded).toBe(false)
     expect(dock.element.hasAttribute("data-day-drop-zone")).toBe(true)
 
     const buttons = dock.findAll("button")
@@ -109,7 +109,7 @@ describe("CalendarDock", () => {
 
     await buttons[0].trigger("click")
 
-    expect(ui.calendarDockExpanded).toBe(true)
+    expect(ui.isCalendarDockExpanded).toBe(true)
 
     const calendar = dock.findComponent(BaseCalendar)
     expect(calendar.exists()).toBe(true)
@@ -124,14 +124,14 @@ describe("CalendarDock", () => {
     milestones.isMilestonesLoaded = true
 
     const dock = mountDock()
-    expect(ui.calendarDockExpanded).toBe(false)
+    expect(ui.isCalendarDockExpanded).toBe(false)
 
     const buttons = dock.findAll("button")
     expect(buttons).toHaveLength(1)
 
     await buttons[0].trigger("click")
 
-    expect(ui.calendarDockExpanded).toBe(true)
+    expect(ui.isCalendarDockExpanded).toBe(true)
 
     const tabs = dock.findAll("[data-tab]")
     expect(tabs.map((tab) => tab.attributes("data-tab")).sort()).toEqual(["days", "milestones"])
@@ -190,7 +190,7 @@ describe("CalendarDock", () => {
     expect(filter.activeMilestoneId).toBe("m-closed")
   })
 
-  it("closes_TC-9_the_panel_and_shows_the_clicked_milestones_diamond_and_name_on_the_pill", async () => {
+  it("keeps_TC-9_the_panel_open_on_a_milestone_click_and_shows_its_diamond_and_name_on_the_pill", async () => {
     const {mountDock, ui, tasks, milestones, filter, MilestoneDiamond} = await setup()
     tasks.activeDay = DateTime.now().toISODate()
 
@@ -203,13 +203,17 @@ describe("CalendarDock", () => {
     const dock = mountDock()
     await new Promise((resolve) => setTimeout(resolve, 0))
 
-    expect(ui.calendarDockExpanded).toBe(true)
+    expect(ui.isCalendarDockExpanded).toBe(true)
 
     await dock.get('[data-drop-milestone="m1"]').trigger("click")
 
-    expect(ui.calendarDockExpanded).toBe(false)
+    expect(ui.isCalendarDockExpanded).toBe(true)
     expect(filter.activeMilestoneId).toBe("m1")
 
+    ui.toggleCalendarDock(false)
+    await nextTick()
+
+    expect(dock.findAll("button")).toHaveLength(1)
     const diamond = dock.findComponent(MilestoneDiamond)
     expect(diamond.exists()).toBe(true)
     expect(dock.text()).toContain("Launch")
@@ -233,6 +237,10 @@ describe("CalendarDock", () => {
 
     expect(filter.activeMilestoneId).toBeNull()
     expect(filter.frame).toBe("milestone")
+    expect(ui.isCalendarDockExpanded).toBe(true)
+
+    ui.toggleCalendarDock(false)
+    await nextTick()
 
     const buttons = dock.findAll("button")
     expect(buttons).toHaveLength(1)
@@ -250,7 +258,7 @@ describe("CalendarDock", () => {
     await dock.get(`[data-drop-day="${fifteenth}"]`).trigger("click")
 
     expect(tasks.activeDay).toBe(fifteenth)
-    expect(ui.calendarDockExpanded).toBe(true)
+    expect(ui.isCalendarDockExpanded).toBe(true)
   })
 
   it("collapses_TC-14_on_a_click_outside_and_on_escape", async () => {
@@ -259,29 +267,29 @@ describe("CalendarDock", () => {
     mountDock()
 
     document.body.dispatchEvent(new MouseEvent("click", {bubbles: true}))
-    expect(ui.calendarDockExpanded).toBe(false)
+    expect(ui.isCalendarDockExpanded).toBe(false)
 
     ui.toggleCalendarDock(true)
     await nextTick()
 
     window.dispatchEvent(new KeyboardEvent("keydown", {key: "Escape"}))
-    expect(ui.calendarDockExpanded).toBe(false)
+    expect(ui.isCalendarDockExpanded).toBe(false)
   })
 
   it("restores_TC-15_the_pre_drag_state_and_ignores_the_click_that_ends_the_drag", async () => {
     const {mountDock, ui, drag} = await setup()
     mountDock()
 
-    expect(ui.calendarDockExpanded).toBe(false)
+    expect(ui.isCalendarDockExpanded).toBe(false)
 
     drag.setDraggingTaskId("task-1")
-    expect(ui.calendarDockExpanded).toBe(true)
+    expect(ui.isCalendarDockExpanded).toBe(true)
 
     drag.setDraggingTaskId(null)
-    expect(ui.calendarDockExpanded).toBe(false)
+    expect(ui.isCalendarDockExpanded).toBe(false)
 
     document.body.dispatchEvent(new MouseEvent("click", {bubbles: true}))
-    expect(ui.calendarDockExpanded).toBe(false)
+    expect(ui.isCalendarDockExpanded).toBe(false)
 
     await new Promise((resolve) => setTimeout(resolve, 0))
 
@@ -289,13 +297,39 @@ describe("CalendarDock", () => {
     await nextTick()
 
     drag.setDraggingTaskId("task-2")
-    expect(ui.calendarDockExpanded).toBe(true)
+    expect(ui.isCalendarDockExpanded).toBe(true)
 
     drag.setDraggingTaskId(null)
-    expect(ui.calendarDockExpanded).toBe(true)
+    expect(ui.isCalendarDockExpanded).toBe(true)
 
     document.body.dispatchEvent(new MouseEvent("click", {bubbles: true}))
-    expect(ui.calendarDockExpanded).toBe(true)
+    expect(ui.isCalendarDockExpanded).toBe(true)
+  })
+
+  it("stays_collapsed_on_a_drag_when_auto_open_is_off_and_expands_after_holding_the_card_on_the_pill", async () => {
+    const {mountDock, ui, drag} = await setup()
+    const {useSettingsStore} = await import("../../../../src/renderer/src/stores/settings.store")
+    await useSettingsStore().loadSettings()
+    ui.shouldOpenCalendarDockOnDrag = false
+
+    const dock = mountDock()
+    const pill = dock.get("[data-dock-pill]").element
+    const originalElementFromPoint = document.elementFromPoint
+    document.elementFromPoint = vi.fn(() => pill)
+
+    drag.setDraggingTaskId("task-1")
+    expect(ui.isCalendarDockExpanded).toBe(false)
+
+    window.dispatchEvent(new MouseEvent("pointermove", {clientX: 1, clientY: 1}))
+    expect(ui.isCalendarDockExpanded).toBe(false)
+
+    await new Promise((resolve) => setTimeout(resolve, 300))
+    expect(ui.isCalendarDockExpanded).toBe(true)
+
+    drag.setDraggingTaskId(null)
+    expect(ui.isCalendarDockExpanded).toBe(false)
+
+    document.elementFromPoint = originalElementFromPoint
   })
 
   it("hides_TC-16_the_dock_while_the_editor_is_open_and_collapses_it_when_the_editor_opens", async () => {
@@ -326,7 +360,7 @@ describe("CalendarDock", () => {
     editor.openNew({branchId: "main"})
     await nextTick()
 
-    expect(ui.calendarDockExpanded).toBe(false)
+    expect(ui.isCalendarDockExpanded).toBe(false)
   })
 })
 

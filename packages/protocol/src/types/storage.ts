@@ -100,6 +100,8 @@ export type Settings = {
     sectionsAutoCollapseEmpty: boolean
     /** Manual collapse state per status. */
     sectionsCollapsed: Record<TaskStatus, boolean>
+    /** Expand the calendar dock as soon as a card starts dragging, instead of when a card is held on its button. */
+    shouldOpenCalendarDockOnDrag: boolean
   }
   window: {
     main: MainWindowSettings

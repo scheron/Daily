@@ -1,72 +1,65 @@
 import {nextTick, watch} from "vue"
+import {storeToRefs} from "pinia"
 
-import type {Ref} from "vue"
+import {useUIStore} from "@/stores/ui/ui.store"
 
-type DockFrame = {width: string; height: string; borderRadius: string}
+import type {Ref, ShallowRef} from "vue"
+import type {DockTab} from "./useDockTabs"
 
-const EXPAND_TIMING: KeyframeAnimationOptions = {duration: 400, easing: "cubic-bezier(0.22, 1, 0.36, 1)"}
-const COLLAPSE_TIMING: KeyframeAnimationOptions = {duration: 300, easing: "cubic-bezier(0.4, 0, 1, 1)"}
-const RESIZE_TIMING: KeyframeAnimationOptions = {duration: 260, easing: "cubic-bezier(0.22, 1, 0.36, 1)"}
+export function useDockMorph(dock: Readonly<ShallowRef<HTMLElement | null>>, tab: Readonly<Ref<DockTab>>) {
+  const uiStore = useUIStore()
+  const {isCalendarDockExpanded} = storeToRefs(uiStore)
 
-/**
- * Animates the dock between its collapsed and expanded size, measuring the element before the
- * DOM updates and again after, then morphing width, height and corner radius between the two.
- * The surface carries no padding in either state — the inset belongs to the content — so there
- * is nothing about the animating box that can change in a single step.
- * @param target - The dock's visible surface; it keeps its identity across both states and pins its content bottom-centre.
- * @param expanded - Whether the dock is expanded; every change of it runs one morph.
- * @param tab - Which surface the expanded dock is showing; the two differ in size, so changing it morphs as well.
- */
-export function useDockMorph(target: Ref<HTMLElement | null>, expanded: () => boolean, tab: () => string): void {
   let running: Animation | null = null
   let overflowBeforeMorph: string | null = null
-  let wasExpanded = expanded()
+  let wasExpanded = isCalendarDockExpanded.value
 
-  watch(
-    () => `${expanded()}:${tab()}`,
-    async () => {
-      const isExpanded = expanded()
-      const toggled = isExpanded !== wasExpanded
-      wasExpanded = isExpanded
+  watch([isCalendarDockExpanded, tab], async ([isExpanded]) => {
+    const isToggled = isExpanded !== wasExpanded
+    wasExpanded = isExpanded
 
-      if (!isExpanded && !toggled) return
+    if (!isExpanded && !isToggled) return
 
-      const before = target.value
-      if (!canAnimate(before)) return
+    const before = dock.value
+    if (!canAnimate(before)) return
 
-      const from = measure(before)
-      await nextTick()
+    const from = measure(before)
+    await nextTick()
 
-      const node = target.value
-      if (!canAnimate(node)) return
+    const node = dock.value
+    if (!canAnimate(node)) return
 
-      const to = measure(node)
+    const to = measure(node)
 
-      node.getAnimations().forEach((animation) => animation.cancel())
+    node.getAnimations().forEach((animation) => animation.cancel())
 
-      if (overflowBeforeMorph === null) overflowBeforeMorph = node.style.overflow
-      node.style.overflow = "hidden"
+    if (overflowBeforeMorph === null) overflowBeforeMorph = node.style.overflow
+    node.style.overflow = "hidden"
 
-      const timing = toggled ? (isExpanded ? EXPAND_TIMING : COLLAPSE_TIMING) : RESIZE_TIMING
-      const animation = node.animate([from, to], timing)
-      running = animation
+    const animation = node.animate([from, to], morphTimingFor(isToggled, isExpanded))
+    running = animation
 
-      const settle = () => {
-        if (running !== animation) return
-        running = null
-        node.style.overflow = overflowBeforeMorph ?? ""
-        overflowBeforeMorph = null
-      }
-      animation.finished.then(settle, settle)
-    },
-  )
+    const settle = () => {
+      if (running !== animation) return
+      running = null
+      node.style.overflow = overflowBeforeMorph ?? ""
+      overflowBeforeMorph = null
+    }
+    animation.finished.then(settle, settle)
+  })
+}
+
+function morphTimingFor(isToggled: boolean, isExpanded: boolean) {
+  if (!isToggled) return {duration: 260, easing: "cubic-bezier(0.22, 1, 0.36, 1)"}
+  if (isExpanded) return {duration: 400, easing: "cubic-bezier(0.22, 1, 0.36, 1)"}
+  return {duration: 300, easing: "cubic-bezier(0.4, 0, 1, 1)"}
 }
 
 function canAnimate(node: HTMLElement | null): node is HTMLElement {
   return Boolean(node) && typeof node!.animate === "function"
 }
 
-function measure(node: HTMLElement): DockFrame {
+function measure(node: HTMLElement) {
   return {
     width: `${node.offsetWidth}px`,
     height: `${node.offsetHeight}px`,
