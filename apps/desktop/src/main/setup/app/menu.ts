@@ -158,7 +158,7 @@ function createTasksMenu(mainWindow: BrowserWindow): MenuItemConstructorOptions[
 function createSettingsMenu(): MenuItemConstructorOptions[] {
   const sections = [
     "settings:general",
-    "settings:workflow",
+    "settings:projects",
     "settings:icloud",
     "settings:ai",
     "settings:deleted-tasks",

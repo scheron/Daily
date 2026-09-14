@@ -8,7 +8,7 @@ export const SHORTCUTS_MAP = {
   "ui:open-assistant-panel": {channel: "shortcut:ui:open-assistant-panel", label: "AI Assistant", accelerator: "CmdOrCtrl+Shift+A"},
   "ui:open-settings-panel": {channel: "shortcut:ui:open-settings-panel", label: "Settings", accelerator: "CmdOrCtrl+,"},
   "settings:general": {channel: "settings:open:general", label: "General", accelerator: "CmdOrCtrl+Shift+1", section: "general"},
-  "settings:workflow": {channel: "settings:open:workflow", label: "Workflow", accelerator: "CmdOrCtrl+Shift+2", section: "workflow"},
+  "settings:projects": {channel: "settings:open:projects", label: "Projects", accelerator: "CmdOrCtrl+Shift+2", section: "projects"},
   "settings:icloud": {channel: "settings:open:icloud", label: "Remote", accelerator: "CmdOrCtrl+Shift+3", section: "icloud"},
   "settings:ai": {channel: "settings:open:ai", label: "AI", accelerator: "CmdOrCtrl+Shift+4", section: "ai"},
   "settings:deleted-tasks": {
