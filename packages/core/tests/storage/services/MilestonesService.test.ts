@@ -1,4 +1,5 @@
 // @ts-nocheck
+import {nanoid} from "nanoid"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
 import {BranchModel} from "@core/storage/models/BranchModel"
@@ -25,6 +26,7 @@ vi.mock("@daily/protocol", async (importOriginal) => ({...(await importOriginal(
 
 function makeTask(overrides = {}) {
   return {
+    id: nanoid(),
     status: "active",
     content: "Task",
     minimized: false,

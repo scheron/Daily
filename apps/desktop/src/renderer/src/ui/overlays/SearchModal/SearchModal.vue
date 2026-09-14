@@ -48,7 +48,6 @@ async function navigateToTask(result: TaskSearchResult) {
 
   if (branchesStore.activeBranchId !== task.branchId) {
     await branchesStore.setActiveBranch(task.branchId)
-    await tasksStore.getTaskList()
   }
 
   if (!task.scheduled) {

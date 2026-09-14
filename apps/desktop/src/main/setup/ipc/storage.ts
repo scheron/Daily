@@ -14,18 +14,18 @@ export function setupStorageIPC(getStorage: () => IStorageController | null) {
   })
   ipcMain.handle("settings:save", (_e, newSettings: Partial<Record<string, any>>) => getStorage()?.saveSettings(newSettings))
 
-  ipcMain.handle("days:get-many", (_e, params?: {from?: ISODate; to?: ISODate; branchId?: Branch["id"]}) => getStorage()?.getDays(params))
-  ipcMain.handle("days:get-one", (_e, date: ISODate) => getStorage()?.getDay(date))
-
   ipcMain.handle("activity:get-by-task", (_e, taskId: Task["id"]) => getStorage()?.getTaskHistory(taskId))
 
+  ipcMain.handle("tasks:get-all", () => getStorage()?.getAllTasks())
   ipcMain.handle("tasks:get-many", (_e, params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: Branch["id"]}) => getStorage()?.getTaskList(params))
-  ipcMain.handle("tasks:get-backlog", (_e, branchId?: Branch["id"]) => getStorage()?.getBacklog({branchId}))
-  ipcMain.handle("tasks:get-by-milestone", (_e, milestoneId: Milestone["id"]) => getStorage()?.getTasksByMilestone(milestoneId))
   ipcMain.handle("tasks:get-one", (_e, id: Task["id"]) => getStorage()?.getTask(id))
   ipcMain.handle("tasks:update", (_e, id: Task["id"], updates: PartialDeep<Task>) => getStorage()?.updateTask(id, updates))
   ipcMain.handle("tasks:toggle-minimized", (_e, id: Task["id"], minimized: boolean) => getStorage()?.toggleTaskMinimized(id, minimized))
-  ipcMain.handle("tasks:create", (_e, task: Omit<Task, "id" | "createdAt" | "updatedAt" | "branchId"> & {branchId?: Task["branchId"]}) => getStorage()?.createTask(task as Task))
+  ipcMain.handle(
+    "tasks:create",
+    (_e, task: Omit<Task, "id" | "createdAt" | "updatedAt" | "branchId"> & {branchId?: Task["branchId"]; id?: Task["id"]}) =>
+      getStorage()?.createTask(task as Task),
+  )
   ipcMain.handle("tasks:move-by-order", (_e, params: MoveTaskByOrderParams) => getStorage()?.moveTaskByOrder(params))
   ipcMain.handle("tasks:move-to-branch", (_e, taskId: Task["id"], branchId: Branch["id"]) => getStorage()?.moveTaskToBranch(taskId, branchId))
   ipcMain.handle("tasks:delete", (_e, id: Task["id"]) => getStorage()?.deleteTask(id))

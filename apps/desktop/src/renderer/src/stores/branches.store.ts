@@ -27,6 +27,7 @@ export const useBranchesStore = defineStore("branches", () => {
       branches.value = await API.getBranchList()
     } catch (error) {
       console.error("Failed to load branches", error)
+      throw error
     } finally {
       isBranchesLoaded.value = true
     }
@@ -36,37 +37,24 @@ export const useBranchesStore = defineStore("branches", () => {
     const trimmed = name.trim()
     if (!trimmed) return null
 
-    const created = await API.createBranch({name: trimmed, description: ""})
-    if (!created) return null
-
-    await getBranchList()
-    return created
+    return await API.createBranch({name: trimmed, description: ""})
   }
 
   async function updateBranchName(id: Branch["id"], name: string): Promise<Branch | null> {
     const trimmed = name.trim()
     if (!trimmed) return null
 
-    const updated = await API.updateBranch(id, {name: trimmed})
-    if (!updated) return null
-
-    await getBranchList()
-    return updated
+    return await API.updateBranch(id, {name: trimmed})
   }
 
   async function updateBranchDescription(id: Branch["id"], description: string): Promise<Branch | null> {
-    const updated = await API.updateBranch(id, {description})
-    if (!updated) return null
-
-    await getBranchList()
-    return updated
+    return await API.updateBranch(id, {description})
   }
 
   async function deleteBranch(id: Branch["id"]): Promise<boolean> {
     const deleted = await API.deleteBranch(id)
     if (!deleted) return false
 
-    await getBranchList()
     await settingsStore.revalidate()
     return true
   }
@@ -75,10 +63,6 @@ export const useBranchesStore = defineStore("branches", () => {
     await API.setActiveBranch(id)
     await settingsStore.revalidate()
     return true
-  }
-
-  async function revalidate() {
-    await getBranchList()
   }
 
   return {
@@ -95,6 +79,5 @@ export const useBranchesStore = defineStore("branches", () => {
     updateBranchDescription,
     deleteBranch,
     setActiveBranch,
-    revalidate,
   }
 })

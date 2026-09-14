@@ -26,6 +26,27 @@ function makeMilestone(overrides = {}) {
   }
 }
 
+function makeMilestoneTask(milestoneId, status = "active", overrides = {}) {
+  return {
+    id: `${milestoneId}-${Math.random().toString(36).slice(2)}`,
+    branchId: "main",
+    milestoneId,
+    status,
+    content: "task",
+    minimized: false,
+    orderIndex: 1024,
+    scheduled: null,
+    estimatedTime: 0,
+    spentTime: 0,
+    tags: [],
+    attachments: [],
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+    deletedAt: null,
+    ...overrides,
+  }
+}
+
 describe("CalendarDock", () => {
   let wrapper = null
 
@@ -120,14 +141,26 @@ describe("CalendarDock", () => {
   })
 
   it("lists_TC-8_the_projects_open_milestones_first_and_the_closed_ones_below_a_separator", async () => {
-    const {mountDock, ui, milestones, filter} = await setup()
+    const {mountDock, ui, milestones, filter, tasks} = await setup()
 
     milestones.milestones = [
-      makeMilestone({id: "m-open-1", name: "Alpha", orderIndex: 1024, targetDate: "2026-10-01", progress: {total: 3, resolved: 1}}),
-      makeMilestone({id: "m-open-2", name: "Beta", orderIndex: 2048, targetDate: "2026-11-15", progress: {total: 2, resolved: 0}}),
-      makeMilestone({id: "m-closed", name: "Gamma", orderIndex: 3072, targetDate: "2026-09-01", progress: {total: 4, resolved: 4}}),
+      makeMilestone({id: "m-open-1", name: "Alpha", orderIndex: 1024, targetDate: "2026-10-01"}),
+      makeMilestone({id: "m-open-2", name: "Beta", orderIndex: 2048, targetDate: "2026-11-15"}),
+      makeMilestone({id: "m-closed", name: "Gamma", orderIndex: 3072, targetDate: "2026-09-01"}),
     ]
     milestones.isMilestonesLoaded = true
+
+    tasks.tasks = [
+      makeMilestoneTask("m-open-1", "done"),
+      makeMilestoneTask("m-open-1", "active"),
+      makeMilestoneTask("m-open-1", "active"),
+      makeMilestoneTask("m-open-2", "active"),
+      makeMilestoneTask("m-open-2", "active"),
+      makeMilestoneTask("m-closed", "done"),
+      makeMilestoneTask("m-closed", "done"),
+      makeMilestoneTask("m-closed", "discarded"),
+      makeMilestoneTask("m-closed", "discarded"),
+    ]
     ui.setCalendarDockTab("milestones")
     ui.toggleCalendarDock(true)
 
@@ -338,7 +371,7 @@ describe("CalendarDock — a release inside the dock and the board underneath", 
     const tasks = useTasksStore()
     const drag = useDragDropStore()
 
-    tasks.backlogTasks = [makeTask()]
+    tasks.tasks = [makeTask()]
     tasks.moveTaskByOrder = vi.fn().mockResolvedValue(true)
 
     let columns = null

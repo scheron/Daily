@@ -149,7 +149,7 @@ export type Task = {
   /** Branch ID (project scope). */
   branchId: Branch["id"]
 
-  /** Null exactly when `status === "backlog"`. Enforced in `TasksService`, nowhere else. */
+  /** Null exactly when `status === "backlog"`. Enforced by the rules in `packages/protocol/src/utils/tasks/mutationRules.ts`, nowhere else. */
   scheduled: TaskScheduled | null
   /**
    * The estimated time of the task in seconds
@@ -225,9 +225,6 @@ export type MilestoneProgress = {
   total: number
   resolved: number
 }
-
-/** A milestone as every reader outside the model sees it: the row plus the counts computed with it. */
-export type MilestoneView = Milestone & {progress: MilestoneProgress}
 
 export type File = {
   id: string

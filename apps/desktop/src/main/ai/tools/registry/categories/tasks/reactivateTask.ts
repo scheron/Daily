@@ -21,7 +21,8 @@ export const reactivateTask: RegisteredTool = {
       return {success: false, error: "task_id is required"}
     }
 
-    const updated = await ctx.storage.updateTask(taskId, {status: "active"})
+    const changeset = await ctx.storage.updateTask(taskId, {status: "active"})
+    const updated = changeset.tasks?.upserted?.find((t) => t.id === taskId)
 
     if (!updated) {
       return {success: false, error: `Task not found: ${taskId}`}

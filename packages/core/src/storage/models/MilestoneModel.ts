@@ -6,7 +6,7 @@ import {notUndefined} from "@daily/std"
 import {logger} from "../../utils/logger"
 import {rowToMilestone} from "./_rowMappers"
 
-import type {Branch, Milestone, MilestoneView} from "@daily/protocol"
+import type {Branch, Milestone} from "@daily/protocol"
 import type {SqliteDriver} from "../../database/SqliteDriver"
 
 const MILESTONE_SELECT = `
@@ -19,17 +19,14 @@ const MILESTONE_SELECT = `
     m.order_index,
     m.created_at,
     m.updated_at,
-    m.deleted_at,
-    (SELECT COUNT(*) FROM tasks t WHERE t.milestone_id = m.id AND t.deleted_at IS NULL) AS total_tasks,
-    (SELECT COUNT(*) FROM tasks t WHERE t.milestone_id = m.id AND t.deleted_at IS NULL
-       AND t.status IN ('done', 'discarded')) AS resolved_tasks
+    m.deleted_at
   FROM milestones m
 `
 
 export class MilestoneModel {
   constructor(private db: SqliteDriver) {}
 
-  getMilestoneList(params?: {branchId?: Branch["id"]; includeDeleted?: boolean}): MilestoneView[] {
+  getMilestoneList(params?: {branchId?: Branch["id"]; includeDeleted?: boolean}): Milestone[] {
     const conditions: string[] = []
     const values: any[] = []
 
@@ -52,10 +49,10 @@ export class MilestoneModel {
 
     logger.info(logger.CONTEXT.MILESTONES, `Loaded ${rows.length} milestones from database`)
 
-    return rows.map(rowToMilestoneView)
+    return rows.map(rowToMilestone)
   }
 
-  getMilestone(id: Milestone["id"]): MilestoneView | null {
+  getMilestone(id: Milestone["id"]): Milestone | null {
     const row = this.db.prepare(`${MILESTONE_SELECT} WHERE m.id = ?`).get(id) as any
 
     if (!row) {
@@ -63,10 +60,10 @@ export class MilestoneModel {
       return null
     }
 
-    return rowToMilestoneView(row)
+    return rowToMilestone(row)
   }
 
-  createMilestone(milestone: Omit<Milestone, "id" | "createdAt" | "updatedAt" | "orderIndex">): MilestoneView | null {
+  createMilestone(milestone: Omit<Milestone, "id" | "createdAt" | "updatedAt" | "orderIndex">): Milestone | null {
     const id = nanoid()
     const now = new Date().toISOString()
     const orderIndex = getNextTaskOrderIndex(this.getMilestoneList({branchId: milestone.branchId}))
@@ -94,10 +91,7 @@ export class MilestoneModel {
     return this.getMilestone(id)
   }
 
-  updateMilestone(
-    id: Milestone["id"],
-    updates: Partial<Pick<Milestone, "name" | "description" | "targetDate" | "orderIndex">>,
-  ): MilestoneView | null {
+  updateMilestone(id: Milestone["id"], updates: Partial<Pick<Milestone, "name" | "description" | "targetDate" | "orderIndex">>): Milestone | null {
     const now = new Date().toISOString()
     const setClauses: string[] = []
     const values: any[] = []
@@ -163,15 +157,5 @@ export class MilestoneModel {
 
     logger.info(logger.CONTEXT.MILESTONES, `Deleted ${rows.length} milestones for branch ${branchId}`)
     return rows.map((row) => row.id)
-  }
-}
-
-function rowToMilestoneView(row: any): MilestoneView {
-  return {
-    ...rowToMilestone(row),
-    progress: {
-      total: row.total_tasks,
-      resolved: row.resolved_tasks,
-    },
   }
 }

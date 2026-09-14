@@ -7,22 +7,21 @@ import {getOrderIndexBetween, isMilestoneClosed, normalizeTaskOrderIndexes, sort
 import {deepClone} from "@daily/std"
 
 import {useMilestonesStore} from "@/stores/milestones.store"
-import {useTasksStore} from "@/stores/tasks"
 import BaseButton from "@/ui/base/BaseButton"
 import BaseInput from "@/ui/base/BaseInput.vue"
 import MilestoneRow from "./{fragments}/MilestoneRow.vue"
 
-import type {Branch, Milestone, MilestoneView} from "@daily/protocol"
+import type {MilestoneWithProgress} from "@/stores/milestones.store"
+import type {Branch, Milestone} from "@daily/protocol"
 
 const props = defineProps<{branchId: Branch["id"]}>()
 
 const milestonesStore = useMilestonesStore()
-const tasksStore = useTasksStore()
 
 const newMilestoneName = ref("")
 const expandedIds = ref<Set<Milestone["id"]>>(new Set())
 const isDragging = ref(false)
-const draggableMilestones = ref<MilestoneView[]>([])
+const draggableMilestones = ref<MilestoneWithProgress[]>([])
 
 const sortedMilestones = computed(() => sortMilestones(milestonesStore.milestonesForBranch(props.branchId)))
 const firstClosedIndex = computed(() => sortedMilestones.value.findIndex((milestone) => isMilestoneClosed(milestone.progress)))
@@ -65,14 +64,13 @@ async function createMilestone() {
   toasts.success("Milestone created")
 }
 
-async function deleteMilestone(milestone: MilestoneView) {
+async function deleteMilestone(milestone: MilestoneWithProgress) {
   const deleted = await milestonesStore.deleteMilestone(milestone.id)
   if (!deleted) {
     toasts.error("Failed to delete milestone")
     return
   }
 
-  await tasksStore.revalidate()
   toasts.success("Milestone deleted")
 }
 

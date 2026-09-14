@@ -14,6 +14,7 @@ import {deepMerge} from "@daily/std"
 
 import {logger} from "../utils/logger"
 import {assertSingleActiveProvider, buildSyncRemotes, resolveActiveProvider} from "../utils/sync/syncProvider"
+import {EMPTY_CHANGESET} from "../types/storage"
 import {createStorageCore} from "./createStorageCore"
 import {initDatabase} from "./database/instance"
 import {ProviderMigrationService} from "./sync/ProviderMigrationService"
@@ -22,14 +23,12 @@ import {SyncEngine} from "./sync/SyncEngine"
 
 import type {
   Branch,
-  Day,
   DeviceRole,
   File,
   ISODate,
   MigrationDirection,
   MigrationPreview,
   Milestone,
-  MilestoneView,
   MoveTaskByOrderParams,
   ProtocolMismatchView,
   Settings,
@@ -45,7 +44,7 @@ import type {
 import type {PartialDeep} from "type-fest"
 import type {AppPaths} from "../config/paths"
 import type {SqliteDriver} from "../database/SqliteDriver"
-import type {IStorageController} from "../types/storage"
+import type {Changeset, IStorageController} from "../types/storage"
 import type {StorageCore} from "./createStorageCore"
 import type {AgentTurn, SessionMeta} from "./models/AISessionModel"
 
@@ -58,7 +57,6 @@ export class StorageController implements IStorageController {
   private tagsService!: StorageCore["tagsService"]
   private milestonesService!: StorageCore["milestonesService"]
   private filesService!: StorageCore["filesService"]
-  private daysService!: StorageCore["daysService"]
   private searchService!: StorageCore["searchService"]
   private syncEngine!: SyncEngine
   private serverProvider!: ServerProviderService
@@ -67,7 +65,7 @@ export class StorageController implements IStorageController {
   private aiSessionModel!: StorageCore["aiSessionModel"]
 
   private notifyStorageStatusChange?: (status: SyncStatus, prevStatus: SyncStatus) => void
-  private notifyStorageDataChange?: () => void
+  private notifyStorageDataChange?: (changeset: Changeset) => void
   private notifySettingsChange?: () => void
   private notifyApprovalRequested?: () => void
   private notifyRevoked?: () => void
@@ -93,7 +91,6 @@ export class StorageController implements IStorageController {
     this.tagsService = core.tagsService
     this.milestonesService = core.milestonesService
     this.filesService = core.filesService
-    this.daysService = core.daysService
     this.searchService = core.searchService
     this.localAdapter = core.localAdapter
     this.aiSessionModel = core.aiSessionModel
@@ -103,8 +100,8 @@ export class StorageController implements IStorageController {
     this.syncEngine = new SyncEngine(this.localAdapter, this.buildRemotes(settings), {
       assetsDir: () => this.paths.assetsDir(),
       onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => this.notifyStorageStatusChange?.(status, prevStatus),
-      onDataChanged: () => {
-        this.notifyStorageDataChange?.()
+      onDataChanged: (changeset: Changeset) => {
+        this.notifyStorageDataChange?.(changeset)
       },
     })
 
@@ -149,7 +146,7 @@ export class StorageController implements IStorageController {
   //#region STORAGE
   setupStorageBroadcasts(callbacks: {
     onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => void
-    onDataChange: () => void
+    onDataChange: (changeset: Changeset) => void
     onSettingsChange: () => void
     onApprovalRequested?: () => void
     onRevoked?: () => void
@@ -211,18 +208,6 @@ export class StorageController implements IStorageController {
   }
   //#endregion
 
-  //#region DAYS
-  async getDays(params: {from?: ISODate; to?: ISODate; branchId?: Branch["id"]} = {}): Promise<Day[]> {
-    const branchId = await this.branchesService.resolveBranchId(params.branchId)
-    return this.daysService.getDays({...params, branchId})
-  }
-
-  async getDay(date: ISODate): Promise<Day | null> {
-    const branchId = await this.branchesService.getActiveBranchId()
-    return this.daysService.getDay(date, {branchId})
-  }
-  //#endregion
-
   //#region ACTIVITY
   async getTaskHistory(taskId: Task["id"]): Promise<TaskEvent[]> {
     return this.tasksService.getHistoryByTask(taskId)
@@ -230,101 +215,97 @@ export class StorageController implements IStorageController {
   //#endregion
 
   //#region TASKS
+  /** Every live task of every project, backlog included. Resolves no project — unlike `getTaskList`, which always narrows to one. */
+  async getAllTasks(): Promise<Task[]> {
+    return this.tasksService.getTaskList({includeBacklog: true})
+  }
+
   async getTaskList(params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: Branch["id"]}): Promise<Task[]> {
     const branchId = await this.branchesService.resolveBranchId(params?.branchId)
     return this.tasksService.getTaskList({...params, branchId})
-  }
-
-  async getBacklog(params?: {branchId?: Branch["id"]}): Promise<Task[]> {
-    const branchId = await this.branchesService.resolveBranchId(params?.branchId)
-    return this.tasksService.getBacklogTasks({branchId})
-  }
-
-  async getTasksByMilestone(milestoneId: Milestone["id"]): Promise<Task[]> {
-    return this.tasksService.getTasksByMilestone(milestoneId)
   }
 
   async getTask(id: Task["id"]): Promise<Task | null> {
     return this.tasksService.getTask(id)
   }
 
-  async updateTask(id: Task["id"], updates: PartialDeep<Task>): Promise<Task | null> {
-    const updatedTask = await this.tasksService.updateTask(id, updates)
-    if (updatedTask) {
-      await this.searchService.updateTaskInIndex(updatedTask)
-      this.notifyLocalChange()
-    }
-    return updatedTask
+  async updateTask(id: Task["id"], updates: PartialDeep<Task>): Promise<Changeset> {
+    const updatedTasks = await this.tasksService.updateTask(id, updates)
+    if (!updatedTasks.length) return EMPTY_CHANGESET
+
+    for (const task of updatedTasks) await this.searchService.updateTaskInIndex(task)
+    const changeset: Changeset = {tasks: {upserted: updatedTasks}}
+    this.notifyLocalChange(changeset)
+    return changeset
   }
 
-  async toggleTaskMinimized(id: Task["id"], minimized: boolean): Promise<Task | null> {
+  async toggleTaskMinimized(id: Task["id"], minimized: boolean): Promise<Changeset> {
     return this.updateTask(id, {minimized})
   }
 
-  async moveTaskByOrder(params: MoveTaskByOrderParams): Promise<Task | null> {
-    const updatedTask = await this.tasksService.moveTaskByOrder(params)
-    if (updatedTask) {
-      await this.searchService.updateTaskInIndex(updatedTask)
-      this.notifyLocalChange()
-    }
-    return updatedTask
+  async moveTaskByOrder(params: MoveTaskByOrderParams): Promise<Changeset> {
+    const updatedTasks = await this.tasksService.moveTaskByOrder(params)
+    if (!updatedTasks.length) return EMPTY_CHANGESET
+
+    for (const task of updatedTasks) await this.searchService.updateTaskInIndex(task)
+    const changeset: Changeset = {tasks: {upserted: updatedTasks}}
+    this.notifyLocalChange(changeset)
+    return changeset
   }
 
-  async moveTaskToBranch(taskId: Task["id"], branchId: Branch["id"]): Promise<boolean> {
-    try {
-      const branch = await this.branchesService.getBranch(branchId)
-      if (!branch) return false
+  async moveTaskToBranch(taskId: Task["id"], branchId: Branch["id"]): Promise<Changeset> {
+    const branch = await this.branchesService.getBranch(branchId)
+    if (!branch) return EMPTY_CHANGESET
 
-      const isMoved = await this.tasksService.moveTaskToBranch(taskId, branch.id)
-      if (!isMoved) return false
+    const isMoved = await this.tasksService.moveTaskToBranch(taskId, branch.id)
+    if (!isMoved) return EMPTY_CHANGESET
 
-      const updatedTask = await this.tasksService.getTask(taskId)
-      if (updatedTask) {
-        await this.searchService.updateTaskInIndex(updatedTask)
-      }
+    const updatedTask = await this.tasksService.getTask(taskId)
+    if (!updatedTask) return EMPTY_CHANGESET
 
-      this.notifyLocalChange()
-      return true
-    } catch (error) {
-      logger.error(logger.CONTEXT.TASKS, `Failed to move task ${taskId} to branch ${branchId}`, error)
-      return false
-    }
+    await this.searchService.updateTaskInIndex(updatedTask)
+    const changeset: Changeset = {tasks: {upserted: [updatedTask]}}
+    this.notifyLocalChange(changeset)
+    return changeset
   }
 
-  async createTask(task: Task): Promise<Task | null> {
+  async createTask(task: Task): Promise<Changeset> {
     const branchId = await this.branchesService.resolveBranchId(task?.branchId)
     const createdTask = await this.tasksService.createTask({...task, branchId})
-    if (createdTask) {
-      await this.searchService.addTaskToIndex(createdTask)
-      this.notifyLocalChange()
-    }
-    return createdTask
+    if (!createdTask) return EMPTY_CHANGESET
+
+    await this.searchService.addTaskToIndex(createdTask)
+    const changeset: Changeset = {tasks: {upserted: [createdTask]}}
+    this.notifyLocalChange(changeset)
+    return changeset
   }
 
-  async deleteTask(id: Task["id"]): Promise<boolean> {
+  async deleteTask(id: Task["id"]): Promise<Changeset> {
     const deleted = await this.tasksService.deleteTask(id)
-    if (deleted) {
-      this.searchService.removeTaskFromIndex(id)
-      this.notifyLocalChange()
-    }
+    if (!deleted) return EMPTY_CHANGESET
 
-    return deleted
+    this.searchService.removeTaskFromIndex(id)
+    const changeset: Changeset = {tasks: {removed: [id]}}
+    this.notifyLocalChange(changeset)
+    return changeset
   }
 
-  async addTaskAttachment(taskId: Task["id"], fileId: File["id"]): Promise<Task | null> {
+  async addTaskAttachment(taskId: Task["id"], fileId: File["id"]): Promise<Changeset> {
     const addedTask = await this.tasksService.addTaskAttachment(taskId, fileId)
-    if (addedTask) {
-      this.notifyLocalChange()
-    }
-    return addedTask
+    if (!addedTask) return EMPTY_CHANGESET
+
+    const changeset: Changeset = {tasks: {upserted: [addedTask]}}
+    this.notifyLocalChange(changeset)
+    return changeset
   }
 
-  async removeTaskAttachment(taskId: Task["id"], fileId: File["id"]): Promise<Task | null> {
+  async removeTaskAttachment(taskId: Task["id"], fileId: File["id"]): Promise<Changeset> {
     const removedTask = await this.tasksService.removeTaskAttachment(taskId, fileId)
-    if (removedTask) {
-      this.notifyLocalChange()
-    }
-    return removedTask
+    if (!removedTask) return EMPTY_CHANGESET
+
+    const changeset: Changeset = {tasks: {upserted: [removedTask]}}
+    this.notifyLocalChange(changeset)
+    return changeset
   }
 
   async getDeletedTasks(params?: {limit?: number; branchId?: Branch["id"]}): Promise<Task[]> {
@@ -332,20 +313,22 @@ export class StorageController implements IStorageController {
     return this.tasksService.getDeletedTasks({...params, branchId})
   }
 
-  async restoreTask(id: Task["id"]): Promise<Task | null> {
+  async restoreTask(id: Task["id"]): Promise<Changeset> {
     const restoredTask = await this.tasksService.restoreTask(id)
-    if (restoredTask) {
-      await this.searchService.updateTaskInIndex(restoredTask)
-      this.notifyLocalChange()
-    }
-    return restoredTask
+    if (!restoredTask) return EMPTY_CHANGESET
+
+    await this.searchService.updateTaskInIndex(restoredTask)
+    const changeset: Changeset = {tasks: {upserted: [restoredTask]}}
+    this.notifyLocalChange(changeset)
+    return changeset
   }
 
+  /** Deleted tasks are already excluded from the live collection, so a permanent delete has nothing to name. */
   async permanentlyDeleteTask(id: Task["id"]): Promise<boolean> {
     const deleted = await this.tasksService.permanentlyDeleteTask(id)
     if (deleted) {
       this.searchService.removeTaskFromIndex(id)
-      this.notifyLocalChange()
+      this.notifyLocalChange(EMPTY_CHANGESET)
     }
     return deleted
   }
@@ -361,7 +344,7 @@ export class StorageController implements IStorageController {
       this.searchService.removeTaskFromIndex(task.id)
     }
 
-    this.notifyLocalChange()
+    this.notifyLocalChange(EMPTY_CHANGESET)
     return count
   }
   //#endregion
@@ -378,7 +361,7 @@ export class StorageController implements IStorageController {
   async createBranch(branch: Pick<Branch, "name"> & Partial<Pick<Branch, "description">>): Promise<Branch | null> {
     const createdBranch = await this.branchesService.createBranch(branch)
     if (createdBranch) {
-      this.notifyLocalChange()
+      this.notifyLocalChange({branches: {upserted: [createdBranch]}})
     }
     return createdBranch
   }
@@ -386,7 +369,7 @@ export class StorageController implements IStorageController {
   async updateBranch(id: Branch["id"], updates: Partial<Pick<Branch, "description" | "name">>): Promise<Branch | null> {
     const updatedBranch = await this.branchesService.updateBranch(id, updates)
     if (updatedBranch) {
-      this.notifyLocalChange()
+      this.notifyLocalChange({branches: {upserted: [updatedBranch]}})
     }
     return updatedBranch
   }
@@ -399,13 +382,17 @@ export class StorageController implements IStorageController {
       this.searchService.removeTaskFromIndex(taskId)
     }
 
-    this.notifyLocalChange()
+    const changeset: Changeset = {branches: {removed: [id]}}
+    if (result.deletedTaskIds.length) changeset.tasks = {removed: result.deletedTaskIds}
+    if (result.deletedMilestoneIds.length) changeset.milestones = {removed: result.deletedMilestoneIds}
+    if (result.deletedTagIds.length) changeset.tags = {removed: result.deletedTagIds}
+    this.notifyLocalChange(changeset)
     return true
   }
 
   async setActiveBranch(id: Branch["id"]): Promise<void> {
     await this.branchesService.setActiveBranch(id)
-    this.notifyLocalChange()
+    this.notifyLocalChange(EMPTY_CHANGESET)
   }
   //#endregion
 
@@ -421,7 +408,7 @@ export class StorageController implements IStorageController {
   async updateTag(id: Tag["id"], updates: Partial<Tag>): Promise<Tag | null> {
     const updatedTag = await this.tagsService.updateTag(id, updates)
     if (updatedTag) {
-      this.notifyLocalChange()
+      this.notifyLocalChange({tags: {upserted: [updatedTag]}})
     }
     return updatedTag
   }
@@ -429,7 +416,7 @@ export class StorageController implements IStorageController {
   async createTag(tag: Omit<Tag, "id" | "createdAt" | "updatedAt">): Promise<Tag | null> {
     const createdTag = await this.tagsService.createTag(tag)
     if (createdTag) {
-      this.notifyLocalChange()
+      this.notifyLocalChange({tags: {upserted: [createdTag]}})
     }
     return createdTag
   }
@@ -437,65 +424,71 @@ export class StorageController implements IStorageController {
   async deleteTag(id: Tag["id"]): Promise<boolean> {
     const deleted = await this.tagsService.deleteTag(id)
     if (deleted) {
-      this.notifyLocalChange()
+      this.notifyLocalChange({tags: {removed: [id]}})
     }
     return deleted
   }
 
-  async addTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Promise<Task | null> {
+  async addTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Promise<Changeset> {
     const updatedTask = await this.tasksService.addTaskTags(taskId, tagIds)
-    if (updatedTask) {
-      await this.searchService.updateTaskInIndex(updatedTask)
-      this.notifyLocalChange()
-    }
-    return updatedTask
+    if (!updatedTask) return EMPTY_CHANGESET
+
+    await this.searchService.updateTaskInIndex(updatedTask)
+    const changeset: Changeset = {tasks: {upserted: [updatedTask]}}
+    this.notifyLocalChange(changeset)
+    return changeset
   }
 
-  async removeTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Promise<Task | null> {
+  async removeTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Promise<Changeset> {
     const updatedTask = await this.tasksService.removeTaskTags(taskId, tagIds)
+    const changeset: Changeset = updatedTask ? {tasks: {upserted: [updatedTask]}} : EMPTY_CHANGESET
     if (updatedTask) {
       await this.searchService.updateTaskInIndex(updatedTask)
-      this.notifyLocalChange()
+      this.notifyLocalChange(changeset)
     }
-    this.notifyLocalChange()
-    return updatedTask
+    this.notifyLocalChange(changeset)
+    return changeset
   }
   //#endregion
 
   //#region MILESTONES
-  async getMilestoneList(branchId?: Branch["id"]): Promise<MilestoneView[]> {
+  async getMilestoneList(branchId?: Branch["id"]): Promise<Milestone[]> {
     return this.milestonesService.getMilestoneList(branchId)
   }
 
-  async getMilestone(id: Milestone["id"]): Promise<MilestoneView | null> {
+  async getMilestone(id: Milestone["id"]): Promise<Milestone | null> {
     return this.milestonesService.getMilestone(id)
   }
 
-  async createMilestone(milestone: Omit<Milestone, "id" | "createdAt" | "updatedAt" | "orderIndex">): Promise<MilestoneView | null> {
+  async createMilestone(milestone: Omit<Milestone, "id" | "createdAt" | "updatedAt" | "orderIndex">): Promise<Changeset> {
     const createdMilestone = await this.milestonesService.createMilestone(milestone)
-    if (createdMilestone) {
-      this.notifyLocalChange()
-    }
-    return createdMilestone
+    if (!createdMilestone) return EMPTY_CHANGESET
+
+    const changeset: Changeset = {milestones: {upserted: [createdMilestone]}}
+    this.notifyLocalChange(changeset)
+    return changeset
   }
 
   async updateMilestone(
     id: Milestone["id"],
     updates: Partial<Pick<Milestone, "name" | "description" | "targetDate" | "orderIndex">>,
-  ): Promise<MilestoneView | null> {
+  ): Promise<Changeset> {
     const updatedMilestone = await this.milestonesService.updateMilestone(id, updates)
-    if (updatedMilestone) {
-      this.notifyLocalChange()
-    }
-    return updatedMilestone
+    if (!updatedMilestone) return EMPTY_CHANGESET
+
+    const changeset: Changeset = {milestones: {upserted: [updatedMilestone]}}
+    this.notifyLocalChange(changeset)
+    return changeset
   }
 
-  async deleteMilestone(id: Milestone["id"]): Promise<boolean> {
+  /** Also nulls `milestoneId` on the tasks it held; those ids are not surfaced here since `MilestonesService.deleteMilestone` only reports success. */
+  async deleteMilestone(id: Milestone["id"]): Promise<Changeset> {
     const deleted = await this.milestonesService.deleteMilestone(id)
-    if (deleted) {
-      this.notifyLocalChange()
-    }
-    return deleted
+    if (!deleted) return EMPTY_CHANGESET
+
+    const changeset: Changeset = {milestones: {removed: [id]}}
+    this.notifyLocalChange(changeset)
+    return changeset
   }
   //#endregion
 
@@ -567,8 +560,8 @@ export class StorageController implements IStorageController {
   }
   //#endregion
 
-  private notifyLocalChange(): void {
-    this.notifyStorageDataChange?.()
+  private notifyLocalChange(changeset: Changeset): void {
+    this.notifyStorageDataChange?.(changeset)
     this.syncEngine.requestPush()
   }
 

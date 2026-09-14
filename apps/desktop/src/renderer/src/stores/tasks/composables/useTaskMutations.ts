@@ -1,12 +1,31 @@
-import {getPreviousTaskOrderIndex} from "@daily/protocol"
-import {getTime, getTimezone, notNull, notUndefined, objectFilter} from "@daily/std"
+import {toRaw} from "vue"
+import {toasts} from "vue-toasts-lite"
+import {nanoid} from "nanoid"
+import {getActivePinia} from "pinia"
+
+import {getPreviousTaskOrderIndex, planTaskCreate, planTaskMoveByOrder, planTaskUpdate} from "@daily/protocol"
+import {getTime, getTimezone, getToday, notNull, notUndefined, objectFilter} from "@daily/std"
 
 import {API} from "@/api"
-import {updateDays} from "@/utils/tasks/updateDays"
 import {toRawDeep} from "@/utils/ui/vue"
+import {applyChangeset} from "../applyChangeset"
 
+import type {CreateTaskParams} from "@/api/types"
 import type {TaskDropPosition, TaskMoveMeta, TaskMutationsContext} from "@/stores/tasks/types"
-import type {Branch, ISODate, Tag, Task, TaskStatus} from "@daily/protocol"
+import type {Changeset} from "@daily/core"
+import type {
+  Branch,
+  ISODate,
+  Milestone,
+  MoveTaskByOrderParams,
+  MutationContext,
+  Tag,
+  Task,
+  TaskPatch,
+  TaskScheduled,
+  TaskStatus,
+  TaskWritableFields,
+} from "@daily/protocol"
 
 export function isBacklogStatus(status: TaskStatus): boolean {
   return status === "backlog"
@@ -17,12 +36,14 @@ export function crossesBacklog(fromStatus: TaskStatus, toStatus: TaskStatus): bo
 }
 
 /**
- * Task write operations: create, duplicate, update, move, and delete. Each call
- * goes through the API and patches the shared `days` state in place.
- * @param ctx - Shared task state refs, active-day selectors, and day-refresh helpers
+ * Task write operations: create, duplicate, update, move, and delete. Each call predicts what it
+ * changes with the same rule main runs, applies that prediction to the collection at once, sends
+ * the write, and applies what main reports back. None of them reads the collection again. A write
+ * that fails puts back every row the prediction touched and says so in a toast.
+ * @param ctx - The collection, the active-day selectors, and a lookup by id
  */
 export function useTaskMutations(ctx: TaskMutationsContext) {
-  const {days, activeDay, activeBranchId, dailyTasks, backlogTasks, findTaskById, refreshDay, refreshDays, refreshBacklog, refreshMilestones} = ctx
+  const {tasks, activeDay, activeBranchId, dailyTasks, findTaskById} = ctx
 
   async function createTask(params: {
     content: string
@@ -34,36 +55,42 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
     milestoneId?: Task["milestoneId"]
   }): Promise<Task | null> {
     const isBacklog = params.status === "backlog"
+    const id = nanoid()
+    const date = params.date ?? activeDay.value
+    const time = getTime()
+    const timezone = getTimezone()
 
-    const previousDailyIds = new Set(dailyTasks.value.map((t) => t.id))
-    const previousBacklogIds = new Set(backlogTasks.value.map((t) => t.id))
+    const request: CreateTaskParams = toRawDeep({
+      id,
+      date: isBacklog ? undefined : date,
+      time,
+      timezone,
+      tags: params.tags,
+      estimatedTime: params.estimatedTime ?? 0,
+      orderIndex: getPreviousTaskOrderIndex(dailyTasks.value),
+      branchId: params.branchId ?? activeBranchId.value,
+      status: params.status,
+      milestoneId: params.milestoneId,
+    })
 
-    const updatedDay = await API.createTask(
-      params.content,
-      toRawDeep({
-        date: isBacklog ? undefined : (params.date ?? activeDay.value),
-        time: getTime(),
-        timezone: getTimezone(),
-        tags: params.tags,
-        estimatedTime: params.estimatedTime ?? 0,
-        orderIndex: getPreviousTaskOrderIndex(dailyTasks.value),
-        branchId: params.branchId ?? activeBranchId.value,
-        status: params.status,
-        milestoneId: params.milestoneId,
-      }),
-    )
+    const fields = planTaskCreate(mutationContext(), {
+      content: params.content,
+      status: request.status ?? "active",
+      minimized: false,
+      tags: request.tags ?? [],
+      estimatedTime: request.estimatedTime ?? 0,
+      spentTime: 0,
+      orderIndex: request.orderIndex ?? 0,
+      branchId: request.branchId,
+      milestoneId: request.milestoneId ?? null,
+      scheduled: isBacklog ? null : {date, time, timezone},
+    })
 
-    if (isBacklog) {
-      await refreshBacklog()
-      await refreshMilestones()
-      return backlogTasks.value.find((t) => !previousBacklogIds.has(t.id)) ?? null
-    }
+    const now = new Date().toISOString()
+    const created: Task = {...fields, id, createdAt: now, updatedAt: now, deletedAt: null}
 
-    if (!updatedDay) return null
-
-    days.value = updateDays(days.value, updatedDay)
-    await refreshMilestones()
-    return updatedDay.tasks.find((t) => !previousDailyIds.has(t.id)) ?? null
+    const isCreated = await predictAndWrite({tasks: {upserted: [created]}}, () => API.createTask(params.content, request), "Failed to create task")
+    return isCreated ? findTaskById(created.id) : null
   }
 
   async function duplicateTask(taskId: Task["id"]) {
@@ -85,84 +112,30 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
   }
 
   async function updateTask(taskId: Task["id"], updates: Partial<Omit<Task, "id" | "createdAt" | "updatedAt">>) {
-    const sourceDate = findTaskById(taskId)?.scheduled?.date ?? null
+    const payload = toRawDeep(objectFilter(updates, (value) => notUndefined(value)))
+    const patches = planTaskUpdate(mutationContext(), taskId, payload as Partial<TaskWritableFields>)
 
-    const payload = objectFilter(updates, (value) => notUndefined(value))
-    const result = await API.updateTask(taskId, toRawDeep(payload))
-
-    if (!result.success) return false
-
-    if (!result.day) {
-      if (sourceDate) await refreshDay(sourceDate)
-      await refreshBacklog()
-      await refreshMilestones()
-      return true
-    }
-
-    days.value = updateDays(days.value, result.day)
-    if (sourceDate && sourceDate !== result.day.date) await refreshDay(sourceDate)
-    await refreshMilestones()
-
-    return true
+    return predictAndWrite(changesetFromPatches(patches), () => API.updateTask(taskId, payload), "Failed to update task")
   }
 
   async function toggleTaskMinimized(taskId: Task["id"], minimized: boolean) {
-    const result = await API.toggleTaskMinimized(taskId, minimized)
-    if (!result.success) return false
+    const patches = planTaskUpdate(mutationContext(), taskId, {minimized})
 
-    if (!result.day) {
-      await refreshBacklog()
-      await refreshMilestones()
-      return true
-    }
-
-    days.value = updateDays(days.value, result.day)
-    await refreshMilestones()
-    return true
+    return predictAndWrite(changesetFromPatches(patches), () => API.toggleTaskMinimized(taskId, minimized), "Failed to update task")
   }
 
   async function deleteTask(taskId: Task["id"]) {
-    const task = findTaskById(taskId)
-    if (!task) return false
+    if (!findTaskById(taskId)) return false
 
-    const isSuccess = await API.deleteTask(taskId)
-    if (!isSuccess) return false
-
-    if (!task.scheduled) {
-      backlogTasks.value = backlogTasks.value.filter((t) => t.id !== taskId)
-      await refreshMilestones()
-      return true
-    }
-
-    const taskDate = task.scheduled.date
-    const day = days.value.find((d) => d.date === taskDate)
-    if (!day) return false
-
-    const dayWithRemovedTask = {...day, tasks: day.tasks.filter((t) => t.id !== taskId)}
-    days.value = updateDays(days.value, dayWithRemovedTask)
-    await refreshMilestones()
-
-    return true
+    return predictAndWrite({tasks: {removed: [taskId]}}, () => API.deleteTask(taskId), "Failed to delete task")
   }
 
   async function moveTask(taskId: Task["id"], targetDate: ISODate) {
-    const task = findTaskById(taskId)
-    if (!task) return false
+    if (!findTaskById(taskId)) return false
 
-    const sourceDate = task.scheduled?.date ?? null
+    const patches = planTaskUpdate(mutationContext(), taskId, {scheduled: {date: targetDate} as TaskScheduled})
 
-    const isSuccess = await API.moveTask(taskId, targetDate)
-    if (!isSuccess) return false
-
-    if (sourceDate) {
-      await refreshDays([sourceDate, targetDate])
-    } else {
-      await refreshDay(targetDate)
-      await refreshBacklog()
-    }
-    await refreshMilestones()
-
-    return true
+    return predictAndWrite(changesetFromPatches(patches), () => API.moveTask(taskId, targetDate), "Failed to move task")
   }
 
   async function moveTaskToBranch(taskId: Task["id"], branchId: Branch["id"]) {
@@ -170,14 +143,9 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
     if (!task) return false
     if (task.branchId === branchId) return true
 
-    const isSuccess = await API.moveTaskToBranch(taskId, branchId)
-    if (!isSuccess) return false
+    const patches = planTaskUpdate(mutationContext(), taskId, {branchId})
 
-    if (task.scheduled) await refreshDay(task.scheduled.date)
-    else await refreshBacklog()
-    await refreshMilestones()
-
-    return true
+    return predictAndWrite(changesetFromPatches(patches), () => API.moveTaskToBranch(taskId, branchId), "Failed to move task")
   }
 
   async function moveTaskByOrder(params: {
@@ -206,41 +174,60 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
       return meta
     }
 
-    const sourceDate = sourceTask.scheduled?.date ?? null
-    const touchesBacklog = isBacklogStatus(sourceTask.status) || isBacklogStatus(toStatus)
+    const moveParams: MoveTaskByOrderParams = toRawDeep({
+      taskId: params.taskId,
+      targetTaskId,
+      targetStatus: params.targetStatus,
+      position,
+      activeDate: params.activeDate,
+    })
+    const patches = planTaskMoveByOrder(mutationContext(), moveParams)
+
+    const isMoved = await predictAndWrite(changesetFromPatches(patches), () => API.moveTaskByOrder(moveParams), "Failed to move task")
+    return isMoved ? meta : null
+  }
+
+  async function predictAndWrite(predicted: Changeset, write: () => Promise<Changeset>, failureMessage: string): Promise<boolean> {
+    const rollback = rollbackOf(predicted)
+    applyChangeset({tasks}, predicted)
 
     try {
-      const nextDay = await API.moveTaskByOrder(
-        toRawDeep({
-          taskId: params.taskId,
-          targetTaskId,
-          targetStatus: params.targetStatus,
-          position,
-          activeDate: params.activeDate,
-        }),
-      )
-
-      if (touchesBacklog) await refreshBacklog()
-
-      if (nextDay) {
-        days.value = updateDays(days.value, nextDay)
-      } else if (touchesBacklog) {
-        if (sourceDate) await refreshDay(sourceDate)
-      } else {
-        await refreshDay(activeDay.value)
-        await refreshMilestones()
-        return null
-      }
+      applyChangeset({tasks}, await write())
+      return true
     } catch (error) {
-      console.error("Failed to reorder tasks", error)
-      if (touchesBacklog) await refreshBacklog()
-      await refreshDay(sourceDate ?? activeDay.value)
-      await refreshMilestones()
-      return null
+      console.error(failureMessage, error)
+      applyChangeset({tasks}, rollback)
+      toasts.error(failureMessage)
+      return false
     }
+  }
 
-    await refreshMilestones()
-    return meta
+  function mutationContext(): MutationContext {
+    return {tasks: toRaw(tasks.value), milestones: liveMilestones(), today: getToday()}
+  }
+
+  function changesetFromPatches(patches: TaskPatch[]): Changeset {
+    const updatedAt = new Date().toISOString()
+    const taskById = new Map(toRaw(tasks.value).map((task) => [task.id, task]))
+
+    const upserted = patches.flatMap(({id, ...fields}) => {
+      const before = taskById.get(id)
+      return before ? [{...before, ...fields, updatedAt}] : []
+    })
+
+    return upserted.length ? {tasks: {upserted}} : {}
+  }
+
+  function rollbackOf(predicted: Changeset): Changeset {
+    const taskById = new Map(toRaw(tasks.value).map((task) => [task.id, task]))
+    const touchedIds = [...(predicted.tasks?.upserted ?? []).map((task) => task.id), ...(predicted.tasks?.removed ?? [])]
+
+    return {
+      tasks: {
+        upserted: touchedIds.flatMap((id) => taskById.get(id) ?? []),
+        removed: touchedIds.filter((id) => !taskById.has(id)),
+      },
+    }
   }
 
   return {
@@ -253,4 +240,9 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
     moveTaskToBranch,
     moveTaskByOrder,
   }
+}
+
+function liveMilestones(): MutationContext["milestones"] {
+  const state = getActivePinia()?.state.value.milestones as {milestones?: Milestone[]} | undefined
+  return toRaw(state?.milestones) ?? []
 }

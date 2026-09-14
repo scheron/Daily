@@ -7,7 +7,6 @@ import {DRAGGABLE_ATTRS} from "@/constants/ui"
 import {useFilterStore} from "@/stores/filter.store"
 import {useMilestonesStore} from "@/stores/milestones.store"
 import {useTasksStore} from "@/stores/tasks"
-import BaseSpinner from "@/ui/base/BaseSpinner.vue"
 import CalendarDock from "@/ui/modules/CalendarDock"
 import {useDragScroll} from "./composables/useDragScroll"
 import NoTasksPlaceholder from "./{fragments}/NoTasksPlaceholder.vue"
@@ -23,8 +22,6 @@ const tasksStore = useTasksStore()
 const filterStore = useFilterStore()
 const milestonesStore = useMilestonesStore()
 const columns = useTaskColumns()
-
-const isLoading = computed(() => (filterStore.frame === "milestone" ? !tasksStore.isMilestoneTasksLoaded : !tasksStore.isDaysLoaded))
 
 const framedMilestoneName = computed(() => {
   if (filterStore.frame !== "milestone") return undefined
@@ -53,9 +50,8 @@ watch(
 
 <template>
   <div ref="containerRef" class="relative min-w-0 flex-1 overflow-hidden">
-    <BaseSpinner v-if="isLoading" />
     <NoTasksPlaceholder
-      v-else-if="!hasAnyTasks"
+      v-if="!hasAnyTasks"
       :date="placeholderDate"
       :milestone-name="framedMilestoneName"
       filter="all"

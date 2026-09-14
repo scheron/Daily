@@ -3,8 +3,8 @@ import {app} from "electron"
 
 import {logger, setFileCoordinatorBinaryPath, StorageController} from "@daily/core"
 import {APP_CONFIG} from "@daily/protocol"
-import {sleep} from "@daily/std"
 
+import {awaitRendererReady} from "./utils/windows/awaitRendererReady"
 import {broadcastToWindows} from "./utils/windows/broadcastToWindows"
 import {focusWindow} from "./utils/windows/focusWindow"
 import {AIController} from "./ai/AIController"
@@ -26,7 +26,7 @@ import {setupStorageIPC} from "./setup/ipc/storage"
 import {setupSyncProviderIPC} from "./setup/ipc/syncProvider"
 import {setupSyncServerIPC} from "./setup/ipc/syncServer"
 import {setupUpdatesIPC} from "./setup/ipc/updates"
-import {setupMainWindowIPC} from "./setup/ipc/windows"
+import {setupMainWindowIPC, waitForRendererReady} from "./setup/ipc/windows"
 import {setupCSP} from "./setup/security/csp"
 import {setupPrivilegedSchemes, setupSafeFileProtocol} from "./setup/security/protocols"
 import {createMainWindow} from "./windows/main.window"
@@ -166,6 +166,7 @@ function setupMainWindow(windows: AppWindows, options?: {showSplash?: boolean}) 
 
   windows.main = createMainWindow(savedMainWindowState)
   const main = windows.main!
+  const rendererReady = waitForRendererReady(() => windows.main)
   if (storage) setupUpdateManager(main, () => storage)
 
   setupMenu(() => main)
@@ -180,7 +181,8 @@ function setupMainWindow(windows: AppWindows, options?: {showSplash?: boolean}) 
 
   main.once("ready-to-show", async () => {
     if (showSplash) {
-      await sleep(1000)
+      const outcome = await awaitRendererReady(rendererReady, 10_000)
+      if (outcome === "timed-out") logger.warn(logger.CONTEXT.APP, "Renderer readiness timed out; showing the main window anyway")
 
       if (windows.splash) {
         windows.splash.close()

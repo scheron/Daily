@@ -41,17 +41,57 @@ describe("branchesStore", () => {
     expect(result).toBeNull()
   })
 
-  it("createBranch trims name and reloads list", async () => {
+  it("createBranch trims name, makes one call and reads no list", async () => {
     const {API} = await import("../../../src/renderer/src/api")
     const branch = makeBranch({name: "Feature"})
     API.createBranch.mockResolvedValueOnce(branch)
-    API.getBranchList.mockResolvedValueOnce([branch])
 
     const store = await getStore()
     const result = await store.createBranch("  Feature  ")
 
     expect(result.name).toBe("Feature")
     expect(API.createBranch).toHaveBeenCalledWith({name: "Feature", description: ""})
+    expect(API.createBranch).toHaveBeenCalledTimes(1)
+    expect(API.getBranchList).not.toHaveBeenCalled()
+  })
+
+  it("updateBranchName makes one call and reads no list", async () => {
+    const {API} = await import("../../../src/renderer/src/api")
+    const branch = makeBranch({name: "Renamed"})
+    API.updateBranch.mockResolvedValueOnce(branch)
+
+    const store = await getStore()
+    const result = await store.updateBranchName("branch-1", "Renamed")
+
+    expect(result.name).toBe("Renamed")
+    expect(API.updateBranch).toHaveBeenCalledWith("branch-1", {name: "Renamed"})
+    expect(API.updateBranch).toHaveBeenCalledTimes(1)
+    expect(API.getBranchList).not.toHaveBeenCalled()
+  })
+
+  it("updateBranchDescription makes one call and reads no list", async () => {
+    const {API} = await import("../../../src/renderer/src/api")
+    const branch = makeBranch({description: "New description"})
+    API.updateBranch.mockResolvedValueOnce(branch)
+
+    const store = await getStore()
+    const result = await store.updateBranchDescription("branch-1", "New description")
+
+    expect(result.description).toBe("New description")
+    expect(API.updateBranch).toHaveBeenCalledWith("branch-1", {description: "New description"})
+    expect(API.updateBranch).toHaveBeenCalledTimes(1)
+    expect(API.getBranchList).not.toHaveBeenCalled()
+  })
+
+  it("deleteBranch makes one call and reads no list", async () => {
+    const {API} = await import("../../../src/renderer/src/api")
+
+    const store = await getStore()
+    const result = await store.deleteBranch("branch-1")
+
+    expect(result).toBe(true)
+    expect(API.deleteBranch).toHaveBeenCalledTimes(1)
+    expect(API.getBranchList).not.toHaveBeenCalled()
   })
 
   it("orderedBranches sorts by name case-insensitive", async () => {

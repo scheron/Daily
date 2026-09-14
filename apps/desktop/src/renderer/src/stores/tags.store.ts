@@ -29,6 +29,7 @@ export const useTagsStore = defineStore("tags", () => {
       tags.value = loadedTags
     } catch (error) {
       console.error("Error loading tags:", error)
+      throw error
     } finally {
       isTagsLoaded.value = true
     }

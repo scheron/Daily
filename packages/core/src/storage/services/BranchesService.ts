@@ -1,7 +1,7 @@
 import {MAIN_BRANCH_ID} from "@daily/protocol"
 import {notUndefined} from "@daily/std"
 
-import type {Branch, Task} from "@daily/protocol"
+import type {Branch, Milestone, Tag, Task} from "@daily/protocol"
 import type {SqliteDriver} from "../../database/SqliteDriver"
 import type {BranchModel} from "../models/BranchModel"
 import type {MilestoneModel} from "../models/MilestoneModel"
@@ -62,19 +62,23 @@ export class BranchesService {
   /**
    * Deletes a project along with its tasks, milestones and tags. `main` is refused before anything
    * is touched, and the four deletes run in one transaction so a project is never left half-deleted.
-   * @returns the ids of the tasks it removed, so the caller can drop exactly those from the search
-   * index, or `null` when nothing was deleted.
+   * @returns the ids of the tasks, milestones and tags it removed, so the caller can drop exactly
+   * those from the search index and name them in a changeset, or `null` when nothing was deleted.
    */
-  async deleteBranch(id: Branch["id"]): Promise<{deletedTaskIds: Task["id"][]} | null> {
+  async deleteBranch(
+    id: Branch["id"],
+  ): Promise<{deletedTaskIds: Task["id"][]; deletedMilestoneIds: Milestone["id"][]; deletedTagIds: Tag["id"][]} | null> {
     if (id === MAIN_BRANCH_ID) return null
 
     let deletedTaskIds: Task["id"][] = []
+    let deletedMilestoneIds: Milestone["id"][] = []
+    let deletedTagIds: Tag["id"][] = []
     let deleted = false
 
     const run = this.db.transaction(() => {
       deletedTaskIds = this.taskModel.deleteTasksByBranch(id)
-      this.milestoneModel.deleteMilestonesByBranch(id)
-      this.tagModel.deleteTagsByBranch(id)
+      deletedMilestoneIds = this.milestoneModel.deleteMilestonesByBranch(id)
+      deletedTagIds = this.tagModel.deleteTagsByBranch(id)
       deleted = this.branchModel.deleteBranch(id)
     })
 
@@ -93,7 +97,7 @@ export class BranchesService {
       })
     }
 
-    return {deletedTaskIds}
+    return {deletedTaskIds, deletedMilestoneIds, deletedTagIds}
   }
 
   async getActiveBranchId(): Promise<Branch["id"]> {

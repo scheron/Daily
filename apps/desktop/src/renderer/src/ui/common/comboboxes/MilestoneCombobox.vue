@@ -7,7 +7,8 @@ import {useMilestonesStore} from "@/stores/milestones.store"
 import BaseCombobox from "@/ui/base/BaseCombobox"
 import MilestoneDiamond from "@/ui/common/milestones/MilestoneDiamond.vue"
 
-import type {Milestone, MilestoneView, Task} from "@daily/protocol"
+import type {MilestoneWithProgress} from "@/stores/milestones.store"
+import type {Milestone, Task} from "@daily/protocol"
 
 const props = defineProps<{task: Task}>()
 const emit = defineEmits<{update: [milestoneId: Milestone["id"] | null]; close: []}>()
@@ -16,11 +17,11 @@ const milestonesStore = useMilestonesStore()
 
 const sortedMilestones = computed(() => sortMilestones(milestonesStore.milestonesForBranch(props.task.branchId)))
 
-function isSelected(milestone: MilestoneView): boolean {
+function isSelected(milestone: MilestoneWithProgress): boolean {
   return props.task.milestoneId === milestone.id
 }
 
-function selectMilestone(milestone: MilestoneView) {
+function selectMilestone(milestone: MilestoneWithProgress) {
   emit("update", isSelected(milestone) ? null : milestone.id)
 }
 </script>

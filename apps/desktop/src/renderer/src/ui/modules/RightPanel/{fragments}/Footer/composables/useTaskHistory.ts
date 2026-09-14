@@ -1,7 +1,7 @@
 import {computed, onScopeDispose, ref, toValue, watch} from "vue"
 
 import {API} from "@/api"
-import {useStorageStore} from "@/stores/storage.store"
+import {useStorageChangesStore} from "@/stores/storageChanges.store"
 
 import type {Task, TaskEvent} from "@daily/protocol"
 import type {MaybeRefOrGetter} from "vue"
@@ -11,7 +11,7 @@ import type {MaybeRefOrGetter} from "vue"
  * @param task - The task (ref/getter) whose history to track; null clears the list.
  */
 export function useTaskHistory(_task: MaybeRefOrGetter<Task | null>) {
-  const storageStore = useStorageStore()
+  const storageChangesStore = useStorageChangesStore()
 
   const events = ref<TaskEvent[]>([])
 
@@ -32,7 +32,7 @@ export function useTaskHistory(_task: MaybeRefOrGetter<Task | null>) {
 
   watch(signature, revalidate, {immediate: true})
 
-  const {off} = storageStore.onStorageDataChanged(revalidate)
+  const {off} = storageChangesStore.onStorageDataChanged(revalidate)
   onScopeDispose(off)
 
   return {events, lastEvent, isEmpty}

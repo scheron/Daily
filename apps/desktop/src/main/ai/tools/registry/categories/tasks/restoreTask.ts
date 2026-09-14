@@ -20,7 +20,8 @@ export const restoreTask: RegisteredTool = {
       return {success: false, error: "task_id is required"}
     }
 
-    const restored = await ctx.storage.restoreTask(taskId)
+    const changeset = await ctx.storage.restoreTask(taskId)
+    const restored = changeset.tasks?.upserted?.find((t) => t.id === taskId)
 
     if (!restored) {
       return {success: false, error: `Task not found in trash: ${taskId}`}

@@ -1,32 +1,45 @@
-import {computed, ref, watch} from "vue"
+import {computed, ref} from "vue"
 import {DateTime} from "luxon"
 import {defineStore} from "pinia"
 
-import {sortTasksByOrderIndex} from "@daily/protocol"
+import {groupTasksByDay, sortTasksByOrderIndex} from "@daily/protocol"
 
 import {API} from "@/api"
-import {useFilterStore} from "@/stores/filter.store"
-import {useMilestonesStore} from "@/stores/milestones.store"
 import {useSettingsStore} from "@/stores/settings.store"
 import {useTaskMutations} from "./composables/useTaskMutations"
-import {useTaskRange} from "./composables/useTaskRange"
+import {applyChangeset as applyChangesetTo} from "./applyChangeset"
 
-import type {Day, ISODate, Task, TaskStatus} from "@daily/protocol"
+import type {Changeset} from "@daily/core"
+import type {Day, ISODate, Milestone, Task, TaskStatus} from "@daily/protocol"
 
 export const useTasksStore = defineStore("tasks", () => {
   const settingsStore = useSettingsStore()
-  const milestonesStore = useMilestonesStore()
-  const filterStore = useFilterStore()
 
-  const days = ref<Day[]>([])
-  const backlogTasks = ref<Task[]>([])
-  const milestoneTasks = ref<Task[]>([])
-  const isMilestoneTasksLoaded = ref(false)
+  const tasks = ref<Task[]>([])
+  const isLoaded = ref(false)
 
-  let loadedMilestoneKey: string | null = null
   const activeDay = ref<ISODate>(DateTime.now().toISODate()!)
-  const isDaysLoaded = ref(false)
   const activeBranchId = computed(() => settingsStore.settings?.branch?.activeId)
+
+  const projectTasks = computed(() => tasks.value.filter((task) => task.branchId === activeBranchId.value))
+
+  const days = computed<Day[]>(() => {
+    const dated = projectTasks.value.filter((task) => task.scheduled)
+    return groupTasksByDay({tasks: dated, tags: dated.flatMap((task) => task.tags)})
+  })
+
+  const backlogTasks = computed<Task[]>(() => sortTasksByOrderIndex(projectTasks.value.filter((task) => task.status === "backlog")))
+
+  const tasksByMilestoneId = computed(() => {
+    const map = new Map<Milestone["id"], Task[]>()
+    for (const task of tasks.value) {
+      if (!task.milestoneId) continue
+      const list = map.get(task.milestoneId)
+      if (list) list.push(task)
+      else map.set(task.milestoneId, [task])
+    }
+    return map
+  })
 
   const activeDayData = computed(() => days.value.find((day) => day.date === activeDay.value) ?? null)
   const activeDayInfo = computed(() => activeDayData.value ?? {date: activeDay.value})
@@ -60,9 +73,8 @@ export const useTasksStore = defineStore("tasks", () => {
     }
   })
 
-  const range = useTaskRange({days, activeDay, isDaysLoaded, activeBranchId})
-
   const mutations = useTaskMutations({
+    tasks,
     days,
     activeDay,
     activeBranchId,
@@ -70,89 +82,43 @@ export const useTasksStore = defineStore("tasks", () => {
     dailyTasks,
     backlogTasks,
     findTaskById,
-    refreshDay: range.refreshDay,
-    refreshDays: range.refreshDays,
-    refreshBacklog,
-    refreshMilestones,
   })
 
   function findTaskById(taskId: Task["id"]): Task | null {
-    return days.value.flatMap((day) => day.tasks).find((t) => t.id === taskId) ?? backlogTasks.value.find((t) => t.id === taskId) ?? null
+    return tasks.value.find((task) => task.id === taskId) ?? null
   }
 
   function setActiveDay(date: ISODate) {
     activeDay.value = date
-    range.ensureRangeForDate(date)
   }
 
-  async function refreshBacklog() {
+  async function loadTasks() {
+    isLoaded.value = false
     try {
-      backlogTasks.value = await API.getBacklog(activeBranchId.value)
+      tasks.value = await API.getAllTasks()
     } catch (error) {
-      console.error("Failed to refresh backlog:", error)
-    }
-  }
-
-  /**
-   * Loads the tasks the milestone frame draws: the selected milestone's, or every milestone's when
-   * nothing is selected. What is already loaded is kept and reused — switching frames must not
-   * refetch, because rebuilding the columns blocks the main thread and the dock animates there too.
-   * @param force - Discard what is loaded and read again; every task write passes this.
-   */
-  async function refreshMilestoneTasks(force = false) {
-    if (force) loadedMilestoneKey = null
-
-    if (filterStore.frame === "day") return
-
-    const milestoneId = filterStore.activeMilestoneId
-    const key = milestoneId ?? "*"
-    if (loadedMilestoneKey === key) return
-
-    const ids = milestoneId ? [milestoneId] : milestonesStore.activeMilestones.map((milestone) => milestone.id)
-
-    if (!milestoneTasks.value.length) isMilestoneTasksLoaded.value = false
-    try {
-      const lists = await Promise.all(ids.map((id) => API.getTasksByMilestone(id)))
-      milestoneTasks.value = lists.flat()
-      loadedMilestoneKey = key
-    } catch (error) {
-      console.error("Failed to refresh milestone tasks:", error)
+      console.error("Failed to load tasks:", error)
+      throw error
     } finally {
-      isMilestoneTasksLoaded.value = true
+      isLoaded.value = true
     }
   }
 
-  async function refreshMilestones() {
-    await Promise.all([milestonesStore.revalidate(), refreshMilestoneTasks(true)])
+  function applyChangeset(changeset: Changeset): void {
+    applyChangesetTo({tasks}, changeset)
   }
 
   async function revalidate() {
-    await Promise.all([range.revalidate(), refreshBacklog(), refreshMilestoneTasks(true)])
+    await loadTasks()
   }
 
-  watch(
-    () => activeBranchId.value,
-    (newId, oldId) => {
-      if (newId === oldId) return
-      loadedMilestoneKey = null
-      if (isDaysLoaded.value) refreshBacklog()
-    },
-  )
-
-  watch(
-    () => [filterStore.frame, filterStore.activeMilestoneId].join(":"),
-    () => refreshMilestoneTasks(),
-    {immediate: true},
-  )
-
   return {
-    isDaysLoaded,
+    isLoaded,
+    tasks,
     days,
     backlogTasks,
-    milestoneTasks,
-    isMilestoneTasksLoaded,
+    tasksByMilestoneId,
     activeDay,
-    loadedRange: range.loadedRange,
     dailyTasks,
     dailyTasksByStatus,
     dailyTaskIndexMap,
@@ -161,10 +127,9 @@ export const useTasksStore = defineStore("tasks", () => {
     activeDayInfo,
 
     setActiveDay,
-    getTaskList: range.getTaskList,
-    extendRange: range.extendRange,
     findTaskById,
-    refreshBacklog,
+    loadTasks,
+    applyChangeset,
     revalidate,
 
     ...mutations,

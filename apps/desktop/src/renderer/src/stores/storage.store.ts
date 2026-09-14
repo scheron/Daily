@@ -1,26 +1,17 @@
 import {computed, onMounted, ref} from "vue"
-import {createEventHook} from "@vueuse/core"
 import {defineStore} from "pinia"
 
 import {resolveActiveProvider} from "@daily/protocol"
 import {sleep} from "@daily/std"
 
-import {useBranchesStore} from "./branches.store"
-import {useMilestonesStore} from "./milestones.store"
 import {useSettingsStore} from "./settings.store"
-import {useTagsStore} from "./tags.store"
-import {useTasksStore} from "./tasks"
+import {useStorageChangesStore} from "./storageChanges.store"
 
 import type {ISODateTime, MigrationDirection, MigrationPreview, SyncProvider, SyncStatus} from "@daily/protocol"
 
 export const useStorageStore = defineStore("storage", () => {
-  const onStorageDataChanged = createEventHook()
-
-  const tasksStore = useTasksStore()
-  const tagsStore = useTagsStore()
-  const branchesStore = useBranchesStore()
-  const milestonesStore = useMilestonesStore()
   const settingsStore = useSettingsStore()
+  const storageChangesStore = useStorageChangesStore()
 
   const status = ref<SyncStatus>("inactive")
   const lastSyncAt = ref<ISODateTime>(new Date().toISOString())
@@ -52,7 +43,6 @@ export const useStorageStore = defineStore("storage", () => {
 
   async function revalidate(): Promise<void> {
     await settingsStore.revalidate()
-    await Promise.all([tasksStore.revalidate(), tagsStore.revalidate(), branchesStore.revalidate(), milestonesStore.revalidate()])
   }
 
   window.BridgeIPC["storage-sync:on-status-changed"](async (newStatus, prevStatus) => {
@@ -65,10 +55,9 @@ export const useStorageStore = defineStore("storage", () => {
     }
   })
 
-  window.BridgeIPC["storage-sync:on-data-changed"](async () => {
+  storageChangesStore.onStorageDataChanged(async () => {
     lastSyncAt.value = new Date().toISOString()
     await revalidate()
-    onStorageDataChanged.trigger()
   })
 
   window.BridgeIPC["settings:on-changed"](() => settingsStore.revalidate())
@@ -88,6 +77,5 @@ export const useStorageStore = defineStore("storage", () => {
     migrateProvider,
 
     revalidate,
-    onStorageDataChanged: onStorageDataChanged.on,
   }
 })

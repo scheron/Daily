@@ -11,23 +11,13 @@ export type TaskMoveMeta = {
   position: TaskDropPosition
 }
 
-export type TaskRangeContext = {
-  days: Ref<Day[]>
-  activeDay: Ref<ISODate>
-  isDaysLoaded: Ref<boolean>
-  activeBranchId: ComputedRef<Branch["id"] | undefined>
-}
-
 export type TaskMutationsContext = {
-  days: Ref<Day[]>
+  tasks: Ref<Task[]>
+  days: ComputedRef<Day[]>
   activeDay: Ref<ISODate>
   activeBranchId: ComputedRef<Branch["id"] | undefined>
   activeDayData: ComputedRef<Day | null>
   dailyTasks: ComputedRef<Task[]>
-  backlogTasks: Ref<Task[]>
+  backlogTasks: ComputedRef<Task[]>
   findTaskById: (taskId: Task["id"]) => Task | null
-  refreshDay: (date: ISODate) => Promise<void>
-  refreshDays: (dates: ISODate[]) => Promise<void>
-  refreshBacklog: () => Promise<void>
-  refreshMilestones: () => Promise<void>
 }

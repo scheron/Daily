@@ -4,7 +4,6 @@ import {toasts} from "vue-toasts-lite"
 
 import {useFilterStore} from "@/stores/filter.store"
 import {useTagsStore} from "@/stores/tags.store"
-import {useTasksStore} from "@/stores/tasks"
 import BaseButton from "@/ui/base/BaseButton"
 import BasePopup from "@/ui/base/BasePopup.vue"
 import TagsCombobox from "@/ui/common/comboboxes/TagsCombobox.vue"
@@ -15,7 +14,6 @@ import type {Branch, Tag} from "@daily/protocol"
 const props = defineProps<{branchId: Branch["id"]}>()
 
 const tagsStore = useTagsStore()
-const tasksStore = useTasksStore()
 const filterStore = useFilterStore()
 
 const projectTags = computed(() => tagsStore.tagsForBranch(props.branchId))
@@ -28,7 +26,6 @@ async function deleteTag(tag: Tag) {
     return
   }
 
-  await tasksStore.revalidate()
   toasts.success("Tag deleted")
 }
 </script>

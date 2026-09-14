@@ -11,7 +11,8 @@ import {useMilestonesStore} from "@/stores/milestones.store"
 import {useUIStore} from "@/stores/ui/ui.store"
 import MilestoneDiamond from "@/ui/common/milestones/MilestoneDiamond.vue"
 
-import type {Milestone, MilestoneProgress, MilestoneView} from "@daily/protocol"
+import type {MilestoneWithProgress} from "@/stores/milestones.store"
+import type {Milestone, MilestoneProgress} from "@daily/protocol"
 
 const branchesStore = useBranchesStore()
 const milestonesStore = useMilestonesStore()
@@ -32,11 +33,11 @@ function completionOf(progress: MilestoneProgress) {
   return milestoneCompletion(progress)
 }
 
-function overdueOf(milestone: MilestoneView) {
+function overdueOf(milestone: MilestoneWithProgress) {
   return isMilestoneOverdue(milestone, milestone.progress, getToday())
 }
 
-function dateLabelOf(milestone: MilestoneView) {
+function dateLabelOf(milestone: MilestoneWithProgress) {
   return milestone.targetDate ? toDateLabel(milestone.targetDate, {short: true}) : ""
 }
 

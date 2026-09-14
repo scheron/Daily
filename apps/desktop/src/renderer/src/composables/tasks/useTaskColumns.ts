@@ -7,6 +7,7 @@ import {createSharedComposable} from "@/composables/createSharedComposable"
 import {TASK_COLUMNS} from "@/constants/ui"
 import {useDragDropStore} from "@/stores/dragDrop.store"
 import {useFilterStore} from "@/stores/filter.store"
+import {useMilestonesStore} from "@/stores/milestones.store"
 import {useTasksStore} from "@/stores/tasks"
 import {useUIStore} from "@/stores/ui"
 import {resolveMoveTarget} from "@/utils/tasks/resolveMoveTarget"
@@ -20,6 +21,7 @@ const SORTABLE_ANIMATION_MS = 160
 export const useTaskColumns = createSharedComposable(() => {
   const tasksStore = useTasksStore()
   const filterStore = useFilterStore()
+  const milestonesStore = useMilestonesStore()
   const uiStore = useUIStore()
   const dragDropStore = useDragDropStore()
 
@@ -38,9 +40,14 @@ export const useTaskColumns = createSharedComposable(() => {
     )
   }
 
+  const milestoneFrameTasks = computed(() => {
+    const ids = filterStore.activeMilestoneId ? [filterStore.activeMilestoneId] : milestonesStore.activeMilestones.map((milestone) => milestone.id)
+    return ids.flatMap((id) => tasksStore.tasksByMilestoneId.get(id) ?? [])
+  })
+
   const filteredTasks = computed(() => filterByTag(tasksStore.dailyTasks))
   const filteredBacklogTasks = computed(() => filterByTag(tasksStore.backlogTasks))
-  const filteredMilestoneTasks = computed(() => filterByTag(tasksStore.milestoneTasks))
+  const filteredMilestoneTasks = computed(() => filterByTag(milestoneFrameTasks.value))
 
   const tasksByStatus = computed<Record<TaskStatus, Task[]>>(() => {
     if (filterStore.frame === "milestone") {

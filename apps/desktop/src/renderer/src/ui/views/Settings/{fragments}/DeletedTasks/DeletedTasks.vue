@@ -16,10 +16,16 @@ const {deletedTasks, revalidate} = useDeletedTasks()
 const isDeletingAll = ref(false)
 
 async function onRestore(task: Task) {
-  const restoredTask = await API.restoreTask(task.id)
+  try {
+    const changeset = await API.restoreTask(task.id)
+    const restoredTask = changeset.tasks?.upserted?.find((t) => t.id === task.id)
 
-  if (restoredTask) toasts.success("Task restored successfully")
-  else toasts.error("Failed to restore task")
+    if (restoredTask) toasts.success("Task restored successfully")
+    else toasts.error("Failed to restore task")
+  } catch (error) {
+    console.error("Failed to restore task", error)
+    toasts.error("Failed to restore task")
+  }
 
   await revalidate()
 }

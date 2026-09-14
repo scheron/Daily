@@ -6,9 +6,9 @@ import {getToday} from "@daily/std"
 
 import MilestoneDiamond from "./MilestoneDiamond.vue"
 
-import type {MilestoneView} from "@daily/protocol"
+import type {MilestoneWithProgress} from "@/stores/milestones.store"
 
-const props = withDefaults(defineProps<{milestone: MilestoneView; size?: number}>(), {size: 12})
+const props = withDefaults(defineProps<{milestone: MilestoneWithProgress; size?: number}>(), {size: 12})
 
 const completion = computed(() => milestoneCompletion(props.milestone.progress))
 const overdue = computed(() => isMilestoneOverdue(props.milestone, props.milestone.progress, getToday()))

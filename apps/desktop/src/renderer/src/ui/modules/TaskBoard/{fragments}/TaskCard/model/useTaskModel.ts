@@ -4,7 +4,7 @@ import {toasts} from "vue-toasts-lite"
 import {useCopyToClipboard} from "@/composables/useCopyToClipboard"
 import {useBranchesStore} from "@/stores/branches.store"
 import {useTaskEditorStore} from "@/stores/task-editor"
-import {isBacklogStatus, useTasksStore} from "@/stores/tasks"
+import {useTasksStore} from "@/stores/tasks"
 
 import type {Branch, ISODate, Milestone, Tag, Task, TaskStatus} from "@daily/protocol"
 import type {MaybeRefOrGetter} from "vue"
@@ -52,7 +52,6 @@ export function useTaskModel(rawProps: MaybeRefOrGetter<TaskModelProps>) {
     }
 
     await tasksStore.updateTask(task.value.id, {status})
-    if (isBacklogStatus(status)) await tasksStore.refreshBacklog()
   }
 
   async function toggleMinimized() {

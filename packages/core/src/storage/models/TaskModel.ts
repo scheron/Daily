@@ -1,5 +1,3 @@
-import {nanoid} from "nanoid"
-
 import {MAIN_BRANCH_ID} from "@daily/protocol"
 import {notUndefined} from "@daily/std"
 
@@ -95,42 +93,6 @@ export class TaskModel {
     return rows.map(rowToTask)
   }
 
-  /** Tasks with no schedule, in manual order. Never returns a dated task. */
-  getBacklogTasks(params?: {branchId?: Branch["id"]}): Task[] {
-    const conditions: string[] = ["t.deleted_at IS NULL", "t.scheduled_date IS NULL"]
-    const values: any[] = []
-
-    if (params?.branchId) {
-      if (params.branchId === MAIN_BRANCH_ID) {
-        conditions.push("(t.branch_id = ? OR t.branch_id IS NULL)")
-        values.push(MAIN_BRANCH_ID)
-      } else {
-        conditions.push("t.branch_id = ?")
-        values.push(params.branchId)
-      }
-    }
-
-    const where = `WHERE ${conditions.join(" AND ")}`
-    const sql = `${TASK_SELECT} ${where} ORDER BY t.order_index`
-
-    const rows = this.db.prepare(sql).all(...values) as any[]
-
-    logger.info(logger.CONTEXT.TASKS, `Loaded ${rows.length} backlog tasks from database`)
-
-    return rows.map(rowToTask)
-  }
-
-  /** A milestone's tasks, from every day, dateless ones included. A milestone belongs to one project, so its id already scopes the read. */
-  getTasksByMilestone(milestoneId: Milestone["id"]): Task[] {
-    const sql = `${TASK_SELECT} WHERE t.deleted_at IS NULL AND t.milestone_id = ? ORDER BY t.scheduled_date, t.order_index`
-
-    const rows = this.db.prepare(sql).all(milestoneId) as any[]
-
-    logger.info(logger.CONTEXT.TASKS, `Loaded ${rows.length} tasks for milestone ${milestoneId} from database`)
-
-    return rows.map(rowToTask)
-  }
-
   getTask(id: Task["id"]): Task | null {
     const sql = `${TASK_SELECT} WHERE t.id = ?`
     const row = this.db.prepare(sql).get(id) as any
@@ -144,8 +106,8 @@ export class TaskModel {
     return rowToTask(row)
   }
 
-  createTask(task: Omit<TaskInternal, "id" | "createdAt" | "updatedAt">): Task | null {
-    const id = nanoid()
+  createTask(task: Omit<TaskInternal, "createdAt" | "updatedAt">): Task | null {
+    const id = task.id
     const now = new Date().toISOString()
     const branchId = task.branchId ?? MAIN_BRANCH_ID
     const tags = task.tags ?? []

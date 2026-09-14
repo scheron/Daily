@@ -1,15 +1,7 @@
-import {
-  completeScheduling,
-  getOrderIndexBetween,
-  getPreviousTaskOrderIndex,
-  getTaskOrderValue,
-  MAIN_BRANCH_ID,
-  normalizeTaskOrderIndexes,
-  schedulingForStatus,
-  sortTasksByOrderIndex,
-  statusForScheduling,
-} from "@daily/protocol"
-import {getToday, notNull, notUndefined} from "@daily/std"
+import {nanoid} from "nanoid"
+
+import {MAIN_BRANCH_ID, planTaskCreate, planTaskMoveByOrder, planTaskUpdate} from "@daily/protocol"
+import {getToday, notNullish, notUndefined} from "@daily/std"
 
 import type {
   Branch,
@@ -17,12 +9,13 @@ import type {
   ISODate,
   Milestone,
   MoveTaskByOrderParams,
+  MutationContext,
   Tag,
   Task,
   TaskEvent,
-  TaskMovePosition,
-  TaskScheduled,
+  TaskPatch,
   TaskStatus,
+  TaskWritableFields,
 } from "@daily/protocol"
 import type {PartialDeep} from "type-fest"
 import type {TaskInternal} from "../../types/storage"
@@ -39,156 +32,48 @@ export class TasksService {
     return this.taskEvents.getHistoryByTask(taskId)
   }
 
-  async getTaskList(params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: Branch["id"]}): Promise<Task[]> {
+  async getTaskList(params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: Branch["id"]; includeBacklog?: boolean}): Promise<Task[]> {
     return this.taskModel.getTaskList(params)
-  }
-
-  async getBacklogTasks(params?: {branchId?: Branch["id"]}): Promise<Task[]> {
-    return this.taskModel.getBacklogTasks(params)
-  }
-
-  async getTasksByMilestone(milestoneId: Milestone["id"]): Promise<Task[]> {
-    return this.taskModel.getTasksByMilestone(milestoneId)
   }
 
   async getTask(id: Task["id"]): Promise<Task | null> {
     return this.taskModel.getTask(id)
   }
 
-  async updateTask(id: Task["id"], updates: PartialDeep<Task>): Promise<Task | null> {
-    const updatesTask: PartialDeep<TaskInternal> = {...updates} as any
-
-    if (notUndefined(updates.tags)) {
-      updatesTask.tags = (updates.tags as Tag[]).map((t) => t.id)
-    }
-
+  /** Every row the update patched — always at least the named task, unless it does not exist. */
+  async updateTask(id: Task["id"], updates: PartialDeep<Task>): Promise<Task[]> {
     const before = this.taskModel.getTask(id)
+    if (!before) return []
 
-    if (before && (notUndefined(updates.status) || notUndefined(updates.scheduled))) {
-      const explicitStatus = updates.status as TaskStatus | undefined
-      const current = notUndefined(updates.scheduled) ? (updates.scheduled as TaskScheduled | null) : before.scheduled
-      const leavesBacklog = !explicitStatus && before.status === "backlog" && notNull(current)
+    const writable = updates as Partial<TaskWritableFields>
+    const milestones = this.readMilestoneScope(writable.milestoneId, [before.branchId, writable.branchId])
 
-      const status = explicitStatus ?? (leavesBacklog ? statusForScheduling(before.status, current) : before.status)
+    const updated = this.applyPatches(planTaskUpdate(this.readContext(before.branchId, before, milestones), id, writable))
 
-      updatesTask.scheduled = schedulingForStatus(status, current, getToday())
+    const after = updated.find((task) => task.id === id) ?? null
+    if (after) this.taskEvents.recordUpdate(before, after)
 
-      if (status === "backlog" && before.status !== "backlog") {
-        updatesTask.orderIndex = getPreviousTaskOrderIndex(this.taskModel.getBacklogTasks({branchId: before.branchId}))
-      }
-
-      if (leavesBacklog) {
-        const completed = completeScheduling(updatesTask.scheduled as TaskScheduled)
-
-        updatesTask.status = status
-        updatesTask.scheduled = completed
-        updatesTask.orderIndex = getPreviousTaskOrderIndex(
-          this.taskModel.getTaskList({from: completed.date, to: completed.date, branchId: before.branchId}),
-        )
-      }
-    }
-
-    if (before) {
-      const branchId = (notUndefined(updates.branchId) ? updates.branchId : before.branchId) as Branch["id"]
-      const branchChanged = notUndefined(updates.branchId) && updates.branchId !== before.branchId
-
-      if (notUndefined(updates.milestoneId) && updates.milestoneId !== null) {
-        const milestoneId = updates.milestoneId as Milestone["id"]
-        if (!this.taskModel.milestoneBelongsToBranch(milestoneId, branchId)) {
-          updatesTask.milestoneId = null
-        }
-      } else if (branchChanged && !notUndefined(updates.milestoneId)) {
-        updatesTask.milestoneId = null
-      }
-    }
-
-    const after = this.taskModel.updateTask(id, updatesTask as Partial<TaskInternal>)
-    if (before && after) this.taskEvents.recordUpdate(before, after)
-
-    return after
+    return updated
   }
 
-  async createTask(task: Task): Promise<Task | null> {
-    const scheduled = schedulingForStatus(task.status, task.scheduled ?? null, getToday())
-    const branchId = task.branchId ?? MAIN_BRANCH_ID
-    const orderIndex = task.status === "backlog" ? getPreviousTaskOrderIndex(this.taskModel.getBacklogTasks({branchId})) : task.orderIndex
+  async createTask(task: Omit<Task, "id"> & {id?: Task["id"]}): Promise<Task | null> {
+    const id = task.id ?? nanoid()
+    const fields = planTaskCreate(this.readContext(task.branchId ?? MAIN_BRANCH_ID, null), task)
 
-    const newTask = {
-      ...task,
-      scheduled,
-      orderIndex,
-      tags: task.tags ? task.tags.map((t) => t.id) : [],
-    } as Omit<TaskInternal, "id" | "createdAt" | "updatedAt">
-
-    const created = this.taskModel.createTask(newTask)
+    const created = this.taskModel.createTask({...fields, id, tags: fields.tags.map((t) => t.id), deletedAt: task.deletedAt})
     if (created) this.taskEvents.record(created, "created")
 
     return created
   }
 
-  async moveTaskByOrder(params: MoveTaskByOrderParams): Promise<Task | null> {
+  /** Every row the move patched — one, or a whole renormalised column — unless the task does not exist. */
+  async moveTaskByOrder(params: MoveTaskByOrderParams): Promise<Task[]> {
     const sourceTask = this.taskModel.getTask(params.taskId)
-    if (!sourceTask) return null
+    if (!sourceTask) return []
 
-    const position = params.position ?? "before"
-    const targetTaskId = params.targetTaskId ?? null
-    const targetStatus = params.targetStatus ?? sourceTask.status
+    const updated = this.applyPatches(planTaskMoveByOrder(this.readContext(sourceTask.branchId, sourceTask), params))
 
-    if (targetTaskId === sourceTask.id && targetStatus === sourceTask.status) {
-      return this.getTask(sourceTask.id)
-    }
-
-    const scheduled = schedulingForStatus(targetStatus, sourceTask.scheduled, params.activeDate)
-
-    const scopeTasks =
-      targetStatus === "backlog"
-        ? this.taskModel.getBacklogTasks({branchId: sourceTask.branchId})
-        : this.taskModel.getTaskList({from: scheduled!.date, to: scheduled!.date, branchId: sourceTask.branchId})
-
-    const scopeTaskById = new Map(scopeTasks.map((task) => [task.id, task]))
-    const tasksWithoutSource = scopeTasks.filter((task) => task.id !== sourceTask.id)
-    const destinationScope = tasksWithoutSource.filter((task) => task.status === targetStatus)
-    const orderedDestinationScope = sortTasksByOrderIndex(destinationScope)
-    const insertAt = resolveInsertIndex(orderedDestinationScope, targetTaskId, position)
-
-    const prevTask = orderedDestinationScope[insertAt - 1] ?? null
-    const nextTask = orderedDestinationScope[insertAt] ?? null
-    const nextOrderIndex = getOrderIndexBetween(prevTask ? getTaskOrderValue(prevTask) : null, nextTask ? getTaskOrderValue(nextTask) : null)
-
-    if (notNull(nextOrderIndex)) {
-      const updates: Partial<TaskInternal> = {orderIndex: nextOrderIndex, scheduled}
-      if (targetStatus !== sourceTask.status) {
-        updates.status = targetStatus
-      }
-
-      this.taskModel.updateTask(sourceTask.id, updates as Partial<TaskInternal>)
-      return this.finalizeMove(sourceTask, targetStatus)
-    }
-
-    const movedTask: Task = {...sourceTask, status: targetStatus, scheduled}
-    const reorderedScope: Task[] = [...orderedDestinationScope]
-    reorderedScope.splice(insertAt, 0, movedTask)
-
-    const normalized = normalizeTaskOrderIndexes(reorderedScope)
-
-    for (const patch of normalized) {
-      const existing = scopeTaskById.get(patch.id)
-      if (!existing) continue
-
-      const shouldChangeOrder = existing.orderIndex !== patch.orderIndex
-      const shouldChangeStatus = patch.id === sourceTask.id && existing.status !== targetStatus
-      if (!shouldChangeOrder && !shouldChangeStatus) continue
-
-      const updates: Partial<TaskInternal> = {orderIndex: patch.orderIndex}
-      if (shouldChangeStatus) {
-        updates.status = targetStatus
-        updates.scheduled = scheduled
-      }
-
-      this.taskModel.updateTask(existing.id, updates)
-    }
-
-    return this.finalizeMove(sourceTask, targetStatus)
+    return this.finalizeMove(sourceTask, params.targetStatus ?? sourceTask.status, updated)
   }
 
   async moveTaskToBranch(taskId: Task["id"], branchId: Branch["id"]): Promise<boolean> {
@@ -245,21 +130,46 @@ export class TasksService {
     return this.taskModel.removeTaskAttachment(taskId, fileId)
   }
 
-  private finalizeMove(sourceTask: Task, targetStatus: TaskStatus): Task | null {
-    const finalTask = this.taskModel.getTask(sourceTask.id)
+  private finalizeMove(sourceTask: Task, targetStatus: TaskStatus, updated: Task[]): Task[] {
+    const finalTask = updated.find((task) => task.id === sourceTask.id) ?? null
     if (finalTask && targetStatus !== sourceTask.status) {
       this.taskEvents.recordStatusChange(finalTask, targetStatus)
     }
 
-    return finalTask
+    return updated
+  }
+
+  /** The project's live tasks, plus the named task even when it is soft-deleted, since the rule looks it up by id. */
+  private readContext(branchId: Branch["id"], named: Task | null, milestones: MutationContext["milestones"] = []): MutationContext {
+    const scope = this.taskModel.getTaskList({branchId, includeBacklog: true})
+    const tasks = named && !scope.some((task) => task.id === named.id) ? [named, ...scope] : scope
+
+    return {tasks, milestones, today: getToday()}
+  }
+
+  private readMilestoneScope(
+    milestoneId: Milestone["id"] | null | undefined,
+    branchIds: Array<Branch["id"] | undefined>,
+  ): MutationContext["milestones"] {
+    if (!milestoneId) return []
+
+    return [...new Set(branchIds)]
+      .filter((branchId): branchId is Branch["id"] => notNullish(branchId))
+      .filter((branchId) => this.taskModel.milestoneBelongsToBranch(milestoneId, branchId))
+      .map((branchId) => ({id: milestoneId, branchId}))
+  }
+
+  /** Applies every patch and returns the row `taskModel.updateTask` handed back for each — nothing is read back afterward to find them. */
+  private applyPatches(patches: TaskPatch[]): Task[] {
+    const updated: Task[] = []
+    for (const {id, ...fields} of patches) {
+      const task = this.taskModel.updateTask(id, toTaskInternalUpdates(fields))
+      if (task) updated.push(task)
+    }
+    return updated
   }
 }
 
-function resolveInsertIndex(tasks: Array<Pick<Task, "id">>, targetTaskId: Task["id"] | null, position: TaskMovePosition): number {
-  if (!targetTaskId) return tasks.length
-
-  const targetIndex = tasks.findIndex((task) => task.id === targetTaskId)
-  if (targetIndex === -1) return tasks.length
-
-  return position === "after" ? targetIndex + 1 : targetIndex
+function toTaskInternalUpdates({tags, ...fields}: Partial<TaskWritableFields>): Partial<TaskInternal> {
+  return notUndefined(tags) ? {...fields, tags: tags.map((tag) => tag.id)} : fields
 }

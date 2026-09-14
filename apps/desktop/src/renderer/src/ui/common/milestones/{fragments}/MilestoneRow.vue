@@ -16,9 +16,10 @@ import MilestoneDiamond from "@/ui/common/milestones/MilestoneDiamond.vue"
 import MarkdownEditor from "@/ui/modules/RightPanel/{fragments}/Editor/{fragments}/MarkdownEditor.vue"
 import {ConfirmPopup} from "@/ui/overlays/ConfirmPopup"
 
-import type {ISODate, MilestoneView} from "@daily/protocol"
+import type {MilestoneWithProgress} from "@/stores/milestones.store"
+import type {ISODate} from "@daily/protocol"
 
-const props = defineProps<{milestone: MilestoneView; expanded: boolean}>()
+const props = defineProps<{milestone: MilestoneWithProgress; expanded: boolean}>()
 const emit = defineEmits<{toggle: []; delete: []}>()
 
 const milestonesStore = useMilestonesStore()

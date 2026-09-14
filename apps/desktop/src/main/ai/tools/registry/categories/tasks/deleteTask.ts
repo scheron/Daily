@@ -19,7 +19,8 @@ export const deleteTask: RegisteredTool = {
       return {success: false, error: "task_id is required"}
     }
 
-    const deleted = await ctx.storage.deleteTask(taskId)
+    const changeset = await ctx.storage.deleteTask(taskId)
+    const deleted = changeset.tasks?.removed?.includes(taskId)
 
     if (!deleted) {
       return {success: false, error: `Task not found: ${taskId}`}

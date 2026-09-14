@@ -23,7 +23,7 @@ export function useDeletedTasks() {
     revalidate()
   })
 
-  const unsubscribe = window.BridgeIPC.on("storage-sync:data-changed", () => {
+  const unsubscribe = window.BridgeIPC.on("storage:changed", () => {
     revalidate()
   })
 

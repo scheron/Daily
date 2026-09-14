@@ -1,42 +1,22 @@
-import type {
-  Branch,
-  Day,
-  ISODate,
-  ISOTime,
-  Milestone,
-  MilestoneView,
-  MoveTaskByOrderParams,
-  Tag,
-  Task,
-  TaskEvent,
-  TaskSearchResult,
-  TaskStatus,
-  Timezone,
-} from "@daily/protocol"
+import type {Changeset} from "@daily/core"
+import type {Branch, ISODate, Milestone, MoveTaskByOrderParams, Tag, Task, TaskEvent, TaskSearchResult, TaskStatus} from "@daily/protocol"
 
-/**
- * Outcome of a task write that may leave the task without a day. `success` is the
- * only signal for whether the write happened at all; `day` then says where the
- * task landed — the day it now belongs to, or `null` if it has none (backlog).
- */
-export type TaskWriteResult = {success: true; day: Day | null} | {success: false}
+/** The fields a new task is created with. `id`, when present, is the id the row is stored under. */
+export type CreateTaskParams = {
+  id?: Task["id"]
+  date?: string
+  time?: string
+  timezone?: string
+  tags?: Tag[]
+  estimatedTime?: number
+  orderIndex?: number
+  branchId?: Branch["id"]
+  status?: TaskStatus
+  milestoneId?: Task["milestoneId"]
+}
 
 // prettier-ignore
 export interface Storage {
-  /**
-   * Load days (each with its tasks and tags) within a date range for a branch.
-   * @param params.from - Range start, YYYY-MM-DD
-   * @param params.to - Range end, YYYY-MM-DD
-   * @param params.branchId - Branch to scope to; defaults to the active branch
-   * @returns The days in range, with soft-deleted tasks excluded
-   */
-  getDays(params?: {from?: ISODate; to?: ISODate; branchId?: Branch["id"]}): Promise<Day[]>
-  /**
-   * Load a single day with its tasks and tags.
-   * @param date - The day to load, YYYY-MM-DD
-   * @returns The day, or null if there is nothing scheduled on it
-   */
-  getDay(date: ISODate): Promise<Day | null>
   /**
    * Full event history of a single task, newest first (the `moved` pair collapsed to one row).
    * @param taskId - The task to fetch history for
@@ -50,49 +30,33 @@ export interface Storage {
    */
   getTask(id: Task["id"]): Promise<Task | null>
   /**
-   * Load the backlog: every task with no schedule, in manual order.
-   * @param branchId - Branch to scope to; defaults to the active branch
-   * @returns The dateless tasks for that branch
+   * Load every live task of every project, backlog included.
+   * @returns The full task collection
    */
-  getBacklog(branchId?: Branch["id"]): Promise<Task[]>
+  getAllTasks(): Promise<Task[]>
   /**
-   * Load a milestone's tasks: every live task it holds, from every day, dateless ones included.
-   * @param milestoneId - The milestone to read
-   * @returns The milestone's tasks
-   */
-  getTasksByMilestone(milestoneId: Milestone["id"]): Promise<Task[]>
-  /**
-   * Create a task and return the day it was added to. Omitted fields fall back to
-   * defaults (today/now, status "active", minimized false, orderIndex 0). A
-   * task created with status "backlog" gets no date and no day is returned.
+   * Create a task. Omitted fields fall back to defaults (today/now, status
+   * "active", minimized false, orderIndex 0). A task created with status
+   * "backlog" gets no date.
    * @param content - The task body text
-   * @param params.date - Scheduled day, YYYY-MM-DD; defaults to today unless `status` is "backlog"
-   * @param params.time - Scheduled time, HH:MM:SS; defaults to now
-   * @param params.timezone - Scheduled timezone; defaults to the local zone
-   * @param params.tags - Tags to attach
-   * @param params.estimatedTime - Estimate in seconds
-   * @param params.orderIndex - Manual sort index within the day
-   * @param params.branchId - Owning branch; defaults to the active branch
-   * @param params.status - Initial status; defaults to "active"
-   * @returns The day the task was added to, or null on failure or when the task is backlog
+   * @param params - The task's fields; `id`, when present, is the id the row is stored under
+   * @returns What the write changed
    */
-  createTask(content: string, params: {date?: ISODate; time?: ISOTime; timezone?: Timezone; tags?: Tag[]; estimatedTime?: number; orderIndex?: number; branchId?: Branch["id"]; status?: TaskStatus}): Promise<Day | null>
+  createTask(content: string, params: CreateTaskParams): Promise<Changeset>
   /**
    * Apply a partial update to a task.
    * @param id - The task to update
    * @param updates - Fields to change (id, createdAt and updatedAt are not updatable)
-   * @returns `{success: false}` on failure; otherwise `{success: true, day}` with the
-   *   task's day, or `day: null` if the update left it with no schedule
+   * @returns What the write changed
    */
-  updateTask(id: Task["id"], updates: Partial<Omit<Task, "id" | "createdAt" | "updatedAt">>): Promise<TaskWriteResult>
+  updateTask(id: Task["id"], updates: Partial<Omit<Task, "id" | "createdAt" | "updatedAt">>): Promise<Changeset>
   /**
    * Set a task's collapsed (minimized) state.
    * @param id - The task to toggle
    * @param minimized - true to collapse the task, false to expand it
-   * @returns `{success: false}` on failure; otherwise `{success: true, day}` with the
-   *   task's day, or `day: null` if it has no schedule
+   * @returns What the write changed
    */
-  toggleTaskMinimized(id: Task["id"], minimized: boolean): Promise<TaskWriteResult>
+  toggleTaskMinimized(id: Task["id"], minimized: boolean): Promise<Changeset>
   /**
    * Reorder a task within its day, optionally moving it to another status group.
    * Positions it before/after an anchor task (or at the end) via a fractional order
@@ -101,29 +65,29 @@ export interface Storage {
    * @param params.targetTaskId - Anchor task to position against; null or omitted appends to the end
    * @param params.targetStatus - Destination status group; defaults to the task's current status
    * @param params.position - "before" or "after" the anchor; defaults to "before"
-   * @returns The day the task belongs to, or null on failure
+   * @returns What the write changed
    */
-  moveTaskByOrder(params: MoveTaskByOrderParams): Promise<Day | null>
+  moveTaskByOrder(params: MoveTaskByOrderParams): Promise<Changeset>
   /**
    * Soft-delete a task: it moves to the deleted list and a "deleted" activity event is recorded.
    * @param id - The task to delete
-   * @returns true if the task was soft-deleted
+   * @returns What the write changed
    */
-  deleteTask(id: Task["id"]): Promise<boolean>
+  deleteTask(id: Task["id"]): Promise<Changeset>
   /**
    * Reschedule a task to a different day (changes its scheduled date).
    * @param taskId - The task to move
    * @param targetDate - The destination day, YYYY-MM-DD
-   * @returns true if the reschedule succeeded
+   * @returns What the write changed
    */
-  moveTask(taskId: Task["id"], targetDate: ISODate): Promise<boolean>
+  moveTask(taskId: Task["id"], targetDate: ISODate): Promise<Changeset>
   /**
    * Move a task to a different project branch.
    * @param taskId - The task to move
    * @param branchId - The destination branch
-   * @returns true if moved or already in that branch, false otherwise
+   * @returns What the write changed
    */
-  moveTaskToBranch(taskId: Task["id"], branchId: Branch["id"]): Promise<boolean>
+  moveTaskToBranch(taskId: Task["id"], branchId: Branch["id"]): Promise<Changeset>
   /**
    * Search for tasks using fuzzy matching.
    * @param query - The search query string
@@ -140,9 +104,9 @@ export interface Storage {
   /**
    * Restore a soft-deleted task: a "restored" activity event is recorded.
    * @param id - The task to restore
-   * @returns The restored task, or null if it could not be restored
+   * @returns What the write changed
    */
-  restoreTask(id: Task["id"]): Promise<Task | null>
+  restoreTask(id: Task["id"]): Promise<Changeset>
   /**
    * Permanently remove a soft-deleted task from the database (irreversible).
    * @param id - The task to delete permanently
@@ -158,16 +122,16 @@ export interface Storage {
    * Attach tags to a task.
    * @param taskId - The task to tag
    * @param tagIds - The tag ids to add
-   * @returns The updated task, or null on failure
+   * @returns What the write changed
    */
-  addTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Promise<Task | null>
+  addTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Promise<Changeset>
   /**
    * Detach tags from a task.
    * @param taskId - The task to untag
    * @param tagIds - The tag ids to remove
-   * @returns The updated task, or null on failure
+   * @returns What the write changed
    */
-  removeTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Promise<Task | null>
+  removeTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Promise<Changeset>
 
   /**
    * List all non-deleted tags.
@@ -197,37 +161,37 @@ export interface Storage {
   /**
    * List milestones, optionally scoped to a project.
    * @param branchId - The project to scope to; omit for every project's
-   * @returns The milestones, each with its progress counts
+   * @returns The milestones
    */
-  getMilestoneList(branchId?: Branch["id"]): Promise<MilestoneView[]>
+  getMilestoneList(branchId?: Branch["id"]): Promise<Milestone[]>
   /**
    * Read a single milestone.
    * @param id - The milestone to read
    * @returns The milestone, or null if it does not exist
    */
-  getMilestone(id: Milestone["id"]): Promise<MilestoneView | null>
+  getMilestone(id: Milestone["id"]): Promise<Milestone | null>
   /**
    * Create a milestone.
    * @param milestone - The milestone to create; id, timestamps and order are assigned
-   * @returns The created milestone, or null on failure
+   * @returns What the write changed
    */
-  createMilestone(milestone: Omit<Milestone, "id" | "createdAt" | "updatedAt" | "orderIndex">): Promise<MilestoneView | null>
+  createMilestone(milestone: Omit<Milestone, "id" | "createdAt" | "updatedAt" | "orderIndex">): Promise<Changeset>
   /**
    * Apply a partial update to a milestone. Its project never changes.
    * @param id - The milestone to update
    * @param updates - Fields to change
-   * @returns The updated milestone, or null on failure
+   * @returns What the write changed
    */
   updateMilestone(
     id: Milestone["id"],
     updates: Partial<Pick<Milestone, "name" | "description" | "targetDate" | "orderIndex">>,
-  ): Promise<MilestoneView | null>
+  ): Promise<Changeset>
   /**
    * Soft-delete a milestone. Every task it held keeps existing, cleared of it.
    * @param id - The milestone to delete
-   * @returns true if the milestone was deleted
+   * @returns What the write changed
    */
-  deleteMilestone(id: Milestone["id"]): Promise<boolean>
+  deleteMilestone(id: Milestone["id"]): Promise<Changeset>
 
   /**
    * List all project branches.

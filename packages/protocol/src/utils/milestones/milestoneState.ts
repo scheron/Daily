@@ -1,7 +1,7 @@
 import {toTs} from "@daily/std"
 
 import type {ISODate} from "../../types/common"
-import type {Milestone, MilestoneProgress, MilestoneView} from "../../types/storage"
+import type {Milestone, MilestoneProgress} from "../../types/storage"
 
 /** Closed exactly when the milestone holds tasks and none of them is still open. An empty milestone is open. */
 export function isMilestoneClosed(progress: MilestoneProgress): boolean {
@@ -23,7 +23,7 @@ export function isMilestoneOverdue(milestone: Pick<Milestone, "targetDate">, pro
 }
 
 /** Open milestones in manual order, then closed ones in manual order. One list, so no caller can invert the groups. */
-export function sortMilestones<T extends MilestoneView>(milestones: T[]): T[] {
+export function sortMilestones<T extends Milestone & {progress: MilestoneProgress}>(milestones: T[]): T[] {
   return milestones.toSorted((a, b) => {
     const closedDiff = Number(isMilestoneClosed(a.progress)) - Number(isMilestoneClosed(b.progress))
     if (closedDiff !== 0) return closedDiff

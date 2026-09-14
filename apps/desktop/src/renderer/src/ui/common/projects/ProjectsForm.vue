@@ -5,9 +5,6 @@ import {toasts} from "vue-toasts-lite"
 import {MAIN_BRANCH_ID} from "@daily/protocol"
 
 import {useBranchesStore} from "@/stores/branches.store"
-import {useMilestonesStore} from "@/stores/milestones.store"
-import {useTagsStore} from "@/stores/tags.store"
-import {useTasksStore} from "@/stores/tasks"
 import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
 import BaseInput from "@/ui/base/BaseInput.vue"
@@ -19,9 +16,6 @@ const props = defineProps<{selectedId: Branch["id"]}>()
 const emit = defineEmits<{select: [id: Branch["id"]]}>()
 
 const branchesStore = useBranchesStore()
-const tasksStore = useTasksStore()
-const tagsStore = useTagsStore()
-const milestonesStore = useMilestonesStore()
 
 const createInput = useTemplateRef<{focus: () => void}>("createInput")
 
@@ -104,7 +98,6 @@ async function deleteProject(branch: Branch) {
     return
   }
 
-  await Promise.all([tasksStore.revalidate(), tagsStore.revalidate(), milestonesStore.revalidate()])
   toasts.success("Project deleted")
 }
 </script>

@@ -4,7 +4,7 @@ import {defineStore} from "pinia"
 import {deepClone, isNull, notNull} from "@daily/std"
 
 import {API} from "@/api"
-import {crossesBacklog, useTasksStore} from "@/stores/tasks"
+import {useTasksStore} from "@/stores/tasks"
 import {buildRestPatch} from "./utils/buildRestPatch"
 import {shallowEqualDraft} from "./utils/shallowEqualDraft"
 
@@ -95,8 +95,6 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
           if (Object.keys(restPatch).length) await tasksStore.updateTask(id, restPatch)
           if (scheduleChanged && next.scheduled) await tasksStore.moveTask(id, next.scheduled.date)
         }
-
-        if (crossesBacklog(base.status, next.status)) await tasksStore.refreshBacklog()
       }
     } else {
       await tasksStore.updateTask(id, {

@@ -1,6 +1,5 @@
 import type {
   Branch,
-  Day,
   DeviceRole,
   EnrollmentPollView,
   EnrollmentTicketView,
@@ -10,7 +9,6 @@ import type {
   MigrationDirection,
   MigrationPreview,
   Milestone,
-  MilestoneView,
   MoveTaskByOrderParams,
   PendingApprovalView,
   ServerBindingView,
@@ -30,6 +28,17 @@ import type {ReplaceValue} from "@daily/std"
 import type {PartialDeep} from "type-fest"
 
 export type TaskInternal = ReplaceValue<Task, "tags", Tag["id"][]>
+
+/** What one write, or one sync pull, changed. A removal means `deletedAt` was set. Absent keys mean that collection was untouched. */
+export type Changeset = {
+  tasks?: {upserted?: Task[]; removed?: Task["id"][]}
+  milestones?: {upserted?: Milestone[]; removed?: Milestone["id"][]}
+  tags?: {upserted?: Tag[]; removed?: Tag["id"][]}
+  branches?: {upserted?: Branch[]; removed?: Branch["id"][]}
+}
+
+/** Nothing changed. A no-op move returns this rather than throwing. */
+export const EMPTY_CHANGESET: Changeset = {}
 
 /**
  * The Daily Sync Server provider, as the controller exposes it: probing an address, binding this
@@ -60,23 +69,20 @@ export interface IStorageController {
   rootDir: string
   init(): Promise<void>
 
-  getDays(params?: {from?: ISODate; to?: ISODate; branchId?: Branch["id"]}): Promise<Day[]>
-  getDay(date: ISODate): Promise<Day | null>
-
   getTaskHistory(taskId: Task["id"]): Promise<TaskEvent[]>
 
+  /** Every live task of every project, backlog included. */
+  getAllTasks(): Promise<Task[]>
   getTaskList(params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: Branch["id"]}): Promise<Task[]>
-  getBacklog(params?: {branchId?: Branch["id"]}): Promise<Task[]>
-  getTasksByMilestone(milestoneId: Milestone["id"]): Promise<Task[]>
   getTask(id: Task["id"]): Promise<Task | null>
-  updateTask(id: Task["id"], updates: PartialDeep<Task>): Promise<Task | null>
-  toggleTaskMinimized(id: Task["id"], minimized: boolean): Promise<Task | null>
-  moveTaskByOrder(params: MoveTaskByOrderParams): Promise<Task | null>
-  moveTaskToBranch(taskId: Task["id"], branchId: Branch["id"]): Promise<boolean>
-  createTask(task: Omit<Task, "id" | "createdAt" | "updatedAt">): Promise<Task | null>
-  deleteTask(id: Task["id"]): Promise<boolean>
+  updateTask(id: Task["id"], updates: PartialDeep<Task>): Promise<Changeset>
+  toggleTaskMinimized(id: Task["id"], minimized: boolean): Promise<Changeset>
+  moveTaskByOrder(params: MoveTaskByOrderParams): Promise<Changeset>
+  moveTaskToBranch(taskId: Task["id"], branchId: Branch["id"]): Promise<Changeset>
+  createTask(task: Omit<Task, "id" | "createdAt" | "updatedAt">): Promise<Changeset>
+  deleteTask(id: Task["id"]): Promise<Changeset>
   getDeletedTasks(params?: {limit?: number; branchId?: Branch["id"]}): Promise<Task[]>
-  restoreTask(id: Task["id"]): Promise<Task | null>
+  restoreTask(id: Task["id"]): Promise<Changeset>
   permanentlyDeleteTask(id: Task["id"]): Promise<boolean>
   permanentlyDeleteAllDeletedTasks(): Promise<number>
 
@@ -88,17 +94,14 @@ export interface IStorageController {
   createTag(tag: Omit<Tag, "id" | "createdAt" | "updatedAt">): Promise<Tag | null>
   deleteTag(id: Tag["id"]): Promise<boolean>
 
-  addTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Promise<Task | null>
-  removeTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Promise<Task | null>
+  addTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Promise<Changeset>
+  removeTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Promise<Changeset>
 
-  getMilestoneList(branchId?: Branch["id"]): Promise<MilestoneView[]>
-  getMilestone(id: Milestone["id"]): Promise<MilestoneView | null>
-  createMilestone(milestone: Omit<Milestone, "id" | "createdAt" | "updatedAt" | "orderIndex">): Promise<MilestoneView | null>
-  updateMilestone(
-    id: Milestone["id"],
-    updates: Partial<Pick<Milestone, "name" | "description" | "targetDate" | "orderIndex">>,
-  ): Promise<MilestoneView | null>
-  deleteMilestone(id: Milestone["id"]): Promise<boolean>
+  getMilestoneList(branchId?: Branch["id"]): Promise<Milestone[]>
+  getMilestone(id: Milestone["id"]): Promise<Milestone | null>
+  createMilestone(milestone: Omit<Milestone, "id" | "createdAt" | "updatedAt" | "orderIndex">): Promise<Changeset>
+  updateMilestone(id: Milestone["id"], updates: Partial<Pick<Milestone, "name" | "description" | "targetDate" | "orderIndex">>): Promise<Changeset>
+  deleteMilestone(id: Milestone["id"]): Promise<Changeset>
 
   getBranchList(): Promise<Branch[]>
   getBranch(id: Branch["id"]): Promise<Branch | null>
@@ -107,8 +110,8 @@ export interface IStorageController {
   deleteBranch(id: Branch["id"]): Promise<boolean>
   setActiveBranch(id: Branch["id"]): Promise<void>
 
-  addTaskAttachment(taskId: Task["id"], fileId: File["id"]): Promise<Task | null>
-  removeTaskAttachment(taskId: Task["id"], fileId: File["id"]): Promise<Task | null>
+  addTaskAttachment(taskId: Task["id"], fileId: File["id"]): Promise<Changeset>
+  removeTaskAttachment(taskId: Task["id"], fileId: File["id"]): Promise<Changeset>
 
   loadSettings(): Promise<Settings>
   saveSettings(newSettings: Partial<Settings>): Promise<void>
@@ -129,7 +132,7 @@ export interface IStorageController {
 
   setupStorageBroadcasts(callbacks: {
     onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => void
-    onDataChange: () => void
+    onDataChange: (changeset: Changeset) => void
     onSettingsChange: () => void
     onRevoked?: () => void
     onRoleChanged?: (role: DeviceRole) => void

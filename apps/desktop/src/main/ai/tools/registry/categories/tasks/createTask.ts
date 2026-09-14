@@ -85,7 +85,8 @@ export const createTask: RegisteredTool = {
       milestoneId: null,
     }
 
-    const created = await ctx.storage.createTask(task)
+    const changeset = await ctx.storage.createTask(task)
+    const created = changeset.tasks?.upserted?.find((t) => t.id === task.id)
 
     if (!created) {
       return {success: false, error: "Failed to create task"}
