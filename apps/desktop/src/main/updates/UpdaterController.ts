@@ -124,7 +124,7 @@ export class UpdaterController {
       logger.error(logger.CONTEXT.UPDATES, "Update manager failed", error)
       this.setUpdateState({
         status: "error",
-        reason: error?.message ?? "Failed to check for updates.",
+        reason: manual ? (error?.message ?? "Failed to check for updates.") : null,
         downloadProgress: null,
         checkedAt: new Date().toISOString(),
       })

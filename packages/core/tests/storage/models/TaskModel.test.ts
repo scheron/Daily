@@ -1,4 +1,5 @@
 // @ts-nocheck
+import {nanoid} from "nanoid"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
 import {BranchModel} from "@core/storage/models/BranchModel"
@@ -16,6 +17,7 @@ vi.mock("@daily/protocol", async (importOriginal) => ({...(await importOriginal(
 
 function makeTaskInput(overrides = {}) {
   return {
+    id: nanoid(),
     status: "active",
     content: "Test task",
     minimized: false,
@@ -63,7 +65,7 @@ describe("TaskModel", () => {
   })
 
   it("creates a task with tags and reads them back", () => {
-    const tag = tagModel.createTag({name: "urgent", color: "#ff0000"})
+    const tag = tagModel.createTag({name: "urgent", color: "#ff0000", branchId: "main"})
     const task = taskModel.createTask(makeTaskInput({tags: [tag.id]}))
 
     expect(task.tags).toHaveLength(1)
@@ -102,8 +104,8 @@ describe("TaskModel", () => {
   })
 
   it("updates task tags by replacing them entirely", () => {
-    const tag1 = tagModel.createTag({name: "a", color: "#000"})
-    const tag2 = tagModel.createTag({name: "b", color: "#111"})
+    const tag1 = tagModel.createTag({name: "a", color: "#000", branchId: "main"})
+    const tag2 = tagModel.createTag({name: "b", color: "#111", branchId: "main"})
     const task = taskModel.createTask(makeTaskInput({tags: [tag1.id]}))
 
     const updated = taskModel.updateTask(task.id, {tags: [tag2.id]})
@@ -142,7 +144,7 @@ describe("TaskModel", () => {
   })
 
   it("deleting a tag removes it from all tasks", () => {
-    const tag = tagModel.createTag({name: "temp", color: "#000"})
+    const tag = tagModel.createTag({name: "temp", color: "#000", branchId: "main"})
     const task = taskModel.createTask(makeTaskInput({tags: [tag.id]}))
 
     tagModel.deleteTag(tag.id)
@@ -151,8 +153,8 @@ describe("TaskModel", () => {
     expect(reloaded.tags).toHaveLength(0)
   })
   it("addTaskTags appends tags without removing existing ones", () => {
-    const tag1 = tagModel.createTag({name: "a", color: "#000"})
-    const tag2 = tagModel.createTag({name: "b", color: "#111"})
+    const tag1 = tagModel.createTag({name: "a", color: "#000", branchId: "main"})
+    const tag2 = tagModel.createTag({name: "b", color: "#111", branchId: "main"})
     const task = taskModel.createTask(makeTaskInput({tags: [tag1.id]}))
 
     const updated = taskModel.addTaskTags(task.id, [tag2.id])
@@ -162,8 +164,8 @@ describe("TaskModel", () => {
   })
 
   it("removeTaskTags removes specific tags leaving others intact", () => {
-    const tag1 = tagModel.createTag({name: "keep", color: "#000"})
-    const tag2 = tagModel.createTag({name: "remove", color: "#111"})
+    const tag1 = tagModel.createTag({name: "keep", color: "#000", branchId: "main"})
+    const tag2 = tagModel.createTag({name: "remove", color: "#111", branchId: "main"})
     const task = taskModel.createTask(makeTaskInput({tags: [tag1.id, tag2.id]}))
 
     const updated = taskModel.removeTaskTags(task.id, [tag2.id])
@@ -238,5 +240,19 @@ describe("TaskModel", () => {
     const deleted = taskModel.getDeletedTasks({limit: 2})
 
     expect(deleted).toHaveLength(2)
+  })
+
+  it("round_trips_TC-3_a_backlog_task_created_with_no_schedule_and_keeps_it_out_of_a_dated_list", () => {
+    const created = taskModel.createTask(makeTaskInput({status: "backlog", scheduled: null}))
+
+    expect(created.status).toBe("backlog")
+    expect(created.scheduled).toBeNull()
+
+    const reloaded = taskModel.getTask(created.id)
+    expect(reloaded.scheduled).toBeNull()
+    expect(reloaded.status).toBe("backlog")
+
+    const dated = taskModel.getTaskList({from: "0001-01-01", to: "9999-12-31"})
+    expect(dated.find((t) => t.id === created.id)).toBeUndefined()
   })
 })

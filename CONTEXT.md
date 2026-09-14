@@ -6,6 +6,48 @@ mean something particular here, and would be read wrongly if taken in their ever
 
 ## Language
 
+### Work
+
+**Project**:
+The scope a task belongs to. Every task is in exactly one, `main` always exists, and a tag or a
+milestone belongs to one project and never spans two.
+_Avoid_: branch, workspace, board, list
+
+**Backlog**:
+Work that has no day. It is one of the four values a task's status takes rather than a place a task
+is kept, and a task is in the backlog exactly when it has no date.
+_Avoid_: inbox, someday, unscheduled, icebox
+
+**Discarded**:
+A task deliberately dropped without being done. It is a way of finishing with a task, not a way of
+deleting one — a discarded task is still there and still counts toward its milestone.
+_Avoid_: cancelled, dropped, rejected, deleted
+
+**Resolved**:
+Done or discarded, taken together — the two ways a task stops being outstanding. The word exists
+because progress counts them as one.
+_Avoid_: completed, finished, closed
+
+**Milestone**:
+A named, bounded batch of work inside one project, with an optional target date. Its scope is a
+decision someone made, which is what makes a proportion of it mean anything.
+_Avoid_: epic, sprint, release, label, tag
+
+**Closed**:
+Of a milestone: having no task left active or in the backlog. It is derived from the milestone's
+tasks every time it is asked for, never stored and never set by hand.
+_Avoid_: done, completed, finished, archived
+
+**Target date**:
+The day a milestone is meant to be finished by. Optional, and a different kind of fact from the day
+a task is scheduled for — a milestone can pass it and stay open.
+_Avoid_: deadline, due date, end date
+
+**Frame**:
+What the board is organising by right now — a day, or a milestone. It is a property of the view and
+never of a task, and whichever dimension is not the frame moves onto the card.
+_Avoid_: mode, view, filter, grouping
+
 ### Sync
 
 **Provider**:

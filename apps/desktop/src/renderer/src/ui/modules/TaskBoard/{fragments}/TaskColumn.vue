@@ -21,7 +21,7 @@ const uiStore = useUIStore()
 const column = computed(() => TASK_COLUMNS.find((s) => s.status === props.status)!)
 const tasksCount = computed(() => columns.tasksByStatus.value[props.status].length)
 const collapsed = computed(() => columns.isColumnCollapsed(props.status))
-const autoCollapseEnabled = computed(() => uiStore.sectionsAutoCollapseEmpty)
+const autoCollapseEnabled = computed(() => uiStore.shouldCollapseEmptySections)
 
 const menuItems = computed<BaseMenuItem[]>(() => [
   {
@@ -84,7 +84,7 @@ const containerStyle = computed(() => (collapsed.value ? undefined : {flexBasis:
         </BasePopup>
       </div>
 
-      <div class="relative flex min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-1.5 py-4">
+      <div class="relative flex min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-1.5 pt-4 pb-16">
         <slot />
 
         <div

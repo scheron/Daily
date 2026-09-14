@@ -8,8 +8,10 @@ import BaseIcon from "@/ui/base/BaseIcon"
 
 import type {TasksFilter} from "@/types/common"
 
-const props = defineProps<{date?: string; filter: TasksFilter}>()
+const props = defineProps<{date?: string; milestoneName?: string; filter: TasksFilter}>()
 const emit = defineEmits<{createTask: []}>()
+
+const subject = computed(() => props.milestoneName ?? (props.date ? toDayLabel(props.date) : null))
 
 const title = computed(() => {
   if (props.filter === "active") return "active"
@@ -26,9 +28,9 @@ const title = computed(() => {
     </div>
 
     <h3 class="text-base-content mb-2 flex flex-col text-xl">
-      <b v-if="date" class="text-accent">{{ toDayLabel(date) }}</b>
+      <b v-if="subject" class="text-accent">{{ subject }}</b>
       <span>
-        No <b v-if="date" class="text-accent">{{ title }}</b> tasks
+        No <b v-if="subject" class="text-accent">{{ title }}</b> tasks
       </span>
     </h3>
 

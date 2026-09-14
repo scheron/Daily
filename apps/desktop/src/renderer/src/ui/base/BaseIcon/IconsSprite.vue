@@ -81,6 +81,7 @@ export type IconName =
   | "chevrons-up"
   | "bookmark"
   | "project"
+  | "milestone"
   | "image"
   | "dots-horizontal"
   | "external-link"
@@ -744,6 +745,9 @@ export type IconName =
       <circle cx="12" cy="12" r="3"></circle>
       <line x1="3" x2="9" y1="12" y2="12"></line>
       <line x1="15" x2="21" y1="12" y2="12"></line>
+    </symbol>
+    <symbol id="milestone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 1.5 22.5 12 12 22.5 1.5 12Z"></path>
     </symbol>
     <symbol id="cog" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
       <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />

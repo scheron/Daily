@@ -33,7 +33,7 @@ describe("isValidSnapshot", () => {
   it("returns false for unsupported versions", () => {
     expect(isValidSnapshot({...validSnapshot(), version: 1})).toBe(false)
     expect(isValidSnapshot({...validSnapshot(), version: 4})).toBe(true)
-    expect(isValidSnapshot({...validSnapshot(), version: 5})).toBe(false)
+    expect(isValidSnapshot({...validSnapshot(), version: 5})).toBe(true)
   })
 
   it("returns false when docs missing", () => {
@@ -70,5 +70,10 @@ describe("isValidSnapshot", () => {
     expect(isValidSnapshot(null)).toBe(false)
     expect(isValidSnapshot(undefined)).toBe(false)
     expect(isValidSnapshot("string")).toBe(false)
+  })
+
+  it("accepts_TC-11_version_5_and_refuses_version_6", () => {
+    expect(isValidSnapshot({...validSnapshot(), version: 5})).toBe(true)
+    expect(isValidSnapshot({...validSnapshot(), version: 6})).toBe(false)
   })
 })

@@ -1,40 +1,13 @@
 import {DateTime} from "luxon"
 
-import type {
-  Branch,
-  Day,
-  ISODate,
-  MoveTaskByOrderParams,
-  StatsAggregate,
-  StatsPeriod,
-  Tag,
-  Task,
-  TaskEvent,
-  TaskSearchResult,
-  TaskStatus,
-} from "@daily/protocol"
-import type {Storage} from "./types"
+import type {Changeset} from "@daily/core"
+import type {Branch, ISODate, Milestone, MoveTaskByOrderParams, Tag, Task, TaskEvent, TaskSearchResult, TaskStatus} from "@daily/protocol"
+import type {CreateTaskParams, Storage} from "./types"
 
 export class StorageAPI implements Storage {
-  //#region DAYS
-  async getDays(params: {from?: ISODate; to?: ISODate; branchId?: Branch["id"]} = {}): Promise<Day[]> {
-    return window.BridgeIPC["days:get-many"](params)
-  }
-
-  async getDay(date: ISODate): Promise<Day | null> {
-    return window.BridgeIPC["days:get-one"](date)
-  }
-
-  async getActivityByDay(date: ISODate, branchId?: Branch["id"]): Promise<TaskEvent[]> {
-    return window.BridgeIPC["activity:get-by-day"](date, branchId)
-  }
-
+  //#region ACTIVITY
   async getTaskHistory(taskId: Task["id"]): Promise<TaskEvent[]> {
     return window.BridgeIPC["activity:get-by-task"](taskId)
-  }
-
-  async getStats(period: StatsPeriod, anchor: ISODate, branchId?: Branch["id"]): Promise<StatsAggregate> {
-    return window.BridgeIPC["stats:get"](period, anchor, branchId)
   }
   //#endregion
 
@@ -43,114 +16,59 @@ export class StorageAPI implements Storage {
     return window.BridgeIPC["tasks:get-one"](id)
   }
 
-  async createTask(
-    content: string,
-    params: {
-      date?: string
-      time?: string
-      timezone?: string
-      tags?: Tag[]
-      estimatedTime?: number
-      orderIndex?: number
-      branchId?: Branch["id"]
-      status?: TaskStatus
-    },
-  ): Promise<Day | null> {
-    try {
-      const now = DateTime.now()
-      const scheduledDate = params.date ? params.date : now.toISODate()!
-      const scheduledTime = params.time ? params.time : now.toFormat("HH:mm:ss")
-      const scheduledTimezone = params.timezone ?? now.zoneName
-
-      const newTask = {
-        content,
-        status: params.status ?? ("active" as TaskStatus),
-        minimized: false,
-        tags: params.tags ?? [],
-        estimatedTime: params.estimatedTime ?? 0,
-        spentTime: 0,
-        orderIndex: params.orderIndex ?? 0,
-        branchId: params.branchId,
-        scheduled: {
-          date: scheduledDate,
-          time: scheduledTime,
-          timezone: scheduledTimezone,
-        },
-      }
-
-      await window.BridgeIPC["tasks:create"](newTask)
-
-      const day = await this.getDay(scheduledDate)
-
-      return day
-    } catch (error) {
-      console.error(error)
-      return null
-    }
+  async getAllTasks(): Promise<Task[]> {
+    return window.BridgeIPC["tasks:get-all"]()
   }
 
-  async updateTask(id: Task["id"], updates: Partial<Omit<Task, "id" | "createdAt" | "updatedAt">>): Promise<Day | null> {
-    try {
-      const updatedTask = await window.BridgeIPC["tasks:update"](id, updates)
-      if (!updatedTask) return null
+  async createTask(content: string, params: CreateTaskParams): Promise<Changeset> {
+    const isBacklog = params.status === "backlog"
+    const now = DateTime.now()
 
-      return this.getDay(updatedTask.scheduled.date)
-    } catch (error) {
-      console.error("Failed to update task", error)
-      return null
+    const newTask = {
+      id: params.id,
+      content,
+      status: params.status ?? ("active" as TaskStatus),
+      minimized: false,
+      tags: params.tags ?? [],
+      estimatedTime: params.estimatedTime ?? 0,
+      spentTime: 0,
+      orderIndex: params.orderIndex ?? 0,
+      branchId: params.branchId,
+      milestoneId: params.milestoneId ?? null,
+      scheduled: isBacklog
+        ? null
+        : {
+            date: params.date ? params.date : now.toISODate()!,
+            time: params.time ? params.time : now.toFormat("HH:mm:ss"),
+            timezone: params.timezone ?? now.zoneName,
+          },
     }
+
+    return await window.BridgeIPC["tasks:create"](newTask)
   }
 
-  async toggleTaskMinimized(id: Task["id"], minimized: boolean): Promise<Day | null> {
-    try {
-      const updatedTask = await window.BridgeIPC["tasks:toggle-minimized"](id, minimized)
-      if (!updatedTask) return null
-
-      return this.getDay(updatedTask.scheduled.date)
-    } catch (error) {
-      console.error("Failed to toggle task minimized state", error)
-      return null
-    }
+  async updateTask(id: Task["id"], updates: Partial<Omit<Task, "id" | "createdAt" | "updatedAt">>): Promise<Changeset> {
+    return await window.BridgeIPC["tasks:update"](id, updates)
   }
 
-  async moveTaskByOrder(params: MoveTaskByOrderParams): Promise<Day | null> {
-    try {
-      const updatedTask = await window.BridgeIPC["tasks:move-by-order"](params)
-      if (!updatedTask) return null
-
-      return this.getDay(updatedTask.scheduled.date)
-    } catch (error) {
-      console.error("Failed to move task by order", error)
-      return null
-    }
+  async toggleTaskMinimized(id: Task["id"], minimized: boolean): Promise<Changeset> {
+    return await window.BridgeIPC["tasks:toggle-minimized"](id, minimized)
   }
 
-  async deleteTask(id: Task["id"]): Promise<boolean> {
-    try {
-      return await window.BridgeIPC["tasks:delete"](id)
-    } catch (error) {
-      console.error("Failed to delete task", error)
-      return false
-    }
+  async moveTaskByOrder(params: MoveTaskByOrderParams): Promise<Changeset> {
+    return await window.BridgeIPC["tasks:move-by-order"](params)
   }
 
-  async moveTask(taskId: Task["id"], targetDate: ISODate): Promise<boolean> {
-    try {
-      await window.BridgeIPC["tasks:update"](taskId, {scheduled: {date: targetDate}})
-      return true
-    } catch (error) {
-      console.error("Failed to move task", error)
-      return false
-    }
+  async deleteTask(id: Task["id"]): Promise<Changeset> {
+    return await window.BridgeIPC["tasks:delete"](id)
   }
 
-  async moveTaskToBranch(taskId: Task["id"], branchId: Branch["id"]): Promise<boolean> {
-    try {
-      return await window.BridgeIPC["tasks:move-to-branch"](taskId, branchId)
-    } catch (error) {
-      console.error("Failed to move task to branch", error)
-      return false
-    }
+  async moveTask(taskId: Task["id"], targetDate: ISODate): Promise<Changeset> {
+    return await window.BridgeIPC["tasks:update"](taskId, {scheduled: {date: targetDate}})
+  }
+
+  async moveTaskToBranch(taskId: Task["id"], branchId: Branch["id"]): Promise<Changeset> {
+    return await window.BridgeIPC["tasks:move-to-branch"](taskId, branchId)
   }
 
   async searchTasks(query: string): Promise<TaskSearchResult[]> {
@@ -171,13 +89,8 @@ export class StorageAPI implements Storage {
     }
   }
 
-  async restoreTask(id: Task["id"]): Promise<Task | null> {
-    try {
-      return await window.BridgeIPC["tasks:restore"](id)
-    } catch (error) {
-      console.error("Failed to restore task", error)
-      return null
-    }
+  async restoreTask(id: Task["id"]): Promise<Changeset> {
+    return await window.BridgeIPC["tasks:restore"](id)
   }
 
   async permanentlyDeleteTask(id: Task["id"]): Promise<boolean> {
@@ -221,12 +134,37 @@ export class StorageAPI implements Storage {
     }
   }
 
-  async addTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Promise<Task | null> {
+  async addTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Promise<Changeset> {
     return await window.BridgeIPC["tasks:add-tags"](taskId, tagIds)
   }
 
-  async removeTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Promise<Task | null> {
+  async removeTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Promise<Changeset> {
     return await window.BridgeIPC["tasks:remove-tags"](taskId, tagIds)
+  }
+  //#endregion
+
+  //#region MILESTONES
+  async getMilestoneList(branchId?: Branch["id"]): Promise<Milestone[]> {
+    return await window.BridgeIPC["milestones:get-many"](branchId)
+  }
+
+  async getMilestone(id: Milestone["id"]): Promise<Milestone | null> {
+    return await window.BridgeIPC["milestones:get-one"](id)
+  }
+
+  async createMilestone(milestone: Omit<Milestone, "id" | "createdAt" | "updatedAt" | "orderIndex">): Promise<Changeset> {
+    return await window.BridgeIPC["milestones:create"](milestone)
+  }
+
+  async updateMilestone(
+    id: Milestone["id"],
+    updates: Partial<Pick<Milestone, "name" | "description" | "targetDate" | "orderIndex">>,
+  ): Promise<Changeset> {
+    return await window.BridgeIPC["milestones:update"](id, updates)
+  }
+
+  async deleteMilestone(id: Milestone["id"]): Promise<Changeset> {
+    return await window.BridgeIPC["milestones:delete"](id)
   }
   //#endregion
 
@@ -239,7 +177,7 @@ export class StorageAPI implements Storage {
     return await window.BridgeIPC["branches:create"](branch)
   }
 
-  async updateBranch(id: Branch["id"], updates: Pick<Branch, "name">): Promise<Branch | null> {
+  async updateBranch(id: Branch["id"], updates: Partial<Pick<Branch, "name" | "description">>): Promise<Branch | null> {
     return await window.BridgeIPC["branches:update"](id, updates)
   }
 

@@ -3,6 +3,7 @@ import type {
   SnapshotBranch,
   SnapshotDocs,
   SnapshotFile,
+  SnapshotMilestone,
   SnapshotSettings,
   SnapshotTag,
   SnapshotTask,
@@ -17,11 +18,12 @@ export class LocalStorageAdapter implements ILocalStorage {
     const tasks = this._loadTasks()
     const tags = this._loadTags()
     const branches = this._loadBranches()
+    const milestones = this._loadMilestones()
     const files = this._loadFiles()
     const events = this._loadTaskEvents()
     const settings = this._loadSettings()
 
-    return {tasks, tags, branches, files, events, settings}
+    return {tasks, tags, branches, milestones, files, events, settings}
   }
 
   async upsertDocs(docs: SnapshotDocs): Promise<void> {
@@ -29,24 +31,46 @@ export class LocalStorageAdapter implements ILocalStorage {
       /* Branches: ON CONFLICT DO UPDATE keeps parent rows so tasks.branch_id FK is not violated (no ON DELETE CASCADE). */
       if (docs.branches.length) {
         const stmt = this.db.prepare(`
-          INSERT INTO branches (id, name, created_at, updated_at, deleted_at)
-          VALUES (?, ?, ?, ?, ?)
+          INSERT INTO branches (id, name, description, created_at, updated_at, deleted_at)
+          VALUES (?, ?, ?, ?, ?, ?)
           ON CONFLICT(id) DO UPDATE SET
-            name       = excluded.name,
-            created_at = excluded.created_at,
-            updated_at = excluded.updated_at,
-            deleted_at = excluded.deleted_at
+            name        = excluded.name,
+            description = excluded.description,
+            created_at  = excluded.created_at,
+            updated_at  = excluded.updated_at,
+            deleted_at  = excluded.deleted_at
         `)
         for (const b of docs.branches) {
-          stmt.run(b.id, b.name, b.created_at, b.updated_at, b.deleted_at)
+          stmt.run(b.id, b.name, b.description, b.created_at, b.updated_at, b.deleted_at)
+        }
+      }
+
+      /* Milestones after branches and before tasks: they reference branches, and tasks.milestone_id references them. */
+      if (docs.milestones.length) {
+        const stmt = this.db.prepare(`
+          INSERT INTO milestones (id, branch_id, name, description, target_date, order_index, created_at, updated_at, deleted_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            branch_id   = excluded.branch_id,
+            name        = excluded.name,
+            description = excluded.description,
+            target_date = excluded.target_date,
+            order_index = excluded.order_index,
+            created_at  = excluded.created_at,
+            updated_at  = excluded.updated_at,
+            deleted_at  = excluded.deleted_at
+        `)
+        for (const m of docs.milestones) {
+          stmt.run(m.id, m.branch_id, m.name, m.description, m.target_date, m.order_index, m.created_at, m.updated_at, m.deleted_at)
         }
       }
 
       if (docs.tags.length) {
         const stmt = this.db.prepare(`
-          INSERT INTO tags (id, name, color, created_at, updated_at, deleted_at)
-          VALUES (?, ?, ?, ?, ?, ?)
+          INSERT INTO tags (id, branch_id, name, color, created_at, updated_at, deleted_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
           ON CONFLICT(id) DO UPDATE SET
+            branch_id  = excluded.branch_id,
             name       = excluded.name,
             color      = excluded.color,
             created_at = excluded.created_at,
@@ -54,7 +78,7 @@ export class LocalStorageAdapter implements ILocalStorage {
             deleted_at = excluded.deleted_at
         `)
         for (const t of docs.tags) {
-          stmt.run(t.id, t.name, t.color, t.created_at, t.updated_at, t.deleted_at)
+          stmt.run(t.id, t.branch_id, t.name, t.color, t.created_at, t.updated_at, t.deleted_at)
         }
       }
 
@@ -78,8 +102,8 @@ export class LocalStorageAdapter implements ILocalStorage {
 
       if (docs.tasks.length) {
         const taskStmt = this.db.prepare(`
-          INSERT INTO tasks (id, status, content, minimized, order_index, scheduled_date, scheduled_time, scheduled_timezone, estimated_time, spent_time, branch_id, created_at, updated_at, deleted_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO tasks (id, status, content, minimized, order_index, scheduled_date, scheduled_time, scheduled_timezone, estimated_time, spent_time, branch_id, milestone_id, created_at, updated_at, deleted_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           ON CONFLICT(id) DO UPDATE SET
             status             = excluded.status,
             content            = excluded.content,
@@ -91,6 +115,7 @@ export class LocalStorageAdapter implements ILocalStorage {
             estimated_time     = excluded.estimated_time,
             spent_time         = excluded.spent_time,
             branch_id          = excluded.branch_id,
+            milestone_id       = excluded.milestone_id,
             created_at         = excluded.created_at,
             updated_at         = excluded.updated_at,
             deleted_at         = excluded.deleted_at
@@ -117,6 +142,7 @@ export class LocalStorageAdapter implements ILocalStorage {
             t.estimated_time,
             t.spent_time,
             t.branch_id,
+            t.milestone_id,
             t.created_at,
             t.updated_at,
             t.deleted_at,
@@ -172,7 +198,7 @@ export class LocalStorageAdapter implements ILocalStorage {
    * a synced peer still holds: both sides drop the same tombstone past the same age.
    * @returns per-collection counts of physically removed rows.
    */
-  async purgeExpiredDeleted(ttlMs: number): Promise<{tasks: number; tags: number; branches: number; files: number}> {
+  async purgeExpiredDeleted(ttlMs: number): Promise<{tasks: number; tags: number; branches: number; milestones: number; files: number}> {
     const cutoff = new Date(Date.now() - ttlMs).toISOString()
     const expiredIds = (table: string): string[] =>
       (this.db.prepare(`SELECT id FROM ${table} WHERE deleted_at IS NOT NULL AND deleted_at <= ?`).all(cutoff) as {id: string}[]).map((row) => row.id)
@@ -180,14 +206,15 @@ export class LocalStorageAdapter implements ILocalStorage {
     const tasks = expiredIds("tasks")
     const tags = expiredIds("tags")
     const branches = expiredIds("branches")
+    const milestones = expiredIds("milestones")
     const files = expiredIds("files")
 
-    await this.deleteDocs({tasks, tags, branches, files})
+    await this.deleteDocs({tasks, tags, branches, milestones, files})
 
-    return {tasks: tasks.length, tags: tags.length, branches: branches.length, files: files.length}
+    return {tasks: tasks.length, tags: tags.length, branches: branches.length, milestones: milestones.length, files: files.length}
   }
 
-  async deleteDocs(ids: {tasks?: string[]; tags?: string[]; branches?: string[]; files?: string[]}): Promise<void> {
+  async deleteDocs(ids: {tasks?: string[]; tags?: string[]; branches?: string[]; milestones?: string[]; files?: string[]}): Promise<void> {
     const transaction = this.db.transaction(() => {
       if (ids.tasks?.length) {
         for (const id of ids.tasks) {
@@ -202,10 +229,29 @@ export class LocalStorageAdapter implements ILocalStorage {
           this.db.prepare(`DELETE FROM tags WHERE id = ?`).run(id)
         }
       }
+      if (ids.milestones?.length) {
+        const clearTasksStmt = this.db.prepare(`UPDATE tasks SET milestone_id = NULL WHERE milestone_id = ?`)
+        const deleteMilestoneStmt = this.db.prepare(`DELETE FROM milestones WHERE id = ?`)
+        for (const id of ids.milestones) {
+          clearTasksStmt.run(id)
+          deleteMilestoneStmt.run(id)
+        }
+      }
+      /* A branch's tags and milestones go with it: both columns are NOT NULL REFERENCES branches(id), so leaving one behind aborts the delete. */
       if (ids.branches?.length) {
+        const clearTasksMilestoneStmt = this.db.prepare(
+          `UPDATE tasks SET milestone_id = NULL WHERE milestone_id IN (SELECT id FROM milestones WHERE branch_id = ?)`,
+        )
+        const deleteMilestonesStmt = this.db.prepare(`DELETE FROM milestones WHERE branch_id = ?`)
+        const deleteTaskTagsStmt = this.db.prepare(`DELETE FROM task_tags WHERE tag_id IN (SELECT id FROM tags WHERE branch_id = ?)`)
+        const deleteTagsStmt = this.db.prepare(`DELETE FROM tags WHERE branch_id = ?`)
         const reassignBranchStmt = this.db.prepare(`UPDATE tasks SET branch_id = 'main' WHERE branch_id = ?`)
         const deleteBranchStmt = this.db.prepare(`DELETE FROM branches WHERE id = ?`)
         for (const id of ids.branches) {
+          clearTasksMilestoneStmt.run(id)
+          deleteMilestonesStmt.run(id)
+          deleteTaskTagsStmt.run(id)
+          deleteTagsStmt.run(id)
           reassignBranchStmt.run(id)
           deleteBranchStmt.run(id)
         }
@@ -239,6 +285,7 @@ export class LocalStorageAdapter implements ILocalStorage {
         estimated_time: row.estimated_time,
         spent_time: row.spent_time,
         branch_id: row.branch_id,
+        milestone_id: row.milestone_id ?? null,
         tags: tagRows.map((r) => r.tag_id),
         attachments: attachmentRows.map((r) => r.file_id),
         created_at: row.created_at,
@@ -251,6 +298,7 @@ export class LocalStorageAdapter implements ILocalStorage {
   private _loadTags(): SnapshotTag[] {
     return (this.db.prepare(`SELECT * FROM tags`).all() as any[]).map((row) => ({
       id: row.id,
+      branch_id: row.branch_id,
       name: row.name,
       color: row.color,
       created_at: row.created_at,
@@ -263,6 +311,21 @@ export class LocalStorageAdapter implements ILocalStorage {
     return (this.db.prepare(`SELECT * FROM branches`).all() as any[]).map((row) => ({
       id: row.id,
       name: row.name,
+      description: row.description,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+      deleted_at: row.deleted_at,
+    }))
+  }
+
+  private _loadMilestones(): SnapshotMilestone[] {
+    return (this.db.prepare(`SELECT * FROM milestones`).all() as any[]).map((row) => ({
+      id: row.id,
+      branch_id: row.branch_id,
+      name: row.name,
+      description: row.description,
+      target_date: row.target_date ?? null,
+      order_index: row.order_index,
       created_at: row.created_at,
       updated_at: row.updated_at,
       deleted_at: row.deleted_at,

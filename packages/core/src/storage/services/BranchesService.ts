@@ -1,13 +1,22 @@
 import {MAIN_BRANCH_ID} from "@daily/protocol"
+import {notUndefined} from "@daily/std"
 
-import type {Branch} from "@daily/protocol"
+import type {Branch, Milestone, Tag, Task} from "@daily/protocol"
+import type {SqliteDriver} from "../../database/SqliteDriver"
 import type {BranchModel} from "../models/BranchModel"
+import type {MilestoneModel} from "../models/MilestoneModel"
+import type {TagModel} from "../models/TagModel"
+import type {TaskModel} from "../models/TaskModel"
 import type {SettingsService} from "./SettingsService"
 
 export class BranchesService {
   constructor(
     private branchModel: BranchModel,
     private settingsService: SettingsService,
+    private taskModel: TaskModel,
+    private tagModel: TagModel,
+    private milestoneModel: MilestoneModel,
+    private db: SqliteDriver,
   ) {}
 
   async getBranchList(): Promise<Branch[]> {
@@ -18,7 +27,7 @@ export class BranchesService {
     return this.branchModel.getBranch(id)
   }
 
-  async createBranch(branch: Omit<Branch, "id" | "createdAt" | "updatedAt" | "deletedAt">): Promise<Branch | null> {
+  async createBranch(branch: Pick<Branch, "name"> & Partial<Pick<Branch, "description">>): Promise<Branch | null> {
     const name = branch.name.trim()
     if (!name) return null
 
@@ -26,25 +35,56 @@ export class BranchesService {
     const hasDuplicate = existing.some((item) => item.name.trim().toLowerCase() === name.toLowerCase())
     if (hasDuplicate) return null
 
-    return this.branchModel.createBranch({name})
+    return this.branchModel.createBranch({name, description: branch.description})
   }
 
-  async updateBranch(id: Branch["id"], updates: Pick<Branch, "name">): Promise<Branch | null> {
+  async updateBranch(id: Branch["id"], updates: Partial<Pick<Branch, "description" | "name">>): Promise<Branch | null> {
+    if (id === MAIN_BRANCH_ID && notUndefined(updates.name)) return null
+
+    const next: Partial<Pick<Branch, "description" | "name">> = {}
+
+    if (notUndefined(updates.name)) {
+      const name = updates.name.trim()
+      if (!name) return null
+
+      const existing = await this.branchModel.getBranchList()
+      const hasDuplicate = existing.some((item) => item.id !== id && item.name.trim().toLowerCase() === name.toLowerCase())
+      if (hasDuplicate) return null
+
+      next.name = name
+    }
+
+    if (notUndefined(updates.description)) next.description = updates.description
+
+    return this.branchModel.updateBranch(id, next)
+  }
+
+  /**
+   * Deletes a project along with its tasks, milestones and tags. `main` is refused before anything
+   * is touched, and the four deletes run in one transaction so a project is never left half-deleted.
+   * @returns the ids of the tasks, milestones and tags it removed, so the caller can drop exactly
+   * those from the search index and name them in a changeset, or `null` when nothing was deleted.
+   */
+  async deleteBranch(
+    id: Branch["id"],
+  ): Promise<{deletedTaskIds: Task["id"][]; deletedMilestoneIds: Milestone["id"][]; deletedTagIds: Tag["id"][]} | null> {
     if (id === MAIN_BRANCH_ID) return null
 
-    const name = updates.name.trim()
-    if (!name) return null
+    let deletedTaskIds: Task["id"][] = []
+    let deletedMilestoneIds: Milestone["id"][] = []
+    let deletedTagIds: Tag["id"][] = []
+    let deleted = false
 
-    const existing = await this.branchModel.getBranchList()
-    const hasDuplicate = existing.some((item) => item.id !== id && item.name.trim().toLowerCase() === name.toLowerCase())
-    if (hasDuplicate) return null
+    const run = this.db.transaction(() => {
+      deletedTaskIds = this.taskModel.deleteTasksByBranch(id)
+      deletedMilestoneIds = this.milestoneModel.deleteMilestonesByBranch(id)
+      deletedTagIds = this.tagModel.deleteTagsByBranch(id)
+      deleted = this.branchModel.deleteBranch(id)
+    })
 
-    return this.branchModel.updateBranch(id, {name})
-  }
+    run()
 
-  async deleteBranch(id: Branch["id"]): Promise<boolean> {
-    const deleted = await this.branchModel.deleteBranch(id)
-    if (!deleted) return false
+    if (!deleted) return null
 
     const settings = await this.settingsService.loadSettings()
     const activeId = settings.branch?.activeId ?? MAIN_BRANCH_ID
@@ -57,7 +97,7 @@ export class BranchesService {
       })
     }
 
-    return true
+    return {deletedTaskIds, deletedMilestoneIds, deletedTagIds}
   }
 
   async getActiveBranchId(): Promise<Branch["id"]> {

@@ -38,7 +38,8 @@ export const moveTaskToProject: RegisteredTool = {
       return {success: true, data: `Task already in project "${branch.name}": ${formatTask(task)}`}
     }
 
-    const updated = await ctx.storage.updateTask(taskId, {branchId: branch.id})
+    const changeset = await ctx.storage.updateTask(taskId, {branchId: branch.id})
+    const updated = changeset.tasks?.upserted?.find((t) => t.id === taskId)
     if (!updated) {
       return {success: false, error: `Task not found: ${taskId}`}
     }

@@ -1,7 +1,7 @@
+import type {Changeset} from "@daily/core"
 import type {
   AIConfig,
   Branch,
-  Day,
   DeviceRole,
   EnrollmentPollView,
   EnrollmentTicketView,
@@ -11,6 +11,7 @@ import type {
   LocalModelId,
   MigrationDirection,
   MigrationPreview,
+  Milestone,
   MoveTaskByOrderParams,
   PendingApprovalView,
   ProtocolMismatchView,
@@ -19,8 +20,6 @@ import type {
   ServerMembershipView,
   ServerProbeView,
   SettingsView,
-  StatsAggregate,
-  StatsPeriod,
   SyncProvider,
   SyncRemoteState,
   SyncStatus,
@@ -53,6 +52,8 @@ export interface BridgeIPC {
   "window:maximize": () => void
   "window:close": () => void
 
+  "app:renderer-ready": () => void
+
   "platform:is-mac": () => boolean
   "platform:is-windows": () => boolean
   "platform:is-linux": () => boolean
@@ -65,7 +66,7 @@ export interface BridgeIPC {
   "storage-sync:get-status": () => Promise<SyncStatus>
   "storage-sync:get-remote-states": () => Promise<SyncRemoteState[]>
   "storage-sync:on-status-changed": (callback: (status: SyncStatus, prevStatus: SyncStatus) => void) => void
-  "storage-sync:on-data-changed": (callback: () => void) => void
+  "storage:on-changed": (callback: (changeset: Changeset) => void) => void
 
   // === SELF-HOSTED DAILY SYNC SERVER ===
   "sync-server:get-state": () => Promise<ServerConnectionStateView>
@@ -104,30 +105,24 @@ export interface BridgeIPC {
   "updates:install": () => Promise<boolean>
   "updates:on-state-changed": (callback: (state: AppUpdateState) => void) => () => void
 
-  // === DAYS  ===
-  "days:get-many": (params?: {from?: ISODate; to?: ISODate; branchId?: Branch["id"]}) => Promise<Day[]>
-  "days:get-one": (date: ISODate) => Promise<Day | null>
-
-  "activity:get-by-day": (date: ISODate, branchId?: Branch["id"]) => Promise<TaskEvent[]>
   "activity:get-by-task": (taskId: Task["id"]) => Promise<TaskEvent[]>
 
-  "stats:get": (period: StatsPeriod, anchor: ISODate, branchId?: Branch["id"]) => Promise<StatsAggregate>
-
   // === TASKS  ===
+  "tasks:get-all": () => Promise<Task[]>
   "tasks:get-many": (params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: Branch["id"]}) => Promise<Task[]>
   "tasks:get-one": (id: Task["id"]) => Promise<Task | null>
-  "tasks:update": (id: Task["id"], updates: PartialDeep<Task>) => Promise<Task | null>
-  "tasks:toggle-minimized": (id: Task["id"], minimized: boolean) => Promise<Task | null>
+  "tasks:update": (id: Task["id"], updates: PartialDeep<Task>) => Promise<Changeset>
+  "tasks:toggle-minimized": (id: Task["id"], minimized: boolean) => Promise<Changeset>
   "tasks:create": (
-    task: Omit<Task, "id" | "createdAt" | "updatedAt" | "deletedAt" | "attachments" | "branchId"> & {branchId?: Task["branchId"]},
-  ) => Promise<Task | null>
-  "tasks:move-by-order": (params: MoveTaskByOrderParams) => Promise<Task | null>
-  "tasks:move-to-branch": (taskId: Task["id"], branchId: Branch["id"]) => Promise<boolean>
-  "tasks:delete": (id: Task["id"]) => Promise<boolean>
-  "tasks:add-tags": (taskId: Task["id"], tagIds: Tag["id"][]) => Promise<Task | null>
-  "tasks:remove-tags": (taskId: Task["id"], tagIds: Tag["id"][]) => Promise<Task | null>
+    task: Omit<Task, "id" | "createdAt" | "updatedAt" | "deletedAt" | "attachments" | "branchId"> & {branchId?: Task["branchId"]; id?: Task["id"]},
+  ) => Promise<Changeset>
+  "tasks:move-by-order": (params: MoveTaskByOrderParams) => Promise<Changeset>
+  "tasks:move-to-branch": (taskId: Task["id"], branchId: Branch["id"]) => Promise<Changeset>
+  "tasks:delete": (id: Task["id"]) => Promise<Changeset>
+  "tasks:add-tags": (taskId: Task["id"], tagIds: Tag["id"][]) => Promise<Changeset>
+  "tasks:remove-tags": (taskId: Task["id"], tagIds: Tag["id"][]) => Promise<Changeset>
   "tasks:get-deleted": (params?: {limit?: number; branchId?: Branch["id"]}) => Promise<Task[]>
-  "tasks:restore": (id: Task["id"]) => Promise<Task | null>
+  "tasks:restore": (id: Task["id"]) => Promise<Changeset>
   "tasks:delete-permanently": (id: Task["id"]) => Promise<boolean>
   "tasks:delete-all-permanently": () => Promise<number>
 
@@ -135,7 +130,7 @@ export interface BridgeIPC {
   "branches:get-many": () => Promise<Branch[]>
   "branches:get-one": (id: Branch["id"]) => Promise<Branch | null>
   "branches:create": (branch: Omit<Branch, "id" | "createdAt" | "updatedAt" | "deletedAt">) => Promise<Branch | null>
-  "branches:update": (id: Branch["id"], updates: Pick<Branch, "name">) => Promise<Branch | null>
+  "branches:update": (id: Branch["id"], updates: Partial<Pick<Branch, "name" | "description">>) => Promise<Branch | null>
   "branches:delete": (id: Branch["id"]) => Promise<boolean>
   "branches:set-active": (id: Branch["id"]) => Promise<void>
 
@@ -148,6 +143,16 @@ export interface BridgeIPC {
   "tags:update": (id: Tag["id"], updates: Partial<Tag>) => Promise<Tag | null>
   "tags:create": (tag: Omit<Tag, "id" | "createdAt" | "updatedAt" | "deletedAt">) => Promise<Tag | null>
   "tags:delete": (id: Tag["id"]) => Promise<boolean>
+
+  // === MILESTONES ===
+  "milestones:get-many": (branchId?: Branch["id"]) => Promise<Milestone[]>
+  "milestones:get-one": (id: Milestone["id"]) => Promise<Milestone | null>
+  "milestones:create": (milestone: Omit<Milestone, "id" | "createdAt" | "updatedAt" | "orderIndex">) => Promise<Changeset>
+  "milestones:update": (
+    id: Milestone["id"],
+    updates: Partial<Pick<Milestone, "name" | "description" | "targetDate" | "orderIndex">>,
+  ) => Promise<Changeset>
+  "milestones:delete": (id: Milestone["id"]) => Promise<Changeset>
 
   // === FILES ===
   "files:save": (filename: string, data: Buffer) => Promise<File["id"]>
@@ -189,5 +194,5 @@ export interface BridgeIPC {
   "shortcut:ui:open-search-panel": (callback: () => void) => void
   "shortcut:ui:open-assistant-panel": (callback: () => void) => void
   "shortcut:ui:open-settings-panel": (callback: () => void) => void
-  "shortcut:ui:left-panel:toggle": (callback: () => void) => void
+  "shortcut:ui:calendar-dock:toggle": (callback: () => void) => void
 }

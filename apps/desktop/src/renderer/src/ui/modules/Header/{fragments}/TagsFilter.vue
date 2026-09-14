@@ -5,6 +5,7 @@ import {sortTags} from "@daily/protocol"
 import {removeDuplicates} from "@daily/std"
 
 import {useFilterStore} from "@/stores/filter.store"
+import {useMilestonesStore} from "@/stores/milestones.store"
 import {useTasksStore} from "@/stores/tasks"
 import DynamicTagsPanel from "@/ui/common/misc/DynamicTagsPanel.vue"
 
@@ -12,11 +13,17 @@ import type {Tag} from "@daily/protocol"
 
 const tasksStore = useTasksStore()
 const filterStore = useFilterStore()
+const milestonesStore = useMilestonesStore()
+
+const milestoneFrameTasks = computed(() => {
+  const ids = filterStore.activeMilestoneId ? [filterStore.activeMilestoneId] : milestonesStore.activeMilestones.map((milestone) => milestone.id)
+  return ids.flatMap((id) => tasksStore.tasksByMilestoneId.get(id) ?? [])
+})
 
 const filteredTags = computed(() =>
   sortTags(
     removeDuplicates(
-      tasksStore.dailyTasks.flatMap((task) => task.tags),
+      (filterStore.frame === "milestone" ? milestoneFrameTasks.value : tasksStore.dailyTasks).flatMap((task) => task.tags),
       "name",
     ),
   ),
@@ -27,7 +34,7 @@ function onSelectTag(name: Tag["name"]) {
 }
 
 watch(
-  () => tasksStore.activeDay,
+  () => [tasksStore.activeDay, filterStore.activeMilestoneId],
   () => filterStore.clearActiveTags(),
 )
 

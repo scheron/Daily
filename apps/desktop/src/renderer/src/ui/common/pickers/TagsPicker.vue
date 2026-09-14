@@ -51,7 +51,7 @@ defineExpose({open, close, toggle})
     </template>
 
     <template #default="{hide}">
-      <TagsCombobox :task="task" @update="emit('update', $event)" @close="hide" />
+      <TagsCombobox :branch-id="task.branchId" :attached="task.tags" @update="emit('update', $event)" @close="hide" />
     </template>
   </BasePopup>
 </template>

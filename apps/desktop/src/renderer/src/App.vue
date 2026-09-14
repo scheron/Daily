@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import {useRoute} from "vue-router"
-import {ToastsLiteProvider} from "vue-toasts-lite"
+import {toasts, ToastsLiteProvider} from "vue-toasts-lite"
 import {invoke, until} from "@vueuse/core"
 
 import {useAiStore} from "./stores/ai"
 import {useBranchesStore} from "./stores/branches.store"
+import {useMilestonesStore} from "./stores/milestones.store"
 import {useSettingsStore} from "./stores/settings.store"
+import {useStorageChangesStore} from "./stores/storageChanges.store"
 import {useSyncServerStore} from "./stores/syncServer.store"
 import {useTagsStore} from "./stores/tags.store"
 import {useTasksStore} from "./stores/tasks"
@@ -19,25 +21,68 @@ const isSettingsRoute = route.name === "Settings"
 
 const settingsStore = useSettingsStore()
 
+const BOOTSTRAP_READY_CEILING_MS = 10_000
+const BOOTSTRAP_FAILURE_MESSAGE = "Some data could not be loaded. Restart the app if things look wrong."
+
 if (!isLightRoute || isSettingsRoute) useSyncServerStore().watchForApprovals()
 
 invoke(async () => {
-  await until(() => settingsStore.isSettingsLoaded).toBeTruthy()
+  let signalled = false
+  let timedOut = false
 
-  if (isLightRoute) {
-    const aiStore = useAiStore()
-    await aiStore.checkConnection()
-    return
+  const ceiling = setTimeout(() => {
+    timedOut = true
+    toasts.error(BOOTSTRAP_FAILURE_MESSAGE)
+  }, BOOTSTRAP_READY_CEILING_MS)
+
+  const signalRendererReady = () => {
+    if (signalled) return
+    signalled = true
+    clearTimeout(ceiling)
+    window.BridgeIPC["app:renderer-ready"]()
   }
 
-  const aiStore = useAiStore()
-  const branchesStore = useBranchesStore()
-  const tasksStore = useTasksStore()
-  const tagsStore = useTagsStore()
-  useUpdateStore()
+  try {
+    await until(() => settingsStore.isSettingsLoaded).toBeTruthy()
 
-  await Promise.all([branchesStore.getBranchList(), tasksStore.getTaskList(), tagsStore.getTagList()])
-  await aiStore.checkConnection()
+    if (isLightRoute) {
+      const aiStore = useAiStore()
+
+      if (isSettingsRoute) {
+        const branchesStore = useBranchesStore()
+        const tasksStore = useTasksStore()
+        const tagsStore = useTagsStore()
+        const milestonesStore = useMilestonesStore()
+        useStorageChangesStore()
+
+        await Promise.all([branchesStore.getBranchList(), tasksStore.loadTasks(), tagsStore.getTagList(), milestonesStore.getMilestoneList()])
+        signalRendererReady()
+        await aiStore.checkConnection()
+      } else {
+        signalRendererReady()
+        await aiStore.checkConnection()
+      }
+
+      return
+    }
+
+    const aiStore = useAiStore()
+    const branchesStore = useBranchesStore()
+    const tasksStore = useTasksStore()
+    const tagsStore = useTagsStore()
+    const milestonesStore = useMilestonesStore()
+    useUpdateStore()
+    useStorageChangesStore()
+
+    await Promise.all([branchesStore.getBranchList(), tasksStore.loadTasks(), tagsStore.getTagList(), milestonesStore.getMilestoneList()])
+    signalRendererReady()
+    await aiStore.checkConnection()
+  } catch {
+    if (!timedOut) toasts.error(BOOTSTRAP_FAILURE_MESSAGE)
+  } finally {
+    clearTimeout(ceiling)
+    signalRendererReady()
+  }
 })
 </script>
 

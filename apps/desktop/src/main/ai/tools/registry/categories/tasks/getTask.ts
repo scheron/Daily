@@ -31,7 +31,7 @@ export const getTask: RegisteredTool = {
       return {success: false, error: `Task not found: ${taskId}`}
     }
 
-    const lines = [`Task details:\n${formatTask(task, false)}`, `Date: ${task.scheduled.date}`]
+    const lines = [`Task details:\n${formatTask(task, false)}`, `Date: ${task.scheduled?.date ?? "no date"}`]
 
     if (task.estimatedTime > 0 || task.spentTime > 0) {
       const est = toDurationLabel(task.estimatedTime, "none")

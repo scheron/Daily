@@ -14,41 +14,45 @@ export type EmptySectionsMode = "show" | "collapse" | "hide"
  * and per-status collapsed state.
  */
 export function useSectionPrefs() {
-  const sectionsHideEmpty = useSettingValue("layout.sectionsHideEmpty", false)
-  const sectionsAutoCollapseEmpty = useSettingValue("layout.sectionsAutoCollapseEmpty", false)
-  const activeSectionCollapsed = useSettingValue("layout.sectionsCollapsed.active", false)
-  const discardedSectionCollapsed = useSettingValue("layout.sectionsCollapsed.discarded", false)
-  const doneSectionCollapsed = useSettingValue("layout.sectionsCollapsed.done", false)
+  const shouldHideEmptySections = useSettingValue("layout.sectionsHideEmpty", false)
+  const shouldCollapseEmptySections = useSettingValue("layout.sectionsAutoCollapseEmpty", false)
+  const isActiveSectionCollapsed = useSettingValue("layout.sectionsCollapsed.active", false)
+  const isDiscardedSectionCollapsed = useSettingValue("layout.sectionsCollapsed.discarded", false)
+  const isDoneSectionCollapsed = useSettingValue("layout.sectionsCollapsed.done", false)
+  const isBacklogSectionCollapsed = useSettingValue("layout.sectionsCollapsed.backlog", false)
 
   const sectionsCollapsed = computed<SectionsCollapsed>(() => ({
-    active: activeSectionCollapsed.value,
-    discarded: discardedSectionCollapsed.value,
-    done: doneSectionCollapsed.value,
+    active: isActiveSectionCollapsed.value,
+    discarded: isDiscardedSectionCollapsed.value,
+    done: isDoneSectionCollapsed.value,
+    backlog: isBacklogSectionCollapsed.value,
   }))
 
   const emptySectionsMode = computed<EmptySectionsMode>({
-    get: () => (sectionsHideEmpty.value ? "hide" : sectionsAutoCollapseEmpty.value ? "collapse" : "show"),
+    get: () => (shouldHideEmptySections.value ? "hide" : shouldCollapseEmptySections.value ? "collapse" : "show"),
     set: (mode) => {
-      sectionsHideEmpty.value = mode === "hide"
-      sectionsAutoCollapseEmpty.value = mode === "collapse"
+      shouldHideEmptySections.value = mode === "hide"
+      shouldCollapseEmptySections.value = mode === "collapse"
     },
   })
 
   function toggleSectionCollapsed(status: TaskStatus) {
-    if (status === "active") activeSectionCollapsed.value = !activeSectionCollapsed.value
-    else if (status === "discarded") discardedSectionCollapsed.value = !discardedSectionCollapsed.value
-    else doneSectionCollapsed.value = !doneSectionCollapsed.value
+    if (status === "active") isActiveSectionCollapsed.value = !isActiveSectionCollapsed.value
+    else if (status === "discarded") isDiscardedSectionCollapsed.value = !isDiscardedSectionCollapsed.value
+    else if (status === "backlog") isBacklogSectionCollapsed.value = !isBacklogSectionCollapsed.value
+    else isDoneSectionCollapsed.value = !isDoneSectionCollapsed.value
   }
 
-  function setSectionCollapsed(status: TaskStatus, value: boolean) {
-    if (status === "active") activeSectionCollapsed.value = value
-    else if (status === "discarded") discardedSectionCollapsed.value = value
-    else doneSectionCollapsed.value = value
+  function setSectionCollapsed(status: TaskStatus, isCollapsed: boolean) {
+    if (status === "active") isActiveSectionCollapsed.value = isCollapsed
+    else if (status === "discarded") isDiscardedSectionCollapsed.value = isCollapsed
+    else if (status === "backlog") isBacklogSectionCollapsed.value = isCollapsed
+    else isDoneSectionCollapsed.value = isCollapsed
   }
 
   return {
-    sectionsHideEmpty,
-    sectionsAutoCollapseEmpty,
+    shouldHideEmptySections,
+    shouldCollapseEmptySections,
     sectionsCollapsed,
     emptySectionsMode,
 

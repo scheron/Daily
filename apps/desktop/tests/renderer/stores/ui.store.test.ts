@@ -23,31 +23,35 @@ describe("uiStore", () => {
     const store = await getStore()
 
     store.emptySectionsMode = "collapse"
-    expect(store.sectionsAutoCollapseEmpty).toBe(true)
+    expect(store.shouldCollapseEmptySections).toBe(true)
 
     store.emptySectionsMode = "hide"
-    expect(store.sectionsHideEmpty).toBe(true)
-    expect(store.sectionsAutoCollapseEmpty).toBe(false)
+    expect(store.shouldHideEmptySections).toBe(true)
+    expect(store.shouldCollapseEmptySections).toBe(false)
   })
 
   it("emptySectionsMode 'collapse' disables hide (mutual exclusion)", async () => {
     const store = await getStore()
 
     store.emptySectionsMode = "hide"
-    expect(store.sectionsHideEmpty).toBe(true)
+    expect(store.shouldHideEmptySections).toBe(true)
 
     store.emptySectionsMode = "collapse"
-    expect(store.sectionsAutoCollapseEmpty).toBe(true)
-    expect(store.sectionsHideEmpty).toBe(false)
+    expect(store.shouldCollapseEmptySections).toBe(true)
+    expect(store.shouldHideEmptySections).toBe(false)
   })
 
-  it("toggleLeftPanel flips and respects an explicit value", async () => {
+  it("toggleCalendarDock_TC-10_flips_with_no_argument_and_sets_with_one", async () => {
     const store = await getStore()
 
-    expect(store.leftPanelVisible).toBe(true)
-    store.toggleLeftPanel()
-    expect(store.leftPanelVisible).toBe(false)
-    store.toggleLeftPanel(true)
-    expect(store.leftPanelVisible).toBe(true)
+    expect(store.isCalendarDockExpanded).toBe(false)
+    store.toggleCalendarDock()
+    expect(store.isCalendarDockExpanded).toBe(true)
+    store.toggleCalendarDock()
+    expect(store.isCalendarDockExpanded).toBe(false)
+    store.toggleCalendarDock(true)
+    expect(store.isCalendarDockExpanded).toBe(true)
+    store.toggleCalendarDock(false)
+    expect(store.isCalendarDockExpanded).toBe(false)
   })
 })

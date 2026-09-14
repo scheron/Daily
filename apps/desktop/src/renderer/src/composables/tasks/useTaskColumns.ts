@@ -1,11 +1,13 @@
 import {computed, reactive, ref, watch} from "vue"
 
+import {sortTasksByDateThenOrder, sortTasksByOrderIndex} from "@daily/protocol"
 import {deepClone, isUndefined} from "@daily/std"
 
 import {createSharedComposable} from "@/composables/createSharedComposable"
 import {TASK_COLUMNS} from "@/constants/ui"
 import {useDragDropStore} from "@/stores/dragDrop.store"
 import {useFilterStore} from "@/stores/filter.store"
+import {useMilestonesStore} from "@/stores/milestones.store"
 import {useTasksStore} from "@/stores/tasks"
 import {useUIStore} from "@/stores/ui"
 import {resolveMoveTarget} from "@/utils/tasks/resolveMoveTarget"
@@ -19,27 +21,55 @@ const SORTABLE_ANIMATION_MS = 160
 export const useTaskColumns = createSharedComposable(() => {
   const tasksStore = useTasksStore()
   const filterStore = useFilterStore()
+  const milestonesStore = useMilestonesStore()
   const uiStore = useUIStore()
   const dragDropStore = useDragDropStore()
 
-  const filteredTasks = computed(() => {
-    if (!filterStore.activeTagIds.size) return tasksStore.dailyTasks
-    return tasksStore.dailyTasks.filter((task) => task.tags.some((tag) => filterStore.activeTagIds.has(tag.id)))
-  })
+  function filterByTag(tasks: Task[]) {
+    if (!filterStore.activeTagIds.size) return tasks
+    return tasks.filter((task) => task.tags.some((tag) => filterStore.activeTagIds.has(tag.id)))
+  }
 
-  const tasksByStatus = computed<Record<TaskStatus, Task[]>>(() => {
-    return filteredTasks.value.reduce(
+  function groupByStatus(tasks: Task[]): Record<TaskStatus, Task[]> {
+    return tasks.reduce(
       (acc, task) => {
         acc[task.status].push(task)
         return acc
       },
-      {active: [], discarded: [], done: []} as Record<TaskStatus, Task[]>,
+      {active: [], discarded: [], done: [], backlog: []} as Record<TaskStatus, Task[]>,
     )
+  }
+
+  const milestoneFrameTasks = computed(() => {
+    const ids = filterStore.activeMilestoneId ? [filterStore.activeMilestoneId] : milestonesStore.activeMilestones.map((milestone) => milestone.id)
+    return ids.flatMap((id) => tasksStore.tasksByMilestoneId.get(id) ?? [])
   })
 
-  const localTasksByStatus = reactive<Record<TaskStatus, Task[]>>({active: [], discarded: [], done: []})
+  const filteredTasks = computed(() => filterByTag(tasksStore.dailyTasks))
+  const filteredBacklogTasks = computed(() => filterByTag(tasksStore.backlogTasks))
+  const filteredMilestoneTasks = computed(() => filterByTag(milestoneFrameTasks.value))
+
+  const tasksByStatus = computed<Record<TaskStatus, Task[]>>(() => {
+    if (filterStore.frame === "milestone") {
+      const framed = groupByStatus(filteredMilestoneTasks.value)
+
+      return {
+        active: sortTasksByDateThenOrder(framed.active),
+        discarded: sortTasksByDateThenOrder(framed.discarded),
+        done: sortTasksByDateThenOrder(framed.done),
+        backlog: sortTasksByOrderIndex(framed.backlog),
+      }
+    }
+
+    const grouped = groupByStatus(filteredTasks.value)
+    grouped.backlog = filteredBacklogTasks.value
+    return grouped
+  })
+
+  const localTasksByStatus = reactive<Record<TaskStatus, Task[]>>({active: [], discarded: [], done: [], backlog: []})
 
   const pendingCrossColumnMove = ref<MoveTaskByOrderParams | null>(null)
+  const pendingLocalResync = ref(false)
 
   const {
     isDragging,
@@ -65,17 +95,17 @@ export const useTaskColumns = createSharedComposable(() => {
   }
 
   function isColumnCollapsed(status: TaskStatus) {
-    if (uiStore.sectionsAutoCollapseEmpty) return !isDragging.value && isColumnEmpty(status)
+    if (uiStore.shouldCollapseEmptySections) return !isDragging.value && isColumnEmpty(status)
     return Boolean(uiStore.sectionsCollapsed[status])
   }
 
   function onToggleColumn(status: TaskStatus) {
-    if (uiStore.sectionsAutoCollapseEmpty) return
+    if (uiStore.shouldCollapseEmptySections) return
     uiStore.toggleSectionCollapsed(status)
   }
 
   function onColumnDragEnter(status: TaskStatus) {
-    if (uiStore.sectionsAutoCollapseEmpty) return
+    if (uiStore.shouldCollapseEmptySections) return
     if (!isDragging.value) return
     if (!isColumnCollapsed(status)) return
 
@@ -83,8 +113,16 @@ export const useTaskColumns = createSharedComposable(() => {
   }
 
   async function onColumnChange(status: TaskStatus, event: {added?: {newIndex: number}; moved?: {newIndex: number; oldIndex: number}}) {
+    if (dragDropStore.isReleasedInsideDropZone) return
     if (event.moved && event.moved.newIndex === event.moved.oldIndex) return
     if (!event.added && !event.moved) return
+
+    const isMilestoneFrame = filterStore.frame === "milestone"
+
+    if (isMilestoneFrame && event.moved) {
+      pendingLocalResync.value = true
+      return
+    }
 
     const newIndex = event.added?.newIndex ?? event.moved?.newIndex
     if (isUndefined(newIndex)) return
@@ -94,14 +132,17 @@ export const useTaskColumns = createSharedComposable(() => {
 
     movedTask.status = status
 
-    const {targetTaskId, position} = resolveMoveTarget(localTasksByStatus[status], newIndex)
+    const {targetTaskId, position} = isMilestoneFrame
+      ? {targetTaskId: null, position: "after" as const}
+      : resolveMoveTarget(localTasksByStatus[status], newIndex)
 
-    const moveParams = {
+    const moveParams: MoveTaskByOrderParams = {
       taskId: movedTask.id,
       targetStatus: status,
       targetTaskId,
       position,
-    } as MoveTaskByOrderParams
+      activeDate: tasksStore.activeDay,
+    }
 
     if (event.added) {
       pendingCrossColumnMove.value = moveParams
@@ -115,6 +156,7 @@ export const useTaskColumns = createSharedComposable(() => {
     localTasksByStatus.active = tasksByStatus.value.active.map((task) => deepClone(task))
     localTasksByStatus.discarded = tasksByStatus.value.discarded.map((task) => deepClone(task))
     localTasksByStatus.done = tasksByStatus.value.done.map((task) => deepClone(task))
+    localTasksByStatus.backlog = tasksByStatus.value.backlog.map((task) => deepClone(task))
   }
 
   function isColumnEmpty(status: TaskStatus) {
@@ -122,11 +164,23 @@ export const useTaskColumns = createSharedComposable(() => {
   }
 
   function isColumnHidden(status: TaskStatus) {
-    if (!uiStore.sectionsHideEmpty) return false
+    if (!uiStore.shouldHideEmptySections) return false
     return isColumnEmpty(status)
   }
 
   function flushPendingCrossColumnMove() {
+    if (dragDropStore.isReleasedInsideDropZone) {
+      pendingCrossColumnMove.value = null
+      pendingLocalResync.value = false
+      syncLocalTasks()
+      return
+    }
+
+    if (pendingLocalResync.value) {
+      pendingLocalResync.value = false
+      syncLocalTasks()
+    }
+
     const pendingMove = pendingCrossColumnMove.value
     if (!pendingMove) return
     pendingCrossColumnMove.value = null
@@ -141,6 +195,7 @@ export const useTaskColumns = createSharedComposable(() => {
         targetStatus: params.targetStatus,
         targetTaskId: params.targetTaskId,
         position: params.position,
+        activeDate: params.activeDate,
       })
 
       if (!result) {

@@ -2,14 +2,23 @@ import {computed, ref} from "vue"
 import {defineStore} from "pinia"
 
 import {API} from "@/api"
+import {useSettingsStore} from "./settings.store"
 
-import type {Tag} from "@daily/protocol"
+import type {Branch, Tag} from "@daily/protocol"
 
 export const useTagsStore = defineStore("tags", () => {
+  const settingsStore = useSettingsStore()
+
   const isTagsLoaded = ref(false)
   const tags = ref<Tag[]>([])
 
   const tagsMap = computed(() => new Map<Tag["id"], Tag>(tags.value.map((tag) => [tag.id, tag])))
+  const activeBranchId = computed(() => settingsStore.settings?.branch?.activeId ?? null)
+  const activeTags = computed(() => (activeBranchId.value ? tagsForBranch(activeBranchId.value) : []))
+
+  function tagsForBranch(branchId: Branch["id"]): Tag[] {
+    return tags.value.filter((tag) => tag.branchId === branchId)
+  }
 
   async function getTagList() {
     isTagsLoaded.value = false
@@ -20,13 +29,14 @@ export const useTagsStore = defineStore("tags", () => {
       tags.value = loadedTags
     } catch (error) {
       console.error("Error loading tags:", error)
+      throw error
     } finally {
       isTagsLoaded.value = true
     }
   }
 
-  async function createTag(name: string, color: string) {
-    const newTag = await API.createTag({name, color})
+  async function createTag(name: string, color: string, branchId: Branch["id"]) {
+    const newTag = await API.createTag({branchId, name, color})
     if (!newTag) return null
 
     tags.value = sortByName([...tags.value, newTag])
@@ -66,7 +76,9 @@ export const useTagsStore = defineStore("tags", () => {
     isTagsLoaded,
     tags,
     tagsMap,
+    activeTags,
 
+    tagsForBranch,
     getTagList,
     createTag,
     updateTag,

@@ -1,3 +1,4 @@
+import {groupTasksByDay} from "@daily/protocol"
 import {getToday, toDurationLabel} from "@daily/std"
 
 import type {Day} from "@daily/protocol"
@@ -29,7 +30,8 @@ export const getDaySummary: RegisteredTool = {
       branchId = branch.id
     }
 
-    const days = await ctx.storage.getDays({from: date, to: date, branchId})
+    const tasks = await ctx.storage.getTaskList({from: date, to: date, branchId})
+    const days = groupTasksByDay({tasks, tags: tasks.flatMap((task) => task.tags)})
     const day: Day | null = days[0] ?? null
 
     if (!day || day.tasks.length === 0) {

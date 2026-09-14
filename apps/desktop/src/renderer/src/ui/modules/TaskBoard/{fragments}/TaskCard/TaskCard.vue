@@ -1,23 +1,26 @@
 <script setup lang="ts">
 import {computed, useTemplateRef} from "vue"
 
-import {sortTags, toTaskIdHash} from "@daily/protocol"
-import {toDurationLabel} from "@daily/std"
+import {sortTags} from "@daily/protocol"
+import {toDateLabel, toDurationLabel} from "@daily/std"
 
+import {useFilterStore} from "@/stores/filter.store"
+import {useMilestonesStore} from "@/stores/milestones.store"
 import {useTagsStore} from "@/stores/tags.store"
 import {useTaskEditorStore} from "@/stores/task-editor"
 import {useTasksStore} from "@/stores/tasks"
 import BaseCalendar from "@/ui/base/BaseCalendar"
 import BaseIcon from "@/ui/base/BaseIcon"
 import BranchCombobox from "@/ui/common/comboboxes/BranchCombobox.vue"
+import MilestoneCombobox from "@/ui/common/comboboxes/MilestoneCombobox.vue"
 import TagsCombobox from "@/ui/common/comboboxes/TagsCombobox.vue"
+import MilestoneChip from "@/ui/common/milestones/MilestoneChip.vue"
 import ContextMenu from "@/ui/common/misc/ContextMenu"
 import DynamicTagsPanel from "@/ui/common/misc/DynamicTagsPanel.vue"
+import MarkdownContent from "@/ui/common/misc/MarkdownContent.vue"
 import EstimationPicker from "@/ui/common/pickers/EstimationPicker.vue"
 import {useConfirmUnsavedModal} from "@/ui/overlays/ConfirmUnsavedModal"
-import {countMarkdownImages} from "@/utils/codemirror/wordCount"
 import DeleteMenuItem from "./{fragments}/DeleteMenuItem.vue"
-import MarkdownContent from "./{fragments}/MarkdownContent.vue"
 import StatusSelect from "./{fragments}/StatusSelect.vue"
 import {useTaskModel} from "./model/useTaskModel"
 
@@ -29,6 +32,8 @@ const props = defineProps<{task: Task}>()
 const tasksStore = useTasksStore()
 const tagsStore = useTagsStore()
 const taskEditorStore = useTaskEditorStore()
+const milestonesStore = useMilestonesStore()
+const filterStore = useFilterStore()
 
 const contextMenuRef = useTemplateRef<InstanceType<typeof ContextMenu>>("contextMenu")
 
@@ -36,11 +41,18 @@ const {canMoveUp, canMoveDown, canMoveToTop, canMoveToBottom, ...taskModel} = us
 
 const tags = computed<Tag[]>(() => sortTags(props.task.tags.map((t) => tagsStore.tagsMap.get(t.id)).filter(Boolean) as Tag[]))
 
-const imageCount = computed(() => countMarkdownImages(props.task.content))
+const milestone = computed(() => (props.task.milestoneId ? (milestonesStore.milestonesMap.get(props.task.milestoneId) ?? null) : null))
 const showTime = computed(() => props.task.estimatedTime > 0)
 const estimateLabel = computed(() => (showTime.value ? toDurationLabel(props.task.estimatedTime) : ""))
 const spentLabel = computed(() => (showTime.value && props.task.spentTime > 0 ? toDurationLabel(props.task.spentTime) : ""))
-const hasFooter = computed(() => imageCount.value > 0 || showTime.value)
+
+const footerMilestone = computed(() => (filterStore.frame === "milestone" ? null : milestone.value))
+const footerDayLabel = computed(() => {
+  if (filterStore.frame !== "milestone" || !props.task.scheduled) return ""
+  return toDateLabel(props.task.scheduled.date, {short: true})
+})
+
+const hasFooter = computed(() => Boolean(footerMilestone.value) || Boolean(footerDayLabel.value) || showTime.value)
 
 const menuItems = computed<ContextMenuItem[]>(() => {
   return [
@@ -51,12 +63,14 @@ const menuItems = computed<ContextMenuItem[]>(() => {
       label: "Status",
       icon: "circle-pulse",
       children: [
+        {value: "backlog", label: "Backlog", icon: "bookmark", class: getStatusClass("backlog")},
         {value: "active", label: "Active", icon: "fire", class: getStatusClass("active")},
-        {value: "discarded", label: "Discarded", icon: "archive", class: getStatusClass("discarded")},
         {value: "done", label: "Done", icon: "check-check", class: getStatusClass("done")},
+        {value: "discarded", label: "Discarded", icon: "archive", class: getStatusClass("discarded")},
       ],
     },
     {value: "tags", label: "Tags", icon: "tags", children: true},
+    {value: "milestone", label: "Milestone", icon: "milestone", children: true},
     {value: "reschedule", label: "Reschedule", icon: "calendar", children: true},
     {value: "branch", label: "Move to Project", icon: "project", children: true},
     {separator: true},
@@ -113,6 +127,7 @@ function getStatusClass(status: TaskStatus) {
   if (status === "active") return "text-error hover:bg-error/10 bg-error/10"
   if (status === "discarded") return "text-warning hover:bg-warning/10 bg-warning/10 "
   if (status === "done") return "text-success hover:bg-success/10 bg-success/10 "
+  if (status === "backlog") return "text-base-content hover:bg-base-content/10 bg-base-content/10 "
   return ""
 }
 
@@ -149,6 +164,7 @@ async function onMoveToBranch(branch: Branch) {
       :id="task.id"
       class="bg-base-100 hover:shadow-accent/5 group relative overflow-hidden rounded-2xl border transition-all duration-200 hover:shadow-lg"
       :class="{
+        'border-base-content/15 border-dashed': task.status === 'backlog',
         'border-success/30 hover:border-success/40': task.status === 'done',
         'border-warning/30 hover:border-warning/40': task.status === 'discarded',
         'border-base-300/50 hover:border-base-content/15': task.status === 'active',
@@ -159,9 +175,6 @@ async function onMoveToBranch(branch: Branch) {
         <div class="flex w-full items-center gap-3">
           <DynamicTagsPanel :tags="tags" empty-message="No tags" size="sm" />
           <div class="ml-auto flex shrink-0 items-center gap-2" data-task-dnd-ignore="true" @click.stop>
-            <span v-tooltip="{content: 'Task ID', placement: 'top'}" class="text-base-content/50 font-mono text-xs leading-none whitespace-nowrap">
-              {{ toTaskIdHash(task.id) }}
-            </span>
             <StatusSelect :status="task.status" @update:status="taskModel.changeStatus" />
           </div>
         </div>
@@ -171,10 +184,8 @@ async function onMoveToBranch(branch: Branch) {
         </div>
 
         <div v-if="hasFooter" class="flex items-center gap-2 text-xs">
-          <div v-if="imageCount > 0" class="text-base-content/70 inline-flex items-center gap-1 px-2.5 py-1">
-            <BaseIcon name="image" class="size-3.5" />
-            <span>{{ imageCount }}</span>
-          </div>
+          <MilestoneChip v-if="footerMilestone" :milestone="footerMilestone" :size="12" />
+          <span v-else-if="footerDayLabel" class="text-base-content/80 text-xs">{{ footerDayLabel }}</span>
 
           <div v-if="showTime" class="ml-auto flex items-center gap-2">
             <div class="text-base-content/80 inline-flex items-center gap-1 px-2.5 py-1">
@@ -195,12 +206,22 @@ async function onMoveToBranch(branch: Branch) {
     </template>
 
     <template #child-tags>
-      <TagsCombobox :task="task" @update="taskModel.updateTaskTags" @close="contextMenuRef?.close()" />
+      <TagsCombobox :branch-id="task.branchId" :attached="task.tags" @update="taskModel.updateTaskTags" @close="contextMenuRef?.close()" />
+    </template>
+
+    <template #child-milestone>
+      <MilestoneCombobox :task="task" @update="taskModel.updateTaskMilestone" @close="contextMenuRef?.close()" />
     </template>
 
     <template #child-reschedule>
       <div class="p-1">
-        <BaseCalendar mode="single" :days="tasksStore.days" :selected-date="task.scheduled.date" size="sm" @select-date="taskModel.rescheduleTask" />
+        <BaseCalendar
+          mode="single"
+          :days="tasksStore.days"
+          :selected-date="task.scheduled?.date ?? null"
+          size="sm"
+          @select-date="taskModel.rescheduleTask"
+        />
       </div>
     </template>
 

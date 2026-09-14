@@ -1,3 +1,5 @@
+import {MAIN_BRANCH_ID} from "@daily/protocol"
+
 import {formatTag} from "@main/ai/utils/formatters"
 
 import type {RegisteredTool} from "@main/ai/tools/registry/types"
@@ -13,7 +15,9 @@ export const listTags: RegisteredTool = {
   isWrite: false,
   isDestructive: false,
   async execute(_params, ctx) {
-    const tags = await ctx.storage.getTagList()
+    const settings = await ctx.storage.loadSettings()
+    const activeBranchId = settings.branch?.activeId ?? MAIN_BRANCH_ID
+    const tags = await ctx.storage.getTagList(activeBranchId)
 
     if (tags.length === 0) {
       return {success: true, data: "No tags found"}

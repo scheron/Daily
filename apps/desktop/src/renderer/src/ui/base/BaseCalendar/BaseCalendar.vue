@@ -4,11 +4,11 @@ import {DateTime} from "luxon"
 
 import {isInRange, isToday} from "@daily/std"
 
+import {useBoardDrop} from "@/composables/tasks/useBoardDrop"
 import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
 import {calcMonthStatistics} from "@/utils/days/calcMonthStatistics"
 import {useCalendarSwipe} from "./composables/useCalendarSwipe"
-import {useDropToDay} from "./composables/useDropToDay"
 import {formatDaysToMonth} from "./utils/formatDaysToMonth"
 
 import type {Day, ISODate} from "@daily/protocol"
@@ -81,7 +81,7 @@ const sizeConfig = computed(() => {
   return configs[props.size]
 })
 
-const {dropTargetDate} = useDropToDay()
+const {dropTargetDate} = useBoardDrop()
 
 useCalendarSwipe({
   target: calendarRootRef,

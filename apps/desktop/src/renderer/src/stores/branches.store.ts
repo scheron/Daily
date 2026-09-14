@@ -2,6 +2,8 @@ import {computed, ref} from "vue"
 import {sort} from "fast-sort"
 import {defineStore} from "pinia"
 
+import {MAIN_BRANCH_ID} from "@daily/protocol"
+
 import {API} from "@/api"
 import {useSettingsStore} from "./settings.store"
 
@@ -17,7 +19,7 @@ export const useBranchesStore = defineStore("branches", () => {
   const activeBranchId = computed(() => settingsStore.settings?.branch?.activeId ?? null)
   const activeBranch = computed(() => (activeBranchId.value ? (branchesMap.value.get(activeBranchId.value) ?? null) : null))
   const orderedBranches = computed(() => {
-    return sort(branches.value).asc((b) => b.name.toLowerCase())
+    return sort(branches.value).by([{desc: (b) => b.id === MAIN_BRANCH_ID}, {asc: (b) => b.name.toLowerCase()}])
   })
 
   async function getBranchList() {
@@ -27,6 +29,7 @@ export const useBranchesStore = defineStore("branches", () => {
       branches.value = await API.getBranchList()
     } catch (error) {
       console.error("Failed to load branches", error)
+      throw error
     } finally {
       isBranchesLoaded.value = true
     }
@@ -36,29 +39,24 @@ export const useBranchesStore = defineStore("branches", () => {
     const trimmed = name.trim()
     if (!trimmed) return null
 
-    const created = await API.createBranch({name: trimmed})
-    if (!created) return null
-
-    await getBranchList()
-    return created
+    return await API.createBranch({name: trimmed, description: ""})
   }
 
   async function updateBranchName(id: Branch["id"], name: string): Promise<Branch | null> {
     const trimmed = name.trim()
     if (!trimmed) return null
 
-    const updated = await API.updateBranch(id, {name: trimmed})
-    if (!updated) return null
+    return await API.updateBranch(id, {name: trimmed})
+  }
 
-    await getBranchList()
-    return updated
+  async function updateBranchDescription(id: Branch["id"], description: string): Promise<Branch | null> {
+    return await API.updateBranch(id, {description})
   }
 
   async function deleteBranch(id: Branch["id"]): Promise<boolean> {
     const deleted = await API.deleteBranch(id)
     if (!deleted) return false
 
-    await getBranchList()
     await settingsStore.revalidate()
     return true
   }
@@ -67,10 +65,6 @@ export const useBranchesStore = defineStore("branches", () => {
     await API.setActiveBranch(id)
     await settingsStore.revalidate()
     return true
-  }
-
-  async function revalidate() {
-    await getBranchList()
   }
 
   return {
@@ -84,8 +78,8 @@ export const useBranchesStore = defineStore("branches", () => {
     getBranchList,
     createBranch,
     updateBranchName,
+    updateBranchDescription,
     deleteBranch,
     setActiveBranch,
-    revalidate,
   }
 })

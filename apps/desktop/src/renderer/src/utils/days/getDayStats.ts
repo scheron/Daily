@@ -6,11 +6,11 @@ import type {Day} from "@daily/protocol"
  * @example getDayStats(day) // {active: 3, discarded: 1, done: 5}
  */
 export function getDayStats(day: Day | null | undefined): DayStatistics {
-  if (!day) return {active: 0, discarded: 0, done: 0}
+  if (!day) return {active: 0, discarded: 0, done: 0, backlog: 0}
 
   const active = day.countActive
   const done = day.countDone
   const discarded = day.tasks.length - active - done
 
-  return {active, discarded, done}
+  return {active, discarded, done, backlog: 0}
 }

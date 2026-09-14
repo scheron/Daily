@@ -20,7 +20,7 @@ const APPROVE_DEVICE_MODAL_ID = "sync-server-approve-device"
 
 export const useSyncServerStore = defineStore("syncServer", () => {
   const binding = ref<ServerBindingView | null>(null)
-  const revoked = ref(false)
+  const isRevoked = ref(false)
   const mismatch = ref<ProtocolMismatchView | null>(null)
   const membership = ref<ServerMembershipView | null>(null)
   let isWatchingApprovals = false
@@ -31,7 +31,7 @@ export const useSyncServerStore = defineStore("syncServer", () => {
     try {
       const state = await window.BridgeIPC["sync-server:get-state"]()
       binding.value = state.binding
-      revoked.value = state.revoked
+      isRevoked.value = state.revoked
       mismatch.value = state.mismatch
       if (binding.value?.role === "parent") await listMembership()
     } catch (error) {
@@ -72,14 +72,14 @@ export const useSyncServerStore = defineStore("syncServer", () => {
     return window.BridgeIPC["sync-server:probe"](baseUrl)
   }
 
-  async function claim(code: string, deviceName: string, confirmInsecure: boolean): Promise<ServerBindingView> {
-    const result = await window.BridgeIPC["sync-server:claim"](code, deviceName, confirmInsecure)
+  async function claim(code: string, deviceName: string, isInsecureConfirmed: boolean): Promise<ServerBindingView> {
+    const result = await window.BridgeIPC["sync-server:claim"](code, deviceName, isInsecureConfirmed)
     await loadState()
     return result
   }
 
-  async function requestEnrollment(deviceName: string, confirmInsecure: boolean): Promise<EnrollmentTicketView> {
-    return window.BridgeIPC["sync-server:request-enrollment"](deviceName, confirmInsecure)
+  async function requestEnrollment(deviceName: string, isInsecureConfirmed: boolean): Promise<EnrollmentTicketView> {
+    return window.BridgeIPC["sync-server:request-enrollment"](deviceName, isInsecureConfirmed)
   }
 
   async function pollEnrollment(): Promise<EnrollmentPollView> {
@@ -165,7 +165,7 @@ export const useSyncServerStore = defineStore("syncServer", () => {
   }
 
   window.BridgeIPC["sync-server:on-revoked"](() => {
-    revoked.value = true
+    isRevoked.value = true
   })
 
   window.BridgeIPC["sync-server:on-protocol-mismatch-changed"]((nextMismatch) => {
@@ -181,7 +181,7 @@ export const useSyncServerStore = defineStore("syncServer", () => {
 
   return {
     binding,
-    revoked,
+    isRevoked,
     mismatch,
     membership,
 

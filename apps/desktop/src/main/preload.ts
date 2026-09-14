@@ -2,10 +2,10 @@ import {contextBridge, ipcRenderer} from "electron"
 
 import {SHORTCUTS_MAP} from "@shared/constants/shortcuts"
 
+import type {Changeset} from "@daily/core"
 import type {
   AIConfig,
   Branch,
-  Day,
   DeviceRole,
   EnrollmentPollView,
   EnrollmentTicketView,
@@ -14,6 +14,7 @@ import type {
   LocalModelId,
   MigrationDirection,
   MigrationPreview,
+  Milestone,
   PendingApprovalView,
   ProtocolMismatchView,
   ServerBindingView,
@@ -21,8 +22,6 @@ import type {
   ServerMembershipView,
   ServerProbeView,
   SettingsView,
-  StatsAggregate,
-  StatsPeriod,
   SyncProvider,
   SyncRemoteState,
   SyncStatus,
@@ -59,6 +58,8 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "window:maximize": () => ipcRenderer.send("window:maximize"),
   "window:close": () => ipcRenderer.send("window:close"),
 
+  "app:renderer-ready": () => ipcRenderer.send("app:renderer-ready"),
+
   "platform:is-mac": () => process.platform === "darwin",
   "platform:is-windows": () => process.platform === "win32",
   "platform:is-linux": () => process.platform === "linux",
@@ -69,7 +70,7 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "storage-sync:get-status": () => ipcRenderer.invoke("storage-sync:get-status") as Promise<SyncStatus>,
   "storage-sync:get-remote-states": () => ipcRenderer.invoke("storage-sync:get-remote-states") as Promise<SyncRemoteState[]>,
   "storage-sync:on-status-changed": (callback: (status: SyncStatus, prevStatus: SyncStatus) => void) => ipcRenderer.on("storage-sync:status-changed", (_event, status: SyncStatus, prevStatus: SyncStatus) => callback(status, prevStatus)),
-  "storage-sync:on-data-changed": (callback: () => void) => ipcRenderer.on("storage-sync:data-changed", (_event, ) => callback()),
+  "storage:on-changed": (callback: (changeset: Changeset) => void) => ipcRenderer.on("storage:changed", (_event, changeset: Changeset) => callback(changeset)),
 
   "sync-server:get-state": () => ipcRenderer.invoke("sync-server:get-state") as Promise<ServerConnectionStateView>,
   "sync-server:default-device-name": () => ipcRenderer.invoke("sync-server:default-device-name") as Promise<string>,
@@ -108,32 +109,30 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
     return () => ipcRenderer.removeListener("updates:state-changed", subscription)
   },
 
-  "days:get-many": (params?: {from?: ISODate; to?: ISODate; branchId?: Branch["id"]}) => ipcRenderer.invoke("days:get-many", params) as Promise<Day[]>,
-  "days:get-one": (date: ISODate) => ipcRenderer.invoke("days:get-one", date) as Promise<Day | null>,
-  "activity:get-by-day": (date: ISODate, branchId?: Branch["id"]) => ipcRenderer.invoke("activity:get-by-day", date, branchId) as Promise<TaskEvent[]>,
   "activity:get-by-task": (taskId: Task["id"]) => ipcRenderer.invoke("activity:get-by-task", taskId) as Promise<TaskEvent[]>,
-  "stats:get": (period: StatsPeriod, anchor: ISODate, branchId?: Branch["id"]) => ipcRenderer.invoke("stats:get", period, anchor, branchId) as Promise<StatsAggregate>,
 
+  "tasks:get-all": () => ipcRenderer.invoke("tasks:get-all") as Promise<Task[]>,
   "tasks:get-many": (params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: Branch["id"]}) => ipcRenderer.invoke("tasks:get-many", params) as Promise<Task[]>,
   "tasks:get-one": (id: Task["id"]) => ipcRenderer.invoke("tasks:get-one", id) as Promise<Task | null>,
-  "tasks:update": (id: Task["id"], updates: PartialDeep<Task>) => ipcRenderer.invoke("tasks:update", id, updates),
-  "tasks:toggle-minimized": (id: Task["id"], minimized: boolean) => ipcRenderer.invoke("tasks:toggle-minimized", id, minimized) as Promise<Task | null>,
-  "tasks:create": (task: Omit<Task, "id" | "createdAt" | "updatedAt" | "deletedAt" | "attachments" | "branchId"> & {branchId?: Task["branchId"]}) =>
-    ipcRenderer.invoke("tasks:create", task),
-  "tasks:move-by-order": (params) => ipcRenderer.invoke("tasks:move-by-order", params) as Promise<Task | null>,
-  "tasks:move-to-branch": (taskId: Task["id"], branchId: Branch["id"]) => ipcRenderer.invoke("tasks:move-to-branch", taskId, branchId) as Promise<boolean>,
-  "tasks:delete": (id: Task["id"]) => ipcRenderer.invoke("tasks:delete", id),
-  "tasks:add-tags": (taskId: Task["id"], tagIds: Tag["id"][]) => ipcRenderer.invoke("tasks:add-tags", taskId, tagIds),
-  "tasks:remove-tags": (taskId: Task["id"], tagIds: Tag["id"][]) => ipcRenderer.invoke("tasks:remove-tags", taskId, tagIds),
+  "tasks:update": (id: Task["id"], updates: PartialDeep<Task>) => ipcRenderer.invoke("tasks:update", id, updates) as Promise<Changeset>,
+  "tasks:toggle-minimized": (id: Task["id"], minimized: boolean) => ipcRenderer.invoke("tasks:toggle-minimized", id, minimized) as Promise<Changeset>,
+  "tasks:create": (
+    task: Omit<Task, "id" | "createdAt" | "updatedAt" | "deletedAt" | "attachments" | "branchId"> & {branchId?: Task["branchId"]; id?: Task["id"]},
+  ) => ipcRenderer.invoke("tasks:create", task) as Promise<Changeset>,
+  "tasks:move-by-order": (params) => ipcRenderer.invoke("tasks:move-by-order", params) as Promise<Changeset>,
+  "tasks:move-to-branch": (taskId: Task["id"], branchId: Branch["id"]) => ipcRenderer.invoke("tasks:move-to-branch", taskId, branchId) as Promise<Changeset>,
+  "tasks:delete": (id: Task["id"]) => ipcRenderer.invoke("tasks:delete", id) as Promise<Changeset>,
+  "tasks:add-tags": (taskId: Task["id"], tagIds: Tag["id"][]) => ipcRenderer.invoke("tasks:add-tags", taskId, tagIds) as Promise<Changeset>,
+  "tasks:remove-tags": (taskId: Task["id"], tagIds: Tag["id"][]) => ipcRenderer.invoke("tasks:remove-tags", taskId, tagIds) as Promise<Changeset>,
   "tasks:get-deleted": (params?: {limit?: number; branchId?: Branch["id"]}) => ipcRenderer.invoke("tasks:get-deleted", params) as Promise<Task[]>,
-  "tasks:restore": (id: Task["id"]) => ipcRenderer.invoke("tasks:restore", id) as Promise<Task | null>,
+  "tasks:restore": (id: Task["id"]) => ipcRenderer.invoke("tasks:restore", id) as Promise<Changeset>,
   "tasks:delete-permanently": (id: Task["id"]) => ipcRenderer.invoke("tasks:delete-permanently", id) as Promise<boolean>,
   "tasks:delete-all-permanently": () => ipcRenderer.invoke("tasks:delete-all-permanently") as Promise<number>,
 
   "branches:get-many": () => ipcRenderer.invoke("branches:get-many") as Promise<Branch[]>,
   "branches:get-one": (id: Branch["id"]) => ipcRenderer.invoke("branches:get-one", id) as Promise<Branch | null>,
   "branches:create": (branch: Omit<Branch, "id" | "createdAt" | "updatedAt" | "deletedAt">) => ipcRenderer.invoke("branches:create", branch),
-  "branches:update": (id: Branch["id"], updates: Pick<Branch, "name">) => ipcRenderer.invoke("branches:update", id, updates),
+  "branches:update": (id: Branch["id"], updates: Partial<Pick<Branch, "name" | "description">>) => ipcRenderer.invoke("branches:update", id, updates),
   "branches:delete": (id: Branch["id"]) => ipcRenderer.invoke("branches:delete", id),
   "branches:set-active": (id: Branch["id"]) => ipcRenderer.invoke("branches:set-active", id),
 
@@ -144,6 +143,14 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "tags:update": (id: Tag["id"], updates: Partial<Tag>) => ipcRenderer.invoke("tags:update", id, updates),
   "tags:create": (tag: Omit<Tag, "id" | "createdAt" | "updatedAt" | "deletedAt">) => ipcRenderer.invoke("tags:create", tag),
   "tags:delete": (id: Tag["id"]) => ipcRenderer.invoke("tags:delete", id),
+
+  "milestones:get-many": (branchId?: Branch["id"]) => ipcRenderer.invoke("milestones:get-many", branchId) as Promise<Milestone[]>,
+  "milestones:get-one": (id: Milestone["id"]) => ipcRenderer.invoke("milestones:get-one", id) as Promise<Milestone | null>,
+  "milestones:create": (milestone: Omit<Milestone, "id" | "createdAt" | "updatedAt" | "orderIndex">) =>
+    ipcRenderer.invoke("milestones:create", milestone) as Promise<Changeset>,
+  "milestones:update": (id: Milestone["id"], updates: Partial<Pick<Milestone, "name" | "description" | "targetDate" | "orderIndex">>) =>
+    ipcRenderer.invoke("milestones:update", id, updates) as Promise<Changeset>,
+  "milestones:delete": (id: Milestone["id"]) => ipcRenderer.invoke("milestones:delete", id) as Promise<Changeset>,
 
   "files:save": (filename: string, data: Buffer) => ipcRenderer.invoke("files:save", filename, data),
   "files:delete": (filename: string) => ipcRenderer.invoke("files:delete", filename),
@@ -191,5 +198,5 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "shortcut:ui:open-search-panel": (callback: () => void) => ipcRenderer.on(SHORTCUTS_MAP["ui:open-search-panel"].channel, () => callback()),
   "shortcut:ui:open-assistant-panel": (callback: () => void) => ipcRenderer.on(SHORTCUTS_MAP["ui:open-assistant-panel"].channel, () => callback()),
   "shortcut:ui:open-settings-panel": (callback: () => void) => ipcRenderer.on(SHORTCUTS_MAP["ui:open-settings-panel"].channel, () => callback()),
-  "shortcut:ui:left-panel:toggle": (callback: () => void) => ipcRenderer.on(SHORTCUTS_MAP["ui:left-panel:toggle"].channel, () => callback()),
+  "shortcut:ui:calendar-dock:toggle": (callback: () => void) => ipcRenderer.on(SHORTCUTS_MAP["ui:calendar-dock:toggle"].channel, () => callback()),
 } satisfies BridgeIPC)

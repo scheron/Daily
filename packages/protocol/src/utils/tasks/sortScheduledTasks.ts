@@ -2,22 +2,36 @@ import {DateTime} from "luxon"
 
 import type {ISODate} from "../../types/common"
 
-export function sortScheduledTasks<T extends {scheduled: {date: ISODate; time?: string}}>(tasks: T[], direction: "asc" | "desc" = "asc"): T[] {
+export function sortScheduledTasks<T extends {scheduled: {date: ISODate; time?: string} | null}>(tasks: T[], direction: "asc" | "desc" = "asc"): T[] {
+  return tasks
+    .filter((task) => task.scheduled !== null)
+    .toSorted((a, b) => {
+      const aTime = a.scheduled!.time || "00:00:00"
+      const bTime = b.scheduled!.time || "00:00:00"
+
+      const aDateTime = DateTime.fromISO(`${a.scheduled!.date}T${aTime}`)
+      const bDateTime = DateTime.fromISO(`${b.scheduled!.date}T${bTime}`)
+
+      if (!aDateTime.isValid || !bDateTime.isValid) {
+        console.error("Invalid date/time format:", {a, b, aDateTime, bDateTime})
+        return 0
+      }
+
+      const aMillis = aDateTime.toMillis()
+      const bMillis = bDateTime.toMillis()
+
+      return direction === "asc" ? aMillis - bMillis : bMillis - aMillis
+    })
+}
+
+export function sortTasksByDateThenOrder<T extends {scheduled: {date: ISODate} | null; orderIndex: number}>(tasks: T[]): T[] {
   return tasks.toSorted((a, b) => {
-    const aTime = a.scheduled.time || "00:00:00"
-    const bTime = b.scheduled.time || "00:00:00"
+    if (a.scheduled === null && b.scheduled === null) return a.orderIndex - b.orderIndex
+    if (a.scheduled === null) return -1
+    if (b.scheduled === null) return 1
 
-    const aDateTime = DateTime.fromISO(`${a.scheduled.date}T${aTime}`)
-    const bDateTime = DateTime.fromISO(`${b.scheduled.date}T${bTime}`)
+    if (a.scheduled.date !== b.scheduled.date) return a.scheduled.date < b.scheduled.date ? -1 : 1
 
-    if (!aDateTime.isValid || !bDateTime.isValid) {
-      console.error("Invalid date/time format:", {a, b, aDateTime, bDateTime})
-      return 0
-    }
-
-    const aMillis = aDateTime.toMillis()
-    const bMillis = bDateTime.toMillis()
-
-    return direction === "asc" ? aMillis - bMillis : bMillis - aMillis
+    return a.orderIndex - b.orderIndex
   })
 }

@@ -11,7 +11,7 @@ export type SyncRemoteState = {
   lastSyncAt: string | null
   lastError: string | null
 }
-export type TaskStatus = "active" | "discarded" | "done"
+export type TaskStatus = "active" | "backlog" | "discarded" | "done"
 export type TaskMovePosition = "before" | "after"
 
 export type MainWindowSettings = {
@@ -100,10 +100,8 @@ export type Settings = {
     sectionsAutoCollapseEmpty: boolean
     /** Manual collapse state per status. */
     sectionsCollapsed: Record<TaskStatus, boolean>
-    /** Left widget panel. */
-    leftPanel: {
-      visible: boolean
-    }
+    /** Expand the calendar dock as soon as a card starts dragging, instead of when a card is held on its button. */
+    shouldOpenCalendarDockOnDrag: boolean
   }
   window: {
     main: MainWindowSettings
@@ -137,6 +135,12 @@ export type SettingsView = Omit<Settings, "sync"> & {
   }
 }
 
+export type TaskScheduled = {
+  date: ISODate
+  time: ISOTime
+  timezone: Timezone
+}
+
 export type Task = {
   /** Task ID (task:ID) */
   id: string
@@ -147,11 +151,8 @@ export type Task = {
   /** Branch ID (project scope). */
   branchId: Branch["id"]
 
-  scheduled: {
-    date: ISODate
-    time: ISOTime
-    timezone: Timezone
-  }
+  /** Null exactly when `status === "backlog"`. Enforced by the rules in `packages/protocol/src/utils/tasks/mutationRules.ts`, nowhere else. */
+  scheduled: TaskScheduled | null
   /**
    * The estimated time of the task in seconds
    * @default 0
@@ -175,8 +176,10 @@ export type Task = {
    * Lower values are shown first.
    */
   orderIndex: number
-  status: "active" | "done" | "discarded"
+  status: TaskStatus
   tags: Tag[]
+  /** The milestone this task is part of. Always one of its own project's, or `null`. */
+  milestoneId: Milestone["id"] | null
   /** Files IDs  */
   attachments: string[]
 }
@@ -187,6 +190,8 @@ export type Tag = {
   updatedAt: ISODateTime
   deletedAt: ISODateTime | null
 
+  /** The project that owns this tag. Tags never span projects. */
+  branchId: Branch["id"]
   name: string
   color: string
 }
@@ -198,6 +203,29 @@ export type Branch = {
   deletedAt: ISODateTime | null
 
   name: string
+  /** Markdown, written with the same editor as task content. Empty when never written. */
+  description: string
+}
+
+export type Milestone = {
+  id: string
+  createdAt: ISODateTime
+  updatedAt: ISODateTime
+  deletedAt: ISODateTime | null
+  /** The project that owns it. A milestone never spans projects. */
+  branchId: Branch["id"]
+  name: string
+  /** Markdown, written with the same editor as task content. Empty when never written. */
+  description: string
+  /** `null` is a deliberate state, not a missing value — POST MVP is the case it exists for. */
+  targetDate: ISODate | null
+  orderIndex: number
+}
+
+/** The counts a milestone's state is derived from. Never stored. `resolved` counts `done` and `discarded` together. */
+export type MilestoneProgress = {
+  total: number
+  resolved: number
 }
 
 export type File = {
@@ -243,4 +271,6 @@ export type MoveTaskByOrderParams = {
   targetTaskId?: Task["id"] | null
   targetStatus?: TaskStatus
   position?: TaskMovePosition
+  /** The day the board is showing. Used when a move leaves the backlog; required so no caller can omit it silently. */
+  activeDate: ISODate
 }

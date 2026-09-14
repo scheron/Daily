@@ -1,23 +1,19 @@
 <script setup lang="ts">
-import {toTaskIdHash} from "@daily/protocol"
-
 import {useTaskEditor} from "@/ui/modules/RightPanel/composables/useTaskEditor"
 import BranchProperty from "./{fragments}/properties/BranchProperty.vue"
 import DateProperty from "./{fragments}/properties/DateProperty.vue"
+import MilestoneProperty from "./{fragments}/properties/MilestoneProperty.vue"
 import StatusProperty from "./{fragments}/properties/StatusProperty.vue"
 import TagsProperty from "./{fragments}/properties/TagsProperty.vue"
 import TimeProperty from "./{fragments}/properties/TimeProperty.vue"
 import PropertyRow from "./{fragments}/PropertyRow.vue"
 import TaskNavigator from "./{fragments}/TaskNavigator.vue"
 
-const {activeTask, isNew, editingTaskId, flatOrderedTasks, currentIndex, canPrev, canNext, navigatePrev, navigateNext} = useTaskEditor()
+const {activeTask, isNew, flatOrderedTasks, currentIndex, canPrev, canNext, navigatePrev, navigateNext} = useTaskEditor()
 </script>
 
 <template>
   <div v-if="activeTask" class="flex flex-col gap-0.5 px-4 py-4">
-    <PropertyRow v-if="editingTaskId" label="ID">
-      <span class="text-base-content/60 block font-mono text-xs leading-8">{{ toTaskIdHash(editingTaskId) }}</span>
-    </PropertyRow>
     <PropertyRow label="Status" class="relative">
       <StatusProperty :task="activeTask" />
 
@@ -37,6 +33,9 @@ const {activeTask, isNew, editingTaskId, flatOrderedTasks, currentIndex, canPrev
     </PropertyRow>
     <PropertyRow label="Project">
       <BranchProperty :task="activeTask" />
+    </PropertyRow>
+    <PropertyRow label="Milestone">
+      <MilestoneProperty :task="activeTask" />
     </PropertyRow>
     <PropertyRow label="Estimate">
       <TimeProperty :task="activeTask" field="estimatedTime" placeholder="00:00" />

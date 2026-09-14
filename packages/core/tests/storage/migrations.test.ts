@@ -215,6 +215,8 @@ describe("migrations", () => {
       const db = new Database(":memory:")
       runMigrations(db)
 
+      rollbackLastMigration(db) // v011
+      rollbackLastMigration(db) // v010
       rollbackLastMigration(db) // v009
       rollbackLastMigration(db) // v008
       rollbackLastMigration(db) // v007
@@ -416,6 +418,175 @@ describe("migrations", () => {
       expect(() => runMigrations(invalidJson)).not.toThrow()
       expect(readSyncData(invalidJson)).toBe(beforeInvalid)
       invalidJson.close()
+    })
+  })
+
+  describe("v010 — backlog status", () => {
+    function seedThroughV9(db) {
+      db.exec(`CREATE TABLE _migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)`)
+      for (const migration of migrations.filter((m) => m.version <= 9)) {
+        if (typeof migration.up === "string") db.exec(migration.up)
+        else migration.up(db)
+        db.prepare("INSERT INTO _migrations (version, name, applied_at) VALUES (?, ?, ?)").run(
+          migration.version,
+          migration.name,
+          "2026-01-01T00:00:00.000Z",
+        )
+      }
+    }
+
+    function seedTaskWithAssociations(db) {
+      const now = new Date().toISOString()
+      db.prepare(
+        `INSERT INTO tasks (id, status, content, minimized, order_index, scheduled_date, scheduled_time, scheduled_timezone, estimated_time, spent_time, branch_id, created_at, updated_at)
+         VALUES ('t1', 'active', 'Keep me', 0, 1024, '2026-03-24', '10:00:00', 'UTC', 0, 0, 'main', ?, ?)`,
+      ).run(now, now)
+      db.prepare("INSERT INTO tags (id, name, color, created_at, updated_at) VALUES ('tag1', 'urgent', '#ff0000', ?, ?)").run(now, now)
+      db.prepare("INSERT INTO task_tags (task_id, tag_id) VALUES ('t1', 'tag1')").run()
+      db.prepare("INSERT INTO files (id, name, mime_type, size, created_at, updated_at) VALUES ('file1', 'a.png', 'image/png', 10, ?, ?)").run(
+        now,
+        now,
+      )
+      db.prepare("INSERT INTO task_attachments (task_id, file_id) VALUES ('t1', 'file1')").run()
+    }
+
+    it("survives_TC-1_the_table_rebuild_with_every_task_row_and_tag_and_attachment_association_intact_and_accepts_backlog_with_a_null_schedule", () => {
+      const db = new Database(":memory:")
+      db.pragma("foreign_keys = ON")
+      seedThroughV9(db)
+      seedTaskWithAssociations(db)
+
+      runMigrations(db)
+
+      const task = db.prepare("SELECT * FROM tasks WHERE id = 't1'").get()
+      expect(task).toBeDefined()
+      expect(task.content).toBe("Keep me")
+      expect(task.scheduled_date).toBe("2026-03-24")
+
+      const taskTags = db.prepare("SELECT * FROM task_tags WHERE task_id = 't1'").all()
+      expect(taskTags).toHaveLength(1)
+      expect(taskTags[0].tag_id).toBe("tag1")
+
+      const taskAttachments = db.prepare("SELECT * FROM task_attachments WHERE task_id = 't1'").all()
+      expect(taskAttachments).toHaveLength(1)
+      expect(taskAttachments[0].file_id).toBe("file1")
+
+      const now = new Date().toISOString()
+      expect(() =>
+        db
+          .prepare(
+            `INSERT INTO tasks (id, status, content, minimized, order_index, scheduled_date, scheduled_time, scheduled_timezone, estimated_time, spent_time, branch_id, created_at, updated_at)
+             VALUES ('t2', 'backlog', 'No day yet', 0, 2048, NULL, NULL, NULL, 0, 0, 'main', ?, ?)`,
+          )
+          .run(now, now),
+      ).not.toThrow()
+
+      const backlogTask = db.prepare("SELECT * FROM tasks WHERE id = 't2'").get()
+      expect(backlogTask.status).toBe("backlog")
+      expect(backlogTask.scheduled_date).toBeNull()
+      expect(backlogTask.scheduled_time).toBeNull()
+      expect(backlogTask.scheduled_timezone).toBeNull()
+
+      db.close()
+    })
+
+    it("keeps_TC-2_all_four_task_indexes_after_the_rebuild", () => {
+      const db = new Database(":memory:")
+      db.pragma("foreign_keys = ON")
+      runMigrations(db)
+
+      const indexes = db
+        .prepare("SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='tasks'")
+        .all()
+        .map((i) => i.name)
+
+      expect(indexes).toContain("idx_tasks_branch_date")
+      expect(indexes).toContain("idx_tasks_date")
+      expect(indexes).toContain("idx_tasks_status")
+      expect(indexes).toContain("idx_tasks_deleted")
+
+      db.close()
+    })
+  })
+
+  describe("v011 — milestones, project tags and project descriptions", () => {
+    function seedThroughV10(db) {
+      db.exec(`CREATE TABLE _migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)`)
+      for (const migration of migrations.filter((m) => m.version <= 10)) {
+        if (typeof migration.up === "string") db.exec(migration.up)
+        else migration.up(db)
+        db.prepare("INSERT INTO _migrations (version, name, applied_at) VALUES (?, ?, ?)").run(
+          migration.version,
+          migration.name,
+          "2026-01-01T00:00:00.000Z",
+        )
+      }
+    }
+
+    it("gives_TC-8_a_fresh_database_the_milestones_table_and_the_three_new_columns", () => {
+      const db = new Database(":memory:")
+      db.pragma("foreign_keys = ON")
+      runMigrations(db)
+
+      const tables = db
+        .prepare("SELECT name FROM sqlite_master WHERE type='table'")
+        .all()
+        .map((t) => t.name)
+      expect(tables).toContain("milestones")
+
+      const milestoneColumns = db
+        .prepare("PRAGMA table_info(milestones)")
+        .all()
+        .map((c) => c.name)
+      expect(milestoneColumns).toEqual(expect.arrayContaining(["id", "branch_id", "name", "description", "target_date", "order_index"]))
+
+      const taskColumns = db
+        .prepare("PRAGMA table_info(tasks)")
+        .all()
+        .map((c) => c.name)
+      expect(taskColumns).toContain("milestone_id")
+
+      const tagColumns = db
+        .prepare("PRAGMA table_info(tags)")
+        .all()
+        .map((c) => c.name)
+      expect(tagColumns).toContain("branch_id")
+
+      const branchColumns = db
+        .prepare("PRAGMA table_info(branches)")
+        .all()
+        .map((c) => c.name)
+      expect(branchColumns).toContain("description")
+
+      db.close()
+    })
+
+    it("lands_TC-9_every_pre-existing_tag_on_main_keeping_its_id_name_colour_and_task_links", () => {
+      const db = new Database(":memory:")
+      db.pragma("foreign_keys = ON")
+      seedThroughV10(db)
+
+      const now = new Date().toISOString()
+      db.prepare(
+        `INSERT INTO tasks (id, status, content, minimized, order_index, scheduled_date, scheduled_time, scheduled_timezone, estimated_time, spent_time, branch_id, created_at, updated_at)
+         VALUES ('t1', 'active', 'Keep me', 0, 1024, '2026-03-24', '10:00:00', 'UTC', 0, 0, 'main', ?, ?)`,
+      ).run(now, now)
+      db.prepare("INSERT INTO tags (id, name, color, created_at, updated_at) VALUES ('tag1', 'urgent', '#ff0000', ?, ?)").run(now, now)
+      db.prepare("INSERT INTO task_tags (task_id, tag_id) VALUES ('t1', 'tag1')").run()
+
+      runMigrations(db)
+
+      const tag = db.prepare("SELECT * FROM tags WHERE id = 'tag1'").get()
+      expect(tag).toBeDefined()
+      expect(tag.branch_id).toBe("main")
+      expect(tag.name).toBe("urgent")
+      expect(tag.color).toBe("#ff0000")
+
+      const links = db.prepare("SELECT * FROM task_tags WHERE task_id = 't1'").all()
+      expect(links).toHaveLength(1)
+      expect(links[0].tag_id).toBe("tag1")
+
+      db.close()
     })
   })
 })

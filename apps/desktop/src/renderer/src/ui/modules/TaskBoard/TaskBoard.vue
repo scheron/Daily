@@ -4,8 +4,10 @@ import VueDraggable from "vuedraggable"
 
 import {useTaskColumns} from "@/composables/tasks/useTaskColumns"
 import {DRAGGABLE_ATTRS} from "@/constants/ui"
+import {useFilterStore} from "@/stores/filter.store"
+import {useMilestonesStore} from "@/stores/milestones.store"
 import {useTasksStore} from "@/stores/tasks"
-import BaseSpinner from "@/ui/base/BaseSpinner.vue"
+import CalendarDock from "@/ui/modules/CalendarDock"
 import {useDragScroll} from "./composables/useDragScroll"
 import NoTasksPlaceholder from "./{fragments}/NoTasksPlaceholder.vue"
 import TaskCard from "./{fragments}/TaskCard"
@@ -17,10 +19,25 @@ const containerRef = ref<HTMLElement | null>(null)
 const boardRef = ref<HTMLElement | null>(null)
 
 const tasksStore = useTasksStore()
+const filterStore = useFilterStore()
+const milestonesStore = useMilestonesStore()
 const columns = useTaskColumns()
 
+const framedMilestoneName = computed(() => {
+  if (filterStore.frame !== "milestone") return undefined
+  if (!filterStore.activeMilestoneId) return "All milestones"
+  return milestonesStore.milestonesMap.get(filterStore.activeMilestoneId)?.name
+})
+
+const placeholderDate = computed(() => (filterStore.frame === "milestone" ? undefined : tasksStore.activeDay))
+
 const hasAnyTasks = computed(
-  () => columns.tasksByStatus.value.active.length + columns.tasksByStatus.value.done.length + columns.tasksByStatus.value.discarded.length > 0,
+  () =>
+    columns.tasksByStatus.value.active.length +
+      columns.tasksByStatus.value.done.length +
+      columns.tasksByStatus.value.discarded.length +
+      columns.tasksByStatus.value.backlog.length >
+    0,
 )
 
 useDragScroll(boardRef)
@@ -32,9 +49,14 @@ watch(
 </script>
 
 <template>
-  <div ref="containerRef" class="min-w-0 flex-1 overflow-hidden">
-    <BaseSpinner v-if="!tasksStore.isDaysLoaded" />
-    <NoTasksPlaceholder v-else-if="!hasAnyTasks" :date="tasksStore.activeDay" filter="all" @create-task="emit('createTask')" />
+  <div ref="containerRef" class="relative min-w-0 flex-1 overflow-hidden">
+    <NoTasksPlaceholder
+      v-if="!hasAnyTasks"
+      :date="placeholderDate"
+      :milestone-name="framedMilestoneName"
+      filter="all"
+      @create-task="emit('createTask')"
+    />
 
     <div v-else ref="boardRef" class="flex size-full overflow-x-auto overflow-y-hidden" @dragover="columns.onDragOver">
       <template v-for="(column, index) in columns.visibleColumns.value" :key="column.status">
@@ -62,5 +84,7 @@ watch(
         <div v-if="index < columns.visibleColumns.value.length - 1" class="bg-base-300/50 h-full w-px shrink-0 last:hidden" />
       </template>
     </div>
+
+    <CalendarDock />
   </div>
 </template>

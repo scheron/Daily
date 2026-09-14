@@ -1,4 +1,4 @@
-import {TAG_QUICK_COLORS} from "@daily/protocol"
+import {MAIN_BRANCH_ID, TAG_QUICK_COLORS} from "@daily/protocol"
 
 import {formatTag} from "@main/ai/utils/formatters"
 
@@ -29,7 +29,10 @@ export const createTag: RegisteredTool = {
 
     const color = (params.color as string) || TAG_QUICK_COLORS[Math.floor(Math.random() * TAG_QUICK_COLORS.length)]
 
-    const created = await ctx.storage.createTag({name, color, deletedAt: null})
+    const settings = await ctx.storage.loadSettings()
+    const activeBranchId = settings.branch?.activeId ?? MAIN_BRANCH_ID
+
+    const created = await ctx.storage.createTag({branchId: activeBranchId, name, color, deletedAt: null})
 
     if (!created) {
       return {success: false, error: "Failed to create tag"}

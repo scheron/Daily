@@ -12,7 +12,7 @@ const props = withDefaults(
     itemKey: (item: T) => string | number
     /** Text used to filter and to detect an exact match (for the create footer). */
     filterBy?: (item: T) => string
-    /** Whether an item is selected — drives the checkbox prefix (multi-select). */
+    /** Whether an item is selected — drives the checkbox prefix. Omit it and no checkbox is rendered. */
     selected?: (item: T) => boolean
     /** Show the search input and filter the list. */
     searchable?: boolean
@@ -142,7 +142,7 @@ defineExpose({focus})
           @mouseenter="activeIndex = i"
           @click="selectItem(item)"
         >
-          <BaseCheckbox v-if="!single" :model-value="selected ? selected(item) : false" class="pointer-events-none shrink-0" />
+          <BaseCheckbox v-if="!single && selected" :model-value="selected(item)" class="pointer-events-none shrink-0" />
           <slot name="item" :item="item" :index="i" :active="i === activeIndex" />
         </div>
       </li>

@@ -12,7 +12,7 @@ export function calcMonthStatistics(days: Day[]): Map<string, DayStatistics> {
     if (day.tasks.length === 0) continue
 
     const key = day.date.slice(0, 7)
-    const entry = byMonth.get(key) ?? {active: 0, discarded: 0, done: 0}
+    const entry = byMonth.get(key) ?? {active: 0, discarded: 0, done: 0, backlog: 0}
     entry.active += day.countActive
     entry.done += day.countDone
     entry.discarded += day.tasks.length - day.countActive - day.countDone

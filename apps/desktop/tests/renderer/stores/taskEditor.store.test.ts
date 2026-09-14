@@ -86,15 +86,15 @@ describe("taskEditorStore — seeding", () => {
 
   it("openNew seeds an empty draft with defaults", async () => {
     const {editor} = await setupStores()
-    editor.openNew({date: "2026-06-20", branchId: "main"})
+    editor.openNew({branchId: "main"})
 
     expect(editor.isOpen).toBe(true)
     expect(editor.isNew).toBe(true)
     expect(editor.isDirty).toBe(false)
     expect(editor.editingTaskId).toBeNull()
     expect(editor.draft?.content).toBe("")
-    expect(editor.draft?.status).toBe("active")
-    expect(editor.draft?.scheduled.date).toBe("2026-06-20")
+    expect(editor.draft?.status).toBe("backlog")
+    expect(editor.draft?.scheduled).toBeNull()
     expect(editor.draft?.branchId).toBe("main")
   })
 
@@ -209,11 +209,11 @@ describe("taskEditorStore — commit", () => {
 
   it("commit on a new draft calls createTask", async () => {
     const {tasks, editor} = await setupStores()
-    editor.openNew({date: "2026-06-20", branchId: "main"})
+    editor.openNew({branchId: "main"})
     editor.patch({content: "fresh"})
 
     await editor.commit()
-    expect(tasks.createTask).toHaveBeenCalledWith(expect.objectContaining({content: "fresh", date: "2026-06-20", branchId: "main"}))
+    expect(tasks.createTask).toHaveBeenCalledWith(expect.objectContaining({content: "fresh", branchId: "main", status: "backlog"}))
   })
 
   it("commit clears isDirty by reseeding the base", async () => {
@@ -235,6 +235,65 @@ describe("taskEditorStore — commit", () => {
 
     await editor.commitAndClose()
     expect(editor.isOpen).toBe(false)
+  })
+})
+
+describe("taskEditorStore — backlog coupling", () => {
+  beforeEach(() => {
+    mockBridgeIPC()
+    setActivePinia(createPinia())
+  })
+
+  it("couples_TC-15_status_and_schedule_so_picking_backlog_clears_the_date_and_picking_a_date_returns_it_to_active", async () => {
+    const {tasks, editor} = await setupStores()
+    tasks.findTaskById = vi.fn().mockReturnValue(makeTask({status: "active", scheduled: {date: "2026-06-20", time: "09:00:00", timezone: "UTC"}}))
+    await editor.open("task-1")
+
+    editor.patch({status: "backlog"})
+    expect(editor.draft?.status).toBe("backlog")
+    expect(editor.draft?.scheduled).toBeNull()
+
+    editor.patch({scheduled: {date: "2026-07-01", time: "10:00:00", timezone: "UTC"}})
+    expect(editor.draft?.status).toBe("active")
+    expect(editor.draft?.scheduled).toEqual({date: "2026-07-01", time: "10:00:00", timezone: "UTC"})
+  })
+
+  it("seeds_TC-16_a_brand_new_draft_as_backlog_with_no_schedule", async () => {
+    const {editor} = await setupStores()
+    editor.openNew({branchId: "main"})
+
+    expect(editor.isOpen).toBe(true)
+    expect(editor.draft?.status).toBe("backlog")
+    expect(editor.draft?.scheduled).toBeNull()
+  })
+
+  it("commits_TC-6_a_picked_date_on_a_backlog_task_as_one_combined_write_never_a_status_update_followed_by_a_move", async () => {
+    const {tasks, editor} = await setupStores()
+    tasks.findTaskById = vi.fn().mockReturnValue(makeTask({status: "backlog", scheduled: null}))
+    await editor.open("task-1")
+
+    editor.patch({scheduled: {date: "2026-07-01", time: "10:00:00", timezone: "UTC"}})
+    await editor.commit()
+
+    expect(tasks.updateTask).toHaveBeenCalledTimes(1)
+    expect(tasks.updateTask).toHaveBeenCalledWith(
+      "task-1",
+      expect.objectContaining({status: "active", scheduled: {date: "2026-07-01", time: "10:00:00", timezone: "UTC"}}),
+    )
+    expect(tasks.moveTask).not.toHaveBeenCalled()
+  })
+
+  it("commits a backlog pick on a dated task as one status write, with no move and no leftover schedule", async () => {
+    const {tasks, editor} = await setupStores()
+    tasks.findTaskById = vi.fn().mockReturnValue(makeTask({status: "active", scheduled: {date: "2026-06-20", time: "09:00:00", timezone: "UTC"}}))
+    await editor.open("task-1")
+
+    editor.patch({status: "backlog"})
+    await editor.commit()
+
+    expect(tasks.updateTask).toHaveBeenCalledTimes(1)
+    expect(tasks.updateTask).toHaveBeenCalledWith("task-1", expect.objectContaining({status: "backlog"}))
+    expect(tasks.moveTask).not.toHaveBeenCalled()
   })
 })
 

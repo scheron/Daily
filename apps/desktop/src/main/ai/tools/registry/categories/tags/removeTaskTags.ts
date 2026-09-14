@@ -26,7 +26,8 @@ export const removeTaskTags: RegisteredTool = {
       return {success: false, error: "tag_ids is required"}
     }
 
-    const updated = await ctx.storage.removeTaskTags(taskId, tagIds)
+    const changeset = await ctx.storage.removeTaskTags(taskId, tagIds)
+    const updated = changeset.tasks?.upserted?.find((t) => t.id === taskId)
 
     if (!updated) {
       return {success: false, error: `Task not found: ${taskId}`}

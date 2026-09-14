@@ -49,7 +49,8 @@ pnpm check:all           # lint + typecheck:all + circular + test
 
 ## Gotchas
 
-- **Soft deletes only** — set `deletedAt`, never hard-delete. Tasks are always scoped to a branch (`main` always exists).
+- **Soft deletes only** — set `deletedAt`, never hard-delete. Tasks are always scoped to a project (`main` always exists).
+- **A project is `Branch` in the code.** `branchId`, `BranchModel`, `branches.store`, and `branches` in the snapshot are all the project — one concept, two names, and the type name is the older one. The canonical word is **project** (`CONTEXT.md`); write it that way in anything a person reads. Renaming the type would move the snapshot shape, so it is not a drive-by.
 - **Snapshot version:** on any change to the sync snapshot shape, bump `Snapshot.version` in `packages/protocol/src/types/sync.ts` and handle older versions on read (a newer version aborts sync via `SnapshotVersionAheadError`).
 - **Tailwind stays in devDependencies** — as a prod dep it drags Rust natives into the asar.
 - macOS/arm64 only; Node ≥ 24.0.0, pnpm ≥ 10.26.0.

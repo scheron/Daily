@@ -11,7 +11,6 @@
 :root {
   --header-height: 44px;
   --toolbar-height: 36px;
-  --footer-height: 42px;
   --card-min-height: 100px;
   --traffic-light-width: 80px;
   --task-content-minimized-height: 220px;
@@ -20,7 +19,6 @@
 @theme {
   --spacing-header: var(--header-height);
   --spacing-toolbar: var(--toolbar-height);
-  --spacing-footer: var(--footer-height);
   --spacing-card: var(--card-min-height);
   --spacing-task-content-minimized: var(--task-content-minimized-height);
   --spacing-traffic-light: var(--traffic-light-width);

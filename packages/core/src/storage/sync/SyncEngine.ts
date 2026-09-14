@@ -5,17 +5,26 @@ import {logger} from "../../utils/logger"
 import {isRevisionedRemote} from "../../utils/sync/isRevisionedRemote"
 import {mergeRemoteIntoLocal} from "../../utils/sync/merge/mergeRemoteIntoLocal"
 import {buildSnapshot, buildSnapshotMeta} from "../../utils/sync/snapshot/buildSnapshot"
+import {rowToBranch, rowToMilestone, rowToTag} from "../models/_rowMappers"
 
 import type {
   ILocalStorage,
   IRevisionedRemoteStorage,
+  MergeResult,
+  SnapshotBranch,
   SnapshotDocs,
+  SnapshotMilestone,
+  SnapshotTag,
+  SnapshotTask,
   SyncPacing,
   SyncRemote,
   SyncRemoteState,
   SyncStatus,
   SyncStrategy,
+  Tag,
+  Task,
 } from "@daily/protocol"
+import type {Changeset} from "../../types/storage"
 
 type RevisionedSyncOutcome = {
   resultDocs: SnapshotDocs
@@ -46,7 +55,7 @@ export class SyncEngine {
 
   private readonly assetsDir: () => string
   private onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => void
-  private onDataChanged: () => void
+  private onDataChanged: (changeset: Changeset) => void
   private autoSyncScheduler: ReturnType<typeof createIntervalScheduler>
   private pushDebounceTimer: ReturnType<typeof setTimeout> | null = null
   private pacing: SyncPacing
@@ -57,7 +66,7 @@ export class SyncEngine {
     options: {
       assetsDir: () => string
       onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => void
-      onDataChanged: () => void
+      onDataChanged: (changeset: Changeset) => void
     },
   ) {
     this.remotes = remotes
@@ -188,6 +197,7 @@ export class SyncEngine {
     let succeeded = 0
     const pushTargets: Array<{remote: SyncRemote; remoteDocs: SnapshotDocs | null}> = []
     const errors: unknown[] = []
+    const changesetAcc = createChangesetAccumulator()
 
     for (const remote of plainRemotes) {
       try {
@@ -200,7 +210,7 @@ export class SyncEngine {
           continue
         }
 
-        const {resultDocs, hasChanges} = await this._pull(localDocs, remoteDocs, strategy)
+        const {resultDocs, hasChanges} = await this._pull(localDocs, remoteDocs, strategy, changesetAcc)
         localDocs = resultDocs
         anyChanges ||= hasChanges
         pushTargets.push({remote, remoteDocs})
@@ -218,7 +228,7 @@ export class SyncEngine {
 
     for (const {remote, adapter} of revisionedRemotes) {
       try {
-        const {resultDocs, hasChanges, conflict} = await this._syncRevisionedRemote(remote, adapter, localDocs, strategy)
+        const {resultDocs, hasChanges, conflict} = await this._syncRevisionedRemote(remote, adapter, localDocs, strategy, changesetAcc)
         localDocs = resultDocs
         anyChanges ||= hasChanges
 
@@ -246,7 +256,7 @@ export class SyncEngine {
     }
 
     if (anyChanges) {
-      this.onDataChanged?.()
+      this.onDataChanged?.(buildChangeset(changesetAcc, localDocs.tags))
     }
 
     for (const {remote, remoteDocs} of pushTargets) {
@@ -286,6 +296,7 @@ export class SyncEngine {
     adapter: IRevisionedRemoteStorage,
     localDocs: SnapshotDocs,
     strategy: SyncStrategy,
+    changesetAcc: ChangesetAccumulator,
   ): Promise<RevisionedSyncOutcome> {
     let docs = localDocs
     let anyChanges = false
@@ -295,7 +306,7 @@ export class SyncEngine {
       const {snapshot, revision} = await adapter.loadSnapshotWithRevision()
       const remoteDocs = snapshot ? this._normalizeSettings(snapshot.docs) : null
 
-      const {resultDocs, hasChanges} = await this._pull(docs, remoteDocs, strategy)
+      const {resultDocs, hasChanges} = await this._pull(docs, remoteDocs, strategy, changesetAcc)
       docs = resultDocs
       anyChanges ||= hasChanges
 
@@ -344,12 +355,14 @@ export class SyncEngine {
   }
 
   /**
-   * Pull phase: merge remote changes into local
+   * Pull phase: merge remote changes into local, folding what it upserted and removed into
+   * `changesetAcc` — the caller emits it once, after every remote for this sync has pulled.
    */
   private async _pull(
     localDocs: SnapshotDocs,
     remoteDocs: SnapshotDocs | null,
     strategy: SyncStrategy,
+    changesetAcc: ChangesetAccumulator,
   ): Promise<{resultDocs: SnapshotDocs; hasChanges: boolean}> {
     logger.info(logger.CONTEXT.SYNC_PULL, "Pulling snapshot")
 
@@ -361,6 +374,7 @@ export class SyncEngine {
     const mergeResult = mergeRemoteIntoLocal(localDocs, remoteDocs, strategy, SYNC_CONFIG.garbageCollectionInterval)
 
     const {resultDocs, toUpsert, toRemove, changes} = mergeResult
+    accumulateDelta(changesetAcc, toUpsert, toRemove)
 
     const upsertCount = this.countDocs(toUpsert)
     if (upsertCount) {
@@ -383,6 +397,7 @@ export class SyncEngine {
     tasks?: unknown[]
     tags?: unknown[]
     branches?: unknown[]
+    milestones?: unknown[]
     files?: unknown[]
     events?: unknown[]
     settings?: unknown
@@ -391,6 +406,7 @@ export class SyncEngine {
       (docs.tasks?.length ?? 0) +
       (docs.tags?.length ?? 0) +
       (docs.branches?.length ?? 0) +
+      (docs.milestones?.length ?? 0) +
       (docs.files?.length ?? 0) +
       (docs.events?.length ?? 0) +
       (docs.settings ? 1 : 0)
@@ -498,4 +514,98 @@ export class SyncEngine {
     logger.debug(logger.CONTEXT.SYNC_PUSH, "No changes detected, no push")
     return false
   }
+}
+
+/** Every row a pull's merges upserted or removed, before it becomes the domain-shaped `Changeset` the caller is notified with. */
+type ChangesetAccumulator = {
+  tasks: {upserted: Map<string, SnapshotTask>; removed: Set<string>}
+  tags: {upserted: Map<string, SnapshotTag>; removed: Set<string>}
+  branches: {upserted: Map<string, SnapshotBranch>; removed: Set<string>}
+  milestones: {upserted: Map<string, SnapshotMilestone>; removed: Set<string>}
+}
+
+function createChangesetAccumulator(): ChangesetAccumulator {
+  return {
+    tasks: {upserted: new Map(), removed: new Set()},
+    tags: {upserted: new Map(), removed: new Set()},
+    branches: {upserted: new Map(), removed: new Set()},
+    milestones: {upserted: new Map(), removed: new Set()},
+  }
+}
+
+/** Folds one pull's delta in: a later upsert overwrites an earlier one for the same id, and either side clears the other. */
+function accumulateCollection<D extends {id: string}>(
+  acc: {upserted: Map<string, D>; removed: Set<string>},
+  upserted: D[],
+  removed: string[] = [],
+): void {
+  for (const doc of upserted) {
+    acc.upserted.set(doc.id, doc)
+    acc.removed.delete(doc.id)
+  }
+  for (const id of removed) {
+    acc.removed.add(id)
+    acc.upserted.delete(id)
+  }
+}
+
+function accumulateDelta(acc: ChangesetAccumulator, toUpsert: SnapshotDocs, toRemove: MergeResult["toRemove"]): void {
+  accumulateCollection(acc.tasks, toUpsert.tasks, toRemove.tasks)
+  accumulateCollection(acc.tags, toUpsert.tags, toRemove.tags)
+  accumulateCollection(acc.branches, toUpsert.branches, toRemove.branches)
+  accumulateCollection(acc.milestones, toUpsert.milestones, toRemove.milestones)
+}
+
+/** A task as the merge left it, resolved against `tagsById` — the final merged tag set, not just the tags a pull happened to touch. */
+function snapshotTaskToTask(row: SnapshotTask, tagsById: Map<string, Tag>): Task {
+  return {
+    id: row.id,
+    status: row.status as Task["status"],
+    content: row.content,
+    minimized: row.minimized,
+    orderIndex: row.order_index,
+    scheduled:
+      row.scheduled_date === null ? null : {date: row.scheduled_date, time: row.scheduled_time as string, timezone: row.scheduled_timezone as string},
+    estimatedTime: row.estimated_time,
+    spentTime: row.spent_time,
+    branchId: row.branch_id,
+    milestoneId: row.milestone_id,
+    tags: row.tags.map((id) => tagsById.get(id)).filter((tag): tag is Tag => Boolean(tag)),
+    attachments: row.attachments,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    deletedAt: row.deleted_at,
+  }
+}
+
+/** Builds the `Changeset` a pull emits from everything its merges accumulated. `finalTags` resolves a task's tags even when the tag itself did not change. */
+function buildChangeset(acc: ChangesetAccumulator, finalTags: SnapshotTag[]): Changeset {
+  const changeset: Changeset = {}
+  const tagsById = new Map(finalTags.map((t) => [t.id, rowToTag(t)]))
+
+  if (acc.tasks.upserted.size || acc.tasks.removed.size) {
+    changeset.tasks = {}
+    if (acc.tasks.upserted.size) changeset.tasks.upserted = [...acc.tasks.upserted.values()].map((t) => snapshotTaskToTask(t, tagsById))
+    if (acc.tasks.removed.size) changeset.tasks.removed = [...acc.tasks.removed]
+  }
+
+  if (acc.tags.upserted.size || acc.tags.removed.size) {
+    changeset.tags = {}
+    if (acc.tags.upserted.size) changeset.tags.upserted = [...acc.tags.upserted.values()].map(rowToTag)
+    if (acc.tags.removed.size) changeset.tags.removed = [...acc.tags.removed]
+  }
+
+  if (acc.branches.upserted.size || acc.branches.removed.size) {
+    changeset.branches = {}
+    if (acc.branches.upserted.size) changeset.branches.upserted = [...acc.branches.upserted.values()].map(rowToBranch)
+    if (acc.branches.removed.size) changeset.branches.removed = [...acc.branches.removed]
+  }
+
+  if (acc.milestones.upserted.size || acc.milestones.removed.size) {
+    changeset.milestones = {}
+    if (acc.milestones.upserted.size) changeset.milestones.upserted = [...acc.milestones.upserted.values()].map(rowToMilestone)
+    if (acc.milestones.removed.size) changeset.milestones.removed = [...acc.milestones.removed]
+  }
+
+  return changeset
 }

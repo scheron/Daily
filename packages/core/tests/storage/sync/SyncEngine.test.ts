@@ -3,6 +3,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {RemoteWriteConflictError, SYNC_CONFIG, SYNC_REMOTE_ID} from "@daily/protocol"
 
 import {SyncEngine} from "@core/storage/sync/SyncEngine"
+import {mergeRemoteIntoLocal} from "@core/utils/sync/merge/mergeRemoteIntoLocal"
 import {buildSnapshot} from "@core/utils/sync/snapshot/buildSnapshot"
 
 import type {
@@ -29,7 +30,7 @@ vi.mock("../../../src/utils/logger", () => ({
 }))
 
 function emptyDocs(): SnapshotDocs {
-  return {tasks: [], tags: [], branches: [], files: [], events: [], settings: null}
+  return {tasks: [], tags: [], branches: [], milestones: [], files: [], events: [], settings: null}
 }
 
 function makeTask(id: string, updatedAt: string): SnapshotTask {
@@ -45,6 +46,7 @@ function makeTask(id: string, updatedAt: string): SnapshotTask {
     estimated_time: 0,
     spent_time: 0,
     branch_id: "main",
+    milestone_id: null,
     tags: [],
     attachments: [],
     created_at: updatedAt,
@@ -554,5 +556,58 @@ describe("SyncEngine (multi-remote)", () => {
 
       expect(remote.saveCount).toBe(0)
     })
+  })
+})
+
+/**
+ * TC-22 · US-6 · gate-b: N/A
+ * given: a local snapshot and a remote one that differ by a handful of rows
+ * when: a pull merges them
+ * then: the changeset it emits names exactly the rows the merge upserted and removed, and no others
+ *
+ * `onDataChanged` is still called with no arguments today (phase 2 widens it to take a `Changeset`
+ * built from `_pull`'s discarded `toUpsert`/`toRemove`). The expected names are computed by calling
+ * the real, untouched `mergeRemoteIntoLocal` directly with the same docs, so this does not guess at
+ * the merge's outcome — only at the shape the plan already names for what carries it out.
+ */
+describe("the changeset a pull emits", () => {
+  let local: FakeLocalStore
+
+  beforeEach(() => {
+    local = new FakeLocalStore()
+  })
+
+  it("names_TC-22_exactly_the_rows_a_pull_upserts_and_removes_and_no_others", async () => {
+    const kept = makeTask("kept", "2026-07-18T09:00:00.000Z")
+    const staleLocal = makeTask("gone", "2026-07-17T09:00:00.000Z")
+    local.docs.tasks = [kept, staleLocal]
+
+    const newerRemoteVersion = makeTask("kept", "2026-07-19T09:00:00.000Z")
+    const addedRemote = makeTask("added", "2026-07-18T09:00:00.000Z")
+    const removedRemote = {...makeTask("gone", "2026-07-18T09:00:00.000Z"), deleted_at: "2026-07-19T00:00:00.000Z"}
+
+    const remote = new FakeRemote()
+    remote.snapshot = buildSnapshot({...emptyDocs(), tasks: [newerRemoteVersion, addedRemote, removedRemote]})
+
+    const expectedMerge = mergeRemoteIntoLocal(
+      {...emptyDocs(), tasks: [kept, staleLocal]},
+      {...emptyDocs(), tasks: [newerRemoteVersion, addedRemote, removedRemote]},
+      "pull",
+      SYNC_CONFIG.garbageCollectionInterval,
+    )
+
+    const {engine, onDataChanged} = makeEngine(local, [{id: "a", adapter: remote}])
+
+    await engine.syncOnce("pull")
+
+    expect(onDataChanged).toHaveBeenCalledTimes(1)
+    const changeset = onDataChanged.mock.calls[0][0]
+
+    expect(changeset?.tasks?.upserted?.map((t: {id: string}) => t.id).toSorted()).toEqual(
+      (expectedMerge.toUpsert.tasks ?? []).map((t) => t.id).toSorted(),
+    )
+    expect(changeset?.tasks?.removed?.toSorted()).toEqual((expectedMerge.toRemove.tasks ?? []).toSorted())
+    expect(changeset?.milestones).toBeUndefined()
+    expect(changeset?.branches).toBeUndefined()
   })
 })

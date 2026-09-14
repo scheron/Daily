@@ -17,8 +17,8 @@ export function setupStorageSync(getStorage: () => StorageController | null, get
     onStatusChange: (status, prevStatus) => {
       broadcastToWindows(getWindows, "storage-sync:status-changed", status, prevStatus)
     },
-    onDataChange: () => {
-      broadcastToWindows(getWindows, "storage-sync:data-changed")
+    onDataChange: (changeset) => {
+      broadcastToWindows(getWindows, "storage:changed", changeset)
     },
     onSettingsChange: () => {
       broadcastToWindows(getWindows, "settings:changed")

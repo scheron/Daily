@@ -1,11 +1,11 @@
-import type {Tag} from "@daily/protocol"
+import type {Branch, Tag} from "@daily/protocol"
 import type {TagModel} from "../models/TagModel"
 
 export class TagsService {
   constructor(private tagModel: TagModel) {}
 
-  async getTagList(): Promise<Tag[]> {
-    return this.tagModel.getTagList()
+  async getTagList(branchId?: Branch["id"]): Promise<Tag[]> {
+    return this.tagModel.getTagList({branchId})
   }
 
   async getTag(id: Tag["id"]): Promise<Tag | null> {

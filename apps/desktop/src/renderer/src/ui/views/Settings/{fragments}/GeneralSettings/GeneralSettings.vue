@@ -2,12 +2,12 @@
 import {useThemeStore} from "@/stores/theme.store"
 import {useUIStore} from "@/stores/ui"
 import BaseSegmented from "@/ui/base/BaseSegmented.vue"
+import BaseSwitch from "@/ui/base/BaseSwitch.vue"
 import AccentPicker from "@/ui/common/pickers/AccentPicker.vue"
 import MainColorPicker from "@/ui/common/pickers/MainColorPicker.vue"
 import SettingRow from "@/ui/views/Settings/{fragments}/SettingRow.vue"
 import SettingsGroup from "@/ui/views/Settings/{fragments}/SettingsGroup.vue"
 import AboutSection from "./{fragments}/AboutSection.vue"
-import WidgetsSection from "./{fragments}/WidgetsSection.vue"
 
 import type {EmptySectionsMode} from "@/stores/ui/composables/useSectionPrefs"
 import type {AppearanceMode, FontSize} from "@daily/protocol"
@@ -58,11 +58,14 @@ const emptySectionsOptions: {value: EmptySectionsMode; label: string}[] = [
       <SettingRow title="Empty columns" description="How columns appear when a day has no tasks">
         <BaseSegmented v-model="uiStore.emptySectionsMode" :options="emptySectionsOptions" />
       </SettingRow>
-    </SettingsGroup>
 
-    <SettingRow title="Left panel widgets" description="Add, remove, and drag to reorder the widgets shown in the left panel">
-      <WidgetsSection class="w-80" />
-    </SettingRow>
+      <SettingRow
+        title="Open calendar while dragging"
+        description="Expand the calendar as soon as a card is picked up. When off, hold the card on the calendar button to open it"
+      >
+        <BaseSwitch v-model="uiStore.shouldOpenCalendarDockOnDrag" />
+      </SettingRow>
+    </SettingsGroup>
 
     <SettingsGroup label="About" icon="info">
       <AboutSection />

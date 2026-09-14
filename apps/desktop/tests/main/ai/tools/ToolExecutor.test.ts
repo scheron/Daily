@@ -18,6 +18,7 @@ describe("ToolExecutor (registry-backed)", () => {
 
   it("dispatches to a registered tool's execute", async () => {
     const fakeStorage = {
+      loadSettings: vi.fn(async () => ({})),
       getTagList: vi.fn(async () => []),
     } as any
     const exec = new ToolExecutor(fakeStorage)
@@ -29,6 +30,7 @@ describe("ToolExecutor (registry-backed)", () => {
 
   it("normalizes thrown errors from tool.execute into ToolResult", async () => {
     const fakeStorage = {
+      loadSettings: vi.fn(async () => ({})),
       getTagList: vi.fn(async () => {
         throw new Error("boom")
       }),

@@ -27,25 +27,6 @@ export class TaskEventModel {
     return {id, ...input}
   }
 
-  /**
-   * Events for one branch on one local calendar date, newest first.
-   * Events whose task is soft-deleted are omitted, except the `deleted` event itself,
-   * so a removed task leaves only its deletion marker and no openable history.
-   */
-  getByDay(date: ISODate, branchId: Branch["id"]): TaskEvent[] {
-    const rows = this.db
-      .prepare(
-        `SELECT te.* FROM task_events te
-         LEFT JOIN tasks t ON t.id = te.task_id
-         WHERE te.branch_id = ? AND te.event_date = ?
-           AND (t.deleted_at IS NULL OR te.type = 'deleted')
-         ORDER BY te.created_at DESC, te.rowid DESC`,
-      )
-      .all(branchId, date) as any[]
-
-    return rows.map(rowToTaskEvent)
-  }
-
   /** All events for one task, newest first (both `moved` rows included). */
   getByTask(taskId: Task["id"]): TaskEvent[] {
     const rows = this.db.prepare(`SELECT * FROM task_events WHERE task_id = ? ORDER BY created_at DESC, rowid DESC`).all(taskId) as any[]
