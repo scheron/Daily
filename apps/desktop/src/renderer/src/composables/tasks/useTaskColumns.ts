@@ -95,17 +95,17 @@ export const useTaskColumns = createSharedComposable(() => {
   }
 
   function isColumnCollapsed(status: TaskStatus) {
-    if (uiStore.sectionsAutoCollapseEmpty) return !isDragging.value && isColumnEmpty(status)
+    if (uiStore.shouldCollapseEmptySections) return !isDragging.value && isColumnEmpty(status)
     return Boolean(uiStore.sectionsCollapsed[status])
   }
 
   function onToggleColumn(status: TaskStatus) {
-    if (uiStore.sectionsAutoCollapseEmpty) return
+    if (uiStore.shouldCollapseEmptySections) return
     uiStore.toggleSectionCollapsed(status)
   }
 
   function onColumnDragEnter(status: TaskStatus) {
-    if (uiStore.sectionsAutoCollapseEmpty) return
+    if (uiStore.shouldCollapseEmptySections) return
     if (!isDragging.value) return
     if (!isColumnCollapsed(status)) return
 
@@ -113,7 +113,7 @@ export const useTaskColumns = createSharedComposable(() => {
   }
 
   async function onColumnChange(status: TaskStatus, event: {added?: {newIndex: number}; moved?: {newIndex: number; oldIndex: number}}) {
-    if (dragDropStore.releasedInsideDropZone) return
+    if (dragDropStore.isReleasedInsideDropZone) return
     if (event.moved && event.moved.newIndex === event.moved.oldIndex) return
     if (!event.added && !event.moved) return
 
@@ -164,12 +164,12 @@ export const useTaskColumns = createSharedComposable(() => {
   }
 
   function isColumnHidden(status: TaskStatus) {
-    if (!uiStore.sectionsHideEmpty) return false
+    if (!uiStore.shouldHideEmptySections) return false
     return isColumnEmpty(status)
   }
 
   function flushPendingCrossColumnMove() {
-    if (dragDropStore.releasedInsideDropZone) {
+    if (dragDropStore.isReleasedInsideDropZone) {
       pendingCrossColumnMove.value = null
       pendingLocalResync.value = false
       syncLocalTasks()

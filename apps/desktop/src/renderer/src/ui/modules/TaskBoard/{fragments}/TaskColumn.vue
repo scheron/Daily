@@ -21,7 +21,7 @@ const uiStore = useUIStore()
 const column = computed(() => TASK_COLUMNS.find((s) => s.status === props.status)!)
 const tasksCount = computed(() => columns.tasksByStatus.value[props.status].length)
 const collapsed = computed(() => columns.isColumnCollapsed(props.status))
-const autoCollapseEnabled = computed(() => uiStore.sectionsAutoCollapseEmpty)
+const autoCollapseEnabled = computed(() => uiStore.shouldCollapseEmptySections)
 
 const menuItems = computed<BaseMenuItem[]>(() => [
   {

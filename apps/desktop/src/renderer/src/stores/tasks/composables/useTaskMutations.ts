@@ -118,10 +118,10 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
     return predictAndWrite(changesetFromPatches(patches), () => API.updateTask(taskId, payload), "Failed to update task")
   }
 
-  async function toggleTaskMinimized(taskId: Task["id"], minimized: boolean) {
-    const patches = planTaskUpdate(mutationContext(), taskId, {minimized})
+  async function toggleTaskMinimized(taskId: Task["id"], isMinimized: boolean) {
+    const patches = planTaskUpdate(mutationContext(), taskId, {minimized: isMinimized})
 
-    return predictAndWrite(changesetFromPatches(patches), () => API.toggleTaskMinimized(taskId, minimized), "Failed to update task")
+    return predictAndWrite(changesetFromPatches(patches), () => API.toggleTaskMinimized(taskId, isMinimized), "Failed to update task")
   }
 
   async function deleteTask(taskId: Task["id"]) {

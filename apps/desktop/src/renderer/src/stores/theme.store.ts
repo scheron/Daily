@@ -28,9 +28,9 @@ export const useThemeStore = defineStore("theme", () => {
   const baseId = useSettingValue("appearance.base", DEFAULT_BASE_ID)
   const fontSize = useSettingValue<"typography.fontSize", FontSize>("typography.fontSize", "normal")
 
-  const systemPrefersDark = ref(window.matchMedia("(prefers-color-scheme: dark)").matches)
+  const isSystemDark = ref(window.matchMedia("(prefers-color-scheme: dark)").matches)
 
-  const resolvedMode = computed(() => resolveAppearanceMode(mode.value, systemPrefersDark.value))
+  const resolvedMode = computed(() => resolveAppearanceMode(mode.value, isSystemDark.value))
   const accentValue = computed(() => resolveAccentValue(accentId.value))
 
   const basePalette = computed(() => {
@@ -105,7 +105,7 @@ export const useThemeStore = defineStore("theme", () => {
   watch(broadcast, (snapshot) => snapshot && applySnapshot(snapshot))
 
   window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (event) => {
-    systemPrefersDark.value = event.matches
+    isSystemDark.value = event.matches
   })
 
   return {

@@ -11,19 +11,19 @@ export const useDragDropStore = defineStore("dragDrop", () => {
   const draggingTaskId = ref<Task["id"] | null>(null)
   const dropTargetDate = ref<ISODate | null>(null)
   const dropTargetMilestoneId = ref<Milestone["id"] | null>(null)
-  const releasedInsideDropZone = ref(false)
+  const isReleasedInsideDropZone = ref(false)
 
   function setDraggingTaskId(id: Task["id"] | null) {
     draggingTaskId.value = id
-    if (id) releasedInsideDropZone.value = false
+    if (id) isReleasedInsideDropZone.value = false
   }
 
   /**
    * Records that the drag was released inside a drop zone floating over the board. The board
    * must then discard the column move SortableJS staged while the pointer travelled to it.
    */
-  function setReleasedInsideDropZone(value: boolean) {
-    releasedInsideDropZone.value = value
+  function setReleasedInsideDropZone(isReleased: boolean) {
+    isReleasedInsideDropZone.value = isReleased
   }
 
   function setDropTargetDate(date: ISODate | null) {
@@ -48,7 +48,7 @@ export const useDragDropStore = defineStore("dragDrop", () => {
     draggingTaskId,
     dropTargetDate,
     dropTargetMilestoneId,
-    releasedInsideDropZone,
+    isReleasedInsideDropZone,
 
     setDraggingTaskId,
     setDropTargetDate,

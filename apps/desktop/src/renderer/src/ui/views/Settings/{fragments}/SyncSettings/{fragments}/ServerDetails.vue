@@ -30,7 +30,7 @@ const mismatchMessage = computed(() => {
 })
 
 const dotClass = computed(() => {
-  if (syncServerStore.revoked || storageStore.status === "error") return "bg-error"
+  if (syncServerStore.isRevoked || storageStore.status === "error") return "bg-error"
   if (storageStore.status === "syncing") return "bg-accent"
   if (storageStore.status === "active") return "bg-success"
   return "bg-base-content/30"
@@ -93,7 +93,7 @@ onMounted(() => {
           {{ mismatchMessage }}
         </div>
 
-        <div v-if="syncServerStore.revoked" class="text-error bg-error/10 flex items-center gap-1.5 rounded-md px-2 py-1 text-xs">
+        <div v-if="syncServerStore.isRevoked" class="text-error bg-error/10 flex items-center gap-1.5 rounded-md px-2 py-1 text-xs">
           <BaseIcon name="alert-circle" class="size-3.5 shrink-0" />
           This Mac's access to the server was revoked. Disconnect and reconnect to sync again.
         </div>
