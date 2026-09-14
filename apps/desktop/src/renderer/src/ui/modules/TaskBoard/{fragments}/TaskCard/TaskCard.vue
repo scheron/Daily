@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {computed, useTemplateRef} from "vue"
 
-import {sortTags, toTaskIdHash} from "@daily/protocol"
+import {sortTags} from "@daily/protocol"
 import {toDateLabel, toDurationLabel} from "@daily/std"
 
 import {useFilterStore} from "@/stores/filter.store"
@@ -175,9 +175,6 @@ async function onMoveToBranch(branch: Branch) {
         <div class="flex w-full items-center gap-3">
           <DynamicTagsPanel :tags="tags" empty-message="No tags" size="sm" />
           <div class="ml-auto flex shrink-0 items-center gap-2" data-task-dnd-ignore="true" @click.stop>
-            <span v-tooltip="{content: 'Task ID', placement: 'top'}" class="text-base-content/50 font-mono text-xs leading-none whitespace-nowrap">
-              {{ toTaskIdHash(task.id) }}
-            </span>
             <StatusSelect :status="task.status" @update:status="taskModel.changeStatus" />
           </div>
         </div>

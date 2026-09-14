@@ -2,7 +2,7 @@
 import {computed} from "vue"
 import {toasts} from "vue-toasts-lite"
 
-import {sortTags, toTaskIdHash} from "@daily/protocol"
+import {sortTags} from "@daily/protocol"
 import {toDateLabel, toDurationLabel} from "@daily/std"
 
 import {API} from "@/api"
@@ -38,10 +38,6 @@ async function onPermanentDelete(task: Task) {
         <DynamicTagsPanel :tags="sortedTags" empty-message="No tags" size="sm" />
 
         <div class="ml-auto flex shrink-0 items-center gap-2">
-          <span v-tooltip="{content: 'Task ID', placement: 'top'}" class="text-base-content/50 font-mono text-xs leading-none whitespace-nowrap">
-            {{ toTaskIdHash(task.id) }}
-          </span>
-
           <div class="flex gap-1">
             <BaseButton variant="ghost" size="sm" icon="undo" class="text-success hover:bg-success/10 size-7" @click="emit('restore', task)" />
 
