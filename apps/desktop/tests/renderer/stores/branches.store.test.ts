@@ -94,18 +94,18 @@ describe("branchesStore", () => {
     expect(API.getBranchList).not.toHaveBeenCalled()
   })
 
-  it("orderedBranches sorts by name case-insensitive", async () => {
+  it("orderedBranches puts main first and sorts the rest by name case-insensitive", async () => {
     const {API} = await import("../../../src/renderer/src/api")
     API.getBranchList.mockResolvedValueOnce([
       makeBranch({id: "b", name: "Zebra"}),
+      makeBranch({id: "main", name: "Main"}),
       makeBranch({id: "a", name: "alpha"}),
-      makeBranch({id: "c", name: "Main"}),
     ])
 
     const store = await getStore()
     await store.getBranchList()
 
-    expect(store.orderedBranches.map((b) => b.name)).toEqual(["alpha", "Main", "Zebra"])
+    expect(store.orderedBranches.map((b) => b.name)).toEqual(["Main", "alpha", "Zebra"])
   })
 
   it("deleteBranch revalidates settings", async () => {
