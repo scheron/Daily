@@ -31,6 +31,7 @@ async function onCreate() {
   }
 
   emit("select", created)
+  emit("close")
 }
 
 function getProjectIconClasses(isSelected: boolean) {

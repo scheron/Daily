@@ -14,7 +14,7 @@ const props = withDefaults(
     filterBy?: (item: T) => string
     /** Whether an item is selected — drives the checkbox prefix. Omit it and no checkbox is rendered. */
     selected?: (item: T) => boolean
-    /** Single-select: no checkbox prefix; selecting a row emits `select` then `close`. */
+    /** Single-select: no checkbox prefix; selecting a row emits `select` then `close`. The footer emits only `select-footer`, so the consumer closes once its create finishes. */
     single?: boolean
     placeholder?: string
     emptyText?: string
@@ -79,7 +79,6 @@ function selectItem(item: T) {
 
 function selectFooter() {
   emit("select-footer")
-  if (props.single) emit("close")
 }
 
 function onKeydown(event: KeyboardEvent) {
