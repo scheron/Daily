@@ -57,14 +57,74 @@ describe("createOrderedListRenumberExtension", () => {
     expect(result).toBe("1. a\n2. new\n3. b\n4. c")
   })
 
-  it("keeps a deliberate non-1 start for in-place edits", () => {
-    const result = applyAndRead("5. a\n6. b\n7. c", {
-      from: 14,
-      to: 14,
-      insert: " tail",
+  it("keeps the list's start when its first item is deleted", () => {
+    const result = applyAndRead("3. a\n4. b\n5. c", {
+      from: 0,
+      to: 5,
+      insert: "",
     })
 
-    expect(result).toBe("5. a\n6. b\n7. c tail")
+    expect(result).toBe("3. b\n4. c")
+  })
+
+  it("restarts the list from a first number typed over the old one", () => {
+    const result = applyAndRead("1. a\n2. b", {
+      from: 0,
+      to: 1,
+      insert: "5",
+    })
+
+    expect(result).toBe("5. a\n6. b")
+  })
+
+  it("keeps the numbers of a list pasted where there was no list", () => {
+    const result = applyAndRead("intro\n\n", {
+      from: 7,
+      to: 7,
+      insert: "3. a\n4. b",
+    })
+
+    expect(result).toBe("intro\n\n3. a\n4. b")
+  })
+
+  it("takes the start of the nested list that was at the same level", () => {
+    const result = applyAndRead("3. a\n   7. x\n   8. y", {
+      from: 5,
+      to: 5,
+      insert: "   9. new\n",
+    })
+
+    expect(result).toBe("3. a\n   7. new\n   8. x\n   9. y")
+  })
+
+  it("never takes a nested list's start from the outer list", () => {
+    const result = applyAndRead("3. a\n   - x\n   - y\n4. b", {
+      from: 8,
+      to: 18,
+      insert: "5. x\n   6. y",
+    })
+
+    expect(result).toBe("3. a\n   5. x\n   6. y\n4. b")
+  })
+
+  it("treats a list pasted over the whole old list as a new list", () => {
+    const result = applyAndRead("1. a\n2. b", {
+      from: 0,
+      to: 9,
+      insert: "3. x\n4. y",
+    })
+
+    expect(result).toBe("3. x\n4. y")
+  })
+
+  it("keeps the numbers of a list that only touches the old one", () => {
+    const result = applyAndRead("3. a", {
+      from: 4,
+      to: 4,
+      insert: "\n7) x",
+    })
+
+    expect(result).toBe("3. a\n7) x")
   })
 
   it("leaves bullet lists alone", () => {

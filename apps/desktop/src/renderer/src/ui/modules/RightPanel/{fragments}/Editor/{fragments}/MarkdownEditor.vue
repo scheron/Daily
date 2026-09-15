@@ -10,13 +10,17 @@ import {useImageUpload} from "@/ui/modules/RightPanel/{fragments}/Editor/composa
 import {useImagePreviewModal} from "@/ui/overlays/ImagePreviewModal"
 import {markdownKeymap} from "@/utils/codemirror/commands"
 import {
+  createAutoPairsExtension,
   createCodeSyntaxExtension,
   createCompletionExtension,
+  createCompletionNavigationExtension,
   createMarkdownLanguageExtension,
   createMarkdownListIndentExtension,
+  createOrderedListRenumberExtension,
   createTablesExtension,
   createThemeExtension,
   createWYSIWYGExtension,
+  skipOrderedListRenumber,
 } from "@/utils/codemirror/extensions"
 import {defaultKeymap, history, historyKeymap, indentWithTab} from "@codemirror/commands"
 import {EditorState, Prec} from "@codemirror/state"
@@ -106,6 +110,7 @@ function createEditor(initialContent: string) {
       drawSelection(),
       createMarkdownLanguageExtension(),
       createMarkdownListIndentExtension(),
+      createOrderedListRenumberExtension(),
       placeholder("Type / for commands"),
       EditorView.lineWrapping,
       EditorView.updateListener.of((update) => {
@@ -116,6 +121,7 @@ function createEditor(initialContent: string) {
       createTablesExtension(),
       createCodeSyntaxExtension(),
       Prec.high(keymap.of(markdownKeymap)),
+      createAutoPairsExtension(),
       keymap.of([...defaultKeymap, ...historyKeymap]),
       createCompletionExtension(
         props.task
@@ -127,6 +133,7 @@ function createEditor(initialContent: string) {
             }
           : undefined,
       ),
+      createCompletionNavigationExtension(),
       Prec.low(keymap.of([indentWithTab])),
     ],
   })
@@ -139,7 +146,10 @@ watch(
   (next) => {
     if (!view.value) return
     if (next === view.value.state.doc.toString()) return
-    view.value.dispatch({changes: {from: 0, to: view.value.state.doc.length, insert: next}})
+    view.value.dispatch({
+      changes: {from: 0, to: view.value.state.doc.length, insert: next},
+      annotations: skipOrderedListRenumber.of(true),
+    })
   },
 )
 
