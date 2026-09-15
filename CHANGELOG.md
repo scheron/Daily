@@ -1,5 +1,40 @@
 # Changelog
 
+## v0.21.0 - 2026-09-15
+
+### 💥 Breaking Changes
+
+- **Sidebar** — the left sidebar is gone, along with its Activity, Stats and month calendar widgets and their settings. The calendar now sits over the board.
+- **Sync** — this version writes a new sync format, so every Mac has to be updated. A Mac still on an earlier version stops syncing until it is.
+- **Tags** — tags now belong to a project. Existing tags move to Main, and tasks in other projects keep the tags they already carry.
+
+### ✨ New Features
+
+- **Backlog** — a task no longer needs a day. The Backlog column holds undated tasks and shows next to every day: moving a card out gives it the day on screen, moving it back in takes the day away.
+- **Milestones** — a project's tasks can gather under a milestone with an optional target date. Its diamond fills as tasks are resolved, and the board can show one milestone, or all of them, instead of a day. A new milestone can be created right from the milestone picker.
+- **Calendar over the board** — the day button at the bottom grows into a month view with Days and Milestones tabs. A card dropped on a day moves to that day; dropped on a milestone, it joins it. A setting chooses whether the calendar opens as soon as a card is picked up or only when the card is held on the button.
+- **Project settings** — each project has one screen for its description, milestones and tags. The Workflow section in Settings is now called Projects.
+
+### 🎨 Improvements
+
+- **Editor** — numbered lists renumber themselves and keep their start number, and brackets and quotes close automatically again.
+- **Projects** — Main is always listed first.
+- **Deleted tasks** — now live in Settings.
+- Task IDs no longer show on cards or in the editor. The card menu and the editor toolbar still copy them.
+
+### 🐛 Bug Fixes
+
+- **Projects** — a project created from the project picker is now selected right away, and deleting a project now removes its tasks and tags instead of leaving them hidden.
+- **Editor** — code typed in a code block opened inside a list item now stays in that item instead of jumping to the start of the line.
+- **AI Assistant** — the model picker now highlights the model in use.
+- **Updates** — a failed background update check no longer shows an error, for example when the Mac is offline. A check started by hand still reports why it failed.
+
+### ⚡ Performance
+
+- Switching days, projects and milestones no longer reloads tasks, and edits appear the moment they are made.
+
+---
+
 ## v0.20.2 - 2026-09-09
 
 ### 🐛 Bug Fixes
