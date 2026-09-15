@@ -7,9 +7,7 @@ import {groupTasksByDay, sortTasksByOrderIndex} from "@daily/protocol"
 import {API} from "@/api"
 import {useSettingsStore} from "@/stores/settings.store"
 import {useTaskMutations} from "./composables/useTaskMutations"
-import {applyChangeset as applyChangesetTo} from "./applyChangeset"
 
-import type {Changeset} from "@daily/core"
 import type {Day, ISODate, Milestone, Task, TaskStatus} from "@daily/protocol"
 
 export const useTasksStore = defineStore("tasks", () => {
@@ -42,9 +40,7 @@ export const useTasksStore = defineStore("tasks", () => {
   })
 
   const activeDayData = computed(() => days.value.find((day) => day.date === activeDay.value) ?? null)
-  const activeDayInfo = computed(() => activeDayData.value ?? {date: activeDay.value})
   const dailyTasks = computed(() => (activeDayData.value ? sortTasksByOrderIndex(activeDayData.value.tasks) : []))
-  const dailyTags = computed(() => activeDayData.value?.tags ?? [])
 
   const dailyTasksByStatus = computed<Record<TaskStatus, Task[]>>(() => {
     const grouped = dailyTasks.value.reduce(
@@ -58,12 +54,6 @@ export const useTasksStore = defineStore("tasks", () => {
     return grouped
   })
 
-  const dailyTaskIndexMap = computed(() => {
-    const map = new Map<Task["id"], number>()
-    dailyTasks.value.forEach((task, index) => map.set(task.id, index))
-    return map
-  })
-
   const dailyTaskIndexMapByStatus = computed<Record<TaskStatus, Map<Task["id"], number>>>(() => {
     return {
       active: new Map(dailyTasksByStatus.value.active.map((task, index) => [task.id, index])),
@@ -75,12 +65,9 @@ export const useTasksStore = defineStore("tasks", () => {
 
   const mutations = useTaskMutations({
     tasks,
-    days,
     activeDay,
     activeBranchId,
-    activeDayData,
     dailyTasks,
-    backlogTasks,
     findTaskById,
   })
 
@@ -104,14 +91,6 @@ export const useTasksStore = defineStore("tasks", () => {
     }
   }
 
-  function applyChangeset(changeset: Changeset): void {
-    applyChangesetTo({tasks}, changeset)
-  }
-
-  async function revalidate() {
-    await loadTasks()
-  }
-
   return {
     isLoaded,
     tasks,
@@ -121,16 +100,11 @@ export const useTasksStore = defineStore("tasks", () => {
     activeDay,
     dailyTasks,
     dailyTasksByStatus,
-    dailyTaskIndexMap,
     dailyTaskIndexMapByStatus,
-    dailyTags,
-    activeDayInfo,
 
     setActiveDay,
     findTaskById,
     loadTasks,
-    applyChangeset,
-    revalidate,
 
     ...mutations,
   }

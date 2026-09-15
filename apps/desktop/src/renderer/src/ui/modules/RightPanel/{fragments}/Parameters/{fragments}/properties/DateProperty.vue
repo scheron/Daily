@@ -6,9 +6,9 @@ import {getTime, getTimezone, toDateLabel} from "@daily/std"
 import {useTaskEditorStore} from "@/stores/task-editor"
 import {useTasksStore} from "@/stores/tasks"
 import BaseButton from "@/ui/base/BaseButton"
-import BaseCalendar from "@/ui/base/BaseCalendar"
 import BaseIcon from "@/ui/base/BaseIcon"
 import BasePopup from "@/ui/base/BasePopup.vue"
+import TaskCalendar from "@/ui/common/calendar/TaskCalendar"
 
 import type {ISODate, Task} from "@daily/protocol"
 
@@ -31,7 +31,7 @@ function selectDate(date: ISODate, hide: () => void) {
 <template>
   <BasePopup hide-header position="start">
     <template #trigger="{toggle}">
-      <BaseButton type="button" class="inline-flex items-center justify-start gap-1 p-0" size="sm" variant="text" @click.stop="toggle">
+      <BaseButton type="button" class="inline-flex items-center justify-start gap-1 p-0" variant="text" @click.stop="toggle">
         <BaseIcon name="calendar" class="size-3.5" />
         <span class="leading-none">{{ dateLabel }}</span>
       </BaseButton>
@@ -39,13 +39,7 @@ function selectDate(date: ISODate, hide: () => void) {
 
     <template #default="{hide}">
       <div class="p-1">
-        <BaseCalendar
-          mode="single"
-          :days="tasksStore.days"
-          :selected-date="task.scheduled?.date ?? null"
-          size="sm"
-          @select-date="selectDate($event, hide)"
-        />
+        <TaskCalendar :days="tasksStore.days" :selected-date="task.scheduled?.date ?? null" @select-date="selectDate($event, hide)" />
       </div>
     </template>
   </BasePopup>

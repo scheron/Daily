@@ -3,12 +3,12 @@ import {useEventListener} from "@vueuse/core"
 import {storeToRefs} from "pinia"
 
 import {useDragDropStore} from "@/stores/dragDrop.store"
-import {useUIStore} from "@/stores/ui/ui.store"
+import {useUIStore} from "@/stores/ui"
 import {findClosestAtPoint} from "@/utils/ui/dom"
 
-import type {DockTab} from "./useDockTabs"
+import type {CalendarDockTab} from "@/stores/ui"
 
-type HoverTarget = DockTab | "expand"
+type HoverTarget = CalendarDockTab | "expand"
 
 export function useDockDragHover() {
   const uiStore = useUIStore()
@@ -22,10 +22,6 @@ export function useDockDragHover() {
 
   useEventListener(window, "pointermove", onPointerMove)
 
-  watch(draggingTaskId, (taskId) => {
-    if (!taskId) cancelHover()
-  })
-
   function onPointerMove(event: PointerEvent) {
     if (!draggingTaskId.value) return
 
@@ -34,7 +30,7 @@ export function useDockDragHover() {
       return
     }
 
-    const tab = findClosestAtPoint(event.clientX, event.clientY, "[data-tab]")?.dataset.tab as DockTab | undefined
+    const tab = findClosestAtPoint(event.clientX, event.clientY, "[data-tab]")?.dataset.tab as CalendarDockTab | undefined
 
     startHover(tab && tab !== calendarDockTab.value ? tab : null)
   }
@@ -59,4 +55,8 @@ export function useDockDragHover() {
     hoverTimer = null
     hoverTarget = null
   }
+
+  watch(draggingTaskId, (taskId) => {
+    if (!taskId) cancelHover()
+  })
 }

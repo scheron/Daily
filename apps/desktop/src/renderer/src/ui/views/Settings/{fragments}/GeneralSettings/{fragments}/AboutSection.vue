@@ -4,8 +4,6 @@ import {computed} from "vue"
 import {useUpdateStore} from "@/stores/update.store"
 import SettingRow from "@/ui/views/Settings/{fragments}/SettingRow.vue"
 
-const REPOSITORY_URL = "https://github.com/scheron/Daily"
-
 const updateStore = useUpdateStore()
 
 const version = computed(() => updateStore.state.currentVersion || "—")
@@ -16,7 +14,7 @@ const version = computed(() => updateStore.state.currentVersion || "—")
     <SettingRow title="Source" description="Code, issues and releases.">
       <a
         class="text-base-content/60 hover:text-accent text-xs underline-offset-2 hover:underline"
-        :href="REPOSITORY_URL"
+        href="https://github.com/scheron/Daily"
         target="_blank"
         rel="noopener noreferrer"
       >

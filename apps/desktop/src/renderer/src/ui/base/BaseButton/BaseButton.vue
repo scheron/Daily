@@ -1,17 +1,15 @@
 <script setup lang="ts">
-import {computed, useSlots} from "vue"
-
 import BaseIcon from "@/ui/base/BaseIcon"
 import {cn} from "@/utils/ui/tailwindcss"
-import {buttonColorVariant, ButtonColorVariant, buttonSizeVariant, ButtonSizeVariant} from "./variants"
+import {buttonColorVariant} from "./variants"
 
+import type {TooltipPlacement} from "@/directives/vTooltip"
 import type {IconName} from "@/ui/base/BaseIcon"
-import type {TooltipPlacement} from "@/utils/ui/TooltipController"
 import type {HtmlHTMLAttributes} from "vue"
+import type {ButtonColorVariant} from "./variants"
 
 const props = defineProps<{
   variant?: ButtonColorVariant
-  size?: ButtonSizeVariant
   icon?: IconName
   disabled?: boolean
   loading?: boolean
@@ -21,24 +19,22 @@ const props = defineProps<{
   class?: HtmlHTMLAttributes["class"]
 }>()
 
-const slots = useSlots()
+const colorClass = buttonColorVariant(props)
 
-const classes = computed(() =>
-  cn(
-    buttonColorVariant(props).value,
-    buttonSizeVariant(props).value,
-    slots.default ? "gap-1 px-3 py-1.5" : "p-1",
-    props.class,
-    props.disabled && "cursor-auto opacity-50",
-  ),
-)
+function getButtonClasses(hasContent: boolean) {
+  return cn(colorClass.value, "text-sm", hasContent ? "gap-1 px-3 py-1.5" : "p-1", props.class, props.disabled && "cursor-auto opacity-50")
+}
+
+function getIconClasses(isSpinning: boolean) {
+  return cn(isSpinning && "animate-spin", props.iconClass)
+}
 </script>
 
 <template>
-  <button v-tooltip="{content: tooltip, placement: tooltipPosition}" :class="classes" :disabled="disabled || loading">
-    <BaseIcon v-if="loading" name="spinner" class="animate-spin" :class="iconClass" />
+  <button v-tooltip="{content: tooltip, placement: tooltipPosition}" :class="getButtonClasses(!!$slots.default)" :disabled="disabled || loading">
+    <BaseIcon v-if="loading" name="spinner" :class="getIconClasses(true)" />
     <template v-else>
-      <BaseIcon v-if="icon" :name="icon" :class="iconClass" />
+      <BaseIcon v-if="icon" :name="icon" :class="getIconClasses(false)" />
       <slot />
     </template>
   </button>

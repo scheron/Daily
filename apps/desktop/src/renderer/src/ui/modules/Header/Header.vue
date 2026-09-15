@@ -5,7 +5,7 @@ import {useBranchesStore} from "@/stores/branches.store"
 import BaseButton from "@/ui/base/BaseButton"
 import BranchPicker from "@/ui/common/pickers/BranchPicker.vue"
 import {useSearchModal} from "@/ui/overlays/SearchModal"
-import {toShortcutKeys} from "@/utils/shortcuts/toShortcutKey"
+import {toShortcutKeys} from "./utils/toShortcutKeys"
 import TagsFilter from "./{fragments}/TagsFilter.vue"
 
 import type {Branch} from "@daily/protocol"
@@ -13,9 +13,10 @@ import type {Branch} from "@daily/protocol"
 const emit = defineEmits<{createTask: []}>()
 
 const branchesStore = useBranchesStore()
-const searchModal = useSearchModal()
 
 const activeBranchName = computed(() => branchesStore.activeBranch?.name || "Main")
+
+const searchModal = useSearchModal()
 
 function onOpenAssistantPanel() {
   window.BridgeIPC.send("assistant:open")

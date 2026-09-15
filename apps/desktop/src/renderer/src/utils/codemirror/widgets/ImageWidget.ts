@@ -3,20 +3,12 @@ import {WidgetType} from "@codemirror/view"
 const MAX_RETRIES = 3
 const RETRY_DELAY_MS = 2000
 
-/**
- * Widget for rendering images in readonly mode
- * Supports custom dimensions via ![alt =WIDTHxHEIGHT](url) syntax
- *
- * Examples:
- * - ![My image](https://example.com/image.png)
- * - ![Logo =200x100](https://example.com/logo.png)
- */
 export class ImageWidget extends WidgetType {
   constructor(
     readonly url: string,
     readonly alt: string,
-    readonly width?: number,
-    readonly height?: number,
+    readonly width: number | undefined,
+    readonly height: number | undefined,
   ) {
     super()
   }
@@ -38,7 +30,7 @@ export class ImageWidget extends WidgetType {
     img.style.maxWidth = "100%"
     img.style.height = "auto"
     img.style.display = "block"
-    img.style.borderRadius = "0.375rem" // rounded-md
+    img.style.borderRadius = "0.375rem"
 
     if (this.width) {
       img.style.width = `${this.width}px`
@@ -72,7 +64,7 @@ export class ImageWidget extends WidgetType {
   }
 }
 
-function showErrorState(wrapper: HTMLSpanElement, img: HTMLImageElement, url: string, alt: string, width?: number) {
+function showErrorState(wrapper: HTMLSpanElement, img: HTMLImageElement, url: string, alt: string, width: number | undefined) {
   wrapper.innerHTML = ""
 
   const errorContainer = document.createElement("span")

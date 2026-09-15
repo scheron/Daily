@@ -5,15 +5,15 @@ import {toasts} from "vue-toasts-lite"
 import {API} from "@/api"
 import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
-import {ConfirmPopup} from "@/ui/overlays/ConfirmPopup"
+import ConfirmPopup from "@/ui/overlays/ConfirmPopup.vue"
 import DeletedTaskItem from "./{fragments}/DeletedTaskItem.vue"
-import {useDeletedTasks} from "./model/useDeletedTasks"
+import {useDeletedTasks} from "./useDeletedTasks"
 
 import type {Task} from "@daily/protocol"
 
-const {deletedTasks, revalidate} = useDeletedTasks()
-
 const isDeletingAll = ref(false)
+
+const {deletedTasks, revalidate} = useDeletedTasks()
 
 async function onRestore(task: Task) {
   try {
@@ -54,7 +54,6 @@ async function onDeleteAll() {
         title="Delete all forever?"
         message="All deleted tasks will be removed permanently. This cannot be undone."
         cancel-text="Cancel"
-        confirm-class="text-error hover:bg-error/10"
         confirm-text="Delete all"
         position="end"
         content-class="max-w-64"
@@ -63,7 +62,6 @@ async function onDeleteAll() {
         <template #trigger="{show}">
           <BaseButton
             variant="ghost"
-            size="sm"
             icon="trash"
             class="text-error hover:bg-error/10 w-full"
             :loading="isDeletingAll"

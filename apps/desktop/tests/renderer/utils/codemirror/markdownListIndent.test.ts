@@ -1,25 +1,38 @@
 import {describe, expect, it} from "vitest"
 
-import {markdownListHangingIndentCh} from "../../../../src/renderer/src/utils/codemirror/extensions/markdownListIndent"
+import {createMarkdownLanguageExtension, createMarkdownListIndentExtension} from "../../../../src/renderer/src/utils/codemirror/extensions"
+import {mountEditorView, unmountEditorView} from "../../../helpers/editorView"
 
-describe("markdownListHangingIndentCh", () => {
-  it("aligns wrapped unordered and ordered list text after the marker", () => {
-    expect(markdownListHangingIndentCh("- item")).toBe(2)
-    expect(markdownListHangingIndentCh("  - nested item")).toBe(4)
-    expect(markdownListHangingIndentCh("10. ordered item")).toBe(4)
+function mount(doc: string) {
+  return mountEditorView(doc, {extensions: [createMarkdownLanguageExtension(), createMarkdownListIndentExtension()]})
+}
+
+function firstLineStyle(doc: string): string | null {
+  const view = mount(doc)
+  const line = view.contentDOM.querySelector(".cm-line")
+  const style = line?.classList.contains("cm-markdown-list-line") ? line.getAttribute("style") : null
+  unmountEditorView(view)
+  return style
+}
+
+describe("createMarkdownListIndentExtension", () => {
+  it("aligns wrapped list text just after the marker", () => {
+    expect(firstLineStyle("- item")).toBe("padding-left: 2ch; text-indent: -2ch;")
+    expect(firstLineStyle("  - nested item")).toBe("padding-left: 4ch; text-indent: -4ch;")
+    expect(firstLineStyle("10. ordered item")).toBe("padding-left: 4ch; text-indent: -4ch;")
   })
 
-  it("includes task markers in the hanging indent", () => {
-    expect(markdownListHangingIndentCh("- [ ] task item")).toBe(6)
-    expect(markdownListHangingIndentCh("  - [x] nested task")).toBe(8)
+  it("counts a task checkbox into the hanging indent", () => {
+    expect(firstLineStyle("- [ ] task item")).toBe("padding-left: 6ch; text-indent: -6ch;")
+    expect(firstLineStyle("  - [x] nested task")).toBe("padding-left: 8ch; text-indent: -8ch;")
   })
 
-  it("can align list items after a parsed markdown prefix", () => {
-    expect(markdownListHangingIndentCh("> - quoted item", 2)).toBe(4)
+  it("measures the indent from a list marker inside a blockquote", () => {
+    expect(firstLineStyle("> - quoted item")).toBe("padding-left: 4ch; text-indent: -4ch;")
   })
 
-  it("does not treat paragraphs or horizontal rules as list items", () => {
-    expect(markdownListHangingIndentCh("plain paragraph")).toBeNull()
-    expect(markdownListHangingIndentCh("---")).toBeNull()
+  it("gives paragraphs and horizontal rules no hanging indent", () => {
+    expect(firstLineStyle("plain paragraph")).toBeNull()
+    expect(firstLineStyle("---")).toBeNull()
   })
 })

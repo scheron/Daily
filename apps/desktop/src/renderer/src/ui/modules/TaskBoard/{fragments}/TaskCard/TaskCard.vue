@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, useTemplateRef} from "vue"
+import {computed, toRef, useTemplateRef} from "vue"
 
 import {sortTags} from "@daily/protocol"
 import {toDateLabel, toDurationLabel} from "@daily/std"
@@ -9,22 +9,23 @@ import {useMilestonesStore} from "@/stores/milestones.store"
 import {useTagsStore} from "@/stores/tags.store"
 import {useTaskEditorStore} from "@/stores/task-editor"
 import {useTasksStore} from "@/stores/tasks"
-import BaseCalendar from "@/ui/base/BaseCalendar"
+import BaseContextMenu from "@/ui/base/BaseContextMenu"
 import BaseIcon from "@/ui/base/BaseIcon"
+import TaskCalendar from "@/ui/common/calendar/TaskCalendar"
 import BranchCombobox from "@/ui/common/comboboxes/BranchCombobox.vue"
 import MilestoneCombobox from "@/ui/common/comboboxes/MilestoneCombobox.vue"
 import TagsCombobox from "@/ui/common/comboboxes/TagsCombobox.vue"
-import MilestoneChip from "@/ui/common/milestones/MilestoneChip.vue"
-import ContextMenu from "@/ui/common/misc/ContextMenu"
 import DynamicTagsPanel from "@/ui/common/misc/DynamicTagsPanel.vue"
 import MarkdownContent from "@/ui/common/misc/MarkdownContent.vue"
-import EstimationPicker from "@/ui/common/pickers/EstimationPicker.vue"
+import EstimationPicker from "@/ui/common/pickers/EstimationPicker"
 import {useConfirmUnsavedModal} from "@/ui/overlays/ConfirmUnsavedModal"
+import {cn} from "@/utils/ui/tailwindcss"
 import DeleteMenuItem from "./{fragments}/DeleteMenuItem.vue"
+import MilestoneChip from "./{fragments}/MilestoneChip.vue"
 import StatusSelect from "./{fragments}/StatusSelect.vue"
-import {useTaskModel} from "./model/useTaskModel"
+import {useTaskModel} from "./useTaskModel"
 
-import type {ContextMenuItem, ContextMenuSelectEvent} from "@/ui/common/misc/ContextMenu"
+import type {BaseContextMenuItem, BaseContextMenuSelectEvent} from "@/ui/base/BaseContextMenu"
 import type {Branch, Tag, Task, TaskStatus} from "@daily/protocol"
 
 const props = defineProps<{task: Task}>()
@@ -35,9 +36,7 @@ const taskEditorStore = useTaskEditorStore()
 const milestonesStore = useMilestonesStore()
 const filterStore = useFilterStore()
 
-const contextMenuRef = useTemplateRef<InstanceType<typeof ContextMenu>>("contextMenu")
-
-const {canMoveUp, canMoveDown, canMoveToTop, canMoveToBottom, ...taskModel} = useTaskModel(props)
+const contextMenuRef = useTemplateRef<InstanceType<typeof BaseContextMenu>>("contextMenu")
 
 const tags = computed<Tag[]>(() => sortTags(props.task.tags.map((t) => tagsStore.tagsMap.get(t.id)).filter(Boolean) as Tag[]))
 
@@ -54,7 +53,9 @@ const footerDayLabel = computed(() => {
 
 const hasFooter = computed(() => Boolean(footerMilestone.value) || Boolean(footerDayLabel.value) || showTime.value)
 
-const menuItems = computed<ContextMenuItem[]>(() => {
+const {canMoveUp, canMoveDown, canMoveToTop, canMoveToBottom, ...taskModel} = useTaskModel(toRef(props, "task"))
+
+const menuItems = computed<BaseContextMenuItem[]>(() => {
   return [
     {value: "open-editor", label: "Open editor", icon: "pencil"},
     {separator: true},
@@ -120,9 +121,6 @@ async function onCardClick() {
 
 function getStatusClass(status: TaskStatus) {
   if (status !== props.task.status) return ""
-  const isMatch = status === props.task.status
-
-  if (!isMatch) return ""
 
   if (status === "active") return "text-error hover:bg-error/10 bg-error/10"
   if (status === "discarded") return "text-warning hover:bg-warning/10 bg-warning/10 "
@@ -131,7 +129,21 @@ function getStatusClass(status: TaskStatus) {
   return ""
 }
 
-async function onSelect(event: ContextMenuSelectEvent) {
+function getCardClasses(status: TaskStatus) {
+  return cn(
+    "bg-base-100 hover:shadow-accent/5 group relative overflow-hidden rounded-2xl border transition-all duration-200 hover:shadow-lg",
+    status === "backlog" && "border-base-content/15 border-dashed",
+    status === "done" && "border-success/30 hover:border-success/40",
+    status === "discarded" && "border-warning/30 hover:border-warning/40",
+    status === "active" && "border-base-300/50 hover:border-base-content/15",
+  )
+}
+
+function getContentClasses(status: TaskStatus) {
+  return cn("transition-opacity duration-200", (status === "done" || status === "discarded") && "opacity-50")
+}
+
+async function onSelect(event: BaseContextMenuSelectEvent) {
   if (event.item.value === "open-editor") {
     const proceed = await confirmLeaveIfDirty()
     if (proceed) taskEditorStore.open(props.task.id)
@@ -159,32 +171,22 @@ async function onMoveToBranch(branch: Branch) {
 </script>
 
 <template>
-  <ContextMenu ref="contextMenuRef" :items="menuItems" @select="onSelect">
-    <div
-      :id="task.id"
-      class="bg-base-100 hover:shadow-accent/5 group relative overflow-hidden rounded-2xl border transition-all duration-200 hover:shadow-lg"
-      :class="{
-        'border-base-content/15 border-dashed': task.status === 'backlog',
-        'border-success/30 hover:border-success/40': task.status === 'done',
-        'border-warning/30 hover:border-warning/40': task.status === 'discarded',
-        'border-base-300/50 hover:border-base-content/15': task.status === 'active',
-      }"
-      @click.stop="onCardClick"
-    >
+  <BaseContextMenu ref="contextMenu" :items="menuItems" @select="onSelect">
+    <div :id="task.id" :class="getCardClasses(task.status)" @click.stop="onCardClick">
       <div class="relative z-10 flex w-full flex-col gap-3 px-5 py-4">
         <div class="flex w-full items-center gap-3">
-          <DynamicTagsPanel :tags="tags" empty-message="No tags" size="sm" />
+          <DynamicTagsPanel :tags="tags" size="sm" />
           <div class="ml-auto flex shrink-0 items-center gap-2" data-task-dnd-ignore="true" @click.stop>
             <StatusSelect :status="task.status" @update:status="taskModel.changeStatus" />
           </div>
         </div>
 
-        <div class="transition-opacity duration-200" :class="{'opacity-50': ['done', 'discarded'].includes(task.status)}">
-          <MarkdownContent :content="task.content" minimized />
+        <div :class="getContentClasses(task.status)">
+          <MarkdownContent :content="task.content" />
         </div>
 
         <div v-if="hasFooter" class="flex items-center gap-2 text-xs">
-          <MilestoneChip v-if="footerMilestone" :milestone="footerMilestone" :size="12" />
+          <MilestoneChip v-if="footerMilestone" :milestone="footerMilestone" />
           <span v-else-if="footerDayLabel" class="text-base-content/80 text-xs">{{ footerDayLabel }}</span>
 
           <div v-if="showTime" class="ml-auto flex items-center gap-2">
@@ -215,13 +217,7 @@ async function onMoveToBranch(branch: Branch) {
 
     <template #child-reschedule>
       <div class="p-1">
-        <BaseCalendar
-          mode="single"
-          :days="tasksStore.days"
-          :selected-date="task.scheduled?.date ?? null"
-          size="sm"
-          @select-date="taskModel.rescheduleTask"
-        />
+        <TaskCalendar :days="tasksStore.days" :selected-date="task.scheduled?.date ?? null" @select-date="taskModel.rescheduleTask" />
       </div>
     </template>
 
@@ -236,5 +232,5 @@ async function onMoveToBranch(branch: Branch) {
     <template #child-time-spent>
       <EstimationPicker :model-value="task.spentTime" @update:model-value="(value) => tasksStore.updateTask(task.id, {spentTime: value})" />
     </template>
-  </ContextMenu>
+  </BaseContextMenu>
 </template>

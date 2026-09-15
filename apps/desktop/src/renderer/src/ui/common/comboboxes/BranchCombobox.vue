@@ -5,6 +5,7 @@ import {toasts} from "vue-toasts-lite"
 import {useBranchesStore} from "@/stores/branches.store"
 import BaseCombobox from "@/ui/base/BaseCombobox"
 import BaseIcon from "@/ui/base/BaseIcon"
+import {cn} from "@/utils/ui/tailwindcss"
 
 import type {Branch} from "@daily/protocol"
 
@@ -31,6 +32,14 @@ async function onCreate() {
 
   emit("select", created)
 }
+
+function getProjectIconClasses(isSelected: boolean) {
+  return cn("size-4.5 shrink-0", isSelected && "text-accent")
+}
+
+function getProjectNameClasses(isSelected: boolean) {
+  return cn("flex-1 truncate", isSelected && "text-accent font-medium")
+}
 </script>
 
 <template>
@@ -51,8 +60,8 @@ async function onCreate() {
       <template #item="{item}">
         <BaseIcon v-if="selectedId === item.id" name="check" class="text-accent size-4 shrink-0" />
         <span v-else class="size-4 shrink-0" />
-        <BaseIcon name="project" class="size-4.5 shrink-0" :class="{'text-accent': selectedId === item.id}" />
-        <span class="flex-1 truncate" :class="{'text-accent font-medium': selectedId === item.id}">{{ item.name }}</span>
+        <BaseIcon name="project" :class="getProjectIconClasses(selectedId === item.id)" />
+        <span :class="getProjectNameClasses(selectedId === item.id)">{{ item.name }}</span>
       </template>
 
       <template #footer="{query: createName}">

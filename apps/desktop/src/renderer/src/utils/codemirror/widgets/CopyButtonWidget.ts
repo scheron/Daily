@@ -1,12 +1,5 @@
 import {WidgetType} from "@codemirror/view"
 
-const RESET_DELAY_MS = 1500
-
-/**
- * A "copy" button rendered in the top-right of a fenced code block. Copies the
- * block's content to the clipboard and briefly swaps to a check icon. Reuses the
- * app's `copy`/`check` sprite icons.
- */
 export class CopyButtonWidget extends WidgetType {
   constructor(readonly code: string) {
     super()
@@ -35,7 +28,7 @@ export class CopyButtonWidget extends WidgetType {
         setTimeout(() => {
           button.innerHTML = iconMarkup("copy")
           button.classList.remove("is-copied")
-        }, RESET_DELAY_MS)
+        }, 1500)
       })
     })
 

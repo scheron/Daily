@@ -9,6 +9,7 @@ import {useDragDropStore} from "@/stores/dragDrop.store"
 import {useFilterStore} from "@/stores/filter.store"
 import {useMilestonesStore} from "@/stores/milestones.store"
 import MilestoneDiamond from "@/ui/common/milestones/MilestoneDiamond.vue"
+import {cn} from "@/utils/ui/tailwindcss"
 
 import type {MilestoneWithProgress} from "@/stores/milestones.store"
 import type {Milestone, MilestoneProgress} from "@daily/protocol"
@@ -50,6 +51,15 @@ function isDropTarget(id: Milestone["id"]) {
 function isSelected(id: Milestone["id"]) {
   return filterStore.activeMilestoneId === id
 }
+
+function getMilestoneClasses(id: Milestone["id"], isClosed: boolean) {
+  return cn(
+    "flex h-9 cursor-pointer items-center gap-2 rounded-md px-2 text-sm transition-colors",
+    isClosed && "opacity-50",
+    isDropTarget(id) && "ring-accent border-accent ring-1",
+    isSelected(id) ? "bg-accent/12 text-accent" : "hover:bg-base-200/60",
+  )
+}
 </script>
 
 <template>
@@ -61,11 +71,7 @@ function isSelected(id: Milestone["id"]) {
         v-for="milestone in openMilestones"
         :key="milestone.id"
         :data-drop-milestone="milestone.id"
-        class="flex h-9 cursor-pointer items-center gap-2 rounded-md px-2 text-sm transition-colors"
-        :class="[
-          {'ring-accent border-accent ring-1': isDropTarget(milestone.id)},
-          isSelected(milestone.id) ? 'bg-accent/12 text-accent' : 'hover:bg-base-200/60',
-        ]"
+        :class="getMilestoneClasses(milestone.id, false)"
         @click="onSelect(milestone.id)"
       >
         <MilestoneDiamond :completion="milestoneCompletion(milestone.progress)" :overdue="overdueOf(milestone)" :size="13" />
@@ -86,11 +92,7 @@ function isSelected(id: Milestone["id"]) {
           v-for="milestone in closedMilestones"
           :key="milestone.id"
           :data-drop-milestone="milestone.id"
-          class="flex h-9 cursor-pointer items-center gap-2 rounded-md px-2 text-sm opacity-50 transition-colors"
-          :class="[
-            {'ring-accent border-accent ring-1': isDropTarget(milestone.id)},
-            isSelected(milestone.id) ? 'bg-accent/12 text-accent' : 'hover:bg-base-200/60',
-          ]"
+          :class="getMilestoneClasses(milestone.id, true)"
           @click="onSelect(milestone.id)"
         >
           <MilestoneDiamond :completion="milestoneCompletion(milestone.progress)" :overdue="overdueOf(milestone)" :size="13" />

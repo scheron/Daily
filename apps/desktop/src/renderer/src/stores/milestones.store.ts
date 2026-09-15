@@ -90,7 +90,6 @@ export const useMilestonesStore = defineStore("milestones", () => {
   return {
     isMilestonesLoaded,
     milestones,
-    milestoneViews,
     milestonesMap,
     activeMilestones,
 

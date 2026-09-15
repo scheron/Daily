@@ -2,12 +2,13 @@
 import {computed} from "vue"
 
 import {useTaskColumns} from "@/composables/tasks/useTaskColumns"
-import {COLUMN_MIN_WIDTH, TASK_COLUMNS} from "@/constants/ui"
+import {TASK_COLUMNS} from "@/constants/ui"
 import {useUIStore} from "@/stores/ui"
 import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
 import BaseMenu, {BaseMenuItem} from "@/ui/base/BaseMenu.vue"
 import BasePopup from "@/ui/base/BasePopup.vue"
+import {cn} from "@/utils/ui/tailwindcss"
 
 import type {TaskStatus} from "@daily/protocol"
 
@@ -15,8 +16,9 @@ const props = defineProps<{
   status: TaskStatus
 }>()
 
-const columns = useTaskColumns()
 const uiStore = useUIStore()
+
+const columns = useTaskColumns()
 
 const column = computed(() => TASK_COLUMNS.find((s) => s.status === props.status)!)
 const tasksCount = computed(() => columns.tasksByStatus.value[props.status].length)
@@ -31,27 +33,41 @@ const menuItems = computed<BaseMenuItem[]>(() => [
   },
 ])
 
-function onMenuSelect(value: BaseMenuItem["value"] | null, hide: () => void) {
+const containerStyle = computed(() => (collapsed.value ? undefined : {flexBasis: "370px", minWidth: "370px"}))
+
+function onMenuSelect(value: BaseMenuItem["value"], hide: () => void) {
   if (value === "toggle") columns.onToggleColumn(column.value.status)
   hide()
 }
 
-const containerClass = computed(() => (collapsed.value ? "w-20 max-w-20 min-w-20 h-full" : "h-full grow shrink-0"))
-const containerStyle = computed(() => (collapsed.value ? undefined : {flexBasis: `${COLUMN_MIN_WIDTH}px`, minWidth: `${COLUMN_MIN_WIDTH}px`}))
+function getContainerClasses(isCollapsed: boolean) {
+  return cn("bg-base-100 flex min-w-0 flex-col overflow-hidden", isCollapsed ? "w-20 max-w-20 min-w-20 h-full" : "h-full grow shrink-0")
+}
+
+function getIconClasses(titleClass: string) {
+  return cn("size-4", titleClass)
+}
+
+function getTitleClasses(titleClass: string) {
+  return cn("flex items-center gap-2", titleClass)
+}
+
+function getCounterClasses(counterClass: string) {
+  return cn("rounded-full px-2 py-0.5 text-xs font-medium", counterClass)
+}
 </script>
 
 <template>
   <div
     :data-column-status="column.status"
-    class="bg-base-100 flex min-w-0 flex-col overflow-hidden"
-    :class="containerClass"
+    :class="getContainerClasses(collapsed)"
     :style="containerStyle"
     @dragenter="columns.onColumnDragEnter(column.status)"
   >
     <template v-if="collapsed">
       <div class="flex h-full flex-col items-center justify-start gap-2 py-3">
-        <BaseIcon :name="column.icon" class="size-4" :class="column.titleClass" />
-        <span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="column.counterClass">
+        <BaseIcon :name="column.icon" :class="getIconClasses(column.titleClass)" />
+        <span :class="getCounterClasses(column.counterClass)">
           {{ tasksCount }}
         </span>
         <BasePopup v-if="!autoCollapseEnabled" hide-header position="end" container-class="min-w-32 p-0">
@@ -67,10 +83,10 @@ const containerStyle = computed(() => (collapsed.value ? undefined : {flexBasis:
 
     <template v-else>
       <div class="border-base-300 h-toolbar flex items-center justify-between border-b px-4 py-2">
-        <div class="flex items-center gap-2" :class="column.titleClass">
+        <div :class="getTitleClasses(column.titleClass)">
           <BaseIcon :name="column.icon" class="size-4" />
           <span class="text-sm font-medium tracking-wide uppercase">{{ column.label }}</span>
-          <span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="column.counterClass">
+          <span :class="getCounterClasses(column.counterClass)">
             {{ tasksCount }}
           </span>
         </div>

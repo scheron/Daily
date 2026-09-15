@@ -7,7 +7,7 @@ import {useTaskEditorStore} from "@/stores/task-editor"
 import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
 import BasePopup from "@/ui/base/BasePopup.vue"
-import EstimationPicker from "@/ui/common/pickers/EstimationPicker.vue"
+import EstimationPicker from "@/ui/common/pickers/EstimationPicker"
 
 import type {IconName} from "@/ui/base/BaseIcon"
 import type {Task} from "@daily/protocol"
@@ -38,21 +38,14 @@ function onUpdate(total: number) {
 <template>
   <BasePopup hide-header position="start">
     <template #trigger="{toggle}">
-      <BaseButton
-        type="button"
-        class="inline-flex items-center justify-start gap-1 p-0"
-        size="sm"
-        variant="text"
-        :disabled="disabled"
-        @click.stop="toggle"
-      >
+      <BaseButton type="button" class="inline-flex items-center justify-start gap-1 p-0" variant="text" :disabled="disabled" @click.stop="toggle">
         <BaseIcon :name="icon" class="size-3.5" />
         <span class="leading-none">{{ displayLabel }}</span>
       </BaseButton>
     </template>
 
     <template #default>
-      <EstimationPicker :model-value="value" placeholder="Select time" @update:model-value="onUpdate" />
+      <EstimationPicker :model-value="value" @update:model-value="onUpdate" />
     </template>
   </BasePopup>
 </template>

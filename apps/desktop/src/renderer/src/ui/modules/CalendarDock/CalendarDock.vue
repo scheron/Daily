@@ -5,10 +5,10 @@ import {useBoardDrop} from "@/composables/tasks/useBoardDrop"
 import {useFilterStore} from "@/stores/filter.store"
 import {useTaskEditorStore} from "@/stores/task-editor"
 import {useTasksStore} from "@/stores/tasks"
-import {useUIStore} from "@/stores/ui/ui.store"
+import {useUIStore} from "@/stores/ui"
 import BaseButton from "@/ui/base/BaseButton"
-import BaseCalendar from "@/ui/base/BaseCalendar"
 import BaseIcon from "@/ui/base/BaseIcon"
+import TaskCalendar from "@/ui/common/calendar/TaskCalendar"
 import MilestoneDiamond from "@/ui/common/milestones/MilestoneDiamond.vue"
 import {cn} from "@/utils/ui/tailwindcss"
 import {useDockCrossFade} from "./composables/useDockCrossFade"
@@ -61,9 +61,8 @@ function getTabClasses(isActive: boolean) {
         </div>
 
         <div class="min-h-70">
-          <BaseCalendar
+          <TaskCalendar
             v-if="dockTab === 'days'"
-            size="sm"
             :days="tasksStore.days"
             :selected-date="tasksStore.activeDay"
             @select-date="tasksStore.setActiveDay"

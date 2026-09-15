@@ -1,18 +1,13 @@
 import {computed} from "vue"
 
-import {useSettingValue} from "@/composables/useSettingsValue"
+import {useSettingValue} from "@/composables/useSettingValue"
 
 import type {TaskStatus} from "@daily/protocol"
 
 type SectionsCollapsed = Record<TaskStatus, boolean>
 
-/** How empty task columns behave: shown as-is, auto-collapsed, or hidden entirely. */
 export type EmptySectionsMode = "show" | "collapse" | "hide"
 
-/**
- * Persisted display preferences for the task status sections: empty-section handling
- * and per-status collapsed state.
- */
 export function useSectionPrefs() {
   const shouldHideEmptySections = useSettingValue("layout.sectionsHideEmpty", false)
   const shouldCollapseEmptySections = useSettingValue("layout.sectionsAutoCollapseEmpty", false)

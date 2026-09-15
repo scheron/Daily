@@ -1,29 +1,10 @@
-import {toValue} from "vue"
 import {tryOnScopeDispose, useEventListener} from "@vueuse/core"
 
 import {findVerticalScrollAncestor} from "@/utils/ui/findVerticalScrollAncestor"
 
-import type {MaybeRefOrGetter} from "vue"
+import type {ShallowRef} from "vue"
 
-type DragScrollOptions = {
-  ignoreSelector?: string
-  threshold?: number
-}
-
-const IGNORE_SELECTOR = "[data-task-card], button, a, input, textarea, select, [role='button'], [contenteditable='true']"
-const MOVE_THRESHOLD = 4
-
-/**
- * Grab-to-scroll for a horizontal scroll container (the board): press on empty
- * space and move to pan it, mouse-equivalent of touch dragging. The vertical
- * delta is forwarded to the scrollable column under the pointer. Drags that start
- * on a card or interactive control are ignored so the card reorder/click logic
- * keeps working.
- */
-export function useDragScroll(target: MaybeRefOrGetter<HTMLElement | null>, options: DragScrollOptions = {}) {
-  const ignoreSelector = options.ignoreSelector ?? IGNORE_SELECTOR
-  const threshold = options.threshold ?? MOVE_THRESHOLD
-
+export function useDragScroll(target: Readonly<ShallowRef<HTMLElement | null>>) {
   let active = false
   let engaged = false
   let startX = 0
@@ -32,8 +13,12 @@ export function useDragScroll(target: MaybeRefOrGetter<HTMLElement | null>, opti
   let startScrollTop = 0
   let verticalContainer: HTMLElement | null = null
 
+  useEventListener(target, "pointerdown", onPointerDown)
+
   function onPointerDown(event: PointerEvent) {
-    const container = toValue(target)
+    const ignoreSelector = "[data-task-card], button, a, input, textarea, select, [role='button'], [contenteditable='true']"
+
+    const container = target.value
     if (!container || event.button !== 0) return
     if (event.target instanceof HTMLElement && event.target.closest(ignoreSelector)) return
 
@@ -51,7 +36,9 @@ export function useDragScroll(target: MaybeRefOrGetter<HTMLElement | null>, opti
   }
 
   function onPointerMove(event: PointerEvent) {
-    const container = toValue(target)
+    const threshold = 4
+
+    const container = target.value
     if (!active || !container) return
 
     const dx = event.clientX - startX
@@ -89,6 +76,5 @@ export function useDragScroll(target: MaybeRefOrGetter<HTMLElement | null>, opti
     document.body.style.userSelect = ""
   }
 
-  useEventListener(target, "pointerdown", onPointerDown)
   tryOnScopeDispose(onPointerUp)
 }

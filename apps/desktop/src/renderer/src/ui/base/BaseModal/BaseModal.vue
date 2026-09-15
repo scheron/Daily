@@ -4,34 +4,32 @@ import Header from "./{fragments}/Header.vue"
 
 import type {HTMLAttributes} from "vue"
 
-withDefaults(
-  defineProps<{
-    title?: string
-    fullscreen?: boolean
-    hideHeader?: boolean
-    hideToolbar?: boolean
-    contentClass?: HTMLAttributes["class"]
-    containerClass?: HTMLAttributes["class"]
-  }>(),
-  {
-    fullscreen: false,
-  },
-)
+const props = defineProps<{
+  title?: string
+  hideHeader?: boolean
+  contentClass?: HTMLAttributes["class"]
+  containerClass?: HTMLAttributes["class"]
+}>()
 
 defineEmits<{close: []}>()
+
+function getContainerClasses() {
+  return cn("bg-base-100 relative flex flex-col h-[90vh] w-[90vw] rounded-lg", props.containerClass)
+}
+
+function getContentClasses() {
+  return cn("flex-1 overflow-y-auto md:p-4", props.contentClass)
+}
 </script>
 
 <template>
   <div class="absolute inset-0 flex items-center justify-center" tabindex="-1">
     <div class="bg-base-300/60 absolute inset-0 backdrop-blur-xs" @click="$emit('close')" />
 
-    <div class="bg-base-100 relative flex flex-col" :class="cn([fullscreen ? 'size-full' : 'h-[90vh] w-[90vw] rounded-lg'], containerClass)">
-      <Header v-if="!hideHeader" :title="title" :hide-toolbar="hideToolbar" @close="$emit('close')">
-        <template v-if="$slots.toolbar" #toolbar><slot name="toolbar" /></template>
-        <template v-if="$slots.actions" #actions><slot name="actions" /></template>
-      </Header>
+    <div :class="getContainerClasses()">
+      <Header v-if="!hideHeader" :title="title" @close="$emit('close')" />
 
-      <div :class="cn('flex-1 overflow-y-auto md:p-4', contentClass)">
+      <div :class="getContentClasses()">
         <slot />
       </div>
     </div>

@@ -4,9 +4,7 @@ import BaseIcon from "@/ui/base/BaseIcon"
 import type {IconName} from "@/ui/base/BaseIcon"
 
 defineProps<{
-  /** Section heading shown centered between two divider lines. */
   label?: string
-  /** Optional icon rendered next to the heading. */
   icon?: IconName
 }>()
 </script>

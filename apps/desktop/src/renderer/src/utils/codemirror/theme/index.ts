@@ -1,5 +1,6 @@
 export {codeBlockStyles} from "./codeBlocks"
 export {editorStyles} from "./editor"
+export {codeHighlightStyle} from "./highlightStyle"
 export {markdownStyles} from "./markdown"
 export {searchHighlightStyles} from "./searchHighlight"
 export {utilityStyles} from "./utilities"

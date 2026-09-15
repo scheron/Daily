@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import {onBeforeMount, ref} from "vue"
 
-import BaseIcon, {IconName} from "@/ui/base/BaseIcon"
+import BaseIcon from "@/ui/base/BaseIcon"
+
+import type {IconName} from "@/ui/base/BaseIcon"
 
 const icons = ref<IconName[]>([])
 
@@ -20,9 +22,7 @@ onBeforeMount(() => {
         class="hover:bg-base-200 group flex cursor-pointer flex-col items-center justify-center rounded-md p-2 transition-colors"
       >
         <BaseIcon :name="icon" class="text-accent group-hover:text-accent-focus size-5 transition-colors" />
-        <span class="mt-2 text-center text-xs">
-          {{ icon }}
-        </span>
+        <span class="mt-2 text-center text-xs">{{ icon }}</span>
       </div>
     </div>
   </div>

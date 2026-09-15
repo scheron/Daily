@@ -1,17 +1,6 @@
-import type {StyleSpec} from "@/utils/codemirror/types"
+import type {StyleSpec} from "./types"
 
-/**
- * Markdown element styles
- * - Inline formatting (bold, italic, code)
- * - Links
- * - Headings (h1-h6)
- * - Blockquotes
- * - Lists
- * - Horizontal rules
- * - Tables
- */
 export const markdownStyles: Record<string, StyleSpec> = {
-  // Inline formatting
   ".cm-strong": {
     fontWeight: "600",
     color: "var(--color-base-content)",
@@ -32,7 +21,6 @@ export const markdownStyles: Record<string, StyleSpec> = {
     WebkitBoxDecorationBreak: "clone",
   },
 
-  // Links
   ".cm-link": {
     color: "var(--color-info)",
     textDecoration: "none",
@@ -43,7 +31,6 @@ export const markdownStyles: Record<string, StyleSpec> = {
     textDecoration: "underline",
   },
 
-  // Headings
   ".cm-heading": {
     fontWeight: "600",
     color: "var(--color-base-content)",
@@ -103,7 +90,6 @@ export const markdownStyles: Record<string, StyleSpec> = {
     borderBottom: "none",
   },
 
-  // Blockquote
   ".cm-quote": {
     margin: "0",
     padding: "0 0.5em",
@@ -112,12 +98,6 @@ export const markdownStyles: Record<string, StyleSpec> = {
     borderLeft: "0.25em solid var(--color-warning)",
   },
 
-  // Lists
-  ".cm-list": {
-    paddingLeft: "1em",
-  },
-
-  // Horizontal rule
   ".cm-hr": {
     display: "block",
     height: "1px",
@@ -128,7 +108,6 @@ export const markdownStyles: Record<string, StyleSpec> = {
     overflow: "hidden",
   },
 
-  // Tables
   ".cm-table-wrapper": {
     display: "block",
     maxWidth: "100%",

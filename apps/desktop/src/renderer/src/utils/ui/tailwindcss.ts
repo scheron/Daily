@@ -9,15 +9,23 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export type VariantProps<Component extends (...args: any) => any> = OmitUndefined<Parameters<Component>[0]>
+type ConfigSchema = Record<string, string | Record<string, string>>
+
+type ConfigVariants<T extends ConfigSchema> = {
+  [Variant in keyof T]?: keyof T[Variant] extends string ? keyof T[Variant] | boolean : boolean
+}
+
+type Config<T extends ConfigSchema> = {
+  baseClass?: string
+  variants?: T
+  defaultVariants?: ConfigVariants<T>
+}
+
+type Props<T> = T extends ConfigSchema ? ConfigVariants<T> & Record<string, unknown> : Record<string, unknown>
+
+type DefineVariant<T extends ConfigSchema> = (props: Props<T>) => ComputedRef<string>
 
 /**
- * Creates a utility function that generates dynamic CSS class strings based on a set of variant configurations.
- *
- * @template T - The schema that defines the available variants.
- * @param {Config<T>} config - The configuration object containing the variant definitions and default variant values.
- * @returns {DefineVariant<T>} - A function that accepts props and returns a computed reactive string with the class names string.
- *
  * @example
  * const labelVariant = defineVariant({
  *   baseClass: 'text-sm',
@@ -28,7 +36,7 @@ export type VariantProps<Component extends (...args: any) => any> = OmitUndefine
  *     },
  *   },
  *   defaultVariants: {
- *     variant: 'primary',
+ *     color: 'primary',
  *   },
  * });
  *
@@ -46,9 +54,8 @@ export type VariantProps<Component extends (...args: any) => any> = OmitUndefine
  *
  * const props = { invalid: true, disabled: false };
  * const buttonClass = buttonVariant(props);
- * // -> "bg-orange-500 !text-red-200"
+ * // -> "bg-orange-500 text-red-200"
  */
-
 export function defineVariant<T extends ConfigSchema>(config: Config<T>): DefineVariant<T> {
   return (props: Props<T>): ComputedRef<string> => {
     return computed(() => {
@@ -88,20 +95,3 @@ function resolveDefaultVariantClass<T extends ConfigSchema>(
 
   return resolveVariantClass(defaultVariantValue, variants[key])
 }
-
-type ConfigSchema = Record<string, string | Record<string, string>>
-
-type ConfigVariants<T extends ConfigSchema> = {
-  [Variant in keyof T]?: keyof T[Variant] extends string ? keyof T[Variant] | boolean : boolean
-}
-
-type Config<T extends ConfigSchema> = {
-  baseClass?: string
-  variants?: T
-  defaultVariants?: ConfigVariants<T>
-}
-
-type Props<T> = T extends ConfigSchema ? ConfigVariants<T> & Record<string, unknown> : Record<string, unknown>
-
-type DefineVariant<T extends ConfigSchema> = (props: Props<T>) => ComputedRef<string>
-type OmitUndefined<T> = T extends undefined ? never : T

@@ -1,19 +1,11 @@
-import type {StyleSpec} from "@/utils/codemirror/types"
+import type {StyleSpec} from "./types"
 
-/**
- * Base editor styles
- * - Root editor container
- * - Content area
- * - Cursor and selection
- * - Focus states
- * - Gutters
- */
 export const editorStyles: Record<string, StyleSpec> = {
   "&": {
     color: "var(--color-base-content)",
     backgroundColor: "transparent",
     fontFamily: "var(--font-sans)",
-    fontSize: "0.875rem", // 14px - smaller than default
+    fontSize: "0.875rem",
     height: "100%",
     lineHeight: "1.6",
   },
@@ -22,7 +14,7 @@ export const editorStyles: Record<string, StyleSpec> = {
     caretColor: "var(--color-accent)",
     padding: "1rem",
     fontFamily: "inherit",
-    fontSize: "0.875rem", // 14px - match root
+    fontSize: "0.875rem",
     lineHeight: "1.5",
     whiteSpace: "pre-wrap",
     wordWrap: "break-word",

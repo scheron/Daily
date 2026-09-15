@@ -24,48 +24,12 @@ export function findAllFocusableElements(container: HTMLElement): HTMLElement[] 
   return Array.from(container.querySelectorAll(focusableSelectors.join(", "))) as HTMLElement[]
 }
 
-let highlightTimeout: ReturnType<typeof setTimeout> | null = null
-
-export function highlightElement(elementId: string, options: {class: string; duration?: number}) {
-  if (highlightTimeout) clearTimeout(highlightTimeout)
-
-  const {class: className, duration = 2000} = options
-
-  const element = document.getElementById(elementId)
-
-  if (!element) {
-    console.warn(`Element with id "${elementId}" not found for highlighting`)
-    return false
-  }
-
-  if (className) element.classList.add(className)
-
-  highlightTimeout = setTimeout(() => {
-    if (className) element.classList.remove(className)
-  }, duration)
-
-  return true
-}
-
 export function findClosestAtPoint(x: number, y: number, selector: string): HTMLElement | null {
   const el = document.elementFromPoint(x, y)
   return el?.closest<HTMLElement>(selector) ?? null
 }
 
-export function findDragClone(): HTMLElement | null {
-  return document.querySelector<HTMLElement>(".draggable-task-dragging")
-}
-
-export async function scrollToElement(
-  elementId: string,
-  options: {
-    behavior?: ScrollBehavior
-    block?: ScrollLogicalPosition
-    timeout?: number
-  } = {},
-): Promise<boolean> {
-  const {behavior = "smooth", block = "center", timeout = 3000} = options
-
+export async function scrollToElement(elementId: string): Promise<boolean> {
   let element = document.getElementById(elementId)
   let rafId: number | null = null
 
@@ -83,7 +47,7 @@ export async function scrollToElement(
           return
         }
 
-        if (performance.now() - startTime < timeout) {
+        if (performance.now() - startTime < 3000) {
           rafId = requestAnimationFrame(checkElement)
         } else {
           resolve(null)
@@ -99,10 +63,10 @@ export async function scrollToElement(
     return false
   }
 
-  element.scrollIntoView({behavior, block})
+  element.scrollIntoView({behavior: "smooth", block: "center"})
   return true
 }
 
-export function getCssVariable(name: string, root: HTMLElement = document.documentElement): string {
-  return getComputedStyle(root).getPropertyValue(name).trim()
+export function getCssVariable(name: string): string {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
 }

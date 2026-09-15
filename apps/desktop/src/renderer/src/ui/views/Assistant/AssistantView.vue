@@ -2,37 +2,36 @@
 import {computed, nextTick, onMounted, useTemplateRef, watch} from "vue"
 import {toasts} from "vue-toasts-lite"
 import {until} from "@vueuse/core"
+import {storeToRefs} from "pinia"
 
-import {AIProvider} from "@daily/protocol"
 import {toDateLabel} from "@daily/std"
 
 import {useCopyToClipboard} from "@/composables/useCopyToClipboard"
-import {useStickToBottom} from "@/composables/useStickToBottom"
-import {useTyping} from "@/composables/useTyping"
 import {useAiStore} from "@/stores/ai"
-import {useThemeStore} from "@/stores/theme.store"
+import {useThemeStore} from "@/stores/theme"
 import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
 import WaveText from "@/ui/common/misc/WaveText.vue"
-import {getProviderConfig} from "@/utils/ai/getProviderConfig"
+import {useStickToBottom} from "./composables/useStickToBottom"
+import {useTyping} from "./composables/useTyping"
 import ConnectionErrorAICard from "./{fragments}/cards/ConnectionErrorAICard.vue"
 import DisabledAICard from "./{fragments}/cards/DisabledAICard.vue"
 import NoLocalModelAICard from "./{fragments}/cards/NoLocalModelAICard.vue"
 import OnboardingAICard from "./{fragments}/cards/OnboardingAICard.vue"
 import ThinkErrorAICard from "./{fragments}/cards/ThinkErrorAICard.vue"
 import ToolConfirmationCard from "./{fragments}/cards/ToolConfirmationCard.vue"
-import ChatForm from "./{fragments}/ChatForm.vue"
-import ChatMessage from "./{fragments}/ChatMessage.vue"
+import ChatForm from "./{fragments}/ChatForm"
+import ChatMessage from "./{fragments}/ChatMessage"
+
+import type {AIProvider} from "@daily/protocol"
 
 useThemeStore()
 const aiStore = useAiStore()
-const {copyToClipboard, isCopied: isConversationCopied} = useCopyToClipboard({onSuccess: () => toasts.success("Conversation copied")})
-const {startTyping, stopTyping, renderTyping} = useTyping({duration: 80, endDelay: 1500})
+
+const {isConnectionLoading} = storeToRefs(aiStore)
 
 const messagesContainerRef = useTemplateRef<HTMLElement>("messagesContainer")
-const {isAwayFromBottom, scrollToBottom} = useStickToBottom(messagesContainerRef)
 
-const aiConfig = computed(() => (aiStore.config ? getProviderConfig(aiStore.config.provider, aiStore.config) : null))
 const activeProvider = computed(() => aiStore.config?.provider ?? "openai")
 const activeModel = computed(() => {
   if (!aiStore.config) return ""
@@ -63,6 +62,10 @@ const showThinkingSpinner = computed(() => {
   return false
 })
 
+const {copyToClipboard, isCopied: isConversationCopied} = useCopyToClipboard({onSuccess: () => toasts.success("Conversation copied")})
+const {startTyping, stopTyping, renderTyping} = useTyping()
+const {isAwayFromBottom, scrollToBottom} = useStickToBottom(messagesContainerRef)
+
 function copyConversation() {
   const text = aiStore.messages.map((message) => `**${message.role === "user" ? "You" : "Assistant"}:** ${message.content}`).join("\n\n")
   copyToClipboard(text)
@@ -76,16 +79,13 @@ async function handleSelectRemoteModel(model: string) {
   await aiStore.selectModel("openai", model)
 }
 
-watch(
-  () => aiStore.isConnectionLoading,
-  (newVal) => {
-    if (newVal) {
-      startTyping("Connecting to AI...")
-    } else {
-      stopTyping()
-    }
-  },
-)
+watch(isConnectionLoading, (newVal) => {
+  if (newVal) {
+    startTyping("Connecting to AI...")
+  } else {
+    stopTyping()
+  }
+})
 
 onMounted(async () => {
   window.BridgeIPC.send("window:ready")
@@ -107,13 +107,12 @@ onMounted(async () => {
       <div v-if="aiStore.hasMessages" class="flex items-center justify-end gap-1 pr-3" style="-webkit-app-region: no-drag">
         <BaseButton
           variant="ghost"
-          size="sm"
           :icon="isConversationCopied ? 'check' : 'copy'"
           icon-class="size-4"
           tooltip="Copy conversation"
           @click="copyConversation"
         />
-        <BaseButton variant="ghost" size="sm" icon="trash" icon-class="size-4" tooltip="Clear chat" @click="aiStore.clearHistory" />
+        <BaseButton variant="ghost" icon="trash" icon-class="size-4" tooltip="Clear chat" @click="aiStore.clearHistory" />
       </div>
       <div v-else></div>
     </header>
@@ -184,7 +183,6 @@ onMounted(async () => {
 
             <ChatForm
               v-focus-on-mount
-              :ai-config="aiConfig"
               :active-provider="activeProvider"
               :active-model="activeModel"
               :local-models="installedLocalModels"

@@ -1,39 +1,16 @@
-import {nextTick, onMounted, ref, toValue, useTemplateRef, watch} from "vue"
+import {nextTick, onMounted, ref, useTemplateRef, watch} from "vue"
 
 import {sleep} from "@daily/std"
 
-import type {MaybeRefOrGetter} from "vue"
+import type {ComputedRef, Ref} from "vue"
 
-type ComboboxProps = {
-  /** Rows currently rendered (already filtered). */
-  items: readonly unknown[]
-  /** Whether a navigable footer row follows the items. */
-  hasFooter: boolean
-  /** Search query; the active row resets to the top whenever it changes. */
-  query: string
-  /** Focus the search input on mount (defaults to true). */
-  autofocus?: boolean
+type ComboboxOptions = {
+  items: ComputedRef<readonly unknown[]>
+  hasFooter: ComputedRef<boolean>
+  query: Ref<string>
 }
 
-type ComboboxEvents = {
-  /** Confirms the item at the given index (Enter on a highlighted item, or click). */
-  onSelectItem: (index: number) => void
-  /** Confirms the footer row (Enter while the footer is highlighted). */
-  onSelectFooter?: () => void
-}
-
-/**
- * Controller for a combobox: owns the search input and list refs, the active
- * row, arrow/enter navigation (with scroll-into-view), and resets the active
- * row when the query changes. The footer (if present) is the last navigable row.
- *
- * @example
- * const {activeIndex, onKeydown, focus} = useCombobox(props, {
- *   onSelectItem: (i) => emit("select", props.items[i]),
- *   onSelectFooter: () => emit("select-footer"),
- * })
- */
-export function useCombobox(rawProps: MaybeRefOrGetter<ComboboxProps>, events: ComboboxEvents) {
+export function useCombobox(options: ComboboxOptions) {
   const activeIndex = ref(0)
   const inputRef = useTemplateRef<HTMLInputElement>("input")
   const listRef = useTemplateRef<HTMLElement>("list")
@@ -49,9 +26,6 @@ export function useCombobox(rawProps: MaybeRefOrGetter<ComboboxProps>, events: C
     } else if (event.key === "ArrowUp") {
       event.preventDefault()
       move(-1)
-    } else if (event.key === "Enter") {
-      event.preventDefault()
-      confirm()
     }
   }
 
@@ -64,32 +38,16 @@ export function useCombobox(rawProps: MaybeRefOrGetter<ComboboxProps>, events: C
     listRef.value?.querySelector('[data-active="true"]')?.scrollIntoView({block: "nearest"})
   }
 
-  function confirm() {
-    const props = toValue(rawProps)
-
-    if (props.hasFooter && activeIndex.value === props.items.length) {
-      events.onSelectFooter?.()
-      return
-    }
-
-    events.onSelectItem(activeIndex.value)
-  }
-
   function totalCount(): number {
-    const props = toValue(rawProps)
-    return props.items.length + (props.hasFooter ? 1 : 0)
+    return options.items.value.length + (options.hasFooter.value ? 1 : 0)
   }
 
-  watch(
-    () => toValue(rawProps).query,
-    () => (activeIndex.value = 0),
-  )
+  watch(options.query, () => (activeIndex.value = 0))
 
   onMounted(async () => {
-    if (toValue(rawProps).autofocus === false) return
     await sleep(50)
     focus()
   })
 
-  return {activeIndex, inputRef, listRef, onKeydown, focus}
+  return {activeIndex, onKeydown}
 }

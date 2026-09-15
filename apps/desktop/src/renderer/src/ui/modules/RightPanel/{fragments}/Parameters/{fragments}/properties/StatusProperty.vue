@@ -6,6 +6,7 @@ import {useTaskEditorStore} from "@/stores/task-editor"
 import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
 import BasePopup from "@/ui/base/BasePopup.vue"
+import {cn} from "@/utils/ui/tailwindcss"
 
 import type {Task, TaskStatus} from "@daily/protocol"
 
@@ -19,12 +20,20 @@ function selectStatus(status: TaskStatus, hide: () => void) {
   if (status !== props.task.status) taskEditorStore.patch({status})
   hide()
 }
+
+function getTriggerClasses(titleClass: string) {
+  return cn("inline-flex items-center justify-start gap-1 p-0", titleClass)
+}
+
+function getOptionClasses(titleClass: string) {
+  return cn("flex items-center justify-start gap-2 text-left", titleClass)
+}
 </script>
 
 <template>
   <BasePopup hide-header position="start">
     <template #trigger="{toggle}">
-      <BaseButton class="inline-flex items-center justify-start gap-1 p-0" size="sm" variant="text" :class="column.titleClass" @click.stop="toggle">
+      <BaseButton variant="text" :class="getTriggerClasses(column.titleClass)" @click.stop="toggle">
         <BaseIcon :name="column.icon" class="size-4" />
         <span class="tracking-wide uppercase">{{ column.label }}</span>
       </BaseButton>
@@ -35,10 +44,8 @@ function selectStatus(status: TaskStatus, hide: () => void) {
         <BaseButton
           v-for="option in TASK_COLUMNS"
           :key="option.status"
-          class="flex items-center justify-start gap-2 text-left"
-          size="sm"
-          :class="option.titleClass"
           variant="ghost"
+          :class="getOptionClasses(option.titleClass)"
           @click="selectStatus(option.status, hide)"
         >
           <BaseIcon :name="option.icon" class="size-4" />

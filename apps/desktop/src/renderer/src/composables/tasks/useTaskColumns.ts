@@ -10,13 +10,10 @@ import {useFilterStore} from "@/stores/filter.store"
 import {useMilestonesStore} from "@/stores/milestones.store"
 import {useTasksStore} from "@/stores/tasks"
 import {useUIStore} from "@/stores/ui"
-import {resolveMoveTarget} from "@/utils/tasks/resolveMoveTarget"
 import {useTaskDragDrop} from "./useTaskDragDrop"
 
 import type {TaskColumn} from "@/types/ui"
 import type {MoveTaskByOrderParams, Task, TaskStatus} from "@daily/protocol"
-
-const SORTABLE_ANIMATION_MS = 160
 
 export const useTaskColumns = createSharedComposable(() => {
   const tasksStore = useTasksStore()
@@ -25,20 +22,9 @@ export const useTaskColumns = createSharedComposable(() => {
   const uiStore = useUIStore()
   const dragDropStore = useDragDropStore()
 
-  function filterByTag(tasks: Task[]) {
-    if (!filterStore.activeTagIds.size) return tasks
-    return tasks.filter((task) => task.tags.some((tag) => filterStore.activeTagIds.has(tag.id)))
-  }
-
-  function groupByStatus(tasks: Task[]): Record<TaskStatus, Task[]> {
-    return tasks.reduce(
-      (acc, task) => {
-        acc[task.status].push(task)
-        return acc
-      },
-      {active: [], discarded: [], done: [], backlog: []} as Record<TaskStatus, Task[]>,
-    )
-  }
+  const localTasksByStatus = reactive<Record<TaskStatus, Task[]>>({active: [], discarded: [], done: [], backlog: []})
+  const pendingCrossColumnMove = ref<MoveTaskByOrderParams | null>(null)
+  const pendingLocalResync = ref(false)
 
   const milestoneFrameTasks = computed(() => {
     const ids = filterStore.activeMilestoneId ? [filterStore.activeMilestoneId] : milestonesStore.activeMilestones.map((milestone) => milestone.id)
@@ -66,24 +52,24 @@ export const useTaskColumns = createSharedComposable(() => {
     return grouped
   })
 
-  const localTasksByStatus = reactive<Record<TaskStatus, Task[]>>({active: [], discarded: [], done: [], backlog: []})
-
-  const pendingCrossColumnMove = ref<MoveTaskByOrderParams | null>(null)
-  const pendingLocalResync = ref(false)
-
-  const {
-    isDragging,
-    isCommitting,
-    isDragDisabled,
-    onDragStart: onDragStartBase,
-    onDragEnd,
-    onDragOver,
-    runWithCommit,
-  } = useTaskDragDrop({
-    onDragEnd: flushPendingCrossColumnMove,
-  })
-
   const visibleColumns = computed<TaskColumn[]>(() => TASK_COLUMNS.filter((s) => !isColumnHidden(s.status)))
+
+  const {isDragging, isCommitting, onDragStart: onDragStartBase, onDragEnd: onDragEndBase, onDragOver, runWithCommit} = useTaskDragDrop()
+
+  function filterByTag(tasks: Task[]) {
+    if (!filterStore.activeTagIds.size) return tasks
+    return tasks.filter((task) => task.tags.some((tag) => filterStore.activeTagIds.has(tag.id)))
+  }
+
+  function groupByStatus(tasks: Task[]): Record<TaskStatus, Task[]> {
+    return tasks.reduce(
+      (acc, task) => {
+        acc[task.status].push(task)
+        return acc
+      },
+      {active: [], discarded: [], done: [], backlog: []} as Record<TaskStatus, Task[]>,
+    )
+  }
 
   function onDragStart(event: {oldIndex: number; from: HTMLElement}) {
     const status = event.from.closest("[data-column-status]")?.getAttribute("data-column-status") as TaskStatus | null
@@ -92,6 +78,11 @@ export const useTaskColumns = createSharedComposable(() => {
       if (task) dragDropStore.setDraggingTaskId(task.id)
     }
     onDragStartBase()
+  }
+
+  function onDragEnd() {
+    onDragEndBase()
+    flushPendingCrossColumnMove()
   }
 
   function isColumnCollapsed(status: TaskStatus) {
@@ -185,7 +176,7 @@ export const useTaskColumns = createSharedComposable(() => {
     if (!pendingMove) return
     pendingCrossColumnMove.value = null
 
-    setTimeout(() => commitColumnMove(pendingMove), SORTABLE_ANIMATION_MS)
+    setTimeout(() => commitColumnMove(pendingMove), 160)
   }
 
   async function commitColumnMove(params: MoveTaskByOrderParams) {
@@ -218,7 +209,7 @@ export const useTaskColumns = createSharedComposable(() => {
     tasksByStatus,
     localTasksByStatus,
     isDragging,
-    isDragDisabled,
+    isDragDisabled: isCommitting,
     isColumnCollapsed,
     onToggleColumn,
     onColumnDragEnter,
@@ -228,3 +219,11 @@ export const useTaskColumns = createSharedComposable(() => {
     onDragOver,
   }
 })
+
+function resolveMoveTarget(items: Task[], newIndex: number): {targetTaskId: Task["id"] | null; position: "before" | "after"} {
+  const nextTask = items[newIndex + 1] ?? null
+  const targetTaskId = nextTask?.id ?? null
+  const position: "before" | "after" = targetTaskId ? "before" : "after"
+
+  return {targetTaskId, position}
+}

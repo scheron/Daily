@@ -12,9 +12,8 @@ import BaseIcon from "@/ui/base/BaseIcon"
 import type {Branch, Tag, TagPresetColor} from "@daily/protocol"
 
 const props = defineProps<{
-  /** Project the tags belong to. */
   branchId: Branch["id"]
-  /** Tags already attached to the subject. Omit it to only browse and create, with no checkboxes. */
+  /** Omit it to only browse and create, with no checkboxes. */
   attached?: readonly Tag[]
 }>()
 const emit = defineEmits<{update: [tags: Tag[]]; close: []}>()

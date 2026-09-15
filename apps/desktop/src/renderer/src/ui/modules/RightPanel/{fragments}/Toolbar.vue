@@ -25,36 +25,20 @@ function copyTaskContent() {
 
 <template>
   <div class="h-toolbar border-base-300 compact:pl-traffic-light compact:drag-region flex shrink-0 items-center justify-between border-b px-4">
-    <BaseButton variant="ghost" icon="x-mark" tooltip="Close (Esc)" size="sm" style="-webkit-app-region: no-drag" @click="close" />
+    <BaseButton variant="ghost" icon="x-mark" tooltip="Close (Esc)" style="-webkit-app-region: no-drag" @click="close" />
 
     <div class="flex items-center gap-1" style="-webkit-app-region: no-drag">
       <template v-if="isEditing">
-        <BaseButton
-          variant="ghost"
-          :icon="isIdCopied ? 'check' : 'copy-id'"
-          icon-class="size-4.5"
-          size="sm"
-          tooltip="Copy Task ID"
-          @click="copyTaskId"
-        />
+        <BaseButton variant="ghost" :icon="isIdCopied ? 'check' : 'copy-id'" icon-class="size-4.5" tooltip="Copy Task ID" @click="copyTaskId" />
         <BaseButton
           variant="ghost"
           :icon="isContentCopied ? 'check' : 'copy'"
           icon-class="size-4.5"
-          size="sm"
           tooltip="Copy Task Content"
           @click="copyTaskContent"
         />
       </template>
-      <BaseButton
-        variant="primary-ghost"
-        icon="check"
-        size="sm"
-        tooltip="Save (⌘S)"
-        class="px-3 py-1"
-        :disabled="!canSave"
-        @click="commitDraftAndClose"
-      >
+      <BaseButton variant="primary-ghost" icon="check" tooltip="Save (⌘S)" class="px-3 py-1" :disabled="!canSave" @click="commitDraftAndClose">
         Save
       </BaseButton>
     </div>

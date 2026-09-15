@@ -1,17 +1,19 @@
 import {ref} from "vue"
 
-import {useSettingValue} from "@/composables/useSettingsValue"
+import {useSettingValue} from "@/composables/useSettingValue"
+
+export type CalendarDockTab = "days" | "milestones"
 
 export function useCalendarDock() {
   const isCalendarDockExpanded = ref(false)
-  const calendarDockTab = ref<"days" | "milestones">("days")
+  const calendarDockTab = ref<CalendarDockTab>("days")
   const shouldOpenCalendarDockOnDrag = useSettingValue("layout.shouldOpenCalendarDockOnDrag", true)
 
   function toggleCalendarDock(isExpanded?: boolean) {
     isCalendarDockExpanded.value = isExpanded ?? !isCalendarDockExpanded.value
   }
 
-  function setCalendarDockTab(tab: "days" | "milestones") {
+  function setCalendarDockTab(tab: CalendarDockTab) {
     calendarDockTab.value = tab
   }
 

@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import {nextTick, onBeforeUnmount, onMounted, ref, watch} from "vue"
+import {nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch} from "vue"
 
-import {TASK_CONTENT_MINIMIZED_HEIGHT} from "@/constants/ui"
 import {useImagePreviewModal} from "@/ui/overlays/ImagePreviewModal"
 import {
   createCodeSyntaxExtension,
@@ -10,43 +9,39 @@ import {
   createThemeExtension,
   createWYSIWYGExtension,
 } from "@/utils/codemirror/extensions"
+import {cn} from "@/utils/ui/tailwindcss"
 import {EditorState} from "@codemirror/state"
 import {EditorView} from "@codemirror/view"
 
 const props = defineProps<{
   content: string
-  minimized?: boolean
 }>()
-const emit = defineEmits<{
-  "minimize-availability": [isAvailable: boolean]
-}>()
+
+let view: EditorView | null = null
+
+const containerRef = useTemplateRef<HTMLDivElement>("container")
+const shouldClamp = ref(false)
 
 const {open: openImagePreview} = useImagePreviewModal()
 
-const container = ref<HTMLDivElement>()
-const canMinimize = ref(false)
-const shouldClamp = ref(false)
-let view: EditorView | null = null
+function getMarkdownViewClasses(isMinimized: boolean) {
+  return cn("markdown-view", isMinimized && "is-minimized")
+}
 
 function measureClampState() {
-  if (!container.value) {
-    canMinimize.value = false
+  if (!containerRef.value) {
     shouldClamp.value = false
-    emit("minimize-availability", false)
     return
   }
 
-  const contentElement = container.value.querySelector(".cm-content") as HTMLElement | null
+  const contentElement = containerRef.value.querySelector(".cm-content") as HTMLElement | null
   const contentHeight = contentElement?.scrollHeight ?? 0
 
-  const nextCanMinimize = contentHeight > TASK_CONTENT_MINIMIZED_HEIGHT
-  canMinimize.value = nextCanMinimize
-  shouldClamp.value = Boolean(props.minimized) && nextCanMinimize
-  emit("minimize-availability", nextCanMinimize)
+  shouldClamp.value = contentHeight > 200
 }
 
 function createReadonlyEditor(content: string) {
-  if (!container.value) return
+  if (!containerRef.value) return
 
   if (view) view.destroy()
 
@@ -64,7 +59,7 @@ function createReadonlyEditor(content: string) {
       }),
 
       createThemeExtension(),
-      createWYSIWYGExtension({readonly: true}),
+      createWYSIWYGExtension({isReadonly: true}),
       createTablesExtension(),
       createCodeSyntaxExtension(),
       EditorView.theme({
@@ -77,7 +72,7 @@ function createReadonlyEditor(content: string) {
 
   view = new EditorView({
     state,
-    parent: container.value,
+    parent: containerRef.value,
   })
 
   nextTick(() => {
@@ -91,7 +86,7 @@ function onContentClick(event: MouseEvent) {
 
   const image = target.closest("img")
   if (!(image instanceof HTMLImageElement)) return
-  if (!container.value?.contains(image)) return
+  if (!containerRef.value?.contains(image)) return
 
   event.preventDefault()
   event.stopPropagation()
@@ -106,15 +101,6 @@ watch(
   {immediate: true},
 )
 
-watch(
-  () => props.minimized,
-  () => {
-    nextTick(() => {
-      requestAnimationFrame(() => measureClampState())
-    })
-  },
-)
-
 onMounted(() => {
   createReadonlyEditor(props.content)
 })
@@ -126,7 +112,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="container" class="markdown-view" :class="{'is-minimized': shouldClamp}" @click="onContentClick"></div>
+  <div ref="container" :class="getMarkdownViewClasses(shouldClamp)" @click="onContentClick"></div>
 </template>
 
 <style scoped>

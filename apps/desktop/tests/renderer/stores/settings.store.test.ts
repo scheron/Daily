@@ -4,7 +4,7 @@ import {beforeEach, describe, expect, it, vi} from "vitest"
 
 import {mockBridgeIPC} from "../../helpers/bridgeIPC"
 
-vi.mock("../../../src/renderer/src/utils/ui/vue", () => ({
+vi.mock("../../../src/renderer/src/utils/ui/toRawDeep", () => ({
   toRawDeep: (v) => v,
 }))
 
@@ -20,7 +20,6 @@ describe("settingsStore", () => {
     const {useSettingsStore} = await import("../../../src/renderer/src/stores/settings.store")
     const store = useSettingsStore()
     await vi.dynamicImportSettled()
-    // wait for invoke(loadSettings)
     await new Promise((r) => setTimeout(r, 0))
     return store
   }

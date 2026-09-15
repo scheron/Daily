@@ -6,13 +6,12 @@ import {useTagsStore} from "../../../src/renderer/src/stores/tags.store"
 import {API} from "../../../src/renderer/src/api"
 import {mockBridgeIPC} from "../../helpers/bridgeIPC"
 
-vi.mock("../../../src/renderer/src/utils/ui/vue", () => ({toRawDeep: (v) => v}))
+vi.mock("../../../src/renderer/src/utils/ui/toRawDeep", () => ({toRawDeep: (v) => v}))
 
 vi.mock("../../../src/renderer/src/api", () => ({
   API: {
     getTagList: vi.fn().mockResolvedValue([]),
     createTag: vi.fn(),
-    updateTag: vi.fn(),
     deleteTag: vi.fn().mockResolvedValue(true),
   },
 }))
@@ -47,16 +46,5 @@ describe("tagsStore", () => {
     await store.deleteTag("tag-1")
 
     expect(store.tags).toHaveLength(0)
-  })
-
-  it("updateTag replaces item in-place", async () => {
-    API.createTag.mockResolvedValueOnce(makeTag())
-    API.updateTag.mockResolvedValueOnce(makeTag({name: "Personal"}))
-
-    const store = useTagsStore()
-    await store.createTag("Work", "#000")
-    await store.updateTag("tag-1", {name: "Personal"})
-
-    expect(store.tags[0].name).toBe("Personal")
   })
 })

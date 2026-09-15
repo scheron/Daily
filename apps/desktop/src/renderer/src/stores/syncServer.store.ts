@@ -3,7 +3,7 @@ import {invoke} from "@vueuse/core"
 import {defineStore} from "pinia"
 
 import {useBaseModal} from "@/ui/base/BaseModal"
-import ApproveDeviceModal from "@/ui/views/Settings/{fragments}/SyncSettings/{fragments}/ApproveDeviceModal.vue"
+import ApproveDeviceModal from "@/ui/overlays/ApproveDeviceModal.vue"
 
 import type {
   EnrollmentPollView,
@@ -16,8 +16,6 @@ import type {
   ServerProbeView,
 } from "@daily/protocol"
 
-const APPROVE_DEVICE_MODAL_ID = "sync-server-approve-device"
-
 export const useSyncServerStore = defineStore("syncServer", () => {
   const binding = ref<ServerBindingView | null>(null)
   const isRevoked = ref(false)
@@ -25,7 +23,20 @@ export const useSyncServerStore = defineStore("syncServer", () => {
   const membership = ref<ServerMembershipView | null>(null)
   let isWatchingApprovals = false
 
-  const {show: showApproval, hide: hideApproval} = useBaseModal(APPROVE_DEVICE_MODAL_ID)
+  const {show: showApproval, hide: hideApproval} = useBaseModal("sync-server-approve-device")
+
+  window.BridgeIPC["sync-server:on-revoked"](() => {
+    isRevoked.value = true
+  })
+
+  window.BridgeIPC["sync-server:on-protocol-mismatch-changed"]((nextMismatch) => {
+    mismatch.value = nextMismatch
+  })
+
+  window.BridgeIPC["sync-server:on-role-changed"]((role) => {
+    if (binding.value) binding.value.role = role
+    listMembership()
+  })
 
   async function loadState(): Promise<void> {
     try {
@@ -141,18 +152,9 @@ export const useSyncServerStore = defineStore("syncServer", () => {
   }
 
   /**
-   * Subscribes to a peer's enrollment request and opens the dialog for it: the edge (a fresh
-   * broadcast) and the level (one already waiting when this runs) both resolve through the same
-   * `openApprovalDialog()` check, so a request that arrived while nothing was listening — the
-   * app was closed, or open only in a window that never called this — is still found once this
-   * does run.
-   *
-   * The broadcast reaches every window's renderer process. `App.vue` calls this from both the
-   * main window and Settings — each shows membership or approves on the person's behalf, so each
-   * needs its own card — but never from Assistant. When both are open at once, both cards open
-   * for the same request; acting on whichever one is stale fails against a request the other
-   * window already resolved, and `onApprove`/`onDeny` above close the card on that failure the
-   * same as on success, so the stale card never sits unresponsive.
+   * The subscription is set up only once; a request that arrived before anything was listening
+   * is still opened. Each window that calls this shows its own card, and acting on a card already
+   * resolved in another window fails but still closes it.
    */
   function watchForApprovals(): void {
     if (isWatchingApprovals) return
@@ -163,19 +165,6 @@ export const useSyncServerStore = defineStore("syncServer", () => {
     })
     openApprovalDialog()
   }
-
-  window.BridgeIPC["sync-server:on-revoked"](() => {
-    isRevoked.value = true
-  })
-
-  window.BridgeIPC["sync-server:on-protocol-mismatch-changed"]((nextMismatch) => {
-    mismatch.value = nextMismatch
-  })
-
-  window.BridgeIPC["sync-server:on-role-changed"]((role) => {
-    if (binding.value) binding.value.role = role
-    listMembership()
-  })
 
   invoke(loadState)
 
@@ -197,9 +186,6 @@ export const useSyncServerStore = defineStore("syncServer", () => {
     pollEnrollment,
     cancelConnection,
     disconnect,
-    getPendingApproval,
-    approve,
-    deny,
     watchForApprovals,
   }
 })

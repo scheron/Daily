@@ -18,9 +18,6 @@ import type {AIMessage} from "@shared/types/ai"
 export const useAiStore = defineStore("ai", () => {
   const settingsStore = useSettingsStore()
 
-  const connectionState = useLoadingState("IDLE")
-  const thinkState = useLoadingState("IDLE")
-
   const isConnected = ref(false)
   const isCancelled = ref(false)
   const messages = ref<AIMessage[]>([])
@@ -29,7 +26,6 @@ export const useAiStore = defineStore("ai", () => {
   const config = computed(() => settingsStore.settings?.ai ?? null)
   const isDisabled = computed(() => !config.value?.enabled)
   const hasMessages = computed(() => Boolean(messages.value.length))
-  const lastMessage = computed(() => messages.value.at(-1) ?? null)
 
   const contextUsage = computed(() => {
     let used = 0
@@ -45,6 +41,8 @@ export const useAiStore = defineStore("ai", () => {
     return {used, total, window}
   })
 
+  const connectionState = useLoadingState()
+  const thinkState = useLoadingState()
   const models = useAiModels({config, isDisabled, connectionState, isConnected})
   const confirmations = useToolConfirmations()
   useAiStreaming({messages})
@@ -146,11 +144,9 @@ export const useAiStore = defineStore("ai", () => {
     isConnectionLoaded: connectionState.isLoaded,
     isConnectionError: connectionState.isError,
     isThinkLoading: thinkState.isLoading,
-    isThinkLoaded: thinkState.isLoaded,
     isThinkError: thinkState.isError,
 
     hasMessages,
-    lastMessage,
     contextUsage,
 
     pendingConfirmation: confirmations.pendingConfirmation,

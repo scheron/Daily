@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {ref} from "vue"
+import {ref, useTemplateRef} from "vue"
 
 import BaseButton from "@/ui/base/BaseButton"
 import {BaseModal} from "@/ui/base/BaseModal"
@@ -12,10 +12,10 @@ defineProps<{
 defineEmits<{close: []}>()
 
 const isCopied = ref(false)
+const imageRef = useTemplateRef<HTMLImageElement>("image")
 
-async function copyImageToClipboard(event: MouseEvent) {
-  const button = event.currentTarget as HTMLElement
-  const img = button.parentElement?.querySelector("img")
+async function copyImageToClipboard() {
+  const img = imageRef.value
   if (!img) return
 
   try {
@@ -45,11 +45,10 @@ async function copyImageToClipboard(event: MouseEvent) {
 <template>
   <BaseModal hide-header container-class="h-auto max-h-[90vh] w-fit max-w-5xl" content-class="!p-0" @close="$emit('close')">
     <div class="relative flex h-full w-full items-center justify-center p-3 md:p-4">
-      <img v-if="src" :src="src" :alt="alt || 'Image preview'" class="max-h-[80vh] max-w-full rounded-md object-contain" />
+      <img v-if="src" ref="image" :src="src" :alt="alt || 'Image preview'" class="max-h-[80vh] max-w-full rounded-md object-contain" />
 
       <BaseButton
         variant="secondary"
-        size="sm"
         :icon="isCopied ? 'check' : 'copy'"
         icon-class="size-3.5"
         class="absolute right-5 bottom-5"

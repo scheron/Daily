@@ -1,19 +1,16 @@
 <script setup lang="ts">
-import {useThemeStore} from "@/stores/theme.store"
+import {useThemeStore} from "@/stores/theme"
 import {useUIStore} from "@/stores/ui"
 import BaseSegmented from "@/ui/base/BaseSegmented.vue"
 import BaseSwitch from "@/ui/base/BaseSwitch.vue"
-import AccentPicker from "@/ui/common/pickers/AccentPicker.vue"
-import MainColorPicker from "@/ui/common/pickers/MainColorPicker.vue"
 import SettingRow from "@/ui/views/Settings/{fragments}/SettingRow.vue"
 import SettingsGroup from "@/ui/views/Settings/{fragments}/SettingsGroup.vue"
 import AboutSection from "./{fragments}/AboutSection.vue"
+import AccentPicker from "./{fragments}/AccentPicker.vue"
+import MainColorPicker from "./{fragments}/MainColorPicker.vue"
 
-import type {EmptySectionsMode} from "@/stores/ui/composables/useSectionPrefs"
+import type {EmptySectionsMode} from "@/stores/ui"
 import type {AppearanceMode, FontSize} from "@daily/protocol"
-
-const uiStore = useUIStore()
-const themeStore = useThemeStore()
 
 const themeOptions: {value: AppearanceMode; label: string}[] = [
   {value: "light", label: "Light"},
@@ -32,6 +29,9 @@ const emptySectionsOptions: {value: EmptySectionsMode; label: string}[] = [
   {value: "collapse", label: "Collapse"},
   {value: "hide", label: "Hide"},
 ]
+
+const uiStore = useUIStore()
+const themeStore = useThemeStore()
 </script>
 
 <template>

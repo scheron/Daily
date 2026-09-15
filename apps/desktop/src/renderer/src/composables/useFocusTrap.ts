@@ -1,28 +1,13 @@
 import {onBeforeUnmount, watchEffect} from "vue"
 
-import {isBoolean} from "@daily/std"
-
 import {findAllFocusableElements} from "@/utils/ui/dom"
 
 import type {Ref} from "vue"
 
-/**
- * Keep keyboard focus cycling within a container while enabled.
- *
- * Yields when a descendant already handled Tab itself (the keydown is
- * `defaultPrevented` by the time it bubbles up) — e.g. a CodeMirror editor that
- * uses Tab to indent. Without this the trap would relocate focus out of an editor
- * that happens to be the last focusable element in the container.
- *
- * @param containerRef - element to trap focus inside
- * @param enabled - whether the trap is active (boolean or reactive ref)
- */
-export function useFocusTrap(containerRef: Ref<HTMLElement | null | undefined>, enabled: Ref<boolean> | boolean = true) {
+export function useFocusTrap(containerRef: Ref<HTMLElement | null | undefined>, enabled: Ref<boolean>) {
   let cleanup: (() => void) | null = null
 
-  const enabledRef = isBoolean(enabled) ? {value: enabled} : enabled
-
-  const handleKeyDown = (event: KeyboardEvent) => {
+  function handleKeyDown(event: KeyboardEvent) {
     if (event.key !== "Tab" || !containerRef.value) return
     if (event.defaultPrevented) return
 
@@ -51,7 +36,7 @@ export function useFocusTrap(containerRef: Ref<HTMLElement | null | undefined>, 
   }
 
   function setupTrap() {
-    if (!containerRef.value || !enabledRef.value) {
+    if (!containerRef.value || !enabled.value) {
       cleanupTrap()
       return
     }
@@ -72,8 +57,4 @@ export function useFocusTrap(containerRef: Ref<HTMLElement | null | undefined>, 
 
   watchEffect(setupTrap)
   onBeforeUnmount(cleanupTrap)
-
-  return {
-    cleanupTrap,
-  }
 }

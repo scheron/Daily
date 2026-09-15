@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, onBeforeUnmount, onMounted, ref} from "vue"
+import {computed, onBeforeUnmount, onMounted, useTemplateRef} from "vue"
 import {useEventListener} from "@vueuse/core"
 
 import {useFocusTrap} from "@/composables/useFocusTrap"
@@ -14,18 +14,18 @@ const props = defineProps<{
   isTop: boolean
 }>()
 
-const {hide, remove} = useBaseModal()
-
-const rootRef = ref<HTMLElement | null>(null)
 let restoreFocusTo: HTMLElement | null = null
 
-useFocusTrap(
-  rootRef,
-  computed(() => props.isTop && !props.item.closing),
-)
+const rootRef = useTemplateRef<HTMLElement>("root")
+
+const isTopActive = computed(() => props.isTop && !props.item.closing)
+
+const {hide, remove} = useBaseModal()
+
+useFocusTrap(rootRef, isTopActive)
 
 useEventListener(document, "keydown", (event: KeyboardEvent) => {
-  if (event.key === "Escape" && props.isTop && !props.item.closing) requestClose()
+  if (event.key === "Escape" && isTopActive.value) requestClose()
 })
 
 function requestClose() {
@@ -56,7 +56,7 @@ onBeforeUnmount(() => {
       leave-to-class="opacity-0 scale-95"
       @after-leave="remove(item.id)"
     >
-      <div v-if="!item.closing" ref="rootRef" class="fixed inset-0" :style="{zIndex: 1000 + index}">
+      <div v-if="!item.closing" ref="root" class="fixed inset-0" :style="{zIndex: 1000 + index}">
         <component :is="item.component" v-bind="item.props" />
       </div>
     </Transition>

@@ -6,19 +6,10 @@ import {toDayLabel} from "@daily/std"
 import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
 
-import type {TasksFilter} from "@/types/common"
-
-const props = defineProps<{date?: string; milestoneName?: string; filter: TasksFilter}>()
+const props = defineProps<{date?: string; milestoneName?: string}>()
 const emit = defineEmits<{createTask: []}>()
 
 const subject = computed(() => props.milestoneName ?? (props.date ? toDayLabel(props.date) : null))
-
-const title = computed(() => {
-  if (props.filter === "active") return "active"
-  if (props.filter === "done") return "completed"
-  if (props.filter === "discarded") return "discarded"
-  return "any"
-})
 </script>
 
 <template>
@@ -29,9 +20,7 @@ const title = computed(() => {
 
     <h3 class="text-base-content mb-2 flex flex-col text-xl">
       <b v-if="subject" class="text-accent">{{ subject }}</b>
-      <span>
-        No <b v-if="subject" class="text-accent">{{ title }}</b> tasks
-      </span>
+      <span> No <b v-if="subject" class="text-accent">any</b> tasks </span>
     </h3>
 
     <BaseButton variant="primary" icon="plus" class="mt-8" @click="emit('createTask')"> Create </BaseButton>

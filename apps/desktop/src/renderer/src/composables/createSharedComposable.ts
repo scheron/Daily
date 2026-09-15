@@ -4,29 +4,11 @@ import {tryOnScopeDispose} from "@vueuse/core"
 import type {EffectScope} from "vue"
 
 type AnyFn = (...args: any[]) => any
-/**
- * Create a shared composable function that can be used to share a state between multiple components
- * @extends https://vueuse.org/shared/createSharedComposable/#createsharedcomposable
- *
- * @param composable - The composable function to share
- * @param keyGenerator - Function to generate unique key from parameters
- * @param options - Additional options
- */
-export function createSharedComposable<Fn extends AnyFn>(
-  composable: Fn,
-  keyGenerator?: (...args: Parameters<Fn>) => string,
-  options: {
-    /**
-     * Delay before disposing the scope when no subscribers
-     * Prevents flicker on quick remount
-     * @default 100
-     */
-    disposeDelay?: number
-  } = {},
-): Fn {
-  const {disposeDelay = 100} = options
 
-  // If no keyGenerator, use original VueUse behavior
+/**
+ * With `keyGenerator`, each key gets its own shared instance whose scope stops 100ms after its last subscriber leaves (so a quick remount reuses it). Without it, there is a single shared instance, stopped as soon as its last subscriber leaves.
+ */
+export function createSharedComposable<Fn extends AnyFn>(composable: Fn, keyGenerator?: (...args: Parameters<Fn>) => string): Fn {
   if (!keyGenerator) {
     let subscribers = 0
     let state: ReturnType<Fn> | undefined
@@ -53,7 +35,6 @@ export function createSharedComposable<Fn extends AnyFn>(
     }) as Fn
   }
 
-  // With parameters - we need a Map for different instances
   const instances = new Map<
     string,
     {
@@ -95,7 +76,7 @@ export function createSharedComposable<Fn extends AnyFn>(
             instance.scope.stop()
             instances.delete(key)
           }
-        }, disposeDelay)
+        }, 100)
       }
     }
 

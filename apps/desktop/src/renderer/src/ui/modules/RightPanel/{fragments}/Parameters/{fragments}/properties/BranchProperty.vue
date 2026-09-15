@@ -24,7 +24,7 @@ function onSelect(branch: Branch) {
 <template>
   <BranchPicker :selected-id="task.branchId" @select="onSelect">
     <template #trigger="{toggle}">
-      <BaseButton type="button" class="inline-flex items-center justify-start gap-1 p-0" size="sm" variant="text" @click.stop="toggle">
+      <BaseButton type="button" class="inline-flex items-center justify-start gap-1 p-0" variant="text" @click.stop="toggle">
         <BaseIcon name="project" class="size-3.5" />
         <span class="leading-none">{{ branchName }}</span>
       </BaseButton>

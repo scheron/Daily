@@ -26,7 +26,6 @@ const emit = defineEmits<{
           v-for="model in remoteModels"
           :key="model"
           class="border-info text-info text-xs"
-          size="sm"
           variant="outline"
           @click="emit('select-remote-model', model)"
         >
