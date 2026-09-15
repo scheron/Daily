@@ -8,7 +8,7 @@ import {findClosestAtPoint} from "@/utils/ui/dom"
 
 import type {CalendarDockTab} from "@/stores/ui"
 
-type HoverTarget = CalendarDockTab | "expand"
+type HoverTarget = CalendarDockTab | "expand" | "collapse"
 
 export function useDockDragHover() {
   const uiStore = useUIStore()
@@ -19,6 +19,7 @@ export function useDockDragHover() {
 
   let hoverTimer: ReturnType<typeof setTimeout> | null = null
   let hoverTarget: HoverTarget | null = null
+  let isExpandedByHover = false
 
   useEventListener(window, "pointermove", onPointerMove)
 
@@ -27,6 +28,11 @@ export function useDockDragHover() {
 
     if (!isCalendarDockExpanded.value) {
       startHover(findClosestAtPoint(event.clientX, event.clientY, "[data-dock-pill]") ? "expand" : null)
+      return
+    }
+
+    if (isExpandedByHover && !findClosestAtPoint(event.clientX, event.clientY, "[data-day-drop-zone]")) {
+      startHover("collapse")
       return
     }
 
@@ -43,8 +49,15 @@ export function useDockDragHover() {
 
     hoverTarget = target
     hoverTimer = setTimeout(() => {
-      if (target === "expand") uiStore.toggleCalendarDock(true)
-      else uiStore.setCalendarDockTab(target)
+      if (target === "expand") {
+        isExpandedByHover = true
+        uiStore.toggleCalendarDock(true)
+      } else if (target === "collapse") {
+        isExpandedByHover = false
+        uiStore.toggleCalendarDock(false)
+      } else {
+        uiStore.setCalendarDockTab(target)
+      }
       hoverTarget = null
       hoverTimer = null
     }, 250)
@@ -57,6 +70,8 @@ export function useDockDragHover() {
   }
 
   watch(draggingTaskId, (taskId) => {
-    if (!taskId) cancelHover()
+    if (taskId) return
+    cancelHover()
+    isExpandedByHover = false
   })
 }

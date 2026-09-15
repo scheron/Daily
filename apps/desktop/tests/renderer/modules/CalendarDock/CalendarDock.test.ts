@@ -332,6 +332,51 @@ describe("CalendarDock", () => {
     document.elementFromPoint = originalElementFromPoint
   })
 
+  it("collapses_a_dock_opened_by_holding_the_card_on_the_pill_once_the_card_is_held_outside_the_dock", async () => {
+    const {mountDock, ui, drag} = await setup()
+    const {useSettingsStore} = await import("../../../../src/renderer/src/stores/settings.store")
+    await vi.waitFor(() => expect(useSettingsStore().isSettingsLoaded).toBe(true))
+    ui.shouldOpenCalendarDockOnDrag = false
+
+    const dock = mountDock()
+    let elementAtPointer = dock.get("[data-dock-pill]").element
+    const originalElementFromPoint = document.elementFromPoint
+    document.elementFromPoint = vi.fn(() => elementAtPointer)
+
+    drag.setDraggingTaskId("task-1")
+    window.dispatchEvent(new MouseEvent("pointermove", {clientX: 1, clientY: 1}))
+    await new Promise((resolve) => setTimeout(resolve, 300))
+    expect(ui.isCalendarDockExpanded).toBe(true)
+
+    elementAtPointer = document.body
+    window.dispatchEvent(new MouseEvent("pointermove", {clientX: 1, clientY: 1}))
+    expect(ui.isCalendarDockExpanded).toBe(true)
+
+    await new Promise((resolve) => setTimeout(resolve, 300))
+    expect(ui.isCalendarDockExpanded).toBe(false)
+
+    document.elementFromPoint = originalElementFromPoint
+  })
+
+  it("keeps_a_dock_opened_before_the_drag_expanded_while_the_card_is_held_outside_it_with_auto_open_off", async () => {
+    const {mountDock, ui, drag} = await setup()
+    const {useSettingsStore} = await import("../../../../src/renderer/src/stores/settings.store")
+    await vi.waitFor(() => expect(useSettingsStore().isSettingsLoaded).toBe(true))
+    ui.shouldOpenCalendarDockOnDrag = false
+    ui.toggleCalendarDock(true)
+
+    mountDock()
+    const originalElementFromPoint = document.elementFromPoint
+    document.elementFromPoint = vi.fn(() => document.body)
+
+    drag.setDraggingTaskId("task-1")
+    window.dispatchEvent(new MouseEvent("pointermove", {clientX: 1, clientY: 1}))
+    await new Promise((resolve) => setTimeout(resolve, 300))
+    expect(ui.isCalendarDockExpanded).toBe(true)
+
+    document.elementFromPoint = originalElementFromPoint
+  })
+
   it("hides_TC-16_the_dock_while_the_editor_is_open_and_collapses_it_when_the_editor_opens", async () => {
     const {mountDock, ui, drag, editor} = await setup()
 
