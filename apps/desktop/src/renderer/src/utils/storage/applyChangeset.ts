@@ -8,7 +8,7 @@ import type {Branch, Milestone, Tag, Task} from "@daily/protocol"
 import type {Ref} from "vue"
 
 type ChangesetTarget = {
-  tasks: Ref<Task[]>
+  tasks?: Ref<Task[]>
   milestones?: Ref<Milestone[]>
   tags?: Ref<Tag[]>
   branches?: Ref<Branch[]>

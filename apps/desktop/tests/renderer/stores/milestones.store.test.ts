@@ -137,6 +137,16 @@ describe("milestonesStore writes — one IPC call, no list reread", () => {
     expect(API.getMilestoneList).not.toHaveBeenCalled()
   })
 
+  it("createMilestone holds the created milestone in memory before the storage broadcast arrives", async () => {
+    const created = makeMilestone({id: "m1", name: "Launch"})
+    API.createMilestone.mockResolvedValueOnce({milestones: {upserted: [created]}})
+
+    const milestonesStore = useMilestonesStore()
+    await milestonesStore.createMilestone("Launch", null, "main")
+
+    expect(milestonesStore.milestonesMap.get("m1")?.name).toBe("Launch")
+  })
+
   it("updateMilestone makes one call and reads no list", async () => {
     const updated = makeMilestone({id: "m1", name: "Renamed"})
     API.updateMilestone.mockResolvedValueOnce({milestones: {upserted: [updated]}})

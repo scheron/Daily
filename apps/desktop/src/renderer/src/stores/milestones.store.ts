@@ -2,6 +2,7 @@ import {computed, ref} from "vue"
 import {defineStore} from "pinia"
 
 import {API} from "@/api"
+import {applyChangeset} from "@/utils/storage/applyChangeset"
 import {useSettingsStore} from "./settings.store"
 import {useTasksStore} from "./tasks"
 
@@ -57,6 +58,7 @@ export const useMilestonesStore = defineStore("milestones", () => {
   async function createMilestone(name: string, targetDate: ISODate | null, branchId: Branch["id"]): Promise<Milestone | null> {
     try {
       const changeset = await API.createMilestone({branchId, name, description: "", targetDate, deletedAt: null})
+      applyChangeset({milestones}, changeset)
       return changeset.milestones?.upserted?.[0] ?? null
     } catch (error) {
       console.error("Failed to create milestone", error)
