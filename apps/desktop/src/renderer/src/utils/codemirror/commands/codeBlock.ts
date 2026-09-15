@@ -8,12 +8,12 @@ const OPENING_FENCE_RE = /^(\s*)(`{3,}|~{3,})([A-Za-z][\w+#.-]*)\s*$/
  *
  * Fires when the caret is at the end of an opening fence line (e.g. ```` ```ts ````)
  * that has no matching closing fence below it — so newly opened code blocks are
- * always terminated instead of swallowing the rest of the document. The returned
- * text adds an empty body line plus the closing fence, and the anchor lands the
- * caret on that empty line. Requiring a language keeps closing fences (which never
- * carry one) from being mistaken for openings.
+ * always terminated instead of swallowing the rest of the document. The body line
+ * and the closing fence repeat the opening fence's indentation, so a block inside a
+ * list item stays in that item, and the anchor lands the caret after the indentation
+ * on the body line. Requiring a language keeps closing fences (which never carry
+ * one) from being mistaken for openings.
  *
- * @param state - The editor state
  * @example planFenceAutoClose(state) // → {insert: "\n\n```", anchor: 6} | null
  */
 export function planFenceAutoClose(state: EditorState): {insert: string; anchor: number} | null {
@@ -32,14 +32,10 @@ export function planFenceAutoClose(state: EditorState): {insert: string; anchor:
     if (closingFence.test(state.doc.line(lineNumber).text)) return null
   }
 
-  const insert = `\n\n${indent}${fence}`
-  return {insert, anchor: selection.head + 1}
+  const insert = `\n${indent}\n${indent}${fence}`
+  return {insert, anchor: selection.head + 1 + indent.length}
 }
 
-/**
- * Enter command: closes a freshly opened code fence and drops the caret onto the
- * empty body line. Returns `false` (so the default newline runs) otherwise.
- */
 export const closeCodeFenceOnEnter: Command = (view) => {
   const plan = planFenceAutoClose(view.state)
   if (!plan) return false

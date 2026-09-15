@@ -10,9 +10,9 @@ describe("planFenceAutoClose", () => {
     expect(planFenceAutoClose(state("```js", 5))).toEqual({insert: "\n\n```", anchor: 6})
   })
 
-  it("preserves indentation of the opening fence", () => {
-    const doc = "  ```ts"
-    expect(planFenceAutoClose(state(doc, doc.length))).toEqual({insert: "\n\n  ```", anchor: doc.length + 1})
+  it("indents the body line and the closing fence like the opening fence", () => {
+    const doc = "- item\n  ```ts"
+    expect(planFenceAutoClose(state(doc, doc.length))).toEqual({insert: "\n  \n  ```", anchor: doc.length + 3})
   })
 
   it("does nothing when a closing fence already exists below", () => {
