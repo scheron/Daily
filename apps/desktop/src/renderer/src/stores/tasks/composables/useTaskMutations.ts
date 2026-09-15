@@ -7,11 +7,10 @@ import {getPreviousTaskOrderIndex, planTaskCreate, planTaskMoveByOrder, planTask
 import {getTime, getTimezone, getToday, notNull, notUndefined, objectFilter} from "@daily/std"
 
 import {API} from "@/api"
-import {toRawDeep} from "@/utils/ui/vue"
-import {applyChangeset} from "../applyChangeset"
+import {applyChangeset} from "@/utils/storage/applyChangeset"
+import {toRawDeep} from "@/utils/ui/toRawDeep"
 
 import type {CreateTaskParams} from "@/api/types"
-import type {TaskDropPosition, TaskMoveMeta, TaskMutationsContext} from "@/stores/tasks/types"
 import type {Changeset} from "@daily/core"
 import type {
   Branch,
@@ -21,27 +20,30 @@ import type {
   MutationContext,
   Tag,
   Task,
+  TaskMovePosition,
   TaskPatch,
   TaskScheduled,
   TaskStatus,
   TaskWritableFields,
 } from "@daily/protocol"
+import type {ComputedRef, Ref} from "vue"
 
-export function isBacklogStatus(status: TaskStatus): boolean {
-  return status === "backlog"
+type TaskMoveMeta = {
+  taskId: Task["id"]
+  fromStatus: TaskStatus
+  toStatus: TaskStatus
+  targetTaskId: Task["id"] | null
+  position: TaskMovePosition
 }
 
-export function crossesBacklog(fromStatus: TaskStatus, toStatus: TaskStatus): boolean {
-  return isBacklogStatus(fromStatus) !== isBacklogStatus(toStatus)
+type TaskMutationsContext = {
+  tasks: Ref<Task[]>
+  activeDay: Ref<ISODate>
+  activeBranchId: ComputedRef<Branch["id"] | undefined>
+  dailyTasks: ComputedRef<Task[]>
+  findTaskById: (taskId: Task["id"]) => Task | null
 }
 
-/**
- * Task write operations: create, duplicate, update, move, and delete. Each call predicts what it
- * changes with the same rule main runs, applies that prediction to the collection at once, sends
- * the write, and applies what main reports back. None of them reads the collection again. A write
- * that fails puts back every row the prediction touched and says so in a toast.
- * @param ctx - The collection, the active-day selectors, and a lookup by id
- */
 export function useTaskMutations(ctx: TaskMutationsContext) {
   const {tasks, activeDay, activeBranchId, dailyTasks, findTaskById} = ctx
 
@@ -118,12 +120,6 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
     return predictAndWrite(changesetFromPatches(patches), () => API.updateTask(taskId, payload), "Failed to update task")
   }
 
-  async function toggleTaskMinimized(taskId: Task["id"], isMinimized: boolean) {
-    const patches = planTaskUpdate(mutationContext(), taskId, {minimized: isMinimized})
-
-    return predictAndWrite(changesetFromPatches(patches), () => API.toggleTaskMinimized(taskId, isMinimized), "Failed to update task")
-  }
-
   async function deleteTask(taskId: Task["id"]) {
     if (!findTaskById(taskId)) return false
 
@@ -152,7 +148,7 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
     taskId: Task["id"]
     targetTaskId?: Task["id"] | null
     targetStatus?: TaskStatus
-    position?: TaskDropPosition
+    position?: TaskMovePosition
     activeDate: ISODate
   }): Promise<TaskMoveMeta | null> {
     const sourceTask = findTaskById(params.taskId)
@@ -234,7 +230,6 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
     createTask,
     duplicateTask,
     updateTask,
-    toggleTaskMinimized,
     deleteTask,
     moveTask,
     moveTaskToBranch,

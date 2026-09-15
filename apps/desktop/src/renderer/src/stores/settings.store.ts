@@ -4,15 +4,30 @@ import {defineStore} from "pinia"
 
 import {batchDebounce, deepMerge} from "@daily/std"
 
-import {toRawDeep} from "@/utils/ui/vue"
+import {toRawDeep} from "@/utils/ui/toRawDeep"
 
 import type {SettingsView} from "@daily/protocol"
-
-const SAVE_DEBOUNCE_MS = 300
 
 export const useSettingsStore = defineStore("settings", () => {
   const settings = ref<SettingsView | null>(null)
   const isSettingsLoaded = ref(false)
+
+  const scheduleSave = batchDebounce<Partial<SettingsView>>(
+    async (batch) => {
+      if (!Object.keys(batch).length) return
+      try {
+        await window.BridgeIPC["settings:save"](toRawDeep(batch))
+      } catch (error) {
+        console.error("Failed to save settings:", error)
+        await loadSettings()
+      }
+    },
+    300,
+    (acc, item) => deepMerge(acc, item) as Partial<SettingsView>,
+    {},
+  )
+
+  useEventListener(window, "beforeunload", () => scheduleSave.immediate())
 
   async function loadSettings(): Promise<void> {
     if (isSettingsLoaded.value) return
@@ -25,21 +40,6 @@ export const useSettingsStore = defineStore("settings", () => {
       isSettingsLoaded.value = true
     }
   }
-
-  const scheduleSave = batchDebounce<Partial<SettingsView>>(
-    async (batch) => {
-      if (!Object.keys(batch).length) return
-      try {
-        await window.BridgeIPC["settings:save"](toRawDeep(batch))
-      } catch (error) {
-        console.error("Failed to save settings:", error)
-        await loadSettings()
-      }
-    },
-    SAVE_DEBOUNCE_MS,
-    (acc, item) => deepMerge(acc, item) as Partial<SettingsView>,
-    {},
-  )
 
   function updateSettings(updates: Partial<SettingsView>) {
     const before = JSON.stringify(settings.value)
@@ -58,13 +58,10 @@ export const useSettingsStore = defineStore("settings", () => {
 
   invoke(loadSettings)
 
-  useEventListener(window, "beforeunload", () => scheduleSave.immediate())
-
   return {
     settings,
     isSettingsLoaded,
 
-    loadSettings,
     updateSettings,
     revalidate,
   }

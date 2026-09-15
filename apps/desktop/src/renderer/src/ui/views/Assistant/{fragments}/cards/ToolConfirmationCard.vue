@@ -6,7 +6,6 @@ import type {PendingToolConfirmation} from "@shared/types/ai"
 
 defineProps<{
   confirmation: PendingToolConfirmation
-  busy?: boolean
 }>()
 
 defineEmits<{
@@ -26,8 +25,8 @@ defineEmits<{
           <li v-for="(detail, idx) in confirmation.details" :key="idx" class="font-mono">{{ detail }}</li>
         </ul>
         <div class="mt-2.5 flex items-center gap-2">
-          <BaseButton variant="primary" size="sm" :disabled="busy" @click="$emit('confirm')">Confirm</BaseButton>
-          <BaseButton variant="ghost" size="sm" :disabled="busy" @click="$emit('cancel')">Cancel</BaseButton>
+          <BaseButton variant="primary" @click="$emit('confirm')">Confirm</BaseButton>
+          <BaseButton variant="ghost" @click="$emit('cancel')">Cancel</BaseButton>
         </div>
       </div>
     </div>

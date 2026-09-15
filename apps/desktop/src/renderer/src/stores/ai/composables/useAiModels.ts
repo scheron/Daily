@@ -2,22 +2,22 @@ import {computed} from "vue"
 
 import {useLocalModelStore} from "@/stores/ai/localModel.store"
 import {useRemoteModelStore} from "@/stores/ai/remoteModel.store"
-import {useSettingsStore} from "@/stores/settings.store"
-import {toRawDeep} from "@/utils/ui/vue"
+import {updateAiConfig} from "../utils/updateAiConfig"
 
-import type {AiModelsContext} from "@/stores/ai/types"
+import type {useLoadingState} from "@/composables/useLoadingState"
 import type {AIConfig, AIProvider, LocalModelId} from "@daily/protocol"
+import type {ComputedRef, Ref} from "vue"
 
-/**
- * Model catalog and provider connection: exposes the available/remote/local model lists
- * and runtime state, checks the provider connection, and forwards local-model lifecycle
- * actions (download, select, delete) to the local-model store.
- * @param ctx - AI config, disabled flag, connection loading-state, and connected flag
- */
+type AiModelsContext = {
+  config: ComputedRef<AIConfig | null>
+  isDisabled: ComputedRef<boolean>
+  connectionState: ReturnType<typeof useLoadingState>
+  isConnected: Ref<boolean>
+}
+
 export function useAiModels(ctx: AiModelsContext) {
   const {config, isDisabled, connectionState, isConnected} = ctx
 
-  const settingsStore = useSettingsStore()
   const localModelStore = useLocalModelStore()
   const remoteModelStore = useRemoteModelStore()
 
@@ -32,11 +32,6 @@ export function useAiModels(ctx: AiModelsContext) {
     if (config.value.provider === "local") return localModelStore.availableModels
     return []
   })
-
-  async function updateConfig(updates: Partial<AIConfig>) {
-    const success = await window.BridgeIPC["ai:update-config"](toRawDeep(updates))
-    if (success) await settingsStore.revalidate()
-  }
 
   async function checkConnection() {
     if (isDisabled.value) return
@@ -120,13 +115,9 @@ export function useAiModels(ctx: AiModelsContext) {
     localRuntimeState,
     localDiskUsage,
 
-    isLocalModelsLoading: localModelStore.isLoadingModels,
-    isLocalModelRunning: localModelStore.isModelRunning,
-    isLocalModelStarting: localModelStore.isModelStarting,
-    isLocalServerError: localModelStore.isServerError,
     isRefreshingLocalCatalog: localModelStore.isRefreshingCatalog,
 
-    updateConfig,
+    updateConfig: updateAiConfig,
     checkConnection,
     selectModel,
     getLocalDownloadProgress,

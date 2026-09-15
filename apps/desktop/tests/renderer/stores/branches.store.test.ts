@@ -4,7 +4,7 @@ import {beforeEach, describe, expect, it, vi} from "vitest"
 
 import {mockBridgeIPC} from "../../helpers/bridgeIPC"
 
-vi.mock("../../../src/renderer/src/utils/ui/vue", () => ({toRawDeep: (v) => v}))
+vi.mock("../../../src/renderer/src/utils/ui/toRawDeep", () => ({toRawDeep: (v) => v}))
 
 vi.mock("../../../src/renderer/src/api", () => ({
   API: {
@@ -115,7 +115,6 @@ describe("branchesStore", () => {
     const store = await getStore()
     await store.deleteBranch("branch-1")
 
-    // settings:load should be called again (revalidate)
     const bridge = window.BridgeIPC
     expect(bridge["settings:load"]).toHaveBeenCalled()
   })

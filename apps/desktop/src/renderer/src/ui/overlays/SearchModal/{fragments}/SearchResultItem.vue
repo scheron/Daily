@@ -14,28 +14,23 @@ import {
   createThemeExtension,
   createWYSIWYGExtension,
 } from "@/utils/codemirror/extensions"
+import {cn} from "@/utils/ui/tailwindcss"
 import {EditorState} from "@codemirror/state"
 import {EditorView} from "@codemirror/view"
 
-import type {TaskSearchResult} from "@daily/protocol"
+import type {TaskSearchResult, TaskStatus} from "@daily/protocol"
 
-const props = defineProps<{result: TaskSearchResult; searchQuery?: string}>()
+const props = defineProps<{result: TaskSearchResult}>()
+
+let view: EditorView | null = null
 
 const containerRef = useTemplateRef<HTMLDivElement>("container")
-let view: EditorView | null = null
 
 const statusIcon = computed(() => {
   if (props.result.task.status === "done") return "check-check"
   if (props.result.task.status === "discarded") return "archive"
   if (props.result.task.status === "backlog") return "bookmark"
   return "fire"
-})
-
-const statusColorClass = computed(() => {
-  if (props.result.task.status === "done") return "text-success"
-  if (props.result.task.status === "discarded") return "text-warning"
-  if (props.result.task.status === "backlog") return "text-base-content/70"
-  return "text-error"
 })
 
 const sortedTags = computed(() => sortTags(props.result.task.tags))
@@ -56,7 +51,7 @@ function createReadonlyEditor(content: string) {
       EditorState.readOnly.of(true),
 
       createThemeExtension(),
-      createWYSIWYGExtension({readonly: true}),
+      createWYSIWYGExtension({isReadonly: true}),
       createTablesExtension(),
       createCodeSyntaxExtension(),
       createSearchHighlightExtension(props.result.matches),
@@ -75,12 +70,24 @@ function createReadonlyEditor(content: string) {
   })
 }
 
+function getStatusIconClasses(status: TaskStatus) {
+  return cn(
+    "size-4",
+    {
+      done: "text-success",
+      discarded: "text-warning",
+      backlog: "text-base-content/70",
+      active: "text-error",
+    }[status],
+  )
+}
+
 watch(
   () => [props.result.task.content, props.result.matches],
   () => {
     createReadonlyEditor(props.result.task.content)
   },
-  {immediate: true, deep: true},
+  {deep: true},
 )
 
 onMounted(() => createReadonlyEditor(props.result.task.content))
@@ -94,7 +101,7 @@ onUnmounted(() => view?.destroy())
         <span class="text-base-content/60 text-xs"> {{ result.task.scheduled ? toDateLabel(result.task.scheduled.date) : "No date" }} </span>
         <span class="bg-base-300 text-base-content/70 rounded px-1.5 py-0.5 text-[9px] font-medium">{{ branchName }}</span>
       </div>
-      <BaseIcon :name="statusIcon" class="size-4" :class="statusColorClass" />
+      <BaseIcon :name="statusIcon" :class="getStatusIconClasses(result.task.status)" />
     </div>
 
     <div class="text-base-content px-1 text-[10px]">
@@ -126,7 +133,6 @@ onUnmounted(() => view?.destroy())
   padding: 0;
 }
 
-/* Code blocks should not wrap and can extend beyond container width */
 .search-result-content-viewer :deep(.cm-codeblock-line) {
   white-space: pre !important;
   overflow-x: visible !important;

@@ -1,5 +1,5 @@
-import {ref, watch} from "vue"
-import {defineStore} from "pinia"
+import {computed, ref, watch} from "vue"
+import {defineStore, storeToRefs} from "pinia"
 
 import {useMilestonesStore} from "@/stores/milestones.store"
 import {useSettingsStore} from "@/stores/settings.store"
@@ -8,12 +8,16 @@ import type {Milestone, Tag} from "@daily/protocol"
 
 export const useFilterStore = defineStore("filter", () => {
   const settingsStore = useSettingsStore()
+  const {settings} = storeToRefs(settingsStore)
   const milestonesStore = useMilestonesStore()
+  const {milestonesMap, isMilestonesLoaded} = storeToRefs(milestonesStore)
 
   const activeTagIds = ref<Set<Tag["id"]>>(new Set())
   const activeMilestoneId = ref<Milestone["id"] | null>(null)
 
   const frame = ref<"day" | "milestone">("day")
+
+  const activeBranchId = computed(() => settings.value?.branch?.activeId)
 
   function setActiveTags(id: Tag["id"]) {
     if (activeTagIds.value.has(id)) activeTagIds.value.delete(id)
@@ -40,21 +44,15 @@ export const useFilterStore = defineStore("filter", () => {
     frame.value = next
   }
 
-  watch(
-    () => settingsStore.settings?.branch?.activeId,
-    (newId, oldId) => {
-      if (oldId === undefined) return
-      if (newId !== oldId) clearActiveMilestone()
-    },
-  )
+  watch(activeBranchId, (newId, oldId) => {
+    if (oldId === undefined) return
+    if (newId !== oldId) clearActiveMilestone()
+  })
 
-  watch(
-    () => milestonesStore.milestonesMap,
-    (map) => {
-      if (!milestonesStore.isMilestonesLoaded) return
-      if (activeMilestoneId.value && !map.has(activeMilestoneId.value)) clearActiveMilestone()
-    },
-  )
+  watch(milestonesMap, (map) => {
+    if (!isMilestonesLoaded.value) return
+    if (activeMilestoneId.value && !map.has(activeMilestoneId.value)) clearActiveMilestone()
+  })
 
   return {
     activeTagIds,
@@ -65,7 +63,6 @@ export const useFilterStore = defineStore("filter", () => {
     setActiveTags,
     clearActiveTags,
     setActiveMilestone,
-    clearActiveMilestone,
     setFrame,
   }
 })

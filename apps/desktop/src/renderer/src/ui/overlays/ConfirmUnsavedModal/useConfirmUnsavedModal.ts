@@ -4,21 +4,12 @@ import {useTaskEditorStore} from "@/stores/task-editor"
 import {useBaseModal} from "@/ui/base/BaseModal"
 import ConfirmUnsavedModal from "./ConfirmUnsavedModal.vue"
 
-const CONFIRM_UNSAVED_MODAL_ID = "confirm-unsaved"
-
-/**
- * Guards navigation away from a dirty task editor. `open()` resolves `true` when it is safe
- * to proceed (no unsaved changes, or the user saved/discarded) and `false` when cancelled.
- *
- * @example
- * const {open} = useConfirmUnsavedModal()
- * if (await open()) openNext()
- */
 export function useConfirmUnsavedModal() {
   const taskEditorStore = useTaskEditorStore()
-  const {show, hide, isOpen} = useBaseModal(CONFIRM_UNSAVED_MODAL_ID)
 
   let {promise, resolve} = withResolvers<boolean>()
+
+  const {show, hide} = useBaseModal("confirm-unsaved")
 
   function open(): Promise<boolean> {
     if (!taskEditorStore.isDirty) return Promise.resolve(true)
@@ -35,14 +26,8 @@ export function useConfirmUnsavedModal() {
         hide()
         resolve(true)
       },
-      onCancel: () => {
-        hide()
-        resolve(false)
-      },
-      onClose: () => {
-        hide()
-        resolve(false)
-      },
+      onCancel: close,
+      onClose: close,
     })
 
     return promise
@@ -53,5 +38,5 @@ export function useConfirmUnsavedModal() {
     resolve(false)
   }
 
-  return {isOpen, open, close}
+  return {open}
 }

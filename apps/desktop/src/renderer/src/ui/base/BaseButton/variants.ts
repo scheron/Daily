@@ -1,7 +1,5 @@
 import {defineVariant} from "@/utils/ui/tailwindcss"
 
-import type {VariantProps} from "@/utils/ui/tailwindcss"
-
 // prettier-ignore
 export const buttonColorVariant = defineVariant({
   baseClass: `
@@ -21,15 +19,10 @@ export const buttonColorVariant = defineVariant({
           disabled:hover:bg-accent/20 
       `,
       "primary-ghost": `
-          bg-transparent text-accent 
+          bg-transparent text-accent
           hover:bg-accent/10
           disabled:hover:bg-transparent
       `,
-      "primary-ghost-outline": `
-          bg-transparent text-accent border-accent/20 border
-          hover:bg-accent/10
-          disabled:hover:bg-transparent
-       `,
       secondary: `
           bg-base-200 text-base-content 
           hover:bg-base-300 
@@ -59,10 +52,6 @@ export const buttonColorVariant = defineVariant({
           hover:text-base-content hover:border-base-content/30
           disabled:hover:text-base-content/50 disabled:hover:border-base-300
       `,
-      link: `
-          bg-transparent text-accent 
-          hover:underline
-      `,
     },
   },
   defaultVariants: {
@@ -70,18 +59,4 @@ export const buttonColorVariant = defineVariant({
   },
 })
 
-export const buttonSizeVariant = defineVariant({
-  variants: {
-    size: {
-      sm: "text-sm",
-      md: "text-base",
-      lg: "text-lg",
-    },
-  },
-  defaultVariants: {
-    size: "sm",
-  },
-})
-
-export type ButtonColorVariant = VariantProps<typeof buttonColorVariant>["variant"]
-export type ButtonSizeVariant = VariantProps<typeof buttonSizeVariant>["size"]
+export type ButtonColorVariant = Parameters<typeof buttonColorVariant>[0]["variant"]

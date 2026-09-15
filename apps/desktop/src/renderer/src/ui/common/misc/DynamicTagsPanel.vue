@@ -1,11 +1,12 @@
-<script lang="ts" setup>
-import {computed, nextTick, ref, watch} from "vue"
+<script setup lang="ts">
+import {computed, nextTick, ref, useTemplateRef, watch} from "vue"
 import {useResizeObserver} from "@vueuse/core"
 
 import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
 import BasePopup from "@/ui/base/BasePopup.vue"
 import BaseTag from "@/ui/base/BaseTag"
+import {cn} from "@/utils/ui/tailwindcss"
 
 import type {Tag} from "@daily/protocol"
 
@@ -14,26 +15,26 @@ const props = withDefaults(
     tags: Tag[]
     selectable?: boolean
     selectedTags?: Set<Tag["id"]>
-    emptyMessage?: string
     popupHoverMode?: boolean
     size?: "sm" | "md"
   }>(),
   {
     selectedTags: () => new Set(),
-    emptyMessage: "No tags",
     popupHoverMode: false,
     size: "md",
   },
 )
 
-const emit = defineEmits<{select: [name: string]}>()
+const emit = defineEmits<{select: [id: Tag["id"]]}>()
 
-const containerRef = ref<HTMLElement | null>(null)
-const tagsRef = ref<HTMLElement | null>(null)
+const containerRef = useTemplateRef<HTMLElement>("container")
+const measureRef = useTemplateRef<HTMLElement>("measure")
 const visibleTags = ref<Tag[]>([])
 const hiddenTags = ref<Tag[]>([])
 
 const hasSelectedInPopup = computed(() => hiddenTags.value.some((tag) => props.selectedTags.has(tag.id)))
+
+useResizeObserver(containerRef, calculateVisibleTags)
 
 function isActiveTag(id: Tag["id"]) {
   return props.selectedTags.has(id)
@@ -43,8 +44,15 @@ function onSelectTag(id: Tag["id"]) {
   emit("select", id)
 }
 
+function getMoreButtonClasses(hasSelected: boolean) {
+  return cn(
+    "h-7 shrink-0 flex-row-reverse rounded-full px-3 py-1.5",
+    hasSelected ? "bg-accent/20 border-accent text-accent" : "opacity-70 hover:opacity-90",
+  )
+}
+
 async function calculateVisibleTags() {
-  if (!containerRef.value || !tagsRef.value || !props.tags.length) {
+  if (!containerRef.value || !measureRef.value || !props.tags.length) {
     visibleTags.value = props.tags
     hiddenTags.value = []
     return
@@ -59,7 +67,7 @@ async function calculateVisibleTags() {
     return
   }
 
-  const tagElements = tagsRef.value.children
+  const tagElements = measureRef.value.children
   const gap = 8
   const moreButtonWidth = 60
 
@@ -86,20 +94,17 @@ async function calculateVisibleTags() {
 }
 
 watch(() => props.tags, calculateVisibleTags, {deep: true})
-useResizeObserver(containerRef, calculateVisibleTags)
 </script>
 
 <template>
-  <div ref="containerRef" class="relative flex w-full min-w-0 items-center gap-2">
-    <slot v-if="!tags.length" name="empty">
-      <span class="text-base-content/70 text-sm">
-        <BaseIcon name="tags" class="size-4" />
-        {{ emptyMessage }}
-      </span>
-    </slot>
+  <div ref="container" class="relative flex w-full min-w-0 items-center gap-2">
+    <span v-if="!tags.length" class="text-base-content/70 text-sm">
+      <BaseIcon name="tags" class="size-4" />
+      No tags
+    </span>
 
     <template v-else>
-      <div ref="tagsRef" class="pointer-events-none absolute top-0 left-0 flex items-center gap-2 opacity-0" style="">
+      <div ref="measure" class="pointer-events-none absolute top-0 left-0 flex items-center gap-2 opacity-0">
         <BaseTag v-for="tag in tags" :key="tag.id" :tag="tag" :active="isActiveTag(tag.id)" :selectable="selectable" :size="size" />
       </div>
 
@@ -114,20 +119,11 @@ useResizeObserver(containerRef, calculateVisibleTags)
         @click="onSelectTag(tag.id)"
       />
 
-      <BasePopup
-        v-if="hiddenTags.length"
-        hide-header
-        hide-close-btn
-        :hover-mode="popupHoverMode"
-        container-class="min-w-44 p-1"
-        content-class="gap-1.5"
-      >
+      <BasePopup v-if="hiddenTags.length" hide-header :hover-mode="popupHoverMode" container-class="min-w-44 p-1" content-class="gap-1.5">
         <template #trigger="{toggle, show}">
           <BaseButton
             variant="text"
-            size="sm"
-            class="h-7 shrink-0 flex-row-reverse rounded-full px-3 py-1.5"
-            :class="[hasSelectedInPopup ? 'bg-accent/20 border-accent text-accent' : 'opacity-70 hover:opacity-90']"
+            :class="getMoreButtonClasses(hasSelectedInPopup)"
             icon="tags"
             icon-class="size-4"
             style="-webkit-app-region: no-drag"

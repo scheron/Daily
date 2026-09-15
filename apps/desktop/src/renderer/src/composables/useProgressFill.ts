@@ -1,29 +1,34 @@
-import {computed, onUnmounted, ref, toValue, watch} from "vue"
+import {computed, onUnmounted, ref, watch} from "vue"
 import {onLongPress, useEventListener} from "@vueuse/core"
 
-import type {MaybeRef, Ref} from "vue"
+import type {Ref} from "vue"
 
-type UseProgressFillOptions = {
-  duration?: number
-  color?: MaybeRef<string>
-  onComplete?: () => void
-}
-
-export function useProgressFill(elementRef: Ref<HTMLElement | null>, options: UseProgressFillOptions = {}) {
-  const duration = options.duration ?? 1000
-  const color = computed(() => toValue(options.color) ?? "#000000")
-
+export function useProgressFill(elementRef: Ref<HTMLElement | null>, onComplete: () => void) {
   const progress = ref(0)
   const isComplete = ref(false)
   const startTime = ref(0)
   const animationFrame = ref<number>()
+  const progressElement = createProgressElement()
 
   const isFilling = computed(() => !isComplete.value && progress.value > 0)
 
-  const progressElement = document.createElement("div")
-  progressElement.className = "absolute inset-0"
-  progressElement.dataset.progress = ""
-  progressElement.style.width = "var(--progress, 0%)"
+  onLongPress(elementRef, startProgress, {
+    delay: 0,
+    modifiers: {stop: true},
+  })
+
+  useEventListener(elementRef, "mouseup", stopProgress)
+  useEventListener(elementRef, "mouseleave", stopProgress)
+  useEventListener(elementRef, "touchend", stopProgress)
+
+  function createProgressElement() {
+    const element = document.createElement("div")
+    element.className = "absolute inset-0"
+    element.dataset.progress = ""
+    element.style.width = "var(--progress, 0%)"
+    element.style.backgroundColor = "color-mix(in oklch, var(--color-error), transparent 62%)"
+    return element
+  }
 
   function setupProgressElement(element: HTMLElement) {
     const existingProgress = element.querySelector("[data-progress]")
@@ -43,8 +48,6 @@ export function useProgressFill(elementRef: Ref<HTMLElement | null>, options: Us
   function startProgress() {
     if (!elementRef.value) return
 
-    progressElement.style.backgroundColor = toValue(color)
-
     startTime.value = performance.now()
     progress.value = 0
     isComplete.value = false
@@ -56,7 +59,7 @@ export function useProgressFill(elementRef: Ref<HTMLElement | null>, options: Us
 
     const currentTime = performance.now()
     const elapsed = currentTime - startTime.value
-    progress.value = Math.min(elapsed / duration, 1)
+    progress.value = Math.min(elapsed / 500, 1)
 
     elementRef.value.style.setProperty("--progress", `${progress.value * 100}%`)
 
@@ -64,7 +67,7 @@ export function useProgressFill(elementRef: Ref<HTMLElement | null>, options: Us
       animationFrame.value = requestAnimationFrame(updateProgress)
     } else {
       isComplete.value = true
-      options.onComplete?.()
+      onComplete()
     }
   }
 
@@ -86,25 +89,10 @@ export function useProgressFill(elementRef: Ref<HTMLElement | null>, options: Us
     {immediate: true},
   )
 
-  onLongPress(elementRef, startProgress, {
-    delay: 0,
-    modifiers: {stop: true},
-  })
-
-  useEventListener(elementRef, "mouseup", stopProgress)
-  useEventListener(elementRef, "mouseleave", stopProgress)
-  useEventListener(elementRef, "touchend", stopProgress)
-
   onUnmounted(() => {
     if (animationFrame.value) cancelAnimationFrame(animationFrame.value)
     if (elementRef.value) cleanupProgressElement(elementRef.value)
   })
 
-  return {
-    progress,
-    isFilling,
-    isComplete,
-    startProgress,
-    stopProgress,
-  }
+  return {isFilling}
 }

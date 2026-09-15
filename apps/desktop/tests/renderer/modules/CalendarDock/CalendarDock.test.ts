@@ -61,8 +61,8 @@ describe("CalendarDock", () => {
   })
 
   async function setup() {
-    const {default: CalendarDock} = await import("../../../../src/renderer/src/ui/modules/CalendarDock/CalendarDock.vue")
-    const {default: BaseCalendar} = await import("../../../../src/renderer/src/ui/base/BaseCalendar/BaseCalendar.vue")
+    const {default: CalendarDock} = await import("../../../../src/renderer/src/ui/modules/CalendarDock")
+    const {default: TaskCalendar} = await import("../../../../src/renderer/src/ui/common/calendar/TaskCalendar/TaskCalendar.vue")
     const {default: MilestoneDiamond} = await import("../../../../src/renderer/src/ui/common/milestones/MilestoneDiamond.vue")
     const {useUIStore} = await import("../../../../src/renderer/src/stores/ui/ui.store")
     const {useTasksStore} = await import("../../../../src/renderer/src/stores/tasks/tasks.store")
@@ -77,7 +77,7 @@ describe("CalendarDock", () => {
     }
 
     return {
-      BaseCalendar,
+      TaskCalendar,
       MilestoneDiamond,
       mountDock,
       ui: useUIStore(),
@@ -90,7 +90,7 @@ describe("CalendarDock", () => {
   }
 
   it("renders_TC-12_a_single_dated_button_in_a_drop_zone_root_and_expands_to_today_on_click", async () => {
-    const {BaseCalendar, mountDock, ui, tasks} = await setup()
+    const {TaskCalendar, mountDock, ui, tasks} = await setup()
     const today = DateTime.now().toISODate()
     tasks.activeDay = today
 
@@ -111,13 +111,13 @@ describe("CalendarDock", () => {
 
     expect(ui.isCalendarDockExpanded).toBe(true)
 
-    const calendar = dock.findComponent(BaseCalendar)
+    const calendar = dock.findComponent(TaskCalendar)
     expect(calendar.exists()).toBe(true)
     expect(calendar.props("selectedDate")).toBe(today)
   })
 
   it("expands_TC-7_into_two_tabs_on_a_click_and_keeps_showing_the_calendar_on_the_days_tab", async () => {
-    const {BaseCalendar, mountDock, ui, tasks, milestones} = await setup()
+    const {TaskCalendar, mountDock, ui, tasks, milestones} = await setup()
     tasks.activeDay = DateTime.now().toISODate()
 
     milestones.milestones = [makeMilestone({id: "m1", name: "Launch", progress: {total: 2, resolved: 1}})]
@@ -136,7 +136,7 @@ describe("CalendarDock", () => {
     const tabs = dock.findAll("[data-tab]")
     expect(tabs.map((tab) => tab.attributes("data-tab")).sort()).toEqual(["days", "milestones"])
 
-    const calendar = dock.findComponent(BaseCalendar)
+    const calendar = dock.findComponent(TaskCalendar)
     expect(calendar.exists()).toBe(true)
   })
 
@@ -309,7 +309,7 @@ describe("CalendarDock", () => {
   it("stays_collapsed_on_a_drag_when_auto_open_is_off_and_expands_after_holding_the_card_on_the_pill", async () => {
     const {mountDock, ui, drag} = await setup()
     const {useSettingsStore} = await import("../../../../src/renderer/src/stores/settings.store")
-    await useSettingsStore().loadSettings()
+    await vi.waitFor(() => expect(useSettingsStore().isSettingsLoaded).toBe(true))
     ui.shouldOpenCalendarDockOnDrag = false
 
     const dock = mountDock()

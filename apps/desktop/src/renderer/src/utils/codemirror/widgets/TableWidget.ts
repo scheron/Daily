@@ -1,16 +1,10 @@
-import {renderInlineMarkdown} from "@/utils/codemirror/inlineMarkdown"
 import {WidgetType} from "@codemirror/view"
 
 import type {EditorView} from "@codemirror/view"
 
 type Align = "left" | "center" | "right" | ""
 
-/**
- * Renders a GFM markdown table as a real `<table>` (wrapped in a
- * horizontally-scrollable container) when the caret is not inside it
- * (Obsidian-style live preview). Clicking the table moves the caret into its
- * source so it becomes editable again.
- */
+/** Cell text is rendered as DOM nodes, never through `innerHTML`, so a cell cannot inject markup. */
 export class TableWidget extends WidgetType {
   constructor(
     readonly source: string,
@@ -70,11 +64,11 @@ function parseCells(line: string): string[] {
 
 function parseAligns(delimiterLine: string): Align[] {
   return parseCells(delimiterLine).map((cell) => {
-    const left = cell.startsWith(":")
-    const right = cell.endsWith(":")
-    if (left && right) return "center"
-    if (right) return "right"
-    if (left) return "left"
+    const hasLeftColon = cell.startsWith(":")
+    const hasRightColon = cell.endsWith(":")
+    if (hasLeftColon && hasRightColon) return "center"
+    if (hasRightColon) return "right"
+    if (hasLeftColon) return "left"
     return ""
   })
 }
@@ -90,4 +84,57 @@ function buildRow(cells: string[], aligns: Align[], tag: "th" | "td"): HTMLTable
     row.appendChild(element)
   })
   return row
+}
+
+function renderInlineMarkdown(text: string): Node[] {
+  const nodes: Node[] = []
+  let rest = text
+
+  while (rest.length > 0) {
+    const match =
+      /(?<code>`[^`]+`)|(?<strong>\*\*[\s\S]+?\*\*|(?<!\w)__[\s\S]+?__(?!\w))|(?<emphasis>\*[\s\S]+?\*|(?<!\w)_[\s\S]+?_(?!\w))|(?<strikethrough>~~[\s\S]+?~~)|(?<link>\[(?<label>[^\]]+)\]\([^)]+\))/.exec(
+        rest,
+      )
+    if (!match?.groups) {
+      nodes.push(document.createTextNode(rest))
+      break
+    }
+
+    const token = match[0]
+    const groups = match.groups
+
+    if (match.index > 0) nodes.push(document.createTextNode(rest.slice(0, match.index)))
+
+    if (groups.code) {
+      nodes.push(styledSpan("cm-code", [document.createTextNode(token.slice(1, -1))]))
+    } else if (groups.strong) {
+      nodes.push(wrap("strong", "cm-strong", token.slice(2, -2)))
+    } else if (groups.emphasis) {
+      nodes.push(wrap("em", "cm-emphasis", token.slice(1, -1)))
+    } else if (groups.strikethrough) {
+      const strike = wrap("span", "", token.slice(2, -2))
+      strike.style.textDecoration = "line-through"
+      nodes.push(strike)
+    } else if (groups.link) {
+      nodes.push(styledSpan("cm-link", [document.createTextNode(groups.label ?? token)]))
+    }
+
+    rest = rest.slice(match.index + token.length)
+  }
+
+  return nodes
+}
+
+function wrap(tag: string, className: string, inner: string): HTMLElement {
+  const element = document.createElement(tag)
+  if (className) element.className = className
+  element.append(...renderInlineMarkdown(inner))
+  return element
+}
+
+function styledSpan(className: string, children: Node[]): HTMLSpanElement {
+  const span = document.createElement("span")
+  span.className = className
+  span.append(...children)
+  return span
 }

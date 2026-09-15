@@ -5,21 +5,18 @@ import {defineStore} from "pinia"
 
 import type {AppUpdateState} from "@shared/types/update"
 
-const DEFAULT_UPDATE_STATE: AppUpdateState = {
-  status: "idle",
-  currentVersion: "",
-  availableVersion: null,
-  availableHash: null,
-  source: null,
-  downloadProgress: null,
-  downloadedAt: null,
-  checkedAt: null,
-  reason: null,
-}
-
 export const useUpdateStore = defineStore("update", () => {
-  const state = ref<AppUpdateState>({...DEFAULT_UPDATE_STATE})
-  const isInitialized = ref(false)
+  const state = ref<AppUpdateState>({
+    status: "idle",
+    currentVersion: "",
+    availableVersion: null,
+    availableHash: null,
+    source: null,
+    downloadProgress: null,
+    downloadedAt: null,
+    checkedAt: null,
+    reason: null,
+  })
   const dismissedVersion = ref<string | null>(null)
 
   const hasAvailableUpdate = computed(() => Boolean(state.value.availableVersion))
@@ -38,8 +35,6 @@ export const useUpdateStore = defineStore("update", () => {
   })
 
   async function init(): Promise<void> {
-    if (isInitialized.value) return
-
     state.value = await window.BridgeIPC["updates:get-state"]()
 
     window.BridgeIPC["updates:on-state-changed"]((nextState) => {
@@ -62,12 +57,6 @@ export const useUpdateStore = defineStore("update", () => {
         toasts.error(nextState.reason)
       }
     })
-
-    isInitialized.value = true
-  }
-
-  async function checkForUpdates(): Promise<void> {
-    state.value = await window.BridgeIPC["updates:check"]()
   }
 
   async function downloadUpdate(): Promise<boolean> {
@@ -91,15 +80,10 @@ export const useUpdateStore = defineStore("update", () => {
 
   return {
     state,
-    isInitialized,
-    hasAvailableUpdate,
     isDownloading,
     isInstalling,
     isBusy,
-    canDownload,
     isPanelVisible,
-    init,
-    checkForUpdates,
     downloadUpdate,
     dismissPanel,
   }

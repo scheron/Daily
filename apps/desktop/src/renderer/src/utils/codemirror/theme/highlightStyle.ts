@@ -2,26 +2,11 @@ import {HighlightStyle} from "@codemirror/language"
 import {tags as t} from "@lezer/highlight"
 
 /**
- * Syntax highlight style for the markdown editor.
- *
- * Applied through CodeMirror's standard `syntaxHighlighting(...)` pipeline. The
- * markdown grammar nests each fence's language parser into the document tree
- * (via `codeLanguages`), so this single style colors every supported language.
- *
- * Two concerns live here, both **theme-aware**:
- * - **Markdown structure** (headings, bold, italic, links, quotes) maps to the
- *   editor theme's existing `.cm-*` classes (which use `var(--color-*)`).
- * - **Code tokens** map to the app's semantic color variables, so highlighting
- *   adapts to every theme (light/dark) automatically — including live theme
- *   switches, since `var()` resolves at render time.
- *
- * `monospace` is intentionally left unmapped: it covers both inline code and
- * fenced `CodeText`, so styling it here would pill every fenced-code token. The
- * inline-code background is applied by the live-preview plugin instead.
+ * `monospace` is left unmapped because it also covers fenced `CodeText`, so styling it would pill every fenced-code
+ * token. Inline code gets its background from the live-preview plugin instead.
  */
 // prettier-ignore
 export const codeHighlightStyle = HighlightStyle.define([
-  // Markdown structure → reuse the theme's .cm-* classes
   {tag: t.heading1, class: "cm-heading cm-heading1"},
   {tag: t.heading2, class: "cm-heading cm-heading2"},
   {tag: t.heading3, class: "cm-heading cm-heading3"},
@@ -34,7 +19,6 @@ export const codeHighlightStyle = HighlightStyle.define([
   {tag: [t.link, t.url], class: "cm-link"},
   {tag: t.quote, class: "cm-quote"},
 
-  // Code tokens → semantic theme variables (adapt to every theme)
   {tag: [t.keyword, t.controlKeyword, t.moduleKeyword, t.definitionKeyword, t.operatorKeyword, t.modifier, t.controlOperator], color: "var(--color-error)"},
   {tag: [t.string, t.special(t.string), t.regexp, t.character, t.escape, t.attributeValue], color: "var(--color-success)"},
   {tag: [t.comment, t.lineComment, t.blockComment, t.docComment], color: "color-mix(in srgb, var(--color-base-content) 55%, transparent)", fontStyle: "italic"},
@@ -45,6 +29,4 @@ export const codeHighlightStyle = HighlightStyle.define([
   {tag: [t.tagName], color: "var(--color-success)"},
   {tag: [t.attributeName, t.meta, t.annotation, t.processingInstruction], color: "var(--color-info)"},
   {tag: t.invalid, color: "var(--color-error)"},
-  // variableName, propertyName, operators, punctuation/brackets stay the default
-  // text color (var(--color-base-content) via the editor theme).
 ])

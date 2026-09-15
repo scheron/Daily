@@ -1,5 +1,6 @@
-<script lang="ts" setup>
+<script setup lang="ts">
 import {computed, watch} from "vue"
+import {storeToRefs} from "pinia"
 
 import {sortTags} from "@daily/protocol"
 import {removeDuplicates} from "@daily/std"
@@ -14,6 +15,9 @@ import type {Tag} from "@daily/protocol"
 const tasksStore = useTasksStore()
 const filterStore = useFilterStore()
 const milestonesStore = useMilestonesStore()
+
+const {activeDay} = storeToRefs(tasksStore)
+const {activeMilestoneId} = storeToRefs(filterStore)
 
 const milestoneFrameTasks = computed(() => {
   const ids = filterStore.activeMilestoneId ? [filterStore.activeMilestoneId] : milestonesStore.activeMilestones.map((milestone) => milestone.id)
@@ -33,10 +37,7 @@ function onSelectTag(name: Tag["name"]) {
   filterStore.setActiveTags(name)
 }
 
-watch(
-  () => [tasksStore.activeDay, filterStore.activeMilestoneId],
-  () => filterStore.clearActiveTags(),
-)
+watch([activeDay, activeMilestoneId], () => filterStore.clearActiveTags())
 
 watch(filteredTags, (tags) => {
   if (!filterStore.activeTagIds.size) return

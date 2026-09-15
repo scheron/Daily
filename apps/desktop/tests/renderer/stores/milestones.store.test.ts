@@ -8,26 +8,8 @@ import {useTasksStore} from "../../../src/renderer/src/stores/tasks/tasks.store"
 import {API} from "../../../src/renderer/src/api"
 import {mockBridgeIPC} from "../../helpers/bridgeIPC"
 
-/**
- * TC-25 · US-4 · gate-b: N/A
- * given: a collection holding tasks of two projects on the same day, in the backlog of each, and
- * in milestones of each
- * when: `days`, `backlogTasks`, `tasksByMilestoneId` and `milestoneViews` are read with the first
- * project active
- * then: none of them contains a task of the second project, and the first project's milestone
- * progress counts only its own tasks
- *
- * `milestoneViews` is phase 4's new computed — this is the plan's one new test file, for a
- * cross-store computed that only reads correctly at the store level.
- */
-
-vi.mock("../../../src/renderer/src/utils/ui/vue", () => ({
+vi.mock("../../../src/renderer/src/utils/ui/toRawDeep", () => ({
   toRawDeep: (v) => v,
-}))
-
-vi.mock("../../../src/renderer/src/utils/perf", () => ({
-  perfMark: vi.fn(),
-  perfMeasure: vi.fn(),
 }))
 
 vi.mock("../../../src/renderer/src/api", () => ({
@@ -43,7 +25,6 @@ vi.mock("../../../src/renderer/src/api", () => ({
     moveTask: vi.fn().mockResolvedValue(null),
     moveTaskByOrder: vi.fn().mockResolvedValue(null),
     moveTaskToBranch: vi.fn().mockResolvedValue(true),
-    toggleTaskMinimized: vi.fn().mockResolvedValue(null),
   },
 }))
 
@@ -83,7 +64,7 @@ function makeTask(overrides = {}) {
   }
 }
 
-describe("milestonesStore.milestoneViews — scoped alongside the collection's own selectors", () => {
+describe("milestonesStore — progress scoped alongside the collection's own selectors", () => {
   beforeEach(() => {
     mockBridgeIPC()
     setActivePinia(createPinia())
@@ -132,8 +113,7 @@ describe("milestonesStore.milestoneViews — scoped alongside the collection's o
     const m1Tasks = tasksStore.tasksByMilestoneId.get("m1") ?? []
     expect(m1Tasks.map((t) => t.id).toSorted()).toEqual(["p1-m1-a", "p1-m1-b"])
 
-    const views = milestonesStore.milestoneViews
-    const view1 = views.find((v) => v.id === "m1")
+    const view1 = milestonesStore.activeMilestones.find((m) => m.id === "m1")
     expect(view1?.progress).toEqual({total: 2, resolved: 1})
   })
 })

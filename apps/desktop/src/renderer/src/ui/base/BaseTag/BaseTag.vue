@@ -1,20 +1,17 @@
-<script lang="ts" setup>
-import {computed, HTMLAttributes} from "vue"
-
+<script setup lang="ts">
 import BaseIcon from "@/ui/base/BaseIcon"
 import {cn} from "@/utils/ui/tailwindcss"
 import {tagHashVariant, tagNameVariant, tagRemoveIconVariant, tagRemoveVariant, tagVariant} from "./variants"
 
 import type {Tag} from "@daily/protocol"
+import type {HTMLAttributes} from "vue"
 import type {TagSize} from "./variants"
 
 const props = withDefaults(
   defineProps<{
     tag: Tag
     active?: boolean
-    /** Whether the tag is selectable */
     selectable?: boolean
-    /** When true, renders an inline × that emits `remove` on click. */
     removable?: boolean
     size?: TagSize
     class?: HTMLAttributes["class"]
@@ -24,11 +21,15 @@ const props = withDefaults(
 
 const emit = defineEmits<{remove: []}>()
 
-const containerClass = computed(() => tagVariant({size: props.size}).value)
-const hashClass = computed(() => tagHashVariant({size: props.size}).value)
-const nameClass = computed(() => tagNameVariant({size: props.size}).value)
-const removeClass = computed(() => tagRemoveVariant({size: props.size}).value)
-const removeIconClass = computed(() => tagRemoveIconVariant({size: props.size}).value)
+const containerClass = tagVariant(props)
+const hashClass = tagHashVariant(props)
+const nameClass = tagNameVariant(props)
+const removeClass = tagRemoveVariant(props)
+const removeIconClass = tagRemoveIconVariant(props)
+
+function getTagClasses() {
+  return cn(containerClass.value, props.active && "active", props.selectable && "selectable", props.removable && "removable", props.class)
+}
 
 function onRemove(event: MouseEvent) {
   event.stopPropagation()
@@ -37,7 +38,7 @@ function onRemove(event: MouseEvent) {
 </script>
 
 <template>
-  <button type="button" :class="cn([containerClass, {active, selectable, removable}, props.class])" :style="{'--tag-color': tag.color}">
+  <button type="button" :class="getTagClasses()" :style="{'--tag-color': tag.color}">
     <span class="leading-none" :class="hashClass">#</span>
     <span class="truncate" :class="nameClass">{{ tag.name }}</span>
     <span

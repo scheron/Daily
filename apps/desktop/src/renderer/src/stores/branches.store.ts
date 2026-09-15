@@ -12,7 +12,6 @@ import type {Branch} from "@daily/protocol"
 export const useBranchesStore = defineStore("branches", () => {
   const settingsStore = useSettingsStore()
 
-  const isBranchesLoaded = ref(false)
   const branches = ref<Branch[]>([])
 
   const branchesMap = computed(() => new Map<Branch["id"], Branch>(branches.value.map((branch) => [branch.id, branch])))
@@ -23,15 +22,11 @@ export const useBranchesStore = defineStore("branches", () => {
   })
 
   async function getBranchList() {
-    isBranchesLoaded.value = false
-
     try {
       branches.value = await API.getBranchList()
     } catch (error) {
       console.error("Failed to load branches", error)
       throw error
-    } finally {
-      isBranchesLoaded.value = true
     }
   }
 
@@ -68,7 +63,6 @@ export const useBranchesStore = defineStore("branches", () => {
   }
 
   return {
-    isBranchesLoaded,
     branches,
     branchesMap,
     orderedBranches,

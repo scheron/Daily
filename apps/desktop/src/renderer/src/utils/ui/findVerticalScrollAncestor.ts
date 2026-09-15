@@ -1,6 +1,5 @@
 /**
- * Walks up from a DOM target to the nearest ancestor that scrolls vertically
- * (overflow-y auto/scroll/overlay and actually overflowing), or null if none.
+ * An ancestor counts only when its content actually overflows, not merely when `overflow-y` allows scrolling.
  */
 export function findVerticalScrollAncestor(target: EventTarget | null): HTMLElement | null {
   if (!(target instanceof HTMLElement)) return null

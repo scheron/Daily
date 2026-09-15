@@ -1,45 +1,35 @@
 <script setup lang="ts">
-import {STORAGE_KEY_RIGHT_PANEL_WIDTH} from "@/constants/storageKeys"
-import {RIGHT_PANEL_SIZE} from "@/constants/ui"
+import {useTemplateRef} from "vue"
+
 import {useBranchesStore} from "@/stores/branches.store"
 import {useFilterStore} from "@/stores/filter.store"
 import {useStorageStore} from "@/stores/storage.store"
 import {useTaskEditorStore} from "@/stores/task-editor"
-import {useThemeStore} from "@/stores/theme.store"
+import {useThemeStore} from "@/stores/theme"
 import {useUIStore} from "@/stores/ui"
-import MainDragIndicator from "@/ui/common/indicators/MainDragIndicator.vue"
 import Header from "@/ui/modules/Header"
 import RightPanel from "@/ui/modules/RightPanel"
 import TaskBoard from "@/ui/modules/TaskBoard"
 import {useConfirmUnsavedModal} from "@/ui/overlays/ConfirmUnsavedModal"
 import {useSearchModal} from "@/ui/overlays/SearchModal"
-import {UpdateBanner} from "@/ui/overlays/UpdateBanner"
-import {useContentSize} from "./model/useContentSize"
-import {usePanelSize} from "./model/usePanelSize"
+import UpdateBanner from "@/ui/overlays/UpdateBanner.vue"
+import {useContentSize} from "./composables/useContentSize"
+import {usePanelSize} from "./composables/usePanelSize"
+import MainDragIndicator from "./{fragments}/MainDragIndicator"
 
 const uiStore = useUIStore()
 const taskEditorStore = useTaskEditorStore()
 const branchesStore = useBranchesStore()
 const filterStore = useFilterStore()
-
-const confirmUnsavedModal = useConfirmUnsavedModal()
-const searchModal = useSearchModal()
-
 useStorageStore()
 useThemeStore()
 
-const {contentHeight} = useContentSize("container")
+const containerRef = useTemplateRef<HTMLElement>("container")
 
-const {size: rightWidth, setSize: setRightWidth} = usePanelSize(STORAGE_KEY_RIGHT_PANEL_WIDTH, RIGHT_PANEL_SIZE)
-
-async function onCreateTask() {
-  const proceed = await confirmUnsavedModal.open()
-  if (!proceed) return
-  taskEditorStore.openNew({
-    branchId: branchesStore.activeBranchId,
-    milestoneId: filterStore.activeMilestoneId,
-  })
-}
+const confirmUnsavedModal = useConfirmUnsavedModal()
+const searchModal = useSearchModal()
+const {contentHeight} = useContentSize(containerRef)
+const {size: rightWidth, setSize: setRightWidth} = usePanelSize()
 
 window.BridgeIPC["shortcut:tasks:create"](() => onCreateTask())
 window.BridgeIPC["shortcut:ui:open-search-panel"](() => searchModal.toggle())
@@ -49,6 +39,15 @@ window.BridgeIPC["shortcut:ui:calendar-dock:toggle"](() => {
   if (taskEditorStore.isOpen) return
   uiStore.toggleCalendarDock()
 })
+
+async function onCreateTask() {
+  const proceed = await confirmUnsavedModal.open()
+  if (!proceed) return
+  taskEditorStore.openNew({
+    branchId: branchesStore.activeBranchId,
+    milestoneId: filterStore.activeMilestoneId,
+  })
+}
 </script>
 
 <template>
@@ -60,7 +59,7 @@ window.BridgeIPC["shortcut:ui:calendar-dock:toggle"](() => {
 
       <div class="text-base-content flex size-full" :style="{height: contentHeight + 'px'}">
         <TaskBoard @create-task="onCreateTask" />
-        <MainDragIndicator v-if="taskEditorStore.isOpen && !uiStore.isCompact" :size="rightWidth" side="right" @update:size="setRightWidth" />
+        <MainDragIndicator v-if="taskEditorStore.isOpen && !uiStore.isCompact" :size="rightWidth" @update:size="setRightWidth" />
         <RightPanel :width="rightWidth" />
       </div>
     </main>

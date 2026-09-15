@@ -1,5 +1,5 @@
-<script lang="ts" setup>
-import {computed, onBeforeUnmount, ref, StyleValue} from "vue"
+<script setup lang="ts">
+import {computed, onBeforeUnmount, ref, useTemplateRef} from "vue"
 import {onClickOutside} from "@vueuse/core"
 
 import {cn} from "@/utils/ui/tailwindcss"
@@ -11,19 +11,15 @@ export type HorizontalPosition = "start" | "center" | "end"
 
 const props = withDefaults(
   defineProps<{
-    title?: string
     hideHeader?: boolean
-    hideCloseBtn?: boolean
     hoverMode?: boolean
     side?: "top" | "bottom"
     position?: HorizontalPosition
     triggerClass?: string
     contentClass?: string
     containerClass?: string
-    style?: StyleValue
   }>(),
   {
-    hideCloseBtn: false,
     hideHeader: false,
     hoverMode: false,
     side: "bottom",
@@ -37,9 +33,11 @@ const emit = defineEmits<{
   close: []
 }>()
 
+let hideTimer: ReturnType<typeof setTimeout> | null = null
+
 const isOpen = ref(false)
-const trigger = ref<HTMLElement | null>(null)
-const popup = ref<HTMLElement | null>(null)
+const triggerRef = useTemplateRef<HTMLElement>("trigger")
+const popupRef = useTemplateRef<HTMLElement>("popup")
 
 const placement = computed(() => {
   if (props.side === "top") {
@@ -52,19 +50,17 @@ const placement = computed(() => {
   return "bottom"
 })
 
-const {floatingStyles} = useFloating(trigger, popup, {
+const {floatingStyles} = useFloating(triggerRef, popupRef, {
   placement,
   middleware: [offset(4), flip(), shift()],
   whileElementsMounted: autoUpdate,
 })
 
-onClickOutside(popup, (event) => {
-  if (trigger.value && !trigger.value.contains(event.target as Node)) {
+onClickOutside(popupRef, (event) => {
+  if (triggerRef.value && !triggerRef.value.contains(event.target as Node)) {
     hide()
   }
 })
-
-let hideTimer: ReturnType<typeof setTimeout> | null = null
 
 function cancelHide() {
   if (hideTimer) {
@@ -93,6 +89,14 @@ function toggle() {
   isOpen.value ? hide() : show()
 }
 
+function getContainerClasses() {
+  return cn("bg-base-100 border-base-300 z-999 max-h-[300px] min-w-52 overflow-y-auto rounded-2xl border p-1 shadow-lg", props.containerClass)
+}
+
+function getContentClasses() {
+  return cn("flex flex-col gap-1", props.contentClass)
+}
+
 onBeforeUnmount(() => {
   if (isOpen.value) isOpen.value = false
   cancelHide()
@@ -102,13 +106,12 @@ defineExpose({
   show,
   hide,
   toggle,
-  isOpen,
 })
 </script>
 
 <template>
-  <div ref="trigger" :style="style" :class="triggerClass" @mouseleave="scheduleHide">
-    <slot name="trigger" :show="show" :hide="hide" :toggle="toggle" :open="isOpen" />
+  <div ref="trigger" :class="triggerClass" @mouseleave="scheduleHide">
+    <slot name="trigger" :show="show" :hide="hide" :toggle="toggle" />
   </div>
 
   <Teleport to="body">
@@ -116,29 +119,23 @@ defineExpose({
       v-if="isOpen"
       ref="popup"
       data-popup
-      :class="cn('bg-base-100 border-base-300 z-999 max-h-[300px] min-w-52 overflow-y-auto rounded-2xl border p-1 shadow-lg', containerClass)"
+      :class="getContainerClasses()"
       :style="floatingStyles"
       @mouseenter="cancelHide"
       @mouseleave="scheduleHide"
     >
-      <div :class="cn('flex flex-col gap-1', contentClass)">
-        <div v-if="!(hideHeader || hideCloseBtn)" class="border-base-300 flex items-center justify-between border-b pb-1">
-          <slot name="title">
-            <span v-if="title" class="text-base-content/70 pl-4 text-xs font-semibold uppercase">{{ title }}</span>
-          </slot>
-
+      <div :class="getContentClasses()">
+        <div v-if="!hideHeader" class="border-base-300 flex items-center justify-between border-b pb-1">
           <BaseButton
-            v-if="!hideCloseBtn"
             icon="x-mark"
             variant="ghost"
-            size="sm"
             icon-class="size-4"
             class="focus-visible-accent text-base-content/70 hover:text-base-content ml-auto rounded-full p-1"
             @click="hide"
           />
         </div>
 
-        <slot :hide="hide" :show="show" :toggle="toggle" :open="isOpen" />
+        <slot :hide="hide" />
       </div>
     </div>
   </Teleport>

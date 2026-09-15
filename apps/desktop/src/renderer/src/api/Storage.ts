@@ -2,24 +2,27 @@ import {DateTime} from "luxon"
 
 import type {Changeset} from "@daily/core"
 import type {Branch, ISODate, Milestone, MoveTaskByOrderParams, Tag, Task, TaskEvent, TaskSearchResult, TaskStatus} from "@daily/protocol"
-import type {CreateTaskParams, Storage} from "./types"
+import type {CreateTaskParams} from "./types"
 
-export class StorageAPI implements Storage {
-  //#region ACTIVITY
+export class StorageAPI {
+  /** Newest first; the `moved` pair collapses to one row. */
   async getTaskHistory(taskId: Task["id"]): Promise<TaskEvent[]> {
     return window.BridgeIPC["activity:get-by-task"](taskId)
   }
-  //#endregion
 
-  //#region TASKS
   async getTask(id: Task["id"]): Promise<Task | null> {
     return window.BridgeIPC["tasks:get-one"](id)
   }
 
+  /** Every project's tasks, backlog included. */
   async getAllTasks(): Promise<Task[]> {
     return window.BridgeIPC["tasks:get-all"]()
   }
 
+  /**
+   * Omitted fields fall back to defaults (today/now, status "active", minimized false, orderIndex 0);
+   * a task created with status "backlog" gets no date.
+   */
   async createTask(content: string, params: CreateTaskParams): Promise<Changeset> {
     const isBacklog = params.status === "backlog"
     const now = DateTime.now()
@@ -51,14 +54,19 @@ export class StorageAPI implements Storage {
     return await window.BridgeIPC["tasks:update"](id, updates)
   }
 
-  async toggleTaskMinimized(id: Task["id"], minimized: boolean): Promise<Changeset> {
-    return await window.BridgeIPC["tasks:toggle-minimized"](id, minimized)
-  }
-
+  /**
+   * Reorders a task within its day, optionally moving it to another status group. Positions it before/after
+   * an anchor task (or at the end) via a fractional order index, re-normalizing the group's indexes when no
+   * gap is available.
+   * @param params.targetTaskId - Anchor task to position against; null or omitted appends to the end
+   * @param params.targetStatus - Destination status group; defaults to the task's current status
+   * @param params.position - "before" or "after" the anchor; defaults to "before"
+   */
   async moveTaskByOrder(params: MoveTaskByOrderParams): Promise<Changeset> {
     return await window.BridgeIPC["tasks:move-by-order"](params)
   }
 
+  /** Soft-delete: the task moves to the deleted list and a "deleted" activity event is recorded. */
   async deleteTask(id: Task["id"]): Promise<Changeset> {
     return await window.BridgeIPC["tasks:delete"](id)
   }
@@ -71,6 +79,7 @@ export class StorageAPI implements Storage {
     return await window.BridgeIPC["tasks:move-to-branch"](taskId, branchId)
   }
 
+  /** Fuzzy-matches tasks; results are sorted by relevance. */
   async searchTasks(query: string): Promise<TaskSearchResult[]> {
     try {
       return await window.BridgeIPC["search:query"](query)
@@ -80,7 +89,7 @@ export class StorageAPI implements Storage {
     }
   }
 
-  async getDeletedTasks(params?: {limit?: number; branchId?: Branch["id"]}): Promise<Task[]> {
+  async getDeletedTasks(params: {branchId?: Branch["id"]}): Promise<Task[]> {
     try {
       return await window.BridgeIPC["tasks:get-deleted"](params)
     } catch (error) {
@@ -89,10 +98,12 @@ export class StorageAPI implements Storage {
     }
   }
 
+  /** Restores a soft-deleted task; a "restored" activity event is recorded. */
   async restoreTask(id: Task["id"]): Promise<Changeset> {
     return await window.BridgeIPC["tasks:restore"](id)
   }
 
+  /** Irreversible; the row stays in the database, stamped as permanently deleted. */
   async permanentlyDeleteTask(id: Task["id"]): Promise<boolean> {
     try {
       return await window.BridgeIPC["tasks:delete-permanently"](id)
@@ -102,6 +113,7 @@ export class StorageAPI implements Storage {
     }
   }
 
+  /** Scoped to the active project; resolves to how many tasks were removed. Irreversible. */
   async permanentlyDeleteAllDeletedTasks(): Promise<number> {
     try {
       return await window.BridgeIPC["tasks:delete-all-permanently"]()
@@ -110,19 +122,14 @@ export class StorageAPI implements Storage {
       return 0
     }
   }
-  //#endregion
 
-  //#region TAGS
   async getTagList(): Promise<Tag[]> {
     return await window.BridgeIPC["tags:get-many"]()
   }
 
+  /** Resolves to null on failure. */
   async createTag(tag: Omit<Tag, "id" | "createdAt" | "updatedAt" | "deletedAt">): Promise<Tag | null> {
     return await window.BridgeIPC["tags:create"](tag)
-  }
-
-  async updateTag(id: Tag["id"], updates: Partial<Tag>): Promise<Tag | null> {
-    return await window.BridgeIPC["tags:update"](id, updates)
   }
 
   async deleteTag(id: Tag["id"]): Promise<boolean> {
@@ -134,28 +141,15 @@ export class StorageAPI implements Storage {
     }
   }
 
-  async addTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Promise<Changeset> {
-    return await window.BridgeIPC["tasks:add-tags"](taskId, tagIds)
-  }
-
-  async removeTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Promise<Changeset> {
-    return await window.BridgeIPC["tasks:remove-tags"](taskId, tagIds)
-  }
-  //#endregion
-
-  //#region MILESTONES
-  async getMilestoneList(branchId?: Branch["id"]): Promise<Milestone[]> {
-    return await window.BridgeIPC["milestones:get-many"](branchId)
-  }
-
-  async getMilestone(id: Milestone["id"]): Promise<Milestone | null> {
-    return await window.BridgeIPC["milestones:get-one"](id)
+  async getMilestoneList(): Promise<Milestone[]> {
+    return await window.BridgeIPC["milestones:get-many"]()
   }
 
   async createMilestone(milestone: Omit<Milestone, "id" | "createdAt" | "updatedAt" | "orderIndex">): Promise<Changeset> {
     return await window.BridgeIPC["milestones:create"](milestone)
   }
 
+  /** The milestone's project never changes. */
   async updateMilestone(
     id: Milestone["id"],
     updates: Partial<Pick<Milestone, "name" | "description" | "targetDate" | "orderIndex">>,
@@ -163,30 +157,35 @@ export class StorageAPI implements Storage {
     return await window.BridgeIPC["milestones:update"](id, updates)
   }
 
+  /** Soft-delete: every task it held keeps existing, cleared of it. */
   async deleteMilestone(id: Milestone["id"]): Promise<Changeset> {
     return await window.BridgeIPC["milestones:delete"](id)
   }
-  //#endregion
 
-  //#region BRANCHES
   async getBranchList(): Promise<Branch[]> {
     return await window.BridgeIPC["branches:get-many"]()
   }
 
+  /** The name is trimmed; resolves to null when it is empty or a case-insensitive duplicate of an existing project. */
   async createBranch(branch: Omit<Branch, "id" | "createdAt" | "updatedAt" | "deletedAt">): Promise<Branch | null> {
     return await window.BridgeIPC["branches:create"](branch)
   }
 
+  /**
+   * The default "main" project can carry a description but cannot be renamed. The new name, when given,
+   * is trimmed; resolves to null if it is empty or already taken.
+   */
   async updateBranch(id: Branch["id"], updates: Partial<Pick<Branch, "name" | "description">>): Promise<Branch | null> {
     return await window.BridgeIPC["branches:update"](id, updates)
   }
 
+  /** If it was the active project, the active project resets to "main". */
   async deleteBranch(id: Branch["id"]): Promise<boolean> {
     return await window.BridgeIPC["branches:delete"](id)
   }
 
+  /** Persisted in settings; falls back to "main" if the project does not exist. */
   async setActiveBranch(id: Branch["id"]): Promise<void> {
     await window.BridgeIPC["branches:set-active"](id)
   }
-  //#endregion
 }

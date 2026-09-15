@@ -1,30 +1,36 @@
 <script setup lang="ts">
-import {computed, useTemplateRef} from "vue"
+import {useTemplateRef} from "vue"
 
 import {useProgressFill} from "@/composables/useProgressFill"
 import BaseIcon from "@/ui/base/BaseIcon"
 import {cn} from "@/utils/ui/tailwindcss"
 
-import type {ContextMenuItem} from "@/ui/common/misc/ContextMenu"
+import type {BaseContextMenuLabeledItem} from "@/ui/base/BaseContextMenu"
+import type {HTMLAttributes} from "vue"
 
-type MenuItem = Extract<ContextMenuItem, {separator?: false}>
-
-const props = defineProps<{item: MenuItem}>()
+const props = defineProps<{item: BaseContextMenuLabeledItem}>()
 const emit = defineEmits<{select: []}>()
 
 const deleteButtonRef = useTemplateRef<HTMLButtonElement>("deleteButton")
 
-const {isFilling} = useProgressFill(deleteButtonRef, {
-  color: "color-mix(in oklch, var(--color-error), transparent 62%)",
-  duration: 500,
-  onComplete: () => emit("select"),
-})
+const {isFilling} = useProgressFill(deleteButtonRef, () => emit("select"))
 
-const itemClass = computed(() => {
-  const baseClass = "text-base-content px-3 hover:bg-base-300/80 flex w-full items-center gap-2 rounded-md py-1.5 text-left transition-colors"
+function getItemClasses(isFilling: boolean) {
+  return cn(
+    "text-base-content px-3 hover:bg-base-300/80 flex w-full items-center gap-2 rounded-md py-1.5 text-left transition-colors",
+    isFilling && "bg-error/10",
+    props.item.disabled && "pointer-events-none opacity-50",
+    props.item.class,
+  )
+}
 
-  return cn(baseClass, isFilling.value && "bg-error/10", props.item.disabled && "pointer-events-none opacity-50", props.item.class)
-})
+function getIconClasses(classIcon: HTMLAttributes["class"]) {
+  return cn("size-4.5", classIcon)
+}
+
+function getLabelClasses(classLabel: HTMLAttributes["class"]) {
+  return cn("flex-1 truncate text-sm", classLabel)
+}
 </script>
 
 <template>
@@ -36,9 +42,9 @@ const itemClass = computed(() => {
     :disabled="item.disabled"
     @click.prevent.stop
   >
-    <span :class="itemClass">
-      <BaseIcon v-if="item.icon" :name="item.icon" :class="cn(item.classIcon, 'size-4.5')" />
-      <span class="flex-1 truncate text-sm" :class="item.classLabel">{{ item.label }}</span>
+    <span :class="getItemClasses(isFilling)">
+      <BaseIcon v-if="item.icon" :name="item.icon" :class="getIconClasses(item.classIcon)" />
+      <span :class="getLabelClasses(item.classLabel)">{{ item.label }}</span>
     </span>
   </button>
 </template>

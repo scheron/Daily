@@ -1,1 +1,1 @@
-export {useSearchModal} from "./useSearchModal"
+export {useSearchModal} from "./composables/useSearchModal"

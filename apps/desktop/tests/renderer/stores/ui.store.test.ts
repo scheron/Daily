@@ -4,7 +4,7 @@ import {beforeEach, describe, expect, it, vi} from "vitest"
 
 import {mockBridgeIPC} from "../../helpers/bridgeIPC"
 
-vi.mock("../../../src/renderer/src/utils/ui/vue", () => ({toRawDeep: (v) => v}))
+vi.mock("../../../src/renderer/src/utils/ui/toRawDeep", () => ({toRawDeep: (v) => v}))
 
 describe("uiStore", () => {
   beforeEach(() => {

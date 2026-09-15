@@ -1,12 +1,6 @@
-import type {StyleSpec} from "@/utils/codemirror/types"
+import type {StyleSpec} from "./types"
 
-/**
- * Custom widget styles
- * - Task checkboxes
- * - Task marker containers
- */
 export const widgetStyles: Record<string, StyleSpec> = {
-  // Task list checkboxes
   ".cm-task-marker": {
     display: "inline-flex",
     alignItems: "center",
@@ -18,7 +12,6 @@ export const widgetStyles: Record<string, StyleSpec> = {
     flexShrink: "0",
   },
 
-  // Checkbox base styles (matches markdown.css)
   ".cm-task-checkbox": {
     appearance: "none",
     width: "1.2em",
@@ -31,13 +24,11 @@ export const widgetStyles: Record<string, StyleSpec> = {
     backgroundColor: "transparent",
   },
 
-  // Checked checkbox styles
   ".cm-task-checkbox-checked": {
     backgroundColor: "var(--color-accent)",
     borderColor: "var(--color-accent)",
   },
 
-  // Checkmark inside checked checkbox (using ::after pseudo-element)
   ".cm-task-checkbox-checked::after": {
     content: "''",
     display: "block",
@@ -51,9 +42,6 @@ export const widgetStyles: Record<string, StyleSpec> = {
     borderWidth: "0 2px 2px 0",
   },
 
-  // Task lines keep normal inline flow: a flex line collapses the leading
-  // indentation whitespace (breaking nested-list indent) and ignores the
-  // list hanging-indent's text-indent. The checkbox aligns via the widget.
   ".cm-line:has(.cm-task-marker)": {
     minHeight: "1.8em",
   },

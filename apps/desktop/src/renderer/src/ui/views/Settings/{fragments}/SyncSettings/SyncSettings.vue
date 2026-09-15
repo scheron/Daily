@@ -5,19 +5,17 @@ import {useSyncServerStore} from "@/stores/syncServer.store"
 import {useBaseModal} from "@/ui/base/BaseModal"
 import SettingsGroup from "@/ui/views/Settings/{fragments}/SettingsGroup.vue"
 import ICloudDetails from "./{fragments}/ICloudDetails.vue"
-import ProviderMigrationModal from "./{fragments}/ProviderMigrationModal.vue"
+import ProviderMigrationModal from "./{fragments}/ProviderMigrationModal"
 import ProviderSection from "./{fragments}/ProviderSection.vue"
-import ServerDetails from "./{fragments}/ServerDetails.vue"
+import ServerDetails from "./{fragments}/ServerDetails"
 
 import type {SyncProvider} from "@daily/protocol"
-
-const MIGRATION_MODAL_ID = "sync-provider-migration"
 
 const storageStore = useStorageStore()
 const settingsStore = useSettingsStore()
 const syncServerStore = useSyncServerStore()
 
-const {show, hide, isOpen} = useBaseModal(MIGRATION_MODAL_ID)
+const {show, hide, isOpen} = useBaseModal("sync-provider-migration")
 
 function onSelect(target: SyncProvider) {
   show(ProviderMigrationModal, {target, onClose: () => hide(), onDone: onDone})

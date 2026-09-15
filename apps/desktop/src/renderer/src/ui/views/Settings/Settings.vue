@@ -1,13 +1,21 @@
 <script setup lang="ts">
 import {onMounted} from "vue"
 
-import {useThemeStore} from "@/stores/theme.store"
+import {useThemeStore} from "@/stores/theme"
 import BaseButton from "@/ui/base/BaseButton"
-import {useSettingsNav} from "./model/useSettingsNav"
+import {cn} from "@/utils/ui/tailwindcss"
+import {useSettingsNav} from "./useSettingsNav"
 
 useThemeStore()
 
 const {sections, activeNav, activeSection} = useSettingsNav()
+
+function getSectionClasses(isActive: boolean) {
+  return cn(
+    "flex w-full gap-2 px-1 py-0.5 text-sm",
+    isActive ? "bg-accent/15 hover:bg-accent/20 text-accent" : "text-base-content/70 hover:bg-base-200 hover:text-base-content",
+  )
+}
 
 onMounted(() => {
   window.BridgeIPC.send("window:ready")
@@ -25,12 +33,7 @@ onMounted(() => {
             variant="ghost"
             :icon="section.icon"
             icon-class="size-4 shrink-0"
-            class="flex w-full gap-2 px-1 py-0.5 text-sm"
-            :class="[
-              activeNav === section.id
-                ? 'bg-accent/15 hover:bg-accent/20 text-accent'
-                : 'text-base-content/70 hover:bg-base-200 hover:text-base-content',
-            ]"
+            :class="getSectionClasses(activeNav === section.id)"
             @click="activeNav = section.id"
           >
             {{ section.label }}

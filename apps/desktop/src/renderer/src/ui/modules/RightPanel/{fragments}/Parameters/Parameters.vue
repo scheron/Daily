@@ -4,10 +4,10 @@ import BranchProperty from "./{fragments}/properties/BranchProperty.vue"
 import DateProperty from "./{fragments}/properties/DateProperty.vue"
 import MilestoneProperty from "./{fragments}/properties/MilestoneProperty.vue"
 import StatusProperty from "./{fragments}/properties/StatusProperty.vue"
-import TagsProperty from "./{fragments}/properties/TagsProperty.vue"
+import TagsProperty from "./{fragments}/properties/TagsProperty"
 import TimeProperty from "./{fragments}/properties/TimeProperty.vue"
 import PropertyRow from "./{fragments}/PropertyRow.vue"
-import TaskNavigator from "./{fragments}/TaskNavigator.vue"
+import TaskNavigator from "./{fragments}/TaskNavigator"
 
 const {activeTask, isNew, flatOrderedTasks, currentIndex, canPrev, canNext, navigatePrev, navigateNext} = useTaskEditor()
 </script>

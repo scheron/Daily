@@ -1,39 +1,21 @@
 <script setup lang="ts">
-import {useTemplateRef} from "vue"
-
 import BasePopup from "@/ui/base/BasePopup.vue"
 import BranchCombobox from "@/ui/common/comboboxes/BranchCombobox.vue"
 
 import type {HorizontalPosition} from "@/ui/base/BasePopup.vue"
 import type {Branch} from "@daily/protocol"
 
-withDefaults(defineProps<{selectedId: Branch["id"] | null; position?: HorizontalPosition; triggerClass?: string}>(), {
+withDefaults(defineProps<{selectedId: Branch["id"] | null; position?: HorizontalPosition}>(), {
   position: "start",
 })
 
 const emit = defineEmits<{select: [branch: Branch]}>()
-
-const popup = useTemplateRef<{show: () => void; hide: () => void; toggle: () => void}>("popup")
-
-function open() {
-  popup.value?.show()
-}
-
-function close() {
-  popup.value?.hide()
-}
-
-function toggle() {
-  popup.value?.toggle()
-}
-
-defineExpose({open, close, toggle})
 </script>
 
 <template>
-  <BasePopup ref="popup" hide-header :position="position" :trigger-class="triggerClass" container-class="p-0 overflow-hidden max-h-none">
-    <template #trigger="{toggle: openPopup}">
-      <slot name="trigger" :toggle="openPopup" />
+  <BasePopup hide-header :position="position" container-class="p-0 overflow-hidden max-h-none">
+    <template #trigger="{toggle}">
+      <slot name="trigger" :toggle="toggle" />
     </template>
 
     <template #default="{hide}">

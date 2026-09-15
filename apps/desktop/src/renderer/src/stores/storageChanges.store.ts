@@ -2,13 +2,12 @@ import {toRaw} from "vue"
 import {createEventHook} from "@vueuse/core"
 import {defineStore, storeToRefs} from "pinia"
 
+import {applyChangeset} from "@/utils/storage/applyChangeset"
+import {sortTagsByName} from "@/utils/tags/sortTagsByName"
 import {useBranchesStore} from "./branches.store"
 import {useMilestonesStore} from "./milestones.store"
 import {useTagsStore} from "./tags.store"
 import {useTasksStore} from "./tasks"
-import {applyChangeset} from "./tasks/applyChangeset"
-
-import type {Tag} from "@daily/protocol"
 
 /**
  * Applies every `storage:changed` broadcast to the in-memory collections — this window's own
@@ -17,12 +16,12 @@ import type {Tag} from "@daily/protocol"
  * missed.
  */
 export const useStorageChangesStore = defineStore("storageChanges", () => {
-  const onStorageDataChanged = createEventHook()
-
   const {tasks} = storeToRefs(useTasksStore())
   const {tags} = storeToRefs(useTagsStore())
   const {branches} = storeToRefs(useBranchesStore())
   const {milestones} = storeToRefs(useMilestonesStore())
+
+  const onStorageDataChanged = createEventHook()
 
   window.BridgeIPC["storage:on-changed"](async (changeset) => {
     const tagsBefore = toRaw(tags.value)
@@ -36,7 +35,3 @@ export const useStorageChangesStore = defineStore("storageChanges", () => {
     onStorageDataChanged: onStorageDataChanged.on,
   }
 })
-
-function sortTagsByName(list: Tag[]): Tag[] {
-  return [...list].sort((a, b) => a.name.localeCompare(b.name, undefined, {sensitivity: "base"}))
-}

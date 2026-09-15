@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import {computed, ref, watch} from "vue"
+import {computed, useTemplateRef, watch} from "vue"
+import {storeToRefs} from "pinia"
 import VueDraggable from "vuedraggable"
 
 import {useTaskColumns} from "@/composables/tasks/useTaskColumns"
-import {DRAGGABLE_ATTRS} from "@/constants/ui"
 import {useFilterStore} from "@/stores/filter.store"
 import {useMilestonesStore} from "@/stores/milestones.store"
 import {useTasksStore} from "@/stores/tasks"
@@ -13,14 +13,30 @@ import NoTasksPlaceholder from "./{fragments}/NoTasksPlaceholder.vue"
 import TaskCard from "./{fragments}/TaskCard"
 import TaskColumn from "./{fragments}/TaskColumn.vue"
 
-const emit = defineEmits<{createTask: []}>()
+const DRAGGABLE_ATTRS = {
+  group: "daily-board",
+  filter: "[data-draggable-task-ignore], [data-draggable-task-ignore] *, button, a, input, textarea, select, [role='button']",
+  preventOnFilter: false,
+  forceFallback: true,
+  fallbackOnBody: true,
+  fallbackTolerance: 2,
+  ghostClass: "draggable-task-ghost",
+  chosenClass: "draggable-task-chosen",
+  dragClass: "draggable-task-dragging",
+  animation: 140,
+}
 
-const containerRef = ref<HTMLElement | null>(null)
-const boardRef = ref<HTMLElement | null>(null)
+const emit = defineEmits<{createTask: []}>()
 
 const tasksStore = useTasksStore()
 const filterStore = useFilterStore()
 const milestonesStore = useMilestonesStore()
+
+const {activeDay} = storeToRefs(tasksStore)
+
+const containerRef = useTemplateRef<HTMLElement>("container")
+const boardRef = useTemplateRef<HTMLElement>("board")
+
 const columns = useTaskColumns()
 
 const framedMilestoneName = computed(() => {
@@ -42,23 +58,14 @@ const hasAnyTasks = computed(
 
 useDragScroll(boardRef)
 
-watch(
-  () => tasksStore.activeDay,
-  () => containerRef.value?.scrollTo({top: 0, behavior: "instant"}),
-)
+watch(activeDay, () => containerRef.value?.scrollTo({top: 0, behavior: "instant"}))
 </script>
 
 <template>
-  <div ref="containerRef" class="relative min-w-0 flex-1 overflow-hidden">
-    <NoTasksPlaceholder
-      v-if="!hasAnyTasks"
-      :date="placeholderDate"
-      :milestone-name="framedMilestoneName"
-      filter="all"
-      @create-task="emit('createTask')"
-    />
+  <div ref="container" class="relative min-w-0 flex-1 overflow-hidden">
+    <NoTasksPlaceholder v-if="!hasAnyTasks" :date="placeholderDate" :milestone-name="framedMilestoneName" @create-task="emit('createTask')" />
 
-    <div v-else ref="boardRef" class="flex size-full overflow-x-auto overflow-y-hidden" @dragover="columns.onDragOver">
+    <div v-else ref="board" class="flex size-full overflow-x-auto overflow-y-hidden" @dragover="columns.onDragOver">
       <template v-for="(column, index) in columns.visibleColumns.value" :key="column.status">
         <TaskColumn :status="column.status">
           <VueDraggable

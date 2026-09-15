@@ -1,34 +1,63 @@
 import {describe, expect, it} from "vitest"
 
-import {EditorState} from "@codemirror/state"
-import {planFenceAutoClose} from "../../../../src/renderer/src/utils/codemirror/commands/codeBlock"
+import {keymap} from "@codemirror/view"
+import {markdownKeymap} from "../../../../src/renderer/src/utils/codemirror/commands"
+import {mountEditorView, pressKey, unmountEditorView} from "../../../helpers/editorView"
 
-const state = (doc: string, cursor: number) => EditorState.create({doc, selection: {anchor: cursor}})
+function mount(doc: string, cursor: number) {
+  return mountEditorView(doc, {selection: {anchor: cursor}, extensions: [keymap.of(markdownKeymap)]})
+}
 
-describe("planFenceAutoClose", () => {
+describe("markdownKeymap closes an opened code fence on Enter", () => {
   it("closes a freshly opened fence with a language", () => {
-    expect(planFenceAutoClose(state("```js", 5))).toEqual({insert: "\n\n```", anchor: 6})
+    const view = mount("```js", 5)
+
+    pressKey(view, {key: "Enter"})
+
+    expect(view.state.doc.toString()).toBe("```js\n\n```")
+    expect(view.state.selection.main.head).toBe(6)
+    unmountEditorView(view)
   })
 
   it("indents the body line and the closing fence like the opening fence", () => {
     const doc = "- item\n  ```ts"
-    expect(planFenceAutoClose(state(doc, doc.length))).toEqual({insert: "\n  \n  ```", anchor: doc.length + 3})
+    const view = mount(doc, doc.length)
+
+    pressKey(view, {key: "Enter"})
+
+    expect(view.state.doc.toString()).toBe("- item\n  ```ts\n  \n  ```")
+    expect(view.state.selection.main.head).toBe(doc.length + 3)
+    unmountEditorView(view)
   })
 
   it("does nothing when a closing fence already exists below", () => {
     const doc = "```js\nconst a = 1\n```"
-    expect(planFenceAutoClose(state(doc, 5))).toBeNull()
+    const view = mount(doc, 5)
+
+    pressKey(view, {key: "Enter"})
+
+    expect(view.state.doc.toString()).toBe(doc)
+    unmountEditorView(view)
   })
 
-  it("does nothing for a bare fence (no language) — could be a closing fence", () => {
-    expect(planFenceAutoClose(state("```", 3))).toBeNull()
+  it("opens a block only when the fence names a language", () => {
+    const bareFence = mount("```", 3)
+    pressKey(bareFence, {key: "Enter"})
+    expect(bareFence.state.doc.toString()).toBe("```")
+    unmountEditorView(bareFence)
+
+    const plainText = mount("hello", 5)
+    pressKey(plainText, {key: "Enter"})
+    expect(plainText.state.doc.toString()).toBe("hello")
+    unmountEditorView(plainText)
   })
 
   it("does nothing when the caret is not at the end of the fence line", () => {
-    expect(planFenceAutoClose(state("```js", 2))).toBeNull()
-  })
+    const view = mount("```js", 2)
 
-  it("does nothing on a normal text line", () => {
-    expect(planFenceAutoClose(state("hello", 5))).toBeNull()
+    pressKey(view, {key: "Enter"})
+
+    expect(view.state.doc.toString()).toBe("```js")
+    unmountEditorView(view)
   })
 })

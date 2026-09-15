@@ -1,5 +1,4 @@
 // @ts-nocheck
-import {ref, toRaw} from "vue"
 import {toasts} from "vue-toasts-lite"
 import {DateTime} from "luxon"
 import {createPinia, setActivePinia} from "pinia"
@@ -12,20 +11,14 @@ import {useFilterStore} from "../../../src/renderer/src/stores/filter.store"
 import {useMilestonesStore} from "../../../src/renderer/src/stores/milestones.store"
 import {useSettingsStore} from "../../../src/renderer/src/stores/settings.store"
 import {useTagsStore} from "../../../src/renderer/src/stores/tags.store"
-import {applyChangeset} from "../../../src/renderer/src/stores/tasks/applyChangeset"
 import {useTasksStore} from "../../../src/renderer/src/stores/tasks/tasks.store"
 import {API} from "../../../src/renderer/src/api"
 import {mockBridgeIPC} from "../../helpers/bridgeIPC"
 
 const TODAY = DateTime.now().toISODate()
 
-vi.mock("../../../src/renderer/src/utils/ui/vue", () => ({
+vi.mock("../../../src/renderer/src/utils/ui/toRawDeep", () => ({
   toRawDeep: (v) => v,
-}))
-
-vi.mock("../../../src/renderer/src/utils/perf", () => ({
-  perfMark: vi.fn(),
-  perfMeasure: vi.fn(),
 }))
 
 vi.mock("vue-toasts-lite", () => ({
@@ -42,7 +35,6 @@ vi.mock("../../../src/renderer/src/api", () => ({
     moveTask: vi.fn().mockResolvedValue({}),
     moveTaskByOrder: vi.fn().mockResolvedValue({}),
     moveTaskToBranch: vi.fn().mockResolvedValue({}),
-    toggleTaskMinimized: vi.fn().mockResolvedValue({}),
   },
 }))
 
@@ -243,22 +235,6 @@ describe("tasksStore", () => {
     expect(store.backlogTasks.find((t) => t.id === "b1")?.estimatedTime).toBe(3600)
   })
 
-  it("toggleTaskMinimized updates the backlog and reports success when a task already in the backlog is toggled", async () => {
-    const backlogTask = makeTask({id: "b1", status: "backlog", scheduled: null, minimized: false})
-    API.getAllTasks.mockResolvedValue([backlogTask])
-
-    const store = await getStore()
-    await store.loadTasks()
-
-    const toggled = makeTask({id: "b1", status: "backlog", scheduled: null, minimized: true})
-    API.toggleTaskMinimized.mockResolvedValueOnce({tasks: {upserted: [toggled]}})
-
-    const isToggled = await store.toggleTaskMinimized("b1", true)
-
-    expect(isToggled).toBe(true)
-    expect(store.backlogTasks.find((t) => t.id === "b1")?.minimized).toBe(true)
-  })
-
   it("moves a dateless backlog task onto the day it is dropped on and out of the backlog", async () => {
     const backlogTask = makeTask({id: "b1", status: "backlog", scheduled: null})
     API.getAllTasks.mockResolvedValue([backlogTask])
@@ -340,12 +316,6 @@ describe("tasksStore", () => {
   })
 })
 
-/**
- * Phase 4 replaces `days`/`backlogTasks`/`milestoneTasks` with one `tasks` collection and a
- * `loadTasks()` full read; phase 5 adds the optimistic applier. These cases are written against
- * that frozen surface now, before either phase lands, so they call `useTasksStore()` (unchanged)
- * and fail because the surface does not exist yet — not because a module is missing.
- */
 describe("the collection lives in memory — phase 4/5 surface", () => {
   beforeEach(() => {
     mockBridgeIPC()
@@ -474,45 +444,6 @@ describe("the collection lives in memory — phase 4/5 surface", () => {
     expect(matching[0].id).toBe(shownId)
   })
 
-  it("applies_TC-14_a_changeset_upserting_one_row_and_removing_another_while_leaving_the_rest_untouched", async () => {
-    const untouched = makeTask({id: "keep", content: "Keep me"})
-    const toUpdate = makeTask({id: "upd", content: "Old"})
-    const toRemove = makeTask({id: "rm", content: "Going away"})
-    API.getAllTasks.mockResolvedValueOnce([untouched, toUpdate, toRemove])
-
-    const store = useTasksStore()
-    await settle()
-    await store.loadTasks()
-
-    const untouchedRef = store.tasks.find((t) => t.id === "keep")
-
-    store.applyChangeset({tasks: {upserted: [{...toUpdate, content: "New"}], removed: ["rm"]}})
-
-    expect(store.tasks.find((t) => t.id === "upd")?.content).toBe("New")
-    expect(store.tasks.find((t) => t.id === "rm")).toBeUndefined()
-    expect(store.tasks.find((t) => t.id === "keep")).toBe(untouchedRef)
-  })
-
-  it("leaves_TC-16_every_row_as_the_same_object_when_the_same_changeset_is_applied_twice", async () => {
-    const bystander = makeTask({id: "bystander", content: "Unrelated"})
-    const task = makeTask({id: "t1", content: "Before"})
-    API.getAllTasks.mockResolvedValueOnce([bystander, task])
-
-    const store = useTasksStore()
-    await settle()
-    await store.loadTasks()
-
-    const changeset = {tasks: {upserted: [{...task, content: "After"}]}}
-    store.applyChangeset(changeset)
-    const bystanderAfterFirst = store.tasks.find((t) => t.id === "bystander")
-    const editedAfterFirst = store.tasks.find((t) => t.id === "t1")
-
-    store.applyChangeset(changeset)
-
-    expect(store.tasks.find((t) => t.id === "bystander")).toBe(bystanderAfterFirst)
-    expect(store.tasks.find((t) => t.id === "t1")).toBe(editedAfterFirst)
-  })
-
   it("computes_TC-17_days_as_groupTasksByDay_over_the_dated_tasks_excluding_the_backlog", async () => {
     const dated1 = makeTask({id: "d1", scheduled: {date: "2026-09-10", time: "", timezone: "UTC"}})
     const dated2 = makeTask({id: "d2", scheduled: {date: "2026-09-12", time: "", timezone: "UTC"}})
@@ -562,90 +493,5 @@ describe("the collection lives in memory — phase 4/5 surface", () => {
 
     expect(store.tasks.find((t) => t.id === "t1")?.content).toBe("Before")
     expect(toasts.error).toHaveBeenCalled()
-  })
-})
-
-describe("applyChangeset — a row leaving a collection takes its references with it", () => {
-  beforeEach(() => {
-    mockBridgeIPC()
-    setActivePinia(createPinia())
-    vi.clearAllMocks()
-  })
-
-  function makeTag(overrides = {}) {
-    return {
-      id: "tag-1",
-      branchId: "main",
-      name: "Tag",
-      color: "#000000",
-      createdAt: "2026-03-24T00:00:00.000Z",
-      updatedAt: "2026-03-24T00:00:00.000Z",
-      deletedAt: null,
-      ...overrides,
-    }
-  }
-
-  async function loadedStore(tasks) {
-    API.getAllTasks.mockResolvedValueOnce(tasks)
-    const store = useTasksStore()
-    await new Promise((r) => setTimeout(r, 0))
-    await store.loadTasks()
-    return store
-  }
-
-  it("drops a task a sync pull upserts as soft-deleted, since the collection holds live tasks only", async () => {
-    const store = await loadedStore([makeTask({id: "gone"}), makeTask({id: "kept"})])
-
-    store.applyChangeset({tasks: {upserted: [makeTask({id: "gone", deletedAt: "2026-09-14T10:00:00.000Z"})]}})
-
-    expect(store.tasks.map((t) => t.id)).toEqual(["kept"])
-  })
-
-  it("clears the milestone on every task that held a removed milestone and leaves the other tasks as they were", async () => {
-    const store = await loadedStore([makeTask({id: "held", milestoneId: "m1"}), makeTask({id: "elsewhere", milestoneId: "m2"})])
-    const elsewhere = store.tasks.find((t) => t.id === "elsewhere")
-
-    store.applyChangeset({milestones: {removed: ["m1"]}})
-
-    expect(store.tasks.find((t) => t.id === "held")?.milestoneId).toBeNull()
-    expect(store.tasks.find((t) => t.id === "elsewhere")).toBe(elsewhere)
-  })
-
-  it("takes a removed tag off every task carrying it and leaves the other tasks as they were", async () => {
-    const removedTag = makeTag({id: "tag-a", name: "A"})
-    const keptTag = makeTag({id: "tag-b", name: "B"})
-    const store = await loadedStore([makeTask({id: "tagged", tags: [removedTag, keptTag]}), makeTask({id: "untagged", tags: [keptTag]})])
-    const untagged = store.tasks.find((t) => t.id === "untagged")
-
-    store.applyChangeset({tags: {removed: ["tag-a"]}})
-
-    expect(store.tasks.find((t) => t.id === "tagged")?.tags.map((tag) => tag.id)).toEqual(["tag-b"])
-    expect(store.tasks.find((t) => t.id === "untagged")).toBe(untagged)
-  })
-
-  it("removes a project with its milestones and tags, and moves its tasks the changeset did not remove to main", async () => {
-    const sideTag = makeTag({id: "side-tag", branchId: "side"})
-    const mainTag = makeTag({id: "main-tag", branchId: "main"})
-    const mainTask = makeTask({id: "main-task", branchId: "main", milestoneId: "main-m", tags: [mainTag]})
-    const tasks = ref([
-      makeTask({id: "side-deleted", branchId: "side"}),
-      makeTask({id: "side-left", branchId: "side", milestoneId: "side-m", tags: [sideTag]}),
-      mainTask,
-    ])
-    const milestones = ref([
-      {id: "side-m", branchId: "side"},
-      {id: "main-m", branchId: "main"},
-    ])
-    const tags = ref([sideTag, mainTag])
-    const branches = ref([{id: "main"}, {id: "side"}])
-
-    applyChangeset({tasks, milestones, tags, branches}, {branches: {removed: ["side"]}, tasks: {removed: ["side-deleted"]}})
-
-    expect(tasks.value.map((t) => t.id)).toEqual(["side-left", "main-task"])
-    expect(tasks.value[0]).toMatchObject({branchId: "main", milestoneId: null, tags: []})
-    expect(toRaw(tasks.value[1])).toBe(mainTask)
-    expect(milestones.value.map((m) => m.id)).toEqual(["main-m"])
-    expect(tags.value.map((t) => t.id)).toEqual(["main-tag"])
-    expect(branches.value.map((b) => b.id)).toEqual(["main"])
   })
 })

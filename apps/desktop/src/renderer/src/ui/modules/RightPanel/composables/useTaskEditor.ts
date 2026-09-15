@@ -5,26 +5,42 @@ import {useTaskColumns} from "@/composables/tasks/useTaskColumns"
 import {useTaskEditorStore} from "@/stores/task-editor"
 import {useConfirmUnsavedModal} from "@/ui/overlays/ConfirmUnsavedModal"
 
-import type {TaskDraft} from "@/types/tasks"
 import type {Task} from "@daily/protocol"
 
 export const useTaskEditor = createSharedComposable(() => {
   const taskEditorStore = useTaskEditorStore()
 
-  const columns = useTaskColumns()
-  const {open: confirmLeaveIfDirty} = useConfirmUnsavedModal()
-
   const localContent = ref("")
 
   const activeTask = computed<Task | null>(() => {
-    if (!taskEditorStore.isOpen || !taskEditorStore.draft) return null
-    return buildDraftTask(taskEditorStore.draft)
+    const draft = taskEditorStore.draft
+    if (!taskEditorStore.isOpen || !draft) return null
+
+    return {
+      id: "__draft__",
+      branchId: draft.branchId ?? "",
+      createdAt: "",
+      updatedAt: "",
+      deletedAt: null,
+      scheduled: draft.scheduled,
+      estimatedTime: draft.estimatedTime,
+      spentTime: draft.spentTime,
+      content: draft.content,
+      minimized: false,
+      orderIndex: 0,
+      status: draft.status,
+      tags: draft.tags,
+      milestoneId: draft.milestoneId ?? null,
+      attachments: [] as string[],
+    }
   })
 
   const isOpen = computed(() => taskEditorStore.isOpen && !!activeTask.value)
   const isNew = computed(() => taskEditorStore.isNew)
   const isEditing = computed(() => !!activeTask.value && !isNew.value)
   const editingTaskId = computed(() => taskEditorStore.editingTaskId)
+
+  const columns = useTaskColumns()
 
   const flatOrderedTasks = computed<Task[]>(() => {
     if (taskEditorStore.isNew) return []
@@ -44,6 +60,8 @@ export const useTaskEditor = createSharedComposable(() => {
     if (!taskEditorStore.isDirty) return false
     return (taskEditorStore.draft?.content.trim().length ?? 0) > 0
   })
+
+  const {open: confirmLeaveIfDirty} = useConfirmUnsavedModal()
 
   function onBodyChange(next: string) {
     localContent.value = next
@@ -82,7 +100,7 @@ export const useTaskEditor = createSharedComposable(() => {
   }
 
   watch(
-    () => [taskEditorStore.editingTaskId, taskEditorStore.isNew] as const,
+    [editingTaskId, isNew],
     () => {
       localContent.value = taskEditorStore.draft?.content ?? ""
     },
@@ -109,25 +127,3 @@ export const useTaskEditor = createSharedComposable(() => {
     close,
   }
 })
-
-const DRAFT_TASK_ID = "__draft__"
-
-function buildDraftTask(draft: TaskDraft): Task {
-  return {
-    id: DRAFT_TASK_ID,
-    branchId: draft.branchId ?? "",
-    createdAt: "",
-    updatedAt: "",
-    deletedAt: null,
-    scheduled: draft.scheduled,
-    estimatedTime: draft.estimatedTime,
-    spentTime: draft.spentTime,
-    content: draft.content,
-    minimized: false,
-    orderIndex: 0,
-    status: draft.status,
-    tags: draft.tags,
-    milestoneId: draft.milestoneId ?? null,
-    attachments: [] as string[],
-  }
-}

@@ -1,21 +1,21 @@
-import {computed, onScopeDispose, ref, toValue, watch} from "vue"
+import {computed, onScopeDispose, ref, watch} from "vue"
+import {storeToRefs} from "pinia"
 
 import {API} from "@/api"
 import {useStorageChangesStore} from "@/stores/storageChanges.store"
+import {useTaskEditorStore} from "@/stores/task-editor"
+import {useTasksStore} from "@/stores/tasks"
 
-import type {Task, TaskEvent} from "@daily/protocol"
-import type {MaybeRefOrGetter} from "vue"
+import type {TaskEvent} from "@daily/protocol"
 
-/**
- * Loads and keeps fresh the full event history of a task.
- * @param task - The task (ref/getter) whose history to track; null clears the list.
- */
-export function useTaskHistory(_task: MaybeRefOrGetter<Task | null>) {
+export function useTaskHistory() {
   const storageChangesStore = useStorageChangesStore()
+  const tasksStore = useTasksStore()
+  const {editingTaskId} = storeToRefs(useTaskEditorStore())
 
   const events = ref<TaskEvent[]>([])
 
-  const task = computed(() => toValue(_task))
+  const task = computed(() => (editingTaskId.value ? tasksStore.findTaskById(editingTaskId.value) : null))
   const updatedAt = computed(() => task.value?.updatedAt ?? null)
   const signature = computed(() => (task.value ? `${task.value.id}:${updatedAt.value}` : null))
 
@@ -35,5 +35,5 @@ export function useTaskHistory(_task: MaybeRefOrGetter<Task | null>) {
   const {off} = storageChangesStore.onStorageDataChanged(revalidate)
   onScopeDispose(off)
 
-  return {events, lastEvent, isEmpty}
+  return {task, events, lastEvent, isEmpty}
 }

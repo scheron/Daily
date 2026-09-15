@@ -32,7 +32,7 @@ function onSelect(milestoneId: Milestone["id"] | null) {
 <template>
   <BasePopup hide-header position="start">
     <template #trigger="{toggle}">
-      <BaseButton type="button" class="inline-flex items-center justify-start gap-1 p-0" size="sm" variant="text" @click.stop="toggle">
+      <BaseButton type="button" class="inline-flex items-center justify-start gap-1 p-0" variant="text" @click.stop="toggle">
         <MilestoneDiamond v-if="milestone" :completion="completion" :overdue="overdue" :size="14" />
         <BaseIcon v-else name="milestone" class="size-3.5" />
         <span class="leading-none">{{ milestoneName }}</span>

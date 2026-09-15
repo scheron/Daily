@@ -1,11 +1,7 @@
 import {sameTagIds} from "./sameTagIds"
 
-import type {TaskDraft} from "@/types/tasks"
+import type {TaskDraft} from "../types"
 
-/**
- * Whether two drafts are equal across every editable field (used to compute dirtiness).
- * @example shallowEqualDraft(draft, base) // false when any field changed
- */
 export function shallowEqualDraft(a: TaskDraft, b: TaskDraft): boolean {
   return (
     a.content === b.content &&

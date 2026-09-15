@@ -2,30 +2,17 @@ import {invoke} from "@vueuse/core"
 
 import {toISODate} from "@daily/std"
 
-import type {AiSessionContext} from "@/stores/ai/types"
+import type {ISODate} from "@daily/protocol"
 import type {AgentTurnSnapshot, AIMessage} from "@shared/types/ai"
+import type {Ref} from "vue"
 
-/**
- * Restores the last durable AI session into the in-memory message list when the store
- * is created, mapping persisted turns back into user/assistant messages.
- * @param ctx - Shared message list and chat-start timestamp
- */
+type AiSessionContext = {
+  messages: Ref<AIMessage[]>
+  chatTimeStarted: Ref<ISODate | null>
+}
+
 export function useAiSession(ctx: AiSessionContext) {
   const {messages, chatTimeStarted} = ctx
-
-  invoke(async () => {
-    if (messages.value.length > 0) return
-
-    try {
-      const {turns} = await window.BridgeIPC["ai:get-current-session"]()
-      if (messages.value.length > 0 || !turns.length) return
-
-      messages.value = turnsToMessages(turns)
-      chatTimeStarted.value = toISODate(turns[0].startedAt)
-    } catch {
-      void 0
-    }
-  })
 
   function turnsToMessages(turns: AgentTurnSnapshot[]): AIMessage[] {
     const out: AIMessage[] = []
@@ -58,4 +45,16 @@ export function useAiSession(ctx: AiSessionContext) {
     if (turn.status === "cancelled") return "Request cancelled."
     return ""
   }
+
+  invoke(async () => {
+    if (messages.value.length > 0) return
+
+    try {
+      const {turns} = await window.BridgeIPC["ai:get-current-session"]()
+      if (messages.value.length > 0 || !turns.length) return
+
+      messages.value = turnsToMessages(turns)
+      chatTimeStarted.value = toISODate(turns[0].startedAt)
+    } catch {}
+  })
 }

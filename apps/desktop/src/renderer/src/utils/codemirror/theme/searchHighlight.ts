@@ -1,9 +1,5 @@
-import type {StyleSpec} from "@/utils/codemirror/types"
+import type {StyleSpec} from "./types"
 
-/**
- * Search highlight styles
- * - Highlighted text matches from search queries
- */
 export const searchHighlightStyles: Record<string, StyleSpec> = {
   ".cm-search-highlight": {
     backgroundColor: "color-mix(in srgb, var(--color-accent) 50%, transparent)",

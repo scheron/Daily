@@ -2,16 +2,9 @@ import {WidgetType} from "@codemirror/view"
 
 import type {EditorView} from "@codemirror/view"
 
-/**
- * Widget for rendering interactive checkboxes in task lists
- * formats [ ] and [x] markdown syntax
- *
- * In edit mode: Checkboxes are interactive and can be toggled
- * In readonly mode: Checkboxes are displayed but not interactive
- */
 export class CheckboxWidget extends WidgetType {
   constructor(
-    readonly checked: boolean,
+    readonly isChecked: boolean,
     readonly pos: number,
     readonly isReadonly: boolean,
   ) {
@@ -19,7 +12,7 @@ export class CheckboxWidget extends WidgetType {
   }
 
   eq(other: CheckboxWidget) {
-    return other.checked === this.checked && other.pos === this.pos
+    return other.isChecked === this.isChecked && other.pos === this.pos
   }
 
   toDOM(view: EditorView) {
@@ -33,20 +26,18 @@ export class CheckboxWidget extends WidgetType {
     wrapper.style.height = "1.8em"
     wrapper.style.flexShrink = "0"
 
-    // Apply readonly styles to wrapper
     if (this.isReadonly) {
       wrapper.style.cursor = "default"
-      wrapper.style.pointerEvents = "none" // Prevent any interaction
+      wrapper.style.pointerEvents = "none"
     } else {
       wrapper.style.cursor = "pointer"
     }
 
     const checkbox = document.createElement("input")
     checkbox.type = "checkbox"
-    checkbox.checked = this.checked
+    checkbox.checked = this.isChecked
 
-    // Apply CSS classes from theme (checkmark is created via ::after pseudo-element)
-    checkbox.className = this.checked ? "cm-task-checkbox cm-task-checkbox-checked" : "cm-task-checkbox"
+    checkbox.className = this.isChecked ? "cm-task-checkbox cm-task-checkbox-checked" : "cm-task-checkbox"
 
     checkbox.tabIndex = -1
 
@@ -63,14 +54,16 @@ export class CheckboxWidget extends WidgetType {
     return wrapper
   }
 
-  toggleCheckbox(view: EditorView) {
-    // Find the task marker text ([ ] or [x])
+  ignoreEvent() {
+    return false
+  }
+
+  private toggleCheckbox(view: EditorView) {
     const text = view.state.doc.sliceString(this.pos, this.pos + 3)
 
     if (text === "[ ]" || text === "[x]" || text === "[X]") {
-      const newText = this.checked ? "[ ]" : "[x]"
+      const newText = this.isChecked ? "[ ]" : "[x]"
 
-      // Save current cursor position
       const currentSelection = view.state.selection.main
 
       view.dispatch({
@@ -79,13 +72,8 @@ export class CheckboxWidget extends WidgetType {
           to: this.pos + 3,
           insert: newText,
         },
-        // Preserve cursor position
         selection: {anchor: currentSelection.anchor, head: currentSelection.head},
       })
     }
-  }
-
-  ignoreEvent() {
-    return false
   }
 }

@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import {computed} from "vue"
 
-import {AIProvider} from "@daily/protocol"
-
 import {useAiStore} from "@/stores/ai"
 import BaseAnimation from "@/ui/base/BaseAnimation.vue"
 import BaseButton from "@/ui/base/BaseButton"
@@ -10,15 +8,18 @@ import BaseSegmented from "@/ui/base/BaseSegmented.vue"
 import BaseSwitch from "@/ui/base/BaseSwitch.vue"
 import SettingRow from "@/ui/views/Settings/{fragments}/SettingRow.vue"
 import SettingsGroup from "@/ui/views/Settings/{fragments}/SettingsGroup.vue"
-import SettingsLocal from "./{fragments}/SettingsLocal.vue"
-import SettingsOpenAI from "./{fragments}/SettingsOpenAI.vue"
+import {cn} from "@/utils/ui/tailwindcss"
+import SettingsLocal from "./{fragments}/SettingsLocal"
+import SettingsOpenAI from "./{fragments}/SettingsOpenAI"
 
-const aiStore = useAiStore()
+import type {AIProvider} from "@daily/protocol"
 
 const providerOptions: {value: AIProvider; label: string}[] = [
   {value: "local", label: "Local"},
   {value: "openai", label: "Remote"},
 ]
+
+const aiStore = useAiStore()
 
 const provider = computed(() => aiStore.config?.provider ?? "openai")
 
@@ -55,6 +56,10 @@ function onRefresh() {
   if (provider.value === "local") aiStore.loadLocalModels()
   else aiStore.checkConnection()
 }
+
+function getStatusDotClasses(dot: string) {
+  return cn("size-2 rounded-full", dot)
+}
 </script>
 
 <template>
@@ -63,9 +68,9 @@ function onRefresh() {
       <SettingRow title="AI Assistant" description="Your personal AI agent for your day — it acts on your tasks, not just chat">
         <div class="flex items-center gap-2.5">
           <span v-if="aiStore.config?.enabled" class="text-base-content/60 flex items-center gap-1.5 text-xs">
-            <span class="size-2 rounded-full" :class="statusInfo.dot" />
+            <span :class="getStatusDotClasses(statusInfo.dot)" />
             {{ statusInfo.label }}
-            <BaseButton variant="ghost" size="sm" icon="refresh" icon-class="size-3" class="-mr-1 p-0.5" @click="onRefresh" />
+            <BaseButton variant="ghost" icon="refresh" icon-class="size-3" class="-mr-1 p-0.5" @click="onRefresh" />
           </span>
           <BaseSwitch :model-value="aiStore.config?.enabled ?? false" @update:model-value="aiStore.updateConfig({enabled: $event})" />
         </div>

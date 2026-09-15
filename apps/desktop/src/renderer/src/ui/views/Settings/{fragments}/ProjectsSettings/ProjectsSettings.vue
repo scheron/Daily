@@ -4,11 +4,11 @@ import {ref} from "vue"
 import {MAIN_BRANCH_ID} from "@daily/protocol"
 
 import {useBranchesStore} from "@/stores/branches.store"
-import MilestonesForm from "@/ui/common/milestones/MilestonesForm.vue"
-import ProjectsForm from "@/ui/common/projects/ProjectsForm.vue"
-import TagsForm from "@/ui/common/tags/TagsForm.vue"
 import SettingsGroup from "@/ui/views/Settings/{fragments}/SettingsGroup.vue"
+import MilestonesForm from "./{fragments}/MilestonesForm"
 import ProjectDescription from "./{fragments}/ProjectDescription.vue"
+import ProjectsForm from "./{fragments}/ProjectsForm.vue"
+import TagsForm from "./{fragments}/TagsForm.vue"
 
 import type {Branch} from "@daily/protocol"
 

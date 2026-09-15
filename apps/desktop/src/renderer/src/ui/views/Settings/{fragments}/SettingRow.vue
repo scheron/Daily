@@ -1,8 +1,6 @@
 <script setup lang="ts">
 defineProps<{
-  /** Primary label for the setting. */
   title?: string
-  /** Secondary helper text shown under the title. */
   description?: string
 }>()
 </script>

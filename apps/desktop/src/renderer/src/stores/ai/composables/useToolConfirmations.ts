@@ -2,11 +2,6 @@ import {ref} from "vue"
 
 import type {PendingToolConfirmation} from "@shared/types/ai"
 
-/**
- * Owns the pending destructive-tool confirmation raised by the agent loop: tracks it,
- * resolves it via IPC on confirm/cancel, and clears it when the main process reports
- * it resolved.
- */
 export function useToolConfirmations() {
   const pendingConfirmation = ref<PendingToolConfirmation | null>(null)
 

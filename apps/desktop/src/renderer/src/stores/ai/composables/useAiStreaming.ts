@@ -1,27 +1,19 @@
 import {isUndefined, notUndefined, throttle} from "@daily/std"
 
-import type {AiStreamingContext} from "@/stores/ai/types"
 import type {AIMessage} from "@shared/types/ai"
+import type {Ref} from "vue"
 
-const FLUSH_INTERVAL_MS = 50
+type AiStreamingContext = {
+  messages: Ref<AIMessage[]>
+}
 
-/**
- * Bridges the main-process agent-loop event stream to the message list: appends a live
- * assistant message per turn and applies buffered content/reasoning deltas, tool-call
- * lifecycle, and terminal turn states (finished/failed/cancelled).
- *
- * Deltas fill two string buffers that a trailing {@link throttle} applies to the live
- * message at most every {@link FLUSH_INTERVAL_MS}, so a fast token stream repaints
- * smoothly instead of once per token. Boundary events flush the buffers immediately.
- * @param ctx - Shared message list the live turn is written into
- */
 export function useAiStreaming(ctx: AiStreamingContext) {
   const {messages} = ctx
 
   let contentBuffer = ""
   let reasoningBuffer = ""
 
-  const flushBuffers = throttle(applyBuffers, FLUSH_INTERVAL_MS)
+  const flushBuffers = throttle(applyBuffers, 50)
 
   window.BridgeIPC["ai:on-event"]((event) => {
     if (event.type === "turn_started") {

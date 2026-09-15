@@ -3,7 +3,7 @@
 import {describe, expect, it} from "vitest"
 
 import {mount} from "@vue/test-utils"
-import ChatMarkdown from "../../../src/renderer/src/ui/views/Assistant/{fragments}/ChatMarkdown.vue"
+import ChatMarkdown from "../../../src/renderer/src/ui/views/Assistant/{fragments}/ChatMessage/{fragments}/ChatMarkdown"
 
 describe("ChatMarkdown", () => {
   it("renders plain text as a paragraph", () => {

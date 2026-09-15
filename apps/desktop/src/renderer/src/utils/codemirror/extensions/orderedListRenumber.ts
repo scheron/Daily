@@ -6,9 +6,9 @@ import {Annotation, EditorState} from "@codemirror/state"
 import type {ChangeSpec, Extension, Transaction} from "@codemirror/state"
 import type {SyntaxNode, Tree} from "@lezer/common"
 
-export const skipOrderedListRenumber = Annotation.define<boolean>()
-
 type Range = readonly [number, number]
+
+export const skipOrderedListRenumber = Annotation.define<boolean>()
 
 export function createOrderedListRenumberExtension(): Extension {
   return EditorState.transactionFilter.of((transaction) => {

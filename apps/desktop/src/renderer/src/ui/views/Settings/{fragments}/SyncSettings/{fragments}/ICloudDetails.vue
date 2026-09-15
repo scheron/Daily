@@ -7,16 +7,18 @@ import {useStorageStore} from "@/stores/storage.store"
 import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
 import SettingRow from "@/ui/views/Settings/{fragments}/SettingRow.vue"
+import {cn} from "@/utils/ui/tailwindcss"
+
+import type {SyncStatus} from "@daily/protocol"
 
 const storageStore = useStorageStore()
 
 const isSyncing = computed(() => storageStore.status === "syncing")
 
-const dotClass = computed(() => {
-  if (storageStore.status === "active") return "bg-success"
-  if (storageStore.status === "error") return "bg-error"
-  return "bg-base-content/30"
-})
+function getDotClasses(status: SyncStatus) {
+  const color = status === "active" ? "bg-success" : status === "error" ? "bg-error" : "bg-base-content/30"
+  return cn("size-2 rounded-full", color)
+}
 
 async function onForceSync() {
   await storageStore.forceSync()
@@ -30,7 +32,7 @@ async function onForceSync() {
         <p class="text-base-content text-sm">iCloud Sync</p>
         <span class="flex size-4 shrink-0 items-center justify-center">
           <BaseIcon v-if="isSyncing" name="spinner" class="text-accent size-3.5 animate-spin" />
-          <span v-else class="size-2 rounded-full" :class="dotClass" />
+          <span v-else :class="getDotClasses(storageStore.status)" />
         </span>
       </div>
     </template>
@@ -43,7 +45,6 @@ async function onForceSync() {
 
     <BaseButton
       variant="ghost"
-      size="sm"
       class="text-accent hover:bg-accent/10 -mr-1 text-xs"
       icon-class="size-3.5"
       icon="refresh"

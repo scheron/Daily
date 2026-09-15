@@ -7,12 +7,29 @@ import {readonlyMode} from "./wysiwyg"
 import type {Extension, Range} from "@codemirror/state"
 import type {DecorationSet, EditorView, ViewUpdate} from "@codemirror/view"
 
-/**
- * Build the decorations for fenced code blocks: per-line backgrounds that give
- * the block its unified "box" look, plus a copy button on the opening line.
- * Token coloring is handled separately by the markdown language extension's
- * `syntaxHighlighting` pass.
- */
+const codeBlockPlugin = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet
+
+    constructor(view: EditorView) {
+      this.decorations = createCodeBlockDecorations(view)
+    }
+
+    update(update: ViewUpdate) {
+      if (update.docChanged || update.viewportChanged) {
+        this.decorations = createCodeBlockDecorations(update.view)
+      }
+    }
+  },
+  {
+    decorations: (v) => v.decorations,
+  },
+)
+
+export function createCodeSyntaxExtension(): Extension {
+  return [codeBlockPlugin]
+}
+
 function createCodeBlockDecorations(view: EditorView): DecorationSet {
   const decorations: Range<Decoration>[] = []
   const tree = syntaxTree(view.state)
@@ -66,33 +83,4 @@ function createCodeBlockDecorations(view: EditorView): DecorationSet {
   })
 
   return Decoration.set(decorations, true)
-}
-
-/**
- * Code block plugin — repaints on document and viewport changes.
- */
-const codeBlockPlugin = ViewPlugin.fromClass(
-  class {
-    decorations: DecorationSet
-
-    constructor(view: EditorView) {
-      this.decorations = createCodeBlockDecorations(view)
-    }
-
-    update(update: ViewUpdate) {
-      if (update.docChanged || update.viewportChanged) {
-        this.decorations = createCodeBlockDecorations(update.view)
-      }
-    }
-  },
-  {
-    decorations: (v) => v.decorations,
-  },
-)
-
-/**
- * Export code block extension (backgrounds + copy button).
- */
-export function createCodeSyntaxExtension(): Extension {
-  return [codeBlockPlugin]
 }

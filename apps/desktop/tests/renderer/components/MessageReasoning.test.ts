@@ -3,7 +3,7 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
 import {mount} from "@vue/test-utils"
-import MessageReasoning from "../../../src/renderer/src/ui/views/Assistant/{fragments}/MessageReasoning.vue"
+import MessageReasoning from "../../../src/renderer/src/ui/views/Assistant/{fragments}/ChatMessage/{fragments}/MessageReasoning.vue"
 
 describe("MessageReasoning", () => {
   beforeEach(() => vi.useFakeTimers())

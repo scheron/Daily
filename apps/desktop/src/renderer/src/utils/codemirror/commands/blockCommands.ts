@@ -1,11 +1,6 @@
-import type {MarkdownCommand} from "@/utils/codemirror/types"
-import type {EditorView} from "@codemirror/view"
+import type {Command, EditorView} from "@codemirror/view"
 
-/**
- * Block formatting commands
- */
 export const blockCommands = {
-  // Headings
   insertHeading1: insertBlockPrefix("# "),
   insertHeading2: insertBlockPrefix("## "),
   insertHeading3: insertBlockPrefix("### "),
@@ -13,37 +8,29 @@ export const blockCommands = {
   insertHeading5: insertBlockPrefix("##### "),
   insertHeading6: insertBlockPrefix("###### "),
 
-  // Lists and quotes
   insertBulletList: insertBlockPrefix("- "),
   insertNumberedList: insertBlockPrefix("1. "),
   insertCheckbox: insertBlockPrefix("- [ ] "),
   insertBlockquote: insertBlockPrefix("> "),
 
-  // Special blocks
   insertCodeBlock,
   insertTable,
   insertHorizontalRule,
 }
 
-/**
- * Insert code block
- */
 function insertCodeBlock(view: EditorView): boolean {
   const {from} = view.state.selection.main
   const template = "```\ncode here\n```"
 
   view.dispatch({
     changes: {from, insert: "\n" + template + "\n"},
-    selection: {anchor: from + 4, head: from + 13}, // Select "code here"
+    selection: {anchor: from + 4, head: from + 13},
   })
 
   view.focus()
   return true
 }
 
-/**
- * Insert table
- */
 function insertTable(view: EditorView): boolean {
   const {from} = view.state.selection.main
   const template = `
@@ -55,16 +42,13 @@ function insertTable(view: EditorView): boolean {
 
   view.dispatch({
     changes: {from, insert: "\n" + template + "\n"},
-    selection: {anchor: from + 13}, // Position in first cell
+    selection: {anchor: from + 13},
   })
 
   view.focus()
   return true
 }
 
-/**
- * Insert horizontal rule
- */
 function insertHorizontalRule(view: EditorView): boolean {
   const {from} = view.state.selection.main
   const line = view.state.doc.lineAt(from)
@@ -78,18 +62,13 @@ function insertHorizontalRule(view: EditorView): boolean {
   return true
 }
 
-/**
- * Insert block prefix (headings, lists, quotes, checkboxes)
- */
-function insertBlockPrefix(prefix: string): MarkdownCommand {
+function insertBlockPrefix(prefix: string): Command {
   return (view: EditorView): boolean => {
     const {state} = view
     const line = state.doc.lineAt(state.selection.main.from)
     const lineText = line.text
 
-    // Check if line already has prefix
     if (lineText.trim().startsWith(prefix.trim())) {
-      // Remove prefix
       const prefixMatch = lineText.match(new RegExp(`^(\\s*)${prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`))
       if (prefixMatch) {
         const prefixLen = prefixMatch[0].length
@@ -102,7 +81,6 @@ function insertBlockPrefix(prefix: string): MarkdownCommand {
         })
       }
     } else {
-      // Add prefix
       const indent = lineText.match(/^\s*/)?.[0] || ""
       view.dispatch({
         changes: {

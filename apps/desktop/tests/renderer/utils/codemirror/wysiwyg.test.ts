@@ -1,107 +1,90 @@
 import {describe, expect, it} from "vitest"
 
-import {EditorState} from "@codemirror/state"
-import {createMarkdownLanguageExtension} from "../../../../src/renderer/src/utils/codemirror/extensions/markdownLanguage"
-import {createWYSIWYGDecorations, readonlyMode} from "../../../../src/renderer/src/utils/codemirror/extensions/wysiwyg"
+import {createMarkdownLanguageExtension, createWYSIWYGExtension} from "../../../../src/renderer/src/utils/codemirror/extensions"
+import {mountEditorView, unmountEditorView} from "../../../helpers/editorView"
 
-import type {DecorationSet} from "@codemirror/view"
+import type {EditorView} from "@codemirror/view"
 
-type Entry = {from: number; to: number; class: string | null; widget: string | null}
-
-function buildState(doc: string, cursor: number, readonly = false): EditorState {
-  return EditorState.create({
-    doc,
-    selection: {anchor: cursor},
-    extensions: [createMarkdownLanguageExtension(), readonlyMode.of(readonly)],
-  })
+function mount(doc: string, isReadonly = false) {
+  return mountEditorView(doc, {extensions: [createMarkdownLanguageExtension(), createWYSIWYGExtension({isReadonly})]})
 }
 
-function collect(decorations: DecorationSet): Entry[] {
-  const out: Entry[] = []
-  const iter = decorations.iter()
-
-  while (iter.value) {
-    const spec = iter.value.spec
-    out.push({
-      from: iter.from,
-      to: iter.to,
-      class: typeof spec.class === "string" ? spec.class : null,
-      widget: spec.widget ? spec.widget.constructor.name : null,
-    })
-    iter.next()
-  }
-
-  return out
+function focusAt(view: EditorView, cursor: number) {
+  view.focus()
+  view.dispatch({selection: {anchor: cursor}})
 }
 
-const hasHideLine = (entries: Entry[]) => entries.some((e) => e.class?.includes("cm-hide-line"))
-const hiddenRange = (entries: Entry[], from: number, to: number) =>
-  entries.some((e) => e.from === from && e.to === to && e.class === null && e.widget === null)
+function lineTexts(view: EditorView): string[] {
+  return Array.from(view.contentDOM.querySelectorAll(".cm-line")).map((line) => line.textContent ?? "")
+}
 
-describe("createWYSIWYGDecorations", () => {
-  it("does not hide the line while the cursor sits inside inline code", () => {
-    const state = buildState("`hello`", 3)
-    expect(hasHideLine(collect(createWYSIWYGDecorations(state, true)))).toBe(false)
+describe("createWYSIWYGExtension", () => {
+  it("hides heading and emphasis markers on a line the cursor is not on", () => {
+    const heading = mount("# Title\n\nx")
+    focusAt(heading, 9)
+    expect(lineTexts(heading)[0]).toBe("Title")
+    unmountEditorView(heading)
+
+    const emphasis = mount("**b**\n\nx")
+    focusAt(emphasis, 7)
+    expect(lineTexts(emphasis)[0]).toBe("b")
+    unmountEditorView(emphasis)
   })
 
-  it("hides inline-code backticks and styles the content on an inactive line", () => {
-    // cursor on line 3, so line 1 (`code`) is inactive and should render
-    const entries = collect(createWYSIWYGDecorations(buildState("`code`\n\nx", 8), true))
-    expect(hiddenRange(entries, 0, 1)).toBe(true) // opening backtick
-    expect(hiddenRange(entries, 5, 6)).toBe(true) // closing backtick
-    expect(entries.some((e) => e.from === 1 && e.to === 5 && e.class === "cm-code")).toBe(true)
+  it("shows inline code without its backticks on a line the cursor is not on", () => {
+    const view = mount("`code`\n\nx")
+    focusAt(view, 8)
+    expect(lineTexts(view)[0]).toBe("code")
+    expect(view.contentDOM.querySelector(".cm-line span.cm-code")?.textContent).toBe("code")
+    unmountEditorView(view)
   })
 
-  it("hides heading and bold markers on inactive lines", () => {
-    const heading = collect(createWYSIWYGDecorations(buildState("# Title\n\nx", 9), true))
-    expect(hiddenRange(heading, 0, 2)).toBe(true) // "# " marker + trailing space
+  it("reveals the raw image and link source on the line the cursor is on", () => {
+    const imageDoc = "![image.png =500x209](daily://file/abc)"
+    const image = mount(imageDoc)
+    focusAt(image, imageDoc.length)
+    expect(image.dom.querySelector(".cm-image-wrapper img")).toBeNull()
+    expect(lineTexts(image)[0]).toBe(imageDoc)
+    unmountEditorView(image)
 
-    const bold = collect(createWYSIWYGDecorations(buildState("**b**\n\nx", 7), true))
-    expect(hiddenRange(bold, 0, 2)).toBe(true) // opening **
-    expect(hiddenRange(bold, 3, 5)).toBe(true) // closing **
+    const linkDoc = "[text](http://x)"
+    const link = mount(linkDoc)
+    focusAt(link, 2)
+    expect(link.dom.querySelector("a.cm-link-widget")).toBeNull()
+    expect(lineTexts(link)[0]).toBe(linkDoc)
+    unmountEditorView(link)
+
+    const code = mount("`hello`")
+    focusAt(code, 3)
+    expect(lineTexts(code)[0]).toBe("`hello`")
+    unmountEditorView(code)
+  })
+
+  it("renders images and hides link syntax on a line the cursor is not on", () => {
+    const image = mount("![a](u)\n\nx")
+    focusAt(image, 9)
+    expect(image.dom.querySelector(".cm-image-wrapper img")).not.toBeNull()
+    unmountEditorView(image)
+
+    const link = mount("[text](http://x)\n\nx")
+    focusAt(link, 18)
+    expect(lineTexts(link)[0]).toBe("text")
+    unmountEditorView(link)
   })
 
   it("renders links as a widget in readonly mode", () => {
-    const entries = collect(createWYSIWYGDecorations(buildState("[text](http://x)", 0, true), false))
-    expect(entries.some((e) => e.widget === "LinkWidget" && e.from === 0)).toBe(true)
+    const view = mount("[text](http://x)", true)
+    const widget = view.dom.querySelector("a.cm-link-widget")
+    expect(widget?.textContent).toBe("text")
+    unmountEditorView(view)
   })
 
-  it("reveals the whole image source while the cursor is on its line", () => {
-    const doc = "![image.png =500x209](daily://file/abc)"
-    const entries = collect(createWYSIWYGDecorations(buildState(doc, doc.length), true))
-
-    expect(entries.some((e) => e.widget === "ImageWidget")).toBe(false)
-    expect(hiddenRange(entries, 0, 2)).toBe(false) // "!["
-    expect(hiddenRange(entries, 20, 21)).toBe(false) // "]"
-    expect(hiddenRange(entries, 21, 22)).toBe(false) // "("
-    expect(hiddenRange(entries, 22, 38)).toBe(false) // the URL
-  })
-
-  it("reveals the whole link source while the cursor is on its line", () => {
-    const doc = "[text](http://x)"
-    const entries = collect(createWYSIWYGDecorations(buildState(doc, 2), true))
-
-    expect(hiddenRange(entries, 0, 1)).toBe(false) // "["
-    expect(hiddenRange(entries, 5, 6)).toBe(false) // "]"
-    expect(hiddenRange(entries, 6, 7)).toBe(false) // "("
-    expect(hiddenRange(entries, 7, 15)).toBe(false) // the URL
-  })
-
-  it("still hides image and link syntax on inactive lines", () => {
-    const image = collect(createWYSIWYGDecorations(buildState("![a](u)\n\nx", 9), true))
-    expect(image.some((e) => e.widget === "ImageWidget")).toBe(true)
-
-    const link = collect(createWYSIWYGDecorations(buildState("[text](http://x)\n\nx", 18), true))
-    expect(hiddenRange(link, 0, 1)).toBe(true) // "["
-    expect(hiddenRange(link, 5, 6)).toBe(true) // "]"
-    expect(hiddenRange(link, 6, 7)).toBe(true) // "("
-    expect(hiddenRange(link, 7, 15)).toBe(true) // the URL
-  })
-
-  it("leaves fenced code fence lines navigable (does not collapse them)", () => {
-    // Collapsing fence lines to zero height traps the cursor and blocks exiting
-    // the block — fences stay as real lines, like zennotes.
-    const state = buildState("```js\nconst a = 1\n```\n", 22)
-    expect(hasHideLine(collect(createWYSIWYGDecorations(state, true)))).toBe(false)
+  it("keeps fenced code fence lines as visible lines", () => {
+    const view = mount("```js\nconst a = 1\n```\n")
+    focusAt(view, 22)
+    const lines = lineTexts(view)
+    expect(lines).toContain("```js")
+    expect(lines).toContain("```")
+    unmountEditorView(view)
   })
 })

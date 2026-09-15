@@ -7,19 +7,7 @@ import {selectedCompletionIndex} from "@codemirror/autocomplete"
 import {EditorView} from "@codemirror/view"
 import {mount} from "@vue/test-utils"
 import {mockBridgeIPC} from "../../../helpers/bridgeIPC"
-
-function typeText(view, text) {
-  for (const char of text) {
-    const {from, to} = view.state.selection.main
-    const insert = () => view.state.update({changes: {from, to, insert: char}, selection: {anchor: from + char.length}, userEvent: "input.type"})
-    const isHandled = view.state.facet(EditorView.inputHandler).some((handler) => handler(view, from, to, char, insert))
-    if (!isHandled) view.dispatch(insert())
-  }
-}
-
-function pressKey(view, init) {
-  view.contentDOM.dispatchEvent(new KeyboardEvent("keydown", {bubbles: true, cancelable: true, ...init}))
-}
+import {pressKey, typeText} from "../../../helpers/editorView"
 
 describe("MarkdownEditor", () => {
   let wrapper = null
@@ -36,8 +24,7 @@ describe("MarkdownEditor", () => {
   })
 
   async function mountEditor(content) {
-    const {default: MarkdownEditor} =
-      await import("../../../../src/renderer/src/ui/modules/RightPanel/{fragments}/Editor/{fragments}/MarkdownEditor.vue")
+    const {default: MarkdownEditor} = await import("../../../../src/renderer/src/ui/common/misc/MarkdownEditor")
     wrapper = mount(MarkdownEditor, {props: {content}, attachTo: document.body, global: {directives: {tooltip: {}}}})
     return EditorView.findFromDOM(wrapper.element)
   }

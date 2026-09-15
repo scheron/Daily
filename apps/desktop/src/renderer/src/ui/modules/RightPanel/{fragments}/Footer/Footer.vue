@@ -4,27 +4,26 @@ import {toasts} from "vue-toasts-lite"
 
 import {toRelativeTime} from "@daily/std"
 
-import {TASK_EVENT_META} from "@/constants/taskEvents"
 import {useTasksStore} from "@/stores/tasks"
 import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
 import BasePopup from "@/ui/base/BasePopup.vue"
-import Spacer from "@/ui/common/misc/Spacer.vue"
 import {useTaskEditor} from "@/ui/modules/RightPanel/composables/useTaskEditor"
-import {ConfirmPopup} from "@/ui/overlays/ConfirmPopup"
+import ConfirmPopup from "@/ui/overlays/ConfirmPopup.vue"
 import {useTaskHistory} from "./composables/useTaskHistory"
 import TaskHistoryTimeline from "./{fragments}/TaskHistoryTimeline.vue"
+import {TASK_EVENT_META} from "./constants"
 
-const {isEditing, editingTaskId, close} = useTaskEditor()
 const tasksStore = useTasksStore()
 
-const historyTask = computed(() => (editingTaskId.value ? tasksStore.findTaskById(editingTaskId.value) : null))
-const {events, isEmpty, lastEvent} = useTaskHistory(historyTask)
+const {task, events, isEmpty, lastEvent} = useTaskHistory()
 
 const summary = computed(() => {
   if (!lastEvent.value) return null
   return `${TASK_EVENT_META[lastEvent.value.type].verb} ${toRelativeTime(lastEvent.value.createdAt)}`
 })
+
+const {isEditing, editingTaskId, close} = useTaskEditor()
 
 async function onDelete() {
   if (!editingTaskId.value) return
@@ -37,7 +36,7 @@ async function onDelete() {
 </script>
 
 <template>
-  <div v-if="historyTask && isEditing" class="border-base-300 text-base-content/60 flex h-10 items-center border-t px-4">
+  <div v-if="task && isEditing" class="border-base-300 text-base-content/60 flex h-10 items-center border-t px-4">
     <BasePopup
       v-if="!isEmpty"
       hover-mode
@@ -56,7 +55,7 @@ async function onDelete() {
 
       <TaskHistoryTimeline :events="events" />
     </BasePopup>
-    <Spacer />
+    <div aria-hidden="true" class="flex-1 self-stretch" />
 
     <ConfirmPopup
       title="Delete task?"
@@ -68,7 +67,7 @@ async function onDelete() {
       @confirm="onDelete"
     >
       <template #trigger="{show}">
-        <BaseButton variant="ghost" icon="trash" icon-class="size-4.5" size="sm" class="text-error hover:bg-error/10" @click="show" />
+        <BaseButton variant="ghost" icon="trash" icon-class="size-4.5" class="text-error hover:bg-error/10" @click="show" />
       </template>
     </ConfirmPopup>
   </div>

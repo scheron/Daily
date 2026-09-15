@@ -1,7 +1,5 @@
 import {breakpointsTailwind, useBreakpoints} from "@vueuse/core"
 
-import {isMacOS, isWindows} from "@/constants/env"
-
 export function useDevice() {
   const breakpoint = useBreakpoints(breakpointsTailwind)
 
@@ -12,8 +10,5 @@ export function useDevice() {
      * @see {@link ../../../assets/styles/main.css | `@custom-variant compact`}
      */
     isCompact: breakpoint.smaller("md"),
-
-    isMacOS: isMacOS,
-    isWindows: isWindows,
   }
 }

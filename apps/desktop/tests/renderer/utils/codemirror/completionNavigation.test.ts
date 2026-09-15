@@ -1,41 +1,71 @@
-import {describe, expect, it} from "vitest"
+import {afterEach, describe, expect, it, vi} from "vitest"
 
-import {completionNavDirection} from "../../../../src/renderer/src/utils/codemirror/extensions/completionNavigation"
+import {selectedCompletionIndex} from "@codemirror/autocomplete"
+import {
+  createCompletionExtension,
+  createCompletionNavigationExtension,
+  createMarkdownLanguageExtension,
+} from "../../../../src/renderer/src/utils/codemirror/extensions"
+import {mountEditorView, pressKey, typeText, unmountEditorView} from "../../../helpers/editorView"
 
-function key(init: Partial<KeyboardEvent>): KeyboardEvent {
-  return {
-    key: "",
-    ctrlKey: false,
-    metaKey: false,
-    altKey: false,
-    shiftKey: false,
-    ...init,
-  } as KeyboardEvent
+async function openSlashMenu() {
+  vi.useFakeTimers()
+  const view = mountEditorView("", {
+    extensions: [createMarkdownLanguageExtension(), createCompletionExtension(), createCompletionNavigationExtension()],
+  })
+  typeText(view, "/")
+  await vi.waitFor(() => expect(selectedCompletionIndex(view.state)).toBe(0))
+  await vi.advanceTimersByTimeAsync(75)
+  return view
 }
 
-describe("completionNavDirection", () => {
-  it("maps Ctrl+N and Ctrl+J to next", () => {
-    expect(completionNavDirection(key({key: "n", ctrlKey: true}))).toBe("next")
-    expect(completionNavDirection(key({key: "j", ctrlKey: true}))).toBe("next")
-    expect(completionNavDirection(key({key: "J", ctrlKey: true}))).toBe("next")
+describe("completion navigation", () => {
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
-  it("maps Ctrl+P and Ctrl+K to previous", () => {
-    expect(completionNavDirection(key({key: "p", ctrlKey: true}))).toBe("previous")
-    expect(completionNavDirection(key({key: "k", ctrlKey: true}))).toBe("previous")
-    expect(completionNavDirection(key({key: "K", ctrlKey: true}))).toBe("previous")
+  it("Ctrl+J and Ctrl+N move to the next option, Ctrl+K and Ctrl+P to the previous one", async () => {
+    const view = await openSlashMenu()
+
+    pressKey(view, {key: "n", ctrlKey: true})
+    expect(selectedCompletionIndex(view.state)).toBe(1)
+
+    pressKey(view, {key: "j", ctrlKey: true})
+    expect(selectedCompletionIndex(view.state)).toBe(2)
+
+    pressKey(view, {key: "J", ctrlKey: true})
+    expect(selectedCompletionIndex(view.state)).toBe(3)
+
+    pressKey(view, {key: "p", ctrlKey: true})
+    expect(selectedCompletionIndex(view.state)).toBe(2)
+
+    pressKey(view, {key: "k", ctrlKey: true})
+    expect(selectedCompletionIndex(view.state)).toBe(1)
+
+    pressKey(view, {key: "K", ctrlKey: true})
+    expect(selectedCompletionIndex(view.state)).toBe(0)
+
+    unmountEditorView(view)
   })
 
-  it("only fires for a bare Ctrl chord", () => {
-    expect(completionNavDirection(key({key: "p"}))).toBeNull()
-    expect(completionNavDirection(key({key: "p", ctrlKey: true, metaKey: true}))).toBeNull()
-    expect(completionNavDirection(key({key: "p", ctrlKey: true, altKey: true}))).toBeNull()
-    expect(completionNavDirection(key({key: "p", ctrlKey: true, shiftKey: true}))).toBeNull()
-  })
+  it("a Ctrl chord with Meta, Alt or Shift, or a Ctrl+key it does not own, leaves the selection", async () => {
+    const view = await openSlashMenu()
 
-  it("ignores keys it does not own", () => {
-    expect(completionNavDirection(key({key: "a", ctrlKey: true}))).toBeNull()
-    expect(completionNavDirection(key({key: "ArrowDown"}))).toBeNull()
-    expect(completionNavDirection(key({key: "ArrowUp"}))).toBeNull()
+    pressKey(view, {key: "p"})
+    expect(selectedCompletionIndex(view.state)).toBe(0)
+
+    pressKey(view, {key: "p", ctrlKey: true, metaKey: true})
+    expect(selectedCompletionIndex(view.state)).toBe(0)
+
+    pressKey(view, {key: "p", ctrlKey: true, altKey: true})
+    expect(selectedCompletionIndex(view.state)).toBe(0)
+
+    pressKey(view, {key: "p", ctrlKey: true, shiftKey: true})
+    expect(selectedCompletionIndex(view.state)).toBe(0)
+
+    pressKey(view, {key: "a", ctrlKey: true})
+    expect(selectedCompletionIndex(view.state)).toBe(0)
+
+    unmountEditorView(view)
   })
 })

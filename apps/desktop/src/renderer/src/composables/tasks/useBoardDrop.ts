@@ -2,33 +2,26 @@ import {watch} from "vue"
 import {storeToRefs} from "pinia"
 
 import {createSharedComposable} from "@/composables/createSharedComposable"
-import {DROP_DAY_SELECTOR, DROP_MILESTONE_SELECTOR, DROP_ZONE_SELECTOR, OVER_DROP_ZONE_CLASS} from "@/constants/ui"
 import {useDragDropStore} from "@/stores/dragDrop.store"
-import {findClosestAtPoint, findDragClone} from "@/utils/ui/dom"
+import {findClosestAtPoint} from "@/utils/ui/dom"
 
 import type {ISODate, Milestone} from "@daily/protocol"
 
 type PendingDrop = {type: "day"; taskId: string; date: ISODate} | {type: "milestone"; taskId: string; milestoneId: Milestone["id"]}
 
-/**
- * Tracks the dragged task over day cells and milestone rows and asks the store to drop it.
- * Shared by every drop surface: the calendar's cells and the dock's milestone list. DOM
- * contract: droppable day cells inside `[data-popup]` or `[data-day-drop-zone]` must render
- * `data-drop-day="<ISODate>"`, and milestone rows must render `data-drop-milestone="<id>"`, so
- * this handler can resolve whichever target the pointer is over — the two are mutually
- * exclusive, since the dock's tabs only ever show one of them at a time. The dragged card is
- * hidden while over a `DROP_ZONE_SELECTOR` surface.
- */
+const DROP_ZONE_SELECTOR = "[data-popup], [data-day-drop-zone]"
+const OVER_DROP_ZONE_CLASS = "is-over-drop-zone"
+
 export const useBoardDrop = createSharedComposable(() => {
   const dragDropStore = useDragDropStore()
-  const {draggingTaskId, dropTargetDate, dropTargetMilestoneId} = storeToRefs(dragDropStore)
+  const {draggingTaskId, dropTargetDate} = storeToRefs(dragDropStore)
 
   let pendingDrop: PendingDrop | null = null
 
   function onPointerMove(event: PointerEvent) {
     const {clientX, clientY} = event
-    const dayEl = findClosestAtPoint(clientX, clientY, DROP_DAY_SELECTOR)
-    const milestoneEl = findClosestAtPoint(clientX, clientY, DROP_MILESTONE_SELECTOR)
+    const dayEl = findClosestAtPoint(clientX, clientY, "[data-drop-day]")
+    const milestoneEl = findClosestAtPoint(clientX, clientY, "[data-drop-milestone]")
     const dragClone = findDragClone()
 
     const isOverDropZone = Boolean(findClosestAtPoint(clientX, clientY, DROP_ZONE_SELECTOR))
@@ -87,5 +80,9 @@ export const useBoardDrop = createSharedComposable(() => {
     }
   })
 
-  return {dropTargetDate, dropTargetMilestoneId}
+  return {dropTargetDate}
 })
+
+function findDragClone(): HTMLElement | null {
+  return document.querySelector<HTMLElement>(".draggable-task-dragging")
+}

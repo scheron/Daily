@@ -1,42 +1,30 @@
-import {computed, onBeforeUnmount, ref, toValue} from "vue"
+import {onBeforeUnmount, ref} from "vue"
 
-import {useDragAutoScroll} from "@/composables/useDragAutoScroll"
 import {useDragDropStore} from "@/stores/dragDrop.store"
 import {findVerticalScrollAncestor} from "@/utils/ui/findVerticalScrollAncestor"
+import {useDragAutoScroll} from "./useDragAutoScroll"
 
-type TaskDragDropOptions = {
-  dndDisabled?: boolean | (() => boolean)
-  onDragEnd?: () => void
-}
-
-export function useTaskDragDrop(options: TaskDragDropOptions) {
+export function useTaskDragDrop() {
   const dragDropStore = useDragDropStore()
 
   const isDragging = ref(false)
   const isCommitting = ref(false)
-  const autoScroll = useDragAutoScroll()
 
-  const isDragDisabled = computed(() => Boolean(toValue(options.dndDisabled ?? false)) || isCommitting.value)
+  const autoScroll = useDragAutoScroll()
 
   function onDragStart() {
     isDragging.value = true
-    window.addEventListener("dragover", onGlobalDragOver)
+    window.addEventListener("dragover", onDragOver)
   }
 
   function onDragEnd() {
     isDragging.value = false
     dragDropStore.setDraggingTaskId(null)
-    window.removeEventListener("dragover", onGlobalDragOver)
+    window.removeEventListener("dragover", onDragOver)
     autoScroll.stop()
-    options.onDragEnd?.()
   }
 
   function onDragOver(event: DragEvent) {
-    if (!isDragging.value) return
-    autoScroll.update(findVerticalScrollAncestor(event.target), event.clientY)
-  }
-
-  function onGlobalDragOver(event: DragEvent) {
     if (!isDragging.value) return
     autoScroll.update(findVerticalScrollAncestor(event.target), event.clientY)
   }
@@ -51,14 +39,13 @@ export function useTaskDragDrop(options: TaskDragDropOptions) {
   }
 
   onBeforeUnmount(() => {
-    window.removeEventListener("dragover", onGlobalDragOver)
+    window.removeEventListener("dragover", onDragOver)
     autoScroll.stop()
   })
 
   return {
     isDragging,
     isCommitting,
-    isDragDisabled,
     onDragStart,
     onDragEnd,
     onDragOver,

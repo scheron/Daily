@@ -1,12 +1,12 @@
 import {nextTick, watch} from "vue"
 import {storeToRefs} from "pinia"
 
-import {useUIStore} from "@/stores/ui/ui.store"
+import {useUIStore} from "@/stores/ui"
 
+import type {CalendarDockTab} from "@/stores/ui"
 import type {Ref, ShallowRef} from "vue"
-import type {DockTab} from "./useDockTabs"
 
-export function useDockMorph(dock: Readonly<ShallowRef<HTMLElement | null>>, tab: Readonly<Ref<DockTab>>) {
+export function useDockMorph(dock: Readonly<ShallowRef<HTMLElement | null>>, tab: Readonly<Ref<CalendarDockTab>>) {
   const uiStore = useUIStore()
   const {isCalendarDockExpanded} = storeToRefs(uiStore)
 

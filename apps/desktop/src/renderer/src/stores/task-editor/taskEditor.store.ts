@@ -8,8 +8,8 @@ import {useTasksStore} from "@/stores/tasks"
 import {buildRestPatch} from "./utils/buildRestPatch"
 import {shallowEqualDraft} from "./utils/shallowEqualDraft"
 
-import type {TaskDraft} from "@/types/tasks"
 import type {Branch, Milestone, Task} from "@daily/protocol"
+import type {TaskDraft} from "./types"
 
 export const useTaskEditorStore = defineStore("taskEditor", () => {
   const tasksStore = useTasksStore()
@@ -26,6 +26,7 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
     return !shallowEqualDraft(draft.value, draftBase.value)
   })
   const editingTask = computed(() => (notNull(editingTaskId.value) ? tasksStore.findTaskById(editingTaskId.value) : null))
+  const editingTaskUpdatedAt = computed(() => editingTask.value?.updatedAt ?? null)
 
   async function open(taskId: Task["id"]) {
     const task = tasksStore.findTaskById(taskId) ?? (await API.getTask(taskId))
@@ -34,7 +35,18 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
   }
 
   function openNew(params: {branchId: Branch["id"] | null; milestoneId: Milestone["id"] | null}) {
-    seedNew(params)
+    draft.value = {
+      content: "",
+      tags: [],
+      estimatedTime: 0,
+      spentTime: 0,
+      status: "backlog",
+      branchId: params.branchId,
+      scheduled: null,
+      milestoneId: params.milestoneId,
+    }
+    draftBase.value = null
+    editingTaskId.value = null
   }
 
   function patch(updates: Partial<TaskDraft>) {
@@ -137,31 +149,14 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
     editingTaskId.value = task.id
   }
 
-  function seedNew(params: {branchId: Branch["id"] | null; milestoneId: Milestone["id"] | null}) {
-    draft.value = {
-      content: "",
-      tags: [],
-      estimatedTime: 0,
-      spentTime: 0,
-      status: "backlog",
-      branchId: params.branchId,
-      scheduled: null,
-      milestoneId: params.milestoneId,
-    }
-    draftBase.value = null
-    editingTaskId.value = null
-  }
   function hasContent(d: TaskDraft): boolean {
     return Boolean(d.content.trim().length || d.tags.length || d.estimatedTime || d.spentTime)
   }
 
-  watch(
-    () => editingTask.value?.updatedAt ?? null,
-    (updatedAt) => {
-      if (isNull(updatedAt) || isDirty.value) return
-      if (editingTask.value) seedFrom(editingTask.value)
-    },
-  )
+  watch(editingTaskUpdatedAt, (updatedAt) => {
+    if (isNull(updatedAt) || isDirty.value) return
+    if (editingTask.value) seedFrom(editingTask.value)
+  })
 
   return {
     draft,

@@ -3,11 +3,7 @@ import {EditorView} from "@codemirror/view"
 
 import type {Extension} from "@codemirror/state"
 
-/**
- * Theme extension
- * Applies all theme styles to the editor
- */
-export function createThemeExtension(dark: boolean = true): Extension {
+export function createThemeExtension(): Extension {
   return EditorView.theme(
     {
       ...editorStyles,
@@ -17,6 +13,6 @@ export function createThemeExtension(dark: boolean = true): Extension {
       ...utilityStyles,
       ...searchHighlightStyles,
     },
-    {dark: dark},
+    {dark: true},
   )
 }

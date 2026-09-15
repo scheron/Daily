@@ -4,7 +4,7 @@ import {storeToRefs} from "pinia"
 
 import {useDragDropStore} from "@/stores/dragDrop.store"
 import {useTaskEditorStore} from "@/stores/task-editor"
-import {useUIStore} from "@/stores/ui/ui.store"
+import {useUIStore} from "@/stores/ui"
 
 import type {ShallowRef} from "vue"
 
@@ -19,6 +19,17 @@ export function useDockVisibility(dock: Readonly<ShallowRef<HTMLElement | null>>
 
   let wasExpandedBeforeDrag = false
   let shouldIgnoreNextOutsideClick = false
+
+  onClickOutside(dock, () => {
+    if (draggingTaskId.value || shouldIgnoreNextOutsideClick) return
+    uiStore.toggleCalendarDock(false)
+  })
+
+  useEventListener(window, "keydown", (event: KeyboardEvent) => {
+    if (event.key !== "Escape" || event.defaultPrevented) return
+    if (!isCalendarDockExpanded.value) return
+    uiStore.toggleCalendarDock(false)
+  })
 
   watch(
     draggingTaskId,
@@ -38,16 +49,5 @@ export function useDockVisibility(dock: Readonly<ShallowRef<HTMLElement | null>>
 
   watch(isEditorOpen, (isOpen) => {
     if (isOpen) uiStore.toggleCalendarDock(false)
-  })
-
-  onClickOutside(dock, () => {
-    if (draggingTaskId.value || shouldIgnoreNextOutsideClick) return
-    uiStore.toggleCalendarDock(false)
-  })
-
-  useEventListener(window, "keydown", (event: KeyboardEvent) => {
-    if (event.key !== "Escape" || event.defaultPrevented) return
-    if (!isCalendarDockExpanded.value) return
-    uiStore.toggleCalendarDock(false)
   })
 }
