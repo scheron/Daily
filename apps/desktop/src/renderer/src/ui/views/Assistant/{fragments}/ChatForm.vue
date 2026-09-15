@@ -85,7 +85,7 @@ function handleSelectModel(provider: AIProvider, model: string) {
                     class="size-2 shrink-0 rounded-full border"
                     :class="activeProvider === 'local' && activeModel === m.id ? 'bg-accent border-accent' : 'border-base-content/30'"
                   />
-                  <span class="text-base-content text-xs" :class="{'text-accent': activeProvider === 'local' && activeModel === m.id}">
+                  <span class="text-xs" :class="activeProvider === 'local' && activeModel === m.id ? 'text-accent' : 'text-base-content'">
                     {{ m.title }}
                   </span>
                 </button>
@@ -106,7 +106,7 @@ function handleSelectModel(provider: AIProvider, model: string) {
                     class="size-2 shrink-0 rounded-full border"
                     :class="activeProvider === 'openai' && activeModel === m ? 'bg-accent border-accent' : 'border-base-content/30'"
                   />
-                  <span class="text-base-content text-xs" :class="{'text-accent': activeProvider === 'openai' && activeModel === m}">
+                  <span class="text-xs" :class="activeProvider === 'openai' && activeModel === m ? 'text-accent' : 'text-base-content'">
                     {{ m }}
                   </span>
                 </button>
