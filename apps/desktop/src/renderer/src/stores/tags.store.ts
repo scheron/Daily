@@ -28,7 +28,15 @@ export const useTagsStore = defineStore("tags", () => {
     const newTag = await API.createTag({branchId, name, color})
     if (!newTag) return null
 
-    tags.value = sortTagsByName([...tags.value, newTag])
+    tags.value = sortTagsByName(
+      tags.value.reduce<Tag[]>(
+        (next, tag) => {
+          if (tag.id !== newTag.id) next.push(tag)
+          return next
+        },
+        [newTag],
+      ),
+    )
 
     return newTag
   }

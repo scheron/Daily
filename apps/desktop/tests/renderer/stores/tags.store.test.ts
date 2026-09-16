@@ -38,6 +38,26 @@ describe("tagsStore", () => {
     expect(store.tagsMap.get("tag-1")).toBeTruthy()
   })
 
+  it("keeps a created tag once when the storage broadcast lands before the create call resolves", async () => {
+    const tag = makeTag({branchId: "main"})
+    let onStorageChanged = null
+
+    mockBridgeIPC({"storage:on-changed": vi.fn((handler) => (onStorageChanged = handler))})
+
+    const {useStorageChangesStore} = await import("../../../src/renderer/src/stores/storageChanges.store")
+    useStorageChangesStore()
+
+    API.createTag.mockImplementationOnce(async () => {
+      onStorageChanged({tags: {upserted: [tag]}})
+      return tag
+    })
+
+    const store = useTagsStore()
+    await store.createTag("Work", "#000", "main")
+
+    expect(store.tags).toHaveLength(1)
+  })
+
   it("deleteTag removes from local array", async () => {
     API.createTag.mockResolvedValueOnce(makeTag())
 
