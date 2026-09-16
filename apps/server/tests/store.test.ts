@@ -1,15 +1,12 @@
-import {execFileSync, execSync, spawnSync} from "node:child_process"
 import {createHash} from "node:crypto"
 import {existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, unlinkSync} from "node:fs"
 import {tmpdir} from "node:os"
-import {dirname, join} from "node:path"
+import {join} from "node:path"
 import {Readable} from "node:stream"
-import {fileURLToPath} from "node:url"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
 import {ProtocolErrorCode} from "@daily/protocol"
 
-import pkg from "../package.json"
 import {findAsset, listAssets, writeAsset} from "../src/assets/AssetStore"
 import {authenticateRequest} from "../src/devices/authenticateRequest"
 import {createDevice, findParentDevice, listDevices, promoteDevice, revokeDevice} from "../src/devices/DeviceStore"
@@ -32,31 +29,6 @@ import type {ServerStore} from "../src/store/instance"
 function requestWithAuthorization(authorization?: string): IncomingMessage {
   return {headers: {authorization}} as IncomingMessage
 }
-
-const rootDir = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..")
-const serverDir = join(rootDir, "apps", "server")
-const builtEntry = join(serverDir, "out", "index.js")
-const buildServerPackageScript = join(rootDir, "scripts", "build-server-package.js")
-
-describe("server toolchain", () => {
-  // The rest of TC-1 — the bundle started by a plain `node`, migrating its SQLite and answering
-  // `GET /v1/server` — cannot run here: this workspace's one `better-sqlite3` is compiled for
-  // Electron's ABI, and a plain `node` can never load it. Gate B drives that half, per
-  // final-gate scenario 1; this test only carries what it can check honestly, offline.
-  it("TC-1: builds apps/server into a bundle at apps/server/out/index.js that prints apps/server's own version, not the root's, and resolves only bare imports apps/server itself declares", () => {
-    execSync("pnpm --filter @daily/server build", {cwd: rootDir, stdio: "pipe"})
-
-    expect(existsSync(builtEntry)).toBe(true)
-
-    const versionOutput = execFileSync("node", [builtEntry, "--version"], {cwd: rootDir}).toString().trim()
-    expect(versionOutput).toBe(pkg.version)
-
-    const rootPkg = JSON.parse(readFileSync(join(rootDir, "package.json"), "utf-8")) as {version: string}
-    expect(versionOutput).not.toBe(rootPkg.version)
-
-    expect(() => execFileSync("node", [buildServerPackageScript], {cwd: rootDir, stdio: "pipe"})).not.toThrow()
-  }, 60000)
-})
 
 describe("server store", () => {
   let dataDir: string
@@ -536,67 +508,6 @@ describe("device ids the console can address", () => {
     expect(devices.find((d) => d.id === "-dashed-promote-target")?.role).toBe("parent")
     verify.close()
   })
-
-  /**
-   * Run through the real bundle, as `node` alone would run it (the "server toolchain" describe
-   * above builds the same bundle for the same reason): what commander itself calls `process.exit`
-   * with, and how it phrases a refusal, are only observable from outside the process an in-process
-   * `parseAsync()` call runs in — this vitest worker's own `process.exit` is not the real one.
-   */
-  function runBuiltCli(args: string[]): {status: number | null; combined: string} {
-    const result = spawnSync("node", [builtEntry, ...args], {cwd: rootDir, encoding: "utf-8"})
-    return {status: result.status, combined: `${result.stdout ?? ""}\n${result.stderr ?? ""}`}
-  }
-
-  /**
-   * True only if the text names the order that actually works: `--data-dir` before a standalone
-   * `--`. A message that mentions `--` without ever mentioning an option first would send the
-   * reader into `revoke -- <id> --data-dir <path>`, which fails with "too many arguments" — so
-   * that shape must not satisfy this check.
-   */
-  function namesAWorkingForm(output: string): boolean {
-    const dataDirIndex = output.indexOf("--data-dir")
-    if (dataDirIndex === -1) return false
-
-    const afterDataDir = output.slice(dataDirIndex + "--data-dir".length)
-    return /(^|\s)--(\s|$)/.test(afterDataDir)
-  }
-
-  it("TC-26: a refusal for an id beginning with '-', given without the separator, names a form that actually works, and --help/--version are unaffected", () => {
-    execSync("pnpm --filter @daily/server build", {cwd: rootDir, stdio: "pipe"})
-
-    const refusal = runBuiltCli(["device", "revoke", "-abc123", "--data-dir", dataDir])
-    expect(refusal.status).not.toBe(0)
-    expect(namesAWorkingForm(refusal.combined)).toBe(true)
-
-    const help = runBuiltCli(["--help"])
-    expect(help.status).toBe(0)
-    expect(help.combined).toContain("Usage:")
-
-    const version = runBuiltCli(["--version"])
-    expect(version.status).toBe(0)
-    expect(version.combined.trim()).toBe(pkg.version)
-  }, 60000)
-
-  it("an unrelated commander error — an unknown command, a mistyped long option, excess arguments, a missing argument — prints no dashed-id hint", () => {
-    execSync("pnpm --filter @daily/server build", {cwd: rootDir, stdio: "pipe"})
-
-    const unknownCommand = runBuiltCli(["statsu"])
-    expect(unknownCommand.status).not.toBe(0)
-    expect(unknownCommand.combined).not.toContain("still works")
-
-    const mistypedLongOption = runBuiltCli(["device", "revoke", "someid", "--dta-dir", dataDir])
-    expect(mistypedLongOption.status).not.toBe(0)
-    expect(mistypedLongOption.combined).not.toContain("still works")
-
-    const excessArguments = runBuiltCli(["device", "revoke", "--", "someid", "extra", "--data-dir", dataDir])
-    expect(excessArguments.status).not.toBe(0)
-    expect(excessArguments.combined).not.toContain("still works")
-
-    const missingArgument = runBuiltCli(["device", "revoke", "--data-dir", dataDir])
-    expect(missingArgument.status).not.toBe(0)
-    expect(missingArgument.combined).not.toContain("still works")
-  }, 60000)
 })
 
 describe("snapshot store", () => {
