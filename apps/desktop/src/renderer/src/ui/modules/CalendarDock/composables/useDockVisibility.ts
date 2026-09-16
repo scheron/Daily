@@ -1,14 +1,12 @@
 import {watch} from "vue"
-import {onClickOutside, useEventListener} from "@vueuse/core"
+import {useEventListener} from "@vueuse/core"
 import {storeToRefs} from "pinia"
 
 import {useDragDropStore} from "@/stores/dragDrop.store"
 import {useTaskEditorStore} from "@/stores/task-editor"
 import {useUIStore} from "@/stores/ui"
 
-import type {ShallowRef} from "vue"
-
-export function useDockVisibility(dock: Readonly<ShallowRef<HTMLElement | null>>) {
+export function useDockVisibility() {
   const uiStore = useUIStore()
   const dragDropStore = useDragDropStore()
   const taskEditorStore = useTaskEditorStore()
@@ -18,12 +16,6 @@ export function useDockVisibility(dock: Readonly<ShallowRef<HTMLElement | null>>
   const {isOpen: isEditorOpen} = storeToRefs(taskEditorStore)
 
   let wasExpandedBeforeDrag = false
-  let shouldIgnoreNextOutsideClick = false
-
-  onClickOutside(dock, () => {
-    if (draggingTaskId.value || shouldIgnoreNextOutsideClick) return
-    uiStore.toggleCalendarDock(false)
-  })
 
   useEventListener(
     window,
@@ -47,8 +39,6 @@ export function useDockVisibility(dock: Readonly<ShallowRef<HTMLElement | null>>
       }
 
       uiStore.toggleCalendarDock(wasExpandedBeforeDrag)
-      shouldIgnoreNextOutsideClick = true
-      setTimeout(() => (shouldIgnoreNextOutsideClick = false), 0)
     },
     {flush: "sync"},
   )

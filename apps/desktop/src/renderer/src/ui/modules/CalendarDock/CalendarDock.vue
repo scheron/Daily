@@ -5,13 +5,13 @@ import {useBoardDrop} from "@/composables/tasks/useBoardDrop"
 import {useFilterStore} from "@/stores/filter.store"
 import {useTasksStore} from "@/stores/tasks"
 import {useUIStore} from "@/stores/ui"
-import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
 import TaskCalendar from "@/ui/common/calendar/TaskCalendar"
 import MilestoneDiamond from "@/ui/common/milestones/MilestoneDiamond.vue"
 import {cn} from "@/utils/ui/tailwindcss"
 import {useDockCrossFade} from "./composables/useDockCrossFade"
 import {useDockDragHover} from "./composables/useDockDragHover"
+import {useDockHover} from "./composables/useDockHover"
 import {useDockMorph} from "./composables/useDockMorph"
 import {useDockPill} from "./composables/useDockPill"
 import {useDockTabs} from "./composables/useDockTabs"
@@ -29,8 +29,9 @@ const {dayLabel, framedMilestone, framedMilestoneCompletion, framedMilestoneOver
 const {onEnter, onLeave} = useDockCrossFade(dockRef)
 
 useBoardDrop()
-useDockVisibility(dockRef)
+useDockVisibility()
 useDockDragHover()
+useDockHover(dockRef)
 useDockMorph(dockRef, dockTab)
 
 function getDockClasses() {
@@ -72,14 +73,14 @@ function getTabClasses(isActive: boolean) {
         </div>
       </div>
 
-      <BaseButton v-else data-dock-pill variant="primary-ghost" class="h-8 font-semibold whitespace-nowrap" @click="uiStore.toggleCalendarDock(true)">
+      <div v-else data-dock-pill class="text-accent flex h-8 items-center gap-1 px-3 text-sm font-semibold whitespace-nowrap">
         <span v-if="filterStore.frame === 'milestone' && framedMilestone" class="inline-flex min-w-0 items-center gap-1.5">
           <MilestoneDiamond :completion="framedMilestoneCompletion" :overdue="framedMilestoneOverdue" :size="12" />
           <span class="max-w-32 min-w-0 truncate">{{ framedMilestone.name }}</span>
         </span>
         <template v-else-if="filterStore.frame === 'milestone'">All milestones</template>
         <template v-else>{{ dayLabel }}</template>
-      </BaseButton>
+      </div>
     </Transition>
   </div>
 </template>

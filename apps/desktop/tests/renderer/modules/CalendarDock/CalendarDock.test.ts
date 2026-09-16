@@ -83,15 +83,22 @@ describe("CalendarDock", () => {
     const {useMilestonesStore} = await import("../../../../src/renderer/src/stores/milestones.store")
     const {useFilterStore} = await import("../../../../src/renderer/src/stores/filter.store")
 
-    function mountDock() {
+    async function mountDock() {
       wrapper = mount(CalendarDock, {attachTo: document.body, global: {directives: {tooltip: {}}}})
+      await nextTick()
       return wrapper
+    }
+
+    async function hover(dock, type) {
+      dock.element.dispatchEvent(new MouseEvent(type))
+      await new Promise((resolve) => setTimeout(resolve, 300))
     }
 
     return {
       TaskCalendar,
       MilestoneDiamond,
       mountDock,
+      hover,
       ui: useUIStore(),
       tasks: useTasksStore(),
       drag: useDragDropStore(),
@@ -101,25 +108,22 @@ describe("CalendarDock", () => {
     }
   }
 
-  it("renders_TC-12_a_single_dated_button_in_a_drop_zone_root_and_expands_to_today_on_click", async () => {
-    const {TaskCalendar, mountDock, ui, tasks} = await setup()
+  it("renders_TC-12_a_single_dated_pill_in_a_drop_zone_root_and_expands_to_today_on_hover", async () => {
+    const {TaskCalendar, mountDock, hover, ui, tasks} = await setup()
     const today = DateTime.now().toISODate()
     tasks.activeDay = today
 
-    const dock = mountDock()
+    const dock = await mountDock()
 
     expect(ui.isCalendarDockExpanded).toBe(false)
     expect(dock.element.hasAttribute("data-day-drop-zone")).toBe(true)
 
-    const buttons = dock.findAll("button")
-    expect(buttons).toHaveLength(1)
-
-    const label = buttons[0].text()
+    const label = dock.get("[data-dock-pill]").text()
     expect(label.startsWith("Today, ")).toBe(true)
     expect(label).toContain(String(DateTime.now().day))
     expect(label).not.toContain(String(DateTime.now().year))
 
-    await buttons[0].trigger("click")
+    await hover(dock, "pointerenter")
 
     expect(ui.isCalendarDockExpanded).toBe(true)
 
@@ -128,20 +132,17 @@ describe("CalendarDock", () => {
     expect(calendar.props("selectedDate")).toBe(today)
   })
 
-  it("expands_TC-7_into_two_tabs_on_a_click_and_keeps_showing_the_calendar_on_the_days_tab", async () => {
-    const {TaskCalendar, mountDock, ui, tasks, milestones} = await setup()
+  it("expands_TC-7_into_two_tabs_on_hover_and_keeps_showing_the_calendar_on_the_days_tab", async () => {
+    const {TaskCalendar, mountDock, hover, ui, tasks, milestones} = await setup()
     tasks.activeDay = DateTime.now().toISODate()
 
     milestones.milestones = [makeMilestone({id: "m1", name: "Launch", progress: {total: 2, resolved: 1}})]
     milestones.isMilestonesLoaded = true
 
-    const dock = mountDock()
+    const dock = await mountDock()
     expect(ui.isCalendarDockExpanded).toBe(false)
 
-    const buttons = dock.findAll("button")
-    expect(buttons).toHaveLength(1)
-
-    await buttons[0].trigger("click")
+    await hover(dock, "pointerenter")
 
     expect(ui.isCalendarDockExpanded).toBe(true)
 
@@ -176,7 +177,7 @@ describe("CalendarDock", () => {
     ui.setCalendarDockTab("milestones")
     ui.toggleCalendarDock(true)
 
-    const dock = mountDock()
+    const dock = await mountDock()
     await new Promise((resolve) => setTimeout(resolve, 0))
 
     const rows = dock.findAll("[data-drop-milestone]")
@@ -212,7 +213,7 @@ describe("CalendarDock", () => {
     ui.setCalendarDockTab("milestones")
     ui.toggleCalendarDock(true)
 
-    const dock = mountDock()
+    const dock = await mountDock()
     await new Promise((resolve) => setTimeout(resolve, 0))
 
     expect(ui.isCalendarDockExpanded).toBe(true)
@@ -225,7 +226,7 @@ describe("CalendarDock", () => {
     ui.toggleCalendarDock(false)
     await nextTick()
 
-    expect(dock.findAll("button")).toHaveLength(1)
+    expect(dock.find("[data-dock-pill]").exists()).toBe(true)
     const diamond = dock.findComponent(MilestoneDiamond)
     expect(diamond.exists()).toBe(true)
     expect(dock.text()).toContain("Launch")
@@ -242,7 +243,7 @@ describe("CalendarDock", () => {
     ui.setCalendarDockTab("milestones")
     ui.toggleCalendarDock(true)
 
-    const dock = mountDock()
+    const dock = await mountDock()
     await new Promise((resolve) => setTimeout(resolve, 0))
 
     await dock.get('[data-drop-milestone="m1"]').trigger("click")
@@ -254,9 +255,7 @@ describe("CalendarDock", () => {
     ui.toggleCalendarDock(false)
     await nextTick()
 
-    const buttons = dock.findAll("button")
-    expect(buttons).toHaveLength(1)
-    expect(buttons[0].text()).toContain("All milestones")
+    expect(dock.get("[data-dock-pill]").text()).toContain("All milestones")
   })
 
   it("picks_TC-13_a_day_from_the_calendar_and_stays_expanded", async () => {
@@ -264,7 +263,7 @@ describe("CalendarDock", () => {
     tasks.activeDay = DateTime.now().toISODate()
     ui.toggleCalendarDock(true)
 
-    const dock = mountDock()
+    const dock = await mountDock()
     const fifteenth = DateTime.now().set({day: 15}).toISODate()
 
     await dock.get(`[data-drop-day="${fifteenth}"]`).trigger("click")
@@ -273,28 +272,28 @@ describe("CalendarDock", () => {
     expect(ui.isCalendarDockExpanded).toBe(true)
   })
 
-  it("collapses_TC-14_on_a_click_outside_and_on_escape", async () => {
-    const {mountDock, ui} = await setup()
+  it("collapses_TC-14_on_escape_and_when_the_pointer_leaves", async () => {
+    const {mountDock, hover, ui} = await setup()
     ui.toggleCalendarDock(true)
-    mountDock()
+    const dock = await mountDock()
 
-    document.body.dispatchEvent(new MouseEvent("click", {bubbles: true}))
+    window.dispatchEvent(new KeyboardEvent("keydown", {key: "Escape"}))
     expect(ui.isCalendarDockExpanded).toBe(false)
 
     ui.toggleCalendarDock(true)
     await nextTick()
 
-    window.dispatchEvent(new KeyboardEvent("keydown", {key: "Escape"}))
+    await hover(dock, "pointerleave")
     expect(ui.isCalendarDockExpanded).toBe(false)
   })
 
-  it("restores_TC-15_the_pre_drag_state_and_ignores_the_click_that_ends_the_drag", async () => {
+  it("restores_TC-15_the_pre_drag_state_once_the_drag_ends", async () => {
     const {mountDock, ui, drag} = await setup()
     const {useSettingsStore} = await import("../../../../src/renderer/src/stores/settings.store")
     await vi.waitFor(() => expect(useSettingsStore().isSettingsLoaded).toBe(true))
     ui.shouldOpenCalendarDockOnDrag = true
 
-    mountDock()
+    await mountDock()
 
     expect(ui.isCalendarDockExpanded).toBe(false)
 
@@ -304,11 +303,6 @@ describe("CalendarDock", () => {
     drag.setDraggingTaskId(null)
     expect(ui.isCalendarDockExpanded).toBe(false)
 
-    document.body.dispatchEvent(new MouseEvent("click", {bubbles: true}))
-    expect(ui.isCalendarDockExpanded).toBe(false)
-
-    await new Promise((resolve) => setTimeout(resolve, 0))
-
     ui.toggleCalendarDock(true)
     await nextTick()
 
@@ -316,9 +310,6 @@ describe("CalendarDock", () => {
     expect(ui.isCalendarDockExpanded).toBe(true)
 
     drag.setDraggingTaskId(null)
-    expect(ui.isCalendarDockExpanded).toBe(true)
-
-    document.body.dispatchEvent(new MouseEvent("click", {bubbles: true}))
     expect(ui.isCalendarDockExpanded).toBe(true)
   })
 
@@ -328,7 +319,7 @@ describe("CalendarDock", () => {
     await vi.waitFor(() => expect(useSettingsStore().isSettingsLoaded).toBe(true))
     ui.shouldOpenCalendarDockOnDrag = false
 
-    const dock = mountDock()
+    const dock = await mountDock()
     const pill = dock.get("[data-dock-pill]").element
     const originalElementFromPoint = document.elementFromPoint
     document.elementFromPoint = vi.fn(() => pill)
@@ -354,7 +345,7 @@ describe("CalendarDock", () => {
     await vi.waitFor(() => expect(useSettingsStore().isSettingsLoaded).toBe(true))
     ui.shouldOpenCalendarDockOnDrag = false
 
-    const dock = mountDock()
+    const dock = await mountDock()
     let elementAtPointer = dock.get("[data-dock-pill]").element
     const originalElementFromPoint = document.elementFromPoint
     document.elementFromPoint = vi.fn(() => elementAtPointer)
@@ -381,7 +372,7 @@ describe("CalendarDock", () => {
     ui.shouldOpenCalendarDockOnDrag = false
     ui.toggleCalendarDock(true)
 
-    mountDock()
+    await mountDock()
     const originalElementFromPoint = document.elementFromPoint
     document.elementFromPoint = vi.fn(() => document.body)
 
@@ -402,7 +393,7 @@ describe("CalendarDock", () => {
     editor.openNew({branchId: "main"})
     expect(editor.isOpen).toBe(true)
 
-    const dock = mountDock()
+    const dock = await mountDock()
 
     expect(dock.find("[data-day-drop-zone]").exists()).toBe(true)
     expect(dock.find("[data-dock-pill]").exists()).toBe(true)
@@ -428,7 +419,7 @@ describe("CalendarDock", () => {
     const {mountDock, ui, editor} = await setup()
     const {useEditorShortcuts} = await import("../../../../src/renderer/src/ui/modules/RightPanel/composables/useEditorShortcuts")
 
-    mountDock()
+    await mountDock()
 
     const ShortcutsHost = defineComponent({
       setup() {
