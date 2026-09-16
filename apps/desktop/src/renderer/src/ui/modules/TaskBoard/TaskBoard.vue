@@ -8,9 +8,8 @@ import {useDragDropStore} from "@/stores/dragDrop.store"
 import {useFilterStore} from "@/stores/filter.store"
 import {useMilestonesStore} from "@/stores/milestones.store"
 import {useTasksStore} from "@/stores/tasks"
+import ActionsDock from "@/ui/modules/ActionsDock.vue"
 import CalendarDock from "@/ui/modules/CalendarDock"
-import NewTaskDock from "@/ui/modules/NewTaskDock.vue"
-import ProjectDock from "@/ui/modules/ProjectDock.vue"
 import TagsDock from "@/ui/modules/TagsDock.vue"
 import {useDragScroll} from "./composables/useDragScroll"
 import NoTasksPlaceholder from "./{fragments}/NoTasksPlaceholder.vue"
@@ -105,7 +104,6 @@ watch(activeDay, () => containerRef.value?.scrollTo({top: 0, behavior: "instant"
     <div class="drag-region absolute inset-x-0 top-0 z-20 h-11" />
     <TagsDock />
     <CalendarDock />
-    <ProjectDock />
-    <NewTaskDock @create-task="emit('createTask')" />
+    <ActionsDock @create-task="emit('createTask')" />
   </div>
 </template>

@@ -100,7 +100,7 @@ function getCounterClasses(counterClass: string) {
         </BasePopup>
       </div>
 
-      <div class="absolute inset-0 flex min-w-0 overflow-x-hidden overflow-y-auto px-1.5 pt-22 pb-20">
+      <div class="absolute inset-0 flex min-w-0 overflow-x-hidden overflow-y-auto px-1.5 pt-22 pb-4">
         <slot />
 
         <div
@@ -117,7 +117,7 @@ function getCounterClasses(counterClass: string) {
       <div
         class="from-base-100 via-base-100/60 pointer-events-none absolute inset-x-0 top-0 z-[5] h-23 bg-linear-to-b from-35% via-70% to-transparent"
       />
-      <div class="to-base-100/70 pointer-events-none absolute inset-x-0 bottom-0 z-[5] h-20 bg-linear-to-b from-transparent" />
+      <div class="to-base-100/70 pointer-events-none absolute inset-x-0 bottom-0 z-[5] h-12 bg-linear-to-b from-transparent" />
     </template>
   </div>
 </template>

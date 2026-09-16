@@ -49,18 +49,11 @@ function getTabClasses(isActive: boolean) {
   <div
     ref="dock"
     data-day-drop-zone
-    class="dock-surface absolute bottom-3.5 left-1/2 z-20 flex -translate-x-1/2 flex-col items-center justify-end overflow-hidden"
+    class="dock-surface absolute top-1 left-1/2 z-20 flex -translate-x-1/2 flex-col items-center justify-start overflow-hidden [-webkit-app-region:no-drag]"
     :class="getDockClasses()"
   >
     <Transition :css="false" @enter="onEnter" @leave="onLeave">
       <div v-if="uiStore.isCalendarDockExpanded" class="flex w-full flex-col gap-1 p-1">
-        <div v-if="hasMilestones" class="flex items-center gap-1">
-          <button v-for="item in tabs" :key="item.id" :data-tab="item.id" :class="getTabClasses(dockTab === item.id)" @click="selectTab(item.id)">
-            <BaseIcon :name="item.icon" class="size-5" />
-            <span>{{ item.label }}</span>
-          </button>
-        </div>
-
         <div class="min-h-70">
           <TaskCalendar
             v-if="dockTab === 'days'"
@@ -69,6 +62,13 @@ function getTabClasses(isActive: boolean) {
             @select-date="tasksStore.setActiveDay"
           />
           <MilestoneList v-else />
+        </div>
+
+        <div v-if="hasMilestones" class="flex items-center gap-1">
+          <button v-for="item in tabs" :key="item.id" :data-tab="item.id" :class="getTabClasses(dockTab === item.id)" @click="selectTab(item.id)">
+            <BaseIcon :name="item.icon" class="size-5" />
+            <span>{{ item.label }}</span>
+          </button>
         </div>
       </div>
 

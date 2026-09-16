@@ -290,6 +290,10 @@ describe("CalendarDock", () => {
 
   it("restores_TC-15_the_pre_drag_state_and_ignores_the_click_that_ends_the_drag", async () => {
     const {mountDock, ui, drag} = await setup()
+    const {useSettingsStore} = await import("../../../../src/renderer/src/stores/settings.store")
+    await vi.waitFor(() => expect(useSettingsStore().isSettingsLoaded).toBe(true))
+    ui.shouldOpenCalendarDockOnDrag = true
+
     mountDock()
 
     expect(ui.isCalendarDockExpanded).toBe(false)
@@ -391,6 +395,9 @@ describe("CalendarDock", () => {
 
   it("keeps_TC-1_the_dock_over_the_board_while_the_editor_is_open_and_still_collapses_it_when_the_editor_reopens", async () => {
     const {mountDock, ui, drag, editor} = await setup()
+    const {useSettingsStore} = await import("../../../../src/renderer/src/stores/settings.store")
+    await vi.waitFor(() => expect(useSettingsStore().isSettingsLoaded).toBe(true))
+    ui.shouldOpenCalendarDockOnDrag = true
 
     editor.openNew({branchId: "main"})
     expect(editor.isOpen).toBe(true)
@@ -458,15 +465,13 @@ describe("CalendarDock", () => {
     }
   })
 
-  it("shows_TC-3_the_project_and_new_panels_only_while_the_calendar_is_collapsed_and_lets_new_create_a_task", async () => {
+  it("shows_TC-3_the_actions_panel_only_while_the_calendar_is_collapsed_and_lets_new_create_a_task", async () => {
     const {ui, drag} = await setup()
     const {useSettingsStore} = await import("../../../../src/renderer/src/stores/settings.store")
     const {useBranchesStore} = await import("../../../../src/renderer/src/stores/branches.store")
     const {default: CalendarDock} = await import("../../../../src/renderer/src/ui/modules/CalendarDock")
-    const projectDockPath = "../../../../src/renderer/src/ui/modules/ProjectDock.vue"
-    const newTaskDockPath = "../../../../src/renderer/src/ui/modules/NewTaskDock.vue"
-    const {default: ProjectDock} = await import(/* @vite-ignore */ projectDockPath)
-    const {default: NewTaskDock} = await import(/* @vite-ignore */ newTaskDockPath)
+    const actionsDockPath = "../../../../src/renderer/src/ui/modules/ActionsDock.vue"
+    const {default: ActionsDock} = await import(/* @vite-ignore */ actionsDockPath)
 
     await vi.waitFor(() => expect(useSettingsStore().isSettingsLoaded).toBe(true))
     ui.shouldOpenCalendarDockOnDrag = true
@@ -475,49 +480,45 @@ describe("CalendarDock", () => {
     branches.branches = [makeBranch({name: "Nebula"})]
 
     const dock = mount(CalendarDock, {attachTo: document.body, global: {directives: {tooltip: {}}}})
-    const project = mount(ProjectDock, {attachTo: document.body, global: {directives: {tooltip: {}}}})
-    const newTask = mount(NewTaskDock, {attachTo: document.body, global: {directives: {tooltip: {}}}})
+    const actions = mount(ActionsDock, {attachTo: document.body, global: {directives: {tooltip: {}}}})
 
     try {
-      function expectBothVisible() {
-        expect(project.find("button").exists()).toBe(true)
-        expect(project.text()).toContain("Nebula")
-        expect(newTask.find("button").exists()).toBe(true)
-        expect(newTask.text()).toContain("New")
+      function expectActionsVisible() {
+        expect(actions.find("button").exists()).toBe(true)
+        expect(actions.text()).toContain("Nebula")
+        expect(actions.text()).toContain("New")
       }
 
-      function expectBothAbsent() {
-        expect(project.find("button").exists()).toBe(false)
-        expect(newTask.find("button").exists()).toBe(false)
+      function expectActionsAbsent() {
+        expect(actions.find("button").exists()).toBe(false)
       }
 
       expect(ui.isCalendarDockExpanded).toBe(false)
-      expectBothVisible()
+      expectActionsVisible()
 
       ui.toggleCalendarDock(true)
       await nextTick()
-      expectBothAbsent()
+      expectActionsAbsent()
 
       ui.toggleCalendarDock(false)
       await nextTick()
-      expectBothVisible()
+      expectActionsVisible()
 
       drag.setDraggingTaskId("task-1")
       await nextTick()
       expect(ui.isCalendarDockExpanded).toBe(true)
-      expectBothAbsent()
+      expectActionsAbsent()
 
       drag.setDraggingTaskId(null)
       await nextTick()
       expect(ui.isCalendarDockExpanded).toBe(false)
-      expectBothVisible()
+      expectActionsVisible()
 
-      await newTask.get("button").trigger("click")
-      expect(newTask.emitted("createTask")).toHaveLength(1)
+      await actions.findAll("button").at(-1).trigger("click")
+      expect(actions.emitted("createTask")).toHaveLength(1)
     } finally {
       dock.unmount()
-      project.unmount()
-      newTask.unmount()
+      actions.unmount()
     }
   })
 })

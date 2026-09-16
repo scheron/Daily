@@ -35,13 +35,13 @@ export function useDockCrossFade(dock: Readonly<ShallowRef<HTMLElement | null>>)
 
     node.getAnimations().forEach((animation) => animation.cancel())
 
-    const borderBottom = parseFloat(getComputedStyle(surface).borderBottomWidth) || 0
-    const bottom = surface.getBoundingClientRect().bottom - node.getBoundingClientRect().bottom - borderBottom
+    const borderTop = parseFloat(getComputedStyle(surface).borderTopWidth) || 0
+    const top = node.getBoundingClientRect().top - surface.getBoundingClientRect().top - borderTop
 
     Object.assign(node.style, {
       position: "absolute",
       left: "50%",
-      bottom: `${bottom}px`,
+      top: `${top}px`,
       width: `${width}px`,
       translate: "-50% 0",
       pointerEvents: "none",
@@ -68,8 +68,8 @@ function crossFadeFor(isExpanded: boolean) {
     return {
       timing: {duration: 400, easing: "cubic-bezier(0.22, 1, 0.36, 1)"},
       enter: [
-        {opacity: 0, transform: "translateY(10px)"},
-        {opacity: 0, transform: "translateY(10px)", offset: 0.5},
+        {opacity: 0, transform: "translateY(-10px)"},
+        {opacity: 0, transform: "translateY(-10px)", offset: 0.5},
         {opacity: 1, transform: "translateY(0)"},
       ],
       leave: [
@@ -82,8 +82,8 @@ function crossFadeFor(isExpanded: boolean) {
     timing: {duration: 300, easing: "cubic-bezier(0.4, 0, 1, 1)"},
     enter: [{opacity: 0}, {opacity: 0, offset: 0.3}, {opacity: 1}],
     leave: [
-      {opacity: 0, transform: "translateY(10px)", offset: 0.6},
-      {opacity: 0, transform: "translateY(10px)"},
+      {opacity: 0, transform: "translateY(-10px)", offset: 0.6},
+      {opacity: 0, transform: "translateY(-10px)"},
     ],
   }
 }
