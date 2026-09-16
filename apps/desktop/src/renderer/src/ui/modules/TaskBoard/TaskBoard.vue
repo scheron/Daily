@@ -4,6 +4,7 @@ import {storeToRefs} from "pinia"
 import VueDraggable from "vuedraggable"
 
 import {useTaskColumns} from "@/composables/tasks/useTaskColumns"
+import {useDragDropStore} from "@/stores/dragDrop.store"
 import {useFilterStore} from "@/stores/filter.store"
 import {useMilestonesStore} from "@/stores/milestones.store"
 import {useTasksStore} from "@/stores/tasks"
@@ -34,6 +35,7 @@ const emit = defineEmits<{createTask: []}>()
 const tasksStore = useTasksStore()
 const filterStore = useFilterStore()
 const milestonesStore = useMilestonesStore()
+const dragDropStore = useDragDropStore()
 
 const {activeDay} = storeToRefs(tasksStore)
 
@@ -50,14 +52,12 @@ const framedMilestoneName = computed(() => {
 
 const placeholderDate = computed(() => (filterStore.frame === "milestone" ? undefined : tasksStore.activeDay))
 
-const hasAnyTasks = computed(
-  () =>
-    columns.tasksByStatus.value.active.length +
-      columns.tasksByStatus.value.done.length +
-      columns.tasksByStatus.value.discarded.length +
-      columns.tasksByStatus.value.backlog.length >
-    0,
-)
+const isBoardVisible = computed(() => {
+  if (dragDropStore.draggingTaskId) return true
+
+  const byStatus = columns.tasksByStatus.value
+  return byStatus.active.length + byStatus.done.length + byStatus.discarded.length + byStatus.backlog.length > 0
+})
 
 useDragScroll(boardRef)
 
@@ -66,7 +66,7 @@ watch(activeDay, () => containerRef.value?.scrollTo({top: 0, behavior: "instant"
 
 <template>
   <div ref="container" class="relative min-w-0 flex-1 overflow-hidden">
-    <NoTasksPlaceholder v-if="!hasAnyTasks" :date="placeholderDate" :milestone-name="framedMilestoneName" @create-task="emit('createTask')" />
+    <NoTasksPlaceholder v-if="!isBoardVisible" :date="placeholderDate" :milestone-name="framedMilestoneName" @create-task="emit('createTask')" />
 
     <div v-else ref="board" class="flex size-full overflow-x-auto overflow-y-hidden" @dragover="columns.onDragOver">
       <template v-for="(column, index) in columns.visibleColumns.value" :key="column.status">
