@@ -23,7 +23,7 @@ function getChipClasses(kind: TaskRelationChip["kind"]) {
 }
 
 function getIconName(kind: TaskRelationChip["kind"]): IconName {
-  return ({"blocked-by": "alert-triangle", blocks: "chevrons-down", linked: "link"} satisfies Record<TaskRelationChip["kind"], IconName>)[kind]
+  return ({"blocked-by": "alert-triangle", blocks: "ban", linked: "link"} satisfies Record<TaskRelationChip["kind"], IconName>)[kind]
 }
 
 function getLabel(kind: TaskRelationChip["kind"]) {

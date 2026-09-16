@@ -69,8 +69,6 @@ const {canMoveUp, canMoveDown, canMoveToTop, canMoveToBottom, ...taskModel} = us
 
 const menuItems = computed<BaseContextMenuItem[]>(() => {
   return [
-    {value: "open-editor", label: "Open editor", icon: "pencil"},
-    {separator: true},
     {
       value: "status",
       label: "Status",
@@ -83,11 +81,10 @@ const menuItems = computed<BaseContextMenuItem[]>(() => {
       ],
     },
     {value: "tags", label: "Tags", icon: "tags", children: true},
-    {value: "milestone", label: "Milestone", icon: "milestone", children: true},
-    {value: "blocked-by", label: "Blocked by", icon: "alert-triangle", children: true},
-    {value: "blocks", label: "Blocks", icon: "chevrons-down", children: true},
     {value: "reschedule", label: "Reschedule", icon: "calendar", children: true},
-    {value: "branch", label: "Move to Project", icon: "project", children: true},
+    {separator: true},
+    {value: "branch", label: "Project", icon: "project", children: true},
+    {value: "milestone", label: "Milestone", icon: "milestone", children: true},
     {separator: true},
     {value: "time-estimate", label: "Time estimate", icon: "stopwatch", children: true},
     {
@@ -97,6 +94,9 @@ const menuItems = computed<BaseContextMenuItem[]>(() => {
       children: true,
       disabled: props.task.estimatedTime === 0,
     },
+    {separator: true},
+    {value: "blocks", label: "Blocks", icon: "ban", children: true},
+    {value: "blocked-by", label: "Blocked by", icon: "alert-triangle", children: true},
     {separator: true},
     {
       value: "move",
@@ -157,11 +157,7 @@ function getContentClasses(status: TaskStatus) {
   return cn("transition-opacity duration-200", (status === "done" || status === "discarded") && "opacity-50")
 }
 
-async function onSelect(event: BaseContextMenuSelectEvent) {
-  if (event.item.value === "open-editor") {
-    const proceed = await confirmLeaveIfDirty()
-    if (proceed) taskEditorStore.open(props.task.id)
-  }
+function onSelect(event: BaseContextMenuSelectEvent) {
   if (event.item.value === "move-top") taskModel.moveToTop()
   if (event.item.value === "move-up") taskModel.moveUp()
   if (event.item.value === "move-down") taskModel.moveDown()

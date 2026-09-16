@@ -63,6 +63,7 @@ export type IconName =
   | "x"
   | "alert-triangle"
   | "alert-circle"
+  | "ban"
   | "eye"
   | "eye-off"
   | "ai"
@@ -638,6 +639,11 @@ export type IconName =
     <symbol id="alert-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
       <circle cx="12" cy="12" r="10" />
       <path d="M12 7v5m0 4h.01" />
+    </symbol>
+
+    <symbol id="ban" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <path d="m4.9 4.9 14.2 14.2" />
     </symbol>
 
     <symbol id="eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">

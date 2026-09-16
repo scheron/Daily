@@ -21,7 +21,7 @@ const taskEditorStore = useTaskEditorStore()
 const tasksStore = useTasksStore()
 const branchesStore = useBranchesStore()
 
-const headerIcon = computed<IconName>(() => (props.side === "blockedBy" ? "alert-triangle" : "link"))
+const headerIcon = computed<IconName>(() => (props.side === "blockedBy" ? "alert-triangle" : "ban"))
 const headerLabel = computed(() => (props.side === "blockedBy" ? "Blocked by" : "Blocks"))
 
 const rows = computed<Task[]>(() => {
