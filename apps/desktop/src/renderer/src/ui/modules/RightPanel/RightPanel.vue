@@ -44,11 +44,8 @@ watch(isOpen, async (open) => {
           <Toolbar />
 
           <template v-if="activeTask">
-            <div class="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-              <Details :task="activeTask" />
-              <Editor />
-            </div>
-
+            <Details :task="activeTask" />
+            <Editor />
             <Footer />
           </template>
         </div>

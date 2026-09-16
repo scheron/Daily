@@ -11,7 +11,6 @@ export const useTaskEditor = createSharedComposable(() => {
   const taskEditorStore = useTaskEditorStore()
 
   const localContent = ref("")
-  const isDetailsOpen = ref(false)
 
   const activeTask = computed<Task | null>(() => {
     const draft = taskEditorStore.draft
@@ -69,14 +68,6 @@ export const useTaskEditor = createSharedComposable(() => {
     taskEditorStore.patch({content: next})
   }
 
-  function toggleDetails() {
-    isDetailsOpen.value = !isDetailsOpen.value
-  }
-
-  function closeDetails() {
-    isDetailsOpen.value = false
-  }
-
   async function navigatePrev() {
     if (!canPrev.value) return
     const proceed = await confirmLeaveIfDirty()
@@ -116,10 +107,6 @@ export const useTaskEditor = createSharedComposable(() => {
     {immediate: true},
   )
 
-  watch(isOpen, (open) => {
-    if (!open) isDetailsOpen.value = false
-  })
-
   return {
     activeTask,
     isOpen,
@@ -132,10 +119,7 @@ export const useTaskEditor = createSharedComposable(() => {
     canNext,
     canSave,
     flatOrderedTasks,
-    isDetailsOpen,
     onBodyChange,
-    toggleDetails,
-    closeDetails,
     navigatePrev,
     navigateNext,
     commitDraft,
