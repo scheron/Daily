@@ -6,7 +6,7 @@ import {formatEventToAccelerator} from "@shared/utils/shortcuts/formatEventToAcc
 import {useTaskEditor} from "./useTaskEditor"
 
 export function useEditorShortcuts() {
-  const {isOpen, canSave, close, commitDraft, commitDraftAndClose} = useTaskEditor()
+  const {isOpen, canSave, isDetailsOpen, close, closeDetails, commitDraft, commitDraftAndClose} = useTaskEditor()
 
   useEventListener(window, "keydown", (event: KeyboardEvent) => {
     const pressed = formatEventToAccelerator(event)
@@ -14,7 +14,8 @@ export function useEditorShortcuts() {
 
     if (acceleratorsMatch(pressed, SHORTCUTS_MAP["editor:close"].accelerator)) {
       if (event.defaultPrevented) return
-      close()
+      if (isDetailsOpen.value) closeDetails()
+      else close()
     } else if (acceleratorsMatch(pressed, SHORTCUTS_MAP["editor:save"].accelerator)) {
       if (canSave.value) commitDraft()
     } else if (acceleratorsMatch(pressed, SHORTCUTS_MAP["editor:save-close"].accelerator)) {

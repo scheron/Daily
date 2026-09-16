@@ -5,10 +5,10 @@ import {getTime, getTimezone, toDateLabel} from "@daily/std"
 
 import {useTaskEditorStore} from "@/stores/task-editor"
 import {useTasksStore} from "@/stores/tasks"
-import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
 import BasePopup from "@/ui/base/BasePopup.vue"
 import TaskCalendar from "@/ui/common/calendar/TaskCalendar"
+import PropertyCell from "../PropertyCell.vue"
 
 import type {ISODate, Task} from "@daily/protocol"
 
@@ -17,7 +17,7 @@ const props = defineProps<{task: Task}>()
 const tasksStore = useTasksStore()
 const taskEditorStore = useTaskEditorStore()
 
-const dateLabel = computed(() => (props.task.scheduled ? toDateLabel(props.task.scheduled.date, {short: true}) : "No date"))
+const dateLabel = computed(() => (props.task.scheduled ? toDateLabel(props.task.scheduled.date, {short: true}) : "Set date"))
 
 function selectDate(date: ISODate, hide: () => void) {
   if (date !== props.task.scheduled?.date) {
@@ -31,10 +31,11 @@ function selectDate(date: ISODate, hide: () => void) {
 <template>
   <BasePopup hide-header position="start">
     <template #trigger="{toggle}">
-      <BaseButton type="button" class="inline-flex items-center justify-start gap-1 p-0" variant="text" @click.stop="toggle">
-        <BaseIcon name="calendar" class="size-3.5" />
-        <span class="leading-none">{{ dateLabel }}</span>
-      </BaseButton>
+      <PropertyCell :label="dateLabel" :is-empty="!task.scheduled" @click="toggle">
+        <template #icon>
+          <BaseIcon name="calendar" class="size-4" />
+        </template>
+      </PropertyCell>
     </template>
 
     <template #default="{hide}">

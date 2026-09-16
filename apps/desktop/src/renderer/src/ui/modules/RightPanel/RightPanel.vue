@@ -5,9 +5,9 @@ import {useFocusTrap} from "@/composables/useFocusTrap"
 import {useEditorShortcuts} from "./composables/useEditorShortcuts"
 import {useTaskEditor} from "./composables/useTaskEditor"
 import {animatePanel} from "./utils/animatePanel"
+import Details from "./{fragments}/Details"
 import Editor from "./{fragments}/Editor.vue"
 import Footer from "./{fragments}/Footer"
-import Parameters from "./{fragments}/Parameters"
 import Toolbar from "./{fragments}/Toolbar.vue"
 
 const props = defineProps<{width: number}>()
@@ -43,11 +43,14 @@ watch(isOpen, async (open) => {
         <div ref="panel" tabindex="-1" class="flex h-full w-full flex-col overflow-hidden outline-none" :style="surfaceStyle">
           <Toolbar />
 
-          <div v-if="activeTask" class="flex min-h-0 flex-1 flex-col">
-            <Parameters />
-            <Editor />
+          <template v-if="activeTask">
+            <div class="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+              <Details :task="activeTask" />
+              <Editor />
+            </div>
+
             <Footer />
-          </div>
+          </template>
         </div>
       </div>
     </aside>

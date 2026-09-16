@@ -12,11 +12,11 @@ const emit = defineEmits<{update: [tags: Tag[]]}>()
 </script>
 
 <template>
-  <BasePopup hide-header position="start" container-class="p-0 overflow-hidden max-h-none">
+  <BasePopup hide-header position="end" container-class="p-0 overflow-hidden max-h-none">
     <template #trigger="{toggle}">
-      <BaseButton type="button" variant="text" class="p-0 py-1" @click.stop="toggle">
+      <BaseButton type="button" variant="text" class="p-0 text-xs" @click.stop="toggle">
         <BaseIcon name="plus" class="size-3.5" />
-        <span class="leading-none"> Add tag </span>
+        <span class="leading-none">Add tag</span>
       </BaseButton>
     </template>
 
