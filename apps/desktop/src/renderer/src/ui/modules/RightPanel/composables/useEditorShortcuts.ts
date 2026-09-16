@@ -13,6 +13,7 @@ export function useEditorShortcuts() {
     if (!pressed || !isOpen.value) return
 
     if (acceleratorsMatch(pressed, SHORTCUTS_MAP["editor:close"].accelerator)) {
+      if (event.defaultPrevented) return
       close()
     } else if (acceleratorsMatch(pressed, SHORTCUTS_MAP["editor:save"].accelerator)) {
       if (canSave.value) commitDraft()

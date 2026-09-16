@@ -6,7 +6,7 @@ const props = defineProps<{
 }>()
 
 function getBarClasses() {
-  return cn("bg-base-300 transition-colors duration-150 group-hover:bg-base-content/40 h-full w-px", props.active && "bg-accent!")
+  return cn("bg-transparent transition-colors duration-150 group-hover:bg-base-content/40 h-full w-px", props.active && "bg-accent!")
 }
 </script>
 

@@ -52,7 +52,7 @@ function getStatusIconClasses(isBusy: boolean) {
     <Teleport to="body">
       <div
         v-if="updateStore.isPanelVisible"
-        class="border-base-300 bg-base-100/90 bottom-header fixed right-4 z-50 flex w-96 flex-col rounded-2xl border px-4 py-3 shadow-2xl"
+        class="border-base-300 bg-base-100/90 fixed right-4 bottom-18 z-50 flex w-96 flex-col rounded-2xl border px-4 py-3 shadow-2xl"
       >
         <div class="mb-4 flex w-full flex-col gap-2">
           <div class="flex w-full items-center justify-between gap-2">

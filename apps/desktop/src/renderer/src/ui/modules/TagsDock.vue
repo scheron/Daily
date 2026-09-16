@@ -51,5 +51,16 @@ watch(filteredTags, (tags) => {
 </script>
 
 <template>
-  <DynamicTagsPanel :tags="filteredTags" :selected-tags="filterStore.activeTagIds" popup-hover-mode selectable size="md" @select="onSelectTag" />
+  <div v-if="filteredTags.length" class="pointer-events-none absolute inset-x-24 top-1.5 z-30 flex justify-center">
+    <DynamicTagsPanel
+      :tags="filteredTags"
+      :selected-tags="filterStore.activeTagIds"
+      popup-hover-mode
+      selectable
+      size="md"
+      class="justify-center"
+      row-class="dock-surface pointer-events-auto h-8 gap-1.5 rounded-full p-0.5 [-webkit-app-region:no-drag]"
+      @select="onSelectTag"
+    />
+  </div>
 </template>

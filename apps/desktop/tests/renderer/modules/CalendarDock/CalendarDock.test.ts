@@ -26,6 +26,18 @@ function makeMilestone(overrides = {}) {
   }
 }
 
+function makeBranch(overrides = {}) {
+  return {
+    id: "main",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+    deletedAt: null,
+    name: "Main",
+    description: "",
+    ...overrides,
+  }
+}
+
 function makeMilestoneTask(milestoneId, status = "active", overrides = {}) {
   return {
     id: `${milestoneId}-${Math.random().toString(36).slice(2)}`,
@@ -377,35 +389,136 @@ describe("CalendarDock", () => {
     document.elementFromPoint = originalElementFromPoint
   })
 
-  it("hides_TC-16_the_dock_while_the_editor_is_open_and_collapses_it_when_the_editor_opens", async () => {
+  it("keeps_TC-1_the_dock_over_the_board_while_the_editor_is_open_and_still_collapses_it_when_the_editor_reopens", async () => {
     const {mountDock, ui, drag, editor} = await setup()
 
     editor.openNew({branchId: "main"})
     expect(editor.isOpen).toBe(true)
 
     const dock = mountDock()
-    expect(dock.find("[data-day-drop-zone]").exists()).toBe(false)
-    expect(dock.find("button").exists()).toBe(false)
-
-    drag.setDraggingTaskId("task-1")
-    await nextTick()
-
-    expect(dock.find("[data-day-drop-zone]").exists()).toBe(false)
-    expect(dock.find("button").exists()).toBe(false)
-
-    drag.setDraggingTaskId(null)
-    editor.clear()
-    await nextTick()
 
     expect(dock.find("[data-day-drop-zone]").exists()).toBe(true)
+    expect(dock.find("[data-dock-pill]").exists()).toBe(true)
 
+    drag.setDraggingTaskId("task-1")
+    expect(ui.isCalendarDockExpanded).toBe(true)
+
+    drag.setDraggingTaskId(null)
+    expect(ui.isCalendarDockExpanded).toBe(false)
+
+    editor.clear()
     ui.toggleCalendarDock(true)
     await nextTick()
+    expect(ui.isCalendarDockExpanded).toBe(true)
 
     editor.openNew({branchId: "main"})
     await nextTick()
 
     expect(ui.isCalendarDockExpanded).toBe(false)
+  })
+
+  it("collapses_TC-2_the_calendar_on_the_first_escape_while_the_editor_is_open_and_closes_the_editor_only_on_the_second", async () => {
+    const {mountDock, ui, editor} = await setup()
+    const {useEditorShortcuts} = await import("../../../../src/renderer/src/ui/modules/RightPanel/composables/useEditorShortcuts")
+
+    mountDock()
+
+    const ShortcutsHost = defineComponent({
+      setup() {
+        useEditorShortcuts()
+        return () => h("div")
+      },
+    })
+    const shortcutsHost = mount(ShortcutsHost, {attachTo: document.body})
+
+    try {
+      editor.openNew({branchId: "main"})
+      await nextTick()
+
+      ui.toggleCalendarDock(true)
+      await nextTick()
+      expect(ui.isCalendarDockExpanded).toBe(true)
+
+      function pressEscape() {
+        document.body.dispatchEvent(new KeyboardEvent("keydown", {key: "Escape", code: "Escape", bubbles: true, cancelable: true}))
+      }
+
+      pressEscape()
+      await nextTick()
+
+      expect(ui.isCalendarDockExpanded).toBe(false)
+      expect(editor.isOpen).toBe(true)
+
+      pressEscape()
+      await new Promise((resolve) => setTimeout(resolve, 0))
+
+      expect(editor.isOpen).toBe(false)
+    } finally {
+      shortcutsHost.unmount()
+    }
+  })
+
+  it("shows_TC-3_the_project_and_new_panels_only_while_the_calendar_is_collapsed_and_lets_new_create_a_task", async () => {
+    const {ui, drag} = await setup()
+    const {useSettingsStore} = await import("../../../../src/renderer/src/stores/settings.store")
+    const {useBranchesStore} = await import("../../../../src/renderer/src/stores/branches.store")
+    const {default: CalendarDock} = await import("../../../../src/renderer/src/ui/modules/CalendarDock")
+    const projectDockPath = "../../../../src/renderer/src/ui/modules/ProjectDock.vue"
+    const newTaskDockPath = "../../../../src/renderer/src/ui/modules/NewTaskDock.vue"
+    const {default: ProjectDock} = await import(/* @vite-ignore */ projectDockPath)
+    const {default: NewTaskDock} = await import(/* @vite-ignore */ newTaskDockPath)
+
+    await vi.waitFor(() => expect(useSettingsStore().isSettingsLoaded).toBe(true))
+    ui.shouldOpenCalendarDockOnDrag = true
+
+    const branches = useBranchesStore()
+    branches.branches = [makeBranch({name: "Nebula"})]
+
+    const dock = mount(CalendarDock, {attachTo: document.body, global: {directives: {tooltip: {}}}})
+    const project = mount(ProjectDock, {attachTo: document.body, global: {directives: {tooltip: {}}}})
+    const newTask = mount(NewTaskDock, {attachTo: document.body, global: {directives: {tooltip: {}}}})
+
+    try {
+      function expectBothVisible() {
+        expect(project.find("button").exists()).toBe(true)
+        expect(project.text()).toContain("Nebula")
+        expect(newTask.find("button").exists()).toBe(true)
+        expect(newTask.text()).toContain("New")
+      }
+
+      function expectBothAbsent() {
+        expect(project.find("button").exists()).toBe(false)
+        expect(newTask.find("button").exists()).toBe(false)
+      }
+
+      expect(ui.isCalendarDockExpanded).toBe(false)
+      expectBothVisible()
+
+      ui.toggleCalendarDock(true)
+      await nextTick()
+      expectBothAbsent()
+
+      ui.toggleCalendarDock(false)
+      await nextTick()
+      expectBothVisible()
+
+      drag.setDraggingTaskId("task-1")
+      await nextTick()
+      expect(ui.isCalendarDockExpanded).toBe(true)
+      expectBothAbsent()
+
+      drag.setDraggingTaskId(null)
+      await nextTick()
+      expect(ui.isCalendarDockExpanded).toBe(false)
+      expectBothVisible()
+
+      await newTask.get("button").trigger("click")
+      expect(newTask.emitted("createTask")).toHaveLength(1)
+    } finally {
+      dock.unmount()
+      project.unmount()
+      newTask.unmount()
+    }
   })
 })
 

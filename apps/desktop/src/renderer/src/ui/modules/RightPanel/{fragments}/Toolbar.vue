@@ -24,7 +24,7 @@ function copyTaskContent() {
 </script>
 
 <template>
-  <div class="h-toolbar border-base-300 compact:pl-traffic-light compact:drag-region flex shrink-0 items-center justify-between border-b px-4">
+  <div class="h-toolbar border-base-300 flex shrink-0 items-center justify-between border-b px-4">
     <BaseButton variant="ghost" icon="x-mark" tooltip="Close (Esc)" style="-webkit-app-region: no-drag" @click="close" />
 
     <div class="flex items-center gap-1" style="-webkit-app-region: no-drag">

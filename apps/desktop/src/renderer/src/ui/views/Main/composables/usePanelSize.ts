@@ -13,7 +13,7 @@ export function usePanelSize() {
   useEventListener(window, "resize", () => (maxSize.value = computeMaxSize()))
 
   function computeMaxSize(): number {
-    return Math.min(640, window.innerWidth - 520)
+    return Math.min(640, window.innerWidth - 720)
   }
 
   function setSize(px: number) {

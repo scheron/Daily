@@ -16,7 +16,7 @@ export function createMainWindow(savedState?: MainWindowSettings): BrowserWindow
     minWidth: WINDOWS_CONFIG.main.minWidth,
     height: restoredOptions.height,
     minHeight: WINDOWS_CONFIG.main.minHeight,
-    trafficLightPosition: {y: 14, x: 14},
+    trafficLightPosition: {x: 16, y: 15},
     center: true,
     transparent: true,
     frame: false,

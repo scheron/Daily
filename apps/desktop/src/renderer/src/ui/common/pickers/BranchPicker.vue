@@ -5,15 +5,16 @@ import BranchCombobox from "@/ui/common/comboboxes/BranchCombobox.vue"
 import type {HorizontalPosition} from "@/ui/base/BasePopup.vue"
 import type {Branch} from "@daily/protocol"
 
-withDefaults(defineProps<{selectedId: Branch["id"] | null; position?: HorizontalPosition}>(), {
+withDefaults(defineProps<{selectedId: Branch["id"] | null; position?: HorizontalPosition; side?: "top" | "bottom"; triggerClass?: string}>(), {
   position: "start",
+  side: "bottom",
 })
 
 const emit = defineEmits<{select: [branch: Branch]}>()
 </script>
 
 <template>
-  <BasePopup hide-header :position="position" container-class="p-0 overflow-hidden max-h-none">
+  <BasePopup hide-header :side="side" :position="position" :trigger-class="triggerClass" container-class="p-0 overflow-hidden max-h-none">
     <template #trigger="{toggle}">
       <slot name="trigger" :toggle="toggle" />
     </template>

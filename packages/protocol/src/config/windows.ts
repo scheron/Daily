@@ -1,7 +1,7 @@
 export const WINDOWS_CONFIG = {
   main: {
     width: 1200,
-    minWidth: 610,
+    minWidth: 1040,
     height: 800,
     minHeight: 680,
   },

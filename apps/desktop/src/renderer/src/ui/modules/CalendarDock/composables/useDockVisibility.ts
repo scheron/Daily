@@ -25,11 +25,17 @@ export function useDockVisibility(dock: Readonly<ShallowRef<HTMLElement | null>>
     uiStore.toggleCalendarDock(false)
   })
 
-  useEventListener(window, "keydown", (event: KeyboardEvent) => {
-    if (event.key !== "Escape" || event.defaultPrevented) return
-    if (!isCalendarDockExpanded.value) return
-    uiStore.toggleCalendarDock(false)
-  })
+  useEventListener(
+    window,
+    "keydown",
+    (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return
+      if (!isCalendarDockExpanded.value) return
+      uiStore.toggleCalendarDock(false)
+      event.preventDefault()
+    },
+    {capture: true},
+  )
 
   watch(
     draggingTaskId,

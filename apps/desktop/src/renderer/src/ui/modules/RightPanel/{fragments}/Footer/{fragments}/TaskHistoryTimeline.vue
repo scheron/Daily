@@ -24,9 +24,9 @@ function getEventChipClasses(type: TaskEvent["type"]) {
         <BaseIcon :name="TASK_EVENT_META[event.type].icon" class="size-3" />
       </div>
 
-      <span class="min-w-0 flex-1 text-xs font-semibold">
+      <span class="min-w-0 flex-1 text-xs">
         {{ TASK_EVENT_META[event.type].verb }}
-        <span v-if="event.type === 'moved' && event.fromDate && event.toDate" class="text-base-content/80 ml-1 font-normal">
+        <span v-if="event.type === 'moved' && event.fromDate && event.toDate" class="text-base-content/80 ml-1">
           {{ toDateLabel(event.fromDate, {short: true, year: false}) }} → {{ toDateLabel(event.toDate, {short: true, year: false}) }}
         </span>
       </span>

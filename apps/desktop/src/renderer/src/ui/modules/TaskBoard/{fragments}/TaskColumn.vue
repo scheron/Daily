@@ -41,7 +41,7 @@ function onMenuSelect(value: BaseMenuItem["value"], hide: () => void) {
 }
 
 function getContainerClasses(isCollapsed: boolean) {
-  return cn("bg-base-100 flex min-w-0 flex-col overflow-hidden", isCollapsed ? "w-20 max-w-20 min-w-20 h-full" : "h-full grow shrink-0")
+  return cn("bg-base-100 relative flex min-w-0 flex-col overflow-hidden", isCollapsed ? "w-17 max-w-17 min-w-17 h-full" : "h-full grow shrink-0")
 }
 
 function getIconClasses(titleClass: string) {
@@ -65,7 +65,7 @@ function getCounterClasses(counterClass: string) {
     @dragenter="columns.onColumnDragEnter(column.status)"
   >
     <template v-if="collapsed">
-      <div class="flex h-full flex-col items-center justify-start gap-2 py-3">
+      <div class="dock-surface mx-3 mt-11 flex w-11 flex-col items-center gap-2 rounded-full py-2.5">
         <BaseIcon :name="column.icon" :class="getIconClasses(column.titleClass)" />
         <span :class="getCounterClasses(column.counterClass)">
           {{ tasksCount }}
@@ -82,7 +82,7 @@ function getCounterClasses(counterClass: string) {
     </template>
 
     <template v-else>
-      <div class="border-base-300 h-toolbar flex items-center justify-between border-b px-4 py-2">
+      <div class="absolute inset-x-0 top-11 z-10 flex h-9 items-center justify-between px-4">
         <div :class="getTitleClasses(column.titleClass)">
           <BaseIcon :name="column.icon" class="size-4" />
           <span class="text-sm font-medium tracking-wide uppercase">{{ column.label }}</span>
@@ -100,7 +100,7 @@ function getCounterClasses(counterClass: string) {
         </BasePopup>
       </div>
 
-      <div class="relative flex min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-1.5 pt-4 pb-16">
+      <div class="absolute inset-0 flex min-w-0 overflow-x-hidden overflow-y-auto px-1.5 pt-22 pb-20">
         <slot />
 
         <div
@@ -113,6 +113,11 @@ function getCounterClasses(counterClass: string) {
           <span class="text-sm">No {{ column.emptyLabel }} tasks</span>
         </div>
       </div>
+
+      <div
+        class="from-base-100 via-base-100/60 pointer-events-none absolute inset-x-0 top-0 z-[5] h-23 bg-linear-to-b from-35% via-70% to-transparent"
+      />
+      <div class="to-base-100/70 pointer-events-none absolute inset-x-0 bottom-0 z-[5] h-20 bg-linear-to-b from-transparent" />
     </template>
   </div>
 </template>

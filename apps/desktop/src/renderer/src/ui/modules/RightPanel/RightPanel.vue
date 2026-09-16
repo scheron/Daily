@@ -2,7 +2,6 @@
 import {computed, nextTick, useTemplateRef, watch} from "vue"
 
 import {useFocusTrap} from "@/composables/useFocusTrap"
-import {useUIStore} from "@/stores/ui"
 import {useEditorShortcuts} from "./composables/useEditorShortcuts"
 import {useTaskEditor} from "./composables/useTaskEditor"
 import {animatePanel} from "./utils/animatePanel"
@@ -13,10 +12,9 @@ import Toolbar from "./{fragments}/Toolbar.vue"
 
 const props = defineProps<{width: number}>()
 
-const uiStore = useUIStore()
-
 const panelRef = useTemplateRef<HTMLElement>("panel")
-const panelStyle = computed(() => (uiStore.isCompact ? {} : {width: `${props.width}px`}))
+const panelStyle = computed(() => ({width: `${props.width}px`}))
+const surfaceStyle = computed(() => ({width: `${props.width - 8}px`}))
 
 const {isOpen, activeTask, isNew} = useTaskEditor()
 
@@ -24,11 +22,11 @@ useFocusTrap(panelRef, isOpen)
 useEditorShortcuts()
 
 function onEnter(el: Element, done: () => void) {
-  animatePanel(el as HTMLElement, uiStore.isCompact ? "slide-x" : "slide", true).then(done, done)
+  animatePanel(el as HTMLElement, true).then(done, done)
 }
 
 function onLeave(el: Element, done: () => void) {
-  animatePanel(el as HTMLElement, uiStore.isCompact ? "slide-x" : "slide", false).then(done, done)
+  animatePanel(el as HTMLElement, false).then(done, done)
 }
 
 watch(isOpen, async (open) => {
@@ -40,9 +38,9 @@ watch(isOpen, async (open) => {
 
 <template>
   <Transition :css="false" @enter="onEnter" @leave="onLeave">
-    <aside v-if="isOpen" class="compact:fixed compact:inset-0 compact:z-40 bg-base-100 relative h-full shrink-0" :style="panelStyle">
-      <div class="h-full w-full overflow-hidden">
-        <div ref="panel" tabindex="-1" class="flex h-full w-full flex-col overflow-hidden outline-none" :style="panelStyle">
+    <aside v-if="isOpen" class="relative h-full shrink-0 py-2 pr-2" :style="panelStyle">
+      <div class="dock-surface h-full overflow-hidden rounded-2xl" :style="surfaceStyle">
+        <div ref="panel" tabindex="-1" class="flex h-full w-full flex-col overflow-hidden outline-none" :style="surfaceStyle">
           <Toolbar />
 
           <div v-if="activeTask" class="flex min-h-0 flex-1 flex-col">

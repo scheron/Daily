@@ -8,6 +8,9 @@ import {useFilterStore} from "@/stores/filter.store"
 import {useMilestonesStore} from "@/stores/milestones.store"
 import {useTasksStore} from "@/stores/tasks"
 import CalendarDock from "@/ui/modules/CalendarDock"
+import NewTaskDock from "@/ui/modules/NewTaskDock.vue"
+import ProjectDock from "@/ui/modules/ProjectDock.vue"
+import TagsDock from "@/ui/modules/TagsDock.vue"
 import {useDragScroll} from "./composables/useDragScroll"
 import NoTasksPlaceholder from "./{fragments}/NoTasksPlaceholder.vue"
 import TaskCard from "./{fragments}/TaskCard"
@@ -88,10 +91,21 @@ watch(activeDay, () => containerRef.value?.scrollTo({top: 0, behavior: "instant"
           </VueDraggable>
         </TaskColumn>
 
-        <div v-if="index < columns.visibleColumns.value.length - 1" class="bg-base-300/50 h-full w-px shrink-0 last:hidden" />
+        <div
+          v-if="
+            index < columns.visibleColumns.value.length - 1 &&
+            !columns.isColumnCollapsed(column.status) &&
+            !columns.isColumnCollapsed(columns.visibleColumns.value[index + 1].status)
+          "
+          class="to-base-300/50 h-full w-px shrink-0 bg-linear-to-b from-transparent from-[44px] to-[98px]"
+        />
       </template>
     </div>
 
+    <div class="drag-region absolute inset-x-0 top-0 z-20 h-11" />
+    <TagsDock />
     <CalendarDock />
+    <ProjectDock />
+    <NewTaskDock @create-task="emit('createTask')" />
   </div>
 </template>

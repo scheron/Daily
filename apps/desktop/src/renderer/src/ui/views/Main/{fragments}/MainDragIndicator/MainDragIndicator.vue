@@ -17,5 +17,5 @@ function onPointerDown(event: PointerEvent) {
 </script>
 
 <template>
-  <BaseDragIndicator :active="isDragging" @pointerdown="onPointerDown" />
+  <BaseDragIndicator class="relative z-30 translate-x-[calc(50%+0.5px)] py-6" :active="isDragging" @pointerdown="onPointerDown" />
 </template>

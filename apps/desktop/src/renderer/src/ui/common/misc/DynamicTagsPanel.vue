@@ -9,6 +9,7 @@ import BaseTag from "@/ui/base/BaseTag"
 import {cn} from "@/utils/ui/tailwindcss"
 
 import type {Tag} from "@daily/protocol"
+import type {HTMLAttributes} from "vue"
 
 const props = withDefaults(
   defineProps<{
@@ -17,6 +18,8 @@ const props = withDefaults(
     selectedTags?: Set<Tag["id"]>
     popupHoverMode?: boolean
     size?: "sm" | "md"
+    /** Classes for the row wrapping the visible tags and the `+N` popup — the container itself stays unstyled. */
+    rowClass?: HTMLAttributes["class"]
   }>(),
   {
     selectedTags: () => new Set(),
@@ -29,6 +32,7 @@ const emit = defineEmits<{select: [id: Tag["id"]]}>()
 
 const containerRef = useTemplateRef<HTMLElement>("container")
 const measureRef = useTemplateRef<HTMLElement>("measure")
+const rowRef = useTemplateRef<HTMLElement>("row")
 const visibleTags = ref<Tag[]>([])
 const hiddenTags = ref<Tag[]>([])
 
@@ -51,6 +55,10 @@ function getMoreButtonClasses(hasSelected: boolean) {
   )
 }
 
+function getRowClasses() {
+  return cn("flex min-w-0 items-center gap-2", props.rowClass)
+}
+
 async function calculateVisibleTags() {
   if (!containerRef.value || !measureRef.value || !props.tags.length) {
     visibleTags.value = props.tags
@@ -67,8 +75,17 @@ async function calculateVisibleTags() {
     return
   }
 
+  const rowStyle = rowRef.value ? getComputedStyle(rowRef.value) : null
+  const rowInsetWidth = rowStyle
+    ? parseFloat(rowStyle.paddingLeft) +
+      parseFloat(rowStyle.paddingRight) +
+      parseFloat(rowStyle.borderLeftWidth) +
+      parseFloat(rowStyle.borderRightWidth)
+    : 0
+  const availableWidth = containerWidth - rowInsetWidth
+
   const tagElements = measureRef.value.children
-  const gap = 8
+  const gap = rowStyle ? parseFloat(rowStyle.columnGap) || 0 : 0
   const moreButtonWidth = 60
 
   let currentWidth = 0
@@ -83,7 +100,7 @@ async function calculateVisibleTags() {
     const needsMoreButton = i < props.tags.length - 1
     const totalWidth = newWidth + (needsMoreButton ? gap + moreButtonWidth : 0)
 
-    if (totalWidth > containerWidth) break
+    if (totalWidth > availableWidth) break
 
     currentWidth = newWidth
     visibleCount++
@@ -108,43 +125,45 @@ watch(() => props.tags, calculateVisibleTags, {deep: true})
         <BaseTag v-for="tag in tags" :key="tag.id" :tag="tag" :active="isActiveTag(tag.id)" :selectable="selectable" :size="size" />
       </div>
 
-      <BaseTag
-        v-for="tag in visibleTags"
-        :key="tag.id"
-        :tag="tag"
-        :active="isActiveTag(tag.id)"
-        :selectable="selectable"
-        :size="size"
-        style="-webkit-app-region: no-drag"
-        @click="onSelectTag(tag.id)"
-      />
-
-      <BasePopup v-if="hiddenTags.length" hide-header :hover-mode="popupHoverMode" container-class="min-w-44 p-1" content-class="gap-1.5">
-        <template #trigger="{toggle, show}">
-          <BaseButton
-            variant="text"
-            :class="getMoreButtonClasses(hasSelectedInPopup)"
-            icon="tags"
-            icon-class="size-4"
-            style="-webkit-app-region: no-drag"
-            @mouseenter="popupHoverMode ? show() : undefined"
-            @click.stop="popupHoverMode ? show() : toggle()"
-          >
-            <span class="text-sm font-medium">+{{ hiddenTags.length }}</span>
-          </BaseButton>
-        </template>
-
+      <div ref="row" :class="getRowClasses()">
         <BaseTag
-          v-for="tag in hiddenTags"
+          v-for="tag in visibleTags"
           :key="tag.id"
           :tag="tag"
           :active="isActiveTag(tag.id)"
           :selectable="selectable"
           :size="size"
-          class="w-full justify-start text-start"
+          style="-webkit-app-region: no-drag"
           @click="onSelectTag(tag.id)"
         />
-      </BasePopup>
+
+        <BasePopup v-if="hiddenTags.length" hide-header :hover-mode="popupHoverMode" container-class="min-w-44 p-1" content-class="gap-1.5">
+          <template #trigger="{toggle, show}">
+            <BaseButton
+              variant="text"
+              :class="getMoreButtonClasses(hasSelectedInPopup)"
+              icon="tags"
+              icon-class="size-4"
+              style="-webkit-app-region: no-drag"
+              @mouseenter="popupHoverMode ? show() : undefined"
+              @click.stop="popupHoverMode ? show() : toggle()"
+            >
+              <span class="text-sm font-medium">+{{ hiddenTags.length }}</span>
+            </BaseButton>
+          </template>
+
+          <BaseTag
+            v-for="tag in hiddenTags"
+            :key="tag.id"
+            :tag="tag"
+            :active="isActiveTag(tag.id)"
+            :selectable="selectable"
+            :size="size"
+            class="w-full justify-start text-start"
+            @click="onSelectTag(tag.id)"
+          />
+        </BasePopup>
+      </div>
     </template>
   </div>
 </template>
