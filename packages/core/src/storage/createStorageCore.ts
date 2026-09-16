@@ -6,6 +6,7 @@ import {SettingsModel} from "./models/SettingsModel"
 import {TagModel} from "./models/TagModel"
 import {TaskEventModel} from "./models/TaskEventModel"
 import {TaskModel} from "./models/TaskModel"
+import {TaskRelationModel} from "./models/TaskRelationModel"
 import {BranchesService} from "./services/BranchesService"
 import {FilesService} from "./services/FilesService"
 import {MilestonesService} from "./services/MilestonesService"
@@ -13,6 +14,7 @@ import {SearchService} from "./services/SearchService"
 import {SettingsService} from "./services/SettingsService"
 import {TagsService} from "./services/TagsService"
 import {TaskEventsService} from "./services/TaskEventsService"
+import {TaskRelationsService} from "./services/TaskRelationsService"
 import {TasksService} from "./services/TasksService"
 import {LocalStorageAdapter} from "./sync/adapters/LocalStorageAdapter"
 
@@ -23,6 +25,7 @@ export type StorageCore = {
   settingsService: SettingsService
   branchesService: BranchesService
   tasksService: TasksService
+  taskRelationsService: TaskRelationsService
   tagsService: TagsService
   milestonesService: MilestonesService
   filesService: FilesService
@@ -39,6 +42,7 @@ export function createStorageCore(db: SqliteDriver, paths: AppPaths): StorageCor
   const taskEventModel = new TaskEventModel(db)
   const tagModel = new TagModel(db)
   const milestoneModel = new MilestoneModel(db)
+  const taskRelationModel = new TaskRelationModel(db)
   const fileModel = new FileModel(db, paths.assetsDir())
 
   branchModel.ensureMainBranch()
@@ -50,6 +54,7 @@ export function createStorageCore(db: SqliteDriver, paths: AppPaths): StorageCor
     settingsService,
     branchesService: new BranchesService(branchModel, settingsService, taskModel, tagModel, milestoneModel, db),
     tasksService: new TasksService(taskModel, new TaskEventsService(taskEventModel)),
+    taskRelationsService: new TaskRelationsService(taskRelationModel, taskModel),
     tagsService: new TagsService(tagModel),
     milestonesService: new MilestonesService(milestoneModel),
     filesService: new FilesService(fileModel, taskModel),

@@ -26,6 +26,8 @@ import type {
   Tag,
   Task,
   TaskEvent,
+  TaskRelation,
+  TaskRelationSets,
   TaskSearchResult,
 } from "@daily/protocol"
 import type {Buffer} from "buffer"
@@ -125,6 +127,10 @@ export interface BridgeIPC {
   "tasks:restore": (id: Task["id"]) => Promise<Changeset>
   "tasks:delete-permanently": (id: Task["id"]) => Promise<boolean>
   "tasks:delete-all-permanently": () => Promise<number>
+
+  // === RELATIONS ===
+  "relations:get-all": () => Promise<TaskRelation[]>
+  "relations:set": (taskId: Task["id"], next: TaskRelationSets) => Promise<Changeset>
 
   // === BRANCHES ===
   "branches:get-many": () => Promise<Branch[]>

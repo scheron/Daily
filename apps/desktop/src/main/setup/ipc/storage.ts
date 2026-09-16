@@ -3,7 +3,7 @@ import {ipcMain} from "electron"
 import {toSettingsView} from "@daily/core"
 
 import type {IStorageController} from "@daily/core"
-import type {Branch, ISODate, Milestone, MoveTaskByOrderParams, Tag, Task} from "@daily/protocol"
+import type {Branch, ISODate, Milestone, MoveTaskByOrderParams, Tag, Task, TaskRelationSets} from "@daily/protocol"
 import type {PartialDeep} from "type-fest"
 
 // prettier-ignore
@@ -33,6 +33,9 @@ export function setupStorageIPC(getStorage: () => IStorageController | null) {
   ipcMain.handle("tasks:restore", (_e, id: Task["id"]) => getStorage()?.restoreTask(id))
   ipcMain.handle("tasks:delete-permanently", (_e, id: Task["id"]) => getStorage()?.permanentlyDeleteTask(id))
   ipcMain.handle("tasks:delete-all-permanently", () => getStorage()?.permanentlyDeleteAllDeletedTasks())
+
+  ipcMain.handle("relations:get-all", () => getStorage()?.getAllTaskRelations())
+  ipcMain.handle("relations:set", (_e, taskId: Task["id"], next: TaskRelationSets) => getStorage()?.setTaskRelations(taskId, next))
 
   ipcMain.handle("branches:get-many", () => getStorage()?.getBranchList())
   ipcMain.handle("branches:get-one", (_e, id: Branch["id"]) => getStorage()?.getBranch(id))

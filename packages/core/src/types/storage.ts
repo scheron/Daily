@@ -22,6 +22,8 @@ import type {
   Tag,
   Task,
   TaskEvent,
+  TaskRelation,
+  TaskRelationSets,
   TaskSearchResult,
 } from "@daily/protocol"
 import type {ReplaceValue} from "@daily/std"
@@ -35,6 +37,7 @@ export type Changeset = {
   milestones?: {upserted?: Milestone[]; removed?: Milestone["id"][]}
   tags?: {upserted?: Tag[]; removed?: Tag["id"][]}
   branches?: {upserted?: Branch[]; removed?: Branch["id"][]}
+  relations?: {upserted?: TaskRelation[]; removed?: TaskRelation["id"][]}
 }
 
 /** Nothing changed. A no-op move returns this rather than throwing. */
@@ -85,6 +88,13 @@ export interface IStorageController {
   restoreTask(id: Task["id"]): Promise<Changeset>
   permanentlyDeleteTask(id: Task["id"]): Promise<boolean>
   permanentlyDeleteAllDeletedTasks(): Promise<number>
+
+  /** Every live relation of every project. */
+  getAllTaskRelations(): Promise<TaskRelation[]>
+  /** The live tasks this task waits on and the live tasks waiting on it, within its project, resolved ones included, oldest link first. */
+  getTaskRelations(taskId: Task["id"]): Promise<{blockedBy: Task[]; blocks: Task[]}>
+  /** Makes the task's links exactly `next`, dropping what cannot be linked; `EMPTY_CHANGESET` when nothing changed. */
+  setTaskRelations(taskId: Task["id"], next: TaskRelationSets): Promise<Changeset>
 
   searchTasks(query: string): Promise<TaskSearchResult[]>
 

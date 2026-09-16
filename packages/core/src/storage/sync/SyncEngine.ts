@@ -5,7 +5,7 @@ import {logger} from "../../utils/logger"
 import {isRevisionedRemote} from "../../utils/sync/isRevisionedRemote"
 import {mergeRemoteIntoLocal} from "../../utils/sync/merge/mergeRemoteIntoLocal"
 import {buildSnapshot, buildSnapshotMeta} from "../../utils/sync/snapshot/buildSnapshot"
-import {rowToBranch, rowToMilestone, rowToTag} from "../models/_rowMappers"
+import {rowToBranch, rowToMilestone, rowToTag, rowToTaskRelation} from "../models/_rowMappers"
 
 import type {
   ILocalStorage,
@@ -16,6 +16,7 @@ import type {
   SnapshotMilestone,
   SnapshotTag,
   SnapshotTask,
+  SnapshotTaskRelation,
   SyncPacing,
   SyncRemote,
   SyncRemoteState,
@@ -398,6 +399,7 @@ export class SyncEngine {
     tags?: unknown[]
     branches?: unknown[]
     milestones?: unknown[]
+    relations?: unknown[]
     files?: unknown[]
     events?: unknown[]
     settings?: unknown
@@ -407,6 +409,7 @@ export class SyncEngine {
       (docs.tags?.length ?? 0) +
       (docs.branches?.length ?? 0) +
       (docs.milestones?.length ?? 0) +
+      (docs.relations?.length ?? 0) +
       (docs.files?.length ?? 0) +
       (docs.events?.length ?? 0) +
       (docs.settings ? 1 : 0)
@@ -522,6 +525,7 @@ type ChangesetAccumulator = {
   tags: {upserted: Map<string, SnapshotTag>; removed: Set<string>}
   branches: {upserted: Map<string, SnapshotBranch>; removed: Set<string>}
   milestones: {upserted: Map<string, SnapshotMilestone>; removed: Set<string>}
+  relations: {upserted: Map<string, SnapshotTaskRelation>; removed: Set<string>}
 }
 
 function createChangesetAccumulator(): ChangesetAccumulator {
@@ -530,6 +534,7 @@ function createChangesetAccumulator(): ChangesetAccumulator {
     tags: {upserted: new Map(), removed: new Set()},
     branches: {upserted: new Map(), removed: new Set()},
     milestones: {upserted: new Map(), removed: new Set()},
+    relations: {upserted: new Map(), removed: new Set()},
   }
 }
 
@@ -554,6 +559,7 @@ function accumulateDelta(acc: ChangesetAccumulator, toUpsert: SnapshotDocs, toRe
   accumulateCollection(acc.tags, toUpsert.tags, toRemove.tags)
   accumulateCollection(acc.branches, toUpsert.branches, toRemove.branches)
   accumulateCollection(acc.milestones, toUpsert.milestones, toRemove.milestones)
+  accumulateCollection(acc.relations, toUpsert.relations, toRemove.relations)
 }
 
 /** A task as the merge left it, resolved against `tagsById` — the final merged tag set, not just the tags a pull happened to touch. */
@@ -605,6 +611,12 @@ function buildChangeset(acc: ChangesetAccumulator, finalTags: SnapshotTag[]): Ch
     changeset.milestones = {}
     if (acc.milestones.upserted.size) changeset.milestones.upserted = [...acc.milestones.upserted.values()].map(rowToMilestone)
     if (acc.milestones.removed.size) changeset.milestones.removed = [...acc.milestones.removed]
+  }
+
+  if (acc.relations.upserted.size || acc.relations.removed.size) {
+    changeset.relations = {}
+    if (acc.relations.upserted.size) changeset.relations.upserted = [...acc.relations.upserted.values()].map(rowToTaskRelation)
+    if (acc.relations.removed.size) changeset.relations.removed = [...acc.relations.removed]
   }
 
   return changeset

@@ -4,7 +4,7 @@ import {MAIN_BRANCH_ID} from "@daily/protocol"
 import {isArray, isObjectLike, isUndefined} from "@daily/std"
 
 import type {Changeset} from "@daily/core"
-import type {Branch, Milestone, Tag, Task} from "@daily/protocol"
+import type {Branch, Milestone, Tag, Task, TaskRelation} from "@daily/protocol"
 import type {Ref} from "vue"
 
 type ChangesetTarget = {
@@ -12,6 +12,7 @@ type ChangesetTarget = {
   milestones?: Ref<Milestone[]>
   tags?: Ref<Tag[]>
   branches?: Ref<Branch[]>
+  relations?: Ref<TaskRelation[]>
 }
 
 type Syncable = {id: string; deletedAt: string | null}
@@ -34,7 +35,9 @@ type Fields = Record<string, unknown>
  *
  * Removals cascade as `LocalStorageAdapter` cascades them on a pull: a removed milestone leaves the
  * tasks that held it, a removed tag leaves every task carrying it, and a removed project takes its
- * milestones and tags with it and hands the tasks the changeset did not remove to `main`.
+ * milestones and tags with it and hands the tasks the changeset did not remove to `main`. Relations
+ * cascade from nothing and into nothing: a relation whose task has left stays in the collection, and
+ * the store's own selectors are what hide it.
  */
 export function applyChangeset(target: ChangesetTarget, changeset: Changeset): void {
   const upserted = {
@@ -42,6 +45,7 @@ export function applyChangeset(target: ChangesetTarget, changeset: Changeset): v
     milestones: upsertRows(rawRows(target.milestones), changeset.milestones?.upserted),
     tags: upsertRows(rawRows(target.tags), changeset.tags?.upserted),
     branches: upsertRows(rawRows(target.branches), changeset.branches?.upserted),
+    relations: upsertRows(rawRows(target.relations), changeset.relations?.upserted),
   }
 
   const removedProjects = new Set(changeset.branches?.removed)
@@ -56,6 +60,7 @@ export function applyChangeset(target: ChangesetTarget, changeset: Changeset): v
   assignIfChanged(target.milestones, withoutRows(upserted.milestones, removed.milestones))
   assignIfChanged(target.tags, withoutRows(upserted.tags, removed.tags))
   assignIfChanged(target.branches, withoutRows(upserted.branches, removed.branches))
+  assignIfChanged(target.relations, withoutRows(upserted.relations, new Set(changeset.relations?.removed)))
 }
 
 function rawRows<Row>(collection: Ref<Row[]> | undefined): Row[] {

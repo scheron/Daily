@@ -8,6 +8,7 @@ import {useFilterStore} from "@/stores/filter.store"
 import {useMilestonesStore} from "@/stores/milestones.store"
 import {useTagsStore} from "@/stores/tags.store"
 import {useTaskEditorStore} from "@/stores/task-editor"
+import {useTaskRelationsStore} from "@/stores/taskRelations.store"
 import {useTasksStore} from "@/stores/tasks"
 import BaseContextMenu from "@/ui/base/BaseContextMenu"
 import BaseIcon from "@/ui/base/BaseIcon"
@@ -15,6 +16,7 @@ import TaskCalendar from "@/ui/common/calendar/TaskCalendar"
 import BranchCombobox from "@/ui/common/comboboxes/BranchCombobox.vue"
 import MilestoneCombobox from "@/ui/common/comboboxes/MilestoneCombobox.vue"
 import TagsCombobox from "@/ui/common/comboboxes/TagsCombobox.vue"
+import TaskLinkCombobox from "@/ui/common/comboboxes/TaskLinkCombobox.vue"
 import DynamicTagsPanel from "@/ui/common/misc/DynamicTagsPanel.vue"
 import MarkdownContent from "@/ui/common/misc/MarkdownContent.vue"
 import EstimationPicker from "@/ui/common/pickers/EstimationPicker"
@@ -22,17 +24,19 @@ import {useConfirmUnsavedModal} from "@/ui/overlays/ConfirmUnsavedModal"
 import {cn} from "@/utils/ui/tailwindcss"
 import DeleteMenuItem from "./{fragments}/DeleteMenuItem.vue"
 import MilestoneChip from "./{fragments}/MilestoneChip.vue"
+import RelationChip from "./{fragments}/RelationChip.vue"
 import StatusSelect from "./{fragments}/StatusSelect.vue"
 import {useTaskModel} from "./useTaskModel"
 
 import type {BaseContextMenuItem, BaseContextMenuSelectEvent} from "@/ui/base/BaseContextMenu"
-import type {Branch, Tag, Task, TaskStatus} from "@daily/protocol"
+import type {Branch, Tag, Task, TaskRelationSets, TaskStatus} from "@daily/protocol"
 
 const props = defineProps<{task: Task}>()
 
 const tasksStore = useTasksStore()
 const tagsStore = useTagsStore()
 const taskEditorStore = useTaskEditorStore()
+const taskRelationsStore = useTaskRelationsStore()
 const milestonesStore = useMilestonesStore()
 const filterStore = useFilterStore()
 
@@ -53,6 +57,14 @@ const footerDayLabel = computed(() => {
 
 const hasFooter = computed(() => Boolean(footerMilestone.value) || Boolean(footerDayLabel.value) || showTime.value)
 
+const currentRelations = computed<TaskRelationSets>(() => {
+  const related = taskRelationsStore.relatedTasksByTaskId.get(props.task.id)
+  return {
+    blockedBy: (related?.blockedBy ?? []).map((task) => task.id),
+    blocks: (related?.blocks ?? []).map((task) => task.id),
+  }
+})
+
 const {canMoveUp, canMoveDown, canMoveToTop, canMoveToBottom, ...taskModel} = useTaskModel(toRef(props, "task"))
 
 const menuItems = computed<BaseContextMenuItem[]>(() => {
@@ -72,6 +84,8 @@ const menuItems = computed<BaseContextMenuItem[]>(() => {
     },
     {value: "tags", label: "Tags", icon: "tags", children: true},
     {value: "milestone", label: "Milestone", icon: "milestone", children: true},
+    {value: "blocked-by", label: "Blocked by", icon: "alert-triangle", children: true},
+    {value: "blocks", label: "Blocks", icon: "chevrons-down", children: true},
     {value: "reschedule", label: "Reschedule", icon: "calendar", children: true},
     {value: "branch", label: "Move to Project", icon: "project", children: true},
     {separator: true},
@@ -168,6 +182,11 @@ async function onMoveToBranch(branch: Branch) {
   const moved = await taskModel.moveTaskToBranch(branch.id)
   if (moved) contextMenuRef.value?.close()
 }
+
+async function onLinkTask(side: keyof TaskRelationSets, taskId: Task["id"]) {
+  await taskModel.linkTask(side, taskId)
+  contextMenuRef.value?.close()
+}
 </script>
 
 <template>
@@ -177,6 +196,7 @@ async function onMoveToBranch(branch: Branch) {
         <div class="flex w-full items-center gap-3">
           <DynamicTagsPanel :tags="tags" size="sm" />
           <div class="ml-auto flex shrink-0 items-center gap-2" data-task-dnd-ignore="true" @click.stop>
+            <RelationChip :task-id="task.id" />
             <StatusSelect :status="task.status" @update:status="taskModel.changeStatus" />
           </div>
         </div>
@@ -213,6 +233,26 @@ async function onMoveToBranch(branch: Branch) {
 
     <template #child-milestone>
       <MilestoneCombobox :task="task" @update="taskModel.updateTaskMilestone" @close="contextMenuRef?.close()" />
+    </template>
+
+    <template #child-blocked-by>
+      <TaskLinkCombobox
+        :task="task"
+        :current="currentRelations"
+        side="blockedBy"
+        @select="onLinkTask('blockedBy', $event)"
+        @close="contextMenuRef?.close()"
+      />
+    </template>
+
+    <template #child-blocks>
+      <TaskLinkCombobox
+        :task="task"
+        :current="currentRelations"
+        side="blocks"
+        @select="onLinkTask('blocks', $event)"
+        @close="contextMenuRef?.close()"
+      />
     </template>
 
     <template #child-reschedule>

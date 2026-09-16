@@ -4,15 +4,18 @@ import {defineStore} from "pinia"
 import {deepClone, isNull, notNull} from "@daily/std"
 
 import {API} from "@/api"
+import {useTaskRelationsStore} from "@/stores/taskRelations.store"
 import {useTasksStore} from "@/stores/tasks"
 import {buildRestPatch} from "./utils/buildRestPatch"
+import {sameIds} from "./utils/sameIds"
 import {shallowEqualDraft} from "./utils/shallowEqualDraft"
 
-import type {Branch, Milestone, Task} from "@daily/protocol"
+import type {Branch, Milestone, Task, TaskRelationSets} from "@daily/protocol"
 import type {TaskDraft} from "./types"
 
 export const useTaskEditorStore = defineStore("taskEditor", () => {
   const tasksStore = useTasksStore()
+  const taskRelationsStore = useTaskRelationsStore()
 
   const draft = ref<TaskDraft | null>(null)
   const draftBase = ref<TaskDraft | null>(null)
@@ -27,6 +30,10 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
   })
   const editingTask = computed(() => (notNull(editingTaskId.value) ? tasksStore.findTaskById(editingTaskId.value) : null))
   const editingTaskUpdatedAt = computed(() => editingTask.value?.updatedAt ?? null)
+  const editingTaskRelationIds = computed<TaskRelationSets | null>(() => {
+    if (isNull(editingTaskId.value)) return null
+    return relationIdsFor(editingTaskId.value)
+  })
 
   async function open(taskId: Task["id"]) {
     const task = tasksStore.findTaskById(taskId) ?? (await API.getTask(taskId))
@@ -44,6 +51,8 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
       branchId: params.branchId,
       scheduled: null,
       milestoneId: params.milestoneId,
+      blockedBy: [],
+      blocks: [],
     }
     draftBase.value = null
     editingTaskId.value = null
@@ -56,6 +65,11 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
     if (updates.status === "backlog") next.scheduled = null
     else if (updates.scheduled && draft.value.status === "backlog") next.status = "active"
 
+    if (updates.branchId !== undefined && updates.branchId !== draft.value.branchId) {
+      if (updates.blockedBy === undefined) next.blockedBy = []
+      if (updates.blocks === undefined) next.blocks = []
+    }
+
     draft.value = next
   }
 
@@ -65,7 +79,16 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
       clear()
       return
     }
-    draft.value = deepClone(draftBase.value)
+    const base = draftBase.value
+    const restored = deepClone(base)
+
+    if (notNull(editingTaskId.value)) {
+      const relationIds = relationIdsFor(editingTaskId.value)
+      draft.value = {...restored, blockedBy: relationIds.blockedBy, blocks: relationIds.blocks}
+      draftBase.value = {...base, blockedBy: [...relationIds.blockedBy], blocks: [...relationIds.blocks]}
+    } else {
+      draft.value = restored
+    }
   }
 
   async function commit() {
@@ -73,7 +96,7 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
     const next = draft.value
 
     if (isNull(editingTaskId.value)) {
-      await tasksStore.createTask({
+      const created = await tasksStore.createTask({
         content: next.content,
         tags: next.tags,
         estimatedTime: next.estimatedTime,
@@ -82,6 +105,11 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
         status: next.status,
         milestoneId: next.milestoneId,
       })
+
+      if (created && (next.blockedBy.length || next.blocks.length)) {
+        await taskRelationsStore.setTaskRelations(created.id, {blockedBy: next.blockedBy, blocks: next.blocks})
+      }
+
       draftBase.value = deepClone(next)
       return
     }
@@ -108,6 +136,10 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
           if (scheduleChanged && next.scheduled) await tasksStore.moveTask(id, next.scheduled.date)
         }
       }
+
+      if (!sameIds(next.blockedBy, base.blockedBy) || !sameIds(next.blocks, base.blocks)) {
+        await taskRelationsStore.setTaskRelations(id, {blockedBy: next.blockedBy, blocks: next.blocks})
+      }
     } else {
       await tasksStore.updateTask(id, {
         content: next.content,
@@ -117,6 +149,7 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
         status: next.status,
         milestoneId: next.milestoneId,
       })
+      await taskRelationsStore.setTaskRelations(id, {blockedBy: next.blockedBy, blocks: next.blocks})
     }
 
     draftBase.value = deepClone(next)
@@ -134,6 +167,7 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
   }
 
   function seedFrom(task: Task) {
+    const relationIds = relationIdsFor(task.id)
     const next: TaskDraft = {
       content: task.content,
       tags: [...task.tags],
@@ -143,6 +177,8 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
       branchId: task.branchId || null,
       scheduled: task.scheduled ? {...task.scheduled} : null,
       milestoneId: task.milestoneId,
+      blockedBy: relationIds.blockedBy,
+      blocks: relationIds.blocks,
     }
     draft.value = next
     draftBase.value = deepClone(next)
@@ -153,9 +189,25 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
     return Boolean(d.content.trim().length || d.tags.length || d.estimatedTime || d.spentTime)
   }
 
+  function relationIdsFor(taskId: Task["id"]): TaskRelationSets {
+    const related = taskRelationsStore.relatedTasksByTaskId.get(taskId)
+    return {
+      blockedBy: related ? related.blockedBy.map((task) => task.id) : [],
+      blocks: related ? related.blocks.map((task) => task.id) : [],
+    }
+  }
+
   watch(editingTaskUpdatedAt, (updatedAt) => {
     if (isNull(updatedAt) || isDirty.value) return
     if (editingTask.value) seedFrom(editingTask.value)
+  })
+
+  watch(editingTaskRelationIds, (ids) => {
+    if (!ids || !draft.value || !draftBase.value || isDirty.value) return
+    if (sameIds(ids.blockedBy, draft.value.blockedBy) && sameIds(ids.blocks, draft.value.blocks)) return
+
+    draft.value = {...draft.value, blockedBy: ids.blockedBy, blocks: ids.blocks}
+    draftBase.value = {...draftBase.value, blockedBy: [...ids.blockedBy], blocks: [...ids.blocks]}
   })
 
   return {

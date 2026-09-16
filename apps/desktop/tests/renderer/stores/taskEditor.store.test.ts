@@ -3,6 +3,8 @@ import {nextTick, ref} from "vue"
 import {createPinia, setActivePinia} from "pinia"
 import {beforeEach, describe, expect, it, vi} from "vitest"
 
+import {toTaskRelationId} from "@daily/protocol"
+
 import {mockBridgeIPC} from "../../helpers/bridgeIPC"
 
 function makeTask(overrides = {}) {
@@ -333,5 +335,97 @@ describe("taskEditorStore — external sync", () => {
 
     expect(editor.draft?.content).toBe("my edits")
     expect(editor.draft?.status).toBe("active")
+  })
+})
+
+describe("taskEditorStore — relations in the draft", () => {
+  beforeEach(() => {
+    mockBridgeIPC()
+    setActivePinia(createPinia())
+  })
+
+  async function setupStoresWithRelations() {
+    const {useTasksStore} = await import("../../../src/renderer/src/stores/tasks/tasks.store")
+    const {useTaskEditorStore} = await import("../../../src/renderer/src/stores/task-editor")
+    const {useTaskRelationsStore} = await import("../../../src/renderer/src/stores/taskRelations.store")
+    const tasks = useTasksStore()
+    const relations = useTaskRelationsStore()
+    const editor = useTaskEditorStore()
+    tasks.createTask = vi.fn().mockResolvedValue({id: "new-task"})
+    tasks.updateTask = vi.fn().mockResolvedValue(undefined)
+    tasks.moveTask = vi.fn().mockResolvedValue(undefined)
+    tasks.moveTaskToBranch = vi.fn().mockResolvedValue(undefined)
+    relations.setTaskRelations = vi.fn().mockResolvedValue(true)
+    return {tasks, relations, editor}
+  }
+
+  function makeRelation(blockerId, blockedId, overrides = {}) {
+    return {
+      id: toTaskRelationId(blockerId, blockedId),
+      blockerId,
+      blockedId,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      deletedAt: null,
+      ...overrides,
+    }
+  }
+
+  it("carries_TC-20_relations_through_open_patch_commit_an_external_arrival_and_discard", async () => {
+    const {tasks, relations, editor} = await setupStoresWithRelations()
+
+    tasks.tasks = [
+      makeTask({id: "A", branchId: "P"}),
+      makeTask({id: "B", branchId: "P"}),
+      makeTask({id: "C", branchId: "P"}),
+      makeTask({id: "D", branchId: "P"}),
+      makeTask({id: "E", branchId: "P"}),
+      makeTask({id: "F", branchId: "P"}),
+    ]
+    relations.relations = [makeRelation("A", "B"), makeRelation("C", "B"), makeRelation("B", "D")]
+
+    await editor.open("B")
+    expect(editor.draft?.blockedBy).toEqual(["A", "C"])
+    expect(editor.draft?.blocks).toEqual(["D"])
+    expect(editor.isDirty).toBe(false)
+
+    editor.patch({blockedBy: ["A"]})
+    expect(editor.isDirty).toBe(true)
+
+    await editor.commit()
+    expect(relations.setTaskRelations).toHaveBeenCalledTimes(1)
+    expect(relations.setTaskRelations).toHaveBeenCalledWith("B", {blockedBy: ["A"], blocks: ["D"]})
+    expect(editor.isDirty).toBe(false)
+
+    relations.relations = [makeRelation("A", "B"), makeRelation("B", "D"), makeRelation("E", "B")]
+    await nextTick()
+    expect(editor.draft?.blockedBy).toEqual(["A", "E"])
+    expect(editor.draft?.blocks).toEqual(["D"])
+    expect(editor.isDirty).toBe(false)
+
+    editor.patch({blocks: ["D", "F"]})
+    expect(editor.isDirty).toBe(true)
+
+    relations.relations = [...relations.relations, makeRelation("B", "C")]
+    await nextTick()
+    expect(editor.draft?.blockedBy).toEqual(["A", "E"])
+    expect(editor.draft?.blocks).toEqual(["D", "F"])
+    expect(editor.isDirty).toBe(true)
+
+    editor.discard()
+    expect(editor.draft?.blockedBy).toEqual(["A", "E"])
+    expect(editor.draft?.blocks).toEqual(["D", "C"])
+    expect(editor.isDirty).toBe(false)
+
+    editor.patch({branchId: "Q"})
+    expect(editor.draft?.blockedBy).toEqual([])
+    expect(editor.draft?.blocks).toEqual([])
+
+    editor.openNew({branchId: "P"})
+    editor.patch({content: "New task"})
+    editor.patch({blockedBy: ["A"]})
+
+    await editor.commit()
+    expect(relations.setTaskRelations).toHaveBeenLastCalledWith("new-task", {blockedBy: ["A"], blocks: []})
   })
 })

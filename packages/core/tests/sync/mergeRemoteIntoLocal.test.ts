@@ -52,6 +52,10 @@ function task(id, branchId, over = {}) {
   }
 }
 
+function relation(id, blockerId, blockedId, over = {}) {
+  return {id, blocker_id: blockerId, blocked_id: blockedId, created_at: iso(0), updated_at: NOW, deleted_at: null, ...over}
+}
+
 function assertNoDanglingBranchRefs(merge) {
   const branchIds = new Set(merge.resultDocs.branches.map((b) => b.id))
   for (const t of merge.toUpsert.tasks) {
@@ -288,5 +292,91 @@ describe("mergeRemoteIntoLocal — a version-5 snapshot from before this plan", 
     const merge = mergeRemoteIntoLocal(local, remoteBeforeMilestones, "pull", GC)
 
     expect(merge.resultDocs.milestones.some((m) => m.id === "m1")).toBe(true)
+  })
+})
+
+describe("mergeRemoteIntoLocal — relations", () => {
+  const RECENT = NOW
+
+  it("passes_TC-9_a_relation_through_untouched_when_the_remote_is_a_version-5_snapshot_with_no_relations_key", () => {
+    const local = docs({
+      branches: [branch("main")],
+      tasks: [task("x", "main"), task("y", "main")],
+      relations: [relation("r1", "x", "y", {updated_at: iso(1000)})],
+    })
+    const remoteBeforeRelations = {
+      tasks: [task("x", "main"), task("y", "main")],
+      tags: [],
+      branches: [branch("main")],
+      milestones: [],
+      files: [],
+      events: [],
+      settings: null,
+    }
+
+    const merge = mergeRemoteIntoLocal(local, remoteBeforeRelations, "pull", GC)
+
+    expect(merge.resultDocs.relations.find((r) => r.id === "r1")).toEqual(relation("r1", "x", "y", {updated_at: iso(1000)}))
+  })
+
+  it("lets_TC-9_a_newer_remote_tombstone_win_the_LWW_merge_over_an_older_local_relation", () => {
+    const t1 = iso(Date.now() - 2000)
+    const t2 = iso(Date.now() - 1000)
+    const local = docs({
+      branches: [branch("main")],
+      tasks: [task("x", "main"), task("y", "main")],
+      relations: [relation("r1", "x", "y", {updated_at: t1})],
+    })
+    const remote = docs({
+      branches: [branch("main")],
+      tasks: [task("x", "main"), task("y", "main")],
+      relations: [relation("r1", "x", "y", {updated_at: t2, deleted_at: t2})],
+    })
+
+    const merge = mergeRemoteIntoLocal(local, remote, "pull", GC)
+
+    expect(merge.resultDocs.relations.find((r) => r.id === "r1")?.deleted_at).toBe(t2)
+  })
+
+  it("tombstones_TC-9_a_live_relation_in_the_upsert_when_its_blocked_task_is_soft-deleted", () => {
+    const state = () =>
+      docs({
+        branches: [branch("main")],
+        tasks: [task("x", "main"), task("y", "main", {deleted_at: RECENT})],
+        relations: [relation("r1", "x", "y", {updated_at: iso(300)})],
+      })
+
+    const merge = mergeRemoteIntoLocal(state(), state(), "pull", GC)
+
+    expect(merge.toUpsert.relations.find((r) => r.id === "r1")?.deleted_at).toBeTruthy()
+    expect(merge.resultDocs.relations.find((r) => r.id === "r1")?.deleted_at).toBeTruthy()
+  })
+
+  it("tombstones_TC-9_a_live_relation_in_the_upsert_when_its_two_tasks_end_up_in_different_projects", () => {
+    const state = () =>
+      docs({
+        branches: [branch("main"), branch("proj")],
+        tasks: [task("x", "proj"), task("y", "main")],
+        relations: [relation("r1", "x", "y", {updated_at: iso(300)})],
+      })
+
+    const merge = mergeRemoteIntoLocal(state(), state(), "pull", GC)
+
+    expect(merge.toUpsert.relations.find((r) => r.id === "r1")?.deleted_at).toBeTruthy()
+    expect(merge.resultDocs.relations.find((r) => r.id === "r1")?.deleted_at).toBeTruthy()
+  })
+
+  it("drops_TC-9_a_relation_from_the_result_and_names_it_in_toRemove_when_one_of_its_tasks_is_entirely_absent", () => {
+    const state = () =>
+      docs({
+        branches: [branch("main")],
+        tasks: [task("x", "main")],
+        relations: [relation("r1", "x", "y", {updated_at: iso(300)})],
+      })
+
+    const merge = mergeRemoteIntoLocal(state(), state(), "pull", GC)
+
+    expect(merge.resultDocs.relations.some((r) => r.id === "r1")).toBe(false)
+    expect(merge.toRemove.relations).toContain("r1")
   })
 })

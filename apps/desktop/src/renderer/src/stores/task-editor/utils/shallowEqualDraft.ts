@@ -1,3 +1,4 @@
+import {sameIds} from "./sameIds"
 import {sameTagIds} from "./sameTagIds"
 
 import type {TaskDraft} from "../types"
@@ -13,6 +14,8 @@ export function shallowEqualDraft(a: TaskDraft, b: TaskDraft): boolean {
     a.scheduled?.date === b.scheduled?.date &&
     a.scheduled?.time === b.scheduled?.time &&
     a.scheduled?.timezone === b.scheduled?.timezone &&
-    sameTagIds(a.tags, b.tags)
+    sameTagIds(a.tags, b.tags) &&
+    sameIds(a.blockedBy, b.blockedBy) &&
+    sameIds(a.blocks, b.blocks)
   )
 }

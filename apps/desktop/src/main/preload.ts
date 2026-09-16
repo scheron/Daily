@@ -28,6 +28,8 @@ import type {
   Tag,
   Task,
   TaskEvent,
+  TaskRelation,
+  TaskRelationSets,
   TaskSearchResult,
 } from "@daily/protocol"
 import type {
@@ -128,6 +130,9 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "tasks:restore": (id: Task["id"]) => ipcRenderer.invoke("tasks:restore", id) as Promise<Changeset>,
   "tasks:delete-permanently": (id: Task["id"]) => ipcRenderer.invoke("tasks:delete-permanently", id) as Promise<boolean>,
   "tasks:delete-all-permanently": () => ipcRenderer.invoke("tasks:delete-all-permanently") as Promise<number>,
+
+  "relations:get-all": () => ipcRenderer.invoke("relations:get-all") as Promise<TaskRelation[]>,
+  "relations:set": (taskId: Task["id"], next: TaskRelationSets) => ipcRenderer.invoke("relations:set", taskId, next) as Promise<Changeset>,
 
   "branches:get-many": () => ipcRenderer.invoke("branches:get-many") as Promise<Branch[]>,
   "branches:get-one": (id: Branch["id"]) => ipcRenderer.invoke("branches:get-one", id) as Promise<Branch | null>,

@@ -556,6 +556,63 @@ describe("LocalStorageAdapter", () => {
     })
   })
 
+  describe("relations", () => {
+    it("round-trips_TC-10_through_upsert_and_load_deletes_by_id_cascades_off_a_deleted_task_and_purges_an_expired_tombstone", async () => {
+      insertTask(db, "x", "blocker")
+      insertTask(db, "y", "blocked")
+
+      await adapter.upsertDocs({
+        tasks: [],
+        tags: [],
+        branches: [],
+        milestones: [],
+        files: [],
+        events: [],
+        settings: null,
+        relations: [
+          {id: "live-rel", blocker_id: "x", blocked_id: "y", created_at: now, updated_at: now, deleted_at: null},
+          {id: "gone-rel", blocker_id: "y", blocked_id: "x", created_at: now, updated_at: now, deleted_at: now},
+        ],
+      })
+
+      const loaded = await adapter.loadAllDocs()
+      const liveRow = loaded.relations.find((r) => r.id === "live-rel")
+      const goneRow = loaded.relations.find((r) => r.id === "gone-rel")
+      expect(liveRow).toMatchObject({id: "live-rel", blocker_id: "x", blocked_id: "y", deleted_at: null})
+      expect(goneRow).toMatchObject({id: "gone-rel", blocker_id: "y", blocked_id: "x", deleted_at: now})
+
+      await adapter.deleteDocs({relations: ["gone-rel"]})
+      expect(db.prepare("SELECT * FROM task_relations WHERE id = 'gone-rel'").get()).toBeUndefined()
+      expect(db.prepare("SELECT * FROM task_relations WHERE id = 'live-rel'").get()).toBeDefined()
+
+      await adapter.upsertDocs({
+        tasks: [],
+        tags: [],
+        branches: [],
+        milestones: [],
+        files: [],
+        events: [],
+        settings: null,
+        relations: [{id: "x-y-again", blocker_id: "x", blocked_id: "y", created_at: now, updated_at: now, deleted_at: null}],
+      })
+      await adapter.deleteDocs({tasks: ["x"]})
+      expect(db.prepare("SELECT * FROM task_relations WHERE blocker_id = 'x' OR blocked_id = 'x'").all()).toHaveLength(0)
+
+      const daysAgo = (n) => new Date(Date.now() - n * 24 * 60 * 60 * 1000).toISOString()
+      db.prepare("INSERT INTO task_relations (id, blocker_id, blocked_id, created_at, updated_at, deleted_at) VALUES (?, ?, ?, ?, ?, ?)").run(
+        "expired-rel",
+        "y",
+        "y",
+        now,
+        now,
+        daysAgo(8),
+      )
+      const purged = await adapter.purgeExpiredDeleted(7 * 24 * 60 * 60 * 1000)
+      expect(purged.relations).toBe(1)
+      expect(db.prepare("SELECT * FROM task_relations WHERE id = 'expired-rel'").get()).toBeUndefined()
+    })
+  })
+
   describe("the snapshot a branch GC publishes", () => {
     const GC = 7 * 24 * 60 * 60 * 1000
 

@@ -610,4 +610,38 @@ describe("the changeset a pull emits", () => {
     expect(changeset?.milestones).toBeUndefined()
     expect(changeset?.branches).toBeUndefined()
   })
+
+  /**
+   * TC-11 · US-6 · gate-b: N/A
+   * given: a remote snapshot carrying one relation the local side does not have
+   * when: a pull merges them
+   * then: the changeset the pull emits carries that relation, converted to the renderer's
+   * camelCase shape, in `relations.upserted`
+   */
+  it("carries_TC-11_a_relations_upsert_from_a_pulls_merge_into_the_emitted_changeset", async () => {
+    local.docs.tasks = [makeTask("x", "2026-07-18T09:00:00.000Z"), makeTask("y", "2026-07-18T09:00:00.000Z")]
+
+    const relation = {
+      id: "r1",
+      blocker_id: "x",
+      blocked_id: "y",
+      created_at: "2026-07-18T09:00:00.000Z",
+      updated_at: "2026-07-18T09:00:00.000Z",
+      deleted_at: null,
+    }
+
+    const remote = new FakeRemote()
+    remote.snapshot = buildSnapshot({...emptyDocs(), relations: [relation]})
+
+    const {engine, onDataChanged} = makeEngine(local, [{id: "a", adapter: remote}])
+
+    await engine.syncOnce("pull")
+
+    expect(onDataChanged).toHaveBeenCalledTimes(1)
+    const changeset = onDataChanged.mock.calls[0][0]
+
+    expect(changeset?.relations?.upserted).toEqual([
+      {id: "r1", blockerId: "x", blockedId: "y", createdAt: relation.created_at, updatedAt: relation.updated_at, deletedAt: null},
+    ])
+  })
 })

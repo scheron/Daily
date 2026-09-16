@@ -29,6 +29,8 @@ export function mockBridgeIPC(overrides = {}) {
     "tasks:delete": vi.fn().mockResolvedValue(true),
     "tasks:move-by-order": noop,
     "tasks:move-to-branch": vi.fn().mockResolvedValue(true),
+    "relations:get-all": vi.fn().mockResolvedValue([]),
+    "relations:set": vi.fn().mockResolvedValue({}),
     "tags:get-many": vi.fn().mockResolvedValue([]),
     "tags:create": noop,
     "tags:delete": noop,

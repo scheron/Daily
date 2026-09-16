@@ -9,4 +9,6 @@ export type TaskDraft = {
   branchId: Branch["id"] | null
   scheduled: Task["scheduled"]
   milestoneId: Task["milestoneId"]
+  blockedBy: Task["id"][]
+  blocks: Task["id"][]
 }

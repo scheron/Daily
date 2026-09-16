@@ -8,6 +8,7 @@ import type {
   SnapshotTag,
   SnapshotTask,
   SnapshotTaskEvent,
+  SnapshotTaskRelation,
 } from "@daily/protocol"
 import type {SqliteDriver} from "../../../database/SqliteDriver"
 
@@ -19,11 +20,12 @@ export class LocalStorageAdapter implements ILocalStorage {
     const tags = this._loadTags()
     const branches = this._loadBranches()
     const milestones = this._loadMilestones()
+    const relations = this._loadRelations()
     const files = this._loadFiles()
     const events = this._loadTaskEvents()
     const settings = this._loadSettings()
 
-    return {tasks, tags, branches, milestones, files, events, settings}
+    return {tasks, tags, branches, milestones, relations, files, events, settings}
   }
 
   async upsertDocs(docs: SnapshotDocs): Promise<void> {
@@ -160,6 +162,23 @@ export class LocalStorageAdapter implements ILocalStorage {
         }
       }
 
+      /* No FKs: a relation can arrive before its tasks, and sync GC removes task rows on its own schedule. */
+      if (docs.relations?.length) {
+        const stmt = this.db.prepare(`
+          INSERT INTO task_relations (id, blocker_id, blocked_id, created_at, updated_at, deleted_at)
+          VALUES (?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            blocker_id = excluded.blocker_id,
+            blocked_id = excluded.blocked_id,
+            created_at = excluded.created_at,
+            updated_at = excluded.updated_at,
+            deleted_at = excluded.deleted_at
+        `)
+        for (const r of docs.relations) {
+          stmt.run(r.id, r.blocker_id, r.blocked_id, r.created_at, r.updated_at, r.deleted_at)
+        }
+      }
+
       if (docs.settings) {
         const {id, created_at, updated_at, sync: _localSync, ...data} = docs.settings as SnapshotSettings & {sync?: unknown}
         this.db
@@ -198,7 +217,9 @@ export class LocalStorageAdapter implements ILocalStorage {
    * a synced peer still holds: both sides drop the same tombstone past the same age.
    * @returns per-collection counts of physically removed rows.
    */
-  async purgeExpiredDeleted(ttlMs: number): Promise<{tasks: number; tags: number; branches: number; milestones: number; files: number}> {
+  async purgeExpiredDeleted(
+    ttlMs: number,
+  ): Promise<{tasks: number; tags: number; branches: number; milestones: number; relations: number; files: number}> {
     const cutoff = new Date(Date.now() - ttlMs).toISOString()
     const expiredIds = (table: string): string[] =>
       (this.db.prepare(`SELECT id FROM ${table} WHERE deleted_at IS NOT NULL AND deleted_at <= ?`).all(cutoff) as {id: string}[]).map((row) => row.id)
@@ -207,19 +228,35 @@ export class LocalStorageAdapter implements ILocalStorage {
     const tags = expiredIds("tags")
     const branches = expiredIds("branches")
     const milestones = expiredIds("milestones")
+    const relations = expiredIds("task_relations")
     const files = expiredIds("files")
 
-    await this.deleteDocs({tasks, tags, branches, milestones, files})
+    await this.deleteDocs({tasks, tags, branches, milestones, relations, files})
 
-    return {tasks: tasks.length, tags: tags.length, branches: branches.length, milestones: milestones.length, files: files.length}
+    return {
+      tasks: tasks.length,
+      tags: tags.length,
+      branches: branches.length,
+      milestones: milestones.length,
+      relations: relations.length,
+      files: files.length,
+    }
   }
 
-  async deleteDocs(ids: {tasks?: string[]; tags?: string[]; branches?: string[]; milestones?: string[]; files?: string[]}): Promise<void> {
+  async deleteDocs(ids: {
+    tasks?: string[]
+    tags?: string[]
+    branches?: string[]
+    milestones?: string[]
+    relations?: string[]
+    files?: string[]
+  }): Promise<void> {
     const transaction = this.db.transaction(() => {
       if (ids.tasks?.length) {
         for (const id of ids.tasks) {
           this.db.prepare(`DELETE FROM task_tags WHERE task_id = ?`).run(id)
           this.db.prepare(`DELETE FROM task_attachments WHERE task_id = ?`).run(id)
+          this.db.prepare(`DELETE FROM task_relations WHERE blocker_id = ? OR blocked_id = ?`).run(id, id)
           this.db.prepare(`DELETE FROM tasks WHERE id = ?`).run(id)
         }
       }
@@ -235,6 +272,12 @@ export class LocalStorageAdapter implements ILocalStorage {
         for (const id of ids.milestones) {
           clearTasksStmt.run(id)
           deleteMilestoneStmt.run(id)
+        }
+      }
+      if (ids.relations?.length) {
+        const deleteRelationStmt = this.db.prepare(`DELETE FROM task_relations WHERE id = ?`)
+        for (const id of ids.relations) {
+          deleteRelationStmt.run(id)
         }
       }
       /* A branch's tags and milestones go with it: both columns are NOT NULL REFERENCES branches(id), so leaving one behind aborts the delete. */
@@ -326,6 +369,17 @@ export class LocalStorageAdapter implements ILocalStorage {
       description: row.description,
       target_date: row.target_date ?? null,
       order_index: row.order_index,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+      deleted_at: row.deleted_at,
+    }))
+  }
+
+  private _loadRelations(): SnapshotTaskRelation[] {
+    return (this.db.prepare(`SELECT * FROM task_relations`).all() as any[]).map((row) => ({
+      id: row.id,
+      blocker_id: row.blocker_id,
+      blocked_id: row.blocked_id,
       created_at: row.created_at,
       updated_at: row.updated_at,
       deleted_at: row.deleted_at,

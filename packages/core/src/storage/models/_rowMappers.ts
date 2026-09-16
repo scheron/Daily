@@ -1,7 +1,7 @@
 import {DEFAULT_ACCENT_ID, DEFAULT_BASE_ID, MAIN_BRANCH_ID, WINDOWS_CONFIG} from "@daily/protocol"
 import {deepMerge, isNumber, notNull} from "@daily/std"
 
-import type {Branch, File, Milestone, Settings, SyncSettings, Tag, Task, TypographySettings} from "@daily/protocol"
+import type {Branch, File, Milestone, Settings, SyncSettings, Tag, Task, TaskRelation, TypographySettings} from "@daily/protocol"
 
 type TaskRow = {
   id: string
@@ -49,6 +49,15 @@ type MilestoneRow = {
   description: string
   target_date: string | null
   order_index: number
+  created_at: string
+  updated_at: string
+  deleted_at: string | null
+}
+
+type TaskRelationRow = {
+  id: string
+  blocker_id: string
+  blocked_id: string
   created_at: string
   updated_at: string
   deleted_at: string | null
@@ -162,6 +171,17 @@ export function rowToMilestone(row: MilestoneRow): Milestone {
   }
 }
 
+export function rowToTaskRelation(row: TaskRelationRow): TaskRelation {
+  return {
+    id: row.id,
+    blockerId: row.blocker_id,
+    blockedId: row.blocked_id,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    deletedAt: row.deleted_at,
+  }
+}
+
 export function rowToFile(row: FileRow): File {
   return {
     id: row.id,
@@ -239,7 +259,7 @@ export function rowToSettings(row: SettingsRow): Settings {
   }
 }
 
-export type {TaskRow, TagRow, BranchRow, MilestoneRow, FileRow, SettingsRow}
+export type {TaskRow, TagRow, BranchRow, MilestoneRow, TaskRelationRow, FileRow, SettingsRow}
 
 const OLD_THEME_TYPE: Record<string, "light" | "dark"> = {
   "github-light": "light",

@@ -53,6 +53,18 @@ function makeMilestone(overrides = {}) {
   }
 }
 
+function makeRelation(overrides = {}) {
+  return {
+    id: "r1",
+    blockerId: "a",
+    blockedId: "b",
+    createdAt: "2026-03-24T00:00:00.000Z",
+    updatedAt: "2026-03-24T00:00:00.000Z",
+    deletedAt: null,
+    ...overrides,
+  }
+}
+
 function makeBranch(overrides = {}) {
   return {
     id: "main",
@@ -146,5 +158,26 @@ describe("applyChangeset", () => {
     expect(milestones.value.map((m) => m.id)).toEqual(["main-m"])
     expect(tags.value.map((t) => t.id)).toEqual(["main-tag"])
     expect(branches.value.map((b) => b.id)).toEqual(["main"])
+  })
+
+  it("keeps_TC-12_only_the_still-live_relation_after_an_upsert_and_a_removal_and_reuses_the_same_row_object_on_a_repeat", () => {
+    const r1 = makeRelation({id: "r1"})
+    const r2 = makeRelation({id: "r2"})
+    const relations = ref([r1, r2])
+
+    const changeset = {
+      relations: {
+        upserted: [makeRelation({id: "r3"}), {...r1, deletedAt: "2026-09-14T10:00:00.000Z"}],
+        removed: ["r2"],
+      },
+    }
+
+    applyChangeset({relations}, changeset)
+    const survivorAfterFirst = relations.value.find((r) => r.id === "r3")
+    expect(relations.value.map((r) => r.id)).toEqual(["r3"])
+
+    applyChangeset({relations}, structuredClone(changeset))
+    expect(relations.value.map((r) => r.id)).toEqual(["r3"])
+    expect(relations.value.find((r) => r.id === "r3")).toBe(survivorAfterFirst)
   })
 })

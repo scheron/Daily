@@ -4,7 +4,7 @@ import type {Snapshot, SnapshotDocs, SnapshotMeta, SnapshotSettings} from "@dail
 
 export function buildSnapshot(docs: SnapshotDocs): Snapshot {
   return {
-    version: 5,
+    version: 6,
     docs,
     meta: buildSnapshotMeta(docs),
   }
@@ -21,7 +21,8 @@ export function buildSnapshotMeta(docs: SnapshotDocs): SnapshotMeta {
   const eventsHash = computeCollectionHash(docs.events)
   const settingsHash = computeSettingsHash(docs.settings)
   const milestonesHash = computeCollectionHash(docs.milestones ?? [])
-  const combinedHash = computeCombinedHash(tasksHash, tagsHash, branchesHash, filesHash, eventsHash, settingsHash, milestonesHash)
+  const relationsHash = computeCollectionHash(docs.relations ?? [])
+  const combinedHash = computeCombinedHash(tasksHash, tagsHash, branchesHash, filesHash, eventsHash, settingsHash, milestonesHash, relationsHash)
 
   return {
     updatedAt: new Date().toISOString(),
@@ -37,8 +38,9 @@ function computeCombinedHash(
   eventsHash: string,
   settingsHash: string,
   milestonesHash: string,
+  relationsHash: string,
 ): string {
-  const combined = [tasksHash, tagsHash, branchesHash, filesHash, eventsHash, settingsHash, milestonesHash].join("")
+  const combined = [tasksHash, tagsHash, branchesHash, filesHash, eventsHash, settingsHash, milestonesHash, relationsHash].join("")
   return crypto.createHash("sha256").update(combined).digest("hex")
 }
 

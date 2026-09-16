@@ -3,7 +3,7 @@ import {mergeAppendOnly} from "./mergeAppendOnly"
 import {mergeCollections} from "./mergeCollections"
 import {mergeSettings} from "./mergeSettings"
 
-import type {MergeResult, SnapshotDocs, SyncStrategy} from "@daily/protocol"
+import type {MergeResult, SnapshotDocs, SnapshotTaskRelation, SyncStrategy} from "@daily/protocol"
 
 /**
  * Merge remote snapshot into local using pure LWW strategy.
@@ -15,6 +15,7 @@ export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: Snapsh
 
   const toRemove: MergeResult["toRemove"] = {}
   let changes = 0
+  const now = new Date().toISOString()
 
   const {result: mergedTasks, toGc: gcTasks, adoptedOnTie: adoptedTasks} = mergeCollections(local.tasks, remote.tasks, strategy, gcIntervalMs)
   const {result: mergedTags, toGc: gcTags, adoptedOnTie: adoptedTags} = mergeCollections(local.tags, remote.tags, strategy, gcIntervalMs)
@@ -28,6 +29,11 @@ export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: Snapsh
     toGc: gcMilestones,
     adoptedOnTie: adoptedMilestones,
   } = mergeCollections(local.milestones, remote.milestones, strategy, gcIntervalMs)
+  const {
+    result: mergedRelations,
+    toGc: gcRelations,
+    adoptedOnTie: adoptedRelations,
+  } = mergeCollections(local.relations, remote.relations, strategy, gcIntervalMs)
   const {result: mergedFiles, toGc: gcFiles, adoptedOnTie: adoptedFiles} = mergeCollections(local.files, remote.files, strategy, gcIntervalMs)
 
   const mergedSettings = mergeSettings(local.settings, remote.settings, strategy)
@@ -56,11 +62,35 @@ export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: Snapsh
         }))
       : mergedTasks
 
+  const tasksById = new Map(tasksAfterBranchGc.map((t) => [t.id, t]))
+  const droppedRelationIds: string[] = []
+  let tombstonedRelationsCount = 0
+  const relationsAfterTaskGc = mergedRelations.reduce<SnapshotTaskRelation[]>((acc, relation) => {
+    const blocker = tasksById.get(relation.blocker_id)
+    const blocked = tasksById.get(relation.blocked_id)
+
+    if (!blocker || !blocked) {
+      droppedRelationIds.push(relation.id)
+      return acc
+    }
+
+    const bothLive = blocker.deleted_at === null && blocked.deleted_at === null && blocker.branch_id === blocked.branch_id
+    if (relation.deleted_at === null && !bothLive) {
+      tombstonedRelationsCount++
+      acc.push({...relation, deleted_at: now, updated_at: now})
+      return acc
+    }
+
+    acc.push(relation)
+    return acc
+  }, [])
+
   const resultDocs: SnapshotDocs = {
     tasks: tasksAfterBranchGc,
     tags: tagsAfterBranchGc,
     branches: mergedBranches,
     milestones: milestonesAfterBranchGc,
+    relations: relationsAfterTaskGc,
     files: mergedFiles,
     events: mergedEvents,
     settings: mergedSettings,
@@ -71,6 +101,7 @@ export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: Snapsh
     tags: [],
     branches: [],
     milestones: [],
+    relations: [],
     files: [],
     events: [],
     settings: null,
@@ -110,6 +141,15 @@ export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: Snapsh
   } else if (adoptedMilestones.length) {
     toUpsert.milestones = adoptedMilestones
     changes += adoptedMilestones.length
+  }
+
+  if (hasChanges(local.relations, relationsAfterTaskGc) || gcRelations.length || droppedRelationIds.length || tombstonedRelationsCount) {
+    toUpsert.relations = relationsAfterTaskGc
+    if (gcRelations.length || droppedRelationIds.length) toRemove.relations = [...gcRelations, ...droppedRelationIds]
+    changes += relationsAfterTaskGc.length + gcRelations.length + droppedRelationIds.length
+  } else if (adoptedRelations.length) {
+    toUpsert.relations = adoptedRelations
+    changes += adoptedRelations.length
   }
 
   if (hasChanges(local.files, mergedFiles) || gcFiles.length) {

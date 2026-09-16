@@ -31,8 +31,8 @@ describe("assertKnownSnapshotVersion", () => {
     expect(() => assertKnownSnapshotVersion({version: "4"})).not.toThrow()
   })
 
-  it("accepts_TC-11_version_5_and_aborts_with_SnapshotVersionAheadError_for_version_6", () => {
-    expect(() => assertKnownSnapshotVersion({version: 5})).not.toThrow()
-    expect(() => assertKnownSnapshotVersion({version: 6})).toThrow(SnapshotVersionAheadError)
+  it("accepts_TC-8_version_6_and_aborts_with_SnapshotVersionAheadError_for_version_7", () => {
+    expect(() => assertKnownSnapshotVersion({version: 6})).not.toThrow()
+    expect(() => assertKnownSnapshotVersion({version: 7})).toThrow(SnapshotVersionAheadError)
   })
 })

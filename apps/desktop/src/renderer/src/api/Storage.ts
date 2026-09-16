@@ -1,7 +1,19 @@
 import {DateTime} from "luxon"
 
 import type {Changeset} from "@daily/core"
-import type {Branch, ISODate, Milestone, MoveTaskByOrderParams, Tag, Task, TaskEvent, TaskSearchResult, TaskStatus} from "@daily/protocol"
+import type {
+  Branch,
+  ISODate,
+  Milestone,
+  MoveTaskByOrderParams,
+  Tag,
+  Task,
+  TaskEvent,
+  TaskRelation,
+  TaskRelationSets,
+  TaskSearchResult,
+  TaskStatus,
+} from "@daily/protocol"
 import type {CreateTaskParams} from "./types"
 
 export class StorageAPI {
@@ -77,6 +89,16 @@ export class StorageAPI {
 
   async moveTaskToBranch(taskId: Task["id"], branchId: Branch["id"]): Promise<Changeset> {
     return await window.BridgeIPC["tasks:move-to-branch"](taskId, branchId)
+  }
+
+  /** Every live relation of every project. */
+  async getAllTaskRelations(): Promise<TaskRelation[]> {
+    return window.BridgeIPC["relations:get-all"]()
+  }
+
+  /** Makes the task's links exactly `next`, dropping what cannot be linked. */
+  async setTaskRelations(taskId: Task["id"], next: TaskRelationSets): Promise<Changeset> {
+    return await window.BridgeIPC["relations:set"](taskId, next)
   }
 
   /** Fuzzy-matches tasks; results are sorted by relevance. */

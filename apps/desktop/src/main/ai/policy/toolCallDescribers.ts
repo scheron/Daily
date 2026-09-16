@@ -38,6 +38,11 @@ export const TOOL_CALL_DESCRIBERS: Record<string, ToolCallDescriber> = {
     summary: `Permanently delete task ${str(p.task_id)}. This cannot be undone.`,
     details: [`Task ID: ${str(p.task_id)}`],
   }),
+  unlink_tasks: (p) => ({
+    title: "Unlink tasks",
+    summary: `Remove the blocking link between tasks ${str(p.task_id)} and ${str(p.other_task_id)}.`,
+    details: [`Task ID: ${str(p.task_id)}`, `Other task ID: ${str(p.other_task_id)}`],
+  }),
   read_url: (p) => ({
     title: "Open a web page",
     summary: `Read ${getHostname(str(p.url))}`,

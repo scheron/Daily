@@ -215,6 +215,7 @@ describe("migrations", () => {
       const db = new Database(":memory:")
       runMigrations(db)
 
+      rollbackLastMigration(db) // v012
       rollbackLastMigration(db) // v011
       rollbackLastMigration(db) // v010
       rollbackLastMigration(db) // v009
@@ -585,6 +586,74 @@ describe("migrations", () => {
       const links = db.prepare("SELECT * FROM task_tags WHERE task_id = 't1'").all()
       expect(links).toHaveLength(1)
       expect(links[0].tag_id).toBe("tag1")
+
+      db.close()
+    })
+  })
+
+  describe("v012 — task relations", () => {
+    function seedThroughV11(db) {
+      db.exec(`CREATE TABLE _migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)`)
+      for (const migration of migrations.filter((m) => m.version <= 11)) {
+        if (typeof migration.up === "string") db.exec(migration.up)
+        else migration.up(db)
+        db.prepare("INSERT INTO _migrations (version, name, applied_at) VALUES (?, ?, ?)").run(
+          migration.version,
+          migration.name,
+          "2026-01-01T00:00:00.000Z",
+        )
+      }
+    }
+
+    it("gives_TC-4_a_v011_database_a_task_relations_table_with_its_columns_and_indexes_leaves_tasks_untouched_and_drops_it_on_rollback", () => {
+      const db = new Database(":memory:")
+      db.pragma("foreign_keys = ON")
+      seedThroughV11(db)
+
+      const now = new Date().toISOString()
+      db.prepare(
+        `INSERT INTO tasks (id, status, content, minimized, order_index, scheduled_date, scheduled_time, scheduled_timezone, estimated_time, spent_time, branch_id, created_at, updated_at)
+         VALUES ('t1', 'active', 'Keep me', 0, 1024, '2026-03-24', '10:00:00', 'UTC', 0, 0, 'main', ?, ?)`,
+      ).run(now, now)
+
+      runMigrations(db)
+
+      const tables = db
+        .prepare("SELECT name FROM sqlite_master WHERE type='table'")
+        .all()
+        .map((t) => t.name)
+      expect(tables).toContain("task_relations")
+
+      const columns = db
+        .prepare("PRAGMA table_info(task_relations)")
+        .all()
+        .map((c) => c.name)
+      expect(columns).toEqual(expect.arrayContaining(["id", "blocker_id", "blocked_id", "created_at", "updated_at", "deleted_at"]))
+
+      const indexes = db
+        .prepare("SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='task_relations'")
+        .all()
+        .map((i) => i.name)
+      const indexedColumns = indexes.flatMap((name) =>
+        db
+          .prepare(`PRAGMA index_info(${name})`)
+          .all()
+          .map((c) => c.name),
+      )
+      expect(indexedColumns).toEqual(expect.arrayContaining(["blocker_id", "blocked_id"]))
+
+      const task = db.prepare("SELECT * FROM tasks WHERE id = 't1'").get()
+      expect(task).toBeDefined()
+      expect(task.content).toBe("Keep me")
+
+      const rolledBack = rollbackLastMigration(db)
+      expect(rolledBack).toBe(12)
+
+      const tablesAfterRollback = db
+        .prepare("SELECT name FROM sqlite_master WHERE type='table'")
+        .all()
+        .map((t) => t.name)
+      expect(tablesAfterRollback).not.toContain("task_relations")
 
       db.close()
     })

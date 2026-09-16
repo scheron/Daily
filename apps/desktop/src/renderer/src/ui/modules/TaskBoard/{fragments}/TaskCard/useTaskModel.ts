@@ -3,14 +3,16 @@ import {toasts} from "vue-toasts-lite"
 
 import {useCopyToClipboard} from "@/composables/useCopyToClipboard"
 import {useBranchesStore} from "@/stores/branches.store"
+import {useTaskRelationsStore} from "@/stores/taskRelations.store"
 import {useTasksStore} from "@/stores/tasks"
 
-import type {Branch, ISODate, Milestone, Tag, Task, TaskStatus} from "@daily/protocol"
+import type {Branch, ISODate, Milestone, Tag, Task, TaskRelationSets, TaskStatus} from "@daily/protocol"
 import type {Ref} from "vue"
 
 export function useTaskModel(task: Readonly<Ref<Task>>) {
   const tasksStore = useTasksStore()
   const branchesStore = useBranchesStore()
+  const taskRelationsStore = useTaskRelationsStore()
 
   const taskStatus = computed(() => task.value.status)
   const moveScope = computed(() => tasksStore.dailyTasksByStatus[taskStatus.value] ?? [])
@@ -78,6 +80,19 @@ export function useTaskModel(task: Readonly<Ref<Task>>) {
   async function updateTaskMilestone(milestoneId: Milestone["id"] | null) {
     const isUpdated = await tasksStore.updateTask(task.value.id, {milestoneId})
     if (!isUpdated) toasts.error("Failed to update milestone")
+  }
+
+  async function linkTask(side: keyof TaskRelationSets, otherTaskId: Task["id"]): Promise<boolean> {
+    const related = taskRelationsStore.relatedTasksByTaskId.get(task.value.id)
+    const blockedByIds = (related?.blockedBy ?? []).map((t) => t.id)
+    const blocksIds = (related?.blocks ?? []).map((t) => t.id)
+
+    const next: TaskRelationSets = {
+      blockedBy: side === "blockedBy" ? [...blockedByIds, otherTaskId] : blockedByIds.filter((id) => id !== otherTaskId),
+      blocks: side === "blocks" ? [...blocksIds, otherTaskId] : blocksIds.filter((id) => id !== otherTaskId),
+    }
+
+    return taskRelationsStore.setTaskRelations(task.value.id, next)
   }
 
   async function moveTaskToBranch(branchId: Branch["id"]) {
@@ -177,5 +192,6 @@ export function useTaskModel(task: Readonly<Ref<Task>>) {
     updateTaskTags,
     updateTaskMilestone,
     moveTaskToBranch,
+    linkTask,
   }
 }

@@ -10,6 +10,7 @@ import {useSettingsStore} from "./stores/settings.store"
 import {useStorageChangesStore} from "./stores/storageChanges.store"
 import {useSyncServerStore} from "./stores/syncServer.store"
 import {useTagsStore} from "./stores/tags.store"
+import {useTaskRelationsStore} from "./stores/taskRelations.store"
 import {useTasksStore} from "./stores/tasks"
 import {useUpdateStore} from "./stores/update.store"
 import {IconsSprite} from "./ui/base/BaseIcon"
@@ -71,10 +72,17 @@ invoke(async () => {
     const tasksStore = useTasksStore()
     const tagsStore = useTagsStore()
     const milestonesStore = useMilestonesStore()
+    const taskRelationsStore = useTaskRelationsStore()
     useUpdateStore()
     useStorageChangesStore()
 
-    await Promise.all([branchesStore.getBranchList(), tasksStore.loadTasks(), tagsStore.getTagList(), milestonesStore.getMilestoneList()])
+    await Promise.all([
+      branchesStore.getBranchList(),
+      tasksStore.loadTasks(),
+      tagsStore.getTagList(),
+      milestonesStore.getMilestoneList(),
+      taskRelationsStore.loadRelations(),
+    ])
     signalRendererReady()
     await aiStore.checkConnection()
   } catch {

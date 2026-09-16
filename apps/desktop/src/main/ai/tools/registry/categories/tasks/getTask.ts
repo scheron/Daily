@@ -48,6 +48,14 @@ export const getTask: RegisteredTool = {
       lines.push(`Attachments: ${task.attachments.length} file(s) — use get_task_attachments for details`)
     }
 
+    const related = await ctx.storage.getTaskRelations(task.id)
+    if (related.blockedBy.length > 0) {
+      lines.push(`Blocked by:\n${related.blockedBy.map((t) => `- ${formatTask(t)}`).join("\n")}`)
+    }
+    if (related.blocks.length > 0) {
+      lines.push(`Blocks:\n${related.blocks.map((t) => `- ${formatTask(t)}`).join("\n")}`)
+    }
+
     const project = await ctx.storage.getBranch(task.branchId)
     const projectLabel = project ? `${project.name} (${project.id})` : task.branchId
     lines.push(`Project: ${projectLabel}`)

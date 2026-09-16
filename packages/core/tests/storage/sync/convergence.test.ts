@@ -53,7 +53,7 @@ vi.mock("../../../src/utils/fileCoordinator", () => ({
   }),
 }))
 
-type Node = {db: Database.Database; core: StorageCore; engine: SyncEngine; root: string}
+type Node = {db: Database.Database; core: StorageCore; engine: SyncEngine; root: string; onDataChanged: ReturnType<typeof vi.fn>}
 
 describe("two-node convergence through a shared sync directory", () => {
   let syncDir: string
@@ -70,17 +70,24 @@ describe("two-node convergence through a shared sync directory", () => {
     }
     const db = createTestDatabase()
     const core = createStorageCore(db, paths)
+    const onDataChanged = vi.fn()
     const engine = new SyncEngine(core.localAdapter, [{id: "icloud", label: "iCloud", adapter: new ICloudRemoteAdapter(syncDir)}], {
       assetsDir: paths.assetsDir,
       onStatusChange: vi.fn(),
-      onDataChanged: vi.fn(),
+      onDataChanged,
     })
-    return {db, core, engine, root}
+    return {db, core, engine, root, onDataChanged}
   }
 
-  async function addTask(node: Node, content: string): Promise<Task> {
+  function setRelationUpdatedAt(node: Node, aId: string, bId: string, updatedAt: string): void {
+    node.db
+      .prepare(`UPDATE task_relations SET updated_at = ? WHERE (blocker_id = ? AND blocked_id = ?) OR (blocker_id = ? AND blocked_id = ?)`)
+      .run(updatedAt, aId, bId, bId, aId)
+  }
+
+  async function addTask(node: Node, content: string, id = ""): Promise<Task> {
     const created = await node.core.tasksService.createTask({
-      id: "",
+      id,
       createdAt: "",
       updatedAt: "",
       deletedAt: null,
@@ -235,5 +242,43 @@ describe("two-node convergence through a shared sync directory", () => {
     expect(listB.map((t) => t.id)).not.toContain(task.id)
     const deletedB = await nodeB.core.tasksService.getDeletedTasks()
     expect(deletedB.map((t) => t.id)).toContain(task.id)
+  })
+
+  it("converges_TC-11_two_nodes_on_one_live_relation_for_a_pair_settling_on_whichever_direction_synced_last", async () => {
+    const taskX = await addTask(nodeA, "blocker X", "task-x")
+    const taskY = await addTask(nodeA, "blocked Y", "task-y")
+    await nodeA.engine.syncOnce("push")
+    await nodeB.engine.syncOnce("pull")
+
+    await nodeA.core.taskRelationsService.setTaskRelations(taskY.id, {blockedBy: [taskX.id], blocks: []})
+    await nodeA.engine.syncOnce("push")
+
+    nodeB.onDataChanged.mockClear()
+    await nodeB.engine.syncOnce("pull")
+
+    const relationsOnBAfterFirstPull = (await nodeB.core.taskRelationsService.getRelationList()).filter((r) => !r.deletedAt)
+    expect(relationsOnBAfterFirstPull.some((r) => r.blockerId === taskX.id && r.blockedId === taskY.id)).toBe(true)
+
+    expect(nodeB.onDataChanged).toHaveBeenCalled()
+    const pulledChangeset = nodeB.onDataChanged.mock.calls.at(-1)?.[0]
+    expect(pulledChangeset?.relations?.upserted?.some((r) => r.blockerId === taskX.id && r.blockedId === taskY.id)).toBe(true)
+
+    await nodeA.core.taskRelationsService.setTaskRelations(taskY.id, {blockedBy: [taskX.id], blocks: []})
+    setRelationUpdatedAt(nodeA, taskX.id, taskY.id, "2027-01-01T10:00:00.000Z")
+
+    await nodeB.core.taskRelationsService.setTaskRelations(taskX.id, {blockedBy: [taskY.id], blocks: []})
+    setRelationUpdatedAt(nodeB, taskX.id, taskY.id, "2027-01-01T11:00:00.000Z")
+
+    await nodeA.engine.syncOnce("push")
+    await nodeB.engine.syncOnce("pull")
+    await nodeA.engine.syncOnce("pull")
+
+    const finalA = (await nodeA.core.taskRelationsService.getRelationList()).filter((r) => !r.deletedAt)
+    const finalB = (await nodeB.core.taskRelationsService.getRelationList()).filter((r) => !r.deletedAt)
+
+    expect(finalA).toHaveLength(1)
+    expect(finalB).toHaveLength(1)
+    expect(finalA[0]).toMatchObject({blockerId: taskY.id, blockedId: taskX.id})
+    expect(finalB[0]).toMatchObject({blockerId: taskY.id, blockedId: taskX.id})
   })
 })

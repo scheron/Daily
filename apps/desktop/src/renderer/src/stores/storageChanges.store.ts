@@ -7,6 +7,7 @@ import {sortTagsByName} from "@/utils/tags/sortTagsByName"
 import {useBranchesStore} from "./branches.store"
 import {useMilestonesStore} from "./milestones.store"
 import {useTagsStore} from "./tags.store"
+import {useTaskRelationsStore} from "./taskRelations.store"
 import {useTasksStore} from "./tasks"
 
 /**
@@ -20,12 +21,13 @@ export const useStorageChangesStore = defineStore("storageChanges", () => {
   const {tags} = storeToRefs(useTagsStore())
   const {branches} = storeToRefs(useBranchesStore())
   const {milestones} = storeToRefs(useMilestonesStore())
+  const {relations} = storeToRefs(useTaskRelationsStore())
 
   const onStorageDataChanged = createEventHook()
 
   window.BridgeIPC["storage:on-changed"](async (changeset) => {
     const tagsBefore = toRaw(tags.value)
-    applyChangeset({tasks, milestones, tags, branches}, changeset)
+    applyChangeset({tasks, milestones, tags, branches, relations}, changeset)
     if (toRaw(tags.value) !== tagsBefore) tags.value = sortTagsByName(tags.value)
 
     onStorageDataChanged.trigger()

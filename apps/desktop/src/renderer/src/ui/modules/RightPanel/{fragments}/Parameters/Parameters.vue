@@ -3,6 +3,7 @@ import {useTaskEditor} from "@/ui/modules/RightPanel/composables/useTaskEditor"
 import BranchProperty from "./{fragments}/properties/BranchProperty.vue"
 import DateProperty from "./{fragments}/properties/DateProperty.vue"
 import MilestoneProperty from "./{fragments}/properties/MilestoneProperty.vue"
+import RelationsProperty from "./{fragments}/properties/RelationsProperty"
 import StatusProperty from "./{fragments}/properties/StatusProperty.vue"
 import TagsProperty from "./{fragments}/properties/TagsProperty"
 import TimeProperty from "./{fragments}/properties/TimeProperty.vue"
@@ -45,6 +46,12 @@ const {activeTask, isNew, flatOrderedTasks, currentIndex, canPrev, canNext, navi
     </PropertyRow>
     <PropertyRow label="Tags">
       <TagsProperty :task="activeTask" />
+    </PropertyRow>
+    <PropertyRow label="Blocked by">
+      <RelationsProperty side="blockedBy" />
+    </PropertyRow>
+    <PropertyRow label="Blocks">
+      <RelationsProperty side="blocks" />
     </PropertyRow>
   </div>
 </template>

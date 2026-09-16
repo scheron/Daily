@@ -39,6 +39,8 @@ import type {
   Tag,
   Task,
   TaskEvent,
+  TaskRelation,
+  TaskRelationSets,
   TaskSearchResult,
 } from "@daily/protocol"
 import type {PartialDeep} from "type-fest"
@@ -54,6 +56,7 @@ export class StorageController implements IStorageController {
   private settingsService!: StorageCore["settingsService"]
   private branchesService!: StorageCore["branchesService"]
   private tasksService!: StorageCore["tasksService"]
+  private taskRelationsService!: StorageCore["taskRelationsService"]
   private tagsService!: StorageCore["tagsService"]
   private milestonesService!: StorageCore["milestonesService"]
   private filesService!: StorageCore["filesService"]
@@ -88,6 +91,7 @@ export class StorageController implements IStorageController {
     this.settingsService = core.settingsService
     this.branchesService = core.branchesService
     this.tasksService = core.tasksService
+    this.taskRelationsService = core.taskRelationsService
     this.tagsService = core.tagsService
     this.milestonesService = core.milestonesService
     this.filesService = core.filesService
@@ -234,7 +238,10 @@ export class StorageController implements IStorageController {
     if (!updatedTasks.length) return EMPTY_CHANGESET
 
     for (const task of updatedTasks) await this.searchService.updateTaskInIndex(task)
+    const removedRelations = await this.taskRelationsService.removeInvalidRelations(updatedTasks.map((task) => task.id))
+
     const changeset: Changeset = {tasks: {upserted: updatedTasks}}
+    if (removedRelations.length) changeset.relations = {removed: removedRelations}
     this.notifyLocalChange(changeset)
     return changeset
   }
@@ -264,7 +271,10 @@ export class StorageController implements IStorageController {
     if (!updatedTask) return EMPTY_CHANGESET
 
     await this.searchService.updateTaskInIndex(updatedTask)
+    const removedRelations = await this.taskRelationsService.removeInvalidRelations([taskId])
+
     const changeset: Changeset = {tasks: {upserted: [updatedTask]}}
+    if (removedRelations.length) changeset.relations = {removed: removedRelations}
     this.notifyLocalChange(changeset)
     return changeset
   }
@@ -285,7 +295,10 @@ export class StorageController implements IStorageController {
     if (!deleted) return EMPTY_CHANGESET
 
     this.searchService.removeTaskFromIndex(id)
+    const removedRelations = await this.taskRelationsService.removeInvalidRelations([id])
+
     const changeset: Changeset = {tasks: {removed: [id]}}
+    if (removedRelations.length) changeset.relations = {removed: removedRelations}
     this.notifyLocalChange(changeset)
     return changeset
   }
@@ -349,6 +362,30 @@ export class StorageController implements IStorageController {
   }
   //#endregion
 
+  //#region RELATIONS
+  /** Every live relation of every project. */
+  async getAllTaskRelations(): Promise<TaskRelation[]> {
+    return this.taskRelationsService.getRelationList()
+  }
+
+  /** The live tasks this task waits on and the live tasks waiting on it, within its project, resolved ones included, oldest link first. */
+  async getTaskRelations(taskId: Task["id"]): Promise<{blockedBy: Task[]; blocks: Task[]}> {
+    return this.taskRelationsService.getRelationsOfTask(taskId)
+  }
+
+  /** Makes the task's links exactly `next`, dropping what cannot be linked; `EMPTY_CHANGESET` when nothing changed. */
+  async setTaskRelations(taskId: Task["id"], next: TaskRelationSets): Promise<Changeset> {
+    const {upserted, removed} = await this.taskRelationsService.setTaskRelations(taskId, next)
+    if (!upserted.length && !removed.length) return EMPTY_CHANGESET
+
+    const changeset: Changeset = {}
+    if (upserted.length) changeset.relations = {...changeset.relations, upserted}
+    if (removed.length) changeset.relations = {...changeset.relations, removed}
+    this.notifyLocalChange(changeset)
+    return changeset
+  }
+  //#endregion
+
   //#region BRANCHES
   async getBranchList(): Promise<Branch[]> {
     return this.branchesService.getBranchList()
@@ -381,11 +418,13 @@ export class StorageController implements IStorageController {
     for (const taskId of result.deletedTaskIds) {
       this.searchService.removeTaskFromIndex(taskId)
     }
+    const removedRelations = await this.taskRelationsService.removeInvalidRelations(result.deletedTaskIds)
 
     const changeset: Changeset = {branches: {removed: [id]}}
     if (result.deletedTaskIds.length) changeset.tasks = {removed: result.deletedTaskIds}
     if (result.deletedMilestoneIds.length) changeset.milestones = {removed: result.deletedMilestoneIds}
     if (result.deletedTagIds.length) changeset.tags = {removed: result.deletedTagIds}
+    if (removedRelations.length) changeset.relations = {removed: removedRelations}
     this.notifyLocalChange(changeset)
     return true
   }
@@ -562,7 +601,7 @@ export class StorageController implements IStorageController {
 
   private notifyLocalChange(changeset: Changeset): void {
     this.notifyStorageDataChange?.(changeset)
-    this.syncEngine.requestPush()
+    this.syncEngine?.requestPush()
   }
 
   private async applyRemoteConfiguration(): Promise<void> {

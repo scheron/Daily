@@ -184,6 +184,18 @@ export type Task = {
   attachments: string[]
 }
 
+export type TaskRelation = {
+  /** `toTaskRelationId` of the pair, so the same two tasks always share one row. */
+  id: string
+  /** The task that has to be resolved first. */
+  blockerId: Task["id"]
+  /** The task that waits on the blocker. */
+  blockedId: Task["id"]
+  createdAt: ISODateTime
+  updatedAt: ISODateTime
+  deletedAt: ISODateTime | null
+}
+
 export type Tag = {
   id: string
   createdAt: ISODateTime

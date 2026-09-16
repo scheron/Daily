@@ -29,6 +29,18 @@ function makeTask(id, overrides = {}) {
   }
 }
 
+function makeRelation(id, overrides = {}) {
+  return {
+    id,
+    blocker_id: "a",
+    blocked_id: "b",
+    created_at: "2026-03-25T00:00:00.000Z",
+    updated_at: "2026-03-25T00:00:00.000Z",
+    deleted_at: null,
+    ...overrides,
+  }
+}
+
 function makeTag(id, overrides = {}) {
   return {
     id,
@@ -42,9 +54,21 @@ function makeTag(id, overrides = {}) {
 }
 
 describe("buildSnapshot", () => {
-  it("creates snapshot with version 5", () => {
+  it("creates snapshot with version 6", () => {
     const snapshot = buildSnapshot(emptyDocs())
-    expect(snapshot.version).toBe(5)
+    expect(snapshot.version).toBe(6)
+  })
+
+  it("builds_TC-8_version_6_snapshots_whose_hash_moves_when_a_relations_blocked_id_changes", () => {
+    const docsA = {...emptyDocs(), relations: [makeRelation("r1", {blocked_id: "b"})]}
+    const docsB = {...emptyDocs(), relations: [makeRelation("r1", {blocked_id: "c"})]}
+
+    const snapshotA = buildSnapshot(docsA)
+    const snapshotB = buildSnapshot(docsB)
+
+    expect(snapshotA.version).toBe(6)
+    expect(snapshotB.version).toBe(6)
+    expect(snapshotA.meta.hash).not.toBe(snapshotB.meta.hash)
   })
 
   it("includes docs and meta", () => {
