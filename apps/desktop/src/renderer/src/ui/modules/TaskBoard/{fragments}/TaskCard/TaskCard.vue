@@ -25,7 +25,7 @@ import {cn} from "@/utils/ui/tailwindcss"
 import DeleteMenuItem from "./{fragments}/DeleteMenuItem.vue"
 import MilestoneChip from "./{fragments}/MilestoneChip.vue"
 import RelationChip from "./{fragments}/RelationChip.vue"
-import StatusSelect from "./{fragments}/StatusSelect.vue"
+import StatusBadge from "./{fragments}/StatusBadge.vue"
 import {useTaskModel} from "./useTaskModel"
 
 import type {BaseContextMenuItem, BaseContextMenuSelectEvent} from "@/ui/base/BaseContextMenu"
@@ -195,9 +195,9 @@ async function onLinkTask(side: keyof TaskRelationSets, taskId: Task["id"]) {
       <div class="relative z-10 flex w-full flex-col gap-3 px-5 py-4">
         <div class="flex w-full items-center gap-3">
           <DynamicTagsPanel :tags="tags" size="sm" />
-          <div class="ml-auto flex shrink-0 items-center gap-2" data-task-dnd-ignore="true" @click.stop>
+          <div class="ml-auto flex shrink-0 items-center gap-2">
             <RelationChip :task-id="task.id" />
-            <StatusSelect :status="task.status" @update:status="taskModel.changeStatus" />
+            <StatusBadge :status="task.status" />
           </div>
         </div>
 
