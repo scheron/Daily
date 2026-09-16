@@ -7,7 +7,7 @@ export type CalendarDockTab = "days" | "milestones"
 export function useCalendarDock() {
   const isCalendarDockExpanded = ref(false)
   const calendarDockTab = ref<CalendarDockTab>("days")
-  const shouldOpenCalendarDockOnDrag = useSettingValue("layout.shouldOpenCalendarDockOnDrag", true)
+  const shouldOpenCalendarDockOnDrag = useSettingValue("layout.shouldOpenCalendarDockOnDrag", false)
 
   function toggleCalendarDock(isExpanded?: boolean) {
     isCalendarDockExpanded.value = isExpanded ?? !isCalendarDockExpanded.value

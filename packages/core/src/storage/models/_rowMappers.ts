@@ -218,7 +218,7 @@ export function getDefaultSettings(): Settings {
       sectionsHideEmpty: false,
       sectionsAutoCollapseEmpty: false,
       sectionsCollapsed: {active: false, discarded: false, done: false, backlog: false},
-      shouldOpenCalendarDockOnDrag: true,
+      shouldOpenCalendarDockOnDrag: false,
     },
     window: {
       main: {
