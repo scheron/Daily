@@ -28,6 +28,8 @@ export const useTaskColumns = createSharedComposable(() => {
   const pendingCrossColumnMove = ref<MoveTaskByOrderParams | null>(null)
   const pendingLocalResync = ref(false)
 
+  let hoverExpandedStatus: TaskStatus | null = null
+
   const milestoneFrameTasks = computed(() => {
     const ids = filterStore.activeMilestoneId ? [filterStore.activeMilestoneId] : milestonesStore.activeMilestones.map((milestone) => milestone.id)
     return ids.flatMap((id) => tasksStore.tasksByMilestoneId.get(id) ?? [])
@@ -85,6 +87,7 @@ export const useTaskColumns = createSharedComposable(() => {
   }
 
   function onDragEnd() {
+    hoverExpandedStatus = null
     onDragEndBase()
     flushPendingCrossColumnMove()
   }
@@ -101,17 +104,23 @@ export const useTaskColumns = createSharedComposable(() => {
 
   function onDragPointerMove(event: PointerEvent) {
     if (!isDragging.value) return
+    if (uiStore.shouldCollapseEmptySections) return
 
     const status = findClosestAtPoint(event.clientX, event.clientY, "[data-column-status]")?.dataset.columnStatus as TaskStatus | undefined
-    if (status) onColumnDragEnter(status)
+    if (status === hoverExpandedStatus) return
+
+    collapseHoverExpanded()
+    if (!status || !isColumnCollapsed(status)) return
+
+    hoverExpandedStatus = status
+    uiStore.setSectionCollapsed(status, false)
   }
 
-  function onColumnDragEnter(status: TaskStatus) {
-    if (uiStore.shouldCollapseEmptySections) return
-    if (!isDragging.value) return
-    if (!isColumnCollapsed(status)) return
+  function collapseHoverExpanded() {
+    if (!hoverExpandedStatus) return
 
-    uiStore.setSectionCollapsed(status, false)
+    uiStore.setSectionCollapsed(hoverExpandedStatus, true)
+    hoverExpandedStatus = null
   }
 
   async function onColumnChange(status: TaskStatus, event: {added?: {newIndex: number}; moved?: {newIndex: number; oldIndex: number}}) {
