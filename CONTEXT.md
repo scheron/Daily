@@ -57,7 +57,8 @@ _Avoid_: remote, backend, target
 
 **Daily Sync Server**:
 A server the person runs themselves, shipped as a Docker image, that stores one snapshot and the
-attachment bytes for the Macs bound to it. It originates nothing and resolves no conflict.
+attachment bytes for the Macs bound to it. It resolves no conflict, and the only change it makes is
+one an agent asked for, applied on top of the snapshot it holds.
 _Avoid_: sync service, backend, cloud
 
 **Claim**:
@@ -80,12 +81,13 @@ _Avoid_: registration, onboarding, join
 
 **Parent**:
 The device that claimed the server. The only device that may approve enrollments and revoke other
-devices; there is exactly one at a time, and the server console can move the role.
+devices, and may revoke any device's agents; there is exactly one at a time, and the server console
+can move the role.
 _Avoid_: owner, admin, primary, main device
 
 **Child**:
-Any device that became bound through the Parent's approval. It syncs and nothing more: it cannot
-approve an enrollment or revoke anything, including itself.
+Any device that became bound through the Parent's approval. It syncs and connects its own agents,
+and nothing more: it cannot approve an enrollment, and it revokes only its own agents.
 _Avoid_: secondary, peer, member, client
 
 **Enrollment window**:
@@ -94,9 +96,22 @@ requests at all. Outside it there is nothing to occupy and nothing to approve.
 _Avoid_: pairing mode, invite window, open enrollment
 
 **Revocation**:
-Withdrawing a device's credential. The device's record stays, marked with the moment it happened,
+Withdrawing a device's or an agent's access. The record stays, marked with the moment it happened,
 so a revoked credential stays distinguishable from one that was never issued.
 _Avoid_: deletion, removal, unbinding
+
+### Agents
+
+**Agent**:
+An MCP client — Claude Code, the Claude app, Codex — granted access to a server's work through one
+bound device, and belonging to that device. It does not sync: it reads and changes the work through
+the server. Revoking the device revokes its agents.
+_Avoid_: integration, bot, client, connection, app
+
+**Agent window**:
+The interval, opened deliberately on one bound device, during which the server accepts an agent's
+request for access at all. The request's code appears only on the device that opened it.
+_Avoid_: pairing mode, connect mode, invite
 
 ### Compatibility
 
