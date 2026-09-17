@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.22.1 - 2026-09-17
+
+### 🎨 Improvements
+
+- **Dragging a task** — the card following the cursor is now a compact translucent pill instead of a full-size copy, and it narrows further over a drop zone, so the column or day underneath stays readable right up to the drop.
+
+### 🐛 Bug Fixes
+
+- **Board** — a collapsed column now opens while a task is held over it and closes again once the pointer moves off, so a card can be dropped into a column that was hidden. A column the card lands in stays open.
+- **Calendar** — holding a task over the month arrows now pages the calendar, so a task can be moved to a day in another month.
+- **Settings** — the last row of the General section is no longer cut off at the bottom of the window.
+- The controls floating over the board in the header now line up with each other.
+
+---
+
 ## v0.22.0 - 2026-09-17
 
 ### ✨ New Features
