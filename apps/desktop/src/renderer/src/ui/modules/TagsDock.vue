@@ -55,7 +55,7 @@ watch(filteredTags, (tags) => {
 
 <template>
   <BaseAnimation name="fade" :duration="200">
-    <div v-if="filteredTags.length && !uiStore.isCalendarDockExpanded" class="pointer-events-none absolute top-1 right-1/2 left-20 z-30 mr-28 flex">
+    <div v-if="filteredTags.length && !uiStore.isCalendarDockExpanded" class="pointer-events-none absolute left-24 right-1/2 top-2 z-30 mr-28 flex">
       <DynamicTagsPanel
         :tags="filteredTags"
         :selected-tags="filterStore.activeTagIds"

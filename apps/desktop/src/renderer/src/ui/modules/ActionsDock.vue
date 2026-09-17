@@ -34,7 +34,7 @@ async function onSelectBranch(branch: Branch) {
   <BaseAnimation name="fade" :duration="200">
     <div
       v-if="!uiStore.isCalendarDockExpanded"
-      class="dock-surface absolute top-1 right-3.5 z-20 flex h-8.5 items-center gap-0.5 rounded-full px-1 [-webkit-app-region:no-drag]"
+      class="dock-surface h-8.5 absolute right-3.5 top-2 z-20 flex items-center gap-0.5 rounded-full px-1 [-webkit-app-region:no-drag]"
     >
       <BranchPicker
         :selected-id="branchesStore.activeBranchId"
@@ -50,7 +50,7 @@ async function onSelectBranch(branch: Branch) {
         </template>
       </BranchPicker>
 
-      <div class="bg-base-300 mx-0.5 h-4.5 w-px" />
+      <div class="bg-base-300 h-4.5 mx-0.5 w-px" />
 
       <BaseButton
         icon="ai"
@@ -70,7 +70,7 @@ async function onSelectBranch(branch: Branch) {
         @click="searchModal.toggle()"
       />
 
-      <div class="bg-base-300 mx-0.5 h-4.5 w-px" />
+      <div class="bg-base-300 h-4.5 mx-0.5 w-px" />
 
       <BaseButton
         variant="primary-ghost"

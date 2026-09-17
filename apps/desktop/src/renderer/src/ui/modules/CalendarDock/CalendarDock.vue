@@ -50,7 +50,7 @@ function getTabClasses(isActive: boolean) {
   <div
     ref="dock"
     data-day-drop-zone
-    class="dock-surface absolute top-1 left-1/2 z-20 flex -translate-x-1/2 flex-col items-center justify-start overflow-hidden [-webkit-app-region:no-drag]"
+    class="dock-surface absolute left-1/2 top-2 z-20 flex -translate-x-1/2 flex-col items-center justify-start overflow-hidden [-webkit-app-region:no-drag]"
     :class="getDockClasses()"
   >
     <Transition :css="false" @enter="onEnter" @leave="onLeave">
@@ -73,10 +73,10 @@ function getTabClasses(isActive: boolean) {
         </div>
       </div>
 
-      <div v-else data-dock-pill class="text-accent flex h-8 items-center gap-1 px-3 text-sm font-semibold whitespace-nowrap">
+      <div v-else data-dock-pill class="text-accent flex h-8 items-center gap-1 whitespace-nowrap px-3 text-sm font-semibold">
         <span v-if="filterStore.frame === 'milestone' && framedMilestone" class="inline-flex min-w-0 items-center gap-1.5">
           <MilestoneDiamond :completion="framedMilestoneCompletion" :overdue="framedMilestoneOverdue" :size="12" />
-          <span class="max-w-32 min-w-0 truncate">{{ framedMilestone.name }}</span>
+          <span class="min-w-0 max-w-32 truncate">{{ framedMilestone.name }}</span>
         </span>
         <template v-else-if="filterStore.frame === 'milestone'">All milestones</template>
         <template v-else>{{ dayLabel }}</template>
