@@ -12,7 +12,7 @@ export const WINDOWS_CONFIG = {
   },
   settings: {
     width: 860,
-    height: 640,
+    height: 650,
   },
   assistant: {
     width: 480,
