@@ -52,7 +52,7 @@ function place() {
 
 function getPreviewClasses(isOver: boolean) {
   return cn(
-    "bg-base-100 border-base-300/70 dark:border-base-300 pointer-events-none fixed top-0 left-0 z-[100001] flex h-[44px] w-[346px] shrink-0 -rotate-[1.6deg] items-center gap-2.5 overflow-hidden rounded-full border px-[18px] shadow-lg transition-[width,height,padding,border-color] duration-200 ease-out",
+    "bg-base-100/80 border-base-300/70 dark:border-base-300 pointer-events-none fixed top-0 left-0 z-[100001] flex h-[44px] w-[346px] shrink-0 -rotate-[1.6deg] items-center gap-2.5 overflow-hidden rounded-full border px-[18px] opacity-90 shadow-lg backdrop-blur-sm transition-[width,height,padding,border-color] duration-200 ease-out",
     isOver && "border-accent dark:border-accent h-[32px] w-[168px] px-[14px]",
   )
 }
