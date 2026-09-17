@@ -55,60 +55,62 @@ function getTitleClasses(titleClass: string) {
 function getCounterClasses(counterClass: string) {
   return cn("rounded-full px-2 py-0.5 text-xs font-medium", counterClass)
 }
+
+function getListClasses(isCollapsed: boolean) {
+  return cn("pt-22 absolute inset-0 flex min-w-0 overflow-y-auto overflow-x-hidden px-1.5 pb-4", isCollapsed && "pointer-events-none invisible")
+}
 </script>
 
 <template>
   <div :data-column-status="column.status" :class="getContainerClasses(collapsed)" :style="containerStyle">
-    <template v-if="collapsed">
-      <div class="dock-surface mx-3 mt-11 flex w-11 flex-col items-center gap-2 rounded-full py-2.5">
-        <BaseIcon :name="column.icon" :class="getIconClasses(column.titleClass)" />
+    <div v-if="collapsed" class="dock-surface mx-3 mt-11 flex w-11 flex-col items-center gap-2 rounded-full py-2.5">
+      <BaseIcon :name="column.icon" :class="getIconClasses(column.titleClass)" />
+      <span :class="getCounterClasses(column.counterClass)">
+        {{ tasksCount }}
+      </span>
+      <BasePopup v-if="!autoCollapseEnabled" hide-header position="end" container-class="min-w-32 p-0">
+        <template #trigger="{toggle}">
+          <BaseButton variant="ghost" icon="dots-horizontal" tooltip="Column menu" class="size-6 p-0" @click="toggle" />
+        </template>
+        <template #default="{hide}">
+          <BaseMenu :items="menuItems" @select="onMenuSelect($event, hide)" />
+        </template>
+      </BasePopup>
+    </div>
+
+    <div v-else class="absolute inset-x-0 top-11 z-10 flex h-9 items-center justify-between px-4">
+      <div :class="getTitleClasses(column.titleClass)">
+        <BaseIcon :name="column.icon" class="size-4" />
+        <span class="text-sm font-medium uppercase tracking-wide">{{ column.label }}</span>
         <span :class="getCounterClasses(column.counterClass)">
           {{ tasksCount }}
         </span>
-        <BasePopup v-if="!autoCollapseEnabled" hide-header position="end" container-class="min-w-32 p-0">
-          <template #trigger="{toggle}">
-            <BaseButton variant="ghost" icon="dots-horizontal" tooltip="Column menu" class="size-6 p-0" @click="toggle" />
-          </template>
-          <template #default="{hide}">
-            <BaseMenu :items="menuItems" @select="onMenuSelect($event, hide)" />
-          </template>
-        </BasePopup>
       </div>
-    </template>
+      <BasePopup v-if="!autoCollapseEnabled" hide-header position="end" container-class="min-w-32 p-0">
+        <template #trigger="{toggle}">
+          <BaseButton variant="ghost" icon="dots-horizontal" tooltip="Column menu" class="size-6 p-0" @click="toggle" />
+        </template>
+        <template #default="{hide}">
+          <BaseMenu :items="menuItems" @select="onMenuSelect($event, hide)" />
+        </template>
+      </BasePopup>
+    </div>
 
-    <template v-else>
-      <div class="absolute inset-x-0 top-11 z-10 flex h-9 items-center justify-between px-4">
-        <div :class="getTitleClasses(column.titleClass)">
-          <BaseIcon :name="column.icon" class="size-4" />
-          <span class="text-sm font-medium uppercase tracking-wide">{{ column.label }}</span>
-          <span :class="getCounterClasses(column.counterClass)">
-            {{ tasksCount }}
-          </span>
+    <div :class="getListClasses(collapsed)">
+      <slot />
+
+      <div
+        v-if="!collapsed && !tasksCount && !columns.isDragging.value"
+        class="text-base-content/70 pointer-events-none absolute inset-1.5 flex flex-col items-center justify-center gap-2 rounded-lg text-center"
+      >
+        <div class="bg-base-200 rounded-full p-3">
+          <BaseIcon name="empty" class="size-5" />
         </div>
-        <BasePopup v-if="!autoCollapseEnabled" hide-header position="end" container-class="min-w-32 p-0">
-          <template #trigger="{toggle}">
-            <BaseButton variant="ghost" icon="dots-horizontal" tooltip="Column menu" class="size-6 p-0" @click="toggle" />
-          </template>
-          <template #default="{hide}">
-            <BaseMenu :items="menuItems" @select="onMenuSelect($event, hide)" />
-          </template>
-        </BasePopup>
+        <span class="text-sm">No {{ column.emptyLabel }} tasks</span>
       </div>
+    </div>
 
-      <div class="pt-22 absolute inset-0 flex min-w-0 overflow-y-auto overflow-x-hidden px-1.5 pb-4">
-        <slot />
-
-        <div
-          v-if="!tasksCount && !columns.isDragging.value"
-          class="text-base-content/70 pointer-events-none absolute inset-1.5 flex flex-col items-center justify-center gap-2 rounded-lg text-center"
-        >
-          <div class="bg-base-200 rounded-full p-3">
-            <BaseIcon name="empty" class="size-5" />
-          </div>
-          <span class="text-sm">No {{ column.emptyLabel }} tasks</span>
-        </div>
-      </div>
-
+    <template v-if="!collapsed">
       <div
         class="from-base-100 via-base-100/60 h-23 bg-linear-to-b pointer-events-none absolute inset-x-0 top-0 z-[5] from-35% via-70% to-transparent"
       />

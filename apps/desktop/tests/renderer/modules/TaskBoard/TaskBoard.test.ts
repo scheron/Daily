@@ -57,7 +57,7 @@ describe("TaskBoard", () => {
       return wrapper
     }
 
-    return {NoTasksPlaceholder, mountBoard, tasks: useTasksStore(), drag: useDragDropStore()}
+    return {NoTasksPlaceholder, mountBoard, settings, tasks: useTasksStore(), drag: useDragDropStore()}
   }
 
   it("keeps the columns mounted while a drag is in flight, even when the dragged task was the last one on the board", async () => {
@@ -75,5 +75,24 @@ describe("TaskBoard", () => {
     await nextTick()
 
     expect(board.findComponent(NoTasksPlaceholder).exists()).toBe(false)
+  })
+
+  it("keeps a column's tasks mounted when the column collapses mid-drag", async () => {
+    const {mountBoard, settings, tasks, drag} = await setup()
+    const today = DateTime.now().toISODate()
+    tasks.activeDay = today
+    tasks.tasks = [makeTask(), makeTask({id: "task-2", status: "done"})]
+
+    const board = mountBoard()
+    await nextTick()
+    expect(board.findAll("[data-task-card]")).toHaveLength(2)
+
+    drag.setDraggingTaskId("task-1")
+    await nextTick()
+
+    settings.settings = {branch: {activeId: "main"}, layout: {sectionsCollapsed: {done: true}}}
+    await nextTick()
+
+    expect(board.findAll("[data-task-card]")).toHaveLength(2)
   })
 })
