@@ -12,10 +12,19 @@ export const useDragDropStore = defineStore("dragDrop", () => {
   const dropTargetDate = ref<ISODate | null>(null)
   const dropTargetMilestoneId = ref<Milestone["id"] | null>(null)
   const isReleasedInsideDropZone = ref(false)
+  const isOverDropZone = ref(false)
 
   function setDraggingTaskId(id: Task["id"] | null) {
     draggingTaskId.value = id
     if (id) isReleasedInsideDropZone.value = false
+  }
+
+  /**
+   * Tracks whether the pointer currently hovers a drop zone floating over the board. The dragged
+   * task's preview shrinks to a pill while it does, so the zone underneath stays readable.
+   */
+  function setOverDropZone(isOver: boolean) {
+    isOverDropZone.value = isOver
   }
 
   /**
@@ -49,11 +58,13 @@ export const useDragDropStore = defineStore("dragDrop", () => {
     dropTargetDate,
     dropTargetMilestoneId,
     isReleasedInsideDropZone,
+    isOverDropZone,
 
     setDraggingTaskId,
     setDropTargetDate,
     setDropTargetMilestoneId,
     setReleasedInsideDropZone,
+    setOverDropZone,
     dropOnDay,
     dropOnMilestone,
   }

@@ -10,12 +10,12 @@
   pointer-events: none;
 }
 
+/**
+ * SortableJS clones the whole card onto the body to follow the cursor. TaskDragPreview draws a
+ * compact pill in its place, so the clone stays around for SortableJS's own hit testing but never
+ * shows. It keeps its inline layout — only paint is suppressed.
+ */
 .draggable-task-dragging {
-  opacity: 1 !important;
-  pointer-events: none;
-}
-
-.draggable-task-dragging.is-over-drop-zone {
   opacity: 0 !important;
-  transition: opacity 100ms ease;
+  pointer-events: none;
 }

@@ -10,7 +10,6 @@ import type {ISODate, Milestone} from "@daily/protocol"
 type PendingDrop = {type: "day"; taskId: string; date: ISODate} | {type: "milestone"; taskId: string; milestoneId: Milestone["id"]}
 
 const DROP_ZONE_SELECTOR = "[data-popup], [data-day-drop-zone]"
-const OVER_DROP_ZONE_CLASS = "is-over-drop-zone"
 
 export const useBoardDrop = createSharedComposable(() => {
   const dragDropStore = useDragDropStore()
@@ -22,12 +21,8 @@ export const useBoardDrop = createSharedComposable(() => {
     const {clientX, clientY} = event
     const dayEl = findClosestAtPoint(clientX, clientY, "[data-drop-day]")
     const milestoneEl = findClosestAtPoint(clientX, clientY, "[data-drop-milestone]")
-    const dragClone = findDragClone()
 
-    const isOverDropZone = Boolean(findClosestAtPoint(clientX, clientY, DROP_ZONE_SELECTOR))
-
-    if (isOverDropZone) dragClone?.classList.add(OVER_DROP_ZONE_CLASS)
-    else dragClone?.classList.remove(OVER_DROP_ZONE_CLASS)
+    dragDropStore.setOverDropZone(Boolean(findClosestAtPoint(clientX, clientY, DROP_ZONE_SELECTOR)))
 
     if (dayEl) {
       const date = dayEl.dataset.dropDay as ISODate
@@ -67,8 +62,8 @@ export const useBoardDrop = createSharedComposable(() => {
     window.removeEventListener("pointerup", onPointerUp, true)
     dragDropStore.setDropTargetDate(null)
     dragDropStore.setDropTargetMilestoneId(null)
+    dragDropStore.setOverDropZone(false)
     pendingDrop = null
-    findDragClone()?.classList.remove(OVER_DROP_ZONE_CLASS)
   }
 
   watch(draggingTaskId, (id) => {
@@ -82,7 +77,3 @@ export const useBoardDrop = createSharedComposable(() => {
 
   return {dropTargetDate}
 })
-
-function findDragClone(): HTMLElement | null {
-  return document.querySelector<HTMLElement>(".draggable-task-dragging")
-}

@@ -15,6 +15,7 @@ import {useDragScroll} from "./composables/useDragScroll"
 import NoTasksPlaceholder from "./{fragments}/NoTasksPlaceholder.vue"
 import TaskCard from "./{fragments}/TaskCard"
 import TaskColumn from "./{fragments}/TaskColumn.vue"
+import TaskDragPreview from "./{fragments}/TaskDragPreview.vue"
 
 const DRAGGABLE_ATTRS = {
   group: "daily-board",
@@ -96,7 +97,7 @@ watch(activeDay, () => containerRef.value?.scrollTo({top: 0, behavior: "instant"
             !columns.isColumnCollapsed(column.status) &&
             !columns.isColumnCollapsed(columns.visibleColumns.value[index + 1].status)
           "
-          class="to-base-300/50 h-full w-px shrink-0 bg-linear-to-b from-transparent from-[44px] to-[98px]"
+          class="to-base-300/50 bg-linear-to-b h-full w-px shrink-0 from-transparent from-[44px] to-[98px]"
         />
       </template>
     </div>
@@ -105,5 +106,6 @@ watch(activeDay, () => containerRef.value?.scrollTo({top: 0, behavior: "instant"
     <TagsDock />
     <CalendarDock />
     <ActionsDock @create-task="emit('createTask')" />
+    <TaskDragPreview />
   </div>
 </template>
