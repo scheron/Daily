@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.22.0 - 2026-09-17
+
+### ✨ New Features
+
+- **Blocking tasks** — a task can wait on another inside a project, and the link reads from both ends. A card shows whether it is held up, holds others up, or both. The editor, the card menu and the assistant all write the same links.
+
+### 🎨 Improvements
+
+- **Settings** — theme, layout, the open project, AI settings and the window's size now stay on the Mac they were set on instead of following every device. Sync writes a new format for this, so every Mac has to be updated: one still on an earlier version stops syncing until it is.
+- **Board layout** — the window's controls, tags, project, date and New now float over the board in the header, which frees the bottom strip. The calendar opens downward on hover and closes when the pointer leaves.
+- **Task status** — the status is a static badge on the card instead of a popup, so a click on the card opens it. The status still changes from the card menu, the editor and a drag between columns.
+- **Editor** — task properties sit in one area above the text: a status row, a two-column grid, then tags and relations each on a single scrolling line.
+- **Card menu** — regrouped: project sits next to milestone, the two relation entries pair up, and Open editor is gone, because a click on the card does it.
+- Picking up a card no longer opens the calendar over the board. Installs that already set that option keep their value.
+
+### 🐛 Bug Fixes
+
+- **Editor** — unsaved edits are no longer lost when the task already open is opened again. Clicking its card does nothing, and search asks first.
+- **Board** — dropping the last task of a day no longer leaves a card stuck to the pointer.
+- **Tags** — a newly created tag no longer appears twice in the list.
+- The app icon is now the same size as every other icon in the Dock.
+
+---
+
 ## v0.21.0 - 2026-09-15
 
 ### 💥 Breaking Changes
