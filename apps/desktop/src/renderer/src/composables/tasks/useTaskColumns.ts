@@ -1,4 +1,5 @@
 import {computed, reactive, ref, watch} from "vue"
+import {useEventListener} from "@vueuse/core"
 
 import {sortTasksByDateThenOrder, sortTasksByOrderIndex} from "@daily/protocol"
 import {deepClone, isUndefined} from "@daily/std"
@@ -10,6 +11,7 @@ import {useFilterStore} from "@/stores/filter.store"
 import {useMilestonesStore} from "@/stores/milestones.store"
 import {useTasksStore} from "@/stores/tasks"
 import {useUIStore} from "@/stores/ui"
+import {findClosestAtPoint} from "@/utils/ui/dom"
 import {useTaskDragDrop} from "./useTaskDragDrop"
 
 import type {TaskColumn} from "@/types/ui"
@@ -56,6 +58,8 @@ export const useTaskColumns = createSharedComposable(() => {
 
   const {isDragging, isCommitting, onDragStart: onDragStartBase, onDragEnd: onDragEndBase, onDragOver, runWithCommit} = useTaskDragDrop()
 
+  useEventListener(window, "pointermove", onDragPointerMove)
+
   function filterByTag(tasks: Task[]) {
     if (!filterStore.activeTagIds.size) return tasks
     return tasks.filter((task) => task.tags.some((tag) => filterStore.activeTagIds.has(tag.id)))
@@ -93,6 +97,13 @@ export const useTaskColumns = createSharedComposable(() => {
   function onToggleColumn(status: TaskStatus) {
     if (uiStore.shouldCollapseEmptySections) return
     uiStore.toggleSectionCollapsed(status)
+  }
+
+  function onDragPointerMove(event: PointerEvent) {
+    if (!isDragging.value) return
+
+    const status = findClosestAtPoint(event.clientX, event.clientY, "[data-column-status]")?.dataset.columnStatus as TaskStatus | undefined
+    if (status) onColumnDragEnter(status)
   }
 
   function onColumnDragEnter(status: TaskStatus) {
@@ -212,7 +223,6 @@ export const useTaskColumns = createSharedComposable(() => {
     isDragDisabled: isCommitting,
     isColumnCollapsed,
     onToggleColumn,
-    onColumnDragEnter,
     onColumnChange,
     onDragStart,
     onDragEnd,

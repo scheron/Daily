@@ -58,12 +58,7 @@ function getCounterClasses(counterClass: string) {
 </script>
 
 <template>
-  <div
-    :data-column-status="column.status"
-    :class="getContainerClasses(collapsed)"
-    :style="containerStyle"
-    @dragenter="columns.onColumnDragEnter(column.status)"
-  >
+  <div :data-column-status="column.status" :class="getContainerClasses(collapsed)" :style="containerStyle">
     <template v-if="collapsed">
       <div class="dock-surface mx-3 mt-11 flex w-11 flex-col items-center gap-2 rounded-full py-2.5">
         <BaseIcon :name="column.icon" :class="getIconClasses(column.titleClass)" />
@@ -85,7 +80,7 @@ function getCounterClasses(counterClass: string) {
       <div class="absolute inset-x-0 top-11 z-10 flex h-9 items-center justify-between px-4">
         <div :class="getTitleClasses(column.titleClass)">
           <BaseIcon :name="column.icon" class="size-4" />
-          <span class="text-sm font-medium tracking-wide uppercase">{{ column.label }}</span>
+          <span class="text-sm font-medium uppercase tracking-wide">{{ column.label }}</span>
           <span :class="getCounterClasses(column.counterClass)">
             {{ tasksCount }}
           </span>
@@ -100,7 +95,7 @@ function getCounterClasses(counterClass: string) {
         </BasePopup>
       </div>
 
-      <div class="absolute inset-0 flex min-w-0 overflow-x-hidden overflow-y-auto px-1.5 pt-22 pb-4">
+      <div class="pt-22 absolute inset-0 flex min-w-0 overflow-y-auto overflow-x-hidden px-1.5 pb-4">
         <slot />
 
         <div
@@ -115,9 +110,9 @@ function getCounterClasses(counterClass: string) {
       </div>
 
       <div
-        class="from-base-100 via-base-100/60 pointer-events-none absolute inset-x-0 top-0 z-[5] h-23 bg-linear-to-b from-35% via-70% to-transparent"
+        class="from-base-100 via-base-100/60 h-23 bg-linear-to-b pointer-events-none absolute inset-x-0 top-0 z-[5] from-35% via-70% to-transparent"
       />
-      <div class="to-base-100/70 pointer-events-none absolute inset-x-0 bottom-0 z-[5] h-12 bg-linear-to-b from-transparent" />
+      <div class="to-base-100/70 bg-linear-to-b pointer-events-none absolute inset-x-0 bottom-0 z-[5] h-12 from-transparent" />
     </template>
   </div>
 </template>
