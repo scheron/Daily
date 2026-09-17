@@ -128,6 +128,8 @@ const menuItems = computed<BaseContextMenuItem[]>(() => {
 const {open: confirmLeaveIfDirty} = useConfirmUnsavedModal()
 
 async function onCardClick() {
+  if (taskEditorStore.editingTaskId === props.task.id) return
+
   const proceed = await confirmLeaveIfDirty()
   if (!proceed) return
   taskEditorStore.open(props.task.id)

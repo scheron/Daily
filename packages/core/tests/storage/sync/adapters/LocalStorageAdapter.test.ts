@@ -71,7 +71,6 @@ describe("LocalStorageAdapter", () => {
       expect(docs.tasks).toHaveLength(0)
       expect(docs.tags).toHaveLength(0)
       expect(docs.files).toHaveLength(0)
-      expect(docs.settings).toBeNull()
     })
 
     it("loads tasks with tags and attachments", async () => {
@@ -100,19 +99,11 @@ describe("LocalStorageAdapter", () => {
       expect(docs.files).toHaveLength(1)
     })
 
-    it("loads settings (parses JSON data field)", async () => {
+    it("leaves the settings row out of snapshot docs", async () => {
       insertSettings(db, {version: "1", themes: {current: "dark"}})
 
       const docs = await adapter.loadAllDocs()
-      expect(docs.settings).not.toBeNull()
-      expect(docs.settings.id).toBe("default")
-      expect(docs.settings.themes.current).toBe("dark")
-    })
-
-    it("excludes legacy local sync settings from snapshot docs", async () => {
-      insertSettings(db, {sync: {enabled: true}})
-      const docs = await adapter.loadAllDocs()
-      expect(docs.settings).not.toHaveProperty("sync")
+      expect(docs).not.toHaveProperty("settings")
     })
 
     it("includes soft-deleted records (deleted_at IS NOT NULL)", async () => {
@@ -152,7 +143,6 @@ describe("LocalStorageAdapter", () => {
         milestones: [],
         files: [],
         events: [],
-        settings: null,
       }
 
       await adapter.upsertDocs(docs)
@@ -193,7 +183,6 @@ describe("LocalStorageAdapter", () => {
         milestones: [],
         files: [],
         events: [],
-        settings: null,
       })
 
       const row = db.prepare("SELECT * FROM tasks WHERE id = 't1'").get()
@@ -233,7 +222,6 @@ describe("LocalStorageAdapter", () => {
         milestones: [],
         files: [],
         events: [],
-        settings: null,
       })
 
       const tags = db
@@ -275,7 +263,6 @@ describe("LocalStorageAdapter", () => {
         milestones: [],
         files: [],
         events: [],
-        settings: null,
       })
 
       const files = db
@@ -293,7 +280,6 @@ describe("LocalStorageAdapter", () => {
         milestones: [],
         files: [{id: "f1", name: "pic.png", mime_type: "image/png", size: 500, created_at: now, updated_at: now, deleted_at: null}],
         events: [],
-        settings: null,
       })
 
       expect(db.prepare("SELECT * FROM tags WHERE id = 'tag1'").get()).toBeDefined()
@@ -301,7 +287,9 @@ describe("LocalStorageAdapter", () => {
       expect(db.prepare("SELECT * FROM files WHERE id = 'f1'").get()).toBeDefined()
     })
 
-    it("upserts settings (INSERT OR REPLACE with JSON data)", async () => {
+    it("ignores a settings document carried by an older snapshot", async () => {
+      insertSettings(db, {version: "1", themes: {current: "light"}})
+
       await adapter.upsertDocs({
         tasks: [],
         tags: [],
@@ -313,9 +301,7 @@ describe("LocalStorageAdapter", () => {
       })
 
       const row = db.prepare("SELECT * FROM settings WHERE id = 'default'").get()
-      expect(row).toBeDefined()
-      const data = JSON.parse(row.data)
-      expect(data.themes.current).toBe("dark")
+      expect(JSON.parse(row.data).themes.current).toBe("light")
     })
 
     it("runs in a single transaction (all-or-nothing)", async () => {
@@ -349,7 +335,6 @@ describe("LocalStorageAdapter", () => {
           branches: [],
           milestones: [],
           files: [],
-          settings: null,
         })
       } catch {
         // expected
@@ -367,7 +352,6 @@ describe("LocalStorageAdapter", () => {
         branches: [],
         milestones: [],
         files: [],
-        settings: null,
         events: [
           {
             id: "e1",
@@ -568,7 +552,6 @@ describe("LocalStorageAdapter", () => {
         milestones: [],
         files: [],
         events: [],
-        settings: null,
         relations: [
           {id: "live-rel", blocker_id: "x", blocked_id: "y", created_at: now, updated_at: now, deleted_at: null},
           {id: "gone-rel", blocker_id: "y", blocked_id: "x", created_at: now, updated_at: now, deleted_at: now},
@@ -592,7 +575,6 @@ describe("LocalStorageAdapter", () => {
         milestones: [],
         files: [],
         events: [],
-        settings: null,
         relations: [{id: "x-y-again", blocker_id: "x", blocked_id: "y", created_at: now, updated_at: now, deleted_at: null}],
       })
       await adapter.deleteDocs({tasks: ["x"]})

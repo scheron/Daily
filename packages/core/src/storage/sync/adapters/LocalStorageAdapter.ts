@@ -4,7 +4,6 @@ import type {
   SnapshotDocs,
   SnapshotFile,
   SnapshotMilestone,
-  SnapshotSettings,
   SnapshotTag,
   SnapshotTask,
   SnapshotTaskEvent,
@@ -23,9 +22,8 @@ export class LocalStorageAdapter implements ILocalStorage {
     const relations = this._loadRelations()
     const files = this._loadFiles()
     const events = this._loadTaskEvents()
-    const settings = this._loadSettings()
 
-    return {tasks, tags, branches, milestones, relations, files, events, settings}
+    return {tasks, tags, branches, milestones, relations, files, events}
   }
 
   async upsertDocs(docs: SnapshotDocs): Promise<void> {
@@ -177,23 +175,6 @@ export class LocalStorageAdapter implements ILocalStorage {
         for (const r of docs.relations) {
           stmt.run(r.id, r.blocker_id, r.blocked_id, r.created_at, r.updated_at, r.deleted_at)
         }
-      }
-
-      if (docs.settings) {
-        const {id, created_at, updated_at, sync: _localSync, ...data} = docs.settings as SnapshotSettings & {sync?: unknown}
-        this.db
-          .prepare(
-            `
-            INSERT INTO settings (id, version, data, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?)
-            ON CONFLICT(id) DO UPDATE SET
-              version    = excluded.version,
-              data       = excluded.data,
-              created_at = excluded.created_at,
-              updated_at = excluded.updated_at
-          `,
-          )
-          .run(id, data.version, JSON.stringify(data), created_at, updated_at)
       }
 
       /* Append-only events: INSERT OR IGNORE (immutable, never updated or deleted). */
@@ -409,17 +390,5 @@ export class LocalStorageAdapter implements ILocalStorage {
       to_date: row.to_date ?? null,
       created_at: row.created_at,
     }))
-  }
-
-  private _loadSettings(): SnapshotSettings | null {
-    const row = this.db.prepare(`SELECT * FROM settings WHERE id = 'default'`).get() as any
-    if (!row) return null
-    const {sync: _localSync, ...data} = JSON.parse(row.data)
-    return {
-      id: row.id,
-      ...data,
-      created_at: row.created_at,
-      updated_at: row.updated_at,
-    }
   }
 }

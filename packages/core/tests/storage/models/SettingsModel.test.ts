@@ -97,9 +97,7 @@ describe("SettingsModel", () => {
 
     const docs = await new LocalStorageAdapter(db).loadAllDocs()
     const snapshot = buildSnapshot(docs)
-    expect(snapshot.docs.settings).not.toBeNull()
-    expect(snapshot.docs.settings).not.toHaveProperty("sync")
-    expect(snapshot.docs.settings).not.toHaveProperty("server")
+    expect(snapshot.docs).not.toHaveProperty("settings")
     expect(JSON.stringify(snapshot)).not.toContain("super-secret-token")
 
     settingsModel.saveSettings({sync: {...second.sync, server: {enabled: false, binding: null}}})

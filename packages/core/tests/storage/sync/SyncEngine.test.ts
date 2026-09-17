@@ -30,7 +30,7 @@ vi.mock("../../../src/utils/logger", () => ({
 }))
 
 function emptyDocs(): SnapshotDocs {
-  return {tasks: [], tags: [], branches: [], milestones: [], files: [], events: [], settings: null}
+  return {tasks: [], tags: [], branches: [], milestones: [], files: [], events: []}
 }
 
 function makeTask(id: string, updatedAt: string): SnapshotTask {
@@ -68,7 +68,6 @@ class FakeLocalStore implements ILocalStorage {
       for (const doc of incoming[key]) byId.set(doc.id, doc as never)
       this.docs[key] = [...byId.values()] as never
     }
-    if (incoming.settings) this.docs.settings = incoming.settings
   }
 
   async deleteDocs(ids: {tasks?: string[]; tags?: string[]; branches?: string[]; files?: string[]}): Promise<void> {
@@ -393,28 +392,26 @@ describe("SyncEngine (multi-remote)", () => {
     })
   })
 
-  describe("_normalizeSettings", () => {
-    it("parses an old-format settings.data JSON string and spreads it before merging", async () => {
+  describe("settings", () => {
+    it("strips the settings document an older remote snapshot carries before writing it back", async () => {
       const remote = new FakeRemote()
-      const oldFormatDocs = {
+      remote.snapshot = buildSnapshot({
         ...emptyDocs(),
         settings: {
           id: "settings",
-          data: JSON.stringify({version: "1", themes: {current: "dark"}}),
+          version: "1",
+          themes: {current: "dark"},
           created_at: "2026-07-18T00:00:00.000Z",
           updated_at: "2026-07-18T00:00:00.000Z",
-        } as never,
-      }
-      remote.snapshot = buildSnapshot(oldFormatDocs)
+        },
+      } as never)
+      local.docs.tasks = [makeTask("tA", "2026-07-18T00:00:00.000Z")]
       const {engine} = makeEngine(local, [{id: "a", adapter: remote}])
 
       await engine.syncOnce("pull")
 
-      expect(local.docs.settings).not.toBeNull()
-      expect((local.docs.settings as never as {data?: string}).data).toBeUndefined()
-      expect((local.docs.settings as never as {version: string}).version).toBe("1")
-      expect((local.docs.settings as never as {themes: {current: string}}).themes.current).toBe("dark")
-      expect((local.docs.settings as never as {id: string}).id).toBe("settings")
+      expect(remote.saveCount).toBe(1)
+      expect(remote.snapshot?.docs).not.toHaveProperty("settings")
     })
   })
 

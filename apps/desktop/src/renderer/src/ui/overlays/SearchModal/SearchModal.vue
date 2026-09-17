@@ -6,6 +6,7 @@ import {useTaskEditorStore} from "@/stores/task-editor"
 import {useTasksStore} from "@/stores/tasks"
 import BaseIcon from "@/ui/base/BaseIcon"
 import {BaseModal} from "@/ui/base/BaseModal"
+import {useConfirmUnsavedModal} from "@/ui/overlays/ConfirmUnsavedModal"
 import {scrollToElement} from "@/utils/ui/dom"
 import {useFilter} from "./composables/useFilter"
 import {useSearch} from "./composables/useSearch"
@@ -25,6 +26,7 @@ const taskEditorStore = useTaskEditorStore()
 
 const {query, items, isSearching, isLoaded} = useSearch()
 const {filter, filteredItems} = useFilter(items)
+const {open: confirmLeaveIfDirty} = useConfirmUnsavedModal()
 
 async function navigateToTask(result: TaskSearchResult) {
   const task = result.task
@@ -32,6 +34,15 @@ async function navigateToTask(result: TaskSearchResult) {
   if (result.branch?.deletedAt) {
     toasts.error("Task belongs to a deleted project")
     return
+  }
+
+  if (!task.scheduled) {
+    if (taskEditorStore.editingTaskId === task.id) {
+      emit("close")
+      return
+    }
+
+    if (!(await confirmLeaveIfDirty())) return
   }
 
   if (branchesStore.activeBranchId !== task.branchId) {

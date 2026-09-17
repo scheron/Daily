@@ -1,7 +1,7 @@
 import {SnapshotVersionAheadError} from "@daily/protocol"
 import {isObject} from "@daily/std"
 
-export const KNOWN_SNAPSHOT_VERSION = 6
+export const KNOWN_SNAPSHOT_VERSION = 7
 
 /**
  * Aborts syncing when a parsed snapshot claims a schema version newer than this

@@ -11,7 +11,6 @@ function validSnapshot() {
       tags: [],
       branches: [],
       files: [],
-      settings: null,
     },
     meta: {
       updatedAt: "2026-03-25T00:00:00.000Z",
@@ -72,8 +71,9 @@ describe("isValidSnapshot", () => {
     expect(isValidSnapshot("string")).toBe(false)
   })
 
-  it("accepts_TC-8_version_6_and_refuses_version_7", () => {
+  it("accepts version 7 and refuses version 8", () => {
     expect(isValidSnapshot({...validSnapshot(), version: 6})).toBe(true)
-    expect(isValidSnapshot({...validSnapshot(), version: 7})).toBe(false)
+    expect(isValidSnapshot({...validSnapshot(), version: 7})).toBe(true)
+    expect(isValidSnapshot({...validSnapshot(), version: 8})).toBe(false)
   })
 })

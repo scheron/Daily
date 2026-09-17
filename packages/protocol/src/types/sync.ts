@@ -1,5 +1,3 @@
-import type {Settings} from "./storage"
-
 export type SyncStrategy = "pull" | "push"
 
 export type SnapshotMeta = {
@@ -8,7 +6,7 @@ export type SnapshotMeta = {
 }
 
 export type Snapshot = {
-  version: 2 | 3 | 4 | 5 | 6
+  version: 2 | 3 | 4 | 5 | 6 | 7
   docs: SnapshotDocs
   meta: SnapshotMeta
 }
@@ -21,7 +19,6 @@ export type SnapshotDocs = {
   relations: SnapshotTaskRelation[]
   files: SnapshotFile[]
   events: SnapshotTaskEvent[]
-  settings: SnapshotSettings | null
 }
 
 export type SnapshotTaskEvent = {
@@ -103,12 +100,6 @@ export type SnapshotFile = {
   created_at: string
   updated_at: string
   deleted_at: string | null
-}
-
-export type SnapshotSettings = Omit<Settings, "sync" | "typography"> & {
-  id: string
-  created_at: string
-  updated_at: string
 }
 
 export type MergeResult = {

@@ -1,7 +1,6 @@
 import {normalizeSnapshotDocs} from "../snapshot/normalizeSnapshotDocs"
 import {mergeAppendOnly} from "./mergeAppendOnly"
 import {mergeCollections} from "./mergeCollections"
-import {mergeSettings} from "./mergeSettings"
 
 import type {MergeResult, SnapshotDocs, SnapshotTaskRelation, SyncStrategy} from "@daily/protocol"
 
@@ -36,7 +35,6 @@ export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: Snapsh
   } = mergeCollections(local.relations, remote.relations, strategy, gcIntervalMs)
   const {result: mergedFiles, toGc: gcFiles, adoptedOnTie: adoptedFiles} = mergeCollections(local.files, remote.files, strategy, gcIntervalMs)
 
-  const mergedSettings = mergeSettings(local.settings, remote.settings, strategy)
   const {result: mergedEvents, added: addedEvents} = mergeAppendOnly(local.events, remote.events)
 
   const survivingBranchIds = new Set(mergedBranches.map((b) => b.id))
@@ -93,7 +91,6 @@ export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: Snapsh
     relations: relationsAfterTaskGc,
     files: mergedFiles,
     events: mergedEvents,
-    settings: mergedSettings,
   }
 
   const toUpsert: SnapshotDocs = {
@@ -104,7 +101,6 @@ export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: Snapsh
     relations: [],
     files: [],
     events: [],
-    settings: null,
   }
 
   if (hasChanges(local.tasks, tasksAfterBranchGc) || gcTasks.length || branchReassignTouchesTasks || milestoneClearTouchesTasks) {
@@ -161,11 +157,6 @@ export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: Snapsh
     changes += adoptedFiles.length
   }
 
-  if (mergedSettings && hasSettingsChanges(local.settings, mergedSettings)) {
-    toUpsert.settings = mergedSettings
-    changes += 1
-  }
-
   if (addedEvents.length) {
     toUpsert.events = addedEvents
     changes += addedEvents.length
@@ -187,8 +178,4 @@ function hasChanges<D extends {id: string; updated_at: string}>(oldDocs: D[], ne
   }
 
   return false
-}
-
-function hasSettingsChanges(local: SnapshotDocs["settings"], remote: SnapshotDocs["settings"]): boolean {
-  return JSON.stringify(local) !== JSON.stringify(remote)
 }

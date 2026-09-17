@@ -4,7 +4,7 @@ import {describe, expect, it} from "vitest"
 import {buildSnapshot, buildSnapshotMeta} from "@core/utils/sync/snapshot/buildSnapshot"
 
 function emptyDocs() {
-  return {tasks: [], tags: [], branches: [], files: [], events: [], settings: null}
+  return {tasks: [], tags: [], branches: [], files: [], events: []}
 }
 
 function makeTask(id, overrides = {}) {
@@ -54,20 +54,20 @@ function makeTag(id, overrides = {}) {
 }
 
 describe("buildSnapshot", () => {
-  it("creates snapshot with version 6", () => {
+  it("creates snapshot with version 7", () => {
     const snapshot = buildSnapshot(emptyDocs())
-    expect(snapshot.version).toBe(6)
+    expect(snapshot.version).toBe(7)
   })
 
-  it("builds_TC-8_version_6_snapshots_whose_hash_moves_when_a_relations_blocked_id_changes", () => {
+  it("builds version 7 snapshots whose hash moves when a relation's blocked_id changes", () => {
     const docsA = {...emptyDocs(), relations: [makeRelation("r1", {blocked_id: "b"})]}
     const docsB = {...emptyDocs(), relations: [makeRelation("r1", {blocked_id: "c"})]}
 
     const snapshotA = buildSnapshot(docsA)
     const snapshotB = buildSnapshot(docsB)
 
-    expect(snapshotA.version).toBe(6)
-    expect(snapshotB.version).toBe(6)
+    expect(snapshotA.version).toBe(7)
+    expect(snapshotB.version).toBe(7)
     expect(snapshotA.meta.hash).not.toBe(snapshotB.meta.hash)
   })
 
@@ -110,16 +110,14 @@ describe("buildSnapshotMeta", () => {
     expect(hashTag).not.toBe(hashTask)
   })
 
-  it("hash changes when settings change", () => {
-    const without = emptyDocs()
-    const hashWithout = buildSnapshotMeta(without).hash
+  it("hash ignores a settings document left over from an older snapshot", () => {
+    const hashWithout = buildSnapshotMeta(emptyDocs()).hash
 
     const withSettings = {
       ...emptyDocs(),
       settings: {id: "default", version: "1", updated_at: "2026-03-25T00:00:00.000Z", created_at: "2026-03-25T00:00:00.000Z"},
     }
-    const hashWith = buildSnapshotMeta(withSettings).hash
-    expect(hashWith).not.toBe(hashWithout)
+    expect(buildSnapshotMeta(withSettings).hash).toBe(hashWithout)
   })
 
   it("sort order of docs does not affect hash", () => {

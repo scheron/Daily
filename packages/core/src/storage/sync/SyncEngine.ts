@@ -1,5 +1,5 @@
 import {RemoteSnapshotPendingError, RemoteWriteConflictError, SYNC_CONFIG, syncPacingFor} from "@daily/protocol"
-import {AsyncMutex, createIntervalScheduler, isString, withElapsedDelay} from "@daily/std"
+import {AsyncMutex, createIntervalScheduler, withElapsedDelay} from "@daily/std"
 
 import {logger} from "../../utils/logger"
 import {isRevisionedRemote} from "../../utils/sync/isRevisionedRemote"
@@ -203,7 +203,7 @@ export class SyncEngine {
     for (const remote of plainRemotes) {
       try {
         const snapshot = await remote.adapter.loadSnapshot()
-        const remoteDocs = snapshot ? this._normalizeSettings(snapshot.docs) : null
+        const remoteDocs = snapshot?.docs ?? null
 
         if (remoteDocs && buildSnapshotMeta(localDocs).hash === snapshot!.meta.hash) {
           logger.debug(logger.CONTEXT.SYNC_ENGINE, `Remote "${remote.id}": hashes match, no merge needed`)
@@ -305,7 +305,7 @@ export class SyncEngine {
 
     for (let attempt = 1; attempt <= SYNC_CONFIG.conditionalWriteMaxAttempts; attempt++) {
       const {snapshot, revision} = await adapter.loadSnapshotWithRevision()
-      const remoteDocs = snapshot ? this._normalizeSettings(snapshot.docs) : null
+      const remoteDocs = snapshot?.docs ?? null
 
       const {resultDocs, hasChanges} = await this._pull(docs, remoteDocs, strategy, changesetAcc)
       docs = resultDocs
@@ -337,22 +337,6 @@ export class SyncEngine {
     }
 
     return {resultDocs: docs, hasChanges: anyChanges, conflict: lastConflict}
-  }
-
-  /**
-   * Normalize settings from old snapshot format where `data` was a JSON string.
-   */
-  private _normalizeSettings(docs: SnapshotDocs): SnapshotDocs {
-    if (docs.settings) {
-      let settings: any = docs.settings
-      if ("data" in settings && isString(settings.data)) {
-        const {id, data, created_at, updated_at} = settings
-        settings = {id, ...JSON.parse(data), created_at, updated_at}
-      }
-      const {sync: _localSync, ...syncable} = settings
-      docs.settings = syncable
-    }
-    return docs
   }
 
   /**
@@ -402,7 +386,6 @@ export class SyncEngine {
     relations?: unknown[]
     files?: unknown[]
     events?: unknown[]
-    settings?: unknown
   }): number {
     return (
       (docs.tasks?.length ?? 0) +
@@ -411,8 +394,7 @@ export class SyncEngine {
       (docs.milestones?.length ?? 0) +
       (docs.relations?.length ?? 0) +
       (docs.files?.length ?? 0) +
-      (docs.events?.length ?? 0) +
-      (docs.settings ? 1 : 0)
+      (docs.events?.length ?? 0)
     )
   }
 
@@ -494,8 +476,7 @@ export class SyncEngine {
 
   private _shouldPush(localDocs: SnapshotDocs, remoteDocs: SnapshotDocs | null): boolean {
     if (!remoteDocs) {
-      const hasAnyData =
-        localDocs.tasks.length > 0 || localDocs.tags.length > 0 || localDocs.branches.length > 0 || localDocs.files.length > 0 || !!localDocs.settings
+      const hasAnyData = localDocs.tasks.length > 0 || localDocs.tags.length > 0 || localDocs.branches.length > 0 || localDocs.files.length > 0
 
       if (hasAnyData) {
         logger.debug(logger.CONTEXT.SYNC_PUSH, "No remote snapshot, local has data, need push")

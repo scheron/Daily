@@ -266,15 +266,13 @@ describe("Snapshot Sync Integration", () => {
       expect(deviceB.db.prepare("SELECT * FROM files WHERE id = 'f1'").get()).toBeDefined()
     })
 
-    it("receives settings", async () => {
+    it("does not receive settings", async () => {
       insertSettings(deviceA.db, {version: "1", themes: {current: "dark"}})
       await syncDevice(deviceA)
 
       await syncDevice(deviceB)
 
-      const settings = getSettings(deviceB.db)
-      expect(settings).not.toBeNull()
-      expect(settings.themes.current).toBe("dark")
+      expect(getSettings(deviceB.db)).toBeNull()
     })
   })
 
@@ -536,29 +534,17 @@ describe("Snapshot Sync Integration", () => {
   })
 
   describe("settings sync", () => {
-    it("settings created on A sync without remote configuration", async () => {
-      insertSettings(deviceA.db, {version: "1", themes: {current: "dark"}, sync: {iCloud: {enabled: true}}})
-      await syncDevice(deviceA)
-      await syncDevice(deviceB)
-
-      const settings = getSettings(deviceB.db)
-      expect(settings).not.toBeNull()
-      expect(settings.themes.current).toBe("dark")
-      expect(settings.sync).toBeUndefined()
-    })
-
-    it("settings updated on B (newer) → sync → A gets updated settings", async () => {
+    it("each device keeps its own settings, however recently the other changed theirs", async () => {
       insertSettings(deviceA.db, {version: "1", themes: {current: "light"}}, hoursAgo(10))
       await syncDevice(deviceA)
       await syncDevice(deviceB)
 
-      // B updates with newer timestamp
       insertSettings(deviceB.db, {version: "1", themes: {current: "dark"}}, hoursAgo(6))
       await syncDevice(deviceB, "push")
       await syncDevice(deviceA)
 
-      const settings = getSettings(deviceA.db)
-      expect(settings.themes.current).toBe("dark")
+      expect(getSettings(deviceA.db).themes.current).toBe("light")
+      expect(getSettings(deviceB.db).themes.current).toBe("dark")
     })
   })
 })
