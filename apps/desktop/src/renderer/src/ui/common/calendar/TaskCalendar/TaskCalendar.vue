@@ -10,6 +10,7 @@ import BaseIcon from "@/ui/base/BaseIcon"
 import {cn} from "@/utils/ui/tailwindcss"
 import {calcMonthStatistics} from "./utils/calcMonthStatistics"
 import {formatDaysToMonth} from "./utils/formatDaysToMonth"
+import {useMonthDragStep} from "./useMonthDragStep"
 
 import type {Day, ISODate} from "@daily/protocol"
 
@@ -37,6 +38,8 @@ const currentMonthKey = computed(() => currentMonth.value.toFormat("yyyy-MM"))
 const monthCounts = computed(() => calcMonthStatistics(props.days).get(currentMonthKey.value) ?? {active: 0, discarded: 0, done: 0})
 
 const {dropTargetDate} = useBoardDrop()
+
+useMonthDragStep(currentMonth)
 
 function previousMonth() {
   currentMonth.value = currentMonth.value.minus({months: 1})
@@ -96,11 +99,11 @@ onBeforeMount(() => {
   <div class="flex-1 p-1">
     <div class="mb-3 flex items-center justify-between gap-2">
       <div class="flex shrink-0 items-center">
-        <BaseButton variant="ghost" icon="chevron-left" @click="previousMonth" />
+        <BaseButton variant="ghost" icon="chevron-left" data-month-step="previous" @click="previousMonth" />
         <BaseButton variant="ghost" tooltip="Jump to current month" class="text-sm" @click="jumpToCurrentMonth">
           {{ monthYearDisplay }}
         </BaseButton>
-        <BaseButton variant="ghost" icon="chevron-right" @click="nextMonth" />
+        <BaseButton variant="ghost" icon="chevron-right" data-month-step="next" @click="nextMonth" />
       </div>
 
       <div class="flex shrink-0 items-center gap-1.5 px-3 text-xs font-semibold">
@@ -120,7 +123,7 @@ onBeforeMount(() => {
     </div>
 
     <ul class="grid grid-cols-7 gap-1">
-      <li v-for="day in WEEKDAYS" :key="day" class="text-accent/70 w-full shrink-0 py-2 text-center text-sm select-none">{{ day }}</li>
+      <li v-for="day in WEEKDAYS" :key="day" class="text-accent/70 w-full shrink-0 select-none py-2 text-center text-sm">{{ day }}</li>
     </ul>
 
     <div class="border-accent/10 my-1 border-b" />
