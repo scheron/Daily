@@ -1,6 +1,14 @@
 import type {ProtocolErrorCode} from "../errors/protocol/ProtocolErrorCode"
 
-export const SYNC_PROTOCOL_VERSION = 3
+export const SYNC_PROTOCOL_VERSION = 4
+
+/**
+ * Where an approved agent connects. A path string and nothing more: it is not a Daily Sync
+ * Protocol route, it takes no part in version negotiation, and it exists only so the Agent
+ * window response can name an address a person can copy. Entry 3 mounts its endpoint here
+ * rather than typing the path.
+ */
+export const AGENT_ENDPOINT_PATH = "/mcp"
 
 export const SYNC_PROTOCOL_PATHS = {
   server: "/v1/server",
@@ -19,6 +27,13 @@ export const SYNC_PROTOCOL_PATHS = {
   snapshot: "/v1/snapshot",
   assets: "/v1/assets",
   assetItem: "/v1/assets/",
+  agents: "/v1/agents",
+  agentRevoke: "/v1/agents/revoke",
+  agentWindowOpen: "/v1/agents/window/open",
+  agentWindowClose: "/v1/agents/window/close",
+  agentPending: "/v1/agents/pending",
+  agentApprove: "/v1/agents/approve",
+  agentDeny: "/v1/agents/deny",
 } as const
 
 export type ProtocolOk<T> = {ok: true; data: T}
@@ -72,6 +87,33 @@ export type DeviceSummary = {
 export type DeviceListResponse = {devices: DeviceSummary[]; enrollmentWindow: EnrollmentWindow | null}
 export type RevokeDeviceBody = {deviceId: string}
 
+export type AgentWindow = {expiresAt: string; deviceId: string; agentAddress: string}
+
+export type AgentSummary = {
+  id: string
+  deviceId: string
+  name: string
+  createdAt: string
+  lastUsedAt: string | null
+  revokedAt: string | null
+}
+export type AgentListResponse = {agents: AgentSummary[]; agentWindow: AgentWindow | null}
+export type RevokeAgentBody = {agentId: string}
+
+export type PendingAgentRequest = {
+  requestId: string
+  code: string
+  agentName: string
+  returnsTo: string
+  isLocalProgram: boolean
+  requestedAt: string
+  expiresAt: string
+}
+export type PendingAgentRequestResponse = {request: PendingAgentRequest | null}
+
+export type ApproveAgentBody = {requestId: string; code: string; timeZone: string}
+export type DenyAgentBody = {requestId: string}
+
 export type ConsoleEnrollBody = {token: string; deviceName: string}
 export type ConsoleEnrollResponse = IssuedCredential
 
@@ -79,7 +121,14 @@ export type ConsoleEnrollResponse = IssuedCredential
 export type SnapshotReadResponse = {snapshot: unknown; revision: string | null}
 export type SnapshotWriteBody = {snapshot: unknown; expectedRevision: string | null}
 export type SnapshotWriteResponse = {revision: string}
-export type RevisionProbe = {revision: string | null; pendingEnrollment: boolean; protocol: number; role: DeviceRole}
+export type RevisionProbe = {
+  revision: string | null
+  pendingEnrollment: boolean
+  pendingAgentRequest: boolean
+  acceptsAgents: boolean
+  protocol: number
+  role: DeviceRole
+}
 
 export type AssetEntry = {name: string; size: number; sha256: string; uploadedAt: string}
 export type AssetManifestResponse = {assets: AssetEntry[]}

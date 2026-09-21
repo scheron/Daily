@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-IMAGE="ghcr.io/scheron/daily-server:p3"
+IMAGE="ghcr.io/scheron/daily-server:p4"
 INSTALL_URL="https://raw.githubusercontent.com/scheron/Daily/main/deploy/install.sh"
 PROJECT="daily-server"
 MANAGER_COMMAND="daily-server"

@@ -44,6 +44,7 @@ type DeviceRow = {
   created_at: string
   last_seen_at: string | null
   revoked_at: string | null
+  time_zone: string | null
 }
 
 const COLUMNS = `id, device_name, code, state, created_at, expires_at, resolved_at, issued_device_id, requested_from_address, approved_by_device_id`
@@ -175,9 +176,9 @@ export function issueEnrolledCredential(
   store: ServerStore,
   record: EnrollmentRecord,
 ): {device: DeviceRecord; token: string; approvedBy: string | null} {
-  const row = store.db.prepare(`SELECT id, name, role, created_at, last_seen_at, revoked_at FROM devices WHERE id = ?`).get(record.issuedDeviceId) as
-    | DeviceRow
-    | undefined
+  const row = store.db
+    .prepare(`SELECT id, name, role, created_at, last_seen_at, revoked_at, time_zone FROM devices WHERE id = ?`)
+    .get(record.issuedDeviceId) as DeviceRow | undefined
 
   if (!row) throw new ProtocolError(ProtocolErrorCode.ENROLLMENT_NOT_FOUND, "This enrollment has no device to hand over")
 
@@ -185,7 +186,15 @@ export function issueEnrolledCredential(
   if (!issued.issued_token) throw new ProtocolError(ProtocolErrorCode.ENROLLMENT_NOT_FOUND, "This enrollment has no credential left to hand over")
 
   return {
-    device: {id: row.id, name: row.name, role: row.role, createdAt: row.created_at, lastSeenAt: row.last_seen_at, revokedAt: row.revoked_at},
+    device: {
+      id: row.id,
+      name: row.name,
+      role: row.role,
+      createdAt: row.created_at,
+      lastSeenAt: row.last_seen_at,
+      revokedAt: row.revoked_at,
+      timeZone: row.time_zone,
+    },
     token: issued.issued_token,
     approvedBy: record.approvedByDeviceId ? readDeviceName(store, record.approvedByDeviceId) : null,
   }

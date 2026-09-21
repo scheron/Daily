@@ -1,4 +1,5 @@
 import type {
+  AgentWindowView,
   Branch,
   DeviceRole,
   EnrollmentPollView,
@@ -10,7 +11,9 @@ import type {
   MigrationPreview,
   Milestone,
   MoveTaskByOrderParams,
+  PendingAgentRequestView,
   PendingApprovalView,
+  ServerAgentsView,
   ServerBindingView,
   ServerConnectionStateView,
   ServerMembershipView,
@@ -69,6 +72,14 @@ export interface IServerProvider {
   revokeDevice(deviceId: string): Promise<ServerMembershipView>
   openEnrollmentWindow(): Promise<EnrollmentWindowView>
   closeEnrollmentWindow(): Promise<void>
+
+  openAgentWindow(): Promise<AgentWindowView>
+  closeAgentWindow(): Promise<void>
+  pendingAgentRequest(): Promise<PendingAgentRequestView | null>
+  approveAgent(requestId: string, code: string): Promise<void>
+  denyAgent(requestId: string): Promise<void>
+  listAgents(): Promise<ServerAgentsView>
+  revokeAgent(agentId: string): Promise<ServerAgentsView>
 }
 
 export interface IStorageController {
@@ -149,5 +160,7 @@ export interface IStorageController {
     onSettingsChange: () => void
     onRevoked?: () => void
     onRoleChanged?: (role: DeviceRole) => void
+    onAgentRequested?: () => void
+    onAgentsAcceptedChanged?: (acceptsAgents: boolean) => void
   }): void
 }

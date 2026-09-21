@@ -109,6 +109,38 @@ export function readEnrollmentWindow(store: ServerStore): EnrollmentWindow | nul
   return {expiresAt: row.enrollment_window_expires_at}
 }
 
+export type AgentWindowState = {expiresAt: string; deviceId: string}
+
+/**
+ * Opens the door for one device to ask to connect an agent, for `SYNC_PROTOCOL_CONFIG.agentWindowMs`
+ * from now. Opening while one is already open replaces it, on whichever device asked this time.
+ */
+export function writeAgentWindow(store: ServerStore, deviceId: string): AgentWindowState {
+  const expiresAt = new Date(Date.now() + SYNC_PROTOCOL_CONFIG.agentWindowMs).toISOString()
+
+  store.db.prepare(`UPDATE server_identity SET agent_window_expires_at = ?, agent_window_device_id = ? WHERE id = 1`).run(expiresAt, deviceId)
+
+  return {expiresAt, deviceId}
+}
+
+/** Closes the Agent window, if one is open. */
+export function clearAgentWindow(store: ServerStore): void {
+  store.db.prepare(`UPDATE server_identity SET agent_window_expires_at = NULL, agent_window_device_id = NULL WHERE id = 1`).run()
+}
+
+/** The open Agent window, or `null` when none is open or the open one has run out. */
+export function readAgentWindow(store: ServerStore): AgentWindowState | null {
+  const row = store.db.prepare(`SELECT agent_window_expires_at, agent_window_device_id FROM server_identity WHERE id = 1`).get() as {
+    agent_window_expires_at: string | null
+    agent_window_device_id: string | null
+  }
+
+  if (!row.agent_window_expires_at || !row.agent_window_device_id) return null
+  if (Date.parse(row.agent_window_expires_at) <= Date.now()) return null
+
+  return {expiresAt: row.agent_window_expires_at, deviceId: row.agent_window_device_id}
+}
+
 function readClaimState(store: ServerStore): ClaimStateRow {
   return store.db.prepare(`SELECT claimed_at, claim_code FROM server_identity WHERE id = 1`).get() as ClaimStateRow
 }

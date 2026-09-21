@@ -21,4 +21,12 @@ export function setupSyncServerIPC(getStorage: () => IStorageController | null) 
   ipcMain.handle("sync-server:revoke-device", (_e, deviceId: string) => getStorage()?.getServerProvider().revokeDevice(deviceId))
   ipcMain.handle("sync-server:open-enrollment-window", (_e) => getStorage()?.getServerProvider().openEnrollmentWindow())
   ipcMain.handle("sync-server:close-enrollment-window", (_e) => getStorage()?.getServerProvider().closeEnrollmentWindow())
+
+  ipcMain.handle("sync-server:open-agent-window", (_e) => getStorage()?.getServerProvider().openAgentWindow())
+  ipcMain.handle("sync-server:close-agent-window", (_e) => getStorage()?.getServerProvider().closeAgentWindow())
+  ipcMain.handle("sync-server:get-pending-agent-request", (_e) => getStorage()?.getServerProvider().pendingAgentRequest())
+  ipcMain.handle("sync-server:approve-agent", (_e, requestId: string, code: string) => getStorage()?.getServerProvider().approveAgent(requestId, code))
+  ipcMain.handle("sync-server:deny-agent", (_e, requestId: string) => getStorage()?.getServerProvider().denyAgent(requestId))
+  ipcMain.handle("sync-server:list-agents", (_e) => getStorage()?.getServerProvider().listAgents())
+  ipcMain.handle("sync-server:revoke-agent", (_e, agentId: string) => getStorage()?.getServerProvider().revokeAgent(agentId))
 }

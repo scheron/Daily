@@ -2,13 +2,18 @@ import {setTimeout as delay} from "node:timers/promises"
 
 import {ProtocolError, ProtocolErrorCode, SYNC_PROTOCOL_CONFIG, SYNC_PROTOCOL_PATHS, SYNC_PROTOCOL_VERSION} from "@daily/protocol"
 
+import {findPendingAgentRequest} from "../../agents/AgentStore"
+import {serverAcceptsAgents} from "../../agents/serverAcceptsAgents"
 import {authenticateRequest} from "../../devices/authenticateRequest"
+import {writeDeviceTimeZone} from "../../devices/DeviceStore"
+import {isUsableTimeZone} from "../../devices/timeZone"
 import {findPendingEnrollment} from "../../enrollment/EnrollmentStore"
 import {isClaimed} from "../../identity/ServerIdentityStore"
 import {isStorableSnapshot, readRevision, readSnapshot, writeSnapshotIfUnchanged} from "../../snapshot/SnapshotStore"
 import {RESPONSE_SENT} from "../respond"
 
 import type {RevisionProbe, SnapshotReadResponse, SnapshotWriteBody, SnapshotWriteResponse} from "@daily/protocol"
+import type {ServerConfig} from "../../config/resolveServerConfig"
 import type {DeviceRecord} from "../../devices/DeviceStore"
 import type {ServerStore} from "../../store/instance"
 import type {Route, RouteContext} from "../createHttpServer"
@@ -76,16 +81,22 @@ async function getRevision(ctx: RouteContext): Promise<RevisionProbe | typeof RE
   requireClaimedServer(ctx.store)
   const device = authenticateRequest(ctx.store, ctx.req)
 
-  const knownRevision = new URL(ctx.req.url ?? "/", "http://placeholder").searchParams.get("knownRevision")
-  if (knownRevision === null) return readRevisionProbe(ctx.store, device)
+  const searchParams = new URL(ctx.req.url ?? "/", "http://placeholder").searchParams
+  const timeZone = searchParams.get("timeZone")
+  if (isUsableTimeZone(timeZone)) writeDeviceTimeZone(ctx.store, device.id, timeZone)
+
+  const knownRevision = searchParams.get("knownRevision")
+  if (knownRevision === null) return readRevisionProbe(ctx.store, ctx.config, device)
 
   return holdForRevisionChange(ctx, knownRevision, device)
 }
 
-function readRevisionProbe(store: RouteContext["store"], device: DeviceRecord): RevisionProbe {
+function readRevisionProbe(store: RouteContext["store"], config: ServerConfig, device: DeviceRecord): RevisionProbe {
   return {
     revision: readRevision(store),
     pendingEnrollment: device.role === "parent" && findPendingEnrollment(store) !== null,
+    pendingAgentRequest: findPendingAgentRequest(store, device.id) !== null,
+    acceptsAgents: serverAcceptsAgents(config),
     protocol: SYNC_PROTOCOL_VERSION,
     role: device.role,
   }
@@ -113,8 +124,8 @@ async function holdForRevisionChange(ctx: RouteContext, knownRevision: string, d
     while (true) {
       if (callerGone) return RESPONSE_SENT
 
-      const probe = readRevisionProbe(ctx.store, device)
-      if (probe.revision !== knownRevision || probe.pendingEnrollment) return probe
+      const probe = readRevisionProbe(ctx.store, ctx.config, device)
+      if (probe.revision !== knownRevision || probe.pendingEnrollment || probe.pendingAgentRequest) return probe
 
       const remainingMs = deadline - Date.now()
       if (remainingMs <= 0) return probe

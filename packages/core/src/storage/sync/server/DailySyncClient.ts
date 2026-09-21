@@ -6,6 +6,8 @@ import {ProtocolError, SYNC_PROTOCOL_CONFIG, SYNC_PROTOCOL_PATHS, SyncServerErro
 import {createServerDispatcher} from "./serverTransport"
 
 import type {
+  AgentListResponse,
+  AgentWindow,
   AssetEntry,
   AssetManifestResponse,
   DeviceListResponse,
@@ -13,6 +15,8 @@ import type {
   EnrollmentWindow,
   EnrollRequestResponse,
   IssuedCredential,
+  PendingAgentRequest,
+  PendingAgentRequestResponse,
   PendingEnrollment,
   PendingEnrollmentResponse,
   ProtocolErrorCode,
@@ -115,6 +119,42 @@ export class DailySyncClient {
     return this.request<void>("POST", SYNC_PROTOCOL_PATHS.enrollWindowClose, {timeout: TIMEOUTS.probe, token: this.token})
   }
 
+  openAgentWindow(): Promise<AgentWindow> {
+    return this.request<AgentWindow>("POST", SYNC_PROTOCOL_PATHS.agentWindowOpen, {timeout: TIMEOUTS.probe, token: this.token})
+  }
+
+  closeAgentWindow(): Promise<void> {
+    return this.request<void>("POST", SYNC_PROTOCOL_PATHS.agentWindowClose, {timeout: TIMEOUTS.probe, token: this.token})
+  }
+
+  async pendingAgentRequest(): Promise<PendingAgentRequest | null> {
+    const response = await this.request<PendingAgentRequestResponse>("GET", SYNC_PROTOCOL_PATHS.agentPending, {
+      timeout: TIMEOUTS.probe,
+      token: this.token,
+    })
+    return response.request
+  }
+
+  async approveAgent(requestId: string, code: string, timeZone: string): Promise<void> {
+    await this.request<void>("POST", SYNC_PROTOCOL_PATHS.agentApprove, {
+      timeout: TIMEOUTS.probe,
+      token: this.token,
+      json: {requestId, code, timeZone},
+    })
+  }
+
+  async denyAgent(requestId: string): Promise<void> {
+    await this.request<void>("POST", SYNC_PROTOCOL_PATHS.agentDeny, {timeout: TIMEOUTS.probe, token: this.token, json: {requestId}})
+  }
+
+  listAgents(): Promise<AgentListResponse> {
+    return this.request<AgentListResponse>("GET", SYNC_PROTOCOL_PATHS.agents, {timeout: TIMEOUTS.probe, token: this.token})
+  }
+
+  revokeAgent(agentId: string): Promise<AgentListResponse> {
+    return this.request<AgentListResponse>("POST", SYNC_PROTOCOL_PATHS.agentRevoke, {timeout: TIMEOUTS.probe, token: this.token, json: {agentId}})
+  }
+
   readSnapshot(): Promise<SnapshotReadResponse> {
     return this.request<SnapshotReadResponse>("GET", SYNC_PROTOCOL_PATHS.snapshot, {timeout: TIMEOUTS.snapshot, token: this.token})
   }
@@ -131,12 +171,13 @@ export class DailySyncClient {
    * Reads the server's revision. Passing the revision this device already knows asks the server to
    * hold the answer until it moves, an enrollment starts waiting, or its hold ends — passing nothing
    * (the default) gets an immediate answer, as any caller that is not this loop wants. `signal`
-   * cancels a held request early, e.g. when the caller stops probing altogether.
+   * cancels a held request early, e.g. when the caller stops probing altogether. `timeZone` tells
+   * the server which day this Mac is on; passing none leaves the stored one where it is.
    */
-  probeRevision(knownRevision?: string | null, signal?: AbortSignal): Promise<RevisionProbe> {
-    if (knownRevision == null) return this.request<RevisionProbe>("GET", SYNC_PROTOCOL_PATHS.revision, {timeout: TIMEOUTS.probe, token: this.token})
+  probeRevision(knownRevision?: string | null, signal?: AbortSignal, timeZone?: string): Promise<RevisionProbe> {
+    const path = revisionPath(knownRevision, timeZone)
+    if (knownRevision == null) return this.request<RevisionProbe>("GET", path, {timeout: TIMEOUTS.probe, token: this.token})
 
-    const path = `${SYNC_PROTOCOL_PATHS.revision}?knownRevision=${encodeURIComponent(knownRevision)}`
     return this.request<RevisionProbe>("GET", path, {timeout: TIMEOUTS.revisionHold, token: this.token, signal})
   }
 
@@ -233,6 +274,15 @@ export class DailySyncClient {
 
 function assetUrl(name: string): string {
   return `${SYNC_PROTOCOL_PATHS.assetItem}${encodeURIComponent(name)}`
+}
+
+function revisionPath(knownRevision?: string | null, timeZone?: string): string {
+  const query = new URLSearchParams()
+  if (knownRevision != null) query.set("knownRevision", knownRevision)
+  if (timeZone) query.set("timeZone", timeZone)
+
+  const search = query.toString()
+  return search ? `${SYNC_PROTOCOL_PATHS.revision}?${search}` : SYNC_PROTOCOL_PATHS.revision
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -4,6 +4,7 @@ import {SHORTCUTS_MAP} from "@shared/constants/shortcuts"
 
 import type {Changeset} from "@daily/core"
 import type {
+  AgentWindowView,
   AIConfig,
   Branch,
   DeviceRole,
@@ -15,8 +16,10 @@ import type {
   MigrationDirection,
   MigrationPreview,
   Milestone,
+  PendingAgentRequestView,
   PendingApprovalView,
   ProtocolMismatchView,
+  ServerAgentsView,
   ServerBindingView,
   ServerConnectionStateView,
   ServerMembershipView,
@@ -89,10 +92,21 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "sync-server:revoke-device": (deviceId: string) => ipcRenderer.invoke("sync-server:revoke-device", deviceId) as Promise<ServerMembershipView>,
   "sync-server:open-enrollment-window": () => ipcRenderer.invoke("sync-server:open-enrollment-window") as Promise<EnrollmentWindowView>,
   "sync-server:close-enrollment-window": () => ipcRenderer.invoke("sync-server:close-enrollment-window") as Promise<void>,
+
+  "sync-server:open-agent-window": () => ipcRenderer.invoke("sync-server:open-agent-window") as Promise<AgentWindowView>,
+  "sync-server:close-agent-window": () => ipcRenderer.invoke("sync-server:close-agent-window") as Promise<void>,
+  "sync-server:get-pending-agent-request": () => ipcRenderer.invoke("sync-server:get-pending-agent-request") as Promise<PendingAgentRequestView | null>,
+  "sync-server:approve-agent": (requestId: string, code: string) => ipcRenderer.invoke("sync-server:approve-agent", requestId, code) as Promise<void>,
+  "sync-server:deny-agent": (requestId: string) => ipcRenderer.invoke("sync-server:deny-agent", requestId) as Promise<void>,
+  "sync-server:list-agents": () => ipcRenderer.invoke("sync-server:list-agents") as Promise<ServerAgentsView>,
+  "sync-server:revoke-agent": (agentId: string) => ipcRenderer.invoke("sync-server:revoke-agent", agentId) as Promise<ServerAgentsView>,
+
   "sync-server:on-approval-requested": (callback: () => void) => ipcRenderer.on("sync-server:approval-requested", (_event, ) => callback()),
   "sync-server:on-revoked": (callback: () => void) => ipcRenderer.on("sync-server:revoked", (_event, ) => callback()),
   "sync-server:on-protocol-mismatch-changed": (callback: (mismatch: ProtocolMismatchView | null) => void) => ipcRenderer.on("sync-server:protocol-mismatch-changed", (_event, mismatch: ProtocolMismatchView | null) => callback(mismatch)),
   "sync-server:on-role-changed": (callback: (role: DeviceRole) => void) => ipcRenderer.on("sync-server:role-changed", (_event, role: DeviceRole) => callback(role)),
+  "sync-server:on-agent-requested": (callback: () => void) => ipcRenderer.on("sync-server:agent-requested", (_event, ) => callback()),
+  "sync-server:on-agents-accepted-changed": (callback: (acceptsAgents: boolean) => void) => ipcRenderer.on("sync-server:agents-accepted-changed", (_event, acceptsAgents: boolean) => callback(acceptsAgents)),
 
   "sync-provider:preview": (target: Exclude<SyncProvider, "off">) => ipcRenderer.invoke("sync-provider:preview", target) as Promise<MigrationPreview>,
   "sync-provider:migrate": (target: SyncProvider, direction: MigrationDirection | null) => ipcRenderer.invoke("sync-provider:migrate", target, direction) as Promise<void>,

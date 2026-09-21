@@ -1,3 +1,12 @@
+import {
+  agentApproveRoute,
+  agentDenyRoute,
+  agentPendingRoute,
+  agentRevokeRoute,
+  agentsRoute,
+  agentWindowCloseRoute,
+  agentWindowOpenRoute,
+} from "./agents"
 import {assetDownloadRoute, assetsManifestRoute, assetUploadRoute} from "./assets"
 import {claimRoute} from "./claim"
 import {deviceRevokeRoute, devicesRoute} from "./devices"
@@ -38,4 +47,11 @@ export const routes: Route[] = [
   assetsManifestRoute,
   assetDownloadRoute,
   assetUploadRoute,
+  agentsRoute,
+  agentRevokeRoute,
+  agentWindowOpenRoute,
+  agentWindowCloseRoute,
+  agentPendingRoute,
+  agentApproveRoute,
+  agentDenyRoute,
 ]

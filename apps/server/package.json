@@ -12,6 +12,7 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
+    "./agents/AgentStore": "./src/agents/AgentStore.ts",
     "./config/resolveServerConfig": "./src/config/resolveServerConfig.ts",
     "./devices/DeviceStore": "./src/devices/DeviceStore.ts",
     "./enrollment/EnrollmentStore": "./src/enrollment/EnrollmentStore.ts",

@@ -2,6 +2,8 @@ import {customAlphabet, urlAlphabet} from "nanoid"
 
 import {ProtocolError, ProtocolErrorCode} from "@daily/protocol"
 
+import {revokeAgentsOfDevice} from "../agents/AgentStore"
+import {clearAgentWindow, readAgentWindow} from "../identity/ServerIdentityStore"
 import {hashToken, mintToken} from "./tokens"
 
 import type {DeviceRole} from "@daily/protocol"
@@ -17,6 +19,7 @@ export type DeviceRecord = {
   createdAt: string
   lastSeenAt: string | null
   revokedAt: string | null
+  timeZone: string | null
 }
 
 type DeviceRow = {
@@ -26,9 +29,10 @@ type DeviceRow = {
   created_at: string
   last_seen_at: string | null
   revoked_at: string | null
+  time_zone: string | null
 }
 
-const SELECT_COLUMNS = `id, name, role, created_at, last_seen_at, revoked_at`
+const SELECT_COLUMNS = `id, name, role, created_at, last_seen_at, revoked_at, time_zone`
 
 /** Creates a device, minting its credential and persisting only the credential's hash; the plaintext token is returned once and never recoverable afterwards. */
 export function createDevice(store: ServerStore, name: string, role: DeviceRole = "child"): {device: DeviceRecord; token: string} {
@@ -40,10 +44,13 @@ export function createDevice(store: ServerStore, name: string, role: DeviceRole 
     createdAt: new Date().toISOString(),
     lastSeenAt: null,
     revokedAt: null,
+    timeZone: null,
   }
 
   store.db
-    .prepare(`INSERT INTO devices (id, name, role, token_hash, created_at, last_seen_at, revoked_at) VALUES (?, ?, ?, ?, ?, NULL, NULL)`)
+    .prepare(
+      `INSERT INTO devices (id, name, role, token_hash, created_at, last_seen_at, revoked_at, time_zone) VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL)`,
+    )
     .run(device.id, device.name, device.role, hashToken(token), device.createdAt)
 
   return {device, token}
@@ -64,16 +71,29 @@ export function listDevices(store: ServerStore): DeviceRecord[] {
   return rows.map(toDeviceRecord)
 }
 
-/** Revokes a device by id, clearing its role in the same statement so a revoked device never holds the Parent role, and leaving its row in place. Returns `null` when no such device exists, and the record unchanged when it was already revoked. */
+/**
+ * Revokes a device by id, clearing its role in the same statement so a revoked device never holds
+ * the Parent role, and leaving its row in place. Returns `null` when no such device exists, and the
+ * record unchanged when it was already revoked. Cascades in the same transaction: every one of the
+ * device's still-active agents is revoked, and its Agent window is cleared when it owned the one
+ * open.
+ */
 export function revokeDevice(store: ServerStore, deviceId: string): DeviceRecord | null {
-  const existing = findDeviceById(store, deviceId)
-  if (!existing) return null
-  if (existing.revokedAt) return existing
+  const revoke = store.db.transaction((): DeviceRecord | null => {
+    const existing = findDeviceById(store, deviceId)
+    if (!existing) return null
+    if (existing.revokedAt) return existing
 
-  const revokedAt = new Date().toISOString()
-  store.db.prepare(`UPDATE devices SET role = 'child', revoked_at = ? WHERE id = ?`).run(revokedAt, deviceId)
+    const revokedAt = new Date().toISOString()
+    store.db.prepare(`UPDATE devices SET role = 'child', revoked_at = ? WHERE id = ?`).run(revokedAt, deviceId)
 
-  return {...existing, role: "child", revokedAt}
+    revokeAgentsOfDevice(store, deviceId, revokedAt)
+    if (readAgentWindow(store)?.deviceId === deviceId) clearAgentWindow(store)
+
+    return {...existing, role: "child", revokedAt}
+  })
+
+  return revoke.immediate()
 }
 
 /** Counts devices that have not been revoked. */
@@ -126,6 +146,11 @@ export function promoteDevice(store: ServerStore, deviceId: string): DeviceRecor
   return promote.immediate()
 }
 
+/** Writes a device's time zone, learned from that Mac's own probe or approval. */
+export function writeDeviceTimeZone(store: ServerStore, deviceId: string, timeZone: string): void {
+  store.db.prepare(`UPDATE devices SET time_zone = ? WHERE id = ?`).run(timeZone, deviceId)
+}
+
 function findDeviceById(store: ServerStore, deviceId: string): DeviceRecord | null {
   const row = store.db.prepare(`SELECT ${SELECT_COLUMNS} FROM devices WHERE id = ?`).get(deviceId) as DeviceRow | undefined
 
@@ -140,5 +165,6 @@ function toDeviceRecord(row: DeviceRow): DeviceRecord {
     createdAt: row.created_at,
     lastSeenAt: row.last_seen_at,
     revokedAt: row.revoked_at,
+    timeZone: row.time_zone,
   }
 }

@@ -74,6 +74,8 @@ export class StorageController implements IStorageController {
   private notifyRevoked?: () => void
   private notifyProtocolMismatchChanged?: (mismatch: ProtocolMismatchView | null) => void
   private notifyRoleChanged?: (role: DeviceRole) => void
+  private notifyAgentRequested?: () => void
+  private notifyAgentsAcceptedChanged?: (acceptsAgents: boolean) => void
 
   constructor(
     private db: SqliteDriver,
@@ -115,11 +117,13 @@ export class StorageController implements IStorageController {
       onBindingChanged: () => this.applyRemoteConfiguration(),
       runSyncCycle: () => this.forceSync(),
       onApprovalRequested: () => this.notifyApprovalRequested?.(),
+      onAgentRequested: () => this.notifyAgentRequested?.(),
       disableAutoSync: () => this.syncEngine.disableAutoSync(),
       enableAutoSync: () => this.syncEngine.enableAutoSync(),
       onRevoked: () => this.notifyRevoked?.(),
       onProtocolMismatchChanged: (mismatch) => this.notifyProtocolMismatchChanged?.(mismatch),
       onRoleChanged: (role) => this.notifyRoleChanged?.(role),
+      onAgentsAcceptedChanged: (acceptsAgents) => this.notifyAgentsAcceptedChanged?.(acceptsAgents),
     })
 
     this.providerMigration = new ProviderMigrationService({
@@ -156,6 +160,8 @@ export class StorageController implements IStorageController {
     onRevoked?: () => void
     onProtocolMismatchChanged?: (mismatch: ProtocolMismatchView | null) => void
     onRoleChanged?: (role: DeviceRole) => void
+    onAgentRequested?: () => void
+    onAgentsAcceptedChanged?: (acceptsAgents: boolean) => void
   }) {
     this.notifyStorageStatusChange = callbacks.onStatusChange
     this.notifyStorageDataChange = callbacks.onDataChange
@@ -164,6 +170,8 @@ export class StorageController implements IStorageController {
     this.notifyRevoked = callbacks.onRevoked
     this.notifyProtocolMismatchChanged = callbacks.onProtocolMismatchChanged
     this.notifyRoleChanged = callbacks.onRoleChanged
+    this.notifyAgentRequested = callbacks.onAgentRequested
+    this.notifyAgentsAcceptedChanged = callbacks.onAgentsAcceptedChanged
   }
 
   async forceSync() {

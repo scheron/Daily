@@ -25,6 +25,15 @@ const STATUS: Record<ProtocolErrorCode, number> = {
   [ProtocolErrorCode.INVALID_SNAPSHOT]: 400,
   [ProtocolErrorCode.INVALID_ASSET_NAME]: 400,
   [ProtocolErrorCode.ASSET_NOT_FOUND]: 404,
+  [ProtocolErrorCode.AGENTS_NOT_SUPPORTED]: 409,
+  [ProtocolErrorCode.AGENT_WINDOW_CLOSED]: 409,
+  [ProtocolErrorCode.AGENT_REQUEST_IN_PROGRESS]: 409,
+  [ProtocolErrorCode.AGENT_REQUEST_NOT_FOUND]: 404,
+  [ProtocolErrorCode.AGENT_REQUEST_NOT_PENDING]: 409,
+  [ProtocolErrorCode.AGENT_CODE_MISMATCH]: 409,
+  [ProtocolErrorCode.AGENT_NOT_FOUND]: 404,
+  [ProtocolErrorCode.NOT_AGENT_OWNER]: 403,
+  [ProtocolErrorCode.INVALID_TIME_ZONE]: 400,
   [ProtocolErrorCode.INTERNAL]: 500,
 }
 

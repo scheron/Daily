@@ -17,6 +17,7 @@ describe("apps/server/package.json exports", () => {
 
     expect(exports).toEqual({
       ".": "./src/index.ts",
+      "./agents/AgentStore": "./src/agents/AgentStore.ts",
       "./config/resolveServerConfig": "./src/config/resolveServerConfig.ts",
       "./devices/DeviceStore": "./src/devices/DeviceStore.ts",
       "./enrollment/EnrollmentStore": "./src/enrollment/EnrollmentStore.ts",

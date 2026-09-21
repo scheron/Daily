@@ -23,11 +23,22 @@ import {v002} from "../src/store/migrations/v002-snapshot"
 import {v003} from "../src/store/migrations/v003-assets"
 
 import type {IncomingMessage} from "node:http"
+import type * as AgentStoreModule from "../src/agents/AgentStore"
 import type {StoredSnapshotDocument} from "../src/snapshot/SnapshotStore"
 import type {ServerStore} from "../src/store/instance"
 
 function requestWithAuthorization(authorization?: string): IncomingMessage {
   return {headers: {authorization}} as IncomingMessage
+}
+
+/**
+ * Loads phase 2's own new agents module. `../src/agents/AgentStore` does not exist until phase 2
+ * lands, so it is reached through a dynamic import here rather than a static one at the top of
+ * this file, which would fail this whole file's module load — including every case that has
+ * nothing to do with agents — for every phase before phase 2 lands.
+ */
+async function loadAgentStore(): Promise<typeof AgentStoreModule> {
+  return import("../src/agents/AgentStore")
 }
 
 describe("server store", () => {
@@ -51,7 +62,7 @@ describe("server store", () => {
     const serverId = identityRows[0].server_id
 
     const appliedAfterFirstOpen = first.db.prepare("SELECT version FROM _migrations").all()
-    expect(appliedAfterFirstOpen).toHaveLength(4)
+    expect(appliedAfterFirstOpen).toHaveLength(5)
 
     first.close()
 
@@ -62,7 +73,7 @@ describe("server store", () => {
     expect(identityRowsAfterSecondOpen[0].server_id).toBe(serverId)
 
     const appliedAfterSecondOpen = second.db.prepare("SELECT version FROM _migrations").all()
-    expect(appliedAfterSecondOpen).toHaveLength(4)
+    expect(appliedAfterSecondOpen).toHaveLength(5)
 
     second.close()
   })
@@ -813,5 +824,491 @@ describe("status command", () => {
     }
 
     logSpy.mockRestore()
+  })
+})
+
+describe("opening an Agent window elsewhere denies any request still waiting — TC-4", () => {
+  let dataDir: string
+  let store: ServerStore
+  let parent: ReturnType<typeof claimServer>
+  let child: ReturnType<typeof createDevice>
+
+  beforeEach(() => {
+    dataDir = mkdtempSync(join(tmpdir(), "daily-server-agent-window-replace-"))
+    store = openServerStore(dataDir)
+    const code = ensureClaimCode(store)
+    if (!code) throw new Error("expected an unclaimed test server to hold a claim code")
+    parent = claimServer(store, code, "MacBook Air")
+    child = createDevice(store, "Mac mini")
+  })
+
+  afterEach(() => {
+    store.close()
+    rmSync(dataDir, {recursive: true, force: true})
+  })
+
+  it("TC-4: a Child opening its own Agent window denies the Parent's waiting request and replaces the window, restarting the clock", async () => {
+    const {createAgentRequest, findPendingAgentRequest, openAgentWindow} = await loadAgentStore()
+
+    openAgentWindow(store, parent.device.id)
+    const request = createAgentRequest(store, {agentName: "Claude Code", returnsTo: "https://claude.ai/callback", isLocalProgram: false})
+
+    const childWindow = openAgentWindow(store, child.device.id)
+    expect(childWindow.deviceId).toBe(child.device.id)
+    expect(Date.parse(childWindow.expiresAt) - Date.now()).toBeGreaterThan(4 * 60 * 1000)
+
+    const deniedRequest = store.db.prepare(`SELECT state, resolved_at, issued_agent_id FROM agent_requests WHERE id = ?`).get(request.id) as {
+      state: string
+      resolved_at: string | null
+      issued_agent_id: string | null
+    }
+    expect(deniedRequest.state).toBe("denied")
+    expect(deniedRequest.resolved_at).toBeTruthy()
+    expect(deniedRequest.issued_agent_id).toBeNull()
+
+    expect(findPendingAgentRequest(store, parent.device.id)).toBeNull()
+    expect(findPendingAgentRequest(store, child.device.id)).toBeNull()
+
+    const agentsMinted = store.db.prepare(`SELECT COUNT(*) as count FROM agents`).get() as {count: number}
+    expect(agentsMinted.count).toBe(0)
+  })
+})
+
+describe("creating an agent request needs an open window, and only one at a time — TC-5", () => {
+  let dataDir: string
+  let store: ServerStore
+  let parent: ReturnType<typeof claimServer>
+  let child: ReturnType<typeof createDevice>
+
+  beforeEach(() => {
+    dataDir = mkdtempSync(join(tmpdir(), "daily-server-agent-request-window-"))
+    store = openServerStore(dataDir)
+    const code = ensureClaimCode(store)
+    if (!code) throw new Error("expected an unclaimed test server to hold a claim code")
+    parent = claimServer(store, code, "MacBook Air")
+    child = createDevice(store, "Mac mini")
+  })
+
+  afterEach(() => {
+    store.close()
+    rmSync(dataDir, {recursive: true, force: true})
+  })
+
+  it("TC-5: a request is refused with no window open, accepted once inside one, refused a second time while the first still waits, and found only for the window's own Mac", async () => {
+    const {createAgentRequest, findPendingAgentRequest, openAgentWindow} = await loadAgentStore()
+
+    const params = {agentName: "Claude Code", returnsTo: "https://claude.ai/callback", isLocalProgram: false}
+
+    try {
+      createAgentRequest(store, params)
+      expect.unreachable()
+    } catch (err) {
+      expect(err.code).toBe(ProtocolErrorCode.AGENT_WINDOW_CLOSED)
+    }
+
+    openAgentWindow(store, parent.device.id)
+    const request = createAgentRequest(store, params)
+    expect(request.deviceId).toBe(parent.device.id)
+    expect(request.code).toMatch(/^\d{6}$/)
+    expect(request.state).toBe("pending")
+    expect(Date.parse(request.expiresAt) - Date.now()).toBeGreaterThan(4 * 60 * 1000)
+    expect(request.agentName).toBe(params.agentName)
+    expect(request.returnsTo).toBe(params.returnsTo)
+    expect(request.isLocalProgram).toBe(params.isLocalProgram)
+
+    try {
+      createAgentRequest(store, params)
+      expect.unreachable()
+    } catch (err) {
+      expect(err.code).toBe(ProtocolErrorCode.AGENT_REQUEST_IN_PROGRESS)
+    }
+
+    expect(findPendingAgentRequest(store, parent.device.id)?.id).toBe(request.id)
+    expect(findPendingAgentRequest(store, child.device.id)).toBeNull()
+  })
+})
+
+describe("approving a request mints an agent and closes the window — TC-6", () => {
+  let dataDir: string
+  let store: ServerStore
+  let parent: ReturnType<typeof claimServer>
+
+  beforeEach(() => {
+    dataDir = mkdtempSync(join(tmpdir(), "daily-server-agent-approve-mints-"))
+    store = openServerStore(dataDir)
+    const code = ensureClaimCode(store)
+    if (!code) throw new Error("expected an unclaimed test server to hold a claim code")
+    parent = claimServer(store, code, "MacBook Air")
+  })
+
+  afterEach(() => {
+    store.close()
+    rmSync(dataDir, {recursive: true, force: true})
+  })
+
+  it("TC-6: approving the one waiting request mints an agent owned by the approving Mac, marks the request approved and names the agent, and closes the window", async () => {
+    const {createAgentRequest, approveAgentRequest, findPendingAgentRequest, openAgentWindow, readAgentRequest} = await loadAgentStore()
+
+    openAgentWindow(store, parent.device.id)
+    const request = createAgentRequest(store, {agentName: "Claude Code", returnsTo: "https://claude.ai/callback", isLocalProgram: false})
+
+    const agent = approveAgentRequest(store, request.id, request.code, parent.device.id)
+    expect(agent.name).toBe("Claude Code")
+    expect(agent.deviceId).toBe(parent.device.id)
+    expect(agent.createdAt).toBeTruthy()
+    expect(agent.lastUsedAt).toBeNull()
+    expect(agent.revokedAt).toBeNull()
+
+    const resolved = readAgentRequest(store, request.id)
+    expect(resolved?.state).toBe("approved")
+    expect(resolved?.resolvedAt).toBeTruthy()
+    expect(resolved?.issuedAgentId).toBe(agent.id)
+
+    const windowRow = store.db.prepare(`SELECT agent_window_device_id FROM server_identity WHERE id = 1`).get() as {
+      agent_window_device_id: string | null
+    }
+    expect(windowRow.agent_window_device_id).toBeNull()
+
+    expect(findPendingAgentRequest(store, parent.device.id)).toBeNull()
+  })
+})
+
+describe("approving or denying a request checks ownership, then the code, then whether it can still be decided — TC-7", () => {
+  let dataDir: string
+  let store: ServerStore
+  let parent: ReturnType<typeof claimServer>
+  let child: ReturnType<typeof createDevice>
+
+  beforeEach(() => {
+    dataDir = mkdtempSync(join(tmpdir(), "daily-server-agent-approve-refusals-"))
+    store = openServerStore(dataDir)
+    const code = ensureClaimCode(store)
+    if (!code) throw new Error("expected an unclaimed test server to hold a claim code")
+    parent = claimServer(store, code, "MacBook Air")
+    child = createDevice(store, "Mac mini")
+  })
+
+  afterEach(() => {
+    store.close()
+    rmSync(dataDir, {recursive: true, force: true})
+  })
+
+  it("TC-7: a wrong code, another Mac's attempt (even with the right code), a second decision and an unknown id are each refused, and a denial leaves the window open with no agent minted", async () => {
+    const {createAgentRequest, approveAgentRequest, denyAgentRequest, openAgentWindow} = await loadAgentStore()
+
+    openAgentWindow(store, parent.device.id)
+    const request = createAgentRequest(store, {agentName: "Claude Code", returnsTo: "https://claude.ai/callback", isLocalProgram: false})
+    const wrongCode = request.code === "000000" ? "111111" : "000000"
+
+    try {
+      approveAgentRequest(store, request.id, wrongCode, parent.device.id)
+      expect.unreachable()
+    } catch (err) {
+      expect(err.code).toBe(ProtocolErrorCode.AGENT_CODE_MISMATCH)
+    }
+
+    try {
+      approveAgentRequest(store, request.id, request.code, child.device.id)
+      expect.unreachable()
+    } catch (err) {
+      expect(err.code).toBe(ProtocolErrorCode.NOT_AGENT_OWNER)
+    }
+
+    denyAgentRequest(store, request.id, parent.device.id)
+
+    try {
+      approveAgentRequest(store, request.id, request.code, parent.device.id)
+      expect.unreachable()
+    } catch (err) {
+      expect(err.code).toBe(ProtocolErrorCode.AGENT_REQUEST_NOT_PENDING)
+    }
+
+    try {
+      approveAgentRequest(store, "not-a-real-request-id", request.code, parent.device.id)
+      expect.unreachable()
+    } catch (err) {
+      expect(err.code).toBe(ProtocolErrorCode.AGENT_REQUEST_NOT_FOUND)
+    }
+
+    const deniedRow = store.db.prepare(`SELECT state FROM agent_requests WHERE id = ?`).get(request.id) as {state: string}
+    expect(deniedRow.state).toBe("denied")
+
+    const agentsMinted = store.db.prepare(`SELECT COUNT(*) as count FROM agents`).get() as {count: number}
+    expect(agentsMinted.count).toBe(0)
+
+    const windowRow = store.db.prepare(`SELECT agent_window_device_id FROM server_identity WHERE id = 1`).get() as {
+      agent_window_device_id: string | null
+    }
+    expect(windowRow.agent_window_device_id).toBe(parent.device.id)
+  })
+})
+
+describe("a lapsed agent request is invisible on read without blocking a fresh one — TC-9", () => {
+  let dataDir: string
+  let store: ServerStore
+  let parent: ReturnType<typeof claimServer>
+
+  beforeEach(() => {
+    dataDir = mkdtempSync(join(tmpdir(), "daily-server-agent-request-lapse-"))
+    store = openServerStore(dataDir)
+    const code = ensureClaimCode(store)
+    if (!code) throw new Error("expected an unclaimed test server to hold a claim code")
+    parent = claimServer(store, code, "MacBook Air")
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    store.close()
+    rmSync(dataDir, {recursive: true, force: true})
+  })
+
+  it("TC-9: a request past its own deadline is invisible to the lookup and refuses approval as not pending, but its row is still 'pending' on disk since expiry is never written, and a fresh request can be created in its place", async () => {
+    const {createAgentRequest, approveAgentRequest, findPendingAgentRequest, openAgentWindow} = await loadAgentStore()
+
+    openAgentWindow(store, parent.device.id)
+    const request = createAgentRequest(store, {agentName: "Claude Code", returnsTo: "https://claude.ai/callback", isLocalProgram: false})
+
+    vi.useFakeTimers({toFake: ["Date"]})
+    vi.setSystemTime(Date.parse(request.expiresAt) + 1000)
+
+    expect(findPendingAgentRequest(store, parent.device.id)).toBeNull()
+
+    try {
+      approveAgentRequest(store, request.id, request.code, parent.device.id)
+      expect.unreachable()
+    } catch (err) {
+      expect(err.code).toBe(ProtocolErrorCode.AGENT_REQUEST_NOT_PENDING)
+    }
+
+    const staleRow = store.db.prepare(`SELECT state FROM agent_requests WHERE id = ?`).get(request.id) as {state: string}
+    expect(staleRow.state).toBe("pending")
+
+    openAgentWindow(store, parent.device.id)
+    const fresh = createAgentRequest(store, {agentName: "Claude Code", returnsTo: "https://claude.ai/callback", isLocalProgram: false})
+    expect(fresh.id).not.toBe(request.id)
+  })
+})
+
+describe("listing agents for one Mac or for every Mac — TC-10", () => {
+  let dataDir: string
+  let store: ServerStore
+  let parent: ReturnType<typeof claimServer>
+  let child: ReturnType<typeof createDevice>
+
+  beforeEach(() => {
+    dataDir = mkdtempSync(join(tmpdir(), "daily-server-agent-listing-"))
+    store = openServerStore(dataDir)
+    const code = ensureClaimCode(store)
+    if (!code) throw new Error("expected an unclaimed test server to hold a claim code")
+    parent = claimServer(store, code, "MacBook Air")
+    child = createDevice(store, "Mac mini")
+  })
+
+  afterEach(() => {
+    store.close()
+    rmSync(dataDir, {recursive: true, force: true})
+  })
+
+  function insertAgent(id: string, deviceId: string, name: string, createdAt: string, revokedAt: string | null): void {
+    store.db
+      .prepare(`INSERT INTO agents (id, device_id, name, created_at, last_used_at, revoked_at) VALUES (?, ?, ?, ?, NULL, ?)`)
+      .run(id, deviceId, name, createdAt, revokedAt)
+  }
+
+  it("TC-10: listing every Mac's agents orders the active ones oldest-first and the revoked one last with exactly six fields each, and listing one Mac's answers only its own in the same order", async () => {
+    const {listAgents} = await loadAgentStore()
+
+    insertAgent("agent-p", parent.device.id, "Claude Code on MacBook Air", "2026-01-01T00:00:00.000Z", null)
+    insertAgent("agent-c-oldest", child.device.id, "Claude Code on Mac mini (1)", "2026-01-02T00:00:00.000Z", null)
+    insertAgent("agent-c-revoked", child.device.id, "Claude Code on Mac mini (2)", "2026-01-03T00:00:00.000Z", "2026-01-04T00:00:00.000Z")
+
+    const everyAgent = listAgents(store, null)
+    expect(everyAgent.map((a) => a.id)).toEqual(["agent-p", "agent-c-oldest", "agent-c-revoked"])
+    for (const agent of everyAgent) {
+      expect(Object.keys(agent).sort()).toEqual(["createdAt", "deviceId", "id", "lastUsedAt", "name", "revokedAt"])
+    }
+
+    const childsAgents = listAgents(store, child.device.id)
+    expect(childsAgents.map((a) => a.id)).toEqual(["agent-c-oldest", "agent-c-revoked"])
+  })
+})
+
+describe("revoking a device revokes its agents and clears its Agent window — TC-13", () => {
+  let dataDir: string
+  let store: ServerStore
+  let parent: ReturnType<typeof claimServer>
+  let child: ReturnType<typeof createDevice>
+  let another: ReturnType<typeof createDevice>
+  let untouched: ReturnType<typeof createDevice>
+
+  beforeEach(() => {
+    dataDir = mkdtempSync(join(tmpdir(), "daily-server-agent-revocation-cascade-"))
+    store = openServerStore(dataDir)
+    const code = ensureClaimCode(store)
+    if (!code) throw new Error("expected an unclaimed test server to hold a claim code")
+    parent = claimServer(store, code, "MacBook Air")
+    child = createDevice(store, "Mac mini")
+    another = createDevice(store, "iMac")
+    untouched = createDevice(store, "iPad")
+  })
+
+  afterEach(() => {
+    store.close()
+    rmSync(dataDir, {recursive: true, force: true})
+  })
+
+  function insertAgent(id: string, deviceId: string, name: string): void {
+    store.db
+      .prepare(`INSERT INTO agents (id, device_id, name, created_at, last_used_at, revoked_at) VALUES (?, ?, ?, ?, NULL, NULL)`)
+      .run(id, deviceId, name, new Date().toISOString())
+  }
+
+  async function runDevice(...args: string[]): Promise<void> {
+    await buildProgram().parseAsync(["node", "daily-server", "device", ...args, "--data-dir", dataDir], {from: "node"})
+  }
+
+  it("TC-13: revoking a Mac cascades to its agents and clears its Agent window whichever route revoked it; the console reports how many agents went with it, says nothing already revoked twice, and prints no agent line for a Mac with none", async () => {
+    const {openAgentWindow} = await loadAgentStore()
+
+    insertAgent("agent-parent", parent.device.id, "Claude Code on MacBook Air")
+    insertAgent("agent-child-1", child.device.id, "Claude Code on Mac mini (1)")
+    insertAgent("agent-child-2", child.device.id, "Claude Code on Mac mini (2)")
+    insertAgent("agent-another", another.device.id, "Claude Code on iMac")
+
+    openAgentWindow(store, child.device.id)
+
+    revokeDevice(store, child.device.id)
+
+    const childAgents = store.db.prepare(`SELECT revoked_at FROM agents WHERE device_id = ?`).all(child.device.id) as {revoked_at: string | null}[]
+    expect(childAgents).toHaveLength(2)
+    expect(childAgents.every((a) => a.revoked_at)).toBe(true)
+
+    const windowRow = store.db.prepare(`SELECT agent_window_device_id FROM server_identity WHERE id = 1`).get() as {
+      agent_window_device_id: string | null
+    }
+    expect(windowRow.agent_window_device_id).toBeNull()
+
+    const parentAgentAfterStoreRevoke = store.db.prepare(`SELECT revoked_at FROM agents WHERE id = ?`).get("agent-parent") as {
+      revoked_at: string | null
+    }
+    expect(parentAgentAfterStoreRevoke.revoked_at).toBeNull()
+
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {})
+
+    await runDevice("revoke", another.device.id)
+    const firstRevokeOutput = logSpy.mock.calls.map((call) => call[0]).join("\n")
+    expect(firstRevokeOutput).toContain(`Revoked device ${another.device.id}`)
+    expect(firstRevokeOutput).toContain("Revoked 1 agent connected through it.")
+
+    const anotherAgent = store.db.prepare(`SELECT revoked_at FROM agents WHERE id = ?`).get("agent-another") as {revoked_at: string | null}
+    expect(anotherAgent.revoked_at).toBeTruthy()
+
+    logSpy.mockClear()
+    await runDevice("revoke", another.device.id)
+    const secondRevokeOutput = logSpy.mock.calls.map((call) => call[0]).join("\n")
+    expect(secondRevokeOutput.toLowerCase()).toContain("already revoked")
+    expect(secondRevokeOutput).not.toContain("agent connected")
+    expect(secondRevokeOutput).not.toContain("agents connected")
+
+    logSpy.mockClear()
+    await runDevice("revoke", untouched.device.id)
+    const noAgentOutput = logSpy.mock.calls.map((call) => call[0]).join("\n")
+    expect(noAgentOutput).toContain(`Revoked device ${untouched.device.id}`)
+    expect(noAgentOutput).not.toContain("agent connected")
+    expect(noAgentOutput).not.toContain("agents connected")
+
+    logSpy.mockRestore()
+
+    const parentAgentFinal = store.db.prepare(`SELECT revoked_at FROM agents WHERE id = ?`).get("agent-parent") as {revoked_at: string | null}
+    expect(parentAgentFinal.revoked_at).toBeNull()
+  })
+})
+
+describe("migrating an existing store to v005 for agents — TC-24", () => {
+  let dataDir: string
+
+  beforeEach(() => {
+    dataDir = mkdtempSync(join(tmpdir(), "daily-server-agents-migration-"))
+  })
+
+  afterEach(() => {
+    rmSync(dataDir, {recursive: true, force: true})
+  })
+
+  it("TC-24: a store already at v004 gains agents, agent_requests and the new columns on the first open after the upgrade, leaves every pre-existing row untouched, and applies nothing new on a second open", async () => {
+    const before = openServerStore(dataDir)
+    const code = ensureClaimCode(before)
+    if (!code) throw new Error("expected an unclaimed test server to hold a claim code")
+    const parent = claimServer(before, code, "MacBook Air")
+    createDevice(before, "Mac mini")
+    openEnrollmentWindow(before)
+    createEnrollmentRequest(before, "iMac")
+
+    const doc: StoredSnapshotDocument = {version: 4, meta: {updatedAt: "2026-08-10T12:00:00.000Z", hash: "hash-a"}, docs: {tasks: {}}}
+    writeSnapshotIfUnchanged(before, doc, null, parent.device.id)
+    await writeAsset(before, "abc123.png", Readable.from(Buffer.from("attachment-bytes")), parent.device.id, 10 * 1024 * 1024)
+
+    const devicesBefore = before.db.prepare(`SELECT * FROM devices ORDER BY id`).all()
+    const enrollmentRequestsBefore = before.db.prepare(`SELECT * FROM enrollment_requests ORDER BY id`).all()
+    const snapshotBefore = before.db.prepare(`SELECT * FROM snapshot`).all()
+    const assetsBefore = before.db.prepare(`SELECT * FROM assets ORDER BY name`).all()
+
+    before.close()
+
+    const migrated = openServerStore(dataDir)
+
+    const appliedVersions = migrated.db.prepare(`SELECT version FROM _migrations ORDER BY version`).all() as {version: number}[]
+    expect(appliedVersions.map((row) => row.version)).toEqual([1, 2, 3, 4, 5])
+
+    const agentColumns = (migrated.db.prepare(`PRAGMA table_info(agents)`).all() as {name: string}[]).map((c) => c.name).sort()
+    expect(agentColumns).toEqual(["created_at", "device_id", "id", "last_used_at", "name", "revoked_at"].sort())
+
+    const agentRequestColumns = (migrated.db.prepare(`PRAGMA table_info(agent_requests)`).all() as {name: string}[]).map((c) => c.name).sort()
+    expect(agentRequestColumns).toEqual(
+      [
+        "id",
+        "device_id",
+        "code",
+        "agent_name",
+        "returns_to",
+        "is_local_program",
+        "state",
+        "created_at",
+        "expires_at",
+        "resolved_at",
+        "issued_agent_id",
+      ].sort(),
+    )
+
+    const agentIndexes = (migrated.db.prepare(`PRAGMA index_list(agents)`).all() as {name: string}[]).map((idx) => idx.name)
+    expect(agentIndexes.some((name) => name.toLowerCase().includes("device"))).toBe(true)
+
+    const identityColumns = (migrated.db.prepare(`PRAGMA table_info(server_identity)`).all() as {name: string}[]).map((c) => c.name)
+    expect(identityColumns).toContain("agent_window_expires_at")
+    expect(identityColumns).toContain("agent_window_device_id")
+    const identityRow = migrated.db.prepare(`SELECT agent_window_expires_at, agent_window_device_id FROM server_identity WHERE id = 1`).get() as {
+      agent_window_expires_at: string | null
+      agent_window_device_id: string | null
+    }
+    expect(identityRow.agent_window_expires_at).toBeNull()
+    expect(identityRow.agent_window_device_id).toBeNull()
+
+    const deviceColumns = (migrated.db.prepare(`PRAGMA table_info(devices)`).all() as {name: string}[]).map((c) => c.name)
+    expect(deviceColumns).toContain("time_zone")
+    const timeZones = migrated.db.prepare(`SELECT time_zone FROM devices`).all() as {time_zone: string | null}[]
+    expect(timeZones).toHaveLength(2)
+    expect(timeZones.every((row) => row.time_zone === null)).toBe(true)
+
+    expect(migrated.db.prepare(`SELECT * FROM devices ORDER BY id`).all()).toEqual(devicesBefore)
+    expect(migrated.db.prepare(`SELECT * FROM enrollment_requests ORDER BY id`).all()).toEqual(enrollmentRequestsBefore)
+    expect(migrated.db.prepare(`SELECT * FROM snapshot`).all()).toEqual(snapshotBefore)
+    expect(migrated.db.prepare(`SELECT * FROM assets ORDER BY name`).all()).toEqual(assetsBefore)
+
+    migrated.close()
+
+    const reopened = openServerStore(dataDir)
+    const appliedVersionsAfterSecondOpen = reopened.db.prepare(`SELECT version FROM _migrations ORDER BY version`).all() as {version: number}[]
+    expect(appliedVersionsAfterSecondOpen.map((row) => row.version)).toEqual([1, 2, 3, 4, 5])
+    reopened.close()
   })
 })

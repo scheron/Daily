@@ -49,6 +49,7 @@ describe("settings:load never carries the device credential", () => {
       boundAt: "2026-08-10T00:00:00.000Z",
       role: null,
       approvedBy: null,
+      acceptsAgents: null,
     })
     expect(returned.sync.server.enabled).toBe(true)
     expect(binding.token).toBe(TOKEN)

@@ -35,5 +35,11 @@ export function setupStorageSync(getStorage: () => StorageController | null, get
     onRoleChanged: (role) => {
       broadcastToWindows(getWindows, "sync-server:role-changed", role)
     },
+    onAgentRequested: () => {
+      broadcastToWindows(getWindows, "sync-server:agent-requested")
+    },
+    onAgentsAcceptedChanged: (acceptsAgents) => {
+      broadcastToWindows(getWindows, "sync-server:agents-accepted-changed", acceptsAgents)
+    },
   })
 }

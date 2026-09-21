@@ -67,6 +67,8 @@ export type ServerSyncBinding = {
   role: DeviceRole | null
   /** The name of the device that approved this one's enrollment, or `null` for the device that claimed the server. */
   approvedBy: string | null
+  /** Whether this server accepts agents, learned from a probe tick. `null` until the first tick corrects it — a permanent, honest state, not a transitional one. */
+  acceptsAgents: boolean | null
 }
 
 /** Remote synchronization configuration. */

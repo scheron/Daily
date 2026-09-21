@@ -1,5 +1,6 @@
 import type {Changeset} from "@daily/core"
 import type {
+  AgentWindowView,
   AIConfig,
   Branch,
   DeviceRole,
@@ -13,8 +14,10 @@ import type {
   MigrationPreview,
   Milestone,
   MoveTaskByOrderParams,
+  PendingAgentRequestView,
   PendingApprovalView,
   ProtocolMismatchView,
+  ServerAgentsView,
   ServerBindingView,
   ServerConnectionStateView,
   ServerMembershipView,
@@ -86,10 +89,21 @@ export interface BridgeIPC {
   "sync-server:revoke-device": (deviceId: string) => Promise<ServerMembershipView>
   "sync-server:open-enrollment-window": () => Promise<EnrollmentWindowView>
   "sync-server:close-enrollment-window": () => Promise<void>
+
+  "sync-server:open-agent-window": () => Promise<AgentWindowView>
+  "sync-server:close-agent-window": () => Promise<void>
+  "sync-server:get-pending-agent-request": () => Promise<PendingAgentRequestView | null>
+  "sync-server:approve-agent": (requestId: string, code: string) => Promise<void>
+  "sync-server:deny-agent": (requestId: string) => Promise<void>
+  "sync-server:list-agents": () => Promise<ServerAgentsView>
+  "sync-server:revoke-agent": (agentId: string) => Promise<ServerAgentsView>
+
   "sync-server:on-approval-requested": (callback: () => void) => void
   "sync-server:on-revoked": (callback: () => void) => void
   "sync-server:on-protocol-mismatch-changed": (callback: (mismatch: ProtocolMismatchView | null) => void) => void
   "sync-server:on-role-changed": (callback: (role: DeviceRole) => void) => void
+  "sync-server:on-agent-requested": (callback: () => void) => void
+  "sync-server:on-agents-accepted-changed": (callback: (acceptsAgents: boolean) => void) => void
 
   // === SYNC PROVIDER ===
   "sync-provider:preview": (target: Exclude<SyncProvider, "off">) => Promise<MigrationPreview>

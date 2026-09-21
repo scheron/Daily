@@ -1,3 +1,4 @@
+import {listAgents} from "../agents/AgentStore"
 import {resolveServerConfig} from "../config/resolveServerConfig"
 import {countActiveDevices, findParentDevice, listDevices, promoteDevice, revokeDevice} from "../devices/DeviceStore"
 import {createConsoleEnrollment} from "../enrollment/EnrollmentStore"
@@ -84,8 +85,13 @@ function runDeviceRevoke(id: string, opts: DeviceOptions): void {
     }
 
     const wasParent = existing.role === "parent"
+    const revokedAgentCount = listAgents(store, id).filter((agent) => !agent.revokedAt).length
     revokeDevice(store, id)
     console.log(`Revoked device ${id} (${existing.name}).`)
+
+    if (revokedAgentCount > 0) {
+      console.log(`Revoked ${revokedAgentCount} ${revokedAgentCount === 1 ? "agent" : "agents"} connected through it.`)
+    }
 
     if (countActiveDevices(store) === 0) {
       console.log(`Warning: no active device remains. Run "daily-server device enroll" to bind a new one.`)

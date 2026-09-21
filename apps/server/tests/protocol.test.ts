@@ -20,6 +20,8 @@ import {readSnapshot as readStoredSnapshot} from "../src/snapshot/SnapshotStore"
 import {openServerStore} from "../src/store/instance"
 
 import type {
+  AgentListResponse,
+  AgentWindow,
   AssetManifestResponse,
   AssetUploadResponse,
   ClaimResponse,
@@ -36,6 +38,7 @@ import type {
 } from "@daily/protocol"
 import type {IncomingMessage} from "node:http"
 import type {AddressInfo} from "node:net"
+import type {AgentRequestRecord, CreateAgentRequestParams} from "../src/agents/AgentStore"
 import type {ServerConfigOptions} from "../src/config/resolveServerConfig"
 import type {ServerStore} from "../src/store/instance"
 
@@ -70,6 +73,19 @@ function bootServer(dataDir: string, overrides: ServerConfigOptions = {}): Promi
       })
     })
   })
+}
+
+/**
+ * Creates an agent request directly on the server's store, standing in for entry 3's own
+ * authorization endpoint, which calls this same function — no route in this plan starts a
+ * request. `../src/agents/AgentStore` is phase 2's own new module, reached through a relative
+ * dynamic import so that a static one does not fail this whole file's module load, including
+ * every case that has nothing to do with agents, for every phase before phase 2 lands — exactly
+ * as `readRequestOrigin` below is already reached.
+ */
+async function createAgentRequestDirectly(store: ServerStore, params: CreateAgentRequestParams): Promise<AgentRequestRecord> {
+  const {createAgentRequest} = await import("../src/agents/AgentStore")
+  return createAgentRequest(store, params)
 }
 
 describe("protocol http surface", () => {
@@ -692,15 +708,22 @@ describe("snapshot and revision http surface", () => {
     const first = await claimFirstDevice()
 
     const beforeAnyWrite = await readData<RevisionProbe>(await readRevision(first.token))
-    expect(Object.keys(beforeAnyWrite).sort()).toEqual(["pendingEnrollment", "protocol", "revision", "role"])
-    expect(beforeAnyWrite).toEqual({revision: null, pendingEnrollment: false, protocol: SYNC_PROTOCOL_VERSION, role: "parent"})
+    expect(Object.keys(beforeAnyWrite).sort()).toEqual(["acceptsAgents", "pendingAgentRequest", "pendingEnrollment", "protocol", "revision", "role"])
+    expect(beforeAnyWrite).toEqual({
+      revision: null,
+      pendingEnrollment: false,
+      pendingAgentRequest: false,
+      acceptsAgents: false,
+      protocol: SYNC_PROTOCOL_VERSION,
+      role: "parent",
+    })
 
     const doc = snapshotDocument()
     const written = await writeSnapshot(first.token, doc, null)
     const {revision} = await readData<SnapshotWriteResponse>(written)
 
     const afterWrite = await readData<RevisionProbe>(await readRevision(first.token))
-    expect(Object.keys(afterWrite).sort()).toEqual(["pendingEnrollment", "protocol", "revision", "role"])
+    expect(Object.keys(afterWrite).sort()).toEqual(["acceptsAgents", "pendingAgentRequest", "pendingEnrollment", "protocol", "revision", "role"])
     expect(afterWrite.revision).toBe(revision)
 
     const currentSnapshot = await readData<SnapshotReadResponse>(await readSnapshot(first.token))
@@ -1526,4 +1549,844 @@ describe("the approval card knows where a request came from, and a new device kn
     if (status.state !== "approved") throw new Error(`expected an approved status, got ${status.state}`)
     expect(status.approvedBy).toBe("MacBook Air")
   })
+})
+
+describe("the sync protocol speaks version 4 — TC-1", () => {
+  let dataDir: string
+  let booted: BootedServer
+
+  beforeEach(async () => {
+    dataDir = mkdtempSync(join(tmpdir(), "daily-server-agents-protocol-version-"))
+    booted = await bootServer(dataDir)
+  })
+
+  afterEach(async () => {
+    await booted.close()
+    rmSync(dataDir, {recursive: true, force: true})
+  })
+
+  it("TC-1: GET /v1/server and GET /v1/revision both report protocol 4", async () => {
+    const code = ensureClaimCode(booted.store)
+    if (!code) throw new Error("expected an unclaimed test server to hold a claim code")
+    const claimed = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.claim}`, {
+      method: "POST",
+      body: JSON.stringify({code, deviceName: "MacBook Air"}),
+    })
+    const parent = ((await claimed.json()) as {ok: true; data: ClaimResponse}).data
+
+    const serverInfo = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.server}`)
+    expect(((await serverInfo.json()) as {ok: true; data: ServerInfo}).data.protocol).toBe(4)
+
+    const revision = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.revision}`, {headers: {authorization: `Bearer ${parent.token}`}})
+    expect(((await revision.json()) as {ok: true; data: RevisionProbe}).data.protocol).toBe(4)
+  })
+})
+
+describe("which servers accept agents — TC-2", () => {
+  const acceptingCases: [label: string, overrides: ServerConfigOptions, expectedAgentAddress: string][] = [
+    ["a public HTTPS address", {publicUrl: "https://daily.example.com"}, "https://daily.example.com/mcp"],
+    ["a loopback IP address", {publicUrl: "http://127.0.0.1:4001"}, "http://127.0.0.1:4001/mcp"],
+    ["localhost", {publicUrl: "http://localhost:4001"}, "http://localhost:4001/mcp"],
+    ["a public HTTPS address with a trailing slash", {publicUrl: "https://daily.example.com/"}, "https://daily.example.com/mcp"],
+  ]
+
+  it.each(acceptingCases)("TC-2: %s accepts agents and opens a window whose agentAddress is %s", async (_label, overrides, expectedAgentAddress) => {
+    const dataDir = mkdtempSync(join(tmpdir(), "daily-server-accepts-agents-"))
+    const booted = await bootServer(dataDir, overrides)
+    try {
+      const code = ensureClaimCode(booted.store)
+      if (!code) throw new Error("expected an unclaimed test server to hold a claim code")
+      const claimed = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.claim}`, {
+        method: "POST",
+        body: JSON.stringify({code, deviceName: "MacBook Air"}),
+      })
+      const parent = ((await claimed.json()) as {ok: true; data: ClaimResponse}).data
+
+      const probe = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.revision}`, {headers: {authorization: `Bearer ${parent.token}`}})
+      expect(((await probe.json()) as {ok: true; data: RevisionProbe}).data.acceptsAgents).toBe(true)
+
+      const opened = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.agentWindowOpen}`, {
+        method: "POST",
+        headers: {authorization: `Bearer ${parent.token}`},
+      })
+      expect(opened.status).toBe(200)
+      expect(((await opened.json()) as {ok: true; data: AgentWindow}).data.agentAddress).toBe(expectedAgentAddress)
+    } finally {
+      await booted.close()
+      rmSync(dataDir, {recursive: true, force: true})
+    }
+  })
+
+  it("TC-2: a server with no public URL refuses AGENTS_NOT_SUPPORTED opening a window, while listing and revoking an unknown agent still answer", async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "daily-server-accepts-agents-none-"))
+    const booted = await bootServer(dataDir)
+    try {
+      const code = ensureClaimCode(booted.store)
+      if (!code) throw new Error("expected an unclaimed test server to hold a claim code")
+      const claimed = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.claim}`, {
+        method: "POST",
+        body: JSON.stringify({code, deviceName: "MacBook Air"}),
+      })
+      const parent = ((await claimed.json()) as {ok: true; data: ClaimResponse}).data
+
+      const probe = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.revision}`, {headers: {authorization: `Bearer ${parent.token}`}})
+      expect(((await probe.json()) as {ok: true; data: RevisionProbe}).data.acceptsAgents).toBe(false)
+
+      const opened = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.agentWindowOpen}`, {
+        method: "POST",
+        headers: {authorization: `Bearer ${parent.token}`},
+      })
+      expect(opened.status).toBe(409)
+      expect(await opened.json()).toEqual({ok: false, error: {code: "AGENTS_NOT_SUPPORTED", message: expect.any(String)}})
+
+      const list = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.agents}`, {headers: {authorization: `Bearer ${parent.token}`}})
+      expect(list.status).toBe(200)
+
+      const revoke = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.agentRevoke}`, {
+        method: "POST",
+        headers: {authorization: `Bearer ${parent.token}`, "content-type": "application/json"},
+        body: JSON.stringify({agentId: "no-such-agent"}),
+      })
+      expect(revoke.status).toBe(404)
+      expect(await revoke.json()).toEqual({ok: false, error: {code: "AGENT_NOT_FOUND", message: expect.any(String)}})
+    } finally {
+      await booted.close()
+      rmSync(dataDir, {recursive: true, force: true})
+    }
+  })
+
+  it("TC-2: a self-signed server refuses AGENTS_NOT_SUPPORTED opening a window, while listing and revoking an unknown agent still answer", async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "daily-server-accepts-agents-self-signed-"))
+    const previousTls = process.env.DAILY_SERVER_TLS
+    process.env.DAILY_SERVER_TLS = "self-signed"
+
+    try {
+      const booted = await bootServer(dataDir, {publicUrl: "https://192.0.2.10"})
+      try {
+        const code = ensureClaimCode(booted.store)
+        if (!code) throw new Error("expected an unclaimed test server to hold a claim code")
+        const claimed = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.claim}`, {
+          method: "POST",
+          body: JSON.stringify({code, deviceName: "MacBook Air"}),
+        })
+        const parent = ((await claimed.json()) as {ok: true; data: ClaimResponse}).data
+
+        const probe = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.revision}`, {headers: {authorization: `Bearer ${parent.token}`}})
+        expect(((await probe.json()) as {ok: true; data: RevisionProbe}).data.acceptsAgents).toBe(false)
+
+        const opened = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.agentWindowOpen}`, {
+          method: "POST",
+          headers: {authorization: `Bearer ${parent.token}`},
+        })
+        expect(opened.status).toBe(409)
+        expect(await opened.json()).toEqual({ok: false, error: {code: "AGENTS_NOT_SUPPORTED", message: expect.any(String)}})
+
+        const list = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.agents}`, {headers: {authorization: `Bearer ${parent.token}`}})
+        expect(list.status).toBe(200)
+
+        const revoke = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.agentRevoke}`, {
+          method: "POST",
+          headers: {authorization: `Bearer ${parent.token}`, "content-type": "application/json"},
+          body: JSON.stringify({agentId: "no-such-agent"}),
+        })
+        expect(revoke.status).toBe(404)
+        expect(await revoke.json()).toEqual({ok: false, error: {code: "AGENT_NOT_FOUND", message: expect.any(String)}})
+      } finally {
+        await booted.close()
+      }
+    } finally {
+      if (previousTls === undefined) delete process.env.DAILY_SERVER_TLS
+      else process.env.DAILY_SERVER_TLS = previousTls
+      rmSync(dataDir, {recursive: true, force: true})
+    }
+  })
+
+  it("TC-2: a window opened while a server accepted agents does not survive into GET /v1/agents once the same data directory is reopened self-signed", async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), "daily-server-accepts-agents-reopened-self-signed-"))
+    const previousTls = process.env.DAILY_SERVER_TLS
+
+    try {
+      const accepting = await bootServer(dataDir, {publicUrl: "http://127.0.0.1:4001"})
+      const code = ensureClaimCode(accepting.store)
+      if (!code) throw new Error("expected an unclaimed test server to hold a claim code")
+      const claimed = await fetch(`${accepting.baseUrl}${SYNC_PROTOCOL_PATHS.claim}`, {
+        method: "POST",
+        body: JSON.stringify({code, deviceName: "MacBook Air"}),
+      })
+      const parent = ((await claimed.json()) as {ok: true; data: ClaimResponse}).data
+
+      const opened = await fetch(`${accepting.baseUrl}${SYNC_PROTOCOL_PATHS.agentWindowOpen}`, {
+        method: "POST",
+        headers: {authorization: `Bearer ${parent.token}`},
+      })
+      expect(opened.status).toBe(200)
+
+      await accepting.close()
+
+      process.env.DAILY_SERVER_TLS = "self-signed"
+      const reopened = await bootServer(dataDir, {publicUrl: "https://192.0.2.10"})
+      try {
+        const list = await fetch(`${reopened.baseUrl}${SYNC_PROTOCOL_PATHS.agents}`, {headers: {authorization: `Bearer ${parent.token}`}})
+        expect(list.status).toBe(200)
+        expect(((await list.json()) as {ok: true; data: AgentListResponse}).data.agentWindow).toBeNull()
+      } finally {
+        await reopened.close()
+      }
+    } finally {
+      if (previousTls === undefined) delete process.env.DAILY_SERVER_TLS
+      else process.env.DAILY_SERVER_TLS = previousTls
+      rmSync(dataDir, {recursive: true, force: true})
+    }
+  })
+})
+
+describe("opening, replacing and closing the Agent window — TC-3", () => {
+  let dataDir: string
+  let booted: BootedServer
+  let parent: ClaimResponse
+  let child: IssuedCredential
+
+  beforeEach(async () => {
+    dataDir = mkdtempSync(join(tmpdir(), "daily-server-agent-window-"))
+    booted = await bootServer(dataDir, {publicUrl: "http://127.0.0.1:4001"})
+    const code = ensureClaimCode(booted.store)
+    if (!code) throw new Error("expected an unclaimed test server to hold a claim code")
+    const claimed = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.claim}`, {
+      method: "POST",
+      body: JSON.stringify({code, deviceName: "MacBook Air"}),
+    })
+    parent = ((await claimed.json()) as {ok: true; data: ClaimResponse}).data
+
+    const issued = createConsoleEnrollment(booted.store)
+    const consoleRes = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollConsole}`, {
+      method: "POST",
+      body: JSON.stringify({token: issued.token, deviceName: "Mac mini"}),
+    })
+    child = ((await consoleRes.json()) as {ok: true; data: IssuedCredential}).data
+  })
+
+  afterEach(async () => {
+    await booted.close()
+    rmSync(dataDir, {recursive: true, force: true})
+  })
+
+  function openWindow(token: string): Promise<Response> {
+    return fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.agentWindowOpen}`, {method: "POST", headers: {authorization: `Bearer ${token}`}})
+  }
+
+  function closeWindow(token: string): Promise<Response> {
+    return fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.agentWindowClose}`, {method: "POST", headers: {authorization: `Bearer ${token}`}})
+  }
+
+  function readAgents(token: string): Promise<Response> {
+    return fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.agents}`, {headers: {authorization: `Bearer ${token}`}})
+  }
+
+  it("TC-3: the Parent opens a window five minutes out; a Child opening one replaces it with the clock restarted; closing it as its owner works, closing with none open is a no-op, and closing another Mac's window is refused", async () => {
+    const openedByParent = await openWindow(parent.token)
+    expect(openedByParent.status).toBe(200)
+    const parentWindow = ((await openedByParent.json()) as {ok: true; data: AgentWindow}).data
+    expect(parentWindow.deviceId).toBe(parent.device.id)
+    expect(parentWindow.agentAddress).toBe("http://127.0.0.1:4001/mcp")
+    expect(Date.parse(parentWindow.expiresAt) - Date.now()).toBeGreaterThan(4 * 60 * 1000)
+    expect(Date.parse(parentWindow.expiresAt) - Date.now()).toBeLessThanOrEqual(5 * 60 * 1000)
+
+    const openedByChild = await openWindow(child.token)
+    expect(openedByChild.status).toBe(200)
+    const childWindow = ((await openedByChild.json()) as {ok: true; data: AgentWindow}).data
+    expect(childWindow.deviceId).toBe(child.device.id)
+    expect(Date.parse(childWindow.expiresAt)).toBeGreaterThan(Date.parse(parentWindow.expiresAt) - 1000)
+
+    const listFromParent = ((await (await readAgents(parent.token)).json()) as {ok: true; data: AgentListResponse}).data
+    const listFromChild = ((await (await readAgents(child.token)).json()) as {ok: true; data: AgentListResponse}).data
+    expect(listFromParent.agentWindow?.deviceId).toBe(child.device.id)
+    expect(listFromChild.agentWindow?.deviceId).toBe(child.device.id)
+
+    const parentClosingChildsWindow = await closeWindow(parent.token)
+    expect(parentClosingChildsWindow.status).toBe(403)
+    expect(await parentClosingChildsWindow.json()).toEqual({ok: false, error: {code: "NOT_AGENT_OWNER", message: expect.any(String)}})
+    const stillOpen = ((await (await readAgents(parent.token)).json()) as {ok: true; data: AgentListResponse}).data
+    expect(stillOpen.agentWindow?.deviceId).toBe(child.device.id)
+
+    const childClosesItsOwn = await closeWindow(child.token)
+    expect(childClosesItsOwn.status).toBe(204)
+    const afterChildCloses = ((await (await readAgents(parent.token)).json()) as {ok: true; data: AgentListResponse}).data
+    expect(afterChildCloses.agentWindow).toBeNull()
+
+    const parentClosesWithNoneOpen = await closeWindow(parent.token)
+    expect(parentClosesWithNoneOpen.status).toBe(204)
+    const stillNone = ((await (await readAgents(parent.token)).json()) as {ok: true; data: AgentListResponse}).data
+    expect(stillNone.agentWindow).toBeNull()
+  })
+})
+
+describe("approving an agent needs a usable time zone — TC-8", () => {
+  let dataDir: string
+  let booted: BootedServer
+  let parent: ClaimResponse
+
+  beforeEach(async () => {
+    dataDir = mkdtempSync(join(tmpdir(), "daily-server-agent-approve-timezone-"))
+    booted = await bootServer(dataDir, {publicUrl: "http://127.0.0.1:4001"})
+    const code = ensureClaimCode(booted.store)
+    if (!code) throw new Error("expected an unclaimed test server to hold a claim code")
+    const claimed = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.claim}`, {
+      method: "POST",
+      body: JSON.stringify({code, deviceName: "MacBook Air"}),
+    })
+    parent = ((await claimed.json()) as {ok: true; data: ClaimResponse}).data
+    await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.agentWindowOpen}`, {method: "POST", headers: {authorization: `Bearer ${parent.token}`}})
+  })
+
+  afterEach(async () => {
+    await booted.close()
+    rmSync(dataDir, {recursive: true, force: true})
+  })
+
+  function readDeviceTimeZone(deviceId: string): string | null {
+    return (booted.store.db.prepare(`SELECT time_zone FROM devices WHERE id = ?`).get(deviceId) as {time_zone: string | null}).time_zone
+  }
+
+  function approve(body: unknown): Promise<Response> {
+    return fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.agentApprove}`, {
+      method: "POST",
+      headers: {authorization: `Bearer ${parent.token}`, "content-type": "application/json"},
+      body: JSON.stringify(body),
+    })
+  }
+
+  it("TC-8: an absent, empty, path-escaping or 200-character time zone each refuse INVALID_TIME_ZONE and mint nothing, leaving the same request pending for a further attempt, and a usable one then succeeds", async () => {
+    const request = await createAgentRequestDirectly(booted.store, {
+      agentName: "Claude Code",
+      returnsTo: "https://claude.ai/callback",
+      isLocalProgram: false,
+    })
+
+    const badValues: (string | undefined)[] = [undefined, "", "../../etc/passwd", "a".repeat(200)]
+    for (const timeZone of badValues) {
+      const body: Record<string, unknown> = {requestId: request.id, code: request.code}
+      if (timeZone !== undefined) body.timeZone = timeZone
+
+      const res = await approve(body)
+      expect(res.status).toBe(400)
+      expect(await res.json()).toEqual({ok: false, error: {code: "INVALID_TIME_ZONE", message: expect.any(String)}})
+      expect(readDeviceTimeZone(parent.device.id)).toBeNull()
+
+      const stillPending = booted.store.db.prepare(`SELECT state FROM agent_requests WHERE id = ?`).get(request.id) as {state: string}
+      expect(stillPending.state).toBe("pending")
+    }
+
+    const approved = await approve({requestId: request.id, code: request.code, timeZone: "Pacific/Auckland"})
+    expect(approved.status).toBe(204)
+    expect(readDeviceTimeZone(parent.device.id)).toBe("Pacific/Auckland")
+  })
+})
+
+describe("listing and revoking agents under the Parent/Child rule — TC-11", () => {
+  let dataDir: string
+  let booted: BootedServer
+  let parent: ClaimResponse
+  let child: IssuedCredential
+
+  beforeEach(async () => {
+    dataDir = mkdtempSync(join(tmpdir(), "daily-server-agent-list-revoke-"))
+    booted = await bootServer(dataDir, {publicUrl: "http://127.0.0.1:4001"})
+    const code = ensureClaimCode(booted.store)
+    if (!code) throw new Error("expected an unclaimed test server to hold a claim code")
+    const claimed = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.claim}`, {
+      method: "POST",
+      body: JSON.stringify({code, deviceName: "MacBook Air"}),
+    })
+    parent = ((await claimed.json()) as {ok: true; data: ClaimResponse}).data
+
+    const issued = createConsoleEnrollment(booted.store)
+    const consoleRes = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollConsole}`, {
+      method: "POST",
+      body: JSON.stringify({token: issued.token, deviceName: "Mac mini"}),
+    })
+    child = ((await consoleRes.json()) as {ok: true; data: IssuedCredential}).data
+  })
+
+  afterEach(async () => {
+    await booted.close()
+    rmSync(dataDir, {recursive: true, force: true})
+  })
+
+  async function mintAgent(token: string, agentName: string): Promise<string> {
+    await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.agentWindowOpen}`, {method: "POST", headers: {authorization: `Bearer ${token}`}})
+    const request = await createAgentRequestDirectly(booted.store, {agentName, returnsTo: "https://claude.ai/callback", isLocalProgram: false})
+    const approved = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.agentApprove}`, {
+      method: "POST",
+      headers: {authorization: `Bearer ${token}`, "content-type": "application/json"},
+      body: JSON.stringify({requestId: request.id, code: request.code, timeZone: "Pacific/Auckland"}),
+    })
+    if (approved.status !== 204) throw new Error(`expected the agent approval to succeed, got ${approved.status}`)
+
+    const row = booted.store.db.prepare(`SELECT id FROM agents WHERE name = ? ORDER BY created_at DESC LIMIT 1`).get(agentName) as {id: string}
+    return row.id
+  }
+
+  function readAgents(token: string): Promise<Response> {
+    return fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.agents}`, {headers: {authorization: `Bearer ${token}`}})
+  }
+
+  function revokeAgent(token: string, agentId: string): Promise<Response> {
+    return fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.agentRevoke}`, {
+      method: "POST",
+      headers: {authorization: `Bearer ${token}`, "content-type": "application/json"},
+      body: JSON.stringify({agentId}),
+    })
+  }
+
+  it("TC-11: the Parent's read carries both agents and the Child's only its own; a Child revokes its own but is refused revoking the Parent's, and the Parent revokes its own freely even after an already-revoked id", async () => {
+    const agentP = await mintAgent(parent.token, "Claude Code on MacBook Air")
+    const agentC = await mintAgent(child.token, "Claude Code on Mac mini")
+
+    const parentRead = ((await (await readAgents(parent.token)).json()) as {ok: true; data: AgentListResponse}).data
+    expect(parentRead.agents.map((a) => a.id).sort()).toEqual([agentP, agentC].sort())
+
+    const childRead = ((await (await readAgents(child.token)).json()) as {ok: true; data: AgentListResponse}).data
+    expect(childRead.agents.map((a) => a.id)).toEqual([agentC])
+
+    const childRevokesOwn = await revokeAgent(child.token, agentC)
+    expect(childRevokesOwn.status).toBe(200)
+    const afterChildRevokesOwn = ((await childRevokesOwn.json()) as {ok: true; data: AgentListResponse}).data
+    const revokedAtAfterChild = afterChildRevokesOwn.agents.find((a) => a.id === agentC)?.revokedAt
+    expect(revokedAtAfterChild).toBeTruthy()
+
+    const childRevokesParents = await revokeAgent(child.token, agentP)
+    expect(childRevokesParents.status).toBe(403)
+    expect(await childRevokesParents.json()).toEqual({ok: false, error: {code: "NOT_AGENT_OWNER", message: expect.any(String)}})
+    const stillUntouched = ((await (await readAgents(parent.token)).json()) as {ok: true; data: AgentListResponse}).data
+    expect(stillUntouched.agents.find((a) => a.id === agentP)?.revokedAt).toBeNull()
+
+    const parentRevokesAlreadyRevoked = await revokeAgent(parent.token, agentC)
+    expect(parentRevokesAlreadyRevoked.status).toBe(200)
+    const unchanged = ((await parentRevokesAlreadyRevoked.json()) as {ok: true; data: AgentListResponse}).data
+    expect(unchanged.agents.find((a) => a.id === agentC)?.revokedAt).toBe(revokedAtAfterChild)
+
+    const parentRevokesOwn = await revokeAgent(parent.token, agentP)
+    expect(parentRevokesOwn.status).toBe(200)
+    const finalList = ((await parentRevokesOwn.json()) as {ok: true; data: AgentListResponse}).data
+    expect(finalList.agents.find((a) => a.id === agentP)?.revokedAt).toBeTruthy()
+  })
+})
+
+describe("an empty agent list, before and after a window opens — TC-12", () => {
+  let dataDir: string
+  let booted: BootedServer
+  let parent: ClaimResponse
+  let child: IssuedCredential
+
+  beforeEach(async () => {
+    dataDir = mkdtempSync(join(tmpdir(), "daily-server-agents-empty-list-"))
+    booted = await bootServer(dataDir, {publicUrl: "http://127.0.0.1:4001"})
+    const code = ensureClaimCode(booted.store)
+    if (!code) throw new Error("expected an unclaimed test server to hold a claim code")
+    const claimed = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.claim}`, {
+      method: "POST",
+      body: JSON.stringify({code, deviceName: "MacBook Air"}),
+    })
+    parent = ((await claimed.json()) as {ok: true; data: ClaimResponse}).data
+
+    const issued = createConsoleEnrollment(booted.store)
+    const consoleRes = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollConsole}`, {
+      method: "POST",
+      body: JSON.stringify({token: issued.token, deviceName: "Mac mini"}),
+    })
+    child = ((await consoleRes.json()) as {ok: true; data: IssuedCredential}).data
+  })
+
+  afterEach(async () => {
+    await booted.close()
+    rmSync(dataDir, {recursive: true, force: true})
+  })
+
+  function readAgents(token: string): Promise<Response> {
+    return fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.agents}`, {headers: {authorization: `Bearer ${token}`}})
+  }
+
+  it("TC-12: with no agent connected both Macs read an empty list and no window; once the Parent opens one both reads carry it; revoking an unknown id is refused without changing the list", async () => {
+    const parentFirstRead = ((await (await readAgents(parent.token)).json()) as {ok: true; data: AgentListResponse}).data
+    expect(parentFirstRead).toEqual({agents: [], agentWindow: null})
+    const childFirstRead = ((await (await readAgents(child.token)).json()) as {ok: true; data: AgentListResponse}).data
+    expect(childFirstRead).toEqual({agents: [], agentWindow: null})
+
+    const opened = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.agentWindowOpen}`, {
+      method: "POST",
+      headers: {authorization: `Bearer ${parent.token}`},
+    })
+    expect(opened.status).toBe(200)
+
+    const parentSecondRead = ((await (await readAgents(parent.token)).json()) as {ok: true; data: AgentListResponse}).data
+    expect(parentSecondRead.agents).toEqual([])
+    expect(parentSecondRead.agentWindow?.deviceId).toBe(parent.device.id)
+    expect(parentSecondRead.agentWindow?.agentAddress).toBe("http://127.0.0.1:4001/mcp")
+    expect(Date.parse(parentSecondRead.agentWindow?.expiresAt ?? "")).toBeGreaterThan(Date.now())
+
+    const childSecondRead = ((await (await readAgents(child.token)).json()) as {ok: true; data: AgentListResponse}).data
+    expect(childSecondRead.agents).toEqual([])
+    expect(childSecondRead.agentWindow).toEqual(parentSecondRead.agentWindow)
+
+    const revoke = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.agentRevoke}`, {
+      method: "POST",
+      headers: {authorization: `Bearer ${parent.token}`, "content-type": "application/json"},
+      body: JSON.stringify({agentId: "no-such-agent"}),
+    })
+    expect(revoke.status).toBe(404)
+    expect(await revoke.json()).toEqual({ok: false, error: {code: "AGENT_NOT_FOUND", message: expect.any(String)}})
+
+    const unchanged = ((await (await readAgents(parent.token)).json()) as {ok: true; data: AgentListResponse}).data
+    expect(unchanged).toEqual(parentSecondRead)
+  })
+})
+
+describe("the Mac's time zone rides on every probe — TC-14", () => {
+  let dataDir: string
+  let booted: BootedServer
+  let parent: ClaimResponse
+  let originalRevisionHoldMs: number
+
+  beforeEach(async () => {
+    dataDir = mkdtempSync(join(tmpdir(), "daily-server-agent-probe-timezone-"))
+    booted = await bootServer(dataDir)
+    const code = ensureClaimCode(booted.store)
+    if (!code) throw new Error("expected an unclaimed test server to hold a claim code")
+    const claimed = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.claim}`, {
+      method: "POST",
+      body: JSON.stringify({code, deviceName: "MacBook Air"}),
+    })
+    parent = ((await claimed.json()) as {ok: true; data: ClaimResponse}).data
+    originalRevisionHoldMs = SYNC_PROTOCOL_CONFIG.revisionHoldMs
+  })
+
+  afterEach(async () => {
+    ;(SYNC_PROTOCOL_CONFIG as {revisionHoldMs: number}).revisionHoldMs = originalRevisionHoldMs
+    await booted.close()
+    rmSync(dataDir, {recursive: true, force: true})
+  })
+
+  function readTimeZone(): string | null {
+    return (booted.store.db.prepare(`SELECT time_zone FROM devices WHERE id = ?`).get(parent.device.id) as {time_zone: string | null}).time_zone
+  }
+
+  function probe(query: string): Promise<Response> {
+    return fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.revision}${query}`, {headers: {authorization: `Bearer ${parent.token}`}})
+  }
+
+  it("TC-14: a usable time zone lands in devices.time_zone on every probe, an unusable or absent one leaves it standing, and a held probe writes it exactly once rather than once per poll", async () => {
+    expect(readTimeZone()).toBeNull()
+
+    const toTokyo = await probe("?timeZone=Asia/Tokyo")
+    expect(toTokyo.status).toBe(200)
+    expect(readTimeZone()).toBe("Asia/Tokyo")
+
+    const toBelgrade = await probe("?timeZone=Europe/Belgrade")
+    expect(toBelgrade.status).toBe(200)
+    expect(readTimeZone()).toBe("Europe/Belgrade")
+
+    for (const badQuery of ["?timeZone=..%2F..%2Fetc%2Fpasswd", `?timeZone=${"a".repeat(200)}`, ""]) {
+      const res = await probe(badQuery)
+      expect(res.status).toBe(200)
+      const body = ((await res.json()) as {ok: true; data: RevisionProbe}).data
+      expect(typeof body.pendingEnrollment).toBe("boolean")
+      expect(readTimeZone()).toBe("Europe/Belgrade")
+    }
+
+    const seeded = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.snapshot}`, {
+      method: "POST",
+      headers: {authorization: `Bearer ${parent.token}`, "content-type": "application/json"},
+      body: JSON.stringify({
+        snapshot: {version: 4, meta: {updatedAt: new Date().toISOString(), hash: "hash-a"}, docs: {tasks: {}}},
+        expectedRevision: null,
+      }),
+    })
+    const currentRevision = ((await seeded.json()) as {ok: true; data: {revision: string}}).data.revision
+
+    ;(SYNC_PROTOCOL_CONFIG as {revisionHoldMs: number}).revisionHoldMs = 300
+    const prepareSpy = vi.spyOn(booted.store.db, "prepare")
+    const held = await probe(`?knownRevision=${encodeURIComponent(currentRevision)}&timeZone=America/New_York`)
+    expect(held.status).toBe(200)
+    expect(readTimeZone()).toBe("America/New_York")
+
+    const timeZoneWrites = prepareSpy.mock.calls.filter(([sql]) => typeof sql === "string" && /UPDATE\s+devices\s+SET\s+time_zone/i.test(sql))
+    expect(timeZoneWrites).toHaveLength(1)
+  }, 10000)
+})
+
+describe("approving an agent sends this Mac's own time zone, touching no other device's — TC-15", () => {
+  let dataDir: string
+  let booted: BootedServer
+  let parent: ClaimResponse
+  let child: IssuedCredential
+
+  beforeEach(async () => {
+    dataDir = mkdtempSync(join(tmpdir(), "daily-server-agent-approve-owns-timezone-"))
+    booted = await bootServer(dataDir, {publicUrl: "http://127.0.0.1:4001"})
+    const code = ensureClaimCode(booted.store)
+    if (!code) throw new Error("expected an unclaimed test server to hold a claim code")
+    const claimed = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.claim}`, {
+      method: "POST",
+      body: JSON.stringify({code, deviceName: "MacBook Air"}),
+    })
+    parent = ((await claimed.json()) as {ok: true; data: ClaimResponse}).data
+    booted.store.db.prepare(`UPDATE devices SET time_zone = ? WHERE id = ?`).run("Europe/Belgrade", parent.device.id)
+
+    const issued = createConsoleEnrollment(booted.store)
+    const consoleRes = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollConsole}`, {
+      method: "POST",
+      body: JSON.stringify({token: issued.token, deviceName: "Mac mini"}),
+    })
+    child = ((await consoleRes.json()) as {ok: true; data: IssuedCredential}).data
+
+    await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.agentWindowOpen}`, {method: "POST", headers: {authorization: `Bearer ${parent.token}`}})
+  })
+
+  afterEach(async () => {
+    await booted.close()
+    rmSync(dataDir, {recursive: true, force: true})
+  })
+
+  function readTimeZone(deviceId: string): string | null {
+    return (booted.store.db.prepare(`SELECT time_zone FROM devices WHERE id = ?`).get(deviceId) as {time_zone: string | null}).time_zone
+  }
+
+  it("TC-15: approving with a fresh time zone overwrites this Mac's own stored zone and leaves every other device's untouched", async () => {
+    const request = await createAgentRequestDirectly(booted.store, {
+      agentName: "Claude Code",
+      returnsTo: "https://claude.ai/callback",
+      isLocalProgram: false,
+    })
+
+    const approved = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.agentApprove}`, {
+      method: "POST",
+      headers: {authorization: `Bearer ${parent.token}`, "content-type": "application/json"},
+      body: JSON.stringify({requestId: request.id, code: request.code, timeZone: "Pacific/Auckland"}),
+    })
+    expect(approved.status).toBe(204)
+
+    expect(readTimeZone(parent.device.id)).toBe("Pacific/Auckland")
+    expect(readTimeZone(child.device.id)).toBeNull()
+  })
+})
+
+describe("the revision probe's exact shape once agents exist — TC-16", () => {
+  let dataDir: string
+  let booted: BootedServer
+  let parent: ClaimResponse
+  let child: IssuedCredential
+
+  beforeEach(async () => {
+    dataDir = mkdtempSync(join(tmpdir(), "daily-server-agent-probe-shape-"))
+    booted = await bootServer(dataDir, {publicUrl: "http://127.0.0.1:4001"})
+    const code = ensureClaimCode(booted.store)
+    if (!code) throw new Error("expected an unclaimed test server to hold a claim code")
+    const claimed = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.claim}`, {
+      method: "POST",
+      body: JSON.stringify({code, deviceName: "MacBook Air"}),
+    })
+    parent = ((await claimed.json()) as {ok: true; data: ClaimResponse}).data
+
+    const issued = createConsoleEnrollment(booted.store)
+    const consoleRes = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollConsole}`, {
+      method: "POST",
+      body: JSON.stringify({token: issued.token, deviceName: "Mac mini"}),
+    })
+    child = ((await consoleRes.json()) as {ok: true; data: IssuedCredential}).data
+  })
+
+  afterEach(async () => {
+    await booted.close()
+    rmSync(dataDir, {recursive: true, force: true})
+  })
+
+  it("TC-16: with nothing waiting, both Macs' probes carry exactly six keys, agree acceptsAgents is true and protocol is 4, both report no request pending, and each names its own role", async () => {
+    const parentProbe = (
+      (await (await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.revision}`, {headers: {authorization: `Bearer ${parent.token}`}})).json()) as {
+        ok: true
+        data: RevisionProbe
+      }
+    ).data
+    expect(Object.keys(parentProbe).sort()).toEqual(["acceptsAgents", "pendingAgentRequest", "pendingEnrollment", "protocol", "revision", "role"])
+    expect(parentProbe.pendingAgentRequest).toBe(false)
+    expect(parentProbe.acceptsAgents).toBe(true)
+    expect(parentProbe.protocol).toBe(4)
+    expect(parentProbe.role).toBe("parent")
+
+    const childProbe = (
+      (await (await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.revision}`, {headers: {authorization: `Bearer ${child.token}`}})).json()) as {
+        ok: true
+        data: RevisionProbe
+      }
+    ).data
+    expect(Object.keys(childProbe).sort()).toEqual(["acceptsAgents", "pendingAgentRequest", "pendingEnrollment", "protocol", "revision", "role"])
+    expect(childProbe.pendingAgentRequest).toBe(false)
+    expect(childProbe.acceptsAgents).toBe(true)
+    expect(childProbe.role).toBe("child")
+  })
+})
+
+describe("pendingAgentRequest is scoped to the window's own Mac — TC-17", () => {
+  let dataDir: string
+  let booted: BootedServer
+  let parent: ClaimResponse
+  let child: IssuedCredential
+
+  beforeEach(async () => {
+    dataDir = mkdtempSync(join(tmpdir(), "daily-server-agent-pending-scope-"))
+    booted = await bootServer(dataDir, {publicUrl: "http://127.0.0.1:4001"})
+    const code = ensureClaimCode(booted.store)
+    if (!code) throw new Error("expected an unclaimed test server to hold a claim code")
+    const claimed = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.claim}`, {
+      method: "POST",
+      body: JSON.stringify({code, deviceName: "MacBook Air"}),
+    })
+    parent = ((await claimed.json()) as {ok: true; data: ClaimResponse}).data
+
+    const issued = createConsoleEnrollment(booted.store)
+    const consoleRes = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollConsole}`, {
+      method: "POST",
+      body: JSON.stringify({token: issued.token, deviceName: "Mac mini"}),
+    })
+    child = ((await consoleRes.json()) as {ok: true; data: IssuedCredential}).data
+  })
+
+  afterEach(async () => {
+    await booted.close()
+    rmSync(dataDir, {recursive: true, force: true})
+  })
+
+  async function probe(token: string): Promise<RevisionProbe> {
+    const res = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.revision}`, {headers: {authorization: `Bearer ${token}`}})
+    return ((await res.json()) as {ok: true; data: RevisionProbe}).data
+  }
+
+  it("TC-17: pendingAgentRequest is true only for the Mac whose window a request waits on, moves to false once decided, and follows the request to whichever Mac opens next; pendingEnrollment never turns true", async () => {
+    await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.agentWindowOpen}`, {method: "POST", headers: {authorization: `Bearer ${parent.token}`}})
+    const request = await createAgentRequestDirectly(booted.store, {
+      agentName: "Claude Code",
+      returnsTo: "https://claude.ai/callback",
+      isLocalProgram: false,
+    })
+
+    const parentWhileWaiting = await probe(parent.token)
+    expect(parentWhileWaiting.pendingAgentRequest).toBe(true)
+    expect(parentWhileWaiting.pendingEnrollment).toBe(false)
+    const childWhileWaiting = await probe(child.token)
+    expect(childWhileWaiting.pendingAgentRequest).toBe(false)
+    expect(childWhileWaiting.pendingEnrollment).toBe(false)
+
+    const approved = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.agentApprove}`, {
+      method: "POST",
+      headers: {authorization: `Bearer ${parent.token}`, "content-type": "application/json"},
+      body: JSON.stringify({requestId: request.id, code: request.code, timeZone: "Pacific/Auckland"}),
+    })
+    expect(approved.status).toBe(204)
+
+    expect((await probe(parent.token)).pendingAgentRequest).toBe(false)
+    expect((await probe(child.token)).pendingAgentRequest).toBe(false)
+
+    await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.agentWindowOpen}`, {method: "POST", headers: {authorization: `Bearer ${child.token}`}})
+    await createAgentRequestDirectly(booted.store, {agentName: "Claude Code", returnsTo: "https://claude.ai/callback", isLocalProgram: false})
+
+    const parentFinal = await probe(parent.token)
+    expect(parentFinal.pendingAgentRequest).toBe(false)
+    expect(parentFinal.pendingEnrollment).toBe(false)
+    const childFinal = await probe(child.token)
+    expect(childFinal.pendingAgentRequest).toBe(true)
+    expect(childFinal.pendingEnrollment).toBe(false)
+  })
+})
+
+describe("a request that starts waiting for this Mac releases its held probe early; one that starts waiting for another Mac does not — TC-18", () => {
+  let dataDir: string
+  let booted: BootedServer
+  let parent: ClaimResponse
+  let child: IssuedCredential
+  let originalRevisionHoldMs: number
+  let currentRevision: string
+
+  beforeEach(async () => {
+    dataDir = mkdtempSync(join(tmpdir(), "daily-server-agent-held-probe-"))
+    booted = await bootServer(dataDir, {publicUrl: "http://127.0.0.1:4001"})
+    const code = ensureClaimCode(booted.store)
+    if (!code) throw new Error("expected an unclaimed test server to hold a claim code")
+    const claimed = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.claim}`, {
+      method: "POST",
+      body: JSON.stringify({code, deviceName: "MacBook Air"}),
+    })
+    parent = ((await claimed.json()) as {ok: true; data: ClaimResponse}).data
+
+    const issued = createConsoleEnrollment(booted.store)
+    const consoleRes = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.enrollConsole}`, {
+      method: "POST",
+      body: JSON.stringify({token: issued.token, deviceName: "Mac mini"}),
+    })
+    child = ((await consoleRes.json()) as {ok: true; data: IssuedCredential}).data
+
+    const seeded = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.snapshot}`, {
+      method: "POST",
+      headers: {authorization: `Bearer ${parent.token}`, "content-type": "application/json"},
+      body: JSON.stringify({
+        snapshot: {version: 4, meta: {updatedAt: new Date().toISOString(), hash: "hash-a"}, docs: {tasks: {}}},
+        expectedRevision: null,
+      }),
+    })
+    currentRevision = ((await seeded.json()) as {ok: true; data: {revision: string}}).data.revision
+
+    originalRevisionHoldMs = SYNC_PROTOCOL_CONFIG.revisionHoldMs
+    ;(SYNC_PROTOCOL_CONFIG as {revisionHoldMs: number}).revisionHoldMs = 1200
+  })
+
+  afterEach(async () => {
+    ;(SYNC_PROTOCOL_CONFIG as {revisionHoldMs: number}).revisionHoldMs = originalRevisionHoldMs
+    await booted.close()
+    rmSync(dataDir, {recursive: true, force: true})
+  })
+
+  function holdForParent(): Promise<{status: number; data: RevisionProbe; elapsedMs: number}> {
+    const startedAt = Date.now()
+    return fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.revision}?knownRevision=${encodeURIComponent(currentRevision)}`, {
+      headers: {authorization: `Bearer ${parent.token}`},
+    }).then(async (res) => ({
+      status: res.status,
+      data: ((await res.json()) as {ok: true; data: RevisionProbe}).data,
+      elapsedMs: Date.now() - startedAt,
+    }))
+  }
+
+  it("TC-18: a request created for the Parent's own open window releases its held probe well before the deadline with pendingAgentRequest true and the revision unchanged; a request created for the Child's window does not, and the Parent's hold runs to its own end reporting false", async () => {
+    await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.agentWindowOpen}`, {method: "POST", headers: {authorization: `Bearer ${parent.token}`}})
+
+    const parentsOwnHold = holdForParent()
+    await new Promise((resolve) => setTimeout(resolve, 150))
+    await createAgentRequestDirectly(booted.store, {agentName: "Claude Code", returnsTo: "https://claude.ai/callback", isLocalProgram: false})
+
+    const releasedEarly = await parentsOwnHold
+    expect(releasedEarly.status).toBe(200)
+    expect(releasedEarly.data.pendingAgentRequest).toBe(true)
+    expect(releasedEarly.data.revision).toBe(currentRevision)
+    expect(releasedEarly.elapsedMs).toBeLessThan(900)
+
+    const pendingRow = booted.store.db.prepare(`SELECT id FROM agent_requests WHERE state = 'pending' ORDER BY created_at DESC LIMIT 1`).get() as {
+      id: string
+    }
+    const denied = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.agentDeny}`, {
+      method: "POST",
+      headers: {authorization: `Bearer ${parent.token}`, "content-type": "application/json"},
+      body: JSON.stringify({requestId: pendingRow.id}),
+    })
+    expect(denied.status).toBe(204)
+
+    await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.agentWindowOpen}`, {method: "POST", headers: {authorization: `Bearer ${child.token}`}})
+
+    const parentsHoldWhileChildWaits = holdForParent()
+    await new Promise((resolve) => setTimeout(resolve, 150))
+    await createAgentRequestDirectly(booted.store, {agentName: "Claude Code", returnsTo: "https://claude.ai/callback", isLocalProgram: false})
+
+    const ranToItsEnd = await parentsHoldWhileChildWaits
+    expect(ranToItsEnd.status).toBe(200)
+    expect(ranToItsEnd.data.pendingAgentRequest).toBe(false)
+    expect(ranToItsEnd.elapsedMs).toBeGreaterThanOrEqual(1100)
+  }, 15000)
 })

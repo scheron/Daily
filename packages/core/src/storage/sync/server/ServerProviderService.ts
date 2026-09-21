@@ -1,7 +1,7 @@
 import {hostname} from "node:os"
 
 import {ProtocolError, ProtocolErrorCode, SYNC_PROTOCOL_CONFIG, SYNC_PROTOCOL_VERSION, SyncServerError, SyncServerErrorCode} from "@daily/protocol"
-import {createIntervalScheduler} from "@daily/std"
+import {createIntervalScheduler, getTimezone} from "@daily/std"
 
 import {logger} from "../../../utils/logger"
 import {toBindingView} from "../../../utils/sync/settingsViews"
@@ -9,15 +9,20 @@ import {DailySyncClient} from "./DailySyncClient"
 import {probeTransport} from "./serverTransport"
 
 import type {
+  AgentListResponse,
+  AgentWindow,
+  AgentWindowView,
   DeviceListResponse,
   DeviceRole,
   EnrollmentPollView,
   EnrollmentTicketView,
   EnrollmentWindowView,
   IssuedCredential,
+  PendingAgentRequestView,
   PendingApprovalView,
   ProtocolMismatchView,
   RevisionProbe,
+  ServerAgentsView,
   ServerBindingView,
   ServerConnectionStateView,
   ServerInfo,
@@ -38,6 +43,8 @@ type ServerProviderDeps = {
   runSyncCycle: () => Promise<void>
   /** Fires once when a peer's enrollment request starts waiting, not again while it still is. */
   onApprovalRequested: () => void
+  /** Fires once when an agent's request starts waiting on this Mac's own Agent window, not again while it still is. */
+  onAgentRequested: () => void
   /** Asked to stop the two-minute auto-sync cycle when a probe tick learns this device was revoked, or that its protocol no longer matches the server's. */
   disableAutoSync?: () => void
   /** Asked to resume the two-minute auto-sync cycle once a protocol mismatch clears. */
@@ -48,6 +55,8 @@ type ServerProviderDeps = {
   onProtocolMismatchChanged?: (mismatch: ProtocolMismatchView | null) => void
   /** Fires once on the tick that first finds this device's role changed. */
   onRoleChanged?: (role: DeviceRole) => void
+  /** Fires once on the tick that first finds whether this server accepts agents changed. */
+  onAgentsAcceptedChanged?: (acceptsAgents: boolean) => void
 }
 
 type EnrollmentTicket = {requestId: string; code: string; pollToken: string; expiresAt: string}
@@ -76,6 +85,7 @@ export class ServerProviderService implements IServerProvider {
   private probeGeneration = 0
   private lastProbedRevision: string | null | undefined = undefined
   private hadPendingEnrollment = false
+  private hadPendingAgentRequest = false
   private revoked = false
   private mismatch: ProtocolMismatchView | null = null
 
@@ -237,6 +247,71 @@ export class ServerProviderService implements IServerProvider {
     await (await this.boundClient()).closeEnrollmentWindow()
   }
 
+  /** Opens the Agent window on the server, moving it here from whichever Mac held it, and names the address an agent connects to. */
+  async openAgentWindow(): Promise<AgentWindowView> {
+    const thisDeviceId = (await this.deps.loadSettings()).sync.server.binding?.deviceId ?? null
+    const window = await (await this.boundClient()).openAgentWindow()
+
+    return this.toAgentWindowView(window, thisDeviceId)
+  }
+
+  /** Closes the Agent window this Mac owns, early. */
+  async closeAgentWindow(): Promise<void> {
+    await (await this.boundClient()).closeAgentWindow()
+  }
+
+  /** The one agent request waiting on this Mac's Agent window, or `null` when none waits and when no server is connected. */
+  async pendingAgentRequest(): Promise<PendingAgentRequestView | null> {
+    const client = await this.clientIfBound()
+    if (!client) return null
+
+    const pending = await client.pendingAgentRequest()
+    if (!pending) return null
+
+    return {
+      requestId: pending.requestId,
+      code: pending.code,
+      agentName: pending.agentName,
+      returnsTo: pending.returnsTo,
+      isLocalProgram: pending.isLocalProgram,
+      requestedAt: pending.requestedAt,
+      expiresAt: pending.expiresAt,
+    }
+  }
+
+  /**
+   * Approves the agent request waiting on this Mac's window, minting the agent and closing the window.
+   * This Mac's own time zone rides along, fixing the day the agent works in for as long as it lives, so
+   * no caller supplies one. Clears `hadPendingAgentRequest` so the next probe reporting a waiting
+   * request is read as a genuine edge rather than the one this call just resolved.
+   */
+  async approveAgent(requestId: string, code: string): Promise<void> {
+    await (await this.boundClient()).approveAgent(requestId, code, getTimezone())
+    this.hadPendingAgentRequest = false
+  }
+
+  /** Refuses the agent request waiting on this Mac's window, leaving the window open. Clears `hadPendingAgentRequest` for the same reason `approveAgent` does. */
+  async denyAgent(requestId: string): Promise<void> {
+    await (await this.boundClient()).denyAgent(requestId)
+    this.hadPendingAgentRequest = false
+  }
+
+  /** The agents this Mac may see — the Parent every Mac's, a Child only its own — and the Agent window as it now stands. */
+  async listAgents(): Promise<ServerAgentsView> {
+    const thisDeviceId = (await this.deps.loadSettings()).sync.server.binding?.deviceId ?? null
+    const response = await (await this.boundClient()).listAgents()
+
+    return this.toAgentsView(response, thisDeviceId)
+  }
+
+  /** Withdraws one agent's access and returns the list as it now stands, so the caller never reconciles two shapes. */
+  async revokeAgent(agentId: string): Promise<ServerAgentsView> {
+    const thisDeviceId = (await this.deps.loadSettings()).sync.server.binding?.deviceId ?? null
+    const response = await (await this.boundClient()).revokeAgent(agentId)
+
+    return this.toAgentsView(response, thisDeviceId)
+  }
+
   /**
    * Starts the twelve-second revision probe; a no-op if it is already running. Each tick compares
    * the server's revision against the one the previous tick read and runs one sync cycle exactly
@@ -265,6 +340,7 @@ export class ServerProviderService implements IServerProvider {
     this.probeScheduler = null
     this.lastProbedRevision = undefined
     this.hadPendingEnrollment = false
+    this.hadPendingAgentRequest = false
     this.probeAbort?.abort()
     this.probeAbort = null
     if (this.probeRearm !== null) clearTimeout(this.probeRearm)
@@ -307,6 +383,7 @@ export class ServerProviderService implements IServerProvider {
       boundAt: new Date().toISOString(),
       role,
       approvedBy,
+      acceptsAgents: null,
     }
 
     await this.deps.saveSettings({sync: {...settings.sync, server: {enabled: false, binding}}})
@@ -351,10 +428,31 @@ export class ServerProviderService implements IServerProvider {
     }
   }
 
+  /** Maps the wire's `AgentListResponse` onto the renderer-safe `ServerAgentsView`, renaming `createdAt` to `connectedAt` and deriving `isThisMac` here so the renderer never has to hold two device ids at once. */
+  private toAgentsView(response: AgentListResponse, thisDeviceId: string | null): ServerAgentsView {
+    return {
+      agents: response.agents.map((agent) => ({
+        id: agent.id,
+        deviceId: agent.deviceId,
+        name: agent.name,
+        connectedAt: agent.createdAt,
+        lastUsedAt: agent.lastUsedAt,
+        revokedAt: agent.revokedAt,
+        isThisMac: agent.deviceId === thisDeviceId,
+      })),
+      agentWindow: response.agentWindow ? this.toAgentWindowView(response.agentWindow, thisDeviceId) : null,
+    }
+  }
+
+  /** Maps the wire's `AgentWindow` onto the renderer-safe `AgentWindowView`, dropping the owning device's id once `isThisMac` says the one thing the renderer needs of it. */
+  private toAgentWindowView(window: AgentWindow, thisDeviceId: string | null): AgentWindowView {
+    return {expiresAt: window.expiresAt, agentAddress: window.agentAddress, isThisMac: window.deviceId === thisDeviceId}
+  }
+
   /**
    * Runs one probe, and re-arms the next one immediately when this one made real progress — a
-   * moved revision, a freshly pending enrollment, or a hold that ran to its own end with nothing
-   * new — rather than waiting for the scheduler's own interval. `createIntervalScheduler` stays
+   * moved revision, a freshly pending enrollment or agent request, or a hold that ran to its own
+   * end with nothing new — rather than waiting for the scheduler's own interval. `createIntervalScheduler` stays
    * the only scheduler; the re-arm is one cancellable `setTimeout(…, 0)` calling this method again.
    *
    * `probeInFlight` keeps this method single-flight across its two entry points: the scheduler's
@@ -363,9 +461,9 @@ export class ServerProviderService implements IServerProvider {
    * `stopProbe()`/`startProbe()` — since nothing here can cancel `runSyncCycle()` mid-flight —
    * checks before touching state or the flag a newer tick now owns.
    *
-   * A still-pending enrollment, and a probe sent with no known revision (before the first exists,
-   * or while mismatched), answer at once and must not re-arm, or neither would bound how often it
-   * asks again.
+   * A still-pending enrollment or agent request, and a probe sent with no known revision (before
+   * the first exists, or while mismatched), answer at once and must not re-arm, or neither would
+   * bound how often it asks again.
    */
   private async probeTick(): Promise<void> {
     if (this.probeInFlight || !this.probeScheduler) return
@@ -381,7 +479,7 @@ export class ServerProviderService implements IServerProvider {
       this.probeAbort = abort
 
       try {
-        probe = await (await this.boundClient()).probeRevision(knownRevision, abort.signal)
+        probe = await (await this.boundClient()).probeRevision(knownRevision, abort.signal, getTimezone())
       } catch (error) {
         if (error instanceof ProtocolError && error.code === ProtocolErrorCode.DEVICE_REVOKED) {
           if (this.probeGeneration !== generation) return
@@ -410,6 +508,7 @@ export class ServerProviderService implements IServerProvider {
       if (this.mismatch) this.exitMismatch()
 
       const stillPendingEnrollment = probe.pendingEnrollment && this.hadPendingEnrollment
+      const stillPendingAgentRequest = probe.pendingAgentRequest && this.hadPendingAgentRequest
 
       const revisionMoved = this.lastProbedRevision !== undefined && probe.revision !== this.lastProbedRevision
       if (revisionMoved) await this.deps.runSyncCycle()
@@ -420,13 +519,22 @@ export class ServerProviderService implements IServerProvider {
 
       if (this.probeGeneration !== generation) return
 
+      await this.applyAcceptsAgentsIfChanged(probe.acceptsAgents)
+
+      if (this.probeGeneration !== generation) return
+
       this.lastProbedRevision = probe.revision
 
       const enrollmentNewlyPending = probe.pendingEnrollment && !this.hadPendingEnrollment
       if (enrollmentNewlyPending) this.deps.onApprovalRequested()
       this.hadPendingEnrollment = probe.pendingEnrollment
 
-      const shouldRearm = revisionMoved || enrollmentNewlyPending || (askedToHold && !stillPendingEnrollment)
+      const agentRequestNewlyPending = probe.pendingAgentRequest && !this.hadPendingAgentRequest
+      if (agentRequestNewlyPending) this.deps.onAgentRequested()
+      this.hadPendingAgentRequest = probe.pendingAgentRequest
+
+      const shouldRearm =
+        revisionMoved || enrollmentNewlyPending || agentRequestNewlyPending || (askedToHold && !stillPendingEnrollment && !stillPendingAgentRequest)
 
       if (shouldRearm && this.probeScheduler) {
         this.probeRearm = setTimeout(() => {
@@ -451,6 +559,21 @@ export class ServerProviderService implements IServerProvider {
 
     await this.deps.saveSettings({sync: {...settings.sync, server: {...settings.sync.server, binding: {...binding, role}}}})
     this.deps.onRoleChanged?.(role)
+  }
+
+  /**
+   * The same typed-fact-on-tick mechanism, for whether this server accepts agents: a tick that finds
+   * `RevisionProbe.acceptsAgents` differs from the binding's own writes it through `saveSettings` and
+   * fires `onAgentsAcceptedChanged` once, so `getState()` answers it immediately after a restart. A
+   * tick that agrees writes nothing and fires nothing.
+   */
+  private async applyAcceptsAgentsIfChanged(acceptsAgents: boolean): Promise<void> {
+    const settings = await this.deps.loadSettings()
+    const binding = settings.sync.server.binding
+    if (!binding || binding.acceptsAgents === acceptsAgents) return
+
+    await this.deps.saveSettings({sync: {...settings.sync, server: {...settings.sync.server, binding: {...binding, acceptsAgents}}}})
+    this.deps.onAgentsAcceptedChanged?.(acceptsAgents)
   }
 
   private startProbeScheduler(intervalMs: number): void {

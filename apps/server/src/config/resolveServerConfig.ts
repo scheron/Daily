@@ -18,6 +18,7 @@ export type ServerConfigOptions = {
   dataDir?: string
   maxAssetBytes?: number
   maxSnapshotBodyBytes?: number
+  publicUrl?: string
 }
 export type ServerConfig = {
   host: string
@@ -43,7 +44,7 @@ export function resolveServerConfig(options: ServerConfigOptions): ServerConfig 
   const maxAssetBytes = options.maxAssetBytes ?? envMaxAssetBytes() ?? SYNC_PROTOCOL_CONFIG.maxAssetBytes
   const maxSnapshotBodyBytes = options.maxSnapshotBodyBytes ?? envMaxSnapshotBodyBytes() ?? SYNC_PROTOCOL_CONFIG.maxSnapshotBodyBytes
 
-  const publicUrl = process.env.DAILY_SERVER_PUBLIC_URL ?? null
+  const publicUrl = options.publicUrl ?? process.env.DAILY_SERVER_PUBLIC_URL ?? null
   const transport = resolveTransport(process.env.DAILY_SERVER_TLS, publicUrl)
 
   return {

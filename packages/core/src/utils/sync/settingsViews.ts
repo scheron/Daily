@@ -13,6 +13,7 @@ export function toBindingView(binding: ServerSyncBinding): ServerBindingView {
     boundAt: binding.boundAt,
     role: binding.role ?? null,
     approvedBy: binding.approvedBy ?? null,
+    acceptsAgents: binding.acceptsAgents ?? null,
   }
 }
 

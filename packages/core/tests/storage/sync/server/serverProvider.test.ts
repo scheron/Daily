@@ -3,6 +3,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {SYNC_PROTOCOL_CONFIG, SYNC_PROTOCOL_PATHS, SYNC_PROTOCOL_VERSION, SyncServerError, SyncServerErrorCode} from "@daily/protocol"
 import {revokeDevice} from "@daily/server/devices/DeviceStore"
 import {ensureClaimCode, isClaimed} from "@daily/server/identity/ServerIdentityStore"
+import {getTimezone} from "@daily/std"
 
 import {createStorageCore} from "@core/storage/createStorageCore"
 import {getDefaultSettings} from "@core/storage/models/_rowMappers"
@@ -13,7 +14,7 @@ import {toBindingView, toSettingsView} from "@core/utils/sync/settingsViews"
 import {assertSingleActiveProvider, buildSyncRemotes, resolveActiveProvider} from "@core/utils/sync/syncProvider"
 import {isBlockedAddress} from "@core/utils/web/isBlockedAddress"
 import {createTestDatabase} from "../../../helpers/db"
-import {bootSyncServer, claimFirstDevice, enrollSecondDevice, openEnrollmentWindow} from "../../../helpers/syncServer"
+import {bootSyncServer, claimFirstDevice, createAgentRequest, enrollSecondDevice, openEnrollmentWindow} from "../../../helpers/syncServer"
 
 import type {DeviceRole, IssuedCredential, ProtocolMismatchView, RevisionProbe, ServerSyncBinding, Settings, SyncSettings} from "@daily/protocol"
 import type {BootedSyncServer} from "../../../helpers/syncServer"
@@ -83,6 +84,7 @@ function makeBinding(overrides: Partial<ServerSyncBinding> = {}): ServerSyncBind
     boundAt: "2026-08-10T00:00:00.000Z",
     role: null,
     approvedBy: null,
+    acceptsAgents: null,
     ...overrides,
   }
 }
@@ -1259,7 +1261,7 @@ describe("the trigger after a request the client itself resolved — TC-27, TC-2
 })
 
 describe("narrowing a server binding for the renderer", () => {
-  it("narrows_TC-11_toBindingView_toSettingsView_and_getState_to_exactly_the_ten_renderer-safe_fields", async () => {
+  it("narrows_TC-11_toBindingView_toSettingsView_and_getState_to_exactly_the_eleven_renderer-safe_fields", async () => {
     const binding = makeBinding()
     const expectedKeys = [
       "baseUrl",
@@ -1272,6 +1274,7 @@ describe("narrowing a server binding for the renderer", () => {
       "boundAt",
       "role",
       "approvedBy",
+      "acceptsAgents",
     ].sort()
 
     const bindingView = toBindingView(binding)
@@ -1356,6 +1359,306 @@ describe("the Parent's membership view — TC-15", () => {
 
       const revokedNames = afterRevoke.devices.filter((d) => d.revokedAt !== null).map((d) => d.name)
       expect(revokedNames.sort()).toEqual(["Mac mini", "iMac"].sort())
+    } finally {
+      await server.close()
+    }
+  })
+})
+
+describe("what a probe tick learns about agents — TC-19", () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.useRealTimers()
+  })
+
+  async function settleProbeIO(rounds = 20): Promise<void> {
+    for (let i = 0; i < rounds; i++) {
+      await vi.advanceTimersByTimeAsync(0)
+    }
+  }
+
+  async function fireProbeTick(): Promise<void> {
+    await vi.advanceTimersByTimeAsync(SYNC_PROTOCOL_CONFIG.revisionProbeIntervalMs)
+    await settleProbeIO()
+  }
+
+  function makeAgentAwareService(
+    store: ReturnType<typeof makeSettingsStore>,
+    overrides: {onAgentRequested?: () => void; onAgentsAcceptedChanged?: (acceptsAgents: boolean) => void} = {},
+  ): ServerProviderService {
+    return new ServerProviderService({
+      loadSettings: store.loadSettings,
+      saveSettings: store.saveSettings,
+      onBindingChanged: async () => {},
+      runSyncCycle: async () => {},
+      onApprovalRequested: () => {},
+      disableAutoSync: () => {},
+      onRevoked: () => {},
+      onAgentRequested: overrides.onAgentRequested ?? (() => {}),
+      onAgentsAcceptedChanged: overrides.onAgentsAcceptedChanged,
+    } as never)
+  }
+
+  function probe(overrides: Partial<RevisionProbe> = {}): RevisionProbe {
+    return {
+      revision: null,
+      pendingEnrollment: false,
+      protocol: SYNC_PROTOCOL_VERSION,
+      role: "parent",
+      pendingAgentRequest: false,
+      acceptsAgents: true,
+      ...overrides,
+    } as RevisionProbe
+  }
+
+  function mockProbeOnce(p: RevisionProbe): void {
+    vi.spyOn(DailySyncClient.prototype, "probeRevision").mockResolvedValueOnce(p)
+  }
+
+  function mockProbeFromNowOn(p: RevisionProbe): void {
+    vi.spyOn(DailySyncClient.prototype, "probeRevision").mockResolvedValue(p)
+  }
+
+  it("TC-19: onAgentRequested fires once per waiting edge and never while one merely stays waiting, onAgentsAcceptedChanged fires once per change and never on an agreeing tick, the binding's acceptsAgents survives a reload, and every probe carries this Mac's own time zone", async () => {
+    const server = await bootSyncServer()
+    try {
+      const credential = await claimFirstDevice(server, "MacBook Air")
+      const binding = bindingFromCredential(server, credential, {acceptsAgents: true})
+      const store = makeSettingsStore({server: {enabled: true, binding}})
+      const onAgentRequested = vi.fn()
+      const onAgentsAcceptedChanged = vi.fn()
+      const service = makeAgentAwareService(store, {onAgentRequested, onAgentsAcceptedChanged})
+
+      const probeSpy = vi.spyOn(DailySyncClient.prototype, "probeRevision")
+
+      mockProbeOnce(probe())
+      service.startProbe()
+      await fireProbeTick()
+      expect(onAgentRequested).not.toHaveBeenCalled()
+
+      mockProbeOnce(probe({pendingAgentRequest: true}))
+      await fireProbeTick()
+      expect(onAgentRequested).toHaveBeenCalledTimes(1)
+
+      mockProbeFromNowOn(probe({pendingAgentRequest: true}))
+      await fireProbeTick()
+      await fireProbeTick()
+      expect(onAgentRequested).toHaveBeenCalledTimes(1)
+
+      mockProbeOnce(probe({pendingAgentRequest: false}))
+      await fireProbeTick()
+      mockProbeOnce(probe({pendingAgentRequest: true}))
+      await fireProbeTick()
+      expect(onAgentRequested).toHaveBeenCalledTimes(2)
+
+      await vi.advanceTimersByTimeAsync(1)
+      await settleProbeIO()
+
+      mockProbeOnce(probe({pendingAgentRequest: false, acceptsAgents: false}))
+      await fireProbeTick()
+      expect(onAgentsAcceptedChanged).toHaveBeenCalledTimes(1)
+      expect(onAgentsAcceptedChanged).toHaveBeenLastCalledWith(false)
+
+      mockProbeFromNowOn(probe({pendingAgentRequest: false, acceptsAgents: false}))
+      await fireProbeTick()
+      expect(onAgentsAcceptedChanged).toHaveBeenCalledTimes(1)
+
+      mockProbeOnce(probe({pendingAgentRequest: false, acceptsAgents: true}))
+      await fireProbeTick()
+      expect(onAgentsAcceptedChanged).toHaveBeenCalledTimes(2)
+      expect(onAgentsAcceptedChanged).toHaveBeenLastCalledWith(true)
+
+      service.stopProbe()
+
+      const reloaded = await service.getState()
+      expect(reloaded.binding?.acceptsAgents).toBe(true)
+
+      expect(probeSpy.mock.calls.length).toBeGreaterThan(0)
+      expect(probeSpy.mock.calls.every((call) => call[2] === getTimezone())).toBe(true)
+    } finally {
+      await server.close()
+    }
+  })
+
+  it("TC-19: the re-arm a newly waiting agent request schedules stops once it merely stays pending, rather than looping", async () => {
+    const server = await bootSyncServer()
+    try {
+      const credential = await claimFirstDevice(server, "MacBook Air")
+      const binding = bindingFromCredential(server, credential)
+      const store = makeSettingsStore({server: {enabled: true, binding}})
+      const onAgentRequested = vi.fn()
+      const service = makeAgentAwareService(store, {onAgentRequested})
+
+      const probeSpy = vi.spyOn(DailySyncClient.prototype, "probeRevision")
+      probeSpy.mockResolvedValueOnce(probe())
+      probeSpy.mockResolvedValueOnce(probe({pendingAgentRequest: true}))
+      probeSpy.mockResolvedValue(probe({pendingAgentRequest: true}))
+
+      service.startProbe()
+      await fireProbeTick()
+
+      await fireProbeTick()
+      await vi.advanceTimersByTimeAsync(1)
+      await settleProbeIO()
+
+      expect(onAgentRequested).toHaveBeenCalledTimes(1)
+      const callsAfterSettling = probeSpy.mock.calls.length
+
+      await settleProbeIO()
+      expect(probeSpy.mock.calls.length).toBe(callsAfterSettling)
+
+      service.stopProbe()
+    } finally {
+      await server.close()
+    }
+  })
+})
+
+describe("the provider speaks the whole agent protocol and hands back credential-free views — TC-20", () => {
+  it("opens_TC-20_the_window_reads_the_waiting_request_approves_it_with_this_Macs_own_time_zone_lists_revokes_and_closes_it", async () => {
+    const server = await bootSyncServer({publicUrl: "http://127.0.0.1:4001"})
+    try {
+      const credential = await claimFirstDevice(server, "MacBook Air")
+      const binding = bindingFromCredential(server, credential)
+      const store = makeSettingsStore({server: {enabled: true, binding}})
+      const service = makeService(store)
+
+      const window = await service.openAgentWindow()
+      expect(window.agentAddress).toBe("http://127.0.0.1:4001/mcp")
+      expect(window.isThisMac).toBe(true)
+      expect(Date.parse(window.expiresAt)).toBeGreaterThan(Date.now())
+
+      const created = await createAgentRequest(server, {
+        agentName: "Claude Code",
+        returnsTo: "https://claude.ai/callback",
+        isLocalProgram: false,
+      })
+
+      const pending = await service.pendingAgentRequest()
+      expect(Object.keys(pending ?? {}).sort()).toEqual(
+        ["requestId", "code", "agentName", "returnsTo", "isLocalProgram", "requestedAt", "expiresAt"].sort(),
+      )
+      expect(pending?.requestId).toBe(created.id)
+
+      await service.approveAgent(created.id, created.code)
+      const timeZoneRow = server.store.db.prepare(`SELECT time_zone FROM devices WHERE id = ?`).get(credential.device.id) as {
+        time_zone: string | null
+      }
+      expect(timeZoneRow.time_zone).toBe(getTimezone())
+
+      const listed = await service.listAgents()
+      const mintedAgent = listed.agents[0]
+      expect(mintedAgent.connectedAt).toBeTruthy()
+      expect(mintedAgent.lastUsedAt).toBeNull()
+      expect(mintedAgent.isThisMac).toBe(true)
+      expect(JSON.stringify(listed)).not.toContain(credential.token)
+
+      const revoked = await service.revokeAgent(mintedAgent.id)
+      expect(revoked.agents[0].revokedAt).toBeTruthy()
+
+      await service.openAgentWindow()
+      await service.closeAgentWindow()
+      expect((await service.listAgents()).agentWindow).toBeNull()
+
+      const bindingView = toBindingView(store.snapshot().sync.server.binding as ServerSyncBinding)
+      expect(Object.keys(bindingView)).toHaveLength(11)
+      expect(Object.keys(bindingView)).toContain("acceptsAgents")
+      expect(JSON.stringify(bindingView)).not.toContain(credential.token)
+    } finally {
+      await server.close()
+    }
+  })
+})
+
+describe("an unbound device and every agent method — TC-21", () => {
+  it("resolves pendingAgentRequest to null like pendingApproval, and rejects every other agent method NO_BINDING without writing settings", async () => {
+    const store = makeSettingsStore({server: {enabled: false, binding: null}})
+    const service = makeService(store)
+    const before = store.snapshot()
+
+    await expect(service.pendingAgentRequest()).resolves.toBeNull()
+
+    await expect(service.listAgents()).rejects.toMatchObject({code: SyncServerErrorCode.NO_BINDING})
+    await expect(service.revokeAgent("agent-1")).rejects.toMatchObject({code: SyncServerErrorCode.NO_BINDING})
+    await expect(service.openAgentWindow()).rejects.toMatchObject({code: SyncServerErrorCode.NO_BINDING})
+    await expect(service.closeAgentWindow()).rejects.toMatchObject({code: SyncServerErrorCode.NO_BINDING})
+    await expect(service.approveAgent("req-1", "000000")).rejects.toMatchObject({code: SyncServerErrorCode.NO_BINDING})
+    await expect(service.denyAgent("req-1")).rejects.toMatchObject({code: SyncServerErrorCode.NO_BINDING})
+
+    expect(store.snapshot()).toEqual(before)
+  })
+})
+
+describe("a protocol mismatch never touches the two new agent facts — TC-22", () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.useRealTimers()
+  })
+
+  async function settleProbeIO(rounds = 20): Promise<void> {
+    for (let i = 0; i < rounds; i++) {
+      await vi.advanceTimersByTimeAsync(0)
+    }
+  }
+
+  async function fireProbeTick(): Promise<void> {
+    await vi.advanceTimersByTimeAsync(SYNC_PROTOCOL_CONFIG.revisionProbeIntervalMs)
+    await settleProbeIO()
+  }
+
+  it("TC-22: a server speaking an older protocol holds the mismatch, disables auto-sync, runs no sync cycle, never fires either new agent callback, and leaves the binding's acceptsAgents standing rather than rewriting it", async () => {
+    const server = await bootSyncServer()
+    try {
+      const credential = await claimFirstDevice(server, "MacBook Air")
+      const binding = bindingFromCredential(server, credential, {acceptsAgents: true})
+      const store = makeSettingsStore({server: {enabled: true, binding}})
+      const runSyncCycle = vi.fn(async () => {})
+      const disableAutoSync = vi.fn()
+      const onAgentRequested = vi.fn()
+      const onAgentsAcceptedChanged = vi.fn()
+
+      const service = new ServerProviderService({
+        loadSettings: store.loadSettings,
+        saveSettings: store.saveSettings,
+        onBindingChanged: async () => {},
+        runSyncCycle,
+        onApprovalRequested: () => {},
+        disableAutoSync,
+        onRevoked: () => {},
+        onAgentRequested,
+        onAgentsAcceptedChanged,
+      } as never)
+
+      vi.spyOn(DailySyncClient.prototype, "probeRevision").mockResolvedValue({
+        revision: "r0",
+        pendingEnrollment: false,
+        protocol: SYNC_PROTOCOL_VERSION - 1,
+        role: "parent",
+      } as RevisionProbe)
+
+      service.startProbe()
+      await fireProbeTick()
+      await fireProbeTick()
+      await fireProbeTick()
+      service.stopProbe()
+
+      const state = await service.getState()
+      expect(state.mismatch).toEqual({appProtocol: SYNC_PROTOCOL_VERSION, serverProtocol: SYNC_PROTOCOL_VERSION - 1})
+      expect(disableAutoSync).toHaveBeenCalled()
+      expect(runSyncCycle).not.toHaveBeenCalled()
+      expect(onAgentRequested).not.toHaveBeenCalled()
+      expect(onAgentsAcceptedChanged).not.toHaveBeenCalled()
+
+      const reloaded = await service.getState()
+      expect(reloaded.binding?.acceptsAgents).toBe(true)
     } finally {
       await server.close()
     }
