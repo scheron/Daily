@@ -162,7 +162,9 @@ function findAuthorizeRefusal(query: URLSearchParams, urls: AgentUrls): {error: 
   const repeated = ["response_type", "code_challenge", "code_challenge_method", "state", "scope"].find((name) => query.getAll(name).length > 1)
   if (repeated) return {error: "invalid_request", description: `${repeated} must not be repeated`}
 
-  if (query.get("response_type") !== "code") return {error: "unsupported_response_type", description: "Only response_type=code is supported"}
+  const responseType = query.get("response_type")
+  if (!responseType) return {error: "invalid_request", description: "response_type is required"}
+  if (responseType !== "code") return {error: "unsupported_response_type", description: "Only response_type=code is supported"}
 
   if (!/^[A-Za-z0-9._~-]{43,128}$/.test(query.get("code_challenge") ?? "")) {
     return {error: "invalid_request", description: "code_challenge must be 43 to 128 characters of A-Z, a-z, 0-9, -, ., _ and ~"}
@@ -170,7 +172,7 @@ function findAuthorizeRefusal(query: URLSearchParams, urls: AgentUrls): {error: 
 
   if (query.get("code_challenge_method") !== "S256") return {error: "invalid_request", description: "code_challenge_method must be S256"}
 
-  if (query.getAll("resource").some((value) => !isAgentResource(urls, value))) {
+  if (query.getAll("resource").some((value) => value !== "" && !isAgentResource(urls, value))) {
     return {error: "invalid_target", description: `This server serves only ${urls.resource}`}
   }
 
