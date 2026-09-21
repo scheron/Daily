@@ -424,3 +424,25 @@ describe("fetchClientMetadata refuses every IPv6 range that embeds an IPv4 — T
     expect(result).toEqual({ok: false, refusal: "unsafe_address"})
   })
 })
+
+describe("fetchClientMetadata lets IPv6 loopback through once loopback is allowed", () => {
+  it("an http://[::1] client_id passes the address check with loopback allowed and answers unreachable, never unsafe_address", async () => {
+    const port = await unusedLoopbackPort()
+
+    const result = await fetchClientMetadata(`http://[::1]:${port}/client.json`, {allowLoopback: true, timeoutMs: 1})
+
+    expect(result).toEqual({ok: false, refusal: "unreachable"})
+  })
+})
+
+describe("fetchClientMetadata refuses the IANA special-purpose IPv6 ranges that embed no IPv4", () => {
+  const specialPurposeLiterals: [label: string, literal: string][] = [
+    ["the top of 3fff::/20, documentation", "https://[3fff:fff:ffff:ffff:ffff:ffff:ffff:ffff]/x"],
+    ["the top of 5f00::/16, segment routing", "https://[5f00:ffff:ffff:ffff:ffff:ffff:ffff:ffff]/x"],
+    ["the top of 100:0:0:1::/64, the dummy prefix", "https://[100:0:0:1:ffff:ffff:ffff:ffff]/x"],
+  ]
+
+  it.each(specialPurposeLiterals)("%s is unsafe_address", async (_label, literal) => {
+    expect(await fetchClientMetadata(literal, {allowLoopback: false, timeoutMs: 1})).toEqual({ok: false, refusal: "unsafe_address"})
+  })
+})

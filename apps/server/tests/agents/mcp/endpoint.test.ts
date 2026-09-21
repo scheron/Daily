@@ -342,6 +342,21 @@ describe("a foreign Origin is refused before the body is read — TC-57", () => 
   })
 })
 
+describe("a foreign Origin is refused before any bearer is asked for", () => {
+  it("a foreign Origin with no bearer is 403 with no challenge, not the 401 an agent would answer by starting OAuth", async () => {
+    const booted = await bootAgentServer()
+    try {
+      const res = await postMcp(booted, null, JSON.stringify({jsonrpc: "2.0", id: 1, method: "ping"}), {origin: "https://evil.example"})
+
+      expect(res.status).toBe(403)
+      expect(res.headers.get("www-authenticate")).toBeNull()
+      expect(await res.json()).toEqual({jsonrpc: "2.0", error: {code: -32600, message: expect.any(String)}})
+    } finally {
+      await booted.close()
+    }
+  })
+})
+
 describe("GET and DELETE are 405, and an oversized body is 413 in JSON-RPC's own shape — TC-58", () => {
   it("TC-58: GET and DELETE answer 405, and a body over 1 MiB is 413 with a JSON-RPC error carrying id null", async () => {
     const booted = await bootAgentServer()

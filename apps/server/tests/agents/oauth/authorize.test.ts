@@ -394,6 +394,69 @@ describe("the amendment, at the authorization endpoint — TC-35", () => {
   })
 })
 
+describe("a missing or empty response_type is a malformed request, not an unsupported one", () => {
+  it("authorize with no response_type, and with response_type= empty, is redirected with invalid_request, carrying state and iss, and starts nothing", async () => {
+    const booted = await bootAgentServer()
+    const docs = await startClientDocumentServer()
+    try {
+      const parent = await claimParent(booted)
+      const clientId = registerClientDocument(docs, "/claude-code.json", claudeCodeDocument)
+      const {challenge} = makePkcePair()
+
+      for (const responseType of [null, ""]) {
+        await openAgentWindowOver(booted, parent.token)
+        const authorizeUrl = new URL(
+          buildAuthorizeUrl(booted, {clientId, redirectUri: "http://localhost:5555/callback", codeChallenge: challenge, state: "s1"}),
+        )
+        if (responseType === null) authorizeUrl.searchParams.delete("response_type")
+        else authorizeUrl.searchParams.set("response_type", responseType)
+
+        const res = await fetch(authorizeUrl, {redirect: "manual"})
+
+        expect(res.status).toBe(303)
+        const redirectUrl = new URL(res.headers.get("location") ?? "")
+        expect(redirectUrl.origin + redirectUrl.pathname).toBe("http://localhost:5555/callback")
+        expect(redirectUrl.searchParams.get("error")).toBe("invalid_request")
+        expect(redirectUrl.searchParams.get("state")).toBe("s1")
+        expect(redirectUrl.searchParams.get("iss")).toBe(booted.issuer)
+      }
+
+      expect((booted.store.db.prepare(`SELECT COUNT(*) as n FROM agent_authorizations`).get() as {n: number}).n).toBe(0)
+    } finally {
+      await docs.close()
+      await booted.close()
+    }
+  })
+})
+
+describe("an empty resource counts as absent at authorize", () => {
+  it("authorize carrying resource= is accepted and binds the authorization to this server's own resource", async () => {
+    const booted = await bootAgentServer()
+    const docs = await startClientDocumentServer()
+    try {
+      const parent = await claimParent(booted)
+      const clientId = registerClientDocument(docs, "/claude-code.json", claudeCodeDocument)
+      await openAgentWindowOver(booted, parent.token)
+      const {challenge} = makePkcePair()
+
+      const res = await fetch(
+        buildAuthorizeUrl(booted, {clientId, redirectUri: "http://localhost:5555/callback", codeChallenge: challenge, resource: ""}),
+        {redirect: "manual"},
+      )
+
+      expect(res.status).toBe(303)
+      const location = res.headers.get("location") ?? ""
+      expect(location).toMatch(/\/oauth\/consent\?id=/)
+      const authorizationId = new URL(location, booted.baseUrl).searchParams.get("id")
+      const row = booted.store.db.prepare(`SELECT resource FROM agent_authorizations WHERE id = ?`).get(authorizationId) as {resource: string}
+      expect(row.resource).toBe(`${booted.issuer}${AGENT_ENDPOINT_PATH}`)
+    } finally {
+      await docs.close()
+      await booted.close()
+    }
+  })
+})
+
 describe("the consent page hands the browser back once approved, and only once — TC-36", () => {
   it("TC-36: the first read after approval is a redirect carrying exactly code, state and iss; the second reads Access granted; a stateless request's redirect carries no state", async () => {
     const booted = await bootAgentServer()

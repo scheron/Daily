@@ -1,7 +1,7 @@
 import {readFileSync} from "node:fs"
 import {dirname, join} from "node:path"
 import {fileURLToPath} from "node:url"
-import {afterEach, beforeEach, describe, expect, it} from "vitest"
+import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
 import {handleMcpRequest} from "../../../src/agents/mcp/handleMcpRequest"
 import {bindAgent, bindDevice, seedAgentStore} from "../helpers"
@@ -429,6 +429,40 @@ describe("handleMcpRequest", () => {
       expect(statelessResult.isError).toBe(true)
       expect(statelessResult.resultType).toBe("complete")
       expect(JSON.parse(statelessResult.content[0].text)).toEqual({error: {code: "MAC_TIME_ZONE_UNKNOWN", message: zonelessMessage}})
+    })
+  })
+
+  describe("an unexpected throw while answering", () => {
+    it("answers -32603 with the request's own id and logs the throw — 500 in the 2026-07-28 generation, 200 in the 2025-11-25 one", async () => {
+      const failure = new Error("the caller could not be read")
+      const failingCaller = {
+        deviceId: caller.deviceId,
+        get timeZone(): string | null {
+          throw failure
+        },
+      }
+      const consoleError = vi.spyOn(console, "error").mockImplementation(() => {})
+      try {
+        const legacy = await handleMcpRequest(
+          {store: seeded.store},
+          failingCaller,
+          JSON.stringify({jsonrpc: "2.0", id: 1, method: "tools/call", params: {name: "list_projects"}}),
+          noHeaders(),
+        )
+        expect(legacy).toEqual({status: 200, body: {jsonrpc: "2.0", id: 1, error: {code: -32603, message: "Internal error"}}})
+
+        const stateless = await handleMcpRequest(
+          {store: seeded.store},
+          failingCaller,
+          JSON.stringify({jsonrpc: "2.0", id: 2, method: "tools/call", params: {name: "list_projects", _meta: STATELESS_META}}),
+          {protocolVersion: "2026-07-28", method: "tools/call", name: "list_projects"},
+        )
+        expect(stateless).toEqual({status: 500, body: {jsonrpc: "2.0", id: 2, error: {code: -32603, message: "Internal error"}}})
+
+        expect(consoleError).toHaveBeenCalledWith(failure)
+      } finally {
+        consoleError.mockRestore()
+      }
     })
   })
 })

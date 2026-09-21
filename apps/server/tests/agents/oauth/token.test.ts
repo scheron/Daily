@@ -500,3 +500,107 @@ describe("a moved public address strands whatever it minted before — TC-51", (
     }
   })
 })
+
+describe("a code exchanges only for the resource it was issued for", () => {
+  it("a code issued at one public address is invalid_grant once the same data directory serves another, and mints nothing", async () => {
+    const atX = await bootAgentServer({}, {deleteDataDirOnClose: false})
+    const docs = await startClientDocumentServer()
+    let atY: BootedAgentServer | null = null
+
+    try {
+      const parent = await claimParent(atX)
+      await openAgentWindowOver(atX, parent.token)
+      const clientId = registerClientDocument(docs, "/claude-code.json", claudeCodeDocument)
+      const authorized = await authorizeApproveAndReturn(atX, parent.token, {clientId, redirectUri: "http://localhost:5555/callback"})
+
+      const dataDir = atX.dataDir
+      await atX.close()
+
+      atY = await bootAgentServer({dataDir, publicUrl: "https://y.example.com"})
+
+      const exchangeAtY = await exchangeCode(atY, {
+        code: authorized.code,
+        clientId,
+        verifier: authorized.verifier,
+        redirectUri: authorized.redirectUri,
+      })
+      expect(exchangeAtY.status).toBe(400)
+      expect(await exchangeAtY.json()).toMatchObject({error: "invalid_grant"})
+      expect((atY.store.db.prepare(`SELECT COUNT(*) as n FROM agent_tokens`).get() as {n: number}).n).toBe(0)
+    } finally {
+      await docs.close()
+      if (atY) await atY.close()
+      else await atX.close()
+    }
+  })
+})
+
+describe("the token endpoint refuses a resource list that names any other resource", () => {
+  it("this server's resource beside another one is invalid_target", async () => {
+    const {booted, docs, parentToken, clientId} = await setUp()
+    try {
+      await openAgentWindowOver(booted, parentToken)
+      const authorized = await authorizeApproveAndReturn(booted, parentToken, {clientId, redirectUri: "http://localhost:5555/callback"})
+
+      const mixedResource = await exchangeCode(booted, {
+        code: authorized.code,
+        clientId,
+        verifier: authorized.verifier,
+        redirectUri: authorized.redirectUri,
+        resource: [`${booted.issuer}${AGENT_ENDPOINT_PATH}`, "https://other.example/mcp"],
+      })
+      expect(mixedResource.status).toBe(400)
+      expect(await mixedResource.json()).toMatchObject({error: "invalid_target"})
+    } finally {
+      await docs.close()
+      await booted.close()
+    }
+  })
+})
+
+describe("a code exchange must name its client", () => {
+  it("an otherwise valid authorization_code grant with no client_id is invalid_request", async () => {
+    const {booted, docs, parentToken, clientId} = await setUp()
+    try {
+      await openAgentWindowOver(booted, parentToken)
+      const authorized = await authorizeApproveAndReturn(booted, parentToken, {clientId, redirectUri: "http://localhost:5555/callback"})
+
+      const noClient = await postTokenForm(booted, {
+        grant_type: "authorization_code",
+        code: authorized.code,
+        code_verifier: authorized.verifier,
+        redirect_uri: authorized.redirectUri,
+        resource: `${booted.issuer}${AGENT_ENDPOINT_PATH}`,
+      })
+      expect(noClient.status).toBe(400)
+      expect(await noClient.json()).toMatchObject({error: "invalid_request"})
+    } finally {
+      await docs.close()
+      await booted.close()
+    }
+  })
+})
+
+describe("an empty resource counts as absent at the token endpoint", () => {
+  it("an otherwise valid exchange carrying resource= succeeds, its access token bound to this server's own resource", async () => {
+    const {booted, docs, parentToken, clientId} = await setUp()
+    try {
+      await openAgentWindowOver(booted, parentToken)
+      const authorized = await authorizeApproveAndReturn(booted, parentToken, {clientId, redirectUri: "http://localhost:5555/callback"})
+
+      const emptyResource = await exchangeCode(booted, {
+        code: authorized.code,
+        clientId,
+        verifier: authorized.verifier,
+        redirectUri: authorized.redirectUri,
+        resource: "",
+      })
+      expect(emptyResource.status).toBe(200)
+      const {access_token: accessToken} = (await emptyResource.json()) as {access_token: string}
+      expect(verifyAgentAccessToken(booted.store, accessToken, `${booted.issuer}${AGENT_ENDPOINT_PATH}`)).not.toBeNull()
+    } finally {
+      await docs.close()
+      await booted.close()
+    }
+  })
+})
