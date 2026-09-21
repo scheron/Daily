@@ -6,10 +6,11 @@ import {buttonColorVariant} from "./variants"
 import type {TooltipPlacement} from "@/directives/vTooltip"
 import type {IconName} from "@/ui/base/BaseIcon"
 import type {HtmlHTMLAttributes} from "vue"
-import type {ButtonColorVariant} from "./variants"
+import type {ButtonColorVariant, ButtonSize} from "./variants"
 
 const props = defineProps<{
   variant?: ButtonColorVariant
+  size?: ButtonSize
   icon?: IconName
   disabled?: boolean
   loading?: boolean
@@ -22,7 +23,7 @@ const props = defineProps<{
 const colorClass = buttonColorVariant(props)
 
 function getButtonClasses(hasContent: boolean) {
-  return cn(colorClass.value, "text-sm", hasContent ? "gap-1 px-3 py-1.5" : "p-1", props.class, props.disabled && "cursor-auto opacity-50")
+  return cn(colorClass.value, hasContent ? "gap-1" : "p-1", props.class, props.disabled && "cursor-auto opacity-50")
 }
 
 function getIconClasses(isSpinning: boolean) {

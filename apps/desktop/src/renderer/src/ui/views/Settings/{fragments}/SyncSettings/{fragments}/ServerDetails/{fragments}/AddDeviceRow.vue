@@ -1,42 +1,18 @@
 <script setup lang="ts">
-import {computed, onBeforeUnmount, ref, watch} from "vue"
+import {computed} from "vue"
 
 import {useSyncServerStore} from "@/stores/syncServer.store"
 import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
-import {cn} from "@/utils/ui/tailwindcss"
-
-let tickTimer: ReturnType<typeof setInterval> | null = null
+import {useWindowCountdown} from "../useWindowCountdown"
 
 const syncServerStore = useSyncServerStore()
-
-const now = ref(Date.now())
 
 const expiresAt = computed(() => syncServerStore.membership?.enrollmentWindow?.expiresAt ?? null)
 
 const isWaiting = computed(() => expiresAt.value !== null)
 
-const remainingMs = computed(() => {
-  if (!expiresAt.value) return 0
-  return Math.max(0, Date.parse(expiresAt.value) - now.value)
-})
-
-const isLastMinute = computed(() => remainingMs.value <= 60_000)
-
-const countdownLabel = computed(() => {
-  const totalSeconds = Math.ceil(remainingMs.value / 1_000)
-  const minutes = Math.floor(totalSeconds / 60)
-  const seconds = totalSeconds % 60
-  return `${minutes}:${String(seconds).padStart(2, "0")}`
-})
-
-async function onOpen() {
-  try {
-    await syncServerStore.openEnrollmentWindow()
-  } catch (error) {
-    console.error("Failed to open the enrollment window:", error)
-  }
-}
+const {countdownLabel, countdownClass} = useWindowCountdown(expiresAt, syncServerStore.listMembership)
 
 async function onCancel() {
   try {
@@ -45,59 +21,10 @@ async function onCancel() {
     console.error("Failed to close the enrollment window:", error)
   }
 }
-
-function startTicking() {
-  stopTicking()
-  tickTimer = setInterval(onTick, 1_000)
-}
-
-function stopTicking() {
-  if (tickTimer) clearInterval(tickTimer)
-  tickTimer = null
-}
-
-async function onTick() {
-  now.value = Date.now()
-  if (remainingMs.value > 0) return
-
-  stopTicking()
-  try {
-    await syncServerStore.listMembership()
-  } catch (error) {
-    console.error("Failed to refresh the Daily Sync Server's membership:", error)
-  }
-  if (expiresAt.value) startTicking()
-}
-
-function getCountdownClasses(isLastMinute: boolean) {
-  return cn("flex items-center gap-1.5 text-[13px] tabular-nums", isLastMinute ? "text-warning" : "text-base-content/50")
-}
-
-watch(
-  expiresAt,
-  (value) => {
-    now.value = Date.now()
-    if (value) startTicking()
-    else stopTicking()
-  },
-  {immediate: true},
-)
-
-onBeforeUnmount(() => stopTicking())
 </script>
 
 <template>
-  <button
-    v-if="!isWaiting"
-    type="button"
-    class="border-base-300 text-base-content/55 hover:text-accent hover:bg-accent/8 flex h-[50px] w-full items-center justify-center gap-1.5 border-t text-[13px] transition-colors"
-    @click="onOpen"
-  >
-    <BaseIcon name="plus" class="size-3.5" />
-    Add a device
-  </button>
-
-  <div v-else class="border-base-300 bg-base-200 -mx-6 flex items-center justify-between gap-6 border-t border-b px-6 py-[13px]">
+  <div v-if="isWaiting" class="border-base-300 bg-base-200 -mx-6 flex items-center justify-between gap-6 border-t border-b px-6 py-[13px]">
     <div class="flex min-w-0 flex-col gap-0.5">
       <p class="text-base-content text-sm font-medium">Waiting for the other Mac to ask</p>
       <p class="text-base-content/60 text-xs">
@@ -105,7 +32,7 @@ onBeforeUnmount(() => stopTicking())
       </p>
     </div>
     <div class="flex shrink-0 items-center gap-2.5">
-      <span :class="getCountdownClasses(isLastMinute)">
+      <span :class="countdownClass">
         <BaseIcon name="spinner-arc" class="size-3.5 animate-spin" />
         {{ countdownLabel }} left
       </span>

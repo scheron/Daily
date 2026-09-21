@@ -3,14 +3,19 @@ import {invoke} from "@vueuse/core"
 import {defineStore} from "pinia"
 
 import {useBaseModal} from "@/ui/base/BaseModal"
+import ApproveAgentModal from "@/ui/overlays/ApproveAgentModal.vue"
 import ApproveDeviceModal from "@/ui/overlays/ApproveDeviceModal.vue"
 
 import type {
+  AgentWindowView,
   EnrollmentPollView,
   EnrollmentTicketView,
   EnrollmentWindowView,
+  PendingAgentRequestView,
   PendingApprovalView,
   ProtocolMismatchView,
+  ServerAgentsView,
+  ServerAgentView,
   ServerBindingView,
   ServerMembershipView,
   ServerProbeView,
@@ -21,9 +26,12 @@ export const useSyncServerStore = defineStore("syncServer", () => {
   const isRevoked = ref(false)
   const mismatch = ref<ProtocolMismatchView | null>(null)
   const membership = ref<ServerMembershipView | null>(null)
+  const agents = ref<ServerAgentView[]>([])
+  const agentWindow = ref<AgentWindowView | null>(null)
   let isWatchingApprovals = false
 
   const {show: showApproval, hide: hideApproval} = useBaseModal("sync-server-approve-device")
+  const {show: showAgentApproval, hide: hideAgentApproval} = useBaseModal("sync-server-approve-agent")
 
   window.BridgeIPC["sync-server:on-revoked"](() => {
     isRevoked.value = true
@@ -36,6 +44,11 @@ export const useSyncServerStore = defineStore("syncServer", () => {
   window.BridgeIPC["sync-server:on-role-changed"]((role) => {
     if (binding.value) binding.value.role = role
     listMembership()
+    listAgents()
+  })
+
+  window.BridgeIPC["sync-server:on-agents-accepted-changed"]((acceptsAgents) => {
+    if (binding.value) binding.value.acceptsAgents = acceptsAgents
   })
 
   async function loadState(): Promise<void> {
@@ -45,6 +58,8 @@ export const useSyncServerStore = defineStore("syncServer", () => {
       isRevoked.value = state.revoked
       mismatch.value = state.mismatch
       if (binding.value?.role === "parent") await listMembership()
+      if (state.binding && !state.revoked && !state.mismatch) await listAgents()
+      else applyAgents(null)
     } catch (error) {
       console.error("Failed to load the Daily Sync Server state:", error)
     }
@@ -52,15 +67,30 @@ export const useSyncServerStore = defineStore("syncServer", () => {
 
   async function listMembership(): Promise<void> {
     try {
-      membership.value = await window.BridgeIPC["sync-server:list-membership"]()
+      applyMembership(await window.BridgeIPC["sync-server:list-membership"]())
     } catch (error) {
       console.error("Failed to load the Daily Sync Server's membership:", error)
     }
   }
 
+  async function listAgents(): Promise<void> {
+    try {
+      applyAgents(await window.BridgeIPC["sync-server:list-agents"]())
+    } catch (error) {
+      console.error("Failed to load the Daily Sync Server's agents:", error)
+    }
+  }
+
+  async function revokeAgent(agentId: string): Promise<ServerAgentsView> {
+    const result = await window.BridgeIPC["sync-server:revoke-agent"](agentId)
+    applyAgents(result)
+    return result
+  }
+
   async function revokeDevice(deviceId: string): Promise<ServerMembershipView> {
     const result = await window.BridgeIPC["sync-server:revoke-device"](deviceId)
-    membership.value = result
+    applyMembership(result)
+    await listAgents()
     return result
   }
 
@@ -73,6 +103,17 @@ export const useSyncServerStore = defineStore("syncServer", () => {
   async function closeEnrollmentWindow(): Promise<void> {
     await window.BridgeIPC["sync-server:close-enrollment-window"]()
     await listMembership()
+  }
+
+  async function openAgentWindow(): Promise<AgentWindowView> {
+    const result = await window.BridgeIPC["sync-server:open-agent-window"]()
+    await listAgents()
+    return result
+  }
+
+  async function closeAgentWindow(): Promise<void> {
+    await window.BridgeIPC["sync-server:close-agent-window"]()
+    await listAgents()
   }
 
   async function defaultDeviceName(): Promise<string> {
@@ -110,6 +151,15 @@ export const useSyncServerStore = defineStore("syncServer", () => {
   async function disconnect(): Promise<void> {
     await window.BridgeIPC["sync-server:disconnect"]()
     await loadState()
+  }
+
+  function applyMembership(view: ServerMembershipView): void {
+    membership.value = {...view, devices: view.devices.filter((device) => !device.revokedAt)}
+  }
+
+  function applyAgents(view: ServerAgentsView | null): void {
+    agents.value = view?.agents.filter((agent) => !agent.revokedAt) ?? []
+    agentWindow.value = view?.agentWindow ?? null
   }
 
   async function getPendingApproval(): Promise<PendingApprovalView | null> {
@@ -151,10 +201,56 @@ export const useSyncServerStore = defineStore("syncServer", () => {
     })
   }
 
+  async function getPendingAgentRequest(): Promise<PendingAgentRequestView | null> {
+    return window.BridgeIPC["sync-server:get-pending-agent-request"]()
+  }
+
+  async function approveAgent(requestId: string, code: string): Promise<void> {
+    await window.BridgeIPC["sync-server:approve-agent"](requestId, code)
+    await listAgents()
+  }
+
+  async function denyAgent(requestId: string): Promise<void> {
+    await window.BridgeIPC["sync-server:deny-agent"](requestId)
+  }
+
+  async function openAgentApprovalDialog(): Promise<void> {
+    const pending = await getPendingAgentRequest()
+    if (!pending) return
+
+    if (!binding.value) {
+      await loadState()
+      if (!binding.value) return
+    }
+
+    showAgentApproval(ApproveAgentModal, {
+      request: pending,
+      deviceName: binding.value.deviceName,
+      onApprove: async () => {
+        try {
+          await approveAgent(pending.requestId, pending.code)
+        } catch (error) {
+          console.error("Failed to approve the agent:", error)
+        }
+        hideAgentApproval()
+      },
+      onDeny: async () => {
+        try {
+          await denyAgent(pending.requestId)
+        } catch (error) {
+          console.error("Failed to decline the agent:", error)
+        }
+        hideAgentApproval()
+      },
+      onClose: () => hideAgentApproval(),
+    })
+  }
+
   /**
    * The subscription is set up only once; a request that arrived before anything was listening
    * is still opened. Each window that calls this shows its own card, and acting on a card already
-   * resolved in another window fails but still closes it.
+   * resolved in another window fails but still closes it. It now watches for both device and
+   * agent requests.
    */
   function watchForApprovals(): void {
     if (isWatchingApprovals) return
@@ -164,6 +260,11 @@ export const useSyncServerStore = defineStore("syncServer", () => {
       openApprovalDialog()
     })
     openApprovalDialog()
+
+    window.BridgeIPC["sync-server:on-agent-requested"](() => {
+      openAgentApprovalDialog()
+    })
+    openAgentApprovalDialog()
   }
 
   invoke(loadState)
@@ -173,6 +274,8 @@ export const useSyncServerStore = defineStore("syncServer", () => {
     isRevoked,
     mismatch,
     membership,
+    agents,
+    agentWindow,
 
     loadState,
     listMembership,
@@ -186,6 +289,10 @@ export const useSyncServerStore = defineStore("syncServer", () => {
     pollEnrollment,
     cancelConnection,
     disconnect,
+    listAgents,
+    revokeAgent,
+    openAgentWindow,
+    closeAgentWindow,
     watchForApprovals,
   }
 })

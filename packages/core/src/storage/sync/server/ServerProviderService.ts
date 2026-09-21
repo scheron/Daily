@@ -85,7 +85,7 @@ export class ServerProviderService implements IServerProvider {
   private probeGeneration = 0
   private lastProbedRevision: string | null | undefined = undefined
   private hadPendingEnrollment = false
-  private hadPendingAgentRequest = false
+  private lastAgentRequestId: string | null = null
   private revoked = false
   private mismatch: ProtocolMismatchView | null = null
 
@@ -251,6 +251,7 @@ export class ServerProviderService implements IServerProvider {
   async openAgentWindow(): Promise<AgentWindowView> {
     const thisDeviceId = (await this.deps.loadSettings()).sync.server.binding?.deviceId ?? null
     const window = await (await this.boundClient()).openAgentWindow()
+    this.lastAgentRequestId = null
 
     return this.toAgentWindowView(window, thisDeviceId)
   }
@@ -258,6 +259,7 @@ export class ServerProviderService implements IServerProvider {
   /** Closes the Agent window this Mac owns, early. */
   async closeAgentWindow(): Promise<void> {
     await (await this.boundClient()).closeAgentWindow()
+    this.lastAgentRequestId = null
   }
 
   /** The one agent request waiting on this Mac's Agent window, or `null` when none waits and when no server is connected. */
@@ -282,18 +284,18 @@ export class ServerProviderService implements IServerProvider {
   /**
    * Approves the agent request waiting on this Mac's window, minting the agent and closing the window.
    * This Mac's own time zone rides along, fixing the day the agent works in for as long as it lives, so
-   * no caller supplies one. Clears `hadPendingAgentRequest` so the next probe reporting a waiting
-   * request is read as a genuine edge rather than the one this call just resolved.
+   * no caller supplies one. Clears `lastAgentRequestId` so the next probe reporting a waiting request is
+   * read as a genuine edge rather than the one this call just resolved.
    */
   async approveAgent(requestId: string, code: string): Promise<void> {
     await (await this.boundClient()).approveAgent(requestId, code, getTimezone())
-    this.hadPendingAgentRequest = false
+    this.lastAgentRequestId = null
   }
 
-  /** Refuses the agent request waiting on this Mac's window, leaving the window open. Clears `hadPendingAgentRequest` for the same reason `approveAgent` does. */
+  /** Refuses the agent request waiting on this Mac's window, leaving the window open. Clears `lastAgentRequestId` for the same reason `approveAgent` does. */
   async denyAgent(requestId: string): Promise<void> {
     await (await this.boundClient()).denyAgent(requestId)
-    this.hadPendingAgentRequest = false
+    this.lastAgentRequestId = null
   }
 
   /** The agents this Mac may see — the Parent every Mac's, a Child only its own — and the Agent window as it now stands. */
@@ -340,7 +342,7 @@ export class ServerProviderService implements IServerProvider {
     this.probeScheduler = null
     this.lastProbedRevision = undefined
     this.hadPendingEnrollment = false
-    this.hadPendingAgentRequest = false
+    this.lastAgentRequestId = null
     this.probeAbort?.abort()
     this.probeAbort = null
     if (this.probeRearm !== null) clearTimeout(this.probeRearm)
@@ -508,7 +510,6 @@ export class ServerProviderService implements IServerProvider {
       if (this.mismatch) this.exitMismatch()
 
       const stillPendingEnrollment = probe.pendingEnrollment && this.hadPendingEnrollment
-      const stillPendingAgentRequest = probe.pendingAgentRequest && this.hadPendingAgentRequest
 
       const revisionMoved = this.lastProbedRevision !== undefined && probe.revision !== this.lastProbedRevision
       if (revisionMoved) await this.deps.runSyncCycle()
@@ -529,9 +530,29 @@ export class ServerProviderService implements IServerProvider {
       if (enrollmentNewlyPending) this.deps.onApprovalRequested()
       this.hadPendingEnrollment = probe.pendingEnrollment
 
-      const agentRequestNewlyPending = probe.pendingAgentRequest && !this.hadPendingAgentRequest
-      if (agentRequestNewlyPending) this.deps.onAgentRequested()
-      this.hadPendingAgentRequest = probe.pendingAgentRequest
+      let agentRequestNewlyPending = false
+      let stillPendingAgentRequest = false
+
+      if (probe.pendingAgentRequest) {
+        let waitingRequestId: string | null = null
+        try {
+          waitingRequestId = (await this.pendingAgentRequest())?.requestId ?? null
+        } catch (error) {
+          logger.debug(logger.CONTEXT.SYNC_REMOTE, "Failed to read the waiting agent request; will retry on the next tick", error)
+        }
+
+        if (this.probeGeneration !== generation) return
+
+        agentRequestNewlyPending = waitingRequestId !== null && waitingRequestId !== this.lastAgentRequestId
+        stillPendingAgentRequest = !agentRequestNewlyPending
+
+        if (agentRequestNewlyPending) {
+          this.lastAgentRequestId = waitingRequestId
+          this.deps.onAgentRequested()
+        }
+      } else {
+        this.lastAgentRequestId = null
+      }
 
       const shouldRearm =
         revisionMoved || enrollmentNewlyPending || agentRequestNewlyPending || (askedToHold && !stillPendingEnrollment && !stillPendingAgentRequest)

@@ -23,6 +23,11 @@ export const buttonColorVariant = defineVariant({
           hover:bg-accent/10
           disabled:hover:bg-transparent
       `,
+      "error-ghost": `
+          bg-transparent text-error
+          hover:bg-error/10
+          disabled:hover:bg-transparent
+      `,
       secondary: `
           bg-base-200 text-base-content 
           hover:bg-base-300 
@@ -53,10 +58,17 @@ export const buttonColorVariant = defineVariant({
           disabled:hover:text-base-content/50 disabled:hover:border-base-300
       `,
     },
+    size: {
+      md: "px-3 py-1.5 text-sm",
+      sm: "h-8 px-3 py-1.5 text-sm",
+      xs: "px-1.5 py-0.5 text-xs",
+    },
   },
   defaultVariants: {
     variant: "text",
+    size: "md",
   },
 })
 
 export type ButtonColorVariant = Parameters<typeof buttonColorVariant>[0]["variant"]
+export type ButtonSize = Parameters<typeof buttonColorVariant>[0]["size"]

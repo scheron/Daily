@@ -16,7 +16,16 @@ import {isBlockedAddress} from "@core/utils/web/isBlockedAddress"
 import {createTestDatabase} from "../../../helpers/db"
 import {bootSyncServer, claimFirstDevice, createAgentRequest, enrollSecondDevice, openEnrollmentWindow} from "../../../helpers/syncServer"
 
-import type {DeviceRole, IssuedCredential, ProtocolMismatchView, RevisionProbe, ServerSyncBinding, Settings, SyncSettings} from "@daily/protocol"
+import type {
+  DeviceRole,
+  IssuedCredential,
+  PendingAgentRequest,
+  ProtocolMismatchView,
+  RevisionProbe,
+  ServerSyncBinding,
+  Settings,
+  SyncSettings,
+} from "@daily/protocol"
 import type {BootedSyncServer} from "../../../helpers/syncServer"
 
 /**
@@ -1423,6 +1432,27 @@ describe("what a probe tick learns about agents — TC-19", () => {
     vi.spyOn(DailySyncClient.prototype, "probeRevision").mockResolvedValue(p)
   }
 
+  function makePendingAgentRequest(overrides: Partial<PendingAgentRequest> = {}): PendingAgentRequest {
+    return {
+      requestId: "request-a",
+      code: "123456",
+      agentName: "Claude Code",
+      returnsTo: "https://claude.ai/callback",
+      isLocalProgram: false,
+      requestedAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      ...overrides,
+    }
+  }
+
+  function mockPendingAgentRequestOnce(requestId: string): void {
+    vi.spyOn(DailySyncClient.prototype, "pendingAgentRequest").mockResolvedValueOnce(makePendingAgentRequest({requestId}))
+  }
+
+  function mockPendingAgentRequestFromNowOn(requestId: string): void {
+    vi.spyOn(DailySyncClient.prototype, "pendingAgentRequest").mockResolvedValue(makePendingAgentRequest({requestId}))
+  }
+
   it("TC-19: onAgentRequested fires once per waiting edge and never while one merely stays waiting, onAgentsAcceptedChanged fires once per change and never on an agreeing tick, the binding's acceptsAgents survives a reload, and every probe carries this Mac's own time zone", async () => {
     const server = await bootSyncServer()
     try {
@@ -1434,6 +1464,7 @@ describe("what a probe tick learns about agents — TC-19", () => {
       const service = makeAgentAwareService(store, {onAgentRequested, onAgentsAcceptedChanged})
 
       const probeSpy = vi.spyOn(DailySyncClient.prototype, "probeRevision")
+      mockPendingAgentRequestFromNowOn("request-tc19")
 
       mockProbeOnce(probe())
       service.startProbe()
@@ -1497,6 +1528,7 @@ describe("what a probe tick learns about agents — TC-19", () => {
       probeSpy.mockResolvedValueOnce(probe())
       probeSpy.mockResolvedValueOnce(probe({pendingAgentRequest: true}))
       probeSpy.mockResolvedValue(probe({pendingAgentRequest: true}))
+      mockPendingAgentRequestFromNowOn("request-tc19")
 
       service.startProbe()
       await fireProbeTick()
@@ -1510,6 +1542,92 @@ describe("what a probe tick learns about agents — TC-19", () => {
 
       await settleProbeIO()
       expect(probeSpy.mock.calls.length).toBe(callsAfterSettling)
+
+      service.stopProbe()
+    } finally {
+      await server.close()
+    }
+  })
+
+  it("TC-44 (a): Cancel then Connect again — a new request after the window reopens fires a second time, with no tick in between that saw none", async () => {
+    const server = await bootSyncServer({publicUrl: "http://127.0.0.1:4001"})
+    try {
+      const credential = await claimFirstDevice(server, "MacBook Air")
+      const binding = bindingFromCredential(server, credential)
+      const store = makeSettingsStore({server: {enabled: true, binding}})
+      const onAgentRequested = vi.fn()
+      const service = makeAgentAwareService(store, {onAgentRequested})
+
+      mockProbeOnce(probe({pendingAgentRequest: true}))
+      mockPendingAgentRequestOnce("request-a")
+      service.startProbe()
+      await fireProbeTick()
+      expect(onAgentRequested).toHaveBeenCalledTimes(1)
+
+      await service.closeAgentWindow()
+      await service.openAgentWindow()
+
+      mockProbeOnce(probe({pendingAgentRequest: true}))
+      mockPendingAgentRequestOnce("request-b")
+      await fireProbeTick()
+
+      expect(onAgentRequested).toHaveBeenCalledTimes(2)
+
+      service.stopProbe()
+    } finally {
+      await server.close()
+    }
+  })
+
+  it("TC-44 (b): a lapsed request followed by a new one, with no tick in between that saw none, fires a second time", async () => {
+    const server = await bootSyncServer()
+    try {
+      const credential = await claimFirstDevice(server, "MacBook Air")
+      const binding = bindingFromCredential(server, credential)
+      const store = makeSettingsStore({server: {enabled: true, binding}})
+      const onAgentRequested = vi.fn()
+      const service = makeAgentAwareService(store, {onAgentRequested})
+
+      mockProbeOnce(probe({pendingAgentRequest: true}))
+      mockPendingAgentRequestOnce("request-a")
+      service.startProbe()
+      await fireProbeTick()
+      expect(onAgentRequested).toHaveBeenCalledTimes(1)
+
+      mockProbeOnce(probe({pendingAgentRequest: true}))
+      mockPendingAgentRequestOnce("request-b")
+      await fireProbeTick()
+
+      expect(onAgentRequested).toHaveBeenCalledTimes(2)
+
+      service.stopProbe()
+    } finally {
+      await server.close()
+    }
+  })
+
+  it("TC-44 (c): an unchanged request fires once and never again", async () => {
+    const server = await bootSyncServer()
+    try {
+      const credential = await claimFirstDevice(server, "MacBook Air")
+      const binding = bindingFromCredential(server, credential)
+      const store = makeSettingsStore({server: {enabled: true, binding}})
+      const onAgentRequested = vi.fn()
+      const service = makeAgentAwareService(store, {onAgentRequested})
+
+      mockProbeOnce(probe({pendingAgentRequest: true}))
+      mockPendingAgentRequestOnce("request-a")
+      service.startProbe()
+      await fireProbeTick()
+      expect(onAgentRequested).toHaveBeenCalledTimes(1)
+
+      mockProbeFromNowOn(probe({pendingAgentRequest: true}))
+      mockPendingAgentRequestFromNowOn("request-a")
+      await fireProbeTick()
+      await fireProbeTick()
+      await fireProbeTick()
+
+      expect(onAgentRequested).toHaveBeenCalledTimes(1)
 
       service.stopProbe()
     } finally {

@@ -61,6 +61,38 @@ The Parent can revoke any Child: that Mac stops syncing at once and keeps what i
 rejoining means the three steps again. Revoking the Parent itself leaves the server with none, and
 only the console can appoint another — see [Recovery](#recovery).
 
+## Connecting agents
+
+Agents — Claude Code, the Claude app, Codex — read and change your tasks through this server. They
+need it on a domain with a trusted certificate; an install by IP turns them away.
+
+1. On any bound Mac, open Settings → Sync and press **Connect an agent**. Copy the
+   address it shows. It waits five minutes.
+2. Add the address to the agent.
+
+   Claude Code:
+
+   ```bash
+   claude mcp add --transport http daily https://your-server/mcp
+   ```
+
+   Then run `/mcp`, pick **daily** and choose **Authenticate**.
+
+   Codex:
+
+   ```bash
+   codex mcp add daily --url https://your-server/mcp
+   codex mcp login daily
+   ```
+
+   The Claude app: **Settings → Connectors → Add custom connector**, and paste the address.
+
+3. A page on your server opens with a six-digit code. Your Mac shows the same code and the agent's
+   name. Approve there, and the browser hands you back to the agent.
+
+The agent belongs to the Mac that approved it and stays connected until you revoke it — from that
+Mac, or from the Parent. Revoking a Mac revokes its agents.
+
 ## Managing it
 
 The install puts a `daily-server` command on your `PATH`. Where it could not — installing as an

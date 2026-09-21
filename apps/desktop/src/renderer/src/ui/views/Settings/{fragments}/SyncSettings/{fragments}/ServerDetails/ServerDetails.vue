@@ -8,9 +8,10 @@ import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
 import SettingRow from "@/ui/views/Settings/{fragments}/SettingRow.vue"
 import {cn} from "@/utils/ui/tailwindcss"
-import AddDeviceRow from "./{fragments}/AddDeviceRow.vue"
 import ConnectedDetails from "./{fragments}/ConnectedDetails.vue"
 import DeviceTable from "./{fragments}/DeviceTable.vue"
+import ServerActions from "./{fragments}/ServerActions.vue"
+import ThisMacTable from "./{fragments}/ThisMacTable.vue"
 
 import type {SyncStatus} from "@daily/protocol"
 
@@ -23,6 +24,12 @@ const isDisconnecting = ref(false)
 const remoteError = ref<string | null>(null)
 
 const binding = computed(() => syncServerStore.binding)
+
+const isAddDeviceShown = computed(() => binding.value?.role === "parent")
+
+const isConnectAgentShown = computed(() => binding.value?.acceptsAgents === true && !syncServerStore.isRevoked)
+
+const isDomainLineShown = computed(() => binding.value?.acceptsAgents === false && !syncServerStore.isRevoked)
 
 const mismatchMessage = computed(() => {
   const mismatch = syncServerStore.mismatch
@@ -79,7 +86,7 @@ onMounted(() => {
       <p class="text-base-content/60 text-xs">{{ binding.baseUrl }}</p>
     </template>
 
-    <BaseButton variant="ghost" class="text-error hover:bg-error/10" :loading="isDisconnecting" @click="onDisconnect">Disconnect</BaseButton>
+    <BaseButton variant="error-ghost" :loading="isDisconnecting" @click="onDisconnect">Disconnect</BaseButton>
 
     <template #below>
       <div class="flex flex-col gap-1.5">
@@ -108,10 +115,19 @@ onMounted(() => {
 
   <template v-if="binding">
     <template v-if="binding.role === 'parent'">
-      <DeviceTable :devices="syncServerStore.membership?.devices ?? []" />
-      <AddDeviceRow />
+      <DeviceTable :devices="syncServerStore.membership?.devices ?? []" :agents="syncServerStore.agents" />
     </template>
-    <ConnectedDetails v-else-if="binding.role === 'child'" :binding="binding" />
+    <template v-else-if="binding.role === 'child'">
+      <ConnectedDetails :binding="binding" />
+      <ThisMacTable :binding="binding" :agents="syncServerStore.agents" />
+    </template>
     <p v-else class="text-base-content/50 py-2 text-xs">Checking this Mac's role…</p>
+
+    <ServerActions
+      v-if="binding.role"
+      :is-add-device-shown="isAddDeviceShown"
+      :is-connect-agent-shown="isConnectAgentShown"
+      :is-domain-line-shown="isDomainLineShown"
+    />
   </template>
 </template>
