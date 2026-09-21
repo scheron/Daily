@@ -33,7 +33,7 @@ describe("handleMcpRequest", () => {
     seeded.close()
   })
 
-  describe("routing rules 1-3 — TC-21", () => {
+  describe("a malformed message is refused before dispatch — TC-21", () => {
     it("TC-21: unparsable JSON, a batch array holding even one well-formed request, and an object missing jsonrpc 2.0's own shape are refused before dispatch", async () => {
       const parseError = await handleMcpRequest({store: seeded.store}, caller, "{not json", noHeaders())
       expect(parseError.status).toBe(400)
@@ -57,7 +57,7 @@ describe("handleMcpRequest", () => {
     })
   })
 
-  describe("routing rule 4 — TC-22", () => {
+  describe("a message with no id is accepted with no body — TC-22", () => {
     it("TC-22: a notification with no id — including a client's own response and one carrying 2026-07-28 _meta and headers — is 202 with no body", async () => {
       const initialized = await handleMcpRequest(
         {store: seeded.store},
@@ -80,7 +80,7 @@ describe("handleMcpRequest", () => {
     })
   })
 
-  describe("routing rule 5 — TC-23", () => {
+  describe("initialize always answers in the 2025-11-25 generation — TC-23", () => {
     it("TC-23: initialize always answers the 2025-11-25 shape, echoing a recognised protocolVersion and defaulting an unrecognised one, even carrying 2026-07-28 _meta and its header", async () => {
       const echoed = ["2025-06-18", "2025-11-25", "2025-03-26"]
       for (const [index, version] of echoed.entries()) {
@@ -140,7 +140,7 @@ describe("handleMcpRequest", () => {
     })
   })
 
-  describe("routing rule 7, the 2025-11-25 generation — TC-24", () => {
+  describe("the 2025-11-25 generation — TC-24", () => {
     it("TC-24: ping and a recognised tools/list header answer 200; an unrecognised header is 400 -32022; an unsupported method and an unknown tool call are both 200 with their own JSON-RPC error", async () => {
       const ping = await handleMcpRequest({store: seeded.store}, caller, JSON.stringify({jsonrpc: "2.0", id: 1, method: "ping"}), noHeaders())
       expect(ping).toEqual({status: 200, body: {jsonrpc: "2.0", id: 1, result: {}}})
@@ -189,7 +189,7 @@ describe("handleMcpRequest", () => {
     })
   })
 
-  describe("routing rule 6, the 2026-07-28 generation — TC-25", () => {
+  describe("the 2026-07-28 generation — TC-25", () => {
     it("TC-25: server/discover, tools/list and tools/call each answer the stateless envelope with resultType, ttlMs, cacheScope and _meta as the revision requires", async () => {
       const discover = await handleMcpRequest(
         {store: seeded.store},

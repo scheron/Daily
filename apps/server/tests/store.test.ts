@@ -31,12 +31,6 @@ function requestWithAuthorization(authorization?: string): IncomingMessage {
   return {headers: {authorization}} as IncomingMessage
 }
 
-/**
- * Loads phase 2's own new agents module. `../src/agents/AgentStore` does not exist until phase 2
- * lands, so it is reached through a dynamic import here rather than a static one at the top of
- * this file, which would fail this whole file's module load — including every case that has
- * nothing to do with agents — for every phase before phase 2 lands.
- */
 async function loadAgentStore(): Promise<typeof AgentStoreModule> {
   return import("../src/agents/AgentStore")
 }

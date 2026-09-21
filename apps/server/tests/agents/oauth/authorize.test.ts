@@ -348,7 +348,7 @@ describe("every refusal after the return address is trusted is a redirect carryi
   })
 })
 
-describe("the amendment, at the authorization endpoint — TC-35", () => {
+describe("the resource parameter at the authorization endpoint — TC-35", () => {
   it("TC-35: repeated resource values that are all this server's are one request, any other resource is invalid_target, and no resource binds to this server's own", async () => {
     const booted = await bootAgentServer()
     const docs = await startClientDocumentServer()

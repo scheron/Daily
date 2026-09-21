@@ -104,8 +104,8 @@ export function openAgentWindow(server: BootedSyncServer, deviceId: string): Age
 }
 
 /**
- * Creates an agent request directly on the server's store, standing in for entry 3's own
- * authorization endpoint, which calls this same function.
+ * Creates an agent request directly on the server's store, where the authorization endpoint would
+ * start one after checking the client.
  */
 export function createAgentRequest(server: BootedSyncServer, params: CreateAgentRequestParams): AgentRequestRecord {
   return createStoreAgentRequest(server.store, params)

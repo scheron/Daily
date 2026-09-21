@@ -1,3 +1,5 @@
+import {isObject} from "@daily/std"
+
 import {AgentToolErrorCode} from "../../errors/agent/AgentToolErrorCode"
 import {runAgentTool} from "../runAgentTool"
 import {AGENT_TOOLS, findAgentTool} from "../tools"
@@ -39,7 +41,7 @@ export function listMcpTools(): McpToolDescription[] {
  * error, and a tool's own refusal answers an `isError` result a model can read and correct.
  */
 export async function callMcpTool(deps: AgentWorkspaceDeps, caller: McpCaller, params: unknown): Promise<McpToolCallOutcome> {
-  if (!isPlainObject(params) || typeof params.name !== "string") {
+  if (!isObject<Record<string, unknown>>(params) || typeof params.name !== "string") {
     return {ok: false, error: {code: -32602, message: "tools/call needs a tool name"}}
   }
 
@@ -47,7 +49,7 @@ export async function callMcpTool(deps: AgentWorkspaceDeps, caller: McpCaller, p
   if (!findAgentTool(name)) return {ok: false, error: {code: -32602, message: `Unknown tool: ${name}`}}
 
   const rawArguments = params.arguments
-  if (rawArguments !== undefined && rawArguments !== null && !isPlainObject(rawArguments)) {
+  if (rawArguments !== undefined && rawArguments !== null && !isObject(rawArguments)) {
     return {ok: false, error: {code: -32602, message: `Invalid arguments for tool ${name}: arguments must be an object`}}
   }
 
@@ -57,7 +59,7 @@ export async function callMcpTool(deps: AgentWorkspaceDeps, caller: McpCaller, p
     return {ok: true, result: errorResult(AgentToolErrorCode.MAC_TIME_ZONE_UNKNOWN, message)}
   }
 
-  const toolArguments = isPlainObject(rawArguments) ? rawArguments : {}
+  const toolArguments = isObject<Record<string, unknown>>(rawArguments) ? rawArguments : {}
   const outcome = await runAgentTool(deps, {deviceId: caller.deviceId, timeZone: caller.timeZone}, {name, input: toolArguments})
 
   return {ok: true, result: renderToolOutcome(name, outcome)}
@@ -76,8 +78,4 @@ function renderToolOutcome(name: string, outcome: AgentToolOutcome): McpToolResu
 
 function errorResult(code: AgentToolErrorCode, message: string): McpToolResult {
   return {content: [{type: "text", text: JSON.stringify({error: {code, message}})}], isError: true}
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
 }

@@ -12,6 +12,7 @@ import {
   issueEnrolledCredential,
 } from "../../enrollment/EnrollmentStore"
 import {closeEnrollmentWindow, isClaimed, openEnrollmentWindow} from "../../identity/ServerIdentityStore"
+import {readBearerToken} from "../readBearerToken"
 import {isPrivateAddress, readRequestOrigin} from "../requestOrigin"
 
 import type {
@@ -197,8 +198,8 @@ function requireClaimedServer(store: ServerStore): void {
 }
 
 function readPollToken(req: IncomingMessage): string {
-  const match = /^Bearer (\S+)$/i.exec(req.headers.authorization ?? "")
-  if (!match) throw new ProtocolError(ProtocolErrorCode.INVALID_ENROLLMENT_TOKEN, "This enrollment token is not valid")
+  const token = readBearerToken(req)
+  if (token === null) throw new ProtocolError(ProtocolErrorCode.INVALID_ENROLLMENT_TOKEN, "This enrollment token is not valid")
 
-  return match[1]
+  return token
 }

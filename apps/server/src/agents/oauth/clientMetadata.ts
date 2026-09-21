@@ -8,7 +8,7 @@ import {isLoopbackHostname} from "../isLoopbackHostname"
 import type {ClientRequest, IncomingMessage} from "node:http"
 import type {LookupFunction} from "node:net"
 
-/** A client as its metadata document describes it: `clientName` is the document's `client_name`, trimmed — the agent's name (D8); `redirectUris` is the list as written. */
+/** A client as its metadata document describes it: `clientName` is the document's `client_name`, trimmed — the agent's name; `redirectUris` is the list as written. */
 export type ClientMetadata = {clientId: string; clientName: string; redirectUris: string[]}
 export type ClientMetadataRefusal = "invalid_client_id" | "unsafe_address" | "unreachable" | "invalid_document"
 export type ClientMetadataResult = {ok: true; client: ClientMetadata} | {ok: false; refusal: ClientMetadataRefusal}

@@ -17,13 +17,7 @@ import type {AddressInfo} from "node:net"
 import type {ServerConfig, ServerConfigOptions} from "../../../src/config/resolveServerConfig"
 import type {ServerStore} from "../../../src/store/instance"
 
-/**
- * Phase 1's frozen `AGENT_OAUTH_PATHS` values, held here as literals rather than imported: the
- * harness's boot, document-server and Mac-flow pieces have no other dependency on this plan's own
- * new production modules, so a case for an earlier phase never goes red for a later phase's
- * missing file. Every later phase's production code is still required to answer at these same
- * paths — that is what its own test cases prove.
- */
+/** The public OAuth paths as literals rather than imported from `AGENT_OAUTH_PATHS`, so a change to a production path fails the suite instead of moving with it. */
 export const AGENT_OAUTH_TEST_PATHS = {
   protectedResource: "/.well-known/oauth-protected-resource",
   authorizationServer: "/.well-known/oauth-authorization-server",
@@ -42,13 +36,12 @@ export type BootedAgentServer = {
 }
 
 /**
- * Boots a real server on a real loopback listener, over a real store in a temp directory —
- * entry 2's `protocol.test.ts` `bootServer` shape, copied rather than imported since that one
- * is private. Unless `overrides.publicUrl` is given or `autoPublicUrl` is turned off,
- * `config.publicUrl` is set, after the real port is known, to this same listener's own address —
- * the lesson entry 2 recorded: a fixture booted without a followable `publicUrl` refuses every
- * agent endpoint before a case gets to decide anything. A case about that refusal — no public
- * address at all — passes `{autoPublicUrl: false}` instead.
+ * Boots a real server on a real loopback listener, over a real store in a temp directory — the
+ * `bootServer` shape of `protocol.test.ts`, copied since that one is private. Unless
+ * `overrides.publicUrl` is given or `autoPublicUrl` is turned off, `config.publicUrl` is set,
+ * after the real port is known, to this same listener's own address, because a server with no
+ * followable `publicUrl` refuses every agent endpoint before a case gets to decide anything. A
+ * case about that refusal — no public address at all — passes `{autoPublicUrl: false}` instead.
  *
  * `overrides.dataDir` reopens a directory a previous boot left behind — pass
  * `{deleteDataDirOnClose: false}` on that previous boot so its `close()` stops the listener
@@ -167,7 +160,7 @@ export function makePkcePair(): PkcePair {
   return {verifier, challenge}
 }
 
-/** Claude Code's document from `## Epic`, verbatim but for `client_id`. */
+/** Claude Code's published document, `https://claude.ai/oauth/claude-code-client-metadata`, verbatim but for `client_id`. */
 export function claudeCodeDocument(clientId: string, overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     client_id: clientId,
@@ -181,7 +174,7 @@ export function claudeCodeDocument(clientId: string, overrides: Record<string, u
   }
 }
 
-/** The Claude app's document from `## Epic`, verbatim but for `client_id`. */
+/** The Claude app's published document, `https://claude.ai/oauth/mcp-oauth-client-metadata`, verbatim but for `client_id`. */
 export function claudeAppDocument(clientId: string, overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     client_id: clientId,
@@ -195,7 +188,7 @@ export function claudeAppDocument(clientId: string, overrides: Record<string, un
   }
 }
 
-/** Codex's document from `## Epic`, verbatim but for `client_id`. */
+/** Codex's published document, `https://chatgpt.com/oauth/codex/client.json`, verbatim but for `client_id`. */
 export function codexDocument(clientId: string, overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     client_id: clientId,

@@ -6,6 +6,7 @@ import {respondAgentsNotAccepted, respondJson} from "../../agents/http/agentResp
 import {readAgentBody} from "../../agents/http/readAgentBody"
 import {handleMcpRequest} from "../../agents/mcp/handleMcpRequest"
 import {verifyAgentAccessToken} from "../../agents/oauth/AgentTokenStore"
+import {readBearerToken} from "../readBearerToken"
 import {RESPONSE_SENT} from "../respond"
 
 import type {Route, RouteContext} from "../createHttpServer"
@@ -33,9 +34,8 @@ async function postMcp(ctx: RouteContext): Promise<typeof RESPONSE_SENT> {
     return respondJson(ctx.res, 403, {jsonrpc: "2.0", error: {code: -32600, message: "Origin not allowed"}})
   }
 
-  const authorization = readHeaderValue(ctx.req.headers.authorization)
-  const bearer = authorization !== null ? /^Bearer (\S+)$/i.exec(authorization) : null
-  if (!bearer) {
+  const accessToken = readBearerToken(ctx.req)
+  if (accessToken === null) {
     return respondJson(
       ctx.res,
       401,
@@ -44,7 +44,7 @@ async function postMcp(ctx: RouteContext): Promise<typeof RESPONSE_SENT> {
     )
   }
 
-  const caller = verifyAgentAccessToken(ctx.store, bearer[1], urls.resource)
+  const caller = verifyAgentAccessToken(ctx.store, accessToken, urls.resource)
   if (!caller) {
     return respondJson(
       ctx.res,

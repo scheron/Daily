@@ -1,11 +1,24 @@
 import dns from "node:dns"
+import {isIP} from "node:net"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
 import {fetchClientMetadata, isRegisteredRedirectUri} from "../../../src/agents/oauth/clientMetadata"
 import {claudeAppDocument, claudeCodeDocument, codexDocument, startClientDocumentServer, unusedLoopbackPort} from "./harness"
 
+import type {MockInstance} from "vitest"
 import type {ClientMetadata} from "../../../src/agents/oauth/clientMetadata"
 import type {ClientDocumentServer} from "./harness"
+
+function stubLookup(hostname: string, address: string): MockInstance<typeof dns.lookup> {
+  const realLookup = dns.lookup
+  const family = isIP(address)
+  const lookup = (name: string, options: dns.LookupOptions, callback: (...args: unknown[]) => void): void => {
+    if (name !== hostname) return realLookup(name, options, callback)
+    process.nextTick(() => (options.all ? callback(null, [{address, family}]) : callback(null, address, family)))
+  }
+
+  return vi.spyOn(dns, "lookup").mockImplementation(lookup as typeof dns.lookup)
+}
 
 function jsonPaddedTo(doc: Record<string, unknown>, targetBytes: number): string {
   let pad = 0
@@ -360,12 +373,7 @@ describe("fetchClientMetadata judges a plain IPv4 or IPv6 address by its own ran
   })
 
   it("TC-61: a hostname resolving only to a public IPv4 address answers unreachable through the stubbed lookup, never unsafe_address", async () => {
-    const realLookup = dns.lookup
-    const publicIpv4Lookup = (hostname: string, options: dns.LookupOptions, callback: (...args: unknown[]) => void): void => {
-      if (hostname !== "public-ipv4.invalid") return realLookup(hostname, options, callback)
-      process.nextTick(() => (options.all ? callback(null, [{address: "1.1.1.1", family: 4}]) : callback(null, "1.1.1.1", 4)))
-    }
-    const lookupSpy = vi.spyOn(dns, "lookup").mockImplementation(publicIpv4Lookup as typeof dns.lookup)
+    const lookupSpy = stubLookup("public-ipv4.invalid", "1.1.1.1")
 
     const result = await fetchClientMetadata("https://public-ipv4.invalid/client.json", {allowLoopback: false, timeoutMs: 1})
 
@@ -374,12 +382,7 @@ describe("fetchClientMetadata judges a plain IPv4 or IPv6 address by its own ran
   })
 
   it("TC-61: a hostname resolving only to a public IPv6 address answers unreachable through the stubbed lookup, never unsafe_address", async () => {
-    const realLookup = dns.lookup
-    const publicIpv6Lookup = (hostname: string, options: dns.LookupOptions, callback: (...args: unknown[]) => void): void => {
-      if (hostname !== "public-ipv6.invalid") return realLookup(hostname, options, callback)
-      process.nextTick(() => (options.all ? callback(null, [{address: "2607:6bc0::10", family: 6}]) : callback(null, "2607:6bc0::10", 6)))
-    }
-    const lookupSpy = vi.spyOn(dns, "lookup").mockImplementation(publicIpv6Lookup as typeof dns.lookup)
+    const lookupSpy = stubLookup("public-ipv6.invalid", "2607:6bc0::10")
 
     const result = await fetchClientMetadata("https://public-ipv6.invalid/client.json", {allowLoopback: false, timeoutMs: 1})
 
@@ -411,12 +414,7 @@ describe("fetchClientMetadata refuses every IPv6 range that embeds an IPv4 — T
   })
 
   it("TC-62: a hostname resolving only to a 6to4 address embedding a private IPv4 is unsafe_address through the stubbed lookup", async () => {
-    const realLookup = dns.lookup
-    const sixToFourLookup = (hostname: string, options: dns.LookupOptions, callback: (...args: unknown[]) => void): void => {
-      if (hostname !== "six-to-four.invalid") return realLookup(hostname, options, callback)
-      process.nextTick(() => (options.all ? callback(null, [{address: "2002:a9fe:a9fe::", family: 6}]) : callback(null, "2002:a9fe:a9fe::", 6)))
-    }
-    const lookupSpy = vi.spyOn(dns, "lookup").mockImplementation(sixToFourLookup as typeof dns.lookup)
+    const lookupSpy = stubLookup("six-to-four.invalid", "2002:a9fe:a9fe::")
 
     const result = await fetchClientMetadata("https://six-to-four.invalid/client.json", {allowLoopback: false})
 

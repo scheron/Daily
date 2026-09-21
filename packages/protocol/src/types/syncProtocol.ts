@@ -5,8 +5,8 @@ export const SYNC_PROTOCOL_VERSION = 4
 /**
  * Where an approved agent connects. A path string and nothing more: it is not a Daily Sync
  * Protocol route, it takes no part in version negotiation, and it exists only so the Agent
- * window response can name an address a person can copy. Entry 3 mounts its endpoint here
- * rather than typing the path.
+ * window response can name an address a person can copy. The server mounts its MCP endpoint on
+ * this same constant, so the address a person copies is the one it serves.
  */
 export const AGENT_ENDPOINT_PATH = "/mcp"
 

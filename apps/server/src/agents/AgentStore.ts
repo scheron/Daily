@@ -257,8 +257,7 @@ export function revokeAgentsOfDevice(store: ServerStore, deviceId: string, revok
 
 /**
  * Moves an agent's `last_used_at` forward to now, in one indexed `UPDATE`, and returns the new
- * timestamp, exactly as `touchDevice` does for a device. Nothing in this plan calls it — plan 3's
- * token check is its caller.
+ * timestamp, exactly as `touchDevice` does for a device.
  */
 export function touchAgent(store: ServerStore, agentId: string): string {
   const lastUsedAt = new Date().toISOString()

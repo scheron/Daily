@@ -75,14 +75,6 @@ function bootServer(dataDir: string, overrides: ServerConfigOptions = {}): Promi
   })
 }
 
-/**
- * Creates an agent request directly on the server's store, standing in for entry 3's own
- * authorization endpoint, which calls this same function — no route in this plan starts a
- * request. `../src/agents/AgentStore` is phase 2's own new module, reached through a relative
- * dynamic import so that a static one does not fail this whole file's module load, including
- * every case that has nothing to do with agents, for every phase before phase 2 lands — exactly
- * as `readRequestOrigin` below is already reached.
- */
 async function createAgentRequestDirectly(store: ServerStore, params: CreateAgentRequestParams): Promise<AgentRequestRecord> {
   const {createAgentRequest} = await import("../src/agents/AgentStore")
   return createAgentRequest(store, params)

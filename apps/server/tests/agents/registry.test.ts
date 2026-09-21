@@ -21,7 +21,7 @@ const D13_TOOL_NAMES = [
 ]
 
 describe("the agent tool registry", () => {
-  it("TC-42: holds exactly the eleven tools of D13's table, once each, reads before writes, each with a name, a description and an object input schema", () => {
+  it("TC-42: holds exactly the eleven agent tools, once each, reads before writes, each with a name, a description and an object input schema", () => {
     expect(AGENT_TOOLS.map((tool) => tool.name)).toEqual(D13_TOOL_NAMES)
     expect(new Set(AGENT_TOOLS.map((tool) => tool.name)).size).toBe(AGENT_TOOLS.length)
 

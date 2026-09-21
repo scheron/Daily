@@ -30,7 +30,7 @@ import {revisionRoute, snapshotReadRoute, snapshotWriteRoute} from "./snapshot"
 
 import type {Route} from "../createHttpServer"
 
-/** The server's one route table: the Daily Sync Protocol's routes, then the agent endpoints' OAuth and MCP routes, which are not part of the protocol. Later phases append routes here; there is no second table. */
+/** The server's one route table: the Daily Sync Protocol's routes, then the agent endpoints' OAuth and MCP routes, which are not part of the protocol. A new route is added here; there is no second table. */
 export const routes: Route[] = [
   healthRoute,
   serverInfoRoute,
