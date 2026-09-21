@@ -1,6 +1,7 @@
 import {getToday} from "@daily/std"
 
 import type {ISODate, Tag, Task, TaskEvent, TaskEventType, TaskStatus} from "@daily/protocol"
+import type {StorageClock} from "../../types/storage"
 import type {TaskEventModel} from "../models/TaskEventModel"
 
 const EDIT_DEBOUNCE_MS = 5 * 60 * 1000
@@ -11,7 +12,10 @@ const EDIT_DEBOUNCE_MS = 5 * 60 * 1000
  * focused on task CRUD.
  */
 export class TaskEventsService {
-  constructor(private taskEventModel: TaskEventModel) {}
+  constructor(
+    private taskEventModel: TaskEventModel,
+    private clock: StorageClock = {today: getToday},
+  ) {}
 
   /** Full history of one task, newest first, with the `moved` pair collapsed to one row. */
   async getHistoryByTask(taskId: Task["id"]): Promise<TaskEvent[]> {
@@ -24,7 +28,7 @@ export class TaskEventsService {
       taskId: task.id,
       branchId: task.branchId,
       type,
-      eventDate: task.scheduled?.date ?? getToday(),
+      eventDate: task.scheduled?.date ?? this.clock.today(),
       fromDate: null,
       toDate: null,
       createdAt: new Date().toISOString(),

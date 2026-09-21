@@ -36,14 +36,7 @@ export function createBetterSqliteDriver(dbPath: string): SqliteDriver {
   db.pragma("journal_size_limit = 67108864")
 
   return {
-    prepare(sql: string) {
-      const statement = db.prepare(sql)
-      return {
-        run: (...params: SqliteParam[]) => statement.run(...params) as SqliteRunResult,
-        get: <T>(...params: SqliteParam[]) => statement.get(...params) as T | undefined,
-        all: <T>(...params: SqliteParam[]) => statement.all(...params) as T[],
-      }
-    },
+    prepare: (sql: string) => wrapStatement(db.prepare(sql)),
     exec: (sql: string) => void db.exec(sql),
     pragma: (statement: string) => void db.pragma(statement),
     transaction: <T>(fn: () => T) => db.transaction(fn) as SqliteTransaction<T>,
@@ -52,5 +45,31 @@ export function createBetterSqliteDriver(dbPath: string): SqliteDriver {
       await db.backup(destinationPath)
     },
     close: () => void db.close(),
+  }
+}
+
+/** Opens a private, throwaway in-memory database on the same driver surface — the schema an agent's tool call runs its snapshot on, gone when the call ends. */
+export function createInMemorySqliteDriver(): SqliteDriver {
+  const db = new Database(":memory:")
+  db.pragma("foreign_keys = ON")
+
+  return {
+    prepare: (sql: string) => wrapStatement(db.prepare(sql)),
+    exec: (sql: string) => void db.exec(sql),
+    pragma: (statement: string) => void db.pragma(statement),
+    transaction: <T>(fn: () => T) => db.transaction(fn) as SqliteTransaction<T>,
+    backup: async (destinationPath: string) => {
+      fs.ensureDirSync(path.dirname(destinationPath))
+      await db.backup(destinationPath)
+    },
+    close: () => void db.close(),
+  }
+}
+
+function wrapStatement(statement: Database.Statement): SqliteStatement {
+  return {
+    run: (...params: SqliteParam[]) => statement.run(...params) as SqliteRunResult,
+    get: <T>(...params: SqliteParam[]) => statement.get(...params) as T | undefined,
+    all: <T>(...params: SqliteParam[]) => statement.all(...params) as T[],
   }
 }

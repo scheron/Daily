@@ -21,7 +21,7 @@ const ARTIFACTS = {
     tagPrefix: "server-v",
     commitPrefix: "release: server-v",
     hasChangelog: false,
-    paths: ["apps/server", "packages/protocol", "Dockerfile", "deploy"],
+    paths: ["apps/server", "packages/core", "packages/protocol", "packages/std", "Dockerfile", "deploy"],
   },
 }
 

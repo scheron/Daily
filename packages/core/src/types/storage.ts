@@ -31,6 +31,9 @@ import type {PartialDeep} from "type-fest"
 
 export type TaskInternal = ReplaceValue<Task, "tags", Tag["id"][]>
 
+/** The source a storage core dates its work by. Absent, the core reads the process's local date. */
+export type StorageClock = {today(): ISODate}
+
 /** What one write, or one sync pull, changed. A removal means `deletedAt` was set. Absent keys mean that collection was untouched. */
 export type Changeset = {
   tasks?: {upserted?: Task[]; removed?: Task["id"][]}

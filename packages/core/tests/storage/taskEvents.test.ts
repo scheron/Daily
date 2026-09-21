@@ -1,8 +1,12 @@
 // @ts-nocheck
+import {mkdtempSync, rmSync} from "node:fs"
+import {tmpdir} from "node:os"
+import {join} from "node:path"
 import {beforeEach, describe, expect, it} from "vitest"
 
 import {getToday} from "@daily/std"
 
+import {createStorageCore} from "../../src/storage/createStorageCore"
 import {TaskEventModel} from "../../src/storage/models/TaskEventModel"
 import {TaskModel} from "../../src/storage/models/TaskModel"
 import {TaskEventsService} from "../../src/storage/services/TaskEventsService"
@@ -48,6 +52,30 @@ describe("task activity recording", () => {
     expect(recorded[0].type).toBe("created")
     expect(recorded[0].taskId).toBe(created.id)
     expect(recorded[0].eventDate).toBe(TASK_DAY)
+  })
+
+  it("TC-8: dates a backlog task's created event on the process's local date when the storage core takes no clock", async () => {
+    const root = mkdtempSync(join(tmpdir(), "daily-taskevents-clock-"))
+    const clockDb = createTestDatabase()
+
+    try {
+      const core = createStorageCore(clockDb, {
+        appDataRoot: () => root,
+        dbPath: () => join(root, "db.sqlite"),
+        assetsDir: () => join(root, "assets"),
+        remoteSyncPath: () => root,
+      })
+
+      const created = await core.tasksService.createTask(makeTask({status: "backlog", scheduled: null}))
+      const history = await core.tasksService.getHistoryByTask(created.id)
+
+      expect(history).toHaveLength(1)
+      expect(history[0].type).toBe("created")
+      expect(history[0].eventDate).toBe(getToday())
+    } finally {
+      clockDb.close()
+      rmSync(root, {recursive: true, force: true})
+    }
   })
 
   it("maps status changes to completed / discarded / reactivated on the task's day", async () => {

@@ -111,4 +111,24 @@ describe("scripts/release.js --dry-run", () => {
 
     expect(output).toContain("server also has 1 unreleased commit since server-v4.5.6")
   }, 30000)
+
+  it("TC-4: reports a commit touching only packages/core as pending for the server", () => {
+    execFileSync("git", ["tag", "v1.2.3"], {cwd: repo})
+    execFileSync("git", ["tag", "server-v4.5.6"], {cwd: repo})
+    commitTouching(repo, "packages/core/src/index.ts", "feat: a core-only change")
+
+    const output = runScript(repo, ["--status"])
+
+    expect(output).toMatch(/server\s+4\.5\.6\s+1 unreleased commit since server-v4\.5\.6/)
+  }, 30000)
+
+  it("TC-5: reports a commit touching only packages/std as pending for the server", () => {
+    execFileSync("git", ["tag", "v1.2.3"], {cwd: repo})
+    execFileSync("git", ["tag", "server-v4.5.6"], {cwd: repo})
+    commitTouching(repo, "packages/std/src/index.ts", "feat: a std-only change")
+
+    const output = runScript(repo, ["--status"])
+
+    expect(output).toMatch(/server\s+4\.5\.6\s+1 unreleased commit since server-v4\.5\.6/)
+  }, 30000)
 })

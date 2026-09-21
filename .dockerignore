@@ -7,6 +7,7 @@
 !pnpm-workspace.yaml
 !scripts/build-server-package.js
 !apps/server
+!packages/core
 !packages/protocol
 !packages/std
 

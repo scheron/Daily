@@ -1,8 +1,12 @@
+import {mkdtempSync, rmSync} from "node:fs"
+import {tmpdir} from "node:os"
+import {join} from "node:path"
 import {nanoid} from "nanoid"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
 import {groupTasksByDay} from "@daily/protocol"
 
+import {createStorageCore} from "@core/storage/createStorageCore"
 import {BranchModel} from "@core/storage/models/BranchModel"
 import {TagModel} from "@core/storage/models/TagModel"
 import {TaskEventModel} from "@core/storage/models/TaskEventModel"
@@ -68,6 +72,30 @@ describe("TasksService", () => {
 
       expect(task.tags).toHaveLength(1)
       expect(task.tags[0].id).toBe(tag.id)
+    })
+
+    it("TC-7: dates a backlog task's created event by the storage core's own clock, not the process date", async () => {
+      const root = mkdtempSync(join(tmpdir(), "daily-tasksservice-clock-"))
+      const clockDb = createTestDatabase()
+
+      try {
+        const clock = {today: () => "2099-01-01"}
+        const core = createStorageCore(
+          clockDb,
+          {appDataRoot: () => root, dbPath: () => join(root, "db.sqlite"), assetsDir: () => join(root, "assets"), remoteSyncPath: () => root},
+          clock,
+        )
+
+        const created = await core.tasksService.createTask(makeTask({status: "backlog", scheduled: null}))
+        const history = await core.tasksService.getHistoryByTask(created.id)
+
+        expect(history).toHaveLength(1)
+        expect(history[0].type).toBe("created")
+        expect(history[0].eventDate).toBe("2099-01-01")
+      } finally {
+        clockDb.close()
+        rmSync(root, {recursive: true, force: true})
+      }
     })
   })
 

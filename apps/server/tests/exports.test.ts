@@ -5,7 +5,7 @@ import {describe, expect, it} from "vitest"
 
 const serverDir = join(dirname(fileURLToPath(import.meta.url)), "..")
 
-function readServerManifest(): {exports: Record<string, string>} {
+function readServerManifest(): {exports: Record<string, string>; dependencies: Record<string, string>} {
   return JSON.parse(readFileSync(join(serverDir, "package.json"), "utf-8"))
 }
 
@@ -24,5 +24,14 @@ describe("apps/server/package.json exports", () => {
       "./identity/ServerIdentityStore": "./src/identity/ServerIdentityStore.ts",
       "./store/instance": "./src/store/instance.ts",
     })
+  })
+})
+
+describe("apps/server/package.json dependencies", () => {
+  it("TC-2: declares @daily/core as a workspace dependency and luxon so neither is inlined into the bundle", () => {
+    const {dependencies} = readServerManifest()
+
+    expect(dependencies["@daily/core"]).toBe("workspace:*")
+    expect(dependencies.luxon).toBeTruthy()
   })
 })

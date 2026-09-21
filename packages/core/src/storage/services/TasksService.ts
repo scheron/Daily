@@ -18,7 +18,7 @@ import type {
   TaskWritableFields,
 } from "@daily/protocol"
 import type {PartialDeep} from "type-fest"
-import type {TaskInternal} from "../../types/storage"
+import type {StorageClock, TaskInternal} from "../../types/storage"
 import type {TaskModel} from "../models/TaskModel"
 import type {TaskEventsService} from "./TaskEventsService"
 
@@ -26,6 +26,7 @@ export class TasksService {
   constructor(
     private taskModel: TaskModel,
     private taskEvents: TaskEventsService,
+    private clock: StorageClock = {today: getToday},
   ) {}
 
   async getHistoryByTask(taskId: Task["id"]): Promise<TaskEvent[]> {
@@ -144,7 +145,7 @@ export class TasksService {
     const scope = this.taskModel.getTaskList({branchId, includeBacklog: true})
     const tasks = named && !scope.some((task) => task.id === named.id) ? [named, ...scope] : scope
 
-    return {tasks, milestones, today: getToday()}
+    return {tasks, milestones, today: this.clock.today()}
   }
 
   private readMilestoneScope(

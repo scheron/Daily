@@ -12,6 +12,7 @@ RUN npm install --global pnpm@10.30.1
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY apps/server/package.json ./apps/server/package.json
+COPY packages/core/package.json ./packages/core/package.json
 COPY packages/protocol/package.json ./packages/protocol/package.json
 COPY packages/std/package.json ./packages/std/package.json
 RUN pnpm install --frozen-lockfile --ignore-scripts
@@ -19,6 +20,7 @@ RUN pnpm install --frozen-lockfile --ignore-scripts
 COPY LICENSE ./
 COPY scripts/build-server-package.js ./scripts/build-server-package.js
 COPY apps/server ./apps/server
+COPY packages/core ./packages/core
 COPY packages/protocol ./packages/protocol
 COPY packages/std ./packages/std
 

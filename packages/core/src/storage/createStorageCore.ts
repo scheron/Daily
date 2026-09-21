@@ -20,6 +20,7 @@ import {LocalStorageAdapter} from "./sync/adapters/LocalStorageAdapter"
 
 import type {AppPaths} from "../config/paths"
 import type {SqliteDriver} from "../database/SqliteDriver"
+import type {StorageClock} from "../types/storage"
 
 export type StorageCore = {
   settingsService: SettingsService
@@ -35,7 +36,7 @@ export type StorageCore = {
 }
 
 /** Constructs all models and services over an open database. Runs main-branch/asset bootstrapping. No sync engine, no search-index build, no auto-sync. */
-export function createStorageCore(db: SqliteDriver, paths: AppPaths): StorageCore {
+export function createStorageCore(db: SqliteDriver, paths: AppPaths, clock?: StorageClock): StorageCore {
   const settingsModel = new SettingsModel(db)
   const branchModel = new BranchModel(db)
   const taskModel = new TaskModel(db)
@@ -53,7 +54,7 @@ export function createStorageCore(db: SqliteDriver, paths: AppPaths): StorageCor
   return {
     settingsService,
     branchesService: new BranchesService(branchModel, settingsService, taskModel, tagModel, milestoneModel, db),
-    tasksService: new TasksService(taskModel, new TaskEventsService(taskEventModel)),
+    tasksService: new TasksService(taskModel, new TaskEventsService(taskEventModel, clock), clock),
     taskRelationsService: new TaskRelationsService(taskRelationModel, taskModel),
     tagsService: new TagsService(tagModel),
     milestonesService: new MilestonesService(milestoneModel),
