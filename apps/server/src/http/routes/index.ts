@@ -1,3 +1,4 @@
+import {authorizationServerMetadataRoute, protectedResourceMetadataRootRoute, protectedResourceMetadataRoute} from "./agentDiscovery"
 import {
   agentApproveRoute,
   agentDenyRoute,
@@ -21,12 +22,15 @@ import {
   enrollWindowOpenRoute,
 } from "./enroll"
 import {healthRoute} from "./health"
+import {mcpRoute} from "./mcp"
+import {oauthAuthorizeRoute, oauthConsentRoute} from "./oauthAuthorize"
+import {oauthTokenRoute} from "./oauthToken"
 import {serverInfoRoute} from "./serverInfo"
 import {revisionRoute, snapshotReadRoute, snapshotWriteRoute} from "./snapshot"
 
 import type {Route} from "../createHttpServer"
 
-/** The Daily Sync Protocol route table. Later phases append routes here; there is no second table. */
+/** The server's one route table: the Daily Sync Protocol's routes, then the agent endpoints' OAuth and MCP routes, which are not part of the protocol. Later phases append routes here; there is no second table. */
 export const routes: Route[] = [
   healthRoute,
   serverInfoRoute,
@@ -54,4 +58,11 @@ export const routes: Route[] = [
   agentPendingRoute,
   agentApproveRoute,
   agentDenyRoute,
+  protectedResourceMetadataRoute,
+  protectedResourceMetadataRootRoute,
+  authorizationServerMetadataRoute,
+  oauthAuthorizeRoute,
+  oauthConsentRoute,
+  oauthTokenRoute,
+  mcpRoute,
 ]

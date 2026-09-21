@@ -1,4 +1,4 @@
-import {AGENT_ENDPOINT_PATH, ProtocolError, ProtocolErrorCode, SYNC_PROTOCOL_PATHS} from "@daily/protocol"
+import {ProtocolError, ProtocolErrorCode, SYNC_PROTOCOL_PATHS} from "@daily/protocol"
 
 import {
   approveAgentRequest,
@@ -10,6 +10,7 @@ import {
   openAgentWindow,
   revokeAgent,
 } from "../../agents/AgentStore"
+import {agentUrls} from "../../agents/agentUrls"
 import {serverAcceptsAgents} from "../../agents/serverAcceptsAgents"
 import {authenticateRequest} from "../../devices/authenticateRequest"
 import {writeDeviceTimeZone} from "../../devices/DeviceStore"
@@ -190,12 +191,13 @@ function readAgentListResponse(store: ServerStore, config: ServerConfig, device:
 }
 
 function toAgentWindow(state: AgentWindowState | null, config: ServerConfig): AgentWindow | null {
-  if (!state || !config.publicUrl || !serverAcceptsAgents(config)) return null
+  const urls = agentUrls(config)
+  if (!state || !urls) return null
 
   return {
     expiresAt: state.expiresAt,
     deviceId: state.deviceId,
-    agentAddress: `${config.publicUrl.replace(/\/+$/, "")}${AGENT_ENDPOINT_PATH}`,
+    agentAddress: urls.resource,
   }
 }
 

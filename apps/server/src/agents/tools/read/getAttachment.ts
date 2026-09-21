@@ -10,6 +10,9 @@ import type {AgentTool} from "../types"
 
 const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024
 
+/** `get_attachment`'s own answer shape: one file's bytes, base64-encoded, with the metadata that names it. */
+export type AgentAttachment = {id: string; name: string; mimeType: string; size: number; dataBase64: string}
+
 export const getAttachmentTool: AgentTool = {
   name: "get_attachment",
   description: "Answers one image's bytes, base64-encoded, by its file id. Refuses a non-image file and anything over 5 MiB.",
@@ -46,6 +49,6 @@ export const getAttachmentTool: AgentTool = {
 
     const bytes = await readFile(assetPath(ctx.store, assetName))
 
-    return {id: file.id, name: file.name, mimeType: file.mimeType, size: file.size, dataBase64: bytes.toString("base64")}
+    return {id: file.id, name: file.name, mimeType: file.mimeType, size: file.size, dataBase64: bytes.toString("base64")} satisfies AgentAttachment
   },
 }

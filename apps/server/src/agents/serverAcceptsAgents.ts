@@ -1,3 +1,5 @@
+import {isLoopbackHostname} from "./isLoopbackHostname"
+
 import type {ServerConfig} from "../config/resolveServerConfig"
 
 /**
@@ -17,5 +19,5 @@ export function serverAcceptsAgents(config: ServerConfig): boolean {
     return false
   }
 
-  return url.protocol === "https:" || url.hostname === "127.0.0.1" || url.hostname === "::1" || url.hostname === "localhost"
+  return url.protocol === "https:" || isLoopbackHostname(url.hostname)
 }
