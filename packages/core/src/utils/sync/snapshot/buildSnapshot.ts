@@ -4,7 +4,7 @@ import type {Snapshot, SnapshotDocs, SnapshotMeta} from "@daily/protocol"
 
 export function buildSnapshot(docs: SnapshotDocs): Snapshot {
   return {
-    version: 7,
+    version: 8,
     docs,
     meta: buildSnapshotMeta(docs),
   }
@@ -14,32 +14,22 @@ export function buildSnapshot(docs: SnapshotDocs): Snapshot {
  * Build SnapshotMeta from document collections.
  */
 export function buildSnapshotMeta(docs: SnapshotDocs): SnapshotMeta {
-  const tasksHash = computeCollectionHash(docs.tasks)
-  const tagsHash = computeCollectionHash(docs.tags)
-  const branchesHash = computeCollectionHash(docs.branches)
-  const filesHash = computeCollectionHash(docs.files)
-  const eventsHash = computeCollectionHash(docs.events)
-  const milestonesHash = computeCollectionHash(docs.milestones ?? [])
-  const relationsHash = computeCollectionHash(docs.relations ?? [])
-  const combinedHash = computeCombinedHash(tasksHash, tagsHash, branchesHash, filesHash, eventsHash, milestonesHash, relationsHash)
+  const collections: Array<{id: string}[]> = [
+    docs.tasks,
+    docs.tags,
+    docs.branches,
+    docs.files,
+    docs.events,
+    docs.milestones ?? [],
+    docs.relations ?? [],
+    docs.comments ?? [],
+  ]
+  const collectionHashes = collections.map(computeCollectionHash)
 
   return {
     updatedAt: new Date().toISOString(),
-    hash: combinedHash,
+    hash: crypto.createHash("sha256").update(collectionHashes.join("")).digest("hex"),
   }
-}
-
-function computeCombinedHash(
-  tasksHash: string,
-  tagsHash: string,
-  branchesHash: string,
-  filesHash: string,
-  eventsHash: string,
-  milestonesHash: string,
-  relationsHash: string,
-): string {
-  const combined = [tasksHash, tagsHash, branchesHash, filesHash, eventsHash, milestonesHash, relationsHash].join("")
-  return crypto.createHash("sha256").update(combined).digest("hex")
 }
 
 function computeCollectionHash<D extends {id: string}>(docs: D[]): string {

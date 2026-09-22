@@ -6,6 +6,7 @@ import type {
   SnapshotMilestone,
   SnapshotTag,
   SnapshotTask,
+  SnapshotTaskComment,
   SnapshotTaskEvent,
   SnapshotTaskRelation,
 } from "@daily/protocol"
@@ -20,10 +21,11 @@ export class LocalStorageAdapter implements ILocalStorage {
     const branches = this._loadBranches()
     const milestones = this._loadMilestones()
     const relations = this._loadRelations()
+    const comments = this._loadTaskComments()
     const files = this._loadFiles()
     const events = this._loadTaskEvents()
 
-    return {tasks, tags, branches, milestones, relations, files, events}
+    return {tasks, tags, branches, milestones, relations, comments, files, events}
   }
 
   async upsertDocs(docs: SnapshotDocs): Promise<void> {
@@ -177,6 +179,25 @@ export class LocalStorageAdapter implements ILocalStorage {
         }
       }
 
+      /* No FKs, for the reason relations have none: a comment can arrive before its task. */
+      if (docs.comments?.length) {
+        const stmt = this.db.prepare(`
+          INSERT INTO task_comments (id, task_id, branch_id, content, origin, created_at, updated_at, deleted_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            task_id    = excluded.task_id,
+            branch_id  = excluded.branch_id,
+            content    = excluded.content,
+            origin     = excluded.origin,
+            created_at = excluded.created_at,
+            updated_at = excluded.updated_at,
+            deleted_at = excluded.deleted_at
+        `)
+        for (const c of docs.comments) {
+          stmt.run(c.id, c.task_id, c.branch_id, c.content, c.origin ?? null, c.created_at, c.updated_at, c.deleted_at)
+        }
+      }
+
       /* Append-only events: INSERT OR IGNORE (immutable, never updated or deleted). */
       if (docs.events.length) {
         const stmt = this.db.prepare(`
@@ -200,7 +221,7 @@ export class LocalStorageAdapter implements ILocalStorage {
    */
   async purgeExpiredDeleted(
     ttlMs: number,
-  ): Promise<{tasks: number; tags: number; branches: number; milestones: number; relations: number; files: number}> {
+  ): Promise<{tasks: number; tags: number; branches: number; milestones: number; relations: number; comments: number; files: number}> {
     const cutoff = new Date(Date.now() - ttlMs).toISOString()
     const expiredIds = (table: string): string[] =>
       (this.db.prepare(`SELECT id FROM ${table} WHERE deleted_at IS NOT NULL AND deleted_at <= ?`).all(cutoff) as {id: string}[]).map((row) => row.id)
@@ -210,9 +231,10 @@ export class LocalStorageAdapter implements ILocalStorage {
     const branches = expiredIds("branches")
     const milestones = expiredIds("milestones")
     const relations = expiredIds("task_relations")
+    const comments = expiredIds("task_comments")
     const files = expiredIds("files")
 
-    await this.deleteDocs({tasks, tags, branches, milestones, relations, files})
+    await this.deleteDocs({tasks, tags, branches, milestones, relations, comments, files})
 
     return {
       tasks: tasks.length,
@@ -220,6 +242,7 @@ export class LocalStorageAdapter implements ILocalStorage {
       branches: branches.length,
       milestones: milestones.length,
       relations: relations.length,
+      comments: comments.length,
       files: files.length,
     }
   }
@@ -230,6 +253,7 @@ export class LocalStorageAdapter implements ILocalStorage {
     branches?: string[]
     milestones?: string[]
     relations?: string[]
+    comments?: string[]
     files?: string[]
   }): Promise<void> {
     const transaction = this.db.transaction(() => {
@@ -238,6 +262,7 @@ export class LocalStorageAdapter implements ILocalStorage {
           this.db.prepare(`DELETE FROM task_tags WHERE task_id = ?`).run(id)
           this.db.prepare(`DELETE FROM task_attachments WHERE task_id = ?`).run(id)
           this.db.prepare(`DELETE FROM task_relations WHERE blocker_id = ? OR blocked_id = ?`).run(id, id)
+          this.db.prepare(`DELETE FROM task_comments WHERE task_id = ?`).run(id)
           this.db.prepare(`DELETE FROM tasks WHERE id = ?`).run(id)
         }
       }
@@ -261,6 +286,12 @@ export class LocalStorageAdapter implements ILocalStorage {
           deleteRelationStmt.run(id)
         }
       }
+      if (ids.comments?.length) {
+        const deleteCommentStmt = this.db.prepare(`DELETE FROM task_comments WHERE id = ?`)
+        for (const id of ids.comments) {
+          deleteCommentStmt.run(id)
+        }
+      }
       /* A branch's tags and milestones go with it: both columns are NOT NULL REFERENCES branches(id), so leaving one behind aborts the delete. */
       if (ids.branches?.length) {
         const clearTasksMilestoneStmt = this.db.prepare(
@@ -270,6 +301,7 @@ export class LocalStorageAdapter implements ILocalStorage {
         const deleteTaskTagsStmt = this.db.prepare(`DELETE FROM task_tags WHERE tag_id IN (SELECT id FROM tags WHERE branch_id = ?)`)
         const deleteTagsStmt = this.db.prepare(`DELETE FROM tags WHERE branch_id = ?`)
         const reassignBranchStmt = this.db.prepare(`UPDATE tasks SET branch_id = 'main' WHERE branch_id = ?`)
+        const reassignCommentsStmt = this.db.prepare(`UPDATE task_comments SET branch_id = 'main' WHERE branch_id = ?`)
         const deleteBranchStmt = this.db.prepare(`DELETE FROM branches WHERE id = ?`)
         for (const id of ids.branches) {
           clearTasksMilestoneStmt.run(id)
@@ -277,6 +309,7 @@ export class LocalStorageAdapter implements ILocalStorage {
           deleteTaskTagsStmt.run(id)
           deleteTagsStmt.run(id)
           reassignBranchStmt.run(id)
+          reassignCommentsStmt.run(id)
           deleteBranchStmt.run(id)
         }
       }
@@ -361,6 +394,19 @@ export class LocalStorageAdapter implements ILocalStorage {
       id: row.id,
       blocker_id: row.blocker_id,
       blocked_id: row.blocked_id,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+      deleted_at: row.deleted_at,
+    }))
+  }
+
+  private _loadTaskComments(): SnapshotTaskComment[] {
+    return (this.db.prepare(`SELECT * FROM task_comments`).all() as any[]).map((row) => ({
+      id: row.id,
+      task_id: row.task_id,
+      branch_id: row.branch_id,
+      content: row.content,
+      origin: row.origin ?? null,
       created_at: row.created_at,
       updated_at: row.updated_at,
       deleted_at: row.deleted_at,

@@ -3,7 +3,7 @@ import {MAIN_BRANCH_ID} from "@daily/protocol"
 import type {SnapshotDocs} from "@daily/protocol"
 
 /**
- * Fills what an older snapshot does not carry: the `milestones` and `relations` collections, a
+ * Fills what an older snapshot does not carry: the `milestones`, `relations` and `comments` collections, a
  * task's `milestone_id`, a tag's `branch_id` and a branch's `description`. Drops what an older
  * snapshot carries and this one no longer has — the `settings` document, local to each device
  * since v7. Called on both sides of a merge so no reader downstream has to defend itself.
@@ -18,5 +18,6 @@ export function normalizeSnapshotDocs(docs: SnapshotDocs): SnapshotDocs {
     branches: docs.branches.map((branch) => ({...branch, description: branch.description ?? ""})),
     milestones: docs.milestones ?? [],
     relations: docs.relations ?? [],
+    comments: docs.comments ?? [],
   }
 }

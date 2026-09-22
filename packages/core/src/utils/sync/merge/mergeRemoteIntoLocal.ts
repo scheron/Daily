@@ -2,7 +2,7 @@ import {normalizeSnapshotDocs} from "../snapshot/normalizeSnapshotDocs"
 import {mergeAppendOnly} from "./mergeAppendOnly"
 import {mergeCollections} from "./mergeCollections"
 
-import type {MergeResult, SnapshotDocs, SnapshotTaskRelation, SyncStrategy} from "@daily/protocol"
+import type {MergeResult, SnapshotDocs, SnapshotTaskComment, SnapshotTaskRelation, SyncStrategy} from "@daily/protocol"
 
 /**
  * Merge remote snapshot into local using pure LWW strategy.
@@ -33,6 +33,11 @@ export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: Snapsh
     toGc: gcRelations,
     adoptedOnTie: adoptedRelations,
   } = mergeCollections(local.relations, remote.relations, strategy, gcIntervalMs)
+  const {
+    result: mergedComments,
+    toGc: gcComments,
+    adoptedOnTie: adoptedComments,
+  } = mergeCollections(local.comments, remote.comments, strategy, gcIntervalMs)
   const {result: mergedFiles, toGc: gcFiles, adoptedOnTie: adoptedFiles} = mergeCollections(local.files, remote.files, strategy, gcIntervalMs)
 
   const {result: mergedEvents, added: addedEvents} = mergeAppendOnly(local.events, remote.events)
@@ -83,12 +88,40 @@ export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: Snapsh
     return acc
   }, [])
 
+  /**
+   * A comment follows its task rather than standing on its own: it leaves when the task row is gone
+   * entirely, and it moves to whichever project the task ended up in. A soft-deleted task keeps its
+   * comments, unlike a relation, because restoring the task has to restore its thread with it.
+   * Re-pointing `branch_id` leaves `updated_at` alone — the field is derived from the task, and
+   * bumping it would let a repair win an LWW race it has no business winning.
+   */
+  const droppedCommentIds: string[] = []
+  let rebranchedCommentsCount = 0
+  const commentsAfterTaskGc = mergedComments.reduce<SnapshotTaskComment[]>((acc, comment) => {
+    const task = tasksById.get(comment.task_id)
+
+    if (!task) {
+      droppedCommentIds.push(comment.id)
+      return acc
+    }
+
+    if (comment.branch_id !== task.branch_id) {
+      rebranchedCommentsCount++
+      acc.push({...comment, branch_id: task.branch_id})
+      return acc
+    }
+
+    acc.push(comment)
+    return acc
+  }, [])
+
   const resultDocs: SnapshotDocs = {
     tasks: tasksAfterBranchGc,
     tags: tagsAfterBranchGc,
     branches: mergedBranches,
     milestones: milestonesAfterBranchGc,
     relations: relationsAfterTaskGc,
+    comments: commentsAfterTaskGc,
     files: mergedFiles,
     events: mergedEvents,
   }
@@ -99,6 +132,7 @@ export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: Snapsh
     branches: [],
     milestones: [],
     relations: [],
+    comments: [],
     files: [],
     events: [],
   }
@@ -146,6 +180,15 @@ export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: Snapsh
   } else if (adoptedRelations.length) {
     toUpsert.relations = adoptedRelations
     changes += adoptedRelations.length
+  }
+
+  if (hasChanges(local.comments, commentsAfterTaskGc) || gcComments.length || droppedCommentIds.length || rebranchedCommentsCount) {
+    toUpsert.comments = commentsAfterTaskGc
+    if (gcComments.length || droppedCommentIds.length) toRemove.comments = [...gcComments, ...droppedCommentIds]
+    changes += commentsAfterTaskGc.length + gcComments.length + droppedCommentIds.length
+  } else if (adoptedComments.length) {
+    toUpsert.comments = adoptedComments
+    changes += adoptedComments.length
   }
 
   if (hasChanges(local.files, mergedFiles) || gcFiles.length) {
