@@ -106,6 +106,26 @@ describe("two-node convergence through a shared sync directory", () => {
     return created
   }
 
+  async function addTaskWithMintedId(node: Node, content: string): Promise<Task> {
+    const created = await node.core.tasksService.createTask({
+      createdAt: "",
+      updatedAt: "",
+      deletedAt: null,
+      branchId: await node.core.branchesService.getActiveBranchId(),
+      scheduled: {date: "2026-07-18", time: "10:00:00", timezone: "UTC"},
+      estimatedTime: 0,
+      spentTime: 0,
+      content,
+      minimized: false,
+      orderIndex: 0,
+      status: "active",
+      tags: [],
+      attachments: [],
+    })
+    if (!created) throw new Error("createTask failed")
+    return created
+  }
+
   function setCommentUpdatedAt(node: Node, commentId: string, updatedAt: string): void {
     node.db.prepare("UPDATE task_comments SET updated_at = ? WHERE id = ?").run(updatedAt, commentId)
   }
@@ -418,5 +438,64 @@ describe("two-node convergence through a shared sync directory", () => {
     expect(finalB).toHaveLength(1)
     expect(finalA[0]).toMatchObject({blockerId: taskY.id, blockedId: taskX.id})
     expect(finalB[0]).toMatchObject({blockerId: taskY.id, blockedId: taskX.id})
+  })
+  it("carries_an_unmarked_legacy_id_and_a_freshly_marked_one_side_by_side_through_a_full_sync_round_trip", async () => {
+    const legacyId = "V1StGXR8_Z5jdHi6B-myT"
+    const legacy = await addTask(nodeA, "minted before the marks existed", legacyId)
+    const marked = await addTaskWithMintedId(nodeA, "minted after the marks existed")
+
+    const legacyTag = await nodeA.core.tagsService.createTag({
+      branchId: await nodeA.core.branchesService.getActiveBranchId(),
+      name: "legacy",
+      color: "#111111",
+      deletedAt: null,
+    })
+    if (!legacyTag) throw new Error("createTag failed")
+    nodeA.db.prepare("UPDATE tags SET id = ? WHERE id = ?").run("qX7_bA-3nR2vK1mZ0pLdW", legacyTag.id)
+    const markedTag = await nodeA.core.tagsService.createTag({
+      branchId: await nodeA.core.branchesService.getActiveBranchId(),
+      name: "marked",
+      color: "#222222",
+      deletedAt: null,
+    })
+    if (!markedTag) throw new Error("createTag failed")
+
+    expect(legacy.id).toBe(legacyId)
+    expect(marked.id).toMatch(/^DT-[0-9A-Za-z]{21}$/)
+    expect(markedTag.id).toMatch(/^DG-[0-9A-Za-z]{21}$/)
+
+    await nodeA.engine.syncOnce("push")
+    await nodeB.engine.syncOnce("pull")
+
+    const tasksOnB = await nodeB.core.tasksService.getTaskList({})
+    expect(tasksOnB.map((t) => t.id)).toEqual(expect.arrayContaining([legacyId, marked.id]))
+
+    const tagsOnB = await nodeB.core.tagsService.getTagList()
+    expect(tagsOnB.map((t) => t.id)).toEqual(expect.arrayContaining(["qX7_bA-3nR2vK1mZ0pLdW", markedTag.id]))
+  })
+
+  it("settles_concurrent_edits_of_an_unmarked_legacy_task_on_the_later_updated_at_just_as_it_does_a_marked_one", async () => {
+    const legacyId = "aZ_2pQ7-x4LmN8Rt0Vb1C"
+    await addTask(nodeA, "original", legacyId)
+    const marked = await addTaskWithMintedId(nodeA, "original")
+
+    await nodeA.engine.syncOnce("push")
+    await nodeB.engine.syncOnce("pull")
+
+    for (const id of [legacyId, marked.id]) {
+      await nodeA.core.tasksService.updateTask(id, {content: "edit from A"})
+      setUpdatedAt(nodeA, id, "2027-01-01T10:00:00.000Z")
+      await nodeB.core.tasksService.updateTask(id, {content: "edit from B"})
+      setUpdatedAt(nodeB, id, "2027-01-01T11:00:00.000Z")
+    }
+
+    await nodeA.engine.syncOnce("push")
+    await nodeB.engine.syncOnce("pull")
+    await nodeA.engine.syncOnce("pull")
+
+    expect((await nodeA.core.tasksService.getTask(legacyId))?.content).toBe("edit from B")
+    expect((await nodeB.core.tasksService.getTask(legacyId))?.content).toBe("edit from B")
+    expect((await nodeA.core.tasksService.getTask(marked.id))?.content).toBe("edit from B")
+    expect((await nodeB.core.tasksService.getTask(marked.id))?.content).toBe("edit from B")
   })
 })
