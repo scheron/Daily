@@ -3,7 +3,7 @@ import {ipcMain} from "electron"
 import {toSettingsView} from "@daily/core"
 
 import type {IStorageController} from "@daily/core"
-import type {Branch, ISODate, Milestone, MoveTaskByOrderParams, Tag, Task, TaskRelationSets} from "@daily/protocol"
+import type {Branch, ISODate, Milestone, MoveTaskByOrderParams, Tag, Task, TaskComment, TaskRelationSets} from "@daily/protocol"
 import type {PartialDeep} from "type-fest"
 
 // prettier-ignore
@@ -36,6 +36,11 @@ export function setupStorageIPC(getStorage: () => IStorageController | null) {
 
   ipcMain.handle("relations:get-all", () => getStorage()?.getAllTaskRelations())
   ipcMain.handle("relations:set", (_e, taskId: Task["id"], next: TaskRelationSets) => getStorage()?.setTaskRelations(taskId, next))
+
+  ipcMain.handle("comments:get-by-task", (_e, taskId: Task["id"]) => getStorage()?.getTaskComments(taskId))
+  ipcMain.handle("comments:create", (_e, taskId: Task["id"], content: string) => getStorage()?.createTaskComment(taskId, content))
+  ipcMain.handle("comments:update", (_e, id: TaskComment["id"], content: string) => getStorage()?.updateTaskComment(id, content))
+  ipcMain.handle("comments:delete", (_e, id: TaskComment["id"]) => getStorage()?.deleteTaskComment(id))
 
   ipcMain.handle("branches:get-many", () => getStorage()?.getBranchList())
   ipcMain.handle("branches:get-one", (_e, id: Branch["id"]) => getStorage()?.getBranch(id))

@@ -8,6 +8,7 @@ import type {
   MoveTaskByOrderParams,
   Tag,
   Task,
+  TaskComment,
   TaskEvent,
   TaskRelation,
   TaskRelationSets,
@@ -99,6 +100,24 @@ export class StorageAPI {
   /** Makes the task's links exactly `next`, dropping what cannot be linked. */
   async setTaskRelations(taskId: Task["id"], next: TaskRelationSets): Promise<Changeset> {
     return await window.BridgeIPC["relations:set"](taskId, next)
+  }
+
+  /** One task's live comments, oldest first. */
+  async getTaskComments(taskId: Task["id"]): Promise<TaskComment[]> {
+    return window.BridgeIPC["comments:get-by-task"](taskId)
+  }
+
+  /** Writes a comment on a live task. What the app writes has no origin — only MCP and the agent set one. */
+  async createTaskComment(taskId: Task["id"], content: string): Promise<Changeset> {
+    return await window.BridgeIPC["comments:create"](taskId, content)
+  }
+
+  async updateTaskComment(id: TaskComment["id"], content: string): Promise<Changeset> {
+    return await window.BridgeIPC["comments:update"](id, content)
+  }
+
+  async deleteTaskComment(id: TaskComment["id"]): Promise<Changeset> {
+    return await window.BridgeIPC["comments:delete"](id)
   }
 
   /** Fuzzy-matches tasks; results are sorted by relevance. */

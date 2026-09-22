@@ -30,6 +30,7 @@ import type {
   SyncStatus,
   Tag,
   Task,
+  TaskComment,
   TaskEvent,
   TaskRelation,
   TaskRelationSets,
@@ -148,6 +149,11 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
 
   "relations:get-all": () => ipcRenderer.invoke("relations:get-all") as Promise<TaskRelation[]>,
   "relations:set": (taskId: Task["id"], next: TaskRelationSets) => ipcRenderer.invoke("relations:set", taskId, next) as Promise<Changeset>,
+
+  "comments:get-by-task": (taskId: Task["id"]) => ipcRenderer.invoke("comments:get-by-task", taskId) as Promise<TaskComment[]>,
+  "comments:create": (taskId: Task["id"], content: string) => ipcRenderer.invoke("comments:create", taskId, content) as Promise<Changeset>,
+  "comments:update": (id: TaskComment["id"], content: string) => ipcRenderer.invoke("comments:update", id, content) as Promise<Changeset>,
+  "comments:delete": (id: TaskComment["id"]) => ipcRenderer.invoke("comments:delete", id) as Promise<Changeset>,
 
   "branches:get-many": () => ipcRenderer.invoke("branches:get-many") as Promise<Branch[]>,
   "branches:get-one": (id: Branch["id"]) => ipcRenderer.invoke("branches:get-one", id) as Promise<Branch | null>,

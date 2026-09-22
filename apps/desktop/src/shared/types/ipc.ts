@@ -28,6 +28,7 @@ import type {
   SyncStatus,
   Tag,
   Task,
+  TaskComment,
   TaskEvent,
   TaskRelation,
   TaskRelationSets,
@@ -148,6 +149,12 @@ export interface BridgeIPC {
   // === RELATIONS ===
   "relations:get-all": () => Promise<TaskRelation[]>
   "relations:set": (taskId: Task["id"], next: TaskRelationSets) => Promise<Changeset>
+
+  // === COMMENTS ===
+  "comments:get-by-task": (taskId: Task["id"]) => Promise<TaskComment[]>
+  "comments:create": (taskId: Task["id"], content: string) => Promise<Changeset>
+  "comments:update": (id: TaskComment["id"], content: string) => Promise<Changeset>
+  "comments:delete": (id: TaskComment["id"]) => Promise<Changeset>
 
   // === BRANCHES ===
   "branches:get-many": () => Promise<Branch[]>
