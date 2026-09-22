@@ -1,9 +1,13 @@
 import {ipcMain} from "electron"
 
+import {broadcastToWindows} from "@main/utils/windows/broadcastToWindows"
+
 import type {IStorageController} from "@daily/core"
+import type {WindowsGetter} from "@main/utils/windows/broadcastToWindows"
+import type {ApprovalKind} from "@shared/types/ipc"
 
 // prettier-ignore
-export function setupSyncServerIPC(getStorage: () => IStorageController | null) {
+export function setupSyncServerIPC(getStorage: () => IStorageController | null, getWindows: WindowsGetter) {
   ipcMain.handle("sync-server:get-state", (_e) => getStorage()?.getServerProvider().getState())
   ipcMain.handle("sync-server:default-device-name", (_e) => getStorage()?.getServerProvider().defaultDeviceName())
   ipcMain.handle("sync-server:probe", (_e, baseUrl: string) => getStorage()?.getServerProvider().probe(baseUrl))
@@ -14,8 +18,14 @@ export function setupSyncServerIPC(getStorage: () => IStorageController | null) 
   ipcMain.handle("sync-server:disconnect", (_e) => getStorage()?.getServerProvider().disconnect())
 
   ipcMain.handle("sync-server:get-pending-approval", (_e) => getStorage()?.getServerProvider().pendingApproval())
-  ipcMain.handle("sync-server:approve", (_e, requestId: string, code: string) => getStorage()?.getServerProvider().approve(requestId, code))
-  ipcMain.handle("sync-server:deny", (_e, requestId: string) => getStorage()?.getServerProvider().deny(requestId))
+  ipcMain.handle("sync-server:approve", async (_e, requestId: string, code: string) => {
+    await getStorage()?.getServerProvider().approve(requestId, code)
+    announceResolved(getWindows, "device")
+  })
+  ipcMain.handle("sync-server:deny", async (_e, requestId: string) => {
+    await getStorage()?.getServerProvider().deny(requestId)
+    announceResolved(getWindows, "device")
+  })
 
   ipcMain.handle("sync-server:list-membership", (_e) => getStorage()?.getServerProvider().listMembership())
   ipcMain.handle("sync-server:revoke-device", (_e, deviceId: string) => getStorage()?.getServerProvider().revokeDevice(deviceId))
@@ -25,8 +35,18 @@ export function setupSyncServerIPC(getStorage: () => IStorageController | null) 
   ipcMain.handle("sync-server:open-agent-window", (_e) => getStorage()?.getServerProvider().openAgentWindow())
   ipcMain.handle("sync-server:close-agent-window", (_e) => getStorage()?.getServerProvider().closeAgentWindow())
   ipcMain.handle("sync-server:get-pending-agent-request", (_e) => getStorage()?.getServerProvider().pendingAgentRequest())
-  ipcMain.handle("sync-server:approve-agent", (_e, requestId: string, code: string) => getStorage()?.getServerProvider().approveAgent(requestId, code))
-  ipcMain.handle("sync-server:deny-agent", (_e, requestId: string) => getStorage()?.getServerProvider().denyAgent(requestId))
+  ipcMain.handle("sync-server:approve-agent", async (_e, requestId: string, code: string) => {
+    await getStorage()?.getServerProvider().approveAgent(requestId, code)
+    announceResolved(getWindows, "agent")
+  })
+  ipcMain.handle("sync-server:deny-agent", async (_e, requestId: string) => {
+    await getStorage()?.getServerProvider().denyAgent(requestId)
+    announceResolved(getWindows, "agent")
+  })
   ipcMain.handle("sync-server:list-agents", (_e) => getStorage()?.getServerProvider().listAgents())
   ipcMain.handle("sync-server:revoke-agent", (_e, agentId: string) => getStorage()?.getServerProvider().revokeAgent(agentId))
+}
+
+function announceResolved(getWindows: WindowsGetter, kind: ApprovalKind) {
+  broadcastToWindows(getWindows, "sync-server:approval-resolved", kind)
 }

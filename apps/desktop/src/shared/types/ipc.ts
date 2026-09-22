@@ -47,6 +47,8 @@ import type {
 } from "./ai"
 import type {AppUpdateState} from "./update"
 
+export type ApprovalKind = "device" | "agent"
+
 export interface BridgeIPC {
   // === GENERAL IPC ===
   invoke: (channel: string, ...args: any[]) => Promise<any>
@@ -103,6 +105,7 @@ export interface BridgeIPC {
   "sync-server:on-protocol-mismatch-changed": (callback: (mismatch: ProtocolMismatchView | null) => void) => void
   "sync-server:on-role-changed": (callback: (role: DeviceRole) => void) => void
   "sync-server:on-agent-requested": (callback: () => void) => void
+  "sync-server:on-approval-resolved": (callback: (kind: ApprovalKind) => void) => void
   "sync-server:on-agents-accepted-changed": (callback: (acceptsAgents: boolean) => void) => void
 
   // === SYNC PROVIDER ===

@@ -253,9 +253,9 @@ export const useSyncServerStore = defineStore("syncServer", () => {
 
   /**
    * The subscription is set up only once; a request that arrived before anything was listening
-   * is still opened. Each window that calls this shows its own card, and acting on a card already
-   * resolved in another window fails but still closes it. It now watches for both device and
-   * agent requests.
+   * is still opened. The main process sends a request to a single window and tells every window
+   * once it is resolved, so no other window is left holding a card that can no longer be acted on.
+   * It watches for both device and agent requests.
    */
   function watchForApprovals(): void {
     if (isWatchingApprovals) return
@@ -270,6 +270,11 @@ export const useSyncServerStore = defineStore("syncServer", () => {
       openAgentApprovalDialog()
     })
     openAgentApprovalDialog()
+
+    window.BridgeIPC["sync-server:on-approval-resolved"]((kind) => {
+      if (kind === "device") hideApproval()
+      else hideAgentApproval()
+    })
   }
 
   invoke(loadState)

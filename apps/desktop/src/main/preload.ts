@@ -45,7 +45,7 @@ import type {
   LocalRuntimeState,
   PendingToolConfirmation,
 } from "@shared/types/ai"
-import type {BridgeIPC} from "@shared/types/ipc"
+import type {ApprovalKind, BridgeIPC} from "@shared/types/ipc"
 import type {AppUpdateState} from "@shared/types/update"
 import type {PartialDeep} from "type-fest"
 
@@ -106,6 +106,7 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "sync-server:on-protocol-mismatch-changed": (callback: (mismatch: ProtocolMismatchView | null) => void) => ipcRenderer.on("sync-server:protocol-mismatch-changed", (_event, mismatch: ProtocolMismatchView | null) => callback(mismatch)),
   "sync-server:on-role-changed": (callback: (role: DeviceRole) => void) => ipcRenderer.on("sync-server:role-changed", (_event, role: DeviceRole) => callback(role)),
   "sync-server:on-agent-requested": (callback: () => void) => ipcRenderer.on("sync-server:agent-requested", (_event, ) => callback()),
+  "sync-server:on-approval-resolved": (callback: (kind: ApprovalKind) => void) => ipcRenderer.on("sync-server:approval-resolved", (_event, kind: ApprovalKind) => callback(kind)),
   "sync-server:on-agents-accepted-changed": (callback: (acceptsAgents: boolean) => void) => ipcRenderer.on("sync-server:agents-accepted-changed", (_event, acceptsAgents: boolean) => callback(acceptsAgents)),
 
   "sync-provider:preview": (target: Exclude<SyncProvider, "off">) => ipcRenderer.invoke("sync-provider:preview", target) as Promise<MigrationPreview>,

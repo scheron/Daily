@@ -134,7 +134,10 @@ app.whenReady().then(async () => {
   )
 
   setupStorageIPC(() => storage)
-  setupSyncServerIPC(() => storage)
+  setupSyncServerIPC(
+    () => storage,
+    () => windows,
+  )
   setupSyncProviderIPC(() => storage)
   setupAiIPC(
     () => ai,

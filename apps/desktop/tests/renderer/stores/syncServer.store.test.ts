@@ -160,6 +160,7 @@ function bridgeForAgents(overrides = {}) {
     "sync-server:on-role-changed": vi.fn(),
     [AGENTS_ACCEPTED_CHANNEL]: vi.fn(),
     [AGENT_REQUESTED_CHANNEL]: vi.fn(),
+    "sync-server:on-approval-resolved": vi.fn(),
     "sync-server:list-membership": vi.fn().mockResolvedValue({devices: [], enrollmentWindow: null}),
     "sync-server:list-agents": vi.fn().mockResolvedValue({agents: [], agentWindow: null}),
     "sync-server:revoke-device": vi.fn().mockResolvedValue({devices: [], enrollmentWindow: null}),
