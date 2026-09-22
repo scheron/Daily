@@ -126,13 +126,7 @@ defineExpose({
     >
       <div :class="getContentClasses()">
         <div v-if="!hideHeader" class="border-base-300 flex items-center justify-between border-b pb-1">
-          <BaseButton
-            icon="x-mark"
-            variant="ghost"
-            icon-class="size-4"
-            class="focus-visible-accent text-base-content/70 hover:text-base-content ml-auto rounded-full p-1"
-            @click="hide"
-          />
+          <BaseButton icon="x-mark" variant="ghost-muted" size="sm" class="ml-auto" @click="hide" />
         </div>
 
         <slot :hide="hide" />

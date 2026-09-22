@@ -70,7 +70,7 @@ function getStatusDotClasses(dot: string) {
           <span v-if="aiStore.config?.enabled" class="text-base-content/60 flex items-center gap-1.5 text-xs">
             <span :class="getStatusDotClasses(statusInfo.dot)" />
             {{ statusInfo.label }}
-            <BaseButton variant="ghost" icon="refresh" icon-class="size-3" class="-mr-1 p-0.5" @click="onRefresh" />
+            <BaseButton variant="ghost" icon="refresh" size="xs" class="-mr-1" @click="onRefresh" />
           </span>
           <BaseSwitch :model-value="aiStore.config?.enabled ?? false" @update:model-value="aiStore.updateConfig({enabled: $event})" />
         </div>

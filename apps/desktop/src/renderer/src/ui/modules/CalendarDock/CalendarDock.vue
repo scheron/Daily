@@ -5,7 +5,7 @@ import {useBoardDrop} from "@/composables/tasks/useBoardDrop"
 import {useFilterStore} from "@/stores/filter.store"
 import {useTasksStore} from "@/stores/tasks"
 import {useUIStore} from "@/stores/ui"
-import BaseIcon from "@/ui/base/BaseIcon"
+import BaseButton from "@/ui/base/BaseButton"
 import TaskCalendar from "@/ui/common/calendar/TaskCalendar"
 import MilestoneDiamond from "@/ui/common/milestones/MilestoneDiamond.vue"
 import {cn} from "@/utils/ui/tailwindcss"
@@ -38,11 +38,8 @@ function getDockClasses() {
   return cn(dockWidthClass.value, uiStore.isCalendarDockExpanded ? "rounded-2xl" : "rounded-[20px]")
 }
 
-function getTabClasses(isActive: boolean) {
-  return cn(
-    "flex h-8 flex-1 items-center justify-center gap-1.5 rounded-full text-sm font-medium transition-colors",
-    isActive ? "bg-accent/15 text-accent" : "text-base-content/60 hover:bg-base-200 hover:text-base-content",
-  )
+function getTabVariant(isActive: boolean) {
+  return isActive ? "primary" : "ghost-muted"
 }
 </script>
 
@@ -50,7 +47,7 @@ function getTabClasses(isActive: boolean) {
   <div
     ref="dock"
     data-day-drop-zone
-    class="dock-surface absolute left-1/2 top-2 z-20 flex -translate-x-1/2 flex-col items-center justify-start overflow-hidden [-webkit-app-region:no-drag]"
+    class="dock-surface absolute top-2 left-1/2 z-20 flex -translate-x-1/2 flex-col items-center justify-start overflow-hidden [-webkit-app-region:no-drag]"
     :class="getDockClasses()"
   >
     <Transition :css="false" @enter="onEnter" @leave="onLeave">
@@ -66,17 +63,25 @@ function getTabClasses(isActive: boolean) {
         </div>
 
         <div v-if="hasMilestones" class="flex items-center gap-1">
-          <button v-for="item in tabs" :key="item.id" :data-tab="item.id" :class="getTabClasses(dockTab === item.id)" @click="selectTab(item.id)">
-            <BaseIcon :name="item.icon" class="size-5" />
-            <span>{{ item.label }}</span>
-          </button>
+          <BaseButton
+            v-for="item in tabs"
+            :key="item.id"
+            :data-tab="item.id"
+            :variant="getTabVariant(dockTab === item.id)"
+            :icon="item.icon"
+            size="sm"
+            class="flex-1"
+            @click="selectTab(item.id)"
+          >
+            {{ item.label }}
+          </BaseButton>
         </div>
       </div>
 
-      <div v-else data-dock-pill class="text-accent flex h-8 items-center gap-1 whitespace-nowrap px-3 text-sm font-semibold">
+      <div v-else data-dock-pill class="text-accent flex h-8 items-center gap-1 px-3 text-sm font-semibold whitespace-nowrap">
         <span v-if="filterStore.frame === 'milestone' && framedMilestone" class="inline-flex min-w-0 items-center gap-1.5">
           <MilestoneDiamond :completion="framedMilestoneCompletion" :overdue="framedMilestoneOverdue" :size="12" />
-          <span class="min-w-0 max-w-32 truncate">{{ framedMilestone.name }}</span>
+          <span class="max-w-32 min-w-0 truncate">{{ framedMilestone.name }}</span>
         </span>
         <template v-else-if="filterStore.frame === 'milestone'">All milestones</template>
         <template v-else>{{ dayLabel }}</template>

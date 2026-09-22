@@ -106,11 +106,8 @@ function getProjectIconClasses(isBranchActive: boolean, isBranchSelected: boolea
   return cn("size-4 shrink-0", isBranchActive && !isBranchSelected && "text-accent")
 }
 
-function getProjectButtonClasses(isBranchSelected: boolean) {
-  return cn(
-    "flex max-w-56 gap-2 px-4 py-0.5 text-sm",
-    isBranchSelected ? "bg-accent/15 hover:bg-accent/20 text-accent" : "text-base-content/70 hover:bg-base-200 hover:text-base-content",
-  )
+function getProjectButtonVariant(isBranchSelected: boolean) {
+  return isBranchSelected ? "primary" : "ghost-muted"
 }
 
 function getProjectNameClasses(isBranchActive: boolean) {
@@ -120,14 +117,7 @@ function getProjectNameClasses(isBranchActive: boolean) {
 
 <template>
   <div class="flex flex-wrap items-center gap-2">
-    <BaseButton
-      v-if="!isCreating"
-      variant="dashed"
-      icon="plus"
-      icon-class="size-4 shrink-0"
-      class="flex shrink-0 gap-2 px-2 py-0.5 text-sm whitespace-nowrap"
-      @click="startCreate"
-    >
+    <BaseButton v-if="!isCreating" variant="dashed" icon="plus" size="sm" class="shrink-0 whitespace-nowrap" @click="startCreate">
       New project
     </BaseButton>
 
@@ -145,7 +135,7 @@ function getProjectNameClasses(isBranchActive: boolean) {
         @keyup.escape="cancelCreate"
       />
 
-      <BaseButton variant="ghost" :disabled="!newProjectName.trim()" class="size-5 shrink-0 p-0 text-[11px]" @click="createProject">↵</BaseButton>
+      <BaseButton variant="ghost" size="xs" :disabled="!newProjectName.trim()" class="shrink-0" @click="createProject">↵</BaseButton>
     </div>
 
     <template v-for="branch in branchesStore.orderedBranches" :key="branch.id">
@@ -162,23 +152,18 @@ function getProjectNameClasses(isBranchActive: boolean) {
           @keyup.escape="cancelEdit"
         />
 
-        <BaseButton icon="check" variant="ghost" icon-class="size-3.5" class="size-5 shrink-0 p-0" @click="renameProject(branch.id)" />
-        <BaseButton icon="x-mark" variant="ghost" icon-class="size-3.5" class="size-5 shrink-0 p-0" @click="cancelEdit" />
+        <BaseButton icon="check" variant="ghost" size="xs" class="shrink-0" @click="renameProject(branch.id)" />
+        <BaseButton icon="x-mark" variant="ghost" size="xs" class="shrink-0" @click="cancelEdit" />
       </div>
 
       <div v-else class="flex shrink-0 items-center gap-0.5">
-        <BaseButton
-          variant="ghost"
-          icon="project"
-          :icon-class="getProjectIconClasses(isActive(branch), isSelected(branch))"
-          :class="getProjectButtonClasses(isSelected(branch))"
-          @click="emit('select', branch.id)"
-        >
+        <BaseButton :variant="getProjectButtonVariant(isSelected(branch))" size="sm" class="max-w-56" @click="emit('select', branch.id)">
+          <BaseIcon name="project" :class="getProjectIconClasses(isActive(branch), isSelected(branch))" />
           <span :class="getProjectNameClasses(isActive(branch))">{{ branch.name }}</span>
         </BaseButton>
 
         <template v-if="isSelected(branch) && branch.id !== MAIN_BRANCH_ID">
-          <BaseButton icon="pencil" variant="ghost" icon-class="size-3.5" class="size-7 shrink-0 p-0" @click="startEdit(branch)" />
+          <BaseButton icon="pencil" variant="ghost" size="sm" class="shrink-0" @click="startEdit(branch)" />
 
           <ConfirmPopup
             title="Delete project?"
@@ -190,7 +175,7 @@ function getProjectNameClasses(isBranchActive: boolean) {
             @confirm="deleteProject(branch)"
           >
             <template #trigger="{show}">
-              <BaseButton icon="trash" variant="ghost" icon-class="size-3.5" class="text-error hover:bg-error/10 size-7 shrink-0 p-0" @click="show" />
+              <BaseButton icon="trash" variant="error-ghost" size="sm" class="shrink-0" @click="show" />
             </template>
           </ConfirmPopup>
         </template>

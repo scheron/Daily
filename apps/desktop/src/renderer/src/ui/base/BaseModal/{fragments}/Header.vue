@@ -20,7 +20,7 @@ defineEmits<{close: []}>()
     </div>
 
     <div class="ml-auto flex items-center gap-2">
-      <BaseButton variant="ghost" icon="x-mark" class="text-base-content hover:text-accent" @click="$emit('close')" />
+      <BaseButton variant="ghost-primary" icon="x-mark" @click="$emit('close')" />
     </div>
   </div>
 </template>

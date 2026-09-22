@@ -34,7 +34,7 @@ async function deleteTag(tag: Tag) {
   <div class="flex flex-wrap items-center gap-x-5 gap-y-2">
     <BasePopup hide-header position="start" container-class="p-0 overflow-hidden max-h-none">
       <template #trigger="{toggle}">
-        <BaseButton variant="text" icon="plus" icon-class="size-3.5" class="gap-1.5 p-0 font-medium" @click="toggle">Add tag</BaseButton>
+        <BaseButton variant="inline" icon="plus" size="sm" @click="toggle">Add tag</BaseButton>
       </template>
 
       <template #default="{hide}">
@@ -55,7 +55,7 @@ async function deleteTag(tag: Tag) {
         @confirm="deleteTag(tag)"
       >
         <template #trigger="{show}">
-          <BaseButton variant="text" class="p-0 text-inherit opacity-55 hover:opacity-100" @click="show">×</BaseButton>
+          <BaseButton variant="inline" @click="show">×</BaseButton>
         </template>
       </ConfirmPopup>
     </div>

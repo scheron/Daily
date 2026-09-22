@@ -53,8 +53,8 @@ function getNetworkBadgeClasses(isPrivate: boolean) {
     </div>
 
     <div class="mt-[18px] flex gap-2">
-      <BaseButton variant="ghost" class="text-error hover:bg-error/10 h-8 flex-1 text-sm" @click="$emit('deny')">Decline</BaseButton>
-      <BaseButton variant="primary" class="h-8 flex-1 text-sm" @click="$emit('approve')">Approve</BaseButton>
+      <BaseButton variant="error-ghost" size="sm" class="flex-1" @click="$emit('deny')">Decline</BaseButton>
+      <BaseButton variant="primary" size="sm" class="flex-1" @click="$emit('approve')">Approve</BaseButton>
     </div>
   </BaseModal>
 </template>

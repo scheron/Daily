@@ -56,16 +56,10 @@ function copyTaskContent() {
 
     <div class="flex items-center gap-1" style="-webkit-app-region: no-drag">
       <template v-if="isEditing">
-        <BaseButton variant="ghost" :icon="isIdCopied ? 'check' : 'copy-id'" icon-class="size-4.5" tooltip="Copy Task ID" @click="copyTaskId" />
-        <BaseButton
-          variant="ghost"
-          :icon="isContentCopied ? 'check' : 'copy'"
-          icon-class="size-4.5"
-          tooltip="Copy Task Content"
-          @click="copyTaskContent"
-        />
+        <BaseButton variant="ghost" :icon="isIdCopied ? 'check' : 'copy-id'" size="sm" tooltip="Copy Task ID" @click="copyTaskId" />
+        <BaseButton variant="ghost" :icon="isContentCopied ? 'check' : 'copy'" size="sm" tooltip="Copy Task Content" @click="copyTaskContent" />
       </template>
-      <BaseButton variant="primary-ghost" icon="check" tooltip="Save (⌘S)" class="px-3 py-1" :disabled="!canSave" @click="commitDraftAndClose">
+      <BaseButton variant="primary-ghost" icon="check" size="sm" tooltip="Save (⌘S)" :disabled="!canSave" @click="commitDraftAndClose">
         Save
       </BaseButton>
     </div>

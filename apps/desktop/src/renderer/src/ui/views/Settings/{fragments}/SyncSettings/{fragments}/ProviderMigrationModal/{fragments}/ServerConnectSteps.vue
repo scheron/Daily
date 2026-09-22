@@ -234,17 +234,11 @@ onBeforeUnmount(() => {
         <label class="text-base-content/70 text-xs font-medium">Server address</label>
         <BaseInput v-model="baseUrl" placeholder="http://192.168.1.10:8787" focus-on-mount @keyup.enter="onProbe" />
       </div>
-      <BaseButton variant="primary" class="w-full py-1.5" :loading="isLoading" @click="onProbe">Continue</BaseButton>
+      <BaseButton variant="primary" class="w-full" :loading="isLoading" @click="onProbe">Continue</BaseButton>
     </div>
 
     <div class="border-base-300 -mx-5 mt-5 -mb-5 flex flex-col border-t px-5 py-4">
-      <button
-        type="button"
-        class="text-base-content/50 hover:text-base-content self-center text-xs underline underline-offset-2 transition-colors"
-        @click="onOpenServerDocs"
-      >
-        No server yet?
-      </button>
+      <BaseButton variant="link" size="xs" class="self-center" @click="onOpenServerDocs">No server yet?</BaseButton>
     </div>
   </template>
 
@@ -279,9 +273,7 @@ onBeforeUnmount(() => {
       <span class="text-base-content/80">I understand this address is reachable from the internet and the connection is unencrypted</span>
     </label>
 
-    <BaseButton variant="primary" class="w-full py-1.5" :disabled="!canContinueFromConfirm" :loading="isLoading" @click="onConfirm">
-      Continue
-    </BaseButton>
+    <BaseButton variant="primary" class="w-full" :disabled="!canContinueFromConfirm" :loading="isLoading" @click="onConfirm"> Continue </BaseButton>
   </div>
 
   <div v-else-if="step === 'claim'" class="flex flex-col gap-4">
@@ -308,7 +300,7 @@ onBeforeUnmount(() => {
       </template>
     </div>
 
-    <BaseButton variant="primary" class="w-full py-1.5" :disabled="!code.trim()" :loading="isLoading" @click="onClaim">Connect</BaseButton>
+    <BaseButton variant="primary" class="w-full" :disabled="!code.trim()" :loading="isLoading" @click="onClaim">Connect</BaseButton>
   </div>
 
   <div v-else-if="step === 'waiting' && ticket" class="flex flex-col items-center py-2 text-center">
@@ -330,12 +322,12 @@ onBeforeUnmount(() => {
   <div v-else-if="step === 'denied'" class="flex flex-col items-center gap-3 py-2 text-center">
     <BaseIcon name="alert-circle" class="text-error size-7" />
     <p class="text-base-content/70 text-sm">The other Mac declined this request.</p>
-    <BaseButton variant="secondary" class="w-full py-1.5" @click="onTryAgain">Try Again</BaseButton>
+    <BaseButton variant="secondary" class="w-full" @click="onTryAgain">Try Again</BaseButton>
   </div>
 
   <div v-else-if="step === 'expired'" class="flex flex-col items-center gap-3 py-2 text-center">
     <BaseIcon name="alert-circle" class="text-warning size-7" />
     <p class="text-base-content/70 text-sm">This request expired before it was answered.</p>
-    <BaseButton variant="primary" class="w-full py-1.5" :loading="isLoading" @click="onAskAgain">Ask again</BaseButton>
+    <BaseButton variant="primary" class="w-full" :loading="isLoading" @click="onAskAgain">Ask again</BaseButton>
   </div>
 </template>

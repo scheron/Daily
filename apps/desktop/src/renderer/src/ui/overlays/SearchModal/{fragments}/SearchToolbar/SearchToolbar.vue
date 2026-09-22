@@ -1,15 +1,14 @@
 <script setup lang="ts">
 import BaseButton from "@/ui/base/BaseButton"
-import {cn} from "@/utils/ui/tailwindcss"
 import SearchInput from "./{fragments}/SearchInput.vue"
 
 import type {TasksFilter} from "../../types"
 
 const TASK_FILTERS = [
-  {value: "all", icon: "today"},
-  {value: "active", icon: "fire"},
-  {value: "discarded", icon: "archive"},
-  {value: "done", icon: "check-check"},
+  {value: "all", icon: "today", variant: "ghost-muted", activeVariant: "soft"},
+  {value: "active", icon: "fire", variant: "error-ghost", activeVariant: "error-soft"},
+  {value: "discarded", icon: "archive", variant: "warning-ghost", activeVariant: "warning-soft"},
+  {value: "done", icon: "check-check", variant: "success-ghost", activeVariant: "success-soft"},
 ] as const
 
 const props = defineProps<{
@@ -28,28 +27,8 @@ function onSelectFilter(filter: TasksFilter) {
   emit("update:filter-status", status)
 }
 
-function getFilterClasses(value: "all" | "active" | "discarded" | "done") {
-  if (value === props.filterStatus) {
-    return cn(
-      "size-7",
-      {
-        all: "bg-base-100 text-base-content",
-        active: "bg-base-100 text-error bg-error/10",
-        discarded: "bg-base-100 text-warning bg-warning/10",
-        done: "bg-base-100 text-success bg-success/10",
-      }[value],
-    )
-  }
-
-  return cn(
-    "size-7",
-    {
-      all: "text-base-content/70 hover:text-base-content",
-      active: "text-error/70 hover:text-error",
-      discarded: "text-warning/70 hover:text-warning",
-      done: "text-success/70 hover:text-success",
-    }[value],
-  )
+function getFilterVariant(filter: (typeof TASK_FILTERS)[number]) {
+  return filter.value === props.filterStatus ? filter.activeVariant : filter.variant
 }
 </script>
 
@@ -61,10 +40,9 @@ function getFilterClasses(value: "all" | "active" | "discarded" | "done") {
       <BaseButton
         v-for="filter in TASK_FILTERS"
         :key="filter.value"
-        variant="text"
+        :variant="getFilterVariant(filter)"
         :icon="filter.icon"
-        icon-class="size-5"
-        :class="getFilterClasses(filter.value)"
+        size="sm"
         @click="onSelectFilter(filter.value)"
       />
     </div>

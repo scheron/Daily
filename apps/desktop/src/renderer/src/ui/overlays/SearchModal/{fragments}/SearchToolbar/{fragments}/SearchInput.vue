@@ -30,7 +30,7 @@ function onClear() {
         <BaseIcon name="spinner" class="text-base-content/50 size-4 animate-spin" />
       </div>
 
-      <BaseButton v-if="modelValue && !loading" variant="ghost" icon="x-mark" class="size-5" icon-class="size-4" @click="onClear" />
+      <BaseButton v-if="modelValue && !loading" variant="ghost" icon="x-mark" size="xs" @click="onClear" />
     </div>
   </div>
 </template>

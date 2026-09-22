@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {onMounted, onUnmounted, ref, watch} from "vue"
 
+import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
 import WaveText from "@/ui/common/misc/WaveText.vue"
 import {cn} from "@/utils/ui/tailwindcss"
@@ -55,17 +56,13 @@ onUnmounted(stopTimer)
 
 <template>
   <div class="border-base-300 rounded border-l-2 py-1 pl-3">
-    <button
-      class="text-base-content/50 hover:text-base-content/70 flex items-center gap-1 text-xs font-medium"
-      type="button"
-      @click="isOpen = !isOpen"
-    >
+    <BaseButton variant="inline" size="xs" @click="isOpen = !isOpen">
       <BaseIcon name="chevron-right" :class="getChevronClasses(isOpen)" />
       <WaveText v-if="streaming" text="Thinking" />
       <span v-else>Thinking</span>
       <span v-if="streaming" class="text-base-content/40">· {{ liveSeconds }}s</span>
       <span v-else-if="durationMs" class="text-base-content/40">· {{ Math.round(durationMs / 1000) }}s</span>
-    </button>
+    </BaseButton>
     <ChatMarkdown v-if="isOpen" :text="text" class="text-base-content/50 mt-1 max-h-64 overflow-auto text-xs" />
   </div>
 </template>

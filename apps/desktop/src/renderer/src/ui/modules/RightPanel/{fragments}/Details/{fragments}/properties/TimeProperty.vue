@@ -4,10 +4,10 @@ import {computed, ref} from "vue"
 import {toDurationLabel} from "@daily/std"
 
 import {useTaskEditorStore} from "@/stores/task-editor"
+import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
 import BasePopup from "@/ui/base/BasePopup.vue"
 import EstimationPicker from "@/ui/common/pickers/EstimationPicker"
-import {cn} from "@/utils/ui/tailwindcss"
 import PropertyCell from "../PropertyCell.vue"
 
 import type {Task} from "@daily/protocol"
@@ -30,11 +30,8 @@ function patchTime(total: number) {
   taskEditorStore.patch({[activeField.value]: total})
 }
 
-function getTabClasses(isActive: boolean) {
-  return cn(
-    "flex h-8 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-full text-sm font-medium transition-colors",
-    isActive ? "bg-accent/15 text-accent" : "text-base-content/60 hover:bg-base-200 hover:text-base-content",
-  )
+function getTabVariant(isActive: boolean) {
+  return isActive ? "primary" : "ghost-muted"
 }
 </script>
 
@@ -51,15 +48,25 @@ function getTabClasses(isActive: boolean) {
     <template #default>
       <div class="flex w-64 flex-col gap-2" @click.stop>
         <div class="flex items-center gap-1">
-          <button type="button" :class="getTabClasses(activeField === 'estimatedTime')" @click="activeField = 'estimatedTime'">
-            <BaseIcon name="stopwatch" class="size-4" />
-            <span>Estimate</span>
-          </button>
+          <BaseButton
+            :variant="getTabVariant(activeField === 'estimatedTime')"
+            icon="stopwatch"
+            size="sm"
+            class="flex-1"
+            @click="activeField = 'estimatedTime'"
+          >
+            Estimate
+          </BaseButton>
 
-          <button type="button" :class="getTabClasses(activeField === 'spentTime')" @click="activeField = 'spentTime'">
-            <BaseIcon name="check-check" class="size-4" />
-            <span>Spent</span>
-          </button>
+          <BaseButton
+            :variant="getTabVariant(activeField === 'spentTime')"
+            icon="check-check"
+            size="sm"
+            class="flex-1"
+            @click="activeField = 'spentTime'"
+          >
+            Spent
+          </BaseButton>
         </div>
 
         <EstimationPicker :model-value="task[activeField]" @update:model-value="patchTime" />

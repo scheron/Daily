@@ -7,11 +7,11 @@ import {TASK_COLUMNS} from "@/constants/ui"
 import {useBranchesStore} from "@/stores/branches.store"
 import {useTaskEditorStore} from "@/stores/task-editor"
 import {useTasksStore} from "@/stores/tasks"
+import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
 import BasePopup from "@/ui/base/BasePopup.vue"
 import TaskLinkCombobox from "@/ui/common/comboboxes/TaskLinkCombobox.vue"
 import {useConfirmUnsavedModal} from "@/ui/overlays/ConfirmUnsavedModal"
-import {cn} from "@/utils/ui/tailwindcss"
 import ChipsCell from "../ChipsCell.vue"
 
 import type {IconName} from "@/ui/base/BaseIcon"
@@ -70,28 +70,21 @@ async function onOpen(taskId: Task["id"]) {
 function columnFor(status: TaskStatus) {
   return TASK_COLUMNS.find((column) => column.status === status)!
 }
-
-function getChipClasses(status: TaskStatus) {
-  return cn(
-    "focus-visible-accent flex h-6 shrink-0 cursor-pointer items-center gap-1.5 rounded-full pr-1.5 pl-2 text-xs transition-colors",
-    status === "backlog" && "bg-base-content/5 hover:bg-base-content/10",
-    status === "active" && "bg-error/10 hover:bg-error/20",
-    status === "done" && "bg-success/10 hover:bg-success/20",
-    status === "discarded" && "bg-warning/10 hover:bg-warning/20",
-  )
-}
-
-function getChipIconClasses(status: TaskStatus) {
-  return cn("size-3 shrink-0", columnFor(status).titleClass)
-}
 </script>
 
 <template>
   <BasePopup hide-header position="start" trigger-class="min-w-0" container-class="p-0 overflow-hidden max-h-none">
     <template #trigger="{toggle}">
       <ChipsCell :icon="cellIcon" :label="cellLabel" @open="toggle">
-        <button v-for="row in rows" :key="row.id" type="button" :class="getChipClasses(row.status)" @click="onOpen(row.id)">
-          <BaseIcon :name="columnFor(row.status).icon" :class="getChipIconClasses(row.status)" />
+        <BaseButton
+          v-for="row in rows"
+          :key="row.id"
+          :variant="columnFor(row.status).buttonVariant"
+          :icon="columnFor(row.status).icon"
+          size="xs"
+          class="shrink-0"
+          @click="onOpen(row.id)"
+        >
           <span class="font-mono">{{ toTaskIdHash(row.id) }}</span>
           <span
             class="text-base-content/40 hover:text-base-content hover:bg-base-content/10 inline-flex size-3.5 cursor-pointer items-center justify-center rounded-full"
@@ -103,7 +96,7 @@ function getChipIconClasses(status: TaskStatus) {
           >
             <BaseIcon name="x" class="size-3" />
           </span>
-        </button>
+        </BaseButton>
       </ChipsCell>
     </template>
 

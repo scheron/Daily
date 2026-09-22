@@ -67,7 +67,7 @@ async function onDelete() {
       @confirm="onDelete"
     >
       <template #trigger="{show}">
-        <BaseButton variant="ghost" icon="trash" icon-class="size-4.5" class="text-error hover:bg-error/10" @click="show" />
+        <BaseButton variant="error-ghost" icon="trash" size="sm" @click="show" />
       </template>
     </ConfirmPopup>
   </div>

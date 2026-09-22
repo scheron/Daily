@@ -105,14 +105,8 @@ onMounted(async () => {
       </span>
       <span v-else></span>
       <div v-if="aiStore.hasMessages" class="flex items-center justify-end gap-1 pr-3" style="-webkit-app-region: no-drag">
-        <BaseButton
-          variant="ghost"
-          :icon="isConversationCopied ? 'check' : 'copy'"
-          icon-class="size-4"
-          tooltip="Copy conversation"
-          @click="copyConversation"
-        />
-        <BaseButton variant="ghost" icon="trash" icon-class="size-4" tooltip="Clear chat" @click="aiStore.clearHistory" />
+        <BaseButton variant="ghost" :icon="isConversationCopied ? 'check' : 'copy'" size="sm" tooltip="Copy conversation" @click="copyConversation" />
+        <BaseButton variant="ghost" icon="trash" size="sm" tooltip="Clear chat" @click="aiStore.clearHistory" />
       </div>
       <div v-else></div>
     </header>
@@ -171,14 +165,7 @@ onMounted(async () => {
                 </div>
               </div>
 
-              <button
-                v-if="isAwayFromBottom"
-                type="button"
-                class="bg-base-200 border-base-300 text-base-content/70 hover:text-base-content absolute right-4 bottom-3 flex size-8 items-center justify-center rounded-full border shadow-sm transition-colors"
-                @click="scrollToBottom"
-              >
-                <BaseIcon name="chevron-down" class="size-4" />
-              </button>
+              <BaseButton v-if="isAwayFromBottom" variant="floating" icon="chevron-down" class="absolute right-4 bottom-3" @click="scrollToBottom" />
             </div>
 
             <ChatForm

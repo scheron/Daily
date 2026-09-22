@@ -47,13 +47,7 @@ async function copyImageToClipboard() {
     <div class="relative flex h-full w-full items-center justify-center p-3 md:p-4">
       <img v-if="src" ref="image" :src="src" :alt="alt || 'Image preview'" class="max-h-[80vh] max-w-full rounded-md object-contain" />
 
-      <BaseButton
-        variant="secondary"
-        :icon="isCopied ? 'check' : 'copy'"
-        icon-class="size-3.5"
-        class="absolute right-5 bottom-5"
-        @click="copyImageToClipboard"
-      >
+      <BaseButton variant="secondary" :icon="isCopied ? 'check' : 'copy'" class="absolute right-5 bottom-5" @click="copyImageToClipboard">
         {{ isCopied ? "Copied" : "Copy" }}
       </BaseButton>
     </div>

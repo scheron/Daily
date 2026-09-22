@@ -70,7 +70,7 @@ function getListClasses(isCollapsed: boolean) {
       </span>
       <BasePopup v-if="!autoCollapseEnabled" hide-header position="end" container-class="min-w-32 p-0">
         <template #trigger="{toggle}">
-          <BaseButton variant="ghost" icon="dots-horizontal" tooltip="Column menu" class="size-6 p-0" @click="toggle" />
+          <BaseButton variant="ghost" icon="dots-horizontal" size="xs" tooltip="Column menu" @click="toggle" />
         </template>
         <template #default="{hide}">
           <BaseMenu :items="menuItems" @select="onMenuSelect($event, hide)" />
@@ -81,14 +81,14 @@ function getListClasses(isCollapsed: boolean) {
     <div v-else class="absolute inset-x-0 top-11 z-10 flex h-9 items-center justify-between px-4">
       <div :class="getTitleClasses(column.titleClass)">
         <BaseIcon :name="column.icon" class="size-4" />
-        <span class="text-sm font-medium uppercase tracking-wide">{{ column.label }}</span>
+        <span class="text-sm font-medium tracking-wide uppercase">{{ column.label }}</span>
         <span :class="getCounterClasses(column.counterClass)">
           {{ tasksCount }}
         </span>
       </div>
       <BasePopup v-if="!autoCollapseEnabled" hide-header position="end" container-class="min-w-32 p-0">
         <template #trigger="{toggle}">
-          <BaseButton variant="ghost" icon="dots-horizontal" tooltip="Column menu" class="size-6 p-0" @click="toggle" />
+          <BaseButton variant="ghost" icon="dots-horizontal" size="xs" tooltip="Column menu" @click="toggle" />
         </template>
         <template #default="{hide}">
           <BaseMenu :items="menuItems" @select="onMenuSelect($event, hide)" />
@@ -112,9 +112,9 @@ function getListClasses(isCollapsed: boolean) {
 
     <template v-if="!collapsed">
       <div
-        class="from-base-100 via-base-100/60 h-23 bg-linear-to-b pointer-events-none absolute inset-x-0 top-0 z-[5] from-35% via-70% to-transparent"
+        class="from-base-100 via-base-100/60 pointer-events-none absolute inset-x-0 top-0 z-[5] h-23 bg-linear-to-b from-35% via-70% to-transparent"
       />
-      <div class="to-base-100/70 bg-linear-to-b pointer-events-none absolute inset-x-0 bottom-0 z-[5] h-12 from-transparent" />
+      <div class="to-base-100/70 pointer-events-none absolute inset-x-0 bottom-0 z-[5] h-12 bg-linear-to-b from-transparent" />
     </template>
   </div>
 </template>

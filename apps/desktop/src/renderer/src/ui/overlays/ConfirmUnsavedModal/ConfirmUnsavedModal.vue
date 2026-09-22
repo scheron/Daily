@@ -21,9 +21,9 @@ defineEmits<{
     <p class="text-base-content/70 mt-1 text-sm">You can save, discard, or keep editing.</p>
 
     <div class="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-      <BaseButton variant="ghost" class="h-8 px-3 text-sm" @click="$emit('cancel')">Keep Editing</BaseButton>
-      <BaseButton variant="ghost" class="text-error hover:bg-error/10 h-8 px-3 text-sm sm:-order-1" @click="$emit('discard')">Discard</BaseButton>
-      <BaseButton variant="primary" class="h-8 px-3 text-sm" @click="$emit('save')">Save Changes</BaseButton>
+      <BaseButton variant="ghost" size="sm" @click="$emit('cancel')">Keep Editing</BaseButton>
+      <BaseButton variant="error-ghost" size="sm" class="sm:-order-1" @click="$emit('discard')">Discard</BaseButton>
+      <BaseButton variant="primary" size="sm" @click="$emit('save')">Save Changes</BaseButton>
     </div>
   </BaseModal>
 </template>

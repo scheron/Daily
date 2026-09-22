@@ -22,13 +22,7 @@ const emit = defineEmits<{
       </p>
 
       <div class="flex w-full flex-wrap justify-center gap-1">
-        <BaseButton
-          v-for="model in remoteModels"
-          :key="model"
-          class="border-info text-info text-xs"
-          variant="outline"
-          @click="emit('select-remote-model', model)"
-        >
+        <BaseButton v-for="model in remoteModels" :key="model" variant="info-outline" size="xs" @click="emit('select-remote-model', model)">
           {{ model }}
         </BaseButton>
       </div>

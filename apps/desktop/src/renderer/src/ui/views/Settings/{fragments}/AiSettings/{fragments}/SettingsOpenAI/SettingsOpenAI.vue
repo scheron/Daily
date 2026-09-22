@@ -3,7 +3,6 @@ import {computed, onBeforeMount, reactive, ref} from "vue"
 
 import {useAiStore} from "@/stores/ai"
 import BaseButton from "@/ui/base/BaseButton"
-import BaseIcon from "@/ui/base/BaseIcon"
 import BaseInput from "@/ui/base/BaseInput.vue"
 import BaseSegmented from "@/ui/base/BaseSegmented.vue"
 import SettingRow from "@/ui/views/Settings/{fragments}/SettingRow.vue"
@@ -59,9 +58,13 @@ onBeforeMount(() => {
 
     <SettingRow title="API Key" description="Stored on this device; included in iCloud sync when sync is on.">
       <div class="flex items-center gap-1">
-        <BaseButton variant="ghost" class="shrink-0 p-1" @click="isApiKeyVisible = !isApiKeyVisible">
-          <BaseIcon :name="isApiKeyVisible ? 'eye-off' : 'eye'" class="size-4" />
-        </BaseButton>
+        <BaseButton
+          variant="ghost"
+          :icon="isApiKeyVisible ? 'eye-off' : 'eye'"
+          size="sm"
+          class="shrink-0"
+          @click="isApiKeyVisible = !isApiKeyVisible"
+        />
         <div class="w-52 flex-1">
           <BaseInput v-model="aiConfig.apiKey" :type="isApiKeyVisible ? 'text' : 'password'" placeholder="sk-..." class="flex-1 text-xs" />
         </div>
@@ -76,7 +79,8 @@ onBeforeMount(() => {
       v-if="!aiStore.isConnected || isConfigChanged"
       :loading="aiStore.isConnectionLoading"
       variant="primary"
-      class="mt-3 w-full py-1"
+      size="sm"
+      class="mt-3 w-full"
       @click="onConnect"
     >
       Connect

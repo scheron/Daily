@@ -19,9 +19,8 @@ function getAccentSwatchClasses(isActive: boolean) {
       v-for="preset in ACCENT_PRESETS"
       :key="preset.id"
       type="button"
-      variant="ghost"
+      variant="swatch"
       :tooltip="preset.name"
-      class="focus-visible-accent group relative size-6 rounded-md p-0 transition-transform duration-200 hover:scale-110"
       @click="themeStore.setAccent(preset.id)"
     >
       <span :class="getAccentSwatchClasses(preset.id === themeStore.accentId)" :style="{backgroundColor: preset.value}" />

@@ -68,10 +68,9 @@ function getStatusIconClasses(isBusy: boolean) {
 
             <BaseButton
               v-if="!updateStore.isBusy"
-              variant="ghost"
+              variant="ghost-muted"
               icon="x-mark"
-              class="text-base-content/60 hover:text-base-content p-0"
-              icon-class="size-4"
+              size="xs"
               tooltip="Dismiss"
               @click="updateStore.dismissPanel()"
             />
@@ -90,7 +89,7 @@ function getStatusIconClasses(isBusy: boolean) {
         </div>
 
         <div v-if="!updateStore.isBusy" class="flex items-center justify-end gap-3">
-          <BaseButton variant="secondary" class="min-w-28 py-0 text-sm" @click="handlePrimaryAction">
+          <BaseButton variant="secondary" size="sm" class="min-w-28" @click="handlePrimaryAction">
             {{ buttonLabel }}
           </BaseButton>
         </div>

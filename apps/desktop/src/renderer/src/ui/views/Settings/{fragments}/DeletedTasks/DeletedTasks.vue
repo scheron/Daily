@@ -60,14 +60,7 @@ async function onDeleteAll() {
         @confirm="onDeleteAll"
       >
         <template #trigger="{show}">
-          <BaseButton
-            variant="ghost"
-            icon="trash"
-            class="text-error hover:bg-error/10 w-full"
-            :loading="isDeletingAll"
-            :disabled="isDeletingAll"
-            @click="show()"
-          >
+          <BaseButton variant="error-ghost" icon="trash" class="w-full" :loading="isDeletingAll" :disabled="isDeletingAll" @click="show()">
             Delete All
           </BaseButton>
         </template>

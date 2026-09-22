@@ -48,11 +48,8 @@ function onSelectTag(id: Tag["id"]) {
   emit("select", id)
 }
 
-function getMoreButtonClasses(hasSelected: boolean) {
-  return cn(
-    "h-7 shrink-0 flex-row-reverse rounded-full px-3 py-1.5",
-    hasSelected ? "bg-accent/20 border-accent text-accent" : "opacity-70 hover:opacity-90",
-  )
+function getMoreButtonVariant(hasSelected: boolean) {
+  return hasSelected ? "primary" : "text"
 }
 
 function getRowClasses() {
@@ -140,15 +137,15 @@ watch(() => props.tags, calculateVisibleTags, {deep: true})
         <BasePopup v-if="hiddenTags.length" hide-header :hover-mode="popupHoverMode" container-class="min-w-44 p-1" content-class="gap-1.5">
           <template #trigger="{toggle, show}">
             <BaseButton
-              variant="text"
-              :class="getMoreButtonClasses(hasSelectedInPopup)"
+              :variant="getMoreButtonVariant(hasSelectedInPopup)"
+              size="sm"
               icon="tags"
-              icon-class="size-4"
+              class="shrink-0 flex-row-reverse"
               style="-webkit-app-region: no-drag"
               @mouseenter="popupHoverMode ? show() : undefined"
               @click.stop="popupHoverMode ? show() : toggle()"
             >
-              <span class="text-sm font-medium">+{{ hiddenTags.length }}</span>
+              <span class="font-medium">+{{ hiddenTags.length }}</span>
             </BaseButton>
           </template>
 

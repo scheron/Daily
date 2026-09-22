@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {cn} from "@/utils/ui/tailwindcss"
+import BaseButton from "@/ui/base/BaseButton"
 
 defineProps<{
   label: string
@@ -8,17 +8,14 @@ defineProps<{
 
 const emit = defineEmits<{click: []}>()
 
-function getCellClasses(isEmpty?: boolean) {
-  return cn(
-    "focus-visible-accent hover:bg-base-content/10 flex h-9 w-full min-w-0 cursor-pointer items-center gap-2 rounded-lg px-2 text-sm transition-colors",
-    isEmpty && "text-base-content/40",
-  )
+function getCellVariant(isEmpty?: boolean) {
+  return isEmpty ? "cell-muted" : "cell"
 }
 </script>
 
 <template>
-  <button type="button" :class="getCellClasses(isEmpty)" @click="emit('click')">
+  <BaseButton :variant="getCellVariant(isEmpty)" class="w-full min-w-0" @click="emit('click')">
     <slot name="icon" />
     <span class="min-w-0 flex-1 truncate text-left leading-none">{{ label }}</span>
-  </button>
+  </BaseButton>
 </template>

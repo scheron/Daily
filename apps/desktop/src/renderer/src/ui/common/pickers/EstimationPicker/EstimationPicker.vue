@@ -47,24 +47,12 @@ watch(totalSeconds, (value) => {
 <template>
   <div class="flex w-64 flex-col gap-2" @click.stop>
     <div class="grid grid-cols-4 gap-1">
-      <BaseButton
-        v-for="preset in presets"
-        :key="`add-${preset.minutes}`"
-        variant="ghost"
-        class="bg-success/5 hover:bg-success/10 text-success border-success/20 justify-center rounded-md border px-1 py-1 font-mono text-xs"
-        @click="addTime(preset.minutes)"
-      >
-        +{{ preset.label }}
+      <BaseButton v-for="preset in presets" :key="`add-${preset.minutes}`" variant="success-soft" size="xs" @click="addTime(preset.minutes)">
+        <span class="font-mono">+{{ preset.label }}</span>
       </BaseButton>
 
-      <BaseButton
-        v-for="preset in presets"
-        :key="`sub-${preset.minutes}`"
-        variant="ghost"
-        class="bg-error/5 hover:bg-error/10 text-error border-error/20 justify-center rounded-md border px-1 py-1 font-mono text-xs"
-        @click="subtractTime(preset.minutes)"
-      >
-        −{{ preset.label }}
+      <BaseButton v-for="preset in presets" :key="`sub-${preset.minutes}`" variant="error-soft" size="xs" @click="subtractTime(preset.minutes)">
+        <span class="font-mono">−{{ preset.label }}</span>
       </BaseButton>
     </div>
 

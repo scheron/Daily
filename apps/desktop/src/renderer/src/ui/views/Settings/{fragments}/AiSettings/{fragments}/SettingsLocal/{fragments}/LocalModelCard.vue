@@ -49,9 +49,7 @@ function onDownload() {
 
         <div class="flex items-center gap-1">
           <template v-if="model.orphaned">
-            <BaseButton variant="ghost" class="size-7 p-0" tooltip="Delete (no longer in catalog)" @click="emit('delete')">
-              <BaseIcon name="trash" class="size-4" />
-            </BaseButton>
+            <BaseButton variant="ghost" icon="trash" size="sm" tooltip="Delete (no longer in catalog)" @click="emit('delete')" />
           </template>
 
           <template v-else-if="isPending && !isDownloading">
@@ -61,37 +59,25 @@ function onDownload() {
           </template>
 
           <template v-else-if="!model.installed && model.partialBytes && model.partialBytes > 0 && !isDownloading">
-            <BaseButton variant="secondary" tooltip="Continue download" class="h-7 px-2 py-0" @click="onDownload"> Continue </BaseButton>
-            <BaseButton variant="ghost" class="size-7 p-0" tooltip="Delete partial download" @click="emit('delete')">
-              <BaseIcon name="trash" class="size-4" />
-            </BaseButton>
+            <BaseButton variant="secondary" size="sm" tooltip="Continue download" @click="onDownload">Continue</BaseButton>
+            <BaseButton variant="ghost" icon="trash" size="sm" tooltip="Delete partial download" @click="emit('delete')" />
           </template>
 
           <template v-else-if="!model.installed && !isDownloading">
-            <BaseButton variant="secondary" icon="plus" tooltip="Download" class="size-7 p-0" @click="onDownload" />
+            <BaseButton variant="secondary" icon="plus" size="sm" tooltip="Download" @click="onDownload" />
           </template>
 
           <template v-else-if="isDownloading">
-            <BaseButton
-              variant="ghost"
-              icon="x-mark"
-              tooltip="Cancel"
-              class="text-warning hover:text-warning size-7 p-0"
-              @click="emit('cancelDownload')"
-            />
+            <BaseButton variant="warning-ghost" icon="x-mark" size="sm" tooltip="Cancel" @click="emit('cancelDownload')" />
           </template>
 
           <template v-else-if="model.installed && !isActive">
-            <BaseButton variant="secondary" icon="check" tooltip="Select" class="size-7 p-0" @click="emit('select')" />
-            <BaseButton variant="ghost" class="size-7 p-0" tooltip="Delete" @click="emit('delete')">
-              <BaseIcon name="trash" class="size-4" />
-            </BaseButton>
+            <BaseButton variant="secondary" icon="check" size="sm" tooltip="Select" @click="emit('select')" />
+            <BaseButton variant="ghost" icon="trash" size="sm" tooltip="Delete" @click="emit('delete')" />
           </template>
 
           <template v-else-if="model.installed && isActive">
-            <BaseButton variant="ghost" class="size-7 p-0" tooltip="Delete" @click="emit('delete')">
-              <BaseIcon name="trash" class="size-4" />
-            </BaseButton>
+            <BaseButton variant="ghost" icon="trash" size="sm" tooltip="Delete" @click="emit('delete')" />
           </template>
         </div>
       </div>

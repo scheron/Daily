@@ -71,42 +71,28 @@ function getRemoteGroupLabelClasses(hasLocalModels: boolean) {
       <div class="flex w-full items-center justify-between gap-2 p-2">
         <BasePopup ref="popup" position="start" hide-header container-class="min-w-48">
           <template #trigger="{toggle}">
-            <button
-              class="text-base-content/80 bg-base-300 hover:bg-base-300/80 flex cursor-pointer items-center gap-1 rounded-full px-2 py-1 text-xs transition-colors"
-              @click="toggle"
-            >
-              <BaseIcon name="ai" class="size-4" />
+            <BaseButton variant="tertiary" icon="ai" size="xs" @click="toggle">
               {{ activeModel || "-" }}
               <BaseIcon name="chevron-down" class="size-3 opacity-60" />
-            </button>
+            </BaseButton>
           </template>
 
           <template #default="{hide}">
             <div class="flex flex-col gap-1">
               <template v-if="localModels.length > 0">
                 <span class="text-base-content/50 px-2 pt-1 text-[10px] font-semibold uppercase">Local</span>
-                <button
-                  v-for="m in localModels"
-                  :key="m.id"
-                  class="hover:bg-base-200 flex items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors"
-                  @click="handleSelectModel('local', m.id)"
-                >
+                <BaseButton v-for="m in localModels" :key="m.id" variant="cell" size="sm" @click="handleSelectModel('local', m.id)">
                   <span :class="getModelDotClasses(activeProvider === 'local' && activeModel === m.id)" />
                   <span :class="getModelLabelClasses(activeProvider === 'local' && activeModel === m.id)">{{ m.title }}</span>
-                </button>
+                </BaseButton>
               </template>
 
               <template v-if="remoteModels.length > 0">
                 <span :class="getRemoteGroupLabelClasses(localModels.length > 0)">Remote</span>
-                <button
-                  v-for="m in remoteModels"
-                  :key="m"
-                  class="hover:bg-base-200 flex items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors"
-                  @click="handleSelectModel('openai', m)"
-                >
+                <BaseButton v-for="m in remoteModels" :key="m" variant="cell" size="sm" @click="handleSelectModel('openai', m)">
                   <span :class="getModelDotClasses(activeProvider === 'openai' && activeModel === m)" />
                   <span :class="getModelLabelClasses(activeProvider === 'openai' && activeModel === m)">{{ m }}</span>
-                </button>
+                </BaseButton>
               </template>
             </div>
           </template>
@@ -114,13 +100,7 @@ function getRemoteGroupLabelClasses(hasLocalModels: boolean) {
 
         <div class="flex items-center gap-2">
           <ContextRing />
-          <BaseButton
-            variant="secondary"
-            :icon="loading ? 'stop' : 'arrow-up'"
-            class="bg-base-content/80 text-base-100 hover:bg-base-content/90 hover:text-base-100 flex aspect-square items-center justify-center rounded-full p-1"
-            icon-class="size-4"
-            @click="loading ? cancelRequest() : sendRequest()"
-          />
+          <BaseButton variant="inverted" :icon="loading ? 'stop' : 'arrow-up'" size="sm" @click="loading ? cancelRequest() : sendRequest()" />
         </div>
       </div>
     </div>

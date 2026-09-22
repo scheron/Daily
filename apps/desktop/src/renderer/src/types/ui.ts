@@ -1,3 +1,4 @@
+import type {ButtonColorVariant} from "@/ui/base/BaseButton"
 import type {IconName} from "@/ui/base/BaseIcon"
 import type {TaskStatus} from "@daily/protocol"
 
@@ -8,4 +9,5 @@ export type TaskColumn = {
   icon: IconName
   titleClass: string
   counterClass: string
+  buttonVariant: ButtonColorVariant
 }

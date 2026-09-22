@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import BaseIcon from "@/ui/base/BaseIcon"
 import {cn} from "@/utils/ui/tailwindcss"
-import {buttonColorVariant} from "./variants"
+import {buttonColorVariant, buttonIconSizeVariant, buttonSizeVariant, iconButtonSizeVariant} from "./variants"
 
 import type {TooltipPlacement} from "@/directives/vTooltip"
 import type {IconName} from "@/ui/base/BaseIcon"
@@ -16,18 +16,20 @@ const props = defineProps<{
   loading?: boolean
   tooltip?: string
   tooltipPosition?: TooltipPlacement
-  iconClass?: HtmlHTMLAttributes["class"]
   class?: HtmlHTMLAttributes["class"]
 }>()
 
 const colorClass = buttonColorVariant(props)
+const sizeClass = buttonSizeVariant(props)
+const iconButtonSizeClass = iconButtonSizeVariant(props)
+const iconSizeClass = buttonIconSizeVariant(props)
 
 function getButtonClasses(hasContent: boolean) {
-  return cn(colorClass.value, hasContent ? "gap-1" : "p-1", props.class, props.disabled && "cursor-auto opacity-50")
+  return cn(hasContent ? sizeClass.value : iconButtonSizeClass.value, colorClass.value, props.class, props.disabled && "cursor-auto opacity-50")
 }
 
 function getIconClasses(isSpinning: boolean) {
-  return cn(isSpinning && "animate-spin", props.iconClass)
+  return cn(iconSizeClass.value, isSpinning && "animate-spin")
 }
 </script>
 

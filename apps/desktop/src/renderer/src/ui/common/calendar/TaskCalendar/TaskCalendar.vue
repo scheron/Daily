@@ -100,7 +100,7 @@ onBeforeMount(() => {
     <div class="mb-3 flex items-center justify-between gap-2">
       <div class="flex shrink-0 items-center">
         <BaseButton variant="ghost" icon="chevron-left" data-month-step="previous" @click="previousMonth" />
-        <BaseButton variant="ghost" tooltip="Jump to current month" class="text-sm" @click="jumpToCurrentMonth">
+        <BaseButton variant="ghost" tooltip="Jump to current month" @click="jumpToCurrentMonth">
           {{ monthYearDisplay }}
         </BaseButton>
         <BaseButton variant="ghost" icon="chevron-right" data-month-step="next" @click="nextMonth" />
@@ -123,7 +123,7 @@ onBeforeMount(() => {
     </div>
 
     <ul class="grid grid-cols-7 gap-1">
-      <li v-for="day in WEEKDAYS" :key="day" class="text-accent/70 w-full shrink-0 select-none py-2 text-center text-sm">{{ day }}</li>
+      <li v-for="day in WEEKDAYS" :key="day" class="text-accent/70 w-full shrink-0 py-2 text-center text-sm select-none">{{ day }}</li>
     </ul>
 
     <div class="border-accent/10 my-1 border-b" />

@@ -115,20 +115,17 @@ WRONG — class logic assembled in the template
   >
 ```
 
-The reference is `ui/modules/CalendarDock/CalendarDock.vue`:
+The reference is `ui/common/misc/MarkdownEditor/MarkdownEditor.vue`:
 
 ```vue
 <script setup lang="ts">
-function getTabClasses(isActive: boolean) {
-  return cn(
-    "flex h-8 flex-1 items-center justify-center gap-1.5 rounded-lg text-sm font-medium transition-colors",
-    isActive ? "bg-accent/15 text-accent" : "text-base-content/60 hover:bg-base-200 hover:text-base-content",
-  )
+function getContainerClasses(isDraggingOver: boolean) {
+  return cn("markdown-editor relative size-full", isDraggingOver && "ring-offset-base-100 ring-accent/50 rounded-md ring-2")
 }
 </script>
 
 <template>
-  <button v-for="item in tabs" :key="item.id" :data-tab="item.id" :class="getTabClasses(dockTab === item.id)" @click="selectTab(item.id)">
+  <div ref="container" :class="getContainerClasses(isDraggingOver)" @click="onContentClick">
 </template>
 ```
 
@@ -153,9 +150,10 @@ function getMilestoneClasses(id: Milestone["id"], isClosed: boolean) {
 
 - **`cn` from `@/utils/ui/tailwindcss`.** The base classes are its first argument — inside the function, not in a separate `class=""` on the element — so `tailwind-merge` resolves a state class against the base class it overrides.
 - **Arguments are the minimal state** the classes depend on — a boolean (`isActive`) or an id the function checks itself. Not the event, not the whole store.
-- **One function per styled part**, named after it: `getTabClasses`, `getMilestoneClasses`, `getDateClasses`. It is a method — its slot in `<script setup>` is §10 of **structuring-script-setup**.
+- **One function per styled part**, named after it: `getContainerClasses`, `getMilestoneClasses`, `getDateClasses`. It is a method — its slot in `<script setup>` is §10 of **structuring-script-setup**.
 - **No `ACTIVE_CLASS` / `INACTIVE_CLASS` constants** picked between in the template. The literals live in the function.
 - **Named variants of a reusable primitive** (`size`, `variant`, `color`) use `variants.ts` with `defineVariant` instead — `ui/base/BaseButton/variants.ts`.
+- **A button's look never goes in `:class`.** A `BaseButton` instance carries placement classes only; its colour and size are `variant` and `size`. When state picks the look, a `get<Part>Variant(...)` returns the variant name — `getTabVariant(dockTab === item.id)` in `ui/modules/CalendarDock/CalendarDock.vue`. A status-driven variant comes from data, like `TASK_COLUMNS[].buttonVariant`. Two exceptions: the day cell in `TaskCalendar`, whose four overlapping states stay in `getDateClasses`, and the segmented `StatusSelector`, whose equal-width segments carry no horizontal padding; like the primitives in `ui/base/`, it owns its `<button>`.
 - **An element with no state-dependent classes** keeps a plain `class=""`. A ready class string a composable computes binds as-is beside it — `class="…" :class="dockWidthClass"` on the dock root.
 - **A `defineVariant` result binds as-is** next to the static classes — `class="leading-none" :class="hashClass"` — because merging them in `cn` lets tailwind-merge drop a base class the variant does not replace.
 - **A class string from outside with nothing to merge binds as-is** — `:class="triggerClass"`. A `get<Part>Classes` that only returns `cn(props.triggerClass)` adds nothing.

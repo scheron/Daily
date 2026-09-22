@@ -43,18 +43,11 @@ function onCommand(command: (view: EditorView) => boolean) {
       :style="floatingStyles"
       class="bg-base-100 border-base-300 z-60 flex items-center gap-1 rounded-lg border px-2 py-1 shadow-lg"
     >
-      <BaseButton
-        icon="bold"
-        variant="ghost"
-        icon-class="size-4"
-        tooltip="Bold (Cmd+B)"
-        tooltip-position="top"
-        @click="onCommand(inlineCommands.toggleBold)"
-      />
+      <BaseButton icon="bold" variant="ghost" size="sm" tooltip="Bold (Cmd+B)" tooltip-position="top" @click="onCommand(inlineCommands.toggleBold)" />
       <BaseButton
         icon="italic"
         variant="ghost"
-        icon-class="size-4"
+        size="sm"
         tooltip="Italic (Cmd+I)"
         tooltip-position="top"
         @click="onCommand(inlineCommands.toggleItalic)"
@@ -62,7 +55,7 @@ function onCommand(command: (view: EditorView) => boolean) {
       <BaseButton
         icon="code"
         variant="ghost"
-        icon-class="size-4"
+        size="sm"
         tooltip="Inline Code (Cmd+`)"
         tooltip-position="top"
         @click="onCommand(inlineCommands.toggleCode)"
@@ -70,19 +63,19 @@ function onCommand(command: (view: EditorView) => boolean) {
       <BaseButton
         icon="strikethrough"
         variant="ghost"
-        icon-class="size-4"
+        size="sm"
         tooltip="Strikethrough"
         tooltip-position="top"
         @click="onCommand(inlineCommands.toggleStrikethrough)"
       />
-      <BaseButton icon="link" variant="ghost" icon-class="size-4" tooltip="Link" tooltip-position="top" @click="onCommand(linkCommands.insertLink)" />
+      <BaseButton icon="link" variant="ghost" size="sm" tooltip="Link" tooltip-position="top" @click="onCommand(linkCommands.insertLink)" />
 
       <div class="bg-base-content/20 mx-2 h-8 w-px" />
 
       <BaseButton
         icon="remove-formatting"
         variant="ghost"
-        icon-class="size-4"
+        size="sm"
         tooltip="Clear Formatting"
         tooltip-position="top"
         @click="onCommand(inlineCommands.clearFormatting)"

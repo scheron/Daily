@@ -88,7 +88,7 @@ async function createWithColor(color: TagPresetColor) {
       @backspace-empty="cancelCreate"
     >
       <template #prefix>
-        <BaseButton type="button" variant="ghost" icon="chevron-left" icon-class="size-4" class="size-7 shrink-0 p-0" @click="cancelCreate" />
+        <BaseButton type="button" variant="ghost" icon="chevron-left" size="sm" class="shrink-0" @click="cancelCreate" />
       </template>
 
       <template #item="{item}">

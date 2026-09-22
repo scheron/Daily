@@ -91,11 +91,11 @@ function getRootClasses(isUser: boolean) {
           <span class="text-base-content/30 text-[10px]">{{ formattedTime }}</span>
           <BaseButton
             v-if="hasFinalContent"
-            variant="text"
+            variant="faint"
             :icon="isMessageCopied ? 'check' : 'copy'"
-            icon-class="size-3"
+            size="xs"
             tooltip="Copy"
-            class="text-base-content/30 hover:text-base-content/60 p-0 opacity-0 transition group-hover:opacity-100"
+            class="opacity-0 transition group-hover:opacity-100"
             @click="copyMessage"
           />
         </div>
@@ -107,22 +107,8 @@ function getRootClasses(isUser: boolean) {
         <p class="text-sm break-words whitespace-pre-wrap select-text">{{ message.content }}</p>
       </div>
       <div class="mt-1 flex items-center justify-end gap-1.5">
-        <BaseButton
-          v-if="canRetry"
-          variant="text"
-          icon="refresh"
-          icon-class="size-3.5"
-          class="text-base-content/30 hover:text-base-content/60 cursor-pointer p-0 transition-colors"
-          @click="$emit('retry')"
-        />
-        <BaseButton
-          variant="text"
-          icon="copy"
-          icon-class="size-3"
-          tooltip="Copy"
-          class="text-base-content/30 hover:text-base-content/60 p-0 opacity-0 transition group-hover:opacity-100"
-          @click="copyMessage"
-        />
+        <BaseButton v-if="canRetry" variant="faint" icon="refresh" size="xs" @click="$emit('retry')" />
+        <BaseButton variant="faint" icon="copy" size="xs" tooltip="Copy" class="opacity-0 transition group-hover:opacity-100" @click="copyMessage" />
         <span class="text-base-content/30 text-[10px]">{{ formattedTime }}</span>
       </div>
     </div>

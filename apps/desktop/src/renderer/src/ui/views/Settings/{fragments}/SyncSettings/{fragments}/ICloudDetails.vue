@@ -43,15 +43,6 @@ async function onForceSync() {
       </span>
     </template>
 
-    <BaseButton
-      variant="ghost"
-      class="text-accent hover:bg-accent/10 -mr-1 text-xs"
-      icon-class="size-3.5"
-      icon="refresh"
-      :disabled="isSyncing"
-      @click="onForceSync"
-    >
-      Sync Now
-    </BaseButton>
+    <BaseButton variant="primary-ghost" size="xs" icon="refresh" class="-mr-1" :disabled="isSyncing" @click="onForceSync"> Sync Now </BaseButton>
   </SettingRow>
 </template>

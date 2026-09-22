@@ -5,10 +5,8 @@ import {sort} from "fast-sort"
 
 import {useAiStore} from "@/stores/ai"
 import BaseButton from "@/ui/base/BaseButton"
-import BaseIcon from "@/ui/base/BaseIcon"
 import BaseSegmented from "@/ui/base/BaseSegmented.vue"
 import SettingRow from "@/ui/views/Settings/{fragments}/SettingRow.vue"
-import {cn} from "@/utils/ui/tailwindcss"
 import {UNLOAD_MODEL_TIME} from "@shared/constants/ai"
 import LocalModelCard from "./{fragments}/LocalModelCard.vue"
 
@@ -50,10 +48,6 @@ async function onRefreshCatalog() {
   else toasts.error("Couldn't update the model list")
 }
 
-function getRefreshIconClasses(isRefreshing: boolean) {
-  return cn("size-4", isRefreshing && "animate-spin")
-}
-
 onMounted(() => {
   aiStore.loadLocalModels()
 })
@@ -64,13 +58,12 @@ onMounted(() => {
     <SettingRow title="Models">
       <BaseButton
         variant="ghost"
-        class="size-7"
+        icon="refresh"
+        size="sm"
         tooltip="Refresh model list from GitHub"
-        :disabled="aiStore.isRefreshingLocalCatalog"
+        :loading="aiStore.isRefreshingLocalCatalog"
         @click="onRefreshCatalog"
-      >
-        <BaseIcon name="refresh" :class="getRefreshIconClasses(aiStore.isRefreshingLocalCatalog)" />
-      </BaseButton>
+      />
 
       <template #below>
         <div class="grid grid-cols-2 gap-2 pt-1">

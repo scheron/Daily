@@ -32,11 +32,7 @@ function onSelect(value: BaseMenuItem["value"]) {
 <template>
   <BasePopup ref="popup" hide-header position="end" trigger-class="min-w-0">
     <template #trigger="{toggle}">
-      <BaseButton
-        variant="ghost"
-        class="border-base-300 hover:border-base-content/20 flex w-52 justify-between gap-2 rounded-lg border px-2 py-1.5"
-        @click="toggle"
-      >
+      <BaseButton variant="select" class="w-52" @click="toggle">
         <span class="truncate text-left text-sm">{{ modelValue || "Select model" }}</span>
         <BaseIcon name="chevron-up-down" class="text-base-content/40 size-3.5 shrink-0" />
       </BaseButton>

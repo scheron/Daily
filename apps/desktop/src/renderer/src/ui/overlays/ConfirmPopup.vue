@@ -53,16 +53,16 @@ function onConfirm() {
             <span v-if="message" class="text-base-content/70 text-xs whitespace-pre-line">{{ message }}</span>
           </div>
 
-          <BaseButton icon="x-mark" variant="text" icon-class="size-4" class="ml-auto size-5 p-0" @click="hide()" />
+          <BaseButton icon="x-mark" variant="text" size="xs" class="ml-auto" @click="hide()" />
         </div>
 
         <div class="flex items-center justify-end gap-2">
-          <BaseButton variant="text" class="py-0.5" @click="hide()">
+          <BaseButton variant="text" size="sm" @click="hide()">
             {{ cancelText }}
           </BaseButton>
 
           <div ref="deleteButton" class="rounded-full">
-            <BaseButton variant="ghost" class="text-error! hover:bg-error/10 flex size-full items-center justify-center py-0.5">
+            <BaseButton variant="error-ghost" size="sm">
               {{ confirmText }}
             </BaseButton>
           </div>

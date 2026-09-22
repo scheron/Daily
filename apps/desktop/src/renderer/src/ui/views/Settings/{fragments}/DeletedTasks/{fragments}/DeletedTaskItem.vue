@@ -38,7 +38,7 @@ async function onPermanentDelete(task: Task) {
 
         <div class="ml-auto flex shrink-0 items-center gap-2">
           <div class="flex gap-1">
-            <BaseButton variant="ghost" icon="undo" class="text-success hover:bg-success/10 size-7" @click="emit('restore', task)" />
+            <BaseButton variant="success-ghost" icon="undo" size="sm" @click="emit('restore', task)" />
 
             <ConfirmPopup
               title="Delete forever?"
@@ -49,7 +49,7 @@ async function onPermanentDelete(task: Task) {
               @confirm="onPermanentDelete(task)"
             >
               <template #trigger="{show}">
-                <BaseButton variant="ghost" icon="trash" class="text-error hover:bg-error/10 size-7" icon-class="size-4" @click="show()" />
+                <BaseButton variant="error-ghost" icon="trash" size="sm" @click="show()" />
               </template>
             </ConfirmPopup>
           </div>

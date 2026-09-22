@@ -84,9 +84,9 @@ function getMilestoneRowClasses(isClosed: boolean) {
   )
 }
 
-function getDateButtonClasses(isOverdue: boolean) {
+function getDateLabelClasses(isOverdue: boolean) {
   return cn(
-    "w-full justify-end truncate p-0 text-right text-xs whitespace-nowrap",
+    "min-w-0 truncate whitespace-nowrap",
     !props.milestone.targetDate && "text-base-content/35 italic",
     isOverdue && "text-error font-semibold",
   )
@@ -139,15 +139,15 @@ watch(
       <div class="text-base-content/55 ml-auto flex shrink-0 items-center text-xs">
         <BasePopup hide-header position="end" trigger-class="w-24 shrink-0" container-class="max-h-none">
           <template #trigger="{toggle}">
-            <BaseButton variant="text" :class="getDateButtonClasses(overdue)" @click.stop="toggle">
-              {{ dateLabel ?? "Set a date" }}
+            <BaseButton variant="text" size="xs" class="-mx-1.5 justify-end" @click.stop="toggle">
+              <span :class="getDateLabelClasses(overdue)">{{ dateLabel ?? "Set a date" }}</span>
             </BaseButton>
           </template>
 
           <template #default="{hide}">
             <div class="flex flex-col gap-1 p-1">
               <TaskCalendar :days="tasksStore.days" :selected-date="milestone.targetDate" @select-date="selectDate($event, hide)" />
-              <BaseButton v-if="milestone.targetDate" variant="ghost" class="justify-center" @click="clearDate(hide)">Clear date</BaseButton>
+              <BaseButton v-if="milestone.targetDate" variant="ghost" @click="clearDate(hide)">Clear date</BaseButton>
             </div>
           </template>
         </BasePopup>
@@ -158,7 +158,7 @@ watch(
         <div
           class="flex w-14 shrink-0 items-center justify-end gap-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
         >
-          <BaseButton icon="pencil" variant="ghost" icon-class="size-3.5" class="size-6 p-0" @click.stop="startEdit" />
+          <BaseButton icon="pencil" variant="ghost" size="xs" @click.stop="startEdit" />
 
           <ConfirmPopup
             title="Delete milestone?"
@@ -170,7 +170,7 @@ watch(
             @confirm="emit('delete')"
           >
             <template #trigger="{show}">
-              <BaseButton icon="trash" variant="ghost" icon-class="size-3.5" class="text-error hover:bg-error/10 size-6 p-0" @click.stop="show" />
+              <BaseButton icon="trash" variant="error-ghost" size="xs" @click.stop="show" />
             </template>
           </ConfirmPopup>
         </div>

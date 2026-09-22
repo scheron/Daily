@@ -121,14 +121,7 @@ watch(
         @keyup.enter="createMilestone"
       />
 
-      <BaseButton
-        variant="outline"
-        :disabled="!newMilestoneName.trim()"
-        class="shrink-0 rounded px-1.5 py-0 text-[11px] leading-5"
-        @click="createMilestone"
-      >
-        ↵
-      </BaseButton>
+      <BaseButton variant="outline" size="xs" :disabled="!newMilestoneName.trim()" class="shrink-0" @click="createMilestone"> ↵ </BaseButton>
     </div>
 
     <p v-if="!sortedMilestones.length" class="text-base-content/40 px-2 py-3 text-xs">No milestones yet</p>
