@@ -30,7 +30,7 @@ const isLoading = ref(false)
 const title = computed(() => {
   if (step.value === "connect") {
     return {
-      address: "Connect to Self-hosted Daily",
+      address: "Connect to a Daily Server",
       confirm: "Confirm connection",
       claim: "Enter the claim code",
       waiting: "Waiting for approval",

@@ -10,9 +10,9 @@ export function createSettingsWindow(section?: string): BrowserWindow {
   const settingsWindow = new BrowserWindow({
     title: "Settings",
     width: WINDOWS_CONFIG.settings.width,
+    minWidth: WINDOWS_CONFIG.settings.minWidth,
     height: WINDOWS_CONFIG.settings.height,
-    resizable: false,
-    maximizable: false,
+    minHeight: WINDOWS_CONFIG.settings.minHeight,
     fullscreenable: false,
     center: true,
     show: false,

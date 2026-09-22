@@ -5,6 +5,7 @@ import {cn} from "@/utils/ui/tailwindcss"
 
 const props = defineProps<{
   modelValue: boolean
+  disabled?: boolean
 }>()
 
 const emit = defineEmits<{"update:modelValue": [boolean]}>()
@@ -17,7 +18,15 @@ const trackStyle = computed(() => {
 })
 
 function toggle() {
+  if (props.disabled) return
   emit("update:modelValue", !props.modelValue)
+}
+
+function getRootClasses(isDisabled: boolean) {
+  return cn(
+    "focus-visible-accent inline-flex cursor-pointer items-center rounded-xl border border-transparent outline-none",
+    isDisabled && "cursor-default opacity-50",
+  )
 }
 
 function getThumbClasses(isOn: boolean) {
@@ -30,8 +39,8 @@ function getThumbClasses(isOn: boolean) {
 
 <template>
   <div
-    tabindex="0"
-    class="focus-visible-accent inline-flex cursor-pointer items-center rounded-xl border border-transparent outline-none"
+    :tabindex="disabled ? -1 : 0"
+    :class="getRootClasses(Boolean(disabled))"
     role="button"
     @click="toggle"
     @keydown.enter="toggle"

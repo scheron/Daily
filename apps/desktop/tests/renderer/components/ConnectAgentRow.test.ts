@@ -10,7 +10,7 @@ import {makeAgentWindow, makeBinding} from "../../helpers/syncServerFixtures"
 
 vi.mock("vue-toasts-lite", () => ({toasts: {success: vi.fn(), error: vi.fn()}}))
 
-describe("ConnectAgentRow — the waiting panel, copying and re-reading (TC-16 to TC-21)", () => {
+describe("ConnectAgentRow — the waiting panel, its per-agent accordion, copying and re-reading (TC-16 to TC-21)", () => {
   let wrapper = null
 
   beforeEach(() => {
@@ -43,7 +43,7 @@ describe("ConnectAgentRow — the waiting panel, copying and re-reading (TC-16 t
     })
 
     const {default: ConnectAgentRow} =
-      await import("../../../src/renderer/src/ui/views/Settings/{fragments}/SyncSettings/{fragments}/ServerDetails/{fragments}/ConnectAgentRow.vue")
+      await import("../../../src/renderer/src/ui/views/Settings/{fragments}/SyncSettings/{fragments}/ServerDetails/{fragments}/ConnectAgentRow")
 
     wrapper = mount(ConnectAgentRow)
     await vi.advanceTimersByTimeAsync(0)
@@ -54,7 +54,20 @@ describe("ConnectAgentRow — the waiting panel, copying and re-reading (TC-16 t
     return wrapper.findAll("button").find((button) => button.text().trim() === text)
   }
 
-  it("shows_TC-16_the_waiting_panels_strings_and_address_once_this_macs_window_is_already_open", async () => {
+  const AGENT_NAMES = ["Claude Code", "Claude", "ChatGPT", "Codex"]
+
+  function accordionHead(name) {
+    return wrapper.findAll("button").find((button) => button.text().trim().startsWith(name))
+  }
+
+  function accordionNames() {
+    return wrapper
+      .findAll("button")
+      .map((button) => AGENT_NAMES.find((name) => button.text().trim().startsWith(name)))
+      .filter(Boolean)
+  }
+
+  it("shows_TC-16_the_waiting_panel_one_row_per_agent_and_claude_codes_own_steps_with_the_address_already_in_them", async () => {
     const listAgentsMock = vi.fn().mockResolvedValue({
       agents: [],
       agentWindow: makeAgentWindow({
@@ -68,13 +81,39 @@ describe("ConnectAgentRow — the waiting panel, copying and re-reading (TC-16 t
 
     const text = wrapper.text()
     expect(text).toContain("Waiting for an agent to ask")
-    expect(text).toContain("In the agent, add this server, then sign in — the request shows up here.")
-    expect(text).toContain("http://127.0.0.1:8787/mcp")
+    expect(text).toContain("Open the agent you use and follow its steps — Daily asks to approve it, then it joins the table above.")
+    expect(accordionNames()).toEqual(["Claude Code", "Claude", "ChatGPT", "Codex"])
+    expect(text).toContain("claude mcp add --transport http daily http://127.0.0.1:8787/mcp")
+    expect(text).toContain("/mcp")
+    expect(text).toContain("Pick daily, then Authenticate")
+    expect(text).not.toContain("<address>")
     expect(text).toContain("Copy")
-    expect(text).toContain("Claude Code: claude mcp add --transport http daily <address>, then /mcp → Authenticate")
-    expect(text).toContain("Claude app: Settings → Connectors → Add custom connector")
     expect(text).toContain("5:00 left")
     expect(text).toContain("Cancel")
+  })
+
+  it("opens_TC-16b_one_agents_steps_at_a_time_and_closes_the_open_one_when_its_own_row_is_pressed_again", async () => {
+    const listAgentsMock = vi.fn().mockResolvedValue({
+      agents: [],
+      agentWindow: makeAgentWindow({agentAddress: "http://127.0.0.1:8787/mcp", isThisMac: true}),
+    })
+
+    await setup({"sync-server:list-agents": listAgentsMock})
+
+    expect(wrapper.text()).toContain("claude mcp add --transport http daily http://127.0.0.1:8787/mcp")
+
+    await accordionHead("Codex").trigger("click")
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.text()).not.toContain("claude mcp add --transport http daily http://127.0.0.1:8787/mcp")
+    expect(wrapper.text()).toContain("codex mcp add daily --url http://127.0.0.1:8787/mcp")
+    expect(wrapper.text()).toContain("codex mcp login daily")
+
+    await accordionHead("Codex").trigger("click")
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.text()).not.toContain("codex mcp add daily --url http://127.0.0.1:8787/mcp")
+    expect(accordionNames()).toEqual(["Claude Code", "Claude", "ChatGPT", "Codex"])
   })
 
   it("renders_TC-17_no_panel_at_all_while_another_macs_window_is_open_and_makes_no_re-read", async () => {
@@ -89,7 +128,7 @@ describe("ConnectAgentRow — the waiting panel, copying and re-reading (TC-16 t
     expect(listAgentsMock.mock.calls.length).toBe(callsAfterMount)
   })
 
-  it("copies_TC-18_the_address_toasts_and_shows_a_check_for_1500ms", async () => {
+  it("copies_TC-18_a_steps_own_line_toasts_and_shows_a_check_for_1500ms", async () => {
     Object.defineProperty(navigator, "clipboard", {value: undefined, configurable: true})
 
     let captured = null
@@ -109,14 +148,14 @@ describe("ConnectAgentRow — the waiting panel, copying and re-reading (TC-16 t
 
     await setup({"sync-server:list-agents": listAgentsMock})
 
-    const findCopyButton = () => wrapper.findAll("button").find((button) => button.text().includes("Copy"))
+    const findCopyButton = () => wrapper.findAll("button").find((button) => ["Copy", "Copied"].includes(button.text().trim()))
 
     await findCopyButton().trigger("click")
     await vi.advanceTimersByTimeAsync(0)
     await wrapper.vm.$nextTick()
 
-    expect(captured).toBe("http://127.0.0.1:8787/mcp")
-    expect(toasts.success).toHaveBeenCalledWith("Address copied")
+    expect(captured).toBe("claude mcp add --transport http daily http://127.0.0.1:8787/mcp")
+    expect(toasts.success).not.toHaveBeenCalled()
     expect(findCopyButton().find("use").attributes("href")).toBe("#check")
 
     await vi.advanceTimersByTimeAsync(1_500)

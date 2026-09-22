@@ -24,11 +24,11 @@ async function onCancel() {
 </script>
 
 <template>
-  <div v-if="isWaiting" class="border-base-300 bg-base-200 -mx-6 flex items-center justify-between gap-6 border-t border-b px-6 py-[13px]">
+  <div v-if="isWaiting" class="border-base-300 bg-base-200 -mx-6 mt-6 flex items-center justify-between gap-6 border-b border-t px-6 py-[13px]">
     <div class="flex min-w-0 flex-col gap-0.5">
       <p class="text-base-content text-sm font-medium">Waiting for the other Mac to ask</p>
       <p class="text-base-content/60 text-xs">
-        On that Mac: <span class="text-base-content/85 font-medium">Settings → Sync → Self-hosted</span>, then this server's address.
+        On that Mac: <span class="text-base-content/85 font-medium">Settings → Sync → Connect</span>, then this server's address.
       </p>
     </div>
     <div class="flex shrink-0 items-center gap-2.5">

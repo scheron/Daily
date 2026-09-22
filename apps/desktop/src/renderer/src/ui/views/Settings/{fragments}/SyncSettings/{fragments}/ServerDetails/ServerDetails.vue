@@ -1,27 +1,16 @@
 <script setup lang="ts">
-import {computed, onMounted, ref, watch} from "vue"
-import {storeToRefs} from "pinia"
+import {computed} from "vue"
 
-import {useStorageStore} from "@/stores/storage.store"
 import {useSyncServerStore} from "@/stores/syncServer.store"
-import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
-import SettingRow from "@/ui/views/Settings/{fragments}/SettingRow.vue"
-import {cn} from "@/utils/ui/tailwindcss"
-import ConnectedDetails from "./{fragments}/ConnectedDetails.vue"
+import AddDeviceRow from "./{fragments}/AddDeviceRow.vue"
+import ConnectAgentRow from "./{fragments}/ConnectAgentRow"
 import DeviceTable from "./{fragments}/DeviceTable.vue"
 import ServerActions from "./{fragments}/ServerActions.vue"
+import ServerHero from "./{fragments}/ServerHero.vue"
 import ThisMacTable from "./{fragments}/ThisMacTable.vue"
 
-import type {SyncStatus} from "@daily/protocol"
-
-const storageStore = useStorageStore()
 const syncServerStore = useSyncServerStore()
-
-const {status} = storeToRefs(storageStore)
-
-const isDisconnecting = ref(false)
-const remoteError = ref<string | null>(null)
 
 const binding = computed(() => syncServerStore.binding)
 
@@ -30,104 +19,31 @@ const isAddDeviceShown = computed(() => binding.value?.role === "parent")
 const isConnectAgentShown = computed(() => binding.value?.acceptsAgents === true && !syncServerStore.isRevoked)
 
 const isDomainLineShown = computed(() => binding.value?.acceptsAgents === false && !syncServerStore.isRevoked)
-
-const mismatchMessage = computed(() => {
-  const mismatch = syncServerStore.mismatch
-  if (!mismatch) return null
-
-  if (mismatch.serverProtocol < mismatch.appProtocol) {
-    return `This Mac speaks sync protocol ${mismatch.appProtocol}, but the server still speaks protocol ${mismatch.serverProtocol}. Run "daily-server upgrade" on the server to bring it up to date — edits made here stay on this Mac and go up once the two sides agree.`
-  }
-
-  return `The server has moved to sync protocol ${mismatch.serverProtocol}, but this Mac still speaks protocol ${mismatch.appProtocol}. Update Daily on this Mac to sync again — edits made here stay on this Mac and go up once the two sides agree.`
-})
-
-function getDotClasses(isRevoked: boolean, status: SyncStatus) {
-  const color =
-    isRevoked || status === "error" ? "bg-error" : status === "syncing" ? "bg-accent" : status === "active" ? "bg-success" : "bg-base-content/30"
-  return cn("size-2 rounded-full", color)
-}
-
-async function loadRemoteError() {
-  const states = await window.BridgeIPC["storage-sync:get-remote-states"]()
-  remoteError.value = states.find((state) => state.id === "daily-server")?.lastError ?? null
-}
-
-async function onDisconnect() {
-  isDisconnecting.value = true
-  try {
-    await syncServerStore.disconnect()
-  } finally {
-    isDisconnecting.value = false
-  }
-}
-
-watch(status, (value) => {
-  if (value === "error") loadRemoteError()
-})
-
-onMounted(() => {
-  if (status.value === "error") loadRemoteError()
-})
 </script>
 
 <template>
-  <SettingRow v-if="binding">
-    <template #title>
-      <div class="flex items-center gap-2">
-        <p class="text-base-content text-sm">{{ binding.serverName }}</p>
-        <span class="flex size-4 shrink-0 items-center justify-center">
-          <BaseIcon v-if="status === 'syncing'" name="spinner" class="text-accent size-3.5 animate-spin" />
-          <span v-else :class="getDotClasses(syncServerStore.isRevoked, status)" />
-        </span>
-      </div>
-    </template>
-    <template #description>
-      <p class="text-base-content/60 text-xs">{{ binding.baseUrl }}</p>
-    </template>
-
-    <BaseButton variant="error-ghost" :loading="isDisconnecting" @click="onDisconnect">Disconnect</BaseButton>
-
-    <template #below>
-      <div class="flex flex-col gap-1.5">
-        <div v-if="binding.insecure" class="text-warning bg-warning/10 flex items-center gap-1.5 rounded-md px-2 py-1 text-xs">
-          <BaseIcon name="alert-triangle" class="size-3.5 shrink-0" />
-          Insecure connection — traffic is not encrypted
-        </div>
-
-        <div v-if="mismatchMessage" class="text-warning bg-warning/10 flex items-center gap-1.5 rounded-md px-2 py-1 text-xs">
-          <BaseIcon name="alert-triangle" class="size-3.5 shrink-0" />
-          {{ mismatchMessage }}
-        </div>
-
-        <div v-if="syncServerStore.isRevoked" class="text-error bg-error/10 flex items-center gap-1.5 rounded-md px-2 py-1 text-xs">
-          <BaseIcon name="alert-circle" class="size-3.5 shrink-0" />
-          This Mac's access to the server was revoked. Disconnect and reconnect to sync again.
-        </div>
-
-        <div v-else-if="status === 'error' && remoteError" class="text-error bg-error/10 flex items-center gap-1.5 rounded-md px-2 py-1 text-xs">
-          <BaseIcon name="alert-circle" class="size-3.5 shrink-0" />
-          {{ remoteError }}
-        </div>
-      </div>
-    </template>
-  </SettingRow>
-
   <template v-if="binding">
-    <template v-if="binding.role === 'parent'">
-      <DeviceTable :devices="syncServerStore.membership?.devices ?? []" :agents="syncServerStore.agents" />
-    </template>
-    <template v-else-if="binding.role === 'child'">
-      <ConnectedDetails :binding="binding" />
-      <ThisMacTable :binding="binding" :agents="syncServerStore.agents" />
-    </template>
-    <p v-else class="text-base-content/50 py-2 text-xs">Checking this Mac's role…</p>
+    <ServerHero :binding="binding">
+      <template #actions>
+        <ServerActions v-if="binding.role" :is-add-device-shown="isAddDeviceShown" :is-connect-agent-shown="isConnectAgentShown" />
+      </template>
+    </ServerHero>
 
-    <ServerActions
-      v-if="binding.role"
-      :is-add-device-shown="isAddDeviceShown"
-      :is-connect-agent-shown="isConnectAgentShown"
-      :is-domain-line-shown="isDomainLineShown"
-    />
+    <template v-if="binding.role">
+      <div class="mt-6 flex flex-col gap-2">
+        <p v-if="isDomainLineShown" class="text-base-content/55 flex items-center gap-1.5 text-[13px]">
+          <BaseIcon name="info" class="size-3.5 shrink-0" />
+          Agents need this server on a domain with a trusted certificate.
+        </p>
+
+        <DeviceTable v-if="binding.role === 'parent'" :devices="syncServerStore.membership?.devices ?? []" :agents="syncServerStore.agents" />
+        <ThisMacTable v-else :binding="binding" :agents="syncServerStore.agents" />
+      </div>
+
+      <AddDeviceRow v-if="isAddDeviceShown" />
+      <ConnectAgentRow v-if="isConnectAgentShown" />
+    </template>
+
+    <p v-else class="text-base-content/50 py-2 text-xs">Checking this Mac's role…</p>
   </template>
 </template>

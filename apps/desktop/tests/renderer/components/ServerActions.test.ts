@@ -7,7 +7,7 @@ import {mount} from "@vue/test-utils"
 import {mockBridgeIPC} from "../../helpers/bridgeIPC"
 import {makeAgentWindow, makeBinding} from "../../helpers/syncServerFixtures"
 
-describe("ServerActions — the row of equal actions, its panels and their disabled state (TC-48, TC-16, TC-22)", () => {
+describe("ServerActions — the pair of equal actions beside Disconnect and their disabled state (TC-48, TC-22)", () => {
   let wrapper = null
 
   beforeEach(() => {
@@ -55,16 +55,19 @@ describe("ServerActions — the row of equal actions, its panels and their disab
     return wrapper.findAll("button").find((button) => button.text().trim() === label)
   }
 
-  it("holds_TC-48a_two_equal_buttons_with_identical_classes_and_no_panel_for_an_accepting_parent_with_no_window_open", async () => {
-    await setup({isAddDeviceShown: true, isConnectAgentShown: true, isDomainLineShown: false})
+  function actionLabels() {
+    return wrapper.findAll("button").map((button) => button.text().trim())
+  }
 
-    const buttons = wrapper.findAll("button").map((button) => button.text().trim())
-    expect(buttons).toEqual(["Add a device", "Connect an agent"])
+  it("holds_TC-48a_two_equal_buttons_each_with_its_own_mark_and_no_panel_for_an_accepting_parent_with_no_window_open", async () => {
+    await setup({isAddDeviceShown: true, isConnectAgentShown: true})
 
-    const addButton = actionButton("Add a device")
-    const connectButton = actionButton("Connect an agent")
-    expect(addButton.find("use").attributes("href")).toBe("#plus")
-    expect(connectButton.find("use").attributes("href")).toBe("#plus")
+    expect(actionLabels()).toEqual(["Device", "Agent"])
+
+    const addButton = actionButton("Device")
+    const connectButton = actionButton("Agent")
+    expect(addButton.find("use").attributes("href")).toBe("#monitor")
+    expect(connectButton.find("use").attributes("href")).toBe("#ai")
     expect(addButton.attributes("disabled")).toBeUndefined()
     expect(connectButton.attributes("disabled")).toBeUndefined()
     expect(connectButton.classes().sort()).toEqual(addButton.classes().sort())
@@ -75,42 +78,32 @@ describe("ServerActions — the row of equal actions, its panels and their disab
   })
 
   it("holds_TC-48b_only_the_connect_button_with_the_first_buttons_classes_for_an_accepting_child", async () => {
-    await setup({isAddDeviceShown: true, isConnectAgentShown: true, isDomainLineShown: false})
-    const soleButtonClasses = actionButton("Add a device").classes().sort()
+    await setup({isAddDeviceShown: true, isConnectAgentShown: true})
+    const soleButtonClasses = actionButton("Device").classes().sort()
 
-    await setup({isAddDeviceShown: false, isConnectAgentShown: true, isDomainLineShown: false})
+    await setup({isAddDeviceShown: false, isConnectAgentShown: true})
 
-    const buttons = wrapper.findAll("button").map((button) => button.text().trim())
-    expect(buttons).toEqual(["Connect an agent"])
-    expect(actionButton("Connect an agent").classes().sort()).toEqual(soleButtonClasses)
+    expect(actionLabels()).toEqual(["Agent"])
+    expect(actionButton("Agent").classes().sort()).toEqual(soleButtonClasses)
   })
 
-  it("holds_TC-48c_add_a_device_then_the_domain_line_for_a_refusing_parent_with_no_connect_button", async () => {
-    await setup({isAddDeviceShown: true, isConnectAgentShown: false, isDomainLineShown: true})
+  it("holds_TC-48c_only_add_a_device_for_a_refusing_parent_and_never_the_domain_line_itself", async () => {
+    await setup({isAddDeviceShown: true, isConnectAgentShown: false})
 
-    const buttons = wrapper.findAll("button").map((button) => button.text().trim())
-    expect(buttons).toEqual(["Add a device"])
-    expect(wrapper.text()).toContain("Agents need this server on a domain with a trusted certificate.")
-    expect(wrapper.text()).not.toContain("Connect an agent")
-
-    const text = wrapper.text()
-    expect(text.indexOf("Add a device")).toBeLessThan(text.indexOf("Agents need this server on a domain with a trusted certificate."))
-    const domainLine = wrapper.findAll("p").find((line) => line.text().includes("Agents need this server"))
-    expect(domainLine?.element.parentElement).toBe(actionButton("Add a device").element.parentElement)
+    expect(actionLabels()).toEqual(["Device"])
+    expect(wrapper.text()).not.toContain("Agents need this server on a domain with a trusted certificate.")
   })
 
   it("holds_TC-48d_only_add_a_device_when_accepts_agents_is_null", async () => {
-    await setup({isAddDeviceShown: true, isConnectAgentShown: false, isDomainLineShown: false})
+    await setup({isAddDeviceShown: true, isConnectAgentShown: false})
 
-    const buttons = wrapper.findAll("button").map((button) => button.text().trim())
-    expect(buttons).toEqual(["Add a device"])
+    expect(actionLabels()).toEqual(["Device"])
     expect(wrapper.text()).not.toContain("Agents need this server on a domain with a trusted certificate.")
-    expect(wrapper.text()).not.toContain("Connect an agent")
   })
 
-  it("disables_TC-48e_both_buttons_and_shows_the_device_panel_then_the_agent_panel_when_both_windows_are_open", async () => {
+  it("disables_TC-48e_both_buttons_while_both_windows_are_open_and_renders_no_panel_of_its_own", async () => {
     await setup(
-      {isAddDeviceShown: true, isConnectAgentShown: true, isDomainLineShown: false},
+      {isAddDeviceShown: true, isConnectAgentShown: true},
       {
         "sync-server:list-membership": vi
           .fn()
@@ -119,29 +112,24 @@ describe("ServerActions — the row of equal actions, its panels and their disab
       },
     )
 
-    const addButton = actionButton("Add a device")
-    const connectButton = actionButton("Connect an agent")
-    expect(addButton.attributes("disabled")).toBeDefined()
-    expect(connectButton.attributes("disabled")).toBeDefined()
+    expect(actionButton("Device").attributes("disabled")).toBeDefined()
+    expect(actionButton("Agent").attributes("disabled")).toBeDefined()
 
-    const text = wrapper.text()
-    const deviceIndex = text.indexOf("Waiting for the other Mac to ask")
-    const agentIndex = text.indexOf("Waiting for an agent to ask")
-    expect(deviceIndex).toBeGreaterThan(-1)
-    expect(agentIndex).toBeGreaterThan(deviceIndex)
+    expect(wrapper.text()).not.toContain("Waiting for the other Mac to ask")
+    expect(wrapper.text()).not.toContain("Waiting for an agent to ask")
   })
 
   it("keeps_TC-48f_connect_an_agent_enabled_with_no_panel_when_the_window_is_on_another_mac_and_opens_it_here_on_press", async () => {
     const openAgentWindowMock = vi.fn().mockResolvedValue(makeAgentWindow())
     await setup(
-      {isAddDeviceShown: true, isConnectAgentShown: true, isDomainLineShown: false},
+      {isAddDeviceShown: true, isConnectAgentShown: true},
       {
         "sync-server:list-agents": vi.fn().mockResolvedValue({agents: [], agentWindow: makeAgentWindow({isThisMac: false})}),
         "sync-server:open-agent-window": openAgentWindowMock,
       },
     )
 
-    const connectButton = actionButton("Connect an agent")
+    const connectButton = actionButton("Agent")
     expect(connectButton.attributes("disabled")).toBeUndefined()
     expect(wrapper.text()).not.toContain("Waiting for an agent to ask")
 
@@ -151,21 +139,11 @@ describe("ServerActions — the row of equal actions, its panels and their disab
     expect(openAgentWindowMock).toHaveBeenCalledTimes(1)
   })
 
-  it("opens_TC-16_an_agent_window_from_the_row_and_shows_the_waiting_panel_after_the_press", async () => {
-    let listAgentsCalls = 0
+  it("opens_TC-16_an_agent_window_on_the_press_and_re-reads_the_agent_list_after_it", async () => {
     const callOrder = []
     const listAgentsMock = vi.fn().mockImplementation(() => {
-      listAgentsCalls += 1
       callOrder.push("list-agents")
-      if (listAgentsCalls === 1) return Promise.resolve({agents: [], agentWindow: null})
-      return Promise.resolve({
-        agents: [],
-        agentWindow: makeAgentWindow({
-          expiresAt: new Date(Date.now() + 300_000).toISOString(),
-          agentAddress: "http://127.0.0.1:8787/mcp",
-          isThisMac: true,
-        }),
-      })
+      return Promise.resolve({agents: [], agentWindow: null})
     })
     const openAgentWindowMock = vi.fn().mockImplementation(() => {
       callOrder.push("open-agent-window")
@@ -173,44 +151,31 @@ describe("ServerActions — the row of equal actions, its panels and their disab
     })
 
     await setup(
-      {isAddDeviceShown: true, isConnectAgentShown: true, isDomainLineShown: false},
+      {isAddDeviceShown: true, isConnectAgentShown: true},
       {"sync-server:list-agents": listAgentsMock, "sync-server:open-agent-window": openAgentWindowMock},
     )
 
-    expect(wrapper.text()).not.toContain("Waiting for an agent to ask")
-    expect(wrapper.text()).not.toContain("http://127.0.0.1:8787/mcp")
-
-    await actionButton("Connect an agent").trigger("click")
+    await actionButton("Agent").trigger("click")
     await vi.advanceTimersByTimeAsync(0)
     await wrapper.vm.$nextTick()
 
     expect(openAgentWindowMock).toHaveBeenCalledTimes(1)
     expect(callOrder).toEqual(["list-agents", "open-agent-window", "list-agents"])
-
-    const text = wrapper.text()
-    expect(text).toContain("Waiting for an agent to ask")
-    expect(text).toContain("In the agent, add this server, then sign in — the request shows up here.")
-    expect(text).toContain("http://127.0.0.1:8787/mcp")
-    expect(text).toContain("Copy")
-    expect(text).toContain("Claude Code: claude mcp add --transport http daily <address>, then /mcp → Authenticate")
-    expect(text).toContain("Claude app: Settings → Connectors → Add custom connector")
-    expect(text).toContain("5:00 left")
-    expect(text).toContain("Cancel")
   })
 
   it("logs_TC-22_a_failed_open_and_leaves_connect_an_agent_enabled_with_no_panel", async () => {
     const openAgentWindowMock = vi.fn().mockRejectedValue(new Error("boom"))
-    await setup({isAddDeviceShown: true, isConnectAgentShown: true, isDomainLineShown: false}, {"sync-server:open-agent-window": openAgentWindowMock})
+    await setup({isAddDeviceShown: true, isConnectAgentShown: true}, {"sync-server:open-agent-window": openAgentWindowMock})
 
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {})
 
-    await actionButton("Connect an agent").trigger("click")
+    await actionButton("Agent").trigger("click")
     await vi.advanceTimersByTimeAsync(0)
     await wrapper.vm.$nextTick()
 
     expect(consoleErrorSpy).toHaveBeenCalledWith("Failed to open the Agent window:", expect.any(Error))
     expect(wrapper.text()).not.toContain("Waiting for an agent to ask")
-    expect(actionButton("Connect an agent").attributes("disabled")).toBeUndefined()
+    expect(actionButton("Agent").attributes("disabled")).toBeUndefined()
 
     consoleErrorSpy.mockRestore()
   })

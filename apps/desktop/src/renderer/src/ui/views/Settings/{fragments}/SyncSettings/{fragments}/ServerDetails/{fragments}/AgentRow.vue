@@ -3,9 +3,8 @@ import {toDateLabel, toRelativeTime} from "@daily/std"
 
 import {useSyncServerStore} from "@/stores/syncServer.store"
 import BaseButton from "@/ui/base/BaseButton"
-import BaseIcon from "@/ui/base/BaseIcon"
+import AgentIcon from "@/ui/common/sync/AgentIcon.vue"
 import ConfirmPopup from "@/ui/overlays/ConfirmPopup.vue"
-import {toAgentIconName} from "@/utils/agents/toAgentIconName"
 
 import type {ServerAgentView} from "@daily/protocol"
 
@@ -24,10 +23,10 @@ async function onRevoke() {
 
 <template>
   <tr>
-    <td class="border-base-300/45 border-t py-[5px] pr-2.5 pl-[22px] text-[13px]">
+    <td class="border-base-300/45 border-t py-[5px] pl-[22px] pr-2.5 text-[13px]">
       <div class="flex items-center gap-2">
         <span class="text-base-content/30">↳</span>
-        <BaseIcon :name="toAgentIconName(agent.name)" class="size-4 shrink-0" />
+        <AgentIcon :name="agent.name" class="size-4 shrink-0" />
         <span class="text-base-content/85">{{ agent.name }}</span>
       </div>
     </td>
