@@ -1,13 +1,14 @@
 <script setup lang="ts">
+import {computed} from "vue"
+
 import {useSettingsStore} from "@/stores/settings.store"
 import {useStorageStore} from "@/stores/storage.store"
 import {useSyncServerStore} from "@/stores/syncServer.store"
 import {useBaseModal} from "@/ui/base/BaseModal"
-import SettingsGroup from "@/ui/views/Settings/{fragments}/SettingsGroup.vue"
 import ICloudDetails from "./{fragments}/ICloudDetails.vue"
 import ProviderMigrationModal from "./{fragments}/ProviderMigrationModal"
-import ProviderSection from "./{fragments}/ProviderSection.vue"
 import ServerDetails from "./{fragments}/ServerDetails"
+import ServerEmpty from "./{fragments}/ServerEmpty.vue"
 
 import type {SyncProvider} from "@daily/protocol"
 
@@ -15,7 +16,9 @@ const storageStore = useStorageStore()
 const settingsStore = useSettingsStore()
 const syncServerStore = useSyncServerStore()
 
-const {show, hide, isOpen} = useBaseModal("sync-provider-migration")
+const {show, hide} = useBaseModal("sync-provider-migration")
+
+const isServerConnected = computed(() => storageStore.provider === "server")
 
 function onSelect(target: SyncProvider) {
   show(ProviderMigrationModal, {target, onClose: () => hide(), onDone: onDone})
@@ -28,11 +31,12 @@ async function onDone() {
 </script>
 
 <template>
-  <SettingsGroup label="Sync" icon="cloud">
-    <ProviderSection :provider="storageStore.provider" :busy="isOpen" @select="onSelect" />
+  <div class="flex flex-1 flex-col py-2">
+    <ServerDetails v-if="isServerConnected" />
+    <ServerEmpty v-else @connect="onSelect('server')" />
 
-    <ICloudDetails v-if="storageStore.provider === 'icloud'" />
-    <ServerDetails v-else-if="storageStore.provider === 'server'" />
-    <p v-else class="text-base-content/60 py-2 text-xs">This Mac is not syncing.</p>
-  </SettingsGroup>
+    <div class="mt-auto pt-6">
+      <ICloudDetails :is-server-connected="isServerConnected" @select="onSelect" />
+    </div>
+  </div>
 </template>

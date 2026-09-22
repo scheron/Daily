@@ -1,8 +1,8 @@
 import {autoResetRef, useClipboard} from "@vueuse/core"
 
-type CopyToClipboardOptions = {onSuccess: () => void}
+type CopyToClipboardOptions = {onSuccess?: () => void}
 
-export function useCopyToClipboard({onSuccess}: CopyToClipboardOptions) {
+export function useCopyToClipboard({onSuccess}: CopyToClipboardOptions = {}) {
   const isCopied = autoResetRef(false, 1500)
   const {copy} = useClipboard({legacy: true})
 
@@ -10,7 +10,7 @@ export function useCopyToClipboard({onSuccess}: CopyToClipboardOptions) {
     try {
       await copy(String(text))
       isCopied.value = true
-      onSuccess()
+      onSuccess?.()
     } catch {}
   }
 

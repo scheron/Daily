@@ -3,19 +3,14 @@ import {computed} from "vue"
 
 import {useSyncServerStore} from "@/stores/syncServer.store"
 import BaseButton from "@/ui/base/BaseButton"
-import BaseIcon from "@/ui/base/BaseIcon"
-import AddDeviceRow from "./AddDeviceRow.vue"
-import ConnectAgentRow from "./ConnectAgentRow.vue"
 
-const props = defineProps<{isAddDeviceShown: boolean; isConnectAgentShown: boolean; isDomainLineShown: boolean}>()
+defineProps<{isAddDeviceShown: boolean; isConnectAgentShown: boolean}>()
 
 const syncServerStore = useSyncServerStore()
 
 const isEnrollmentWaiting = computed(() => Boolean(syncServerStore.membership?.enrollmentWindow))
 
 const isAgentWaiting = computed(() => syncServerStore.agentWindow?.isThisMac === true)
-
-const hasRow = computed(() => props.isAddDeviceShown || props.isConnectAgentShown || props.isDomainLineShown)
 
 async function onAddDevice() {
   try {
@@ -35,19 +30,24 @@ async function onConnectAgent() {
 </script>
 
 <template>
-  <div v-if="hasRow" class="border-base-300 flex items-center gap-2 border-t py-3">
-    <BaseButton v-if="isAddDeviceShown" variant="dashed" icon="plus" class="flex-1" :disabled="isEnrollmentWaiting" @click="onAddDevice">
-      Add a device
-    </BaseButton>
-    <BaseButton v-if="isConnectAgentShown" variant="dashed" icon="plus" class="flex-1" :disabled="isAgentWaiting" @click="onConnectAgent">
-      Connect an agent
-    </BaseButton>
-    <p v-else-if="isDomainLineShown" class="text-base-content/55 flex flex-1 items-center justify-center gap-1.5 text-center text-[13px]">
-      <BaseIcon name="info" class="size-3.5 shrink-0" />
-      Agents need this server on a domain with a trusted certificate.
-    </p>
-  </div>
-
-  <AddDeviceRow v-if="isAddDeviceShown" />
-  <ConnectAgentRow v-if="isConnectAgentShown" />
+  <BaseButton
+    v-if="isAddDeviceShown"
+    variant="primary-ghost"
+    icon="monitor"
+    tooltip="Add a device"
+    :disabled="isEnrollmentWaiting"
+    @click="onAddDevice"
+  >
+    Device
+  </BaseButton>
+  <BaseButton
+    v-if="isConnectAgentShown"
+    variant="primary-ghost"
+    icon="ai"
+    tooltip="Connect an agent"
+    :disabled="isAgentWaiting"
+    @click="onConnectAgent"
+  >
+    Agent
+  </BaseButton>
 </template>

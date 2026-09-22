@@ -7,7 +7,9 @@ import {toDateLabel} from "@daily/std"
 
 import {mount} from "@vue/test-utils"
 import {mockBridgeIPC} from "../../helpers/bridgeIPC"
-import {makeAgent, makeBinding, makeDevice} from "../../helpers/syncServerFixtures"
+import {makeAgent, makeAgentWindow, makeBinding, makeDevice} from "../../helpers/syncServerFixtures"
+
+vi.mock("vue-toasts-lite", () => ({toasts: {success: vi.fn(), error: vi.fn()}}))
 
 describe("ServerDetails — no revoked device rendered, the row or the line, by role and by the accepts-agents fact (TC-47, TC-25 to TC-29)", () => {
   let wrapper = null
@@ -55,7 +57,15 @@ describe("ServerDetails — no revoked device rendered, the row or the line, by 
     return wrapper
       .findAll("button")
       .map((button) => button.text().trim())
-      .filter((label) => label === "Add a device" || label === "Connect an agent")
+      .filter((label) => label === "Device" || label === "Agent")
+  }
+
+  function isBefore(first, second) {
+    return Boolean(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING)
+  }
+
+  function labelledButton(label) {
+    return wrapper.findAll("button").find((button) => button.text().trim() === label)
   }
 
   it("renders_TC-47_no_revoked_mac_of_either_role_and_no_revoked_pill", async () => {
@@ -78,7 +88,7 @@ describe("ServerDetails — no revoked device rendered, the row or the line, by 
     expect(text).not.toContain("Revoked")
   })
 
-  it("orders_TC-25_the_device_table_then_one_action_row_holding_add_a_device_and_connect_an_agent_in_that_order", async () => {
+  it("orders_TC-25_the_add_a_device_and_connect_an_agent_icons_beside_disconnect_above_the_device_table", async () => {
     await setup({
       binding: makeBinding({role: "parent", acceptsAgents: true}),
       revoked: false,
@@ -87,42 +97,38 @@ describe("ServerDetails — no revoked device rendered, the row or the line, by 
     })
 
     const text = wrapper.text()
-    const deviceTableIndex = text.indexOf("Claude Code")
-    const addDeviceIndex = text.indexOf("Add a device")
-
-    expect(deviceTableIndex).toBeGreaterThan(-1)
-    expect(addDeviceIndex).toBeGreaterThan(deviceTableIndex)
-    expect(actionButtons()).toEqual(["Add a device", "Connect an agent"])
+    expect(text).toContain("Claude Code")
+    expect(isBefore(labelledButton("Device").element, wrapper.find("table").element)).toBe(true)
+    expect(actionButtons()).toEqual(["Device", "Agent"])
     expect(text).not.toContain("Agents need this server on a domain with a trusted certificate.")
   })
 
   it("shows_TC-26_the_domain_line_instead_of_the_connect_button_for_both_a_parent_and_a_child_that_cannot_accept_agents", async () => {
     await setup({binding: makeBinding({role: "parent", acceptsAgents: false}), revoked: false, devices: [], agents: []})
     expect(wrapper.text()).toContain("Agents need this server on a domain with a trusted certificate.")
-    expect(actionButtons()).toEqual(["Add a device"])
+    expect(actionButtons()).toEqual(["Device"])
 
     await setup({binding: makeBinding({role: "child", acceptsAgents: false}), revoked: false, devices: [], agents: []})
     expect(wrapper.text()).toContain("Agents need this server on a domain with a trusted certificate.")
     expect(actionButtons()).toEqual([])
-    expect(wrapper.text()).not.toContain("Add a device")
   })
 
   it("shows_TC-27_neither_the_connect_button_nor_the_domain_line_when_the_fact_is_unknown_revoked_or_the_role_is_unresolved", async () => {
     await setup({binding: makeBinding({acceptsAgents: null}), revoked: false, devices: [], agents: []})
     expect(wrapper.text()).not.toContain("Agents need this server on a domain with a trusted certificate.")
-    expect(actionButtons()).toEqual(["Add a device"])
+    expect(actionButtons()).toEqual(["Device"])
 
     await setup({binding: makeBinding({acceptsAgents: true}), revoked: true, devices: [], agents: []})
-    expect(wrapper.text()).not.toContain("Connect an agent")
+    expect(actionButtons()).not.toContain("Agent")
     expect(wrapper.text()).not.toContain("Agents need this server on a domain with a trusted certificate.")
 
     await setup({binding: makeBinding({acceptsAgents: true, role: null}), revoked: false, devices: [], agents: []})
     expect(wrapper.text()).toContain("Checking this Mac's role…")
-    expect(wrapper.text()).not.toContain("Connect an agent")
+    expect(actionButtons()).toEqual([])
     expect(wrapper.text()).not.toContain("Agents need this server on a domain with a trusted certificate.")
   })
 
-  it("shows_TC-28_connected_the_this_mac_table_its_own_agent_and_an_action_row_holding_only_connect_an_agent_for_a_child", async () => {
+  it("shows_TC-28_connected_only_connect_an_agent_beside_disconnect_and_the_this_mac_table_with_its_own_agent_for_a_child", async () => {
     await setup({
       binding: makeBinding({role: "child", deviceName: "MacBook Air", boundAt: "2026-09-03T00:00:00.000Z", acceptsAgents: true}),
       revoked: false,
@@ -132,6 +138,7 @@ describe("ServerDetails — no revoked device rendered, the row or the line, by 
 
     const text = wrapper.text()
     expect(text).toContain("Connected")
+    expect(text).not.toContain("Agents on this Mac")
     expect(text).toContain("This Mac · agents")
     expect(text).toContain("Last used")
     expect(text).toContain("Added")
@@ -142,31 +149,79 @@ describe("ServerDetails — no revoked device rendered, the row or the line, by 
     expect(macRow.text()).toContain(toDateLabel("2026-09-03T00:00:00.000Z", {short: true}))
     expect(text).toContain("Claude")
     expect(text).not.toContain("Device · agent")
-    expect(text).not.toContain("Add a device")
-    expect(actionButtons()).toEqual(["Connect an agent"])
+    expect(actionButtons()).toEqual(["Agent"])
 
-    const claudeIndex = text.indexOf("Claude")
-    const connectRowIndex = text.indexOf("Connect an agent")
-    expect(connectRowIndex).toBeGreaterThan(claudeIndex)
+    expect(isBefore(labelledButton("Agent").element, wrapper.find("table").element)).toBe(true)
+  })
+
+  it("puts_TC-16_the_waiting_panel_and_its_per-agent_accordion_below_the_table_once_this_macs_agent_window_is_open", async () => {
+    await setup(
+      {
+        binding: makeBinding({role: "parent", acceptsAgents: true}),
+        revoked: false,
+        devices: [makeDevice({id: "dev-p", name: "Gate Mac", isThisMac: true})],
+        agents: [],
+      },
+      {
+        "sync-server:list-agents": vi.fn().mockResolvedValue({
+          agents: [],
+          agentWindow: makeAgentWindow({agentAddress: "http://127.0.0.1:8787/mcp", isThisMac: true}),
+        }),
+      },
+    )
+
+    const text = wrapper.text()
+    expect(text).toContain("Waiting for an agent to ask")
+    expect(text).toContain("claude mcp add --transport http daily http://127.0.0.1:8787/mcp")
+    expect(text.indexOf("Waiting for an agent to ask")).toBeGreaterThan(text.indexOf("Gate Mac"))
+    expect(isBefore(labelledButton("Agent").element, wrapper.find("table").element)).toBe(true)
+  })
+
+  it("orders_TC-48e_the_device_panel_then_the_agent_panel_below_the_table_when_both_windows_are_open", async () => {
+    await setup(
+      {
+        binding: makeBinding({role: "parent", acceptsAgents: true}),
+        revoked: false,
+        devices: [makeDevice({id: "dev-p", name: "Gate Mac", isThisMac: true})],
+        agents: [],
+      },
+      {
+        "sync-server:list-membership": vi
+          .fn()
+          .mockResolvedValue({
+            devices: [makeDevice({id: "dev-p", name: "Gate Mac", isThisMac: true})],
+            enrollmentWindow: {expiresAt: new Date(Date.now() + 300_000).toISOString()},
+          }),
+        "sync-server:list-agents": vi.fn().mockResolvedValue({agents: [], agentWindow: makeAgentWindow({isThisMac: true})}),
+      },
+    )
+
+    const text = wrapper.text()
+    const tableIndex = text.indexOf("Gate Mac")
+    const deviceIndex = text.indexOf("Waiting for the other Mac to ask")
+    const agentIndex = text.indexOf("Waiting for an agent to ask")
+
+    expect(deviceIndex).toBeGreaterThan(tableIndex)
+    expect(agentIndex).toBeGreaterThan(deviceIndex)
   })
 
   it("swaps_TC-29_the_connect_button_and_the_domain_line_live_on_the_broadcast_without_a_remount", async () => {
     await setup({binding: makeBinding({acceptsAgents: true}), revoked: false, devices: [], agents: []})
 
-    expect(actionButtons()).toContain("Connect an agent")
+    expect(actionButtons()).toContain("Agent")
 
     const acceptedListener = bridge["sync-server:on-agents-accepted-changed"].mock.calls[0][0]
     acceptedListener(false)
     await wrapper.vm.$nextTick()
 
     expect(wrapper.text()).toContain("Agents need this server on a domain with a trusted certificate.")
-    expect(actionButtons()).not.toContain("Connect an agent")
+    expect(actionButtons()).not.toContain("Agent")
     expect(bridge["sync-server:get-state"]).toHaveBeenCalledTimes(1)
 
     acceptedListener(true)
     await wrapper.vm.$nextTick()
 
-    expect(actionButtons()).toContain("Connect an agent")
+    expect(actionButtons()).toContain("Agent")
     expect(wrapper.text()).not.toContain("Agents need this server on a domain with a trusted certificate.")
   })
 })
