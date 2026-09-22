@@ -194,6 +194,24 @@ export type TaskRelation = {
   deletedAt: ISODateTime | null
 }
 
+/** Who wrote a comment, when it was not a person typing in the app. */
+export type TaskCommentOrigin = "mcp" | "agent"
+
+export type TaskComment = {
+  id: string
+  /** The task this comment belongs to. A comment never moves between tasks. */
+  taskId: Task["id"]
+  /** The project of the task, kept in step with it so the sync merge can scope a comment without joining tasks. */
+  branchId: Branch["id"]
+  /** Markdown, written with the same editor as task content. */
+  content: string
+  /** `null` when a person wrote it in the app. `mcp` and `agent` are set by whoever wrote it instead. */
+  origin: TaskCommentOrigin | null
+  createdAt: ISODateTime
+  updatedAt: ISODateTime
+  deletedAt: ISODateTime | null
+}
+
 export type Tag = {
   id: string
   createdAt: ISODateTime
