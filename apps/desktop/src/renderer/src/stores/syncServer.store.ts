@@ -1,4 +1,5 @@
 import {ref} from "vue"
+import {toasts} from "vue-toasts-lite"
 import {invoke} from "@vueuse/core"
 import {defineStore} from "pinia"
 
@@ -186,6 +187,7 @@ export const useSyncServerStore = defineStore("syncServer", () => {
           await approve(pending.requestId, pending.code)
         } catch (error) {
           console.error("Failed to approve the device:", error)
+          toasts.error("Failed to approve device")
         }
         hideApproval()
       },
@@ -194,6 +196,7 @@ export const useSyncServerStore = defineStore("syncServer", () => {
           await deny(pending.requestId)
         } catch (error) {
           console.error("Failed to deny the device:", error)
+          toasts.error("Failed to decline device")
         }
         hideApproval()
       },
@@ -231,6 +234,7 @@ export const useSyncServerStore = defineStore("syncServer", () => {
           await approveAgent(pending.requestId, pending.code)
         } catch (error) {
           console.error("Failed to approve the agent:", error)
+          toasts.error("Failed to approve agent")
         }
         hideAgentApproval()
       },
@@ -239,6 +243,7 @@ export const useSyncServerStore = defineStore("syncServer", () => {
           await denyAgent(pending.requestId)
         } catch (error) {
           console.error("Failed to decline the agent:", error)
+          toasts.error("Failed to decline agent")
         }
         hideAgentApproval()
       },

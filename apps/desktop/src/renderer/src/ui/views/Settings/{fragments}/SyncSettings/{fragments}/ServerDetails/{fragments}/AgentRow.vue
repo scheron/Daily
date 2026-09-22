@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import {toasts} from "vue-toasts-lite"
+
 import {toDateLabel, toRelativeTime} from "@daily/std"
 
 import {useSyncServerStore} from "@/stores/syncServer.store"
@@ -17,6 +19,7 @@ async function onRevoke() {
     await syncServerStore.revokeAgent(props.agent.id)
   } catch (error) {
     console.error("Failed to revoke the agent:", error)
+    toasts.error("Failed to revoke agent")
   }
 }
 </script>
