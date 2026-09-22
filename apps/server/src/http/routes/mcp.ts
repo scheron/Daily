@@ -15,8 +15,9 @@ import type {Route, RouteContext} from "../createHttpServer"
  * `POST /mcp` — the agent endpoint, not a Daily Sync Protocol route. Refuses a server that does
  * not accept agents, a foreign `Origin`, a missing bearer and one that doesn't verify — the last
  * two with the `401` challenge pointing at the protected resource metadata — then records the
- * agent's last use and answers `handleMcpRequest` as its Mac. `GET` and `DELETE` on this path
- * answer `405` through `matchRoute`, which has no route of its own for them.
+ * agent's last use and answers `handleMcpRequest` as its Mac, under the name it was approved
+ * under. `GET` and `DELETE` on this path answer `405` through `matchRoute`, which has no route of
+ * its own for them.
  */
 export const mcpRoute: Route = {
   method: "POST",
@@ -63,7 +64,8 @@ async function postMcp(ctx: RouteContext): Promise<typeof RESPONSE_SENT> {
     return respondJson(ctx.res, 413, {jsonrpc: "2.0", id: null, error: {code: -32600, message: "Request body too large"}})
   }
 
-  const reply = await handleMcpRequest({store: ctx.store}, {deviceId: caller.deviceId, timeZone: caller.timeZone}, body, {
+  const mcpCaller = {deviceId: caller.deviceId, timeZone: caller.timeZone, name: caller.name}
+  const reply = await handleMcpRequest({store: ctx.store}, mcpCaller, body, {
     protocolVersion: readHeaderValue(ctx.req.headers["mcp-protocol-version"]),
     method: readHeaderValue(ctx.req.headers["mcp-method"]),
     name: readHeaderValue(ctx.req.headers["mcp-name"]),

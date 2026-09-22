@@ -27,10 +27,10 @@ function putOnServer(store: ServerStore, fileId: string, ext: string, bytes: Buf
 }
 
 describe("listMcpTools — TC-14", () => {
-  it("TC-14: answers AGENT_TOOLS's own eleven entries in order, with readOnlyHint true for reads and false for writes", () => {
+  it("TC-14: answers AGENT_TOOLS's own thirteen entries in order, with readOnlyHint true for reads and false for writes", () => {
     const result = listMcpTools()
 
-    expect(result).toHaveLength(11)
+    expect(result).toHaveLength(13)
     expect(result.map((tool) => tool.name)).toEqual(AGENT_TOOLS.map((tool) => tool.name))
 
     AGENT_TOOLS.forEach((tool, index) => {
@@ -53,7 +53,7 @@ describe("callMcpTool over a read — TC-15", () => {
 
     try {
       const agent = bindAgent(seeded.store, "Agent Mac", "Asia/Tokyo")
-      const caller: McpCaller = {deviceId: agent.deviceId, timeZone: agent.timeZone}
+      const caller: McpCaller = {deviceId: agent.deviceId, timeZone: agent.timeZone, name: agent.name}
 
       const reference = await runAgentTool({store: seeded.store}, agent, {name: "list_tasks", input: {date: "2026-03-25"}})
       if (!reference.ok) throw new Error("expected the reference call to succeed")
@@ -81,7 +81,7 @@ describe("callMcpTool over a write — TC-16", () => {
 
     try {
       const m = bindAgent(seeded.store, "M", "Pacific/Auckland")
-      const caller: McpCaller = {deviceId: m.deviceId, timeZone: m.timeZone}
+      const caller: McpCaller = {deviceId: m.deviceId, timeZone: m.timeZone, name: m.name}
 
       const outcome = await callMcpTool({store: seeded.store}, caller, {name: "save_task", arguments: {content: "Buy milk"}})
       if (!outcome.ok) throw new Error("expected save_task to succeed")
@@ -117,7 +117,7 @@ describe("callMcpTool's get_attachment — TC-17", () => {
       await putOnServer(seeded.store, fileId, "png", makePngBytes(128))
 
       const agent = bindAgent(seeded.store)
-      const caller: McpCaller = {deviceId: agent.deviceId, timeZone: agent.timeZone}
+      const caller: McpCaller = {deviceId: agent.deviceId, timeZone: agent.timeZone, name: agent.name}
 
       const outcome = await callMcpTool({store: seeded.store}, caller, {name: "get_attachment", arguments: {id: fileId}})
       if (!outcome.ok) throw new Error("expected get_attachment to succeed")
@@ -141,7 +141,7 @@ describe("a tool's own refusal is an isError result, not a protocol error — TC
 
     try {
       const agent = bindAgent(seeded.store)
-      const caller: McpCaller = {deviceId: agent.deviceId, timeZone: agent.timeZone}
+      const caller: McpCaller = {deviceId: agent.deviceId, timeZone: agent.timeZone, name: agent.name}
 
       const notFoundReference = await runAgentTool({store: seeded.store}, agent, {name: "get_task", input: {id: "nope"}})
       const notFoundOutcome = await callMcpTool({store: seeded.store}, caller, {name: "get_task", arguments: {id: "nope"}})
@@ -166,7 +166,7 @@ describe("a malformed call is a protocol error, never a tool result — TC-19", 
 
     try {
       const agent = bindAgent(seeded.store)
-      const caller: McpCaller = {deviceId: agent.deviceId, timeZone: agent.timeZone}
+      const caller: McpCaller = {deviceId: agent.deviceId, timeZone: agent.timeZone, name: agent.name}
 
       const refusals: unknown[] = [null, {}, {name: "drop_database"}, {name: "list_projects", arguments: []}, {name: "list_projects", arguments: "x"}]
 
@@ -205,7 +205,7 @@ describe("no time zone on record refuses every call before any clock is built �
 
     try {
       const deviceId = bindDevice(seeded.store, "Zoneless Mac")
-      const caller: McpCaller = {deviceId, timeZone: null}
+      const caller: McpCaller = {deviceId, timeZone: null, name: "Test Client"}
       const message =
         "This agent's Mac has not told the server its time zone yet, so the server cannot tell which day it is there. Open Daily on that Mac and let it sync once, then try again."
 

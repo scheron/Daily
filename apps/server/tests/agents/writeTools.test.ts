@@ -1,7 +1,10 @@
 import {describe, expect, it} from "vitest"
 
 import {runInAgentWorkspace} from "../../src/agents/AgentWorkspace"
+import {getTaskTool} from "../../src/agents/tools/read/getTask"
+import {deleteCommentTool} from "../../src/agents/tools/write/deleteComment"
 import {deleteTaskTool} from "../../src/agents/tools/write/deleteTask"
+import {saveCommentTool} from "../../src/agents/tools/write/saveComment"
 import {saveMilestoneTool} from "../../src/agents/tools/write/saveMilestone"
 import {saveProjectTool} from "../../src/agents/tools/write/saveProject"
 import {saveTagTool} from "../../src/agents/tools/write/saveTag"
@@ -419,6 +422,159 @@ describe("save_tag", () => {
       const row = stored.tags.find((t: any) => t.id === created.tag.id)
       expect(row.name).toBe("critical")
       expect(row.color).toBe("#00ff00")
+    } finally {
+      seeded.close()
+    }
+  })
+})
+
+describe("save_comment", () => {
+  it("TC-65: a new comment lands on the task marked as coming through MCP under the caller's own approved name, and rewriting it changes only the text", async () => {
+    let taskId = ""
+    const seeded = await seedAgentStore(async (mac) => {
+      const task = await mac.core.tasksService.createTask(makeTaskDraft({content: "Ship the thing"}))
+      taskId = task!.id
+    })
+
+    try {
+      const agent = bindAgent(seeded.store, "Agent Mac", "UTC", "Claude Code")
+
+      const created = await call({store: seeded.store}, agent, saveCommentTool, {taskId, content: "  Blocked on review  "})
+      expect(created.comment.content).toBe("Blocked on review")
+      expect(created.comment.kind).toBe("mcp")
+      expect(created.comment.provider).toBe("Claude Code")
+
+      const rewritten = await call({store: seeded.store}, agent, saveCommentTool, {id: created.comment.id, content: "Review landed"})
+      expect(rewritten.comment.id).toBe(created.comment.id)
+      expect(rewritten.comment.content).toBe("Review landed")
+      expect(rewritten.comment.kind).toBe("mcp")
+      expect(rewritten.comment.provider).toBe("Claude Code")
+
+      const stored = readSnapshot(seeded.store)!.document.docs as any
+      const row = stored.comments.find((c: any) => c.id === created.comment.id)
+      expect(row.content).toBe("Review landed")
+      expect(row.task_id).toBe(taskId)
+      expect(row.kind).toBe("mcp")
+      expect(row.provider).toBe("Claude Code")
+      expect(row.deleted_at).toBe(null)
+    } finally {
+      seeded.close()
+    }
+  })
+
+  it("TC-66: two agents commenting on the same task are each attributed to their own name, not to whichever wrote last", async () => {
+    let taskId = ""
+    const seeded = await seedAgentStore(async (mac) => {
+      const task = await mac.core.tasksService.createTask(makeTaskDraft({content: "Shared task"}))
+      taskId = task!.id
+    })
+
+    try {
+      const claudeCode = bindAgent(seeded.store, "Mac A", "UTC", "Claude Code")
+      const codex = bindAgent(seeded.store, "Mac B", "UTC", "Codex")
+
+      const first = await call({store: seeded.store}, claudeCode, saveCommentTool, {taskId, content: "from Claude Code"})
+      const second = await call({store: seeded.store}, codex, saveCommentTool, {taskId, content: "from Codex"})
+
+      expect(first.comment.provider).toBe("Claude Code")
+      expect(second.comment.provider).toBe("Codex")
+    } finally {
+      seeded.close()
+    }
+  })
+
+  it("TC-67: kind and provider cannot be forged through the tool's input — the schema declares no such fields and the tool never reads them, so the caller's own name is written either way", async () => {
+    let taskId = ""
+    const seeded = await seedAgentStore(async (mac) => {
+      const task = await mac.core.tasksService.createTask(makeTaskDraft({content: "Attributed task"}))
+      taskId = task!.id
+    })
+
+    try {
+      const agent = bindAgent(seeded.store, "Agent Mac", "UTC", "Claude Code")
+
+      expect(saveCommentTool.inputSchema.additionalProperties).toBe(false)
+      expect(Object.keys(saveCommentTool.inputSchema.properties)).toEqual(["id", "taskId", "content"])
+
+      const forged = await call({store: seeded.store}, agent, saveCommentTool, {
+        taskId,
+        content: "pretending to be a person",
+        kind: "manual",
+        provider: "The User",
+      })
+
+      expect(forged.comment.kind).toBe("mcp")
+      expect(forged.comment.provider).toBe("Claude Code")
+
+      const stored = readSnapshot(seeded.store)!.document.docs as any
+      const row = stored.comments.find((c: any) => c.id === forged.comment.id)
+      expect(row.kind).toBe("mcp")
+      expect(row.provider).toBe("Claude Code")
+    } finally {
+      seeded.close()
+    }
+  })
+
+  it("TC-68: a comment on an unknown task, on a deleted one, a rewrite of an unknown comment and blank content all refuse, and nothing lands", async () => {
+    let deletedTaskId = ""
+    const seeded = await seedAgentStore(async (mac) => {
+      const task = await mac.core.tasksService.createTask(makeTaskDraft({content: "Doomed"}))
+      deletedTaskId = task!.id
+      await mac.core.tasksService.deleteTask(deletedTaskId)
+    })
+
+    try {
+      const agent = bindAgent(seeded.store)
+
+      await expect(call({store: seeded.store}, agent, saveCommentTool, {taskId: "nope", content: "hi"})).rejects.toMatchObject({
+        code: AgentToolErrorCode.NOT_FOUND,
+      })
+      await expect(call({store: seeded.store}, agent, saveCommentTool, {taskId: deletedTaskId, content: "hi"})).rejects.toMatchObject({
+        code: AgentToolErrorCode.NOT_FOUND,
+      })
+      await expect(call({store: seeded.store}, agent, saveCommentTool, {id: "nope", content: "hi"})).rejects.toMatchObject({
+        code: AgentToolErrorCode.NOT_FOUND,
+      })
+      await expect(call({store: seeded.store}, agent, saveCommentTool, {taskId: deletedTaskId, content: "   "})).rejects.toMatchObject({
+        code: AgentToolErrorCode.INVALID_INPUT,
+      })
+
+      const stored = readSnapshot(seeded.store)!.document.docs as any
+      expect(stored.comments).toEqual([])
+    } finally {
+      seeded.close()
+    }
+  })
+})
+
+describe("delete_comment", () => {
+  it("TC-69: deleting a comment soft-deletes it, get_task stops answering it, and deleting it again refuses NOT_FOUND", async () => {
+    let taskId = ""
+    const seeded = await seedAgentStore(async (mac) => {
+      const task = await mac.core.tasksService.createTask(makeTaskDraft({content: "Commented task"}))
+      taskId = task!.id
+    })
+
+    try {
+      const agent = bindAgent(seeded.store, "Agent Mac", "UTC", "Claude Code")
+
+      const kept = await call({store: seeded.store}, agent, saveCommentTool, {taskId, content: "keep me"})
+      const doomed = await call({store: seeded.store}, agent, saveCommentTool, {taskId, content: "delete me"})
+
+      const deleted = await call({store: seeded.store}, agent, deleteCommentTool, {id: doomed.comment.id})
+      expect(deleted).toEqual({id: doomed.comment.id})
+
+      const stored = readSnapshot(seeded.store)!.document.docs as any
+      const row = stored.comments.find((c: any) => c.id === doomed.comment.id)
+      expect(row).toBeDefined()
+      expect(row.deleted_at).toEqual(expect.any(String))
+
+      const task = await call({store: seeded.store}, agent, getTaskTool, {id: taskId})
+      expect(task.comments.map((c: any) => c.id)).toEqual([kept.comment.id])
+
+      await expect(call({store: seeded.store}, agent, deleteCommentTool, {id: doomed.comment.id})).rejects.toMatchObject({
+        code: AgentToolErrorCode.NOT_FOUND,
+      })
     } finally {
       seeded.close()
     }

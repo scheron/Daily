@@ -26,7 +26,7 @@ describe("handleMcpRequest", () => {
   beforeEach(async () => {
     seeded = await seedAgentStore()
     const agent = bindAgent(seeded.store, "Agent Mac", "UTC")
-    caller = {deviceId: agent.deviceId, timeZone: agent.timeZone}
+    caller = {deviceId: agent.deviceId, timeZone: agent.timeZone, name: agent.name}
   })
 
   afterEach(() => {
@@ -152,7 +152,7 @@ describe("handleMcpRequest", () => {
       })
       expect(list.status).toBe(200)
       const listResult = (list.body as {result: Record<string, unknown>}).result
-      expect((listResult.tools as unknown[]).length).toBe(11)
+      expect((listResult.tools as unknown[]).length).toBe(13)
       expect(listResult).not.toHaveProperty("resultType")
       expect(listResult).not.toHaveProperty("ttlMs")
       expect(listResult).not.toHaveProperty("cacheScope")
@@ -222,7 +222,7 @@ describe("handleMcpRequest", () => {
       expect(list.status).toBe(200)
       const listResult = (list.body as {result: Record<string, unknown>}).result
       expect(listResult.resultType).toBe("complete")
-      expect((listResult.tools as unknown[]).length).toBe(11)
+      expect((listResult.tools as unknown[]).length).toBe(13)
       expect(listResult.ttlMs).toBe(300000)
       expect(listResult.cacheScope).toBe("public")
       expect(listResult._meta).toEqual({"io.modelcontextprotocol/serverInfo": {name: "daily", title: "Daily", version: serverVersion}})
@@ -384,11 +384,11 @@ describe("handleMcpRequest", () => {
   })
 
   describe("both generations answer the same zoneless result — TC-29", () => {
-    it("TC-29: tools/list still answers the eleven tools, and tools/call answers the MAC_TIME_ZONE_UNKNOWN result inside each generation's own envelope", async () => {
+    it("TC-29: tools/list still answers the thirteen tools, and tools/call answers the MAC_TIME_ZONE_UNKNOWN result inside each generation's own envelope", async () => {
       const zonelessMessage =
         "This agent's Mac has not told the server its time zone yet, so the server cannot tell which day it is there. Open Daily on that Mac and let it sync once, then try again."
       const zonelessDeviceId = bindDevice(seeded.store, "Zoneless Mac")
-      const zonelessCaller: McpCaller = {deviceId: zonelessDeviceId, timeZone: null}
+      const zonelessCaller: McpCaller = {deviceId: zonelessDeviceId, timeZone: null, name: "Test Client"}
 
       const legacyList = await handleMcpRequest(
         {store: seeded.store},
@@ -396,7 +396,7 @@ describe("handleMcpRequest", () => {
         JSON.stringify({jsonrpc: "2.0", id: 1, method: "tools/list"}),
         noHeaders(),
       )
-      expect((legacyList.body as {result: {tools: unknown[]}}).result.tools.length).toBe(11)
+      expect((legacyList.body as {result: {tools: unknown[]}}).result.tools.length).toBe(13)
 
       const legacyCall = await handleMcpRequest(
         {store: seeded.store},
@@ -415,7 +415,7 @@ describe("handleMcpRequest", () => {
         JSON.stringify({jsonrpc: "2.0", id: 3, method: "tools/list", params: {_meta: STATELESS_META}}),
         {protocolVersion: "2026-07-28", method: "tools/list", name: null},
       )
-      expect((statelessList.body as {result: {tools: unknown[]}}).result.tools.length).toBe(11)
+      expect((statelessList.body as {result: {tools: unknown[]}}).result.tools.length).toBe(13)
 
       const statelessCall = await handleMcpRequest(
         {store: seeded.store},
@@ -437,6 +437,7 @@ describe("handleMcpRequest", () => {
       const failure = new Error("the caller could not be read")
       const failingCaller = {
         deviceId: caller.deviceId,
+        name: caller.name,
         get timeZone(): string | null {
           throw failure
         },

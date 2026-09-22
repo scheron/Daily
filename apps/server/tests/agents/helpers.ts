@@ -14,6 +14,7 @@ import {createBetterSqliteDriver} from "../../src/store/betterSqliteDriver"
 import {openServerStore} from "../../src/store/instance"
 
 import type {StorageCore} from "@daily/core/storage/createStorageCore"
+import type {AgentIdentity} from "../../src/agents/AgentWorkspace"
 import type {SqliteDriver} from "../../src/store/betterSqliteDriver"
 import type {ServerStore} from "../../src/store/instance"
 
@@ -51,9 +52,13 @@ export function bindDevice(store: ServerStore, name = "Bound Mac"): string {
   return createDevice(store, name).device.id
 }
 
-/** An `AgentIdentity` naming a freshly bound device — the shape a write-mode call needs, since `written_by_device_id` is a real foreign key. */
-export function bindAgent(store: ServerStore, name = "Agent Mac", timeZone = "UTC"): {deviceId: string; timeZone: string} {
-  return {deviceId: bindDevice(store, name), timeZone}
+/**
+ * An `AgentIdentity` naming a freshly bound device — the shape a write-mode call needs, since
+ * `written_by_device_id` is a real foreign key. `deviceName` names the Mac; `agentName` is the
+ * name the agent itself was approved under, the one a comment is attributed to.
+ */
+export function bindAgent(store: ServerStore, deviceName = "Agent Mac", timeZone = "UTC", agentName = "Test Client"): AgentIdentity {
+  return {deviceId: bindDevice(store, deviceName), timeZone, name: agentName}
 }
 
 /** Loads every document off `mac`'s core and writes it into `store` exactly as a Mac's sync would, through `buildSnapshot`. */

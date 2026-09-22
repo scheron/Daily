@@ -11,7 +11,7 @@ export type AgentTokenGrant = {accessToken: string; refreshToken: string; expire
 export type AgentTokenOutcome = {ok: true; grant: AgentTokenGrant} | {ok: false; description: string}
 export type CodeExchange = {code: string; clientId: string; redirectUri: string | null; codeVerifier: string}
 export type TokenRefresh = {refreshToken: string; clientId: string | null}
-export type AgentCaller = {agentId: string; deviceId: string; timeZone: string | null}
+export type AgentCaller = {agentId: string; deviceId: string; timeZone: string | null; name: string}
 
 /**
  * Exchanges an authorization code for a token pair, once, under PKCE, the client and redirect URI
@@ -90,14 +90,15 @@ export function refreshAgentTokens(store: ServerStore, refresh: TokenRefresh, re
 }
 
 /**
- * Answers the agent an access token belongs to, with its Mac and that Mac's time zone from the
- * same row, or `null` unless the token is unexpired, was issued for `resource` and its agent is
- * not revoked. A rotated pair's access token still passes until its own hour is up. Writes nothing.
+ * Answers the agent an access token belongs to, with its name, its Mac and that Mac's time zone
+ * from the same row, or `null` unless the token is unexpired, was issued for `resource` and its
+ * agent is not revoked. A rotated pair's access token still passes until its own hour is up.
+ * Writes nothing.
  */
 export function verifyAgentAccessToken(store: ServerStore, accessToken: string, resource: string): AgentCaller | null {
   const row = store.db
     .prepare(
-      `SELECT agents.id AS agent_id, agents.device_id AS device_id, devices.time_zone AS time_zone
+      `SELECT agents.id AS agent_id, agents.device_id AS device_id, agents.name AS name, devices.time_zone AS time_zone
        FROM agent_tokens
        JOIN agents ON agents.id = agent_tokens.agent_id
        JOIN devices ON devices.id = agents.device_id
@@ -106,9 +107,11 @@ export function verifyAgentAccessToken(store: ServerStore, accessToken: string, 
          AND agent_tokens.resource = ?
          AND agents.revoked_at IS NULL`,
     )
-    .get(hashToken(accessToken), new Date().toISOString(), resource) as {agent_id: string; device_id: string; time_zone: string | null} | undefined
+    .get(hashToken(accessToken), new Date().toISOString(), resource) as
+    | {agent_id: string; device_id: string; name: string; time_zone: string | null}
+    | undefined
 
-  return row ? {agentId: row.agent_id, deviceId: row.device_id, timeZone: row.time_zone} : null
+  return row ? {agentId: row.agent_id, deviceId: row.device_id, timeZone: row.time_zone, name: row.name} : null
 }
 
 function mintAgentTokens(store: ServerStore, pair: {agentId: string; clientId: string; resource: string}): AgentTokenGrant {

@@ -7,7 +7,7 @@ import {readRevision} from "../../src/snapshot/SnapshotStore"
 import {bindAgent, seedAgentStore} from "./helpers"
 
 describe("the agent tool registry", () => {
-  it("TC-42: holds exactly the eleven agent tools, once each, reads before writes, each with a name, a description and an object input schema", () => {
+  it("TC-42: holds exactly the thirteen agent tools, once each, reads before writes, each with a name, a description and an object input schema", () => {
     expect(AGENT_TOOLS.map((tool) => tool.name)).toEqual([
       "list_tasks",
       "get_task",
@@ -17,6 +17,8 @@ describe("the agent tool registry", () => {
       "list_tags",
       "save_task",
       "delete_task",
+      "save_comment",
+      "delete_comment",
       "save_project",
       "save_milestone",
       "save_tag",

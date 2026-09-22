@@ -9,7 +9,8 @@ import type {AgentToolOutcome} from "../runAgentTool"
 import type {AgentAttachment} from "../tools/read/getAttachment"
 import type {AgentToolInputSchema} from "../tools/types"
 
-export type McpCaller = {deviceId: string; timeZone: string | null}
+/** The agent behind one MCP request: its Mac, that Mac's time zone, and the name it was approved under. */
+export type McpCaller = {deviceId: string; timeZone: string | null; name: string}
 
 export type McpToolDescription = {
   name: string
@@ -60,7 +61,7 @@ export async function callMcpTool(deps: AgentWorkspaceDeps, caller: McpCaller, p
   }
 
   const toolArguments = isObject<Record<string, unknown>>(rawArguments) ? rawArguments : {}
-  const outcome = await runAgentTool(deps, {deviceId: caller.deviceId, timeZone: caller.timeZone}, {name, input: toolArguments})
+  const outcome = await runAgentTool(deps, {deviceId: caller.deviceId, timeZone: caller.timeZone, name: caller.name}, {name, input: toolArguments})
 
   return {ok: true, result: renderToolOutcome(name, outcome)}
 }

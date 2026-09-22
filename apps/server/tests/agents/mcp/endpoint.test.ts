@@ -174,7 +174,7 @@ describe("the 2026-07-28 path answers as the caller's Mac and records last use â
       const listRes = await postMcp(booted, connected.accessToken, list.body, list.headers)
       expect(listRes.status).toBe(200)
       const listJson = (await listRes.json()) as {result: {tools: unknown[]}}
-      expect(listJson.result.tools).toHaveLength(11)
+      expect(listJson.result.tools).toHaveLength(13)
 
       const aucklandToday = DateTime.now().setZone("Pacific/Auckland").toISODate()
       const call = statelessRequest(3, "tools/call", {name: "save_task", arguments: {content: "Buy milk"}}, "save_task")
@@ -496,7 +496,7 @@ describe("the day a tool runs on follows the Mac, and answers gracefully once it
       const listRes = await postMcp(booted, connected.accessToken, listAfterZoneless.body, listAfterZoneless.headers)
       expect(listRes.status).toBe(200)
       const listJson = (await listRes.json()) as {result: {tools: unknown[]}}
-      expect(listJson.result.tools).toHaveLength(11)
+      expect(listJson.result.tools).toHaveLength(13)
 
       const revisionBefore = (booted.store.db.prepare(`SELECT revision FROM snapshot`).get() as {revision: number}).revision
 
@@ -515,6 +515,73 @@ describe("the day a tool runs on follows the Mac, and answers gracefully once it
 
       const revisionAfter = (booted.store.db.prepare(`SELECT revision FROM snapshot`).get() as {revision: number}).revision
       expect(revisionAfter).toBe(revisionBefore)
+    } finally {
+      await docs.close()
+      await booted.close()
+    }
+  })
+})
+
+describe("a comment written over /mcp is attributed to the agent the person approved â€” TC-70", () => {
+  it("TC-70: two agents commenting on one task are each marked mcp under their own approved name, and a forged kind and provider in the tool's input change nothing", async () => {
+    const booted = await bootAgentServer()
+    const docs = await startClientDocumentServer()
+    try {
+      const parent = await claimParent(booted)
+      await writeInitialSnapshot(booted, parent.token)
+
+      const claudeCodeId = registerClientDocument(docs, "/claude-code.json", claudeCodeDocument)
+      await openAgentWindowOver(booted, parent.token)
+      const claudeCode = await connectAgent(booted, parent.token, {clientId: claudeCodeId, redirectUri: "http://localhost:5555/callback"})
+
+      const codexId = registerClientDocument(docs, "/codex.json", codexDocument)
+      await openAgentWindowOver(booted, parent.token)
+      const codex = await connectAgent(booted, parent.token, {clientId: codexId, redirectUri: "http://localhost:5555/callback"})
+
+      const saveTask = statelessRequest(1, "tools/call", {name: "save_task", arguments: {content: "Ship the thing"}}, "save_task")
+      const saveTaskRes = await postMcp(booted, claudeCode.accessToken, saveTask.body, saveTask.headers)
+      const savedTask = JSON.parse(((await saveTaskRes.json()) as any).result.content[0].text).task as {id: string}
+
+      const honest = statelessRequest(
+        2,
+        "tools/call",
+        {name: "save_comment", arguments: {taskId: savedTask.id, content: "Review is blocking this"}},
+        "save_comment",
+      )
+      const honestRes = await postMcp(booted, claudeCode.accessToken, honest.body, honest.headers)
+      expect(honestRes.status).toBe(200)
+      const honestComment = JSON.parse(((await honestRes.json()) as any).result.content[0].text).comment
+      expect(honestComment.kind).toBe("mcp")
+      expect(honestComment.provider).toBe("Claude Code")
+
+      const forged = statelessRequest(
+        3,
+        "tools/call",
+        {name: "save_comment", arguments: {taskId: savedTask.id, content: "not really a person", kind: "manual", provider: "Claude Code"}},
+        "save_comment",
+      )
+      const forgedRes = await postMcp(booted, codex.accessToken, forged.body, forged.headers)
+      expect(forgedRes.status).toBe(200)
+      const forgedComment = JSON.parse(((await forgedRes.json()) as any).result.content[0].text).comment
+      expect(forgedComment.kind).toBe("mcp")
+      expect(forgedComment.provider).toBe("Codex")
+
+      const read = statelessRequest(4, "tools/call", {name: "get_task", arguments: {id: savedTask.id}}, "get_task")
+      const readRes = await postMcp(booted, claudeCode.accessToken, read.body, read.headers)
+      const readTask = JSON.parse(((await readRes.json()) as any).result.content[0].text)
+      expect(readTask.comments.map((c: {kind: string; provider: string}) => [c.kind, c.provider])).toEqual([
+        ["mcp", "Claude Code"],
+        ["mcp", "Codex"],
+      ])
+
+      const remove = statelessRequest(5, "tools/call", {name: "delete_comment", arguments: {id: forgedComment.id}}, "delete_comment")
+      const removeRes = await postMcp(booted, codex.accessToken, remove.body, remove.headers)
+      expect(removeRes.status).toBe(200)
+
+      const readAgain = statelessRequest(6, "tools/call", {name: "get_task", arguments: {id: savedTask.id}}, "get_task")
+      const readAgainRes = await postMcp(booted, claudeCode.accessToken, readAgain.body, readAgain.headers)
+      const readAgainTask = JSON.parse(((await readAgainRes.json()) as any).result.content[0].text)
+      expect(readAgainTask.comments.map((c: {id: string}) => c.id)).toEqual([honestComment.id])
     } finally {
       await docs.close()
       await booted.close()

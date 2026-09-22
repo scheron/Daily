@@ -19,8 +19,12 @@ import type {Snapshot, SnapshotDocs} from "@daily/protocol"
 import type {ServerStore} from "../store/instance"
 import type {AgentClock} from "./clock"
 
-/** The agent a tool call runs as: the Mac it was approved from, and the time zone that Mac reads its days in. */
-export type AgentIdentity = {deviceId: string; timeZone: string}
+/**
+ * The agent a tool call runs as: the Mac it was approved from, the time zone that Mac reads its
+ * days in, and the name it was approved under — the `agents` row's own `name`, never anything the
+ * call itself carries, so a tool can attribute what it writes to the client a person let in.
+ */
+export type AgentIdentity = {deviceId: string; timeZone: string; name: string}
 
 export type AgentToolMode = "read" | "write"
 
