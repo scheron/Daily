@@ -126,6 +126,25 @@ describe("Comments tab", () => {
     expect(typedRow).not.toContain("MCP")
   })
 
+  it("names_the_mcp_client_behind_a_comment_and_marks_one_it_has_never_heard_of_as_some_agent", async () => {
+    await setup([
+      makeComment("via-claude", "2026-01-01T09:00:00.000Z", {kind: "mcp", provider: "claude"}),
+      makeComment("via-stranger", "2026-01-01T10:00:00.000Z", {kind: "mcp", provider: "some-new-client"}),
+      makeComment("via-nobody", "2026-01-01T11:00:00.000Z", {kind: "mcp", provider: null}),
+    ])
+
+    const [anonymousRow, strangerRow, claudeRow] = wrapper.findAll(".group")
+
+    expect(claudeRow.text()).toContain("claude")
+    expect(claudeRow.find("use").attributes("href")).toBe("#claude")
+
+    expect(strangerRow.text()).toContain("some-new-client")
+    expect(strangerRow.find("use").attributes("href")).toBe("#ai")
+
+    expect(anonymousRow.text()).toContain("MCP")
+    expect(anonymousRow.find("use").attributes("href")).toBe("#ai")
+  })
+
   it("writes_a_new_comment_on_the_open_task_and_shows_what_storage_answered", async () => {
     await setup([], {
       "comments:create": vi.fn(async (taskId, content) => ({

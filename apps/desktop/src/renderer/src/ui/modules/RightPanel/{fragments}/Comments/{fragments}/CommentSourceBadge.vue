@@ -2,19 +2,14 @@
 import {computed} from "vue"
 
 import BaseIcon from "@/ui/base/BaseIcon"
+import AgentIcon from "@/ui/common/sync/AgentIcon.vue"
 import {cn} from "@/utils/ui/tailwindcss"
 
-import type {IconName} from "@/ui/base/BaseIcon"
 import type {TaskCommentKind} from "@daily/protocol"
 
 const props = defineProps<{kind: TaskCommentKind; provider: string | null}>()
 
-const badge = computed<{icon: IconName; label: string} | null>(() => {
-  if (props.kind === "agent") return {icon: "sparkles", label: "Agent"}
-  if (props.kind !== "mcp") return null
-
-  return {icon: "tool", label: props.provider ?? "MCP"}
-})
+const label = computed(() => (props.kind === "agent" ? "Agent" : (props.provider ?? "MCP")))
 
 function getBadgeClasses(kind: TaskCommentKind) {
   return cn(
@@ -25,8 +20,10 @@ function getBadgeClasses(kind: TaskCommentKind) {
 </script>
 
 <template>
-  <span v-if="badge" :class="getBadgeClasses(props.kind)">
-    <BaseIcon :name="badge.icon" class="size-3" />
-    <span class="min-w-0 truncate">{{ badge.label }}</span>
+  <span v-if="kind !== 'manual'" :class="getBadgeClasses(kind)">
+    <BaseIcon v-if="kind === 'agent'" name="logo" class="size-3" />
+    <AgentIcon v-else :name="provider ?? ''" class="size-3" />
+
+    <span class="min-w-0 truncate">{{ label }}</span>
   </span>
 </template>
