@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.23.1 - 2026-09-22
+
+### 🎨 Improvements
+
+- **Updates** — an update that fails to install now explains why, and the download stays ready to try again.
+
+### 🐛 Bug Fixes
+
+- **Sync** — the server's name in Settings now follows the server when it is renamed.
+
+---
+
 ## v0.23.0 - 2026-09-22
 
 ### ✨ New Features
