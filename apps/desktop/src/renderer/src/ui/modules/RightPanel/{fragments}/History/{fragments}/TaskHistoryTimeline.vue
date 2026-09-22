@@ -18,8 +18,8 @@ function getEventChipClasses(type: TaskEvent["type"]) {
 </script>
 
 <template>
-  <div class="py-1">
-    <div v-for="event in events" :key="event.id" class="flex items-center gap-2.5 px-3 py-1">
+  <div class="py-2">
+    <div v-for="event in events" :key="event.id" class="flex items-center gap-2.5 px-4 py-1">
       <div :class="getEventChipClasses(event.type)">
         <BaseIcon :name="TASK_EVENT_META[event.type].icon" class="size-3" />
       </div>

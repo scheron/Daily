@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, nextTick, useTemplateRef, watch} from "vue"
+import {computed, nextTick, ref, useTemplateRef, watch} from "vue"
 
 import {useFocusTrap} from "@/composables/useFocusTrap"
 import {useEditorShortcuts} from "./composables/useEditorShortcuts"
@@ -8,15 +8,22 @@ import {animatePanel} from "./utils/animatePanel"
 import Details from "./{fragments}/Details"
 import Editor from "./{fragments}/Editor.vue"
 import Footer from "./{fragments}/Footer"
+import History from "./{fragments}/History"
+import PanelTabs from "./{fragments}/PanelTabs.vue"
 import Toolbar from "./{fragments}/Toolbar.vue"
+
+import type {PanelTab} from "./types"
 
 const props = defineProps<{width: number}>()
 
 const panelRef = useTemplateRef<HTMLElement>("panel")
+const activeTab = ref<PanelTab>("editor")
+
 const panelStyle = computed(() => ({width: `${props.width}px`}))
 const surfaceStyle = computed(() => ({width: `${props.width - 8}px`}))
+const isCompact = computed(() => props.width <= 380)
 
-const {isOpen, activeTask, isNew} = useTaskEditor()
+const {isOpen, activeTask, isNew, editingTaskId} = useTaskEditor()
 
 useFocusTrap(panelRef, isOpen)
 useEditorShortcuts()
@@ -28,6 +35,8 @@ function onEnter(el: Element, done: () => void) {
 function onLeave(el: Element, done: () => void) {
   animatePanel(el as HTMLElement, false).then(done, done)
 }
+
+watch([editingTaskId, isNew], () => (activeTab.value = "editor"))
 
 watch(isOpen, async (open) => {
   if (!open || isNew.value) return
@@ -45,7 +54,12 @@ watch(isOpen, async (open) => {
 
           <template v-if="activeTask">
             <Details :task="activeTask" />
-            <Editor />
+
+            <PanelTabs v-if="!isNew" :active="activeTab" :compact="isCompact" @select="activeTab = $event" />
+
+            <Editor v-if="isNew || activeTab === 'editor'" />
+            <History v-else-if="activeTab === 'history'" />
+
             <Footer />
           </template>
         </div>

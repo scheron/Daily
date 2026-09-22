@@ -1,29 +1,14 @@
 <script setup lang="ts">
-import {computed} from "vue"
 import {toasts} from "vue-toasts-lite"
-
-import {toRelativeTime} from "@daily/std"
 
 import {useTasksStore} from "@/stores/tasks"
 import BaseButton from "@/ui/base/BaseButton"
-import BaseIcon from "@/ui/base/BaseIcon"
-import BasePopup from "@/ui/base/BasePopup.vue"
 import {useTaskEditor} from "@/ui/modules/RightPanel/composables/useTaskEditor"
 import ConfirmPopup from "@/ui/overlays/ConfirmPopup.vue"
-import {useTaskHistory} from "./composables/useTaskHistory"
-import TaskHistoryTimeline from "./{fragments}/TaskHistoryTimeline.vue"
-import {TASK_EVENT_META} from "./constants"
 
 const tasksStore = useTasksStore()
 
-const {task, events, isEmpty, lastEvent} = useTaskHistory()
-
-const summary = computed(() => {
-  if (!lastEvent.value) return null
-  return `${TASK_EVENT_META[lastEvent.value.type].verb} ${toRelativeTime(lastEvent.value.createdAt)}`
-})
-
-const {isEditing, editingTaskId, close} = useTaskEditor()
+const {isEditing, activeTask, editingTaskId, close} = useTaskEditor()
 
 async function onDelete() {
   if (!editingTaskId.value) return
@@ -36,25 +21,7 @@ async function onDelete() {
 </script>
 
 <template>
-  <div v-if="task && isEditing" class="border-base-300 text-base-content/60 flex h-10 items-center border-t px-4">
-    <BasePopup
-      v-if="!isEmpty"
-      hover-mode
-      side="top"
-      position="start"
-      hide-header
-      container-class="w-72 max-h-80 overflow-y-auto p-0"
-      trigger-class="h-full text-base-content/60 hover:text-base-content cursor-default  text-xs"
-    >
-      <template #trigger="{show}">
-        <div class="flex h-full items-center gap-1.5" @mouseenter="show">
-          <BaseIcon name="history" class="size-3.5" />
-          {{ summary }}
-        </div>
-      </template>
-
-      <TaskHistoryTimeline :events="events" />
-    </BasePopup>
+  <div v-if="activeTask && isEditing" class="border-base-300 text-base-content/60 flex h-10 items-center border-t px-4">
     <div aria-hidden="true" class="flex-1 self-stretch" />
 
     <ConfirmPopup
