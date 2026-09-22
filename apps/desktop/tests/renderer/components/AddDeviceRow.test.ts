@@ -5,23 +5,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
 import {mount} from "@vue/test-utils"
 import {mockBridgeIPC} from "../../helpers/bridgeIPC"
-
-function makeBinding(overrides = {}) {
-  return {
-    baseUrl: "http://127.0.0.1:8787",
-    serverId: "srv-1",
-    serverName: "Home Server",
-    deviceId: "dev-1",
-    deviceName: "Gate Mac",
-    fingerprint: null,
-    insecure: false,
-    boundAt: "2026-08-10T00:00:00.000Z",
-    role: "parent",
-    approvedBy: null,
-    acceptsAgents: true,
-    ...overrides,
-  }
-}
+import {makeBinding} from "../../helpers/syncServerFixtures"
 
 describe("AddDeviceRow — the shared countdown, unmoved (TC-12 to TC-15)", () => {
   let wrapper = null

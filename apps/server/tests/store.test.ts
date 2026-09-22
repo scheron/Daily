@@ -7,6 +7,15 @@ import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
 import {ProtocolErrorCode} from "@daily/protocol"
 
+import {
+  approveAgentRequest,
+  createAgentRequest,
+  denyAgentRequest,
+  findPendingAgentRequest,
+  listAgents,
+  openAgentWindow,
+  readAgentRequest,
+} from "../src/agents/AgentStore"
 import {findAsset, listAssets, writeAsset} from "../src/assets/AssetStore"
 import {authenticateRequest} from "../src/devices/authenticateRequest"
 import {createDevice, findParentDevice, listDevices, promoteDevice, revokeDevice} from "../src/devices/DeviceStore"
@@ -23,16 +32,11 @@ import {v002} from "../src/store/migrations/v002-snapshot"
 import {v003} from "../src/store/migrations/v003-assets"
 
 import type {IncomingMessage} from "node:http"
-import type * as AgentStoreModule from "../src/agents/AgentStore"
 import type {StoredSnapshotDocument} from "../src/snapshot/SnapshotStore"
 import type {ServerStore} from "../src/store/instance"
 
 function requestWithAuthorization(authorization?: string): IncomingMessage {
   return {headers: {authorization}} as IncomingMessage
-}
-
-async function loadAgentStore(): Promise<typeof AgentStoreModule> {
-  return import("../src/agents/AgentStore")
 }
 
 describe("server store", () => {
@@ -842,8 +846,6 @@ describe("opening an Agent window elsewhere denies any request still waiting —
   })
 
   it("TC-4: a Child opening its own Agent window denies the Parent's waiting request and replaces the window, restarting the clock", async () => {
-    const {createAgentRequest, findPendingAgentRequest, openAgentWindow} = await loadAgentStore()
-
     openAgentWindow(store, parent.device.id)
     const request = createAgentRequest(store, {agentName: "Claude Code", returnsTo: "https://claude.ai/callback", isLocalProgram: false})
 
@@ -889,8 +891,6 @@ describe("creating an agent request needs an open window, and only one at a time
   })
 
   it("TC-5: a request is refused with no window open, accepted once inside one, refused a second time while the first still waits, and found only for the window's own Mac", async () => {
-    const {createAgentRequest, findPendingAgentRequest, openAgentWindow} = await loadAgentStore()
-
     const params = {agentName: "Claude Code", returnsTo: "https://claude.ai/callback", isLocalProgram: false}
 
     try {
@@ -941,8 +941,6 @@ describe("approving a request mints an agent and closes the window — TC-6", ()
   })
 
   it("TC-6: approving the one waiting request mints an agent owned by the approving Mac, marks the request approved and names the agent, and closes the window", async () => {
-    const {createAgentRequest, approveAgentRequest, findPendingAgentRequest, openAgentWindow, readAgentRequest} = await loadAgentStore()
-
     openAgentWindow(store, parent.device.id)
     const request = createAgentRequest(store, {agentName: "Claude Code", returnsTo: "https://claude.ai/callback", isLocalProgram: false})
 
@@ -988,8 +986,6 @@ describe("approving or denying a request checks ownership, then the code, then w
   })
 
   it("TC-7: a wrong code, another Mac's attempt (even with the right code), a second decision and an unknown id are each refused, and a denial leaves the window open with no agent minted", async () => {
-    const {createAgentRequest, approveAgentRequest, denyAgentRequest, openAgentWindow} = await loadAgentStore()
-
     openAgentWindow(store, parent.device.id)
     const request = createAgentRequest(store, {agentName: "Claude Code", returnsTo: "https://claude.ai/callback", isLocalProgram: false})
     const wrongCode = request.code === "000000" ? "111111" : "000000"
@@ -1057,8 +1053,6 @@ describe("a lapsed agent request is invisible on read without blocking a fresh o
   })
 
   it("TC-9: a request past its own deadline is invisible to the lookup and refuses approval as not pending, but its row is still 'pending' on disk since expiry is never written, and a fresh request can be created in its place", async () => {
-    const {createAgentRequest, approveAgentRequest, findPendingAgentRequest, openAgentWindow} = await loadAgentStore()
-
     openAgentWindow(store, parent.device.id)
     const request = createAgentRequest(store, {agentName: "Claude Code", returnsTo: "https://claude.ai/callback", isLocalProgram: false})
 
@@ -1110,8 +1104,6 @@ describe("listing agents for one Mac or for every Mac — TC-10", () => {
   }
 
   it("TC-10: listing every Mac's agents orders the active ones oldest-first and the revoked one last with exactly six fields each, and listing one Mac's answers only its own in the same order", async () => {
-    const {listAgents} = await loadAgentStore()
-
     insertAgent("agent-p", parent.device.id, "Claude Code on MacBook Air", "2026-01-01T00:00:00.000Z", null)
     insertAgent("agent-c-oldest", child.device.id, "Claude Code on Mac mini (1)", "2026-01-02T00:00:00.000Z", null)
     insertAgent("agent-c-revoked", child.device.id, "Claude Code on Mac mini (2)", "2026-01-03T00:00:00.000Z", "2026-01-04T00:00:00.000Z")
@@ -1162,8 +1154,6 @@ describe("revoking a device revokes its agents and clears its Agent window — T
   }
 
   it("TC-13: revoking a Mac cascades to its agents and clears its Agent window whichever route revoked it; the console reports how many agents went with it, says nothing already revoked twice, and prints no agent line for a Mac with none", async () => {
-    const {openAgentWindow} = await loadAgentStore()
-
     insertAgent("agent-parent", parent.device.id, "Claude Code on MacBook Air")
     insertAgent("agent-child-1", child.device.id, "Claude Code on Mac mini (1)")
     insertAgent("agent-child-2", child.device.id, "Claude Code on Mac mini (2)")

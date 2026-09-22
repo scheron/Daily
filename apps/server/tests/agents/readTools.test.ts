@@ -329,6 +329,14 @@ describe("list_projects, list_milestones and list_tags", () => {
       const closedTask = await mac.core.tasksService.createTask(dated("2026-10-01", {branchId: projectAId, milestoneId: closedMilestone!.id}))
       await mac.core.tasksService.updateTask(closedTask!.id, {status: "done"})
 
+      await mac.core.milestonesService.createMilestone({
+        branchId: projectBId,
+        name: "B milestone",
+        description: "",
+        targetDate: null,
+        deletedAt: null,
+      })
+
       await mac.core.tagsService.createTag({branchId: projectAId, name: "a-tag", color: "#111111", deletedAt: null})
       await mac.core.tagsService.createTag({branchId: projectBId, name: "b-tag", color: "#222222", deletedAt: null})
     })
@@ -348,6 +356,13 @@ describe("list_projects, list_milestones and list_tags", () => {
 
       const tagsB = await call(seeded.store, listTagsTool, {projectId: projectBId})
       expect(tagsB.tags.map((t: any) => t.name)).toEqual(["b-tag"])
+
+      const allMilestones = await call(seeded.store, listMilestonesTool)
+      expect(allMilestones.milestones.map((m: any) => m.name).sort()).toEqual(["B milestone", "Closed", "Open"])
+      expect(allMilestones.milestones.at(-1).name).toBe("Closed")
+
+      const allTags = await call(seeded.store, listTagsTool)
+      expect(allTags.tags.map((t: any) => t.name).sort()).toEqual(["a-tag", "b-tag"])
     } finally {
       seeded.close()
     }

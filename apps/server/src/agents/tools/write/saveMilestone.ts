@@ -2,8 +2,9 @@ import {AgentToolError} from "../../../errors/agent/AgentToolError"
 import {AgentToolErrorCode} from "../../../errors/agent/AgentToolErrorCode"
 import {milestoneView} from "../../views"
 import {readISODate, readString} from "../input"
+import {milestoneProgress} from "../milestoneProgress"
 
-import type {ISODate, Milestone, MilestoneProgress, Task} from "@daily/protocol"
+import type {ISODate, Milestone} from "@daily/protocol"
 import type {AgentToolContext} from "../../AgentWorkspace"
 import type {AgentTool} from "../types"
 
@@ -37,7 +38,7 @@ export const saveMilestoneTool: AgentTool = {
 
     const tasks = await ctx.core.tasksService.getTaskList({includeBacklog: true})
 
-    return {milestone: milestoneView(milestone, progressFor(milestone, tasks))}
+    return {milestone: milestoneView(milestone, milestoneProgress(milestone, tasks))}
   },
 }
 
@@ -79,11 +80,4 @@ async function updateMilestone(
   if (!milestone) throw new AgentToolError(AgentToolErrorCode.NOT_FOUND, `No milestone "${id}".`)
 
   return milestone
-}
-
-function progressFor(milestone: Milestone, tasks: Task[]): MilestoneProgress {
-  const inMilestone = tasks.filter((task) => task.milestoneId === milestone.id)
-  const resolved = inMilestone.filter((task) => task.status === "done" || task.status === "discarded")
-
-  return {total: inMilestone.length, resolved: resolved.length}
 }

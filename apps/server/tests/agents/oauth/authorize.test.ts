@@ -457,6 +457,59 @@ describe("an empty resource counts as absent at authorize", () => {
   })
 })
 
+describe("an empty state counts as absent at authorize", () => {
+  it("a refusal for a request carrying state= returns no state at all, and state=&state=s1 is one state, not a repeat", async () => {
+    const booted = await bootAgentServer()
+    const docs = await startClientDocumentServer()
+    try {
+      const parent = await claimParent(booted)
+      const clientId = registerClientDocument(docs, "/claude-code.json", claudeCodeDocument)
+      const {challenge} = makePkcePair()
+
+      for (const states of [[""], ["", "s1"]]) {
+        await openAgentWindowOver(booted, parent.token)
+        const authorizeUrl = new URL(
+          buildAuthorizeUrl(booted, {clientId, redirectUri: "http://localhost:5555/callback", codeChallenge: challenge, responseType: "token"}),
+        )
+        for (const state of states) authorizeUrl.searchParams.append("state", state)
+
+        const res = await fetch(authorizeUrl, {redirect: "manual"})
+
+        expect(res.status).toBe(303)
+        const redirectUrl = new URL(res.headers.get("location") ?? "")
+        expect(redirectUrl.searchParams.get("error")).toBe("unsupported_response_type")
+        expect(redirectUrl.searchParams.getAll("state")).toEqual(states.filter((state) => state !== ""))
+      }
+    } finally {
+      await docs.close()
+      await booted.close()
+    }
+  })
+
+  it("an accepted request carrying state= is stored without a state", async () => {
+    const booted = await bootAgentServer()
+    const docs = await startClientDocumentServer()
+    try {
+      const parent = await claimParent(booted)
+      const clientId = registerClientDocument(docs, "/claude-code.json", claudeCodeDocument)
+      await openAgentWindowOver(booted, parent.token)
+      const {challenge} = makePkcePair()
+      const authorizeUrl = new URL(buildAuthorizeUrl(booted, {clientId, redirectUri: "http://localhost:5555/callback", codeChallenge: challenge}))
+      authorizeUrl.searchParams.append("state", "")
+
+      const res = await fetch(authorizeUrl, {redirect: "manual"})
+
+      expect(res.status).toBe(303)
+      const authorizationId = new URL(res.headers.get("location") ?? "", booted.baseUrl).searchParams.get("id")
+      const row = booted.store.db.prepare(`SELECT state FROM agent_authorizations WHERE id = ?`).get(authorizationId) as {state: string | null}
+      expect(row.state).toBeNull()
+    } finally {
+      await docs.close()
+      await booted.close()
+    }
+  })
+})
+
 describe("the consent page hands the browser back once approved, and only once — TC-36", () => {
   it("TC-36: the first read after approval is a redirect carrying exactly code, state and iss; the second reads Access granted; a stateless request's redirect carries no state", async () => {
     const booted = await bootAgentServer()

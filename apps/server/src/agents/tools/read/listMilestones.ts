@@ -2,8 +2,8 @@ import {isMilestoneClosed, sortMilestones} from "@daily/protocol"
 
 import {milestoneView} from "../../views"
 import {readBoolean, readString} from "../input"
+import {milestoneProgress} from "../milestoneProgress"
 
-import type {Milestone, MilestoneProgress, Task} from "@daily/protocol"
 import type {AgentTool} from "../types"
 
 export const listMilestonesTool: AgentTool = {
@@ -25,17 +25,10 @@ export const listMilestonesTool: AgentTool = {
     const milestones = await ctx.core.milestonesService.getMilestoneList(projectId)
     const tasks = await ctx.core.tasksService.getTaskList({includeBacklog: true})
 
-    const withProgress = milestones.map((milestone) => ({...milestone, progress: progressFor(milestone, tasks)}))
+    const withProgress = milestones.map((milestone) => ({...milestone, progress: milestoneProgress(milestone, tasks)}))
     const ordered = sortMilestones(withProgress)
     const visible = includeClosed ? ordered : ordered.filter((milestone) => !isMilestoneClosed(milestone.progress))
 
     return {milestones: visible.map((milestone) => milestoneView(milestone, milestone.progress))}
   },
-}
-
-function progressFor(milestone: Milestone, tasks: Task[]): MilestoneProgress {
-  const inMilestone = tasks.filter((task) => task.milestoneId === milestone.id)
-  const resolved = inMilestone.filter((task) => task.status === "done" || task.status === "discarded")
-
-  return {total: inMilestone.length, resolved: resolved.length}
 }

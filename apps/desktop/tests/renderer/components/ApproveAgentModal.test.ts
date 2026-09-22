@@ -56,6 +56,8 @@ describe("ApproveAgentModal", () => {
 
     const text = wrapper.text()
     expect(text).toContain("claude.ai")
+    const address = wrapper.findAll("span").find((span) => span.text() === "claude.ai")
+    expect(address?.element.parentElement?.children).toHaveLength(1)
     expect(text).not.toContain("A program on a computer")
     expect(text).not.toContain("This agent returns to a program on a computer")
     expect(text).toContain("Claude")

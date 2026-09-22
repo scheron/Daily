@@ -8,49 +8,7 @@ import {toDateLabel} from "@daily/std"
 
 import {mount} from "@vue/test-utils"
 import {mockBridgeIPC} from "../../helpers/bridgeIPC"
-
-function makeBinding(overrides = {}) {
-  return {
-    baseUrl: "http://127.0.0.1:8787",
-    serverId: "srv-1",
-    serverName: "Home Server",
-    deviceId: "dev-p",
-    deviceName: "Gate Mac",
-    fingerprint: null,
-    insecure: false,
-    boundAt: "2026-08-10T00:00:00.000Z",
-    role: "parent",
-    approvedBy: null,
-    acceptsAgents: true,
-    ...overrides,
-  }
-}
-
-function makeDevice(overrides = {}) {
-  return {
-    id: "dev-p",
-    name: "Gate Mac",
-    role: "parent",
-    addedAt: "2026-08-01T00:00:00.000Z",
-    lastSeenAt: null,
-    revokedAt: null,
-    isThisMac: true,
-    ...overrides,
-  }
-}
-
-function makeAgent(overrides = {}) {
-  return {
-    id: "agent-1",
-    deviceId: "dev-p",
-    name: "Claude Code",
-    connectedAt: "2026-09-01T00:00:00.000Z",
-    lastUsedAt: null,
-    revokedAt: null,
-    isThisMac: true,
-    ...overrides,
-  }
-}
+import {makeAgent, makeBinding, makeDevice} from "../../helpers/syncServerFixtures"
 
 describe("DeviceTable — agents hang under their Mac (TC-23, TC-24)", () => {
   let wrapper = null
@@ -122,10 +80,11 @@ describe("DeviceTable — agents hang under their Mac (TC-23, TC-24)", () => {
     expect(rows[3].find("td").text()).toContain("Mac mini")
     expect(rows[4].find("td").text()).toContain("Codex")
 
+    expect(rows[1].text()).toContain("—")
+    expect(rows[2].text()).toContain("2h ago")
+    expect(rows[4].text()).toContain("5m ago")
+
     const text = wrapper.text()
-    expect(text).toContain("—")
-    expect(text).toContain("5m ago")
-    expect(text).toContain("2h ago")
     expect(text).toContain(toDateLabel(agentA1.connectedAt, {short: true}))
     expect(text).toContain(toDateLabel(agentB1.connectedAt, {short: true}))
     expect(text).toContain(toDateLabel(agentA2.connectedAt, {short: true}))

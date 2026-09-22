@@ -7,49 +7,7 @@ import {toDateLabel} from "@daily/std"
 
 import {mount} from "@vue/test-utils"
 import {mockBridgeIPC} from "../../helpers/bridgeIPC"
-
-function makeBinding(overrides = {}) {
-  return {
-    baseUrl: "http://127.0.0.1:8787",
-    serverId: "srv-1",
-    serverName: "Home Server",
-    deviceId: "dev-1",
-    deviceName: "Gate Mac",
-    fingerprint: null,
-    insecure: false,
-    boundAt: "2026-08-10T00:00:00.000Z",
-    role: "parent",
-    approvedBy: null,
-    acceptsAgents: true,
-    ...overrides,
-  }
-}
-
-function makeDevice(overrides = {}) {
-  return {
-    id: "dev-p",
-    name: "Gate Mac",
-    role: "parent",
-    addedAt: "2026-08-01T00:00:00.000Z",
-    lastSeenAt: null,
-    revokedAt: null,
-    isThisMac: true,
-    ...overrides,
-  }
-}
-
-function makeAgent(overrides = {}) {
-  return {
-    id: "agent-1",
-    deviceId: "dev-1",
-    name: "Claude Code",
-    connectedAt: "2026-09-01T00:00:00.000Z",
-    lastUsedAt: null,
-    revokedAt: null,
-    isThisMac: true,
-    ...overrides,
-  }
-}
+import {makeAgent, makeBinding, makeDevice} from "../../helpers/syncServerFixtures"
 
 describe("ServerDetails — no revoked device rendered, the row or the line, by role and by the accepts-agents fact (TC-47, TC-25 to TC-29)", () => {
   let wrapper = null
@@ -177,10 +135,11 @@ describe("ServerDetails — no revoked device rendered, the row or the line, by 
     expect(text).toContain("This Mac · agents")
     expect(text).toContain("Last used")
     expect(text).toContain("Added")
-    expect(text).toContain("MacBook Air")
-    expect(text).toContain("This Mac")
-    expect(text).toContain("just now")
-    expect(text).toContain(toDateLabel("2026-09-03T00:00:00.000Z", {short: true}))
+    const macRow = wrapper.find("table tbody tr")
+    expect(macRow.text()).toContain("MacBook Air")
+    expect(macRow.text()).toContain("This Mac")
+    expect(macRow.text()).toContain("just now")
+    expect(macRow.text()).toContain(toDateLabel("2026-09-03T00:00:00.000Z", {short: true}))
     expect(text).toContain("Claude")
     expect(text).not.toContain("Device · agent")
     expect(text).not.toContain("Add a device")

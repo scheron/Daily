@@ -51,7 +51,7 @@ async function getAuthorize(ctx: RouteContext): Promise<typeof RESPONSE_SENT> {
   if (!urls) return respondPage(ctx.res, 404, renderPage({kind: "not-accepted"}))
 
   const requestUrl = new URL(ctx.req.url ?? "/", "http://placeholder")
-  const query = requestUrl.searchParams
+  const query = new URLSearchParams([...requestUrl.searchParams].filter(([, value]) => value !== ""))
   const issuerUrl = new URL(urls.issuer)
   const host = issuerUrl.host
   const retryUrl = new URL(urls.authorizationEndpoint)
@@ -64,7 +64,7 @@ async function getAuthorize(ctx: RouteContext): Promise<typeof RESPONSE_SENT> {
   }
 
   const clientIds = query.getAll("client_id")
-  if (clientIds.length !== 1 || !clientIds[0]) return respondPage(ctx.res, 400, renderPage({kind: "invalid-request", host, reason: "client"}))
+  if (clientIds.length !== 1) return respondPage(ctx.res, 400, renderPage({kind: "invalid-request", host, reason: "client"}))
 
   const metadata = await fetchClientMetadata(clientIds[0], {allowLoopback: isLoopbackHostname(issuerUrl.hostname)})
   if (!metadata.ok) {
@@ -153,7 +153,7 @@ function resolveRedirectUri(query: URLSearchParams, client: ClientMetadata): str
   const given = query.getAll("redirect_uri")
   if (given.length > 1) return null
 
-  const candidate = given[0] || (client.redirectUris.length === 1 ? client.redirectUris[0] : null)
+  const candidate = given[0] ?? (client.redirectUris.length === 1 ? client.redirectUris[0] : null)
 
   return candidate && isRegisteredRedirectUri(client, candidate) ? candidate : null
 }
@@ -172,7 +172,7 @@ function findAuthorizeRefusal(query: URLSearchParams, urls: AgentUrls): {error: 
 
   if (query.get("code_challenge_method") !== "S256") return {error: "invalid_request", description: "code_challenge_method must be S256"}
 
-  if (query.getAll("resource").some((value) => value !== "" && !isAgentResource(urls, value))) {
+  if (query.getAll("resource").some((value) => !isAgentResource(urls, value))) {
     return {error: "invalid_target", description: `This server serves only ${urls.resource}`}
   }
 

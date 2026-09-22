@@ -1,6 +1,3 @@
-const MAX_TIME_ZONE_LENGTH = 64
-const TIME_ZONE_PATTERN = /^[A-Za-z][A-Za-z0-9_+\-/]*$/
-
 /**
  * Reports whether a value is usable as a Mac's IANA time zone: a bounded, zone-shaped string.
  * Does not call `Intl` to check the zone is known — the server's ICU need not know every zone a
@@ -8,5 +5,5 @@ const TIME_ZONE_PATTERN = /^[A-Za-z][A-Za-z0-9_+\-/]*$/
  * revision probe, which ignores an unusable value, and by agent approval, which refuses one.
  */
 export function isUsableTimeZone(value: unknown): value is string {
-  return typeof value === "string" && value.length > 0 && value.length <= MAX_TIME_ZONE_LENGTH && TIME_ZONE_PATTERN.test(value)
+  return typeof value === "string" && value.length > 0 && value.length <= 64 && /^[A-Za-z][A-Za-z0-9_+\-/]*$/.test(value)
 }

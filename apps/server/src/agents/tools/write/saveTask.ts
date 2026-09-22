@@ -3,13 +3,11 @@ import {isArray, isString} from "@daily/std"
 
 import {AgentToolError} from "../../../errors/agent/AgentToolError"
 import {AgentToolErrorCode} from "../../../errors/agent/AgentToolErrorCode"
-import {taskFiles} from "../../attachments"
-import {taskDetailView} from "../../views"
 import {readEnum, readInteger, readISODate, readISOTime, readString} from "../input"
+import {readTaskDetail} from "../readTaskDetail"
 
 import type {ISODate, ISOTime, Milestone, Tag, Task, TaskScheduled, TaskStatus} from "@daily/protocol"
 import type {AgentToolContext} from "../../AgentWorkspace"
-import type {AttachmentView, TaskDetailView} from "../../views"
 import type {AgentTool} from "../types"
 
 const TASK_STATUSES = ["active", "backlog", "done", "discarded"] as const
@@ -59,7 +57,7 @@ export const saveTaskTool: AgentTool = {
 
     const taskId = id === undefined ? await createTask(ctx, fields) : await updateTask(ctx, id, fields)
 
-    return {task: await buildTaskDetail(ctx, taskId)}
+    return {task: await readTaskDetail(ctx, taskId)}
   },
 }
 
@@ -250,25 +248,6 @@ async function applyRelations(
   const nextBlocks = blocks ?? current.blocks.map((task) => task.id)
 
   await ctx.core.taskRelationsService.setTaskRelations(taskId, {blockedBy: nextBlockedBy, blocks: nextBlocks})
-}
-
-async function buildTaskDetail(ctx: AgentToolContext, id: Task["id"]): Promise<TaskDetailView> {
-  const task = await ctx.core.tasksService.getTask(id)
-  if (!task) throw new AgentToolError(AgentToolErrorCode.NOT_FOUND, `No task "${id}".`)
-
-  const branch = await ctx.core.branchesService.getBranch(task.branchId)
-  const relations = await ctx.core.taskRelationsService.getRelationsOfTask(task.id)
-  const history = await ctx.core.tasksService.getHistoryByTask(task.id)
-  const files = await taskFiles(ctx, task)
-  const attachments: AttachmentView[] = files.map((ref) => ({
-    id: ref.file.id,
-    name: ref.file.name,
-    mimeType: ref.file.mimeType,
-    size: ref.file.size,
-    onServer: ref.onServer,
-  }))
-
-  return taskDetailView(task, branch?.name ?? "", {blockedBy: relations.blockedBy, blocks: relations.blocks, history, attachments})
 }
 
 function readIdArray(input: Record<string, unknown>, field: string): string[] | undefined {

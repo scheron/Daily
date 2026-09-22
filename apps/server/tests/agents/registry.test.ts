@@ -6,23 +6,21 @@ import {AgentToolErrorCode} from "../../src/errors/agent/AgentToolErrorCode"
 import {readRevision} from "../../src/snapshot/SnapshotStore"
 import {bindAgent, seedAgentStore} from "./helpers"
 
-const D13_TOOL_NAMES = [
-  "list_tasks",
-  "get_task",
-  "get_attachment",
-  "list_projects",
-  "list_milestones",
-  "list_tags",
-  "save_task",
-  "delete_task",
-  "save_project",
-  "save_milestone",
-  "save_tag",
-]
-
 describe("the agent tool registry", () => {
   it("TC-42: holds exactly the eleven agent tools, once each, reads before writes, each with a name, a description and an object input schema", () => {
-    expect(AGENT_TOOLS.map((tool) => tool.name)).toEqual(D13_TOOL_NAMES)
+    expect(AGENT_TOOLS.map((tool) => tool.name)).toEqual([
+      "list_tasks",
+      "get_task",
+      "get_attachment",
+      "list_projects",
+      "list_milestones",
+      "list_tags",
+      "save_task",
+      "delete_task",
+      "save_project",
+      "save_milestone",
+      "save_tag",
+    ])
     expect(new Set(AGENT_TOOLS.map((tool) => tool.name)).size).toBe(AGENT_TOOLS.length)
 
     for (const tool of AGENT_TOOLS) {

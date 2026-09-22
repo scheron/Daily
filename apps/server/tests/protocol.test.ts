@@ -8,12 +8,14 @@ import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
 import {SYNC_PROTOCOL_CONFIG, SYNC_PROTOCOL_PATHS, SYNC_PROTOCOL_VERSION} from "@daily/protocol"
 
+import {createAgentRequest} from "../src/agents/AgentStore"
 import {writeAsset} from "../src/assets/AssetStore"
 import {resolveServerConfig} from "../src/config/resolveServerConfig"
 import {authenticateRequest} from "../src/devices/authenticateRequest"
 import {listDevices, revokeDevice} from "../src/devices/DeviceStore"
 import {createConsoleEnrollment} from "../src/enrollment/EnrollmentStore"
 import {createHttpServer} from "../src/http/createHttpServer"
+import {readRequestOrigin} from "../src/http/requestOrigin"
 import {HEALTH_PATH} from "../src/http/routes/health"
 import {ensureClaimCode, openEnrollmentWindow, regenerateClaimCode} from "../src/identity/ServerIdentityStore"
 import {readSnapshot as readStoredSnapshot} from "../src/snapshot/SnapshotStore"
@@ -38,7 +40,6 @@ import type {
 } from "@daily/protocol"
 import type {IncomingMessage} from "node:http"
 import type {AddressInfo} from "node:net"
-import type {AgentRequestRecord, CreateAgentRequestParams} from "../src/agents/AgentStore"
 import type {ServerConfigOptions} from "../src/config/resolveServerConfig"
 import type {ServerStore} from "../src/store/instance"
 
@@ -73,11 +74,6 @@ function bootServer(dataDir: string, overrides: ServerConfigOptions = {}): Promi
       })
     })
   })
-}
-
-async function createAgentRequestDirectly(store: ServerStore, params: CreateAgentRequestParams): Promise<AgentRequestRecord> {
-  const {createAgentRequest} = await import("../src/agents/AgentStore")
-  return createAgentRequest(store, params)
 }
 
 describe("protocol http surface", () => {
@@ -1018,19 +1014,6 @@ describe("the revision probe reports the protocol it speaks — TC-1, TC-15", ()
   })
 })
 
-/**
- * The plan freezes the four wire codes phase 1 adds to `ProtocolErrorCode`
- * (`NOT_PARENT`, `ENROLLMENT_WINDOW_CLOSED`, `DEVICE_NOT_FOUND`, `CANNOT_REVOKE_PARENT`) but not
- * the HTTP status each one answers at — `ProtocolError`'s `STATUS` table is not part of the
- * plan's frozen wire contract. The suites below assume each new code lands in the same family as
- * the existing code it reads closest to: `NOT_PARENT` beside `DEVICE_REVOKED`/`CLAIM_CODE_LOCKED`
- * (403 — the caller is known, the action is refused), `ENROLLMENT_WINDOW_CLOSED` and
- * `CANNOT_REVOKE_PARENT` beside `SERVER_NOT_CLAIMED`/`ENROLLMENT_IN_PROGRESS`/`ALREADY_CLAIMED`
- * (409 — the system's own state forbids this right now), and `DEVICE_NOT_FOUND` beside
- * `ENROLLMENT_NOT_FOUND`/`ASSET_NOT_FOUND` (404 — the literal, established convention for a
- * "no such thing" code in this file). Flagged here rather than settled silently: if an
- * implementer's `STATUS` table disagrees, the fix is in `ProtocolError`, not in these numbers.
- */
 describe("only the Parent may act on a waiting enrollment — TC-5", () => {
   let dataDir: string
   let booted: BootedServer
@@ -1488,17 +1471,12 @@ describe("the approval card knows where a request came from, and a new device kn
    * `readRequestOrigin`'s "public peer" branch cannot be driven through `fetch()` against this
    * suite's own loopback-bound server — the immediate TCP peer of any request made here is always
    * `127.0.0.1`, itself private, so there is no honest way to make a *real* request arrive from a
-   * public address. That branch is exercised directly against the frozen `readRequestOrigin(req)`
-   * function instead, with a minimal fabricated `IncomingMessage` — the same fabrication
+   * public address. That branch is exercised directly against `readRequestOrigin(req)`
+   * itself instead, with a minimal fabricated `IncomingMessage` — the same fabrication
    * `store.test.ts` already uses for `authenticateRequest`'s request shape. The "private peer"
    * branch, and the recording/reporting `then` clause, are driven through the real booted server.
    */
   it("TC-12: a request from a private peer carrying a forwarding header is recorded at the forwarded address; a public peer's header is ignored and its own address is used instead; each carries whether the address it settled on is private", async () => {
-    // Imported dynamically, and only here: `../src/http/requestOrigin` is phase 5's own new file, so a
-    // static import of it would fail the whole suite's module load — including every case that has
-    // nothing to do with it — for every phase before phase 5 lands.
-    const {readRequestOrigin} = await import("../src/http/requestOrigin")
-
     const trustedForward = readRequestOrigin(requestFrom("192.168.1.10", "10.0.0.55"))
     expect(trustedForward).toEqual({address: "10.0.0.55", isPrivate: true})
 
@@ -1848,7 +1826,7 @@ describe("approving an agent needs a usable time zone — TC-8", () => {
   }
 
   it("TC-8: an absent, empty, path-escaping or 200-character time zone each refuse INVALID_TIME_ZONE and mint nothing, leaving the same request pending for a further attempt, and a usable one then succeeds", async () => {
-    const request = await createAgentRequestDirectly(booted.store, {
+    const request = createAgentRequest(booted.store, {
       agentName: "Claude Code",
       returnsTo: "https://claude.ai/callback",
       isLocalProgram: false,
@@ -1906,7 +1884,7 @@ describe("listing and revoking agents under the Parent/Child rule — TC-11", ()
 
   async function mintAgent(token: string, agentName: string): Promise<string> {
     await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.agentWindowOpen}`, {method: "POST", headers: {authorization: `Bearer ${token}`}})
-    const request = await createAgentRequestDirectly(booted.store, {agentName, returnsTo: "https://claude.ai/callback", isLocalProgram: false})
+    const request = createAgentRequest(booted.store, {agentName, returnsTo: "https://claude.ai/callback", isLocalProgram: false})
     const approved = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.agentApprove}`, {
       method: "POST",
       headers: {authorization: `Bearer ${token}`, "content-type": "application/json"},
@@ -2144,7 +2122,7 @@ describe("approving an agent sends this Mac's own time zone, touching no other d
   }
 
   it("TC-15: approving with a fresh time zone overwrites this Mac's own stored zone and leaves every other device's untouched", async () => {
-    const request = await createAgentRequestDirectly(booted.store, {
+    const request = createAgentRequest(booted.store, {
       agentName: "Claude Code",
       returnsTo: "https://claude.ai/callback",
       isLocalProgram: false,
@@ -2255,7 +2233,7 @@ describe("pendingAgentRequest is scoped to the window's own Mac — TC-17", () =
 
   it("TC-17: pendingAgentRequest is true only for the Mac whose window a request waits on, moves to false once decided, and follows the request to whichever Mac opens next; pendingEnrollment never turns true", async () => {
     await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.agentWindowOpen}`, {method: "POST", headers: {authorization: `Bearer ${parent.token}`}})
-    const request = await createAgentRequestDirectly(booted.store, {
+    const request = createAgentRequest(booted.store, {
       agentName: "Claude Code",
       returnsTo: "https://claude.ai/callback",
       isLocalProgram: false,
@@ -2279,7 +2257,7 @@ describe("pendingAgentRequest is scoped to the window's own Mac — TC-17", () =
     expect((await probe(child.token)).pendingAgentRequest).toBe(false)
 
     await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.agentWindowOpen}`, {method: "POST", headers: {authorization: `Bearer ${child.token}`}})
-    await createAgentRequestDirectly(booted.store, {agentName: "Claude Code", returnsTo: "https://claude.ai/callback", isLocalProgram: false})
+    createAgentRequest(booted.store, {agentName: "Claude Code", returnsTo: "https://claude.ai/callback", isLocalProgram: false})
 
     const parentFinal = await probe(parent.token)
     expect(parentFinal.pendingAgentRequest).toBe(false)
@@ -2352,7 +2330,7 @@ describe("a request that starts waiting for this Mac releases its held probe ear
 
     const parentsOwnHold = holdForParent()
     await new Promise((resolve) => setTimeout(resolve, 150))
-    await createAgentRequestDirectly(booted.store, {agentName: "Claude Code", returnsTo: "https://claude.ai/callback", isLocalProgram: false})
+    createAgentRequest(booted.store, {agentName: "Claude Code", returnsTo: "https://claude.ai/callback", isLocalProgram: false})
 
     const releasedEarly = await parentsOwnHold
     expect(releasedEarly.status).toBe(200)
@@ -2374,7 +2352,7 @@ describe("a request that starts waiting for this Mac releases its held probe ear
 
     const parentsHoldWhileChildWaits = holdForParent()
     await new Promise((resolve) => setTimeout(resolve, 150))
-    await createAgentRequestDirectly(booted.store, {agentName: "Claude Code", returnsTo: "https://claude.ai/callback", isLocalProgram: false})
+    createAgentRequest(booted.store, {agentName: "Claude Code", returnsTo: "https://claude.ai/callback", isLocalProgram: false})
 
     const ranToItsEnd = await parentsHoldWhileChildWaits
     expect(ranToItsEnd.status).toBe(200)

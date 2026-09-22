@@ -4,7 +4,7 @@ import {tmpdir} from "node:os"
 import {join} from "node:path"
 
 import {SYNC_PROTOCOL_PATHS} from "@daily/protocol"
-import {createAgentRequest as createStoreAgentRequest, openAgentWindow as openStoreAgentWindow} from "@daily/server/agents/AgentStore"
+import {createAgentRequest as createStoreAgentRequest} from "@daily/server/agents/AgentStore"
 import {resolveServerConfig} from "@daily/server/config/resolveServerConfig"
 import {createConsoleEnrollment} from "@daily/server/enrollment/EnrollmentStore"
 import {createHttpServer} from "@daily/server/http/createHttpServer"
@@ -12,7 +12,7 @@ import {ensureClaimCode, openEnrollmentWindow as openStoreEnrollmentWindow} from
 import {openServerStore} from "@daily/server/store/instance"
 
 import type {ClaimResponse, ConsoleEnrollResponse, EnrollmentWindow, IssuedCredential} from "@daily/protocol"
-import type {AgentRequestRecord, AgentWindowState, CreateAgentRequestParams} from "@daily/server/agents/AgentStore"
+import type {AgentRequestRecord, CreateAgentRequestParams} from "@daily/server/agents/AgentStore"
 import type {ServerConfig, ServerConfigOptions} from "@daily/server/config/resolveServerConfig"
 import type {ServerStore} from "@daily/server/store/instance"
 import type {AddressInfo} from "node:net"
@@ -92,15 +92,6 @@ export async function enrollSecondDevice(server: BootedSyncServer, deviceName: s
  */
 export function openEnrollmentWindow(server: BootedSyncServer): EnrollmentWindow {
   return openStoreEnrollmentWindow(server.store)
-}
-
-/**
- * Opens the Agent window directly on the server's store, without a Mac's own HTTP round trip —
- * for tests that need a waiting agent request to succeed and are not themselves testing the
- * window.
- */
-export function openAgentWindow(server: BootedSyncServer, deviceId: string): AgentWindowState {
-  return openStoreAgentWindow(server.store, deviceId)
 }
 
 /**

@@ -3,6 +3,7 @@ import {createPinia, setActivePinia} from "pinia"
 import {beforeEach, describe, expect, it, vi} from "vitest"
 
 import {mockBridgeIPC} from "../../helpers/bridgeIPC"
+import {makeAgent, makeAgentWindow, makeBinding, makeDevice} from "../../helpers/syncServerFixtures"
 
 vi.mock("../../../src/renderer/src/utils/ui/toRawDeep", () => ({toRawDeep: (v) => v}))
 
@@ -135,45 +136,6 @@ describe("syncServerStore — a role learned on the tick updates the store and r
 
 const AGENTS_ACCEPTED_CHANNEL = "sync-server:on-agents-accepted-changed"
 const AGENT_REQUESTED_CHANNEL = "sync-server:on-agent-requested"
-
-function makeBinding(overrides = {}) {
-  return {
-    baseUrl: "http://127.0.0.1:8787",
-    serverId: "srv-1",
-    serverName: "Home Server",
-    deviceId: "dev-1",
-    deviceName: "Gate Mac",
-    fingerprint: null,
-    insecure: false,
-    boundAt: "2026-08-10T00:00:00.000Z",
-    role: "parent",
-    approvedBy: null,
-    acceptsAgents: true,
-    ...overrides,
-  }
-}
-
-function makeAgent(overrides = {}) {
-  return {
-    id: "agent-1",
-    deviceId: "dev-1",
-    name: "Claude Code",
-    connectedAt: "2026-09-01T00:00:00.000Z",
-    lastUsedAt: null,
-    revokedAt: null,
-    isThisMac: true,
-    ...overrides,
-  }
-}
-
-function makeAgentWindow(overrides = {}) {
-  return {
-    expiresAt: "2026-09-21T00:05:00.000Z",
-    agentAddress: "http://127.0.0.1:8787/mcp",
-    isThisMac: true,
-    ...overrides,
-  }
-}
 
 function makeAgentRequest(overrides = {}) {
   return {
@@ -523,19 +485,6 @@ describe("syncServerStore — the agent list, the agent card and revoking an age
     consoleErrorSpy.mockRestore()
   })
 })
-
-function makeDevice(overrides = {}) {
-  return {
-    id: "dev-p",
-    name: "Gate Mac",
-    role: "parent",
-    addedAt: "2026-08-01T00:00:00.000Z",
-    lastSeenAt: null,
-    revokedAt: null,
-    isThisMac: true,
-    ...overrides,
-  }
-}
 
 function fourDevices() {
   return [

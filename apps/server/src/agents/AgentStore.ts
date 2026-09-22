@@ -238,14 +238,18 @@ export function findAgentById(store: ServerStore, agentId: string): AgentRecord 
 
 /** Revokes an agent by id, leaving its row in place. Returns `null` when no such agent exists, and the record unchanged when it was already revoked. */
 export function revokeAgent(store: ServerStore, agentId: string): AgentRecord | null {
-  const existing = findAgentById(store, agentId)
-  if (!existing) return null
-  if (existing.revokedAt) return existing
+  const revoke = store.db.transaction((): AgentRecord | null => {
+    const existing = findAgentById(store, agentId)
+    if (!existing) return null
+    if (existing.revokedAt) return existing
 
-  const revokedAt = new Date().toISOString()
-  store.db.prepare(`UPDATE agents SET revoked_at = ? WHERE id = ?`).run(revokedAt, agentId)
+    const revokedAt = new Date().toISOString()
+    store.db.prepare(`UPDATE agents SET revoked_at = ? WHERE id = ?`).run(revokedAt, agentId)
 
-  return {...existing, revokedAt}
+    return {...existing, revokedAt}
+  })
+
+  return revoke.immediate()
 }
 
 /** Revokes every one of a device's still-active agents in one statement, and returns how many that was. */

@@ -29,11 +29,11 @@ import type {
 import type {BootedSyncServer} from "../../../helpers/syncServer"
 
 /**
- * `isPrivateServerAddress` (phase 2) has no injectable lookup, and this sandbox cannot manufacture
+ * `isPrivateServerAddress` has no injectable lookup, and this sandbox cannot manufacture
  * a genuinely public, reachable address (confirmed empirically: neither a loopback alias like
  * `127.0.0.2` nor a real internet-facing listener is available here). TC-12's "public address" half
  * is therefore driven against the same real, reachable local server as the "private" half, with only
- * the one classification call the plan names (`isBlockedAddress`) stubbed for that one probe — every
+ * the one classification call (`isBlockedAddress`) stubbed for that one probe — every
  * other step (the real HTTP round trip, the insecure gate, the binding write) runs unmocked.
  */
 vi.mock("../../../../src/utils/web/isBlockedAddress", async (importOriginal) => {
@@ -42,10 +42,9 @@ vi.mock("../../../../src/utils/web/isBlockedAddress", async (importOriginal) => 
 })
 
 /**
- * `ServerProviderService` is constructed with the union of every dependency phase 3 and phase 4
- * freeze on it: `loadSettings`/`saveSettings`/`onBindingChanged` (phase 3), and `runSyncCycle`/
- * `onApprovalRequested` (phase 4, "two more dependencies" added to the same object per the plan).
- * Cases that never touch the probe scheduler pass no-ops for the phase-4 pair.
+ * `ServerProviderService` takes the settings pair `loadSettings`/`saveSettings` with `onBindingChanged`,
+ * and the probe's `runSyncCycle`/`onApprovalRequested`. Cases that never touch the probe scheduler
+ * pass no-ops for the probe pair.
  */
 function makeSettingsStore(overrides: Partial<SyncSettings> = {}) {
   let settings: Settings = {...getDefaultSettings(), sync: {...getDefaultSettings().sync, ...overrides}}
@@ -920,8 +919,8 @@ describe("the re-arm after a successful probe", () => {
       expect(runSyncCycle).not.toHaveBeenCalled()
 
       // The scheduler's second fire moves to "r1" and schedules a re-arm; that re-armed probe is
-      // the one that finds the mismatch — the scenario the plan means by "a re-arm must not outlive
-      // a switch into mismatch". A millisecond-scale advance, not another interval, is what lets it
+      // the one that finds the mismatch, so a re-arm must not outlive a switch into mismatch.
+      // A millisecond-scale advance, not another interval, is what lets it
       // resolve here.
       await fireProbeTick()
       await vi.advanceTimersByTimeAsync(1)
@@ -933,7 +932,7 @@ describe("the re-arm after a successful probe", () => {
       expect(state.mismatch).toEqual({appProtocol: SYNC_PROTOCOL_VERSION, serverProtocol: SYNC_PROTOCOL_VERSION + 1})
 
       const callsAfterMismatch = probeSpy.mock.calls.length
-      // Still well under the sixty-second mismatch cadence phase 2 switched to — nothing further is
+      // Still well under the sixty-second mismatch cadence — nothing further is
       // due yet, whether from a stray re-arm or from that recheck itself.
       await fireProbeTick()
       expect(probeSpy.mock.calls.length).toBe(callsAfterMismatch)
@@ -1628,6 +1627,36 @@ describe("what a probe tick learns about agents — TC-19", () => {
       await fireProbeTick()
 
       expect(onAgentRequested).toHaveBeenCalledTimes(1)
+
+      service.stopProbe()
+    } finally {
+      await server.close()
+    }
+  })
+
+  it("TC-44 (c): a request that merely waits while the probe holds a known revision does not re-arm it", async () => {
+    const server = await bootSyncServer()
+    try {
+      const credential = await claimFirstDevice(server, "MacBook Air")
+      const binding = bindingFromCredential(server, credential)
+      const store = makeSettingsStore({server: {enabled: true, binding}})
+      const service = makeAgentAwareService(store, {onAgentRequested: vi.fn()})
+
+      const probeSpy = vi.spyOn(DailySyncClient.prototype, "probeRevision")
+      probeSpy.mockResolvedValue(probe({revision: "r1", pendingAgentRequest: true}))
+      mockPendingAgentRequestFromNowOn("request-a")
+
+      service.startProbe()
+      await fireProbeTick()
+      await vi.advanceTimersByTimeAsync(1)
+      await settleProbeIO()
+
+      expect(probeSpy.mock.calls.at(-1)?.[0]).toBe("r1")
+      const callsWhileWaiting = probeSpy.mock.calls.length
+
+      await vi.advanceTimersByTimeAsync(1)
+      await settleProbeIO()
+      expect(probeSpy.mock.calls.length).toBe(callsWhileWaiting)
 
       service.stopProbe()
     } finally {

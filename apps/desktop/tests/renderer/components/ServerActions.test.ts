@@ -5,32 +5,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
 import {mount} from "@vue/test-utils"
 import {mockBridgeIPC} from "../../helpers/bridgeIPC"
-
-function makeBinding(overrides = {}) {
-  return {
-    baseUrl: "http://127.0.0.1:8787",
-    serverId: "srv-1",
-    serverName: "Home Server",
-    deviceId: "dev-1",
-    deviceName: "Gate Mac",
-    fingerprint: null,
-    insecure: false,
-    boundAt: "2026-08-10T00:00:00.000Z",
-    role: "parent",
-    approvedBy: null,
-    acceptsAgents: true,
-    ...overrides,
-  }
-}
-
-function makeAgentWindow(overrides = {}) {
-  return {
-    expiresAt: new Date(Date.now() + 300_000).toISOString(),
-    agentAddress: "http://127.0.0.1:8787/mcp",
-    isThisMac: true,
-    ...overrides,
-  }
-}
+import {makeAgentWindow, makeBinding} from "../../helpers/syncServerFixtures"
 
 describe("ServerActions — the row of equal actions, its panels and their disabled state (TC-48, TC-16, TC-22)", () => {
   let wrapper = null
@@ -93,6 +68,7 @@ describe("ServerActions — the row of equal actions, its panels and their disab
     expect(addButton.attributes("disabled")).toBeUndefined()
     expect(connectButton.attributes("disabled")).toBeUndefined()
     expect(connectButton.classes().sort()).toEqual(addButton.classes().sort())
+    expect(connectButton.element.parentElement).toBe(addButton.element.parentElement)
 
     expect(wrapper.text()).not.toContain("Waiting for the other Mac to ask")
     expect(wrapper.text()).not.toContain("Waiting for an agent to ask")
@@ -119,6 +95,8 @@ describe("ServerActions — the row of equal actions, its panels and their disab
 
     const text = wrapper.text()
     expect(text.indexOf("Add a device")).toBeLessThan(text.indexOf("Agents need this server on a domain with a trusted certificate."))
+    const domainLine = wrapper.findAll("p").find((line) => line.text().includes("Agents need this server"))
+    expect(domainLine?.element.parentElement).toBe(actionButton("Add a device").element.parentElement)
   })
 
   it("holds_TC-48d_only_add_a_device_when_accepts_agents_is_null", async () => {
