@@ -1,6 +1,7 @@
 import {logger} from "@daily/core"
 
 import {broadcastToWindows} from "@main/utils/windows/broadcastToWindows"
+import {sendToApprovalWindow} from "@main/utils/windows/sendToApprovalWindow"
 
 import type {StorageController} from "@daily/core"
 import type {WindowsGetter} from "@main/utils/windows/broadcastToWindows"
@@ -24,7 +25,7 @@ export function setupStorageSync(getStorage: () => StorageController | null, get
       broadcastToWindows(getWindows, "settings:changed")
     },
     onApprovalRequested: () => {
-      broadcastToWindows(getWindows, "sync-server:approval-requested")
+      sendToApprovalWindow(getWindows, "sync-server:approval-requested")
     },
     onRevoked: () => {
       broadcastToWindows(getWindows, "sync-server:revoked")
@@ -36,7 +37,7 @@ export function setupStorageSync(getStorage: () => StorageController | null, get
       broadcastToWindows(getWindows, "sync-server:role-changed", role)
     },
     onAgentRequested: () => {
-      broadcastToWindows(getWindows, "sync-server:agent-requested")
+      sendToApprovalWindow(getWindows, "sync-server:agent-requested")
     },
     onAgentsAcceptedChanged: (acceptsAgents) => {
       broadcastToWindows(getWindows, "sync-server:agents-accepted-changed", acceptsAgents)
