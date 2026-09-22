@@ -58,6 +58,18 @@ export function applyServerName(store: ServerStore, name: string): string | null
   return previous
 }
 
+/**
+ * Moves the stored name to `name`, but only when the name it would replace is one the machine made
+ * up for itself — a bare container id. A name someone chose, through `daily-server rename` or
+ * `DAILY_SERVER_NAME`, is left alone, so it survives every restart. Returns the name it replaced,
+ * or `null` when it left the row as it was.
+ */
+export function applyFallbackName(store: ServerStore, name: string): string | null {
+  if (!isMachineNamed(loadIdentity(store).name)) return null
+
+  return applyServerName(store, name)
+}
+
 /** Marks the server as claimed at the given timestamp. */
 export function markClaimed(store: ServerStore, at: string): void {
   store.db.prepare(`UPDATE server_identity SET claimed_at = ? WHERE id = 1`).run(at)
@@ -156,6 +168,14 @@ export function readAgentWindow(store: ServerStore): AgentWindowState | null {
   if (Date.parse(row.agent_window_expires_at) <= Date.now()) return null
 
   return {expiresAt: row.agent_window_expires_at, deviceId: row.agent_window_device_id}
+}
+
+/**
+ * Whether `name` is a bare container id — the twelve hex characters `hostname()` returns inside a
+ * container, and the one name worth overwriting without being asked.
+ */
+function isMachineNamed(name: string): boolean {
+  return /^[0-9a-f]{12}$/.test(name)
 }
 
 function readClaimState(store: ServerStore): ClaimStateRow {

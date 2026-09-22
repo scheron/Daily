@@ -2,13 +2,14 @@ import {scheduleBackups} from "../backup/scheduleBackups"
 import {resolveServerConfig} from "../config/resolveServerConfig"
 import {clearExpiredIssuedTokens} from "../enrollment/EnrollmentStore"
 import {createHttpServer} from "../http/createHttpServer"
-import {applyServerName, ensureClaimCode, loadIdentity} from "../identity/ServerIdentityStore"
+import {applyFallbackName, applyServerName, ensureClaimCode, loadIdentity} from "../identity/ServerIdentityStore"
 import {openServerStore} from "../store/instance"
 import {ensureTlsMaterial} from "../tls/ensureTlsMaterial"
 import {verifyPublicUrl} from "../verify/verifyPublicUrl"
 
 import type {Command} from "commander"
 import type {ServerConfig, ServerConfigOptions} from "../config/resolveServerConfig"
+import type {ServerStore} from "../store/instance"
 
 const VERIFY_RETRY_INTERVAL_MS = 30_000
 const VERIFY_RETRY_WINDOW_MS = 10 * 60_000
@@ -44,13 +45,9 @@ function runStart(opts: StartOptions): void {
   }
   const config = resolveServerConfig(configOptions)
 
-  const store = openServerStore(config.dataDir, config.name ?? undefined)
+  const store = openServerStore(config.dataDir, config.name ?? config.derivedName ?? undefined)
   clearExpiredIssuedTokens(store)
-
-  if (config.name) {
-    const previousName = applyServerName(store, config.name)
-    if (previousName) console.log(`Renamed server: ${previousName} -> ${config.name}`)
-  }
+  applyConfiguredName(store, config)
 
   const tlsMaterial = ensureTlsMaterial(config)
   if (tlsMaterial) config.tls = {certPath: tlsMaterial.certPath, keyPath: tlsMaterial.keyPath}
@@ -74,6 +71,24 @@ function runStart(opts: StartOptions): void {
       reportPublicUrlVerification(config, identity.serverId)
     }
   })
+}
+
+/**
+ * Brings the stored name in line with the configuration. An explicit `DAILY_SERVER_NAME` always
+ * wins, because it is the declared one. A name derived from the public address only replaces a
+ * bare container id, so a name set with `daily-server rename` outlives every restart.
+ */
+function applyConfiguredName(store: ServerStore, config: ServerConfig): void {
+  if (config.name) {
+    reportRename(applyServerName(store, config.name), config.name)
+    return
+  }
+
+  if (config.derivedName) reportRename(applyFallbackName(store, config.derivedName), config.derivedName)
+}
+
+function reportRename(previousName: string | null, name: string): void {
+  if (previousName) console.log(`Renamed server: ${previousName} -> ${name}`)
 }
 
 /**

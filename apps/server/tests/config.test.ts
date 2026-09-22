@@ -66,34 +66,46 @@ describe("resolveServerConfig", () => {
     expect(config.publicUrl).toBeNull()
   })
 
-  it("with neither DAILY_SERVER_NAME nor DAILY_SERVER_PUBLIC_URL set, resolves no name and leaves the choice to the identity row", () => {
-    expect(resolveServerConfig({}).name).toBeNull()
+  it("with neither DAILY_SERVER_NAME nor DAILY_SERVER_PUBLIC_URL set, declares no name and derives none either", () => {
+    const config = resolveServerConfig({})
+
+    expect(config.name).toBeNull()
+    expect(config.derivedName).toBeNull()
   })
 
-  it("with only DAILY_SERVER_PUBLIC_URL set, derives the name from its host, dropping the scheme and the port", () => {
+  it("with only DAILY_SERVER_PUBLIC_URL set, derives a fallback from its host and still declares no name", () => {
     process.env.DAILY_SERVER_PUBLIC_URL = "https://daily.example.test:8443"
 
-    expect(resolveServerConfig({}).name).toBe("daily.example.test")
+    const config = resolveServerConfig({})
+
+    expect(config.name).toBeNull()
+    expect(config.derivedName).toBe("daily.example.test")
   })
 
-  it("DAILY_SERVER_NAME wins over the host of DAILY_SERVER_PUBLIC_URL", () => {
+  it("DAILY_SERVER_NAME is the declared name, and the host of DAILY_SERVER_PUBLIC_URL stays the fallback beside it", () => {
     process.env.DAILY_SERVER_PUBLIC_URL = "https://daily.example.test"
     process.env.DAILY_SERVER_NAME = "Home droplet"
 
-    expect(resolveServerConfig({}).name).toBe("Home droplet")
+    const config = resolveServerConfig({})
+
+    expect(config.name).toBe("Home droplet")
+    expect(config.derivedName).toBe("daily.example.test")
   })
 
-  it("a DAILY_SERVER_NAME of only whitespace falls through to the public URL's host rather than naming the server blank", () => {
+  it("a DAILY_SERVER_NAME of only whitespace declares nothing rather than naming the server blank", () => {
     process.env.DAILY_SERVER_PUBLIC_URL = "https://daily.example.test"
     process.env.DAILY_SERVER_NAME = "   "
 
-    expect(resolveServerConfig({}).name).toBe("daily.example.test")
+    const config = resolveServerConfig({})
+
+    expect(config.name).toBeNull()
+    expect(config.derivedName).toBe("daily.example.test")
   })
 
-  it("a DAILY_SERVER_PUBLIC_URL that is not a URL resolves no name instead of throwing", () => {
+  it("a DAILY_SERVER_PUBLIC_URL that is not a URL derives no fallback instead of throwing", () => {
     process.env.DAILY_SERVER_PUBLIC_URL = "not a url"
 
-    expect(resolveServerConfig({}).name).toBeNull()
+    expect(resolveServerConfig({}).derivedName).toBeNull()
   })
 
   it("TC-4: a config.json in the data directory is ignored entirely — the result is the same as with no file at all", () => {

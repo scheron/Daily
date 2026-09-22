@@ -183,6 +183,7 @@ Verbs:
   status       show the installation's status
   logs         follow the server's logs
   claim-code   print the unclaimed server's claim code
+  rename       set the name Daily shows for this server
   upgrade      back up, move to the current release's image, and undo it if that fails
   backup       write a single archive with the database and the assets
   restart      restart the stack
@@ -260,6 +261,10 @@ case "$verb" in
     ;;
   claim-code)
     compose exec -T daily-server daily-server claim-code
+    ;;
+  rename)
+    shift
+    compose exec -T daily-server daily-server rename "$@"
     ;;
   upgrade)
     cmd_upgrade

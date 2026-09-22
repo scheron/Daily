@@ -105,12 +105,19 @@ Verbs:
   status       show the installation's status
   logs         follow the server's logs
   claim-code   print the unclaimed server's claim code
+  rename       set the name Daily shows for this server
   upgrade      back up, move to the current release's image, and undo it if that fails
   backup       write a single archive with the database and the assets
   restart      restart the stack
   stop         stop the stack
   uninstall    stop the stack and remove its containers
 ```
+
+`rename` takes the name as its argument — `daily-server rename "My server"` — and applies at once,
+with no restart. A server nobody has named falls back to the host of `DAILY_SERVER_PUBLIC_URL`, and
+then to the machine's hostname, which in a container is its id. That fallback only ever replaces a
+bare container id, so it never undoes a name you chose. `DAILY_SERVER_NAME` declares the name
+instead: it wins on every start, and `rename` refuses rather than write what a restart would undo.
 
 `backup` writes one `.tar.gz` beside `daily.sh`, holding the database and the assets directory.
 `upgrade` writes one of its own first — see below. `uninstall` asks before it removes the data
@@ -128,7 +135,7 @@ meant to be hand-edited.
 | `DAILY_SERVER_DATA_DIR`              | `/var/lib/daily-server` inside the image | where the SQLite store, the assets, and any minted certificate live                                           |
 | `DAILY_SERVER_PUBLIC_URL`            | unset                                    | the address Daily connects to                                                                                 |
 | `DAILY_SERVER_TLS`                   | unset (plain HTTP)                       | `self-signed` mints and serves a certificate for `DAILY_SERVER_PUBLIC_URL`'s host; any other value is refused |
-| `DAILY_SERVER_NAME`                  | the host of `DAILY_SERVER_PUBLIC_URL`    | the name Daily shows for this server; falls back to the machine's hostname, which in a container is its id    |
+| `DAILY_SERVER_NAME`                  | unset                                    | declares the name Daily shows; unset, the name comes from `daily-server rename`, else the public URL's host   |
 | `DAILY_SERVER_MAX_ASSET_BYTES`       | 100 MB                                   | largest single attachment the server accepts                                                                  |
 | `DAILY_SERVER_MAX_SNAPSHOT_BYTES`    | 32 MB                                    | largest snapshot write body the server accepts                                                                |
 | `DAILY_SERVER_BACKUP_INTERVAL_HOURS` | `24`                                     | hours between scheduled backups; `0` turns the schedule off                                                   |

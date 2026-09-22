@@ -178,7 +178,7 @@ describe("deploy/install.sh --dry-run", () => {
     expect(result.status, `daily.sh with no arguments exited 0; stdout: ${result.stdout}; stderr: ${result.stderr}`).not.toBe(0)
 
     const output = `${result.stdout}\n${result.stderr}`
-    for (const verb of ["status", "logs", "claim-code", "upgrade", "backup", "restart", "stop", "uninstall"]) {
+    for (const verb of ["status", "logs", "claim-code", "rename", "upgrade", "backup", "restart", "stop", "uninstall"]) {
       expect(output, `daily.sh usage should list "${verb}"`).toContain(verb)
     }
 
@@ -218,6 +218,7 @@ describe("deploy/install.sh --dry-run", () => {
 
     expect(content).toContain("compose exec -T daily-server daily-server status")
     expect(content).toContain("compose exec -T daily-server daily-server claim-code")
+    expect(content).toContain('compose exec -T daily-server daily-server rename "$@"')
   })
 
   it("install.sh --upgrade moves the pin itself, backs up first, and puts the backup back when the new image will not run", () => {

@@ -21,7 +21,7 @@ import {authenticateRequest} from "../src/devices/authenticateRequest"
 import {createDevice, findParentDevice, listDevices, promoteDevice, revokeDevice} from "../src/devices/DeviceStore"
 import {approveEnrollment, consumeConsoleEnrollment, createConsoleEnrollment, createEnrollmentRequest} from "../src/enrollment/EnrollmentStore"
 import {claimServer} from "../src/http/routes/claim"
-import {applyServerName, ensureClaimCode, loadIdentity, openEnrollmentWindow} from "../src/identity/ServerIdentityStore"
+import {applyFallbackName, applyServerName, ensureClaimCode, loadIdentity, openEnrollmentWindow} from "../src/identity/ServerIdentityStore"
 import {buildProgram} from "../src/index"
 import {readRevision, readSnapshot, writeSnapshotIfUnchanged} from "../src/snapshot/SnapshotStore"
 import {createBetterSqliteDriver} from "../src/store/betterSqliteDriver"
@@ -116,6 +116,35 @@ describe("the server's name", () => {
     expect(loadIdentity(store).name).toBe("daily.example.test")
   })
 
+  it("lets the fallback replace a bare container id, because nobody chose that name", () => {
+    store = openServerStore(dataDir, "ddf5d06d6d7b")
+
+    expect(applyFallbackName(store, "daily.example.test")).toBe("ddf5d06d6d7b")
+    expect(loadIdentity(store).name).toBe("daily.example.test")
+  })
+
+  it("refuses to let the fallback touch a name someone chose, so a rename survives every restart", () => {
+    store = openServerStore(dataDir, "ddf5d06d6d7b")
+    applyServerName(store, "My server")
+
+    expect(applyFallbackName(store, "daily.example.test")).toBeNull()
+    expect(loadIdentity(store).name).toBe("My server")
+  })
+
+  it("treats a name that merely looks hex-ish as chosen — only the exact twelve characters count", () => {
+    store = openServerStore(dataDir, "ddf5d06d6d7")
+
+    expect(applyFallbackName(store, "daily.example.test")).toBeNull()
+    expect(loadIdentity(store).name).toBe("ddf5d06d6d7")
+  })
+
+  it("leaves a derived name alone on the next start, so the fallback does not chase a changed address", () => {
+    store = openServerStore(dataDir, "daily.example.test")
+
+    expect(applyFallbackName(store, "other.example.test")).toBeNull()
+    expect(loadIdentity(store).name).toBe("daily.example.test")
+  })
+
   it("leaves the server id alone when the name moves", () => {
     store = openServerStore(dataDir, "ddf5d06d6d7b")
     const serverId = loadIdentity(store).serverId
@@ -123,6 +152,73 @@ describe("the server's name", () => {
     applyServerName(store, "daily.example.test")
 
     expect(loadIdentity(store).serverId).toBe(serverId)
+  })
+})
+
+describe("daily-server rename", () => {
+  let dataDir: string
+
+  beforeEach(() => {
+    dataDir = mkdtempSync(join(tmpdir(), "daily-server-rename-"))
+    delete process.env.DAILY_SERVER_NAME
+  })
+
+  afterEach(() => {
+    delete process.env.DAILY_SERVER_NAME
+    rmSync(dataDir, {recursive: true, force: true})
+  })
+
+  async function runRename(...args: string[]): Promise<void> {
+    await buildProgram().parseAsync(["node", "daily-server", "rename", ...args, "--data-dir", dataDir], {from: "node"})
+  }
+
+  it("sets the name and reports the one it replaced", async () => {
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {})
+    const store = openServerStore(dataDir, "ddf5d06d6d7b")
+    store.close()
+
+    await runRename("My server")
+
+    const reopened = openServerStore(dataDir)
+    expect(loadIdentity(reopened).name).toBe("My server")
+    reopened.close()
+    expect(logSpy).toHaveBeenCalledWith("Renamed server: ddf5d06d6d7b -> My server")
+
+    logSpy.mockRestore()
+  })
+
+  it("accepts a name with spaces and trims the edges", async () => {
+    vi.spyOn(console, "log").mockImplementation(() => {})
+    openServerStore(dataDir, "ddf5d06d6d7b").close()
+
+    await runRename("  Daily Server  ")
+
+    const store = openServerStore(dataDir)
+    expect(loadIdentity(store).name).toBe("Daily Server")
+    store.close()
+
+    vi.restoreAllMocks()
+  })
+
+  it("refuses a blank name rather than leaving the server unnamed", async () => {
+    openServerStore(dataDir, "ddf5d06d6d7b").close()
+
+    await expect(runRename("   ")).rejects.toThrow(/blank/)
+
+    const store = openServerStore(dataDir)
+    expect(loadIdentity(store).name).toBe("ddf5d06d6d7b")
+    store.close()
+  })
+
+  it("refuses while DAILY_SERVER_NAME declares the name, naming the variable, and writes nothing", async () => {
+    openServerStore(dataDir, "Declared").close()
+    process.env.DAILY_SERVER_NAME = "Declared"
+
+    await expect(runRename("My server")).rejects.toThrow(/DAILY_SERVER_NAME/)
+
+    const store = openServerStore(dataDir)
+    expect(loadIdentity(store).name).toBe("Declared")
+    store.close()
   })
 })
 
