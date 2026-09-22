@@ -19,6 +19,7 @@ export type ServerConfigOptions = {
   maxAssetBytes?: number
   maxSnapshotBodyBytes?: number
   publicUrl?: string
+  name?: string
 }
 export type ServerConfig = {
   host: string
@@ -28,6 +29,7 @@ export type ServerConfig = {
   maxAssetBytes: number
   maxSnapshotBodyBytes: number
   publicUrl: string | null
+  name: string | null
   transport: ServerTransportChoice
   backup: ServerBackupConfig | null
 }
@@ -45,6 +47,7 @@ export function resolveServerConfig(options: ServerConfigOptions): ServerConfig 
   const maxSnapshotBodyBytes = options.maxSnapshotBodyBytes ?? envMaxSnapshotBodyBytes() ?? SYNC_PROTOCOL_CONFIG.maxSnapshotBodyBytes
 
   const publicUrl = options.publicUrl ?? process.env.DAILY_SERVER_PUBLIC_URL ?? null
+  const name = options.name?.trim() || process.env.DAILY_SERVER_NAME?.trim() || hostFromPublicUrl(publicUrl)
   const transport = resolveTransport(process.env.DAILY_SERVER_TLS, publicUrl)
 
   return {
@@ -55,8 +58,24 @@ export function resolveServerConfig(options: ServerConfigOptions): ServerConfig 
     maxAssetBytes,
     maxSnapshotBodyBytes,
     publicUrl,
+    name,
     transport,
     backup: resolveBackup(dataDir),
+  }
+}
+
+/**
+ * The host of `publicUrl`, without its scheme or port — the one name a containerised server can
+ * derive for itself, since its hostname is the container id. `null` when there is no public
+ * address to read, which leaves the name to the caller.
+ */
+function hostFromPublicUrl(publicUrl: string | null): string | null {
+  if (!publicUrl) return null
+
+  try {
+    return new URL(publicUrl).hostname || null
+  } catch {
+    return null
   }
 }
 

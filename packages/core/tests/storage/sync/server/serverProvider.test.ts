@@ -1514,6 +1514,53 @@ describe("what a probe tick learns about agents — TC-19", () => {
     }
   })
 
+  it("a tick whose probe carries a different name moves the binding's serverName, and one that agrees leaves it alone", async () => {
+    const server = await bootSyncServer()
+    try {
+      const credential = await claimFirstDevice(server, "MacBook Air")
+      const binding = bindingFromCredential(server, credential, {serverName: "ddf5d06d6d7b"})
+      const store = makeSettingsStore({server: {enabled: true, binding}})
+      const service = makeAgentAwareService(store)
+
+      mockProbeOnce(probe({name: "ddf5d06d6d7b"}))
+      service.startProbe()
+      await fireProbeTick()
+      expect((await service.getState()).binding?.serverName).toBe("ddf5d06d6d7b")
+
+      mockProbeOnce(probe({name: "daily.example.test"}))
+      await fireProbeTick()
+      expect((await service.getState()).binding?.serverName).toBe("daily.example.test")
+
+      service.stopProbe()
+    } finally {
+      await server.close()
+    }
+  })
+
+  it("a tick from a server too old to send a name leaves the stored serverName alone rather than blanking it", async () => {
+    const server = await bootSyncServer()
+    try {
+      const credential = await claimFirstDevice(server, "MacBook Air")
+      const binding = bindingFromCredential(server, credential, {serverName: "daily.example.test"})
+      const store = makeSettingsStore({server: {enabled: true, binding}})
+      const service = makeAgentAwareService(store)
+
+      const nameless = probe()
+      delete nameless.name
+
+      mockProbeFromNowOn(nameless)
+      service.startProbe()
+      await fireProbeTick()
+      await fireProbeTick()
+
+      expect((await service.getState()).binding?.serverName).toBe("daily.example.test")
+
+      service.stopProbe()
+    } finally {
+      await server.close()
+    }
+  })
+
   it("TC-19: the re-arm a newly waiting agent request schedules stops once it merely stays pending, rather than looping", async () => {
     const server = await bootSyncServer()
     try {

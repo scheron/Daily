@@ -8,7 +8,7 @@ import {authenticateRequest} from "../../devices/authenticateRequest"
 import {writeDeviceTimeZone} from "../../devices/DeviceStore"
 import {isUsableTimeZone} from "../../devices/timeZone"
 import {findPendingEnrollment} from "../../enrollment/EnrollmentStore"
-import {isClaimed} from "../../identity/ServerIdentityStore"
+import {isClaimed, loadIdentity} from "../../identity/ServerIdentityStore"
 import {isStorableSnapshot, readRevision, readSnapshot, writeSnapshotIfUnchanged} from "../../snapshot/SnapshotStore"
 import {RESPONSE_SENT} from "../respond"
 
@@ -99,6 +99,7 @@ function readRevisionProbe(store: RouteContext["store"], config: ServerConfig, d
     acceptsAgents: serverAcceptsAgents(config),
     protocol: SYNC_PROTOCOL_VERSION,
     role: device.role,
+    name: loadIdentity(store).name,
   }
 }
 

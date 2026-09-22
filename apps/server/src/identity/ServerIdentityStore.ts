@@ -19,8 +19,11 @@ type ServerIdentityRow = {
 
 type ClaimStateRow = {claimed_at: string | null; claim_code: string | null}
 
-/** Reads the server's identity row, creating it with a fresh id and a host-derived name on first open. */
-export function loadIdentity(store: ServerStore): ServerIdentity {
+/**
+ * Reads the server's identity row, creating it with a fresh id on first open — named `defaultName`,
+ * or after the host when no name is given.
+ */
+export function loadIdentity(store: ServerStore, defaultName?: string): ServerIdentity {
   const existing = store.db.prepare(`SELECT server_id, name, created_at, claimed_at FROM server_identity WHERE id = 1`).get() as
     | ServerIdentityRow
     | undefined
@@ -29,7 +32,7 @@ export function loadIdentity(store: ServerStore): ServerIdentity {
 
   const identity: ServerIdentity = {
     serverId: nanoid(),
-    name: hostname(),
+    name: defaultName ?? hostname(),
     createdAt: new Date().toISOString(),
     claimedAt: null,
   }
@@ -39,6 +42,20 @@ export function loadIdentity(store: ServerStore): ServerIdentity {
     .run(identity.serverId, identity.name, identity.createdAt)
 
   return identity
+}
+
+/**
+ * Moves the stored name to `name`, returning the name it replaced, or `null` when the row already
+ * said that. Nothing keys off the name — it is the display string `GET /v1/server` reports and the
+ * app shows — so reconciling it on every start costs nothing and strands no one.
+ */
+export function applyServerName(store: ServerStore, name: string): string | null {
+  const previous = loadIdentity(store).name
+  if (previous === name) return null
+
+  store.db.prepare(`UPDATE server_identity SET name = ? WHERE id = 1`).run(name)
+
+  return previous
 }
 
 /** Marks the server as claimed at the given timestamp. */

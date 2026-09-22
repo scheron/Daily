@@ -10,8 +10,11 @@ import type {SqliteDriver} from "./betterSqliteDriver"
 
 export type ServerStore = {db: SqliteDriver; dataDir: string; close(): void}
 
-/** Opens the server's SQLite database under `dataDir`, applying every pending migration and ensuring the identity row exists. */
-export function openServerStore(dataDir: string): ServerStore {
+/**
+ * Opens the server's SQLite database under `dataDir`, applying every pending migration and ensuring
+ * the identity row exists — named `defaultName` when the row is created here.
+ */
+export function openServerStore(dataDir: string, defaultName?: string): ServerStore {
   const db = createBetterSqliteDriver(path.join(dataDir, "server.sqlite"))
 
   runMigrations(db, migrations)
@@ -22,7 +25,7 @@ export function openServerStore(dataDir: string): ServerStore {
     close: () => db.close(),
   }
 
-  loadIdentity(store)
+  loadIdentity(store, defaultName)
   ensureAssetsDir(store)
   sweepPartialUploads(store)
 

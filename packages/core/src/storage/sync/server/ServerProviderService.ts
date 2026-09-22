@@ -524,6 +524,10 @@ export class ServerProviderService implements IServerProvider {
 
       if (this.probeGeneration !== generation) return
 
+      await this.applyServerNameIfChanged(probe.name)
+
+      if (this.probeGeneration !== generation) return
+
       this.lastProbedRevision = probe.revision
 
       const enrollmentNewlyPending = probe.pendingEnrollment && !this.hadPendingEnrollment
@@ -595,6 +599,23 @@ export class ServerProviderService implements IServerProvider {
 
     await this.deps.saveSettings({sync: {...settings.sync, server: {...settings.sync.server, binding: {...binding, acceptsAgents}}}})
     this.deps.onAgentsAcceptedChanged?.(acceptsAgents)
+  }
+
+  /**
+   * The same typed-fact-on-tick mechanism, for the server's display name — the one binding field
+   * that was frozen at bind time and never refreshed, so a server renamed after enrollment went on
+   * showing its old name here forever. Writing through `saveSettings` is what tells the renderer to
+   * re-read it; no dedicated broadcast is needed. A server too old to send a name leaves the stored
+   * one alone rather than blanking it.
+   */
+  private async applyServerNameIfChanged(name: string | undefined): Promise<void> {
+    if (!name) return
+
+    const settings = await this.deps.loadSettings()
+    const binding = settings.sync.server.binding
+    if (!binding || binding.serverName === name) return
+
+    await this.deps.saveSettings({sync: {...settings.sync, server: {...settings.sync.server, binding: {...binding, serverName: name}}}})
   }
 
   private startProbeScheduler(intervalMs: number): void {

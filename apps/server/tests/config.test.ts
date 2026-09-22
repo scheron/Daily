@@ -15,6 +15,7 @@ const ENV_KEYS = [
   "DAILY_SERVER_MAX_SNAPSHOT_BYTES",
   "DAILY_SERVER_PUBLIC_URL",
   "DAILY_SERVER_TLS",
+  "DAILY_SERVER_NAME",
 ] as const
 
 /** Calls `fn` once, returns whatever it throws, and fails the test if it does not throw. */
@@ -63,6 +64,36 @@ describe("resolveServerConfig", () => {
     expect(config.transport).toBe("plain")
     expect(config.tls).toBeNull()
     expect(config.publicUrl).toBeNull()
+  })
+
+  it("with neither DAILY_SERVER_NAME nor DAILY_SERVER_PUBLIC_URL set, resolves no name and leaves the choice to the identity row", () => {
+    expect(resolveServerConfig({}).name).toBeNull()
+  })
+
+  it("with only DAILY_SERVER_PUBLIC_URL set, derives the name from its host, dropping the scheme and the port", () => {
+    process.env.DAILY_SERVER_PUBLIC_URL = "https://daily.example.test:8443"
+
+    expect(resolveServerConfig({}).name).toBe("daily.example.test")
+  })
+
+  it("DAILY_SERVER_NAME wins over the host of DAILY_SERVER_PUBLIC_URL", () => {
+    process.env.DAILY_SERVER_PUBLIC_URL = "https://daily.example.test"
+    process.env.DAILY_SERVER_NAME = "Home droplet"
+
+    expect(resolveServerConfig({}).name).toBe("Home droplet")
+  })
+
+  it("a DAILY_SERVER_NAME of only whitespace falls through to the public URL's host rather than naming the server blank", () => {
+    process.env.DAILY_SERVER_PUBLIC_URL = "https://daily.example.test"
+    process.env.DAILY_SERVER_NAME = "   "
+
+    expect(resolveServerConfig({}).name).toBe("daily.example.test")
+  })
+
+  it("a DAILY_SERVER_PUBLIC_URL that is not a URL resolves no name instead of throwing", () => {
+    process.env.DAILY_SERVER_PUBLIC_URL = "not a url"
+
+    expect(resolveServerConfig({}).name).toBeNull()
   })
 
   it("TC-4: a config.json in the data directory is ignored entirely — the result is the same as with no file at all", () => {

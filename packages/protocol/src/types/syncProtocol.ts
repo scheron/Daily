@@ -128,6 +128,8 @@ export type RevisionProbe = {
   acceptsAgents: boolean
   protocol: number
   role: DeviceRole
+  /** The server's display name. Absent from a server older than this field — a probe without it leaves the stored name alone. */
+  name?: string
 }
 
 export type AssetEntry = {name: string; size: number; sha256: string; uploadedAt: string}

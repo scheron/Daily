@@ -21,7 +21,7 @@ import {authenticateRequest} from "../src/devices/authenticateRequest"
 import {createDevice, findParentDevice, listDevices, promoteDevice, revokeDevice} from "../src/devices/DeviceStore"
 import {approveEnrollment, consumeConsoleEnrollment, createConsoleEnrollment, createEnrollmentRequest} from "../src/enrollment/EnrollmentStore"
 import {claimServer} from "../src/http/routes/claim"
-import {ensureClaimCode, openEnrollmentWindow} from "../src/identity/ServerIdentityStore"
+import {applyServerName, ensureClaimCode, loadIdentity, openEnrollmentWindow} from "../src/identity/ServerIdentityStore"
 import {buildProgram} from "../src/index"
 import {readRevision, readSnapshot, writeSnapshotIfUnchanged} from "../src/snapshot/SnapshotStore"
 import {createBetterSqliteDriver} from "../src/store/betterSqliteDriver"
@@ -74,6 +74,55 @@ describe("server store", () => {
     expect(appliedAfterSecondOpen).toHaveLength(6)
 
     second.close()
+  })
+})
+
+describe("the server's name", () => {
+  let dataDir: string
+  let store: ServerStore
+
+  beforeEach(() => {
+    dataDir = mkdtempSync(join(tmpdir(), "daily-server-name-"))
+  })
+
+  afterEach(() => {
+    store.close()
+    rmSync(dataDir, {recursive: true, force: true})
+  })
+
+  it("names the identity row after the given name when the row is born here, so a fresh install never wears a container id", () => {
+    store = openServerStore(dataDir, "daily.example.test")
+
+    expect(loadIdentity(store).name).toBe("daily.example.test")
+  })
+
+  it("falls back to the host's own name when the row is born without one", () => {
+    store = openServerStore(dataDir)
+
+    expect(loadIdentity(store).name).toBeTruthy()
+  })
+
+  it("renames a row that already exists and reports the name it replaced", () => {
+    store = openServerStore(dataDir, "ddf5d06d6d7b")
+
+    expect(applyServerName(store, "daily.example.test")).toBe("ddf5d06d6d7b")
+    expect(loadIdentity(store).name).toBe("daily.example.test")
+  })
+
+  it("reports null and writes nothing when the row already carries that name, so a restart is silent", () => {
+    store = openServerStore(dataDir, "daily.example.test")
+
+    expect(applyServerName(store, "daily.example.test")).toBeNull()
+    expect(loadIdentity(store).name).toBe("daily.example.test")
+  })
+
+  it("leaves the server id alone when the name moves", () => {
+    store = openServerStore(dataDir, "ddf5d06d6d7b")
+    const serverId = loadIdentity(store).serverId
+
+    applyServerName(store, "daily.example.test")
+
+    expect(loadIdentity(store).serverId).toBe(serverId)
   })
 })
 

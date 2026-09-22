@@ -696,7 +696,15 @@ describe("snapshot and revision http surface", () => {
     const first = await claimFirstDevice()
 
     const beforeAnyWrite = await readData<RevisionProbe>(await readRevision(first.token))
-    expect(Object.keys(beforeAnyWrite).sort()).toEqual(["acceptsAgents", "pendingAgentRequest", "pendingEnrollment", "protocol", "revision", "role"])
+    expect(Object.keys(beforeAnyWrite).sort()).toEqual([
+      "acceptsAgents",
+      "name",
+      "pendingAgentRequest",
+      "pendingEnrollment",
+      "protocol",
+      "revision",
+      "role",
+    ])
     expect(beforeAnyWrite).toEqual({
       revision: null,
       pendingEnrollment: false,
@@ -704,6 +712,7 @@ describe("snapshot and revision http surface", () => {
       acceptsAgents: false,
       protocol: SYNC_PROTOCOL_VERSION,
       role: "parent",
+      name: expect.any(String),
     })
 
     const doc = snapshotDocument()
@@ -711,7 +720,15 @@ describe("snapshot and revision http surface", () => {
     const {revision} = await readData<SnapshotWriteResponse>(written)
 
     const afterWrite = await readData<RevisionProbe>(await readRevision(first.token))
-    expect(Object.keys(afterWrite).sort()).toEqual(["acceptsAgents", "pendingAgentRequest", "pendingEnrollment", "protocol", "revision", "role"])
+    expect(Object.keys(afterWrite).sort()).toEqual([
+      "acceptsAgents",
+      "name",
+      "pendingAgentRequest",
+      "pendingEnrollment",
+      "protocol",
+      "revision",
+      "role",
+    ])
     expect(afterWrite.revision).toBe(revision)
 
     const currentSnapshot = await readData<SnapshotReadResponse>(await readSnapshot(first.token))
@@ -2177,7 +2194,15 @@ describe("the revision probe's exact shape once agents exist — TC-16", () => {
         data: RevisionProbe
       }
     ).data
-    expect(Object.keys(parentProbe).sort()).toEqual(["acceptsAgents", "pendingAgentRequest", "pendingEnrollment", "protocol", "revision", "role"])
+    expect(Object.keys(parentProbe).sort()).toEqual([
+      "acceptsAgents",
+      "name",
+      "pendingAgentRequest",
+      "pendingEnrollment",
+      "protocol",
+      "revision",
+      "role",
+    ])
     expect(parentProbe.pendingAgentRequest).toBe(false)
     expect(parentProbe.acceptsAgents).toBe(true)
     expect(parentProbe.protocol).toBe(4)
@@ -2189,7 +2214,15 @@ describe("the revision probe's exact shape once agents exist — TC-16", () => {
         data: RevisionProbe
       }
     ).data
-    expect(Object.keys(childProbe).sort()).toEqual(["acceptsAgents", "pendingAgentRequest", "pendingEnrollment", "protocol", "revision", "role"])
+    expect(Object.keys(childProbe).sort()).toEqual([
+      "acceptsAgents",
+      "name",
+      "pendingAgentRequest",
+      "pendingEnrollment",
+      "protocol",
+      "revision",
+      "role",
+    ])
     expect(childProbe.pendingAgentRequest).toBe(false)
     expect(childProbe.acceptsAgents).toBe(true)
     expect(childProbe.role).toBe("child")

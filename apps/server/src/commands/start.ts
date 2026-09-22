@@ -2,7 +2,7 @@ import {scheduleBackups} from "../backup/scheduleBackups"
 import {resolveServerConfig} from "../config/resolveServerConfig"
 import {clearExpiredIssuedTokens} from "../enrollment/EnrollmentStore"
 import {createHttpServer} from "../http/createHttpServer"
-import {ensureClaimCode, loadIdentity} from "../identity/ServerIdentityStore"
+import {applyServerName, ensureClaimCode, loadIdentity} from "../identity/ServerIdentityStore"
 import {openServerStore} from "../store/instance"
 import {ensureTlsMaterial} from "../tls/ensureTlsMaterial"
 import {verifyPublicUrl} from "../verify/verifyPublicUrl"
@@ -44,8 +44,13 @@ function runStart(opts: StartOptions): void {
   }
   const config = resolveServerConfig(configOptions)
 
-  const store = openServerStore(config.dataDir)
+  const store = openServerStore(config.dataDir, config.name ?? undefined)
   clearExpiredIssuedTokens(store)
+
+  if (config.name) {
+    const previousName = applyServerName(store, config.name)
+    if (previousName) console.log(`Renamed server: ${previousName} -> ${config.name}`)
+  }
 
   const tlsMaterial = ensureTlsMaterial(config)
   if (tlsMaterial) config.tls = {certPath: tlsMaterial.certPath, keyPath: tlsMaterial.keyPath}
