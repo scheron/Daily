@@ -3,8 +3,10 @@ import {computed, nextTick, ref, useTemplateRef, watch} from "vue"
 
 import {useFocusTrap} from "@/composables/useFocusTrap"
 import {useEditorShortcuts} from "./composables/useEditorShortcuts"
+import {useTaskComments} from "./composables/useTaskComments"
 import {useTaskEditor} from "./composables/useTaskEditor"
 import {animatePanel} from "./utils/animatePanel"
+import Comments from "./{fragments}/Comments"
 import Details from "./{fragments}/Details"
 import Editor from "./{fragments}/Editor.vue"
 import Footer from "./{fragments}/Footer"
@@ -24,6 +26,7 @@ const surfaceStyle = computed(() => ({width: `${props.width - 8}px`}))
 const isCompact = computed(() => props.width <= 380)
 
 const {isOpen, activeTask, isNew, editingTaskId} = useTaskEditor()
+const {count: commentsCount} = useTaskComments()
 
 useFocusTrap(panelRef, isOpen)
 useEditorShortcuts()
@@ -55,9 +58,10 @@ watch(isOpen, async (open) => {
           <template v-if="activeTask">
             <Details :task="activeTask" />
 
-            <PanelTabs v-if="!isNew" :active="activeTab" :compact="isCompact" @select="activeTab = $event" />
+            <PanelTabs v-if="!isNew" :active="activeTab" :comments-count="commentsCount" :compact="isCompact" @select="activeTab = $event" />
 
             <Editor v-if="isNew || activeTab === 'editor'" />
+            <Comments v-else-if="activeTab === 'comments'" />
             <History v-else-if="activeTab === 'history'" />
 
             <Footer />
