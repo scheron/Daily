@@ -34,6 +34,24 @@ describe("policyHook", () => {
     expect((d as any).reason).toMatch(/declin|cancel/i)
   })
 
+  it("suspends delete_task_comment on confirmation the same way delete_task does, and writing one passes straight through", async () => {
+    const host = {awaitConfirmation: vi.fn(async () => true)}
+    const hook = createPolicyHook(host)
+
+    const deleted = await hook(ctx, call("delete_task_comment", {comment_id: "c1"}))
+    expect(host.awaitConfirmation).toHaveBeenCalledWith("delete_task_comment", {comment_id: "c1"})
+    expect(deleted).toEqual({action: "pass"})
+
+    const declining = {awaitConfirmation: vi.fn(async () => false)}
+    const declined = await createPolicyHook(declining)(ctx, call("delete_task_comment", {comment_id: "c1"}))
+    expect(declined.action).toBe("skip")
+
+    host.awaitConfirmation.mockClear()
+    const written = await hook(ctx, call("save_task_comment", {task_id: "t1", content: "note"}))
+    expect(written).toEqual({action: "pass"})
+    expect(host.awaitConfirmation).not.toHaveBeenCalled()
+  })
+
   it("skips unknown tool names without calling the host", async () => {
     const host = {awaitConfirmation: vi.fn(async () => true)}
     const hook = createPolicyHook(host)

@@ -1,4 +1,4 @@
-export type ChangedEntityType = "task" | "tag" | "project" | "file"
+export type ChangedEntityType = "task" | "tag" | "project" | "file" | "comment"
 export type ChangedEntityAction = "created" | "updated" | "deleted" | "restored" | "moved"
 
 export type ChangedEntity = {

@@ -28,6 +28,11 @@ export const TOOL_CALL_DESCRIBERS: Record<string, ToolCallDescriber> = {
     summary: `Delete tag ${str(p.tag_id)}. The tag is removed from all tasks that currently use it.`,
     details: [`Tag ID: ${str(p.tag_id)}`],
   }),
+  delete_task_comment: (p) => ({
+    title: "Delete comment",
+    summary: `Delete comment ${str(p.comment_id)}. It is removed from the task it was written on.`,
+    details: [`Comment ID: ${str(p.comment_id)}`],
+  }),
   remove_task_attachment: (p) => ({
     title: "Remove attachment",
     summary: `Remove attachment ${str(p.file_id)} from task ${str(p.task_id)}.`,

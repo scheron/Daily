@@ -2,12 +2,13 @@ import {toDurationLabel} from "@daily/std"
 
 import {formatTask} from "@main/ai/utils/formatters"
 
+import type {TaskComment} from "@daily/protocol"
 import type {RegisteredTool} from "@main/ai/tools/registry/types"
 
 export const getTask: RegisteredTool = {
   name: "get_task",
   description:
-    "Get detailed information about a single task by its ID. Use when you need full task details or to verify a task exists before modifying it.",
+    "Get detailed information about a single task by its ID: its fields, relations, attachments and its comments with their IDs. Use when you need full task details or to verify a task exists before modifying it.",
   parameters: {
     type: "object",
     properties: {
@@ -56,6 +57,11 @@ export const getTask: RegisteredTool = {
       lines.push(`Blocks:\n${related.blocks.map((t) => `- ${formatTask(t)}`).join("\n")}`)
     }
 
+    const comments = await ctx.storage.getTaskComments(task.id)
+    if (comments.length > 0) {
+      lines.push(`Comments:\n${comments.map((c) => `- [${c.id}] ${commentAuthor(c)}: ${c.content}`).join("\n")}`)
+    }
+
     const project = await ctx.storage.getBranch(task.branchId)
     const projectLabel = project ? `${project.name} (${project.id})` : task.branchId
     lines.push(`Project: ${projectLabel}`)
@@ -63,4 +69,10 @@ export const getTask: RegisteredTool = {
 
     return {success: true, data: lines.join("\n")}
   },
+}
+
+function commentAuthor(comment: TaskComment): string {
+  if (comment.kind === "manual") return "user"
+
+  return comment.provider ?? comment.kind
 }

@@ -4,12 +4,12 @@ import {describe, expect, it} from "vitest"
 import {AI_TOOLS, AI_TOOLS_COMPACT, getRegisteredTool, REGISTRY} from "../../../../../src/main/ai/tools/registry"
 
 describe("Tool registry invariants", () => {
-  it("contains exactly 34 tools (33 domain + respond meta)", () => {
-    expect(REGISTRY.length).toBe(34)
+  it("contains exactly 36 tools (35 domain + respond meta)", () => {
+    expect(REGISTRY.length).toBe(36)
   })
 
-  it("contains_TC-16_34_tools_once_link_tasks_and_unlink_tasks_join_the_registry", () => {
-    expect(REGISTRY.length).toBe(34)
+  it("contains_TC-16_36_tools_once_link_tasks_unlink_tasks_and_the_comment_tools_join_the_registry", () => {
+    expect(REGISTRY.length).toBe(36)
   })
 
   it("includes the respond meta tool with non-destructive flags", () => {

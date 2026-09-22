@@ -40,13 +40,17 @@ function makeStorage(overrides = {}) {
     getBranch: vi.fn(async () => ({id: "P", name: "Project"})),
     getTaskRelations: vi.fn(async () => ({blockedBy: [], blocks: []})),
     setTaskRelations: vi.fn(async () => ({})),
+    getTaskComments: vi.fn(async () => []),
+    createTaskComment: vi.fn(async () => ({})),
+    updateTaskComment: vi.fn(async () => ({})),
+    deleteTaskComment: vi.fn(async () => ({})),
     ...overrides,
   }
 }
 
 describe("Task tools registry", () => {
-  it("exposes 16 task tools", () => {
-    expect(TASK_TOOLS.length).toBe(16)
+  it("exposes 18 task tools", () => {
+    expect(TASK_TOOLS.length).toBe(18)
   })
 
   it("each has parameters.type === 'object'", () => {
@@ -62,6 +66,7 @@ describe("Task tools registry", () => {
         "complete_task",
         "create_task",
         "delete_task",
+        "delete_task_comment",
         "discard_task",
         "link_tasks",
         "log_time",
@@ -69,6 +74,7 @@ describe("Task tools registry", () => {
         "permanently_delete_task",
         "reactivate_task",
         "restore_task",
+        "save_task_comment",
         "unlink_tasks",
         "update_task",
       ].sort(),
@@ -77,11 +83,11 @@ describe("Task tools registry", () => {
 
   it("destructive tools are flagged", () => {
     const destructive = TASK_TOOLS.filter((t) => t.isDestructive).map((t) => t.name)
-    expect(destructive.sort()).toEqual(["delete_task", "permanently_delete_task", "unlink_tasks"].sort())
+    expect(destructive.sort()).toEqual(["delete_task", "delete_task_comment", "permanently_delete_task", "unlink_tasks"].sort())
   })
 
-  it("has_TC-16_16_task_tools_with_link_tasks_a_write_and_unlink_tasks_a_write_and_destructive", () => {
-    expect(TASK_TOOLS.length).toBe(16)
+  it("has_TC-16_18_task_tools_with_link_tasks_a_write_and_unlink_tasks_a_write_and_destructive", () => {
+    expect(TASK_TOOLS.length).toBe(18)
 
     const linkTasks = TASK_TOOLS.find((t) => t.name === "link_tasks")
     expect(linkTasks?.isWrite).toBe(true)
@@ -181,5 +187,90 @@ describe("Task tools registry", () => {
   it("builds_TC-16_the_unlink_tasks_confirmation_card_titled_Unlink_tasks", () => {
     const described = describeToolCall("unlink_tasks", {task_id: "t1", other_task_id: "t2"})
     expect(described.title).toBe("Unlink tasks")
+  })
+  it("writes_a_comment_as_the_built_in_agent_and_never_as_the_source_the_params_name", async () => {
+    const storage = makeStorage({
+      createTaskComment: vi.fn(async () => ({comments: {upserted: [{id: "c1", taskId: "t1", kind: "agent", provider: "daily_agent"}]}})),
+    })
+
+    const written = await new ToolExecutor(storage).execute(
+      "save_task_comment",
+      {task_id: "t1", content: "Blocked on review", kind: "manual", provider: "The User"},
+      "in-app",
+    )
+
+    expect(storage.createTaskComment).toHaveBeenCalledWith("t1", "Blocked on review", {kind: "agent"})
+    expect(written.success).toBe(true)
+    expect(written.changedEntities).toEqual([{type: "comment", id: "c1", action: "created"}])
+  })
+
+  it("rewrites_the_comment_the_params_name_instead_of_writing_a_second_one", async () => {
+    const storage = makeStorage({
+      updateTaskComment: vi.fn(async () => ({comments: {upserted: [{id: "c1", taskId: "t1", kind: "agent", provider: "daily_agent"}]}})),
+    })
+
+    const rewritten = await new ToolExecutor(storage).execute("save_task_comment", {comment_id: "c1", content: "Review landed"}, "in-app")
+
+    expect(storage.updateTaskComment).toHaveBeenCalledWith("c1", "Review landed")
+    expect(storage.createTaskComment).not.toHaveBeenCalled()
+    expect(rewritten.changedEntities).toEqual([{type: "comment", id: "c1", action: "updated"}])
+  })
+
+  it("refuses_a_new_comment_with_no_task_blank_content_or_a_comment_id_nothing_answers_to", async () => {
+    const storage = makeStorage()
+
+    const noTask = await new ToolExecutor(storage).execute("save_task_comment", {content: "orphan"}, "in-app")
+    expect(noTask.success).toBe(false)
+    expect(noTask.error).toContain("task_id")
+
+    const blank = await new ToolExecutor(storage).execute("save_task_comment", {task_id: "t1", content: "   "}, "in-app")
+    expect(blank.success).toBe(false)
+
+    const unknown = await new ToolExecutor(storage).execute("save_task_comment", {comment_id: "gone", content: "hi"}, "in-app")
+    expect(unknown.success).toBe(false)
+    expect(unknown.error).toContain("gone")
+
+    expect(storage.createTaskComment).not.toHaveBeenCalled()
+  })
+
+  it("deletes_a_comment_and_reports_an_unknown_one_as_not_found", async () => {
+    const storage = makeStorage({deleteTaskComment: vi.fn(async () => ({comments: {removed: ["c1"]}}))})
+
+    const deleted = await new ToolExecutor(storage).execute("delete_task_comment", {comment_id: "c1"}, "in-app")
+    expect(deleted.success).toBe(true)
+    expect(deleted.changedEntities).toEqual([{type: "comment", id: "c1", action: "deleted"}])
+
+    const missing = await new ToolExecutor(makeStorage()).execute("delete_task_comment", {comment_id: "gone"}, "in-app")
+    expect(missing.success).toBe(false)
+    expect(missing.error).toContain("gone")
+  })
+
+  it("builds_the_delete_task_comment_confirmation_card_so_the_delete_suspends_like_every_other_destructive_tool", () => {
+    const deleteComment = TASK_TOOLS.find((t) => t.name === "delete_task_comment")
+    expect(deleteComment?.isDestructive).toBe(true)
+
+    const described = describeToolCall("delete_task_comment", {comment_id: "c1"})
+    expect(described.title).toBe("Delete comment")
+    expect(described.summary).toContain("c1")
+  })
+
+  it("lists_a_tasks_comments_with_their_ids_and_who_wrote_them_and_says_nothing_when_there_are_none", async () => {
+    const task = makeTask({id: "t1"})
+    const commented = makeStorage({
+      getTask: vi.fn(async () => task),
+      getTaskComments: vi.fn(async () => [
+        {id: "c1", taskId: "t1", content: "typed by hand", kind: "manual", provider: null},
+        {id: "c2", taskId: "t1", content: "left by the agent", kind: "agent", provider: "daily_agent"},
+        {id: "c3", taskId: "t1", content: "sent through MCP", kind: "mcp", provider: "Claude Code"},
+      ]),
+    })
+
+    const withComments = await new ToolExecutor(commented).execute("get_task", {task_id: "t1"}, "in-app")
+    expect(withComments.data).toContain("- [c1] user: typed by hand")
+    expect(withComments.data).toContain("- [c2] daily_agent: left by the agent")
+    expect(withComments.data).toContain("- [c3] Claude Code: sent through MCP")
+
+    const quiet = await new ToolExecutor(makeStorage({getTask: vi.fn(async () => task)})).execute("get_task", {task_id: "t1"}, "in-app")
+    expect(quiet.data).not.toContain("Comments:")
   })
 })

@@ -1,6 +1,7 @@
 import {completeTask} from "./completeTask"
 import {createTask} from "./createTask"
 import {deleteTask} from "./deleteTask"
+import {deleteTaskComment} from "./deleteTaskComment"
 import {discardTask} from "./discardTask"
 import {getDeletedTasks} from "./getDeletedTasks"
 import {getTask} from "./getTask"
@@ -11,6 +12,7 @@ import {moveTask} from "./moveTask"
 import {permanentlyDeleteTask} from "./permanentlyDeleteTask"
 import {reactivateTask} from "./reactivateTask"
 import {restoreTask} from "./restoreTask"
+import {saveTaskComment} from "./saveTaskComment"
 import {searchTasks} from "./searchTasks"
 import {unlinkTasks} from "./unlinkTasks"
 import {updateTask} from "./updateTask"
@@ -34,4 +36,6 @@ export const TASK_TOOLS: RegisteredTool[] = [
   linkTasks,
   unlinkTasks,
   logTime,
+  saveTaskComment,
+  deleteTaskComment,
 ]
