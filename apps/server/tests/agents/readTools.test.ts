@@ -233,6 +233,51 @@ describe("get_task", () => {
     }
   })
 
+  it("TC-63: comments come with the task, oldest first, each carrying the channel and client it came through", async () => {
+    let taskId = ""
+
+    const seeded = await seedAgentStore(async (mac) => {
+      const task = await mac.core.tasksService.createTask(dated("2026-07-03", {content: "Commented task"}))
+      taskId = task!.id
+
+      await mac.core.taskCommentsService.createComment(taskId, "typed by hand")
+      await mac.core.taskCommentsService.createComment(taskId, "left by the built-in agent", {kind: "agent"})
+      await mac.core.taskCommentsService.createComment(taskId, "sent through MCP", {kind: "mcp", provider: "Claude Code"})
+
+      const gone = await mac.core.taskCommentsService.createComment(taskId, "withdrawn")
+      await mac.core.taskCommentsService.deleteComment(gone!.id)
+    })
+
+    try {
+      const result = await call(seeded.store, getTaskTool, {id: taskId})
+
+      expect(result.comments.map((c: any) => c.content)).toEqual(["typed by hand", "left by the built-in agent", "sent through MCP"])
+      expect(result.comments.map((c: any) => [c.kind, c.provider])).toEqual([
+        ["manual", null],
+        ["agent", "daily_agent"],
+        ["mcp", "Claude Code"],
+      ])
+      expect(result.comments[0].id).toEqual(expect.any(String))
+    } finally {
+      seeded.close()
+    }
+  })
+
+  it("TC-64: a task nobody has commented on answers an empty comment list rather than leaving the field out", async () => {
+    let taskId = ""
+    const seeded = await seedAgentStore(async (mac) => {
+      const task = await mac.core.tasksService.createTask(dated("2026-07-04", {content: "Quiet task"}))
+      taskId = task!.id
+    })
+
+    try {
+      const result = await call(seeded.store, getTaskTool, {id: taskId})
+      expect(result.comments).toEqual([])
+    } finally {
+      seeded.close()
+    }
+  })
+
   it("TC-27: a soft-deleted task answers with its deletedAt, and an unknown id refuses NOT_FOUND", async () => {
     let deletedId = ""
 

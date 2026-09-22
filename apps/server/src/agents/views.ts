@@ -9,6 +9,8 @@ import type {
   MilestoneProgress,
   Tag,
   Task,
+  TaskComment,
+  TaskCommentKind,
   TaskEvent,
   TaskEventType,
   TaskStatus,
@@ -31,6 +33,14 @@ export type MilestoneView = {
 export type AttachmentView = {id: string; name: string; mimeType: string; size: number; onServer: boolean}
 export type TaskLinkView = {id: string; content: string; status: TaskStatus}
 export type TaskEventView = {type: TaskEventType; date: ISODate; fromDate: ISODate | null; toDate: ISODate | null; at: ISODateTime}
+export type CommentView = {
+  id: string
+  content: string
+  kind: TaskCommentKind
+  provider: string | null
+  createdAt: ISODateTime
+  updatedAt: ISODateTime
+}
 export type TaskView = {
   id: string
   content: string
@@ -52,6 +62,7 @@ export type TaskDetailView = TaskView & {
   blocks: TaskLinkView[]
   history: TaskEventView[]
   attachments: AttachmentView[]
+  comments: CommentView[]
 }
 
 export function tagView(tag: Tag): TagView {
@@ -98,7 +109,7 @@ export function taskView(task: Task, projectName: string, imageCount: number): T
 export function taskDetailView(
   task: Task,
   projectName: string,
-  parts: {blockedBy: Task[]; blocks: Task[]; history: TaskEvent[]; attachments: AttachmentView[]},
+  parts: {blockedBy: Task[]; blocks: Task[]; history: TaskEvent[]; attachments: AttachmentView[]; comments: TaskComment[]},
 ): TaskDetailView {
   return {
     ...taskView(task, projectName, parts.attachments.length),
@@ -106,6 +117,19 @@ export function taskDetailView(
     blocks: parts.blocks.map(taskLinkView),
     history: parts.history.map(taskEventView),
     attachments: parts.attachments,
+    comments: parts.comments.map(commentView),
+  }
+}
+
+/** One comment as a tool answers it: what it says, and the channel and client it came through — never who may edit it. */
+export function commentView(comment: TaskComment): CommentView {
+  return {
+    id: comment.id,
+    content: comment.content,
+    kind: comment.kind,
+    provider: comment.provider,
+    createdAt: comment.createdAt,
+    updatedAt: comment.updatedAt,
   }
 }
 
