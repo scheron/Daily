@@ -154,39 +154,36 @@ export const buttonColorVariant = defineVariant({
 export const buttonSizeVariant = defineVariant({
   variants: {
     size: {
-      md: "h-9 px-3 text-sm",
       sm: "h-7 px-3 text-sm",
       xs: "h-6 px-1.5 text-xs",
     },
   },
   defaultVariants: {
-    size: "md",
+    size: "sm",
   },
 })
 
 export const iconButtonSizeVariant = defineVariant({
   variants: {
     size: {
-      md: "size-8 p-0",
       sm: "size-7 p-0",
       xs: "size-6 p-0",
     },
   },
   defaultVariants: {
-    size: "md",
+    size: "sm",
   },
 })
 
 export const buttonIconSizeVariant = defineVariant({
   variants: {
     size: {
-      md: "size-5",
       sm: "size-4",
       xs: "size-3.5",
     },
   },
   defaultVariants: {
-    size: "md",
+    size: "sm",
   },
 })
 
