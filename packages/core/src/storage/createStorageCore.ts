@@ -4,6 +4,7 @@ import {FileModel} from "./models/FileModel"
 import {MilestoneModel} from "./models/MilestoneModel"
 import {SettingsModel} from "./models/SettingsModel"
 import {TagModel} from "./models/TagModel"
+import {TaskCommentModel} from "./models/TaskCommentModel"
 import {TaskEventModel} from "./models/TaskEventModel"
 import {TaskModel} from "./models/TaskModel"
 import {TaskRelationModel} from "./models/TaskRelationModel"
@@ -13,6 +14,7 @@ import {MilestonesService} from "./services/MilestonesService"
 import {SearchService} from "./services/SearchService"
 import {SettingsService} from "./services/SettingsService"
 import {TagsService} from "./services/TagsService"
+import {TaskCommentsService} from "./services/TaskCommentsService"
 import {TaskEventsService} from "./services/TaskEventsService"
 import {TaskRelationsService} from "./services/TaskRelationsService"
 import {TasksService} from "./services/TasksService"
@@ -27,6 +29,7 @@ export type StorageCore = {
   branchesService: BranchesService
   tasksService: TasksService
   taskRelationsService: TaskRelationsService
+  taskCommentsService: TaskCommentsService
   tagsService: TagsService
   milestonesService: MilestonesService
   filesService: FilesService
@@ -44,6 +47,7 @@ export function createStorageCore(db: SqliteDriver, paths: AppPaths, clock?: Sto
   const tagModel = new TagModel(db)
   const milestoneModel = new MilestoneModel(db)
   const taskRelationModel = new TaskRelationModel(db)
+  const taskCommentModel = new TaskCommentModel(db)
   const fileModel = new FileModel(db, paths.assetsDir())
 
   branchModel.ensureMainBranch()
@@ -56,6 +60,7 @@ export function createStorageCore(db: SqliteDriver, paths: AppPaths, clock?: Sto
     branchesService: new BranchesService(branchModel, settingsService, taskModel, tagModel, milestoneModel, db),
     tasksService: new TasksService(taskModel, new TaskEventsService(taskEventModel, clock), clock),
     taskRelationsService: new TaskRelationsService(taskRelationModel, taskModel),
+    taskCommentsService: new TaskCommentsService(taskCommentModel, taskModel),
     tagsService: new TagsService(tagModel),
     milestonesService: new MilestonesService(milestoneModel),
     filesService: new FilesService(fileModel, taskModel),

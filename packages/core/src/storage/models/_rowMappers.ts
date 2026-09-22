@@ -1,7 +1,19 @@
 import {DEFAULT_ACCENT_ID, DEFAULT_BASE_ID, MAIN_BRANCH_ID, WINDOWS_CONFIG} from "@daily/protocol"
 import {deepMerge, isNumber, notNull} from "@daily/std"
 
-import type {Branch, File, Milestone, Settings, SyncSettings, Tag, Task, TaskRelation, TypographySettings} from "@daily/protocol"
+import type {
+  Branch,
+  File,
+  Milestone,
+  Settings,
+  SyncSettings,
+  Tag,
+  Task,
+  TaskComment,
+  TaskCommentOrigin,
+  TaskRelation,
+  TypographySettings,
+} from "@daily/protocol"
 
 type TaskRow = {
   id: string
@@ -58,6 +70,17 @@ type TaskRelationRow = {
   id: string
   blocker_id: string
   blocked_id: string
+  created_at: string
+  updated_at: string
+  deleted_at: string | null
+}
+
+type TaskCommentRow = {
+  id: string
+  task_id: string
+  branch_id: string
+  content: string
+  origin: string | null
   created_at: string
   updated_at: string
   deleted_at: string | null
@@ -182,6 +205,19 @@ export function rowToTaskRelation(row: TaskRelationRow): TaskRelation {
   }
 }
 
+export function rowToTaskComment(row: TaskCommentRow): TaskComment {
+  return {
+    id: row.id,
+    taskId: row.task_id,
+    branchId: row.branch_id || MAIN_BRANCH_ID,
+    content: row.content,
+    origin: toCommentOrigin(row.origin),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    deletedAt: row.deleted_at,
+  }
+}
+
 export function rowToFile(row: FileRow): File {
   return {
     id: row.id,
@@ -257,7 +293,14 @@ export function rowToSettings(row: SettingsRow): Settings {
   }
 }
 
-export type {TaskRow, TagRow, BranchRow, MilestoneRow, TaskRelationRow, FileRow, SettingsRow}
+export type {TaskRow, TagRow, BranchRow, MilestoneRow, TaskRelationRow, TaskCommentRow, FileRow, SettingsRow}
+
+const COMMENT_ORIGINS: TaskCommentOrigin[] = ["mcp", "agent"]
+
+/** Anything this build does not know reads as written-in-the-app, so an origin from a newer peer cannot become a bogus value. */
+function toCommentOrigin(value: string | null): TaskCommentOrigin | null {
+  return COMMENT_ORIGINS.find((origin) => origin === value) ?? null
+}
 
 const OLD_THEME_TYPE: Record<string, "light" | "dark"> = {
   "github-light": "light",

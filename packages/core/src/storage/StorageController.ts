@@ -38,6 +38,8 @@ import type {
   SyncStatus,
   Tag,
   Task,
+  TaskComment,
+  TaskCommentOrigin,
   TaskEvent,
   TaskRelation,
   TaskRelationSets,
@@ -57,6 +59,7 @@ export class StorageController implements IStorageController {
   private branchesService!: StorageCore["branchesService"]
   private tasksService!: StorageCore["tasksService"]
   private taskRelationsService!: StorageCore["taskRelationsService"]
+  private taskCommentsService!: StorageCore["taskCommentsService"]
   private tagsService!: StorageCore["tagsService"]
   private milestonesService!: StorageCore["milestonesService"]
   private filesService!: StorageCore["filesService"]
@@ -94,6 +97,7 @@ export class StorageController implements IStorageController {
     this.branchesService = core.branchesService
     this.tasksService = core.tasksService
     this.taskRelationsService = core.taskRelationsService
+    this.taskCommentsService = core.taskCommentsService
     this.tagsService = core.tagsService
     this.milestonesService = core.milestonesService
     this.filesService = core.filesService
@@ -280,9 +284,11 @@ export class StorageController implements IStorageController {
 
     await this.searchService.updateTaskInIndex(updatedTask)
     const removedRelations = await this.taskRelationsService.removeInvalidRelations([taskId])
+    const movedComments = await this.taskCommentsService.alignCommentsToTaskBranch(taskId, branch.id)
 
     const changeset: Changeset = {tasks: {upserted: [updatedTask]}}
     if (removedRelations.length) changeset.relations = {removed: removedRelations}
+    if (movedComments.length) changeset.comments = {upserted: movedComments}
     this.notifyLocalChange(changeset)
     return changeset
   }
@@ -349,6 +355,7 @@ export class StorageController implements IStorageController {
     const deleted = await this.tasksService.permanentlyDeleteTask(id)
     if (deleted) {
       this.searchService.removeTaskFromIndex(id)
+      await this.taskCommentsService.permanentlyDeleteCommentsOfTasks([id])
       this.notifyLocalChange(EMPTY_CHANGESET)
     }
     return deleted
@@ -364,6 +371,8 @@ export class StorageController implements IStorageController {
     for (const task of deletedTasks) {
       this.searchService.removeTaskFromIndex(task.id)
     }
+
+    await this.taskCommentsService.permanentlyDeleteCommentsOfTasks(deletedTasks.map((task) => task.id))
 
     this.notifyLocalChange(EMPTY_CHANGESET)
     return count
@@ -389,6 +398,41 @@ export class StorageController implements IStorageController {
     const changeset: Changeset = {}
     if (upserted.length) changeset.relations = {...changeset.relations, upserted}
     if (removed.length) changeset.relations = {...changeset.relations, removed}
+    this.notifyLocalChange(changeset)
+    return changeset
+  }
+  //#endregion
+
+  //#region COMMENTS
+  /** One task's live comments, oldest first. */
+  async getTaskComments(taskId: Task["id"]): Promise<TaskComment[]> {
+    return this.taskCommentsService.getCommentsOfTask(taskId)
+  }
+
+  /** Writes a comment on a live task; `EMPTY_CHANGESET` for a task that cannot take one or content that is only whitespace. */
+  async createTaskComment(taskId: Task["id"], content: string, origin: TaskCommentOrigin | null = null): Promise<Changeset> {
+    const created = await this.taskCommentsService.createComment(taskId, content, origin)
+    if (!created) return EMPTY_CHANGESET
+
+    const changeset: Changeset = {comments: {upserted: [created]}}
+    this.notifyLocalChange(changeset)
+    return changeset
+  }
+
+  async updateTaskComment(id: TaskComment["id"], content: string): Promise<Changeset> {
+    const updated = await this.taskCommentsService.updateComment(id, content)
+    if (!updated) return EMPTY_CHANGESET
+
+    const changeset: Changeset = {comments: {upserted: [updated]}}
+    this.notifyLocalChange(changeset)
+    return changeset
+  }
+
+  async deleteTaskComment(id: TaskComment["id"]): Promise<Changeset> {
+    const removed = await this.taskCommentsService.deleteComment(id)
+    if (!removed) return EMPTY_CHANGESET
+
+    const changeset: Changeset = {comments: {removed: [removed]}}
     this.notifyLocalChange(changeset)
     return changeset
   }

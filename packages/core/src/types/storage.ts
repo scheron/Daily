@@ -24,6 +24,8 @@ import type {
   SyncStatus,
   Tag,
   Task,
+  TaskComment,
+  TaskCommentOrigin,
   TaskEvent,
   TaskRelation,
   TaskRelationSets,
@@ -44,6 +46,7 @@ export type Changeset = {
   tags?: {upserted?: Tag[]; removed?: Tag["id"][]}
   branches?: {upserted?: Branch[]; removed?: Branch["id"][]}
   relations?: {upserted?: TaskRelation[]; removed?: TaskRelation["id"][]}
+  comments?: {upserted?: TaskComment[]; removed?: TaskComment["id"][]}
 }
 
 /** Nothing changed. A no-op move returns this rather than throwing. */
@@ -109,6 +112,13 @@ export interface IStorageController {
   getTaskRelations(taskId: Task["id"]): Promise<{blockedBy: Task[]; blocks: Task[]}>
   /** Makes the task's links exactly `next`, dropping what cannot be linked; `EMPTY_CHANGESET` when nothing changed. */
   setTaskRelations(taskId: Task["id"], next: TaskRelationSets): Promise<Changeset>
+
+  /** One task's live comments, oldest first. */
+  getTaskComments(taskId: Task["id"]): Promise<TaskComment[]>
+  /** Writes a comment on a live task. `origin` is null for one a person typed in the app. */
+  createTaskComment(taskId: Task["id"], content: string, origin?: TaskCommentOrigin | null): Promise<Changeset>
+  updateTaskComment(id: TaskComment["id"], content: string): Promise<Changeset>
+  deleteTaskComment(id: TaskComment["id"]): Promise<Changeset>
 
   searchTasks(query: string): Promise<TaskSearchResult[]>
 
