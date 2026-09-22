@@ -9,6 +9,7 @@ import type {
   Tag,
   Task,
   TaskComment,
+  TaskCommentCounts,
   TaskEvent,
   TaskRelation,
   TaskRelationSets,
@@ -107,7 +108,12 @@ export class StorageAPI {
     return window.BridgeIPC["comments:get-by-task"](taskId)
   }
 
-  /** Writes a comment on a live task. What the app writes has no origin — only MCP and the agent set one. */
+  /** How many live comments each task carries; a task with none is absent. */
+  async getTaskCommentCounts(): Promise<TaskCommentCounts> {
+    return window.BridgeIPC["comments:get-counts"]()
+  }
+
+  /** Writes a comment on a live task. What the app writes is `manual` — only MCP and the agent name another source. */
   async createTaskComment(taskId: Task["id"], content: string): Promise<Changeset> {
     return await window.BridgeIPC["comments:create"](taskId, content)
   }

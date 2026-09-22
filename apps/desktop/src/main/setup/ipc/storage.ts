@@ -38,6 +38,7 @@ export function setupStorageIPC(getStorage: () => IStorageController | null) {
   ipcMain.handle("relations:set", (_e, taskId: Task["id"], next: TaskRelationSets) => getStorage()?.setTaskRelations(taskId, next))
 
   ipcMain.handle("comments:get-by-task", (_e, taskId: Task["id"]) => getStorage()?.getTaskComments(taskId))
+  ipcMain.handle("comments:get-counts", () => getStorage()?.getTaskCommentCounts())
   ipcMain.handle("comments:create", (_e, taskId: Task["id"], content: string) => getStorage()?.createTaskComment(taskId, content))
   ipcMain.handle("comments:update", (_e, id: TaskComment["id"], content: string) => getStorage()?.updateTaskComment(id, content))
   ipcMain.handle("comments:delete", (_e, id: TaskComment["id"]) => getStorage()?.deleteTaskComment(id))

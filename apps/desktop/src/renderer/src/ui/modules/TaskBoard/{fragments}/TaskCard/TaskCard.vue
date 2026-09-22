@@ -8,6 +8,7 @@ import {useFilterStore} from "@/stores/filter.store"
 import {useMilestonesStore} from "@/stores/milestones.store"
 import {useTagsStore} from "@/stores/tags.store"
 import {useTaskEditorStore} from "@/stores/task-editor"
+import {useTaskCommentsStore} from "@/stores/taskComments.store"
 import {useTaskRelationsStore} from "@/stores/taskRelations.store"
 import {useTasksStore} from "@/stores/tasks"
 import BaseContextMenu from "@/ui/base/BaseContextMenu"
@@ -37,6 +38,7 @@ const tasksStore = useTasksStore()
 const tagsStore = useTagsStore()
 const taskEditorStore = useTaskEditorStore()
 const taskRelationsStore = useTaskRelationsStore()
+const taskCommentsStore = useTaskCommentsStore()
 const milestonesStore = useMilestonesStore()
 const filterStore = useFilterStore()
 
@@ -48,6 +50,7 @@ const milestone = computed(() => (props.task.milestoneId ? (milestonesStore.mile
 const showTime = computed(() => props.task.estimatedTime > 0)
 const estimateLabel = computed(() => (showTime.value ? toDurationLabel(props.task.estimatedTime) : ""))
 const spentLabel = computed(() => (showTime.value && props.task.spentTime > 0 ? toDurationLabel(props.task.spentTime) : ""))
+const commentCount = computed(() => taskCommentsStore.commentCountOf(props.task.id))
 
 const footerMilestone = computed(() => (filterStore.frame === "milestone" ? null : milestone.value))
 const footerDayLabel = computed(() => {
@@ -55,7 +58,8 @@ const footerDayLabel = computed(() => {
   return toDateLabel(props.task.scheduled.date, {short: true})
 })
 
-const hasFooter = computed(() => Boolean(footerMilestone.value) || Boolean(footerDayLabel.value) || showTime.value)
+const hasMetrics = computed(() => showTime.value || commentCount.value > 0)
+const hasFooter = computed(() => Boolean(footerMilestone.value) || Boolean(footerDayLabel.value) || hasMetrics.value)
 
 const currentRelations = computed<TaskRelationSets>(() => {
   const related = taskRelationsStore.relatedTasksByTaskId.get(props.task.id)
@@ -207,14 +211,18 @@ async function onLinkTask(side: keyof TaskRelationSets, taskId: Task["id"]) {
           <MilestoneChip v-if="footerMilestone" :milestone="footerMilestone" />
           <span v-else-if="footerDayLabel" class="text-base-content/80 text-xs">{{ footerDayLabel }}</span>
 
-          <div v-if="showTime" class="ml-auto flex items-center gap-2">
-            <div class="text-base-content/80 inline-flex items-center gap-1 px-2.5 py-1">
+          <div v-if="hasMetrics" class="ml-auto flex items-center gap-2">
+            <div v-if="showTime" class="text-base-content/80 inline-flex items-center gap-1 px-2.5 py-1">
               <BaseIcon name="stopwatch" class="text-accent size-3.5" />
               <span>{{ estimateLabel }}</span>
             </div>
             <div v-if="spentLabel" class="text-base-content/80 inline-flex items-center gap-1 px-2.5 py-1">
               <BaseIcon name="check-check" class="text-success size-3.5" />
               <span>{{ spentLabel }}</span>
+            </div>
+            <div v-if="commentCount" class="text-base-content/80 inline-flex items-center gap-1 px-2.5 py-1">
+              <BaseIcon name="message" class="text-base-content/40 size-3.5" />
+              <span>{{ commentCount }}</span>
             </div>
           </div>
         </div>

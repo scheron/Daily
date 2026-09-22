@@ -31,6 +31,7 @@ import type {
   Tag,
   Task,
   TaskComment,
+  TaskCommentCounts,
   TaskEvent,
   TaskRelation,
   TaskRelationSets,
@@ -151,6 +152,7 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "relations:set": (taskId: Task["id"], next: TaskRelationSets) => ipcRenderer.invoke("relations:set", taskId, next) as Promise<Changeset>,
 
   "comments:get-by-task": (taskId: Task["id"]) => ipcRenderer.invoke("comments:get-by-task", taskId) as Promise<TaskComment[]>,
+  "comments:get-counts": () => ipcRenderer.invoke("comments:get-counts") as Promise<TaskCommentCounts>,
   "comments:create": (taskId: Task["id"], content: string) => ipcRenderer.invoke("comments:create", taskId, content) as Promise<Changeset>,
   "comments:update": (id: TaskComment["id"], content: string) => ipcRenderer.invoke("comments:update", id, content) as Promise<Changeset>,
   "comments:delete": (id: TaskComment["id"]) => ipcRenderer.invoke("comments:delete", id) as Promise<Changeset>,

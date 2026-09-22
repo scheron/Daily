@@ -10,6 +10,7 @@ import {useSettingsStore} from "./stores/settings.store"
 import {useStorageChangesStore} from "./stores/storageChanges.store"
 import {useSyncServerStore} from "./stores/syncServer.store"
 import {useTagsStore} from "./stores/tags.store"
+import {useTaskCommentsStore} from "./stores/taskComments.store"
 import {useTaskRelationsStore} from "./stores/taskRelations.store"
 import {useTasksStore} from "./stores/tasks"
 import {useUpdateStore} from "./stores/update.store"
@@ -73,6 +74,7 @@ invoke(async () => {
     const tagsStore = useTagsStore()
     const milestonesStore = useMilestonesStore()
     const taskRelationsStore = useTaskRelationsStore()
+    const taskCommentsStore = useTaskCommentsStore()
     useUpdateStore()
     useStorageChangesStore()
 
@@ -82,6 +84,7 @@ invoke(async () => {
       tagsStore.getTagList(),
       milestonesStore.getMilestoneList(),
       taskRelationsStore.loadRelations(),
+      taskCommentsStore.loadCommentCounts(),
     ])
     signalRendererReady()
     await aiStore.checkConnection()

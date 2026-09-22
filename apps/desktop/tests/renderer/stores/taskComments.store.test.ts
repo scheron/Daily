@@ -14,6 +14,7 @@ vi.mock("vue-toasts-lite", () => ({
 vi.mock("../../../src/renderer/src/api", () => ({
   API: {
     getTaskComments: vi.fn().mockResolvedValue([]),
+    getTaskCommentCounts: vi.fn().mockResolvedValue({}),
     createTaskComment: vi.fn(),
     updateTaskComment: vi.fn(),
     deleteTaskComment: vi.fn(),
@@ -35,6 +36,10 @@ function makeComment(id, taskId, overrides = {}) {
   }
 }
 
+async function flushCounts() {
+  await new Promise((resolve) => setTimeout(resolve, 0))
+}
+
 describe("useTaskCommentsStore", () => {
   beforeEach(() => {
     mockBridgeIPC()
@@ -42,6 +47,7 @@ describe("useTaskCommentsStore", () => {
     vi.clearAllMocks()
     /* `clearAllMocks` keeps implementations, so each case starts from an empty thread and says what it needs. */
     API.getTaskComments.mockResolvedValue([])
+    API.getTaskCommentCounts.mockResolvedValue({})
   })
 
   it("reads_a_tasks_thread_once_and_tells_an_empty_thread_apart_from_one_never_read", async () => {
@@ -176,5 +182,37 @@ describe("useTaskCommentsStore", () => {
 
     expect(store.commentsOf("t1").map((c) => c.id)).toEqual(["c1"])
     expect(store.isLoaded("t1")).toBe(true)
+  })
+
+  it("counts_every_tasks_thread_without_reading_any_of_them", async () => {
+    const store = useTaskCommentsStore()
+    API.getTaskCommentCounts.mockResolvedValue({t1: 3})
+
+    await store.loadCommentCounts()
+
+    expect(store.commentCountOf("t1")).toBe(3)
+    expect(store.commentCountOf("t2")).toBe(0)
+    expect(store.isLoaded("t1")).toBe(false)
+  })
+
+  it("recounts_when_a_broadcast_adds_or_removes_a_comment_and_leaves_the_counts_alone_otherwise", async () => {
+    const store = useTaskCommentsStore()
+    API.getTaskCommentCounts.mockResolvedValue({t1: 1})
+    await store.loadCommentCounts()
+
+    API.getTaskCommentCounts.mockResolvedValue({t1: 2})
+    store.applyBroadcast({comments: {upserted: [makeComment("c2", "t1")]}})
+    await flushCounts()
+    expect(store.commentCountOf("t1")).toBe(2)
+
+    API.getTaskCommentCounts.mockResolvedValue({})
+    store.applyBroadcast({comments: {removed: ["c1", "c2"]}})
+    await flushCounts()
+    expect(store.commentCountOf("t1")).toBe(0)
+
+    API.getTaskCommentCounts.mockResolvedValue({t1: 99})
+    store.applyBroadcast({tasks: {upserted: []}, milestones: {removed: ["m1"]}})
+    await flushCounts()
+    expect(store.commentCountOf("t1")).toBe(0)
   })
 })

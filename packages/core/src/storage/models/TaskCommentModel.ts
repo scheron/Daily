@@ -2,7 +2,7 @@ import {nanoid} from "nanoid"
 
 import {rowToTaskComment} from "./_rowMappers"
 
-import type {Branch, Task, TaskComment, TaskCommentKind} from "@daily/protocol"
+import type {Branch, Task, TaskComment, TaskCommentCounts, TaskCommentKind} from "@daily/protocol"
 import type {SqliteDriver} from "../../database/SqliteDriver"
 import type {TaskCommentRow} from "./_rowMappers"
 
@@ -28,6 +28,18 @@ export class TaskCommentModel {
       .all<TaskCommentRow>(taskId)
 
     return rows.map(rowToTaskComment)
+  }
+
+  /**
+   * How many live comments each task carries. Only tasks that have some are counted, so the board can
+   * read a card's count without every task paying for a row.
+   */
+  countByTask(): TaskCommentCounts {
+    const rows = this.db
+      .prepare(`SELECT task_id, COUNT(*) AS total FROM task_comments WHERE deleted_at IS NULL GROUP BY task_id`)
+      .all<{task_id: string; total: number}>()
+
+    return Object.fromEntries(rows.map((row) => [row.task_id, row.total]))
   }
 
   getComment(id: TaskComment["id"]): TaskComment | null {

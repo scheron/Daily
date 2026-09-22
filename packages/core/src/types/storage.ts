@@ -25,6 +25,7 @@ import type {
   Tag,
   Task,
   TaskComment,
+  TaskCommentCounts,
   TaskCommentSource,
   TaskEvent,
   TaskRelation,
@@ -115,6 +116,9 @@ export interface IStorageController {
 
   /** One task's live comments, oldest first. */
   getTaskComments(taskId: Task["id"]): Promise<TaskComment[]>
+  /** How many live comments each task carries; a task with none is absent. */
+  getTaskCommentCounts(): Promise<TaskCommentCounts>
+
   /** Writes a comment on a live task. `source` defaults to a comment typed in the app. */
   createTaskComment(taskId: Task["id"], content: string, source?: TaskCommentSource): Promise<Changeset>
   updateTaskComment(id: TaskComment["id"], content: string): Promise<Changeset>

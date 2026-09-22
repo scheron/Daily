@@ -29,6 +29,7 @@ import type {
   Tag,
   Task,
   TaskComment,
+  TaskCommentCounts,
   TaskEvent,
   TaskRelation,
   TaskRelationSets,
@@ -152,6 +153,7 @@ export interface BridgeIPC {
 
   // === COMMENTS ===
   "comments:get-by-task": (taskId: Task["id"]) => Promise<TaskComment[]>
+  "comments:get-counts": () => Promise<TaskCommentCounts>
   "comments:create": (taskId: Task["id"], content: string) => Promise<Changeset>
   "comments:update": (id: TaskComment["id"], content: string) => Promise<Changeset>
   "comments:delete": (id: TaskComment["id"]) => Promise<Changeset>

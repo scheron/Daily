@@ -6,7 +6,7 @@ import {API} from "@/api"
 import {applyChangeset} from "@/utils/storage/applyChangeset"
 
 import type {Changeset} from "@daily/core"
-import type {Task, TaskComment} from "@daily/protocol"
+import type {Task, TaskComment, TaskCommentCounts} from "@daily/protocol"
 
 /**
  * A task's comments, read when that task is first opened and held from then on. Unlike tasks and
@@ -21,6 +21,7 @@ import type {Task, TaskComment} from "@daily/protocol"
  */
 export const useTaskCommentsStore = defineStore("taskComments", () => {
   const comments = shallowRef<TaskComment[]>([])
+  const commentCounts = ref<TaskCommentCounts>({})
   const loadedTaskIds = ref(new Set<Task["id"]>())
   const pendingTaskIds = ref(new Set<Task["id"]>())
 
@@ -44,6 +45,23 @@ export const useTaskCommentsStore = defineStore("taskComments", () => {
   /** One task's comments, oldest first. Empty both for a task with none and for one never read — ask `isLoaded` to tell them apart. */
   function commentsOf(taskId: Task["id"]): TaskComment[] {
     return commentsByTaskId.value.get(taskId) ?? []
+  }
+
+  /** How many live comments a task carries. Read from the counts map, which holds every task, not only the ones opened. */
+  function commentCountOf(taskId: Task["id"]): number {
+    return commentCounts.value[taskId] ?? 0
+  }
+
+  /**
+   * Rereads the per-task counts. Kept apart from `comments`, which is read one task at a time: a card
+   * needs the number and never the bodies, so counting in storage is what a board can afford.
+   */
+  async function loadCommentCounts(): Promise<void> {
+    try {
+      commentCounts.value = await API.getTaskCommentCounts()
+    } catch (error) {
+      console.error("Failed to load task comment counts:", error)
+    }
   }
 
   function isLoaded(taskId: Task["id"]): boolean {
@@ -110,10 +128,16 @@ export const useTaskCommentsStore = defineStore("taskComments", () => {
     }
   }
 
-  /** Folds a broadcast in, keeping only what belongs to a task this window has already read. */
+  /**
+   * Folds a broadcast in, keeping only what belongs to a task this window has already read. The counts
+   * map covers every task, so it is reread whenever a broadcast names a comment at all — this window's
+   * own write, another window's, or a sync pull.
+   */
   function applyBroadcast(changeset: Changeset): void {
     const upserted = changeset.comments?.upserted?.filter((comment) => loadedTaskIds.value.has(comment.taskId))
     const removed = changeset.comments?.removed
+
+    if (changeset.comments?.upserted?.length || removed?.length) void loadCommentCounts()
 
     if (!upserted?.length && !removed?.length) return
 
@@ -122,8 +146,11 @@ export const useTaskCommentsStore = defineStore("taskComments", () => {
 
   return {
     comments,
+    commentCounts,
     commentsByTaskId,
     commentsOf,
+    commentCountOf,
+    loadCommentCounts,
     isLoaded,
     isLoading,
     loadComments,

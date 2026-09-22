@@ -1,6 +1,6 @@
 import {DAILY_AGENT_PROVIDER, TASK_COMMENT_PROVIDER_MAX_LENGTH} from "@daily/protocol"
 
-import type {Branch, Task, TaskComment, TaskCommentSource} from "@daily/protocol"
+import type {Branch, Task, TaskComment, TaskCommentCounts, TaskCommentSource} from "@daily/protocol"
 import type {TaskCommentModel} from "../models/TaskCommentModel"
 import type {TaskModel} from "../models/TaskModel"
 
@@ -13,6 +13,11 @@ export class TaskCommentsService {
   /** One task's live comments, oldest first. Empty for a task that does not exist. */
   async getCommentsOfTask(taskId: Task["id"]): Promise<TaskComment[]> {
     return this.commentModel.getByTask(taskId)
+  }
+
+  /** How many live comments each task carries; a task with none is left out. */
+  async getCommentCounts(): Promise<TaskCommentCounts> {
+    return this.commentModel.countByTask()
   }
 
   /** Writes a comment on a live task. Null for an unknown or deleted task, and for content that is only whitespace. */

@@ -197,6 +197,9 @@ export type TaskRelation = {
 /** How a comment reached its task. */
 export type TaskCommentKind = "manual" | "agent" | "mcp"
 
+/** How many live comments each task carries. A task with none is absent, so this is one entry per commented task. */
+export type TaskCommentCounts = Record<Task["id"], number>
+
 /** Where a comment came from, as its writer names it. */
 export type TaskCommentSource = {
   kind: TaskCommentKind

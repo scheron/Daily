@@ -39,6 +39,7 @@ import type {
   Tag,
   Task,
   TaskComment,
+  TaskCommentCounts,
   TaskCommentSource,
   TaskEvent,
   TaskRelation,
@@ -407,6 +408,11 @@ export class StorageController implements IStorageController {
   /** One task's live comments, oldest first. */
   async getTaskComments(taskId: Task["id"]): Promise<TaskComment[]> {
     return this.taskCommentsService.getCommentsOfTask(taskId)
+  }
+
+  /** How many live comments each task carries; a task with none is absent. */
+  async getTaskCommentCounts(): Promise<TaskCommentCounts> {
+    return this.taskCommentsService.getCommentCounts()
   }
 
   /** Writes a comment on a live task; `EMPTY_CHANGESET` for a task that cannot take one or content that is only whitespace. */
