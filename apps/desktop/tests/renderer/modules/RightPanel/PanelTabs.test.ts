@@ -13,6 +13,15 @@ describe("PanelTabs", () => {
     wrapper = null
   })
 
+  function indicator() {
+    return wrapper.find('[aria-hidden="true"] > div')
+  }
+
+  async function nextFrame() {
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+    await wrapper.vm.$nextTick()
+  }
+
   function setup(props = {}) {
     wrapper = mount(PanelTabs, {
       props: {active: "editor", commentsCount: 0, ...props},
@@ -47,5 +56,27 @@ describe("PanelTabs", () => {
     await tabs[2].trigger("click")
 
     expect(wrapper.emitted("select")).toEqual([["comments"], ["history"]])
+  })
+
+  it("parks_the_indicator_under_the_active_tab_a_third_of_the_strip_at_a_time", async () => {
+    setup({active: "editor"})
+    expect(indicator().attributes("style")).toContain("translateX(0%)")
+
+    await wrapper.setProps({active: "comments"})
+    expect(indicator().attributes("style")).toContain("translateX(100%)")
+
+    await wrapper.setProps({active: "history"})
+    expect(indicator().attributes("style")).toContain("translateX(200%)")
+  })
+
+  it("puts_the_indicator_straight_under_the_open_tab_on_the_first_paint_and_slides_it_only_after", async () => {
+    setup({active: "history"})
+
+    expect(indicator().attributes("style")).toContain("translateX(200%)")
+    expect(indicator().classes()).not.toContain("transition-transform")
+
+    await nextFrame()
+
+    expect(indicator().classes()).toContain("transition-transform")
   })
 })
