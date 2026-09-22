@@ -17,10 +17,14 @@ const PERMANENT_DELETE_AT = "1970-01-01T00:00:00.000Z"
 export class TaskCommentModel {
   constructor(private db: SqliteDriver) {}
 
-  /** One task's live comments, oldest first. */
+  /**
+   * One task's live comments, oldest first. `rowid` breaks a tie rather than `id`, so comments
+   * written in the same millisecond — a batch from an agent, say — keep the order they were written
+   * in instead of the arbitrary order of their nanoids. `TaskEventModel` orders its rows the same way.
+   */
   getByTask(taskId: Task["id"]): TaskComment[] {
     const rows = this.db
-      .prepare(`${TASK_COMMENT_SELECT} WHERE task_id = ? AND deleted_at IS NULL ORDER BY created_at ASC, id ASC`)
+      .prepare(`${TASK_COMMENT_SELECT} WHERE task_id = ? AND deleted_at IS NULL ORDER BY created_at ASC, rowid ASC`)
       .all<TaskCommentRow>(taskId)
 
     return rows.map(rowToTaskComment)

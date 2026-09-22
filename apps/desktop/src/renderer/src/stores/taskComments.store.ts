@@ -33,8 +33,9 @@ export const useTaskCommentsStore = defineStore("taskComments", () => {
       else map.set(comment.taskId, [comment])
     }
 
+    /* Sorting on `createdAt` alone, and relying on a stable sort, keeps the order storage returned for comments that share a millisecond. */
     for (const thread of map.values()) {
-      thread.sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id))
+      thread.sort((a, b) => a.createdAt.localeCompare(b.createdAt))
     }
 
     return map
