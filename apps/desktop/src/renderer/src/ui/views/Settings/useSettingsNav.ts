@@ -14,7 +14,7 @@ import type {IconName} from "@/ui/base/BaseIcon"
 import type {ComponentInstance} from "vue"
 
 export function useSettingsNav() {
-  type SettingsPanel = "general" | "projects" | "icloud" | "ai" | "deleted-tasks" | "debug"
+  type SettingsPanel = "general" | "projects" | "sync" | "ai" | "deleted-tasks" | "debug"
 
   type SettingsSection = {
     id: SettingsPanel
@@ -28,7 +28,7 @@ export function useSettingsNav() {
   const sections: SettingsSection[] = [
     {id: "general", icon: "cog", label: "General", component: GeneralSettings},
     {id: "projects", icon: "monitor", label: "Projects", component: ProjectsSettings},
-    {id: "icloud", icon: "cloud", label: "Remote", component: SyncSettings},
+    {id: "sync", icon: "cloud", label: "Sync", component: SyncSettings},
     {id: "ai", icon: "ai", label: "AI", component: AiSettings},
     {id: "deleted-tasks", icon: "trash", label: "Deleted Tasks", component: DeletedTasks},
     ...(isDevMode ? [{id: "debug", icon: "code", label: "DEBUG", component: DebugSettings} as SettingsSection] : []),

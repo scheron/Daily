@@ -159,7 +159,7 @@ function createSettingsMenu(): MenuItemConstructorOptions[] {
   const sections = [
     "settings:general",
     "settings:projects",
-    "settings:icloud",
+    "settings:sync",
     "settings:ai",
     "settings:deleted-tasks",
     ...(ENV.isDevelopment ? (["settings:debug"] as const) : []),

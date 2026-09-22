@@ -9,7 +9,7 @@ export const SHORTCUTS_MAP = {
   "ui:open-settings-panel": {channel: "shortcut:ui:open-settings-panel", label: "Settings", accelerator: "CmdOrCtrl+,"},
   "settings:general": {channel: "settings:open:general", label: "General", accelerator: "CmdOrCtrl+Shift+1", section: "general"},
   "settings:projects": {channel: "settings:open:projects", label: "Projects", accelerator: "CmdOrCtrl+Shift+2", section: "projects"},
-  "settings:icloud": {channel: "settings:open:icloud", label: "Remote", accelerator: "CmdOrCtrl+Shift+3", section: "icloud"},
+  "settings:sync": {channel: "settings:open:sync", label: "Sync", accelerator: "CmdOrCtrl+Shift+3", section: "sync"},
   "settings:ai": {channel: "settings:open:ai", label: "AI", accelerator: "CmdOrCtrl+Shift+4", section: "ai"},
   "settings:deleted-tasks": {
     channel: "settings:open:deleted-tasks",
