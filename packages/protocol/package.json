@@ -11,6 +11,7 @@
   "dependencies": {
     "@daily/std": "workspace:*",
     "fast-sort": "^3.4.1",
-    "luxon": "^3.6.1"
+    "luxon": "^3.6.1",
+    "nanoid": "^5.1.5"
   }
 }

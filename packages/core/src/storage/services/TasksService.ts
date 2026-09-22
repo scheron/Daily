@@ -1,6 +1,4 @@
-import {nanoid} from "nanoid"
-
-import {MAIN_BRANCH_ID, planTaskCreate, planTaskMoveByOrder, planTaskUpdate} from "@daily/protocol"
+import {createEntityId, MAIN_BRANCH_ID, planTaskCreate, planTaskMoveByOrder, planTaskUpdate} from "@daily/protocol"
 import {getToday, notNullish, notUndefined} from "@daily/std"
 
 import type {
@@ -58,7 +56,7 @@ export class TasksService {
   }
 
   async createTask(task: Omit<Task, "id"> & {id?: Task["id"]}): Promise<Task | null> {
-    const id = task.id ?? nanoid()
+    const id = task.id ?? createEntityId("task")
     const fields = planTaskCreate(this.readContext(task.branchId ?? MAIN_BRANCH_ID, null), task)
 
     const created = this.taskModel.createTask({...fields, id, tags: fields.tags.map((t) => t.id), deletedAt: task.deletedAt})

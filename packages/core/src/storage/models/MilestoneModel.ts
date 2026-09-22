@@ -1,6 +1,4 @@
-import {nanoid} from "nanoid"
-
-import {getNextTaskOrderIndex} from "@daily/protocol"
+import {createEntityId, getNextTaskOrderIndex} from "@daily/protocol"
 import {notUndefined} from "@daily/std"
 
 import {logger} from "../../utils/logger"
@@ -64,7 +62,7 @@ export class MilestoneModel {
   }
 
   createMilestone(milestone: Omit<Milestone, "id" | "createdAt" | "updatedAt" | "orderIndex">): Milestone | null {
-    const id = nanoid()
+    const id = createEntityId("milestone")
     const now = new Date().toISOString()
     const orderIndex = getNextTaskOrderIndex(this.getMilestoneList({branchId: milestone.branchId}))
 

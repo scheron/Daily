@@ -1,6 +1,4 @@
-import {nanoid} from "nanoid"
-
-import {MAIN_BRANCH_ID} from "@daily/protocol"
+import {createEntityId, MAIN_BRANCH_ID} from "@daily/protocol"
 import {notUndefined} from "@daily/std"
 
 import {logger} from "../../utils/logger"
@@ -58,7 +56,7 @@ export class TagModel {
   }
 
   createTag(tag: Omit<Tag, "id" | "createdAt" | "updatedAt">): Tag | null {
-    const id = nanoid()
+    const id = createEntityId("tag")
     const now = new Date().toISOString()
 
     this.db

@@ -1,6 +1,4 @@
-import {nanoid} from "nanoid"
-
-import {MAIN_BRANCH_ID, MAIN_BRANCH_NAME} from "@daily/protocol"
+import {createEntityId, MAIN_BRANCH_ID, MAIN_BRANCH_NAME} from "@daily/protocol"
 import {notUndefined} from "@daily/std"
 
 import {logger} from "../../utils/logger"
@@ -71,7 +69,7 @@ export class BranchModel {
   }
 
   createBranch(branch: Pick<Branch, "name"> & Partial<Pick<Branch, "description">>): Branch | null {
-    const id = nanoid()
+    const id = createEntityId("branch")
     const now = new Date().toISOString()
 
     this.db

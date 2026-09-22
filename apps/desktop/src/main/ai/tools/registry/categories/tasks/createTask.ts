@@ -1,6 +1,4 @@
-import {nanoid} from "nanoid"
-
-import {getPreviousTaskOrderIndex, MAIN_BRANCH_ID} from "@daily/protocol"
+import {createEntityId, getPreviousTaskOrderIndex, MAIN_BRANCH_ID} from "@daily/protocol"
 import {getToday} from "@daily/std"
 
 import {formatTask} from "@main/ai/utils/formatters"
@@ -64,7 +62,7 @@ export const createTask: RegisteredTool = {
     }
 
     const task: Task = {
-      id: nanoid(),
+      id: createEntityId("task"),
       content,
       status: "active",
       minimized: false,

@@ -1,4 +1,4 @@
-import {nanoid} from "nanoid"
+import {createEntityId} from "@daily/protocol"
 
 import {rowToTaskComment} from "./_rowMappers"
 
@@ -50,7 +50,7 @@ export class TaskCommentModel {
   }
 
   createComment(input: {taskId: Task["id"]; branchId: Branch["id"]; content: string; kind: TaskCommentKind; provider: string | null}): TaskComment {
-    const id = nanoid()
+    const id = createEntityId("comment")
     const now = new Date().toISOString()
 
     this.db

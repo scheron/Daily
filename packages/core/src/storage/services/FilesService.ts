@@ -1,7 +1,6 @@
 import path from "node:path"
-import {nanoid} from "nanoid"
 
-import {APP_CONFIG} from "@daily/protocol"
+import {APP_CONFIG, createEntityId} from "@daily/protocol"
 import {isNull, notNull} from "@daily/std"
 
 import {extractFileIds} from "../../utils/files/extractFileIds"
@@ -20,7 +19,7 @@ export class FilesService {
   ) {}
 
   async saveFile(filename: string, data: Buffer): Promise<File["id"]> {
-    const fileId = nanoid()
+    const fileId = createEntityId("file")
     const sniffed = sniffImageExt(data)
     const ext = sniffed ?? path.extname(filename).slice(1)
     const name = sniffed ? `${path.basename(filename, path.extname(filename))}.${sniffed}` : filename

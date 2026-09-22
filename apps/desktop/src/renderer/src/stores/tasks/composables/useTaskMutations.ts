@@ -1,9 +1,8 @@
 import {toRaw} from "vue"
 import {toasts} from "vue-toasts-lite"
-import {nanoid} from "nanoid"
 import {getActivePinia} from "pinia"
 
-import {getPreviousTaskOrderIndex, planTaskCreate, planTaskMoveByOrder, planTaskUpdate} from "@daily/protocol"
+import {createEntityId, getPreviousTaskOrderIndex, planTaskCreate, planTaskMoveByOrder, planTaskUpdate} from "@daily/protocol"
 import {getTime, getTimezone, getToday, notNull, notUndefined, objectFilter} from "@daily/std"
 
 import {API} from "@/api"
@@ -57,7 +56,7 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
     milestoneId?: Task["milestoneId"]
   }): Promise<Task | null> {
     const isBacklog = params.status === "backlog"
-    const id = nanoid()
+    const id = createEntityId("task")
     const date = params.date ?? activeDay.value
     const time = getTime()
     const timezone = getTimezone()
