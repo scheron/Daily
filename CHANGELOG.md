@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.23.0 - 2026-09-22
+
+### ✨ New Features
+
+- **Agents** — Claude Code, the Claude app and Codex can now read and change tasks, projects, milestones and tags through a self-hosted Daily Sync Server. The server answers them itself, so no Mac has to be awake. It needs a domain with a trusted certificate; a server reached by IP turns agents away. The server and every Mac bound to it move to this version together: until they match, a Mac pauses syncing and Sync settings names the command to run. iCloud sync is not affected.
+- **Connect an agent** — sits next to Add a device in Settings → Sync, on any Mac bound to the server. It shows the address to add to the agent and waits five minutes. The agent opens a page with a six-digit code, and an approval card on the Mac shows the same code and the agent's name.
+- **Agents in the device list** — each Mac lists the agents it approved, each with a Revoke button. The Mac that set up the server sees every Mac's agents, and revoking a Mac revokes its agents with it.
+
+---
+
 ## v0.22.1 - 2026-09-17
 
 ### 🎨 Improvements
