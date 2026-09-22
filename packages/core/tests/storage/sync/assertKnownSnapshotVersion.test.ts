@@ -31,8 +31,8 @@ describe("assertKnownSnapshotVersion", () => {
     expect(() => assertKnownSnapshotVersion({version: "4"})).not.toThrow()
   })
 
-  it("accepts version 7 and aborts with SnapshotVersionAheadError for version 8", () => {
-    expect(() => assertKnownSnapshotVersion({version: 7})).not.toThrow()
-    expect(() => assertKnownSnapshotVersion({version: 8})).toThrow(SnapshotVersionAheadError)
+  it("accepts version 8 and aborts with SnapshotVersionAheadError for version 9", () => {
+    expect(() => assertKnownSnapshotVersion({version: 8})).not.toThrow()
+    expect(() => assertKnownSnapshotVersion({version: 9})).toThrow(SnapshotVersionAheadError)
   })
 })

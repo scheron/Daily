@@ -8,12 +8,14 @@ import {BranchModel} from "@core/storage/models/BranchModel"
 import {MilestoneModel} from "@core/storage/models/MilestoneModel"
 import {SettingsModel} from "@core/storage/models/SettingsModel"
 import {TagModel} from "@core/storage/models/TagModel"
+import {TaskCommentModel} from "@core/storage/models/TaskCommentModel"
 import {TaskEventModel} from "@core/storage/models/TaskEventModel"
 import {TaskModel} from "@core/storage/models/TaskModel"
 import {TaskRelationModel} from "@core/storage/models/TaskRelationModel"
 import {BranchesService} from "@core/storage/services/BranchesService"
 import {SearchService} from "@core/storage/services/SearchService"
 import {SettingsService} from "@core/storage/services/SettingsService"
+import {TaskCommentsService} from "@core/storage/services/TaskCommentsService"
 import {TaskEventsService} from "@core/storage/services/TaskEventsService"
 import {TaskRelationsService} from "@core/storage/services/TaskRelationsService"
 import {TasksService} from "@core/storage/services/TasksService"
@@ -75,12 +77,14 @@ function makeHarness() {
   const branchesService = new BranchesService(branchModel, settingsService, taskModel, tagModel, milestoneModel, db)
   const taskRelationModel = new TaskRelationModel(db)
   const taskRelationsService = new TaskRelationsService(taskRelationModel, taskModel)
+  const taskCommentsService = new TaskCommentsService(new TaskCommentModel(db), taskModel)
   const searchService = new SearchService(taskModel, branchModel)
 
   const controller = new StorageController(db, paths)
   controller.tasksService = tasksService
   controller.branchesService = branchesService
   controller.taskRelationsService = taskRelationsService
+  controller.taskCommentsService = taskCommentsService
   controller.searchService = searchService
 
   return {db, taskModel, branchModel, controller}

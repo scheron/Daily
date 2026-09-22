@@ -215,6 +215,7 @@ describe("migrations", () => {
       const db = new Database(":memory:")
       runMigrations(db)
 
+      rollbackLastMigration(db) // v013
       rollbackLastMigration(db) // v012
       rollbackLastMigration(db) // v011
       rollbackLastMigration(db) // v010
@@ -646,6 +647,7 @@ describe("migrations", () => {
       expect(task).toBeDefined()
       expect(task.content).toBe("Keep me")
 
+      rollbackLastMigration(db)
       const rolledBack = rollbackLastMigration(db)
       expect(rolledBack).toBe(12)
 

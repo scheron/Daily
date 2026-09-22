@@ -1,6 +1,7 @@
 import {DateTime} from "luxon"
 import {describe, expect, it, vi} from "vitest"
 
+import {KNOWN_SNAPSHOT_VERSION} from "@daily/core/utils/sync/snapshot/assertKnownSnapshotVersion"
 import {AGENT_ENDPOINT_PATH, SYNC_PROTOCOL_PATHS} from "@daily/protocol"
 
 import {
@@ -53,9 +54,9 @@ async function writeInitialSnapshot(booted: BootedAgentServer, token: string): P
     body: JSON.stringify({
       expectedRevision: null,
       snapshot: {
-        version: 7,
+        version: KNOWN_SNAPSHOT_VERSION,
         meta: {updatedAt: new Date().toISOString(), hash: "seed"},
-        docs: {tasks: [], tags: [], branches: [], milestones: [], relations: [], files: [], events: []},
+        docs: {tasks: [], tags: [], branches: [], milestones: [], relations: [], comments: [], files: [], events: []},
       },
     }),
   })

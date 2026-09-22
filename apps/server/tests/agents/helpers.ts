@@ -5,6 +5,7 @@ import {join} from "node:path"
 import {dataPaths} from "@daily/core/config/paths"
 import {createStorageCore} from "@daily/core/storage/createStorageCore"
 import {runMigrations} from "@daily/core/storage/database/scripts/migrate"
+import {KNOWN_SNAPSHOT_VERSION} from "@daily/core/utils/sync/snapshot/assertKnownSnapshotVersion"
 import {buildSnapshot} from "@daily/core/utils/sync/snapshot/buildSnapshot"
 
 import {createDevice} from "../../src/devices/DeviceStore"
@@ -85,9 +86,9 @@ export function makeTaskDraft(overrides: Record<string, unknown> = {}): any {
 /** A structurally valid, empty `StoredSnapshotDocument`, overridden per case to build a specific edge — never a hand-copied object per case. */
 export function rawSnapshotDocument(overrides: Record<string, unknown> = {}): any {
   return {
-    version: 7,
+    version: KNOWN_SNAPSHOT_VERSION,
     meta: {updatedAt: "2026-01-01T00:00:00.000Z", hash: "hash-1"},
-    docs: {tasks: [], tags: [], branches: [], milestones: [], relations: [], files: [], events: []},
+    docs: {tasks: [], tags: [], branches: [], milestones: [], relations: [], comments: [], files: [], events: []},
     ...overrides,
   }
 }
