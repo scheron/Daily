@@ -2,12 +2,12 @@ import {nanoid} from "nanoid"
 
 import {rowToTaskComment} from "./_rowMappers"
 
-import type {Branch, Task, TaskComment, TaskCommentOrigin} from "@daily/protocol"
+import type {Branch, Task, TaskComment, TaskCommentKind} from "@daily/protocol"
 import type {SqliteDriver} from "../../database/SqliteDriver"
 import type {TaskCommentRow} from "./_rowMappers"
 
 const TASK_COMMENT_SELECT = `
-  SELECT id, task_id, branch_id, content, origin, created_at, updated_at, deleted_at
+  SELECT id, task_id, branch_id, content, kind, provider, created_at, updated_at, deleted_at
   FROM task_comments
 `
 
@@ -37,16 +37,16 @@ export class TaskCommentModel {
     return rowToTaskComment(row)
   }
 
-  createComment(input: {taskId: Task["id"]; branchId: Branch["id"]; content: string; origin: TaskCommentOrigin | null}): TaskComment {
+  createComment(input: {taskId: Task["id"]; branchId: Branch["id"]; content: string; kind: TaskCommentKind; provider: string | null}): TaskComment {
     const id = nanoid()
     const now = new Date().toISOString()
 
     this.db
       .prepare(
-        `INSERT INTO task_comments (id, task_id, branch_id, content, origin, created_at, updated_at, deleted_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, NULL)`,
+        `INSERT INTO task_comments (id, task_id, branch_id, content, kind, provider, created_at, updated_at, deleted_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
       )
-      .run(id, input.taskId, input.branchId, input.content, input.origin, now, now)
+      .run(id, input.taskId, input.branchId, input.content, input.kind, input.provider, now, now)
 
     return {id, ...input, createdAt: now, updatedAt: now, deletedAt: null}
   }

@@ -215,6 +215,7 @@ describe("migrations", () => {
       const db = new Database(":memory:")
       runMigrations(db)
 
+      rollbackLastMigration(db) // v014
       rollbackLastMigration(db) // v013
       rollbackLastMigration(db) // v012
       rollbackLastMigration(db) // v011
@@ -648,6 +649,7 @@ describe("migrations", () => {
       expect(task.content).toBe("Keep me")
 
       rollbackLastMigration(db)
+      rollbackLastMigration(db)
       const rolledBack = rollbackLastMigration(db)
       expect(rolledBack).toBe(12)
 
@@ -656,6 +658,72 @@ describe("migrations", () => {
         .all()
         .map((t) => t.name)
       expect(tablesAfterRollback).not.toContain("task_relations")
+
+      db.close()
+    })
+  })
+
+  describe("v014 — comment origin split", () => {
+    function seedThroughV13(db) {
+      db.exec(`CREATE TABLE _migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)`)
+      for (const migration of migrations.filter((m) => m.version <= 13)) {
+        if (typeof migration.up === "string") db.exec(migration.up)
+        else migration.up(db)
+        db.prepare("INSERT INTO _migrations (version, name, applied_at) VALUES (?, ?, ?)").run(
+          migration.version,
+          migration.name,
+          "2026-01-01T00:00:00.000Z",
+        )
+      }
+    }
+
+    function seedComment(db, id, origin) {
+      const now = new Date().toISOString()
+      db.prepare(
+        `INSERT INTO task_comments (id, task_id, branch_id, content, origin, created_at, updated_at, deleted_at)
+         VALUES (?, 't1', 'main', ?, ?, ?, ?, NULL)`,
+      ).run(id, `written by ${origin ?? "a person"}`, origin, now, now)
+    }
+
+    it("reads_every_old_origin_as_a_kind_and_names_the_agent_that_wrote_one", () => {
+      const db = new Database(":memory:")
+      seedThroughV13(db)
+      seedComment(db, "typed", null)
+      seedComment(db, "via-mcp", "mcp")
+      seedComment(db, "by-agent", "agent")
+
+      runMigrations(db)
+
+      const rows = db.prepare("SELECT id, kind, provider FROM task_comments ORDER BY id").all()
+      expect(rows).toEqual([
+        {id: "by-agent", kind: "agent", provider: "daily_agent"},
+        {id: "typed", kind: "manual", provider: null},
+        {id: "via-mcp", kind: "mcp", provider: null},
+      ])
+
+      const columns = db
+        .prepare("PRAGMA table_info(task_comments)")
+        .all()
+        .map((c) => c.name)
+      expect(columns).not.toContain("origin")
+
+      db.close()
+    })
+
+    it("puts_the_origin_column_back_on_rollback_so_a_downgraded_build_still_reads_the_table", () => {
+      const db = new Database(":memory:")
+      seedThroughV13(db)
+      seedComment(db, "by-agent", "agent")
+      seedComment(db, "typed", null)
+      runMigrations(db)
+
+      expect(rollbackLastMigration(db)).toBe(14)
+
+      const rows = db.prepare("SELECT id, origin FROM task_comments ORDER BY id").all()
+      expect(rows).toEqual([
+        {id: "by-agent", origin: "agent"},
+        {id: "typed", origin: null},
+      ])
 
       db.close()
     })
@@ -698,14 +766,16 @@ describe("migrations", () => {
         .prepare("PRAGMA table_info(task_comments)")
         .all()
         .map((c) => c.name)
-      expect(columns).toEqual(expect.arrayContaining(["id", "task_id", "branch_id", "content", "origin", "created_at", "updated_at", "deleted_at"]))
+      expect(columns).toEqual(
+        expect.arrayContaining(["id", "task_id", "branch_id", "content", "kind", "provider", "created_at", "updated_at", "deleted_at"]),
+      )
 
       const nullableColumns = db
         .prepare("PRAGMA table_info(task_comments)")
         .all()
         .filter((c) => c.notnull === 0)
         .map((c) => c.name)
-      expect(nullableColumns).toEqual(expect.arrayContaining(["origin", "deleted_at"]))
+      expect(nullableColumns).toEqual(expect.arrayContaining(["provider", "deleted_at"]))
 
       const indexes = db
         .prepare("SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='task_comments'")
@@ -722,6 +792,7 @@ describe("migrations", () => {
       const task = db.prepare("SELECT * FROM tasks WHERE id = 't1'").get()
       expect(task.content).toBe("Keep me")
 
+      expect(rollbackLastMigration(db)).toBe(14)
       const rolledBack = rollbackLastMigration(db)
       expect(rolledBack).toBe(13)
 
@@ -744,13 +815,13 @@ describe("migrations", () => {
       const insert = () =>
         db
           .prepare(
-            `INSERT INTO task_comments (id, task_id, branch_id, content, origin, created_at, updated_at, deleted_at)
-             VALUES ('c1', 'a-task-that-has-not-arrived', 'main', 'from another Mac', NULL, ?, ?, NULL)`,
+            `INSERT INTO task_comments (id, task_id, branch_id, content, kind, provider, created_at, updated_at, deleted_at)
+             VALUES ('c1', 'a-task-that-has-not-arrived', 'main', 'from another Mac', 'manual', NULL, ?, ?, NULL)`,
           )
           .run(now, now)
 
       expect(insert).not.toThrow()
-      expect(db.prepare("SELECT origin FROM task_comments WHERE id = 'c1'").get().origin).toBeNull()
+      expect(db.prepare("SELECT kind FROM task_comments WHERE id = 'c1'").get().kind).toBe("manual")
 
       db.close()
     })

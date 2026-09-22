@@ -7,7 +7,7 @@ import BaseButton from "@/ui/base/BaseButton"
 import ConfirmPopup from "@/ui/overlays/ConfirmPopup.vue"
 import {cn} from "@/utils/ui/tailwindcss"
 import CommentField from "./CommentField.vue"
-import CommentOriginBadge from "./CommentOriginBadge.vue"
+import CommentSourceBadge from "./CommentSourceBadge.vue"
 
 import type {TaskComment} from "@daily/protocol"
 
@@ -42,7 +42,7 @@ function getRowClasses(editing: boolean) {
 <template>
   <div :class="getRowClasses(isEditing)">
     <div class="flex h-5 items-center gap-1.5">
-      <CommentOriginBadge v-if="comment.origin" :origin="comment.origin" />
+      <CommentSourceBadge :kind="comment.kind" :provider="comment.provider" />
 
       <span class="text-base-content/40 text-xs">{{ toRelativeTime(comment.createdAt) }}</span>
 

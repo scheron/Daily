@@ -1,4 +1,4 @@
-import {DEFAULT_ACCENT_ID, DEFAULT_BASE_ID, MAIN_BRANCH_ID, WINDOWS_CONFIG} from "@daily/protocol"
+import {DEFAULT_ACCENT_ID, DEFAULT_BASE_ID, MAIN_BRANCH_ID, TASK_COMMENT_PROVIDER_MAX_LENGTH, WINDOWS_CONFIG} from "@daily/protocol"
 import {deepMerge, isNumber, notNull} from "@daily/std"
 
 import type {
@@ -10,7 +10,7 @@ import type {
   Tag,
   Task,
   TaskComment,
-  TaskCommentOrigin,
+  TaskCommentKind,
   TaskRelation,
   TypographySettings,
 } from "@daily/protocol"
@@ -80,7 +80,8 @@ type TaskCommentRow = {
   task_id: string
   branch_id: string
   content: string
-  origin: string | null
+  kind: string
+  provider: string | null
   created_at: string
   updated_at: string
   deleted_at: string | null
@@ -211,7 +212,8 @@ export function rowToTaskComment(row: TaskCommentRow): TaskComment {
     taskId: row.task_id,
     branchId: row.branch_id || MAIN_BRANCH_ID,
     content: row.content,
-    origin: toCommentOrigin(row.origin),
+    kind: toCommentKind(row.kind),
+    provider: toCommentProvider(row.provider),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     deletedAt: row.deleted_at,
@@ -295,11 +297,17 @@ export function rowToSettings(row: SettingsRow): Settings {
 
 export type {TaskRow, TagRow, BranchRow, MilestoneRow, TaskRelationRow, TaskCommentRow, FileRow, SettingsRow}
 
-const COMMENT_ORIGINS: TaskCommentOrigin[] = ["mcp", "agent"]
+const COMMENT_KINDS: TaskCommentKind[] = ["manual", "agent", "mcp"]
 
 /** Anything this build does not know reads as written-in-the-app, so an origin from a newer peer cannot become a bogus value. */
-function toCommentOrigin(value: string | null): TaskCommentOrigin | null {
-  return COMMENT_ORIGINS.find((origin) => origin === value) ?? null
+function toCommentKind(value: string | null): TaskCommentKind {
+  return COMMENT_KINDS.find((kind) => kind === value) ?? "manual"
+}
+
+/** An MCP client names its own `provider`, so a value from outside is trimmed and clamped before anything draws it. */
+function toCommentProvider(value: string | null): string | null {
+  const trimmed = value?.trim()
+  return trimmed ? trimmed.slice(0, TASK_COMMENT_PROVIDER_MAX_LENGTH) : null
 }
 
 const OLD_THEME_TYPE: Record<string, "light" | "dark"> = {

@@ -92,7 +92,7 @@ describe("StorageController — comments", () => {
     db?.close()
   })
 
-  it("writes_a_comment_reads_it_back_with_no_origin_edits_it_and_soft-deletes_it", async () => {
+  it("writes_a_comment_reads_it_back_as_hand_written_edits_it_and_soft-deletes_it", async () => {
     const harness = makeHarness()
     db = harness.db
     const {taskModel, controller} = harness
@@ -101,7 +101,7 @@ describe("StorageController — comments", () => {
 
     const created = await controller.createTaskComment(task.id, "first note")
     const comment = created.comments?.upserted?.[0]
-    expect(comment).toMatchObject({taskId: task.id, branchId: "main", content: "first note", origin: null, deletedAt: null})
+    expect(comment).toMatchObject({taskId: task.id, branchId: "main", content: "first note", kind: "manual", provider: null, deletedAt: null})
 
     expect((await controller.getTaskComments(task.id)).map((c) => c.content)).toEqual(["first note"])
 
@@ -176,7 +176,7 @@ describe("StorageController — comments", () => {
     expect(await controller.updateTaskComment(comment.id, "back from the dead")).toEqual(EMPTY_CHANGESET)
   })
 
-  it("records_the_origin_its_caller_names_so_an_mcp_or_agent_comment_is_told_apart_from_a_typed_one", async () => {
+  it("records_the_kind_and_provider_its_caller_names_so_an_mcp_or_agent_comment_is_told_apart_from_a_typed_one", async () => {
     const harness = makeHarness()
     db = harness.db
     const {taskModel, controller} = harness
@@ -184,18 +184,45 @@ describe("StorageController — comments", () => {
     const task = taskModel.createTask(makeTaskInput())
 
     const typed = (await controller.createTaskComment(task.id, "typed in the app")).comments.upserted[0]
-    const fromMcp = (await controller.createTaskComment(task.id, "through MCP", "mcp")).comments.upserted[0]
-    const fromAgent = (await controller.createTaskComment(task.id, "by the agent", "agent")).comments.upserted[0]
+    const fromMcp = (await controller.createTaskComment(task.id, "through MCP", {kind: "mcp", provider: "claude"})).comments.upserted[0]
+    const fromAgent = (await controller.createTaskComment(task.id, "by the agent", {kind: "agent"})).comments.upserted[0]
 
-    expect(typed.origin).toBeNull()
-    expect(fromMcp.origin).toBe("mcp")
-    expect(fromAgent.origin).toBe("agent")
+    expect(typed).toMatchObject({kind: "manual", provider: null})
+    expect(fromMcp).toMatchObject({kind: "mcp", provider: "claude"})
+    expect(fromAgent).toMatchObject({kind: "agent", provider: "daily_agent"})
 
     const reread = await controller.getTaskComments(task.id)
-    expect(reread.map((c) => c.origin)).toEqual([null, "mcp", "agent"])
+    expect(reread.map((c) => [c.kind, c.provider])).toEqual([
+      ["manual", null],
+      ["mcp", "claude"],
+      ["agent", "daily_agent"],
+    ])
   })
 
-  it("reads_an_origin_this_build_does_not_know_as_a_comment_typed_in_the_app", async () => {
+  it("keeps_an_mcp_comment_whose_client_named_no_provider", async () => {
+    const harness = makeHarness()
+    db = harness.db
+    const {taskModel, controller} = harness
+
+    const task = taskModel.createTask(makeTaskInput())
+    const anonymous = (await controller.createTaskComment(task.id, "through some MCP client", {kind: "mcp"})).comments.upserted[0]
+
+    expect(anonymous).toMatchObject({kind: "mcp", provider: null})
+  })
+
+  it("clamps_a_provider_an_mcp_client_names_because_that_value_comes_from_outside", async () => {
+    const harness = makeHarness()
+    db = harness.db
+    const {taskModel, controller} = harness
+
+    const task = taskModel.createTask(makeTaskInput())
+    const shouty = (await controller.createTaskComment(task.id, "from a long-winded client", {kind: "mcp", provider: "x".repeat(200)})).comments
+      .upserted[0]
+
+    expect(shouty.provider).toHaveLength(64)
+  })
+
+  it("reads_a_kind_this_build_does_not_know_as_a_comment_typed_in_the_app", async () => {
     const harness = makeHarness()
     db = harness.db
     const {taskModel, controller} = harness
@@ -203,12 +230,12 @@ describe("StorageController — comments", () => {
     const task = taskModel.createTask(makeTaskInput())
     const now = new Date().toISOString()
     db.prepare(
-      `INSERT INTO task_comments (id, task_id, branch_id, content, origin, created_at, updated_at, deleted_at)
-       VALUES ('from-the-future', ?, 'main', 'written by something newer', 'telepathy', ?, ?, NULL)`,
+      `INSERT INTO task_comments (id, task_id, branch_id, content, kind, provider, created_at, updated_at, deleted_at)
+       VALUES ('from-the-future', ?, 'main', 'written by something newer', 'telepathy', NULL, ?, ?, NULL)`,
     ).run(task.id, now, now)
 
     const [comment] = await controller.getTaskComments(task.id)
-    expect(comment.origin).toBeNull()
+    expect(comment.kind).toBe("manual")
     expect(comment.content).toBe("written by something newer")
   })
 

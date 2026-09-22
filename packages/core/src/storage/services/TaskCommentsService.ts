@@ -1,4 +1,6 @@
-import type {Branch, Task, TaskComment, TaskCommentOrigin} from "@daily/protocol"
+import {DAILY_AGENT_PROVIDER, TASK_COMMENT_PROVIDER_MAX_LENGTH} from "@daily/protocol"
+
+import type {Branch, Task, TaskComment, TaskCommentSource} from "@daily/protocol"
 import type {TaskCommentModel} from "../models/TaskCommentModel"
 import type {TaskModel} from "../models/TaskModel"
 
@@ -14,14 +16,20 @@ export class TaskCommentsService {
   }
 
   /** Writes a comment on a live task. Null for an unknown or deleted task, and for content that is only whitespace. */
-  async createComment(taskId: Task["id"], content: string, origin: TaskCommentOrigin | null = null): Promise<TaskComment | null> {
+  async createComment(taskId: Task["id"], content: string, source: TaskCommentSource = {kind: "manual"}): Promise<TaskComment | null> {
     const trimmed = content.trim()
     if (!trimmed) return null
 
     const task = this.taskModel.getTask(taskId)
     if (!task || task.deletedAt !== null) return null
 
-    return this.commentModel.createComment({taskId, branchId: task.branchId, content: trimmed, origin})
+    return this.commentModel.createComment({
+      taskId,
+      branchId: task.branchId,
+      content: trimmed,
+      kind: source.kind,
+      provider: toProvider(source),
+    })
   }
 
   /** Rewrites a live comment. Null for an unknown or deleted comment, and for content that is only whitespace. */
@@ -46,4 +54,17 @@ export class TaskCommentsService {
   async permanentlyDeleteCommentsOfTasks(taskIds: Task["id"][]): Promise<TaskComment["id"][]> {
     return this.commentModel.permanentlyDeleteCommentsOfTasks(taskIds)
   }
+}
+
+/**
+ * The `provider` a source really means: none for a comment typed in the app, this app's agent for one
+ * the built-in agent wrote, and whatever an MCP client called itself — trimmed and clamped, because
+ * that value comes from outside.
+ */
+function toProvider(source: TaskCommentSource): string | null {
+  if (source.kind === "manual") return null
+  if (source.kind === "agent") return source.provider?.trim() || DAILY_AGENT_PROVIDER
+
+  const named = source.provider?.trim()
+  return named ? named.slice(0, TASK_COMMENT_PROVIDER_MAX_LENGTH) : null
 }

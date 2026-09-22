@@ -39,7 +39,7 @@ import type {
   Tag,
   Task,
   TaskComment,
-  TaskCommentOrigin,
+  TaskCommentSource,
   TaskEvent,
   TaskRelation,
   TaskRelationSets,
@@ -410,8 +410,8 @@ export class StorageController implements IStorageController {
   }
 
   /** Writes a comment on a live task; `EMPTY_CHANGESET` for a task that cannot take one or content that is only whitespace. */
-  async createTaskComment(taskId: Task["id"], content: string, origin: TaskCommentOrigin | null = null): Promise<Changeset> {
-    const created = await this.taskCommentsService.createComment(taskId, content, origin)
+  async createTaskComment(taskId: Task["id"], content: string, source?: TaskCommentSource): Promise<Changeset> {
+    const created = await this.taskCommentsService.createComment(taskId, content, source)
     if (!created) return EMPTY_CHANGESET
 
     const changeset: Changeset = {comments: {upserted: [created]}}

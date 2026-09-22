@@ -261,7 +261,7 @@ describe("two-node convergence through a shared sync directory", () => {
 
     const onBAfterFirstPull = await nodeB.core.taskCommentsService.getCommentsOfTask(task.id)
     expect(onBAfterFirstPull.map((c) => c.content)).toEqual(["written on A"])
-    expect(onBAfterFirstPull[0].origin).toBeNull()
+    expect(onBAfterFirstPull[0]).toMatchObject({kind: "manual", provider: null})
 
     await nodeB.core.taskCommentsService.updateComment(created.id, "edited on B")
     await nodeB.engine.syncOnce("push")

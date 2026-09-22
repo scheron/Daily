@@ -33,7 +33,8 @@ function makeComment(id, createdAt, overrides = {}) {
     taskId: "task-1",
     branchId: "main",
     content: `comment ${id}`,
-    origin: null,
+    kind: "manual",
+    provider: null,
     createdAt,
     updatedAt: createdAt,
     deletedAt: null,
@@ -113,7 +114,10 @@ describe("Comments tab", () => {
   })
 
   it("badges_where_a_comment_came_from_and_leaves_a_hand_written_one_unmarked", async () => {
-    await setup([makeComment("typed", "2026-01-01T09:00:00.000Z"), makeComment("from-agent", "2026-01-01T10:00:00.000Z", {origin: "agent"})])
+    await setup([
+      makeComment("typed", "2026-01-01T09:00:00.000Z"),
+      makeComment("from-agent", "2026-01-01T10:00:00.000Z", {kind: "agent", provider: "daily_agent"}),
+    ])
 
     const [agentRow, typedRow] = rowTexts()
 

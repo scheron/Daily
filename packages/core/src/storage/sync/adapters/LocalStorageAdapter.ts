@@ -182,19 +182,20 @@ export class LocalStorageAdapter implements ILocalStorage {
       /* No FKs, for the reason relations have none: a comment can arrive before its task. */
       if (docs.comments?.length) {
         const stmt = this.db.prepare(`
-          INSERT INTO task_comments (id, task_id, branch_id, content, origin, created_at, updated_at, deleted_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO task_comments (id, task_id, branch_id, content, kind, provider, created_at, updated_at, deleted_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
           ON CONFLICT(id) DO UPDATE SET
             task_id    = excluded.task_id,
             branch_id  = excluded.branch_id,
             content    = excluded.content,
-            origin     = excluded.origin,
+            kind       = excluded.kind,
+            provider   = excluded.provider,
             created_at = excluded.created_at,
             updated_at = excluded.updated_at,
             deleted_at = excluded.deleted_at
         `)
         for (const c of docs.comments) {
-          stmt.run(c.id, c.task_id, c.branch_id, c.content, c.origin ?? null, c.created_at, c.updated_at, c.deleted_at)
+          stmt.run(c.id, c.task_id, c.branch_id, c.content, c.kind || "manual", c.provider ?? null, c.created_at, c.updated_at, c.deleted_at)
         }
       }
 
@@ -406,7 +407,8 @@ export class LocalStorageAdapter implements ILocalStorage {
       task_id: row.task_id,
       branch_id: row.branch_id,
       content: row.content,
-      origin: row.origin ?? null,
+      kind: row.kind ?? "manual",
+      provider: row.provider ?? null,
       created_at: row.created_at,
       updated_at: row.updated_at,
       deleted_at: row.deleted_at,

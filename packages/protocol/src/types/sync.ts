@@ -98,7 +98,8 @@ export type SnapshotTaskComment = {
   task_id: string
   branch_id: string
   content: string
-  origin: string | null
+  kind: string
+  provider: string | null
   created_at: string
   updated_at: string
   deleted_at: string | null

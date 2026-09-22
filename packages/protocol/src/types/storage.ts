@@ -194,8 +194,14 @@ export type TaskRelation = {
   deletedAt: ISODateTime | null
 }
 
-/** Who wrote a comment, when it was not a person typing in the app. */
-export type TaskCommentOrigin = "mcp" | "agent"
+/** How a comment reached its task. */
+export type TaskCommentKind = "manual" | "agent" | "mcp"
+
+/** Where a comment came from, as its writer names it. */
+export type TaskCommentSource = {
+  kind: TaskCommentKind
+  provider?: string | null
+}
 
 export type TaskComment = {
   id: string
@@ -205,8 +211,15 @@ export type TaskComment = {
   branchId: Branch["id"]
   /** Markdown, written with the same editor as task content. */
   content: string
-  /** `null` when a person wrote it in the app. `mcp` and `agent` are set by whoever wrote it instead. */
-  origin: TaskCommentOrigin | null
+  /** The channel it came through: typed in the app, written by the built-in agent, or sent through an MCP server. */
+  kind: TaskCommentKind
+  /**
+   * Who wrote it inside that channel: `null` for `manual`, `DAILY_AGENT_PROVIDER` for `agent`, and the
+   * client's own key for `mcp`. An MCP client names itself, so this is untrusted text: it is clamped to
+   * `TASK_COMMENT_PROVIDER_MAX_LENGTH` on read and is only ever drawn as plain text, never as markup.
+   * It stays an open string rather than a union so a client we have never heard of is still valid.
+   */
+  provider: string | null
   createdAt: ISODateTime
   updatedAt: ISODateTime
   deletedAt: ISODateTime | null
