@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import {useTemplateRef} from "vue"
 
-import {useProgressFill} from "@/composables/useProgressFill"
 import BaseButton from "@/ui/base/BaseButton"
 import BasePopup from "@/ui/base/BasePopup.vue"
 
@@ -28,10 +27,7 @@ const emit = defineEmits<{
   confirm: []
 }>()
 
-const deleteButtonRef = useTemplateRef<HTMLDivElement>("deleteButton")
 const popupRef = useTemplateRef<InstanceType<typeof BasePopup>>("popup")
-
-useProgressFill(deleteButtonRef, onConfirm)
 
 function onConfirm() {
   emit("confirm")
@@ -50,7 +46,7 @@ function onConfirm() {
         <div class="flex">
           <div class="flex flex-col gap-1">
             <span v-if="title" class="text-base-content text-sm font-semibold">{{ title }}</span>
-            <span v-if="message" class="text-base-content/70 text-xs whitespace-pre-line">{{ message }}</span>
+            <span v-if="message" class="text-base-content/70 whitespace-pre-line text-xs">{{ message }}</span>
           </div>
 
           <BaseButton icon="x-mark" variant="text" size="xs" class="ml-auto" @click="hide()" />
@@ -61,11 +57,9 @@ function onConfirm() {
             {{ cancelText }}
           </BaseButton>
 
-          <div ref="deleteButton" class="rounded-full">
-            <BaseButton variant="error-ghost" size="sm">
-              {{ confirmText }}
-            </BaseButton>
-          </div>
+          <BaseButton variant="error-ghost" size="sm" @click="onConfirm">
+            {{ confirmText }}
+          </BaseButton>
         </div>
       </div>
     </template>

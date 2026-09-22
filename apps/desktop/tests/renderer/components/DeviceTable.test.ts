@@ -98,7 +98,7 @@ describe("DeviceTable — agents hang under their Mac (TC-23, TC-24)", () => {
     }
   })
 
-  it("revokes_TC-24_the_agent_from_its_own_row_after_the_popup_is_confirmed", async () => {
+  it("revokes_TC-24_the_agent_from_its_own_row_after_the_popup_is_confirmed_by_click", async () => {
     const agentA1 = makeAgent({id: "a1", deviceId: "dev-p", name: "Claude Code"})
     const agentA2 = makeAgent({id: "a2", deviceId: "dev-p", name: "Claude"})
     const agentB1 = makeAgent({id: "b1", deviceId: "dev-c", name: "Codex"})
@@ -121,9 +121,9 @@ describe("DeviceTable — agents hang under their Mac (TC-23, TC-24)", () => {
     expect(popupText).toContain("Revoke")
     expect(popupText).toContain("Cancel")
 
-    const holdButton = Array.from(popupEl.querySelectorAll("button")).find((button) => button.textContent?.trim() === "Revoke")
-    holdButton?.dispatchEvent(new Event("pointerdown", {bubbles: true}))
-    await vi.advanceTimersByTimeAsync(600)
+    const confirmButton = Array.from(popupEl.querySelectorAll("button")).find((button) => button.textContent?.trim() === "Revoke")
+    confirmButton?.dispatchEvent(new Event("click", {bubbles: true}))
+    await vi.advanceTimersByTimeAsync(0)
     await wrapper.vm.$nextTick()
 
     expect(revokeAgentMock).toHaveBeenCalledWith("a1")
