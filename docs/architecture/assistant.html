@@ -1,0 +1,536 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Daily: the Assistant</title>
+<style>
+
+:root {
+  --bg: #f6f5f2;
+  --surface: #ffffff;
+  --ink: #1d1f24;
+  --muted: #6b6f78;
+  --line: #d9d6cf;
+  --mac: #2f6fdb;
+  --mac-soft: #e8f0fd;
+  --proto: #b86e10;
+  --proto-soft: #fbf1e3;
+  --oauth: #7c4dcc;
+  --oauth-soft: #f1ebfb;
+  --mcp: #0f8a74;
+  --mcp-soft: #e3f5f1;
+  --ws: #0f8a74;
+  --ws-soft: #eef9f6;
+  --store: #5b6270;
+  --store-soft: #eef0f3;
+  --snap: #c2410c;
+  --snap-soft: #fdeee6;
+  --ext: #7a5c2e;
+  --ext-soft: #f5efe5;
+  --agent: #7c4dcc;
+  --agent-soft: #f4effc;
+  --browser: #3b7f9c;
+  --browser-soft: #e6f2f7;
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #15171b;
+    --surface: #1d2026;
+    --ink: #e7e8ea;
+    --muted: #979ba4;
+    --line: #343842;
+    --mac: #7aa7f5;
+    --mac-soft: #1c2a42;
+    --proto: #e3a24c;
+    --proto-soft: #33271a;
+    --oauth: #b596ef;
+    --oauth-soft: #2a2238;
+    --mcp: #4cc9ae;
+    --mcp-soft: #15302b;
+    --ws: #4cc9ae;
+    --ws-soft: #172a27;
+    --store: #a4abb8;
+    --store-soft: #252a32;
+    --snap: #f08a5d;
+    --snap-soft: #3a2419;
+    --ext: #c9a46a;
+    --ext-soft: #2b251c;
+    --agent: #b596ef;
+    --agent-soft: #2a2238;
+    --browser: #7cc1dd;
+    --browser-soft: #183039;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 14px/1.5 var(--sans);
+}
+main { max-width: 1440px; margin: 0 auto; padding: 40px 28px 80px; }
+h1 { font-size: 28px; line-height: 1.2; margin: 0 0 8px; letter-spacing: -0.01em; }
+h2 { font-size: 20px; margin: 56px 0 6px; letter-spacing: -0.01em; }
+p.lead { color: var(--muted); margin: 0 0 24px; max-width: 900px; }
+p.sub { color: var(--muted); margin: 0 0 18px; max-width: 900px; }
+code, .mono { font-family: var(--mono); font-size: 0.92em; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 20px; }
+.scroll { overflow-x: auto; }
+
+/* Overview SVG */
+svg.overview { display: block; width: 100%; min-width: 1100px; height: auto; }
+svg text { font-family: var(--sans); fill: var(--ink); font-size: 11.5px; }
+svg .t { font-weight: 650; font-size: 13px; }
+svg .zt { font-weight: 700; font-size: 15px; }
+svg .m { font-family: var(--mono); font-size: 11px; }
+svg .mu { fill: var(--muted); }
+svg .grp { fill: var(--muted); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; }
+svg .lbl { font-size: 11px; fill: var(--muted); }
+svg .zone { fill: none; stroke: var(--line); stroke-width: 1.5; stroke-dasharray: 6 5; }
+svg .box { stroke-width: 1.4; }
+svg .mac { fill: var(--mac-soft); stroke: var(--mac); }
+svg .proto { fill: var(--proto-soft); stroke: var(--proto); }
+svg .oauth { fill: var(--oauth-soft); stroke: var(--oauth); }
+svg .mcp { fill: var(--mcp-soft); stroke: var(--mcp); }
+svg .ws { fill: var(--ws-soft); stroke: var(--ws); stroke-dasharray: 5 3; }
+svg .store { fill: var(--store-soft); stroke: var(--store); }
+svg .snap { fill: var(--snap-soft); stroke: var(--snap); }
+svg .agent { fill: var(--agent-soft); stroke: var(--agent); }
+svg .browser { fill: var(--browser-soft); stroke: var(--browser); }
+svg .plain { fill: var(--surface); stroke: var(--line); }
+svg .ghost { fill: none; stroke: var(--mac); stroke-dasharray: 4 4; opacity: 0.7; }
+svg .arrow { stroke: var(--ink); stroke-width: 1.6; fill: none; }
+svg .arrow.dash { stroke-dasharray: 5 4; }
+svg .arrow.hot { stroke: var(--snap); stroke-width: 2.2; }
+svg .head { fill: var(--ink); }
+svg .head.hot { fill: var(--snap); }
+
+/* Sequence diagrams */
+.seq { --gut: 40px; position: relative; }
+.seq-head { display: grid; grid-template-columns: repeat(var(--n), 1fr); margin-left: var(--gut); gap: 0; position: sticky; top: 0; z-index: 2; background: var(--surface); padding: 6px 0 10px; }
+.seq-head div { text-align: center; }
+.seq-head b { display: inline-block; padding: 6px 12px; border-radius: 999px; border: 1.4px solid var(--c); background: var(--cs); color: var(--ink); font-size: 13px; }
+.seq-head small { display: block; color: var(--muted); font-size: 11px; margin-top: 3px; }
+.seq-body { position: relative; margin-left: var(--gut); padding: 4px 0 8px; }
+.life { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1.5px dashed var(--c); opacity: 0.45; left: calc((var(--i) - 0.5) * 100% / var(--n)); }
+.phase { position: relative; margin: 18px 0 8px; padding: 4px 10px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); background: var(--bg); border-radius: 6px; display: inline-block; z-index: 1; }
+.row { position: relative; padding: 6px 0; }
+.num { position: absolute; left: calc(-1 * var(--gut)); top: 10px; width: 24px; height: 24px; border-radius: 50%; background: var(--ink); color: var(--surface); font-size: 11px; font-weight: 700; display: grid; place-items: center; }
+.msg { margin-left: calc((var(--a) - 0.5) * 100% / var(--n)); width: calc((var(--b) - var(--a)) * 100% / var(--n)); text-align: center; position: relative; z-index: 1; }
+.msg .l { display: inline-block; font-family: var(--mono); font-size: 12px; background: var(--surface); padding: 0 6px; }
+.msg .ln { display: block; height: 0; border-top: 1.8px solid var(--ink); margin: 3px 0 4px; position: relative; }
+.msg.back .ln { border-top-style: dashed; }
+.msg .ln::after { content: ""; position: absolute; top: -6px; border: 5px solid transparent; }
+.msg:not(.rtl) .ln::after { right: -2px; border-left: 9px solid var(--ink); border-right: 0; }
+.msg.rtl .ln::after { left: -2px; border-right: 9px solid var(--ink); border-left: 0; }
+.msg.hot .ln { border-top-color: var(--snap); border-top-width: 2.4px; }
+.msg.hot:not(.rtl) .ln::after { border-left-color: var(--snap); }
+.msg.hot.rtl .ln::after { border-right-color: var(--snap); }
+.msg .d { display: inline-block; color: var(--muted); font-size: 12px; line-height: 1.4; padding: 0 8px; background: var(--surface); }
+.self { margin-left: calc((var(--a) - 1) * 100% / var(--n) + 8px); width: calc(var(--w, 1) * 100% / var(--n) - 16px); background: var(--cs); border: 1.4px solid var(--c); border-radius: 10px; padding: 8px 10px; font-size: 12.5px; line-height: 1.45; position: relative; z-index: 1; }
+.self b { display: block; font-size: 13px; }
+.self code { font-size: 11.5px; }
+.lane-mac { --c: var(--mac); --cs: var(--mac-soft); }
+.lane-srv { --c: var(--proto); --cs: var(--proto-soft); }
+.lane-mcp { --c: var(--mcp); --cs: var(--mcp-soft); }
+.lane-ws { --c: var(--ws); --cs: var(--ws-soft); }
+.lane-store { --c: var(--snap); --cs: var(--snap-soft); }
+.lane-browser { --c: var(--browser); --cs: var(--browser-soft); }
+.lane-agent { --c: var(--agent); --cs: var(--agent-soft); }
+
+/* Bottom panels */
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+@media (max-width: 1000px) { .grid3, .grid2 { grid-template-columns: 1fr; } }
+.card h3 { margin: 0 0 10px; font-size: 15px; }
+.card ul { margin: 0; padding-left: 18px; }
+.card li { margin: 4px 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 12px; }
+.chip { font-family: var(--mono); font-size: 12px; padding: 3px 9px; border-radius: 999px; border: 1.2px solid var(--c); background: var(--cs); }
+.chip.r { --c: var(--mcp); --cs: var(--mcp-soft); }
+.chip.w { --c: var(--snap); --cs: var(--snap-soft); }
+table.files { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.files td { padding: 6px 8px; border-top: 1px solid var(--line); vertical-align: top; }
+table.files td:first-child { font-family: var(--mono); font-size: 12px; white-space: nowrap; color: var(--muted); }
+.callout { border-left: 3px solid var(--snap); padding: 10px 14px; background: var(--snap-soft); border-radius: 0 10px 10px 0; margin: 0 0 20px; max-width: 980px; }
+
+:root { --warn: #b86e10; --warn-soft: #fbf1e3; --llm: #3b7f9c; --llm-soft: #e6f2f7; }
+@media (prefers-color-scheme: dark) { :root { --warn: #e3a24c; --warn-soft: #33271a; --llm: #7cc1dd; --llm-soft: #183039; } }
+svg .llm { fill: var(--llm-soft); stroke: var(--llm); }
+svg .warn { fill: var(--warn-soft); stroke: var(--warn); }
+.lane-ui { --c: var(--mac); --cs: var(--mac-soft); }
+.lane-ctl { --c: var(--mcp); --cs: var(--mcp-soft); }
+.lane-llm { --c: var(--llm); --cs: var(--llm-soft); }
+.lane-tools { --c: var(--oauth); --cs: var(--oauth-soft); }
+.lane-db { --c: var(--snap); --cs: var(--snap-soft); }
+.chip { --c: var(--line); --cs: var(--surface); }
+.chip.x { --c: var(--snap); --cs: var(--snap-soft); }
+.chip.e { --c: var(--warn); --cs: var(--warn-soft); }
+.chip.m { --c: var(--mcp); --cs: var(--mcp-soft); }
+.cat { font-size: 12px; color: var(--muted); margin-top: 8px; }
+table.cmp { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.cmp th, table.cmp td { text-align: left; padding: 7px 10px; border-top: 1px solid var(--line); vertical-align: top; }
+table.cmp th { font-size: 12px; color: var(--muted); font-weight: 600; border-top: 0; }
+table.cmp td:first-child { color: var(--muted); white-space: nowrap; }
+a { color: var(--mac); }
+</style>
+</head>
+<body>
+<main>
+
+<h1>The Daily Assistant</h1>
+<p class="lead">The Assistant lives inside the app: its agent loop runs in Electron's main process, and its model is a remote OpenAI-compatible API or a local llama-server. Its tools call <code>StorageController</code> directly, with no server and no OAuth; from there a change spreads exactly like a manual edit. For agents, see <a href="agents.html">the other diagram</a>.</p>
+
+<div class="callout">The key idea: <b>the model only proposes calls, and <code>AIController</code> runs them</b>. Every call goes through a schema check and <code>policyHook</code>; a destructive one waits for Confirm in the window. The person sees only what the model hands to the <code>respond</code> tool, which ends the turn. Writes land in the local SQLite, and sync and the other windows hear about them from the same <code>notifyLocalChange</code> a manual edit fires.</div>
+
+<h2>Overview</h2>
+<p class="sub">Everything except the LLM, web pages and the Provider runs in one process on the Mac. The thick orange line is the path of task data.</p>
+
+<div class="card scroll">
+<svg class="overview" viewBox="0 44 1400 750" role="img" aria-label="Architecture of the Assistant">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head" d="M0,0 L10,5 L0,10 z"/></marker>
+    <marker id="ahh" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="head hot" d="M0,0 L10,5 L0,10 z"/></marker>
+  </defs>
+
+  <rect class="zone" x="24" y="56" width="330" height="728" rx="18"/>
+  <text class="zt" x="44" y="86">Renderer · windows</text>
+
+  <rect class="zone" x="444" y="56" width="560" height="728" rx="18"/>
+  <text class="zt" x="464" y="86">Main process (Electron)</text>
+  <text class="lbl" x="660" y="86">apps/desktop/src/main/ai</text>
+
+  <rect class="zone" x="1094" y="56" width="282" height="728" rx="18"/>
+  <text class="zt" x="1114" y="86">Outside</text>
+
+  <rect class="box mac" x="44" y="104" width="290" height="270" rx="12"/>
+  <text class="t" x="58" y="124">Assistant window  <tspan class="m mu">#/assistant</tspan></text>
+  <text x="58" y="148">AssistantView — the chat</text>
+  <text x="58" y="166"><tspan class="m">ai.store</tspan> + <tspan class="m">useAiStreaming</tspan></text>
+  <text x="58" y="184">turn steps: reasoning, calls, result</text>
+  <text class="grp" x="58" y="212">invokes</text>
+  <text class="m" x="58" y="230">ai:send-message · ai:cancel</text>
+  <text class="m" x="58" y="247">ai:confirm-tool-call · cancel-…</text>
+  <text class="grp" x="58" y="274">listens to</text>
+  <text class="m" x="58" y="292">ai:event</text>
+  <text class="m" x="58" y="309">ai:confirmation-required</text>
+
+  <rect class="box warn" x="58" y="322" width="262" height="40" rx="8"/>
+  <text x="72" y="346"><tspan class="m">ToolConfirmationCard</tspan>: Confirm / Cancel</text>
+
+  <rect class="box mac" x="44" y="420" width="290" height="160" rx="12"/>
+  <text class="t" x="58" y="440">Main window (and the rest)</text>
+  <text x="58" y="462">board, calendar, task editor</text>
+  <text class="m" x="58" y="484">storageChanges.store</text>
+  <text x="58" y="504"><tspan class="m">storage:on-changed</tspan> →</text>
+  <text x="58" y="522"><tspan class="m">applyChangeset</tspan> into the stores</text>
+  <text class="mu" x="58" y="552">a task the Assistant creates</text>
+  <text class="mu" x="58" y="568">appears without a reload</text>
+
+  <rect class="box plain" x="44" y="610" width="290" height="156" rx="12"/>
+  <text class="t" x="58" y="632">Where events go</text>
+  <text x="58" y="654"><tspan class="m">ai:event</tspan> and confirmations go to</text>
+  <text x="58" y="672">the Assistant window when it is</text>
+  <text x="58" y="690">open, otherwise to the main one</text>
+  <text x="58" y="716"><tspan class="m">storage:changed</tspan> — to every window</text>
+  <text class="mu" x="58" y="744">window.BridgeIPC — the only bridge</text>
+  <text class="mu" x="58" y="760">between renderer and main</text>
+
+  <rect class="box mcp" x="464" y="104" width="300" height="336" rx="12"/>
+  <text class="t" x="478" y="124">AIController · agent loop</text>
+  <text x="478" y="146"><tspan class="m">sendMutex</tspan>: one turn at a time</text>
+  <text x="478" y="164">tier: tiny / medium / large → prompt</text>
+  <text x="478" y="182">tools: AI_TOOLS or _COMPACT</text>
+  <text x="478" y="200">tool_choice: required (auto for tiny</text>
+  <text x="478" y="218">and reasoning models)</text>
+  <text class="grp" x="478" y="244">up to 10 iterations</text>
+  <text x="478" y="262">① transformContext → history</text>
+  <text x="478" y="280">② LLM, streamed deltas → ai:event</text>
+  <text x="478" y="298">③ tool_calls → before → execute → after</text>
+  <text x="478" y="316">④ result → history as role: tool</text>
+  <text x="478" y="334">⑤ <tspan class="m">respond</tspan> → the answer, turn ends</text>
+  <text class="mu" x="478" y="354">no tool_calls → the text is the answer</text>
+  <text class="grp" x="478" y="380">at the end</text>
+  <text x="478" y="398">TurnBuilder → persistTurn</text>
+  <text class="mu" x="478" y="418">cancel / error → history rolls back</text>
+
+  <rect class="box plain" x="784" y="104" width="200" height="158" rx="12"/>
+  <text class="t" x="798" y="124">HookChain</text>
+  <text class="m" x="798" y="146">transformContext</text>
+  <text x="798" y="164">Compactor: &gt;30 messages →</text>
+  <text x="798" y="182">summary + the last 16</text>
+  <text class="m" x="798" y="206">beforeToolCall</text>
+  <text x="798" y="224">policyHook</text>
+  <text class="m" x="798" y="246">afterToolCall</text>
+
+  <rect class="box warn" x="784" y="300" width="200" height="144" rx="12"/>
+  <text class="t" x="798" y="320">policyHook</text>
+  <text x="798" y="342">ordinary → pass</text>
+  <text x="798" y="360">isDestructive → Confirm</text>
+  <text x="798" y="378">read_url → Confirm, unless</text>
+  <text x="798" y="396">autoApprove or cached</text>
+  <text x="798" y="414">30 s unanswered → declined</text>
+  <text class="mu" x="798" y="433">declined → error to the model</text>
+
+  <rect class="box oauth" x="464" y="464" width="300" height="110" rx="12"/>
+  <text class="t" x="478" y="484">ToolExecutor + registry</text>
+  <text x="478" y="506">validateToolArguments against the schema</text>
+  <text x="478" y="524"><tspan class="m">tool.execute(params, {storage, now})</tspan></text>
+  <text x="478" y="542">34 tools: tasks, tags, projects,</text>
+  <text x="478" y="560">files, day summary, web, respond</text>
+
+  <rect class="box plain" x="784" y="464" width="200" height="110" rx="12"/>
+  <text class="t" x="798" y="484">SafeWebFetcher</text>
+  <text x="798" y="506">SSRF guard, pinned IP</text>
+  <text x="798" y="524">size and time limits</text>
+  <text x="798" y="542">LRU page cache</text>
+  <text x="798" y="560">text marked untrusted</text>
+
+  <rect class="box mac" x="464" y="598" width="300" height="170" rx="12"/>
+  <text class="t" x="478" y="618">StorageController → services</text>
+  <text x="478" y="638">notifyLocalChange(changeset):</text>
+  <text x="478" y="654">→ storage:changed · → requestPush()</text>
+  <rect class="box snap" x="478" y="668" width="272" height="88" rx="10"/>
+  <text class="t" x="492" y="688">SQLite (local)</text>
+  <text x="492" y="708">tasks, tags, projects, … → sync</text>
+  <text class="m" x="492" y="728">ai_sessions · ai_turns · ai_steps</text>
+  <text class="mu" x="492" y="746">chat history — this Mac only</text>
+
+  <rect class="box mac" x="784" y="598" width="200" height="170" rx="12"/>
+  <text class="t" x="798" y="618">SyncEngine</text>
+  <text x="798" y="640">requestPush() → debounce</text>
+  <text x="798" y="658">pull → LWW → push</text>
+  <text x="798" y="682">an Assistant edit syncs</text>
+  <text x="798" y="700">like any manual one</text>
+  <text class="mu" x="798" y="728">with no sync it stays</text>
+  <text class="mu" x="798" y="746">on this Mac only</text>
+
+  <rect class="box llm" x="1114" y="104" width="242" height="150" rx="12"/>
+  <text class="t" x="1128" y="124">Remote LLM</text>
+  <text x="1128" y="146">any OpenAI-compatible API</text>
+  <text x="1128" y="164"><tspan class="m">baseUrl</tspan> + <tspan class="m">apiKey</tspan> from settings</text>
+  <text class="m" x="1128" y="186">POST /chat/completions</text>
+  <text x="1128" y="206">SSE stream, tools in the request</text>
+  <text class="mu" x="1128" y="232">sent: prompt, history, schemas</text>
+
+  <rect class="box llm" x="1114" y="292" width="242" height="148" rx="12"/>
+  <text class="t" x="1128" y="312">Local: llama-server</text>
+  <text x="1128" y="334">spawned on 127.0.0.1, a free port</text>
+  <text x="1128" y="352">a GGUF model from the catalog</text>
+  <text x="1128" y="370">the same OpenAI-compatible client</text>
+  <text x="1128" y="388">compat: tools in the prompt,</text>
+  <text x="1128" y="406">calls parsed from the text</text>
+  <text class="mu" x="1128" y="428">unloaded when idle (15m)</text>
+
+  <rect class="box plain" x="1114" y="464" width="242" height="110" rx="12"/>
+  <text class="t" x="1128" y="484">Internet</text>
+  <text x="1128" y="506">pages for <tspan class="m">read_url</tspan></text>
+  <text class="mu" x="1128" y="528">only on an explicit call</text>
+  <text class="mu" x="1128" y="546">and with permission</text>
+
+  <rect class="box proto" x="1114" y="598" width="242" height="170" rx="12"/>
+  <text class="t" x="1128" y="618">Provider</text>
+  <text x="1128" y="640">Daily Sync Server or iCloud</text>
+  <text x="1128" y="664">other Macs get the edit</text>
+  <text x="1128" y="682">through an ordinary sync</text>
+  <text class="mu" x="1128" y="710">agents see it too —</text>
+  <text class="mu" x="1128" y="728">in the server's snapshot</text>
+
+  <line class="arrow" x1="336" y1="200" x2="462" y2="200" marker-start="url(#ah)" marker-end="url(#ah)"/>
+  <text class="lbl" x="399" y="192" text-anchor="middle">send / cancel</text>
+  <text class="lbl" x="399" y="216" text-anchor="middle">ai:event</text>
+
+  <line class="arrow" x1="322" y1="342" x2="462" y2="342" marker-start="url(#ah)" marker-end="url(#ah)"/>
+  <text class="lbl" x="392" y="334" text-anchor="middle">confirmation</text>
+
+  <line class="arrow" x1="766" y1="174" x2="782" y2="174" marker-end="url(#ah)"/>
+  <line class="arrow" x1="782" y1="372" x2="766" y2="372" marker-end="url(#ah)"/>
+
+  <path class="arrow" d="M766,281 H1060"/>
+  <path class="arrow" d="M1060,281 V180 H1112" marker-end="url(#ah)"/>
+  <path class="arrow" d="M1060,281 V366 H1112" marker-end="url(#ah)"/>
+  <text class="lbl" x="914" y="276" text-anchor="middle">chat(messages, tools) · stream</text>
+
+  <line class="arrow" x1="614" y1="442" x2="614" y2="462" marker-end="url(#ah)"/>
+  <text class="lbl" x="624" y="456">execute</text>
+
+  <line class="arrow" x1="766" y1="519" x2="782" y2="519" marker-end="url(#ah)"/>
+  <line class="arrow" x1="986" y1="519" x2="1112" y2="519" marker-end="url(#ah)"/>
+  <text class="lbl" x="1049" y="511" text-anchor="middle">GET page</text>
+
+  <line class="arrow hot" x1="614" y1="576" x2="614" y2="596" marker-end="url(#ahh)"/>
+
+  <line class="arrow hot" x1="766" y1="683" x2="782" y2="683" marker-end="url(#ahh)"/>
+  <line class="arrow hot" x1="986" y1="683" x2="1112" y2="683" marker-start="url(#ahh)" marker-end="url(#ahh)"/>
+  <text class="lbl" x="1049" y="675" text-anchor="middle">pull / push</text>
+
+  <path class="arrow hot" d="M462,640 H400 V540 H336" marker-end="url(#ahh)"/>
+  <text class="lbl" x="394" y="600" text-anchor="end">storage:</text>
+  <text class="lbl" x="394" y="614" text-anchor="end">changed</text>
+</svg>
+</div>
+
+<h2>One Assistant turn</h2>
+<p class="sub">Example: "find the report task and delete it". Three loop iterations: a search, a delete behind a confirmation, and the answer through <code>respond</code>.</p>
+
+<div class="card">
+<div class="seq" style="--n:5">
+  <div class="seq-head">
+    <div class="lane-ui"><b>Assistant window</b><small>renderer</small></div>
+    <div class="lane-ctl"><b>AIController</b><small>main · loop</small></div>
+    <div class="lane-llm"><b>LLM</b><small>remote or llama-server</small></div>
+    <div class="lane-tools"><b>policy + ToolExecutor</b><small>hooks · registry</small></div>
+    <div class="lane-db"><b>StorageController</b><small>SQLite · windows · sync</small></div>
+  </div>
+  <div class="seq-body">
+    <div class="life lane-ui" style="--i:1"></div>
+    <div class="life lane-ctl" style="--i:2"></div>
+    <div class="life lane-llm" style="--i:3"></div>
+    <div class="life lane-tools" style="--i:4"></div>
+    <div class="life lane-db" style="--i:5"></div>
+
+    <div class="phase">start the turn</div>
+    <div class="row"><span class="num">1</span>
+      <div class="msg" style="--a:1;--b:2"><span class="l">ai:send-message("…")</span><i class="ln"></i><span class="d">the invoke waits for the whole turn</span></div>
+    </div>
+    <div class="row"><span class="num">2</span>
+      <div class="self lane-ctl" style="--a:2;--w:1.3"><b>Preparation</b><code>sendMutex.tryLock</code> (a second turn → "already processing") · <code>settings.ai.enabled</code> · tier → prompt, tool set, tool_choice · history.push(user) · <code>turn_started</code></div>
+    </div>
+
+    <div class="phase">iteration 1 — a read</div>
+    <div class="row"><span class="num">3</span>
+      <div class="self lane-ctl" style="--a:2"><b>transformContext</b>Compactor: over 30 messages → summary + the last 16</div>
+    </div>
+    <div class="row"><span class="num">4</span>
+      <div class="msg" style="--a:2;--b:3"><span class="l">chat(system + history, tools, tool_choice)</span><i class="ln"></i></div>
+    </div>
+    <div class="row"><span class="num">5</span>
+      <div class="msg rtl back" style="--a:1;--b:3"><span class="l">deltas → ai:event model_*_delta</span><i class="ln"></i><span class="d">reasoning and content stream into the window; compat mode hides reasoning</span></div>
+    </div>
+    <div class="row"><span class="num">6</span>
+      <div class="msg rtl back" style="--a:2;--b:3"><span class="l">tool_calls: [search_tasks]</span><i class="ln"></i></div>
+    </div>
+    <div class="row"><span class="num">7</span>
+      <div class="msg" style="--a:2;--b:4"><span class="l">beforeToolCall → pass · validate · execute</span><i class="ln"></i><span class="d">a read needs no confirmation</span></div>
+    </div>
+    <div class="row"><span class="num">8</span>
+      <div class="msg hot" style="--a:4;--b:5"><span class="l">storage.searchTasks(…)</span><i class="ln"></i></div>
+    </div>
+    <div class="row"><span class="num">9</span>
+      <div class="msg rtl back" style="--a:2;--b:5"><span class="l">ToolResult → history (role: tool)</span><i class="ln"></i><span class="d">+ ai:event tool_started / tool_finished to the window</span></div>
+    </div>
+
+    <div class="phase">iteration 2 — a destructive call</div>
+    <div class="row"><span class="num">10</span>
+      <div class="msg rtl back" style="--a:2;--b:3"><span class="l">tool_calls: [delete_task]</span><i class="ln"></i></div>
+    </div>
+    <div class="row"><span class="num">11</span>
+      <div class="msg" style="--a:2;--b:4"><span class="l">beforeToolCall</span><i class="ln"></i><span class="d">policyHook: isDestructive → host.awaitConfirmation()</span></div>
+    </div>
+    <div class="row"><span class="num">12</span>
+      <div class="msg rtl" style="--a:1;--b:2"><span class="l">ai:confirmation-required</span><i class="ln"></i><span class="d">ToolConfirmationCard: title, summary, details from describeToolCall</span></div>
+    </div>
+    <div class="row"><span class="num">13</span>
+      <div class="self lane-ui" style="--a:1"><b>The person decides</b>Confirm → pass · Cancel or 30 s of silence → skip, and the model gets "User declined the action"</div>
+    </div>
+    <div class="row"><span class="num">14</span>
+      <div class="msg" style="--a:1;--b:2"><span class="l">ai:confirm-tool-call(id)</span><i class="ln"></i></div>
+    </div>
+    <div class="row"><span class="num">15</span>
+      <div class="msg hot" style="--a:2;--b:5"><span class="l">execute → storage.deleteTask(id)</span><i class="ln"></i><span class="d">the service sets deletedAt; search and relations update</span></div>
+    </div>
+    <div class="row"><span class="num">16</span>
+      <div class="self lane-db" style="--a:5"><b>notifyLocalChange</b><code>storage:changed</code> → every window (the task leaves the board) · <code>requestPush()</code> → sync</div>
+    </div>
+
+    <div class="phase">iteration 3 — the answer</div>
+    <div class="row"><span class="num">17</span>
+      <div class="msg rtl back" style="--a:2;--b:3"><span class="l">tool_calls: [respond {text}]</span><i class="ln"></i><span class="d">intercepted: no hooks, no executor; the text is the final answer</span></div>
+    </div>
+    <div class="row"><span class="num">18</span>
+      <div class="msg rtl back" style="--a:1;--b:2"><span class="l">ai:event turn_finished · {message, toolCalls}</span><i class="ln"></i></div>
+    </div>
+    <div class="row"><span class="num">19</span>
+      <div class="msg" style="--a:2;--b:5"><span class="l">persistTurn → appendAiTurn</span><i class="ln"></i><span class="d">ai_sessions / ai_turns / ai_steps, then compactor.refresh; never in the snapshot</span></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<h2>Tools, modes, comparison</h2>
+<div class="grid2">
+  <div class="card">
+    <h3>34 tools</h3>
+    <div style="display:flex;gap:14px;font-size:12px;color:var(--muted)"><span><span class="chip x">…</span> destructive — Confirm</span><span><span class="chip e">…</span> network</span><span><span class="chip m">…</span> protocol</span></div>
+    <div class="cat">tasks</div>
+    <div class="chips">
+      <span class="chip">list_tasks</span><span class="chip">search_tasks</span><span class="chip">get_task</span><span class="chip">create_task</span><span class="chip">update_task</span><span class="chip">complete_task</span><span class="chip">reactivate_task</span><span class="chip">discard_task</span><span class="chip">move_task</span><span class="chip">log_time</span><span class="chip">link_tasks</span><span class="chip x">unlink_tasks</span><span class="chip x">delete_task</span><span class="chip">get_deleted_tasks</span><span class="chip">restore_task</span><span class="chip x">permanently_delete_task</span>
+    </div>
+    <div class="cat">tags</div>
+    <div class="chips">
+      <span class="chip">list_tags</span><span class="chip">get_tag</span><span class="chip">create_tag</span><span class="chip">update_tag</span><span class="chip x">delete_tag</span><span class="chip">add_task_tags</span><span class="chip">remove_task_tags</span>
+    </div>
+    <div class="cat">projects</div>
+    <div class="chips">
+      <span class="chip">list_projects</span><span class="chip">create_project</span><span class="chip">rename_project</span><span class="chip x">delete_project</span><span class="chip">switch_project</span><span class="chip">move_task_to_project</span>
+    </div>
+    <div class="cat">files · summary · web · protocol</div>
+    <div class="chips">
+      <span class="chip">get_task_attachments</span><span class="chip x">remove_task_attachment</span><span class="chip">get_day_summary</span><span class="chip e">read_url</span><span class="chip m">respond</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>How the model's tier is chosen</h3>
+    <table class="cmp">
+      <tr><th>tier</th><th>when</th><th>prompt · tools</th><th>tool_choice</th></tr>
+      <tr><td>tiny</td><td>local "fast"; remote *nano* or ≤4B</td><td>tiny · compact</td><td>auto</td></tr>
+      <tr><td>medium</td><td>local "balanced"; *mini*/*small* or ≤14B</td><td>compact · compact</td><td>required</td></tr>
+      <tr><td>large</td><td>local "quality"; any other remote</td><td>full · full</td><td>required</td></tr>
+    </table>
+    <ul style="margin-top:12px">
+      <li>Reasoning models (o-series, deepseek-r/v4+, qwq, *thinking*) reject <code>required</code>, so they get <code>auto</code>.</li>
+      <li>Compat mode is for a local model without native tool calls: the schemas go into the system prompt as text, and calls are parsed from the reply.</li>
+      <li>Under <code>auto</code> the model may answer in plain text, and that is a final answer too.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="card" style="margin-top:16px">
+  <h3>The Assistant and agents</h3>
+  <table class="cmp">
+    <tr><th></th><th>Assistant (this diagram)</th><th>Agent over MCP</th></tr>
+    <tr><td>runs in</td><td>Daily's main process on a Mac</td><td>the Daily Sync Server</td></tr>
+    <tr><td>reaches the work</td><td>the local <code>StorageController</code>, directly</td><td>snapshot → in-memory core → conditional write</td></tr>
+    <tr><td>whose model</td><td>the one set in Daily: a remote API or llama-server</td><td>the agent's own (Claude, Codex)</td></tr>
+    <tr><td>confirmation</td><td>every destructive call, 30 s</td><td>once, when it connects, with a code on a Mac</td></tr>
+    <tr><td>tools</td><td>34, including <code>read_url</code> and <code>respond</code></td><td>11: 6 reads, 5 writes</td></tr>
+    <tr><td>history</td><td><code>ai_sessions</code> in local SQLite, not synced</td><td>kept by the agent</td></tr>
+    <tr><td>available</td><td>while the Mac is on and Daily is open</td><td>whenever the server is up</td></tr>
+  </table>
+</div>
+
+<div class="card" style="margin-top:16px">
+  <h3>Where it lives in the code</h3>
+  <table class="files">
+    <tr><td>apps/desktop/src/main/ai/AIController.ts</td><td>the <code>sendMessage</code> loop, tier, tool_choice, confirmations, persistTurn</td></tr>
+    <tr><td>apps/desktop/src/main/ai/hooks/</td><td>HookChain: transformContext, before/afterToolCall</td></tr>
+    <tr><td>apps/desktop/src/main/ai/policy/</td><td>policyHook, describeToolCall for the card, the 30 s timeout</td></tr>
+    <tr><td>apps/desktop/src/main/ai/tools/</td><td>registry (34 tools), ToolExecutor, the compat parser</td></tr>
+    <tr><td>apps/desktop/src/main/ai/clients/</td><td>OpenAiCompatibleClient, RemoteAiClient, LocalAiClient + LlamaServer</td></tr>
+    <tr><td>apps/desktop/src/main/ai/memory/</td><td>ConversationCompactor, restoring history at startup</td></tr>
+    <tr><td>apps/desktop/src/main/ai/web/</td><td>SafeWebFetcher, read limits, the untrusted wrapper</td></tr>
+    <tr><td>apps/desktop/src/main/app.ts · setup/ipc/ai.ts</td><td>creating AIController, the <code>ai:*</code> channels, where events are sent</td></tr>
+    <tr><td>packages/core/src/storage/StorageController.ts</td><td><code>notifyLocalChange</code> → windows + <code>requestPush</code>; <code>appendAiTurn</code></td></tr>
+    <tr><td>packages/core/src/storage/models/AISessionModel.ts</td><td>the ai_sessions, ai_turns and ai_steps tables</td></tr>
+    <tr><td>apps/desktop/src/renderer/src/stores/ai/</td><td>ai.store, useAiStreaming — the chat and turn steps</td></tr>
+    <tr><td>apps/desktop/src/renderer/src/ui/views/Assistant/</td><td>AssistantView, ToolConfirmationCard</td></tr>
+  </table>
+</div>
+
+</main>
+</body>
+</html>
