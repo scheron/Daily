@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-**Daily** ships as a pnpm workspace of six packages: the app (`apps/desktop`), the sync server (`apps/server`), the website (`apps/website`), and three Electron-free shared packages (`packages/core`, `packages/protocol`, `packages/std`). The app is a local-first macOS task manager — Electron main + Vue 3 renderer, built on `packages/core`'s storage core (`packages/core/src/storage/createStorageCore.ts`). SQLite is the source of truth; sync is local-first multi-remote (off, iCloud, or a self-hosted server) with Last-Write-Wins.
+**Daily** ships as a pnpm workspace of five packages: the app (`apps/desktop`), the sync server (`apps/server`), and three Electron-free shared packages (`packages/core`, `packages/protocol`, `packages/std`). The app is a local-first macOS task manager — Electron main + Vue 3 renderer, built on `packages/core`'s storage core (`packages/core/src/storage/createStorageCore.ts`). SQLite is the source of truth; sync is local-first multi-remote (off, iCloud, or a self-hosted server) with Last-Write-Wins.
 
 ## Commands
 

@@ -336,25 +336,6 @@ importers:
         specifier: ^7.6.13
         version: 7.6.13
 
-  apps/website:
-    dependencies:
-      "@tailwindcss/vite":
-        specifier: ^4.1.8
-        version: 4.1.18(vite@6.4.1(@types/node@22.19.8)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.46.0)(yaml@2.8.2))
-      tailwindcss:
-        specifier: ^4.1.8
-        version: 4.1.18
-    devDependencies:
-      prettier:
-        specifier: ^3.5.3
-        version: 3.8.1
-      terser:
-        specifier: ^5.36.0
-        version: 5.46.0
-      vite:
-        specifier: ^6.3.5
-        version: 6.4.1(@types/node@22.19.8)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.46.0)(yaml@2.8.2)
-
   packages/core:
     dependencies:
       "@daily/protocol":

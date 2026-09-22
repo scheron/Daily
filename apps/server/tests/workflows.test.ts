@@ -150,16 +150,11 @@ describe("workflow files reference paths, scripts and targets that exist", () =>
     expect(existsSync(join(rootDir, relativePath))).toBe(true)
   })
 
-  it.each(WORKFLOW_FILES)("TC-8: %s names no pre-split src/ path and no top-level website/ path", (relativePath) => {
+  it.each(WORKFLOW_FILES)("TC-8: %s names no pre-split src/ path", (relativePath) => {
     const workflow = readWorkflow(relativePath)
 
     for (const root of FORBIDDEN_SRC_ROOTS) {
       expect(hasBareSrcRoot(workflow, root), `${relativePath} should not reference the pre-split src/${root}`).toBe(false)
-    }
-
-    for (const match of workflow.matchAll(/website\//g)) {
-      const precededByApps = workflow.slice(Math.max(0, match.index - 5), match.index) === "apps/"
-      expect(precededByApps, `${relativePath} references a top-level website/ path at offset ${match.index}`).toBe(true)
     }
   })
 
