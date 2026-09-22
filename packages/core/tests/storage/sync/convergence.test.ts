@@ -106,6 +106,10 @@ describe("two-node convergence through a shared sync directory", () => {
     return created
   }
 
+  function setCommentUpdatedAt(node: Node, commentId: string, updatedAt: string): void {
+    node.db.prepare("UPDATE task_comments SET updated_at = ? WHERE id = ?").run(updatedAt, commentId)
+  }
+
   function setUpdatedAt(node: Node, taskId: string, updatedAt: string): void {
     node.db.prepare("UPDATE tasks SET updated_at = ? WHERE id = ?").run(updatedAt, taskId)
   }
@@ -242,6 +246,140 @@ describe("two-node convergence through a shared sync directory", () => {
     expect(listB.map((t) => t.id)).not.toContain(task.id)
     const deletedB = await nodeB.core.tasksService.getDeletedTasks()
     expect(deletedB.map((t) => t.id)).toContain(task.id)
+  })
+
+  it("carries_a_comment_written_on_node_A_onto_node_B_and_the_edit_that_follows_on_B_back_onto_A", async () => {
+    const task = await addTask(nodeA, "needs a note", "task-commented")
+    await nodeA.engine.syncOnce("push")
+    await nodeB.engine.syncOnce("pull")
+
+    const created = await nodeA.core.taskCommentsService.createComment(task.id, "written on A")
+    if (!created) throw new Error("createComment failed")
+
+    await nodeA.engine.syncOnce("push")
+    await nodeB.engine.syncOnce("pull")
+
+    const onBAfterFirstPull = await nodeB.core.taskCommentsService.getCommentsOfTask(task.id)
+    expect(onBAfterFirstPull.map((c) => c.content)).toEqual(["written on A"])
+    expect(onBAfterFirstPull[0].origin).toBeNull()
+
+    await nodeB.core.taskCommentsService.updateComment(created.id, "edited on B")
+    await nodeB.engine.syncOnce("push")
+    await nodeA.engine.syncOnce("pull")
+
+    const finalA = await nodeA.core.taskCommentsService.getCommentsOfTask(task.id)
+    const finalB = await nodeB.core.taskCommentsService.getCommentsOfTask(task.id)
+
+    expect(finalA).toHaveLength(1)
+    expect(finalB).toHaveLength(1)
+    expect(finalA[0].content).toBe("edited on B")
+    expect(finalB[0].content).toBe("edited on B")
+    expect(finalA[0].id).toBe(created.id)
+  })
+
+  it("settles_concurrent_edits_of_one_comment_on_the_later_updated_at_on_both_nodes", async () => {
+    const task = await addTask(nodeA, "contested", "task-contested")
+    const created = await nodeA.core.taskCommentsService.createComment(task.id, "original")
+    if (!created) throw new Error("createComment failed")
+
+    await nodeA.engine.syncOnce("push")
+    await nodeB.engine.syncOnce("pull")
+
+    await nodeA.core.taskCommentsService.updateComment(created.id, "edit from A")
+    setCommentUpdatedAt(nodeA, created.id, "2027-01-01T10:00:00.000Z")
+    await nodeB.core.taskCommentsService.updateComment(created.id, "edit from B")
+    setCommentUpdatedAt(nodeB, created.id, "2027-01-01T11:00:00.000Z")
+
+    await nodeA.engine.syncOnce("push")
+    await nodeB.engine.syncOnce("pull")
+    await nodeA.engine.syncOnce("pull")
+
+    const finalA = await nodeA.core.taskCommentsService.getCommentsOfTask(task.id)
+    const finalB = await nodeB.core.taskCommentsService.getCommentsOfTask(task.id)
+    expect(finalA[0].content).toBe("edit from B")
+    expect(finalB[0].content).toBe("edit from B")
+  })
+
+  it("propagates_a_comments_soft_delete_and_announces_it_in_the_pulled_changeset", async () => {
+    const task = await addTask(nodeA, "to be uncommented", "task-uncommented")
+    const created = await nodeA.core.taskCommentsService.createComment(task.id, "delete me")
+    if (!created) throw new Error("createComment failed")
+
+    await nodeA.engine.syncOnce("push")
+    await nodeB.engine.syncOnce("pull")
+    expect(await nodeB.core.taskCommentsService.getCommentsOfTask(task.id)).toHaveLength(1)
+
+    await nodeA.core.taskCommentsService.deleteComment(created.id)
+    await nodeA.engine.syncOnce("push")
+
+    nodeB.onDataChanged.mockClear()
+    await nodeB.engine.syncOnce("pull")
+
+    expect(await nodeB.core.taskCommentsService.getCommentsOfTask(task.id)).toEqual([])
+
+    const pulledChangeset = nodeB.onDataChanged.mock.calls.at(-1)?.[0]
+    expect(pulledChangeset?.comments?.upserted?.some((c: {id: string}) => c.id === created.id)).toBe(true)
+  })
+
+  it("loads_a_version-7_snapshot_from_the_previous_release_with_no_comments_key_as_an_empty_thread", async () => {
+    const previousReleaseSnapshot = {
+      version: 7,
+      docs: {
+        tasks: [
+          {
+            id: "task-from-v7",
+            status: "active",
+            content: "from the release before comments",
+            minimized: false,
+            order_index: 1024,
+            scheduled_date: "2026-02-14",
+            scheduled_time: "09:30:00",
+            scheduled_timezone: "UTC",
+            estimated_time: 0,
+            spent_time: 0,
+            branch_id: "main",
+            milestone_id: null,
+            tags: [],
+            attachments: [],
+            created_at: "2026-02-10T00:00:00.000Z",
+            updated_at: "2026-02-10T00:00:00.000Z",
+            deleted_at: null,
+          },
+        ],
+        tags: [],
+        branches: [],
+        milestones: [],
+        relations: [],
+        files: [],
+        events: [],
+      },
+      meta: {updatedAt: "2026-02-10T00:00:00.000Z", hash: "v7-hash"},
+    }
+
+    await fs.writeFile(join(syncDir, "snapshot.json"), JSON.stringify(previousReleaseSnapshot))
+
+    await expect(nodeB.engine.syncOnce("pull")).resolves.not.toThrow()
+
+    expect(await nodeB.core.tasksService.getTask("task-from-v7")).not.toBeNull()
+    expect(await nodeB.core.taskCommentsService.getCommentsOfTask("task-from-v7")).toEqual([])
+  })
+
+  it("keeps_a_local_comment_alive_when_the_remote_is_a_version-7_snapshot_that_cannot_carry_one", async () => {
+    const task = await addTask(nodeA, "commented locally", "task-local-comment")
+    const created = await nodeA.core.taskCommentsService.createComment(task.id, "only on this Mac")
+    if (!created) throw new Error("createComment failed")
+
+    const remoteWithoutComments = {
+      version: 7,
+      docs: {tasks: [], tags: [], branches: [], milestones: [], relations: [], files: [], events: []},
+      meta: {updatedAt: "2026-02-10T00:00:00.000Z", hash: "v7-empty"},
+    }
+    await fs.writeFile(join(syncDir, "snapshot.json"), JSON.stringify(remoteWithoutComments))
+
+    await nodeA.engine.syncOnce("pull")
+
+    const stillThere = await nodeA.core.taskCommentsService.getCommentsOfTask(task.id)
+    expect(stillThere.map((c) => c.content)).toEqual(["only on this Mac"])
   })
 
   it("converges_TC-11_two_nodes_on_one_live_relation_for_a_pair_settling_on_whichever_direction_synced_last", async () => {

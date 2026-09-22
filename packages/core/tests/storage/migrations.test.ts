@@ -660,4 +660,99 @@ describe("migrations", () => {
       db.close()
     })
   })
+
+  describe("v013 — task comments", () => {
+    function seedThroughV12(db) {
+      db.exec(`CREATE TABLE _migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)`)
+      for (const migration of migrations.filter((m) => m.version <= 12)) {
+        if (typeof migration.up === "string") db.exec(migration.up)
+        else migration.up(db)
+        db.prepare("INSERT INTO _migrations (version, name, applied_at) VALUES (?, ?, ?)").run(
+          migration.version,
+          migration.name,
+          "2026-01-01T00:00:00.000Z",
+        )
+      }
+    }
+
+    it("gives_a_v012_database_a_task_comments_table_with_its_columns_and_indexes_leaves_tasks_untouched_and_drops_it_on_rollback", () => {
+      const db = new Database(":memory:")
+      db.pragma("foreign_keys = ON")
+      seedThroughV12(db)
+
+      const now = new Date().toISOString()
+      db.prepare(
+        `INSERT INTO tasks (id, status, content, minimized, order_index, scheduled_date, scheduled_time, scheduled_timezone, estimated_time, spent_time, branch_id, created_at, updated_at)
+         VALUES ('t1', 'active', 'Keep me', 0, 1024, '2026-03-24', '10:00:00', 'UTC', 0, 0, 'main', ?, ?)`,
+      ).run(now, now)
+
+      runMigrations(db)
+
+      const tables = db
+        .prepare("SELECT name FROM sqlite_master WHERE type='table'")
+        .all()
+        .map((t) => t.name)
+      expect(tables).toContain("task_comments")
+
+      const columns = db
+        .prepare("PRAGMA table_info(task_comments)")
+        .all()
+        .map((c) => c.name)
+      expect(columns).toEqual(expect.arrayContaining(["id", "task_id", "branch_id", "content", "origin", "created_at", "updated_at", "deleted_at"]))
+
+      const nullableColumns = db
+        .prepare("PRAGMA table_info(task_comments)")
+        .all()
+        .filter((c) => c.notnull === 0)
+        .map((c) => c.name)
+      expect(nullableColumns).toEqual(expect.arrayContaining(["origin", "deleted_at"]))
+
+      const indexes = db
+        .prepare("SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='task_comments'")
+        .all()
+        .map((i) => i.name)
+      const indexedColumns = indexes.flatMap((name) =>
+        db
+          .prepare(`PRAGMA index_info(${name})`)
+          .all()
+          .map((c) => c.name),
+      )
+      expect(indexedColumns).toEqual(expect.arrayContaining(["task_id", "branch_id"]))
+
+      const task = db.prepare("SELECT * FROM tasks WHERE id = 't1'").get()
+      expect(task.content).toBe("Keep me")
+
+      const rolledBack = rollbackLastMigration(db)
+      expect(rolledBack).toBe(13)
+
+      const tablesAfterRollback = db
+        .prepare("SELECT name FROM sqlite_master WHERE type='table'")
+        .all()
+        .map((t) => t.name)
+      expect(tablesAfterRollback).not.toContain("task_comments")
+
+      db.close()
+    })
+
+    it("takes_a_comment_row_whose_task_does_not_exist_because_sync_can_deliver_one_before_its_task", () => {
+      const db = new Database(":memory:")
+      db.pragma("foreign_keys = ON")
+      seedThroughV12(db)
+      runMigrations(db)
+
+      const now = new Date().toISOString()
+      const insert = () =>
+        db
+          .prepare(
+            `INSERT INTO task_comments (id, task_id, branch_id, content, origin, created_at, updated_at, deleted_at)
+             VALUES ('c1', 'a-task-that-has-not-arrived', 'main', 'from another Mac', NULL, ?, ?, NULL)`,
+          )
+          .run(now, now)
+
+      expect(insert).not.toThrow()
+      expect(db.prepare("SELECT origin FROM task_comments WHERE id = 'c1'").get().origin).toBeNull()
+
+      db.close()
+    })
+  })
 })

@@ -56,6 +56,20 @@ function relation(id, blockerId, blockedId, over = {}) {
   return {id, blocker_id: blockerId, blocked_id: blockedId, created_at: iso(0), updated_at: NOW, deleted_at: null, ...over}
 }
 
+function comment(id, taskId, branchId, over = {}) {
+  return {
+    id,
+    task_id: taskId,
+    branch_id: branchId,
+    content: id,
+    origin: null,
+    created_at: iso(0),
+    updated_at: NOW,
+    deleted_at: null,
+    ...over,
+  }
+}
+
 function assertNoDanglingBranchRefs(merge) {
   const branchIds = new Set(merge.resultDocs.branches.map((b) => b.id))
   for (const t of merge.toUpsert.tasks) {
@@ -378,5 +392,185 @@ describe("mergeRemoteIntoLocal — relations", () => {
 
     expect(merge.resultDocs.relations.some((r) => r.id === "r1")).toBe(false)
     expect(merge.toRemove.relations).toContain("r1")
+  })
+})
+
+describe("mergeRemoteIntoLocal — comments", () => {
+  it("passes_a_comment_through_untouched_when_the_remote_is_a_version-7_snapshot_with_no_comments_key", () => {
+    const local = docs({
+      branches: [branch("main")],
+      tasks: [task("x", "main")],
+      comments: [comment("c1", "x", "main", {updated_at: iso(1000)})],
+    })
+    const remoteBeforeComments = {
+      tasks: [task("x", "main")],
+      tags: [],
+      branches: [branch("main")],
+      milestones: [],
+      relations: [],
+      files: [],
+      events: [],
+      settings: null,
+    }
+
+    const merge = mergeRemoteIntoLocal(local, remoteBeforeComments, "pull", GC)
+
+    expect(merge.resultDocs.comments).toEqual([comment("c1", "x", "main", {updated_at: iso(1000)})])
+  })
+
+  it("reads_a_remote_with_no_comments_key_at_all_as_an_empty_collection_rather_than_throwing", () => {
+    const remoteBeforeComments = {tasks: [], tags: [], branches: [], milestones: [], relations: [], files: [], events: [], settings: null}
+
+    const merge = mergeRemoteIntoLocal(docs(), remoteBeforeComments, "pull", GC)
+
+    expect(merge.resultDocs.comments).toEqual([])
+    expect(merge.toUpsert.comments).toEqual([])
+  })
+
+  it("lets_the_later_updated_at_win_whichever_side_holds_it", () => {
+    const older = iso(Date.now() - 2000)
+    const newer = iso(Date.now() - 1000)
+    const state = (localContent, localAt, remoteContent, remoteAt) => ({
+      local: docs({
+        branches: [branch("main")],
+        tasks: [task("x", "main")],
+        comments: [comment("c1", "x", "main", {content: localContent, updated_at: localAt})],
+      }),
+      remote: docs({
+        branches: [branch("main")],
+        tasks: [task("x", "main")],
+        comments: [comment("c1", "x", "main", {content: remoteContent, updated_at: remoteAt})],
+      }),
+    })
+
+    const remoteWins = state("from A", older, "from B", newer)
+    expect(mergeRemoteIntoLocal(remoteWins.local, remoteWins.remote, "pull", GC).resultDocs.comments[0].content).toBe("from B")
+
+    const localWins = state("from A", newer, "from B", older)
+    expect(mergeRemoteIntoLocal(localWins.local, localWins.remote, "pull", GC).resultDocs.comments[0].content).toBe("from A")
+  })
+
+  it("lets_a_newer_remote_tombstone_win_over_an_older_live_local_comment", () => {
+    const older = iso(Date.now() - 2000)
+    const deletedAt = iso(Date.now() - 1000)
+    const local = docs({
+      branches: [branch("main")],
+      tasks: [task("x", "main")],
+      comments: [comment("c1", "x", "main", {updated_at: older})],
+    })
+    const remote = docs({
+      branches: [branch("main")],
+      tasks: [task("x", "main")],
+      comments: [comment("c1", "x", "main", {updated_at: deletedAt, deleted_at: deletedAt})],
+    })
+
+    const merge = mergeRemoteIntoLocal(local, remote, "pull", GC)
+
+    expect(merge.resultDocs.comments.find((c) => c.id === "c1")?.deleted_at).toBe(deletedAt)
+  })
+
+  it("keeps_a_live_local_comment_when_its_own_updated_at_is_newer_than_the_remote_tombstone", () => {
+    const deletedAt = iso(Date.now() - 2000)
+    const editedAt = iso(Date.now() - 1000)
+    const local = docs({
+      branches: [branch("main")],
+      tasks: [task("x", "main")],
+      comments: [comment("c1", "x", "main", {content: "edited after the delete", updated_at: editedAt})],
+    })
+    const remote = docs({
+      branches: [branch("main")],
+      tasks: [task("x", "main")],
+      comments: [comment("c1", "x", "main", {updated_at: deletedAt, deleted_at: deletedAt})],
+    })
+
+    const merge = mergeRemoteIntoLocal(local, remote, "pull", GC)
+
+    const merged = merge.resultDocs.comments.find((c) => c.id === "c1")
+    expect(merged?.deleted_at).toBeNull()
+    expect(merged?.content).toBe("edited after the delete")
+  })
+
+  it("settles_a_tie_on_the_direction_of_the_sync_taking_the_remote_on_pull_and_keeping_this_Macs_on_push", () => {
+    const tie = NOW
+    const local = () =>
+      docs({
+        branches: [branch("main")],
+        tasks: [task("x", "main")],
+        comments: [comment("c1", "x", "main", {content: "from A", updated_at: tie})],
+      })
+    const remote = () =>
+      docs({
+        branches: [branch("main")],
+        tasks: [task("x", "main")],
+        comments: [comment("c1", "x", "main", {content: "from B", updated_at: tie})],
+      })
+
+    const pulled = mergeRemoteIntoLocal(local(), remote(), "pull", GC)
+    expect(pulled.resultDocs.comments[0].content).toBe("from B")
+    expect(pulled.toUpsert.comments.find((c) => c.id === "c1")?.content).toBe("from B")
+
+    const pushed = mergeRemoteIntoLocal(local(), remote(), "push", GC)
+    expect(pushed.resultDocs.comments[0].content).toBe("from A")
+  })
+
+  it("keeps_a_comment_whose_task_is_only_soft-deleted_so_restoring_the_task_restores_its_thread", () => {
+    const state = () =>
+      docs({
+        branches: [branch("main")],
+        tasks: [task("x", "main", {deleted_at: NOW})],
+        comments: [comment("c1", "x", "main", {updated_at: iso(300)})],
+      })
+
+    const merge = mergeRemoteIntoLocal(state(), state(), "pull", GC)
+
+    expect(merge.resultDocs.comments.find((c) => c.id === "c1")?.deleted_at).toBeNull()
+    expect(merge.toRemove.comments ?? []).not.toContain("c1")
+  })
+
+  it("drops_a_comment_from_the_result_and_names_it_in_toRemove_when_its_task_is_entirely_absent", () => {
+    const state = () =>
+      docs({
+        branches: [branch("main")],
+        tasks: [task("x", "main")],
+        comments: [comment("c1", "x", "main", {updated_at: iso(300)}), comment("c2", "gone", "main", {updated_at: iso(300)})],
+      })
+
+    const merge = mergeRemoteIntoLocal(state(), state(), "pull", GC)
+
+    expect(merge.resultDocs.comments.map((c) => c.id)).toEqual(["c1"])
+    expect(merge.toRemove.comments).toContain("c2")
+    expect(merge.toUpsert.comments.map((c) => c.id)).not.toContain("c2")
+  })
+
+  it("re-points_a_comment_at_the_project_its_task_ended_up_in_without_touching_its_updated_at", () => {
+    const updatedAt = iso(300)
+    const state = () =>
+      docs({
+        branches: [branch("main")],
+        tasks: [task("x", "gone-project")],
+        comments: [comment("c1", "x", "gone-project", {updated_at: updatedAt})],
+      })
+
+    const merge = mergeRemoteIntoLocal(state(), state(), "pull", GC)
+
+    const merged = merge.resultDocs.comments.find((c) => c.id === "c1")
+    expect(merged?.branch_id).toBe("main")
+    expect(merged?.updated_at).toBe(updatedAt)
+    expect(merge.toUpsert.comments.find((c) => c.id === "c1")?.branch_id).toBe("main")
+  })
+
+  it("garbage-collects_an_expired_comment_tombstone_the_way_every_other_collection_is_collected", () => {
+    const longGone = iso(Date.now() - 30 * 24 * 60 * 60 * 1000)
+    const state = () =>
+      docs({
+        branches: [branch("main")],
+        tasks: [task("x", "main")],
+        comments: [comment("c1", "x", "main", {updated_at: longGone, deleted_at: longGone})],
+      })
+
+    const merge = mergeRemoteIntoLocal(state(), state(), "pull", GC)
+
+    expect(merge.resultDocs.comments).toEqual([])
+    expect(merge.toRemove.comments).toContain("c1")
   })
 })
