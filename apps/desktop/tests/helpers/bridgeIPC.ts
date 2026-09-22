@@ -13,8 +13,6 @@ export function mockBridgeIPC(overrides = {}) {
       ai: null,
       branch: {activeId: "main"},
       layout: {
-        sectionsHideEmpty: false,
-        sectionsAutoCollapseEmpty: false,
         sectionsCollapsed: {active: false, discarded: false, done: false},
       },
       window: {main: {width: 800, height: 600, isMaximized: false, isFullScreen: false}},

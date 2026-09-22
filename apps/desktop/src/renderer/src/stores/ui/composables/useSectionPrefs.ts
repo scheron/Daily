@@ -6,11 +6,7 @@ import type {TaskStatus} from "@daily/protocol"
 
 type SectionsCollapsed = Record<TaskStatus, boolean>
 
-export type EmptySectionsMode = "show" | "collapse" | "hide"
-
 export function useSectionPrefs() {
-  const shouldHideEmptySections = useSettingValue("layout.sectionsHideEmpty", false)
-  const shouldCollapseEmptySections = useSettingValue("layout.sectionsAutoCollapseEmpty", false)
   const isActiveSectionCollapsed = useSettingValue("layout.sectionsCollapsed.active", false)
   const isDiscardedSectionCollapsed = useSettingValue("layout.sectionsCollapsed.discarded", false)
   const isDoneSectionCollapsed = useSettingValue("layout.sectionsCollapsed.done", false)
@@ -22,14 +18,6 @@ export function useSectionPrefs() {
     done: isDoneSectionCollapsed.value,
     backlog: isBacklogSectionCollapsed.value,
   }))
-
-  const emptySectionsMode = computed<EmptySectionsMode>({
-    get: () => (shouldHideEmptySections.value ? "hide" : shouldCollapseEmptySections.value ? "collapse" : "show"),
-    set: (mode) => {
-      shouldHideEmptySections.value = mode === "hide"
-      shouldCollapseEmptySections.value = mode === "collapse"
-    },
-  })
 
   function toggleSectionCollapsed(status: TaskStatus) {
     if (status === "active") isActiveSectionCollapsed.value = !isActiveSectionCollapsed.value
@@ -46,10 +34,7 @@ export function useSectionPrefs() {
   }
 
   return {
-    shouldHideEmptySections,
-    shouldCollapseEmptySections,
     sectionsCollapsed,
-    emptySectionsMode,
 
     toggleSectionCollapsed,
     setSectionCollapsed,

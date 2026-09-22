@@ -5,7 +5,6 @@ import {sortTasksByDateThenOrder, sortTasksByOrderIndex} from "@daily/protocol"
 import {deepClone, isUndefined} from "@daily/std"
 
 import {createSharedComposable} from "@/composables/createSharedComposable"
-import {TASK_COLUMNS} from "@/constants/ui"
 import {useDragDropStore} from "@/stores/dragDrop.store"
 import {useFilterStore} from "@/stores/filter.store"
 import {useMilestonesStore} from "@/stores/milestones.store"
@@ -14,7 +13,6 @@ import {useUIStore} from "@/stores/ui"
 import {findClosestAtPoint} from "@/utils/ui/dom"
 import {useTaskDragDrop} from "./useTaskDragDrop"
 
-import type {TaskColumn} from "@/types/ui"
 import type {MoveTaskByOrderParams, Task, TaskStatus} from "@daily/protocol"
 
 export const useTaskColumns = createSharedComposable(() => {
@@ -56,8 +54,6 @@ export const useTaskColumns = createSharedComposable(() => {
     return grouped
   })
 
-  const visibleColumns = computed<TaskColumn[]>(() => TASK_COLUMNS.filter((s) => !isColumnHidden(s.status)))
-
   const {isDragging, isCommitting, onDragStart: onDragStartBase, onDragEnd: onDragEndBase, onDragOver, runWithCommit} = useTaskDragDrop()
 
   useEventListener(window, "pointermove", onDragPointerMove)
@@ -93,18 +89,15 @@ export const useTaskColumns = createSharedComposable(() => {
   }
 
   function isColumnCollapsed(status: TaskStatus) {
-    if (uiStore.shouldCollapseEmptySections) return !isDragging.value && isColumnEmpty(status)
     return Boolean(uiStore.sectionsCollapsed[status])
   }
 
   function onToggleColumn(status: TaskStatus) {
-    if (uiStore.shouldCollapseEmptySections) return
     uiStore.toggleSectionCollapsed(status)
   }
 
   function onDragPointerMove(event: PointerEvent) {
     if (!isDragging.value) return
-    if (uiStore.shouldCollapseEmptySections) return
 
     const status = findClosestAtPoint(event.clientX, event.clientY, "[data-column-status]")?.dataset.columnStatus as TaskStatus | undefined
     if (status === hoverExpandedStatus) return
@@ -170,15 +163,6 @@ export const useTaskColumns = createSharedComposable(() => {
     localTasksByStatus.backlog = tasksByStatus.value.backlog.map((task) => deepClone(task))
   }
 
-  function isColumnEmpty(status: TaskStatus) {
-    return tasksByStatus.value[status].length === 0
-  }
-
-  function isColumnHidden(status: TaskStatus) {
-    if (!uiStore.shouldHideEmptySections) return false
-    return isColumnEmpty(status)
-  }
-
   function flushPendingCrossColumnMove() {
     if (dragDropStore.isReleasedInsideDropZone) {
       pendingCrossColumnMove.value = null
@@ -225,7 +209,6 @@ export const useTaskColumns = createSharedComposable(() => {
   )
 
   return {
-    visibleColumns,
     tasksByStatus,
     localTasksByStatus,
     isDragging,

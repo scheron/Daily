@@ -96,10 +96,6 @@ export type Settings = {
     activeId: Branch["id"]
   }
   layout: {
-    /** Hide sections with no tasks. */
-    sectionsHideEmpty: boolean
-    /** Auto-collapse sections with no tasks. */
-    sectionsAutoCollapseEmpty: boolean
     /** Manual collapse state per status. */
     sectionsCollapsed: Record<TaskStatus, boolean>
     /** Expand the calendar dock as soon as a card starts dragging, instead of when a card is held on its button. */

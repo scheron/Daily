@@ -4,6 +4,7 @@ import {storeToRefs} from "pinia"
 import VueDraggable from "vuedraggable"
 
 import {useTaskColumns} from "@/composables/tasks/useTaskColumns"
+import {TASK_COLUMNS} from "@/constants/ui"
 import {useDragDropStore} from "@/stores/dragDrop.store"
 import {useFilterStore} from "@/stores/filter.store"
 import {useMilestonesStore} from "@/stores/milestones.store"
@@ -69,7 +70,7 @@ watch(activeDay, () => containerRef.value?.scrollTo({top: 0, behavior: "instant"
     <NoTasksPlaceholder v-if="!isBoardVisible" :date="placeholderDate" :milestone-name="framedMilestoneName" @create-task="emit('createTask')" />
 
     <div v-else ref="board" class="flex size-full overflow-x-auto overflow-y-hidden" @dragover="columns.onDragOver">
-      <template v-for="(column, index) in columns.visibleColumns.value" :key="column.status">
+      <template v-for="(column, index) in TASK_COLUMNS" :key="column.status">
         <TaskColumn :status="column.status">
           <VueDraggable
             :list="columns.localTasksByStatus[column.status]"
@@ -93,9 +94,7 @@ watch(activeDay, () => containerRef.value?.scrollTo({top: 0, behavior: "instant"
 
         <div
           v-if="
-            index < columns.visibleColumns.value.length - 1 &&
-            !columns.isColumnCollapsed(column.status) &&
-            !columns.isColumnCollapsed(columns.visibleColumns.value[index + 1].status)
+            index < TASK_COLUMNS.length - 1 && !columns.isColumnCollapsed(column.status) && !columns.isColumnCollapsed(TASK_COLUMNS[index + 1].status)
           "
           class="to-base-300/50 bg-linear-to-b h-full w-px shrink-0 from-transparent from-[44px] to-[98px]"
         />

@@ -9,7 +9,6 @@ import AboutSection from "./{fragments}/AboutSection.vue"
 import AccentPicker from "./{fragments}/AccentPicker.vue"
 import MainColorPicker from "./{fragments}/MainColorPicker.vue"
 
-import type {EmptySectionsMode} from "@/stores/ui"
 import type {AppearanceMode, FontSize} from "@daily/protocol"
 
 const themeOptions: {value: AppearanceMode; label: string}[] = [
@@ -22,12 +21,6 @@ const fontSizeOptions: {value: FontSize; label: string}[] = [
   {value: "small", label: "Small"},
   {value: "normal", label: "Normal"},
   {value: "large", label: "Large"},
-]
-
-const emptySectionsOptions: {value: EmptySectionsMode; label: string}[] = [
-  {value: "show", label: "Show"},
-  {value: "collapse", label: "Collapse"},
-  {value: "hide", label: "Hide"},
 ]
 
 const uiStore = useUIStore()
@@ -53,10 +46,6 @@ const themeStore = useThemeStore()
     <SettingsGroup label="Content" icon="layout">
       <SettingRow title="Text size" description="Choose the text size used throughout Daily">
         <BaseSegmented v-model="themeStore.fontSize" :options="fontSizeOptions" />
-      </SettingRow>
-
-      <SettingRow title="Empty columns" description="How columns appear when a day has no tasks">
-        <BaseSegmented v-model="uiStore.emptySectionsMode" :options="emptySectionsOptions" />
       </SettingRow>
 
       <SettingRow

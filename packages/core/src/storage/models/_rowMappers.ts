@@ -215,8 +215,6 @@ export function getDefaultSettings(): Settings {
     ai: null,
     branch: {activeId: MAIN_BRANCH_ID},
     layout: {
-      sectionsHideEmpty: false,
-      sectionsAutoCollapseEmpty: false,
       sectionsCollapsed: {active: false, discarded: false, done: false, backlog: false},
       shouldOpenCalendarDockOnDrag: false,
     },
