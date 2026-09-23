@@ -42,7 +42,14 @@ export class TasksService {
     return this.taskEvents.getCompletionsBetween(fromInclusive, toExclusive)
   }
 
-  async getTaskList(params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: Branch["id"]; includeBacklog?: boolean}): Promise<Task[]> {
+  async getTaskList(params?: {
+    from?: ISODate
+    to?: ISODate
+    limit?: number
+    branchId?: Branch["id"]
+    includeDeleted?: boolean
+    includeBacklog?: boolean
+  }): Promise<Task[]> {
     return this.taskModel.getTaskList(params)
   }
 

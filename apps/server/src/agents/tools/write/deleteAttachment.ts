@@ -8,7 +8,7 @@ import type {AgentTool} from "../types"
 
 export const deleteAttachmentTool: AgentTool = {
   name: "delete_attachment",
-  description: "Deletes one file by id, bytes and all. Refuses while a live task's text still links to it.",
+  description: "Deletes one file by id, bytes and all. Refuses while any task's text still links to it, trashed tasks included.",
   mode: "write",
   inputSchema: {
     type: "object",
@@ -19,8 +19,8 @@ export const deleteAttachmentTool: AgentTool = {
   async run(input, ctx) {
     const id = requireString(input, "id")
 
-    const liveTasks = await ctx.core.tasksService.getTaskList({includeBacklog: true})
-    const referencedBy = liveTasks.find((task) => extractFileIds(task.content).includes(id))
+    const tasks = await ctx.core.tasksService.getTaskList({includeDeleted: true, includeBacklog: true})
+    const referencedBy = tasks.find((task) => extractFileIds(task.content).includes(id))
     if (referencedBy) {
       throw new AgentToolError(AgentToolErrorCode.ATTACHMENT_IN_USE, `Attachment "${id}" is still linked from task "${referencedBy.id}"'s text.`)
     }

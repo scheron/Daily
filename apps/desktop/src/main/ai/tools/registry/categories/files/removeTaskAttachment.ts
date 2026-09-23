@@ -1,5 +1,5 @@
 import {extractFileIds} from "@daily/core/utils/files/extractFileIds"
-import {APP_CONFIG} from "@daily/protocol"
+import {removeFileLink} from "@daily/core/utils/files/removeFileLink"
 
 import type {RegisteredTool} from "@main/ai/tools/registry/types"
 
@@ -36,7 +36,7 @@ export const removeTaskAttachment: RegisteredTool = {
       return {success: false, error: `File ${fileId} is not attached to task ${taskId}`}
     }
 
-    const content = unlinkFile(task.content, fileId)
+    const content = removeFileLink(task.content, fileId)
     await ctx.storage.updateTask(taskId, {content}, {kind: "agent"})
 
     return {
@@ -45,10 +45,4 @@ export const removeTaskAttachment: RegisteredTool = {
       changedEntities: [{type: "task", id: taskId, action: "updated"}],
     }
   },
-}
-
-function unlinkFile(content: string, fileId: string): string {
-  const escapedProtocol = APP_CONFIG.filesProtocol.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-  const pattern = new RegExp(`!\\[[^\\]]*\\]\\(\\s*${escapedProtocol}\\/${fileId}\\s*\\)`, "g")
-  return content.replace(pattern, "").trim()
 }

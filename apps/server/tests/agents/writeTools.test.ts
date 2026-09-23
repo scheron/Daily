@@ -4,7 +4,7 @@ import {describe, expect, it} from "vitest"
 
 import {APP_CONFIG} from "@daily/protocol"
 
-import {runInAgentWorkspace} from "../../src/agents/AgentWorkspace"
+import {AGENT_WRITE_ATTEMPTS, runInAgentWorkspace} from "../../src/agents/AgentWorkspace"
 import {getAttachmentTool} from "../../src/agents/tools/read/getAttachment"
 import {getTaskTool} from "../../src/agents/tools/read/getTask"
 import {deleteAttachmentTool} from "../../src/agents/tools/write/deleteAttachment"
@@ -19,8 +19,8 @@ import {saveTaskTool} from "../../src/agents/tools/write/saveTask"
 import {assetsDir, listAssets, writeAsset} from "../../src/assets/AssetStore"
 import {AgentToolError} from "../../src/errors/agent/AgentToolError"
 import {AgentToolErrorCode} from "../../src/errors/agent/AgentToolErrorCode"
-import {readSnapshot} from "../../src/snapshot/SnapshotStore"
-import {bindAgent, bindDevice, makePngBytes, makeTaskDraft, seedAgentStore} from "./helpers"
+import {readRevision, readSnapshot} from "../../src/snapshot/SnapshotStore"
+import {bindAgent, bindDevice, makePngBytes, makeTaskDraft, openMacCore, seedAgentStore, writeMacSnapshot} from "./helpers"
 
 import type {AgentIdentity, AgentWorkspaceDeps} from "../../src/agents/AgentWorkspace"
 import type {AgentTool} from "../../src/agents/tools/types"
@@ -491,31 +491,32 @@ describe("save_task", () => {
     }
   })
 
-  it("a batch that throws on its third item leaves no bytes and no assets row behind for the attachments the earlier items added", async () => {
-    let taskAId = ""
-    let taskBId = ""
-
-    const seeded = await seedAgentStore(async (mac) => {
-      const a = await mac.core.tasksService.createTask(dated("2026-01-01", {content: "A"}))
-      const b = await mac.core.tasksService.createTask(dated("2026-01-01", {content: "B"}))
-      taskAId = a!.id
-      taskBId = b!.id
-    })
+  it("a call that loses every write race leaves no bytes and no assets row behind, even though save_attachment staged them on every attempt", async () => {
+    const seeded = await seedAgentStore()
 
     try {
       const agent = bindAgent(seeded.store)
-      const png = makePngBytes().toString("base64")
+      const png = makePngBytes()
+      let attempts = 0
 
       await expect(
-        call({store: seeded.store}, agent, saveTaskTool, {
-          tasks: [
-            {id: taskAId, addAttachments: [{name: "a.png", dataBase64: png}]},
-            {id: taskBId, addAttachments: [{name: "b.png", dataBase64: png}]},
-            {id: "no-such-id", addAttachments: [{name: "c.png", dataBase64: png}]},
-          ],
-        }),
-      ).rejects.toMatchObject({code: AgentToolErrorCode.NOT_FOUND})
+        runInAgentWorkspace({store: seeded.store}, agent, "write", async (ctx) => {
+          attempts++
 
+          const rival = openMacCore()
+          try {
+            await rival.core.tasksService.createTask(makeTaskDraft({content: `Rival ${attempts}`}))
+            const rivalDeviceId = bindDevice(seeded.store, `Rival Mac ${attempts}`)
+            await writeMacSnapshot(seeded.store, rival, readRevision(seeded.store), rivalDeviceId)
+          } finally {
+            rival.close()
+          }
+
+          return saveAttachmentTool.run({name: "shot.png", dataBase64: png.toString("base64")}, ctx)
+        }),
+      ).rejects.toMatchObject({code: AgentToolErrorCode.WRITE_CONFLICT})
+
+      expect(attempts).toBe(AGENT_WRITE_ATTEMPTS)
       expect(listAssets(seeded.store)).toEqual([])
       expect(await readdir(assetsDir(seeded.store))).toEqual([])
     } finally {
@@ -717,6 +718,29 @@ describe("delete_attachment", () => {
     const seeded = await seedAgentStore(async (mac) => {
       fileId = await mac.core.filesService.saveFile("still-used.png", makePngBytes())
       await mac.core.tasksService.createTask(dated("2026-01-01", {content: `Linked ![shot](${APP_CONFIG.filesProtocol}/${fileId})`}))
+    })
+
+    try {
+      await putOnServer(seeded.store, fileId, "png", makePngBytes())
+      const agent = bindAgent(seeded.store)
+
+      await expectRejectsWithAgentError(call({store: seeded.store}, agent, deleteAttachmentTool, {id: fileId}))
+
+      const stillThere = await call({store: seeded.store}, agent, getAttachmentTool, {id: fileId})
+      expect(Buffer.from(stillThere.dataBase64, "base64").length).toBe(stillThere.size)
+      expect(await readdir(assetsDir(seeded.store))).toContain(`${fileId}.png`)
+    } finally {
+      seeded.close()
+    }
+  })
+
+  it("refuses to delete a file only a trashed task's text still links to, explaining why, and leaves the file whole", async () => {
+    let fileId = ""
+
+    const seeded = await seedAgentStore(async (mac) => {
+      fileId = await mac.core.filesService.saveFile("still-used.png", makePngBytes())
+      const task = await mac.core.tasksService.createTask(dated("2026-01-01", {content: `Linked ![shot](${APP_CONFIG.filesProtocol}/${fileId})`}))
+      await mac.core.tasksService.deleteTask(task!.id)
     })
 
     try {
