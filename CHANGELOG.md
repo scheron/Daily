@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.25.0 - 2026-09-23
+
+### ✨ New Features
+
+- **Agents can do much more** — Claude Code, the Claude app and Codex can now look in the trash and put a task back, log time against a task, change many tasks in one call, set the order of tasks within a day, ask what was finished between two dates, see how many times a task has been pushed to another day, and attach or detach images. No new commands appeared — the thirteen an agent already had each learned more.
+- **History records who made a change** — a task's timeline now keeps who did each thing: you, Daily's built-in assistant, or an agent under the name it was approved as. An agent reading a task's history sees it too. An agent cannot sign as someone else — the name comes from the approval, not from the agent.
+
+### 🎨 Improvements
+
+- **Sync** — Sync writes a new format, so every Mac has to be updated: one still on an earlier version stops syncing until it is. A self-hosted Daily Sync Server has to be upgraded first, or agents are told the server is out of date.
+
+---
+
 ## v0.24.0 - 2026-09-23
 
 ### ✨ New Features
