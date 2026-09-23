@@ -4,6 +4,7 @@ import {ref} from "vue"
 import {toRelativeTime} from "@daily/std"
 
 import BaseButton from "@/ui/base/BaseButton"
+import MarkdownContent from "@/ui/common/misc/MarkdownContent.vue"
 import ConfirmPopup from "@/ui/overlays/ConfirmPopup.vue"
 import {cn} from "@/utils/ui/tailwindcss"
 import CommentField from "./CommentField.vue"
@@ -35,7 +36,7 @@ function submitEditing() {
 }
 
 function getRowClasses(editing: boolean) {
-  return cn("group border-base-300/60 border-b px-4 pt-2 pb-2.5", editing ? "bg-accent/6" : "hover:bg-base-content/3")
+  return cn("group border-base-300/60 border-b px-4 pt-2 pb-2.5", editing && "bg-accent/6")
 }
 </script>
 
@@ -76,8 +77,20 @@ function getRowClasses(editing: boolean) {
       @cancel="cancelEditing"
     />
 
-    <div v-else class="text-base-content/90 mt-0.5 select-text whitespace-pre-wrap text-sm leading-relaxed">
-      {{ comment.content }}
-    </div>
+    <MarkdownContent v-else :content="comment.content" :minimizable="false" class="comment-markdown mt-0.5 select-text" />
   </div>
 </template>
+
+<style scoped>
+.comment-markdown :deep(.cm-heading) {
+  margin-top: 0.25rem;
+  margin-bottom: 0.1rem;
+}
+
+.comment-markdown :deep(.cm-heading1),
+.comment-markdown :deep(.cm-heading2) {
+  font-size: 1.15em !important;
+  margin: 0.25rem 0 0.1rem !important;
+  padding-bottom: 0 !important;
+}
+</style>

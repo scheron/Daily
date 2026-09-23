@@ -13,9 +13,14 @@ import {cn} from "@/utils/ui/tailwindcss"
 import {EditorState} from "@codemirror/state"
 import {EditorView} from "@codemirror/view"
 
-const props = defineProps<{
-  content: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    content: string
+    /** Content taller than 200px is cut to `--task-content-minimized-height` behind a fade. Off when the content has to stay readable in full. */
+    minimizable?: boolean
+  }>(),
+  {minimizable: true},
+)
 
 let view: EditorView | null = null
 
@@ -29,7 +34,7 @@ function getMarkdownViewClasses(isMinimized: boolean) {
 }
 
 function measureClampState() {
-  if (!containerRef.value) {
+  if (!props.minimizable || !containerRef.value) {
     shouldClamp.value = false
     return
   }
