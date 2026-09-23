@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.26.0 - 2026-09-24
+
+### ✨ New Features
+
+- **Images for agents** — an agent connected through Daily Sync Server can save an image and get a link to put in a task, or delete an image after its links have been removed from every task. Images are limited to 5 MiB. The old `addAttachments` and `removeAttachmentIds` fields on `save_task` are replaced by the `save_attachment` and `delete_attachment` tools and links in task text.
+
+### 🎨 Improvements
+
+- **Attachments** — each image now has one place in a task: its link in the task text. Existing attachments are moved into the text automatically, including those arriving in older sync snapshots.
+- **Comments** — Markdown in comments is now rendered with the same formatting as task text.
+- **Sync** — snapshots use a new format. Update every Mac so they can keep syncing, and upgrade a self-hosted Daily Sync Server before updating the app.
+
+### 🐛 Bug Fixes
+
+- **Board** — collapsing a column no longer briefly squeezes its cards, and column headers clear the window controls.
+- **Agent approval** — the browser's consent page now waits for a decision without reloading every two seconds.
+
+---
+
 ## v0.25.0 - 2026-09-23
 
 ### ✨ New Features
