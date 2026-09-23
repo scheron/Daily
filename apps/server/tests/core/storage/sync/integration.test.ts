@@ -18,9 +18,9 @@ import {DailyServerRemoteAdapter} from "@core/storage/sync/adapters/DailyServerR
 import {ICloudRemoteAdapter} from "@core/storage/sync/adapters/ICloudRemoteAdapter"
 import {LocalStorageAdapter} from "@core/storage/sync/adapters/LocalStorageAdapter"
 import {SyncEngine} from "@core/storage/sync/SyncEngine"
-import {bootSyncServer, claimFirstDevice, enrollSecondDevice} from "../../helpers/syncServer"
+import {bootSyncServer, claimFirstDevice, enrollSecondDevice} from "@server-tests/helpers/syncServer"
 
-vi.mock("../../../src/utils/logger", () => ({
+vi.mock("@core/utils/logger", () => ({
   logger: {
     info: vi.fn(),
     debug: vi.fn(),
@@ -41,7 +41,7 @@ vi.mock("@daily/std", async (importOriginal) => ({
   withElapsedDelay: async (fn) => fn(),
 }))
 
-vi.mock("../../../src/utils/fileCoordinator", () => ({
+vi.mock("@core/utils/fileCoordinator", () => ({
   coordinatedRead: vi.fn(async (path) => {
     try {
       return await fs.readFile(path)

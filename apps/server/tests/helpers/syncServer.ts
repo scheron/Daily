@@ -28,7 +28,7 @@ export type BootedHttpsSyncServer = BootedSyncServer & {
 }
 
 /**
- * Boots a real `daily-server` over plain HTTP on `127.0.0.1`, an ephemeral port and a fresh
+ * Boots a real `daily-server` over plain HTTP on `127.0.0.1`, an ephemeral port, and a fresh
  * temp-directory SQLite store. `close()` closes the HTTP server, closes the store and removes
  * the temp data directory.
  */

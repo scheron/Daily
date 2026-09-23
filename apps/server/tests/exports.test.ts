@@ -10,7 +10,7 @@ function readServerManifest(): {exports: Record<string, string>; dependencies: R
 }
 
 describe("apps/server/package.json exports", () => {
-  it("TC-11: exposes the package entry point and the six paths packages/core's tests reach past it, and nothing else", () => {
+  it("TC-11: exposes the package entry point and the supported server subpaths, and nothing else", () => {
     const {exports} = readServerManifest()
 
     expect(exports["./*"]).toBeUndefined()

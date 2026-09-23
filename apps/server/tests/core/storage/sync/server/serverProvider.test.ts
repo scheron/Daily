@@ -13,8 +13,8 @@ import {ServerProviderService} from "@core/storage/sync/server/ServerProviderSer
 import {toBindingView, toSettingsView} from "@core/utils/sync/settingsViews"
 import {assertSingleActiveProvider, buildSyncRemotes, resolveActiveProvider} from "@core/utils/sync/syncProvider"
 import {isBlockedAddress} from "@core/utils/web/isBlockedAddress"
-import {createTestDatabase} from "../../../helpers/db"
-import {bootSyncServer, claimFirstDevice, createAgentRequest, enrollSecondDevice, openEnrollmentWindow} from "../../../helpers/syncServer"
+import {createTestDatabase} from "@server-tests/helpers/coreDb"
+import {bootSyncServer, claimFirstDevice, createAgentRequest, enrollSecondDevice, openEnrollmentWindow} from "@server-tests/helpers/syncServer"
 
 import type {
   DeviceRole,
@@ -26,7 +26,7 @@ import type {
   Settings,
   SyncSettings,
 } from "@daily/protocol"
-import type {BootedSyncServer} from "../../../helpers/syncServer"
+import type {BootedSyncServer} from "@server-tests/helpers/syncServer"
 
 /**
  * `isPrivateServerAddress` has no injectable lookup, and this sandbox cannot manufacture
@@ -36,7 +36,7 @@ import type {BootedSyncServer} from "../../../helpers/syncServer"
  * the one classification call (`isBlockedAddress`) stubbed for that one probe — every
  * other step (the real HTTP round trip, the insecure gate, the binding write) runs unmocked.
  */
-vi.mock("../../../../src/utils/web/isBlockedAddress", async (importOriginal) => {
+vi.mock("@core/utils/web/isBlockedAddress", async (importOriginal) => {
   const actual = await importOriginal<{isBlockedAddress: typeof isBlockedAddress}>()
   return {isBlockedAddress: vi.fn(actual.isBlockedAddress)}
 })
