@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.24.0 - 2026-09-23
+
+### ✨ New Features
+
+- **Comments** — a task now has a comments tab beside its editor and its history, and the three swap in place so the panel stays the size it was. Comments are written, edited and deleted in the app, they sync between Macs, and a card on the board shows how many a task carries.
+- **Comments from agents** — Claude Code, the Claude app and Codex can leave comments through a Daily Sync Server, and the built-in assistant can leave them too. Every comment carries who wrote it: the agent's own icon and the name it was approved under, or Daily's mark for the built-in assistant. An agent cannot sign as someone else — the name comes from the approval, not from the agent.
+
+### 🎨 Improvements
+
+- **Sync settings** — the server is now the screen rather than one option in a row of providers: its state, its devices and its agents sit together, connecting an agent unfolds in place with the commands already carrying the address, and iCloud moves to a row at the bottom. The Remote tab is now called Sync, and the window can be resized.
+- **Task editor** — the task navigator and the copy buttons moved down into the footer, and a task's history left its hover popover for a tab of its own, so the timeline can be read instead of glimpsed.
+- **Board columns** — a column folds and unfolds by a click on its header, and the task count moved to where the menu used to be. The setting for hiding empty columns is gone; columns always show.
+- **Task IDs** — a copied ID now says what it is. New tasks, tags, projects, milestones, attachments and comments carry a two-letter mark: `DT-`, `DG-`, `DP-`, `DM-`, `DF-`, `DC-`. IDs made earlier keep working unchanged.
+- **Sync** — a revoke, an approval or a refusal that fails now says so on screen instead of failing quietly.
+
+### 🐛 Bug Fixes
+
+- **Confirmations** — Delete and Revoke now do what a click says they do. The confirming button ignored clicks and acted only on a half-second hold, with nothing on screen saying so, which made deleting a task, emptying the trash, deleting a project, a tag or a milestone, and revoking a device or an agent all look broken. Holding still deletes where holding is the whole gesture, in a card's own menu.
+- **Agent approval** — the approval card appeared in the main window and in Settings at once, and answering it in one left the other stranded. It now appears in a single window and closes everywhere the moment it is answered.
+
+---
+
 ## v0.23.1 - 2026-09-22
 
 ### 🎨 Improvements
