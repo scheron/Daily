@@ -2,9 +2,11 @@ import {createEntityId, MAIN_BRANCH_ID, planTaskCreate, planTaskMoveByOrder, pla
 import {getToday, notNullish, notUndefined} from "@daily/std"
 
 import type {
+  ActorSource,
   Branch,
   File,
   ISODate,
+  ISODateTime,
   Milestone,
   MoveTaskByOrderParams,
   MutationContext,
@@ -31,6 +33,16 @@ export class TasksService {
     return this.taskEvents.getHistoryByTask(taskId)
   }
 
+  /** How many times each task moved; a task never moved is left out. */
+  async getMoveCounts(): Promise<Record<Task["id"], number>> {
+    return this.taskEvents.getMoveCounts()
+  }
+
+  /** Every completion that fell in the half-open interval `[fromInclusive, toExclusive)`. A bound left `undefined` leaves that side unconstrained. */
+  async getCompletionsBetween(fromInclusive?: ISODateTime, toExclusive?: ISODateTime): Promise<Array<{taskId: Task["id"]; at: ISODateTime}>> {
+    return this.taskEvents.getCompletionsBetween(fromInclusive, toExclusive)
+  }
+
   async getTaskList(params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: Branch["id"]; includeBacklog?: boolean}): Promise<Task[]> {
     return this.taskModel.getTaskList(params)
   }
@@ -40,7 +52,7 @@ export class TasksService {
   }
 
   /** Every row the update patched — always at least the named task, unless it does not exist. */
-  async updateTask(id: Task["id"], updates: PartialDeep<Task>): Promise<Task[]> {
+  async updateTask(id: Task["id"], updates: PartialDeep<Task>, source?: ActorSource): Promise<Task[]> {
     const before = this.taskModel.getTask(id)
     if (!before) return []
 
@@ -50,29 +62,29 @@ export class TasksService {
     const updated = this.applyPatches(planTaskUpdate(this.readContext(before.branchId, before, milestones), id, writable))
 
     const after = updated.find((task) => task.id === id) ?? null
-    if (after) this.taskEvents.recordUpdate(before, after)
+    if (after) this.taskEvents.recordUpdate(before, after, source)
 
     return updated
   }
 
-  async createTask(task: Omit<Task, "id"> & {id?: Task["id"]}): Promise<Task | null> {
+  async createTask(task: Omit<Task, "id"> & {id?: Task["id"]}, source?: ActorSource): Promise<Task | null> {
     const id = task.id ?? createEntityId("task")
     const fields = planTaskCreate(this.readContext(task.branchId ?? MAIN_BRANCH_ID, null), task)
 
     const created = this.taskModel.createTask({...fields, id, tags: fields.tags.map((t) => t.id), deletedAt: task.deletedAt})
-    if (created) this.taskEvents.record(created, "created")
+    if (created) this.taskEvents.record(created, "created", source)
 
     return created
   }
 
   /** Every row the move patched — one, or a whole renormalised column — unless the task does not exist. */
-  async moveTaskByOrder(params: MoveTaskByOrderParams): Promise<Task[]> {
+  async moveTaskByOrder(params: MoveTaskByOrderParams, source?: ActorSource): Promise<Task[]> {
     const sourceTask = this.taskModel.getTask(params.taskId)
     if (!sourceTask) return []
 
     const updated = this.applyPatches(planTaskMoveByOrder(this.readContext(sourceTask.branchId, sourceTask), params))
 
-    return this.finalizeMove(sourceTask, params.targetStatus ?? sourceTask.status, updated)
+    return this.finalizeMove(sourceTask, params.targetStatus ?? sourceTask.status, updated, source)
   }
 
   async moveTaskToBranch(taskId: Task["id"], branchId: Branch["id"]): Promise<boolean> {
@@ -86,10 +98,10 @@ export class TasksService {
     return true
   }
 
-  async deleteTask(id: Task["id"]): Promise<boolean> {
+  async deleteTask(id: Task["id"], source?: ActorSource): Promise<boolean> {
     const task = this.taskModel.getTask(id)
     const deleted = this.taskModel.deleteTask(id)
-    if (deleted && task) this.taskEvents.record(task, "deleted")
+    if (deleted && task) this.taskEvents.record(task, "deleted", source)
 
     return deleted
   }
@@ -98,9 +110,9 @@ export class TasksService {
     return this.taskModel.getDeletedTasks(params)
   }
 
-  async restoreTask(id: Task["id"]): Promise<Task | null> {
+  async restoreTask(id: Task["id"], source?: ActorSource): Promise<Task | null> {
     const restored = this.taskModel.restoreTask(id)
-    if (restored) this.taskEvents.record(restored, "restored")
+    if (restored) this.taskEvents.record(restored, "restored", source)
 
     return restored
   }
@@ -129,10 +141,10 @@ export class TasksService {
     return this.taskModel.removeTaskAttachment(taskId, fileId)
   }
 
-  private finalizeMove(sourceTask: Task, targetStatus: TaskStatus, updated: Task[]): Task[] {
+  private finalizeMove(sourceTask: Task, targetStatus: TaskStatus, updated: Task[], source?: ActorSource): Task[] {
     const finalTask = updated.find((task) => task.id === sourceTask.id) ?? null
     if (finalTask && targetStatus !== sourceTask.status) {
-      this.taskEvents.recordStatusChange(finalTask, targetStatus)
+      this.taskEvents.recordStatusChange(finalTask, targetStatus, source)
     }
 
     return updated

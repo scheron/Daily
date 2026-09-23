@@ -20,7 +20,7 @@ export const restoreTask: RegisteredTool = {
       return {success: false, error: "task_id is required"}
     }
 
-    const changeset = await ctx.storage.restoreTask(taskId)
+    const changeset = await ctx.storage.restoreTask(taskId, {kind: "agent"})
     const restored = changeset.tasks?.upserted?.find((t) => t.id === taskId)
 
     if (!restored) {

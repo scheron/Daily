@@ -21,7 +21,7 @@ export const completeTask: RegisteredTool = {
       return {success: false, error: "task_id is required"}
     }
 
-    const changeset = await ctx.storage.updateTask(taskId, {status: "done"})
+    const changeset = await ctx.storage.updateTask(taskId, {status: "done"}, {kind: "agent"})
     const updated = changeset.tasks?.upserted?.find((t) => t.id === taskId)
 
     if (!updated) {

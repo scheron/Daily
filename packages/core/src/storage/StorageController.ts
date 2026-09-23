@@ -22,6 +22,7 @@ import {ServerProviderService} from "./sync/server/ServerProviderService"
 import {SyncEngine} from "./sync/SyncEngine"
 
 import type {
+  ActorSource,
   Branch,
   DeviceRole,
   File,
@@ -246,8 +247,8 @@ export class StorageController implements IStorageController {
     return this.tasksService.getTask(id)
   }
 
-  async updateTask(id: Task["id"], updates: PartialDeep<Task>): Promise<Changeset> {
-    const updatedTasks = await this.tasksService.updateTask(id, updates)
+  async updateTask(id: Task["id"], updates: PartialDeep<Task>, source?: ActorSource): Promise<Changeset> {
+    const updatedTasks = await this.tasksService.updateTask(id, updates, source)
     if (!updatedTasks.length) return EMPTY_CHANGESET
 
     for (const task of updatedTasks) await this.searchService.updateTaskInIndex(task)
@@ -263,8 +264,8 @@ export class StorageController implements IStorageController {
     return this.updateTask(id, {minimized})
   }
 
-  async moveTaskByOrder(params: MoveTaskByOrderParams): Promise<Changeset> {
-    const updatedTasks = await this.tasksService.moveTaskByOrder(params)
+  async moveTaskByOrder(params: MoveTaskByOrderParams, source?: ActorSource): Promise<Changeset> {
+    const updatedTasks = await this.tasksService.moveTaskByOrder(params, source)
     if (!updatedTasks.length) return EMPTY_CHANGESET
 
     for (const task of updatedTasks) await this.searchService.updateTaskInIndex(task)
@@ -294,9 +295,9 @@ export class StorageController implements IStorageController {
     return changeset
   }
 
-  async createTask(task: Task): Promise<Changeset> {
+  async createTask(task: Task, source?: ActorSource): Promise<Changeset> {
     const branchId = await this.branchesService.resolveBranchId(task?.branchId)
-    const createdTask = await this.tasksService.createTask({...task, branchId})
+    const createdTask = await this.tasksService.createTask({...task, branchId}, source)
     if (!createdTask) return EMPTY_CHANGESET
 
     await this.searchService.addTaskToIndex(createdTask)
@@ -305,8 +306,8 @@ export class StorageController implements IStorageController {
     return changeset
   }
 
-  async deleteTask(id: Task["id"]): Promise<Changeset> {
-    const deleted = await this.tasksService.deleteTask(id)
+  async deleteTask(id: Task["id"], source?: ActorSource): Promise<Changeset> {
+    const deleted = await this.tasksService.deleteTask(id, source)
     if (!deleted) return EMPTY_CHANGESET
 
     this.searchService.removeTaskFromIndex(id)
@@ -341,8 +342,8 @@ export class StorageController implements IStorageController {
     return this.tasksService.getDeletedTasks({...params, branchId})
   }
 
-  async restoreTask(id: Task["id"]): Promise<Changeset> {
-    const restoredTask = await this.tasksService.restoreTask(id)
+  async restoreTask(id: Task["id"], source?: ActorSource): Promise<Changeset> {
+    const restoredTask = await this.tasksService.restoreTask(id, source)
     if (!restoredTask) return EMPTY_CHANGESET
 
     await this.searchService.updateTaskInIndex(restoredTask)

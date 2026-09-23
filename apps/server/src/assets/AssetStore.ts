@@ -134,6 +134,31 @@ export async function writeAsset(
   return findAsset(store, name) as AssetRecord
 }
 
+/**
+ * Indexes a blob already sitting on disk under `name` — same row `writeAsset` would leave, without
+ * touching the bytes. For an asset a client's own upload placed there by another means than a stream.
+ */
+export function indexExistingAsset(store: ServerStore, name: string, uploadedByDeviceId: string): AssetRecord {
+  const finalPath = assetPath(store, name)
+  const bytes = fs.readFileSync(finalPath)
+  const sha256 = createHash("sha256").update(bytes).digest("hex")
+  const uploadedAt = new Date().toISOString()
+
+  store.db
+    .prepare(
+      `INSERT INTO assets (name, size, sha256, uploaded_at, uploaded_by_device_id)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(name) DO UPDATE SET
+         size = excluded.size,
+         sha256 = excluded.sha256,
+         uploaded_at = excluded.uploaded_at,
+         uploaded_by_device_id = excluded.uploaded_by_device_id`,
+    )
+    .run(name, bytes.length, sha256, uploadedAt, uploadedByDeviceId)
+
+  return findAsset(store, name) as AssetRecord
+}
+
 function toAssetRecord(row: AssetRow): AssetRecord {
   return {name: row.name, size: row.size, sha256: row.sha256, uploadedAt: row.uploaded_at}
 }

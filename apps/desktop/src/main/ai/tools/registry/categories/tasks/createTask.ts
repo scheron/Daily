@@ -83,7 +83,7 @@ export const createTask: RegisteredTool = {
       milestoneId: null,
     }
 
-    const changeset = await ctx.storage.createTask(task)
+    const changeset = await ctx.storage.createTask(task, {kind: "agent"})
     const created = changeset.tasks?.upserted?.find((t) => t.id === task.id)
 
     if (!created) {

@@ -24,6 +24,14 @@ export async function readTaskDetail(ctx: AgentToolContext, id: Task["id"]): Pro
     size: ref.file.size,
     onServer: ref.onServer,
   }))
+  const movedCounts = await ctx.core.tasksService.getMoveCounts()
 
-  return taskDetailView(task, branch?.name ?? "", {blockedBy: relations.blockedBy, blocks: relations.blocks, history, attachments, comments})
+  return taskDetailView(task, branch?.name ?? "", {
+    blockedBy: relations.blockedBy,
+    blocks: relations.blocks,
+    history,
+    attachments,
+    comments,
+    movedCount: movedCounts[task.id] ?? 0,
+  })
 }

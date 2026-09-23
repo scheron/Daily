@@ -1,4 +1,4 @@
-import {DEFAULT_ACCENT_ID, DEFAULT_BASE_ID, MAIN_BRANCH_ID, TASK_COMMENT_PROVIDER_MAX_LENGTH, WINDOWS_CONFIG} from "@daily/protocol"
+import {ACTOR_PROVIDER_MAX_LENGTH, DEFAULT_ACCENT_ID, DEFAULT_BASE_ID, MAIN_BRANCH_ID, WINDOWS_CONFIG} from "@daily/protocol"
 import {deepMerge, isNumber, notNull} from "@daily/std"
 
 import type {
@@ -307,7 +307,7 @@ function toCommentKind(value: string | null): TaskCommentKind {
 /** An MCP client names its own `provider`, so a value from outside is trimmed and clamped before anything draws it. */
 function toCommentProvider(value: string | null): string | null {
   const trimmed = value?.trim()
-  return trimmed ? trimmed.slice(0, TASK_COMMENT_PROVIDER_MAX_LENGTH) : null
+  return trimmed ? trimmed.slice(0, ACTOR_PROVIDER_MAX_LENGTH) : null
 }
 
 const OLD_THEME_TYPE: Record<string, "light" | "dark"> = {

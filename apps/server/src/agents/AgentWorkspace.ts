@@ -30,8 +30,25 @@ export type AgentToolMode = "read" | "write"
 
 export type AgentWorkspaceDeps = {store: ServerStore; now?: () => Date}
 
-/** What a tool call is handed: the app's own services over the stored snapshot, the store behind them, the agent's clock and the agent itself. */
-export type AgentToolContext = {core: StorageCore; store: ServerStore; clock: AgentClock; agent: AgentIdentity}
+/** Durable work a tool call defers until the snapshot it wrote has actually committed. */
+export type AgentCommitEffect = () => Promise<void>
+
+/**
+ * What a tool call is handed: the app's own services over the stored snapshot, the store behind
+ * them, the agent's clock and the agent itself, and `afterCommit` to register durable work — a
+ * blob write, an index row — that must not happen until this call's snapshot write has succeeded.
+ * An effect registered here runs, in registration order, only once `writeSnapshotIfUnchanged` has
+ * returned; a thrown `run`, a lost revision race, or a read-mode call leaves it unrun and discarded.
+ * An effect only runs when the call actually writes a snapshot, so whatever it does must have a
+ * precondition recorded in that snapshot itself — nothing whose only trace lives elsewhere.
+ */
+export type AgentToolContext = {
+  core: StorageCore
+  store: ServerStore
+  clock: AgentClock
+  agent: AgentIdentity
+  afterCommit: (effect: AgentCommitEffect) => void
+}
 
 /** How many times a write-mode call rebuilds and retries after losing a race, before it refuses. */
 export const AGENT_WRITE_ATTEMPTS = 3
@@ -131,7 +148,12 @@ async function runAttempt<T>(
       throw new AgentToolError(AgentToolErrorCode.SNAPSHOT_UNREADABLE, SNAPSHOT_UNREADABLE_MESSAGE)
     }
 
-    const result = await run({core, store, clock, agent})
+    const commitEffects: AgentCommitEffect[] = []
+    const afterCommit = (effect: AgentCommitEffect) => {
+      commitEffects.push(effect)
+    }
+
+    const result = await run({core, store, clock, agent, afterCommit})
     if (mode === "read") return result
 
     const built = buildSnapshot(await core.localAdapter.loadAllDocs())
@@ -153,6 +175,8 @@ async function runAttempt<T>(
 
       throw error
     }
+
+    for (const effect of commitEffects) await effect()
 
     return result
   } finally {

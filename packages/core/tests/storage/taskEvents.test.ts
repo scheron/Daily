@@ -101,6 +101,16 @@ describe("task activity recording", () => {
     expect(edits).toHaveLength(1)
   })
 
+  it("TC-2: an update carrying no source records the event as manual, with no provider", async () => {
+    const task = await service.createTask(makeTask({content: "A"}))
+
+    await service.updateTask(task.id, {content: "B"})
+
+    const edited = events.getByTask(task.id).find((e) => e.type === "edited")
+    expect(edited.kind).toBe("manual")
+    expect(edited.provider).toBeNull()
+  })
+
   it("does not record a minimize-only update", async () => {
     const task = await service.createTask(makeTask())
     const before = events.getByTask(task.id).length
@@ -248,5 +258,30 @@ describe("task activity recording", () => {
     const reactivated = events.getByTask(task.id).filter((e) => e.type === "reactivated")
     expect(reactivated).toHaveLength(1)
     expect(reactivated[0].eventDate).toBe(NEXT_DAY)
+  })
+
+  it("TC-25: countMovesByTask counts six moves as six, not twelve, and listCompletionsBetween honours a half-open interval", async () => {
+    const wanderer = await service.createTask(makeTask({content: "Wanderer"}))
+    const days = ["2026-06-24", "2026-06-25", "2026-06-26", "2026-06-27", "2026-06-28", "2026-06-29"]
+    for (const day of days) {
+      await service.updateTask(wanderer.id, {scheduled: {date: day, time: "10:00:00", timezone: "UTC"}})
+    }
+
+    const counts = events.countMovesByTask()
+    expect(counts[wanderer.id]).toBe(6)
+
+    const from = "2026-07-01T00:00:00.000Z"
+    const to = "2026-07-02T00:00:00.000Z"
+
+    const atFrom = await service.createTask(makeTask({content: "AtFrom"}))
+    await service.updateTask(atFrom.id, {status: "done"})
+    db.prepare(`UPDATE task_events SET created_at = ? WHERE task_id = ? AND type = 'completed'`).run(from, atFrom.id)
+
+    const atTo = await service.createTask(makeTask({content: "AtTo"}))
+    await service.updateTask(atTo.id, {status: "done"})
+    db.prepare(`UPDATE task_events SET created_at = ? WHERE task_id = ? AND type = 'completed'`).run(to, atTo.id)
+
+    const completions = events.listCompletionsBetween(from, to)
+    expect(completions.map((c) => c.taskId)).toEqual([atFrom.id])
   })
 })

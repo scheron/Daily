@@ -3,7 +3,7 @@ import {DateTime} from "luxon"
 import {AgentToolError} from "../errors/agent/AgentToolError"
 import {AgentToolErrorCode} from "../errors/agent/AgentToolErrorCode"
 
-import type {ISODate, ISOTime, TaskScheduled, Timezone} from "@daily/protocol"
+import type {ISODate, ISODateTime, ISOTime, TaskScheduled, Timezone} from "@daily/protocol"
 
 /** The agent's Mac's own reading of now: the day, the time and the schedule a task created through an agent lands on. */
 export type AgentClock = {
@@ -11,6 +11,8 @@ export type AgentClock = {
   today(): ISODate
   time(): ISOTime
   scheduledNow(): TaskScheduled
+  dayStart(date: ISODate): ISODateTime
+  dayEndExclusive(date: ISODate): ISODateTime
 }
 
 /**
@@ -37,5 +39,7 @@ export function createAgentClock(timeZone: string, now: () => Date = () => new D
       const at = readNow()
       return {date: at.toISODate()!, time: at.toFormat("HH:mm:ss"), timezone: timeZone}
     },
+    dayStart: (date) => DateTime.fromISO(date, {zone: timeZone}).startOf("day").toUTC().toISO()!,
+    dayEndExclusive: (date) => DateTime.fromISO(date, {zone: timeZone}).startOf("day").plus({days: 1}).toUTC().toISO()!,
   }
 }

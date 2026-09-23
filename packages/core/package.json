@@ -13,6 +13,7 @@
     "./storage/sync/adapters/LocalStorageAdapter": "./src/storage/sync/adapters/LocalStorageAdapter.ts",
     "./types/storage": "./src/types/storage.ts",
     "./utils/files/extractFileIds": "./src/utils/files/extractFileIds.ts",
+    "./utils/files/sniffImageExt": "./src/utils/files/sniffImageExt.ts",
     "./utils/sync/snapshot/assertKnownSnapshotVersion": "./src/utils/sync/snapshot/assertKnownSnapshotVersion.ts",
     "./utils/sync/snapshot/buildSnapshot": "./src/utils/sync/snapshot/buildSnapshot.ts",
     "./utils/sync/snapshot/isValidSnapshot": "./src/utils/sync/snapshot/isValidSnapshot.ts",

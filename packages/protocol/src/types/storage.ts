@@ -194,17 +194,23 @@ export type TaskRelation = {
   deletedAt: ISODateTime | null
 }
 
+/** How an action reached the store: typed in the app, made by the built-in agent, or sent through an MCP server. */
+export type ActorKind = "manual" | "agent" | "mcp"
+
+/** Where an action came from, as its writer names it. */
+export type ActorSource = {
+  kind: ActorKind
+  provider?: string | null
+}
+
 /** How a comment reached its task. */
-export type TaskCommentKind = "manual" | "agent" | "mcp"
+export type TaskCommentKind = ActorKind
 
 /** How many live comments each task carries. A task with none is absent, so this is one entry per commented task. */
 export type TaskCommentCounts = Record<Task["id"], number>
 
 /** Where a comment came from, as its writer names it. */
-export type TaskCommentSource = {
-  kind: TaskCommentKind
-  provider?: string | null
-}
+export type TaskCommentSource = ActorSource
 
 export type TaskComment = {
   id: string
@@ -219,7 +225,7 @@ export type TaskComment = {
   /**
    * Who wrote it inside that channel: `null` for `manual`, `DAILY_AGENT_PROVIDER` for `agent`, and the
    * client's own key for `mcp`. An MCP client names itself, so this is untrusted text: it is clamped to
-   * `TASK_COMMENT_PROVIDER_MAX_LENGTH` on read and is only ever drawn as plain text, never as markup.
+   * `ACTOR_PROVIDER_MAX_LENGTH` on read and is only ever drawn as plain text, never as markup.
    * It stays an open string rather than a union so a client we have never heard of is still valid.
    */
   provider: string | null
@@ -308,6 +314,8 @@ export type TaskEvent = {
   toDate: ISODate | null
   /** Instant of the action — used for ordering and time-of-day display. */
   createdAt: ISODateTime
+  kind: ActorKind
+  provider: string | null
 }
 
 export type MoveTaskByOrderParams = {

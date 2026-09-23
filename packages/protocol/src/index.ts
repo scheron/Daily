@@ -27,6 +27,7 @@ export * from "./errors/sync/SyncErrorCode"
 export * from "./errors/sync/SyncServerError"
 export * from "./errors/sync/SyncServerErrorCode"
 
+export * from "./utils/actors/resolveActorProvider"
 export * from "./utils/ids/entityId"
 export * from "./utils/milestones/milestoneState"
 export * from "./utils/relations/relationRules"

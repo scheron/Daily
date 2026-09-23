@@ -215,6 +215,7 @@ describe("migrations", () => {
       const db = new Database(":memory:")
       runMigrations(db)
 
+      rollbackLastMigration(db) // v015
       rollbackLastMigration(db) // v014
       rollbackLastMigration(db) // v013
       rollbackLastMigration(db) // v012
@@ -650,6 +651,7 @@ describe("migrations", () => {
 
       rollbackLastMigration(db)
       rollbackLastMigration(db)
+      rollbackLastMigration(db)
       const rolledBack = rollbackLastMigration(db)
       expect(rolledBack).toBe(12)
 
@@ -717,6 +719,7 @@ describe("migrations", () => {
       seedComment(db, "typed", null)
       runMigrations(db)
 
+      rollbackLastMigration(db) // v015
       expect(rollbackLastMigration(db)).toBe(14)
 
       const rows = db.prepare("SELECT id, origin FROM task_comments ORDER BY id").all()
@@ -792,6 +795,7 @@ describe("migrations", () => {
       const task = db.prepare("SELECT * FROM tasks WHERE id = 't1'").get()
       expect(task.content).toBe("Keep me")
 
+      rollbackLastMigration(db) // v015
       expect(rollbackLastMigration(db)).toBe(14)
       const rolledBack = rollbackLastMigration(db)
       expect(rolledBack).toBe(13)

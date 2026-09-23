@@ -63,7 +63,7 @@ export const logTime: RegisteredTool = {
         return {success: false, error: `Invalid operation: ${operation}. Use 'add', 'subtract', or 'set'.`}
     }
 
-    const changeset = await ctx.storage.updateTask(taskId, {spentTime: newSpentTime})
+    const changeset = await ctx.storage.updateTask(taskId, {spentTime: newSpentTime}, {kind: "agent"})
     const updated = changeset.tasks?.upserted?.find((t) => t.id === taskId)
     if (!updated) {
       return {success: false, error: `Failed to update task: ${taskId}`}

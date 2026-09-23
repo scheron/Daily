@@ -196,6 +196,24 @@ describe("the agent workspace cycle", () => {
     }
   })
 
+  it("TC-5: a stored snapshot at version 8 refuses a write-mode call with SNAPSHOT_TOO_OLD, revision unchanged", async () => {
+    const bare = openBareStore()
+
+    try {
+      const someDeviceId = bindDevice(bare.store, "Some Mac")
+      const revision = writeSnapshotIfUnchanged(bare.store, rawSnapshotDocument({version: 8}), null, someDeviceId)
+
+      const agent = bindAgent(bare.store)
+      await expect(runInAgentWorkspace({store: bare.store}, agent, "write", async () => null)).rejects.toMatchObject({
+        code: AgentToolErrorCode.SNAPSHOT_TOO_OLD,
+      })
+
+      expect(readRevision(bare.store)).toBe(revision)
+    } finally {
+      bare.close()
+    }
+  })
+
   it("TC-16: a stored snapshot older than this build answers a read normally and refuses a write with SNAPSHOT_TOO_OLD, revision unchanged", async () => {
     const bare = openBareStore()
 

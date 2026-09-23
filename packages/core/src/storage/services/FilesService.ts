@@ -19,20 +19,35 @@ export class FilesService {
   ) {}
 
   async saveFile(filename: string, data: Buffer): Promise<File["id"]> {
+    const {file, ext} = await this.prepareFile(filename, data)
+    await this.writeFileAsset(file.id, ext, data)
+
+    return file.id
+  }
+
+  /**
+   * Creates a file's record from its bytes — the same sniffing `saveFile` uses to decide the name,
+   * extension and mime type — without writing the bytes to disk. Pair with `writeFileAsset` for a
+   * caller that needs the record to exist before its bytes are durable.
+   */
+  async prepareFile(filename: string, data: Buffer): Promise<{file: File; ext: string}> {
     const fileId = createEntityId("file")
     const sniffed = sniffImageExt(data)
     const ext = sniffed ?? path.extname(filename).slice(1)
     const name = sniffed ? `${path.basename(filename, path.extname(filename))}.${sniffed}` : filename
     const mimeType = getMimeType(ext)
 
-    await this.fileModel.saveAsset(fileId, ext, data)
     const file = this.fileModel.createFile(fileId, name, mimeType, data.length)
-
     if (!file) {
       throw new Error(`Failed to save file: ${filename}`)
     }
 
-    return file.id
+    return {file, ext}
+  }
+
+  /** Writes a prepared file's bytes to disk, under the extension `prepareFile` decided for it. */
+  async writeFileAsset(fileId: File["id"], ext: string, data: Buffer): Promise<void> {
+    await this.fileModel.saveAsset(fileId, ext, data)
   }
 
   getFilePath(id: File["id"]): string {

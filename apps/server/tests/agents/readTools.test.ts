@@ -8,12 +8,14 @@ import {listMilestonesTool} from "../../src/agents/tools/read/listMilestones"
 import {listProjectsTool} from "../../src/agents/tools/read/listProjects"
 import {listTagsTool} from "../../src/agents/tools/read/listTags"
 import {listTasksTool} from "../../src/agents/tools/read/listTasks"
+import {saveTaskTool} from "../../src/agents/tools/write/saveTask"
 import {writeAsset} from "../../src/assets/AssetStore"
 import {AgentToolErrorCode} from "../../src/errors/agent/AgentToolErrorCode"
 import {bindAgent, bindDevice, makePngBytes, makeTaskDraft, seedAgentStore} from "./helpers"
 
 import type {AgentTool} from "../../src/agents/tools/types"
 import type {ServerStore} from "../../src/store/instance"
+import type {MacCore} from "./helpers"
 
 async function call(store: ServerStore, tool: AgentTool, input: Record<string, unknown> = {}): Promise<any> {
   const agent = bindAgent(store)
@@ -31,6 +33,10 @@ function dated(date: string, overrides: Record<string, unknown> = {}) {
 
 function backlog(overrides: Record<string, unknown> = {}) {
   return makeTaskDraft({status: "backlog", scheduled: null, ...overrides})
+}
+
+function stampCompletionCreatedAt(mac: MacCore, taskId: string, createdAt: string): void {
+  mac.db.prepare(`UPDATE task_events SET created_at = ? WHERE task_id = ? AND type = 'completed'`).run(createdAt, taskId)
 }
 
 describe("list_tasks", () => {
@@ -176,9 +182,172 @@ describe("list_tasks", () => {
       seeded.close()
     }
   })
+
+  it("TC-6: completedFrom/completedTo answer tasks whose completion fell in the window, whatever day they are scheduled on", async () => {
+    const seeded = await seedAgentStore(async (mac) => {
+      const inWindow = await mac.core.tasksService.createTask(dated("2026-01-05", {content: "Completed in window"}))
+      await mac.core.tasksService.updateTask(inWindow!.id, {status: "done"})
+      stampCompletionCreatedAt(mac, inWindow!.id, "2026-09-21T10:00:00.000Z")
+
+      const outOfWindow = await mac.core.tasksService.createTask(dated("2026-01-06", {content: "Completed out of window"}))
+      await mac.core.tasksService.updateTask(outOfWindow!.id, {status: "done"})
+      stampCompletionCreatedAt(mac, outOfWindow!.id, "2026-09-18T10:00:00.000Z")
+    })
+
+    try {
+      const result = await call(seeded.store, listTasksTool, {completedFrom: "2026-09-21", completedTo: "2026-09-23"})
+      expect(result.tasks.map((t: any) => t.content)).toEqual(["Completed in window"])
+    } finally {
+      seeded.close()
+    }
+  })
+
+  it("TC-7: a task completed and later reopened still answers inside the completion window, with its real current status", async () => {
+    const seeded = await seedAgentStore(async (mac) => {
+      const reopened = await mac.core.tasksService.createTask(dated("2026-01-05", {content: "Reopened"}))
+      await mac.core.tasksService.updateTask(reopened!.id, {status: "done"})
+      stampCompletionCreatedAt(mac, reopened!.id, "2026-09-21T10:00:00.000Z")
+      await mac.core.tasksService.updateTask(reopened!.id, {status: "active"})
+
+      const outOfWindow = await mac.core.tasksService.createTask(dated("2026-01-06", {content: "Outside the window"}))
+      await mac.core.tasksService.updateTask(outOfWindow!.id, {status: "done"})
+      stampCompletionCreatedAt(mac, outOfWindow!.id, "2026-09-18T10:00:00.000Z")
+    })
+
+    try {
+      const result = await call(seeded.store, listTasksTool, {completedFrom: "2026-09-20", completedTo: "2026-09-22"})
+
+      expect(result.tasks.map((t: any) => t.content)).toEqual(["Reopened"])
+      expect(result.tasks[0].status).toBe("active")
+    } finally {
+      seeded.close()
+    }
+  })
+
+  it("TC-8: a completion window's day boundary is taken in the agent Mac's own zone, not UTC", async () => {
+    const seeded = await seedAgentStore(async (mac) => {
+      const early = await mac.core.tasksService.createTask(dated("2026-01-05", {content: "Early riser"}))
+      await mac.core.tasksService.updateTask(early!.id, {status: "done"})
+      stampCompletionCreatedAt(mac, early!.id, "2026-09-20T14:30:00.000Z")
+
+      const dayEarlier = await mac.core.tasksService.createTask(dated("2026-01-06", {content: "A day earlier"}))
+      await mac.core.tasksService.updateTask(dayEarlier!.id, {status: "done"})
+      stampCompletionCreatedAt(mac, dayEarlier!.id, "2026-09-19T10:00:00.000Z")
+    })
+
+    try {
+      const agent = bindAgent(seeded.store, "Vladivostok Mac", "Asia/Vladivostok")
+      const result = await runInAgentWorkspace(
+        {store: seeded.store},
+        agent,
+        listTasksTool.mode,
+        (ctx) => listTasksTool.run({completedFrom: "2026-09-21", completedTo: "2026-09-21"}, ctx) as any,
+      )
+
+      expect(result.tasks.map((t: any) => t.content)).toEqual(["Early riser"])
+    } finally {
+      seeded.close()
+    }
+  })
+
+  it("TC-10: minMovedCount answers only the tasks moved at least that many times, each carrying its own count", async () => {
+    const seeded = await seedAgentStore(async (mac) => {
+      await mac.core.tasksService.createTask(dated("2026-02-01", {content: "Steady"}))
+
+      const onceMoved = await mac.core.tasksService.createTask(dated("2026-02-01", {content: "OnceMoved"}))
+      await mac.core.tasksService.updateTask(onceMoved!.id, {scheduled: {date: "2026-02-02", time: "09:00:00", timezone: "UTC"}})
+
+      const thriceMoved = await mac.core.tasksService.createTask(dated("2026-02-01", {content: "ThriceMoved"}))
+      await mac.core.tasksService.updateTask(thriceMoved!.id, {scheduled: {date: "2026-02-02", time: "09:00:00", timezone: "UTC"}})
+      await mac.core.tasksService.updateTask(thriceMoved!.id, {scheduled: {date: "2026-02-03", time: "09:00:00", timezone: "UTC"}})
+      await mac.core.tasksService.updateTask(thriceMoved!.id, {scheduled: {date: "2026-02-04", time: "09:00:00", timezone: "UTC"}})
+    })
+
+    try {
+      const result = await call(seeded.store, listTasksTool, {minMovedCount: 2})
+
+      expect(result.tasks.map((t: any) => t.content)).toEqual(["ThriceMoved"])
+      expect(result.tasks[0].movedCount).toBe(3)
+    } finally {
+      seeded.close()
+    }
+  })
+
+  it("TC-11: deleted: true answers the trash, and the same call without it does not", async () => {
+    let deletedId = ""
+
+    const seeded = await seedAgentStore(async (mac) => {
+      const task = await mac.core.tasksService.createTask(dated("2026-03-01", {content: "Trashed"}))
+      deletedId = task!.id
+      await mac.core.tasksService.deleteTask(deletedId)
+    })
+
+    try {
+      const trashed = await call(seeded.store, listTasksTool, {deleted: true})
+      const found = trashed.tasks.find((t: any) => t.id === deletedId)
+      expect(found).toBeTruthy()
+      expect(found.deletedAt).toBeTruthy()
+
+      const live = await call(seeded.store, listTasksTool)
+      expect(live.tasks.some((t: any) => t.id === deletedId)).toBe(false)
+    } finally {
+      seeded.close()
+    }
+  })
+
+  it("TC-12: deleted and status together refuse INVALID_INPUT", async () => {
+    const seeded = await seedAgentStore()
+
+    try {
+      await expect(call(seeded.store, listTasksTool, {deleted: true, status: "active"})).rejects.toMatchObject({
+        code: AgentToolErrorCode.INVALID_INPUT,
+      })
+    } finally {
+      seeded.close()
+    }
+  })
 })
 
 describe("get_task", () => {
+  it("TC-1: an edit made through save_task records an mcp event carrying the caller's own approved name", async () => {
+    let taskId = ""
+
+    const seeded = await seedAgentStore(async (mac) => {
+      const task = await mac.core.tasksService.createTask(dated("2026-01-01", {content: "Original"}))
+      taskId = task!.id
+    })
+
+    try {
+      await call(seeded.store, saveTaskTool, {id: taskId, content: "Edited"})
+      const result = await call(seeded.store, getTaskTool, {id: taskId})
+
+      const edited = result.history.find((e: any) => e.type === "edited")
+      expect(edited.kind).toBe("mcp")
+      expect(edited.provider).toBe("Test Client")
+    } finally {
+      seeded.close()
+    }
+  })
+
+  it("TC-9: movedCount counts the collapsed moves a task carries, not the raw event rows", async () => {
+    let taskId = ""
+
+    const seeded = await seedAgentStore(async (mac) => {
+      const task = await mac.core.tasksService.createTask(dated("2026-01-01", {content: "Wanderer"}))
+      taskId = task!.id
+      await mac.core.tasksService.updateTask(taskId, {scheduled: {date: "2026-01-02", time: "09:00:00", timezone: "UTC"}})
+      await mac.core.tasksService.updateTask(taskId, {scheduled: {date: "2026-01-03", time: "09:00:00", timezone: "UTC"}})
+      await mac.core.tasksService.updateTask(taskId, {scheduled: {date: "2026-01-04", time: "09:00:00", timezone: "UTC"}})
+    })
+
+    try {
+      const result = await call(seeded.store, getTaskTool, {id: taskId})
+      expect(result.movedCount).toBe(3)
+    } finally {
+      seeded.close()
+    }
+  })
+
   it("TC-26: answers every field, tags, milestone, both relation sides, history newest first, and both attachments", async () => {
     let taskId = ""
     let onServerFile = ""

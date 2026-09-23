@@ -1,6 +1,7 @@
 import {isMilestoneClosed} from "@daily/protocol"
 
 import type {
+  ActorKind,
   Branch,
   ISODate,
   ISODateTime,
@@ -32,7 +33,15 @@ export type MilestoneView = {
 }
 export type AttachmentView = {id: string; name: string; mimeType: string; size: number; onServer: boolean}
 export type TaskLinkView = {id: string; content: string; status: TaskStatus}
-export type TaskEventView = {type: TaskEventType; date: ISODate; fromDate: ISODate | null; toDate: ISODate | null; at: ISODateTime}
+export type TaskEventView = {
+  type: TaskEventType
+  date: ISODate
+  fromDate: ISODate | null
+  toDate: ISODate | null
+  at: ISODateTime
+  kind: ActorKind
+  provider: string | null
+}
 export type CommentView = {
   id: string
   content: string
@@ -53,6 +62,7 @@ export type TaskView = {
   estimatedSeconds: number
   spentSeconds: number
   imageCount: number
+  movedCount: number
   createdAt: ISODateTime
   updatedAt: ISODateTime
   deletedAt: ISODateTime | null
@@ -87,7 +97,7 @@ export function milestoneView(milestone: Milestone, progress: MilestoneProgress)
   }
 }
 
-export function taskView(task: Task, projectName: string, imageCount: number): TaskView {
+export function taskView(task: Task, projectName: string, imageCount: number, movedCount: number): TaskView {
   return {
     id: task.id,
     content: task.content,
@@ -100,6 +110,7 @@ export function taskView(task: Task, projectName: string, imageCount: number): T
     estimatedSeconds: task.estimatedTime,
     spentSeconds: task.spentTime,
     imageCount,
+    movedCount,
     createdAt: task.createdAt,
     updatedAt: task.updatedAt,
     deletedAt: task.deletedAt,
@@ -109,10 +120,10 @@ export function taskView(task: Task, projectName: string, imageCount: number): T
 export function taskDetailView(
   task: Task,
   projectName: string,
-  parts: {blockedBy: Task[]; blocks: Task[]; history: TaskEvent[]; attachments: AttachmentView[]; comments: TaskComment[]},
+  parts: {blockedBy: Task[]; blocks: Task[]; history: TaskEvent[]; attachments: AttachmentView[]; comments: TaskComment[]; movedCount: number},
 ): TaskDetailView {
   return {
-    ...taskView(task, projectName, parts.attachments.length),
+    ...taskView(task, projectName, parts.attachments.length, parts.movedCount),
     blockedBy: parts.blockedBy.map(taskLinkView),
     blocks: parts.blocks.map(taskLinkView),
     history: parts.history.map(taskEventView),
@@ -138,5 +149,13 @@ function taskLinkView(task: Task): TaskLinkView {
 }
 
 function taskEventView(event: TaskEvent): TaskEventView {
-  return {type: event.type, date: event.eventDate, fromDate: event.fromDate, toDate: event.toDate, at: event.createdAt}
+  return {
+    type: event.type,
+    date: event.eventDate,
+    fromDate: event.fromDate,
+    toDate: event.toDate,
+    at: event.createdAt,
+    kind: event.kind,
+    provider: event.provider,
+  }
 }

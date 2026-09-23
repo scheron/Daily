@@ -70,6 +70,20 @@ function comment(id, taskId, branchId, over = {}) {
   }
 }
 
+function event(id, taskId, branchId, over = {}) {
+  return {
+    id,
+    task_id: taskId,
+    branch_id: branchId,
+    type: "completed",
+    event_date: "2026-01-01",
+    from_date: null,
+    to_date: null,
+    created_at: iso(0),
+    ...over,
+  }
+}
+
 function assertNoDanglingBranchRefs(merge) {
   const branchIds = new Set(merge.resultDocs.branches.map((b) => b.id))
   for (const t of merge.toUpsert.tasks) {
@@ -572,5 +586,21 @@ describe("mergeRemoteIntoLocal — comments", () => {
 
     expect(merge.resultDocs.comments).toEqual([])
     expect(merge.toRemove.comments).toContain("c1")
+  })
+})
+
+describe("mergeRemoteIntoLocal — event actor", () => {
+  it("TC-4: a remote event with no author columns normalises to manual/null, and the merge loses none of them", () => {
+    const local = docs({branches: [branch("main")], tasks: [task("t1", "main")]})
+    const remote = docs({
+      branches: [branch("main")],
+      tasks: [task("t1", "main")],
+      events: [event("e1", "t1", "main", {type: "completed"}), event("e2", "t1", "main", {type: "edited"})],
+    })
+
+    const merge = mergeRemoteIntoLocal(local, remote, "pull", GC)
+
+    expect(merge.resultDocs.events.map((e) => e.id).sort()).toEqual(["e1", "e2"])
+    expect(merge.resultDocs.events.every((e) => e.kind === "manual" && e.provider === null)).toBe(true)
   })
 })

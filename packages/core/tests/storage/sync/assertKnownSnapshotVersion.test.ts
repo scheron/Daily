@@ -11,11 +11,11 @@ describe("assertKnownSnapshotVersion", () => {
 
   it("exposes the remote version on the error", () => {
     try {
-      assertKnownSnapshotVersion({version: 9})
+      assertKnownSnapshotVersion({version: 10})
       expect.unreachable()
     } catch (err) {
       expect(err).toBeInstanceOf(SnapshotVersionAheadError)
-      expect((err as SnapshotVersionAheadError).remoteVersion).toBe(9)
+      expect((err as SnapshotVersionAheadError).remoteVersion).toBe(10)
     }
   })
 
@@ -31,8 +31,8 @@ describe("assertKnownSnapshotVersion", () => {
     expect(() => assertKnownSnapshotVersion({version: "4"})).not.toThrow()
   })
 
-  it("accepts version 8 and aborts with SnapshotVersionAheadError for version 9", () => {
-    expect(() => assertKnownSnapshotVersion({version: 8})).not.toThrow()
-    expect(() => assertKnownSnapshotVersion({version: 9})).toThrow(SnapshotVersionAheadError)
+  it("accepts version 9 and aborts with SnapshotVersionAheadError for version 10", () => {
+    expect(() => assertKnownSnapshotVersion({version: 9})).not.toThrow()
+    expect(() => assertKnownSnapshotVersion({version: 10})).toThrow(SnapshotVersionAheadError)
   })
 })

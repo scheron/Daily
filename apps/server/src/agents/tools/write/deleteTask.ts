@@ -17,7 +17,7 @@ export const deleteTaskTool: AgentTool = {
   async run(input, ctx) {
     const id = requireString(input, "id")
 
-    const deleted = await ctx.core.tasksService.deleteTask(id)
+    const deleted = await ctx.core.tasksService.deleteTask(id, {kind: "mcp", provider: ctx.agent.name})
     if (!deleted) throw new AgentToolError(AgentToolErrorCode.NOT_FOUND, `No task "${id}".`)
 
     await ctx.core.taskRelationsService.removeInvalidRelations([id])

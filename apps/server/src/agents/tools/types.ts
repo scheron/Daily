@@ -7,6 +7,9 @@ export type AgentToolPropertySchema = {
   description: string
   enum?: readonly string[]
   items?: AgentToolPropertySchema
+  properties?: Record<string, AgentToolPropertySchema>
+  required?: readonly string[]
+  additionalProperties?: false
   minimum?: number
   maximum?: number
 }

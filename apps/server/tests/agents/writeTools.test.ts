@@ -1,3 +1,5 @@
+import {readdir} from "node:fs/promises"
+import {Readable} from "node:stream"
 import {describe, expect, it} from "vitest"
 
 import {runInAgentWorkspace} from "../../src/agents/AgentWorkspace"
@@ -9,12 +11,14 @@ import {saveMilestoneTool} from "../../src/agents/tools/write/saveMilestone"
 import {saveProjectTool} from "../../src/agents/tools/write/saveProject"
 import {saveTagTool} from "../../src/agents/tools/write/saveTag"
 import {saveTaskTool} from "../../src/agents/tools/write/saveTask"
+import {assetsDir, findAsset, listAssets, writeAsset} from "../../src/assets/AssetStore"
 import {AgentToolErrorCode} from "../../src/errors/agent/AgentToolErrorCode"
 import {readSnapshot} from "../../src/snapshot/SnapshotStore"
-import {bindAgent, makeTaskDraft, seedAgentStore} from "./helpers"
+import {bindAgent, bindDevice, makePngBytes, makeTaskDraft, seedAgentStore} from "./helpers"
 
 import type {AgentIdentity, AgentWorkspaceDeps} from "../../src/agents/AgentWorkspace"
 import type {AgentTool} from "../../src/agents/tools/types"
+import type {ServerStore} from "../../src/store/instance"
 
 function call(deps: AgentWorkspaceDeps, agent: AgentIdentity, tool: AgentTool, input: Record<string, unknown> = {}): Promise<any> {
   return runInAgentWorkspace(deps, agent, tool.mode, (ctx) => tool.run(input, ctx) as any)
@@ -22,6 +26,11 @@ function call(deps: AgentWorkspaceDeps, agent: AgentIdentity, tool: AgentTool, i
 
 function dated(date: string, overrides: Record<string, unknown> = {}) {
   return makeTaskDraft({scheduled: {date, time: "09:00:00", timezone: "UTC"}, ...overrides})
+}
+
+function putOnServer(store: ServerStore, fileId: string, ext: string, bytes: Buffer): Promise<unknown> {
+  const deviceId = bindDevice(store, "Uploader Mac")
+  return writeAsset(store, `${fileId}.${ext}`, Readable.from(bytes), deviceId, 10 * 1024 * 1024)
 }
 
 describe("save_task", () => {
@@ -296,6 +305,279 @@ describe("save_task", () => {
       const stored = readSnapshot(seeded.store)!.document.docs as any
       const remainingRelations = stored.relations.filter((r: any) => r.deleted_at === null)
       expect(remainingRelations.some((r: any) => r.blocker_id === blockerId)).toBe(false)
+    } finally {
+      seeded.close()
+    }
+  })
+
+  it("TC-13: deleted: false returns a task from the trash and records restored", async () => {
+    let taskId = ""
+
+    const seeded = await seedAgentStore(async (mac) => {
+      const task = await mac.core.tasksService.createTask(dated("2026-01-01", {content: "Trashed"}))
+      taskId = task!.id
+      await mac.core.tasksService.deleteTask(taskId)
+    })
+
+    try {
+      const agent = bindAgent(seeded.store)
+      const result = await call({store: seeded.store}, agent, saveTaskTool, {id: taskId, deleted: false})
+
+      expect(result.task.deletedAt).toBeNull()
+      expect(result.task.history.some((e: any) => e.type === "restored")).toBe(true)
+    } finally {
+      seeded.close()
+    }
+  })
+
+  it("TC-14: addSpentSeconds adds to the time already logged", async () => {
+    let taskId = ""
+
+    const seeded = await seedAgentStore(async (mac) => {
+      const task = await mac.core.tasksService.createTask(dated("2026-01-01", {content: "Ticking", spentTime: 600}))
+      taskId = task!.id
+    })
+
+    try {
+      const agent = bindAgent(seeded.store)
+      const result = await call({store: seeded.store}, agent, saveTaskTool, {id: taskId, addSpentSeconds: 2700})
+
+      expect(result.task.spentSeconds).toBe(3300)
+    } finally {
+      seeded.close()
+    }
+  })
+
+  it("TC-15: a negative addSpentSeconds subtracts but never below zero", async () => {
+    let taskId = ""
+
+    const seeded = await seedAgentStore(async (mac) => {
+      const task = await mac.core.tasksService.createTask(dated("2026-01-01", {content: "Ticking", spentTime: 600}))
+      taskId = task!.id
+    })
+
+    try {
+      const agent = bindAgent(seeded.store)
+      const result = await call({store: seeded.store}, agent, saveTaskTool, {id: taskId, addSpentSeconds: -1200})
+
+      expect(result.task.spentSeconds).toBe(0)
+    } finally {
+      seeded.close()
+    }
+  })
+
+  it("TC-17: afterTaskId and beforeTaskId together refuse INVALID_INPUT", async () => {
+    let taskId = ""
+    let otherId = ""
+
+    const seeded = await seedAgentStore(async (mac) => {
+      const task = await mac.core.tasksService.createTask(dated("2026-01-01", {content: "Movable"}))
+      taskId = task!.id
+      const other = await mac.core.tasksService.createTask(dated("2026-01-01", {content: "Other"}))
+      otherId = other!.id
+    })
+
+    try {
+      const agent = bindAgent(seeded.store)
+
+      await expect(call({store: seeded.store}, agent, saveTaskTool, {id: taskId, afterTaskId: otherId, beforeTaskId: otherId})).rejects.toMatchObject(
+        {code: AgentToolErrorCode.INVALID_INPUT},
+      )
+    } finally {
+      seeded.close()
+    }
+  })
+
+  it("TC-18: one call applies a batch of tasks, and the stored snapshot advances by exactly one revision", async () => {
+    let idA = ""
+    let idB = ""
+    let idC = ""
+
+    const seeded = await seedAgentStore(async (mac) => {
+      const a = await mac.core.tasksService.createTask(dated("2026-01-01", {content: "A"}))
+      const b = await mac.core.tasksService.createTask(dated("2026-01-01", {content: "B"}))
+      const c = await mac.core.tasksService.createTask(dated("2026-01-01", {content: "C"}))
+      idA = a!.id
+      idB = b!.id
+      idC = c!.id
+    })
+
+    try {
+      const agent = bindAgent(seeded.store)
+      const revisionBefore = readSnapshot(seeded.store)!.revision
+
+      const result = await call({store: seeded.store}, agent, saveTaskTool, {
+        tasks: [
+          {id: idA, date: "2026-01-02"},
+          {id: idB, date: "2026-01-02"},
+          {id: idC, date: "2026-01-02"},
+        ],
+      })
+
+      expect(result.tasks).toHaveLength(3)
+      expect(result.tasks.every((t: any) => t.scheduled.date === "2026-01-02")).toBe(true)
+      expect(readSnapshot(seeded.store)!.revision).toBe(String(Number(revisionBefore) + 1))
+    } finally {
+      seeded.close()
+    }
+  })
+
+  it("TC-19: a batch naming an unknown task refuses NOT_FOUND, and none of the batch changes", async () => {
+    let idA = ""
+    let idC = ""
+
+    const seeded = await seedAgentStore(async (mac) => {
+      const a = await mac.core.tasksService.createTask(dated("2026-01-01", {content: "A"}))
+      const c = await mac.core.tasksService.createTask(dated("2026-01-01", {content: "C"}))
+      idA = a!.id
+      idC = c!.id
+    })
+
+    try {
+      const agent = bindAgent(seeded.store)
+      const revisionBefore = readSnapshot(seeded.store)!.revision
+
+      await expect(
+        call({store: seeded.store}, agent, saveTaskTool, {
+          tasks: [
+            {id: idA, date: "2026-01-02"},
+            {id: "no-such-id", date: "2026-01-02"},
+            {id: idC, date: "2026-01-02"},
+          ],
+        }),
+      ).rejects.toMatchObject({code: AgentToolErrorCode.NOT_FOUND})
+
+      expect(readSnapshot(seeded.store)!.revision).toBe(revisionBefore)
+    } finally {
+      seeded.close()
+    }
+  })
+
+  it("TC-20: tasks alongside a top-level task field refuses INVALID_INPUT", async () => {
+    const seeded = await seedAgentStore()
+
+    try {
+      const agent = bindAgent(seeded.store)
+
+      await expect(call({store: seeded.store}, agent, saveTaskTool, {tasks: [{content: "Solo"}], content: "Top level"})).rejects.toMatchObject({
+        code: AgentToolErrorCode.INVALID_INPUT,
+      })
+    } finally {
+      seeded.close()
+    }
+  })
+
+  it("TC-22: an attachment that is not a recognisable image refuses INVALID_INPUT, and writes nothing", async () => {
+    let taskId = ""
+
+    const seeded = await seedAgentStore(async (mac) => {
+      const task = await mac.core.tasksService.createTask(dated("2026-01-01", {content: "Plain task"}))
+      taskId = task!.id
+    })
+
+    try {
+      const agent = bindAgent(seeded.store)
+      const notAnImage = Buffer.from("just some text, not a picture").toString("base64")
+
+      await expect(
+        call({store: seeded.store}, agent, saveTaskTool, {id: taskId, addAttachments: [{name: "notes.txt", dataBase64: notAnImage}]}),
+      ).rejects.toMatchObject({code: AgentToolErrorCode.INVALID_INPUT})
+
+      const after = await call({store: seeded.store}, agent, getTaskTool, {id: taskId})
+      expect(after.attachments).toEqual([])
+      expect(listAssets(seeded.store)).toEqual([])
+    } finally {
+      seeded.close()
+    }
+  })
+
+  it("TC-23: removeAttachmentIds detaches a file from the task without touching its bytes or its asset row", async () => {
+    let taskId = ""
+    let fileId = ""
+
+    const seeded = await seedAgentStore(async (mac) => {
+      fileId = await mac.core.filesService.saveFile("photo.png", makePngBytes())
+      const task = await mac.core.tasksService.createTask(dated("2026-01-01", {content: "Has a photo", attachments: [fileId]}))
+      taskId = task!.id
+    })
+
+    try {
+      await putOnServer(seeded.store, fileId, "png", makePngBytes())
+
+      const agent = bindAgent(seeded.store)
+      const result = await call({store: seeded.store}, agent, saveTaskTool, {id: taskId, removeAttachmentIds: [fileId]})
+
+      expect(result.task.attachments).toEqual([])
+      expect(findAsset(seeded.store, `${fileId}.png`)).toBeTruthy()
+    } finally {
+      seeded.close()
+    }
+  })
+
+  it("a batch that throws on its third item leaves no bytes and no assets row behind for the attachments the earlier items added", async () => {
+    let taskAId = ""
+    let taskBId = ""
+
+    const seeded = await seedAgentStore(async (mac) => {
+      const a = await mac.core.tasksService.createTask(dated("2026-01-01", {content: "A"}))
+      const b = await mac.core.tasksService.createTask(dated("2026-01-01", {content: "B"}))
+      taskAId = a!.id
+      taskBId = b!.id
+    })
+
+    try {
+      const agent = bindAgent(seeded.store)
+      const png = makePngBytes().toString("base64")
+
+      await expect(
+        call({store: seeded.store}, agent, saveTaskTool, {
+          tasks: [
+            {id: taskAId, addAttachments: [{name: "a.png", dataBase64: png}]},
+            {id: taskBId, addAttachments: [{name: "b.png", dataBase64: png}]},
+            {id: "no-such-id", addAttachments: [{name: "c.png", dataBase64: png}]},
+          ],
+        }),
+      ).rejects.toMatchObject({code: AgentToolErrorCode.NOT_FOUND})
+
+      expect(listAssets(seeded.store)).toEqual([])
+      expect(await readdir(assetsDir(seeded.store))).toEqual([])
+    } finally {
+      seeded.close()
+    }
+  })
+
+  it("TC-3: kind and provider in the input never reach the event — it is signed from the caller's own identity", async () => {
+    let taskId = ""
+
+    const seeded = await seedAgentStore(async (mac) => {
+      const task = await mac.core.tasksService.createTask(dated("2026-01-01", {content: "Original"}))
+      taskId = task!.id
+    })
+
+    try {
+      const agent = bindAgent(seeded.store, "Agent Mac", "UTC", "Test Client")
+
+      expect(saveTaskTool.inputSchema.additionalProperties).toBe(false)
+      expect(Object.keys(saveTaskTool.inputSchema.properties)).not.toContain("kind")
+      expect(Object.keys(saveTaskTool.inputSchema.properties)).not.toContain("provider")
+
+      const result = await call({store: seeded.store}, agent, saveTaskTool, {
+        id: taskId,
+        content: "Edited",
+        kind: "manual",
+        provider: "Oleg",
+      })
+
+      const edited = result.task.history.find((e: any) => e.type === "edited")
+      expect(edited.kind).toBe("mcp")
+      expect(edited.provider).toBe("Test Client")
+
+      const stored = readSnapshot(seeded.store)!.document.docs as any
+      const row = stored.events.find((e: any) => e.task_id === taskId && e.type === "edited")
+      expect(row.kind).toBe("mcp")
+      expect(row.provider).toBe("Test Client")
+      expect(row.kind).not.toBe("manual")
+      expect(row.provider).not.toBe("Oleg")
     } finally {
       seeded.close()
     }

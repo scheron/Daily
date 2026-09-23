@@ -1,4 +1,4 @@
-import {DAILY_AGENT_PROVIDER, TASK_COMMENT_PROVIDER_MAX_LENGTH} from "@daily/protocol"
+import {resolveActorProvider} from "@daily/protocol"
 
 import type {Branch, Task, TaskComment, TaskCommentCounts, TaskCommentSource} from "@daily/protocol"
 import type {TaskCommentModel} from "../models/TaskCommentModel"
@@ -33,7 +33,7 @@ export class TaskCommentsService {
       branchId: task.branchId,
       content: trimmed,
       kind: source.kind,
-      provider: toProvider(source),
+      provider: resolveActorProvider(source),
     })
   }
 
@@ -59,17 +59,4 @@ export class TaskCommentsService {
   async permanentlyDeleteCommentsOfTasks(taskIds: Task["id"][]): Promise<TaskComment["id"][]> {
     return this.commentModel.permanentlyDeleteCommentsOfTasks(taskIds)
   }
-}
-
-/**
- * The `provider` a source really means: none for a comment typed in the app, this app's agent for one
- * the built-in agent wrote, and whatever an MCP client called itself — trimmed and clamped, because
- * that value comes from outside.
- */
-function toProvider(source: TaskCommentSource): string | null {
-  if (source.kind === "manual") return null
-  if (source.kind === "agent") return source.provider?.trim() || DAILY_AGENT_PROVIDER
-
-  const named = source.provider?.trim()
-  return named ? named.slice(0, TASK_COMMENT_PROVIDER_MAX_LENGTH) : null
 }

@@ -202,11 +202,22 @@ export class LocalStorageAdapter implements ILocalStorage {
       /* Append-only events: INSERT OR IGNORE (immutable, never updated or deleted). */
       if (docs.events.length) {
         const stmt = this.db.prepare(`
-          INSERT OR IGNORE INTO task_events (id, task_id, branch_id, type, event_date, from_date, to_date, created_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT OR IGNORE INTO task_events (id, task_id, branch_id, type, event_date, from_date, to_date, created_at, kind, provider)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `)
         for (const e of docs.events) {
-          stmt.run(e.id, e.task_id, e.branch_id, e.type, e.event_date, e.from_date ?? null, e.to_date ?? null, e.created_at)
+          stmt.run(
+            e.id,
+            e.task_id,
+            e.branch_id,
+            e.type,
+            e.event_date,
+            e.from_date ?? null,
+            e.to_date ?? null,
+            e.created_at,
+            e.kind || "manual",
+            e.provider ?? null,
+          )
         }
       }
     })
@@ -437,6 +448,8 @@ export class LocalStorageAdapter implements ILocalStorage {
       from_date: row.from_date ?? null,
       to_date: row.to_date ?? null,
       created_at: row.created_at,
+      kind: row.kind ?? "manual",
+      provider: row.provider ?? null,
     }))
   }
 }

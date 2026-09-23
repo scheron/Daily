@@ -60,7 +60,7 @@ export const updateTask: RegisteredTool = {
       updates.branchId = branch.id
     }
 
-    const changeset = await ctx.storage.updateTask(taskId, updates)
+    const changeset = await ctx.storage.updateTask(taskId, updates, {kind: "agent"})
     const updated = changeset.tasks?.upserted?.find((t) => t.id === taskId)
 
     if (!updated) {

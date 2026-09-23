@@ -4,7 +4,7 @@ import {AgentToolError} from "../../../errors/agent/AgentToolError"
 import {AgentToolErrorCode} from "../../../errors/agent/AgentToolErrorCode"
 import {taskFiles} from "../../attachments"
 import {taskView} from "../../views"
-import {readEnum, readInteger, readISODate, readString} from "../input"
+import {readBoolean, readEnum, readInteger, readISODate, readString} from "../input"
 
 import type {Task, TaskStatus} from "@daily/protocol"
 import type {AgentToolContext} from "../../AgentWorkspace"
@@ -22,6 +22,8 @@ type ListTasksFilters = {
   to?: string
   milestoneId?: string
   tagId?: string
+  minMovedCount?: number
+  completedTaskIds?: Set<Task["id"]>
 }
 
 export const listTasksTool: AgentTool = {
@@ -39,6 +41,16 @@ export const listTasksTool: AgentTool = {
       to: {type: "string", description: "Only tasks scheduled on or before this day, YYYY-MM-DD."},
       milestoneId: {type: "string", description: "Only tasks in this milestone."},
       tagId: {type: "string", description: "Only tasks carrying this tag."},
+      completedFrom: {
+        type: "string",
+        description: "Only tasks completed on or after this day (the day they were finished, not the day they were scheduled for), YYYY-MM-DD.",
+      },
+      completedTo: {
+        type: "string",
+        description: "Only tasks completed on or before this day (the day they were finished, not the day they were scheduled for), YYYY-MM-DD.",
+      },
+      minMovedCount: {type: "integer", description: "Only tasks moved to a different day at least this many times.", minimum: 0},
+      deleted: {type: "boolean", description: "Answer tasks in the trash instead of live tasks. Cannot be combined with status."},
       search: {type: "string", description: "A phrase to search task content by, most relevant first."},
       limit: {type: "integer", description: "Page size, 1-200. Defaults to 50.", minimum: 1, maximum: 200},
       cursor: {type: "string", description: "The nextCursor answered by a previous page."},
@@ -46,15 +58,36 @@ export const listTasksTool: AgentTool = {
     additionalProperties: false,
   },
   async run(input, ctx) {
+    const status = readEnum(input, "status", TASK_STATUSES)
+    const deleted = readBoolean(input, "deleted")
+    if (deleted === true && status !== undefined) {
+      throw new AgentToolError(
+        AgentToolErrorCode.INVALID_INPUT,
+        `"deleted" and "status" cannot be combined: a deleted task keeps the status it had when it was removed.`,
+      )
+    }
+
+    const completedFrom = readISODate(input, "completedFrom")
+    const completedTo = readISODate(input, "completedTo")
+
     const filters: ListTasksFilters = {
       projectId: readString(input, "projectId"),
-      status: readEnum(input, "status", TASK_STATUSES),
+      status,
       date: readISODate(input, "date"),
       from: readISODate(input, "from"),
       to: readISODate(input, "to"),
       milestoneId: readString(input, "milestoneId"),
       tagId: readString(input, "tagId"),
+      minMovedCount: readInteger(input, "minMovedCount", {min: 0}),
     }
+
+    if (completedFrom !== undefined || completedTo !== undefined) {
+      const fromInclusive = completedFrom !== undefined ? ctx.clock.dayStart(completedFrom) : undefined
+      const toExclusive = completedTo !== undefined ? ctx.clock.dayEndExclusive(completedTo) : undefined
+      const completions = await ctx.core.tasksService.getCompletionsBetween(fromInclusive, toExclusive)
+      filters.completedTaskIds = new Set(completions.map((completion) => completion.taskId))
+    }
+
     const search = readString(input, "search")
     const limit = readInteger(input, "limit", {min: 1, max: 200}) ?? DEFAULT_LIMIT
     const cursor = readString(input, "cursor")
@@ -62,11 +95,15 @@ export const listTasksTool: AgentTool = {
 
     const branches = await ctx.core.branchesService.getBranchList()
     const projectNames = new Map(branches.map((branch) => [branch.id, branch.name]))
+    const movedCounts = await ctx.core.tasksService.getMoveCounts()
 
-    const live = await ctx.core.tasksService.getTaskList({includeBacklog: true})
-    const ordered = search === undefined ? [...live].sort(compareTasks) : await searchOrder(ctx, live, search)
+    const source =
+      deleted === true
+        ? await ctx.core.tasksService.getDeletedTasks({branchId: filters.projectId})
+        : await ctx.core.tasksService.getTaskList({includeBacklog: true})
+    const ordered = search === undefined ? [...source].sort(compareTasks) : await searchOrder(ctx, source, search)
 
-    const filtered = ordered.filter((task) => matchesFilters(task, filters))
+    const filtered = ordered.filter((task) => matchesFilters(task, filters, movedCounts))
     const total = filtered.length
     const page = filtered.slice(offset, offset + limit)
     const nextOffset = offset + limit
@@ -75,7 +112,7 @@ export const listTasksTool: AgentTool = {
     const tasks: TaskView[] = []
     for (const task of page) {
       const imageCount = (await taskFiles(ctx, task)).length
-      tasks.push(taskView(task, projectNames.get(task.branchId) ?? "", imageCount))
+      tasks.push(taskView(task, projectNames.get(task.branchId) ?? "", imageCount, movedCounts[task.id] ?? 0))
     }
 
     return {tasks, total, nextCursor}
@@ -96,7 +133,7 @@ async function searchOrder(ctx: AgentToolContext, live: Task[], search: string):
   return ordered
 }
 
-function matchesFilters(task: Task, filters: ListTasksFilters): boolean {
+function matchesFilters(task: Task, filters: ListTasksFilters, movedCounts: Record<Task["id"], number>): boolean {
   if (filters.projectId !== undefined && task.branchId !== filters.projectId) return false
   if (filters.status !== undefined && task.status !== filters.status) return false
   if (filters.date !== undefined && task.scheduled?.date !== filters.date) return false
@@ -104,6 +141,8 @@ function matchesFilters(task: Task, filters: ListTasksFilters): boolean {
   if (filters.to !== undefined && (!task.scheduled || task.scheduled.date > filters.to)) return false
   if (filters.milestoneId !== undefined && task.milestoneId !== filters.milestoneId) return false
   if (filters.tagId !== undefined && !task.tags.some((tag) => tag.id === filters.tagId)) return false
+  if (filters.minMovedCount !== undefined && (movedCounts[task.id] ?? 0) < filters.minMovedCount) return false
+  if (filters.completedTaskIds !== undefined && !filters.completedTaskIds.has(task.id)) return false
 
   return true
 }
