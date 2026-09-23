@@ -4,6 +4,7 @@ import {runInAgentWorkspace} from "../../src/agents/AgentWorkspace"
 import {getAttachmentTool} from "../../src/agents/tools/read/getAttachment"
 import {getTaskTool} from "../../src/agents/tools/read/getTask"
 import {listTasksTool} from "../../src/agents/tools/read/listTasks"
+import {saveAttachmentTool} from "../../src/agents/tools/write/saveAttachment"
 import {saveTaskTool} from "../../src/agents/tools/write/saveTask"
 import {bindAgent, makePngBytes, makeTaskDraft, seedAgentStore} from "./helpers"
 
@@ -45,8 +46,8 @@ describe("save_task and list_tasks", () => {
   })
 })
 
-describe("save_task, get_attachment and get_task", () => {
-  it("TC-21: an attachment added through save_task is byte-identical through get_attachment and shown on the server through get_task", async () => {
+describe("save_attachment, save_task, get_attachment and get_task", () => {
+  it("TC-21: an attachment saved through save_attachment and linked into a task's content by save_task is byte-identical through get_attachment and shown on the server through get_task", async () => {
     let taskId = ""
 
     const seeded = await seedAgentStore(async (mac) => {
@@ -58,20 +59,20 @@ describe("save_task, get_attachment and get_task", () => {
       const agent = bindAgent(seeded.store)
       const bytes = makePngBytes(128)
 
-      const saved = await call({store: seeded.store}, agent, saveTaskTool, {
+      const saved = await call({store: seeded.store}, agent, saveAttachmentTool, {name: "photo.png", dataBase64: bytes.toString("base64")})
+
+      const written = await call({store: seeded.store}, agent, saveTaskTool, {
         id: taskId,
-        addAttachments: [{name: "photo.png", dataBase64: bytes.toString("base64")}],
+        content: `Needs a photo ![photo](${saved.url})`,
       })
 
-      expect(saved.task.imageCount).toBe(1)
-      expect(saved.task.attachments).toHaveLength(1)
-      const attachmentId = saved.task.attachments[0].id
+      expect(written.task.imageCount).toBe(1)
 
-      const attachment = await call({store: seeded.store}, agent, getAttachmentTool, {id: attachmentId})
+      const attachment = await call({store: seeded.store}, agent, getAttachmentTool, {id: saved.id})
       expect(Buffer.from(attachment.dataBase64, "base64").equals(bytes)).toBe(true)
 
       const detail = await call({store: seeded.store}, agent, getTaskTool, {id: taskId})
-      const onTask = detail.attachments.find((a: any) => a.id === attachmentId)
+      const onTask = detail.attachments.find((a: any) => a.id === saved.id)
       expect(onTask.onServer).toBe(true)
     } finally {
       seeded.close()

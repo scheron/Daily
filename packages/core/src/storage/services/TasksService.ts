@@ -4,7 +4,6 @@ import {getToday, notNullish, notUndefined} from "@daily/std"
 import type {
   ActorSource,
   Branch,
-  File,
   ISODate,
   ISODateTime,
   Milestone,
@@ -131,14 +130,6 @@ export class TasksService {
 
   async removeTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Promise<Task | null> {
     return this.taskModel.removeTaskTags(taskId, tagIds)
-  }
-
-  async addTaskAttachment(taskId: Task["id"], fileId: File["id"]): Promise<Task | null> {
-    return this.taskModel.addTaskAttachment(taskId, fileId)
-  }
-
-  async removeTaskAttachment(taskId: Task["id"], fileId: File["id"]): Promise<Task | null> {
-    return this.taskModel.removeTaskAttachment(taskId, fileId)
   }
 
   private finalizeMove(sourceTask: Task, targetStatus: TaskStatus, updated: Task[], source?: ActorSource): Task[] {

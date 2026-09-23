@@ -32,7 +32,6 @@ type TaskRow = {
   updated_at: string
   deleted_at: string | null
   tags_json: string | null
-  attachments_json: string | null
 }
 
 type TagRow = {
@@ -118,18 +117,6 @@ export function rowToTask(row: TaskRow): Task {
     }
   }
 
-  let attachments: string[] = []
-  if (row.attachments_json) {
-    try {
-      const parsed = JSON.parse(row.attachments_json)
-      if (Array.isArray(parsed)) {
-        attachments = parsed.filter((a: any) => notNull(a))
-      }
-    } catch {
-      /* empty */
-    }
-  }
-
   const orderIndex = isNumber(row.order_index) && Number.isFinite(row.order_index) ? row.order_index : Date.parse(row.created_at)
 
   return {
@@ -151,7 +138,6 @@ export function rowToTask(row: TaskRow): Task {
     branchId: row.branch_id || MAIN_BRANCH_ID,
     milestoneId: row.milestone_id ?? null,
     tags,
-    attachments,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     deletedAt: row.deleted_at,

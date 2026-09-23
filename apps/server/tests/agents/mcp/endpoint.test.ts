@@ -174,7 +174,7 @@ describe("the 2026-07-28 path answers as the caller's Mac and records last use â
       const listRes = await postMcp(booted, connected.accessToken, list.body, list.headers)
       expect(listRes.status).toBe(200)
       const listJson = (await listRes.json()) as {result: {tools: unknown[]}}
-      expect(listJson.result.tools).toHaveLength(13)
+      expect(listJson.result.tools).toHaveLength(15)
 
       const aucklandToday = DateTime.now().setZone("Pacific/Auckland").toISODate()
       const call = statelessRequest(3, "tools/call", {name: "save_task", arguments: {content: "Buy milk"}}, "save_task")
@@ -496,7 +496,7 @@ describe("the day a tool runs on follows the Mac, and answers gracefully once it
       const listRes = await postMcp(booted, connected.accessToken, listAfterZoneless.body, listAfterZoneless.headers)
       expect(listRes.status).toBe(200)
       const listJson = (await listRes.json()) as {result: {tools: unknown[]}}
-      expect(listJson.result.tools).toHaveLength(13)
+      expect(listJson.result.tools).toHaveLength(15)
 
       const revisionBefore = (booted.store.db.prepare(`SELECT revision FROM snapshot`).get() as {revision: number}).revision
 

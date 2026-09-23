@@ -1,12 +1,9 @@
-import {sniffImageExt} from "@daily/core/utils/files/sniffImageExt"
 import {MAIN_BRANCH_ID, statusForScheduling} from "@daily/protocol"
 import {isArray, isObject, isString} from "@daily/std"
 
-import {indexExistingAsset} from "../../../assets/AssetStore"
 import {AgentToolError} from "../../../errors/agent/AgentToolError"
 import {AgentToolErrorCode} from "../../../errors/agent/AgentToolErrorCode"
-import {fileAssetName} from "../../attachments"
-import {readBoolean, readEnum, readInteger, readISODate, readISOTime, readString, requireString} from "../input"
+import {readBoolean, readEnum, readInteger, readISODate, readISOTime, readString} from "../input"
 import {readTaskDetail} from "../readTaskDetail"
 
 import type {ActorSource, ISODate, ISOTime, Milestone, Tag, Task, TaskMovePosition, TaskScheduled, TaskStatus} from "@daily/protocol"
@@ -15,10 +12,6 @@ import type {AgentTool, AgentToolPropertySchema} from "../types"
 
 const TASK_STATUSES = ["active", "backlog", "done", "discarded"] as const
 const MAX_BATCH_SIZE = 50
-const MAX_ATTACHMENTS_PER_CALL = 5
-const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024
-
-type AttachmentAdd = {name: string; bytes: Buffer}
 
 type ParsedFields = {
   content?: string
@@ -35,8 +28,6 @@ type ParsedFields = {
   addSpentSeconds?: number
   afterTaskId?: string
   beforeTaskId?: string
-  addAttachments?: AttachmentAdd[]
-  removeAttachmentIds?: string[]
 }
 
 const TASK_ITEM_PROPERTIES: Record<string, AgentToolPropertySchema> = {
@@ -65,25 +56,6 @@ const TASK_ITEM_PROPERTIES: Record<string, AgentToolPropertySchema> = {
   },
   afterTaskId: {type: "string", description: 'Places the task right after this one, within its day. Cannot be combined with "beforeTaskId".'},
   beforeTaskId: {type: "string", description: 'Places the task right before this one, within its day. Cannot be combined with "afterTaskId".'},
-  addAttachments: {
-    type: "array",
-    description: "Attaches up to 5 images, base64-encoded, 5 MiB each once decoded. A file that is not a recognisable image refuses the whole call.",
-    items: {
-      type: "object",
-      description: "One image to attach.",
-      properties: {
-        name: {type: "string", description: "A filename for the image."},
-        dataBase64: {type: "string", description: "The image's bytes, base64-encoded."},
-      },
-      required: ["name", "dataBase64"],
-      additionalProperties: false,
-    },
-  },
-  removeAttachmentIds: {
-    type: "array",
-    description: "Detaches these files from the task. Their bytes are never deleted.",
-    items: {type: "string", description: "A file id, from the task's attachments."},
-  },
 }
 
 export const saveTaskTool: AgentTool = {
@@ -164,7 +136,6 @@ async function applyOneTask(ctx: AgentToolContext, input: Record<string, unknown
   const taskId = id === undefined ? await createTask(ctx, fields, source) : await updateTask(ctx, id, fields, source)
 
   await applyReorder(ctx, taskId, fields.afterTaskId, fields.beforeTaskId, source)
-  await applyAttachments(ctx, taskId, fields.addAttachments, fields.removeAttachmentIds)
 
   return taskId
 }
@@ -200,8 +171,6 @@ function parseFields(input: Record<string, unknown>): ParsedFields {
     addSpentSeconds: readInteger(input, "addSpentSeconds"),
     afterTaskId: readString(input, "afterTaskId"),
     beforeTaskId: readString(input, "beforeTaskId"),
-    addAttachments: readAttachmentAdds(input),
-    removeAttachmentIds: readIdArray(input, "removeAttachmentIds"),
   }
 }
 
@@ -243,7 +212,6 @@ async function createTask(ctx: AgentToolContext, fields: ParsedFields, source: A
       orderIndex: Date.now(),
       estimatedTime: fields.estimatedSeconds ?? 0,
       spentTime: 0,
-      attachments: [],
     },
     source,
   )
@@ -317,32 +285,6 @@ async function applyReorder(
   const activeDate = current.scheduled?.date ?? ctx.clock.today()
 
   await ctx.core.tasksService.moveTaskByOrder({taskId: id, targetTaskId, position, targetStatus: current.status, activeDate}, source)
-}
-
-async function applyAttachments(
-  ctx: AgentToolContext,
-  taskId: Task["id"],
-  adds: AttachmentAdd[] | undefined,
-  removeIds: string[] | undefined,
-): Promise<void> {
-  if (adds !== undefined) {
-    for (const add of adds) {
-      const {file, ext} = await ctx.core.filesService.prepareFile(add.name, add.bytes)
-
-      ctx.afterCommit(async () => {
-        await ctx.core.filesService.writeFileAsset(file.id, ext, add.bytes)
-        indexExistingAsset(ctx.store, fileAssetName(file), ctx.agent.deviceId)
-      })
-
-      await ctx.core.tasksService.addTaskAttachment(taskId, file.id)
-    }
-  }
-
-  if (removeIds !== undefined) {
-    for (const fileId of removeIds) {
-      await ctx.core.tasksService.removeTaskAttachment(taskId, fileId)
-    }
-  }
 }
 
 function applyScheduling(ctx: AgentToolContext, before: Task, fields: ParsedFields, updates: Partial<Task>): void {
@@ -436,34 +378,4 @@ function readIdArray(input: Record<string, unknown>, field: string): string[] | 
   }
 
   return value
-}
-
-function readAttachmentAdds(input: Record<string, unknown>): AttachmentAdd[] | undefined {
-  const value = input.addAttachments
-  if (value === undefined) return undefined
-  if (!isArray(value)) throw new AgentToolError(AgentToolErrorCode.INVALID_INPUT, '"addAttachments" must be an array.')
-  if (value.length > MAX_ATTACHMENTS_PER_CALL) {
-    throw new AgentToolError(AgentToolErrorCode.INVALID_INPUT, `"addAttachments" cannot hold more than ${MAX_ATTACHMENTS_PER_CALL} files.`)
-  }
-
-  return value.map(parseAttachmentAdd)
-}
-
-function parseAttachmentAdd(item: unknown): AttachmentAdd {
-  if (!isObject<Record<string, unknown>>(item)) {
-    throw new AgentToolError(AgentToolErrorCode.INVALID_INPUT, '"addAttachments" items must be objects.')
-  }
-
-  const name = requireString(item, "name")
-  const dataBase64 = requireString(item, "dataBase64")
-  const bytes = Buffer.from(dataBase64, "base64")
-
-  if (bytes.length > MAX_ATTACHMENT_BYTES) {
-    throw new AgentToolError(AgentToolErrorCode.INVALID_INPUT, `"${name}" is ${bytes.length} bytes, over the ${MAX_ATTACHMENT_BYTES}-byte cap.`)
-  }
-  if (!sniffImageExt(bytes)) {
-    throw new AgentToolError(AgentToolErrorCode.INVALID_INPUT, `"${name}" is not a recognisable image.`)
-  }
-
-  return {name, bytes}
 }

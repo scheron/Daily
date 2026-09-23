@@ -2,6 +2,8 @@
 import Database from "better-sqlite3"
 import {describe, expect, it} from "vitest"
 
+import {APP_CONFIG} from "@daily/protocol"
+
 import {migrations} from "../../src/storage/database/migrations"
 import {getAppliedMigrations, rollbackLastMigration, runMigrations} from "../../src/storage/database/scripts/migrate"
 
@@ -24,7 +26,6 @@ describe("migrations", () => {
     expect(names).toContain("branches")
     expect(names).toContain("settings")
     expect(names).toContain("task_tags")
-    expect(names).toContain("task_attachments")
     expect(names).toContain("files")
     expect(names).toContain("task_events")
 
@@ -213,7 +214,16 @@ describe("migrations", () => {
 
     it("rollback of v006 drops the usage columns", () => {
       const db = new Database(":memory:")
-      runMigrations(db)
+      db.exec(`CREATE TABLE _migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)`)
+      for (const migration of migrations.filter((m) => m.version <= 15)) {
+        if (typeof migration.up === "string") db.exec(migration.up)
+        else migration.up(db)
+        db.prepare("INSERT INTO _migrations (version, name, applied_at) VALUES (?, ?, ?)").run(
+          migration.version,
+          migration.name,
+          "2026-01-01T00:00:00.000Z",
+        )
+      }
 
       rollbackLastMigration(db) // v015
       rollbackLastMigration(db) // v014
@@ -358,7 +368,6 @@ describe("migrations", () => {
       expect(tables).toContain("files")
       expect(tables).toContain("settings")
       expect(tables).toContain("task_tags")
-      expect(tables).toContain("task_attachments")
 
       db.close()
     })
@@ -464,16 +473,12 @@ describe("migrations", () => {
 
       const task = db.prepare("SELECT * FROM tasks WHERE id = 't1'").get()
       expect(task).toBeDefined()
-      expect(task.content).toBe("Keep me")
+      expect(task.content).toBe(`Keep me\n\n![a.png](${APP_CONFIG.filesProtocol}/file1)`)
       expect(task.scheduled_date).toBe("2026-03-24")
 
       const taskTags = db.prepare("SELECT * FROM task_tags WHERE task_id = 't1'").all()
       expect(taskTags).toHaveLength(1)
       expect(taskTags[0].tag_id).toBe("tag1")
-
-      const taskAttachments = db.prepare("SELECT * FROM task_attachments WHERE task_id = 't1'").all()
-      expect(taskAttachments).toHaveLength(1)
-      expect(taskAttachments[0].file_id).toBe("file1")
 
       const now = new Date().toISOString()
       expect(() =>
@@ -649,9 +654,10 @@ describe("migrations", () => {
       expect(task).toBeDefined()
       expect(task.content).toBe("Keep me")
 
-      rollbackLastMigration(db)
-      rollbackLastMigration(db)
-      rollbackLastMigration(db)
+      rollbackLastMigration(db) // v016
+      rollbackLastMigration(db) // v015
+      rollbackLastMigration(db) // v014
+      rollbackLastMigration(db) // v013
       const rolledBack = rollbackLastMigration(db)
       expect(rolledBack).toBe(12)
 
@@ -719,6 +725,7 @@ describe("migrations", () => {
       seedComment(db, "typed", null)
       runMigrations(db)
 
+      rollbackLastMigration(db) // v016
       rollbackLastMigration(db) // v015
       expect(rollbackLastMigration(db)).toBe(14)
 
@@ -795,6 +802,7 @@ describe("migrations", () => {
       const task = db.prepare("SELECT * FROM tasks WHERE id = 't1'").get()
       expect(task.content).toBe("Keep me")
 
+      rollbackLastMigration(db) // v016
       rollbackLastMigration(db) // v015
       expect(rollbackLastMigration(db)).toBe(14)
       const rolledBack = rollbackLastMigration(db)
@@ -826,6 +834,78 @@ describe("migrations", () => {
 
       expect(insert).not.toThrow()
       expect(db.prepare("SELECT kind FROM task_comments WHERE id = 'c1'").get().kind).toBe("manual")
+
+      db.close()
+    })
+  })
+
+  describe("v016 — attachments into content", () => {
+    function seedThroughV15(db) {
+      db.exec(`CREATE TABLE _migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)`)
+      for (const migration of migrations.filter((m) => m.version <= 15)) {
+        if (typeof migration.up === "string") db.exec(migration.up)
+        else migration.up(db)
+        db.prepare("INSERT INTO _migrations (version, name, applied_at) VALUES (?, ?, ?)").run(
+          migration.version,
+          migration.name,
+          "2026-01-01T00:00:00.000Z",
+        )
+      }
+    }
+
+    function link(id) {
+      return `${APP_CONFIG.filesProtocol}/${id}`
+    }
+
+    it("writes_TC-7_an_unmentioned_attachment_into_its_tasks_content_leaves_an_already-mentioned_one_untouched_and_drops_the_table", () => {
+      const db = new Database(":memory:")
+      db.pragma("foreign_keys = ON")
+      seedThroughV15(db)
+
+      const now = new Date().toISOString()
+      db.prepare(
+        `INSERT INTO tasks (id, status, content, minimized, order_index, scheduled_date, scheduled_time, scheduled_timezone, estimated_time, spent_time, branch_id, created_at, updated_at)
+         VALUES ('t1', 'active', 'Unmentioned', 0, 1024, '2026-03-24', '10:00:00', 'UTC', 0, 0, 'main', ?, ?)`,
+      ).run(now, now)
+      db.prepare(
+        `INSERT INTO tasks (id, status, content, minimized, order_index, scheduled_date, scheduled_time, scheduled_timezone, estimated_time, spent_time, branch_id, created_at, updated_at)
+         VALUES ('t2', 'active', ?, 0, 1024, '2026-03-24', '10:00:00', 'UTC', 0, 0, 'main', ?, ?)`,
+      ).run(`Already has ![shot](${link("file2")})`, now, now)
+
+      db.prepare(`INSERT INTO files (id, name, mime_type, size, created_at, updated_at) VALUES ('file1', 'one.png', 'image/png', 10, ?, ?)`).run(
+        now,
+        now,
+      )
+      db.prepare(`INSERT INTO files (id, name, mime_type, size, created_at, updated_at) VALUES ('file2', 'shot.png', 'image/png', 10, ?, ?)`).run(
+        now,
+        now,
+      )
+
+      db.prepare(`INSERT INTO task_attachments (task_id, file_id) VALUES ('t1', 'file1')`).run()
+      db.prepare(`INSERT INTO task_attachments (task_id, file_id) VALUES ('t2', 'file2')`).run()
+
+      runMigrations(db)
+
+      const t1 = db.prepare("SELECT content FROM tasks WHERE id = 't1'").get()
+      expect(t1.content).toContain("Unmentioned")
+      expect(t1.content).toContain(link("file1"))
+
+      const t2 = db.prepare("SELECT content FROM tasks WHERE id = 't2'").get()
+      expect(t2.content).toBe(`Already has ![shot](${link("file2")})`)
+      const file2Mentions = t2.content.split(link("file2")).length - 1
+      expect(file2Mentions).toBe(1)
+
+      const tables = db
+        .prepare("SELECT name FROM sqlite_master WHERE type='table'")
+        .all()
+        .map((t) => t.name)
+      expect(tables).not.toContain("task_attachments")
+
+      const indexes = db
+        .prepare("SELECT name FROM sqlite_master WHERE type='index'")
+        .all()
+        .map((i) => i.name)
+      expect(indexes).not.toContain("idx_task_attachments_file")
 
       db.close()
     })

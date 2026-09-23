@@ -4,7 +4,7 @@ import {notUndefined} from "@daily/std"
 import {logger} from "../../utils/logger"
 import {rowToTask} from "./_rowMappers"
 
-import type {Branch, File, ISODate, Milestone, Tag, Task} from "@daily/protocol"
+import type {Branch, ISODate, Milestone, Tag, Task} from "@daily/protocol"
 import type {SqliteDriver} from "../../database/SqliteDriver"
 import type {TaskInternal} from "../../types/storage"
 
@@ -29,10 +29,7 @@ const TASK_SELECT = `
       'id', tg.id, 'branchId', tg.branch_id, 'name', tg.name, 'color', tg.color,
       'createdAt', tg.created_at, 'updatedAt', tg.updated_at, 'deletedAt', tg.deleted_at
     )) FROM task_tags tt JOIN tags tg ON tt.tag_id = tg.id AND tg.deleted_at IS NULL
-     WHERE tt.task_id = t.id) AS tags_json,
-    (SELECT json_group_array(f.id)
-     FROM task_attachments ta JOIN files f ON ta.file_id = f.id
-     WHERE ta.task_id = t.id) AS attachments_json
+     WHERE tt.task_id = t.id) AS tags_json
   FROM tasks t
 `
 
@@ -111,7 +108,6 @@ export class TaskModel {
     const now = new Date().toISOString()
     const branchId = task.branchId ?? MAIN_BRANCH_ID
     const tags = task.tags ?? []
-    const attachments = task.attachments ?? []
     const orderIndex = Number.isFinite(task.orderIndex) ? task.orderIndex : Date.parse(now)
     const scheduledDate = task.scheduled?.date ?? null
     const scheduledTime = task.scheduled?.time ?? null
@@ -149,10 +145,6 @@ export class TaskModel {
 
       for (const tagId of tags) {
         this.db.prepare(`INSERT OR IGNORE INTO task_tags (task_id, tag_id) VALUES (?, ?)`).run(id, tagId)
-      }
-
-      for (const fileId of attachments) {
-        this.db.prepare(`INSERT OR IGNORE INTO task_attachments (task_id, file_id) VALUES (?, ?)`).run(id, fileId)
       }
     })
 
@@ -254,13 +246,6 @@ export class TaskModel {
         this.db.prepare(`DELETE FROM task_tags WHERE task_id = ?`).run(id)
         for (const tagId of updates.tags) {
           this.db.prepare(`INSERT OR IGNORE INTO task_tags (task_id, tag_id) VALUES (?, ?)`).run(id, tagId)
-        }
-      }
-
-      if (notUndefined(updates.attachments)) {
-        this.db.prepare(`DELETE FROM task_attachments WHERE task_id = ?`).run(id)
-        for (const fileId of updates.attachments) {
-          this.db.prepare(`INSERT OR IGNORE INTO task_attachments (task_id, file_id) VALUES (?, ?)`).run(id, fileId)
         }
       }
     })
@@ -396,20 +381,6 @@ export class TaskModel {
     }
 
     logger.debug(logger.CONTEXT.TASKS, `Removed ${tagIds.length} tags from task ${taskId}`)
-    return this.getTask(taskId)
-  }
-
-  addTaskAttachment(taskId: Task["id"], fileId: File["id"]): Task | null {
-    this.db.prepare(`INSERT OR IGNORE INTO task_attachments (task_id, file_id) VALUES (?, ?)`).run(taskId, fileId)
-
-    logger.debug(logger.CONTEXT.TASKS, `Added attachment ${fileId} to task ${taskId}`)
-    return this.getTask(taskId)
-  }
-
-  removeTaskAttachment(taskId: Task["id"], fileId: File["id"]): Task | null {
-    this.db.prepare(`DELETE FROM task_attachments WHERE task_id = ? AND file_id = ?`).run(taskId, fileId)
-
-    logger.debug(logger.CONTEXT.TASKS, `Removed attachment ${fileId} from task ${taskId}`)
     return this.getTask(taskId)
   }
 }

@@ -1,3 +1,6 @@
+import {extractFileIds} from "@daily/core/utils/files/extractFileIds"
+import {APP_CONFIG} from "@daily/protocol"
+
 import type {RegisteredTool} from "@main/ai/tools/registry/types"
 
 export const removeTaskAttachment: RegisteredTool = {
@@ -29,19 +32,23 @@ export const removeTaskAttachment: RegisteredTool = {
       return {success: false, error: `Task not found: ${taskId}`}
     }
 
-    if (!task.attachments.includes(fileId)) {
+    if (!extractFileIds(task.content).includes(fileId)) {
       return {success: false, error: `File ${fileId} is not attached to task ${taskId}`}
     }
 
-    await ctx.storage.removeTaskAttachment(taskId, fileId)
+    const content = unlinkFile(task.content, fileId)
+    await ctx.storage.updateTask(taskId, {content}, {kind: "agent"})
 
     return {
       success: true,
       data: `Attachment removed from task: ${fileId}`,
-      changedEntities: [
-        {type: "file", id: fileId, action: "deleted"},
-        {type: "task", id: taskId, action: "updated"},
-      ],
+      changedEntities: [{type: "task", id: taskId, action: "updated"}],
     }
   },
+}
+
+function unlinkFile(content: string, fileId: string): string {
+  const escapedProtocol = APP_CONFIG.filesProtocol.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  const pattern = new RegExp(`!\\[[^\\]]*\\]\\(\\s*${escapedProtocol}\\/${fileId}\\s*\\)`, "g")
+  return content.replace(pattern, "").trim()
 }

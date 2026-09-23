@@ -1,6 +1,8 @@
 // @ts-nocheck
 import {describe, expect, it} from "vitest"
 
+import {APP_CONFIG} from "@daily/protocol"
+
 import {mergeRemoteIntoLocal} from "../../src/utils/sync/merge/mergeRemoteIntoLocal"
 
 const GC = 7 * 24 * 60 * 60 * 1000
@@ -602,5 +604,45 @@ describe("mergeRemoteIntoLocal — event actor", () => {
 
     expect(merge.resultDocs.events.map((e) => e.id).sort()).toEqual(["e1", "e2"])
     expect(merge.resultDocs.events.every((e) => e.kind === "manual" && e.provider === null)).toBe(true)
+  })
+})
+
+describe("mergeRemoteIntoLocal — a version-9 snapshot carrying task attachments", () => {
+  function link(id) {
+    return `${APP_CONFIG.filesProtocol}/${id}`
+  }
+
+  it("TC-8: folds an unmentioned attachment into the task's content, leaves an already-mentioned one alone, and drops the attachments field", () => {
+    const local = docs({branches: [branch("main")]})
+    const remote = {
+      tasks: [
+        task("t1", "main", {content: "Unmentioned", attachments: ["file1"]}),
+        task("t2", "main", {content: `Already has ![shot](${link("file2")})`, attachments: ["file2"]}),
+      ],
+      tags: [],
+      branches: [branch("main")],
+      milestones: [],
+      relations: [],
+      comments: [],
+      files: [
+        {id: "file1", name: "one.png", mime_type: "image/png", size: 10, created_at: iso(0), updated_at: NOW, deleted_at: null},
+        {id: "file2", name: "shot.png", mime_type: "image/png", size: 10, created_at: iso(0), updated_at: NOW, deleted_at: null},
+      ],
+      events: [],
+      settings: null,
+    }
+
+    const merge = mergeRemoteIntoLocal(local, remote, "pull", GC)
+
+    const t1 = merge.resultDocs.tasks.find((t) => t.id === "t1")
+    expect(t1.content).toContain("Unmentioned")
+    expect(t1.content).toContain(link("file1"))
+    expect(t1.attachments).toBeUndefined()
+
+    const t2 = merge.resultDocs.tasks.find((t) => t.id === "t2")
+    expect(t2.content).toBe(`Already has ![shot](${link("file2")})`)
+    const file2Mentions = t2.content.split(link("file2")).length - 1
+    expect(file2Mentions).toBe(1)
+    expect(t2.attachments).toBeUndefined()
   })
 })

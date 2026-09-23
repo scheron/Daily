@@ -5,6 +5,8 @@ import {tmpdir} from "node:os"
 import {join} from "node:path"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
+import {APP_CONFIG, createEntityId} from "@daily/protocol"
+
 import {FileModel} from "@core/storage/models/FileModel"
 import {TaskModel} from "@core/storage/models/TaskModel"
 import {FilesService} from "@core/storage/services/FilesService"
@@ -130,5 +132,75 @@ describe("FilesService.resolveAssetPath", () => {
     const resolved = await filesService.resolveAssetPath(file.id)
 
     expect(resolved).toBeNull()
+  })
+})
+
+describe("FilesService.cleanupOrphanFiles", () => {
+  let db, assetsDir, fileModel, taskModel, filesService
+
+  beforeEach(() => {
+    db = createTestDatabase()
+    assetsDir = mkdtempSync(join(tmpdir(), "files-service-gc-"))
+    fileModel = new FileModel(db, assetsDir)
+    taskModel = new TaskModel(db)
+    filesService = new FilesService(fileModel, taskModel)
+  })
+
+  afterEach(() => {
+    db.close()
+    rmSync(assetsDir, {recursive: true, force: true})
+  })
+
+  function makeTaskRow(overrides = {}) {
+    return {
+      id: createEntityId("task"),
+      status: "active",
+      content: "",
+      minimized: false,
+      orderIndex: 1,
+      scheduled: {date: "2026-01-01", time: "09:00:00", timezone: "UTC"},
+      estimatedTime: 0,
+      spentTime: 0,
+      branchId: "main",
+      milestoneId: null,
+      tags: [],
+      attachments: [],
+      deletedAt: null,
+      ...overrides,
+    }
+  }
+
+  it("keeps_TC-9_a_file_held_only_by_a_text_link_once_task_attachments_is_gone_and_removes_one_with_no_link_at_all", async () => {
+    const linkedId = await filesService.saveFile("kept.png", WEBP_BYTES)
+    const orphanId = await filesService.saveFile("gone.png", WEBP_BYTES)
+
+    taskModel.createTask(makeTaskRow({content: `Kept ![kept](${APP_CONFIG.filesProtocol}/${linkedId})`}))
+
+    db.exec(`DROP INDEX IF EXISTS idx_task_attachments_file; DROP TABLE IF EXISTS task_attachments;`)
+
+    await filesService.cleanupOrphanFiles()
+
+    expect(fileModel.getFile(linkedId)?.deletedAt).toBeNull()
+    expect(await readdir(assetsDir)).toContain(`${linkedId}.webp`)
+
+    expect(fileModel.getFile(orphanId)?.deletedAt).not.toBeNull()
+    expect(await readdir(assetsDir)).not.toContain(`${orphanId}.webp`)
+  })
+
+  it("keeps_TC-11_an_image_referenced_only_by_a_backlog_tasks_text_and_one_referenced_only_by_a_trashed_tasks_text", async () => {
+    const backlogFileId = await filesService.saveFile("backlog.png", WEBP_BYTES)
+    const trashedFileId = await filesService.saveFile("trashed.png", WEBP_BYTES)
+
+    taskModel.createTask(makeTaskRow({content: `Someday ![shot](${APP_CONFIG.filesProtocol}/${backlogFileId})`, status: "backlog", scheduled: null}))
+    const trashed = taskModel.createTask(makeTaskRow({content: `Gone ![shot](${APP_CONFIG.filesProtocol}/${trashedFileId})`}))
+    taskModel.deleteTask(trashed.id)
+
+    await filesService.cleanupOrphanFiles()
+
+    expect(fileModel.getFile(backlogFileId)?.deletedAt).toBeNull()
+    expect(await readdir(assetsDir)).toContain(`${backlogFileId}.webp`)
+
+    expect(fileModel.getFile(trashedFileId)?.deletedAt).toBeNull()
+    expect(await readdir(assetsDir)).toContain(`${trashedFileId}.webp`)
   })
 })

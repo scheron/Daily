@@ -84,7 +84,6 @@ export class LocalStorageAdapter implements ILocalStorage {
         }
       }
 
-      /* Files before tasks: satisfy task_attachments FK to files. */
       if (docs.files.length) {
         const stmt = this.db.prepare(`
           INSERT INTO files (id, name, mime_type, size, created_at, updated_at, deleted_at)
@@ -126,10 +125,6 @@ export class LocalStorageAdapter implements ILocalStorage {
         const insertTagStmt = this.db.prepare(
           `INSERT OR IGNORE INTO task_tags (task_id, tag_id) SELECT ?, ? WHERE EXISTS (SELECT 1 FROM tags WHERE id = ?)`,
         )
-        const deleteAttachmentsStmt = this.db.prepare(`DELETE FROM task_attachments WHERE task_id = ?`)
-        const insertAttachmentStmt = this.db.prepare(
-          `INSERT OR IGNORE INTO task_attachments (task_id, file_id) SELECT ?, ? WHERE EXISTS (SELECT 1 FROM files WHERE id = ?)`,
-        )
 
         for (const t of docs.tasks) {
           taskStmt.run(
@@ -153,11 +148,6 @@ export class LocalStorageAdapter implements ILocalStorage {
           deleteTagsStmt.run(t.id)
           for (const tagId of t.tags) {
             insertTagStmt.run(t.id, tagId, tagId)
-          }
-
-          deleteAttachmentsStmt.run(t.id)
-          for (const fileId of t.attachments) {
-            insertAttachmentStmt.run(t.id, fileId, fileId)
           }
         }
       }
@@ -272,7 +262,6 @@ export class LocalStorageAdapter implements ILocalStorage {
       if (ids.tasks?.length) {
         for (const id of ids.tasks) {
           this.db.prepare(`DELETE FROM task_tags WHERE task_id = ?`).run(id)
-          this.db.prepare(`DELETE FROM task_attachments WHERE task_id = ?`).run(id)
           this.db.prepare(`DELETE FROM task_relations WHERE blocker_id = ? OR blocked_id = ?`).run(id, id)
           this.db.prepare(`DELETE FROM task_comments WHERE task_id = ?`).run(id)
           this.db.prepare(`DELETE FROM tasks WHERE id = ?`).run(id)
@@ -327,7 +316,6 @@ export class LocalStorageAdapter implements ILocalStorage {
       }
       if (ids.files?.length) {
         for (const id of ids.files) {
-          this.db.prepare(`DELETE FROM task_attachments WHERE file_id = ?`).run(id)
           this.db.prepare(`DELETE FROM files WHERE id = ?`).run(id)
         }
       }
@@ -340,7 +328,6 @@ export class LocalStorageAdapter implements ILocalStorage {
     const rows = this.db.prepare(`SELECT * FROM tasks`).all() as any[]
     return rows.map((row) => {
       const tagRows = this.db.prepare(`SELECT tag_id FROM task_tags WHERE task_id = ?`).all(row.id) as {tag_id: string}[]
-      const attachmentRows = this.db.prepare(`SELECT file_id FROM task_attachments WHERE task_id = ?`).all(row.id) as {file_id: string}[]
 
       return {
         id: row.id,
@@ -356,7 +343,6 @@ export class LocalStorageAdapter implements ILocalStorage {
         branch_id: row.branch_id,
         milestone_id: row.milestone_id ?? null,
         tags: tagRows.map((r) => r.tag_id),
-        attachments: attachmentRows.map((r) => r.file_id),
         created_at: row.created_at,
         updated_at: row.updated_at,
         deleted_at: row.deleted_at,

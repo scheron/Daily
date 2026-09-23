@@ -9,17 +9,7 @@ import type {Branch, Milestone, MoveTaskByOrderParams, Task, TaskMovePosition, T
 
 export type TaskWritableFields = Pick<
   Task,
-  | "status"
-  | "scheduled"
-  | "orderIndex"
-  | "milestoneId"
-  | "branchId"
-  | "content"
-  | "minimized"
-  | "estimatedTime"
-  | "spentTime"
-  | "tags"
-  | "attachments"
+  "status" | "scheduled" | "orderIndex" | "milestoneId" | "branchId" | "content" | "minimized" | "estimatedTime" | "spentTime" | "tags"
 >
 
 /** A complete instruction for one task. Every field present is written; absent fields are left alone. */
@@ -51,7 +41,6 @@ export function planTaskCreate(ctx: MutationContext, draft: Partial<TaskWritable
     estimatedTime: draft.estimatedTime as TaskWritableFields["estimatedTime"],
     spentTime: draft.spentTime as TaskWritableFields["spentTime"],
     tags: draft.tags ?? [],
-    attachments: draft.attachments ?? [],
   }
 }
 

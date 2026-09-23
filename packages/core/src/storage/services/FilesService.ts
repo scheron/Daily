@@ -118,13 +118,12 @@ export class FilesService {
 
   async cleanupOrphanFiles(): Promise<void> {
     try {
-      const referencedIds = this.fileModel.getReferencedFileIds()
+      const referencedIds = new Set<File["id"]>()
 
-      const tasks = this.taskModel.getTaskList()
+      const tasks = this.taskModel.getTaskList({includeDeleted: true, includeBacklog: true})
       for (const task of tasks) {
         const fileIds = extractFileIds(task.content)
         fileIds.forEach((id) => referencedIds.add(id))
-        task.attachments.forEach((id) => referencedIds.add(id))
       }
 
       const allFiles = this.fileModel.getFileList()

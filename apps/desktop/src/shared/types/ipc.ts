@@ -135,7 +135,7 @@ export interface BridgeIPC {
   "tasks:update": (id: Task["id"], updates: PartialDeep<Task>) => Promise<Changeset>
   "tasks:toggle-minimized": (id: Task["id"], minimized: boolean) => Promise<Changeset>
   "tasks:create": (
-    task: Omit<Task, "id" | "createdAt" | "updatedAt" | "deletedAt" | "attachments" | "branchId"> & {branchId?: Task["branchId"]; id?: Task["id"]},
+    task: Omit<Task, "id" | "createdAt" | "updatedAt" | "deletedAt" | "branchId"> & {branchId?: Task["branchId"]; id?: Task["id"]},
   ) => Promise<Changeset>
   "tasks:move-by-order": (params: MoveTaskByOrderParams) => Promise<Changeset>
   "tasks:move-to-branch": (taskId: Task["id"], branchId: Branch["id"]) => Promise<Changeset>

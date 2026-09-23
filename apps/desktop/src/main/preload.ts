@@ -136,7 +136,7 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "tasks:update": (id: Task["id"], updates: PartialDeep<Task>) => ipcRenderer.invoke("tasks:update", id, updates) as Promise<Changeset>,
   "tasks:toggle-minimized": (id: Task["id"], minimized: boolean) => ipcRenderer.invoke("tasks:toggle-minimized", id, minimized) as Promise<Changeset>,
   "tasks:create": (
-    task: Omit<Task, "id" | "createdAt" | "updatedAt" | "deletedAt" | "attachments" | "branchId"> & {branchId?: Task["branchId"]; id?: Task["id"]},
+    task: Omit<Task, "id" | "createdAt" | "updatedAt" | "deletedAt" | "branchId"> & {branchId?: Task["branchId"]; id?: Task["id"]},
   ) => ipcRenderer.invoke("tasks:create", task) as Promise<Changeset>,
   "tasks:move-by-order": (params) => ipcRenderer.invoke("tasks:move-by-order", params) as Promise<Changeset>,
   "tasks:move-to-branch": (taskId: Task["id"], branchId: Branch["id"]) => ipcRenderer.invoke("tasks:move-to-branch", taskId, branchId) as Promise<Changeset>,

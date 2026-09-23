@@ -22,12 +22,12 @@ export function isAssetOnServer(store: ServerStore, assetName: string): boolean 
 }
 
 /**
- * `task`'s live files — its attachments and the images inline in its content, each once, in that
- * order — with the name they are stored under and whether their bytes are on this server. An id
- * with no live file row behind it is dropped.
+ * `task`'s live files — the images its content links to, each once, in that order — with the name
+ * they are stored under and whether their bytes are on this server. An id with no live file row
+ * behind it is dropped.
  */
 export async function taskFiles(ctx: AgentToolContext, task: Task): Promise<TaskFileRef[]> {
-  const ids = [...new Set([...task.attachments, ...extractFileIds(task.content)])]
+  const ids = extractFileIds(task.content)
   if (ids.length === 0) return []
 
   const files = await ctx.core.filesService.getFiles(ids)
