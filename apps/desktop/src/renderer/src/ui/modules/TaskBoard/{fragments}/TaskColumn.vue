@@ -47,7 +47,10 @@ function getCounterClasses(counterClass: string) {
 }
 
 function getListClasses(isCollapsed: boolean) {
-  return cn("pt-25 absolute inset-0 flex min-w-0 overflow-y-auto overflow-x-hidden px-1.5 pb-4", isCollapsed && "pointer-events-none invisible")
+  return cn(
+    "pt-25 absolute inset-0 flex min-w-0 overflow-y-auto overflow-x-hidden px-1.5 pb-4",
+    isCollapsed && "pointer-events-none invisible w-0 px-0",
+  )
 }
 </script>
 
