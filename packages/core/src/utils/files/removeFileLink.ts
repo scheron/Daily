@@ -1,4 +1,4 @@
-import {APP_CONFIG} from "@daily/protocol"
+import {buildFileLinkPattern} from "./buildFileLinkPattern"
 
 /**
  * Remove one file's markdown-image link from content, the same link format `extractFileIds` reads.
@@ -8,8 +8,7 @@ import {APP_CONFIG} from "@daily/protocol"
  * @returns `content` with that link removed
  */
 export function removeFileLink(content: string, fileId: string): string {
-  const escapedProtocol = APP_CONFIG.filesProtocol.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-  const pattern = new RegExp(`!\\[[^\\]]*\\]\\(\\s*${escapedProtocol}\\/${fileId}\\s*\\)`, "g")
+  const pattern = buildFileLinkPattern(fileId)
 
   return content.replace(pattern, "").trim()
 }

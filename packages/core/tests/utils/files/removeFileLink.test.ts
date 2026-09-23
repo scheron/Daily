@@ -14,4 +14,10 @@ describe("removeFileLink", () => {
 
     expect(removeFileLink(content, "DF-a7Kf9Qm2xVb3Lp8Rt1Wz")).toBe("")
   })
+
+  it("escapes the id so a regex metacharacter in it doesn't also match an unrelated link", () => {
+    const content = "![a](daily://file/a.b) ![x](daily://file/aXb)"
+
+    expect(removeFileLink(content, "a.b")).toBe("![x](daily://file/aXb)")
+  })
 })
