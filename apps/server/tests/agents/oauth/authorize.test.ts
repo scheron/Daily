@@ -1,3 +1,4 @@
+import {createHash} from "node:crypto"
 import {mkdtempSync, rmSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
@@ -40,8 +41,8 @@ import type {ServerStore} from "../../../src/store/instance"
 import type {BootedAgentServer} from "./harness"
 
 function extractHref(html: string): string {
-  const match = /href="([^"]+)"/.exec(html)
-  if (!match) throw new Error("expected the page to carry a link")
+  const match = /class="bbtn" href="([^"]+)"/.exec(html)
+  if (!match) throw new Error("expected the page to carry a button")
 
   return match[1]
     .replace(/&lt;/g, "<")
@@ -51,6 +52,13 @@ function extractHref(html: string): string {
     .replace(/&#x27;/g, "'")
     .replace(/&apos;/g, "'")
     .replace(/&amp;/g, "&")
+}
+
+function inlineScriptHash(html: string): string {
+  const match = /<script>([\s\S]*?)<\/script>/.exec(html)
+  if (!match) throw new Error("expected the waiting page to carry its poll script")
+
+  return `'sha256-${createHash("sha256").update(match[1]).digest("base64")}'`
 }
 
 function codeAsDigitTriples(code: string): string {
@@ -158,8 +166,8 @@ describe("a second authorize request while one already waits is refused outright
   })
 })
 
-describe("the consent page names the agent, the code and where it returns — TC-32", () => {
-  it("TC-32: the consent page reads correctly for a local program and for claude.ai, and the pending request carries the same facts", async () => {
+describe("the consent page names the agent and the code, and waits without reloading itself — TC-32", () => {
+  it("TC-32: the consent page reads the same for a local program and for claude.ai, names no return address, and the pending request carries the facts the Mac needs", async () => {
     const booted = await bootAgentServer()
     const docs = await startClientDocumentServer()
     try {
@@ -199,8 +207,13 @@ describe("the consent page names the agent, the code and where it returns — TC
       expect(html).toContain("Claude Code wants access to your Daily")
       expect(html).toContain(codeAsDigitTriples(pending.code))
       expect(html).toContain("Approve on the Mac that is waiting for an agent")
-      expect(html).toContain("localhost — a program on this computer")
-      expect(html).toContain('<meta http-equiv="refresh" content="2">')
+      expect(html).toContain("It will read and change your tasks, projects, milestones and tags.")
+      expect(html).not.toContain("After approval you return to")
+      expect(html).not.toContain("a program on this computer")
+      expect(html).toContain(AGENT_OAUTH_TEST_PATHS.consentStatus)
+      expect(html).toContain('<noscript><meta http-equiv="refresh" content="2"></noscript>')
+      expect(html.match(/http-equiv="refresh"/g)).toHaveLength(1)
+      expect(consentRes.headers.get("content-security-policy")).toContain(`script-src ${inlineScriptHash(html)}`)
 
       await denyRequest(booted, parent.token, pending.requestId)
       await openAgentWindowOver(booted, parent.token)
@@ -219,7 +232,42 @@ describe("the consent page names the agent, the code and where it returns — TC
       const appConsentRes = await fetch(`${booted.baseUrl}${appLocation}`)
       const appHtml = await appConsentRes.text()
       expect(appHtml).toContain("Claude wants access to your Daily")
-      expect(appHtml).not.toContain("a program on this computer")
+      expect(appHtml).not.toContain("claude.ai")
+      expect(appHtml).not.toContain("After approval you return to")
+    } finally {
+      await docs.close()
+      await booted.close()
+    }
+  })
+})
+
+describe("the consent page's poll reports only whether the Mac has still to answer", () => {
+  it("answers pending while the request waits, stops being pending once the Mac approves, and is never pending for an id it doesn't know", async () => {
+    const booted = await bootAgentServer()
+    const docs = await startClientDocumentServer()
+    try {
+      const parent = await claimParent(booted)
+      const clientId = registerClientDocument(docs, "/claude-code.json", claudeCodeDocument)
+
+      async function readStatus(id: string): Promise<{status: number; pending: unknown; cacheControl: string | null}> {
+        const res = await fetch(`${booted.baseUrl}${AGENT_OAUTH_TEST_PATHS.consentStatus}?id=${encodeURIComponent(id)}`)
+        const body = (await res.json()) as {ok: boolean; data?: {pending?: unknown}}
+
+        return {status: res.status, pending: body.data?.pending, cacheControl: res.headers.get("cache-control")}
+      }
+
+      const {authorizationId} = await startAndConsentUrl(booted, parent.token, clientId, "http://localhost:5555/callback", {state: "s1"})
+      const waiting = await readStatus(authorizationId)
+      expect(waiting.status).toBe(200)
+      expect(waiting.pending).toBe(true)
+      expect(waiting.cacheControl).toBe("no-store")
+
+      const pending = await readPendingRequest(booted, parent.token)
+      if (!pending) throw new Error("expected a pending request")
+      await approveRequest(booted, parent.token, pending.requestId, pending.code)
+      expect((await readStatus(authorizationId)).pending).toBe(false)
+
+      expect((await readStatus("no-such-authorization")).pending).toBe(false)
     } finally {
       await docs.close()
       await booted.close()
@@ -595,7 +643,7 @@ describe("declining, running out and being replaced all say access wasn't grante
       const waitingRead = await fetch(`${booted.baseUrl}${AGENT_OAUTH_TEST_PATHS.consent}?id=${denied.authorizationId}`, {redirect: "manual"})
       expect(waitingRead.status).toBe(200)
       const waitingHtml = await waitingRead.text()
-      expect(waitingHtml).toContain('<meta http-equiv="refresh" content="2">')
+      expect(waitingHtml).toContain(AGENT_OAUTH_TEST_PATHS.consentStatus)
       await denyRequest(booted, parent.token, denied.requestId)
       ;(SYNC_PROTOCOL_CONFIG as {agentRequestTtlMs: number}).agentRequestTtlMs = 50
       const expired = await startRequest()
@@ -687,7 +735,8 @@ describe("a client_name carrying HTML is escaped on the page — TC-40", () => {
       const consentRes = await fetch(`${booted.baseUrl}${AGENT_OAUTH_TEST_PATHS.consent}?id=${authorizationId}`)
       const html = await consentRes.text()
       expect(html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;")
-      expect(html).not.toContain("<script")
+      expect(html).not.toContain("<script>alert")
+      expect(html.match(/<script/g)).toHaveLength(1)
 
       const pending = await readPendingRequest(booted, parent.token)
       expect(pending?.agentName).toBe(maliciousName)

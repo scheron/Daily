@@ -13,6 +13,7 @@ export const AGENT_OAUTH_PATHS = {
   authorizationServer: "/.well-known/oauth-authorization-server",
   authorize: "/oauth/authorize",
   consent: "/oauth/consent",
+  consentStatus: "/oauth/consent/status",
   token: "/oauth/token",
 } as const
 

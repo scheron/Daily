@@ -1,3 +1,5 @@
+import {createHash} from "node:crypto"
+
 import {ProtocolError, ProtocolErrorCode} from "@daily/protocol"
 
 import {findAgentById, findPendingAgentRequest, readAgentRequest} from "../../agents/AgentStore"
@@ -9,6 +11,7 @@ import {readAgentWindow} from "../../identity/ServerIdentityStore"
 import {RESPONSE_SENT} from "../respond"
 
 import type {ServerResponse} from "node:http"
+import type {AgentRequestRecord} from "../../agents/AgentStore"
 import type {AgentUrls} from "../../agents/agentUrls"
 import type {AgentAuthorizationRecord} from "../../agents/oauth/AgentAuthorizationStore"
 import type {ClientMetadata} from "../../agents/oauth/clientMetadata"
@@ -19,7 +22,7 @@ type BrowserPage =
   | {kind: "no-window" | "request-waiting"; host: string; retryUrl: string}
   | {kind: "invalid-request"; host: string; reason: "client" | "unsafe" | "unreachable" | "return"}
   | {kind: "unknown"; host: string}
-  | {kind: "waiting"; host: string; agentName: string; code: string; returnsTo: string; isLocalProgram: boolean}
+  | {kind: "waiting"; host: string; agentName: string; code: string}
   | {kind: "granted"; host: string; agentName: string}
   | {kind: "not-granted"; host: string; agentName: string; returnUrl: string}
 
@@ -36,14 +39,26 @@ export const oauthAuthorizeRoute: Route = {
 }
 
 /**
- * `GET /oauth/consent` — the page the browser waits on while the Mac decides. It reloads itself
- * while the request is pending, hands the browser back with a code the first time it sees the
- * approval, and says access wasn't granted on a denial, an expiry or a revoked agent.
+ * `GET /oauth/consent` — the page the browser waits on while the Mac decides. It polls
+ * `/oauth/consent/status` rather than reloading itself, loads itself again once the Mac has
+ * answered — handing the browser back with a code the first time it sees the approval — and says
+ * access wasn't granted on a denial, an expiry or a revoked agent.
  */
 export const oauthConsentRoute: Route = {
   method: "GET",
   path: AGENT_OAUTH_PATHS.consent,
   handler: getConsent,
+}
+
+/**
+ * `GET /oauth/consent/status` — the one fact the waiting consent page asks for once a second:
+ * whether the Mac has still to answer. It carries nothing about the agent or the request, so the
+ * page can wait without reloading.
+ */
+export const oauthConsentStatusRoute: Route = {
+  method: "GET",
+  path: AGENT_OAUTH_PATHS.consentStatus,
+  handler: getConsentStatus,
 }
 
 async function getAuthorize(ctx: RouteContext): Promise<typeof RESPONSE_SENT> {
@@ -121,19 +136,8 @@ async function getConsent(ctx: RouteContext): Promise<typeof RESPONSE_SENT> {
   const request = authorization ? readAgentRequest(ctx.store, authorization.requestId) : null
   if (!authorization || !request) return respondPage(ctx.res, 404, renderPage({kind: "unknown", host}))
 
-  if (request.state === "pending" && Date.parse(request.expiresAt) > Date.now()) {
-    return respondPage(
-      ctx.res,
-      200,
-      renderPage({
-        kind: "waiting",
-        host,
-        agentName: request.agentName,
-        code: request.code,
-        returnsTo: request.returnsTo,
-        isLocalProgram: request.isLocalProgram,
-      }),
-    )
+  if (isAwaitingMac(request)) {
+    return respondPage(ctx.res, 200, renderPage({kind: "waiting", host, agentName: request.agentName, code: request.code}))
   }
 
   const agent = request.state === "approved" && request.issuedAgentId ? findAgentById(ctx.store, request.issuedAgentId) : null
@@ -147,6 +151,20 @@ async function getConsent(ctx: RouteContext): Promise<typeof RESPONSE_SENT> {
   const returnUrl = buildReturnUrl(authorization.redirectUri, {error: "access_denied"}, authorization.state, urls.issuer)
 
   return respondPage(ctx.res, 200, renderPage({kind: "not-granted", host, agentName: request.agentName, returnUrl}))
+}
+
+async function getConsentStatus(ctx: RouteContext): Promise<{pending: boolean}> {
+  const authorizationId = new URL(ctx.req.url ?? "/", "http://placeholder").searchParams.get("id")
+  const authorization = authorizationId ? readAgentAuthorization(ctx.store, authorizationId) : null
+  const request = authorization ? readAgentRequest(ctx.store, authorization.requestId) : null
+
+  ctx.res.setHeader("cache-control", "no-store")
+
+  return {pending: isAwaitingMac(request)}
+}
+
+function isAwaitingMac(request: AgentRequestRecord | null): boolean {
+  return request !== null && request.state === "pending" && Date.parse(request.expiresAt) > Date.now()
 }
 
 function resolveRedirectUri(query: URLSearchParams, client: ClientMetadata): string | null {
@@ -200,12 +218,25 @@ function respondPage(res: ServerResponse, status: number, html: string): typeof 
     "content-type": "text/html; charset=utf-8",
     "cache-control": "no-store",
     "referrer-policy": "no-referrer",
-    "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'",
+    "content-security-policy": PAGE_CSP,
   })
   res.end(html)
 
   return RESPONSE_SENT
 }
+
+const DAILY_MARK = `<svg viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg"><path fill="#4DCFA3" d="M240.001 0C273.138 0 300.001 26.8629 300.001 60V240.001C300.001 273.138 273.138 300.001 240.001 300.001H60C26.8629 300.001 0 273.138 0 240.001V60C2.96392e-05 26.8629 26.8629 0 60 0H240.001ZM76.0566 64.7891V95.9717H89.7764V205.616H76.0566V236.685H142.048C149.908 236.684 157.449 235.664 164.668 233.623C171.887 231.582 178.615 228.691 184.851 224.949C191.086 221.207 196.755 216.709 201.857 211.456C206.96 206.203 211.325 200.382 214.953 193.995C218.581 187.608 221.378 180.747 223.344 173.415C225.309 166.083 226.292 158.448 226.292 150.511C226.292 142.574 225.309 134.938 223.344 127.605C221.379 120.273 218.582 113.433 214.953 107.083C211.325 100.733 206.959 94.9692 201.857 89.791C196.756 84.6129 191.087 80.1717 184.851 76.4678C178.614 72.7639 171.887 69.8915 164.668 67.8506C157.449 65.8096 149.908 64.7891 142.047 64.7891H76.0566ZM141.82 95.9766C147.943 95.9763 153.725 97.3748 159.168 100.172C164.61 102.969 169.335 106.824 173.341 111.737C177.347 116.65 180.522 122.432 182.865 129.084C185.209 135.736 186.38 142.88 186.38 150.515C186.38 158.225 185.209 165.425 182.865 172.115C180.522 178.805 177.347 184.625 173.341 189.576C169.335 194.527 164.61 198.439 159.168 201.312C153.725 204.184 147.942 205.62 141.819 205.62H127.42V95.9756L141.82 95.9766Z"/></svg>`
+
+const CONSENT_POLL_SCRIPT = `const id=new URLSearchParams(location.search).get("id")??"";setInterval(async()=>{try{const r=await fetch("${AGENT_OAUTH_PATHS.consentStatus}?id="+encodeURIComponent(id),{cache:"no-store"});const body=await r.json();if(!body.ok||!body.data.pending)location.reload()}catch{}},1000)`
+
+const PAGE_CSP = [
+  "default-src 'none'",
+  "style-src 'unsafe-inline'",
+  "img-src data:",
+  `script-src 'sha256-${createHash("sha256").update(CONSENT_POLL_SCRIPT).digest("base64")}'`,
+  "connect-src 'self'",
+  "frame-ancestors 'none'",
+].join("; ")
 
 function renderPage(page: BrowserPage): string {
   const crossIcon = `<div class="bigic r"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></div>`
@@ -214,14 +245,12 @@ function renderPage(page: BrowserPage): string {
 
   let content: string
   switch (page.kind) {
-    case "waiting": {
-      const returnsTo = page.isLocalProgram ? `${escapeHtml(page.returnsTo)} — a program on this computer` : escapeHtml(page.returnsTo)
+    case "waiting":
       content = `<h2>${escapeHtml(page.agentName)} wants access to your Daily</h2>
 <div class="bcode">${escapeHtml(`${page.code.slice(0, 3)} ${page.code.slice(3)}`)}</div>
 <div class="bwait"><span class="spin"></span>Approve on the Mac that is waiting for an agent</div>
-<div class="fine">It will read and change your tasks, projects, milestones and tags. After approval you return to <b>${returnsTo}</b>.</div>`
+<div class="fine">It will read and change your tasks, projects, milestones and tags.</div>`
       break
-    }
     case "no-window":
       content = `${crossIcon}
 <h2>Daily isn't expecting an agent</h2>
@@ -273,7 +302,7 @@ ${button(page.returnUrl, `Start over in ${escapeHtml(page.agentName)}`)}`
 body{font:14px/1.2 system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased;background:oklch(98% 0.004 265);color:oklch(25% 0.02 265)}
 .bpage{min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:56px 34px 30px;text-align:center}
 .logo{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:600}
-.logo i{width:22px;height:22px;border-radius:6px;background:oklch(72% 0.17 190);display:inline-block}
+.logo svg{width:22px;height:22px;display:block}
 .srv{font-size:12px;color:oklch(50% 0.02 265);margin-top:6px}
 h2{font-size:21px;font-weight:600;margin-top:34px;line-height:1.3}
 p{font-size:13.5px;color:oklch(42% 0.02 265);margin-top:10px;line-height:1.55;max-width:340px}
@@ -282,7 +311,6 @@ p{font-size:13.5px;color:oklch(42% 0.02 265);margin-top:10px;line-height:1.55;ma
 .spin{width:14px;height:14px;border-radius:50%;border:2px solid oklch(85% 0.01 265);border-top-color:oklch(60% 0.15 190);animation:spin 1s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .fine{font-size:12px;color:oklch(52% 0.02 265);margin-top:22px;line-height:1.5;max-width:330px;border-top:1px solid oklch(90% 0.006 265);padding-top:16px}
-.fine b{color:oklch(30% 0.02 265);font-weight:500}
 .bigic{width:54px;height:54px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-top:34px}
 .bigic.g{background:oklch(93% 0.06 150);color:oklch(50% 0.14 150)}
 .bigic.r{background:oklch(94% 0.04 25);color:oklch(55% 0.17 25)}
@@ -290,19 +318,22 @@ p{font-size:13.5px;color:oklch(42% 0.02 265);margin-top:10px;line-height:1.55;ma
 .bigic+h2{margin-top:16px}
 .bbtn{margin-top:24px;height:34px;padding:0 16px;border-radius:999px;border:1px solid oklch(85% 0.01 265);display:inline-flex;align-items:center;font-size:13px;color:oklch(30% 0.02 265);text-decoration:none}`
 
+  const waits = page.kind === "waiting"
+
   return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">${page.kind === "waiting" ? `\n<meta http-equiv="refresh" content="2">` : ""}
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,${encodeURIComponent(DAILY_MARK)}">
 <title>Daily</title>
-<style>${css}</style>
+<style>${css}</style>${waits ? `\n<noscript><meta http-equiv="refresh" content="2"></noscript>` : ""}
 </head>
 <body>
 <main class="bpage">
-<div class="logo"><i></i>Daily</div>${page.kind === "not-accepted" ? "" : `\n<div class="srv">${escapeHtml(page.host)}</div>`}
+<div class="logo">${DAILY_MARK}Daily</div>${page.kind === "not-accepted" ? "" : `\n<div class="srv">${escapeHtml(page.host)}</div>`}
 ${content}
-</main>
+</main>${waits ? `\n<script>${CONSENT_POLL_SCRIPT}</script>` : ""}
 </body>
 </html>
 `

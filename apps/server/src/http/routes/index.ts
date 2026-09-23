@@ -23,7 +23,7 @@ import {
 } from "./enroll"
 import {healthRoute} from "./health"
 import {mcpRoute} from "./mcp"
-import {oauthAuthorizeRoute, oauthConsentRoute} from "./oauthAuthorize"
+import {oauthAuthorizeRoute, oauthConsentRoute, oauthConsentStatusRoute} from "./oauthAuthorize"
 import {oauthTokenRoute} from "./oauthToken"
 import {serverInfoRoute} from "./serverInfo"
 import {revisionRoute, snapshotReadRoute, snapshotWriteRoute} from "./snapshot"
@@ -63,6 +63,7 @@ export const routes: Route[] = [
   authorizationServerMetadataRoute,
   oauthAuthorizeRoute,
   oauthConsentRoute,
+  oauthConsentStatusRoute,
   oauthTokenRoute,
   mcpRoute,
 ]
