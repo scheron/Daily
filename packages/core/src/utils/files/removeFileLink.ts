@@ -1,0 +1,14 @@
+import {buildFileLinkPattern} from "./buildFileLinkPattern"
+
+/**
+ * Remove one file's markdown-image link from content, the same link format `extractFileIds` reads.
+ * Example: removeFileLink("Shot ![shot](daily://file/abc123)", "abc123") → "Shot"
+ * @param content Markdown content that may contain the file's link
+ * @param fileId The id of the file whose link should be removed
+ * @returns `content` with that link removed
+ */
+export function removeFileLink(content: string, fileId: string): string {
+  const pattern = buildFileLinkPattern(fileId)
+
+  return content.replace(pattern, "").trim()
+}

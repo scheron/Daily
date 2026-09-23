@@ -1,6 +1,8 @@
 import {Readable} from "node:stream"
 import {describe, expect, it} from "vitest"
 
+import {APP_CONFIG} from "@daily/protocol"
+
 import {runInAgentWorkspace} from "../../src/agents/AgentWorkspace"
 import {getAttachmentTool} from "../../src/agents/tools/read/getAttachment"
 import {getTaskTool} from "../../src/agents/tools/read/getTask"
@@ -371,12 +373,18 @@ describe("get_task", () => {
       const blocker = await mac.core.tasksService.createTask(dated("2026-07-01", {content: "Blocker"}))
       const blocked = await mac.core.tasksService.createTask(dated("2026-07-02", {content: "Blocked"}))
       const task = await mac.core.tasksService.createTask(
-        dated("2026-07-03", {content: "Main task", milestoneId: milestone!.id, tags: [tag], attachments: [onServerFile, offServerFile]}),
+        dated("2026-07-03", {
+          content: `Main task ![on](${APP_CONFIG.filesProtocol}/${onServerFile}) ![off](${APP_CONFIG.filesProtocol}/${offServerFile})`,
+          milestoneId: milestone!.id,
+          tags: [tag],
+        }),
       )
       taskId = task!.id
 
       await mac.core.taskRelationsService.setTaskRelations(taskId, {blockedBy: [blocker!.id], blocks: [blocked!.id]})
-      await mac.core.tasksService.updateTask(taskId, {content: "Main task, edited"})
+      await mac.core.tasksService.updateTask(taskId, {
+        content: `Main task, edited ![on](${APP_CONFIG.filesProtocol}/${onServerFile}) ![off](${APP_CONFIG.filesProtocol}/${offServerFile})`,
+      })
     })
 
     try {
@@ -384,7 +392,9 @@ describe("get_task", () => {
 
       const result = await call(seeded.store, getTaskTool, {id: taskId})
 
-      expect(result.content).toBe("Main task, edited")
+      expect(result.content).toBe(
+        `Main task, edited ![on](${APP_CONFIG.filesProtocol}/${onServerFile}) ![off](${APP_CONFIG.filesProtocol}/${offServerFile})`,
+      )
       expect(result.tags).toHaveLength(1)
       expect(result.tags[0].name).toBe("urgent")
       expect(result.milestoneId).toBe(milestoneId)

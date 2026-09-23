@@ -1,3 +1,4 @@
+import {extractFileIds} from "@daily/core/utils/files/extractFileIds"
 import {toDurationLabel} from "@daily/std"
 
 import type {Branch, Tag, Task} from "@daily/protocol"
@@ -14,7 +15,8 @@ export function formatTask(task: Task, compact = true): string {
   const content = compact ? task.content.split("\n")[0].slice(0, 100) : task.content
   const est = task.estimatedTime > 0 ? ` (est: ${toDurationLabel(task.estimatedTime)})` : ""
   const spent = task.spentTime > 0 ? ` (spent: ${toDurationLabel(task.spentTime)})` : ""
-  const attachments = task.attachments.length > 0 ? ` 📎${task.attachments.length}` : ""
+  const attachmentCount = extractFileIds(task.content).length
+  const attachments = attachmentCount > 0 ? ` 📎${attachmentCount}` : ""
   return `${statusEmoji} [${time}] ${content}${tags}${est}${spent}${attachments} (ID: ${task.id})`
 }
 

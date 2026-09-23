@@ -148,9 +148,6 @@ export interface IStorageController {
   deleteBranch(id: Branch["id"]): Promise<boolean>
   setActiveBranch(id: Branch["id"]): Promise<void>
 
-  addTaskAttachment(taskId: Task["id"], fileId: File["id"]): Promise<Changeset>
-  removeTaskAttachment(taskId: Task["id"], fileId: File["id"]): Promise<Changeset>
-
   loadSettings(): Promise<Settings>
   saveSettings(newSettings: Partial<Settings>): Promise<void>
 

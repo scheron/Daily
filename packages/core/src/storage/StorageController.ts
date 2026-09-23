@@ -319,24 +319,6 @@ export class StorageController implements IStorageController {
     return changeset
   }
 
-  async addTaskAttachment(taskId: Task["id"], fileId: File["id"]): Promise<Changeset> {
-    const addedTask = await this.tasksService.addTaskAttachment(taskId, fileId)
-    if (!addedTask) return EMPTY_CHANGESET
-
-    const changeset: Changeset = {tasks: {upserted: [addedTask]}}
-    this.notifyLocalChange(changeset)
-    return changeset
-  }
-
-  async removeTaskAttachment(taskId: Task["id"], fileId: File["id"]): Promise<Changeset> {
-    const removedTask = await this.tasksService.removeTaskAttachment(taskId, fileId)
-    if (!removedTask) return EMPTY_CHANGESET
-
-    const changeset: Changeset = {tasks: {upserted: [removedTask]}}
-    this.notifyLocalChange(changeset)
-    return changeset
-  }
-
   async getDeletedTasks(params?: {limit?: number; branchId?: Branch["id"]}): Promise<Task[]> {
     const branchId = await this.branchesService.resolveBranchId(params?.branchId)
     return this.tasksService.getDeletedTasks({...params, branchId})

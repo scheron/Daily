@@ -1,3 +1,5 @@
+import {extractFileIds} from "@daily/core/utils/files/extractFileIds"
+
 import type {RegisteredTool} from "@main/ai/tools/registry/types"
 
 export const getTaskAttachments: RegisteredTool = {
@@ -23,14 +25,15 @@ export const getTaskAttachments: RegisteredTool = {
       return {success: false, error: `Task not found: ${taskId}`}
     }
 
-    if (task.attachments.length === 0) {
+    const fileIds = extractFileIds(task.content)
+    if (fileIds.length === 0) {
       return {success: true, data: `No attachments on task "${task.content.split("\n")[0].slice(0, 50)}".`}
     }
 
-    const files = await ctx.storage.getFiles(task.attachments)
+    const files = await ctx.storage.getFiles(fileIds)
 
     if (files.length === 0) {
-      return {success: true, data: `Task references ${task.attachments.length} file(s) but none could be loaded.`}
+      return {success: true, data: `Task references ${fileIds.length} file(s) but none could be loaded.`}
     }
 
     const fileList = files

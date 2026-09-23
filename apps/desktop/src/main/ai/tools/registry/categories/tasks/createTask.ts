@@ -73,7 +73,6 @@ export const createTask: RegisteredTool = {
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       },
       tags,
-      attachments: [],
       estimatedTime,
       spentTime: 0,
       createdAt: now,

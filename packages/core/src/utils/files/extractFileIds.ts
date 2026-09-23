@@ -1,4 +1,4 @@
-import {APP_CONFIG} from "@daily/protocol"
+import {buildFileLinkPattern} from "./buildFileLinkPattern"
 
 /**
  * Extract file IDs from content
@@ -8,9 +8,7 @@ import {APP_CONFIG} from "@daily/protocol"
  */
 export function extractFileIds(content: string): string[] {
   const fileIds = new Set<string>()
-
-  const escapedProtocol = APP_CONFIG.filesProtocol.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-  const regex = new RegExp(`!\\[[^\\]]*\\]\\(\\s*${escapedProtocol}\\/([a-zA-Z0-9_-]+)\\s*\\)`, "g")
+  const regex = buildFileLinkPattern()
 
   for (const match of content.matchAll(regex)) {
     fileIds.add(match[1])

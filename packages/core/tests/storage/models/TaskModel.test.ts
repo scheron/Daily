@@ -61,7 +61,6 @@ describe("TaskModel", () => {
     expect(task.createdAt).toBeTruthy()
     expect(task.updatedAt).toBeTruthy()
     expect(task.tags).toEqual([])
-    expect(task.attachments).toEqual([])
   })
 
   it("creates a task with tags and reads them back", () => {
@@ -172,26 +171,6 @@ describe("TaskModel", () => {
 
     expect(updated.tags).toHaveLength(1)
     expect(updated.tags[0].name).toBe("keep")
-  })
-
-  it("addTaskAttachment and removeTaskAttachment work correctly", () => {
-    const task = taskModel.createTask(makeTaskInput())
-    const fileId = "file-001"
-
-    db.prepare("INSERT INTO files (id, name, mime_type, size, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)").run(
-      fileId,
-      "test.png",
-      "image/png",
-      1024,
-      new Date().toISOString(),
-      new Date().toISOString(),
-    )
-
-    const withAttachment = taskModel.addTaskAttachment(task.id, fileId)
-    expect(withAttachment.attachments).toContain(fileId)
-
-    const withoutAttachment = taskModel.removeTaskAttachment(task.id, fileId)
-    expect(withoutAttachment.attachments).not.toContain(fileId)
   })
 
   it("permanentlyDeleteAllDeletedTasks removes all soft-deleted tasks", () => {

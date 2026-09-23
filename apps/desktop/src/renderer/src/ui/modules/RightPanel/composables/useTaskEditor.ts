@@ -31,7 +31,6 @@ export const useTaskEditor = createSharedComposable(() => {
       status: draft.status,
       tags: draft.tags,
       milestoneId: draft.milestoneId ?? null,
-      attachments: [] as string[],
     }
   })
 

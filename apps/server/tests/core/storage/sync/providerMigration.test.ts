@@ -1,6 +1,6 @@
 /**
  * Drives `ProviderMigrationService` against a real SQLite database, a real in-process Daily Sync
- * Server (`packages/core/tests/helpers/syncServer.ts`) and a real temp directory standing in for iCloud. Nothing
+ * Server (`apps/server/tests/helpers/syncServer.ts`) and a real temp directory standing in for iCloud. Nothing
  * about the migration itself is stubbed: the service is wired to the real `SyncEngine`, the real
  * `LocalStorageAdapter`, the real `ICloudRemoteAdapter`/`DailyServerRemoteAdapter` and the real
  * merge code under `src/main/utils/sync/merge/`.
@@ -30,21 +30,21 @@ import {ProviderMigrationService} from "@core/storage/sync/ProviderMigrationServ
 import {ServerProviderService} from "@core/storage/sync/server/ServerProviderService"
 import {SyncEngine} from "@core/storage/sync/SyncEngine"
 import {buildSyncRemotes} from "@core/utils/sync/syncProvider"
-import {createTestDatabase} from "../../helpers/db"
-import {bootSyncServer, claimFirstDevice} from "../../helpers/syncServer"
+import {createTestDatabase} from "@server-tests/helpers/coreDb"
+import {bootSyncServer, claimFirstDevice} from "@server-tests/helpers/syncServer"
 
 import type {AppPaths} from "@core/config/paths"
 import type {StorageCore} from "@core/storage/createStorageCore"
 import type {IssuedCredential, ServerSyncBinding, Settings, SyncSettings} from "@daily/protocol"
+import type {BootedSyncServer} from "@server-tests/helpers/syncServer"
 import type Database from "better-sqlite3"
-import type {BootedSyncServer} from "../../helpers/syncServer"
 
 /**
- * `ICloudRemoteAdapter` reads/writes through `../../../src/utils/fileCoordinator`, whose real implementation
+ * `ICloudRemoteAdapter` reads/writes through `@core/utils/fileCoordinator`, whose real implementation
  * assumes a genuine iCloud-managed path. Standing a plain temp directory in for iCloud (the
- * technique `packages/core/tests/storage/sync/integration.test.ts` already uses) needs this same mock.
+ * technique `apps/server/tests/core/storage/sync/integration.test.ts` already uses) needs this same mock.
  */
-vi.mock("../../../src/utils/fileCoordinator", () => ({
+vi.mock("@core/utils/fileCoordinator", () => ({
   coordinatedRead: vi.fn(async (path: string) => {
     try {
       return await fs.readFile(path)

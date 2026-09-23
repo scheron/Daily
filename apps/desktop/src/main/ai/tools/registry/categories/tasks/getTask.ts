@@ -1,3 +1,4 @@
+import {extractFileIds} from "@daily/core/utils/files/extractFileIds"
 import {toDurationLabel} from "@daily/std"
 
 import {formatTask} from "@main/ai/utils/formatters"
@@ -45,8 +46,9 @@ export const getTask: RegisteredTool = {
       lines.push(timeLine)
     }
 
-    if (task.attachments.length > 0) {
-      lines.push(`Attachments: ${task.attachments.length} file(s) — use get_task_attachments for details`)
+    const attachmentIds = extractFileIds(task.content)
+    if (attachmentIds.length > 0) {
+      lines.push(`Attachments: ${attachmentIds.length} file(s) — use get_task_attachments for details`)
     }
 
     const related = await ctx.storage.getTaskRelations(task.id)

@@ -6,7 +6,7 @@ import {ensureClaimCode} from "@daily/server/identity/ServerIdentityStore"
 
 import {DailySyncClient} from "@core/storage/sync/server/DailySyncClient"
 import {isPrivateServerAddress, probeTransport} from "@core/storage/sync/server/serverTransport"
-import {bootHttpsSyncServer, bootSyncServer, claimFirstDevice, createAgentRequest, openEnrollmentWindow} from "../../../helpers/syncServer"
+import {bootHttpsSyncServer, bootSyncServer, claimFirstDevice, createAgentRequest, openEnrollmentWindow} from "@server-tests/helpers/syncServer"
 
 /** Flips one hex byte of a `AA:BB:...` fingerprint so the result differs from the input in exactly one byte, as TC-5 requires. */
 function corruptFingerprint(fingerprint: string): string {

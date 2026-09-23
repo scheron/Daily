@@ -2,19 +2,25 @@ import {readdir} from "node:fs/promises"
 import {Readable} from "node:stream"
 import {describe, expect, it} from "vitest"
 
-import {runInAgentWorkspace} from "../../src/agents/AgentWorkspace"
+import {APP_CONFIG} from "@daily/protocol"
+
+import {AGENT_WRITE_ATTEMPTS, runInAgentWorkspace} from "../../src/agents/AgentWorkspace"
+import {getAttachmentTool} from "../../src/agents/tools/read/getAttachment"
 import {getTaskTool} from "../../src/agents/tools/read/getTask"
+import {deleteAttachmentTool} from "../../src/agents/tools/write/deleteAttachment"
 import {deleteCommentTool} from "../../src/agents/tools/write/deleteComment"
 import {deleteTaskTool} from "../../src/agents/tools/write/deleteTask"
+import {saveAttachmentTool} from "../../src/agents/tools/write/saveAttachment"
 import {saveCommentTool} from "../../src/agents/tools/write/saveComment"
 import {saveMilestoneTool} from "../../src/agents/tools/write/saveMilestone"
 import {saveProjectTool} from "../../src/agents/tools/write/saveProject"
 import {saveTagTool} from "../../src/agents/tools/write/saveTag"
 import {saveTaskTool} from "../../src/agents/tools/write/saveTask"
-import {assetsDir, findAsset, listAssets, writeAsset} from "../../src/assets/AssetStore"
+import {assetsDir, listAssets, writeAsset} from "../../src/assets/AssetStore"
+import {AgentToolError} from "../../src/errors/agent/AgentToolError"
 import {AgentToolErrorCode} from "../../src/errors/agent/AgentToolErrorCode"
-import {readSnapshot} from "../../src/snapshot/SnapshotStore"
-import {bindAgent, bindDevice, makePngBytes, makeTaskDraft, seedAgentStore} from "./helpers"
+import {readRevision, readSnapshot} from "../../src/snapshot/SnapshotStore"
+import {bindAgent, bindDevice, makePngBytes, makeTaskDraft, openMacCore, seedAgentStore, writeMacSnapshot} from "./helpers"
 
 import type {AgentIdentity, AgentWorkspaceDeps} from "../../src/agents/AgentWorkspace"
 import type {AgentTool} from "../../src/agents/tools/types"
@@ -31,6 +37,24 @@ function dated(date: string, overrides: Record<string, unknown> = {}) {
 function putOnServer(store: ServerStore, fileId: string, ext: string, bytes: Buffer): Promise<unknown> {
   const deviceId = bindDevice(store, "Uploader Mac")
   return writeAsset(store, `${fileId}.${ext}`, Readable.from(bytes), deviceId, 10 * 1024 * 1024)
+}
+
+/**
+ * Awaits `promise` expecting it to reject with a structured `AgentToolError` — some specific,
+ * named code from the tool's own enum, carrying a real explanation — rather than a bare crash.
+ * Returns the error so a case can still check the one field the plan pins down.
+ */
+async function expectRejectsWithAgentError(promise: Promise<unknown>): Promise<AgentToolError> {
+  try {
+    await promise
+  } catch (error) {
+    expect(error).toBeInstanceOf(AgentToolError)
+    const agentError = error as AgentToolError
+    expect(Object.values(AgentToolErrorCode)).toContain(agentError.code)
+    expect(agentError.message.length).toBeGreaterThan(0)
+    return agentError
+  }
+  throw new Error("expected the call to reject")
 }
 
 describe("save_task", () => {
@@ -467,78 +491,32 @@ describe("save_task", () => {
     }
   })
 
-  it("TC-22: an attachment that is not a recognisable image refuses INVALID_INPUT, and writes nothing", async () => {
-    let taskId = ""
-
-    const seeded = await seedAgentStore(async (mac) => {
-      const task = await mac.core.tasksService.createTask(dated("2026-01-01", {content: "Plain task"}))
-      taskId = task!.id
-    })
+  it("a call that loses every write race leaves no bytes and no assets row behind, even though save_attachment staged them on every attempt", async () => {
+    const seeded = await seedAgentStore()
 
     try {
       const agent = bindAgent(seeded.store)
-      const notAnImage = Buffer.from("just some text, not a picture").toString("base64")
+      const png = makePngBytes()
+      let attempts = 0
 
       await expect(
-        call({store: seeded.store}, agent, saveTaskTool, {id: taskId, addAttachments: [{name: "notes.txt", dataBase64: notAnImage}]}),
-      ).rejects.toMatchObject({code: AgentToolErrorCode.INVALID_INPUT})
+        runInAgentWorkspace({store: seeded.store}, agent, "write", async (ctx) => {
+          attempts++
 
-      const after = await call({store: seeded.store}, agent, getTaskTool, {id: taskId})
-      expect(after.attachments).toEqual([])
-      expect(listAssets(seeded.store)).toEqual([])
-    } finally {
-      seeded.close()
-    }
-  })
+          const rival = openMacCore()
+          try {
+            await rival.core.tasksService.createTask(makeTaskDraft({content: `Rival ${attempts}`}))
+            const rivalDeviceId = bindDevice(seeded.store, `Rival Mac ${attempts}`)
+            await writeMacSnapshot(seeded.store, rival, readRevision(seeded.store), rivalDeviceId)
+          } finally {
+            rival.close()
+          }
 
-  it("TC-23: removeAttachmentIds detaches a file from the task without touching its bytes or its asset row", async () => {
-    let taskId = ""
-    let fileId = ""
-
-    const seeded = await seedAgentStore(async (mac) => {
-      fileId = await mac.core.filesService.saveFile("photo.png", makePngBytes())
-      const task = await mac.core.tasksService.createTask(dated("2026-01-01", {content: "Has a photo", attachments: [fileId]}))
-      taskId = task!.id
-    })
-
-    try {
-      await putOnServer(seeded.store, fileId, "png", makePngBytes())
-
-      const agent = bindAgent(seeded.store)
-      const result = await call({store: seeded.store}, agent, saveTaskTool, {id: taskId, removeAttachmentIds: [fileId]})
-
-      expect(result.task.attachments).toEqual([])
-      expect(findAsset(seeded.store, `${fileId}.png`)).toBeTruthy()
-    } finally {
-      seeded.close()
-    }
-  })
-
-  it("a batch that throws on its third item leaves no bytes and no assets row behind for the attachments the earlier items added", async () => {
-    let taskAId = ""
-    let taskBId = ""
-
-    const seeded = await seedAgentStore(async (mac) => {
-      const a = await mac.core.tasksService.createTask(dated("2026-01-01", {content: "A"}))
-      const b = await mac.core.tasksService.createTask(dated("2026-01-01", {content: "B"}))
-      taskAId = a!.id
-      taskBId = b!.id
-    })
-
-    try {
-      const agent = bindAgent(seeded.store)
-      const png = makePngBytes().toString("base64")
-
-      await expect(
-        call({store: seeded.store}, agent, saveTaskTool, {
-          tasks: [
-            {id: taskAId, addAttachments: [{name: "a.png", dataBase64: png}]},
-            {id: taskBId, addAttachments: [{name: "b.png", dataBase64: png}]},
-            {id: "no-such-id", addAttachments: [{name: "c.png", dataBase64: png}]},
-          ],
+          return saveAttachmentTool.run({name: "shot.png", dataBase64: png.toString("base64")}, ctx)
         }),
-      ).rejects.toMatchObject({code: AgentToolErrorCode.NOT_FOUND})
+      ).rejects.toMatchObject({code: AgentToolErrorCode.WRITE_CONFLICT})
 
+      expect(attempts).toBe(AGENT_WRITE_ATTEMPTS)
       expect(listAssets(seeded.store)).toEqual([])
       expect(await readdir(assetsDir(seeded.store))).toEqual([])
     } finally {
@@ -578,6 +556,202 @@ describe("save_task", () => {
       expect(row.provider).toBe("Test Client")
       expect(row.kind).not.toBe("manual")
       expect(row.provider).not.toBe("Oleg")
+    } finally {
+      seeded.close()
+    }
+  })
+
+  it("TC-6: addAttachments and removeAttachmentIds are gone from the schema at both levels, and the tool never reads either one", async () => {
+    expect(Object.keys(saveTaskTool.inputSchema.properties)).not.toContain("addAttachments")
+    expect(Object.keys(saveTaskTool.inputSchema.properties)).not.toContain("removeAttachmentIds")
+
+    const taskItemProperties = (saveTaskTool.inputSchema.properties.tasks as any).items.properties
+    expect(Object.keys(taskItemProperties)).not.toContain("addAttachments")
+    expect(Object.keys(taskItemProperties)).not.toContain("removeAttachmentIds")
+
+    let topLevelTaskId = ""
+    let topLevelFileId = ""
+    let batchTaskId = ""
+    let batchFileId = ""
+
+    const seeded = await seedAgentStore(async (mac) => {
+      topLevelFileId = await mac.core.filesService.saveFile("top-level.png", makePngBytes())
+      const topLevelTask = await mac.core.tasksService.createTask(
+        dated("2026-01-01", {content: `Top level ![shot](${APP_CONFIG.filesProtocol}/${topLevelFileId})`}),
+      )
+      topLevelTaskId = topLevelTask!.id
+
+      batchFileId = await mac.core.filesService.saveFile("batch.png", makePngBytes())
+      const batchTask = await mac.core.tasksService.createTask(
+        dated("2026-01-01", {content: `Inside a batch ![shot](${APP_CONFIG.filesProtocol}/${batchFileId})`}),
+      )
+      batchTaskId = batchTask!.id
+    })
+
+    try {
+      const agent = bindAgent(seeded.store)
+      const png = makePngBytes().toString("base64")
+
+      const topLevelResult = await call({store: seeded.store}, agent, saveTaskTool, {
+        id: topLevelTaskId,
+        addAttachments: [{name: "new.png", dataBase64: png}],
+        removeAttachmentIds: [topLevelFileId],
+      })
+      expect(topLevelResult.task.attachments.map((a: any) => a.id)).toEqual([topLevelFileId])
+
+      const batchResult = await call({store: seeded.store}, agent, saveTaskTool, {
+        tasks: [{id: batchTaskId, addAttachments: [{name: "new2.png", dataBase64: png}], removeAttachmentIds: [batchFileId]}],
+      })
+      expect(batchResult.tasks[0].attachments.map((a: any) => a.id)).toEqual([batchFileId])
+
+      expect(listAssets(seeded.store)).toEqual([])
+      expect(await readdir(assetsDir(seeded.store))).toEqual([])
+    } finally {
+      seeded.close()
+    }
+  })
+})
+
+describe("save_attachment", () => {
+  it("TC-1: saves bytes to a fresh store and answers id, name, mimeType, size and a url get_attachment reads the same bytes back from", async () => {
+    const seeded = await seedAgentStore()
+
+    try {
+      const agent = bindAgent(seeded.store)
+      const png = makePngBytes(96)
+
+      const saved = await call({store: seeded.store}, agent, saveAttachmentTool, {name: "shot.png", dataBase64: png.toString("base64")})
+
+      expect(typeof saved.id).toBe("string")
+      expect(saved.id.length).toBeGreaterThan(0)
+      expect(typeof saved.name).toBe("string")
+      expect(saved.mimeType).toBe("image/png")
+      expect(saved.size).toBe(png.length)
+      expect(saved.url).toBe(`${APP_CONFIG.filesProtocol}/${saved.id}`)
+
+      const fetched = await call({store: seeded.store}, agent, getAttachmentTool, {id: saved.id})
+      expect(fetched.mimeType).toBe("image/png")
+      expect(fetched.size).toBe(png.length)
+      expect(Buffer.from(fetched.dataBase64, "base64").equals(png)).toBe(true)
+    } finally {
+      seeded.close()
+    }
+  })
+
+  it("TC-3: a non-image or a file over 5 MiB refuses with the tool's own error code, and creates nothing", async () => {
+    const seeded = await seedAgentStore()
+
+    try {
+      const agent = bindAgent(seeded.store)
+      const revisionBefore = readSnapshot(seeded.store)!.revision
+      const notAnImage = Buffer.from("just some text, not a picture").toString("base64")
+      const oversized = makePngBytes(6 * 1024 * 1024).toString("base64")
+
+      await expectRejectsWithAgentError(call({store: seeded.store}, agent, saveAttachmentTool, {name: "notes.txt", dataBase64: notAnImage}))
+      await expectRejectsWithAgentError(call({store: seeded.store}, agent, saveAttachmentTool, {name: "huge.png", dataBase64: oversized}))
+      await expectRejectsWithAgentError(call({store: seeded.store}, agent, saveAttachmentTool, {name: "evil.png", dataBase64: notAnImage}))
+
+      expect(readSnapshot(seeded.store)!.revision).toBe(revisionBefore)
+      expect(readSnapshot(seeded.store)!.document.docs.files).toEqual([])
+      expect(listAssets(seeded.store)).toEqual([])
+      expect(await readdir(assetsDir(seeded.store))).toEqual([])
+    } finally {
+      seeded.close()
+    }
+  })
+
+  it("TC-2: a file linked from a task's text is shown among that task's attachments, and cleanup does not collect it", async () => {
+    const seeded = await seedAgentStore()
+
+    try {
+      const agent = bindAgent(seeded.store)
+      const png = makePngBytes(96)
+
+      const saved = await call({store: seeded.store}, agent, saveAttachmentTool, {name: "shot.png", dataBase64: png.toString("base64")})
+      const written = await call({store: seeded.store}, agent, saveTaskTool, {content: `Shot ![shot](${saved.url})`})
+      const taskId = written.task.id
+
+      const fetchedTask = await call({store: seeded.store}, agent, getTaskTool, {id: taskId})
+      expect(fetchedTask.attachments.map((a: any) => a.id)).toContain(saved.id)
+
+      await runInAgentWorkspace({store: seeded.store}, agent, "write", async (ctx) => {
+        await ctx.core.filesService.cleanupOrphanFiles()
+        return null
+      })
+
+      const stillThere = await call({store: seeded.store}, agent, getAttachmentTool, {id: saved.id})
+      expect(Buffer.from(stillThere.dataBase64, "base64").equals(png)).toBe(true)
+    } finally {
+      seeded.close()
+    }
+  })
+})
+
+describe("delete_attachment", () => {
+  it("TC-4: deletes a file nothing references along with its bytes, and get_attachment then answers ATTACHMENT_UNAVAILABLE", async () => {
+    let fileId = ""
+
+    const seeded = await seedAgentStore(async (mac) => {
+      fileId = await mac.core.filesService.saveFile("orphan.png", makePngBytes())
+    })
+
+    try {
+      await putOnServer(seeded.store, fileId, "png", makePngBytes())
+      const agent = bindAgent(seeded.store)
+
+      const result = await call({store: seeded.store}, agent, deleteAttachmentTool, {id: fileId})
+      expect(result.id).toBe(fileId)
+
+      expect(await readdir(assetsDir(seeded.store))).not.toContain(`${fileId}.png`)
+
+      await expect(call({store: seeded.store}, agent, getAttachmentTool, {id: fileId})).rejects.toMatchObject({
+        code: AgentToolErrorCode.ATTACHMENT_UNAVAILABLE,
+      })
+    } finally {
+      seeded.close()
+    }
+  })
+
+  it("TC-5: refuses to delete a file a live task's text still links to, explaining why, and leaves the file whole", async () => {
+    let fileId = ""
+
+    const seeded = await seedAgentStore(async (mac) => {
+      fileId = await mac.core.filesService.saveFile("still-used.png", makePngBytes())
+      await mac.core.tasksService.createTask(dated("2026-01-01", {content: `Linked ![shot](${APP_CONFIG.filesProtocol}/${fileId})`}))
+    })
+
+    try {
+      await putOnServer(seeded.store, fileId, "png", makePngBytes())
+      const agent = bindAgent(seeded.store)
+
+      await expectRejectsWithAgentError(call({store: seeded.store}, agent, deleteAttachmentTool, {id: fileId}))
+
+      const stillThere = await call({store: seeded.store}, agent, getAttachmentTool, {id: fileId})
+      expect(Buffer.from(stillThere.dataBase64, "base64").length).toBe(stillThere.size)
+      expect(await readdir(assetsDir(seeded.store))).toContain(`${fileId}.png`)
+    } finally {
+      seeded.close()
+    }
+  })
+
+  it("refuses to delete a file only a trashed task's text still links to, explaining why, and leaves the file whole", async () => {
+    let fileId = ""
+
+    const seeded = await seedAgentStore(async (mac) => {
+      fileId = await mac.core.filesService.saveFile("still-used.png", makePngBytes())
+      const task = await mac.core.tasksService.createTask(dated("2026-01-01", {content: `Linked ![shot](${APP_CONFIG.filesProtocol}/${fileId})`}))
+      await mac.core.tasksService.deleteTask(task!.id)
+    })
+
+    try {
+      await putOnServer(seeded.store, fileId, "png", makePngBytes())
+      const agent = bindAgent(seeded.store)
+
+      await expectRejectsWithAgentError(call({store: seeded.store}, agent, deleteAttachmentTool, {id: fileId}))
+
+      const stillThere = await call({store: seeded.store}, agent, getAttachmentTool, {id: fileId})
+      expect(Buffer.from(stillThere.dataBase64, "base64").length).toBe(stillThere.size)
+      expect(await readdir(assetsDir(seeded.store))).toContain(`${fileId}.png`)
     } finally {
       seeded.close()
     }

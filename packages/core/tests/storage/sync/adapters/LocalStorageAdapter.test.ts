@@ -37,10 +37,6 @@ function linkTaskTag(db, taskId, tagId) {
   db.prepare("INSERT INTO task_tags (task_id, tag_id) VALUES (?, ?)").run(taskId, tagId)
 }
 
-function linkTaskAttachment(db, taskId, fileId) {
-  db.prepare("INSERT INTO task_attachments (task_id, file_id) VALUES (?, ?)").run(taskId, fileId)
-}
-
 function insertSettings(db, data = {}) {
   const d = {version: "1", themes: {current: "light"}, ...data}
   db.prepare("INSERT OR REPLACE INTO settings (id, version, data, created_at, updated_at) VALUES ('default', ?, ?, ?, ?)").run(
@@ -73,17 +69,14 @@ describe("LocalStorageAdapter", () => {
       expect(docs.files).toHaveLength(0)
     })
 
-    it("loads tasks with tags and attachments", async () => {
+    it("loads tasks with tags", async () => {
       insertTask(db, "t1", "Hello")
       insertTag(db, "tag1", "work")
-      insertFile(db, "f1", "file.txt")
       linkTaskTag(db, "t1", "tag1")
-      linkTaskAttachment(db, "t1", "f1")
 
       const docs = await adapter.loadAllDocs()
       expect(docs.tasks).toHaveLength(1)
       expect(docs.tasks[0].tags).toEqual(["tag1"])
-      expect(docs.tasks[0].attachments).toEqual(["f1"])
     })
 
     it("loads tags, branches, files", async () => {
@@ -231,47 +224,6 @@ describe("LocalStorageAdapter", () => {
       expect(tags).toEqual(["tag2"])
     })
 
-    it("rebuilds task_attachments junction on upsert", async () => {
-      insertFile(db, "f1", "a.txt")
-      insertFile(db, "f2", "b.txt")
-      insertTask(db, "t1", "task")
-      linkTaskAttachment(db, "t1", "f1")
-
-      await adapter.upsertDocs({
-        tasks: [
-          {
-            id: "t1",
-            status: "active",
-            content: "task",
-            minimized: false,
-            order_index: 0,
-            scheduled_date: "2026-03-25",
-            scheduled_time: "",
-            scheduled_timezone: "UTC",
-            estimated_time: 0,
-            spent_time: 0,
-            branch_id: "main",
-            tags: [],
-            attachments: ["f2"],
-            created_at: now,
-            updated_at: now,
-            deleted_at: null,
-          },
-        ],
-        tags: [],
-        branches: [],
-        milestones: [],
-        files: [],
-        events: [],
-      })
-
-      const files = db
-        .prepare("SELECT file_id FROM task_attachments WHERE task_id = 't1'")
-        .all()
-        .map((r) => r.file_id)
-      expect(files).toEqual(["f2"])
-    })
-
     it("inserts tags, branches, files", async () => {
       await adapter.upsertDocs({
         tasks: [],
@@ -378,14 +330,11 @@ describe("LocalStorageAdapter", () => {
       insertTask(db, "t1", "task")
       insertTag(db, "tag1", "work")
       linkTaskTag(db, "t1", "tag1")
-      insertFile(db, "f1", "file.txt")
-      linkTaskAttachment(db, "t1", "f1")
 
       await adapter.deleteDocs({tasks: ["t1"]})
 
       expect(db.prepare("SELECT * FROM tasks WHERE id = 't1'").get()).toBeUndefined()
       expect(db.prepare("SELECT * FROM task_tags WHERE task_id = 't1'").all()).toHaveLength(0)
-      expect(db.prepare("SELECT * FROM task_attachments WHERE task_id = 't1'").all()).toHaveLength(0)
     })
 
     it("hard-deletes tags and cleans task_tags", async () => {
@@ -450,15 +399,12 @@ describe("LocalStorageAdapter", () => {
       expect(db.prepare("SELECT * FROM milestones WHERE id = 'm2'").get()).toBeDefined()
     })
 
-    it("hard-deletes files and cleans task_attachments", async () => {
-      insertTask(db, "t1", "task")
+    it("hard-deletes files", async () => {
       insertFile(db, "f1", "file.txt")
-      linkTaskAttachment(db, "t1", "f1")
 
       await adapter.deleteDocs({files: ["f1"]})
 
       expect(db.prepare("SELECT * FROM files WHERE id = 'f1'").get()).toBeUndefined()
-      expect(db.prepare("SELECT * FROM task_attachments WHERE file_id = 'f1'").all()).toHaveLength(0)
     })
 
     it("does nothing for empty id arrays", async () => {

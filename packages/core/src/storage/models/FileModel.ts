@@ -142,9 +142,4 @@ export class FileModel {
     logger.storage("Deleted", "FILES", id)
     return result.changes > 0
   }
-
-  getReferencedFileIds(): Set<File["id"]> {
-    const rows = this.db.prepare(`SELECT DISTINCT file_id FROM task_attachments`).all() as any[]
-    return new Set(rows.map((row: any) => row.file_id))
-  }
 }

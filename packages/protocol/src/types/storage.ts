@@ -178,8 +178,6 @@ export type Task = {
   tags: Tag[]
   /** The milestone this task is part of. Always one of its own project's, or `null`. */
   milestoneId: Milestone["id"] | null
-  /** Files IDs  */
-  attachments: string[]
 }
 
 export type TaskRelation = {

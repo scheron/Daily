@@ -564,7 +564,6 @@ function snapshotTaskToTask(row: SnapshotTask, tagsById: Map<string, Tag>): Task
     branchId: row.branch_id,
     milestoneId: row.milestone_id,
     tags: row.tags.map((id) => tagsById.get(id)).filter((tag): tag is Tag => Boolean(tag)),
-    attachments: row.attachments,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     deletedAt: row.deleted_at,

@@ -9,10 +9,10 @@ import {DailyServerRemoteAdapter} from "@core/storage/sync/adapters/DailyServerR
 import {DailySyncClient} from "@core/storage/sync/server/DailySyncClient"
 import {KNOWN_SNAPSHOT_VERSION} from "@core/utils/sync/snapshot/assertKnownSnapshotVersion"
 import {buildSnapshot} from "@core/utils/sync/snapshot/buildSnapshot"
-import {bootSyncServer, claimFirstDevice, enrollSecondDevice} from "../../../helpers/syncServer"
+import {bootSyncServer, claimFirstDevice, enrollSecondDevice} from "@server-tests/helpers/syncServer"
 
 import type {IssuedCredential, ServerSyncBinding, SnapshotDocs, SnapshotFile} from "@daily/protocol"
-import type {BootedSyncServer} from "../../../helpers/syncServer"
+import type {BootedSyncServer} from "@server-tests/helpers/syncServer"
 
 function emptyDocs(): SnapshotDocs {
   return {tasks: [], tags: [], branches: [], files: [], events: [], settings: null}

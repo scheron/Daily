@@ -27,10 +27,10 @@ function putOnServer(store: ServerStore, fileId: string, ext: string, bytes: Buf
 }
 
 describe("listMcpTools — TC-14", () => {
-  it("TC-14: answers AGENT_TOOLS's own thirteen entries in order, with readOnlyHint true for reads and false for writes", () => {
+  it("TC-14: answers AGENT_TOOLS's own fifteen entries in order, with readOnlyHint true for reads and false for writes", () => {
     const result = listMcpTools()
 
-    expect(result).toHaveLength(13)
+    expect(result).toHaveLength(15)
     expect(result.map((tool) => tool.name)).toEqual(AGENT_TOOLS.map((tool) => tool.name))
 
     AGENT_TOOLS.forEach((tool, index) => {
