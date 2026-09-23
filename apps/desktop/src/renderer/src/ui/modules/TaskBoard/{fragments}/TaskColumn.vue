@@ -30,14 +30,14 @@ function getContainerClasses(isCollapsed: boolean) {
 
 function getRailClasses(titleClass: string) {
   return cn(
-    "dock-surface focus-visible-accent hover:bg-base-200/60 mx-3 mt-11 flex w-11 cursor-pointer flex-col items-center gap-2 rounded-full py-2.5 transition-colors outline-none",
+    "dock-surface focus-visible-accent hover:bg-base-200/60 mx-3 mt-14 flex w-11 cursor-pointer flex-col items-center gap-2 rounded-full py-2.5 transition-colors outline-none",
     titleClass,
   )
 }
 
 function getHeaderClasses(titleClass: string) {
   return cn(
-    "focus-visible-accent absolute inset-x-0 top-11 z-10 flex h-9 cursor-pointer items-center justify-between px-4 transition-colors outline-none",
+    "focus-visible-accent absolute inset-x-0 top-14 z-10 flex h-9 cursor-pointer items-center justify-between px-4 transition-colors outline-none",
     titleClass,
   )
 }
@@ -47,7 +47,7 @@ function getCounterClasses(counterClass: string) {
 }
 
 function getListClasses(isCollapsed: boolean) {
-  return cn("pt-22 absolute inset-0 flex min-w-0 overflow-y-auto overflow-x-hidden px-1.5 pb-4", isCollapsed && "pointer-events-none invisible")
+  return cn("pt-25 absolute inset-0 flex min-w-0 overflow-y-auto overflow-x-hidden px-1.5 pb-4", isCollapsed && "pointer-events-none invisible")
 }
 </script>
 
@@ -94,7 +94,7 @@ function getListClasses(isCollapsed: boolean) {
 
     <template v-if="!collapsed">
       <div
-        class="from-base-100 via-base-100/60 h-23 bg-linear-to-b pointer-events-none absolute inset-x-0 top-0 z-[5] from-35% via-70% to-transparent"
+        class="from-base-100 via-base-100/60 h-26 bg-linear-to-b pointer-events-none absolute inset-x-0 top-0 z-[5] from-35% via-70% to-transparent"
       />
       <div class="to-base-100/70 bg-linear-to-b pointer-events-none absolute inset-x-0 bottom-0 z-[5] h-12 from-transparent" />
     </template>
