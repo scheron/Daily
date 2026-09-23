@@ -1,9 +1,5 @@
 import {APP_CONFIG} from "@daily/protocol"
 
-function escapeRegExpLiteral(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-}
-
 const ESCAPED_PROTOCOL = escapeRegExpLiteral(APP_CONFIG.filesProtocol)
 
 /**
@@ -17,4 +13,8 @@ export function buildFileLinkPattern(fileId?: string): RegExp {
   const idPart = fileId === undefined ? "([a-zA-Z0-9_-]+)" : escapeRegExpLiteral(fileId)
 
   return new RegExp(`!\\[[^\\]]*\\]\\(\\s*${ESCAPED_PROTOCOL}\\/${idPart}\\s*\\)`, "g")
+}
+
+function escapeRegExpLiteral(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 }
