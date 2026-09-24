@@ -95,4 +95,48 @@ describe("TaskBoard", () => {
 
     expect(board.findAll("[data-task-card]")).toHaveLength(2)
   })
+
+  it("switching to the milestone frame mounts its cards without rewriting the document's stylesheets", async () => {
+    const {mountBoard, tasks} = await setup()
+    const {useFilterStore} = await import("../../../../src/renderer/src/stores/filter.store")
+    const {useMilestonesStore} = await import("../../../../src/renderer/src/stores/milestones.store")
+    const today = DateTime.now().toISODate()
+    tasks.activeDay = today
+    tasks.tasks = Array.from({length: 10}, (_, index) =>
+      makeTask({
+        id: `task-${index}`,
+        milestoneId: "milestone-1",
+        scheduled: {date: index === 0 ? today : "2099-01-01", time: "09:00", timezone: "UTC"},
+      }),
+    )
+    useMilestonesStore().milestones = [
+      {
+        id: "milestone-1",
+        branchId: "main",
+        name: "Launch",
+        description: "",
+        targetDate: null,
+        orderIndex: 1024,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+        deletedAt: null,
+      },
+    ]
+
+    const board = mountBoard()
+    await nextTick()
+    expect(board.findAll("[data-task-card]")).toHaveLength(1)
+
+    const headMutations = []
+    const headObserver = new MutationObserver((records) => headMutations.push(...records))
+    headObserver.observe(document.head, {childList: true, characterData: true, subtree: true})
+    useFilterStore().setFrame("milestone")
+    await nextTick()
+    await new Promise((resolve) => setTimeout(resolve))
+    headMutations.push(...headObserver.takeRecords())
+    headObserver.disconnect()
+
+    expect(board.findAll("[data-task-card]")).toHaveLength(10)
+    expect(headMutations).toHaveLength(0)
+  })
 })
