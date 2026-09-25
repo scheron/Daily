@@ -17,7 +17,7 @@ export class TableWidget extends WidgetType {
     return other.source === this.source && other.from === this.from
   }
 
-  toDOM(view: EditorView) {
+  toDOM(view: EditorView | null) {
     const lines = this.source.split("\n").filter((line) => line.trim().length > 0)
 
     const wrapper = document.createElement("div")
@@ -43,11 +43,13 @@ export class TableWidget extends WidgetType {
 
     wrapper.appendChild(table)
 
-    wrapper.addEventListener("mousedown", (event) => {
-      event.preventDefault()
-      view.dispatch({selection: {anchor: this.from}, scrollIntoView: true})
-      view.focus()
-    })
+    if (view) {
+      wrapper.addEventListener("mousedown", (event) => {
+        event.preventDefault()
+        view.dispatch({selection: {anchor: this.from}, scrollIntoView: true})
+        view.focus()
+      })
+    }
 
     return wrapper
   }

@@ -1,29 +1,17 @@
 <script setup lang="ts">
-import {computed, onMounted, onUnmounted, useTemplateRef, watch} from "vue"
+import {computed, onMounted, useTemplateRef, watch} from "vue"
 
 import {sortTags} from "@daily/protocol"
 import {toDateLabel} from "@daily/std"
 
 import BaseIcon from "@/ui/base/BaseIcon"
 import BaseTag from "@/ui/base/BaseTag"
-import {
-  createCodeSyntaxExtension,
-  createMarkdownLanguageExtension,
-  createReadonlyThemeExtension,
-  createSearchHighlightExtension,
-  createTablesExtension,
-  createThemeExtension,
-  createWYSIWYGExtension,
-} from "@/utils/codemirror/extensions"
+import {renderMarkdownPreview} from "@/utils/codemirror/preview"
 import {cn} from "@/utils/ui/tailwindcss"
-import {EditorState} from "@codemirror/state"
-import {EditorView} from "@codemirror/view"
 
 import type {TaskSearchResult, TaskStatus} from "@daily/protocol"
 
 const props = defineProps<{result: TaskSearchResult}>()
-
-let view: EditorView | null = null
 
 const containerRef = useTemplateRef<HTMLDivElement>("container")
 
@@ -37,32 +25,14 @@ const statusIcon = computed(() => {
 const sortedTags = computed(() => sortTags(props.result.task.tags))
 const branchName = computed(() => props.result.branch?.name ?? "Main")
 
-function createReadonlyEditor(content: string) {
+function renderPreview(content: string) {
   if (!containerRef.value) return
 
-  if (view) view.destroy()
+  const preview = renderMarkdownPreview(content, {isCompact: true, matches: props.result.matches})
+  containerRef.value.replaceChildren(preview.element)
 
-  const state = EditorState.create({
-    doc: content,
-    extensions: [
-      createMarkdownLanguageExtension(),
-
-      EditorView.lineWrapping,
-      EditorView.editable.of(false),
-      EditorState.readOnly.of(true),
-
-      createThemeExtension(),
-      createWYSIWYGExtension({isReadonly: true}),
-      createTablesExtension(),
-      createCodeSyntaxExtension(),
-      createSearchHighlightExtension(props.result.matches),
-      createReadonlyThemeExtension({isCompact: true}),
-    ],
-  })
-
-  view = new EditorView({
-    state,
-    parent: containerRef.value,
+  preview.languagesLoaded?.then(() => {
+    if (props.result.task.content === content) renderPreview(content)
   })
 }
 
@@ -81,13 +51,12 @@ function getStatusIconClasses(status: TaskStatus) {
 watch(
   () => [props.result.task.content, props.result.matches],
   () => {
-    createReadonlyEditor(props.result.task.content)
+    renderPreview(props.result.task.content)
   },
   {deep: true},
 )
 
-onMounted(() => createReadonlyEditor(props.result.task.content))
-onUnmounted(() => view?.destroy())
+onMounted(() => renderPreview(props.result.task.content))
 </script>
 
 <template>

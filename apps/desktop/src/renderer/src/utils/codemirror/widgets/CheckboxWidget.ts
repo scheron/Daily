@@ -15,7 +15,7 @@ export class CheckboxWidget extends WidgetType {
     return other.isChecked === this.isChecked && other.pos === this.pos
   }
 
-  toDOM(view: EditorView) {
+  toDOM(view: EditorView | null) {
     const wrapper = document.createElement("span")
     wrapper.className = "cm-task-marker"
     wrapper.style.display = "inline-flex"
@@ -41,7 +41,7 @@ export class CheckboxWidget extends WidgetType {
 
     checkbox.tabIndex = -1
 
-    if (!this.isReadonly) {
+    if (view && !this.isReadonly) {
       checkbox.onmousedown = (e) => e.preventDefault()
       checkbox.onclick = (e) => {
         e.preventDefault()

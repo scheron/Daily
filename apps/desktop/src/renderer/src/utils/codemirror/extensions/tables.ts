@@ -6,11 +6,12 @@ import {isSelectionTouching, readonlyMode} from "./wysiwyg"
 
 import type {EditorState, Extension, Range} from "@codemirror/state"
 import type {DecorationSet} from "@codemirror/view"
+import type {Tree} from "@lezer/common"
 
 const tableField = StateField.define<DecorationSet>({
-  create: (state) => buildTableDecorations(state),
+  create: (state) => buildTableDecorations(state, syntaxTree(state)),
   update(decorations, tr) {
-    if (tr.docChanged || tr.selection) return buildTableDecorations(tr.state)
+    if (tr.docChanged || tr.selection) return buildTableDecorations(tr.state, syntaxTree(tr.state))
     return decorations.map(tr.changes)
   },
   provide: (field) => EditorView.decorations.from(field),
@@ -21,11 +22,12 @@ export function createTablesExtension(): Extension {
   return tableField
 }
 
-function buildTableDecorations(state: EditorState): DecorationSet {
+/** The read-only preview renders the same set, so the editor and the previews cannot drift. */
+export function buildTableDecorations(state: EditorState, tree: Tree): DecorationSet {
   const isReadonly = state.facet(readonlyMode)
   const decorations: Range<Decoration>[] = []
 
-  syntaxTree(state).iterate({
+  tree.iterate({
     enter: (node) => {
       if (node.name !== "Table") return
 

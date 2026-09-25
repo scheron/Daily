@@ -1,18 +1,10 @@
 <script setup lang="ts">
-import {nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch} from "vue"
+import {onMounted, ref, shallowRef, useTemplateRef, watch} from "vue"
 
+import {useBatchedResizeObserver} from "@/composables/useBatchedResizeObserver"
 import {useImagePreviewModal} from "@/ui/overlays/ImagePreviewModal"
-import {
-  createCodeSyntaxExtension,
-  createMarkdownLanguageExtension,
-  createReadonlyThemeExtension,
-  createTablesExtension,
-  createThemeExtension,
-  createWYSIWYGExtension,
-} from "@/utils/codemirror/extensions"
+import {renderMarkdownPreview} from "@/utils/codemirror/preview"
 import {cn} from "@/utils/ui/tailwindcss"
-import {EditorState} from "@codemirror/state"
-import {EditorView} from "@codemirror/view"
 
 const props = withDefaults(
   defineProps<{
@@ -23,62 +15,34 @@ const props = withDefaults(
   {minimizable: true},
 )
 
-let view: EditorView | null = null
-
 const containerRef = useTemplateRef<HTMLDivElement>("container")
+const contentElementRef = shallowRef<HTMLElement | null>(null)
 const shouldClamp = ref(false)
 
 const {open: openImagePreview} = useImagePreviewModal()
+useBatchedResizeObserver([contentElementRef], {read: readContentHeight, write: applyClamp})
 
 function getMarkdownViewClasses(isMinimized: boolean) {
   return cn("markdown-view", isMinimized && "is-minimized")
 }
 
-function measureClampState() {
-  if (!props.minimizable || !containerRef.value) {
-    shouldClamp.value = false
-    return
-  }
-
-  const contentElement = containerRef.value.querySelector(".cm-content") as HTMLElement | null
-  const contentHeight = contentElement?.scrollHeight ?? 0
-
-  shouldClamp.value = contentHeight > 200
+function readContentHeight(): number {
+  return contentElementRef.value?.scrollHeight ?? 0
 }
 
-function createReadonlyEditor(content: string) {
+function applyClamp(height: number) {
+  shouldClamp.value = props.minimizable && height > 200
+}
+
+function renderPreview(content: string) {
   if (!containerRef.value) return
 
-  if (view) view.destroy()
+  const preview = renderMarkdownPreview(content, {isCompact: false})
+  containerRef.value.replaceChildren(preview.element)
+  contentElementRef.value = preview.element.querySelector(".cm-content")
 
-  const state = EditorState.create({
-    doc: content,
-    extensions: [
-      createMarkdownLanguageExtension(),
-
-      EditorView.lineWrapping,
-      EditorView.editable.of(false),
-      EditorState.readOnly.of(true),
-      EditorView.contentAttributes.of({
-        contenteditable: "false",
-        tabindex: "-1",
-      }),
-
-      createThemeExtension(),
-      createWYSIWYGExtension({isReadonly: true}),
-      createTablesExtension(),
-      createCodeSyntaxExtension(),
-      createReadonlyThemeExtension({isCompact: false}),
-    ],
-  })
-
-  view = new EditorView({
-    state,
-    parent: containerRef.value,
-  })
-
-  nextTick(() => {
-    requestAnimationFrame(() => measureClampState())
+  preview.languagesLoaded?.then(() => {
+    if (props.content === content) renderPreview(content)
   })
 }
 
@@ -98,18 +62,14 @@ function onContentClick(event: MouseEvent) {
 watch(
   () => props.content,
   (newContent) => {
-    createReadonlyEditor(newContent)
+    renderPreview(newContent)
+    applyClamp(readContentHeight())
   },
   {immediate: true},
 )
 
 onMounted(() => {
-  createReadonlyEditor(props.content)
-})
-
-onBeforeUnmount(() => {
-  view?.destroy()
-  view = null
+  renderPreview(props.content)
 })
 </script>
 

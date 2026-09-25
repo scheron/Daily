@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import {computed, nextTick, ref, useTemplateRef, watch} from "vue"
-import {useResizeObserver} from "@vueuse/core"
+import {computed, ref, useTemplateRef, watch} from "vue"
 
+import {useBatchedResizeObserver} from "@/composables/useBatchedResizeObserver"
 import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
 import BasePopup from "@/ui/base/BasePopup.vue"
@@ -31,14 +31,16 @@ const props = withDefaults(
 const emit = defineEmits<{select: [id: Tag["id"]]}>()
 
 const containerRef = useTemplateRef<HTMLElement>("container")
+const probeRef = useTemplateRef<HTMLElement>("probe")
 const measureRef = useTemplateRef<HTMLElement>("measure")
 const rowRef = useTemplateRef<HTMLElement>("row")
-const visibleTags = ref<Tag[]>([])
-const hiddenTags = ref<Tag[]>([])
+const visibleCount = ref<number | null>(null)
 
+const visibleTags = computed(() => (visibleCount.value === null ? [] : props.tags.slice(0, visibleCount.value)))
+const hiddenTags = computed(() => (visibleCount.value === null ? [] : props.tags.slice(visibleCount.value)))
 const hasSelectedInPopup = computed(() => hiddenTags.value.some((tag) => props.selectedTags.has(tag.id)))
 
-useResizeObserver(containerRef, calculateVisibleTags)
+useBatchedResizeObserver([probeRef, measureRef], {read: readVisibleCount, write: (count) => (visibleCount.value = count)})
 
 function isActiveTag(id: Tag["id"]) {
   return props.selectedTags.has(id)
@@ -56,21 +58,11 @@ function getRowClasses() {
   return cn("flex min-w-0 items-center gap-2", props.rowClass)
 }
 
-async function calculateVisibleTags() {
-  if (!containerRef.value || !measureRef.value || !props.tags.length) {
-    visibleTags.value = props.tags
-    hiddenTags.value = []
-    return
-  }
-
-  await nextTick()
+function readVisibleCount(): number {
+  if (!containerRef.value || !measureRef.value || !props.tags.length) return props.tags.length
 
   const containerWidth = containerRef.value.offsetWidth
-  if (containerWidth === 0) {
-    visibleTags.value = []
-    hiddenTags.value = props.tags
-    return
-  }
+  if (containerWidth === 0) return 0
 
   const rowStyle = rowRef.value ? getComputedStyle(rowRef.value) : null
   const rowInsetWidth = rowStyle
@@ -86,7 +78,7 @@ async function calculateVisibleTags() {
   const moreButtonWidth = 60
 
   let currentWidth = 0
-  let visibleCount = 0
+  let visibleTagCount = 0
 
   for (let i = 0; i < tagElements.length; i++) {
     const element = tagElements[i] as HTMLElement
@@ -100,14 +92,19 @@ async function calculateVisibleTags() {
     if (totalWidth > availableWidth) break
 
     currentWidth = newWidth
-    visibleCount++
+    visibleTagCount++
   }
 
-  visibleTags.value = props.tags.slice(0, visibleCount)
-  hiddenTags.value = props.tags.slice(visibleCount)
+  return visibleTagCount
 }
 
-watch(() => props.tags, calculateVisibleTags, {deep: true})
+watch(
+  () => props.tags,
+  () => {
+    visibleCount.value = readVisibleCount()
+  },
+  {deep: true, flush: "post"},
+)
 </script>
 
 <template>
@@ -161,6 +158,8 @@ watch(() => props.tags, calculateVisibleTags, {deep: true})
           />
         </BasePopup>
       </div>
+
+      <div ref="probe" class="absolute inset-x-0 top-0 h-0"></div>
     </template>
   </div>
 </template>

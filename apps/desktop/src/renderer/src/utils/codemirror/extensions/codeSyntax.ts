@@ -4,20 +4,21 @@ import {syntaxTree} from "@codemirror/language"
 import {Decoration, ViewPlugin} from "@codemirror/view"
 import {readonlyMode} from "./wysiwyg"
 
-import type {Extension, Range} from "@codemirror/state"
+import type {EditorState, Extension, Range} from "@codemirror/state"
 import type {DecorationSet, EditorView, ViewUpdate} from "@codemirror/view"
+import type {Tree} from "@lezer/common"
 
 const codeBlockPlugin = ViewPlugin.fromClass(
   class {
     decorations: DecorationSet
 
     constructor(view: EditorView) {
-      this.decorations = createCodeBlockDecorations(view)
+      this.decorations = buildCodeBlockDecorations(view.state, syntaxTree(view.state))
     }
 
     update(update: ViewUpdate) {
       if (update.docChanged || update.viewportChanged) {
-        this.decorations = createCodeBlockDecorations(update.view)
+        this.decorations = buildCodeBlockDecorations(update.view.state, syntaxTree(update.view.state))
       }
     }
   },
@@ -30,32 +31,32 @@ export function createCodeSyntaxExtension(): Extension {
   return [codeBlockPlugin]
 }
 
-function createCodeBlockDecorations(view: EditorView): DecorationSet {
+/** The read-only preview renders the same set, so the editor and the previews cannot drift. */
+export function buildCodeBlockDecorations(state: EditorState, tree: Tree): DecorationSet {
   const decorations: Range<Decoration>[] = []
-  const tree = syntaxTree(view.state)
-  const isReadonly = view.state.facet(readonlyMode)
+  const isReadonly = state.facet(readonlyMode)
 
   tree.iterate({
     enter: (node) => {
       if (node.name !== "FencedCode") return
 
       const {from, to} = node
-      const languageName = getLanguageFromCodeFence(view, from)
+      const languageName = getLanguageFromCodeFence(state.doc, from)
 
-      const firstLine = view.state.doc.lineAt(from)
-      const lastLine = view.state.doc.lineAt(to)
+      const firstLine = state.doc.lineAt(from)
+      const lastLine = state.doc.lineAt(to)
 
-      const {contentFrom, contentTo} = getCodeContentRange(view, from, to)
-      const firstContentLine = contentFrom < contentTo ? view.state.doc.lineAt(contentFrom) : null
-      const lastContentLine = contentFrom < contentTo ? view.state.doc.lineAt(Math.max(contentFrom, contentTo - 1)) : null
+      const {contentFrom, contentTo} = getCodeContentRange(state.doc, from, to)
+      const firstContentLine = contentFrom < contentTo ? state.doc.lineAt(contentFrom) : null
+      const lastContentLine = contentFrom < contentTo ? state.doc.lineAt(Math.max(contentFrom, contentTo - 1)) : null
 
-      const code = contentFrom < contentTo ? view.state.doc.sliceString(contentFrom, contentTo) : ""
+      const code = contentFrom < contentTo ? state.doc.sliceString(contentFrom, contentTo) : ""
       if (code.trim().length > 0) {
         decorations.push(Decoration.widget({widget: new CopyButtonWidget(code), side: -1}).range(firstLine.from))
       }
 
       for (let pos = firstLine.from; pos <= lastLine.to; ) {
-        const line = view.state.doc.lineAt(pos)
+        const line = state.doc.lineAt(pos)
         const isFirst = line.number === firstLine.number
         const isLast = line.number === lastLine.number
         const isContentFirst = firstContentLine && line.number === firstContentLine.number
@@ -77,7 +78,7 @@ function createCodeBlockDecorations(view: EditorView): DecorationSet {
         )
 
         pos = line.to + 1
-        if (pos > view.state.doc.length) break
+        if (pos > state.doc.length) break
       }
     },
   })

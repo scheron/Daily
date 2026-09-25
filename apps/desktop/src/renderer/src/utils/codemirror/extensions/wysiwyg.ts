@@ -5,6 +5,7 @@ import {Decoration, ViewPlugin} from "@codemirror/view"
 
 import type {EditorState, Extension, Range} from "@codemirror/state"
 import type {DecorationSet, EditorView, ViewUpdate} from "@codemirror/view"
+import type {Tree} from "@lezer/common"
 
 /** Set by `createWYSIWYGExtension`; reads `false` in an editor without that extension. */
 export const readonlyMode = Facet.define<boolean, boolean>({
@@ -21,12 +22,12 @@ const wysiwygPlugin = ViewPlugin.fromClass(
     decorations: DecorationSet
 
     constructor(view: EditorView) {
-      this.decorations = createWYSIWYGDecorations(view.state, view.hasFocus)
+      this.decorations = buildWYSIWYGDecorations(view.state, syntaxTree(view.state), view.hasFocus)
     }
 
     update(update: ViewUpdate) {
       if (update.docChanged || update.selectionSet || update.focusChanged) {
-        this.decorations = createWYSIWYGDecorations(update.view.state, update.view.hasFocus)
+        this.decorations = buildWYSIWYGDecorations(update.view.state, syntaxTree(update.view.state), update.view.hasFocus)
       }
     }
   },
@@ -47,7 +48,8 @@ export function createWYSIWYGExtension(options: {isReadonly: boolean}): Extensio
   return [readonlyMode.of(options.isReadonly), wysiwygPlugin]
 }
 
-function createWYSIWYGDecorations(state: EditorState, isFocused: boolean): DecorationSet {
+/** The read-only preview renders the same set, so the editor and the previews cannot drift. */
+export function buildWYSIWYGDecorations(state: EditorState, tree: Tree, isFocused: boolean): DecorationSet {
   const isReadonly = state.facet(readonlyMode)
   const isInteractive = isFocused && !isReadonly
 
@@ -63,7 +65,6 @@ function createWYSIWYGDecorations(state: EditorState, isFocused: boolean): Decor
   const isLineActive = (pos: number) => activeLines.has(state.doc.lineAt(pos).number)
 
   const decorations: Range<Decoration>[] = []
-  const tree = syntaxTree(state)
 
   tree.iterate({
     enter: (node) => {

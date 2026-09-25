@@ -1,27 +1,13 @@
 import {sort} from "fast-sort"
 
-import {Decoration, ViewPlugin} from "@codemirror/view"
+import {Decoration} from "@codemirror/view"
 
-import type {Extension, Range} from "@codemirror/state"
+import type {Range} from "@codemirror/state"
 import type {DecorationSet} from "@codemirror/view"
 import type {SearchMatch} from "@daily/protocol"
 
-export function createSearchHighlightExtension(matches: SearchMatch[] | undefined): Extension {
-  return ViewPlugin.fromClass(
-    class {
-      decorations: DecorationSet
-
-      constructor() {
-        this.decorations = createHighlightDecorations(matches)
-      }
-    },
-    {
-      decorations: (v) => v.decorations,
-    },
-  )
-}
-
-function createHighlightDecorations(matches: SearchMatch[] | undefined): DecorationSet {
+/** The read-only preview renders the same set, so the editor and the previews cannot drift. */
+export function buildSearchHighlightDecorations(matches: SearchMatch[] | undefined): DecorationSet {
   if (!matches || matches.length === 0) {
     return Decoration.none
   }
