@@ -9,6 +9,7 @@ import BaseTag from "@/ui/base/BaseTag"
 import {
   createCodeSyntaxExtension,
   createMarkdownLanguageExtension,
+  createReadonlyThemeExtension,
   createSearchHighlightExtension,
   createTablesExtension,
   createThemeExtension,
@@ -55,12 +56,7 @@ function createReadonlyEditor(content: string) {
       createTablesExtension(),
       createCodeSyntaxExtension(),
       createSearchHighlightExtension(props.result.matches),
-      EditorView.theme({
-        ".cm-cursor": {display: "none"},
-        ".cm-content": {cursor: "default", fontSize: "10px", lineHeight: "1.4"},
-        "&.cm-focused": {outline: "none"},
-        ".cm-line": {fontSize: "10px"},
-      }),
+      createReadonlyThemeExtension({isCompact: true}),
     ],
   })
 

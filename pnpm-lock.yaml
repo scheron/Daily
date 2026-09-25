@@ -4122,8 +4122,8 @@ packages:
   stubborn-utils@1.0.2:
     resolution: {integrity: sha512-zOh9jPYI+xrNOyisSelgym4tolKTJCQd5GBhK0+0xJvcYDcwlOoxF/rnFKQ2KRZknXSG9jWAp66fwP6AxN9STg==}
 
-  style-mod@4.1.3:
-    resolution: {integrity: sha512-i/n8VsZydrugj3Iuzll8+x/00GH2vnYsk1eomD8QiRrSAeW6ItbCQDtfXCeJHd0iwiNagqjQkvpvREEPtW3IoQ==}
+  style-mod@4.1.4:
+    resolution: {integrity: sha512-XXWIQt633/EpAFx8aZDOTjBzrCaGmhvEQlQo6MVPfa2OzO2cWo+4hV9h+6UkHYlXGfy+ODXKUdP7Pthmcu5ATw==}
 
   stylus-lookup@6.1.0:
     resolution: {integrity: sha512-5QSwgxAzXPMN+yugy61C60PhoANdItfdjSEZR8siFwz7yL9jTmV0UBKDCfn3K8GkGB4g0Y9py7vTCX8rFu4/pQ==}
@@ -4951,7 +4951,7 @@ snapshots:
       "@lezer/common": 1.5.1
       "@lezer/highlight": 1.2.3
       "@lezer/lr": 1.4.8
-      style-mod: 4.1.3
+      style-mod: 4.1.4
 
   "@codemirror/legacy-modes@6.5.2":
     dependencies:
@@ -4971,7 +4971,7 @@ snapshots:
     dependencies:
       "@codemirror/state": 6.5.4
       crelt: 1.0.6
-      style-mod: 4.1.3
+      style-mod: 4.1.4
       w3c-keyname: 2.2.8
 
   "@commitlint/cli@19.8.1(@types/node@22.19.8)(typescript@5.9.3)":
@@ -8820,7 +8820,7 @@ snapshots:
 
   stubborn-utils@1.0.2: {}
 
-  style-mod@4.1.3: {}
+  style-mod@4.1.4: {}
 
   stylus-lookup@6.1.0:
     dependencies:

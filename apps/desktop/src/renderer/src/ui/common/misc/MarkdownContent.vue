@@ -5,6 +5,7 @@ import {useImagePreviewModal} from "@/ui/overlays/ImagePreviewModal"
 import {
   createCodeSyntaxExtension,
   createMarkdownLanguageExtension,
+  createReadonlyThemeExtension,
   createTablesExtension,
   createThemeExtension,
   createWYSIWYGExtension,
@@ -67,11 +68,7 @@ function createReadonlyEditor(content: string) {
       createWYSIWYGExtension({isReadonly: true}),
       createTablesExtension(),
       createCodeSyntaxExtension(),
-      EditorView.theme({
-        ".cm-cursor": {display: "none"},
-        ".cm-content": {cursor: "default"},
-        "&.cm-focused": {outline: "none"},
-      }),
+      createReadonlyThemeExtension({isCompact: false}),
     ],
   })
 
