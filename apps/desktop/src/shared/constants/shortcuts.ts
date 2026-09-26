@@ -23,4 +23,9 @@ export const SHORTCUTS_MAP = {
   "editor:close": {label: "Close", accelerator: "Escape"},
   "editor:save": {label: "Save", accelerator: "CmdOrCtrl+S"},
   "editor:save-close": {label: "Save & Close", accelerator: "CmdOrCtrl+Enter"},
+  "markdown:bold": {label: "Bold", accelerator: "CmdOrCtrl+B"},
+  "markdown:italic": {label: "Italic", accelerator: "CmdOrCtrl+I"},
+  "markdown:code": {label: "Inline code", accelerator: "CmdOrCtrl+`"},
+  "comments:submit": {label: "Send", accelerator: "CmdOrCtrl+Enter"},
+  "comments:cancel": {label: "Cancel", accelerator: "Escape"},
 } as const

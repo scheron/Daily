@@ -6,6 +6,7 @@ import {toRelativeTime} from "@daily/std"
 import BaseButton from "@/ui/base/BaseButton"
 import MarkdownContent from "@/ui/common/misc/MarkdownContent.vue"
 import ConfirmPopup from "@/ui/overlays/ConfirmPopup.vue"
+import {toShortcutKeys} from "@/utils/shortcuts/toShortcutKeys"
 import {cn} from "@/utils/ui/tailwindcss"
 import CommentField from "./CommentField.vue"
 import CommentSourceBadge from "./CommentSourceBadge.vue"
@@ -47,7 +48,7 @@ function getRowClasses(editing: boolean) {
 
       <span class="text-base-content/40 text-xs">{{ toRelativeTime(comment.createdAt) }}</span>
 
-      <div v-if="!isEditing" class="ml-auto flex gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+      <div v-if="!isEditing" class="ml-auto flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
         <BaseButton variant="ghost-muted" icon="pencil" size="xs" tooltip="Edit" @click="startEditing" />
 
         <ConfirmPopup
@@ -71,7 +72,7 @@ function getRowClasses(editing: boolean) {
       v-model="draft"
       class="pt-1"
       submit-text="Save"
-      hint-key="esc"
+      :hint-key="toShortcutKeys('comments:cancel')"
       hint-text="to cancel"
       @submit="submitEditing"
       @cancel="cancelEditing"

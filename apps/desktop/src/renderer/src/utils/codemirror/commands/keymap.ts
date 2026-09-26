@@ -1,13 +1,21 @@
+import {SHORTCUTS_MAP} from "@shared/constants/shortcuts"
 import {inlineCommands} from "./inlineCommands"
 
 import type {EditorView, KeyBinding} from "@codemirror/view"
 
 export const markdownKeymap: readonly KeyBinding[] = [
-  {key: "Mod-b", run: inlineCommands.toggleBold},
-  {key: "Mod-i", run: inlineCommands.toggleItalic},
-  {key: "Mod-`", run: inlineCommands.toggleCode},
+  {key: toCodeMirrorKey(SHORTCUTS_MAP["markdown:bold"].accelerator), run: inlineCommands.toggleBold},
+  {key: toCodeMirrorKey(SHORTCUTS_MAP["markdown:italic"].accelerator), run: inlineCommands.toggleItalic},
+  {key: toCodeMirrorKey(SHORTCUTS_MAP["markdown:code"].accelerator), run: inlineCommands.toggleCode},
   {key: "Enter", run: closeCodeFenceOnEnter},
 ]
+
+function toCodeMirrorKey(accelerator: string): string {
+  const parts = accelerator.split("+")
+  const key = parts.at(-1) ?? ""
+  const mods = parts.slice(0, -1).map((mod) => (mod === "CmdOrCtrl" ? "Mod" : mod))
+  return mods.concat(key.length === 1 ? key.toLowerCase() : key).join("-")
+}
 
 function closeCodeFenceOnEnter(view: EditorView): boolean {
   const {state} = view

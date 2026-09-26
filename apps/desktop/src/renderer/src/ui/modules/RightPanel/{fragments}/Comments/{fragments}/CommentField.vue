@@ -2,6 +2,9 @@
 import {onMounted, useTemplateRef} from "vue"
 
 import BaseButton from "@/ui/base/BaseButton"
+import {SHORTCUTS_MAP} from "@shared/constants/shortcuts"
+import {acceleratorsMatch} from "@shared/utils/shortcuts/acceleratorsMatch"
+import {formatEventToAccelerator} from "@shared/utils/shortcuts/formatEventToAccelerator"
 
 import type {IconName} from "@/ui/base/BaseIcon"
 
@@ -12,6 +15,22 @@ const emit = defineEmits<{submit: []; cancel: []}>()
 const draft = defineModel<string>({required: true})
 
 const fieldRef = useTemplateRef<HTMLTextAreaElement>("field")
+
+function onKeydown(event: KeyboardEvent) {
+  const pressed = formatEventToAccelerator(event)
+  if (!pressed) return
+
+  if (acceleratorsMatch(pressed, SHORTCUTS_MAP["comments:cancel"].accelerator)) {
+    emit("cancel")
+  } else if (acceleratorsMatch(pressed, SHORTCUTS_MAP["comments:submit"].accelerator)) {
+    emit("submit")
+  } else {
+    return
+  }
+
+  event.stopPropagation()
+  event.preventDefault()
+}
 
 onMounted(() => {
   fieldRef.value?.focus()
@@ -26,9 +45,8 @@ onMounted(() => {
       v-model="draft"
       rows="3"
       :placeholder="placeholder"
-      class="border-base-300 bg-base-100 text-base-content placeholder:text-base-content/50 focus:border-accent/60 block w-full select-text resize-none rounded-lg border px-3 py-1.5 text-sm leading-normal outline-none"
-      @keydown.esc.stop.prevent="emit('cancel')"
-      @keydown.meta.enter.stop.prevent="emit('submit')"
+      class="border-base-300 bg-base-100 text-base-content placeholder:text-base-content/50 focus:border-accent/60 block w-full resize-none rounded-lg border px-3 py-1.5 text-sm leading-normal outline-none select-text"
+      @keydown="onKeydown"
     />
 
     <div class="mt-1.5 flex items-center gap-2">

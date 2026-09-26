@@ -161,6 +161,36 @@ describe("Comments tab", () => {
     expect(wrapper.text()).toContain("a note worth keeping")
   })
 
+  it("sends_a_new_comment_on_cmd_enter", async () => {
+    await setup([], {
+      "comments:create": vi.fn(async (taskId, content) => ({
+        comments: {upserted: [makeComment("written", "2026-01-01T12:00:00.000Z", {taskId, content})]},
+      })),
+    })
+
+    await buttonWithText("Write a comment…").trigger("click")
+    await wrapper.find("textarea").setValue("sent from the keyboard")
+    await wrapper.find("textarea").trigger("keydown", {key: "Enter", code: "Enter", metaKey: true})
+    await flush()
+
+    expect(bridge["comments:create"]).toHaveBeenCalledWith("task-1", "sent from the keyboard")
+  })
+
+  it("drops_an_edit_on_escape_and_keeps_the_comment_as_it_was", async () => {
+    await setup([makeComment("c1", "2026-01-01T09:00:00.000Z", {content: "first draft"})], {
+      "comments:update": vi.fn(),
+    })
+
+    await buttonWithIcon("pencil").trigger("click")
+    await wrapper.find("textarea").setValue("second draft")
+    await wrapper.find("textarea").trigger("keydown", {key: "Escape", code: "Escape"})
+    await flush()
+
+    expect(bridge["comments:update"]).not.toHaveBeenCalled()
+    expect(wrapper.find("textarea").exists()).toBe(false)
+    expect(wrapper.text()).toContain("first draft")
+  })
+
   it("rewrites_a_comment_in_place_and_shows_the_text_storage_answered_with", async () => {
     await setup([makeComment("c1", "2026-01-01T09:00:00.000Z", {content: "first draft"})], {
       "comments:update": vi.fn(async (id, content) => ({

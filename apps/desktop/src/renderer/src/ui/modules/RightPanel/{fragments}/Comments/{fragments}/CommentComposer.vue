@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {ref} from "vue"
 
+import {toShortcutKeys} from "@/utils/shortcuts/toShortcutKeys"
 import CommentField from "./CommentField.vue"
 
 const emit = defineEmits<{submit: [string]}>()
@@ -25,7 +26,7 @@ function submit() {
 </script>
 
 <template>
-  <div class="border-base-300 shrink-0 border-t px-4 pb-2.5 pt-2">
+  <div class="border-base-300 shrink-0 border-t px-4 pt-2 pb-2.5">
     <button
       v-if="!isExpanded"
       type="button"
@@ -41,7 +42,7 @@ function submit() {
       placeholder="Write a comment…"
       submit-text="Comment"
       submit-icon="send"
-      hint-key="⌘ ↵"
+      :hint-key="toShortcutKeys('comments:submit')"
       hint-text="to send"
       @submit="submit"
       @cancel="collapse"
