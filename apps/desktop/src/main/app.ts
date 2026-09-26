@@ -9,6 +9,7 @@ import {broadcastToWindows} from "./utils/windows/broadcastToWindows"
 import {focusWindow} from "./utils/windows/focusWindow"
 import {AIController} from "./ai/AIController"
 import {createBetterSqliteDriver} from "./database/betterSqliteDriver"
+import {FocusController} from "./focus/FocusController"
 import {electronPaths} from "./runtime/electronPaths"
 import {setupInstanceAndDeepLinks} from "./setup/app/instance"
 import {setupActivateHandler, setupAppBoot, setupDockIcon, setupWindowAllClosedHandler} from "./setup/app/lifecycle"
@@ -19,6 +20,7 @@ import {loadSavedMainWindowState, setupMainWindowStatePersistence} from "./setup
 import {setupAboutIPC} from "./setup/ipc/about"
 import {setupAiIPC} from "./setup/ipc/ai"
 import {setupAssistantIPC} from "./setup/ipc/assistant"
+import {setupFocusIPC} from "./setup/ipc/focus"
 import {setupMenuIPC} from "./setup/ipc/menu"
 import {setupSettingsIPC} from "./setup/ipc/settings"
 import {setupShellIPC} from "./setup/ipc/shell"
@@ -52,6 +54,7 @@ const windows: AppWindows = {
 }
 let storage: StorageController | null = null
 let ai: AIController | null = null
+let focus: FocusController | null = null
 let savedMainWindowState: MainWindowSettings | undefined
 
 setFileCoordinatorBinaryPath(
@@ -110,6 +113,8 @@ app.whenReady().then(async () => {
     return
   }
 
+  focus = new FocusController(storage, (session) => broadcastToWindows(() => windows, "focus:changed", session))
+
   setupSafeFileProtocol(storage)
   setupCSP()
 
@@ -134,6 +139,7 @@ app.whenReady().then(async () => {
   )
 
   setupStorageIPC(() => storage)
+  setupFocusIPC(() => focus)
   setupSyncServerIPC(
     () => storage,
     () => windows,
@@ -146,6 +152,7 @@ app.whenReady().then(async () => {
   setupStorageSync(
     () => storage,
     () => windows,
+    () => focus,
   )
   setupMainWindow(windows, {showSplash: true})
 
@@ -160,7 +167,8 @@ app.whenReady().then(async () => {
   logger.lifecycle(`${APP_CONFIG.name} started`)
 })
 
-app.on("before-quit", async () => {
+app.on("before-quit", async (event) => {
+  if (focus?.holdQuit(event)) return
   if (ai) await ai.dispose()
 })
 

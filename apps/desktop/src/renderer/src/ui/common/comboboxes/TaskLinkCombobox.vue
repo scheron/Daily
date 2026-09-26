@@ -5,8 +5,8 @@ import {TASK_COLUMNS} from "@/constants/ui"
 import {useTaskRelationsStore} from "@/stores/taskRelations.store"
 import BaseCombobox from "@/ui/base/BaseCombobox"
 import BaseIcon from "@/ui/base/BaseIcon"
-import {toTaskTitle} from "@/utils/tasks/toTaskTitle"
 import {cn} from "@/utils/ui/tailwindcss"
+import {toTaskTitle} from "@shared/utils/tasks/toTaskTitle"
 
 import type {Task, TaskRelationSets, TaskStatus} from "@daily/protocol"
 

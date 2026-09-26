@@ -47,6 +47,7 @@ import type {
   LocalRuntimeState,
   PendingToolConfirmation,
 } from "@shared/types/ai"
+import type {FocusCommand, FocusSession} from "@shared/types/focus"
 import type {ApprovalKind, BridgeIPC} from "@shared/types/ipc"
 import type {AppUpdateState} from "@shared/types/update"
 import type {PartialDeep} from "type-fest"
@@ -131,6 +132,10 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   },
 
   "activity:get-by-task": (taskId: Task["id"]) => ipcRenderer.invoke("activity:get-by-task", taskId) as Promise<TaskEvent[]>,
+
+  "focus:get": () => ipcRenderer.invoke("focus:get") as Promise<FocusSession>,
+  "focus:dispatch": (command: FocusCommand) => ipcRenderer.invoke("focus:dispatch", command) as Promise<FocusSession>,
+  "focus:on-changed": (callback: (session: FocusSession) => void) => ipcRenderer.on("focus:changed", (_event, session: FocusSession) => callback(session)),
 
   "tasks:get-all": () => ipcRenderer.invoke("tasks:get-all") as Promise<Task[]>,
   "tasks:get-many": (params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: Branch["id"]}) => ipcRenderer.invoke("tasks:get-many", params) as Promise<Task[]>,

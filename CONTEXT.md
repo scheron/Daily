@@ -48,6 +48,14 @@ What the board is organising by right now — a day, or a milestone. It is a pro
 never of a task, and whichever dimension is not the frame moves onto the card.
 _Avoid_: mode, view, filter, grouping
 
+### Focus
+
+**Focus session**:
+A handful of tasks worked through one after another against a timer, with the mode it runs in and
+the phase it is at. There is one per app, held by the main process, so every window shows the same
+one; the time spent in it lands in each task's spent time, and it ends with the app.
+_Avoid_: pomodoro, sprint, timer, focus mode
+
 ### Sync
 
 **Provider**:

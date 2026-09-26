@@ -47,12 +47,12 @@ import type {
   LocalRuntimeState,
   PendingToolConfirmation,
 } from "./ai"
+import type {FocusCommand, FocusSession} from "./focus"
 import type {AppUpdateState} from "./update"
 
 export type ApprovalKind = "device" | "agent"
 
 export interface BridgeIPC {
-  // === GENERAL IPC ===
   invoke: (channel: string, ...args: any[]) => Promise<any>
   send: (channel: string, ...args: any[]) => void
   on: (channel: string, callback: (...args: any[]) => void) => () => void
@@ -67,17 +67,14 @@ export interface BridgeIPC {
   "platform:is-windows": () => boolean
   "platform:is-linux": () => boolean
 
-  // === SHELL ===
   "shell:open-external": (url: string) => Promise<boolean>
 
-  // === STORAGE  ===
   "storage-sync:sync": () => Promise<void>
   "storage-sync:get-status": () => Promise<SyncStatus>
   "storage-sync:get-remote-states": () => Promise<SyncRemoteState[]>
   "storage-sync:on-status-changed": (callback: (status: SyncStatus, prevStatus: SyncStatus) => void) => void
   "storage:on-changed": (callback: (changeset: Changeset) => void) => void
 
-  // === SELF-HOSTED DAILY SYNC SERVER ===
   "sync-server:get-state": () => Promise<ServerConnectionStateView>
   "sync-server:retry": () => Promise<void>
   "sync-server:default-device-name": () => Promise<string>
@@ -112,16 +109,13 @@ export interface BridgeIPC {
   "sync-server:on-agents-accepted-changed": (callback: (acceptsAgents: boolean) => void) => void
   "sync-server:on-reachability-changed": (callback: (isReachable: boolean) => void) => void
 
-  // === SYNC PROVIDER ===
   "sync-provider:preview": (target: Exclude<SyncProvider, "off">) => Promise<MigrationPreview>
   "sync-provider:migrate": (target: SyncProvider, direction: MigrationDirection | null) => Promise<void>
 
-  // === SETTINGS ===
   "settings:load": () => Promise<SettingsView>
   "settings:save": (settings: Partial<SettingsView>) => Promise<void>
   "settings:on-changed": (callback: () => void) => void
 
-  // === UPDATES ===
   "updates:get-state": () => Promise<AppUpdateState>
   "updates:check": () => Promise<AppUpdateState>
   "updates:download": () => Promise<boolean>
@@ -130,7 +124,10 @@ export interface BridgeIPC {
 
   "activity:get-by-task": (taskId: Task["id"]) => Promise<TaskEvent[]>
 
-  // === TASKS  ===
+  "focus:get": () => Promise<FocusSession>
+  "focus:dispatch": (command: FocusCommand) => Promise<FocusSession>
+  "focus:on-changed": (callback: (session: FocusSession) => void) => void
+
   "tasks:get-all": () => Promise<Task[]>
   "tasks:get-many": (params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: Branch["id"]}) => Promise<Task[]>
   "tasks:get-one": (id: Task["id"]) => Promise<Task | null>
@@ -149,18 +146,15 @@ export interface BridgeIPC {
   "tasks:delete-permanently": (id: Task["id"]) => Promise<boolean>
   "tasks:delete-all-permanently": () => Promise<number>
 
-  // === RELATIONS ===
   "relations:get-all": () => Promise<TaskRelation[]>
   "relations:set": (taskId: Task["id"], next: TaskRelationSets) => Promise<Changeset>
 
-  // === COMMENTS ===
   "comments:get-by-task": (taskId: Task["id"]) => Promise<TaskComment[]>
   "comments:get-counts": () => Promise<TaskCommentCounts>
   "comments:create": (taskId: Task["id"], content: string) => Promise<Changeset>
   "comments:update": (id: TaskComment["id"], content: string) => Promise<Changeset>
   "comments:delete": (id: TaskComment["id"]) => Promise<Changeset>
 
-  // === BRANCHES ===
   "branches:get-many": () => Promise<Branch[]>
   "branches:get-one": (id: Branch["id"]) => Promise<Branch | null>
   "branches:create": (branch: Omit<Branch, "id" | "createdAt" | "updatedAt" | "deletedAt">) => Promise<Branch | null>
@@ -168,17 +162,14 @@ export interface BridgeIPC {
   "branches:delete": (id: Branch["id"]) => Promise<boolean>
   "branches:set-active": (id: Branch["id"]) => Promise<void>
 
-  // === SEARCH  ===
   "search:query": (query: string) => Promise<TaskSearchResult[]>
 
-  // === TAGS  ===
   "tags:get-many": () => Promise<Tag[]>
   "tags:get-one": (id: Tag["id"]) => Promise<Tag | null>
   "tags:update": (id: Tag["id"], updates: Partial<Tag>) => Promise<Tag | null>
   "tags:create": (tag: Omit<Tag, "id" | "createdAt" | "updatedAt" | "deletedAt">) => Promise<Tag | null>
   "tags:delete": (id: Tag["id"]) => Promise<boolean>
 
-  // === MILESTONES ===
   "milestones:get-many": (branchId?: Branch["id"]) => Promise<Milestone[]>
   "milestones:get-one": (id: Milestone["id"]) => Promise<Milestone | null>
   "milestones:create": (milestone: Omit<Milestone, "id" | "createdAt" | "updatedAt" | "orderIndex">) => Promise<Changeset>
@@ -188,12 +179,10 @@ export interface BridgeIPC {
   ) => Promise<Changeset>
   "milestones:delete": (id: Milestone["id"]) => Promise<Changeset>
 
-  // === FILES ===
   "files:save": (filename: string, data: Buffer) => Promise<File["id"]>
   "files:delete": (filename: string) => Promise<boolean>
   "files:get-path": (id: File["id"]) => Promise<string>
 
-  // === AI ===
   "ai:check-connection": () => Promise<boolean>
   "ai:list-models": () => Promise<string[]>
   "ai:send-message": (message: string) => Promise<AIResponse>
@@ -204,7 +193,6 @@ export interface BridgeIPC {
   "ai:cancel-tool-call": (confirmationId: string) => Promise<boolean>
   "ai:get-current-session": () => Promise<{turns: AgentTurnSnapshot[]}>
 
-  // === AI LOCAL MODEL MANAGEMENT ===
   "ai:local-list-models": () => Promise<LocalModelInfo[]>
   "ai:local-download-model": (modelId: LocalModelId) => Promise<boolean>
   "ai:local-cancel-download": (modelId: LocalModelId) => Promise<boolean>
@@ -213,17 +201,14 @@ export interface BridgeIPC {
   "ai:local-get-disk-usage": () => Promise<{total: number; models: Record<string, number>}>
   "ai:local-refresh-catalog": () => Promise<CatalogRefreshResult>
 
-  // === AI EVENTS ===
   "ai:on-confirmation-required": (callback: (confirmation: PendingToolConfirmation) => void) => () => void
   "ai:on-confirmation-resolved": (callback: (payload: {confirmationId: string}) => void) => () => void
   "ai:on-event": (callback: (event: AIEvent) => void) => () => void
 
-  // === AI LOCAL EVENTS ===
   "ai:on-local-state-changed": (callback: (state: LocalRuntimeState) => void) => void
   "ai:on-local-download-progress": (callback: (progress: LocalModelDownloadProgress) => void) => void
   "ai:on-local-catalog-changed": (callback: () => void) => void
 
-  // === SHORTCUTS ===
   "shortcut:tasks:create": (callback: () => void) => void
   "shortcut:ui:open-search-panel": (callback: () => void) => void
   "shortcut:ui:open-assistant-panel": (callback: () => void) => void
