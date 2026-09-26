@@ -29,8 +29,8 @@ export function useSettingsNav() {
     {id: "general", icon: "cog", label: "General", component: GeneralSettings},
     {id: "projects", icon: "monitor", label: "Projects", component: ProjectsSettings},
     {id: "sync", icon: "cloud", label: "Sync", component: SyncSettings},
-    {id: "ai", icon: "ai", label: "AI", component: AiSettings},
-    {id: "deleted-tasks", icon: "trash", label: "Deleted Tasks", component: DeletedTasks},
+    {id: "ai", icon: "ai", label: "Daily AI", component: AiSettings},
+    {id: "deleted-tasks", icon: "trash", label: "Recently Deleted", component: DeletedTasks},
     ...(isDevMode ? [{id: "debug", icon: "code", label: "DEBUG", component: DebugSettings} as SettingsSection] : []),
   ]
   const sectionIds = new Set<SettingsPanel>(sections.map((s) => s.id))

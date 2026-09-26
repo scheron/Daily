@@ -15,7 +15,7 @@ type ToolCallDescriber = (params: Record<string, unknown>) => ToolCallDescriptio
 export const TOOL_CALL_DESCRIBERS: Record<string, ToolCallDescriber> = {
   delete_task: (p) => ({
     title: "Move task to trash",
-    summary: `Move task ${str(p.task_id)} to trash. It can be restored later from Settings → Deleted Tasks.`,
+    summary: `Move task ${str(p.task_id)} to trash. It can be restored later from Settings → Recently Deleted.`,
     details: [`Task ID: ${str(p.task_id)}`],
   }),
   delete_project: (p) => ({

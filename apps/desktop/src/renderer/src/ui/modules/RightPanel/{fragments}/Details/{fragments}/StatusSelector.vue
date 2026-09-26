@@ -16,7 +16,7 @@ function selectStatus(status: TaskStatus) {
 
 function getOptionClasses(isActive: boolean, titleClass: string, counterClass: string) {
   return cn(
-    "focus-visible-accent flex h-8 min-w-0 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg text-sm font-medium transition-colors",
+    "focus-visible-accent flex h-8 min-w-0 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-full text-sm font-medium transition-colors",
     isActive ? counterClass : cn(titleClass, "hover:bg-base-content/5"),
   )
 }

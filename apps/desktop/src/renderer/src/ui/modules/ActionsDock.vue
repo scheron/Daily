@@ -41,10 +41,11 @@ async function onSelectBranch(branch: Branch) {
         side="bottom"
         position="start"
         trigger-class="h-full flex items-center"
+        hover-mode
         @select="onSelectBranch"
       >
-        <template #trigger="{toggle}">
-          <BaseButton icon="project" variant="ghost-primary" size="sm" class="min-w-20" @click="toggle">
+        <template #trigger="{show}">
+          <BaseButton icon="project" variant="ghost-primary" size="sm" class="min-w-20" @mouseenter="show" @click="show">
             <span class="max-w-24 truncate">{{ activeBranchName }}</span>
           </BaseButton>
         </template>
