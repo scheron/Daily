@@ -8,6 +8,7 @@ import BaseButton from "@/ui/base/BaseButton"
 import BranchPicker from "@/ui/common/pickers/BranchPicker.vue"
 import {useSearchModal} from "@/ui/overlays/SearchModal"
 import {toShortcutKeys} from "@/utils/shortcuts/toShortcutKeys"
+import ConnectionIndicator from "./{fragments}/ConnectionIndicator.vue"
 
 import type {Branch} from "@daily/protocol"
 
@@ -36,6 +37,8 @@ async function onSelectBranch(branch: Branch) {
       v-if="!uiStore.isCalendarDockExpanded"
       class="dock-surface absolute top-2 right-3.5 z-20 flex h-8.5 items-center gap-0.5 rounded-full px-1 [-webkit-app-region:no-drag]"
     >
+      <ConnectionIndicator />
+
       <BranchPicker
         :selected-id="branchesStore.activeBranchId"
         side="bottom"

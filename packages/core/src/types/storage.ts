@@ -61,6 +61,7 @@ export const EMPTY_CHANGESET: Changeset = {}
 export interface IServerProvider {
   defaultDeviceName(): string
   getState(): Promise<ServerConnectionStateView>
+  retry(): Promise<void>
   probe(baseUrl: string): Promise<ServerProbeView>
   claim(code: string, deviceName: string, confirmInsecure: boolean): Promise<ServerBindingView>
   requestEnrollment(deviceName: string, confirmInsecure: boolean): Promise<EnrollmentTicketView>
@@ -173,5 +174,6 @@ export interface IStorageController {
     onRoleChanged?: (role: DeviceRole) => void
     onAgentRequested?: () => void
     onAgentsAcceptedChanged?: (acceptsAgents: boolean) => void
+    onReachabilityChanged?: (isReachable: boolean) => void
   }): void
 }

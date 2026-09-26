@@ -79,6 +79,7 @@ export interface BridgeIPC {
 
   // === SELF-HOSTED DAILY SYNC SERVER ===
   "sync-server:get-state": () => Promise<ServerConnectionStateView>
+  "sync-server:retry": () => Promise<void>
   "sync-server:default-device-name": () => Promise<string>
   "sync-server:probe": (baseUrl: string) => Promise<ServerProbeView>
   "sync-server:claim": (code: string, deviceName: string, confirmInsecure: boolean) => Promise<ServerBindingView>
@@ -109,6 +110,7 @@ export interface BridgeIPC {
   "sync-server:on-agent-requested": (callback: () => void) => void
   "sync-server:on-approval-resolved": (callback: (kind: ApprovalKind) => void) => void
   "sync-server:on-agents-accepted-changed": (callback: (acceptsAgents: boolean) => void) => void
+  "sync-server:on-reachability-changed": (callback: (isReachable: boolean) => void) => void
 
   // === SYNC PROVIDER ===
   "sync-provider:preview": (target: Exclude<SyncProvider, "off">) => Promise<MigrationPreview>

@@ -25,7 +25,9 @@ describe("ServerDetails — no revoked device rendered, the row or the line, by 
     wrapper?.unmount()
 
     bridge = mockBridgeIPC({
-      "sync-server:get-state": vi.fn().mockResolvedValue({binding: state.binding, revoked: state.revoked ?? false, mismatch: state.mismatch ?? null}),
+      "sync-server:get-state": vi
+        .fn()
+        .mockResolvedValue({binding: state.binding, revoked: state.revoked ?? false, mismatch: state.mismatch ?? null, isReachable: true}),
       "sync-server:on-revoked": vi.fn(),
       "sync-server:on-approval-requested": vi.fn(),
       "sync-server:get-pending-approval": vi.fn().mockResolvedValue(null),

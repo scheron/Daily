@@ -1140,6 +1140,134 @@ describe("the re-arm after a successful probe", () => {
   }, 20000)
 })
 
+describe("the server's reachability, as the revision probe learns it", () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.useRealTimers()
+  })
+
+  async function settleProbeIO(rounds = 20): Promise<void> {
+    for (let i = 0; i < rounds; i++) {
+      await vi.advanceTimersByTimeAsync(0)
+    }
+  }
+
+  async function fireProbeTick(): Promise<void> {
+    await vi.advanceTimersByTimeAsync(SYNC_PROTOCOL_CONFIG.revisionProbeIntervalMs)
+    await settleProbeIO()
+  }
+
+  function makeReachabilityService(overrides: {runSyncCycle?: () => Promise<void>; onReachabilityChanged?: (isReachable: boolean) => void} = {}) {
+    const store = makeSettingsStore({server: {enabled: true, binding: makeBinding()}})
+    return new ServerProviderService({
+      loadSettings: store.loadSettings,
+      saveSettings: store.saveSettings,
+      onBindingChanged: async () => {},
+      runSyncCycle: overrides.runSyncCycle ?? (async () => {}),
+      onApprovalRequested: () => {},
+      onAgentRequested: () => {},
+      onRevoked: () => {},
+      onReachabilityChanged: overrides.onReachabilityChanged,
+    })
+  }
+
+  function probe(revision: string): RevisionProbe {
+    return {revision, pendingEnrollment: false, protocol: SYNC_PROTOCOL_VERSION} as RevisionProbe
+  }
+
+  function unreachable(): SyncServerError {
+    return new SyncServerError(SyncServerErrorCode.UNREACHABLE, "connect ECONNREFUSED")
+  }
+
+  it("retries a single failed probe at once and without a hold, and stays reachable when that retry answers", async () => {
+    const onReachabilityChanged = vi.fn()
+    const service = makeReachabilityService({onReachabilityChanged})
+    const probeSpy = vi.spyOn(DailySyncClient.prototype, "probeRevision")
+    probeSpy.mockResolvedValueOnce(probe("r0"))
+    probeSpy.mockRejectedValueOnce(unreachable())
+    probeSpy.mockResolvedValue(probe("r0"))
+
+    service.startProbe()
+    await fireProbeTick()
+    await fireProbeTick()
+    await vi.advanceTimersByTimeAsync(1)
+    await settleProbeIO()
+    service.stopProbe()
+
+    expect(probeSpy.mock.calls[2]?.[0]).toBeNull()
+    expect(onReachabilityChanged).not.toHaveBeenCalled()
+    expect((await service.getState()).isReachable).toBe(true)
+  })
+
+  it("marks the server unreachable on the second failure in a row, once, however many failures follow", async () => {
+    const onReachabilityChanged = vi.fn()
+    const service = makeReachabilityService({onReachabilityChanged})
+    vi.spyOn(DailySyncClient.prototype, "probeRevision").mockRejectedValue(unreachable())
+
+    service.startProbe()
+    await fireProbeTick()
+    await vi.advanceTimersByTimeAsync(1)
+    await settleProbeIO()
+    await fireProbeTick()
+    await fireProbeTick()
+
+    expect(onReachabilityChanged.mock.calls).toEqual([[false]])
+    expect((await service.getState()).isReachable).toBe(false)
+    service.stopProbe()
+  })
+
+  it("marks the server reachable again on the first answer and runs a sync cycle though the revision never moved", async () => {
+    const onReachabilityChanged = vi.fn()
+    const runSyncCycle = vi.fn(async () => {})
+    const service = makeReachabilityService({onReachabilityChanged, runSyncCycle})
+    const probeSpy = vi.spyOn(DailySyncClient.prototype, "probeRevision")
+    probeSpy.mockResolvedValueOnce(probe("r0"))
+    probeSpy.mockRejectedValueOnce(unreachable())
+    probeSpy.mockRejectedValueOnce(unreachable())
+    probeSpy.mockResolvedValue(probe("r0"))
+
+    service.startProbe()
+    await fireProbeTick()
+    await fireProbeTick()
+    await vi.advanceTimersByTimeAsync(1)
+    await settleProbeIO()
+    await fireProbeTick()
+    service.stopProbe()
+
+    expect(onReachabilityChanged.mock.calls).toEqual([[false], [true]])
+    expect(runSyncCycle).toHaveBeenCalledTimes(1)
+    expect((await service.getState()).isReachable).toBe(true)
+  })
+
+  it("retry probes at once while the server is unreachable, and runs a sync cycle while it is not", async () => {
+    const onReachabilityChanged = vi.fn()
+    const runSyncCycle = vi.fn(async () => {})
+    const service = makeReachabilityService({onReachabilityChanged, runSyncCycle})
+    const probeSpy = vi.spyOn(DailySyncClient.prototype, "probeRevision")
+    probeSpy.mockRejectedValueOnce(unreachable())
+    probeSpy.mockRejectedValueOnce(unreachable())
+    probeSpy.mockResolvedValue(probe("r0"))
+
+    service.startProbe()
+    await fireProbeTick()
+    await vi.advanceTimersByTimeAsync(1)
+    await settleProbeIO()
+    expect(onReachabilityChanged.mock.calls).toEqual([[false]])
+
+    await service.retry()
+    expect(onReachabilityChanged.mock.calls).toEqual([[false], [true]])
+    expect(runSyncCycle).toHaveBeenCalledTimes(1)
+
+    await service.retry()
+    expect(runSyncCycle).toHaveBeenCalledTimes(2)
+    service.stopProbe()
+  })
+})
+
 describe("the trigger after a request the client itself resolved — TC-27, TC-28", () => {
   beforeEach(() => {
     vi.useFakeTimers()

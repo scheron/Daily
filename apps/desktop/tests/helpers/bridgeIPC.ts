@@ -9,7 +9,7 @@ export function mockBridgeIPC(overrides = {}) {
     "settings:load": vi.fn().mockResolvedValue({
       version: "v1",
       themes: {current: "github-light", preferredLight: "github-light", preferredDark: "github-dark", useSystem: true, glassUI: false},
-      sync: {enabled: false},
+      sync: {iCloud: {enabled: false}, server: {enabled: false, binding: null}},
       ai: null,
       branch: {activeId: "main"},
       layout: {
@@ -45,6 +45,13 @@ export function mockBridgeIPC(overrides = {}) {
     "updates:get-state": noop,
     "updates:download": noop,
     "updates:on-state-changed": noopOn,
+    "sync-server:get-state": vi.fn().mockResolvedValue({binding: null, revoked: false, mismatch: null, isReachable: true}),
+    "sync-server:retry": noop,
+    "sync-server:on-revoked": noopOn,
+    "sync-server:on-protocol-mismatch-changed": noopOn,
+    "sync-server:on-role-changed": noopOn,
+    "sync-server:on-agents-accepted-changed": noopOn,
+    "sync-server:on-reachability-changed": noopOn,
     ...overrides,
   }
 

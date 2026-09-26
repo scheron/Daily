@@ -22,18 +22,24 @@ const syncServerStore = useSyncServerStore()
 const {status} = storeToRefs(storageStore)
 
 const isDisconnecting = ref(false)
+const isRetrying = ref(false)
 const remoteError = ref<string | null>(null)
 
 const statusTone = computed<PillTone>(() => {
-  if (syncServerStore.isRevoked || status.value === "error") return "error"
+  if (syncServerStore.isRevoked) return "error"
+  if (!syncServerStore.isReachable) return "warn"
+  if (status.value === "error") return "error"
   return status.value === "inactive" ? "idle" : "ok"
 })
 
 const statusLabel = computed(() => {
   if (syncServerStore.isRevoked) return "Access revoked"
+  if (!syncServerStore.isReachable) return "Reconnecting…"
   if (status.value === "error") return "Sync error"
   return "Connected"
 })
+
+const isStatusBusy = computed(() => status.value === "syncing" || !syncServerStore.isReachable)
 
 const roleLabel = computed(() => {
   if (props.binding.role === "parent") return "This Mac owns it"
@@ -55,6 +61,17 @@ const mismatchMessage = computed(() => {
 async function loadRemoteError() {
   const states = await window.BridgeIPC["storage-sync:get-remote-states"]()
   remoteError.value = states.find((state) => state.id === "daily-server")?.lastError ?? null
+}
+
+async function onRetry() {
+  isRetrying.value = true
+  try {
+    await syncServerStore.retry()
+  } catch (error) {
+    console.error("Failed to retry the Daily Sync Server:", error)
+  } finally {
+    isRetrying.value = false
+  }
 }
 
 async function onDisconnect() {
@@ -91,7 +108,7 @@ onMounted(() => {
       <div class="flex min-w-0 items-start gap-2.5">
         <BaseIcon name="server" class="text-base-content/60 mt-1.5 size-4 shrink-0" />
         <div class="min-w-0">
-          <h2 class="text-base-content truncate text-xl font-semibold leading-tight tracking-[-0.01em]">{{ binding.serverName }}</h2>
+          <h2 class="text-base-content truncate text-xl leading-tight font-semibold tracking-[-0.01em]">{{ binding.serverName }}</h2>
           <p class="text-base-content/60 mt-1 truncate text-[13px]">{{ binding.baseUrl }}</p>
         </div>
       </div>
@@ -104,7 +121,7 @@ onMounted(() => {
 
     <div class="flex flex-wrap items-center gap-1.5">
       <span :class="getPillClasses(statusTone)">
-        <BaseIcon v-if="status === 'syncing'" name="spinner" class="size-3 animate-spin" />
+        <BaseIcon v-if="isStatusBusy" name="spinner" class="size-3 animate-spin" />
         <span v-else class="size-2 shrink-0 rounded-full bg-current" />
         {{ statusLabel }}
       </span>
@@ -127,9 +144,16 @@ onMounted(() => {
       This Mac's access to the server was revoked. Disconnect and reconnect to sync again.
     </div>
 
+    <div v-else-if="!syncServerStore.isReachable" class="text-warning bg-warning/10 flex items-center gap-1.5 rounded-md px-2 py-1 text-xs">
+      <BaseIcon name="alert-triangle" class="size-3.5 shrink-0" />
+      <span class="min-w-0 flex-1">The server is not answering. Daily keeps trying on its own.</span>
+      <BaseButton variant="warning-ghost" size="xs" icon="refresh" :loading="isRetrying" @click="onRetry">Try again</BaseButton>
+    </div>
+
     <div v-else-if="status === 'error' && remoteError" class="text-error bg-error/10 flex items-center gap-1.5 rounded-md px-2 py-1 text-xs">
       <BaseIcon name="alert-circle" class="size-3.5 shrink-0" />
-      {{ remoteError }}
+      <span class="min-w-0 flex-1">{{ remoteError }}</span>
+      <BaseButton variant="error-ghost" size="xs" icon="refresh" :loading="isRetrying" @click="onRetry">Try again</BaseButton>
     </div>
   </div>
 </template>

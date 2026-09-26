@@ -461,7 +461,7 @@ describe("CalendarDock", () => {
     const {useSettingsStore} = await import("../../../../src/renderer/src/stores/settings.store")
     const {useBranchesStore} = await import("../../../../src/renderer/src/stores/branches.store")
     const {default: CalendarDock} = await import("../../../../src/renderer/src/ui/modules/CalendarDock")
-    const actionsDockPath = "../../../../src/renderer/src/ui/modules/ActionsDock.vue"
+    const actionsDockPath = "../../../../src/renderer/src/ui/modules/ActionsDock/ActionsDock.vue"
     const {default: ActionsDock} = await import(/* @vite-ignore */ actionsDockPath)
 
     await vi.waitFor(() => expect(useSettingsStore().isSettingsLoaded).toBe(true))

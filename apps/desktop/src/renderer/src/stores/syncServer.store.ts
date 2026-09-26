@@ -26,6 +26,7 @@ export const useSyncServerStore = defineStore("syncServer", () => {
   const binding = ref<ServerBindingView | null>(null)
   const isRevoked = ref(false)
   const mismatch = ref<ProtocolMismatchView | null>(null)
+  const isReachable = ref(true)
   const membership = ref<ServerMembershipView | null>(null)
   const agents = ref<ServerAgentView[]>([])
   const agentWindow = ref<AgentWindowView | null>(null)
@@ -52,18 +53,27 @@ export const useSyncServerStore = defineStore("syncServer", () => {
     if (binding.value) binding.value.acceptsAgents = acceptsAgents
   })
 
+  window.BridgeIPC["sync-server:on-reachability-changed"]((nextIsReachable) => {
+    isReachable.value = nextIsReachable
+  })
+
   async function loadState(): Promise<void> {
     try {
       const state = await window.BridgeIPC["sync-server:get-state"]()
       binding.value = state.binding
       isRevoked.value = state.revoked
       mismatch.value = state.mismatch
+      isReachable.value = state.isReachable
       if (binding.value?.role === "parent") await listMembership()
       if (state.binding && !state.revoked && !state.mismatch) await listAgents()
       else applyAgents(null)
     } catch (error) {
       console.error("Failed to load the Daily Sync Server state:", error)
     }
+  }
+
+  async function retry(): Promise<void> {
+    await window.BridgeIPC["sync-server:retry"]()
   }
 
   async function listMembership(): Promise<void> {
@@ -283,11 +293,13 @@ export const useSyncServerStore = defineStore("syncServer", () => {
     binding,
     isRevoked,
     mismatch,
+    isReachable,
     membership,
     agents,
     agentWindow,
 
     loadState,
+    retry,
     listMembership,
     revokeDevice,
     openEnrollmentWindow,

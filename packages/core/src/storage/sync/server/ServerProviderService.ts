@@ -57,6 +57,8 @@ type ServerProviderDeps = {
   onRoleChanged?: (role: DeviceRole) => void
   /** Fires once on the tick that first finds whether this server accepts agents changed. */
   onAgentsAcceptedChanged?: (acceptsAgents: boolean) => void
+  /** Fires on the second failed probe in a row, and again on the first probe the server answers after that. */
+  onReachabilityChanged?: (isReachable: boolean) => void
 }
 
 type EnrollmentTicket = {requestId: string; code: string; pollToken: string; expiresAt: string}
@@ -88,6 +90,8 @@ export class ServerProviderService implements IServerProvider {
   private lastAgentRequestId: string | null = null
   private revoked = false
   private mismatch: ProtocolMismatchView | null = null
+  private failedProbes = 0
+  private isUnreachable = false
 
   constructor(private readonly deps: ServerProviderDeps) {}
 
@@ -96,10 +100,20 @@ export class ServerProviderService implements IServerProvider {
     return hostname().replace(/\.local$/i, "")
   }
 
-  /** The binding this device holds, whether the server has since refused its credential, and any protocol mismatch, in one call. */
+  /** The binding this device holds, whether the server has since refused its credential, any protocol mismatch, and whether the server answers, in one call. */
   async getState(): Promise<ServerConnectionStateView> {
     const binding = (await this.deps.loadSettings()).sync.server.binding
-    return {binding: binding ? toBindingView(binding) : null, revoked: this.revoked, mismatch: this.mismatch}
+    return {binding: binding ? toBindingView(binding) : null, revoked: this.revoked, mismatch: this.mismatch, isReachable: !this.isUnreachable}
+  }
+
+  /**
+   * Tries the server again now instead of on the next tick: a probe while it is unreachable, whose
+   * answer runs the sync that reconnecting brings, and a sync cycle while it answers — the error
+   * then came from the sync itself.
+   */
+  async retry(): Promise<void> {
+    if (this.isUnreachable) await this.probeTick()
+    else await this.deps.runSyncCycle()
   }
 
   /**
@@ -349,6 +363,8 @@ export class ServerProviderService implements IServerProvider {
     this.probeRearm = null
     this.probeInFlight = false
     this.probeGeneration++
+    this.failedProbes = 0
+    if (this.isUnreachable) this.markReachable()
   }
 
   private async assertCanBind(confirmInsecure: boolean): Promise<ConnectionAttempt> {
@@ -475,7 +491,7 @@ export class ServerProviderService implements IServerProvider {
     try {
       let probe: RevisionProbe
 
-      const knownRevision = this.mismatch ? null : this.lastProbedRevision
+      const knownRevision = this.mismatch || this.failedProbes > 0 ? null : this.lastProbedRevision
       const askedToHold = knownRevision != null
       const abort = new AbortController()
       this.probeAbort = abort
@@ -494,13 +510,19 @@ export class ServerProviderService implements IServerProvider {
           return
         }
 
-        logger.debug(logger.CONTEXT.SYNC_REMOTE, "Revision probe tick failed; will retry on the next interval", error)
+        if (this.probeGeneration !== generation) return
+
+        this.recordFailedProbe(error)
         return
       } finally {
         if (this.probeAbort === abort) this.probeAbort = null
       }
 
       if (this.probeGeneration !== generation) return
+
+      const hasReconnected = this.isUnreachable
+      this.failedProbes = 0
+      if (hasReconnected) this.markReachable()
 
       const serverProtocol = probe.protocol ?? 1
       if (serverProtocol !== SYNC_PROTOCOL_VERSION) {
@@ -512,7 +534,7 @@ export class ServerProviderService implements IServerProvider {
       const stillPendingEnrollment = probe.pendingEnrollment && this.hadPendingEnrollment
 
       const revisionMoved = this.lastProbedRevision !== undefined && probe.revision !== this.lastProbedRevision
-      if (revisionMoved) await this.deps.runSyncCycle()
+      if (revisionMoved || hasReconnected) await this.deps.runSyncCycle()
 
       if (this.probeGeneration !== generation) return
 
@@ -616,6 +638,35 @@ export class ServerProviderService implements IServerProvider {
     if (!binding || binding.serverName === name) return
 
     await this.deps.saveSettings({sync: {...settings.sync, server: {...settings.sync.server, binding: {...binding, serverName: name}}}})
+  }
+
+  /**
+   * A single failure is retried at once, and without a hold — a held request a sleeping Mac broke
+   * says nothing about the server. The second failure in a row is the one that marks it unreachable.
+   */
+  private recordFailedProbe(error: unknown): void {
+    this.failedProbes++
+
+    if (this.failedProbes === 1) {
+      logger.debug(logger.CONTEXT.SYNC_REMOTE, "Revision probe failed; retrying at once", error)
+      this.probeRearm = setTimeout(() => {
+        this.probeRearm = null
+        void this.probeTick()
+      }, 0)
+      return
+    }
+
+    logger.debug(logger.CONTEXT.SYNC_REMOTE, "Revision probe failed again; will retry on the next interval", error)
+    if (this.isUnreachable) return
+
+    logger.warn(logger.CONTEXT.SYNC_REMOTE, "The Daily Sync Server stopped answering; probing until it does")
+    this.isUnreachable = true
+    this.deps.onReachabilityChanged?.(false)
+  }
+
+  private markReachable(): void {
+    this.isUnreachable = false
+    this.deps.onReachabilityChanged?.(true)
   }
 
   private startProbeScheduler(intervalMs: number): void {

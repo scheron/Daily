@@ -80,6 +80,7 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "storage:on-changed": (callback: (changeset: Changeset) => void) => ipcRenderer.on("storage:changed", (_event, changeset: Changeset) => callback(changeset)),
 
   "sync-server:get-state": () => ipcRenderer.invoke("sync-server:get-state") as Promise<ServerConnectionStateView>,
+  "sync-server:retry": () => ipcRenderer.invoke("sync-server:retry") as Promise<void>,
   "sync-server:default-device-name": () => ipcRenderer.invoke("sync-server:default-device-name") as Promise<string>,
   "sync-server:probe": (baseUrl: string) => ipcRenderer.invoke("sync-server:probe", baseUrl) as Promise<ServerProbeView>,
   "sync-server:claim": (code: string, deviceName: string, confirmInsecure: boolean) => ipcRenderer.invoke("sync-server:claim", code, deviceName, confirmInsecure) as Promise<ServerBindingView>,
@@ -110,6 +111,7 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "sync-server:on-agent-requested": (callback: () => void) => ipcRenderer.on("sync-server:agent-requested", (_event, ) => callback()),
   "sync-server:on-approval-resolved": (callback: (kind: ApprovalKind) => void) => ipcRenderer.on("sync-server:approval-resolved", (_event, kind: ApprovalKind) => callback(kind)),
   "sync-server:on-agents-accepted-changed": (callback: (acceptsAgents: boolean) => void) => ipcRenderer.on("sync-server:agents-accepted-changed", (_event, acceptsAgents: boolean) => callback(acceptsAgents)),
+  "sync-server:on-reachability-changed": (callback: (isReachable: boolean) => void) => ipcRenderer.on("sync-server:reachability-changed", (_event, isReachable: boolean) => callback(isReachable)),
 
   "sync-provider:preview": (target: Exclude<SyncProvider, "off">) => ipcRenderer.invoke("sync-provider:preview", target) as Promise<MigrationPreview>,
   "sync-provider:migrate": (target: SyncProvider, direction: MigrationDirection | null) => ipcRenderer.invoke("sync-provider:migrate", target, direction) as Promise<void>,

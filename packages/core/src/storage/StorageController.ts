@@ -81,6 +81,7 @@ export class StorageController implements IStorageController {
   private notifyRoleChanged?: (role: DeviceRole) => void
   private notifyAgentRequested?: () => void
   private notifyAgentsAcceptedChanged?: (acceptsAgents: boolean) => void
+  private notifyReachabilityChanged?: (isReachable: boolean) => void
 
   constructor(
     private db: SqliteDriver,
@@ -130,6 +131,7 @@ export class StorageController implements IStorageController {
       onProtocolMismatchChanged: (mismatch) => this.notifyProtocolMismatchChanged?.(mismatch),
       onRoleChanged: (role) => this.notifyRoleChanged?.(role),
       onAgentsAcceptedChanged: (acceptsAgents) => this.notifyAgentsAcceptedChanged?.(acceptsAgents),
+      onReachabilityChanged: (isReachable) => this.notifyReachabilityChanged?.(isReachable),
     })
 
     this.providerMigration = new ProviderMigrationService({
@@ -168,6 +170,7 @@ export class StorageController implements IStorageController {
     onRoleChanged?: (role: DeviceRole) => void
     onAgentRequested?: () => void
     onAgentsAcceptedChanged?: (acceptsAgents: boolean) => void
+    onReachabilityChanged?: (isReachable: boolean) => void
   }) {
     this.notifyStorageStatusChange = callbacks.onStatusChange
     this.notifyStorageDataChange = callbacks.onDataChange
@@ -178,6 +181,7 @@ export class StorageController implements IStorageController {
     this.notifyRoleChanged = callbacks.onRoleChanged
     this.notifyAgentRequested = callbacks.onAgentRequested
     this.notifyAgentsAcceptedChanged = callbacks.onAgentsAcceptedChanged
+    this.notifyReachabilityChanged = callbacks.onReachabilityChanged
   }
 
   async forceSync() {
