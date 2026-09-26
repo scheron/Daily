@@ -7,6 +7,7 @@ import BaseIcon from "@/ui/base/BaseIcon"
 import {cn} from "@/utils/ui/tailwindcss"
 import {useCardDrop} from "./composables/useCardDrop"
 import {useRowReorder} from "./composables/useRowReorder"
+import {useClickCommand} from "../../useClickCommand"
 
 import type {FocusMode} from "@shared/types/focus"
 
@@ -26,6 +27,8 @@ const {dropIndex} = useCardDrop(listRef)
 const {draggedIndex, reorderGap, onRowPointerDown} = useRowReorder(listRef)
 
 const lineIndex = computed(() => dropIndex.value ?? reorderGap.value)
+
+const {sendOnClick} = useClickCommand()
 
 function getBoxClasses(isDropping: boolean) {
   return cn(
@@ -58,7 +61,7 @@ function getModeVariant(isChosen: boolean) {
       <span class="text-base-content/45 w-3 shrink-0 text-right font-mono text-xs">{{ index + 1 }}</span>
       <BaseIcon name="drag-vertical" class="text-base-content/45 size-4" />
       <span class="min-w-0 flex-1 truncate text-sm">{{ task.title }}</span>
-      <BaseButton variant="faint" size="xs" icon="x" @click="focusStore.dispatch({type: 'remove', taskId: task.taskId})" />
+      <BaseButton variant="faint" size="xs" icon="x" @click="sendOnClick($event, {type: 'remove', taskId: task.taskId})" />
       <span
         v-if="lineIndex === tasks.length && index === tasks.length - 1"
         data-drop-line

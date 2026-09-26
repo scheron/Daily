@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
 
-import {advance, createFocusSession, endsAt, transition} from "../../../src/main/focus/focusMachine"
+import {advance, createFocusSession, endsAt, leave, transition} from "../../../src/main/focus/focusMachine"
 
 import type {FocusCommand, FocusPhase, FocusSession, FocusSessionTask} from "../../../src/shared/types/focus"
 
@@ -191,6 +191,13 @@ describe("focusMachine", () => {
     const stoppedInPause = transition(sessionIn("pause"), {type: "stop"}, at(45))
     expect(stoppedInPause.writes).toEqual([])
     expect(stoppedInPause.session.phase).toBe("summary")
+  })
+
+  it("keeps the summary as a record: a task that leaves elsewhere stays in it", () => {
+    const summary = sessionIn("summary")
+
+    expect(leave(summary, "t2", at(0), false)).toEqual({session: summary, writes: []})
+    expect(leave(summary, "t3", at(0), true)).toEqual({session: summary, writes: []})
   })
 
   it("closes the summary into an empty collect that keeps the mode and the window", () => {

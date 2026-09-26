@@ -197,6 +197,16 @@ describe("FocusDock", () => {
     expect(bridge["focus:dispatch"]).toHaveBeenCalledWith({type: "remove", taskId: "S2"})
   })
 
+  it("removes one task on a double-click on ×, whose second click lands on the × of the row that moved down into its place", async () => {
+    const {dock} = await setupOpenDock(["S1", "S2", "S3"])
+
+    await dock.findAll("[data-focus-row]")[1].find("button").trigger("click", {detail: 2})
+    expect(bridge["focus:dispatch"]).not.toHaveBeenCalled()
+
+    await dock.findAll("[data-focus-row]")[1].find("button").trigger("click", {detail: 1})
+    expect(bridge["focus:dispatch"].mock.calls).toEqual([[{type: "remove", taskId: "S2"}]])
+  })
+
   async function setupReorder(sessionTaskIds) {
     const {dock} = await setupOpenDock(sessionTaskIds)
     const rows = mockRowRects(dock)
@@ -269,5 +279,176 @@ describe("FocusDock", () => {
     move(520)
     await nextTick()
     expect(rows[0].classes()).toContain("opacity-50")
+  })
+
+  describe("running", () => {
+    const T0 = new Date("2026-09-26T10:00:00.000Z")
+
+    beforeEach(() => {
+      vi.useFakeTimers({now: T0})
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    async function tick(seconds) {
+      await vi.advanceTimersByTimeAsync(seconds * 1000)
+      await nextTick()
+    }
+
+    function arcShare(dock) {
+      return 1 - Number(dock.find("circle[stroke-dashoffset]").attributes("stroke-dashoffset"))
+    }
+
+    function buttonLabels(dock) {
+      return dock.findAll("button").map((button) => button.text())
+    }
+
+    function filledDots(dock) {
+      return dock.findAll("[data-focus-dot]").map((dot) => dot.classes().includes("bg-accent"))
+    }
+
+    async function setupRunning({runSecondsAgo = 0, ...overrides}) {
+      const {dock, focus} = await setupOpenDock(["S1", "S2", "S3"])
+      const runStartedAt = runSecondsAgo === null ? null : new Date(Date.now() - runSecondsAgo * 1000).toISOString()
+      focus.session = {...focus.session, phase: "focus", currentTaskId: "S1", runStartedAt, ...overrides}
+      await nextTick()
+      return {dock, focus}
+    }
+
+    it("counts a pomodoro interval down from the time focused in it, rounding the time left up", async () => {
+      const {dock} = await setupRunning({intervalFocusedSeconds: 60, runSecondsAgo: 30.6})
+
+      expect(dock.text()).toContain("23:30")
+      expect(arcShare(dock)).toBeCloseTo(90.6 / 1500, 6)
+
+      await tick(10)
+      expect(dock.text()).toContain("23:20")
+    })
+
+    it("stands still in pause and offers Resume and Stop only", async () => {
+      const {dock} = await setupRunning({phase: "pause", intervalFocusedSeconds: 90, runSecondsAgo: null})
+
+      expect(dock.text()).toContain("23:30")
+      await tick(10)
+      expect(dock.text()).toContain("23:30")
+      expect(buttonLabels(dock)).toEqual(["Resume", "Stop"])
+
+      await buttonNamed(dock, "Resume").trigger("click")
+      expect(bridge["focus:dispatch"]).toHaveBeenCalledWith({type: "resume"})
+    })
+
+    it("places the current task in the list, lists the open tasks after it, and fills a dot per completed interval", async () => {
+      const tasks = [{...makeSessionTask("S1"), isDone: true}, makeSessionTask("S2"), makeSessionTask("S3")]
+      const {dock, focus} = await setupRunning({tasks, currentTaskId: "S2", completedIntervals: 2})
+
+      expect(dock.text()).toContain("2 of 3")
+      expect(dock.text()).toContain("Task S2")
+      expect(dock.text()).toContain("Up next")
+      expect(dock.text()).toContain("Task S3")
+      expect(dock.text()).not.toContain("Task S1")
+      expect(filledDots(dock)).toEqual([true, true, false, false])
+
+      focus.session = {...focus.session, completedIntervals: 5}
+      await nextTick()
+      expect(filledDots(dock)).toEqual([true, true, true, true, true])
+    })
+
+    it("counts the current task's own focus time up in timer mode, rounding down, with a ring that fills over each minute and no dots", async () => {
+      const tasks = [{...makeSessionTask("S1"), focusedSeconds: 125}, makeSessionTask("S2")]
+      const {dock, focus} = await setupRunning({mode: "timer", tasks, runSecondsAgo: 10.6})
+
+      expect(dock.text()).toContain("02:15")
+      expect(arcShare(dock)).toBeCloseTo(15.6 / 60, 6)
+      expect(dock.find("[data-focus-dot]").exists()).toBe(false)
+
+      focus.session = {...focus.session, tasks: [{...makeSessionTask("S1"), focusedSeconds: 3600}], runStartedAt: null, phase: "pause"}
+      await nextTick()
+      expect(dock.text()).toContain("1:00:00")
+    })
+
+    it("counts a break down in green, names the task focus returns to, and ticks the tasks done so far", async () => {
+      const tasks = [{...makeSessionTask("S1"), isDone: true}, makeSessionTask("S2"), makeSessionTask("S3")]
+      const {dock} = await setupRunning({phase: "break", mode: "pomodoro-50", tasks, currentTaskId: "S2", runSecondsAgo: 60})
+
+      expect(dock.text()).toContain("09:00")
+      expect(dock.find("circle[stroke-dashoffset]").classes()).toContain("stroke-success")
+      expect(dock.text()).toContain("Next: Task S2")
+      expect(dock.findAll("li").map((row) => [row.text(), row.find("use[href='#check']").exists()])).toEqual([
+        ["Task S1", true],
+        ["Task S2", false],
+        ["Task S3", false],
+      ])
+
+      await buttonNamed(dock, "Skip break").trigger("click")
+      expect(bridge["focus:dispatch"]).toHaveBeenCalledWith({type: "skip-break"})
+    })
+
+    it("sums the session up in the summary, with each task's focus time, and closes it", async () => {
+      const tasks = [
+        {...makeSessionTask("S1"), focusedSeconds: 1440, isDone: true},
+        {...makeSessionTask("S2"), focusedSeconds: 1560, isDone: true},
+        makeSessionTask("S3"),
+      ]
+      const {dock, focus} = await setupRunning({phase: "summary", currentTaskId: null, runSecondsAgo: null, tasks, completedIntervals: 2})
+
+      expect(dock.text()).toContain("2 of 3 done · 50 min focused · 2 pomodoros")
+      expect(dock.findAll("li").map((row) => row.text())).toEqual(["Task S124 min.", "Task S226 min.", "Task S3—"])
+
+      focus.session = {...focus.session, tasks: tasks.with(1, {...tasks[1], focusedSeconds: 1610}), completedIntervals: 1}
+      await nextTick()
+      expect(dock.text()).toContain("2 of 3 done · 51 min focused · 1 pomodoro")
+      expect(dock.text()).not.toContain("pomodoros")
+
+      focus.session = {...focus.session, mode: "timer", tasks: tasks.with(1, {...tasks[1], focusedSeconds: 1570})}
+      await nextTick()
+      expect(dock.text()).toContain("2 of 3 done · 50 min focused")
+      expect(dock.text()).not.toContain("pomodoro")
+
+      await buttonNamed(dock, "Close").trigger("click")
+      expect(bridge["focus:dispatch"]).toHaveBeenCalledWith({type: "close"})
+    })
+
+    it("sends Done, Pause and Stop from focus", async () => {
+      const {dock, focus} = await setupRunning({})
+      const running = focus.session
+
+      for (const [label, type] of [
+        ["Done", "done"],
+        ["Pause", "pause"],
+        ["Stop", "stop"],
+      ]) {
+        focus.session = running
+        await nextTick()
+        await buttonNamed(dock, label).trigger("click")
+        expect(bridge["focus:dispatch"]).toHaveBeenLastCalledWith({type})
+      }
+    })
+
+    it("sends a single click, and ignores the second click of a double-click, which lands on the button that took the first one's place", async () => {
+      const {dock, focus} = await setupRunning({})
+      const running = focus.session
+
+      for (const [phase, label, type] of [
+        ["focus", "Done", "done"],
+        ["focus", "Pause", "pause"],
+        ["focus", "Stop", "stop"],
+        ["pause", "Resume", "resume"],
+        ["pause", "Stop", "stop"],
+        ["break", "Skip break", "skip-break"],
+        ["summary", "Close", "close"],
+      ]) {
+        focus.session = {...running, phase}
+        await nextTick()
+
+        await buttonNamed(dock, label).trigger("click", {detail: 2})
+        expect(bridge["focus:dispatch"]).not.toHaveBeenCalled()
+
+        await buttonNamed(dock, label).trigger("click", {detail: 1})
+        expect(bridge["focus:dispatch"].mock.calls).toEqual([[{type}]])
+        bridge["focus:dispatch"].mockClear()
+      }
+    })
   })
 })

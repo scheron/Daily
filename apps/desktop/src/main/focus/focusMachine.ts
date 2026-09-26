@@ -1,5 +1,7 @@
 import {clamp} from "@daily/std"
 
+import {FOCUS_DURATIONS} from "@shared/constants/focus"
+
 import type {Task} from "@daily/protocol"
 import type {FocusCommand, FocusMode, FocusSession} from "@shared/types/focus"
 
@@ -61,10 +63,10 @@ export function advance(session: FocusSession, now: Date): FocusStep {
 
 /** When the running pomodoro interval or break ends, or `null` when nothing is due: a pause, a timer, no session running. */
 export function endsAt(session: FocusSession): Date | null {
-  const durations = {"pomodoro-25": {focus: 25 * 60, break: 5 * 60}, "pomodoro-50": {focus: 50 * 60, break: 10 * 60}, timer: null}[session.mode]
+  const durations = FOCUS_DURATIONS[session.mode]
   if (!durations || !session.runStartedAt) return null
 
-  const seconds = session.phase === "focus" ? durations.focus - session.intervalFocusedSeconds : durations.break
+  const seconds = session.phase === "focus" ? durations.focusSeconds - session.intervalFocusedSeconds : durations.breakSeconds
   return new Date(Date.parse(session.runStartedAt) + seconds * 1000)
 }
 
@@ -77,11 +79,11 @@ export function retitle(session: FocusSession, taskId: Task["id"], title: string
 
 /**
  * The session without `taskId`. When it was the current task, the next unfinished one takes over, or the summary when none is left;
- * a focus stretch running on it is written first, unless the task was deleted.
+ * a focus stretch running on it is written first, unless the task was deleted. The summary is a record and keeps every task.
  */
 export function leave(session: FocusSession, taskId: Task["id"], now: Date, isDeleted: boolean): FocusStep {
   const index = indexOfTask(session, taskId)
-  if (index === -1) return keep(session)
+  if (index === -1 || session.phase === "summary") return keep(session)
   if (session.currentTaskId !== taskId) return keep({...session, tasks: session.tasks.toSpliced(index, 1)})
 
   const {session: ended, writes} = session.phase === "focus" ? endStretch(session, now, false) : keep(session)

@@ -215,6 +215,17 @@ describe("FocusController", () => {
       expect(focus.getSession().tasks.map((task) => task.taskId)).toEqual(["t1"])
     })
 
+    it("keeps every row of the summary when a task in it is discarded or deleted elsewhere", async () => {
+      const {focus} = await startedController([makeTask(), makeTask({id: "t2"}), makeTask({id: "t3"})])
+      await focus.dispatch({type: "stop"})
+      const summary = focus.getSession()
+
+      focus.applyStorageChange({tasks: {upserted: [makeTask({id: "t2", status: "discarded"})], removed: ["t3"]}})
+
+      expect(focus.getSession()).toBe(summary)
+      expect(summary.tasks.map((task) => task.taskId)).toEqual(["t1", "t2", "t3"])
+    })
+
     it("ignores the echo of its own Done", async () => {
       const {focus, storage, broadcast} = await startedController([makeTask(), makeTask({id: "t2"})])
 
