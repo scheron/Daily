@@ -29,7 +29,7 @@ export const useDragDropStore = defineStore("dragDrop", () => {
 
   /**
    * Records that the drag was released inside a drop zone floating over the board. The board
-   * must then discard the column move SortableJS staged while the pointer travelled to it.
+   * must then write no column move, even when a column lies under the zone.
    */
   function setReleasedInsideDropZone(isReleased: boolean) {
     isReleasedInsideDropZone.value = isReleased

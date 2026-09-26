@@ -4,6 +4,7 @@ import {computed, toRef, useTemplateRef} from "vue"
 import {sortTags} from "@daily/protocol"
 import {toDateLabel, toDurationLabel} from "@daily/std"
 
+import {BOARD_CARD_HEIGHT} from "@/constants/ui"
 import {useFilterStore} from "@/stores/filter.store"
 import {useMilestonesStore} from "@/stores/milestones.store"
 import {useTagsStore} from "@/stores/tags.store"
@@ -160,7 +161,10 @@ function getCardClasses(status: TaskStatus) {
 }
 
 function getContentClasses(status: TaskStatus) {
-  return cn("transition-opacity duration-200", (status === "done" || status === "discarded") && "opacity-50")
+  return cn(
+    "board-card-text relative min-h-0 flex-1 overflow-hidden transition-opacity duration-200",
+    (status === "done" || status === "discarded") && "opacity-50",
+  )
 }
 
 function onSelect(event: BaseContextMenuSelectEvent) {
@@ -193,8 +197,8 @@ async function onLinkTask(side: keyof TaskRelationSets, taskId: Task["id"]) {
 
 <template>
   <BaseContextMenu ref="contextMenu" :items="menuItems" @select="onSelect">
-    <div :id="task.id" :class="getCardClasses(task.status)" @click.stop="onCardClick">
-      <div class="relative z-10 flex w-full flex-col gap-3 px-5 py-4">
+    <div :id="task.id" :class="getCardClasses(task.status)" :style="{height: `${BOARD_CARD_HEIGHT}px`}" @click.stop="onCardClick">
+      <div class="relative z-10 flex h-full w-full flex-col gap-3 px-5 py-4">
         <div class="flex w-full items-center gap-3">
           <DynamicTagsPanel :tags="tags" size="sm" />
           <div class="ml-auto flex shrink-0 items-center gap-2">
@@ -204,7 +208,7 @@ async function onLinkTask(side: keyof TaskRelationSets, taskId: Task["id"]) {
         </div>
 
         <div :class="getContentClasses(task.status)">
-          <MarkdownContent :content="task.content" />
+          <MarkdownContent :content="task.content" :minimizable="false" />
         </div>
 
         <div v-if="hasFooter" class="flex items-center gap-2 text-xs">
@@ -280,3 +284,29 @@ async function onLinkTask(side: keyof TaskRelationSets, taskId: Task["id"]) {
     </template>
   </BaseContextMenu>
 </template>
+
+<style scoped>
+.board-card-text {
+  scroll-timeline: --board-card-text y;
+}
+
+.board-card-text::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 24px;
+  background: linear-gradient(to bottom, transparent, var(--color-base-100));
+  opacity: 0;
+  animation: board-card-text-cut linear both;
+  animation-timeline: --board-card-text;
+}
+
+@keyframes board-card-text-cut {
+  from,
+  to {
+    opacity: 1;
+  }
+}
+</style>

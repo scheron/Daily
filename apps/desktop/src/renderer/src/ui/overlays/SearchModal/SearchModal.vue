@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import {toasts} from "vue-toasts-lite"
 
+import {useTaskColumns} from "@/composables/tasks/useTaskColumns"
 import {useBranchesStore} from "@/stores/branches.store"
 import {useTaskEditorStore} from "@/stores/task-editor"
 import {useTasksStore} from "@/stores/tasks"
 import BaseIcon from "@/ui/base/BaseIcon"
 import {BaseModal} from "@/ui/base/BaseModal"
 import {useConfirmUnsavedModal} from "@/ui/overlays/ConfirmUnsavedModal"
-import {scrollToElement} from "@/utils/ui/dom"
 import {useFilter} from "./composables/useFilter"
 import {useSearch} from "./composables/useSearch"
 import {highlightElement} from "./utils/highlightElement"
@@ -27,6 +27,7 @@ const taskEditorStore = useTaskEditorStore()
 const {query, items, isSearching, isLoaded} = useSearch()
 const {filter, filteredItems} = useFilter(items)
 const {open: confirmLeaveIfDirty} = useConfirmUnsavedModal()
+const columns = useTaskColumns()
 
 async function navigateToTask(result: TaskSearchResult) {
   const task = result.task
@@ -56,11 +57,9 @@ async function navigateToTask(result: TaskSearchResult) {
   }
 
   tasksStore.setActiveDay(task.scheduled.date)
-
-  const scrolled = await scrollToElement(task.id)
-  if (scrolled) highlightElement(task.id)
-
   emit("close")
+
+  if (await columns.revealTask(task.id)) highlightElement(task.id)
 }
 </script>
 

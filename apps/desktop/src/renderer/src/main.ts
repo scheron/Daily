@@ -12,7 +12,6 @@ import "vue-toasts-lite/style.css"
 import "./assets/styles/main.css"
 import "./assets/styles/tooltip.css"
 import "./assets/styles/rewrites/vue-toasts-lite.css"
-import "./assets/styles/rewrites/vue-draggable.css"
 import vTooltip from "./directives/vTooltip"
 
 async function initApp() {

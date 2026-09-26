@@ -25,10 +25,10 @@ The file name matches the function name (camelCase), even for tiny one-liners. D
 
 A **fixed, closed set of tiny low-level primitives over one thing** may share a single module named after the family. In this repo those are:
 
-| Module              | Family                                                                                                   |
-| ------------------- | -------------------------------------------------------------------------------------------------------- |
-| `ui/tailwindcss.ts` | class-name primitives: `cn`, `defineVariant`                                                             |
-| `ui/dom.ts`         | DOM queries and scrolling: `findFocusableEl`, `findClosestAtPoint`, `scrollToElement`, `getCssVariable`… |
+| Module              | Family                                                                                             |
+| ------------------- | -------------------------------------------------------------------------------------------------- |
+| `ui/tailwindcss.ts` | class-name primitives: `cn`, `defineVariant`                                                       |
+| `ui/dom.ts`         | DOM queries: `findFocusableEl`, `findAllFocusableElements`, `findClosestAtPoint`, `getCssVariable` |
 
 Every function in such a module must belong to that **one** family. The moment a function has real domain logic or doesn't fit the family vocabulary, it gets its own file instead.
 
