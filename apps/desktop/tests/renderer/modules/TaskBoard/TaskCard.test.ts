@@ -6,6 +6,9 @@ import {afterEach, beforeEach, describe, expect, it} from "vitest"
 
 import {mount} from "@vue/test-utils"
 import {mockBridgeIPC} from "../../../helpers/bridgeIPC"
+import {installFakeResizeObserver, stubLayout} from "../../../helpers/resizeObserver"
+
+const {deliverResize} = installFakeResizeObserver()
 
 function makeTask(overrides = {}) {
   return {
@@ -21,6 +24,21 @@ function makeTask(overrides = {}) {
     spentTime: 0,
     tags: [],
     attachments: [],
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+    deletedAt: null,
+    ...overrides,
+  }
+}
+
+function makeMilestone(overrides = {}) {
+  return {
+    id: "milestone-1",
+    branchId: "main",
+    name: "Launch",
+    description: "",
+    targetDate: null,
+    orderIndex: 1024,
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
     deletedAt: null,
@@ -75,5 +93,58 @@ describe("TaskCard — the metrics row", () => {
 
     expect(wrapper.find('use[href="#message"]').exists()).toBe(false)
     expect(footerText()).toBeNull()
+  })
+})
+
+describe("TaskCard — its shape on the board", () => {
+  let wrapper = null
+
+  beforeEach(() => {
+    mockBridgeIPC()
+    setActivePinia(createPinia())
+  })
+
+  afterEach(() => {
+    wrapper?.unmount()
+    wrapper = null
+  })
+
+  it("is always the board's card height, with the text between the tag row and a footer pinned last, never clamped by its content", async () => {
+    const {default: TaskCard} = await import("../../../../src/renderer/src/ui/modules/TaskBoard/{fragments}/TaskCard/TaskCard.vue")
+    const {BOARD_CARD_HEIGHT} = await import("../../../../src/renderer/src/constants/ui")
+    const {useMilestonesStore} = await import("../../../../src/renderer/src/stores/milestones.store")
+    const {useSettingsStore} = await import("../../../../src/renderer/src/stores/settings.store")
+
+    useSettingsStore().settings = {branch: {activeId: "main"}}
+    useMilestonesStore().milestones = [makeMilestone()]
+    const content = Array.from({length: 40}, (_, index) => `line ${index + 1}`).join("\n")
+
+    wrapper = mount(TaskCard, {
+      props: {task: makeTask({milestoneId: "milestone-1", content})},
+      attachTo: document.body,
+      global: {directives: {tooltip: {}}},
+    })
+    await nextTick()
+
+    const card = wrapper.element.querySelector("#task-1")
+    expect(card.style.height).toBe(`${BOARD_CARD_HEIGHT}px`)
+
+    const markdown = card.querySelector(".markdown-view")
+    const text = markdown.parentElement
+    const column = text.parentElement
+    const footer = card.querySelector(".gap-2.text-xs")
+    expect(footer.textContent).toContain("Launch")
+    expect(Array.from(column.children)).toEqual([column.children[0], text, footer])
+    expect(Array.from(column.classList)).toEqual(expect.arrayContaining(["flex", "flex-col", "h-full"]))
+    expect(Array.from(text.classList)).toEqual(expect.arrayContaining(["flex-1", "min-h-0", "overflow-hidden"]))
+
+    const contentEl = markdown.querySelector(".cm-content")
+    stubLayout(contentEl, {scrollHeight: 900})
+    deliverResize(contentEl)
+    await nextTick()
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+    await nextTick()
+
+    expect(markdown.classList.contains("is-minimized")).toBe(false)
   })
 })

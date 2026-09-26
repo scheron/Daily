@@ -20,7 +20,7 @@ const contentElementRef = shallowRef<HTMLElement | null>(null)
 const shouldClamp = ref(false)
 
 const {open: openImagePreview} = useImagePreviewModal()
-useBatchedResizeObserver([contentElementRef], {read: readContentHeight, write: applyClamp})
+useBatchedResizeObserver([() => (props.minimizable ? contentElementRef.value : null)], {read: readContentHeight, write: applyClamp})
 
 function getMarkdownViewClasses(isMinimized: boolean) {
   return cn("markdown-view", isMinimized && "is-minimized")

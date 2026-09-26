@@ -29,44 +29,6 @@ export function findClosestAtPoint(x: number, y: number, selector: string): HTML
   return el?.closest<HTMLElement>(selector) ?? null
 }
 
-export async function scrollToElement(elementId: string): Promise<boolean> {
-  let element = document.getElementById(elementId)
-  let rafId: number | null = null
-
-  if (!element) {
-    const startTime = performance.now()
-
-    element = await new Promise<HTMLElement | null>((resolve) => {
-      function checkElement() {
-        const el = document.getElementById(elementId)
-        if (el) {
-          if (rafId) cancelAnimationFrame(rafId)
-          rafId = null
-
-          resolve(el)
-          return
-        }
-
-        if (performance.now() - startTime < 3000) {
-          rafId = requestAnimationFrame(checkElement)
-        } else {
-          resolve(null)
-        }
-      }
-
-      rafId = requestAnimationFrame(checkElement)
-    })
-  }
-
-  if (!element) {
-    console.warn(`Element with id "${elementId}" not found`)
-    return false
-  }
-
-  element.scrollIntoView({behavior: "smooth", block: "center"})
-  return true
-}
-
 export function getCssVariable(name: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
 }

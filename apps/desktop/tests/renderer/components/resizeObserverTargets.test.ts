@@ -62,6 +62,21 @@ describe("resize observer targets", () => {
     expect(wrapper.classes()).toContain("is-minimized")
   })
 
+  it("observes MarkdownContent's .cm-content only when the content can be minimized", async () => {
+    const {default: MarkdownContent} = await import("../../../src/renderer/src/ui/common/misc/MarkdownContent.vue")
+    const observe = vi.spyOn(window.ResizeObserver.prototype, "observe")
+
+    const fixed = mount(MarkdownContent, {props: {content: "text", minimizable: false}, attachTo: document.body})
+    wrapper = mount(MarkdownContent, {props: {content: "text"}, attachTo: document.body})
+    await settle()
+
+    const observed = observe.mock.calls.map(([element]) => element)
+    expect(observed.filter((element) => fixed.element.contains(element))).toEqual([])
+    expect(observed).toContain(wrapper.element.querySelector(".cm-content"))
+
+    fixed.unmount()
+  })
+
   it("fits DynamicTagsPanel's tags from a delivery on its probe, not one on its own container", async () => {
     const {default: DynamicTagsPanel} = await import("../../../src/renderer/src/ui/common/misc/DynamicTagsPanel.vue")
 

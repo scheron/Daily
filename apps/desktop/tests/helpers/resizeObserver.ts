@@ -55,7 +55,10 @@ export function installFakeResizeObserver() {
 }
 
 /** Overrides read-only layout getters (`offsetWidth`, `scrollHeight`, …) that happy-dom always reports as `0`. */
-export function stubLayout(element: Element, values: Partial<Record<"offsetWidth" | "offsetHeight" | "scrollWidth" | "scrollHeight", number>>) {
+export function stubLayout(
+  element: Element,
+  values: Partial<Record<"offsetWidth" | "offsetHeight" | "offsetTop" | "clientHeight" | "scrollWidth" | "scrollHeight", number>>,
+) {
   for (const [key, value] of Object.entries(values)) {
     Object.defineProperty(element, key, {value, configurable: true})
   }

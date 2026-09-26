@@ -2,7 +2,7 @@ import {onBeforeUnmount} from "vue"
 
 import {clamp, isNull, notNull} from "@daily/std"
 
-export function useDragAutoScroll() {
+export function useDragAutoScroll(axis: "x" | "y") {
   let activeContainer: HTMLElement | null = null
   let velocity = 0
   let rafId: number | null = null
@@ -15,33 +15,7 @@ export function useDragAutoScroll() {
     rafId = null
   }
 
-  function tick() {
-    if (!activeContainer || velocity === 0) {
-      rafId = null
-      return
-    }
-
-    const maxScrollTop = activeContainer.scrollHeight - activeContainer.clientHeight
-    if (maxScrollTop <= 0) {
-      stop()
-      return
-    }
-
-    const nextScrollTop = clamp(activeContainer.scrollTop + velocity, 0, maxScrollTop)
-    activeContainer.scrollTop = nextScrollTop
-
-    const reachedTop = nextScrollTop <= 0 && velocity < 0
-    const reachedBottom = nextScrollTop >= maxScrollTop && velocity > 0
-
-    if (reachedTop || reachedBottom) {
-      stop()
-      return
-    }
-
-    rafId = window.requestAnimationFrame(tick)
-  }
-
-  function update(container: HTMLElement | null, clientY: number) {
+  function update(container: HTMLElement | null, clientPosition: number) {
     const nextContainer = container ?? activeContainer
     if (!nextContainer) {
       stop()
@@ -53,16 +27,16 @@ export function useDragAutoScroll() {
 
     activeContainer = nextContainer
     const rect = nextContainer.getBoundingClientRect()
-    const topDistance = clientY - rect.top
-    const bottomDistance = rect.bottom - clientY
+    const startDistance = clientPosition - (axis === "y" ? rect.top : rect.left)
+    const endDistance = (axis === "y" ? rect.bottom : rect.right) - clientPosition
 
     let nextVelocity = 0
 
-    if (topDistance < edgeOffset) {
-      const intensity = 1 - clamp(topDistance / edgeOffset, 0, 1)
+    if (startDistance < edgeOffset) {
+      const intensity = 1 - clamp(startDistance / edgeOffset, 0, 1)
       nextVelocity = -Math.max(1, Math.round(intensity * maxSpeed))
-    } else if (bottomDistance < edgeOffset) {
-      const intensity = 1 - clamp(bottomDistance / edgeOffset, 0, 1)
+    } else if (endDistance < edgeOffset) {
+      const intensity = 1 - clamp(endDistance / edgeOffset, 0, 1)
       nextVelocity = Math.max(1, Math.round(intensity * maxSpeed))
     }
 
@@ -79,6 +53,38 @@ export function useDragAutoScroll() {
     if (isNull(rafId)) {
       rafId = requestAnimationFrame(tick)
     }
+  }
+
+  function tick() {
+    if (!activeContainer || velocity === 0) {
+      rafId = null
+      return
+    }
+
+    const {position, maxPosition} = readScroll(activeContainer)
+    if (maxPosition <= 0) {
+      stop()
+      return
+    }
+
+    const nextPosition = clamp(position + velocity, 0, maxPosition)
+    if (axis === "y") activeContainer.scrollTop = nextPosition
+    else activeContainer.scrollLeft = nextPosition
+
+    const reachedStart = nextPosition <= 0 && velocity < 0
+    const reachedEnd = nextPosition >= maxPosition && velocity > 0
+
+    if (reachedStart || reachedEnd) {
+      stop()
+      return
+    }
+
+    rafId = window.requestAnimationFrame(tick)
+  }
+
+  function readScroll(container: HTMLElement) {
+    if (axis === "y") return {position: container.scrollTop, maxPosition: container.scrollHeight - container.clientHeight}
+    return {position: container.scrollLeft, maxPosition: container.scrollWidth - container.clientWidth}
   }
 
   onBeforeUnmount(stop)

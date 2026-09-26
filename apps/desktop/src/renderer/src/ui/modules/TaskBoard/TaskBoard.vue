@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import {computed, useTemplateRef, watch} from "vue"
 import {storeToRefs} from "pinia"
-import VueDraggable from "vuedraggable"
 
 import {useTaskColumns} from "@/composables/tasks/useTaskColumns"
 import {TASK_COLUMNS} from "@/constants/ui"
@@ -14,22 +13,8 @@ import CalendarDock from "@/ui/modules/CalendarDock"
 import TagsDock from "@/ui/modules/TagsDock.vue"
 import {useDragScroll} from "./composables/useDragScroll"
 import NoTasksPlaceholder from "./{fragments}/NoTasksPlaceholder.vue"
-import TaskCard from "./{fragments}/TaskCard"
 import TaskColumn from "./{fragments}/TaskColumn.vue"
 import TaskDragPreview from "./{fragments}/TaskDragPreview.vue"
-
-const DRAGGABLE_ATTRS = {
-  group: "daily-board",
-  filter: "[data-draggable-task-ignore], [data-draggable-task-ignore] *, button, a, input, textarea, select, [role='button']",
-  preventOnFilter: false,
-  forceFallback: true,
-  fallbackOnBody: true,
-  fallbackTolerance: 2,
-  ghostClass: "draggable-task-ghost",
-  chosenClass: "draggable-task-chosen",
-  dragClass: "draggable-task-dragging",
-  animation: 140,
-}
 
 const emit = defineEmits<{createTask: []}>()
 
@@ -69,34 +54,15 @@ watch(activeDay, () => containerRef.value?.scrollTo({top: 0, behavior: "instant"
   <div ref="container" class="relative min-w-0 flex-1 overflow-hidden">
     <NoTasksPlaceholder v-if="!isBoardVisible" :date="placeholderDate" :milestone-name="framedMilestoneName" @create-task="emit('createTask')" />
 
-    <div v-else ref="board" class="flex size-full overflow-x-auto overflow-y-hidden" @dragover="columns.onDragOver">
+    <div v-else ref="board" data-task-board class="flex size-full overflow-x-auto overflow-y-hidden">
       <template v-for="(column, index) in TASK_COLUMNS" :key="column.status">
-        <TaskColumn :status="column.status">
-          <VueDraggable
-            :list="columns.localTasksByStatus[column.status]"
-            item-key="id"
-            :disabled="columns.isDragDisabled.value"
-            class="flex min-h-full w-full min-w-0 flex-col overflow-x-hidden"
-            v-bind="DRAGGABLE_ATTRS"
-            @start="columns.onDragStart"
-            @end="columns.onDragEnd"
-            @change="columns.onColumnChange(column.status, $event)"
-          >
-            <template #item="{element: task}">
-              <div class="relative mx-1.5 mb-1.5 last:mb-0" data-task-card>
-                <div class="w-full shrink-0">
-                  <TaskCard :task="task" />
-                </div>
-              </div>
-            </template>
-          </VueDraggable>
-        </TaskColumn>
+        <TaskColumn :status="column.status" />
 
         <div
           v-if="
             index < TASK_COLUMNS.length - 1 && !columns.isColumnCollapsed(column.status) && !columns.isColumnCollapsed(TASK_COLUMNS[index + 1].status)
           "
-          class="to-base-300/50 bg-linear-to-b h-full w-px shrink-0 from-transparent from-[44px] to-[98px]"
+          class="to-base-300/50 h-full w-px shrink-0 bg-linear-to-b from-transparent from-[44px] to-[98px]"
         />
       </template>
     </div>
