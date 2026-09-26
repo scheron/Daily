@@ -29,6 +29,10 @@ async function onSelectBranch(branch: Branch) {
   if (branch.id === branchesStore.activeBranchId) return
   await branchesStore.setActiveBranch(branch.id)
 }
+
+function getFocusVariant(isOpen: boolean) {
+  return isOpen ? "primary" : "ghost-primary"
+}
 </script>
 
 <template>
@@ -71,6 +75,8 @@ async function onSelectBranch(branch: Branch) {
         :tooltip="`Search (${toShortcutKeys('ui:open-search-panel')})`"
         @click="searchModal.toggle()"
       />
+
+      <BaseButton :variant="getFocusVariant(uiStore.isFocusDockOpen)" icon="stopwatch" size="sm" tooltip="Focus" @click="uiStore.toggleFocusDock()" />
 
       <div class="bg-base-300 mx-0.5 h-4.5 w-px" />
 

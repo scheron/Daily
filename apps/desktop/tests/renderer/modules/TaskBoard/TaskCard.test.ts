@@ -164,3 +164,55 @@ describe("TaskCard — its shape on the board", () => {
     expect(markdown.classList.contains("is-minimized")).toBe(false)
   })
 })
+
+describe("TaskCard — the focus session's border", () => {
+  let wrapper = null
+
+  beforeEach(() => {
+    mockBridgeIPC()
+    setActivePinia(createPinia())
+  })
+
+  afterEach(() => {
+    wrapper?.unmount()
+    wrapper = null
+  })
+
+  function makeSession(overrides = {}) {
+    return {
+      phase: "collect",
+      mode: "pomodoro-25",
+      tasks: [{taskId: "task-1", title: "task", focusedSeconds: 0, isDone: false}],
+      currentTaskId: null,
+      runStartedAt: null,
+      intervalFocusedSeconds: 0,
+      completedIntervals: 0,
+      isDetached: false,
+      ...overrides,
+    }
+  }
+
+  it("draws the travelling border on a card in the session, and drops it once the task is done or the session reaches its summary", async () => {
+    const {default: TaskCard} = await import("../../../../src/renderer/src/ui/modules/TaskBoard/{fragments}/TaskCard/TaskCard.vue")
+    const {default: FocusBorder} = await import("../../../../src/renderer/src/ui/modules/TaskBoard/{fragments}/TaskCard/{fragments}/FocusBorder.vue")
+    const {useFocusStore} = await import("../../../../src/renderer/src/stores/focus.store")
+
+    const focus = useFocusStore()
+    focus.session = makeSession()
+    wrapper = mount(TaskCard, {props: {task: makeTask()}, global: {directives: {tooltip: {}}}})
+    await nextTick()
+    expect(wrapper.findComponent(FocusBorder).exists()).toBe(true)
+
+    focus.session = makeSession({
+      phase: "focus",
+      currentTaskId: "task-1",
+      tasks: [{taskId: "task-1", title: "task", focusedSeconds: 60, isDone: true}],
+    })
+    await nextTick()
+    expect(wrapper.findComponent(FocusBorder).exists()).toBe(false)
+
+    focus.session = makeSession({phase: "summary"})
+    await nextTick()
+    expect(wrapper.findComponent(FocusBorder).exists()).toBe(false)
+  })
+})

@@ -24,8 +24,12 @@ export const useFocusStore = defineStore("focus", () => {
   }
 
   async function loadSession(): Promise<void> {
-    const loaded = await window.BridgeIPC["focus:get"]()
-    session.value ??= loaded
+    try {
+      const loaded = await window.BridgeIPC["focus:get"]()
+      session.value ??= loaded
+    } catch (error) {
+      console.error("Failed to load the focus session:", error)
+    }
   }
 
   invoke(loadSession)

@@ -10,6 +10,7 @@ import {useMilestonesStore} from "@/stores/milestones.store"
 import {useTasksStore} from "@/stores/tasks"
 import ActionsDock from "@/ui/modules/ActionsDock"
 import CalendarDock from "@/ui/modules/CalendarDock"
+import FocusDock from "@/ui/modules/FocusDock"
 import TagsDock from "@/ui/modules/TagsDock.vue"
 import {useDragScroll} from "./composables/useDragScroll"
 import NoTasksPlaceholder from "./{fragments}/NoTasksPlaceholder.vue"
@@ -71,6 +72,7 @@ watch(activeDay, () => containerRef.value?.scrollTo({top: 0, behavior: "instant"
     <TagsDock />
     <CalendarDock />
     <ActionsDock @create-task="emit('createTask')" />
+    <FocusDock />
     <TaskDragPreview />
   </div>
 </template>

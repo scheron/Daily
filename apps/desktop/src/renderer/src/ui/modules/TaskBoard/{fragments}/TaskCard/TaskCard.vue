@@ -6,6 +6,7 @@ import {toDateLabel, toDurationLabel} from "@daily/std"
 
 import {BOARD_CARD_HEIGHT} from "@/constants/ui"
 import {useFilterStore} from "@/stores/filter.store"
+import {useFocusStore} from "@/stores/focus.store"
 import {useMilestonesStore} from "@/stores/milestones.store"
 import {useTagsStore} from "@/stores/tags.store"
 import {useTaskEditorStore} from "@/stores/task-editor"
@@ -25,6 +26,7 @@ import EstimationPicker from "@/ui/common/pickers/EstimationPicker"
 import {useConfirmUnsavedModal} from "@/ui/overlays/ConfirmUnsavedModal"
 import {cn} from "@/utils/ui/tailwindcss"
 import DeleteMenuItem from "./{fragments}/DeleteMenuItem.vue"
+import FocusBorder from "./{fragments}/FocusBorder.vue"
 import MilestoneChip from "./{fragments}/MilestoneChip.vue"
 import RelationChip from "./{fragments}/RelationChip.vue"
 import StatusBadge from "./{fragments}/StatusBadge.vue"
@@ -42,6 +44,7 @@ const taskRelationsStore = useTaskRelationsStore()
 const taskCommentsStore = useTaskCommentsStore()
 const milestonesStore = useMilestonesStore()
 const filterStore = useFilterStore()
+const focusStore = useFocusStore()
 
 const contextMenuRef = useTemplateRef<InstanceType<typeof BaseContextMenu>>("contextMenu")
 
@@ -52,6 +55,7 @@ const showTime = computed(() => props.task.estimatedTime > 0)
 const estimateLabel = computed(() => (showTime.value ? toDurationLabel(props.task.estimatedTime) : ""))
 const spentLabel = computed(() => (showTime.value && props.task.spentTime > 0 ? toDurationLabel(props.task.spentTime) : ""))
 const commentCount = computed(() => taskCommentsStore.commentCountOf(props.task.id))
+const isInSession = computed(() => focusStore.isInSession(props.task.id))
 
 const footerDayLabel = computed(() => {
   if (filterStore.frame !== "milestone" || !props.task.scheduled) return ""
@@ -149,13 +153,14 @@ function getStatusClass(status: TaskStatus) {
   return ""
 }
 
-function getCardClasses(status: TaskStatus) {
+function getCardClasses(status: TaskStatus, isInSession: boolean) {
   return cn(
     "bg-base-100 hover:shadow-accent/5 group relative overflow-hidden rounded-2xl border transition-all duration-200 hover:shadow-lg",
     status === "backlog" && "border-base-content/15 border-dashed",
     status === "done" && "border-success/30 hover:border-success/40",
     status === "discarded" && "border-warning/30 hover:border-warning/40",
     status === "active" && "border-base-300/50 hover:border-base-content/15",
+    isInSession && "border-transparent hover:border-transparent",
   )
 }
 
@@ -196,7 +201,7 @@ async function onLinkTask(side: keyof TaskRelationSets, taskId: Task["id"]) {
 
 <template>
   <BaseContextMenu ref="contextMenu" :items="menuItems" @select="onSelect">
-    <div :id="task.id" :class="getCardClasses(task.status)" :style="{height: `${BOARD_CARD_HEIGHT}px`}" @click.stop="onCardClick">
+    <div :id="task.id" :class="getCardClasses(task.status, isInSession)" :style="{height: `${BOARD_CARD_HEIGHT}px`}" @click.stop="onCardClick">
       <div class="relative z-10 flex h-full w-full flex-col gap-3 px-5 py-4">
         <div class="flex w-full items-center gap-3">
           <DynamicTagsPanel :tags="tags" size="sm" />
@@ -233,6 +238,8 @@ async function onLinkTask(side: keyof TaskRelationSets, taskId: Task["id"]) {
           </div>
         </div>
       </div>
+
+      <FocusBorder v-if="isInSession" />
     </div>
 
     <template #item-delete="item">

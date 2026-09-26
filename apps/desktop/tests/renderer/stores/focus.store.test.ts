@@ -61,6 +61,18 @@ describe("focusStore", () => {
     expect(store.session.mode).toBe("timer")
   })
 
+  it("logs a first load that fails and keeps no session", async () => {
+    const error = new Error("no handler")
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {})
+    bridge["focus:get"].mockRejectedValue(error)
+
+    const store = useFocusStore()
+    await vi.waitFor(() => expect(consoleError).toHaveBeenCalledWith("Failed to load the focus session:", error))
+
+    expect(store.session).toBeNull()
+    consoleError.mockRestore()
+  })
+
   it("sends a command to main and takes the session it returns", async () => {
     const store = useFocusStore()
     bridge["focus:dispatch"].mockResolvedValue(makeSession({mode: "pomodoro-50"}))
