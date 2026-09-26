@@ -161,7 +161,7 @@ describe("TaskBoard", () => {
     expect(placedCards(board, "active")).toEqual(onGrid(range(97, 107)))
   })
 
-  it("mounts no card of a collapsed column but keeps its track, so its scroll survives, and mounts its window once it is expanded", async () => {
+  it("mounts no card of a collapsed column but keeps its track's height, the proxy for its scroll, and mounts its window once expanded", async () => {
     const {mountBoard, tasks, ui} = await setup({sectionsCollapsed: {done: true}})
     tasks.activeDay = DateTime.now().toISODate()
     tasks.tasks = makeTasks(20, {status: "done"})
