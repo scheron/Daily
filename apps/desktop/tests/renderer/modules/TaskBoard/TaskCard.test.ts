@@ -4,6 +4,8 @@ import {nextTick} from "vue"
 import {createPinia, setActivePinia} from "pinia"
 import {afterEach, beforeEach, describe, expect, it} from "vitest"
 
+import {toDateLabel} from "@daily/std"
+
 import {mount} from "@vue/test-utils"
 import {mockBridgeIPC} from "../../../helpers/bridgeIPC"
 import {installFakeResizeObserver, stubLayout} from "../../../helpers/resizeObserver"
@@ -86,6 +88,20 @@ describe("TaskCard — the metrics row", () => {
     await setup(makeTask({estimatedTime: 7200, spentTime: 2700}), {"task-1": 2})
 
     expect(footerText()).toBe("2 h.45 min.2")
+  })
+
+  it("carries_its_milestone_in_the_milestone_frame_too_with_its_date_leading_the_metrics", async () => {
+    const {useMilestonesStore} = await import("../../../../src/renderer/src/stores/milestones.store")
+    const {useFilterStore} = await import("../../../../src/renderer/src/stores/filter.store")
+    useMilestonesStore().milestones = [makeMilestone()]
+    useFilterStore().setFrame("milestone")
+
+    await setup(makeTask({milestoneId: "milestone-1", estimatedTime: 3600}))
+
+    const metrics = wrapper.find(".gap-2.text-xs").find(".ml-auto")
+    expect(wrapper.find(".ms-chip").text()).toBe("Launch")
+    expect(metrics.findAll("use").map((icon) => icon.attributes("href"))).toEqual(["#calendar", "#stopwatch"])
+    expect(metrics.text()).toContain(toDateLabel("2026-01-01", {short: true}))
   })
 
   it("draws_no_footer_for_a_task_with_neither_an_estimate_nor_a_comment", async () => {

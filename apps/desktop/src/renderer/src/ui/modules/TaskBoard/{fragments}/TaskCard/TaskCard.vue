@@ -53,14 +53,13 @@ const estimateLabel = computed(() => (showTime.value ? toDurationLabel(props.tas
 const spentLabel = computed(() => (showTime.value && props.task.spentTime > 0 ? toDurationLabel(props.task.spentTime) : ""))
 const commentCount = computed(() => taskCommentsStore.commentCountOf(props.task.id))
 
-const footerMilestone = computed(() => (filterStore.frame === "milestone" ? null : milestone.value))
 const footerDayLabel = computed(() => {
   if (filterStore.frame !== "milestone" || !props.task.scheduled) return ""
   return toDateLabel(props.task.scheduled.date, {short: true})
 })
 
-const hasMetrics = computed(() => showTime.value || commentCount.value > 0)
-const hasFooter = computed(() => Boolean(footerMilestone.value) || Boolean(footerDayLabel.value) || hasMetrics.value)
+const hasMetrics = computed(() => Boolean(footerDayLabel.value) || showTime.value || commentCount.value > 0)
+const hasFooter = computed(() => Boolean(milestone.value) || hasMetrics.value)
 
 const currentRelations = computed<TaskRelationSets>(() => {
   const related = taskRelationsStore.relatedTasksByTaskId.get(props.task.id)
@@ -212,10 +211,13 @@ async function onLinkTask(side: keyof TaskRelationSets, taskId: Task["id"]) {
         </div>
 
         <div v-if="hasFooter" class="flex items-center gap-2 text-xs">
-          <MilestoneChip v-if="footerMilestone" :milestone="footerMilestone" />
-          <span v-else-if="footerDayLabel" class="text-base-content/80 text-xs">{{ footerDayLabel }}</span>
+          <MilestoneChip v-if="milestone" :milestone="milestone" />
 
-          <div v-if="hasMetrics" class="ml-auto flex items-center gap-2">
+          <div v-if="hasMetrics" class="ml-auto flex shrink-0 items-center gap-2">
+            <div v-if="footerDayLabel" class="text-base-content/80 inline-flex items-center gap-1 px-2.5 py-1">
+              <BaseIcon name="calendar" class="text-base-content/40 size-3.5" />
+              <span>{{ footerDayLabel }}</span>
+            </div>
             <div v-if="showTime" class="text-base-content/80 inline-flex items-center gap-1 px-2.5 py-1">
               <BaseIcon name="stopwatch" class="text-accent size-3.5" />
               <span>{{ estimateLabel }}</span>
