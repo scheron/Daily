@@ -18,7 +18,7 @@ import {IconsSprite} from "./ui/base/BaseIcon"
 import {BaseModalProvider} from "./ui/base/BaseModal"
 
 const route = useRoute()
-const isLightRoute = route.name === "Settings" || route.name === "Assistant"
+const isLightRoute = route.name === "Settings" || route.name === "Assistant" || route.name === "Focus"
 const isSettingsRoute = route.name === "Settings"
 
 const settingsStore = useSettingsStore()
@@ -48,6 +48,8 @@ invoke(async () => {
     await until(() => settingsStore.isSettingsLoaded).toBeTruthy()
 
     if (isLightRoute) {
+      if (route.name === "Focus") return
+
       const aiStore = useAiStore()
 
       if (isSettingsRoute) {

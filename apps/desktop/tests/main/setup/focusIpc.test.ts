@@ -11,6 +11,9 @@ vi.mock("electron", () => ({
     handle: (channel: string, handler: (...args: any[]) => any) => {
       handlers.set(channel, handler)
     },
+    on: (channel: string, handler: (...args: any[]) => any) => {
+      handlers.set(channel, handler)
+    },
   },
   powerMonitor: {on: () => {}},
 }))
@@ -18,7 +21,10 @@ vi.mock("electron", () => ({
 describe("focus IPC", () => {
   it("runs a command over focus:dispatch, returns the next session, and serves that session over focus:get", async () => {
     const focus = new FocusController({getTask: async () => null, updateTask: async () => ({})}, () => {})
-    setupFocusIPC(() => focus)
+    setupFocusIPC(
+      () => focus,
+      () => null,
+    )
 
     const returned = await handlers.get("focus:dispatch")!({}, {type: "set-mode", mode: "timer"})
 
@@ -26,8 +32,34 @@ describe("focus IPC", () => {
     expect(await handlers.get("focus:get")!({})).toEqual(returned)
   })
 
+  it("brings a minimized focus window back and focuses it on focus:show-window, and does nothing without one", () => {
+    const detachedWindow = {
+      state: {isMinimized: true, isFocused: false},
+      isMinimized: () => detachedWindow.state.isMinimized,
+      restore: () => (detachedWindow.state.isMinimized = false),
+      focus: () => (detachedWindow.state.isFocused = true),
+    }
+
+    setupFocusIPC(
+      () => null,
+      () => null,
+    )
+    expect(() => handlers.get("focus:show-window")!({})).not.toThrow()
+
+    setupFocusIPC(
+      () => null,
+      () => detachedWindow,
+    )
+    handlers.get("focus:show-window")!({})
+
+    expect(detachedWindow.state).toEqual({isMinimized: false, isFocused: true})
+  })
+
   it("answers nothing before the controller exists", async () => {
-    setupFocusIPC(() => null)
+    setupFocusIPC(
+      () => null,
+      () => null,
+    )
 
     expect(await handlers.get("focus:get")!({})).toBeUndefined()
     expect(await handlers.get("focus:dispatch")!({}, {type: "start"})).toBeUndefined()

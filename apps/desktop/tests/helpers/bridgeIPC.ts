@@ -16,6 +16,7 @@ export function mockBridgeIPC(overrides = {}) {
   }
 
   const bridge = {
+    send: vi.fn(),
     "settings:load": vi.fn().mockResolvedValue({
       version: "v1",
       themes: {current: "github-light", preferredLight: "github-light", preferredDark: "github-dark", useSystem: true, glassUI: false},

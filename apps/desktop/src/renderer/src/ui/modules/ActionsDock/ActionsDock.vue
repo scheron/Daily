@@ -2,6 +2,7 @@
 import {computed} from "vue"
 
 import {useBranchesStore} from "@/stores/branches.store"
+import {useFocusStore} from "@/stores/focus.store"
 import {useUIStore} from "@/stores/ui"
 import BaseAnimation from "@/ui/base/BaseAnimation.vue"
 import BaseButton from "@/ui/base/BaseButton"
@@ -16,13 +17,20 @@ const emit = defineEmits<{createTask: []}>()
 
 const branchesStore = useBranchesStore()
 const uiStore = useUIStore()
+const focusStore = useFocusStore()
 
 const activeBranchName = computed(() => branchesStore.activeBranch?.name || "Main")
+const isFocusDetached = computed(() => focusStore.session?.isDetached ?? false)
 
 const searchModal = useSearchModal()
 
 function onOpenAssistantPanel() {
   window.BridgeIPC.send("assistant:open")
+}
+
+function onFocusButtonClick() {
+  if (isFocusDetached.value) window.BridgeIPC.send("focus:show-window")
+  else uiStore.toggleFocusDock()
 }
 
 async function onSelectBranch(branch: Branch) {
@@ -76,7 +84,13 @@ function getFocusVariant(isOpen: boolean) {
         @click="searchModal.toggle()"
       />
 
-      <BaseButton :variant="getFocusVariant(uiStore.isFocusDockOpen)" icon="stopwatch" size="sm" tooltip="Focus" @click="uiStore.toggleFocusDock()" />
+      <BaseButton
+        :variant="getFocusVariant(uiStore.isFocusDockOpen || isFocusDetached)"
+        icon="stopwatch"
+        size="sm"
+        tooltip="Focus"
+        @click="onFocusButtonClick"
+      />
 
       <div class="bg-base-300 mx-0.5 h-4.5 w-px" />
 

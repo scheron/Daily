@@ -19,6 +19,11 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import("@/ui/views/Assistant"),
   },
   {
+    path: "/focus",
+    name: "Focus",
+    component: () => import("@/ui/views/Focus.vue"),
+  },
+  {
     path: "/:pathMatch(.*)*",
     redirect: "/",
   },

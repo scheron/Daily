@@ -11,6 +11,7 @@ import {AIController} from "./ai/AIController"
 import {createBetterSqliteDriver} from "./database/betterSqliteDriver"
 import {FocusController} from "./focus/FocusController"
 import {electronPaths} from "./runtime/electronPaths"
+import {setupFocusWindow} from "./setup/app/focusWindow"
 import {setupInstanceAndDeepLinks} from "./setup/app/instance"
 import {setupActivateHandler, setupAppBoot, setupDockIcon, setupWindowAllClosedHandler} from "./setup/app/lifecycle"
 import {setupMenu} from "./setup/app/menu"
@@ -43,6 +44,7 @@ type AppWindows = {
   about: BrowserWindow | null
   settings: BrowserWindow | null
   assistant: BrowserWindow | null
+  focus: BrowserWindow | null
 }
 
 const windows: AppWindows = {
@@ -51,6 +53,7 @@ const windows: AppWindows = {
   about: null,
   settings: null,
   assistant: null,
+  focus: null,
 }
 let storage: StorageController | null = null
 let ai: AIController | null = null
@@ -113,7 +116,16 @@ app.whenReady().then(async () => {
     return
   }
 
-  focus = new FocusController(storage, (session) => broadcastToWindows(() => windows, "focus:changed", session))
+  const followFocusWindow = setupFocusWindow(
+    () => focus,
+    () => windows.main,
+    () => windows.focus,
+    (win) => (windows.focus = win),
+  )
+  focus = new FocusController(storage, (session) => {
+    broadcastToWindows(() => windows, "focus:changed", session)
+    followFocusWindow(session)
+  })
 
   setupSafeFileProtocol(storage)
   setupCSP()
@@ -139,7 +151,10 @@ app.whenReady().then(async () => {
   )
 
   setupStorageIPC(() => storage)
-  setupFocusIPC(() => focus)
+  setupFocusIPC(
+    () => focus,
+    () => windows.focus,
+  )
   setupSyncServerIPC(
     () => storage,
     () => windows,

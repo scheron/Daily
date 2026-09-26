@@ -22,13 +22,14 @@ function getDotClasses(isFilled: boolean) {
 </script>
 
 <template>
-  <span class="text-base-content/55 text-xs font-medium">{{ currentIndex + 1 }} of {{ session.tasks.length }}</span>
   <h3 class="text-xl leading-snug font-semibold">{{ session.tasks[currentIndex]?.title }}</h3>
 
-  <FocusClock :session="session" />
+  <div class="my-auto flex flex-col gap-3.5">
+    <FocusClock :session="session" />
 
-  <div v-if="session.mode !== 'timer'" class="flex justify-center gap-2">
-    <span v-for="dot in dotCount" :key="dot" data-focus-dot :class="getDotClasses(dot <= session.completedIntervals)" />
+    <div v-if="session.mode !== 'timer'" class="flex justify-center gap-2">
+      <span v-for="dot in dotCount" :key="dot" data-focus-dot :class="getDotClasses(dot <= session.completedIntervals)" />
+    </div>
   </div>
 
   <div class="flex gap-2">
@@ -42,8 +43,12 @@ function getDotClasses(isFilled: boolean) {
     <BaseButton variant="outline" icon="stop" class="flex-1" @click="sendOnClick($event, {type: 'stop'})">Stop</BaseButton>
   </div>
 
-  <div v-if="upNext.length" class="flex flex-col gap-1">
-    <span class="text-base-content/45 text-xs font-medium tracking-wide uppercase">Up next</span>
+  <div class="flex flex-col gap-1">
+    <div class="flex items-center justify-between">
+      <span class="text-base-content/45 text-xs font-medium tracking-wide uppercase">Up next</span>
+      <span class="text-base-content/55 text-xs font-medium">{{ currentIndex + 1 }} of {{ session.tasks.length }}</span>
+    </div>
     <span v-for="task in upNext" :key="task.taskId" class="text-base-content/50 truncate px-0.5 py-1 text-sm">{{ task.title }}</span>
+    <span v-if="!upNext.length" class="text-base-content/50 px-0.5 py-1 text-sm">🏁 No more tasks in this session</span>
   </div>
 </template>

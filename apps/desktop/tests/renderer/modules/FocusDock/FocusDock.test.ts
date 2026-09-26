@@ -1,16 +1,13 @@
 // @vitest-environment happy-dom
 // @ts-nocheck
-import {nextTick} from "vue"
+import {defineComponent, h, nextTick} from "vue"
 import {createPinia, setActivePinia} from "pinia"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
 import {mount} from "@vue/test-utils"
 import {makeColumn, makeTask, mountBoardDrag, yForIndex} from "../../../helpers/boardDrag"
 import {mockBridgeIPC} from "../../../helpers/bridgeIPC"
-
-function makeSessionTask(taskId) {
-  return {taskId, title: `Task ${taskId}`, focusedSeconds: 0, isDone: false}
-}
+import {makeSessionTask} from "../../../helpers/focusFixtures"
 
 describe("FocusDock", () => {
   let bridge = null
@@ -39,7 +36,7 @@ describe("FocusDock", () => {
   }
 
   async function setupDock() {
-    const {default: FocusDock} = await import("../../../../src/renderer/src/ui/modules/FocusDock")
+    const {default: FocusDock} = await import("../../../../src/renderer/src/ui/modules/FocusDock.vue")
     const {useFocusStore} = await import("../../../../src/renderer/src/stores/focus.store")
 
     const focus = useFocusStore()
@@ -93,6 +90,48 @@ describe("FocusDock", () => {
     expect(bridge["focus:dispatch"]).not.toHaveBeenCalled()
   })
 
+  it("detaches from the header's button, and hides the open dock while the session is detached", async () => {
+    const {dock, focus} = await setupOpenDock([])
+
+    await dock.find("header button").trigger("click")
+    expect(bridge["focus:dispatch"]).toHaveBeenCalledWith({type: "detach"})
+
+    focus.session = {...focus.session, isDetached: true}
+    await nextTick()
+    expect(dock.text()).not.toContain("Focus session")
+  })
+
+  it("shows the dock when the session attaches, even when the dock had been closed", async () => {
+    const {dock, focus} = await setupDock()
+    focus.session = {...focus.session, isDetached: true}
+    await nextTick()
+
+    focus.session = {...focus.session, isDetached: false}
+    await nextTick()
+
+    expect(dock.text()).toContain("Focus session")
+  })
+
+  it("keeps the Focus button on while detached, and brings the window to the front from it without touching the dock", async () => {
+    const actionsDockPath = "../../../../src/renderer/src/ui/modules/ActionsDock/ActionsDock.vue"
+    const {default: ActionsDock} = await import(/* @vite-ignore */ actionsDockPath)
+    const {useUIStore} = await import("../../../../src/renderer/src/stores/ui/ui.store")
+    const {dock, focus} = await setupDock()
+    const actions = await mountInBody(ActionsDock)
+    focus.session = {...focus.session, isDetached: true}
+    await nextTick()
+    const focusButton = actions.findAllComponents({name: "BaseButton"}).find((button) => button.props("icon") === "stopwatch")
+
+    expect(focusButton.props("variant")).toBe("primary")
+
+    await focusButton.trigger("click")
+
+    expect(bridge.send).toHaveBeenCalledWith("focus:show-window")
+    expect(useUIStore().isFocusDockOpen).toBe(false)
+    expect(dock.text()).not.toContain("Focus session")
+    expect(bridge["focus:dispatch"]).not.toHaveBeenCalled()
+  })
+
   it("adds a card released over the dock at the gap under the pointer, and the board moves nothing", async () => {
     const {dock, rows} = await setupDrop(makeColumn("active", ["A", "S1", "S2"]), ["S1", "S2"])
 
@@ -127,6 +166,32 @@ describe("FocusDock", () => {
       board.release(540)
       await nextTick()
     }
+
+    expect(bridge["focus:dispatch"]).not.toHaveBeenCalled()
+  })
+
+  it("takes no card into a panel without shouldAcceptCards, even inside a drop zone", async () => {
+    board = await mountBoardDrag(makeColumn("active", ["A", "S1", "S2"]))
+    const {default: FocusPanel} = await import("../../../../src/renderer/src/ui/common/focus/FocusPanel")
+    const {useFocusStore} = await import("../../../../src/renderer/src/stores/focus.store")
+    const focus = useFocusStore()
+    await vi.waitFor(() => expect(focus.session).not.toBeNull())
+    focus.session = {...focus.session, tasks: ["S1", "S2"].map(makeSessionTask)}
+
+    const panel = await mountInBody(
+      defineComponent({setup: () => () => h("section", {"data-focus-drop-zone": ""}, [h(FocusPanel, {session: focus.session})])}),
+    )
+    const rows = mockRowRects(panel)
+
+    board.startDrag(board.find("A"), yForIndex(0))
+    await nextTick()
+    board.hover(rows[1].element, 540)
+    await nextTick()
+
+    expect(panel.find("[data-drop-line]").exists()).toBe(false)
+
+    board.release(540)
+    await nextTick()
 
     expect(bridge["focus:dispatch"]).not.toHaveBeenCalled()
   })
@@ -302,7 +367,7 @@ describe("FocusDock", () => {
     }
 
     function buttonLabels(dock) {
-      return dock.findAll("button").map((button) => button.text())
+      return dock.findAll("header + div button").map((button) => button.text())
     }
 
     function filledDots(dock) {
@@ -340,13 +405,14 @@ describe("FocusDock", () => {
     })
 
     it("places the current task in the list, lists the open tasks after it, and fills a dot per completed interval", async () => {
-      const tasks = [{...makeSessionTask("S1"), isDone: true}, makeSessionTask("S2"), makeSessionTask("S3")]
+      const tasks = [makeSessionTask("S1", {isDone: true}), makeSessionTask("S2"), makeSessionTask("S3")]
       const {dock, focus} = await setupRunning({tasks, currentTaskId: "S2", completedIntervals: 2})
 
       expect(dock.text()).toContain("2 of 3")
       expect(dock.text()).toContain("Task S2")
       expect(dock.text()).toContain("Up next")
       expect(dock.text()).toContain("Task S3")
+      expect(dock.text()).not.toContain("No more tasks")
       expect(dock.text()).not.toContain("Task S1")
       expect(filledDots(dock)).toEqual([true, true, false, false])
 
@@ -355,21 +421,30 @@ describe("FocusDock", () => {
       expect(filledDots(dock)).toEqual([true, true, true, true, true])
     })
 
+    it("keeps Up next on the last open task and says the session has nothing more", async () => {
+      const tasks = [makeSessionTask("S1", {isDone: true}), makeSessionTask("S2"), makeSessionTask("S3", {isDone: true})]
+      const {dock} = await setupRunning({tasks, currentTaskId: "S2"})
+
+      expect(dock.text()).toContain("Up next")
+      expect(dock.text()).toContain("No more tasks in this session")
+      expect(dock.text()).toContain("2 of 3")
+    })
+
     it("counts the current task's own focus time up in timer mode, rounding down, with a ring that fills over each minute and no dots", async () => {
-      const tasks = [{...makeSessionTask("S1"), focusedSeconds: 125}, makeSessionTask("S2")]
+      const tasks = [makeSessionTask("S1", {focusedSeconds: 125}), makeSessionTask("S2")]
       const {dock, focus} = await setupRunning({mode: "timer", tasks, runSecondsAgo: 10.6})
 
       expect(dock.text()).toContain("02:15")
       expect(arcShare(dock)).toBeCloseTo(15.6 / 60, 6)
       expect(dock.find("[data-focus-dot]").exists()).toBe(false)
 
-      focus.session = {...focus.session, tasks: [{...makeSessionTask("S1"), focusedSeconds: 3600}], runStartedAt: null, phase: "pause"}
+      focus.session = {...focus.session, tasks: [makeSessionTask("S1", {focusedSeconds: 3600})], runStartedAt: null, phase: "pause"}
       await nextTick()
       expect(dock.text()).toContain("1:00:00")
     })
 
     it("counts a break down in green, names the task focus returns to, and ticks the tasks done so far", async () => {
-      const tasks = [{...makeSessionTask("S1"), isDone: true}, makeSessionTask("S2"), makeSessionTask("S3")]
+      const tasks = [makeSessionTask("S1", {isDone: true}), makeSessionTask("S2"), makeSessionTask("S3")]
       const {dock} = await setupRunning({phase: "break", mode: "pomodoro-50", tasks, currentTaskId: "S2", runSecondsAgo: 60})
 
       expect(dock.text()).toContain("09:00")
@@ -387,8 +462,8 @@ describe("FocusDock", () => {
 
     it("sums the session up in the summary, with each task's focus time, and closes it", async () => {
       const tasks = [
-        {...makeSessionTask("S1"), focusedSeconds: 1440, isDone: true},
-        {...makeSessionTask("S2"), focusedSeconds: 1560, isDone: true},
+        makeSessionTask("S1", {focusedSeconds: 1440, isDone: true}),
+        makeSessionTask("S2", {focusedSeconds: 1560, isDone: true}),
         makeSessionTask("S3"),
       ]
       const {dock, focus} = await setupRunning({phase: "summary", currentTaskId: null, runSecondsAgo: null, tasks, completedIntervals: 2})

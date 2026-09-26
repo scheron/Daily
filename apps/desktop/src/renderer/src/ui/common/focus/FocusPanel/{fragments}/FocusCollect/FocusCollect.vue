@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, useTemplateRef} from "vue"
+import {computed, ref, useTemplateRef} from "vue"
 
 import {useFocusStore} from "@/stores/focus.store"
 import BaseButton from "@/ui/base/BaseButton"
@@ -17,13 +17,15 @@ const modeOptions: {value: FocusMode; label: string}[] = [
   {value: "timer", label: "Timer"},
 ]
 
+const props = defineProps<{shouldAcceptCards?: boolean}>()
+
 const focusStore = useFocusStore()
 
 const listRef = useTemplateRef<HTMLElement>("list")
 
 const tasks = computed(() => focusStore.session?.tasks ?? [])
 
-const {dropIndex} = useCardDrop(listRef)
+const dropIndex = props.shouldAcceptCards ? useCardDrop(listRef).dropIndex : ref<number | null>(null)
 const {draggedIndex, reorderGap, onRowPointerDown} = useRowReorder(listRef)
 
 const lineIndex = computed(() => dropIndex.value ?? reorderGap.value)
@@ -47,9 +49,7 @@ function getModeVariant(isChosen: boolean) {
 </script>
 
 <template>
-  <div v-if="!tasks.length" :class="getBoxClasses(dropIndex !== null)">Drag tasks here from the board</div>
-
-  <ol v-else ref="list" class="flex flex-col gap-1">
+  <ol v-if="tasks.length" ref="list" class="flex flex-col gap-1">
     <li
       v-for="(task, index) in tasks"
       :key="task.taskId"
@@ -70,7 +70,9 @@ function getModeVariant(isChosen: boolean) {
     </li>
   </ol>
 
-  <div class="flex items-center justify-between">
+  <div v-else-if="shouldAcceptCards" :class="getBoxClasses(dropIndex !== null)">Drag tasks here from the board</div>
+
+  <div class="mt-auto flex items-center justify-between">
     <span class="text-base-content/55 text-xs font-medium tracking-wide uppercase">Mode</span>
     <div class="bg-base-200 inline-flex rounded-full p-0.5">
       <BaseButton
