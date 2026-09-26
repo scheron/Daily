@@ -97,18 +97,23 @@ export class FocusController {
     if (step.session === this.session) return this.scheduleDeadline()
 
     this.apply(step)
-    if (!BrowserWindow.getFocusedWindow()) this.notify(step.session)
+    if (!BrowserWindow.getFocusedWindow()) void this.notify(step.session)
   }
 
-  private notify(session: FocusSession) {
+  private async notify(session: FocusSession) {
+    const {focus} = await this.storage.loadSettings()
+    if (!focus.shouldNotify) return
+
+    const silent = !focus.shouldPlaySound
+
     if (session.phase === "break") {
       const minutes = ((endsAt(session) as Date).getTime() - Date.parse(session.runStartedAt as string)) / 60_000
-      new Notification({title: "Focus interval done", body: `Take a ${minutes}-minute break.`, silent: false}).show()
+      new Notification({title: "Focus interval done", body: `Take a ${minutes}-minute break.`, silent}).show()
       return
     }
 
     const current = session.tasks.find((task) => task.taskId === session.currentTaskId)
-    new Notification({title: "Break over", body: `Back to: ${current?.title}`, silent: false}).show()
+    new Notification({title: "Break over", body: `Back to: ${current?.title}`, silent}).show()
   }
 
   private async write({taskId, seconds, isDone}: FocusWrite) {

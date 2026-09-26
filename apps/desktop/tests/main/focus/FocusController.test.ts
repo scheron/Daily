@@ -44,11 +44,12 @@ function makeTask(overrides = {}) {
   }
 }
 
-function makeStorage(tasks) {
+function makeStorage(tasks, focusSettings = {shouldNotify: true, shouldPlaySound: true}) {
   const rows = new Map(tasks.map((task) => [task.id, {...task}]))
 
   return {
     rows,
+    loadSettings: vi.fn(async () => ({focus: focusSettings})),
     getTask: vi.fn(async (id) => (rows.has(id) ? {...rows.get(id)} : null)),
     updateTask: vi.fn(async (id, updates) => {
       rows.set(id, {...rows.get(id), ...updates})
@@ -57,8 +58,8 @@ function makeStorage(tasks) {
   }
 }
 
-async function startedController(tasks = [makeTask()], mode = "pomodoro-25") {
-  const storage = makeStorage(tasks)
+async function startedController(tasks = [makeTask()], mode = "pomodoro-25", focusSettings = undefined) {
+  const storage = makeStorage(tasks, focusSettings)
   const broadcast = vi.fn()
   const focus = new FocusController(storage, broadcast)
 
@@ -270,6 +271,25 @@ describe("FocusController", () => {
 
       expect(focus.getSession().phase).toBe("break")
       expect(electron.notifications).toEqual([])
+    })
+
+    it("stays quiet when notifications are off in settings", async () => {
+      const {focus} = await startedController([makeTask()], "pomodoro-25", {shouldNotify: false, shouldPlaySound: true})
+
+      await vi.advanceTimersByTimeAsync(25 * 60 * 1000)
+
+      expect(focus.getSession().phase).toBe("break")
+      expect(electron.notifications).toEqual([])
+    })
+
+    it("shows the notification without sound when sound is off in settings", async () => {
+      await startedController([makeTask()], "pomodoro-25", {shouldNotify: true, shouldPlaySound: false})
+
+      await vi.advanceTimersByTimeAsync(25 * 60 * 1000)
+
+      expect(electron.notifications.map((notification) => [notification.options, notification.isShown])).toEqual([
+        [{title: "Focus interval done", body: "Take a 5-minute break.", silent: true}, true],
+      ])
     })
 
     it("pauses a running focus stretch when the Mac sleeps, writing the time up to the sleep", async () => {

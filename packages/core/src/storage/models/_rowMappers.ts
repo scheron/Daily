@@ -242,6 +242,7 @@ export function getDefaultSettings(): Settings {
       sectionsCollapsed: {active: false, discarded: false, done: false, backlog: false},
       shouldOpenCalendarDockOnDrag: false,
     },
+    focus: {shouldNotify: true, shouldPlaySound: true},
     window: {
       main: {
         width: WINDOWS_CONFIG.main.width,

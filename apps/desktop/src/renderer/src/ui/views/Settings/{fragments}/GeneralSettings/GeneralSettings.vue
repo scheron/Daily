@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {useSettingValue} from "@/composables/useSettingValue"
 import {useThemeStore} from "@/stores/theme"
 import {useUIStore} from "@/stores/ui"
 import BaseSegmented from "@/ui/base/BaseSegmented.vue"
@@ -26,6 +27,8 @@ const fontSizeOptions: {value: FontSize; label: string}[] = [
 
 const uiStore = useUIStore()
 const themeStore = useThemeStore()
+const shouldNotify = useSettingValue("focus.shouldNotify", true)
+const shouldPlaySound = useSettingValue("focus.shouldPlaySound", true)
 </script>
 
 <template>
@@ -54,6 +57,16 @@ const themeStore = useThemeStore()
         description="Expand the calendar as soon as a card is picked up. When off, hold the card on the calendar button to open it"
       >
         <BaseSwitch v-model="uiStore.shouldOpenCalendarDockOnDrag" />
+      </SettingRow>
+    </SettingsGroup>
+
+    <SettingsGroup label="Focus" icon="stopwatch">
+      <SettingRow title="Notifications" description="Notify when a focus interval or a break ends while Daily is in the background">
+        <BaseSwitch v-model="shouldNotify" />
+      </SettingRow>
+
+      <SettingRow title="Sound" description="Play a sound with the notification">
+        <BaseSwitch v-model="shouldPlaySound" :disabled="!shouldNotify" />
       </SettingRow>
     </SettingsGroup>
 
