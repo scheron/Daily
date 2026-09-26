@@ -47,6 +47,19 @@ function makeMilestone(overrides = {}) {
   }
 }
 
+function makeTag(overrides = {}) {
+  return {
+    id: "tag-1",
+    branchId: "main",
+    name: "Tag",
+    color: "#888888",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+    deletedAt: null,
+    ...overrides,
+  }
+}
+
 function makeTasks(count, overrides = {}) {
   return Array.from({length: count}, (_, index) => makeTask({id: `task-${index}`, orderIndex: (index + 1) * 1024, ...overrides}))
 }
@@ -211,6 +224,28 @@ describe("TaskBoard", () => {
 
     expect(board.findAll("[data-task-card]")).toHaveLength(5)
     expect(headMutations).toHaveLength(0)
+  })
+
+  it("lists the backlog's tags in the header beside the active day's", async () => {
+    const {mountBoard, tasks} = await setup()
+    const {default: TagsDock} = await import("../../../../src/renderer/src/ui/modules/TagsDock.vue")
+    const {default: DynamicTagsPanel} = await import("../../../../src/renderer/src/ui/common/misc/DynamicTagsPanel.vue")
+    tasks.activeDay = DateTime.now().toISODate()
+    tasks.tasks = [
+      makeTask({id: "task-day", tags: [makeTag({id: "tag-bug", name: "Bug"})]}),
+      makeTask({id: "task-backlog", status: "backlog", scheduled: null, tags: [makeTag({id: "tag-ideas", name: "Ideas"})]}),
+    ]
+
+    const board = mountBoard()
+    await nextTick()
+
+    expect(
+      board
+        .findComponent(TagsDock)
+        .findComponent(DynamicTagsPanel)
+        .props("tags")
+        .map((tag) => tag.name),
+    ).toEqual(["Bug", "Ideas"])
   })
 
   it("replaces a dragged card with a gap at its index and slides the cards only while dragging", async () => {

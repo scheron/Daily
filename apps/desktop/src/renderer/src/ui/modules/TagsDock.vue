@@ -27,14 +27,12 @@ const milestoneFrameTasks = computed(() => {
   return ids.flatMap((id) => tasksStore.tasksByMilestoneId.get(id) ?? [])
 })
 
-const filteredTags = computed(() =>
-  sortTags(
-    removeDuplicates(
-      (filterStore.frame === "milestone" ? milestoneFrameTasks.value : tasksStore.dailyTasks).flatMap((task) => task.tags),
-      "name",
-    ),
-  ),
-)
+const dayFrameTasks = computed(() => tasksStore.dailyTasks.concat(tasksStore.backlogTasks))
+
+const filteredTags = computed(() => {
+  const tags = (filterStore.frame === "milestone" ? milestoneFrameTasks.value : dayFrameTasks.value).flatMap((task) => task.tags)
+  return sortTags(removeDuplicates(tags, "name"))
+})
 
 function onSelectTag(name: Tag["name"]) {
   filterStore.setActiveTags(name)
@@ -55,7 +53,7 @@ watch(filteredTags, (tags) => {
 
 <template>
   <BaseAnimation name="fade" :duration="200">
-    <div v-if="filteredTags.length && !uiStore.isCalendarDockExpanded" class="pointer-events-none absolute left-24 right-1/2 top-2 z-30 mr-28 flex">
+    <div v-if="filteredTags.length && !uiStore.isCalendarDockExpanded" class="pointer-events-none absolute top-2 right-1/2 left-24 z-30 mr-28 flex">
       <DynamicTagsPanel
         :tags="filteredTags"
         :selected-tags="filterStore.activeTagIds"
