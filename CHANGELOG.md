@@ -1,5 +1,35 @@
 # Changelog
 
+## v0.27.0 - 2026-09-27
+
+### ✨ New Features
+
+- **Focus Mode** — work through a handful of tasks against a timer without leaving the board.
+  - Drag cards from the board into the Focus dock, reorder them, and pick 25 / 5, 50 / 10 or a timer that counts up.
+  - Done moves the current task to Done and brings up the next one. Time spent focusing, with pauses and breaks left out, is added to each task's time spent.
+  - Cards in the session wear a moving dashed border on the board, and a summary lists what was finished and for how long.
+  - The dock detaches into its own window that stays above other apps, and attaches back without stopping the clock.
+  - A notification with sound marks the end of each interval and break while Daily is in the background. Both can be turned off in Settings → General → Focus.
+- **Shortcuts** — Settings → General lists every keyboard shortcut in Daily.
+
+### 🎨 Improvements
+
+- **Sync** — when a self-hosted Daily Sync Server stops answering, the dock shows Reconnecting, then Reconnected once it is back. Try again sits there and in Settings → Sync.
+- **Milestones** — cards show their milestone in the milestone view too.
+- **Projects** — the project picker in the dock opens on hover.
+- **Settings** — the AI tab is now called Daily AI, and Deleted Tasks is now Recently Deleted.
+- **Task text** — headings use a calmer size scale, and the status buttons in the task editor are rounded.
+
+### 🐛 Bug Fixes
+
+- **Board** — tags used only by tasks in the backlog can now be picked in the tag filter above the board.
+
+### ⚡ Performance
+
+- Switching a large project to the milestone view no longer freezes the window: on a project with about 300 tasks it went from nearly a minute to under a tenth of a second. Columns also draw only the cards on screen, so long columns open and scroll faster.
+
+---
+
 ## v0.26.0 - 2026-09-24
 
 ### ✨ New Features
