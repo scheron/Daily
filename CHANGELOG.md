@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.28.0 - 2026-09-28
+
+### ✨ New Features
+
+- **One set of tools for the Daily Assistant and agents** — whatever an agent connected through Daily Sync Server can do, the Daily Assistant can do too.
+  - The assistant sees the backlog and sends tasks there, reads and creates milestones, reads the tags of any project and a task's history, restores tasks from Recently Deleted and logs time.
+  - The assistant looks at an image attached to a task when the model supports images; a text-only model answers that it cannot see it.
+  - The assistant asks before any delete, and the card names the task, tag or project.
+  - Agents can delete tags, projects and milestones, and every delete is marked as destructive for the agent's app.
+
+### 🎨 Improvements
+
+- **Daily Assistant** — deleted tasks go to Recently Deleted and stay there until emptied from Settings; the assistant no longer deletes permanently or switches the project on the board.
+
+### 🐛 Bug Fixes
+
+- **Projects** — a task moved to another project, from the app, the assistant or an agent, now always takes its comments with it.
+- **Search** — tasks in the backlog now show up in search results.
+
+---
+
 ## v0.27.0 - 2026-09-27
 
 ### ✨ New Features
