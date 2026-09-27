@@ -39,10 +39,10 @@ function externalRoots() {
       continue
     }
     const patterns = [
-      /\bfrom\s*["']([^"']+)["']/g,
-      /\bimport\s*["']([^"']+)["']/g,
-      /\bimport\s*\(\s*["']([^"']+)["']\s*\)/g,
-      /\brequire\s*\(\s*["']([^"']+)["']\s*\)/g,
+      /\bfrom\s*["']([^"'\s(),;]+)["']/g,
+      /\bimport\s*["']([^"'\s(),;]+)["']/g,
+      /\bimport\s*\(\s*["']([^"'\s(),;]+)["']\s*\)/g,
+      /\brequire\s*\(\s*["']([^"'\s(),;]+)["']\s*\)/g,
     ]
     for (const re of patterns) {
       for (const [, spec] of source.matchAll(re)) {
