@@ -37,15 +37,10 @@ export class FileModel {
     return fs.readdir(this.assetsDir)
   }
 
-  /** Unlinks the bytes of every file id named, once its row is truly gone for good — a no-op for an id with no row to read the extension from. */
-  async deleteAssetsByFileIds(ids: string[]): Promise<void> {
-    if (!ids.length) return
-
-    const placeholders = ids.map(() => "?").join(", ")
-    const rows = this.db.prepare(`SELECT id, name FROM files WHERE id IN (${placeholders})`).all(...ids) as {id: string; name: string}[]
-
-    for (const row of rows) {
-      await this.deleteAsset(row.id, path.extname(row.name).slice(1))
+  /** Unlinks the bytes named by `files`, once each one's row is truly gone for good — the caller reads `id`/`name` before deleting the row, since this cannot read a row that is already gone. */
+  async deleteAssets(files: {id: string; name: string}[]): Promise<void> {
+    for (const file of files) {
+      await this.deleteAsset(file.id, path.extname(file.name).slice(1))
     }
   }
 

@@ -25,7 +25,7 @@ export function restoreConversationHistory(turns: AgentTurn[]): MessageLLM[] {
       } else if (step.type === "tool_result") {
         history.push({
           role: "tool",
-          content: toModelToolMessage(step.result),
+          content: toModelToolMessage(step.toolName, step.result),
           tool_call_id: step.toolCallId,
         })
       }

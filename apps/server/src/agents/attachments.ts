@@ -1,46 +1,39 @@
 import {existsSync} from "node:fs"
+import {readFile} from "node:fs/promises"
 import {extname} from "node:path"
 
-import {extractFileIds} from "@daily/core/utils/files/extractFileIds"
+import {assetPath, findAsset, indexExistingAsset, isValidAssetName} from "../assets/AssetStore"
 
-import {assetPath, findAsset, isValidAssetName} from "../assets/AssetStore"
-
-import type {File, Task} from "@daily/protocol"
+import type {File} from "@daily/protocol"
+import type {ToolFilesPort} from "@daily/tools"
 import type {ServerStore} from "../store/instance"
-import type {AgentToolContext} from "./AgentWorkspace"
+import type {AgentCommitEffect} from "./AgentWorkspace"
 
-export type TaskFileRef = {file: File; assetName: string; onServer: boolean}
-
-/** The asset name a file's bytes are stored under on this server — the same name `DailyServerRemoteAdapter.syncAssets` uploads under. */
-export function fileAssetName(file: File): string {
+function fileAssetName(file: File): string {
   return `${file.id}.${extname(file.name).slice(1) || "bin"}`
 }
 
-/** Whether `assetName`'s bytes are actually present on this server's disk, not merely indexed. */
-export function isAssetOnServer(store: ServerStore, assetName: string): boolean {
+function isAssetOnServer(store: ServerStore, file: File): boolean {
+  const assetName = fileAssetName(file)
   return isValidAssetName(assetName) && findAsset(store, assetName) !== null && existsSync(assetPath(store, assetName))
 }
 
 /**
- * `task`'s live files — the images its content links to, each once, in that order — with the name
- * they are stored under and whether their bytes are on this server. An id with no live file row
- * behind it is dropped.
+ * Builds the files port a tool call runs against: whether a file's bytes are on this server's
+ * disk, reading them, and indexing a newly saved one once the call's snapshot write has committed
+ * — the same deferral every other durable side effect of a write goes through. `afterSave` itself
+ * resolves as soon as the effect is queued, not once it has run: the write only happens later, if
+ * and when the enclosing snapshot write actually commits, so there is nothing to await yet.
  */
-export async function taskFiles(ctx: AgentToolContext, task: Task): Promise<TaskFileRef[]> {
-  const ids = extractFileIds(task.content)
-  if (ids.length === 0) return []
-
-  const files = await ctx.core.filesService.getFiles(ids)
-  const liveFilesById = new Map(files.filter((file) => file.deletedAt === null).map((file) => [file.id, file]))
-
-  const refs: TaskFileRef[] = []
-  for (const id of ids) {
-    const file = liveFilesById.get(id)
-    if (!file) continue
-
-    const assetName = fileAssetName(file)
-    refs.push({file, assetName, onServer: isAssetOnServer(ctx.store, assetName)})
+export function buildServerFilesPort(store: ServerStore, deviceId: string, afterCommit: (effect: AgentCommitEffect) => void): ToolFilesPort {
+  return {
+    isPresent: (file) => Promise.resolve(isAssetOnServer(store, file)),
+    read: (file) => readFile(assetPath(store, fileAssetName(file))),
+    afterSave: async (file, effect) => {
+      afterCommit(async () => {
+        await effect()
+        indexExistingAsset(store, fileAssetName(file), deviceId)
+      })
+    },
   }
-
-  return refs
 }

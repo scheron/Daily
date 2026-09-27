@@ -1,26 +1,8 @@
 // @ts-nocheck
-import {nanoid} from "nanoid"
 import {afterEach, describe, expect, it, vi} from "vitest"
 
-import {BranchModel} from "@core/storage/models/BranchModel"
-import {MilestoneModel} from "@core/storage/models/MilestoneModel"
-import {SettingsModel} from "@core/storage/models/SettingsModel"
-import {TagModel} from "@core/storage/models/TagModel"
-import {TaskCommentModel} from "@core/storage/models/TaskCommentModel"
-import {TaskEventModel} from "@core/storage/models/TaskEventModel"
-import {TaskModel} from "@core/storage/models/TaskModel"
-import {TaskRelationModel} from "@core/storage/models/TaskRelationModel"
-import {BranchesService} from "@core/storage/services/BranchesService"
-import {SearchService} from "@core/storage/services/SearchService"
-import {SettingsService} from "@core/storage/services/SettingsService"
-import {TagsService} from "@core/storage/services/TagsService"
-import {TaskCommentsService} from "@core/storage/services/TaskCommentsService"
-import {TaskEventsService} from "@core/storage/services/TaskEventsService"
-import {TaskRelationsService} from "@core/storage/services/TaskRelationsService"
-import {TasksService} from "@core/storage/services/TasksService"
-import {StorageController} from "@core/storage/StorageController"
 import {EMPTY_CHANGESET} from "@core/types/storage"
-import {createTestDatabase} from "../../helpers/db"
+import {makeControllerHarness as makeHarness, makeTaskInput, withBroadcasts} from "../../helpers/storageControllerHarness"
 
 /**
  * Characterises the changeset and broadcast of every `StorageController` task write, ahead of
@@ -44,68 +26,6 @@ vi.mock("../../../src/config/env", () => ({ENV: {isDev: false}}))
 
 vi.mock("@daily/protocol", async (importOriginal) => ({...(await importOriginal()), WINDOWS_CONFIG: {main: {width: 800, height: 600}}}))
 
-function makeTaskInput(overrides = {}) {
-  return {
-    id: nanoid(),
-    status: "active",
-    content: "Task",
-    minimized: false,
-    orderIndex: 1024,
-    scheduled: {date: "2026-03-24", time: "", timezone: "UTC"},
-    estimatedTime: 0,
-    spentTime: 0,
-    branchId: "main",
-    milestoneId: null,
-    tags: [],
-    attachments: [],
-    deletedAt: null,
-    ...overrides,
-  }
-}
-
-const paths = {
-  appDataRoot: () => "/tmp/daily-tasks",
-  dbPath: () => "/tmp/daily-tasks/db",
-  assetsDir: () => "/tmp/daily-tasks/assets",
-  remoteSyncPath: () => "/tmp/daily-tasks/remote",
-}
-
-function makeHarness() {
-  const db = createTestDatabase()
-  const taskModel = new TaskModel(db)
-  const branchModel = new BranchModel(db)
-  branchModel.ensureMainBranch()
-  const tagModel = new TagModel(db)
-  const milestoneModel = new MilestoneModel(db)
-  const settingsService = new SettingsService(new SettingsModel(db))
-  const tasksService = new TasksService(taskModel, new TaskEventsService(new TaskEventModel(db)))
-  const branchesService = new BranchesService(branchModel, settingsService, taskModel, tagModel, milestoneModel, db)
-  const taskRelationsService = new TaskRelationsService(new TaskRelationModel(db), taskModel)
-  const taskCommentsService = new TaskCommentsService(new TaskCommentModel(db), taskModel)
-  const tagsService = new TagsService(tagModel)
-  const searchService = new SearchService(taskModel, branchModel)
-
-  const controller = new StorageController(db, paths)
-  controller.tasksService = tasksService
-  controller.branchesService = branchesService
-  controller.taskRelationsService = taskRelationsService
-  controller.taskCommentsService = taskCommentsService
-  controller.tagsService = tagsService
-  controller.searchService = searchService
-
-  return {db, taskModel, branchModel, tagModel, controller}
-}
-
-function withBroadcasts(controller) {
-  const broadcasts = []
-  controller.setupStorageBroadcasts({
-    onStatusChange: () => {},
-    onDataChange: (changeset) => broadcasts.push(changeset),
-    onSettingsChange: () => {},
-  })
-  return broadcasts
-}
-
 describe("StorageController — task write changesets and broadcasts", () => {
   let db
 
@@ -117,6 +37,7 @@ describe("StorageController — task write changesets and broadcasts", () => {
     const harness = makeHarness()
     db = harness.db
     const {controller} = harness
+    await controller.searchService.initializeIndex()
     const broadcasts = withBroadcasts(controller)
 
     const sizeBefore = controller.searchService.getIndexSize()

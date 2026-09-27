@@ -1,17 +1,20 @@
 import {describe, expect, it} from "vitest"
 
+import {findTool} from "@daily/tools"
+
 import {runInAgentWorkspace} from "../../src/agents/AgentWorkspace"
-import {getAttachmentTool} from "../../src/agents/tools/read/getAttachment"
-import {getTaskTool} from "../../src/agents/tools/read/getTask"
-import {listTasksTool} from "../../src/agents/tools/read/listTasks"
-import {saveAttachmentTool} from "../../src/agents/tools/write/saveAttachment"
-import {saveTaskTool} from "../../src/agents/tools/write/saveTask"
 import {bindAgent, makePngBytes, makeTaskDraft, seedAgentStore} from "./helpers"
 
+import type {Tool} from "@daily/tools"
 import type {AgentIdentity, AgentWorkspaceDeps} from "../../src/agents/AgentWorkspace"
-import type {AgentTool} from "../../src/agents/tools/types"
 
-function call(deps: AgentWorkspaceDeps, agent: AgentIdentity, tool: AgentTool, input: Record<string, unknown> = {}): Promise<any> {
+const getAttachmentTool = findTool("get_attachment")!
+const getTaskTool = findTool("get_task")!
+const listTasksTool = findTool("list_tasks")!
+const saveAttachmentTool = findTool("save_attachment")!
+const saveTaskTool = findTool("save_task")!
+
+function call(deps: AgentWorkspaceDeps, agent: AgentIdentity, tool: Tool, input: Record<string, unknown> = {}): Promise<any> {
   return runInAgentWorkspace(deps, agent, tool.mode, (ctx) => tool.run(input, ctx) as any)
 }
 

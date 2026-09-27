@@ -12,7 +12,7 @@ describe("EVAL: destructive tool requires confirmation", () => {
       data: "Task moved to trash: abc",
       changedEntities: [{type: "task", id: "abc", action: "deleted"}],
     })
-    scriptedChat(ctrl as any, [callTool("c1", "delete_task", {task_id: "abc"}), respond("Deleted.")])
+    scriptedChat(ctrl as any, [callTool("c1", "delete_task", {id: "abc"}), respond("Deleted.")])
 
     const sendPromise = ctrl.sendMessage("delete it")
     await settle()
@@ -30,7 +30,7 @@ describe("EVAL: destructive tool requires confirmation", () => {
   it("CANCEL path does NOT execute the tool", async () => {
     const {ctrl} = await makeFixture()
     const exec = vi.spyOn((ctrl as any).executor, "execute").mockResolvedValue({success: true})
-    scriptedChat(ctrl as any, [callTool("c1", "delete_task", {task_id: "abc"}), respond("Cancelled per user.")])
+    scriptedChat(ctrl as any, [callTool("c1", "delete_task", {id: "abc"}), respond("Cancelled per user.")])
 
     const sendPromise = ctrl.sendMessage("delete it")
     await settle()

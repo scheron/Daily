@@ -10,7 +10,7 @@ function readCoreManifest(): {exports: Record<string, string>} {
 }
 
 describe("packages/core/package.json exports", () => {
-  it("TC-1: exposes the entry point and the twelve subpaths the server and the app reach past it, with no wildcard", () => {
+  it("TC-1: exposes the entry point and the fourteen subpaths the server and the app reach past it, with no wildcard", () => {
     const {exports} = readCoreManifest()
 
     expect(exports["./*"]).toBeUndefined()
@@ -20,7 +20,9 @@ describe("packages/core/package.json exports", () => {
       "./config/paths": "./src/config/paths.ts",
       "./storage/createStorageCore": "./src/storage/createStorageCore.ts",
       "./storage/database/scripts/migrate": "./src/storage/database/scripts/migrate.ts",
+      "./storage/IWorkStorage": "./src/storage/IWorkStorage.ts",
       "./storage/sync/adapters/LocalStorageAdapter": "./src/storage/sync/adapters/LocalStorageAdapter.ts",
+      "./storage/WorkStorage": "./src/storage/WorkStorage.ts",
       "./types/storage": "./src/types/storage.ts",
       "./utils/files/extractFileIds": "./src/utils/files/extractFileIds.ts",
       "./utils/files/removeFileLink": "./src/utils/files/removeFileLink.ts",

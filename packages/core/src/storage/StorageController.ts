@@ -73,6 +73,7 @@ export class StorageController implements IStorageController {
   private providerMigration!: ProviderMigrationService
   private localAdapter!: StorageCore["localAdapter"]
   private aiSessionModel!: StorageCore["aiSessionModel"]
+  private workStorageInstance!: WorkStorage
 
   private notifyStorageStatusChange?: (status: SyncStatus, prevStatus: SyncStatus) => void
   private notifyStorageDataChange?: (changeset: Changeset) => void
@@ -92,12 +93,8 @@ export class StorageController implements IStorageController {
     this.rootDir = paths.appDataRoot()
   }
 
-  async init(): Promise<void> {
-    await fs.ensureDir(this.rootDir)
-    await fs.ensureDir(this.paths.assetsDir())
-
-    const core = createStorageCore(initDatabase(this.db), this.paths)
-
+  /** Wires every service off `core` and builds the one `WorkStorage` instance they and every shared tool read and write through — `init()`'s own first step, callable on its own by a test harness that skips the rest of it. */
+  attachCore(core: StorageCore): void {
     this.settingsService = core.settingsService
     this.branchesService = core.branchesService
     this.tasksService = core.tasksService
@@ -109,6 +106,14 @@ export class StorageController implements IStorageController {
     this.searchService = core.searchService
     this.localAdapter = core.localAdapter
     this.aiSessionModel = core.aiSessionModel
+    this.workStorageInstance = new WorkStorage(core, this.db, (changeset) => this.notifyLocalChange(changeset))
+  }
+
+  async init(): Promise<void> {
+    await fs.ensureDir(this.rootDir)
+    await fs.ensureDir(this.paths.assetsDir())
+
+    this.attachCore(createStorageCore(initDatabase(this.db), this.paths))
 
     const settings = await this.loadSettings()
 
@@ -286,14 +291,15 @@ export class StorageController implements IStorageController {
     return this.workStorage.restoreTask(id, source)
   }
 
-  /** Deleted tasks are already excluded from the live collection, so a permanent delete has nothing to name. */
+  /** Deleted tasks are already excluded from the live collection, so a permanent delete has nothing to name. Desktop-only — off `IWorkStorage`, so no shared tool can reach it. */
   async permanentlyDeleteTask(id: Task["id"]): Promise<boolean> {
-    return this.workStorage.permanentlyDeleteTask(id)
+    return this.workStorageInstance.permanentlyDeleteTask(id)
   }
 
+  /** Desktop-only — off `IWorkStorage`, so no shared tool can reach it. */
   async permanentlyDeleteAllDeletedTasks(): Promise<number> {
     const branchId = await this.branchesService.getActiveBranchId()
-    return this.workStorage.permanentlyDeleteAllDeletedTasks(branchId)
+    return this.workStorageInstance.permanentlyDeleteAllDeletedTasks(branchId)
   }
   //#endregion
 
@@ -468,8 +474,9 @@ export class StorageController implements IStorageController {
     return this.filesService.createFileResponse(id)
   }
 
+  /** Desktop-only — off `IWorkStorage`, so no shared tool can reach it (the server's assets directory has no room to spare a GC accident). */
   async cleanupOrphanFiles(): Promise<void> {
-    return this.filesService.cleanupOrphanFiles()
+    return this.workStorageInstance.cleanupOrphanFiles()
   }
 
   /**
@@ -509,27 +516,9 @@ export class StorageController implements IStorageController {
   }
   //#endregion
 
-  /**
-   * The one read and write path a shared tool runs against — built fresh on every call from the
-   * currently-assigned services, so it never goes stale across a provider migration.
-   */
+  /** The one read and write path a shared tool runs against — the same instance for this controller's whole lifetime, built once by `attachCore`. */
   get workStorage(): IWorkStorage {
-    return new WorkStorage(
-      {
-        settingsService: this.settingsService,
-        branchesService: this.branchesService,
-        tasksService: this.tasksService,
-        taskRelationsService: this.taskRelationsService,
-        taskCommentsService: this.taskCommentsService,
-        tagsService: this.tagsService,
-        milestonesService: this.milestonesService,
-        filesService: this.filesService,
-        searchService: this.searchService,
-        localAdapter: this.localAdapter,
-        aiSessionModel: this.aiSessionModel,
-      },
-      (changeset) => this.notifyLocalChange(changeset),
-    )
+    return this.workStorageInstance
   }
 
   private notifyLocalChange(changeset: Changeset): void {

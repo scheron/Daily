@@ -162,6 +162,9 @@ importers:
       "@daily/std":
         specifier: workspace:*
         version: link:../../packages/std
+      "@daily/tools":
+        specifier: workspace:*
+        version: link:../../packages/tools
       "@floating-ui/vue":
         specifier: ^1.1.6
         version: 1.1.10(vue@3.5.27(typescript@5.9.3))
@@ -316,6 +319,9 @@ importers:
       "@daily/std":
         specifier: workspace:*
         version: link:../../packages/std
+      "@daily/tools":
+        specifier: workspace:*
+        version: link:../../packages/tools
       better-sqlite3:
         specifier: ^12.8.0
         version: 12.8.0
@@ -393,6 +399,21 @@ importers:
       "@isaacs/ttlcache":
         specifier: ^2.1.5
         version: 2.1.5
+      luxon:
+        specifier: ^3.6.1
+        version: 3.7.2
+
+  packages/tools:
+    dependencies:
+      "@daily/core":
+        specifier: workspace:*
+        version: link:../core
+      "@daily/protocol":
+        specifier: workspace:*
+        version: link:../protocol
+      "@daily/std":
+        specifier: workspace:*
+        version: link:../std
       luxon:
         specifier: ^3.6.1
         version: 3.7.2

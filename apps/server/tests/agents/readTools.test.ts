@@ -2,24 +2,25 @@ import {Readable} from "node:stream"
 import {describe, expect, it} from "vitest"
 
 import {APP_CONFIG} from "@daily/protocol"
+import {findTool, ToolErrorCode} from "@daily/tools"
 
 import {runInAgentWorkspace} from "../../src/agents/AgentWorkspace"
-import {getAttachmentTool} from "../../src/agents/tools/read/getAttachment"
-import {getTaskTool} from "../../src/agents/tools/read/getTask"
-import {listMilestonesTool} from "../../src/agents/tools/read/listMilestones"
-import {listProjectsTool} from "../../src/agents/tools/read/listProjects"
-import {listTagsTool} from "../../src/agents/tools/read/listTags"
-import {listTasksTool} from "../../src/agents/tools/read/listTasks"
-import {saveTaskTool} from "../../src/agents/tools/write/saveTask"
 import {writeAsset} from "../../src/assets/AssetStore"
-import {AgentToolErrorCode} from "../../src/errors/agent/AgentToolErrorCode"
 import {bindAgent, bindDevice, makePngBytes, makeTaskDraft, seedAgentStore} from "./helpers"
 
-import type {AgentTool} from "../../src/agents/tools/types"
+import type {Tool} from "@daily/tools"
 import type {ServerStore} from "../../src/store/instance"
 import type {MacCore} from "./helpers"
 
-async function call(store: ServerStore, tool: AgentTool, input: Record<string, unknown> = {}): Promise<any> {
+const getAttachmentTool = findTool("get_attachment")!
+const getTaskTool = findTool("get_task")!
+const listMilestonesTool = findTool("list_milestones")!
+const listProjectsTool = findTool("list_projects")!
+const listTagsTool = findTool("list_tags")!
+const listTasksTool = findTool("list_tasks")!
+const saveTaskTool = findTool("save_task")!
+
+async function call(store: ServerStore, tool: Tool, input: Record<string, unknown> = {}): Promise<any> {
   const agent = bindAgent(store)
   return runInAgentWorkspace({store}, agent, tool.mode, (ctx) => tool.run(input, ctx) as any)
 }
@@ -302,7 +303,7 @@ describe("list_tasks", () => {
 
     try {
       await expect(call(seeded.store, listTasksTool, {deleted: true, status: "active"})).rejects.toMatchObject({
-        code: AgentToolErrorCode.INVALID_INPUT,
+        code: ToolErrorCode.INVALID_INPUT,
       })
     } finally {
       seeded.close()
@@ -473,7 +474,7 @@ describe("get_task", () => {
       const agent = bindAgent(seeded.store)
       await expect(
         runInAgentWorkspace({store: seeded.store}, agent, "read", (ctx) => getTaskTool.run({id: "no-such-id"}, ctx) as any),
-      ).rejects.toMatchObject({code: AgentToolErrorCode.NOT_FOUND})
+      ).rejects.toMatchObject({code: ToolErrorCode.NOT_FOUND})
     } finally {
       seeded.close()
     }
@@ -519,9 +520,9 @@ describe("get_attachment", () => {
       const agent = bindAgent(seeded.store)
       const attempt = (id: string) => runInAgentWorkspace({store: seeded.store}, agent, "read", (ctx) => getAttachmentTool.run({id}, ctx) as any)
 
-      await expect(attempt(offServerId)).rejects.toMatchObject({code: AgentToolErrorCode.ATTACHMENT_UNAVAILABLE})
-      await expect(attempt(textFileId)).rejects.toMatchObject({code: AgentToolErrorCode.ATTACHMENT_NOT_AN_IMAGE})
-      await expect(attempt(hugeId)).rejects.toMatchObject({code: AgentToolErrorCode.ATTACHMENT_TOO_LARGE})
+      await expect(attempt(offServerId)).rejects.toMatchObject({code: ToolErrorCode.ATTACHMENT_UNAVAILABLE})
+      await expect(attempt(textFileId)).rejects.toMatchObject({code: ToolErrorCode.ATTACHMENT_NOT_AN_IMAGE})
+      await expect(attempt(hugeId)).rejects.toMatchObject({code: ToolErrorCode.ATTACHMENT_TOO_LARGE})
     } finally {
       seeded.close()
     }

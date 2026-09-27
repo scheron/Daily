@@ -46,11 +46,10 @@ export async function makeFixture(opts: {schemas?: Array<[string, any]>} = {}): 
 
   // Bypass validateToolArguments by seeding tool schemas. Tests can override.
   const defaultSchemas: Array<[string, any]> = [
-    ["delete_task", {type: "object", properties: {task_id: {type: "string"}}, required: ["task_id"]}],
-    ["permanently_delete_task", {type: "object", properties: {task_id: {type: "string"}}, required: ["task_id"]}],
-    ["delete_project", {type: "object", properties: {project_id: {type: "string"}}, required: ["project_id"]}],
-    ["delete_tag", {type: "object", properties: {tag_id: {type: "string"}}, required: ["tag_id"]}],
-    ["create_task", {type: "object", properties: {content: {type: "string"}}, required: ["content"]}],
+    ["delete_task", {type: "object", properties: {id: {type: "string"}}, required: ["id"]}],
+    ["delete_project", {type: "object", properties: {id: {type: "string"}}, required: ["id"]}],
+    ["delete_tag", {type: "object", properties: {id: {type: "string"}}, required: ["id"]}],
+    ["save_task", {type: "object", properties: {content: {type: "string"}}, required: []}],
     ["list_tasks", {type: "object", properties: {}, required: []}],
   ]
   ;(ctrl as any).currentToolSchemas = new Map([...defaultSchemas, ...(opts.schemas ?? [])])

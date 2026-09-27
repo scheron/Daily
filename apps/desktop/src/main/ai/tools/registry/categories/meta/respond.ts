@@ -23,6 +23,7 @@ export const respond: RegisteredTool = {
       text: {type: "string", description: "The exact text shown to the user. Plain prose, no labels."},
     },
     required: ["text"],
+    additionalProperties: false,
   },
   isWrite: false,
   isDestructive: false,

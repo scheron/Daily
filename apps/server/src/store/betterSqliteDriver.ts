@@ -22,6 +22,7 @@ export type SqliteDriver = {
   transaction<T>(fn: () => T): SqliteTransaction<T>
   backup(destinationPath: string): Promise<void>
   close(): void
+  readonly inTransaction: boolean
 }
 
 /** Opens the SQLite file at `dbPath` through better-sqlite3 and hands it to the server store as a driver. */
@@ -45,6 +46,9 @@ export function createBetterSqliteDriver(dbPath: string): SqliteDriver {
       await db.backup(destinationPath)
     },
     close: () => void db.close(),
+    get inTransaction() {
+      return db.inTransaction
+    },
   }
 }
 
@@ -63,6 +67,9 @@ export function createInMemorySqliteDriver(): SqliteDriver {
       await db.backup(destinationPath)
     },
     close: () => void db.close(),
+    get inTransaction() {
+      return db.inTransaction
+    },
   }
 }
 

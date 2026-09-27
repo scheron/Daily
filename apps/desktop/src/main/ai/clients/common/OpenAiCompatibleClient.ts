@@ -1,5 +1,5 @@
 import {logger} from "@daily/core"
-import {notUndefined} from "@daily/std"
+import {isString, notUndefined} from "@daily/std"
 
 import {AI_CONFIG} from "@shared/config/ai"
 import {NonRetryableError} from "@shared/errors/ai/NonRetryableError"
@@ -218,6 +218,7 @@ export abstract class OpenAiCompatibleClient implements IAiClient {
           const errBody = await response.text().catch(() => "")
           throw new NonRetryableError(
             `${OpenAiClientErrorCode.HttpError}: ${this.getClientName()} HTTP ${response.status} ${response.statusText} ${errBody}`,
+            response.status,
           )
         }
         if (!response.body) throw new Error(OpenAiClientErrorCode.NoResponseBody)
@@ -332,8 +333,7 @@ export abstract class OpenAiCompatibleClient implements IAiClient {
       if (notUndefined(msg.reasoning_content)) {
         message.reasoning_content = msg.reasoning_content
       } else if (needsReasoningContent && msg.role === "assistant") {
-        // DeepSeek thinking models require this field in assistant history entries.
-        message.reasoning_content = msg.content ?? ""
+        message.reasoning_content = isString(msg.content) ? msg.content : ""
       }
 
       if (msg.tool_calls) {

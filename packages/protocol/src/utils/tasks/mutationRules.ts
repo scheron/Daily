@@ -51,6 +51,9 @@ export function planTaskUpdate(ctx: MutationContext, id: Task["id"], updates: Pa
 
   const patch: TaskPatch = {...definedFields(updates), id}
 
+  const branchId = notUndefined(updates.branchId) ? updates.branchId : before.branchId
+  const branchChanged = notUndefined(updates.branchId) && updates.branchId !== before.branchId
+
   if (notUndefined(updates.status) || notUndefined(updates.scheduled)) {
     const explicitStatus = updates.status
     const current = notUndefined(updates.scheduled) ? updates.scheduled : before.scheduled
@@ -61,7 +64,7 @@ export function planTaskUpdate(ctx: MutationContext, id: Task["id"], updates: Pa
     patch.scheduled = schedulingForStatus(status, current, ctx.today)
 
     if (status === "backlog" && before.status !== "backlog") {
-      patch.orderIndex = getPreviousTaskOrderIndex(backlogTasks(ctx, before.branchId))
+      patch.orderIndex = getPreviousTaskOrderIndex(backlogTasks(ctx, branchId))
     }
 
     if (leavesBacklog) {
@@ -69,12 +72,9 @@ export function planTaskUpdate(ctx: MutationContext, id: Task["id"], updates: Pa
 
       patch.status = status
       patch.scheduled = completed
-      patch.orderIndex = getPreviousTaskOrderIndex(dayTasks(ctx, completed.date, before.branchId))
+      patch.orderIndex = getPreviousTaskOrderIndex(dayTasks(ctx, completed.date, branchId))
     }
   }
-
-  const branchId = notUndefined(updates.branchId) ? updates.branchId : before.branchId
-  const branchChanged = notUndefined(updates.branchId) && updates.branchId !== before.branchId
 
   if (notUndefined(updates.milestoneId) && updates.milestoneId !== null) {
     if (!milestoneBelongsToBranch(ctx, updates.milestoneId, branchId)) {

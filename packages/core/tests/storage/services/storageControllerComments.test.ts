@@ -1,25 +1,8 @@
 // @ts-nocheck
-import {nanoid} from "nanoid"
 import {afterEach, describe, expect, it, vi} from "vitest"
 
-import {BranchModel} from "@core/storage/models/BranchModel"
-import {MilestoneModel} from "@core/storage/models/MilestoneModel"
-import {SettingsModel} from "@core/storage/models/SettingsModel"
-import {TagModel} from "@core/storage/models/TagModel"
-import {TaskCommentModel} from "@core/storage/models/TaskCommentModel"
-import {TaskEventModel} from "@core/storage/models/TaskEventModel"
-import {TaskModel} from "@core/storage/models/TaskModel"
-import {TaskRelationModel} from "@core/storage/models/TaskRelationModel"
-import {BranchesService} from "@core/storage/services/BranchesService"
-import {SearchService} from "@core/storage/services/SearchService"
-import {SettingsService} from "@core/storage/services/SettingsService"
-import {TaskCommentsService} from "@core/storage/services/TaskCommentsService"
-import {TaskEventsService} from "@core/storage/services/TaskEventsService"
-import {TaskRelationsService} from "@core/storage/services/TaskRelationsService"
-import {TasksService} from "@core/storage/services/TasksService"
-import {StorageController} from "@core/storage/StorageController"
 import {EMPTY_CHANGESET} from "@core/types/storage"
-import {createTestDatabase} from "../../helpers/db"
+import {makeControllerHarness as makeHarness, makeTaskInput} from "../../helpers/storageControllerHarness"
 
 vi.mock("../../../src/utils/logger", () => ({
   logger: {
@@ -36,54 +19,6 @@ vi.mock("../../../src/utils/logger", () => ({
 vi.mock("../../../src/config/env", () => ({ENV: {isDev: false}}))
 
 vi.mock("@daily/protocol", async (importOriginal) => ({...(await importOriginal()), WINDOWS_CONFIG: {main: {width: 800, height: 600}}}))
-
-function makeTaskInput(overrides = {}) {
-  return {
-    id: nanoid(),
-    status: "active",
-    content: "Task",
-    minimized: false,
-    orderIndex: 1024,
-    scheduled: {date: "2026-03-24", time: "", timezone: "UTC"},
-    estimatedTime: 0,
-    spentTime: 0,
-    branchId: "main",
-    milestoneId: null,
-    tags: [],
-    attachments: [],
-    deletedAt: null,
-    ...overrides,
-  }
-}
-
-const paths = {
-  appDataRoot: () => "/tmp/daily-comments",
-  dbPath: () => "/tmp/daily-comments/db",
-  assetsDir: () => "/tmp/daily-comments/assets",
-  remoteSyncPath: () => "/tmp/daily-comments/remote",
-}
-
-function makeHarness() {
-  const db = createTestDatabase()
-  const taskModel = new TaskModel(db)
-  const branchModel = new BranchModel(db)
-  branchModel.ensureMainBranch()
-  const tagModel = new TagModel(db)
-  const milestoneModel = new MilestoneModel(db)
-  const settingsService = new SettingsService(new SettingsModel(db))
-  const tasksService = new TasksService(taskModel, new TaskEventsService(new TaskEventModel(db)))
-  const branchesService = new BranchesService(branchModel, settingsService, taskModel, tagModel, milestoneModel, db)
-  const taskCommentModel = new TaskCommentModel(db)
-
-  const controller = new StorageController(db, paths)
-  controller.tasksService = tasksService
-  controller.branchesService = branchesService
-  controller.taskCommentsService = new TaskCommentsService(taskCommentModel, taskModel)
-  controller.taskRelationsService = new TaskRelationsService(new TaskRelationModel(db), taskModel)
-  controller.searchService = new SearchService(taskModel, branchModel)
-
-  return {db, taskModel, branchModel, taskCommentModel, controller}
-}
 
 describe("StorageController — comments", () => {
   let db

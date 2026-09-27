@@ -1,15 +1,13 @@
 // @ts-nocheck
 import {describe, expect, it} from "vitest"
 
-import {AI_TOOLS, AI_TOOLS_COMPACT, getRegisteredTool, REGISTRY} from "../../../../../src/main/ai/tools/registry"
+import {TOOLS} from "@daily/tools"
+
+import {AI_TOOLS, getRegisteredTool, REGISTRY} from "../../../../../src/main/ai/tools/registry"
 
 describe("Tool registry invariants", () => {
-  it("contains exactly 36 tools (35 domain + respond meta)", () => {
-    expect(REGISTRY.length).toBe(36)
-  })
-
-  it("contains_TC-16_36_tools_once_link_tasks_unlink_tasks_and_the_comment_tools_join_the_registry", () => {
-    expect(REGISTRY.length).toBe(36)
+  it("is exactly respond, read_url and @daily/tools' own eighteen, in that order", () => {
+    expect(REGISTRY.map((t) => t.name)).toEqual(["respond", ...TOOLS.map((t) => t.name), "read_url"])
   })
 
   it("includes the respond meta tool with non-destructive flags", () => {
@@ -20,6 +18,13 @@ describe("Tool registry invariants", () => {
     expect(respond?.parameters.required).toContain("text")
   })
 
+  it("marks every shared delete_ tool as destructive and no other shared tool as destructive", () => {
+    for (const t of REGISTRY) {
+      if (t.name === "respond" || t.name === "read_url") continue
+      expect(t.isDestructive, t.name).toBe(t.name.startsWith("delete_"))
+    }
+  })
+
   it("all tool names are unique", () => {
     const names = REGISTRY.map((t) => t.name)
     expect(new Set(names).size).toBe(names.length)
@@ -27,7 +32,6 @@ describe("Tool registry invariants", () => {
 
   it("AI_TOOLS mirrors registry size", () => {
     expect(AI_TOOLS.length).toBe(REGISTRY.length)
-    expect(AI_TOOLS_COMPACT.length).toBe(REGISTRY.length)
   })
 
   it("every tool has parameters.type === 'object'", () => {

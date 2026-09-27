@@ -1,23 +1,22 @@
 import {dataPaths} from "@daily/core/config/paths"
 import {createStorageCore} from "@daily/core/storage/createStorageCore"
 import {runMigrations} from "@daily/core/storage/database/scripts/migrate"
+import {WorkStorage} from "@daily/core/storage/WorkStorage"
 import {assertKnownSnapshotVersion, KNOWN_SNAPSHOT_VERSION} from "@daily/core/utils/sync/snapshot/assertKnownSnapshotVersion"
 import {buildSnapshot} from "@daily/core/utils/sync/snapshot/buildSnapshot"
 import {isValidSnapshot} from "@daily/core/utils/sync/snapshot/isValidSnapshot"
 import {normalizeSnapshotDocs} from "@daily/core/utils/sync/snapshot/normalizeSnapshotDocs"
 import {ProtocolError, ProtocolErrorCode, SnapshotVersionAheadError} from "@daily/protocol"
 import {AsyncMutex} from "@daily/std"
+import {createClock, ToolError, ToolErrorCode} from "@daily/tools"
 
-import {AgentToolError} from "../errors/agent/AgentToolError"
-import {AgentToolErrorCode} from "../errors/agent/AgentToolErrorCode"
 import {readSnapshot, writeSnapshotIfUnchanged} from "../snapshot/SnapshotStore"
 import {createInMemorySqliteDriver} from "../store/betterSqliteDriver"
-import {createAgentClock} from "./clock"
+import {buildServerFilesPort} from "./attachments"
 
-import type {StorageCore} from "@daily/core/storage/createStorageCore"
-import type {Snapshot, SnapshotDocs} from "@daily/protocol"
+import type {ActorSource, Snapshot, SnapshotDocs} from "@daily/protocol"
+import type {ToolClock, ToolContext, ToolMode} from "@daily/tools"
 import type {ServerStore} from "../store/instance"
-import type {AgentClock} from "./clock"
 
 /**
  * The agent a tool call runs as: the Mac it was approved from, the time zone that Mac reads its
@@ -26,29 +25,10 @@ import type {AgentClock} from "./clock"
  */
 export type AgentIdentity = {deviceId: string; timeZone: string; name: string}
 
-export type AgentToolMode = "read" | "write"
-
 export type AgentWorkspaceDeps = {store: ServerStore; now?: () => Date}
 
 /** Durable work a tool call defers until the snapshot it wrote has actually committed. */
 export type AgentCommitEffect = () => Promise<void>
-
-/**
- * What a tool call is handed: the app's own services over the stored snapshot, the store behind
- * them, the agent's clock and the agent itself, and `afterCommit` to register durable work — a
- * blob write, an index row — that must not happen until this call's snapshot write has succeeded.
- * An effect registered here runs, in registration order, only once `writeSnapshotIfUnchanged` has
- * returned; a thrown `run`, a lost revision race, or a read-mode call leaves it unrun and discarded.
- * An effect only runs when the call actually writes a snapshot, so whatever it does must have a
- * precondition recorded in that snapshot itself — nothing whose only trace lives elsewhere.
- */
-export type AgentToolContext = {
-  core: StorageCore
-  store: ServerStore
-  clock: AgentClock
-  agent: AgentIdentity
-  afterCommit: (effect: AgentCommitEffect) => void
-}
 
 /** How many times a write-mode call rebuilds and retries after losing a race, before it refuses. */
 export const AGENT_WRITE_ATTEMPTS = 3
@@ -59,19 +39,19 @@ const writeLocks = new WeakMap<ServerStore, AsyncMutex>()
 
 /**
  * Runs one tool call against the snapshot the server stores: loads it into a throwaway in-memory
- * core, hands `run` the app's own services over it, and — in write mode — stores the rebuilt
+ * core, hands `run` the shared host context over it, and — in write mode — stores the rebuilt
  * snapshot back at the revision it was read at, attributed to the agent's Mac.
  *
- * @param mode `"read"` never writes and makes one attempt; `"write"` is serialised per store and retries a lost race up to `AGENT_WRITE_ATTEMPTS` times.
- * @throws AgentToolError when the stored snapshot cannot serve the call, when every write attempt loses its race, or when `run` itself refuses.
+ * @param mode `"read"` never writes and makes one attempt; `"write"` and `"delete"` are both serialised per store and retry a lost race up to `AGENT_WRITE_ATTEMPTS` times.
+ * @throws ToolError when the stored snapshot cannot serve the call, when every write attempt loses its race, or when `run` itself refuses.
  */
 export async function runInAgentWorkspace<T>(
   deps: AgentWorkspaceDeps,
   agent: AgentIdentity,
-  mode: AgentToolMode,
-  run: (ctx: AgentToolContext) => Promise<T>,
+  mode: ToolMode,
+  run: (ctx: ToolContext) => Promise<T>,
 ): Promise<T> {
-  const clock = createAgentClock(agent.timeZone, deps.now)
+  const clock = buildAgentClock(agent.timeZone, deps.now)
 
   if (mode === "read") return runAttempt(deps.store, agent, clock, mode, run)
 
@@ -90,25 +70,36 @@ export async function runInAgentWorkspace<T>(
       }
     }
 
-    throw new AgentToolError(
-      AgentToolErrorCode.WRITE_CONFLICT,
+    throw new ToolError(
+      ToolErrorCode.WRITE_CONFLICT,
       "Something else changed this server's data while the call was running. Nothing was written — try again.",
     )
   })
 }
 
+function buildAgentClock(timeZone: string, now?: () => Date): ToolClock {
+  try {
+    return createClock(timeZone, now)
+  } catch (error) {
+    if (error instanceof ToolError && error.code === ToolErrorCode.INVALID_TIME_ZONE) {
+      throw new ToolError(ToolErrorCode.INVALID_TIME_ZONE, `Unknown time zone "${timeZone}". This server cannot tell which day it is on that Mac.`)
+    }
+    throw error
+  }
+}
+
 async function runAttempt<T>(
   store: ServerStore,
   agent: AgentIdentity,
-  clock: AgentClock,
-  mode: AgentToolMode,
-  run: (ctx: AgentToolContext) => Promise<T>,
+  clock: ToolClock,
+  mode: ToolMode,
+  run: (ctx: ToolContext) => Promise<T>,
 ): Promise<T> {
   const stored = readSnapshot(store)
 
   if (!stored) {
-    throw new AgentToolError(
-      AgentToolErrorCode.NO_DATA_YET,
+    throw new ToolError(
+      ToolErrorCode.NO_DATA_YET,
       "This server has no Daily data yet. Open Daily on a Mac bound to it and let it sync once, then try again.",
     )
   }
@@ -118,19 +109,19 @@ async function runAttempt<T>(
   } catch (error) {
     if (!(error instanceof SnapshotVersionAheadError)) throw error
 
-    throw new AgentToolError(
-      AgentToolErrorCode.SERVER_TOO_OLD,
+    throw new ToolError(
+      ToolErrorCode.SERVER_TOO_OLD,
       "This server is older than the data on your Macs. Upgrade the Daily Sync Server, then try again.",
     )
   }
 
   if (!isValidSnapshot(stored.document as Snapshot)) {
-    throw new AgentToolError(AgentToolErrorCode.SNAPSHOT_UNREADABLE, SNAPSHOT_UNREADABLE_MESSAGE)
+    throw new ToolError(ToolErrorCode.SNAPSHOT_UNREADABLE, SNAPSHOT_UNREADABLE_MESSAGE)
   }
 
-  if (mode === "write" && stored.version !== KNOWN_SNAPSHOT_VERSION) {
-    throw new AgentToolError(
-      AgentToolErrorCode.SNAPSHOT_TOO_OLD,
+  if (mode !== "read" && stored.version !== KNOWN_SNAPSHOT_VERSION) {
+    throw new ToolError(
+      ToolErrorCode.SNAPSHOT_TOO_OLD,
       "The data on this server is older than this server understands. Update Daily on your Macs and let one of them sync before changing anything.",
     )
   }
@@ -145,7 +136,7 @@ async function runAttempt<T>(
     try {
       await core.localAdapter.upsertDocs(normalizeSnapshotDocs(stored.document.docs as SnapshotDocs))
     } catch {
-      throw new AgentToolError(AgentToolErrorCode.SNAPSHOT_UNREADABLE, SNAPSHOT_UNREADABLE_MESSAGE)
+      throw new ToolError(ToolErrorCode.SNAPSHOT_UNREADABLE, SNAPSHOT_UNREADABLE_MESSAGE)
     }
 
     const commitEffects: AgentCommitEffect[] = []
@@ -153,24 +144,25 @@ async function runAttempt<T>(
       commitEffects.push(effect)
     }
 
-    const result = await run({core, store, clock, agent, afterCommit})
+    const workStorage = new WorkStorage(core, db, () => {})
+    const source: ActorSource = {kind: "mcp", provider: agent.name}
+    const files = buildServerFilesPort(store, agent.deviceId, afterCommit)
+
+    const result = await run({workStorage, clock, source, files})
     if (mode === "read") return result
 
     const built = buildSnapshot(await core.localAdapter.loadAllDocs())
     if (built.meta.hash === stored.hash) return result
 
     if (built.version !== stored.version) {
-      throw new AgentToolError(
-        AgentToolErrorCode.INTERNAL,
-        `Refusing to move the stored snapshot from version ${stored.version} to ${built.version}.`,
-      )
+      throw new ToolError(ToolErrorCode.INTERNAL, `Refusing to move the stored snapshot from version ${stored.version} to ${built.version}.`)
     }
 
     try {
       writeSnapshotIfUnchanged(store, built, stored.revision, agent.deviceId)
     } catch (error) {
       if (error instanceof ProtocolError && error.code !== ProtocolErrorCode.REVISION_CONFLICT) {
-        throw new AgentToolError(AgentToolErrorCode.INTERNAL, error.message)
+        throw new ToolError(ToolErrorCode.INTERNAL, error.message)
       }
 
       throw error

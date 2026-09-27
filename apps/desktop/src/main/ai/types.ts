@@ -1,10 +1,14 @@
 import type {AIConfig} from "@daily/protocol"
+import type {ToolInputSchema} from "@daily/tools"
 import type {TokenUsage} from "@shared/types/ai"
+
+/** One part of a message's content: plain text, or an image a tool result carried (`get_attachment`'s own bytes). */
+export type ContentPart = {type: "text"; text: string} | {type: "image_url"; image_url: {url: string}}
 
 export type MessageLLM = {
   id?: string
   role: "system" | "user" | "assistant" | "tool"
-  content: string | null
+  content: string | ContentPart[] | null
   reasoning_content?: string | null
   timestamp?: number
   tool_calls?: ToolCallLLM[]
@@ -26,11 +30,7 @@ export type Tool = {
   function: {
     name: string
     description: string
-    parameters: {
-      type: "object"
-      properties: Record<string, {type: string; description?: string; enum?: string[]}>
-      required?: string[]
-    }
+    parameters: ToolInputSchema
   }
 }
 

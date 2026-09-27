@@ -143,7 +143,7 @@ describe("AIController.sendMessage", () => {
   // schemas directly.
   function stubSchemas(target: AIController = ctrl) {
     ;(target as any).currentToolSchemas = new Map([
-      ["delete_task", {type: "object", properties: {task_id: {type: "string"}}, required: ["task_id"]}],
+      ["delete_task", {type: "object", properties: {id: {type: "string"}}, required: ["id"]}],
       ["list_tasks", {type: "object", properties: {}, required: []}],
     ])
   }
@@ -155,7 +155,7 @@ describe("AIController.sendMessage", () => {
     withScriptedLLM(ctrl, [
       {
         role: "assistant",
-        tool_calls: [{id: "c1", type: "function", function: {name: "delete_task", arguments: {task_id: "abc"}}}],
+        tool_calls: [{id: "c1", type: "function", function: {name: "delete_task", arguments: {id: "abc"}}}],
       },
       {role: "assistant", content: "Done."},
     ])
@@ -182,7 +182,7 @@ describe("AIController.sendMessage", () => {
     withScriptedLLM(ctrl, [
       {
         role: "assistant",
-        tool_calls: [{id: "c1", type: "function", function: {name: "delete_task", arguments: {task_id: "abc"}}}],
+        tool_calls: [{id: "c1", type: "function", function: {name: "delete_task", arguments: {id: "abc"}}}],
       },
       {role: "assistant", content: "Skipped."},
     ])
@@ -206,7 +206,7 @@ describe("AIController.sendMessage", () => {
     withScriptedLLM(ctrl, [
       {
         role: "assistant",
-        tool_calls: [{id: "c1", type: "function", function: {name: "delete_task", arguments: {task_id: "abc"}}}],
+        tool_calls: [{id: "c1", type: "function", function: {name: "delete_task", arguments: {id: "abc"}}}],
       },
       // After the skip, the loop runs another LLM iteration which will throw because cancel() also aborted.
       {throws: Object.assign(new Error("aborted"), {name: "AbortError"})},
@@ -229,7 +229,7 @@ describe("AIController.sendMessage", () => {
     withScriptedLLM(ctrl, [
       {
         role: "assistant",
-        tool_calls: [{id: "c1", type: "function", function: {name: "delete_task", arguments: {task_id: "abc"}}}],
+        tool_calls: [{id: "c1", type: "function", function: {name: "delete_task", arguments: {id: "abc"}}}],
       },
       {role: "assistant", content: "Done."},
     ])
@@ -373,7 +373,7 @@ describe("AIController.sendMessage", () => {
     const events: any[] = []
     const ctrl3 = new AIController(makeStorage(), undefined, undefined, (e) => events.push(e))
     await ctrl3.updateConfig({enabled: true, provider: "openai", openai: {model: "gpt-4o", apiKey: "x"}})
-    ;(ctrl3 as any).currentToolSchemas = new Map([["create_task", {type: "object", properties: {content: {type: "string"}}, required: ["content"]}]])
+    ;(ctrl3 as any).currentToolSchemas = new Map([["save_task", {type: "object", properties: {content: {type: "string"}}, required: []}]])
     vi.spyOn((ctrl3 as any).executor, "execute").mockResolvedValue({success: true, data: "Task created"})
 
     let i = 0
@@ -382,7 +382,7 @@ describe("AIController.sendMessage", () => {
         message: {
           role: "assistant",
           content: null,
-          tool_calls: [{id: "c1", type: "function", function: {name: "create_task", arguments: {content: "x"}}}],
+          tool_calls: [{id: "c1", type: "function", function: {name: "save_task", arguments: {content: "x"}}}],
         },
         done: true,
       },
@@ -402,7 +402,7 @@ describe("AIController.sendMessage", () => {
     expect(types).toContain("tool_started")
     expect(types).toContain("tool_finished")
     const finished = events.find((e) => e.type === "tool_finished")
-    expect(finished.toolName).toBe("create_task")
+    expect(finished.toolName).toBe("save_task")
     expect(finished.success).toBe(true)
   })
 
@@ -415,8 +415,8 @@ describe("AIController.sendMessage", () => {
   // ===== Phase 5: web tool is always available; toggle drives auto-approval =====
 
   it("always includes read_url in the tools list", async () => {
-    const tools = (ctrl as any).getToolsForTier("large")
-    const names = tools.map((t) => t.function.name)
+    const {AI_TOOLS} = await import("../../../src/main/ai/tools/registry")
+    const names = AI_TOOLS.map((t) => t.function.name)
     expect(names).toContain("read_url")
   })
 
@@ -435,7 +435,7 @@ describe("AIController.sendMessage", () => {
   })
 
   it("processes a write tool then respond in two iterations", async () => {
-    ;(ctrl as any).currentToolSchemas = new Map([["create_task", {type: "object", properties: {content: {type: "string"}}, required: ["content"]}]])
+    ;(ctrl as any).currentToolSchemas = new Map([["save_task", {type: "object", properties: {content: {type: "string"}}, required: []}]])
     vi.spyOn((ctrl as any).executor, "execute").mockResolvedValue({success: true, data: "Task created: x"})
 
     let i = 0
@@ -444,7 +444,7 @@ describe("AIController.sendMessage", () => {
         message: {
           role: "assistant",
           content: null,
-          tool_calls: [{id: "c1", type: "function", function: {name: "create_task", arguments: {content: "x"}}}],
+          tool_calls: [{id: "c1", type: "function", function: {name: "save_task", arguments: {content: "x"}}}],
         },
         done: true,
       },
@@ -462,7 +462,7 @@ describe("AIController.sendMessage", () => {
     const r = await ctrl.sendMessage("make task x")
     expect(r.success).toBe(true)
     expect(r.message?.content).toBe("Created.")
-    expect(r.message?.toolCalls?.map((t) => t.name)).toEqual(["create_task"])
+    expect(r.message?.toolCalls?.map((t) => t.name)).toEqual(["save_task"])
   })
 
   // ===== existing Phase 3 broadcaster test =====
@@ -478,7 +478,7 @@ describe("AIController.sendMessage", () => {
     const script = [
       {
         role: "assistant",
-        tool_calls: [{id: "c1", type: "function", function: {name: "delete_task", arguments: {task_id: "abc"}}}],
+        tool_calls: [{id: "c1", type: "function", function: {name: "delete_task", arguments: {id: "abc"}}}],
       },
       {role: "assistant", content: "Done."},
     ]

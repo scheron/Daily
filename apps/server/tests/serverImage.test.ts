@@ -21,6 +21,7 @@ describe("the server image carries packages/core", () => {
     expect(manifestCopies).toContain("COPY packages/core/package.json ./packages/core/package.json")
     expect(manifestCopies).toContain("COPY packages/protocol/package.json ./packages/protocol/package.json")
     expect(manifestCopies).toContain("COPY packages/std/package.json ./packages/std/package.json")
+    expect(manifestCopies).toContain("COPY packages/tools/package.json ./packages/tools/package.json")
   })
 
   it("TC-3: copies packages/core's sources with the other packages before the bundle build runs", () => {
@@ -34,6 +35,7 @@ describe("the server image carries packages/core", () => {
     expect(sourceCopies).toContain("COPY packages/core ./packages/core")
     expect(sourceCopies).toContain("COPY packages/protocol ./packages/protocol")
     expect(sourceCopies).toContain("COPY packages/std ./packages/std")
+    expect(sourceCopies).toContain("COPY packages/tools ./packages/tools")
   })
 
   it("TC-3: un-ignores packages/core in .dockerignore beside the other packages", () => {
@@ -43,5 +45,6 @@ describe("the server image carries packages/core", () => {
     expect(unignoredLines).toContain("!packages/core")
     expect(unignoredLines).toContain("!packages/protocol")
     expect(unignoredLines).toContain("!packages/std")
+    expect(unignoredLines).toContain("!packages/tools")
   })
 })

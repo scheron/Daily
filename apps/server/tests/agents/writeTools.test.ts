@@ -3,30 +3,33 @@ import {Readable} from "node:stream"
 import {describe, expect, it} from "vitest"
 
 import {APP_CONFIG} from "@daily/protocol"
+import {findTool, ToolError, ToolErrorCode} from "@daily/tools"
 
 import {AGENT_WRITE_ATTEMPTS, runInAgentWorkspace} from "../../src/agents/AgentWorkspace"
-import {getAttachmentTool} from "../../src/agents/tools/read/getAttachment"
-import {getTaskTool} from "../../src/agents/tools/read/getTask"
-import {deleteAttachmentTool} from "../../src/agents/tools/write/deleteAttachment"
-import {deleteCommentTool} from "../../src/agents/tools/write/deleteComment"
-import {deleteTaskTool} from "../../src/agents/tools/write/deleteTask"
-import {saveAttachmentTool} from "../../src/agents/tools/write/saveAttachment"
-import {saveCommentTool} from "../../src/agents/tools/write/saveComment"
-import {saveMilestoneTool} from "../../src/agents/tools/write/saveMilestone"
-import {saveProjectTool} from "../../src/agents/tools/write/saveProject"
-import {saveTagTool} from "../../src/agents/tools/write/saveTag"
-import {saveTaskTool} from "../../src/agents/tools/write/saveTask"
 import {assetsDir, listAssets, writeAsset} from "../../src/assets/AssetStore"
-import {AgentToolError} from "../../src/errors/agent/AgentToolError"
-import {AgentToolErrorCode} from "../../src/errors/agent/AgentToolErrorCode"
 import {readRevision, readSnapshot} from "../../src/snapshot/SnapshotStore"
 import {bindAgent, bindDevice, makePngBytes, makeTaskDraft, openMacCore, seedAgentStore, writeMacSnapshot} from "./helpers"
 
+import type {Tool} from "@daily/tools"
 import type {AgentIdentity, AgentWorkspaceDeps} from "../../src/agents/AgentWorkspace"
-import type {AgentTool} from "../../src/agents/tools/types"
 import type {ServerStore} from "../../src/store/instance"
 
-function call(deps: AgentWorkspaceDeps, agent: AgentIdentity, tool: AgentTool, input: Record<string, unknown> = {}): Promise<any> {
+const deleteAttachmentTool = findTool("delete_attachment")!
+const deleteCommentTool = findTool("delete_comment")!
+const deleteMilestoneTool = findTool("delete_milestone")!
+const deleteProjectTool = findTool("delete_project")!
+const deleteTagTool = findTool("delete_tag")!
+const deleteTaskTool = findTool("delete_task")!
+const getAttachmentTool = findTool("get_attachment")!
+const getTaskTool = findTool("get_task")!
+const saveAttachmentTool = findTool("save_attachment")!
+const saveCommentTool = findTool("save_comment")!
+const saveMilestoneTool = findTool("save_milestone")!
+const saveProjectTool = findTool("save_project")!
+const saveTagTool = findTool("save_tag")!
+const saveTaskTool = findTool("save_task")!
+
+function call(deps: AgentWorkspaceDeps, agent: AgentIdentity, tool: Tool, input: Record<string, unknown> = {}): Promise<any> {
   return runInAgentWorkspace(deps, agent, tool.mode, (ctx) => tool.run(input, ctx) as any)
 }
 
@@ -40,17 +43,17 @@ function putOnServer(store: ServerStore, fileId: string, ext: string, bytes: Buf
 }
 
 /**
- * Awaits `promise` expecting it to reject with a structured `AgentToolError` — some specific,
+ * Awaits `promise` expecting it to reject with a structured `ToolError` — some specific,
  * named code from the tool's own enum, carrying a real explanation — rather than a bare crash.
  * Returns the error so a case can still check the one field the plan pins down.
  */
-async function expectRejectsWithAgentError(promise: Promise<unknown>): Promise<AgentToolError> {
+async function expectRejectsWithAgentError(promise: Promise<unknown>): Promise<ToolError> {
   try {
     await promise
   } catch (error) {
-    expect(error).toBeInstanceOf(AgentToolError)
-    const agentError = error as AgentToolError
-    expect(Object.values(AgentToolErrorCode)).toContain(agentError.code)
+    expect(error).toBeInstanceOf(ToolError)
+    const agentError = error as ToolError
+    expect(Object.values(ToolErrorCode)).toContain(agentError.code)
     expect(agentError.message.length).toBeGreaterThan(0)
     return agentError
   }
@@ -235,16 +238,16 @@ describe("save_task", () => {
       const revisionAfterOk = readSnapshot(seeded.store)!.revision
 
       await expect(call({store: seeded.store}, agent, saveTaskTool, {id: taskAId, milestoneId: milestoneBId})).rejects.toMatchObject({
-        code: AgentToolErrorCode.NOT_FOUND,
+        code: ToolErrorCode.NOT_FOUND,
       })
       await expect(call({store: seeded.store}, agent, saveTaskTool, {id: taskAId, tagIds: [tagBId]})).rejects.toMatchObject({
-        code: AgentToolErrorCode.NOT_FOUND,
+        code: ToolErrorCode.NOT_FOUND,
       })
       await expect(call({store: seeded.store}, agent, saveTaskTool, {id: "no-such-id", content: "x"})).rejects.toMatchObject({
-        code: AgentToolErrorCode.NOT_FOUND,
+        code: ToolErrorCode.NOT_FOUND,
       })
       await expect(call({store: seeded.store}, agent, saveTaskTool, {id: taskAId, blocks: [taskAId]})).rejects.toMatchObject({
-        code: AgentToolErrorCode.INVALID_INPUT,
+        code: ToolErrorCode.INVALID_INPUT,
       })
 
       expect(readSnapshot(seeded.store)!.revision).toBe(revisionAfterOk)
@@ -292,10 +295,10 @@ describe("save_task", () => {
       const revisionBefore = readSnapshot(seeded.store)!.revision
 
       await expect(call({store: seeded.store}, agent, saveTaskTool, {content: "New task", projectId: "no-such-project"})).rejects.toMatchObject({
-        code: AgentToolErrorCode.NOT_FOUND,
+        code: ToolErrorCode.NOT_FOUND,
       })
       await expect(call({store: seeded.store}, agent, saveTaskTool, {id: taskId, projectId: "no-such-project"})).rejects.toMatchObject({
-        code: AgentToolErrorCode.NOT_FOUND,
+        code: ToolErrorCode.NOT_FOUND,
       })
 
       expect(readSnapshot(seeded.store)!.revision).toBe(revisionBefore)
@@ -334,7 +337,7 @@ describe("save_task", () => {
     }
   })
 
-  it.fails("moves a task's comments to the project it moved to through save_task, not just its relations", async () => {
+  it("moves a task's comments to the project it moved to through save_task, not just its relations", async () => {
     let projectBId = ""
     let taskId = ""
 
@@ -431,7 +434,7 @@ describe("save_task", () => {
       const agent = bindAgent(seeded.store)
 
       await expect(call({store: seeded.store}, agent, saveTaskTool, {id: taskId, afterTaskId: otherId, beforeTaskId: otherId})).rejects.toMatchObject(
-        {code: AgentToolErrorCode.INVALID_INPUT},
+        {code: ToolErrorCode.INVALID_INPUT},
       )
     } finally {
       seeded.close()
@@ -495,7 +498,7 @@ describe("save_task", () => {
             {id: idC, date: "2026-01-02"},
           ],
         }),
-      ).rejects.toMatchObject({code: AgentToolErrorCode.NOT_FOUND})
+      ).rejects.toMatchObject({code: ToolErrorCode.NOT_FOUND})
 
       expect(readSnapshot(seeded.store)!.revision).toBe(revisionBefore)
     } finally {
@@ -510,7 +513,7 @@ describe("save_task", () => {
       const agent = bindAgent(seeded.store)
 
       await expect(call({store: seeded.store}, agent, saveTaskTool, {tasks: [{content: "Solo"}], content: "Top level"})).rejects.toMatchObject({
-        code: AgentToolErrorCode.INVALID_INPUT,
+        code: ToolErrorCode.INVALID_INPUT,
       })
     } finally {
       seeded.close()
@@ -540,7 +543,7 @@ describe("save_task", () => {
 
           return saveAttachmentTool.run({name: "shot.png", dataBase64: png.toString("base64")}, ctx)
         }),
-      ).rejects.toMatchObject({code: AgentToolErrorCode.WRITE_CONFLICT})
+      ).rejects.toMatchObject({code: ToolErrorCode.WRITE_CONFLICT})
 
       expect(attempts).toBe(AGENT_WRITE_ATTEMPTS)
       expect(listAssets(seeded.store)).toEqual([])
@@ -701,7 +704,7 @@ describe("save_attachment", () => {
       expect(fetchedTask.attachments.map((a: any) => a.id)).toContain(saved.id)
 
       await runInAgentWorkspace({store: seeded.store}, agent, "write", async (ctx) => {
-        await ctx.core.filesService.cleanupOrphanFiles()
+        await ctx.workStorage.cleanupOrphanFiles()
         return null
       })
 
@@ -731,7 +734,7 @@ describe("delete_attachment", () => {
       expect(await readdir(assetsDir(seeded.store))).toContain(`${fileId}.png`)
 
       await expect(call({store: seeded.store}, agent, getAttachmentTool, {id: fileId})).rejects.toMatchObject({
-        code: AgentToolErrorCode.ATTACHMENT_UNAVAILABLE,
+        code: ToolErrorCode.ATTACHMENT_UNAVAILABLE,
       })
     } finally {
       seeded.close()
@@ -835,13 +838,45 @@ describe("save_project", () => {
       const revisionAfterOk = readSnapshot(seeded.store)!.revision
 
       await expect(call({store: seeded.store}, agent, saveProjectTool, {name: "Existing"})).rejects.toMatchObject({
-        code: AgentToolErrorCode.INVALID_INPUT,
+        code: ToolErrorCode.INVALID_INPUT,
       })
       await expect(call({store: seeded.store}, agent, saveProjectTool, {id: "main", name: "Not main anymore"})).rejects.toMatchObject({
-        code: AgentToolErrorCode.INVALID_INPUT,
+        code: ToolErrorCode.INVALID_INPUT,
       })
 
       expect(readSnapshot(seeded.store)!.revision).toBe(revisionAfterOk)
+    } finally {
+      seeded.close()
+    }
+  })
+})
+
+describe("delete_project", () => {
+  it("soft-deletes a project along with its tasks, milestones and tags, and refuses main and an unknown id", async () => {
+    let projectId = ""
+    let taskId = ""
+
+    const seeded = await seedAgentStore(async (mac) => {
+      const project = await mac.core.branchesService.createBranch({name: "Doomed"})
+      projectId = project!.id
+      const task = await mac.core.tasksService.createTask(dated("2026-01-01", {content: "In the doomed project", branchId: projectId}))
+      taskId = task!.id
+    })
+
+    try {
+      const agent = bindAgent(seeded.store)
+
+      const deleted = await call({store: seeded.store}, agent, deleteProjectTool, {id: projectId})
+      expect(deleted).toEqual({id: projectId})
+
+      const stored = readSnapshot(seeded.store)!.document.docs as any
+      expect(stored.branches.find((b: any) => b.id === projectId).deleted_at).toEqual(expect.any(String))
+      expect(stored.tasks.find((t: any) => t.id === taskId).deleted_at).toEqual(expect.any(String))
+
+      await expect(call({store: seeded.store}, agent, deleteProjectTool, {id: "main"})).rejects.toMatchObject({code: ToolErrorCode.INVALID_INPUT})
+      await expect(call({store: seeded.store}, agent, deleteProjectTool, {id: "no-such-project"})).rejects.toMatchObject({
+        code: ToolErrorCode.NOT_FOUND,
+      })
     } finally {
       seeded.close()
     }
@@ -885,6 +920,43 @@ describe("save_milestone", () => {
   })
 })
 
+describe("delete_milestone", () => {
+  it("soft-deletes a milestone, clearing it from the task it held, and refuses an unknown id", async () => {
+    let milestoneId = ""
+    let taskId = ""
+
+    const seeded = await seedAgentStore(async (mac) => {
+      const milestone = await mac.core.milestonesService.createMilestone({
+        branchId: "main",
+        name: "Doomed",
+        description: "",
+        targetDate: null,
+        deletedAt: null,
+      })
+      milestoneId = milestone!.id
+      const task = await mac.core.tasksService.createTask(dated("2026-01-01", {content: "Held by the milestone", milestoneId}))
+      taskId = task!.id
+    })
+
+    try {
+      const agent = bindAgent(seeded.store)
+
+      const deleted = await call({store: seeded.store}, agent, deleteMilestoneTool, {id: milestoneId})
+      expect(deleted).toEqual({id: milestoneId})
+
+      const stored = readSnapshot(seeded.store)!.document.docs as any
+      expect(stored.milestones.find((m: any) => m.id === milestoneId).deleted_at).toEqual(expect.any(String))
+      expect(stored.tasks.find((t: any) => t.id === taskId).milestone_id).toBeNull()
+
+      await expect(call({store: seeded.store}, agent, deleteMilestoneTool, {id: "no-such-milestone"})).rejects.toMatchObject({
+        code: ToolErrorCode.NOT_FOUND,
+      })
+    } finally {
+      seeded.close()
+    }
+  })
+})
+
 describe("save_tag", () => {
   it("TC-41: creating a tag and then changing its name and colour both answer the tag, and the changes land", async () => {
     const seeded = await seedAgentStore()
@@ -904,6 +976,37 @@ describe("save_tag", () => {
       const row = stored.tags.find((t: any) => t.id === created.tag.id)
       expect(row.name).toBe("critical")
       expect(row.color).toBe("#00ff00")
+    } finally {
+      seeded.close()
+    }
+  })
+})
+
+describe("delete_tag", () => {
+  it("soft-deletes a tag, dropping it from the task it was on, and refuses an unknown id", async () => {
+    let tagId = ""
+    let taskId = ""
+
+    const seeded = await seedAgentStore(async (mac) => {
+      const tag = await mac.core.tagsService.createTag({branchId: "main", name: "urgent", color: "#ff0000", deletedAt: null})
+      tagId = tag!.id
+      const task = await mac.core.tasksService.createTask(dated("2026-01-01", {content: "Tagged", tags: [tag]}))
+      taskId = task!.id
+    })
+
+    try {
+      const agent = bindAgent(seeded.store)
+
+      const deleted = await call({store: seeded.store}, agent, deleteTagTool, {id: tagId})
+      expect(deleted).toEqual({id: tagId})
+
+      const result = await call({store: seeded.store}, agent, getTaskTool, {id: taskId})
+      expect(result.tags).toEqual([])
+
+      const stored = readSnapshot(seeded.store)!.document.docs as any
+      expect(stored.tags.find((t: any) => t.id === tagId).deleted_at).toEqual(expect.any(String))
+
+      await expect(call({store: seeded.store}, agent, deleteTagTool, {id: "no-such-tag"})).rejects.toMatchObject({code: ToolErrorCode.NOT_FOUND})
     } finally {
       seeded.close()
     }
@@ -1009,16 +1112,16 @@ describe("save_comment", () => {
       const agent = bindAgent(seeded.store)
 
       await expect(call({store: seeded.store}, agent, saveCommentTool, {taskId: "nope", content: "hi"})).rejects.toMatchObject({
-        code: AgentToolErrorCode.NOT_FOUND,
+        code: ToolErrorCode.NOT_FOUND,
       })
       await expect(call({store: seeded.store}, agent, saveCommentTool, {taskId: deletedTaskId, content: "hi"})).rejects.toMatchObject({
-        code: AgentToolErrorCode.NOT_FOUND,
+        code: ToolErrorCode.NOT_FOUND,
       })
       await expect(call({store: seeded.store}, agent, saveCommentTool, {id: "nope", content: "hi"})).rejects.toMatchObject({
-        code: AgentToolErrorCode.NOT_FOUND,
+        code: ToolErrorCode.NOT_FOUND,
       })
       await expect(call({store: seeded.store}, agent, saveCommentTool, {taskId: deletedTaskId, content: "   "})).rejects.toMatchObject({
-        code: AgentToolErrorCode.INVALID_INPUT,
+        code: ToolErrorCode.INVALID_INPUT,
       })
 
       const stored = readSnapshot(seeded.store)!.document.docs as any
@@ -1055,7 +1158,7 @@ describe("delete_comment", () => {
       expect(task.comments.map((c: any) => c.id)).toEqual([kept.comment.id])
 
       await expect(call({store: seeded.store}, agent, deleteCommentTool, {id: doomed.comment.id})).rejects.toMatchObject({
-        code: AgentToolErrorCode.NOT_FOUND,
+        code: ToolErrorCode.NOT_FOUND,
       })
     } finally {
       seeded.close()

@@ -15,4 +15,5 @@ export type SqliteDriver = {
   pragma(statement: string): void
   transaction<T>(fn: () => T): () => T
   close(): void
+  readonly inTransaction: boolean
 }

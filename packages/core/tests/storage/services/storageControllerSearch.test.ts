@@ -1,12 +1,7 @@
 // @ts-nocheck
-import {nanoid} from "nanoid"
 import {afterEach, describe, expect, it, vi} from "vitest"
 
-import {BranchModel} from "@core/storage/models/BranchModel"
-import {TaskModel} from "@core/storage/models/TaskModel"
-import {SearchService} from "@core/storage/services/SearchService"
-import {StorageController} from "@core/storage/StorageController"
-import {createTestDatabase} from "../../helpers/db"
+import {makeControllerHarness as makeHarness, makeTaskInput} from "../../helpers/storageControllerHarness"
 
 vi.mock("../../../src/utils/logger", () => ({
   logger: {
@@ -23,44 +18,6 @@ vi.mock("../../../src/utils/logger", () => ({
 vi.mock("../../../src/config/env", () => ({ENV: {isDev: false}}))
 
 vi.mock("@daily/protocol", async (importOriginal) => ({...(await importOriginal()), WINDOWS_CONFIG: {main: {width: 800, height: 600}}}))
-
-function makeTaskInput(overrides = {}) {
-  return {
-    id: nanoid(),
-    status: "active",
-    content: "Task",
-    minimized: false,
-    orderIndex: 1024,
-    scheduled: {date: "2026-03-24", time: "", timezone: "UTC"},
-    estimatedTime: 0,
-    spentTime: 0,
-    branchId: "main",
-    milestoneId: null,
-    tags: [],
-    attachments: [],
-    deletedAt: null,
-    ...overrides,
-  }
-}
-
-const paths = {
-  appDataRoot: () => "/tmp/daily-search",
-  dbPath: () => "/tmp/daily-search/db",
-  assetsDir: () => "/tmp/daily-search/assets",
-  remoteSyncPath: () => "/tmp/daily-search/remote",
-}
-
-function makeHarness() {
-  const db = createTestDatabase()
-  const taskModel = new TaskModel(db)
-  const branchModel = new BranchModel(db)
-  branchModel.ensureMainBranch()
-
-  const controller = new StorageController(db, paths)
-  controller.searchService = new SearchService(taskModel, branchModel)
-
-  return {db, taskModel, controller}
-}
 
 describe("StorageController — search", () => {
   let db

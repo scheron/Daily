@@ -2,9 +2,10 @@ import {Readable} from "node:stream"
 import {DateTime} from "luxon"
 import {describe, expect, it} from "vitest"
 
+import {TOOLS} from "@daily/tools"
+
 import {callMcpTool, listMcpTools} from "../../../src/agents/mcp/mcpTools"
 import {runAgentTool} from "../../../src/agents/runAgentTool"
-import {AGENT_TOOLS} from "../../../src/agents/tools"
 import {writeAsset} from "../../../src/assets/AssetStore"
 import {bindAgent, bindDevice, makePngBytes, makeTaskDraft, seedAgentStore} from "../helpers"
 
@@ -27,18 +28,18 @@ function putOnServer(store: ServerStore, fileId: string, ext: string, bytes: Buf
 }
 
 describe("listMcpTools — TC-14", () => {
-  it("TC-14: answers AGENT_TOOLS's own fifteen entries in order, with readOnlyHint true for reads and false for writes", () => {
+  it("TC-14: answers TOOLS's own eighteen entries in order, with readOnlyHint true for reads and destructiveHint true for deletes", () => {
     const result = listMcpTools()
 
-    expect(result).toHaveLength(15)
-    expect(result.map((tool) => tool.name)).toEqual(AGENT_TOOLS.map((tool) => tool.name))
+    expect(result).toHaveLength(18)
+    expect(result.map((tool) => tool.name)).toEqual(TOOLS.map((tool) => tool.name))
 
-    AGENT_TOOLS.forEach((tool, index) => {
+    TOOLS.forEach((tool, index) => {
       expect(result[index]).toEqual({
         name: tool.name,
         description: tool.description,
         inputSchema: tool.inputSchema,
-        annotations: {readOnlyHint: tool.mode === "read"},
+        annotations: {readOnlyHint: tool.mode === "read", destructiveHint: tool.mode === "delete"},
       })
     })
   })

@@ -1,5 +1,4 @@
 // @ts-nocheck
-import {nanoid} from "nanoid"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
 import {planTaskMoveByOrder, planTaskUpdate} from "@daily/protocol"
@@ -10,6 +9,7 @@ import {TaskModel} from "@core/storage/models/TaskModel"
 import {TaskEventsService} from "@core/storage/services/TaskEventsService"
 import {TasksService} from "@core/storage/services/TasksService"
 import {createTestDatabase} from "../../helpers/db"
+import {makeTaskInput} from "../../helpers/storageControllerHarness"
 
 /**
  * The cross-check phase 1 promises: the pure rule and the real storage core, run over the same
@@ -36,25 +36,6 @@ vi.mock("../../../src/utils/logger", () => ({
 vi.mock("../../../src/config/env", () => ({ENV: {isDev: false}}))
 
 vi.mock("@daily/protocol", async (importOriginal) => ({...(await importOriginal()), WINDOWS_CONFIG: {main: {width: 800, height: 600}}}))
-
-function makeTaskInput(overrides = {}) {
-  return {
-    id: nanoid(),
-    status: "active",
-    content: "Task",
-    minimized: false,
-    orderIndex: 1024,
-    scheduled: {date: "2026-03-24", time: "", timezone: "UTC"},
-    estimatedTime: 0,
-    spentTime: 0,
-    branchId: "main",
-    milestoneId: null,
-    tags: [],
-    attachments: [],
-    deletedAt: null,
-    ...overrides,
-  }
-}
 
 function applyPatch(task, patch) {
   return patch ? {...task, ...patch} : task

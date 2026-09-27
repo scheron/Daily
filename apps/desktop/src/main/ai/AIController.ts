@@ -4,6 +4,7 @@ import {logger} from "@daily/core"
 import {AsyncMutex, deepMerge, isArray, isBoolean, isNull, isNullish, isNumber, isObject, isString, LRU, notNull, notUndefined} from "@daily/std"
 
 import {UNLOAD_MODEL_TIME} from "@shared/constants/ai"
+import {NonRetryableError} from "@shared/errors/ai/NonRetryableError"
 import {filterThinkBlocks} from "./utils/filterThinkBlocks"
 import {redactAiMessagesForLog} from "./utils/logs/redactAiMessagesForLog"
 import {redactToolParamsForLog} from "./utils/logs/redactToolParamsForLog"
@@ -17,12 +18,10 @@ import {describeToolCall} from "./policy/describeToolCall"
 import {createPolicyHook} from "./policy/policyHook"
 import {DEFAULT_CONFIRMATION_TIMEOUT_MS} from "./policy/types"
 import {getSystemPrompt} from "./promts/getSystemPrompt"
-import {getSystemPromptCompact} from "./promts/getSystemPromptCompact"
-import {getSystemPromptTiny} from "./promts/getSystemPromptTiny"
 import {getWebAccessPrompt} from "./promts/getWebAccessPrompt"
 import {parseCompatToolCalls, toolsToCompatPrompt} from "./tools/compat"
-import {toModelToolMessage, toRendererToolCall} from "./tools/format"
-import {AI_TOOLS, AI_TOOLS_COMPACT} from "./tools/registry"
+import {toModelImageMessage, toModelToolMessage, toPersistableToolResult, toRendererToolCall} from "./tools/format"
+import {AI_TOOLS} from "./tools/registry"
 import {toolEventLabel} from "./tools/toolEventLabel"
 import {ToolExecutor} from "./tools/ToolExecutor"
 import {TurnBuilder} from "./turns/TurnBuilder"
@@ -53,8 +52,6 @@ type AIControllerDeps = {
   localClient?: LocalAiClient
   executor?: ToolExecutor
 }
-
-type PromptTier = "tiny" | "medium" | "large"
 
 export class AIController {
   private openaiClient: RemoteAiClient
@@ -94,13 +91,7 @@ export class AIController {
     await this.localClient.modelService.init()
     await this.updateConfig(config)
     this.hooks.registerBeforeToolCall(createPolicyHook(this))
-    // Compaction hook uses conservative defaults that fit the largest tier;
-    // smaller tiers tolerate it because compaction only kicks in once the
-    // threshold is exceeded.
     this.hooks.registerTransformContext(this.compactor.makeHook({threshold: 30, keepLastMessages: 16}))
-    // Restore in-memory conversation history + compactor summary from the
-    // persisted active session, so the first turn after app start has full
-    // context (the renderer hydrates from the same source via aiStore).
     try {
       const turns = await this.storage.getActiveAiSessionTurns(50)
       this.compactor.refresh(turns)
@@ -164,8 +155,6 @@ export class AIController {
       const newAi = {...(this.config ?? {}), local: {...(this.config?.local ?? {}), model: null}}
       this.config = newAi as unknown as typeof this.config
       await this.storage.saveSettings({ai: newAi as any})
-      // Propagate the cleared model to clients so subsequent checkConnection
-      // calls don't try to start the just-deleted model.
       this.localClient.updateConfig(this.config)
       this.openaiClient.updateConfig(this.config)
     }
@@ -253,12 +242,9 @@ export class AIController {
    * or the timer fires. Resolves to `true` on confirm, `false` otherwise.
    */
   async awaitConfirmation(toolName: string, params: unknown): Promise<boolean> {
-    // Defensive: clear any stale pending confirmation. The mutex ordinarily
-    // prevents two confirmations from coexisting, but a stuck timer or a
-    // re-entrant test could leave one behind.
     this.resolvePendingConfirmation(false)
 
-    const description = describeToolCall(toolName, params)
+    const description = await describeToolCall(toolName, params, this.storage)
     const id = nanoid()
     const createdAt = Date.now()
 
@@ -339,18 +325,15 @@ export class AIController {
 
       let iterations = 0
       const maxIterations = 10
-      const promptTier = this.resolvePromptTier(config)
       const compatMode = this.isCompatMode(config)
       this.currentWebAccess = config.webAccess
       this.currentWebReadBudget = computeWebReadBudget(this.resolveContextTokens(config))
-      const toolChoice = compatMode ? undefined : this.resolveToolChoice(promptTier, config)
-      const baseSystemPrompt = this.getSystemPromptByTier(promptTier)
-      const baseSystemPromptWithWeb = `${baseSystemPrompt}\n\n${getWebAccessPrompt()}`
-      const tools = this.getToolsForTier(promptTier)
+      const toolChoice = compatMode ? undefined : this.resolveToolChoice(config)
+      const baseSystemPromptWithWeb = `${getSystemPrompt()}\n\n${getWebAccessPrompt()}`
+      const tools = AI_TOOLS
       this.currentToolSchemas = new Map(tools.map((tool) => [tool.function.name, tool.function.parameters]))
       const systemPrompt = compatMode ? `${baseSystemPromptWithWeb}\n\n${toolsToCompatPrompt(tools)}` : baseSystemPromptWithWeb
       logger.info(logger.CONTEXT.AI, "Agent loop config", {
-        tier: promptTier,
         toolChoice,
         compatMode,
         provider: config.provider,
@@ -381,15 +364,10 @@ export class AIController {
         let reasoningStartedAt: number | null = null
         let reasoningEndedAt: number | null = null
 
-        const response = await this.callLLM(messages, promptTier, toolChoice, compatMode, {
+        const response = await this.callLLM(messages, toolChoice, compatMode, {
           onDelta: (d) => {
             const now = Date.now()
             if (d.kind === "reasoning") {
-              // Small local (compat) models often emit verbose, hallucinated
-              // chain-of-thought. Suppress it from the UI and from the
-              // persisted reasoning text — the global "Thinking..." spinner
-              // is enough feedback. Reasoning panels are reserved for
-              // remote / large models where the chain is actually useful.
               if (compatMode) return
               if (isNull(reasoningStartedAt)) reasoningStartedAt = now
               iterReasoning.push(d.text)
@@ -415,7 +393,7 @@ export class AIController {
         if (response.usage) turn.recordUsage(response.usage)
 
         if (compatMode) {
-          const {toolCalls: parsedCalls, remainingContent} = parseCompatToolCalls(assistantMessage.content)
+          const {toolCalls: parsedCalls, remainingContent} = parseCompatToolCalls(this.assistantTextOf(assistantMessage) || null)
           if (parsedCalls.length > 0) {
             assistantMessage = {
               ...assistantMessage,
@@ -454,12 +432,9 @@ export class AIController {
           })
 
           let respondTextForTurn: string | null = null
+          const imageMessagesForRound: MessageLLM[] = []
 
           for (const toolCall of assistantMessage.tool_calls) {
-            // The `respond` tool is the agent's user-facing communication
-            // channel. The loop intercepts it: no hook, no executor, no
-            // history of a real tool result. The text becomes the final
-            // message and the outer loop breaks after this iteration.
             if (toolCall.function.name === "respond") {
               const args = toolCall.function.arguments
               const params = typeof args === "object" && notNull(args) ? (args as Record<string, unknown>) : {}
@@ -473,7 +448,7 @@ export class AIController {
               const synthetic: ToolResult = {success: true, summary: text}
               this.conversationHistory.push({
                 role: "tool",
-                content: toModelToolMessage(synthetic),
+                content: toModelToolMessage(toolCall.function.name, synthetic),
                 tool_call_id: toolCall.id,
               })
               respondTextForTurn = text
@@ -525,7 +500,7 @@ export class AIController {
               type: "tool_result",
               toolCallId: toolCall.id,
               toolName: toolCall.function.name,
-              result: toolResult,
+              result: toPersistableToolResult(toolCall.function.name, toolResult),
             })
             this.emit({
               type: "tool_finished",
@@ -539,10 +514,14 @@ export class AIController {
             toolCalls.push(toRendererToolCall(toolCall.function.name, toolResult))
             this.conversationHistory.push({
               role: "tool",
-              content: toModelToolMessage(toolResult),
+              content: toModelToolMessage(toolCall.function.name, toolResult),
               tool_call_id: toolCall.id,
             })
+            const imageMessage = toModelImageMessage(toolCall.function.name, toolResult)
+            if (imageMessage) imageMessagesForRound.push(imageMessage)
           }
+
+          this.conversationHistory.push(...imageMessagesForRound)
 
           if (notNull(respondTextForTurn)) {
             logger.info(logger.CONTEXT.AI, "Agent loop ended via respond", {
@@ -553,11 +532,7 @@ export class AIController {
             break
           }
         } else {
-          // Plain-content reply path. For tiny-tier (tool_choice="auto") this
-          // is the EXPECTED way the model signals "I'm done, here is the
-          // answer". For medium/large tiers this only happens when a backend
-          // ignores tool_choice="required" — still usable as fallback.
-          const rawContent = assistantMessage.content ?? ""
+          const rawContent = this.assistantTextOf(assistantMessage)
           finalContent = filterThinkBlocks(rawContent)
           logger.info(logger.CONTEXT.AI, "Agent loop ended via fallback content (no tool calls)", {
             iteration: iterations,
@@ -689,9 +664,6 @@ export class AIController {
         model: config.provider === "local" ? config.local?.model : config.openai?.model,
       }
       await this.storage.appendAiTurn(turn.snapshot(), meta)
-      // Refresh the compactor summary after a successful append so the next
-      // turn's TransformContextHook reflects the latest history. Failures
-      // here are non-fatal — compaction is best-effort.
       try {
         const turns = await this.storage.getActiveAiSessionTurns(50)
         this.compactor.refresh(turns)
@@ -703,21 +675,9 @@ export class AIController {
     }
   }
 
-  private getSystemPromptByTier(tier: PromptTier): string {
-    if (tier === "tiny") return getSystemPromptTiny()
-    if (tier === "medium") return getSystemPromptCompact()
-    return getSystemPrompt()
-  }
-
   /**
-   * Tier-aware tool_choice. Strong models (medium / large) are forced to use
-   * a tool every turn so every reply flows through the `respond` envelope —
-   * makes structured output reliable. Tiny models (Qwen3-4B Q4 etc.) collapse
-   * under that load: they have to keep the JSON wrapper coherent while also
-   * generating the answer, which frequently triggers repetition loops mid-
-   * generation. For tiny we drop to "auto" and rely on the system prompt to
-   * guide tool usage; plain-text replies fall through the fallback branch
-   * in `sendMessage`.
+   * The model is forced to use a tool every turn so every reply flows through
+   * the `respond` envelope — makes structured output reliable.
    *
    * Thinking-mode remote models (DeepSeek-Reasoner, DeepSeek-V4-Flash,
    * OpenAI o-series, QwQ, etc.) reject `tool_choice="required"` with
@@ -725,8 +685,7 @@ export class AIController {
    * once chain-of-thought is active. Detect them by model name and fall
    * back to `auto`.
    */
-  private resolveToolChoice(tier: PromptTier, config: AIConfig | null): ToolChoice {
-    if (tier === "tiny") return "auto"
+  private resolveToolChoice(config: AIConfig | null): ToolChoice {
     if (this.isRemoteThinkingModel(config)) return "auto"
     return "required"
   }
@@ -742,39 +701,6 @@ export class AIController {
     return this.REASONING_MODEL_PATTERNS.some((pattern) => pattern.test(modelName))
   }
 
-  private tierToPromptTier(tier: "fast" | "balanced" | "quality"): PromptTier {
-    if (tier === "fast") return "tiny"
-    if (tier === "balanced") return "medium"
-    return "large"
-  }
-
-  private resolvePromptTier(config: AIConfig | null): PromptTier {
-    if (config?.provider === "local") {
-      const modelId = config.local?.model
-      if (!modelId) return "medium"
-      const entry = this.localClient.modelService.getEntry(modelId)
-      if (!entry) return "medium"
-      return this.tierToPromptTier(entry.tier)
-    }
-
-    const modelName = config?.openai?.model?.toLowerCase() ?? ""
-    if (!modelName) return "large"
-
-    if (modelName.includes("nano")) return "tiny"
-    if (modelName.includes("mini") || modelName.includes("small")) return "medium"
-
-    const sizeMatch = modelName.match(/(\d+(?:\.\d+)?)b/)
-    if (sizeMatch) {
-      const sizeB = Number(sizeMatch[1])
-      if (!Number.isNaN(sizeB)) {
-        if (sizeB <= 4) return "tiny"
-        if (sizeB <= 14) return "medium"
-      }
-    }
-
-    return "large"
-  }
-
   private resolveContextTokens(config: AIConfig): number | null {
     if (config.provider !== "local") return null
     const override = config.local?.params?.ctx
@@ -787,15 +713,56 @@ export class AIController {
 
   private async callLLM(
     messages: MessageLLM[],
-    promptTier: PromptTier,
     toolChoice: ToolChoice | undefined,
     compatMode: boolean,
     callbacks?: ChatStreamCallbacks,
   ): Promise<{message: MessageLLM; done: boolean; usage?: TokenUsage}> {
-    // In compat mode tools are described in the system prompt; we don't send
-    // them through the API and don't force tool_choice.
-    const tools = compatMode ? undefined : this.getToolsForTier(promptTier)
-    return this.activeProvider.chat(messages, tools, this.abortController?.signal, compatMode ? undefined : toolChoice, callbacks)
+    let tools: Tool[] | undefined
+    let resolvedToolChoice: ToolChoice | undefined
+    if (!compatMode) {
+      tools = AI_TOOLS
+      resolvedToolChoice = toolChoice
+    }
+
+    try {
+      return await this.activeProvider.chat(messages, tools, this.abortController?.signal, resolvedToolChoice, callbacks)
+    } catch (err) {
+      if (this.abortController?.signal.aborted) throw err
+      if (!(err instanceof NonRetryableError)) throw err
+      if (!this.isContentRejection(err)) throw err
+      if (!messages.some(this.hasImageContent)) throw err
+
+      logger.warn(logger.CONTEXT.AI, "Chat request carrying an image was rejected; retrying once without it", {
+        error: err.message,
+      })
+      const withoutImages = messages.map((m) => this.withoutImageContent(m))
+      const retried = await this.activeProvider.chat(withoutImages, tools, this.abortController?.signal, resolvedToolChoice, callbacks)
+
+      this.conversationHistory = this.conversationHistory.map((m) => this.withoutImageContent(m))
+
+      return retried
+    }
+  }
+
+  private hasImageContent(message: MessageLLM): boolean {
+    return isArray(message.content) && message.content.some((part) => part.type === "image_url")
+  }
+
+  private isContentRejection(err: NonRetryableError): boolean {
+    const status = err.status
+    if (status === undefined || status < 400 || status >= 500) return false
+    return ![401, 403, 408, 429].includes(status)
+  }
+
+  private withoutImageContent(message: MessageLLM): MessageLLM {
+    if (!isArray(message.content)) return message
+
+    const text = message.content
+      .filter((part) => part.type === "text")
+      .map((part) => part.text)
+      .join("\n")
+
+    return {...message, content: `${text}\n(This model cannot see images.)`}
   }
 
   private isCompatMode(config: AIConfig): boolean {
@@ -806,7 +773,7 @@ export class AIController {
     return entry?.capabilities?.tools === "compat"
   }
 
-  private async executeToolCall(toolCall: ToolCallLLM): Promise<{success: boolean; data?: string; error?: string}> {
+  private async executeToolCall(toolCall: ToolCallLLM): Promise<ToolResult> {
     if (!this.executor) return {success: false, error: "Executor not initialized"}
 
     const {name, arguments: args} = toolCall.function
@@ -818,24 +785,15 @@ export class AIController {
       return {success: false, error: validationError}
     }
 
-    const result = await this.executor.execute(name as ToolName, args as any, "in-app", {
+    return this.executor.execute(name as ToolName, args as any, "in-app", {
       webRead: this.currentWebReadBudget ?? undefined,
       pageCache: this.pageCache,
     })
-    return {
-      success: result.success,
-      data: isString(result.data) ? result.data : JSON.stringify(result.data),
-      error: result.error,
-    }
-  }
-
-  private getToolsForTier(promptTier: PromptTier): Tool[] {
-    return promptTier === "large" ? AI_TOOLS : AI_TOOLS_COMPACT
   }
 
   private validateToolArguments(toolName: string, args: unknown): string | null {
     const schema = this.currentToolSchemas.get(toolName)
-    if (!schema) return `Tool '${toolName}' is not available for this model tier`
+    if (!schema) return `Tool '${toolName}' is not available`
 
     if (!args || typeof args !== "object" || isArray(args)) {
       return `Invalid arguments for '${toolName}': expected an object`
@@ -855,7 +813,8 @@ export class AIController {
 
       const typeMatches = this.isArgumentTypeValid(descriptor.type, value)
       if (!typeMatches) {
-        return `Invalid arguments for '${toolName}': '${key}' must be ${descriptor.type}`
+        const expected = isArray(descriptor.type) ? descriptor.type.join(" or ") : descriptor.type
+        return `Invalid arguments for '${toolName}': '${key}' must be ${expected}`
       }
 
       if (descriptor.enum && !descriptor.enum.includes(String(value))) {
@@ -866,12 +825,18 @@ export class AIController {
     return null
   }
 
-  private isArgumentTypeValid(expectedType: string, value: unknown): boolean {
+  private isArgumentTypeValid(expectedType: string | string[], value: unknown): boolean {
+    if (isArray(expectedType)) return expectedType.some((type) => this.isArgumentTypeValid(type, value))
+    if (expectedType === "null") return isNull(value)
     if (expectedType === "array") return isArray(value)
     if (expectedType === "number") return isNumber(value) && Number.isFinite(value)
     if (expectedType === "string") return isString(value)
     if (expectedType === "boolean") return isBoolean(value)
     if (expectedType === "object") return isObject(value)
     return true
+  }
+
+  private assistantTextOf(message: MessageLLM): string {
+    return isString(message.content) ? message.content : ""
   }
 }

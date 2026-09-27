@@ -64,8 +64,9 @@ export class TasksService {
 
     const writable = updates as Partial<TaskWritableFields>
     const milestones = this.readMilestoneScope(writable.milestoneId, [before.branchId, writable.branchId])
+    const branchId = notUndefined(writable.branchId) ? writable.branchId : before.branchId
 
-    const updated = this.applyPatches(planTaskUpdate(this.readContext(before.branchId, before, milestones), id, writable))
+    const updated = this.applyPatches(planTaskUpdate(this.readContext(branchId, before, milestones), id, writable))
 
     const after = updated.find((task) => task.id === id) ?? null
     if (after) this.taskEvents.recordUpdate(before, after, source)

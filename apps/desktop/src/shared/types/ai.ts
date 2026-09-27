@@ -57,7 +57,7 @@ export type PendingToolConfirmation = {
 /**
  * Live progress events emitted by the agent loop. The renderer subscribes
  * via `ai:on-event` to drive richer status UI ("calling LLM…", "running
- * create_task…"). Tool parameters and full LLM messages are intentionally
+ * save_task…"). Tool parameters and full LLM messages are intentionally
  * NOT included — events stay small and free of user-content leakage.
  */
 export type AIEvent =

@@ -3,7 +3,7 @@ import {mkdtempSync, rmSync} from "node:fs"
 import {readdir} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import {afterEach, beforeEach, describe, expect, it} from "vitest"
+import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
 import {FileModel} from "@core/storage/models/FileModel"
 import {LocalStorageAdapter} from "@core/storage/sync/adapters/LocalStorageAdapter"
@@ -426,6 +426,25 @@ describe("LocalStorageAdapter", () => {
         expect(await readdir(assetsDir)).not.toContain("f1.txt")
       } finally {
         rmSync(assetsDir, {recursive: true, force: true})
+      }
+    })
+
+    it("unlinks a files bytes only after its row is gone, not before", async () => {
+      insertFile(db, "f1", "file.txt")
+      const tempAssetsDir = mkdtempSync(join(tmpdir(), "local-storage-adapter-order-"))
+      try {
+        const fileModel = new FileModel(db, tempAssetsDir)
+        const rowGoneAtUnlinkTime = vi.fn()
+        vi.spyOn(fileModel, "deleteAssets").mockImplementation(async () => {
+          rowGoneAtUnlinkTime(db.prepare("SELECT * FROM files WHERE id = 'f1'").get() === undefined)
+        })
+        const adapterWithSpy = new LocalStorageAdapter(db, fileModel)
+
+        await adapterWithSpy.deleteDocs({files: ["f1"]})
+
+        expect(rowGoneAtUnlinkTime).toHaveBeenCalledWith(true)
+      } finally {
+        rmSync(tempAssetsDir, {recursive: true, force: true})
       }
     })
 

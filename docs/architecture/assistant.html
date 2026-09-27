@@ -242,10 +242,10 @@ a { color: var(--mac); }
   <rect class="box mcp" x="464" y="104" width="300" height="336" rx="12"/>
   <text class="t" x="478" y="124">AIController · agent loop</text>
   <text x="478" y="146"><tspan class="m">sendMutex</tspan>: one turn at a time</text>
-  <text x="478" y="164">tier: tiny / medium / large → prompt</text>
-  <text x="478" y="182">tools: AI_TOOLS or _COMPACT</text>
-  <text x="478" y="200">tool_choice: required (auto for tiny</text>
-  <text x="478" y="218">and reasoning models)</text>
+  <text x="478" y="164">one system prompt — no tiers</text>
+  <text x="478" y="182">tools: shared set + respond, read_url</text>
+  <text x="478" y="200">tool_choice: required (auto for</text>
+  <text x="478" y="218">reasoning models)</text>
   <text class="grp" x="478" y="244">up to 10 iterations</text>
   <text x="478" y="262">① transformContext → history</text>
   <text x="478" y="280">② LLM, streamed deltas → ai:event</text>
@@ -279,8 +279,8 @@ a { color: var(--mac); }
   <text class="t" x="478" y="484">ToolExecutor + registry</text>
   <text x="478" y="506">validateToolArguments against the schema</text>
   <text x="478" y="524"><tspan class="m">tool.execute(params, {storage, now})</tspan></text>
-  <text x="478" y="542">34 tools: tasks, tags, projects,</text>
-  <text x="478" y="560">files, day summary, web, respond</text>
+  <text x="478" y="542">20 tools: @daily/tools' 18 (read,</text>
+  <text x="478" y="560">write, delete) + respond, read_url</text>
 
   <rect class="box plain" x="784" y="464" width="200" height="110" rx="12"/>
   <text class="t" x="798" y="484">SafeWebFetcher</text>
@@ -397,7 +397,7 @@ a { color: var(--mac); }
       <div class="msg" style="--a:1;--b:2"><span class="l">ai:send-message("…")</span><i class="ln"></i><span class="d">the invoke waits for the whole turn</span></div>
     </div>
     <div class="row"><span class="num">2</span>
-      <div class="self lane-ctl" style="--a:2;--w:1.3"><b>Preparation</b><code>sendMutex.tryLock</code> (a second turn → "already processing") · <code>settings.ai.enabled</code> · tier → prompt, tool set, tool_choice · history.push(user) · <code>turn_started</code></div>
+      <div class="self lane-ctl" style="--a:2;--w:1.3"><b>Preparation</b><code>sendMutex.tryLock</code> (a second turn → "already processing") · <code>settings.ai.enabled</code> · compatMode → tool_choice · history.push(user) · <code>turn_started</code></div>
     </div>
 
     <div class="phase">iteration 1 — a read</div>
@@ -411,13 +411,13 @@ a { color: var(--mac); }
       <div class="msg rtl back" style="--a:1;--b:3"><span class="l">deltas → ai:event model_*_delta</span><i class="ln"></i><span class="d">reasoning and content stream into the window; compat mode hides reasoning</span></div>
     </div>
     <div class="row"><span class="num">6</span>
-      <div class="msg rtl back" style="--a:2;--b:3"><span class="l">tool_calls: [search_tasks]</span><i class="ln"></i></div>
+      <div class="msg rtl back" style="--a:2;--b:3"><span class="l">tool_calls: [list_tasks {search}]</span><i class="ln"></i></div>
     </div>
     <div class="row"><span class="num">7</span>
       <div class="msg" style="--a:2;--b:4"><span class="l">beforeToolCall → pass · validate · execute</span><i class="ln"></i><span class="d">a read needs no confirmation</span></div>
     </div>
     <div class="row"><span class="num">8</span>
-      <div class="msg hot" style="--a:4;--b:5"><span class="l">storage.searchTasks(…)</span><i class="ln"></i></div>
+      <div class="msg hot" style="--a:4;--b:5"><span class="l">ctx.workStorage.searchTasks(…)</span><i class="ln"></i></div>
     </div>
     <div class="row"><span class="num">9</span>
       <div class="msg rtl back" style="--a:2;--b:5"><span class="l">ToolResult → history (role: tool)</span><i class="ln"></i><span class="d">+ ai:event tool_started / tool_finished to the window</span></div>
@@ -440,7 +440,7 @@ a { color: var(--mac); }
       <div class="msg" style="--a:1;--b:2"><span class="l">ai:confirm-tool-call(id)</span><i class="ln"></i></div>
     </div>
     <div class="row"><span class="num">15</span>
-      <div class="msg hot" style="--a:2;--b:5"><span class="l">execute → storage.deleteTask(id)</span><i class="ln"></i><span class="d">the service sets deletedAt; search and relations update</span></div>
+      <div class="msg hot" style="--a:2;--b:5"><span class="l">execute → ctx.workStorage.deleteTask(id, source)</span><i class="ln"></i><span class="d">sets deletedAt; search index and relations update, one afterWrite</span></div>
     </div>
     <div class="row"><span class="num">16</span>
       <div class="self lane-db" style="--a:5"><b>notifyLocalChange</b><code>storage:changed</code> → every window (the task leaves the board) · <code>requestPush()</code> → sync</div>
@@ -463,36 +463,46 @@ a { color: var(--mac); }
 <h2>Tools, modes, comparison</h2>
 <div class="grid2">
   <div class="card">
-    <h3>34 tools</h3>
+    <h3>20 tools</h3>
     <div style="display:flex;gap:14px;font-size:12px;color:var(--muted)"><span><span class="chip x">…</span> destructive — Confirm</span><span><span class="chip e">…</span> network</span><span><span class="chip m">…</span> protocol</span></div>
     <div class="cat">tasks</div>
     <div class="chips">
-      <span class="chip">list_tasks</span><span class="chip">search_tasks</span><span class="chip">get_task</span><span class="chip">create_task</span><span class="chip">update_task</span><span class="chip">complete_task</span><span class="chip">reactivate_task</span><span class="chip">discard_task</span><span class="chip">move_task</span><span class="chip">log_time</span><span class="chip">link_tasks</span><span class="chip x">unlink_tasks</span><span class="chip x">delete_task</span><span class="chip">get_deleted_tasks</span><span class="chip">restore_task</span><span class="chip x">permanently_delete_task</span>
+      <span class="chip">list_tasks</span><span class="chip">get_task</span><span class="chip">save_task</span><span class="chip x">delete_task</span>
     </div>
-    <div class="cat">tags</div>
+    <div class="cat">comments</div>
     <div class="chips">
-      <span class="chip">list_tags</span><span class="chip">get_tag</span><span class="chip">create_tag</span><span class="chip">update_tag</span><span class="chip x">delete_tag</span><span class="chip">add_task_tags</span><span class="chip">remove_task_tags</span>
+      <span class="chip">save_comment</span><span class="chip x">delete_comment</span>
     </div>
     <div class="cat">projects</div>
     <div class="chips">
-      <span class="chip">list_projects</span><span class="chip">create_project</span><span class="chip">rename_project</span><span class="chip x">delete_project</span><span class="chip">switch_project</span><span class="chip">move_task_to_project</span>
+      <span class="chip">list_projects</span><span class="chip">save_project</span><span class="chip x">delete_project</span>
     </div>
-    <div class="cat">files · summary · web · protocol</div>
+    <div class="cat">tags</div>
     <div class="chips">
-      <span class="chip">get_task_attachments</span><span class="chip x">remove_task_attachment</span><span class="chip">get_day_summary</span><span class="chip e">read_url</span><span class="chip m">respond</span>
+      <span class="chip">list_tags</span><span class="chip">save_tag</span><span class="chip x">delete_tag</span>
     </div>
+    <div class="cat">milestones</div>
+    <div class="chips">
+      <span class="chip">list_milestones</span><span class="chip">save_milestone</span><span class="chip x">delete_milestone</span>
+    </div>
+    <div class="cat">attachments · web · protocol</div>
+    <div class="chips">
+      <span class="chip">get_attachment</span><span class="chip">save_attachment</span><span class="chip x">delete_attachment</span><span class="chip e">read_url</span><span class="chip m">respond</span>
+    </div>
+    <p style="margin:10px 0 0;color:var(--muted);font-size:13px">The 18 above (tasks through attachments) are <code>@daily/tools</code>' shared set — the same one an MCP agent runs; <code>read_url</code> and <code>respond</code> are the Assistant's own.</p>
   </div>
 
   <div class="card">
-    <h3>How the model's tier is chosen</h3>
+    <h3>How tool_choice and compat mode are chosen</h3>
     <table class="cmp">
-      <tr><th>tier</th><th>when</th><th>prompt · tools</th><th>tool_choice</th></tr>
-      <tr><td>tiny</td><td>local "fast"; remote *nano* or ≤4B</td><td>tiny · compact</td><td>auto</td></tr>
-      <tr><td>medium</td><td>local "balanced"; *mini*/*small* or ≤14B</td><td>compact · compact</td><td>required</td></tr>
-      <tr><td>large</td><td>local "quality"; any other remote</td><td>full · full</td><td>required</td></tr>
+      <tr><th>model</th><th>when</th><th>tool_choice</th></tr>
+      <tr><td>ordinary</td><td>remote, or local with native tool calls</td><td>required</td></tr>
+      <tr><td>reasoning</td><td>o-series, deepseek-r/v4+, qwq, *thinking*</td><td>auto</td></tr>
+      <tr><td>compat</td><td>local, catalog marks its tools "compat"</td><td>none — schemas go in the prompt as text</td></tr>
     </table>
     <ul style="margin-top:12px">
-      <li>Reasoning models (o-series, deepseek-r/v4+, qwq, *thinking*) reject <code>required</code>, so they get <code>auto</code>.</li>
+      <li>One system prompt and one tool set for every model — no tiers, no compact schemas, no tier-based <code>tool_choice</code>.</li>
+      <li>Reasoning models reject <code>required</code>, so they get <code>auto</code>.</li>
       <li>Compat mode is for a local model without native tool calls: the schemas go into the system prompt as text, and calls are parsed from the reply.</li>
       <li>Under <code>auto</code> the model may answer in plain text, and that is a final answer too.</li>
     </ul>
@@ -507,7 +517,7 @@ a { color: var(--mac); }
     <tr><td>reaches the work</td><td>the local <code>StorageController</code>, directly</td><td>snapshot → in-memory core → conditional write</td></tr>
     <tr><td>whose model</td><td>the one set in Daily: a remote API or llama-server</td><td>the agent's own (Claude, Codex)</td></tr>
     <tr><td>confirmation</td><td>every destructive call, 30 s</td><td>once, when it connects, with a code on a Mac</td></tr>
-    <tr><td>tools</td><td>34, including <code>read_url</code> and <code>respond</code></td><td>11: 6 reads, 5 writes</td></tr>
+    <tr><td>tools</td><td>20: the shared 18 plus <code>read_url</code> and <code>respond</code></td><td>the same shared 18: 6 reads, 6 writes, 6 deletes</td></tr>
     <tr><td>history</td><td><code>ai_sessions</code> in local SQLite, not synced</td><td>kept by the agent</td></tr>
     <tr><td>available</td><td>while the Mac is on and Daily is open</td><td>whenever the server is up</td></tr>
   </table>
@@ -516,10 +526,11 @@ a { color: var(--mac); }
 <div class="card" style="margin-top:16px">
   <h3>Where it lives in the code</h3>
   <table class="files">
-    <tr><td>apps/desktop/src/main/ai/AIController.ts</td><td>the <code>sendMessage</code> loop, tier, tool_choice, confirmations, persistTurn</td></tr>
+    <tr><td>apps/desktop/src/main/ai/AIController.ts</td><td>the <code>sendMessage</code> loop, tool_choice, confirmations, persistTurn</td></tr>
     <tr><td>apps/desktop/src/main/ai/hooks/</td><td>HookChain: transformContext, before/afterToolCall</td></tr>
     <tr><td>apps/desktop/src/main/ai/policy/</td><td>policyHook, describeToolCall for the card, the 30 s timeout</td></tr>
-    <tr><td>apps/desktop/src/main/ai/tools/</td><td>registry (34 tools), ToolExecutor, the compat parser</td></tr>
+    <tr><td>apps/desktop/src/main/ai/tools/</td><td>registry/ (20 tools: <code>@daily/tools</code> wrapped + <code>respond</code>, <code>read_url</code>), ToolExecutor.ts, compat.ts (the compat parser)</td></tr>
+    <tr><td>packages/tools/</td><td>the shared 18 tools, run the same way by an MCP agent</td></tr>
     <tr><td>apps/desktop/src/main/ai/clients/</td><td>OpenAiCompatibleClient, RemoteAiClient, LocalAiClient + LlamaServer</td></tr>
     <tr><td>apps/desktop/src/main/ai/memory/</td><td>ConversationCompactor, restoring history at startup</td></tr>
     <tr><td>apps/desktop/src/main/ai/web/</td><td>SafeWebFetcher, read limits, the untrusted wrapper</td></tr>

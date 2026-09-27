@@ -5,7 +5,6 @@ import {runMigrations} from "../../src/storage/database/scripts/migrate"
 
 import type {SqliteDriver, SqliteParam, SqliteRunResult} from "../../src/database/SqliteDriver"
 
-/** An in-memory, fully migrated database behind the driver port, built on better-sqlite3. */
 export function createTestDatabase(): SqliteDriver {
   const db = new Database(":memory:")
 
@@ -25,6 +24,9 @@ export function createTestDatabase(): SqliteDriver {
     pragma: (statement: string) => void db.pragma(statement),
     transaction: <T>(fn: () => T) => db.transaction(fn),
     close: () => void db.close(),
+    get inTransaction() {
+      return db.inTransaction
+    },
   }
 
   runMigrations(driver)

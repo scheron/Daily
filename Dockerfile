@@ -15,6 +15,7 @@ COPY apps/server/package.json ./apps/server/package.json
 COPY packages/core/package.json ./packages/core/package.json
 COPY packages/protocol/package.json ./packages/protocol/package.json
 COPY packages/std/package.json ./packages/std/package.json
+COPY packages/tools/package.json ./packages/tools/package.json
 RUN pnpm install --frozen-lockfile --ignore-scripts
 
 COPY LICENSE ./
@@ -23,6 +24,7 @@ COPY apps/server ./apps/server
 COPY packages/core ./packages/core
 COPY packages/protocol ./packages/protocol
 COPY packages/std ./packages/std
+COPY packages/tools ./packages/tools
 
 ARG DAILY_SERVER_PACKAGE_VERSION
 ENV DAILY_SERVER_PACKAGE_VERSION=${DAILY_SERVER_PACKAGE_VERSION}

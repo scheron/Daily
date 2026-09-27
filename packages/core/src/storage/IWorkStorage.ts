@@ -23,8 +23,22 @@ import type {Changeset} from "../types/storage"
  * own broadcast as the after-write callback, and the server builds one per call over its snapshot
  * core with an empty callback. A project change — whether named through `moveTaskToBranch` or
  * carried in `updateTask`'s own `branchId` — always keeps the task's comments with it.
+ *
+ * Deliberately missing: `permanentlyDeleteTask`, `permanentlyDeleteAllDeletedTasks`,
+ * `cleanupOrphanFiles`. No shared tool hard-deletes anything, and on the server the snapshot
+ * core's assets directory is the live `AssetStore` — a tool reaching `cleanupOrphanFiles` there
+ * would unlink assets with no snapshot row to protect them. The `WorkStorage` class still carries
+ * all three, for `StorageController`'s own desktop-only callers.
  */
 export interface IWorkStorage {
+  /**
+   * Runs `fn`'s writes as one transaction: the search index and `afterWrite` see their merged
+   * changeset exactly once, on success; a thrown error leaves both untouched and rethrows. A
+   * `batch` already open when this one starts is joined, not nested. `fn` may only call this
+   * interface's own writes — no real async I/O belongs inside it.
+   */
+  batch<T>(fn: () => Promise<T>): Promise<T>
+
   getTaskList(params?: {
     from?: string
     to?: string
@@ -45,8 +59,6 @@ export interface IWorkStorage {
   moveTaskToBranch(taskId: Task["id"], branchId: Branch["id"], source?: ActorSource): Promise<Changeset>
   restoreTask(id: Task["id"], source?: ActorSource): Promise<Changeset>
   deleteTask(id: Task["id"], source?: ActorSource): Promise<Changeset>
-  permanentlyDeleteTask(id: Task["id"]): Promise<boolean>
-  permanentlyDeleteAllDeletedTasks(branchId: Branch["id"]): Promise<number>
 
   getRelationList(): Promise<TaskRelation[]>
   getRelationsOfTask(taskId: Task["id"]): Promise<{blockedBy: Task[]; blocks: Task[]}>
@@ -77,6 +89,8 @@ export interface IWorkStorage {
 
   getFiles(fileIds: File["id"][]): Promise<File[]>
   getFilePath(id: File["id"]): string
+  /** The absolute path of `id`'s stored asset on this Mac's disk, or null when the file is unknown or its bytes are missing. */
+  resolveAssetPath(id: File["id"]): Promise<string | null>
   prepareFile(filename: string, data: Buffer): Promise<{file: File; ext: string}>
   writeFileAsset(fileId: File["id"], ext: string, data: Buffer): Promise<void>
   deleteFile(fileId: File["id"]): Promise<boolean>

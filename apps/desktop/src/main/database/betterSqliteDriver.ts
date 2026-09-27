@@ -39,5 +39,8 @@ export function createBetterSqliteDriver(dbPath: string): SqliteDriver {
     pragma: (statement: string) => void db.pragma(statement),
     transaction: <T>(fn: () => T) => db.transaction(fn),
     close: () => void db.close(),
+    get inTransaction() {
+      return db.inTransaction
+    },
   }
 }

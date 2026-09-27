@@ -54,9 +54,6 @@ export type RegisteredTool<TParams = Record<string, unknown>> = {
    * cache-hit can be detected without a module-global.
    */
   willEgress?(params: TParams, pageCache: LRU<string, CachedPage>): boolean
-  /** Optional compact metadata for smaller models (medium/tiny prompt tiers). */
-  compactDescription?: string
-  compactParameters?: ToolParameters
 
   execute(params: TParams, ctx: ToolExecutionContext): Promise<ToolResult>
 }

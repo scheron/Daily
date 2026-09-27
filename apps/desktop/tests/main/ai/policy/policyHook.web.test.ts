@@ -54,8 +54,8 @@ describe("policy hook — external egress", () => {
 })
 
 describe("describeToolCall — read_url", () => {
-  it("shows the host in the summary and the full URL in details", () => {
-    const d = describeToolCall("read_url", {url: "https://example.com/x?d=secret"})
+  it("shows the host in the summary and the full URL in details", async () => {
+    const d = await describeToolCall("read_url", {url: "https://example.com/x?d=secret"}, {} as any)
     expect(d.title).toMatch(/web page/i)
     expect(d.summary).toContain("example.com")
     expect(d.details?.[0]).toContain("https://example.com/x?d=secret")

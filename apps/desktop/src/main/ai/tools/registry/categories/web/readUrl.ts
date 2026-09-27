@@ -39,6 +39,7 @@ export const readUrl: RegisteredTool = {
       },
     },
     required: ["url"],
+    additionalProperties: false,
   },
   isWrite: false,
   isDestructive: false,

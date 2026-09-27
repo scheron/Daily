@@ -4,7 +4,10 @@
  * circuit retry on permanent failures (4xx, auth, etc.).
  */
 export class NonRetryableError extends Error {
-  constructor(message: string) {
+  constructor(
+    message: string,
+    readonly status?: number,
+  ) {
     super(message)
     this.name = "NonRetryableError"
   }

@@ -51,6 +51,7 @@
     "@daily/core": "workspace:*",
     "@daily/protocol": "workspace:*",
     "@daily/std": "workspace:*",
+    "@daily/tools": "workspace:*",
     "@floating-ui/vue": "^1.1.6",
     "@isaacs/ttlcache": "^2.1.5",
     "@lezer/highlight": "^1.2.3",

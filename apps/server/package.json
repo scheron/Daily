@@ -29,6 +29,7 @@
     "@daily/core": "workspace:*",
     "@daily/protocol": "workspace:*",
     "@daily/std": "workspace:*",
+    "@daily/tools": "workspace:*",
     "better-sqlite3": "^12.8.0",
     "commander": "^15.0.0",
     "fs-extra": "^11.3.0",

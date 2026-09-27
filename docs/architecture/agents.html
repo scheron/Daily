@@ -152,6 +152,7 @@ svg .head.hot { fill: var(--snap); }
 .chip { font-family: var(--mono); font-size: 12px; padding: 3px 9px; border-radius: 999px; border: 1.2px solid var(--c); background: var(--cs); }
 .chip.r { --c: var(--mcp); --cs: var(--mcp-soft); }
 .chip.w { --c: var(--snap); --cs: var(--snap-soft); }
+.chip.d { --c: var(--agent); --cs: var(--agent-soft); }
 table.files { width: 100%; border-collapse: collapse; font-size: 13px; }
 table.files td { padding: 6px 8px; border-top: 1px solid var(--line); vertical-align: top; }
 table.files td:first-child { font-family: var(--mono); font-size: 12px; white-space: nowrap; color: var(--muted); }
@@ -502,17 +503,22 @@ a { color: var(--mac); }
 <div class="grid3">
   <div class="card">
     <h3>Agent tools</h3>
-    <div style="color:var(--muted);font-size:12px">read — one attempt, no write</div>
+    <div style="color:var(--muted);font-size:12px">read — one attempt, no write, <code>readOnlyHint: true</code></div>
     <div class="chips">
       <span class="chip r">list_tasks</span><span class="chip r">get_task</span><span class="chip r">get_attachment</span>
       <span class="chip r">list_projects</span><span class="chip r">list_milestones</span><span class="chip r">list_tags</span>
     </div>
     <div style="color:var(--muted);font-size:12px">write — mutex, up to 3 attempts</div>
     <div class="chips">
-      <span class="chip w">save_task</span><span class="chip w">delete_task</span><span class="chip w">save_project</span>
-      <span class="chip w">save_milestone</span><span class="chip w">save_tag</span>
+      <span class="chip w">save_task</span><span class="chip w">save_project</span><span class="chip w">save_milestone</span>
+      <span class="chip w">save_tag</span><span class="chip w">save_comment</span><span class="chip w">save_attachment</span>
     </div>
-    <p style="margin:0;color:var(--muted);font-size:13px">A fixed set: <code>AGENT_TOOLS</code> = READ_TOOLS + WRITE_TOOLS. Attachments are read from <code>assets/</code> on the server.</p>
+    <div style="color:var(--muted);font-size:12px">delete — soft, mutex, <code>destructiveHint: true</code></div>
+    <div class="chips">
+      <span class="chip d">delete_task</span><span class="chip d">delete_project</span><span class="chip d">delete_milestone</span>
+      <span class="chip d">delete_tag</span><span class="chip d">delete_comment</span><span class="chip d">delete_attachment</span>
+    </div>
+    <p style="margin:0;color:var(--muted);font-size:13px">One set of 18, defined once in <code>@daily/tools</code> and shared with the Assistant (ADR 0006). Attachments are read from <code>assets/</code> on the server.</p>
   </div>
 
   <div class="card">
@@ -540,7 +546,8 @@ a { color: var(--mac); }
     <tr><td>apps/server/src/http/routes/mcp.ts</td><td>Origin, Bearer, <code>verifyAgentAccessToken</code>, <code>touchAgent</code> → <code>handleMcpRequest</code></td></tr>
     <tr><td>apps/server/src/agents/mcp/handleMcpRequest.ts</td><td>JSON-RPC, two MCP generations, tools/list, tools/call</td></tr>
     <tr><td>apps/server/src/agents/AgentWorkspace.ts</td><td>snapshot → in-memory core → tool.run → conditional write, mutex and retries</td></tr>
-    <tr><td>apps/server/src/agents/tools/</td><td>read/ and write/ tools, <code>findAgentTool</code></td></tr>
+    <tr><td>packages/tools/</td><td>the shared read/write/delete tools, <code>findTool</code> — also run by the Assistant</td></tr>
+    <tr><td>apps/server/src/agents/runAgentTool.ts</td><td><code>findTool</code> → <code>tool.run</code>, coded into an <code>AgentToolOutcome</code></td></tr>
     <tr><td>apps/server/src/http/routes/oauthAuthorize.ts</td><td>/oauth/authorize, /oauth/consent and the consent pages' HTML</td></tr>
     <tr><td>apps/server/src/agents/oauth/</td><td>CIMD clients, authorization codes, rotating tokens</td></tr>
     <tr><td>apps/server/src/agents/AgentStore.ts</td><td>Agent window, requests, approve/deny, list, revoke</td></tr>

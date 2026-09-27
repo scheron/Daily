@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-**Daily** ships as a pnpm workspace of five packages: the app (`apps/desktop`), the sync server (`apps/server`), and three Electron-free shared packages (`packages/core`, `packages/protocol`, `packages/std`). The app is a local-first macOS task manager — Electron main + Vue 3 renderer, built on `packages/core`'s storage core (`packages/core/src/storage/createStorageCore.ts`). SQLite is the source of truth; sync is local-first multi-remote (off, iCloud, or a self-hosted server) with Last-Write-Wins.
+**Daily** ships as a pnpm workspace of six packages: the app (`apps/desktop`), the sync server (`apps/server`), and four Electron-free shared packages (`packages/core`, `packages/protocol`, `packages/std`, `packages/tools`). The app is a local-first macOS task manager — Electron main + Vue 3 renderer, built on `packages/core`'s storage core (`packages/core/src/storage/createStorageCore.ts`). SQLite is the source of truth; sync is local-first multi-remote (off, iCloud, or a self-hosted server) with Last-Write-Wins. `packages/tools` holds the one tool set agents (over MCP) and the Daily Assistant both run, over `packages/core`'s `WorkStorage`.
 
 ## Commands
 
@@ -36,7 +36,7 @@ pnpm check:all           # lint + typecheck:all + circular + test
 
 - **Layers:** Model (SQLite CRUD, `_rowMappers` maps snake_case↔camelCase) → Service (business logic) → Controller (`StorageController`) → IPC → renderer store → component.
 - **Renderer↔main is exclusively `window.BridgeIPC`** (preload + contextBridge). No fs/electron in the renderer.
-- **AI** (`apps/desktop/src/main/ai/`): agent loop with `Before/AfterToolCall` hooks; destructive tools suspend for user confirmation; only the `respond` tool is user-visible.
+- **AI** (`apps/desktop/src/main/ai/`): agent loop with `Before/AfterToolCall` hooks, running `@daily/tools`' shared tool set plus its own `respond` and `read_url`; delete tools suspend for user confirmation; only the `respond` tool is user-visible.
 
 ## Conventions (enforced)
 

@@ -9,7 +9,7 @@ describe("EVAL: cancel mid-turn rolls back cleanly", () => {
     const {ctrl} = await makeFixture()
     vi.spyOn((ctrl as any).executor, "execute").mockResolvedValue({success: true})
     scriptedChat(ctrl as any, [
-      callTool("c1", "delete_task", {task_id: "abc"}),
+      callTool("c1", "delete_task", {id: "abc"}),
       // Second iteration aborts because cancel() also fires AbortController.
       {throws: Object.assign(new Error("aborted"), {name: "AbortError"})},
     ])

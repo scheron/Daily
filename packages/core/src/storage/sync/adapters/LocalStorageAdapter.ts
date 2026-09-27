@@ -262,7 +262,12 @@ export class LocalStorageAdapter implements ILocalStorage {
     comments?: string[]
     files?: string[]
   }): Promise<void> {
-    if (ids.files?.length) await this.fileModel.deleteAssetsByFileIds(ids.files)
+    const fileRows = ids.files?.length
+      ? (this.db.prepare(`SELECT id, name FROM files WHERE id IN (${ids.files.map(() => "?").join(", ")})`).all(...ids.files) as {
+          id: string
+          name: string
+        }[])
+      : []
 
     const transaction = this.db.transaction(() => {
       if (ids.tasks?.length) {
@@ -328,6 +333,8 @@ export class LocalStorageAdapter implements ILocalStorage {
     })
 
     transaction()
+
+    if (fileRows.length) await this.fileModel.deleteAssets(fileRows)
   }
 
   private _loadTasks(): SnapshotTask[] {

@@ -21,33 +21,33 @@ describe("policyHook", () => {
   it("calls awaitConfirmation for a destructive tool and passes on true", async () => {
     const host = {awaitConfirmation: vi.fn(async () => true)}
     const hook = createPolicyHook(host)
-    const d = await hook(ctx, call("delete_task", {task_id: "abc"}))
-    expect(host.awaitConfirmation).toHaveBeenCalledWith("delete_task", {task_id: "abc"})
+    const d = await hook(ctx, call("delete_task", {id: "abc"}))
+    expect(host.awaitConfirmation).toHaveBeenCalledWith("delete_task", {id: "abc"})
     expect(d).toEqual({action: "pass"})
   })
 
   it("skips with a user-facing reason when confirmation returns false", async () => {
     const host = {awaitConfirmation: vi.fn(async () => false)}
     const hook = createPolicyHook(host)
-    const d = await hook(ctx, call("delete_task", {task_id: "abc"}))
+    const d = await hook(ctx, call("delete_task", {id: "abc"}))
     expect(d.action).toBe("skip")
     expect((d as any).reason).toMatch(/declin|cancel/i)
   })
 
-  it("suspends delete_task_comment on confirmation the same way delete_task does, and writing one passes straight through", async () => {
+  it("suspends delete_comment on confirmation the same way delete_task does, and writing one passes straight through", async () => {
     const host = {awaitConfirmation: vi.fn(async () => true)}
     const hook = createPolicyHook(host)
 
-    const deleted = await hook(ctx, call("delete_task_comment", {comment_id: "c1"}))
-    expect(host.awaitConfirmation).toHaveBeenCalledWith("delete_task_comment", {comment_id: "c1"})
+    const deleted = await hook(ctx, call("delete_comment", {id: "c1"}))
+    expect(host.awaitConfirmation).toHaveBeenCalledWith("delete_comment", {id: "c1"})
     expect(deleted).toEqual({action: "pass"})
 
     const declining = {awaitConfirmation: vi.fn(async () => false)}
-    const declined = await createPolicyHook(declining)(ctx, call("delete_task_comment", {comment_id: "c1"}))
+    const declined = await createPolicyHook(declining)(ctx, call("delete_comment", {id: "c1"}))
     expect(declined.action).toBe("skip")
 
     host.awaitConfirmation.mockClear()
-    const written = await hook(ctx, call("save_task_comment", {task_id: "t1", content: "note"}))
+    const written = await hook(ctx, call("save_comment", {taskId: "t1", content: "note"}))
     expect(written).toEqual({action: "pass"})
     expect(host.awaitConfirmation).not.toHaveBeenCalled()
   })
@@ -63,8 +63,8 @@ describe("policyHook", () => {
   it("parses string arguments before forwarding to host", async () => {
     const host = {awaitConfirmation: vi.fn(async () => true)}
     const hook = createPolicyHook(host)
-    await hook(ctx, {id: "c1", type: "function", function: {name: "delete_task", arguments: '{"task_id":"abc"}'}})
-    expect(host.awaitConfirmation).toHaveBeenCalledWith("delete_task", {task_id: "abc"})
+    await hook(ctx, {id: "c1", type: "function", function: {name: "delete_task", arguments: '{"id":"abc"}'}})
+    expect(host.awaitConfirmation).toHaveBeenCalledWith("delete_task", {id: "abc"})
   })
 
   it("treats unparseable arguments as an empty object", async () => {

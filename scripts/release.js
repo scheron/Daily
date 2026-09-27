@@ -13,7 +13,7 @@ const ARTIFACTS = {
     tagPrefix: "v",
     commitPrefix: "release: v",
     hasChangelog: true,
-    paths: ["apps/desktop", "packages/core", "packages/protocol", "packages/std"],
+    paths: ["apps/desktop", "packages/core", "packages/protocol", "packages/std", "packages/tools"],
   },
   server: {
     label: "server",
@@ -21,7 +21,7 @@ const ARTIFACTS = {
     tagPrefix: "server-v",
     commitPrefix: "release: server-v",
     hasChangelog: false,
-    paths: ["apps/server", "packages/core", "packages/protocol", "packages/std", "Dockerfile", "deploy"],
+    paths: ["apps/server", "packages/core", "packages/protocol", "packages/std", "packages/tools", "Dockerfile", "deploy"],
   },
 }
 

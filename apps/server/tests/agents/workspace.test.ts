@@ -4,9 +4,9 @@ import {join} from "node:path"
 import {describe, expect, it} from "vitest"
 
 import {KNOWN_SNAPSHOT_VERSION} from "@daily/core/utils/sync/snapshot/assertKnownSnapshotVersion"
+import {ToolErrorCode} from "@daily/tools"
 
 import {AGENT_WRITE_ATTEMPTS, runInAgentWorkspace} from "../../src/agents/AgentWorkspace"
-import {AgentToolErrorCode} from "../../src/errors/agent/AgentToolErrorCode"
 import {readRevision, readSnapshot, writeSnapshotIfUnchanged} from "../../src/snapshot/SnapshotStore"
 import {openServerStore} from "../../src/store/instance"
 import {bindAgent, bindDevice, makeTaskDraft, openMacCore, rawSnapshotDocument, seedAgentStore, writeMacSnapshot} from "./helpers"
@@ -38,7 +38,7 @@ describe("the agent workspace cycle", () => {
     try {
       const agent = bindAgent(seeded.store)
       const tasks = await runInAgentWorkspace({store: seeded.store}, agent, "read", async (ctx) =>
-        ctx.core.tasksService.getTaskList({includeBacklog: true}),
+        ctx.workStorage.getTaskList({includeBacklog: true}),
       )
 
       expect(tasks.map((task) => task.content)).toContain("Buy milk")
@@ -55,7 +55,7 @@ describe("the agent workspace cycle", () => {
       const agent = bindAgent(seeded.store, "Agent's Mac")
 
       await runInAgentWorkspace({store: seeded.store}, agent, "write", async (ctx) => {
-        await ctx.core.tasksService.createTask(makeTaskDraft({content: "Added by the agent"}))
+        await ctx.workStorage.createTask(makeTaskDraft({content: "Added by the agent"}))
       })
 
       const stored = readSnapshot(seeded.store)
@@ -87,7 +87,7 @@ describe("the agent workspace cycle", () => {
           }
         }
 
-        await ctx.core.tasksService.createTask(makeTaskDraft({content: "Agent task"}))
+        await ctx.workStorage.createTask(makeTaskDraft({content: "Agent task"}))
       })
 
       const stored = readSnapshot(seeded.store)!
@@ -119,9 +119,9 @@ describe("the agent workspace cycle", () => {
             rival.close()
           }
 
-          await ctx.core.tasksService.createTask(makeTaskDraft({content: "Agent task"}))
+          await ctx.workStorage.createTask(makeTaskDraft({content: "Agent task"}))
         }),
-      ).rejects.toMatchObject({code: AgentToolErrorCode.WRITE_CONFLICT})
+      ).rejects.toMatchObject({code: ToolErrorCode.WRITE_CONFLICT})
 
       expect(attempts).toBe(AGENT_WRITE_ATTEMPTS)
 
@@ -140,7 +140,7 @@ describe("the agent workspace cycle", () => {
     try {
       const agent = bindAgent(seeded.store)
       const tasks = await runInAgentWorkspace({store: seeded.store}, agent, "write", async (ctx) =>
-        ctx.core.tasksService.getTaskList({includeBacklog: true}),
+        ctx.workStorage.getTaskList({includeBacklog: true}),
       )
 
       expect(tasks.some((task) => task.content === "Unchanged")).toBe(true)
@@ -159,10 +159,10 @@ describe("the agent workspace cycle", () => {
 
       await Promise.all([
         runInAgentWorkspace({store: seeded.store}, agentA, "write", async (ctx) => {
-          await ctx.core.tasksService.createTask(makeTaskDraft({content: "From A"}))
+          await ctx.workStorage.createTask(makeTaskDraft({content: "From A"}))
         }),
         runInAgentWorkspace({store: seeded.store}, agentB, "write", async (ctx) => {
-          await ctx.core.tasksService.createTask(makeTaskDraft({content: "From B"}))
+          await ctx.workStorage.createTask(makeTaskDraft({content: "From B"}))
         }),
       ])
 
@@ -185,7 +185,7 @@ describe("the agent workspace cycle", () => {
 
       const agent = bindAgent(bare.store)
       const expected = {
-        code: AgentToolErrorCode.SERVER_TOO_OLD,
+        code: ToolErrorCode.SERVER_TOO_OLD,
         message: "This server is older than the data on your Macs. Upgrade the Daily Sync Server, then try again.",
       }
 
@@ -205,7 +205,7 @@ describe("the agent workspace cycle", () => {
 
       const agent = bindAgent(bare.store)
       await expect(runInAgentWorkspace({store: bare.store}, agent, "write", async () => null)).rejects.toMatchObject({
-        code: AgentToolErrorCode.SNAPSHOT_TOO_OLD,
+        code: ToolErrorCode.SNAPSHOT_TOO_OLD,
       })
 
       expect(readRevision(bare.store)).toBe(revision)
@@ -222,13 +222,11 @@ describe("the agent workspace cycle", () => {
       const revision = writeSnapshotIfUnchanged(bare.store, rawSnapshotDocument({version: KNOWN_SNAPSHOT_VERSION - 1}), null, someDeviceId)
 
       const agent = bindAgent(bare.store)
-      const tasks = await runInAgentWorkspace({store: bare.store}, agent, "read", async (ctx) =>
-        ctx.core.tasksService.getTaskList({includeBacklog: true}),
-      )
+      const tasks = await runInAgentWorkspace({store: bare.store}, agent, "read", async (ctx) => ctx.workStorage.getTaskList({includeBacklog: true}))
       expect(tasks).toEqual([])
 
       await expect(runInAgentWorkspace({store: bare.store}, agent, "write", async () => null)).rejects.toMatchObject({
-        code: AgentToolErrorCode.SNAPSHOT_TOO_OLD,
+        code: ToolErrorCode.SNAPSHOT_TOO_OLD,
         message:
           "The data on this server is older than this server understands. Update Daily on your Macs and let one of them sync before changing anything.",
       })
@@ -245,7 +243,7 @@ describe("the agent workspace cycle", () => {
     try {
       const agent = bindAgent(bare.store)
       const expected = {
-        code: AgentToolErrorCode.NO_DATA_YET,
+        code: ToolErrorCode.NO_DATA_YET,
         message: "This server has no Daily data yet. Open Daily on a Mac bound to it and let it sync once, then try again.",
       }
 
@@ -270,7 +268,7 @@ describe("the agent workspace cycle", () => {
 
       const agent = bindAgent(bare.store)
       await expect(runInAgentWorkspace({store: bare.store}, agent, "read", async () => null)).rejects.toMatchObject({
-        code: AgentToolErrorCode.SNAPSHOT_UNREADABLE,
+        code: ToolErrorCode.SNAPSHOT_UNREADABLE,
       })
 
       expect(readRevision(bare.store)).toBe(revision)
@@ -286,7 +284,8 @@ describe("the agent workspace cycle", () => {
       const agent = {...bindAgent(seeded.store), timeZone: "Not/AZone"}
 
       await expect(runInAgentWorkspace({store: seeded.store}, agent, "read", async () => null)).rejects.toMatchObject({
-        code: AgentToolErrorCode.INVALID_TIME_ZONE,
+        code: ToolErrorCode.INVALID_TIME_ZONE,
+        message: 'Unknown time zone "Not/AZone". This server cannot tell which day it is on that Mac.',
       })
     } finally {
       seeded.close()
@@ -301,7 +300,7 @@ describe("the agent workspace cycle", () => {
       const agent = bindAgent(seeded.store)
 
       await runInAgentWorkspace({store: seeded.store}, agent, "write", async (ctx) => {
-        await ctx.core.tasksService.createTask(makeTaskDraft({content: "Version check"}))
+        await ctx.workStorage.createTask(makeTaskDraft({content: "Version check"}))
       })
 
       expect(readSnapshot(seeded.store)!.version).toBe(before)

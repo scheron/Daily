@@ -8,7 +8,7 @@ import vuePlugin from "@vitejs/plugin-vue"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
-const workspacePackages = ["@daily/protocol", "@daily/std", "@daily/core"]
+const workspacePackages = ["@daily/protocol", "@daily/std", "@daily/core", "@daily/tools"]
 
 const mainAlias = {
   "@main": join(__dirname, "src/main"),
