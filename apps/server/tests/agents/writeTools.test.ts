@@ -334,6 +334,32 @@ describe("save_task", () => {
     }
   })
 
+  it.fails("moves a task's comments to the project it moved to through save_task, not just its relations", async () => {
+    let projectBId = ""
+    let taskId = ""
+
+    const seeded = await seedAgentStore(async (mac) => {
+      const projectB = await mac.core.branchesService.createBranch({name: "Project B"})
+      projectBId = projectB!.id
+
+      const task = await mac.core.tasksService.createTask(dated("2026-01-01", {content: "Has a comment"}))
+      taskId = task!.id
+      await mac.core.taskCommentsService.createComment(taskId, "travels with the task")
+    })
+
+    try {
+      const agent = bindAgent(seeded.store)
+
+      await call({store: seeded.store}, agent, saveTaskTool, {id: taskId, projectId: projectBId})
+
+      const stored = readSnapshot(seeded.store)!.document.docs as any
+      const comment = stored.comments.find((c: any) => c.task_id === taskId)
+      expect(comment.branch_id).toBe(projectBId)
+    } finally {
+      seeded.close()
+    }
+  })
+
   it("TC-13: deleted: false returns a task from the trash and records restored", async () => {
     let taskId = ""
 
@@ -688,7 +714,7 @@ describe("save_attachment", () => {
 })
 
 describe("delete_attachment", () => {
-  it("TC-4: deletes a file nothing references along with its bytes, and get_attachment then answers ATTACHMENT_UNAVAILABLE", async () => {
+  it("TC-4: soft-deletes a file nothing references, keeping its bytes, and get_attachment then answers ATTACHMENT_UNAVAILABLE", async () => {
     let fileId = ""
 
     const seeded = await seedAgentStore(async (mac) => {
@@ -702,7 +728,7 @@ describe("delete_attachment", () => {
       const result = await call({store: seeded.store}, agent, deleteAttachmentTool, {id: fileId})
       expect(result.id).toBe(fileId)
 
-      expect(await readdir(assetsDir(seeded.store))).not.toContain(`${fileId}.png`)
+      expect(await readdir(assetsDir(seeded.store))).toContain(`${fileId}.png`)
 
       await expect(call({store: seeded.store}, agent, getAttachmentTool, {id: fileId})).rejects.toMatchObject({
         code: AgentToolErrorCode.ATTACHMENT_UNAVAILABLE,

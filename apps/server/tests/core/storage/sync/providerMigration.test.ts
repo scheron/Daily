@@ -23,6 +23,7 @@ import {resolveActiveProvider, SyncServerError, SyncServerErrorCode} from "@dail
 
 import {createStorageCore} from "@core/storage/createStorageCore"
 import {getDefaultSettings} from "@core/storage/models/_rowMappers"
+import {FileModel} from "@core/storage/models/FileModel"
 import {DailyServerRemoteAdapter} from "@core/storage/sync/adapters/DailyServerRemoteAdapter"
 import {ICloudRemoteAdapter} from "@core/storage/sync/adapters/ICloudRemoteAdapter"
 import {LocalStorageAdapter} from "@core/storage/sync/adapters/LocalStorageAdapter"
@@ -190,11 +191,15 @@ async function pushIcloudSnapshot(icloudSyncDir: string, seed: (db: Database.Dat
   const db = createTestDatabase()
   try {
     seed(db)
-    const engine = new SyncEngine(new LocalStorageAdapter(db), [{id: "icloud", label: "iCloud", adapter: new ICloudRemoteAdapter(icloudSyncDir)}], {
-      assetsDir: () => "/tmp/daily-provider-migration-unused-assets",
-      onStatusChange: () => {},
-      onDataChanged: () => {},
-    })
+    const engine = new SyncEngine(
+      new LocalStorageAdapter(db, new FileModel(db, "/tmp/daily-provider-migration-unused-assets")),
+      [{id: "icloud", label: "iCloud", adapter: new ICloudRemoteAdapter(icloudSyncDir)}],
+      {
+        assetsDir: () => "/tmp/daily-provider-migration-unused-assets",
+        onStatusChange: () => {},
+        onDataChanged: () => {},
+      },
+    )
     await engine.syncOnce("push")
   } finally {
     db.close()
@@ -206,7 +211,7 @@ async function pushServerSnapshot(binding: ServerSyncBinding, seed: (db: Databas
   try {
     seed(db)
     const engine = new SyncEngine(
-      new LocalStorageAdapter(db),
+      new LocalStorageAdapter(db, new FileModel(db, "/tmp/daily-provider-migration-unused-assets")),
       [{id: "daily-server", label: "Self-hosted Daily", adapter: new DailyServerRemoteAdapter(binding)}],
       {
         assetsDir: () => "/tmp/daily-provider-migration-unused-assets",

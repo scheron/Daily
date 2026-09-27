@@ -20,6 +20,7 @@ import {initDatabase} from "./database/instance"
 import {ProviderMigrationService} from "./sync/ProviderMigrationService"
 import {ServerProviderService} from "./sync/server/ServerProviderService"
 import {SyncEngine} from "./sync/SyncEngine"
+import {WorkStorage} from "./WorkStorage"
 
 import type {
   ActorSource,
@@ -52,6 +53,7 @@ import type {AppPaths} from "../config/paths"
 import type {SqliteDriver} from "../database/SqliteDriver"
 import type {Changeset, IStorageController} from "../types/storage"
 import type {StorageCore} from "./createStorageCore"
+import type {IWorkStorage} from "./IWorkStorage"
 import type {AgentTurn, SessionMeta} from "./models/AISessionModel"
 
 export class StorageController implements IStorageController {
@@ -252,16 +254,7 @@ export class StorageController implements IStorageController {
   }
 
   async updateTask(id: Task["id"], updates: PartialDeep<Task>, source?: ActorSource): Promise<Changeset> {
-    const updatedTasks = await this.tasksService.updateTask(id, updates, source)
-    if (!updatedTasks.length) return EMPTY_CHANGESET
-
-    for (const task of updatedTasks) await this.searchService.updateTaskInIndex(task)
-    const removedRelations = await this.taskRelationsService.removeInvalidRelations(updatedTasks.map((task) => task.id))
-
-    const changeset: Changeset = {tasks: {upserted: updatedTasks}}
-    if (removedRelations.length) changeset.relations = {removed: removedRelations}
-    this.notifyLocalChange(changeset)
-    return changeset
+    return this.workStorage.updateTask(id, updates, source)
   }
 
   async toggleTaskMinimized(id: Task["id"], minimized: boolean): Promise<Changeset> {
@@ -269,58 +262,19 @@ export class StorageController implements IStorageController {
   }
 
   async moveTaskByOrder(params: MoveTaskByOrderParams, source?: ActorSource): Promise<Changeset> {
-    const updatedTasks = await this.tasksService.moveTaskByOrder(params, source)
-    if (!updatedTasks.length) return EMPTY_CHANGESET
-
-    for (const task of updatedTasks) await this.searchService.updateTaskInIndex(task)
-    const changeset: Changeset = {tasks: {upserted: updatedTasks}}
-    this.notifyLocalChange(changeset)
-    return changeset
+    return this.workStorage.moveTaskByOrder(params, source)
   }
 
   async moveTaskToBranch(taskId: Task["id"], branchId: Branch["id"]): Promise<Changeset> {
-    const branch = await this.branchesService.getBranch(branchId)
-    if (!branch) return EMPTY_CHANGESET
-
-    const isMoved = await this.tasksService.moveTaskToBranch(taskId, branch.id)
-    if (!isMoved) return EMPTY_CHANGESET
-
-    const updatedTask = await this.tasksService.getTask(taskId)
-    if (!updatedTask) return EMPTY_CHANGESET
-
-    await this.searchService.updateTaskInIndex(updatedTask)
-    const removedRelations = await this.taskRelationsService.removeInvalidRelations([taskId])
-    const movedComments = await this.taskCommentsService.alignCommentsToTaskBranch(taskId, branch.id)
-
-    const changeset: Changeset = {tasks: {upserted: [updatedTask]}}
-    if (removedRelations.length) changeset.relations = {removed: removedRelations}
-    if (movedComments.length) changeset.comments = {upserted: movedComments}
-    this.notifyLocalChange(changeset)
-    return changeset
+    return this.workStorage.moveTaskToBranch(taskId, branchId)
   }
 
   async createTask(task: Task, source?: ActorSource): Promise<Changeset> {
-    const branchId = await this.branchesService.resolveBranchId(task?.branchId)
-    const createdTask = await this.tasksService.createTask({...task, branchId}, source)
-    if (!createdTask) return EMPTY_CHANGESET
-
-    await this.searchService.addTaskToIndex(createdTask)
-    const changeset: Changeset = {tasks: {upserted: [createdTask]}}
-    this.notifyLocalChange(changeset)
-    return changeset
+    return this.workStorage.createTask(task, source)
   }
 
   async deleteTask(id: Task["id"], source?: ActorSource): Promise<Changeset> {
-    const deleted = await this.tasksService.deleteTask(id, source)
-    if (!deleted) return EMPTY_CHANGESET
-
-    this.searchService.removeTaskFromIndex(id)
-    const removedRelations = await this.taskRelationsService.removeInvalidRelations([id])
-
-    const changeset: Changeset = {tasks: {removed: [id]}}
-    if (removedRelations.length) changeset.relations = {removed: removedRelations}
-    this.notifyLocalChange(changeset)
-    return changeset
+    return this.workStorage.deleteTask(id, source)
   }
 
   async getDeletedTasks(params?: {limit?: number; branchId?: Branch["id"]}): Promise<Task[]> {
@@ -329,41 +283,17 @@ export class StorageController implements IStorageController {
   }
 
   async restoreTask(id: Task["id"], source?: ActorSource): Promise<Changeset> {
-    const restoredTask = await this.tasksService.restoreTask(id, source)
-    if (!restoredTask) return EMPTY_CHANGESET
-
-    await this.searchService.updateTaskInIndex(restoredTask)
-    const changeset: Changeset = {tasks: {upserted: [restoredTask]}}
-    this.notifyLocalChange(changeset)
-    return changeset
+    return this.workStorage.restoreTask(id, source)
   }
 
   /** Deleted tasks are already excluded from the live collection, so a permanent delete has nothing to name. */
   async permanentlyDeleteTask(id: Task["id"]): Promise<boolean> {
-    const deleted = await this.tasksService.permanentlyDeleteTask(id)
-    if (deleted) {
-      this.searchService.removeTaskFromIndex(id)
-      await this.taskCommentsService.permanentlyDeleteCommentsOfTasks([id])
-      this.notifyLocalChange(EMPTY_CHANGESET)
-    }
-    return deleted
+    return this.workStorage.permanentlyDeleteTask(id)
   }
 
   async permanentlyDeleteAllDeletedTasks(): Promise<number> {
     const branchId = await this.branchesService.getActiveBranchId()
-    const deletedTasks = await this.tasksService.getDeletedTasks({branchId})
-    if (!deletedTasks.length) return 0
-
-    const count = await this.tasksService.permanentlyDeleteAllDeletedTasks({branchId})
-
-    for (const task of deletedTasks) {
-      this.searchService.removeTaskFromIndex(task.id)
-    }
-
-    await this.taskCommentsService.permanentlyDeleteCommentsOfTasks(deletedTasks.map((task) => task.id))
-
-    this.notifyLocalChange(EMPTY_CHANGESET)
-    return count
+    return this.workStorage.permanentlyDeleteAllDeletedTasks(branchId)
   }
   //#endregion
 
@@ -380,21 +310,14 @@ export class StorageController implements IStorageController {
 
   /** Makes the task's links exactly `next`, dropping what cannot be linked; `EMPTY_CHANGESET` when nothing changed. */
   async setTaskRelations(taskId: Task["id"], next: TaskRelationSets): Promise<Changeset> {
-    const {upserted, removed} = await this.taskRelationsService.setTaskRelations(taskId, next)
-    if (!upserted.length && !removed.length) return EMPTY_CHANGESET
-
-    const changeset: Changeset = {}
-    if (upserted.length) changeset.relations = {...changeset.relations, upserted}
-    if (removed.length) changeset.relations = {...changeset.relations, removed}
-    this.notifyLocalChange(changeset)
-    return changeset
+    return this.workStorage.setTaskRelations(taskId, next)
   }
   //#endregion
 
   //#region COMMENTS
   /** One task's live comments, oldest first. */
   async getTaskComments(taskId: Task["id"]): Promise<TaskComment[]> {
-    return this.taskCommentsService.getCommentsOfTask(taskId)
+    return this.workStorage.getCommentsOfTask(taskId)
   }
 
   /** How many live comments each task carries; a task with none is absent. */
@@ -404,74 +327,40 @@ export class StorageController implements IStorageController {
 
   /** Writes a comment on a live task; `EMPTY_CHANGESET` for a task that cannot take one or content that is only whitespace. */
   async createTaskComment(taskId: Task["id"], content: string, source?: TaskCommentSource): Promise<Changeset> {
-    const created = await this.taskCommentsService.createComment(taskId, content, source)
-    if (!created) return EMPTY_CHANGESET
-
-    const changeset: Changeset = {comments: {upserted: [created]}}
-    this.notifyLocalChange(changeset)
-    return changeset
+    return this.workStorage.createComment(taskId, content, source)
   }
 
   async updateTaskComment(id: TaskComment["id"], content: string): Promise<Changeset> {
-    const updated = await this.taskCommentsService.updateComment(id, content)
-    if (!updated) return EMPTY_CHANGESET
-
-    const changeset: Changeset = {comments: {upserted: [updated]}}
-    this.notifyLocalChange(changeset)
-    return changeset
+    return this.workStorage.updateComment(id, content)
   }
 
   async deleteTaskComment(id: TaskComment["id"]): Promise<Changeset> {
-    const removed = await this.taskCommentsService.deleteComment(id)
-    if (!removed) return EMPTY_CHANGESET
-
-    const changeset: Changeset = {comments: {removed: [removed]}}
-    this.notifyLocalChange(changeset)
-    return changeset
+    return this.workStorage.deleteComment(id)
   }
   //#endregion
 
   //#region BRANCHES
   async getBranchList(): Promise<Branch[]> {
-    return this.branchesService.getBranchList()
+    return this.workStorage.getBranchList()
   }
 
   async getBranch(id: Branch["id"]): Promise<Branch | null> {
-    return this.branchesService.getBranch(id)
+    return this.workStorage.getBranch(id)
   }
 
   async createBranch(branch: Pick<Branch, "name"> & Partial<Pick<Branch, "description">>): Promise<Branch | null> {
-    const createdBranch = await this.branchesService.createBranch(branch)
-    if (createdBranch) {
-      this.notifyLocalChange({branches: {upserted: [createdBranch]}})
-    }
-    return createdBranch
+    const changeset = await this.workStorage.createBranch(branch)
+    return changeset.branches?.upserted?.[0] ?? null
   }
 
   async updateBranch(id: Branch["id"], updates: Partial<Pick<Branch, "description" | "name">>): Promise<Branch | null> {
-    const updatedBranch = await this.branchesService.updateBranch(id, updates)
-    if (updatedBranch) {
-      this.notifyLocalChange({branches: {upserted: [updatedBranch]}})
-    }
-    return updatedBranch
+    const changeset = await this.workStorage.updateBranch(id, updates)
+    return changeset.branches?.upserted?.[0] ?? null
   }
 
   async deleteBranch(id: Branch["id"]): Promise<boolean> {
-    const result = await this.branchesService.deleteBranch(id)
-    if (!result) return false
-
-    for (const taskId of result.deletedTaskIds) {
-      this.searchService.removeTaskFromIndex(taskId)
-    }
-    const removedRelations = await this.taskRelationsService.removeInvalidRelations(result.deletedTaskIds)
-
-    const changeset: Changeset = {branches: {removed: [id]}}
-    if (result.deletedTaskIds.length) changeset.tasks = {removed: result.deletedTaskIds}
-    if (result.deletedMilestoneIds.length) changeset.milestones = {removed: result.deletedMilestoneIds}
-    if (result.deletedTagIds.length) changeset.tags = {removed: result.deletedTagIds}
-    if (removedRelations.length) changeset.relations = {removed: removedRelations}
-    this.notifyLocalChange(changeset)
-    return true
+    const changeset = await this.workStorage.deleteBranch(id)
+    return (changeset.branches?.removed?.length ?? 0) > 0
   }
 
   async setActiveBranch(id: Branch["id"]): Promise<void> {
@@ -482,35 +371,26 @@ export class StorageController implements IStorageController {
 
   //#region TAGS
   async getTagList(branchId?: Branch["id"]): Promise<Tag[]> {
-    return this.tagsService.getTagList(branchId)
+    return this.workStorage.getTagList(branchId)
   }
 
   async getTag(id: Tag["id"]): Promise<Tag | null> {
-    return this.tagsService.getTag(id)
+    return this.workStorage.getTag(id)
   }
 
   async updateTag(id: Tag["id"], updates: Partial<Tag>): Promise<Tag | null> {
-    const updatedTag = await this.tagsService.updateTag(id, updates)
-    if (updatedTag) {
-      this.notifyLocalChange({tags: {upserted: [updatedTag]}})
-    }
-    return updatedTag
+    const changeset = await this.workStorage.updateTag(id, updates)
+    return changeset.tags?.upserted?.[0] ?? null
   }
 
   async createTag(tag: Omit<Tag, "id" | "createdAt" | "updatedAt">): Promise<Tag | null> {
-    const createdTag = await this.tagsService.createTag(tag)
-    if (createdTag) {
-      this.notifyLocalChange({tags: {upserted: [createdTag]}})
-    }
-    return createdTag
+    const changeset = await this.workStorage.createTag(tag)
+    return changeset.tags?.upserted?.[0] ?? null
   }
 
   async deleteTag(id: Tag["id"]): Promise<boolean> {
-    const deleted = await this.tagsService.deleteTag(id)
-    if (deleted) {
-      this.notifyLocalChange({tags: {removed: [id]}})
-    }
-    return deleted
+    const changeset = await this.workStorage.deleteTag(id)
+    return (changeset.tags?.removed?.length ?? 0) > 0
   }
 
   async addTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Promise<Changeset> {
@@ -537,48 +417,33 @@ export class StorageController implements IStorageController {
 
   //#region MILESTONES
   async getMilestoneList(branchId?: Branch["id"]): Promise<Milestone[]> {
-    return this.milestonesService.getMilestoneList(branchId)
+    return this.workStorage.getMilestoneList(branchId)
   }
 
   async getMilestone(id: Milestone["id"]): Promise<Milestone | null> {
-    return this.milestonesService.getMilestone(id)
+    return this.workStorage.getMilestone(id)
   }
 
   async createMilestone(milestone: Omit<Milestone, "id" | "createdAt" | "updatedAt" | "orderIndex">): Promise<Changeset> {
-    const createdMilestone = await this.milestonesService.createMilestone(milestone)
-    if (!createdMilestone) return EMPTY_CHANGESET
-
-    const changeset: Changeset = {milestones: {upserted: [createdMilestone]}}
-    this.notifyLocalChange(changeset)
-    return changeset
+    return this.workStorage.createMilestone(milestone)
   }
 
   async updateMilestone(
     id: Milestone["id"],
     updates: Partial<Pick<Milestone, "name" | "description" | "targetDate" | "orderIndex">>,
   ): Promise<Changeset> {
-    const updatedMilestone = await this.milestonesService.updateMilestone(id, updates)
-    if (!updatedMilestone) return EMPTY_CHANGESET
-
-    const changeset: Changeset = {milestones: {upserted: [updatedMilestone]}}
-    this.notifyLocalChange(changeset)
-    return changeset
+    return this.workStorage.updateMilestone(id, updates)
   }
 
   /** Also nulls `milestoneId` on the tasks it held; those ids are not surfaced here since `MilestonesService.deleteMilestone` only reports success. */
   async deleteMilestone(id: Milestone["id"]): Promise<Changeset> {
-    const deleted = await this.milestonesService.deleteMilestone(id)
-    if (!deleted) return EMPTY_CHANGESET
-
-    const changeset: Changeset = {milestones: {removed: [id]}}
-    this.notifyLocalChange(changeset)
-    return changeset
+    return this.workStorage.deleteMilestone(id)
   }
   //#endregion
 
   //#region SEARCH
   async searchTasks(query: string): Promise<TaskSearchResult[]> {
-    return await this.searchService.searchTasks(query)
+    return this.workStorage.searchTasks(query)
   }
   //#endregion
 
@@ -588,15 +453,15 @@ export class StorageController implements IStorageController {
   }
 
   getFilePath(id: File["id"]): string {
-    return this.filesService.getFilePath(id)
+    return this.workStorage.getFilePath(id)
   }
 
   async deleteFile(fileId: File["id"]): Promise<boolean> {
-    return await this.filesService.deleteFile(fileId)
+    return this.workStorage.deleteFile(fileId)
   }
 
   async getFiles(fileIds: File["id"][]): Promise<File[]> {
-    return this.filesService.getFiles(fileIds)
+    return this.workStorage.getFiles(fileIds)
   }
 
   async createFileResponse(id: File["id"]): Promise<Response> {
@@ -643,6 +508,29 @@ export class StorageController implements IStorageController {
     return this.aiSessionModel.getSessionTurns(active.id, limit)
   }
   //#endregion
+
+  /**
+   * The one read and write path a shared tool runs against — built fresh on every call from the
+   * currently-assigned services, so it never goes stale across a provider migration.
+   */
+  get workStorage(): IWorkStorage {
+    return new WorkStorage(
+      {
+        settingsService: this.settingsService,
+        branchesService: this.branchesService,
+        tasksService: this.tasksService,
+        taskRelationsService: this.taskRelationsService,
+        taskCommentsService: this.taskCommentsService,
+        tagsService: this.tagsService,
+        milestonesService: this.milestonesService,
+        filesService: this.filesService,
+        searchService: this.searchService,
+        localAdapter: this.localAdapter,
+        aiSessionModel: this.aiSessionModel,
+      },
+      (changeset) => this.notifyLocalChange(changeset),
+    )
+  }
 
   private notifyLocalChange(changeset: Changeset): void {
     this.notifyStorageDataChange?.(changeset)

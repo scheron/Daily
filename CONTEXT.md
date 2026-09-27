@@ -121,6 +121,11 @@ The interval, opened deliberately on one bound device, during which the server a
 request for access at all. The request's code appears only on the device that opened it.
 _Avoid_: pairing mode, connect mode, invite
 
+**Daily Assistant**:
+The AI assistant built into the Daily app. It works on the Mac's own data rather than through a
+server, and can do to the work exactly what an agent can.
+_Avoid_: agent, AI agent, chat, bot, copilot
+
 ### Compatibility
 
 **Protocol version**:

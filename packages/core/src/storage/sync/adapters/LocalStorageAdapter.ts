@@ -11,9 +11,13 @@ import type {
   SnapshotTaskRelation,
 } from "@daily/protocol"
 import type {SqliteDriver} from "../../../database/SqliteDriver"
+import type {FileModel} from "../../models/FileModel"
 
 export class LocalStorageAdapter implements ILocalStorage {
-  constructor(private db: SqliteDriver) {}
+  constructor(
+    private db: SqliteDriver,
+    private fileModel: FileModel,
+  ) {}
 
   async loadAllDocs(): Promise<SnapshotDocs> {
     const tasks = this._loadTasks()
@@ -258,6 +262,8 @@ export class LocalStorageAdapter implements ILocalStorage {
     comments?: string[]
     files?: string[]
   }): Promise<void> {
+    if (ids.files?.length) await this.fileModel.deleteAssetsByFileIds(ids.files)
+
     const transaction = this.db.transaction(() => {
       if (ids.tasks?.length) {
         for (const id of ids.tasks) {

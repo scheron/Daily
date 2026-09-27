@@ -98,6 +98,6 @@ export class SearchService {
    * Get all tasks enriched with full tag objects (already done by TaskModel via SQL JOINs)
    */
   private getEnrichedTasks(): Task[] {
-    return this.taskModel.getTaskList()
+    return this.taskModel.getTaskList({includeBacklog: true})
   }
 }

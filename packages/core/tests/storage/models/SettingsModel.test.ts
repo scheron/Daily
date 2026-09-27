@@ -1,5 +1,6 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
+import {FileModel} from "@core/storage/models/FileModel"
 import {SettingsModel} from "@core/storage/models/SettingsModel"
 import {LocalStorageAdapter} from "@core/storage/sync/adapters/LocalStorageAdapter"
 import {buildSnapshot} from "@core/utils/sync/snapshot/buildSnapshot"
@@ -95,7 +96,7 @@ describe("SettingsModel", () => {
     expect(JSON.parse(db.prepare("SELECT data FROM settings WHERE id = 'default'").get().data).sync).toBeUndefined()
     expect(JSON.parse(db.prepare("SELECT data FROM device_settings WHERE id = 'sync'").get().data).server).toEqual({enabled: true, binding})
 
-    const docs = await new LocalStorageAdapter(db).loadAllDocs()
+    const docs = await new LocalStorageAdapter(db, new FileModel(db, "/tmp/daily-settings-model")).loadAllDocs()
     const snapshot = buildSnapshot(docs)
     expect(snapshot.docs).not.toHaveProperty("settings")
     expect(JSON.stringify(snapshot)).not.toContain("super-secret-token")

@@ -1,6 +1,6 @@
 // @ts-nocheck
 import {mkdtempSync, rmSync} from "node:fs"
-import {readdir} from "node:fs/promises"
+import {readdir, writeFile} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
@@ -80,7 +80,7 @@ describe("FilesService.saveFile", () => {
     expect(diskFiles).toContain(`${fileId}.pdf`)
   })
 
-  it("serves_TC-8_correct_content_type_and_bytes_then_removes_the_asset_on_delete", async () => {
+  it("serves_TC-8_correct_content_type_and_bytes_then_keeps_the_asset_on_disk_after_a_soft_delete", async () => {
     const fileId = await filesService.saveFile("Screenshot.png", WEBP_BYTES)
 
     const response = await filesService.createFileResponse(fileId)
@@ -91,8 +91,9 @@ describe("FilesService.saveFile", () => {
 
     await filesService.deleteFile(fileId)
 
+    expect(fileModel.getFile(fileId)?.deletedAt).not.toBeNull()
     const diskFiles = await readdir(assetsDir)
-    expect(diskFiles).not.toContain(`${fileId}.webp`)
+    expect(diskFiles).toContain(`${fileId}.webp`)
   })
 })
 
@@ -170,7 +171,7 @@ describe("FilesService.cleanupOrphanFiles", () => {
     }
   }
 
-  it("keeps_TC-9_a_file_held_only_by_a_text_link_once_task_attachments_is_gone_and_removes_one_with_no_link_at_all", async () => {
+  it("keeps_TC-9_a_file_held_only_by_a_text_link_once_task_attachments_is_gone_and_soft-deletes_one_with_no_link_at_all", async () => {
     const linkedId = await filesService.saveFile("kept.png", WEBP_BYTES)
     const orphanId = await filesService.saveFile("gone.png", WEBP_BYTES)
 
@@ -184,7 +185,7 @@ describe("FilesService.cleanupOrphanFiles", () => {
     expect(await readdir(assetsDir)).toContain(`${linkedId}.webp`)
 
     expect(fileModel.getFile(orphanId)?.deletedAt).not.toBeNull()
-    expect(await readdir(assetsDir)).not.toContain(`${orphanId}.webp`)
+    expect(await readdir(assetsDir)).toContain(`${orphanId}.webp`)
   })
 
   it("keeps_TC-11_an_image_referenced_only_by_a_backlog_tasks_text_and_one_referenced_only_by_a_trashed_tasks_text", async () => {
@@ -202,5 +203,17 @@ describe("FilesService.cleanupOrphanFiles", () => {
 
     expect(fileModel.getFile(trashedFileId)?.deletedAt).toBeNull()
     expect(await readdir(assetsDir)).toContain(`${trashedFileId}.webp`)
+  })
+
+  it("keeps_a_soft-deleted_files_bytes_and_sweeps_only_bytes_with_no_row_at_all", async () => {
+    const softDeletedId = await filesService.saveFile("gone-soft.png", WEBP_BYTES)
+    await filesService.deleteFile(softDeletedId)
+
+    await writeFile(join(assetsDir, "no-row-at-all.webp"), WEBP_BYTES)
+
+    await filesService.cleanupOrphanFiles()
+
+    expect(await readdir(assetsDir)).toContain(`${softDeletedId}.webp`)
+    expect(await readdir(assetsDir)).not.toContain("no-row-at-all.webp")
   })
 })

@@ -14,6 +14,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {SYNC_PROTOCOL_PATHS} from "@daily/protocol"
 
 import {runMigrations} from "@core/storage/database/scripts/migrate"
+import {FileModel} from "@core/storage/models/FileModel"
 import {DailyServerRemoteAdapter} from "@core/storage/sync/adapters/DailyServerRemoteAdapter"
 import {ICloudRemoteAdapter} from "@core/storage/sync/adapters/ICloudRemoteAdapter"
 import {LocalStorageAdapter} from "@core/storage/sync/adapters/LocalStorageAdapter"
@@ -81,7 +82,7 @@ function createDevice(syncDir) {
   db.pragma("foreign_keys = ON")
   runMigrations(db)
 
-  const local = new LocalStorageAdapter(db)
+  const local = new LocalStorageAdapter(db, new FileModel(db, "/tmp/assets"))
   const remote = new ICloudRemoteAdapter(syncDir)
   return {db, local, remote}
 }
@@ -555,7 +556,7 @@ function createServerBoundDevice(binding) {
   db.pragma("foreign_keys = ON")
   runMigrations(db)
 
-  const local = new LocalStorageAdapter(db)
+  const local = new LocalStorageAdapter(db, new FileModel(db, "/tmp/assets"))
   const remote = new DailyServerRemoteAdapter(binding)
   return {db, local, remote}
 }

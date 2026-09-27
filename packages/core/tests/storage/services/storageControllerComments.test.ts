@@ -256,6 +256,21 @@ describe("StorageController — comments", () => {
     expect((await controller.getTaskComments(task.id))[0].branchId).toBe(project.id)
   })
 
+  it("moves_a_tasks_comments_when_the_project_change_comes_through_updateTask_with_branchId", async () => {
+    const harness = makeHarness()
+    db = harness.db
+    const {taskModel, branchModel, controller} = harness
+
+    const project = branchModel.createBranch({name: "Other"})
+    const task = taskModel.createTask(makeTaskInput())
+    const comment = (await controller.createTaskComment(task.id, "travels with the task")).comments.upserted[0]
+
+    const updated = await controller.updateTask(task.id, {branchId: project.id})
+
+    expect(updated.comments?.upserted?.map((c) => c.id)).toEqual([comment.id])
+    expect((await controller.getTaskComments(task.id))[0].branchId).toBe(project.id)
+  })
+
   it("backdates_the_comments_of_a_permanently_deleted_task_so_the_next_merge_collects_them", async () => {
     const harness = makeHarness()
     db = harness.db

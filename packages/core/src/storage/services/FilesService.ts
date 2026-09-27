@@ -66,12 +66,8 @@ export class FilesService {
     return this.fileModel.getAssetPath(id, ext)
   }
 
+  /** Soft-delete only: the bytes stay on disk until garbage collection purges the row, the same as everything else. */
   async deleteFile(fileId: File["id"]): Promise<boolean> {
-    const file = this.fileModel.getFile(fileId)
-    if (file) {
-      const ext = path.extname(file.name).slice(1)
-      await this.fileModel.deleteAsset(fileId, ext)
-    }
     return this.fileModel.deleteFile(fileId)
   }
 
@@ -126,18 +122,17 @@ export class FilesService {
         fileIds.forEach((id) => referencedIds.add(id))
       }
 
-      const allFiles = this.fileModel.getFileList()
+      const allFiles = this.fileModel.getFileList({includeDeleted: true})
       const orphans = allFiles.filter((file) => isNull(file.deletedAt) && !referencedIds.has(file.id))
 
       for (const orphan of orphans) {
-        const ext = path.extname(orphan.name).slice(1)
-        await this.fileModel.deleteAsset(orphan.id, ext)
         this.fileModel.deleteFile(orphan.id)
       }
 
-      await this.fileModel.cleanupOrphanAssets(referencedIds)
+      const knownFileIds = new Set(allFiles.map((file) => file.id))
+      await this.fileModel.cleanupOrphanAssets(knownFileIds)
 
-      logger.info(logger.CONTEXT.FILES, `Removed ${orphans.length} orphan files`)
+      logger.info(logger.CONTEXT.FILES, `Soft-deleted ${orphans.length} orphan files`)
     } catch (err) {
       logger.error(logger.CONTEXT.FILES, "Failed to cleanup orphan files", err)
     }

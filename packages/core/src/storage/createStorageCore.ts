@@ -65,7 +65,7 @@ export function createStorageCore(db: SqliteDriver, paths: AppPaths, clock?: Sto
     milestonesService: new MilestonesService(milestoneModel),
     filesService: new FilesService(fileModel, taskModel),
     searchService: new SearchService(taskModel, branchModel),
-    localAdapter: new LocalStorageAdapter(db),
+    localAdapter: new LocalStorageAdapter(db, fileModel),
     aiSessionModel: new AISessionModel(db),
   }
 }

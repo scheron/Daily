@@ -1,6 +1,11 @@
 // @ts-nocheck
+import {mkdtempSync, rmSync} from "node:fs"
+import {readdir} from "node:fs/promises"
+import {tmpdir} from "node:os"
+import {join} from "node:path"
 import {afterEach, beforeEach, describe, expect, it} from "vitest"
 
+import {FileModel} from "@core/storage/models/FileModel"
 import {LocalStorageAdapter} from "@core/storage/sync/adapters/LocalStorageAdapter"
 import {mergeRemoteIntoLocal} from "@core/utils/sync/merge/mergeRemoteIntoLocal"
 import {buildSnapshot} from "@core/utils/sync/snapshot/buildSnapshot"
@@ -53,7 +58,7 @@ describe("LocalStorageAdapter", () => {
 
   beforeEach(() => {
     db = createTestDatabase()
-    adapter = new LocalStorageAdapter(db)
+    adapter = new LocalStorageAdapter(db, new FileModel(db, "/tmp/daily-local-storage-adapter"))
   })
 
   afterEach(() => {
@@ -407,6 +412,23 @@ describe("LocalStorageAdapter", () => {
       expect(db.prepare("SELECT * FROM files WHERE id = 'f1'").get()).toBeUndefined()
     })
 
+    it("unlinks a purged files bytes through its own fileModel", async () => {
+      const assetsDir = mkdtempSync(join(tmpdir(), "local-storage-adapter-files-"))
+      try {
+        const fileModel = new FileModel(db, assetsDir)
+        fileModel.initAssets()
+        await fileModel.saveAsset("f1", "txt", Buffer.from("bytes"))
+        insertFile(db, "f1", "file.txt")
+        const adapterWithFiles = new LocalStorageAdapter(db, fileModel)
+
+        await adapterWithFiles.deleteDocs({files: ["f1"]})
+
+        expect(await readdir(assetsDir)).not.toContain("f1.txt")
+      } finally {
+        rmSync(assetsDir, {recursive: true, force: true})
+      }
+    })
+
     it("does nothing for empty id arrays", async () => {
       insertTask(db, "t1", "task")
 
@@ -474,7 +496,7 @@ describe("LocalStorageAdapter", () => {
       const snapshot = buildSnapshot(sourceDocs)
 
       const otherDb = createTestDatabase()
-      const otherAdapter = new LocalStorageAdapter(otherDb)
+      const otherAdapter = new LocalStorageAdapter(otherDb, new FileModel(otherDb, "/tmp/daily-local-storage-adapter-other"))
       await otherAdapter.upsertDocs(snapshot.docs)
 
       const roundTripped = await otherAdapter.loadAllDocs()
