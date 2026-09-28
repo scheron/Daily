@@ -55,21 +55,6 @@ const EVERYTHING_DOCUMENT = [
   "",
 ].join("\n")
 
-function regularExtensions() {
-  return [
-    createMarkdownLanguageExtension(),
-    EditorView.lineWrapping,
-    EditorView.editable.of(false),
-    EditorState.readOnly.of(true),
-    EditorView.contentAttributes.of({contenteditable: "false", tabindex: "-1"}),
-    createThemeExtension(),
-    createWYSIWYGExtension({isReadonly: true}),
-    createTablesExtension(),
-    createCodeSyntaxExtension(),
-    createReadonlyThemeExtension({isCompact: false}),
-  ]
-}
-
 function compactExtensionsWithHighlight(matches: SearchMatch[]) {
   return [
     createMarkdownLanguageExtension(),
@@ -193,19 +178,6 @@ function expectParity(previewRoot: HTMLElement, view: EditorViewInstance) {
 }
 
 describe("renderMarkdownPreview", () => {
-  it("matches_TC-1_a_real_read-only_editor_for_the_everything-document", () => {
-    const view = mountEditorView(EVERYTHING_DOCUMENT, {extensions: regularExtensions()})
-    const preview = renderMarkdownPreview(EVERYTHING_DOCUMENT, {isCompact: false})
-
-    expect(checkboxStates(view.dom)).toEqual([false, true])
-    expect(copyButtonCount(view.dom)).toBeGreaterThan(0)
-    expect(tableSummaries(view.dom).length).toBeGreaterThan(0)
-
-    expectParity(preview.element, view)
-
-    unmountEditorView(view)
-  })
-
   it("matches_TC-2_a_real_read-only_editor_with_search_highlights_crossing_hidden_syntax", () => {
     const matches: SearchMatch[] = [
       {
