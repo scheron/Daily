@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.28.1 - 2026-09-28
+
+### 🎨 Improvements
+
+- **Milestones** — a No milestone row below the open milestones gathers the tasks that belong to none, and a card dropped on it leaves its milestone. With no milestone picked, the milestone view shows every task of the project and is called All tasks.
+
+### 🐛 Bug Fixes
+
+- **Agents** — ChatGPT can now connect to Daily Sync Server as an agent.
+
+---
+
 ## v0.28.0 - 2026-09-28
 
 ### ✨ New Features
