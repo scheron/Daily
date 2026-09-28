@@ -6,7 +6,6 @@ import {sortTags} from "@daily/protocol"
 import {removeDuplicates} from "@daily/std"
 
 import {useFilterStore} from "@/stores/filter.store"
-import {useMilestonesStore} from "@/stores/milestones.store"
 import {useTasksStore} from "@/stores/tasks"
 import {useUIStore} from "@/stores/ui"
 import BaseAnimation from "@/ui/base/BaseAnimation.vue"
@@ -16,15 +15,15 @@ import type {Tag} from "@daily/protocol"
 
 const tasksStore = useTasksStore()
 const filterStore = useFilterStore()
-const milestonesStore = useMilestonesStore()
 const uiStore = useUIStore()
 
 const {activeDay} = storeToRefs(tasksStore)
-const {activeMilestoneId} = storeToRefs(filterStore)
+const {activeMilestoneId, isNoMilestoneActive} = storeToRefs(filterStore)
 
 const milestoneFrameTasks = computed(() => {
-  const ids = filterStore.activeMilestoneId ? [filterStore.activeMilestoneId] : milestonesStore.activeMilestones.map((milestone) => milestone.id)
-  return ids.flatMap((id) => tasksStore.tasksByMilestoneId.get(id) ?? [])
+  if (filterStore.isNoMilestoneActive) return tasksStore.tasksWithoutMilestone
+  if (filterStore.activeMilestoneId) return tasksStore.tasksByMilestoneId.get(filterStore.activeMilestoneId) ?? []
+  return tasksStore.projectTasks
 })
 
 const dayFrameTasks = computed(() => tasksStore.dailyTasks.concat(tasksStore.backlogTasks))
@@ -38,7 +37,7 @@ function onSelectTag(name: Tag["name"]) {
   filterStore.setActiveTags(name)
 }
 
-watch([activeDay, activeMilestoneId], () => filterStore.clearActiveTags())
+watch([activeDay, activeMilestoneId, isNoMilestoneActive], () => filterStore.clearActiveTags())
 
 watch(filteredTags, (tags) => {
   if (!filterStore.activeTagIds.size) return
@@ -53,7 +52,7 @@ watch(filteredTags, (tags) => {
 
 <template>
   <BaseAnimation name="fade" :duration="200">
-    <div v-if="filteredTags.length && !uiStore.isCalendarDockExpanded" class="pointer-events-none absolute top-2 right-1/2 left-24 z-30 mr-28 flex">
+    <div v-if="filteredTags.length && !uiStore.isCalendarDockExpanded" class="pointer-events-none absolute left-24 right-1/2 top-2 z-30 mr-28 flex">
       <DynamicTagsPanel
         :tags="filteredTags"
         :selected-tags="filterStore.activeTagIds"

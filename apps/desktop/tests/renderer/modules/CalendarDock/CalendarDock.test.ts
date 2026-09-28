@@ -255,7 +255,75 @@ describe("CalendarDock", () => {
     ui.toggleCalendarDock(false)
     await nextTick()
 
-    expect(dock.get("[data-dock-pill]").text()).toContain("All milestones")
+    expect(dock.get("[data-dock-pill]").text()).toContain("All tasks")
+  })
+
+  it("lists_a_no_milestone_row_between_the_open_and_closed_milestones_that_frames_the_projects_unassigned_tasks", async () => {
+    const {mountDock, ui, milestones, filter, tasks} = await setup()
+    const {useSettingsStore} = await import("../../../../src/renderer/src/stores/settings.store")
+    await vi.waitFor(() => expect(useSettingsStore().isSettingsLoaded).toBe(true))
+
+    milestones.milestones = [makeMilestone({id: "m-open", name: "Alpha"}), makeMilestone({id: "m-closed", name: "Gamma"})]
+    milestones.isMilestonesLoaded = true
+    tasks.tasks = [
+      makeMilestoneTask("m-open", "active"),
+      makeMilestoneTask("m-closed", "done"),
+      makeMilestoneTask(null, "active"),
+      makeMilestoneTask(null, "done"),
+      makeMilestoneTask(null, "active", {branchId: "other"}),
+    ]
+    filter.setFrame("milestone")
+    ui.setCalendarDockTab("milestones")
+    ui.toggleCalendarDock(true)
+
+    const dock = await mountDock()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    const rows = dock.findAll("[data-drop-milestone], [data-drop-no-milestone]")
+    expect(rows.map((row) => row.attributes("data-drop-milestone") ?? "none")).toEqual(["m-open", "none", "m-closed"])
+    expect(rows[1].text()).toContain("No milestone")
+    expect(rows[1].text()).toContain("2 tasks")
+
+    await rows[1].trigger("click")
+    expect(filter.isNoMilestoneActive).toBe(true)
+    expect(filter.activeMilestoneId).toBeNull()
+
+    ui.toggleCalendarDock(false)
+    await nextTick()
+    expect(dock.get("[data-dock-pill]").text()).toBe("No milestone")
+  })
+
+  it("takes_the_milestone_off_a_task_dropped_on_the_no_milestone_row", async () => {
+    const {mountDock, ui, milestones, drag, tasks} = await setup()
+    const {useSettingsStore} = await import("../../../../src/renderer/src/stores/settings.store")
+    await vi.waitFor(() => expect(useSettingsStore().isSettingsLoaded).toBe(true))
+
+    milestones.milestones = [makeMilestone({id: "m1"})]
+    milestones.isMilestonesLoaded = true
+    tasks.tasks = [makeMilestoneTask("m1", "active", {id: "task-1"})]
+    ui.setCalendarDockTab("milestones")
+    ui.toggleCalendarDock(true)
+
+    const dock = await mountDock()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    const row = dock.get("[data-drop-no-milestone]")
+    const originalElementFromPoint = document.elementFromPoint
+    document.elementFromPoint = vi.fn(() => row.element)
+
+    try {
+      drag.setDraggingTaskId("task-1")
+      await nextTick()
+      window.dispatchEvent(new MouseEvent("pointermove", {clientX: 1, clientY: 1}))
+      expect(drag.milestoneDropTarget).toEqual({milestoneId: null})
+
+      window.dispatchEvent(new MouseEvent("pointerup", {clientX: 1, clientY: 1}))
+      drag.setDraggingTaskId(null)
+
+      await vi.waitFor(() => expect(tasks.findTaskById("task-1").milestoneId).toBeNull())
+    } finally {
+      document.elementFromPoint = originalElementFromPoint
+    }
   })
 
   it("picks_TC-13_a_day_from_the_calendar_and_stays_expanded", async () => {

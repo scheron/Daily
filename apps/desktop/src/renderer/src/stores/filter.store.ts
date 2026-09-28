@@ -1,10 +1,12 @@
-import {computed, ref, watch} from "vue"
+import {computed, ref, shallowRef, watch} from "vue"
 import {defineStore, storeToRefs} from "pinia"
 
 import {useMilestonesStore} from "@/stores/milestones.store"
 import {useSettingsStore} from "@/stores/settings.store"
 
 import type {Milestone, Tag} from "@daily/protocol"
+
+type MilestoneScope = {kind: "all"} | {kind: "none"} | {kind: "milestone"; id: Milestone["id"]}
 
 export const useFilterStore = defineStore("filter", () => {
   const settingsStore = useSettingsStore()
@@ -13,11 +15,13 @@ export const useFilterStore = defineStore("filter", () => {
   const {milestonesMap, isMilestonesLoaded} = storeToRefs(milestonesStore)
 
   const activeTagIds = ref<Set<Tag["id"]>>(new Set())
-  const activeMilestoneId = ref<Milestone["id"] | null>(null)
+  const milestoneScope = shallowRef<MilestoneScope>({kind: "all"})
 
   const frame = ref<"day" | "milestone">("day")
 
   const activeBranchId = computed(() => settings.value?.branch?.activeId)
+  const activeMilestoneId = computed(() => (milestoneScope.value.kind === "milestone" ? milestoneScope.value.id : null))
+  const isNoMilestoneActive = computed(() => milestoneScope.value.kind === "none")
 
   function setActiveTags(id: Tag["id"]) {
     if (activeTagIds.value.has(id)) activeTagIds.value.delete(id)
@@ -33,11 +37,16 @@ export const useFilterStore = defineStore("filter", () => {
   }
 
   function setActiveMilestone(id: Milestone["id"]) {
-    activeMilestoneId.value = activeMilestoneId.value === id ? null : id
+    milestoneScope.value = activeMilestoneId.value === id ? {kind: "all"} : {kind: "milestone", id}
+  }
+
+  /** Frames the tasks that belong to no milestone; a second call returns to every milestone. */
+  function toggleNoMilestone() {
+    milestoneScope.value = isNoMilestoneActive.value ? {kind: "all"} : {kind: "none"}
   }
 
   function clearActiveMilestone() {
-    activeMilestoneId.value = null
+    milestoneScope.value = {kind: "all"}
   }
 
   function setFrame(next: "day" | "milestone") {
@@ -57,12 +66,14 @@ export const useFilterStore = defineStore("filter", () => {
   return {
     activeTagIds,
     activeMilestoneId,
+    isNoMilestoneActive,
     frame,
 
     removeActiveTag,
     setActiveTags,
     clearActiveTags,
     setActiveMilestone,
+    toggleNoMilestone,
     setFrame,
   }
 })

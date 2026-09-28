@@ -69,6 +69,22 @@ describe("filterStore", () => {
     expect(store.frame).toBe("day")
   })
 
+  it("frames either one milestone or the tasks without one, and returns to every milestone on a second pick", () => {
+    store.setActiveMilestone("milestone-1")
+    store.toggleNoMilestone()
+    expect(store.isNoMilestoneActive).toBe(true)
+    expect(store.activeMilestoneId).toBeNull()
+
+    store.setActiveMilestone("milestone-1")
+    expect(store.isNoMilestoneActive).toBe(false)
+    expect(store.activeMilestoneId).toBe("milestone-1")
+
+    store.toggleNoMilestone()
+    store.toggleNoMilestone()
+    expect(store.isNoMilestoneActive).toBe(false)
+    expect(store.activeMilestoneId).toBeNull()
+  })
+
   it("clears_TC-5_the_selection_when_the_active_project_changes", async () => {
     const settingsStore = useSettingsStore()
     await new Promise((r) => setTimeout(r, 0))

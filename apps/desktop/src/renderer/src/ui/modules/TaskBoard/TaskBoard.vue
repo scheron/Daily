@@ -33,7 +33,8 @@ const columns = useTaskColumns()
 
 const framedMilestoneName = computed(() => {
   if (filterStore.frame !== "milestone") return undefined
-  if (!filterStore.activeMilestoneId) return "All milestones"
+  if (filterStore.isNoMilestoneActive) return "No milestone"
+  if (!filterStore.activeMilestoneId) return "All tasks"
   return milestonesStore.milestonesMap.get(filterStore.activeMilestoneId)?.name
 })
 
@@ -63,7 +64,7 @@ watch(activeDay, () => containerRef.value?.scrollTo({top: 0, behavior: "instant"
           v-if="
             index < TASK_COLUMNS.length - 1 && !columns.isColumnCollapsed(column.status) && !columns.isColumnCollapsed(TASK_COLUMNS[index + 1].status)
           "
-          class="to-base-300/50 h-full w-px shrink-0 bg-linear-to-b from-transparent from-[44px] to-[98px]"
+          class="to-base-300/50 bg-linear-to-b h-full w-px shrink-0 from-transparent from-[44px] to-[98px]"
         />
       </template>
     </div>

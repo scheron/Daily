@@ -8,6 +8,8 @@ import {useBranchesStore} from "@/stores/branches.store"
 import {useDragDropStore} from "@/stores/dragDrop.store"
 import {useFilterStore} from "@/stores/filter.store"
 import {useMilestonesStore} from "@/stores/milestones.store"
+import {useTasksStore} from "@/stores/tasks"
+import BaseIcon from "@/ui/base/BaseIcon"
 import MilestoneDiamond from "@/ui/common/milestones/MilestoneDiamond.vue"
 import {cn} from "@/utils/ui/tailwindcss"
 
@@ -16,6 +18,7 @@ import type {Milestone, MilestoneProgress} from "@daily/protocol"
 
 const branchesStore = useBranchesStore()
 const milestonesStore = useMilestonesStore()
+const tasksStore = useTasksStore()
 const filterStore = useFilterStore()
 const dragDropStore = useDragDropStore()
 
@@ -44,21 +47,25 @@ function onSelect(id: Milestone["id"]) {
   filterStore.setActiveMilestone(id)
 }
 
-function isDropTarget(id: Milestone["id"]) {
-  return dragDropStore.dropTargetMilestoneId === id
+function isDropTarget(id: Milestone["id"] | null) {
+  return dragDropStore.milestoneDropTarget?.milestoneId === id
 }
 
-function isSelected(id: Milestone["id"]) {
-  return filterStore.activeMilestoneId === id
+function isSelected(id: Milestone["id"] | null) {
+  return id === null ? filterStore.isNoMilestoneActive : filterStore.activeMilestoneId === id
 }
 
-function getMilestoneClasses(id: Milestone["id"], isClosed: boolean) {
+function getMilestoneClasses(id: Milestone["id"] | null, isClosed: boolean) {
   return cn(
     "flex h-9 cursor-pointer items-center gap-2 rounded-md px-2 text-sm transition-colors",
     isClosed && "opacity-50",
     isDropTarget(id) && "ring-accent border-accent ring-1",
     isSelected(id) ? "bg-accent/12 text-accent" : "hover:bg-base-200/60",
   )
+}
+
+function getNoMilestoneNameClasses(isActive: boolean) {
+  return cn("min-w-0 flex-1 truncate font-medium", !isActive && "text-base-content/70")
 }
 </script>
 
@@ -77,14 +84,25 @@ function getMilestoneClasses(id: Milestone["id"], isClosed: boolean) {
         <MilestoneDiamond :completion="milestoneCompletion(milestone.progress)" :overdue="overdueOf(milestone)" :size="13" />
         <span class="min-w-0 flex-1 truncate font-medium">{{ milestone.name }}</span>
         <div class="text-base-content/55 flex shrink-0 items-center gap-2 text-xs">
-          <span class="shrink-0 text-right whitespace-nowrap">{{ dateLabelOf(milestone) }}</span>
+          <span class="shrink-0 whitespace-nowrap text-right">{{ dateLabelOf(milestone) }}</span>
           <span class="w-14 shrink-0 text-right tabular-nums">{{ milestone.progress.total }} tasks</span>
           <span class="w-9 shrink-0 text-right tabular-nums">{{ percentLabelOf(milestone.progress) }}</span>
         </div>
       </div>
 
+      <div v-if="openMilestones.length" class="bg-base-300/60 mx-2 my-1 h-px" />
+
+      <div data-drop-no-milestone :class="getMilestoneClasses(null, false)" @click="filterStore.toggleNoMilestone()">
+        <BaseIcon name="milestone" class="size-3.25 opacity-50" />
+        <span :class="getNoMilestoneNameClasses(isSelected(null))">No milestone</span>
+        <div class="text-base-content/55 flex shrink-0 items-center gap-2 text-xs">
+          <span class="w-14 shrink-0 text-right tabular-nums">{{ tasksStore.tasksWithoutMilestone.length }} tasks</span>
+          <span class="w-9 shrink-0" />
+        </div>
+      </div>
+
       <template v-if="closedMilestones.length">
-        <div class="text-base-content/45 px-2 pt-3 pb-1 text-[11px] font-semibold tracking-wide uppercase">
+        <div class="text-base-content/45 px-2 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide">
           Closed · {{ closedMilestones.length }}
         </div>
 
@@ -98,7 +116,7 @@ function getMilestoneClasses(id: Milestone["id"], isClosed: boolean) {
           <MilestoneDiamond :completion="milestoneCompletion(milestone.progress)" :overdue="overdueOf(milestone)" :size="13" />
           <span class="min-w-0 flex-1 truncate font-medium">{{ milestone.name }}</span>
           <div class="text-base-content/55 flex shrink-0 items-center gap-2 text-xs">
-            <span class="shrink-0 text-right whitespace-nowrap">{{ dateLabelOf(milestone) }}</span>
+            <span class="shrink-0 whitespace-nowrap text-right">{{ dateLabelOf(milestone) }}</span>
             <span class="w-14 shrink-0 text-right tabular-nums">{{ milestone.progress.total }} tasks</span>
             <span class="w-9 shrink-0 text-right tabular-nums">{{ percentLabelOf(milestone.progress) }}</span>
           </div>

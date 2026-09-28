@@ -8,7 +8,6 @@ import {createSharedComposable} from "@/composables/createSharedComposable"
 import {BOARD_CARD_HEIGHT, BOARD_CARD_STEP} from "@/constants/ui"
 import {useDragDropStore} from "@/stores/dragDrop.store"
 import {useFilterStore} from "@/stores/filter.store"
-import {useMilestonesStore} from "@/stores/milestones.store"
 import {useTasksStore} from "@/stores/tasks"
 import {useUIStore} from "@/stores/ui"
 import {findClosestAtPoint} from "@/utils/ui/dom"
@@ -27,7 +26,6 @@ type CardPress = {task: Task; pointerId: number; x: number; y: number}
 export const useTaskColumns = createSharedComposable(() => {
   const tasksStore = useTasksStore()
   const filterStore = useFilterStore()
-  const milestonesStore = useMilestonesStore()
   const uiStore = useUIStore()
   const dragDropStore = useDragDropStore()
 
@@ -41,8 +39,9 @@ export const useTaskColumns = createSharedComposable(() => {
   let bodyUserSelect = ""
 
   const milestoneFrameTasks = computed(() => {
-    const ids = filterStore.activeMilestoneId ? [filterStore.activeMilestoneId] : milestonesStore.activeMilestones.map((milestone) => milestone.id)
-    return ids.flatMap((id) => tasksStore.tasksByMilestoneId.get(id) ?? [])
+    if (filterStore.isNoMilestoneActive) return tasksStore.tasksWithoutMilestone
+    if (filterStore.activeMilestoneId) return tasksStore.tasksByMilestoneId.get(filterStore.activeMilestoneId) ?? []
+    return tasksStore.projectTasks
   })
 
   const filteredTasks = computed(() => filterByTag(tasksStore.dailyTasks))

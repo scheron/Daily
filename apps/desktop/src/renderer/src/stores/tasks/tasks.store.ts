@@ -39,6 +39,8 @@ export const useTasksStore = defineStore("tasks", () => {
     return map
   })
 
+  const tasksWithoutMilestone = computed(() => projectTasks.value.filter((task) => !task.milestoneId))
+
   const activeDayData = computed(() => days.value.find((day) => day.date === activeDay.value) ?? null)
   const dailyTasks = computed(() => (activeDayData.value ? sortTasksByOrderIndex(activeDayData.value.tasks) : []))
 
@@ -94,9 +96,11 @@ export const useTasksStore = defineStore("tasks", () => {
   return {
     isLoaded,
     tasks,
+    projectTasks,
     days,
     backlogTasks,
     tasksByMilestoneId,
+    tasksWithoutMilestone,
     activeDay,
     dailyTasks,
     dailyTasksByStatus,

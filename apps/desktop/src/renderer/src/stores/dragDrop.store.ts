@@ -1,16 +1,19 @@
-import {ref} from "vue"
+import {ref, shallowRef} from "vue"
 import {defineStore} from "pinia"
 
 import {useTasksStore} from "./tasks"
 
 import type {ISODate, Milestone, Task} from "@daily/protocol"
 
+/** The milestone row a dragged task hovers; `milestoneId: null` is the "No milestone" row. */
+type MilestoneDropTarget = {milestoneId: Milestone["id"] | null}
+
 export const useDragDropStore = defineStore("dragDrop", () => {
   const tasksStore = useTasksStore()
 
   const draggingTaskId = ref<Task["id"] | null>(null)
   const dropTargetDate = ref<ISODate | null>(null)
-  const dropTargetMilestoneId = ref<Milestone["id"] | null>(null)
+  const milestoneDropTarget = shallowRef<MilestoneDropTarget | null>(null)
   const isReleasedInsideDropZone = ref(false)
   const isOverDropZone = ref(false)
 
@@ -39,15 +42,15 @@ export const useDragDropStore = defineStore("dragDrop", () => {
     dropTargetDate.value = date
   }
 
-  function setDropTargetMilestoneId(id: Milestone["id"] | null) {
-    dropTargetMilestoneId.value = id
+  function setMilestoneDropTarget(target: MilestoneDropTarget | null) {
+    milestoneDropTarget.value = target
   }
 
   function dropOnDay(taskId: Task["id"], date: ISODate) {
     if (date !== tasksStore.activeDay) tasksStore.moveTask(taskId, date)
   }
 
-  function dropOnMilestone(taskId: Task["id"], milestoneId: Milestone["id"]) {
+  function dropOnMilestone(taskId: Task["id"], milestoneId: Milestone["id"] | null) {
     const task = tasksStore.findTaskById(taskId)
     if (task?.milestoneId === milestoneId) return
     tasksStore.updateTask(taskId, {milestoneId})
@@ -56,13 +59,13 @@ export const useDragDropStore = defineStore("dragDrop", () => {
   return {
     draggingTaskId,
     dropTargetDate,
-    dropTargetMilestoneId,
+    milestoneDropTarget,
     isReleasedInsideDropZone,
     isOverDropZone,
 
     setDraggingTaskId,
     setDropTargetDate,
-    setDropTargetMilestoneId,
+    setMilestoneDropTarget,
     setReleasedInsideDropZone,
     setOverDropZone,
     dropOnDay,

@@ -6,6 +6,7 @@ import {useFilterStore} from "@/stores/filter.store"
 import {useTasksStore} from "@/stores/tasks"
 import {useUIStore} from "@/stores/ui"
 import BaseButton from "@/ui/base/BaseButton"
+import BaseIcon from "@/ui/base/BaseIcon"
 import TaskCalendar from "@/ui/common/calendar/TaskCalendar"
 import MilestoneDiamond from "@/ui/common/milestones/MilestoneDiamond.vue"
 import {cn} from "@/utils/ui/tailwindcss"
@@ -47,7 +48,7 @@ function getTabVariant(isActive: boolean) {
   <div
     ref="dock"
     data-day-drop-zone
-    class="dock-surface absolute top-2 left-1/2 z-20 flex -translate-x-1/2 flex-col items-center justify-start overflow-hidden [-webkit-app-region:no-drag]"
+    class="dock-surface absolute left-1/2 top-2 z-20 flex -translate-x-1/2 flex-col items-center justify-start overflow-hidden [-webkit-app-region:no-drag]"
     :class="getDockClasses()"
   >
     <Transition :css="false" @enter="onEnter" @leave="onLeave">
@@ -78,12 +79,16 @@ function getTabVariant(isActive: boolean) {
         </div>
       </div>
 
-      <div v-else data-dock-pill class="text-accent flex h-8 items-center gap-1 px-3 text-sm font-semibold whitespace-nowrap">
+      <div v-else data-dock-pill class="text-accent flex h-8 items-center gap-1 whitespace-nowrap px-3 text-sm font-semibold">
         <span v-if="filterStore.frame === 'milestone' && framedMilestone" class="inline-flex min-w-0 items-center gap-1.5">
           <MilestoneDiamond :completion="framedMilestoneCompletion" :overdue="framedMilestoneOverdue" :size="12" />
-          <span class="max-w-32 min-w-0 truncate">{{ framedMilestone.name }}</span>
+          <span class="min-w-0 max-w-32 truncate">{{ framedMilestone.name }}</span>
         </span>
-        <template v-else-if="filterStore.frame === 'milestone'">All milestones</template>
+        <span v-else-if="filterStore.frame === 'milestone' && filterStore.isNoMilestoneActive" class="inline-flex items-center gap-1.5">
+          <BaseIcon name="milestone" class="size-3 opacity-50" />
+          No milestone
+        </span>
+        <template v-else-if="filterStore.frame === 'milestone'">All tasks</template>
         <template v-else>{{ dayLabel }}</template>
       </div>
     </Transition>
