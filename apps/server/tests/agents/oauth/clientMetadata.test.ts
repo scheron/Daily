@@ -3,7 +3,7 @@ import {isIP} from "node:net"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
 import {fetchClientMetadata, isRegisteredRedirectUri} from "../../../src/agents/oauth/clientMetadata"
-import {claudeAppDocument, claudeCodeDocument, codexDocument, startClientDocumentServer, unusedLoopbackPort} from "./harness"
+import {chatGptDocument, claudeAppDocument, claudeCodeDocument, codexDocument, startClientDocumentServer, unusedLoopbackPort} from "./harness"
 
 import type {MockInstance} from "vitest"
 import type {ClientMetadata} from "../../../src/agents/oauth/clientMetadata"
@@ -31,7 +31,7 @@ function jsonPaddedTo(doc: Record<string, unknown>, targetBytes: number): string
   throw new Error(`could not pad a document to exactly ${targetBytes} bytes`)
 }
 
-describe("fetchClientMetadata accepts the three real clients' documents — TC-7", () => {
+describe("fetchClientMetadata accepts the four real clients' documents — TC-7", () => {
   let docs: ClientDocumentServer
 
   beforeEach(async () => {
@@ -42,11 +42,12 @@ describe("fetchClientMetadata accepts the three real clients' documents — TC-7
     await docs.close()
   })
 
-  it("TC-7: a Claude Code-shaped, a Claude app-shaped and a Codex-shaped document each answer ok with their own name and redirect URIs", async () => {
+  it("TC-7: a Claude Code-shaped, a Claude app-shaped, a Codex-shaped and a ChatGPT-shaped document each answer ok with their own name and redirect URIs", async () => {
     const cases: [path: string, shape: (clientId: string) => Record<string, unknown>, name: string, redirectUris: string[]][] = [
       ["/claude-code.json", claudeCodeDocument, "Claude Code", ["http://localhost/callback", "http://127.0.0.1/callback"]],
       ["/claude-app.json", claudeAppDocument, "Claude", ["https://claude.ai/api/mcp/auth_callback"]],
       ["/codex.json", codexDocument, "Codex", ["http://127.0.0.1/callback", "http://localhost/callback"]],
+      ["/chatgpt.json", chatGptDocument, "ChatGPT", ["https://chatgpt.com/connector_platform_oauth_redirect"]],
     ]
 
     for (const [path, shape, name, redirectUris] of cases) {
@@ -226,6 +227,7 @@ describe("fetchClientMetadata refuses whatever the document itself gets wrong �
       ["/empty-redirects", (clientId) => JSON.stringify(claudeCodeDocument(clientId, {redirect_uris: []}))],
       ["/non-string-redirects", (clientId) => JSON.stringify(claudeCodeDocument(clientId, {redirect_uris: [42]}))],
       ["/auth-method", (clientId) => JSON.stringify(claudeCodeDocument(clientId, {token_endpoint_auth_method: "client_secret_basic"}))],
+      ["/auth-methods", (clientId) => JSON.stringify(chatGptDocument(clientId, {token_endpoint_auth_methods_supported: ["private_key_jwt"]}))],
       ["/has-secret", (clientId) => JSON.stringify(claudeCodeDocument(clientId, {client_secret: "shh"}))],
       ["/grant-types", (clientId) => JSON.stringify(claudeCodeDocument(clientId, {grant_types: ["refresh_token"]}))],
       ["/response-types", (clientId) => JSON.stringify(claudeCodeDocument(clientId, {response_types: ["token"]}))],

@@ -176,11 +176,12 @@ function readClientDocument(body: string, clientId: string): ClientMetadata | nu
   const fields = document as Record<string, unknown>
   const clientName = typeof fields.client_name === "string" ? fields.client_name.trim() : ""
   const redirectUris = fields.redirect_uris
+  const authMethods = fields.token_endpoint_auth_methods_supported ?? [fields.token_endpoint_auth_method ?? "none"]
 
   if (fields.client_id !== clientId) return null
   if (clientName.length < 1 || clientName.length > 100) return null
   if (!Array.isArray(redirectUris) || redirectUris.length === 0 || !redirectUris.every((uri): uri is string => typeof uri === "string")) return null
-  if (fields.token_endpoint_auth_method !== undefined && fields.token_endpoint_auth_method !== "none") return null
+  if (!Array.isArray(authMethods) || !authMethods.includes("none")) return null
   if (fields.client_secret !== undefined) return null
   if (!isAbsentOrListing(fields.grant_types, "authorization_code") || !isAbsentOrListing(fields.response_types, "code")) return null
 
