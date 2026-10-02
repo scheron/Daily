@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.29.0 - 2026-10-03
+
+### ✨ New Features
+
+- **Quick Capture** — ⌘⌥Space opens a small panel to capture a task from any app, without bringing Daily forward.
+  - The panel opens at the bottom of the screen under the cursor, over any app and over full-screen spaces.
+  - Project and status sit as chips next to the text, and `/` sets status, date, project, estimate and tags. ⌘Enter saves, Esc closes.
+  - The shortcut can be changed in Settings → General.
+
+### 🎨 Improvements
+
+- **Task editor** — the `/` menu now sets status, date, project and estimate, alongside adding and removing tags.
+- **Cards** — time spent shows on a card even when the task has no estimate, and can be logged from the card's menu without one.
+
+### 🐛 Bug Fixes
+
+- **Task editor** — typing after `/Add Tag` or `/Remove Tag` now filters the list by any text, Cyrillic included.
+
+---
+
 ## v0.28.1 - 2026-09-28
 
 ### 🎨 Improvements
