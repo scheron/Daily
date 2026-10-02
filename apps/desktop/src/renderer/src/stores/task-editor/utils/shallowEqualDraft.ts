@@ -1,7 +1,7 @@
 import {sameIds} from "./sameIds"
 import {sameTagIds} from "./sameTagIds"
 
-import type {TaskDraft} from "../types"
+import type {TaskDraft} from "@/types/taskDraft"
 
 export function shallowEqualDraft(a: TaskDraft, b: TaskDraft): boolean {
   return (

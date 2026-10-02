@@ -49,6 +49,7 @@ import type {
 } from "@shared/types/ai"
 import type {FocusCommand, FocusSession} from "@shared/types/focus"
 import type {ApprovalKind, BridgeIPC} from "@shared/types/ipc"
+import type {HotkeyRebindResult, QuickCaptureHotkeyState, QuickCaptureMenu} from "@shared/types/quickCapture"
 import type {AppUpdateState} from "@shared/types/update"
 import type {PartialDeep} from "type-fest"
 
@@ -136,6 +137,29 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "focus:get": () => ipcRenderer.invoke("focus:get") as Promise<FocusSession>,
   "focus:dispatch": (command: FocusCommand) => ipcRenderer.invoke("focus:dispatch", command) as Promise<FocusSession>,
   "focus:on-changed": (callback: (session: FocusSession) => void) => ipcRenderer.on("focus:changed", (_event, session: FocusSession) => callback(session)),
+
+  "quick-capture:hide": () => ipcRenderer.send("quick-capture:hide"),
+  "quick-capture:resize": (height: number) => ipcRenderer.send("quick-capture:resize", height),
+  "quick-capture:active-hotkey": () => ipcRenderer.invoke("quick-capture:active-hotkey") as Promise<QuickCaptureHotkeyState>,
+  "quick-capture:rebind-hotkey": (accelerator: string) => ipcRenderer.invoke("quick-capture:rebind-hotkey", accelerator) as Promise<HotkeyRebindResult>,
+  "quick-capture:on-shown": (callback: () => void) => {
+    const subscription = () => callback()
+    ipcRenderer.on("quick-capture:shown", subscription)
+    return () => ipcRenderer.removeListener("quick-capture:shown", subscription)
+  },
+  "quick-capture:set-menu": (menu: QuickCaptureMenu | null) => ipcRenderer.send("quick-capture:set-menu", menu),
+  "quick-capture:on-menu-pick": (callback: (index: number) => void) => {
+    const subscription = (_event: unknown, index: number) => callback(index)
+    ipcRenderer.on("quick-capture:menu-pick", subscription)
+    return () => ipcRenderer.removeListener("quick-capture:menu-pick", subscription)
+  },
+  "quick-capture-menu:on-menu": (callback: (menu: QuickCaptureMenu | null) => void) => {
+    const subscription = (_event: unknown, menu: QuickCaptureMenu | null) => callback(menu)
+    ipcRenderer.on("quick-capture-menu:menu", subscription)
+    return () => ipcRenderer.removeListener("quick-capture-menu:menu", subscription)
+  },
+  "quick-capture-menu:resize": (height: number) => ipcRenderer.send("quick-capture-menu:resize", height),
+  "quick-capture-menu:pick": (index: number) => ipcRenderer.send("quick-capture-menu:pick", index),
 
   "tasks:get-all": () => ipcRenderer.invoke("tasks:get-all") as Promise<Task[]>,
   "tasks:get-many": (params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: Branch["id"]}) => ipcRenderer.invoke("tasks:get-many", params) as Promise<Task[]>,

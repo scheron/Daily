@@ -10,8 +10,8 @@ import {buildRestPatch} from "./utils/buildRestPatch"
 import {sameIds} from "./utils/sameIds"
 import {shallowEqualDraft} from "./utils/shallowEqualDraft"
 
+import type {TaskDraft} from "@/types/taskDraft"
 import type {Branch, Milestone, Task, TaskRelationSets} from "@daily/protocol"
-import type {TaskDraft} from "./types"
 
 export const useTaskEditorStore = defineStore("taskEditor", () => {
   const tasksStore = useTasksStore()

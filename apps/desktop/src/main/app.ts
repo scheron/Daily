@@ -4,6 +4,10 @@ import {app} from "electron"
 import {logger, setFileCoordinatorBinaryPath, StorageController} from "@daily/core"
 import {APP_CONFIG} from "@daily/protocol"
 
+import {HOTKEY_REQUESTS} from "@main/quickCaptureHelper/helperProtocol"
+import {createHelperRequestHandler} from "@main/quickCaptureHelper/helperRequests"
+import {QuickCaptureHelper} from "@main/quickCaptureHelper/QuickCaptureHelper"
+import {spawnHelper} from "@main/quickCaptureHelper/spawnHelper"
 import {awaitRendererReady} from "./utils/windows/awaitRendererReady"
 import {broadcastToWindows} from "./utils/windows/broadcastToWindows"
 import {focusWindow} from "./utils/windows/focusWindow"
@@ -23,6 +27,7 @@ import {setupAiIPC} from "./setup/ipc/ai"
 import {setupAssistantIPC} from "./setup/ipc/assistant"
 import {setupFocusIPC} from "./setup/ipc/focus"
 import {setupMenuIPC} from "./setup/ipc/menu"
+import {setupQuickCaptureIPC} from "./setup/ipc/quickCapture"
 import {setupSettingsIPC} from "./setup/ipc/settings"
 import {setupShellIPC} from "./setup/ipc/shell"
 import {setupStorageIPC} from "./setup/ipc/storage"
@@ -59,6 +64,18 @@ let storage: StorageController | null = null
 let ai: AIController | null = null
 let focus: FocusController | null = null
 let savedMainWindowState: MainWindowSettings | undefined
+
+const quickCaptureHelper = new QuickCaptureHelper({
+  spawn: spawnHelper,
+  handleRequest: createHelperRequestHandler(() => storage),
+  onReady: async () => {
+    const hotkey = (await storage?.loadSettings())?.quickCapture.hotkey
+    if (!hotkey) return
+
+    const isRegistered = await quickCaptureHelper.request(HOTKEY_REQUESTS.register, [hotkey])
+    if (!isRegistered) logger.warn(logger.CONTEXT.APP, `Quick Capture hotkey could not be registered: ${hotkey}`)
+  },
+})
 
 setFileCoordinatorBinaryPath(
   app.isPackaged ? join(process.resourcesPath, "file-coordinator") : join(process.cwd(), "..", "..", "resources", "file-coordinator"),
@@ -151,6 +168,7 @@ app.whenReady().then(async () => {
   )
 
   setupStorageIPC(() => storage)
+  setupQuickCaptureIPC(quickCaptureHelper, () => storage)
   setupFocusIPC(
     () => focus,
     () => windows.focus,
@@ -168,7 +186,9 @@ app.whenReady().then(async () => {
     () => storage,
     () => windows,
     () => focus,
+    (channel, ...args) => quickCaptureHelper.emit(channel, ...args),
   )
+
   setupMainWindow(windows, {showSplash: true})
 
   void ai
@@ -181,6 +201,8 @@ app.whenReady().then(async () => {
 
   logger.lifecycle(`${APP_CONFIG.name} started`)
 })
+
+app.on("will-quit", () => quickCaptureHelper.stop())
 
 app.on("before-quit", async (event) => {
   if (focus?.holdQuit(event)) return
@@ -219,6 +241,7 @@ function setupMainWindow(windows: AppWindows, options?: {showSplash?: boolean}) 
 
     main.show()
     focusWindow(main)
+    quickCaptureHelper.start()
   })
 
   return main

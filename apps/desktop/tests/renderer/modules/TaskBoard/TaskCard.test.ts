@@ -90,6 +90,26 @@ describe("TaskCard — the metrics row", () => {
     expect(footerText()).toBe("2 h.45 min.2")
   })
 
+  it("shows_the_time_spent_alone_when_the_task_carries_no_estimate", async () => {
+    await setup(makeTask({spentTime: 2700}))
+
+    const icons = wrapper
+      .find(".gap-2.text-xs")
+      .findAll("use")
+      .map((icon) => icon.attributes("href"))
+    expect(icons).toEqual(["#check-check"])
+    expect(footerText()).toBe("45 min.")
+  })
+
+  it("offers_the_time_spent_action_on_a_task_with_no_estimate", async () => {
+    await setup(makeTask())
+
+    const items = wrapper.findComponent({name: "BaseContextMenu"}).props("items")
+    const timeSpent = items.find((item) => item.value === "time-spent")
+    expect(timeSpent).toBeDefined()
+    expect(timeSpent.disabled).toBeFalsy()
+  })
+
   it("carries_its_milestone_in_the_milestone_frame_too_with_its_date_leading_the_metrics", async () => {
     const {useMilestonesStore} = await import("../../../../src/renderer/src/stores/milestones.store")
     const {useFilterStore} = await import("../../../../src/renderer/src/stores/filter.store")

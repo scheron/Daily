@@ -1,29 +1,39 @@
-import {sort} from "fast-sort"
-
 import {blockCommands, linkCommands} from "@/utils/codemirror/commands"
-import {autocompletion, completionKeymap, startCompletion} from "@codemirror/autocomplete"
+import {
+  autocompletion,
+  completionKeymap,
+  completionStatus,
+  currentCompletions,
+  selectedCompletionIndex,
+  startCompletion,
+} from "@codemirror/autocomplete"
 import {syntaxTree} from "@codemirror/language"
-import {keymap} from "@codemirror/view"
+import {EditorView, keymap} from "@codemirror/view"
+import {getCompletionChipClass, getCompletionRowClass} from "./completionRow"
 
 import type {IconName} from "@/ui/base/BaseIcon"
 import type {Completion, CompletionContext, CompletionResult} from "@codemirror/autocomplete"
-import type {Extension} from "@codemirror/state"
-import type {EditorView} from "@codemirror/view"
-import type {Tag} from "@daily/protocol"
+import type {EditorState, Extension} from "@codemirror/state"
 import type {SyntaxNode} from "@lezer/common"
+import type {QuickCaptureMenu} from "@shared/types/quickCapture"
 
 type SlashItem = {label: string; icon: IconName; run: (view: EditorView) => boolean}
 
-type TagsAutocompleteOptions = {
-  getTags: () => Tag[]
-  getAttachedTags: () => Tag[]
-  onAddTag: (tag: Tag) => void
-  onRemoveTag: (tag: Tag) => void
+/** One choice in a command's second-level list. A `color` renders it as a tag chip, otherwise it needs an `icon` for a plain row. */
+export type NestedItem = {label: string; icon?: IconName; color?: string; apply: () => void}
+
+/** A `/` command that opens a second-level list. `getItems` receives what was typed after the command and does its own filtering. */
+export type NestedCommand = {
+  label: string
+  icon: IconName
+  tone?: "remove"
+  isAvailable?: () => boolean
+  getItems: (query: string) => NestedItem[]
 }
 
-type TagCommandMode = "add" | "remove"
+export type SlashCommandsOptions = {commands: NestedCommand[]}
 
-type TagCompletionMeta = {color: string; mode: TagCommandMode}
+type OptionMeta = {icon?: IconName; color?: string; tone?: "remove"}
 
 const SLASH_ITEMS: SlashItem[] = [
   {label: "Divider", icon: "minus", run: blockCommands.insertHorizontalRule},
@@ -42,46 +52,40 @@ const SLASH_ITEMS: SlashItem[] = [
   {label: "Link", icon: "link", run: linkCommands.insertLink},
 ]
 
-/** Without `options` — a project or milestone description has nothing to tag — `/` still offers every block command, only without "Add Tag" and "Remove Tag". */
-export function createCompletionExtension(options?: TagsAutocompleteOptions): Extension {
-  const tagMetaByLabel = new Map<string, TagCompletionMeta>()
-  const slashIconByLabel = new Map<string, IconName>(SLASH_ITEMS.map((item) => [`/${item.label}`, item.icon]))
-
-  if (options) {
-    createTagSlashItems(true).forEach((item) => slashIconByLabel.set(`/${item.label}`, item.icon))
-  }
+/** Without `options` — a project or milestone description has nothing to set — `/` still offers every block command, only without the task commands. */
+export function createCompletionExtension(options?: SlashCommandsOptions, onMenuChange?: (menu: QuickCaptureMenu | null) => void): Extension {
+  const metaByCompletion = new WeakMap<Completion, OptionMeta>()
 
   return [
+    onMenuChange ? createExternalMenuExtension(metaByCompletion, onMenuChange) : [],
     autocompletion({
       activateOnTyping: true,
       icons: false,
       tooltipClass: () => "cm-tags-autocomplete",
-      optionClass: (completion) => {
-        const meta = tagMetaByLabel.get(completion.label)
-        if (meta) return meta.mode === "remove" ? "cm-tag-option cm-tag-option-remove" : "cm-tag-option cm-tag-option-add"
-        return "cm-slash-option"
-      },
+      optionClass: (completion) => getCompletionRowClass(metaByCompletion.get(completion) ?? {}),
       addToOptions: [
         {
           position: 45,
           render: (completion) => {
-            const meta = tagMetaByLabel.get(completion.label)
-            if (meta) {
+            const meta = metaByCompletion.get(completion)
+            if (!meta) return null
+
+            const chipClass = getCompletionChipClass(meta)
+            if (chipClass && meta.color) {
               const chip = document.createElement("span")
-              chip.className = `cm-tag-option-chip ${meta.mode === "remove" ? "cm-tag-option-chip-remove" : "cm-tag-option-chip-add"}`
+              chip.className = chipClass
               chip.style.setProperty("--tag-color", meta.color)
               chip.textContent = completion.label
               return chip
             }
 
-            const icon = slashIconByLabel.get(completion.label)
-            if (icon === undefined) return null
+            if (!meta.icon) return null
 
             const row = document.createElement("span")
             row.className = "cm-slash-option-row"
             const iconEl = document.createElement("span")
             iconEl.className = "cm-slash-option-icon"
-            iconEl.innerHTML = `<svg width="16" height="16" aria-hidden="true"><use href="#${icon}" /></svg>`
+            iconEl.innerHTML = `<svg width="16" height="16" aria-hidden="true"><use href="#${meta.icon}" /></svg>`
             const labelEl = document.createElement("span")
             labelEl.className = "cm-slash-option-label"
             labelEl.textContent = completion.label.replace(/^\//, "")
@@ -91,107 +95,103 @@ export function createCompletionExtension(options?: TagsAutocompleteOptions): Ex
         },
       ],
       override: options
-        ? [createTagSlashCompletionSource(options, tagMetaByLabel), createSlashCompletionSource(options)]
-        : [createSlashCompletionSource()],
+        ? [createNestedCompletionSource(options.commands, metaByCompletion), createSlashCompletionSource(metaByCompletion, options.commands)]
+        : [createSlashCompletionSource(metaByCompletion)],
     }),
     keymap.of(completionKeymap),
   ]
 }
 
-function createTagCompletions(
-  tags: Tag[],
-  query: string,
-  mode: TagCommandMode,
-  commandFrom: number,
-  metaByLabel: Map<string, TagCompletionMeta>,
-  onApply: (tag: Tag) => void,
-): Completion[] {
-  const normalizedQuery = query.toLowerCase()
-  const sorted = sort(tags).asc((t) => t.name)
+function createExternalMenuExtension(
+  metaByCompletion: WeakMap<Completion, OptionMeta>,
+  onChange: (menu: QuickCaptureMenu | null) => void,
+): Extension {
+  let wasOpen = false
 
-  return sorted
-    .filter((tag) => {
-      const name = tag.name.toLowerCase()
-      return !normalizedQuery || name.includes(normalizedQuery)
-    })
-    .map((tag) => {
-      const label = tag.name
-      metaByLabel.set(label, {color: tag.color, mode})
+  return [
+    EditorView.theme({".cm-tooltip.cm-tooltip-autocomplete": {display: "none !important"}}),
+    EditorView.updateListener.of((update) => {
+      const status = completionStatus(update.state)
+      if (status === "pending") return
 
-      return {
-        label,
-        type: "keyword",
-        apply: (view: EditorView, _completion: Completion, from: number, to: number) => {
-          view.dispatch({
-            changes: {from: commandFrom, to, insert: ""},
-            selection: {anchor: commandFrom},
-          })
-          onApply(tag)
-          view.focus()
-        },
-      } satisfies Completion
-    })
+      const isOpen = status === "active"
+      if (!isOpen && !wasOpen) return
+      wasOpen = isOpen
+
+      update.view.requestMeasure({
+        read: (view) => (isOpen ? toMenu(view, metaByCompletion) : null),
+        write: (menu) => onChange(menu),
+      })
+    }),
+  ]
 }
 
-function createTagSlashItems(shouldShowRemove: boolean): SlashItem[] {
-  const addItem: SlashItem = {label: "Add Tag", icon: "tags", run: insertTagCommand("add")}
-  const removeItem: SlashItem = {label: "Remove Tag", icon: "tags-off", run: insertTagCommand("remove")}
+function toMenu(view: EditorView, metaByCompletion: WeakMap<Completion, OptionMeta>): QuickCaptureMenu | null {
+  const state: EditorState = view.state
+  if (completionStatus(state) !== "active") return null
 
-  return shouldShowRemove ? [addItem, removeItem] : [addItem]
+  const rows = currentCompletions(state).map((completion) => {
+    const meta = metaByCompletion.get(completion)
+    return {label: meta?.color ? completion.label : completion.label.replace(/^\//, ""), icon: meta?.icon, color: meta?.color, tone: meta?.tone}
+  })
+
+  return {rows, selected: selectedCompletionIndex(state) ?? 0, caretX: view.coordsAtPos(state.selection.main.head)?.left ?? 0}
 }
 
-function insertTagCommand(mode: TagCommandMode): (view: EditorView) => boolean {
+function insertNestedCommand(command: NestedCommand): (view: EditorView) => boolean {
   return (view) => {
     const {from, to} = view.state.selection.main
-    const label = mode === "remove" ? "Remove Tag" : "Add Tag"
-    const command = `/${label} `
+    const text = `/${command.label} `
 
-    view.dispatch({changes: {from, to, insert: command}, selection: {anchor: from + command.length}})
+    view.dispatch({changes: {from, to, insert: text}, selection: {anchor: from + text.length}})
     setTimeout(() => startCompletion(view), 0)
     return true
   }
 }
 
-function createTagSlashCompletionSource(
-  options: TagsAutocompleteOptions,
-  metaByLabel: Map<string, TagCompletionMeta>,
+function createNestedCompletionSource(
+  commands: NestedCommand[],
+  metaByCompletion: WeakMap<Completion, OptionMeta>,
 ): (context: CompletionContext) => CompletionResult | null {
+  const names = commands.map((command) => escapeRegExp(command.label)).join("|")
+  const pattern = new RegExp(`(^|[\\s([{])\\/(${names})\\s+(.*)$`, "i")
+
   return (context) => {
     const line = context.state.doc.lineAt(context.pos)
     const textBeforeCursor = context.state.sliceDoc(line.from, context.pos)
-    const match = textBeforeCursor.match(/(^|[\s([{])\/(Add Tag|Remove Tag)\s+([\w-]*)$/i)
-
+    const match = textBeforeCursor.match(pattern)
     if (!match) return null
-    if (context.pos < line.from) return null
 
-    const mode = match[2].toLowerCase() === "remove tag" ? "remove" : "add"
+    const command = commands.find((c) => c.label.toLowerCase() === match[2].toLowerCase())
+    if (!command || (command.isAvailable && !command.isAvailable())) return null
+
     const query = match[3] ?? ""
     const commandFrom = line.from + (match.index ?? 0) + match[1].length
-    const queryFrom = context.pos - query.length
-    const sourceTags = mode === "remove" ? options.getAttachedTags() : options.getTags()
 
-    metaByLabel.clear()
-    const completions = createTagCompletions(
-      sourceTags,
-      query,
-      mode,
-      commandFrom,
-      metaByLabel,
-      mode === "remove" ? options.onRemoveTag : options.onAddTag,
-    )
+    const completions = command.getItems(query.trim()).map((item): Completion => {
+      const completion: Completion = {
+        label: item.label,
+        type: "keyword",
+        apply: (view, _completion, _from, to) => {
+          view.dispatch({changes: {from: commandFrom, to, insert: ""}, selection: {anchor: commandFrom}})
+          item.apply()
+          view.focus()
+        },
+      }
+      metaByCompletion.set(completion, {icon: item.icon, color: item.color, tone: command.tone})
+      return completion
+    })
 
     if (!completions.length) return null
 
-    return {
-      from: queryFrom,
-      to: context.pos,
-      options: completions,
-      validFor: /^[\w-]*$/,
-    }
+    return {from: context.pos - query.length, to: context.pos, options: completions, filter: false}
   }
 }
 
-function createSlashCompletionSource(options?: TagsAutocompleteOptions): (context: CompletionContext) => CompletionResult | null {
+function createSlashCompletionSource(
+  metaByCompletion: WeakMap<Completion, OptionMeta>,
+  commands: NestedCommand[] = [],
+): (context: CompletionContext) => CompletionResult | null {
   return (context) => {
     const match = context.matchBefore(/\/[\w-]*/)
     if (!match) return null
@@ -202,15 +202,22 @@ function createSlashCompletionSource(options?: TagsAutocompleteOptions): (contex
 
     if (isInsideCode(context)) return null
 
-    const tagItems = options ? createTagSlashItems(options.getAttachedTags().length > 0) : []
-    const items = [...SLASH_ITEMS.slice(0, 1), ...tagItems, ...SLASH_ITEMS.slice(1)]
+    const commandItems: SlashItem[] = commands
+      .filter((command) => !command.isAvailable || command.isAvailable())
+      .map((command) => ({label: command.label, icon: command.icon, run: insertNestedCommand(command)}))
+    const items = [...SLASH_ITEMS.slice(0, 1), ...commandItems, ...SLASH_ITEMS.slice(1)]
 
-    return {from: match.from, to: match.to, options: items.map(toCompletion), validFor: /^\/[\w-]*$/}
+    return {
+      from: match.from,
+      to: match.to,
+      options: items.map((item, index) => toCompletion(item, index, metaByCompletion)),
+      validFor: /^\/[\w-]*$/,
+    }
   }
 }
 
-function toCompletion(item: SlashItem, index: number): Completion {
-  return {
+function toCompletion(item: SlashItem, index: number, metaByCompletion: WeakMap<Completion, OptionMeta>): Completion {
+  const completion: Completion = {
     label: `/${item.label}`,
     type: "keyword",
     sortText: String(index).padStart(2, "0"),
@@ -220,6 +227,12 @@ function toCompletion(item: SlashItem, index: number): Completion {
       view.focus()
     },
   }
+  metaByCompletion.set(completion, {icon: item.icon})
+  return completion
+}
+
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 }
 
 function isInsideCode(context: CompletionContext): boolean {

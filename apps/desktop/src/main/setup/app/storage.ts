@@ -7,7 +7,12 @@ import type {StorageController} from "@daily/core"
 import type {FocusController} from "@main/focus/FocusController"
 import type {WindowsGetter} from "@main/utils/windows/broadcastToWindows"
 
-export function setupStorageSync(getStorage: () => StorageController | null, getWindows: WindowsGetter, getFocus: () => FocusController | null) {
+export function setupStorageSync(
+  getStorage: () => StorageController | null,
+  getWindows: WindowsGetter,
+  getFocus: () => FocusController | null,
+  forwardToHelper: (channel: string, ...args: unknown[]) => void = () => undefined,
+) {
   const storage = getStorage()
 
   if (!storage) {
@@ -21,10 +26,12 @@ export function setupStorageSync(getStorage: () => StorageController | null, get
     },
     onDataChange: (changeset) => {
       broadcastToWindows(getWindows, "storage:changed", changeset)
+      forwardToHelper("storage:changed", changeset)
       getFocus()?.applyStorageChange(changeset)
     },
     onSettingsChange: () => {
       broadcastToWindows(getWindows, "settings:changed")
+      forwardToHelper("settings:changed")
     },
     onApprovalRequested: () => {
       sendToApprovalWindow(getWindows, "sync-server:approval-requested")

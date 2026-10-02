@@ -32,6 +32,12 @@ describe("SettingsModel", () => {
     expect(settings.branch.activeId).toBe("main")
   })
 
+  it("keeps a rebound Quick Capture hotkey", () => {
+    settingsModel.saveSettings({quickCapture: {hotkey: "Control+Shift+A"}})
+
+    expect(settingsModel.loadSettings().quickCapture.hotkey).toBe("Control+Shift+A")
+  })
+
   it("persists remote configuration locally, not in the syncable settings row", () => {
     settingsModel.saveSettings({sync: {iCloud: {enabled: true}}})
     const settings = settingsModel.loadSettings()

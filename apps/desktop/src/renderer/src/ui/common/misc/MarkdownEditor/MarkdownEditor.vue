@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import {onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef, watch} from "vue"
+import {computed, onBeforeUnmount, onMounted, ref, shallowRef, useTemplateRef, watch} from "vue"
+import {useEventListener} from "@vueuse/core"
 
-import {useTagsStore} from "@/stores/tags.store"
-import {useTaskEditorStore} from "@/stores/task-editor"
 import {useImagePreviewModal} from "@/ui/overlays/ImagePreviewModal"
 import {markdownKeymap} from "@/utils/codemirror/commands"
 import {
@@ -19,20 +18,35 @@ import {
   skipOrderedListRenumber,
 } from "@/utils/codemirror/extensions"
 import {cn} from "@/utils/ui/tailwindcss"
+import {acceptCompletion, completionStatus, currentCompletions, setSelectedCompletion} from "@codemirror/autocomplete"
 import {defaultKeymap, history, historyKeymap, indentWithTab} from "@codemirror/commands"
 import {EditorState, Prec} from "@codemirror/state"
 import {drawSelection, EditorView, keymap, placeholder} from "@codemirror/view"
 import {useClipboardPaste} from "./composables/useClipboardPaste"
 import {useFileDrop} from "./composables/useFileDrop"
+import {useTaskSlashCommands} from "./composables/useTaskSlashCommands"
 import FloatingToolbar from "./{fragments}/FloatingToolbar"
 
-import type {Tag, Task} from "@daily/protocol"
+import type {TaskDraft} from "@/types/taskDraft"
+import type {Task} from "@daily/protocol"
+import type {QuickCaptureMenu} from "@shared/types/quickCapture"
 
-const props = defineProps<{content: string; task?: Task}>()
-const emit = defineEmits<{"update:content": [value: string]}>()
-
-const tagsStore = useTagsStore()
-const taskEditorStore = useTaskEditorStore()
+const props = defineProps<{
+  content: string
+  /** The task whose properties the `/` commands edit; without it only block commands are offered. */
+  task?: Task
+  /** Hides the editor's own `/` menu and reports it through `menu` instead, for a host that draws it elsewhere. */
+  externalMenu?: boolean
+  /** Turns off image paste and drop, for a host that has nowhere to keep attachments. */
+  noAttachments?: boolean
+  /** Keeps the editor at least this many lines tall, empty or not. A line is `1.5em` unless the host sets `--editor-line-height`. */
+  minLines?: number
+}>()
+const emit = defineEmits<{
+  "update:content": [value: string]
+  patch: [updates: Partial<TaskDraft>]
+  menu: [menu: QuickCaptureMenu | null]
+}>()
 
 const containerRef = useTemplateRef<HTMLDivElement>("container")
 
@@ -40,14 +54,45 @@ const view = shallowRef<EditorView | null>(null)
 
 const {open: openImagePreview} = useImagePreviewModal()
 
-if (props.task) {
+if (props.task && !props.noAttachments) {
   useClipboardPaste(containerRef, view)
 }
 
-const {isDraggingOver} = props.task ? useFileDrop(containerRef, view) : {isDraggingOver: ref(false)}
+const {isDraggingOver} = props.task && !props.noAttachments ? useFileDrop(containerRef, view) : {isDraggingOver: ref(false)}
+
+useEventListener(
+  containerRef,
+  "dragover",
+  (event: DragEvent) => {
+    if (props.noAttachments && event.dataTransfer?.types.includes("Files")) event.preventDefault()
+  },
+  {capture: true},
+)
+
+useEventListener(
+  containerRef,
+  "drop",
+  (event: DragEvent) => {
+    if (!props.noAttachments || !event.dataTransfer?.files.length) return
+    event.preventDefault()
+    event.stopPropagation()
+  },
+  {capture: true},
+)
+
+const taskCommands = props.task
+  ? useTaskSlashCommands(
+      computed(() => props.task!),
+      (updates) => emit("patch", updates),
+    )
+  : undefined
 
 function getContainerClasses(isDraggingOver: boolean) {
-  return cn("markdown-editor relative size-full", isDraggingOver && "ring-offset-base-100 ring-accent/50 rounded-md ring-2")
+  return cn(
+    "markdown-editor relative size-full",
+    props.minLines && "has-min-lines",
+    isDraggingOver && "ring-offset-base-100 ring-accent/50 rounded-md ring-2",
+  )
 }
 
 function onContentClick(event: MouseEvent) {
@@ -64,24 +109,16 @@ function onContentClick(event: MouseEvent) {
   openImagePreview(image.currentSrc || image.src, image.alt || "Image preview")
 }
 
-function addTaskTag(tag: Tag) {
-  if (!props.task) return
-  if (props.task.tags.some((t) => t.id === tag.id)) return
-  taskEditorStore.patch({tags: [...props.task.tags, tag]})
-}
-
-function removeTaskTag(tag: Tag) {
-  if (!props.task) return
-  if (!props.task.tags.some((t) => t.id === tag.id)) return
-  taskEditorStore.patch({tags: props.task.tags.filter((t) => t.id !== tag.id)})
-}
-
 function createEditor(initialContent: string) {
   if (!containerRef.value) return
   if (view.value) view.value.destroy()
 
-  const state = EditorState.create({
-    doc: initialContent,
+  view.value = new EditorView({state: createState(initialContent), parent: containerRef.value})
+}
+
+function createState(doc: string) {
+  return EditorState.create({
+    doc,
     extensions: [
       history(),
       drawSelection(),
@@ -100,22 +137,25 @@ function createEditor(initialContent: string) {
       Prec.high(keymap.of(markdownKeymap)),
       createAutoPairsExtension(),
       keymap.of([...defaultKeymap, ...historyKeymap]),
-      createCompletionExtension(
-        props.task
-          ? {
-              getTags: () => tagsStore.tagsForBranch(props.task!.branchId),
-              getAttachedTags: () => props.task!.tags,
-              onAddTag: addTaskTag,
-              onRemoveTag: removeTaskTag,
-            }
-          : undefined,
-      ),
+      createCompletionExtension(taskCommands, props.externalMenu ? (menu) => emit("menu", menu) : undefined),
       createCompletionNavigationExtension(),
       Prec.low(keymap.of([indentWithTab])),
     ],
   })
+}
 
-  view.value = new EditorView({state, parent: containerRef.value})
+function pickCompletion(index: number) {
+  const editor = view.value
+  if (!editor || completionStatus(editor.state) !== "active") return
+  if (!Number.isInteger(index) || index < 0 || index >= currentCompletions(editor.state).length) return
+
+  editor.dispatch({effects: setSelectedCompletion(index)})
+  acceptCompletion(editor)
+  editor.focus()
+}
+
+function resetHistory() {
+  if (view.value) view.value.setState(createState(view.value.state.doc.toString()))
 }
 
 watch(
@@ -135,11 +175,18 @@ onBeforeUnmount(() => view.value?.destroy())
 
 defineExpose({
   focus: () => view.value?.focus(),
+  resetHistory,
+  pickCompletion,
 })
 </script>
 
 <template>
-  <div ref="container" :class="getContainerClasses(isDraggingOver)" @click="onContentClick">
+  <div
+    ref="container"
+    :class="getContainerClasses(isDraggingOver)"
+    :style="minLines ? {'--editor-min-lines': minLines} : undefined"
+    @click="onContentClick"
+  >
     <FloatingToolbar v-if="view" :editor-view="view" />
   </div>
 </template>
@@ -169,5 +216,8 @@ defineExpose({
 
 .markdown-editor :deep(.cm-content) {
   min-width: 0;
+}
+.markdown-editor.has-min-lines :deep(.cm-content) {
+  min-height: calc(var(--editor-min-lines) * var(--editor-line-height, 1.5em));
 }
 </style>

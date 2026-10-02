@@ -50,7 +50,7 @@ function mapModifier(tokenNorm: string): {mac?: CanonMod; win?: CanonMod} | null
       return {mac: "Cmd"}
     case "ctrl":
     case "control":
-      return {win: "Ctrl"}
+      return {mac: "Ctrl", win: "Ctrl"}
     case "cmdorctrl":
       return {mac: "Cmd", win: "Ctrl"}
     case "alt":

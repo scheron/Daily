@@ -5,27 +5,20 @@ import {createCompletionExtension, createMarkdownLanguageExtension} from "../../
 import {mountEditorView, unmountEditorView} from "../../../helpers/editorView"
 
 import type {EditorView} from "@codemirror/view"
-import type {Tag} from "@daily/protocol"
+import type {NestedCommand} from "../../../../src/renderer/src/utils/codemirror/extensions"
 
-type TagsOptions = NonNullable<Parameters<typeof createCompletionExtension>[0]>
+type Options = NonNullable<Parameters<typeof createCompletionExtension>[0]>
 
-function makeTag(name: string): Tag {
+function makeCommand(label: string, names: string[], overrides: Partial<NestedCommand> = {}): NestedCommand {
   return {
-    id: `tag:${name}`,
-    branchId: "branch:test",
-    createdAt: "2026-01-01T00:00:00.000Z",
-    updatedAt: "2026-01-01T00:00:00.000Z",
-    deletedAt: null,
-    name,
-    color: "#888888",
+    label,
+    icon: "tags",
+    getItems: (query) => names.filter((n) => n.toLowerCase().includes(query.toLowerCase())).map((n) => ({label: n, icon: "tags", apply: vi.fn()})),
+    ...overrides,
   }
 }
 
-function makeTagsOptions(overrides: Partial<TagsOptions>): TagsOptions {
-  return {getTags: () => [], getAttachedTags: () => [], onAddTag: vi.fn(), onRemoveTag: vi.fn(), ...overrides}
-}
-
-function mount(doc: string, cursor: number, options?: TagsOptions) {
+function mount(doc: string, cursor: number, options?: Options) {
   return mountEditorView(doc, {
     selection: {anchor: cursor},
     extensions: [createMarkdownLanguageExtension(), createCompletionExtension(options)],
@@ -97,70 +90,56 @@ describe("completion", () => {
     unmountEditorView(mounted)
   })
 
-  it("offers Add Tag after Divider, and Remove Tag only while the task has tags", async () => {
+  it("puts the task commands right after Divider and hides the unavailable ones", async () => {
+    let hasTags = false
+    const commands = [makeCommand("Status", []), makeCommand("Add Tag", []), makeCommand("Remove Tag", [], {isAvailable: () => hasTags})]
+
     const bare = mount("/", 1)
     startCompletion(bare)
     await waitForActive(bare)
-    const bareLabels = currentCompletions(bare.state).map((o) => o.label)
-    expect(bareLabels).not.toContain("/Add Tag")
-    expect(bareLabels).not.toContain("/Remove Tag")
-    expect(bareLabels).toContain("/Bullet List")
+    expect(currentCompletions(bare.state).map((o) => o.label)).not.toContain("/Add Tag")
     unmountEditorView(bare)
 
-    const attachedTags: Tag[] = []
-    const withOptions = mount("/", 1, makeTagsOptions({getAttachedTags: () => attachedTags}))
-    startCompletion(withOptions)
-    await waitForActive(withOptions)
-    const beforeAttach = currentCompletions(withOptions.state).map((o) => o.label)
-    expect(beforeAttach).toContain("/Add Tag")
-    expect(beforeAttach).not.toContain("/Remove Tag")
-
-    attachedTags.push(makeTag("Work"))
-    closeCompletion(withOptions)
-    startCompletion(withOptions)
-    await waitForActive(withOptions)
-    const afterAttach = currentCompletions(withOptions.state).map((o) => o.label)
-    expect(afterAttach.slice(0, 3)).toEqual(["/Divider", "/Add Tag", "/Remove Tag"])
-
-    unmountEditorView(withOptions)
-  })
-
-  it("offers every tag sorted by name after /Add Tag", async () => {
-    const doc = "/Add Tag "
-    const mounted = mount(doc, doc.length, makeTagsOptions({getTags: () => [makeTag("Work"), makeTag("Home")]}))
+    const mounted = mount("/", 1, {commands})
     startCompletion(mounted)
     await waitForActive(mounted)
+    const sorted = (view: EditorView) =>
+      [...currentCompletions(view.state)].sort((a, b) => (a.sortText ?? "").localeCompare(b.sortText ?? "")).map((o) => o.label)
+    expect(sorted(mounted).slice(0, 4)).toEqual(["/Divider", "/Status", "/Add Tag", "/Heading 1"])
 
-    expect(currentCompletions(mounted.state).map((o) => o.label)).toEqual(["Home", "Work"])
+    hasTags = true
+    closeCompletion(mounted)
+    startCompletion(mounted)
+    await waitForActive(mounted)
+    expect(sorted(mounted).slice(0, 4)).toEqual(["/Divider", "/Status", "/Add Tag", "/Remove Tag"])
 
     unmountEditorView(mounted)
   })
 
-  it("offers only the attached tags after /Remove Tag", async () => {
-    const doc = "/Remove Tag "
-    const work = makeTag("Work")
-    const mounted = mount(doc, doc.length, makeTagsOptions({getTags: () => [work, makeTag("Home")], getAttachedTags: () => [work]}))
+  it("filters the second-level list by what follows the command, spaces and Cyrillic included", async () => {
+    const doc = "/Project Мой де"
+    const mounted = mount(doc, doc.length, {commands: [makeCommand("Project", ["Мой дейли", "Мой дом", "Work"])]})
     startCompletion(mounted)
     await waitForActive(mounted)
 
-    expect(currentCompletions(mounted.state).map((o) => o.label)).toEqual(["Work"])
+    expect(currentCompletions(mounted.state).map((o) => o.label)).toEqual(["Мой дейли"])
 
     unmountEditorView(mounted)
   })
 
-  it("applying a tag removes the command text and adds the tag", async () => {
-    const doc = "/Add Tag wo"
-    const work = makeTag("Work")
-    const onAddTag = vi.fn()
-    const mounted = mount(doc, doc.length, makeTagsOptions({getTags: () => [work], onAddTag}))
+  it("applying a second-level item removes the command text and runs the item", async () => {
+    const doc = "text /Status do"
+    const apply = vi.fn()
+    const command = makeCommand("Status", [], {getItems: () => [{label: "Done", icon: "check-check", apply}]})
+    const mounted = mount(doc, doc.length, {commands: [command]})
     startCompletion(mounted)
     await waitForActive(mounted)
     await vi.advanceTimersByTimeAsync(75)
 
     acceptCompletion(mounted)
 
-    expect(mounted.state.doc.toString()).toBe("")
-    expect(onAddTag).toHaveBeenCalledWith(work)
+    expect(mounted.state.doc.toString()).toBe("text ")
+    expect(apply).toHaveBeenCalledOnce()
 
     unmountEditorView(mounted)
   })

@@ -51,9 +51,8 @@ const contextMenuRef = useTemplateRef<InstanceType<typeof BaseContextMenu>>("con
 const tags = computed<Tag[]>(() => sortTags(props.task.tags.map((t) => tagsStore.tagsMap.get(t.id)).filter(Boolean) as Tag[]))
 
 const milestone = computed(() => (props.task.milestoneId ? (milestonesStore.milestonesMap.get(props.task.milestoneId) ?? null) : null))
-const showTime = computed(() => props.task.estimatedTime > 0)
-const estimateLabel = computed(() => (showTime.value ? toDurationLabel(props.task.estimatedTime) : ""))
-const spentLabel = computed(() => (showTime.value && props.task.spentTime > 0 ? toDurationLabel(props.task.spentTime) : ""))
+const estimateLabel = computed(() => (props.task.estimatedTime > 0 ? toDurationLabel(props.task.estimatedTime) : ""))
+const spentLabel = computed(() => (props.task.spentTime > 0 ? toDurationLabel(props.task.spentTime) : ""))
 const commentCount = computed(() => taskCommentsStore.commentCountOf(props.task.id))
 const isInSession = computed(() => focusStore.isInSession(props.task.id))
 
@@ -62,7 +61,9 @@ const footerDayLabel = computed(() => {
   return toDateLabel(props.task.scheduled.date, {short: true})
 })
 
-const hasMetrics = computed(() => Boolean(footerDayLabel.value) || showTime.value || commentCount.value > 0)
+const hasMetrics = computed(
+  () => Boolean(footerDayLabel.value) || Boolean(estimateLabel.value) || Boolean(spentLabel.value) || commentCount.value > 0,
+)
 const hasFooter = computed(() => Boolean(milestone.value) || hasMetrics.value)
 
 const currentRelations = computed<TaskRelationSets>(() => {
@@ -100,7 +101,6 @@ const menuItems = computed<BaseContextMenuItem[]>(() => {
       label: "Time spent",
       icon: "check-check",
       children: true,
-      disabled: props.task.estimatedTime === 0,
     },
     {separator: true},
     {value: "blocks", label: "Blocks", icon: "ban", children: true},
@@ -223,7 +223,7 @@ async function onLinkTask(side: keyof TaskRelationSets, taskId: Task["id"]) {
               <BaseIcon name="calendar" class="text-base-content/40 size-3.5" />
               <span>{{ footerDayLabel }}</span>
             </div>
-            <div v-if="showTime" class="text-base-content/80 inline-flex items-center gap-1 px-2.5 py-1">
+            <div v-if="estimateLabel" class="text-base-content/80 inline-flex items-center gap-1 px-2.5 py-1">
               <BaseIcon name="stopwatch" class="text-accent size-3.5" />
               <span>{{ estimateLabel }}</span>
             </div>

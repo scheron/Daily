@@ -1,6 +1,6 @@
 import {ipcMain} from "electron"
 
-import {toSettingsView} from "@daily/core"
+import {createSharedStorageHandlers} from "./storageHandlers"
 
 import type {IStorageController} from "@daily/core"
 import type {Branch, ISODate, Milestone, MoveTaskByOrderParams, Tag, Task, TaskComment, TaskRelationSets} from "@daily/protocol"
@@ -8,24 +8,17 @@ import type {PartialDeep} from "type-fest"
 
 // prettier-ignore
 export function setupStorageIPC(getStorage: () => IStorageController | null) {
-  ipcMain.handle("settings:load", async (_e) => {
-    const settings = await getStorage()?.loadSettings()
-    return settings ? toSettingsView(settings) : undefined
-  })
+  const shared = createSharedStorageHandlers(getStorage)
+  for (const [channel, handler] of Object.entries(shared)) ipcMain.handle(channel, (_e, ...args) => handler(...args))
+
   ipcMain.handle("settings:save", (_e, newSettings: Partial<Record<string, any>>) => getStorage()?.saveSettings(newSettings))
 
   ipcMain.handle("activity:get-by-task", (_e, taskId: Task["id"]) => getStorage()?.getTaskHistory(taskId))
 
-  ipcMain.handle("tasks:get-all", () => getStorage()?.getAllTasks())
   ipcMain.handle("tasks:get-many", (_e, params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: Branch["id"]}) => getStorage()?.getTaskList(params))
   ipcMain.handle("tasks:get-one", (_e, id: Task["id"]) => getStorage()?.getTask(id))
   ipcMain.handle("tasks:update", (_e, id: Task["id"], updates: PartialDeep<Task>) => getStorage()?.updateTask(id, updates))
   ipcMain.handle("tasks:toggle-minimized", (_e, id: Task["id"], minimized: boolean) => getStorage()?.toggleTaskMinimized(id, minimized))
-  ipcMain.handle(
-    "tasks:create",
-    (_e, task: Omit<Task, "id" | "createdAt" | "updatedAt" | "branchId"> & {branchId?: Task["branchId"]; id?: Task["id"]}) =>
-      getStorage()?.createTask(task as Task),
-  )
   ipcMain.handle("tasks:move-by-order", (_e, params: MoveTaskByOrderParams) => getStorage()?.moveTaskByOrder(params))
   ipcMain.handle("tasks:move-to-branch", (_e, taskId: Task["id"], branchId: Branch["id"]) => getStorage()?.moveTaskToBranch(taskId, branchId))
   ipcMain.handle("tasks:delete", (_e, id: Task["id"]) => getStorage()?.deleteTask(id))
@@ -43,7 +36,6 @@ export function setupStorageIPC(getStorage: () => IStorageController | null) {
   ipcMain.handle("comments:update", (_e, id: TaskComment["id"], content: string) => getStorage()?.updateTaskComment(id, content))
   ipcMain.handle("comments:delete", (_e, id: TaskComment["id"]) => getStorage()?.deleteTaskComment(id))
 
-  ipcMain.handle("branches:get-many", () => getStorage()?.getBranchList())
   ipcMain.handle("branches:get-one", (_e, id: Branch["id"]) => getStorage()?.getBranch(id))
   ipcMain.handle("branches:create", (_e, branch: Omit<Branch, "id" | "createdAt" | "updatedAt" | "deletedAt">) => getStorage()?.createBranch(branch))
   ipcMain.handle("branches:update", (_e, id: Branch["id"], updates: Partial<Pick<Branch, "name" | "description">>) => getStorage()?.updateBranch(id, updates))
@@ -52,7 +44,6 @@ export function setupStorageIPC(getStorage: () => IStorageController | null) {
 
   ipcMain.handle("search:query", (_e, query: string) => getStorage()?.searchTasks(query))
 
-  ipcMain.handle("tags:get-many", () => getStorage()?.getTagList())
   ipcMain.handle("tags:get-one", (_e, id: Tag["id"]) => getStorage()?.getTag(id))
   ipcMain.handle("tags:update", (_e, id: Tag["id"], updates: Partial<Tag>) => getStorage()?.updateTag(id, updates))
   ipcMain.handle("tags:create", (_e, tag: Omit<Tag, "id" | "createdAt" | "updatedAt">) => getStorage()?.createTag(tag))

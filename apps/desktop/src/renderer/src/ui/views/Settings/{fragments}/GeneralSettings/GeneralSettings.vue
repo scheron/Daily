@@ -9,6 +9,7 @@ import SettingsGroup from "@/ui/views/Settings/{fragments}/SettingsGroup.vue"
 import AboutSection from "./{fragments}/AboutSection.vue"
 import AccentPicker from "./{fragments}/AccentPicker.vue"
 import MainColorPicker from "./{fragments}/MainColorPicker.vue"
+import QuickCaptureHotkey from "./{fragments}/QuickCaptureHotkey.vue"
 import ShortcutsSection from "./{fragments}/ShortcutsSection.vue"
 
 import type {AppearanceMode, FontSize} from "@daily/protocol"
@@ -71,6 +72,7 @@ const shouldPlaySound = useSettingValue("focus.shouldPlaySound", true)
     </SettingsGroup>
 
     <SettingsGroup label="Shortcuts" icon="keyboard">
+      <QuickCaptureHotkey />
       <ShortcutsSection />
     </SettingsGroup>
 

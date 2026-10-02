@@ -16,6 +16,7 @@ export * from "./constants/theme"
 export * from "./config/app"
 export * from "./config/sync"
 export * from "./config/syncProtocol"
+export * from "./config/quickCapture"
 export * from "./config/windows"
 
 export * from "./errors/protocol/ProtocolError"

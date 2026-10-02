@@ -1,7 +1,7 @@
 import {sameTagIds} from "./sameTagIds"
 
+import type {TaskDraft} from "@/types/taskDraft"
 import type {Tag, Task, TaskStatus} from "@daily/protocol"
-import type {TaskDraft} from "../types"
 
 /**
  * Builds the minimal patch of changed fields between a draft and its base, excluding

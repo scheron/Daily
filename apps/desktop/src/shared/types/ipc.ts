@@ -48,6 +48,7 @@ import type {
   PendingToolConfirmation,
 } from "./ai"
 import type {FocusCommand, FocusSession} from "./focus"
+import type {HotkeyRebindResult, QuickCaptureHotkeyState, QuickCaptureMenu} from "./quickCapture"
 import type {AppUpdateState} from "./update"
 
 export type ApprovalKind = "device" | "agent"
@@ -127,6 +128,17 @@ export interface BridgeIPC {
   "focus:get": () => Promise<FocusSession>
   "focus:dispatch": (command: FocusCommand) => Promise<FocusSession>
   "focus:on-changed": (callback: (session: FocusSession) => void) => void
+
+  "quick-capture:hide": () => void
+  "quick-capture:resize": (height: number) => void
+  "quick-capture:active-hotkey": () => Promise<QuickCaptureHotkeyState>
+  "quick-capture:rebind-hotkey": (accelerator: string) => Promise<HotkeyRebindResult>
+  "quick-capture:on-shown": (callback: () => void) => () => void
+  "quick-capture:set-menu": (menu: QuickCaptureMenu | null) => void
+  "quick-capture:on-menu-pick": (callback: (index: number) => void) => () => void
+  "quick-capture-menu:on-menu": (callback: (menu: QuickCaptureMenu | null) => void) => () => void
+  "quick-capture-menu:resize": (height: number) => void
+  "quick-capture-menu:pick": (index: number) => void
 
   "tasks:get-all": () => Promise<Task[]>
   "tasks:get-many": (params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: Branch["id"]}) => Promise<Task[]>

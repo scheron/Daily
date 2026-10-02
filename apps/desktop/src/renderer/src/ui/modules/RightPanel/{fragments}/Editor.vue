@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import {computed, nextTick, useTemplateRef, watch} from "vue"
 
+import {useTaskEditorStore} from "@/stores/task-editor"
 import MarkdownEditor from "@/ui/common/misc/MarkdownEditor"
 import {useTaskEditor} from "@/ui/modules/RightPanel/composables/useTaskEditor"
+
+const taskEditorStore = useTaskEditorStore()
 
 const editorRef = useTemplateRef<InstanceType<typeof MarkdownEditor>>("editor")
 
@@ -29,5 +32,6 @@ watch(
     :content="localContent"
     class="min-h-0 flex-1 px-4 py-4"
     @update:content="onBodyChange"
+    @patch="taskEditorStore.patch"
   />
 </template>

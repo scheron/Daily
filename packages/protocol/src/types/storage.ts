@@ -101,6 +101,10 @@ export type Settings = {
     /** Expand the calendar dock as soon as a card starts dragging, instead of when a card is held on its button. */
     shouldOpenCalendarDockOnDrag: boolean
   }
+  quickCapture: {
+    /** Electron accelerator of the global shortcut that shows and hides the Quick Capture window. */
+    hotkey: string
+  }
   focus: {
     /** Show a macOS notification when a focus interval or a break ends while no Daily window is focused. */
     shouldNotify: boolean

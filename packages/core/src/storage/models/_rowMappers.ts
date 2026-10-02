@@ -1,4 +1,11 @@
-import {ACTOR_PROVIDER_MAX_LENGTH, DEFAULT_ACCENT_ID, DEFAULT_BASE_ID, MAIN_BRANCH_ID, WINDOWS_CONFIG} from "@daily/protocol"
+import {
+  ACTOR_PROVIDER_MAX_LENGTH,
+  DEFAULT_ACCENT_ID,
+  DEFAULT_BASE_ID,
+  DEFAULT_QUICK_CAPTURE_HOTKEY,
+  MAIN_BRANCH_ID,
+  WINDOWS_CONFIG,
+} from "@daily/protocol"
 import {deepMerge, isNumber, notNull} from "@daily/std"
 
 import type {
@@ -242,6 +249,7 @@ export function getDefaultSettings(): Settings {
       sectionsCollapsed: {active: false, discarded: false, done: false, backlog: false},
       shouldOpenCalendarDockOnDrag: false,
     },
+    quickCapture: {hotkey: DEFAULT_QUICK_CAPTURE_HOTKEY},
     focus: {shouldNotify: true, shouldPlaySound: true},
     window: {
       main: {

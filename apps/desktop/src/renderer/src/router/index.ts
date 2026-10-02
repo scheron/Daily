@@ -24,6 +24,16 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import("@/ui/views/Focus.vue"),
   },
   {
+    path: "/quick-capture",
+    name: "QuickCapture",
+    component: () => import("@/ui/views/QuickCapture"),
+  },
+  {
+    path: "/quick-capture-menu",
+    name: "QuickCaptureMenu",
+    component: () => import("@/ui/views/QuickCaptureMenu"),
+  },
+  {
     path: "/:pathMatch(.*)*",
     redirect: "/",
   },
