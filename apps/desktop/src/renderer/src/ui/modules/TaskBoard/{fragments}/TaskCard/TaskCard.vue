@@ -212,7 +212,7 @@ async function onLinkTask(side: keyof TaskRelationSets, taskId: Task["id"]) {
         </div>
 
         <div :class="getContentClasses(task.status)">
-          <MarkdownContent :content="task.content" :minimizable="false" />
+          <MarkdownContent :content="task.content" :minimizable="false" clip-code />
         </div>
 
         <div v-if="hasFooter" class="flex items-center gap-2 text-xs">

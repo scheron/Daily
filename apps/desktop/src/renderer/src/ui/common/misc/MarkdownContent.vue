@@ -11,8 +11,10 @@ const props = withDefaults(
     content: string
     /** Content taller than 200px is cut to `--task-content-minimized-height` behind a fade. Off when the content has to stay readable in full. */
     minimizable?: boolean
+    /** Long lines of a code block are cut off instead of getting a scrollbar, so a horizontal gesture over the content reaches the container behind it. */
+    clipCode?: boolean
   }>(),
-  {minimizable: true},
+  {minimizable: true, clipCode: false},
 )
 
 const containerRef = useTemplateRef<HTMLDivElement>("container")
@@ -37,7 +39,7 @@ function applyClamp(height: number) {
 function renderPreview(content: string) {
   if (!containerRef.value) return
 
-  const preview = renderMarkdownPreview(content, {isCompact: false})
+  const preview = renderMarkdownPreview(content, {isCompact: false, isCodeClipped: props.clipCode})
   containerRef.value.replaceChildren(preview.element)
   contentElementRef.value = preview.element.querySelector(".cm-content")
 
@@ -97,7 +99,6 @@ onMounted(() => {
 }
 
 .markdown-view :deep(.cm-codeblock-line) {
-  white-space: pre !important;
   overflow-x: visible !important;
 }
 

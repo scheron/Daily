@@ -201,7 +201,7 @@ defineExpose({
   padding: 0;
   caret-color: var(--color-accent);
 }
-.markdown-editor :deep(.cm-line) {
+.markdown-editor :deep(.cm-line:not(.cm-codeblock-line)) {
   padding-inline: 0;
 }
 .markdown-editor :deep(.cm-focused) {

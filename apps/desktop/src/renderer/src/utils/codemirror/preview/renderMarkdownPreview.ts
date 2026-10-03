@@ -22,7 +22,7 @@ import type {DecorationSet} from "@codemirror/view"
 import type {SearchMatch} from "@daily/protocol"
 import type {Tree} from "@lezer/common"
 
-export type MarkdownPreviewOptions = {isCompact: boolean; matches?: SearchMatch[]}
+export type MarkdownPreviewOptions = {isCompact: boolean; matches?: SearchMatch[]; isCodeClipped?: boolean}
 export type MarkdownPreview = {element: HTMLElement; languagesLoaded: Promise<void> | null}
 
 type EditorClassNames = {root: string; scroller: string; content: string}
@@ -66,7 +66,7 @@ export function renderMarkdownPreview(content: string, options: MarkdownPreviewO
     buildSyntaxDecorations(tree),
     buildWYSIWYGDecorations(state, tree, false),
     buildTableDecorations(state, tree),
-    buildCodeBlockDecorations(state, tree),
+    buildCodeBlockDecorations(state, tree, {highlights: toHighlightRanges(options.matches), isClipped: options.isCompact || options.isCodeClipped}),
   ]
   if (options.matches) sources.push(buildSearchHighlightDecorations(options.matches))
 
@@ -80,6 +80,10 @@ export function renderMarkdownPreview(content: string, options: MarkdownPreviewO
   root.append(scroller)
 
   return {element: root, languagesLoaded: loadPendingLanguages(state, tree)}
+}
+
+function toHighlightRanges(matches: SearchMatch[] | undefined): [number, number][] {
+  return (matches ?? []).flatMap((match) => (match.indices ?? []).map(([start, end]): [number, number] => [start, end + 1]))
 }
 
 function readEditorClassNames(extensions: Extension[]): EditorClassNames {

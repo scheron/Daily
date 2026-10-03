@@ -60,7 +60,7 @@ onMounted(() => renderPreview(props.result.task.content))
 </script>
 
 <template>
-  <div class="hover:border-accent border-base-300 flex flex-col gap-2 rounded-lg border px-2 py-2 shadow-xs transition-colors duration-200">
+  <div class="hover:border-accent border-base-300 shadow-xs flex flex-col gap-2 rounded-lg border px-2 py-2 transition-colors duration-200">
     <div class="flex items-center justify-between gap-2">
       <div class="flex items-center gap-1.5">
         <span class="text-base-content/60 text-xs"> {{ result.task.scheduled ? toDateLabel(result.task.scheduled.date) : "No date" }} </span>
@@ -99,7 +99,6 @@ onMounted(() => renderPreview(props.result.task.content))
 }
 
 .search-result-content-viewer :deep(.cm-codeblock-line) {
-  white-space: pre !important;
   overflow-x: visible !important;
 }
 </style>

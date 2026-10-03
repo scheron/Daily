@@ -82,7 +82,7 @@ describe("MarkdownContent", () => {
     wrapper = mount(MarkdownContent, {props: {content: "```ruby\ndef greet\n  1\nend\n```"}, attachTo: document.body})
     await settle()
 
-    const codeLines = () => Array.from(wrapper.element.querySelectorAll(".cm-codeblock-line:not(.cm-codeblock-first):not(.cm-codeblock-last)"))
+    const codeLines = () => Array.from(wrapper.element.querySelectorAll(".cm-codeblock-text-line"))
 
     expect(wrapper.element.textContent).toContain("def greet")
 

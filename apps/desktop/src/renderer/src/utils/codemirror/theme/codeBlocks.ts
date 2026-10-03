@@ -13,6 +13,41 @@ export const codeBlockStyles: Record<string, StyleSpec> = {
     overflowX: "auto",
   },
 
+  ".cm-codeblock-line.cm-codeblock-raw": {
+    overflowX: "hidden",
+    overflowY: "hidden",
+  },
+
+  ".cm-codeblock-raw::after": {
+    content: '""',
+    display: "block",
+    height: "0",
+    width: "var(--cm-codeblock-scroll-width, 0px)",
+  },
+
+  ".cm-codeblock-raw .cm-code-copy": {
+    transform: "translateX(var(--cm-codeblock-scroll-left, 0px))",
+  },
+
+  ".cm-codeblock-hscroll-anchor": {
+    position: "relative",
+    height: "0",
+  },
+
+  ".cm-codeblock-hscroll": {
+    position: "absolute",
+    left: "0",
+    right: "0",
+    bottom: "0.75rem",
+    height: "8px",
+    overflowX: "auto",
+    overflowY: "hidden",
+  },
+
+  ".cm-codeblock-hscroll-spacer": {
+    height: "1px",
+  },
+
   ".cm-codeblock-first": {
     position: "relative",
     marginTop: "0.75rem",
@@ -71,5 +106,35 @@ export const codeBlockStyles: Record<string, StyleSpec> = {
     paddingBottom: "1rem",
     borderBottomLeftRadius: "4px",
     borderBottomRightRadius: "4px",
+  },
+
+  ".cm-codeblock-widget": {
+    position: "relative",
+    margin: "0.75rem 0",
+    backgroundColor: "var(--color-base-300)",
+    borderRadius: "6px",
+    color: "var(--color-base-content)",
+    fontFamily: "var(--font-mono)",
+    lineHeight: "1.8",
+  },
+
+  ".cm-codeblock-scroll": {
+    overflowX: "auto",
+    padding: "1rem 0.5rem",
+  },
+
+  ".cm-codeblock-clip .cm-codeblock-scroll": {
+    overflowX: "hidden",
+  },
+
+  ".cm-codeblock-body": {
+    width: "max-content",
+    minWidth: "100%",
+  },
+
+  ".cm-codeblock-text-line": {
+    whiteSpace: "pre",
+    minHeight: "1.8em",
+    cursor: "text",
   },
 }
