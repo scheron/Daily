@@ -1,7 +1,7 @@
 // @ts-nocheck
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
-import {configureQuickTaskApp} from "../../../src/main/quickTask/configureQuickTaskApp"
+import {setupQuickTaskAppBoot} from "../../../src/main/setup/app/lifecycle"
 
 const mocks = vi.hoisted(() => ({
   env: {isDevelopment: false},
@@ -9,10 +9,11 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock("electron", () => ({app: mocks.app}))
-vi.mock("@daily/core", () => ({ENV: mocks.env}))
+vi.mock("@daily/core", () => ({ENV: mocks.env, logger: {info: vi.fn(), CONTEXT: {STORAGE: "STORAGE"}}}))
+vi.mock("@main/runtime/electronPaths", () => ({electronPaths: {}}))
 vi.mock("@daily/protocol", () => ({APP_CONFIG: {name: "Daily"}}))
 
-describe("configuring the Quick task app", () => {
+describe("booting the Quick task process", () => {
   const platform = process.platform
   const setPlatform = (value) => Object.defineProperty(process, "platform", {value})
 
@@ -25,7 +26,7 @@ describe("configuring the Quick task app", () => {
   afterEach(() => setPlatform(platform))
 
   it("makes it an accessory app, so it has no Dock icon or menu bar", () => {
-    configureQuickTaskApp()
+    setupQuickTaskAppBoot()
 
     expect(mocks.app.setActivationPolicy).toHaveBeenCalledWith("accessory")
   })
@@ -33,13 +34,13 @@ describe("configuring the Quick task app", () => {
   it("leaves the activation policy alone off macOS", () => {
     setPlatform("linux")
 
-    configureQuickTaskApp()
+    setupQuickTaskAppBoot()
 
     expect(mocks.app.setActivationPolicy).not.toHaveBeenCalled()
   })
 
   it("gives it a name and a userData directory of its own", () => {
-    configureQuickTaskApp()
+    setupQuickTaskAppBoot()
 
     expect(mocks.app.setName).toHaveBeenCalledWith("Daily Quick Task")
     expect(mocks.app.setPath).toHaveBeenCalledWith("userData", "/appData/Daily-QuickTask")
@@ -48,7 +49,7 @@ describe("configuring the Quick task app", () => {
   it("keeps the development userData apart from the packaged one", () => {
     mocks.env.isDevelopment = true
 
-    configureQuickTaskApp()
+    setupQuickTaskAppBoot()
 
     expect(mocks.app.setPath).toHaveBeenCalledWith("userData", "/appData/Daily-QuickTask-dev")
   })

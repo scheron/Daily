@@ -1,16 +1,16 @@
 import {ipcMain} from "electron"
 
-import {HOTKEY_REQUESTS} from "@main/quickTask/protocol"
+import {HOTKEY_REQUESTS} from "@shared/constants/quickTask"
 
 import type {StorageController} from "@daily/core"
-import type {QuickTaskProcess} from "@main/quickTask/QuickTaskProcess"
+import type {QuickTaskController} from "@main/quickTask/QuickTaskController"
 import type {HotkeyRebindResult, QuickTaskHotkeyState} from "@shared/types/quickTask"
 
 const ACTIVE_HOTKEY_WAIT_MS = 30_000
 
 /** Settings' view of the shortcut: both questions go to the Quick task process, which owns it. A rebind that the process accepts is saved once, here. */
 export function setupQuickTaskIPC(
-  quickTask: Pick<QuickTaskProcess, "request" | "whenReady" | "isRunning">,
+  quickTask: Pick<QuickTaskController, "request" | "whenReady" | "isRunning">,
   getStorage: () => StorageController | null,
 ) {
   ipcMain.handle("quick-task:active-hotkey", async (): Promise<QuickTaskHotkeyState> => {

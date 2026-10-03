@@ -4,10 +4,10 @@ import {app} from "electron"
 import {logger, setFileCoordinatorBinaryPath, StorageController} from "@daily/core"
 import {APP_CONFIG} from "@daily/protocol"
 
-import {HOTKEY_REQUESTS} from "@main/quickTask/protocol"
-import {QuickTaskProcess} from "@main/quickTask/QuickTaskProcess"
-import {spawnQuickTaskProcess} from "@main/quickTask/spawnQuickTaskProcess"
-import {createStorageRequestHandler} from "@main/quickTask/storageRequests"
+import {QuickTaskController} from "@main/quickTask/QuickTaskController"
+import {createStorageRequestHandler} from "@main/quickTask/utils/createStorageRequestHandler"
+import {spawnQuickTaskProcess} from "@main/quickTask/utils/spawnQuickTaskProcess"
+import {HOTKEY_REQUESTS, QUICK_TASK_PROCESS_FLAG} from "@shared/constants/quickTask"
 import {awaitRendererReady} from "./utils/windows/awaitRendererReady"
 import {broadcastToWindows} from "./utils/windows/broadcastToWindows"
 import {focusWindow} from "./utils/windows/focusWindow"
@@ -17,8 +17,9 @@ import {FocusController} from "./focus/FocusController"
 import {electronPaths} from "./runtime/electronPaths"
 import {setupFocusWindow} from "./setup/app/focusWindow"
 import {setupInstanceAndDeepLinks} from "./setup/app/instance"
-import {setupActivateHandler, setupAppBoot, setupDockIcon, setupWindowAllClosedHandler} from "./setup/app/lifecycle"
+import {setupActivateHandler, setupAppBoot, setupDockIcon, setupQuickTaskAppBoot, setupWindowAllClosedHandler} from "./setup/app/lifecycle"
 import {setupMenu} from "./setup/app/menu"
+import {setupQuickTaskWindow} from "./setup/app/quickTaskWindow"
 import {setupStorageSync} from "./setup/app/storage"
 import {trayController} from "./setup/app/tray"
 import {setupTrayQuickTask} from "./setup/app/trayQuickTask"
@@ -70,40 +71,58 @@ let savedMainWindowState: MainWindowSettings | undefined
 let trayQuickTask: ReturnType<typeof setupTrayQuickTask> | null = null
 let trayVisibility: ReturnType<typeof setupTrayVisibility> | null = null
 
-const quickTaskProcess = new QuickTaskProcess({
+const quickTask = new QuickTaskController({
   spawn: spawnQuickTaskProcess,
   handleRequest: createStorageRequestHandler(() => storage),
   onReady: async () => {
     const hotkey = (await storage?.loadSettings())?.quickTask.hotkey
     if (!hotkey) return
 
-    const isRegistered = await quickTaskProcess.request(HOTKEY_REQUESTS.register, [hotkey])
+    const isRegistered = await quickTask.request(HOTKEY_REQUESTS.register, [hotkey])
     if (!isRegistered) logger.warn(logger.CONTEXT.APP, `Quick task hotkey could not be registered: ${hotkey}`)
   },
   onAvailabilityChange: (isAvailable) => trayQuickTask?.setAvailable(isAvailable),
 })
 
-setFileCoordinatorBinaryPath(
-  app.isPackaged ? join(process.resourcesPath, "file-coordinator") : join(process.cwd(), "..", "..", "resources", "file-coordinator"),
-)
+if (process.argv.includes(QUICK_TASK_PROCESS_FLAG)) {
+  setupQuickTaskAppBoot()
+  setupQuickTaskWindow()
+} else {
+  bootDaily()
+}
 
-setupPrivilegedSchemes()
-setupAppBoot()
-setupDockIcon()
-setupWindowAllClosedHandler()
+function bootDaily() {
+  setFileCoordinatorBinaryPath(
+    app.isPackaged ? join(process.resourcesPath, "file-coordinator") : join(process.cwd(), "..", "..", "resources", "file-coordinator"),
+  )
 
-setupInstanceAndDeepLinks(
-  () => storage,
-  () => windows.main,
-)
+  setupPrivilegedSchemes()
+  setupAppBoot()
+  setupDockIcon()
+  setupWindowAllClosedHandler()
 
-setupActivateHandler(
-  () => storage,
-  () => windows.main,
-  () => setupMainWindow(windows),
-)
+  setupInstanceAndDeepLinks(
+    () => storage,
+    () => windows.main,
+  )
 
-app.whenReady().then(async () => {
+  setupActivateHandler(
+    () => storage,
+    () => windows.main,
+    () => setupMainWindow(windows),
+  )
+
+  app.whenReady().then(startDaily)
+
+  app.on("will-quit", () => quickTask.stop())
+
+  app.on("before-quit", async (event) => {
+    if (focus?.holdQuit(event)) return
+    if (ai) await ai.dispose()
+  })
+}
+
+async function startDaily() {
   windows.splash = createSplashWindow()
 
   storage = new StorageController(createBetterSqliteDriver(electronPaths.dbPath()), electronPaths)
@@ -174,7 +193,7 @@ app.whenReady().then(async () => {
   )
 
   setupStorageIPC(() => storage)
-  setupQuickTaskIPC(quickTaskProcess, () => storage)
+  setupQuickTaskIPC(quickTask, () => storage)
   setupFocusIPC(
     () => focus,
     () => windows.focus,
@@ -193,14 +212,14 @@ app.whenReady().then(async () => {
     () => windows,
     () => focus,
     (channel, ...args) => {
-      quickTaskProcess.emit(channel, ...args)
+      quickTask.emit(channel, ...args)
       if (channel !== "settings:changed") return
       void trayQuickTask?.refreshAccelerator()
       void trayVisibility?.apply()
     },
   )
 
-  trayQuickTask = setupTrayQuickTask(trayController, quickTaskProcess, () => storage)
+  trayQuickTask = setupTrayQuickTask(trayController, quickTask, () => storage)
   void trayQuickTask.refreshAccelerator()
   trayVisibility = setupTrayVisibility(trayController, () => storage)
   await trayVisibility.apply()
@@ -216,14 +235,7 @@ app.whenReady().then(async () => {
     .catch((err) => logger.error(logger.CONTEXT.AI, "Background catalog refresh failed", err))
 
   logger.lifecycle(`${APP_CONFIG.name} started`)
-})
-
-app.on("will-quit", () => quickTaskProcess.stop())
-
-app.on("before-quit", async (event) => {
-  if (focus?.holdQuit(event)) return
-  if (ai) await ai.dispose()
-})
+}
 
 function setupMainWindow(windows: AppWindows, options?: {showSplash?: boolean}) {
   const showSplash = options?.showSplash ?? false
@@ -257,7 +269,7 @@ function setupMainWindow(windows: AppWindows, options?: {showSplash?: boolean}) 
 
     main.show()
     focusWindow(main)
-    quickTaskProcess.start()
+    quickTask.start()
   })
 
   return main

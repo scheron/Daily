@@ -1,14 +1,13 @@
 import {app} from "electron"
 
+import {createHotkeyRequestHandler, unregisterHotkey} from "@main/quickTask/hotkey"
+import {StdioChannel} from "@main/quickTask/StdioChannel"
+import {setupQuickTaskPanelIPC} from "@main/setup/ipc/quickTaskPanel"
 import {createQuickTaskWindow, toggleQuickTask} from "@main/windows/quickTask.window"
 import {createQuickTaskMenuWindow} from "@main/windows/quickTaskMenu.window"
+import {PROCESS_READY_EVENT, QUICK_TASK_FORWARDED_EVENTS} from "@shared/constants/quickTask"
 import {QuickTaskError} from "@shared/errors/quickTask/QuickTaskError"
 import {QuickTaskErrorCode} from "@shared/errors/quickTask/QuickTaskErrorCode"
-import {unregisterHotkey} from "./hotkey"
-import {createHotkeyRequestHandler} from "./hotkeyRequests"
-import {setupPanelIpc} from "./panelIpc"
-import {PROCESS_READY_EVENT, QUICK_TASK_FORWARDED_EVENTS} from "./protocol"
-import {StdioChannel} from "./StdioChannel"
 
 import type {BrowserWindow} from "electron"
 
@@ -22,7 +21,7 @@ type ChannelStreams = {
  * It quits quietly when Daily closes the channel, whichever way it closes.
  * @param streams - the channel to Daily; the process's own stdin and stdout by default
  */
-export function runQuickTaskProcess({stdin, stdout}: ChannelStreams = process) {
+export function setupQuickTaskWindow({stdin, stdout}: ChannelStreams = process) {
   console.log = console.error
 
   let panel: BrowserWindow | null = null
@@ -48,7 +47,7 @@ export function runQuickTaskProcess({stdin, stdout}: ChannelStreams = process) {
   app.whenReady().then(() => {
     app.dock?.hide()
     ensureWindows()
-    setupPanelIpc({
+    setupQuickTaskPanelIPC({
       getPanel: () => panel,
       getMenu: () => menu,
       forward: (name, args) => channel.request(name, args),

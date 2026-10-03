@@ -2,7 +2,7 @@
 import {EventEmitter} from "node:events"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
-import {QuickTaskProcess} from "../../../src/main/quickTask/QuickTaskProcess"
+import {QuickTaskController} from "../../../src/main/quickTask/QuickTaskController"
 
 vi.mock("@daily/core", () => ({logger: {error: vi.fn(), warn: vi.fn(), CONTEXT: {APP: "APP"}}}))
 
@@ -30,7 +30,7 @@ describe("Daily's Quick task process", () => {
     availability = []
     handleRequest = vi.fn(async () => "answer")
     onReady = vi.fn()
-    quickTask = new QuickTaskProcess({
+    quickTask = new QuickTaskController({
       spawn: () => {
         const child = fakeChild()
         children.push(child)
@@ -82,7 +82,7 @@ describe("Daily's Quick task process", () => {
   })
 
   it("still restarts the Quick task process when an availability listener throws", async () => {
-    quickTask = new QuickTaskProcess({
+    quickTask = new QuickTaskController({
       spawn: () => {
         const child = fakeChild()
         children.push(child)
@@ -221,7 +221,7 @@ describe("Daily's Quick task process", () => {
 
   it("keeps retrying a spawn that throws, then gives up", () => {
     let attempts = 0
-    quickTask = new QuickTaskProcess({
+    quickTask = new QuickTaskController({
       spawn: () => {
         attempts++
         throw new Error("ENOENT")

@@ -2,14 +2,14 @@ import {ipcMain} from "electron"
 
 import {hideQuickTask, resizeQuickTask} from "@main/windows/quickTask.window"
 import {placeQuickTaskMenu, setQuickTaskMenu} from "@main/windows/quickTaskMenu.window"
+import {QUICK_TASK_FORWARDED_CHANNELS} from "@shared/constants/quickTask"
 import {QuickTaskError} from "@shared/errors/quickTask/QuickTaskError"
 import {QuickTaskErrorCode} from "@shared/errors/quickTask/QuickTaskErrorCode"
-import {QUICK_TASK_FORWARDED_CHANNELS} from "./protocol"
 
 import type {QuickTaskMenu} from "@shared/types/quickTask"
 import type {BrowserWindow, IpcMainEvent, IpcMainInvokeEvent} from "electron"
 
-type PanelIpcOptions = {
+type QuickTaskPanelIPCOptions = {
   getPanel: () => BrowserWindow | null
   getMenu: () => BrowserWindow | null
   forward: (channel: string, args: unknown[]) => Promise<unknown>
@@ -18,7 +18,7 @@ type PanelIpcOptions = {
 const MENU_FORWARDED_CHANNEL = "settings:load"
 
 /** Registers what the panel and menu renderers call in the Quick task process. Each channel answers only the window it is for: the panel for data, hide, resize and the menu content, the menu window for its placement, picks and loading settings. */
-export function setupPanelIpc({getPanel, getMenu, forward}: PanelIpcOptions) {
+export function setupQuickTaskPanelIPC({getPanel, getMenu, forward}: QuickTaskPanelIPCOptions) {
   const isFrom = (win: BrowserWindow | null, event: IpcMainEvent | IpcMainInvokeEvent) =>
     !!win && !win.isDestroyed() && win.webContents === event.sender
   const isPanel = (event: IpcMainEvent | IpcMainInvokeEvent) => isFrom(getPanel(), event)

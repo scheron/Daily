@@ -1,7 +1,7 @@
 import {QuickTaskError} from "@shared/errors/quickTask/QuickTaskError"
 import {QuickTaskErrorCode} from "@shared/errors/quickTask/QuickTaskErrorCode"
 
-import type {ChannelMessage} from "./protocol"
+import type {ChannelMessage} from "@main/types/quickTask"
 
 type StdioChannelHandlers = {
   onRequest: (channel: string, args: unknown[]) => Promise<unknown>

@@ -20,6 +20,14 @@ export function setupAppBoot() {
   }
 }
 
+/** Sets this process up as the Quick task process before Electron is ready: no Dock icon or menu bar, and a userData directory of its own that Daily's storage never shares. */
+export function setupQuickTaskAppBoot() {
+  if (process.platform === "darwin") app.setActivationPolicy("accessory")
+
+  app.setName(`${APP_CONFIG.name} Quick Task`)
+  app.setPath("userData", join(app.getPath("appData"), `${APP_CONFIG.name}-QuickTask${ENV.isDevelopment ? "-dev" : ""}`))
+}
+
 export function setupDockIcon() {
   if (process.platform === "darwin" && app.dock) {
     try {

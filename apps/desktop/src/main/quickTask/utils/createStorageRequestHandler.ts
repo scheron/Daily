@@ -1,10 +1,10 @@
-import {createSharedStorageHandlers} from "@main/setup/ipc/storageHandlers"
+import {createSharedStorageHandlers} from "@main/utils/storage/createSharedStorageHandlers"
+import {QUICK_TASK_FORWARDED_CHANNELS} from "@shared/constants/quickTask"
 import {QuickTaskError} from "@shared/errors/quickTask/QuickTaskError"
 import {QuickTaskErrorCode} from "@shared/errors/quickTask/QuickTaskErrorCode"
-import {QUICK_TASK_FORWARDED_CHANNELS} from "./protocol"
 
 import type {IStorageController} from "@daily/core"
-import type {QuickTaskForwardedChannel} from "./protocol"
+import type {QuickTaskForwardedChannel} from "@main/types/quickTask"
 
 /** Answers the Quick task process's requests with the same handlers Daily's own IPC uses. Any channel off the whitelist is rejected. */
 export function createStorageRequestHandler(getStorage: () => IStorageController | null) {

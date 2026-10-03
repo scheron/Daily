@@ -1,8 +1,7 @@
 // @ts-nocheck
 import {beforeEach, describe, expect, it, vi} from "vitest"
 
-import {unregisterHotkey} from "../../../src/main/quickTask/hotkey"
-import {createHotkeyRequestHandler} from "../../../src/main/quickTask/hotkeyRequests"
+import {createHotkeyRequestHandler, unregisterHotkey} from "../../../src/main/quickTask/hotkey"
 import {StdioChannel} from "../../../src/main/quickTask/StdioChannel"
 import {setupQuickTaskIPC} from "../../../src/main/setup/ipc/quickTask"
 

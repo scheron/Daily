@@ -1,7 +1,7 @@
 // @ts-nocheck
 import {beforeEach, describe, expect, it, vi} from "vitest"
 
-import {setupPanelIpc} from "../../../src/main/quickTask/panelIpc"
+import {setupQuickTaskPanelIPC} from "../../../src/main/setup/ipc/quickTaskPanel"
 
 const electron = vi.hoisted(() => ({handlers: new Map(), listeners: new Map()}))
 const windows = vi.hoisted(() => ({hide: vi.fn(), resize: vi.fn(), place: vi.fn(), set: vi.fn()}))
@@ -40,7 +40,7 @@ describe("the Quick task process's IPC", () => {
     Object.values(windows).forEach((fn) => fn.mockClear())
     panelContents.send.mockClear()
     forward = vi.fn(async () => "answer")
-    setupPanelIpc({getPanel: () => panel, getMenu: () => menu, forward})
+    setupQuickTaskPanelIPC({getPanel: () => panel, getMenu: () => menu, forward})
   })
 
   const send = (channel, payload, event = own) => electron.listeners.get(channel)(event, payload)

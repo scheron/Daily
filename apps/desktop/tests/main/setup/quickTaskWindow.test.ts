@@ -2,32 +2,27 @@
 import {EventEmitter} from "node:events"
 import {beforeEach, describe, expect, it, vi} from "vitest"
 
-import {runQuickTaskProcess} from "../../../src/main/quickTask/runQuickTaskProcess"
+import {setupQuickTaskWindow} from "../../../src/main/setup/app/quickTaskWindow"
 
 const mocks = vi.hoisted(() => ({
   appHandlers: new Map(),
   app: {quit: vi.fn(), on: vi.fn(), dock: {hide: vi.fn()}, whenReady: vi.fn()},
   panel: null,
   menu: null,
-  setupPanelIpc: vi.fn(),
+  setupQuickTaskPanelIPC: vi.fn(),
 }))
 
 vi.mock("electron", () => ({app: mocks.app}))
 vi.mock("@main/windows/quickTask.window", () => ({createQuickTaskWindow: () => mocks.panel, toggleQuickTask: vi.fn()}))
 vi.mock("@main/windows/quickTaskMenu.window", () => ({createQuickTaskMenuWindow: () => mocks.menu}))
-vi.mock("../../../src/main/quickTask/panelIpc", () => ({setupPanelIpc: mocks.setupPanelIpc}))
-vi.mock("../../../src/main/quickTask/hotkey", () => ({
-  unregisterHotkey: vi.fn(),
-  registerHotkey: vi.fn(),
-  rebindHotkey: vi.fn(),
-  getActiveHotkey: vi.fn(),
-}))
+vi.mock("../../../src/main/setup/ipc/quickTaskPanel", () => ({setupQuickTaskPanelIPC: mocks.setupQuickTaskPanelIPC}))
+vi.mock("../../../src/main/quickTask/hotkey", () => ({unregisterHotkey: vi.fn(), createHotkeyRequestHandler: () => vi.fn()}))
 
 function fakeWindow() {
   return Object.assign(new EventEmitter(), {isDestroyed: () => false, destroy: vi.fn(), webContents: {send: vi.fn()}})
 }
 
-describe("the Quick task process process", () => {
+describe("the Quick task window setup", () => {
   let stdin = null
   let stdout = null
   let ready = null
@@ -35,7 +30,7 @@ describe("the Quick task process process", () => {
   beforeEach(() => {
     Object.values(mocks.app).forEach((fn) => fn.mockClear?.())
     mocks.app.dock.hide.mockClear()
-    mocks.setupPanelIpc.mockClear()
+    mocks.setupQuickTaskPanelIPC.mockClear()
     mocks.panel = fakeWindow()
     mocks.menu = fakeWindow()
     stdin = Object.assign(new EventEmitter(), {setEncoding: vi.fn()})
@@ -43,7 +38,7 @@ describe("the Quick task process process", () => {
     ready = Promise.resolve()
     mocks.app.whenReady.mockReturnValue(ready)
     vi.spyOn(console, "error").mockImplementation(() => undefined)
-    runQuickTaskProcess({stdin, stdout})
+    setupQuickTaskWindow({stdin, stdout})
   })
 
   const line = (message) => JSON.stringify(message) + "\n"
@@ -65,7 +60,7 @@ describe("the Quick task process process", () => {
     await Promise.resolve()
 
     expect(mocks.app.dock.hide).toHaveBeenCalled()
-    expect(mocks.setupPanelIpc).toHaveBeenCalled()
+    expect(mocks.setupQuickTaskPanelIPC).toHaveBeenCalled()
     expect(stdout.write).toHaveBeenCalledWith(line({kind: "event", channel: "process:ready", args: []}))
   })
 

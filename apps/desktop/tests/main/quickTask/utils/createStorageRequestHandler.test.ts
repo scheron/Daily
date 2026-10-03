@@ -1,8 +1,8 @@
 // @ts-nocheck
 import {describe, expect, it, vi} from "vitest"
 
-import {QUICK_TASK_FORWARDED_CHANNELS} from "../../../src/main/quickTask/protocol"
-import {createStorageRequestHandler} from "../../../src/main/quickTask/storageRequests"
+import {QUICK_TASK_FORWARDED_CHANNELS} from "../../../../src/shared/constants/quickTask"
+import {createStorageRequestHandler} from "../../../../src/main/quickTask/utils/createStorageRequestHandler"
 
 vi.mock("@daily/core", () => ({toSettingsView: (settings) => ({view: settings})}))
 

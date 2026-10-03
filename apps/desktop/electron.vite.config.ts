@@ -28,7 +28,7 @@ export default defineConfig({
       outDir: "out/main",
       rollupOptions: {
         input: {
-          main: join(__dirname, "src/main/entry.ts"),
+          main: join(__dirname, "src/main/app.ts"),
         },
       },
     },

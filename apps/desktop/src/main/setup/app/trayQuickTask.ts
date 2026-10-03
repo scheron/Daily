@@ -1,9 +1,9 @@
 import {logger} from "@daily/core"
 
-import {HOTKEY_REQUESTS} from "@main/quickTask/protocol"
+import {HOTKEY_REQUESTS} from "@shared/constants/quickTask"
 
 import type {StorageController} from "@daily/core"
-import type {QuickTaskProcess} from "@main/quickTask/QuickTaskProcess"
+import type {QuickTaskController} from "@main/quickTask/QuickTaskController"
 import type {TrayController} from "./tray"
 
 const ITEM_ID = "quickTask"
@@ -17,7 +17,7 @@ const LABEL = "Quick task"
  */
 export function setupTrayQuickTask(
   tray: Pick<TrayController, "addItem" | "updateItem">,
-  quickTask: Pick<QuickTaskProcess, "request">,
+  quickTask: Pick<QuickTaskController, "request">,
   getStorage: () => StorageController | null,
 ) {
   tray.addItem({id: ITEM_ID, label: LABEL, enabled: false, click: openPanel}, "settings")

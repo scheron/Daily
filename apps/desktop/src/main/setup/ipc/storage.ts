@@ -1,6 +1,6 @@
 import {ipcMain} from "electron"
 
-import {createSharedStorageHandlers} from "./storageHandlers"
+import {createSharedStorageHandlers} from "@main/utils/storage/createSharedStorageHandlers"
 
 import type {IStorageController} from "@daily/core"
 import type {Branch, ISODate, Milestone, MoveTaskByOrderParams, Tag, Task, TaskComment, TaskRelationSets} from "@daily/protocol"

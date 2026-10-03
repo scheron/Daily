@@ -1,16 +1,16 @@
 import {logger} from "@daily/core"
 
+import {PROCESS_READY_EVENT} from "@shared/constants/quickTask"
 import {QuickTaskError} from "@shared/errors/quickTask/QuickTaskError"
 import {QuickTaskErrorCode} from "@shared/errors/quickTask/QuickTaskErrorCode"
-import {PROCESS_READY_EVENT} from "./protocol"
 import {StdioChannel} from "./StdioChannel"
 
+import type {HotkeyRequest} from "@main/types/quickTask"
 import type {ChildProcess} from "node:child_process"
-import type {HotkeyRequest} from "./protocol"
 
 type QuickTaskChild = Pick<ChildProcess, "stdin" | "stdout" | "stderr" | "on" | "kill" | "pid">
 
-type QuickTaskProcessOptions = {
+type QuickTaskControllerOptions = {
   spawn: () => QuickTaskChild
   handleRequest: (channel: string, args: unknown[]) => Promise<unknown>
   onReady: () => void | Promise<void>
@@ -26,7 +26,7 @@ const QUICK_FAILURE_MS = 5000
 const READY_WAIT_MS = 5000
 
 /** Daily's side of the Quick task process: spawns the second process, serves its requests, forwards events to it, restarts it when it dies, and lets it go on quit. */
-export class QuickTaskProcess {
+export class QuickTaskController {
   private child: QuickTaskChild | null = null
   private channel: StdioChannel | null = null
   private restartTimer: ReturnType<typeof setTimeout> | null = null
@@ -37,7 +37,7 @@ export class QuickTaskProcess {
   private isStopped = true
   private readonly now: () => number
 
-  constructor(private readonly options: QuickTaskProcessOptions) {
+  constructor(private readonly options: QuickTaskControllerOptions) {
     this.now = options.now ?? Date.now
   }
 
