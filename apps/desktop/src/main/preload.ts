@@ -49,7 +49,7 @@ import type {
 } from "@shared/types/ai"
 import type {FocusCommand, FocusSession} from "@shared/types/focus"
 import type {ApprovalKind, BridgeIPC} from "@shared/types/ipc"
-import type {HotkeyRebindResult, QuickCaptureHotkeyState, QuickCaptureMenu} from "@shared/types/quickCapture"
+import type {HotkeyRebindResult, QuickTaskHotkeyState, QuickTaskMenu} from "@shared/types/quickTask"
 import type {AppUpdateState} from "@shared/types/update"
 import type {PartialDeep} from "type-fest"
 
@@ -138,28 +138,28 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "focus:dispatch": (command: FocusCommand) => ipcRenderer.invoke("focus:dispatch", command) as Promise<FocusSession>,
   "focus:on-changed": (callback: (session: FocusSession) => void) => ipcRenderer.on("focus:changed", (_event, session: FocusSession) => callback(session)),
 
-  "quick-capture:hide": () => ipcRenderer.send("quick-capture:hide"),
-  "quick-capture:resize": (height: number) => ipcRenderer.send("quick-capture:resize", height),
-  "quick-capture:active-hotkey": () => ipcRenderer.invoke("quick-capture:active-hotkey") as Promise<QuickCaptureHotkeyState>,
-  "quick-capture:rebind-hotkey": (accelerator: string) => ipcRenderer.invoke("quick-capture:rebind-hotkey", accelerator) as Promise<HotkeyRebindResult>,
-  "quick-capture:on-shown": (callback: () => void) => {
+  "quick-task:hide": () => ipcRenderer.send("quick-task:hide"),
+  "quick-task:resize": (height: number) => ipcRenderer.send("quick-task:resize", height),
+  "quick-task:active-hotkey": () => ipcRenderer.invoke("quick-task:active-hotkey") as Promise<QuickTaskHotkeyState>,
+  "quick-task:rebind-hotkey": (accelerator: string) => ipcRenderer.invoke("quick-task:rebind-hotkey", accelerator) as Promise<HotkeyRebindResult>,
+  "quick-task:on-shown": (callback: () => void) => {
     const subscription = () => callback()
-    ipcRenderer.on("quick-capture:shown", subscription)
-    return () => ipcRenderer.removeListener("quick-capture:shown", subscription)
+    ipcRenderer.on("quick-task:shown", subscription)
+    return () => ipcRenderer.removeListener("quick-task:shown", subscription)
   },
-  "quick-capture:set-menu": (menu: QuickCaptureMenu | null) => ipcRenderer.send("quick-capture:set-menu", menu),
-  "quick-capture:on-menu-pick": (callback: (index: number) => void) => {
+  "quick-task:set-menu": (menu: QuickTaskMenu | null) => ipcRenderer.send("quick-task:set-menu", menu),
+  "quick-task:on-menu-pick": (callback: (index: number) => void) => {
     const subscription = (_event: unknown, index: number) => callback(index)
-    ipcRenderer.on("quick-capture:menu-pick", subscription)
-    return () => ipcRenderer.removeListener("quick-capture:menu-pick", subscription)
+    ipcRenderer.on("quick-task:menu-pick", subscription)
+    return () => ipcRenderer.removeListener("quick-task:menu-pick", subscription)
   },
-  "quick-capture-menu:on-menu": (callback: (menu: QuickCaptureMenu | null) => void) => {
-    const subscription = (_event: unknown, menu: QuickCaptureMenu | null) => callback(menu)
-    ipcRenderer.on("quick-capture-menu:menu", subscription)
-    return () => ipcRenderer.removeListener("quick-capture-menu:menu", subscription)
+  "quick-task-menu:on-menu": (callback: (menu: QuickTaskMenu | null) => void) => {
+    const subscription = (_event: unknown, menu: QuickTaskMenu | null) => callback(menu)
+    ipcRenderer.on("quick-task-menu:menu", subscription)
+    return () => ipcRenderer.removeListener("quick-task-menu:menu", subscription)
   },
-  "quick-capture-menu:resize": (height: number) => ipcRenderer.send("quick-capture-menu:resize", height),
-  "quick-capture-menu:pick": (index: number) => ipcRenderer.send("quick-capture-menu:pick", index),
+  "quick-task-menu:resize": (height: number) => ipcRenderer.send("quick-task-menu:resize", height),
+  "quick-task-menu:pick": (index: number) => ipcRenderer.send("quick-task-menu:pick", index),
 
   "tasks:get-all": () => ipcRenderer.invoke("tasks:get-all") as Promise<Task[]>,
   "tasks:get-many": (params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: Branch["id"]}) => ipcRenderer.invoke("tasks:get-many", params) as Promise<Task[]>,

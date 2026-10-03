@@ -2,7 +2,7 @@ import {
   ACTOR_PROVIDER_MAX_LENGTH,
   DEFAULT_ACCENT_ID,
   DEFAULT_BASE_ID,
-  DEFAULT_QUICK_CAPTURE_HOTKEY,
+  DEFAULT_QUICK_TASK_HOTKEY,
   MAIN_BRANCH_ID,
   WINDOWS_CONFIG,
 } from "@daily/protocol"
@@ -248,7 +248,7 @@ export function getDefaultSettings(): Settings {
     layout: {
       sectionsCollapsed: {active: false, discarded: false, done: false, backlog: false},
     },
-    quickCapture: {hotkey: DEFAULT_QUICK_CAPTURE_HOTKEY},
+    quickTask: {hotkey: DEFAULT_QUICK_TASK_HOTKEY},
     menuBar: {isVisible: true},
     focus: {shouldNotify: true, shouldPlaySound: true},
     window: {
@@ -264,20 +264,13 @@ export function getDefaultSettings(): Settings {
 }
 
 /**
- * Migrates a persisted settings blob from the old `themes` shape to `appearance`.
- * No-op (returns the input) when the blob already has `appearance` or has no `themes`.
+ * Migrates a persisted settings blob to the current shape: the old `themes` becomes `appearance`, and `quickCapture` becomes `quickTask`.
+ * A part already in the current shape is left as it is.
  * @example migrateSettingsShape({themes: {current: "aurora", useSystem: false}})
  */
 export function migrateSettingsShape(parsed: any): any {
   if (!parsed || typeof parsed !== "object") return parsed
-  if (parsed.appearance || !parsed.themes) return parsed
-
-  const old = parsed.themes
-  const mode = old.useSystem ? "system" : (OLD_THEME_TYPE[old.current] ?? "dark")
-  const accent = OLD_THEME_ACCENT[old.current] ?? DEFAULT_ACCENT_ID
-
-  const {themes: _themes, ...rest} = parsed
-  return {...rest, appearance: {mode, accent}}
+  return migrateQuickCapture(migrateThemes(parsed))
 }
 
 export function rowToSettings(row: SettingsRow): Settings {
@@ -303,6 +296,24 @@ function toCommentKind(value: string | null): TaskCommentKind {
 function toCommentProvider(value: string | null): string | null {
   const trimmed = value?.trim()
   return trimmed ? trimmed.slice(0, ACTOR_PROVIDER_MAX_LENGTH) : null
+}
+
+function migrateThemes(parsed: any): any {
+  if (parsed.appearance || !parsed.themes) return parsed
+
+  const old = parsed.themes
+  const mode = old.useSystem ? "system" : (OLD_THEME_TYPE[old.current] ?? "dark")
+  const accent = OLD_THEME_ACCENT[old.current] ?? DEFAULT_ACCENT_ID
+
+  const {themes: _themes, ...rest} = parsed
+  return {...rest, appearance: {mode, accent}}
+}
+
+function migrateQuickCapture(parsed: any): any {
+  if (!parsed.quickCapture) return parsed
+
+  const {quickCapture, ...rest} = parsed
+  return {...rest, quickTask: rest.quickTask ?? quickCapture}
 }
 
 const OLD_THEME_TYPE: Record<string, "light" | "dark"> = {

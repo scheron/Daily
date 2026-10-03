@@ -30,6 +30,12 @@ describe("migrateSettingsShape", () => {
     expect(migrateSettingsShape(already)).toEqual(already)
   })
 
+  it("moves a Quick Capture hotkey saved before the rename to quickTask", () => {
+    const out = migrateSettingsShape({appearance: {mode: "light", accent: "blue"}, quickCapture: {hotkey: "Control+Shift+A"}})
+    expect(out.quickTask).toEqual({hotkey: "Control+Shift+A"})
+    expect(out.quickCapture).toBeUndefined()
+  })
+
   it("passes through unrelated keys", () => {
     const out = migrateSettingsShape({themes: {current: "aurora", useSystem: false}, sync: {enabled: true}})
     expect(out.sync).toEqual({enabled: true})

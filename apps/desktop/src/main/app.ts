@@ -4,10 +4,10 @@ import {app} from "electron"
 import {logger, setFileCoordinatorBinaryPath, StorageController} from "@daily/core"
 import {APP_CONFIG} from "@daily/protocol"
 
-import {HOTKEY_REQUESTS} from "@main/quickCaptureHelper/helperProtocol"
-import {createHelperRequestHandler} from "@main/quickCaptureHelper/helperRequests"
-import {QuickCaptureHelper} from "@main/quickCaptureHelper/QuickCaptureHelper"
-import {spawnHelper} from "@main/quickCaptureHelper/spawnHelper"
+import {HOTKEY_REQUESTS} from "@main/quickTask/protocol"
+import {QuickTaskProcess} from "@main/quickTask/QuickTaskProcess"
+import {spawnQuickTaskProcess} from "@main/quickTask/spawnQuickTaskProcess"
+import {createStorageRequestHandler} from "@main/quickTask/storageRequests"
 import {awaitRendererReady} from "./utils/windows/awaitRendererReady"
 import {broadcastToWindows} from "./utils/windows/broadcastToWindows"
 import {focusWindow} from "./utils/windows/focusWindow"
@@ -30,7 +30,7 @@ import {setupAiIPC} from "./setup/ipc/ai"
 import {setupAssistantIPC} from "./setup/ipc/assistant"
 import {setupFocusIPC} from "./setup/ipc/focus"
 import {setupMenuIPC} from "./setup/ipc/menu"
-import {setupQuickCaptureIPC} from "./setup/ipc/quickCapture"
+import {setupQuickTaskIPC} from "./setup/ipc/quickTask"
 import {setupSettingsIPC} from "./setup/ipc/settings"
 import {setupShellIPC} from "./setup/ipc/shell"
 import {setupStorageIPC} from "./setup/ipc/storage"
@@ -70,15 +70,15 @@ let savedMainWindowState: MainWindowSettings | undefined
 let trayQuickTask: ReturnType<typeof setupTrayQuickTask> | null = null
 let trayVisibility: ReturnType<typeof setupTrayVisibility> | null = null
 
-const quickCaptureHelper = new QuickCaptureHelper({
-  spawn: spawnHelper,
-  handleRequest: createHelperRequestHandler(() => storage),
+const quickTaskProcess = new QuickTaskProcess({
+  spawn: spawnQuickTaskProcess,
+  handleRequest: createStorageRequestHandler(() => storage),
   onReady: async () => {
-    const hotkey = (await storage?.loadSettings())?.quickCapture.hotkey
+    const hotkey = (await storage?.loadSettings())?.quickTask.hotkey
     if (!hotkey) return
 
-    const isRegistered = await quickCaptureHelper.request(HOTKEY_REQUESTS.register, [hotkey])
-    if (!isRegistered) logger.warn(logger.CONTEXT.APP, `Quick Capture hotkey could not be registered: ${hotkey}`)
+    const isRegistered = await quickTaskProcess.request(HOTKEY_REQUESTS.register, [hotkey])
+    if (!isRegistered) logger.warn(logger.CONTEXT.APP, `Quick task hotkey could not be registered: ${hotkey}`)
   },
   onAvailabilityChange: (isAvailable) => trayQuickTask?.setAvailable(isAvailable),
 })
@@ -174,7 +174,7 @@ app.whenReady().then(async () => {
   )
 
   setupStorageIPC(() => storage)
-  setupQuickCaptureIPC(quickCaptureHelper, () => storage)
+  setupQuickTaskIPC(quickTaskProcess, () => storage)
   setupFocusIPC(
     () => focus,
     () => windows.focus,
@@ -193,14 +193,14 @@ app.whenReady().then(async () => {
     () => windows,
     () => focus,
     (channel, ...args) => {
-      quickCaptureHelper.emit(channel, ...args)
+      quickTaskProcess.emit(channel, ...args)
       if (channel !== "settings:changed") return
       void trayQuickTask?.refreshAccelerator()
       void trayVisibility?.apply()
     },
   )
 
-  trayQuickTask = setupTrayQuickTask(trayController, quickCaptureHelper, () => storage)
+  trayQuickTask = setupTrayQuickTask(trayController, quickTaskProcess, () => storage)
   void trayQuickTask.refreshAccelerator()
   trayVisibility = setupTrayVisibility(trayController, () => storage)
   await trayVisibility.apply()
@@ -218,7 +218,7 @@ app.whenReady().then(async () => {
   logger.lifecycle(`${APP_CONFIG.name} started`)
 })
 
-app.on("will-quit", () => quickCaptureHelper.stop())
+app.on("will-quit", () => quickTaskProcess.stop())
 
 app.on("before-quit", async (event) => {
   if (focus?.holdQuit(event)) return
@@ -257,7 +257,7 @@ function setupMainWindow(windows: AppWindows, options?: {showSplash?: boolean}) 
 
     main.show()
     focusWindow(main)
-    quickCaptureHelper.start()
+    quickTaskProcess.start()
   })
 
   return main

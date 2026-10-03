@@ -5,10 +5,10 @@ import {closeCompletion, completionStatus, moveCompletionSelection, startComplet
 import {createCompletionExtension, createMarkdownLanguageExtension} from "../../../../src/renderer/src/utils/codemirror/extensions"
 import {mountEditorView, unmountEditorView} from "../../../helpers/editorView"
 
-import type {QuickCaptureMenu} from "../../../../src/shared/types/quickCapture"
+import type {QuickTaskMenu} from "../../../../src/shared/types/quickTask"
 
 describe("the slash menu reported to an external host", () => {
-  let reported: Array<QuickCaptureMenu | null> = []
+  let reported: Array<QuickTaskMenu | null> = []
 
   beforeEach(() => {
     vi.useFakeTimers()

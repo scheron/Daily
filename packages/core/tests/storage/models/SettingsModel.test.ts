@@ -32,10 +32,10 @@ describe("SettingsModel", () => {
     expect(settings.branch.activeId).toBe("main")
   })
 
-  it("keeps a rebound Quick Capture hotkey", () => {
-    settingsModel.saveSettings({quickCapture: {hotkey: "Control+Shift+A"}})
+  it("keeps a rebound Quick task hotkey", () => {
+    settingsModel.saveSettings({quickTask: {hotkey: "Control+Shift+A"}})
 
-    expect(settingsModel.loadSettings().quickCapture.hotkey).toBe("Control+Shift+A")
+    expect(settingsModel.loadSettings().quickTask.hotkey).toBe("Control+Shift+A")
   })
 
   it("shows the menu bar icon by default and keeps it hidden once turned off", () => {

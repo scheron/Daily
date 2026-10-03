@@ -99,8 +99,8 @@ export type Settings = {
     /** Manual collapse state per status. */
     sectionsCollapsed: Record<TaskStatus, boolean>
   }
-  quickCapture: {
-    /** Electron accelerator of the global shortcut that shows and hides the Quick Capture window. */
+  quickTask: {
+    /** Electron accelerator of the global shortcut that shows and hides the Quick task window. */
     hotkey: string
   }
   menuBar: {

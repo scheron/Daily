@@ -11,14 +11,14 @@ function setup(hotkey = "Command+Alt+Space") {
     addItem: (item) => items.set(item.id, item),
     updateItem: (id, patch) => items.set(id, {...items.get(id), ...patch}),
   }
-  const helper = {request: vi.fn().mockResolvedValue(undefined)}
-  const storage = {loadSettings: vi.fn(async () => ({quickCapture: {hotkey}}))}
-  const quickTask = setupTrayQuickTask(tray, helper, () => storage)
-  return {item: () => items.get("quickTask"), helper, storage, ...quickTask}
+  const quickTaskProcess = {request: vi.fn().mockResolvedValue(undefined)}
+  const storage = {loadSettings: vi.fn(async () => ({quickTask: {hotkey}}))}
+  const trayItem = setupTrayQuickTask(tray, quickTaskProcess, () => storage)
+  return {item: () => items.get("quickTask"), quickTaskProcess, storage, ...trayItem}
 }
 
 describe("the tray's Quick task item", () => {
-  it("starts disabled and passes the helper's availability on to the item", () => {
+  it("starts disabled and passes the Quick task process's availability on to the item", () => {
     const {item, setAvailable} = setup()
     expect(item()).toMatchObject({label: "Quick task", enabled: false})
 
@@ -33,20 +33,20 @@ describe("the tray's Quick task item", () => {
     await refreshAccelerator()
     expect(item()).toMatchObject({label: "Quick task", accelerator: "Command+Alt+Space"})
 
-    storage.loadSettings.mockResolvedValue({quickCapture: {hotkey: "Control+Shift+K"}})
+    storage.loadSettings.mockResolvedValue({quickTask: {hotkey: "Control+Shift+K"}})
     await refreshAccelerator()
     expect(item().accelerator).toBe("Control+Shift+K")
 
-    storage.loadSettings.mockResolvedValue({quickCapture: {hotkey: ""}})
+    storage.loadSettings.mockResolvedValue({quickTask: {hotkey: ""}})
     await refreshAccelerator()
     expect(item().accelerator).toBeUndefined()
   })
 
-  it("asks the helper to open the panel when clicked", () => {
-    const {item, helper} = setup()
+  it("asks the Quick task process to open the panel when clicked", () => {
+    const {item, quickTaskProcess} = setup()
 
     item().click()
 
-    expect(helper.request).toHaveBeenCalledWith("panel:toggle")
+    expect(quickTaskProcess.request).toHaveBeenCalledWith("panel:toggle")
   })
 })

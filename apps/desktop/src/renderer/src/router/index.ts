@@ -24,14 +24,14 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import("@/ui/views/Focus.vue"),
   },
   {
-    path: "/quick-capture",
-    name: "QuickCapture",
-    component: () => import("@/ui/views/QuickCapture"),
+    path: "/quick-task",
+    name: "QuickTask",
+    component: () => import("@/ui/views/QuickTask"),
   },
   {
-    path: "/quick-capture-menu",
-    name: "QuickCaptureMenu",
-    component: () => import("@/ui/views/QuickCaptureMenu"),
+    path: "/quick-task-menu",
+    name: "QuickTaskMenu",
+    component: () => import("@/ui/views/QuickTaskMenu"),
   },
   {
     path: "/:pathMatch(.*)*",

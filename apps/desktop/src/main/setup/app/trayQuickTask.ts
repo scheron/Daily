@@ -1,23 +1,23 @@
 import {logger} from "@daily/core"
 
-import {HOTKEY_REQUESTS} from "@main/quickCaptureHelper/helperProtocol"
+import {HOTKEY_REQUESTS} from "@main/quickTask/protocol"
 
 import type {StorageController} from "@daily/core"
-import type {QuickCaptureHelper} from "@main/quickCaptureHelper/QuickCaptureHelper"
+import type {QuickTaskProcess} from "@main/quickTask/QuickTaskProcess"
 import type {TrayController} from "./tray"
 
 const ITEM_ID = "quickTask"
 const LABEL = "Quick task"
 
 /**
- * Adds the "Quick task" item above "Settings…". It opens the panel through the helper, shows the saved shortcut as its accelerator and is disabled while the helper is down.
- * @param helper - the helper process that owns the panel
+ * Adds the "Quick task" item above "Settings…". It opens the panel through the Quick task process, shows the saved shortcut as its accelerator and is disabled while that process is down.
+ * @param quickTask - the process that owns the panel
  * @param getStorage - where the saved shortcut is read from
- * @returns `refreshAccelerator` to call when settings change, `setAvailable` for the helper's state
+ * @returns `refreshAccelerator` to call when settings change, `setAvailable` for the process's state
  */
 export function setupTrayQuickTask(
   tray: Pick<TrayController, "addItem" | "updateItem">,
-  helper: Pick<QuickCaptureHelper, "request">,
+  quickTask: Pick<QuickTaskProcess, "request">,
   getStorage: () => StorageController | null,
 ) {
   tray.addItem({id: ITEM_ID, label: LABEL, enabled: false, click: openPanel}, "settings")
@@ -26,10 +26,10 @@ export function setupTrayQuickTask(
 
   async function refreshAccelerator() {
     try {
-      const hotkey = (await getStorage()?.loadSettings())?.quickCapture.hotkey
+      const hotkey = (await getStorage()?.loadSettings())?.quickTask.hotkey
       tray.updateItem(ITEM_ID, {accelerator: hotkey || undefined})
     } catch (error) {
-      logger.error(logger.CONTEXT.APP, "Failed to read the Quick Capture shortcut for the tray", error)
+      logger.error(logger.CONTEXT.APP, "Failed to read the Quick task shortcut for the tray", error)
     }
   }
 
@@ -38,6 +38,6 @@ export function setupTrayQuickTask(
   }
 
   function openPanel() {
-    helper.request(HOTKEY_REQUESTS.toggle).catch((error) => logger.error(logger.CONTEXT.APP, "Failed to open Quick Capture from the tray", error))
+    quickTask.request(HOTKEY_REQUESTS.toggle).catch((error) => logger.error(logger.CONTEXT.APP, "Failed to open Quick task from the tray", error))
   }
 }

@@ -2,11 +2,11 @@ import {toSettingsView} from "@daily/core"
 
 import type {IStorageController} from "@daily/core"
 import type {Task} from "@daily/protocol"
-import type {QuickCaptureForwardedChannel} from "@main/quickCaptureHelper/helperProtocol"
+import type {QuickTaskForwardedChannel} from "@main/quickTask/protocol"
 
-export type SharedStorageHandlers = Record<QuickCaptureForwardedChannel, (...args: any[]) => unknown>
+export type SharedStorageHandlers = Record<QuickTaskForwardedChannel, (...args: any[]) => unknown>
 
-/** The storage calls both Daily's own windows and the quick-capture helper make, so a request from the helper runs exactly what the same call from a window runs. */
+/** The storage calls both Daily's own windows and the Quick task process make, so a request from that process runs exactly what the same call from a window runs. */
 export function createSharedStorageHandlers(getStorage: () => IStorageController | null): SharedStorageHandlers {
   return {
     "settings:load": async () => {

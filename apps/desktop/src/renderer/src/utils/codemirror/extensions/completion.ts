@@ -15,7 +15,7 @@ import type {IconName} from "@/ui/base/BaseIcon"
 import type {Completion, CompletionContext, CompletionResult} from "@codemirror/autocomplete"
 import type {EditorState, Extension} from "@codemirror/state"
 import type {SyntaxNode} from "@lezer/common"
-import type {QuickCaptureMenu} from "@shared/types/quickCapture"
+import type {QuickTaskMenu} from "@shared/types/quickTask"
 
 type SlashItem = {label: string; icon: IconName; run: (view: EditorView) => boolean}
 
@@ -53,7 +53,7 @@ const SLASH_ITEMS: SlashItem[] = [
 ]
 
 /** Without `options` — a project or milestone description has nothing to set — `/` still offers every block command, only without the task commands. */
-export function createCompletionExtension(options?: SlashCommandsOptions, onMenuChange?: (menu: QuickCaptureMenu | null) => void): Extension {
+export function createCompletionExtension(options?: SlashCommandsOptions, onMenuChange?: (menu: QuickTaskMenu | null) => void): Extension {
   const metaByCompletion = new WeakMap<Completion, OptionMeta>()
 
   return [
@@ -102,10 +102,7 @@ export function createCompletionExtension(options?: SlashCommandsOptions, onMenu
   ]
 }
 
-function createExternalMenuExtension(
-  metaByCompletion: WeakMap<Completion, OptionMeta>,
-  onChange: (menu: QuickCaptureMenu | null) => void,
-): Extension {
+function createExternalMenuExtension(metaByCompletion: WeakMap<Completion, OptionMeta>, onChange: (menu: QuickTaskMenu | null) => void): Extension {
   let wasOpen = false
 
   return [
@@ -126,7 +123,7 @@ function createExternalMenuExtension(
   ]
 }
 
-function toMenu(view: EditorView, metaByCompletion: WeakMap<Completion, OptionMeta>): QuickCaptureMenu | null {
+function toMenu(view: EditorView, metaByCompletion: WeakMap<Completion, OptionMeta>): QuickTaskMenu | null {
   const state: EditorState = view.state
   if (completionStatus(state) !== "active") return null
 

@@ -29,7 +29,7 @@ import FloatingToolbar from "./{fragments}/FloatingToolbar"
 
 import type {TaskDraft} from "@/types/taskDraft"
 import type {Task} from "@daily/protocol"
-import type {QuickCaptureMenu} from "@shared/types/quickCapture"
+import type {QuickTaskMenu} from "@shared/types/quickTask"
 
 const props = defineProps<{
   content: string
@@ -45,7 +45,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   "update:content": [value: string]
   patch: [updates: Partial<TaskDraft>]
-  menu: [menu: QuickCaptureMenu | null]
+  menu: [menu: QuickTaskMenu | null]
 }>()
 
 const containerRef = useTemplateRef<HTMLDivElement>("container")

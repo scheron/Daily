@@ -8,7 +8,7 @@ import SettingsGroup from "@/ui/views/Settings/{fragments}/SettingsGroup.vue"
 import AboutSection from "./{fragments}/AboutSection.vue"
 import AccentPicker from "./{fragments}/AccentPicker.vue"
 import MainColorPicker from "./{fragments}/MainColorPicker.vue"
-import QuickCaptureHotkey from "./{fragments}/QuickCaptureHotkey.vue"
+import QuickTaskHotkey from "./{fragments}/QuickTaskHotkey.vue"
 import ShortcutsSection from "./{fragments}/ShortcutsSection.vue"
 
 import type {AppearanceMode, FontSize} from "@daily/protocol"
@@ -66,7 +66,7 @@ const isMenuBarVisible = useSettingValue("menuBar.isVisible", true)
     </SettingsGroup>
 
     <SettingsGroup label="Shortcuts" icon="keyboard">
-      <QuickCaptureHotkey />
+      <QuickTaskHotkey />
 
       <ShortcutsSection />
     </SettingsGroup>

@@ -19,7 +19,7 @@ export function getCompletionRowKind(row: CompletionRowSource): CompletionRowKin
   return row.tone === "remove" ? "tag-remove" : "tag-add"
 }
 
-/** The classes of a `/` menu row's `li`, shared by the editor's own menu and the Quick Capture menu window. */
+/** The classes of a `/` menu row's `li`, shared by the editor's own menu and the Quick task menu window. */
 export function getCompletionRowClass(row: CompletionRowSource): string {
   return ROW_CLASS[getCompletionRowKind(row)]
 }

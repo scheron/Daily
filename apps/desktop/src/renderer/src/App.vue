@@ -19,11 +19,7 @@ import {BaseModalProvider} from "./ui/base/BaseModal"
 
 const route = useRoute()
 const isLightRoute =
-  route.name === "Settings" ||
-  route.name === "Assistant" ||
-  route.name === "Focus" ||
-  route.name === "QuickCapture" ||
-  route.name === "QuickCaptureMenu"
+  route.name === "Settings" || route.name === "Assistant" || route.name === "Focus" || route.name === "QuickTask" || route.name === "QuickTaskMenu"
 const isSettingsRoute = route.name === "Settings"
 
 const settingsStore = useSettingsStore()
@@ -53,9 +49,9 @@ invoke(async () => {
     await until(() => settingsStore.isSettingsLoaded).toBeTruthy()
 
     if (isLightRoute) {
-      if (route.name === "Focus" || route.name === "QuickCaptureMenu") return
+      if (route.name === "Focus" || route.name === "QuickTaskMenu") return
 
-      if (route.name === "QuickCapture") {
+      if (route.name === "QuickTask") {
         const branchesStore = useBranchesStore()
         const tasksStore = useTasksStore()
         const tagsStore = useTagsStore()
