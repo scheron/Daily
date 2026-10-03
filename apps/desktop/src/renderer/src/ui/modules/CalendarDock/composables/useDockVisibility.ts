@@ -11,7 +11,7 @@ export function useDockVisibility() {
   const dragDropStore = useDragDropStore()
   const taskEditorStore = useTaskEditorStore()
 
-  const {isCalendarDockExpanded, shouldOpenCalendarDockOnDrag} = storeToRefs(uiStore)
+  const {isCalendarDockExpanded} = storeToRefs(uiStore)
   const {draggingTaskId} = storeToRefs(dragDropStore)
   const {isOpen: isEditorOpen} = storeToRefs(taskEditorStore)
 
@@ -34,7 +34,6 @@ export function useDockVisibility() {
     (taskId) => {
       if (taskId) {
         wasExpandedBeforeDrag = isCalendarDockExpanded.value
-        if (shouldOpenCalendarDockOnDrag.value) uiStore.toggleCalendarDock(true)
         return
       }
 

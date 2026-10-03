@@ -357,16 +357,11 @@ describe("CalendarDock", () => {
 
   it("restores_TC-15_the_pre_drag_state_once_the_drag_ends", async () => {
     const {mountDock, ui, drag} = await setup()
-    const {useSettingsStore} = await import("../../../../src/renderer/src/stores/settings.store")
-    await vi.waitFor(() => expect(useSettingsStore().isSettingsLoaded).toBe(true))
-    ui.shouldOpenCalendarDockOnDrag = true
 
     await mountDock()
 
-    expect(ui.isCalendarDockExpanded).toBe(false)
-
     drag.setDraggingTaskId("task-1")
-    expect(ui.isCalendarDockExpanded).toBe(true)
+    expect(ui.isCalendarDockExpanded).toBe(false)
 
     drag.setDraggingTaskId(null)
     expect(ui.isCalendarDockExpanded).toBe(false)
@@ -381,11 +376,8 @@ describe("CalendarDock", () => {
     expect(ui.isCalendarDockExpanded).toBe(true)
   })
 
-  it("stays_collapsed_on_a_drag_when_auto_open_is_off_and_expands_after_holding_the_card_on_the_pill", async () => {
+  it("stays_collapsed_on_a_drag_and_expands_after_holding_the_card_on_the_pill", async () => {
     const {mountDock, ui, drag} = await setup()
-    const {useSettingsStore} = await import("../../../../src/renderer/src/stores/settings.store")
-    await vi.waitFor(() => expect(useSettingsStore().isSettingsLoaded).toBe(true))
-    ui.shouldOpenCalendarDockOnDrag = false
 
     const dock = await mountDock()
     const pill = dock.get("[data-dock-pill]").element
@@ -409,9 +401,6 @@ describe("CalendarDock", () => {
 
   it("collapses_a_dock_opened_by_holding_the_card_on_the_pill_once_the_card_is_held_outside_the_dock", async () => {
     const {mountDock, ui, drag} = await setup()
-    const {useSettingsStore} = await import("../../../../src/renderer/src/stores/settings.store")
-    await vi.waitFor(() => expect(useSettingsStore().isSettingsLoaded).toBe(true))
-    ui.shouldOpenCalendarDockOnDrag = false
 
     const dock = await mountDock()
     let elementAtPointer = dock.get("[data-dock-pill]").element
@@ -433,11 +422,8 @@ describe("CalendarDock", () => {
     document.elementFromPoint = originalElementFromPoint
   })
 
-  it("keeps_a_dock_opened_before_the_drag_expanded_while_the_card_is_held_outside_it_with_auto_open_off", async () => {
+  it("keeps_a_dock_opened_before_the_drag_expanded_while_the_card_is_held_outside_it", async () => {
     const {mountDock, ui, drag} = await setup()
-    const {useSettingsStore} = await import("../../../../src/renderer/src/stores/settings.store")
-    await vi.waitFor(() => expect(useSettingsStore().isSettingsLoaded).toBe(true))
-    ui.shouldOpenCalendarDockOnDrag = false
     ui.toggleCalendarDock(true)
 
     await mountDock()
@@ -454,9 +440,6 @@ describe("CalendarDock", () => {
 
   it("keeps_TC-1_the_dock_over_the_board_while_the_editor_is_open_and_still_collapses_it_when_the_editor_reopens", async () => {
     const {mountDock, ui, drag, editor} = await setup()
-    const {useSettingsStore} = await import("../../../../src/renderer/src/stores/settings.store")
-    await vi.waitFor(() => expect(useSettingsStore().isSettingsLoaded).toBe(true))
-    ui.shouldOpenCalendarDockOnDrag = true
 
     editor.openNew({branchId: "main"})
     expect(editor.isOpen).toBe(true)
@@ -466,11 +449,17 @@ describe("CalendarDock", () => {
     expect(dock.find("[data-day-drop-zone]").exists()).toBe(true)
     expect(dock.find("[data-dock-pill]").exists()).toBe(true)
 
+    const originalElementFromPoint = document.elementFromPoint
+    document.elementFromPoint = vi.fn(() => dock.get("[data-dock-pill]").element)
+
     drag.setDraggingTaskId("task-1")
+    window.dispatchEvent(new MouseEvent("pointermove", {clientX: 1, clientY: 1}))
+    await new Promise((resolve) => setTimeout(resolve, 300))
     expect(ui.isCalendarDockExpanded).toBe(true)
 
     drag.setDraggingTaskId(null)
     expect(ui.isCalendarDockExpanded).toBe(false)
+    document.elementFromPoint = originalElementFromPoint
 
     editor.clear()
     ui.toggleCalendarDock(true)
@@ -525,7 +514,7 @@ describe("CalendarDock", () => {
   })
 
   it("shows_TC-3_the_actions_panel_only_while_the_calendar_is_collapsed_and_lets_new_create_a_task", async () => {
-    const {ui, drag} = await setup()
+    const {ui} = await setup()
     const {useSettingsStore} = await import("../../../../src/renderer/src/stores/settings.store")
     const {useBranchesStore} = await import("../../../../src/renderer/src/stores/branches.store")
     const {default: CalendarDock} = await import("../../../../src/renderer/src/ui/modules/CalendarDock")
@@ -533,7 +522,6 @@ describe("CalendarDock", () => {
     const {default: ActionsDock} = await import(/* @vite-ignore */ actionsDockPath)
 
     await vi.waitFor(() => expect(useSettingsStore().isSettingsLoaded).toBe(true))
-    ui.shouldOpenCalendarDockOnDrag = true
 
     const branches = useBranchesStore()
     branches.branches = [makeBranch({name: "Nebula"})]
@@ -561,16 +549,6 @@ describe("CalendarDock", () => {
 
       ui.toggleCalendarDock(false)
       await nextTick()
-      expectActionsVisible()
-
-      drag.setDraggingTaskId("task-1")
-      await nextTick()
-      expect(ui.isCalendarDockExpanded).toBe(true)
-      expectActionsAbsent()
-
-      drag.setDraggingTaskId(null)
-      await nextTick()
-      expect(ui.isCalendarDockExpanded).toBe(false)
       expectActionsVisible()
 
       await actions.findAll("button").at(-1).trigger("click")

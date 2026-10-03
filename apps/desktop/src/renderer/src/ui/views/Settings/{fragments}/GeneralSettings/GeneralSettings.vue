@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import {useSettingValue} from "@/composables/useSettingValue"
 import {useThemeStore} from "@/stores/theme"
-import {useUIStore} from "@/stores/ui"
 import BaseSegmented from "@/ui/base/BaseSegmented.vue"
 import BaseSwitch from "@/ui/base/BaseSwitch.vue"
 import SettingRow from "@/ui/views/Settings/{fragments}/SettingRow.vue"
@@ -26,7 +25,6 @@ const fontSizeOptions: {value: FontSize; label: string}[] = [
   {value: "large", label: "Large"},
 ]
 
-const uiStore = useUIStore()
 const themeStore = useThemeStore()
 const shouldNotify = useSettingValue("focus.shouldNotify", true)
 const shouldPlaySound = useSettingValue("focus.shouldPlaySound", true)
@@ -54,13 +52,6 @@ const isMenuBarVisible = useSettingValue("menuBar.isVisible", true)
 
       <SettingRow title="Show icon in menu bar" description="Keep the Daily icon in the menu bar to open Settings or Quick task">
         <BaseSwitch v-model="isMenuBarVisible" />
-      </SettingRow>
-
-      <SettingRow
-        title="Open calendar while dragging"
-        description="Expand the calendar as soon as a card is picked up. When off, hold the card on the calendar button to open it"
-      >
-        <BaseSwitch v-model="uiStore.shouldOpenCalendarDockOnDrag" />
       </SettingRow>
     </SettingsGroup>
 

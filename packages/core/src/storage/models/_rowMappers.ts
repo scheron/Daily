@@ -247,7 +247,6 @@ export function getDefaultSettings(): Settings {
     branch: {activeId: MAIN_BRANCH_ID},
     layout: {
       sectionsCollapsed: {active: false, discarded: false, done: false, backlog: false},
-      shouldOpenCalendarDockOnDrag: false,
     },
     quickCapture: {hotkey: DEFAULT_QUICK_CAPTURE_HOTKEY},
     menuBar: {isVisible: true},

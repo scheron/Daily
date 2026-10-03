@@ -30,7 +30,7 @@ describe("GeneralSettings", () => {
       "settings:load": vi.fn().mockResolvedValue({
         appearance: {mode: "system", accent: "default", base: "default"},
         typography: {fontSize: "normal"},
-        layout: {sectionsCollapsed: {}, shouldOpenCalendarDockOnDrag: false},
+        layout: {sectionsCollapsed: {}},
         branch: {activeId: "main"},
         focus,
       }),
@@ -81,9 +81,9 @@ describe("GeneralSettings", () => {
     expect(wrapper.findAllComponents(SettingsGroup)[0].props("label")).toBe("Appearance")
     const titles = wrapper
       .findAllComponents(SettingRow)
-      .slice(0, 6)
+      .slice(0, 5)
       .map((r) => r.props("title"))
-    expect(titles).toEqual(["Theme", "Shell Color", "Main Color", "Text size", "Show icon in menu bar", "Open calendar while dragging"])
+    expect(titles).toEqual(["Theme", "Shell Color", "Main Color", "Text size", "Show icon in menu bar"])
     const shortcuts = wrapper.findAllComponents(SettingsGroup).find((g) => g.props("label") === "Shortcuts")
     expect(shortcuts.text()).not.toContain("Show icon in menu bar")
   })
