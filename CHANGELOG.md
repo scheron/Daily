@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.30.0 - 2026-10-03
+
+### ✨ New Features
+
+- **Menu bar** — Daily keeps an icon in the menu bar while it runs, even with every window closed.
+  - The menu opens Quick task, Settings and Check for Updates, and quits Daily. Quick task's shortcut shows next to it.
+  - Settings opens from the menu even when the main window is closed.
+  - The icon follows the light and dark theme and can be hidden in Settings → General.
+
+### 🎨 Improvements
+
+- **Quick task** — Quick Capture is now called Quick task, and can be turned off in Settings → General, which frees its shortcut for other apps. A shortcut set earlier keeps working.
+- **Settings** — Settings → General opens with Appearance, one group for theme, colors, text size and the menu bar icon.
+- **Calendar** — the Open calendar while dragging option is removed; the calendar dock opens when a dragged card is held on its button.
+
+### 🐛 Bug Fixes
+
+- **Task text** — a code block with long lines now scrolls sideways as one block instead of line by line, in the editor, on cards, in comments and in search.
+
+---
+
 ## v0.29.0 - 2026-10-03
 
 ### ✨ New Features
