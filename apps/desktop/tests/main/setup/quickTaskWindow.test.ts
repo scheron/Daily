@@ -16,7 +16,7 @@ vi.mock("electron", () => ({app: mocks.app}))
 vi.mock("@main/windows/quickTask.window", () => ({createQuickTaskWindow: () => mocks.panel, toggleQuickTask: vi.fn()}))
 vi.mock("@main/windows/quickTaskMenu.window", () => ({createQuickTaskMenuWindow: () => mocks.menu}))
 vi.mock("../../../src/main/setup/ipc/quickTaskPanel", () => ({setupQuickTaskPanelIPC: mocks.setupQuickTaskPanelIPC}))
-vi.mock("../../../src/main/quickTask/hotkey", () => ({unregisterHotkey: vi.fn(), createHotkeyRequestHandler: () => vi.fn()}))
+vi.mock("../../../src/main/modules/quickTask/hotkey", () => ({unregisterHotkey: vi.fn(), createHotkeyRequestHandler: () => vi.fn()}))
 
 function fakeWindow() {
   return Object.assign(new EventEmitter(), {isDestroyed: () => false, destroy: vi.fn(), webContents: {send: vi.fn()}})

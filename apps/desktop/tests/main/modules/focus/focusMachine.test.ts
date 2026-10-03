@@ -1,8 +1,8 @@
 import {describe, expect, it} from "vitest"
 
-import {advance, createFocusSession, endsAt, leave, transition} from "../../../src/main/focus/focusMachine"
+import {advance, createFocusSession, endsAt, leave, transition} from "../../../../src/main/modules/focus/focusMachine"
 
-import type {FocusCommand, FocusPhase, FocusSession, FocusSessionTask} from "../../../src/shared/types/focus"
+import type {FocusCommand, FocusPhase, FocusSession, FocusSessionTask} from "../../../../src/shared/types/focus"
 
 const T0 = new Date("2026-09-26T10:00:00.000Z")
 

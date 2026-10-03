@@ -4,7 +4,7 @@ import {app, BrowserWindow} from "electron"
 
 import {APP_CONFIG} from "@daily/protocol"
 
-import {electronPaths} from "@main/runtime/electronPaths"
+import {electronPaths} from "@main/config/electronPaths"
 import {focusWindow} from "@main/utils/windows/focusWindow"
 import {resolveAboutLogoURL} from "@main/utils/windows/resolveAboutLogoDataURL"
 

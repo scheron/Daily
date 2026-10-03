@@ -2,8 +2,8 @@ import {app, ipcMain, Menu, nativeImage, Tray} from "electron"
 
 import {logger} from "@daily/core"
 
-import {electronPaths} from "@main/runtime/electronPaths"
-import {updaterController} from "@main/updates/UpdaterController"
+import {electronPaths} from "@main/config/electronPaths"
+import {updaterController} from "@main/modules/updates/UpdaterController"
 
 import type {MenuItemConstructorOptions} from "electron"
 

@@ -3,7 +3,7 @@ import {readFile} from "node:fs/promises"
 
 import {logger} from "@daily/core"
 
-import {electronPaths} from "@main/runtime/electronPaths"
+import {electronPaths} from "@main/config/electronPaths"
 
 import type {PendingInstallFailure} from "@main/types/updates"
 

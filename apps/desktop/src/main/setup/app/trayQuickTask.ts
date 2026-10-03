@@ -3,7 +3,7 @@ import {logger} from "@daily/core"
 import {HOTKEY_REQUESTS} from "@shared/constants/quickTask"
 
 import type {StorageController} from "@daily/core"
-import type {QuickTaskController} from "@main/quickTask/QuickTaskController"
+import type {QuickTaskController} from "@main/modules/quickTask/QuickTaskController"
 import type {TrayController} from "./tray"
 
 const ITEM_ID = "quickTask"

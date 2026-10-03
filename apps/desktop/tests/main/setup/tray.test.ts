@@ -32,8 +32,8 @@ vi.mock("electron", () => ({
   },
 }))
 vi.mock("@daily/core", () => ({logger: {error: state.logged, CONTEXT: {APP: "APP"}}}))
-vi.mock("@main/runtime/electronPaths", () => ({electronPaths: {trayIcon: () => "/tray.png"}}))
-vi.mock("@main/updates/UpdaterController", () => ({updaterController: {checkForUpdate: state.checkForUpdate}}))
+vi.mock("@main/config/electronPaths", () => ({electronPaths: {trayIcon: () => "/tray.png"}}))
+vi.mock("@main/modules/updates/UpdaterController", () => ({updaterController: {checkForUpdate: state.checkForUpdate}}))
 
 const lastMenu = () => state.menus.at(-1)!
 

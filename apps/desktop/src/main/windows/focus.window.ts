@@ -2,7 +2,7 @@ import {BrowserWindow} from "electron"
 
 import {ENV} from "@daily/core"
 
-import {electronPaths} from "@main/runtime/electronPaths"
+import {electronPaths} from "@main/config/electronPaths"
 import {focusWindow} from "@main/utils/windows/focusWindow"
 
 import type {Rectangle} from "electron"

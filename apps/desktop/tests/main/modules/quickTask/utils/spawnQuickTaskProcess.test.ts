@@ -1,7 +1,7 @@
 // @ts-nocheck
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
-import {spawnQuickTaskProcess} from "../../../../src/main/quickTask/utils/spawnQuickTaskProcess"
+import {spawnQuickTaskProcess} from "../../../../../src/main/modules/quickTask/utils/spawnQuickTaskProcess"
 
 const mocks = vi.hoisted(() => ({spawn: vi.fn(() => "child"), app: {isPackaged: false, getAppPath: () => "/app"}}))
 

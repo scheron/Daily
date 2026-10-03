@@ -1,7 +1,7 @@
 // @ts-nocheck
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
-import {FocusController} from "../../../src/main/focus/FocusController"
+import {FocusController} from "../../../../src/main/modules/focus/FocusController"
 
 const electron = vi.hoisted(() => ({
   focusedWindow: null,

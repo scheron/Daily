@@ -12,16 +12,16 @@ vi.mock("@daily/core", async (importOriginal) => ({
   logger: {info: vi.fn(), debug: vi.fn(), warn: vi.fn(), error: vi.fn(), CONTEXT: {UPDATES: "UPDATES"}},
 }))
 
-vi.mock("../../../src/main/updates/release", () => ({
+vi.mock("../../../../src/main/modules/updates/release", () => ({
   resolveLatestRelease,
   downloadRelease: vi.fn(),
 }))
 
-vi.mock("../../../src/main/updates/utils/applyPendingInstallResult", () => ({
+vi.mock("../../../../src/main/modules/updates/utils/applyPendingInstallResult", () => ({
   applyPendingInstallResult: vi.fn().mockResolvedValue(undefined),
 }))
 
-const {UpdaterController} = await import("../../../src/main/updates/UpdaterController")
+const {UpdaterController} = await import("../../../../src/main/modules/updates/UpdaterController")
 
 const originalPlatform = process.platform
 

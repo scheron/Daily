@@ -1,6 +1,6 @@
 import {createFocusWindow} from "@main/windows/focus.window"
 
-import type {FocusController} from "@main/focus/FocusController"
+import type {FocusController} from "@main/modules/focus/FocusController"
 import type {FocusSession} from "@shared/types/focus"
 import type {BrowserWindow} from "electron"
 

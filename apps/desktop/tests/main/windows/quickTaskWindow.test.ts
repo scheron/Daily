@@ -26,7 +26,7 @@ vi.mock("electron", () => ({
   },
 }))
 vi.mock("@daily/core", () => ({ENV: {isDevelopment: false}}))
-vi.mock("@main/runtime/electronPaths", () => ({electronPaths: {renderer: () => "http://x/", preload: () => "/p.js"}}))
+vi.mock("@main/config/electronPaths", () => ({electronPaths: {renderer: () => "http://x/", preload: () => "/p.js"}}))
 
 function fakeWindow(bounds, state = {}) {
   const win = createQuickTaskWindow()

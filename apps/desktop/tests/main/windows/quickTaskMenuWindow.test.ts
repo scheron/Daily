@@ -22,7 +22,7 @@ vi.mock("electron", () => ({
   },
 }))
 vi.mock("@daily/core", () => ({ENV: {isDevelopment: false}}))
-vi.mock("@main/runtime/electronPaths", () => ({electronPaths: {renderer: () => "http://x/", preload: () => "/p.js"}}))
+vi.mock("@main/config/electronPaths", () => ({electronPaths: {renderer: () => "http://x/", preload: () => "/p.js"}}))
 
 const MENU = {rows: [{label: "Divider", icon: "minus"}], selected: 0, caretX: 100}
 

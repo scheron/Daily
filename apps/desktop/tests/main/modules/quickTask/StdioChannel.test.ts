@@ -1,7 +1,7 @@
 // @ts-nocheck
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
-import {StdioChannel} from "../../../src/main/quickTask/StdioChannel"
+import {StdioChannel} from "../../../../src/main/modules/quickTask/StdioChannel"
 
 function pair(handlersA = {}, handlersB = {}, timeoutMs) {
   const a = new StdioChannel((line) => b.receive(line), {onRequest: async () => undefined, onEvent: vi.fn(), ...handlersA}, timeoutMs)

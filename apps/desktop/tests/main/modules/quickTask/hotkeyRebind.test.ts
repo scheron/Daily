@@ -1,9 +1,9 @@
 // @ts-nocheck
 import {beforeEach, describe, expect, it, vi} from "vitest"
 
-import {createHotkeyRequestHandler, unregisterHotkey} from "../../../src/main/quickTask/hotkey"
-import {StdioChannel} from "../../../src/main/quickTask/StdioChannel"
-import {setupQuickTaskIPC} from "../../../src/main/setup/ipc/quickTask"
+import {createHotkeyRequestHandler, unregisterHotkey} from "../../../../src/main/modules/quickTask/hotkey"
+import {StdioChannel} from "../../../../src/main/modules/quickTask/StdioChannel"
+import {setupQuickTaskIPC} from "../../../../src/main/setup/ipc/quickTask"
 
 const electron = vi.hoisted(() => ({handlers: new Map(), shortcuts: new Map(), taken: new Set()}))
 

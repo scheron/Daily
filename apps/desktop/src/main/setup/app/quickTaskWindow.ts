@@ -1,7 +1,7 @@
 import {app} from "electron"
 
-import {createHotkeyRequestHandler, unregisterHotkey} from "@main/quickTask/hotkey"
-import {StdioChannel} from "@main/quickTask/StdioChannel"
+import {createHotkeyRequestHandler, unregisterHotkey} from "@main/modules/quickTask/hotkey"
+import {StdioChannel} from "@main/modules/quickTask/StdioChannel"
 import {setupQuickTaskPanelIPC} from "@main/setup/ipc/quickTaskPanel"
 import {createQuickTaskWindow, toggleQuickTask} from "@main/windows/quickTask.window"
 import {createQuickTaskMenuWindow} from "@main/windows/quickTaskMenu.window"

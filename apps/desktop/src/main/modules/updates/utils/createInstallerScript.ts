@@ -4,7 +4,7 @@ import path from "node:path"
 
 import {APP_CONFIG} from "@daily/protocol"
 
-import {electronPaths} from "@main/runtime/electronPaths"
+import {electronPaths} from "@main/config/electronPaths"
 import {UpdateInstallFailureCode} from "@shared/errors/updates/UpdateInstallFailureCode"
 
 import type {AppUpdateCacheState, InstalledAppReleaseState} from "@daily/protocol"

@@ -34,7 +34,7 @@ vi.mock("electron", () => ({
 
 vi.mock("@daily/core", () => ({ENV: {isDevelopment: false}}))
 
-vi.mock("@main/runtime/electronPaths", () => ({
+vi.mock("@main/config/electronPaths", () => ({
   electronPaths: {renderer: () => "http://localhost:8080/", preload: () => "/preload.js", icon: () => "/icon.png"},
 }))
 

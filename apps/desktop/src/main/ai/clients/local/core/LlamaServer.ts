@@ -12,7 +12,7 @@ import fs from "fs-extra"
 import {logger} from "@daily/core"
 import {isString, notNull} from "@daily/std"
 
-import {electronPaths} from "@main/runtime/electronPaths"
+import {electronPaths} from "@main/config/electronPaths"
 import {AI_CONFIG} from "@shared/config/ai"
 import {LlamaServerErrorCode} from "@shared/errors/ai/LlamaServerErrorCode"
 import {ServerStartCancelledError} from "@shared/errors/ai/ServerStartCancelledError"

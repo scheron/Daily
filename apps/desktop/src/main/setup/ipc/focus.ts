@@ -2,7 +2,7 @@ import {ipcMain} from "electron"
 
 import {focusWindow} from "@main/utils/windows/focusWindow"
 
-import type {FocusController} from "@main/focus/FocusController"
+import type {FocusController} from "@main/modules/focus/FocusController"
 import type {FocusCommand} from "@shared/types/focus"
 import type {BrowserWindow} from "electron"
 

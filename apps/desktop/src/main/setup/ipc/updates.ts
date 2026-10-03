@@ -1,6 +1,6 @@
 import {ipcMain} from "electron"
 
-import {updaterController} from "@main/updates/UpdaterController"
+import {updaterController} from "@main/modules/updates/UpdaterController"
 
 export function setupUpdatesIPC() {
   ipcMain.handle("updates:get-state", () => updaterController.getState())

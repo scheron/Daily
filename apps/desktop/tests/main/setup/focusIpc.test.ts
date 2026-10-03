@@ -1,7 +1,7 @@
 // @ts-nocheck
 import {describe, expect, it, vi} from "vitest"
 
-import {FocusController} from "../../../src/main/focus/FocusController"
+import {FocusController} from "../../../src/main/modules/focus/FocusController"
 import {setupFocusIPC} from "../../../src/main/setup/ipc/focus"
 
 const handlers = new Map<string, (...args: any[]) => any>()

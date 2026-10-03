@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("electron", () => ({app: mocks.app}))
 vi.mock("@daily/core", () => ({ENV: mocks.env, logger: {info: vi.fn(), CONTEXT: {STORAGE: "STORAGE"}}}))
-vi.mock("@main/runtime/electronPaths", () => ({electronPaths: {}}))
+vi.mock("@main/config/electronPaths", () => ({electronPaths: {}}))
 vi.mock("@daily/protocol", () => ({APP_CONFIG: {name: "Daily"}}))
 
 describe("booting the Quick task process", () => {

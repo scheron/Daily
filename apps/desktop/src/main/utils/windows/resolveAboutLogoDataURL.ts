@@ -1,7 +1,7 @@
 import {join} from "path"
 import {app, nativeImage} from "electron"
 
-import {electronPaths} from "@main/runtime/electronPaths"
+import {electronPaths} from "@main/config/electronPaths"
 
 /**
  * Resolves the app icon to a data URL for embedding in the About window's

@@ -1,7 +1,7 @@
 import {logger} from "@daily/core"
 
 import type {StorageController} from "@daily/core"
-import type {QuickTaskController} from "@main/quickTask/QuickTaskController"
+import type {QuickTaskController} from "@main/modules/quickTask/QuickTaskController"
 
 /**
  * Starts or stops the Quick task process according to the saved Quick task switch.

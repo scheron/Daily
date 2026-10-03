@@ -3,7 +3,7 @@ import {ipcMain} from "electron"
 import {HOTKEY_REQUESTS} from "@shared/constants/quickTask"
 
 import type {StorageController} from "@daily/core"
-import type {QuickTaskController} from "@main/quickTask/QuickTaskController"
+import type {QuickTaskController} from "@main/modules/quickTask/QuickTaskController"
 import type {HotkeyRebindResult, QuickTaskHotkeyState} from "@shared/types/quickTask"
 
 const ACTIVE_HOTKEY_WAIT_MS = 30_000

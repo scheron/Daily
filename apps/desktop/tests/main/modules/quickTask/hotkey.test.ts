@@ -1,7 +1,7 @@
 // @ts-nocheck
 import {beforeEach, describe, expect, it, vi} from "vitest"
 
-import {getActiveHotkey, rebindHotkey, registerHotkey, unregisterHotkey} from "../../../src/main/quickTask/hotkey"
+import {getActiveHotkey, rebindHotkey, registerHotkey, unregisterHotkey} from "../../../../src/main/modules/quickTask/hotkey"
 
 const shortcuts = vi.hoisted(() => ({taken: new Set(), registered: new Map()}))
 

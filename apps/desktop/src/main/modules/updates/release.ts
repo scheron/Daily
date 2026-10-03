@@ -5,7 +5,7 @@ import path from "node:path"
 
 import {logger} from "@daily/core"
 
-import {electronPaths} from "@main/runtime/electronPaths"
+import {electronPaths} from "@main/config/electronPaths"
 import {downloadWithProgress} from "@main/utils/files/downloadWithProgress"
 import {UPDATES_CONFIG} from "@shared/config/updates"
 import {parseGitHubReleaseMeta} from "./utils/parseGitHubReleaseMeta"

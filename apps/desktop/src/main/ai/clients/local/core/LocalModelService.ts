@@ -5,7 +5,7 @@ import fs from "fs-extra"
 import {logger} from "@daily/core"
 import {forEachParallel} from "@daily/std"
 
-import {electronPaths} from "@main/runtime/electronPaths"
+import {electronPaths} from "@main/config/electronPaths"
 import {downloadWithProgress} from "@main/utils/files/downloadWithProgress"
 import {AI_CONFIG} from "@shared/config/ai"
 import {LocalModelErrorCode} from "@shared/errors/ai/LocalModelErrorCode"

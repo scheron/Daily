@@ -2,7 +2,7 @@ import {app, BrowserWindow, screen} from "electron"
 
 import {ENV} from "@daily/core"
 
-import {electronPaths} from "@main/runtime/electronPaths"
+import {electronPaths} from "@main/config/electronPaths"
 
 const WIDTH = 560
 const BOTTOM_MARGIN = 48

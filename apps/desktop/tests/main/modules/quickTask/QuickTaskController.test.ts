@@ -2,7 +2,7 @@
 import {EventEmitter} from "node:events"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
-import {QuickTaskController} from "../../../src/main/quickTask/QuickTaskController"
+import {QuickTaskController} from "../../../../src/main/modules/quickTask/QuickTaskController"
 
 vi.mock("@daily/core", () => ({logger: {error: vi.fn(), warn: vi.fn(), CONTEXT: {APP: "APP"}}}))
 
