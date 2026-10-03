@@ -4,11 +4,6 @@ import type {StorageController} from "@daily/core"
 import type {MainWindowSettings} from "@daily/protocol"
 import type {BrowserWindow} from "electron"
 
-export async function loadSavedMainWindowState(storage: StorageController): Promise<MainWindowSettings | undefined> {
-  const settings = await storage.loadSettings()
-  return settings.window.main
-}
-
 export function setupMainWindowStatePersistence(getStorage: () => StorageController | null, getMainWindow: () => BrowserWindow | null) {
   let saveTimer: ReturnType<typeof setTimeout> | null = null
   let lastSavedStateJson = ""

@@ -3,7 +3,7 @@ import {isPositive} from "@daily/std"
 
 import type {MainWindowSettings} from "@daily/protocol"
 
-export type RestoredMainWindowOptions = {
+type RestoredMainWindowOptions = {
   width: number
   height: number
 }

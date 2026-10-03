@@ -4,7 +4,7 @@ import {HOTKEY_REQUESTS} from "@shared/constants/quickTask"
 
 import type {StorageController} from "@daily/core"
 import type {QuickTaskController} from "@main/modules/quickTask/QuickTaskController"
-import type {TrayController} from "./tray"
+import type {TrayController} from "@main/modules/tray/TrayController"
 
 const ITEM_ID = "quickTask"
 const LABEL = "Quick task"

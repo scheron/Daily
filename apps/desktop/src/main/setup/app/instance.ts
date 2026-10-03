@@ -2,8 +2,8 @@ import {app} from "electron"
 
 import {APP_CONFIG} from "@daily/protocol"
 
+import {handleDeepLink} from "@main/utils/deeplinks/handleDeepLink"
 import {focusWindow} from "@main/utils/windows/focusWindow"
-import {handleDeepLink} from "./deeplinks"
 
 import type {StorageController} from "@daily/core"
 import type {BrowserWindow} from "electron"

@@ -1,7 +1,7 @@
 import {logger} from "@daily/core"
 
 import type {StorageController} from "@daily/core"
-import type {TrayController} from "./tray"
+import type {TrayController} from "@main/modules/tray/TrayController"
 
 /**
  * Shows or hides the tray icon according to the saved "Show icon in menu bar" setting.

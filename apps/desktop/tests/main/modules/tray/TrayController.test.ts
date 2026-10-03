@@ -1,6 +1,6 @@
 import {beforeEach, describe, expect, it, vi} from "vitest"
 
-import {TrayController} from "../../../src/main/setup/app/tray"
+import {TrayController} from "../../../../src/main/modules/tray/TrayController"
 
 const state = vi.hoisted(() => ({
   menus: [] as any[][],
