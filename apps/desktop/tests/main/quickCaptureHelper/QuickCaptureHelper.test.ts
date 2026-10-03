@@ -21,11 +21,13 @@ describe("Daily's quick-capture helper", () => {
   let handleRequest = null
   let onReady = null
   let helper = null
+  let availability = null
 
   beforeEach(() => {
     vi.useFakeTimers()
     children = []
     clock = 0
+    availability = []
     handleRequest = vi.fn(async () => "answer")
     onReady = vi.fn()
     helper = new QuickCaptureHelper({
@@ -36,6 +38,7 @@ describe("Daily's quick-capture helper", () => {
       },
       handleRequest,
       onReady,
+      onAvailabilityChange: (isAvailable) => availability.push(isAvailable),
       now: () => clock,
     })
   })
@@ -61,6 +64,59 @@ describe("Daily's quick-capture helper", () => {
     children[0].stdout.emit("data", line({kind: "event", channel: "helper:ready", args: []}))
 
     expect(onReady).toHaveBeenCalledTimes(1)
+  })
+
+  it("reports itself available once ready, unavailable when it dies, and again when it comes back", async () => {
+    helper.start()
+    children[0].stdout.emit("data", line({kind: "event", channel: "helper:ready", args: []}))
+    await vi.advanceTimersByTimeAsync(0)
+    expect(availability).toEqual([true])
+
+    exit(children[0], 10_000)
+    expect(availability).toEqual([true, false])
+
+    await vi.advanceTimersByTimeAsync(500)
+    children[1].stdout.emit("data", line({kind: "event", channel: "helper:ready", args: []}))
+    await vi.advanceTimersByTimeAsync(0)
+    expect(availability).toEqual([true, false, true])
+  })
+
+  it("still restarts the helper when an availability listener throws", async () => {
+    helper = new QuickCaptureHelper({
+      spawn: () => {
+        const child = fakeChild()
+        children.push(child)
+        return child
+      },
+      handleRequest,
+      onReady,
+      onAvailabilityChange: (isAvailable) => {
+        if (!isAvailable) throw new Error("listener")
+      },
+      now: () => clock,
+    })
+    helper.start()
+    children[0].stdout.emit("data", line({kind: "event", channel: "helper:ready", args: []}))
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(() => exit(children[0], 10_000)).toThrow("listener")
+    await vi.advanceTimersByTimeAsync(10_000)
+
+    expect(children).toHaveLength(2)
+  })
+
+  it("stays unavailable while it restarts and after it gives up", async () => {
+    helper.start()
+    children[0].stdout.emit("data", line({kind: "event", channel: "helper:ready", args: []}))
+    await vi.advanceTimersByTimeAsync(0)
+
+    for (let i = 0; i < 4; i++) {
+      exit(children.at(-1))
+      await vi.advanceTimersByTimeAsync(5000)
+    }
+
+    expect(children).toHaveLength(4)
+    expect(availability).toEqual([true, false])
   })
 
   it("answers a request from the helper on its stdin", async () => {

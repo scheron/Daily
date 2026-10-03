@@ -14,6 +14,7 @@ type QuickCaptureHelperOptions = {
   spawn: () => HelperChild
   handleRequest: (channel: string, args: unknown[]) => Promise<unknown>
   onReady: () => void | Promise<void>
+  onAvailabilityChange?: (isAvailable: boolean) => void
   now?: () => number
 }
 
@@ -58,14 +59,14 @@ export class QuickCaptureHelper {
 
     const child = this.child
     this.child = null
-    this.isReady = false
     this.channel?.close(new QuickCaptureHelperError(QuickCaptureHelperErrorCode.Stopped, "Quick Capture helper stopped"))
     this.channel = null
     this.rejectReadyWaiters()
-    if (!child) return
-
-    child.stdin?.end()
-    child.kill()
+    if (child) {
+      child.stdin?.end()
+      child.kill()
+    }
+    this.setReady(false)
   }
 
   /** Resolves once the running helper has said it is ready and its setup (`onReady`) has settled. Rejects when it is stopped or gives up first, or does not get ready within the wait. */
@@ -133,7 +134,7 @@ export class QuickCaptureHelper {
             .then(() => {
               if (this.channel !== channel) return
 
-              this.isReady = true
+              this.setReady(true)
               this.resolveReadyWaiters()
             })
         },
@@ -158,7 +159,11 @@ export class QuickCaptureHelper {
     channel?.close(new QuickCaptureHelperError(QuickCaptureHelperErrorCode.Exited, "Quick Capture helper exited"))
     this.child = null
     this.channel = null
-    this.isReady = false
+    this.scheduleRestart()
+    this.setReady(false)
+  }
+
+  private scheduleRestart() {
     if (this.isStopped) return
 
     this.quickFailures = this.now() - this.startedAt < QUICK_FAILURE_MS ? this.quickFailures + 1 : 0
@@ -180,6 +185,13 @@ export class QuickCaptureHelper {
       },
       RESTART_DELAYS_MS[Math.max(this.quickFailures - 1, 0)],
     )
+  }
+
+  private setReady(isReady: boolean) {
+    if (this.isReady === isReady) return
+
+    this.isReady = isReady
+    this.options.onAvailabilityChange?.(isReady)
   }
 
   private resolveReadyWaiters() {

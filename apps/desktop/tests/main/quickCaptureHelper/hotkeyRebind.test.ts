@@ -53,6 +53,15 @@ describe("rebinding the hotkey from Daily's settings through the channel to the 
     expect(onPress).toHaveBeenCalledTimes(1)
   })
 
+  it("toggles the panel on a request from Daily exactly as a press of the registered shortcut does", async () => {
+    await daily.request("hotkey:register", ["Command+Alt+Space"])
+
+    electron.shortcuts.get("Command+Alt+Space")()
+    await daily.request("panel:toggle", [])
+
+    expect(onPress).toHaveBeenCalledTimes(2)
+  })
+
   it("moves the shortcut in the helper and saves it once in Daily", async () => {
     await daily.request("hotkey:register", ["Command+Alt+Space"])
 

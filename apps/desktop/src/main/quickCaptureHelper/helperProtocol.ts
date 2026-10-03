@@ -2,11 +2,12 @@ export const QUICK_CAPTURE_HELPER_FLAG = "--quick-capture-helper"
 
 export const HELPER_READY_EVENT = "helper:ready"
 
-/** What Daily asks the helper process to do about the global shortcut. */
+/** What Daily asks the helper process to do: manage the global shortcut, or toggle the panel as a press of it would. */
 export const HOTKEY_REQUESTS = {
   register: "hotkey:register",
   rebind: "hotkey:rebind",
   active: "hotkey:active",
+  toggle: "panel:toggle",
 } as const
 
 /** The channels the panel's renderers call that the helper process hands to Daily. Nothing else is forwarded. */

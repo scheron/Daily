@@ -20,6 +20,9 @@ import {setupInstanceAndDeepLinks} from "./setup/app/instance"
 import {setupActivateHandler, setupAppBoot, setupDockIcon, setupWindowAllClosedHandler} from "./setup/app/lifecycle"
 import {setupMenu} from "./setup/app/menu"
 import {setupStorageSync} from "./setup/app/storage"
+import {trayController} from "./setup/app/tray"
+import {setupTrayQuickTask} from "./setup/app/trayQuickTask"
+import {setupTrayVisibility} from "./setup/app/trayVisibility"
 import {setupUpdateManager} from "./setup/app/updates"
 import {loadSavedMainWindowState, setupMainWindowStatePersistence} from "./setup/app/windowState"
 import {setupAboutIPC} from "./setup/ipc/about"
@@ -64,6 +67,8 @@ let storage: StorageController | null = null
 let ai: AIController | null = null
 let focus: FocusController | null = null
 let savedMainWindowState: MainWindowSettings | undefined
+let trayQuickTask: ReturnType<typeof setupTrayQuickTask> | null = null
+let trayVisibility: ReturnType<typeof setupTrayVisibility> | null = null
 
 const quickCaptureHelper = new QuickCaptureHelper({
   spawn: spawnHelper,
@@ -75,6 +80,7 @@ const quickCaptureHelper = new QuickCaptureHelper({
     const isRegistered = await quickCaptureHelper.request(HOTKEY_REQUESTS.register, [hotkey])
     if (!isRegistered) logger.warn(logger.CONTEXT.APP, `Quick Capture hotkey could not be registered: ${hotkey}`)
   },
+  onAvailabilityChange: (isAvailable) => trayQuickTask?.setAvailable(isAvailable),
 })
 
 setFileCoordinatorBinaryPath(
@@ -186,8 +192,18 @@ app.whenReady().then(async () => {
     () => storage,
     () => windows,
     () => focus,
-    (channel, ...args) => quickCaptureHelper.emit(channel, ...args),
+    (channel, ...args) => {
+      quickCaptureHelper.emit(channel, ...args)
+      if (channel !== "settings:changed") return
+      void trayQuickTask?.refreshAccelerator()
+      void trayVisibility?.apply()
+    },
   )
+
+  trayQuickTask = setupTrayQuickTask(trayController, quickCaptureHelper, () => storage)
+  void trayQuickTask.refreshAccelerator()
+  trayVisibility = setupTrayVisibility(trayController, () => storage)
+  await trayVisibility.apply()
 
   setupMainWindow(windows, {showSplash: true})
 

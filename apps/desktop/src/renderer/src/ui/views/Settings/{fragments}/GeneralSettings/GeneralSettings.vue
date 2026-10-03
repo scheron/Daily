@@ -30,27 +30,30 @@ const uiStore = useUIStore()
 const themeStore = useThemeStore()
 const shouldNotify = useSettingValue("focus.shouldNotify", true)
 const shouldPlaySound = useSettingValue("focus.shouldPlaySound", true)
+const isMenuBarVisible = useSettingValue("menuBar.isVisible", true)
 </script>
 
 <template>
   <div class="flex flex-col gap-8 py-2">
-    <SettingsGroup label="Theme" icon="appearance">
+    <SettingsGroup label="Appearance" icon="appearance">
       <SettingRow title="Theme" description="Light, dark, or follow the system">
         <BaseSegmented :model-value="themeStore.mode" :options="themeOptions" @update:model-value="themeStore.setMode" />
       </SettingRow>
 
-      <SettingRow title="Main Color" description="Tint of the app background across light and dark themes">
+      <SettingRow title="Shell Color" description="Tint of the app background across light and dark themes">
         <MainColorPicker />
       </SettingRow>
 
-      <SettingRow title="Accent Color" description="Pick the accent used across the app">
+      <SettingRow title="Main Color" description="Pick the accent used across the app">
         <AccentPicker />
       </SettingRow>
-    </SettingsGroup>
 
-    <SettingsGroup label="Content" icon="layout">
       <SettingRow title="Text size" description="Choose the text size used throughout Daily">
         <BaseSegmented v-model="themeStore.fontSize" :options="fontSizeOptions" />
+      </SettingRow>
+
+      <SettingRow title="Show icon in menu bar" description="Keep the Daily icon in the menu bar to open Settings or Quick task">
+        <BaseSwitch v-model="isMenuBarVisible" />
       </SettingRow>
 
       <SettingRow
@@ -73,6 +76,7 @@ const shouldPlaySound = useSettingValue("focus.shouldPlaySound", true)
 
     <SettingsGroup label="Shortcuts" icon="keyboard">
       <QuickCaptureHotkey />
+
       <ShortcutsSection />
     </SettingsGroup>
 

@@ -38,6 +38,14 @@ describe("SettingsModel", () => {
     expect(settingsModel.loadSettings().quickCapture.hotkey).toBe("Control+Shift+A")
   })
 
+  it("shows the menu bar icon by default and keeps it hidden once turned off", () => {
+    expect(settingsModel.loadSettings().menuBar.isVisible).toBe(true)
+
+    settingsModel.saveSettings({menuBar: {isVisible: false}})
+
+    expect(settingsModel.loadSettings().menuBar.isVisible).toBe(false)
+  })
+
   it("persists remote configuration locally, not in the syncable settings row", () => {
     settingsModel.saveSettings({sync: {iCloud: {enabled: true}}})
     const settings = settingsModel.loadSettings()

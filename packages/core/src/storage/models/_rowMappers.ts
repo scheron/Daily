@@ -250,6 +250,7 @@ export function getDefaultSettings(): Settings {
       shouldOpenCalendarDockOnDrag: false,
     },
     quickCapture: {hotkey: DEFAULT_QUICK_CAPTURE_HOTKEY},
+    menuBar: {isVisible: true},
     focus: {shouldNotify: true, shouldPlaySound: true},
     window: {
       main: {

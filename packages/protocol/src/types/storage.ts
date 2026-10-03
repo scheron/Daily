@@ -105,6 +105,10 @@ export type Settings = {
     /** Electron accelerator of the global shortcut that shows and hides the Quick Capture window. */
     hotkey: string
   }
+  menuBar: {
+    /** Show the Daily icon in the macOS menu bar. */
+    isVisible: boolean
+  }
   focus: {
     /** Show a macOS notification when a focus interval or a break ends while no Daily window is focused. */
     shouldNotify: boolean

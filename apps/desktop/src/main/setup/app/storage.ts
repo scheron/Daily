@@ -11,7 +11,7 @@ export function setupStorageSync(
   getStorage: () => StorageController | null,
   getWindows: WindowsGetter,
   getFocus: () => FocusController | null,
-  forwardToHelper: (channel: string, ...args: unknown[]) => void = () => undefined,
+  onBroadcast: (channel: string, ...args: unknown[]) => void = () => undefined,
 ) {
   const storage = getStorage()
 
@@ -26,12 +26,12 @@ export function setupStorageSync(
     },
     onDataChange: (changeset) => {
       broadcastToWindows(getWindows, "storage:changed", changeset)
-      forwardToHelper("storage:changed", changeset)
+      onBroadcast("storage:changed", changeset)
       getFocus()?.applyStorageChange(changeset)
     },
     onSettingsChange: () => {
       broadcastToWindows(getWindows, "settings:changed")
-      forwardToHelper("settings:changed")
+      onBroadcast("settings:changed")
     },
     onApprovalRequested: () => {
       sendToApprovalWindow(getWindows, "sync-server:approval-requested")

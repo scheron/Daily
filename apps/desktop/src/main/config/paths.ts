@@ -21,6 +21,7 @@ export function createElectronPaths(app: ElectronApp, resourcesPath: string) {
   return {
     ...dataPaths(() => app.getPath("userData")),
     icon: () => (ENV.isDevelopment ? join(__dirname, "resources", "icon.png") : join(app.getAppPath(), "resources", "icon.png")),
+    trayIcon: () => (ENV.isDevelopment ? join(process.cwd(), "public", "trayTemplate.png") : join(app.getAppPath(), "resources", "trayTemplate.png")),
     preload: () =>
       ENV.isDevelopment ? join(process.cwd(), "out", "preload", "preload.cjs") : join(app.getAppPath(), "out", "preload", "preload.cjs"),
     renderer: () => {
