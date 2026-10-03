@@ -100,6 +100,8 @@ export type Settings = {
     sectionsCollapsed: Record<TaskStatus, boolean>
   }
   quickTask: {
+    /** Run Quick task: its global shortcut and its item in the menu bar. Off, the Quick task process is not started. */
+    isEnabled: boolean
     /** Electron accelerator of the global shortcut that shows and hides the Quick task window. */
     hotkey: string
   }

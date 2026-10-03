@@ -35,7 +35,11 @@ export function setupQuickTaskIPC(
       return {ok: false, reason: "not-running", active: null}
     }
 
-    if (result.ok && typeof accelerator === "string") await getStorage()?.saveSettings({quickTask: {hotkey: accelerator}})
+    const storage = getStorage()
+    if (result.ok && typeof accelerator === "string" && storage) {
+      const {quickTask: current} = await storage.loadSettings()
+      await storage.saveSettings({quickTask: {...current, hotkey: accelerator}})
+    }
     return result
   })
 }

@@ -248,7 +248,7 @@ export function getDefaultSettings(): Settings {
     layout: {
       sectionsCollapsed: {active: false, discarded: false, done: false, backlog: false},
     },
-    quickTask: {hotkey: DEFAULT_QUICK_TASK_HOTKEY},
+    quickTask: {isEnabled: true, hotkey: DEFAULT_QUICK_TASK_HOTKEY},
     menuBar: {isVisible: true},
     focus: {shouldNotify: true, shouldPlaySound: true},
     window: {

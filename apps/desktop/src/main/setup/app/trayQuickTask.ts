@@ -10,10 +10,11 @@ const ITEM_ID = "quickTask"
 const LABEL = "Quick task"
 
 /**
- * Adds the "Quick task" item above "Settings…". It opens the panel through the Quick task process, shows the saved shortcut as its accelerator and is disabled while that process is down.
+ * Adds the "Quick task" item above "Settings…". It opens the panel through the Quick task process, shows the saved shortcut as its accelerator,
+ * is disabled while that process is down and hidden while Quick task is turned off.
  * @param quickTask - the process that owns the panel
  * @param getStorage - where the saved shortcut is read from
- * @returns `refreshAccelerator` to call when settings change, `setAvailable` for the process's state
+ * @returns `refresh` to call when settings change, `setAvailable` for the process's state
  */
 export function setupTrayQuickTask(
   tray: Pick<TrayController, "addItem" | "updateItem">,
@@ -22,14 +23,14 @@ export function setupTrayQuickTask(
 ) {
   tray.addItem({id: ITEM_ID, label: LABEL, enabled: false, click: openPanel}, "settings")
 
-  return {refreshAccelerator, setAvailable}
+  return {refresh, setAvailable}
 
-  async function refreshAccelerator() {
+  async function refresh() {
     try {
-      const hotkey = (await getStorage()?.loadSettings())?.quickTask.hotkey
-      tray.updateItem(ITEM_ID, {accelerator: hotkey || undefined})
+      const settings = (await getStorage()?.loadSettings())?.quickTask
+      tray.updateItem(ITEM_ID, {accelerator: settings?.hotkey || undefined, visible: settings?.isEnabled ?? true})
     } catch (error) {
-      logger.error(logger.CONTEXT.APP, "Failed to read the Quick task shortcut for the tray", error)
+      logger.error(logger.CONTEXT.APP, "Failed to read the Quick task settings for the tray", error)
     }
   }
 

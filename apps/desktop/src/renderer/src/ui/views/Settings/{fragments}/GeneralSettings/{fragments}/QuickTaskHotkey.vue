@@ -113,7 +113,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <SettingRow title="Quick task" description="Opens a panel to add a task from any app">
+  <SettingRow title="Quick task shortcut" description="Opens the Quick task panel from any app">
     <template v-if="isInactive" #description>
       <p class="text-warning text-xs">{{ inactiveReason }}</p>
     </template>

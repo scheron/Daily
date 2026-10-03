@@ -29,17 +29,28 @@ describe("the tray's Quick task item", () => {
   })
 
   it("shows the saved shortcut as its accelerator, follows a change, and shows none when it is cleared", async () => {
-    const {item, storage, refreshAccelerator} = setup()
-    await refreshAccelerator()
+    const {item, storage, refresh} = setup()
+    await refresh()
     expect(item()).toMatchObject({label: "Quick task", accelerator: "Command+Alt+Space"})
 
     storage.loadSettings.mockResolvedValue({quickTask: {hotkey: "Control+Shift+K"}})
-    await refreshAccelerator()
+    await refresh()
     expect(item().accelerator).toBe("Control+Shift+K")
 
     storage.loadSettings.mockResolvedValue({quickTask: {hotkey: ""}})
-    await refreshAccelerator()
+    await refresh()
     expect(item().accelerator).toBeUndefined()
+  })
+
+  it("hides the item while Quick task is turned off and shows it again once it is on", async () => {
+    const {item, storage, refresh} = setup()
+    storage.loadSettings.mockResolvedValue({quickTask: {isEnabled: false, hotkey: "Command+Alt+Space"}})
+    await refresh()
+    expect(item().visible).toBe(false)
+
+    storage.loadSettings.mockResolvedValue({quickTask: {isEnabled: true, hotkey: "Command+Alt+Space"}})
+    await refresh()
+    expect(item().visible).toBe(true)
   })
 
   it("asks the Quick task process to open the panel when clicked", () => {

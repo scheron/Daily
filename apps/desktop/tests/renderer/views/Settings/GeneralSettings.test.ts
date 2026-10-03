@@ -75,6 +75,18 @@ describe("GeneralSettings", () => {
     expect(bridge["settings:save"]).not.toHaveBeenCalled()
   })
 
+  it("Shortcuts: saves Quick task turned off and hides its shortcut", async () => {
+    await setup({shouldNotify: true, shouldPlaySound: true})
+    const titles = () => wrapper.findAllComponents(SettingRow).map((row) => row.props("title"))
+    expect(titles()).toContain("Quick task shortcut")
+
+    await switchIn("Quick task").trigger("click")
+    await vi.advanceTimersByTimeAsync(300)
+
+    expect(bridge["settings:save"]).toHaveBeenCalledWith({quickTask: {isEnabled: false}})
+    expect(titles()).not.toContain("Quick task shortcut")
+  })
+
   it("opens with the Appearance group in the agreed row order", async () => {
     await setup({shouldNotify: true, shouldPlaySound: true})
 

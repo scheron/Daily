@@ -92,6 +92,18 @@ describe("TrayController", () => {
     expect(lastMenu()[2]).not.toHaveProperty("accelerator")
   })
 
+  it("drops a hidden item together with the separator it would start, and brings both back when shown", () => {
+    const tray = new TrayController()
+    tray.create()
+    tray.addItem({id: "quick", label: "Quick task"}, "settings")
+
+    tray.updateItem("quick", {visible: false})
+    expect(lastMenu().map((i) => i.label ?? "-")).toEqual(["Daily v0.29.0", "-", "Settings…", "Check for Updates…", "-", "Quit"])
+
+    tray.updateItem("quick", {visible: true})
+    expect(lastMenu().map((i) => i.label ?? "-")).toEqual(["Daily v0.29.0", "-", "Quick task", "-", "Settings…", "Check for Updates…", "-", "Quit"])
+  })
+
   it("logs a missing icon instead of failing silently", () => {
     state.emptyIcon = true
     new TrayController().create()

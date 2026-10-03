@@ -38,6 +38,14 @@ describe("SettingsModel", () => {
     expect(settingsModel.loadSettings().quickTask.hotkey).toBe("Control+Shift+A")
   })
 
+  it("turns Quick task on for a hotkey saved before the switch and the rename existed", () => {
+    db.prepare("INSERT INTO settings (id, version, data, created_at, updated_at) VALUES ('default', 'v', ?, 'now', 'now')").run(
+      JSON.stringify({quickCapture: {hotkey: "Control+Shift+A"}}),
+    )
+
+    expect(settingsModel.loadSettings().quickTask).toEqual({isEnabled: true, hotkey: "Control+Shift+A"})
+  })
+
   it("shows the menu bar icon by default and keeps it hidden once turned off", () => {
     expect(settingsModel.loadSettings().menuBar.isVisible).toBe(true)
 

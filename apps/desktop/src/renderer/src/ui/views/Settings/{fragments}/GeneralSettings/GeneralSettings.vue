@@ -29,6 +29,7 @@ const themeStore = useThemeStore()
 const shouldNotify = useSettingValue("focus.shouldNotify", true)
 const shouldPlaySound = useSettingValue("focus.shouldPlaySound", true)
 const isMenuBarVisible = useSettingValue("menuBar.isVisible", true)
+const isQuickTaskEnabled = useSettingValue("quickTask.isEnabled", true)
 </script>
 
 <template>
@@ -66,7 +67,11 @@ const isMenuBarVisible = useSettingValue("menuBar.isVisible", true)
     </SettingsGroup>
 
     <SettingsGroup label="Shortcuts" icon="keyboard">
-      <QuickTaskHotkey />
+      <SettingRow title="Quick task" description="Add a task from any app without switching to Daily">
+        <BaseSwitch v-model="isQuickTaskEnabled" />
+      </SettingRow>
+
+      <QuickTaskHotkey v-if="isQuickTaskEnabled" />
 
       <ShortcutsSection />
     </SettingsGroup>

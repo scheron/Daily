@@ -19,6 +19,7 @@ import {setupFocusWindow} from "./setup/app/focusWindow"
 import {setupInstanceAndDeepLinks} from "./setup/app/instance"
 import {setupActivateHandler, setupAppBoot, setupDockIcon, setupQuickTaskAppBoot, setupWindowAllClosedHandler} from "./setup/app/lifecycle"
 import {setupMenu} from "./setup/app/menu"
+import {setupQuickTask} from "./setup/app/quickTask"
 import {setupQuickTaskWindow} from "./setup/app/quickTaskWindow"
 import {setupStorageSync} from "./setup/app/storage"
 import {trayController} from "./setup/app/tray"
@@ -69,6 +70,7 @@ let ai: AIController | null = null
 let focus: FocusController | null = null
 let savedMainWindowState: MainWindowSettings | undefined
 let trayQuickTask: ReturnType<typeof setupTrayQuickTask> | null = null
+let quickTaskSwitch: ReturnType<typeof setupQuickTask> | null = null
 let trayVisibility: ReturnType<typeof setupTrayVisibility> | null = null
 
 const quickTask = new QuickTaskController({
@@ -214,13 +216,15 @@ async function startDaily() {
     (channel, ...args) => {
       quickTask.emit(channel, ...args)
       if (channel !== "settings:changed") return
-      void trayQuickTask?.refreshAccelerator()
+      void trayQuickTask?.refresh()
+      void quickTaskSwitch?.apply()
       void trayVisibility?.apply()
     },
   )
 
   trayQuickTask = setupTrayQuickTask(trayController, quickTask, () => storage)
-  void trayQuickTask.refreshAccelerator()
+  void trayQuickTask.refresh()
+  quickTaskSwitch = setupQuickTask(quickTask, () => storage)
   trayVisibility = setupTrayVisibility(trayController, () => storage)
   await trayVisibility.apply()
 
@@ -269,7 +273,7 @@ function setupMainWindow(windows: AppWindows, options?: {showSplash?: boolean}) 
 
     main.show()
     focusWindow(main)
-    quickTask.start()
+    void quickTaskSwitch?.apply()
   })
 
   return main

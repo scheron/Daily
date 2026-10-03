@@ -37,6 +37,7 @@ describe("rebinding the hotkey from Daily's settings through the channel to the 
     quickTaskChannel = new StdioChannel((line) => daily.receive(line), {onRequest: createHotkeyRequestHandler(onPress), onEvent: vi.fn()})
     daily = new StdioChannel((line) => quickTaskChannel.receive(line), {onRequest: vi.fn(), onEvent: vi.fn()})
     setupQuickTaskIPC({request: (channel, args) => daily.request(channel, args), whenReady: async () => undefined, isRunning: () => true}, () => ({
+      loadSettings: async () => ({quickTask: {isEnabled: true, hotkey: "Command+Alt+Space"}}),
       saveSettings,
     }))
   })
@@ -61,14 +62,14 @@ describe("rebinding the hotkey from Daily's settings through the channel to the 
     expect(onPress).toHaveBeenCalledTimes(2)
   })
 
-  it("moves the shortcut in the Quick task process and saves it once in Daily", async () => {
+  it("moves the shortcut in the Quick task process and saves it once in Daily, keeping Quick task on", async () => {
     await daily.request("hotkey:register", ["Command+Alt+Space"])
 
     expect(await rebind("Control+Shift+A")).toEqual({ok: true})
 
     expect([...electron.shortcuts.keys()]).toEqual(["Control+Shift+A"])
     expect(saveSettings).toHaveBeenCalledTimes(1)
-    expect(saveSettings).toHaveBeenCalledWith({quickTask: {hotkey: "Control+Shift+A"}})
+    expect(saveSettings).toHaveBeenCalledWith({quickTask: {isEnabled: true, hotkey: "Control+Shift+A"}})
   })
 
   it("rolls back in the Quick task process and saves nothing when the combination is taken", async () => {

@@ -13,6 +13,8 @@ type TrayItem = {
   /** Shown right-aligned and grey. Display only: nothing is registered. */
   accelerator?: string
   enabled?: boolean
+  /** A hidden item leaves the menu together with the separator it would have started. */
+  visible?: boolean
   /** Items sharing a section sit together with no separator; an item without one is its own section. */
   section?: string
   click?: () => void
@@ -59,7 +61,7 @@ export class TrayController {
     this.refresh()
   }
 
-  /** Changes a menu item's label, accelerator, enabled state or handler and rebuilds the visible menu. */
+  /** Changes a menu item's label, accelerator, enabled or visible state or handler and rebuilds the visible menu. */
   updateItem(id: string, patch: TrayItemPatch) {
     const index = this.items.findIndex((it) => it.id === id)
     if (index === -1) return
@@ -86,7 +88,9 @@ export class TrayController {
 
 export const trayController = new TrayController()
 
-function toTemplate(items: TrayItem[]): MenuItemConstructorOptions[] {
+function toTemplate(allItems: TrayItem[]): MenuItemConstructorOptions[] {
+  const items = allItems.filter((item) => item.visible ?? true)
+
   return items.flatMap((item, index) => {
     const entry: MenuItemConstructorOptions = {
       label: item.label,
