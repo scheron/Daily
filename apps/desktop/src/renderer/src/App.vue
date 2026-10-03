@@ -17,9 +17,13 @@ import {useUpdateStore} from "./stores/update.store"
 import {IconsSprite} from "./ui/base/BaseIcon"
 import {BaseModalProvider} from "./ui/base/BaseModal"
 
+import type {RouteRecordNameGeneric} from "vue-router"
+
+const LIGHT_ROUTES: RouteRecordNameGeneric[] = ["Settings", "Assistant", "Focus", "QuickTask", "QuickTaskMenu"]
+const DATALESS_ROUTES: RouteRecordNameGeneric[] = ["Focus", "QuickTaskMenu"]
+
 const route = useRoute()
-const isLightRoute =
-  route.name === "Settings" || route.name === "Assistant" || route.name === "Focus" || route.name === "QuickTask" || route.name === "QuickTaskMenu"
+const isLightRoute = LIGHT_ROUTES.includes(route.name)
 const isSettingsRoute = route.name === "Settings"
 
 const settingsStore = useSettingsStore()
@@ -49,7 +53,7 @@ invoke(async () => {
     await until(() => settingsStore.isSettingsLoaded).toBeTruthy()
 
     if (isLightRoute) {
-      if (route.name === "Focus" || route.name === "QuickTaskMenu") return
+      if (DATALESS_ROUTES.includes(route.name)) return
 
       if (route.name === "QuickTask") {
         const branchesStore = useBranchesStore()
