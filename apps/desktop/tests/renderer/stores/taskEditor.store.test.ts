@@ -209,6 +209,22 @@ describe("taskEditorStore — commit", () => {
     expect(tasks.moveTaskToBranch).toHaveBeenCalledWith("task-1", "personal")
   })
 
+  it("a project change drops the old project's tags and milestone from the draft unless the same patch names new ones", async () => {
+    const {tasks, editor} = await setupStores()
+    const workTag = {id: "work", name: "work", color: "#000", branchId: "main"}
+    tasks.findTaskById = vi.fn().mockReturnValue(makeTask({tags: [workTag], milestoneId: "m-main"}))
+    await editor.open("task-1")
+
+    editor.patch({branchId: "main"})
+    expect(editor.draft).toMatchObject({tags: [workTag], milestoneId: "m-main"})
+
+    editor.patch({branchId: "personal"})
+    expect(editor.draft).toMatchObject({tags: [], milestoneId: null})
+
+    editor.patch({branchId: "main", tags: [workTag], milestoneId: "m-main"})
+    expect(editor.draft).toMatchObject({tags: [workTag], milestoneId: "m-main"})
+  })
+
   it("commit on a new draft calls createTask", async () => {
     const {tasks, editor} = await setupStores()
     editor.openNew({branchId: "main"})

@@ -329,6 +329,22 @@ describe("TasksService", () => {
     })
   })
 
+  describe("a task's tags on a project change", () => {
+    it("drops the old project's tags when updateTask moves the task, keeping only the new project's ones named with it", async () => {
+      const branchB = new BranchModel(db).createBranch({name: "Other"})
+      const mainTag = tagModel.createTag({name: "work", color: "#000", branchId: "main"})
+      const otherTag = tagModel.createTag({name: "launch", color: "#0f0", branchId: branchB.id})
+      const moved = taskModel.createTask(makeTask({tags: [mainTag.id]}))
+      const retagged = taskModel.createTask(makeTask({tags: [mainTag.id]}))
+
+      await tasksService.updateTask(moved.id, {branchId: branchB.id})
+      await tasksService.updateTask(retagged.id, {branchId: branchB.id, tags: [mainTag, otherTag]})
+
+      expect((await tasksService.getTask(moved.id)).tags).toEqual([])
+      expect((await tasksService.getTask(retagged.id)).tags.map((tag) => tag.id)).toEqual([otherTag.id])
+    })
+  })
+
   describe("backlog invariant", () => {
     it("excludes_TC-5_a_backlog_task_from_every_assembled_day_and_its_countActive", async () => {
       taskModel.createTask(makeTask({content: "Dated", status: "active", scheduled: {date: "2026-03-24", time: "", timezone: "UTC"}}))

@@ -57,6 +57,11 @@ export function useQuickTaskDraft() {
 
     if (updates.branchId !== undefined) projectPicked.value = true
 
+    if (updates.branchId !== undefined && updates.branchId !== draft.value.branchId) {
+      if (updates.tags === undefined) next.tags = []
+      if (updates.milestoneId === undefined) next.milestoneId = null
+    }
+
     draft.value = next
   }
 
@@ -100,7 +105,7 @@ export function useQuickTaskDraft() {
     const {branchId} = draft.value
     if (!branchesStore.branches.length || (branchId && branchesStore.branchesMap.has(branchId))) return
 
-    draft.value = {...draft.value, branchId: settings.value?.branch?.activeId ?? null}
+    draft.value = {...draft.value, branchId: settings.value?.branch?.activeId ?? null, tags: [], milestoneId: null}
     projectPicked.value = false
   }
 

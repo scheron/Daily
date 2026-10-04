@@ -189,6 +189,7 @@ export type Task = {
    */
   orderIndex: number
   status: TaskStatus
+  /** Always its own project's: a move to another project drops the tags it brought along. */
   tags: Tag[]
   /** The milestone this task is part of. Always one of its own project's, or `null`. */
   milestoneId: Milestone["id"] | null

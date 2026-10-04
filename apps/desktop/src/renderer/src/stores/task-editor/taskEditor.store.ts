@@ -68,6 +68,8 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
     if (updates.branchId !== undefined && updates.branchId !== draft.value.branchId) {
       if (updates.blockedBy === undefined) next.blockedBy = []
       if (updates.blocks === undefined) next.blocks = []
+      if (updates.tags === undefined) next.tags = []
+      if (updates.milestoneId === undefined) next.milestoneId = null
     }
 
     draft.value = next

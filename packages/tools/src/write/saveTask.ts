@@ -32,7 +32,10 @@ type ParsedFields = {
 const TASK_ITEM_PROPERTIES: Record<string, ToolPropertySchema> = {
   id: {type: "string", description: "The task id, to update it. Omitted to create one."},
   content: {type: "string", description: "The task's text. Required when creating."},
-  projectId: {type: "string", description: 'The project the task belongs to. Defaults to "main" when creating.'},
+  projectId: {
+    type: "string",
+    description: 'The project the task belongs to. Defaults to "main" when creating. A move drops the old project\'s milestone and tags.',
+  },
   date: {type: ["string", "null"], description: "The day the task is scheduled on, YYYY-MM-DD, or null to move it to the backlog."},
   time: {type: "string", description: 'The time of day, HH:mm or HH:mm:ss. Cannot be sent as null — clear a day with "date": null instead.'},
   status: {type: "string", description: "The task's status.", enum: TASK_STATUSES},

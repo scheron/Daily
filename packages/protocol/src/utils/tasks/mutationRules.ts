@@ -84,6 +84,8 @@ export function planTaskUpdate(ctx: MutationContext, id: Task["id"], updates: Pa
     patch.milestoneId = null
   }
 
+  if (branchChanged) patch.tags = (updates.tags ?? []).filter((tag) => tag.branchId === branchId)
+
   return [withStoredScheduling(patch, before)]
 }
 
