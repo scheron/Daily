@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.30.1 - 2026-10-04
+
+### 🎨 Improvements
+
+- **Milestones** — the `/` menu sets and removes a task's milestone, in the task editor and in Quick task. Quick task shows the milestone as a chip next to the project.
+- **Menu bar** — the menu gets Open Daily, which brings Daily forward or opens a new main window when every window is closed.
+- **Quick task** — the ⌘Enter and Esc hints show as keys, the same way Settings lists shortcuts.
+
+### 🐛 Bug Fixes
+
+- **Projects** — a task moved to another project no longer keeps the old project's tags, whether moved from the app, the assistant or an agent. The task editor and Quick task clear its tags and milestone as soon as the new project is picked.
+
+---
+
 ## v0.30.0 - 2026-10-03
 
 ### ✨ New Features
