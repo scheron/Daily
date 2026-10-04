@@ -22,6 +22,7 @@ describe("the Quick task window view", () => {
 
   beforeEach(async () => {
     bridge = mockBridgeIPC({
+      "platform:is-mac": vi.fn().mockReturnValue(true),
       "tasks:create": vi.fn().mockResolvedValue({}),
       "quick-task:hide": vi.fn(),
       "quick-task:resize": vi.fn(),
@@ -94,7 +95,9 @@ describe("the Quick task window view", () => {
 
     const footer = wrapper.find("[data-testid=quick-task-footer]")
     expect(footer.findAll("[data-chip]")).toHaveLength(2)
-    expect(footer.find("[data-testid=quick-task-hint]").text()).toBe("⌘Enter send · Esc close")
+    const hint = footer.find("[data-testid=quick-task-hint]")
+    expect(hint.findAll("kbd").map((cap) => cap.text())).toEqual(["⌘", "↵", "Esc"])
+    expect([...hint.element.children].map((child) => child.textContent.replace(/\s+/g, ""))).toEqual(["⌘↵", "send", "Esc", "close"])
     expect(wrapper.find(".markdown-editor").element.compareDocumentPosition(footer.element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
