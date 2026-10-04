@@ -49,7 +49,6 @@ export function setupStorageIPC(getStorage: () => IStorageController | null) {
   ipcMain.handle("tags:create", (_e, tag: Omit<Tag, "id" | "createdAt" | "updatedAt">) => getStorage()?.createTag(tag))
   ipcMain.handle("tags:delete", (_e, id: Tag["id"]) => getStorage()?.deleteTag(id))
 
-  ipcMain.handle("milestones:get-many", (_e, branchId?: Branch["id"]) => getStorage()?.getMilestoneList(branchId))
   ipcMain.handle("milestones:get-one", (_e, id: Milestone["id"]) => getStorage()?.getMilestone(id))
   ipcMain.handle("milestones:create", (_e, milestone: Omit<Milestone, "id" | "createdAt" | "updatedAt" | "orderIndex">) => getStorage()?.createMilestone(milestone))
   ipcMain.handle(

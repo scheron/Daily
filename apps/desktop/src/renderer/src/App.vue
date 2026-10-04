@@ -59,9 +59,10 @@ invoke(async () => {
         const branchesStore = useBranchesStore()
         const tasksStore = useTasksStore()
         const tagsStore = useTagsStore()
+        const milestonesStore = useMilestonesStore()
         useStorageChangesStore()
 
-        await Promise.all([branchesStore.getBranchList(), tasksStore.loadTasks(), tagsStore.getTagList()])
+        await Promise.all([branchesStore.getBranchList(), tasksStore.loadTasks(), tagsStore.getTagList(), milestonesStore.getMilestoneList()])
         signalRendererReady()
         return
       }

@@ -11,7 +11,14 @@ export const HOTKEY_REQUESTS = {
 } as const
 
 /** The channels the panel's renderers call that the Quick task process hands to Daily. Nothing else is forwarded. */
-export const QUICK_TASK_FORWARDED_CHANNELS = ["settings:load", "tasks:get-all", "tasks:create", "branches:get-many", "tags:get-many"] as const
+export const QUICK_TASK_FORWARDED_CHANNELS = [
+  "settings:load",
+  "tasks:get-all",
+  "tasks:create",
+  "branches:get-many",
+  "tags:get-many",
+  "milestones:get-many",
+] as const
 
 /** The Daily events the Quick task process re-emits to its windows. */
 export const QUICK_TASK_FORWARDED_EVENTS = ["storage:changed", "settings:changed"] as const

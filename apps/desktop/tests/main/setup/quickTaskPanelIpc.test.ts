@@ -46,7 +46,7 @@ describe("the Quick task process's IPC", () => {
   const send = (channel, payload, event = own) => electron.listeners.get(channel)(event, payload)
 
   describe("forwarded channels", () => {
-    it.each(["settings:load", "tasks:get-all", "tasks:create", "branches:get-many", "tags:get-many"])(
+    it.each(["settings:load", "tasks:get-all", "tasks:create", "branches:get-many", "tags:get-many", "milestones:get-many"])(
       "hands %s to Daily with its arguments and returns the answer",
       async (channel) => {
         expect(await electron.handlers.get(channel)(own, {a: 1})).toBe("answer")
@@ -56,7 +56,14 @@ describe("the Quick task process's IPC", () => {
     )
 
     it("registers no other data channel", () => {
-      expect([...electron.handlers.keys()].sort()).toEqual(["branches:get-many", "settings:load", "tags:get-many", "tasks:create", "tasks:get-all"])
+      expect([...electron.handlers.keys()].sort()).toEqual([
+        "branches:get-many",
+        "milestones:get-many",
+        "settings:load",
+        "tags:get-many",
+        "tasks:create",
+        "tasks:get-all",
+      ])
     })
 
     it("refuses a caller that is not the panel", () => {
@@ -71,11 +78,14 @@ describe("the Quick task process's IPC", () => {
       expect(forward).toHaveBeenCalledWith("settings:load", [])
     })
 
-    it.each(["tasks:get-all", "tasks:create", "branches:get-many", "tags:get-many"])("refuses %s from the menu window", (channel) => {
-      expect(() => electron.handlers.get(channel)(fromMenu, {})).toThrow("not available")
+    it.each(["tasks:get-all", "tasks:create", "branches:get-many", "tags:get-many", "milestones:get-many"])(
+      "refuses %s from the menu window",
+      (channel) => {
+        expect(() => electron.handlers.get(channel)(fromMenu, {})).toThrow("not available")
 
-      expect(forward).not.toHaveBeenCalled()
-    })
+        expect(forward).not.toHaveBeenCalled()
+      },
+    )
   })
 
   describe("the window channels", () => {

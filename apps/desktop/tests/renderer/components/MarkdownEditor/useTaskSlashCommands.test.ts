@@ -10,6 +10,7 @@ const SRC = "../../../../src/renderer/src"
 
 const tag = (id, name, branchId = "main") => ({id, name, color: "#ff0000", branchId})
 const branch = (id, name) => ({id, name, createdAt: "", updatedAt: "", deletedAt: null})
+const milestone = (id, name, orderIndex, branchId = "main") => ({id, name, orderIndex, branchId, createdAt: "", updatedAt: "", deletedAt: null})
 
 describe("useTaskSlashCommands", () => {
   let task = null
@@ -21,12 +22,14 @@ describe("useTaskSlashCommands", () => {
     setActivePinia(createPinia())
     const {useTagsStore} = await import(`${SRC}/stores/tags.store`)
     const {useBranchesStore} = await import(`${SRC}/stores/branches.store`)
+    const {useMilestonesStore} = await import(`${SRC}/stores/milestones.store`)
     const {useTaskSlashCommands} = await import(`${SRC}/ui/common/misc/MarkdownEditor/composables/useTaskSlashCommands`)
 
     useTagsStore().tags = [tag("t1", "work"), tag("t2", "Alpha"), tag("t3", "beta"), tag("t4", "other-project", "daily")]
     useBranchesStore().branches = [branch("daily", "Daily"), branch("main", "Main"), branch("zeta", "Zeta")]
+    useMilestonesStore().milestones = [milestone("m2", "Beta", 2), milestone("m1", "Alpha", 1), milestone("m3", "Elsewhere", 0, "daily")]
 
-    task = ref({id: "x", branchId: "main", scheduled: null, estimatedTime: 0, tags: []})
+    task = ref({id: "x", branchId: "main", scheduled: null, estimatedTime: 0, tags: [], milestoneId: null})
     patch = vi.fn()
     commands = useTaskSlashCommands(
       computed(() => task.value),
@@ -112,6 +115,40 @@ describe("useTaskSlashCommands", () => {
 
       items("Project", "daily")[0].apply()
       expect(patch).toHaveBeenCalledWith({branchId: "daily"})
+    })
+  })
+
+  describe("Milestone", () => {
+    const command = (label) => commands.find((c) => c.label === label)
+
+    it("lists the milestones of the task's project in their order and is unavailable in a project without any", () => {
+      expect(command("Milestone").isAvailable()).toBe(true)
+      expect(labels(items("Milestone"))).toEqual(["Alpha", "Beta"])
+      expect(labels(items("Milestone", "bet"))).toEqual(["Beta"])
+
+      task.value = {...task.value, branchId: "zeta"}
+
+      expect(command("Milestone").isAvailable()).toBe(false)
+    })
+
+    it("sets the picked milestone only when it changes", () => {
+      task.value = {...task.value, milestoneId: "m1"}
+      items("Milestone", "alpha")[0].apply()
+      expect(patch).not.toHaveBeenCalled()
+
+      items("Milestone", "beta")[0].apply()
+      expect(patch).toHaveBeenCalledWith({milestoneId: "m2"})
+    })
+
+    it("offers Remove Milestone only while the task has one, and it clears it", () => {
+      expect(command("Remove Milestone").isAvailable()).toBe(false)
+
+      task.value = {...task.value, milestoneId: "m2"}
+
+      expect(command("Remove Milestone").isAvailable()).toBe(true)
+      expect(labels(items("Remove Milestone"))).toEqual(["Beta"])
+      items("Remove Milestone")[0].apply()
+      expect(patch).toHaveBeenCalledWith({milestoneId: null})
     })
   })
 })

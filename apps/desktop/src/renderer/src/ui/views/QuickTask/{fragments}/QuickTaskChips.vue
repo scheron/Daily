@@ -6,6 +6,7 @@ import {sortTags} from "@daily/protocol"
 import {toDateLabel} from "@daily/std"
 
 import {useBranchesStore} from "@/stores/branches.store"
+import {useMilestonesStore} from "@/stores/milestones.store"
 import BaseIcon from "@/ui/base/BaseIcon"
 import {cn} from "@/utils/ui/tailwindcss"
 
@@ -17,8 +18,10 @@ const props = defineProps<{task: Task}>()
 const emit = defineEmits<{patch: [updates: Partial<TaskDraft>]}>()
 
 const branchesStore = useBranchesStore()
+const milestonesStore = useMilestonesStore()
 
 const projectName = computed(() => branchesStore.branchesMap.get(props.task.branchId)?.name ?? "")
+const milestoneName = computed(() => (props.task.milestoneId ? (milestonesStore.milestonesMap.get(props.task.milestoneId)?.name ?? "") : ""))
 const statusView = computed(() => getStatusView(props.task.status))
 const dateLabel = computed(() => (props.task.scheduled ? getDateLabel(props.task.scheduled.date) : ""))
 const estimateLabel = computed(() => getEstimateLabel(props.task.estimatedTime))
@@ -65,6 +68,19 @@ function removeTag(tag: Tag) {
     <span data-chip="project" :class="getChipClasses()">
       <BaseIcon name="project" class="size-3.5" />
       <span>{{ projectName }}</span>
+    </span>
+
+    <span v-if="milestoneName" data-chip="milestone" :class="getChipClasses()">
+      <BaseIcon name="milestone" class="size-3.5" />
+      <span>{{ milestoneName }}</span>
+      <button
+        type="button"
+        class="-mr-0.5 inline-flex cursor-pointer opacity-70 hover:opacity-100"
+        aria-label="Remove milestone"
+        @click="emit('patch', {milestoneId: null})"
+      >
+        <BaseIcon name="x" class="size-3" />
+      </button>
     </span>
 
     <span data-chip="status" :class="getChipClasses(statusView.classes)">

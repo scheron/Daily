@@ -176,6 +176,29 @@ describe("the Quick task window view", () => {
     expect(wrapper.find("[data-chip=project]").text()).toBe("Main")
   })
 
+  it("a picked milestone shows as a chip and is saved with the task; a project change drops it together with the tags", async () => {
+    const {useMilestonesStore} = await import(`${SRC}/stores/milestones.store`)
+    useMilestonesStore().milestones = [{id: "m1", name: "Launch", branchId: "main", orderIndex: 0, createdAt: "", updatedAt: "", deletedAt: null}]
+    const editor = await mountView()
+    editor.vm.$emit("update:content", "Ship it")
+    editor.vm.$emit("patch", {milestoneId: "m1", tags: [{id: "t1", name: "work", color: "#000", branchId: "main"}]})
+    await flushPromises()
+
+    expect(chips()).toEqual(["project", "milestone", "status", "tag"])
+    expect(wrapper.find("[data-chip=milestone]").text()).toBe("Launch")
+
+    editor.vm.$emit("patch", {branchId: "daily"})
+    await flushPromises()
+    expect(chips()).toEqual(["project", "status"])
+
+    editor.vm.$emit("patch", {branchId: "main", milestoneId: "m1"})
+    await flushPromises()
+    pressCmdEnter()
+    await flushPromises()
+
+    expect(bridge["tasks:create"]).toHaveBeenCalledWith(expect.objectContaining({content: "Ship it", branchId: "main", milestoneId: "m1", tags: []}))
+  })
+
   it("Cmd+Enter with empty content saves nothing", async () => {
     await mountView()
 

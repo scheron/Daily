@@ -1,7 +1,7 @@
 import {toSettingsView} from "@daily/core"
 
 import type {IStorageController} from "@daily/core"
-import type {Task} from "@daily/protocol"
+import type {Branch, Task} from "@daily/protocol"
 import type {QuickTaskForwardedChannel} from "@main/types/quickTask"
 
 type SharedStorageHandlers = Record<QuickTaskForwardedChannel, (...args: any[]) => unknown>
@@ -18,5 +18,6 @@ export function createSharedStorageHandlers(getStorage: () => IStorageController
       getStorage()?.createTask(task as Task),
     "branches:get-many": () => getStorage()?.getBranchList(),
     "tags:get-many": () => getStorage()?.getTagList(),
+    "milestones:get-many": (branchId?: Branch["id"]) => getStorage()?.getMilestoneList(branchId),
   }
 }

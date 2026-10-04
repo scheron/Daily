@@ -1,6 +1,8 @@
+import {sortMilestones} from "@daily/protocol"
 import {getTime, getTimezone, getToday} from "@daily/std"
 
 import {useBranchesStore} from "@/stores/branches.store"
+import {useMilestonesStore} from "@/stores/milestones.store"
 import {useTagsStore} from "@/stores/tags.store"
 import {getUpcomingDays} from "../utils/getUpcomingDays"
 import {parseDayMonth} from "../utils/parseDayMonth"
@@ -18,11 +20,20 @@ import type {ComputedRef} from "vue"
 export function useTaskSlashCommands(task: ComputedRef<Task>, patch: (updates: Partial<TaskDraft>) => void): SlashCommandsOptions {
   const branchesStore = useBranchesStore()
   const tagsStore = useTagsStore()
+  const milestonesStore = useMilestonesStore()
 
   const commands: NestedCommand[] = [
     {label: "Status", icon: "fire", getItems: getStatusItems},
     {label: "Date", icon: "calendar", getItems: getDateItems},
     {label: "Project", icon: "project", getItems: getProjectItems},
+    {label: "Milestone", icon: "milestone", isAvailable: () => getProjectMilestones().length > 0, getItems: getMilestoneItems},
+    {
+      label: "Remove Milestone",
+      icon: "milestone",
+      tone: "remove",
+      isAvailable: () => getProjectMilestones().some((milestone) => milestone.id === task.value.milestoneId),
+      getItems: getAttachedMilestoneItems,
+    },
     {label: "Estimate", icon: "stopwatch", getItems: getEstimateItems},
     {label: "Add Tag", icon: "tags", getItems: (query) => getTagItems(tagsStore.tagsForBranch(task.value.branchId), query, addTag)},
     {
@@ -79,6 +90,24 @@ export function useTaskSlashCommands(task: ComputedRef<Task>, patch: (updates: P
       }))
   }
 
+  function getMilestoneItems(query: string): NestedItem[] {
+    return getProjectMilestones()
+      .filter((milestone) => matches(milestone.name, query))
+      .map((milestone) => ({
+        label: milestone.name,
+        icon: "milestone",
+        apply: () => {
+          if (milestone.id !== task.value.milestoneId) patch({milestoneId: milestone.id})
+        },
+      }))
+  }
+
+  function getAttachedMilestoneItems(query: string): NestedItem[] {
+    return getProjectMilestones()
+      .filter((milestone) => milestone.id === task.value.milestoneId && matches(milestone.name, query))
+      .map((milestone) => ({label: milestone.name, icon: "milestone", apply: () => patch({milestoneId: null})}))
+  }
+
   function getEstimateItems(query: string): NestedItem[] {
     const presets = [
       {label: "15m", seconds: 15 * 60},
@@ -106,6 +135,10 @@ export function useTaskSlashCommands(task: ComputedRef<Task>, patch: (updates: P
       .sort((a, b) => a.name.localeCompare(b.name, undefined, {sensitivity: "base"}))
       .filter((tag) => matches(tag.name, query))
       .map((tag) => ({label: tag.name, color: tag.color, apply: () => apply(tag)}))
+  }
+
+  function getProjectMilestones() {
+    return sortMilestones(milestonesStore.milestonesForBranch(task.value.branchId))
   }
 
   function setDate(date: string) {
