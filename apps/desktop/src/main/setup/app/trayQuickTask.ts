@@ -10,7 +10,7 @@ const ITEM_ID = "quickTask"
 const LABEL = "Quick task"
 
 /**
- * Adds the "Quick task" item above "Settings…". It opens the panel through the Quick task process, shows the saved shortcut as its accelerator,
+ * Adds the "Quick task" item above "Settings…", grouped with "Open Daily". It opens the panel through the Quick task process, shows the saved shortcut as its accelerator,
  * is disabled while that process is down and hidden while Quick task is turned off.
  * @param quickTask - the process that owns the panel
  * @param getStorage - where the saved shortcut is read from
@@ -21,7 +21,7 @@ export function setupTrayQuickTask(
   quickTask: Pick<QuickTaskController, "request">,
   getStorage: () => StorageController | null,
 ) {
-  tray.addItem({id: ITEM_ID, label: LABEL, enabled: false, click: openPanel}, "settings")
+  tray.addItem({id: ITEM_ID, section: "open", label: LABEL, enabled: false, click: openPanel}, "settings")
 
   return {refresh, setAvailable}
 

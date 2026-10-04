@@ -25,6 +25,7 @@ import {setupMenu} from "./setup/app/menu"
 import {setupQuickTask} from "./setup/app/quickTask"
 import {setupQuickTaskWindow} from "./setup/app/quickTaskWindow"
 import {setupStorageSync} from "./setup/app/storage"
+import {setupTrayOpenDaily} from "./setup/app/trayOpenDaily"
 import {setupTrayQuickTask} from "./setup/app/trayQuickTask"
 import {setupTrayVisibility} from "./setup/app/trayVisibility"
 import {setupUpdateManager} from "./setup/app/updates"
@@ -224,6 +225,11 @@ async function startDaily() {
     },
   )
 
+  setupTrayOpenDaily(
+    trayController,
+    () => windows.main,
+    () => setupMainWindow(windows),
+  )
   trayQuickTask = setupTrayQuickTask(trayController, quickTask, () => storage)
   void trayQuickTask.refresh()
   quickTaskSwitch = setupQuickTask(quickTask, () => storage)
