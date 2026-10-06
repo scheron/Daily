@@ -1,5 +1,32 @@
 # Changelog
 
+## v0.30.2 - 2026-10-06
+
+### ✨ New Features
+
+- **All projects** — the project menu in the header opens with All projects, which shows the tasks of every project on Days. The choice is remembered across launches.
+  - Each card names its project, and the calendars mark the days of every project.
+  - A card dragged or moved with Move lands between the cards it was dropped between, across projects too.
+  - A tag filter covers the same-named tags of every project.
+  - New tasks, ⌘N and Quick task create in Main while All projects is on.
+  - The Milestones tab keeps to one project, the one picked last.
+
+### 🎨 Improvements
+
+- **Cards** — task cards have a new layout.
+  - A thin line on top shows the milestone with its progress, and the project in All projects. An overdue milestone turns red.
+  - The status icon is gone: the border shows the status, and an Active card now has a red border.
+  - Tags sit at the bottom as coloured #tag text; the ones that do not fit fold into +N.
+  - Time reads as one spent / estimate pair, like 45m / 2h, next to the relation and the comment count. The relation chip shows its icon and count, with the full text in a tooltip.
+- **Quick task** — the estimate shows in the same short form as on cards.
+
+### 🐛 Bug Fixes
+
+- **Drag and drop** — fixed a task dragged between the backlog and a day sometimes landing in a different spot than where it was dropped.
+- **Milestones** — fixed a milestone's calendar in Settings marking the days of the open project instead of its own.
+
+---
+
 ## v0.30.1 - 2026-10-04
 
 ### 🎨 Improvements
