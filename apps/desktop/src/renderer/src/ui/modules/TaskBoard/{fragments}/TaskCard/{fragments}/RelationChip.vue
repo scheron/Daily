@@ -16,7 +16,7 @@ const taskRelationsStore = useTaskRelationsStore()
 const chip = computed(() => taskRelationsStore.chipByTaskId.get(props.taskId) ?? null)
 
 function getChipClasses(kind: TaskRelationChip["kind"]) {
-  return cn("inline-flex h-6 items-center gap-1 text-xs whitespace-nowrap", kind === "blocked-by" ? "text-warning" : "text-base-content/80")
+  return cn("inline-flex items-center gap-1 text-xs whitespace-nowrap", kind === "blocked-by" ? "text-warning" : "text-base-content/75")
 }
 
 function getIconName(kind: TaskRelationChip["kind"]): IconName {

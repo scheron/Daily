@@ -2,7 +2,7 @@
 import {computed, toRef, useTemplateRef} from "vue"
 
 import {sortTags} from "@daily/protocol"
-import {toDateLabel, toDurationLabel} from "@daily/std"
+import {toDateLabel} from "@daily/std"
 
 import {BOARD_CARD_HEIGHT} from "@/constants/ui"
 import {useBranchesStore} from "@/stores/branches.store"
@@ -22,16 +22,16 @@ import BranchCombobox from "@/ui/common/comboboxes/BranchCombobox.vue"
 import MilestoneCombobox from "@/ui/common/comboboxes/MilestoneCombobox.vue"
 import TagsCombobox from "@/ui/common/comboboxes/TagsCombobox.vue"
 import TaskLinkCombobox from "@/ui/common/comboboxes/TaskLinkCombobox.vue"
-import DynamicTagsPanel from "@/ui/common/misc/DynamicTagsPanel.vue"
 import MarkdownContent from "@/ui/common/misc/MarkdownContent.vue"
 import EstimationPicker from "@/ui/common/pickers/EstimationPicker"
 import {useConfirmUnsavedModal} from "@/ui/overlays/ConfirmUnsavedModal"
+import {toShortDurationLabel} from "@/utils/date/toShortDurationLabel"
 import {cn} from "@/utils/ui/tailwindcss"
+import CardCrumb from "./{fragments}/CardCrumb.vue"
 import DeleteMenuItem from "./{fragments}/DeleteMenuItem.vue"
 import FocusBorder from "./{fragments}/FocusBorder.vue"
-import MilestoneChip from "./{fragments}/MilestoneChip.vue"
 import RelationChip from "./{fragments}/RelationChip.vue"
-import StatusBadge from "./{fragments}/StatusBadge.vue"
+import TagLine from "./{fragments}/TagLine.vue"
 import {useTaskModel} from "./useTaskModel"
 
 import type {BaseContextMenuItem, BaseContextMenuSelectEvent} from "@/ui/base/BaseContextMenu"
@@ -55,8 +55,9 @@ const contextMenuRef = useTemplateRef<InstanceType<typeof BaseContextMenu>>("con
 const tags = computed<Tag[]>(() => sortTags(props.task.tags.map((t) => tagsStore.tagsMap.get(t.id)).filter(Boolean) as Tag[]))
 
 const milestone = computed(() => (props.task.milestoneId ? (milestonesStore.milestonesMap.get(props.task.milestoneId) ?? null) : null))
-const estimateLabel = computed(() => (props.task.estimatedTime > 0 ? toDurationLabel(props.task.estimatedTime) : ""))
-const spentLabel = computed(() => (props.task.spentTime > 0 ? toDurationLabel(props.task.spentTime) : ""))
+const estimateLabel = computed(() => toShortDurationLabel(props.task.estimatedTime))
+const spentLabel = computed(() => toShortDurationLabel(props.task.spentTime))
+const hasRelation = computed(() => taskRelationsStore.chipByTaskId.has(props.task.id))
 const commentCount = computed(() => taskCommentsStore.commentCountOf(props.task.id))
 const projectName = computed(() => (projectScopeStore.isAllProjectsMode ? (branchesStore.branchesMap.get(props.task.branchId)?.name ?? "") : ""))
 const isInSession = computed(() => focusStore.isInSession(props.task.id))
@@ -66,10 +67,9 @@ const footerDayLabel = computed(() => {
   return toDateLabel(props.task.scheduled.date, {short: true})
 })
 
-const hasMetrics = computed(
-  () => Boolean(footerDayLabel.value) || Boolean(estimateLabel.value) || Boolean(spentLabel.value) || commentCount.value > 0,
-)
-const hasFooter = computed(() => Boolean(milestone.value) || hasMetrics.value)
+const hasTime = computed(() => Boolean(estimateLabel.value) || Boolean(spentLabel.value))
+const hasMetrics = computed(() => hasRelation.value || Boolean(footerDayLabel.value) || hasTime.value || commentCount.value > 0)
+const hasFooter = computed(() => tags.value.length > 0 || hasMetrics.value)
 
 const currentRelations = computed<TaskRelationSets>(() => {
   const related = taskRelationsStore.relatedTasksByTaskId.get(props.task.id)
@@ -164,9 +164,13 @@ function getCardClasses(status: TaskStatus, isInSession: boolean) {
     status === "backlog" && "border-base-content/15 border-dashed",
     status === "done" && "border-success/30 hover:border-success/40",
     status === "discarded" && "border-warning/30 hover:border-warning/40",
-    status === "active" && "border-base-300/50 hover:border-base-content/15",
+    status === "active" && "border-error/45 hover:border-error/60",
     isInSession && "border-transparent hover:border-transparent",
   )
+}
+
+function getSpentClasses(hasSpent: boolean) {
+  return cn("text-base-content/55", hasSpent && "text-base-content")
 }
 
 function getContentClasses(status: TaskStatus) {
@@ -207,44 +211,30 @@ async function onLinkTask(side: keyof TaskRelationSets, taskId: Task["id"]) {
 <template>
   <BaseContextMenu ref="contextMenu" :items="menuItems" @select="onSelect">
     <div :id="task.id" :class="getCardClasses(task.status, isInSession)" :style="{height: `${BOARD_CARD_HEIGHT}px`}" @click.stop="onCardClick">
-      <div class="relative z-10 flex h-full w-full flex-col gap-3 px-5 py-4">
-        <div class="flex w-full items-center gap-3">
-          <span
-            v-if="projectName"
-            class="text-base-content/60 inline-flex min-w-0 max-w-[140px] shrink-0 items-center gap-1 text-xs"
-            :title="projectName"
-          >
-            <BaseIcon name="project" class="size-3.5 shrink-0" />
-            <span class="min-w-0 truncate">{{ projectName }}</span>
-          </span>
-          <DynamicTagsPanel v-if="tags.length" :tags="tags" size="sm" />
-          <div class="ml-auto flex shrink-0 items-center gap-2">
-            <RelationChip :task-id="task.id" />
-            <StatusBadge :status="task.status" />
-          </div>
-        </div>
+      <div class="relative z-10 flex h-full w-full flex-col gap-2 px-4 pb-3 pt-3.5">
+        <CardCrumb v-if="projectName || milestone" :project-name="projectName" :milestone="milestone" />
 
         <div :class="getContentClasses(task.status)">
           <MarkdownContent :content="task.content" :minimizable="false" clip-code />
         </div>
 
-        <div v-if="hasFooter" class="flex items-center gap-2 text-xs">
-          <MilestoneChip v-if="milestone" :milestone="milestone" />
+        <div v-if="hasFooter" class="flex min-h-5 min-w-0 items-center gap-2 text-xs">
+          <TagLine v-if="tags.length" :tags="tags" />
 
-          <div v-if="hasMetrics" class="ml-auto flex shrink-0 items-center gap-2">
-            <div v-if="footerDayLabel" class="text-base-content/80 inline-flex items-center gap-1 px-2.5 py-1">
+          <div v-if="hasMetrics" class="ml-auto flex shrink-0 items-center gap-2.5">
+            <RelationChip :task-id="task.id" />
+            <div v-if="footerDayLabel" class="text-base-content/75 inline-flex items-center gap-1 whitespace-nowrap">
               <BaseIcon name="calendar" class="text-base-content/40 size-3.5" />
               <span>{{ footerDayLabel }}</span>
             </div>
-            <div v-if="estimateLabel" class="text-base-content/80 inline-flex items-center gap-1 px-2.5 py-1">
+            <div v-if="hasTime" class="text-base-content/75 inline-flex items-center gap-1 whitespace-nowrap">
               <BaseIcon name="stopwatch" class="text-accent size-3.5" />
-              <span>{{ estimateLabel }}</span>
+              <span>
+                <span :class="getSpentClasses(!!spentLabel)">{{ spentLabel || "–" }}</span>
+                <span class="text-base-content/55"> / {{ estimateLabel || "–" }}</span>
+              </span>
             </div>
-            <div v-if="spentLabel" class="text-base-content/80 inline-flex items-center gap-1 px-2.5 py-1">
-              <BaseIcon name="check-check" class="text-success size-3.5" />
-              <span>{{ spentLabel }}</span>
-            </div>
-            <div v-if="commentCount" class="text-base-content/80 inline-flex items-center gap-1 px-2.5 py-1">
+            <div v-if="commentCount" class="text-base-content/75 inline-flex items-center gap-1 whitespace-nowrap">
               <BaseIcon name="message" class="text-base-content/40 size-3.5" />
               <span>{{ commentCount }}</span>
             </div>

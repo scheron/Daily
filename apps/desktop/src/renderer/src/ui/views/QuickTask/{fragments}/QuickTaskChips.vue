@@ -8,6 +8,7 @@ import {toDateLabel} from "@daily/std"
 import {useBranchesStore} from "@/stores/branches.store"
 import {useMilestonesStore} from "@/stores/milestones.store"
 import BaseIcon from "@/ui/base/BaseIcon"
+import {toShortDurationLabel} from "@/utils/date/toShortDurationLabel"
 import {cn} from "@/utils/ui/tailwindcss"
 
 import type {TaskDraft} from "@/types/taskDraft"
@@ -24,7 +25,7 @@ const projectName = computed(() => branchesStore.branchesMap.get(props.task.bran
 const milestoneName = computed(() => (props.task.milestoneId ? (milestonesStore.milestonesMap.get(props.task.milestoneId)?.name ?? "") : ""))
 const statusView = computed(() => getStatusView(props.task.status))
 const dateLabel = computed(() => (props.task.scheduled ? getDateLabel(props.task.scheduled.date) : ""))
-const estimateLabel = computed(() => getEstimateLabel(props.task.estimatedTime))
+const estimateLabel = computed(() => toShortDurationLabel(props.task.estimatedTime))
 const tags = computed(() => sortTags(props.task.tags))
 
 function getStatusView(status: TaskStatus): {label: string; icon: IconName; classes: string} {
@@ -50,12 +51,6 @@ function getDateLabel(date: string) {
   if (day.equals(today)) return "Today"
   if (day.equals(today.plus({days: 1}))) return "Tomorrow"
   return toDateLabel(date, {short: true, year: false})
-}
-
-function getEstimateLabel(seconds: number) {
-  const hours = Math.floor(seconds / 3600)
-  const minutes = Math.round((seconds % 3600) / 60)
-  return [hours ? `${hours}h` : "", minutes ? `${minutes}m` : ""].filter(Boolean).join(" ")
 }
 
 function removeTag(tag: Tag) {

@@ -48,7 +48,7 @@ function makeMilestone(overrides = {}) {
   }
 }
 
-describe("TaskCard — the metrics row", () => {
+describe("TaskCard — the footer numbers", () => {
   let wrapper = null
 
   beforeEach(() => {
@@ -72,9 +72,12 @@ describe("TaskCard — the metrics row", () => {
     return wrapper
   }
 
+  function footer() {
+    return wrapper.find(".min-h-5")
+  }
+
   function footerText() {
-    const footer = wrapper.find(".gap-2.text-xs")
-    return footer.exists() ? footer.text().replace(/\s+/g, " ").trim() : null
+    return footer().exists() ? footer().text().replace(/\s+/g, " ").trim() : null
   }
 
   it("counts_a_tasks_comments_even_when_it_carries_no_estimate", async () => {
@@ -84,21 +87,24 @@ describe("TaskCard — the metrics row", () => {
     expect(footerText()).toBe("3")
   })
 
-  it("shows_the_estimate_the_time_spent_and_the_comment_count_together", async () => {
+  it("pairs_the_time_spent_with_the_estimate_under_one_stopwatch", async () => {
     await setup(makeTask({estimatedTime: 7200, spentTime: 2700}), {"task-1": 2})
 
-    expect(footerText()).toBe("2 h.45 min.2")
+    expect(
+      footer()
+        .findAll("use")
+        .map((icon) => icon.attributes("href")),
+    ).toEqual(["#stopwatch", "#message"])
+    expect(footerText()).toBe("45m / 2h2")
   })
 
-  it("shows_the_time_spent_alone_when_the_task_carries_no_estimate", async () => {
-    await setup(makeTask({spentTime: 2700}))
+  it("dashes_the_side_of_the_pair_that_has_no_value", async () => {
+    await setup(makeTask({estimatedTime: 7200}))
+    expect(footerText()).toBe("– / 2h")
+    wrapper.unmount()
 
-    const icons = wrapper
-      .find(".gap-2.text-xs")
-      .findAll("use")
-      .map((icon) => icon.attributes("href"))
-    expect(icons).toEqual(["#check-check"])
-    expect(footerText()).toBe("45 min.")
+    await setup(makeTask({spentTime: 4800}))
+    expect(footerText()).toBe("1h 20m / –")
   })
 
   it("offers_the_time_spent_action_on_a_task_with_no_estimate", async () => {
@@ -110,25 +116,144 @@ describe("TaskCard — the metrics row", () => {
     expect(timeSpent.disabled).toBeFalsy()
   })
 
-  it("carries_its_milestone_in_the_milestone_frame_too_with_its_date_leading_the_metrics", async () => {
-    const {useMilestonesStore} = await import("../../../../src/renderer/src/stores/milestones.store")
+  it("leads_the_numbers_with_the_day_in_the_milestone_frame_only", async () => {
     const {useFilterStore} = await import("../../../../src/renderer/src/stores/filter.store")
-    useMilestonesStore().milestones = [makeMilestone()]
     useFilterStore().setFrame("milestone")
 
-    await setup(makeTask({milestoneId: "milestone-1", estimatedTime: 3600}))
+    await setup(makeTask({estimatedTime: 3600}))
 
-    const metrics = wrapper.find(".gap-2.text-xs").find(".ml-auto")
-    expect(wrapper.find(".ms-chip").text()).toBe("Launch")
-    expect(metrics.findAll("use").map((icon) => icon.attributes("href"))).toEqual(["#calendar", "#stopwatch"])
-    expect(metrics.text()).toContain(toDateLabel("2026-01-01", {short: true}))
+    expect(
+      footer()
+        .findAll("use")
+        .map((icon) => icon.attributes("href")),
+    ).toEqual(["#calendar", "#stopwatch"])
+    expect(footerText()).toContain(toDateLabel("2026-01-01", {short: true}))
+    wrapper.unmount()
+
+    useFilterStore().setFrame("days")
+    await setup(makeTask({estimatedTime: 3600}))
+    expect(
+      footer()
+        .findAll("use")
+        .map((icon) => icon.attributes("href")),
+    ).toEqual(["#stopwatch"])
   })
 
-  it("draws_no_footer_for_a_task_with_neither_an_estimate_nor_a_comment", async () => {
+  it("draws_a_footer_for_a_task_whose_only_content_is_a_relation", async () => {
+    const {useTasksStore} = await import("../../../../src/renderer/src/stores/tasks")
+    const {useTaskRelationsStore} = await import("../../../../src/renderer/src/stores/taskRelations.store")
+    const blocker = makeTask({id: "task-1"})
+    useTasksStore().tasks = [blocker, makeTask({id: "task-2"})]
+    useTaskRelationsStore().relations = [{id: "r1", blockerId: "task-1", blockedId: "task-2"}]
+
+    await setup(blocker)
+
+    expect(
+      footer()
+        .findAll("use")
+        .map((icon) => icon.attributes("href")),
+    ).toEqual(["#ban"])
+    expect(footerText()).toBe("1")
+  })
+
+  it("draws_no_footer_for_a_task_with_neither_tags_nor_numbers", async () => {
     await setup(makeTask(), {"another-task": 5})
 
     expect(wrapper.find('use[href="#message"]').exists()).toBe(false)
     expect(footerText()).toBeNull()
+  })
+})
+
+describe("TaskCard — the crumb", () => {
+  let wrapper = null
+
+  beforeEach(() => {
+    mockBridgeIPC()
+    setActivePinia(createPinia())
+  })
+
+  afterEach(() => {
+    wrapper?.unmount()
+    wrapper = null
+  })
+
+  async function setup(task, {isAllProjects = false, milestone = null} = {}) {
+    const {default: TaskCard} = await import("../../../../src/renderer/src/ui/modules/TaskBoard/{fragments}/TaskCard/TaskCard.vue")
+    const {useSettingsStore} = await import("../../../../src/renderer/src/stores/settings.store")
+    const {useBranchesStore} = await import("../../../../src/renderer/src/stores/branches.store")
+    const {useMilestonesStore} = await import("../../../../src/renderer/src/stores/milestones.store")
+
+    const settingsStore = useSettingsStore()
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    settingsStore.settings = {branch: {activeId: "main", isAllProjects}, layout: {sectionsCollapsed: {}}}
+    useBranchesStore().branches = [{id: "leki", name: "Leki"}]
+    useMilestonesStore().milestones = milestone ? [milestone] : []
+
+    wrapper = mount(TaskCard, {props: {task}, global: {directives: {tooltip: {}}}})
+    await nextTick()
+  }
+
+  function crumb() {
+    return wrapper.find(".h-4.text-xs")
+  }
+
+  it("reads_project_then_milestone_in_all_projects_mode", async () => {
+    await setup(makeTask({branchId: "leki", milestoneId: "milestone-1"}), {isAllProjects: true, milestone: makeMilestone({branchId: "leki"})})
+
+    expect(
+      crumb()
+        .findAll("use")
+        .map((icon) => icon.attributes("href")),
+    ).toEqual(["#project", "#chevron-right"])
+    expect(crumb().find('[title="Leki"]').text()).toBe("Leki")
+    expect(crumb().text()).toBe("LekiLaunch")
+    expect(crumb().find("svg path").exists()).toBe(true)
+  })
+
+  it("shows_only_the_milestone_inside_one_project", async () => {
+    await setup(makeTask({branchId: "leki", milestoneId: "milestone-1"}), {milestone: makeMilestone({branchId: "leki"})})
+
+    expect(crumb().text()).toBe("Launch")
+    expect(crumb().find('use[href="#project"]').exists()).toBe(false)
+  })
+
+  it("shows_only_the_project_when_the_task_has_no_milestone", async () => {
+    await setup(makeTask({branchId: "leki"}), {isAllProjects: true})
+
+    expect(crumb().text()).toBe("Leki")
+  })
+
+  it("draws_no_crumb_without_a_project_or_a_milestone", async () => {
+    await setup(makeTask())
+
+    expect(crumb().exists()).toBe(false)
+  })
+
+  it("paints_an_overdue_milestone_in_the_error_colour", async () => {
+    await setup(makeTask({milestoneId: "milestone-1"}), {milestone: makeMilestone({targetDate: "2020-01-01"})})
+
+    expect(crumb().find(".text-error").exists()).toBe(true)
+  })
+})
+
+describe("TaskCard — the status border", () => {
+  let wrapper = null
+
+  afterEach(() => {
+    wrapper?.unmount()
+    wrapper = null
+  })
+
+  it("draws_the_status_in_the_border_with_no_badge", async () => {
+    mockBridgeIPC()
+    setActivePinia(createPinia())
+    const {default: TaskCard} = await import("../../../../src/renderer/src/ui/modules/TaskBoard/{fragments}/TaskCard/TaskCard.vue")
+
+    for (const status of ["active", "backlog", "done", "discarded"]) {
+      const card = mount(TaskCard, {props: {task: makeTask({status})}, global: {directives: {tooltip: {}}}})
+      expect(card.find("use").exists()).toBe(false)
+      card.unmount()
+    }
   })
 })
 
@@ -145,7 +270,7 @@ describe("TaskCard — its shape on the board", () => {
     wrapper = null
   })
 
-  it("is always the board's card height, with the text between the tag row and a footer pinned last, never clamped by its content", async () => {
+  it("is always the board's card height, with the crumb first and the text filling the rest, never clamped by its content", async () => {
     const {default: TaskCard} = await import("../../../../src/renderer/src/ui/modules/TaskBoard/{fragments}/TaskCard/TaskCard.vue")
     const {BOARD_CARD_HEIGHT} = await import("../../../../src/renderer/src/constants/ui")
     const {useMilestonesStore} = await import("../../../../src/renderer/src/stores/milestones.store")
@@ -168,9 +293,9 @@ describe("TaskCard — its shape on the board", () => {
     const markdown = card.querySelector(".markdown-view")
     const text = markdown.parentElement
     const column = text.parentElement
-    const footer = card.querySelector(".gap-2.text-xs")
-    expect(footer.textContent).toContain("Launch")
-    expect(Array.from(column.children)).toEqual([column.children[0], text, footer])
+    const crumb = card.querySelector(".h-4.text-xs")
+    expect(crumb.textContent).toContain("Launch")
+    expect(Array.from(column.children)).toEqual([crumb, text])
     expect(Array.from(column.classList)).toEqual(expect.arrayContaining(["flex", "flex-col", "h-full"]))
     expect(Array.from(text.classList)).toEqual(expect.arrayContaining(["flex-1", "min-h-0", "overflow-hidden"]))
 
@@ -237,7 +362,7 @@ describe("TaskCard — the focus session's border", () => {
   })
 })
 
-describe("TaskCard — the project name in All projects mode", () => {
+describe("TaskCard — the tags slot", () => {
   let wrapper = null
 
   beforeEach(() => {
@@ -250,56 +375,37 @@ describe("TaskCard — the project name in All projects mode", () => {
     wrapper = null
   })
 
-  async function setup(isAllProjects, task = makeTask({branchId: "leki", tags: [{id: "tag-1", name: "work", color: "#000", branchId: "leki"}]})) {
+  it("keeps_the_tags_panel_bottom_left_of_the_footer_before_the_numbers", async () => {
     const {default: TaskCard} = await import("../../../../src/renderer/src/ui/modules/TaskBoard/{fragments}/TaskCard/TaskCard.vue")
-    const {useSettingsStore} = await import("../../../../src/renderer/src/stores/settings.store")
-    const {useBranchesStore} = await import("../../../../src/renderer/src/stores/branches.store")
+    const {default: TagLine} = await import("../../../../src/renderer/src/ui/modules/TaskBoard/{fragments}/TaskCard/{fragments}/TagLine.vue")
     const {useTagsStore} = await import("../../../../src/renderer/src/stores/tags.store")
 
-    const settingsStore = useSettingsStore()
-    await new Promise((resolve) => setTimeout(resolve, 20))
-    settingsStore.settings = {branch: {activeId: "main", isAllProjects}, layout: {sectionsCollapsed: {}}}
-    useBranchesStore().branches = [{id: "leki", name: "Leki"}]
-    useTagsStore().tags = [{id: "tag-1", name: "work", color: "#000", branchId: "leki"}]
-
-    wrapper = mount(TaskCard, {props: {task}, global: {directives: {tooltip: {}}}})
+    useTagsStore().tags = [{id: "tag-1", name: "work", color: "#000", branchId: "main"}]
+    wrapper = mount(TaskCard, {
+      props: {task: makeTask({estimatedTime: 3600, tags: [{id: "tag-1", name: "work", color: "#000", branchId: "main"}]})},
+      global: {directives: {tooltip: {}}},
+    })
     await nextTick()
-  }
 
-  it("leads_the_top_row_with_the_project_icon_and_name_in_the_mode", async () => {
-    const {default: DynamicTagsPanel} = await import("../../../../src/renderer/src/ui/common/misc/DynamicTagsPanel.vue")
-    await setup(true)
-
-    const top = wrapper.find(".flex.w-full.items-center.gap-3")
-    const label = top.find('[title="Leki"]')
-    const tagsPanel = top.findComponent(DynamicTagsPanel)
-    expect(label.find('use[href="#project"]').exists()).toBe(true)
-    expect(label.text()).toBe("Leki")
-    expect(tagsPanel.text()).toContain("work")
-    expect(label.element.compareDocumentPosition(tagsPanel.element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    const footer = wrapper.find(".min-h-5")
+    const panel = footer.findComponent(TagLine)
+    expect(panel.text()).toContain("#work")
+    expect(footer.element.firstElementChild).toBe(panel.element)
+    expect(footer.text()).toContain("– / 1h")
   })
 
-  it("draws_no_tags_placeholder_for_a_task_without_tags_and_keeps_the_project_label_leading", async () => {
-    await setup(true, makeTask({branchId: "leki"}))
+  it("draws_the_footer_for_a_task_with_tags_alone", async () => {
+    const {default: TaskCard} = await import("../../../../src/renderer/src/ui/modules/TaskBoard/{fragments}/TaskCard/TaskCard.vue")
+    const {useTagsStore} = await import("../../../../src/renderer/src/stores/tags.store")
 
-    const top = wrapper.find(".flex.w-full.items-center.gap-3")
-    expect(wrapper.text()).not.toContain("No tags")
-    expect(wrapper.find('use[href="#tags"]').exists()).toBe(false)
-    expect(top.find('[title="Leki"]').text()).toBe("Leki")
-  })
+    useTagsStore().tags = [{id: "tag-1", name: "work", color: "#000", branchId: "main"}]
+    wrapper = mount(TaskCard, {
+      props: {task: makeTask({tags: [{id: "tag-1", name: "work", color: "#000", branchId: "main"}]})},
+      global: {directives: {tooltip: {}}},
+    })
+    await nextTick()
 
-  it("still_draws_the_tags_of_a_task_that_has_them", async () => {
-    await setup(false)
-
-    expect(wrapper.text()).toContain("work")
-    expect(wrapper.text()).not.toContain("No tags")
-  })
-
-  it("draws_no_project_out_of_the_mode", async () => {
-    await setup(false)
-
-    expect(wrapper.find('use[href="#project"]').exists()).toBe(false)
-    expect(wrapper.text()).not.toContain("Leki")
+    expect(wrapper.find(".min-h-5").exists()).toBe(true)
   })
 })
 
