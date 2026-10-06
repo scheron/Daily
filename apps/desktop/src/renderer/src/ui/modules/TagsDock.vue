@@ -6,15 +6,18 @@ import {sortTags} from "@daily/protocol"
 import {removeDuplicates} from "@daily/std"
 
 import {useFilterStore} from "@/stores/filter.store"
+import {useProjectScopeStore} from "@/stores/projectScope.store"
 import {useTasksStore} from "@/stores/tasks"
 import {useUIStore} from "@/stores/ui"
 import BaseAnimation from "@/ui/base/BaseAnimation.vue"
 import DynamicTagsPanel from "@/ui/common/misc/DynamicTagsPanel.vue"
+import {getActiveTagNames} from "@/utils/tags/getActiveTagNames"
 
 import type {Tag} from "@daily/protocol"
 
 const tasksStore = useTasksStore()
 const filterStore = useFilterStore()
+const projectScopeStore = useProjectScopeStore()
 const uiStore = useUIStore()
 
 const {activeDay} = storeToRefs(tasksStore)
@@ -33,14 +36,40 @@ const filteredTags = computed(() => {
   return sortTags(removeDuplicates(tags, "name"))
 })
 
-function onSelectTag(name: Tag["name"]) {
-  filterStore.setActiveTags(name)
+const activeTagNames = computed(() => getActiveTagNames(tasksStore.projectTasks, filterStore.activeTagIds))
+
+const selectedChipIds = computed<Set<Tag["id"]>>(() => {
+  if (!projectScopeStore.isAllProjectsMode) return filterStore.activeTagIds
+  return new Set(filteredTags.value.filter((tag) => activeTagNames.value.has(tag.name)).map((tag) => tag.id))
+})
+
+function onSelectTag(id: Tag["id"]) {
+  const chip = filteredTags.value.find((tag) => tag.id === id)
+  if (!projectScopeStore.isAllProjectsMode || !chip || !activeTagNames.value.has(chip.name)) {
+    filterStore.setActiveTags(id)
+    return
+  }
+
+  const nameById = new Map(tasksStore.projectTasks.flatMap((task) => task.tags).map((tag) => [tag.id, tag.name]))
+  for (const activeId of [...filterStore.activeTagIds]) {
+    if (nameById.get(activeId) === chip.name) filterStore.removeActiveTag(activeId)
+  }
 }
 
 watch([activeDay, activeMilestoneId, isNoMilestoneActive], () => filterStore.clearActiveTags())
 
 watch(filteredTags, (tags) => {
   if (!filterStore.activeTagIds.size) return
+
+  if (projectScopeStore.isAllProjectsMode) {
+    const availableNames = new Set(tags.map((tag) => tag.name))
+    const nameById = new Map(tasksStore.projectTasks.flatMap((task) => task.tags).map((tag) => [tag.id, tag.name]))
+    for (const id of filterStore.activeTagIds) {
+      const name = nameById.get(id)
+      if (!name || !availableNames.has(name)) filterStore.removeActiveTag(id)
+    }
+    return
+  }
 
   const availableTagIds = new Set(tags.map((tag) => tag.id))
 
@@ -55,7 +84,7 @@ watch(filteredTags, (tags) => {
     <div v-if="filteredTags.length && !uiStore.isCalendarDockExpanded" class="pointer-events-none absolute left-24 right-1/2 top-2 z-30 mr-28 flex">
       <DynamicTagsPanel
         :tags="filteredTags"
-        :selected-tags="filterStore.activeTagIds"
+        :selected-tags="selectedChipIds"
         popup-hover-mode
         selectable
         size="md"

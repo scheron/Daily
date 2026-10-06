@@ -1,6 +1,7 @@
 import {computed, ref} from "vue"
 import {storeToRefs} from "pinia"
 
+import {MAIN_BRANCH_ID} from "@daily/protocol"
 import {getTime, getTimezone, getToday} from "@daily/std"
 
 import {useBranchesStore} from "@/stores/branches.store"
@@ -17,7 +18,7 @@ export function useQuickTaskDraft() {
 
   const projectPicked = ref(false)
   const isDateAuto = ref(false)
-  const draft = ref<TaskDraft>(emptyDraft(settings.value?.branch?.activeId ?? null))
+  const draft = ref<TaskDraft>(emptyDraft(getDefaultBranchId()))
 
   const task = computed<Task>(() => ({
     id: "__quick_task__",
@@ -69,7 +70,7 @@ export function useQuickTaskDraft() {
     tasksStore.setActiveDay(getToday())
     refreshAutoDate()
 
-    if (isUntouched.value) draft.value = emptyDraft(settings.value?.branch?.activeId ?? null)
+    if (isUntouched.value) draft.value = emptyDraft(getDefaultBranchId())
     else refreshProject()
   }
 
@@ -93,8 +94,13 @@ export function useQuickTaskDraft() {
 
     projectPicked.value = false
     isDateAuto.value = false
-    draft.value = emptyDraft(settings.value?.branch?.activeId ?? null)
+    draft.value = emptyDraft(getDefaultBranchId())
     return true
+  }
+
+  function getDefaultBranchId(): TaskDraft["branchId"] {
+    if (settings.value?.branch?.isAllProjects) return MAIN_BRANCH_ID
+    return settings.value?.branch?.activeId ?? null
   }
 
   function refreshAutoDate() {
@@ -106,7 +112,7 @@ export function useQuickTaskDraft() {
     const {branchId} = draft.value
     if (!branchesStore.branches.length || (branchId && branchesStore.branchesMap.has(branchId))) return
 
-    draft.value = {...draft.value, branchId: settings.value?.branch?.activeId ?? null, tags: [], milestoneId: null}
+    draft.value = {...draft.value, branchId: getDefaultBranchId(), tags: [], milestoneId: null}
     projectPicked.value = false
   }
 

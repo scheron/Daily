@@ -5,9 +5,11 @@ import {sortTags} from "@daily/protocol"
 import {toDateLabel, toDurationLabel} from "@daily/std"
 
 import {BOARD_CARD_HEIGHT} from "@/constants/ui"
+import {useBranchesStore} from "@/stores/branches.store"
 import {useFilterStore} from "@/stores/filter.store"
 import {useFocusStore} from "@/stores/focus.store"
 import {useMilestonesStore} from "@/stores/milestones.store"
+import {useProjectScopeStore} from "@/stores/projectScope.store"
 import {useTagsStore} from "@/stores/tags.store"
 import {useTaskEditorStore} from "@/stores/task-editor"
 import {useTaskCommentsStore} from "@/stores/taskComments.store"
@@ -45,6 +47,8 @@ const taskCommentsStore = useTaskCommentsStore()
 const milestonesStore = useMilestonesStore()
 const filterStore = useFilterStore()
 const focusStore = useFocusStore()
+const branchesStore = useBranchesStore()
+const projectScopeStore = useProjectScopeStore()
 
 const contextMenuRef = useTemplateRef<InstanceType<typeof BaseContextMenu>>("contextMenu")
 
@@ -54,6 +58,7 @@ const milestone = computed(() => (props.task.milestoneId ? (milestonesStore.mile
 const estimateLabel = computed(() => (props.task.estimatedTime > 0 ? toDurationLabel(props.task.estimatedTime) : ""))
 const spentLabel = computed(() => (props.task.spentTime > 0 ? toDurationLabel(props.task.spentTime) : ""))
 const commentCount = computed(() => taskCommentsStore.commentCountOf(props.task.id))
+const projectName = computed(() => (projectScopeStore.isAllProjectsMode ? (branchesStore.branchesMap.get(props.task.branchId)?.name ?? "") : ""))
 const isInSession = computed(() => focusStore.isInSession(props.task.id))
 
 const footerDayLabel = computed(() => {
@@ -204,7 +209,15 @@ async function onLinkTask(side: keyof TaskRelationSets, taskId: Task["id"]) {
     <div :id="task.id" :class="getCardClasses(task.status, isInSession)" :style="{height: `${BOARD_CARD_HEIGHT}px`}" @click.stop="onCardClick">
       <div class="relative z-10 flex h-full w-full flex-col gap-3 px-5 py-4">
         <div class="flex w-full items-center gap-3">
-          <DynamicTagsPanel :tags="tags" size="sm" />
+          <span
+            v-if="projectName"
+            class="text-base-content/60 inline-flex min-w-0 max-w-[140px] shrink-0 items-center gap-1 text-xs"
+            :title="projectName"
+          >
+            <BaseIcon name="project" class="size-3.5 shrink-0" />
+            <span class="min-w-0 truncate">{{ projectName }}</span>
+          </span>
+          <DynamicTagsPanel v-if="tags.length" :tags="tags" size="sm" />
           <div class="ml-auto flex shrink-0 items-center gap-2">
             <RelationChip :task-id="task.id" />
             <StatusBadge :status="task.status" />

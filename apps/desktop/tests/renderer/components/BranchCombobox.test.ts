@@ -46,4 +46,17 @@ describe("BranchCombobox", () => {
     await vi.waitFor(() => expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({id: "p-new", name: "Work"})))
     expect(popup.isOpen.value).toBe(false)
   })
+
+  it("gives_the_all_projects_row_its_own_icon_and_keeps_project_rows_on_the_project_icon", async () => {
+    const {default: BranchCombobox} = await import("../../../src/renderer/src/ui/common/comboboxes/BranchCombobox.vue")
+    const {useBranchesStore} = await import("../../../src/renderer/src/stores/branches.store")
+    useBranchesStore().branches = [makeBranch()]
+    const popup = mountInPopup(BranchCombobox, {selectedId: "main", hasAllProjects: true})
+    wrapper = popup.wrapper
+
+    const rows = wrapper.findAll("[data-active]")
+    const iconOf = (row) => row.findAll("use").map((use) => use.attributes("href"))
+    expect(iconOf(rows[0])).toContain("#layers")
+    expect(iconOf(rows[1])).toContain("#project")
+  })
 })

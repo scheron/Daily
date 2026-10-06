@@ -2,7 +2,7 @@
 import {computed, ref, watch} from "vue"
 import {toasts} from "vue-toasts-lite"
 
-import {isMilestoneClosed, isMilestoneOverdue, milestoneCompletion} from "@daily/protocol"
+import {groupTasksByDay, isMilestoneClosed, isMilestoneOverdue, milestoneCompletion} from "@daily/protocol"
 import {getToday, toDateLabel} from "@daily/std"
 
 import {useMilestonesStore} from "@/stores/milestones.store"
@@ -18,7 +18,7 @@ import ConfirmPopup from "@/ui/overlays/ConfirmPopup.vue"
 import {cn} from "@/utils/ui/tailwindcss"
 
 import type {MilestoneWithProgress} from "@/stores/milestones.store"
-import type {ISODate} from "@daily/protocol"
+import type {Day, ISODate} from "@daily/protocol"
 
 const props = defineProps<{milestone: MilestoneWithProgress; expanded: boolean}>()
 const emit = defineEmits<{toggle: []; delete: []}>()
@@ -35,6 +35,10 @@ const completion = computed(() => milestoneCompletion(props.milestone.progress))
 const closed = computed(() => isMilestoneClosed(props.milestone.progress))
 const overdue = computed(() => isMilestoneOverdue(props.milestone, props.milestone.progress, getToday()))
 const dateLabel = computed(() => (props.milestone.targetDate ? toDateLabel(props.milestone.targetDate, {short: true}) : null))
+const projectDays = computed<Day[]>(() => {
+  const dated = tasksStore.tasks.filter((task) => task.branchId === props.milestone.branchId && task.scheduled)
+  return groupTasksByDay({tasks: dated, tags: dated.flatMap((task) => task.tags)})
+})
 const percentLabel = computed(() => `${Math.round(completion.value * 100)}%`)
 
 function startEdit() {
@@ -146,7 +150,7 @@ watch(
 
           <template #default="{hide}">
             <div class="flex flex-col gap-1 p-1">
-              <TaskCalendar :days="tasksStore.days" :selected-date="milestone.targetDate" @select-date="selectDate($event, hide)" />
+              <TaskCalendar :days="projectDays" :selected-date="milestone.targetDate" @select-date="selectDate($event, hide)" />
               <BaseButton v-if="milestone.targetDate" variant="ghost" @click="clearDate(hide)">Clear date</BaseButton>
             </div>
           </template>
@@ -177,7 +181,7 @@ watch(
       </div>
     </div>
 
-    <div v-if="expanded" class="pb-3 pl-18">
+    <div v-if="expanded" class="pl-18 pb-3">
       <MarkdownEditor class="h-28" :content="localDescription" @update:content="localDescription = $event" @focusout="saveDescription" />
     </div>
   </div>

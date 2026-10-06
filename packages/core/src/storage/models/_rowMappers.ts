@@ -244,7 +244,7 @@ export function getDefaultSettings(): Settings {
     typography: getDefaultTypographySettings(),
     sync: getDefaultSyncSettings(),
     ai: null,
-    branch: {activeId: MAIN_BRANCH_ID},
+    branch: {activeId: MAIN_BRANCH_ID, isAllProjects: false},
     layout: {
       sectionsCollapsed: {active: false, discarded: false, done: false, backlog: false},
     },

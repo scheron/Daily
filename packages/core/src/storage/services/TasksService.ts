@@ -89,7 +89,9 @@ export class TasksService {
     const sourceTask = this.taskModel.getTask(params.taskId)
     if (!sourceTask) return []
 
-    const updated = this.applyPatches(planTaskMoveByOrder(this.readContext(sourceTask.branchId, sourceTask), params))
+    const updated = this.applyPatches(
+      planTaskMoveByOrder(this.readContext(params.acrossProjects ? undefined : sourceTask.branchId, sourceTask), params),
+    )
 
     return this.finalizeMove(sourceTask, params.targetStatus ?? sourceTask.status, updated, source)
   }
@@ -149,8 +151,7 @@ export class TasksService {
     return updated
   }
 
-  /** The project's live tasks, plus the named task even when it is soft-deleted, since the rule looks it up by id. */
-  private readContext(branchId: Branch["id"], named: Task | null, milestones: MutationContext["milestones"] = []): MutationContext {
+  private readContext(branchId: Branch["id"] | undefined, named: Task | null, milestones: MutationContext["milestones"] = []): MutationContext {
     const scope = this.taskModel.getTaskList({branchId, includeBacklog: true})
     const tasks = named && !scope.some((task) => task.id === named.id) ? [named, ...scope] : scope
 

@@ -149,6 +149,7 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
     targetStatus?: TaskStatus
     position?: TaskMovePosition
     activeDate: ISODate
+    acrossProjects?: boolean
   }): Promise<TaskMoveMeta | null> {
     const sourceTask = findTaskById(params.taskId)
     if (!sourceTask) return null
@@ -175,6 +176,7 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
       targetStatus: params.targetStatus,
       position,
       activeDate: params.activeDate,
+      acrossProjects: params.acrossProjects,
     })
     const patches = planTaskMoveByOrder(mutationContext(), moveParams)
 

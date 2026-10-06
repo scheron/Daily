@@ -46,6 +46,14 @@ describe("SettingsModel", () => {
     expect(settingsModel.loadSettings().quickTask).toEqual({isEnabled: true, hotkey: "Control+Shift+A"})
   })
 
+  it("leaves the all-projects flag off by default and keeps it beside the active project", () => {
+    expect(settingsModel.loadSettings().branch).toEqual({activeId: "main", isAllProjects: false})
+
+    settingsModel.saveSettings({branch: {activeId: "main", isAllProjects: true}})
+
+    expect(settingsModel.loadSettings().branch).toEqual({activeId: "main", isAllProjects: true})
+  })
+
   it("shows the menu bar icon by default and keeps it hidden once turned off", () => {
     expect(settingsModel.loadSettings().menuBar.isVisible).toBe(true)
 

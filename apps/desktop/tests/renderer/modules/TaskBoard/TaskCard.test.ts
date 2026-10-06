@@ -236,3 +236,106 @@ describe("TaskCard — the focus session's border", () => {
     expect(wrapper.findComponent(FocusBorder).exists()).toBe(false)
   })
 })
+
+describe("TaskCard — the project name in All projects mode", () => {
+  let wrapper = null
+
+  beforeEach(() => {
+    mockBridgeIPC()
+    setActivePinia(createPinia())
+  })
+
+  afterEach(() => {
+    wrapper?.unmount()
+    wrapper = null
+  })
+
+  async function setup(isAllProjects, task = makeTask({branchId: "leki", tags: [{id: "tag-1", name: "work", color: "#000", branchId: "leki"}]})) {
+    const {default: TaskCard} = await import("../../../../src/renderer/src/ui/modules/TaskBoard/{fragments}/TaskCard/TaskCard.vue")
+    const {useSettingsStore} = await import("../../../../src/renderer/src/stores/settings.store")
+    const {useBranchesStore} = await import("../../../../src/renderer/src/stores/branches.store")
+    const {useTagsStore} = await import("../../../../src/renderer/src/stores/tags.store")
+
+    const settingsStore = useSettingsStore()
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    settingsStore.settings = {branch: {activeId: "main", isAllProjects}, layout: {sectionsCollapsed: {}}}
+    useBranchesStore().branches = [{id: "leki", name: "Leki"}]
+    useTagsStore().tags = [{id: "tag-1", name: "work", color: "#000", branchId: "leki"}]
+
+    wrapper = mount(TaskCard, {props: {task}, global: {directives: {tooltip: {}}}})
+    await nextTick()
+  }
+
+  it("leads_the_top_row_with_the_project_icon_and_name_in_the_mode", async () => {
+    const {default: DynamicTagsPanel} = await import("../../../../src/renderer/src/ui/common/misc/DynamicTagsPanel.vue")
+    await setup(true)
+
+    const top = wrapper.find(".flex.w-full.items-center.gap-3")
+    const label = top.find('[title="Leki"]')
+    const tagsPanel = top.findComponent(DynamicTagsPanel)
+    expect(label.find('use[href="#project"]').exists()).toBe(true)
+    expect(label.text()).toBe("Leki")
+    expect(tagsPanel.text()).toContain("work")
+    expect(label.element.compareDocumentPosition(tagsPanel.element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it("draws_no_tags_placeholder_for_a_task_without_tags_and_keeps_the_project_label_leading", async () => {
+    await setup(true, makeTask({branchId: "leki"}))
+
+    const top = wrapper.find(".flex.w-full.items-center.gap-3")
+    expect(wrapper.text()).not.toContain("No tags")
+    expect(wrapper.find('use[href="#tags"]').exists()).toBe(false)
+    expect(top.find('[title="Leki"]').text()).toBe("Leki")
+  })
+
+  it("still_draws_the_tags_of_a_task_that_has_them", async () => {
+    await setup(false)
+
+    expect(wrapper.text()).toContain("work")
+    expect(wrapper.text()).not.toContain("No tags")
+  })
+
+  it("draws_no_project_out_of_the_mode", async () => {
+    await setup(false)
+
+    expect(wrapper.find('use[href="#project"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain("Leki")
+  })
+})
+
+describe("TaskCard — the relation chip", () => {
+  let wrapper = null
+
+  beforeEach(() => {
+    mockBridgeIPC()
+    setActivePinia(createPinia())
+  })
+
+  afterEach(() => {
+    wrapper?.unmount()
+    wrapper = null
+  })
+
+  it("shows_the_icon_and_the_count_only_with_the_full_text_in_the_tooltip", async () => {
+    const {default: RelationChip} =
+      await import("../../../../src/renderer/src/ui/modules/TaskBoard/{fragments}/TaskCard/{fragments}/RelationChip.vue")
+    const {useTasksStore} = await import("../../../../src/renderer/src/stores/tasks")
+    const {useTaskRelationsStore} = await import("../../../../src/renderer/src/stores/taskRelations.store")
+
+    useTasksStore().tasks = [makeTask({id: "A"}), makeTask({id: "B"}), makeTask({id: "C"})]
+    useTaskRelationsStore().relations = [
+      {blockerId: "B", blockedId: "A"},
+      {blockerId: "C", blockedId: "A"},
+    ]
+
+    const tips = []
+    wrapper = mount(RelationChip, {
+      props: {taskId: "A"},
+      global: {directives: {tooltip: {mounted: (_el, binding) => tips.push(binding.value)}}},
+    })
+
+    expect(wrapper.find('use[href="#alert-triangle"]').exists()).toBe(true)
+    expect(wrapper.text()).toBe("2")
+    expect(tips).toEqual(["Blocked by 2"])
+  })
+})

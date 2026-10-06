@@ -90,6 +90,7 @@ export type IconName =
   | "chevrons-up"
   | "bookmark"
   | "project"
+  | "layers"
   | "milestone"
   | "image"
   | "dots-horizontal"
@@ -818,6 +819,11 @@ export type IconName =
       <circle cx="12" cy="12" r="3"></circle>
       <line x1="3" x2="9" y1="12" y2="12"></line>
       <line x1="15" x2="21" y1="12" y2="12"></line>
+    </symbol>
+    <symbol id="layers" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"></path>
+      <path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12"></path>
+      <path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17"></path>
     </symbol>
     <symbol id="milestone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
       <path d="M12 1.5 22.5 12 12 22.5 1.5 12Z"></path>

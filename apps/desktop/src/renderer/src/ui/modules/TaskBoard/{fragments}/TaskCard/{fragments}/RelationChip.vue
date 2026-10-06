@@ -23,15 +23,14 @@ function getIconName(kind: TaskRelationChip["kind"]): IconName {
   return ({"blocked-by": "alert-triangle", blocks: "ban", linked: "link"} satisfies Record<TaskRelationChip["kind"], IconName>)[kind]
 }
 
-function getLabel(kind: TaskRelationChip["kind"]) {
-  return {"blocked-by": "Blocked by", blocks: "Blocks", linked: "Linked"}[kind]
+function getLabel(chip: TaskRelationChip) {
+  return `${{"blocked-by": "Blocked by", blocks: "Blocks", linked: "Linked"}[chip.kind]} ${chip.count}`
 }
 </script>
 
 <template>
-  <span v-if="chip" :class="getChipClasses(chip.kind)">
+  <span v-if="chip" v-tooltip="getLabel(chip)" :class="getChipClasses(chip.kind)">
     <BaseIcon :name="getIconName(chip.kind)" class="size-3.5" />
-    <span>{{ getLabel(chip.kind) }}</span>
     <span class="font-semibold">{{ chip.count }}</span>
   </span>
 </template>

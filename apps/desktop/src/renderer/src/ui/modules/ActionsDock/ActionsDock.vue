@@ -3,6 +3,7 @@ import {computed} from "vue"
 
 import {useBranchesStore} from "@/stores/branches.store"
 import {useFocusStore} from "@/stores/focus.store"
+import {useProjectScopeStore} from "@/stores/projectScope.store"
 import {useUIStore} from "@/stores/ui"
 import BaseAnimation from "@/ui/base/BaseAnimation.vue"
 import BaseButton from "@/ui/base/BaseButton"
@@ -18,8 +19,13 @@ const emit = defineEmits<{createTask: []}>()
 const branchesStore = useBranchesStore()
 const uiStore = useUIStore()
 const focusStore = useFocusStore()
+const projectScopeStore = useProjectScopeStore()
 
-const activeBranchName = computed(() => branchesStore.activeBranch?.name || "Main")
+const activeBranchName = computed(() => {
+  if (projectScopeStore.isAllProjectsMode) return "All projects"
+  return branchesStore.activeBranch?.name || "Main"
+})
+const hasAllProjectsRow = computed(() => uiStore.frame === "day")
 const isFocusDetached = computed(() => focusStore.session?.isDetached ?? false)
 
 const searchModal = useSearchModal()
@@ -34,8 +40,13 @@ function onFocusButtonClick() {
 }
 
 async function onSelectBranch(branch: Branch) {
+  await projectScopeStore.setAllProjects(false)
   if (branch.id === branchesStore.activeBranchId) return
   await branchesStore.setActiveBranch(branch.id)
+}
+
+async function onSelectAllProjects() {
+  await projectScopeStore.setAllProjects(true)
 }
 
 function getFocusVariant(isOpen: boolean) {
@@ -47,7 +58,7 @@ function getFocusVariant(isOpen: boolean) {
   <BaseAnimation name="fade" :duration="200">
     <div
       v-if="!uiStore.isCalendarDockExpanded"
-      class="dock-surface absolute top-2 right-3.5 z-20 flex h-8.5 items-center gap-0.5 rounded-full px-1 [-webkit-app-region:no-drag]"
+      class="dock-surface h-8.5 absolute right-3.5 top-2 z-20 flex items-center gap-0.5 rounded-full px-1 [-webkit-app-region:no-drag]"
     >
       <ConnectionIndicator />
 
@@ -57,16 +68,26 @@ function getFocusVariant(isOpen: boolean) {
         position="start"
         trigger-class="h-full flex items-center"
         hover-mode
+        :has-all-projects="hasAllProjectsRow"
+        :is-all-projects-selected="projectScopeStore.isAllProjectsMode"
         @select="onSelectBranch"
+        @select-all="onSelectAllProjects"
       >
         <template #trigger="{show}">
-          <BaseButton icon="project" variant="ghost-primary" size="sm" class="min-w-20" @mouseenter="show" @click="show">
+          <BaseButton
+            :icon="projectScopeStore.isAllProjectsMode ? 'layers' : 'project'"
+            variant="ghost-primary"
+            size="sm"
+            class="min-w-20"
+            @mouseenter="show"
+            @click="show"
+          >
             <span class="max-w-24 truncate">{{ activeBranchName }}</span>
           </BaseButton>
         </template>
       </BranchPicker>
 
-      <div class="bg-base-300 mx-0.5 h-4.5 w-px" />
+      <div class="bg-base-300 h-4.5 mx-0.5 w-px" />
 
       <BaseButton
         icon="ai"
@@ -92,7 +113,7 @@ function getFocusVariant(isOpen: boolean) {
         @click="onFocusButtonClick"
       />
 
-      <div class="bg-base-300 mx-0.5 h-4.5 w-px" />
+      <div class="bg-base-300 h-4.5 mx-0.5 w-px" />
 
       <BaseButton
         variant="primary-ghost"

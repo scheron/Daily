@@ -5,6 +5,7 @@ import {defineStore} from "pinia"
 import {groupTasksByDay, sortTasksByOrderIndex} from "@daily/protocol"
 
 import {API} from "@/api"
+import {useProjectScopeStore} from "@/stores/projectScope.store"
 import {useSettingsStore} from "@/stores/settings.store"
 import {useTaskMutations} from "./composables/useTaskMutations"
 
@@ -12,6 +13,7 @@ import type {Day, ISODate, Milestone, Task, TaskStatus} from "@daily/protocol"
 
 export const useTasksStore = defineStore("tasks", () => {
   const settingsStore = useSettingsStore()
+  const projectScopeStore = useProjectScopeStore()
 
   const tasks = ref<Task[]>([])
   const isLoaded = ref(false)
@@ -19,7 +21,9 @@ export const useTasksStore = defineStore("tasks", () => {
   const activeDay = ref<ISODate>(DateTime.now().toISODate()!)
   const activeBranchId = computed(() => settingsStore.settings?.branch?.activeId)
 
-  const projectTasks = computed(() => tasks.value.filter((task) => task.branchId === activeBranchId.value))
+  const projectTasks = computed(() =>
+    projectScopeStore.isAllProjectsMode ? tasks.value : tasks.value.filter((task) => task.branchId === activeBranchId.value),
+  )
 
   const days = computed<Day[]>(() => {
     const dated = projectTasks.value.filter((task) => task.scheduled)

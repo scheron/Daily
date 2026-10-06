@@ -285,6 +285,17 @@ describe("tasksStore", () => {
     expect(store.dailyTasksByStatus.active.map((t) => t.id)).toEqual(["c", "a", "b"])
   })
 
+  it("moveTaskByOrder hands the write the flag that places a card among every project", async () => {
+    API.getAllTasks.mockResolvedValue([makeTask({id: "a", orderIndex: 1024}), makeTask({id: "b", branchId: "other", orderIndex: 2048})])
+
+    const store = await getStore()
+    await store.loadTasks()
+
+    await store.moveTaskByOrder({taskId: "b", targetTaskId: "a", targetStatus: "active", position: "before", activeDate: TODAY, acrossProjects: true})
+
+    expect(API.moveTaskByOrder).toHaveBeenCalledWith(expect.objectContaining({taskId: "b", acrossProjects: true}))
+  })
+
   it("updateTask reports failure and leaves the task as it was when the write rejects", async () => {
     API.getAllTasks.mockResolvedValue([makeTask({id: "t1", content: "Before", estimatedTime: 0})])
 

@@ -3,6 +3,7 @@ import {toasts} from "vue-toasts-lite"
 
 import {useCopyToClipboard} from "@/composables/useCopyToClipboard"
 import {useBranchesStore} from "@/stores/branches.store"
+import {useProjectScopeStore} from "@/stores/projectScope.store"
 import {useTaskRelationsStore} from "@/stores/taskRelations.store"
 import {useTasksStore} from "@/stores/tasks"
 
@@ -12,6 +13,7 @@ import type {Ref} from "vue"
 export function useTaskModel(task: Readonly<Ref<Task>>) {
   const tasksStore = useTasksStore()
   const branchesStore = useBranchesStore()
+  const projectScopeStore = useProjectScopeStore()
   const taskRelationsStore = useTaskRelationsStore()
 
   const taskStatus = computed(() => task.value.status)
@@ -121,6 +123,7 @@ export function useTaskModel(task: Readonly<Ref<Task>>) {
       targetStatus: task.value.status,
       position: "before",
       activeDate: tasksStore.activeDay,
+      acrossProjects: projectScopeStore.isAllProjectsMode,
     })
 
     if (!result) toasts.error("Failed to move task")
@@ -138,6 +141,7 @@ export function useTaskModel(task: Readonly<Ref<Task>>) {
       targetStatus: task.value.status,
       position: "after",
       activeDate: tasksStore.activeDay,
+      acrossProjects: projectScopeStore.isAllProjectsMode,
     })
 
     if (!result) toasts.error("Failed to move task")
@@ -155,6 +159,7 @@ export function useTaskModel(task: Readonly<Ref<Task>>) {
       targetStatus: task.value.status,
       position: "before",
       activeDate: tasksStore.activeDay,
+      acrossProjects: projectScopeStore.isAllProjectsMode,
     })
 
     if (!result) toasts.error("Failed to move task")
@@ -169,6 +174,7 @@ export function useTaskModel(task: Readonly<Ref<Task>>) {
       targetStatus: task.value.status,
       position: "after",
       activeDate: tasksStore.activeDay,
+      acrossProjects: projectScopeStore.isAllProjectsMode,
     })
 
     if (!result) toasts.error("Failed to move task")

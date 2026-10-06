@@ -51,6 +51,10 @@ export const useSettingsStore = defineStore("settings", () => {
     scheduleSave(updates)
   }
 
+  async function flush(): Promise<void> {
+    await scheduleSave.immediate()
+  }
+
   async function revalidate(): Promise<void> {
     isSettingsLoaded.value = false
     await loadSettings()
@@ -63,6 +67,7 @@ export const useSettingsStore = defineStore("settings", () => {
     isSettingsLoaded,
 
     updateSettings,
+    flush,
     revalidate,
   }
 })

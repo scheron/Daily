@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {ref} from "vue"
+import {computed, ref} from "vue"
 import {toasts} from "vue-toasts-lite"
 
 import {useBranchesStore} from "@/stores/branches.store"
@@ -9,15 +9,43 @@ import {cn} from "@/utils/ui/tailwindcss"
 
 import type {Branch} from "@daily/protocol"
 
-defineProps<{selectedId: Branch["id"] | null}>()
-const emit = defineEmits<{select: [branch: Branch]; close: []}>()
+type Row = {kind: "all"} | {kind: "project"; branch: Branch}
+
+const props = defineProps<{
+  selectedId: Branch["id"] | null
+  /** Offers "All projects" as the first row. */
+  hasAllProjects?: boolean
+  isAllProjectsSelected?: boolean
+}>()
+const emit = defineEmits<{select: [branch: Branch]; "select-all": []; close: []}>()
 
 const branchesStore = useBranchesStore()
 
 const query = ref("")
 
-function onSelect(branch: Branch) {
-  emit("select", branch)
+const rows = computed<Row[]>(() => {
+  const projects = branchesStore.orderedBranches.map((branch): Row => ({kind: "project", branch}))
+  return props.hasAllProjects ? [{kind: "all"}, ...projects] : projects
+})
+
+function onSelect(row: Row) {
+  if (row.kind === "project") {
+    emit("select", row.branch)
+    return
+  }
+  emit("select-all")
+}
+
+function getRowKey(row: Row) {
+  return row.kind === "all" ? "all-projects" : row.branch.id
+}
+
+function getRowLabel(row: Row) {
+  return row.kind === "all" ? "All projects" : row.branch.name
+}
+
+function isRowSelected(row: Row) {
+  return row.kind === "all" ? Boolean(props.isAllProjectsSelected) : !props.isAllProjectsSelected && props.selectedId === row.branch.id
 }
 
 async function onCreate() {
@@ -46,9 +74,9 @@ function getProjectNameClasses(isSelected: boolean) {
 <template>
   <div class="w-64">
     <BaseCombobox
-      :items="branchesStore.orderedBranches"
-      :item-key="(branch) => branch.id"
-      :filter-by="(branch) => branch.name"
+      :items="rows"
+      :item-key="getRowKey"
+      :filter-by="getRowLabel"
       single
       placeholder="Search or create project..."
       empty-text="No projects found"
@@ -59,10 +87,10 @@ function getProjectNameClasses(isSelected: boolean) {
       @escape="emit('close')"
     >
       <template #item="{item}">
-        <BaseIcon v-if="selectedId === item.id" name="check" class="text-accent size-4 shrink-0" />
+        <BaseIcon v-if="isRowSelected(item)" name="check" class="text-accent size-4 shrink-0" />
         <span v-else class="size-4 shrink-0" />
-        <BaseIcon name="project" :class="getProjectIconClasses(selectedId === item.id)" />
-        <span :class="getProjectNameClasses(selectedId === item.id)">{{ item.name }}</span>
+        <BaseIcon :name="item.kind === 'all' ? 'layers' : 'project'" :class="getProjectIconClasses(isRowSelected(item))" />
+        <span :class="getProjectNameClasses(isRowSelected(item))">{{ getRowLabel(item) }}</span>
       </template>
 
       <template #footer="{query: createName}">

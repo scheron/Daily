@@ -12,6 +12,8 @@ withDefaults(
     side?: "top" | "bottom"
     triggerClass?: string
     hoverMode?: boolean
+    hasAllProjects?: boolean
+    isAllProjectsSelected?: boolean
   }>(),
   {
     position: "start",
@@ -20,7 +22,7 @@ withDefaults(
   },
 )
 
-const emit = defineEmits<{select: [branch: Branch]}>()
+const emit = defineEmits<{select: [branch: Branch]; "select-all": []}>()
 </script>
 
 <template>
@@ -37,7 +39,14 @@ const emit = defineEmits<{select: [branch: Branch]}>()
     </template>
 
     <template #default="{hide}">
-      <BranchCombobox :selected-id="selectedId" @select="emit('select', $event)" @close="hide" />
+      <BranchCombobox
+        :selected-id="selectedId"
+        :has-all-projects="hasAllProjects"
+        :is-all-projects-selected="isAllProjectsSelected"
+        @select="emit('select', $event)"
+        @select-all="emit('select-all')"
+        @close="hide"
+      />
     </template>
   </BasePopup>
 </template>

@@ -3,6 +3,7 @@ import {toasts} from "vue-toasts-lite"
 
 import {useTaskColumns} from "@/composables/tasks/useTaskColumns"
 import {useBranchesStore} from "@/stores/branches.store"
+import {useProjectScopeStore} from "@/stores/projectScope.store"
 import {useTaskEditorStore} from "@/stores/task-editor"
 import {useTasksStore} from "@/stores/tasks"
 import BaseIcon from "@/ui/base/BaseIcon"
@@ -22,6 +23,7 @@ const emit = defineEmits<{
 
 const tasksStore = useTasksStore()
 const branchesStore = useBranchesStore()
+const projectScopeStore = useProjectScopeStore()
 const taskEditorStore = useTaskEditorStore()
 
 const {query, items, isSearching, isLoaded} = useSearch()
@@ -46,7 +48,7 @@ async function navigateToTask(result: TaskSearchResult) {
     if (!(await confirmLeaveIfDirty())) return
   }
 
-  if (branchesStore.activeBranchId !== task.branchId) {
+  if (!projectScopeStore.isAllProjectsMode && branchesStore.activeBranchId !== task.branchId) {
     await branchesStore.setActiveBranch(task.branchId)
   }
 

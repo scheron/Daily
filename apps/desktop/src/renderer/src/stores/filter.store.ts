@@ -3,13 +3,16 @@ import {defineStore, storeToRefs} from "pinia"
 
 import {useMilestonesStore} from "@/stores/milestones.store"
 import {useSettingsStore} from "@/stores/settings.store"
+import {useUIStore} from "@/stores/ui"
 
+import type {BoardFrame} from "@/stores/ui/composables/useBoardFrame"
 import type {Milestone, Tag} from "@daily/protocol"
 
 type MilestoneScope = {kind: "all"} | {kind: "none"} | {kind: "milestone"; id: Milestone["id"]}
 
 export const useFilterStore = defineStore("filter", () => {
   const settingsStore = useSettingsStore()
+  const uiStore = useUIStore()
   const {settings} = storeToRefs(settingsStore)
   const milestonesStore = useMilestonesStore()
   const {milestonesMap, isMilestonesLoaded} = storeToRefs(milestonesStore)
@@ -17,7 +20,7 @@ export const useFilterStore = defineStore("filter", () => {
   const activeTagIds = ref<Set<Tag["id"]>>(new Set())
   const milestoneScope = shallowRef<MilestoneScope>({kind: "all"})
 
-  const frame = ref<"day" | "milestone">("day")
+  const frame = computed(() => uiStore.frame)
 
   const activeBranchId = computed(() => settings.value?.branch?.activeId)
   const activeMilestoneId = computed(() => (milestoneScope.value.kind === "milestone" ? milestoneScope.value.id : null))
@@ -49,8 +52,8 @@ export const useFilterStore = defineStore("filter", () => {
     milestoneScope.value = {kind: "all"}
   }
 
-  function setFrame(next: "day" | "milestone") {
-    frame.value = next
+  function setFrame(next: BoardFrame) {
+    uiStore.setFrame(next)
   }
 
   watch(activeBranchId, (newId, oldId) => {

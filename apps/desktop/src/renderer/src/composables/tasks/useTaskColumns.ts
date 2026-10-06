@@ -8,8 +8,10 @@ import {createSharedComposable} from "@/composables/createSharedComposable"
 import {BOARD_CARD_HEIGHT, BOARD_CARD_STEP} from "@/constants/ui"
 import {useDragDropStore} from "@/stores/dragDrop.store"
 import {useFilterStore} from "@/stores/filter.store"
+import {useProjectScopeStore} from "@/stores/projectScope.store"
 import {useTasksStore} from "@/stores/tasks"
 import {useUIStore} from "@/stores/ui"
+import {getActiveTagNames} from "@/utils/tags/getActiveTagNames"
 import {findClosestAtPoint} from "@/utils/ui/dom"
 import {useDragAutoScroll} from "./useDragAutoScroll"
 import {useTaskDragDrop} from "./useTaskDragDrop"
@@ -26,6 +28,7 @@ type CardPress = {task: Task; pointerId: number; x: number; y: number}
 export const useTaskColumns = createSharedComposable(() => {
   const tasksStore = useTasksStore()
   const filterStore = useFilterStore()
+  const projectScopeStore = useProjectScopeStore()
   const uiStore = useUIStore()
   const dragDropStore = useDragDropStore()
 
@@ -144,6 +147,10 @@ export const useTaskColumns = createSharedComposable(() => {
 
   function filterByTag(tasks: Task[]) {
     if (!filterStore.activeTagIds.size) return tasks
+    if (projectScopeStore.isAllProjectsMode) {
+      const names = getActiveTagNames(tasksStore.projectTasks, filterStore.activeTagIds)
+      return tasks.filter((task) => task.tags.some((tag) => names.has(tag.name)))
+    }
     return tasks.filter((task) => task.tags.some((tag) => filterStore.activeTagIds.has(tag.id)))
   }
 
@@ -265,6 +272,7 @@ export const useTaskColumns = createSharedComposable(() => {
       targetStatus: target.status,
       ...(isMilestoneFrame ? {targetTaskId: null, position: "after" as const} : resolveMoveTarget(column, target.index)),
       activeDate: tasksStore.activeDay,
+      acrossProjects: projectScopeStore.isAllProjectsMode,
     }
 
     landing.value = {...target, task: {...dragged.task, status: target.status}}

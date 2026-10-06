@@ -2,7 +2,14 @@ import {notNull, notUndefined} from "@daily/std"
 
 import {MAIN_BRANCH_ID} from "../../constants/storage"
 import {completeScheduling, schedulingForStatus, statusForScheduling} from "./backlog"
-import {getOrderIndexBetween, getPreviousTaskOrderIndex, getTaskOrderValue, normalizeTaskOrderIndexes, sortTasksByOrderIndex} from "./orderIndex"
+import {
+  getOrderIndexBetween,
+  getPreviousTaskOrderIndex,
+  getTaskOrderValue,
+  ORDER_INDEX_START,
+  ORDER_INDEX_STEP,
+  sortTasksByOrderIndex,
+} from "./orderIndex"
 
 import type {ISODate} from "../../types/common"
 import type {Branch, Milestone, MoveTaskByOrderParams, Task, TaskMovePosition, TaskScheduled} from "../../types/storage"
@@ -102,8 +109,8 @@ export function planTaskMoveByOrder(ctx: MutationContext, params: MoveTaskByOrde
 
   const scheduled = schedulingForStatus(targetStatus, sourceTask.scheduled, params.activeDate)
 
-  const scopeTasks =
-    targetStatus === "backlog" ? backlogTasks(ctx, sourceTask.branchId) : dayTasks(ctx, (scheduled as TaskScheduled).date, sourceTask.branchId)
+  const scopeBranchId = params.acrossProjects ? undefined : sourceTask.branchId
+  const scopeTasks = targetStatus === "backlog" ? backlogTasks(ctx, scopeBranchId) : dayTasks(ctx, (scheduled as TaskScheduled).date, scopeBranchId)
 
   const scopeTaskById = new Map(scopeTasks.map((task) => [task.id, task]))
   const tasksWithoutSource = scopeTasks.filter((task) => task.id !== sourceTask.id)
@@ -130,21 +137,21 @@ export function planTaskMoveByOrder(ctx: MutationContext, params: MoveTaskByOrde
 
   const patches: TaskPatch[] = []
 
-  for (const normalized of normalizeTaskOrderIndexes(reorderedScope)) {
-    const existing = scopeTaskById.get(normalized.id)
+  for (const [position, task] of reorderedScope.entries()) {
+    const isSource = task.id === sourceTask.id
+    const existing = isSource ? sourceTask : scopeTaskById.get(task.id)
     if (!existing) continue
 
-    const shouldChangeOrder = existing.orderIndex !== normalized.orderIndex
-    const shouldChangeStatus = normalized.id === sourceTask.id && existing.status !== targetStatus
-    if (!shouldChangeOrder && !shouldChangeStatus) continue
+    const orderIndex = ORDER_INDEX_START + position * ORDER_INDEX_STEP
 
-    const patch: TaskPatch = {id: existing.id, orderIndex: normalized.orderIndex}
-    if (shouldChangeStatus) {
-      patch.status = targetStatus
-      patch.scheduled = scheduled
+    if (isSource) {
+      const patch: TaskPatch = {id: sourceTask.id, orderIndex, scheduled}
+      if (targetStatus !== sourceTask.status) patch.status = targetStatus
+      patches.push(patch)
+      continue
     }
 
-    patches.push(patch)
+    if (existing.orderIndex !== orderIndex) patches.push({id: existing.id, orderIndex})
   }
 
   return patches
@@ -154,15 +161,15 @@ function findTask(ctx: MutationContext, id: Task["id"]): Task | null {
   return ctx.tasks.find((task) => task.id === id) ?? null
 }
 
-function liveTasksOf(ctx: MutationContext, branchId: Branch["id"]): Task[] {
-  return ctx.tasks.filter((task) => !task.deletedAt && task.branchId === branchId)
+function liveTasksOf(ctx: MutationContext, branchId: Branch["id"] | undefined): Task[] {
+  return ctx.tasks.filter((task) => !task.deletedAt && (branchId === undefined || task.branchId === branchId))
 }
 
-function backlogTasks(ctx: MutationContext, branchId: Branch["id"]): Task[] {
+function backlogTasks(ctx: MutationContext, branchId: Branch["id"] | undefined): Task[] {
   return liveTasksOf(ctx, branchId).filter((task) => task.status === "backlog")
 }
 
-function dayTasks(ctx: MutationContext, date: ISODate | undefined, branchId: Branch["id"]): Task[] {
+function dayTasks(ctx: MutationContext, date: ISODate | undefined, branchId: Branch["id"] | undefined): Task[] {
   return liveTasksOf(ctx, branchId).filter((task) => notNull(task.scheduled) && (!notUndefined(date) || task.scheduled.date === date))
 }
 

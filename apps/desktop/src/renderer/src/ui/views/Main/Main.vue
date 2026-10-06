@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import {MAIN_BRANCH_ID} from "@daily/protocol"
+
 import {useBranchesStore} from "@/stores/branches.store"
 import {useFilterStore} from "@/stores/filter.store"
+import {useProjectScopeStore} from "@/stores/projectScope.store"
 import {useStorageStore} from "@/stores/storage.store"
 import {useTaskEditorStore} from "@/stores/task-editor"
 import {useThemeStore} from "@/stores/theme"
@@ -17,6 +20,7 @@ const uiStore = useUIStore()
 const taskEditorStore = useTaskEditorStore()
 const branchesStore = useBranchesStore()
 const filterStore = useFilterStore()
+const projectScopeStore = useProjectScopeStore()
 useStorageStore()
 useThemeStore()
 
@@ -33,6 +37,10 @@ window.BridgeIPC["shortcut:ui:calendar-dock:toggle"](() => uiStore.toggleCalenda
 async function onCreateTask() {
   const proceed = await confirmUnsavedModal.open()
   if (!proceed) return
+  if (projectScopeStore.isAllProjectsMode) {
+    taskEditorStore.openNew({branchId: MAIN_BRANCH_ID, milestoneId: null})
+    return
+  }
   taskEditorStore.openNew({
     branchId: branchesStore.activeBranchId,
     milestoneId: filterStore.activeMilestoneId,

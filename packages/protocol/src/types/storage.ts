@@ -94,6 +94,8 @@ export type Settings = {
   ai: AIConfig | null
   branch: {
     activeId: Branch["id"]
+    /** Show the tasks of every project on the Days board; `activeId` stays the last concrete project. */
+    isAllProjects: boolean
   }
   layout: {
     /** Manual collapse state per status. */
@@ -338,4 +340,6 @@ export type MoveTaskByOrderParams = {
   position?: TaskMovePosition
   /** The day the board is showing. Used when a move leaves the backlog; required so no caller can omit it silently. */
   activeDate: ISODate
+  /** The board shows every project in one column, so the move is placed among all of them rather than the task's own project. */
+  acrossProjects?: boolean
 }

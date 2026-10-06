@@ -261,7 +261,7 @@ describe("useTaskColumns — the board's pointer drag", () => {
       release(yForIndex(index))
 
       expect(tasks.moveTaskByOrder).toHaveBeenCalledTimes(1)
-      expect(tasks.moveTaskByOrder).toHaveBeenCalledWith({taskId: "B", targetStatus: "active", ...target, activeDate: TODAY})
+      expect(tasks.moveTaskByOrder).toHaveBeenCalledWith({taskId: "B", targetStatus: "active", ...target, activeDate: TODAY, acrossProjects: false})
     })
 
     it("writes nothing for a card dropped back at its own place", async () => {
@@ -346,7 +346,7 @@ describe("useTaskColumns — the board's pointer drag", () => {
 
       await vi.advanceTimersByTimeAsync(1)
       expect(tasks.moveTaskByOrder).toHaveBeenCalledTimes(1)
-      expect(tasks.moveTaskByOrder).toHaveBeenCalledWith({taskId: "A", targetStatus: "done", ...target, activeDate: TODAY})
+      expect(tasks.moveTaskByOrder).toHaveBeenCalledWith({taskId: "A", targetStatus: "done", ...target, activeDate: TODAY, acrossProjects: false})
     })
 
     it("puts the card back at its old place when the write fails", async () => {

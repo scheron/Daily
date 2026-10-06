@@ -88,6 +88,139 @@ describe("planTaskMoveByOrder — equals the real storage core", () => {
   })
 })
 
+describe("a move across projects — the rule and the real storage core agree", () => {
+  let db, taskModel, tasksService
+
+  beforeEach(() => {
+    ;({db, taskModel, tasksService} = makeHarness())
+  })
+
+  afterEach(() => db.close())
+
+  it("places_the_task_between_its_neighbours_of_another_project_when_acrossProjects_is_set", async () => {
+    const other = new BranchModel(db).createBranch({name: "Other"})
+    const date = "2026-03-24"
+    const scheduled = {date, time: "09:00:00", timezone: "UTC"}
+    const seeded = [
+      taskModel.createTask(makeTaskInput({content: "x1", orderIndex: 1000, scheduled})),
+      taskModel.createTask(makeTaskInput({content: "y1", orderIndex: 1100, scheduled, branchId: other.id})),
+      taskModel.createTask(makeTaskInput({content: "y2", orderIndex: 1200, scheduled, branchId: other.id})),
+      taskModel.createTask(makeTaskInput({content: "x2", orderIndex: 1300, scheduled})),
+    ]
+    const params = {taskId: seeded[3].id, targetTaskId: seeded[2].id, position: "before", activeDate: date, acrossProjects: true}
+
+    const [patch] = planTaskMoveByOrder({tasks: seeded, milestones: [], today: date}, params)
+    await tasksService.moveTaskByOrder(params)
+
+    const moved = taskModel.getTask(seeded[3].id)
+    expect(moved.orderIndex).toBe(patch.orderIndex)
+    expect(moved.orderIndex).toBeGreaterThan(1100)
+    expect(moved.orderIndex).toBeLessThan(1200)
+  })
+})
+
+describe("a move with no integer gap — the rule and the real storage core agree", () => {
+  let db, taskModel, tasksService
+
+  beforeEach(() => {
+    ;({db, taskModel, tasksService} = makeHarness())
+  })
+
+  afterEach(() => db.close())
+
+  it("lands_between_two_neighbours_of_equal_orderIndex_from_another_project", async () => {
+    const other = new BranchModel(db).createBranch({name: "Other"})
+    const date = "2026-03-24"
+    const scheduled = {date, time: "09:00:00", timezone: "UTC"}
+    const seeded = [
+      taskModel.createTask(makeTaskInput({id: "t1", content: "x1", orderIndex: 1024, scheduled})),
+      taskModel.createTask(makeTaskInput({id: "t2", content: "y1", orderIndex: 1024, scheduled, branchId: other.id})),
+      taskModel.createTask(makeTaskInput({id: "t3", content: "x2", orderIndex: 3000, scheduled})),
+    ]
+    const params = {taskId: seeded[2].id, targetTaskId: seeded[1].id, position: "before", activeDate: date, acrossProjects: true}
+
+    const patches = planTaskMoveByOrder({tasks: seeded, milestones: [], today: date}, params)
+    await tasksService.moveTaskByOrder(params)
+
+    for (const patch of patches) expect(taskModel.getTask(patch.id).orderIndex).toBe(patch.orderIndex)
+    const ids = seeded.map((task) => taskModel.getTask(task.id))
+    const order = ids.toSorted((a, b) => a.orderIndex - b.orderIndex || a.createdAt.localeCompare(b.createdAt)).map((task) => task.content)
+    expect(order).toEqual(["x1", "x2", "y1"])
+  })
+})
+
+describe("a status-changing move with no integer gap — the rule and the real storage core agree", () => {
+  let db, taskModel, tasksService
+
+  beforeEach(() => {
+    ;({db, taskModel, tasksService} = makeHarness())
+  })
+
+  afterEach(() => db.close())
+
+  const date = "2026-03-24"
+  const scheduled = {date, time: "09:00:00", timezone: "UTC"}
+
+  async function expectRuleToEqualCore(seeded, params) {
+    const patches = planTaskMoveByOrder({tasks: seeded, milestones: [], today: date}, params)
+    await tasksService.moveTaskByOrder(params)
+
+    for (const before of seeded) {
+      const predicted = withoutUpdatedAt(
+        applyPatch(
+          before,
+          patches.find((patch) => patch.id === before.id),
+        ),
+      )
+      expect(withoutUpdatedAt(taskModel.getTask(before.id))).toEqual(predicted)
+    }
+  }
+
+  it("moves_a_backlog_task_onto_a_day_between_equal_neighbours_of_two_projects", async () => {
+    const other = new BranchModel(db).createBranch({name: "Other"})
+    const seeded = [
+      taskModel.createTask(makeTaskInput({id: "t1", orderIndex: 1024, scheduled})),
+      taskModel.createTask(makeTaskInput({id: "t2", orderIndex: 1024, scheduled, branchId: other.id})),
+      taskModel.createTask(makeTaskInput({id: "t3", status: "backlog", scheduled: null, orderIndex: 5000})),
+    ]
+
+    await expectRuleToEqualCore(seeded, {
+      taskId: "t3",
+      targetTaskId: "t2",
+      position: "before",
+      targetStatus: "active",
+      activeDate: date,
+      acrossProjects: true,
+    })
+
+    expect(taskModel.getTask("t3")).toMatchObject({status: "active", scheduled: {date}})
+  })
+
+  it("moves_a_backlog_task_onto_a_day_between_adjacent_neighbours_of_one_project", async () => {
+    const seeded = [
+      taskModel.createTask(makeTaskInput({id: "t1", orderIndex: 10, scheduled})),
+      taskModel.createTask(makeTaskInput({id: "t2", orderIndex: 11, scheduled})),
+      taskModel.createTask(makeTaskInput({id: "t3", status: "backlog", scheduled: null, orderIndex: 5000})),
+    ]
+
+    await expectRuleToEqualCore(seeded, {taskId: "t3", targetTaskId: "t2", position: "before", targetStatus: "active", activeDate: date})
+
+    expect(taskModel.getTask("t3")).toMatchObject({status: "active", scheduled: {date}})
+  })
+
+  it("moves_a_day_task_into_the_backlog_with_no_gap", async () => {
+    const seeded = [
+      taskModel.createTask(makeTaskInput({id: "t1", status: "backlog", scheduled: null, orderIndex: 10})),
+      taskModel.createTask(makeTaskInput({id: "t2", status: "backlog", scheduled: null, orderIndex: 11})),
+      taskModel.createTask(makeTaskInput({id: "t3", orderIndex: 5000, scheduled})),
+    ]
+
+    await expectRuleToEqualCore(seeded, {taskId: "t3", targetTaskId: "t2", position: "before", targetStatus: "backlog", activeDate: date})
+
+    expect(taskModel.getTask("t3")).toMatchObject({status: "backlog", scheduled: null})
+  })
+})
+
 describe("the D2 transition table — planTaskMoveByOrder/planTaskUpdate equal the real storage core", () => {
   let db, taskModel, tasksService
 
