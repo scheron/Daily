@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.31.1 - 2026-10-07
+
+### 🎨 Improvements
+
+- **Sync** — the header shows Connecting… while Daily reaches the sync server at launch, then Connected for a moment before it hides. Reconnecting… still shows while the server does not answer.
+
+---
+
 ## v0.31.0 - 2026-10-07
 
 ### ✨ New Features
