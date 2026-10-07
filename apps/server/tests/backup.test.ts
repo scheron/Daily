@@ -161,7 +161,7 @@ describe("backup configuration", () => {
   it("schedules a daily backup beside the data by default", () => {
     const config = resolveServerConfig({dataDir: "/data"})
 
-    expect(config.backup).toEqual({intervalMs: 24 * 60 * 60 * 1000, keep: 14, dir: join("/data", "backups")})
+    expect(config.backup).toEqual({intervalMs: 24 * 60 * 60 * 1000, keep: 1, dir: join("/data", "backups")})
   })
 
   it("treats a zero interval as off", () => {

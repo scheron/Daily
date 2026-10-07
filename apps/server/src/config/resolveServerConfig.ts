@@ -8,7 +8,7 @@ import {ServerSetupErrorCode} from "../errors/server/ServerSetupErrorCode"
 export type ServerTransportChoice = "plain" | "self-signed"
 
 const DEFAULT_BACKUP_INTERVAL_HOURS = 24
-const DEFAULT_BACKUP_KEEP = 14
+const DEFAULT_BACKUP_KEEP = 1
 
 export type ServerBackupConfig = {intervalMs: number; keep: number; dir: string}
 
