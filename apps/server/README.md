@@ -145,9 +145,8 @@ meant to be hand-edited.
 ## Backups
 
 The server backs itself up on a schedule, out of the box — every 24 hours, keeping only the newest
-one. Every bound Mac holds a full copy of the data as well, so one is enough; raise
-`DAILY_SERVER_BACKUP_KEEP` to keep more. Nothing needs scheduling by hand, and the server keeps
-serving while it happens.
+one, since every bound Mac holds a full copy too (`DAILY_SERVER_BACKUP_KEEP` keeps more). Nothing
+needs scheduling by hand, and the server keeps serving while it happens.
 
 Each backup is a directory holding `server.sqlite` and an `assets` directory, and costs almost no
 disk beyond the database itself. Restoring one is a file copy: stop the stack, put `server.sqlite`
@@ -204,9 +203,8 @@ moves it.
 Before it does, `upgrade` writes `daily-preupgrade-<timestamp>.tar.gz` beside `daily.sh`, asked for
 or not: a new image can migrate the database. If it will not start, will not report healthy in
 time, or exits on its own, the archive and the previous image both go back and the server is
-started again on what it was running. A failed download changes nothing. Once the new image is
-healthy, the older pre-upgrade archives are removed, so only the newest one stays; an undone
-upgrade removes none.
+started again on what it was running. A failed download changes nothing. A healthy upgrade
+removes the older pre-upgrade archives; an undone one removes none.
 
 ## Confidentiality
 
