@@ -48,3 +48,21 @@ jobs:
             ghcr.io/scheron/daily-server:${{ env.VERSION }}
             ghcr.io/scheron/daily-server:latest
             ghcr.io/scheron/daily-server:${{ env.PROTOCOL_TAG }}
+
+  deploy:
+    name: Upgrade the server
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    concurrency:
+      group: server-deploy
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Run daily-server upgrade over SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_SSH_KNOWN_HOSTS: ${{ secrets.DEPLOY_SSH_KNOWN_HOSTS }}
+          DEPLOY_SSH_DESTINATION: ${{ secrets.DEPLOY_SSH_DESTINATION }}
+        run: scripts/ci/upgrade-server.sh
