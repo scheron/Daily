@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.31.0 - 2026-10-07
+
+### ✨ New Features
+
+- **Priority** — a task can be marked Urgent, High, Medium or Low; every task starts at No priority.
+  - The card shows the priority as an icon in its bottom-right corner: a red `!` for Urgent, and orange, green or blue bars for High, Medium and Low. No priority shows nothing.
+  - The priority is set in the task editor next to the project and milestone, from the card's menu, and from the `/` menu, Quick task included, where it shows as a chip.
+  - A change is recorded in the task's history, and a duplicated task keeps its priority.
+  - Agents and the Daily Assistant read and set it too; the assistant understands words like "urgent" or "not pressing".
+
+### 🎨 Improvements
+
+- **Sync** — Sync writes a new format, so every Mac has to be updated: one still on an earlier version stops syncing until it is. A self-hosted Daily Sync Server has to be upgraded first, or agents are told the server is out of date.
+
+---
+
 ## v0.30.2 - 2026-10-06
 
 ### ✨ New Features
