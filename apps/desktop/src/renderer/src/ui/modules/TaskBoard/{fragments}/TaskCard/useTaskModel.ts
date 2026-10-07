@@ -7,7 +7,7 @@ import {useProjectScopeStore} from "@/stores/projectScope.store"
 import {useTaskRelationsStore} from "@/stores/taskRelations.store"
 import {useTasksStore} from "@/stores/tasks"
 
-import type {Branch, ISODate, Milestone, Tag, Task, TaskRelationSets, TaskStatus} from "@daily/protocol"
+import type {Branch, ISODate, Milestone, Tag, Task, TaskPriority, TaskRelationSets, TaskStatus} from "@daily/protocol"
 import type {Ref} from "vue"
 
 export function useTaskModel(task: Readonly<Ref<Task>>) {
@@ -82,6 +82,13 @@ export function useTaskModel(task: Readonly<Ref<Task>>) {
   async function updateTaskMilestone(milestoneId: Milestone["id"] | null) {
     const isUpdated = await tasksStore.updateTask(task.value.id, {milestoneId})
     if (!isUpdated) toasts.error("Failed to update milestone")
+  }
+
+  async function updateTaskPriority(priority: TaskPriority) {
+    if (priority === task.value.priority) return
+
+    const isUpdated = await tasksStore.updateTask(task.value.id, {priority})
+    if (!isUpdated) toasts.error("Failed to update priority")
   }
 
   async function linkTask(side: keyof TaskRelationSets, otherTaskId: Task["id"]): Promise<boolean> {
@@ -197,6 +204,7 @@ export function useTaskModel(task: Readonly<Ref<Task>>) {
     copyTaskContentToClipboard,
     updateTaskTags,
     updateTaskMilestone,
+    updateTaskPriority,
     moveTaskToBranch,
     linkTask,
   }

@@ -123,6 +123,7 @@ function hasNonDateEdit(before: Task, after: Task): boolean {
     before.content !== after.content ||
     (!!before.scheduled && !!after.scheduled && before.scheduled.time !== after.scheduled.time) ||
     before.estimatedTime !== after.estimatedTime ||
+    before.priority !== after.priority ||
     !sameTagIds(before.tags, after.tags)
   )
 }

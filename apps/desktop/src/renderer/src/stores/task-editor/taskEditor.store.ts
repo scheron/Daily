@@ -48,6 +48,7 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
       estimatedTime: 0,
       spentTime: 0,
       status: "backlog",
+      priority: "none",
       branchId: params.branchId,
       scheduled: null,
       milestoneId: params.milestoneId,
@@ -105,6 +106,7 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
         date: next.scheduled?.date,
         branchId: next.branchId ?? undefined,
         status: next.status,
+        priority: next.priority,
         milestoneId: next.milestoneId,
       })
 
@@ -149,6 +151,7 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
         estimatedTime: next.estimatedTime,
         spentTime: next.spentTime,
         status: next.status,
+        priority: next.priority,
         milestoneId: next.milestoneId,
       })
       await taskRelationsStore.setTaskRelations(id, {blockedBy: next.blockedBy, blocks: next.blocks})
@@ -176,6 +179,7 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
       estimatedTime: task.estimatedTime,
       spentTime: task.spentTime,
       status: task.status,
+      priority: task.priority,
       branchId: task.branchId || null,
       scheduled: task.scheduled ? {...task.scheduled} : null,
       milestoneId: task.milestoneId,

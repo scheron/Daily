@@ -158,6 +158,7 @@ describe("FilesService.cleanupOrphanFiles", () => {
       status: "active",
       content: "",
       minimized: false,
+      priority: "none",
       orderIndex: 1,
       scheduled: {date: "2026-01-01", time: "09:00:00", timezone: "UTC"},
       estimatedTime: 0,

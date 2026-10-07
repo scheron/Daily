@@ -639,6 +639,49 @@ describe("save_task", () => {
       seeded.close()
     }
   })
+
+  it("a priority sent to save_task survives the snapshot round trip, on create and on update", async () => {
+    let existingId = ""
+
+    const seeded = await seedAgentStore(async (mac) => {
+      const task = await mac.core.tasksService.createTask(dated("2026-01-10", {content: "Existing"}))
+      existingId = task!.id
+    })
+
+    try {
+      const agent = bindAgent(seeded.store)
+
+      const created = await call({store: seeded.store}, agent, saveTaskTool, {content: "Urgent thing", priority: "urgent"})
+      const updated = await call({store: seeded.store}, agent, saveTaskTool, {id: existingId, priority: "low"})
+      expect(created.task.priority).toBe("urgent")
+      expect(updated.task.priority).toBe("low")
+
+      const stored = readSnapshot(seeded.store)!.document.docs as any
+      const priorityOf = (id: string) => stored.tasks.find((task: any) => task.id === id)?.priority
+      expect(priorityOf(created.task.id)).toBe("urgent")
+      expect(priorityOf(existingId)).toBe("low")
+
+      const reread = await call({store: seeded.store}, agent, getTaskTool, {id: created.task.id})
+      expect(reread.priority).toBe("urgent")
+    } finally {
+      seeded.close()
+    }
+  })
+
+  it("a task saved without a priority is stored as none, and an unknown priority is refused", async () => {
+    const seeded = await seedAgentStore()
+
+    try {
+      const agent = bindAgent(seeded.store)
+
+      const created = await call({store: seeded.store}, agent, saveTaskTool, {content: "Plain"})
+      expect(created.task.priority).toBe("none")
+
+      await expectRejectsWithAgentError(call({store: seeded.store}, agent, saveTaskTool, {content: "Bad", priority: "asap"}))
+    } finally {
+      seeded.close()
+    }
+  })
 })
 
 describe("save_attachment", () => {

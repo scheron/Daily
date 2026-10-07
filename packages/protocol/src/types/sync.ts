@@ -6,7 +6,7 @@ export type SnapshotMeta = {
 }
 
 export type Snapshot = {
-  version: 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10
+  version: 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11
   docs: SnapshotDocs
   meta: SnapshotMeta
 }
@@ -48,6 +48,7 @@ export type SnapshotTask = {
   spent_time: number
   branch_id: string
   milestone_id: string | null
+  priority: string
   tags: string[]
   created_at: string
   updated_at: string

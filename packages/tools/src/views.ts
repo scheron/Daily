@@ -14,6 +14,7 @@ import type {
   TaskCommentKind,
   TaskEvent,
   TaskEventType,
+  TaskPriority,
   TaskStatus,
   Timezone,
 } from "@daily/protocol"
@@ -54,6 +55,7 @@ export type TaskView = {
   id: string
   content: string
   status: TaskStatus
+  priority: TaskPriority
   projectId: string
   projectName: string
   scheduled: {date: ISODate; time: ISOTime; timezone: Timezone} | null
@@ -102,6 +104,7 @@ export function taskView(task: Task, projectName: string, imageCount: number, mo
     id: task.id,
     content: task.content,
     status: task.status,
+    priority: task.priority,
     projectId: task.branchId,
     projectName,
     scheduled: task.scheduled,

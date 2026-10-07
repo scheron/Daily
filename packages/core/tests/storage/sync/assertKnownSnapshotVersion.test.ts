@@ -12,11 +12,11 @@ describe("assertKnownSnapshotVersion", () => {
 
   it("exposes the remote version on the error", () => {
     try {
-      assertKnownSnapshotVersion({version: 11})
+      assertKnownSnapshotVersion({version: 12})
       expect.unreachable()
     } catch (err) {
       expect(err).toBeInstanceOf(SnapshotVersionAheadError)
-      expect((err as SnapshotVersionAheadError).remoteVersion).toBe(11)
+      expect((err as SnapshotVersionAheadError).remoteVersion).toBe(12)
     }
   })
 
@@ -32,18 +32,18 @@ describe("assertKnownSnapshotVersion", () => {
     expect(() => assertKnownSnapshotVersion({version: "4"})).not.toThrow()
   })
 
-  it("accepts version 10 and aborts with SnapshotVersionAheadError for version 11", () => {
-    expect(() => assertKnownSnapshotVersion({version: 10})).not.toThrow()
-    expect(() => assertKnownSnapshotVersion({version: 11})).toThrow(SnapshotVersionAheadError)
+  it("accepts version 11 and aborts with SnapshotVersionAheadError for version 12", () => {
+    expect(() => assertKnownSnapshotVersion({version: 11})).not.toThrow()
+    expect(() => assertKnownSnapshotVersion({version: 12})).toThrow(SnapshotVersionAheadError)
   })
 
-  it("TC-8: buildSnapshot writes version 10, and assertKnownSnapshotVersion accepts that version but aborts on 11", () => {
+  it("TC-8: buildSnapshot writes version 11, and assertKnownSnapshotVersion accepts that version but aborts on 12", () => {
     const emptyDocs = {tasks: [], tags: [], branches: [], milestones: [], relations: [], comments: [], files: [], events: []}
     const built = buildSnapshot(emptyDocs)
 
-    expect(built.version).toBe(10)
-    expect(KNOWN_SNAPSHOT_VERSION).toBe(10)
+    expect(built.version).toBe(11)
+    expect(KNOWN_SNAPSHOT_VERSION).toBe(11)
     expect(() => assertKnownSnapshotVersion({version: built.version})).not.toThrow()
-    expect(() => assertKnownSnapshotVersion({version: 11})).toThrow(SnapshotVersionAheadError)
+    expect(() => assertKnownSnapshotVersion({version: 12})).toThrow(SnapshotVersionAheadError)
   })
 })

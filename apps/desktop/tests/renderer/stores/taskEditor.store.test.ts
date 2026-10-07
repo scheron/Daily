@@ -16,6 +16,7 @@ function makeTask(overrides = {}) {
     estimatedTime: 1800,
     spentTime: 0,
     status: "active",
+    priority: "none",
     scheduled: {date: "2026-06-20", time: "09:00:00", timezone: "UTC"},
     minimized: false,
     orderIndex: 1024,
@@ -187,6 +188,17 @@ describe("taskEditorStore — commit", () => {
     expect(tasks.updateTask).toHaveBeenCalledWith("task-1", expect.objectContaining({content: "after"}))
     expect(tasks.moveTask).not.toHaveBeenCalled()
     expect(tasks.moveTaskToBranch).not.toHaveBeenCalled()
+  })
+
+  it("commit on a priority change writes only the priority", async () => {
+    const {tasks, editor} = await setupStores()
+    tasks.findTaskById = vi.fn().mockReturnValue(makeTask())
+    await editor.open("task-1")
+    expect(editor.draft.priority).toBe("none")
+    editor.patch({priority: "high"})
+
+    await editor.commit()
+    expect(tasks.updateTask).toHaveBeenCalledWith("task-1", {priority: "high"})
   })
 
   it("commit on a date change calls moveTask", async () => {

@@ -28,6 +28,12 @@ Done or discarded, taken together — the two ways a task stops being outstandin
 because progress counts them as one.
 _Avoid_: completed, finished, closed
 
+**Priority**:
+How urgent a task is, one of five levels: No priority, Urgent, High, Medium, Low. Every task has
+one, and No priority is a level in its own right rather than the lack of one — a new task starts
+there. It marks a task and nothing more: the order tasks sit in stays the person's own.
+_Avoid_: importance, severity, urgency, rank
+
 **Milestone**:
 A named, bounded batch of work inside one project, with an optional target date. Its scope is a
 decision someone made, which is what makes a proportion of it mean anything.

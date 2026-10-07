@@ -129,6 +129,7 @@ describe("LocalStorageAdapter", () => {
             estimated_time: 3600,
             spent_time: 0,
             branch_id: "main",
+            priority: "none",
             tags: [],
             attachments: [],
             created_at: now,
@@ -169,6 +170,7 @@ describe("LocalStorageAdapter", () => {
             estimated_time: 0,
             spent_time: 0,
             branch_id: "main",
+            priority: "none",
             tags: [],
             attachments: [],
             created_at: now,
@@ -208,6 +210,7 @@ describe("LocalStorageAdapter", () => {
             estimated_time: 0,
             spent_time: 0,
             branch_id: "main",
+            priority: "none",
             tags: ["tag2"],
             attachments: [],
             created_at: now,
@@ -281,6 +284,7 @@ describe("LocalStorageAdapter", () => {
               estimated_time: 0,
               spent_time: 0,
               branch_id: "nonexistent-branch", // FK violation
+              priority: "none",
               tags: [],
               attachments: [],
               created_at: now,
@@ -492,6 +496,25 @@ describe("LocalStorageAdapter", () => {
       expect(purged.tags).toBe(1)
       expect(purged.files).toBe(1)
       expect(db.prepare("SELECT * FROM task_tags").all()).toHaveLength(0)
+    })
+  })
+
+  describe("a task's priority survives a snapshot round trip", () => {
+    it("round-trips_a_task_priority_through_loadAllDocs_and_upsertDocs", async () => {
+      insertTask(db, "t1", "Ship it")
+      db.prepare("UPDATE tasks SET priority = 'high' WHERE id = 't1'").run()
+
+      const snapshot = buildSnapshot(await adapter.loadAllDocs())
+      expect(snapshot.docs.tasks.find((t) => t.id === "t1")?.priority).toBe("high")
+
+      const otherDb = createTestDatabase()
+      const otherAdapter = new LocalStorageAdapter(otherDb, new FileModel(otherDb, "/tmp/daily-local-storage-adapter-priority"))
+      await otherAdapter.upsertDocs(snapshot.docs)
+
+      const roundTripped = await otherAdapter.loadAllDocs()
+      expect(roundTripped.tasks.find((t) => t.id === "t1")?.priority).toBe("high")
+
+      otherDb.close()
     })
   })
 

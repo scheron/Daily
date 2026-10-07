@@ -1,7 +1,7 @@
 import {sameTagIds} from "./sameTagIds"
 
 import type {TaskDraft} from "@/types/taskDraft"
-import type {Tag, Task, TaskStatus} from "@daily/protocol"
+import type {Tag, Task, TaskPriority, TaskStatus} from "@daily/protocol"
 
 /**
  * Builds the minimal patch of changed fields between a draft and its base, excluding
@@ -16,6 +16,7 @@ export function buildRestPatch(next: TaskDraft, base: TaskDraft) {
     estimatedTime: number
     spentTime: number
     status: TaskStatus
+    priority: TaskPriority
     milestoneId: Task["milestoneId"]
   }
 
@@ -28,6 +29,7 @@ export function buildRestPatch(next: TaskDraft, base: TaskDraft) {
   if (next.estimatedTime !== base.estimatedTime) out.estimatedTime = next.estimatedTime
   if (next.spentTime !== base.spentTime) out.spentTime = next.spentTime
   if (next.status !== base.status && !resolvedWithoutDate) out.status = next.status
+  if (next.priority !== base.priority) out.priority = next.priority
   if (next.milestoneId !== base.milestoneId) out.milestoneId = next.milestoneId
   return out
 }

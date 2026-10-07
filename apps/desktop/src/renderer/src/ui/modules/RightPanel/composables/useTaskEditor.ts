@@ -29,6 +29,7 @@ export const useTaskEditor = createSharedComposable(() => {
       minimized: false,
       orderIndex: 0,
       status: draft.status,
+      priority: draft.priority,
       tags: draft.tags,
       milestoneId: draft.milestoneId ?? null,
     }

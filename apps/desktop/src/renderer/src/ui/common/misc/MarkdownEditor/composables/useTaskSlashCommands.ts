@@ -1,6 +1,7 @@
 import {sortMilestones} from "@daily/protocol"
 import {getTime, getTimezone, getToday} from "@daily/std"
 
+import {PRIORITY_LEVELS} from "@/constants/priority"
 import {useBranchesStore} from "@/stores/branches.store"
 import {useMilestonesStore} from "@/stores/milestones.store"
 import {useTagsStore} from "@/stores/tags.store"
@@ -26,6 +27,7 @@ export function useTaskSlashCommands(task: ComputedRef<Task>, patch: (updates: P
     {label: "Status", icon: "fire", getItems: getStatusItems},
     {label: "Date", icon: "calendar", getItems: getDateItems},
     {label: "Project", icon: "project", getItems: getProjectItems},
+    {label: "Priority", icon: "priority-high", getItems: getPriorityItems},
     {label: "Milestone", icon: "milestone", isAvailable: () => getProjectMilestones().length > 0, getItems: getMilestoneItems},
     {
       label: "Remove Milestone",
@@ -88,6 +90,17 @@ export function useTaskSlashCommands(task: ComputedRef<Task>, patch: (updates: P
           if (branch.id !== task.value.branchId) patch({branchId: branch.id})
         },
       }))
+  }
+
+  function getPriorityItems(query: string): NestedItem[] {
+    return PRIORITY_LEVELS.filter((level) => matches(level.label, query)).map((level) => ({
+      label: level.label,
+      icon: `priority-${level.value}` as const,
+      iconColor: level.color,
+      apply: () => {
+        if (level.value !== task.value.priority) patch({priority: level.value})
+      },
+    }))
   }
 
   function getMilestoneItems(query: string): NestedItem[] {

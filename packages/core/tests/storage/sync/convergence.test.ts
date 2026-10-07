@@ -218,6 +218,50 @@ describe("two-node convergence through a shared sync directory", () => {
     expect(loaded?.scheduled).toEqual({date: "2026-02-14", time: "09:30:00", timezone: "UTC"})
   })
 
+  it("converges_two_nodes_on_a_priority_set_on_node_A", async () => {
+    const task = await addTask(nodeA, "to prioritise")
+    await nodeA.engine.syncOnce("push")
+    await nodeB.engine.syncOnce("pull")
+
+    await nodeA.core.tasksService.updateTask(task.id, {priority: "urgent"})
+    await nodeA.engine.syncOnce("push")
+    await nodeB.engine.syncOnce("pull")
+
+    expect((await nodeB.core.tasksService.getTask(task.id))?.priority).toBe("urgent")
+    expect((await nodeA.core.tasksService.getTask(task.id))?.priority).toBe("urgent")
+  })
+
+  it("loads_a_version-10_snapshot_with_every_task_at_priority_none", async () => {
+    const task = {
+      id: "v10-task",
+      status: "active",
+      content: "from the previous release",
+      minimized: false,
+      order_index: 1024,
+      scheduled_date: "2026-02-14",
+      scheduled_time: "09:30:00",
+      scheduled_timezone: "UTC",
+      estimated_time: 0,
+      spent_time: 0,
+      branch_id: "main",
+      milestone_id: null,
+      tags: [],
+      created_at: "2026-02-10T00:00:00.000Z",
+      updated_at: "2026-02-10T00:00:00.000Z",
+      deleted_at: null,
+    }
+    const v10 = {
+      version: 10,
+      docs: {tasks: [task], tags: [], branches: [], milestones: [], relations: [], comments: [], files: [], events: []},
+      meta: {updatedAt: "2026-02-10T00:00:00.000Z", hash: "v10-hash"},
+    }
+    await fs.writeFile(join(syncDir, "snapshot.json"), JSON.stringify(v10))
+
+    await nodeB.engine.syncOnce("pull")
+
+    expect((await nodeB.core.tasksService.getTask("v10-task"))?.priority).toBe("none")
+  })
+
   it("carries_TC-13_a_backlog_task_across_a_full_sync_round_trip_still_dateless_and_still_backlog", async () => {
     const now = new Date().toISOString()
     const taskId = "backlog-task"

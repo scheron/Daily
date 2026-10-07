@@ -107,8 +107,8 @@ export class LocalStorageAdapter implements ILocalStorage {
 
       if (docs.tasks.length) {
         const taskStmt = this.db.prepare(`
-          INSERT INTO tasks (id, status, content, minimized, order_index, scheduled_date, scheduled_time, scheduled_timezone, estimated_time, spent_time, branch_id, milestone_id, created_at, updated_at, deleted_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO tasks (id, status, content, minimized, order_index, scheduled_date, scheduled_time, scheduled_timezone, estimated_time, spent_time, branch_id, milestone_id, priority, created_at, updated_at, deleted_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           ON CONFLICT(id) DO UPDATE SET
             status             = excluded.status,
             content            = excluded.content,
@@ -121,6 +121,7 @@ export class LocalStorageAdapter implements ILocalStorage {
             spent_time         = excluded.spent_time,
             branch_id          = excluded.branch_id,
             milestone_id       = excluded.milestone_id,
+            priority           = excluded.priority,
             created_at         = excluded.created_at,
             updated_at         = excluded.updated_at,
             deleted_at         = excluded.deleted_at
@@ -144,6 +145,7 @@ export class LocalStorageAdapter implements ILocalStorage {
             t.spent_time,
             t.branch_id,
             t.milestone_id,
+            t.priority,
             t.created_at,
             t.updated_at,
             t.deleted_at,
@@ -355,6 +357,7 @@ export class LocalStorageAdapter implements ILocalStorage {
         spent_time: row.spent_time,
         branch_id: row.branch_id,
         milestone_id: row.milestone_id ?? null,
+        priority: row.priority as SnapshotTask["priority"],
         tags: tagRows.map((r) => r.tag_id),
         created_at: row.created_at,
         updated_at: row.updated_at,

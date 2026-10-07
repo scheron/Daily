@@ -101,6 +101,14 @@ describe("task activity recording", () => {
     expect(edits).toHaveLength(1)
   })
 
+  it("records an edit when only the priority changes", async () => {
+    const task = await service.createTask(makeTask())
+
+    await service.updateTask(task.id, {priority: "high"})
+
+    expect(events.getByTask(task.id).filter((e) => e.type === "edited")).toHaveLength(1)
+  })
+
   it("TC-2: an update carrying no source records the event as manual, with no provider", async () => {
     const task = await service.createTask(makeTask({content: "A"}))
 

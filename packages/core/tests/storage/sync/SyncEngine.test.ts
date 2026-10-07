@@ -47,6 +47,7 @@ function makeTask(id: string, updatedAt: string): SnapshotTask {
     spent_time: 0,
     branch_id: "main",
     milestone_id: null,
+    priority: "none",
     tags: [],
     created_at: updatedAt,
     updated_at: updatedAt,

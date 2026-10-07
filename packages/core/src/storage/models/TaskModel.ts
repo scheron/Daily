@@ -14,6 +14,7 @@ const TASK_SELECT = `
     t.status,
     t.content,
     t.minimized,
+    t.priority,
     t.order_index,
     t.scheduled_date,
     t.scheduled_time,
@@ -118,11 +119,11 @@ export class TaskModel {
         .prepare(
           `
         INSERT INTO tasks (
-          id, status, content, minimized, order_index,
+          id, status, content, minimized, priority, order_index,
           scheduled_date, scheduled_time, scheduled_timezone,
           estimated_time, spent_time, branch_id, milestone_id,
           created_at, updated_at, deleted_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
         )
         .run(
@@ -130,6 +131,7 @@ export class TaskModel {
           task.status,
           task.content,
           task.minimized ? 1 : 0,
+          task.priority,
           orderIndex,
           scheduledDate,
           scheduledTime,
@@ -178,6 +180,11 @@ export class TaskModel {
     if (notUndefined(updates.minimized)) {
       setClauses.push("minimized = ?")
       values.push(updates.minimized ? 1 : 0)
+    }
+
+    if (notUndefined(updates.priority)) {
+      setClauses.push("priority = ?")
+      values.push(updates.priority)
     }
 
     if (notUndefined(updates.orderIndex)) {

@@ -51,6 +51,7 @@ function makeTaskInput(overrides = {}) {
     status: "active",
     content: "Task",
     minimized: false,
+    priority: "none",
     orderIndex: 1024,
     scheduled: {date: "2026-03-24", time: "", timezone: "UTC"},
     estimatedTime: 0,

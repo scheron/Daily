@@ -35,11 +35,21 @@ export function useQuickTaskDraft() {
     status: draft.value.status,
     tags: draft.value.tags,
     milestoneId: draft.value.milestoneId,
+    priority: draft.value.priority,
   }))
 
   const isUntouched = computed(() => {
-    const {content, tags, estimatedTime, status, scheduled, milestoneId} = draft.value
-    return !content.trim() && !tags.length && !estimatedTime && status === "backlog" && !scheduled && !milestoneId && !projectPicked.value
+    const {content, tags, estimatedTime, status, scheduled, milestoneId, priority} = draft.value
+    return (
+      !content.trim() &&
+      !tags.length &&
+      !estimatedTime &&
+      status === "backlog" &&
+      !scheduled &&
+      !milestoneId &&
+      priority === "none" &&
+      !projectPicked.value
+    )
   })
 
   function patch(updates: Partial<TaskDraft>) {
@@ -80,7 +90,7 @@ export function useQuickTaskDraft() {
     refreshAutoDate()
     refreshProject()
 
-    const {content, tags, estimatedTime, status, branchId, scheduled, milestoneId} = draft.value
+    const {content, tags, estimatedTime, status, branchId, scheduled, milestoneId, priority} = draft.value
     const created = await tasksStore.createTask({
       content,
       tags,
@@ -89,6 +99,7 @@ export function useQuickTaskDraft() {
       branchId: branchId ?? undefined,
       status,
       milestoneId,
+      priority,
     })
     if (!created) return false
 
@@ -129,6 +140,7 @@ function emptyDraft(branchId: TaskDraft["branchId"]): TaskDraft {
     branchId,
     scheduled: null,
     milestoneId: null,
+    priority: "none",
     blockedBy: [],
     blocks: [],
   }

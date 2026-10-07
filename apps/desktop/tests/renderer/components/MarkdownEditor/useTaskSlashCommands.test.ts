@@ -29,7 +29,7 @@ describe("useTaskSlashCommands", () => {
     useBranchesStore().branches = [branch("daily", "Daily"), branch("main", "Main"), branch("zeta", "Zeta")]
     useMilestonesStore().milestones = [milestone("m2", "Beta", 2), milestone("m1", "Alpha", 1), milestone("m3", "Elsewhere", 0, "daily")]
 
-    task = ref({id: "x", branchId: "main", scheduled: null, estimatedTime: 0, tags: [], milestoneId: null})
+    task = ref({id: "x", branchId: "main", scheduled: null, estimatedTime: 0, tags: [], milestoneId: null, priority: "none"})
     patch = vi.fn()
     commands = useTaskSlashCommands(
       computed(() => task.value),
@@ -115,6 +115,22 @@ describe("useTaskSlashCommands", () => {
 
       items("Project", "daily")[0].apply()
       expect(patch).toHaveBeenCalledWith({branchId: "daily"})
+    })
+  })
+
+  describe("Priority", () => {
+    it("lists every level in order and filters by what was typed", () => {
+      expect(labels(items("Priority"))).toEqual(["No priority", "Urgent", "High", "Medium", "Low"])
+      expect(labels(items("Priority", "hi"))).toEqual(["High"])
+    })
+
+    it("sets the picked level only when it changes", () => {
+      task.value = {...task.value, priority: "low"}
+      items("Priority", "low")[0].apply()
+      expect(patch).not.toHaveBeenCalled()
+
+      items("Priority", "urgent")[0].apply()
+      expect(patch).toHaveBeenCalledWith({priority: "urgent"})
     })
   })
 

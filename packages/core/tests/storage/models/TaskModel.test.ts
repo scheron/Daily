@@ -21,6 +21,7 @@ function makeTaskInput(overrides = {}) {
     status: "active",
     content: "Test task",
     minimized: false,
+    priority: "none",
     orderIndex: 1024,
     scheduled: {date: "2026-03-24", time: "", timezone: "UTC"},
     estimatedTime: 0,
@@ -61,6 +62,15 @@ describe("TaskModel", () => {
     expect(task.createdAt).toBeTruthy()
     expect(task.updatedAt).toBeTruthy()
     expect(task.tags).toEqual([])
+  })
+
+  it("stores a task's priority, reads it back and updates it", () => {
+    const urgent = taskModel.createTask(makeTaskInput({priority: "urgent"}))
+    expect(urgent.priority).toBe("urgent")
+    expect(taskModel.getTask(urgent.id).priority).toBe("urgent")
+
+    expect(taskModel.updateTask(urgent.id, {priority: "low"}).priority).toBe("low")
+    expect(taskModel.updateTask(urgent.id, {content: "Other"}).priority).toBe("low")
   })
 
   it("creates a task with tags and reads them back", () => {

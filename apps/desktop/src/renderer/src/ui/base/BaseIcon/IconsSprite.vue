@@ -92,6 +92,11 @@ export type IconName =
   | "project"
   | "layers"
   | "milestone"
+  | "priority-none"
+  | "priority-urgent"
+  | "priority-high"
+  | "priority-medium"
+  | "priority-low"
   | "image"
   | "dots-horizontal"
   | "external-link"
@@ -886,6 +891,32 @@ export type IconName =
       <circle cx="15" cy="12" r="1" />
       <circle cx="15" cy="5" r="1" />
       <circle cx="15" cy="19" r="1" />
+    </symbol>
+    <symbol id="priority-none" viewBox="0 0 16 16" fill="currentColor">
+      <rect x="1" y="7" width="3.5" height="2" rx="1" />
+      <rect x="6.25" y="7" width="3.5" height="2" rx="1" />
+      <rect x="11.5" y="7" width="3.5" height="2" rx="1" />
+    </symbol>
+    <symbol id="priority-urgent" viewBox="0 0 16 16" fill="currentColor">
+      <path
+        fill-rule="evenodd"
+        d="M4 1h8a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H4a3 3 0 0 1-3-3V4a3 3 0 0 1 3-3Zm3.25 3.25v4.5a.75.75 0 0 0 1.5 0v-4.5a.75.75 0 0 0-1.5 0ZM8 12.6a.9.9 0 1 0 0-1.8.9.9 0 0 0 0 1.8Z"
+      />
+    </symbol>
+    <symbol id="priority-high" viewBox="0 0 16 16" fill="currentColor">
+      <rect x="1.5" y="9" width="3" height="5" rx="1" />
+      <rect x="6.5" y="6" width="3" height="8" rx="1" />
+      <rect x="11.5" y="3" width="3" height="11" rx="1" />
+    </symbol>
+    <symbol id="priority-medium" viewBox="0 0 16 16" fill="currentColor">
+      <rect x="1.5" y="9" width="3" height="5" rx="1" />
+      <rect x="6.5" y="6" width="3" height="8" rx="1" />
+      <rect x="11.5" y="3" width="3" height="11" rx="1" fill-opacity=".3" />
+    </symbol>
+    <symbol id="priority-low" viewBox="0 0 16 16" fill="currentColor">
+      <rect x="1.5" y="9" width="3" height="5" rx="1" />
+      <rect x="6.5" y="6" width="3" height="8" rx="1" fill-opacity=".3" />
+      <rect x="11.5" y="3" width="3" height="11" rx="1" fill-opacity=".3" />
     </symbol>
   </svg>
 </template>

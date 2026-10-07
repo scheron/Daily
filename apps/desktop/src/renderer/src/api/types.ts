@@ -1,4 +1,4 @@
-import type {Branch, Tag, Task, TaskStatus} from "@daily/protocol"
+import type {Branch, Tag, Task, TaskPriority, TaskStatus} from "@daily/protocol"
 
 /** `id`, when present, is the id the row is stored under. */
 export type CreateTaskParams = {
@@ -11,5 +11,6 @@ export type CreateTaskParams = {
   orderIndex?: number
   branchId?: Branch["id"]
   status?: TaskStatus
+  priority?: TaskPriority
   milestoneId?: Task["milestoneId"]
 }

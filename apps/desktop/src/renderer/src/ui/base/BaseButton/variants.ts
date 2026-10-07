@@ -104,6 +104,10 @@ export const buttonColorVariant = defineVariant({
           justify-start h-auto p-0 bg-transparent text-inherit font-medium
           opacity-60 hover:opacity-100 transition-opacity
       `,
+      "chip-remove": `
+          h-auto p-0 -mr-0.5 border-0 bg-transparent text-inherit
+          opacity-70 hover:opacity-100
+      `,
       link: `
           h-auto p-0 bg-transparent text-base-content/50 underline underline-offset-2
           hover:text-base-content

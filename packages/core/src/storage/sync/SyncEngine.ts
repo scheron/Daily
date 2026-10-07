@@ -563,6 +563,7 @@ function snapshotTaskToTask(row: SnapshotTask, tagsById: Map<string, Tag>): Task
     spentTime: row.spent_time,
     branchId: row.branch_id,
     milestoneId: row.milestone_id,
+    priority: row.priority as Task["priority"],
     tags: row.tags.map((id) => tagsById.get(id)).filter((tag): tag is Tag => Boolean(tag)),
     createdAt: row.created_at,
     updatedAt: row.updated_at,

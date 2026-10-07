@@ -1,7 +1,7 @@
 // @ts-nocheck
 import {describe, expect, it} from "vitest"
 
-import {planTaskMoveByOrder, planTaskUpdate} from "../../../src/utils/tasks/mutationRules"
+import {planTaskCreate, planTaskMoveByOrder, planTaskUpdate} from "../../../src/utils/tasks/mutationRules"
 import {sortTasksByOrderIndex} from "../../../src/utils/tasks/orderIndex"
 
 import type {Task} from "../../../src/types/storage"
@@ -30,6 +30,7 @@ function makeTask(overrides: Partial<Task> = {}): Task {
     spentTime: 0,
     content: "Task",
     minimized: false,
+    priority: "none",
     orderIndex: 1024,
     status: "active",
     tags: [],
@@ -224,5 +225,21 @@ describe("planTaskMoveByOrder when no integer gap fits", () => {
       expect(moved).toMatchObject({status: "backlog", scheduled: null})
       expect(orderAfter(tasks, params)).toEqual(["a", "c", "b"])
     })
+  })
+})
+
+describe("priority", () => {
+  it("a new task starts at none unless the draft names a level", () => {
+    const ctx = ctxFor([])
+
+    expect(planTaskCreate(ctx, {status: "active"}).priority).toBe("none")
+    expect(planTaskCreate(ctx, {status: "active", priority: "urgent"}).priority).toBe("urgent")
+  })
+
+  it("an update writes the priority it names and leaves it alone otherwise", () => {
+    const ctx = ctxFor([makeTask({priority: "high"})])
+
+    expect(planTaskUpdate(ctx, "t1", {priority: "none"})[0].priority).toBe("none")
+    expect(planTaskUpdate(ctx, "t1", {content: "x"})[0]).not.toHaveProperty("priority")
   })
 })

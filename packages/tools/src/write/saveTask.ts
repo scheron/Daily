@@ -6,10 +6,11 @@ import {ToolErrorCode} from "../errors/ToolErrorCode"
 import {readBoolean, readEnum, readInteger, readISODate, readISOTime, readString} from "../input"
 import {readTaskDetail} from "../readTaskDetail"
 
-import type {ISODate, ISOTime, Milestone, Tag, Task, TaskMovePosition, TaskScheduled, TaskStatus} from "@daily/protocol"
+import type {ISODate, ISOTime, Milestone, Tag, Task, TaskMovePosition, TaskPriority, TaskScheduled, TaskStatus} from "@daily/protocol"
 import type {Tool, ToolContext, ToolPropertySchema} from "../types"
 
 const TASK_STATUSES = ["active", "backlog", "done", "discarded"] as const
+const TASK_PRIORITIES = ["none", "urgent", "high", "medium", "low"] as const
 const MAX_BATCH_SIZE = 50
 
 type ParsedFields = {
@@ -18,6 +19,7 @@ type ParsedFields = {
   date?: ISODate | null
   time?: ISOTime
   status?: TaskStatus
+  priority?: TaskPriority
   milestoneId?: string | null
   tagIds?: string[]
   estimatedSeconds?: number
@@ -39,6 +41,7 @@ const TASK_ITEM_PROPERTIES: Record<string, ToolPropertySchema> = {
   date: {type: ["string", "null"], description: "The day the task is scheduled on, YYYY-MM-DD, or null to move it to the backlog."},
   time: {type: "string", description: 'The time of day, HH:mm or HH:mm:ss. Cannot be sent as null — clear a day with "date": null instead.'},
   status: {type: "string", description: "The task's status.", enum: TASK_STATUSES},
+  priority: {type: "string", description: 'The task\'s priority. "none" clears it. Defaults to "none" when creating.', enum: TASK_PRIORITIES},
   milestoneId: {type: ["string", "null"], description: "The milestone this task belongs to, from its own project, or null to clear it."},
   tagIds: {type: "array", description: "Replaces the task's whole tag set.", items: {type: "string", description: "A tag id."}},
   estimatedSeconds: {type: "integer", description: "The estimated time, in seconds.", minimum: 0},
@@ -63,7 +66,7 @@ const TASK_ITEM_PROPERTIES: Record<string, ToolPropertySchema> = {
 export const saveTaskTool: Tool = {
   name: "save_task",
   description:
-    'Creates a task when no id is given, or updates the one named. A day, time and status are worked out from what is given and the caller\'s own clock. Send "tasks" instead for a batch of up to 50, applied atomically.',
+    'Creates a task when no id is given, or updates the one named. A day, time and status are worked out from what is given and the caller\'s own clock. Priority is taken as sent, and a new task defaults to "none". Send "tasks" instead for a batch of up to 50, applied atomically.',
   mode: "write",
   inputSchema: {
     type: "object",
@@ -161,6 +164,7 @@ function parseFields(input: Record<string, unknown>): ParsedFields {
     date,
     time,
     status: readEnum(input, "status", TASK_STATUSES),
+    priority: readEnum(input, "priority", TASK_PRIORITIES),
     milestoneId,
     tagIds: readIdArray(input, "tagIds"),
     estimatedSeconds: readInteger(input, "estimatedSeconds", {min: 0}),
@@ -204,6 +208,7 @@ async function createTask(ctx: ToolContext, fields: ParsedFields): Promise<Task[
       branchId: projectId,
       scheduled,
       status,
+      priority: fields.priority ?? "none",
       milestoneId,
       tags,
       content: fields.content,
@@ -236,6 +241,7 @@ async function updateTask(ctx: ToolContext, id: Task["id"], fields: ParsedFields
 
   const updates: Partial<Task> = {}
   if (fields.content !== undefined) updates.content = fields.content
+  if (fields.priority !== undefined) updates.priority = fields.priority
   if (fields.estimatedSeconds !== undefined) updates.estimatedTime = fields.estimatedSeconds
   if (fields.addSpentSeconds !== undefined) updates.spentTime = Math.max(0, before.spentTime + fields.addSpentSeconds)
 

@@ -51,7 +51,7 @@ onBeforeUnmount(() => stopListeningMenu())
           {{ row.label }}
         </span>
         <span v-else class="cm-slash-option-row">
-          <span class="cm-slash-option-icon">
+          <span class="cm-slash-option-icon" :style="{color: row.iconColor}">
             <svg v-if="row.icon" width="16" height="16" aria-hidden="true"><use :href="`#${row.icon}`" /></svg>
           </span>
           <span class="cm-slash-option-label">{{ row.label }}</span>

@@ -181,6 +181,18 @@ describe("tasksStore", () => {
     expect(API.createTask).toHaveBeenCalledWith("no day yet", expect.objectContaining({status: "backlog", date: undefined}))
   })
 
+  it("duplicates a task with its priority", async () => {
+    const original = makeTask({id: "orig", status: "active", priority: "urgent", content: "pressing"})
+    API.getAllTasks.mockResolvedValue([original])
+
+    const store = await getStore()
+    await store.loadTasks()
+
+    await store.duplicateTask("orig")
+
+    expect(API.createTask).toHaveBeenCalledWith("pressing", expect.objectContaining({priority: "urgent"}))
+  })
+
   it("updateTask cleans the day a task left when a status change sends it to the backlog", async () => {
     const task = makeTask({id: "t1", status: "active"})
     API.getAllTasks.mockResolvedValue([task])

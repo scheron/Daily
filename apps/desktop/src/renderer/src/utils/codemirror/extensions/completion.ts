@@ -19,8 +19,8 @@ import type {QuickTaskMenu} from "@shared/types/quickTask"
 
 type SlashItem = {label: string; icon: IconName; run: (view: EditorView) => boolean}
 
-/** One choice in a command's second-level list. A `color` renders it as a tag chip, otherwise it needs an `icon` for a plain row. */
-export type NestedItem = {label: string; icon?: IconName; color?: string; apply: () => void}
+/** One choice in a command's second-level list. A `color` renders it as a tag chip, otherwise it needs an `icon` for a plain row, which `iconColor` can tint. */
+export type NestedItem = {label: string; icon?: IconName; iconColor?: string; color?: string; apply: () => void}
 
 /** A `/` command that opens a second-level list. `getItems` receives what was typed after the command and does its own filtering. */
 export type NestedCommand = {
@@ -33,7 +33,7 @@ export type NestedCommand = {
 
 export type SlashCommandsOptions = {commands: NestedCommand[]}
 
-type OptionMeta = {icon?: IconName; color?: string; tone?: "remove"}
+type OptionMeta = {icon?: IconName; iconColor?: string; color?: string; tone?: "remove"}
 
 const SLASH_ITEMS: SlashItem[] = [
   {label: "Divider", icon: "minus", run: blockCommands.insertHorizontalRule},
@@ -85,6 +85,7 @@ export function createCompletionExtension(options?: SlashCommandsOptions, onMenu
             row.className = "cm-slash-option-row"
             const iconEl = document.createElement("span")
             iconEl.className = "cm-slash-option-icon"
+            if (meta.iconColor) iconEl.style.color = meta.iconColor
             iconEl.innerHTML = `<svg width="16" height="16" aria-hidden="true"><use href="#${meta.icon}" /></svg>`
             const labelEl = document.createElement("span")
             labelEl.className = "cm-slash-option-label"
@@ -129,7 +130,13 @@ function toMenu(view: EditorView, metaByCompletion: WeakMap<Completion, OptionMe
 
   const rows = currentCompletions(state).map((completion) => {
     const meta = metaByCompletion.get(completion)
-    return {label: meta?.color ? completion.label : completion.label.replace(/^\//, ""), icon: meta?.icon, color: meta?.color, tone: meta?.tone}
+    return {
+      label: meta?.color ? completion.label : completion.label.replace(/^\//, ""),
+      icon: meta?.icon,
+      iconColor: meta?.iconColor,
+      color: meta?.color,
+      tone: meta?.tone,
+    }
   })
 
   return {rows, selected: selectedCompletionIndex(state) ?? 0, caretX: view.coordsAtPos(state.selection.main.head)?.left ?? 0}
@@ -175,7 +182,7 @@ function createNestedCompletionSource(
           view.focus()
         },
       }
-      metaByCompletion.set(completion, {icon: item.icon, color: item.color, tone: command.tone})
+      metaByCompletion.set(completion, {icon: item.icon, iconColor: item.iconColor, color: item.color, tone: command.tone})
       return completion
     })
 

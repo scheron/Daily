@@ -9,6 +9,7 @@ export function shallowEqualDraft(a: TaskDraft, b: TaskDraft): boolean {
     a.estimatedTime === b.estimatedTime &&
     a.spentTime === b.spentTime &&
     a.status === b.status &&
+    a.priority === b.priority &&
     a.branchId === b.branchId &&
     a.milestoneId === b.milestoneId &&
     a.scheduled?.date === b.scheduled?.date &&

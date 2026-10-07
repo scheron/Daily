@@ -8,7 +8,7 @@ export const TAG_COLOR_PALETTE = {
 export const TAG_QUICK_COLORS: readonly string[] = TAG_COLOR_PALETTE.to
 
 /** Named preset colors offered when creating a tag (Linear-style fixed palette). */
-export const TAG_PRESET_COLORS: readonly TagPresetColor[] = [
+export const TAG_PRESET_COLORS = [
   {name: "Grey", value: "#bec2c8"},
   {name: "Dark Grey", value: "#838b96"},
   {name: "Slate", value: "#64748b"},
@@ -28,4 +28,6 @@ export const TAG_PRESET_COLORS: readonly TagPresetColor[] = [
   {name: "Rose", value: "#f43f5e"},
   {name: "Pink", value: "#f178b6"},
   {name: "Brown", value: "#a3744f"},
-]
+] as const satisfies readonly TagPresetColor[]
+
+export type TagPresetColorName = (typeof TAG_PRESET_COLORS)[number]["name"]

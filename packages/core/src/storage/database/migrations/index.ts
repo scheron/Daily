@@ -14,7 +14,8 @@ import {v013} from "./v013-task-comments"
 import {v014} from "./v014-task-comment-origin-split"
 import {v015} from "./v015-task-event-actor"
 import {v016} from "./v016-attachments-into-content"
+import {v017} from "./v017-task-priority"
 
 import type {Migration} from "../scripts/migrate"
 
-export const migrations: Migration[] = [v001, v002, v003, v004, v005, v006, v007, v008, v009, v010, v011, v012, v013, v014, v015, v016]
+export const migrations: Migration[] = [v001, v002, v003, v004, v005, v006, v007, v008, v009, v010, v011, v012, v013, v014, v015, v016, v017]

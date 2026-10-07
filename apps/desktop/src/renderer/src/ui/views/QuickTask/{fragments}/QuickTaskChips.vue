@@ -7,8 +7,11 @@ import {toDateLabel} from "@daily/std"
 
 import {useBranchesStore} from "@/stores/branches.store"
 import {useMilestonesStore} from "@/stores/milestones.store"
+import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
+import PriorityIcon from "@/ui/common/priority/PriorityIcon.vue"
 import {toShortDurationLabel} from "@/utils/date/toShortDurationLabel"
+import {getPriorityLevel} from "@/utils/priority/getPriorityLevel"
 import {cn} from "@/utils/ui/tailwindcss"
 
 import type {TaskDraft} from "@/types/taskDraft"
@@ -23,6 +26,7 @@ const milestonesStore = useMilestonesStore()
 
 const projectName = computed(() => branchesStore.branchesMap.get(props.task.branchId)?.name ?? "")
 const milestoneName = computed(() => (props.task.milestoneId ? (milestonesStore.milestonesMap.get(props.task.milestoneId)?.name ?? "") : ""))
+const priorityLevel = computed(() => getPriorityLevel(props.task.priority))
 const statusView = computed(() => getStatusView(props.task.status))
 const dateLabel = computed(() => (props.task.scheduled ? getDateLabel(props.task.scheduled.date) : ""))
 const estimateLabel = computed(() => toShortDurationLabel(props.task.estimatedTime))
@@ -68,14 +72,9 @@ function removeTag(tag: Tag) {
     <span v-if="milestoneName" data-chip="milestone" :class="getChipClasses()">
       <BaseIcon name="milestone" class="size-3.5" />
       <span>{{ milestoneName }}</span>
-      <button
-        type="button"
-        class="-mr-0.5 inline-flex cursor-pointer opacity-70 hover:opacity-100"
-        aria-label="Remove milestone"
-        @click="emit('patch', {milestoneId: null})"
-      >
+      <BaseButton variant="chip-remove" aria-label="Remove milestone" @click="emit('patch', {milestoneId: null})">
         <BaseIcon name="x" class="size-3" />
-      </button>
+      </BaseButton>
     </span>
 
     <span data-chip="status" :class="getChipClasses(statusView.classes)">
@@ -83,43 +82,36 @@ function removeTag(tag: Tag) {
       <span>{{ statusView.label }}</span>
     </span>
 
+    <span v-if="task.priority !== 'none'" data-chip="priority" :class="getChipClasses()">
+      <PriorityIcon :priority="task.priority" class="size-3.5" />
+      <span>{{ priorityLevel.label }}</span>
+      <BaseButton variant="chip-remove" aria-label="Remove priority" @click="emit('patch', {priority: 'none'})">
+        <BaseIcon name="x" class="size-3" />
+      </BaseButton>
+    </span>
+
     <span v-if="task.scheduled" data-chip="date" :class="getChipClasses()">
       <BaseIcon name="calendar" class="size-3.5" />
       <span>{{ dateLabel }}</span>
-      <button
-        type="button"
-        class="-mr-0.5 inline-flex cursor-pointer opacity-70 hover:opacity-100"
-        aria-label="Remove date"
-        @click="emit('patch', {scheduled: null})"
-      >
+      <BaseButton variant="chip-remove" aria-label="Remove date" @click="emit('patch', {scheduled: null})">
         <BaseIcon name="x" class="size-3" />
-      </button>
+      </BaseButton>
     </span>
 
     <span v-if="task.estimatedTime" data-chip="estimate" :class="getChipClasses()">
       <BaseIcon name="stopwatch" class="size-3.5" />
       <span>{{ estimateLabel }}</span>
-      <button
-        type="button"
-        class="-mr-0.5 inline-flex cursor-pointer opacity-70 hover:opacity-100"
-        aria-label="Remove estimate"
-        @click="emit('patch', {estimatedTime: 0})"
-      >
+      <BaseButton variant="chip-remove" aria-label="Remove estimate" @click="emit('patch', {estimatedTime: 0})">
         <BaseIcon name="x" class="size-3" />
-      </button>
+      </BaseButton>
     </span>
 
     <span v-for="tag in tags" :key="tag.id" data-chip="tag" :class="getChipClasses()" :style="getTagStyle(tag)">
       <span>#</span>
       <span>{{ tag.name }}</span>
-      <button
-        type="button"
-        class="-mr-0.5 inline-flex cursor-pointer opacity-70 hover:opacity-100"
-        :aria-label="`Remove ${tag.name}`"
-        @click="removeTag(tag)"
-      >
+      <BaseButton variant="chip-remove" :aria-label="`Remove ${tag.name}`" @click="removeTag(tag)">
         <BaseIcon name="x" class="size-3" />
-      </button>
+      </BaseButton>
     </span>
   </div>
 </template>

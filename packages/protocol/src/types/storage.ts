@@ -12,6 +12,9 @@ export type SyncRemoteState = {
   lastError: string | null
 }
 export type TaskStatus = "active" | "backlog" | "discarded" | "done"
+
+/** How urgent a task is. `none` is a level of its own: every task has one, and a new task starts there. */
+export type TaskPriority = "none" | "urgent" | "high" | "medium" | "low"
 export type TaskMovePosition = "before" | "after"
 
 export type MainWindowSettings = {
@@ -191,6 +194,8 @@ export type Task = {
    */
   orderIndex: number
   status: TaskStatus
+  /** @default "none" */
+  priority: TaskPriority
   /** Always its own project's: a move to another project drops the tags it brought along. */
   tags: Tag[]
   /** The milestone this task is part of. Always one of its own project's, or `null`. */

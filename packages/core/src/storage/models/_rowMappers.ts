@@ -27,6 +27,7 @@ type TaskRow = {
   status: string
   content: string
   minimized: number
+  priority: string
   order_index: number
   scheduled_date: string | null
   scheduled_time: string | null
@@ -131,6 +132,7 @@ export function rowToTask(row: TaskRow): Task {
     status: row.status as Task["status"],
     content: row.content,
     minimized: row.minimized === 1,
+    priority: row.priority as Task["priority"],
     orderIndex,
     scheduled:
       row.scheduled_date === null

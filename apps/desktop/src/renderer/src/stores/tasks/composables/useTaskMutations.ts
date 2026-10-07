@@ -53,6 +53,7 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
     date?: ISODate
     branchId?: Branch["id"]
     status?: TaskStatus
+    priority?: Task["priority"]
     milestoneId?: Task["milestoneId"]
   }): Promise<Task | null> {
     const isBacklog = params.status === "backlog"
@@ -71,6 +72,7 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
       orderIndex: getPreviousTaskOrderIndex(dailyTasks.value),
       branchId: params.branchId ?? activeBranchId.value,
       status: params.status,
+      priority: params.priority,
       milestoneId: params.milestoneId,
     })
 
@@ -78,6 +80,7 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
       content: params.content,
       status: request.status ?? "active",
       minimized: false,
+      priority: request.priority ?? "none",
       tags: request.tags ?? [],
       estimatedTime: request.estimatedTime ?? 0,
       spentTime: 0,
@@ -107,6 +110,7 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
       date: task.scheduled?.date,
       branchId: task.branchId,
       status: isBacklog ? "backlog" : "active",
+      priority: task.priority,
     })
 
     return notNull(created)

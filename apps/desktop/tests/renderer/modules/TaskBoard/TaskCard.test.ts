@@ -20,6 +20,7 @@ function makeTask(overrides = {}) {
     status: "active",
     content: "task",
     minimized: false,
+    priority: "none",
     orderIndex: 1024,
     scheduled: {date: "2026-01-01", time: "09:00", timezone: "UTC"},
     estimatedTime: 0,
@@ -154,6 +155,27 @@ describe("TaskCard — the footer numbers", () => {
         .map((icon) => icon.attributes("href")),
     ).toEqual(["#ban"])
     expect(footerText()).toBe("1")
+  })
+
+  it("draws_a_footer_with_only_the_priority_icon_for_a_task_that_has_a_priority_and_nothing_else", async () => {
+    await setup(makeTask({priority: "high"}))
+
+    expect(footer().exists()).toBe(true)
+    expect(footer().find('use[href="#priority-high"]').exists()).toBe(true)
+  })
+
+  it("keeps_the_priority_icon_as_the_rightmost_footer_element_after_the_numbers", async () => {
+    await setup(makeTask({priority: "high", estimatedTime: 3600}))
+
+    const icon = footer().find('use[href="#priority-high"]').element.closest("svg")
+    expect(footer().element.lastElementChild).toBe(icon)
+    expect(footerText()).toContain("– / 1h")
+  })
+
+  it("draws_no_priority_icon_when_the_priority_is_none", async () => {
+    await setup(makeTask({priority: "none"}), {"task-1": 2})
+
+    expect(wrapper.find('use[href^="#priority-"]').exists()).toBe(false)
   })
 
   it("draws_no_footer_for_a_task_with_neither_tags_nor_numbers", async () => {

@@ -199,6 +199,26 @@ describe("the Quick task window view", () => {
     expect(bridge["tasks:create"]).toHaveBeenCalledWith(expect.objectContaining({content: "Ship it", branchId: "main", milestoneId: "m1", tags: []}))
   })
 
+  it("a picked priority shows as a chip with its name, resets with its remove button, and is saved with the task", async () => {
+    const editor = await mountView()
+    editor.vm.$emit("update:content", "Pressing")
+    editor.vm.$emit("patch", {priority: "low"})
+    await flushPromises()
+
+    expect(chips()).toEqual(["project", "status", "priority"])
+    expect(wrapper.find("[data-chip=priority]").text()).toBe("Low")
+
+    await wrapper.find("[data-chip=priority] button").trigger("click")
+    expect(chips()).toEqual(["project", "status"])
+
+    editor.vm.$emit("patch", {priority: "low"})
+    await flushPromises()
+    pressCmdEnter()
+    await flushPromises()
+
+    expect(bridge["tasks:create"]).toHaveBeenCalledWith(expect.objectContaining({content: "Pressing", priority: "low"}))
+  })
+
   it("Cmd+Enter with empty content saves nothing", async () => {
     await mountView()
 

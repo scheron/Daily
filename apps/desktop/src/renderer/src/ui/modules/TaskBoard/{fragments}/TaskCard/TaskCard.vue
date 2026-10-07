@@ -20,10 +20,12 @@ import BaseIcon from "@/ui/base/BaseIcon"
 import TaskCalendar from "@/ui/common/calendar/TaskCalendar"
 import BranchCombobox from "@/ui/common/comboboxes/BranchCombobox.vue"
 import MilestoneCombobox from "@/ui/common/comboboxes/MilestoneCombobox.vue"
+import PriorityCombobox from "@/ui/common/comboboxes/PriorityCombobox.vue"
 import TagsCombobox from "@/ui/common/comboboxes/TagsCombobox.vue"
 import TaskLinkCombobox from "@/ui/common/comboboxes/TaskLinkCombobox.vue"
 import MarkdownContent from "@/ui/common/misc/MarkdownContent.vue"
 import EstimationPicker from "@/ui/common/pickers/EstimationPicker"
+import PriorityIcon from "@/ui/common/priority/PriorityIcon.vue"
 import {useConfirmUnsavedModal} from "@/ui/overlays/ConfirmUnsavedModal"
 import {toShortDurationLabel} from "@/utils/date/toShortDurationLabel"
 import {cn} from "@/utils/ui/tailwindcss"
@@ -69,7 +71,8 @@ const footerDayLabel = computed(() => {
 
 const hasTime = computed(() => Boolean(estimateLabel.value) || Boolean(spentLabel.value))
 const hasMetrics = computed(() => hasRelation.value || Boolean(footerDayLabel.value) || hasTime.value || commentCount.value > 0)
-const hasFooter = computed(() => tags.value.length > 0 || hasMetrics.value)
+const hasPriority = computed(() => props.task.priority !== "none")
+const hasFooter = computed(() => tags.value.length > 0 || hasMetrics.value || hasPriority.value)
 
 const currentRelations = computed<TaskRelationSets>(() => {
   const related = taskRelationsStore.relatedTasksByTaskId.get(props.task.id)
@@ -99,6 +102,7 @@ const menuItems = computed<BaseContextMenuItem[]>(() => {
     {separator: true},
     {value: "branch", label: "Project", icon: "project", children: true},
     {value: "milestone", label: "Milestone", icon: "milestone", children: true},
+    {value: "priority", label: "Priority", icon: "priority-high", children: true},
     {separator: true},
     {value: "time-estimate", label: "Time estimate", icon: "stopwatch", children: true},
     {
@@ -169,6 +173,10 @@ function getCardClasses(status: TaskStatus, isInSession: boolean) {
   )
 }
 
+function getPriorityClasses(hasMetrics: boolean) {
+  return cn("size-4 shrink-0", !hasMetrics && "ml-auto")
+}
+
 function getSpentClasses(hasSpent: boolean) {
   return cn("text-base-content/55", hasSpent && "text-base-content")
 }
@@ -211,7 +219,7 @@ async function onLinkTask(side: keyof TaskRelationSets, taskId: Task["id"]) {
 <template>
   <BaseContextMenu ref="contextMenu" :items="menuItems" @select="onSelect">
     <div :id="task.id" :class="getCardClasses(task.status, isInSession)" :style="{height: `${BOARD_CARD_HEIGHT}px`}" @click.stop="onCardClick">
-      <div class="relative z-10 flex h-full w-full flex-col gap-2 px-4 pb-3 pt-3.5">
+      <div class="relative z-10 flex h-full w-full flex-col gap-2 px-4 pt-3.5 pb-3">
         <CardCrumb v-if="projectName || milestone" :project-name="projectName" :milestone="milestone" />
 
         <div :class="getContentClasses(task.status)">
@@ -239,6 +247,8 @@ async function onLinkTask(side: keyof TaskRelationSets, taskId: Task["id"]) {
               <span>{{ commentCount }}</span>
             </div>
           </div>
+
+          <PriorityIcon v-if="hasPriority" :priority="task.priority" :class="getPriorityClasses(hasMetrics)" />
         </div>
       </div>
 
@@ -255,6 +265,10 @@ async function onLinkTask(side: keyof TaskRelationSets, taskId: Task["id"]) {
 
     <template #child-milestone>
       <MilestoneCombobox :task="task" @update="taskModel.updateTaskMilestone" @close="contextMenuRef?.close()" />
+    </template>
+
+    <template #child-priority>
+      <PriorityCombobox :priority="task.priority" @update="taskModel.updateTaskPriority" @close="contextMenuRef?.close()" />
     </template>
 
     <template #child-blocked-by>

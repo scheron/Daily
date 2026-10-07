@@ -1,6 +1,6 @@
 import type {ButtonColorVariant} from "@/ui/base/BaseButton"
 import type {IconName} from "@/ui/base/BaseIcon"
-import type {TaskStatus} from "@daily/protocol"
+import type {TaskPriority, TaskStatus} from "@daily/protocol"
 
 export type TaskColumn = {
   status: TaskStatus
@@ -11,3 +11,5 @@ export type TaskColumn = {
   counterClass: string
   buttonVariant: ButtonColorVariant
 }
+
+export type PriorityLevel = {value: TaskPriority; label: string; color: string}

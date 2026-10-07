@@ -654,6 +654,7 @@ describe("migrations", () => {
       expect(task).toBeDefined()
       expect(task.content).toBe("Keep me")
 
+      rollbackLastMigration(db) // v017
       rollbackLastMigration(db) // v016
       rollbackLastMigration(db) // v015
       rollbackLastMigration(db) // v014
@@ -725,6 +726,7 @@ describe("migrations", () => {
       seedComment(db, "typed", null)
       runMigrations(db)
 
+      rollbackLastMigration(db) // v017
       rollbackLastMigration(db) // v016
       rollbackLastMigration(db) // v015
       expect(rollbackLastMigration(db)).toBe(14)
@@ -802,6 +804,7 @@ describe("migrations", () => {
       const task = db.prepare("SELECT * FROM tasks WHERE id = 't1'").get()
       expect(task.content).toBe("Keep me")
 
+      rollbackLastMigration(db) // v017
       rollbackLastMigration(db) // v016
       rollbackLastMigration(db) // v015
       expect(rollbackLastMigration(db)).toBe(14)
@@ -906,6 +909,47 @@ describe("migrations", () => {
         .all()
         .map((i) => i.name)
       expect(indexes).not.toContain("idx_task_attachments_file")
+
+      db.close()
+    })
+  })
+
+  describe("v017 — task priority", () => {
+    function seedThroughV16(db) {
+      db.exec(`CREATE TABLE _migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)`)
+      for (const migration of migrations.filter((m) => m.version <= 16)) {
+        if (typeof migration.up === "string") db.exec(migration.up)
+        else migration.up(db)
+        db.prepare("INSERT INTO _migrations (version, name, applied_at) VALUES (?, ?, ?)").run(
+          migration.version,
+          migration.name,
+          "2026-01-01T00:00:00.000Z",
+        )
+      }
+    }
+
+    it("reads_every_task_that_existed_before_as_none_and_rolls_back_cleanly", () => {
+      const db = new Database(":memory:")
+      db.pragma("foreign_keys = ON")
+      seedThroughV16(db)
+
+      const now = new Date().toISOString()
+      db.prepare(
+        `INSERT INTO tasks (id, status, content, minimized, order_index, scheduled_date, scheduled_time, scheduled_timezone, estimated_time, spent_time, branch_id, created_at, updated_at)
+         VALUES ('t1', 'active', 'Old', 0, 1024, '2026-03-24', '10:00:00', 'UTC', 0, 0, 'main', ?, ?)`,
+      ).run(now, now)
+
+      runMigrations(db)
+
+      expect(db.prepare("SELECT priority FROM tasks WHERE id = 't1'").get().priority).toBe("none")
+
+      expect(rollbackLastMigration(db)).toBe(17)
+      const columns = db
+        .prepare("PRAGMA table_info(tasks)")
+        .all()
+        .map((c) => c.name)
+      expect(columns).not.toContain("priority")
+      expect(db.prepare("SELECT content FROM tasks WHERE id = 't1'").get().content).toBe("Old")
 
       db.close()
     })

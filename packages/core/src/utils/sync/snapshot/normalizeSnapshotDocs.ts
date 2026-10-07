@@ -6,7 +6,7 @@ import type {SnapshotDocs, SnapshotFile, SnapshotTask} from "@daily/protocol"
 
 /**
  * Fills what an older snapshot does not carry: the `milestones`, `relations` and `comments` collections, a
- * task's `milestone_id`, a tag's `branch_id`, a branch's `description`, and an event's `kind`/`provider`.
+ * task's `milestone_id` and `priority` (`none`), a tag's `branch_id`, a branch's `description`, and an event's `kind`/`provider`.
  * Drops what an older snapshot carries and this one no longer has — the `settings` document, local to
  * each device since v7, and a task's `attachments`, folded into its `content` as file links since v10.
  * Called on both sides of a merge so no reader downstream has to defend itself.
@@ -16,7 +16,9 @@ export function normalizeSnapshotDocs(docs: SnapshotDocs): SnapshotDocs {
 
   return {
     ...rest,
-    tasks: docs.tasks.map((task) => foldAttachmentsIntoContent({...task, milestone_id: task.milestone_id ?? null}, docs.files)),
+    tasks: docs.tasks.map((task) =>
+      foldAttachmentsIntoContent({...task, milestone_id: task.milestone_id ?? null, priority: task.priority ?? "none"}, docs.files),
+    ),
     tags: docs.tags.map((tag) => ({...tag, branch_id: tag.branch_id ?? MAIN_BRANCH_ID})),
     branches: docs.branches.map((branch) => ({...branch, description: branch.description ?? ""})),
     milestones: docs.milestones ?? [],
