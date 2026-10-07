@@ -25,6 +25,7 @@ import type {
   ServerAgentsView,
   ServerBindingView,
   ServerConnectionStateView,
+  ServerConnectionStatus,
   ServerInfo,
   ServerMembershipView,
   ServerProbeView,
@@ -57,8 +58,8 @@ type ServerProviderDeps = {
   onRoleChanged?: (role: DeviceRole) => void
   /** Fires once on the tick that first finds whether this server accepts agents changed. */
   onAgentsAcceptedChanged?: (acceptsAgents: boolean) => void
-  /** Fires on the second failed probe in a row, and again on the first probe the server answers after that. */
-  onReachabilityChanged?: (isReachable: boolean) => void
+  /** Fires when the probe starts and stops, on its first answer, on the second failed probe in a row, and on the first answer after that. */
+  onConnectionChanged?: (connection: ServerConnectionStatus) => void
 }
 
 type EnrollmentTicket = {requestId: string; code: string; pollToken: string; expiresAt: string}
@@ -91,7 +92,7 @@ export class ServerProviderService implements IServerProvider {
   private revoked = false
   private mismatch: ProtocolMismatchView | null = null
   private failedProbes = 0
-  private isUnreachable = false
+  private connection: ServerConnectionStatus = "idle"
 
   constructor(private readonly deps: ServerProviderDeps) {}
 
@@ -103,7 +104,7 @@ export class ServerProviderService implements IServerProvider {
   /** The binding this device holds, whether the server has since refused its credential, any protocol mismatch, and whether the server answers, in one call. */
   async getState(): Promise<ServerConnectionStateView> {
     const binding = (await this.deps.loadSettings()).sync.server.binding
-    return {binding: binding ? toBindingView(binding) : null, revoked: this.revoked, mismatch: this.mismatch, isReachable: !this.isUnreachable}
+    return {binding: binding ? toBindingView(binding) : null, revoked: this.revoked, mismatch: this.mismatch, connection: this.connection}
   }
 
   /**
@@ -112,7 +113,7 @@ export class ServerProviderService implements IServerProvider {
    * then came from the sync itself.
    */
   async retry(): Promise<void> {
-    if (this.isUnreachable) await this.probeTick()
+    if (this.connection === "unreachable") await this.probeTick()
     else await this.deps.runSyncCycle()
   }
 
@@ -335,6 +336,7 @@ export class ServerProviderService implements IServerProvider {
    */
   startProbe(): void {
     if (this.probeScheduler) return
+    this.setConnection("connecting")
     this.startProbeScheduler(SYNC_PROTOCOL_CONFIG.revisionProbeIntervalMs)
   }
 
@@ -364,7 +366,7 @@ export class ServerProviderService implements IServerProvider {
     this.probeInFlight = false
     this.probeGeneration++
     this.failedProbes = 0
-    if (this.isUnreachable) this.markReachable()
+    this.setConnection("idle")
   }
 
   private async assertCanBind(confirmInsecure: boolean): Promise<ConnectionAttempt> {
@@ -520,9 +522,9 @@ export class ServerProviderService implements IServerProvider {
 
       if (this.probeGeneration !== generation) return
 
-      const hasReconnected = this.isUnreachable
+      const hasReconnected = this.connection === "unreachable"
       this.failedProbes = 0
-      if (hasReconnected) this.markReachable()
+      this.setConnection("connected")
 
       const serverProtocol = probe.protocol ?? 1
       if (serverProtocol !== SYNC_PROTOCOL_VERSION) {
@@ -657,16 +659,16 @@ export class ServerProviderService implements IServerProvider {
     }
 
     logger.debug(logger.CONTEXT.SYNC_REMOTE, "Revision probe failed again; will retry on the next interval", error)
-    if (this.isUnreachable) return
+    if (this.connection === "unreachable") return
 
     logger.warn(logger.CONTEXT.SYNC_REMOTE, "The Daily Sync Server stopped answering; probing until it does")
-    this.isUnreachable = true
-    this.deps.onReachabilityChanged?.(false)
+    this.setConnection("unreachable")
   }
 
-  private markReachable(): void {
-    this.isUnreachable = false
-    this.deps.onReachabilityChanged?.(true)
+  private setConnection(next: ServerConnectionStatus): void {
+    if (this.connection === next) return
+    this.connection = next
+    this.deps.onConnectionChanged?.(next)
   }
 
   private startProbeScheduler(intervalMs: number): void {

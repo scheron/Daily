@@ -33,12 +33,15 @@ export type ServerBindingView = {
 /** The two protocol versions a bound device found disagreeing, the last time it checked. */
 export type ProtocolMismatchView = {appProtocol: number; serverProtocol: number}
 
-/** The binding this device holds, whether the server has since refused its credential, any protocol mismatch, and whether the server answers at all. */
+/** Where this device's link to its server stands: no probe running, waiting on the first answer, answering, or silent for two probes in a row. */
+export type ServerConnectionStatus = "idle" | "connecting" | "connected" | "unreachable"
+
+/** The binding this device holds, whether the server has since refused its credential, any protocol mismatch, and where the connection to it stands. */
 export type ServerConnectionStateView = {
   binding: ServerBindingView | null
   revoked: boolean
   mismatch: ProtocolMismatchView | null
-  isReachable: boolean
+  connection: ServerConnectionStatus
 }
 
 /** The short code this device displays while it waits for a peer to approve its enrollment. */

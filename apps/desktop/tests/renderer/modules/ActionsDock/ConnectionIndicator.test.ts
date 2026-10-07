@@ -7,7 +7,7 @@ import {mount} from "@vue/test-utils"
 import {mockBridgeIPC} from "../../../helpers/bridgeIPC"
 import {makeBinding} from "../../../helpers/syncServerFixtures"
 
-describe("ConnectionIndicator — the dock tells when the sync server stops and starts answering", () => {
+describe("ConnectionIndicator — the dock tells when the sync server is being reached, answers, and stops answering", () => {
   let wrapper = null
   let bridge = null
 
@@ -21,18 +21,18 @@ describe("ConnectionIndicator — the dock tells when the sync server stops and 
     vi.useRealTimers()
   })
 
-  async function setup({provider = "server", isReachable = false} = {}) {
+  async function setup({provider = "server", connection = "unreachable"} = {}) {
     bridge = mockBridgeIPC({
       "settings:load": vi.fn().mockResolvedValue({
         sync: {iCloud: {enabled: provider === "icloud"}, server: {enabled: provider === "server", binding: makeBinding()}},
         branch: {activeId: "main"},
       }),
-      "sync-server:get-state": vi.fn().mockResolvedValue({binding: makeBinding(), revoked: false, mismatch: null, isReachable}),
+      "sync-server:get-state": vi.fn().mockResolvedValue({binding: makeBinding(), revoked: false, mismatch: null, connection}),
       "sync-server:on-revoked": vi.fn(),
       "sync-server:on-protocol-mismatch-changed": vi.fn(),
       "sync-server:on-role-changed": vi.fn(),
       "sync-server:on-agents-accepted-changed": vi.fn(),
-      "sync-server:on-reachability-changed": vi.fn(),
+      "sync-server:on-connection-changed": vi.fn(),
       "sync-server:list-membership": vi.fn().mockResolvedValue({devices: [], enrollmentWindow: null}),
       "sync-server:list-agents": vi.fn().mockResolvedValue({agents: [], agentWindow: null}),
     })
@@ -48,35 +48,57 @@ describe("ConnectionIndicator — the dock tells when the sync server stops and 
     await wrapper.vm.$nextTick()
   }
 
-  function reachabilityListener() {
-    return bridge["sync-server:on-reachability-changed"].mock.calls[0][0]
+  function connectionListener() {
+    return bridge["sync-server:on-connection-changed"].mock.calls[0][0]
   }
 
-  it("shows Reconnecting only while the server is the provider and does not answer", async () => {
-    await setup({provider: "icloud", isReachable: false})
-    expect(wrapper.text()).toBe("")
+  it("shows nothing while another provider syncs", async () => {
+    await setup({provider: "icloud", connection: "unreachable"})
 
-    await setup({provider: "server", isReachable: false})
-    expect(wrapper.text()).toContain("Reconnecting…")
+    expect(wrapper.text()).toBe("")
   })
 
-  it("shows Reconnected on the answer after a silence, then clears it after two and a half seconds", async () => {
-    await setup({isReachable: false})
+  it("shows Connecting until the first answer, then Connected for two and a half seconds", async () => {
+    await setup({connection: "connecting"})
+    expect(wrapper.text()).toContain("Connecting…")
 
-    reachabilityListener()(true)
+    connectionListener()("connected")
     await settle()
-    expect(wrapper.text()).toContain("Reconnected")
+    expect(wrapper.text()).toContain("Connected")
 
     await vi.advanceTimersByTimeAsync(2499)
-    expect(wrapper.text()).toContain("Reconnected")
+    expect(wrapper.text()).toContain("Connected")
 
     await vi.advanceTimersByTimeAsync(1)
     await settle()
     expect(wrapper.text()).toBe("")
   })
 
+  it("shows Connected when the app opens on a server that already answered", async () => {
+    await setup({connection: "connected"})
+
+    expect(wrapper.text()).toContain("Connected")
+
+    await vi.advanceTimersByTimeAsync(2500)
+    await settle()
+    expect(wrapper.text()).toBe("")
+  })
+
+  it("shows Reconnecting while the server does not answer, and Reconnected on the answer after it", async () => {
+    await setup({connection: "unreachable"})
+    expect(wrapper.text()).toContain("Reconnecting…")
+
+    connectionListener()("connected")
+    await settle()
+    expect(wrapper.text()).toContain("Reconnected")
+
+    await vi.advanceTimersByTimeAsync(2500)
+    await settle()
+    expect(wrapper.text()).toBe("")
+  })
+
   it("asks main to retry the server when Try again is pressed", async () => {
-    await setup({isReachable: false})
+    await setup({connection: "unreachable"})
 
     await wrapper.find("button").trigger("click")
 

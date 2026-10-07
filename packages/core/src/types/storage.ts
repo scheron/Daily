@@ -16,6 +16,7 @@ import type {
   ServerAgentsView,
   ServerBindingView,
   ServerConnectionStateView,
+  ServerConnectionStatus,
   ServerMembershipView,
   ServerProbeView,
   Settings,
@@ -174,6 +175,6 @@ export interface IStorageController {
     onRoleChanged?: (role: DeviceRole) => void
     onAgentRequested?: () => void
     onAgentsAcceptedChanged?: (acceptsAgents: boolean) => void
-    onReachabilityChanged?: (isReachable: boolean) => void
+    onConnectionChanged?: (connection: ServerConnectionStatus) => void
   }): void
 }

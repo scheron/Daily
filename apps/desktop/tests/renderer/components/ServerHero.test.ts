@@ -21,7 +21,7 @@ describe("ServerHero — a server that stops answering", () => {
       "storage-sync:get-remote-states": vi
         .fn()
         .mockResolvedValue([{id: "daily-server", label: "Server", lastSyncAt: null, lastError: "fetch failed"}]),
-      "sync-server:get-state": vi.fn().mockResolvedValue({binding: makeBinding(), revoked: false, mismatch: null, isReachable: false}),
+      "sync-server:get-state": vi.fn().mockResolvedValue({binding: makeBinding(), revoked: false, mismatch: null, connection: "unreachable"}),
       "sync-server:on-revoked": vi.fn(),
       "sync-server:on-protocol-mismatch-changed": vi.fn(),
       "sync-server:on-role-changed": vi.fn(),

@@ -13,18 +13,19 @@ const storageStore = useStorageStore()
 const syncServerStore = useSyncServerStore()
 
 const {provider} = storeToRefs(storageStore)
-const {isReachable} = storeToRefs(syncServerStore)
+const {connection} = storeToRefs(syncServerStore)
 
-const isReconnected = ref(false)
+const settledLabel = ref<"Connected" | "Reconnected" | null>(null)
 const isRetrying = ref(false)
 
-const connectionState = computed<"reconnecting" | "reconnected" | null>(() => {
+const connectionState = computed<"connecting" | "reconnecting" | "settled" | null>(() => {
   if (provider.value !== "server") return null
-  if (!isReachable.value) return "reconnecting"
-  return isReconnected.value ? "reconnected" : null
+  if (connection.value === "connecting") return "connecting"
+  if (connection.value === "unreachable") return "reconnecting"
+  return settledLabel.value ? "settled" : null
 })
 
-const {start: startReconnectedTimeout, stop: stopReconnectedTimeout} = useTimeoutFn(() => (isReconnected.value = false), 2500, {immediate: false})
+const {start: startSettledTimeout, stop: stopSettledTimeout} = useTimeoutFn(() => (settledLabel.value = null), 2500, {immediate: false})
 
 async function onRetry() {
   isRetrying.value = true
@@ -37,30 +38,35 @@ async function onRetry() {
   }
 }
 
-watch(isReachable, (nextIsReachable) => {
-  stopReconnectedTimeout()
-  isReconnected.value = nextIsReachable
-  if (nextIsReachable) startReconnectedTimeout()
+watch(connection, (nextConnection, prevConnection) => {
+  stopSettledTimeout()
+  settledLabel.value = nextConnection === "connected" ? (prevConnection === "unreachable" ? "Reconnected" : "Connected") : null
+  if (settledLabel.value) startSettledTimeout()
 })
 </script>
 
 <template>
   <BaseAnimation name="fade" :duration="200">
     <div v-if="connectionState" class="flex h-full items-center gap-0.5">
-      <template v-if="connectionState === 'reconnecting'">
-        <span class="text-warning flex items-center gap-1.5 pr-0.5 pl-2 text-xs font-medium whitespace-nowrap">
+      <span v-if="connectionState === 'connecting'" class="text-base-content/60 flex items-center gap-1.5 whitespace-nowrap px-2 text-xs font-medium">
+        <BaseIcon name="spinner-arc" class="size-3.5 animate-spin" />
+        Connecting…
+      </span>
+
+      <template v-else-if="connectionState === 'reconnecting'">
+        <span class="text-warning flex items-center gap-1.5 whitespace-nowrap pl-2 pr-0.5 text-xs font-medium">
           <BaseIcon name="spinner-arc" class="size-3.5 animate-spin" />
           Reconnecting…
         </span>
         <BaseButton variant="warning-ghost" icon="refresh" size="sm" tooltip="Try again" :loading="isRetrying" @click="onRetry" />
       </template>
 
-      <span v-else class="text-success flex items-center gap-1.5 px-2 text-xs font-medium whitespace-nowrap">
+      <span v-else class="text-success flex items-center gap-1.5 whitespace-nowrap px-2 text-xs font-medium">
         <BaseIcon name="check" class="size-3.5" />
-        Reconnected
+        {{ settledLabel }}
       </span>
 
-      <div class="bg-base-300 mx-0.5 h-4.5 w-px" />
+      <div class="bg-base-300 h-4.5 mx-0.5 w-px" />
     </div>
   </BaseAnimation>
 </template>

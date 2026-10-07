@@ -22,6 +22,7 @@ import type {
   ServerAgentsView,
   ServerBindingView,
   ServerConnectionStateView,
+  ServerConnectionStatus,
   ServerMembershipView,
   ServerProbeView,
   SettingsView,
@@ -113,7 +114,7 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "sync-server:on-agent-requested": (callback: () => void) => ipcRenderer.on("sync-server:agent-requested", (_event, ) => callback()),
   "sync-server:on-approval-resolved": (callback: (kind: ApprovalKind) => void) => ipcRenderer.on("sync-server:approval-resolved", (_event, kind: ApprovalKind) => callback(kind)),
   "sync-server:on-agents-accepted-changed": (callback: (acceptsAgents: boolean) => void) => ipcRenderer.on("sync-server:agents-accepted-changed", (_event, acceptsAgents: boolean) => callback(acceptsAgents)),
-  "sync-server:on-reachability-changed": (callback: (isReachable: boolean) => void) => ipcRenderer.on("sync-server:reachability-changed", (_event, isReachable: boolean) => callback(isReachable)),
+  "sync-server:on-connection-changed": (callback: (connection: ServerConnectionStatus) => void) => ipcRenderer.on("sync-server:connection-changed", (_event, connection: ServerConnectionStatus) => callback(connection)),
 
   "sync-provider:preview": (target: Exclude<SyncProvider, "off">) => ipcRenderer.invoke("sync-provider:preview", target) as Promise<MigrationPreview>,
   "sync-provider:migrate": (target: SyncProvider, direction: MigrationDirection | null) => ipcRenderer.invoke("sync-provider:migrate", target, direction) as Promise<void>,

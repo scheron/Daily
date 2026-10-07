@@ -20,6 +20,7 @@ import type {
   ServerAgentsView,
   ServerBindingView,
   ServerConnectionStateView,
+  ServerConnectionStatus,
   ServerMembershipView,
   ServerProbeView,
   SettingsView,
@@ -108,7 +109,7 @@ export interface BridgeIPC {
   "sync-server:on-agent-requested": (callback: () => void) => void
   "sync-server:on-approval-resolved": (callback: (kind: ApprovalKind) => void) => void
   "sync-server:on-agents-accepted-changed": (callback: (acceptsAgents: boolean) => void) => void
-  "sync-server:on-reachability-changed": (callback: (isReachable: boolean) => void) => void
+  "sync-server:on-connection-changed": (callback: (connection: ServerConnectionStatus) => void) => void
 
   "sync-provider:preview": (target: Exclude<SyncProvider, "off">) => Promise<MigrationPreview>
   "sync-provider:migrate": (target: SyncProvider, direction: MigrationDirection | null) => Promise<void>

@@ -553,28 +553,30 @@ describe("syncServerStore — no revoked device in membership, whatever its role
   })
 })
 
-describe("syncServerStore — whether the server answers reaches the renderer", () => {
+describe("syncServerStore — where the connection to the server stands reaches the renderer", () => {
   beforeEach(() => {
     setActivePinia(createPinia())
   })
 
   it("starts from the state main already holds and follows every broadcast after it", async () => {
     const bridge = mockBridgeIPC({
-      "sync-server:get-state": vi.fn().mockResolvedValue({binding: null, revoked: false, mismatch: null, isReachable: false}),
+      "sync-server:get-state": vi.fn().mockResolvedValue({binding: null, revoked: false, mismatch: null, connection: "unreachable"}),
       "sync-server:on-revoked": vi.fn(),
       [MISMATCH_CHANNEL]: vi.fn(),
       "sync-server:on-role-changed": vi.fn(),
       "sync-server:on-agents-accepted-changed": vi.fn(),
-      "sync-server:on-reachability-changed": vi.fn(),
+      "sync-server:on-connection-changed": vi.fn(),
     })
     const {useSyncServerStore} = await import("../../../src/renderer/src/stores/syncServer.store")
     const store = useSyncServerStore()
     await new Promise((r) => setTimeout(r, 0))
 
+    expect(store.connection).toBe("unreachable")
     expect(store.isReachable).toBe(false)
 
-    bridge["sync-server:on-reachability-changed"].mock.calls[0][0](true)
+    bridge["sync-server:on-connection-changed"].mock.calls[0][0]("connected")
 
+    expect(store.connection).toBe("connected")
     expect(store.isReachable).toBe(true)
   })
 })

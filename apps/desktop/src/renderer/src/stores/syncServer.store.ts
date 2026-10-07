@@ -1,4 +1,4 @@
-import {ref} from "vue"
+import {computed, ref} from "vue"
 import {toasts} from "vue-toasts-lite"
 import {invoke} from "@vueuse/core"
 import {defineStore} from "pinia"
@@ -18,6 +18,7 @@ import type {
   ServerAgentsView,
   ServerAgentView,
   ServerBindingView,
+  ServerConnectionStatus,
   ServerMembershipView,
   ServerProbeView,
 } from "@daily/protocol"
@@ -26,7 +27,8 @@ export const useSyncServerStore = defineStore("syncServer", () => {
   const binding = ref<ServerBindingView | null>(null)
   const isRevoked = ref(false)
   const mismatch = ref<ProtocolMismatchView | null>(null)
-  const isReachable = ref(true)
+  const connection = ref<ServerConnectionStatus>("idle")
+  const isReachable = computed(() => connection.value !== "unreachable")
   const membership = ref<ServerMembershipView | null>(null)
   const agents = ref<ServerAgentView[]>([])
   const agentWindow = ref<AgentWindowView | null>(null)
@@ -53,8 +55,8 @@ export const useSyncServerStore = defineStore("syncServer", () => {
     if (binding.value) binding.value.acceptsAgents = acceptsAgents
   })
 
-  window.BridgeIPC["sync-server:on-reachability-changed"]((nextIsReachable) => {
-    isReachable.value = nextIsReachable
+  window.BridgeIPC["sync-server:on-connection-changed"]((nextConnection) => {
+    connection.value = nextConnection
   })
 
   async function loadState(): Promise<void> {
@@ -63,7 +65,7 @@ export const useSyncServerStore = defineStore("syncServer", () => {
       binding.value = state.binding
       isRevoked.value = state.revoked
       mismatch.value = state.mismatch
-      isReachable.value = state.isReachable
+      connection.value = state.connection
       if (binding.value?.role === "parent") await listMembership()
       if (state.binding && !state.revoked && !state.mismatch) await listAgents()
       else applyAgents(null)
@@ -293,6 +295,7 @@ export const useSyncServerStore = defineStore("syncServer", () => {
     binding,
     isRevoked,
     mismatch,
+    connection,
     isReachable,
     membership,
     agents,

@@ -51,8 +51,8 @@ export function setupStorageSync(
     onAgentsAcceptedChanged: (acceptsAgents) => {
       broadcastToWindows(getWindows, "sync-server:agents-accepted-changed", acceptsAgents)
     },
-    onReachabilityChanged: (isReachable) => {
-      broadcastToWindows(getWindows, "sync-server:reachability-changed", isReachable)
+    onConnectionChanged: (connection) => {
+      broadcastToWindows(getWindows, "sync-server:connection-changed", connection)
     },
   })
 }
