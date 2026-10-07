@@ -1,5 +1,5 @@
 import {spawnSync} from "node:child_process"
-import {chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from "node:fs"
+import {chmodSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {dirname, join} from "node:path"
 import {fileURLToPath} from "node:url"
@@ -259,6 +259,42 @@ describe("deploy/install.sh --dry-run", () => {
 
     expect(putBack, "the server's own scheduled backups are not part of the archive and must survive").toContain("! -name backups")
     expect(putBack, "the data directory's owner must survive the round trip through the host archive").toContain("chown -R")
+  })
+
+  it("install.sh --upgrade keeps only the newest pre-upgrade backup once the new image is healthy", () => {
+    const script = readFileSync(installScriptPath, "utf-8")
+
+    const upgrade = (script.match(/run_upgrade\(\) \{[\s\S]*?\n\}/) as RegExpMatchArray)[0]
+    expect(upgrade.indexOf("prune_upgrade_backups"), "older backups go only once the new image is healthy").toBeGreaterThan(
+      upgrade.indexOf("wait_for_health"),
+    )
+
+    const undo = (script.match(/undo_upgrade\(\) \{[\s\S]*?\n\}/) as RegExpMatchArray)[0]
+    expect(undo, "an undone upgrade keeps every backup").not.toContain("prune_upgrade_backups")
+
+    const prune = (script.match(/prune_upgrade_backups\(\) \{[\s\S]*?\n\}/) as RegExpMatchArray)[0]
+    const dir = mkdtempSync(join(tmpdir(), "daily-prune-"))
+    const current = "daily-preupgrade-20261007T025847Z.tar.gz"
+
+    try {
+      for (const name of ["daily-preupgrade-20260928T111704Z.tar.gz", current, "daily-backup-20261005T040014Z.tar.gz", "notes.txt"]) {
+        writeFileSync(join(dir, name), "")
+      }
+
+      const result = spawnSync("sh", ["-c", `set -eu\n${prune}\ndir="$1"\nupgrade_archive="$1/${current}"\nprune_upgrade_backups`, "sh", dir], {
+        encoding: "utf-8",
+      })
+
+      expect(result.status, result.stderr).toBe(0)
+      expect(result.stdout).toContain("Removed 1 older pre-upgrade backup(s)")
+      expect(readdirSync(dir).sort(), "a manual backup and anything else in the directory stay").toEqual([
+        "daily-backup-20261005T040014Z.tar.gz",
+        current,
+        "notes.txt",
+      ])
+    } finally {
+      rmSync(dir, {recursive: true, force: true})
+    }
   })
 
   it("install.sh --write-manager rewrites daily.sh atomically and refuses a directory that is not an installation", () => {

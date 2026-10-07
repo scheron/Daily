@@ -642,6 +642,21 @@ create_upgrade_backup() {
   rm -rf "$tmp_dir"
 }
 
+prune_upgrade_backups() {
+  removed=0
+
+  for archive in "$dir"/daily-preupgrade-*.tar.gz; do
+    if [ -f "$archive" ] && [ "$archive" != "$upgrade_archive" ]; then
+      rm -f "$archive"
+      removed=$((removed + 1))
+    fi
+  done
+
+  if [ "$removed" -gt 0 ]; then
+    echo "Removed $removed older pre-upgrade backup(s)"
+  fi
+}
+
 put_back_upgrade_backup() {
   volume=$(data_volume_name)
   [ -n "$volume" ] || return 1
@@ -754,6 +769,7 @@ run_upgrade() {
   echo ""
   echo "Upgraded: $previous_image -> $IMAGE"
   echo "The pre-upgrade backup is kept at $upgrade_archive"
+  prune_upgrade_backups
 }
 
 read_claim_code() {
