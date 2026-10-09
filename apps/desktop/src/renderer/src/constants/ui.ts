@@ -44,3 +44,6 @@ export const BOARD_CARD_HEIGHT = 200
 
 /** A board card plus the gap below it; the virtual columns and the drop index step through a column by it, so it must match the card. */
 export const BOARD_CARD_STEP = 206
+
+export const BOARD_CARD_GAP = BOARD_CARD_STEP - BOARD_CARD_HEIGHT
+export const COMPACT_BOARD_CARD_HEIGHT = 108

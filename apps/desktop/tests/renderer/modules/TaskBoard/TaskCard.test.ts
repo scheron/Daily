@@ -2,11 +2,11 @@
 // @ts-nocheck
 import {nextTick} from "vue"
 import {createPinia, setActivePinia} from "pinia"
-import {afterEach, beforeEach, describe, expect, it} from "vitest"
+import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
 import {toDateLabel} from "@daily/std"
 
-import {mount} from "@vue/test-utils"
+import {flushPromises, mount} from "@vue/test-utils"
 import {mockBridgeIPC} from "../../../helpers/bridgeIPC"
 import {installFakeResizeObserver, stubLayout} from "../../../helpers/resizeObserver"
 
@@ -465,5 +465,111 @@ describe("TaskCard — the relation chip", () => {
     expect(wrapper.find('use[href="#alert-triangle"]').exists()).toBe(true)
     expect(wrapper.text()).toBe("2")
     expect(tips).toEqual(["Blocked by 2"])
+  })
+})
+
+describe("TaskCard — compact presentation", () => {
+  let wrapper = null
+  let bridge
+
+  beforeEach(() => {
+    bridge = mockBridgeIPC()
+    setActivePinia(createPinia())
+  })
+
+  afterEach(() => {
+    wrapper?.unmount()
+    wrapper = null
+    vi.restoreAllMocks()
+  })
+
+  async function setup(task, fontSize = "normal") {
+    const {useSettingsStore} = await import("../../../../src/renderer/src/stores/settings.store")
+    const settings = useSettingsStore()
+    await flushPromises()
+    settings.settings = {appearance: {taskView: "compact"}, typography: {fontSize}, branch: {activeId: "main"}}
+    const {default: TaskCard} = await import("../../../../src/renderer/src/ui/modules/TaskBoard/{fragments}/TaskCard/TaskCard.vue")
+    wrapper = mount(TaskCard, {props: {task}, global: {directives: {tooltip: {}}}})
+    await nextTick()
+    return settings
+  }
+
+  it.each([
+    ["small", 93.6],
+    ["normal", 108],
+    ["large", 122.4],
+  ])("scales compact space at %s while returning to the original regular height", async (fontSize, height) => {
+    const settings = await setup(makeTask(), fontSize)
+    expect(Number.parseFloat(wrapper.get("#task-1").element.style.height)).toBeCloseTo(height)
+    settings.settings.appearance.taskView = "regular"
+    await nextTick()
+    expect(wrapper.get("#task-1").element.style.height).toBe("200px")
+  })
+
+  it("shows the normalized first line while opening the untouched rich content in the existing editor", async () => {
+    const content = "# Ship **promo** codes\n\nBody details\n```js\nconst x = 1\n```\n![Diagram](file:diagram)"
+    const task = makeTask({content})
+    const {useTasksStore} = await import("../../../../src/renderer/src/stores/tasks")
+    const {useTaskEditorStore} = await import("../../../../src/renderer/src/stores/task-editor")
+    useTasksStore().tasks = [task]
+    const settings = await setup(task)
+    expect(wrapper.get("#task-1").text()).toBe("Ship promo codes")
+    await wrapper.get("#task-1").trigger("click")
+    await flushPromises()
+    expect(useTaskEditorStore().editingTaskId).toBe("task-1")
+    expect(useTaskEditorStore().draft.content).toBe(content)
+    useTaskEditorStore().patch({content: content + "\nUnsaved edit"})
+    settings.settings.appearance.taskView = "regular"
+    await nextTick()
+    settings.settings.appearance.taskView = "compact"
+    await nextTick()
+    expect(useTaskEditorStore().draft.content).toBe(content + "\nUnsaved edit")
+    expect(useTaskEditorStore().isDirty).toBe(true)
+    expect(useTasksStore().tasks[0].content).toBe(content)
+    expect(bridge["tasks:update"]).not.toHaveBeenCalled()
+  })
+
+  it.each(["", "\n\n", "![](file:image)\nLater body", "```\nLater code", "# ** **"])(
+    "gives an empty normalized summary an explicit title for %s",
+    async (content) => {
+      await setup(makeTask({content}))
+      expect(wrapper.get("#task-1").text()).toBe("Untitled task")
+    },
+  )
+
+  it("keeps tags with overflow, time and priority together and puts relation, date and comments on another row", async () => {
+    const {useTagsStore} = await import("../../../../src/renderer/src/stores/tags.store")
+    const {useFilterStore} = await import("../../../../src/renderer/src/stores/filter.store")
+    const {useTaskCommentsStore} = await import("../../../../src/renderer/src/stores/taskComments.store")
+    const {useTaskRelationsStore} = await import("../../../../src/renderer/src/stores/taskRelations.store")
+    const {useTasksStore} = await import("../../../../src/renderer/src/stores/tasks")
+    const tags = ["alpha", "beta", "gamma", "delta"].map((name) => ({id: name, name, color: "#123456", branchId: "main"}))
+    useTagsStore().tags = tags
+    useFilterStore().setFrame("milestone")
+    useTaskCommentsStore().commentCounts = {"task-1": 12}
+    useTasksStore().tasks = [makeTask(), makeTask({id: "task-2"})]
+    useTaskRelationsStore().relations = [{blockerId: "task-1", blockedId: "task-2"}]
+    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockImplementation(function () {
+      return this.classList.contains("overflow-hidden") ? 100 : 40
+    })
+    await setup(makeTask({tags, spentTime: 2700, estimatedTime: 7200, priority: "high"}))
+    const time = wrapper.get('use[href="#stopwatch"]').element.closest(".min-h-5")
+    const comments = wrapper.get('use[href="#message"]').element.closest(".min-h-5")
+    expect(time).not.toBe(comments)
+    expect(time.textContent).toContain("+3")
+    expect(time.textContent).toContain("45m")
+    expect(time.textContent).toContain("2h")
+    expect(time.querySelector('use[href="#priority-high"]')).not.toBeNull()
+    expect(comments.textContent).toContain("12")
+    expect(comments.querySelector('use[href="#calendar"]')).not.toBeNull()
+    expect(comments.querySelector('use[href="#ban"]')).not.toBeNull()
+    const menu = wrapper.findComponent({name: "BaseContextMenu"})
+    expect(
+      menu
+        .props("items")
+        .find((item) => item.value === "copy")
+        .children.map((item) => item.value),
+    ).toContain("copy-content")
+    expect(menu.props("items").map((item) => item.value)).toContain("status")
   })
 })
