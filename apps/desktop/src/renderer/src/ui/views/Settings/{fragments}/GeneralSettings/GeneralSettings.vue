@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {useBoardCardGeometry} from "@/composables/useBoardCardGeometry"
 import {useSettingValue} from "@/composables/useSettingValue"
 import {useThemeStore} from "@/stores/theme"
 import BaseSegmented from "@/ui/base/BaseSegmented.vue"
@@ -11,7 +12,7 @@ import MainColorPicker from "./{fragments}/MainColorPicker.vue"
 import QuickTaskHotkey from "./{fragments}/QuickTaskHotkey.vue"
 import ShortcutsSection from "./{fragments}/ShortcutsSection.vue"
 
-import type {AppearanceMode, FontSize} from "@daily/protocol"
+import type {AppearanceMode, FontSize, TaskView} from "@daily/protocol"
 
 const themeOptions: {value: AppearanceMode; label: string}[] = [
   {value: "light", label: "Light"},
@@ -25,6 +26,12 @@ const fontSizeOptions: {value: FontSize; label: string}[] = [
   {value: "large", label: "Large"},
 ]
 
+const taskViewOptions: {value: TaskView; label: string}[] = [
+  {value: "regular", label: "Regular"},
+  {value: "compact", label: "Compact"},
+]
+
+const {taskView} = useBoardCardGeometry()
 const themeStore = useThemeStore()
 const shouldNotify = useSettingValue("focus.shouldNotify", true)
 const shouldPlaySound = useSettingValue("focus.shouldPlaySound", true)
@@ -49,6 +56,10 @@ const isQuickTaskEnabled = useSettingValue("quickTask.isEnabled", true)
 
       <SettingRow title="Text size" description="Choose the text size used throughout Daily">
         <BaseSegmented v-model="themeStore.fontSize" :options="fontSizeOptions" />
+      </SettingRow>
+
+      <SettingRow title="Task view" description="Choose regular previews or compact task titles">
+        <BaseSegmented v-model="taskView" :options="taskViewOptions" />
       </SettingRow>
 
       <SettingRow title="Show icon in menu bar" description="Keep the Daily icon in the menu bar to open Settings or Quick task">
