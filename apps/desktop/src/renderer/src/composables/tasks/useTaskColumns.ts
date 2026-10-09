@@ -5,10 +5,11 @@ import {sortTasksByDateThenOrder, sortTasksByOrderIndex} from "@daily/protocol"
 import {clamp} from "@daily/std"
 
 import {createSharedComposable} from "@/composables/createSharedComposable"
-import {BOARD_CARD_HEIGHT, BOARD_CARD_STEP} from "@/constants/ui"
+import {useBoardCardGeometry} from "@/composables/useBoardCardGeometry"
 import {useDragDropStore} from "@/stores/dragDrop.store"
 import {useFilterStore} from "@/stores/filter.store"
 import {useProjectScopeStore} from "@/stores/projectScope.store"
+import {useTaskEditorStore} from "@/stores/task-editor"
 import {useTasksStore} from "@/stores/tasks"
 import {useUIStore} from "@/stores/ui"
 import {getActiveTagNames} from "@/utils/tags/getActiveTagNames"
@@ -31,6 +32,8 @@ export const useTaskColumns = createSharedComposable(() => {
   const projectScopeStore = useProjectScopeStore()
   const uiStore = useUIStore()
   const dragDropStore = useDragDropStore()
+  const taskEditorStore = useTaskEditorStore()
+  const {taskView, fontSize, cardHeight, cardStep} = useBoardCardGeometry()
 
   const dropTarget = shallowRef<ColumnSlot | null>(null)
   const landing = shallowRef<PlacedTask | null>(null)
@@ -40,6 +43,7 @@ export const useTaskColumns = createSharedComposable(() => {
   let origin: PlacedTask | null = null
   let pointer = {x: 0, y: 0}
   let bodyUserSelect = ""
+  let geometryRevision = 0
 
   const milestoneFrameTasks = computed(() => {
     if (filterStore.isNoMilestoneActive) return tasksStore.tasksWithoutMilestone
@@ -113,7 +117,7 @@ export const useTaskColumns = createSharedComposable(() => {
     column.scrollIntoView({behavior: "instant", block: "nearest", inline: "nearest"})
 
     const top = clamp(
-      track.offsetTop + index * BOARD_CARD_STEP + BOARD_CARD_HEIGHT / 2 - list.clientHeight / 2,
+      track.offsetTop + index * cardStep.value + cardHeight.value / 2 - list.clientHeight / 2,
       0,
       list.scrollHeight - list.clientHeight,
     )
@@ -253,7 +257,7 @@ export const useTaskColumns = createSharedComposable(() => {
     }
 
     const count = tasksByStatus.value[status].filter((task) => task.id !== origin?.task.id).length
-    const index = getColumnInsertIndex(pointer.y - track.getBoundingClientRect().top, count)
+    const index = getColumnInsertIndex(pointer.y - track.getBoundingClientRect().top, count, cardStep.value)
     if (dropTarget.value?.status !== status || dropTarget.value.index !== index) dropTarget.value = {status, index}
 
     columnScroll.update(column.querySelector<HTMLElement>("[data-column-list]"), pointer.y)
@@ -322,7 +326,41 @@ export const useTaskColumns = createSharedComposable(() => {
     if (!Object.values(byStatus).some((tasks) => tasks.some((task) => task.id === draggedId))) stopPress()
   })
 
+  watch([taskView, cardHeight, cardStep, fontSize], async (_, [, previousHeight, previousStep]) => {
+    const revision = ++geometryRevision
+    stopPress()
+    const selectedId = taskEditorStore.editingTaskId
+    const selectedStatus = (Object.keys(tasksByStatus.value) as TaskStatus[]).find((status) =>
+      tasksByStatus.value[status].some((task) => task.id === selectedId),
+    )
+    const anchors = (Object.keys(tasksByStatus.value) as TaskStatus[]).flatMap((status) => {
+      const list = document.querySelector<HTMLElement>(`[data-column-status="${status}"] [data-column-list]`)
+      const track = list?.querySelector<HTMLElement>("[data-column-track]")
+      const tasks = tasksByStatus.value[status]
+      if (!list || !track || !tasks.length) return []
+      const top = list.scrollTop - track.offsetTop
+      let index = clamp(Math.floor(top / previousStep), 0, tasks.length - 1)
+      if (top - index * previousStep >= previousHeight && index < tasks.length - 1) index += 1
+      return [{status, list, track, taskId: tasks[index].id, offset: top - index * previousStep}]
+    })
+    if (selectedStatus && isColumnCollapsed(selectedStatus)) uiStore.setSectionCollapsed(selectedStatus, false)
+    await nextTick()
+    if (revision !== geometryRevision) return
+    for (const anchor of anchors) {
+      const tasks = tasksByStatus.value[anchor.status]
+      const selected = anchor.status === selectedStatus
+      const index = tasks.findIndex((task) => task.id === (selected ? selectedId : anchor.taskId))
+      if (index < 0 || !anchor.list.isConnected) continue
+      const top = anchor.track.offsetTop + index * cardStep.value + (selected ? cardHeight.value / 2 - anchor.list.clientHeight / 2 : anchor.offset)
+      anchor.list.scrollTop = clamp(top, 0, Math.max(0, anchor.list.scrollHeight - anchor.list.clientHeight))
+      anchor.list.dispatchEvent(new Event("scroll"))
+      if (selected)
+        anchor.list.closest<HTMLElement>("[data-column-status]")?.scrollIntoView({behavior: "instant", block: "nearest", inline: "nearest"})
+    }
+  })
+
   onScopeDispose(() => {
+    geometryRevision += 1
     stopPress()
     window.removeEventListener("click", swallowClick, {capture: true})
   })
@@ -347,6 +385,6 @@ function resolveMoveTarget(items: Task[], newIndex: number): {targetTaskId: Task
   return {targetTaskId, position}
 }
 
-function getColumnInsertIndex(offsetY: number, count: number): number {
-  return clamp(Math.floor(offsetY / BOARD_CARD_STEP), 0, count)
+function getColumnInsertIndex(offsetY: number, count: number, cardStep: number): number {
+  return clamp(Math.floor(offsetY / cardStep), 0, count)
 }

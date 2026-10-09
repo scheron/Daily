@@ -88,7 +88,7 @@ describe("TaskBoard", () => {
     vi.restoreAllMocks()
   })
 
-  async function setup({sectionsCollapsed = {}} = {}) {
+  async function setup({sectionsCollapsed = {}, taskView = "regular", fontSize = "normal"} = {}) {
     const {default: TaskBoard} = await import("../../../../src/renderer/src/ui/modules/TaskBoard")
     const {default: NoTasksPlaceholder} = await import("../../../../src/renderer/src/ui/modules/TaskBoard/{fragments}/NoTasksPlaceholder.vue")
     const {useTasksStore} = await import("../../../../src/renderer/src/stores/tasks/tasks.store")
@@ -98,7 +98,7 @@ describe("TaskBoard", () => {
 
     const settings = useSettingsStore()
     await new Promise((resolve) => setTimeout(resolve))
-    settings.settings = {branch: {activeId: "main"}, layout: {sectionsCollapsed}}
+    settings.settings = {branch: {activeId: "main"}, layout: {sectionsCollapsed}, appearance: {taskView}, typography: {fontSize}}
 
     function mountBoard() {
       wrapper = mount(TaskBoard, {attachTo: document.body, global: {directives: {tooltip: {}}}})
@@ -133,9 +133,131 @@ describe("TaskBoard", () => {
       .sort((a, b) => a.index - b.index)
   }
 
-  function onGrid(indices) {
-    return indices.map((index) => ({index, transform: `translateY(${index * 206}px)`}))
+  function onGrid(indices, step = 206) {
+    return indices.map((index) => ({index, transform: `translateY(${index * step}px)`}))
   }
+
+  it.each([
+    ["small", 99.6],
+    ["normal", 114],
+    ["large", 128.4],
+  ])("keeps compact virtual rows, track and gaps consistent at %s text size", async (fontSize, step) => {
+    const {mountBoard, tasks} = await setup({taskView: "compact", fontSize})
+    tasks.activeDay = DateTime.now().toISODate()
+    tasks.tasks = makeTasks(221)
+    const board = mountBoard()
+    await nextTick()
+    const {list, track} = viewport(board, "active", {clientHeight: 700, offsetTop: 100})
+    await settle()
+    expect(parseFloat(track.style.height)).toBeCloseTo(221 * step - 6)
+    list.scrollTop = 100 + 100 * step
+    list.dispatchEvent(new Event("scroll"))
+    await settle()
+    expect(placedCards(board, "active").map((card) => card.index)).toEqual(range(97, 100 + Math.ceil(700 / step) + 3))
+    for (const card of cardsIn(board, "active")) {
+      const index = Number(card.querySelector("[id^='task-']").id.slice(5))
+      expect(parseFloat(card.style.transform.slice(11))).toBeCloseTo(index * step)
+      expect(parseFloat(card.querySelector("[id^='task-']").style.height)).toBeCloseTo(step - 6)
+    }
+  })
+
+  it.each([false, true])(
+    "preserves the first visible task and its offset through density switches, including bottom clamping (selection outside board: %s)",
+    async (outsideSelection) => {
+      const {mountBoard, tasks, settings} = await setup()
+      const {useTaskEditorStore} = await import("../../../../src/renderer/src/stores/task-editor")
+      if (outsideSelection) useTaskEditorStore().editingTaskId = "task-outside-board"
+      tasks.activeDay = DateTime.now().toISODate()
+      tasks.tasks = makeTasks(221)
+      const original = JSON.stringify(tasks.tasks)
+      const board = mountBoard()
+      await nextTick()
+      const {list, track} = viewport(board, "active", {clientHeight: 700, offsetTop: 100})
+      Object.defineProperty(list, "scrollHeight", {configurable: true, get: () => 100 + parseFloat(track.style.height) + 16})
+      await settle()
+      list.scrollTop = 100 + 100 * 206 + 37
+      list.dispatchEvent(new Event("scroll"))
+      await settle()
+      settings.settings.appearance.taskView = "compact"
+      await settle()
+      expect(list.scrollTop).toBe(100 + 100 * 114 + 37)
+      expect(placedCards(board, "active").some((card) => card.index === 100)).toBe(true)
+      settings.settings.appearance.taskView = "regular"
+      await settle()
+      expect(list.scrollTop).toBe(100 + 100 * 206 + 37)
+      list.scrollTop = list.scrollHeight - 700
+      list.dispatchEvent(new Event("scroll"))
+      await settle()
+      settings.settings.appearance.taskView = "compact"
+      await settle()
+      expect(list.scrollTop).toBe(100 + 221 * 114 - 6 + 16 - 700)
+      expect(placedCards(board, "active").at(-1).index).toBe(220)
+      expect(JSON.stringify(tasks.tasks)).toBe(original)
+    },
+  )
+
+  it("keeps the same compact task visible when text size changes", async () => {
+    const {mountBoard, tasks, settings} = await setup({taskView: "compact"})
+    tasks.activeDay = DateTime.now().toISODate()
+    tasks.tasks = makeTasks(221)
+    const board = mountBoard()
+    await nextTick()
+    const {list, track} = viewport(board, "active", {clientHeight: 700, offsetTop: 100})
+    Object.defineProperty(list, "scrollHeight", {configurable: true, get: () => 100 + parseFloat(track.style.height) + 16})
+    list.scrollTop = 100 + 100 * 114 + 37
+    list.dispatchEvent(new Event("scroll"))
+    await settle()
+    settings.settings.typography.fontSize = "large"
+    await settle()
+    expect(list.scrollTop).toBeCloseTo(100 + 100 * 128.4 + 37)
+    expect(placedCards(board, "active").some((card) => card.index === 100)).toBe(true)
+  })
+
+  it("uses compact dimensions for a drag placeholder", async () => {
+    const {mountBoard, tasks} = await setup({taskView: "compact"})
+    tasks.activeDay = DateTime.now().toISODate()
+    tasks.tasks = makeTasks(4)
+    const board = mountBoard()
+    await nextTick()
+    const {track} = viewport(board, "active", {clientHeight: 700, offsetTop: 100})
+    vi.spyOn(track, "getBoundingClientRect").mockReturnValue({top: 100})
+    vi.spyOn(document, "elementFromPoint").mockReturnValue(track)
+    await settle()
+    board.element
+      .querySelector("#task-1")
+      .dispatchEvent(new PointerEvent("pointerdown", {bubbles: true, button: 0, clientX: 50, clientY: 264, pointerId: 1}))
+    window.dispatchEvent(new PointerEvent("pointermove", {bubbles: true, clientX: 50, clientY: 274, pointerId: 1}))
+    await settle()
+    const gaps = Array.from(track.children).filter((item) => !item.hasAttribute("data-task-card"))
+    expect(gaps).toHaveLength(1)
+    expect(gaps[0].style.height).toBe("108px")
+    expect(gaps[0].style.transform).toBe("translateY(114px)")
+    expect(track.style.height).toBe("450px")
+    window.dispatchEvent(new PointerEvent("pointercancel", {bubbles: true, pointerId: 1}))
+  })
+
+  it("reveals the selected card on a switch while preserving its unsaved editor draft", async () => {
+    const {mountBoard, tasks, settings} = await setup({sectionsCollapsed: {done: true}})
+    const {useTaskEditorStore} = await import("../../../../src/renderer/src/stores/task-editor")
+    const editor = useTaskEditorStore()
+    tasks.activeDay = DateTime.now().toISODate()
+    tasks.tasks = makeTasks(221, {status: "done"})
+    await editor.open("task-200")
+    editor.patch({content: "Unsaved text"})
+    const board = mountBoard()
+    await nextTick()
+    const {list, track} = viewport(board, "done", {clientHeight: 700, offsetTop: 100})
+    Object.defineProperty(list, "scrollHeight", {configurable: true, get: () => 100 + parseFloat(track.style.height) + 16})
+    columnOf(board, "done").scrollIntoView = vi.fn()
+    await settle()
+    settings.settings.appearance.taskView = "compact"
+    await settle()
+    expect(list.scrollTop).toBe(100 + 200 * 114 + 54 - 350)
+    expect(document.getElementById("task-200")).not.toBeNull()
+    expect(editor.editingTaskId).toBe("task-200")
+    expect(editor.draft.content).toBe("Unsaved text")
+    expect(editor.isDirty).toBe(true)
+  })
 
   it("keeps the columns mounted while a drag is in flight, even when the dragged task was the last one on the board", async () => {
     const {NoTasksPlaceholder, mountBoard, tasks, drag} = await setup()

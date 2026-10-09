@@ -20,5 +20,5 @@ export function useBoardCardGeometry() {
   const cardHeight = computed(() => (isCompact.value ? (COMPACT_BOARD_CARD_HEIGHT * (fontSizePx[fontSize.value] ?? 15)) / 15 : BOARD_CARD_HEIGHT))
   const cardStep = computed(() => cardHeight.value + BOARD_CARD_GAP)
 
-  return {taskView, isCompact, cardHeight, cardStep}
+  return {taskView, fontSize, isCompact, cardHeight, cardStep}
 }
