@@ -196,6 +196,33 @@ describe("TaskBoard", () => {
     },
   )
 
+  it("keeps the first visible task in view when its regular offset exceeds the compact card height", async () => {
+    const {mountBoard, tasks, settings} = await setup()
+    tasks.activeDay = DateTime.now().toISODate()
+    tasks.tasks = makeTasks(221)
+    const board = mountBoard()
+    await nextTick()
+    const {list, track} = viewport(board, "active", {clientHeight: 700, offsetTop: 100})
+    Object.defineProperty(list, "scrollHeight", {configurable: true, get: () => 100 + parseFloat(track.style.height) + 16})
+    await settle()
+    list.scrollTop = 20820
+    list.dispatchEvent(new Event("scroll"))
+    await settle()
+    settings.settings.appearance.taskView = "compact"
+    await settle()
+    expect(list.scrollTop).toBe(11607)
+    const firstVisible = cardsIn(board, "active").find((card) => {
+      const top = track.offsetTop + parseFloat(card.style.transform.slice(11))
+      const height = parseFloat(card.querySelector("[id^='task-']").style.height)
+      return top + height > list.scrollTop && top < list.scrollTop + list.clientHeight
+    })
+    expect(firstVisible.querySelector("[id^='task-']").id).toBe("task-100")
+    expect(11500 + 108 - list.scrollTop).toBe(1)
+    settings.settings.appearance.taskView = "regular"
+    await settle()
+    expect(list.scrollTop).toBe(20807)
+  })
+
   it("keeps the same compact task visible when text size changes", async () => {
     const {mountBoard, tasks, settings} = await setup({taskView: "compact"})
     tasks.activeDay = DateTime.now().toISODate()

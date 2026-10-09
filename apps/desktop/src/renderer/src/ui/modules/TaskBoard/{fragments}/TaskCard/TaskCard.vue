@@ -356,9 +356,9 @@ async function onLinkTask(side: keyof TaskRelationSets, taskId: Task["id"]) {
   -webkit-line-clamp: 2;
   overflow: hidden;
   margin: 0;
-  font-size: 0.875rem;
+  font-size: 0.9rem;
   font-weight: 400;
-  line-height: 1.5;
+  line-height: 1.45;
 }
 
 .board-card-compact .board-card-footer {

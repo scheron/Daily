@@ -351,7 +351,8 @@ export const useTaskColumns = createSharedComposable(() => {
       const selected = anchor.status === selectedStatus
       const index = tasks.findIndex((task) => task.id === (selected ? selectedId : anchor.taskId))
       if (index < 0 || !anchor.list.isConnected) continue
-      const top = anchor.track.offsetTop + index * cardStep.value + (selected ? cardHeight.value / 2 - anchor.list.clientHeight / 2 : anchor.offset)
+      const offset = selected ? cardHeight.value / 2 - anchor.list.clientHeight / 2 : Math.min(anchor.offset, cardHeight.value - 1)
+      const top = anchor.track.offsetTop + index * cardStep.value + offset
       anchor.list.scrollTop = clamp(top, 0, Math.max(0, anchor.list.scrollHeight - anchor.list.clientHeight))
       anchor.list.dispatchEvent(new Event("scroll"))
       if (selected)
