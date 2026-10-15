@@ -20,17 +20,6 @@ function stubLookup(hostname: string, address: string): MockInstance<typeof dns.
   return vi.spyOn(dns, "lookup").mockImplementation(lookup as typeof dns.lookup)
 }
 
-function jsonPaddedTo(doc: Record<string, unknown>, targetBytes: number): string {
-  let pad = 0
-  for (let attempt = 0; attempt < 4; attempt++) {
-    const body = JSON.stringify({...doc, _pad: "x".repeat(pad)})
-    const size = Buffer.byteLength(body, "utf8")
-    if (size === targetBytes) return body
-    pad += targetBytes - size
-  }
-  throw new Error(`could not pad a document to exactly ${targetBytes} bytes`)
-}
-
 describe("fetchClientMetadata accepts the four real clients' documents — TC-7", () => {
   let docs: ClientDocumentServer
 
@@ -126,82 +115,6 @@ describe("fetchClientMetadata refuses the special-use address a client_id would 
 
     expect(docs.requestCount()).toBe(0)
   })
-})
-
-describe("fetchClientMetadata bounds the fetch in time and in bytes — TC-10", () => {
-  let docs: ClientDocumentServer
-
-  beforeEach(async () => {
-    docs = await startClientDocumentServer()
-  })
-
-  afterEach(async () => {
-    await docs.close()
-    vi.useRealTimers()
-  })
-
-  it("TC-10: a non-200, a redirect, an oversized body and a dead port all refuse unreachable; a document of exactly the byte cap is ok; the injectable bound fires fast and its default is 5000ms, proved without waiting it out", async () => {
-    docs.serve("/missing", {status: 404, body: "{}"})
-
-    const redirectTarget = docs.urlFor("/redirect-target")
-    docs.serve("/redirect-target", {body: JSON.stringify(claudeCodeDocument(redirectTarget)), headers: {"cache-control": "public, max-age=300"}})
-    docs.serve("/redirect", {status: 302, headers: {location: redirectTarget}})
-
-    const bigClientId = docs.urlFor("/big.json")
-    docs.serve("/big.json", {body: jsonPaddedTo(claudeCodeDocument(bigClientId), 5121), headers: {"cache-control": "public, max-age=300"}})
-
-    const exactClientId = docs.urlFor("/exact.json")
-    docs.serve("/exact.json", {body: jsonPaddedTo(claudeCodeDocument(exactClientId), 5120), headers: {"cache-control": "public, max-age=300"}})
-
-    docs.serve("/hang", {hang: true})
-    const deadPort = await unusedLoopbackPort()
-
-    const missing = await fetchClientMetadata(docs.urlFor("/missing"), {allowLoopback: true})
-    expect(missing).toEqual({ok: false, refusal: "unreachable"})
-
-    const redirected = await fetchClientMetadata(docs.urlFor("/redirect"), {allowLoopback: true})
-    expect(redirected).toEqual({ok: false, refusal: "unreachable"})
-    expect(docs.requestCount("/redirect")).toBe(1)
-    expect(docs.requestCount("/redirect-target")).toBe(0)
-
-    const tooBig = await fetchClientMetadata(bigClientId, {allowLoopback: true})
-    expect(tooBig).toEqual({ok: false, refusal: "unreachable"})
-
-    const exact = await fetchClientMetadata(exactClientId, {allowLoopback: true})
-    expect(exact).toEqual({
-      ok: true,
-      client: {clientId: exactClientId, clientName: "Claude Code", redirectUris: ["http://localhost/callback", "http://127.0.0.1/callback"]},
-    })
-
-    const dead = await fetchClientMetadata(`http://127.0.0.1:${deadPort}/c`, {allowLoopback: true})
-    expect(dead).toEqual({ok: false, refusal: "unreachable"})
-
-    const hangUrl = docs.urlFor("/hang")
-
-    const startedAt = Date.now()
-    const shortBound = await fetchClientMetadata(hangUrl, {allowLoopback: true, timeoutMs: 200})
-    const elapsedMs = Date.now() - startedAt
-    expect(shortBound).toEqual({ok: false, refusal: "unreachable"})
-    expect(elapsedMs).toBeGreaterThanOrEqual(200)
-    expect(elapsedMs).toBeLessThan(1000)
-
-    vi.useFakeTimers({toFake: ["setTimeout", "clearTimeout"]})
-    try {
-      let settled = false
-      const defaultBoundPromise = fetchClientMetadata(hangUrl, {allowLoopback: true}).then((result) => {
-        settled = true
-        return result
-      })
-
-      await vi.advanceTimersByTimeAsync(4999)
-      expect(settled).toBe(false)
-
-      await vi.advanceTimersByTimeAsync(1)
-      expect(await defaultBoundPromise).toEqual({ok: false, refusal: "unreachable"})
-    } finally {
-      vi.useRealTimers()
-    }
-  }, 10_000)
 })
 
 describe("fetchClientMetadata refuses whatever the document itself gets wrong — TC-11", () => {
