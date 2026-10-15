@@ -113,7 +113,7 @@ describe("the Quick task window view", () => {
     await mountView()
 
     expect(chips()).toEqual(["project", "status"])
-    expect(wrapper.find("[data-chip=project]").text()).toBe("Main")
+    expect(wrapper.find("[data-chip=project]").text()).toBe("No project")
     expect(wrapper.find("[data-chip=status]").text()).toBe("Backlog")
   })
 
@@ -173,7 +173,7 @@ describe("the Quick task window view", () => {
     )
     expect(bridge["quick-task:hide"]).toHaveBeenCalledTimes(1)
     expect(chips()).toEqual(["project", "status"])
-    expect(wrapper.find("[data-chip=project]").text()).toBe("Main")
+    expect(wrapper.find("[data-chip=project]").text()).toBe("No project")
   })
 
   it("a picked milestone shows as a chip and is saved with the task; a project change drops it together with the tags", async () => {
@@ -414,7 +414,7 @@ describe("the Quick task window view", () => {
     shown()
     await flushPromises()
 
-    expect(wrapper.find("[data-chip=project]").text()).toBe("Main")
+    expect(wrapper.find("[data-chip=project]").text()).toBe("No project")
     expect(editor.props("content")).toBe("Half-written")
   })
 })

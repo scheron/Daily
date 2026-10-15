@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {computed, toRef, useTemplateRef} from "vue"
 
-import {sortTags} from "@daily/protocol"
+import {NO_PROJECT_ID, sortTags} from "@daily/protocol"
 import {toDateLabel} from "@daily/std"
 
 import {useBoardCardGeometry} from "@/composables/useBoardCardGeometry"
@@ -65,7 +65,11 @@ const estimateLabel = computed(() => toShortDurationLabel(props.task.estimatedTi
 const spentLabel = computed(() => toShortDurationLabel(props.task.spentTime))
 const hasRelation = computed(() => taskRelationsStore.chipByTaskId.has(props.task.id))
 const commentCount = computed(() => taskCommentsStore.commentCountOf(props.task.id))
-const projectName = computed(() => (projectScopeStore.isAllProjectsMode ? (branchesStore.branchesMap.get(props.task.branchId)?.name ?? "") : ""))
+const projectName = computed(() =>
+  projectScopeStore.isAllProjectsMode && props.task.branchId !== NO_PROJECT_ID
+    ? (branchesStore.branchesMap.get(props.task.branchId)?.name ?? "")
+    : "",
+)
 const isInSession = computed(() => focusStore.isInSession(props.task.id))
 
 const footerDayLabel = computed(() => {

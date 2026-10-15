@@ -14,6 +14,7 @@ withDefaults(
     hoverMode?: boolean
     hasAllProjects?: boolean
     isAllProjectsSelected?: boolean
+    hidesNoProject?: boolean
   }>(),
   {
     position: "start",
@@ -43,6 +44,7 @@ const emit = defineEmits<{select: [branch: Branch]; "select-all": []}>()
         :selected-id="selectedId"
         :has-all-projects="hasAllProjects"
         :is-all-projects-selected="isAllProjectsSelected"
+        :hides-no-project="hidesNoProject"
         @select="emit('select', $event)"
         @select-all="emit('select-all')"
         @close="hide"

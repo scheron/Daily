@@ -1,4 +1,4 @@
-import {createEntityId, MAIN_BRANCH_ID} from "@daily/protocol"
+import {createEntityId, NO_PROJECT_ID} from "@daily/protocol"
 import {notUndefined} from "@daily/std"
 
 import {logger} from "../../utils/logger"
@@ -19,9 +19,9 @@ export class TagModel {
     }
 
     if (params?.branchId) {
-      if (params.branchId === MAIN_BRANCH_ID) {
+      if (params.branchId === NO_PROJECT_ID) {
         conditions.push("(branch_id = ? OR branch_id IS NULL)")
-        values.push(MAIN_BRANCH_ID)
+        values.push(NO_PROJECT_ID)
       } else {
         conditions.push("branch_id = ?")
         values.push(params.branchId)

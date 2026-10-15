@@ -524,7 +524,7 @@ describe("CalendarDock", () => {
     await vi.waitFor(() => expect(useSettingsStore().isSettingsLoaded).toBe(true))
 
     const branches = useBranchesStore()
-    branches.branches = [makeBranch({name: "Nebula"})]
+    branches.branches = [makeBranch()]
 
     const dock = mount(CalendarDock, {attachTo: document.body, global: {directives: {tooltip: {}}}})
     const actions = mount(ActionsDock, {attachTo: document.body, global: {directives: {tooltip: {}}}})
@@ -532,7 +532,7 @@ describe("CalendarDock", () => {
     try {
       function expectActionsVisible() {
         expect(actions.find("button").exists()).toBe(true)
-        expect(actions.text()).toContain("Nebula")
+        expect(actions.text()).toContain("No project")
         expect(actions.text()).toContain("New")
       }
 

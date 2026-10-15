@@ -2,11 +2,16 @@
 import {computed, ref} from "vue"
 import {toasts} from "vue-toasts-lite"
 
+import {NO_PROJECT_ID} from "@daily/protocol"
+
 import {useBranchesStore} from "@/stores/branches.store"
 import BaseCombobox from "@/ui/base/BaseCombobox"
 import BaseIcon from "@/ui/base/BaseIcon"
+import {getProjectIcon} from "@/utils/projects/getProjectIcon"
+import {getProjectName} from "@/utils/projects/getProjectName"
 import {cn} from "@/utils/ui/tailwindcss"
 
+import type {IconName} from "@/ui/base/BaseIcon"
 import type {Branch} from "@daily/protocol"
 
 type Row = {kind: "all"} | {kind: "project"; branch: Branch}
@@ -16,6 +21,8 @@ const props = defineProps<{
   /** Offers "All projects" as the first row. */
   hasAllProjects?: boolean
   isAllProjectsSelected?: boolean
+  /** Leaves out the "No project" row, for a picker that clears the project with its own control. */
+  hidesNoProject?: boolean
 }>()
 const emit = defineEmits<{select: [branch: Branch]; "select-all": []; close: []}>()
 
@@ -24,7 +31,9 @@ const branchesStore = useBranchesStore()
 const query = ref("")
 
 const rows = computed<Row[]>(() => {
-  const projects = branchesStore.orderedBranches.map((branch): Row => ({kind: "project", branch}))
+  const projects = branchesStore.orderedBranches
+    .filter((branch) => !props.hidesNoProject || branch.id !== NO_PROJECT_ID)
+    .map((branch): Row => ({kind: "project", branch}))
   return props.hasAllProjects ? [{kind: "all"}, ...projects] : projects
 })
 
@@ -41,7 +50,11 @@ function getRowKey(row: Row) {
 }
 
 function getRowLabel(row: Row) {
-  return row.kind === "all" ? "All projects" : row.branch.name
+  return row.kind === "all" ? "All projects" : getProjectName(row.branch)
+}
+
+function getRowIcon(row: Row): IconName {
+  return row.kind === "all" ? "layers" : getProjectIcon(row.branch)
 }
 
 function isRowSelected(row: Row) {
@@ -89,7 +102,7 @@ function getProjectNameClasses(isSelected: boolean) {
       <template #item="{item}">
         <BaseIcon v-if="isRowSelected(item)" name="check" class="text-accent size-4 shrink-0" />
         <span v-else class="size-4 shrink-0" />
-        <BaseIcon :name="item.kind === 'all' ? 'layers' : 'project'" :class="getProjectIconClasses(isRowSelected(item))" />
+        <BaseIcon :name="getRowIcon(item)" :class="getProjectIconClasses(isRowSelected(item))" />
         <span :class="getProjectNameClasses(isRowSelected(item))">{{ getRowLabel(item) }}</span>
       </template>
 

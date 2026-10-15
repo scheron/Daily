@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {ref} from "vue"
 
-import {MAIN_BRANCH_ID} from "@daily/protocol"
+import {NO_PROJECT_ID} from "@daily/protocol"
 
 import {useBranchesStore} from "@/stores/branches.store"
 import SettingsGroup from "@/ui/views/Settings/{fragments}/SettingsGroup.vue"
@@ -14,7 +14,7 @@ import type {Branch} from "@daily/protocol"
 
 const branchesStore = useBranchesStore()
 
-const selectedBranchId = ref<Branch["id"]>(branchesStore.activeBranchId ?? MAIN_BRANCH_ID)
+const selectedBranchId = ref<Branch["id"]>(branchesStore.activeBranchId ?? NO_PROJECT_ID)
 </script>
 
 <template>

@@ -2,7 +2,7 @@ import {computed, ref} from "vue"
 import {sort} from "fast-sort"
 import {defineStore} from "pinia"
 
-import {MAIN_BRANCH_ID} from "@daily/protocol"
+import {NO_PROJECT_ID} from "@daily/protocol"
 
 import {API} from "@/api"
 import {useSettingsStore} from "./settings.store"
@@ -18,7 +18,7 @@ export const useBranchesStore = defineStore("branches", () => {
   const activeBranchId = computed(() => settingsStore.settings?.branch?.activeId ?? null)
   const activeBranch = computed(() => (activeBranchId.value ? (branchesMap.value.get(activeBranchId.value) ?? null) : null))
   const orderedBranches = computed(() => {
-    return sort(branches.value).by([{desc: (b) => b.id === MAIN_BRANCH_ID}, {asc: (b) => b.name.toLowerCase()}])
+    return sort(branches.value).by([{desc: (b) => b.id === NO_PROJECT_ID}, {asc: (b) => b.name.toLowerCase()}])
   })
 
   async function getBranchList() {

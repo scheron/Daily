@@ -9,6 +9,8 @@ import BaseAnimation from "@/ui/base/BaseAnimation.vue"
 import BaseButton from "@/ui/base/BaseButton"
 import BranchPicker from "@/ui/common/pickers/BranchPicker.vue"
 import {useSearchModal} from "@/ui/overlays/SearchModal"
+import {getProjectIcon} from "@/utils/projects/getProjectIcon"
+import {getProjectName} from "@/utils/projects/getProjectName"
 import {toShortcutKeys} from "@/utils/shortcuts/toShortcutKeys"
 import ConnectionIndicator from "./{fragments}/ConnectionIndicator.vue"
 
@@ -23,7 +25,7 @@ const projectScopeStore = useProjectScopeStore()
 
 const activeBranchName = computed(() => {
   if (projectScopeStore.isAllProjectsMode) return "All projects"
-  return branchesStore.activeBranch?.name || "Main"
+  return getProjectName(branchesStore.activeBranch)
 })
 const hasAllProjectsRow = computed(() => uiStore.frame === "day")
 const isFocusDetached = computed(() => focusStore.session?.isDetached ?? false)
@@ -75,7 +77,7 @@ function getFocusVariant(isOpen: boolean) {
       >
         <template #trigger="{show}">
           <BaseButton
-            :icon="projectScopeStore.isAllProjectsMode ? 'layers' : 'project'"
+            :icon="projectScopeStore.isAllProjectsMode ? 'layers' : getProjectIcon(branchesStore.activeBranch)"
             variant="ghost-primary"
             size="sm"
             class="min-w-20"

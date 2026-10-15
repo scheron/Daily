@@ -1,4 +1,4 @@
-import {MAIN_BRANCH_ID} from "@daily/protocol"
+import {NO_PROJECT_ID} from "@daily/protocol"
 
 import {ToolError} from "../errors/ToolError"
 import {ToolErrorCode} from "../errors/ToolErrorCode"
@@ -19,7 +19,7 @@ export const deleteProjectTool: Tool = {
   },
   async run(input, ctx) {
     const id = requireString(input, "id")
-    if (id === MAIN_BRANCH_ID) throw new ToolError(ToolErrorCode.INVALID_INPUT, '"main" cannot be deleted.')
+    if (id === NO_PROJECT_ID) throw new ToolError(ToolErrorCode.INVALID_INPUT, '"main" cannot be deleted.')
 
     const changeset = await ctx.workStorage.deleteBranch(id)
     const deleted = changeset.branches?.removed?.[0]

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {MAIN_BRANCH_ID} from "@daily/protocol"
+import {NO_PROJECT_ID} from "@daily/protocol"
 
 import {useBranchesStore} from "@/stores/branches.store"
 import {useFilterStore} from "@/stores/filter.store"
@@ -38,7 +38,7 @@ async function onCreateTask() {
   const proceed = await confirmUnsavedModal.open()
   if (!proceed) return
   if (projectScopeStore.isAllProjectsMode) {
-    taskEditorStore.openNew({branchId: MAIN_BRANCH_ID, milestoneId: null})
+    taskEditorStore.openNew({branchId: NO_PROJECT_ID, milestoneId: null})
     return
   }
   taskEditorStore.openNew({

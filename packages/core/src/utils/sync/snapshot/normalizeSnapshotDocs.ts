@@ -1,4 +1,4 @@
-import {APP_CONFIG, MAIN_BRANCH_ID} from "@daily/protocol"
+import {APP_CONFIG, NO_PROJECT_ID} from "@daily/protocol"
 
 import {extractFileIds} from "../../files/extractFileIds"
 
@@ -19,7 +19,7 @@ export function normalizeSnapshotDocs(docs: SnapshotDocs): SnapshotDocs {
     tasks: docs.tasks.map((task) =>
       foldAttachmentsIntoContent({...task, milestone_id: task.milestone_id ?? null, priority: task.priority ?? "none"}, docs.files),
     ),
-    tags: docs.tags.map((tag) => ({...tag, branch_id: tag.branch_id ?? MAIN_BRANCH_ID})),
+    tags: docs.tags.map((tag) => ({...tag, branch_id: tag.branch_id ?? NO_PROJECT_ID})),
     branches: docs.branches.map((branch) => ({...branch, description: branch.description ?? ""})),
     milestones: docs.milestones ?? [],
     relations: docs.relations ?? [],
