@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.32.0 - 2026-10-15
+
+### ✨ New Features
+
+- **Compact task view** — Settings → General → Task view switches the board between Regular and Compact cards. A compact card shows the task's title in up to two lines, with its tags, time and priority beneath, so a column fits almost twice as many tasks. The board keeps the same task in view when the view changes.
+
+### 🎨 Improvements
+
+- **No project** — the built-in Main project now shows as No project, for tasks that are not in a project of their own.
+  - It has its own icon in the project menus, and cards in All projects show no project for these tasks.
+  - The task editor clears a task's project with a × next to its name.
+  - Agents and the Daily Assistant still see it as `main`.
+
+---
+
 ## v0.31.1 - 2026-10-07
 
 ### 🎨 Improvements
