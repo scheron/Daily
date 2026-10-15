@@ -208,7 +208,10 @@ describe("TaskCard — the crumb", () => {
     const settingsStore = useSettingsStore()
     await new Promise((resolve) => setTimeout(resolve, 20))
     settingsStore.settings = {branch: {activeId: "main", isAllProjects}, layout: {sectionsCollapsed: {}}}
-    useBranchesStore().branches = [{id: "leki", name: "Leki"}]
+    useBranchesStore().branches = [
+      {id: "main", name: "Main"},
+      {id: "leki", name: "Leki"},
+    ]
     useMilestonesStore().milestones = milestone ? [milestone] : []
 
     wrapper = mount(TaskCard, {props: {task}, global: {directives: {tooltip: {}}}})
@@ -247,6 +250,12 @@ describe("TaskCard — the crumb", () => {
 
   it("draws_no_crumb_without_a_project_or_a_milestone", async () => {
     await setup(makeTask())
+
+    expect(crumb().exists()).toBe(false)
+  })
+
+  it("draws_no_project_crumb_for_a_task_in_main_in_all_projects_mode", async () => {
+    await setup(makeTask(), {isAllProjects: true})
 
     expect(crumb().exists()).toBe(false)
   })

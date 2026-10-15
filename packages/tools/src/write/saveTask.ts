@@ -1,4 +1,4 @@
-import {MAIN_BRANCH_ID, statusForScheduling} from "@daily/protocol"
+import {NO_PROJECT_ID, statusForScheduling} from "@daily/protocol"
 import {isArray, isObject, isString} from "@daily/std"
 
 import {ToolError} from "../errors/ToolError"
@@ -180,7 +180,7 @@ function parseFields(input: Record<string, unknown>): ParsedFields {
 async function createTask(ctx: ToolContext, fields: ParsedFields): Promise<Task["id"]> {
   if (!fields.content) throw new ToolError(ToolErrorCode.INVALID_INPUT, '"content" is required.')
 
-  const projectId = await resolveProjectId(ctx, fields.projectId ?? MAIN_BRANCH_ID)
+  const projectId = await resolveProjectId(ctx, fields.projectId ?? NO_PROJECT_ID)
 
   let status: TaskStatus
   let scheduled: TaskScheduled | null

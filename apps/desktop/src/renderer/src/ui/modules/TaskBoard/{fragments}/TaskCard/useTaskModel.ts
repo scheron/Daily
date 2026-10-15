@@ -6,6 +6,7 @@ import {useBranchesStore} from "@/stores/branches.store"
 import {useProjectScopeStore} from "@/stores/projectScope.store"
 import {useTaskRelationsStore} from "@/stores/taskRelations.store"
 import {useTasksStore} from "@/stores/tasks"
+import {getProjectName} from "@/utils/projects/getProjectName"
 
 import type {Branch, ISODate, Milestone, Tag, Task, TaskPriority, TaskRelationSets, TaskStatus} from "@daily/protocol"
 import type {Ref} from "vue"
@@ -113,8 +114,7 @@ export function useTaskModel(task: Readonly<Ref<Task>>) {
       return false
     }
 
-    const branch = branchesStore.branchesMap.get(branchId)
-    toasts.success(`Task moved to "${branch?.name}"`)
+    toasts.success(`Task moved to "${getProjectName(branchesStore.branchesMap.get(branchId))}"`)
     return true
   }
 

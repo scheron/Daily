@@ -1,4 +1,4 @@
-import {MAIN_BRANCH_ID} from "@daily/protocol"
+import {NO_PROJECT_ID} from "@daily/protocol"
 import {notUndefined} from "@daily/std"
 
 import type {Branch, Milestone, Tag, Task} from "@daily/protocol"
@@ -39,7 +39,7 @@ export class BranchesService {
   }
 
   async updateBranch(id: Branch["id"], updates: Partial<Pick<Branch, "description" | "name">>): Promise<Branch | null> {
-    if (id === MAIN_BRANCH_ID && notUndefined(updates.name)) return null
+    if (id === NO_PROJECT_ID && notUndefined(updates.name)) return null
 
     const next: Partial<Pick<Branch, "description" | "name">> = {}
 
@@ -68,7 +68,7 @@ export class BranchesService {
   async deleteBranch(
     id: Branch["id"],
   ): Promise<{deletedTaskIds: Task["id"][]; deletedMilestoneIds: Milestone["id"][]; deletedTagIds: Tag["id"][]} | null> {
-    if (id === MAIN_BRANCH_ID) return null
+    if (id === NO_PROJECT_ID) return null
 
     let deletedTaskIds: Task["id"][] = []
     let deletedMilestoneIds: Milestone["id"][] = []
@@ -87,12 +87,12 @@ export class BranchesService {
     if (!deleted) return null
 
     const settings = await this.settingsService.loadSettings()
-    const activeId = settings.branch?.activeId ?? MAIN_BRANCH_ID
+    const activeId = settings.branch?.activeId ?? NO_PROJECT_ID
     if (activeId === id) {
       await this.settingsService.saveSettings({
         branch: {
           ...settings.branch,
-          activeId: MAIN_BRANCH_ID,
+          activeId: NO_PROJECT_ID,
         },
       })
     }
@@ -102,18 +102,18 @@ export class BranchesService {
 
   async getActiveBranchId(): Promise<Branch["id"]> {
     const settings = await this.settingsService.loadSettings()
-    const activeId = settings.branch?.activeId ?? MAIN_BRANCH_ID
+    const activeId = settings.branch?.activeId ?? NO_PROJECT_ID
     const active = await this.branchModel.getBranch(activeId)
 
     if (active) return active.id
 
-    await this.settingsService.saveSettings({branch: {...settings.branch, activeId: MAIN_BRANCH_ID}})
-    return MAIN_BRANCH_ID
+    await this.settingsService.saveSettings({branch: {...settings.branch, activeId: NO_PROJECT_ID}})
+    return NO_PROJECT_ID
   }
 
   async setActiveBranch(id: Branch["id"]): Promise<void> {
     const branch = await this.branchModel.getBranch(id)
-    const nextId = branch?.id ?? MAIN_BRANCH_ID
+    const nextId = branch?.id ?? NO_PROJECT_ID
 
     const settings = await this.settingsService.loadSettings()
     await this.settingsService.saveSettings({

@@ -2,13 +2,15 @@
 import {nextTick, ref, useTemplateRef} from "vue"
 import {toasts} from "vue-toasts-lite"
 
-import {MAIN_BRANCH_ID} from "@daily/protocol"
+import {NO_PROJECT_ID} from "@daily/protocol"
 
 import {useBranchesStore} from "@/stores/branches.store"
 import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
 import BaseInput from "@/ui/base/BaseInput.vue"
 import ConfirmPopup from "@/ui/overlays/ConfirmPopup.vue"
+import {getProjectIcon} from "@/utils/projects/getProjectIcon"
+import {getProjectName} from "@/utils/projects/getProjectName"
 import {cn} from "@/utils/ui/tailwindcss"
 
 import type {Branch} from "@daily/protocol"
@@ -45,7 +47,7 @@ function cancelCreate() {
 }
 
 function startEdit(branch: Branch) {
-  if (branch.id === MAIN_BRANCH_ID) return
+  if (branch.id === NO_PROJECT_ID) return
   editingId.value = branch.id
   editingName.value = branch.name
 }
@@ -72,8 +74,8 @@ async function createProject() {
 async function renameProject(id: Branch["id"]) {
   const name = editingName.value.trim()
   if (!name) return
-  if (id === MAIN_BRANCH_ID) {
-    toasts.error("Main project cannot be renamed")
+  if (id === NO_PROJECT_ID) {
+    toasts.error("No project cannot be renamed")
     return
   }
 
@@ -88,8 +90,8 @@ async function renameProject(id: Branch["id"]) {
 }
 
 async function deleteProject(branch: Branch) {
-  if (branch.id === MAIN_BRANCH_ID) {
-    toasts.error("Main project cannot be deleted")
+  if (branch.id === NO_PROJECT_ID) {
+    toasts.error("No project cannot be deleted")
     return
   }
 
@@ -121,7 +123,7 @@ function getProjectNameClasses(isBranchActive: boolean) {
       New project
     </BaseButton>
 
-    <div v-else class="border-accent flex w-45 shrink-0 items-center gap-2 rounded-full border-2 border-dashed px-4 py-0.5 text-sm">
+    <div v-else class="border-accent w-45 flex shrink-0 items-center gap-2 rounded-full border-2 border-dashed px-4 py-0.5 text-sm">
       <BaseIcon name="project" class="text-base-content/50 size-4 shrink-0" />
 
       <BaseInput
@@ -139,7 +141,7 @@ function getProjectNameClasses(isBranchActive: boolean) {
     </div>
 
     <template v-for="branch in branchesStore.orderedBranches" :key="branch.id">
-      <div v-if="editingId === branch.id" class="border-accent flex w-45 shrink-0 items-center gap-2 rounded-full border-2 px-4 py-0.5 text-sm">
+      <div v-if="editingId === branch.id" class="border-accent w-45 flex shrink-0 items-center gap-2 rounded-full border-2 px-4 py-0.5 text-sm">
         <BaseIcon name="project" class="text-base-content/50 size-4 shrink-0" />
 
         <BaseInput
@@ -158,11 +160,11 @@ function getProjectNameClasses(isBranchActive: boolean) {
 
       <div v-else class="flex shrink-0 items-center gap-0.5">
         <BaseButton :variant="getProjectButtonVariant(isSelected(branch))" size="sm" class="max-w-56" @click="emit('select', branch.id)">
-          <BaseIcon name="project" :class="getProjectIconClasses(isActive(branch), isSelected(branch))" />
-          <span :class="getProjectNameClasses(isActive(branch))">{{ branch.name }}</span>
+          <BaseIcon :name="getProjectIcon(branch)" :class="getProjectIconClasses(isActive(branch), isSelected(branch))" />
+          <span :class="getProjectNameClasses(isActive(branch))">{{ getProjectName(branch) }}</span>
         </BaseButton>
 
-        <template v-if="isSelected(branch) && branch.id !== MAIN_BRANCH_ID">
+        <template v-if="isSelected(branch) && branch.id !== NO_PROJECT_ID">
           <BaseButton icon="pencil" variant="ghost" size="sm" class="shrink-0" @click="startEdit(branch)" />
 
           <ConfirmPopup

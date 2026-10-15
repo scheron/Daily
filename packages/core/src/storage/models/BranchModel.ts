@@ -1,4 +1,4 @@
-import {createEntityId, MAIN_BRANCH_ID, MAIN_BRANCH_NAME} from "@daily/protocol"
+import {createEntityId, MAIN_BRANCH_NAME, NO_PROJECT_ID} from "@daily/protocol"
 import {notUndefined} from "@daily/std"
 
 import {logger} from "../../utils/logger"
@@ -20,7 +20,7 @@ export class BranchModel {
       VALUES (?, ?, ?, ?, NULL)
     `,
       )
-      .run(MAIN_BRANCH_ID, MAIN_BRANCH_NAME, now, now)
+      .run(NO_PROJECT_ID, MAIN_BRANCH_NAME, now, now)
 
     this.db
       .prepare(
@@ -28,7 +28,7 @@ export class BranchModel {
       UPDATE branches SET deleted_at = NULL, updated_at = ? WHERE id = ? AND deleted_at IS NOT NULL
     `,
       )
-      .run(now, MAIN_BRANCH_ID)
+      .run(now, NO_PROJECT_ID)
   }
 
   getBranchList(params?: {includeDeleted?: boolean}): Branch[] {
@@ -86,7 +86,7 @@ export class BranchModel {
   }
 
   updateBranch(id: Branch["id"], updates: Partial<Pick<Branch, "description" | "name">>): Branch | null {
-    if (id === MAIN_BRANCH_ID && notUndefined(updates.name)) {
+    if (id === NO_PROJECT_ID && notUndefined(updates.name)) {
       logger.warn(logger.CONTEXT.BRANCHES, "Main branch cannot be renamed")
       return null
     }
@@ -116,7 +116,7 @@ export class BranchModel {
   }
 
   deleteBranch(id: Branch["id"]): boolean {
-    if (id === MAIN_BRANCH_ID) {
+    if (id === NO_PROJECT_ID) {
       logger.warn(logger.CONTEXT.BRANCHES, "Main branch cannot be deleted")
       return false
     }

@@ -1,7 +1,7 @@
 import {computed, ref} from "vue"
 import {storeToRefs} from "pinia"
 
-import {MAIN_BRANCH_ID} from "@daily/protocol"
+import {NO_PROJECT_ID} from "@daily/protocol"
 import {getTime, getTimezone, getToday} from "@daily/std"
 
 import {useBranchesStore} from "@/stores/branches.store"
@@ -110,7 +110,7 @@ export function useQuickTaskDraft() {
   }
 
   function getDefaultBranchId(): TaskDraft["branchId"] {
-    if (settings.value?.branch?.isAllProjects) return MAIN_BRANCH_ID
+    if (settings.value?.branch?.isAllProjects) return NO_PROJECT_ID
     return settings.value?.branch?.activeId ?? null
   }
 

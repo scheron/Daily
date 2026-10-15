@@ -1,6 +1,6 @@
 import {notNull, notUndefined} from "@daily/std"
 
-import {MAIN_BRANCH_ID} from "../../constants/storage"
+import {NO_PROJECT_ID} from "../../constants/storage"
 import {completeScheduling, schedulingForStatus, statusForScheduling} from "./backlog"
 import {
   getOrderIndexBetween,
@@ -33,7 +33,7 @@ export type MutationContext = {
 /** The fields a new task is created with. `id`, `createdAt`, `updatedAt` and `deletedAt` are the caller's. */
 export function planTaskCreate(ctx: MutationContext, draft: Partial<TaskWritableFields>): TaskWritableFields {
   const status = draft.status as TaskWritableFields["status"]
-  const branchId = draft.branchId ?? MAIN_BRANCH_ID
+  const branchId = draft.branchId ?? NO_PROJECT_ID
   const scheduled = schedulingForStatus(status, draft.scheduled ?? null, ctx.today)
   const orderIndex = status === "backlog" ? getPreviousTaskOrderIndex(backlogTasks(ctx, branchId)) : draft.orderIndex
 

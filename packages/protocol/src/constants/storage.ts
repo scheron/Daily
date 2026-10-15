@@ -1,4 +1,4 @@
-export const MAIN_BRANCH_ID = "main"
+export const NO_PROJECT_ID = "main"
 export const MAIN_BRANCH_NAME = "Main"
 
 /** The `provider` of a comment the app's own agent wrote. */

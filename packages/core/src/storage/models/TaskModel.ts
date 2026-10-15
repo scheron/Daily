@@ -1,4 +1,4 @@
-import {MAIN_BRANCH_ID} from "@daily/protocol"
+import {NO_PROJECT_ID} from "@daily/protocol"
 import {notUndefined} from "@daily/std"
 
 import {logger} from "../../utils/logger"
@@ -68,9 +68,9 @@ export class TaskModel {
     }
 
     if (params?.branchId) {
-      if (params.branchId === MAIN_BRANCH_ID) {
+      if (params.branchId === NO_PROJECT_ID) {
         conditions.push("(t.branch_id = ? OR t.branch_id IS NULL)")
-        values.push(MAIN_BRANCH_ID)
+        values.push(NO_PROJECT_ID)
       } else {
         conditions.push("t.branch_id = ?")
         values.push(params.branchId)
@@ -107,7 +107,7 @@ export class TaskModel {
   createTask(task: Omit<TaskInternal, "createdAt" | "updatedAt">): Task | null {
     const id = task.id
     const now = new Date().toISOString()
-    const branchId = task.branchId ?? MAIN_BRANCH_ID
+    const branchId = task.branchId ?? NO_PROJECT_ID
     const tags = task.tags ?? []
     const orderIndex = Number.isFinite(task.orderIndex) ? task.orderIndex : Date.parse(now)
     const scheduledDate = task.scheduled?.date ?? null
@@ -287,9 +287,9 @@ export class TaskModel {
     const values: any[] = []
 
     if (params?.branchId) {
-      if (params.branchId === MAIN_BRANCH_ID) {
+      if (params.branchId === NO_PROJECT_ID) {
         conditions.push("(t.branch_id = ? OR t.branch_id IS NULL)")
-        values.push(MAIN_BRANCH_ID)
+        values.push(NO_PROJECT_ID)
       } else {
         conditions.push("t.branch_id = ?")
         values.push(params.branchId)
@@ -337,7 +337,7 @@ export class TaskModel {
     let result
 
     if (branchId) {
-      if (branchId === MAIN_BRANCH_ID) {
+      if (branchId === NO_PROJECT_ID) {
         result = this.db
           .prepare(
             `

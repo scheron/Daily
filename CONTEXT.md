@@ -13,6 +13,12 @@ The scope a task belongs to. Every task is in exactly one, `main` always exists,
 milestone belongs to one project and never spans two.
 _Avoid_: branch, workspace, board, list
 
+**No Project**:
+Where a task is when nobody put it in a project of their own. It is the project stored as `main`,
+and agents still see it under that id and the name "Main"; the app never shows that name. It is not
+All projects, which is a view across every project, this one included.
+_Avoid_: Main, default project, inbox
+
 **Backlog**:
 Work that has no day. It is one of the four values a task's status takes rather than a place a task
 is kept, and a task is in the backlog exactly when it has no date.

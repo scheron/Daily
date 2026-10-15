@@ -7,6 +7,7 @@ import {toDateLabel} from "@daily/std"
 import BaseIcon from "@/ui/base/BaseIcon"
 import BaseTag from "@/ui/base/BaseTag"
 import {renderMarkdownPreview} from "@/utils/codemirror/preview"
+import {getProjectName} from "@/utils/projects/getProjectName"
 import {cn} from "@/utils/ui/tailwindcss"
 
 import type {TaskSearchResult, TaskStatus} from "@daily/protocol"
@@ -23,7 +24,7 @@ const statusIcon = computed(() => {
 })
 
 const sortedTags = computed(() => sortTags(props.result.task.tags))
-const branchName = computed(() => props.result.branch?.name ?? "Main")
+const branchName = computed(() => getProjectName(props.result.branch))
 
 function renderPreview(content: string) {
   if (!containerRef.value) return

@@ -1,6 +1,6 @@
 import {toRaw} from "vue"
 
-import {MAIN_BRANCH_ID} from "@daily/protocol"
+import {NO_PROJECT_ID} from "@daily/protocol"
 import {isArray, isObjectLike, isUndefined} from "@daily/std"
 
 import type {Changeset} from "@daily/core"
@@ -133,7 +133,7 @@ function cascadeIntoTask(task: Task, removed: Removed): Task {
     ...task,
     ...(clearsMilestone && {milestoneId: null}),
     ...(dropsTags && {tags: task.tags.filter((tag) => !removed.tags.has(tag.id))}),
-    ...(leavesProject && {branchId: MAIN_BRANCH_ID}),
+    ...(leavesProject && {branchId: NO_PROJECT_ID}),
   }
 }
 

@@ -5,6 +5,8 @@ import {PRIORITY_LEVELS} from "@/constants/priority"
 import {useBranchesStore} from "@/stores/branches.store"
 import {useMilestonesStore} from "@/stores/milestones.store"
 import {useTagsStore} from "@/stores/tags.store"
+import {getProjectIcon} from "@/utils/projects/getProjectIcon"
+import {getProjectName} from "@/utils/projects/getProjectName"
 import {getUpcomingDays} from "../utils/getUpcomingDays"
 import {parseDayMonth} from "../utils/parseDayMonth"
 import {parseDuration} from "../utils/parseDuration"
@@ -82,10 +84,10 @@ export function useTaskSlashCommands(task: ComputedRef<Task>, patch: (updates: P
 
   function getProjectItems(query: string): NestedItem[] {
     return branchesStore.orderedBranches
-      .filter((branch) => matches(branch.name, query))
+      .filter((branch) => matches(getProjectName(branch), query))
       .map((branch) => ({
-        label: branch.name,
-        icon: "project",
+        label: getProjectName(branch),
+        icon: getProjectIcon(branch),
         apply: () => {
           if (branch.id !== task.value.branchId) patch({branchId: branch.id})
         },

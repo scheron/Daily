@@ -90,6 +90,7 @@ export type IconName =
   | "chevrons-up"
   | "bookmark"
   | "project"
+  | "project-off"
   | "layers"
   | "milestone"
   | "priority-none"
@@ -824,6 +825,12 @@ export type IconName =
       <circle cx="12" cy="12" r="3"></circle>
       <line x1="3" x2="9" y1="12" y2="12"></line>
       <line x1="15" x2="21" y1="12" y2="12"></line>
+    </symbol>
+    <symbol id="project-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="3"></circle>
+      <line x1="3" x2="9" y1="12" y2="12"></line>
+      <line x1="15" x2="21" y1="12" y2="12"></line>
+      <path d="m6 6 12 12"></path>
     </symbol>
     <symbol id="layers" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
       <path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"></path>

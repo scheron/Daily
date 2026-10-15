@@ -104,13 +104,13 @@ describe("useTaskSlashCommands", () => {
   })
 
   describe("Project", () => {
-    it("lists Main first and the rest by name, filtered by what was typed", () => {
-      expect(labels(items("Project"))).toEqual(["Main", "Daily", "Zeta"])
+    it("lists No project first and the rest by name, filtered by what was typed", () => {
+      expect(labels(items("Project"))).toEqual(["No project", "Daily", "Zeta"])
       expect(labels(items("Project", "ze"))).toEqual(["Zeta"])
     })
 
     it("patches the project only when it changes", () => {
-      items("Project", "main")[0].apply()
+      items("Project", "no project")[0].apply()
       expect(patch).not.toHaveBeenCalled()
 
       items("Project", "daily")[0].apply()

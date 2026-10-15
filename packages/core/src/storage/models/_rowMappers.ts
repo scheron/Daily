@@ -3,7 +3,7 @@ import {
   DEFAULT_ACCENT_ID,
   DEFAULT_BASE_ID,
   DEFAULT_QUICK_TASK_HOTKEY,
-  MAIN_BRANCH_ID,
+  NO_PROJECT_ID,
   WINDOWS_CONFIG,
 } from "@daily/protocol"
 import {deepMerge, isNumber, notNull} from "@daily/std"
@@ -144,7 +144,7 @@ export function rowToTask(row: TaskRow): Task {
           },
     estimatedTime: row.estimated_time,
     spentTime: row.spent_time,
-    branchId: row.branch_id || MAIN_BRANCH_ID,
+    branchId: row.branch_id || NO_PROJECT_ID,
     milestoneId: row.milestone_id ?? null,
     tags,
     createdAt: row.created_at,
@@ -156,7 +156,7 @@ export function rowToTask(row: TaskRow): Task {
 export function rowToTag(row: TagRow): Tag {
   return {
     id: row.id,
-    branchId: row.branch_id || MAIN_BRANCH_ID,
+    branchId: row.branch_id || NO_PROJECT_ID,
     name: row.name,
     color: row.color,
     createdAt: row.created_at,
@@ -179,7 +179,7 @@ export function rowToBranch(row: BranchRow): Branch {
 export function rowToMilestone(row: MilestoneRow): Milestone {
   return {
     id: row.id,
-    branchId: row.branch_id || MAIN_BRANCH_ID,
+    branchId: row.branch_id || NO_PROJECT_ID,
     name: row.name,
     description: row.description ?? "",
     targetDate: row.target_date ?? null,
@@ -205,7 +205,7 @@ export function rowToTaskComment(row: TaskCommentRow): TaskComment {
   return {
     id: row.id,
     taskId: row.task_id,
-    branchId: row.branch_id || MAIN_BRANCH_ID,
+    branchId: row.branch_id || NO_PROJECT_ID,
     content: row.content,
     kind: toCommentKind(row.kind),
     provider: toCommentProvider(row.provider),
@@ -247,7 +247,7 @@ export function getDefaultSettings(): Settings {
     typography: getDefaultTypographySettings(),
     sync: getDefaultSyncSettings(),
     ai: null,
-    branch: {activeId: MAIN_BRANCH_ID, isAllProjects: false},
+    branch: {activeId: NO_PROJECT_ID, isAllProjects: false},
     layout: {
       sectionsCollapsed: {active: false, discarded: false, done: false, backlog: false},
     },

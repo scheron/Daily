@@ -12,6 +12,8 @@ import BaseIcon from "@/ui/base/BaseIcon"
 import PriorityIcon from "@/ui/common/priority/PriorityIcon.vue"
 import {toShortDurationLabel} from "@/utils/date/toShortDurationLabel"
 import {getPriorityLevel} from "@/utils/priority/getPriorityLevel"
+import {getProjectIcon} from "@/utils/projects/getProjectIcon"
+import {getProjectName} from "@/utils/projects/getProjectName"
 import {cn} from "@/utils/ui/tailwindcss"
 
 import type {TaskDraft} from "@/types/taskDraft"
@@ -24,7 +26,9 @@ const emit = defineEmits<{patch: [updates: Partial<TaskDraft>]}>()
 const branchesStore = useBranchesStore()
 const milestonesStore = useMilestonesStore()
 
-const projectName = computed(() => branchesStore.branchesMap.get(props.task.branchId)?.name ?? "")
+const project = computed(() => branchesStore.branchesMap.get(props.task.branchId))
+const projectName = computed(() => getProjectName(project.value))
+const projectIcon = computed(() => getProjectIcon(project.value))
 const milestoneName = computed(() => (props.task.milestoneId ? (milestonesStore.milestonesMap.get(props.task.milestoneId)?.name ?? "") : ""))
 const priorityLevel = computed(() => getPriorityLevel(props.task.priority))
 const statusView = computed(() => getStatusView(props.task.status))
@@ -65,7 +69,7 @@ function removeTag(tag: Tag) {
 <template>
   <div class="flex flex-wrap gap-1.5">
     <span data-chip="project" :class="getChipClasses()">
-      <BaseIcon name="project" class="size-3.5" />
+      <BaseIcon :name="projectIcon" class="size-3.5" />
       <span>{{ projectName }}</span>
     </span>
 

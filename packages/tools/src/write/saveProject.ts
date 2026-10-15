@@ -1,4 +1,4 @@
-import {MAIN_BRANCH_ID} from "@daily/protocol"
+import {NO_PROJECT_ID} from "@daily/protocol"
 
 import {ToolError} from "../errors/ToolError"
 import {ToolErrorCode} from "../errors/ToolErrorCode"
@@ -47,7 +47,7 @@ async function updateProject(ctx: ToolContext, id: Branch["id"], name: string | 
   const project = changeset.branches?.upserted?.[0]
   if (!project) {
     const reason =
-      id === MAIN_BRANCH_ID && name !== undefined
+      id === NO_PROJECT_ID && name !== undefined
         ? '"main" cannot be renamed.'
         : `Could not update project "${id}" — check its id and whether the name is already taken.`
     throw new ToolError(ToolErrorCode.INVALID_INPUT, reason)
