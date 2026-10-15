@@ -87,15 +87,29 @@ describe("GeneralSettings", () => {
     expect(titles()).not.toContain("Quick task shortcut")
   })
 
+  it("Appearance: selects regular by default and saves compact through the existing settings path", async () => {
+    await setup({shouldNotify: true, shouldPlaySound: true})
+    const titles = wrapper.findAllComponents(SettingRow).map((row) => row.props("title"))
+    expect(titles).toContain("Task view")
+    const row = wrapper.findAllComponents(SettingRow).find((row) => row.props("title") === "Task view")
+    const buttons = row.findAll("button")
+    expect(buttons.map((button) => button.text())).toEqual(["Regular", "Compact"])
+    expect(buttons[0].classes()).toContain("bg-accent")
+    await buttons[1].trigger("click")
+    await vi.advanceTimersByTimeAsync(300)
+    expect(buttons[1].classes()).toContain("bg-accent")
+    expect(bridge["settings:save"]).toHaveBeenCalledWith({appearance: {taskView: "compact"}})
+  })
+
   it("opens with the Appearance group in the agreed row order", async () => {
     await setup({shouldNotify: true, shouldPlaySound: true})
 
     expect(wrapper.findAllComponents(SettingsGroup)[0].props("label")).toBe("Appearance")
     const titles = wrapper
       .findAllComponents(SettingRow)
-      .slice(0, 5)
+      .slice(0, 6)
       .map((r) => r.props("title"))
-    expect(titles).toEqual(["Theme", "Shell Color", "Main Color", "Text size", "Show icon in menu bar"])
+    expect(titles).toEqual(["Theme", "Shell Color", "Main Color", "Text size", "Task view", "Show icon in menu bar"])
     const shortcuts = wrapper.findAllComponents(SettingsGroup).find((g) => g.props("label") === "Shortcuts")
     expect(shortcuts.text()).not.toContain("Show icon in menu bar")
   })

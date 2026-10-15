@@ -250,6 +250,29 @@ describe("useTaskColumns — the board's pointer drag", () => {
 
   describe("TC-8 a reorder in the day frame", () => {
     it.each([
+      ["small", 99.6],
+      ["normal", 114],
+      ["large", 128.4],
+    ])("targets compact drop slots at %s text size", async (fontSize, step) => {
+      const {tasks, columns, startDrag, moveOver, release, find} = await setupBoard(makeColumn("active", ["A", "B", "C", "D"]), {
+        taskView: "compact",
+        fontSize,
+      })
+      startDrag(find("B"), yForIndex(1, step))
+      moveOver("active", yForIndex(2, step))
+      expect(itemsOf(columns.columnItems.value.active)).toEqual(["A", "C", "placeholder", "D"])
+      release(yForIndex(2, step))
+      expect(tasks.moveTaskByOrder).toHaveBeenCalledWith({
+        taskId: "B",
+        targetStatus: "active",
+        targetTaskId: "D",
+        position: "before",
+        activeDate: TODAY,
+        acrossProjects: false,
+      })
+    })
+
+    it.each([
       [2, {targetTaskId: "D", position: "before"}],
       [3, {targetTaskId: null, position: "after"}],
     ])("writes a drop at index %i at once, against the card that follows it", async (index, target) => {
@@ -421,6 +444,37 @@ describe("useTaskColumns — the board's pointer drag", () => {
   })
 
   describe("TC-12 a drag that ends without a drop", () => {
+    it.each([
+      ["view", {appearance: {taskView: "compact"}}, {}],
+      ["text size", {typography: {fontSize: "large"}}, {taskView: "compact"}],
+      ["regular text size", {typography: {fontSize: "large"}}, {}],
+    ])("cancels an uncommitted drag when %s changes without writing a task", async (_, patch, options) => {
+      const {tasks, settings, drag, columns, startDrag, moveOver, release, find} = await setupBoard(makeColumn("active", ["A", "B", "C"]), options)
+      startDrag(find("B"), yForIndex(1))
+      moveOver("active", yForIndex(2))
+      settings.settings = {...settings.settings, ...patch}
+      await nextTick()
+      release(yForIndex(2))
+      await settle()
+
+      expect(drag.draggingTaskId).toBeNull()
+      expect(columns.isDragging.value).toBe(false)
+      expect(itemsOf(columns.columnItems.value.active)).toEqual(["A", "B", "C"])
+      expect(tasks.moveTaskByOrder).not.toHaveBeenCalled()
+      expect(document.body.style.userSelect).not.toBe("none")
+    })
+
+    it("cancels a pending press on a view change before it can become a drag", async () => {
+      const {settings, tasks, drag, press, moveOver, release, find} = await setupBoard(makeColumn("active", ["A", "B", "C"]))
+      press(find("B"), yForIndex(1))
+      settings.settings.appearance.taskView = "compact"
+      await nextTick()
+      moveOver("active", yForIndex(2, 114))
+      release(yForIndex(2, 114))
+      expect(drag.draggingTaskId).toBeNull()
+      expect(tasks.moveTaskByOrder).not.toHaveBeenCalled()
+    })
+
     it.each([
       ["Esc is pressed", () => window.dispatchEvent(new KeyboardEvent("keydown", {key: "Escape", bubbles: true}))],
       [

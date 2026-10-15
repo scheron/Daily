@@ -242,6 +242,7 @@ export function getDefaultSettings(): Settings {
       mode: "system",
       accent: DEFAULT_ACCENT_ID,
       base: DEFAULT_BASE_ID,
+      taskView: "regular",
     },
     typography: getDefaultTypographySettings(),
     sync: getDefaultSyncSettings(),
@@ -279,9 +280,17 @@ export function rowToSettings(row: SettingsRow): Settings {
   const defaults = getDefaultSettings()
   try {
     const parsed = migrateSettingsShape(JSON.parse(row.data))
-    return deepMerge<Settings>(defaults, parsed)
+    return normalizeSettingsTaskView(deepMerge<Settings>(defaults, parsed))
   } catch {
     return defaults
+  }
+}
+
+/** Resolves older or unknown task views without discarding other saved preferences. */
+export function normalizeSettingsTaskView(settings: Settings): Settings {
+  return {
+    ...settings,
+    appearance: {...settings.appearance, taskView: settings.appearance?.taskView === "compact" ? "compact" : "regular"},
   }
 }
 

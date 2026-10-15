@@ -2,7 +2,8 @@
 import {computed, useTemplateRef} from "vue"
 
 import {useTaskColumns} from "@/composables/tasks/useTaskColumns"
-import {BOARD_CARD_HEIGHT, BOARD_CARD_STEP, TASK_COLUMNS} from "@/constants/ui"
+import {useBoardCardGeometry} from "@/composables/useBoardCardGeometry"
+import {TASK_COLUMNS} from "@/constants/ui"
 import BaseIcon from "@/ui/base/BaseIcon"
 import {cn} from "@/utils/ui/tailwindcss"
 import {useVirtualColumn} from "../composables/useVirtualColumn"
@@ -18,6 +19,7 @@ const listRef = useTemplateRef<HTMLElement>("list")
 const trackRef = useTemplateRef<HTMLElement>("track")
 
 const columns = useTaskColumns()
+const {cardHeight, cardStep} = useBoardCardGeometry()
 
 const column = computed(() => TASK_COLUMNS.find((s) => s.status === props.status)!)
 const tasksCount = computed(() => columns.tasksByStatus.value[props.status].length)
@@ -93,7 +95,7 @@ function getListClasses(isCollapsed: boolean) {
     <button v-else type="button" aria-expanded="true" :class="getHeaderClasses(column.titleClass)" @click="onToggle">
       <span class="flex items-center gap-2">
         <BaseIcon :name="column.icon" class="size-4" />
-        <span class="text-sm font-medium tracking-wide uppercase">{{ column.label }}</span>
+        <span class="text-sm font-medium uppercase tracking-wide">{{ column.label }}</span>
       </span>
       <span :class="getCounterClasses(column.counterClass)">
         {{ tasksCount }}
@@ -107,7 +109,7 @@ function getListClasses(isCollapsed: boolean) {
             v-if="item.kind === 'task'"
             data-task-card
             :class="getItemClasses(columns.isDragging.value)"
-            :style="{transform: `translateY(${(range.start + offset) * BOARD_CARD_STEP}px)`}"
+            :style="{transform: `translateY(${(range.start + offset) * cardStep}px)`}"
             @pointerdown="columns.onCardPointerDown($event, item.task)"
             @dragstart="onCardDragStart"
           >
@@ -115,8 +117,8 @@ function getListClasses(isCollapsed: boolean) {
           </div>
           <div
             v-else
-            class="border-base-content/38 bg-base-300/40 absolute inset-x-1.5 top-0 rounded-[0.9rem] border border-dashed transition-transform duration-140"
-            :style="{height: `${BOARD_CARD_HEIGHT}px`, transform: `translateY(${(range.start + offset) * BOARD_CARD_STEP}px)`}"
+            class="border-base-content/38 bg-base-300/40 duration-140 absolute inset-x-1.5 top-0 rounded-[0.9rem] border border-dashed transition-transform"
+            :style="{height: `${cardHeight}px`, transform: `translateY(${(range.start + offset) * cardStep}px)`}"
           />
         </template>
       </div>
@@ -134,9 +136,9 @@ function getListClasses(isCollapsed: boolean) {
 
     <template v-if="!collapsed">
       <div
-        class="from-base-100 via-base-100/60 pointer-events-none absolute inset-x-0 top-0 z-[5] h-26 bg-linear-to-b from-35% via-70% to-transparent"
+        class="from-base-100 via-base-100/60 h-26 bg-linear-to-b pointer-events-none absolute inset-x-0 top-0 z-[5] from-35% via-70% to-transparent"
       />
-      <div class="to-base-100/70 pointer-events-none absolute inset-x-0 bottom-0 z-[5] h-12 bg-linear-to-b from-transparent" />
+      <div class="to-base-100/70 bg-linear-to-b pointer-events-none absolute inset-x-0 bottom-0 z-[5] h-12 from-transparent" />
     </template>
   </div>
 </template>

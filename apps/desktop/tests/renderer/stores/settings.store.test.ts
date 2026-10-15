@@ -85,6 +85,38 @@ describe("settingsStore", () => {
     }
   })
 
+  it("updates validated card geometry immediately and on settings reload without rewriting other appearance values", async () => {
+    const store = await getStore()
+    const {useBoardCardGeometry} = await import("../../../src/renderer/src/composables/useBoardCardGeometry")
+    const geometry = useBoardCardGeometry()
+    expect(geometry.taskView.value).toBe("regular")
+    expect(geometry.cardHeight.value).toBe(200)
+    expect(geometry.cardStep.value).toBe(206)
+    store.settings.appearance = {mode: "dark", accent: "rose", taskView: "invalid"}
+    expect(geometry.taskView.value).toBe("regular")
+    expect(store.settings.appearance.mode).toBe("dark")
+    bridge["settings:load"].mockResolvedValueOnce({
+      ...store.settings,
+      appearance: {...store.settings.appearance, taskView: "compact"},
+      typography: {fontSize: "large"},
+    })
+    await store.revalidate()
+    expect(geometry.taskView.value).toBe("compact")
+    expect(geometry.cardHeight.value).toBeCloseTo(122.4)
+    expect(geometry.cardStep.value).toBeCloseTo(128.4)
+    vi.useFakeTimers()
+    try {
+      geometry.taskView.value = "regular"
+      expect(geometry.cardHeight.value).toBe(200)
+      expect(geometry.cardStep.value).toBe(206)
+      expect(store.settings.appearance.accent).toBe("rose")
+      await vi.runAllTimersAsync()
+      expect(bridge["settings:save"]).toHaveBeenCalledWith({appearance: {taskView: "regular"}})
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it("revalidate reloads settings from IPC", async () => {
     const store = await getStore()
 

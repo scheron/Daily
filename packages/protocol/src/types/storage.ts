@@ -47,6 +47,7 @@ export type InstalledAppReleaseState = {
 
 export type AppearanceMode = "light" | "dark" | "system"
 export type FontSize = "small" | "normal" | "large"
+export type TaskView = "regular" | "compact"
 
 /** UI preferences. */
 export type TypographySettings = {
@@ -91,6 +92,7 @@ export type Settings = {
     mode: AppearanceMode
     accent: string
     base: string
+    taskView: TaskView
   }
   typography: TypographySettings
   sync: SyncSettings

@@ -33,11 +33,11 @@ export function makeColumn(status, ids, overrides = {}) {
   return ids.map((id, index) => makeTask(id, {status, orderIndex: (index + 1) * 1024, ...overrides}))
 }
 
-export function yForIndex(index) {
-  return TRACK_TOP + index * 206 + 50
+export function yForIndex(index, step = 206) {
+  return TRACK_TOP + index * step + 50
 }
 
-export async function mountBoardDrag(seed, {frame = "day"} = {}) {
+export async function mountBoardDrag(seed, {frame = "day", taskView = "regular", fontSize = "normal"} = {}) {
   const {useTasksStore} = await import("../../src/renderer/src/stores/tasks/tasks.store")
   const {useDragDropStore} = await import("../../src/renderer/src/stores/dragDrop.store")
   const {useSettingsStore} = await import("../../src/renderer/src/stores/settings.store")
@@ -48,7 +48,9 @@ export async function mountBoardDrag(seed, {frame = "day"} = {}) {
 
   let hit = null
 
-  useSettingsStore().settings = {branch: {activeId: "main"}, layout: {sectionsCollapsed: {}}}
+  const settings = useSettingsStore()
+  await new Promise((resolve) => setTimeout(resolve))
+  settings.settings = {branch: {activeId: "main"}, layout: {sectionsCollapsed: {}}, appearance: {taskView}, typography: {fontSize}}
   useMilestonesStore().milestones = [
     {
       id: "milestone-1",
@@ -152,6 +154,7 @@ export async function mountBoardDrag(seed, {frame = "day"} = {}) {
 
   return {
     tasks,
+    settings,
     drag: useDragDropStore(),
     ui: useUIStore(),
     columns,

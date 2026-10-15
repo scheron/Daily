@@ -1,5 +1,9 @@
+import {mkdtempSync, rmSync} from "node:fs"
+import {join} from "node:path"
+import Database from "better-sqlite3"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
+import {rowToSettings} from "@core/storage/models/_rowMappers"
 import {FileModel} from "@core/storage/models/FileModel"
 import {SettingsModel} from "@core/storage/models/SettingsModel"
 import {LocalStorageAdapter} from "@core/storage/sync/adapters/LocalStorageAdapter"
@@ -30,6 +34,59 @@ describe("SettingsModel", () => {
     expect(settings.sync).toEqual({iCloud: {enabled: false}, server: {enabled: false, binding: null}})
     expect(settings.typography.fontSize).toBe("normal")
     expect(settings.branch.activeId).toBe("main")
+  })
+
+  it.each([undefined, null, "dense", 108])("uses regular for a missing or invalid task view %s while preserving appearance", (taskView) => {
+    const data = JSON.stringify({appearance: {mode: "dark", accent: "rose", base: "slate", taskView}, branch: {activeId: "project-a"}})
+    db.prepare("INSERT INTO settings (id, version, data, created_at, updated_at) VALUES ('default', 'v', ?, 'now', 'now')").run(data)
+
+    for (const settings of [settingsModel.loadSettings(), rowToSettings({data} as any)]) {
+      expect(settings.appearance).toEqual({mode: "dark", accent: "rose", base: "slate", taskView: "regular"})
+      expect(settings.branch.activeId).toBe("project-a")
+    }
+  })
+
+  it("normalizes an invalid partial save without losing the existing colors or other preferences", () => {
+    settingsModel.saveSettings({appearance: {mode: "dark", accent: "rose", base: "slate", taskView: "compact"}, menuBar: {isVisible: false}})
+    settingsModel.saveSettings({appearance: {taskView: "dense"}} as any)
+
+    expect(settingsModel.loadSettings().appearance).toEqual({mode: "dark", accent: "rose", base: "slate", taskView: "regular"})
+    expect(settingsModel.loadSettings().menuBar.isVisible).toBe(false)
+    const persisted = JSON.parse(db.prepare("SELECT data FROM settings WHERE id = 'default'").get().data)
+    expect(persisted.appearance.taskView).toBe("regular")
+  })
+
+  it("migrates legacy themes with regular cards while retaining the selected project", () => {
+    db.prepare("INSERT INTO settings (id, version, data, created_at, updated_at) VALUES ('default', 'v', ?, 'now', 'now')").run(
+      JSON.stringify({themes: {current: "github-dark", useSystem: false}, branch: {activeId: "project-a"}}),
+    )
+    const settings = settingsModel.loadSettings()
+    expect(settings.appearance.mode).toBe("dark")
+    expect(settings.appearance.taskView).toBe("regular")
+    expect(settings.branch.activeId).toBe("project-a")
+  })
+
+  it("keeps compact after partial saves and reopening a real SQLite database without leaking it into snapshots", async () => {
+    const directory = mkdtempSync("/tmp/daily-task-view-settings-")
+    try {
+      settingsModel.saveSettings({appearance: {taskView: "compact", mode: "dark"}})
+      settingsModel.saveSettings({menuBar: {isVisible: false}})
+      const filename = join(directory, "settings.sqlite")
+      db.exec(`VACUUM INTO '${filename}'`)
+      db.close()
+      db = new Database(filename)
+      settingsModel = new SettingsModel(db)
+
+      expect(settingsModel.loadSettings().appearance.taskView).toBe("compact")
+      expect(settingsModel.loadSettings().appearance.mode).toBe("dark")
+      expect(settingsModel.loadSettings().menuBar.isVisible).toBe(false)
+      const docs = await new LocalStorageAdapter(db, new FileModel(db, directory)).loadAllDocs()
+      const snapshot = buildSnapshot(docs)
+      expect(snapshot.docs).not.toHaveProperty("settings")
+      expect(JSON.stringify(snapshot)).not.toContain("taskView")
+    } finally {
+      rmSync(directory, {recursive: true, force: true})
+    }
   })
 
   it("keeps a rebound Quick task hotkey", () => {
