@@ -22,7 +22,7 @@ export const useMilestonesStore = defineStore("milestones", () => {
     const progressByMilestoneId = new Map<Milestone["id"], MilestoneProgress>()
 
     for (const [milestoneId, tasks] of tasksStore.tasksByMilestoneId) {
-      const resolved = tasks.filter((task) => task.status === "done" || task.status === "discarded").length
+      const resolved = tasks.filter((task) => task.status === "done" || task.status === "cancelled").length
       progressByMilestoneId.set(milestoneId, {total: tasks.length, resolved})
     }
 

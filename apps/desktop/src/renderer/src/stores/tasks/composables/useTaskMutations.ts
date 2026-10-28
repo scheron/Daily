@@ -12,6 +12,7 @@ import {toRawDeep} from "@/utils/ui/toRawDeep"
 import type {CreateTaskParams} from "@/api/types"
 import type {Changeset} from "@daily/core"
 import type {
+  BoardMode,
   Branch,
   ISODate,
   Milestone,
@@ -56,7 +57,7 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
     priority?: Task["priority"]
     milestoneId?: Task["milestoneId"]
   }): Promise<Task | null> {
-    const isBacklog = params.status === "backlog"
+    const isUndated = params.status === "backlog" || (params.status === "ready_for_agent" && !params.date)
     const id = createEntityId("task")
     const date = params.date ?? activeDay.value
     const time = getTime()
@@ -64,7 +65,7 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
 
     const request: CreateTaskParams = toRawDeep({
       id,
-      date: isBacklog ? undefined : date,
+      date: isUndated ? undefined : date,
       time,
       timezone,
       tags: params.tags,
@@ -78,7 +79,7 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
 
     const fields = planTaskCreate(mutationContext(), {
       content: params.content,
-      status: request.status ?? "active",
+      status: request.status ?? "in_progress",
       minimized: false,
       priority: request.priority ?? "none",
       tags: request.tags ?? [],
@@ -87,7 +88,7 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
       orderIndex: request.orderIndex ?? 0,
       branchId: request.branchId,
       milestoneId: request.milestoneId ?? null,
-      scheduled: isBacklog ? null : {date, time, timezone},
+      scheduled: isUndated ? null : {date, time, timezone},
     })
 
     const now = new Date().toISOString()
@@ -101,7 +102,7 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
     const task = findTaskById(taskId)
     if (!task) return false
 
-    const isBacklog = task.status === "backlog"
+    const status = task.status === "done" || task.status === "cancelled" ? "in_progress" : task.status
 
     const created = await createTask({
       content: task.content,
@@ -109,7 +110,7 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
       estimatedTime: task.estimatedTime,
       date: task.scheduled?.date,
       branchId: task.branchId,
-      status: isBacklog ? "backlog" : "active",
+      status,
       priority: task.priority,
     })
 
@@ -154,6 +155,7 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
     position?: TaskMovePosition
     activeDate: ISODate
     acrossProjects?: boolean
+    boardMode?: BoardMode
   }): Promise<TaskMoveMeta | null> {
     const sourceTask = findTaskById(params.taskId)
     if (!sourceTask) return null
@@ -181,6 +183,7 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
       position,
       activeDate: params.activeDate,
       acrossProjects: params.acrossProjects,
+      boardMode: params.boardMode,
     })
     const patches = planTaskMoveByOrder(mutationContext(), moveParams)
 

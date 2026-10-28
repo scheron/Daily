@@ -3,35 +3,27 @@ import {getTime, getTimezone} from "@daily/std"
 import type {ISODate} from "../../types/common"
 import type {TaskScheduled, TaskStatus} from "../../types/storage"
 
-/**
- * The backlog invariant, in one place: a task is in the backlog exactly when it has no schedule.
- * Returns the scheduling a task must carry for `status`.
- *  - `backlog`      → null
- *  - anything else  → `current` when it is set, otherwise a fresh schedule on `activeDate`
- *                     with `getTime()` and `getTimezone()` from `@daily/std`
- */
+/** Backlog clears its day; readiness preserves its optional day; every other status requires one. */
 export function schedulingForStatus(status: TaskStatus, current: TaskScheduled | null, activeDate: ISODate): TaskScheduled | null {
   if (status === "backlog") return null
+  if (status === "ready_for_agent") return current
   if (current) return current
 
   return {date: activeDate, time: getTime(), timezone: getTimezone()}
 }
 
-/**
- * The backlog invariant read in the other direction: the status a task must carry once a
- * schedule is written to it. A task given a day while in the backlog becomes `active`; any
- * other status is preserved. No schedule always means `backlog`.
- */
+/** Setting or clearing a Ready for Agent task's day keeps readiness. Giving Backlog a day starts work. */
 export function statusForScheduling(currentStatus: TaskStatus, nextScheduled: TaskScheduled | null): TaskStatus {
+  if (currentStatus === "ready_for_agent") return currentStatus
   if (!nextScheduled) return "backlog"
-  if (currentStatus === "backlog") return "active"
+  if (currentStatus === "backlog") return "in_progress"
 
   return currentStatus
 }
 
 /**
- * Fills the parts of a schedule a caller left out. A task leaving the backlog is given a day
- * and almost never a time, and there is no such thing as a half-written schedule in the row.
+ * Fills the parts of a schedule a caller left out, including the first day assigned to Ready work.
+ * A stored schedule always has a date, time and timezone.
  */
 export function completeScheduling(partial: Partial<TaskScheduled> & {date: ISODate}): TaskScheduled {
   return {

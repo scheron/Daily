@@ -47,22 +47,22 @@ describe("useTaskColumns — the board's pointer drag", () => {
 
   describe("TC-6 a press becomes a drag", () => {
     it("starts a drag only once the pointer has moved more than 2 px", async () => {
-      const {columns, drag, press, moveOver, find} = await setupBoard(makeColumn("active", ["A", "B", "C", "D"]))
+      const {columns, drag, press, moveOver, find} = await setupBoard(makeColumn("in_progress", ["A", "B", "C", "D"]))
 
       const y = yForIndex(1)
       press(find("B"), y)
-      moveOver("active", y + 2)
+      moveOver("in_progress", y + 2)
       await nextTick()
 
       expect(drag.draggingTaskId).toBeNull()
       expect(columns.isDragging.value).toBe(false)
 
-      moveOver("active", y + 3)
+      moveOver("in_progress", y + 3)
       await nextTick()
 
       expect(drag.draggingTaskId).toBe("B")
       expect(columns.isDragging.value).toBe(true)
-      expect(itemsOf(columns.columnItems.value.active)).toEqual(["A", "placeholder", "C", "D"])
+      expect(itemsOf(columns.columnItems.value.in_progress)).toEqual(["A", "placeholder", "C", "D"])
     })
 
     it.each([
@@ -78,11 +78,11 @@ describe("useTaskColumns — the board's pointer drag", () => {
         },
       ],
     ])("never drags a card pressed on %s", async (_, pick) => {
-      const {columns, drag, cardOf, pressOn, moveOver, find} = await setupBoard(makeColumn("active", ["A", "B"]))
+      const {columns, drag, cardOf, pressOn, moveOver, find} = await setupBoard(makeColumn("in_progress", ["A", "B"]))
 
       const y = yForIndex(1)
       pressOn(pick(cardOf(find("B"))), y)
-      moveOver("active", y + 20)
+      moveOver("in_progress", y + 20)
       await nextTick()
 
       expect(drag.draggingTaskId).toBeNull()
@@ -90,11 +90,11 @@ describe("useTaskColumns — the board's pointer drag", () => {
     })
 
     it("never drags a card pressed with any button but the main one", async () => {
-      const {columns, drag, press, moveOver, find} = await setupBoard(makeColumn("active", ["A", "B"]))
+      const {columns, drag, press, moveOver, find} = await setupBoard(makeColumn("in_progress", ["A", "B"]))
 
       const y = yForIndex(1)
       press(find("B"), y, 2)
-      moveOver("active", y + 20)
+      moveOver("in_progress", y + 20)
       await nextTick()
 
       expect(drag.draggingTaskId).toBeNull()
@@ -102,18 +102,18 @@ describe("useTaskColumns — the board's pointer drag", () => {
     })
 
     it("never drags while a move is being written, and drags again once it is", async () => {
-      const {columns, drag, tasks, press, startDrag, moveOver, release, find} = await setupBoard(makeColumn("active", ["A", "B", "C", "D"]))
+      const {columns, drag, tasks, press, startDrag, moveOver, release, find} = await setupBoard(makeColumn("in_progress", ["A", "B", "C", "D"]))
       let finishWrite = null
       tasks.moveTaskByOrder.mockReturnValueOnce(new Promise((resolve) => (finishWrite = resolve)))
 
       startDrag(find("A"), yForIndex(0))
-      moveOver("active", yForIndex(2))
+      moveOver("in_progress", yForIndex(2))
       release(yForIndex(2))
       await settle()
       expect(columns.isDragDisabled.value).toBe(true)
 
       press(find("C"), yForIndex(2))
-      moveOver("active", yForIndex(2) + 20)
+      moveOver("in_progress", yForIndex(2) + 20)
       await nextTick()
       expect(drag.draggingTaskId).toBeNull()
 
@@ -122,7 +122,7 @@ describe("useTaskColumns — the board's pointer drag", () => {
       await settle()
 
       press(find("C"), yForIndex(2))
-      moveOver("active", yForIndex(2) + 20)
+      moveOver("in_progress", yForIndex(2) + 20)
       await nextTick()
       expect(drag.draggingTaskId).toBe("C")
     })
@@ -132,14 +132,14 @@ describe("useTaskColumns — the board's pointer drag", () => {
     it("opens the gap in the slot under the pointer, clamped to the column, and nowhere outside the columns", async () => {
       const {columns, startDrag, moveOver, find} = await setupBoard([
         ...makeColumn("backlog", ["X"], {scheduled: null}),
-        ...makeColumn("active", ["A", "B", "C", "D", "E"]),
+        ...makeColumn("in_progress", ["A", "B", "C", "D", "E"]),
       ])
 
       startDrag(find("X"), yForIndex(0))
 
       function gapAt(y) {
-        moveOver("active", y)
-        return columns.columnItems.value.active.findIndex((item) => item.kind === "placeholder")
+        moveOver("in_progress", y)
+        return columns.columnItems.value.in_progress.findIndex((item) => item.kind === "placeholder")
       }
 
       expect(gapAt(150)).toBe(0)
@@ -147,7 +147,7 @@ describe("useTaskColumns — the board's pointer drag", () => {
       expect(gapAt(306)).toBe(1)
       expect(gapAt(1100)).toBe(4)
       expect(gapAt(1600)).toBe(5)
-      expect(columns.columnItems.value.active).toHaveLength(6)
+      expect(columns.columnItems.value.in_progress).toHaveLength(6)
       expect(itemsOf(columns.columnItems.value.backlog)).toEqual([])
 
       moveOver(null, 400)
@@ -159,14 +159,14 @@ describe("useTaskColumns — the board's pointer drag", () => {
     it("moves the gap as the column scrolls under a pointer that stays still", async () => {
       const {columns, tracks, startDrag, moveOver, find} = await setupBoard([
         ...makeColumn("backlog", ["X"], {scheduled: null}),
-        ...makeColumn("active", ["A", "B", "C", "D", "E"]),
+        ...makeColumn("in_progress", ["A", "B", "C", "D", "E"]),
       ])
 
       startDrag(find("X"), yForIndex(0))
-      moveOver("active", 407)
-      expect(columns.columnItems.value.active.findIndex((item) => item.kind === "placeholder")).toBe(1)
+      moveOver("in_progress", 407)
+      expect(columns.columnItems.value.in_progress.findIndex((item) => item.kind === "placeholder")).toBe(1)
 
-      tracks.active.getBoundingClientRect.mockReturnValue({
+      tracks.in_progress.getBoundingClientRect.mockReturnValue({
         top: TRACK_TOP - 412,
         bottom: TRACK_TOP + 288,
         left: 0,
@@ -174,9 +174,9 @@ describe("useTaskColumns — the board's pointer drag", () => {
         width: 370,
         height: 700,
       })
-      tracks.active.parentElement.dispatchEvent(new Event("scroll"))
+      tracks.in_progress.parentElement.dispatchEvent(new Event("scroll"))
 
-      expect(columns.columnItems.value.active.findIndex((item) => item.kind === "placeholder")).toBe(3)
+      expect(columns.columnItems.value.in_progress.findIndex((item) => item.kind === "placeholder")).toBe(3)
     })
   })
 
@@ -191,12 +191,12 @@ describe("useTaskColumns — the board's pointer drag", () => {
     }
 
     it("scrolls a column by itself while the pointer is held near its bottom edge, and stops once the drag ends", async () => {
-      const {tracks, startDrag, moveOver, release, find} = await setupBoard(makeColumn("active", ["A", "B"]))
-      const list = tracks.active.parentElement
+      const {tracks, startDrag, moveOver, release, find} = await setupBoard(makeColumn("in_progress", ["A", "B"]))
+      const list = tracks.in_progress.parentElement
       scrollable(list, {top: 0, bottom: 700, left: 0, right: 370}, {scrollHeight: 5000, clientHeight: 700})
 
       startDrag(find("A"), yForIndex(0))
-      moveOver("active", 690)
+      moveOver("in_progress", 690)
       await frames(3)
       const scrolled = list.scrollTop
       expect(scrolled).toBeGreaterThan(0)
@@ -207,7 +207,7 @@ describe("useTaskColumns — the board's pointer drag", () => {
     })
 
     it("scrolls the board sideways only while a dragged card is held near its left or right edge", async () => {
-      const {boardEl, startDrag, moveOver, release, find} = await setupBoard(makeColumn("active", ["A", "B"]))
+      const {boardEl, startDrag, moveOver, release, find} = await setupBoard(makeColumn("in_progress", ["A", "B"]))
       scrollable(boardEl, {top: 450, bottom: 2000, left: 0, right: 1000}, {scrollWidth: 1600, clientWidth: 1000})
       const y = yForIndex(0) + 20
 
@@ -216,7 +216,7 @@ describe("useTaskColumns — the board's pointer drag", () => {
       }
 
       startDrag(find("A"), yForIndex(0))
-      moveOver("active", y)
+      moveOver("in_progress", y)
       holdAt(990)
       await frames(6)
       const scrolledRight = boardEl.scrollLeft
@@ -236,7 +236,7 @@ describe("useTaskColumns — the board's pointer drag", () => {
       await frames(3)
       expect(boardEl.scrollLeft).toBe(scrolledLeft)
 
-      moveOver("active", y)
+      moveOver("in_progress", y)
       holdAt(990)
       await frames(3)
       const scrolledAgain = boardEl.scrollLeft
@@ -254,17 +254,17 @@ describe("useTaskColumns — the board's pointer drag", () => {
       ["normal", 114],
       ["large", 128.4],
     ])("targets compact drop slots at %s text size", async (fontSize, step) => {
-      const {tasks, columns, startDrag, moveOver, release, find} = await setupBoard(makeColumn("active", ["A", "B", "C", "D"]), {
+      const {tasks, columns, startDrag, moveOver, release, find} = await setupBoard(makeColumn("in_progress", ["A", "B", "C", "D"]), {
         taskView: "compact",
         fontSize,
       })
       startDrag(find("B"), yForIndex(1, step))
-      moveOver("active", yForIndex(2, step))
-      expect(itemsOf(columns.columnItems.value.active)).toEqual(["A", "C", "placeholder", "D"])
+      moveOver("in_progress", yForIndex(2, step))
+      expect(itemsOf(columns.columnItems.value.in_progress)).toEqual(["A", "C", "placeholder", "D"])
       release(yForIndex(2, step))
       expect(tasks.moveTaskByOrder).toHaveBeenCalledWith({
         taskId: "B",
-        targetStatus: "active",
+        boardMode: "normal",
         targetTaskId: "D",
         position: "before",
         activeDate: TODAY,
@@ -276,38 +276,38 @@ describe("useTaskColumns — the board's pointer drag", () => {
       [2, {targetTaskId: "D", position: "before"}],
       [3, {targetTaskId: null, position: "after"}],
     ])("writes a drop at index %i at once, against the card that follows it", async (index, target) => {
-      const {tasks, startDrag, moveOver, release, find} = await setupBoard(makeColumn("active", ["A", "B", "C", "D"]))
+      const {tasks, startDrag, moveOver, release, find} = await setupBoard(makeColumn("in_progress", ["A", "B", "C", "D"]))
       vi.useFakeTimers()
 
       startDrag(find("B"), yForIndex(1))
-      moveOver("active", yForIndex(index))
+      moveOver("in_progress", yForIndex(index))
       release(yForIndex(index))
 
       expect(tasks.moveTaskByOrder).toHaveBeenCalledTimes(1)
-      expect(tasks.moveTaskByOrder).toHaveBeenCalledWith({taskId: "B", targetStatus: "active", ...target, activeDate: TODAY, acrossProjects: false})
+      expect(tasks.moveTaskByOrder).toHaveBeenCalledWith({taskId: "B", boardMode: "normal", ...target, activeDate: TODAY, acrossProjects: false})
     })
 
     it("writes nothing for a card dropped back at its own place", async () => {
-      const {tasks, columns, startDrag, moveOver, release, find} = await setupBoard(makeColumn("active", ["A", "B", "C", "D"]))
+      const {tasks, columns, startDrag, moveOver, release, find} = await setupBoard(makeColumn("in_progress", ["A", "B", "C", "D"]))
       vi.useFakeTimers()
 
       startDrag(find("B"), yForIndex(1))
-      moveOver("active", yForIndex(2))
-      moveOver("active", yForIndex(1))
+      moveOver("in_progress", yForIndex(2))
+      moveOver("in_progress", yForIndex(1))
       release(yForIndex(1))
       await vi.advanceTimersByTimeAsync(500)
 
       expect(tasks.moveTaskByOrder).not.toHaveBeenCalled()
-      expect(itemsOf(columns.columnItems.value.active)).toEqual(["A", "B", "C", "D"])
+      expect(itemsOf(columns.columnItems.value.in_progress)).toEqual(["A", "B", "C", "D"])
     })
     it("writes nothing for a card let go where it was pressed, low on the card", async () => {
-      const {tasks, columns, press, moveOver, release, find} = await setupBoard(makeColumn("active", ["A", "B", "C", "D"]))
+      const {tasks, columns, press, moveOver, release, find} = await setupBoard(makeColumn("in_progress", ["A", "B", "C", "D"]))
       vi.useFakeTimers()
 
       const lowOnB = TRACK_TOP + 206 + 180
       press(find("B"), lowOnB)
-      moveOver("active", lowOnB + 4)
-      expect(itemsOf(columns.columnItems.value.active)).toEqual(["A", "placeholder", "C", "D"])
+      moveOver("in_progress", lowOnB + 4)
+      expect(itemsOf(columns.columnItems.value.in_progress)).toEqual(["A", "placeholder", "C", "D"])
 
       release(lowOnB)
       await vi.advanceTimersByTimeAsync(500)
@@ -316,11 +316,11 @@ describe("useTaskColumns — the board's pointer drag", () => {
     })
 
     it("writes nothing for the last card dropped below the end of its own column", async () => {
-      const {tasks, startDrag, moveOver, release, find} = await setupBoard(makeColumn("active", ["A", "B", "C", "D"]))
+      const {tasks, startDrag, moveOver, release, find} = await setupBoard(makeColumn("in_progress", ["A", "B", "C", "D"]))
       vi.useFakeTimers()
 
       startDrag(find("D"), yForIndex(3))
-      moveOver("active", yForIndex(8))
+      moveOver("in_progress", yForIndex(8))
       release(yForIndex(8))
       await vi.advanceTimersByTimeAsync(500)
 
@@ -330,18 +330,81 @@ describe("useTaskColumns — the board's pointer drag", () => {
 
   describe("TC-9 a reorder in the milestone frame", () => {
     it("writes nothing and shows the card at its sorted place again", async () => {
-      const {tasks, columns, startDrag, moveOver, release, find} = await setupBoard(makeColumn("active", ["A", "B", "C", "D"]), {frame: "milestone"})
+      const {tasks, columns, startDrag, moveOver, release, find} = await setupBoard(makeColumn("in_progress", ["A", "B", "C", "D"]), {
+        frame: "milestone",
+      })
       vi.useFakeTimers()
 
       startDrag(find("B"), yForIndex(1))
-      moveOver("active", yForIndex(3))
-      expect(itemsOf(columns.columnItems.value.active)).toEqual(["A", "C", "D", "placeholder"])
+      moveOver("in_progress", yForIndex(3))
+      expect(itemsOf(columns.columnItems.value.in_progress)).toEqual(["A", "C", "D", "placeholder"])
 
       release(yForIndex(3))
       await vi.advanceTimersByTimeAsync(500)
 
       expect(tasks.moveTaskByOrder).not.toHaveBeenCalled()
-      expect(itemsOf(columns.columnItems.value.active)).toEqual(["A", "B", "C", "D"])
+      expect(itemsOf(columns.columnItems.value.in_progress)).toEqual(["A", "B", "C", "D"])
+    })
+  })
+
+  describe("agent stages", () => {
+    it.each(["normal", "agents"])("keeps a milestone task's actual day when moving to another column in %s", async (boardMode) => {
+      const date = "2030-01-02"
+      const {tasks, columns, startDrag, moveOver, release, find} = await setupBoard(
+        [...makeColumn("ready_to_merge", ["ready"], {scheduled: {date, time: "09:00", timezone: "UTC"}})],
+        {frame: "milestone", boardMode},
+      )
+      vi.useFakeTimers()
+      startDrag(find("ready"), yForIndex(0))
+      moveOver("done", yForIndex(0))
+      release(yForIndex(0))
+      expect(columns.columnItems.value.done[0].task.scheduled.date).toBe(date)
+      await vi.advanceTimersByTimeAsync(160)
+      expect(tasks.moveTaskByOrder).toHaveBeenCalledWith({
+        taskId: "ready",
+        targetStatus: "done",
+        boardMode,
+        targetTaskId: null,
+        position: "after",
+        activeDate: date,
+        acrossProjects: false,
+      })
+    })
+
+    it("clears a dated Ready task's optimistic day when explicitly dropped in Backlog", async () => {
+      const {columns, startDrag, moveOver, release, find} = await setupBoard(makeColumn("ready_for_agent", ["ready"]), {boardMode: "agents"})
+      vi.useFakeTimers()
+      startDrag(find("ready"), yForIndex(0))
+      moveOver("backlog", yForIndex(0))
+      release(yForIndex(0))
+      expect(columns.columnItems.value.backlog[0].task.status).toBe("backlog")
+      expect(columns.columnItems.value.backlog[0].task.scheduled).toBeNull()
+      await vi.advanceTimersByTimeAsync(160)
+    })
+
+    it.each(["regular", "compact"])("reorders mixed Normal Backlog without changing exact status in %s", async (taskView) => {
+      const {tasks, columns, startDrag, moveOver, release, find} = await setupBoard(
+        [
+          ...makeColumn("backlog", ["first"], {scheduled: null, orderIndex: 100}),
+          ...makeColumn("ready_for_agent", ["ready"], {scheduled: null, orderIndex: 200}),
+          ...makeColumn("backlog", ["last"], {scheduled: null, orderIndex: 300}),
+        ],
+        {taskView},
+      )
+      const step = taskView === "compact" ? 114 : 206
+      startDrag(find("ready"), yForIndex(1, step))
+      moveOver("backlog", yForIndex(0, step))
+      release(yForIndex(0, step))
+      expect(itemsOf(columns.columnItems.value.backlog)).toEqual(["ready", "first", "last"])
+      expect(columns.columnItems.value.backlog[0].task).toMatchObject({status: "ready_for_agent", scheduled: null})
+      expect(tasks.moveTaskByOrder).toHaveBeenCalledWith({
+        taskId: "ready",
+        boardMode: "normal",
+        targetTaskId: "first",
+        position: "before",
+        activeDate: TODAY,
+        acrossProjects: false,
+      })
     })
   })
 
@@ -351,7 +414,7 @@ describe("useTaskColumns — the board's pointer drag", () => {
       ["milestone", {targetTaskId: null, position: "after"}],
     ])("lands the card at once and writes it 160 ms later, in the %s frame", async (frame, target) => {
       const {tasks, columns, startDrag, moveOver, release, find} = await setupBoard(
-        [...makeColumn("active", ["A", "B"]), ...makeColumn("done", ["X", "Y"])],
+        [...makeColumn("in_progress", ["A", "B"]), ...makeColumn("done", ["X", "Y"])],
         {frame},
       )
       vi.useFakeTimers()
@@ -362,19 +425,26 @@ describe("useTaskColumns — the board's pointer drag", () => {
 
       expect(itemsOf(columns.columnItems.value.done)).toEqual(["X", "A", "Y"])
       expect(columns.columnItems.value.done[1].task.status).toBe("done")
-      expect(itemsOf(columns.columnItems.value.active)).toEqual(["B"])
+      expect(itemsOf(columns.columnItems.value.in_progress)).toEqual(["B"])
 
       await vi.advanceTimersByTimeAsync(159)
       expect(tasks.moveTaskByOrder).not.toHaveBeenCalled()
 
       await vi.advanceTimersByTimeAsync(1)
       expect(tasks.moveTaskByOrder).toHaveBeenCalledTimes(1)
-      expect(tasks.moveTaskByOrder).toHaveBeenCalledWith({taskId: "A", targetStatus: "done", ...target, activeDate: TODAY, acrossProjects: false})
+      expect(tasks.moveTaskByOrder).toHaveBeenCalledWith({
+        taskId: "A",
+        targetStatus: "done",
+        boardMode: "normal",
+        ...target,
+        activeDate: TODAY,
+        acrossProjects: false,
+      })
     })
 
     it("puts the card back at its old place when the write fails", async () => {
       const {tasks, columns, startDrag, moveOver, release, find} = await setupBoard([
-        ...makeColumn("active", ["A", "B"]),
+        ...makeColumn("in_progress", ["A", "B"]),
         ...makeColumn("done", ["X", "Y"]),
       ])
       tasks.moveTaskByOrder.mockResolvedValue(null)
@@ -387,7 +457,7 @@ describe("useTaskColumns — the board's pointer drag", () => {
       await settle()
 
       expect(tasks.moveTaskByOrder).toHaveBeenCalledTimes(1)
-      expect(itemsOf(columns.columnItems.value.active)).toEqual(["A", "B"])
+      expect(itemsOf(columns.columnItems.value.in_progress)).toEqual(["A", "B"])
       expect(itemsOf(columns.columnItems.value.done)).toEqual(["X", "Y"])
     })
   })
@@ -396,12 +466,12 @@ describe("useTaskColumns — the board's pointer drag", () => {
     it("writes no column move for a drag released inside a drop zone", async () => {
       const {tasks, drag, startDrag, moveOver, release, find} = await setupBoard([
         ...makeColumn("backlog", ["X"], {scheduled: null}),
-        ...makeColumn("active", ["A"]),
+        ...makeColumn("in_progress", ["A"]),
       ])
       vi.useFakeTimers()
 
       startDrag(find("X"), yForIndex(0))
-      moveOver("active", yForIndex(1))
+      moveOver("in_progress", yForIndex(1))
       drag.setReleasedInsideDropZone(true)
       release(yForIndex(1))
       await vi.advanceTimersByTimeAsync(500)
@@ -412,19 +482,19 @@ describe("useTaskColumns — the board's pointer drag", () => {
     it("writes the column move for a drag released over a column", async () => {
       const {tasks, startDrag, moveOver, release, find} = await setupBoard([
         ...makeColumn("backlog", ["X"], {scheduled: null}),
-        ...makeColumn("active", ["A"]),
+        ...makeColumn("in_progress", ["A"]),
       ])
       vi.useFakeTimers()
 
       startDrag(find("X"), yForIndex(0))
-      moveOver("active", yForIndex(1))
+      moveOver("in_progress", yForIndex(1))
       release(yForIndex(1))
       await vi.advanceTimersByTimeAsync(500)
 
       expect(tasks.moveTaskByOrder).toHaveBeenCalledTimes(1)
     })
     it("ends a drag dropped on a day through the release, swallowing the click after it", async () => {
-      const {tasks, drag, startDrag, moveOver, release, find} = await setupBoard(makeColumn("active", ["A", "B"]))
+      const {tasks, drag, startDrag, moveOver, release, find} = await setupBoard(makeColumn("in_progress", ["A", "B"]))
       const clicked = vi.fn()
       const dayCell = document.body.appendChild(document.createElement("div"))
       dayCell.addEventListener("click", clicked)
@@ -449,9 +519,12 @@ describe("useTaskColumns — the board's pointer drag", () => {
       ["text size", {typography: {fontSize: "large"}}, {taskView: "compact"}],
       ["regular text size", {typography: {fontSize: "large"}}, {}],
     ])("cancels an uncommitted drag when %s changes without writing a task", async (_, patch, options) => {
-      const {tasks, settings, drag, columns, startDrag, moveOver, release, find} = await setupBoard(makeColumn("active", ["A", "B", "C"]), options)
+      const {tasks, settings, drag, columns, startDrag, moveOver, release, find} = await setupBoard(
+        makeColumn("in_progress", ["A", "B", "C"]),
+        options,
+      )
       startDrag(find("B"), yForIndex(1))
-      moveOver("active", yForIndex(2))
+      moveOver("in_progress", yForIndex(2))
       settings.settings = {...settings.settings, ...patch}
       await nextTick()
       release(yForIndex(2))
@@ -459,17 +532,17 @@ describe("useTaskColumns — the board's pointer drag", () => {
 
       expect(drag.draggingTaskId).toBeNull()
       expect(columns.isDragging.value).toBe(false)
-      expect(itemsOf(columns.columnItems.value.active)).toEqual(["A", "B", "C"])
+      expect(itemsOf(columns.columnItems.value.in_progress)).toEqual(["A", "B", "C"])
       expect(tasks.moveTaskByOrder).not.toHaveBeenCalled()
       expect(document.body.style.userSelect).not.toBe("none")
     })
 
     it("cancels a pending press on a view change before it can become a drag", async () => {
-      const {settings, tasks, drag, press, moveOver, release, find} = await setupBoard(makeColumn("active", ["A", "B", "C"]))
+      const {settings, tasks, drag, press, moveOver, release, find} = await setupBoard(makeColumn("in_progress", ["A", "B", "C"]))
       press(find("B"), yForIndex(1))
       settings.settings.appearance.taskView = "compact"
       await nextTick()
-      moveOver("active", yForIndex(2, 114))
+      moveOver("in_progress", yForIndex(2, 114))
       release(yForIndex(2, 114))
       expect(drag.draggingTaskId).toBeNull()
       expect(tasks.moveTaskByOrder).not.toHaveBeenCalled()
@@ -492,7 +565,7 @@ describe("useTaskColumns — the board's pointer drag", () => {
         },
       ],
     ])("writes nothing and ends the drag when %s", async (_, end) => {
-      const board = await setupBoard([...makeColumn("active", ["A", "B", "C"]), ...makeColumn("done", ["X"])])
+      const board = await setupBoard([...makeColumn("in_progress", ["A", "B", "C"]), ...makeColumn("done", ["X"])])
       const {tasks, drag, columns, startDrag, moveOver, find} = board
       vi.useFakeTimers()
 
@@ -515,7 +588,7 @@ describe("useTaskColumns — the board's pointer drag", () => {
 
   describe("TC-13 the click after a drag", () => {
     it("swallows the click that ends a drag and lets a later plain click open the editor", async () => {
-      const {cardOf, pressOn, moveOver, release, find} = await setupBoard(makeColumn("active", ["A", "B"]))
+      const {cardOf, pressOn, moveOver, release, find} = await setupBoard(makeColumn("in_progress", ["A", "B"]))
       const {default: TaskCard} = await import("../../../src/renderer/src/ui/modules/TaskBoard/{fragments}/TaskCard/TaskCard.vue")
       const {useTaskEditorStore} = await import("../../../src/renderer/src/stores/task-editor")
       const editor = useTaskEditorStore()
@@ -530,13 +603,13 @@ describe("useTaskColumns — the board's pointer drag", () => {
       }
 
       pressOn(root, yForIndex(0))
-      moveOver("active", yForIndex(0) + 20)
+      moveOver("in_progress", yForIndex(0) + 20)
       release(yForIndex(0) + 20)
       await click()
       expect(editor.editingTaskId).toBeNull()
 
       pressOn(root, yForIndex(0))
-      moveOver("active", yForIndex(0) + 20)
+      moveOver("in_progress", yForIndex(0) + 20)
       release(yForIndex(0) + 20)
       await new Promise((resolve) => setTimeout(resolve, 0))
 
@@ -552,14 +625,14 @@ describe("useTaskColumns — the board's pointer drag", () => {
   describe("TC-14 a column collapsing mid-drag", () => {
     it("keeps the drag alive and writes the move where the card is dropped", async () => {
       const {tasks, drag, columns, ui, startDrag, moveOver, release, find} = await setupBoard([
-        ...makeColumn("active", ["A", "B"]),
+        ...makeColumn("in_progress", ["A", "B"]),
         ...makeColumn("done", ["X"]),
         ...makeColumn("backlog", ["Z"], {scheduled: null}),
       ])
       vi.useFakeTimers()
 
       startDrag(find("A"), yForIndex(0))
-      moveOver("active", yForIndex(1))
+      moveOver("in_progress", yForIndex(1))
       ui.setSectionCollapsed("done", true)
       await nextTick()
 

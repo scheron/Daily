@@ -87,6 +87,61 @@ export const buttonColorVariant = defineVariant({
           hover:bg-base-300/80 hover:text-base-content
           disabled:hover:bg-transparent
       `,
+      "filter-primary": `
+          bg-transparent text-accent/90
+          hover:bg-base-300/80 hover:text-accent
+          disabled:hover:bg-transparent
+      `,
+      "filter-muted-selected": `
+          bg-base-content/10 text-base-content/70
+          hover:bg-base-content/20 hover:text-base-content
+          disabled:hover:bg-base-content/10
+      `,
+      "filter-primary-selected": `
+          bg-base-content/10 text-accent/90
+          hover:bg-base-content/20 hover:text-accent
+          disabled:hover:bg-base-content/10
+      `,
+      "filter-error": `
+          bg-transparent text-error
+          hover:bg-base-300/80 hover:text-base-content
+          disabled:hover:bg-transparent
+      `,
+      "filter-error-selected": `
+          bg-base-content/10 text-error
+          hover:bg-base-content/20
+          disabled:hover:bg-base-content/10
+      `,
+      "filter-info": `
+          bg-transparent text-info
+          hover:bg-base-300/80 hover:text-base-content
+          disabled:hover:bg-transparent
+      `,
+      "filter-info-selected": `
+          bg-base-content/10 text-info
+          hover:bg-base-content/20
+          disabled:hover:bg-base-content/10
+      `,
+      "filter-success": `
+          bg-transparent text-success/90
+          hover:bg-base-300/80 hover:text-success
+          disabled:hover:bg-transparent
+      `,
+      "filter-success-selected": `
+          bg-base-content/10 text-success/90
+          hover:bg-base-content/20 hover:text-success
+          disabled:hover:bg-base-content/10
+      `,
+      "filter-warning": `
+          bg-transparent text-warning/90
+          hover:bg-base-300/80 hover:text-warning
+          disabled:hover:bg-transparent
+      `,
+      "filter-warning-selected": `
+          bg-base-content/10 text-warning/90
+          hover:bg-base-content/20 hover:text-warning
+          disabled:hover:bg-base-content/10
+      `,
       "ghost-primary": `
           bg-transparent text-base-content
           hover:bg-accent/10 hover:text-accent

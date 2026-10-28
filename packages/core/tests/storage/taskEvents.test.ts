@@ -19,7 +19,7 @@ const NEXT_DAY = "2026-06-24"
 function makeTask(overrides = {}) {
   return {
     content: "Buy milk",
-    status: "active",
+    status: "in_progress",
     minimized: false,
     orderIndex: 1,
     estimatedTime: 0,
@@ -84,10 +84,10 @@ describe("task activity recording", () => {
     await service.updateTask(task.id, {status: "done"})
     expect(events.getByTask(task.id)[0].type).toBe("completed")
 
-    await service.updateTask(task.id, {status: "discarded"})
+    await service.updateTask(task.id, {status: "cancelled"})
     expect(events.getByTask(task.id)[0].type).toBe("discarded")
 
-    await service.updateTask(task.id, {status: "active"})
+    await service.updateTask(task.id, {status: "in_progress"})
     expect(events.getByTask(task.id)[0].type).toBe("reactivated")
   })
 
@@ -222,7 +222,7 @@ describe("task activity recording", () => {
   it("records_TC-4_a_reactivated_event_dated_the_target_day_when_a_backlog_task_moves_to_active", async () => {
     const task = await service.createTask(makeTask({status: "backlog", scheduled: null, content: "waiting"}))
 
-    await service.moveTaskByOrder({taskId: task.id, targetStatus: "active", activeDate: TASK_DAY})
+    await service.moveTaskByOrder({taskId: task.id, targetStatus: "in_progress", activeDate: TASK_DAY})
 
     const reactivated = events.getByTask(task.id).filter((e) => e.type === "reactivated")
     expect(reactivated).toHaveLength(1)

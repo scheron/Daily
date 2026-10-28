@@ -1,4 +1,5 @@
 // @ts-nocheck
+import {mkdtempSync, rmSync} from "node:fs"
 import Database from "better-sqlite3"
 import {describe, expect, it} from "vitest"
 
@@ -380,7 +381,7 @@ describe("migrations", () => {
       // Insert data
       const now = new Date().toISOString()
       db.prepare(
-        "INSERT INTO tasks (id, status, content, minimized, order_index, scheduled_date, scheduled_time, scheduled_timezone, estimated_time, spent_time, branch_id, created_at, updated_at) VALUES ('t1', 'active', 'Test', 0, 0, '2026-03-25', '', 'UTC', 0, 0, 'main', ?, ?)",
+        "INSERT INTO tasks (id, status, content, minimized, order_index, scheduled_date, scheduled_time, scheduled_timezone, estimated_time, spent_time, branch_id, created_at, updated_at) VALUES ('t1', 'in_progress', 'Test', 0, 0, '2026-03-25', '', 'UTC', 0, 0, 'main', ?, ?)",
       ).run(now, now)
       db.prepare("INSERT INTO tags (id, name, color, created_at, updated_at) VALUES ('tag1', 'work', '#ff0000', ?, ?)").run(now, now)
 
@@ -475,6 +476,7 @@ describe("migrations", () => {
       expect(task).toBeDefined()
       expect(task.content).toBe(`Keep me\n\n![a.png](${APP_CONFIG.filesProtocol}/file1)`)
       expect(task.scheduled_date).toBe("2026-03-24")
+      expect(db.prepare("SELECT name FROM files WHERE id = 'file1'").get().name).toBe("a.png")
 
       const taskTags = db.prepare("SELECT * FROM task_tags WHERE task_id = 't1'").all()
       expect(taskTags).toHaveLength(1)
@@ -654,6 +656,7 @@ describe("migrations", () => {
       expect(task).toBeDefined()
       expect(task.content).toBe("Keep me")
 
+      expect(rollbackLastMigration(db)).toBe(18)
       rollbackLastMigration(db) // v017
       rollbackLastMigration(db) // v016
       rollbackLastMigration(db) // v015
@@ -726,6 +729,7 @@ describe("migrations", () => {
       seedComment(db, "typed", null)
       runMigrations(db)
 
+      expect(rollbackLastMigration(db)).toBe(18)
       rollbackLastMigration(db) // v017
       rollbackLastMigration(db) // v016
       rollbackLastMigration(db) // v015
@@ -804,6 +808,7 @@ describe("migrations", () => {
       const task = db.prepare("SELECT * FROM tasks WHERE id = 't1'").get()
       expect(task.content).toBe("Keep me")
 
+      expect(rollbackLastMigration(db)).toBe(18)
       rollbackLastMigration(db) // v017
       rollbackLastMigration(db) // v016
       rollbackLastMigration(db) // v015
@@ -943,6 +948,7 @@ describe("migrations", () => {
 
       expect(db.prepare("SELECT priority FROM tasks WHERE id = 't1'").get().priority).toBe("none")
 
+      expect(rollbackLastMigration(db)).toBe(18)
       expect(rollbackLastMigration(db)).toBe(17)
       const columns = db
         .prepare("PRAGMA table_info(tasks)")
@@ -954,4 +960,54 @@ describe("migrations", () => {
       db.close()
     })
   })
+})
+
+it("upgrades v17 statuses and preserves task fields and associations across reopening", () => {
+  const directory = mkdtempSync("/tmp/daily-agent-status-migration-")
+  let db = new Database(`${directory}/daily.sqlite`)
+  db.pragma("foreign_keys = ON")
+  db.exec("CREATE TABLE _migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)")
+  for (const migration of migrations.filter((m) => m.version <= 17)) {
+    if (typeof migration.up === "string") db.exec(migration.up)
+    else migration.up(db)
+    db.prepare("INSERT INTO _migrations VALUES (?, ?, ?)").run(migration.version, migration.name, "now")
+  }
+  const now = "2026-10-29T00:00:00Z"
+  db.prepare("INSERT INTO milestones (id, name, created_at, updated_at) VALUES ('m1', 'Keep milestone', ?, ?)").run(now, now)
+  db.prepare(
+    "INSERT INTO tasks (id, status, content, order_index, scheduled_date, scheduled_time, scheduled_timezone, milestone_id, priority, spent_time, created_at, updated_at) VALUES ('t1', 'active', 'Keep ![file](daily://file/f1)', 123, '2026-10-29', '10:00:00', 'UTC', 'm1', 'high', 42, ?, ?)",
+  ).run(now, now)
+  db.prepare("INSERT INTO tasks (id, status, created_at, updated_at) VALUES ('t2', 'discarded', ?, ?)").run(now, now)
+  db.prepare("INSERT INTO tags (id, name, color, created_at, updated_at) VALUES ('tag1', 'Keep tag', 'red', ?, ?)").run(now, now)
+  db.exec("INSERT INTO task_tags VALUES ('t1', 'tag1')")
+  db.prepare("INSERT INTO files (id, name, mime_type, size, created_at, updated_at) VALUES ('f1', 'file', 'text/plain', 1, ?, ?)").run(now, now)
+  db.prepare(
+    "INSERT INTO task_comments (id, task_id, branch_id, content, kind, provider, created_at, updated_at) VALUES ('c1', 't1', 'main', 'Keep comment', 'mcp', 'Codex', ?, ?)",
+  ).run(now, now)
+  db.prepare("INSERT INTO task_relations (id, blocker_id, blocked_id, created_at, updated_at) VALUES ('r1', 't1', 't2', ?, ?)").run(now, now)
+  db.prepare(
+    "INSERT INTO task_events (id, task_id, branch_id, type, event_date, created_at, kind) VALUES ('e1', 't1', 'main', 'discarded', '2026-10-29', ?, 'manual')",
+  ).run(now)
+  const before = db.prepare("SELECT * FROM tasks WHERE id = 't1'").get()
+  const related = ["task_tags", "files", "task_comments", "task_relations", "task_events"].map((table) => [
+    table,
+    db.prepare(`SELECT * FROM ${table}`).all(),
+  ])
+  runMigrations(db)
+  expect(db.prepare("SELECT * FROM tasks WHERE id = 't1'").get()).toEqual({...before, status: "in_progress"})
+  expect(db.prepare("SELECT status FROM tasks WHERE id = 't2'").get().status).toBe("cancelled")
+  for (const [table, rows] of related) expect(db.prepare(`SELECT * FROM ${table}`).all()).toEqual(rows)
+  for (const status of ["backlog", "ready_for_agent", "in_progress", "ready_to_merge", "done", "cancelled"]) {
+    expect(() => db.prepare("UPDATE tasks SET status = ? WHERE id = 't2'").run(status)).not.toThrow()
+  }
+  expect(() => db.prepare("UPDATE tasks SET status = 'active' WHERE id = 't2'").run()).toThrow()
+  db.close()
+  db = new Database(`${directory}/daily.sqlite`)
+  db.pragma("foreign_keys = ON")
+  runMigrations(db)
+  expect(db.prepare("SELECT status FROM tasks WHERE id = 't1'").get().status).toBe("in_progress")
+  for (const [table, rows] of related) expect(db.prepare(`SELECT * FROM ${table}`).all()).toEqual(rows)
+  expect(db.prepare("PRAGMA foreign_key_check").all()).toEqual([])
+  db.close()
+  rmSync(directory, {recursive: true, force: true})
 })

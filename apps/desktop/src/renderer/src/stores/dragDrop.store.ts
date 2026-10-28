@@ -47,7 +47,8 @@ export const useDragDropStore = defineStore("dragDrop", () => {
   }
 
   function dropOnDay(taskId: Task["id"], date: ISODate) {
-    if (date !== tasksStore.activeDay) tasksStore.moveTask(taskId, date)
+    const task = tasksStore.findTaskById(taskId)
+    if (task && task.scheduled?.date !== date) tasksStore.moveTask(taskId, date)
   }
 
   function dropOnMilestone(taskId: Task["id"], milestoneId: Milestone["id"] | null) {

@@ -15,7 +15,7 @@ function makeTask(overrides = {}) {
     tags: [],
     estimatedTime: 1800,
     spentTime: 0,
-    status: "active",
+    status: "in_progress",
     priority: "none",
     scheduled: {date: "2026-06-20", time: "09:00:00", timezone: "UTC"},
     minimized: false,
@@ -276,7 +276,9 @@ describe("taskEditorStore — backlog coupling", () => {
 
   it("couples_TC-15_status_and_schedule_so_picking_backlog_clears_the_date_and_picking_a_date_returns_it_to_active", async () => {
     const {tasks, editor} = await setupStores()
-    tasks.findTaskById = vi.fn().mockReturnValue(makeTask({status: "active", scheduled: {date: "2026-06-20", time: "09:00:00", timezone: "UTC"}}))
+    tasks.findTaskById = vi
+      .fn()
+      .mockReturnValue(makeTask({status: "in_progress", scheduled: {date: "2026-06-20", time: "09:00:00", timezone: "UTC"}}))
     await editor.open("task-1")
 
     editor.patch({status: "backlog"})
@@ -284,7 +286,7 @@ describe("taskEditorStore — backlog coupling", () => {
     expect(editor.draft?.scheduled).toBeNull()
 
     editor.patch({scheduled: {date: "2026-07-01", time: "10:00:00", timezone: "UTC"}})
-    expect(editor.draft?.status).toBe("active")
+    expect(editor.draft?.status).toBe("in_progress")
     expect(editor.draft?.scheduled).toEqual({date: "2026-07-01", time: "10:00:00", timezone: "UTC"})
   })
 
@@ -308,14 +310,16 @@ describe("taskEditorStore — backlog coupling", () => {
     expect(tasks.updateTask).toHaveBeenCalledTimes(1)
     expect(tasks.updateTask).toHaveBeenCalledWith(
       "task-1",
-      expect.objectContaining({status: "active", scheduled: {date: "2026-07-01", time: "10:00:00", timezone: "UTC"}}),
+      expect.objectContaining({status: "in_progress", scheduled: {date: "2026-07-01", time: "10:00:00", timezone: "UTC"}}),
     )
     expect(tasks.moveTask).not.toHaveBeenCalled()
   })
 
   it("commits a backlog pick on a dated task as one status write, with no move and no leftover schedule", async () => {
     const {tasks, editor} = await setupStores()
-    tasks.findTaskById = vi.fn().mockReturnValue(makeTask({status: "active", scheduled: {date: "2026-06-20", time: "09:00:00", timezone: "UTC"}}))
+    tasks.findTaskById = vi
+      .fn()
+      .mockReturnValue(makeTask({status: "in_progress", scheduled: {date: "2026-06-20", time: "09:00:00", timezone: "UTC"}}))
     await editor.open("task-1")
 
     editor.patch({status: "backlog"})
@@ -327,6 +331,39 @@ describe("taskEditorStore — backlog coupling", () => {
   })
 })
 
+describe("taskEditorStore — Ready dates", () => {
+  beforeEach(() => {
+    mockBridgeIPC({"tasks:update": vi.fn().mockResolvedValue({})})
+    setActivePinia(createPinia())
+  })
+
+  async function setupReadyEditor(task) {
+    const {useTasksStore} = await import("../../../src/renderer/src/stores/tasks")
+    const {useTaskEditorStore} = await import("../../../src/renderer/src/stores/task-editor")
+    const tasks = useTasksStore()
+    tasks.tasks = [task]
+    const editor = useTaskEditorStore()
+    await editor.open(task.id)
+    return {tasks, editor}
+  }
+
+  it("commits clearing the optional day without changing readiness", async () => {
+    const {tasks, editor} = await setupReadyEditor(makeTask({status: "ready_for_agent"}))
+    editor.patch({scheduled: null})
+    await editor.commit()
+    expect(tasks.findTaskById("task-1")).toMatchObject({status: "ready_for_agent", scheduled: null})
+    expect(editor.isDirty).toBe(false)
+  })
+
+  it("commits Backlog to undated Ready through an explicit status update", async () => {
+    const {tasks, editor} = await setupReadyEditor(makeTask({status: "backlog", scheduled: null}))
+    editor.patch({status: "ready_for_agent"})
+    await editor.commit()
+    expect(tasks.findTaskById("task-1")).toMatchObject({status: "ready_for_agent", scheduled: null})
+    expect(editor.isDirty).toBe(false)
+  })
+})
+
 describe("taskEditorStore — external sync", () => {
   beforeEach(() => {
     mockBridgeIPC()
@@ -335,12 +372,12 @@ describe("taskEditorStore — external sync", () => {
 
   it("reflects an external status change while open and not dirty", async () => {
     const {tasks, editor} = await setupStores()
-    const live = ref(makeTask({id: "abc", status: "active"}))
+    const live = ref(makeTask({id: "abc", status: "in_progress"}))
     tasks.findTaskById = (id) => (id === "abc" ? live.value : null)
 
     await editor.open("abc")
     await nextTick()
-    expect(editor.draft?.status).toBe("active")
+    expect(editor.draft?.status).toBe("in_progress")
 
     live.value = {...live.value, status: "done", updatedAt: "2026-01-02T00:00:00Z"}
     await nextTick()
@@ -351,7 +388,7 @@ describe("taskEditorStore — external sync", () => {
 
   it("does not clobber unsaved edits when the task changes externally", async () => {
     const {tasks, editor} = await setupStores()
-    const live = ref(makeTask({id: "abc", status: "active", content: "before"}))
+    const live = ref(makeTask({id: "abc", status: "in_progress", content: "before"}))
     tasks.findTaskById = (id) => (id === "abc" ? live.value : null)
 
     await editor.open("abc")
@@ -362,7 +399,7 @@ describe("taskEditorStore — external sync", () => {
     await nextTick()
 
     expect(editor.draft?.content).toBe("my edits")
-    expect(editor.draft?.status).toBe("active")
+    expect(editor.draft?.status).toBe("in_progress")
   })
 })
 

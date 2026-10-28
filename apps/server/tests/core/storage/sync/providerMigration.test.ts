@@ -77,7 +77,7 @@ function insertTask(db: Database.Database, id: string, content: string, opts: Ta
   const now = new Date().toISOString()
   db.prepare(
     `INSERT INTO tasks (id, status, content, minimized, order_index, scheduled_date, scheduled_time, scheduled_timezone, estimated_time, spent_time, branch_id, created_at, updated_at, deleted_at)
-     VALUES (?, 'active', ?, 0, 0, ?, '', 'UTC', 0, 0, 'main', ?, ?, ?)`,
+     VALUES (?, 'in_progress', ?, 0, 0, ?, '', 'UTC', 0, 0, 'main', ?, ?, ?)`,
   ).run(id, content, opts.date ?? "2026-03-25", now, opts.updatedAt ?? now, opts.deletedAt ?? null)
 }
 
@@ -91,7 +91,7 @@ type ExactTaskOpts = {createdAt: string; updatedAt: string; deletedAt?: string |
 function insertExactTask(db: Database.Database, id: string, content: string, opts: ExactTaskOpts): void {
   db.prepare(
     `INSERT INTO tasks (id, status, content, minimized, order_index, scheduled_date, scheduled_time, scheduled_timezone, estimated_time, spent_time, branch_id, created_at, updated_at, deleted_at)
-     VALUES (?, 'active', ?, 0, 0, '2026-03-25', '', 'UTC', 0, 0, 'main', ?, ?, ?)`,
+     VALUES (?, 'in_progress', ?, 0, 0, '2026-03-25', '', 'UTC', 0, 0, 'main', ?, ?, ?)`,
   ).run(id, content, opts.createdAt, opts.updatedAt, opts.deletedAt ?? null)
 }
 

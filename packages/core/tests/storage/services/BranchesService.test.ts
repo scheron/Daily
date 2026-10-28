@@ -105,7 +105,7 @@ describe("BranchesService — deleting a project takes its tasks, milestones and
 
   function makeTask(overrides = {}) {
     return {
-      status: "active",
+      status: "in_progress",
       content: "Task",
       minimized: false,
       orderIndex: 1024,

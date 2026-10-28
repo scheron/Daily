@@ -17,7 +17,15 @@ export function normalizeSnapshotDocs(docs: SnapshotDocs): SnapshotDocs {
   return {
     ...rest,
     tasks: docs.tasks.map((task) =>
-      foldAttachmentsIntoContent({...task, milestone_id: task.milestone_id ?? null, priority: task.priority ?? "none"}, docs.files),
+      foldAttachmentsIntoContent(
+        {
+          ...task,
+          status: task.status === "active" ? "in_progress" : task.status === "discarded" ? "cancelled" : task.status,
+          milestone_id: task.milestone_id ?? null,
+          priority: task.priority ?? "none",
+        },
+        docs.files,
+      ),
     ),
     tags: docs.tags.map((tag) => ({...tag, branch_id: tag.branch_id ?? NO_PROJECT_ID})),
     branches: docs.branches.map((branch) => ({...branch, description: branch.description ?? ""})),

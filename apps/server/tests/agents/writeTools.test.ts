@@ -70,7 +70,7 @@ describe("save_task", () => {
 
       const result = await call({store: seeded.store, now}, agent, saveTaskTool, {content: "Buy milk"})
 
-      expect(result.task.status).toBe("active")
+      expect(result.task.status).toBe("in_progress")
       expect(result.task.projectId).toBe("main")
       expect(result.task.scheduled.date).toBe("2026-06-16")
       expect(result.task.scheduled.timezone).toBe("Asia/Tokyo")
@@ -120,7 +120,7 @@ describe("save_task", () => {
       expect(result.task.tags.map((t: any) => t.id)).toEqual([tagId])
       expect(result.task.estimatedSeconds).toBe(600)
       expect(result.task.projectId).toBe("main")
-      expect(result.task.status).toBe("active")
+      expect(result.task.status).toBe("in_progress")
     } finally {
       seeded.close()
     }
@@ -141,7 +141,7 @@ describe("save_task", () => {
       const agent = bindAgent(seeded.store)
 
       const promoted = await call({store: seeded.store}, agent, saveTaskTool, {id: backlogId, date: "2026-02-01"})
-      expect(promoted.task.status).toBe("active")
+      expect(promoted.task.status).toBe("in_progress")
       expect(promoted.task.scheduled.date).toBe("2026-02-01")
 
       const backlogged = await call({store: seeded.store}, agent, saveTaskTool, {id: datedId, date: null})
@@ -164,9 +164,9 @@ describe("save_task", () => {
       const agent: AgentIdentity = {...bindAgent(seeded.store, "Tokyo Mac"), timeZone: "Asia/Tokyo"}
       const now = () => new Date("2026-06-15T23:30:00Z")
 
-      const result = await call({store: seeded.store, now}, agent, saveTaskTool, {id: backlogId, status: "active"})
+      const result = await call({store: seeded.store, now}, agent, saveTaskTool, {id: backlogId, status: "in_progress"})
 
-      expect(result.task.status).toBe("active")
+      expect(result.task.status).toBe("in_progress")
       expect(result.task.scheduled.date).toBe("2026-06-16")
       expect(result.task.scheduled.timezone).toBe("Asia/Tokyo")
     } finally {
@@ -261,7 +261,7 @@ describe("save_task", () => {
     let moveId = ""
 
     const seeded = await seedAgentStore(async (mac) => {
-      const doneTask = await mac.core.tasksService.createTask(dated("2026-01-01", {content: "Finish me", status: "active"}))
+      const doneTask = await mac.core.tasksService.createTask(dated("2026-01-01", {content: "Finish me", status: "in_progress"}))
       doneId = doneTask!.id
       const moveTask = await mac.core.tasksService.createTask(dated("2026-01-01", {content: "Move me"}))
       moveId = moveTask!.id

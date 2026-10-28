@@ -1,6 +1,8 @@
 import {onScopeDispose, ref, watch} from "vue"
 import {storeToRefs} from "pinia"
 
+import {isResolvedTaskStatus} from "@daily/protocol"
+
 import {useBoardDrop} from "@/composables/tasks/useBoardDrop"
 import {useDragDropStore} from "@/stores/dragDrop.store"
 import {useFocusStore} from "@/stores/focus.store"
@@ -37,7 +39,7 @@ export function useCardDrop(listRef: Readonly<ShallowRef<HTMLElement | null>>) {
   function canAdd(taskId: Task["id"] | null) {
     const task = taskId ? tasksStore.findTaskById(taskId) : null
     if (!task || focusStore.session?.tasks.some((sessionTask) => sessionTask.taskId === task.id)) return false
-    return task.status === "active" || task.status === "backlog"
+    return !isResolvedTaskStatus(task.status)
   }
 
   function stop() {

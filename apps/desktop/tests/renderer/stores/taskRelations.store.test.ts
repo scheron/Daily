@@ -26,7 +26,7 @@ vi.mock("../../../src/renderer/src/api", () => ({
 function makeTask(overrides = {}) {
   return {
     id: "t1",
-    status: "active",
+    status: "in_progress",
     content: "Task",
     minimized: false,
     orderIndex: 1024,
@@ -63,16 +63,44 @@ describe("useTaskRelationsStore", () => {
     vi.clearAllMocks()
   })
 
+  it.each(["ready_for_agent", "ready_to_merge"])("keeps %s blocking on both relation sides until resolved", (status) => {
+    const tasks = useTasksStore()
+    tasks.tasks = [makeTask({id: "before", status}), makeTask({id: "middle", status}), makeTask({id: "after", status})]
+    const relations = useTaskRelationsStore()
+    relations.relations = [makeRelation("r1", "before", "middle"), makeRelation("r2", "middle", "after")]
+    expect(relations.chipByTaskId.get("before")).toEqual({kind: "blocks", count: 1})
+    expect(relations.chipByTaskId.get("middle")).toEqual({kind: "linked", count: 2})
+    expect(relations.chipByTaskId.get("after")).toEqual({kind: "blocked-by", count: 1})
+    tasks.tasks = tasks.tasks.map((task) => (task.id === "middle" ? {...task, status: "done"} : task))
+    expect(relations.chipByTaskId.size).toBe(0)
+  })
+
+  it("lists both ready stages before more recent resolved relation candidates", () => {
+    const tasks = useTasksStore()
+    tasks.tasks = [
+      makeTask({id: "target"}),
+      makeTask({id: "merge", status: "ready_to_merge"}),
+      makeTask({id: "ready", status: "ready_for_agent"}),
+      makeTask({id: "done", status: "done", updatedAt: "2030-01-01"}),
+    ]
+    const relations = useTaskRelationsStore()
+    expect(relations.linkCandidates({task: tasks.tasks[0], current: {blocks: [], blockedBy: []}, side: "blockedBy"}).map((task) => task.id)).toEqual([
+      "merge",
+      "ready",
+      "done",
+    ])
+  })
+
   it("shows_TC-13_a_chip_only_for_an_unresolved_task_counting_only_its_unresolved_side_and_none_for_a_cross-project_or_deleted_link", () => {
     const tasksStore = useTasksStore()
     tasksStore.tasks = [
-      makeTask({id: "A", status: "active"}),
-      makeTask({id: "B", status: "active"}),
+      makeTask({id: "A", status: "in_progress"}),
+      makeTask({id: "B", status: "in_progress"}),
       makeTask({id: "C", status: "done"}),
-      makeTask({id: "D", status: "active"}),
+      makeTask({id: "D", status: "in_progress"}),
       makeTask({id: "G", status: "backlog"}),
-      makeTask({id: "H", status: "discarded"}),
-      makeTask({id: "J", branchId: "Q", status: "active"}),
+      makeTask({id: "H", status: "cancelled"}),
+      makeTask({id: "J", branchId: "Q", status: "in_progress"}),
     ]
 
     const relationsStore = useTaskRelationsStore()
@@ -102,13 +130,13 @@ describe("useTaskRelationsStore", () => {
   it("offers_TC-14_unresolved_candidates_before_resolved_ones_by_recency_excluding_the_cycle_the_project_and_what_is_already_linked", () => {
     const tasksStore = useTasksStore()
     tasksStore.tasks = [
-      makeTask({id: "T", branchId: "P", status: "active"}),
-      makeTask({id: "A", branchId: "P", status: "active"}),
-      makeTask({id: "F", branchId: "P", status: "active"}),
-      makeTask({id: "G", branchId: "P", status: "active"}),
+      makeTask({id: "T", branchId: "P", status: "in_progress"}),
+      makeTask({id: "A", branchId: "P", status: "in_progress"}),
+      makeTask({id: "F", branchId: "P", status: "in_progress"}),
+      makeTask({id: "G", branchId: "P", status: "in_progress"}),
       makeTask({id: "B", branchId: "P", status: "done", updatedAt: "2026-09-10T00:00:00.000Z"}),
       makeTask({id: "C", branchId: "P", status: "done", updatedAt: "2026-09-05T00:00:00.000Z"}),
-      makeTask({id: "X", branchId: "Q", status: "active"}),
+      makeTask({id: "X", branchId: "Q", status: "in_progress"}),
     ]
 
     const relationsStore = useTaskRelationsStore()

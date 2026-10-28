@@ -1,14 +1,18 @@
 import {computed} from "vue"
 import {toasts} from "vue-toasts-lite"
 
+import {boardColumnForStatus, groupTasksForBoard} from "@daily/protocol"
+
 import {useCopyToClipboard} from "@/composables/useCopyToClipboard"
+import {useSettingValue} from "@/composables/useSettingValue"
 import {useBranchesStore} from "@/stores/branches.store"
+import {useFilterStore} from "@/stores/filter.store"
 import {useProjectScopeStore} from "@/stores/projectScope.store"
 import {useTaskRelationsStore} from "@/stores/taskRelations.store"
 import {useTasksStore} from "@/stores/tasks"
 import {getProjectName} from "@/utils/projects/getProjectName"
 
-import type {Branch, ISODate, Milestone, Tag, Task, TaskPriority, TaskRelationSets, TaskStatus} from "@daily/protocol"
+import type {BoardMode, Branch, ISODate, Milestone, Tag, Task, TaskPriority, TaskRelationSets, TaskStatus} from "@daily/protocol"
 import type {Ref} from "vue"
 
 export function useTaskModel(task: Readonly<Ref<Task>>) {
@@ -16,10 +20,16 @@ export function useTaskModel(task: Readonly<Ref<Task>>) {
   const branchesStore = useBranchesStore()
   const projectScopeStore = useProjectScopeStore()
   const taskRelationsStore = useTaskRelationsStore()
+  const filterStore = useFilterStore()
 
-  const taskStatus = computed(() => task.value.status)
-  const moveScope = computed(() => tasksStore.dailyTasksByStatus[taskStatus.value] ?? [])
-  const moveIndex = computed(() => tasksStore.dailyTaskIndexMapByStatus[taskStatus.value]?.get(task.value.id) ?? -1)
+  const boardMode = useSettingValue<"appearance.boardMode", BoardMode>("appearance.boardMode", "normal")
+
+  const moveScope = computed(() => {
+    if (filterStore.frame === "milestone") return []
+    const tasks = Object.values(tasksStore.dailyTasksByStatus).flat()
+    return groupTasksForBoard(tasks, boardMode.value)[boardColumnForStatus(task.value.status, boardMode.value)]
+  })
+  const moveIndex = computed(() => moveScope.value.findIndex((item) => item.id === task.value.id))
   const canMoveUp = computed(() => moveIndex.value > 0)
   const canMoveDown = computed(() => moveIndex.value > -1 && moveIndex.value < moveScope.value.length - 1)
   const canMoveToTop = computed(() => canMoveUp.value)
@@ -31,8 +41,8 @@ export function useTaskModel(task: Readonly<Ref<Task>>) {
   async function changeStatus(status: TaskStatus) {
     if (task.value.status === status) return
 
-    if (task.value.status === "backlog") {
-      tasksStore.moveTaskByOrder({
+    if (!task.value.scheduled) {
+      await tasksStore.moveTaskByOrder({
         taskId: task.value.id,
         targetStatus: status,
         activeDate: tasksStore.activeDay,
@@ -127,7 +137,7 @@ export function useTaskModel(task: Readonly<Ref<Task>>) {
     const result = await tasksStore.moveTaskByOrder({
       taskId: task.value.id,
       targetTaskId: previousTask.id,
-      targetStatus: task.value.status,
+      boardMode: boardMode.value,
       position: "before",
       activeDate: tasksStore.activeDay,
       acrossProjects: projectScopeStore.isAllProjectsMode,
@@ -145,7 +155,7 @@ export function useTaskModel(task: Readonly<Ref<Task>>) {
     const result = await tasksStore.moveTaskByOrder({
       taskId: task.value.id,
       targetTaskId: nextTask.id,
-      targetStatus: task.value.status,
+      boardMode: boardMode.value,
       position: "after",
       activeDate: tasksStore.activeDay,
       acrossProjects: projectScopeStore.isAllProjectsMode,
@@ -163,7 +173,7 @@ export function useTaskModel(task: Readonly<Ref<Task>>) {
     const result = await tasksStore.moveTaskByOrder({
       taskId: task.value.id,
       targetTaskId: firstTask.id,
-      targetStatus: task.value.status,
+      boardMode: boardMode.value,
       position: "before",
       activeDate: tasksStore.activeDay,
       acrossProjects: projectScopeStore.isAllProjectsMode,
@@ -178,7 +188,7 @@ export function useTaskModel(task: Readonly<Ref<Task>>) {
     const result = await tasksStore.moveTaskByOrder({
       taskId: task.value.id,
       targetTaskId: null,
-      targetStatus: task.value.status,
+      boardMode: boardMode.value,
       position: "after",
       activeDate: tasksStore.activeDay,
       acrossProjects: projectScopeStore.isAllProjectsMode,

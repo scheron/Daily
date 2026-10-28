@@ -40,6 +40,18 @@ describe("useTaskSlashCommands", () => {
   const items = (label, query = "") => commands.find((command) => command.label === label).getItems(query)
   const labels = (list) => list.map((item) => item.label)
 
+  it("offers all six real statuses independently of board mode", () => {
+    expect(labels(items("Status"))).toEqual(["Backlog", "Ready for Agent", "In Progress", "Ready to Merge", "Done", "Cancelled"])
+    items("Status", "Ready to Merge")[0].apply()
+    expect(patch).toHaveBeenCalledWith({status: "ready_to_merge"})
+  })
+
+  it("offers clearing a Ready task date through /Date", () => {
+    task.value = {...task.value, status: "ready_for_agent", scheduled: {date: "2030-01-02", time: "09:00", timezone: "UTC"}}
+    items("Date", "No date")[0]?.apply()
+    expect(patch).toHaveBeenCalledWith({scheduled: null})
+  })
+
   describe("Estimate", () => {
     it.each(["60m", "120m", "1h 0m", "1h", "2h 0m"])("a typed %s always yields an option that sets its seconds", (typed) => {
       const options = items("Estimate", typed)

@@ -155,7 +155,7 @@ describe("FilesService.cleanupOrphanFiles", () => {
   function makeTaskRow(overrides = {}) {
     return {
       id: createEntityId("task"),
-      status: "active",
+      status: "in_progress",
       content: "",
       minimized: false,
       priority: "none",

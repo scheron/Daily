@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 // @ts-nocheck
-import {nextTick} from "vue"
+import {effectScope, nextTick} from "vue"
 import {createPinia, setActivePinia} from "pinia"
 import {describe, expect, it} from "vitest"
 
@@ -52,8 +52,62 @@ describe("TagsDock — the all-projects mode", () => {
     await nextTick()
 
     expect(filter.activeTagIds.size).toBe(0)
-    const shown = Object.values(useTaskColumns().tasksByStatus.value).flat()
+    const scope = effectScope()
+    const shown = scope.run(() => Object.values(useTaskColumns().tasksByStatus.value).flat())
+    scope.stop()
     expect(shown.map((task) => task.id).sort()).toEqual(["A", "B", "C"])
     wrapper.unmount()
+  })
+})
+
+describe.each(["normal", "agents"])("TagsDock day queue in %s", (boardMode) => {
+  it.each([false, true])("keeps an undated Ready task's chip and selected filter across preparation, all projects: %s", async (allProjects) => {
+    mockBridgeIPC()
+    setActivePinia(createPinia())
+    const {default: TagsDock} = await import("../../../src/renderer/src/ui/modules/TagsDock.vue")
+    const {default: DynamicTagsPanel} = await import("../../../src/renderer/src/ui/common/misc/DynamicTagsPanel.vue")
+    const {useSettingsStore} = await import("../../../src/renderer/src/stores/settings.store")
+    const {useTasksStore} = await import("../../../src/renderer/src/stores/tasks/tasks.store")
+    const {useFilterStore} = await import("../../../src/renderer/src/stores/filter.store")
+    const {useTaskColumns} = await import("../../../src/renderer/src/composables/tasks/useTaskColumns")
+    const settings = useSettingsStore()
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    settings.settings = {branch: {activeId: "main", isAllProjects: allProjects}, layout: {sectionsCollapsed: {}}, appearance: {boardMode}}
+    const tasks = useTasksStore()
+    tasks.activeDay = TODAY
+    const tag = (id, branchId = "main") => ({id, name: id, color: "#000", branchId})
+    const otherDay = "2099-12-31"
+    tasks.tasks = [
+      makeTask("queue", {status: "backlog", scheduled: null, tags: [tag("Only queue")]}),
+      makeTask("today", {tags: [tag("Today")]}),
+      makeTask("tomorrow", {status: "ready_for_agent", scheduled: {date: otherDay, time: "09:00:00", timezone: "UTC"}, tags: [tag("Other day")]}),
+      makeTask("other-project", {branchId: "other", status: "ready_for_agent", scheduled: null, tags: [tag("Other project", "other")]}),
+    ]
+    const wrapper = mount(TagsDock, {global: {directives: {tooltip: {}}}})
+    try {
+      await nextTick()
+      const panel = () => wrapper.findComponent(DynamicTagsPanel)
+      panel().vm.$emit("select", "Only queue")
+      await nextTick()
+      tasks.tasks = tasks.tasks.map((task) => (task.id === "queue" ? {...task, status: "ready_for_agent"} : task))
+      await nextTick()
+      const names = panel()
+        .props("tags")
+        .map((tag) => tag.name)
+        .sort()
+      expect(names).toEqual(allProjects ? ["Only queue", "Other project", "Today"] : ["Only queue", "Today"])
+      expect([...useFilterStore().activeTagIds]).toEqual(["Only queue"])
+      expect(panel().props("selectedTags").has("Only queue")).toBe(true)
+      const scope = effectScope()
+      const shown = scope.run(() =>
+        Object.values(useTaskColumns().tasksByStatus.value)
+          .flat()
+          .map((task) => task.id),
+      )
+      scope.stop()
+      expect(shown).toEqual(["queue"])
+    } finally {
+      wrapper.unmount()
+    }
   })
 })

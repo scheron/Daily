@@ -21,6 +21,8 @@ export type IconName =
   | "check"
   | "check-check"
   | "check-circle"
+  | "bot"
+  | "git-pull-request"
   | "undo"
   | "hand-raised"
   | "empty"
@@ -217,6 +219,25 @@ export type IconName =
     <symbol id="check-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
       <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
       <path d="M22 4 12 14.01 9 11.01" />
+    </symbol>
+
+    <symbol id="bot" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="4" y="7" width="16" height="13" rx="2" />
+      <path d="M12 3v4M2 12v4m20-4v4M9 12v2m6-2v2m-6 3h6" />
+    </symbol>
+
+    <symbol
+      id="git-pull-request"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <circle cx="6" cy="6" r="3" />
+      <circle cx="18" cy="18" r="3" />
+      <path d="M6 9v12M13 6h3a2 2 0 0 1 2 2v7" />
     </symbol>
 
     <symbol id="undo" fill="none" viewBox="0 0 24 24">

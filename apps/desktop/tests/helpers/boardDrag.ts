@@ -3,6 +3,8 @@ import {defineComponent, h, nextTick} from "vue"
 import {DateTime} from "luxon"
 import {vi} from "vitest"
 
+import {boardColumnForStatus, TASK_STATUSES} from "@daily/protocol"
+
 import {mount} from "@vue/test-utils"
 
 export const TODAY = DateTime.now().toISODate()
@@ -13,7 +15,7 @@ export function makeTask(id, overrides = {}) {
     id,
     branchId: "main",
     milestoneId: "milestone-1",
-    status: "active",
+    status: "in_progress",
     content: id,
     minimized: false,
     orderIndex: 1024,
@@ -37,7 +39,10 @@ export function yForIndex(index, step = 206) {
   return TRACK_TOP + index * step + 50
 }
 
-export async function mountBoardDrag(seed, {frame = "day", taskView = "regular", fontSize = "normal"} = {}) {
+export async function mountBoardDrag(
+  seed,
+  {frame = "day", taskView = "regular", fontSize = "normal", boardMode = "normal", allProjects = false} = {},
+) {
   const {useTasksStore} = await import("../../src/renderer/src/stores/tasks/tasks.store")
   const {useDragDropStore} = await import("../../src/renderer/src/stores/dragDrop.store")
   const {useSettingsStore} = await import("../../src/renderer/src/stores/settings.store")
@@ -50,7 +55,12 @@ export async function mountBoardDrag(seed, {frame = "day", taskView = "regular",
 
   const settings = useSettingsStore()
   await new Promise((resolve) => setTimeout(resolve))
-  settings.settings = {branch: {activeId: "main"}, layout: {sectionsCollapsed: {}}, appearance: {taskView}, typography: {fontSize}}
+  settings.settings = {
+    branch: {activeId: "main", isAllProjects: allProjects},
+    layout: {sectionsCollapsed: {}},
+    appearance: {taskView, boardMode},
+    typography: {fontSize},
+  }
   useMilestonesStore().milestones = [
     {
       id: "milestone-1",
@@ -87,7 +97,7 @@ export async function mountBoardDrag(seed, {frame = "day", taskView = "regular",
   boardEl.setAttribute("data-task-board", "")
 
   const board = {}
-  for (const status of ["backlog", "active", "done", "discarded"]) {
+  for (const status of TASK_STATUSES) {
     const column = document.createElement("div")
     column.dataset.columnStatus = status
     const list = document.createElement("div")
@@ -117,7 +127,7 @@ export async function mountBoardDrag(seed, {frame = "day", taskView = "regular",
     const card = document.createElement("div")
     card.setAttribute("data-task-card", "")
     card.addEventListener("pointerdown", (event) => columns.onCardPointerDown(event, task))
-    board[task.status].append(card)
+    board[boardColumnForStatus(task.status, boardMode)].append(card)
     return card
   }
 
@@ -141,7 +151,7 @@ export async function mountBoardDrag(seed, {frame = "day", taskView = "regular",
 
   function startDrag(task, y) {
     press(task, y)
-    moveOver(task.status, y + 10)
+    moveOver(boardColumnForStatus(task.status, boardMode), y + 10)
   }
 
   function release(y) {

@@ -22,13 +22,13 @@ export function buildRestPatch(next: TaskDraft, base: TaskDraft) {
 
   const out: Partial<RestPatch> = {}
 
-  const resolvedWithoutDate = next.status !== "backlog" && !next.scheduled
+  const needsDate = next.status !== "backlog" && next.status !== "ready_for_agent" && !next.scheduled
 
   if (next.content !== base.content) out.content = next.content
   if (!sameTagIds(next.tags, base.tags)) out.tags = next.tags
   if (next.estimatedTime !== base.estimatedTime) out.estimatedTime = next.estimatedTime
   if (next.spentTime !== base.spentTime) out.spentTime = next.spentTime
-  if (next.status !== base.status && !resolvedWithoutDate) out.status = next.status
+  if (next.status !== base.status && !needsDate) out.status = next.status
   if (next.priority !== base.priority) out.priority = next.priority
   if (next.milestoneId !== base.milestoneId) out.milestoneId = next.milestoneId
   return out

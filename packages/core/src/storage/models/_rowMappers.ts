@@ -243,13 +243,14 @@ export function getDefaultSettings(): Settings {
       accent: DEFAULT_ACCENT_ID,
       base: DEFAULT_BASE_ID,
       taskView: "regular",
+      boardMode: "normal",
     },
     typography: getDefaultTypographySettings(),
     sync: getDefaultSyncSettings(),
     ai: null,
     branch: {activeId: NO_PROJECT_ID, isAllProjects: false},
     layout: {
-      sectionsCollapsed: {active: false, discarded: false, done: false, backlog: false},
+      sectionsCollapsed: {in_progress: false, cancelled: false, done: false, backlog: false, ready_for_agent: false, ready_to_merge: false},
     },
     quickTask: {isEnabled: true, hotkey: DEFAULT_QUICK_TASK_HOTKEY},
     menuBar: {isVisible: true},
@@ -268,12 +269,13 @@ export function getDefaultSettings(): Settings {
 
 /**
  * Migrates a persisted settings blob to the current shape: the old `themes` becomes `appearance`, and `quickCapture` becomes `quickTask`.
+ * Legacy column keys follow the current statuses without resetting saved collapse choices.
  * A part already in the current shape is left as it is.
  * @example migrateSettingsShape({themes: {current: "aurora", useSystem: false}})
  */
 export function migrateSettingsShape(parsed: any): any {
   if (!parsed || typeof parsed !== "object") return parsed
-  return migrateQuickCapture(migrateThemes(parsed))
+  return migrateBoardSettings(migrateQuickCapture(migrateThemes(parsed)))
 }
 
 export function rowToSettings(row: SettingsRow): Settings {
@@ -290,7 +292,11 @@ export function rowToSettings(row: SettingsRow): Settings {
 export function normalizeSettingsTaskView(settings: Settings): Settings {
   return {
     ...settings,
-    appearance: {...settings.appearance, taskView: settings.appearance?.taskView === "compact" ? "compact" : "regular"},
+    appearance: {
+      ...settings.appearance,
+      taskView: settings.appearance?.taskView === "compact" ? "compact" : "regular",
+      boardMode: settings.appearance?.boardMode === "agents" ? "agents" : "normal",
+    },
   }
 }
 
@@ -359,4 +365,21 @@ const OLD_THEME_ACCENT: Record<string, string> = {
   "lofi-dark": "teal",
   neon: "pink",
   "ayu-dark": "amber",
+}
+
+function migrateBoardSettings(parsed: any): any {
+  const collapsed = parsed.layout?.sectionsCollapsed
+  if (!collapsed) return parsed
+  const {active, discarded, ...current} = collapsed
+  return {
+    ...parsed,
+    layout: {
+      ...parsed.layout,
+      sectionsCollapsed: {
+        ...current,
+        in_progress: current.in_progress ?? active ?? false,
+        cancelled: current.cancelled ?? discarded ?? false,
+      },
+    },
+  }
 }

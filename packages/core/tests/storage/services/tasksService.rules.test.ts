@@ -8,6 +8,8 @@ import {TaskEventModel} from "@core/storage/models/TaskEventModel"
 import {TaskModel} from "@core/storage/models/TaskModel"
 import {TaskEventsService} from "@core/storage/services/TaskEventsService"
 import {TasksService} from "@core/storage/services/TasksService"
+import {StorageAPI} from "../../../../../apps/desktop/src/renderer/src/api/Storage"
+import {mockBridgeIPC} from "../../../../../apps/desktop/tests/helpers/bridgeIPC"
 import {createTestDatabase} from "../../helpers/db"
 import {makeTaskInput} from "../../helpers/storageControllerHarness"
 
@@ -188,12 +190,12 @@ describe("a status-changing move with no integer gap — the rule and the real s
       taskId: "t3",
       targetTaskId: "t2",
       position: "before",
-      targetStatus: "active",
+      targetStatus: "in_progress",
       activeDate: date,
       acrossProjects: true,
     })
 
-    expect(taskModel.getTask("t3")).toMatchObject({status: "active", scheduled: {date}})
+    expect(taskModel.getTask("t3")).toMatchObject({status: "in_progress", scheduled: {date}})
   })
 
   it("moves_a_backlog_task_onto_a_day_between_adjacent_neighbours_of_one_project", async () => {
@@ -203,9 +205,9 @@ describe("a status-changing move with no integer gap — the rule and the real s
       taskModel.createTask(makeTaskInput({id: "t3", status: "backlog", scheduled: null, orderIndex: 5000})),
     ]
 
-    await expectRuleToEqualCore(seeded, {taskId: "t3", targetTaskId: "t2", position: "before", targetStatus: "active", activeDate: date})
+    await expectRuleToEqualCore(seeded, {taskId: "t3", targetTaskId: "t2", position: "before", targetStatus: "in_progress", activeDate: date})
 
-    expect(taskModel.getTask("t3")).toMatchObject({status: "active", scheduled: {date}})
+    expect(taskModel.getTask("t3")).toMatchObject({status: "in_progress", scheduled: {date}})
   })
 
   it("moves_a_day_task_into_the_backlog_with_no_gap", async () => {
@@ -231,7 +233,7 @@ describe("the D2 transition table — planTaskMoveByOrder/planTaskUpdate equal t
   afterEach(() => db.close())
 
   it("matches_TC-10_the_real_storage_core_for_any_column_to_backlog_column", async () => {
-    const seeded = taskModel.createTask(makeTaskInput({status: "active", scheduled: {date: "2026-03-24", time: "09:00:00", timezone: "UTC"}}))
+    const seeded = taskModel.createTask(makeTaskInput({status: "in_progress", scheduled: {date: "2026-03-24", time: "09:00:00", timezone: "UTC"}}))
     const params = {taskId: seeded.id, targetStatus: "backlog", activeDate: "2026-03-24"}
     const ctx = {tasks: [seeded], milestones: [], today: "2026-03-24"}
 
@@ -254,7 +256,7 @@ describe("the D2 transition table — planTaskMoveByOrder/planTaskUpdate equal t
     vi.setSystemTime(new Date("2026-04-02T12:00:00.000Z"))
 
     try {
-      for (const targetStatus of ["active", "done", "discarded"]) {
+      for (const targetStatus of ["in_progress", "done", "cancelled"]) {
         const harness = makeHarness()
 
         const seeded = harness.taskModel.createTask(makeTaskInput({status: "backlog", scheduled: null}))
@@ -316,5 +318,33 @@ describe("the D2 transition table — planTaskMoveByOrder/planTaskUpdate equal t
     const actual = withoutUpdatedAt(taskModel.getTask(seeded.id))
 
     expect(actual).toEqual(predicted)
+  })
+})
+
+describe("calendar API day assignment to Ready tasks", () => {
+  it("stores a complete schedule matching the renderer rule and preserves it when starting work", async () => {
+    const {db, taskModel, tasksService} = makeHarness()
+    const originalWindow = globalThis.window
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-10-29T02:34:56.000Z"))
+    try {
+      const seeded = taskModel.createTask(makeTaskInput({status: "ready_for_agent", scheduled: null}))
+      mockBridgeIPC({"tasks:update": async (id, updates) => ({tasks: {upserted: await tasksService.updateTask(id, updates)}})})
+      const predicted = applyPatch(
+        seeded,
+        planTaskUpdate({tasks: [seeded], milestones: [], today: "2026-10-29"}, seeded.id, {scheduled: {date: "2026-10-30"}})[0],
+      )
+      await new StorageAPI().moveTask(seeded.id, "2026-10-30")
+      const actual = taskModel.getTask(seeded.id)
+      expect(actual.status).toBe("ready_for_agent")
+      expect(actual.scheduled).toEqual({date: "2026-10-30", time: expect.stringMatching(/^\d{2}:\d{2}:\d{2}$/), timezone: expect.any(String)})
+      expect(withoutUpdatedAt(actual)).toEqual(withoutUpdatedAt(predicted))
+      await tasksService.updateTask(seeded.id, {status: "in_progress"})
+      expect(taskModel.getTask(seeded.id).scheduled).toEqual(actual.scheduled)
+    } finally {
+      globalThis.window = originalWindow
+      vi.useRealTimers()
+      db.close()
+    }
   })
 })

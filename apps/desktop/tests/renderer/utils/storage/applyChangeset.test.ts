@@ -7,7 +7,7 @@ import {applyChangeset} from "../../../../src/renderer/src/utils/storage/applyCh
 function makeTask(overrides = {}) {
   return {
     id: "task-1",
-    status: "active",
+    status: "in_progress",
     content: "Test",
     minimized: false,
     orderIndex: 1024,

@@ -1,7 +1,7 @@
 import {computed, ref} from "vue"
 import {storeToRefs} from "pinia"
 
-import {NO_PROJECT_ID} from "@daily/protocol"
+import {NO_PROJECT_ID, statusForScheduling} from "@daily/protocol"
 import {getTime, getTimezone, getToday} from "@daily/std"
 
 import {useBranchesStore} from "@/stores/branches.store"
@@ -58,12 +58,11 @@ export function useQuickTaskDraft() {
     if ("scheduled" in updates) isDateAuto.value = false
 
     if (updates.status === "backlog") next.scheduled = null
-    else if (updates.status && !next.scheduled) {
+    else if (updates.status && updates.status !== "ready_for_agent" && !next.scheduled) {
       next.scheduled = todayScheduled()
       isDateAuto.value = true
     } else if (updates.status === undefined && "scheduled" in updates) {
-      if (updates.scheduled === null) next.status = "backlog"
-      else if (draft.value.status === "backlog") next.status = "active"
+      next.status = statusForScheduling(draft.value.status, updates.scheduled ?? null)
     }
 
     if (updates.branchId !== undefined) projectPicked.value = true

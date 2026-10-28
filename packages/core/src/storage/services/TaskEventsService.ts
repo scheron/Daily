@@ -62,6 +62,11 @@ export class TaskEventsService {
       return
     }
 
+    if (Boolean(before.scheduled) !== Boolean(after.scheduled)) {
+      this.record(after, "edited", source)
+      return
+    }
+
     if (before.scheduled && after.scheduled && before.scheduled.date !== after.scheduled.date) {
       this.recordMove(after, before.scheduled.date, after.scheduled.date, source)
     }
@@ -114,7 +119,7 @@ function collapseMoves(events: TaskEvent[]): TaskEvent[] {
 
 function statusEventType(status: TaskStatus): TaskEventType {
   if (status === "done") return "completed"
-  if (status === "discarded") return "discarded"
+  if (status === "cancelled") return "discarded"
   return "reactivated"
 }
 

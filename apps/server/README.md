@@ -1,8 +1,7 @@
 # @scheron/daily-server
 
-The Self-hosted Daily Sync Server — a Daily Sync Protocol server for people who would rather run
-their own sync endpoint than use iCloud Drive. [Daily](https://github.com/scheron/Daily) connects
-to one as **Self-hosted Daily**, in Settings → Sync.
+Run your own Daily Sync Protocol endpoint instead of iCloud Drive.
+[Daily](https://github.com/scheron/Daily) connects in Settings → Sync → **Self-hosted Daily**.
 
 ## Install
 
@@ -10,8 +9,7 @@ to one as **Self-hosted Daily**, in Settings → Sync.
 curl -fsSL https://raw.githubusercontent.com/scheron/Daily/main/deploy/install.sh | sh
 ```
 
-Run this on the VPS itself. It asks one question — the address you'll reach this server at — and
-decides the rest by looking at the machine.
+Run on the VPS. The installer asks for its public address and detects the rest.
 
 ### A domain, with 80 and 443 free
 
@@ -27,8 +25,7 @@ Press Enter when asked.
 
 - Shows the IP address it found for this machine and asks you to confirm it.
 - Installs the server alone, with a self-signed certificate for that address.
-- Prints the address, the claim code, and the certificate's SHA-256 fingerprint. Daily shows the
-  same fingerprint when it connects, so the two can be compared.
+- Prints the address, claim code, and SHA-256 fingerprint to compare with the one Daily shows.
 
 ### Something already answers on 80 or 443
 
@@ -38,14 +35,12 @@ Type the domain when asked, same as the first scenario.
 - Prints the upstream address, one `docker network connect` command that lets your proxy reach
   it, and the request-size limit to raise past 100 MB, or attachments fail while everything else
   looks healthy.
-- Once your proxy is routing, the server's log confirms the address works — nothing needs
-  restarting.
+- The server log confirms routing works; no restart is needed.
 
 ## Connecting your Macs
 
-The first Mac claims the server with the six-digit code the install printed, in Settings → Sync.
-That Mac becomes the **Parent**. There is exactly one, and only it may let another Mac in or put
-one out. Every Mac after it joins as a **Child**, which syncs and nothing more.
+In Settings → Sync, the first Mac claims the server using the installer's six-digit code.
+It becomes the sole **Parent**, which approves and revokes **Child** Macs; Children only sync.
 
 Adding a Child takes both Macs, in this order:
 
@@ -54,17 +49,16 @@ Adding a Child takes both Macs, in this order:
 2. On the new Mac, enter the server's address in Settings → Sync and connect.
 3. The Parent shows a card naming the Mac that asked. Approve it, and the two are bound.
 
-In the wrong order the new Mac is turned away with _"This server is not expecting a new device
-right now."_ Nothing is broken — the window is simply shut. Open it on the Parent and connect again.
+If the new Mac sees _"This server is not expecting a new device right now,"_ open the Parent's
+window first, then reconnect.
 
-The Parent can revoke any Child: that Mac stops syncing at once and keeps what it had locally, and
-rejoining means the three steps again. Revoking the Parent itself leaves the server with none, and
-only the console can appoint another — see [Recovery](#recovery).
+Revoked Children stop syncing, keep their local data, and must repeat enrollment to rejoin.
+Revoking the Parent leaves none; the console can appoint another — see [Recovery](#recovery).
 
 ## Connecting agents
 
-Agents — Claude Code, the Claude app, Codex — read and change your tasks through this server. They
-need it on a domain with a trusted certificate; an install by IP turns them away.
+Agents — Claude Code, the Claude app, Codex — read and change tasks through this server.
+They require a domain with a trusted certificate; IP installs reject them.
 
 1. On any bound Mac, open Settings → Sync and press **Connect an agent**. Copy the
    address it shows. It waits five minutes.
@@ -95,8 +89,7 @@ Mac, or from the Parent. Revoking a Mac revokes its agents.
 
 ## Managing it
 
-The install puts a `daily-server` command on your `PATH`. Where it could not — installing as an
-ordinary user, say — it prints the full path to the same script instead, and the verbs match:
+The installer adds `daily-server` to `PATH`, or prints the script's full path. Both accept:
 
 ```
 Usage: daily-server <verb>
@@ -113,20 +106,16 @@ Verbs:
   uninstall    stop the stack and remove its containers
 ```
 
-`rename` takes the name as its argument — `daily-server rename "My server"` — and applies at once,
-with no restart. A server nobody has named falls back to the host of `DAILY_SERVER_PUBLIC_URL`, and
-then to the machine's hostname, which in a container is its id. That fallback only ever replaces a
-bare container id, so it never undoes a name you chose. `DAILY_SERVER_NAME` declares the name
-instead: it wins on every start, and `rename` refuses rather than write what a restart would undo.
+`daily-server rename "My server"` applies immediately. An unnamed server uses the public URL's
+host, then the machine's hostname (a container id in Docker); fallback replaces only a bare
+container id, never a chosen name. `DAILY_SERVER_NAME` wins on every start and disables `rename`.
 
-`backup` writes one `.tar.gz` beside `daily.sh`, holding the database and the assets directory.
-`upgrade` writes one of its own first — see below. `uninstall` asks before it removes the data
-volumes, and keeps them unless you answer yes.
+`backup` writes a `.tar.gz` of the database and assets beside `daily.sh`; `upgrade` does too.
+`uninstall` keeps data volumes unless its confirmation is answered yes.
 
 ## Configuration
 
-Everything is read from the environment; there is no configuration file, and `daily.sh` is not
-meant to be hand-edited.
+Configure through environment variables; there is no config file. Do not edit `daily.sh`.
 
 | Variable                             | Default                                  | Meaning                                                                                                       |
 | ------------------------------------ | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
@@ -144,17 +133,14 @@ meant to be hand-edited.
 
 ## Backups
 
-The server backs itself up on a schedule, out of the box — every 24 hours, keeping only the newest
-one, since every bound Mac holds a full copy too (`DAILY_SERVER_BACKUP_KEEP` keeps more). Nothing
-needs scheduling by hand, and the server keeps serving while it happens.
+Automatic backups run every 24 hours without interrupting service. Only the newest is kept
+unless `DAILY_SERVER_BACKUP_KEEP` says otherwise; every bound Mac also holds a full copy.
 
-Each backup is a directory holding `server.sqlite` and an `assets` directory, and costs almost no
-disk beyond the database itself. Restoring one is a file copy: stop the stack, put `server.sqlite`
-and `assets` back under the data directory, start it again.
+A backup contains `server.sqlite` and `assets`, costing little disk beyond the database.
+To restore: stop the stack, copy both into the data directory, then start it.
 
-These backups sit on the same disk as the data they protect. That covers a database that got
-corrupted, a bad restore, a change you want to undo — not the machine going away. For that, take
-the archive `daily-server backup` writes and keep it somewhere else.
+Scheduled backups share the data's disk: they cover corruption or unwanted changes, not machine
+loss. Keep the archive from `daily-server backup` elsewhere to cover that.
 
 ## Monitoring
 
@@ -168,8 +154,7 @@ address to give an uptime monitor, and it stays put across protocol versions.
 
 ## Recovery
 
-When no Mac can get you there — the Parent is gone, or every bound Mac is — the server's own
-console can:
+If the Parent or all bound Macs are lost, use the server console:
 
 ```bash
 docker compose exec daily-server daily-server device enroll
@@ -178,17 +163,13 @@ docker compose exec daily-server daily-server device promote <id>
 docker compose exec daily-server daily-server device revoke <id>
 ```
 
-`device enroll` is the way back once every bound Mac is lost: it prints a single-use token, good
-for fifteen minutes, that binds a new Mac directly, with no Parent to approve it. `device promote
-<id>` hands the Parent role to another bound Mac, for when the one that held it is gone and nothing
-left can approve or revoke anything. `device list` shows each Mac's role, name and last-seen time,
-with revoked ones after the active ones.
+`device enroll` prints a single-use, fifteen-minute token to bind a Mac without a Parent.
+`device promote <id>` appoints an existing bound Mac as Parent. `device list` shows roles, names
+and last-seen times, with revoked Macs after active ones.
 
-Newly minted device ids never begin with `-`, but an id already in the database might, from before
-this was true. If one does, address it with options before the separator, then the id:
-`docker compose exec daily-server daily-server device revoke --data-dir <path> -- <id>` (and the
-same for `device promote`) — not `--` first, which commander reads as "no more options" and then
-refuses the extra argument.
+Legacy device ids may begin with `-`. For those, put options before `--`, then the id:
+`docker compose exec daily-server daily-server device revoke --data-dir <path> -- <id>`.
+The same applies to `device promote`; `--` before options makes commander reject the argument.
 
 ## Updating
 
@@ -196,25 +177,43 @@ refuses the extra argument.
 daily-server upgrade
 ```
 
-One command; nothing is edited by hand. Your server runs `ghcr.io/scheron/daily-server`, pinned to
-a `p<N>` tag naming the sync protocol it speaks; that pin never moves on its own, only `upgrade`
-moves it.
+No manual edits: `upgrade` alone moves the `ghcr.io/scheron/daily-server` image's `p<N>` pin,
+which names its sync protocol.
 
-Before it does, `upgrade` writes `daily-preupgrade-<timestamp>.tar.gz` beside `daily.sh`, asked for
-or not: a new image can migrate the database. If it will not start, will not report healthy in
-time, or exits on its own, the archive and the previous image both go back and the server is
-started again on what it was running. A failed download changes nothing. A healthy upgrade
-removes the older pre-upgrade archives; an undone one removes none.
+Before upgrading, it always writes `daily-preupgrade-<timestamp>.tar.gz` beside `daily.sh`:
+a new image may migrate the database. Startup failure, health timeout or exit restores both
+the archive and previous image, then restarts. Failed downloads change nothing. Success removes
+older pre-upgrade archives; rollback keeps them.
 
 ## Confidentiality
 
-Whoever controls this server can read the tasks stored on it. The snapshot Daily writes here is kept
-in a form the server can parse — not an end-to-end-encrypted blob. End-to-end encryption is not
-offered and is not planned.
+The server stores readable snapshots. Its operator, root user, or anyone with disk or backup
+access can read every synced task. End-to-end encryption is neither offered nor planned.
+Run it on a machine you control, such as your own VPS, not a shared host operated by others.
 
-So anyone with access to this machine — its operator, its root user, anyone who can read its disk
-or its backups — can read every task synced through it. Run it only on a machine you control: a VPS
-of your own, not a shared or third-party host someone else operates.
+## Task workflow through MCP
+
+Agents and Daily Assistant share `list_tasks`, `get_task`, and `save_task`. Statuses are `backlog`,
+`ready_for_agent`, `in_progress`, `ready_to_merge`, `done`, `cancelled`, independent of Normal / Agents.
+Ready states remain outstanding; preparation does not launch an agent.
+
+After connecting and approving an agent as described above, the workflow is:
+
+```json
+{"name":"list_tasks","arguments":{"status":"ready_for_agent"}}
+{"name":"save_task","arguments":{"id":"TASK_ID","date":"2026-10-29"}}
+{"name":"save_task","arguments":{"id":"TASK_ID","date":null}}
+{"name":"save_task","arguments":{"id":"TASK_ID","status":"in_progress","date":"2026-10-29"}}
+{"name":"save_task","arguments":{"id":"TASK_ID","status":"ready_to_merge"}}
+{"name":"save_comment","arguments":{"taskId":"TASK_ID","content":"Implementation and verification details"}}
+{"name":"get_task","arguments":{"id":"TASK_ID"}}
+```
+
+Use a returned task id and the intended day. Ready for Agent preserves its day or absence of one
+on entry and stays ready when its date is assigned or cleared; creation without a date is undated.
+Backlog has no day; the other four statuses require one, defaulting to the caller's Mac clock.
+`save_task` accepts up to 50 changes as `{"tasks":[...]}` atomically, rolling back the whole batch
+and history on failure. Comments and history retain the approved MCP client's authorship.
 
 ## License
 

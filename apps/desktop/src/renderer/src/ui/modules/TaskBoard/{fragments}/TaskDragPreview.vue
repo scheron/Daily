@@ -29,7 +29,14 @@ const title = computed(() => (task.value ? toTaskTitle(task.value.content) : "")
 const estimateLabel = computed(() => (task.value && task.value.estimatedTime > 0 ? toDurationLabel(task.value.estimatedTime) : ""))
 
 const icon = computed<IconName>(() => {
-  const icons = {backlog: "bookmark", active: "fire", done: "check-check", discarded: "archive"} satisfies Record<TaskStatus, IconName>
+  const icons = {
+    ready_for_agent: "bot",
+    ready_to_merge: "git-pull-request",
+    backlog: "bookmark",
+    in_progress: "fire",
+    done: "check-check",
+    cancelled: "archive",
+  } satisfies Record<TaskStatus, IconName>
   return task.value ? icons[task.value.status] : "bookmark"
 })
 
@@ -60,8 +67,10 @@ function getPreviewClasses(isOver: boolean) {
 function getIconClasses(status: TaskStatus) {
   return cn(
     "size-4 shrink-0",
-    status === "active" && "text-error",
-    status === "discarded" && "text-warning",
+    status === "in_progress" && "text-accent",
+    status === "ready_for_agent" && "text-error",
+    status === "ready_to_merge" && "text-info",
+    status === "cancelled" && "text-warning",
     status === "done" && "text-success",
     status === "backlog" && "text-base-content/60",
   )

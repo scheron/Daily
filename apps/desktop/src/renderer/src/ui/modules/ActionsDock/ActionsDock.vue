@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {computed} from "vue"
 
+import {useSettingValue} from "@/composables/useSettingValue"
 import {useBranchesStore} from "@/stores/branches.store"
 import {useFocusStore} from "@/stores/focus.store"
 import {useProjectScopeStore} from "@/stores/projectScope.store"
@@ -31,6 +32,7 @@ const hasAllProjectsRow = computed(() => uiStore.frame === "day")
 const isFocusDetached = computed(() => focusStore.session?.isDetached ?? false)
 
 const searchModal = useSearchModal()
+const boardMode = useSettingValue("appearance.boardMode", "normal")
 
 function onOpenAssistantPanel() {
   window.BridgeIPC.send("assistant:open")
@@ -63,6 +65,9 @@ function getFocusVariant(isOpen: boolean) {
       class="dock-surface h-8.5 absolute right-3.5 top-2 z-20 flex items-center gap-0.5 rounded-full px-1 [-webkit-app-region:no-drag]"
     >
       <ConnectionIndicator />
+      <BaseButton variant="ghost-primary" size="sm" tooltip="Board mode" @click="boardMode = boardMode === 'agents' ? 'normal' : 'agents'">
+        {{ boardMode === "agents" ? "Agents" : "Normal" }}
+      </BaseButton>
 
       <BranchPicker
         :selected-id="branchesStore.activeBranchId"

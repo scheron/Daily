@@ -2,6 +2,8 @@
 import {createPinia, setActivePinia} from "pinia"
 import {beforeEach, describe, expect, it, vi} from "vitest"
 
+import {isMilestoneClosed} from "@daily/protocol"
+
 import {useMilestonesStore} from "../../../src/renderer/src/stores/milestones.store"
 import {useSettingsStore} from "../../../src/renderer/src/stores/settings.store"
 import {useTasksStore} from "../../../src/renderer/src/stores/tasks/tasks.store"
@@ -46,7 +48,7 @@ function makeMilestone(overrides = {}) {
 function makeTask(overrides = {}) {
   return {
     id: "task-1",
-    status: "active",
+    status: "in_progress",
     content: "Test",
     minimized: false,
     orderIndex: 1024,
@@ -71,6 +73,17 @@ describe("milestonesStore — progress scoped alongside the collection's own sel
     vi.clearAllMocks()
   })
 
+  it.each(["ready_for_agent", "ready_to_merge"])("keeps a milestone open while %s work remains", (status) => {
+    const tasks = useTasksStore()
+    tasks.tasks = [makeTask({id: "ready", milestoneId: "milestone-1", status}), makeTask({id: "done", milestoneId: "milestone-1", status: "done"})]
+    const milestones = useMilestonesStore()
+    milestones.milestones = [makeMilestone()]
+    expect(milestones.milestonesMap.get("milestone-1").progress).toEqual({total: 2, resolved: 1})
+    expect(isMilestoneClosed(milestones.milestonesMap.get("milestone-1").progress)).toBe(false)
+    tasks.tasks = tasks.tasks.map((task) => (task.id === "ready" ? {...task, status: "cancelled"} : task))
+    expect(isMilestoneClosed(milestones.milestonesMap.get("milestone-1").progress)).toBe(true)
+  })
+
   async function settle() {
     await new Promise((r) => setTimeout(r, 0))
   }
@@ -87,11 +100,11 @@ describe("milestonesStore — progress scoped alongside the collection's own sel
     const tasks = [
       makeTask({id: "p1-day", branchId: "main", scheduled: {date: day, time: "", timezone: "UTC"}}),
       makeTask({id: "p1-backlog", branchId: "main", status: "backlog", scheduled: null}),
-      makeTask({id: "p1-m1-a", branchId: "main", milestoneId: "m1", status: "active", scheduled: {date: day, time: "", timezone: "UTC"}}),
+      makeTask({id: "p1-m1-a", branchId: "main", milestoneId: "m1", status: "in_progress", scheduled: {date: day, time: "", timezone: "UTC"}}),
       makeTask({id: "p1-m1-b", branchId: "main", milestoneId: "m1", status: "done", scheduled: {date: day, time: "", timezone: "UTC"}}),
       makeTask({id: "p2-day", branchId: "other", scheduled: {date: day, time: "", timezone: "UTC"}}),
       makeTask({id: "p2-backlog", branchId: "other", status: "backlog", scheduled: null}),
-      makeTask({id: "p2-m2-a", branchId: "other", milestoneId: "m2", status: "active", scheduled: {date: day, time: "", timezone: "UTC"}}),
+      makeTask({id: "p2-m2-a", branchId: "other", milestoneId: "m2", status: "in_progress", scheduled: {date: day, time: "", timezone: "UTC"}}),
     ]
     API.getAllTasks.mockResolvedValueOnce(tasks)
 

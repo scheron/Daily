@@ -2,7 +2,7 @@ import {computed, ref} from "vue"
 import {DateTime} from "luxon"
 import {defineStore} from "pinia"
 
-import {groupTasksByDay, sortTasksByOrderIndex} from "@daily/protocol"
+import {groupTasksByDay, groupTasksForBoard, isTaskOnDayBoard, sortTasksByOrderIndex} from "@daily/protocol"
 
 import {API} from "@/api"
 import {useProjectScopeStore} from "@/stores/projectScope.store"
@@ -49,24 +49,10 @@ export const useTasksStore = defineStore("tasks", () => {
   const dailyTasks = computed(() => (activeDayData.value ? sortTasksByOrderIndex(activeDayData.value.tasks) : []))
 
   const dailyTasksByStatus = computed<Record<TaskStatus, Task[]>>(() => {
-    const grouped = dailyTasks.value.reduce(
-      (acc, task) => {
-        acc[task.status].push(task)
-        return acc
-      },
-      {active: [], discarded: [], done: [], backlog: []} as Record<TaskStatus, Task[]>,
+    return groupTasksForBoard(
+      projectTasks.value.filter((task) => isTaskOnDayBoard(task, activeDay.value)),
+      "agents",
     )
-    grouped.backlog = backlogTasks.value
-    return grouped
-  })
-
-  const dailyTaskIndexMapByStatus = computed<Record<TaskStatus, Map<Task["id"], number>>>(() => {
-    return {
-      active: new Map(dailyTasksByStatus.value.active.map((task, index) => [task.id, index])),
-      discarded: new Map(dailyTasksByStatus.value.discarded.map((task, index) => [task.id, index])),
-      done: new Map(dailyTasksByStatus.value.done.map((task, index) => [task.id, index])),
-      backlog: new Map(dailyTasksByStatus.value.backlog.map((task, index) => [task.id, index])),
-    }
   })
 
   const mutations = useTaskMutations({
@@ -108,7 +94,6 @@ export const useTasksStore = defineStore("tasks", () => {
     activeDay,
     dailyTasks,
     dailyTasksByStatus,
-    dailyTaskIndexMapByStatus,
 
     setActiveDay,
     findTaskById,

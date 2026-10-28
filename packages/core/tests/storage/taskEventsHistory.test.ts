@@ -1,6 +1,8 @@
 // @ts-nocheck
 import {beforeEach, describe, expect, it} from "vitest"
 
+import {getToday} from "@daily/std"
+
 import {TaskEventModel} from "../../src/storage/models/TaskEventModel"
 import {TaskModel} from "../../src/storage/models/TaskModel"
 import {TaskEventsService} from "../../src/storage/services/TaskEventsService"
@@ -13,7 +15,7 @@ const NEXT_DAY = "2026-06-24"
 function makeTask(overrides = {}) {
   return {
     content: "Buy milk",
-    status: "active",
+    status: "in_progress",
     minimized: false,
     orderIndex: 1,
     estimatedTime: 0,
@@ -36,6 +38,20 @@ describe("task history (per task)", () => {
     const taskModel = new TaskModel(db)
     taskEvents = new TaskEventsService(new TaskEventModel(db))
     tasks = new TasksService(taskModel, taskEvents)
+  })
+
+  it("records both assigning and clearing a Ready day as explicit edits with their actor", async () => {
+    const task = await tasks.createTask(makeTask({status: "ready_for_agent", scheduled: null}))
+    const source = {kind: "mcp", provider: "codex"}
+    await tasks.updateTask(task.id, {scheduled: {date: TASK_DAY, time: "10:00:00", timezone: "UTC"}}, source)
+    const assigned = await taskEvents.getHistoryByTask(task.id)
+    expect(assigned.map((event) => event.type)).toEqual(["edited", "created"])
+    expect(assigned[0]).toMatchObject({eventDate: TASK_DAY, kind: "mcp", provider: "codex"})
+    await tasks.updateTask(task.id, {scheduled: null}, source)
+    const cleared = await taskEvents.getHistoryByTask(task.id)
+    expect(cleared.map((event) => event.type)).toEqual(["edited", "edited", "created"])
+    expect(cleared[0]).toMatchObject({eventDate: getToday(), kind: "mcp", provider: "codex"})
+    expect(await tasks.getTask(task.id)).toMatchObject({status: "ready_for_agent", scheduled: null})
   })
 
   it("returns the task's events newest-first", async () => {
@@ -68,7 +84,7 @@ describe("task history (per task)", () => {
 
   it("lists_TC-6_reactivated_then_created_for_a_task_that_started_in_the_backlog", async () => {
     const task = await tasks.createTask(makeTask({status: "backlog", scheduled: null, content: "no day yet"}))
-    await tasks.moveTaskByOrder({taskId: task.id, targetStatus: "active", activeDate: TASK_DAY})
+    await tasks.moveTaskByOrder({taskId: task.id, targetStatus: "in_progress", activeDate: TASK_DAY})
 
     const history = await taskEvents.getHistoryByTask(task.id)
     expect(history.map((e) => e.type)).toEqual(["reactivated", "created"])

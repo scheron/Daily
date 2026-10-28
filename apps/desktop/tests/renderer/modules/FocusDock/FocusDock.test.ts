@@ -133,7 +133,7 @@ describe("FocusDock", () => {
   })
 
   it("adds a card released over the dock at the gap under the pointer, and the board moves nothing", async () => {
-    const {dock, rows} = await setupDrop(makeColumn("active", ["A", "S1", "S2"]), ["S1", "S2"])
+    const {dock, rows} = await setupDrop(makeColumn("in_progress", ["A", "S1", "S2"]), ["S1", "S2"])
 
     board.startDrag(board.find("A"), yForIndex(0))
     await nextTick()
@@ -152,8 +152,19 @@ describe("FocusDock", () => {
     expect(board.tasks.moveTaskByOrder).not.toHaveBeenCalled()
   })
 
+  it.each(["ready_for_agent", "ready_to_merge"])("adds outstanding %s cards to focus just like other unresolved work", async (status) => {
+    const {rows} = await setupDrop([makeTask("ready", {status}), ...makeColumn("in_progress", ["S1", "S2"])], ["S1", "S2"])
+    board.startDrag(board.find("ready"), yForIndex(0))
+    await nextTick()
+    board.hover(rows[1].element, 540)
+    await nextTick()
+    board.release(540)
+    await nextTick()
+    expect(bridge["focus:dispatch"]).toHaveBeenCalledWith({type: "add", taskId: "ready", index: 1})
+  })
+
   it("offers no gap and adds nothing for a card already in the session or a done one", async () => {
-    const {dock, rows} = await setupDrop(makeColumn("active", ["S1", "S2"]).concat(makeTask("D", {status: "done"})), ["S1", "S2"])
+    const {dock, rows} = await setupDrop(makeColumn("in_progress", ["S1", "S2"]).concat(makeTask("D", {status: "done"})), ["S1", "S2"])
 
     for (const id of ["S1", "D"]) {
       board.startDrag(board.find(id), yForIndex(0))
@@ -171,7 +182,7 @@ describe("FocusDock", () => {
   })
 
   it("takes no card into a panel without shouldAcceptCards, even inside a drop zone", async () => {
-    board = await mountBoardDrag(makeColumn("active", ["A", "S1", "S2"]))
+    board = await mountBoardDrag(makeColumn("in_progress", ["A", "S1", "S2"]))
     const {default: FocusPanel} = await import("../../../../src/renderer/src/ui/common/focus/FocusPanel")
     const {useFocusStore} = await import("../../../../src/renderer/src/stores/focus.store")
     const focus = useFocusStore()
@@ -197,7 +208,7 @@ describe("FocusDock", () => {
   })
 
   it("lets a card dragged over the dock and back onto a column move there as usual", async () => {
-    const {rows} = await setupDrop(makeColumn("active", ["A", "S1"]), ["S1"])
+    const {rows} = await setupDrop(makeColumn("in_progress", ["A", "S1"]), ["S1"])
 
     board.startDrag(board.find("A"), yForIndex(0))
     await nextTick()

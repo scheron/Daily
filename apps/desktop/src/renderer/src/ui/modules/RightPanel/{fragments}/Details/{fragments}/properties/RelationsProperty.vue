@@ -27,7 +27,7 @@ const cellIcon = computed<IconName>(() => (props.side === "blockedBy" ? "alert-t
 const cellLabel = computed(() => (props.side === "blockedBy" ? "Add blocked by" : "Add blocks"))
 
 const rows = computed<Task[]>(() => {
-  const unresolvedFirst: Record<TaskStatus, number> = {active: 0, backlog: 1, done: 2, discarded: 3}
+  const unresolvedFirst: Record<TaskStatus, number> = {in_progress: 0, backlog: 1, ready_for_agent: 1, ready_to_merge: 1, done: 2, cancelled: 3}
   const ids = taskEditorStore.draft?.[props.side] ?? []
 
   return ids

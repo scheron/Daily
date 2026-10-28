@@ -30,3 +30,12 @@ describe("normalizeSnapshotDocs", () => {
     ])
   })
 })
+
+it("upgrades old task status keys without changing dates, order, content or event history", () => {
+  const task = {id: "t1", status: "active", content: "Keep file link", order_index: 123, scheduled_date: "2026-10-29"}
+  const event = {id: "e1", type: "discarded", kind: "manual", provider: null}
+  const normalized = normalizeSnapshotDocs(legacyDocs({tasks: [task, {...task, id: "t2", status: "discarded"}], events: [event]}))
+  expect(normalized.tasks[0]).toMatchObject({...task, status: "in_progress"})
+  expect(normalized.tasks[1].status).toBe("cancelled")
+  expect(normalized.events).toEqual([event])
+})

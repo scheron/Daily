@@ -64,7 +64,7 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
     const next = {...draft.value, ...updates}
 
     if (updates.status === "backlog") next.scheduled = null
-    else if (updates.scheduled && draft.value.status === "backlog") next.status = "active"
+    else if (!updates.status && updates.scheduled && draft.value.status === "backlog") next.status = "in_progress"
 
     if (updates.branchId !== undefined && updates.branchId !== draft.value.branchId) {
       if (updates.blockedBy === undefined) next.blockedBy = []
@@ -122,18 +122,18 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
     const base = draftBase.value
 
     if (base) {
-      const resolvedWithoutDate = next.status !== "backlog" && !next.scheduled
+      const needsDate = next.status !== "backlog" && next.status !== "ready_for_agent" && !next.scheduled
       const restPatch = buildRestPatch(next, base)
 
       if (next.branchId !== base.branchId) await tasksStore.moveTaskToBranch(id, next.branchId ?? "")
 
-      if (resolvedWithoutDate) {
+      if (needsDate) {
         if (Object.keys(restPatch).length) await tasksStore.updateTask(id, restPatch)
         await tasksStore.moveTaskByOrder({taskId: id, targetStatus: next.status, activeDate: tasksStore.activeDay})
       } else {
-        const scheduleChanged = Boolean(next.scheduled) && next.scheduled?.date !== base.scheduled?.date
+        const scheduleChanged = next.scheduled?.date !== base.scheduled?.date
 
-        if (scheduleChanged && "status" in restPatch) {
+        if (scheduleChanged && ("status" in restPatch || next.scheduled === null)) {
           await tasksStore.updateTask(id, {...restPatch, scheduled: next.scheduled})
         } else {
           if (Object.keys(restPatch).length) await tasksStore.updateTask(id, restPatch)

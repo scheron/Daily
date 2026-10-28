@@ -34,7 +34,7 @@ vi.mock("@daily/protocol", async (importOriginal) => ({...(await importOriginal(
 function makeTask(overrides = {}) {
   return {
     id: nanoid(),
-    status: "active",
+    status: "in_progress",
     content: "Task",
     minimized: false,
     priority: "none",
@@ -101,6 +101,19 @@ describe("TasksService", () => {
   })
 
   describe("moveTaskByOrder", () => {
+    it("persists mixed Normal reorder and renormalizes only selected-day neighbours, preserving readiness and dates", async () => {
+      const scheduled = {date: "2030-01-02", time: "09:00", timezone: "UTC"}
+      const first = taskModel.createTask(makeTask({status: "backlog", scheduled: null, orderIndex: 100}))
+      const anchor = taskModel.createTask(makeTask({status: "ready_for_agent", scheduled, orderIndex: 101}))
+      const ready = taskModel.createTask(makeTask({status: "ready_for_agent", scheduled: null, orderIndex: 300}))
+      const tomorrow = taskModel.createTask(makeTask({status: "ready_for_agent", scheduled: {...scheduled, date: "2030-01-03"}, orderIndex: 100.5}))
+      await tasksService.moveTaskByOrder({taskId: ready.id, targetTaskId: anchor.id, activeDate: scheduled.date, boardMode: "normal"})
+      expect(taskModel.getTask(first.id).orderIndex).toBe(1024)
+      expect(taskModel.getTask(ready.id)).toMatchObject({status: "ready_for_agent", scheduled: null, orderIndex: 2048})
+      expect(taskModel.getTask(anchor.id)).toMatchObject({status: "ready_for_agent", scheduled, orderIndex: 3072})
+      expect(taskModel.getTask(tomorrow.id)).toMatchObject({scheduled: tomorrow.scheduled, orderIndex: 100.5})
+    })
+
     function createTasksInOrder(count, overrides = {}) {
       const tasks = []
       for (let i = 0; i < count; i++) {
@@ -196,7 +209,7 @@ describe("TasksService", () => {
     })
 
     it("changes task status when moving in column mode", async () => {
-      const task = taskModel.createTask(makeTask({status: "active"}))
+      const task = taskModel.createTask(makeTask({status: "in_progress"}))
 
       await tasksService.moveTaskByOrder({
         taskId: task.id,
@@ -348,7 +361,7 @@ describe("TasksService", () => {
 
   describe("backlog invariant", () => {
     it("excludes_TC-5_a_backlog_task_from_every_assembled_day_and_its_countActive", async () => {
-      taskModel.createTask(makeTask({content: "Dated", status: "active", scheduled: {date: "2026-03-24", time: "", timezone: "UTC"}}))
+      taskModel.createTask(makeTask({content: "Dated", status: "in_progress", scheduled: {date: "2026-03-24", time: "", timezone: "UTC"}}))
       taskModel.createTask(makeTask({content: "Backlog", status: "backlog", scheduled: null}))
 
       const tasks = taskModel.getTaskList({from: "2000-01-01", to: "2100-01-01", branchId: "main"})
@@ -362,7 +375,7 @@ describe("TasksService", () => {
     })
 
     it("clears_TC-6_the_schedule_and_flips_the_status_together_when_a_task_moves_to_backlog", async () => {
-      const task = taskModel.createTask(makeTask({status: "active", scheduled: {date: "2026-03-24", time: "09:00:00", timezone: "UTC"}}))
+      const task = taskModel.createTask(makeTask({status: "in_progress", scheduled: {date: "2026-03-24", time: "09:00:00", timezone: "UTC"}}))
 
       await tasksService.moveTaskByOrder({taskId: task.id, targetStatus: "backlog", activeDate: "2026-03-24"})
 
@@ -374,10 +387,10 @@ describe("TasksService", () => {
     it("schedules_TC-7_a_backlog_task_onto_the_shown_day_with_a_time_and_timezone_when_it_becomes_active", async () => {
       const task = taskModel.createTask(makeTask({status: "backlog", scheduled: null}))
 
-      await tasksService.moveTaskByOrder({taskId: task.id, targetStatus: "active", activeDate: "2026-04-02"})
+      await tasksService.moveTaskByOrder({taskId: task.id, targetStatus: "in_progress", activeDate: "2026-04-02"})
 
       const moved = await tasksService.getTask(task.id)
-      expect(moved.status).toBe("active")
+      expect(moved.status).toBe("in_progress")
       expect(moved.scheduled?.date).toBe("2026-04-02")
       expect(moved.scheduled?.time).toBeTruthy()
       expect(moved.scheduled?.timezone).toBeTruthy()
@@ -388,14 +401,14 @@ describe("TasksService", () => {
       const toDiscarded = taskModel.createTask(makeTask({status: "backlog", scheduled: null, content: "to discarded"}))
 
       await tasksService.moveTaskByOrder({taskId: toDone.id, targetStatus: "done", activeDate: "2026-04-02"})
-      await tasksService.moveTaskByOrder({taskId: toDiscarded.id, targetStatus: "discarded", activeDate: "2026-04-02"})
+      await tasksService.moveTaskByOrder({taskId: toDiscarded.id, targetStatus: "cancelled", activeDate: "2026-04-02"})
 
       const movedDone = await tasksService.getTask(toDone.id)
       const movedDiscarded = await tasksService.getTask(toDiscarded.id)
 
       expect(movedDone.status).toBe("done")
       expect(movedDone.scheduled?.date).toBe("2026-04-02")
-      expect(movedDiscarded.status).toBe("discarded")
+      expect(movedDiscarded.status).toBe("cancelled")
       expect(movedDiscarded.scheduled?.date).toBe("2026-04-02")
     })
 
@@ -411,11 +424,11 @@ describe("TasksService", () => {
       expect(createdBacklogWithDate.status).toBe("backlog")
       expectInvariant(createdBacklogWithDate)
 
-      const createdActiveWithoutDate = await tasksService.createTask(makeTask({status: "active", scheduled: null}))
-      expect(createdActiveWithoutDate.status).toBe("active")
+      const createdActiveWithoutDate = await tasksService.createTask(makeTask({status: "in_progress", scheduled: null}))
+      expect(createdActiveWithoutDate.status).toBe("in_progress")
       expectInvariant(createdActiveWithoutDate)
 
-      const seeded = taskModel.createTask(makeTask({status: "active"}))
+      const seeded = taskModel.createTask(makeTask({status: "in_progress"}))
       const updatedToBacklogWithDate = (
         await tasksService.updateTask(seeded.id, {
           status: "backlog",
@@ -426,13 +439,13 @@ describe("TasksService", () => {
       expectInvariant(updatedToBacklogWithDate)
 
       const seededBacklog = taskModel.createTask(makeTask({status: "backlog", scheduled: null}))
-      const updatedToActiveWithoutDate = (await tasksService.updateTask(seededBacklog.id, {status: "active", scheduled: null})).find(
+      const updatedToActiveWithoutDate = (await tasksService.updateTask(seededBacklog.id, {status: "in_progress", scheduled: null})).find(
         (t) => t.id === seededBacklog.id,
       )
-      expect(updatedToActiveWithoutDate.status).toBe("active")
+      expect(updatedToActiveWithoutDate.status).toBe("in_progress")
       expectInvariant(updatedToActiveWithoutDate)
 
-      const seededForMove = taskModel.createTask(makeTask({status: "active"}))
+      const seededForMove = taskModel.createTask(makeTask({status: "in_progress"}))
       const movedToBacklog = (await tasksService.moveTaskByOrder({taskId: seededForMove.id, targetStatus: "backlog", activeDate: "2026-03-24"})).find(
         (t) => t.id === seededForMove.id,
       )
@@ -443,7 +456,7 @@ describe("TasksService", () => {
     it("orders_TC-21_a_task_landing_in_the_backlog_by_status_change_or_creation_first", async () => {
       const existingBacklog = taskModel.createTask(makeTask({status: "backlog", scheduled: null, orderIndex: 1024}))
 
-      const dated = taskModel.createTask(makeTask({status: "active"}))
+      const dated = taskModel.createTask(makeTask({status: "in_progress"}))
       const movedByStatusChange = (await tasksService.updateTask(dated.id, {status: "backlog", scheduled: null})).find((t) => t.id === dated.id)
       expect(movedByStatusChange.orderIndex).toBeLessThan(existingBacklog.orderIndex)
 
@@ -458,7 +471,7 @@ describe("TasksService", () => {
 
       const updated = (await tasksService.updateTask(task.id, {scheduled: {date: "2026-04-10"}})).find((t) => t.id === task.id)
 
-      expect(updated.status).toBe("active")
+      expect(updated.status).toBe("in_progress")
       expect(updated.scheduled?.date).toBe("2026-04-10")
       expect(updated.scheduled?.time).toBeTruthy()
       expect(updated.scheduled?.timezone).toBeTruthy()
@@ -466,7 +479,7 @@ describe("TasksService", () => {
 
     it("moves_TC-5_a_dated_tasks_day_without_touching_its_status", async () => {
       const doneTask = taskModel.createTask(makeTask({status: "done", scheduled: {date: "2026-04-01", time: "09:00:00", timezone: "UTC"}}))
-      const discardedTask = taskModel.createTask(makeTask({status: "discarded", scheduled: {date: "2026-04-01", time: "09:00:00", timezone: "UTC"}}))
+      const discardedTask = taskModel.createTask(makeTask({status: "cancelled", scheduled: {date: "2026-04-01", time: "09:00:00", timezone: "UTC"}}))
 
       const movedDone = (await tasksService.updateTask(doneTask.id, {scheduled: {date: "2026-04-15"}})).find((t) => t.id === doneTask.id)
       const movedDiscarded = (await tasksService.updateTask(discardedTask.id, {scheduled: {date: "2026-04-15"}})).find(
@@ -475,7 +488,7 @@ describe("TasksService", () => {
 
       expect(movedDone.status).toBe("done")
       expect(movedDone.scheduled?.date).toBe("2026-04-15")
-      expect(movedDiscarded.status).toBe("discarded")
+      expect(movedDiscarded.status).toBe("cancelled")
       expect(movedDiscarded.scheduled?.date).toBe("2026-04-15")
     })
   })
@@ -504,7 +517,7 @@ describe("TasksService", () => {
       insertMilestoneRow("m1", "main", "Launch")
 
       const task = taskModel.createTask(
-        makeTask({branchId: "main", content: "keep me", status: "active", scheduled: {date: "2026-05-01", time: "09:00:00", timezone: "UTC"}}),
+        makeTask({branchId: "main", content: "keep me", status: "in_progress", scheduled: {date: "2026-05-01", time: "09:00:00", timezone: "UTC"}}),
       )
       await tasksService.updateTask(task.id, {milestoneId: "m1"})
 
@@ -514,7 +527,7 @@ describe("TasksService", () => {
       const after = await tasksService.getTask(task.id)
       expect(after.milestoneId).toBeNull()
       expect(after.branchId).toBe(branchB.id)
-      expect(after.status).toBe("active")
+      expect(after.status).toBe("in_progress")
       expect(after.scheduled?.date).toBe("2026-05-01")
       expect(after.content).toBe("keep me")
     })
@@ -546,12 +559,12 @@ describe("TasksService", () => {
 
     it("leaves_TC-24_a_tasks_status_and_schedule_untouched_when_only_its_milestone_is_updated", async () => {
       insertMilestoneRow("m1", "main", "Launch")
-      const task = taskModel.createTask(makeTask({status: "active", scheduled: {date: "2026-05-01", time: "09:00:00", timezone: "UTC"}}))
+      const task = taskModel.createTask(makeTask({status: "in_progress", scheduled: {date: "2026-05-01", time: "09:00:00", timezone: "UTC"}}))
 
       const updated = (await tasksService.updateTask(task.id, {milestoneId: "m1"})).find((t) => t.id === task.id)
 
       expect(updated.milestoneId).toBe("m1")
-      expect(updated.status).toBe("active")
+      expect(updated.status).toBe("in_progress")
       expect(updated.scheduled?.date).toBe("2026-05-01")
       expect(updated.scheduled?.time).toBe("09:00:00")
     })

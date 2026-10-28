@@ -4,6 +4,7 @@ import {computed, onMounted, useTemplateRef, watch} from "vue"
 import {sortTags} from "@daily/protocol"
 import {toDateLabel} from "@daily/std"
 
+import {TASK_COLUMNS} from "@/constants/ui"
 import BaseIcon from "@/ui/base/BaseIcon"
 import BaseTag from "@/ui/base/BaseTag"
 import {renderMarkdownPreview} from "@/utils/codemirror/preview"
@@ -16,12 +17,7 @@ const props = defineProps<{result: TaskSearchResult}>()
 
 const containerRef = useTemplateRef<HTMLDivElement>("container")
 
-const statusIcon = computed(() => {
-  if (props.result.task.status === "done") return "check-check"
-  if (props.result.task.status === "discarded") return "archive"
-  if (props.result.task.status === "backlog") return "bookmark"
-  return "fire"
-})
+const statusIcon = computed(() => TASK_COLUMNS.find((column) => column.status === props.result.task.status)!.icon)
 
 const sortedTags = computed(() => sortTags(props.result.task.tags))
 const branchName = computed(() => getProjectName(props.result.branch))
@@ -42,9 +38,11 @@ function getStatusIconClasses(status: TaskStatus) {
     "size-4",
     {
       done: "text-success",
-      discarded: "text-warning",
+      cancelled: "text-warning",
       backlog: "text-base-content/70",
-      active: "text-error",
+      ready_for_agent: "text-error",
+      ready_to_merge: "text-info",
+      in_progress: "text-accent",
     }[status],
   )
 }

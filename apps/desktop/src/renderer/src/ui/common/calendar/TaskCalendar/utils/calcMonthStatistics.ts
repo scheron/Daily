@@ -1,6 +1,6 @@
-import type {Day} from "@daily/protocol"
+import type {Day, TaskStatus} from "@daily/protocol"
 
-type DayStatistics = Record<"active" | "discarded" | "done", number>
+type DayStatistics = Record<TaskStatus, number>
 
 /** Keyed by `YYYY-MM`; days without tasks are skipped. */
 export function calcMonthStatistics(days: Day[]): Map<string, DayStatistics> {
@@ -10,10 +10,8 @@ export function calcMonthStatistics(days: Day[]): Map<string, DayStatistics> {
     if (day.tasks.length === 0) continue
 
     const key = day.date.slice(0, 7)
-    const entry = byMonth.get(key) ?? {active: 0, discarded: 0, done: 0}
-    entry.active += day.countActive
-    entry.done += day.countDone
-    entry.discarded += day.tasks.length - day.countActive - day.countDone
+    const entry = byMonth.get(key) ?? {backlog: 0, ready_for_agent: 0, in_progress: 0, ready_to_merge: 0, cancelled: 0, done: 0}
+    for (const task of day.tasks) entry[task.status] += 1
     byMonth.set(key, entry)
   }
 

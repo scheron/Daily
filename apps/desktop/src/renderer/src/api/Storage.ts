@@ -35,17 +35,17 @@ export class StorageAPI {
   }
 
   /**
-   * Omitted fields fall back to defaults (today/now, status "active", minimized false, orderIndex 0);
+   * Omitted fields fall back to defaults (today/now, status "in_progress", minimized false, orderIndex 0);
    * a task created with status "backlog" gets no date.
    */
   async createTask(content: string, params: CreateTaskParams): Promise<Changeset> {
-    const isBacklog = params.status === "backlog"
+    const isUndated = params.status === "backlog" || (params.status === "ready_for_agent" && !params.date)
     const now = DateTime.now()
 
     const newTask = {
       id: params.id,
       content,
-      status: params.status ?? ("active" as TaskStatus),
+      status: params.status ?? ("in_progress" as TaskStatus),
       minimized: false,
       priority: params.priority ?? ("none" as TaskPriority),
       tags: params.tags ?? [],
@@ -54,7 +54,7 @@ export class StorageAPI {
       orderIndex: params.orderIndex ?? 0,
       branchId: params.branchId,
       milestoneId: params.milestoneId ?? null,
-      scheduled: isBacklog
+      scheduled: isUndated
         ? null
         : {
             date: params.date ? params.date : now.toISODate()!,

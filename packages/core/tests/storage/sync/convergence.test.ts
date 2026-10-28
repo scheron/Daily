@@ -98,7 +98,7 @@ describe("two-node convergence through a shared sync directory", () => {
       content,
       minimized: false,
       orderIndex: 0,
-      status: "active",
+      status: "in_progress",
       tags: [],
       attachments: [],
     })
@@ -118,7 +118,7 @@ describe("two-node convergence through a shared sync directory", () => {
       content,
       minimized: false,
       orderIndex: 0,
-      status: "active",
+      status: "in_progress",
       tags: [],
       attachments: [],
     })
@@ -183,7 +183,7 @@ describe("two-node convergence through a shared sync directory", () => {
         tasks: [
           {
             id: "legacy-task",
-            status: "active",
+            status: "in_progress",
             content: "from the old release",
             minimized: false,
             order_index: 1024,
@@ -234,7 +234,7 @@ describe("two-node convergence through a shared sync directory", () => {
   it("loads_a_version-10_snapshot_with_every_task_at_priority_none", async () => {
     const task = {
       id: "v10-task",
-      status: "active",
+      status: "in_progress",
       content: "from the previous release",
       minimized: false,
       order_index: 1024,
@@ -392,7 +392,7 @@ describe("two-node convergence through a shared sync directory", () => {
         tasks: [
           {
             id: "task-from-v7",
-            status: "active",
+            status: "in_progress",
             content: "from the release before comments",
             minimized: false,
             order_index: 1024,

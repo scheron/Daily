@@ -3,6 +3,7 @@ import {computed, useTemplateRef, watch} from "vue"
 import {storeToRefs} from "pinia"
 
 import {useTaskColumns} from "@/composables/tasks/useTaskColumns"
+import {useSettingValue} from "@/composables/useSettingValue"
 import {TASK_COLUMNS} from "@/constants/ui"
 import {useDragDropStore} from "@/stores/dragDrop.store"
 import {useFilterStore} from "@/stores/filter.store"
@@ -30,6 +31,11 @@ const containerRef = useTemplateRef<HTMLElement>("container")
 const boardRef = useTemplateRef<HTMLElement>("board")
 
 const columns = useTaskColumns()
+const boardMode = useSettingValue("appearance.boardMode", "normal")
+
+const visibleColumns = computed(() =>
+  TASK_COLUMNS.filter((column) => boardMode.value === "agents" || !["ready_for_agent", "ready_to_merge"].includes(column.status)),
+)
 
 const framedMilestoneName = computed(() => {
   if (filterStore.frame !== "milestone") return undefined
@@ -44,7 +50,7 @@ const isBoardVisible = computed(() => {
   if (dragDropStore.draggingTaskId) return true
 
   const byStatus = columns.tasksByStatus.value
-  return byStatus.active.length + byStatus.done.length + byStatus.discarded.length + byStatus.backlog.length > 0
+  return Object.values(byStatus).some((tasks) => tasks.length > 0)
 })
 
 useDragScroll(boardRef)
@@ -57,12 +63,14 @@ watch(activeDay, () => containerRef.value?.scrollTo({top: 0, behavior: "instant"
     <NoTasksPlaceholder v-if="!isBoardVisible" :date="placeholderDate" :milestone-name="framedMilestoneName" @create-task="emit('createTask')" />
 
     <div v-else ref="board" data-task-board class="flex size-full overflow-x-auto overflow-y-hidden">
-      <template v-for="(column, index) in TASK_COLUMNS" :key="column.status">
+      <template v-for="(column, index) in visibleColumns" :key="column.status">
         <TaskColumn :status="column.status" />
 
         <div
           v-if="
-            index < TASK_COLUMNS.length - 1 && !columns.isColumnCollapsed(column.status) && !columns.isColumnCollapsed(TASK_COLUMNS[index + 1].status)
+            index < visibleColumns.length - 1 &&
+            !columns.isColumnCollapsed(column.status) &&
+            !columns.isColumnCollapsed(visibleColumns[index + 1].status)
           "
           class="to-base-300/50 bg-linear-to-b h-full w-px shrink-0 from-transparent from-[44px] to-[98px]"
         />

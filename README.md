@@ -41,7 +41,7 @@
 
 Daily is built around a simple question: **what matters today, and what changed since yesterday?**
 
-Tasks belong to days instead of an endless backlog. Plan on a calendar-linked board, move work through **active**, **discarded**, and **done**, and keep notes, code, links, Markdown, and attachments inside the task.
+Tasks belong to days instead of an endless backlog. Plan on a calendar-linked board, move work through **Backlog**, **Ready for Agent**, **In Progress**, **Ready to Merge**, **Done**, and **Cancelled**, and keep notes, code, links, Markdown, and attachments inside the task.
 
 | What you get            | How Daily does it                                                           |
 | ----------------------- | --------------------------------------------------------------------------- |
@@ -53,7 +53,7 @@ Tasks belong to days instead of an endless backlog. Plan on a calendar-linked bo
 
 ### Built for daily task work
 
-- A three-column board for active, discarded, and completed work
+- A four-column Normal board and a six-column Agents board, sharing the same task statuses and dates
 - A Markdown editor with syntax highlighting, live tables, slash commands, and attachments
 - Projects, tags, estimates, time logging, duplicate/copy actions, and soft deletion with recovery
 - Activity history that records meaningful task changes

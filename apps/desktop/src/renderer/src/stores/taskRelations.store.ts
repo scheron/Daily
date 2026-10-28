@@ -2,7 +2,7 @@ import {computed, ref, shallowRef, toRaw} from "vue"
 import {toasts} from "vue-toasts-lite"
 import {defineStore} from "pinia"
 
-import {canLinkTasks, planTaskRelations, toTaskRelationId} from "@daily/protocol"
+import {canLinkTasks, isResolvedTaskStatus, planTaskRelations, toTaskRelationId} from "@daily/protocol"
 
 import {API} from "@/api"
 import {useTasksStore} from "@/stores/tasks"
@@ -46,10 +46,10 @@ export const useTaskRelationsStore = defineStore("taskRelations", () => {
 
     for (const [taskId, related] of relatedTasksByTaskId.value) {
       const task = tasksStore.findTaskById(taskId)
-      if (!task || (task.status !== "active" && task.status !== "backlog")) continue
+      if (!task || isResolvedTaskStatus(task.status)) continue
 
-      const blockedByCount = related.blockedBy.filter((blocker) => blocker.status === "active" || blocker.status === "backlog").length
-      const blocksCount = related.blocks.filter((blocked) => blocked.status === "active" || blocked.status === "backlog").length
+      const blockedByCount = related.blockedBy.filter((blocker) => !isResolvedTaskStatus(blocker.status)).length
+      const blocksCount = related.blocks.filter((blocked) => !isResolvedTaskStatus(blocked.status)).length
 
       if (blockedByCount > 0 && blocksCount > 0) map.set(taskId, {kind: "linked", count: blockedByCount + blocksCount})
       else if (blockedByCount > 0) map.set(taskId, {kind: "blocked-by", count: blockedByCount})
@@ -93,8 +93,8 @@ export const useTaskRelationsStore = defineStore("taskRelations", () => {
       .filter((candidate) => candidate.branchId === task.branchId && !excludedIds.has(candidate.id))
       .filter((candidate) => (side === "blockedBy" ? canLinkTasks(context, candidate.id, task.id) : canLinkTasks(context, task.id, candidate.id)))
       .sort((a, b) => {
-        const isAUnresolved = a.status === "active" || a.status === "backlog"
-        const isBUnresolved = b.status === "active" || b.status === "backlog"
+        const isAUnresolved = !isResolvedTaskStatus(a.status)
+        const isBUnresolved = !isResolvedTaskStatus(b.status)
         if (isAUnresolved !== isBUnresolved) return isAUnresolved ? -1 : 1
         return b.updatedAt.localeCompare(a.updatedAt)
       })

@@ -22,7 +22,7 @@ function columnFor(status: TaskStatus) {
 }
 
 function isResolved(status: TaskStatus) {
-  return status === "done" || status === "discarded"
+  return status === "done" || status === "cancelled"
 }
 
 function getIconClasses(status: TaskStatus) {

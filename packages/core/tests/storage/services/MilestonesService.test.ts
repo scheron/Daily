@@ -27,7 +27,7 @@ vi.mock("@daily/protocol", async (importOriginal) => ({...(await importOriginal(
 function makeTask(overrides = {}) {
   return {
     id: nanoid(),
-    status: "active",
+    status: "in_progress",
     content: "Task",
     minimized: false,
     priority: "none",
@@ -64,7 +64,7 @@ describe("MilestonesService", () => {
     const milestone = await milestonesService.createMilestone({branchId: "main", name: "Launch", description: "", targetDate: null})
 
     const tasks = [
-      taskModel.createTask(makeTask({content: "one", status: "active", milestoneId: milestone.id})),
+      taskModel.createTask(makeTask({content: "one", status: "in_progress", milestoneId: milestone.id})),
       taskModel.createTask(makeTask({content: "two", status: "done", milestoneId: milestone.id})),
       taskModel.createTask(makeTask({content: "three", status: "backlog", scheduled: null, milestoneId: milestone.id})),
     ]

@@ -16,7 +16,7 @@ describe("save_task — a project move combined with a reorder", () => {
     return {
       content: "Task",
       branchId: "main",
-      status: "active",
+      status: "in_progress",
       scheduled: {date: "2026-03-24", time: "09:00", timezone: "UTC"},
       orderIndex: 10,
       milestoneId: null,

@@ -19,6 +19,11 @@ const taskEditorStore = useTaskEditorStore()
 
 const dateLabel = computed(() => (props.task.scheduled ? toDateLabel(props.task.scheduled.date, {short: true}) : "Set date"))
 
+function clearDate(hide: () => void) {
+  taskEditorStore.patch({scheduled: null})
+  hide()
+}
+
 function selectDate(date: ISODate, hide: () => void) {
   if (date !== props.task.scheduled?.date) {
     const scheduled = props.task.scheduled
@@ -40,7 +45,13 @@ function selectDate(date: ISODate, hide: () => void) {
 
     <template #default="{hide}">
       <div class="p-1">
-        <TaskCalendar :days="tasksStore.days" :selected-date="task.scheduled?.date ?? null" @select-date="selectDate($event, hide)" />
+        <TaskCalendar
+          :days="tasksStore.days"
+          :selected-date="task.scheduled?.date ?? null"
+          :allow-clear="task.status === 'ready_for_agent'"
+          @select-date="selectDate($event, hide)"
+          @clear-date="clearDate(hide)"
+        />
       </div>
     </template>
   </BasePopup>

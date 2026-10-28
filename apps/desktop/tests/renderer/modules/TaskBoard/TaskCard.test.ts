@@ -17,7 +17,7 @@ function makeTask(overrides = {}) {
     id: "task-1",
     branchId: "main",
     milestoneId: null,
-    status: "active",
+    status: "in_progress",
     content: "task",
     minimized: false,
     priority: "none",
@@ -80,6 +80,29 @@ describe("TaskCard — the footer numbers", () => {
   function footerText() {
     return footer().exists() ? footer().text().replace(/\s+/g, " ").trim() : null
   }
+
+  it("offers all six explicit statuses and applies a Ready to Merge selection from the card menu", async () => {
+    mockBridgeIPC({"tasks:move-by-order": vi.fn().mockResolvedValue({})})
+    const {useTasksStore} = await import("../../../../src/renderer/src/stores/tasks")
+    const tasks = useTasksStore()
+    const task = makeTask({status: "ready_for_agent", scheduled: null})
+    tasks.tasks = [task]
+    tasks.activeDay = "2030-01-02"
+    await setup(task)
+    const menu = wrapper.findComponent({name: "BaseContextMenu"})
+    const statusMenu = menu.props("items").find((item) => item.value === "status")
+    expect(statusMenu.children.map((item) => item.value)).toEqual([
+      "backlog",
+      "ready_for_agent",
+      "in_progress",
+      "ready_to_merge",
+      "done",
+      "cancelled",
+    ])
+    menu.vm.$emit("select", {item: statusMenu.children.find((item) => item.value === "ready_to_merge"), parent: {item: statusMenu}})
+    await flushPromises()
+    expect(tasks.findTaskById(task.id)).toMatchObject({status: "ready_to_merge", scheduled: {date: "2030-01-02"}})
+  })
 
   it("counts_a_tasks_comments_even_when_it_carries_no_estimate", async () => {
     await setup(makeTask(), {"task-1": 3})
@@ -280,7 +303,7 @@ describe("TaskCard — the status border", () => {
     setActivePinia(createPinia())
     const {default: TaskCard} = await import("../../../../src/renderer/src/ui/modules/TaskBoard/{fragments}/TaskCard/TaskCard.vue")
 
-    for (const status of ["active", "backlog", "done", "discarded"]) {
+    for (const status of ["in_progress", "backlog", "done", "cancelled"]) {
       const card = mount(TaskCard, {props: {task: makeTask({status})}, global: {directives: {tooltip: {}}}})
       expect(card.find("use").exists()).toBe(false)
       card.unmount()

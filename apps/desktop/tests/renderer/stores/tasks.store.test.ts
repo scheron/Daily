@@ -41,7 +41,7 @@ vi.mock("../../../src/renderer/src/api", () => ({
 function makeTask(overrides = {}) {
   return {
     id: "task-1",
-    status: "active",
+    status: "in_progress",
     content: "Test",
     minimized: false,
     orderIndex: 1024,
@@ -71,6 +71,27 @@ describe("tasksStore", () => {
     return store
   }
 
+  it("creates an undated Ready task without optimistically assigning the active day", async () => {
+    const store = await getStore()
+    const created = await store.createTask({content: "Ready", tags: [], status: "ready_for_agent"})
+    expect(created.status).toBe("ready_for_agent")
+    expect(created.scheduled).toBeNull()
+    expect(API.createTask).toHaveBeenCalledWith("Ready", expect.objectContaining({status: "ready_for_agent", date: undefined}))
+  })
+
+  it("passes the display mode to storage and orders optimistically among mixed Normal neighbours", async () => {
+    const store = await getStore()
+    store.tasks = [
+      makeTask({id: "first", orderIndex: 100}),
+      makeTask({id: "anchor", status: "ready_to_merge", orderIndex: 200}),
+      makeTask({id: "source", status: "ready_to_merge", orderIndex: 300}),
+    ]
+    await store.moveTaskByOrder({taskId: "source", targetTaskId: "anchor", activeDate: TODAY, boardMode: "normal"})
+    expect(store.findTaskById("source").orderIndex).toBe(150)
+    expect(store.findTaskById("source").status).toBe("ready_to_merge")
+    expect(API.moveTaskByOrder).toHaveBeenCalledWith(expect.objectContaining({boardMode: "normal"}))
+  })
+
   it("loads tasks and sets isLoaded", async () => {
     API.getAllTasks.mockResolvedValue([makeTask({id: "t1"})])
 
@@ -83,19 +104,19 @@ describe("tasksStore", () => {
 
   it("dailyTasksByStatus groups tasks correctly", async () => {
     const tasks = [
-      makeTask({id: "1", status: "active", orderIndex: 1}),
+      makeTask({id: "1", status: "in_progress", orderIndex: 1}),
       makeTask({id: "2", status: "done", orderIndex: 2}),
-      makeTask({id: "3", status: "active", orderIndex: 3}),
-      makeTask({id: "4", status: "discarded", orderIndex: 4}),
+      makeTask({id: "3", status: "in_progress", orderIndex: 3}),
+      makeTask({id: "4", status: "cancelled", orderIndex: 4}),
     ]
     API.getAllTasks.mockResolvedValue(tasks)
 
     const store = await getStore()
     await store.loadTasks()
 
-    expect(store.dailyTasksByStatus.active).toHaveLength(2)
+    expect(store.dailyTasksByStatus.in_progress).toHaveLength(2)
     expect(store.dailyTasksByStatus.done).toHaveLength(1)
-    expect(store.dailyTasksByStatus.discarded).toHaveLength(1)
+    expect(store.dailyTasksByStatus.cancelled).toHaveLength(1)
   })
 
   it("deleteTask removes the task from state without rereading the collection", async () => {
@@ -153,10 +174,10 @@ describe("tasksStore", () => {
     expect(store.backlogTasks.map((t) => t.id)).toContain("b1")
     expect(store.dailyTasks.map((t) => t.id)).not.toContain("b1")
 
-    const activeTask = makeTask({id: "b1", status: "active", scheduled: {date: TODAY, time: "09:00:00", timezone: "UTC"}})
+    const activeTask = makeTask({id: "b1", status: "in_progress", scheduled: {date: TODAY, time: "09:00:00", timezone: "UTC"}})
     API.moveTaskByOrder.mockResolvedValueOnce({tasks: {upserted: [activeTask]}})
 
-    await store.moveTaskByOrder({taskId: "b1", targetStatus: "active", targetTaskId: null, position: "before", activeDate: TODAY})
+    await store.moveTaskByOrder({taskId: "b1", targetStatus: "in_progress", targetTaskId: null, position: "before", activeDate: TODAY})
 
     expect(store.backlogTasks.map((t) => t.id)).not.toContain("b1")
     expect(store.dailyTasks.map((t) => t.id)).toContain("b1")
@@ -167,6 +188,17 @@ describe("tasksStore", () => {
 
     expect(store.dailyTasks.map((t) => t.id)).not.toContain("b1")
     expect(store.backlogTasks.map((t) => t.id)).toContain("b1")
+  })
+
+  it.each([
+    ["ready_for_agent", null],
+    ["ready_for_agent", {date: TODAY, time: "09:00", timezone: "UTC"}],
+    ["ready_to_merge", {date: TODAY, time: "09:00", timezone: "UTC"}],
+  ])("preserves %s and its optional day when duplicating", async (status, scheduled) => {
+    const store = await getStore()
+    store.tasks = [makeTask({id: "ready", status, scheduled})]
+    await store.duplicateTask("ready")
+    expect(API.createTask).toHaveBeenCalledWith("Test", expect.objectContaining({status, date: scheduled?.date}))
   })
 
   it("duplicates a backlog task as dateless, never inventing a day", async () => {
@@ -182,7 +214,7 @@ describe("tasksStore", () => {
   })
 
   it("duplicates a task with its priority", async () => {
-    const original = makeTask({id: "orig", status: "active", priority: "urgent", content: "pressing"})
+    const original = makeTask({id: "orig", status: "in_progress", priority: "urgent", content: "pressing"})
     API.getAllTasks.mockResolvedValue([original])
 
     const store = await getStore()
@@ -194,7 +226,7 @@ describe("tasksStore", () => {
   })
 
   it("updateTask cleans the day a task left when a status change sends it to the backlog", async () => {
-    const task = makeTask({id: "t1", status: "active"})
+    const task = makeTask({id: "t1", status: "in_progress"})
     API.getAllTasks.mockResolvedValue([task])
 
     const store = await getStore()
@@ -212,7 +244,7 @@ describe("tasksStore", () => {
 
   it("moves a task to a different day and out of the day it left, on any calendar day", async () => {
     const OTHER = DateTime.fromISO(TODAY).plus({days: 1}).toISODate()
-    const task = makeTask({id: "t1", status: "active", scheduled: {date: TODAY, time: "", timezone: "UTC"}})
+    const task = makeTask({id: "t1", status: "in_progress", scheduled: {date: TODAY, time: "", timezone: "UTC"}})
     API.getAllTasks.mockResolvedValue([task])
 
     const store = await getStore()
@@ -247,6 +279,21 @@ describe("tasksStore", () => {
     expect(store.backlogTasks.find((t) => t.id === "b1")?.estimatedTime).toBe(3600)
   })
 
+  it("optimistically assigns a complete day to undated Ready work and retains its readiness", async () => {
+    const store = await getStore()
+    store.tasks = [makeTask({id: "ready", status: "ready_for_agent", scheduled: null})]
+    API.moveTask.mockImplementationOnce(() => new Promise(() => {}))
+    store.moveTask("ready", TODAY)
+    expect(store.findTaskById("ready")).toMatchObject({
+      status: "ready_for_agent",
+      scheduled: {
+        date: TODAY,
+        time: expect.stringMatching(/^\d{2}:\d{2}:\d{2}$/),
+        timezone: expect.any(String),
+      },
+    })
+  })
+
   it("moves a dateless backlog task onto the day it is dropped on and out of the backlog", async () => {
     const backlogTask = makeTask({id: "b1", status: "backlog", scheduled: null})
     API.getAllTasks.mockResolvedValue([backlogTask])
@@ -256,7 +303,7 @@ describe("tasksStore", () => {
     expect(store.backlogTasks.map((t) => t.id)).toContain("b1")
 
     const targetDate = "2026-09-20"
-    const activeTask = makeTask({id: "b1", status: "active", scheduled: {date: targetDate, time: "09:00:00", timezone: "UTC"}})
+    const activeTask = makeTask({id: "b1", status: "in_progress", scheduled: {date: targetDate, time: "09:00:00", timezone: "UTC"}})
     API.moveTask.mockResolvedValueOnce({tasks: {upserted: [activeTask]}})
 
     const moved = await store.moveTask("b1", targetDate)
@@ -292,9 +339,9 @@ describe("tasksStore", () => {
 
     API.moveTaskByOrder.mockImplementationOnce(() => new Promise(() => {}))
 
-    store.moveTaskByOrder({taskId: "c", targetTaskId: "a", targetStatus: "active", position: "before", activeDate: TODAY})
+    store.moveTaskByOrder({taskId: "c", targetTaskId: "a", targetStatus: "in_progress", position: "before", activeDate: TODAY})
 
-    expect(store.dailyTasksByStatus.active.map((t) => t.id)).toEqual(["c", "a", "b"])
+    expect(store.dailyTasksByStatus.in_progress.map((t) => t.id)).toEqual(["c", "a", "b"])
   })
 
   it("moveTaskByOrder hands the write the flag that places a card among every project", async () => {
@@ -303,7 +350,14 @@ describe("tasksStore", () => {
     const store = await getStore()
     await store.loadTasks()
 
-    await store.moveTaskByOrder({taskId: "b", targetTaskId: "a", targetStatus: "active", position: "before", activeDate: TODAY, acrossProjects: true})
+    await store.moveTaskByOrder({
+      taskId: "b",
+      targetTaskId: "a",
+      targetStatus: "in_progress",
+      position: "before",
+      activeDate: TODAY,
+      acrossProjects: true,
+    })
 
     expect(API.moveTaskByOrder).toHaveBeenCalledWith(expect.objectContaining({taskId: "b", acrossProjects: true}))
   })

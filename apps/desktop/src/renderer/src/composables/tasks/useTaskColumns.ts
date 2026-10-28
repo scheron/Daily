@@ -1,11 +1,19 @@
 import {computed, nextTick, onScopeDispose, shallowRef, watch} from "vue"
 import {useEventListener} from "@vueuse/core"
 
-import {sortTasksByDateThenOrder, sortTasksByOrderIndex} from "@daily/protocol"
+import {
+  boardColumnForStatus,
+  groupTasksForBoard,
+  isTaskOnDayBoard,
+  schedulingForStatus,
+  sortTasksByDateThenOrder,
+  TASK_STATUSES,
+} from "@daily/protocol"
 import {clamp} from "@daily/std"
 
 import {createSharedComposable} from "@/composables/createSharedComposable"
 import {useBoardCardGeometry} from "@/composables/useBoardCardGeometry"
+import {useSettingValue} from "@/composables/useSettingValue"
 import {useDragDropStore} from "@/stores/dragDrop.store"
 import {useFilterStore} from "@/stores/filter.store"
 import {useProjectScopeStore} from "@/stores/projectScope.store"
@@ -17,7 +25,7 @@ import {findClosestAtPoint} from "@/utils/ui/dom"
 import {useDragAutoScroll} from "./useDragAutoScroll"
 import {useTaskDragDrop} from "./useTaskDragDrop"
 
-import type {MoveTaskByOrderParams, Task, TaskStatus} from "@daily/protocol"
+import type {BoardMode, MoveTaskByOrderParams, Task, TaskStatus} from "@daily/protocol"
 
 /** One row a board column renders: a task's card, or the gap the dragged card would drop into. */
 export type ColumnItem = {kind: "task"; task: Task} | {kind: "placeholder"}
@@ -27,17 +35,6 @@ type PlacedTask = ColumnSlot & {task: Task}
 type CardPress = {task: Task; pointerId: number; x: number; y: number}
 
 export const useTaskColumns = createSharedComposable(() => {
-  const tasksStore = useTasksStore()
-  const filterStore = useFilterStore()
-  const projectScopeStore = useProjectScopeStore()
-  const uiStore = useUIStore()
-  const dragDropStore = useDragDropStore()
-  const taskEditorStore = useTaskEditorStore()
-  const {taskView, fontSize, cardHeight, cardStep} = useBoardCardGeometry()
-
-  const dropTarget = shallowRef<ColumnSlot | null>(null)
-  const landing = shallowRef<PlacedTask | null>(null)
-
   let hoverExpandedStatus: TaskStatus | null = null
   let press: CardPress | null = null
   let origin: PlacedTask | null = null
@@ -45,40 +42,45 @@ export const useTaskColumns = createSharedComposable(() => {
   let bodyUserSelect = ""
   let geometryRevision = 0
 
+  const tasksStore = useTasksStore()
+  const filterStore = useFilterStore()
+  const projectScopeStore = useProjectScopeStore()
+  const uiStore = useUIStore()
+  const dragDropStore = useDragDropStore()
+  const taskEditorStore = useTaskEditorStore()
+
+  const dropTarget = shallowRef<ColumnSlot | null>(null)
+  const landing = shallowRef<PlacedTask | null>(null)
+
+  const boardMode = useSettingValue<"appearance.boardMode", BoardMode>("appearance.boardMode", "normal")
+
   const milestoneFrameTasks = computed(() => {
     if (filterStore.isNoMilestoneActive) return tasksStore.tasksWithoutMilestone
     if (filterStore.activeMilestoneId) return tasksStore.tasksByMilestoneId.get(filterStore.activeMilestoneId) ?? []
     return tasksStore.projectTasks
   })
 
-  const filteredTasks = computed(() => filterByTag(tasksStore.dailyTasks))
-  const filteredBacklogTasks = computed(() => filterByTag(tasksStore.backlogTasks))
-  const filteredMilestoneTasks = computed(() => filterByTag(milestoneFrameTasks.value))
-
   const tasksByStatus = computed<Record<TaskStatus, Task[]>>(() => {
+    const scope =
+      filterStore.frame === "milestone"
+        ? milestoneFrameTasks.value
+        : tasksStore.projectTasks.filter((task) => isTaskOnDayBoard(task, tasksStore.activeDay))
+    const grouped = groupTasksForBoard(filterByTag(scope), boardMode.value)
     if (filterStore.frame === "milestone") {
-      const framed = groupByStatus(filteredMilestoneTasks.value)
-
-      return {
-        active: sortTasksByDateThenOrder(framed.active),
-        discarded: sortTasksByDateThenOrder(framed.discarded),
-        done: sortTasksByDateThenOrder(framed.done),
-        backlog: sortTasksByOrderIndex(framed.backlog),
-      }
+      for (const status of TASK_STATUSES) grouped[status] = sortTasksByDateThenOrder(grouped[status])
     }
-
-    const grouped = groupByStatus(filteredTasks.value)
-    grouped.backlog = filteredBacklogTasks.value
     return grouped
   })
-
   const columnItems = computed<Record<TaskStatus, ColumnItem[]>>(() => ({
     backlog: toColumnItems("backlog"),
-    active: toColumnItems("active"),
+    ready_for_agent: toColumnItems("ready_for_agent"),
+    in_progress: toColumnItems("in_progress"),
+    ready_to_merge: toColumnItems("ready_to_merge"),
     done: toColumnItems("done"),
-    discarded: toColumnItems("discarded"),
+    cancelled: toColumnItems("cancelled"),
   }))
 
+  const {taskView, fontSize, cardHeight, cardStep} = useBoardCardGeometry()
   const {isDragging, isCommitting, onDragStart, onDragEnd, runWithCommit} = useTaskDragDrop()
   const columnScroll = useDragAutoScroll("y")
   const boardScroll = useDragAutoScroll("x")
@@ -158,16 +160,6 @@ export const useTaskColumns = createSharedComposable(() => {
     return tasks.filter((task) => task.tags.some((tag) => filterStore.activeTagIds.has(tag.id)))
   }
 
-  function groupByStatus(tasks: Task[]): Record<TaskStatus, Task[]> {
-    return tasks.reduce(
-      (acc, task) => {
-        acc[task.status].push(task)
-        return acc
-      },
-      {active: [], discarded: [], done: [], backlog: []} as Record<TaskStatus, Task[]>,
-    )
-  }
-
   function onDragPointerMove(event: PointerEvent) {
     if (!isDragging.value) return
 
@@ -230,7 +222,8 @@ export const useTaskColumns = createSharedComposable(() => {
   }
 
   function startDrag(task: Task) {
-    origin = {task, status: task.status, index: tasksByStatus.value[task.status].findIndex((item) => item.id === task.id)}
+    const status = boardColumnForStatus(task.status, boardMode.value)
+    origin = {task, status, index: tasksByStatus.value[status].findIndex((item) => item.id === task.id)}
     dragDropStore.setDraggingTaskId(task.id)
     onDragStart()
 
@@ -273,13 +266,15 @@ export const useTaskColumns = createSharedComposable(() => {
 
     const params: MoveTaskByOrderParams = {
       taskId: dragged.task.id,
-      targetStatus: target.status,
+      ...(isSameColumn ? {} : {targetStatus: target.status}),
+      boardMode: boardMode.value,
       ...(isMilestoneFrame ? {targetTaskId: null, position: "after" as const} : resolveMoveTarget(column, target.index)),
-      activeDate: tasksStore.activeDay,
+      activeDate: isMilestoneFrame ? (dragged.task.scheduled?.date ?? tasksStore.activeDay) : tasksStore.activeDay,
       acrossProjects: projectScopeStore.isAllProjectsMode,
     }
 
-    landing.value = {...target, task: {...dragged.task, status: target.status}}
+    const status = isSameColumn ? dragged.task.status : target.status
+    landing.value = {...target, task: {...dragged.task, status, scheduled: schedulingForStatus(status, dragged.task.scheduled, params.activeDate)}}
     if (isSameColumn) writeMove(params)
     else setTimeout(() => writeMove(params), 160)
   }

@@ -120,7 +120,7 @@ describe("MarkdownEditor", () => {
       vi.useFakeTimers()
       const view = await mountTaskEditor("")
 
-      typeText(view, "/Status act")
+      typeText(view, "/Status in prog")
       await choose(view)
       typeText(view, "/Date 05.10")
       await choose(view)
@@ -128,7 +128,7 @@ describe("MarkdownEditor", () => {
       await choose(view)
 
       const patches = wrapper.emitted("patch").map(([updates]) => updates)
-      expect(patches[0]).toEqual({status: "active"})
+      expect(patches[0]).toEqual({status: "in_progress"})
       expect(patches[1].scheduled.date).toMatch(/^\d{4}-10-05$/)
       expect(patches[2]).toEqual({estimatedTime: 5400})
     })

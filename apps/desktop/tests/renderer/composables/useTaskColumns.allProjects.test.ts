@@ -55,12 +55,12 @@ describe("useTaskColumns — the all-projects mode", () => {
     vi.useFakeTimers()
 
     board.startDrag(board.find("x2"), yForIndex(3))
-    board.moveOver("active", yForIndex(2))
+    board.moveOver("in_progress", yForIndex(2))
     board.release(yForIndex(2))
 
     expect(board.tasks.moveTaskByOrder).toHaveBeenCalledWith({
       taskId: "x2",
-      targetStatus: "active",
+      boardMode: "normal",
       targetTaskId: "y2",
       position: "before",
       activeDate: TODAY,

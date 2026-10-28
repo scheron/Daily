@@ -16,9 +16,10 @@ function makeTask(overrides = {}) {
     id: "task-1",
     branchId: "main",
     milestoneId: null,
-    status: "active",
+    status: "in_progress",
     content: "task",
     minimized: false,
+    priority: "none",
     orderIndex: 1024,
     scheduled: {date: DateTime.now().toISODate(), time: "09:00", timezone: "UTC"},
     estimatedTime: 0,
@@ -88,7 +89,7 @@ describe("TaskBoard", () => {
     vi.restoreAllMocks()
   })
 
-  async function setup({sectionsCollapsed = {}, taskView = "regular", fontSize = "normal"} = {}) {
+  async function setup({sectionsCollapsed = {}, taskView = "regular", fontSize = "normal", boardMode = "normal"} = {}) {
     const {default: TaskBoard} = await import("../../../../src/renderer/src/ui/modules/TaskBoard")
     const {default: NoTasksPlaceholder} = await import("../../../../src/renderer/src/ui/modules/TaskBoard/{fragments}/NoTasksPlaceholder.vue")
     const {useTasksStore} = await import("../../../../src/renderer/src/stores/tasks/tasks.store")
@@ -98,7 +99,7 @@ describe("TaskBoard", () => {
 
     const settings = useSettingsStore()
     await new Promise((resolve) => setTimeout(resolve))
-    settings.settings = {branch: {activeId: "main"}, layout: {sectionsCollapsed}, appearance: {taskView}, typography: {fontSize}}
+    settings.settings = {branch: {activeId: "main"}, layout: {sectionsCollapsed}, appearance: {taskView, boardMode}, typography: {fontSize}}
 
     function mountBoard() {
       wrapper = mount(TaskBoard, {attachTo: document.body, global: {directives: {tooltip: {}}}})
@@ -138,6 +139,47 @@ describe("TaskBoard", () => {
   }
 
   it.each([
+    ["day", "regular", false],
+    ["day", "compact", false],
+    ["day", "regular", true],
+    ["day", "compact", true],
+    ["milestone", "regular", false],
+    ["milestone", "compact", false],
+  ])("switches columns in %s / %s / All projects=%s without rewriting statuses, dates or order", async (frame, taskView, allProjects) => {
+    const {mountBoard, tasks, settings} = await setup({taskView})
+    const {useFilterStore} = await import("../../../../src/renderer/src/stores/filter.store")
+    useFilterStore().setFrame(frame)
+    settings.settings.branch.isAllProjects = allProjects
+    const day = DateTime.now().toISODate()
+    tasks.activeDay = day
+    tasks.tasks = [
+      makeTask({id: "queue", content: "queue", status: "ready_for_agent", scheduled: null}),
+      makeTask({id: "today", content: "today", status: "ready_for_agent"}),
+      makeTask({id: "tomorrow", content: "tomorrow", status: "ready_for_agent", scheduled: {date: "2099-01-01", time: "09:00", timezone: "UTC"}}),
+      makeTask({id: "review", content: "review", status: "ready_to_merge"}),
+      makeTask({id: "other-project-ready", content: "Other project queue", branchId: "other", status: "ready_for_agent", scheduled: null}),
+    ]
+    const original = JSON.parse(JSON.stringify(tasks.tasks))
+    const board = mountBoard()
+    await nextTick()
+    expect(board.findAll("[data-column-status]")).toHaveLength(4)
+    expect(columnOf(board, "backlog").textContent).toContain("queue")
+    expect(columnOf(board, "backlog").textContent).toContain("today")
+    expect(board.text().includes("Other project queue")).toBe(allProjects)
+    if (frame === "milestone") expect(columnOf(board, "backlog").textContent).toContain("tomorrow")
+    else expect(board.text()).not.toContain("tomorrow")
+    settings.settings.appearance.boardMode = "agents"
+    await nextTick()
+    expect(board.findAll("[data-column-status]")).toHaveLength(6)
+    expect(columnOf(board, "ready_for_agent").textContent).toContain("queue")
+    expect(columnOf(board, "ready_to_merge").textContent).toContain("review")
+    settings.settings.appearance.boardMode = "normal"
+    await nextTick()
+    expect(board.findAll("[data-column-status]")).toHaveLength(4)
+    expect(tasks.tasks).toEqual(original)
+  })
+
+  it.each([
     ["small", 99.6],
     ["normal", 114],
     ["large", 128.4],
@@ -147,14 +189,14 @@ describe("TaskBoard", () => {
     tasks.tasks = makeTasks(221)
     const board = mountBoard()
     await nextTick()
-    const {list, track} = viewport(board, "active", {clientHeight: 700, offsetTop: 100})
+    const {list, track} = viewport(board, "in_progress", {clientHeight: 700, offsetTop: 100})
     await settle()
     expect(parseFloat(track.style.height)).toBeCloseTo(221 * step - 6)
     list.scrollTop = 100 + 100 * step
     list.dispatchEvent(new Event("scroll"))
     await settle()
-    expect(placedCards(board, "active").map((card) => card.index)).toEqual(range(97, 100 + Math.ceil(700 / step) + 3))
-    for (const card of cardsIn(board, "active")) {
+    expect(placedCards(board, "in_progress").map((card) => card.index)).toEqual(range(97, 100 + Math.ceil(700 / step) + 3))
+    for (const card of cardsIn(board, "in_progress")) {
       const index = Number(card.querySelector("[id^='task-']").id.slice(5))
       expect(parseFloat(card.style.transform.slice(11))).toBeCloseTo(index * step)
       expect(parseFloat(card.querySelector("[id^='task-']").style.height)).toBeCloseTo(step - 6)
@@ -172,7 +214,7 @@ describe("TaskBoard", () => {
       const original = JSON.stringify(tasks.tasks)
       const board = mountBoard()
       await nextTick()
-      const {list, track} = viewport(board, "active", {clientHeight: 700, offsetTop: 100})
+      const {list, track} = viewport(board, "in_progress", {clientHeight: 700, offsetTop: 100})
       Object.defineProperty(list, "scrollHeight", {configurable: true, get: () => 100 + parseFloat(track.style.height) + 16})
       await settle()
       list.scrollTop = 100 + 100 * 206 + 37
@@ -181,7 +223,7 @@ describe("TaskBoard", () => {
       settings.settings.appearance.taskView = "compact"
       await settle()
       expect(list.scrollTop).toBe(100 + 100 * 114 + 37)
-      expect(placedCards(board, "active").some((card) => card.index === 100)).toBe(true)
+      expect(placedCards(board, "in_progress").some((card) => card.index === 100)).toBe(true)
       settings.settings.appearance.taskView = "regular"
       await settle()
       expect(list.scrollTop).toBe(100 + 100 * 206 + 37)
@@ -191,7 +233,7 @@ describe("TaskBoard", () => {
       settings.settings.appearance.taskView = "compact"
       await settle()
       expect(list.scrollTop).toBe(100 + 221 * 114 - 6 + 16 - 700)
-      expect(placedCards(board, "active").at(-1).index).toBe(220)
+      expect(placedCards(board, "in_progress").at(-1).index).toBe(220)
       expect(JSON.stringify(tasks.tasks)).toBe(original)
     },
   )
@@ -202,7 +244,7 @@ describe("TaskBoard", () => {
     tasks.tasks = makeTasks(221)
     const board = mountBoard()
     await nextTick()
-    const {list, track} = viewport(board, "active", {clientHeight: 700, offsetTop: 100})
+    const {list, track} = viewport(board, "in_progress", {clientHeight: 700, offsetTop: 100})
     Object.defineProperty(list, "scrollHeight", {configurable: true, get: () => 100 + parseFloat(track.style.height) + 16})
     await settle()
     list.scrollTop = 20820
@@ -211,7 +253,7 @@ describe("TaskBoard", () => {
     settings.settings.appearance.taskView = "compact"
     await settle()
     expect(list.scrollTop).toBe(11607)
-    const firstVisible = cardsIn(board, "active").find((card) => {
+    const firstVisible = cardsIn(board, "in_progress").find((card) => {
       const top = track.offsetTop + parseFloat(card.style.transform.slice(11))
       const height = parseFloat(card.querySelector("[id^='task-']").style.height)
       return top + height > list.scrollTop && top < list.scrollTop + list.clientHeight
@@ -229,7 +271,7 @@ describe("TaskBoard", () => {
     tasks.tasks = makeTasks(221)
     const board = mountBoard()
     await nextTick()
-    const {list, track} = viewport(board, "active", {clientHeight: 700, offsetTop: 100})
+    const {list, track} = viewport(board, "in_progress", {clientHeight: 700, offsetTop: 100})
     Object.defineProperty(list, "scrollHeight", {configurable: true, get: () => 100 + parseFloat(track.style.height) + 16})
     list.scrollTop = 100 + 100 * 114 + 37
     list.dispatchEvent(new Event("scroll"))
@@ -237,7 +279,7 @@ describe("TaskBoard", () => {
     settings.settings.typography.fontSize = "large"
     await settle()
     expect(list.scrollTop).toBeCloseTo(100 + 100 * 128.4 + 37)
-    expect(placedCards(board, "active").some((card) => card.index === 100)).toBe(true)
+    expect(placedCards(board, "in_progress").some((card) => card.index === 100)).toBe(true)
   })
 
   it("uses compact dimensions for a drag placeholder", async () => {
@@ -246,7 +288,7 @@ describe("TaskBoard", () => {
     tasks.tasks = makeTasks(4)
     const board = mountBoard()
     await nextTick()
-    const {track} = viewport(board, "active", {clientHeight: 700, offsetTop: 100})
+    const {track} = viewport(board, "in_progress", {clientHeight: 700, offsetTop: 100})
     vi.spyOn(track, "getBoundingClientRect").mockReturnValue({top: 100})
     vi.spyOn(document, "elementFromPoint").mockReturnValue(track)
     await settle()
@@ -310,17 +352,17 @@ describe("TaskBoard", () => {
 
     const board = mountBoard()
     await nextTick()
-    const {list, track} = viewport(board, "active", {clientHeight: 700, offsetTop: 100})
+    const {list, track} = viewport(board, "in_progress", {clientHeight: 700, offsetTop: 100})
     await settle()
 
-    expect(placedCards(board, "active")).toEqual(onGrid(range(0, 6)))
+    expect(placedCards(board, "in_progress")).toEqual(onGrid(range(0, 6)))
     expect(track.style.height).toBe(`${221 * 206 - 6}px`)
 
     list.scrollTop = 20700
     list.dispatchEvent(new Event("scroll"))
     await settle()
 
-    expect(placedCards(board, "active")).toEqual(onGrid(range(97, 107)))
+    expect(placedCards(board, "in_progress")).toEqual(onGrid(range(97, 107)))
   })
 
   it("mounts no card of a collapsed column but keeps its track's height, the proxy for its scroll, and mounts its window once expanded", async () => {
@@ -359,7 +401,7 @@ describe("TaskBoard", () => {
 
     const board = mountBoard()
     await nextTick()
-    for (const status of ["backlog", "active", "done", "discarded"]) viewport(board, status, {clientHeight: 400, offsetTop: 100})
+    for (const status of ["backlog", "in_progress", "done", "cancelled"]) viewport(board, status, {clientHeight: 400, offsetTop: 100})
     await settle()
     expect(board.findAll("[data-task-card]")).toHaveLength(1)
 
@@ -404,7 +446,7 @@ describe("TaskBoard", () => {
 
     const board = mountBoard()
     await nextTick()
-    const {track} = viewport(board, "active", {clientHeight: 700, offsetTop: 100})
+    const {track} = viewport(board, "in_progress", {clientHeight: 700, offsetTop: 100})
     await settle()
 
     vi.spyOn(document, "elementFromPoint").mockReturnValue(track)
@@ -414,18 +456,18 @@ describe("TaskBoard", () => {
     window.dispatchEvent(new PointerEvent("pointermove", {bubbles: true, clientX: 50, clientY: 266, pointerId: 1}))
     await settle()
 
-    expect(placedCards(board, "active").map((card) => card.index)).toEqual([0, 2, 3])
+    expect(placedCards(board, "in_progress").map((card) => card.index)).toEqual([0, 2, 3])
     const gaps = Array.from(track.children).filter((item) => !item.hasAttribute("data-task-card"))
     expect(gaps).toHaveLength(1)
     expect(gaps[0].style.transform).toBe("translateY(206px)")
-    for (const card of cardsIn(board, "active"))
+    for (const card of cardsIn(board, "in_progress"))
       expect(Array.from(card.classList)).toEqual(expect.arrayContaining(["transition-transform", "duration-140"]))
 
     window.dispatchEvent(new PointerEvent("pointerup", {bubbles: true, clientX: 50, clientY: 266, pointerId: 1}))
     await settle()
 
-    expect(cardsIn(board, "active")).toHaveLength(4)
-    for (const card of cardsIn(board, "active")) expect(card.classList.contains("transition-transform")).toBe(false)
+    expect(cardsIn(board, "in_progress")).toHaveLength(4)
+    for (const card of cardsIn(board, "in_progress")) expect(card.classList.contains("transition-transform")).toBe(false)
   })
 
   it("never lets a native drag start from inside a card, except a link's own, which never starts a card drag", async () => {
@@ -435,7 +477,7 @@ describe("TaskBoard", () => {
 
     const board = mountBoard()
     await nextTick()
-    viewport(board, "active")
+    viewport(board, "in_progress")
     await settle()
 
     const imageDrag = new Event("dragstart", {bubbles: true, cancelable: true})

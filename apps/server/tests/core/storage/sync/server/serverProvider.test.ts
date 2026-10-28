@@ -286,7 +286,7 @@ describe("disconnecting", () => {
     const now = new Date().toISOString()
     db.prepare(
       `INSERT INTO tasks (id, status, content, minimized, order_index, scheduled_date, scheduled_time, scheduled_timezone, estimated_time, spent_time, branch_id, created_at, updated_at, deleted_at)
-       VALUES (?, 'active', ?, 0, 0, '2026-08-17', '', 'UTC', 0, 0, 'main', ?, ?, NULL)`,
+       VALUES (?, 'in_progress', ?, 0, 0, '2026-08-17', '', 'UTC', 0, 0, 'main', ?, ?, NULL)`,
     ).run("t1", "Keep me", now, now)
     const before = db.prepare("SELECT id FROM tasks ORDER BY id").all()
 

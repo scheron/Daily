@@ -35,7 +35,7 @@ function milestone(id, branchId, over = {}) {
 function task(id, branchId, over = {}) {
   return {
     id,
-    status: "active",
+    status: "in_progress",
     content: "",
     minimized: false,
     order_index: 0,

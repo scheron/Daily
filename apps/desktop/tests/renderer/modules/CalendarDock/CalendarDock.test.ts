@@ -38,7 +38,7 @@ function makeBranch(overrides = {}) {
   }
 }
 
-function makeMilestoneTask(milestoneId, status = "active", overrides = {}) {
+function makeMilestoneTask(milestoneId, status = "in_progress", overrides = {}) {
   return {
     id: `${milestoneId}-${Math.random().toString(36).slice(2)}`,
     branchId: "main",
@@ -165,14 +165,14 @@ describe("CalendarDock", () => {
 
     tasks.tasks = [
       makeMilestoneTask("m-open-1", "done"),
-      makeMilestoneTask("m-open-1", "active"),
-      makeMilestoneTask("m-open-1", "active"),
-      makeMilestoneTask("m-open-2", "active"),
-      makeMilestoneTask("m-open-2", "active"),
+      makeMilestoneTask("m-open-1", "in_progress"),
+      makeMilestoneTask("m-open-1", "in_progress"),
+      makeMilestoneTask("m-open-2", "in_progress"),
+      makeMilestoneTask("m-open-2", "in_progress"),
       makeMilestoneTask("m-closed", "done"),
       makeMilestoneTask("m-closed", "done"),
-      makeMilestoneTask("m-closed", "discarded"),
-      makeMilestoneTask("m-closed", "discarded"),
+      makeMilestoneTask("m-closed", "cancelled"),
+      makeMilestoneTask("m-closed", "cancelled"),
     ]
     ui.setCalendarDockTab("milestones")
     ui.toggleCalendarDock(true)
@@ -266,11 +266,11 @@ describe("CalendarDock", () => {
     milestones.milestones = [makeMilestone({id: "m-open", name: "Alpha"}), makeMilestone({id: "m-closed", name: "Gamma"})]
     milestones.isMilestonesLoaded = true
     tasks.tasks = [
-      makeMilestoneTask("m-open", "active"),
+      makeMilestoneTask("m-open", "in_progress"),
       makeMilestoneTask("m-closed", "done"),
-      makeMilestoneTask(null, "active"),
+      makeMilestoneTask(null, "in_progress"),
       makeMilestoneTask(null, "done"),
-      makeMilestoneTask(null, "active", {branchId: "other"}),
+      makeMilestoneTask(null, "in_progress", {branchId: "other"}),
     ]
     filter.setFrame("milestone")
     ui.setCalendarDockTab("milestones")
@@ -300,7 +300,7 @@ describe("CalendarDock", () => {
 
     milestones.milestones = [makeMilestone({id: "m1"})]
     milestones.isMilestonesLoaded = true
-    tasks.tasks = [makeMilestoneTask("m1", "active", {id: "task-1"})]
+    tasks.tasks = [makeMilestoneTask("m1", "in_progress", {id: "task-1"})]
     ui.setCalendarDockTab("milestones")
     ui.toggleCalendarDock(true)
 

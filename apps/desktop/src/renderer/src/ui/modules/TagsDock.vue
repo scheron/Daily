@@ -2,7 +2,7 @@
 import {computed, watch} from "vue"
 import {storeToRefs} from "pinia"
 
-import {sortTags} from "@daily/protocol"
+import {isTaskOnDayBoard, sortTags, sortTasksByOrderIndex} from "@daily/protocol"
 import {removeDuplicates} from "@daily/std"
 
 import {useFilterStore} from "@/stores/filter.store"
@@ -29,7 +29,7 @@ const milestoneFrameTasks = computed(() => {
   return tasksStore.projectTasks
 })
 
-const dayFrameTasks = computed(() => tasksStore.dailyTasks.concat(tasksStore.backlogTasks))
+const dayFrameTasks = computed(() => sortTasksByOrderIndex(tasksStore.projectTasks.filter((task) => isTaskOnDayBoard(task, activeDay.value))))
 
 const filteredTags = computed(() => {
   const tags = (filterStore.frame === "milestone" ? milestoneFrameTasks.value : dayFrameTasks.value).flatMap((task) => task.tags)

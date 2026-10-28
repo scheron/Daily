@@ -41,7 +41,7 @@ describe("SettingsModel", () => {
     db.prepare("INSERT INTO settings (id, version, data, created_at, updated_at) VALUES ('default', 'v', ?, 'now', 'now')").run(data)
 
     for (const settings of [settingsModel.loadSettings(), rowToSettings({data} as any)]) {
-      expect(settings.appearance).toEqual({mode: "dark", accent: "rose", base: "slate", taskView: "regular"})
+      expect(settings.appearance).toEqual({mode: "dark", accent: "rose", base: "slate", taskView: "regular", boardMode: "normal"})
       expect(settings.branch.activeId).toBe("project-a")
     }
   })
@@ -50,10 +50,24 @@ describe("SettingsModel", () => {
     settingsModel.saveSettings({appearance: {mode: "dark", accent: "rose", base: "slate", taskView: "compact"}, menuBar: {isVisible: false}})
     settingsModel.saveSettings({appearance: {taskView: "dense"}} as any)
 
-    expect(settingsModel.loadSettings().appearance).toEqual({mode: "dark", accent: "rose", base: "slate", taskView: "regular"})
+    expect(settingsModel.loadSettings().appearance).toEqual({mode: "dark", accent: "rose", base: "slate", taskView: "regular", boardMode: "normal"})
     expect(settingsModel.loadSettings().menuBar.isVisible).toBe(false)
     const persisted = JSON.parse(db.prepare("SELECT data FROM settings WHERE id = 'default'").get().data)
     expect(persisted.appearance.taskView).toBe("regular")
+  })
+
+  it("maps old collapse keys without resetting choices and defaults the global mode", () => {
+    const data = JSON.stringify({layout: {sectionsCollapsed: {active: true, discarded: true, backlog: false, done: true}}})
+    db.prepare("INSERT INTO settings (id, version, data, created_at, updated_at) VALUES ('default', 'v', ?, 'now', 'now')").run(data)
+    expect(settingsModel.loadSettings().appearance.boardMode).toBe("normal")
+    expect(settingsModel.loadSettings().layout.sectionsCollapsed).toEqual({
+      backlog: false,
+      ready_for_agent: false,
+      in_progress: true,
+      ready_to_merge: false,
+      done: true,
+      cancelled: true,
+    })
   })
 
   it("migrates legacy themes with regular cards while retaining the selected project", () => {
@@ -69,7 +83,7 @@ describe("SettingsModel", () => {
   it("keeps compact after partial saves and reopening a real SQLite database without leaking it into snapshots", async () => {
     const directory = mkdtempSync("/tmp/daily-task-view-settings-")
     try {
-      settingsModel.saveSettings({appearance: {taskView: "compact", mode: "dark"}})
+      settingsModel.saveSettings({appearance: {taskView: "compact", mode: "dark", boardMode: "agents"}})
       settingsModel.saveSettings({menuBar: {isVisible: false}})
       const filename = join(directory, "settings.sqlite")
       db.exec(`VACUUM INTO '${filename}'`)
@@ -79,6 +93,7 @@ describe("SettingsModel", () => {
 
       expect(settingsModel.loadSettings().appearance.taskView).toBe("compact")
       expect(settingsModel.loadSettings().appearance.mode).toBe("dark")
+      expect(settingsModel.loadSettings().appearance.boardMode).toBe("agents")
       expect(settingsModel.loadSettings().menuBar.isVisible).toBe(false)
       const docs = await new LocalStorageAdapter(db, new FileModel(db, directory)).loadAllDocs()
       const snapshot = buildSnapshot(docs)

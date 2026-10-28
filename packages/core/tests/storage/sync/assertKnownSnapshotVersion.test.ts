@@ -1,6 +1,7 @@
 import {describe, expect, it} from "vitest"
 
 import {SnapshotVersionAheadError} from "@daily/protocol"
+import {isObject} from "@daily/std"
 
 import {assertKnownSnapshotVersion, KNOWN_SNAPSHOT_VERSION} from "@core/utils/sync/snapshot/assertKnownSnapshotVersion"
 import {buildSnapshot} from "@core/utils/sync/snapshot/buildSnapshot"
@@ -12,11 +13,11 @@ describe("assertKnownSnapshotVersion", () => {
 
   it("exposes the remote version on the error", () => {
     try {
-      assertKnownSnapshotVersion({version: 12})
+      assertKnownSnapshotVersion({version: 13})
       expect.unreachable()
     } catch (err) {
       expect(err).toBeInstanceOf(SnapshotVersionAheadError)
-      expect((err as SnapshotVersionAheadError).remoteVersion).toBe(12)
+      expect((err as SnapshotVersionAheadError).remoteVersion).toBe(13)
     }
   })
 
@@ -32,18 +33,30 @@ describe("assertKnownSnapshotVersion", () => {
     expect(() => assertKnownSnapshotVersion({version: "4"})).not.toThrow()
   })
 
-  it("accepts version 11 and aborts with SnapshotVersionAheadError for version 12", () => {
-    expect(() => assertKnownSnapshotVersion({version: 11})).not.toThrow()
-    expect(() => assertKnownSnapshotVersion({version: 12})).toThrow(SnapshotVersionAheadError)
+  it("accepts version 12 and aborts with SnapshotVersionAheadError for version 13", () => {
+    expect(() => assertKnownSnapshotVersion({version: 12})).not.toThrow()
+    expect(() => assertKnownSnapshotVersion({version: 13})).toThrow(SnapshotVersionAheadError)
   })
 
-  it("TC-8: buildSnapshot writes version 11, and assertKnownSnapshotVersion accepts that version but aborts on 12", () => {
+  it("TC-8: buildSnapshot writes version 12, and assertKnownSnapshotVersion accepts that version but aborts on 13", () => {
     const emptyDocs = {tasks: [], tags: [], branches: [], milestones: [], relations: [], comments: [], files: [], events: []}
     const built = buildSnapshot(emptyDocs)
 
-    expect(built.version).toBe(11)
-    expect(KNOWN_SNAPSHOT_VERSION).toBe(11)
+    expect(built.version).toBe(12)
+    expect(KNOWN_SNAPSHOT_VERSION).toBe(12)
     expect(() => assertKnownSnapshotVersion({version: built.version})).not.toThrow()
-    expect(() => assertKnownSnapshotVersion({version: 12})).toThrow(SnapshotVersionAheadError)
+    expect(() => assertKnownSnapshotVersion({version: 13})).toThrow(SnapshotVersionAheadError)
   })
 })
+
+it("refuses a v12 write in the frozen v11 client reader before its data can be applied", () => {
+  const built = buildSnapshot({tasks: [], tags: [], branches: [], milestones: [], relations: [], comments: [], files: [], events: []})
+  expect(() => assertV11Reader(built)).toThrow(SnapshotVersionAheadError)
+})
+
+function assertV11Reader(parsed: unknown): void {
+  const KNOWN_SNAPSHOT_VERSION = 11
+  if (!isObject(parsed)) return
+  const version = (parsed as {version?: unknown}).version
+  if (typeof version === "number" && version > KNOWN_SNAPSHOT_VERSION) throw new SnapshotVersionAheadError(version)
+}

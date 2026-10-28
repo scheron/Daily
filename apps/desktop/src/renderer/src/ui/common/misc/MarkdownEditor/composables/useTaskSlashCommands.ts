@@ -2,6 +2,7 @@ import {sortMilestones} from "@daily/protocol"
 import {getTime, getTimezone, getToday} from "@daily/std"
 
 import {PRIORITY_LEVELS} from "@/constants/priority"
+import {TASK_COLUMNS} from "@/constants/ui"
 import {useBranchesStore} from "@/stores/branches.store"
 import {useMilestonesStore} from "@/stores/milestones.store"
 import {useTagsStore} from "@/stores/tags.store"
@@ -13,13 +14,9 @@ import {parseDuration} from "../utils/parseDuration"
 
 import type {TaskDraft} from "@/types/taskDraft"
 import type {NestedCommand, NestedItem, SlashCommandsOptions} from "@/utils/codemirror/extensions"
-import type {Task, TaskStatus} from "@daily/protocol"
+import type {Task} from "@daily/protocol"
 import type {ComputedRef} from "vue"
 
-/**
- * @param task The task being edited
- * @param patch Applies a partial update to whichever draft owns the task; owns the status/date rules
- */
 export function useTaskSlashCommands(task: ComputedRef<Task>, patch: (updates: Partial<TaskDraft>) => void): SlashCommandsOptions {
   const branchesStore = useBranchesStore()
   const tagsStore = useTagsStore()
@@ -50,20 +47,11 @@ export function useTaskSlashCommands(task: ComputedRef<Task>, patch: (updates: P
   ]
 
   function getStatusItems(query: string): NestedItem[] {
-    const statuses: {status: TaskStatus; label: string; icon: NestedItem["icon"]}[] = [
-      {status: "backlog", label: "Backlog", icon: "bookmark"},
-      {status: "active", label: "Active", icon: "fire"},
-      {status: "done", label: "Done", icon: "check-check"},
-      {status: "discarded", label: "Discarded", icon: "archive"},
-    ]
-
-    return statuses
-      .filter((item) => matches(item.label, query))
-      .map((item) => ({
-        label: item.label,
-        icon: item.icon,
-        apply: () => patch({status: item.status}),
-      }))
+    return TASK_COLUMNS.filter((item) => matches(item.label, query)).map((item) => ({
+      label: item.label,
+      icon: item.icon,
+      apply: () => patch({status: item.status}),
+    }))
   }
 
   function getDateItems(query: string): NestedItem[] {
@@ -76,6 +64,10 @@ export function useTaskSlashCommands(task: ComputedRef<Task>, patch: (updates: P
     const items = days
       .filter((day) => matches(day.label, query))
       .map((day) => ({label: day.label, icon: "calendar" as const, apply: () => setDate(day.date)}))
+
+    if (task.value.status === "ready_for_agent" && task.value.scheduled && matches("No date", query)) {
+      items.push({label: "No date", icon: "calendar", apply: () => patch({scheduled: null})})
+    }
 
     const typed = parseDayMonth(query, today)
     if (typed) items.push({label: query, icon: "calendar", apply: () => setDate(typed)})

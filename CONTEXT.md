@@ -20,17 +20,31 @@ All projects, which is a view across every project, this one included.
 _Avoid_: Main, default project, inbox
 
 **Backlog**:
-Work that has no day. It is one of the four values a task's status takes rather than a place a task
-is kept, and a task is in the backlog exactly when it has no date.
+Work that has no day and has not been marked ready for an agent. Backlog is a task status; the
+Backlog column in Normal also includes Ready for Agent tasks, which may have a day.
 _Avoid_: inbox, someday, unscheduled, icebox
 
-**Discarded**:
+**Ready for Agent**:
+Work prepared and available for an agent to take. It may have a scheduled day or remain in the
+general ready queue without one; readiness does not start an agent.
+_Avoid_: assigned, running, In Progress
+
+**In Progress**:
+Work taken into execution on a scheduled day. It remains outstanding until it is done or cancelled.
+_Avoid_: Active, running agent
+
+**Ready to Merge**:
+Work whose implementation is ready for review and merging. It remains outstanding and keeps its
+scheduled day until it is done or cancelled.
+_Avoid_: Done, merged, resolved
+
+**Cancelled**:
 A task deliberately dropped without being done. It is a way of finishing with a task, not a way of
-deleting one — a discarded task is still there and still counts toward its milestone.
-_Avoid_: cancelled, dropped, rejected, deleted
+deleting one — a cancelled task is still there and still counts toward its milestone.
+_Avoid_: Discarded, Canceled, dropped, rejected, deleted
 
 **Resolved**:
-Done or discarded, taken together — the two ways a task stops being outstanding. The word exists
+Done or cancelled, taken together — the two ways a task stops being outstanding. The word exists
 because progress counts them as one.
 _Avoid_: completed, finished, closed
 
@@ -46,8 +60,8 @@ decision someone made, which is what makes a proportion of it mean anything.
 _Avoid_: epic, sprint, release, label, tag
 
 **Closed**:
-Of a milestone: having no task left active or in the backlog. It is derived from the milestone's
-tasks every time it is asked for, never stored and never set by hand.
+Of a milestone: having no outstanding task left, including either ready stage. It is derived from
+the milestone's tasks every time it is asked for, never stored and never set by hand.
 _Avoid_: done, completed, finished, archived
 
 **Target date**:
@@ -59,6 +73,12 @@ _Avoid_: deadline, due date, end date
 What the board is organising by right now — a day, or a milestone. It is a property of the view and
 never of a task, and whichever dimension is not the frame moves onto the card.
 _Avoid_: mode, view, filter, grouping
+
+**Board mode**:
+The global choice between Normal and Agents, independent of the frame or project. Agents shows all
+six statuses; Normal groups Ready for Agent into Backlog and Ready to Merge into In Progress,
+preserving each task's actual status and day.
+_Avoid_: project workflow, Frame, agent assignment
 
 ### Focus
 

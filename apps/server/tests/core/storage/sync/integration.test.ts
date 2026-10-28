@@ -107,7 +107,7 @@ function insertTask(db, id, content, opts = {}) {
      VALUES (?, ?, ?, 0, 0, ?, '', 'UTC', 0, 0, ?, ?, ?, ?)`,
   ).run(
     id,
-    opts.status ?? "active",
+    opts.status ?? "in_progress",
     content,
     opts.date ?? "2026-03-25",
     opts.branchId ?? "main",

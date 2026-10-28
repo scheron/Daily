@@ -2,6 +2,7 @@ import {notNull, notUndefined} from "@daily/std"
 
 import {NO_PROJECT_ID} from "../../constants/storage"
 import {completeScheduling, schedulingForStatus, statusForScheduling} from "./backlog"
+import {boardColumnForStatus, isTaskOnDayBoard} from "./board"
 import {
   getOrderIndexBetween,
   getPreviousTaskOrderIndex,
@@ -94,7 +95,7 @@ export function planTaskUpdate(ctx: MutationContext, id: Task["id"], updates: Pa
 
   if (branchChanged) patch.tags = (updates.tags ?? []).filter((tag) => tag.branchId === branchId)
 
-  return [withStoredScheduling(patch, before)]
+  return [withStoredScheduling(patch, before, ctx.today)]
 }
 
 /** Patches for every task the move touches — one, or a whole renormalised column. Empty when the move is a no-op. */
@@ -111,11 +112,15 @@ export function planTaskMoveByOrder(ctx: MutationContext, params: MoveTaskByOrde
   const scheduled = schedulingForStatus(targetStatus, sourceTask.scheduled, params.activeDate)
 
   const scopeBranchId = params.acrossProjects ? undefined : sourceTask.branchId
-  const scopeTasks = targetStatus === "backlog" ? backlogTasks(ctx, scopeBranchId) : dayTasks(ctx, (scheduled as TaskScheduled).date, scopeBranchId)
+  const scopeTasks = liveTasksOf(ctx, scopeBranchId).filter((task) => isTaskOnDayBoard(task, params.activeDate))
 
   const scopeTaskById = new Map(scopeTasks.map((task) => [task.id, task]))
   const tasksWithoutSource = scopeTasks.filter((task) => task.id !== sourceTask.id)
-  const destinationScope = tasksWithoutSource.filter((task) => task.status === targetStatus)
+  const destinationScope = tasksWithoutSource.filter((task) =>
+    params.boardMode
+      ? boardColumnForStatus(task.status, params.boardMode) === boardColumnForStatus(targetStatus, params.boardMode)
+      : task.status === targetStatus,
+  )
   const orderedDestinationScope = sortTasksByOrderIndex(destinationScope)
   const insertAt = resolveInsertIndex(orderedDestinationScope, targetTaskId, position)
 
@@ -182,7 +187,7 @@ function definedFields(updates: Partial<TaskWritableFields>): Partial<TaskWritab
   return Object.fromEntries(Object.entries(updates).filter(([, value]) => notUndefined(value))) as Partial<TaskWritableFields>
 }
 
-function withStoredScheduling(patch: TaskPatch, before: Task): TaskPatch {
+function withStoredScheduling(patch: TaskPatch, before: Task, today: ISODate): TaskPatch {
   if (!patch.scheduled) return patch
 
   const written: Partial<TaskScheduled> = patch.scheduled
@@ -190,11 +195,11 @@ function withStoredScheduling(patch: TaskPatch, before: Task): TaskPatch {
 
   return {
     ...patch,
-    scheduled: {
-      date: notUndefined(written.date) ? written.date : (stored.date ?? null),
-      time: notUndefined(written.time) ? written.time : (stored.time ?? null),
-      timezone: notUndefined(written.timezone) ? written.timezone : (stored.timezone ?? null),
-    } as TaskScheduled,
+    scheduled: completeScheduling({
+      date: written.date ?? stored.date ?? today,
+      time: written.time ?? stored.time,
+      timezone: written.timezone ?? stored.timezone,
+    }),
   }
 }
 

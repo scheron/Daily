@@ -44,7 +44,7 @@ export const useTaskEditor = createSharedComposable(() => {
 
   const flatOrderedTasks = computed<Task[]>(() => {
     if (taskEditorStore.isNew) return []
-    return [...columns.tasksByStatus.value.active, ...columns.tasksByStatus.value.done, ...columns.tasksByStatus.value.discarded]
+    return Object.values(columns.tasksByStatus.value).flat()
   })
 
   const currentIndex = computed(() => {

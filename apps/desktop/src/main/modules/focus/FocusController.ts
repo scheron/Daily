@@ -130,5 +130,5 @@ export class FocusController {
 }
 
 function isResolved(task: Task): boolean {
-  return task.status === "done" || task.status === "discarded"
+  return task.status === "done" || task.status === "cancelled"
 }

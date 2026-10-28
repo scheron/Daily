@@ -11,7 +11,7 @@ function makeTask(overrides = {}) {
     id: "task-1",
     branchId: "main",
     milestoneId: null,
-    status: "active",
+    status: "in_progress",
     content: "task",
     priority: "none",
     scheduled: null,

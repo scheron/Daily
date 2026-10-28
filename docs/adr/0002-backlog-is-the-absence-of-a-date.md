@@ -1,5 +1,8 @@
 # A task is in the backlog exactly when it has no date
 
+Status: superseded by [Six task statuses and display-only board modes](0007-six-task-statuses-and-board-modes.md).
+The original decision below records the former rule; Ready for Agent now also permits no date.
+
 Daily needed somewhere for work that is real but not yet scheduled, so that it stops being a lie
 parked on an arbitrary day. We made that a fourth task status — `backlog`, beside `active`, `done`
 and `discarded` — and tied it to the schedule by a biconditional: a task's status is `backlog` **if

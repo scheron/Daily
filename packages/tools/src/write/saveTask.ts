@@ -1,4 +1,4 @@
-import {NO_PROJECT_ID, statusForScheduling} from "@daily/protocol"
+import {NO_PROJECT_ID, statusForScheduling, TASK_STATUSES} from "@daily/protocol"
 import {isArray, isObject, isString} from "@daily/std"
 
 import {ToolError} from "../errors/ToolError"
@@ -9,7 +9,6 @@ import {readTaskDetail} from "../readTaskDetail"
 import type {ISODate, ISOTime, Milestone, Tag, Task, TaskMovePosition, TaskPriority, TaskScheduled, TaskStatus} from "@daily/protocol"
 import type {Tool, ToolContext, ToolPropertySchema} from "../types"
 
-const TASK_STATUSES = ["active", "backlog", "done", "discarded"] as const
 const TASK_PRIORITIES = ["none", "urgent", "high", "medium", "low"] as const
 const MAX_BATCH_SIZE = 50
 
@@ -38,9 +37,18 @@ const TASK_ITEM_PROPERTIES: Record<string, ToolPropertySchema> = {
     type: "string",
     description: 'The project the task belongs to. Defaults to "main" when creating. A move drops the old project\'s milestone and tags.',
   },
-  date: {type: ["string", "null"], description: "The day the task is scheduled on, YYYY-MM-DD, or null to move it to the backlog."},
+  date: {
+    type: ["string", "null"],
+    description:
+      "The day the task is scheduled on, YYYY-MM-DD, or null to clear the day. Ready for Agent keeps its status when the day changes or is cleared.",
+  },
   time: {type: "string", description: 'The time of day, HH:mm or HH:mm:ss. Cannot be sent as null — clear a day with "date": null instead.'},
-  status: {type: "string", description: "The task's status.", enum: TASK_STATUSES},
+  status: {
+    type: "string",
+    description:
+      "The exact task status, independent of Normal / Agents board mode. Ready for Agent accepts a day or no day; Ready to Merge remains outstanding.",
+    enum: TASK_STATUSES,
+  },
   priority: {type: "string", description: 'The task\'s priority. "none" clears it. Defaults to "none" when creating.', enum: TASK_PRIORITIES},
   milestoneId: {type: ["string", "null"], description: "The milestone this task belongs to, from its own project, or null to clear it."},
   tagIds: {type: "array", description: "Replaces the task's whole tag set.", items: {type: "string", description: "A tag id."}},
@@ -186,13 +194,13 @@ async function createTask(ctx: ToolContext, fields: ParsedFields): Promise<Task[
   let scheduled: TaskScheduled | null
 
   if (fields.date === undefined) {
-    status = fields.status ?? "active"
-    scheduled = ctx.clock.scheduledNow()
+    status = fields.status ?? "in_progress"
+    scheduled = status === "ready_for_agent" ? null : ctx.clock.scheduledNow()
   } else if (fields.date === null) {
     status = fields.status ?? "backlog"
     scheduled = null
   } else {
-    status = fields.status ?? "active"
+    status = fields.status ?? "in_progress"
     scheduled = {date: fields.date, time: fields.time ?? ctx.clock.time(), timezone: ctx.clock.timeZone}
   }
 
@@ -302,7 +310,7 @@ function applyScheduling(ctx: ToolContext, before: Task, fields: ParsedFields, u
     return
   }
 
-  if (fields.status !== undefined && fields.status !== "backlog" && before.scheduled === null) {
+  if (fields.status !== undefined && fields.status !== "backlog" && fields.status !== "ready_for_agent" && before.scheduled === null) {
     updates.status = fields.status
     updates.scheduled = ctx.clock.scheduledNow()
     return

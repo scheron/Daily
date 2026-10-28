@@ -37,7 +37,7 @@ function makeTask(overrides = {}) {
   return {
     id: "t1",
     content: "# Write the **report**\nwith charts",
-    status: "active",
+    status: "in_progress",
     spentTime: 100,
     deletedAt: null,
     ...overrides,
@@ -198,11 +198,11 @@ describe("FocusController", () => {
       const {focus, storage} = await startedController([makeTask(), makeTask({id: "t2"})])
 
       await vi.advanceTimersByTimeAsync(60 * 1000)
-      focus.applyStorageChange({tasks: {upserted: [makeTask({status: "discarded"})]}})
+      focus.applyStorageChange({tasks: {upserted: [makeTask({status: "cancelled"})]}})
       await vi.advanceTimersByTimeAsync(0)
 
       expect(storage.updateTask).toHaveBeenCalledWith("t1", {spentTime: 160}, {kind: "manual"})
-      expect(storage.rows.get("t1").status).toBe("active")
+      expect(storage.rows.get("t1").status).toBe("in_progress")
       expect(focus.getSession().currentTaskId).toBe("t2")
     })
 
@@ -221,7 +221,7 @@ describe("FocusController", () => {
       await focus.dispatch({type: "stop"})
       const summary = focus.getSession()
 
-      focus.applyStorageChange({tasks: {upserted: [makeTask({id: "t2", status: "discarded"})], removed: ["t3"]}})
+      focus.applyStorageChange({tasks: {upserted: [makeTask({id: "t2", status: "cancelled"})], removed: ["t3"]}})
 
       expect(focus.getSession()).toBe(summary)
       expect(summary.tasks.map((task) => task.taskId)).toEqual(["t1", "t2", "t3"])

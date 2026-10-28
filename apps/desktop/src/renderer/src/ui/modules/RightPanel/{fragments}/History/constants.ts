@@ -4,8 +4,8 @@ import type {TaskEventType} from "@daily/protocol"
 export const TASK_EVENT_META: Record<TaskEventType, {icon: IconName; verb: string; chipClass: string}> = {
   created: {icon: "plus", verb: "Created", chipClass: "bg-accent/10 text-accent"},
   completed: {icon: "check-check", verb: "Completed", chipClass: "bg-success/10 text-success"},
-  reactivated: {icon: "refresh", verb: "Reopened", chipClass: "bg-accent/10 text-accent"},
-  discarded: {icon: "archive", verb: "Discarded", chipClass: "bg-warning/10 text-warning"},
+  reactivated: {icon: "refresh", verb: "Status changed", chipClass: "bg-accent/10 text-accent"},
+  discarded: {icon: "archive", verb: "Cancelled", chipClass: "bg-warning/10 text-warning"},
   edited: {icon: "pencil", verb: "Edited", chipClass: "bg-base-300 text-base-content/60"},
   deleted: {icon: "trash", verb: "Deleted", chipClass: "bg-error/10 text-error"},
   restored: {icon: "undo", verb: "Restored", chipClass: "bg-success/10 text-success"},

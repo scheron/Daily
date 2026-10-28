@@ -48,7 +48,7 @@ vi.mock("@daily/protocol", async (importOriginal) => ({...(await importOriginal(
 function makeTaskInput(overrides = {}) {
   return {
     id: nanoid(),
-    status: "active",
+    status: "in_progress",
     content: "Task",
     minimized: false,
     priority: "none",

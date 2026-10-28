@@ -21,7 +21,7 @@ function emptyDocs(): SnapshotDocs {
 function makeTask(id: string, updatedAt: string) {
   return {
     id,
-    status: "active",
+    status: "in_progress",
     content: `task ${id}`,
     minimized: false,
     order_index: 0,

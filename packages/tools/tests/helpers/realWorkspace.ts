@@ -38,6 +38,7 @@ function makeFilesPort(): ToolFilesPort {
 
 export function makeRealWorkspace(source: ActorSource = {kind: "agent"}): {
   db: SqliteDriver
+  core: ReturnType<typeof createStorageCore>
   workStorage: WorkStorage
   ctx: ToolContext
   changesets: Changeset[]
@@ -57,5 +58,5 @@ export function makeRealWorkspace(source: ActorSource = {kind: "agent"}): {
 
   const ctx: ToolContext = {workStorage, clock: makeClock(), source, files: makeFilesPort()}
 
-  return {db, workStorage, ctx, changesets}
+  return {db, core, workStorage, ctx, changesets}
 }

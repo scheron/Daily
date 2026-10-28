@@ -124,12 +124,34 @@ describe("the Quick task window view", () => {
     await flushPromises()
 
     expect(chips()).toEqual(["project", "status", "date"])
-    expect(wrapper.find("[data-chip=status]").text()).toBe("Active")
+    expect(wrapper.find("[data-chip=status]").text()).toBe("In Progress")
 
     await wrapper.find("[data-chip=date] button").trigger("click")
 
     expect(chips()).toEqual(["project", "status"])
     expect(wrapper.find("[data-chip=status]").text()).toBe("Backlog")
+  })
+
+  it("keeps Ready undated on selection and saves its true status with no day", async () => {
+    const editor = await mountView()
+    editor.vm.$emit("update:content", "Prepared task")
+    editor.vm.$emit("patch", {status: "ready_for_agent"})
+    await flushPromises()
+    expect(chips()).toEqual(["project", "status"])
+    expect(wrapper.find("[data-chip=status]").text()).toBe("Ready for Agent")
+    pressCmdEnter()
+    await flushPromises()
+    expect(bridge["tasks:create"]).toHaveBeenCalledWith(expect.objectContaining({status: "ready_for_agent", scheduled: null}))
+  })
+
+  it("keeps readiness when its explicitly selected day is removed", async () => {
+    const editor = await mountView()
+    editor.vm.$emit("patch", {status: "ready_for_agent"})
+    editor.vm.$emit("patch", {scheduled: {date: "2030-01-02", time: "10:00:00", timezone: "UTC"}})
+    await flushPromises()
+    await wrapper.find("[data-chip=date] button").trigger("click")
+    expect(wrapper.find("[data-chip=status]").text()).toBe("Ready for Agent")
+    expect(chips()).toEqual(["project", "status"])
   })
 
   it("Done without a date is scheduled on today", async () => {
@@ -155,7 +177,7 @@ describe("the Quick task window view", () => {
   it("Cmd+Enter creates the task on today with the picked fields, hides the panel and clears the draft", async () => {
     const editor = await mountView()
     editor.vm.$emit("update:content", "Call the dentist")
-    editor.vm.$emit("patch", {status: "active", estimatedTime: 3600, branchId: "daily"})
+    editor.vm.$emit("patch", {status: "in_progress", estimatedTime: 3600, branchId: "daily"})
     await flushPromises()
 
     pressCmdEnter()
@@ -165,7 +187,7 @@ describe("the Quick task window view", () => {
     expect(bridge["tasks:create"]).toHaveBeenCalledWith(
       expect.objectContaining({
         content: "Call the dentist",
-        status: "active",
+        status: "in_progress",
         estimatedTime: 3600,
         branchId: "daily",
         scheduled: expect.objectContaining({date: getToday()}),

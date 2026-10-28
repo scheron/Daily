@@ -11,7 +11,8 @@ export type SyncRemoteState = {
   lastSyncAt: string | null
   lastError: string | null
 }
-export type TaskStatus = "active" | "backlog" | "discarded" | "done"
+export type TaskStatus = "backlog" | "ready_for_agent" | "in_progress" | "ready_to_merge" | "done" | "cancelled"
+export type BoardMode = "normal" | "agents"
 
 /** How urgent a task is. `none` is a level of its own: every task has one, and a new task starts there. */
 export type TaskPriority = "none" | "urgent" | "high" | "medium" | "low"
@@ -93,6 +94,7 @@ export type Settings = {
     accent: string
     base: string
     taskView: TaskView
+    boardMode: BoardMode
   }
   typography: TypographySettings
   sync: SyncSettings
@@ -170,7 +172,7 @@ export type Task = {
   /** Branch ID (project scope). */
   branchId: Branch["id"]
 
-  /** Null exactly when `status === "backlog"`. Enforced by the rules in `packages/protocol/src/utils/tasks/mutationRules.ts`, nowhere else. */
+  /** Null for Backlog, optional for Ready for Agent, required for every other status. Enforced by the rules in `packages/protocol/src/utils/tasks/mutationRules.ts`, nowhere else. */
   scheduled: TaskScheduled | null
   /**
    * The estimated time of the task in seconds
@@ -294,7 +296,7 @@ export type Milestone = {
   orderIndex: number
 }
 
-/** The counts a milestone's state is derived from. Never stored. `resolved` counts `done` and `discarded` together. */
+/** The counts a milestone's state is derived from. Never stored. `resolved` counts `done` and `cancelled` together. */
 export type MilestoneProgress = {
   total: number
   resolved: number
@@ -316,6 +318,7 @@ export type Day = {
   date: ISODate
   tasks: Task[]
   tags: Tag[]
+  /** Outstanding dated tasks, including both ready stages. */
   countActive: number
   countDone: number
 }
@@ -344,8 +347,10 @@ export type MoveTaskByOrderParams = {
   taskId: Task["id"]
   targetTaskId?: Task["id"] | null
   targetStatus?: TaskStatus
+  /** Display grouping for ordering among mixed true statuses; absent means exact status. */
+  boardMode?: BoardMode
   position?: TaskMovePosition
-  /** The day the board is showing. Used when a move leaves the backlog; required so no caller can omit it silently. */
+  /** The day the board is showing. Scopes ordering and supplies a required day when moving undated work. */
   activeDate: ISODate
   /** The board shows every project in one column, so the move is placed among all of them rather than the task's own project. */
   acrossProjects?: boolean

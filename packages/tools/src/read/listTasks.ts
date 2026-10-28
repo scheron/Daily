@@ -1,3 +1,4 @@
+import {TASK_STATUSES} from "@daily/protocol"
 import {isNumber, isObject} from "@daily/std"
 
 import {taskFiles} from "../attachments"
@@ -10,7 +11,6 @@ import type {Task, TaskStatus} from "@daily/protocol"
 import type {Tool, ToolContext} from "../types"
 import type {TaskView} from "../views"
 
-const TASK_STATUSES = ["active", "backlog", "done", "discarded"] as const
 const DEFAULT_LIMIT = 50
 
 type ListTasksFilters = {
@@ -28,13 +28,13 @@ type ListTasksFilters = {
 export const listTasksTool: Tool = {
   name: "list_tasks",
   description:
-    "Lists tasks across every project, filterable by project, status, one day, a date range, milestone, tag or a search phrase. Dated tasks come first, ordered by day; backlog tasks follow.",
+    "Lists tasks across every project, filterable by project, status, one day, a date range, milestone, tag or a search phrase. Dated tasks come first, ordered by day; undated tasks follow. Ready for Agent can be dated or undated.",
   mode: "read",
   inputSchema: {
     type: "object",
     properties: {
       projectId: {type: "string", description: "Only tasks in this project."},
-      status: {type: "string", description: "Only tasks in this status.", enum: TASK_STATUSES},
+      status: {type: "string", description: "Only tasks in this exact status, independent of Normal / Agents board mode.", enum: TASK_STATUSES},
       date: {type: "string", description: "Only tasks scheduled on this day, YYYY-MM-DD."},
       from: {type: "string", description: "Only tasks scheduled on or after this day, YYYY-MM-DD."},
       to: {type: "string", description: "Only tasks scheduled on or before this day, YYYY-MM-DD."},

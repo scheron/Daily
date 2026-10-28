@@ -1,15 +1,10 @@
 <script setup lang="ts">
+import {TASK_COLUMNS} from "@/constants/ui"
 import BaseButton from "@/ui/base/BaseButton"
 import SearchInput from "./{fragments}/SearchInput.vue"
 
+import type {ButtonColorVariant} from "@/ui/base/BaseButton"
 import type {TasksFilter} from "../../types"
-
-const TASK_FILTERS = [
-  {value: "all", icon: "today", variant: "ghost-muted", activeVariant: "soft"},
-  {value: "active", icon: "fire", variant: "error-ghost", activeVariant: "error-soft"},
-  {value: "discarded", icon: "archive", variant: "warning-ghost", activeVariant: "warning-soft"},
-  {value: "done", icon: "check-check", variant: "success-ghost", activeVariant: "success-soft"},
-] as const
 
 const props = defineProps<{
   filterQuery: string
@@ -27,8 +22,24 @@ function onSelectFilter(filter: TasksFilter) {
   emit("update:filter-status", status)
 }
 
-function getFilterVariant(filter: (typeof TASK_FILTERS)[number]) {
-  return filter.value === props.filterStatus ? filter.activeVariant : filter.variant
+function getTaskFilters() {
+  return [
+    {value: "all" as const, label: "All statuses", icon: "today" as const},
+    ...TASK_COLUMNS.map((column) => ({value: column.status, label: column.label, icon: column.icon})),
+  ]
+}
+
+function getFilterVariant(status: TasksFilter): ButtonColorVariant {
+  const variants: Record<TasksFilter, {selected: ButtonColorVariant; unselected: ButtonColorVariant}> = {
+    all: {selected: "soft", unselected: "ghost-muted"},
+    backlog: {selected: "filter-muted-selected", unselected: "ghost-muted"},
+    ready_for_agent: {selected: "filter-error-selected", unselected: "filter-error"},
+    in_progress: {selected: "filter-primary-selected", unselected: "filter-primary"},
+    ready_to_merge: {selected: "filter-info-selected", unselected: "filter-info"},
+    done: {selected: "filter-success-selected", unselected: "filter-success"},
+    cancelled: {selected: "filter-warning-selected", unselected: "filter-warning"},
+  }
+  return status === props.filterStatus ? variants[status].selected : variants[status].unselected
 }
 </script>
 
@@ -38,9 +49,12 @@ function getFilterVariant(filter: (typeof TASK_FILTERS)[number]) {
 
     <div v-if="hasItems" class="flex items-center gap-2 text-xs">
       <BaseButton
-        v-for="filter in TASK_FILTERS"
+        v-for="filter in getTaskFilters()"
         :key="filter.value"
-        :variant="getFilterVariant(filter)"
+        :variant="getFilterVariant(filter.value)"
+        :aria-label="filter.label"
+        :aria-pressed="filter.value === filterStatus"
+        :tooltip="filter.label"
         :icon="filter.icon"
         size="sm"
         @click="onSelectFilter(filter.value)"

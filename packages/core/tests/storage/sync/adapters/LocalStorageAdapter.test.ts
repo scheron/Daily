@@ -17,7 +17,7 @@ function insertTask(db, id, content, opts = {}) {
   db.prepare(
     `INSERT INTO tasks (id, status, content, minimized, order_index, scheduled_date, scheduled_time, scheduled_timezone, estimated_time, spent_time, branch_id, created_at, updated_at, deleted_at)
      VALUES (?, ?, ?, 0, 0, ?, '', 'UTC', 0, 0, ?, ?, ?, ?)`,
-  ).run(id, opts.status ?? "active", content, opts.date ?? "2026-03-25", opts.branchId ?? "main", now, now, opts.deletedAt ?? null)
+  ).run(id, opts.status ?? "in_progress", content, opts.date ?? "2026-03-25", opts.branchId ?? "main", now, now, opts.deletedAt ?? null)
 }
 
 function insertTag(db, id, name, color = "#ff0000") {
@@ -63,6 +63,22 @@ describe("LocalStorageAdapter", () => {
 
   afterEach(() => {
     db.close()
+  })
+
+  it("imports legacy snapshot statuses through merge and SQLite and publishes v12 with the same task fields", async () => {
+    insertTask(db, "legacy-active", "Keep content", {date: "2026-10-29"})
+    insertTask(db, "legacy-discarded", "Keep cancellation", {status: "cancelled", date: "2026-10-28"})
+    insertTag(db, "legacy-tag", "Keep tag")
+    linkTaskTag(db, "legacy-active", "legacy-tag")
+    const current = await adapter.loadAllDocs()
+    const legacy = {...current, tasks: current.tasks.map((task) => ({...task, status: task.status === "in_progress" ? "active" : "discarded"}))}
+    await adapter.deleteDocs({tasks: ["legacy-active", "legacy-discarded"]})
+    const local = await adapter.loadAllDocs()
+    const merged = mergeRemoteIntoLocal(local, legacy, "pull", 7 * 24 * 60 * 60 * 1000)
+    await adapter.upsertDocs(merged.toUpsert)
+    const restored = await adapter.loadAllDocs()
+    expect(restored.tasks).toEqual(current.tasks)
+    expect(buildSnapshot(restored).version).toBe(12)
   })
 
   describe("loadAllDocs", () => {
@@ -119,7 +135,7 @@ describe("LocalStorageAdapter", () => {
         tasks: [
           {
             id: "t1",
-            status: "active",
+            status: "in_progress",
             content: "Test",
             minimized: false,
             order_index: 1.5,
@@ -200,7 +216,7 @@ describe("LocalStorageAdapter", () => {
         tasks: [
           {
             id: "t1",
-            status: "active",
+            status: "in_progress",
             content: "task",
             minimized: false,
             order_index: 0,
@@ -274,7 +290,7 @@ describe("LocalStorageAdapter", () => {
           tasks: [
             {
               id: "t1",
-              status: "active",
+              status: "in_progress",
               content: "test",
               minimized: false,
               order_index: 0,

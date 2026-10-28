@@ -23,11 +23,13 @@ function getOptionClasses(isActive: boolean, titleClass: string, counterClass: s
 </script>
 
 <template>
-  <div class="flex items-stretch gap-1">
+  <div class="grid grid-cols-2 items-stretch gap-1">
     <button
       v-for="option in TASK_COLUMNS"
       :key="option.status"
       type="button"
+      :aria-pressed="option.status === task.status"
+      :title="option.label"
       :class="getOptionClasses(option.status === task.status, option.titleClass, option.counterClass)"
       @click="selectStatus(option.status)"
     >

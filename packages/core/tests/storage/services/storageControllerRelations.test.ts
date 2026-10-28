@@ -66,7 +66,7 @@ describe("StorageController — relations", () => {
     const p = branchModel.createBranch({name: "P"})
     const q = branchModel.createBranch({name: "Q"})
 
-    const a = taskModel.createTask(makeTaskInput({content: "A", status: "active", branchId: p.id}))
+    const a = taskModel.createTask(makeTaskInput({content: "A", status: "in_progress", branchId: p.id}))
     const c = taskModel.createTask(makeTaskInput({content: "C", status: "done", branchId: p.id}))
     const b = taskModel.createTask(makeTaskInput({content: "B", branchId: p.id}))
     const d = taskModel.createTask(makeTaskInput({content: "D", branchId: p.id}))

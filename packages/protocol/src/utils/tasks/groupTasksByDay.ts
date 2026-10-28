@@ -1,5 +1,6 @@
 import {removeDuplicates} from "@daily/std"
 
+import {isResolvedTaskStatus} from "./board"
 import {sortTasksByOrderIndex} from "./orderIndex"
 
 import type {ISODate} from "../../types/common"
@@ -39,7 +40,7 @@ export function groupTasksByDay(params: {tasks: Task[]; tags: Tag[]}): Day[] {
   return Array.from(taskDates).map((date) => {
     const tasks = sortTasksByOrderIndex(tasksByDay.get(date) || [])
     const tags = tagsByDay.get(date) || []
-    const countActive = tasks.filter((task) => task.status === "active").length
+    const countActive = tasks.filter((task) => !isResolvedTaskStatus(task.status)).length
     const countDone = tasks.filter((task) => task.status === "done").length
 
     return {

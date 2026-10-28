@@ -60,7 +60,7 @@ describe("runAgentTool", () => {
     const seeded = await seedAgentStore(async (mac) => {
       const task = await mac.core.tasksService.createTask({
         content: "Existing",
-        status: "active",
+        status: "in_progress",
         minimized: false,
         orderIndex: 1,
         scheduled: {date: "2026-01-01", time: "09:00:00", timezone: "UTC"},

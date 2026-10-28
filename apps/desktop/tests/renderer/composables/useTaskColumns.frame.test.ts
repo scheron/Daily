@@ -22,6 +22,19 @@ describe("useTaskColumns — the milestone frame", () => {
     vi.restoreAllMocks()
   })
 
+  it("keeps the mixed Normal Backlog chronological in the milestone frame", async () => {
+    board = await mountBoardDrag(
+      [
+        makeTask("backlog", {status: "backlog", scheduled: null, orderIndex: 300}),
+        makeTask("queue", {status: "ready_for_agent", scheduled: null, orderIndex: 100}),
+        makeTask("earlier", {status: "ready_for_agent", scheduled: {date: "2026-01-01"}, orderIndex: 500}),
+        makeTask("later", {status: "ready_for_agent", scheduled: {date: "2030-01-01"}, orderIndex: 1}),
+      ],
+      {frame: "milestone"},
+    )
+    expect(board.columns.tasksByStatus.value.backlog.map((task) => task.id)).toEqual(["queue", "backlog", "earlier", "later"])
+  })
+
   it("shows every task of the active project, with a milestone or without, while no milestone is picked", async () => {
     board = await mountBoardDrag(
       [
@@ -46,7 +59,7 @@ describe("useTaskColumns — the milestone frame", () => {
     board = await mountBoardDrag(
       [
         makeTask("with-milestone"),
-        makeTask("active", {milestoneId: null}),
+        makeTask("in_progress", {milestoneId: null}),
         makeTask("backlog", {milestoneId: null, status: "backlog", scheduled: null}),
         makeTask("done-long-ago", {milestoneId: null, status: "done", scheduled: {date: "2020-01-01", time: "09:00", timezone: "UTC"}}),
         makeTask("other-project", {milestoneId: null, branchId: "other"}),
@@ -64,6 +77,6 @@ describe("useTaskColumns — the milestone frame", () => {
         .flat()
         .map((task) => task.id)
         .sort(),
-    ).toEqual(["active", "backlog", "done-long-ago"])
+    ).toEqual(["backlog", "done-long-ago", "in_progress"])
   })
 })

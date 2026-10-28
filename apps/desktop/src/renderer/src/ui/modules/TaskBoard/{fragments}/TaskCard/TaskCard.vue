@@ -5,6 +5,7 @@ import {NO_PROJECT_ID, sortTags} from "@daily/protocol"
 import {toDateLabel} from "@daily/std"
 
 import {useBoardCardGeometry} from "@/composables/useBoardCardGeometry"
+import {TASK_COLUMNS} from "@/constants/ui"
 import {useBranchesStore} from "@/stores/branches.store"
 import {useFilterStore} from "@/stores/filter.store"
 import {useFocusStore} from "@/stores/focus.store"
@@ -99,15 +100,18 @@ const menuItems = computed<BaseContextMenuItem[]>(() => {
       value: "status",
       label: "Status",
       icon: "circle-pulse",
-      children: [
-        {value: "backlog", label: "Backlog", icon: "bookmark", class: getStatusClass("backlog")},
-        {value: "active", label: "Active", icon: "fire", class: getStatusClass("active")},
-        {value: "done", label: "Done", icon: "check-check", class: getStatusClass("done")},
-        {value: "discarded", label: "Discarded", icon: "archive", class: getStatusClass("discarded")},
-      ],
+      children: TASK_COLUMNS.map((column) => ({
+        value: column.status,
+        label: column.label,
+        icon: column.icon,
+        class: getStatusClass(column.status),
+      })),
     },
     {value: "tags", label: "Tags", icon: "tags", children: true},
     {value: "reschedule", label: "Reschedule", icon: "calendar", children: true},
+    ...(props.task.status === "ready_for_agent" && props.task.scheduled
+      ? [{value: "clear-date", label: "Clear date", icon: "calendar" as const}]
+      : []),
     {separator: true},
     {value: "branch", label: "Project", icon: "project", children: true},
     {value: "milestone", label: "Milestone", icon: "milestone", children: true},
@@ -164,8 +168,10 @@ async function onCardClick() {
 function getStatusClass(status: TaskStatus) {
   if (status !== props.task.status) return ""
 
-  if (status === "active") return "text-error hover:bg-error/10 bg-error/10"
-  if (status === "discarded") return "text-warning hover:bg-warning/10 bg-warning/10 "
+  if (status === "in_progress") return "text-accent hover:bg-accent/10 bg-accent/10"
+  if (status === "ready_for_agent") return "text-error hover:bg-error/10 bg-error/10"
+  if (status === "ready_to_merge") return "text-info hover:bg-info/10 bg-info/10"
+  if (status === "cancelled") return "text-warning hover:bg-warning/10 bg-warning/10 "
   if (status === "done") return "text-success hover:bg-success/10 bg-success/10 "
   if (status === "backlog") return "text-base-content hover:bg-base-content/10 bg-base-content/10 "
   return ""
@@ -176,8 +182,10 @@ function getCardClasses(status: TaskStatus, isInSession: boolean) {
     "bg-base-100 hover:shadow-accent/5 group relative overflow-hidden rounded-2xl border transition-[border-color,box-shadow] duration-200 hover:shadow-lg",
     status === "backlog" && "border-base-content/15 border-dashed",
     status === "done" && "border-success/30 hover:border-success/40",
-    status === "discarded" && "border-warning/30 hover:border-warning/40",
-    status === "active" && "border-error/45 hover:border-error/60",
+    status === "cancelled" && "border-warning/30 hover:border-warning/40",
+    status === "in_progress" && "border-accent/45 hover:border-accent/60",
+    status === "ready_for_agent" && "border-error/45 hover:border-error/60",
+    status === "ready_to_merge" && "border-info/45 hover:border-info/60",
     isInSession && "border-transparent hover:border-transparent",
   )
 }
@@ -194,7 +202,7 @@ function getContentClasses(status: TaskStatus) {
   return cn(
     "relative min-h-0 flex-1 overflow-hidden transition-opacity duration-200",
     !isCompact.value && "board-card-text",
-    (status === "done" || status === "discarded") && "opacity-50",
+    (status === "done" || status === "cancelled") && "opacity-50",
   )
 }
 
@@ -203,6 +211,7 @@ function onSelect(event: BaseContextMenuSelectEvent) {
   if (event.item.value === "move-up") taskModel.moveUp()
   if (event.item.value === "move-down") taskModel.moveDown()
   if (event.item.value === "move-bottom") taskModel.moveToBottom()
+  if (event.item.value === "clear-date") tasksStore.updateTask(props.task.id, {scheduled: null})
   if (event.item.value === "duplicate") taskModel.duplicateTask()
   if (event.item.value === "copy-id") taskModel.copyTaskIdToClipboard()
   if (event.item.value === "copy-content") taskModel.copyTaskContentToClipboard()
@@ -324,7 +333,13 @@ async function onLinkTask(side: keyof TaskRelationSets, taskId: Task["id"]) {
 
     <template #child-reschedule>
       <div class="p-1">
-        <TaskCalendar :days="tasksStore.days" :selected-date="task.scheduled?.date ?? null" @select-date="taskModel.rescheduleTask" />
+        <TaskCalendar
+          :days="tasksStore.days"
+          :selected-date="task.scheduled?.date ?? null"
+          :allow-clear="task.status === 'ready_for_agent'"
+          @select-date="taskModel.rescheduleTask"
+          @clear-date="tasksStore.updateTask(task.id, {scheduled: null})"
+        />
       </div>
     </template>
 

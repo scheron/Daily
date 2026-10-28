@@ -1,5 +1,5 @@
 // @ts-nocheck
-import {describe, expect, it} from "vitest"
+import {describe, expect, it, vi} from "vitest"
 
 import {planTaskCreate, planTaskMoveByOrder, planTaskUpdate} from "../../../src/utils/tasks/mutationRules"
 import {sortTasksByOrderIndex} from "../../../src/utils/tasks/orderIndex"
@@ -32,7 +32,7 @@ function makeTask(overrides: Partial<Task> = {}): Task {
     minimized: false,
     priority: "none",
     orderIndex: 1024,
-    status: "active",
+    status: "in_progress",
     tags: [],
     milestoneId: null,
     attachments: [],
@@ -48,16 +48,16 @@ function applyPatch(task: Task, patch: TaskPatch | undefined): Task {
   return patch ? {...task, ...patch} : task
 }
 
-describe("planTaskUpdate — the D2 biconditional", () => {
-  it("keeps_TC-18_scheduled_null_exactly_when_status_is_backlog_across_every_D2_transition", () => {
+describe("planTaskUpdate — legacy four-status scheduling transitions", () => {
+  it("keeps Backlog undated and supplies a day for the other legacy statuses", () => {
     const cases: Array<{task: Task; updates: Partial<Task>}> = [
-      {task: makeTask({id: "a", status: "active"}), updates: {status: "backlog"}},
+      {task: makeTask({id: "a", status: "in_progress"}), updates: {status: "backlog"}},
       {task: makeTask({id: "b", status: "done"}), updates: {status: "backlog"}},
-      {task: makeTask({id: "c", status: "backlog", scheduled: null}), updates: {status: "active"}},
+      {task: makeTask({id: "c", status: "backlog", scheduled: null}), updates: {status: "in_progress"}},
       {task: makeTask({id: "d", status: "backlog", scheduled: null}), updates: {status: "done"}},
-      {task: makeTask({id: "e", status: "backlog", scheduled: null}), updates: {status: "discarded"}},
+      {task: makeTask({id: "e", status: "backlog", scheduled: null}), updates: {status: "cancelled"}},
       {
-        task: makeTask({id: "f", status: "active"}),
+        task: makeTask({id: "f", status: "in_progress"}),
         updates: {scheduled: {date: "2026-09-20", time: "10:00:00", timezone: "UTC"}},
       },
       {
@@ -186,15 +186,22 @@ describe("planTaskMoveByOrder when no integer gap fits", () => {
         taskId: "x2",
         targetTaskId: "y1",
         position: "before",
-        targetStatus: "active",
+        targetStatus: "in_progress",
         activeDate: day.date,
         acrossProjects: true,
       })
 
       const moved = patches.find((patch) => patch.id === "x2")
-      expect(moved).toMatchObject({status: "active", scheduled: {date: day.date}})
+      expect(moved).toMatchObject({status: "in_progress", scheduled: {date: day.date}})
       expect(
-        orderAfter(tasks, {taskId: "x2", targetTaskId: "y1", position: "before", targetStatus: "active", activeDate: day.date, acrossProjects: true}),
+        orderAfter(tasks, {
+          taskId: "x2",
+          targetTaskId: "y1",
+          position: "before",
+          targetStatus: "in_progress",
+          activeDate: day.date,
+          acrossProjects: true,
+        }),
       ).toEqual(["x1", "x2", "y1"])
     })
 
@@ -204,11 +211,11 @@ describe("planTaskMoveByOrder when no integer gap fits", () => {
         makeTask({id: "b", orderIndex: 11, scheduled: day}),
         backlogTask({id: "c", orderIndex: 500}),
       ]
-      const params = {taskId: "c", targetTaskId: "b", position: "before", targetStatus: "active", activeDate: day.date}
+      const params = {taskId: "c", targetTaskId: "b", position: "before", targetStatus: "in_progress", activeDate: day.date}
 
       const moved = planTaskMoveByOrder(ctxOf(tasks), params).find((patch) => patch.id === "c")
 
-      expect(moved).toMatchObject({status: "active", scheduled: {date: day.date}})
+      expect(moved).toMatchObject({status: "in_progress", scheduled: {date: day.date}})
       expect(orderAfter(tasks, params)).toEqual(["a", "c", "b"])
     })
 
@@ -232,8 +239,8 @@ describe("priority", () => {
   it("a new task starts at none unless the draft names a level", () => {
     const ctx = ctxFor([])
 
-    expect(planTaskCreate(ctx, {status: "active"}).priority).toBe("none")
-    expect(planTaskCreate(ctx, {status: "active", priority: "urgent"}).priority).toBe("urgent")
+    expect(planTaskCreate(ctx, {status: "in_progress"}).priority).toBe("none")
+    expect(planTaskCreate(ctx, {status: "in_progress", priority: "urgent"}).priority).toBe("urgent")
   })
 
   it("an update writes the priority it names and leaves it alone otherwise", () => {
@@ -241,5 +248,93 @@ describe("priority", () => {
 
     expect(planTaskUpdate(ctx, "t1", {priority: "none"})[0].priority).toBe("none")
     expect(planTaskUpdate(ctx, "t1", {content: "x"})[0]).not.toHaveProperty("priority")
+  })
+})
+
+describe("agent readiness scheduling", () => {
+  it("preserves an optional schedule when entering readiness and assigning or clearing its day", () => {
+    const source = makeTask({status: "backlog", scheduled: null})
+    const prepared = applyPatch(source, planTaskUpdate(ctxFor([source]), source.id, {status: "ready_for_agent"})[0])
+    expect(prepared).toMatchObject({status: "ready_for_agent", scheduled: null})
+    const day = {date: "2026-10-29", time: "10:00:00", timezone: "UTC"}
+    const dated = applyPatch(prepared, planTaskUpdate(ctxFor([prepared]), source.id, {scheduled: day})[0])
+    expect(dated).toMatchObject({status: "ready_for_agent", scheduled: day})
+    const cleared = applyPatch(dated, planTaskUpdate(ctxFor([dated]), source.id, {scheduled: null})[0])
+    expect(cleared).toMatchObject({status: "ready_for_agent", scheduled: null})
+    const progress = applyPatch(cleared, planTaskUpdate(ctxFor([cleared]), source.id, {status: "in_progress"})[0])
+    expect(progress.scheduled.date).toBe("2026-09-14")
+    const review = applyPatch(progress, planTaskUpdate(ctxFor([progress]), source.id, {status: "ready_to_merge"})[0])
+    expect(review.scheduled).toEqual(progress.scheduled)
+  })
+})
+
+it("orders a ready task among mixed Normal column neighbors while preserving its true status and day", () => {
+  const ready = makeTask({
+    id: "ready",
+    status: "ready_for_agent",
+    scheduled: {date: "2026-10-29", time: "10:00:00", timezone: "UTC"},
+    orderIndex: 4000,
+  })
+  const before = makeTask({id: "before", status: "backlog", scheduled: null, orderIndex: 1000})
+  const after = makeTask({id: "after", status: "backlog", scheduled: null, orderIndex: 2000})
+  const patch = planTaskMoveByOrder(ctxFor([ready, before, after]), {
+    taskId: "ready",
+    targetTaskId: "after",
+    position: "before",
+    activeDate: "2026-10-29",
+    boardMode: "normal",
+  })[0]
+  const result = applyPatch(ready, patch)
+  expect(result).toMatchObject({status: "ready_for_agent", scheduled: ready.scheduled, orderIndex: 1500})
+})
+
+describe("board ordering among grouped statuses", () => {
+  it("uses the selected day and undated queue when ordering a dated Ready task in Normal Backlog", () => {
+    const scheduled = {date: "2026-09-10", time: "09:00:00", timezone: "UTC"}
+    const tasks = [
+      makeTask({id: "first", status: "backlog", scheduled: null, orderIndex: 100}),
+      makeTask({id: "anchor", status: "ready_for_agent", scheduled: null, orderIndex: 200}),
+      makeTask({id: "other-day", status: "ready_for_agent", scheduled, orderIndex: 199}),
+      makeTask({id: "source", status: "ready_for_agent", scheduled, orderIndex: 300}),
+    ]
+    const patches = planTaskMoveByOrder(ctxFor(tasks), {
+      taskId: "source",
+      targetTaskId: "anchor",
+      activeDate: "2026-09-12",
+      boardMode: "normal",
+    })
+    expect(patches[0]).toEqual({id: "source", orderIndex: 150, scheduled})
+  })
+})
+
+describe("partial Ready scheduling", () => {
+  it("completes the first assigned day and retains it when execution starts", () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-10-29T02:34:56.000Z"))
+    try {
+      const ready = makeTask({status: "ready_for_agent", scheduled: null})
+      const dated = applyPatch(ready, planTaskUpdate(ctxFor([ready]), ready.id, {scheduled: {date: "2026-10-30"}})[0])
+      expect(dated.status).toBe("ready_for_agent")
+      expect(dated.scheduled).toEqual({date: "2026-10-30", time: expect.stringMatching(/^\d{2}:\d{2}:\d{2}$/), timezone: expect.any(String)})
+      expect(dated.scheduled.timezone.length).toBeGreaterThan(0)
+      const started = applyPatch(dated, planTaskUpdate(ctxFor([dated]), dated.id, {status: "in_progress"})[0])
+      expect(started.scheduled).toEqual(dated.scheduled)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("retains stored schedule fields and honors explicitly supplied fields on day assignment", () => {
+    const ready = makeTask({status: "ready_for_agent"})
+    const dated = applyPatch(ready, planTaskUpdate(ctxFor([ready]), ready.id, {scheduled: {date: "2026-10-30"}})[0])
+    expect(dated.scheduled).toEqual({date: "2026-10-30", time: "09:00:00", timezone: "UTC"})
+    const supplied = {date: "2026-10-31", time: "14:20:00", timezone: "Asia/Tokyo"}
+    expect(planTaskUpdate(ctxFor([dated]), dated.id, {scheduled: supplied})[0].scheduled).toEqual(supplied)
+    const undated = makeTask({status: "ready_for_agent", scheduled: null})
+    expect(planTaskUpdate(ctxFor([undated]), undated.id, {scheduled: {date: "2026-10-30", time: "14:20:00"}})[0].scheduled).toEqual({
+      date: "2026-10-30",
+      time: "14:20:00",
+      timezone: expect.any(String),
+    })
   })
 })

@@ -18,7 +18,7 @@ vi.mock("@daily/protocol", async (importOriginal) => ({...(await importOriginal(
 function makeTaskInput(overrides = {}) {
   return {
     id: nanoid(),
-    status: "active",
+    status: "in_progress",
     content: "Test task",
     minimized: false,
     priority: "none",
@@ -57,7 +57,7 @@ describe("TaskModel", () => {
 
     expect(task).not.toBeNull()
     expect(task.content).toBe("Hello world")
-    expect(task.status).toBe("active")
+    expect(task.status).toBe("in_progress")
     expect(task.id).toBeTruthy()
     expect(task.createdAt).toBeTruthy()
     expect(task.updatedAt).toBeTruthy()

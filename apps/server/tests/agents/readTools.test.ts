@@ -109,7 +109,7 @@ describe("list_tasks", () => {
       const byTag = await call(seeded.store, listTasksTool, {tagId})
       expect(byTag.tasks.map((t: any) => t.content)).toEqual(["MainActive"])
 
-      const combined = await call(seeded.store, listTasksTool, {projectId: "main", status: "active", from: "2026-03-01", to: "2026-03-02"})
+      const combined = await call(seeded.store, listTasksTool, {projectId: "main", status: "in_progress", from: "2026-03-01", to: "2026-03-02"})
       expect(combined.tasks.map((t: any) => t.content).sort()).toEqual(["MainActive", "MainActiveOther"])
     } finally {
       seeded.close()
@@ -210,7 +210,7 @@ describe("list_tasks", () => {
       const reopened = await mac.core.tasksService.createTask(dated("2026-01-05", {content: "Reopened"}))
       await mac.core.tasksService.updateTask(reopened!.id, {status: "done"})
       stampCompletionCreatedAt(mac, reopened!.id, "2026-09-21T10:00:00.000Z")
-      await mac.core.tasksService.updateTask(reopened!.id, {status: "active"})
+      await mac.core.tasksService.updateTask(reopened!.id, {status: "in_progress"})
 
       const outOfWindow = await mac.core.tasksService.createTask(dated("2026-01-06", {content: "Outside the window"}))
       await mac.core.tasksService.updateTask(outOfWindow!.id, {status: "done"})
@@ -221,7 +221,7 @@ describe("list_tasks", () => {
       const result = await call(seeded.store, listTasksTool, {completedFrom: "2026-09-20", completedTo: "2026-09-22"})
 
       expect(result.tasks.map((t: any) => t.content)).toEqual(["Reopened"])
-      expect(result.tasks[0].status).toBe("active")
+      expect(result.tasks[0].status).toBe("in_progress")
     } finally {
       seeded.close()
     }
@@ -302,7 +302,7 @@ describe("list_tasks", () => {
     const seeded = await seedAgentStore()
 
     try {
-      await expect(call(seeded.store, listTasksTool, {deleted: true, status: "active"})).rejects.toMatchObject({
+      await expect(call(seeded.store, listTasksTool, {deleted: true, status: "in_progress"})).rejects.toMatchObject({
         code: ToolErrorCode.INVALID_INPUT,
       })
     } finally {

@@ -73,7 +73,7 @@ export async function writeMacSnapshot(store: ServerStore, mac: MacCore, expecte
 export function makeTaskDraft(overrides: Record<string, unknown> = {}): any {
   return {
     content: "Task",
-    status: "active",
+    status: "in_progress",
     minimized: false,
     orderIndex: 1024,
     scheduled: {date: "2026-03-24", time: "09:00:00", timezone: "UTC"},
