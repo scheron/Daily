@@ -13,10 +13,15 @@ import ActionsDock from "@/ui/modules/ActionsDock"
 import CalendarDock from "@/ui/modules/CalendarDock"
 import FocusDock from "@/ui/modules/FocusDock.vue"
 import TagsDock from "@/ui/modules/TagsDock.vue"
+import {cn} from "@/utils/ui/tailwindcss"
+import {useColumnReorder} from "./composables/useColumnReorder"
 import {useDragScroll} from "./composables/useDragScroll"
+import ColumnDragPreview from "./{fragments}/ColumnDragPreview.vue"
 import NoTasksPlaceholder from "./{fragments}/NoTasksPlaceholder.vue"
 import TaskColumn from "./{fragments}/TaskColumn.vue"
 import TaskDragPreview from "./{fragments}/TaskDragPreview.vue"
+
+import type {TaskStatus} from "@daily/protocol"
 
 const emit = defineEmits<{createTask: []}>()
 
@@ -32,10 +37,24 @@ const boardRef = useTemplateRef<HTMLElement>("board")
 
 const columns = useTaskColumns()
 const boardMode = useSettingValue("appearance.boardMode", "normal")
-
-const visibleColumns = computed(() =>
-  TASK_COLUMNS.filter((column) => boardMode.value === "agents" || !["ready_for_agent", "ready_to_merge"].includes(column.status)),
+const columnOrder = useSettingValue(
+  "layout.columnOrder",
+  TASK_COLUMNS.map((column) => column.status),
 )
+
+const {draggingStatus, previewOrder, previewPosition} = useColumnReorder(boardRef)
+
+const visibleColumns = computed(() => {
+  const order = previewOrder.value ?? (Array.isArray(columnOrder.value) ? columnOrder.value : [])
+  const position = (status: (typeof order)[number]) => {
+    const index = order.indexOf(status)
+    return index === -1 ? order.length : index
+  }
+
+  return TASK_COLUMNS.filter((column) => boardMode.value === "agents" || !["ready_for_agent", "ready_to_merge"].includes(column.status)).sort(
+    (left, right) => position(left.status) - position(right.status),
+  )
+})
 
 const framedMilestoneName = computed(() => {
   if (filterStore.frame !== "milestone") return undefined
@@ -55,6 +74,10 @@ const isBoardVisible = computed(() => {
 
 useDragScroll(boardRef)
 
+function getColumnClasses(status: TaskStatus) {
+  return cn(draggingStatus.value === status && "pointer-events-none")
+}
+
 watch(activeDay, () => containerRef.value?.scrollTo({top: 0, behavior: "instant"}))
 </script>
 
@@ -64,7 +87,7 @@ watch(activeDay, () => containerRef.value?.scrollTo({top: 0, behavior: "instant"
 
     <div v-else ref="board" data-task-board class="flex size-full overflow-x-auto overflow-y-hidden">
       <template v-for="(column, index) in visibleColumns" :key="column.status">
-        <TaskColumn :status="column.status" />
+        <TaskColumn :status="column.status" :class="getColumnClasses(column.status)" />
 
         <div
           v-if="
@@ -83,5 +106,6 @@ watch(activeDay, () => containerRef.value?.scrollTo({top: 0, behavior: "instant"
     <ActionsDock @create-task="emit('createTask')" />
     <FocusDock />
     <TaskDragPreview />
+    <ColumnDragPreview v-if="draggingStatus" :status="draggingStatus" :x="previewPosition.x" :y="previewPosition.y" />
   </div>
 </template>

@@ -2,11 +2,9 @@
 import {createPinia, setActivePinia} from "pinia"
 import {beforeEach, describe, expect, it, vi} from "vitest"
 
-import {mockBridgeIPC} from "../../helpers/bridgeIPC"
+import {deepMerge} from "@daily/std"
 
-vi.mock("../../../src/renderer/src/utils/ui/toRawDeep", () => ({
-  toRawDeep: (v) => v,
-}))
+import {mockBridgeIPC} from "../../helpers/bridgeIPC"
 
 let bridge
 
@@ -67,6 +65,59 @@ describe("settingsStore", () => {
         branch: {activeId: "other"},
         themes: {current: "github-dark"},
       })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("keeps successive save batches independent across revalidation and external settings changes", async () => {
+    const store = await getStore()
+    let persisted = JSON.parse(JSON.stringify(store.settings))
+    const batches = []
+    bridge["settings:load"].mockImplementation(async () => JSON.parse(JSON.stringify(persisted)))
+    bridge["settings:save"].mockImplementation(async (updates) => {
+      const batch = JSON.parse(JSON.stringify(updates))
+      batches.push(batch)
+      persisted = deepMerge(persisted, JSON.parse(JSON.stringify(batch)))
+    })
+    vi.useFakeTimers()
+    try {
+      store.updateSettings({branch: {activeId: "gate", isAllProjects: false}})
+      store.updateSettings({themes: {current: "github-dark"}})
+      await vi.advanceTimersByTimeAsync(300)
+      store.updateSettings({branch: {isAllProjects: true}})
+      await vi.advanceTimersByTimeAsync(300)
+      persisted.branch = {activeId: "main", isAllProjects: false}
+      await store.revalidate()
+      store.updateSettings({appearance: {boardMode: "agents"}})
+      await vi.advanceTimersByTimeAsync(300)
+      await store.revalidate()
+      expect(store.settings.branch).toEqual({activeId: "main", isAllProjects: false})
+      store.updateSettings({layout: {sectionsCollapsed: {done: true}}})
+      store.updateSettings({layout: {sectionsCollapsed: {cancelled: true}}})
+      store.updateSettings({appearance: {taskView: "compact"}})
+      await store.flush()
+      const order = ["done", "backlog", "ready_for_agent", "in_progress", "ready_to_merge", "cancelled"]
+      store.updateSettings({layout: {columnOrder: order}})
+      await vi.advanceTimersByTimeAsync(300)
+      persisted.branch = {activeId: "external", isAllProjects: false}
+      persisted.themes.current = "github-light"
+      persisted.appearance = {boardMode: "normal", taskView: "regular"}
+      persisted.layout = {sectionsCollapsed: {done: false}, columnOrder: [...order].reverse()}
+      const external = JSON.parse(JSON.stringify(persisted))
+      await store.revalidate()
+      store.updateSettings({typography: {fontSize: "large"}})
+      await store.flush()
+      await store.revalidate()
+      expect(store.settings).toEqual({...external, typography: {fontSize: "large"}})
+      expect(batches).toEqual([
+        {branch: {activeId: "gate", isAllProjects: false}, themes: {current: "github-dark"}},
+        {branch: {isAllProjects: true}},
+        {appearance: {boardMode: "agents"}},
+        {layout: {sectionsCollapsed: {done: true, cancelled: true}}, appearance: {taskView: "compact"}},
+        {layout: {columnOrder: ["done", "backlog", "ready_for_agent", "in_progress", "ready_to_merge", "cancelled"]}},
+        {typography: {fontSize: "large"}},
+      ])
     } finally {
       vi.useRealTimers()
     }

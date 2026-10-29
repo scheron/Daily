@@ -4,6 +4,7 @@ import {
   DEFAULT_BASE_ID,
   DEFAULT_QUICK_TASK_HOTKEY,
   NO_PROJECT_ID,
+  TASK_STATUSES,
   WINDOWS_CONFIG,
 } from "@daily/protocol"
 import {deepMerge, isNumber, notNull} from "@daily/std"
@@ -250,6 +251,7 @@ export function getDefaultSettings(): Settings {
     ai: null,
     branch: {activeId: NO_PROJECT_ID, isAllProjects: false},
     layout: {
+      columnOrder: [...TASK_STATUSES],
       sectionsCollapsed: {in_progress: false, cancelled: false, done: false, backlog: false, ready_for_agent: false, ready_to_merge: false},
     },
     quickTask: {isEnabled: true, hotkey: DEFAULT_QUICK_TASK_HOTKEY},
@@ -282,20 +284,27 @@ export function rowToSettings(row: SettingsRow): Settings {
   const defaults = getDefaultSettings()
   try {
     const parsed = migrateSettingsShape(JSON.parse(row.data))
-    return normalizeSettingsTaskView(deepMerge<Settings>(defaults, parsed))
+    return normalizeSettings(deepMerge<Settings>(defaults, parsed))
   } catch {
     return defaults
   }
 }
 
-/** Resolves older or unknown task views without discarding other saved preferences. */
-export function normalizeSettingsTaskView(settings: Settings): Settings {
+/** Keeps known column positions once and appends missing statuses in canonical order. */
+export function normalizeSettings(settings: Settings): Settings {
+  const savedOrder = settings.layout?.columnOrder
+  const columnOrder = Array.isArray(savedOrder) ? savedOrder.filter((status) => TASK_STATUSES.includes(status)) : []
+
   return {
     ...settings,
     appearance: {
       ...settings.appearance,
       taskView: settings.appearance?.taskView === "compact" ? "compact" : "regular",
       boardMode: settings.appearance?.boardMode === "agents" ? "agents" : "normal",
+    },
+    layout: {
+      ...settings.layout,
+      columnOrder: [...new Set([...columnOrder, ...TASK_STATUSES])],
     },
   }
 }

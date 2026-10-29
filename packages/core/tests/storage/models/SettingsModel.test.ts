@@ -70,6 +70,86 @@ describe("SettingsModel", () => {
     })
   })
 
+  it("opens old settings with every column in the original order while retaining collapse and appearance", () => {
+    const data = JSON.stringify({layout: {sectionsCollapsed: {done: true}}, appearance: {mode: "dark"}})
+    db.prepare("INSERT INTO settings (id, version, data, created_at, updated_at) VALUES ('default', 'v', ?, 'now', 'now')").run(data)
+
+    for (const settings of [settingsModel.loadSettings(), rowToSettings({data} as any)]) {
+      expect(settings.layout.columnOrder).toEqual(["backlog", "ready_for_agent", "in_progress", "ready_to_merge", "done", "cancelled"])
+      expect(settings.layout.sectionsCollapsed.done).toBe(true)
+      expect(settings.appearance.mode).toBe("dark")
+    }
+  })
+
+  it("keeps known column positions once and appends missing statuses in their original order", () => {
+    const data = JSON.stringify({layout: {columnOrder: ["done", "unknown", "backlog", "done", null, "ready_to_merge"]}})
+    db.prepare("INSERT INTO settings (id, version, data, created_at, updated_at) VALUES ('default', 'v', ?, 'now', 'now')").run(data)
+
+    for (const settings of [settingsModel.loadSettings(), rowToSettings({data} as any)]) {
+      expect(settings.layout.columnOrder).toEqual(["done", "backlog", "ready_to_merge", "ready_for_agent", "in_progress", "cancelled"])
+    }
+  })
+
+  it("falls back to the original order for a non-array without discarding other settings", () => {
+    const data = JSON.stringify({layout: {columnOrder: "done", sectionsCollapsed: {cancelled: true}}, branch: {activeId: "project-a"}})
+    db.prepare("INSERT INTO settings (id, version, data, created_at, updated_at) VALUES ('default', 'v', ?, 'now', 'now')").run(data)
+
+    for (const settings of [settingsModel.loadSettings(), rowToSettings({data} as any)]) {
+      expect(settings.layout.columnOrder).toEqual(["backlog", "ready_for_agent", "in_progress", "ready_to_merge", "done", "cancelled"])
+      expect(settings.layout.sectionsCollapsed.cancelled).toBe(true)
+      expect(settings.branch.activeId).toBe("project-a")
+    }
+  })
+
+  it("normalizes replacement column orders on save and keeps them through unrelated saves and real SQLite reopens", async () => {
+    const directory = mkdtempSync("/tmp/daily-column-order-settings-")
+    try {
+      const filename = join(directory, "settings.sqlite")
+      db.exec(`VACUUM INTO '${filename}'`)
+      db.close()
+      db = new Database(filename)
+      settingsModel = new SettingsModel(db)
+      settingsModel.saveSettings({layout: {columnOrder: ["cancelled", "backlog"], sectionsCollapsed: {done: true}}} as any)
+      settingsModel.saveSettings({layout: {columnOrder: ["ready_to_merge", "done", "done", "unknown"]}} as any)
+      settingsModel.saveSettings({appearance: {mode: "dark"}, branch: {activeId: "project-a", isAllProjects: true}} as any)
+      expect(JSON.parse(db.prepare("SELECT data FROM settings WHERE id = 'default'").get().data).layout.columnOrder).toEqual([
+        "ready_to_merge",
+        "done",
+        "backlog",
+        "ready_for_agent",
+        "in_progress",
+        "cancelled",
+      ])
+      db.close()
+      db = new Database(filename)
+      settingsModel = new SettingsModel(db)
+
+      const settings = settingsModel.loadSettings()
+      expect(settings.layout.columnOrder).toEqual(["ready_to_merge", "done", "backlog", "ready_for_agent", "in_progress", "cancelled"])
+      expect(settings.layout.sectionsCollapsed.done).toBe(true)
+      expect(settings.appearance.mode).toBe("dark")
+      expect(settings.branch).toEqual({activeId: "project-a", isAllProjects: true})
+      const docs = await new LocalStorageAdapter(db, new FileModel(db, directory)).loadAllDocs()
+      expect(buildSnapshot(docs).docs).not.toHaveProperty("settings")
+    } finally {
+      rmSync(directory, {recursive: true, force: true})
+    }
+  })
+
+  it("treats an empty saved order as missing every status rather than retaining a previous order", () => {
+    settingsModel.saveSettings({layout: {columnOrder: ["done", "backlog"]}} as any)
+    settingsModel.saveSettings({layout: {columnOrder: []}} as any)
+
+    expect(settingsModel.loadSettings().layout.columnOrder).toEqual([
+      "backlog",
+      "ready_for_agent",
+      "in_progress",
+      "ready_to_merge",
+      "done",
+      "cancelled",
+    ])
+  })
+
   it("migrates legacy themes with regular cards while retaining the selected project", () => {
     db.prepare("INSERT INTO settings (id, version, data, created_at, updated_at) VALUES ('default', 'v', ?, 'now', 'now')").run(
       JSON.stringify({themes: {current: "github-dark", useSystem: false}, branch: {activeId: "project-a"}}),

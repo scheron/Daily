@@ -7,9 +7,11 @@ import {useSettingsStore} from "@/stores/settings.store"
 import type {Settings} from "@daily/protocol"
 
 type FlattenObjectPaths<T extends object, Prefix extends string = ""> = {
-  [K in keyof T]: T[K] extends object
-    ? FlattenObjectPaths<T[K], `${Prefix}${Prefix extends "" ? "" : "."}${K & string}`>
-    : `${Prefix}${Prefix extends "" ? "" : "."}${K & string}`
+  [K in keyof T]: T[K] extends readonly unknown[]
+    ? `${Prefix}${Prefix extends "" ? "" : "."}${K & string}`
+    : T[K] extends object
+      ? FlattenObjectPaths<T[K], `${Prefix}${Prefix extends "" ? "" : "."}${K & string}`>
+      : `${Prefix}${Prefix extends "" ? "" : "."}${K & string}`
 }[keyof T]
 
 type SettingsKey = FlattenObjectPaths<Settings>

@@ -23,7 +23,7 @@ export const useSettingsStore = defineStore("settings", () => {
       }
     },
     300,
-    (acc, item) => deepMerge(acc, item) as Partial<SettingsView>,
+    (acc, item) => deepMerge(toRawDeep(acc), toRawDeep(item)) as Partial<SettingsView>,
     {},
   )
 

@@ -20,7 +20,7 @@ export function useDragScroll(target: Readonly<ShallowRef<HTMLElement | null>>) 
 
     const container = target.value
     if (!container || event.button !== 0) return
-    if (event.target instanceof HTMLElement && event.target.closest(ignoreSelector)) return
+    if (event.target instanceof Element && event.target.closest(ignoreSelector)) return
 
     active = true
     engaged = false

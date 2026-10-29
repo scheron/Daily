@@ -3,13 +3,7 @@ import {nanoid} from "nanoid"
 import {deepMerge} from "@daily/std"
 
 import {logger} from "../../utils/logger"
-import {
-  getDefaultSettings,
-  getDefaultSyncSettings,
-  getDefaultTypographySettings,
-  migrateSettingsShape,
-  normalizeSettingsTaskView,
-} from "./_rowMappers"
+import {getDefaultSettings, getDefaultSyncSettings, getDefaultTypographySettings, migrateSettingsShape, normalizeSettings} from "./_rowMappers"
 
 import type {Settings, SyncSettings, TypographySettings} from "@daily/protocol"
 import type {SqliteDriver} from "../../database/SqliteDriver"
@@ -27,7 +21,7 @@ export class SettingsModel {
     try {
       const parsed = migrateSettingsShape(JSON.parse(row.data))
       const {sync: _sync, typography: _typography, ...syncable} = parsed
-      return {...normalizeSettingsTaskView(deepMerge<Settings>(defaults, syncable)), sync, typography}
+      return {...normalizeSettings(deepMerge<Settings>(defaults, syncable)), sync, typography}
     } catch {
       return {...defaults, sync, typography}
     }
@@ -35,7 +29,9 @@ export class SettingsModel {
 
   saveSettings(partial: Partial<Settings>) {
     const current = this.loadSettings()
-    const merged = normalizeSettingsTaskView(deepMerge<Settings>(current, partial))
+    const updated = deepMerge<Settings>(current, partial)
+    if (partial.layout && "columnOrder" in partial.layout) updated.layout.columnOrder = partial.layout.columnOrder
+    const merged = normalizeSettings(updated)
     merged.version = nanoid()
     const {sync, typography, ...syncable} = merged
     const now = new Date().toISOString()

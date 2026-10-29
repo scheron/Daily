@@ -105,6 +105,7 @@ export type Settings = {
     isAllProjects: boolean
   }
   layout: {
+    columnOrder: TaskStatus[]
     /** Manual collapse state per status. */
     sectionsCollapsed: Record<TaskStatus, boolean>
   }

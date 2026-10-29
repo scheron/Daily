@@ -47,14 +47,14 @@ function getContainerClasses(isCollapsed: boolean) {
 
 function getRailClasses(titleClass: string) {
   return cn(
-    "dock-surface focus-visible-accent hover:bg-base-200/60 mx-3 mt-14 flex w-11 cursor-pointer flex-col items-center gap-2 rounded-full py-2.5 transition-colors outline-none",
+    "dock-surface focus-visible-accent hover:bg-base-200/60 mx-3 mt-14 flex w-11 touch-none cursor-grab flex-col items-center gap-2 rounded-full py-2.5 transition-colors outline-none",
     titleClass,
   )
 }
 
 function getHeaderClasses(titleClass: string) {
   return cn(
-    "focus-visible-accent absolute inset-x-0 top-14 z-10 flex h-9 cursor-pointer items-center justify-between px-4 transition-colors outline-none",
+    "focus-visible-accent absolute inset-x-0 top-14 z-10 flex h-9 touch-none cursor-grab items-center justify-between px-4 transition-colors outline-none",
     titleClass,
   )
 }
@@ -80,20 +80,31 @@ function getListClasses(isCollapsed: boolean) {
     <button
       v-if="collapsed"
       type="button"
+      data-column-drag-handle
       aria-expanded="false"
-      :title="column.label"
+      :title="`${column.label}: click to expand, drag to reorder`"
       :aria-label="`${column.label} column, ${tasksCount} tasks`"
       :class="getRailClasses(column.titleClass)"
       @click="onToggle"
     >
+      <BaseIcon name="drag-vertical" class="text-base-content/40 size-3.5" />
       <BaseIcon :name="column.icon" class="size-4" />
       <span :class="getCounterClasses(column.counterClass)">
         {{ tasksCount }}
       </span>
     </button>
 
-    <button v-else type="button" aria-expanded="true" :class="getHeaderClasses(column.titleClass)" @click="onToggle">
+    <button
+      v-else
+      type="button"
+      data-column-drag-handle
+      aria-expanded="true"
+      :title="`${column.label}: click to collapse, drag to reorder`"
+      :class="getHeaderClasses(column.titleClass)"
+      @click="onToggle"
+    >
       <span class="flex items-center gap-2">
+        <BaseIcon name="drag-vertical" class="text-base-content/40 size-3.5" />
         <BaseIcon :name="column.icon" class="size-4" />
         <span class="text-sm font-medium uppercase tracking-wide">{{ column.label }}</span>
       </span>
