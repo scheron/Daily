@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.33.0 - 2026-10-29
+
+### ✨ New Features
+
+- **Subtasks** — a task can hold subtasks in a new Subtasks tab next to Comments and History.
+  - A subtask is a note with its own markdown and images, marked To do or Done. Its day, status, project and tags come from its task, and it never appears on the board.
+  - Add subtask and ✎ open an editor that fills the tab, with Cancel and Save.
+  - Make a task turns a subtask that has outgrown it into a task of its own, with its parent's status, day, project, milestone and tags, and opens it.
+  - The card shows how many subtasks are done, like 2/4.
+  - Agents and the Daily Assistant read, add, check off and delete subtasks.
+- **Agent workflow** — tasks have six statuses: Backlog, Ready for Agent, In Progress, Ready to Merge, Done and Cancelled. Active is now In Progress, and Discarded is now Cancelled.
+  - Ready for Agent marks work prepared for an agent, with or without a day; Ready to Merge marks work waiting for review.
+  - Settings → General → Board View shows four columns (Default), with Ready for Agent under Backlog and Ready to Merge under In Progress, or all six (Agents). Switching changes only the view: every task keeps its status and day.
+  - Agents and the Daily Assistant read and set all six statuses.
+- **Column order** — drag the board's columns into the order you like, in both board views, in Days and in Milestones. The order and each column's collapsed state are kept across launches.
+
+### 🎨 Improvements
+
+- **Interface Size** — Settings → General → Task view is now Interface Size. Compact also narrows the board's columns by about 30%, so more of them fit on screen.
+- **Settings** — every switch in Settings works from the keyboard with the arrow keys, and VoiceOver reads which option is on.
+- **Sync** — Sync writes a new format, so every Mac has to be updated: one still on an earlier version stops syncing until it is. A self-hosted Daily Sync Server has to be upgraded first, or agents are told the server is out of date.
+
+---
+
 ## v0.32.0 - 2026-10-15
 
 ### ✨ New Features
