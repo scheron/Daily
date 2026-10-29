@@ -279,7 +279,7 @@ a { color: var(--mac); }
   <text class="t" x="478" y="484">ToolExecutor + registry</text>
   <text x="478" y="506">validateToolArguments against the schema</text>
   <text x="478" y="524"><tspan class="m">tool.execute(params, {storage, now})</tspan></text>
-  <text x="478" y="542">20 tools: @daily/tools' 18 (read,</text>
+  <text x="478" y="542">22 tools: @daily/tools' 20 (read,</text>
   <text x="478" y="560">write, delete) + respond, read_url</text>
 
   <rect class="box plain" x="784" y="464" width="200" height="110" rx="12"/>
@@ -463,7 +463,7 @@ a { color: var(--mac); }
 <h2>Tools, modes, comparison</h2>
 <div class="grid2">
   <div class="card">
-    <h3>20 tools</h3>
+    <h3>22 tools</h3>
     <div style="display:flex;gap:14px;font-size:12px;color:var(--muted)"><span><span class="chip x">…</span> destructive — Confirm</span><span><span class="chip e">…</span> network</span><span><span class="chip m">…</span> protocol</span></div>
     <div class="cat">tasks</div>
     <div class="chips">
@@ -472,6 +472,10 @@ a { color: var(--mac); }
     <div class="cat">comments</div>
     <div class="chips">
       <span class="chip">save_comment</span><span class="chip x">delete_comment</span>
+    </div>
+    <div class="cat">subtasks</div>
+    <div class="chips">
+      <span class="chip">save_subtask</span><span class="chip x">delete_subtask</span>
     </div>
     <div class="cat">projects</div>
     <div class="chips">
@@ -529,8 +533,8 @@ a { color: var(--mac); }
     <tr><td>apps/desktop/src/main/ai/AIController.ts</td><td>the <code>sendMessage</code> loop, tool_choice, confirmations, persistTurn</td></tr>
     <tr><td>apps/desktop/src/main/ai/hooks/</td><td>HookChain: transformContext, before/afterToolCall</td></tr>
     <tr><td>apps/desktop/src/main/ai/policy/</td><td>policyHook, describeToolCall for the card, the 30 s timeout</td></tr>
-    <tr><td>apps/desktop/src/main/ai/tools/</td><td>registry/ (20 tools: <code>@daily/tools</code> wrapped + <code>respond</code>, <code>read_url</code>), ToolExecutor.ts, compat.ts (the compat parser)</td></tr>
-    <tr><td>packages/tools/</td><td>the shared 18 tools, run the same way by an MCP agent</td></tr>
+    <tr><td>apps/desktop/src/main/ai/tools/</td><td>registry/ (22 tools: <code>@daily/tools</code> wrapped + <code>respond</code>, <code>read_url</code>), ToolExecutor.ts, compat.ts (the compat parser)</td></tr>
+    <tr><td>packages/tools/</td><td>the shared 20 tools, run the same way by an MCP agent</td></tr>
     <tr><td>apps/desktop/src/main/ai/clients/</td><td>OpenAiCompatibleClient, RemoteAiClient, LocalAiClient + LlamaServer</td></tr>
     <tr><td>apps/desktop/src/main/ai/memory/</td><td>ConversationCompactor, restoring history at startup</td></tr>
     <tr><td>apps/desktop/src/main/ai/web/</td><td>SafeWebFetcher, read limits, the untrusted wrapper</td></tr>

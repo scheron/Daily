@@ -3,7 +3,7 @@ import {describe, expect, it} from "vitest"
 import {findTool, TOOLS} from "../src/index"
 
 describe("the shared tool registry", () => {
-  it("holds exactly the eighteen tools once each, reads before writes, each with a name, a description, a mode and an object input schema", () => {
+  it("holds exactly the twenty tools once each, reads before writes, each with a name, a description, a mode and an object input schema", () => {
     expect(TOOLS.map((tool) => tool.name)).toEqual([
       "list_tasks",
       "get_task",
@@ -15,6 +15,8 @@ describe("the shared tool registry", () => {
       "delete_task",
       "save_comment",
       "delete_comment",
+      "save_subtask",
+      "delete_subtask",
       "save_project",
       "delete_project",
       "save_milestone",

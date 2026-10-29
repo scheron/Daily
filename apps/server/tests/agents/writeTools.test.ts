@@ -18,6 +18,7 @@ const deleteAttachmentTool = findTool("delete_attachment")!
 const deleteCommentTool = findTool("delete_comment")!
 const deleteMilestoneTool = findTool("delete_milestone")!
 const deleteProjectTool = findTool("delete_project")!
+const deleteSubtaskTool = findTool("delete_subtask")!
 const deleteTagTool = findTool("delete_tag")!
 const deleteTaskTool = findTool("delete_task")!
 const getAttachmentTool = findTool("get_attachment")!
@@ -26,6 +27,7 @@ const saveAttachmentTool = findTool("save_attachment")!
 const saveCommentTool = findTool("save_comment")!
 const saveMilestoneTool = findTool("save_milestone")!
 const saveProjectTool = findTool("save_project")!
+const saveSubtaskTool = findTool("save_subtask")!
 const saveTagTool = findTool("save_tag")!
 const saveTaskTool = findTool("save_task")!
 
@@ -759,7 +761,92 @@ describe("save_attachment", () => {
   })
 })
 
+describe("save_subtask and delete_subtask", () => {
+  it("adds subtasks in order, edits one, checks and unchecks it, and get_task shows the result", async () => {
+    let taskId = ""
+    const seeded = await seedAgentStore(async (mac) => {
+      taskId = (await mac.core.tasksService.createTask(dated("2026-01-01", {content: "Parent"})))!.id
+    })
+
+    try {
+      const agent = bindAgent(seeded.store)
+      const first = (await call({store: seeded.store}, agent, saveSubtaskTool, {taskId, content: "one"})).subtask
+      const second = (await call({store: seeded.store}, agent, saveSubtaskTool, {taskId, content: "two", done: true})).subtask
+      expect([first.done, second.done]).toEqual([false, true])
+
+      await call({store: seeded.store}, agent, saveSubtaskTool, {id: first.id, content: "one, edited"})
+      await call({store: seeded.store}, agent, saveSubtaskTool, {id: first.id, done: true})
+      await call({store: seeded.store}, agent, saveSubtaskTool, {id: second.id, done: false})
+
+      const task = await call({store: seeded.store}, agent, getTaskTool, {id: taskId})
+      expect(task.subtasks.map((s: any) => [s.content, s.done])).toEqual([
+        ["one, edited", true],
+        ["two", false],
+      ])
+    } finally {
+      seeded.close()
+    }
+  })
+
+  it("refuses a blank text, a missing task and a missing subtask", async () => {
+    let taskId = ""
+    const seeded = await seedAgentStore(async (mac) => {
+      taskId = (await mac.core.tasksService.createTask(dated("2026-01-01", {content: "Parent"})))!.id
+    })
+
+    try {
+      const agent = bindAgent(seeded.store)
+      await expectRejectsWithAgentError(call({store: seeded.store}, agent, saveSubtaskTool, {taskId, content: "  "}))
+      await expectRejectsWithAgentError(call({store: seeded.store}, agent, saveSubtaskTool, {taskId: "DT-none", content: "x"}))
+      await expectRejectsWithAgentError(call({store: seeded.store}, agent, saveSubtaskTool, {id: "DS-none", done: true}))
+      await expectRejectsWithAgentError(call({store: seeded.store}, agent, deleteSubtaskTool, {id: "DS-none"}))
+    } finally {
+      seeded.close()
+    }
+  })
+
+  it("delete_subtask removes the subtask from get_task", async () => {
+    let taskId = ""
+    const seeded = await seedAgentStore(async (mac) => {
+      taskId = (await mac.core.tasksService.createTask(dated("2026-01-01", {content: "Parent"})))!.id
+    })
+
+    try {
+      const agent = bindAgent(seeded.store)
+      const {subtask} = await call({store: seeded.store}, agent, saveSubtaskTool, {taskId, content: "gone soon"})
+
+      const result = await call({store: seeded.store}, agent, deleteSubtaskTool, {id: subtask.id})
+      expect(result.id).toBe(subtask.id)
+
+      const task = await call({store: seeded.store}, agent, getTaskTool, {id: taskId})
+      expect(task.subtasks).toEqual([])
+    } finally {
+      seeded.close()
+    }
+  })
+})
+
 describe("delete_attachment", () => {
+  it("refuses to delete a file only a subtask still links to, and leaves the file whole", async () => {
+    let fileId = ""
+
+    const seeded = await seedAgentStore(async (mac) => {
+      fileId = await mac.core.filesService.saveFile("in-subtask.png", makePngBytes())
+      const task = await mac.core.tasksService.createTask(dated("2026-01-01", {content: "No image here"}))
+      await mac.core.subtasksService.createSubtask(task!.id, `Shows ![shot](${APP_CONFIG.filesProtocol}/${fileId})`)
+    })
+
+    try {
+      await putOnServer(seeded.store, fileId, "png", makePngBytes())
+      const agent = bindAgent(seeded.store)
+
+      await expectRejectsWithAgentError(call({store: seeded.store}, agent, deleteAttachmentTool, {id: fileId}))
+      expect(await readdir(assetsDir(seeded.store))).toContain(`${fileId}.png`)
+    } finally {
+      seeded.close()
+    }
+  })
+
   it("TC-4: soft-deletes a file nothing references, keeping its bytes, and get_attachment then answers ATTACHMENT_UNAVAILABLE", async () => {
     let fileId = ""
 

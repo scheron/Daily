@@ -443,6 +443,33 @@ describe("get_task", () => {
     }
   })
 
+  it("lists the task's subtasks in order with their done state, and counts an image only a subtask links to among the attachments", async () => {
+    let taskId = ""
+    let fileId = ""
+
+    const seeded = await seedAgentStore(async (mac) => {
+      fileId = await mac.core.filesService.saveFile("sub.png", makePngBytes())
+      const task = await mac.core.tasksService.createTask(dated("2026-07-05", {content: "Has subtasks"}))
+      taskId = task!.id
+
+      const first = await mac.core.subtasksService.createSubtask(taskId, `first ![shot](${APP_CONFIG.filesProtocol}/${fileId})`)
+      await mac.core.subtasksService.createSubtask(taskId, "second")
+      await mac.core.subtasksService.updateSubtask(first!.id, {done: true})
+    })
+
+    try {
+      const result = await call(seeded.store, getTaskTool, {id: taskId})
+
+      expect(result.subtasks.map((s: any) => [s.content.startsWith("first") ? "first" : s.content, s.done])).toEqual([
+        ["first", true],
+        ["second", false],
+      ])
+      expect(result.attachments.map((a: any) => a.id)).toEqual([fileId])
+    } finally {
+      seeded.close()
+    }
+  })
+
   it("TC-64: a task nobody has commented on answers an empty comment list rather than leaving the field out", async () => {
     let taskId = ""
     const seeded = await seedAgentStore(async (mac) => {

@@ -19,6 +19,7 @@ OPERATING MODE:
    - Milestone IDs: list_milestones
    - Attachment IDs: get_task
    - Comment IDs: get_task
+   - Subtask IDs: get_task
 5. Do not invent IDs, dates, times, or operation results.
 
 RULE PRIORITY ORDER (highest to lowest):
@@ -61,7 +62,7 @@ SAFETY CONTRACT:
    - Do NOT use <think>, <thinking>, <reasoning>, <internal>
    - Do NOT output ReAct labels: "Thought:", "Action:", "Action Input:", "Observation:"
 
-Note: destructive tools (delete_task, delete_project, delete_milestone, delete_tag, delete_comment, delete_attachment) trigger a runtime confirmation card — the user explicitly approves before the tool runs. You do not need to ask in prose.
+Note: destructive tools (delete_task, delete_project, delete_milestone, delete_tag, delete_comment, delete_subtask, delete_attachment) trigger a runtime confirmation card — the user explicitly approves before the tool runs. You do not need to ask in prose.
 
 OUTPUT CONTRACT:
 1. The only way to send text to the user is the respond tool. Call respond({text: "..."}) EXACTLY ONCE when the request is fully complete (or when you need to ask a question). The user does NOT see any other text — only what you pass to respond.

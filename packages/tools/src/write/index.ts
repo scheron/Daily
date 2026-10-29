@@ -2,12 +2,14 @@ import {deleteAttachmentTool} from "./deleteAttachment"
 import {deleteCommentTool} from "./deleteComment"
 import {deleteMilestoneTool} from "./deleteMilestone"
 import {deleteProjectTool} from "./deleteProject"
+import {deleteSubtaskTool} from "./deleteSubtask"
 import {deleteTagTool} from "./deleteTag"
 import {deleteTaskTool} from "./deleteTask"
 import {saveAttachmentTool} from "./saveAttachment"
 import {saveCommentTool} from "./saveComment"
 import {saveMilestoneTool} from "./saveMilestone"
 import {saveProjectTool} from "./saveProject"
+import {saveSubtaskTool} from "./saveSubtask"
 import {saveTagTool} from "./saveTag"
 import {saveTaskTool} from "./saveTask"
 
@@ -18,6 +20,8 @@ export const WRITE_TOOLS: readonly Tool[] = [
   deleteTaskTool,
   saveCommentTool,
   deleteCommentTool,
+  saveSubtaskTool,
+  deleteSubtaskTool,
   saveProjectTool,
   deleteProjectTool,
   saveMilestoneTool,

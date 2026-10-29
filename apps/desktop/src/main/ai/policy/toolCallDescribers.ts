@@ -60,6 +60,11 @@ export const TOOL_CALL_DESCRIBERS: Record<string, ToolCallDescriber> = {
     summary: `Delete comment ${str(p.id)}. It is removed from the task it was written on.`,
     details: [`Comment ID: ${str(p.id)}`],
   }),
+  delete_subtask: async (p) => ({
+    title: "Delete subtask",
+    summary: `Delete subtask ${str(p.id)}. It is removed from the task it belongs to.`,
+    details: [`Subtask ID: ${str(p.id)}`],
+  }),
   delete_attachment: async (p, storage) => {
     const id = str(p.id)
     const label = await safeLabel(async () => (await storage.getFiles([id]))[0]?.name ?? null, id)

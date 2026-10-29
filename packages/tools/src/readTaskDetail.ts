@@ -7,7 +7,7 @@ import type {Task} from "@daily/protocol"
 import type {ToolContext} from "./types"
 import type {TaskDetailView} from "./views"
 
-/** Reads one task in full — project name, both relation sides, history, attachments and comments — or throws `NOT_FOUND`. */
+/** Reads one task in full — project name, both relation sides, history, attachments, comments and subtasks — or throws `NOT_FOUND`. */
 export async function readTaskDetail(ctx: ToolContext, id: Task["id"]): Promise<TaskDetailView> {
   const task = await ctx.workStorage.getTask(id)
   if (!task) throw new ToolError(ToolErrorCode.NOT_FOUND, `No task "${id}".`)
@@ -16,6 +16,7 @@ export async function readTaskDetail(ctx: ToolContext, id: Task["id"]): Promise<
   const relations = await ctx.workStorage.getRelationsOfTask(task.id)
   const history = await ctx.workStorage.getHistoryByTask(task.id)
   const comments = await ctx.workStorage.getCommentsOfTask(task.id)
+  const subtasks = await ctx.workStorage.getSubtasksOfTask(task.id)
   const files = await taskFiles(ctx, task)
   const attachments = files.map((ref) => ({
     id: ref.file.id,
@@ -32,6 +33,7 @@ export async function readTaskDetail(ctx: ToolContext, id: Task["id"]): Promise<
     history,
     attachments,
     comments,
+    subtasks,
     movedCount: movedCounts[task.id] ?? 0,
   })
 }

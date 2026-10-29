@@ -8,6 +8,7 @@ import type {
   ISOTime,
   Milestone,
   MilestoneProgress,
+  Subtask,
   Tag,
   Task,
   TaskComment,
@@ -51,6 +52,7 @@ export type CommentView = {
   createdAt: ISODateTime
   updatedAt: ISODateTime
 }
+export type SubtaskView = {id: string; content: string; done: boolean; createdAt: ISODateTime; updatedAt: ISODateTime}
 export type TaskView = {
   id: string
   content: string
@@ -75,6 +77,7 @@ export type TaskDetailView = TaskView & {
   history: TaskEventView[]
   attachments: AttachmentView[]
   comments: CommentView[]
+  subtasks: SubtaskView[]
 }
 
 export function tagView(tag: Tag): TagView {
@@ -123,7 +126,15 @@ export function taskView(task: Task, projectName: string, imageCount: number, mo
 export function taskDetailView(
   task: Task,
   projectName: string,
-  parts: {blockedBy: Task[]; blocks: Task[]; history: TaskEvent[]; attachments: AttachmentView[]; comments: TaskComment[]; movedCount: number},
+  parts: {
+    blockedBy: Task[]
+    blocks: Task[]
+    history: TaskEvent[]
+    attachments: AttachmentView[]
+    comments: TaskComment[]
+    subtasks: Subtask[]
+    movedCount: number
+  },
 ): TaskDetailView {
   return {
     ...taskView(task, projectName, parts.attachments.length, parts.movedCount),
@@ -132,6 +143,7 @@ export function taskDetailView(
     history: parts.history.map(taskEventView),
     attachments: parts.attachments,
     comments: parts.comments.map(commentView),
+    subtasks: parts.subtasks.map(subtaskView),
   }
 }
 
@@ -145,6 +157,11 @@ export function commentView(comment: TaskComment): CommentView {
     createdAt: comment.createdAt,
     updatedAt: comment.updatedAt,
   }
+}
+
+/** One subtask as a tool answers it: its text and whether it is checked off. */
+export function subtaskView(subtask: Subtask): SubtaskView {
+  return {id: subtask.id, content: subtask.content, done: subtask.done, createdAt: subtask.createdAt, updatedAt: subtask.updatedAt}
 }
 
 function taskLinkView(task: Task): TaskLinkView {

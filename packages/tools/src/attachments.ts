@@ -6,11 +6,12 @@ import type {ToolContext} from "./types"
 type TaskFileRef = {file: File; onServer: boolean}
 
 /**
- * `task`'s live files — the images its content links to, each once, in that order — with whether
+ * `task`'s live files — the images its content and its subtasks link to, each once, in that order — with whether
  * their bytes are present here. An id with no live file row behind it is dropped.
  */
 export async function taskFiles(ctx: ToolContext, task: Task): Promise<TaskFileRef[]> {
-  const ids = extractFileIds(task.content)
+  const subtasks = await ctx.workStorage.getSubtasksOfTask(task.id)
+  const ids = [...new Set([task.content, ...subtasks.map((subtask) => subtask.content)].flatMap((text) => extractFileIds(text)))]
   if (ids.length === 0) return []
 
   const files = await ctx.workStorage.getFiles(ids)

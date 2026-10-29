@@ -80,6 +80,12 @@ describe("describeToolCall", () => {
     expect(d.summary).toContain("c1")
   })
 
+  it("names the subtask by its id in delete_subtask's card", async () => {
+    const d = await describeToolCall("delete_subtask", {id: "s1"}, fakeStorage())
+    expect(d.title).toBeTruthy()
+    expect(d.summary).toContain("s1")
+  })
+
   it("strips a leading Markdown heading marker from delete_task's label", async () => {
     const storage = fakeStorage({getTask: async () => ({content: "# Buy milk\nand eggs"})})
     const d = await describeToolCall("delete_task", {id: "abc123"}, storage)
