@@ -850,28 +850,47 @@ describe("TaskBoard", () => {
     window.dispatchEvent(new PointerEvent("pointercancel", {bubbles: true, pointerId: 1}))
   })
 
-  it("reveals the selected card on a switch while preserving its unsaved editor draft", async () => {
-    const {mountBoard, tasks, settings} = await setup({sectionsCollapsed: {done: true}})
-    const {useTaskEditorStore} = await import("../../../../src/renderer/src/stores/task-editor")
-    const editor = useTaskEditorStore()
-    tasks.activeDay = DateTime.now().toISODate()
-    tasks.tasks = makeTasks(221, {status: "done"})
-    await editor.open("task-200")
-    editor.patch({content: "Unsaved text"})
-    const board = mountBoard()
-    await nextTick()
-    const {list, track} = viewport(board, "done", {clientHeight: 700, offsetTop: 100})
-    Object.defineProperty(list, "scrollHeight", {configurable: true, get: () => 100 + parseFloat(track.style.height) + 16})
-    columnOf(board, "done").scrollIntoView = vi.fn()
-    await settle()
-    settings.settings.appearance.taskView = "compact"
-    await settle()
-    expect(list.scrollTop).toBe(100 + 200 * 114 + 54 - 350)
-    expect(document.getElementById("task-200")).not.toBeNull()
-    expect(editor.editingTaskId).toBe("task-200")
-    expect(editor.draft.content).toBe("Unsaved text")
-    expect(editor.isDirty).toBe(true)
-  })
+  it.each([true, false])(
+    "preserves collapse=%s and the selected draft across size switches, using scroll offsets as a layout proxy",
+    async (collapsed) => {
+      const {mountBoard, tasks, settings, ui} = await setup({sectionsCollapsed: {done: collapsed, backlog: true}})
+      const {useTaskEditorStore} = await import("../../../../src/renderer/src/stores/task-editor")
+      const editor = useTaskEditorStore()
+      tasks.activeDay = DateTime.now().toISODate()
+      tasks.tasks = makeTasks(221, {status: "done"})
+      await editor.open("task-200")
+      editor.patch({content: "Unsaved text"})
+      const board = mountBoard()
+      await nextTick()
+      const {list, track} = viewport(board, "done", {clientHeight: 700, offsetTop: 100})
+      Object.defineProperty(list, "scrollHeight", {configurable: true, get: () => 100 + parseFloat(track.style.height) + 16})
+      list.scrollTop = 100 + 200 * 206 + 37
+      list.dispatchEvent(new Event("scroll"))
+      const scrollIntoView = vi.fn()
+      columnOf(board, "done").scrollIntoView = scrollIntoView
+      await settle()
+      for (const [taskView, centeredTop] of [
+        ["compact", 100 + 200 * 114 + 54 - 350],
+        ["regular", 100 + 200 * 206 + 100 - 350],
+      ]) {
+        settings.settings.appearance.taskView = taskView
+        await settle()
+        expect(Boolean(ui.sectionsCollapsed.done)).toBe(collapsed)
+        expect(Boolean(ui.sectionsCollapsed.backlog)).toBe(true)
+        expect(list.scrollTop).toBe(collapsed ? 100 + 200 * 206 + 37 : centeredTop)
+        expect(document.getElementById("task-200") !== null).toBe(!collapsed)
+        if (collapsed) {
+          expect(cardsIn(board, "done")).toHaveLength(0)
+          expect(scrollIntoView).not.toHaveBeenCalled()
+        } else {
+          expect(scrollIntoView).toHaveBeenCalled()
+        }
+        expect(editor.editingTaskId).toBe("task-200")
+        expect(editor.draft.content).toBe("Unsaved text")
+        expect(editor.isDirty).toBe(true)
+      }
+    },
+  )
 
   it("keeps the columns mounted while a drag is in flight, even when the dragged task was the last one on the board", async () => {
     const {NoTasksPlaceholder, mountBoard, tasks, drag} = await setup()

@@ -56,6 +56,18 @@ const visibleColumns = computed(() => {
   )
 })
 
+const columnLayoutStyle = computed(() => {
+  const collapsed = visibleColumns.value.map((column) => columns.isColumnCollapsed(column.status))
+  const expandedCount = collapsed.filter((isCollapsed) => !isCollapsed).length
+  const dividerCount = collapsed.slice(1).filter((isCollapsed, index) => !isCollapsed && !collapsed[index]).length
+
+  return {
+    "--board-collapsed-columns": collapsed.length - expandedCount,
+    "--board-expanded-columns": Math.max(1, expandedCount),
+    "--board-column-dividers": dividerCount,
+  }
+})
+
 const framedMilestoneName = computed(() => {
   if (filterStore.frame !== "milestone") return undefined
   if (filterStore.isNoMilestoneActive) return "No milestone"
@@ -85,7 +97,7 @@ watch(activeDay, () => containerRef.value?.scrollTo({top: 0, behavior: "instant"
   <div ref="container" class="relative min-w-0 flex-1 overflow-hidden">
     <NoTasksPlaceholder v-if="!isBoardVisible" :date="placeholderDate" :milestone-name="framedMilestoneName" @create-task="emit('createTask')" />
 
-    <div v-else ref="board" data-task-board class="flex size-full overflow-x-auto overflow-y-hidden">
+    <div v-else ref="board" data-task-board class="task-board flex size-full overflow-x-auto overflow-y-hidden" :style="columnLayoutStyle">
       <template v-for="(column, index) in visibleColumns" :key="column.status">
         <TaskColumn :status="column.status" :class="getColumnClasses(column.status)" />
 
@@ -109,3 +121,18 @@ watch(activeDay, () => containerRef.value?.scrollTo({top: 0, behavior: "instant"
     <ColumnDragPreview v-if="draggingStatus" :status="draggingStatus" :x="previewPosition.x" :y="previewPosition.y" />
   </div>
 </template>
+
+<style scoped>
+.task-board {
+  container-type: inline-size;
+  --board-column-rail-width: calc(var(--spacing) * 17);
+  --board-compact-column-width: calc(
+    0.7 *
+      max(
+        370px,
+        (100cqw - var(--board-collapsed-columns) * var(--board-column-rail-width) - var(--board-column-dividers) * 1px) /
+          var(--board-expanded-columns)
+      )
+  );
+}
+</style>

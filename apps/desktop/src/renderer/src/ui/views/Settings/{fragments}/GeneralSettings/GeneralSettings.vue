@@ -12,7 +12,7 @@ import MainColorPicker from "./{fragments}/MainColorPicker.vue"
 import QuickTaskHotkey from "./{fragments}/QuickTaskHotkey.vue"
 import ShortcutsSection from "./{fragments}/ShortcutsSection.vue"
 
-import type {AppearanceMode, FontSize, TaskView} from "@daily/protocol"
+import type {AppearanceMode, BoardMode, FontSize, TaskView} from "@daily/protocol"
 
 const themeOptions: {value: AppearanceMode; label: string}[] = [
   {value: "light", label: "Light"},
@@ -31,8 +31,15 @@ const taskViewOptions: {value: TaskView; label: string}[] = [
   {value: "compact", label: "Compact"},
 ]
 
-const {taskView} = useBoardCardGeometry()
+const boardModeOptions: {value: BoardMode; label: string}[] = [
+  {value: "normal", label: "Default"},
+  {value: "agents", label: "Agents"},
+]
+
 const themeStore = useThemeStore()
+
+const {taskView} = useBoardCardGeometry()
+const boardMode = useSettingValue<"appearance.boardMode", BoardMode>("appearance.boardMode", "normal")
 const shouldNotify = useSettingValue("focus.shouldNotify", true)
 const shouldPlaySound = useSettingValue("focus.shouldPlaySound", true)
 const isMenuBarVisible = useSettingValue("menuBar.isVisible", true)
@@ -58,8 +65,12 @@ const isQuickTaskEnabled = useSettingValue("quickTask.isEnabled", true)
         <BaseSegmented v-model="themeStore.fontSize" :options="fontSizeOptions" />
       </SettingRow>
 
-      <SettingRow title="Task view" description="Choose regular previews or compact task titles">
+      <SettingRow title="Interface Size" description="Choose regular columns and previews or compact columns and task titles">
         <BaseSegmented v-model="taskView" :options="taskViewOptions" />
+      </SettingRow>
+
+      <SettingRow title="Board View" description="Group tasks into four columns or show all six statuses for agents">
+        <BaseSegmented v-model="boardMode" :options="boardModeOptions" />
       </SettingRow>
 
       <SettingRow title="Show icon in menu bar" description="Keep the Daily icon in the menu bar to open Settings or Quick task">

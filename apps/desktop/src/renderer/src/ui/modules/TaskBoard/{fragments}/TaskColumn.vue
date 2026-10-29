@@ -19,7 +19,7 @@ const listRef = useTemplateRef<HTMLElement>("list")
 const trackRef = useTemplateRef<HTMLElement>("track")
 
 const columns = useTaskColumns()
-const {cardHeight, cardStep} = useBoardCardGeometry()
+const {isCompact, cardHeight, cardStep} = useBoardCardGeometry()
 
 const column = computed(() => TASK_COLUMNS.find((s) => s.status === props.status)!)
 const tasksCount = computed(() => columns.tasksByStatus.value[props.status].length)
@@ -27,7 +27,11 @@ const collapsed = computed(() => columns.isColumnCollapsed(props.status))
 const items = computed(() => columns.columnItems.value[props.status])
 const itemCount = computed(() => items.value.length)
 
-const containerStyle = computed(() => (collapsed.value ? undefined : {flexBasis: "370px", minWidth: "370px"}))
+const containerStyle = computed(() => {
+  if (collapsed.value) return undefined
+  const width = isCompact.value ? "var(--board-compact-column-width)" : "370px"
+  return {flexBasis: width, minWidth: width}
+})
 
 const {range, trackHeight} = useVirtualColumn(listRef, trackRef, itemCount)
 
@@ -41,8 +45,12 @@ function onCardDragStart(event: DragEvent) {
   if (!(event.target as Element | null)?.closest("a")) event.preventDefault()
 }
 
-function getContainerClasses(isCollapsed: boolean) {
-  return cn("bg-base-100 relative flex min-w-0 flex-col overflow-hidden", isCollapsed ? "w-17 max-w-17 min-w-17 h-full" : "h-full grow shrink-0")
+function getContainerClasses(isCollapsed: boolean, isCompact: boolean) {
+  return cn(
+    "bg-base-100 relative flex h-full min-w-0 flex-col overflow-hidden",
+    isCollapsed ? "w-17 max-w-17 min-w-17" : "shrink-0",
+    !isCollapsed && !isCompact && "grow",
+  )
 }
 
 function getRailClasses(titleClass: string) {
@@ -76,7 +84,7 @@ function getListClasses(isCollapsed: boolean) {
 </script>
 
 <template>
-  <div :data-column-status="column.status" :class="getContainerClasses(collapsed)" :style="containerStyle">
+  <div :data-column-status="column.status" :class="getContainerClasses(collapsed, isCompact)" :style="containerStyle">
     <button
       v-if="collapsed"
       type="button"

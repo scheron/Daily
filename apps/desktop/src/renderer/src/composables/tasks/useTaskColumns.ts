@@ -329,6 +329,7 @@ export const useTaskColumns = createSharedComposable(() => {
       tasksByStatus.value[status].some((task) => task.id === selectedId),
     )
     const anchors = (Object.keys(tasksByStatus.value) as TaskStatus[]).flatMap((status) => {
+      if (isColumnCollapsed(status)) return []
       const list = document.querySelector<HTMLElement>(`[data-column-status="${status}"] [data-column-list]`)
       const track = list?.querySelector<HTMLElement>("[data-column-track]")
       const tasks = tasksByStatus.value[status]
@@ -338,7 +339,6 @@ export const useTaskColumns = createSharedComposable(() => {
       if (top - index * previousStep >= previousHeight && index < tasks.length - 1) index += 1
       return [{status, list, track, taskId: tasks[index].id, offset: top - index * previousStep}]
     })
-    if (selectedStatus && isColumnCollapsed(selectedStatus)) uiStore.setSectionCollapsed(selectedStatus, false)
     await nextTick()
     if (revision !== geometryRevision) return
     for (const anchor of anchors) {
