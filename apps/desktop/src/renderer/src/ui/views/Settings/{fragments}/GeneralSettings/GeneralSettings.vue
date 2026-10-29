@@ -66,7 +66,7 @@ const isQuickTaskEnabled = useSettingValue("quickTask.isEnabled", true)
       </SettingRow>
 
       <SettingRow title="Interface Size" description="Choose regular columns and previews or compact columns and task titles">
-        <BaseSegmented v-model="taskView" :options="taskViewOptions" />
+        <BaseSegmented v-model="taskView" aria-label="Interface Size" :options="taskViewOptions" />
       </SettingRow>
 
       <SettingRow title="Board View" description="Group tasks into four columns or show all six statuses for agents">
