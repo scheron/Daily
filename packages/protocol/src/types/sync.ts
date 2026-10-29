@@ -6,7 +6,7 @@ export type SnapshotMeta = {
 }
 
 export type Snapshot = {
-  version: 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12
+  version: 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13
   docs: SnapshotDocs
   meta: SnapshotMeta
 }
@@ -18,6 +18,7 @@ export type SnapshotDocs = {
   milestones: SnapshotMilestone[]
   relations: SnapshotTaskRelation[]
   comments: SnapshotTaskComment[]
+  subtasks: SnapshotSubtask[]
   files: SnapshotFile[]
   events: SnapshotTaskEvent[]
 }
@@ -107,6 +108,17 @@ export type SnapshotTaskComment = {
   deleted_at: string | null
 }
 
+export type SnapshotSubtask = {
+  id: string
+  task_id: string
+  content: string
+  done: boolean
+  order_key: string
+  created_at: string
+  updated_at: string
+  deleted_at: string | null
+}
+
 export type SnapshotFile = {
   id: string
   name: string
@@ -127,6 +139,7 @@ export type MergeResult = {
     milestones?: string[]
     relations?: string[]
     comments?: string[]
+    subtasks?: string[]
     files?: string[]
   }
   changes: number
@@ -142,6 +155,7 @@ export interface ILocalStorage {
     milestones?: string[]
     relations?: string[]
     comments?: string[]
+    subtasks?: string[]
     files?: string[]
   }): Promise<void>
 }

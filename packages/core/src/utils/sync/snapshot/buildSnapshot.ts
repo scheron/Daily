@@ -4,7 +4,7 @@ import type {Snapshot, SnapshotDocs, SnapshotMeta} from "@daily/protocol"
 
 export function buildSnapshot(docs: SnapshotDocs): Snapshot {
   return {
-    version: 12,
+    version: 13,
     docs,
     meta: buildSnapshotMeta(docs),
   }
@@ -23,6 +23,7 @@ export function buildSnapshotMeta(docs: SnapshotDocs): SnapshotMeta {
     docs.milestones ?? [],
     docs.relations ?? [],
     docs.comments ?? [],
+    docs.subtasks ?? [],
   ]
   const collectionHashes = collections.map(computeCollectionHash)
 

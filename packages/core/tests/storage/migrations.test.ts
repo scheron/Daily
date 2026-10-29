@@ -656,7 +656,8 @@ describe("migrations", () => {
       expect(task).toBeDefined()
       expect(task.content).toBe("Keep me")
 
-      expect(rollbackLastMigration(db)).toBe(18)
+      expect(rollbackLastMigration(db)).toBe(19)
+      rollbackLastMigration(db)
       rollbackLastMigration(db) // v017
       rollbackLastMigration(db) // v016
       rollbackLastMigration(db) // v015
@@ -729,7 +730,8 @@ describe("migrations", () => {
       seedComment(db, "typed", null)
       runMigrations(db)
 
-      expect(rollbackLastMigration(db)).toBe(18)
+      expect(rollbackLastMigration(db)).toBe(19)
+      rollbackLastMigration(db)
       rollbackLastMigration(db) // v017
       rollbackLastMigration(db) // v016
       rollbackLastMigration(db) // v015
@@ -808,7 +810,8 @@ describe("migrations", () => {
       const task = db.prepare("SELECT * FROM tasks WHERE id = 't1'").get()
       expect(task.content).toBe("Keep me")
 
-      expect(rollbackLastMigration(db)).toBe(18)
+      expect(rollbackLastMigration(db)).toBe(19)
+      rollbackLastMigration(db)
       rollbackLastMigration(db) // v017
       rollbackLastMigration(db) // v016
       rollbackLastMigration(db) // v015
@@ -948,7 +951,8 @@ describe("migrations", () => {
 
       expect(db.prepare("SELECT priority FROM tasks WHERE id = 't1'").get().priority).toBe("none")
 
-      expect(rollbackLastMigration(db)).toBe(18)
+      expect(rollbackLastMigration(db)).toBe(19)
+      rollbackLastMigration(db)
       expect(rollbackLastMigration(db)).toBe(17)
       const columns = db
         .prepare("PRAGMA table_info(tasks)")
@@ -1010,4 +1014,37 @@ it("upgrades v17 statuses and preserves task fields and associations across reop
   expect(db.prepare("PRAGMA foreign_key_check").all()).toEqual([])
   db.close()
   rmSync(directory, {recursive: true, force: true})
+})
+
+it("v019 adds the subtasks table to a v018 database, leaves tasks untouched and drops it on rollback", () => {
+  const db = new Database(":memory:")
+  db.exec(`CREATE TABLE _migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)`)
+  for (const migration of migrations.filter((m) => m.version <= 18)) {
+    if (typeof migration.up === "string") db.exec(migration.up)
+    else migration.up(db)
+    db.prepare("INSERT INTO _migrations (version, name, applied_at) VALUES (?, ?, ?)").run(
+      migration.version,
+      migration.name,
+      "2026-01-01T00:00:00.000Z",
+    )
+  }
+  const now = new Date().toISOString()
+  db.prepare(
+    `INSERT INTO tasks (id, status, content, minimized, order_index, scheduled_date, scheduled_time, scheduled_timezone, estimated_time, spent_time, branch_id, created_at, updated_at)
+     VALUES ('t1', 'in_progress', 'Keep me', 0, 1024, '2026-03-24', '10:00:00', 'UTC', 0, 0, 'main', ?, ?)`,
+  ).run(now, now)
+
+  runMigrations(db)
+
+  expect(
+    db
+      .prepare("PRAGMA table_info(subtasks)")
+      .all()
+      .map((c) => c.name),
+  ).toEqual(["id", "task_id", "content", "done", "order_key", "created_at", "updated_at", "deleted_at"])
+  expect(db.prepare("SELECT content FROM tasks WHERE id = 't1'").get().content).toBe("Keep me")
+
+  expect(rollbackLastMigration(db)).toBe(19)
+  expect(db.prepare("SELECT name FROM sqlite_master WHERE name = 'subtasks'").all()).toEqual([])
+  db.close()
 })

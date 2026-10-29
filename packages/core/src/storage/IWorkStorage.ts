@@ -5,6 +5,8 @@ import type {
   ISODateTime,
   Milestone,
   MoveTaskByOrderParams,
+  Subtask,
+  SubtaskCounts,
   Tag,
   Task,
   TaskComment,
@@ -68,6 +70,13 @@ export interface IWorkStorage {
   createComment(taskId: Task["id"], content: string, source?: TaskCommentSource): Promise<Changeset>
   updateComment(id: TaskComment["id"], content: string): Promise<Changeset>
   deleteComment(id: TaskComment["id"]): Promise<Changeset>
+
+  getSubtasksOfTask(taskId: Task["id"]): Promise<Subtask[]>
+  getSubtaskCounts(): Promise<SubtaskCounts>
+  createSubtask(taskId: Task["id"], content: string): Promise<Changeset>
+  updateSubtask(id: Subtask["id"], updates: {content?: string; done?: boolean}): Promise<Changeset>
+  deleteSubtask(id: Subtask["id"]): Promise<Changeset>
+  makeTaskFromSubtask(id: Subtask["id"]): Promise<Task | null>
 
   getBranchList(): Promise<Branch[]>
   getBranch(id: Branch["id"]): Promise<Branch | null>

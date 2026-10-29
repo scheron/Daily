@@ -35,6 +35,8 @@ import type {
   ProtocolMismatchView,
   ServerConnectionStatus,
   Settings,
+  Subtask,
+  SubtaskCounts,
   SyncProvider,
   SyncRemote,
   SyncRemoteState,
@@ -318,6 +320,32 @@ export class StorageController implements IStorageController {
   /** Makes the task's links exactly `next`, dropping what cannot be linked; `EMPTY_CHANGESET` when nothing changed. */
   async setTaskRelations(taskId: Task["id"], next: TaskRelationSets): Promise<Changeset> {
     return this.workStorage.setTaskRelations(taskId, next)
+  }
+  //#endregion
+
+  //#region SUBTASKS
+  async getSubtasksOfTask(taskId: Task["id"]): Promise<Subtask[]> {
+    return this.workStorage.getSubtasksOfTask(taskId)
+  }
+
+  async getSubtaskCounts(): Promise<SubtaskCounts> {
+    return this.workStorage.getSubtaskCounts()
+  }
+
+  async createSubtask(taskId: Task["id"], content: string): Promise<Changeset> {
+    return this.workStorage.createSubtask(taskId, content)
+  }
+
+  async updateSubtask(id: Subtask["id"], updates: {content?: string; done?: boolean}): Promise<Changeset> {
+    return this.workStorage.updateSubtask(id, updates)
+  }
+
+  async deleteSubtask(id: Subtask["id"]): Promise<Changeset> {
+    return this.workStorage.deleteSubtask(id)
+  }
+
+  async makeTaskFromSubtask(id: Subtask["id"]): Promise<Task | null> {
+    return this.workStorage.makeTaskFromSubtask(id)
   }
   //#endregion
 

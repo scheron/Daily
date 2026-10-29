@@ -38,6 +38,11 @@ export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: Snapsh
     toGc: gcComments,
     adoptedOnTie: adoptedComments,
   } = mergeCollections(local.comments, remote.comments, strategy, gcIntervalMs)
+  const {
+    result: mergedSubtasks,
+    toGc: gcSubtasks,
+    adoptedOnTie: adoptedSubtasks,
+  } = mergeCollections(local.subtasks, remote.subtasks, strategy, gcIntervalMs)
   const {result: mergedFiles, toGc: gcFiles, adoptedOnTie: adoptedFiles} = mergeCollections(local.files, remote.files, strategy, gcIntervalMs)
 
   const {result: mergedEvents, added: addedEvents} = mergeAppendOnly(local.events, remote.events)
@@ -115,6 +120,13 @@ export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: Snapsh
     return acc
   }, [])
 
+  const droppedSubtaskIds: string[] = []
+  const subtasksAfterTaskGc = mergedSubtasks.filter((subtask) => {
+    if (tasksById.has(subtask.task_id)) return true
+    droppedSubtaskIds.push(subtask.id)
+    return false
+  })
+
   const resultDocs: SnapshotDocs = {
     tasks: tasksAfterBranchGc,
     tags: tagsAfterBranchGc,
@@ -122,6 +134,7 @@ export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: Snapsh
     milestones: milestonesAfterBranchGc,
     relations: relationsAfterTaskGc,
     comments: commentsAfterTaskGc,
+    subtasks: subtasksAfterTaskGc,
     files: mergedFiles,
     events: mergedEvents,
   }
@@ -133,6 +146,7 @@ export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: Snapsh
     milestones: [],
     relations: [],
     comments: [],
+    subtasks: [],
     files: [],
     events: [],
   }
@@ -189,6 +203,15 @@ export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: Snapsh
   } else if (adoptedComments.length) {
     toUpsert.comments = adoptedComments
     changes += adoptedComments.length
+  }
+
+  if (hasChanges(local.subtasks, subtasksAfterTaskGc) || gcSubtasks.length || droppedSubtaskIds.length) {
+    toUpsert.subtasks = subtasksAfterTaskGc
+    if (gcSubtasks.length || droppedSubtaskIds.length) toRemove.subtasks = [...gcSubtasks, ...droppedSubtaskIds]
+    changes += subtasksAfterTaskGc.length + gcSubtasks.length + droppedSubtaskIds.length
+  } else if (adoptedSubtasks.length) {
+    toUpsert.subtasks = adoptedSubtasks
+    changes += adoptedSubtasks.length
   }
 
   if (hasChanges(local.files, mergedFiles) || gcFiles.length) {

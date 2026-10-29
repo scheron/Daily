@@ -39,3 +39,7 @@ it("upgrades old task status keys without changing dates, order, content or even
   expect(normalized.tasks[1].status).toBe("cancelled")
   expect(normalized.events).toEqual([event])
 })
+
+it("reads a snapshot from before subtasks as having none", () => {
+  expect(normalizeSnapshotDocs(legacyDocs()).subtasks).toEqual([])
+})

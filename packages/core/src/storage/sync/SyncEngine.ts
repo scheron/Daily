@@ -14,10 +14,12 @@ import type {
   SnapshotBranch,
   SnapshotDocs,
   SnapshotMilestone,
+  SnapshotSubtask,
   SnapshotTag,
   SnapshotTask,
   SnapshotTaskComment,
   SnapshotTaskRelation,
+  Subtask,
   SyncPacing,
   SyncRemote,
   SyncRemoteState,
@@ -386,6 +388,7 @@ export class SyncEngine {
     milestones?: unknown[]
     relations?: unknown[]
     comments?: unknown[]
+    subtasks?: unknown[]
     files?: unknown[]
     events?: unknown[]
   }): number {
@@ -396,6 +399,7 @@ export class SyncEngine {
       (docs.milestones?.length ?? 0) +
       (docs.relations?.length ?? 0) +
       (docs.comments?.length ?? 0) +
+      (docs.subtasks?.length ?? 0) +
       (docs.files?.length ?? 0) +
       (docs.events?.length ?? 0)
     )
@@ -511,6 +515,7 @@ type ChangesetAccumulator = {
   milestones: {upserted: Map<string, SnapshotMilestone>; removed: Set<string>}
   relations: {upserted: Map<string, SnapshotTaskRelation>; removed: Set<string>}
   comments: {upserted: Map<string, SnapshotTaskComment>; removed: Set<string>}
+  subtasks: {upserted: Map<string, SnapshotSubtask>; removed: Set<string>}
 }
 
 function createChangesetAccumulator(): ChangesetAccumulator {
@@ -521,6 +526,7 @@ function createChangesetAccumulator(): ChangesetAccumulator {
     milestones: {upserted: new Map(), removed: new Set()},
     relations: {upserted: new Map(), removed: new Set()},
     comments: {upserted: new Map(), removed: new Set()},
+    subtasks: {upserted: new Map(), removed: new Set()},
   }
 }
 
@@ -547,6 +553,7 @@ function accumulateDelta(acc: ChangesetAccumulator, toUpsert: SnapshotDocs, toRe
   accumulateCollection(acc.milestones, toUpsert.milestones, toRemove.milestones)
   accumulateCollection(acc.relations, toUpsert.relations, toRemove.relations)
   accumulateCollection(acc.comments, toUpsert.comments, toRemove.comments)
+  accumulateCollection(acc.subtasks, toUpsert.subtasks, toRemove.subtasks)
 }
 
 /** A task as the merge left it, resolved against `tagsById` — the final merged tag set, not just the tags a pull happened to touch. */
@@ -565,6 +572,19 @@ function snapshotTaskToTask(row: SnapshotTask, tagsById: Map<string, Tag>): Task
     milestoneId: row.milestone_id,
     priority: row.priority as Task["priority"],
     tags: row.tags.map((id) => tagsById.get(id)).filter((tag): tag is Tag => Boolean(tag)),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    deletedAt: row.deleted_at,
+  }
+}
+
+function snapshotSubtaskToSubtask(row: SnapshotSubtask): Subtask {
+  return {
+    id: row.id,
+    taskId: row.task_id,
+    content: row.content,
+    done: row.done,
+    orderKey: row.order_key,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     deletedAt: row.deleted_at,
@@ -610,6 +630,12 @@ function buildChangeset(acc: ChangesetAccumulator, finalTags: SnapshotTag[]): Ch
     changeset.comments = {}
     if (acc.comments.upserted.size) changeset.comments.upserted = [...acc.comments.upserted.values()].map(rowToTaskComment)
     if (acc.comments.removed.size) changeset.comments.removed = [...acc.comments.removed]
+  }
+
+  if (acc.subtasks.upserted.size || acc.subtasks.removed.size) {
+    changeset.subtasks = {}
+    if (acc.subtasks.upserted.size) changeset.subtasks.upserted = [...acc.subtasks.upserted.values()].map(snapshotSubtaskToSubtask)
+    if (acc.subtasks.removed.size) changeset.subtasks.removed = [...acc.subtasks.removed]
   }
 
   return changeset

@@ -20,6 +20,8 @@ import type {
   ServerMembershipView,
   ServerProbeView,
   Settings,
+  Subtask,
+  SubtaskCounts,
   SyncProvider,
   SyncRemoteState,
   SyncStatus,
@@ -49,6 +51,7 @@ export type Changeset = {
   branches?: {upserted?: Branch[]; removed?: Branch["id"][]}
   relations?: {upserted?: TaskRelation[]; removed?: TaskRelation["id"][]}
   comments?: {upserted?: TaskComment[]; removed?: TaskComment["id"][]}
+  subtasks?: {upserted?: Subtask[]; removed?: Subtask["id"][]}
 }
 
 /** Nothing changed. A no-op move returns this rather than throwing. */
@@ -125,6 +128,17 @@ export interface IStorageController {
   createTaskComment(taskId: Task["id"], content: string, source?: TaskCommentSource): Promise<Changeset>
   updateTaskComment(id: TaskComment["id"], content: string): Promise<Changeset>
   deleteTaskComment(id: TaskComment["id"]): Promise<Changeset>
+
+  /** One task's live subtasks in their order. */
+  getSubtasksOfTask(taskId: Task["id"]): Promise<Subtask[]>
+  /** Done and total per task; a task with no subtasks is absent. */
+  getSubtaskCounts(): Promise<SubtaskCounts>
+  /** Adds an unchecked subtask after the task's last one; `EMPTY_CHANGESET` for a task that cannot take one or content that is only whitespace. */
+  createSubtask(taskId: Task["id"], content: string): Promise<Changeset>
+  updateSubtask(id: Subtask["id"], updates: {content?: string; done?: boolean}): Promise<Changeset>
+  deleteSubtask(id: Subtask["id"]): Promise<Changeset>
+  /** Creates a task from a subtask and deletes the subtask, as one write. Null when the subtask or its task is gone. */
+  makeTaskFromSubtask(id: Subtask["id"]): Promise<Task | null>
 
   searchTasks(query: string): Promise<TaskSearchResult[]>
 

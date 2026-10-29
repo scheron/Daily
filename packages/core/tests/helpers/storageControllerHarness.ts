@@ -8,6 +8,7 @@ import {BranchModel} from "@core/storage/models/BranchModel"
 import {FileModel} from "@core/storage/models/FileModel"
 import {MilestoneModel} from "@core/storage/models/MilestoneModel"
 import {SettingsModel} from "@core/storage/models/SettingsModel"
+import {SubtaskModel} from "@core/storage/models/SubtaskModel"
 import {TagModel} from "@core/storage/models/TagModel"
 import {TaskCommentModel} from "@core/storage/models/TaskCommentModel"
 import {TaskEventModel} from "@core/storage/models/TaskEventModel"
@@ -18,6 +19,7 @@ import {FilesService} from "@core/storage/services/FilesService"
 import {MilestonesService} from "@core/storage/services/MilestonesService"
 import {SearchService} from "@core/storage/services/SearchService"
 import {SettingsService} from "@core/storage/services/SettingsService"
+import {SubtasksService} from "@core/storage/services/SubtasksService"
 import {TagsService} from "@core/storage/services/TagsService"
 import {TaskCommentsService} from "@core/storage/services/TaskCommentsService"
 import {TaskEventsService} from "@core/storage/services/TaskEventsService"
@@ -70,6 +72,7 @@ export function makeControllerHarness() {
   const milestoneModel = new MilestoneModel(db)
   const taskRelationModel = new TaskRelationModel(db)
   const taskCommentModel = new TaskCommentModel(db)
+  const subtaskModel = new SubtaskModel(db)
   const fileModel = new FileModel(db, paths.assetsDir())
 
   branchModel.ensureMainBranch()
@@ -80,9 +83,10 @@ export function makeControllerHarness() {
   const branchesService = new BranchesService(branchModel, settingsService, taskModel, tagModel, milestoneModel, db)
   const taskRelationsService = new TaskRelationsService(taskRelationModel, taskModel)
   const taskCommentsService = new TaskCommentsService(taskCommentModel, taskModel)
+  const subtasksService = new SubtasksService(subtaskModel, taskModel)
   const tagsService = new TagsService(tagModel)
   const milestonesService = new MilestonesService(milestoneModel)
-  const filesService = new FilesService(fileModel, taskModel)
+  const filesService = new FilesService(fileModel, taskModel, subtaskModel)
   const searchService = new SearchService(taskModel, branchModel)
   const localAdapter = new LocalStorageAdapter(db, fileModel)
   const aiSessionModel = new AISessionModel(db)
@@ -94,6 +98,7 @@ export function makeControllerHarness() {
     tasksService,
     taskRelationsService,
     taskCommentsService,
+    subtasksService,
     tagsService,
     milestonesService,
     filesService,
@@ -112,6 +117,7 @@ export function makeControllerHarness() {
     milestoneModel,
     taskRelationModel,
     taskCommentModel,
+    subtaskModel,
     taskEventModel,
     fileModel,
     settingsService,
@@ -119,6 +125,7 @@ export function makeControllerHarness() {
     tasksService,
     taskRelationsService,
     taskCommentsService,
+    subtasksService,
     tagsService,
     milestonesService,
     filesService,

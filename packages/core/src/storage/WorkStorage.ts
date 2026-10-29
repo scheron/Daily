@@ -7,6 +7,8 @@ import type {
   ISODateTime,
   Milestone,
   MoveTaskByOrderParams,
+  Subtask,
+  SubtaskCounts,
   Tag,
   Task,
   TaskComment,
@@ -176,6 +178,7 @@ export class WorkStorage implements IWorkStorage {
     if (isDeleted) {
       this.core.searchService.removeTaskFromIndex(id)
       await this.core.taskCommentsService.permanentlyDeleteCommentsOfTasks([id])
+      await this.core.subtasksService.permanentlyDeleteSubtasksOfTasks([id])
       this.afterWrite(EMPTY_CHANGESET)
     }
     return isDeleted
@@ -192,6 +195,7 @@ export class WorkStorage implements IWorkStorage {
     }
 
     await this.core.taskCommentsService.permanentlyDeleteCommentsOfTasks(deletedTasks.map((task) => task.id))
+    await this.core.subtasksService.permanentlyDeleteSubtasksOfTasks(deletedTasks.map((task) => task.id))
 
     this.afterWrite(EMPTY_CHANGESET)
     return count
@@ -238,6 +242,68 @@ export class WorkStorage implements IWorkStorage {
     if (!removed) return EMPTY_CHANGESET
 
     return this.commitWrite({comments: {removed: [removed]}})
+  }
+
+  async getSubtasksOfTask(taskId: Task["id"]): Promise<Subtask[]> {
+    return this.core.subtasksService.getSubtasksOfTask(taskId)
+  }
+
+  async getSubtaskCounts(): Promise<SubtaskCounts> {
+    return this.core.subtasksService.getSubtaskCounts()
+  }
+
+  async createSubtask(taskId: Task["id"], content: string): Promise<Changeset> {
+    const created = await this.core.subtasksService.createSubtask(taskId, content)
+    if (!created) return EMPTY_CHANGESET
+
+    return this.commitWrite({subtasks: {upserted: [created]}})
+  }
+
+  async updateSubtask(id: Subtask["id"], updates: {content?: string; done?: boolean}): Promise<Changeset> {
+    const updated = await this.core.subtasksService.updateSubtask(id, updates)
+    if (!updated) return EMPTY_CHANGESET
+
+    return this.commitWrite({subtasks: {upserted: [updated]}})
+  }
+
+  async deleteSubtask(id: Subtask["id"]): Promise<Changeset> {
+    const removed = await this.core.subtasksService.deleteSubtask(id)
+    if (!removed) return EMPTY_CHANGESET
+
+    return this.commitWrite({subtasks: {removed: [removed]}})
+  }
+
+  /**
+   * Turns a subtask into a task in one `batch`: the new task takes the parent's status, whole schedule, project,
+   * milestone and tags, with the subtask's markdown, no priority and no estimate, and the subtask is deleted.
+   * Null when the subtask, or its task, is gone.
+   */
+  async makeTaskFromSubtask(id: Subtask["id"]): Promise<Task | null> {
+    const subtask = await this.core.subtasksService.getSubtask(id)
+    const parent = subtask && (await this.core.tasksService.getTask(subtask.taskId))
+    if (!subtask || !parent || parent.deletedAt !== null) return null
+
+    return this.batch(async () => {
+      const created = await this.createTask({
+        status: parent.status,
+        content: subtask.content,
+        minimized: false,
+        orderIndex: Date.now(),
+        scheduled: parent.scheduled,
+        estimatedTime: 0,
+        spentTime: 0,
+        branchId: parent.branchId,
+        milestoneId: parent.milestoneId,
+        priority: "none",
+        tags: parent.tags,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        deletedAt: null,
+      })
+      await this.deleteSubtask(id)
+
+      return created.tasks!.upserted![0]
+    })
   }
 
   async getBranchList(): Promise<Branch[]> {
@@ -438,5 +504,6 @@ function mergeChangesets(base: Changeset, next: Changeset): Changeset {
     branches: mergeCollection(base.branches, next.branches),
     relations: mergeCollection(base.relations, next.relations),
     comments: mergeCollection(base.comments, next.comments),
+    subtasks: mergeCollection(base.subtasks, next.subtasks),
   }
 }

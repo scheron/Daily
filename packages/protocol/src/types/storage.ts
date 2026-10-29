@@ -259,6 +259,23 @@ export type TaskComment = {
   deletedAt: ISODateTime | null
 }
 
+/** How many of each task's live subtasks are checked, and how many it has. A task with none is absent. */
+export type SubtaskCounts = Record<Task["id"], {done: number; total: number}>
+
+export type Subtask = {
+  id: string
+  /** The task this subtask belongs to. A subtask never moves between tasks. */
+  taskId: Task["id"]
+  /** Markdown, written with the same editor as task content. */
+  content: string
+  done: boolean
+  /** Position among the task's subtasks; sorts as plain text, and a move rewrites only the moved subtask's key. */
+  orderKey: string
+  createdAt: ISODateTime
+  updatedAt: ISODateTime
+  deletedAt: ISODateTime | null
+}
+
 export type Tag = {
   id: string
   createdAt: ISODateTime

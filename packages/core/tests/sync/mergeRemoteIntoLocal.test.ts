@@ -411,6 +411,62 @@ describe("mergeRemoteIntoLocal — relations", () => {
   })
 })
 
+function subtask(id, taskId, over = {}) {
+  return {id, task_id: taskId, content: id, done: false, order_key: "i", created_at: iso(0), updated_at: NOW, deleted_at: null, ...over}
+}
+
+describe("mergeRemoteIntoLocal — subtasks", () => {
+  it("merges_each_subtask_on_its_own_so_an_edit_on_one_side_and_a_move_on_the_other_both_survive", () => {
+    const older = iso(Date.now() - 2000)
+    const newer = iso(Date.now() - 1000)
+    const local = docs({
+      branches: [branch("main")],
+      tasks: [task("x", "main")],
+      subtasks: [subtask("s1", "x", {content: "edited here", updated_at: newer}), subtask("s2", "x", {order_key: "a", updated_at: older})],
+    })
+    const remote = docs({
+      branches: [branch("main")],
+      tasks: [task("x", "main")],
+      subtasks: [subtask("s1", "x", {updated_at: older}), subtask("s2", "x", {order_key: "z", updated_at: newer}), subtask("s3", "x")],
+    })
+
+    const merge = mergeRemoteIntoLocal(local, remote, "pull", GC)
+    const byId = Object.fromEntries(merge.resultDocs.subtasks.map((s) => [s.id, s]))
+
+    expect(byId.s1.content).toBe("edited here")
+    expect(byId.s2.order_key).toBe("z")
+    expect(Object.keys(byId).sort()).toEqual(["s1", "s2", "s3"])
+  })
+
+  it("drops_a_subtask_whose_task_row_is_gone_but_keeps_one_whose_task_is_only_soft-deleted", () => {
+    const local = docs({
+      branches: [branch("main")],
+      tasks: [task("soft", "main", {deleted_at: NOW})],
+      subtasks: [subtask("kept", "soft"), subtask("orphan", "missing")],
+    })
+
+    const merge = mergeRemoteIntoLocal(local, docs({branches: [branch("main")]}), "pull", GC)
+
+    expect(merge.resultDocs.subtasks.map((s) => s.id)).toEqual(["kept"])
+    expect(merge.toRemove.subtasks).toEqual(["orphan"])
+  })
+
+  it("collects_a_permanently_deleted_subtask_once_its_backdated_tombstone_is_past_the_gc_window", () => {
+    const old = iso(0)
+    const local = docs({branches: [branch("main")], tasks: [task("x", "main")], subtasks: [subtask("s1", "x", {updated_at: old, deleted_at: old})]})
+
+    const merge = mergeRemoteIntoLocal(local, docs({branches: [branch("main")], tasks: [task("x", "main")]}), "pull", GC)
+
+    expect(merge.toRemove.subtasks).toEqual(["s1"])
+  })
+
+  it("reads_a_remote_with_no_subtasks_key_as_an_empty_collection", () => {
+    const merge = mergeRemoteIntoLocal(docs(), {tasks: [], tags: [], branches: [], files: [], events: []}, "pull", GC)
+
+    expect(merge.resultDocs.subtasks).toEqual([])
+  })
+})
+
 describe("mergeRemoteIntoLocal — comments", () => {
   it("passes_a_comment_through_untouched_when_the_remote_is_a_version-7_snapshot_with_no_comments_key", () => {
     const local = docs({

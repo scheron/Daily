@@ -3,6 +3,7 @@ import {BranchModel} from "./models/BranchModel"
 import {FileModel} from "./models/FileModel"
 import {MilestoneModel} from "./models/MilestoneModel"
 import {SettingsModel} from "./models/SettingsModel"
+import {SubtaskModel} from "./models/SubtaskModel"
 import {TagModel} from "./models/TagModel"
 import {TaskCommentModel} from "./models/TaskCommentModel"
 import {TaskEventModel} from "./models/TaskEventModel"
@@ -13,6 +14,7 @@ import {FilesService} from "./services/FilesService"
 import {MilestonesService} from "./services/MilestonesService"
 import {SearchService} from "./services/SearchService"
 import {SettingsService} from "./services/SettingsService"
+import {SubtasksService} from "./services/SubtasksService"
 import {TagsService} from "./services/TagsService"
 import {TaskCommentsService} from "./services/TaskCommentsService"
 import {TaskEventsService} from "./services/TaskEventsService"
@@ -30,6 +32,7 @@ export type StorageCore = {
   tasksService: TasksService
   taskRelationsService: TaskRelationsService
   taskCommentsService: TaskCommentsService
+  subtasksService: SubtasksService
   tagsService: TagsService
   milestonesService: MilestonesService
   filesService: FilesService
@@ -48,6 +51,7 @@ export function createStorageCore(db: SqliteDriver, paths: AppPaths, clock?: Sto
   const milestoneModel = new MilestoneModel(db)
   const taskRelationModel = new TaskRelationModel(db)
   const taskCommentModel = new TaskCommentModel(db)
+  const subtaskModel = new SubtaskModel(db)
   const fileModel = new FileModel(db, paths.assetsDir())
 
   branchModel.ensureMainBranch()
@@ -61,9 +65,10 @@ export function createStorageCore(db: SqliteDriver, paths: AppPaths, clock?: Sto
     tasksService: new TasksService(taskModel, new TaskEventsService(taskEventModel, clock), clock),
     taskRelationsService: new TaskRelationsService(taskRelationModel, taskModel),
     taskCommentsService: new TaskCommentsService(taskCommentModel, taskModel),
+    subtasksService: new SubtasksService(subtaskModel, taskModel),
     tagsService: new TagsService(tagModel),
     milestonesService: new MilestonesService(milestoneModel),
-    filesService: new FilesService(fileModel, taskModel),
+    filesService: new FilesService(fileModel, taskModel, subtaskModel),
     searchService: new SearchService(taskModel, branchModel),
     localAdapter: new LocalStorageAdapter(db, fileModel),
     aiSessionModel: new AISessionModel(db),

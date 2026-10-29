@@ -10,12 +10,14 @@ import {logger} from "../../utils/logger"
 
 import type {File} from "@daily/protocol"
 import type {FileModel} from "../models/FileModel"
+import type {SubtaskModel} from "../models/SubtaskModel"
 import type {TaskModel} from "../models/TaskModel"
 
 export class FilesService {
   constructor(
     private fileModel: FileModel,
     private taskModel: TaskModel,
+    private subtaskModel: SubtaskModel,
   ) {}
 
   async saveFile(filename: string, data: Buffer): Promise<File["id"]> {
@@ -120,6 +122,10 @@ export class FilesService {
       for (const task of tasks) {
         const fileIds = extractFileIds(task.content)
         fileIds.forEach((id) => referencedIds.add(id))
+      }
+
+      for (const content of this.subtaskModel.getAllContents()) {
+        extractFileIds(content).forEach((id) => referencedIds.add(id))
       }
 
       const allFiles = this.fileModel.getFileList({includeDeleted: true})

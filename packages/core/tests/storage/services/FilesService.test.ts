@@ -8,6 +8,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {APP_CONFIG, createEntityId} from "@daily/protocol"
 
 import {FileModel} from "@core/storage/models/FileModel"
+import {SubtaskModel} from "@core/storage/models/SubtaskModel"
 import {TaskModel} from "@core/storage/models/TaskModel"
 import {FilesService} from "@core/storage/services/FilesService"
 import {createTestDatabase} from "../../helpers/db"
@@ -137,14 +138,15 @@ describe("FilesService.resolveAssetPath", () => {
 })
 
 describe("FilesService.cleanupOrphanFiles", () => {
-  let db, assetsDir, fileModel, taskModel, filesService
+  let db, assetsDir, fileModel, taskModel, subtaskModel, filesService
 
   beforeEach(() => {
     db = createTestDatabase()
     assetsDir = mkdtempSync(join(tmpdir(), "files-service-gc-"))
     fileModel = new FileModel(db, assetsDir)
     taskModel = new TaskModel(db)
-    filesService = new FilesService(fileModel, taskModel)
+    subtaskModel = new SubtaskModel(db)
+    filesService = new FilesService(fileModel, taskModel, subtaskModel)
   })
 
   afterEach(() => {
@@ -204,6 +206,19 @@ describe("FilesService.cleanupOrphanFiles", () => {
 
     expect(fileModel.getFile(trashedFileId)?.deletedAt).toBeNull()
     expect(await readdir(assetsDir)).toContain(`${trashedFileId}.webp`)
+  })
+
+  it("keeps_an_image_referenced_only_by_a_subtask_even_after_its_task_is_soft-deleted", async () => {
+    const subtaskFileId = await filesService.saveFile("sub.png", WEBP_BYTES)
+    const orphanId = await filesService.saveFile("gone.png", WEBP_BYTES)
+    const task = taskModel.createTask(makeTaskRow())
+    subtaskModel.createSubtask({taskId: task.id, content: `Shot ![shot](${APP_CONFIG.filesProtocol}/${subtaskFileId})`, orderKey: "i"})
+    taskModel.deleteTask(task.id)
+
+    await filesService.cleanupOrphanFiles()
+
+    expect(fileModel.getFile(subtaskFileId)?.deletedAt).toBeNull()
+    expect(fileModel.getFile(orphanId)?.deletedAt).not.toBeNull()
   })
 
   it("keeps_a_soft-deleted_files_bytes_and_sweeps_only_bytes_with_no_row_at_all", async () => {

@@ -13,6 +13,7 @@ export const ENTITY_ID_PREFIX = {
   milestone: "DM",
   file: "DF",
   comment: "DC",
+  subtask: "DS",
 } as const
 
 export type EntityIdKind = keyof typeof ENTITY_ID_PREFIX

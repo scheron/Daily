@@ -14,6 +14,7 @@ import type {
   File,
   Milestone,
   Settings,
+  Subtask,
   SyncSettings,
   Tag,
   Task,
@@ -90,6 +91,17 @@ type TaskCommentRow = {
   content: string
   kind: string
   provider: string | null
+  created_at: string
+  updated_at: string
+  deleted_at: string | null
+}
+
+type SubtaskRow = {
+  id: string
+  task_id: string
+  content: string
+  done: number
+  order_key: string
   created_at: string
   updated_at: string
   deleted_at: string | null
@@ -216,6 +228,19 @@ export function rowToTaskComment(row: TaskCommentRow): TaskComment {
   }
 }
 
+export function rowToSubtask(row: SubtaskRow): Subtask {
+  return {
+    id: row.id,
+    taskId: row.task_id,
+    content: row.content,
+    done: row.done === 1,
+    orderKey: row.order_key,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    deletedAt: row.deleted_at,
+  }
+}
+
 export function rowToFile(row: FileRow): File {
   return {
     id: row.id,
@@ -309,7 +334,7 @@ export function normalizeSettings(settings: Settings): Settings {
   }
 }
 
-export type {TaskRow, TagRow, BranchRow, MilestoneRow, TaskRelationRow, TaskCommentRow, FileRow, SettingsRow}
+export type {TaskRow, TagRow, BranchRow, MilestoneRow, TaskRelationRow, TaskCommentRow, SubtaskRow, FileRow, SettingsRow}
 
 const COMMENT_KINDS: TaskCommentKind[] = ["manual", "agent", "mcp"]
 
