@@ -4,7 +4,7 @@ import {nextTick} from "vue"
 import {createPinia, setActivePinia} from "pinia"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
-import {acceptCompletion, selectedCompletionIndex} from "@codemirror/autocomplete"
+import {acceptCompletion, completionStatus, selectedCompletionIndex} from "@codemirror/autocomplete"
 import {EditorView} from "@codemirror/view"
 import {mount} from "@vue/test-utils"
 import {mockBridgeIPC} from "../../../helpers/bridgeIPC"
@@ -44,6 +44,35 @@ describe("MarkdownEditor", () => {
     pressKey(view, {key: "n", ctrlKey: true})
 
     expect(selectedCompletionIndex(view.state)).toBe(1)
+  })
+
+  it("does not count a completion still pending after a keystroke as open", async () => {
+    const view = await mountEditor("")
+    typeText(view, "a")
+
+    expect(completionStatus(view.state)).toBe("pending")
+    expect(wrapper.vm.isCompletionOpen()).toBe(false)
+  })
+
+  it("keeps a shown completion list open while it re-queries after a keystroke", async () => {
+    const view = await mountEditor("")
+    typeText(view, "/")
+    await vi.waitFor(() => expect(wrapper.vm.isCompletionOpen()).toBe(true))
+
+    typeText(view, " ")
+
+    expect(completionStatus(view.state)).toBe("pending")
+    expect(wrapper.vm.isCompletionOpen()).toBe(true)
+  })
+
+  it("does not count a completion with no matching options as open", async () => {
+    const view = await mountEditor("")
+    typeText(view, "/")
+    await vi.waitFor(() => expect(wrapper.vm.isCompletionOpen()).toBe(true))
+
+    typeText(view, "zzz")
+
+    await vi.waitFor(() => expect(wrapper.vm.isCompletionOpen()).toBe(false))
   })
 
   it("deleting a middle item renumbers the list", async () => {
@@ -159,7 +188,7 @@ describe("MarkdownEditor", () => {
 
     it("ignores a dropped or pasted image when attachments are off", async () => {
       const {default: MarkdownEditor} = await import("../../../../src/renderer/src/ui/common/misc/MarkdownEditor")
-      wrapper = mount(MarkdownEditor, {props: {content: "", task, noAttachments: true}, attachTo: document.body, global: {directives: {tooltip: {}}}})
+      wrapper = mount(MarkdownEditor, {props: {content: "", task, attachments: false}, attachTo: document.body, global: {directives: {tooltip: {}}}})
       const view = EditorView.findFromDOM(wrapper.element)
       await nextTick()
 
@@ -170,6 +199,20 @@ describe("MarkdownEditor", () => {
       expect(drop.defaultPrevented).toBe(true)
       expect(uploadImageFile).not.toHaveBeenCalled()
       expect(view.state.doc.toString()).toBe("")
+    })
+
+    it("shows no drop ring for a file dragged over a read-only editor", async () => {
+      const {default: MarkdownEditor} = await import("../../../../src/renderer/src/ui/common/misc/MarkdownEditor")
+      wrapper = mount(MarkdownEditor, {props: {content: "", task, readonly: true}, attachTo: document.body, global: {directives: {tooltip: {}}}})
+      await nextTick()
+
+      const over = new Event("dragover", {bubbles: true, cancelable: true})
+      over.dataTransfer = {files: [], types: ["Files"]}
+      wrapper.element.dispatchEvent(over)
+      await nextTick()
+
+      expect(over.defaultPrevented).toBe(true)
+      expect(wrapper.element.classList.contains("ring-2")).toBe(false)
     })
   })
 })

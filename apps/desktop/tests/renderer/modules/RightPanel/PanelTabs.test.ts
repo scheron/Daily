@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 // @ts-nocheck
-import {afterEach, describe, expect, it} from "vitest"
+import {afterEach, describe, expect, it, vi} from "vitest"
 
 import {mount} from "@vue/test-utils"
 import PanelTabs from "../../../../src/renderer/src/ui/modules/RightPanel/{fragments}/PanelTabs.vue"
@@ -9,6 +9,7 @@ describe("PanelTabs", () => {
   let wrapper = null
 
   afterEach(() => {
+    vi.restoreAllMocks()
     wrapper?.unmount()
     wrapper = null
   })
@@ -30,23 +31,36 @@ describe("PanelTabs", () => {
     return wrapper.findAll("button")
   }
 
-  it("counts_the_thread_on_the_comments_tab", () => {
-    const tabs = setup({commentsCount: 12})
+  it("shows_the_label_and_an_icon_on_every_tab", () => {
+    const tabs = setup({active: "history", commentsCount: 12, subtasksCount: {done: 1, total: 3}})
 
-    expect(tabs.map((tab) => tab.text())).toEqual(["Editor", "Comments12", "History"])
+    expect(tabs.map((tab) => tab.text())).toEqual(["Editor", "Comments12", "History", "Subtasks1/3"])
+    expect(wrapper.findAll("svg")).toHaveLength(4)
   })
 
-  it("leaves_the_counter_off_an_empty_thread_instead_of_showing_a_zero", () => {
-    const tabs = setup({commentsCount: 0})
+  it("names_every_tab_by_its_label_and_its_count_spoken_in_words", () => {
+    const tabs = setup({active: "editor", commentsCount: 2, subtasksCount: {done: 1, total: 3}})
 
-    expect(tabs[1].text()).toBe("Comments")
+    expect(tabs.map((tab) => tab.attributes("aria-label"))).toEqual(["Editor", "Comments, 2", "History", "Subtasks, 1 of 3"])
   })
 
-  it("drops_the_tab_icons_when_the_panel_is_too_narrow_keeping_the_labels_and_the_counter", () => {
-    const tabs = setup({commentsCount: 3, compact: true})
+  it("keeps_the_count_in_the_name_of_the_active_tab_and_starts_it_with_the_visible_label", () => {
+    const tabs = setup({active: "subtasks", subtasksCount: {done: 1, total: 3}})
 
-    expect(wrapper.findAll("svg")).toHaveLength(0)
-    expect(tabs.map((tab) => tab.text())).toEqual(["Editor", "Comments3", "History"])
+    expect(tabs[3].text()).toBe("Subtasks1/3")
+    expect(tabs[3].attributes("aria-label")).toBe("Subtasks, 1 of 3")
+  })
+
+  it("names_a_tab_without_a_count_by_its_label_alone", () => {
+    const tabs = setup({active: "editor", commentsCount: 0})
+
+    expect(tabs.map((tab) => tab.attributes("aria-label"))).toEqual(["Editor", "Comments", "History", "Subtasks"])
+  })
+
+  it("leaves_the_counter_off_an_empty_thread_and_a_task_without_subtasks", () => {
+    const tabs = setup({active: "comments", commentsCount: 0, subtasksCount: null})
+
+    expect(tabs.map((tab) => tab.text())).toEqual(["Editor", "Comments", "History", "Subtasks"])
   })
 
   it("reports_the_tab_that_was_clicked", async () => {
@@ -54,29 +68,38 @@ describe("PanelTabs", () => {
 
     await tabs[1].trigger("click")
     await tabs[2].trigger("click")
+    await tabs[3].trigger("click")
 
-    expect(wrapper.emitted("select")).toEqual([["comments"], ["history"]])
+    expect(wrapper.emitted("select")).toEqual([["comments"], ["history"], ["subtasks"]])
   })
 
-  it("parks_the_indicator_under_the_active_tab_a_third_of_the_strip_at_a_time", async () => {
+  it("follows_the_active_tab_by_its_measured_position_and_width", async () => {
+    const widths = {Editor: 90, Comments: 120, History: 80, Subtasks: 100}
+    const spy = (name, get) => vi.spyOn(HTMLElement.prototype, name, "get").mockImplementation(get)
+    spy("offsetWidth", function () {
+      return widths[this.textContent.trim()] ?? 40
+    })
+    spy("offsetLeft", function () {
+      return this.textContent.trim() === "Comments" ? 90 : 0
+    })
+
     setup({active: "editor"})
-    expect(indicator().attributes("style")).toContain("translateX(0%)")
+    await wrapper.vm.$nextTick()
+    expect(indicator().attributes("style")).toContain("width: 90px")
 
     await wrapper.setProps({active: "comments"})
-    expect(indicator().attributes("style")).toContain("translateX(100%)")
-
-    await wrapper.setProps({active: "history"})
-    expect(indicator().attributes("style")).toContain("translateX(200%)")
+    await nextFrame()
+    expect(indicator().attributes("style")).toContain("translateX(90px)")
+    expect(indicator().attributes("style")).toContain("width: 120px")
   })
 
-  it("puts_the_indicator_straight_under_the_open_tab_on_the_first_paint_and_slides_it_only_after", async () => {
+  it("slides_the_indicator_only_after_the_first_paint", async () => {
     setup({active: "history"})
 
-    expect(indicator().attributes("style")).toContain("translateX(200%)")
-    expect(indicator().classes()).not.toContain("transition-transform")
+    expect(indicator().classes()).not.toContain("transition-all")
 
     await nextFrame()
 
-    expect(indicator().classes()).toContain("transition-transform")
+    expect(indicator().classes()).toContain("transition-all")
   })
 })

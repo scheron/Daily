@@ -11,6 +11,7 @@ import {useFilterStore} from "@/stores/filter.store"
 import {useFocusStore} from "@/stores/focus.store"
 import {useMilestonesStore} from "@/stores/milestones.store"
 import {useProjectScopeStore} from "@/stores/projectScope.store"
+import {useSubtasksStore} from "@/stores/subtasks.store"
 import {useTagsStore} from "@/stores/tags.store"
 import {useTaskEditorStore} from "@/stores/task-editor"
 import {useTaskCommentsStore} from "@/stores/taskComments.store"
@@ -35,6 +36,7 @@ import CardCrumb from "./{fragments}/CardCrumb.vue"
 import DeleteMenuItem from "./{fragments}/DeleteMenuItem.vue"
 import FocusBorder from "./{fragments}/FocusBorder.vue"
 import RelationChip from "./{fragments}/RelationChip.vue"
+import SubtaskChip from "./{fragments}/SubtaskChip.vue"
 import TagLine from "./{fragments}/TagLine.vue"
 import {useTaskModel} from "./useTaskModel"
 
@@ -51,6 +53,7 @@ const tagsStore = useTagsStore()
 const taskEditorStore = useTaskEditorStore()
 const taskRelationsStore = useTaskRelationsStore()
 const taskCommentsStore = useTaskCommentsStore()
+const subtasksStore = useSubtasksStore()
 const milestonesStore = useMilestonesStore()
 const filterStore = useFilterStore()
 const focusStore = useFocusStore()
@@ -66,6 +69,7 @@ const estimateLabel = computed(() => toShortDurationLabel(props.task.estimatedTi
 const spentLabel = computed(() => toShortDurationLabel(props.task.spentTime))
 const hasRelation = computed(() => taskRelationsStore.chipByTaskId.has(props.task.id))
 const commentCount = computed(() => taskCommentsStore.commentCountOf(props.task.id))
+const subtaskCount = computed(() => subtasksStore.countOf(props.task.id))
 const projectName = computed(() =>
   projectScopeStore.isAllProjectsMode && props.task.branchId !== NO_PROJECT_ID
     ? (branchesStore.branchesMap.get(props.task.branchId)?.name ?? "")
@@ -79,8 +83,10 @@ const footerDayLabel = computed(() => {
 })
 
 const hasTime = computed(() => Boolean(estimateLabel.value) || Boolean(spentLabel.value))
-const hasContext = computed(() => hasRelation.value || Boolean(footerDayLabel.value) || commentCount.value > 0)
-const hasMetrics = computed(() => hasRelation.value || Boolean(footerDayLabel.value) || hasTime.value || commentCount.value > 0)
+const hasContext = computed(() => hasRelation.value || Boolean(footerDayLabel.value) || commentCount.value > 0 || !!subtaskCount.value)
+const hasMetrics = computed(
+  () => hasRelation.value || Boolean(footerDayLabel.value) || hasTime.value || commentCount.value > 0 || !!subtaskCount.value,
+)
 const hasPriority = computed(() => props.task.priority !== "none")
 const hasFooter = computed(() => tags.value.length > 0 || hasMetrics.value || hasPriority.value)
 
@@ -270,6 +276,7 @@ async function onLinkTask(side: keyof TaskRelationSets, taskId: Task["id"]) {
                 <span class="text-base-content/55"> / {{ estimateLabel || "–" }}</span>
               </span>
             </div>
+            <SubtaskChip v-if="!isCompact && subtaskCount" :count="subtaskCount" />
             <div v-if="!isCompact && commentCount" class="text-base-content/75 inline-flex items-center gap-1 whitespace-nowrap">
               <BaseIcon name="message" class="text-base-content/40 size-3.5" />
               <span>{{ commentCount }}</span>
@@ -285,6 +292,7 @@ async function onLinkTask(side: keyof TaskRelationSets, taskId: Task["id"]) {
             <BaseIcon name="calendar" class="text-base-content/40 size-3.5" />
             <span>{{ footerDayLabel }}</span>
           </div>
+          <SubtaskChip v-if="subtaskCount" :count="subtaskCount" />
           <div v-if="commentCount" class="text-base-content/75 inline-flex items-center gap-1 whitespace-nowrap">
             <BaseIcon name="message" class="text-base-content/40 size-3.5" />
             <span>{{ commentCount }}</span>

@@ -20,7 +20,7 @@ import {
 import {cn} from "@/utils/ui/tailwindcss"
 import {acceptCompletion, completionStatus, currentCompletions, setSelectedCompletion} from "@codemirror/autocomplete"
 import {defaultKeymap, history, historyKeymap, indentWithTab} from "@codemirror/commands"
-import {EditorState, Prec} from "@codemirror/state"
+import {Compartment, EditorState, Prec} from "@codemirror/state"
 import {drawSelection, EditorView, keymap, placeholder} from "@codemirror/view"
 import {useClipboardPaste} from "./composables/useClipboardPaste"
 import {useFileDrop} from "./composables/useFileDrop"
@@ -31,17 +31,24 @@ import type {TaskDraft} from "@/types/taskDraft"
 import type {Task} from "@daily/protocol"
 import type {QuickTaskMenu} from "@shared/types/quickTask"
 
-const props = defineProps<{
-  content: string
-  /** The task whose properties the `/` commands edit; without it only block commands are offered. */
-  task?: Task
-  /** Hides the editor's own `/` menu and reports it through `menu` instead, for a host that draws it elsewhere. */
-  externalMenu?: boolean
-  /** Turns off image paste and drop, for a host that has nowhere to keep attachments. */
-  noAttachments?: boolean
-  /** Keeps the editor at least this many lines tall, empty or not. A line is `1.5em` unless the host sets `--editor-line-height`. */
-  minLines?: number
-}>()
+const props = withDefaults(
+  defineProps<{
+    content: string
+    /** The task whose properties the `/` commands edit; without it only block commands are offered. */
+    task?: Task
+    /** Hides the editor's own `/` menu and reports it through `menu` instead, for a host that draws it elsewhere. */
+    externalMenu?: boolean
+    /** Image paste and drop. On by default with a `task`; `true` turns it on without one, `false` turns it off and swallows dropped files. */
+    attachments?: boolean
+    /** Keeps the editor at least this many lines tall, empty or not. A line is `1.5em` unless the host sets `--editor-line-height`. */
+    minLines?: number
+    /** The text shown in an empty editor; defaults to the `/` commands hint. */
+    placeholder?: string
+    /** Blocks typing, paste and drop while true. */
+    readonly?: boolean
+  }>(),
+  {attachments: undefined},
+)
 const emit = defineEmits<{
   "update:content": [value: string]
   patch: [updates: Partial<TaskDraft>]
@@ -52,19 +59,34 @@ const containerRef = useTemplateRef<HTMLDivElement>("container")
 
 const view = shallowRef<EditorView | null>(null)
 
+const readonlyCompartment = new Compartment()
+
+useEventListener(
+  containerRef,
+  ["paste", "drop", "dragover", "dragenter"],
+  (event: Event) => {
+    if (!props.readonly) return
+    event.preventDefault()
+    event.stopImmediatePropagation()
+  },
+  {capture: true},
+)
+
 const {open: openImagePreview} = useImagePreviewModal()
 
-if (props.task && !props.noAttachments) {
+const hasAttachments = props.attachments ?? !!props.task
+
+if (hasAttachments) {
   useClipboardPaste(containerRef, view)
 }
 
-const {isDraggingOver} = props.task && !props.noAttachments ? useFileDrop(containerRef, view) : {isDraggingOver: ref(false)}
+const {isDraggingOver} = hasAttachments ? useFileDrop(containerRef, view) : {isDraggingOver: ref(false)}
 
 useEventListener(
   containerRef,
   "dragover",
   (event: DragEvent) => {
-    if (props.noAttachments && event.dataTransfer?.types.includes("Files")) event.preventDefault()
+    if (props.attachments === false && event.dataTransfer?.types.includes("Files")) event.preventDefault()
   },
   {capture: true},
 )
@@ -73,7 +95,7 @@ useEventListener(
   containerRef,
   "drop",
   (event: DragEvent) => {
-    if (!props.noAttachments || !event.dataTransfer?.files.length) return
+    if (props.attachments !== false || !event.dataTransfer?.files.length) return
     event.preventDefault()
     event.stopPropagation()
   },
@@ -120,12 +142,13 @@ function createState(doc: string) {
   return EditorState.create({
     doc,
     extensions: [
+      readonlyCompartment.of(getReadonlyExtension()),
       history(),
       drawSelection(),
       createMarkdownLanguageExtension(),
       createMarkdownListIndentExtension(),
       createOrderedListRenumberExtension(),
-      placeholder("Type / for commands"),
+      placeholder(props.placeholder ?? "Type / for commands"),
       EditorView.lineWrapping,
       EditorView.updateListener.of((update) => {
         if (update.docChanged) emit("update:content", update.state.doc.toString())
@@ -142,6 +165,10 @@ function createState(doc: string) {
       Prec.low(keymap.of([indentWithTab])),
     ],
   })
+}
+
+function getReadonlyExtension() {
+  return [EditorState.readOnly.of(!!props.readonly), EditorView.editable.of(!props.readonly)]
 }
 
 function pickCompletion(index: number) {
@@ -170,6 +197,11 @@ watch(
   },
 )
 
+watch(
+  () => props.readonly,
+  () => view.value?.dispatch({effects: readonlyCompartment.reconfigure(getReadonlyExtension())}),
+)
+
 onMounted(() => createEditor(props.content))
 onBeforeUnmount(() => view.value?.destroy())
 
@@ -177,6 +209,7 @@ defineExpose({
   focus: () => view.value?.focus(),
   resetHistory,
   pickCompletion,
+  isCompletionOpen: () => !!view.value?.dom.querySelector(".cm-tooltip-autocomplete"),
 })
 </script>
 

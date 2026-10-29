@@ -1,1 +1,1 @@
-export type PanelTab = "editor" | "comments" | "history"
+export type PanelTab = "editor" | "comments" | "history" | "subtasks"

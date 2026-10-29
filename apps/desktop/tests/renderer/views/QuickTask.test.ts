@@ -277,7 +277,7 @@ describe("the Quick task window view", () => {
   it("turns image paste and drop off, since the panel keeps no attachments", async () => {
     const editor = await mountView()
 
-    expect(editor.props("noAttachments")).toBe(true)
+    expect(editor.props("attachments")).toBe(false)
   })
 
   it("Escape closes an open slash menu first and hides the panel only when nothing consumed it", async () => {

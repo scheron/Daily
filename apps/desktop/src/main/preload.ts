@@ -26,6 +26,8 @@ import type {
   ServerMembershipView,
   ServerProbeView,
   SettingsView,
+  Subtask,
+  SubtaskCounts,
   SyncProvider,
   SyncRemoteState,
   SyncStatus,
@@ -188,6 +190,13 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "comments:create": (taskId: Task["id"], content: string) => ipcRenderer.invoke("comments:create", taskId, content) as Promise<Changeset>,
   "comments:update": (id: TaskComment["id"], content: string) => ipcRenderer.invoke("comments:update", id, content) as Promise<Changeset>,
   "comments:delete": (id: TaskComment["id"]) => ipcRenderer.invoke("comments:delete", id) as Promise<Changeset>,
+  "subtasks:get-by-task": (taskId: Task["id"]) => ipcRenderer.invoke("subtasks:get-by-task", taskId) as Promise<Subtask[]>,
+  "subtasks:get-counts": () => ipcRenderer.invoke("subtasks:get-counts") as Promise<SubtaskCounts>,
+  "subtasks:create": (taskId: Task["id"], content: string) => ipcRenderer.invoke("subtasks:create", taskId, content) as Promise<Changeset>,
+  "subtasks:update": (id: Subtask["id"], updates: {content?: string; done?: boolean}) =>
+    ipcRenderer.invoke("subtasks:update", id, updates) as Promise<Changeset>,
+  "subtasks:delete": (id: Subtask["id"]) => ipcRenderer.invoke("subtasks:delete", id) as Promise<Changeset>,
+  "subtasks:make-task": (id: Subtask["id"]) => ipcRenderer.invoke("subtasks:make-task", id) as Promise<Task | null>,
 
   "branches:get-many": () => ipcRenderer.invoke("branches:get-many") as Promise<Branch[]>,
   "branches:get-one": (id: Branch["id"]) => ipcRenderer.invoke("branches:get-one", id) as Promise<Branch | null>,

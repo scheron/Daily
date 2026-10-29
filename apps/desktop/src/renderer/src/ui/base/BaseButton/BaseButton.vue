@@ -25,7 +25,13 @@ const iconButtonSizeClass = iconButtonSizeVariant(props)
 const iconSizeClass = buttonIconSizeVariant(props)
 
 function getButtonClasses(hasContent: boolean) {
-  return cn(hasContent ? sizeClass.value : iconButtonSizeClass.value, colorClass.value, props.class, props.disabled && "cursor-auto opacity-50")
+  return cn(
+    hasContent ? sizeClass.value : iconButtonSizeClass.value,
+    colorClass.value,
+    props.class,
+    "aria-disabled:cursor-auto aria-disabled:opacity-50",
+    props.disabled && "cursor-auto opacity-50",
+  )
 }
 
 function getIconClasses(isSpinning: boolean) {

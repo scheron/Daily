@@ -28,4 +28,6 @@ export const SHORTCUTS_MAP = {
   "markdown:code": {label: "Inline code", accelerator: "CmdOrCtrl+`"},
   "comments:submit": {label: "Send", accelerator: "CmdOrCtrl+Enter"},
   "comments:cancel": {label: "Cancel", accelerator: "Escape"},
+  "subtasks:submit": {label: "Save", accelerator: "CmdOrCtrl+Enter"},
+  "subtasks:cancel": {label: "Cancel", accelerator: "Escape"},
 } as const

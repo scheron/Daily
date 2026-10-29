@@ -6,6 +6,7 @@ import {applyChangeset} from "@/utils/storage/applyChangeset"
 import {sortTagsByName} from "@/utils/tags/sortTagsByName"
 import {useBranchesStore} from "./branches.store"
 import {useMilestonesStore} from "./milestones.store"
+import {useSubtasksStore} from "./subtasks.store"
 import {useTagsStore} from "./tags.store"
 import {useTaskCommentsStore} from "./taskComments.store"
 import {useTaskRelationsStore} from "./taskRelations.store"
@@ -24,6 +25,7 @@ export const useStorageChangesStore = defineStore("storageChanges", () => {
   const {milestones} = storeToRefs(useMilestonesStore())
   const {relations} = storeToRefs(useTaskRelationsStore())
   const taskCommentsStore = useTaskCommentsStore()
+  const subtasksStore = useSubtasksStore()
 
   const onStorageDataChanged = createEventHook()
 
@@ -32,6 +34,7 @@ export const useStorageChangesStore = defineStore("storageChanges", () => {
     applyChangeset({tasks, milestones, tags, branches, relations}, changeset)
     if (toRaw(tags.value) !== tagsBefore) tags.value = sortTagsByName(tags.value)
     taskCommentsStore.applyBroadcast(changeset)
+    subtasksStore.applyBroadcast(changeset)
 
     onStorageDataChanged.trigger()
   })

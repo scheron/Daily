@@ -24,6 +24,8 @@ import type {
   ServerMembershipView,
   ServerProbeView,
   SettingsView,
+  Subtask,
+  SubtaskCounts,
   SyncProvider,
   SyncRemoteState,
   SyncStatus,
@@ -167,6 +169,12 @@ export interface BridgeIPC {
   "comments:create": (taskId: Task["id"], content: string) => Promise<Changeset>
   "comments:update": (id: TaskComment["id"], content: string) => Promise<Changeset>
   "comments:delete": (id: TaskComment["id"]) => Promise<Changeset>
+  "subtasks:get-by-task": (taskId: Task["id"]) => Promise<Subtask[]>
+  "subtasks:get-counts": () => Promise<SubtaskCounts>
+  "subtasks:create": (taskId: Task["id"], content: string) => Promise<Changeset>
+  "subtasks:update": (id: Subtask["id"], updates: {content?: string; done?: boolean}) => Promise<Changeset>
+  "subtasks:delete": (id: Subtask["id"]) => Promise<Changeset>
+  "subtasks:make-task": (id: Subtask["id"]) => Promise<Task | null>
 
   "branches:get-many": () => Promise<Branch[]>
   "branches:get-one": (id: Branch["id"]) => Promise<Branch | null>

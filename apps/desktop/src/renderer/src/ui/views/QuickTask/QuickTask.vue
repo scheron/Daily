@@ -84,7 +84,7 @@ onBeforeUnmount(() => {
       :task="task"
       external-menu
       :min-lines="EDITOR_MIN_LINES"
-      no-attachments
+      :attachments="false"
       class="[--editor-line-height:20px] [&_.cm-content]:!text-[14px] [&_.cm-content]:!leading-[20px] [&_.cm-editor]:max-h-60 [&_.cm-line]:!leading-[20px]"
       @update:content="patch({content: $event})"
       @patch="patch"

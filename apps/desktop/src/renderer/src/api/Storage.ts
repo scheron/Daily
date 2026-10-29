@@ -6,6 +6,8 @@ import type {
   ISODate,
   Milestone,
   MoveTaskByOrderParams,
+  Subtask,
+  SubtaskCounts,
   Tag,
   Task,
   TaskComment,
@@ -126,6 +128,33 @@ export class StorageAPI {
 
   async deleteTaskComment(id: TaskComment["id"]): Promise<Changeset> {
     return await window.BridgeIPC["comments:delete"](id)
+  }
+
+  /** One task's live subtasks in their order. */
+  async getSubtasksOfTask(taskId: Task["id"]): Promise<Subtask[]> {
+    return window.BridgeIPC["subtasks:get-by-task"](taskId)
+  }
+
+  /** Done and total per task; a task with no subtasks is absent. */
+  async getSubtaskCounts(): Promise<SubtaskCounts> {
+    return window.BridgeIPC["subtasks:get-counts"]()
+  }
+
+  async createSubtask(taskId: Task["id"], content: string): Promise<Changeset> {
+    return await window.BridgeIPC["subtasks:create"](taskId, content)
+  }
+
+  async updateSubtask(id: Subtask["id"], updates: {content?: string; done?: boolean}): Promise<Changeset> {
+    return await window.BridgeIPC["subtasks:update"](id, updates)
+  }
+
+  async deleteSubtask(id: Subtask["id"]): Promise<Changeset> {
+    return await window.BridgeIPC["subtasks:delete"](id)
+  }
+
+  /** Turns a subtask into a task and deletes the subtask, as one write. Null when either is gone. */
+  async makeTaskFromSubtask(id: Subtask["id"]): Promise<Task | null> {
+    return await window.BridgeIPC["subtasks:make-task"](id)
   }
 
   /** Fuzzy-matches tasks; results are sorted by relevance. */

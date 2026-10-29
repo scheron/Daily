@@ -8,6 +8,7 @@ import {useBranchesStore} from "./stores/branches.store"
 import {useMilestonesStore} from "./stores/milestones.store"
 import {useSettingsStore} from "./stores/settings.store"
 import {useStorageChangesStore} from "./stores/storageChanges.store"
+import {useSubtasksStore} from "./stores/subtasks.store"
 import {useSyncServerStore} from "./stores/syncServer.store"
 import {useTagsStore} from "./stores/tags.store"
 import {useTaskCommentsStore} from "./stores/taskComments.store"
@@ -94,6 +95,7 @@ invoke(async () => {
     const milestonesStore = useMilestonesStore()
     const taskRelationsStore = useTaskRelationsStore()
     const taskCommentsStore = useTaskCommentsStore()
+    const subtasksStore = useSubtasksStore()
     useUpdateStore()
     useStorageChangesStore()
 
@@ -104,6 +106,7 @@ invoke(async () => {
       milestonesStore.getMilestoneList(),
       taskRelationsStore.loadRelations(),
       taskCommentsStore.loadCommentCounts(),
+      subtasksStore.loadSubtaskCounts(),
     ])
     signalRendererReady()
     await aiStore.checkConnection()

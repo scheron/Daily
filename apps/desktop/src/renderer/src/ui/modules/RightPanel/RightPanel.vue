@@ -5,6 +5,7 @@ import {useFocusTrap} from "@/composables/useFocusTrap"
 import {useEditorShortcuts} from "./composables/useEditorShortcuts"
 import {useTaskComments} from "./composables/useTaskComments"
 import {useTaskEditor} from "./composables/useTaskEditor"
+import {useTaskSubtasks} from "./composables/useTaskSubtasks"
 import {animatePanel} from "./utils/animatePanel"
 import Comments from "./{fragments}/Comments"
 import Details from "./{fragments}/Details"
@@ -12,6 +13,7 @@ import Editor from "./{fragments}/Editor.vue"
 import Footer from "./{fragments}/Footer"
 import History from "./{fragments}/History"
 import PanelTabs from "./{fragments}/PanelTabs.vue"
+import Subtasks from "./{fragments}/Subtasks"
 import Toolbar from "./{fragments}/Toolbar.vue"
 
 import type {PanelTab} from "./types"
@@ -23,10 +25,10 @@ const activeTab = ref<PanelTab>("editor")
 
 const panelStyle = computed(() => ({width: `${props.width}px`}))
 const surfaceStyle = computed(() => ({width: `${props.width - 8}px`}))
-const isCompact = computed(() => props.width <= 380)
 
 const {isOpen, activeTask, isNew, editingTaskId} = useTaskEditor()
 const {count: commentsCount} = useTaskComments()
+const {count: subtasksCount} = useTaskSubtasks()
 
 useFocusTrap(panelRef, isOpen)
 useEditorShortcuts()
@@ -58,11 +60,18 @@ watch(isOpen, async (open) => {
           <template v-if="activeTask">
             <Details :task="activeTask" />
 
-            <PanelTabs v-if="!isNew" :active="activeTab" :comments-count="commentsCount" :compact="isCompact" @select="activeTab = $event" />
+            <PanelTabs
+              v-if="!isNew"
+              :active="activeTab"
+              :comments-count="commentsCount"
+              :subtasks-count="subtasksCount"
+              @select="activeTab = $event"
+            />
 
             <Editor v-if="isNew || activeTab === 'editor'" />
             <Comments v-else-if="activeTab === 'comments'" />
             <History v-else-if="activeTab === 'history'" />
+            <Subtasks v-else-if="activeTab === 'subtasks'" />
 
             <Footer />
           </template>

@@ -111,6 +111,19 @@ describe("TaskCard — the footer numbers", () => {
     expect(footerText()).toBe("3")
   })
 
+  it("shows_done_over_total_of_the_subtasks_on_a_footer_of_its_own_even_with_nothing_else_to_count", async () => {
+    await setup(makeTask())
+    const {useSubtasksStore} = await import("../../../../src/renderer/src/stores/subtasks.store")
+
+    expect(wrapper.find('use[href="#list-checks"]').exists()).toBe(false)
+
+    useSubtasksStore().subtaskCounts = {"task-1": {done: 1, total: 3}}
+    await nextTick()
+
+    expect(wrapper.find('use[href="#list-checks"]').exists()).toBe(true)
+    expect(footerText()).toBe("1/3")
+  })
+
   it("pairs_the_time_spent_with_the_estimate_under_one_stopwatch", async () => {
     await setup(makeTask({estimatedTime: 7200, spentTime: 2700}), {"task-1": 2})
 

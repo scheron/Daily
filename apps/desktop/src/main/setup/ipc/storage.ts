@@ -3,7 +3,7 @@ import {ipcMain} from "electron"
 import {createSharedStorageHandlers} from "@main/utils/storage/createSharedStorageHandlers"
 
 import type {IStorageController} from "@daily/core"
-import type {Branch, ISODate, Milestone, MoveTaskByOrderParams, Tag, Task, TaskComment, TaskRelationSets} from "@daily/protocol"
+import type {Branch, ISODate, Milestone, MoveTaskByOrderParams, Subtask, Tag, Task, TaskComment, TaskRelationSets} from "@daily/protocol"
 import type {PartialDeep} from "type-fest"
 
 // prettier-ignore
@@ -35,6 +35,13 @@ export function setupStorageIPC(getStorage: () => IStorageController | null) {
   ipcMain.handle("comments:create", (_e, taskId: Task["id"], content: string) => getStorage()?.createTaskComment(taskId, content))
   ipcMain.handle("comments:update", (_e, id: TaskComment["id"], content: string) => getStorage()?.updateTaskComment(id, content))
   ipcMain.handle("comments:delete", (_e, id: TaskComment["id"]) => getStorage()?.deleteTaskComment(id))
+
+  ipcMain.handle("subtasks:get-by-task", (_e, taskId: Task["id"]) => getStorage()?.getSubtasksOfTask(taskId))
+  ipcMain.handle("subtasks:get-counts", () => getStorage()?.getSubtaskCounts())
+  ipcMain.handle("subtasks:create", (_e, taskId: Task["id"], content: string) => getStorage()?.createSubtask(taskId, content))
+  ipcMain.handle("subtasks:update", (_e, id: Subtask["id"], updates: {content?: string; done?: boolean}) => getStorage()?.updateSubtask(id, updates))
+  ipcMain.handle("subtasks:delete", (_e, id: Subtask["id"]) => getStorage()?.deleteSubtask(id))
+  ipcMain.handle("subtasks:make-task", (_e, id: Subtask["id"]) => getStorage()?.makeTaskFromSubtask(id))
 
   ipcMain.handle("branches:get-one", (_e, id: Branch["id"]) => getStorage()?.getBranch(id))
   ipcMain.handle("branches:create", (_e, branch: Omit<Branch, "id" | "createdAt" | "updatedAt" | "deletedAt">) => getStorage()?.createBranch(branch))

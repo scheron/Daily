@@ -4,7 +4,7 @@ import {NO_PROJECT_ID} from "@daily/protocol"
 import {isArray, isObjectLike, isUndefined} from "@daily/std"
 
 import type {Changeset} from "@daily/core"
-import type {Branch, Milestone, Tag, Task, TaskComment, TaskRelation} from "@daily/protocol"
+import type {Branch, Milestone, Subtask, Tag, Task, TaskComment, TaskRelation} from "@daily/protocol"
 import type {Ref} from "vue"
 
 type ChangesetTarget = {
@@ -14,6 +14,7 @@ type ChangesetTarget = {
   branches?: Ref<Branch[]>
   relations?: Ref<TaskRelation[]>
   comments?: Ref<TaskComment[]>
+  subtasks?: Ref<Subtask[]>
 }
 
 type Syncable = {id: string; deletedAt: string | null}
@@ -38,7 +39,7 @@ type Fields = Record<string, unknown>
  * tasks that held it, a removed tag leaves every task carrying it, and a removed project takes its
  * milestones and tags with it and hands the tasks the changeset did not remove to `main`. Relations
  * cascade from nothing and into nothing: a relation whose task has left stays in the collection, and
- * the store's own selectors are what hide it. Comments are the same, and for one more reason: a
+ * the store's own selectors are what hide it. Comments and subtasks are the same, and for one more reason: a
  * removed task is only soft-deleted, so dropping its comments here would leave the collection empty
  * for a task that is restored later.
  */
@@ -50,6 +51,7 @@ export function applyChangeset(target: ChangesetTarget, changeset: Changeset): v
     branches: upsertRows(rawRows(target.branches), changeset.branches?.upserted),
     relations: upsertRows(rawRows(target.relations), changeset.relations?.upserted),
     comments: upsertRows(rawRows(target.comments), changeset.comments?.upserted),
+    subtasks: upsertRows(rawRows(target.subtasks), changeset.subtasks?.upserted),
   }
 
   const removedProjects = new Set(changeset.branches?.removed)
@@ -66,6 +68,7 @@ export function applyChangeset(target: ChangesetTarget, changeset: Changeset): v
   assignIfChanged(target.branches, withoutRows(upserted.branches, removed.branches))
   assignIfChanged(target.relations, withoutRows(upserted.relations, new Set(changeset.relations?.removed)))
   assignIfChanged(target.comments, withoutRows(upserted.comments, new Set(changeset.comments?.removed)))
+  assignIfChanged(target.subtasks, withoutRows(upserted.subtasks, new Set(changeset.subtasks?.removed)))
 }
 
 function rawRows<Row>(collection: Ref<Row[]> | undefined): Row[] {

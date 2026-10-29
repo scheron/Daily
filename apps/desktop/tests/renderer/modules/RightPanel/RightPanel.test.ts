@@ -34,6 +34,7 @@ describe("RightPanel tabs", () => {
     mockBridgeIPC({
       "tasks:get-one": vi.fn(async (id) => makeTask(id)),
       "comments:get-by-task": vi.fn().mockResolvedValue([]),
+      "subtasks:get-by-task": vi.fn().mockResolvedValue([]),
     })
     setActivePinia(createPinia())
   })
@@ -55,7 +56,7 @@ describe("RightPanel tabs", () => {
       props: {width: 420},
       global: {
         directives: {tooltip: {}},
-        stubs: {Toolbar: true, Details: true, Editor: true, Footer: true, Comments: true, History: true},
+        stubs: {Toolbar: true, Details: true, Editor: true, Footer: true, Comments: true, History: true, Subtasks: true},
       },
     })
 
@@ -64,19 +65,19 @@ describe("RightPanel tabs", () => {
   }
 
   function tabLabels() {
-    return wrapper.findAll("button").map((tab) => tab.text())
+    return wrapper.findAll("button").map((tab) => tab.attributes("aria-label") ?? tab.text())
   }
 
   async function clickTab(label) {
-    const tab = wrapper.findAll("button").find((button) => button.text().startsWith(label))
+    const tab = wrapper.findAll("button").find((button) => (button.attributes("aria-label") ?? button.text()) === label)
     await tab.trigger("click")
     await wrapper.vm.$nextTick()
   }
 
-  it("opens_a_saved_task_on_the_editor_with_all_three_tabs_offered", async () => {
+  it("opens_a_saved_task_on_the_editor_with_all_four_tabs_offered", async () => {
     await setup((store) => store.open("task-1"))
 
-    expect(tabLabels()).toEqual(["Editor", "Comments", "History"])
+    expect(tabLabels()).toEqual(["Editor", "Comments", "History", "Subtasks"])
     expect(wrapper.find("editor-stub").exists()).toBe(true)
     expect(wrapper.find("comments-stub").exists()).toBe(false)
     expect(wrapper.find("history-stub").exists()).toBe(false)
@@ -93,6 +94,10 @@ describe("RightPanel tabs", () => {
     await clickTab("History")
     expect(wrapper.find("history-stub").exists()).toBe(true)
     expect(wrapper.find("comments-stub").exists()).toBe(false)
+
+    await clickTab("Subtasks")
+    expect(wrapper.find("subtasks-stub").exists()).toBe(true)
+    expect(wrapper.find("history-stub").exists()).toBe(false)
   })
 
   it("offers_no_tabs_on_a_task_that_was_never_saved_leaving_only_the_editor", async () => {
