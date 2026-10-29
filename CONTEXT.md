@@ -54,6 +54,12 @@ one, and No priority is a level in its own right rather than the lack of one —
 there. It marks a task and nothing more: the order tasks sit in stays the person's own.
 _Avoid_: importance, severity, urgency, rank
 
+**Subtask**:
+A checkbox with its own markdown, inside one task and nowhere else. It takes everything else — day,
+status, project, milestone, tags, priority — from its parent, never appears on the board, and has no
+comments or history of its own. A subtask that needs any of that is made into a task.
+_Avoid_: child task, checklist item, sub-issue
+
 **Milestone**:
 A named, bounded batch of work inside one project, with an optional target date. Its scope is a
 decision someone made, which is what makes a proportion of it mean anything.
