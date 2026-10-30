@@ -73,6 +73,10 @@ export const buttonColorVariant = defineVariant({
           hover:bg-base-content/90
           disabled:hover:bg-base-content/80
       `,
+      dock: `
+          dock-surface gap-2 border border-base-300/70 dark:border-base-300 duration-150
+          hover:bg-base-200/60
+      `,
       floating: `
           bg-base-200 text-base-content/70 border border-base-300 shadow-sm
           hover:text-base-content
@@ -213,6 +217,7 @@ export const buttonColorVariant = defineVariant({
 export const buttonSizeVariant = defineVariant({
   variants: {
     size: {
+      dock: "h-10 min-w-26 px-3",
       sm: "h-7 px-3 text-sm",
       xs: "h-6 px-1.5 text-xs",
     },
@@ -225,6 +230,7 @@ export const buttonSizeVariant = defineVariant({
 export const iconButtonSizeVariant = defineVariant({
   variants: {
     size: {
+      dock: "size-10 p-0",
       sm: "size-7 p-0",
       xs: "size-6 p-0",
     },
@@ -237,6 +243,7 @@ export const iconButtonSizeVariant = defineVariant({
 export const buttonIconSizeVariant = defineVariant({
   variants: {
     size: {
+      dock: "size-4",
       sm: "size-4",
       xs: "size-3.5",
     },

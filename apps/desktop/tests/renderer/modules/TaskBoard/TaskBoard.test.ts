@@ -205,6 +205,499 @@ describe("TaskBoard", () => {
     await settle()
   }
 
+  function animateColumnGeometry(board) {
+    const animations = new Map()
+    Element.prototype.animate.mockImplementation(function (keyframes) {
+      const animation = {playState: "running", pending: false, onfinish: null, cancel: vi.fn(() => (animation.playState = "idle"))}
+      animations.set(this, {animation, offset: Number.parseFloat(keyframes[0].transform.slice(11))})
+      return animation
+    })
+    for (const column of board.element.querySelectorAll("[data-column-status]")) {
+      const measure = column.getBoundingClientRect.getMockImplementation()
+      column.getBoundingClientRect.mockImplementation(() => {
+        const rect = measure()
+        const current = animations.get(column)
+        const offset = current?.animation.playState === "running" ? current.offset : 0
+        return {...rect, left: rect.left + offset, right: rect.right + offset}
+      })
+      Object.defineProperty(column, "getAnimations", {
+        configurable: true,
+        value: () => (animations.has(column) ? [animations.get(column).animation] : []),
+      })
+    }
+    return animations
+  }
+
+  it("refreshes hidden columns after a held reorder animation finishes without another geometry event (layout proxy)", async () => {
+    const {mountBoard, tasks, settings} = await setup()
+    tasks.tasks = ["backlog", "in_progress", "done", "cancelled"].map((status) => makeTask({id: status, status}))
+    const board = mountBoard()
+    await nextTick()
+    const element = measureColumns(board, {}, 740)
+    const animations = animateColumnGeometry(board)
+    const labels = () => board.findAll("button[aria-label^='Scroll ']").map((button) => button.attributes("aria-label"))
+    deliverResize(element)
+    await activateColumn(board)
+    moveColumnPointer("pointermove", 660)
+    await settle()
+    expect(columnStatuses(board)).toEqual(["in_progress", "done", "backlog", "cancelled"])
+    expect(labels()).toEqual(["Scroll right to Done, 1 task", "Scroll right to Cancelled, 1 task"])
+    for (const {animation} of animations.values()) animation.playState = "finished"
+    await settle()
+    expect(labels()).toEqual(["Scroll right to Backlog, 1 task", "Scroll right to Cancelled, 1 task"])
+    expect(element.scrollLeft).toBe(0)
+    expect(settings.settings.layout.columnOrder).toBeUndefined()
+    const reads = element.getBoundingClientRect.mock.calls.length
+    await settle()
+    await settle()
+    expect(element.getBoundingClientRect.mock.calls).toHaveLength(reads)
+  })
+
+  it("coalesces geometry events while sampling an animation and releases scheduled frames after settling or teardown (layout proxy)", async () => {
+    const {mountBoard, tasks} = await setup()
+    tasks.tasks = [makeTask(), makeTask({id: "done", status: "done"}), makeTask({id: "cancelled", status: "cancelled"})]
+    const board = mountBoard()
+    await nextTick()
+    const element = measureColumns(board, {}, 740)
+    deliverResize(element)
+    await settle()
+    await settle()
+    await settle()
+    const frames = new Map()
+    let frameId = 0
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      frames.set(++frameId, callback)
+      return frameId
+    })
+    vi.spyOn(window, "cancelAnimationFrame").mockImplementation((id) => frames.delete(id))
+    const sample = async () => {
+      const pending = [...frames.values()]
+      frames.clear()
+      for (const callback of pending) callback(performance.now())
+      await nextTick()
+    }
+    const labels = () => board.findAll("button[aria-label^='Scroll ']").map((button) => button.attributes("aria-label"))
+
+    for (let index = 0; index < 10; index++) element.dispatchEvent(new Event("scroll"))
+    await nextTick()
+    expect(frames.size).toBe(1)
+    await sample()
+    expect(labels()).toEqual(["Scroll right to Done, 1 task", "Scroll right to Cancelled, 1 task"])
+    expect(frames.size).toBe(0)
+
+    const animation = {playState: "running", pending: false}
+    Object.defineProperty(columnOf(board, "done"), "getAnimations", {configurable: true, value: () => [animation]})
+    const measure = element.getBoundingClientRect.getMockImplementation()
+    element.getBoundingClientRect.mockImplementationOnce(() => {
+      element.dispatchEvent(new Event("scroll"))
+      return measure()
+    })
+    element.scrollLeft = 185.1
+    for (let index = 0; index < 10; index++) element.dispatchEvent(new Event("scroll"))
+    await nextTick()
+    expect(frames.size).toBe(1)
+    await sample()
+    expect(labels()).toEqual(["Scroll right to Cancelled, 1 task"])
+    expect(frames.size).toBe(1)
+    animation.playState = "finished"
+    await sample()
+    expect(labels()).toEqual(["Scroll right to Cancelled, 1 task"])
+    expect(frames.size).toBe(0)
+
+    element.dispatchEvent(new Event("scroll"))
+    board.unmount()
+    wrapper = null
+    await nextTick()
+    expect(frames.size).toBe(0)
+    expect(document.querySelector("button[aria-label^='Scroll ']")).toBeNull()
+  })
+
+  it.each(["disappears", "unmounts"])("stops observing animated column geometry when the board %s (layout proxy)", async (ending) => {
+    const {mountBoard, tasks} = await setup()
+    tasks.tasks = ["backlog", "in_progress", "done", "cancelled"].map((status) => makeTask({id: status, status}))
+    const board = mountBoard()
+    await nextTick()
+    const element = measureColumns(board, {}, 740)
+    animateColumnGeometry(board)
+    deliverResize(element)
+    await activateColumn(board)
+    moveColumnPointer("pointermove", 660)
+    await settle()
+    const readsWhileAnimating = element.getBoundingClientRect.mock.calls.length
+    await settle()
+    expect(element.getBoundingClientRect.mock.calls.length).toBeGreaterThan(readsWhileAnimating)
+    if (ending === "disappears") tasks.tasks = []
+    else {
+      board.unmount()
+      wrapper = null
+    }
+    await nextTick()
+    const readsAfterRemoval = element.getBoundingClientRect.mock.calls.length
+    await settle()
+    await settle()
+    expect(element.getBoundingClientRect.mock.calls).toHaveLength(readsAfterRemoval)
+    expect(document.querySelector("button[aria-label^='Scroll ']")).toBeNull()
+  })
+
+  it("offers the current count only for nonempty columns at least halfway beyond the board edge (layout proxy)", async () => {
+    const {mountBoard, tasks} = await setup()
+    tasks.tasks = [makeTask(), ...makeTasks(2, {status: "done"})]
+    const board = mountBoard()
+    await nextTick()
+    const element = measureColumns(board, {}, 740)
+    deliverResize(element)
+    await settle()
+
+    const labels = () => board.findAll("button[aria-label^='Scroll ']").map((button) => button.attributes("aria-label"))
+    expect(labels()).toEqual(["Scroll right to Done, 2 tasks"])
+
+    element.scrollLeft = 185.1
+    element.dispatchEvent(new Event("scroll"))
+    await settle()
+    expect(labels()).toEqual([])
+
+    tasks.tasks = [makeTask(), makeTask({id: "done", status: "done"})]
+    element.scrollLeft = 0
+    element.dispatchEvent(new Event("scroll"))
+    await settle()
+    expect(labels()).toEqual(["Scroll right to Done, 1 task"])
+  })
+
+  it("keeps the right actions beside measured attached Focus, hides them without room and restores them on close/detach (layout proxy)", async () => {
+    const {mountBoard, tasks, ui} = await setup()
+    const {useFocusStore} = await import("../../../../src/renderer/src/stores/focus.store")
+    const focus = useFocusStore()
+    await vi.waitFor(() => expect(focus.session).not.toBeNull())
+    tasks.tasks = [makeTask(), makeTask({id: "done", status: "done"})]
+    const board = mountBoard()
+    await nextTick()
+    const element = measureColumns(board, {}, 740)
+    const rect = (left, width) => ({left, right: left + width, width, top: 0, bottom: 800, height: 800})
+    vi.spyOn(board.element, "getBoundingClientRect").mockReturnValue(rect(100, 740))
+    deliverResize(element)
+    await settle()
+    const nav = board.find("nav[data-side='right']")
+    vi.spyOn(nav.element, "getBoundingClientRect").mockReturnValue(rect(0, 104))
+
+    async function openDock(left = 464, width = 360) {
+      ui.toggleFocusDock(true)
+      await nextTick()
+      const section = board.find("section").element
+      vi.spyOn(section, "getBoundingClientRect").mockReturnValue(rect(left, width))
+      deliverResize(board.element, section, nav.element)
+      await settle()
+      return section
+    }
+
+    let section = await openDock()
+    expect(nav.element.style.right).toBe("392px")
+    expect(nav.element.style.visibility).not.toBe("hidden")
+    expect(board.find("section header button").attributes("disabled")).toBeUndefined()
+
+    section.getBoundingClientRect.mockReturnValue(rect(414, 410))
+    deliverResize(section)
+    await settle()
+    expect(nav.element.style.right).toBe("442px")
+
+    section.getBoundingClientRect.mockReturnValue(rect(230, 594))
+    deliverResize(section)
+    await settle()
+    expect(nav.element.style.visibility).toBe("hidden")
+    section.getBoundingClientRect.mockReturnValue(rect(260, 564))
+    deliverResize(section)
+    await settle()
+    expect(nav.element.style.visibility).not.toBe("hidden")
+
+    vi.spyOn(nav.element, "getBoundingClientRect").mockReturnValue(rect(0, 140))
+    deliverResize(nav.element)
+    await settle()
+    expect(nav.element.style.visibility).toBe("hidden")
+
+    ui.toggleFocusDock(false)
+    await settle()
+    expect(nav.element.style.right).toBe("")
+    expect(nav.element.style.visibility).not.toBe("hidden")
+    section = await openDock()
+    expect(nav.element.style.right).toBe("392px")
+    focus.session = {...focus.session, isDetached: true}
+    await settle()
+    expect(nav.element.style.right).toBe("")
+    expect(nav.element.style.visibility).not.toBe("hidden")
+    focus.session = {...focus.session, isDetached: false}
+    await nextTick()
+    section = board.find("section").element
+    vi.spyOn(section, "getBoundingClientRect").mockReturnValue(rect(464, 360))
+    deliverResize(section)
+    await settle()
+    expect(nav.element.style.right).toBe("392px")
+  })
+
+  it("updates hidden status order and counts across Agents/Default and saved reorder without scrolling (layout proxy)", async () => {
+    const {mountBoard, tasks, settings} = await setup({boardMode: "agents"})
+    tasks.tasks = ["backlog", "ready_for_agent", "in_progress", "ready_to_merge", "done", "cancelled"].map((status) => makeTask({id: status, status}))
+    const board = mountBoard()
+    await nextTick()
+    let element = measureColumns(board, {}, 740)
+    const labels = () => board.findAll("button[aria-label^='Scroll ']").map((button) => button.attributes("aria-label"))
+    deliverResize(element)
+    await settle()
+    expect(labels()).toEqual([
+      "Scroll right to In Progress, 1 task",
+      "Scroll right to Ready to Merge, 1 task",
+      "Scroll right to Done, 1 task",
+      "Scroll right to Cancelled, 1 task",
+    ])
+    settings.settings.appearance.boardMode = "normal"
+    await settle()
+    expect(labels()).toEqual(["Scroll right to Done, 1 task", "Scroll right to Cancelled, 1 task"])
+    expect(columnOf(board, "backlog").querySelector("[data-column-drag-handle]").textContent).toContain("2")
+    settings.settings.layout.columnOrder = ["in_progress", "backlog", "cancelled", "done", "ready_to_merge", "ready_for_agent"]
+    await settle()
+    expect(labels()).toEqual(["Scroll right to Cancelled, 1 task", "Scroll right to Done, 1 task"])
+    settings.settings.appearance.boardMode = "agents"
+    await nextTick()
+    element = measureColumns(board, {}, 740)
+    deliverResize(element)
+    await settle()
+    expect(labels()).toEqual([
+      "Scroll right to Cancelled, 1 task",
+      "Scroll right to Done, 1 task",
+      "Scroll right to Ready to Merge, 1 task",
+      "Scroll right to Ready for Agent, 1 task",
+    ])
+    expect(element.scrollLeft).toBe(0)
+  })
+
+  it("uses current day, project, milestone and tag scope for counts, including zero Cancelled (layout proxy)", async () => {
+    const {mountBoard, tasks, settings} = await setup()
+    const {useFilterStore} = await import("../../../../src/renderer/src/stores/filter.store")
+    const filter = useFilterStore()
+    tasks.tasks = [
+      makeTask(),
+      makeTask({id: "done", status: "done", milestoneId: "release", tags: [makeTag()]}),
+      makeTask({id: "cancelled", status: "cancelled", milestoneId: "release"}),
+      makeTask({
+        id: "tomorrow",
+        status: "done",
+        milestoneId: "release",
+        tags: [makeTag()],
+        scheduled: {date: "2099-01-01", time: "09:00", timezone: "UTC"},
+      }),
+      makeTask({id: "other", status: "done", branchId: "other"}),
+    ]
+    const board = mountBoard()
+    await nextTick()
+    const element = measureColumns(board, {}, 740)
+    const labels = () => board.findAll("button[aria-label^='Scroll ']").map((button) => button.attributes("aria-label"))
+    deliverResize(element)
+    await settle()
+    expect(labels()).toEqual(["Scroll right to Done, 1 task", "Scroll right to Cancelled, 1 task"])
+    filter.activeTagIds = new Set(["tag-1"])
+    await settle()
+    expect(labels()).toEqual(["Scroll right to Done, 1 task"])
+    filter.setFrame("milestone")
+    filter.setActiveMilestone("release")
+    await settle()
+    expect(labels()).toEqual(["Scroll right to Done, 2 tasks", "Scroll right to Cancelled, 1 task"])
+    filter.setActiveTags("tag-1")
+    await settle()
+    expect(labels()).toEqual(["Scroll right to Done, 2 tasks"])
+    filter.activeTagIds = new Set()
+    await settle()
+    expect(labels()).toEqual(["Scroll right to Done, 2 tasks", "Scroll right to Cancelled, 1 task"])
+    settings.settings.branch.activeId = "other"
+    await settle()
+    expect(filter.activeMilestoneId).toBeNull()
+    expect(labels()).toEqual(["Scroll right to Done, 1 task"])
+    filter.setFrame("day")
+    tasks.activeDay = "2099-01-01"
+    await settle()
+    expect(labels()).toEqual([])
+    expect(board.find("[data-task-board]").exists()).toBe(false)
+  })
+
+  it("recomputes column geometry on density, text, collapse and board resize without a scroll event (layout proxy)", async () => {
+    const {mountBoard, tasks, settings, ui} = await setup()
+    tasks.tasks = [makeTask(), makeTask({id: "done", status: "done"})]
+    const board = mountBoard()
+    await nextTick()
+    const widths = {backlog: 370, in_progress: 370, done: 370, cancelled: 370}
+    const element = measureColumns(board, widths, 740)
+    const labels = () => board.findAll("button[aria-label^='Scroll ']").map((button) => button.attributes("aria-label"))
+    deliverResize(element)
+    await settle()
+    expect(labels()).toEqual(["Scroll right to Done, 1 task"])
+    settings.settings.appearance.taskView = "compact"
+    Object.keys(widths).forEach((status) => {
+      widths[status] = 259
+    })
+    deliverResize(columnOf(board, "done"))
+    await settle()
+    expect(labels()).toEqual([])
+    settings.settings.typography.fontSize = "large"
+    widths.backlog = 400
+    widths.in_progress = 400
+    deliverResize(columnOf(board, "in_progress"))
+    await settle()
+    expect(labels()).toEqual(["Scroll right to Done, 1 task"])
+    ui.setSectionCollapsed("backlog", true)
+    await settle()
+    expect(labels()).toEqual([])
+    ui.setSectionCollapsed("backlog", false)
+    await settle()
+    expect(labels()).toEqual(["Scroll right to Done, 1 task"])
+    element.getBoundingClientRect.mockReturnValue({left: 0, right: 1400, width: 1400, top: 0, bottom: 800, height: 800})
+    deliverResize(element)
+    await settle()
+    expect(labels()).toEqual([])
+    expect(element.scrollLeft).toBe(0)
+    await settings.flush()
+    expect(window.BridgeIPC["settings:save"].mock.calls).toEqual([[{layout: {sectionsCollapsed: {backlog: false}}}]])
+  })
+
+  it.each([false, true])(
+    "reveals a hidden column with collapse=%s by moving only the board and handing focus to its header (layout proxy)",
+    async (collapsed) => {
+      const {mountBoard, tasks, ui} = await setup({sectionsCollapsed: {done: collapsed}})
+      const {useTaskEditorStore} = await import("../../../../src/renderer/src/stores/task-editor")
+      const editor = useTaskEditorStore()
+      tasks.tasks = [...makeTasks(30), ...makeTasks(30, {status: "done"}).map((task) => ({...task, id: `done-${task.id}`}))]
+      const original = JSON.stringify(tasks.tasks)
+      await editor.open("task-20")
+      editor.patch({content: "Unsaved draft"})
+      const board = mountBoard()
+      await nextTick()
+      const element = measureColumns(board, {}, 740)
+      const source = viewport(board, "in_progress").list
+      const target = viewport(board, "done").list
+      source.scrollTop = 4000
+      target.scrollTop = 2200
+      source.dispatchEvent(new Event("scroll"))
+      target.dispatchEvent(new Event("scroll"))
+      const scrollTo = vi.spyOn(element, "scrollTo").mockImplementation(({left}) => {
+        element.scrollLeft = left
+        element.dispatchEvent(new Event("scroll"))
+      })
+      deliverResize(element)
+      await settle()
+      expect(board.findAll("button[aria-label^='Scroll ']").map((button) => button.attributes("aria-label"))).toContain(
+        "Scroll right to Done, 30 tasks",
+      )
+
+      const action = board.find("button[aria-label='Scroll right to Done, 30 tasks']")
+      action.element.focus()
+      await action.trigger("click", {detail: 0})
+      await settle()
+
+      const rect = columnOf(board, "done").getBoundingClientRect()
+      expect(rect.right).toBe(740)
+      expect(rect.left).toBeGreaterThanOrEqual(0)
+      expect(scrollTo).toHaveBeenCalledExactlyOnceWith({left: collapsed ? 68 : 370, behavior: "smooth"})
+      expect(source.scrollTop).toBe(4000)
+      expect(target.scrollTop).toBe(2200)
+      expect(Boolean(ui.sectionsCollapsed.done)).toBe(collapsed)
+      expect(editor.editingTaskId).toBe("task-20")
+      expect(editor.draft.content).toBe("Unsaved draft")
+      expect(JSON.stringify(tasks.tasks)).toBe(original)
+      expect(document.activeElement).toBe(columnOf(board, "done").querySelector("[data-column-drag-handle]"))
+      expect(board.findAll("button[aria-label^='Scroll ']").map((button) => button.attributes("aria-label"))).not.toContain(
+        "Scroll right to Done, 30 tasks",
+      )
+    },
+  )
+
+  it("keeps each side in board order and navigates to the nearest left edge (layout proxy)", async () => {
+    const {mountBoard, tasks} = await setup({boardMode: "agents"})
+    tasks.tasks = ["backlog", "ready_for_agent", "in_progress", "ready_to_merge", "done", "cancelled"].map((status) => makeTask({id: status, status}))
+    const board = mountBoard()
+    await nextTick()
+    const element = measureColumns(board, {}, 740)
+    element.scrollLeft = 740
+    const scrollTo = vi.spyOn(element, "scrollTo").mockImplementation(({left}) => {
+      element.scrollLeft = left
+      element.dispatchEvent(new Event("scroll"))
+    })
+    deliverResize(element)
+    await settle()
+    expect(
+      board.findAll("nav[aria-label^='Hidden columns']").map((nav) => nav.findAll("button").map((button) => button.attributes("aria-label"))),
+    ).toEqual([
+      ["Scroll left to Backlog, 1 task", "Scroll left to Ready for Agent, 1 task"],
+      ["Scroll right to Done, 1 task", "Scroll right to Cancelled, 1 task"],
+    ])
+
+    await board.find("button[aria-label='Scroll left to Ready for Agent, 1 task']").trigger("click")
+    await settle()
+    expect(columnOf(board, "ready_for_agent").getBoundingClientRect().left).toBe(0)
+    expect(scrollTo).toHaveBeenCalledExactlyOnceWith({left: 370, behavior: "smooth"})
+    expect(board.findAll("button[aria-label^='Scroll left']").map((button) => button.attributes("aria-label"))).toEqual([
+      "Scroll left to Backlog, 1 task",
+    ])
+  })
+
+  it.each(["target", "board"])("clears pending navigation when the %s disappears during smooth scrolling (layout proxy)", async (disappears) => {
+    const {mountBoard, tasks} = await setup()
+    const original = [makeTask(), makeTask({id: "done", status: "done"})]
+    tasks.tasks = original
+    const board = mountBoard()
+    await nextTick()
+    let element = measureColumns(board, {}, 740)
+    vi.spyOn(element, "scrollTo").mockImplementation(() => {})
+    deliverResize(element)
+    await settle()
+    const action = board.find("button[aria-label='Scroll right to Done, 1 task']")
+    action.element.focus()
+    await action.trigger("click")
+    await settle()
+    expect(document.activeElement).toBe(action.element)
+    expect(columnOf(board, "done").getBoundingClientRect().left).toBe(740)
+
+    tasks.tasks = disappears === "board" ? [] : [makeTask()]
+    await settle()
+    expect(board.findAll("button[aria-label^='Scroll ']")).toHaveLength(0)
+    tasks.tasks = original
+    await nextTick()
+    if (disappears === "board") element = measureColumns(board, {}, 740)
+    deliverResize(element)
+    await settle()
+    element.scrollLeft = 370
+    element.dispatchEvent(new Event("scroll"))
+    await settle()
+    expect(columnOf(board, "done").getBoundingClientRect().right).toBe(740)
+    expect(document.activeElement).not.toBe(columnOf(board, "done").querySelector("[data-column-drag-handle]"))
+  })
+
+  it.each([false, true])("includes the exact half-width boundary on both edges with collapse=%s (layout proxy)", async (collapsed) => {
+    const {mountBoard, tasks} = await setup({sectionsCollapsed: {backlog: collapsed, done: collapsed}})
+    tasks.tasks = [makeTask({id: "backlog", status: "backlog"}), makeTask({status: "done"})]
+    const board = mountBoard()
+    await nextTick()
+    const element = measureColumns(board, {}, collapsed ? 438 : 740)
+    const labels = () => board.findAll("button[aria-label^='Scroll ']").map((button) => button.attributes("aria-label"))
+    const halfWidth = collapsed ? 34 : 185
+    element.scrollLeft = halfWidth - 0.1
+    deliverResize(element)
+    await settle()
+    expect(labels()).toEqual(["Scroll right to Done, 1 task"])
+
+    element.scrollLeft = halfWidth
+    element.dispatchEvent(new Event("scroll"))
+    await settle()
+    expect(labels()).toEqual(["Scroll left to Backlog, 1 task", "Scroll right to Done, 1 task"])
+
+    element.scrollLeft = halfWidth + 0.1
+    element.dispatchEvent(new Event("scroll"))
+    await settle()
+    expect(labels()).toEqual(["Scroll left to Backlog, 1 task"])
+
+    element.scrollLeft = 0
+    element.getBoundingClientRect.mockReturnValue({left: 0, right: 1600, width: 1600, top: 0, bottom: 800, height: 800})
+    Object.defineProperty(element, "clientWidth", {configurable: true, value: 1600})
+    deliverResize(element)
+    await settle()
+    expect(labels()).toEqual([])
+  })
+
   it.each(["normal", "agents"])("keeps %s column presentation and identity while carrying its own summary card (layout proxy)", async (boardMode) => {
     const saved = {done: true, cancelled: false}
     const {mountBoard, tasks, settings} = await setup({boardMode, sectionsCollapsed: saved})

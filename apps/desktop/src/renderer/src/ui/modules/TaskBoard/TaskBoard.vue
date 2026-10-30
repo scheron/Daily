@@ -16,7 +16,9 @@ import TagsDock from "@/ui/modules/TagsDock.vue"
 import {cn} from "@/utils/ui/tailwindcss"
 import {useColumnReorder} from "./composables/useColumnReorder"
 import {useDragScroll} from "./composables/useDragScroll"
+import {useHiddenColumnIndicators} from "./composables/useHiddenColumnIndicators"
 import ColumnDragPreview from "./{fragments}/ColumnDragPreview.vue"
+import HiddenColumnStack from "./{fragments}/HiddenColumnStack"
 import NoTasksPlaceholder from "./{fragments}/NoTasksPlaceholder.vue"
 import TaskColumn from "./{fragments}/TaskColumn.vue"
 import TaskDragPreview from "./{fragments}/TaskDragPreview.vue"
@@ -34,6 +36,7 @@ const {activeDay} = storeToRefs(tasksStore)
 
 const containerRef = useTemplateRef<HTMLElement>("container")
 const boardRef = useTemplateRef<HTMLElement>("board")
+const focusDockRef = useTemplateRef<InstanceType<typeof FocusDock>>("focusDock")
 
 const columns = useTaskColumns()
 const boardMode = useSettingValue("appearance.boardMode", "normal")
@@ -84,6 +87,8 @@ const isBoardVisible = computed(() => {
   return Object.values(byStatus).some((tasks) => tasks.length > 0)
 })
 
+const {hiddenColumns, revealColumn} = useHiddenColumnIndicators(boardRef, visibleColumns)
+
 useDragScroll(boardRef)
 
 function getColumnClasses(status: TaskStatus) {
@@ -112,11 +117,14 @@ watch(activeDay, () => containerRef.value?.scrollTo({top: 0, behavior: "instant"
       </template>
     </div>
 
+    <HiddenColumnStack side="left" :columns="hiddenColumns.left" @reveal="revealColumn" />
+    <HiddenColumnStack side="right" :columns="hiddenColumns.right" :obstacle="focusDockRef?.element" @reveal="revealColumn" />
+
     <div class="drag-region absolute inset-x-0 top-0 z-20 h-11" />
     <TagsDock />
     <CalendarDock />
     <ActionsDock @create-task="emit('createTask')" />
-    <FocusDock />
+    <FocusDock ref="focusDock" />
     <TaskDragPreview />
     <ColumnDragPreview v-if="draggingStatus" :status="draggingStatus" :x="previewPosition.x" :y="previewPosition.y" />
   </div>
