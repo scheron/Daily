@@ -80,7 +80,7 @@ function selectDate(isoDate: ISODate) {
 }
 
 function getCountClasses(hasTasks: boolean, titleClass: string) {
-  return cn("flex items-center gap-0.5", hasTasks ? titleClass : "text-base-content/50")
+  return cn("flex shrink-0 items-center gap-0.5 whitespace-nowrap", hasTasks ? titleClass : "text-base-content/50")
 }
 
 function getDateClasses(isoDate: ISODate, isCurrentMonth: boolean) {
@@ -117,7 +117,7 @@ onBeforeMount(() => {
 </script>
 
 <template>
-  <div class="flex-1 p-1">
+  <div class="w-max min-w-[378px] flex-1 p-1">
     <div class="mb-3 flex items-center justify-between gap-2">
       <div class="flex shrink-0 items-center">
         <BaseButton variant="ghost" icon="chevron-left" data-month-step="previous" @click="previousMonth" />
@@ -126,19 +126,18 @@ onBeforeMount(() => {
         </BaseButton>
         <BaseButton variant="ghost" icon="chevron-right" data-month-step="next" @click="nextMonth" />
       </div>
-    </div>
-
-    <div class="mb-1 flex justify-end gap-2 px-1 text-xs font-semibold">
-      <span
-        v-for="column in countColumns"
-        :key="column.status"
-        :aria-label="`${column.label}: ${monthCounts[column.status]}`"
-        :title="column.label"
-        :class="getCountClasses(monthCounts[column.status] > 0, column.titleClass)"
-      >
-        <BaseIcon :name="column.icon" class="size-3" />
-        {{ monthCounts[column.status] }}
-      </span>
+      <div class="flex shrink-0 items-center gap-2 px-1 text-xs font-semibold">
+        <span
+          v-for="column in countColumns"
+          :key="column.status"
+          :aria-label="`${column.label}: ${monthCounts[column.status]}`"
+          :title="column.label"
+          :class="getCountClasses(monthCounts[column.status] > 0, column.titleClass)"
+        >
+          <BaseIcon :name="column.icon" class="size-3" />
+          {{ monthCounts[column.status] }}
+        </span>
+      </div>
     </div>
 
     <ul class="grid grid-cols-7 gap-1">

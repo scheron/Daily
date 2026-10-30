@@ -15,7 +15,7 @@ export function useDockTabs() {
   const dockTab = computed<CalendarDockTab>(() => (hasMilestones.value ? uiStore.calendarDockTab : "days"))
   const dockWidthClass = computed(() => {
     if (!uiStore.isCalendarDockExpanded) return ""
-    return dockTab.value === "milestones" ? "w-128" : "w-90"
+    return dockTab.value === "milestones" ? "w-128" : "w-max"
   })
 
   function selectTab(tab: CalendarDockTab) {
