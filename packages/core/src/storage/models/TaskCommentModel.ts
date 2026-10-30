@@ -85,6 +85,14 @@ export class TaskCommentModel {
     return touched.length ? id : null
   }
 
+  /** Every stored comment's text, soft-deleted ones included, so file cleanup preserves images until their referencing rows are collected. */
+  getAllContents(): string[] {
+    return this.db
+      .prepare(`SELECT content FROM task_comments`)
+      .all<{content: string}>()
+      .map((row) => row.content)
+  }
+
   /** Points a task's comments at the project the task now sits in; returns the comments that moved. */
   moveCommentsToBranch(taskId: Task["id"], branchId: Branch["id"]): TaskComment[] {
     const now = new Date().toISOString()

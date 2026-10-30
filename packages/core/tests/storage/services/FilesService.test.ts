@@ -9,6 +9,7 @@ import {APP_CONFIG, createEntityId} from "@daily/protocol"
 
 import {FileModel} from "@core/storage/models/FileModel"
 import {SubtaskModel} from "@core/storage/models/SubtaskModel"
+import {TaskCommentModel} from "@core/storage/models/TaskCommentModel"
 import {TaskModel} from "@core/storage/models/TaskModel"
 import {FilesService} from "@core/storage/services/FilesService"
 import {createTestDatabase} from "../../helpers/db"
@@ -25,20 +26,7 @@ vi.mock("../../../src/utils/logger", () => ({
   },
 }))
 
-const WEBP_BYTES = Buffer.from([
-  0x52,
-  0x49,
-  0x46,
-  0x46, // "RIFF" at offset 0
-  0x00,
-  0x00,
-  0x00,
-  0x00, // chunk size, arbitrary
-  0x57,
-  0x45,
-  0x42,
-  0x50, // "WEBP" at offset 8
-])
+const WEBP_BYTES = Buffer.from([0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50])
 
 describe("FilesService.saveFile", () => {
   let db, assetsDir, fileModel, filesService
@@ -47,7 +35,7 @@ describe("FilesService.saveFile", () => {
     db = createTestDatabase()
     assetsDir = mkdtempSync(join(tmpdir(), "files-service-"))
     fileModel = new FileModel(db, assetsDir)
-    filesService = new FilesService(fileModel, new TaskModel(db))
+    filesService = new FilesService(fileModel, new TaskModel(db), new SubtaskModel(db), new TaskCommentModel(db))
   })
 
   afterEach(() => {
@@ -106,7 +94,7 @@ describe("FilesService.resolveAssetPath", () => {
     assetsDir = mkdtempSync(join(tmpdir(), "daily-files-service-"))
     fileModel = new FileModel(db, assetsDir)
     fileModel.initAssets()
-    filesService = new FilesService(fileModel, new TaskModel(db))
+    filesService = new FilesService(fileModel, new TaskModel(db), new SubtaskModel(db), new TaskCommentModel(db))
   })
 
   afterEach(() => {
@@ -138,7 +126,7 @@ describe("FilesService.resolveAssetPath", () => {
 })
 
 describe("FilesService.cleanupOrphanFiles", () => {
-  let db, assetsDir, fileModel, taskModel, subtaskModel, filesService
+  let db, assetsDir, fileModel, taskModel, subtaskModel, taskCommentModel, filesService
 
   beforeEach(() => {
     db = createTestDatabase()
@@ -146,7 +134,8 @@ describe("FilesService.cleanupOrphanFiles", () => {
     fileModel = new FileModel(db, assetsDir)
     taskModel = new TaskModel(db)
     subtaskModel = new SubtaskModel(db)
-    filesService = new FilesService(fileModel, taskModel, subtaskModel)
+    taskCommentModel = new TaskCommentModel(db)
+    filesService = new FilesService(fileModel, taskModel, subtaskModel, taskCommentModel)
   })
 
   afterEach(() => {
@@ -170,6 +159,17 @@ describe("FilesService.cleanupOrphanFiles", () => {
       tags: [],
       attachments: [],
       deletedAt: null,
+      ...overrides,
+    }
+  }
+
+  function makeCommentInput(task, overrides = {}) {
+    return {
+      taskId: task.id,
+      branchId: task.branchId,
+      content: "",
+      kind: "manual",
+      provider: null,
       ...overrides,
     }
   }
@@ -231,5 +231,63 @@ describe("FilesService.cleanupOrphanFiles", () => {
 
     expect(await readdir(assetsDir)).toContain(`${softDeletedId}.webp`)
     expect(await readdir(assetsDir)).not.toContain("no-row-at-all.webp")
+  })
+
+  it("serves_an_image_referenced_only_by_a_comment_after_orphan_cleanup", async () => {
+    const fileId = await filesService.saveFile("comment.png", WEBP_BYTES)
+    const task = taskModel.createTask(makeTaskRow())
+    taskCommentModel.createComment(makeCommentInput(task, {content: `![comment image](${APP_CONFIG.filesProtocol}/${fileId})`}))
+
+    await filesService.cleanupOrphanFiles()
+
+    const response = await filesService.createFileResponse(fileId)
+    expect(response.status).toBe(200)
+    expect(response.headers.get("Content-Type")).toBe("image/webp")
+    expect(Buffer.from(await response.arrayBuffer())).toEqual(WEBP_BYTES)
+    expect(fileModel.getFile(fileId)?.deletedAt).toBeNull()
+  })
+
+  it.each([
+    {name: "a backlog task", backlog: true, deletedTask: false, deletedComment: false},
+    {name: "a trashed task", backlog: false, deletedTask: true, deletedComment: false},
+    {name: "a soft-deleted comment", backlog: false, deletedTask: false, deletedComment: true},
+  ])("keeps_an_image_referenced_only_by_a_comment_in_$name", async ({backlog, deletedTask, deletedComment}) => {
+    const fileId = await filesService.saveFile("retained-comment.png", WEBP_BYTES)
+    const task = taskModel.createTask(makeTaskRow(backlog ? {status: "backlog", scheduled: null} : {}))
+    const comment = taskCommentModel.createComment(makeCommentInput(task, {content: `![retained image](${APP_CONFIG.filesProtocol}/${fileId})`}))
+    if (deletedComment) taskCommentModel.deleteComment(comment.id)
+    if (deletedTask) taskModel.deleteTask(task.id)
+
+    await filesService.cleanupOrphanFiles()
+
+    expect(fileModel.getFile(fileId)?.deletedAt).toBeNull()
+    expect((await filesService.createFileResponse(fileId)).status).toBe(200)
+  })
+
+  it("soft-deletes_an_image_after_its_last_comment_reference_is_removed", async () => {
+    const fileId = await filesService.saveFile("removed-comment.png", WEBP_BYTES)
+    const task = taskModel.createTask(makeTaskRow())
+    const comment = taskCommentModel.createComment(makeCommentInput(task, {content: `![removed image](${APP_CONFIG.filesProtocol}/${fileId})`}))
+    taskCommentModel.updateComment(comment.id, "Image removed")
+
+    await filesService.cleanupOrphanFiles()
+
+    expect(fileModel.getFile(fileId)?.deletedAt).not.toBeNull()
+    expect((await filesService.createFileResponse(fileId)).status).toBe(404)
+    expect(await readdir(assetsDir)).toContain(`${fileId}.webp`)
+  })
+
+  it("does_not_restore_a_soft-deleted_file_that_a_comment_still_references", async () => {
+    const fileId = await filesService.saveFile("deleted-comment.png", WEBP_BYTES)
+    const task = taskModel.createTask(makeTaskRow())
+    taskCommentModel.createComment(makeCommentInput(task, {content: `![deleted image](${APP_CONFIG.filesProtocol}/${fileId})`}))
+    await filesService.deleteFile(fileId)
+    const deletedFile = fileModel.getFile(fileId)
+
+    await filesService.cleanupOrphanFiles()
+
+    expect(fileModel.getFile(fileId)).toEqual(deletedFile)
+    expect((await filesService.createFileResponse(fileId)).status).toBe(404)
+    expect(await readdir(assetsDir)).toContain(`${fileId}.webp`)
   })
 })

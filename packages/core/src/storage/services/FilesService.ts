@@ -11,6 +11,7 @@ import {logger} from "../../utils/logger"
 import type {File} from "@daily/protocol"
 import type {FileModel} from "../models/FileModel"
 import type {SubtaskModel} from "../models/SubtaskModel"
+import type {TaskCommentModel} from "../models/TaskCommentModel"
 import type {TaskModel} from "../models/TaskModel"
 
 export class FilesService {
@@ -18,6 +19,7 @@ export class FilesService {
     private fileModel: FileModel,
     private taskModel: TaskModel,
     private subtaskModel: SubtaskModel,
+    private taskCommentModel: TaskCommentModel,
   ) {}
 
   async saveFile(filename: string, data: Buffer): Promise<File["id"]> {
@@ -125,6 +127,10 @@ export class FilesService {
       }
 
       for (const content of this.subtaskModel.getAllContents()) {
+        extractFileIds(content).forEach((id) => referencedIds.add(id))
+      }
+
+      for (const content of this.taskCommentModel.getAllContents()) {
         extractFileIds(content).forEach((id) => referencedIds.add(id))
       }
 

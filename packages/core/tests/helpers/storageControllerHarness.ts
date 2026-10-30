@@ -86,7 +86,7 @@ export function makeControllerHarness() {
   const subtasksService = new SubtasksService(subtaskModel, taskModel)
   const tagsService = new TagsService(tagModel)
   const milestonesService = new MilestonesService(milestoneModel)
-  const filesService = new FilesService(fileModel, taskModel, subtaskModel)
+  const filesService = new FilesService(fileModel, taskModel, subtaskModel, taskCommentModel)
   const searchService = new SearchService(taskModel, branchModel)
   const localAdapter = new LocalStorageAdapter(db, fileModel)
   const aiSessionModel = new AISessionModel(db)
