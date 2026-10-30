@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.34.0 - 2026-10-30
+
+### ✨ New Features
+
+- **Subtask view** — the chevron on a subtask opens it in its own editor inside the task panel, with Back, Make a task, Delete and a Done checkbox. Typing is saved as it happens, with no Save button, and Esc returns to the task where it was left.
+- **Subtasks and comments on a new task** — a task that has not been saved yet takes subtasks and comments. Save writes them with the task, and Discard drops them.
+
+### 🎨 Improvements
+
+- **Task panel** — a task reads in one scroll: properties, description, Subtasks and Activity, with no tabs.
+  - The toolbar holds every task action — Copy ID, Copy content, Delete and Save next to Close — and shows the task's title once its first line scrolls away.
+  - Status is a chip next to Date and Estimate.
+  - The description grows with its text; on a short task, Subtasks and Activity sit at the bottom of the panel.
+  - Subtasks are checked, renamed and added right in the list, and Hide completed hides the done ones.
+  - Activity shows comments and history together, oldest first, with a toggle for comments only.
+  - The comment field stays at the bottom of the panel and grows with its text; ⌘↵ or its button sends.
+
+### 🐛 Bug Fixes
+
+- Fixed the unsaved-changes prompt saving a task with an empty description.
+
+---
+
 ## v0.33.0 - 2026-10-29
 
 ### ✨ New Features
