@@ -3,7 +3,7 @@ import {useEventListener} from "@vueuse/core"
 import {SHORTCUTS_MAP} from "@shared/constants/shortcuts"
 import {acceleratorsMatch} from "@shared/utils/shortcuts/acceleratorsMatch"
 import {formatEventToAccelerator} from "@shared/utils/shortcuts/formatEventToAccelerator"
-import {useSubtaskEditorOpen} from "./useSubtaskEditorOpen"
+import {openedSubtaskId, useSubtaskEditorOpen} from "./useSubtaskEditorOpen"
 import {useTaskEditor} from "./useTaskEditor"
 
 export function useEditorShortcuts() {
@@ -16,7 +16,8 @@ export function useEditorShortcuts() {
 
     if (acceleratorsMatch(pressed, SHORTCUTS_MAP["editor:close"].accelerator)) {
       if (event.defaultPrevented || isSubtaskEditorOpen.value) return
-      close()
+      if (openedSubtaskId.value) openedSubtaskId.value = null
+      else close()
     } else if (acceleratorsMatch(pressed, SHORTCUTS_MAP["editor:save"].accelerator)) {
       if (canSave.value) commitDraft()
     } else if (acceleratorsMatch(pressed, SHORTCUTS_MAP["editor:save-close"].accelerator)) {

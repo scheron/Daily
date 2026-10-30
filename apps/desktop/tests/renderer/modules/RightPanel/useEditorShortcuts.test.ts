@@ -49,4 +49,17 @@ describe("useEditorShortcuts", () => {
     expect(close).not.toHaveBeenCalled()
     isSubtaskEditorOpen.value = false
   })
+
+  it("goes_back_from_a_subtask_on_escape_and_closes_on_the_next", async () => {
+    await setup()
+    const {openedSubtaskId} = await import("../../../../src/renderer/src/ui/modules/RightPanel/composables/useSubtaskEditorOpen")
+    openedSubtaskId.value = "s1"
+
+    pressEscape()
+    expect(openedSubtaskId.value).toBe(null)
+    expect(close).not.toHaveBeenCalled()
+
+    pressEscape()
+    expect(close).toHaveBeenCalledTimes(1)
+  })
 })

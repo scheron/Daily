@@ -7,6 +7,8 @@ import {toTaskRelationId} from "@daily/protocol"
 
 import {mockBridgeIPC} from "../../helpers/bridgeIPC"
 
+vi.mock("vue-toasts-lite", () => ({toasts: {error: vi.fn(), success: vi.fn()}}))
+
 function makeTask(overrides = {}) {
   return {
     id: "task-1",
@@ -492,5 +494,108 @@ describe("taskEditorStore — relations in the draft", () => {
 
     await editor.commit()
     expect(relations.setTaskRelations).toHaveBeenLastCalledWith("new-task", {blockedBy: ["A"], blocks: []})
+  })
+})
+
+describe("taskEditorStore — pending subtasks and comments", () => {
+  beforeEach(() => {
+    mockBridgeIPC()
+    setActivePinia(createPinia())
+  })
+
+  it("counts pending items as unsaved changes and drops them on clear", async () => {
+    const {editor} = await setupStores()
+    editor.openNew({branchId: "main"})
+    expect(editor.isDirty).toBe(false)
+
+    editor.addPendingSubtask("buy milk")
+    expect(editor.isDirty).toBe(true)
+
+    editor.clear()
+    expect(editor.pendingSubtasks).toEqual([])
+    editor.openNew({branchId: "main"})
+    editor.addPendingComment("note")
+    expect(editor.isDirty).toBe(true)
+    editor.openNew({branchId: "main"})
+    expect(editor.pendingComments).toEqual([])
+  })
+
+  it("writes them in order against the created task on commit", async () => {
+    const {editor} = await setupStores()
+    const calls = []
+    window.BridgeIPC["subtasks:create"] = vi.fn(async (taskId, content) => {
+      calls.push(["sub", taskId, content])
+      return {subtasks: {upserted: [{id: `s-${content}`}]}}
+    })
+    window.BridgeIPC["subtasks:update"] = vi.fn(async (id, updates) => {
+      calls.push(["done", id, updates])
+      return {}
+    })
+    window.BridgeIPC["comments:create"] = vi.fn(async (taskId, content) => {
+      calls.push(["com", taskId, content])
+      return {}
+    })
+
+    editor.openNew({branchId: "main"})
+    editor.patch({content: "fresh"})
+    editor.addPendingSubtask("a")
+    editor.addPendingSubtask("b")
+    editor.updatePendingSubtask(editor.pendingSubtasks[1].id, {done: true})
+    editor.addPendingComment("hello")
+    await editor.commit()
+
+    expect(calls).toEqual([
+      ["sub", "new-task", "a"],
+      ["sub", "new-task", "b"],
+      ["done", "s-b", {done: true}],
+      ["com", "new-task", "hello"],
+    ])
+    expect(editor.pendingSubtasks).toEqual([])
+  })
+
+  it("attempts every item when one write fails and says how many were lost", async () => {
+    const {toasts} = await import("vue-toasts-lite")
+    const {editor} = await setupStores()
+    const created = []
+    window.BridgeIPC["subtasks:create"] = vi.fn(async (taskId, content) => {
+      if (content === "a") throw new Error("boom")
+      created.push(content)
+      return {subtasks: {upserted: [{id: `s-${content}`}]}}
+    })
+    window.BridgeIPC["comments:create"] = vi.fn(async (taskId, content) => {
+      created.push(content)
+      return {}
+    })
+
+    editor.openNew({branchId: "main"})
+    editor.patch({content: "fresh"})
+    editor.addPendingSubtask("a")
+    editor.addPendingSubtask("b")
+    editor.addPendingComment("hello")
+    await editor.commit()
+
+    expect(created).toEqual(["b", "hello"])
+    expect(toasts.error).toHaveBeenCalledTimes(1)
+  })
+
+  it("writes an item added while the others are being written", async () => {
+    const {editor} = await setupStores()
+    const created = []
+    window.BridgeIPC["subtasks:create"] = vi.fn(async (taskId, content) => {
+      created.push(content)
+      if (content === "a") {
+        editor.addPendingSubtask("late")
+        expect(editor.pendingSubtasks.map((item) => item.content)).toEqual(["a", "late"])
+      }
+      return {subtasks: {upserted: [{id: `s-${content}`}]}}
+    })
+
+    editor.openNew({branchId: "main"})
+    editor.patch({content: "fresh"})
+    editor.addPendingSubtask("a")
+    await editor.commit()
+
+    expect(created).toEqual(["a", "late"])
+    expect(editor.pendingSubtasks).toEqual([])
   })
 })

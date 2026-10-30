@@ -42,7 +42,7 @@ function makeComment(id, createdAt, overrides = {}) {
   }
 }
 
-describe("Comments tab", () => {
+describe("Activity", () => {
   let wrapper = null
   let bridge = null
 
@@ -57,21 +57,29 @@ describe("Comments tab", () => {
   })
 
   async function setup(thread, overrides = {}) {
+    const {history, ...handlers} = overrides
     bridge = mockBridgeIPC({
       "tasks:get-one": vi.fn(async (id) => makeTask(id)),
+      "activity:get-by-task": vi.fn().mockResolvedValue(history ?? []),
       "comments:get-by-task": vi.fn().mockResolvedValue(thread),
       "comments:create": vi.fn().mockResolvedValue({}),
       "comments:update": vi.fn().mockResolvedValue({}),
       "comments:delete": vi.fn().mockResolvedValue({}),
-      ...overrides,
+      ...handlers,
     })
 
     const {useTaskEditorStore} = await import("../../../../src/renderer/src/stores/task-editor")
     await useTaskEditorStore().open("task-1")
 
+    const {useTasksStore} = await import("../../../../src/renderer/src/stores/tasks")
+    useTasksStore().tasks = [makeTask("task-1")]
+
     const {default: Comments} = await import("../../../../src/renderer/src/ui/modules/RightPanel/{fragments}/Comments")
 
-    wrapper = mount(Comments, {global: {directives: {tooltip: {}}}})
+    const {default: Footer} = await import("../../../../src/renderer/src/ui/modules/RightPanel/{fragments}/Footer.vue")
+    const {defineComponent, h} = await import("vue")
+
+    wrapper = mount(defineComponent({render: () => [h(Comments), h(Footer)]}), {global: {directives: {tooltip: {}}}})
     await flush()
   }
 
@@ -92,7 +100,7 @@ describe("Comments tab", () => {
     return wrapper.findAll("button").find((button) => button.text().trim() === text)
   }
 
-  it("reads_a_thread_newest_first_so_the_latest_note_needs_no_scrolling", async () => {
+  it("reads_a_thread_oldest_first_so_the_latest_note_sits_next_to_the_composer", async () => {
     await setup([
       makeComment("old", "2026-01-01T09:00:00.000Z"),
       makeComment("middle", "2026-01-01T10:00:00.000Z"),
@@ -100,9 +108,9 @@ describe("Comments tab", () => {
     ])
 
     expect(rowTexts().map((text) => text.replace(/\s+/g, " ").trim())).toEqual([
-      expect.stringContaining("comment new"),
-      expect.stringContaining("comment middle"),
       expect.stringContaining("comment old"),
+      expect.stringContaining("comment middle"),
+      expect.stringContaining("comment new"),
     ])
   })
 
@@ -110,7 +118,26 @@ describe("Comments tab", () => {
     await setup([])
 
     expect(wrapper.text()).toContain("No comments yet")
-    expect(buttonWithText("Write a comment…")).toBeDefined()
+    expect(wrapper.find("textarea").attributes("placeholder")).toBe("Write a comment…")
+  })
+
+  it("mixes_history_into_the_feed_by_time_and_drops_it_under_only_comments", async () => {
+    await setup([makeComment("c1", "2026-01-01T10:00:00.000Z")], {
+      history: [
+        {id: "e2", taskId: "task-1", type: "completed", createdAt: "2026-01-01T11:00:00.000Z"},
+        {id: "e1", taskId: "task-1", type: "created", createdAt: "2026-01-01T09:00:00.000Z"},
+      ],
+    })
+
+    const text = () => wrapper.text().replace(/\s+/g, " ")
+    expect(text().indexOf("Created")).toBeLessThan(text().indexOf("comment c1"))
+    expect(text().indexOf("comment c1")).toBeLessThan(text().indexOf("Completed"))
+
+    await wrapper.find("[aria-pressed]").trigger("click")
+
+    expect(text()).toContain("comment c1")
+    expect(text()).not.toContain("Created")
+    expect(text()).not.toContain("Completed")
   })
 
   it("badges_where_a_comment_came_from_and_leaves_a_hand_written_one_unmarked", async () => {
@@ -119,7 +146,7 @@ describe("Comments tab", () => {
       makeComment("from-agent", "2026-01-01T10:00:00.000Z", {kind: "agent", provider: "daily_agent"}),
     ])
 
-    const [agentRow, typedRow] = rowTexts()
+    const [typedRow, agentRow] = rowTexts()
 
     expect(agentRow).toContain("Agent")
     expect(typedRow).not.toContain("Agent")
@@ -133,7 +160,7 @@ describe("Comments tab", () => {
       makeComment("via-nobody", "2026-01-01T11:00:00.000Z", {kind: "mcp", provider: null}),
     ])
 
-    const [anonymousRow, strangerRow, claudeRow] = wrapper.findAll(".group")
+    const [claudeRow, strangerRow, anonymousRow] = wrapper.findAll(".group")
 
     expect(claudeRow.text()).toContain("claude")
     expect(claudeRow.find("use").attributes("href")).toBe("#claude")
@@ -152,9 +179,8 @@ describe("Comments tab", () => {
       })),
     })
 
-    await buttonWithText("Write a comment…").trigger("click")
     await wrapper.find("textarea").setValue("  a note worth keeping  ")
-    await buttonWithText("Comment").trigger("click")
+    await buttonWithIcon("arrow-up").trigger("click")
     await flush()
 
     expect(bridge["comments:create"]).toHaveBeenCalledWith("task-1", "a note worth keeping")
@@ -168,12 +194,21 @@ describe("Comments tab", () => {
       })),
     })
 
-    await buttonWithText("Write a comment…").trigger("click")
     await wrapper.find("textarea").setValue("sent from the keyboard")
     await wrapper.find("textarea").trigger("keydown", {key: "Enter", code: "Enter", metaKey: true})
     await flush()
 
     expect(bridge["comments:create"]).toHaveBeenCalledWith("task-1", "sent from the keyboard")
+  })
+
+  it("clears_the_composer_on_escape_without_sending", async () => {
+    await setup([])
+
+    await wrapper.find("textarea").setValue("half a thought")
+    await wrapper.find("textarea").trigger("keydown", {key: "Escape", code: "Escape"})
+
+    expect(wrapper.find("textarea").element.value).toBe("")
+    expect(bridge["comments:create"]).not.toHaveBeenCalled()
   })
 
   it("drops_an_edit_on_escape_and_keeps_the_comment_as_it_was", async () => {
@@ -182,12 +217,12 @@ describe("Comments tab", () => {
     })
 
     await buttonWithIcon("pencil").trigger("click")
-    await wrapper.find("textarea").setValue("second draft")
-    await wrapper.find("textarea").trigger("keydown", {key: "Escape", code: "Escape"})
+    await wrapper.find(".group textarea").setValue("second draft")
+    await wrapper.find(".group textarea").trigger("keydown", {key: "Escape", code: "Escape"})
     await flush()
 
     expect(bridge["comments:update"]).not.toHaveBeenCalled()
-    expect(wrapper.find("textarea").exists()).toBe(false)
+    expect(wrapper.find(".group textarea").exists()).toBe(false)
     expect(wrapper.text()).toContain("first draft")
   })
 
@@ -199,7 +234,7 @@ describe("Comments tab", () => {
     })
 
     await buttonWithIcon("pencil").trigger("click")
-    await wrapper.find("textarea").setValue("second draft")
+    await wrapper.find(".group textarea").setValue("second draft")
     await buttonWithText("Save").trigger("click")
     await flush()
 
