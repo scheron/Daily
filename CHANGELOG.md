@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.35.0 - 2026-10-31
+
+### ✨ New Features
+
+- **To Do** — planned work has its own column, separate from In Progress.
+  - New dated tasks start in To Do. Giving a Backlog task a day moves it to To Do; clearing its day returns it to Backlog.
+  - Normal shows five columns and Agents shows seven. Existing tasks keep their status.
+  - Agents and the Daily Assistant read and set To Do too.
+- **Board navigation** — buttons at the board's edges show the status and task count of columns scrolled out of view. Clicking one brings its column into view, keeping its scroll position and collapsed state.
+
+### 🎨 Improvements
+
+- **Comments** — edit a comment in the task panel's full editor, with changes saved automatically. Back or Esc returns to the task where it was left.
+- **Calendar** — month controls and monthly status counts share one row, with room for every count.
+- **Sync** — update every Mac for the new sync format. Upgrade a self-hosted Daily Sync Server first so agents can work with To Do.
+
+---
+
 ## v0.34.0 - 2026-10-30
 
 ### ✨ New Features

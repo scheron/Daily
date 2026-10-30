@@ -1,6 +1,6 @@
 {
   "name": "@daily/desktop",
-  "version": "0.34.0",
+  "version": "0.35.0",
   "productName": "Daily",
   "description": "Daily - A minimal daily tasks management app",
   "private": true,
