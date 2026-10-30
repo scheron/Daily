@@ -6,6 +6,7 @@ import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
 import BasePopup from "@/ui/base/BasePopup.vue"
 import BaseTag from "@/ui/base/BaseTag"
+import {fitTagIndices} from "@/utils/tags/fitTagIndices"
 import {cn} from "@/utils/ui/tailwindcss"
 
 import type {Tag} from "@daily/protocol"
@@ -34,13 +35,14 @@ const containerRef = useTemplateRef<HTMLElement>("container")
 const probeRef = useTemplateRef<HTMLElement>("probe")
 const measureRef = useTemplateRef<HTMLElement>("measure")
 const rowRef = useTemplateRef<HTMLElement>("row")
-const visibleCount = ref<number | null>(null)
+const visibleIndices = ref<number[] | null>(null)
 
-const visibleTags = computed(() => (visibleCount.value === null ? [] : props.tags.slice(0, visibleCount.value)))
-const hiddenTags = computed(() => (visibleCount.value === null ? [] : props.tags.slice(visibleCount.value)))
+const visibleIndexSet = computed(() => new Set(visibleIndices.value ?? []))
+const visibleTags = computed(() => props.tags.filter((_, index) => visibleIndexSet.value.has(index)))
+const hiddenTags = computed(() => (visibleIndices.value === null ? [] : props.tags.filter((_, index) => !visibleIndexSet.value.has(index))))
 const hasSelectedInPopup = computed(() => hiddenTags.value.some((tag) => props.selectedTags.has(tag.id)))
 
-useBatchedResizeObserver([probeRef, measureRef], {read: readVisibleCount, write: (count) => (visibleCount.value = count)})
+useBatchedResizeObserver([probeRef, measureRef], {read: readVisibleIndices, write: (indices) => (visibleIndices.value = indices)})
 
 function isActiveTag(id: Tag["id"]) {
   return props.selectedTags.has(id)
@@ -58,11 +60,11 @@ function getRowClasses() {
   return cn("flex min-w-0 items-center gap-2", props.rowClass)
 }
 
-function readVisibleCount(): number {
-  if (!containerRef.value || !measureRef.value || !props.tags.length) return props.tags.length
+function readVisibleIndices(): number[] {
+  if (!containerRef.value || !measureRef.value || !props.tags.length) return props.tags.map((_, index) => index)
 
   const containerWidth = containerRef.value.offsetWidth
-  if (containerWidth === 0) return 0
+  if (containerWidth === 0) return []
 
   const rowStyle = rowRef.value ? getComputedStyle(rowRef.value) : null
   const rowInsetWidth = rowStyle
@@ -73,35 +75,15 @@ function readVisibleCount(): number {
     : 0
   const availableWidth = containerWidth - rowInsetWidth
 
-  const tagElements = measureRef.value.children
   const gap = rowStyle ? parseFloat(rowStyle.columnGap) || 0 : 0
-  const moreButtonWidth = 60
-
-  let currentWidth = 0
-  let visibleTagCount = 0
-
-  for (let i = 0; i < tagElements.length; i++) {
-    const element = tagElements[i] as HTMLElement
-    const elementWidth = element.offsetWidth
-
-    const newWidth = currentWidth + (i > 0 ? gap : 0) + elementWidth
-
-    const needsMoreButton = i < props.tags.length - 1
-    const totalWidth = newWidth + (needsMoreButton ? gap + moreButtonWidth : 0)
-
-    if (totalWidth > availableWidth) break
-
-    currentWidth = newWidth
-    visibleTagCount++
-  }
-
-  return visibleTagCount
+  const widths = Array.from(measureRef.value.children, (element) => (element as HTMLElement).offsetWidth)
+  return fitTagIndices(widths, availableWidth, gap, 60)
 }
 
 watch(
   () => props.tags,
   () => {
-    visibleCount.value = readVisibleCount()
+    visibleIndices.value = readVisibleIndices()
   },
   {deep: true, flush: "post"},
 )
@@ -115,7 +97,7 @@ watch(
     </span>
 
     <template v-else>
-      <div ref="measure" class="pointer-events-none absolute top-0 left-0 flex items-center gap-2 opacity-0">
+      <div ref="measure" class="pointer-events-none absolute left-0 top-0 flex items-center gap-2 opacity-0">
         <BaseTag v-for="tag in tags" :key="tag.id" :tag="tag" :active="isActiveTag(tag.id)" :selectable="selectable" :size="size" />
       </div>
 

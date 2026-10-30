@@ -88,8 +88,54 @@ describe("DynamicTagsPanel", () => {
     expect(visibleTagButtons()).toHaveLength(1)
     expect(moreButton()?.textContent.trim()).toBe("+3")
 
+    await settleAtWidth(224)
+    expect(visibleTagButtons()).toHaveLength(4)
+    expect(moreButton()).toBeNull()
+
     await settleAtWidth(0)
     expect(visibleTagButtons()).toHaveLength(0)
     expect(moreButton()?.textContent.trim()).toBe("+4")
+  })
+
+  it("skips oversized tags, keeps shorter tags in order, and preserves hidden tag selection", async () => {
+    const {default: DynamicTagsPanel} = await import("../../../src/renderer/src/ui/common/misc/DynamicTagsPanel.vue")
+    const tags = ["long-first", "short-first", "long-middle", "short-second", "short-third"].map((name) => makeTag({id: name, name}))
+    wrapper = mount(DynamicTagsPanel, {
+      props: {tags, selectable: true, selectedTags: new Set(["long-first"]), popupHoverMode: true},
+      global: {directives: {tooltip: {}}},
+      attachTo: document.body,
+    })
+    await nextTick()
+
+    const containerEl = wrapper.element
+    const measureEl = containerEl.querySelector(".pointer-events-none")
+    const rowEl = measureEl.nextElementSibling
+    const widths = [500, 50, 300, 50, 50]
+    Array.from(measureEl.children).forEach((child, index) => stubLayout(child, {offsetWidth: widths[index]}))
+    stubLayout(containerEl, {offsetWidth: 200})
+
+    const realGetComputedStyle = window.getComputedStyle.bind(window)
+    vi.spyOn(window, "getComputedStyle").mockImplementation((element, ...rest) => {
+      if (element === rowEl) {
+        return {paddingLeft: "0px", paddingRight: "0px", borderLeftWidth: "0px", borderRightWidth: "0px", columnGap: "8px"}
+      }
+      return realGetComputedStyle(element, ...rest)
+    })
+    deliverResizeToObserved()
+    await settle()
+
+    const visibleTags = Array.from(rowEl.querySelectorAll("button.base-tag"))
+    expect(visibleTags.map((tag) => tag.textContent.replace(/\s/g, ""))).toEqual(["#short-first", "#short-second"])
+    const moreButton = Array.from(rowEl.querySelectorAll("button")).find((button) => !button.classList.contains("base-tag"))
+    expect(moreButton.textContent.trim()).toBe("+3")
+    moreButton.dispatchEvent(new MouseEvent("mouseenter"))
+    await nextTick()
+
+    const hiddenTags = Array.from(document.querySelectorAll("[data-popup] button.base-tag"))
+    expect(hiddenTags.map((tag) => tag.textContent.replace(/\s/g, ""))).toEqual(["#long-first", "#long-middle", "#short-third"])
+    expect(hiddenTags[0].classList.contains("active")).toBe(true)
+    expect(hiddenTags.every((tag) => tag.classList.contains("selectable"))).toBe(true)
+    hiddenTags[0].click()
+    expect(wrapper.emitted("select")).toEqual([["long-first"]])
   })
 })

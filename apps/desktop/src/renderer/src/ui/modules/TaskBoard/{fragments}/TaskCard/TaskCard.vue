@@ -81,7 +81,6 @@ const footerDayLabel = computed(() => {
 })
 
 const hasTime = computed(() => Boolean(estimateLabel.value) || Boolean(spentLabel.value))
-const hasContext = computed(() => hasRelation.value || Boolean(footerDayLabel.value) || commentCount.value > 0 || !!subtaskCount.value)
 const hasMetrics = computed(
   () => hasRelation.value || Boolean(footerDayLabel.value) || hasTime.value || commentCount.value > 0 || !!subtaskCount.value,
 )
@@ -248,46 +247,38 @@ async function onLinkTask(side: keyof TaskRelationSets, taskId: Task["id"]) {
           <MarkdownContent v-else :content="task.content" :minimizable="false" clip-code />
         </div>
 
-        <div
-          v-if="isCompact ? tags.length || hasTime || hasPriority : hasFooter"
-          class="board-card-footer flex min-h-5 min-w-0 items-center gap-2 text-xs"
-        >
-          <TagLine v-if="tags.length" :tags="tags" />
+        <div v-if="isCompact && tags.length" class="board-card-tags flex min-h-5 min-w-0 shrink-0 items-center text-xs">
+          <TagLine :tags="tags" />
+        </div>
 
-          <div v-if="isCompact ? hasTime : hasMetrics" class="ml-auto flex shrink-0 items-center gap-2.5">
-            <RelationChip v-if="!isCompact" :task-id="task.id" />
-            <div v-if="!isCompact && footerDayLabel" class="text-base-content/75 inline-flex items-center gap-1 whitespace-nowrap">
+        <div v-if="isCompact ? hasMetrics || hasPriority : hasFooter" class="board-card-footer flex min-h-5 min-w-0 items-center gap-2 text-xs">
+          <TagLine v-if="!isCompact && tags.length" :tags="tags" />
+
+          <div v-if="hasMetrics" class="board-card-metrics ml-auto flex min-w-0 items-center gap-2.5">
+            <RelationChip :task-id="task.id" />
+            <div
+              v-if="footerDayLabel"
+              v-tooltip="footerDayLabel"
+              class="text-base-content/75 inline-flex min-w-0 items-center gap-1 whitespace-nowrap"
+            >
               <BaseIcon name="calendar" class="text-base-content/40 size-3.5" />
-              <span>{{ footerDayLabel }}</span>
+              <span class="truncate">{{ footerDayLabel }}</span>
             </div>
-            <div v-if="hasTime" class="text-base-content/75 inline-flex items-center gap-1 whitespace-nowrap">
+            <div v-if="hasTime" class="text-base-content/75 inline-flex shrink-0 items-center gap-1 whitespace-nowrap">
               <BaseIcon name="stopwatch" class="text-accent size-3.5" />
               <span>
                 <span :class="getSpentClasses(!!spentLabel)">{{ spentLabel || "–" }}</span>
                 <span class="text-base-content/55"> / {{ estimateLabel || "–" }}</span>
               </span>
             </div>
-            <SubtaskChip v-if="!isCompact && subtaskCount" :count="subtaskCount" />
-            <div v-if="!isCompact && commentCount" class="text-base-content/75 inline-flex items-center gap-1 whitespace-nowrap">
+            <SubtaskChip v-if="subtaskCount" :count="subtaskCount" />
+            <div v-if="commentCount" class="text-base-content/75 inline-flex shrink-0 items-center gap-1 whitespace-nowrap">
               <BaseIcon name="message" class="text-base-content/40 size-3.5" />
               <span>{{ commentCount }}</span>
             </div>
           </div>
 
-          <PriorityIcon v-if="hasPriority" :priority="task.priority" :class="getPriorityClasses(isCompact ? hasTime : hasMetrics)" />
-        </div>
-
-        <div v-if="isCompact && hasContext" class="board-card-context flex min-h-5 shrink-0 items-center justify-end gap-2.5 text-xs">
-          <RelationChip :task-id="task.id" />
-          <div v-if="footerDayLabel" class="text-base-content/75 inline-flex items-center gap-1 whitespace-nowrap">
-            <BaseIcon name="calendar" class="text-base-content/40 size-3.5" />
-            <span>{{ footerDayLabel }}</span>
-          </div>
-          <SubtaskChip v-if="subtaskCount" :count="subtaskCount" />
-          <div v-if="commentCount" class="text-base-content/75 inline-flex items-center gap-1 whitespace-nowrap">
-            <BaseIcon name="message" class="text-base-content/40 size-3.5" />
-            <span>{{ commentCount }}</span>
-          </div>
+          <PriorityIcon v-if="hasPriority" :priority="task.priority" :class="getPriorityClasses(hasMetrics)" />
         </div>
       </div>
 
@@ -379,14 +370,19 @@ async function onLinkTask(side: keyof TaskRelationSets, taskId: Task["id"]) {
   line-height: 1.45;
 }
 
+.board-card-compact .board-card-tags,
 .board-card-compact .board-card-footer {
   min-height: 1.15rem;
   flex-shrink: 0;
 }
 
-.board-card-context {
-  min-height: 0.9rem;
-  line-height: 1.2;
+.board-card-compact .board-card-metrics {
+  gap: 0.375rem;
+  flex-shrink: 1;
+}
+
+.board-card-metrics {
+  flex-shrink: 0;
 }
 
 .board-card-text {

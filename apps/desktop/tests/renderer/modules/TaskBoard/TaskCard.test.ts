@@ -583,16 +583,18 @@ describe("TaskCard — compact presentation", () => {
     },
   )
 
-  it("keeps tags with overflow, time and priority together and puts relation, date and comments on another row", async () => {
+  it("keeps compact tags on their own row and all task information on the next row", async () => {
     const {useTagsStore} = await import("../../../../src/renderer/src/stores/tags.store")
     const {useFilterStore} = await import("../../../../src/renderer/src/stores/filter.store")
     const {useTaskCommentsStore} = await import("../../../../src/renderer/src/stores/taskComments.store")
     const {useTaskRelationsStore} = await import("../../../../src/renderer/src/stores/taskRelations.store")
+    const {useSubtasksStore} = await import("../../../../src/renderer/src/stores/subtasks.store")
     const {useTasksStore} = await import("../../../../src/renderer/src/stores/tasks")
     const tags = ["alpha", "beta", "gamma", "delta"].map((name) => ({id: name, name, color: "#123456", branchId: "main"}))
     useTagsStore().tags = tags
     useFilterStore().setFrame("milestone")
     useTaskCommentsStore().commentCounts = {"task-1": 12}
+    useSubtasksStore().subtaskCounts = {"task-1": {done: 1, total: 2}}
     useTasksStore().tasks = [makeTask(), makeTask({id: "task-2"})]
     useTaskRelationsStore().relations = [{blockerId: "task-1", blockedId: "task-2"}]
     vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockImplementation(function () {
@@ -601,14 +603,19 @@ describe("TaskCard — compact presentation", () => {
     await setup(makeTask({tags, spentTime: 2700, estimatedTime: 7200, priority: "high"}))
     const time = wrapper.get('use[href="#stopwatch"]').element.closest(".min-h-5")
     const comments = wrapper.get('use[href="#message"]').element.closest(".min-h-5")
-    expect(time).not.toBe(comments)
-    expect(time.textContent).toContain("+3")
+    expect(time).toBe(comments)
+    const tagRow = wrapper.get(".board-card-tags").element
+    expect(tagRow.textContent).toContain("+3")
+    expect(tagRow.nextElementSibling).toBe(time)
+    expect(tagRow.querySelector("svg")).toBeNull()
+    expect(time.textContent).not.toContain("#alpha")
     expect(time.textContent).toContain("45m")
     expect(time.textContent).toContain("2h")
     expect(time.querySelector('use[href="#priority-high"]')).not.toBeNull()
     expect(comments.textContent).toContain("12")
     expect(comments.querySelector('use[href="#calendar"]')).not.toBeNull()
     expect(comments.querySelector('use[href="#ban"]')).not.toBeNull()
+    expect(comments.textContent).toContain("1/2")
     const menu = wrapper.findComponent({name: "BaseContextMenu"})
     expect(
       menu
