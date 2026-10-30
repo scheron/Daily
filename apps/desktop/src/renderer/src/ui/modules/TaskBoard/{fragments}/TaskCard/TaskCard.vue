@@ -189,7 +189,7 @@ function getCardClasses(status: TaskStatus, isInSession: boolean, isCompact: boo
     status === "backlog" && "border-base-content/15 border-dashed",
     status === "done" && "border-success/30 hover:border-success/40",
     status === "cancelled" && "border-warning/30 hover:border-warning/40",
-    status === "todo" && "border-base-content/80",
+    status === "todo" && "border-base-content/30 hover:border-base-content/40",
     status === "in_progress" && "border-accent/45 hover:border-accent/60",
     status === "ready_for_agent" && "border-error/45 hover:border-error/60",
     status === "ready_to_merge" && "border-info/45 hover:border-info/60",
