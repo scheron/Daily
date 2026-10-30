@@ -83,12 +83,16 @@ export const useSubtasksStore = defineStore("subtasks", () => {
     }
   }
 
-  /** Writes a subtask last in a task. Content that is only whitespace is refused by storage and changes nothing. */
-  async function addSubtask(taskId: Task["id"], content: string): Promise<boolean> {
-    return write("add the subtask", async () => {
+  /** Writes a subtask last in a task and returns it, or null when the write failed or storage refused whitespace-only content. */
+  async function addSubtask(taskId: Task["id"], content: string): Promise<Subtask | null> {
+    let created: Subtask | null = null
+    const written = await write("add the subtask", async () => {
       await loadSubtasks(taskId)
-      return API.createSubtask(taskId, content)
+      const changeset = await API.createSubtask(taskId, content)
+      created = changeset.subtasks?.upserted?.[0] ?? null
+      return changeset
     })
+    return written ? (created as Subtask | null) : null
   }
 
   async function updateSubtask(id: Subtask["id"], updates: {content?: string; done?: boolean}): Promise<boolean> {

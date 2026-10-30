@@ -1,97 +1,113 @@
 <script setup lang="ts">
-import {computed} from "vue"
+import {computed, nextTick, onBeforeUnmount, ref, useTemplateRef, watch} from "vue"
 
-import {toRelativeTime} from "@daily/std"
-
-import {TASK_COLUMNS} from "@/constants/ui"
 import BaseButton from "@/ui/base/BaseButton"
-import BaseSegmented from "@/ui/base/BaseSegmented.vue"
-import MarkdownContent from "@/ui/common/misc/MarkdownContent.vue"
+import BaseCheckbox from "@/ui/base/BaseCheckbox.vue"
+import BaseInput from "@/ui/base/BaseInput.vue"
+import {useSubtaskEditorOpen} from "@/ui/modules/RightPanel/composables/useSubtaskEditorOpen"
+import {getTaskTitle} from "@/ui/modules/RightPanel/utils/getTaskTitle"
 import ConfirmPopup from "@/ui/overlays/ConfirmPopup.vue"
-import {cn} from "@/utils/ui/tailwindcss"
 
-import type {Subtask, TaskStatus} from "@daily/protocol"
+import type {Subtask} from "@daily/protocol"
 
-const props = defineProps<{subtask: Subtask}>()
+const props = defineProps<{subtask?: Subtask}>()
 
 const emit = defineEmits<{
   setDone: [done: boolean]
-  edit: []
-  makeTask: []
+  save: [content: string]
+  cancel: []
   remove: []
+  open: []
 }>()
 
-const doneOptions = [
-  {value: "todo" as const, label: "To do", ...getColumn("in_progress")},
-  {value: "done" as const, label: "Done", ...getColumn("done")},
-]
+const isSubtaskEditorOpen = useSubtaskEditorOpen()
+const inputRef = useTemplateRef<InstanceType<typeof BaseInput>>("input")
 
-const status = computed({
-  get: () => (props.subtask.done ? "done" : "todo"),
-  set: (value) => emit("setDone", value === "done"),
-})
+const isEditing = ref(!props.subtask)
+const draft = ref("")
 
-const title = computed(() =>
-  props.subtask.content
-    .trim()
-    .split("\n")[0]
-    .replace(/^#+\s*/, ""),
+const firstLineIndex = computed(() => Math.max(0, props.subtask?.content.split("\n").findIndex((line) => line.trim()) ?? 0))
+const title = computed(() => getTaskTitle(props.subtask?.content ?? ""))
+
+function startEditing() {
+  isEditing.value = true
+}
+
+function commit() {
+  if (!isEditing.value) return
+  isEditing.value = false
+  const text = draft.value.trim()
+  if (!text) return props.subtask ? undefined : emit("cancel")
+  if (!props.subtask) return emit("save", text)
+  const lines = props.subtask.content.split("\n")
+  if (lines[firstLineIndex.value].trim() === text) return
+  lines[firstLineIndex.value] = text
+  emit("save", lines.join("\n"))
+}
+
+function cancel() {
+  if (!isEditing.value) return
+  isEditing.value = false
+  if (!props.subtask) emit("cancel")
+}
+
+watch(
+  isEditing,
+  async (editing) => {
+    isSubtaskEditorOpen.value = editing
+    if (!editing) return
+    draft.value = props.subtask?.content.split("\n")[firstLineIndex.value].trim() ?? ""
+    await nextTick()
+    inputRef.value?.focus()
+  },
+  {immediate: true},
 )
 
-function getColumn(status: TaskStatus) {
-  const {icon, counterClass} = TASK_COLUMNS.find((column) => column.status === status)!
-  return {icon, activeClass: counterClass}
-}
-
-function getRowClasses(done: boolean) {
-  return cn(
-    "group border px-4 pt-2 pb-2.5",
-    done ? "border-success/30 hover:border-success/40 rounded-2xl" : "border-transparent border-b-base-300/60 rounded-none",
-  )
-}
+onBeforeUnmount(() => (isSubtaskEditorOpen.value = false))
 </script>
 
 <template>
-  <div :class="getRowClasses(subtask.done)">
-    <div class="flex min-h-6 items-center gap-1.5">
-      <span class="text-base-content/40 text-xs">{{ toRelativeTime(subtask.createdAt) }}</span>
+  <div class="group flex min-h-8 items-center gap-2 px-4 py-1">
+    <BaseCheckbox
+      :model-value="subtask?.done ?? false"
+      :aria-label="`Done: ${title}`"
+      class="size-4 shrink-0 rounded-full"
+      @click="subtask && emit('setDone', !subtask.done)"
+    />
 
-      <BaseSegmented v-model="status" :options="doneOptions" :aria-label="`Status of ${title}`" class="ml-auto" />
+    <BaseInput
+      v-if="isEditing"
+      ref="input"
+      v-model="draft"
+      bare
+      hide-outline
+      placeholder="New subtask"
+      class="min-w-0 flex-1 text-sm"
+      @keydown.enter.prevent="commit"
+      @keydown.esc.stop.prevent="cancel"
+      @blur="commit"
+    />
 
-      <div class="flex gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
-        <BaseButton variant="ghost-muted" icon="external-link" size="xs" tooltip="Make a task" @click="emit('makeTask')" />
-        <BaseButton variant="ghost-muted" icon="pencil" size="xs" tooltip="Edit" @click="emit('edit')" />
+    <button v-else type="button" class="min-w-0 flex-1 cursor-text select-text truncate text-left text-sm" :title="title" @click="startEditing">
+      {{ title }}
+    </button>
 
-        <ConfirmPopup
-          title="Delete subtask?"
-          message="This subtask will be removed."
-          confirm-text="Delete"
-          cancel-text="Cancel"
-          position="end"
-          content-class="max-w-64"
-          @confirm="emit('remove')"
-        >
-          <template #trigger="{show}">
-            <BaseButton variant="error-ghost" icon="trash" size="xs" tooltip="Delete" @click="show" />
-          </template>
-        </ConfirmPopup>
-      </div>
+    <div v-if="subtask && !isEditing" class="flex gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+      <ConfirmPopup
+        title="Delete subtask?"
+        message="This subtask will be removed."
+        confirm-text="Delete"
+        cancel-text="Cancel"
+        position="end"
+        content-class="max-w-64"
+        @confirm="emit('remove')"
+      >
+        <template #trigger="{show}">
+          <BaseButton variant="error-ghost" icon="trash" size="xs" tooltip="Delete" @click="show" />
+        </template>
+      </ConfirmPopup>
+
+      <BaseButton variant="ghost-muted" icon="chevron-right" size="xs" tooltip="Open subtask" @click="emit('open')" />
     </div>
-
-    <MarkdownContent :content="subtask.content" :minimizable="false" class="subtask-markdown mt-0.5 select-text" />
   </div>
 </template>
-
-<style scoped>
-.subtask-markdown :deep(.cm-heading) {
-  margin-top: 0.25rem;
-  margin-bottom: 0.1rem;
-}
-
-.subtask-markdown :deep(.cm-heading1),
-.subtask-markdown :deep(.cm-heading2) {
-  font-size: 1.15em !important;
-  margin: 0.25rem 0 0.1rem !important;
-  padding-bottom: 0 !important;
-}
-</style>

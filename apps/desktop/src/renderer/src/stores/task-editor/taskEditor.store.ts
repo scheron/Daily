@@ -6,6 +6,7 @@ import {deepClone, isNull, notNull} from "@daily/std"
 import {API} from "@/api"
 import {useTaskRelationsStore} from "@/stores/taskRelations.store"
 import {useTasksStore} from "@/stores/tasks"
+import {usePendingChildren} from "./composables/usePendingChildren"
 import {buildRestPatch} from "./utils/buildRestPatch"
 import {sameIds} from "./utils/sameIds"
 import {shallowEqualDraft} from "./utils/shallowEqualDraft"
@@ -21,11 +22,14 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
   const draftBase = ref<TaskDraft | null>(null)
   const editingTaskId = ref<Task["id"] | null>(null)
 
+  const pending = usePendingChildren({draft})
+  const {pendingSubtasks, pendingComments, hasPending, clearPending, writePending} = pending
+
   const isOpen = computed(() => notNull(draft.value))
   const isNew = computed(() => isNull(editingTaskId.value) && notNull(draft.value))
   const isDirty = computed(() => {
     if (!draft.value) return false
-    if (!draftBase.value) return hasContent(draft.value)
+    if (!draftBase.value) return hasContent(draft.value) || hasPending.value
     return !shallowEqualDraft(draft.value, draftBase.value)
   })
   const editingTask = computed(() => (notNull(editingTaskId.value) ? tasksStore.findTaskById(editingTaskId.value) : null))
@@ -57,6 +61,7 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
     }
     draftBase.value = null
     editingTaskId.value = null
+    clearPending()
   }
 
   function patch(updates: Partial<TaskDraft>) {
@@ -114,6 +119,8 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
         await taskRelationsStore.setTaskRelations(created.id, {blockedBy: next.blockedBy, blocks: next.blocks})
       }
 
+      if (created) await writePending(created.id)
+
       draftBase.value = deepClone(next)
       return
     }
@@ -169,6 +176,7 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
     draft.value = null
     draftBase.value = null
     editingTaskId.value = null
+    clearPending()
   }
 
   function seedFrom(task: Task) {
@@ -222,7 +230,16 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
     isOpen,
     isNew,
     isDirty,
+    pendingSubtasks,
+    pendingComments,
 
+    isPendingId: pending.isPendingId,
+    addPendingSubtask: pending.addPendingSubtask,
+    updatePendingSubtask: pending.updatePendingSubtask,
+    removePendingSubtask: pending.removePendingSubtask,
+    addPendingComment: pending.addPendingComment,
+    updatePendingComment: pending.updatePendingComment,
+    removePendingComment: pending.removePendingComment,
     open,
     openNew,
     patch,

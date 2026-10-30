@@ -44,6 +44,8 @@ const props = withDefaults(
     minLines?: number
     /** The text shown in an empty editor; defaults to the `/` commands hint. */
     placeholder?: string
+    /** Grows with its content and leaves scrolling to the host, instead of filling its parent and scrolling inside. */
+    grow?: boolean
     /** Blocks typing, paste and drop while true. */
     readonly?: boolean
   }>(),
@@ -111,7 +113,8 @@ const taskCommands = props.task
 
 function getContainerClasses(isDraggingOver: boolean) {
   return cn(
-    "markdown-editor relative size-full",
+    "markdown-editor relative",
+    props.grow ? "is-grow w-full" : "size-full",
     props.minLines && "has-min-lines",
     isDraggingOver && "ring-offset-base-100 ring-accent/50 rounded-md ring-2",
   )
@@ -242,6 +245,12 @@ defineExpose({
 }
 .markdown-editor :deep(.cm-scroller) {
   overflow: auto;
+}
+.markdown-editor.is-grow :deep(.cm-editor) {
+  height: auto;
+}
+.markdown-editor.is-grow :deep(.cm-scroller) {
+  overflow: visible;
 }
 .markdown-editor :deep(.cm-image-wrapper img) {
   cursor: zoom-in;

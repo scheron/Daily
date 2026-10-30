@@ -9,15 +9,31 @@ import type {Subtask} from "@daily/protocol"
 
 export const useTaskSubtasks = createSharedComposable(() => {
   const subtasksStore = useSubtasksStore()
-  const {editingTaskId} = storeToRefs(useTaskEditorStore())
+  const taskEditorStore = useTaskEditorStore()
+  const {editingTaskId, pendingSubtasks} = storeToRefs(taskEditorStore)
 
-  const subtasks = computed<Subtask[]>(() => (editingTaskId.value ? subtasksStore.subtasksOf(editingTaskId.value) : []))
+  const subtasks = computed<Subtask[]>(() => (editingTaskId.value ? subtasksStore.subtasksOf(editingTaskId.value) : pendingSubtasks.value))
 
-  const count = computed(() => (editingTaskId.value ? subtasksStore.countOf(editingTaskId.value) : null))
+  const count = computed(() => {
+    if (editingTaskId.value) return subtasksStore.countOf(editingTaskId.value)
+    if (!pendingSubtasks.value.length) return null
+    return {done: pendingSubtasks.value.filter((item) => item.done).length, total: pendingSubtasks.value.length}
+  })
 
-  async function addSubtask(content: string): Promise<boolean> {
-    if (!editingTaskId.value) return false
-    return subtasksStore.addSubtask(editingTaskId.value, content)
+  async function addSubtask(content: string, taskId: Subtask["taskId"] | null = editingTaskId.value): Promise<Subtask | null> {
+    if (taskId) return subtasksStore.addSubtask(taskId, content)
+    if (!taskEditorStore.addPendingSubtask(content)) return null
+    return pendingSubtasks.value.at(-1) ?? null
+  }
+
+  async function updateSubtask(id: Subtask["id"], updates: {content?: string; done?: boolean}): Promise<boolean> {
+    if (taskEditorStore.isPendingId(id)) return taskEditorStore.updatePendingSubtask(id, updates)
+    return subtasksStore.updateSubtask(id, updates)
+  }
+
+  async function removeSubtask(id: Subtask["id"]): Promise<boolean> {
+    if (taskEditorStore.isPendingId(id)) return taskEditorStore.removePendingSubtask(id)
+    return subtasksStore.removeSubtask(id)
   }
 
   watch(
@@ -32,8 +48,8 @@ export const useTaskSubtasks = createSharedComposable(() => {
     subtasks,
     count,
     addSubtask,
-    updateSubtask: subtasksStore.updateSubtask,
-    removeSubtask: subtasksStore.removeSubtask,
+    updateSubtask,
+    removeSubtask,
     makeTask: subtasksStore.makeTask,
   }
 })

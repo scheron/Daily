@@ -27,7 +27,7 @@ function makeTask(id, overrides = {}) {
   }
 }
 
-describe("RightPanel tabs", () => {
+describe("RightPanel layout", () => {
   let wrapper = null
 
   beforeEach(() => {
@@ -56,7 +56,7 @@ describe("RightPanel tabs", () => {
       props: {width: 420},
       global: {
         directives: {tooltip: {}},
-        stubs: {Toolbar: true, Details: true, Editor: true, Footer: true, Comments: true, History: true, Subtasks: true},
+        stubs: {Toolbar: true, Details: true, Editor: true, Footer: true, Comments: true, History: true, Subtasks: true, SubtaskView: true},
       },
     })
 
@@ -64,59 +64,41 @@ describe("RightPanel tabs", () => {
     return {taskEditorStore}
   }
 
-  function tabLabels() {
-    return wrapper.findAll("button").map((tab) => tab.attributes("aria-label") ?? tab.text())
-  }
-
-  async function clickTab(label) {
-    const tab = wrapper.findAll("button").find((button) => (button.attributes("aria-label") ?? button.text()) === label)
-    await tab.trigger("click")
-    await wrapper.vm.$nextTick()
-  }
-
-  it("opens_a_saved_task_on_the_editor_with_all_four_tabs_offered", async () => {
+  it("lays_a_saved_task_out_as_one_scroll_with_no_tabs_and_the_composer_in_the_footer", async () => {
     await setup((store) => store.open("task-1"))
 
-    expect(tabLabels()).toEqual(["Editor", "Comments", "History", "Subtasks"])
-    expect(wrapper.find("editor-stub").exists()).toBe(true)
-    expect(wrapper.find("comments-stub").exists()).toBe(false)
+    const scroller = wrapper.find(".overflow-y-auto")
+    expect(wrapper.findAll("button")).toHaveLength(0)
+    for (const section of ["details", "editor", "subtasks", "comments"]) expect(scroller.find(`${section}-stub`).exists()).toBe(true)
+    expect(scroller.find("footer-stub").exists()).toBe(false)
+    expect(wrapper.find("footer-stub").exists()).toBe(true)
     expect(wrapper.find("history-stub").exists()).toBe(false)
   })
 
-  it("swaps_the_body_for_the_tab_that_was_picked_showing_one_at_a_time", async () => {
-    await setup((store) => store.open("task-1"))
-
-    await clickTab("Comments")
-    expect(wrapper.find("comments-stub").exists()).toBe(true)
-    expect(wrapper.find("editor-stub").exists()).toBe(false)
-    expect(wrapper.find("history-stub").exists()).toBe(false)
-
-    await clickTab("History")
-    expect(wrapper.find("history-stub").exists()).toBe(true)
-    expect(wrapper.find("comments-stub").exists()).toBe(false)
-
-    await clickTab("Subtasks")
-    expect(wrapper.find("subtasks-stub").exists()).toBe(true)
-    expect(wrapper.find("history-stub").exists()).toBe(false)
-  })
-
-  it("offers_no_tabs_on_a_task_that_was_never_saved_leaving_only_the_editor", async () => {
+  it("shows_subtasks_activity_and_the_composer_on_a_task_that_was_never_saved", async () => {
     await setup((store) => store.openNew({branchId: "main", milestoneId: null}))
 
-    expect(tabLabels()).toEqual([])
+    expect(wrapper.find("details-stub").exists()).toBe(true)
     expect(wrapper.find("editor-stub").exists()).toBe(true)
+    expect(wrapper.find("subtasks-stub").exists()).toBe(true)
+    expect(wrapper.find("comments-stub").exists()).toBe(true)
+    expect(wrapper.find("footer-stub").exists()).toBe(true)
   })
 
-  it("returns_to_the_editor_when_the_panel_moves_on_to_another_task", async () => {
-    const {taskEditorStore} = await setup((store) => store.open("task-1"))
+  it("swaps_the_task_for_the_subtask_view_and_keeps_the_scroller_mounted", async () => {
+    await setup((store) => store.open("task-1"))
+    const {openedSubtaskId} = await import("../../../../src/renderer/src/ui/modules/RightPanel/composables/useSubtaskEditorOpen")
 
-    await clickTab("History")
-    expect(wrapper.find("history-stub").exists()).toBe(true)
-
-    await taskEditorStore.open("task-2")
+    openedSubtaskId.value = "s1"
     await wrapper.vm.$nextTick()
 
-    expect(wrapper.find("editor-stub").exists()).toBe(true)
-    expect(wrapper.find("history-stub").exists()).toBe(false)
+    expect(wrapper.find("subtask-view-stub").exists()).toBe(true)
+    expect(wrapper.find(".overflow-y-auto").element.style.display).toBe("none")
+
+    openedSubtaskId.value = null
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find("subtask-view-stub").exists()).toBe(false)
+    expect(wrapper.find(".overflow-y-auto").element.style.display).not.toBe("none")
   })
 })

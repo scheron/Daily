@@ -77,7 +77,7 @@ describe("useSubtasksStore", () => {
     await store.loadSubtasks("t1")
 
     API.createSubtask.mockResolvedValue({subtasks: {upserted: [makeSubtask("s1", "t1")]}})
-    expect(await store.addSubtask("t1", "s1")).toBe(true)
+    expect((await store.addSubtask("t1", "s1"))?.id).toBe("s1")
 
     API.updateSubtask.mockResolvedValue({subtasks: {upserted: [makeSubtask("s1", "t1", {done: true})]}})
     await store.updateSubtask("s1", {done: true})
@@ -88,7 +88,7 @@ describe("useSubtasksStore", () => {
     expect(store.subtasksOf("t1")).toEqual([])
 
     API.createSubtask.mockResolvedValue({})
-    expect(await store.addSubtask("t1", "   ")).toBe(true)
+    expect(await store.addSubtask("t1", "   ")).toBe(null)
     expect(store.subtasksOf("t1")).toEqual([])
   })
 

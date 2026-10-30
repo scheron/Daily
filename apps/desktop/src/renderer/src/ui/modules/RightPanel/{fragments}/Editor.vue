@@ -13,6 +13,10 @@ const {activeTask, localContent, isOpen, isNew, onBodyChange} = useTaskEditor()
 
 const isCreating = computed(() => isOpen.value && isNew.value)
 
+function focusFromBlank(event: MouseEvent) {
+  if (event.target === event.currentTarget) editorRef.value?.focus()
+}
+
 watch(
   isCreating,
   async (value) => {
@@ -25,13 +29,7 @@ watch(
 </script>
 
 <template>
-  <MarkdownEditor
-    v-if="activeTask"
-    ref="editor"
-    :task="activeTask"
-    :content="localContent"
-    class="min-h-0 flex-1 px-4 py-4"
-    @update:content="onBodyChange"
-    @patch="taskEditorStore.patch"
-  />
+  <div v-if="activeTask" class="min-h-40 flex-1 cursor-text px-4 py-4" @click="focusFromBlank">
+    <MarkdownEditor ref="editor" grow :task="activeTask" :content="localContent" @update:content="onBodyChange" @patch="taskEditorStore.patch" />
+  </div>
 </template>

@@ -4,9 +4,9 @@ import DateProperty from "./{fragments}/properties/DateProperty.vue"
 import MilestoneProperty from "./{fragments}/properties/MilestoneProperty.vue"
 import PriorityProperty from "./{fragments}/properties/PriorityProperty.vue"
 import RelationsProperty from "./{fragments}/properties/RelationsProperty.vue"
+import StatusProperty from "./{fragments}/properties/StatusProperty.vue"
 import TagsProperty from "./{fragments}/properties/TagsProperty.vue"
 import TimeProperty from "./{fragments}/properties/TimeProperty.vue"
-import StatusSelector from "./{fragments}/StatusSelector.vue"
 
 import type {Task} from "@daily/protocol"
 
@@ -14,23 +14,24 @@ defineProps<{task: Task}>()
 </script>
 
 <template>
-  <div class="border-base-300 shrink-0 border-b px-2 pt-2 pb-3">
-    <StatusSelector :task="task" />
-
-    <div class="mt-2 grid grid-cols-6 gap-x-2 gap-y-0.5">
-      <div class="col-span-3 min-w-0">
+  <div class="shrink-0 px-2 pb-3 pt-2">
+    <div class="grid grid-cols-3 gap-x-2 gap-y-0.5">
+      <div class="min-w-0">
+        <StatusProperty :task="task" />
+      </div>
+      <div class="min-w-0">
         <DateProperty :task="task" />
       </div>
-      <div class="col-span-3 min-w-0">
+      <div class="min-w-0">
         <TimeProperty :task="task" />
       </div>
-      <div class="col-span-2 min-w-0">
+      <div class="min-w-0">
         <BranchProperty :task="task" />
       </div>
-      <div class="col-span-2 min-w-0">
+      <div class="min-w-0">
         <MilestoneProperty :task="task" />
       </div>
-      <div class="col-span-2 min-w-0">
+      <div class="min-w-0">
         <PriorityProperty :task="task" />
       </div>
     </div>

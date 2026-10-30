@@ -15,8 +15,12 @@ export function useConfirmUnsavedModal() {
     if (!taskEditorStore.isDirty) return Promise.resolve(true)
     ;({promise, resolve} = withResolvers<boolean>())
 
+    const canSave = (taskEditorStore.draft?.content.trim().length ?? 0) > 0
+
     show(ConfirmUnsavedModal, {
+      canSave,
       onSave: async () => {
+        if (!canSave) return
         await taskEditorStore.commit()
         hide()
         resolve(true)

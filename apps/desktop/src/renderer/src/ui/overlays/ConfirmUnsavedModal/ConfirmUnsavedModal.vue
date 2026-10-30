@@ -3,6 +3,8 @@ import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
 import {BaseModal} from "@/ui/base/BaseModal"
 
+defineProps<{canSave: boolean}>()
+
 defineEmits<{
   save: []
   discard: []
@@ -18,12 +20,14 @@ defineEmits<{
       <h2 class="text-base-content text-lg font-semibold">You have unsaved changes</h2>
     </div>
     <p class="text-base-content/70 mt-1 text-sm">Your current changes haven’t been saved.</p>
-    <p class="text-base-content/70 mt-1 text-sm">You can save, discard, or keep editing.</p>
+    <p class="text-base-content/70 mt-1 text-sm">
+      {{ canSave ? "You can save, discard, or keep editing." : "Save needs a description. You can discard or keep editing." }}
+    </p>
 
     <div class="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
       <BaseButton variant="ghost" size="sm" @click="$emit('cancel')">Keep Editing</BaseButton>
       <BaseButton variant="error-ghost" size="sm" class="sm:-order-1" @click="$emit('discard')">Discard</BaseButton>
-      <BaseButton variant="primary" size="sm" @click="$emit('save')">Save Changes</BaseButton>
+      <BaseButton variant="primary" size="sm" :disabled="!canSave" @click="$emit('save')">Save Changes</BaseButton>
     </div>
   </BaseModal>
 </template>

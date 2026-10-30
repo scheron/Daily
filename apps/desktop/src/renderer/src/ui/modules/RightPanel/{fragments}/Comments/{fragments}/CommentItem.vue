@@ -37,7 +37,7 @@ function submitEditing() {
 }
 
 function getRowClasses(editing: boolean) {
-  return cn("group border-base-300/60 border-b px-4 pt-2 pb-2.5", editing && "bg-accent/6")
+  return cn("group px-4 pt-2 pb-2.5", editing && "bg-accent/6")
 }
 </script>
 
@@ -48,7 +48,7 @@ function getRowClasses(editing: boolean) {
 
       <span class="text-base-content/40 text-xs">{{ toRelativeTime(comment.createdAt) }}</span>
 
-      <div v-if="!isEditing" class="ml-auto flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+      <div v-if="!isEditing" class="ml-auto flex gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
         <BaseButton variant="ghost-muted" icon="pencil" size="xs" tooltip="Edit" @click="startEditing" />
 
         <ConfirmPopup
