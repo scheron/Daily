@@ -10,11 +10,12 @@
 
 <p align="center">
   A local-first, day-first task manager for Apple Silicon Macs.<br />
-  Markdown tasks, SQLite storage, optional sync, and a built-in task agent.
+  Markdown tasks, local storage, a built-in assistant, and MCP access for your agents.
 </p>
 
 <p align="center">
   <a href="https://github.com/scheron/Daily/releases">Download</a> ·
+  <a href="#bring-your-agents-into-the-workflow">Agents</a> ·
   <a href="#custom-task-agent">Task agent</a> ·
   <a href="#optional-sync">Sync</a> ·
   <a href="#privacy-and-data">Privacy</a>
@@ -33,7 +34,56 @@
   <img src="https://img.shields.io/badge/platform-macOS%20Apple%20Silicon-black" alt="macOS Apple Silicon" />
 </p>
 
-![Daily board, calendar, Markdown task editor, and stats](./media/ui.png)
+![Daily's day-first board with an English demo project, priorities, milestones, and time estimates](./media/screenshots/01-board.png)
+
+<p align="center">
+  <em>A day of work in Orbit, a fictional product team. Every screenshot uses synthetic English demo data.</em>
+</p>
+
+## A closer look
+
+### Keep the whole task in view
+
+Bring the brief, decisions, Markdown notes, subtasks, and comments into one place, alongside the day's board.
+
+![A task brief with Markdown notes, a table, project details, and a milestone](./media/screenshots/02-task-details.png)
+
+### Plan by day, keep sight of the milestone
+
+Navigate the calendar, see the month's task counts, and group a bounded batch of work into a milestone.
+
+| Calendar and monthly progress                                                       | Milestones and target dates                                                                            |
+| ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| ![Calendar navigation and monthly task counts](./media/screenshots/03-calendar.png) | ![Project milestones with target dates and completion progress](./media/screenshots/04-milestones.png) |
+
+### Give agent work its own stages
+
+Switch to the seven-column Agents board to see work ready for an agent and implementations ready to merge.
+
+![The Agents board with Ready for Agent and Ready to Merge stages](./media/screenshots/05-agents.png)
+
+### Bring your agents into the workflow
+
+Connect **Codex, Claude Code, Claude, or ChatGPT** to a self-hosted Daily Sync Server over MCP. External agents use the same task tools as the built-in Daily Assistant. Approve access from Daily and keep implementation notes, review feedback, Markdown, and code with the task.
+
+![English demo review notes with Codex and Claude Code source badges and syntax-highlighted code](./media/screenshots/08-agent-comments.png)
+
+| Connect through MCP                                                                                                       | Approve access in Daily                                                                               |
+| ------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| ![Real MCP connection instructions on an isolated local Daily Sync Server](./media/screenshots/09-agent-integrations.png) | ![Matching-code approval for a real local demo MCP client](./media/screenshots/10-agent-approval.png) |
+
+<p align="center">
+  <em>Review notes are fictional demo content. The connection screen uses a real, separate server running on localhost.</em>
+</p>
+
+[See a comment delivered through the real MCP connection →](./media/screenshots/11-live-mcp-comment.png)
+
+| Find the context                                                                 | Make it yours                                                                        |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Search tasks across projects, dates, and Markdown content.                       | Choose light, dark, or system appearance.                                            |
+| ![Full-text search over synthetic demo tasks](./media/screenshots/06-search.png) | ![Daily's board and task editor in dark appearance](./media/screenshots/07-dark.png) |
+
+[Run the demo build or recreate these screenshots →](./docs/demo.md)
 
 ## How Daily works
 
@@ -64,14 +114,6 @@ Tasks belong to days instead of an endless backlog. Plan on a calendar-linked bo
 Daily has its own built-in task-agent runtime. It is not a chat widget connected to a model: Daily runs an agent loop that streams responses, executes registered task tools, preserves conversations, and gates destructive actions behind an explicit confirmation step.
 
 The agent works through Daily's own task, project, tag, time, attachment, and summary operations. It does not claim to control arbitrary apps or files on your Mac.
-
-<p align="center">
-  <img src="./media/ai.png" width="420" alt="Daily AI assistant creating a task through a tool call" />
-</p>
-
-<p align="center">
-  <em>The assistant streams its work and requests confirmation before destructive actions.</em>
-</p>
 
 Ask it to do task work such as:
 

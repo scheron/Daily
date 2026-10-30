@@ -4,6 +4,7 @@ import {app} from "electron"
 
 import {logger} from "@daily/core"
 
+import {IS_DEMO} from "@main/demo/profile"
 import {applyPendingInstallResult} from "./utils/applyPendingInstallResult"
 import {clearPendingInstallFailure} from "./utils/clearPendingInstallFailure"
 import {compareVersions} from "./utils/compareVersions"
@@ -19,6 +20,7 @@ import type {AppUpdateInstallFailure, AppUpdateState} from "@shared/types/update
 import type {BrowserWindow} from "electron"
 
 const INSTALL_FAILED_REASON = "The last update could not be installed."
+const UPDATES_UNAVAILABLE_REASON = IS_DEMO ? "Updates are disabled in Daily Demo." : "In-app updates are available only on macOS."
 
 export class UpdaterController {
   private mainWindow: BrowserWindow | null = null
@@ -49,7 +51,7 @@ export class UpdaterController {
     if (!this.isUpdaterSupported()) {
       this.setUpdateState({
         status: "unavailable",
-        reason: "In-app updates are available only on macOS.",
+        reason: UPDATES_UNAVAILABLE_REASON,
         checkedAt: new Date().toISOString(),
       })
       return this.getState()
@@ -149,7 +151,7 @@ export class UpdaterController {
     if (!this.isUpdaterSupported()) {
       this.setUpdateState({
         status: "unavailable",
-        reason: "In-app updates are available only on macOS.",
+        reason: UPDATES_UNAVAILABLE_REASON,
       })
       return false
     }
@@ -227,7 +229,7 @@ export class UpdaterController {
     if (!this.isUpdaterSupported()) {
       this.setUpdateState({
         status: "unavailable",
-        reason: "In-app updates are available only on macOS.",
+        reason: UPDATES_UNAVAILABLE_REASON,
       })
       return false
     }
@@ -281,7 +283,7 @@ export class UpdaterController {
     if (!this.isUpdaterSupported()) {
       this.setUpdateState({
         status: "unavailable",
-        reason: "In-app updates are available only on macOS.",
+        reason: UPDATES_UNAVAILABLE_REASON,
       })
       return
     }
@@ -413,13 +415,13 @@ export class UpdaterController {
       downloadProgress: null,
       downloadedAt: null,
       checkedAt: null,
-      reason: this.isUpdaterSupported() ? null : "In-app updates are available only on macOS.",
+      reason: this.isUpdaterSupported() ? null : UPDATES_UNAVAILABLE_REASON,
       installFailure: null,
     }
   }
 
   private isUpdaterSupported(): boolean {
-    return process.platform === "darwin"
+    return process.platform === "darwin" && !IS_DEMO
   }
 
   private setUpdateState(patch: Partial<AppUpdateState>) {

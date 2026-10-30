@@ -15,6 +15,12 @@
   },
   "scripts": {
     "dev": "pnpm --filter @daily/desktop dev",
+    "demo": "pnpm --filter @daily/desktop demo",
+    "demo:build": "pnpm --filter @daily/desktop demo:build",
+    "demo:open": "pnpm --filter @daily/desktop demo:open",
+    "demo:reset": "pnpm --filter @daily/desktop demo:reset",
+    "demo:server": "pnpm --filter @daily/server build && node scripts/demo-server.js",
+    "demo:mcp": "node scripts/demo-mcp-client.js",
     "release": "node scripts/release.js",
     "build:server": "pnpm --filter @daily/server build",
     "build:server:package": "pnpm build:server && node scripts/build-server-package.js",

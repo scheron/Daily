@@ -20,6 +20,10 @@
   },
   "scripts": {
     "dev": "electron-vite dev",
+    "demo": "DAILY_DEMO=1 electron-vite dev --entry out-demo/main/main.js",
+    "demo:build": "bash scripts/build-file-coordinator.sh && DAILY_DEMO=1 electron-vite build && electron-builder --config electron-builder.demo.json --mac --dir",
+    "demo:open": "open 'dist-demo/mac-arm64/Daily Demo.app'",
+    "demo:reset": "node scripts/reset-demo.js",
     "build": "bash scripts/build-file-coordinator.sh && electron-vite build && electron-builder --mac",
     "build:compress": "electron-vite build",
     "preview": "electron-vite preview",

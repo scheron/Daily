@@ -5,18 +5,21 @@ import {ENV, logger} from "@daily/core"
 import {APP_CONFIG} from "@daily/protocol"
 
 import {electronPaths} from "@main/config/electronPaths"
+import {IS_DEMO, resolveAppProfile} from "@main/demo/profile"
 import {focusWindow} from "@main/utils/windows/focusWindow"
 
 import type {StorageController} from "@daily/core"
 import type {BrowserWindow} from "electron"
 
 export function setupAppBoot() {
-  app.setName(APP_CONFIG.name)
+  const profile = resolveAppProfile(IS_DEMO, ENV.isDevelopment)
+  app.setName(profile.name)
 
-  if (ENV.isDevelopment) {
-    const devUserData = join(app.getPath("appData"), `${APP_CONFIG.name}-dev`)
-    app.setPath("userData", devUserData)
-    logger.info(logger.CONTEXT.STORAGE, `Development build — isolated userData at ${devUserData}`)
+  if (IS_DEMO || ENV.isDevelopment) {
+    const userData = join(app.getPath("appData"), profile.dataDirectory)
+    app.setPath("userData", userData)
+    app.setPath("sessionData", join(userData, "Session"))
+    logger.info(logger.CONTEXT.STORAGE, `${profile.name} — isolated userData at ${userData}`)
   }
 }
 

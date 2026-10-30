@@ -16,6 +16,8 @@ import {loadSavedMainWindowState} from "./utils/windows/loadSavedMainWindowState
 import {waitForRendererReady} from "./utils/windows/waitForRendererReady"
 import {AIController} from "./ai/AIController"
 import {electronPaths} from "./config/electronPaths"
+import {IS_DEMO} from "./demo/profile"
+import {seedDemoStorage} from "./demo/seedDemoStorage"
 import {FocusController} from "./modules/focus/FocusController"
 import {trayController} from "./modules/tray/TrayController"
 import {setupFocusWindow} from "./setup/app/focusWindow"
@@ -109,6 +111,7 @@ function bootDaily() {
   setupInstanceAndDeepLinks(
     () => storage,
     () => windows.main,
+    {registerProtocol: !IS_DEMO},
   )
 
   setupActivateHandler(
@@ -151,6 +154,7 @@ async function startDaily() {
 
   try {
     await storage.init()
+    if (IS_DEMO) await seedDemoStorage(storage)
     await ai.init()
 
     await storage.cleanupOrphanFiles()
@@ -225,26 +229,29 @@ async function startDaily() {
     },
   )
 
-  setupTrayOpenDaily(
-    trayController,
-    () => windows.main,
-    () => setupMainWindow(windows),
-  )
-  trayQuickTask = setupTrayQuickTask(trayController, quickTask, () => storage)
-  void trayQuickTask.refresh()
-  quickTaskSwitch = setupQuickTask(quickTask, () => storage)
-  trayVisibility = setupTrayVisibility(trayController, () => storage)
-  await trayVisibility.apply()
+  if (!IS_DEMO) {
+    setupTrayOpenDaily(
+      trayController,
+      () => windows.main,
+      () => setupMainWindow(windows),
+    )
+    trayQuickTask = setupTrayQuickTask(trayController, quickTask, () => storage)
+    void trayQuickTask.refresh()
+    quickTaskSwitch = setupQuickTask(quickTask, () => storage)
+    trayVisibility = setupTrayVisibility(trayController, () => storage)
+    await trayVisibility.apply()
+  }
 
   setupMainWindow(windows, {showSplash: true})
 
-  void ai
-    .getLocalModel()
-    .refreshCatalog()
-    .then((result) => {
-      if (result === "updated") broadcastToWindows(() => windows, "ai:local-catalog-changed", undefined)
-    })
-    .catch((err) => logger.error(logger.CONTEXT.AI, "Background catalog refresh failed", err))
+  if (!IS_DEMO)
+    void ai
+      .getLocalModel()
+      .refreshCatalog()
+      .then((result) => {
+        if (result === "updated") broadcastToWindows(() => windows, "ai:local-catalog-changed", undefined)
+      })
+      .catch((err) => logger.error(logger.CONTEXT.AI, "Background catalog refresh failed", err))
 
   logger.lifecycle(`${APP_CONFIG.name} started`)
 }
@@ -255,7 +262,7 @@ function setupMainWindow(windows: AppWindows, options?: {showSplash?: boolean}) 
   windows.main = createMainWindow(savedMainWindowState)
   const main = windows.main!
   const rendererReady = waitForRendererReady(() => windows.main)
-  if (storage) setupUpdateManager(main, () => storage)
+  if (storage && !IS_DEMO) setupUpdateManager(main, () => storage)
 
   setupMenu(() => main)
   setupMainWindowStatePersistence(

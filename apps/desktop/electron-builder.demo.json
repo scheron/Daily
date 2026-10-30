@@ -1,0 +1,27 @@
+{
+  "extends": "./electron-builder.json",
+  "appId": "com.dailyapp.daily.demo",
+  "productName": "Daily Demo",
+  "directories": {"output": "dist-demo"},
+  "extraMetadata": {
+    "name": "daily-demo",
+    "productName": "Daily Demo",
+    "main": "out-demo/main/main.js"
+  },
+  "files": [
+    "out-demo/**/*",
+    {"filter": ["**/*"], "from": "public", "to": "resources"},
+    "!out",
+    "!dist",
+    "!dist-demo",
+    "!scripts",
+    "!src",
+    "!*.md",
+    "!.git*",
+    "!.DS_Store"
+  ],
+  "mac": {
+    "artifactName": "Daily-Demo-${version}-mac.${ext}",
+    "notarize": false
+  }
+}

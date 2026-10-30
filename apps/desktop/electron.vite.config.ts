@@ -7,6 +7,8 @@ import tailwindcss from "@tailwindcss/vite"
 import vuePlugin from "@vitejs/plugin-vue"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
+const isDemo = process.env.DAILY_DEMO === "1"
+const outputDirectory = isDemo ? "out-demo" : "out"
 
 const workspacePackages = ["@daily/protocol", "@daily/std", "@daily/core", "@daily/tools"]
 
@@ -22,10 +24,11 @@ const rendererAlias = {
 
 export default defineConfig({
   main: {
+    define: {"process.env.DAILY_DEMO": JSON.stringify(isDemo ? "1" : "0")},
     plugins: [externalizeDepsPlugin({exclude: workspacePackages}), tsconfigPaths()],
     resolve: {alias: mainAlias},
     build: {
-      outDir: "out/main",
+      outDir: `${outputDirectory}/main`,
       rollupOptions: {
         input: {
           main: join(__dirname, "src/main/app.ts"),
@@ -38,7 +41,7 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin({exclude: workspacePackages}), tsconfigPaths()],
     resolve: {alias: mainAlias},
     build: {
-      outDir: "out/preload",
+      outDir: `${outputDirectory}/preload`,
       rollupOptions: {
         input: {
           preload: join(__dirname, "src/main/preload.ts"),
@@ -56,7 +59,7 @@ export default defineConfig({
     publicDir: "public",
     resolve: {alias: rendererAlias},
     build: {
-      outDir: join(__dirname, "out/renderer"),
+      outDir: join(__dirname, outputDirectory, "renderer"),
       emptyOutDir: true,
       sourcemap: false,
       chunkSizeWarningLimit: 1000,

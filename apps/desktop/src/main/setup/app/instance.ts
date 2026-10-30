@@ -8,7 +8,11 @@ import {focusWindow} from "@main/utils/windows/focusWindow"
 import type {StorageController} from "@daily/core"
 import type {BrowserWindow} from "electron"
 
-export function setupInstanceAndDeepLinks(_getStorage: () => StorageController | null, getMainWindow: () => BrowserWindow | null) {
+export function setupInstanceAndDeepLinks(
+  _getStorage: () => StorageController | null,
+  getMainWindow: () => BrowserWindow | null,
+  options: {registerProtocol?: boolean} = {},
+) {
   const gotLock = app.requestSingleInstanceLock()
 
   if (!gotLock) {
@@ -16,7 +20,7 @@ export function setupInstanceAndDeepLinks(_getStorage: () => StorageController |
     return false
   }
 
-  app.setAsDefaultProtocolClient(APP_CONFIG.protocol)
+  if (options.registerProtocol !== false) app.setAsDefaultProtocolClient(APP_CONFIG.protocol)
 
   app.on("second-instance", async (_event, argv) => {
     const mainWindow = getMainWindow()

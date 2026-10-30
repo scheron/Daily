@@ -1,6 +1,8 @@
 node_modules/
 dist/
 out/
+out-demo/
+dist-demo/
 dist-server
 
 *.txt

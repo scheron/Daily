@@ -2,6 +2,8 @@ import {app, ipcMain, Menu} from "electron"
 
 import {ENV} from "@daily/core"
 
+import {captureDemoScreenshot} from "@main/demo/captureDemoScreenshot"
+import {IS_DEMO} from "@main/demo/profile"
 import {updaterController} from "@main/modules/updates/UpdaterController"
 import {SHORTCUTS_MAP} from "@shared/constants/shortcuts"
 
@@ -36,6 +38,16 @@ function createMacMenu(mainWindow: BrowserWindow): MenuItemConstructorOptions[] 
           label: "Check for Updates...",
           click: () => updaterController.checkForUpdate({manual: true}),
         },
+        ...(IS_DEMO
+          ? [
+              {type: "separator" as const},
+              {
+                label: "Save Screenshot...",
+                accelerator: "CommandOrControl+Shift+S",
+                click: () => void captureDemoScreenshot(mainWindow),
+              },
+            ]
+          : []),
         {type: "separator"},
         {role: "hide"},
         {role: "hideOthers"},
