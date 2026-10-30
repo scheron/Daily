@@ -20,11 +20,13 @@ import type {Task, TaskComment, TaskCommentCounts} from "@daily/protocol"
  * rows belonging to a task nobody has opened are dropped rather than cached half-complete.
  */
 export const useTaskCommentsStore = defineStore("taskComments", () => {
+  let wantsCounts = false
+  const commentWrites = new Map<TaskComment["id"], Promise<boolean>>()
+
   const comments = shallowRef<TaskComment[]>([])
   const commentCounts = ref<TaskCommentCounts>({})
   const loadedTaskIds = ref(new Set<Task["id"]>())
   const pendingTaskIds = ref(new Set<Task["id"]>())
-  let wantsCounts = false
 
   const commentsByTaskId = computed(() => {
     const map = new Map<Task["id"], TaskComment[]>()
@@ -35,7 +37,6 @@ export const useTaskCommentsStore = defineStore("taskComments", () => {
       else map.set(comment.taskId, [comment])
     }
 
-    /* Sorting on `createdAt` alone, and relying on a stable sort, keeps the order storage returned for comments that share a millisecond. */
     for (const thread of map.values()) {
       thread.sort((a, b) => a.createdAt.localeCompare(b.createdAt))
     }
@@ -108,15 +109,31 @@ export const useTaskCommentsStore = defineStore("taskComments", () => {
     }
   }
 
-  async function editComment(id: TaskComment["id"], content: string): Promise<boolean> {
-    try {
-      applyChangeset({comments}, await API.updateTaskComment(id, content))
-      return true
-    } catch (error) {
-      console.error("Failed to edit a comment", error)
-      toasts.error("Failed to edit the comment")
-      return false
-    }
+  /** Returns false for a missing target; a late reply cannot restore a comment removed while the write was pending. */
+  function editComment(id: TaskComment["id"], content: string): Promise<boolean> {
+    if (!content.trim()) return Promise.resolve(false)
+    const writing = (commentWrites.get(id) ?? Promise.resolve(true)).then(async () => {
+      if (!comments.value.some((comment) => comment.id === id)) return false
+      try {
+        const changeset = await API.updateTaskComment(id, content)
+        if (!comments.value.some((comment) => comment.id === id)) return false
+        if (!changeset.comments?.upserted?.some((comment) => comment.id === id && !comment.deletedAt)) {
+          applyChangeset({comments}, {comments: {removed: [id]}})
+          return false
+        }
+        applyChangeset({comments}, changeset)
+        return true
+      } catch (error) {
+        console.error("Failed to edit a comment", error)
+        toasts.error("Failed to edit the comment")
+        return false
+      }
+    })
+    commentWrites.set(id, writing)
+    void writing.finally(() => {
+      if (commentWrites.get(id) === writing) commentWrites.delete(id)
+    })
+    return writing
   }
 
   async function removeComment(id: TaskComment["id"]): Promise<boolean> {

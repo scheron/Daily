@@ -96,10 +96,6 @@ describe("Activity", () => {
     return wrapper.findAll("button").find((button) => button.find(`use[href="#${name}"]`).exists())
   }
 
-  function buttonWithText(text) {
-    return wrapper.findAll("button").find((button) => button.text().trim() === text)
-  }
-
   it("reads_a_thread_oldest_first_so_the_latest_note_sits_next_to_the_composer", async () => {
     await setup([
       makeComment("old", "2026-01-01T09:00:00.000Z"),
@@ -209,38 +205,6 @@ describe("Activity", () => {
 
     expect(wrapper.find("textarea").element.value).toBe("")
     expect(bridge["comments:create"]).not.toHaveBeenCalled()
-  })
-
-  it("drops_an_edit_on_escape_and_keeps_the_comment_as_it_was", async () => {
-    await setup([makeComment("c1", "2026-01-01T09:00:00.000Z", {content: "first draft"})], {
-      "comments:update": vi.fn(),
-    })
-
-    await buttonWithIcon("pencil").trigger("click")
-    await wrapper.find(".group textarea").setValue("second draft")
-    await wrapper.find(".group textarea").trigger("keydown", {key: "Escape", code: "Escape"})
-    await flush()
-
-    expect(bridge["comments:update"]).not.toHaveBeenCalled()
-    expect(wrapper.find(".group textarea").exists()).toBe(false)
-    expect(wrapper.text()).toContain("first draft")
-  })
-
-  it("rewrites_a_comment_in_place_and_shows_the_text_storage_answered_with", async () => {
-    await setup([makeComment("c1", "2026-01-01T09:00:00.000Z", {content: "first draft"})], {
-      "comments:update": vi.fn(async (id, content) => ({
-        comments: {upserted: [makeComment(id, "2026-01-01T09:00:00.000Z", {content})]},
-      })),
-    })
-
-    await buttonWithIcon("pencil").trigger("click")
-    await wrapper.find(".group textarea").setValue("second draft")
-    await buttonWithText("Save").trigger("click")
-    await flush()
-
-    expect(bridge["comments:update"]).toHaveBeenCalledWith("c1", "second draft")
-    expect(wrapper.text()).toContain("second draft")
-    expect(wrapper.text()).not.toContain("first draft")
   })
 
   it("takes_a_comment_out_of_the_thread_once_the_delete_is_confirmed", async () => {

@@ -45,7 +45,6 @@ describe("useTaskCommentsStore", () => {
     mockBridgeIPC()
     setActivePinia(createPinia())
     vi.clearAllMocks()
-    /* `clearAllMocks` keeps implementations, so each case starts from an empty thread and says what it needs. */
     API.getTaskComments.mockResolvedValue([])
     API.getTaskCommentCounts.mockResolvedValue({})
   })
@@ -121,6 +120,16 @@ describe("useTaskCommentsStore", () => {
     API.createTaskComment.mockResolvedValue({})
     expect(await store.addComment("t1", "   ")).toBe(true)
     expect(store.commentsOf("t1")).toEqual([])
+  })
+
+  it("keeps a live comment when whitespace cannot be written", async () => {
+    const store = useTaskCommentsStore()
+    API.getTaskComments.mockResolvedValue([makeComment("c1", "t1")])
+    await store.loadComments("t1")
+    API.updateTaskComment.mockResolvedValue({})
+
+    expect(await store.editComment("c1", "  \n ")).toBe(false)
+    expect(store.commentsOf("t1").map((comment) => comment.content)).toEqual(["c1"])
   })
 
   it("reads_a_tasks_thread_before_writing_the_first_comment_on_it", async () => {

@@ -91,6 +91,11 @@ export const buttonColorVariant = defineVariant({
           hover:bg-base-300/80 hover:text-base-content
           disabled:hover:bg-transparent
       `,
+      "ghost-muted-selected": `
+          bg-base-content/10 text-base-content
+          hover:bg-base-300/80 hover:text-base-content
+          disabled:hover:bg-transparent
+      `,
       "filter-neutral": `
           bg-transparent text-base-content/80
           hover:bg-base-300/80 hover:text-base-content/80

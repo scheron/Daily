@@ -4,11 +4,13 @@ import {useEventListener} from "@vueuse/core"
 
 import {useFocusTrap} from "@/composables/useFocusTrap"
 import {useEditorShortcuts} from "./composables/useEditorShortcuts"
+import {nestedTarget} from "./composables/useNestedView"
 import {openedSubtaskId} from "./composables/useSubtaskEditorOpen"
 import {useTaskEditor} from "./composables/useTaskEditor"
 import {animatePanel} from "./utils/animatePanel"
 import {getTaskTitle} from "./utils/getTaskTitle"
 import Comments from "./{fragments}/Comments"
+import CommentView from "./{fragments}/CommentView.vue"
 import Details from "./{fragments}/Details"
 import Editor from "./{fragments}/Editor.vue"
 import Footer from "./{fragments}/Footer.vue"
@@ -18,10 +20,11 @@ import Toolbar from "./{fragments}/Toolbar.vue"
 
 const props = defineProps<{width: number}>()
 
+let savedScrollTop = 0
+
 const panelRef = useTemplateRef<HTMLElement>("panel")
 const scrollerRef = useTemplateRef<HTMLElement>("scroller")
 const isFirstLineOut = ref(false)
-let savedScrollTop = 0
 
 const panelStyle = computed(() => ({width: `${props.width}px`}))
 const surfaceStyle = computed(() => ({width: `${props.width - 8}px`}))
@@ -36,7 +39,7 @@ useEditorShortcuts()
 useEventListener(scrollerRef, "scroll", updateFirstLineOut, {passive: true})
 
 function updateFirstLineOut() {
-  if (openedSubtaskId.value) return
+  if (nestedTarget.value) return
   const scroller = scrollerRef.value
   const line = scroller?.querySelector(".cm-line")
   isFirstLineOut.value = !!scroller && !!line && line.getBoundingClientRect().bottom <= scroller.getBoundingClientRect().top
@@ -51,13 +54,13 @@ function onLeave(el: Element, done: () => void) {
 }
 
 watch([editingTaskId, isNew], () => {
-  openedSubtaskId.value = null
+  nestedTarget.value = null
   savedScrollTop = 0
   isFirstLineOut.value = false
   scrollerRef.value?.scrollTo({top: 0})
 })
 
-watch(openedSubtaskId, async (id, previous) => {
+watch(nestedTarget, async (id, previous) => {
   if (id && !previous) savedScrollTop = scrollerRef.value?.scrollTop ?? 0
   if (id || !previous) return
   await nextTick()
@@ -76,12 +79,14 @@ watch(isOpen, async (open) => {
     <aside v-if="isOpen" class="relative h-full shrink-0 py-2 pr-2" :style="panelStyle">
       <div class="dock-surface h-full overflow-hidden rounded-2xl" :style="surfaceStyle">
         <div ref="panel" tabindex="-1" class="flex h-full w-full flex-col overflow-hidden outline-none" :style="surfaceStyle">
-          <Toolbar v-show="!openedSubtaskId" :title="toolbarTitle" />
+          <Toolbar v-show="!nestedTarget" :title="toolbarTitle" />
 
           <template v-if="activeTask">
             <SubtaskView v-if="openedSubtaskId" :key="editingTaskId ?? 'new'" :subtask-id="openedSubtaskId" />
 
-            <div v-show="!openedSubtaskId" ref="scroller" class="min-h-0 flex-1 overflow-y-auto">
+            <CommentView v-else-if="nestedTarget?.kind === 'comment'" :key="nestedTarget.id" :comment-id="nestedTarget.id" />
+
+            <div v-show="!nestedTarget" ref="scroller" class="min-h-0 flex-1 overflow-y-auto">
               <div class="flex min-h-full flex-col">
                 <Details :task="activeTask" />
                 <Editor />
@@ -90,7 +95,7 @@ watch(isOpen, async (open) => {
               </div>
             </div>
 
-            <Footer v-show="!openedSubtaskId" />
+            <Footer v-show="!nestedTarget" />
           </template>
         </div>
       </div>

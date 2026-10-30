@@ -1,55 +1,27 @@
 <script setup lang="ts">
-import {ref} from "vue"
-
 import {toRelativeTime} from "@daily/std"
 
 import BaseButton from "@/ui/base/BaseButton"
 import MarkdownContent from "@/ui/common/misc/MarkdownContent.vue"
 import ConfirmPopup from "@/ui/overlays/ConfirmPopup.vue"
-import {toShortcutKeys} from "@/utils/shortcuts/toShortcutKeys"
-import {cn} from "@/utils/ui/tailwindcss"
-import CommentField from "./CommentField.vue"
 import CommentSourceBadge from "./CommentSourceBadge.vue"
 
 import type {TaskComment} from "@daily/protocol"
 
-const props = defineProps<{comment: TaskComment}>()
+defineProps<{comment: TaskComment}>()
 
-const emit = defineEmits<{edit: [string]; remove: []}>()
-
-const isEditing = ref(false)
-const draft = ref("")
-
-function startEditing() {
-  draft.value = props.comment.content
-  isEditing.value = true
-}
-
-function cancelEditing() {
-  isEditing.value = false
-  draft.value = ""
-}
-
-function submitEditing() {
-  const content = draft.value.trim()
-  if (content && content !== props.comment.content) emit("edit", content)
-  cancelEditing()
-}
-
-function getRowClasses(editing: boolean) {
-  return cn("group px-4 pt-2 pb-2.5", editing && "bg-accent/6")
-}
+const emit = defineEmits<{open: []; remove: []}>()
 </script>
 
 <template>
-  <div :class="getRowClasses(isEditing)">
+  <div class="group px-4 pb-2.5 pt-2">
     <div class="flex h-5 items-center gap-1.5">
       <CommentSourceBadge :kind="comment.kind" :provider="comment.provider" />
 
       <span class="text-base-content/40 text-xs">{{ toRelativeTime(comment.createdAt) }}</span>
 
-      <div v-if="!isEditing" class="ml-auto flex gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
-        <BaseButton variant="ghost-muted" icon="pencil" size="xs" tooltip="Edit" @click="startEditing" />
+      <div class="ml-auto flex gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+        <BaseButton variant="ghost-muted" icon="pencil" size="xs" tooltip="Edit" @click="emit('open')" />
 
         <ConfirmPopup
           title="Delete comment?"
@@ -67,18 +39,7 @@ function getRowClasses(editing: boolean) {
       </div>
     </div>
 
-    <CommentField
-      v-if="isEditing"
-      v-model="draft"
-      class="pt-1"
-      submit-text="Save"
-      :hint-key="toShortcutKeys('comments:cancel')"
-      hint-text="to cancel"
-      @submit="submitEditing"
-      @cancel="cancelEditing"
-    />
-
-    <MarkdownContent v-else :content="comment.content" :minimizable="false" class="comment-markdown mt-0.5 select-text" />
+    <MarkdownContent :content="comment.content" :minimizable="false" class="comment-markdown mt-0.5 select-text" />
   </div>
 </template>
 
