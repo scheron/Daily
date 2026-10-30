@@ -24,6 +24,7 @@ export const useTaskCommentsStore = defineStore("taskComments", () => {
   const commentCounts = ref<TaskCommentCounts>({})
   const loadedTaskIds = ref(new Set<Task["id"]>())
   const pendingTaskIds = ref(new Set<Task["id"]>())
+  let wantsCounts = false
 
   const commentsByTaskId = computed(() => {
     const map = new Map<Task["id"], TaskComment[]>()
@@ -57,6 +58,7 @@ export const useTaskCommentsStore = defineStore("taskComments", () => {
    * needs the number and never the bodies, so counting in storage is what a board can afford.
    */
   async function loadCommentCounts(): Promise<void> {
+    wantsCounts = true
     try {
       commentCounts.value = await API.getTaskCommentCounts()
     } catch (error) {
@@ -130,14 +132,14 @@ export const useTaskCommentsStore = defineStore("taskComments", () => {
 
   /**
    * Folds a broadcast in, keeping only what belongs to a task this window has already read. The counts
-   * map covers every task, so it is reread whenever a broadcast names a comment at all — this window's
+   * map covers every task, so a window that has loaded it rereads it whenever a broadcast names a comment at all — this window's
    * own write, another window's, or a sync pull.
    */
   function applyBroadcast(changeset: Changeset): void {
     const upserted = changeset.comments?.upserted?.filter((comment) => loadedTaskIds.value.has(comment.taskId))
     const removed = changeset.comments?.removed
 
-    if (changeset.comments?.upserted?.length || removed?.length) void loadCommentCounts()
+    if (wantsCounts && (changeset.comments?.upserted?.length || removed?.length)) void loadCommentCounts()
 
     if (!upserted?.length && !removed?.length) return
 

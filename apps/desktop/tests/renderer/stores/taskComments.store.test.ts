@@ -215,4 +215,14 @@ describe("useTaskCommentsStore", () => {
     await flushCounts()
     expect(store.commentCountOf("t1")).toBe(0)
   })
+
+  it("does_not_ask_for_counts_on_a_broadcast_in_a_window_that_never_loaded_them", async () => {
+    const store = useTaskCommentsStore()
+
+    store.applyBroadcast({comments: {upserted: [makeComment("c1", "t1")]}})
+    store.applyBroadcast({comments: {removed: ["c1"]}})
+    await flushCounts()
+
+    expect(API.getTaskCommentCounts).not.toHaveBeenCalled()
+  })
 })
