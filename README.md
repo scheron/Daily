@@ -83,8 +83,6 @@ Connect **Codex, Claude Code, Claude, or ChatGPT** to a self-hosted Daily Sync S
 | Search tasks across projects, dates, and Markdown content.                       | Choose light, dark, or system appearance.                                            |
 | ![Full-text search over synthetic demo tasks](./media/screenshots/06-search.png) | ![Daily's board and task editor in dark appearance](./media/screenshots/07-dark.png) |
 
-[Run the demo build or recreate these screenshots →](./docs/demo.md)
-
 ## How Daily works
 
 ### A day-first workspace
