@@ -48,6 +48,7 @@ const currentMonthKey = computed(() => currentMonth.value.toFormat("yyyy-MM"))
 const monthCounts = computed(() => {
   const counts = calcMonthStatistics(props.days).get(currentMonthKey.value) ?? {
     backlog: 0,
+    todo: 0,
     ready_for_agent: 0,
     in_progress: 0,
     ready_to_merge: 0,

@@ -656,13 +656,14 @@ describe("migrations", () => {
       expect(task).toBeDefined()
       expect(task.content).toBe("Keep me")
 
+      expect(rollbackLastMigration(db)).toBe(20)
       expect(rollbackLastMigration(db)).toBe(19)
       rollbackLastMigration(db)
-      rollbackLastMigration(db) // v017
-      rollbackLastMigration(db) // v016
-      rollbackLastMigration(db) // v015
-      rollbackLastMigration(db) // v014
-      rollbackLastMigration(db) // v013
+      rollbackLastMigration(db)
+      rollbackLastMigration(db)
+      rollbackLastMigration(db)
+      rollbackLastMigration(db)
+      rollbackLastMigration(db)
       const rolledBack = rollbackLastMigration(db)
       expect(rolledBack).toBe(12)
 
@@ -730,11 +731,12 @@ describe("migrations", () => {
       seedComment(db, "typed", null)
       runMigrations(db)
 
+      expect(rollbackLastMigration(db)).toBe(20)
       expect(rollbackLastMigration(db)).toBe(19)
       rollbackLastMigration(db)
-      rollbackLastMigration(db) // v017
-      rollbackLastMigration(db) // v016
-      rollbackLastMigration(db) // v015
+      rollbackLastMigration(db)
+      rollbackLastMigration(db)
+      rollbackLastMigration(db)
       expect(rollbackLastMigration(db)).toBe(14)
 
       const rows = db.prepare("SELECT id, origin FROM task_comments ORDER BY id").all()
@@ -810,11 +812,12 @@ describe("migrations", () => {
       const task = db.prepare("SELECT * FROM tasks WHERE id = 't1'").get()
       expect(task.content).toBe("Keep me")
 
+      expect(rollbackLastMigration(db)).toBe(20)
       expect(rollbackLastMigration(db)).toBe(19)
       rollbackLastMigration(db)
-      rollbackLastMigration(db) // v017
-      rollbackLastMigration(db) // v016
-      rollbackLastMigration(db) // v015
+      rollbackLastMigration(db)
+      rollbackLastMigration(db)
+      rollbackLastMigration(db)
       expect(rollbackLastMigration(db)).toBe(14)
       const rolledBack = rollbackLastMigration(db)
       expect(rolledBack).toBe(13)
@@ -951,6 +954,7 @@ describe("migrations", () => {
 
       expect(db.prepare("SELECT priority FROM tasks WHERE id = 't1'").get().priority).toBe("none")
 
+      expect(rollbackLastMigration(db)).toBe(20)
       expect(rollbackLastMigration(db)).toBe(19)
       rollbackLastMigration(db)
       expect(rollbackLastMigration(db)).toBe(17)
@@ -1044,7 +1048,79 @@ it("v019 adds the subtasks table to a v018 database, leaves tasks untouched and 
   ).toEqual(["id", "task_id", "content", "done", "order_key", "created_at", "updated_at", "deleted_at"])
   expect(db.prepare("SELECT content FROM tasks WHERE id = 't1'").get().content).toBe("Keep me")
 
+  expect(rollbackLastMigration(db)).toBe(20)
   expect(rollbackLastMigration(db)).toBe(19)
   expect(db.prepare("SELECT name FROM sqlite_master WHERE name = 'subtasks'").all()).toEqual([])
   db.close()
+})
+
+it("v020 preserves every v019 task and related row, stores To Do across reopening and maps only To Do on rollback", () => {
+  const directory = mkdtempSync("/tmp/daily-todo-migration-")
+  let db = new Database(`${directory}/daily.sqlite`)
+  try {
+    db.pragma("foreign_keys = ON")
+    db.exec("CREATE TABLE _migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)")
+    for (const migration of migrations.filter((m) => m.version <= 19)) {
+      if (typeof migration.up === "string") db.exec(migration.up)
+      else migration.up(db)
+      db.prepare("INSERT INTO _migrations VALUES (?, ?, ?)").run(migration.version, migration.name, "now")
+    }
+    const now = "2026-10-30T00:00:00Z"
+    db.prepare("INSERT INTO milestones (id, name, created_at, updated_at) VALUES ('m1', 'Milestone', ?, ?)").run(now, now)
+    for (const status of ["backlog", "ready_for_agent", "in_progress", "ready_to_merge", "done", "cancelled"]) {
+      db.prepare(
+        "INSERT INTO tasks (id, status, content, scheduled_date, scheduled_time, scheduled_timezone, milestone_id, priority, created_at, updated_at) VALUES (?, ?, 'Keep ![file](daily://file/f1)', ?, ?, ?, 'm1', 'high', ?, ?)",
+      ).run(
+        status,
+        status,
+        status === "backlog" ? null : "2026-10-30",
+        status === "backlog" ? null : "10:00:00",
+        status === "backlog" ? null : "UTC",
+        now,
+        now,
+      )
+    }
+    db.prepare("INSERT INTO tags (id, name, color, created_at, updated_at) VALUES ('tag1', 'Keep', 'red', ?, ?)").run(now, now)
+    db.exec("INSERT INTO task_tags VALUES ('in_progress', 'tag1')")
+    db.prepare("INSERT INTO files (id, name, mime_type, size, created_at, updated_at) VALUES ('f1', 'file', 'text/plain', 1, ?, ?)").run(now, now)
+    db.prepare("INSERT INTO subtasks (id, task_id, content, order_key, created_at, updated_at) VALUES ('s1', 'in_progress', 'Keep', 'a', ?, ?)").run(
+      now,
+      now,
+    )
+    db.prepare(
+      "INSERT INTO task_comments (id, task_id, branch_id, content, kind, created_at, updated_at) VALUES ('c1', 'in_progress', 'main', 'Keep', 'manual', ?, ?)",
+    ).run(now, now)
+    db.prepare("INSERT INTO task_relations (id, blocker_id, blocked_id, created_at, updated_at) VALUES ('r1', 'in_progress', 'backlog', ?, ?)").run(
+      now,
+      now,
+    )
+    db.prepare(
+      "INSERT INTO task_events (id, task_id, branch_id, type, event_date, created_at) VALUES ('e1', 'in_progress', 'main', 'created', '2026-10-30', ?)",
+    ).run(now)
+    const before = db.prepare("SELECT * FROM tasks ORDER BY id").all()
+    const related = ["task_tags", "files", "subtasks", "task_comments", "task_relations", "task_events"].map((table) => [
+      table,
+      db.prepare(`SELECT * FROM ${table}`).all(),
+    ])
+    runMigrations(db)
+    expect(getAppliedMigrations(db).at(-1).version).toBe(20)
+    expect(db.prepare("SELECT * FROM tasks ORDER BY id").all()).toEqual(before)
+    for (const [table, rows] of related) expect(db.prepare(`SELECT * FROM ${table}`).all()).toEqual(rows)
+    db.prepare("INSERT INTO tasks (id, scheduled_date, created_at, updated_at) VALUES ('new', '2026-10-31', ?, ?)").run(now, now)
+    expect(db.prepare("SELECT status FROM tasks WHERE id = 'new'").get().status).toBe("todo")
+    db.close()
+    db = new Database(`${directory}/daily.sqlite`)
+    db.pragma("foreign_keys = ON")
+    runMigrations(db)
+    expect(db.prepare("SELECT status FROM tasks WHERE id = 'new'").get().status).toBe("todo")
+    expect(db.prepare("PRAGMA foreign_key_check").all()).toEqual([])
+    expect(rollbackLastMigration(db)).toBe(20)
+    expect(db.prepare("SELECT status FROM tasks WHERE id = 'new'").get().status).toBe("in_progress")
+    expect(db.prepare("SELECT * FROM tasks WHERE id != 'new' ORDER BY id").all()).toEqual(before)
+    for (const [table, rows] of related) expect(db.prepare(`SELECT * FROM ${table}`).all()).toEqual(rows)
+    expect(() => db.prepare("UPDATE tasks SET status = 'todo' WHERE id = 'new'").run()).toThrow()
+  } finally {
+    db.close()
+    rmSync(directory, {recursive: true, force: true})
+  }
 })

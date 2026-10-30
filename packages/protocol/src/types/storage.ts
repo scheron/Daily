@@ -11,7 +11,7 @@ export type SyncRemoteState = {
   lastSyncAt: string | null
   lastError: string | null
 }
-export type TaskStatus = "backlog" | "ready_for_agent" | "in_progress" | "ready_to_merge" | "done" | "cancelled"
+export type TaskStatus = "backlog" | "todo" | "ready_for_agent" | "in_progress" | "ready_to_merge" | "done" | "cancelled"
 export type BoardMode = "normal" | "agents"
 
 /** How urgent a task is. `none` is a level of its own: every task has one, and a new task starts there. */

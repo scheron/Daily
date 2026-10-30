@@ -62,6 +62,7 @@ describe("SettingsModel", () => {
     expect(settingsModel.loadSettings().appearance.boardMode).toBe("normal")
     expect(settingsModel.loadSettings().layout.sectionsCollapsed).toEqual({
       backlog: false,
+      todo: false,
       ready_for_agent: false,
       in_progress: true,
       ready_to_merge: false,
@@ -75,7 +76,7 @@ describe("SettingsModel", () => {
     db.prepare("INSERT INTO settings (id, version, data, created_at, updated_at) VALUES ('default', 'v', ?, 'now', 'now')").run(data)
 
     for (const settings of [settingsModel.loadSettings(), rowToSettings({data} as any)]) {
-      expect(settings.layout.columnOrder).toEqual(["backlog", "ready_for_agent", "in_progress", "ready_to_merge", "done", "cancelled"])
+      expect(settings.layout.columnOrder).toEqual(["backlog", "todo", "ready_for_agent", "in_progress", "ready_to_merge", "done", "cancelled"])
       expect(settings.layout.sectionsCollapsed.done).toBe(true)
       expect(settings.appearance.mode).toBe("dark")
     }
@@ -86,7 +87,7 @@ describe("SettingsModel", () => {
     db.prepare("INSERT INTO settings (id, version, data, created_at, updated_at) VALUES ('default', 'v', ?, 'now', 'now')").run(data)
 
     for (const settings of [settingsModel.loadSettings(), rowToSettings({data} as any)]) {
-      expect(settings.layout.columnOrder).toEqual(["done", "backlog", "ready_to_merge", "ready_for_agent", "in_progress", "cancelled"])
+      expect(settings.layout.columnOrder).toEqual(["done", "backlog", "todo", "ready_to_merge", "ready_for_agent", "in_progress", "cancelled"])
     }
   })
 
@@ -95,7 +96,7 @@ describe("SettingsModel", () => {
     db.prepare("INSERT INTO settings (id, version, data, created_at, updated_at) VALUES ('default', 'v', ?, 'now', 'now')").run(data)
 
     for (const settings of [settingsModel.loadSettings(), rowToSettings({data} as any)]) {
-      expect(settings.layout.columnOrder).toEqual(["backlog", "ready_for_agent", "in_progress", "ready_to_merge", "done", "cancelled"])
+      expect(settings.layout.columnOrder).toEqual(["backlog", "todo", "ready_for_agent", "in_progress", "ready_to_merge", "done", "cancelled"])
       expect(settings.layout.sectionsCollapsed.cancelled).toBe(true)
       expect(settings.branch.activeId).toBe("project-a")
     }
@@ -116,6 +117,7 @@ describe("SettingsModel", () => {
         "ready_to_merge",
         "done",
         "backlog",
+        "todo",
         "ready_for_agent",
         "in_progress",
         "cancelled",
@@ -125,7 +127,7 @@ describe("SettingsModel", () => {
       settingsModel = new SettingsModel(db)
 
       const settings = settingsModel.loadSettings()
-      expect(settings.layout.columnOrder).toEqual(["ready_to_merge", "done", "backlog", "ready_for_agent", "in_progress", "cancelled"])
+      expect(settings.layout.columnOrder).toEqual(["ready_to_merge", "done", "backlog", "todo", "ready_for_agent", "in_progress", "cancelled"])
       expect(settings.layout.sectionsCollapsed.done).toBe(true)
       expect(settings.appearance.mode).toBe("dark")
       expect(settings.branch).toEqual({activeId: "project-a", isAllProjects: true})
@@ -142,6 +144,7 @@ describe("SettingsModel", () => {
 
     expect(settingsModel.loadSettings().layout.columnOrder).toEqual([
       "backlog",
+      "todo",
       "ready_for_agent",
       "in_progress",
       "ready_to_merge",
@@ -287,4 +290,24 @@ describe("SettingsModel", () => {
     const cleared = settingsModel.loadSettings()
     expect(cleared.sync.server).toEqual({enabled: false, binding: null})
   })
+})
+
+it("retains a saved custom To Do position across unrelated saves", () => {
+  const db = createTestDatabase()
+  const model = new SettingsModel(db)
+  try {
+    model.saveSettings({layout: {columnOrder: ["done", "todo", "backlog", "in_progress"]}} as any)
+    model.saveSettings({appearance: {mode: "dark"}} as any)
+    expect(model.loadSettings().layout.columnOrder).toEqual([
+      "done",
+      "todo",
+      "backlog",
+      "in_progress",
+      "ready_for_agent",
+      "ready_to_merge",
+      "cancelled",
+    ])
+  } finally {
+    db.close()
+  }
 })

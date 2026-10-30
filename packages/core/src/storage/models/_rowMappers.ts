@@ -277,7 +277,15 @@ export function getDefaultSettings(): Settings {
     branch: {activeId: NO_PROJECT_ID, isAllProjects: false},
     layout: {
       columnOrder: [...TASK_STATUSES],
-      sectionsCollapsed: {in_progress: false, cancelled: false, done: false, backlog: false, ready_for_agent: false, ready_to_merge: false},
+      sectionsCollapsed: {
+        todo: false,
+        in_progress: false,
+        cancelled: false,
+        done: false,
+        backlog: false,
+        ready_for_agent: false,
+        ready_to_merge: false,
+      },
     },
     quickTask: {isEnabled: true, hotkey: DEFAULT_QUICK_TASK_HOTKEY},
     menuBar: {isVisible: true},
@@ -315,10 +323,15 @@ export function rowToSettings(row: SettingsRow): Settings {
   }
 }
 
-/** Keeps known column positions once and appends missing statuses in canonical order. */
+/** Keeps saved column positions and inserts a missing To Do after Backlog. */
 export function normalizeSettings(settings: Settings): Settings {
   const savedOrder = settings.layout?.columnOrder
-  const columnOrder = Array.isArray(savedOrder) ? savedOrder.filter((status) => TASK_STATUSES.includes(status)) : []
+  const columnOrder = [...new Set(Array.isArray(savedOrder) ? savedOrder.filter((status) => TASK_STATUSES.includes(status)) : [])]
+  for (const status of TASK_STATUSES) {
+    if (columnOrder.includes(status)) continue
+    if (status === "todo") columnOrder.splice(columnOrder.indexOf("backlog") + 1, 0, status)
+    else columnOrder.push(status)
+  }
 
   return {
     ...settings,
@@ -329,7 +342,7 @@ export function normalizeSettings(settings: Settings): Settings {
     },
     layout: {
       ...settings.layout,
-      columnOrder: [...new Set([...columnOrder, ...TASK_STATUSES])],
+      columnOrder,
     },
   }
 }

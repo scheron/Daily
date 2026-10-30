@@ -62,13 +62,13 @@ it.each([
     const storedTask = makeTask({status})
     const draft = editor.draft
 
-    expect(labels(wrapper)).toEqual(["Backlog", "In Progress", "Done", "Cancelled"])
+    expect(labels(wrapper)).toEqual(["Backlog", "To Do", "In Progress", "Done", "Cancelled"])
     expect(wrapper.get("button").text()).toBe(groupedLabel)
 
     settings.updateSettings({appearance: {boardMode: "agents"}})
     await nextTick()
 
-    expect(labels(wrapper)).toEqual(["Backlog", "Ready for Agent", "In Progress", "Ready to Merge", "Done", "Cancelled"])
+    expect(labels(wrapper)).toEqual(["Backlog", "To Do", "Ready for Agent", "In Progress", "Ready to Merge", "Done", "Cancelled"])
     expect(wrapper.get("button").text()).toBe(actualLabel)
 
     settings.updateSettings({appearance: {boardMode: "normal"}})

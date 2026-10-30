@@ -71,6 +71,22 @@ describe("tasksStore", () => {
     return store
   }
 
+  it.each([undefined, "2099-01-01"])("creates planned work as To Do on %s before persistence resolves", async (date) => {
+    const store = await getStore()
+    API.createTask.mockImplementationOnce(() => new Promise(() => {}))
+    store.createTask({content: "Plan", tags: [], date, milestoneId: "release"})
+    const created = store.tasks.find((task) => task.content === "Plan")
+    expect(created).toMatchObject({status: "todo", scheduled: {date: date ?? store.activeDay}, milestoneId: "release"})
+  })
+
+  it.each(["done", "cancelled"])("duplicates %s work as To Do", async (status) => {
+    const store = await getStore()
+    store.tasks = [makeTask({id: "resolved", status})]
+    await store.duplicateTask("resolved")
+    expect(API.createTask).toHaveBeenCalledWith("Test", expect.objectContaining({status: "todo", date: TODAY}))
+    expect(store.tasks.find((task) => task.id !== "resolved").status).toBe("todo")
+  })
+
   it("creates an undated Ready task without optimistically assigning the active day", async () => {
     const store = await getStore()
     const created = await store.createTask({content: "Ready", tags: [], status: "ready_for_agent"})

@@ -79,7 +79,7 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
 
     const fields = planTaskCreate(mutationContext(), {
       content: params.content,
-      status: request.status ?? "in_progress",
+      status: request.status ?? "todo",
       minimized: false,
       priority: request.priority ?? "none",
       tags: request.tags ?? [],
@@ -102,7 +102,7 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
     const task = findTaskById(taskId)
     if (!task) return false
 
-    const status = task.status === "done" || task.status === "cancelled" ? "in_progress" : task.status
+    const status = task.status === "done" || task.status === "cancelled" ? "todo" : task.status
 
     const created = await createTask({
       content: task.content,

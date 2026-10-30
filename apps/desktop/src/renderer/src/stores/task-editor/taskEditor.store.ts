@@ -1,6 +1,7 @@
 import {computed, ref, watch} from "vue"
 import {defineStore} from "pinia"
 
+import {statusForScheduling} from "@daily/protocol"
 import {deepClone, isNull, notNull} from "@daily/std"
 
 import {API} from "@/api"
@@ -69,7 +70,7 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
     const next = {...draft.value, ...updates}
 
     if (updates.status === "backlog") next.scheduled = null
-    else if (!updates.status && updates.scheduled && draft.value.status === "backlog") next.status = "in_progress"
+    else if (!updates.status && "scheduled" in updates) next.status = statusForScheduling(draft.value.status, updates.scheduled ?? null)
 
     if (updates.branchId !== undefined && updates.branchId !== draft.value.branchId) {
       if (updates.blockedBy === undefined) next.blockedBy = []

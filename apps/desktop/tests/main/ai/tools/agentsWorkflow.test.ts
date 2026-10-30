@@ -6,7 +6,7 @@ import {SHARED_TOOLS} from "../../../../src/main/ai/tools/registry/categories/sh
 
 import type {StorageController} from "@daily/core"
 
-it("the Assistant wrapper preserves six exact statuses and authorship in Normal mode", async () => {
+it("the Assistant wrapper preserves seven exact statuses and authorship in Normal mode", async () => {
   const {db, core, workStorage} = makeRealWorkspace()
   try {
     expect((await core.settingsService.loadSettings()).appearance.boardMode).toBe("normal")

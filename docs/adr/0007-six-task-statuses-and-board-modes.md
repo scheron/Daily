@@ -1,6 +1,6 @@
 # Six task statuses and display-only board modes
 
-Status: accepted. Supersedes [ADR 0002](0002-backlog-is-the-absence-of-a-date.md)'s equivalence between backlog and the absence of a date.
+Status: extended by [ADR 0009](0009-planning-is-separate-from-execution.md) with To Do and scheduling defaults. Supersedes [ADR 0002](0002-backlog-is-the-absence-of-a-date.md)'s equivalence between backlog and the absence of a date.
 
 Prepared work and work awaiting merge are distinct outstanding states. Daily stores exactly
 `backlog`, `ready_for_agent`, `in_progress`, `ready_to_merge`, `done`, and `cancelled`.

@@ -68,7 +68,9 @@ export function planTaskUpdate(ctx: MutationContext, id: Task["id"], updates: Pa
     const current = notUndefined(updates.scheduled) ? updates.scheduled : before.scheduled
     const leavesBacklog = !explicitStatus && before.status === "backlog" && notNull(current)
 
-    const status = explicitStatus ?? (leavesBacklog ? statusForScheduling(before.status, current) : before.status)
+    const clearsTodo = !explicitStatus && before.status === "todo" && current === null
+    const status = explicitStatus ?? (leavesBacklog || clearsTodo ? statusForScheduling(before.status, current) : before.status)
+    if (clearsTodo) patch.status = status
 
     patch.scheduled = schedulingForStatus(status, current, ctx.today)
 

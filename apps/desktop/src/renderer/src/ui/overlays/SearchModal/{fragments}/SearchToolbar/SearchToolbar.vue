@@ -34,6 +34,7 @@ function getFilterVariant(status: TasksFilter): ButtonColorVariant {
     all: {selected: "soft", unselected: "ghost-muted"},
     backlog: {selected: "filter-muted-selected", unselected: "ghost-muted"},
     ready_for_agent: {selected: "filter-error-selected", unselected: "filter-error"},
+    todo: {selected: "filter-neutral-selected", unselected: "filter-neutral"},
     in_progress: {selected: "filter-primary-selected", unselected: "filter-primary"},
     ready_to_merge: {selected: "filter-info-selected", unselected: "filter-info"},
     done: {selected: "filter-success-selected", unselected: "filter-success"},

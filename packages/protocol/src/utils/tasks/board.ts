@@ -3,7 +3,7 @@ import {sortTasksByOrderIndex} from "./orderIndex"
 import type {ISODate} from "../../types/common"
 import type {BoardMode, Task, TaskStatus} from "../../types/storage"
 
-export const TASK_STATUSES: readonly TaskStatus[] = ["backlog", "ready_for_agent", "in_progress", "ready_to_merge", "done", "cancelled"]
+export const TASK_STATUSES: readonly TaskStatus[] = ["backlog", "todo", "ready_for_agent", "in_progress", "ready_to_merge", "done", "cancelled"]
 
 /** The display column of a true status; grouping never writes a task. */
 export function boardColumnForStatus(status: TaskStatus, mode: BoardMode): TaskStatus {
@@ -19,7 +19,15 @@ export function isTaskOnDayBoard(task: Pick<Task, "status" | "scheduled">, date:
 
 /** Groups true statuses for display and orders by stored indices without mutating tasks. */
 export function groupTasksForBoard(tasks: Task[], mode: BoardMode): Record<TaskStatus, Task[]> {
-  const grouped: Record<TaskStatus, Task[]> = {backlog: [], ready_for_agent: [], in_progress: [], ready_to_merge: [], done: [], cancelled: []}
+  const grouped: Record<TaskStatus, Task[]> = {
+    backlog: [],
+    todo: [],
+    ready_for_agent: [],
+    in_progress: [],
+    ready_to_merge: [],
+    done: [],
+    cancelled: [],
+  }
   for (const task of sortTasksByOrderIndex(tasks)) grouped[boardColumnForStatus(task.status, mode)].push(task)
   return grouped
 }

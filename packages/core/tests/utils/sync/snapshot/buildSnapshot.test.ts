@@ -54,20 +54,20 @@ function makeTag(id, overrides = {}) {
 }
 
 describe("buildSnapshot", () => {
-  it("creates snapshot with version 13", () => {
+  it("creates snapshot with version 14", () => {
     const snapshot = buildSnapshot(emptyDocs())
-    expect(snapshot.version).toBe(13)
+    expect(snapshot.version).toBe(14)
   })
 
-  it("builds version 13 snapshots whose hash moves when a relation's blocked_id changes", () => {
+  it("builds version 14 snapshots whose hash moves when a relation's blocked_id changes", () => {
     const docsA = {...emptyDocs(), relations: [makeRelation("r1", {blocked_id: "b"})]}
     const docsB = {...emptyDocs(), relations: [makeRelation("r1", {blocked_id: "c"})]}
 
     const snapshotA = buildSnapshot(docsA)
     const snapshotB = buildSnapshot(docsB)
 
-    expect(snapshotA.version).toBe(13)
-    expect(snapshotB.version).toBe(13)
+    expect(snapshotA.version).toBe(14)
+    expect(snapshotB.version).toBe(14)
     expect(snapshotA.meta.hash).not.toBe(snapshotB.meta.hash)
   })
 

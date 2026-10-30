@@ -117,19 +117,31 @@ describe("the Quick task window view", () => {
     expect(wrapper.find("[data-chip=status]").text()).toBe("Backlog")
   })
 
-  it("a picked date moves Backlog to Active and its remove button returns to Backlog", async () => {
+  it("a picked date moves Backlog to To Do and its remove button returns to Backlog", async () => {
     const editor = await mountView()
 
     editor.vm.$emit("patch", {scheduled: {date: "2030-01-02", time: "10:00:00", timezone: "UTC"}})
     await flushPromises()
 
     expect(chips()).toEqual(["project", "status", "date"])
-    expect(wrapper.find("[data-chip=status]").text()).toBe("In Progress")
+    expect(wrapper.find("[data-chip=status]").text()).toBe("To Do")
 
     await wrapper.find("[data-chip=date] button").trigger("click")
 
     expect(chips()).toEqual(["project", "status"])
     expect(wrapper.find("[data-chip=status]").text()).toBe("Backlog")
+  })
+
+  it("saves a date-picked task as To Do through the storage bridge", async () => {
+    const editor = await mountView()
+    editor.vm.$emit("update:content", "Plan the release")
+    editor.vm.$emit("patch", {scheduled: {date: "2030-01-02", time: "10:00:00", timezone: "UTC"}})
+    await flushPromises()
+    pressCmdEnter()
+    await flushPromises()
+    expect(bridge["tasks:create"]).toHaveBeenCalledWith(
+      expect.objectContaining({content: "Plan the release", status: "todo", scheduled: expect.objectContaining({date: "2030-01-02"})}),
+    )
   })
 
   it("keeps Ready undated on selection and saves its true status with no day", async () => {

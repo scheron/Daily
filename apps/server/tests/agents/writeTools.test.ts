@@ -72,7 +72,7 @@ describe("save_task", () => {
 
       const result = await call({store: seeded.store, now}, agent, saveTaskTool, {content: "Buy milk"})
 
-      expect(result.task.status).toBe("in_progress")
+      expect(result.task.status).toBe("todo")
       expect(result.task.projectId).toBe("main")
       expect(result.task.scheduled.date).toBe("2026-06-16")
       expect(result.task.scheduled.timezone).toBe("Asia/Tokyo")
@@ -128,7 +128,7 @@ describe("save_task", () => {
     }
   })
 
-  it("TC-34: giving a backlog task a day makes it active on that day, and clearing a dated task's day backlogs it with no schedule", async () => {
+  it("TC-34: giving a backlog task a day makes it To Do on that day, and clearing a dated task's day backlogs it with no schedule", async () => {
     let backlogId = ""
     let datedId = ""
 
@@ -143,7 +143,7 @@ describe("save_task", () => {
       const agent = bindAgent(seeded.store)
 
       const promoted = await call({store: seeded.store}, agent, saveTaskTool, {id: backlogId, date: "2026-02-01"})
-      expect(promoted.task.status).toBe("in_progress")
+      expect(promoted.task.status).toBe("todo")
       expect(promoted.task.scheduled.date).toBe("2026-02-01")
 
       const backlogged = await call({store: seeded.store}, agent, saveTaskTool, {id: datedId, date: null})
@@ -154,7 +154,7 @@ describe("save_task", () => {
     }
   })
 
-  it("TC-35: setting status to active with no day given lands a backlog task on the agent's Mac's today, in that Mac's zone", async () => {
+  it("TC-35: explicitly setting In Progress with no day given lands a backlog task on the agent's Mac's today, in that Mac's zone", async () => {
     let backlogId = ""
 
     const seeded = await seedAgentStore(async (mac) => {

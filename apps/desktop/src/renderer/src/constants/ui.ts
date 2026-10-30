@@ -11,6 +11,15 @@ export const TASK_COLUMNS: TaskColumn[] = [
     buttonVariant: "soft",
   },
   {
+    status: "todo",
+    label: "To Do",
+    emptyLabel: "to do",
+    icon: "brain",
+    titleClass: "text-base-content/80",
+    counterClass: "bg-base-content/10 text-base-content/80",
+    buttonVariant: "soft",
+  },
+  {
     status: "ready_for_agent",
     label: "Ready for Agent",
     emptyLabel: "ready for agent",

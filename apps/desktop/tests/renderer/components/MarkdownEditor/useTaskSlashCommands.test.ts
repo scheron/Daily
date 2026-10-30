@@ -40,8 +40,8 @@ describe("useTaskSlashCommands", () => {
   const items = (label, query = "") => commands.find((command) => command.label === label).getItems(query)
   const labels = (list) => list.map((item) => item.label)
 
-  it("offers all six real statuses independently of board mode", () => {
-    expect(labels(items("Status"))).toEqual(["Backlog", "Ready for Agent", "In Progress", "Ready to Merge", "Done", "Cancelled"])
+  it("offers all seven real statuses independently of board mode", () => {
+    expect(labels(items("Status"))).toEqual(["Backlog", "To Do", "Ready for Agent", "In Progress", "Ready to Merge", "Done", "Cancelled"])
     items("Status", "Ready to Merge")[0].apply()
     expect(patch).toHaveBeenCalledWith({status: "ready_to_merge"})
   })

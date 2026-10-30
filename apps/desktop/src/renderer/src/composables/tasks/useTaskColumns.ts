@@ -27,8 +27,7 @@ import {useTaskDragDrop} from "./useTaskDragDrop"
 
 import type {BoardMode, MoveTaskByOrderParams, Task, TaskStatus} from "@daily/protocol"
 
-/** One row a board column renders: a task's card, or the gap the dragged card would drop into. */
-export type ColumnItem = {kind: "task"; task: Task} | {kind: "placeholder"}
+type ColumnItem = {kind: "task"; task: Task} | {kind: "placeholder"}
 
 type ColumnSlot = {status: TaskStatus; index: number}
 type PlacedTask = ColumnSlot & {task: Task}
@@ -73,6 +72,7 @@ export const useTaskColumns = createSharedComposable(() => {
   })
   const columnItems = computed<Record<TaskStatus, ColumnItem[]>>(() => ({
     backlog: toColumnItems("backlog"),
+    todo: toColumnItems("todo"),
     ready_for_agent: toColumnItems("ready_for_agent"),
     in_progress: toColumnItems("in_progress"),
     ready_to_merge: toColumnItems("ready_to_merge"),

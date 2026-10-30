@@ -37,7 +37,7 @@ export class StorageAPI {
   }
 
   /**
-   * Omitted fields fall back to defaults (today/now, status "in_progress", minimized false, orderIndex 0);
+   * Omitted fields fall back to defaults (today/now, status "todo", minimized false, orderIndex 0);
    * a task created with status "backlog" gets no date.
    */
   async createTask(content: string, params: CreateTaskParams): Promise<Changeset> {
@@ -47,7 +47,7 @@ export class StorageAPI {
     const newTask = {
       id: params.id,
       content,
-      status: params.status ?? ("in_progress" as TaskStatus),
+      status: params.status ?? ("todo" as TaskStatus),
       minimized: false,
       priority: params.priority ?? ("none" as TaskPriority),
       tags: params.tags ?? [],

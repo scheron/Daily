@@ -43,3 +43,15 @@ it("upgrades old task status keys without changing dates, order, content or even
 it("reads a snapshot from before subtasks as having none", () => {
   expect(normalizeSnapshotDocs(legacyDocs()).subtasks).toEqual([])
 })
+
+it("keeps existing planned and executing statuses with their dates during normalization", () => {
+  const tasks = ["todo", "in_progress"].map((status) => ({
+    id: status,
+    status,
+    content: "Keep",
+    scheduled_date: "2026-10-30",
+    milestone_id: null,
+    priority: "high",
+  }))
+  expect(normalizeSnapshotDocs(legacyDocs({tasks})).tasks).toEqual(tasks)
+})

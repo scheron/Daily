@@ -41,6 +41,7 @@ function getStatusView(status: TaskStatus): {label: string; icon: IconName; clas
     backlog: {label: "Backlog", icon: "bookmark" as const, classes: "bg-base-content/5 text-base-content"},
     ready_for_agent: {label: "Ready for Agent", icon: "bot" as const, classes: "bg-error/5 text-error"},
     ready_to_merge: {label: "Ready to Merge", icon: "git-pull-request" as const, classes: "bg-info/5 text-info"},
+    todo: {label: "To Do", icon: "brain" as const, classes: "bg-base-content/5 text-base-content/80"},
     in_progress: {label: "In Progress", icon: "fire" as const, classes: "bg-accent/5 text-accent"},
     done: {label: "Done", icon: "check-check" as const, classes: "bg-success/5 text-success"},
     cancelled: {label: "Cancelled", icon: "archive" as const, classes: "bg-warning/5 text-warning"},

@@ -39,11 +39,15 @@ FORMAT AND PARSING:
 4. For status changes use save_task.status:
    - done = completed/finished
    - cancelled = cancelled/skipped/not needed
-   - in_progress = started/reopened/reactivated
+   - todo = planned/scheduled, work has not started
+   - in_progress = work has actually started; use only when execution is explicitly requested or reported
    - backlog = unscheduled, not ready for an agent
    - ready_for_agent = prepared for an agent, with a day or without one; does not start an agent
    - ready_to_merge = implementation ready for review/merging, still outstanding
+   Scheduling, reopening or reactivating a task alone does not mean work has started; use todo for planned work.
    Normal / Agents only groups board columns. Always use the exact stored status.
+   New tasks default to todo on the caller's day unless date=null (backlog) or a status is explicit.
+   Scheduling backlog makes it todo; clearing a todo date returns it to backlog. Moving a scheduled task to another day preserves its status.
    Setting or clearing date on ready_for_agent preserves readiness. Entering ready_for_agent preserves the existing day or its absence.
 5. For a task's priority use save_task.priority:
    - urgent = urgent/ASAP/срочно

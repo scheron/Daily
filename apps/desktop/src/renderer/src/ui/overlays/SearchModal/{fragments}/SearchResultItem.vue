@@ -42,6 +42,7 @@ function getStatusIconClasses(status: TaskStatus) {
       backlog: "text-base-content/70",
       ready_for_agent: "text-error",
       ready_to_merge: "text-info",
+      todo: "text-base-content/80",
       in_progress: "text-accent",
     }[status],
   )

@@ -9,11 +9,19 @@ import {formatDaysToMonth} from "../../../src/renderer/src/ui/common/calendar/Ta
 import {makeTask} from "../../helpers/taskFixtures"
 
 it("counts each true status in the calendar without counting ready tasks as Cancelled", () => {
-  const tasks = ["ready_for_agent", "ready_to_merge", "in_progress", "done", "cancelled"].map((status, i) =>
+  const tasks = ["todo", "ready_for_agent", "ready_to_merge", "in_progress", "done", "cancelled"].map((status, i) =>
     makeTask({id: String(i), status, orderIndex: i}),
   )
   const days = groupTasksByDay({tasks, tags: []})
-  expect(calcMonthStatistics(days).get("2030-01")).toEqual({backlog: 0, ready_for_agent: 1, in_progress: 1, ready_to_merge: 1, done: 1, cancelled: 1})
+  expect(calcMonthStatistics(days).get("2030-01")).toEqual({
+    backlog: 0,
+    todo: 1,
+    ready_for_agent: 1,
+    in_progress: 1,
+    ready_to_merge: 1,
+    done: 1,
+    cancelled: 1,
+  })
 })
 
 it("marks a day with only a ready stage as outstanding", () => {

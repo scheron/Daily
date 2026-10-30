@@ -25,6 +25,7 @@ it("offers search filters for every true status and emits Ready to Merge", async
   expect(wrapper.findAll("button[aria-label]").map((button) => button.attributes("aria-label"))).toEqual([
     "All statuses",
     "Backlog",
+    "To Do",
     "Ready for Agent",
     "In Progress",
     "Ready to Merge",
@@ -36,13 +37,13 @@ it("offers search filters for every true status and emits Ready to Merge", async
   wrapper.unmount()
 })
 
-it("renders six real calendar counts in Agents and groups them in Normal", async () => {
+it("renders seven real calendar counts in Agents and groups them in Normal", async () => {
   const {useSettingsStore} = await import(`${SRC}/stores/settings.store`)
   const settings = useSettingsStore()
   await new Promise((resolve) => setTimeout(resolve))
   settings.settings = {appearance: {boardMode: "agents"}}
   const {default: Calendar} = await import(`${SRC}/ui/common/calendar/TaskCalendar/TaskCalendar.vue`)
-  const tasks = ["ready_for_agent", "ready_to_merge", "in_progress", "done", "cancelled"].map((status, i) =>
+  const tasks = ["todo", "ready_for_agent", "ready_to_merge", "in_progress", "done", "cancelled"].map((status, i) =>
     makeTask({id: String(i), status, orderIndex: i}),
   )
   const wrapper = mount(Calendar, {
@@ -53,6 +54,7 @@ it("renders six real calendar counts in Agents and groups them in Normal", async
     const counter = wrapper.find(`[aria-label='${label}']`)
     return counter.exists() ? counter.text() : undefined
   }
+  expect(count("To Do: 1")).toBe("1")
   expect(count("Ready for Agent: 1")).toBe("1")
   expect(count("Ready to Merge: 1")).toBe("1")
   expect(count("Cancelled: 1")).toBe("1")

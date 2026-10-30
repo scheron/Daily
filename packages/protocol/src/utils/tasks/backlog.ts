@@ -12,11 +12,11 @@ export function schedulingForStatus(status: TaskStatus, current: TaskScheduled |
   return {date: activeDate, time: getTime(), timezone: getTimezone()}
 }
 
-/** Setting or clearing a Ready for Agent task's day keeps readiness. Giving Backlog a day starts work. */
+/** Setting or clearing a Ready for Agent task's day keeps readiness. Giving Backlog a day plans work. */
 export function statusForScheduling(currentStatus: TaskStatus, nextScheduled: TaskScheduled | null): TaskStatus {
   if (currentStatus === "ready_for_agent") return currentStatus
   if (!nextScheduled) return "backlog"
-  if (currentStatus === "backlog") return "in_progress"
+  if (currentStatus === "backlog") return "todo"
 
   return currentStatus
 }

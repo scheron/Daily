@@ -10,7 +10,7 @@ export function calcMonthStatistics(days: Day[]): Map<string, DayStatistics> {
     if (day.tasks.length === 0) continue
 
     const key = day.date.slice(0, 7)
-    const entry = byMonth.get(key) ?? {backlog: 0, ready_for_agent: 0, in_progress: 0, ready_to_merge: 0, cancelled: 0, done: 0}
+    const entry = byMonth.get(key) ?? {backlog: 0, todo: 0, ready_for_agent: 0, in_progress: 0, ready_to_merge: 0, cancelled: 0, done: 0}
     for (const task of day.tasks) entry[task.status] += 1
     byMonth.set(key, entry)
   }

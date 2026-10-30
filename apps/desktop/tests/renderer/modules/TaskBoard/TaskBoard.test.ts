@@ -230,17 +230,17 @@ describe("TaskBoard", () => {
 
   it("refreshes hidden columns after a held reorder animation finishes without another geometry event (layout proxy)", async () => {
     const {mountBoard, tasks, settings} = await setup()
-    tasks.tasks = ["backlog", "in_progress", "done", "cancelled"].map((status) => makeTask({id: status, status}))
+    tasks.tasks = ["backlog", "todo", "in_progress", "done", "cancelled"].map((status) => makeTask({id: status, status}))
     const board = mountBoard()
     await nextTick()
-    const element = measureColumns(board, {}, 740)
+    const element = measureColumns(board, {}, 1110)
     const animations = animateColumnGeometry(board)
     const labels = () => board.findAll("button[aria-label^='Scroll ']").map((button) => button.attributes("aria-label"))
     deliverResize(element)
     await activateColumn(board)
-    moveColumnPointer("pointermove", 660)
+    moveColumnPointer("pointermove", 1030)
     await settle()
-    expect(columnStatuses(board)).toEqual(["in_progress", "done", "backlog", "cancelled"])
+    expect(columnStatuses(board)).toEqual(["todo", "in_progress", "done", "backlog", "cancelled"])
     expect(labels()).toEqual(["Scroll right to Done, 1 task", "Scroll right to Cancelled, 1 task"])
     for (const {animation} of animations.values()) animation.playState = "finished"
     await settle()
@@ -258,7 +258,7 @@ describe("TaskBoard", () => {
     tasks.tasks = [makeTask(), makeTask({id: "done", status: "done"}), makeTask({id: "cancelled", status: "cancelled"})]
     const board = mountBoard()
     await nextTick()
-    const element = measureColumns(board, {}, 740)
+    const element = measureColumns(board, {}, 1110)
     deliverResize(element)
     await settle()
     await settle()
@@ -314,10 +314,10 @@ describe("TaskBoard", () => {
 
   it.each(["disappears", "unmounts"])("stops observing animated column geometry when the board %s (layout proxy)", async (ending) => {
     const {mountBoard, tasks} = await setup()
-    tasks.tasks = ["backlog", "in_progress", "done", "cancelled"].map((status) => makeTask({id: status, status}))
+    tasks.tasks = ["backlog", "todo", "in_progress", "done", "cancelled"].map((status) => makeTask({id: status, status}))
     const board = mountBoard()
     await nextTick()
-    const element = measureColumns(board, {}, 740)
+    const element = measureColumns(board, {}, 1110)
     animateColumnGeometry(board)
     deliverResize(element)
     await activateColumn(board)
@@ -344,7 +344,7 @@ describe("TaskBoard", () => {
     tasks.tasks = [makeTask(), ...makeTasks(2, {status: "done"})]
     const board = mountBoard()
     await nextTick()
-    const element = measureColumns(board, {}, 740)
+    const element = measureColumns(board, {}, 1110)
     deliverResize(element)
     await settle()
 
@@ -364,7 +364,9 @@ describe("TaskBoard", () => {
   })
 
   it("keeps the right actions beside measured attached Focus, hides them without room and restores them on close/detach (layout proxy)", async () => {
-    const {mountBoard, tasks, ui} = await setup()
+    const {mountBoard, tasks, ui} = await setup({
+      columnOrder: ["backlog", "in_progress", "done", "todo", "cancelled", "ready_for_agent", "ready_to_merge"],
+    })
     const {useFocusStore} = await import("../../../../src/renderer/src/stores/focus.store")
     const focus = useFocusStore()
     await vi.waitFor(() => expect(focus.session).not.toBeNull())
@@ -434,10 +436,12 @@ describe("TaskBoard", () => {
 
   it("updates hidden status order and counts across Agents/Default and saved reorder without scrolling (layout proxy)", async () => {
     const {mountBoard, tasks, settings} = await setup({boardMode: "agents"})
-    tasks.tasks = ["backlog", "ready_for_agent", "in_progress", "ready_to_merge", "done", "cancelled"].map((status) => makeTask({id: status, status}))
+    tasks.tasks = ["backlog", "todo", "ready_for_agent", "in_progress", "ready_to_merge", "done", "cancelled"].map((status) =>
+      makeTask({id: status, status}),
+    )
     const board = mountBoard()
     await nextTick()
-    let element = measureColumns(board, {}, 740)
+    let element = measureColumns(board, {}, 1110)
     const labels = () => board.findAll("button[aria-label^='Scroll ']").map((button) => button.attributes("aria-label"))
     deliverResize(element)
     await settle()
@@ -451,12 +455,12 @@ describe("TaskBoard", () => {
     await settle()
     expect(labels()).toEqual(["Scroll right to Done, 1 task", "Scroll right to Cancelled, 1 task"])
     expect(columnOf(board, "backlog").querySelector("[data-column-drag-handle]").textContent).toContain("2")
-    settings.settings.layout.columnOrder = ["in_progress", "backlog", "cancelled", "done", "ready_to_merge", "ready_for_agent"]
+    settings.settings.layout.columnOrder = ["in_progress", "backlog", "todo", "cancelled", "done", "ready_to_merge", "ready_for_agent"]
     await settle()
     expect(labels()).toEqual(["Scroll right to Cancelled, 1 task", "Scroll right to Done, 1 task"])
     settings.settings.appearance.boardMode = "agents"
     await nextTick()
-    element = measureColumns(board, {}, 740)
+    element = measureColumns(board, {}, 1110)
     deliverResize(element)
     await settle()
     expect(labels()).toEqual([
@@ -468,47 +472,48 @@ describe("TaskBoard", () => {
     expect(element.scrollLeft).toBe(0)
   })
 
-  it("uses current day, project, milestone and tag scope for counts, including zero Cancelled (layout proxy)", async () => {
+  it("uses current day, project, milestone and tag scope for To Do counts, including zero Cancelled (layout proxy)", async () => {
     const {mountBoard, tasks, settings} = await setup()
     const {useFilterStore} = await import("../../../../src/renderer/src/stores/filter.store")
     const filter = useFilterStore()
     tasks.tasks = [
       makeTask(),
-      makeTask({id: "done", status: "done", milestoneId: "release", tags: [makeTag()]}),
+      makeTask({id: "todo", status: "todo", milestoneId: "release", tags: [makeTag()]}),
       makeTask({id: "cancelled", status: "cancelled", milestoneId: "release"}),
       makeTask({
         id: "tomorrow",
-        status: "done",
+        status: "todo",
         milestoneId: "release",
         tags: [makeTag()],
         scheduled: {date: "2099-01-01", time: "09:00", timezone: "UTC"},
       }),
-      makeTask({id: "other", status: "done", branchId: "other"}),
+      makeTask({id: "other", status: "todo", branchId: "other"}),
     ]
+    settings.settings.layout.columnOrder = ["backlog", "ready_for_agent", "in_progress", "ready_to_merge", "done", "todo", "cancelled"]
     const board = mountBoard()
     await nextTick()
-    const element = measureColumns(board, {}, 740)
+    const element = measureColumns(board, {}, 1110)
     const labels = () => board.findAll("button[aria-label^='Scroll ']").map((button) => button.attributes("aria-label"))
     deliverResize(element)
     await settle()
-    expect(labels()).toEqual(["Scroll right to Done, 1 task", "Scroll right to Cancelled, 1 task"])
+    expect(labels()).toEqual(["Scroll right to To Do, 1 task", "Scroll right to Cancelled, 1 task"])
     filter.activeTagIds = new Set(["tag-1"])
     await settle()
-    expect(labels()).toEqual(["Scroll right to Done, 1 task"])
+    expect(labels()).toEqual(["Scroll right to To Do, 1 task"])
     filter.setFrame("milestone")
     filter.setActiveMilestone("release")
     await settle()
-    expect(labels()).toEqual(["Scroll right to Done, 2 tasks", "Scroll right to Cancelled, 1 task"])
+    expect(labels()).toEqual(["Scroll right to To Do, 2 tasks", "Scroll right to Cancelled, 1 task"])
     filter.setActiveTags("tag-1")
     await settle()
-    expect(labels()).toEqual(["Scroll right to Done, 2 tasks"])
+    expect(labels()).toEqual(["Scroll right to To Do, 2 tasks"])
     filter.activeTagIds = new Set()
     await settle()
-    expect(labels()).toEqual(["Scroll right to Done, 2 tasks", "Scroll right to Cancelled, 1 task"])
+    expect(labels()).toEqual(["Scroll right to To Do, 2 tasks", "Scroll right to Cancelled, 1 task"])
     settings.settings.branch.activeId = "other"
     await settle()
     expect(filter.activeMilestoneId).toBeNull()
-    expect(labels()).toEqual(["Scroll right to Done, 1 task"])
+    expect(labels()).toEqual(["Scroll right to To Do, 1 task"])
     filter.setFrame("day")
     tasks.activeDay = "2099-01-01"
     await settle()
@@ -521,8 +526,8 @@ describe("TaskBoard", () => {
     tasks.tasks = [makeTask(), makeTask({id: "done", status: "done"})]
     const board = mountBoard()
     await nextTick()
-    const widths = {backlog: 370, in_progress: 370, done: 370, cancelled: 370}
-    const element = measureColumns(board, widths, 740)
+    const widths = {backlog: 370, todo: 370, in_progress: 370, done: 370, cancelled: 370}
+    const element = measureColumns(board, widths, 1110)
     const labels = () => board.findAll("button[aria-label^='Scroll ']").map((button) => button.attributes("aria-label"))
     deliverResize(element)
     await settle()
@@ -567,7 +572,7 @@ describe("TaskBoard", () => {
       editor.patch({content: "Unsaved draft"})
       const board = mountBoard()
       await nextTick()
-      const element = measureColumns(board, {}, 740)
+      const element = measureColumns(board, {}, 1110)
       const source = viewport(board, "in_progress").list
       const target = viewport(board, "done").list
       source.scrollTop = 4000
@@ -590,7 +595,7 @@ describe("TaskBoard", () => {
       await settle()
 
       const rect = columnOf(board, "done").getBoundingClientRect()
-      expect(rect.right).toBe(740)
+      expect(rect.right).toBe(1110)
       expect(rect.left).toBeGreaterThanOrEqual(0)
       expect(scrollTo).toHaveBeenCalledExactlyOnceWith({left: collapsed ? 68 : 370, behavior: "smooth"})
       expect(source.scrollTop).toBe(4000)
@@ -608,10 +613,12 @@ describe("TaskBoard", () => {
 
   it("keeps each side in board order and navigates to the nearest left edge (layout proxy)", async () => {
     const {mountBoard, tasks} = await setup({boardMode: "agents"})
-    tasks.tasks = ["backlog", "ready_for_agent", "in_progress", "ready_to_merge", "done", "cancelled"].map((status) => makeTask({id: status, status}))
+    tasks.tasks = ["backlog", "todo", "ready_for_agent", "in_progress", "ready_to_merge", "done", "cancelled"].map((status) =>
+      makeTask({id: status, status}),
+    )
     const board = mountBoard()
     await nextTick()
-    const element = measureColumns(board, {}, 740)
+    const element = measureColumns(board, {}, 1110)
     element.scrollLeft = 740
     const scrollTo = vi.spyOn(element, "scrollTo").mockImplementation(({left}) => {
       element.scrollLeft = left
@@ -622,13 +629,13 @@ describe("TaskBoard", () => {
     expect(
       board.findAll("nav[aria-label^='Hidden columns']").map((nav) => nav.findAll("button").map((button) => button.attributes("aria-label"))),
     ).toEqual([
-      ["Scroll left to Backlog, 1 task", "Scroll left to Ready for Agent, 1 task"],
+      ["Scroll left to Backlog, 1 task", "Scroll left to To Do, 1 task"],
       ["Scroll right to Done, 1 task", "Scroll right to Cancelled, 1 task"],
     ])
 
-    await board.find("button[aria-label='Scroll left to Ready for Agent, 1 task']").trigger("click")
+    await board.find("button[aria-label='Scroll left to To Do, 1 task']").trigger("click")
     await settle()
-    expect(columnOf(board, "ready_for_agent").getBoundingClientRect().left).toBe(0)
+    expect(columnOf(board, "todo").getBoundingClientRect().left).toBe(0)
     expect(scrollTo).toHaveBeenCalledExactlyOnceWith({left: 370, behavior: "smooth"})
     expect(board.findAll("button[aria-label^='Scroll left']").map((button) => button.attributes("aria-label"))).toEqual([
       "Scroll left to Backlog, 1 task",
@@ -641,7 +648,7 @@ describe("TaskBoard", () => {
     tasks.tasks = original
     const board = mountBoard()
     await nextTick()
-    let element = measureColumns(board, {}, 740)
+    let element = measureColumns(board, {}, 1110)
     vi.spyOn(element, "scrollTo").mockImplementation(() => {})
     deliverResize(element)
     await settle()
@@ -650,26 +657,29 @@ describe("TaskBoard", () => {
     await action.trigger("click")
     await settle()
     expect(document.activeElement).toBe(action.element)
-    expect(columnOf(board, "done").getBoundingClientRect().left).toBe(740)
+    expect(columnOf(board, "done").getBoundingClientRect().left).toBe(1110)
 
     tasks.tasks = disappears === "board" ? [] : [makeTask()]
     await settle()
     expect(board.findAll("button[aria-label^='Scroll ']")).toHaveLength(0)
     tasks.tasks = original
     await nextTick()
-    if (disappears === "board") element = measureColumns(board, {}, 740)
+    if (disappears === "board") element = measureColumns(board, {}, 1110)
     deliverResize(element)
     await settle()
     element.scrollLeft = 370
     element.dispatchEvent(new Event("scroll"))
     await settle()
-    expect(columnOf(board, "done").getBoundingClientRect().right).toBe(740)
+    expect(columnOf(board, "done").getBoundingClientRect().right).toBe(1110)
     expect(document.activeElement).not.toBe(columnOf(board, "done").querySelector("[data-column-drag-handle]"))
   })
 
-  it.each([false, true])("includes the exact half-width boundary on both edges with collapse=%s (layout proxy)", async (collapsed) => {
-    const {mountBoard, tasks} = await setup({sectionsCollapsed: {backlog: collapsed, done: collapsed}})
-    tasks.tasks = [makeTask({id: "backlog", status: "backlog"}), makeTask({status: "done"})]
+  it.each([false, true])("includes the exact half-width boundary on both edges with collapse=%s for To Do (layout proxy)", async (collapsed) => {
+    const {mountBoard, tasks} = await setup({
+      columnOrder: ["backlog", "in_progress", "todo", "done", "cancelled", "ready_for_agent", "ready_to_merge"],
+      sectionsCollapsed: {backlog: collapsed, todo: collapsed},
+    })
+    tasks.tasks = [makeTask({id: "backlog", status: "backlog"}), makeTask({status: "todo"})]
     const board = mountBoard()
     await nextTick()
     const element = measureColumns(board, {}, collapsed ? 438 : 740)
@@ -678,12 +688,12 @@ describe("TaskBoard", () => {
     element.scrollLeft = halfWidth - 0.1
     deliverResize(element)
     await settle()
-    expect(labels()).toEqual(["Scroll right to Done, 1 task"])
+    expect(labels()).toEqual(["Scroll right to To Do, 1 task"])
 
     element.scrollLeft = halfWidth
     element.dispatchEvent(new Event("scroll"))
     await settle()
-    expect(labels()).toEqual(["Scroll left to Backlog, 1 task", "Scroll right to Done, 1 task"])
+    expect(labels()).toEqual(["Scroll left to Backlog, 1 task", "Scroll right to To Do, 1 task"])
 
     element.scrollLeft = halfWidth + 0.1
     element.dispatchEvent(new Event("scroll"))
@@ -749,7 +759,7 @@ describe("TaskBoard", () => {
       moveColumnPointer("pointermove", 1000)
       if (timing === "settled") {
         await settle()
-        expect(columnStatuses(board)).not.toEqual(["backlog", "in_progress", "done", "cancelled"])
+        expect(columnStatuses(board)).not.toEqual(["backlog", "todo", "in_progress", "done", "cancelled"])
       }
       tasks.tasks = []
       await settle()
@@ -760,7 +770,7 @@ describe("TaskBoard", () => {
       moveColumnPointer("pointermove", 1200)
       moveColumnPointer("pointerup", 1200)
       await settle()
-      expect(columnStatuses(board)).toEqual(["backlog", "in_progress", "done", "cancelled"])
+      expect(columnStatuses(board)).toEqual(["backlog", "todo", "in_progress", "done", "cancelled"])
       expect(board.findAll('button[aria-expanded="false"]')).toHaveLength(1)
       expect(document.querySelector("[data-column-drag-preview]")).toBeNull()
       expect(settings.settings.layout.columnOrder).toBeUndefined()
@@ -769,6 +779,32 @@ describe("TaskBoard", () => {
       expect(window.BridgeIPC["settings:save"].mock.calls).toEqual([])
     },
   )
+
+  it("persists a dragged To Do position and uses it for hidden indicators across board modes (layout proxy)", async () => {
+    const {mountBoard, tasks, settings} = await setup()
+    tasks.tasks = [makeTask({status: "todo"})]
+    const board = mountBoard()
+    await nextTick()
+    const element = measureColumns(board, {}, 1110)
+    await activateColumn(board, "todo", 450, 460)
+    moveColumnPointer("pointermove", 850)
+    await settle()
+    expect(columnStatuses(board)).toEqual(["backlog", "in_progress", "todo", "done", "cancelled"])
+    moveColumnPointer("pointerup", 850)
+    await settle()
+    const order = ["backlog", "ready_for_agent", "in_progress", "todo", "ready_to_merge", "done", "cancelled"]
+    expect(settings.settings.layout.columnOrder).toEqual(order)
+    element.getBoundingClientRect.mockReturnValue({left: 0, right: 740, width: 740, top: 0, bottom: 800, height: 800})
+    deliverResize(element)
+    await settle()
+    expect(board.find("button[aria-label='Scroll right to To Do, 1 task']").exists()).toBe(true)
+    settings.settings.appearance.boardMode = "agents"
+    await settle()
+    expect(columnStatuses(board)).toEqual(order)
+    expect(settings.settings.layout.columnOrder).toEqual(order)
+    await settings.flush()
+    expect(window.BridgeIPC["settings:save"]).toHaveBeenCalledWith(expect.objectContaining({layout: {columnOrder: order}}))
+  })
 
   it("swaps existing-width neighbors live (layout proxy), holds and reverses without saving until a valid drop", async () => {
     const {mountBoard, tasks, settings} = await setup()
@@ -780,15 +816,15 @@ describe("TaskBoard", () => {
     await activateColumn(board)
     moveColumnPointer("pointermove", 400)
     await settle()
-    expect(columnStatuses(board)).toEqual(["in_progress", "backlog", "done", "cancelled"])
+    expect(columnStatuses(board)).toEqual(["todo", "backlog", "in_progress", "done", "cancelled"])
     moveColumnPointer("pointermove", 750)
     await settle()
-    expect(columnStatuses(board)).toEqual(["in_progress", "done", "backlog", "cancelled"])
+    expect(columnStatuses(board)).toEqual(["todo", "in_progress", "backlog", "done", "cancelled"])
     for (const x of [750, 750, 400, 750]) {
       moveColumnPointer("pointermove", x)
       await settle()
       expect(columnStatuses(board)).toEqual(
-        x === 400 ? ["in_progress", "backlog", "done", "cancelled"] : ["in_progress", "done", "backlog", "cancelled"],
+        x === 400 ? ["todo", "backlog", "in_progress", "done", "cancelled"] : ["todo", "in_progress", "backlog", "done", "cancelled"],
       )
     }
     expect(settings.settings.layout.columnOrder).toBeUndefined()
@@ -796,19 +832,19 @@ describe("TaskBoard", () => {
     expect(window.BridgeIPC["settings:save"].mock.calls).toEqual([])
     moveColumnPointer("pointerup", 750)
     await settle()
-    expect(columnStatuses(board)).toEqual(["in_progress", "done", "backlog", "cancelled"])
-    expect(settings.settings.layout.columnOrder).toEqual(["ready_for_agent", "in_progress", "ready_to_merge", "done", "backlog", "cancelled"])
+    expect(columnStatuses(board)).toEqual(["todo", "in_progress", "backlog", "done", "cancelled"])
+    expect(settings.settings.layout.columnOrder).toEqual(["todo", "ready_for_agent", "in_progress", "backlog", "ready_to_merge", "done", "cancelled"])
     expect(tasks.tasks).toEqual(original)
     await settings.flush()
     expect(window.BridgeIPC["settings:save"].mock.calls).toEqual([
-      [{layout: {columnOrder: ["ready_for_agent", "in_progress", "ready_to_merge", "done", "backlog", "cancelled"]}}],
+      [{layout: {columnOrder: ["todo", "ready_for_agent", "in_progress", "backlog", "ready_to_merge", "done", "cancelled"]}}],
     ])
   })
 
   it.each(["Escape", "pointercancel", "outside", "return to origin"])(
     "restores existing-width swaps (layout proxy) and original horizontal scroll on %s without saving",
     async (ending) => {
-      const columnOrder = ["backlog", "ready_for_agent", "in_progress", "ready_to_merge", "done", "cancelled"]
+      const columnOrder = ["backlog", "todo", "ready_for_agent", "in_progress", "ready_to_merge", "done", "cancelled"]
       const {mountBoard, tasks, settings} = await setup({columnOrder, sectionsCollapsed: {done: true}})
       tasks.tasks = [makeTask()]
       const board = mountBoard()
@@ -818,7 +854,7 @@ describe("TaskBoard", () => {
       await activateColumn(board)
       moveColumnPointer("pointermove", 1000)
       await settle()
-      expect(columnStatuses(board)).toEqual(["in_progress", "done", "cancelled", "backlog"])
+      expect(columnStatuses(board)).toEqual(["todo", "in_progress", "done", "backlog", "cancelled"])
       if (ending === "Escape") window.dispatchEvent(new KeyboardEvent("keydown", {key: "Escape"}))
       else if (ending === "pointercancel") moveColumnPointer("pointercancel", 1000)
       else if (ending === "outside") moveColumnPointer("pointerup", 1700)
@@ -828,7 +864,7 @@ describe("TaskBoard", () => {
         moveColumnPointer("pointerup", 110)
       }
       await settle()
-      expect(columnStatuses(board)).toEqual(["backlog", "in_progress", "done", "cancelled"])
+      expect(columnStatuses(board)).toEqual(["backlog", "todo", "in_progress", "done", "cancelled"])
       expect(settings.settings.layout.columnOrder).toEqual(columnOrder)
       expect(settings.settings.layout.sectionsCollapsed).toEqual({done: true})
       expect(element.scrollLeft).toBe(200)
@@ -857,7 +893,7 @@ describe("TaskBoard", () => {
     }
     moveColumnPointer("pointermove", 100)
     await settle()
-    expect(columnStatuses(board)).toEqual(["backlog", "ready_for_agent", "in_progress", "ready_to_merge", "cancelled", "done"])
+    expect(columnStatuses(board)).toEqual(["backlog", "todo", "ready_for_agent", "in_progress", "ready_to_merge", "cancelled", "done"])
     moveColumnPointer("pointerup", 100)
     await settle()
     const rect = columnOf(board, "cancelled").getBoundingClientRect()
@@ -895,16 +931,16 @@ describe("TaskBoard", () => {
           }
         return result
       })
-      await activateColumn(board, "in_progress", 450, 460)
-      for (const x of [700, 1100, 700, 450, 1100]) {
+      await activateColumn(board, "in_progress", 820, 830)
+      for (const x of [1070, 1470, 1070, 820, 1470]) {
         moveColumnPointer("pointermove", x)
         await settle()
         expect(columnStatuses(board)).toEqual(
-          x === 450
-            ? ["backlog", "in_progress", "done", "cancelled"]
-            : x === 700
-              ? ["backlog", "done", "in_progress", "cancelled"]
-              : ["backlog", "done", "cancelled", "in_progress"],
+          x === 820
+            ? ["backlog", "todo", "in_progress", "done", "cancelled"]
+            : x === 1070
+              ? ["backlog", "todo", "done", "in_progress", "cancelled"]
+              : ["backlog", "todo", "done", "cancelled", "in_progress"],
         )
         expect(source.scrollTop).toBe(4000)
         expect(peer.scrollTop).toBe(2200)
@@ -916,7 +952,7 @@ describe("TaskBoard", () => {
       await settle()
       const currentPeerCards = cardsIn(board, "done")
       if (ending === "Escape") window.dispatchEvent(new KeyboardEvent("keydown", {key: "Escape"}))
-      else moveColumnPointer(ending === "drop" ? "pointerup" : "pointercancel", 1100)
+      else moveColumnPointer(ending === "drop" ? "pointerup" : "pointercancel", 1470)
       await settle()
       expect(columnOf(board, "in_progress").querySelector("[data-column-list]")).toBe(source)
       expect(columnOf(board, "done").querySelector("[data-column-list]")).toBe(peer)
@@ -965,6 +1001,7 @@ describe("TaskBoard", () => {
     async (reason) => {
       const {mountBoard, tasks, settings, ui} = await setup()
       const {useFilterStore} = await import("../../../../src/renderer/src/stores/filter.store")
+      useFilterStore().setFrame("day")
       tasks.tasks = [makeTask()]
       const board = mountBoard()
       await nextTick()
@@ -1006,11 +1043,11 @@ describe("TaskBoard", () => {
     for (const x of [282, 288, 282, 288]) {
       moveColumnPointer("pointermove", x)
       await settle()
-      expect(columnStatuses(board)).toEqual(["in_progress", "backlog", "done", "cancelled"])
+      expect(columnStatuses(board)).toEqual(["todo", "backlog", "in_progress", "done", "cancelled"])
     }
     moveColumnPointer("pointermove", 280)
     await settle()
-    expect(columnStatuses(board)).toEqual(["backlog", "in_progress", "done", "cancelled"])
+    expect(columnStatuses(board)).toEqual(["backlog", "todo", "in_progress", "done", "cancelled"])
   })
 
   it("autoscrolls existing columns in a narrow viewport and commits only on drop (layout proxy)", async () => {
@@ -1022,16 +1059,16 @@ describe("TaskBoard", () => {
     await activateColumn(board, "backlog", 100, 110)
     expect(columnStatuses(board)[0]).toBe("backlog")
     moveColumnPointer("pointermove", 254)
-    for (let index = 0; index < 145; index++) {
+    for (let index = 0; index < 170; index++) {
       await settle()
       element.dispatchEvent(new Event("scroll"))
     }
-    expect(element.scrollLeft).toBe(1961)
+    expect(element.scrollLeft).toBe(2331)
     expect(columnStatuses(board).at(-1)).toBe("backlog")
     expect(settings.settings.layout.columnOrder).toBeUndefined()
     moveColumnPointer("pointerup", 254)
     await settle()
-    expect(settings.settings.layout.columnOrder).toEqual(["ready_for_agent", "in_progress", "ready_to_merge", "done", "cancelled", "backlog"])
+    expect(settings.settings.layout.columnOrder).toEqual(["todo", "ready_for_agent", "in_progress", "ready_to_merge", "done", "cancelled", "backlog"])
     await settings.flush()
   })
 
@@ -1088,10 +1125,18 @@ describe("TaskBoard", () => {
       moveColumnPointer("pointerup", 900, 3)
       await settle()
       expect(document.querySelector("[data-column-drag-preview]").textContent).toContain("In Progress2")
-      expect(columnStatuses(board)).toEqual(["backlog", "done", "cancelled", "in_progress"])
+      expect(columnStatuses(board)).toEqual(["backlog", "todo", "done", "cancelled", "in_progress"])
       moveColumnPointer("pointerup", 900)
       await settle()
-      expect(settings.settings.layout.columnOrder).toEqual(["backlog", "ready_for_agent", "ready_to_merge", "done", "cancelled", "in_progress"])
+      expect(settings.settings.layout.columnOrder).toEqual([
+        "backlog",
+        "todo",
+        "ready_for_agent",
+        "ready_to_merge",
+        "done",
+        "cancelled",
+        "in_progress",
+      ])
       expect(settings.settings.layout.sectionsCollapsed.in_progress).toBe(collapsed)
       await settings.flush()
     },
@@ -1124,7 +1169,7 @@ describe("TaskBoard", () => {
   })
 
   it("renders the saved order across board modes, frames and projects while collapse stays with its status", async () => {
-    const columnOrder = ["ready_to_merge", "done", "ready_for_agent", "cancelled", "in_progress", "backlog"]
+    const columnOrder = ["ready_to_merge", "done", "ready_for_agent", "cancelled", "in_progress", "backlog", "todo"]
     const {mountBoard, tasks, settings} = await setup({columnOrder, sectionsCollapsed: {done: true}})
     const {useFilterStore} = await import("../../../../src/renderer/src/stores/filter.store")
     tasks.activeDay = DateTime.now().toISODate()
@@ -1134,20 +1179,20 @@ describe("TaskBoard", () => {
     await nextTick()
     const renderedOrder = () => board.findAll("[data-column-status]").map((column) => column.attributes("data-column-status"))
 
-    expect(renderedOrder()).toEqual(["done", "cancelled", "in_progress", "backlog"])
+    expect(renderedOrder()).toEqual(["done", "cancelled", "in_progress", "backlog", "todo"])
     expect(columnOf(board, "done").querySelector("button").getAttribute("aria-expanded")).toBe("false")
     settings.settings.appearance.boardMode = "agents"
     await nextTick()
-    expect(renderedOrder()).toEqual(["ready_to_merge", "done", "ready_for_agent", "cancelled", "in_progress", "backlog"])
+    expect(renderedOrder()).toEqual(["ready_to_merge", "done", "ready_for_agent", "cancelled", "in_progress", "backlog", "todo"])
     useFilterStore().setFrame("milestone")
     settings.settings.branch.isAllProjects = true
     await nextTick()
-    expect(renderedOrder()).toEqual(["ready_to_merge", "done", "ready_for_agent", "cancelled", "in_progress", "backlog"])
+    expect(renderedOrder()).toEqual(["ready_to_merge", "done", "ready_for_agent", "cancelled", "in_progress", "backlog", "todo"])
     settings.settings.branch.isAllProjects = false
     settings.settings.branch.activeId = "project-a"
     settings.settings.appearance.boardMode = "normal"
     await nextTick()
-    expect(renderedOrder()).toEqual(["done", "cancelled", "in_progress", "backlog"])
+    expect(renderedOrder()).toEqual(["done", "cancelled", "in_progress", "backlog", "todo"])
     expect(settings.settings.layout.columnOrder).toEqual(columnOrder)
     expect(settings.settings.layout.sectionsCollapsed.done).toBe(true)
     expect(tasks.tasks).toEqual(originalTasks)
@@ -1163,6 +1208,7 @@ describe("TaskBoard", () => {
     expect(board.findAll("[data-column-status]").map((column) => column.attributes("data-column-status"))).toEqual([
       "done",
       "backlog",
+      "todo",
       "ready_for_agent",
       "in_progress",
       "ready_to_merge",
@@ -1194,9 +1240,10 @@ describe("TaskBoard", () => {
     const original = JSON.parse(JSON.stringify(tasks.tasks))
     const board = mountBoard()
     await nextTick()
-    expect(board.findAll("[data-column-status]")).toHaveLength(4)
+    expect(board.findAll("[data-column-status]")).toHaveLength(5)
     expect(board.findAll("[data-column-status]").map((column) => column.attributes("data-column-status"))).toEqual([
       "backlog",
+      "todo",
       "in_progress",
       "done",
       "cancelled",
@@ -1208,12 +1255,12 @@ describe("TaskBoard", () => {
     else expect(board.text()).not.toContain("tomorrow")
     settings.settings.appearance.boardMode = "agents"
     await nextTick()
-    expect(board.findAll("[data-column-status]")).toHaveLength(6)
+    expect(board.findAll("[data-column-status]")).toHaveLength(7)
     expect(columnOf(board, "ready_for_agent").textContent).toContain("queue")
     expect(columnOf(board, "ready_to_merge").textContent).toContain("review")
     settings.settings.appearance.boardMode = "normal"
     await nextTick()
-    expect(board.findAll("[data-column-status]")).toHaveLength(4)
+    expect(board.findAll("[data-column-status]")).toHaveLength(5)
     expect(tasks.tasks).toEqual(original)
   })
 
@@ -1458,7 +1505,7 @@ describe("TaskBoard", () => {
 
     const board = mountBoard()
     await nextTick()
-    for (const status of ["backlog", "in_progress", "done", "cancelled"]) viewport(board, status, {clientHeight: 400, offsetTop: 100})
+    for (const status of ["backlog", "todo", "in_progress", "done", "cancelled"]) viewport(board, status, {clientHeight: 400, offsetTop: 100})
     await settle()
     expect(board.findAll("[data-task-card]")).toHaveLength(1)
 

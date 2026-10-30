@@ -4,7 +4,7 @@ import type {Snapshot, SnapshotDocs, SnapshotMeta} from "@daily/protocol"
 
 export function buildSnapshot(docs: SnapshotDocs): Snapshot {
   return {
-    version: 13,
+    version: 14,
     docs,
     meta: buildSnapshotMeta(docs),
   }

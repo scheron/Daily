@@ -338,3 +338,27 @@ describe("partial Ready scheduling", () => {
     })
   })
 })
+
+describe("planned task scheduling", () => {
+  const scheduled = {date: "2026-10-30", time: "10:00:00", timezone: "UTC"}
+
+  it("requires a day for To Do while honoring an explicit work status", () => {
+    expect(planTaskCreate(ctxFor([]), {status: "todo", scheduled: null})).toMatchObject({status: "todo", scheduled: {date: "2026-09-14"}})
+    expect(planTaskCreate(ctxFor([]), {status: "in_progress", scheduled})).toMatchObject({status: "in_progress", scheduled})
+  })
+
+  it("plans Backlog for any assigned day, preserves actual work states on rescheduling, and returns undated To Do to Backlog", () => {
+    const backlog = makeTask({status: "backlog", scheduled: null})
+    for (const date of ["2026-09-14", "2026-09-15", "2026-10-30"]) {
+      expect(planTaskUpdate(ctxFor([backlog]), backlog.id, {scheduled: {...scheduled, date}})[0]).toMatchObject({status: "todo", scheduled: {date}})
+    }
+    for (const status of ["todo", "in_progress", "ready_for_agent", "ready_to_merge"]) {
+      const task = makeTask({status})
+      const after = applyPatch(task, planTaskUpdate(ctxFor([task]), task.id, {scheduled})[0])
+      expect(after).toMatchObject({status, scheduled})
+    }
+    const todo = makeTask({status: "todo"})
+    expect(planTaskUpdate(ctxFor([todo]), todo.id, {scheduled: null})[0]).toMatchObject({status: "backlog", scheduled: null})
+    expect(planTaskUpdate(ctxFor([backlog]), backlog.id, {status: "in_progress", scheduled})[0]).toMatchObject({status: "in_progress", scheduled})
+  })
+})

@@ -7,6 +7,7 @@ import type {TaskStatus} from "@daily/protocol"
 type SectionsCollapsed = Record<TaskStatus, boolean>
 
 export function useSectionPrefs() {
+  const isTodoSectionCollapsed = useSettingValue("layout.sectionsCollapsed.todo", false)
   const isActiveSectionCollapsed = useSettingValue("layout.sectionsCollapsed.in_progress", false)
   const isDiscardedSectionCollapsed = useSettingValue("layout.sectionsCollapsed.cancelled", false)
   const isReadySectionCollapsed = useSettingValue("layout.sectionsCollapsed.ready_for_agent", false)
@@ -21,11 +22,13 @@ export function useSectionPrefs() {
     cancelled: isDiscardedSectionCollapsed.value,
     done: isDoneSectionCollapsed.value,
     backlog: isBacklogSectionCollapsed.value,
+    todo: isTodoSectionCollapsed.value,
   }))
 
   function toggleSectionCollapsed(status: TaskStatus) {
     if (status === "in_progress") isActiveSectionCollapsed.value = !isActiveSectionCollapsed.value
     else if (status === "cancelled") isDiscardedSectionCollapsed.value = !isDiscardedSectionCollapsed.value
+    else if (status === "todo") isTodoSectionCollapsed.value = !isTodoSectionCollapsed.value
     else if (status === "backlog") isBacklogSectionCollapsed.value = !isBacklogSectionCollapsed.value
     else if (status === "ready_for_agent") isReadySectionCollapsed.value = !isReadySectionCollapsed.value
     else if (status === "ready_to_merge") isMergeSectionCollapsed.value = !isMergeSectionCollapsed.value
@@ -35,6 +38,7 @@ export function useSectionPrefs() {
   function setSectionCollapsed(status: TaskStatus, isCollapsed: boolean) {
     if (status === "in_progress") isActiveSectionCollapsed.value = isCollapsed
     else if (status === "cancelled") isDiscardedSectionCollapsed.value = isCollapsed
+    else if (status === "todo") isTodoSectionCollapsed.value = isCollapsed
     else if (status === "backlog") isBacklogSectionCollapsed.value = isCollapsed
     else if (status === "ready_for_agent") isReadySectionCollapsed.value = isCollapsed
     else if (status === "ready_to_merge") isMergeSectionCollapsed.value = isCollapsed

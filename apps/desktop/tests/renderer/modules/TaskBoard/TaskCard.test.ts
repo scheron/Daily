@@ -81,7 +81,7 @@ describe("TaskCard — the footer numbers", () => {
     return footer().exists() ? footer().text().replace(/\s+/g, " ").trim() : null
   }
 
-  it("offers all six explicit statuses and applies a Ready to Merge selection from the card menu", async () => {
+  it("offers all seven explicit statuses and applies a Ready to Merge selection from the card menu", async () => {
     mockBridgeIPC({"tasks:move-by-order": vi.fn().mockResolvedValue({})})
     const {useTasksStore} = await import("../../../../src/renderer/src/stores/tasks")
     const tasks = useTasksStore()
@@ -93,6 +93,7 @@ describe("TaskCard — the footer numbers", () => {
     const statusMenu = menu.props("items").find((item) => item.value === "status")
     expect(statusMenu.children.map((item) => item.value)).toEqual([
       "backlog",
+      "todo",
       "ready_for_agent",
       "in_progress",
       "ready_to_merge",

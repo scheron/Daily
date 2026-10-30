@@ -40,13 +40,13 @@ const TASK_ITEM_PROPERTIES: Record<string, ToolPropertySchema> = {
   date: {
     type: ["string", "null"],
     description:
-      "The day the task is scheduled on, YYYY-MM-DD, or null to clear the day. Ready for Agent keeps its status when the day changes or is cleared.",
+      "The scheduled day, YYYY-MM-DD, or null to clear it. Scheduling Backlog makes it To Do; clearing To Do returns it to Backlog. Ready for Agent keeps its status.",
   },
   time: {type: "string", description: 'The time of day, HH:mm or HH:mm:ss. Cannot be sent as null — clear a day with "date": null instead.'},
   status: {
     type: "string",
     description:
-      "The exact task status, independent of Normal / Agents board mode. Ready for Agent accepts a day or no day; Ready to Merge remains outstanding.",
+      "The exact task status, independent of Normal / Agents board mode. To Do means planned, In Progress means work has started. Ready for Agent accepts a day or no day; Ready to Merge remains outstanding.",
     enum: TASK_STATUSES,
   },
   priority: {type: "string", description: 'The task\'s priority. "none" clears it. Defaults to "none" when creating.', enum: TASK_PRIORITIES},
@@ -74,7 +74,7 @@ const TASK_ITEM_PROPERTIES: Record<string, ToolPropertySchema> = {
 export const saveTaskTool: Tool = {
   name: "save_task",
   description:
-    'Creates a task when no id is given, or updates the one named. A day, time and status are worked out from what is given and the caller\'s own clock. Priority is taken as sent, and a new task defaults to "none". Send "tasks" instead for a batch of up to 50, applied atomically.',
+    'Creates a task when no id is given, or updates the one named. A day, time and status are worked out from what is given and the caller\'s own clock. New tasks default to To Do on the caller\'s day; a null date defaults to Backlog. An explicit status takes priority. Priority is taken as sent, and a new task defaults to "none". Send "tasks" instead for a batch of up to 50, applied atomically.',
   mode: "write",
   inputSchema: {
     type: "object",
@@ -194,13 +194,13 @@ async function createTask(ctx: ToolContext, fields: ParsedFields): Promise<Task[
   let scheduled: TaskScheduled | null
 
   if (fields.date === undefined) {
-    status = fields.status ?? "in_progress"
+    status = fields.status ?? "todo"
     scheduled = status === "ready_for_agent" ? null : ctx.clock.scheduledNow()
   } else if (fields.date === null) {
     status = fields.status ?? "backlog"
     scheduled = null
   } else {
-    status = fields.status ?? "in_progress"
+    status = fields.status ?? "todo"
     scheduled = {date: fields.date, time: fields.time ?? ctx.clock.time(), timezone: ctx.clock.timeZone}
   }
 

@@ -466,15 +466,24 @@ describe("TasksService", () => {
   })
 
   describe("a backlog task given a day through updateTask", () => {
-    it("gives_TC-3_a_dateless_task_a_real_time_and_timezone_and_flips_it_active_when_only_a_date_is_sent", async () => {
+    it("gives_TC-3_a_dateless_task_a_real_time_and_timezone_and_plans_it_as_todo_when_only_a_date_is_sent", async () => {
       const task = taskModel.createTask(makeTask({status: "backlog", scheduled: null}))
 
       const updated = (await tasksService.updateTask(task.id, {scheduled: {date: "2026-04-10"}})).find((t) => t.id === task.id)
 
-      expect(updated.status).toBe("in_progress")
+      expect(updated.status).toBe("todo")
       expect(updated.scheduled?.date).toBe("2026-04-10")
       expect(updated.scheduled?.time).toBeTruthy()
       expect(updated.scheduled?.timezone).toBeTruthy()
+    })
+
+    it("returns To Do to Backlog when its day is cleared and keeps explicit execution", async () => {
+      const task = taskModel.createTask(makeTask({status: "todo"}))
+      expect((await tasksService.updateTask(task.id, {scheduled: null}))[0]).toMatchObject({status: "backlog", scheduled: null})
+      expect((await tasksService.updateTask(task.id, {status: "in_progress", scheduled: null}))[0]).toMatchObject({
+        status: "in_progress",
+        scheduled: {date: expect.any(String)},
+      })
     })
 
     it("moves_TC-5_a_dated_tasks_day_without_touching_its_status", async () => {

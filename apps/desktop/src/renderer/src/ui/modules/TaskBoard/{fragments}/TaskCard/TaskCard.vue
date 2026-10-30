@@ -45,9 +45,6 @@ import type {Branch, Tag, Task, TaskRelationSets, TaskStatus} from "@daily/proto
 
 const props = defineProps<{task: Task}>()
 
-const {isCompact, cardHeight} = useBoardCardGeometry()
-const title = computed(() => toTaskTitle(props.task.content) || "Untitled task")
-
 const tasksStore = useTasksStore()
 const tagsStore = useTagsStore()
 const taskEditorStore = useTaskEditorStore()
@@ -62,6 +59,7 @@ const projectScopeStore = useProjectScopeStore()
 
 const contextMenuRef = useTemplateRef<InstanceType<typeof BaseContextMenu>>("contextMenu")
 
+const title = computed(() => toTaskTitle(props.task.content) || "Untitled task")
 const tags = computed<Tag[]>(() => sortTags(props.task.tags.map((t) => tagsStore.tagsMap.get(t.id)).filter(Boolean) as Tag[]))
 
 const milestone = computed(() => (props.task.milestoneId ? (milestonesStore.milestonesMap.get(props.task.milestoneId) ?? null) : null))
@@ -161,6 +159,7 @@ const menuItems = computed<BaseContextMenuItem[]>(() => {
   ]
 })
 
+const {isCompact, cardHeight} = useBoardCardGeometry()
 const {open: confirmLeaveIfDirty} = useConfirmUnsavedModal()
 
 async function onCardClick() {
@@ -174,6 +173,7 @@ async function onCardClick() {
 function getStatusClass(status: TaskStatus) {
   if (status !== props.task.status) return ""
 
+  if (status === "todo") return "text-base-content/80 hover:bg-base-content/10 bg-base-content/10"
   if (status === "in_progress") return "text-accent hover:bg-accent/10 bg-accent/10"
   if (status === "ready_for_agent") return "text-error hover:bg-error/10 bg-error/10"
   if (status === "ready_to_merge") return "text-info hover:bg-info/10 bg-info/10"
@@ -183,16 +183,18 @@ function getStatusClass(status: TaskStatus) {
   return ""
 }
 
-function getCardClasses(status: TaskStatus, isInSession: boolean) {
+function getCardClasses(status: TaskStatus, isInSession: boolean, isCompact: boolean) {
   return cn(
     "bg-base-100 hover:shadow-accent/5 group relative overflow-hidden rounded-2xl border transition-[border-color,box-shadow] duration-200 hover:shadow-lg",
     status === "backlog" && "border-base-content/15 border-dashed",
     status === "done" && "border-success/30 hover:border-success/40",
     status === "cancelled" && "border-warning/30 hover:border-warning/40",
+    status === "todo" && "border-base-content/80",
     status === "in_progress" && "border-accent/45 hover:border-accent/60",
     status === "ready_for_agent" && "border-error/45 hover:border-error/60",
     status === "ready_to_merge" && "border-info/45 hover:border-info/60",
     isInSession && "border-transparent hover:border-transparent",
+    isCompact && "board-card-compact",
   )
 }
 
@@ -243,12 +245,7 @@ async function onLinkTask(side: keyof TaskRelationSets, taskId: Task["id"]) {
 
 <template>
   <BaseContextMenu ref="contextMenu" :items="menuItems" @select="onSelect">
-    <div
-      :id="task.id"
-      :class="[getCardClasses(task.status, isInSession), {'board-card-compact': isCompact}]"
-      :style="{height: `${cardHeight}px`}"
-      @click.stop="onCardClick"
-    >
+    <div :id="task.id" :class="getCardClasses(task.status, isInSession, isCompact)" :style="{height: `${cardHeight}px`}" @click.stop="onCardClick">
       <div class="board-card-inner relative z-10 flex h-full w-full flex-col gap-2 px-4 pb-3 pt-3.5">
         <CardCrumb v-if="projectName || milestone" :project-name="projectName" :milestone="milestone" />
 

@@ -14,7 +14,7 @@ import {
   startClientDocumentServer,
 } from "../oauth/harness"
 
-it("OAuth-connected MCP tools preserve six exact statuses, atomic writes and approved authorship", async () => {
+it("OAuth-connected MCP tools preserve seven exact statuses, atomic writes and approved authorship", async () => {
   const server = await bootAgentServer()
   const docs = await startClientDocumentServer()
   try {

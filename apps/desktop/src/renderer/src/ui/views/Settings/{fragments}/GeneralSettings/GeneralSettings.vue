@@ -69,7 +69,7 @@ const isQuickTaskEnabled = useSettingValue("quickTask.isEnabled", true)
         <BaseSegmented v-model="taskView" aria-label="Interface Size" :options="taskViewOptions" />
       </SettingRow>
 
-      <SettingRow title="Board View" description="Group tasks into four columns or show all six statuses for agents">
+      <SettingRow title="Board View" description="Group tasks into five columns or show all seven statuses for agents">
         <BaseSegmented v-model="boardMode" :options="boardModeOptions" />
       </SettingRow>
 

@@ -194,10 +194,9 @@ Run it on a machine you control, such as your own VPS, not a shared host operate
 ## Task workflow through MCP
 
 Agents and Daily Assistant share `list_tasks`, `get_task`, and `save_task`. Statuses are `backlog`,
-`ready_for_agent`, `in_progress`, `ready_to_merge`, `done`, `cancelled`, independent of Normal / Agents.
-Ready states remain outstanding; preparation does not launch an agent.
-
-After connecting and approving an agent as described above, the workflow is:
+`todo`, `ready_for_agent`, `in_progress`, `ready_to_merge`, `done`, `cancelled`, independent of Normal / Agents.
+To Do means planned work; In Progress means execution has started. To Do and ready states remain
+outstanding; scheduling does not start work and preparation does not launch an agent.
 
 ```json
 {"name":"list_tasks","arguments":{"status":"ready_for_agent"}}
@@ -209,11 +208,13 @@ After connecting and approving an agent as described above, the workflow is:
 {"name":"get_task","arguments":{"id":"TASK_ID"}}
 ```
 
-Use a returned task id and the intended day. Ready for Agent preserves its day or absence of one
-on entry and stays ready when its date is assigned or cleared; creation without a date is undated.
-Backlog has no day; the other four statuses require one, defaulting to the caller's Mac clock.
-`save_task` accepts up to 50 changes as `{"tasks":[...]}` atomically, rolling back the whole batch
-and history on failure. Comments and history retain the approved MCP client's authorship.
+Use a returned task id and intended day. Ready for Agent keeps its optional day on entry and stays
+ready when that day is assigned or cleared; creation without a date is undated. Backlog has no day.
+The other five statuses require one, defaulting to the caller's Mac clock. New tasks default to To Do
+on that day, or Backlog when `date` is null. Scheduling Backlog makes it To Do; clearing To Do's date
+returns it to Backlog. Rescheduling preserves status; explicit status wins. Use `in_progress` to start work.
+`save_task` accepts up to 50 changes as `{"tasks":[...]}` atomically; failure rolls back the batch and history.
+Comments and history retain the approved MCP client's authorship.
 
 ## License
 

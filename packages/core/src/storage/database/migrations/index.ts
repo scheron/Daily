@@ -17,6 +17,7 @@ import {v016} from "./v016-attachments-into-content"
 import {v017} from "./v017-task-priority"
 import {v018} from "./v018-agent-statuses"
 import {v019} from "./v019-subtasks"
+import {v020} from "./v020-todo-status"
 
 import type {Migration} from "../scripts/migrate"
 
@@ -40,4 +41,5 @@ export const migrations: Migration[] = [
   v017,
   v018,
   v019,
+  v020,
 ]

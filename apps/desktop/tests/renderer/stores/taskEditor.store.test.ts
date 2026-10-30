@@ -276,7 +276,7 @@ describe("taskEditorStore — backlog coupling", () => {
     setActivePinia(createPinia())
   })
 
-  it("couples_TC-15_status_and_schedule_so_picking_backlog_clears_the_date_and_picking_a_date_returns_it_to_active", async () => {
+  it("couples_TC-15_status_and_schedule_so_picking_backlog_clears_the_date_and_picking_a_date_plans_it_as_todo", async () => {
     const {tasks, editor} = await setupStores()
     tasks.findTaskById = vi
       .fn()
@@ -288,8 +288,24 @@ describe("taskEditorStore — backlog coupling", () => {
     expect(editor.draft?.scheduled).toBeNull()
 
     editor.patch({scheduled: {date: "2026-07-01", time: "10:00:00", timezone: "UTC"}})
-    expect(editor.draft?.status).toBe("in_progress")
+    expect(editor.draft?.status).toBe("todo")
     expect(editor.draft?.scheduled).toEqual({date: "2026-07-01", time: "10:00:00", timezone: "UTC"})
+  })
+
+  it.each(["todo", "in_progress", "ready_for_agent", "ready_to_merge"])("retains explicit %s when scheduling and moving its day", async (status) => {
+    const {editor} = await setupStores()
+    editor.openNew({branchId: "main"})
+    editor.patch({status, scheduled: {date: "2026-07-01", time: "10:00:00", timezone: "UTC"}})
+    editor.patch({scheduled: {date: "2026-07-02", time: "10:00:00", timezone: "UTC"}})
+    expect(editor.draft).toMatchObject({status, scheduled: {date: "2026-07-02"}})
+  })
+
+  it("clearing a To Do draft's day returns it to undated Backlog", async () => {
+    const {editor} = await setupStores()
+    editor.openNew({branchId: "main"})
+    editor.patch({scheduled: {date: "2026-07-01", time: "10:00:00", timezone: "UTC"}})
+    editor.patch({scheduled: null})
+    expect(editor.draft).toMatchObject({status: "backlog", scheduled: null})
   })
 
   it("seeds_TC-16_a_brand_new_draft_as_backlog_with_no_schedule", async () => {
@@ -312,7 +328,7 @@ describe("taskEditorStore — backlog coupling", () => {
     expect(tasks.updateTask).toHaveBeenCalledTimes(1)
     expect(tasks.updateTask).toHaveBeenCalledWith(
       "task-1",
-      expect.objectContaining({status: "in_progress", scheduled: {date: "2026-07-01", time: "10:00:00", timezone: "UTC"}}),
+      expect.objectContaining({status: "todo", scheduled: {date: "2026-07-01", time: "10:00:00", timezone: "UTC"}}),
     )
     expect(tasks.moveTask).not.toHaveBeenCalled()
   })

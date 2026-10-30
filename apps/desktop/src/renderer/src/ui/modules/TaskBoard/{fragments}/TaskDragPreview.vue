@@ -33,6 +33,7 @@ const icon = computed<IconName>(() => {
     ready_for_agent: "bot",
     ready_to_merge: "git-pull-request",
     backlog: "bookmark",
+    todo: "brain",
     in_progress: "fire",
     done: "check-check",
     cancelled: "archive",
@@ -67,6 +68,7 @@ function getPreviewClasses(isOver: boolean) {
 function getIconClasses(status: TaskStatus) {
   return cn(
     "size-4 shrink-0",
+    status === "todo" && "text-base-content/80",
     status === "in_progress" && "text-accent",
     status === "ready_for_agent" && "text-error",
     status === "ready_to_merge" && "text-info",
