@@ -1,17 +1,14 @@
+import {nanoid} from "nanoid"
+
 import {resolveActorProvider} from "@daily/protocol"
 import {getToday} from "@daily/std"
 
-import type {ActorSource, ISODate, ISODateTime, Tag, Task, TaskEvent, TaskEventType, TaskStatus} from "@daily/protocol"
+import type {ActorSource, ISODate, ISODateTime, Tag, Task, TaskEvent, TaskEventType} from "@daily/protocol"
 import type {StorageClock} from "../../types/storage"
 import type {TaskEventModel} from "../models/TaskEventModel"
 
-const EDIT_DEBOUNCE_MS = 5 * 60 * 1000
+type EventChanges = Partial<Pick<TaskEvent, "fromStatus" | "toStatus" | "fromPriority" | "toPriority" | "fromBranchId" | "toBranchId">>
 
-/**
- * Records and reads the activity timeline for tasks (created, moved, edited,
- * status changes, etc.). Owns all task-event logic, keeping `TasksService`
- * focused on task CRUD.
- */
 export class TaskEventsService {
   constructor(
     private taskEventModel: TaskEventModel,
@@ -28,13 +25,48 @@ export class TaskEventsService {
     return this.taskEventModel.countMovesByTask()
   }
 
-  /** Every completion that fell in the half-open interval `[fromInclusive, toExclusive)`. A bound left `undefined` leaves that side unconstrained. */
+  /** Every completion that fell in the half-open interval `[fromInclusive, toExclusive)`. */
   async getCompletionsBetween(fromInclusive?: ISODateTime, toExclusive?: ISODateTime): Promise<Array<{taskId: Task["id"]; at: ISODateTime}>> {
     return this.taskEventModel.listCompletionsBetween(fromInclusive, toExclusive)
   }
 
-  /** Records a single event for a task, dated on the task's day, or on today when the task has none. A caller that names no `source` made it by hand. */
-  record(task: Task, type: TaskEventType, source: ActorSource = {kind: "manual"}) {
+  /** Records a lifecycle event on the task's day, or today when the task has none. */
+  record(task: Task, type: TaskEventType, source?: ActorSource) {
+    this.recordChange(task, type, source, {}, new Date().toISOString())
+  }
+
+  /** Records every changed category independently; only consecutive text autosaves are debounced. */
+  recordUpdate(before: Task, after: Task, source?: ActorSource) {
+    const createdAt = new Date().toISOString()
+    const statusChanged = before.status !== after.status
+    const fromDate = before.scheduled?.date ?? null
+    const toDate = after.scheduled?.date ?? null
+    const dateChanged = fromDate !== toDate
+    const priorityChanged = before.priority !== after.priority
+    const projectChanged = before.branchId !== after.branchId
+    const categoryChanged = statusChanged || dateChanged || priorityChanged || projectChanged
+
+    const contentEdited = before.content !== after.content && (categoryChanged || this.shouldRecordEdit(after.id, source))
+    if (contentEdited || hasFieldEdit(before, after)) {
+      this.recordChange(after, "edited", source, {}, createdAt)
+    }
+
+    if (statusChanged) {
+      this.recordChange(after, "status_changed", source, {fromStatus: before.status, toStatus: after.status}, createdAt)
+    }
+
+    if (dateChanged) this.recordMove(after, fromDate, toDate, source, createdAt)
+
+    if (priorityChanged) {
+      this.recordChange(after, "priority_changed", source, {fromPriority: before.priority, toPriority: after.priority}, createdAt)
+    }
+
+    if (projectChanged) {
+      this.recordChange(after, "project_changed", source, {fromBranchId: before.branchId, toBranchId: after.branchId}, createdAt)
+    }
+  }
+
+  private recordChange(task: Task, type: TaskEventType, source: ActorSource = {kind: "manual"}, changes: EventChanges, createdAt: ISODateTime) {
     this.taskEventModel.record({
       taskId: task.id,
       branchId: task.branchId,
@@ -42,94 +74,60 @@ export class TaskEventsService {
       eventDate: task.scheduled?.date ?? this.clock.today(),
       fromDate: null,
       toDate: null,
-      createdAt: new Date().toISOString(),
+      ...changes,
+      createdAt,
       kind: source.kind,
       provider: resolveActorProvider(source),
     })
   }
 
-  /** Records the appropriate status-change event for a task's new status. Moving into the backlog records nothing. */
-  recordStatusChange(task: Task, status: TaskStatus, source?: ActorSource) {
-    if (status === "backlog") return
-
-    this.record(task, statusEventType(status), source)
-  }
-
-  /** Records the event(s) implied by a task update (status, move, or edit). */
-  recordUpdate(before: Task, after: Task, source?: ActorSource) {
-    if (before.status !== after.status) {
-      this.recordStatusChange(after, after.status, source)
-      return
-    }
-
-    if (Boolean(before.scheduled) !== Boolean(after.scheduled)) {
-      this.record(after, "edited", source)
-      return
-    }
-
-    if (before.scheduled && after.scheduled && before.scheduled.date !== after.scheduled.date) {
-      this.recordMove(after, before.scheduled.date, after.scheduled.date, source)
-    }
-
-    if (hasNonDateEdit(before, after) && this.shouldRecordEdit(after.id)) {
-      this.record(after, "edited", source)
-    }
-  }
-
-  private recordMove(task: Task, fromDate: ISODate, toDate: ISODate, source: ActorSource = {kind: "manual"}) {
-    const createdAt = new Date().toISOString()
+  private recordMove(task: Task, fromDate: ISODate | null, toDate: ISODate | null, source: ActorSource = {kind: "manual"}, createdAt: ISODateTime) {
     const base = {
       taskId: task.id,
       branchId: task.branchId,
       type: "moved" as const,
       fromDate,
       toDate,
+      moveId: nanoid(),
       createdAt,
       kind: source.kind,
       provider: resolveActorProvider(source),
     }
-    this.taskEventModel.record({...base, eventDate: fromDate})
-    this.taskEventModel.record({...base, eventDate: toDate})
+    for (const eventDate of new Set([fromDate, toDate].filter((date): date is ISODate => date !== null))) {
+      this.taskEventModel.record({...base, eventDate})
+    }
   }
 
-  private shouldRecordEdit(taskId: Task["id"]): boolean {
-    const lastEditedAt = this.taskEventModel.getLastEditedAt(taskId)
-    if (!lastEditedAt) return true
+  private shouldRecordEdit(taskId: Task["id"], source: ActorSource = {kind: "manual"}): boolean {
+    const EDIT_DEBOUNCE_MS = 5 * 60 * 1000
+    const latest = this.taskEventModel.getLatestByTask(taskId)
+    if (!latest || latest.type !== "edited" || latest.kind !== source.kind || latest.provider !== resolveActorProvider(source)) return true
 
-    return Date.now() - Date.parse(lastEditedAt) >= EDIT_DEBOUNCE_MS
+    return Date.now() - Date.parse(latest.createdAt) >= EDIT_DEBOUNCE_MS
   }
 }
 
-/** Collapses the two `moved` rows a reschedule records (one per day) into a single row. */
 function collapseMoves(events: TaskEvent[]): TaskEvent[] {
   const seenMoves = new Set<string>()
-  const result: TaskEvent[] = []
-
-  for (const event of events) {
-    if (event.type === "moved") {
-      const key = `${event.createdAt}|${event.fromDate}|${event.toDate}`
-      if (seenMoves.has(key)) continue
-      seenMoves.add(key)
-    }
-    result.push(event)
-  }
-
-  return result
+  return events.filter((event) => {
+    if (event.type !== "moved") return true
+    const key = event.moveId ?? `${event.createdAt}|${event.fromDate}|${event.toDate}`
+    if (seenMoves.has(key)) return false
+    seenMoves.add(key)
+    return true
+  })
 }
 
-function statusEventType(status: TaskStatus): TaskEventType {
-  if (status === "done") return "completed"
-  if (status === "cancelled") return "discarded"
-  return "reactivated"
-}
-
-function hasNonDateEdit(before: Task, after: Task): boolean {
+function hasFieldEdit(before: Task, after: Task): boolean {
+  const projectChanged = before.branchId !== after.branchId
   return (
-    before.content !== after.content ||
-    (!!before.scheduled && !!after.scheduled && before.scheduled.time !== after.scheduled.time) ||
+    (!!before.scheduled &&
+      !!after.scheduled &&
+      (before.scheduled.time !== after.scheduled.time || before.scheduled.timezone !== after.scheduled.timezone)) ||
     before.estimatedTime !== after.estimatedTime ||
-    before.priority !== after.priority ||
-    !sameTagIds(before.tags, after.tags)
+    before.spentTime !== after.spentTime ||
+    ((!projectChanged || after.milestoneId !== null) && before.milestoneId !== after.milestoneId) ||
+    ((!projectChanged || after.tags.length > 0) && !sameTagIds(before.tags, after.tags))
   )
 }
 

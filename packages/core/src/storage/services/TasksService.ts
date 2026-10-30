@@ -13,7 +13,6 @@ import type {
   Task,
   TaskEvent,
   TaskPatch,
-  TaskStatus,
   TaskWritableFields,
 } from "@daily/protocol"
 import type {PartialDeep} from "type-fest"
@@ -93,18 +92,16 @@ export class TasksService {
       planTaskMoveByOrder(this.readContext(params.acrossProjects ? undefined : sourceTask.branchId, sourceTask), params),
     )
 
-    return this.finalizeMove(sourceTask, params.targetStatus ?? sourceTask.status, updated, source)
+    return this.finalizeMove(sourceTask, updated, source)
   }
 
-  async moveTaskToBranch(taskId: Task["id"], branchId: Branch["id"]): Promise<boolean> {
+  async moveTaskToBranch(taskId: Task["id"], branchId: Branch["id"], source?: ActorSource): Promise<boolean> {
     const task = this.taskModel.getTask(taskId)
     if (!task) return false
     if (task.branchId === branchId) return true
 
-    const updatedTask = this.taskModel.updateTask(taskId, {branchId, milestoneId: null})
-    if (!updatedTask) return false
-
-    return true
+    const updated = await this.updateTask(taskId, {branchId}, source)
+    return updated.some((item) => item.id === taskId)
   }
 
   async deleteTask(id: Task["id"], source?: ActorSource): Promise<boolean> {
@@ -135,18 +132,22 @@ export class TasksService {
   }
 
   async addTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Promise<Task | null> {
-    return this.taskModel.addTaskTags(taskId, tagIds)
+    const before = this.taskModel.getTask(taskId)
+    const after = this.taskModel.addTaskTags(taskId, tagIds)
+    if (before && after) this.taskEvents.recordUpdate(before, after)
+    return after
   }
 
   async removeTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Promise<Task | null> {
-    return this.taskModel.removeTaskTags(taskId, tagIds)
+    const before = this.taskModel.getTask(taskId)
+    const after = this.taskModel.removeTaskTags(taskId, tagIds)
+    if (before && after) this.taskEvents.recordUpdate(before, after)
+    return after
   }
 
-  private finalizeMove(sourceTask: Task, targetStatus: TaskStatus, updated: Task[], source?: ActorSource): Task[] {
+  private finalizeMove(sourceTask: Task, updated: Task[], source?: ActorSource): Task[] {
     const finalTask = updated.find((task) => task.id === sourceTask.id) ?? null
-    if (finalTask && targetStatus !== sourceTask.status) {
-      this.taskEvents.recordStatusChange(finalTask, targetStatus, source)
-    }
+    if (finalTask) this.taskEvents.recordUpdate(sourceTask, finalTask, source)
 
     return updated
   }
@@ -170,7 +171,6 @@ export class TasksService {
       .map((branchId) => ({id: milestoneId, branchId}))
   }
 
-  /** Applies every patch and returns the row `taskModel.updateTask` handed back for each — nothing is read back afterward to find them. */
   private applyPatches(patches: TaskPatch[]): Task[] {
     const updated: Task[] = []
     for (const {id, ...fields} of patches) {

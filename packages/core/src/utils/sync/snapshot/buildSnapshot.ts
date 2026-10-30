@@ -4,15 +4,12 @@ import type {Snapshot, SnapshotDocs, SnapshotMeta} from "@daily/protocol"
 
 export function buildSnapshot(docs: SnapshotDocs): Snapshot {
   return {
-    version: 14,
+    version: 15,
     docs,
     meta: buildSnapshotMeta(docs),
   }
 }
 
-/**
- * Build SnapshotMeta from document collections.
- */
 export function buildSnapshotMeta(docs: SnapshotDocs): SnapshotMeta {
   const collections: Array<{id: string}[]> = [
     docs.tasks,

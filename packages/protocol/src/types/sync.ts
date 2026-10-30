@@ -6,7 +6,7 @@ export type SnapshotMeta = {
 }
 
 export type Snapshot = {
-  version: 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14
+  version: 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15
   docs: SnapshotDocs
   meta: SnapshotMeta
 }
@@ -31,6 +31,14 @@ export type SnapshotTaskEvent = {
   event_date: string
   from_date: string | null
   to_date: string | null
+  from_status?: string | null
+  to_status?: string | null
+  from_priority?: string | null
+  to_priority?: string | null
+  from_branch_id?: string | null
+  to_branch_id?: string | null
+  sequence?: number
+  move_id?: string | null
   created_at: string
   kind: string
   provider: string | null

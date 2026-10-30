@@ -622,7 +622,7 @@ describe("Comment view in the task panel", () => {
 
     expect(comments.commentsOf("task-1")).toEqual([])
     expect(wrapper.findAll("[aria-label='Markdown content']")).toHaveLength(0)
-    expect(wrapper.text()).toContain("No comments yet")
+    expect(wrapper.text()).toContain("No activity yet")
     expect(window.BridgeIPC["comments:update"]).not.toHaveBeenCalled()
   })
 
@@ -652,6 +652,6 @@ describe("Comment view in the task panel", () => {
 
     expect(comments.commentsOf("task-1")).toEqual([])
     expect(wrapper.findAll("[aria-label='Markdown content']")).toHaveLength(0)
-    expect(wrapper.text()).toContain("No comments yet")
+    expect(wrapper.text()).toContain("No activity yet")
   })
 })

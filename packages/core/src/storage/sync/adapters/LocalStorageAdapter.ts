@@ -36,7 +36,6 @@ export class LocalStorageAdapter implements ILocalStorage {
 
   async upsertDocs(docs: SnapshotDocs): Promise<void> {
     const transaction = this.db.transaction(() => {
-      /* Branches: ON CONFLICT DO UPDATE keeps parent rows so tasks.branch_id FK is not violated (no ON DELETE CASCADE). */
       if (docs.branches.length) {
         const stmt = this.db.prepare(`
           INSERT INTO branches (id, name, description, created_at, updated_at, deleted_at)
@@ -53,7 +52,6 @@ export class LocalStorageAdapter implements ILocalStorage {
         }
       }
 
-      /* Milestones after branches and before tasks: they reference branches, and tasks.milestone_id references them. */
       if (docs.milestones.length) {
         const stmt = this.db.prepare(`
           INSERT INTO milestones (id, branch_id, name, description, target_date, order_index, created_at, updated_at, deleted_at)
@@ -160,7 +158,6 @@ export class LocalStorageAdapter implements ILocalStorage {
         }
       }
 
-      /* No FKs: a relation can arrive before its tasks, and sync GC removes task rows on its own schedule. */
       if (docs.relations?.length) {
         const stmt = this.db.prepare(`
           INSERT INTO task_relations (id, blocker_id, blocked_id, created_at, updated_at, deleted_at)
@@ -177,7 +174,6 @@ export class LocalStorageAdapter implements ILocalStorage {
         }
       }
 
-      /* No FKs, for the reason relations have none: a comment can arrive before its task. */
       if (docs.comments?.length) {
         const stmt = this.db.prepare(`
           INSERT INTO task_comments (id, task_id, branch_id, content, kind, provider, created_at, updated_at, deleted_at)
@@ -215,11 +211,11 @@ export class LocalStorageAdapter implements ILocalStorage {
         }
       }
 
-      /* Append-only events: INSERT OR IGNORE (immutable, never updated or deleted). */
       if (docs.events.length) {
         const stmt = this.db.prepare(`
-          INSERT OR IGNORE INTO task_events (id, task_id, branch_id, type, event_date, from_date, to_date, created_at, kind, provider)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT OR IGNORE INTO task_events (id, task_id, branch_id, type, event_date, from_date, to_date, created_at, kind, provider,
+            from_status, to_status, from_priority, to_priority, from_branch_id, to_branch_id, sequence, move_id)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `)
         for (const e of docs.events) {
           stmt.run(
@@ -233,6 +229,14 @@ export class LocalStorageAdapter implements ILocalStorage {
             e.created_at,
             e.kind || "manual",
             e.provider ?? null,
+            e.from_status ?? null,
+            e.to_status ?? null,
+            e.from_priority ?? null,
+            e.to_priority ?? null,
+            e.from_branch_id ?? null,
+            e.to_branch_id ?? null,
+            e.sequence ?? 0,
+            e.move_id ?? null,
           )
         }
       }
@@ -343,7 +347,6 @@ export class LocalStorageAdapter implements ILocalStorage {
           deleteSubtaskStmt.run(id)
         }
       }
-      /* A branch's tags and milestones go with it: both columns are NOT NULL REFERENCES branches(id), so leaving one behind aborts the delete. */
       if (ids.branches?.length) {
         const clearTasksMilestoneStmt = this.db.prepare(
           `UPDATE tasks SET milestone_id = NULL WHERE milestone_id IN (SELECT id FROM milestones WHERE branch_id = ?)`,
@@ -502,6 +505,14 @@ export class LocalStorageAdapter implements ILocalStorage {
       created_at: row.created_at,
       kind: row.kind ?? "manual",
       provider: row.provider ?? null,
+      from_status: row.from_status ?? null,
+      to_status: row.to_status ?? null,
+      from_priority: row.from_priority ?? null,
+      to_priority: row.to_priority ?? null,
+      from_branch_id: row.from_branch_id ?? null,
+      to_branch_id: row.to_branch_id ?? null,
+      sequence: row.sequence ?? 0,
+      move_id: row.move_id ?? null,
     }))
   }
 }

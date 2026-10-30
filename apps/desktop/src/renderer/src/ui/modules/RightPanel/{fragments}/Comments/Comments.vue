@@ -21,7 +21,12 @@ const {events} = useTaskHistory()
 const items = computed<ActivityItem[]>(() => {
   const all: ActivityItem[] = comments.value.map((comment) => ({key: `c:${comment.id}`, at: comment.createdAt, comment}))
   if (!isOnlyComments.value) all.push(...events.value.map((event) => ({key: `e:${event.id}`, at: event.createdAt, event})))
-  return all.sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0))
+  return all.sort((a, b) => {
+    if (a.at !== b.at) return a.at < b.at ? -1 : 1
+    const sequence = (a.event?.sequence ?? 0) - (b.event?.sequence ?? 0)
+    if (sequence) return sequence
+    return a.key < b.key ? -1 : a.key > b.key ? 1 : 0
+  })
 })
 
 function getOnlyCommentsVariant(isSelected: boolean) {
@@ -51,8 +56,7 @@ function openComment(id: TaskComment["id"]) {
 
     <div v-if="!items.length" class="flex flex-col items-center justify-center gap-2 p-4 text-center">
       <BaseIcon name="message" class="text-base-content/15 size-7" />
-      <span class="text-base-content/50 text-sm">No comments yet</span>
-      <span class="text-base-content/40 max-w-60 text-xs leading-snug">Notes from you, from MCP and from the agent land here.</span>
+      <span class="text-base-content/50 text-sm">No activity yet</span>
     </div>
 
     <div v-else class="pt-2">

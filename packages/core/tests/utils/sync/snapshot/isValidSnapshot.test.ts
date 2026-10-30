@@ -71,10 +71,10 @@ describe("isValidSnapshot", () => {
     expect(isValidSnapshot("string")).toBe(false)
   })
 
-  it("accepts version 14 and refuses version 15", () => {
+  it("accepts version 15 and refuses version 16", () => {
     expect(isValidSnapshot({...validSnapshot(), version: 8})).toBe(true)
     expect(isValidSnapshot({...validSnapshot(), version: 9})).toBe(true)
-    expect(isValidSnapshot({...validSnapshot(), version: 14})).toBe(true)
-    expect(isValidSnapshot({...validSnapshot(), version: 15})).toBe(false)
+    expect(isValidSnapshot({...validSnapshot(), version: 15})).toBe(true)
+    expect(isValidSnapshot({...validSnapshot(), version: 16})).toBe(false)
   })
 })

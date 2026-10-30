@@ -39,7 +39,9 @@ function backlog(overrides: Record<string, unknown> = {}) {
 }
 
 function stampCompletionCreatedAt(mac: MacCore, taskId: string, createdAt: string): void {
-  mac.db.prepare(`UPDATE task_events SET created_at = ? WHERE task_id = ? AND type = 'completed'`).run(createdAt, taskId)
+  mac.db
+    .prepare(`UPDATE task_events SET created_at = ? WHERE task_id = ? AND (type = 'completed' OR (type = 'status_changed' AND to_status = 'done'))`)
+    .run(createdAt, taskId)
 }
 
 describe("list_tasks", () => {

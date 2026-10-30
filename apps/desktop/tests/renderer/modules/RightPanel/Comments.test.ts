@@ -113,7 +113,7 @@ describe("Activity", () => {
   it("invites_the_first_note_instead_of_drawing_an_empty_list", async () => {
     await setup([])
 
-    expect(wrapper.text()).toContain("No comments yet")
+    expect(wrapper.text()).toContain("No activity yet")
     expect(wrapper.find("textarea").attributes("placeholder")).toBe("Write a comment…")
   })
 
@@ -134,6 +134,24 @@ describe("Activity", () => {
     expect(text()).toContain("comment c1")
     expect(text()).not.toContain("Created")
     expect(text()).not.toContain("Completed")
+  })
+
+  it("keeps simultaneous category events in a stable sequence and hides them under Only comments", async () => {
+    const createdAt = "2026-01-01T09:00:00.000Z"
+    const makeEvent = (id, type, sequence) => ({id, taskId: "task-1", type, sequence, createdAt})
+    await setup([makeComment("c1", createdAt)], {
+      history: [makeEvent("z", "edited", 2), makeEvent("b", "created", 1), makeEvent("a", "restored", 1)],
+    })
+
+    const text = () => wrapper.text().replace(/\s+/g, " ")
+    expect(text().indexOf("Restored")).toBeLessThan(text().indexOf("Created"))
+    expect(text().indexOf("Created")).toBeLessThan(text().indexOf("Edited"))
+
+    await wrapper.find("[aria-pressed]").trigger("click")
+    expect(text()).toContain("comment c1")
+    expect(text()).not.toContain("Restored")
+    expect(text()).not.toContain("Created")
+    expect(text()).not.toContain("Edited")
   })
 
   it("badges_where_a_comment_came_from_and_leaves_a_hand_written_one_unmarked", async () => {
@@ -220,6 +238,6 @@ describe("Activity", () => {
     await flush()
 
     expect(bridge["comments:delete"]).toHaveBeenCalledWith("c1")
-    expect(wrapper.text()).toContain("No comments yet")
+    expect(wrapper.text()).toContain("No activity yet")
   })
 })

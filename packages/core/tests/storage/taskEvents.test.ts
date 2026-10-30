@@ -2,11 +2,14 @@
 import {mkdtempSync, rmSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import {beforeEach, describe, expect, it} from "vitest"
+import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
 import {getToday} from "@daily/std"
 
 import {createStorageCore} from "../../src/storage/createStorageCore"
+import {BranchModel} from "../../src/storage/models/BranchModel"
+import {MilestoneModel} from "../../src/storage/models/MilestoneModel"
+import {TagModel} from "../../src/storage/models/TagModel"
 import {TaskEventModel} from "../../src/storage/models/TaskEventModel"
 import {TaskModel} from "../../src/storage/models/TaskModel"
 import {TaskEventsService} from "../../src/storage/services/TaskEventsService"
@@ -44,17 +47,18 @@ describe("task activity recording", () => {
     service = new TasksService(taskModel, new TaskEventsService(events))
   })
 
+  afterEach(() => {
+    vi.useRealTimers()
+    db.close()
+  })
+
   it("stamps a created event on the task's day, not calendar-today", async () => {
     const created = await service.createTask(makeTask({content: "## Buy milk\nmore"}))
 
-    const recorded = events.getByTask(created.id)
-    expect(recorded).toHaveLength(1)
-    expect(recorded[0].type).toBe("created")
-    expect(recorded[0].taskId).toBe(created.id)
-    expect(recorded[0].eventDate).toBe(TASK_DAY)
+    expect(events.getByTask(created.id)).toMatchObject([{type: "created", taskId: created.id, eventDate: TASK_DAY}])
   })
 
-  it("TC-8: dates a backlog task's created event on the process's local date when the storage core takes no clock", async () => {
+  it("dates a backlog task's created event on the process's local date when no storage clock is supplied", async () => {
     const root = mkdtempSync(join(tmpdir(), "daily-taskevents-clock-"))
     const clockDb = createTestDatabase()
 
@@ -65,231 +69,304 @@ describe("task activity recording", () => {
         assetsDir: () => join(root, "assets"),
         remoteSyncPath: () => root,
       })
-
       const created = await core.tasksService.createTask(makeTask({status: "backlog", scheduled: null}))
-      const history = await core.tasksService.getHistoryByTask(created.id)
 
-      expect(history).toHaveLength(1)
-      expect(history[0].type).toBe("created")
-      expect(history[0].eventDate).toBe(getToday())
+      expect(await core.tasksService.getHistoryByTask(created.id)).toMatchObject([{type: "created", eventDate: getToday()}])
     } finally {
       clockDb.close()
       rmSync(root, {recursive: true, force: true})
     }
   })
 
-  it("maps status changes to completed / discarded / reactivated on the task's day", async () => {
-    const task = await service.createTask(makeTask())
+  it.each(["update", "drag"])("records the exact old and new values for every status through %s", async (path) => {
+    const task = await service.createTask(makeTask({status: "backlog", scheduled: null}))
+    const statuses = ["backlog", "ready_for_agent", "todo", "in_progress", "ready_to_merge", "done", "cancelled", "backlog"]
 
-    await service.updateTask(task.id, {status: "done"})
-    expect(events.getByTask(task.id)[0].type).toBe("completed")
+    for (const status of statuses.slice(1)) {
+      if (path === "drag") {
+        await service.moveTaskByOrder({taskId: task.id, targetStatus: status, activeDate: TASK_DAY})
+      } else {
+        await service.updateTask(task.id, {status})
+      }
+    }
 
-    await service.updateTask(task.id, {status: "cancelled"})
-    expect(events.getByTask(task.id)[0].type).toBe("discarded")
-
-    await service.updateTask(task.id, {status: "in_progress"})
-    expect(events.getByTask(task.id)[0].type).toBe("reactivated")
+    const changes = (await service.getHistoryByTask(task.id)).filter((event) => event.type === "status_changed").reverse()
+    expect(changes.map((event) => [event.fromStatus, event.toStatus])).toEqual(statuses.slice(1).map((status, index) => [statuses[index], status]))
+    expect(events.getByTask(task.id).some((event) => ["edited", "completed", "discarded", "reactivated"].includes(event.type))).toBe(false)
   })
 
-  it("records a meaningful edit but debounces a second edit within the window", async () => {
+  it("debounces text autosaves until the five-minute boundary", async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-06-23T10:00:00.000Z"))
     const task = await service.createTask(makeTask({content: "A"}))
 
     await service.updateTask(task.id, {content: "B"})
+    vi.advanceTimersByTime(5 * 60 * 1000 - 1)
     await service.updateTask(task.id, {content: "C"})
+    expect(events.getByTask(task.id).filter((event) => event.type === "edited")).toHaveLength(1)
 
-    const edits = events.getByTask(task.id).filter((e) => e.type === "edited")
-    expect(edits).toHaveLength(1)
+    vi.advanceTimersByTime(1)
+    await service.updateTask(task.id, {content: "D"})
+    expect(events.getByTask(task.id).filter((event) => event.type === "edited")).toHaveLength(2)
   })
 
-  it("records an edit when only the priority changes", async () => {
+  it("starts a new text edit burst after an intervening status change", async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-06-23T10:00:00.000Z"))
+    const task = await service.createTask(makeTask({content: "A"}))
+
+    await service.updateTask(task.id, {content: "B"})
+    await service.updateTask(task.id, {status: "ready_to_merge"})
+    await service.updateTask(task.id, {content: "C"})
+
+    expect((await service.getHistoryByTask(task.id)).map((event) => event.type)).toEqual(["edited", "status_changed", "edited", "created"])
+  })
+
+  it("keeps consecutive text edits from different actors as separate authored events", async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-06-23T10:00:00.000Z"))
+    const task = await service.createTask(makeTask({content: "A"}))
+
+    await service.updateTask(task.id, {content: "B"})
+    await service.updateTask(task.id, {content: "C"}, {kind: "mcp", provider: "Codex"})
+
+    const edited = (await service.getHistoryByTask(task.id)).filter((event) => event.type === "edited")
+    expect(edited).toMatchObject([
+      {kind: "mcp", provider: "Codex"},
+      {kind: "manual", provider: null},
+    ])
+  })
+
+  it("records a priority transition independently of edited and without debouncing rapid changes", async () => {
     const task = await service.createTask(makeTask())
 
     await service.updateTask(task.id, {priority: "high"})
+    await service.updateTask(task.id, {priority: "low"})
 
-    expect(events.getByTask(task.id).filter((e) => e.type === "edited")).toHaveLength(1)
+    const history = (await service.getHistoryByTask(task.id)).reverse()
+    expect(history.map((event) => event.type)).toEqual(["created", "priority_changed", "priority_changed"])
+    expect(history.slice(1)).toMatchObject([
+      {fromPriority: "none", toPriority: "high"},
+      {fromPriority: "high", toPriority: "low"},
+    ])
   })
 
-  it("TC-2: an update carrying no source records the event as manual, with no provider", async () => {
-    const task = await service.createTask(makeTask({content: "A"}))
-
-    await service.updateTask(task.id, {content: "B"})
-
-    const edited = events.getByTask(task.id).find((e) => e.type === "edited")
-    expect(edited.kind).toBe("manual")
-    expect(edited.provider).toBeNull()
-  })
-
-  it("does not record a minimize-only update", async () => {
+  it("records no activity for unchanged values, minimization, or order normalization", async () => {
     const task = await service.createTask(makeTask())
-    const before = events.getByTask(task.id).length
 
-    await service.updateTask(task.id, {minimized: true})
+    await service.updateTask(task.id, {
+      content: task.content,
+      status: task.status,
+      priority: task.priority,
+      branchId: task.branchId,
+      scheduled: task.scheduled,
+      tags: task.tags,
+      milestoneId: task.milestoneId,
+      estimatedTime: task.estimatedTime,
+      spentTime: task.spentTime,
+      minimized: true,
+      orderIndex: 200,
+    })
+    await service.moveTaskByOrder({taskId: task.id, targetStatus: task.status, activeDate: TASK_DAY})
 
-    expect(events.getByTask(task.id).length).toBe(before)
+    expect((await service.getHistoryByTask(task.id)).map((event) => event.type)).toEqual(["created"])
   })
 
-  it("records a reschedule as a moved pair across both days, no bare edit", async () => {
+  it("records a reschedule on both affected days without an edited event", async () => {
     const task = await service.createTask(makeTask())
 
     await service.updateTask(task.id, {scheduled: {date: NEXT_DAY, time: "10:00:00", timezone: "UTC"}})
 
-    const moves = events.getByTask(task.id).filter((e) => e.type === "moved")
-    const sourceMoves = moves.filter((e) => e.eventDate === TASK_DAY)
-    const targetMoves = moves.filter((e) => e.eventDate === NEXT_DAY)
-
-    expect(sourceMoves).toHaveLength(1)
-    expect(targetMoves).toHaveLength(1)
-    expect(sourceMoves[0].fromDate).toBe(TASK_DAY)
-    expect(sourceMoves[0].toDate).toBe(NEXT_DAY)
-    expect(targetMoves[0].fromDate).toBe(TASK_DAY)
-    expect(targetMoves[0].toDate).toBe(NEXT_DAY)
-    expect(events.getByTask(task.id).some((e) => e.type === "edited")).toBe(false)
+    const moves = events.getByTask(task.id).filter((event) => event.type === "moved")
+    expect(moves.map((event) => event.eventDate).sort()).toEqual([TASK_DAY, NEXT_DAY])
+    expect(moves).toMatchObject([
+      {fromDate: TASK_DAY, toDate: NEXT_DAY},
+      {fromDate: TASK_DAY, toDate: NEXT_DAY},
+    ])
+    expect(new Set(moves.map((event) => event.moveId)).size).toBe(1)
+    expect(moves[0].moveId).toEqual(expect.any(String))
+    expect(events.getByTask(task.id).some((event) => event.type === "edited")).toBe(false)
   })
 
-  it("records both the move pair and an edit when day and content change together", async () => {
+  it("records all categories from one save and preserves their actor", async () => {
+    const project = new BranchModel(db).createBranch({name: "Release"})
+    const task = await service.createTask(makeTask({content: "A"}))
+    const source = {kind: "mcp", provider: "Codex"}
+
+    await service.updateTask(
+      task.id,
+      {
+        content: "B",
+        status: "ready_to_merge",
+        scheduled: {date: NEXT_DAY, time: "10:00:00", timezone: "UTC"},
+        priority: "urgent",
+        branchId: project.id,
+      },
+      source,
+    )
+
+    const history = (await service.getHistoryByTask(task.id)).filter((event) => event.type !== "created")
+    expect(history.map((event) => event.type).sort()).toEqual(["edited", "moved", "priority_changed", "project_changed", "status_changed"])
+    expect(history.every((event) => event.kind === "mcp" && event.provider === "Codex")).toBe(true)
+    expect(history.find((event) => event.type === "status_changed")).toMatchObject({fromStatus: "in_progress", toStatus: "ready_to_merge"})
+    expect(history.find((event) => event.type === "project_changed")).toMatchObject({fromBranchId: "main", toBranchId: project.id})
+  })
+
+  it("keeps a text change beside each rapid category change even inside the autosave window", async () => {
+    const task = await service.createTask(makeTask({content: "A"}))
+    await service.updateTask(task.id, {content: "B"})
+    await service.updateTask(task.id, {content: "C", status: "ready_for_agent"})
+    await service.updateTask(task.id, {content: "D", priority: "high"})
+    await service.updateTask(task.id, {content: "E", scheduled: {date: NEXT_DAY, time: "10:00:00", timezone: "UTC"}})
+
+    const history = await service.getHistoryByTask(task.id)
+    expect(history.filter((event) => event.type === "edited")).toHaveLength(4)
+    expect(history.filter((event) => event.type === "status_changed")).toHaveLength(1)
+    expect(history.filter((event) => event.type === "priority_changed")).toHaveLength(1)
+    expect(history.filter((event) => event.type === "moved")).toHaveLength(1)
+  })
+
+  it("does not mistake project-induced tag and milestone cleanup for a user edit", async () => {
+    const project = new BranchModel(db).createBranch({name: "Release"})
+    const tag = new TagModel(db).createTag({branchId: "main", name: "Before", color: "#A855F7", deletedAt: null})
+    const milestone = new MilestoneModel(db).createMilestone({branchId: "main", name: "Before", description: "", targetDate: null, deletedAt: null})
+    const task = await service.createTask(makeTask({tags: [tag], milestoneId: milestone.id}))
+
+    await service.updateTask(task.id, {branchId: project.id})
+
+    expect(await service.getTask(task.id)).toMatchObject({branchId: project.id, tags: [], milestoneId: null})
+    expect((await service.getHistoryByTask(task.id)).map((event) => event.type)).toEqual(["project_changed", "created"])
+  })
+
+  it("preserves a real user field edit alongside a project transfer", async () => {
+    const project = new BranchModel(db).createBranch({name: "Release"})
+    const tag = new TagModel(db).createTag({branchId: project.id, name: "After", color: "#A855F7", deletedAt: null})
+    const milestone = new MilestoneModel(db).createMilestone({
+      branchId: project.id,
+      name: "After",
+      description: "",
+      targetDate: null,
+      deletedAt: null,
+    })
+    const task = await service.createTask(makeTask())
+
+    await service.updateTask(task.id, {branchId: project.id, tags: [tag], milestoneId: milestone.id})
+
+    expect(await service.getTask(task.id)).toMatchObject({branchId: project.id, tags: [{id: tag.id}], milestoneId: milestone.id})
+    expect((await service.getHistoryByTask(task.id)).map((event) => event.type).sort()).toEqual(["created", "edited", "project_changed"])
+  })
+
+  it("records direct tag and project operations without duplicating their no-ops", async () => {
+    const project = new BranchModel(db).createBranch({name: "Release"})
+    const tag = new TagModel(db).createTag({branchId: "main", name: "Review", color: "#A855F7", deletedAt: null})
+    const task = await service.createTask(makeTask())
+    const source = {kind: "mcp", provider: "Codex"}
+
+    await service.addTaskTags(task.id, [tag.id])
+    await service.addTaskTags(task.id, [tag.id])
+    await service.removeTaskTags(task.id, [tag.id])
+    await service.removeTaskTags(task.id, [tag.id])
+    await service.moveTaskToBranch(task.id, project.id, source)
+    await service.moveTaskToBranch(task.id, project.id, source)
+
+    const history = await service.getHistoryByTask(task.id)
+    expect(history.map((event) => event.type).sort()).toEqual(["created", "edited", "edited", "project_changed"])
+    expect(history.find((event) => event.type === "project_changed")).toMatchObject({
+      fromBranchId: "main",
+      toBranchId: project.id,
+      kind: "mcp",
+      provider: "Codex",
+    })
+  })
+
+  it("records discrete user field edits independently of text autosave debounce", async () => {
+    const tag = new TagModel(db).createTag({branchId: "main", name: "Review", color: "#A855F7", deletedAt: null})
+    const milestone = new MilestoneModel(db).createMilestone({branchId: "main", name: "Release", description: "", targetDate: null, deletedAt: null})
+    const task = await service.createTask(makeTask())
+    const patches = [
+      {estimatedTime: 60},
+      {spentTime: 30},
+      {scheduled: {date: TASK_DAY, time: "11:00:00", timezone: "UTC"}},
+      {scheduled: {date: TASK_DAY, time: "11:00:00", timezone: "Australia/Brisbane"}},
+      {milestoneId: milestone.id},
+      {tags: [tag]},
+    ]
+
+    for (const patch of patches) await service.updateTask(task.id, patch)
+
+    const history = await service.getHistoryByTask(task.id)
+    expect(history.filter((event) => event.type === "edited")).toHaveLength(patches.length)
+    expect(history.filter((event) => !["edited", "created"].includes(event.type))).toEqual([])
+  })
+
+  it("records manual edits without a provider when no source is supplied", async () => {
     const task = await service.createTask(makeTask({content: "A"}))
 
-    await service.updateTask(task.id, {content: "B", scheduled: {date: NEXT_DAY, time: "10:00:00", timezone: "UTC"}})
+    await service.updateTask(task.id, {content: "B"})
 
-    const taskEvents = events.getByTask(task.id)
-    const targetDay = taskEvents.filter((e) => e.eventDate === NEXT_DAY)
-    expect(targetDay.filter((e) => e.type === "moved")).toHaveLength(1)
-    expect(targetDay.filter((e) => e.type === "edited")).toHaveLength(1)
-    expect(taskEvents.filter((e) => e.eventDate === TASK_DAY && e.type === "moved")).toHaveLength(1)
+    expect(events.getByTask(task.id).find((event) => event.type === "edited")).toMatchObject({kind: "manual", provider: null})
   })
 
-  it("records deleted and restored on the task's day", async () => {
-    const task = await service.createTask(makeTask())
-
-    await service.deleteTask(task.id)
-    expect(events.getByTask(task.id)[0].type).toBe("deleted")
-
-    await service.restoreTask(task.id)
-    expect(events.getByTask(task.id)[0].type).toBe("restored")
-  })
-
-  it("keeps every event of a task visible through a delete and a restore", async () => {
+  it("retains creation, transitions, deletion, and restoration in one task's history", async () => {
     const task = await service.createTask(makeTask())
     await service.updateTask(task.id, {status: "done"})
-
-    const before = events.getByTask(task.id)
-    expect(before.map((e) => e.type).sort()).toEqual(["completed", "created"])
-
     await service.deleteTask(task.id)
-    const afterDelete = events.getByTask(task.id)
-    expect(afterDelete.map((e) => e.type).sort()).toEqual(["completed", "created", "deleted"])
-
     await service.restoreTask(task.id)
-    const afterRestore = events.getByTask(task.id)
-    expect(afterRestore.map((e) => e.type).sort()).toEqual(["completed", "created", "deleted", "restored"])
+
+    const history = await service.getHistoryByTask(task.id)
+    expect(history.map((event) => event.type)).toEqual(["restored", "deleted", "status_changed", "created"])
+    expect(history.every((event) => event.eventDate === TASK_DAY)).toBe(true)
   })
 
-  it("records_TC-1_a_created_event_dated_today_for_a_task_made_in_the_backlog", async () => {
-    const created = await service.createTask(makeTask({status: "backlog", scheduled: null, content: "no day yet"}))
-
-    const history = events.getByTask(created.id)
-    expect(history).toHaveLength(1)
-    expect(history[0].type).toBe("created")
-    expect(history[0].eventDate).toBe(getToday())
-  })
-
-  it("records_TC-2_edited_deleted_and_restored_events_dated_today_for_a_backlog_task", async () => {
+  it("dates undated task edits and lifecycle events on today", async () => {
     const created = await service.createTask(makeTask({status: "backlog", scheduled: null, content: "A"}))
 
     await service.updateTask(created.id, {content: "B"})
     await service.deleteTask(created.id)
     await service.restoreTask(created.id)
 
-    const history = events.getByTask(created.id)
-    expect(history.map((e) => e.type).sort()).toEqual(["created", "deleted", "edited", "restored"])
-    expect(history.every((e) => e.eventDate === getToday())).toBe(true)
+    const history = await service.getHistoryByTask(created.id)
+    expect(history.map((event) => event.type).sort()).toEqual(["created", "deleted", "edited", "restored"])
+    expect(history.every((event) => event.eventDate === getToday())).toBe(true)
   })
 
-  it("records_TC-3_no_event_when_an_active_task_moves_to_the_backlog_by_status_or_by_drag", async () => {
-    const byStatus = await service.createTask(makeTask({content: "by status"}))
-    const byDrag = await service.createTask(makeTask({content: "by drag"}))
-
-    const beforeByStatus = events.getByTask(byStatus.id).length
-    const beforeByDrag = events.getByTask(byDrag.id).length
-
-    await service.updateTask(byStatus.id, {status: "backlog"})
-    await service.moveTaskByOrder({taskId: byDrag.id, targetStatus: "backlog", activeDate: TASK_DAY})
-
-    expect(events.getByTask(byStatus.id)).toHaveLength(beforeByStatus)
-    expect(events.getByTask(byDrag.id)).toHaveLength(beforeByDrag)
-  })
-
-  it("records_TC-4_a_reactivated_event_dated_the_target_day_when_a_backlog_task_moves_to_active", async () => {
-    const task = await service.createTask(makeTask({status: "backlog", scheduled: null, content: "waiting"}))
-
-    await service.moveTaskByOrder({taskId: task.id, targetStatus: "in_progress", activeDate: TASK_DAY})
-
-    const reactivated = events.getByTask(task.id).filter((e) => e.type === "reactivated")
-    expect(reactivated).toHaveLength(1)
-    expect(reactivated[0].eventDate).toBe(TASK_DAY)
-  })
-
-  it("records_TC-5_the_same_events_as_before_this_plan_for_tasks_that_always_had_a_day", async () => {
-    const rescheduled = await service.createTask(makeTask({content: "reschedule me"}))
-    await service.updateTask(rescheduled.id, {scheduled: {date: NEXT_DAY, time: "10:00:00", timezone: "UTC"}})
-    await service.updateTask(rescheduled.id, {status: "done"})
-
-    const rescheduledHistory = events.getByTask(rescheduled.id)
-    const created = rescheduledHistory.filter((e) => e.type === "created")
-    expect(created).toHaveLength(1)
-    expect(created[0].eventDate).toBe(TASK_DAY)
-    const moves = rescheduledHistory.filter((e) => e.type === "moved")
-    expect(moves).toHaveLength(2)
-    expect(moves.every((e) => e.fromDate === TASK_DAY && e.toDate === NEXT_DAY)).toBe(true)
-    const completed = rescheduledHistory.filter((e) => e.type === "completed")
-    expect(completed).toHaveLength(1)
-    expect(completed[0].eventDate).toBe(NEXT_DAY)
-
-    const edited = await service.createTask(makeTask({content: "A"}))
-    await service.updateTask(edited.id, {content: "B"})
-    await service.updateTask(edited.id, {content: "C"})
-    expect(events.getByTask(edited.id).filter((e) => e.type === "edited")).toHaveLength(1)
-
-    const deletedTask = await service.createTask(makeTask({content: "delete me"}))
-    await service.deleteTask(deletedTask.id)
-    await service.restoreTask(deletedTask.id)
-    const deletedHistory = events.getByTask(deletedTask.id)
-    expect(deletedHistory.filter((e) => e.type === "deleted")[0].eventDate).toBe(TASK_DAY)
-    expect(deletedHistory.filter((e) => e.type === "restored")[0].eventDate).toBe(TASK_DAY)
-  })
-
-  it("records_TC-4_one_reactivated_event_dated_the_given_day_when_updateTask_alone_hands_a_backlog_task_a_day", async () => {
-    const task = await service.createTask(makeTask({status: "backlog", scheduled: null, content: "no day yet"}))
+  it("records a status transition and date assignment when scheduling Backlog", async () => {
+    const task = await service.createTask(makeTask({status: "backlog", scheduled: null}))
 
     await service.updateTask(task.id, {scheduled: {date: NEXT_DAY, time: "", timezone: "UTC"}})
 
-    const reactivated = events.getByTask(task.id).filter((e) => e.type === "reactivated")
-    expect(reactivated).toHaveLength(1)
-    expect(reactivated[0].eventDate).toBe(NEXT_DAY)
+    const history = await service.getHistoryByTask(task.id)
+    expect(history.map((event) => event.type).sort()).toEqual(["created", "moved", "status_changed"])
+    expect(history.find((event) => event.type === "status_changed")).toMatchObject({eventDate: NEXT_DAY, fromStatus: "backlog", toStatus: "todo"})
+    expect(history.find((event) => event.type === "moved")).toMatchObject({fromDate: null, toDate: NEXT_DAY})
   })
 
-  it("TC-25: countMovesByTask counts six moves as six, not twelve, and listCompletionsBetween honours a half-open interval", async () => {
+  it("records clearing To Do's day as a move and a transition to Backlog", async () => {
+    const task = await service.createTask(makeTask({status: "todo"}))
+
+    await service.updateTask(task.id, {scheduled: null})
+
+    const history = await service.getHistoryByTask(task.id)
+    expect(history.map((event) => event.type).sort()).toEqual(["created", "moved", "status_changed"])
+    expect(history.find((event) => event.type === "status_changed")).toMatchObject({fromStatus: "todo", toStatus: "backlog"})
+    expect(history.find((event) => event.type === "moved")).toMatchObject({fromDate: TASK_DAY, toDate: null})
+  })
+
+  it("counts six reschedules once each and filters completions over a half-open interval", async () => {
     const wanderer = await service.createTask(makeTask({content: "Wanderer"}))
     const days = ["2026-06-24", "2026-06-25", "2026-06-26", "2026-06-27", "2026-06-28", "2026-06-29"]
-    for (const day of days) {
-      await service.updateTask(wanderer.id, {scheduled: {date: day, time: "10:00:00", timezone: "UTC"}})
-    }
-
-    const counts = events.countMovesByTask()
-    expect(counts[wanderer.id]).toBe(6)
+    for (const day of days) await service.updateTask(wanderer.id, {scheduled: {date: day, time: "10:00:00", timezone: "UTC"}})
+    expect(events.countMovesByTask()[wanderer.id]).toBe(6)
 
     const from = "2026-07-01T00:00:00.000Z"
     const to = "2026-07-02T00:00:00.000Z"
-
     const atFrom = await service.createTask(makeTask({content: "AtFrom"}))
     await service.updateTask(atFrom.id, {status: "done"})
-    db.prepare(`UPDATE task_events SET created_at = ? WHERE task_id = ? AND type = 'completed'`).run(from, atFrom.id)
-
+    db.prepare(`UPDATE task_events SET created_at = ? WHERE task_id = ? AND type = 'status_changed'`).run(from, atFrom.id)
     const atTo = await service.createTask(makeTask({content: "AtTo"}))
     await service.updateTask(atTo.id, {status: "done"})
-    db.prepare(`UPDATE task_events SET created_at = ? WHERE task_id = ? AND type = 'completed'`).run(to, atTo.id)
+    db.prepare(`UPDATE task_events SET created_at = ? WHERE task_id = ? AND type = 'status_changed'`).run(to, atTo.id)
 
-    const completions = events.listCompletionsBetween(from, to)
-    expect(completions.map((c) => c.taskId)).toEqual([atFrom.id])
+    expect(events.listCompletionsBetween(from, to).map((completion) => completion.taskId)).toEqual([atFrom.id])
   })
 })

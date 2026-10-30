@@ -35,15 +35,6 @@ export type MilestoneView = {
 }
 export type AttachmentView = {id: string; name: string; mimeType: string; size: number; onServer: boolean}
 export type TaskLinkView = {id: string; content: string; status: TaskStatus}
-export type TaskEventView = {
-  type: TaskEventType
-  date: ISODate
-  fromDate: ISODate | null
-  toDate: ISODate | null
-  at: ISODateTime
-  kind: ActorKind
-  provider: string | null
-}
 export type CommentView = {
   id: string
   content: string
@@ -159,9 +150,25 @@ export function commentView(comment: TaskComment): CommentView {
   }
 }
 
-/** One subtask as a tool answers it: its text and whether it is checked off. */
 export function subtaskView(subtask: Subtask): SubtaskView {
   return {id: subtask.id, content: subtask.content, done: subtask.done, createdAt: subtask.createdAt, updatedAt: subtask.updatedAt}
+}
+
+type TaskEventView = {
+  type: TaskEventType
+  date: ISODate
+  fromDate: ISODate | null
+  toDate: ISODate | null
+  fromStatus: TaskStatus | null
+  toStatus: TaskStatus | null
+  fromPriority: TaskPriority | null
+  toPriority: TaskPriority | null
+  fromProjectId: string | null
+  toProjectId: string | null
+  sequence: number
+  at: ISODateTime
+  kind: ActorKind
+  provider: string | null
 }
 
 function taskLinkView(task: Task): TaskLinkView {
@@ -174,6 +181,13 @@ function taskEventView(event: TaskEvent): TaskEventView {
     date: event.eventDate,
     fromDate: event.fromDate,
     toDate: event.toDate,
+    fromStatus: event.fromStatus ?? null,
+    toStatus: event.toStatus ?? null,
+    fromPriority: event.fromPriority ?? null,
+    toPriority: event.toPriority ?? null,
+    fromProjectId: event.fromBranchId ?? null,
+    toProjectId: event.toBranchId ?? null,
+    sequence: event.sequence ?? 0,
     at: event.createdAt,
     kind: event.kind,
     provider: event.provider,

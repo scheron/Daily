@@ -341,7 +341,18 @@ export type Day = {
   countDone: number
 }
 
-export type TaskEventType = "created" | "completed" | "discarded" | "reactivated" | "edited" | "deleted" | "restored" | "moved"
+export type TaskEventType =
+  | "created"
+  | "completed"
+  | "discarded"
+  | "reactivated"
+  | "edited"
+  | "deleted"
+  | "restored"
+  | "moved"
+  | "status_changed"
+  | "priority_changed"
+  | "project_changed"
 
 export type TaskEvent = {
   id: string
@@ -351,10 +362,20 @@ export type TaskEvent = {
   type: TaskEventType
   /** The task's day this event belongs to (its scheduled date at event time). */
   eventDate: ISODate
-  /** Move source day; null for non-move events. */
+  /** Previous day; null when a move assigns its first day, or for non-move events. */
   fromDate: ISODate | null
-  /** Move target day; null for non-move events. */
+  /** New day; null when a move clears its day, or for non-move events. */
   toDate: ISODate | null
+  fromStatus?: TaskStatus | null
+  toStatus?: TaskStatus | null
+  fromPriority?: TaskPriority | null
+  toPriority?: TaskPriority | null
+  fromBranchId?: Branch["id"] | null
+  toBranchId?: Branch["id"] | null
+  /** Stable ordering for events recorded at the same instant. */
+  sequence?: number
+  /** Shared by the two day-specific rows of one move. */
+  moveId?: string | null
   /** Instant of the action — used for ordering and time-of-day display. */
   createdAt: ISODateTime
   kind: ActorKind

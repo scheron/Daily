@@ -13,11 +13,11 @@ describe("assertKnownSnapshotVersion", () => {
 
   it("exposes the remote version on the error", () => {
     try {
-      assertKnownSnapshotVersion({version: 15})
+      assertKnownSnapshotVersion({version: 16})
       expect.unreachable()
     } catch (err) {
       expect(err).toBeInstanceOf(SnapshotVersionAheadError)
-      expect((err as SnapshotVersionAheadError).remoteVersion).toBe(15)
+      expect((err as SnapshotVersionAheadError).remoteVersion).toBe(16)
     }
   })
 
@@ -33,19 +33,19 @@ describe("assertKnownSnapshotVersion", () => {
     expect(() => assertKnownSnapshotVersion({version: "4"})).not.toThrow()
   })
 
-  it("accepts version 14 and aborts with SnapshotVersionAheadError for version 15", () => {
-    expect(() => assertKnownSnapshotVersion({version: 14})).not.toThrow()
-    expect(() => assertKnownSnapshotVersion({version: 15})).toThrow(SnapshotVersionAheadError)
+  it("accepts version 15 and aborts with SnapshotVersionAheadError for version 16", () => {
+    expect(() => assertKnownSnapshotVersion({version: 15})).not.toThrow()
+    expect(() => assertKnownSnapshotVersion({version: 16})).toThrow(SnapshotVersionAheadError)
   })
 
-  it("TC-8: buildSnapshot writes version 14, and assertKnownSnapshotVersion accepts that version but aborts on 15", () => {
+  it("TC-8: buildSnapshot writes version 15, and assertKnownSnapshotVersion accepts that version but aborts on 16", () => {
     const emptyDocs = {tasks: [], tags: [], branches: [], milestones: [], relations: [], comments: [], subtasks: [], files: [], events: []}
     const built = buildSnapshot(emptyDocs)
 
-    expect(built.version).toBe(14)
-    expect(KNOWN_SNAPSHOT_VERSION).toBe(14)
+    expect(built.version).toBe(15)
+    expect(KNOWN_SNAPSHOT_VERSION).toBe(15)
     expect(() => assertKnownSnapshotVersion({version: built.version})).not.toThrow()
-    expect(() => assertKnownSnapshotVersion({version: 15})).toThrow(SnapshotVersionAheadError)
+    expect(() => assertKnownSnapshotVersion({version: 16})).toThrow(SnapshotVersionAheadError)
   })
 })
 

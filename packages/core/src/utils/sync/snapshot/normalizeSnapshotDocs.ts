@@ -6,7 +6,7 @@ import type {SnapshotDocs, SnapshotFile, SnapshotTask} from "@daily/protocol"
 
 /**
  * Fills what an older snapshot does not carry: the `milestones`, `relations`, `comments` and `subtasks` collections, a
- * task's `milestone_id` and `priority` (`none`), a tag's `branch_id`, a branch's `description`, and an event's `kind`/`provider`.
+ * task's `milestone_id` and `priority` (`none`), a tag's `branch_id`, a branch's `description`, and an event's actor, change metadata and stable ordering.
  * Drops what an older snapshot carries and this one no longer has — the `settings` document, local to
  * each device since v7, and a task's `attachments`, folded into its `content` as file links since v10.
  * Called on both sides of a merge so no reader downstream has to defend itself.
@@ -33,16 +33,22 @@ export function normalizeSnapshotDocs(docs: SnapshotDocs): SnapshotDocs {
     relations: docs.relations ?? [],
     comments: docs.comments ?? [],
     subtasks: docs.subtasks ?? [],
-    events: (docs.events ?? []).map((event) => ({...event, kind: event.kind ?? "manual", provider: event.provider ?? null})),
+    events: (docs.events ?? []).map((event) => ({
+      ...event,
+      kind: event.kind ?? "manual",
+      provider: event.provider ?? null,
+      from_status: event.from_status ?? null,
+      to_status: event.to_status ?? null,
+      from_priority: event.from_priority ?? null,
+      to_priority: event.to_priority ?? null,
+      from_branch_id: event.from_branch_id ?? null,
+      to_branch_id: event.to_branch_id ?? null,
+      sequence: event.sequence ?? 0,
+      move_id: event.move_id ?? null,
+    })),
   }
 }
 
-/**
- * A pre-v10 task carries its files as an `attachments` id list rather than links in `content`.
- * Each id not already mentioned in `content` is appended as `![name](daily://file/id)`, in the
- * order it appears; an id with no matching entry in `files` is dropped, since there is no name to
- * link it with. `attachments` itself never survives, mentioned or not.
- */
 function foldAttachmentsIntoContent(task: SnapshotTask, files: SnapshotFile[]): SnapshotTask {
   const {attachments, ...rest} = task as SnapshotTask & {attachments?: string[]}
   if (!attachments?.length) return rest as SnapshotTask

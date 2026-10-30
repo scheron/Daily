@@ -7,6 +7,8 @@ export type TaskColumn = {
   label: string
   emptyLabel: string
   icon: IconName
+  textClass: string
+  cardBorderClass: string
   titleClass: string
   counterClass: string
   buttonVariant: ButtonColorVariant

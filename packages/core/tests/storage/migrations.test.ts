@@ -656,6 +656,7 @@ describe("migrations", () => {
       expect(task).toBeDefined()
       expect(task.content).toBe("Keep me")
 
+      expect(rollbackLastMigration(db)).toBe(21)
       expect(rollbackLastMigration(db)).toBe(20)
       expect(rollbackLastMigration(db)).toBe(19)
       rollbackLastMigration(db)
@@ -731,6 +732,7 @@ describe("migrations", () => {
       seedComment(db, "typed", null)
       runMigrations(db)
 
+      expect(rollbackLastMigration(db)).toBe(21)
       expect(rollbackLastMigration(db)).toBe(20)
       expect(rollbackLastMigration(db)).toBe(19)
       rollbackLastMigration(db)
@@ -812,6 +814,7 @@ describe("migrations", () => {
       const task = db.prepare("SELECT * FROM tasks WHERE id = 't1'").get()
       expect(task.content).toBe("Keep me")
 
+      expect(rollbackLastMigration(db)).toBe(21)
       expect(rollbackLastMigration(db)).toBe(20)
       expect(rollbackLastMigration(db)).toBe(19)
       rollbackLastMigration(db)
@@ -954,6 +957,7 @@ describe("migrations", () => {
 
       expect(db.prepare("SELECT priority FROM tasks WHERE id = 't1'").get().priority).toBe("none")
 
+      expect(rollbackLastMigration(db)).toBe(21)
       expect(rollbackLastMigration(db)).toBe(20)
       expect(rollbackLastMigration(db)).toBe(19)
       rollbackLastMigration(db)
@@ -1004,7 +1008,11 @@ it("upgrades v17 statuses and preserves task fields and associations across reop
   runMigrations(db)
   expect(db.prepare("SELECT * FROM tasks WHERE id = 't1'").get()).toEqual({...before, status: "in_progress"})
   expect(db.prepare("SELECT status FROM tasks WHERE id = 't2'").get().status).toBe("cancelled")
-  for (const [table, rows] of related) expect(db.prepare(`SELECT * FROM ${table}`).all()).toEqual(rows)
+  for (const [table, rows] of related) {
+    const loaded = db.prepare(`SELECT * FROM ${table}`).all()
+    if (table === "task_events") expect(loaded).toMatchObject(rows)
+    else expect(loaded).toEqual(rows)
+  }
   for (const status of ["backlog", "ready_for_agent", "in_progress", "ready_to_merge", "done", "cancelled"]) {
     expect(() => db.prepare("UPDATE tasks SET status = ? WHERE id = 't2'").run(status)).not.toThrow()
   }
@@ -1014,7 +1022,11 @@ it("upgrades v17 statuses and preserves task fields and associations across reop
   db.pragma("foreign_keys = ON")
   runMigrations(db)
   expect(db.prepare("SELECT status FROM tasks WHERE id = 't1'").get().status).toBe("in_progress")
-  for (const [table, rows] of related) expect(db.prepare(`SELECT * FROM ${table}`).all()).toEqual(rows)
+  for (const [table, rows] of related) {
+    const loaded = db.prepare(`SELECT * FROM ${table}`).all()
+    if (table === "task_events") expect(loaded).toMatchObject(rows)
+    else expect(loaded).toEqual(rows)
+  }
   expect(db.prepare("PRAGMA foreign_key_check").all()).toEqual([])
   db.close()
   rmSync(directory, {recursive: true, force: true})
@@ -1048,6 +1060,7 @@ it("v019 adds the subtasks table to a v018 database, leaves tasks untouched and 
   ).toEqual(["id", "task_id", "content", "done", "order_key", "created_at", "updated_at", "deleted_at"])
   expect(db.prepare("SELECT content FROM tasks WHERE id = 't1'").get().content).toBe("Keep me")
 
+  expect(rollbackLastMigration(db)).toBe(21)
   expect(rollbackLastMigration(db)).toBe(20)
   expect(rollbackLastMigration(db)).toBe(19)
   expect(db.prepare("SELECT name FROM sqlite_master WHERE name = 'subtasks'").all()).toEqual([])
@@ -1103,9 +1116,13 @@ it("v020 preserves every v019 task and related row, stores To Do across reopenin
       db.prepare(`SELECT * FROM ${table}`).all(),
     ])
     runMigrations(db)
-    expect(getAppliedMigrations(db).at(-1).version).toBe(20)
+    expect(getAppliedMigrations(db).at(-1).version).toBe(21)
     expect(db.prepare("SELECT * FROM tasks ORDER BY id").all()).toEqual(before)
-    for (const [table, rows] of related) expect(db.prepare(`SELECT * FROM ${table}`).all()).toEqual(rows)
+    for (const [table, rows] of related) {
+      const loaded = db.prepare(`SELECT * FROM ${table}`).all()
+      if (table === "task_events") expect(loaded).toMatchObject(rows)
+      else expect(loaded).toEqual(rows)
+    }
     db.prepare("INSERT INTO tasks (id, scheduled_date, created_at, updated_at) VALUES ('new', '2026-10-31', ?, ?)").run(now, now)
     expect(db.prepare("SELECT status FROM tasks WHERE id = 'new'").get().status).toBe("todo")
     db.close()
@@ -1114,13 +1131,53 @@ it("v020 preserves every v019 task and related row, stores To Do across reopenin
     runMigrations(db)
     expect(db.prepare("SELECT status FROM tasks WHERE id = 'new'").get().status).toBe("todo")
     expect(db.prepare("PRAGMA foreign_key_check").all()).toEqual([])
+    expect(rollbackLastMigration(db)).toBe(21)
     expect(rollbackLastMigration(db)).toBe(20)
     expect(db.prepare("SELECT status FROM tasks WHERE id = 'new'").get().status).toBe("in_progress")
     expect(db.prepare("SELECT * FROM tasks WHERE id != 'new' ORDER BY id").all()).toEqual(before)
-    for (const [table, rows] of related) expect(db.prepare(`SELECT * FROM ${table}`).all()).toEqual(rows)
+    for (const [table, rows] of related) {
+      const loaded = db.prepare(`SELECT * FROM ${table}`).all()
+      if (table === "task_events") expect(loaded).toMatchObject(rows)
+      else expect(loaded).toEqual(rows)
+    }
     expect(() => db.prepare("UPDATE tasks SET status = 'todo' WHERE id = 'new'").run()).toThrow()
   } finally {
     db.close()
     rmSync(directory, {recursive: true, force: true})
+  }
+})
+
+it("v021 preserves legacy activity without invented changes and removes only its new columns on rollback", () => {
+  const db = new Database(":memory:")
+  try {
+    runMigrations(db)
+    expect(rollbackLastMigration(db)).toBe(21)
+    db.prepare("INSERT INTO task_events (id, task_id, branch_id, type, event_date, created_at, kind, provider) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run(
+      "legacy",
+      "t1",
+      "main",
+      "reactivated",
+      "2026-10-31",
+      "2026-10-31T00:00:00Z",
+      "mcp",
+      "Codex",
+    )
+    const before = db.prepare("SELECT * FROM task_events").all()
+    runMigrations(db)
+    expect(db.prepare("SELECT * FROM task_events").get()).toEqual({
+      ...before[0],
+      from_status: null,
+      to_status: null,
+      from_priority: null,
+      to_priority: null,
+      from_branch_id: null,
+      to_branch_id: null,
+      sequence: 0,
+      move_id: null,
+    })
+    expect(rollbackLastMigration(db)).toBe(21)
+    expect(db.prepare("SELECT * FROM task_events").all()).toEqual(before)
+  } finally {
+    db.close()
   }
 })

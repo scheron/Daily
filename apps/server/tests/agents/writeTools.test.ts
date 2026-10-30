@@ -277,7 +277,9 @@ describe("save_task", () => {
       const doneResult = await call({store: seeded.store}, agent, saveTaskTool, {id: doneId, content: "Finish me"})
       const moveResult = await call({store: seeded.store}, agent, saveTaskTool, {id: moveId, content: "Move me"})
 
-      expect(doneResult.task.history.some((e: any) => e.type === "completed")).toBe(true)
+      expect(doneResult.task.history).toEqual(
+        expect.arrayContaining([expect.objectContaining({type: "status_changed", fromStatus: "in_progress", toStatus: "done"})]),
+      )
       expect(moveResult.task.history.some((e: any) => e.type === "moved")).toBe(true)
     } finally {
       seeded.close()

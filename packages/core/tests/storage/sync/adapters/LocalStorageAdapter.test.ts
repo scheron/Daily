@@ -65,7 +65,7 @@ describe("LocalStorageAdapter", () => {
     db.close()
   })
 
-  it("imports legacy snapshot statuses through merge and SQLite and publishes v14 with the same task fields", async () => {
+  it("imports legacy snapshot statuses through merge and SQLite and publishes v15 with the same task fields", async () => {
     insertTask(db, "legacy-active", "Keep content", {date: "2026-10-29"})
     insertTask(db, "legacy-discarded", "Keep cancellation", {status: "cancelled", date: "2026-10-28"})
     insertTag(db, "legacy-tag", "Keep tag")
@@ -78,10 +78,10 @@ describe("LocalStorageAdapter", () => {
     await adapter.upsertDocs(merged.toUpsert)
     const restored = await adapter.loadAllDocs()
     expect(restored.tasks).toEqual(current.tasks)
-    expect(buildSnapshot(restored).version).toBe(14)
+    expect(buildSnapshot(restored).version).toBe(15)
   })
 
-  it("round-trips To Do with its tags and subtask through a v14 snapshot into another database", async () => {
+  it("round-trips To Do with its tags and subtask through a v15 snapshot into another database", async () => {
     insertTask(db, "t1", "Parent", {status: "todo"})
     insertTag(db, "todo-tag", "Planned")
     linkTaskTag(db, "t1", "todo-tag")
@@ -98,7 +98,7 @@ describe("LocalStorageAdapter", () => {
     await other.upsertDocs(snapshot.docs)
 
     const restored = await other.loadAllDocs()
-    expect(snapshot.version).toBe(14)
+    expect(snapshot.version).toBe(15)
     expect(restored.tasks).toEqual(snapshot.docs.tasks)
     expect(restored.tasks[0]).toMatchObject({status: "todo", scheduled_date: "2026-03-25", tags: ["todo-tag"]})
     expect(restored.subtasks).toEqual(snapshot.docs.subtasks)

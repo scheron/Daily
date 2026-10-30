@@ -26,7 +26,23 @@ describe("normalizeSnapshotDocs", () => {
     const normalized = normalizeSnapshotDocs(docs)
 
     expect(normalized.events).toEqual([
-      {id: "e1", task_id: "t1", branch_id: "main", type: "created", event_date: "2026-01-01", kind: "manual", provider: null},
+      {
+        id: "e1",
+        task_id: "t1",
+        branch_id: "main",
+        type: "created",
+        event_date: "2026-01-01",
+        kind: "manual",
+        provider: null,
+        from_status: null,
+        to_status: null,
+        from_priority: null,
+        to_priority: null,
+        from_branch_id: null,
+        to_branch_id: null,
+        sequence: 0,
+        move_id: null,
+      },
     ])
   })
 })
@@ -37,7 +53,7 @@ it("upgrades old task status keys without changing dates, order, content or even
   const normalized = normalizeSnapshotDocs(legacyDocs({tasks: [task, {...task, id: "t2", status: "discarded"}], events: [event]}))
   expect(normalized.tasks[0]).toMatchObject({...task, status: "in_progress"})
   expect(normalized.tasks[1].status).toBe("cancelled")
-  expect(normalized.events).toEqual([event])
+  expect(normalized.events[0]).toMatchObject({...event, from_status: null, to_status: null, sequence: 0})
 })
 
 it("reads a snapshot from before subtasks as having none", () => {
