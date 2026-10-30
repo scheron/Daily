@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.36.0 - 2026-10-31
+
+### ✨ New Features
+
+- **Activity** — changes to a task's status, day, priority and project each get their own entry, showing the previous and new values.
+  - Changes made together stay in order, including after sync. Existing history is preserved.
+  - Agents and the Daily Assistant can read these changes too.
+
+### 🎨 Improvements
+
+- **Tooltips** — controls use Daily's tooltips, and hovering a comment or activity timestamp shows its full local date and time.
+- **Tags** — compact cards leave more room for tags, and +N opens the hidden tags in a coloured popover. Shorter tags stay visible when a longer one does not fit.
+- **Sync** — update every Mac for the new sync format. Upgrade a self-hosted Daily Sync Server first.
+
+### 🐛 Bug Fixes
+
+- **Comment images** — images referenced only by task comments are retained during file cleanup.
+
+---
+
 ## v0.35.0 - 2026-10-31
 
 ### ✨ New Features
