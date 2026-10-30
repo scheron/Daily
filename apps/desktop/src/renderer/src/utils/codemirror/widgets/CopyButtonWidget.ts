@@ -13,7 +13,6 @@ export class CopyButtonWidget extends WidgetType {
     const button = document.createElement("button")
     button.type = "button"
     button.className = "cm-code-copy"
-    button.title = "Copy code"
     button.setAttribute("aria-label", "Copy code")
     button.setAttribute("contenteditable", "false")
     button.innerHTML = iconMarkup("copy")

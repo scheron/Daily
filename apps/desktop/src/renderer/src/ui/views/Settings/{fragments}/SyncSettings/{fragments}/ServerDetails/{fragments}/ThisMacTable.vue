@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import {toDateLabel} from "@daily/std"
+import {useNow} from "@vueuse/core"
+
+import {toDateLabel, toLocaleDateTime} from "@daily/std"
 
 import BaseIcon from "@/ui/base/BaseIcon"
 import AgentRow from "./AgentRow.vue"
@@ -7,6 +9,8 @@ import AgentRow from "./AgentRow.vue"
 import type {ServerAgentView, ServerBindingView} from "@daily/protocol"
 
 defineProps<{binding: ServerBindingView; agents: ServerAgentView[]}>()
+
+const now = useNow({interval: 1000})
 </script>
 
 <template>
@@ -28,8 +32,10 @@ defineProps<{binding: ServerBindingView; agents: ServerAgentView[]}>()
             <span class="text-accent bg-accent/14 rounded px-1.5 py-1 text-[10px] font-medium leading-none"> This Mac </span>
           </div>
         </td>
-        <td class="border-base-300 text-base-content/60 border-t py-[9px] pr-2.5 text-xs">just now</td>
-        <td class="border-base-300 text-base-content/60 border-t py-[9px] pr-2.5 text-xs">{{ toDateLabel(binding.boundAt, {short: true}) }}</td>
+        <td v-tooltip="toLocaleDateTime(now)" class="border-base-300 text-base-content/60 border-t py-[9px] pr-2.5 text-xs">just now</td>
+        <td v-tooltip="toLocaleDateTime(binding.boundAt)" class="border-base-300 text-base-content/60 border-t py-[9px] pr-2.5 text-xs">
+          {{ toDateLabel(binding.boundAt, {short: true}) }}
+        </td>
         <td class="border-base-300 border-t py-[9px] pr-0 text-right"></td>
       </tr>
       <AgentRow v-for="agent in agents" :key="agent.id" :agent="agent" />

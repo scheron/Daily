@@ -42,6 +42,7 @@ onBeforeUnmount(() => stopListeningMenu())
       <li
         v-for="(row, index) in menu.rows"
         :key="index"
+        v-tooltip="row.tooltip"
         role="option"
         :class="getCompletionRowClass(row)"
         :aria-selected="index === menu.selected ? 'true' : undefined"

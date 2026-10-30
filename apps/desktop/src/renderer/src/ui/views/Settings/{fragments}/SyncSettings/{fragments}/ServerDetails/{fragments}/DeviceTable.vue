@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {toasts} from "vue-toasts-lite"
 
-import {toDateLabel, toRelativeTime} from "@daily/std"
+import {toDateLabel, toLocaleDateTime, toRelativeTime} from "@daily/std"
 
 import {useSyncServerStore} from "@/stores/syncServer.store"
 import BaseButton from "@/ui/base/BaseButton"
@@ -56,8 +56,15 @@ async function onRevoke(deviceId: string) {
               </span>
             </div>
           </td>
-          <td class="border-base-300 text-base-content/60 border-t py-[9px] pr-2.5 text-xs">{{ lastSeenLabel(device) }}</td>
-          <td class="border-base-300 text-base-content/60 border-t py-[9px] pr-2.5 text-xs">{{ toDateLabel(device.addedAt, {short: true}) }}</td>
+          <td
+            v-tooltip="device.lastSeenAt ? toLocaleDateTime(device.lastSeenAt) : ''"
+            class="border-base-300 text-base-content/60 border-t py-[9px] pr-2.5 text-xs"
+          >
+            {{ lastSeenLabel(device) }}
+          </td>
+          <td v-tooltip="toLocaleDateTime(device.addedAt)" class="border-base-300 text-base-content/60 border-t py-[9px] pr-2.5 text-xs">
+            {{ toDateLabel(device.addedAt, {short: true}) }}
+          </td>
           <td class="border-base-300 border-t py-[9px] pr-0 text-right">
             <div class="flex h-8 items-center justify-end">
               <ConfirmPopup

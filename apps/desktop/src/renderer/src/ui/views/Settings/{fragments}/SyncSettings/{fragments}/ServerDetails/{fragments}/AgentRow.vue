@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {toasts} from "vue-toasts-lite"
 
-import {toDateLabel, toRelativeTime} from "@daily/std"
+import {toDateLabel, toLocaleDateTime, toRelativeTime} from "@daily/std"
 
 import {useSyncServerStore} from "@/stores/syncServer.store"
 import BaseButton from "@/ui/base/BaseButton"
@@ -33,10 +33,15 @@ async function onRevoke() {
         <span class="text-base-content/85">{{ agent.name }}</span>
       </div>
     </td>
-    <td class="border-base-300/45 text-base-content/60 border-t py-[5px] pr-2.5 text-xs">
+    <td
+      v-tooltip="agent.lastUsedAt ? toLocaleDateTime(agent.lastUsedAt) : ''"
+      class="border-base-300/45 text-base-content/60 border-t py-[5px] pr-2.5 text-xs"
+    >
       {{ agent.lastUsedAt ? toRelativeTime(agent.lastUsedAt) : "—" }}
     </td>
-    <td class="border-base-300/45 text-base-content/60 border-t py-[5px] pr-2.5 text-xs">{{ toDateLabel(agent.connectedAt, {short: true}) }}</td>
+    <td v-tooltip="toLocaleDateTime(agent.connectedAt)" class="border-base-300/45 text-base-content/60 border-t py-[5px] pr-2.5 text-xs">
+      {{ toDateLabel(agent.connectedAt, {short: true}) }}
+    </td>
     <td class="border-base-300/45 border-t py-[5px] pr-0 text-right">
       <div class="flex h-8 items-center justify-end">
         <ConfirmPopup

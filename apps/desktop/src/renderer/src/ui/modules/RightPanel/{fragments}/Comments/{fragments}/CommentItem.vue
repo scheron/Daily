@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {toRelativeTime} from "@daily/std"
+import {toLocaleDateTime, toRelativeTime} from "@daily/std"
 
 import BaseButton from "@/ui/base/BaseButton"
 import MarkdownContent from "@/ui/common/misc/MarkdownContent.vue"
@@ -18,7 +18,7 @@ const emit = defineEmits<{open: []; remove: []}>()
     <div class="flex h-5 items-center gap-1.5">
       <CommentSourceBadge :kind="comment.kind" :provider="comment.provider" />
 
-      <span class="text-base-content/40 text-xs">{{ toRelativeTime(comment.createdAt) }}</span>
+      <span v-tooltip="toLocaleDateTime(comment.createdAt)" class="text-base-content/40 text-xs">{{ toRelativeTime(comment.createdAt) }}</span>
 
       <div class="ml-auto flex gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
         <BaseButton variant="ghost-muted" icon="pencil" size="xs" tooltip="Edit" @click="emit('open')" />

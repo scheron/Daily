@@ -9,7 +9,7 @@ export type QuickTaskHotkeyState = {running: boolean; active: string | null}
 
 /** What the panel's editor shows in its `/` menu: the rows, the highlighted one, and the caret's x in the panel window's coordinates. */
 export type QuickTaskMenu = {
-  rows: Array<{label: string; icon?: string; iconColor?: string; color?: string; tone?: "remove"}>
+  rows: Array<{label: string; tooltip?: string; icon?: string; iconColor?: string; color?: string; tone?: "remove"}>
   selected: number
   caretX: number
 }

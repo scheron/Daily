@@ -267,7 +267,7 @@ describe("TaskCard — the crumb", () => {
         .findAll("use")
         .map((icon) => icon.attributes("href")),
     ).toEqual(["#project", "#chevron-right"])
-    expect(crumb().find('[title="Leki"]').text()).toBe("Leki")
+    expect(crumb().find("span.truncate").text()).toBe("Leki")
     expect(crumb().text()).toBe("LekiLaunch")
     expect(crumb().find("svg path").exists()).toBe(true)
   })

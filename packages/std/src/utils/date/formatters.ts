@@ -92,12 +92,12 @@ export function toLocaleDateRange(range: [Date, Date | null], locale: string = "
 
 /**
  * Formats a date to a locale date time
- * @param date - The date to format
+ * @param date - The date, ISO datetime, or millisecond timestamp to format in local time
  * @param locale - The locale to format the date
  * @returns The formatted date time
- * @example toLocaleDateTime("2021-01-01") // "1/1/2021 12:00:00"
+ * @example toLocaleDateTime(new Date(2021, 0, 1)) // "01 Jan 2021 00:00:00"
  */
-export function toLocaleDateTime(date: Date, locale: string = "en-US") {
+export function toLocaleDateTime(date: Date | string | number, locale: string = "en-US") {
   const d = date instanceof Date ? date : new Date(date)
   return DateTime.fromJSDate(d).toFormat("dd MMM yyyy HH:mm:ss", {locale})
 }

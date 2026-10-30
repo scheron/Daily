@@ -2,7 +2,7 @@
 import {computed} from "vue"
 import {toasts} from "vue-toasts-lite"
 
-import {toLocaleTime} from "@daily/std"
+import {toLocaleDateTime, toLocaleTime} from "@daily/std"
 
 import {useCopyToClipboard} from "@/composables/useCopyToClipboard"
 import {useAiStore} from "@/stores/ai"
@@ -65,7 +65,7 @@ function getRootClasses(isUser: boolean) {
   <div :class="getRootClasses(isUser)">
     <div v-if="!isUser" class="group flex w-full gap-3">
       <div class="min-w-0 flex-1">
-        <div class="ai-message-content flex flex-col gap-2 text-sm select-text">
+        <div class="ai-message-content flex select-text flex-col gap-2 text-sm">
           <template v-for="(block, i) in blocks" :key="i">
             <MessageReasoning
               v-if="block.kind === 'reasoning'"
@@ -88,7 +88,7 @@ function getRootClasses(isUser: boolean) {
         </div>
 
         <div v-if="!isStreaming" class="mt-1 flex items-center gap-1.5">
-          <span class="text-base-content/30 text-[10px]">{{ formattedTime }}</span>
+          <span v-tooltip="toLocaleDateTime(message.timestamp)" class="text-base-content/30 text-[10px]">{{ formattedTime }}</span>
           <BaseButton
             v-if="hasFinalContent"
             variant="faint"
@@ -104,12 +104,12 @@ function getRootClasses(isUser: boolean) {
 
     <div v-else class="group max-w-[85%]">
       <div class="bg-base-200 border-base-300 rounded-2xl rounded-br-sm border px-3.5 py-2">
-        <p class="text-sm break-words whitespace-pre-wrap select-text">{{ message.content }}</p>
+        <p class="select-text whitespace-pre-wrap break-words text-sm">{{ message.content }}</p>
       </div>
       <div class="mt-1 flex items-center justify-end gap-1.5">
         <BaseButton v-if="canRetry" variant="faint" icon="refresh" size="xs" @click="$emit('retry')" />
         <BaseButton variant="faint" icon="copy" size="xs" tooltip="Copy" class="opacity-0 transition group-hover:opacity-100" @click="copyMessage" />
-        <span class="text-base-content/30 text-[10px]">{{ formattedTime }}</span>
+        <span v-tooltip="toLocaleDateTime(message.timestamp)" class="text-base-content/30 text-[10px]">{{ formattedTime }}</span>
       </div>
     </div>
   </div>

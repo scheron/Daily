@@ -2,6 +2,8 @@
 import {computed, ref, watch} from "vue"
 import {useIntervalFn} from "@vueuse/core"
 
+import {toLocaleDateTime} from "@daily/std"
+
 import {useSyncServerStore} from "@/stores/syncServer.store"
 import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
@@ -116,7 +118,7 @@ watch(isPolling, (value) => (value ? resume() : pause()), {immediate: true})
       </div>
 
       <div class="flex shrink-0 items-center gap-2.5">
-        <span :class="countdownClass">
+        <span v-tooltip="expiresAt ? toLocaleDateTime(expiresAt) : ''" :class="countdownClass">
           <BaseIcon name="spinner-arc" class="size-3.5 animate-spin" />
           {{ countdownLabel }} left
         </span>

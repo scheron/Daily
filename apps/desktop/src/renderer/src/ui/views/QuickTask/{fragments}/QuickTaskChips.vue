@@ -33,6 +33,10 @@ const milestoneName = computed(() => (props.task.milestoneId ? (milestonesStore.
 const priorityLevel = computed(() => getPriorityLevel(props.task.priority))
 const statusView = computed(() => getStatusView(props.task.status))
 const dateLabel = computed(() => (props.task.scheduled ? getDateLabel(props.task.scheduled.date) : ""))
+const dateTooltip = computed(() => {
+  const scheduled = props.task.scheduled
+  return scheduled ? `${toDateLabel(scheduled.date)}, ${scheduled.time} (${scheduled.timezone})` : ""
+})
 const estimateLabel = computed(() => toShortDurationLabel(props.task.estimatedTime))
 const tags = computed(() => sortTags(props.task.tags))
 
@@ -97,7 +101,7 @@ function removeTag(tag: Tag) {
       </BaseButton>
     </span>
 
-    <span v-if="task.scheduled" data-chip="date" :class="getChipClasses()">
+    <span v-if="task.scheduled" v-tooltip="dateTooltip" data-chip="date" :class="getChipClasses()">
       <BaseIcon name="calendar" class="size-3.5" />
       <span>{{ dateLabel }}</span>
       <BaseButton variant="chip-remove" aria-label="Remove date" @click="emit('patch', {scheduled: null})">

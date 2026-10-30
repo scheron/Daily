@@ -87,10 +87,10 @@ function getListClasses(isCollapsed: boolean) {
   <div :data-column-status="column.status" :class="getContainerClasses(collapsed, isCompact)" :style="containerStyle">
     <button
       v-if="collapsed"
+      v-tooltip="`${column.label}: click to expand, drag to reorder`"
       type="button"
       data-column-drag-handle
       aria-expanded="false"
-      :title="`${column.label}: click to expand, drag to reorder`"
       :aria-label="`${column.label} column, ${tasksCount} tasks`"
       :class="getRailClasses(column.titleClass)"
       @click="onToggle"
@@ -104,10 +104,10 @@ function getListClasses(isCollapsed: boolean) {
 
     <button
       v-else
+      v-tooltip="`${column.label}: click to collapse, drag to reorder`"
       type="button"
       data-column-drag-handle
       aria-expanded="true"
-      :title="`${column.label}: click to collapse, drag to reorder`"
       :class="getHeaderClasses(column.titleClass)"
       @click="onToggle"
     >

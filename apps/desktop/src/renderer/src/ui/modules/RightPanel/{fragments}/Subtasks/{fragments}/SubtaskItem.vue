@@ -88,7 +88,7 @@ onBeforeUnmount(() => (isSubtaskEditorOpen.value = false))
       @blur="commit"
     />
 
-    <button v-else type="button" class="min-w-0 flex-1 cursor-text select-text truncate text-left text-sm" :title="title" @click="startEditing">
+    <button v-else v-tooltip="title" type="button" class="min-w-0 flex-1 cursor-text select-text truncate text-left text-sm" @click="startEditing">
       {{ title }}
     </button>
 

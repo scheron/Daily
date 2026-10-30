@@ -22,12 +22,12 @@ function getMilestoneClasses(isOverdue: boolean) {
 
 <template>
   <div class="text-base-content/55 flex h-4 min-w-0 shrink-0 items-center gap-1 text-xs">
-    <span v-if="projectName" class="inline-flex min-w-12 shrink-[1000] items-center gap-1" :title="projectName">
+    <span v-if="projectName" v-tooltip="projectName" class="inline-flex min-w-12 shrink-[1000] items-center gap-1">
       <BaseIcon name="project" class="size-3.5 shrink-0" />
       <span class="min-w-0 truncate">{{ projectName }}</span>
     </span>
     <BaseIcon v-if="projectName && milestone" name="chevron-right" class="text-base-content/35 size-3.5 shrink-0" />
-    <span v-if="milestone" :class="getMilestoneClasses(overdue)" :title="milestone.name">
+    <span v-if="milestone" v-tooltip="milestone.name" :class="getMilestoneClasses(overdue)">
       <MilestoneDiamond class="shrink-0" :completion="completion" :overdue="overdue" :size="12" />
       <span class="min-w-0 truncate">{{ milestone.name }}</span>
     </span>

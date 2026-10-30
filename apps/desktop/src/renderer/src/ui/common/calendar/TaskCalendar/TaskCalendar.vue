@@ -2,7 +2,7 @@
 import {computed, onBeforeMount, ref, watch} from "vue"
 import {DateTime} from "luxon"
 
-import {isToday} from "@daily/std"
+import {isToday, toDateLabel} from "@daily/std"
 
 import {useBoardDrop} from "@/composables/tasks/useBoardDrop"
 import {useSettingValue} from "@/composables/useSettingValue"
@@ -131,8 +131,8 @@ onBeforeMount(() => {
         <span
           v-for="column in countColumns"
           :key="column.status"
+          v-tooltip="column.label"
           :aria-label="`${column.label}: ${monthCounts[column.status]}`"
-          :title="column.label"
           :class="getCountClasses(monthCounts[column.status] > 0, column.titleClass)"
         >
           <BaseIcon :name="column.icon" class="size-3" />
@@ -152,6 +152,7 @@ onBeforeMount(() => {
         v-for="day in calendarDays"
         :key="day.isoDate"
         variant="ghost"
+        :tooltip="toDateLabel(day.isoDate)"
         :data-drop-day="day.isoDate"
         :class="getDateClasses(day.isoDate, day.isCurrentMonth)"
         @click="selectDate(day.isoDate)"

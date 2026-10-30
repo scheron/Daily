@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import {computed} from "vue"
 
+import {toLocaleDateTime} from "@daily/std"
+
 import {useSyncServerStore} from "@/stores/syncServer.store"
 import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
@@ -32,7 +34,7 @@ async function onCancel() {
       </p>
     </div>
     <div class="flex shrink-0 items-center gap-2.5">
-      <span :class="countdownClass">
+      <span v-tooltip="expiresAt ? toLocaleDateTime(expiresAt) : ''" :class="countdownClass">
         <BaseIcon name="spinner-arc" class="size-3.5 animate-spin" />
         {{ countdownLabel }} left
       </span>

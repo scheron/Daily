@@ -2,7 +2,7 @@
 import {computed} from "vue"
 
 import {NO_PROJECT_ID} from "@daily/protocol"
-import {toDateLabel, toTime} from "@daily/std"
+import {toDateLabel, toLocaleDateTime, toTime} from "@daily/std"
 
 import {TASK_COLUMNS} from "@/constants/ui"
 import {useBranchesStore} from "@/stores/branches.store"
@@ -101,7 +101,7 @@ function getEndpointClasses(textClass?: string) {
       <template v-else>{{ TASK_EVENT_META[event.type].verb }}</template>
     </span>
 
-    <span class="text-base-content/50 shrink-0 text-xs tabular-nums">
+    <span v-tooltip="toLocaleDateTime(event.createdAt)" class="text-base-content/50 shrink-0 text-xs tabular-nums">
       {{ toDateLabel(event.createdAt, {short: true, year: false}) }}, {{ toTime(event.createdAt) }}
     </span>
   </div>

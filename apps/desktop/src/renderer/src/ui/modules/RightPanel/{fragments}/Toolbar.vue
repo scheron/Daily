@@ -67,7 +67,7 @@ async function onDelete() {
       @next="navigateNext"
     />
 
-    <span v-if="title" class="min-w-0 flex-1 truncate text-sm font-semibold" :title="title">{{ title }}</span>
+    <span v-if="title" v-tooltip="title" class="min-w-0 flex-1 truncate text-sm font-semibold">{{ title }}</span>
     <div v-else aria-hidden="true" class="flex-1" />
 
     <div class="flex shrink-0 items-center gap-0.5">

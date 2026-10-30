@@ -5,6 +5,7 @@ import {
   completionStatus,
   currentCompletions,
   selectedCompletionIndex,
+  setSelectedCompletion,
   startCompletion,
 } from "@codemirror/autocomplete"
 import {syntaxTree} from "@codemirror/language"
@@ -20,7 +21,7 @@ import type {QuickTaskMenu} from "@shared/types/quickTask"
 type SlashItem = {label: string; icon: IconName; run: (view: EditorView) => boolean}
 
 /** One choice in a command's second-level list. A `color` renders it as a tag chip, otherwise it needs an `icon` for a plain row, which `iconColor` can tint. */
-export type NestedItem = {label: string; icon?: IconName; iconColor?: string; color?: string; apply: () => void}
+export type NestedItem = {label: string; tooltip?: string; icon?: IconName; iconColor?: string; color?: string; apply: () => void}
 
 /** A `/` command that opens a second-level list. `getItems` receives what was typed after the command and does its own filtering. */
 export type NestedCommand = {
@@ -58,6 +59,7 @@ export function createCompletionExtension(options?: SlashCommandsOptions, onMenu
 
   return [
     onMenuChange ? createExternalMenuExtension(metaByCompletion, onMenuChange) : [],
+    EditorView.theme({".cm-tooltip.cm-tags-autocomplete:has(> .cm-completionInfo)": {overflow: "visible"}}),
     autocompletion({
       activateOnTyping: true,
       icons: false,
@@ -66,7 +68,7 @@ export function createCompletionExtension(options?: SlashCommandsOptions, onMenu
       addToOptions: [
         {
           position: 45,
-          render: (completion) => {
+          render: (completion, _state, view) => {
             const meta = metaByCompletion.get(completion)
             if (!meta) return null
 
@@ -91,6 +93,12 @@ export function createCompletionExtension(options?: SlashCommandsOptions, onMenu
             labelEl.className = "cm-slash-option-label"
             labelEl.textContent = completion.label.replace(/^\//, "")
             row.append(iconEl, labelEl)
+            if (typeof completion.info === "string") {
+              row.addEventListener("mouseenter", () => {
+                const index = currentCompletions(view.state).indexOf(completion)
+                if (index >= 0 && selectedCompletionIndex(view.state) !== index) view.dispatch({effects: setSelectedCompletion(index)})
+              })
+            }
             return row
           },
         },
@@ -132,6 +140,7 @@ function toMenu(view: EditorView, metaByCompletion: WeakMap<Completion, OptionMe
     const meta = metaByCompletion.get(completion)
     return {
       label: meta?.color ? completion.label : completion.label.replace(/^\//, ""),
+      tooltip: typeof completion.info === "string" ? completion.info : undefined,
       icon: meta?.icon,
       iconColor: meta?.iconColor,
       color: meta?.color,
@@ -175,6 +184,7 @@ function createNestedCompletionSource(
     const completions = command.getItems(query.trim()).map((item): Completion => {
       const completion: Completion = {
         label: item.label,
+        info: item.tooltip,
         type: "keyword",
         apply: (view, _completion, _from, to) => {
           view.dispatch({changes: {from: commandFrom, to, insert: ""}, selection: {anchor: commandFrom}})

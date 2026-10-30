@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {computed} from "vue"
 
-import {toLocaleTime} from "@daily/std"
+import {toLocaleDateTime, toLocaleTime} from "@daily/std"
 
 import {useStorageStore} from "@/stores/storage.store"
 import BaseButton from "@/ui/base/BaseButton"
@@ -25,6 +25,10 @@ const statusLabel = computed(() => {
   return storageStore.lastSyncAt ? `Last synced ${toLocaleTime(storageStore.lastSyncAt)}` : "Never synced"
 })
 
+const statusTooltip = computed(() =>
+  isEnabled.value && !isSyncing.value && storageStore.lastSyncAt ? toLocaleDateTime(storageStore.lastSyncAt) : "",
+)
+
 const footnote = computed(() =>
   props.isServerConnected
     ? "A Daily Server takes over from iCloud — disconnect it to sync through iCloud instead."
@@ -47,7 +51,7 @@ async function onForceSync() {
         <BaseIcon name="cloud" class="text-base-content/60 size-4 shrink-0" />
         <div class="min-w-0">
           <p class="text-base-content text-sm">iCloud sync</p>
-          <p class="text-base-content/60 mt-0.5 text-xs">{{ statusLabel }}</p>
+          <p v-tooltip="statusTooltip" class="text-base-content/60 mt-0.5 text-xs">{{ statusLabel }}</p>
         </div>
       </div>
 

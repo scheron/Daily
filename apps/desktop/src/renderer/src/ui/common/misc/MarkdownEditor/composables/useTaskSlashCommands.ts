@@ -1,5 +1,5 @@
 import {sortMilestones} from "@daily/protocol"
-import {getTime, getTimezone, getToday} from "@daily/std"
+import {getTime, getTimezone, getToday, toDateLabel} from "@daily/std"
 
 import {PRIORITY_LEVELS} from "@/constants/priority"
 import {TASK_COLUMNS} from "@/constants/ui"
@@ -61,16 +61,16 @@ export function useTaskSlashCommands(task: ComputedRef<Task>, patch: (updates: P
       ...getUpcomingDays(today, 1, 1).map((day) => ({...day, label: "Tomorrow"})),
       ...getUpcomingDays(today, 2, 6),
     ]
-    const items = days
+    const items: NestedItem[] = days
       .filter((day) => matches(day.label, query))
-      .map((day) => ({label: day.label, icon: "calendar" as const, apply: () => setDate(day.date)}))
+      .map((day) => ({label: day.label, tooltip: toDateLabel(day.date), icon: "calendar" as const, apply: () => setDate(day.date)}))
 
     if (task.value.status === "ready_for_agent" && task.value.scheduled && matches("No date", query)) {
       items.push({label: "No date", icon: "calendar", apply: () => patch({scheduled: null})})
     }
 
     const typed = parseDayMonth(query, today)
-    if (typed) items.push({label: query, icon: "calendar", apply: () => setDate(typed)})
+    if (typed) items.push({label: query, tooltip: toDateLabel(typed), icon: "calendar", apply: () => setDate(typed)})
     return items
   }
 
