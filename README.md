@@ -36,9 +36,6 @@
 
 ![Daily's day-first board with an English demo project, priorities, milestones, and time estimates](./media/screenshots/01-board.png)
 
-<p align="center">
-  <em>A day of work in Orbit, a fictional product team. Every screenshot uses synthetic English demo data.</em>
-</p>
 
 ## A closer look
 
@@ -72,9 +69,6 @@ Connect **Codex, Claude Code, Claude, or ChatGPT** to a self-hosted Daily Sync S
 | ------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
 | ![Real MCP connection instructions on an isolated local Daily Sync Server](./media/screenshots/09-agent-integrations.png) | ![Matching-code approval for a real local demo MCP client](./media/screenshots/10-agent-approval.png) |
 
-<p align="center">
-  <em>Review notes are fictional demo content. The connection screen uses a real, separate server running on localhost.</em>
-</p>
 
 [See a comment delivered through the real MCP connection →](./media/screenshots/11-live-mcp-comment.png)
 
