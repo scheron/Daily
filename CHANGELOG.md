@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.37.0 - 2026-10-31
+
+### 🎨 Improvements
+
+- **Activity** — comments and task history are grouped by day, newest first, with a button to switch to oldest first.
+  - Changes made by the Daily Assistant or connected agents show their source icon; hovering or focusing it shows the name.
+  - Status, priority, project and date changes show clearer before-and-after values. Hovering or focusing an entry shows its time.
+- **Comments** — long comments show a six-line preview. The chevron opens the full comment for reading or editing.
+- **Board view** — the Agents option in Settings → General is now called Agentic.
+
+---
+
 ## v0.36.0 - 2026-10-31
 
 ### ✨ New Features
