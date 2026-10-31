@@ -40,6 +40,13 @@ describe("an Activity event", () => {
     return wrapper
   }
 
+  it("keeps an event's exact timestamp available to assistive reading while the row receives focus", async () => {
+    const row = await renderEvent(makeEvent())
+    expect(row.findAll("time").map((time) => time.attributes("datetime"))).toEqual(["2026-10-31T09:00:00.000Z"])
+    expect(row.attributes("tabindex")).toBe("0")
+    expect(row.attributes("data-time")).toMatch(/\d{2}:\d{2}/)
+  })
+
   it("shows each exact status and its icon independently of the board mode", async () => {
     const row = await renderEvent(makeEvent({type: "status_changed", fromStatus: "ready_for_agent", toStatus: "in_progress"}))
     const {useSettingsStore} = await import("../../../../src/renderer/src/stores/settings.store")

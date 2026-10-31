@@ -17,23 +17,26 @@ import type {TaskEvent, TaskEventType, TaskPriority, TaskStatus} from "@daily/pr
 type EventEndpoint = {label: string; icon?: IconName; textClass?: string; color?: string}
 type EventTransition = {label?: string; from: EventEndpoint; to: EventEndpoint}
 
-const TASK_EVENT_META: Record<TaskEventType, {icon: IconName; verb: string}> = {
-  created: {icon: "plus", verb: "Created"},
-  completed: {icon: "check-check", verb: "Completed"},
-  reactivated: {icon: "refresh", verb: "Status changed"},
-  discarded: {icon: "archive", verb: "Cancelled"},
-  edited: {icon: "pencil", verb: "Edited"},
-  deleted: {icon: "trash", verb: "Deleted"},
-  restored: {icon: "undo", verb: "Restored"},
-  moved: {icon: "move", verb: "Moved"},
-  status_changed: {icon: "refresh", verb: "Status changed"},
-  priority_changed: {icon: "priority-high", verb: "Priority changed"},
-  project_changed: {icon: "project", verb: "Project changed"},
-}
-
 const props = defineProps<{event: TaskEvent}>()
 
 const branchesStore = useBranchesStore()
+
+const metadata = computed(() => {
+  const metadata: Record<TaskEventType, {icon: IconName; verb: string}> = {
+    created: {icon: "plus", verb: "Created"},
+    completed: {icon: "check-check", verb: "Completed"},
+    reactivated: {icon: "refresh", verb: "Status changed"},
+    discarded: {icon: "archive", verb: "Cancelled"},
+    edited: {icon: "pencil", verb: "Edited"},
+    deleted: {icon: "trash", verb: "Deleted"},
+    restored: {icon: "undo", verb: "Restored"},
+    moved: {icon: "move", verb: "Moved"},
+    status_changed: {icon: "refresh", verb: "Status changed"},
+    priority_changed: {icon: "priority-high", verb: "Priority changed"},
+    project_changed: {icon: "project", verb: "Project changed"},
+  }
+  return metadata[props.event.type]
+})
 
 const transition = computed<EventTransition | null>(() => {
   const event = props.event
@@ -80,12 +83,12 @@ function getEndpointClasses(textClass?: string) {
 </script>
 
 <template>
-  <div class="flex items-center gap-2.5 px-4 py-1 opacity-75">
-    <div class="bg-base-300 text-base-content/60 flex size-5 shrink-0 items-center justify-center rounded-full">
-      <BaseIcon :name="TASK_EVENT_META[event.type].icon" class="size-3" />
+  <div class="history-row relative grid grid-cols-[20px_minmax(0,1fr)] items-start gap-2.5 py-2.5" :data-time="toTime(event.createdAt)" tabindex="0">
+    <div class="text-base-content/60 flex size-5 shrink-0 items-center justify-center">
+      <BaseIcon :name="metadata.icon" class="size-3.5" />
     </div>
 
-    <span class="min-w-0 flex-1 text-xs">
+    <span class="min-w-0 text-xs leading-5">
       <template v-if="transition">
         <template v-if="transition.label">{{ transition.label }}: </template>
         <span :class="getEndpointClasses(transition.from.textClass)" :style="{color: transition.from.color}">
@@ -98,11 +101,42 @@ function getEndpointClasses(textClass?: string) {
           <span class="min-w-0 break-words">{{ transition.to.label }}</span>
         </span>
       </template>
-      <template v-else>{{ TASK_EVENT_META[event.type].verb }}</template>
+      <template v-else>{{ metadata.verb }}</template>
     </span>
 
-    <span v-tooltip="toLocaleDateTime(event.createdAt)" class="text-base-content/50 shrink-0 text-xs tabular-nums">
-      {{ toDateLabel(event.createdAt, {short: true, year: false}) }}, {{ toTime(event.createdAt) }}
-    </span>
+    <time :datetime="event.createdAt" class="sr-only">{{ toLocaleDateTime(event.createdAt) }}</time>
   </div>
 </template>
+
+<style scoped>
+.history-row:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 0.25rem;
+}
+
+.history-row::after {
+  content: attr(data-time);
+  position: absolute;
+  top: 0.25rem;
+  right: 0;
+  z-index: 4;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  background: var(--color-base-content);
+  color: var(--color-base-100);
+  font-size: 0.75rem;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.history-row:hover::after,
+.history-row:focus-within::after {
+  opacity: 1;
+  visibility: visible;
+}
+</style>

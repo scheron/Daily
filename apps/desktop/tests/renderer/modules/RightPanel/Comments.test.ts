@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 // @ts-nocheck
+import {Settings} from "luxon"
 import {createPinia, setActivePinia} from "pinia"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
@@ -45,8 +46,11 @@ function makeComment(id, createdAt, overrides = {}) {
 describe("Activity", () => {
   let wrapper = null
   let bridge = null
+  let previousZone
 
   beforeEach(() => {
+    previousZone = Settings.defaultZone
+    Settings.defaultZone = "Asia/Vladivostok"
     setActivePinia(createPinia())
   })
 
@@ -54,6 +58,7 @@ describe("Activity", () => {
     wrapper?.unmount()
     wrapper = null
     bridge = null
+    Settings.defaultZone = previousZone
   })
 
   async function setup(thread, overrides = {}) {
@@ -79,7 +84,7 @@ describe("Activity", () => {
     const {default: Footer} = await import("../../../../src/renderer/src/ui/modules/RightPanel/{fragments}/Footer.vue")
     const {defineComponent, h} = await import("vue")
 
-    wrapper = mount(defineComponent({render: () => [h(Comments), h(Footer)]}), {global: {directives: {tooltip: {}}}})
+    wrapper = mount(defineComponent({render: () => [h(Comments), h(Footer)]}), {attachTo: document.body, global: {directives: {tooltip: {}}}})
     await flush()
   }
 
@@ -108,6 +113,32 @@ describe("Activity", () => {
       expect.stringContaining("comment middle"),
       expect.stringContaining("comment new"),
     ])
+  })
+
+  it("groups the local midnight and year boundary once per day, including timestamps with an ISO offset", async () => {
+    await setup([
+      makeComment("before", "2026-12-31T13:59:00.000Z"),
+      makeComment("after", "2026-12-31T14:01:00.000Z"),
+      makeComment("offset", "2027-01-01T04:00:00+14:00"),
+    ])
+
+    const groups = wrapper.findAll("section[aria-labelledby]")
+    expect(groups.map((group) => group.find("h3").text())).toEqual(["Dec 31, 2026", "Jan 1, 2027"])
+    expect(groups[0].text()).toContain("comment before")
+    expect(groups[0].text()).not.toContain("comment after")
+    expect(groups[1].text()).toContain("comment after")
+    expect(groups[1].text()).toContain("comment offset")
+  })
+
+  it("removes days without comments when Only comments hides their events", async () => {
+    await setup([makeComment("c1", "2027-01-01T01:00:00.000Z")], {
+      history: [{id: "e1", taskId: "task-1", type: "created", createdAt: "2026-12-30T01:00:00.000Z"}],
+    })
+
+    expect(wrapper.findAll("h3").map((heading) => heading.text())).toEqual(["Dec 30, 2026", "Jan 1, 2027"])
+    await wrapper.find("[aria-pressed]").trigger("click")
+    expect(wrapper.findAll("h3").map((heading) => heading.text())).toEqual(["Jan 1, 2027"])
+    expect(wrapper.text()).toContain("comment c1")
   })
 
   it("invites_the_first_note_instead_of_drawing_an_empty_list", async () => {
@@ -139,11 +170,13 @@ describe("Activity", () => {
   it("keeps simultaneous category events in a stable sequence and hides them under Only comments", async () => {
     const createdAt = "2026-01-01T09:00:00.000Z"
     const makeEvent = (id, type, sequence) => ({id, taskId: "task-1", type, sequence, createdAt})
-    await setup([makeComment("c1", createdAt)], {
+    await setup([makeComment("c2", createdAt), makeComment("c1", createdAt)], {
       history: [makeEvent("z", "edited", 2), makeEvent("b", "created", 1), makeEvent("a", "restored", 1)],
     })
 
     const text = () => wrapper.text().replace(/\s+/g, " ")
+    expect(text().indexOf("comment c1")).toBeLessThan(text().indexOf("comment c2"))
+    expect(text().indexOf("comment c2")).toBeLessThan(text().indexOf("Restored"))
     expect(text().indexOf("Restored")).toBeLessThan(text().indexOf("Created"))
     expect(text().indexOf("Created")).toBeLessThan(text().indexOf("Edited"))
 
@@ -154,36 +187,38 @@ describe("Activity", () => {
     expect(text()).not.toContain("Edited")
   })
 
-  it("badges_where_a_comment_came_from_and_leaves_a_hand_written_one_unmarked", async () => {
+  it("identifies manual comments and the Daily Assistant through accessible source icons", async () => {
     await setup([
       makeComment("typed", "2026-01-01T09:00:00.000Z"),
       makeComment("from-agent", "2026-01-01T10:00:00.000Z", {kind: "agent", provider: "daily_agent"}),
     ])
 
-    const [typedRow, agentRow] = rowTexts()
+    const [typedRow] = rowTexts()
 
-    expect(agentRow).toContain("Agent")
+    expect(wrapper.findAll("[role=img][aria-label]").map((source) => source.attributes("aria-label"))).toEqual(["Comment", "Daily Assistant"])
     expect(typedRow).not.toContain("Agent")
     expect(typedRow).not.toContain("MCP")
   })
 
-  it("names_the_mcp_client_behind_a_comment_and_marks_one_it_has_never_heard_of_as_some_agent", async () => {
+  it("keeps real MCP provider names with known and fallback icons", async () => {
     await setup([
       makeComment("via-claude", "2026-01-01T09:00:00.000Z", {kind: "mcp", provider: "claude"}),
       makeComment("via-stranger", "2026-01-01T10:00:00.000Z", {kind: "mcp", provider: "some-new-client"}),
       makeComment("via-nobody", "2026-01-01T11:00:00.000Z", {kind: "mcp", provider: null}),
+      makeComment("via-empty", "2026-01-01T12:00:00.000Z", {kind: "mcp", provider: "  "}),
     ])
 
-    const [claudeRow, strangerRow, anonymousRow] = wrapper.findAll(".group")
+    const [claudeRow, strangerRow, anonymousRow, emptyRow] = wrapper.findAll(".group")
 
-    expect(claudeRow.text()).toContain("claude")
+    expect(claudeRow.find("[role=img]").attributes("aria-label")).toBe("claude")
     expect(claudeRow.find("use").attributes("href")).toBe("#claude")
 
-    expect(strangerRow.text()).toContain("some-new-client")
+    expect(strangerRow.find("[role=img]").attributes("aria-label")).toBe("some-new-client")
     expect(strangerRow.find("use").attributes("href")).toBe("#ai")
 
-    expect(anonymousRow.text()).toContain("MCP")
+    expect(anonymousRow.find("[role=img]").attributes("aria-label")).toBe("MCP")
     expect(anonymousRow.find("use").attributes("href")).toBe("#ai")
+    expect(emptyRow.find("[role=img]").attributes("aria-label")).toBe("MCP")
   })
 
   it("writes_a_new_comment_on_the_open_task_and_shows_what_storage_answered", async () => {
@@ -223,6 +258,26 @@ describe("Activity", () => {
 
     expect(wrapper.find("textarea").element.value).toBe("")
     expect(bridge["comments:create"]).not.toHaveBeenCalled()
+  })
+
+  it("focuses a tapped comment's content so its actions and time become reachable", async () => {
+    await setup([makeComment("c1", "2026-01-01T09:00:00.000Z")])
+    const row = wrapper.find(".group")
+    await row.find(".comment-markdown").trigger("click")
+
+    expect(document.activeElement).toBe(row.element)
+    expect(row.findAll("time").map((time) => time.attributes("datetime"))).toEqual(["2026-01-01T09:00:00.000Z"])
+  })
+
+  it("keeps a comment when its deletion is cancelled", async () => {
+    await setup([makeComment("c1", "2026-01-01T09:00:00.000Z")])
+    await wrapper.find("button[aria-label='Delete comment']").trigger("click")
+    const cancel = Array.from(document.body.querySelectorAll("[data-popup] button")).find((button) => button.textContent?.trim() === "Cancel")
+    cancel.dispatchEvent(new Event("click", {bubbles: true}))
+    await flush()
+
+    expect(wrapper.text()).toContain("comment c1")
+    expect(bridge["comments:delete"]).not.toHaveBeenCalled()
   })
 
   it("takes_a_comment_out_of_the_thread_once_the_delete_is_confirmed", async () => {

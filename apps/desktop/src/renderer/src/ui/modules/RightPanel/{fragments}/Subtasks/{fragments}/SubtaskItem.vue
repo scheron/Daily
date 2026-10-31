@@ -7,6 +7,7 @@ import BaseInput from "@/ui/base/BaseInput.vue"
 import {useSubtaskEditorOpen} from "@/ui/modules/RightPanel/composables/useSubtaskEditorOpen"
 import {getTaskTitle} from "@/ui/modules/RightPanel/utils/getTaskTitle"
 import ConfirmPopup from "@/ui/overlays/ConfirmPopup.vue"
+import {cn} from "@/utils/ui/tailwindcss"
 
 import type {Subtask} from "@daily/protocol"
 
@@ -20,14 +21,14 @@ const emit = defineEmits<{
   open: []
 }>()
 
-const isSubtaskEditorOpen = useSubtaskEditorOpen()
 const inputRef = useTemplateRef<InstanceType<typeof BaseInput>>("input")
-
 const isEditing = ref(!props.subtask)
 const draft = ref("")
 
 const firstLineIndex = computed(() => Math.max(0, props.subtask?.content.split("\n").findIndex((line) => line.trim()) ?? 0))
 const title = computed(() => getTaskTitle(props.subtask?.content ?? ""))
+
+const isSubtaskEditorOpen = useSubtaskEditorOpen()
 
 function startEditing() {
   isEditing.value = true
@@ -51,6 +52,10 @@ function cancel() {
   if (!props.subtask) emit("cancel")
 }
 
+function getRowClasses(hasSubtask: boolean) {
+  return cn("group flex min-h-8 items-center gap-2 px-4 py-1", hasSubtask && "border-base-content/10 border-b")
+}
+
 watch(
   isEditing,
   async (editing) => {
@@ -67,7 +72,7 @@ onBeforeUnmount(() => (isSubtaskEditorOpen.value = false))
 </script>
 
 <template>
-  <div class="group flex min-h-8 items-center gap-2 px-4 py-1">
+  <div :class="getRowClasses(!!subtask)">
     <BaseCheckbox
       :model-value="subtask?.done ?? false"
       :aria-label="`Done: ${title}`"

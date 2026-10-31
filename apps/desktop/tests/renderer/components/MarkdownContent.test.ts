@@ -96,7 +96,7 @@ describe("MarkdownContent", () => {
 
   it("mounts_TC-5_a_board_card_a_comment_a_deleted_task_and_a_search_result_with_no_editor_behind_any_of_them", async () => {
     const {default: TaskCard} = await import("../../../src/renderer/src/ui/modules/TaskBoard/{fragments}/TaskCard/TaskCard.vue")
-    const {default: CommentItem} = await import("../../../src/renderer/src/ui/modules/RightPanel/{fragments}/Comments/{fragments}/CommentItem.vue")
+    const {default: CommentItem} = await import("../../../src/renderer/src/ui/modules/RightPanel/{fragments}/Comments/{fragments}/CommentItem")
     const {default: DeletedTaskItem} =
       await import("../../../src/renderer/src/ui/views/Settings/{fragments}/DeletedTasks/{fragments}/DeletedTaskItem.vue")
     const {default: SearchResultItem} = await import("../../../src/renderer/src/ui/overlays/SearchModal/{fragments}/SearchResultItem.vue")
