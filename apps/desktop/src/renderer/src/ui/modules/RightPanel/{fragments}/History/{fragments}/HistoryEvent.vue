@@ -7,6 +7,7 @@ import {toDateLabel, toLocaleDateTime, toTime} from "@daily/std"
 import {TASK_COLUMNS} from "@/constants/ui"
 import {useBranchesStore} from "@/stores/branches.store"
 import BaseIcon from "@/ui/base/BaseIcon"
+import AgentIcon from "@/ui/common/sync/AgentIcon.vue"
 import {getPriorityLevel} from "@/utils/priority/getPriorityLevel"
 import {getProjectName} from "@/utils/projects/getProjectName"
 import {cn} from "@/utils/ui/tailwindcss"
@@ -20,6 +21,12 @@ type EventTransition = {from: EventEndpoint; to: EventEndpoint}
 const props = defineProps<{event: TaskEvent}>()
 
 const branchesStore = useBranchesStore()
+
+const sourceLabel = computed(() => {
+  if (props.event.kind === "agent") return "Daily Assistant"
+  if (props.event.kind === "mcp") return props.event.provider?.trim() || "MCP"
+  return null
+})
 
 const metadata = computed(() => {
   const metadata: Record<TaskEventType, {icon: IconName; verb: string}> = {
@@ -79,12 +86,24 @@ function projectEndpoint(id: string): EventEndpoint {
 function getEndpointClasses(textClass?: string) {
   return cn("inline-flex max-w-full items-center gap-1 align-bottom", textClass)
 }
+
+function getMarkerClasses(hasSource: boolean) {
+  return cn("history-source relative flex size-5 shrink-0 items-center justify-center", hasSource ? "text-accent" : "text-base-content/60")
+}
 </script>
 
 <template>
   <div class="history-row relative grid grid-cols-[20px_minmax(0,1fr)] items-start gap-2.5 py-2.5" :data-time="toTime(event.createdAt)" tabindex="0">
-    <div class="text-base-content/60 flex size-5 shrink-0 items-center justify-center">
-      <BaseIcon :name="metadata.icon" class="size-3.5" />
+    <div
+      :class="getMarkerClasses(!!sourceLabel)"
+      :role="sourceLabel ? 'img' : undefined"
+      :aria-label="sourceLabel ?? undefined"
+      :data-source="sourceLabel ?? undefined"
+      :tabindex="sourceLabel ? 0 : undefined"
+    >
+      <BaseIcon v-if="event.kind === 'agent'" name="logo" class="size-3.5" />
+      <AgentIcon v-else-if="event.kind === 'mcp'" :name="event.provider ?? ''" class="size-3.5" />
+      <BaseIcon v-else :name="metadata.icon" class="size-3.5" />
     </div>
 
     <span class="min-w-0 text-xs leading-5">
@@ -107,7 +126,8 @@ function getEndpointClasses(textClass?: string) {
 </template>
 
 <style scoped>
-.history-row:focus-visible {
+.history-row:focus-visible,
+.history-source:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
   border-radius: 0.25rem;
@@ -134,6 +154,29 @@ function getEndpointClasses(textClass?: string) {
 
 .history-row:hover::after,
 .history-row:focus-within::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+.history-source[data-source]::after {
+  content: attr(data-source);
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 5px);
+  z-index: 5;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  background: var(--color-base-content);
+  color: var(--color-base-100);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.history-source:hover::after,
+.history-source:focus-visible::after {
   opacity: 1;
   visibility: visible;
 }

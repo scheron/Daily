@@ -47,6 +47,81 @@ describe("an Activity event", () => {
     expect(row.attributes("data-time")).toMatch(/\d{2}:\d{2}/)
   })
 
+  it("replaces an MCP event's action badge with its client mark and exposes its source without losing the time", async () => {
+    const row = await renderEvent(makeEvent({kind: "mcp", provider: "Codex", type: "edited"}))
+    expect(row.find("use").attributes("href")).toBe("#codex")
+    const source = row.get('[role="img"][aria-label="Codex"]')
+
+    expect(source.attributes("data-source")).toBe("Codex")
+    expect(source.attributes("tabindex")).toBe("0")
+    expect(row.find('use[href="#pencil"]').exists()).toBe(false)
+    expect(row.text()).toContain("Edited")
+    expect(row.get("time").attributes("datetime")).toBe("2026-10-31T09:00:00.000Z")
+    expect(row.attributes("data-time")).toMatch(/\d{2}:\d{2}/)
+    expect(row.text()).not.toContain("Comment")
+  })
+
+  it("distinguishes the Daily Assistant from an external client with the same saved name", async () => {
+    const row = await renderEvent(makeEvent({kind: "agent", provider: "Codex"}))
+    expect(row.find("use").attributes("href")).toBe("#logo")
+    const source = row.get('[role="img"][aria-label="Daily Assistant"]')
+
+    expect(source.attributes("data-source")).toBe("Daily Assistant")
+    expect(row.find('use[href="#plus"]').exists()).toBe(false)
+    expect(row.text()).toContain("Created")
+  })
+
+  it("keeps an unknown client's saved name and gives an unnamed MCP source a readable fallback", async () => {
+    const row = await renderEvent(makeEvent({kind: "mcp", provider: "  Cursor  "}))
+    expect(row.find("use").attributes("href")).toBe("#ai")
+    expect(row.get('[role="img"]').attributes("aria-label")).toBe("Cursor")
+    expect(row.get('[role="img"]').attributes("data-source")).toBe("Cursor")
+
+    for (const provider of ["   ", null]) {
+      await row.setProps({event: makeEvent({kind: "mcp", provider})})
+      expect(row.get('[role="img"]').attributes("aria-label")).toBe("MCP")
+      expect(row.get('[role="img"]').attributes("data-source")).toBe("MCP")
+      expect(row.find("use").attributes("href")).toBe("#ai")
+    }
+  })
+
+  it("updates a reused row's source and restores the action badge when its next event is manual", async () => {
+    const row = await renderEvent(makeEvent({kind: "mcp", provider: "Codex", type: "edited"}))
+
+    await row.setProps({event: makeEvent({kind: "agent", provider: "daily_agent", type: "deleted"})})
+    expect(row.get('[role="img"]').attributes("aria-label")).toBe("Daily Assistant")
+    expect(row.get('[role="img"]').attributes("data-source")).toBe("Daily Assistant")
+    expect(row.find("use").attributes("href")).toBe("#logo")
+    expect(row.text()).toContain("Deleted")
+
+    await row.setProps({event: makeEvent({type: "restored"})})
+    expect(row.find("[data-source]").exists()).toBe(false)
+    expect(row.find('[role="img"]').exists()).toBe(false)
+    expect(row.find("use").attributes("href")).toBe("#undo")
+    expect(row.text()).toContain("Restored")
+
+    await row.setProps({event: makeEvent({kind: "mcp", provider: "Codex", type: "edited"})})
+    expect(row.get('[role="img"]').attributes("aria-label")).toBe("Codex")
+    expect(row.get('[role="img"]').attributes("data-source")).toBe("Codex")
+    expect(row.find("use").attributes("href")).toBe("#codex")
+    expect(row.text()).toContain("Edited")
+  })
+
+  it("retains action badges for manual and legacy events without inferring authorship from a leftover provider", async () => {
+    const row = await renderEvent(makeEvent({provider: "Codex", type: "edited"}))
+    expect(row.find("use").attributes("href")).toBe("#pencil")
+    expect(row.find("[data-source]").exists()).toBe(false)
+    expect(row.text()).toContain("Edited")
+
+    const legacy = makeEvent({type: "completed"})
+    Reflect.deleteProperty(legacy, "kind")
+    Reflect.deleteProperty(legacy, "provider")
+    await row.setProps({event: legacy})
+    expect(row.find("use").attributes("href")).toBe("#check-check")
+    expect(row.find("[data-source]").exists()).toBe(false)
+    expect(row.text()).toContain("Completed")
+  })
+
   it("shows each exact status and its icon independently of the board mode", async () => {
     const row = await renderEvent(makeEvent({type: "status_changed", fromStatus: "ready_for_agent", toStatus: "in_progress"}))
     const {useSettingsStore} = await import("../../../../src/renderer/src/stores/settings.store")

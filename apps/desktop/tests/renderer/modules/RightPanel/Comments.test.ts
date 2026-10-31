@@ -235,6 +235,76 @@ describe("Activity", () => {
     expect(text()).not.toContain("Edited")
   })
 
+  it("keeps each source and exact transition on its own row in mixed Activity when the order changes", async () => {
+    const makeEvent = (id, createdAt, overrides = {}) => ({
+      id,
+      taskId: "task-1",
+      branchId: "main",
+      type: "edited",
+      eventDate: "2026-01-01",
+      createdAt,
+      kind: "mcp",
+      provider: "Codex",
+      ...overrides,
+    })
+    const legacy = makeEvent("legacy", "2026-01-01T08:00:00.000Z", {type: "created"})
+    Reflect.deleteProperty(legacy, "kind")
+    Reflect.deleteProperty(legacy, "provider")
+
+    await setup([makeComment("between", "2026-01-01T10:30:00.000Z")], {
+      history: [
+        legacy,
+        makeEvent("first-codex", "2026-01-01T09:00:00.000Z"),
+        makeEvent("manual", "2026-01-01T10:00:00.000Z", {
+          type: "priority_changed",
+          kind: "manual",
+          provider: null,
+          fromPriority: "none",
+          toPriority: "urgent",
+        }),
+        makeEvent("returning-codex", "2026-01-01T11:00:00.000Z", {
+          type: "status_changed",
+          fromStatus: "ready_for_agent",
+          toStatus: "ready_to_merge",
+        }),
+        makeEvent("assistant", "2026-01-01T12:00:00.000Z", {
+          type: "moved",
+          kind: "agent",
+          provider: "daily_agent",
+          fromDate: "2026-01-01",
+          toDate: "2026-01-02",
+        }),
+        makeEvent("unknown", "2026-01-01T13:00:00.000Z", {
+          type: "project_changed",
+          provider: "Cursor",
+          fromBranchId: "main",
+          toBranchId: "project-1",
+        }),
+      ],
+    })
+
+    const historyRows = () =>
+      wrapper.findAll(".history-row").map((row) => ({
+        source: row.element.querySelector("[data-source]")?.getAttribute("data-source") ?? null,
+        at: row.get("time").attributes("datetime"),
+        text: row.text().replace(/\s+/g, " "),
+      }))
+    const newestFirst = [
+      {source: "Cursor", at: "2026-01-01T13:00:00.000Z", text: expect.stringContaining("No project → project-1")},
+      {source: "Daily Assistant", at: "2026-01-01T12:00:00.000Z", text: expect.stringContaining("Jan 1 → Jan 2")},
+      {source: "Codex", at: "2026-01-01T11:00:00.000Z", text: expect.stringContaining("Ready for Agent → Ready to Merge")},
+      {source: null, at: "2026-01-01T10:00:00.000Z", text: expect.stringContaining("No priority → Urgent")},
+      {source: "Codex", at: "2026-01-01T09:00:00.000Z", text: expect.stringContaining("Edited")},
+      {source: null, at: "2026-01-01T08:00:00.000Z", text: expect.stringContaining("Created")},
+    ]
+
+    expect(historyRows()).toEqual(newestFirst)
+    expect(rowTexts()).toEqual([expect.stringContaining("comment between")])
+
+    await wrapper.get('[aria-label="Newest first"]').trigger("click")
+    expect(historyRows()).toEqual([...newestFirst].reverse())
+  })
+
   it("identifies manual comments and the Daily Assistant through accessible source icons", async () => {
     await setup([
       makeComment("typed", "2026-01-01T09:00:00.000Z"),

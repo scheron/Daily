@@ -137,6 +137,42 @@ describe("task activity recording", () => {
     ])
   })
 
+  it("treats separate MCP callers with the same saved name as one text edit source", async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-06-23T10:00:00.000Z"))
+    const task = await service.createTask(makeTask({content: "A"}))
+
+    await service.updateTask(task.id, {content: "B"}, {kind: "mcp", provider: "Codex"})
+    vi.advanceTimersByTime(1000)
+    await service.updateTask(task.id, {content: "C"}, {kind: "mcp", provider: "Codex"})
+
+    const edited = (await service.getHistoryByTask(task.id)).filter((event) => event.type === "edited")
+    expect(edited).toMatchObject([{kind: "mcp", provider: "Codex", createdAt: "2026-06-23T10:00:00.000Z"}])
+  })
+
+  it.each([
+    {interruption: "another MCP client", source: {kind: "mcp", provider: "Claude"}, kind: "mcp", provider: "Claude"},
+    {interruption: "a manual edit", source: undefined, kind: "manual", provider: null},
+  ])("starts a new text edit when the same MCP source returns after $interruption", async ({source, kind, provider}) => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-06-23T10:00:00.000Z"))
+    const task = await service.createTask(makeTask({content: "A"}))
+
+    await service.updateTask(task.id, {content: "B"}, {kind: "mcp", provider: "Codex"})
+    vi.advanceTimersByTime(1000)
+    await service.updateTask(task.id, {content: "C"}, source)
+    vi.advanceTimersByTime(1000)
+    await service.updateTask(task.id, {content: "D"}, {kind: "mcp", provider: "Codex"})
+
+    const edited = (await service.getHistoryByTask(task.id)).filter((event) => event.type === "edited").reverse()
+    expect(edited).toMatchObject([
+      {kind: "mcp", provider: "Codex", createdAt: "2026-06-23T10:00:00.000Z"},
+      {kind, provider, createdAt: "2026-06-23T10:00:01.000Z"},
+      {kind: "mcp", provider: "Codex", createdAt: "2026-06-23T10:00:02.000Z"},
+    ])
+    expect(new Set(edited.map((event) => event.id)).size).toBe(3)
+  })
+
   it("records a priority transition independently of edited and without debouncing rapid changes", async () => {
     const task = await service.createTask(makeTask())
 
