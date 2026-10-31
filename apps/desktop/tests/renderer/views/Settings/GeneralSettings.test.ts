@@ -118,7 +118,7 @@ describe("GeneralSettings", () => {
     const row = wrapper.findAllComponents(SettingRow).find((row) => row.props("title") === "Board View")
     expect(row).toBeDefined()
     const buttons = row.findAll("button")
-    expect(buttons.map((button) => button.text())).toEqual(["Default", "Agents"])
+    expect(buttons.map((button) => button.text())).toEqual(["Default", "Agentic"])
     expect(buttons[1].classes()).toContain("bg-accent")
 
     await buttons[0].trigger("click")

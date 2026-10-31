@@ -101,7 +101,7 @@ describe("Activity", () => {
     return wrapper.findAll("button").find((button) => button.find(`use[href="#${name}"]`).exists())
   }
 
-  it("reads_a_thread_oldest_first_so_the_latest_note_sits_next_to_the_composer", async () => {
+  it("shows newest activity first by default", async () => {
     await setup([
       makeComment("old", "2026-01-01T09:00:00.000Z"),
       makeComment("middle", "2026-01-01T10:00:00.000Z"),
@@ -109,10 +109,52 @@ describe("Activity", () => {
     ])
 
     expect(rowTexts().map((text) => text.replace(/\s+/g, " ").trim())).toEqual([
+      expect.stringContaining("comment new"),
+      expect.stringContaining("comment middle"),
+      expect.stringContaining("comment old"),
+    ])
+  })
+
+  it("reverses days and entries while keeping the comments filter independent", async () => {
+    await setup(
+      [
+        makeComment("old", "2026-01-01T09:00:00.000Z"),
+        makeComment("middle", "2026-01-02T09:00:00.000Z"),
+        makeComment("new", "2026-01-02T10:00:00.000Z"),
+      ],
+      {
+        history: [{id: "e1", taskId: "task-1", type: "created", createdAt: "2025-12-31T09:00:00.000Z"}],
+      },
+    )
+
+    const sortButton = buttonWithIcon("arrow-up-down")
+    const sortControl = wrapper.findAllComponents({name: "BaseButton"}).find((button) => button.props("icon") === "arrow-up-down")
+    expect(sortButton?.attributes("aria-pressed")).toBe("true")
+    expect(sortControl.props("tooltip")).toBe("Oldest first")
+    await sortButton.trigger("click")
+
+    expect(sortButton.attributes("aria-pressed")).toBe("false")
+    expect(sortControl.props("tooltip")).toBe("Newest first")
+    expect(wrapper.findAll("h3").map((heading) => heading.text())).toEqual(["Dec 31, 2025", "Jan 1, 2026", "Jan 2, 2026"])
+    expect(rowTexts()).toEqual([
       expect.stringContaining("comment old"),
       expect.stringContaining("comment middle"),
       expect.stringContaining("comment new"),
     ])
+
+    await wrapper.find('[aria-label="Only comments"]').trigger("click")
+    expect(wrapper.findAll("h3").map((heading) => heading.text())).toEqual(["Jan 1, 2026", "Jan 2, 2026"])
+    expect(sortButton.attributes("aria-pressed")).toBe("false")
+    await sortButton.trigger("click")
+    expect(sortButton.attributes("aria-pressed")).toBe("true")
+    expect(sortControl.props("tooltip")).toBe("Oldest first")
+    expect(wrapper.findAll("h3").map((heading) => heading.text())).toEqual(["Jan 2, 2026", "Jan 1, 2026"])
+    expect(rowTexts()).toEqual([
+      expect.stringContaining("comment new"),
+      expect.stringContaining("comment middle"),
+      expect.stringContaining("comment old"),
+    ])
+    expect(wrapper.text()).not.toContain("Created")
   })
 
   it("groups the local midnight and year boundary once per day, including timestamps with an ISO offset", async () => {
@@ -123,11 +165,11 @@ describe("Activity", () => {
     ])
 
     const groups = wrapper.findAll("section[aria-labelledby]")
-    expect(groups.map((group) => group.find("h3").text())).toEqual(["Dec 31, 2026", "Jan 1, 2027"])
-    expect(groups[0].text()).toContain("comment before")
-    expect(groups[0].text()).not.toContain("comment after")
-    expect(groups[1].text()).toContain("comment after")
-    expect(groups[1].text()).toContain("comment offset")
+    expect(groups.map((group) => group.find("h3").text())).toEqual(["Jan 1, 2027", "Dec 31, 2026"])
+    expect(groups[1].text()).toContain("comment before")
+    expect(groups[1].text()).not.toContain("comment after")
+    expect(groups[0].text()).toContain("comment after")
+    expect(groups[0].text()).toContain("comment offset")
   })
 
   it("removes days without comments when Only comments hides their events", async () => {
@@ -135,8 +177,8 @@ describe("Activity", () => {
       history: [{id: "e1", taskId: "task-1", type: "created", createdAt: "2026-12-30T01:00:00.000Z"}],
     })
 
-    expect(wrapper.findAll("h3").map((heading) => heading.text())).toEqual(["Dec 30, 2026", "Jan 1, 2027"])
-    await wrapper.find("[aria-pressed]").trigger("click")
+    expect(wrapper.findAll("h3").map((heading) => heading.text())).toEqual(["Jan 1, 2027", "Dec 30, 2026"])
+    await wrapper.find('[aria-label="Only comments"]').trigger("click")
     expect(wrapper.findAll("h3").map((heading) => heading.text())).toEqual(["Jan 1, 2027"])
     expect(wrapper.text()).toContain("comment c1")
   })
@@ -157,10 +199,10 @@ describe("Activity", () => {
     })
 
     const text = () => wrapper.text().replace(/\s+/g, " ")
-    expect(text().indexOf("Created")).toBeLessThan(text().indexOf("comment c1"))
-    expect(text().indexOf("comment c1")).toBeLessThan(text().indexOf("Completed"))
+    expect(text().indexOf("Completed")).toBeLessThan(text().indexOf("comment c1"))
+    expect(text().indexOf("comment c1")).toBeLessThan(text().indexOf("Created"))
 
-    await wrapper.find("[aria-pressed]").trigger("click")
+    await wrapper.find('[aria-label="Only comments"]').trigger("click")
 
     expect(text()).toContain("comment c1")
     expect(text()).not.toContain("Created")
@@ -175,12 +217,18 @@ describe("Activity", () => {
     })
 
     const text = () => wrapper.text().replace(/\s+/g, " ")
+    expect(text().indexOf("Edited")).toBeLessThan(text().indexOf("Created"))
+    expect(text().indexOf("Created")).toBeLessThan(text().indexOf("Restored"))
+    expect(text().indexOf("Restored")).toBeLessThan(text().indexOf("comment c2"))
+    expect(text().indexOf("comment c2")).toBeLessThan(text().indexOf("comment c1"))
+
+    await wrapper.find('[aria-label="Newest first"]').trigger("click")
     expect(text().indexOf("comment c1")).toBeLessThan(text().indexOf("comment c2"))
     expect(text().indexOf("comment c2")).toBeLessThan(text().indexOf("Restored"))
     expect(text().indexOf("Restored")).toBeLessThan(text().indexOf("Created"))
     expect(text().indexOf("Created")).toBeLessThan(text().indexOf("Edited"))
 
-    await wrapper.find("[aria-pressed]").trigger("click")
+    await wrapper.find('[aria-label="Only comments"]').trigger("click")
     expect(text()).toContain("comment c1")
     expect(text()).not.toContain("Restored")
     expect(text()).not.toContain("Created")
@@ -193,9 +241,9 @@ describe("Activity", () => {
       makeComment("from-agent", "2026-01-01T10:00:00.000Z", {kind: "agent", provider: "daily_agent"}),
     ])
 
-    const [typedRow] = rowTexts()
+    const [, typedRow] = rowTexts()
 
-    expect(wrapper.findAll("[role=img][aria-label]").map((source) => source.attributes("aria-label"))).toEqual(["Comment", "Daily Assistant"])
+    expect(wrapper.findAll("[role=img][aria-label]").map((source) => source.attributes("aria-label"))).toEqual(["Daily Assistant", "Comment"])
     expect(typedRow).not.toContain("Agent")
     expect(typedRow).not.toContain("MCP")
   })
@@ -208,7 +256,7 @@ describe("Activity", () => {
       makeComment("via-empty", "2026-01-01T12:00:00.000Z", {kind: "mcp", provider: "  "}),
     ])
 
-    const [claudeRow, strangerRow, anonymousRow, emptyRow] = wrapper.findAll(".group")
+    const [emptyRow, anonymousRow, strangerRow, claudeRow] = wrapper.findAll(".group")
 
     expect(claudeRow.find("[role=img]").attributes("aria-label")).toBe("claude")
     expect(claudeRow.find("use").attributes("href")).toBe("#claude")
@@ -221,8 +269,8 @@ describe("Activity", () => {
     expect(emptyRow.find("[role=img]").attributes("aria-label")).toBe("MCP")
   })
 
-  it("writes_a_new_comment_on_the_open_task_and_shows_what_storage_answered", async () => {
-    await setup([], {
+  it("places a newly saved comment above existing activity", async () => {
+    await setup([makeComment("existing", "2026-01-01T09:00:00.000Z")], {
       "comments:create": vi.fn(async (taskId, content) => ({
         comments: {upserted: [makeComment("written", "2026-01-01T12:00:00.000Z", {taskId, content})]},
       })),
@@ -233,7 +281,7 @@ describe("Activity", () => {
     await flush()
 
     expect(bridge["comments:create"]).toHaveBeenCalledWith("task-1", "a note worth keeping")
-    expect(wrapper.text()).toContain("a note worth keeping")
+    expect(rowTexts()).toEqual([expect.stringContaining("a note worth keeping"), expect.stringContaining("comment existing")])
   })
 
   it("sends_a_new_comment_on_cmd_enter", async () => {

@@ -81,6 +81,7 @@ export type IconName =
   | "openai"
   | "award"
   | "arrow-up"
+  | "arrow-up-down"
   | "stop"
   | "spinner"
   | "spinner-arc"
@@ -132,6 +133,9 @@ export type IconName =
     <symbol id="arrow-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
       <path d="m5 12 7-7 7 7"></path>
       <path d="M12 19V5"></path>
+    </symbol>
+    <symbol id="arrow-up-down" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M3 7.5 7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 0L16.5 21m0 0L12 16.5m4.5 4.5V7.5" />
     </symbol>
     <symbol id="trending-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
       <path d="M3 17l6 -6l4 4l8 -8"></path>

@@ -142,7 +142,7 @@ describe("Comment view in the task panel", () => {
   it("opens the comment chevron as a Markdown view and returns to the parent with its composer and filter intact", async () => {
     await setup()
     await wrapper.find("textarea").setValue("Unsent new comment")
-    await wrapper.find("[aria-pressed]").trigger("click")
+    await wrapper.find('[aria-label="Only comments"]').trigger("click")
 
     await wrapper.find("button[aria-label='Open comment']").trigger("click")
 
@@ -154,7 +154,7 @@ describe("Comment view in the task panel", () => {
 
     expect(wrapper.findAll("[aria-label='Markdown content']")).toHaveLength(0)
     expect(wrapper.find("textarea").element.value).toBe("Unsent new comment")
-    expect(wrapper.find("[aria-pressed]").attributes("aria-pressed")).toBe("true")
+    expect(wrapper.find('[aria-label="Only comments"]').attributes("aria-pressed")).toBe("true")
   })
 
   it.each(["Back", "Escape"])("restores focus to the same comment opener after %s", async (navigation) => {
@@ -178,7 +178,7 @@ describe("Comment view in the task panel", () => {
       history: [makeTaskEvent("e1"), makeTaskEvent("e2", {type: "completed", createdAt: "2026-01-01T09:30:00.000Z"})],
     })
     await comments.loadCommentCounts()
-    await wrapper.find("button[aria-label='Open comment']").trigger("click")
+    await wrapper.findAll("button[aria-label='Open comment']")[1].trigger("click")
     await wrapper.find("[aria-label='Markdown content']").setValue("# Edited\n\n**Latest** content")
     await vi.advanceTimersByTimeAsync(400)
 
@@ -189,7 +189,7 @@ describe("Comment view in the task panel", () => {
     await buttonWithIcon("chevron-left").trigger("click")
     expect(wrapper.text()).toContain("Latest content")
     const editButtons = wrapper.findAll("button").filter((button) => button.attributes("aria-label") === "Open comment")
-    await editButtons[1].trigger("click")
+    await editButtons[0].trigger("click")
     await wrapper.find("[aria-label='Markdown content']").setValue("Agent edited")
     await buttonWithIcon("chevron-left").trigger("click")
     await flushPromises()
@@ -197,10 +197,10 @@ describe("Comment view in the task panel", () => {
     expect(comments.commentsOf("task-1")[1]).toEqual({...agent, content: "Agent edited", updatedAt: "2026-01-01T12:00:00.000Z"})
     expect(comments.commentCountOf("task-1")).toBe(2)
     const activity = wrapper.text()
-    expect(wrapper.findAll("[role=img][aria-label]").map((source) => source.attributes("aria-label"))).toEqual(["claude", "Daily Assistant"])
-    expect(activity.indexOf("Created")).toBeLessThan(activity.indexOf("Latest content"))
-    expect(activity.indexOf("Latest content")).toBeLessThan(activity.indexOf("Completed"))
-    expect(activity.indexOf("Completed")).toBeLessThan(activity.indexOf("Agent edited"))
+    expect(wrapper.findAll("[role=img][aria-label]").map((source) => source.attributes("aria-label"))).toEqual(["Daily Assistant", "claude"])
+    expect(activity.indexOf("Agent edited")).toBeLessThan(activity.indexOf("Completed"))
+    expect(activity.indexOf("Completed")).toBeLessThan(activity.indexOf("Latest content"))
+    expect(activity.indexOf("Latest content")).toBeLessThan(activity.indexOf("Created"))
     expect(activity.match(/Created/g)).toHaveLength(1)
     expect(activity.match(/Completed/g)).toHaveLength(1)
     expect(window.BridgeIPC["tasks:update"]).not.toHaveBeenCalled()
@@ -383,14 +383,14 @@ describe("Comment view in the task panel", () => {
           finish = () => resolve({comments: {removed: [id]}})
         }),
     )
-    await wrapper.find("button[aria-label='Open comment']").trigger("click")
+    await wrapper.findAll("button[aria-label='Open comment']")[1].trigger("click")
     await buttonWithIcon("trash").trigger("click")
     const confirm = Array.from(document.body.querySelectorAll("[data-popup] button")).find((button) => button.textContent?.trim() === "Delete")
     confirm.dispatchEvent(new Event("click", {bubbles: true}))
     await flushPromises()
     await buttonWithIcon("chevron-left").trigger("click")
     const editButtons = wrapper.findAll("button").filter((button) => button.attributes("aria-label") === "Open comment")
-    await editButtons[1].trigger("click")
+    await editButtons[0].trigger("click")
     finish()
     await flushPromises()
 

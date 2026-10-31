@@ -15,7 +15,7 @@ import type {IconName} from "@/ui/base/BaseIcon"
 import type {TaskEvent, TaskEventType, TaskPriority, TaskStatus} from "@daily/protocol"
 
 type EventEndpoint = {label: string; icon?: IconName; textClass?: string; color?: string}
-type EventTransition = {label?: string; from: EventEndpoint; to: EventEndpoint}
+type EventTransition = {from: EventEndpoint; to: EventEndpoint}
 
 const props = defineProps<{event: TaskEvent}>()
 
@@ -50,13 +50,12 @@ const transition = computed<EventTransition | null>(() => {
     }
   }
   if (event.type === "project_changed" && event.fromBranchId && event.toBranchId) {
-    return {label: "Project", from: projectEndpoint(event.fromBranchId), to: projectEndpoint(event.toBranchId)}
+    return {from: projectEndpoint(event.fromBranchId), to: projectEndpoint(event.toBranchId)}
   }
   if (event.type === "moved" && (event.fromDate || event.toDate)) {
     return {
-      label: "Moved",
-      from: {label: event.fromDate ? toDateLabel(event.fromDate, {short: true, year: false}) : "No date"},
-      to: {label: event.toDate ? toDateLabel(event.toDate, {short: true, year: false}) : "No date"},
+      from: {label: event.fromDate ? toDateLabel(event.fromDate, {short: true, year: false}) : "No date", icon: "calendar"},
+      to: {label: event.toDate ? toDateLabel(event.toDate, {short: true, year: false}) : "No date", icon: "calendar"},
     }
   }
   return null
@@ -90,7 +89,6 @@ function getEndpointClasses(textClass?: string) {
 
     <span class="min-w-0 text-xs leading-5">
       <template v-if="transition">
-        <template v-if="transition.label">{{ transition.label }}: </template>
         <span :class="getEndpointClasses(transition.from.textClass)" :style="{color: transition.from.color}">
           <BaseIcon v-if="transition.from.icon" :name="transition.from.icon" class="size-3" />
           <span class="min-w-0 break-words">{{ transition.from.label }}</span>

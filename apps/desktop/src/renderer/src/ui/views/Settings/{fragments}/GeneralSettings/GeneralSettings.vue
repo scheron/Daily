@@ -33,7 +33,7 @@ const taskViewOptions: {value: TaskView; label: string}[] = [
 
 const boardModeOptions: {value: BoardMode; label: string}[] = [
   {value: "normal", label: "Default"},
-  {value: "agents", label: "Agents"},
+  {value: "agents", label: "Agentic"},
 ]
 
 const themeStore = useThemeStore()

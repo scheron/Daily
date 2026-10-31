@@ -18,6 +18,7 @@ type ActivityItem = {key: string; at: string; comment?: TaskComment; event?: Tas
 let commentOpener: HTMLElement | null = null
 
 const isOnlyComments = ref(false)
+const isNewestFirst = ref(true)
 
 const {comments, removeComment} = useTaskComments()
 const {events} = useTaskHistory()
@@ -25,12 +26,13 @@ const {events} = useTaskHistory()
 const items = computed<ActivityItem[]>(() => {
   const all: ActivityItem[] = comments.value.map((comment) => ({key: `c:${comment.id}`, at: comment.createdAt, comment}))
   if (!isOnlyComments.value) all.push(...events.value.map((event) => ({key: `e:${event.id}`, at: event.createdAt, event})))
-  return all.sort((a, b) => {
+  all.sort((a, b) => {
     if (a.at !== b.at) return a.at < b.at ? -1 : 1
     const sequence = (a.event?.sequence ?? 0) - (b.event?.sequence ?? 0)
     if (sequence) return sequence
     return a.key < b.key ? -1 : a.key > b.key ? 1 : 0
   })
+  return isNewestFirst.value ? all.reverse() : all
 })
 
 const days = computed(() => {
@@ -44,7 +46,7 @@ const days = computed(() => {
   return [...groups].map(([day, entries]) => ({day, entries}))
 })
 
-function getOnlyCommentsVariant(isSelected: boolean) {
+function getToggleVariant(isSelected: boolean) {
   return isSelected ? "ghost-muted-selected" : "ghost-muted"
 }
 
@@ -68,9 +70,19 @@ watch(nestedTarget, async (target, previous) => {
       <span>Activity</span>
       <div aria-hidden="true" class="flex-1" />
       <BaseButton
-        :variant="getOnlyCommentsVariant(isOnlyComments)"
+        :variant="getToggleVariant(isNewestFirst)"
+        icon="arrow-up-down"
+        size="xs"
+        aria-label="Newest first"
+        :aria-pressed="isNewestFirst"
+        :tooltip="isNewestFirst ? 'Oldest first' : 'Newest first'"
+        @click="isNewestFirst = !isNewestFirst"
+      />
+      <BaseButton
+        :variant="getToggleVariant(isOnlyComments)"
         icon="message"
         size="xs"
+        aria-label="Only comments"
         :aria-pressed="isOnlyComments"
         :tooltip="isOnlyComments ? 'Show all activity' : 'Only comments'"
         @click="isOnlyComments = !isOnlyComments"

@@ -76,12 +76,16 @@ describe("an Activity event", () => {
     expect(row.find('use[href="#archive"]').exists()).toBe(true)
   })
 
-  it("shows scheduling and clearing a day as moves with an undated endpoint", async () => {
+  it("shows scheduling and clearing a day as calendar endpoints without a prefix", async () => {
     const row = await renderEvent(makeEvent({type: "moved", toDate: "2026-10-31"}))
-    expect(row.text().replace(/\s+/g, " ")).toMatch(/Moved: No date → .+/)
+    expect(row.text().replace(/\s+/g, " ")).toContain("No date → Oct 31")
+    expect(row.text()).not.toContain("Moved")
+    expect(row.findAll('use[href="#calendar"]')).toHaveLength(2)
 
     await row.setProps({event: makeEvent({type: "moved", fromDate: "2026-10-31"})})
-    expect(row.text().replace(/\s+/g, " ")).toMatch(/Moved: .+ → No date/)
+    expect(row.text().replace(/\s+/g, " ")).toContain("Oct 31 → No date")
+    expect(row.text()).not.toContain("Moved")
+    expect(row.findAll('use[href="#calendar"]')).toHaveLength(2)
   })
 
   it("names priority and project transitions without treating an unavailable project as No project", async () => {
@@ -100,10 +104,12 @@ describe("an Activity event", () => {
     })
     useBranchesStore().branches = [makeProject()]
     await row.setProps({event: makeEvent({type: "project_changed", fromBranchId: "main", toBranchId: "project-1"})})
-    expect(row.text().replace(/\s+/g, " ")).toContain("Project: No project → Daily")
+    expect(row.text().replace(/\s+/g, " ")).toContain("No project → Daily")
+    expect(row.text()).not.toContain("Project:")
 
     await row.setProps({event: makeEvent({type: "project_changed", fromBranchId: "project-gone", toBranchId: "project-1"})})
-    expect(row.text().replace(/\s+/g, " ")).toContain("Project: project-gone → Daily")
+    expect(row.text().replace(/\s+/g, " ")).toContain("project-gone → Daily")
+    expect(row.text()).not.toContain("Project:")
   })
 
   it("keeps legacy status events readable without inventing previous values", async () => {
