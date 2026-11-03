@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.37.2 - 2026-11-03
+
+### 🎨 Improvements
+
+- **Activity** — entries within a day sit closer together, without dividers between them. A line leading up to each date now separates the days.
+
+---
+
 ## v0.37.1 - 2026-11-03
 
 ### 🎨 Improvements
