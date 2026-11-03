@@ -27,7 +27,7 @@ function focusRow(event: MouseEvent) {
 </script>
 
 <template>
-  <div ref="row" class="comment-row group relative py-2.5" :data-time="toTime(comment.createdAt)" tabindex="0" @click="focusRow">
+  <div ref="row" class="comment-row group relative py-1" :data-time="toTime(comment.createdAt)" tabindex="0" @click="focusRow">
     <div class="grid grid-cols-[20px_minmax(0,1fr)] items-start gap-2.5">
       <CommentSourceBadge :kind="comment.kind" :provider="comment.provider" />
       <CommentPreview :content="comment.content" class="comment-markdown min-w-0 select-text" @clip-focus="focusClippedContent" />
@@ -62,7 +62,7 @@ function focusRow(event: MouseEvent) {
 
 <style scoped>
 .comment-row {
-  --action-bar-top: 0.125rem;
+  --action-bar-top: -0.1875rem;
   --action-bar-height: calc(2rem + 2px);
 }
 

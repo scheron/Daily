@@ -93,7 +93,7 @@ function getMarkerClasses(hasSource: boolean) {
 </script>
 
 <template>
-  <div class="history-row relative grid grid-cols-[20px_minmax(0,1fr)] items-start gap-2.5 py-2.5" :data-time="toTime(event.createdAt)" tabindex="0">
+  <div class="history-row relative grid grid-cols-[20px_minmax(0,1fr)] items-start gap-2.5 py-1" :data-time="toTime(event.createdAt)" tabindex="0">
     <div
       :class="getMarkerClasses(!!sourceLabel)"
       :role="sourceLabel ? 'img' : undefined"
