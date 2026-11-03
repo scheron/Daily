@@ -26,9 +26,10 @@ export function useHiddenColumnPlacement(
     if (!stack || !container || !element) return
     const bounds = container.getBoundingClientRect()
     const rect = element.getBoundingClientRect()
-    if (rect.width <= 0 || rect.right <= bounds.left || rect.left >= bounds.right) return
+    const stackRect = stack.getBoundingClientRect()
+    if (rect.width <= 0 || rect.right <= bounds.left || rect.left >= bounds.right || rect.top >= stackRect.bottom) return
     const edge = rect.left - 16
-    isObscured.value = edge - stack.getBoundingClientRect().width < bounds.left + 16
+    isObscured.value = edge - stackRect.width < bounds.left + 16
     placementStyle.value = {right: `${bounds.right - edge}px`, visibility: isObscured.value ? "hidden" : undefined}
   }
 

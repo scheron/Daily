@@ -81,6 +81,10 @@ function getListClasses(isCollapsed: boolean) {
     isCollapsed && "pointer-events-none invisible w-0 px-0",
   )
 }
+
+function getEmptyIconClasses(titleClass: string) {
+  return cn("size-12 opacity-30", titleClass)
+}
 </script>
 
 <template>
@@ -146,10 +150,10 @@ function getListClasses(isCollapsed: boolean) {
         v-if="!collapsed && !tasksCount && !columns.isDragging.value"
         class="text-base-content/70 pointer-events-none absolute inset-1.5 flex flex-col items-center justify-center gap-2 rounded-lg text-center"
       >
-        <div class="bg-base-200 rounded-full p-3">
-          <BaseIcon name="empty" class="size-5" />
-        </div>
-        <span class="text-sm">No {{ column.emptyLabel }} tasks</span>
+        <BaseIcon :name="column.icon" :class="getEmptyIconClasses(column.titleClass)" />
+        <span class="text-sm"
+          >No <span :class="column.titleClass">{{ column.emptyLabel }}</span> tasks</span
+        >
       </div>
     </div>
 

@@ -17,7 +17,7 @@ const stackRef = useTemplateRef<HTMLElement>("stack")
 const {placementStyle, isObscured} = useHiddenColumnPlacement(stackRef, toRef(props, "obstacle"))
 
 function getStackClasses(side: "left" | "right") {
-  return cn("absolute bottom-4 z-10 flex flex-col gap-2", side === "left" ? "left-4" : "right-4")
+  return cn("top-25 absolute z-10 flex flex-col gap-2", side === "left" ? "left-4" : "right-4")
 }
 
 function getButtonClasses(side: "left" | "right") {
