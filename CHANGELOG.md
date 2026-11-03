@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.37.1 - 2026-11-03
+
+### 🎨 Improvements
+
+- **Hidden columns** — the shortcuts to columns off screen now sit at the top of the board, under the column headers, where they are easier to notice.
+- **Empty columns** — each one shows its own icon and colour instead of the same grey symbol.
+- **Activity** — day headings are aligned to the right.
+
+---
+
 ## v0.37.0 - 2026-10-31
 
 ### 🎨 Improvements
