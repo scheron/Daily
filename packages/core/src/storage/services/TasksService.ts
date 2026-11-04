@@ -68,7 +68,8 @@ export class TasksService {
     const updated = this.applyPatches(planTaskUpdate(this.readContext(branchId, before, milestones), id, writable))
 
     const after = updated.find((task) => task.id === id) ?? null
-    if (after) this.taskEvents.recordUpdate(before, after, source)
+    const requestedDate = writable.scheduled === null ? null : writable.scheduled?.date
+    if (after) this.taskEvents.recordUpdate(before, after, source, {dateExplicit: requestedDate === (after.scheduled?.date ?? null)})
 
     return updated
   }
@@ -147,7 +148,7 @@ export class TasksService {
 
   private finalizeMove(sourceTask: Task, updated: Task[], source?: ActorSource): Task[] {
     const finalTask = updated.find((task) => task.id === sourceTask.id) ?? null
-    if (finalTask) this.taskEvents.recordUpdate(sourceTask, finalTask, source)
+    if (finalTask) this.taskEvents.recordUpdate(sourceTask, finalTask, source, {dateExplicit: false})
 
     return updated
   }

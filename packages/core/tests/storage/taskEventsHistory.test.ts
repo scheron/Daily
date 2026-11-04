@@ -135,17 +135,71 @@ describe("task history (per task)", () => {
     expect(history.some((event) => event.taskId === b.id)).toBe(false)
   })
 
-  it("records both a status transition and a day assignment when dragging out of Backlog", async () => {
+  it("records only the status when moving Backlog to To Do on the board", async () => {
     const task = await tasks.createTask(makeTask({status: "backlog", scheduled: null}))
-    await tasks.moveTaskByOrder({taskId: task.id, targetStatus: "in_progress", activeDate: TASK_DAY})
 
-    const history = await taskEvents.getHistoryByTask(task.id)
-    expect(history.map((event) => event.type).sort()).toEqual(["created", "moved", "status_changed"])
-    expect(history.find((event) => event.type === "status_changed")).toMatchObject({
-      fromStatus: "backlog",
-      toStatus: "in_progress",
-      eventDate: TASK_DAY,
-    })
-    expect(history.find((event) => event.type === "created").eventDate).toBe(getToday())
+    await tasks.moveTaskByOrder({taskId: task.id, targetStatus: "todo", activeDate: TASK_DAY})
+
+    expect(await tasks.getTask(task.id)).toMatchObject({status: "todo", scheduled: {date: TASK_DAY}})
+    expect(await taskEvents.getHistoryByTask(task.id)).toMatchObject([
+      {type: "status_changed", fromStatus: "backlog", toStatus: "todo", eventDate: TASK_DAY},
+      {type: "created", eventDate: getToday()},
+    ])
+  })
+
+  it("records only the status when moving To Do to Backlog on the board", async () => {
+    const task = await tasks.createTask(makeTask({status: "todo"}))
+
+    await tasks.moveTaskByOrder({taskId: task.id, targetStatus: "backlog", activeDate: TASK_DAY})
+
+    expect(await tasks.getTask(task.id)).toMatchObject({status: "backlog", scheduled: null})
+    expect(await taskEvents.getHistoryByTask(task.id)).toMatchObject([
+      {type: "status_changed", fromStatus: "todo", toStatus: "backlog"},
+      {type: "created"},
+    ])
+  })
+
+  it("records only the status for a status-only write that clears the schedule", async () => {
+    const task = await tasks.createTask(makeTask({status: "todo"}))
+
+    await tasks.updateTask(task.id, {status: "backlog"})
+
+    expect(await tasks.getTask(task.id)).toMatchObject({status: "backlog", scheduled: null})
+    expect(await taskEvents.getHistoryByTask(task.id)).toMatchObject([
+      {type: "status_changed", fromStatus: "todo", toStatus: "backlog"},
+      {type: "created"},
+    ])
+  })
+
+  it("records the date when moving To Do to another day", async () => {
+    const task = await tasks.createTask(makeTask({status: "todo"}))
+
+    await tasks.updateTask(task.id, {scheduled: {date: NEXT_DAY}})
+
+    expect(await taskEvents.getHistoryByTask(task.id)).toMatchObject([{type: "moved", fromDate: TASK_DAY, toDate: NEXT_DAY}, {type: "created"}])
+  })
+
+  it("records only the status when leaving Backlog with a time but no chosen date", async () => {
+    const task = await tasks.createTask(makeTask({status: "backlog", scheduled: null}))
+
+    await tasks.updateTask(task.id, {status: "todo", scheduled: {time: "14:00:00"}})
+
+    expect(await tasks.getTask(task.id)).toMatchObject({status: "todo", scheduled: {date: getToday(), time: "14:00:00"}})
+    expect(await taskEvents.getHistoryByTask(task.id)).toMatchObject([
+      {type: "status_changed", fromStatus: "backlog", toStatus: "todo"},
+      {type: "created"},
+    ])
+  })
+
+  it("records both fields when moving out of Backlog with an explicitly chosen date", async () => {
+    const task = await tasks.createTask(makeTask({status: "backlog", scheduled: null}))
+
+    await tasks.updateTask(task.id, {status: "todo", scheduled: {date: NEXT_DAY}})
+
+    expect(await taskEvents.getHistoryByTask(task.id)).toMatchObject([
+      {type: "moved", fromDate: null, toDate: NEXT_DAY},
+      {type: "status_changed", fromStatus: "backlog", toStatus: "todo"},
+      {type: "created"},
+    ])
   })
 })

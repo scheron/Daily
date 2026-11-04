@@ -333,19 +333,26 @@ describe("taskEditorStore — backlog coupling", () => {
     expect(tasks.moveTask).not.toHaveBeenCalled()
   })
 
-  it("commits a backlog pick on a dated task as one status write, with no move and no leftover schedule", async () => {
-    const {tasks, editor} = await setupStores()
-    tasks.findTaskById = vi
-      .fn()
-      .mockReturnValue(makeTask({status: "in_progress", scheduled: {date: "2026-06-20", time: "09:00:00", timezone: "UTC"}}))
-    await editor.open("task-1")
+  it.each([
+    ["sends only the status when picking Backlog", false, {status: "backlog"}],
+    ["sends an explicit date clear with the selected Backlog status", true, {status: "backlog", scheduled: null}],
+  ])("%s", async (_name, clearDate, update) => {
+    const writeTask = vi.fn().mockResolvedValue({})
+    mockBridgeIPC({"tasks:update": writeTask})
+    const {useTasksStore} = await import("../../../src/renderer/src/stores/tasks")
+    const {useTaskEditorStore} = await import("../../../src/renderer/src/stores/task-editor")
+    const tasks = useTasksStore()
+    const task = makeTask({status: "ready_for_agent"})
+    tasks.tasks = [task]
+    const editor = useTaskEditorStore()
+    await editor.open(task.id)
 
+    if (clearDate) editor.patch({scheduled: null})
     editor.patch({status: "backlog"})
     await editor.commit()
 
-    expect(tasks.updateTask).toHaveBeenCalledTimes(1)
-    expect(tasks.updateTask).toHaveBeenCalledWith("task-1", expect.objectContaining({status: "backlog"}))
-    expect(tasks.moveTask).not.toHaveBeenCalled()
+    expect(tasks.findTaskById(task.id)).toMatchObject({status: "backlog", scheduled: null})
+    expect(writeTask.mock.calls).toEqual([[task.id, update]])
   })
 })
 

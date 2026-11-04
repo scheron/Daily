@@ -35,8 +35,8 @@ export class TaskEventsService {
     this.recordChange(task, type, source, {}, new Date().toISOString())
   }
 
-  /** Records every changed category independently; only consecutive text autosaves are debounced. */
-  recordUpdate(before: Task, after: Task, source?: ActorSource) {
+  /** Pass `dateExplicit: false` when the action did not select or clear the date itself. */
+  recordUpdate(before: Task, after: Task, source?: ActorSource, {dateExplicit = true}: {dateExplicit?: boolean} = {}) {
     const createdAt = new Date().toISOString()
     const statusChanged = before.status !== after.status
     const fromDate = before.scheduled?.date ?? null
@@ -55,7 +55,8 @@ export class TaskEventsService {
       this.recordChange(after, "status_changed", source, {fromStatus: before.status, toStatus: after.status}, createdAt)
     }
 
-    if (dateChanged) this.recordMove(after, fromDate, toDate, source, createdAt)
+    const crossedBacklog = statusChanged && (before.status === "backlog" || after.status === "backlog")
+    if (dateChanged && (dateExplicit || !crossedBacklog)) this.recordMove(after, fromDate, toDate, source, createdAt)
 
     if (priorityChanged) {
       this.recordChange(after, "priority_changed", source, {fromPriority: before.priority, toPriority: after.priority}, createdAt)

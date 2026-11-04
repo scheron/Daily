@@ -22,6 +22,7 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
   const draft = ref<TaskDraft | null>(null)
   const draftBase = ref<TaskDraft | null>(null)
   const editingTaskId = ref<Task["id"] | null>(null)
+  let dateExplicitlyCleared = false
 
   const pending = usePendingChildren({draft})
   const {pendingSubtasks, pendingComments, hasPending, clearPending, writePending} = pending
@@ -62,12 +63,15 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
     }
     draftBase.value = null
     editingTaskId.value = null
+    dateExplicitlyCleared = false
     clearPending()
   }
 
   function patch(updates: Partial<TaskDraft>) {
     if (!draft.value) return
     const next = {...draft.value, ...updates}
+
+    if (updates.scheduled !== undefined) dateExplicitlyCleared = updates.scheduled === null
 
     if (updates.status === "backlog") next.scheduled = null
     else if (!updates.status && "scheduled" in updates) next.status = statusForScheduling(draft.value.status, updates.scheduled ?? null)
@@ -90,6 +94,7 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
     }
     const base = draftBase.value
     const restored = deepClone(base)
+    dateExplicitlyCleared = false
 
     if (notNull(editingTaskId.value)) {
       const relationIds = relationIdsFor(editingTaskId.value)
@@ -132,6 +137,7 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
     if (base) {
       const needsDate = next.status !== "backlog" && next.status !== "ready_for_agent" && !next.scheduled
       const restPatch = buildRestPatch(next, base)
+      const shouldWriteDate = next.scheduled?.date !== base.scheduled?.date && (next.status !== "backlog" || dateExplicitlyCleared)
 
       if (next.branchId !== base.branchId) await tasksStore.moveTaskToBranch(id, next.branchId ?? "")
 
@@ -139,13 +145,11 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
         if (Object.keys(restPatch).length) await tasksStore.updateTask(id, restPatch)
         await tasksStore.moveTaskByOrder({taskId: id, targetStatus: next.status, activeDate: tasksStore.activeDay})
       } else {
-        const scheduleChanged = next.scheduled?.date !== base.scheduled?.date
-
-        if (scheduleChanged && ("status" in restPatch || next.scheduled === null)) {
+        if (shouldWriteDate && ("status" in restPatch || next.scheduled === null)) {
           await tasksStore.updateTask(id, {...restPatch, scheduled: next.scheduled})
         } else {
           if (Object.keys(restPatch).length) await tasksStore.updateTask(id, restPatch)
-          if (scheduleChanged && next.scheduled) await tasksStore.moveTask(id, next.scheduled.date)
+          if (shouldWriteDate && next.scheduled) await tasksStore.moveTask(id, next.scheduled.date)
         }
       }
 
@@ -177,6 +181,7 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
     draft.value = null
     draftBase.value = null
     editingTaskId.value = null
+    dateExplicitlyCleared = false
     clearPending()
   }
 
@@ -198,6 +203,7 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
     draft.value = next
     draftBase.value = deepClone(next)
     editingTaskId.value = task.id
+    dateExplicitlyCleared = false
   }
 
   function hasContent(d: TaskDraft): boolean {
