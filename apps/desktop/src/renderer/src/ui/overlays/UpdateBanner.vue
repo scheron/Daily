@@ -87,7 +87,7 @@ function getStatusIconClasses(isBusy: boolean, hasFailure: boolean) {
     <Teleport to="body">
       <div
         v-if="updateStore.isPanelVisible"
-        class="border-base-300 bg-base-100/90 fixed right-4 bottom-4 z-50 flex w-96 flex-col rounded-2xl border px-4 py-3 shadow-2xl"
+        class="border-base-300 bg-base-100/90 fixed bottom-4 right-4 z-50 flex w-96 flex-col rounded-2xl border px-4 py-3 shadow-2xl"
       >
         <div class="mb-4 flex w-full flex-col gap-2">
           <div class="flex w-full items-center justify-between gap-2">
@@ -140,7 +140,7 @@ function getStatusIconClasses(isBusy: boolean, hasFailure: boolean) {
         </div>
 
         <div v-if="!updateStore.isBusy" class="flex items-center justify-end gap-3">
-          <BaseButton variant="secondary" size="sm" class="min-w-28" @click="handlePrimaryAction">
+          <BaseButton variant="secondary" size="sm" class="min-w-28" :disabled="!updateStore.canDownload" @click="handlePrimaryAction">
             {{ buttonLabel }}
           </BaseButton>
         </div>

@@ -24,16 +24,23 @@ cleanup() {
 }
 trap cleanup EXIT
 
-if ! compgen -G "$DIST_DIR/*.dmg" >/dev/null; then
+if [ "$#" -gt 0 ]; then
+  dmgs=("$@")
+else
+  shopt -s nullglob
+  dmgs=("$DIST_DIR"/*.dmg)
+fi
+
+if [ "${#dmgs[@]}" -eq 0 ]; then
   echo "::error::electron-builder did not produce a .dmg"
   echo "=== $DIST_DIR contents ==="
   ls -la "$DIST_DIR" 2>&1 || echo "($DIST_DIR does not exist)"
   exit 1
 fi
-ls -lh "$DIST_DIR"/*.dmg
+ls -lh "${dmgs[@]}"
 
 status=0
-for dmg in "$DIST_DIR"/*.dmg; do
+for dmg in "${dmgs[@]}"; do
   echo ""
   echo "=== verifying $(basename "$dmg") ==="
 

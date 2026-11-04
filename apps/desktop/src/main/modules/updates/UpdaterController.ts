@@ -1,31 +1,44 @@
 import {spawn} from "node:child_process"
-import {existsSync} from "node:fs"
-import {app} from "electron"
+import {rm} from "node:fs/promises"
+import path from "node:path"
+import {app, powerMonitor} from "electron"
 
-import {logger} from "@daily/core"
+import {ENV, logger} from "@daily/core"
 
 import {IS_DEMO} from "@main/demo/profile"
 import {applyPendingInstallResult} from "./utils/applyPendingInstallResult"
 import {clearPendingInstallFailure} from "./utils/clearPendingInstallFailure"
 import {compareVersions} from "./utils/compareVersions"
+import {clearConfirmedRelease, readConfirmedRelease, writeConfirmedRelease} from "./utils/confirmedRelease"
 import {createInstallerScript} from "./utils/createInstallerScript"
+import {githubCooldown} from "./utils/githubCooldown"
 import {readPendingInstallFailure} from "./utils/readPendingInstallFailure"
+import {cachedDmgMatches, findCachedRelease, isManagedDmgPath, releaseDmgPath} from "./utils/releaseCache"
 import {removeManagedUpdateFiles} from "./utils/removeManagedUpdateFiles"
+import {readUpdateCheckSchedule, writeUpdateCheckSchedule} from "./utils/updateCheckSchedule"
 import {downloadRelease, resolveLatestRelease} from "./release"
 
 import type {IStorageController} from "@daily/core"
-import type {Settings} from "@daily/protocol"
-import type {PendingInstallFailure, ReleaseMeta} from "@main/types/updates"
-import type {AppUpdateInstallFailure, AppUpdateState} from "@shared/types/update"
+import type {AppUpdateCacheState} from "@daily/protocol"
+import type {AppUpdateInstallFailure, AppUpdateOffer, AppUpdateState} from "@shared/types/update"
 import type {BrowserWindow} from "electron"
+import type {PendingInstallFailure, ReleaseMeta} from "./types"
+import type {UpdateCheckSchedule} from "./utils/updateCheckSchedule"
 
-const INSTALL_FAILED_REASON = "The last update could not be installed."
+const MINUTE = 60_000
 const UPDATES_UNAVAILABLE_REASON = IS_DEMO ? "Updates are disabled in Daily Demo." : "In-app updates are available only on macOS."
 
 export class UpdaterController {
   private mainWindow: BrowserWindow | null = null
   private getStorageController: (() => IStorageController | null) | null = null
-  private isCheckingForUpdate = false
+  private checkInFlight: Promise<AppUpdateState> | null = null
+  private initialization: Promise<void> | null = null
+  private schedule: Promise<UpdateCheckSchedule> | null = null
+  private timer: NodeJS.Timeout | undefined
+  private scheduling = false
+  private isApplyingUpdate = false
+  private confirmedRelease: ReleaseMeta | null = null
+  private restoringRelease: Promise<void> | null = null
   private pendingInstallFailure: PendingInstallFailure | null = null
   private updateState: AppUpdateState = this.createDefaultUpdateState()
 
@@ -46,8 +59,6 @@ export class UpdaterController {
   }
 
   async checkForUpdate(options?: {manual?: boolean}): Promise<AppUpdateState> {
-    const manual = options?.manual ?? true
-
     if (!this.isUpdaterSupported()) {
       this.setUpdateState({
         status: "unavailable",
@@ -56,230 +67,39 @@ export class UpdaterController {
       })
       return this.getState()
     }
+    if (this.isApplyingUpdate || this.updateState.status === "installing") return this.getState()
 
-    if (this.isCheckingForUpdate) return this.getState()
-
-    this.isCheckingForUpdate = true
-    this.setUpdateState({
-      status: "checking",
-      reason: null,
-      downloadProgress: null,
-    })
-
-    try {
-      const settings = await this.loadSettingsSafe()
-      const release = await resolveLatestRelease()
-      const installedRelease = settings?.updates.installed ?? null
-
-      logger.info(logger.CONTEXT.UPDATES, "Resolved update versions", {
-        manual,
-        currentVersion: app.getVersion(),
-        currentHash: installedRelease?.hash ?? null,
-        latestVersion: release.version,
-        latestHash: release.hash,
-        latestSource: release.source,
-        installedVersion: installedRelease?.version ?? null,
-        installedHash: installedRelease?.hash ?? null,
-        installedSource: installedRelease?.source ?? null,
-      })
-
-      if (this.isInstalledRelease(release, settings)) {
-        logger.info(logger.CONTEXT.UPDATES, "Update not required: current version matches latest release", {
-          currentVersion: app.getVersion(),
-          latestVersion: release.version,
-          latestHash: release.hash,
-        })
-
-        await this.clearCachedUpdateState()
-        await this.forgetInstallFailure()
-        this.setUpdateState({
-          status: "idle",
-          source: release.source,
-          availableVersion: null,
-          availableHash: null,
-          downloadedAt: null,
-          downloadProgress: null,
-          checkedAt: new Date().toISOString(),
-          reason: manual ? "You're already using the latest version." : null,
-          installFailure: null,
-        })
-        return this.getState()
-      }
-
-      const cachedRelease = this.getCachedRelease(settings, release)
-      if (settings?.updates.cached && !cachedRelease) {
-        await this.clearCachedUpdateState()
-      }
-
-      logger.info(logger.CONTEXT.UPDATES, "Update available", {
-        currentVersion: app.getVersion(),
-        currentHash: installedRelease?.hash ?? null,
-        latestVersion: release.version,
-        latestHash: release.hash,
-        latestSource: release.source,
-      })
-
-      const installFailure = await this.resolveInstallFailure(release)
-
-      this.setUpdateState({
-        status: cachedRelease ? "downloaded" : "available",
-        source: release.source,
-        availableVersion: release.version,
-        availableHash: release.hash,
-        downloadedAt: cachedRelease?.downloadedAt ?? null,
-        downloadProgress: null,
-        checkedAt: new Date().toISOString(),
-        reason: installFailure ? INSTALL_FAILED_REASON : manual ? `Update ${release.version} is available.` : null,
-        installFailure,
-      })
-    } catch (error: any) {
-      logger.error(logger.CONTEXT.UPDATES, "Update manager failed", error)
-      this.setUpdateState({
-        status: "error",
-        reason: manual ? (error?.message ?? "Failed to check for updates.") : null,
-        downloadProgress: null,
-        checkedAt: new Date().toISOString(),
-      })
-    } finally {
-      this.isCheckingForUpdate = false
-    }
-
-    return this.getState()
+    return (this.checkInFlight ??= this.runCheck(options?.manual ?? true).finally(() => {
+      this.checkInFlight = null
+    }))
   }
 
-  async downloadUpdate(): Promise<boolean> {
-    if (!this.isUpdaterSupported()) {
-      this.setUpdateState({
-        status: "unavailable",
-        reason: UPDATES_UNAVAILABLE_REASON,
-      })
+  async downloadUpdate(offer: AppUpdateOffer): Promise<boolean> {
+    if (this.checkInFlight) await this.checkInFlight
+
+    const release = this.confirmedRelease
+    if (!release || release.version !== offer?.version || release.hash !== offer?.hash) {
+      this.emitState()
       return false
     }
 
-    if (!this.updateState.availableVersion) {
-      this.setUpdateState({
-        status: "error",
-        reason: "No update is available. Please check for updates again.",
-      })
-      return false
-    }
-
-    try {
-      const release = await resolveLatestRelease()
-      const settings = await this.loadSettingsSafe()
-
-      if (this.isInstalledRelease(release, settings)) {
-        await this.forgetInstallFailure()
-        this.setUpdateState({
-          status: "idle",
-          source: release.source,
-          availableVersion: null,
-          availableHash: null,
-          reason: "You're already using the latest version.",
-          checkedAt: new Date().toISOString(),
-          installFailure: null,
-        })
-        return false
-      }
-
-      const cachedRelease = this.getCachedRelease(settings, release)
-      if (cachedRelease) {
-        return await this.startInstall(release, cachedRelease)
-      }
-
-      if (settings?.updates.cached) {
-        await this.clearCachedUpdateState()
-      }
-
-      this.setUpdateState({
-        status: "downloading",
-        source: release.source,
-        availableVersion: release.version,
-        availableHash: release.hash,
-        downloadProgress: 0,
-        reason: null,
-        installFailure: null,
-      })
-
-      const downloadedRelease = await downloadRelease(release, (progress) => {
-        this.setUpdateState({
-          status: "downloading",
-          source: release.source,
-          availableVersion: release.version,
-          availableHash: release.hash,
-          downloadProgress: progress,
-        })
-      })
-
-      await this.saveUpdatesPatch({cached: downloadedRelease})
-
-      return await this.startInstall(release, downloadedRelease)
-    } catch (error: any) {
-      logger.error(logger.CONTEXT.UPDATES, "Failed to download update", error)
-      this.setUpdateState({
-        status: "error",
-        reason: error?.message ?? "Failed to download update.",
-        downloadProgress: null,
-      })
-      return false
-    }
+    return this.applyUpdate(true)
   }
 
   async installDownloadedUpdate(): Promise<boolean> {
-    if (!this.isUpdaterSupported()) {
-      this.setUpdateState({
-        status: "unavailable",
-        reason: UPDATES_UNAVAILABLE_REASON,
-      })
-      return false
+    if (this.isUpdaterSupported() && !this.checkInFlight && !this.isApplyingUpdate && this.updateState.status !== "installing") {
+      await this.restoreConfirmedRelease()
+      if (!this.confirmedRelease && (await this.readLegacyCache())) await this.checkForUpdate()
     }
 
-    try {
-      const release = await resolveLatestRelease()
-      const settings = await this.loadSettingsSafe()
-
-      if (this.isInstalledRelease(release, settings)) {
-        await this.forgetInstallFailure()
-        this.setUpdateState({
-          status: "idle",
-          source: release.source,
-          availableVersion: null,
-          availableHash: null,
-          downloadedAt: null,
-          checkedAt: new Date().toISOString(),
-          reason: "You're already using the latest version.",
-          installFailure: null,
-        })
-        return false
-      }
-
-      const cachedRelease = this.getCachedRelease(settings, release)
-      if (!cachedRelease) {
-        this.setUpdateState({
-          status: "error",
-          source: release.source,
-          availableVersion: release.version,
-          availableHash: release.hash,
-          downloadedAt: null,
-          reason: "Download the update first.",
-          checkedAt: new Date().toISOString(),
-        })
-        return false
-      }
-
-      return await this.startInstall(release, cachedRelease)
-    } catch (error: any) {
-      logger.error(logger.CONTEXT.UPDATES, "Failed to install update", error)
-      this.setUpdateState({
-        status: "error",
-        reason: error?.message ?? "Failed to install update.",
-        downloadProgress: null,
-      })
-      return false
-    }
+    return this.applyUpdate(false)
   }
 
-  async initialize(): Promise<void> {
+  initialize(): Promise<void> {
+    return (this.initialization ??= this.initializeUpdater())
+  }
+
+  private async initializeUpdater(): Promise<void> {
     if (!this.isUpdaterSupported()) {
       this.setUpdateState({
         status: "unavailable",
@@ -288,43 +108,206 @@ export class UpdaterController {
       return
     }
 
-    await applyPendingInstallResult((patch) => this.saveUpdatesPatch(patch))
-    this.pendingInstallFailure = await readPendingInstallFailure()
+    await this.restoreConfirmedRelease()
+
+    if (!app.isPackaged || ENV.isDevelopment) {
+      await this.checkForUpdate({manual: false})
+      return
+    }
+
+    this.scheduling = true
+    powerMonitor.on("resume", this.pollForUpdates)
+    app.once("will-quit", () => {
+      this.scheduling = false
+      clearTimeout(this.timer)
+      powerMonitor.off("resume", this.pollForUpdates)
+    })
+    await this.checkForUpdateIfDue()
+  }
+
+  private readonly pollForUpdates = () => {
+    void this.checkForUpdateIfDue()
+  }
+
+  private async checkForUpdateIfDue(): Promise<void> {
+    const schedule = await this.loadSchedule()
+    if (!this.scheduling) return
+    if (schedule.nextCheckAt > Date.now()) {
+      this.armNextCheck(schedule)
+      return
+    }
+    if (this.isApplyingUpdate || this.updateState.status === "installing") {
+      this.armNextCheck(schedule, MINUTE)
+      return
+    }
     await this.checkForUpdate({manual: false})
   }
 
-  private isInstalledRelease(release: ReleaseMeta, settings: Settings | null): boolean {
-    if (compareVersions(app.getVersion(), release.version) !== 0) return false
+  private async runCheck(manual: boolean): Promise<AppUpdateState> {
+    const schedule = await this.loadSchedule()
+    let retryAfterCooldown = false
+    let previous = this.getState()
 
-    const installed = settings?.updates.installed
-    if (!installed || installed.version !== release.version) return true
-    if (release.hash && installed.hash) return release.hash === installed.hash
+    try {
+      await this.restoreConfirmedRelease()
+      previous = this.getState()
+      this.setUpdateState({status: "checking", reason: null, downloadProgress: null})
 
-    return installed.releaseId === release.releaseId || installed.version === release.version
+      const result = await resolveLatestRelease({
+        currentVersion: app.getVersion(),
+        confirmedRelease: this.confirmedRelease,
+        canRequestGitHub: () => Date.now() >= schedule.restNotBefore,
+        onGitHubResponse: async (response) => {
+          const cooldown = githubCooldown(response, Date.now(), schedule.fallbackFailures)
+          if (!cooldown) return
+
+          retryAfterCooldown = !response.ok
+          if (cooldown.restNotBefore === schedule.restNotBefore && cooldown.fallbackFailures === schedule.fallbackFailures) return
+          Object.assign(schedule, cooldown)
+          await writeUpdateCheckSchedule(schedule)
+        },
+      })
+      const checkedAt = new Date().toISOString()
+
+      if (result.kind === "current") {
+        await clearConfirmedRelease()
+        this.confirmedRelease = null
+        await removeManagedUpdateFiles()
+        await this.forgetInstallFailure()
+        this.setUpdateState({
+          status: "idle",
+          source: "github",
+          availableVersion: null,
+          availableHash: null,
+          downloadedAt: null,
+          downloadProgress: null,
+          checkedAt,
+          reason: manual ? "You're already using the latest version." : null,
+          installFailure: null,
+        })
+      } else if (result.kind === "available") {
+        await this.showConfirmedRelease(result.release, manual, checkedAt)
+      } else {
+        retryAfterCooldown = true
+        this.setUpdateState({...previous, checkedAt})
+      }
+    } catch (error) {
+      logger.error(logger.CONTEXT.UPDATES, "Update manager failed", error)
+      const checkedAt = new Date().toISOString()
+      if (previous.availableVersion) {
+        this.setUpdateState({...previous, checkedAt})
+      } else {
+        this.setUpdateState({
+          status: "error",
+          reason: manual ? (error instanceof Error ? error.message : "Failed to check for updates.") : null,
+          downloadProgress: null,
+          checkedAt,
+        })
+      }
+    } finally {
+      if (this.scheduling) await this.finishScheduledCheck(schedule, retryAfterCooldown)
+    }
+
+    return this.getState()
   }
 
-  private getCachedRelease(settings: Settings | null, release: ReleaseMeta) {
-    const cached = settings?.updates.cached
-    if (!cached) return null
-    if (cached.releaseId !== release.releaseId) return null
-    if (cached.version !== release.version) return null
-    if (release.hash && cached.hash && release.hash !== cached.hash) return null
-    if (!cached.cachePath || !existsSync(cached.cachePath)) return null
-
-    return cached
+  private loadSchedule(): Promise<UpdateCheckSchedule> {
+    return (this.schedule ??= readUpdateCheckSchedule())
   }
 
-  private async startInstall(release: ReleaseMeta, cachedRelease: Settings["updates"]["cached"]): Promise<boolean> {
-    if (!cachedRelease) return false
+  private async finishScheduledCheck(schedule: UpdateCheckSchedule, retryAfterCooldown: boolean): Promise<void> {
+    const CHECK_INTERVAL = 60 * MINUTE
+    const CHECK_JITTER = 10 * MINUTE
+    const MAX_ACCELERATED_FALLBACK_RETRIES = 3
+
+    const now = Date.now()
+    let nextCheckAt = schedule.nextCheckAt
+    if (nextCheckAt <= now) nextCheckAt = now + CHECK_INTERVAL + Math.round((2 * Math.random() - 1) * CHECK_JITTER)
+    if (retryAfterCooldown && schedule.restNotBefore > now && schedule.fallbackFailures <= MAX_ACCELERATED_FALLBACK_RETRIES) {
+      nextCheckAt = Math.min(nextCheckAt, schedule.restNotBefore + Math.round(Math.random() * MINUTE))
+    }
+
+    if (nextCheckAt !== schedule.nextCheckAt) {
+      schedule.nextCheckAt = nextCheckAt
+      await writeUpdateCheckSchedule(schedule)
+    }
+    this.armNextCheck(schedule)
+  }
+
+  private armNextCheck(schedule: UpdateCheckSchedule, minimumDelay = 1) {
+    const MAX_TIMER_DELAY = 2 ** 31 - 1
+
+    if (!this.scheduling) return
+    clearTimeout(this.timer)
+    const delay = Math.min(Math.max(minimumDelay, schedule.nextCheckAt - Date.now()), MAX_TIMER_DELAY)
+    this.timer = setTimeout(this.pollForUpdates, delay)
+    this.timer.unref()
+  }
+
+  private async applyUpdate(allowDownload: boolean): Promise<boolean> {
+    if (!this.isUpdaterSupported()) {
+      this.setUpdateState({status: "unavailable", reason: UPDATES_UNAVAILABLE_REASON})
+      return false
+    }
+    if (this.checkInFlight || this.isApplyingUpdate || this.updateState.status === "installing") {
+      this.emitState()
+      return false
+    }
+
+    const release = this.confirmedRelease
+    if (!release || compareVersions(release.version, app.getVersion()) <= 0) {
+      this.setUpdateState({status: "error", reason: "No update is available. Please check for updates again."})
+      return false
+    }
+
+    this.isApplyingUpdate = true
+    try {
+      const cachedRelease = await this.getCachedRelease(release)
+      if (cachedRelease) return await this.startInstall(release, cachedRelease)
+      if (!allowDownload) {
+        this.setUpdateState({status: "error", reason: "Download the update first.", downloadedAt: null})
+        return false
+      }
+
+      this.setUpdateState({status: "downloading", downloadProgress: 0, downloadedAt: null, reason: null, installFailure: null})
+      const downloaded = await downloadRelease(release, (progress) => {
+        this.setUpdateState({downloadProgress: progress})
+      })
+      return await this.startInstall(release, downloaded)
+    } catch (error) {
+      logger.error(logger.CONTEXT.UPDATES, "Failed to apply update", error)
+      this.setUpdateState({
+        status: "error",
+        reason: error instanceof Error ? error.message : "Failed to apply update.",
+        downloadProgress: null,
+      })
+      return false
+    } finally {
+      this.isApplyingUpdate = false
+    }
+  }
+
+  private async startInstall(release: ReleaseMeta, cachedRelease: AppUpdateCacheState): Promise<boolean> {
+    const {cachePath} = cachedRelease
+    if (!cachePath || !(await cachedDmgMatches(cachePath, release.hash))) {
+      if (cachePath && (await isManagedDmgPath(cachePath))) await rm(cachePath, {force: true})
+      await this.forgetInstallFailure()
+      this.setUpdateState({
+        status: "error",
+        downloadedAt: null,
+        downloadProgress: null,
+        reason: "The cached update hash does not match the confirmed release. Download the update again.",
+        installFailure: null,
+      })
+      return false
+    }
 
     const installerPath = await createInstallerScript(cachedRelease)
     if (!installerPath) {
       this.setUpdateState({
         status: "error",
-        source: release.source,
-        availableVersion: release.version,
-        availableHash: release.hash,
         downloadedAt: cachedRelease.downloadedAt,
+        downloadProgress: null,
         reason: "Failed to prepare the update installer.",
       })
       return false
@@ -334,14 +317,10 @@ export class UpdaterController {
       detached: true,
       stdio: "ignore",
     })
-
     child.unref()
 
     this.setUpdateState({
       status: "installing",
-      source: release.source,
-      availableVersion: release.version,
-      availableHash: release.hash,
       downloadedAt: cachedRelease.downloadedAt,
       reason: null,
       downloadProgress: null,
@@ -350,6 +329,67 @@ export class UpdaterController {
 
     app.quit()
     return true
+  }
+
+  private restoreConfirmedRelease(): Promise<void> {
+    return (this.restoringRelease ??= this.loadConfirmedRelease())
+  }
+
+  private async loadConfirmedRelease(): Promise<void> {
+    try {
+      await applyPendingInstallResult()
+      this.pendingInstallFailure = await readPendingInstallFailure()
+      const release = await readConfirmedRelease()
+      if (release && compareVersions(release.version, app.getVersion()) > 0) await this.showConfirmedRelease(release, false, null)
+    } catch (error) {
+      logger.error(logger.CONTEXT.UPDATES, "Failed to restore confirmed release", error)
+    }
+  }
+
+  private async showConfirmedRelease(release: ReleaseMeta, manual: boolean, checkedAt: string | null): Promise<void> {
+    const INSTALL_FAILED_REASON = "The last update could not be installed."
+
+    const cachedRelease = await this.getCachedRelease(release)
+    if (checkedAt && release !== this.confirmedRelease) {
+      await writeConfirmedRelease(release)
+      const keepDirectories = [path.dirname(releaseDmgPath(release))]
+      if (cachedRelease?.cachePath) keepDirectories.push(path.dirname(cachedRelease.cachePath))
+      await removeManagedUpdateFiles(keepDirectories)
+    }
+
+    const installFailure = await this.resolveInstallFailure(release)
+    this.confirmedRelease = release
+    this.setUpdateState({
+      status: cachedRelease ? "downloaded" : "available",
+      source: release.source,
+      availableVersion: release.version,
+      availableHash: release.hash,
+      downloadedAt: cachedRelease?.downloadedAt ?? null,
+      downloadProgress: null,
+      checkedAt,
+      reason: installFailure ? INSTALL_FAILED_REASON : manual ? `Update ${release.version} is available.` : null,
+      installFailure,
+    })
+  }
+
+  private async getCachedRelease(release: ReleaseMeta): Promise<AppUpdateCacheState | null> {
+    const cached = await findCachedRelease(release)
+    if (cached) return cached
+
+    const legacyCache = await this.readLegacyCache()
+    return legacyCache ? findCachedRelease(release, legacyCache) : null
+  }
+
+  private async readLegacyCache(): Promise<AppUpdateCacheState | null> {
+    const storage = this.getStorageController?.()
+    if (!storage) return null
+
+    try {
+      return (await storage.loadSettings()).updates.cached
+    } catch (error) {
+      logger.error(logger.CONTEXT.UPDATES, "Failed to load legacy updater cache", error)
+      return null
+    }
   }
 
   private async resolveInstallFailure(release: ReleaseMeta): Promise<AppUpdateInstallFailure | null> {
@@ -369,40 +409,6 @@ export class UpdaterController {
 
     this.pendingInstallFailure = null
     await clearPendingInstallFailure()
-  }
-
-  private async clearCachedUpdateState(): Promise<void> {
-    await removeManagedUpdateFiles()
-    await this.saveUpdatesPatch({cached: null})
-  }
-
-  private async loadSettingsSafe(): Promise<Settings | null> {
-    const storage = this.getStorageController?.()
-    if (!storage) return null
-
-    try {
-      return await storage.loadSettings()
-    } catch (error) {
-      logger.error(logger.CONTEXT.UPDATES, "Failed to load settings for updater", error)
-      return null
-    }
-  }
-
-  private async saveUpdatesPatch(patch: Partial<Settings["updates"]>): Promise<void> {
-    const storage = this.getStorageController?.()
-    if (!storage) return
-
-    try {
-      const current = await storage.loadSettings()
-      await storage.saveSettings({
-        updates: {
-          ...current.updates,
-          ...patch,
-        },
-      })
-    } catch (error) {
-      logger.error(logger.CONTEXT.UPDATES, "Failed to save updater settings", error)
-    }
   }
 
   private createDefaultUpdateState(): AppUpdateState {

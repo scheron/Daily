@@ -52,7 +52,7 @@ import type {
 } from "./ai"
 import type {FocusCommand, FocusSession} from "./focus"
 import type {HotkeyRebindResult, QuickTaskHotkeyState, QuickTaskMenu} from "./quickTask"
-import type {AppUpdateState} from "./update"
+import type {AppUpdateOffer, AppUpdateState} from "./update"
 
 export type ApprovalKind = "device" | "agent"
 
@@ -122,7 +122,7 @@ export interface BridgeIPC {
 
   "updates:get-state": () => Promise<AppUpdateState>
   "updates:check": () => Promise<AppUpdateState>
-  "updates:download": () => Promise<boolean>
+  "updates:download": (offer: AppUpdateOffer) => Promise<boolean>
   "updates:install": () => Promise<boolean>
   "updates:on-state-changed": (callback: (state: AppUpdateState) => void) => () => void
 

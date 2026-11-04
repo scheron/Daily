@@ -3,7 +3,7 @@ import {toasts} from "vue-toasts-lite"
 import {invoke} from "@vueuse/core"
 import {defineStore} from "pinia"
 
-import type {AppUpdateState} from "@shared/types/update"
+import type {AppUpdateOffer, AppUpdateState} from "@shared/types/update"
 
 export const useUpdateStore = defineStore("update", () => {
   const state = ref<AppUpdateState>({
@@ -25,11 +25,15 @@ export const useUpdateStore = defineStore("update", () => {
   const isDownloading = computed(() => state.value.status === "downloading")
   const isInstalling = computed(() => state.value.status === "installing")
   const isBusy = computed(() => isDownloading.value || isInstalling.value)
-  const canDownload = computed(() => {
-    if (state.value.status === "available" || state.value.status === "downloaded") return true
-    if (state.value.status === "error" && state.value.availableVersion) return true
-    return false
+  const downloadOffer = computed<AppUpdateOffer | null>(() => {
+    const {status, availableVersion, availableHash} = state.value
+    if (!availableVersion || !availableHash) return null
+    if (status === "available" || status === "downloaded" || status === "error") {
+      return {version: availableVersion, hash: availableHash}
+    }
+    return null
   })
+  const canDownload = computed(() => downloadOffer.value !== null)
   const isPanelVisible = computed(() => {
     if (!hasAvailableUpdate.value) return false
     if (isBusy.value) return true
@@ -62,7 +66,8 @@ export const useUpdateStore = defineStore("update", () => {
   }
 
   async function downloadUpdate(): Promise<boolean> {
-    if (!canDownload.value || isBusy.value || state.value.status === "checking") return false
+    const offer = downloadOffer.value
+    if (!offer) return false
 
     state.value = {
       ...state.value,
@@ -71,7 +76,7 @@ export const useUpdateStore = defineStore("update", () => {
       installFailure: null,
     }
 
-    return await window.BridgeIPC["updates:download"]()
+    return await window.BridgeIPC["updates:download"](offer)
   }
 
   function dismissPanel() {
@@ -88,6 +93,7 @@ export const useUpdateStore = defineStore("update", () => {
     isInstalling,
     isBusy,
     isPanelVisible,
+    canDownload,
     downloadUpdate,
     dismissPanel,
   }

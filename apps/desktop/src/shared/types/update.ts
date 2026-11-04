@@ -3,6 +3,11 @@ import type {UpdateInstallFailureCode} from "@shared/errors/updates/UpdateInstal
 
 export type AppUpdateStatus = "idle" | "checking" | "available" | "downloading" | "downloaded" | "installing" | "error" | "unavailable"
 
+export type AppUpdateOffer = {
+  version: string
+  hash: string
+}
+
 /** The last install attempt that did not complete, as the renderer sees it. */
 export type AppUpdateInstallFailure = {
   version: string

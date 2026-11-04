@@ -6,6 +6,7 @@ import {APP_CONFIG} from "@daily/protocol"
 
 import {electronPaths} from "@main/config/electronPaths"
 import {UpdateInstallFailureCode} from "@shared/errors/updates/UpdateInstallFailureCode"
+import {isManagedDmgPath} from "./releaseCache"
 
 import type {AppUpdateCacheState, InstalledAppReleaseState} from "@daily/protocol"
 
@@ -39,10 +40,8 @@ export async function createInstallerScript(cachedUpdate: AppUpdateCacheState): 
     `"attemptedAt":${JSON.stringify(attemptedAt)}`,
   ].join(",")
 
-  if (!cachedUpdate.cachePath || !existsSync(cachedUpdate.cachePath)) return null
-
-  const releasesDir = electronPaths.updatesReleasesPath()
-  if (!path.resolve(cachedUpdate.cachePath).startsWith(path.resolve(releasesDir))) return null
+  if (!cachedUpdate.hash || !cachedUpdate.cachePath || !existsSync(cachedUpdate.cachePath) || !(await isManagedDmgPath(cachedUpdate.cachePath)))
+    return null
 
   const updatesDir = electronPaths.updatesPath()
   const scriptPath = path.join(updatesDir, `install-${Date.now()}.sh`)
@@ -58,6 +57,7 @@ export async function createInstallerScript(cachedUpdate: AppUpdateCacheState): 
     `RELAUNCH_PATH=${q(relaunchPath)}`,
     `APP_NAME=${q(APP_CONFIG.name)}`,
     `DOWNLOAD_PATH=${q(cachedUpdate.cachePath ?? "")}`,
+    `EXPECTED_SHA256=${q(cachedUpdate.hash)}`,
     `MARKER_PATH=${q(electronPaths.updatesInstallResultPath())}`,
     `MARKER_JSON=${q(JSON.stringify(installResult))}`,
     `LOG_PATH=${q(electronPaths.updatesInstallLogPath())}`,
@@ -151,6 +151,8 @@ export async function createInstallerScript(cachedUpdate: AppUpdateCacheState): 
     "trap cleanup EXIT",
     'log "installing $APP_NAME from $PROVIDER: $DOWNLOAD_PATH"',
     'while kill -0 "$TARGET_PID" >/dev/null 2>&1; do sleep 1; done',
+    'DIGEST=$(/usr/bin/shasum -a 256 <"$DOWNLOAD_PATH") || fail "could not read the downloaded disk image"',
+    '[ "${DIGEST%% *}" = "$EXPECTED_SHA256" ] || fail "the downloaded disk image hash does not match the confirmed release"',
     'rm -rf "$STAGE_PATH" >/dev/null 2>&1 || true',
     'MOUNT_POINT=$(hdiutil attach "$DOWNLOAD_PATH" -nobrowse | awk \'/\\/Volumes\\// { $1=$2=""; sub(/^  */, ""); print; exit }\')',
     `[ -n "$MOUNT_POINT" ] || fail "could not mount $DOWNLOAD_PATH" ${UpdateInstallFailureCode.MountFailed}`,

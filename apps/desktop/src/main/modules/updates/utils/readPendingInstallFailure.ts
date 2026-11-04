@@ -5,7 +5,7 @@ import {logger} from "@daily/core"
 
 import {electronPaths} from "@main/config/electronPaths"
 
-import type {PendingInstallFailure} from "@main/types/updates"
+import type {PendingInstallFailure} from "../types"
 
 /**
  * Reads the marker the installer script leaves behind when it restored the

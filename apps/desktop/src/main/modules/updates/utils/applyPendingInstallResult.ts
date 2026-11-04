@@ -5,22 +5,18 @@ import {logger} from "@daily/core"
 
 import {electronPaths} from "@main/config/electronPaths"
 import {clearPendingInstallFailure} from "./clearPendingInstallFailure"
+import {clearConfirmedRelease, readConfirmedRelease} from "./confirmedRelease"
 import {removeManagedUpdateFiles} from "./removeManagedUpdateFiles"
 
-import type {InstalledAppReleaseState, Settings} from "@daily/protocol"
-
-export async function applyPendingInstallResult(saveUpdatesPatch: (patch: Partial<Settings["updates"]>) => Promise<void>) {
+export async function applyPendingInstallResult() {
   const markerPath = electronPaths.updatesInstallResultPath()
   if (!existsSync(markerPath)) return
 
   try {
-    const content = await readFile(markerPath, "utf8")
-    const installedRelease = JSON.parse(content) as InstalledAppReleaseState
-    await saveUpdatesPatch({
-      cached: null,
-      installed: installedRelease,
-      skippedReleaseId: null,
-    })
+    const result = JSON.parse(await readFile(markerPath, "utf8")) as {releaseId?: string} | null
+    if (!result?.releaseId) return
+    const confirmed = await readConfirmedRelease()
+    if (confirmed?.releaseId === result.releaseId) await clearConfirmedRelease()
     await removeManagedUpdateFiles()
     await clearPendingInstallFailure()
   } catch (error) {

@@ -1,16 +1,15 @@
 import type {AppUpdateSource, ISODateTime} from "@daily/protocol"
 import type {UpdateInstallFailureCode} from "@shared/errors/updates/UpdateInstallFailureCode"
 
-export type GitHubReleaseMeta = {
+export type ReleaseMeta = {
+  tag: string
   source: "github"
   version: string
-  hash: string | null
+  hash: string
   releaseId: string
   assetName: string
   assetUrl: string
 }
-
-export type ReleaseMeta = GitHubReleaseMeta
 
 /**
  * The fact the installer script leaves behind when it could not complete the

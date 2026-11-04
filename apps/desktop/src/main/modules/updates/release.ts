@@ -1,75 +1,100 @@
-import {createHash} from "node:crypto"
-import {createReadStream} from "node:fs"
-import {mkdir, rm} from "node:fs/promises"
+import {mkdir} from "node:fs/promises"
 import path from "node:path"
 
 import {logger} from "@daily/core"
 
-import {electronPaths} from "@main/config/electronPaths"
 import {downloadWithProgress} from "@main/utils/files/downloadWithProgress"
 import {UPDATES_CONFIG} from "@shared/config/updates"
+import {UpdateReleaseErrorCode} from "@shared/errors/updates/UpdateReleaseErrorCode"
+import {compareVersions} from "./utils/compareVersions"
 import {parseGitHubReleaseMeta} from "./utils/parseGitHubReleaseMeta"
+import {parseReleaseManifest} from "./utils/parseReleaseManifest"
+import {isManagedDmgPath, releaseDmgPath} from "./utils/releaseCache"
 
 import type {AppUpdateCacheState} from "@daily/protocol"
-import type {ReleaseMeta} from "@main/types/updates"
+import type {ReleaseMeta} from "./types"
 
-export async function resolveLatestRelease(): Promise<ReleaseMeta> {
-  const githubRelease = await getGitHubReleaseMeta()
-  if (!githubRelease) throw new Error("Failed to read GitHub release metadata.")
-  return githubRelease
+export type GitHubReleaseResponse = Pick<Response, "status" | "headers" | "ok"> & {message: string | null}
+
+type ReleaseCheckOptions = {
+  currentVersion: string
+  confirmedRelease: ReleaseMeta | null
+  canRequestGitHub?: () => boolean
+  onGitHubResponse?: (response: GitHubReleaseResponse) => void | Promise<void>
+}
+
+type ReleaseCheckResult = {kind: "current"} | {kind: "deferred"} | {kind: "available"; release: ReleaseMeta}
+
+export async function resolveLatestRelease(options: ReleaseCheckOptions): Promise<ReleaseCheckResult> {
+  const checkTimeoutMs = 15_000
+  const {currentVersion, confirmedRelease, canRequestGitHub, onGitHubResponse} = options
+  const response = await fetch(`https://github.com/${UPDATES_CONFIG.githubRepo}/releases/latest/download/latest.json`, {
+    signal: AbortSignal.timeout(checkTimeoutMs),
+  })
+  if (!response.ok) throw new Error(`${UpdateReleaseErrorCode.ManifestHttpFailed} ${response.status} ${response.statusText}.`)
+
+  const manifest = parseReleaseManifest(await response.json())
+  if (!manifest) throw new Error(UpdateReleaseErrorCode.InvalidManifest)
+  if (compareVersions(manifest.version, currentVersion) <= 0) return {kind: "current"}
+  if (confirmedRelease?.version === manifest.version && confirmedRelease.tag === manifest.tag && confirmedRelease.hash === manifest.sha256) {
+    return {kind: "available", release: confirmedRelease}
+  }
+  if (canRequestGitHub?.() === false) return {kind: "deferred"}
+
+  const taggedRelease = await fetch(`https://api.github.com/repos/${UPDATES_CONFIG.githubRepo}/releases/tags/${encodeURIComponent(manifest.tag)}`, {
+    headers: UPDATES_CONFIG.githubHeaders,
+    redirect: "error",
+    signal: AbortSignal.timeout(checkTimeoutMs),
+  })
+  let payload: unknown
+  try {
+    payload = await taggedRelease.json()
+  } catch (error) {
+    if (taggedRelease.ok) throw error
+  } finally {
+    await onGitHubResponse?.({
+      ok: taggedRelease.ok,
+      status: taggedRelease.status,
+      headers: taggedRelease.headers,
+      message: readErrorMessage(payload),
+    })
+  }
+  if (!taggedRelease.ok) throw new Error(`${UpdateReleaseErrorCode.GitHubHttpFailed} ${taggedRelease.status} ${taggedRelease.statusText}.`)
+
+  const release = parseGitHubReleaseMeta(payload, manifest)
+  if (!release) throw new Error(UpdateReleaseErrorCode.ManifestMismatch)
+  return {kind: "available", release}
 }
 
 export async function downloadRelease(release: ReleaseMeta, onProgress: (progress: number | null) => void): Promise<AppUpdateCacheState> {
   logger.info(logger.CONTEXT.UPDATES, `Downloading update ${release.version} via ${release.source}`)
 
-  const releaseDir = path.join(electronPaths.updatesReleasesPath(), release.releaseId.replace(/[^a-zA-Z0-9._-]/g, "_"))
-  const destinationPath = path.join(releaseDir, release.assetName)
-  await mkdir(releaseDir, {recursive: true})
+  const destinationPath = releaseDmgPath(release)
+  if (!(await isManagedDmgPath(destinationPath)) || !(await isManagedDmgPath(`${destinationPath}.download`))) {
+    throw new Error(UpdateReleaseErrorCode.InvalidCachePath)
+  }
+  await mkdir(path.dirname(destinationPath), {recursive: true})
 
   await downloadWithProgress({
     url: release.assetUrl,
     destPath: destinationPath,
-    onProgress: (downloadedBytes, totalBytes) => {
-      const progress = totalBytes > 0 ? Math.min(100, Math.round((downloadedBytes / totalBytes) * 100)) : null
-      onProgress(progress)
+    sha256: release.hash,
+    onProgress: (downloadedBytes, totalBytes, phase) => {
+      if (phase === "downloading") onProgress(totalBytes > 0 ? Math.min(100, Math.round((downloadedBytes / totalBytes) * 100)) : null)
     },
   })
-
-  const downloadedHash = await computeFileSha256(destinationPath)
-  if (release.hash && release.hash !== downloadedHash) {
-    await rm(releaseDir, {recursive: true, force: true})
-    throw new Error("Downloaded update hash does not match the expected release hash.")
-  }
 
   return {
     releaseId: release.releaseId,
     version: release.version,
-    hash: release.hash ?? downloadedHash,
-    source: "github",
+    hash: release.hash,
+    source: release.source,
     cachePath: destinationPath,
     downloadedAt: new Date().toISOString(),
   }
 }
 
-async function getGitHubReleaseMeta(): Promise<ReleaseMeta | null> {
-  const response = await fetch(`https://api.github.com/repos/${UPDATES_CONFIG.githubRepo}/releases/latest`, {
-    headers: UPDATES_CONFIG.githubHeaders,
-  })
-
-  if (!response.ok) {
-    throw new Error(`GitHub releases API returned ${response.status} ${response.statusText}.`)
-  }
-
-  return parseGitHubReleaseMeta((await response.json()) as Parameters<typeof parseGitHubReleaseMeta>[0])
-}
-
-async function computeFileSha256(filePath: string): Promise<string> {
-  const hash = createHash("sha256")
-  const stream = createReadStream(filePath)
-
-  for await (const chunk of stream) {
-    hash.update(chunk)
-  }
-
-  return hash.digest("hex")
+function readErrorMessage(payload: unknown): string | null {
+  if (payload && typeof payload === "object" && "message" in payload && typeof payload.message === "string") return payload.message
+  return null
 }

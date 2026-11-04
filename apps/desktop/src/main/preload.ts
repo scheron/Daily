@@ -53,7 +53,7 @@ import type {
 import type {FocusCommand, FocusSession} from "@shared/types/focus"
 import type {ApprovalKind, BridgeIPC} from "@shared/types/ipc"
 import type {HotkeyRebindResult, QuickTaskHotkeyState, QuickTaskMenu} from "@shared/types/quickTask"
-import type {AppUpdateState} from "@shared/types/update"
+import type {AppUpdateOffer, AppUpdateState} from "@shared/types/update"
 import type {PartialDeep} from "type-fest"
 
 // prettier-ignore
@@ -127,7 +127,7 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
 
   "updates:get-state": () => ipcRenderer.invoke("updates:get-state") as Promise<AppUpdateState>,
   "updates:check": () => ipcRenderer.invoke("updates:check") as Promise<AppUpdateState>,
-  "updates:download": () => ipcRenderer.invoke("updates:download") as Promise<boolean>,
+  "updates:download": (offer: AppUpdateOffer) => ipcRenderer.invoke("updates:download", offer) as Promise<boolean>,
   "updates:install": () => ipcRenderer.invoke("updates:install") as Promise<boolean>,
   "updates:on-state-changed": (callback: (state: AppUpdateState) => void) => {
     const subscription = (_event: unknown, state: AppUpdateState) => callback(state)
