@@ -1,0 +1,39 @@
+.markdown-image {
+  display: inline-block;
+  max-width: 100%;
+  margin: 0.5rem 0;
+}
+
+.markdown-image > img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.375rem;
+}
+
+.markdown-image-error {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 100%;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.375rem;
+  background: var(--color-base-300);
+  color: var(--color-base-content);
+  font-size: 0.8125rem;
+}
+
+.markdown-image-error > span {
+  opacity: 0.7;
+}
+
+.markdown-image-error > button {
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  background: var(--color-accent);
+  color: var(--color-accent-content, #fff);
+  font-size: 0.75rem;
+  cursor: pointer;
+}

@@ -1,6 +1,7 @@
 import {blobToBuffer} from "./blobToBuffer"
 import {calcProportionSize} from "./calcProportionSize"
 import {compressImageFile} from "./compressImageFile"
+import {formatMarkdownImage} from "./formatMarkdownImage"
 import {toImageAltText} from "./toImageAltText"
 
 export async function uploadImageFile(file: File): Promise<string | null> {
@@ -16,8 +17,8 @@ export async function uploadImageFile(file: File): Promise<string | null> {
 
     const {width: displayWidth, height: displayHeight} = calcProportionSize(width, height)
 
-    return `![${toImageAltText(file.name)} =${displayWidth}x${displayHeight}](${url})`
-  } catch (e: any) {
+    return formatMarkdownImage(url, `${toImageAltText(file.name)} =${displayWidth}x${displayHeight}`)
+  } catch (e) {
     console.error("[uploadImageFile] Failed to upload image:", e)
     return null
   }

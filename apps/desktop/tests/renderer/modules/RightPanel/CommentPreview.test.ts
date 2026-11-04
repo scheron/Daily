@@ -28,6 +28,11 @@ function rect(top, height = 20, width = 320) {
   return new DOMRect(0, top, width, height)
 }
 
+function textLineRects(text) {
+  const lines = Array.from(text.matchAll(/line (\d)/g), ([, line]) => rect(100 + (Number(line) - 1) * 20))
+  return lines.length ? lines : [rect(100)]
+}
+
 async function settle() {
   await nextTick()
   await new Promise((resolve) => requestAnimationFrame(resolve))
@@ -49,7 +54,7 @@ describe("Comment preview geometry proxy", () => {
     fonts = new EventTarget()
     fonts.ready = Promise.resolve()
     Object.defineProperty(document, "fonts", {value: fonts, configurable: true})
-    textRects = (text) => [rect(100 + (Number(text.match(/line (\d)/)?.[1] ?? 1) - 1) * 20)]
+    textRects = textLineRects
     vi.spyOn(Range.prototype, "getClientRects").mockImplementation(function () {
       return textRects(this.startContainer.textContent)
     })
@@ -90,7 +95,7 @@ describe("Comment preview geometry proxy", () => {
   it("excludes links below the cutoff from sequential focus while keeping visible links accessible, using a geometry proxy", async () => {
     elementRect = (element) => {
       const line = Number(element.textContent.match(/^line (\d)/)?.[1] ?? 1)
-      return element.matches(".cm-line, a.cm-link-widget") ? rect(100 + (line - 1) * 20) : rect(100, 160)
+      return element.matches(".markdown-line, .markdown-preview-content a[href]") ? rect(100 + (line - 1) * 20) : rect(100, 160)
     }
     await setup(
       "[line 1 visible link](https://example.com/visible)\nline 2\nline 3\nline 4\nline 5\nline 6\n[line 7 hidden link](https://example.com/hidden)\nline 8",
@@ -104,7 +109,7 @@ describe("Comment preview geometry proxy", () => {
     expect(bridge["shell:open-external"]).toHaveBeenCalledWith("https://example.com/visible")
 
     const sequentialLinks = wrapper
-      .findAll("a.cm-link-widget")
+      .findAll(".markdown-preview-content a[href]")
       .map((link) => link.element)
       .filter((link) => link.tabIndex >= 0 && !link.closest("[inert]"))
     expect(sequentialLinks.map((link) => link.textContent)).toEqual(["line 1 visible link"])
@@ -125,9 +130,9 @@ describe("Comment preview geometry proxy", () => {
   it("restores visible links after resize without changing their tabindex or existing inert state, using a geometry proxy", async () => {
     let expanded = false
     elementRect = (element) =>
-      element.matches("a.cm-link-widget") ? rect(!expanded && element.textContent.includes("line 7") ? 220 : 100) : rect(100, 160)
+      element.matches(".markdown-preview-content a[href]") ? rect(!expanded && element.textContent.includes("line 7") ? 220 : 100) : rect(100, 160)
     await setup("[line 1](https://example.com/one)\nline 2\nline 3\nline 4\nline 5\nline 6\n[line 7](https://example.com/seven)\nline 8")
-    const [first, last] = wrapper.findAll("a.cm-link-widget").map((link) => link.element)
+    const [first, last] = wrapper.findAll(".markdown-preview-content a[href]").map((link) => link.element)
     first.setAttribute("inert", "")
     last.setAttribute("tabindex", "3")
     expect(last.closest("[inert]")).not.toBeNull()
@@ -147,13 +152,13 @@ describe("Comment preview geometry proxy", () => {
 
   it("returns focus to the row when a focused link becomes clipped and restores replacement content, using a geometry proxy", async () => {
     textRects = () => [rect(100)]
-    elementRect = (element) => (element.matches("a.cm-link-widget") ? rect(220) : rect(100, 160))
+    elementRect = (element) => (element.matches(".markdown-preview-content a[href]") ? rect(220) : rect(100, 160))
     await setup("line 1\nline 2\nline 3\nline 4\nline 5\nline 6\n[line 7](https://example.com/seven)")
-    const link = wrapper.find("a.cm-link-widget").element
+    const link = wrapper.find(".markdown-preview-content a[href]").element
     link.focus()
     expect(document.activeElement).toBe(link)
 
-    textRects = (text) => [rect(100 + (Number(text.match(/line (\d)/)?.[1] ?? 1) - 1) * 20)]
+    textRects = textLineRects
     deliverResizeToObserved()
     await settle()
 
@@ -163,7 +168,7 @@ describe("Comment preview geometry proxy", () => {
 
     await wrapper.setProps({comment: makeComment("[line 1 replacement](https://example.com/replacement)")})
     await settle()
-    const replacement = wrapper.find("a.cm-link-widget").element
+    const replacement = wrapper.find(".markdown-preview-content a[href]").element
     expect(replacement.closest("[inert]")).toBeNull()
     replacement.focus()
     expect(document.activeElement).toBe(replacement)
@@ -171,7 +176,7 @@ describe("Comment preview geometry proxy", () => {
 
   it("excludes a late image retry button while clipped and restores it after layout changes, using a geometry proxy", async () => {
     let expanded = false
-    elementRect = (element) => (element.matches(".cm-image-wrapper, button") ? rect(expanded ? 100 : 220) : rect(100, 160))
+    elementRect = (element) => (element.matches(".markdown-image, button") ? rect(expanded ? 100 : 220) : rect(100, 160))
     await setup("line 1\nline 2\nline 3\nline 4\nline 5\nline 6\n![attachment](daily://file/example)")
     vi.useFakeTimers()
     const image = wrapper.find("img").element
@@ -199,14 +204,14 @@ describe("Comment preview geometry proxy", () => {
     expect(wrapper.text()).not.toContain("Failed to load image")
   })
   it.each([
-    ["blank paragraphs", "line 1\nline 2\n\nline 4\nline 5\nline 6\nline 7", ".cm-line", 2],
-    ["empty code lines", "```plaintext\nline 1\nline 2\n\nline 4\nline 5\nline 6\nline 7\n```", ".cm-codeblock-text-line", 2],
-    ["an image row", "![attachment](daily://file/example)\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7", ".cm-image-wrapper", 0],
-    ["table rows", "| a | b |\n| - | - |\n| c | d |\nline 3\nline 4\nline 5\nline 6\nline 7", ".cm-table tr", 0],
+    ["blank paragraphs", "line 1\nline 2\n\nline 4\nline 5\nline 6\nline 7", ".markdown-line", 2],
+    ["empty code lines", "```plaintext\nline 1\nline 2\n\nline 4\nline 5\nline 6\nline 7\n```", ".markdown-code-line", 2],
+    ["an image row", "![attachment](daily://file/example)\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7", ".markdown-image", 0],
+    ["table rows", "| a | b |\n| - | - |\n| c | d |\nline 3\nline 4\nline 5\nline 6\nline 7", "table tr", 0],
   ])("counts %s in the six rendered lines, using a geometry proxy", async (_name, content, selector, index) => {
     elementRect = (element) => {
       if (element.matches(selector)) {
-        const siblings = Array.from(element.closest(".cm-content").querySelectorAll(selector))
+        const siblings = Array.from(element.closest(".markdown-preview-content").querySelectorAll(selector))
         return rect(100 + siblings.indexOf(element) * 20)
       }
       return rect(100, 140)
@@ -255,13 +260,13 @@ describe("Comment preview geometry proxy", () => {
   })
 
   it("measures replacement Markdown and image load completion and stops after unmount, using a geometry proxy", async () => {
-    elementRect = (element) => (element.matches(".cm-image-wrapper") ? rect(240) : rect(100, 140))
+    elementRect = (element) => (element.matches(".markdown-image") ? rect(240) : rect(100, 140))
     await setup("line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\n![attachment](daily://file/example)")
     const viewport = wrapper.find(".comment-markdown").element
     expect(viewport.style.maxHeight).toBe("120px")
 
     textRects = () => [rect(100)]
-    const content = wrapper.find(".cm-content").element
+    const content = wrapper.find(".markdown-preview-content").element
     content.replaceWith(content.cloneNode(true))
     await new Promise((resolve) => setTimeout(resolve, 0))
     await settle()
@@ -289,7 +294,7 @@ describe("Comment preview geometry proxy", () => {
   it("keeps links external and images zoomable inside the preview", async () => {
     await setup("[docs](https://example.com)\n![attachment](daily://file/example)")
     const linkEvent = new MouseEvent("click", {bubbles: true, cancelable: true})
-    wrapper.find("a.cm-link-widget").element.dispatchEvent(linkEvent)
+    wrapper.find(".markdown-preview-content a[href]").element.dispatchEvent(linkEvent)
     expect(bridge["shell:open-external"]).toHaveBeenCalledWith("https://example.com")
     expect(linkEvent.defaultPrevented).toBe(true)
 

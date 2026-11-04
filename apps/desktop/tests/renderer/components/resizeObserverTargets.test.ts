@@ -43,14 +43,14 @@ describe("resize observer targets", () => {
     vi.restoreAllMocks()
   })
 
-  it("clamps MarkdownContent from a delivery on .cm-content, not one on its own root", async () => {
+  it("clamps MarkdownContent from a delivery on .markdown-preview-content, not one on its own root", async () => {
     const {default: MarkdownContent} = await import("../../../src/renderer/src/ui/common/misc/MarkdownContent.vue")
 
     wrapper = mount(MarkdownContent, {props: {content: "text"}, attachTo: document.body})
     await nextTick()
 
-    const contentEl = wrapper.element.querySelector(".cm-content")
-    if (!contentEl) throw new Error("no .cm-content found")
+    const contentEl = wrapper.element.querySelector(".markdown-preview-content")
+    if (!contentEl) throw new Error("no .markdown-preview-content found")
     stubLayout(contentEl, {scrollHeight: 300})
 
     deliverResize(wrapper.element)
@@ -62,7 +62,7 @@ describe("resize observer targets", () => {
     expect(wrapper.classes()).toContain("is-minimized")
   })
 
-  it("observes MarkdownContent's .cm-content only when the content can be minimized", async () => {
+  it("observes MarkdownContent's .markdown-preview-content only when the content can be minimized", async () => {
     const {default: MarkdownContent} = await import("../../../src/renderer/src/ui/common/misc/MarkdownContent.vue")
     const observe = vi.spyOn(window.ResizeObserver.prototype, "observe")
 
@@ -72,7 +72,7 @@ describe("resize observer targets", () => {
 
     const observed = observe.mock.calls.map(([element]) => element)
     expect(observed.filter((element) => fixed.element.contains(element))).toEqual([])
-    expect(observed).toContain(wrapper.element.querySelector(".cm-content"))
+    expect(observed).toContain(wrapper.element.querySelector(".markdown-preview-content"))
 
     fixed.unmount()
   })

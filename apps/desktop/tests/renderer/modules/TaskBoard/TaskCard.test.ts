@@ -367,7 +367,7 @@ describe("TaskCard — its shape on the board", () => {
     expect(Array.from(column.classList)).toEqual(expect.arrayContaining(["flex", "flex-col", "h-full"]))
     expect(Array.from(text.classList)).toEqual(expect.arrayContaining(["flex-1", "min-h-0", "overflow-hidden"]))
 
-    const contentEl = markdown.querySelector(".cm-content")
+    const contentEl = markdown.querySelector(".markdown-preview-content")
     stubLayout(contentEl, {scrollHeight: 900})
     deliverResize(contentEl)
     await nextTick()

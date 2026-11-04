@@ -32,8 +32,6 @@ A **fixed, closed set of tiny low-level primitives over one thing** may share a 
 
 Every function in such a module must belong to that **one** family. The moment a function has real domain logic or doesn't fit the family vocabulary, it gets its own file instead.
 
-`utils/codemirror/` is not a helper domain but the markdown editor itself: its layers (`extensions/`, `commands/`, `theme/`, `widgets/`, `language/`) keep their `index.ts` as the door into each layer, the way a component folder does. The rest of this skill applies to helper domains.
-
 ## Decision
 
 1. Is it needed outside the renderer by a real consumer? → `packages/std` (`@daily/std`, domain-free: `getToday`, `toDateLabel`) or `packages/protocol` (`@daily/protocol`, rules over the synced domain: `sortMilestones`, `milestoneCompletion`). See **keeping-symbols-local** — no promotion on speculation.

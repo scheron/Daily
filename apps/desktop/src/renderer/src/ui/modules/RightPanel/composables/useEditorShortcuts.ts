@@ -1,6 +1,7 @@
 import {useEventListener} from "@vueuse/core"
 
 import {useBaseModal} from "@/ui/base/BaseModal"
+import {isInsideOpenDialog} from "@/utils/ui/isInsideOpenDialog"
 import {SHORTCUTS_MAP} from "@shared/constants/shortcuts"
 import {acceleratorsMatch} from "@shared/utils/shortcuts/acceleratorsMatch"
 import {formatEventToAccelerator} from "@shared/utils/shortcuts/formatEventToAccelerator"
@@ -16,6 +17,7 @@ export function useEditorShortcuts() {
   useEventListener(window, "keydown", (event: KeyboardEvent) => {
     const pressed = formatEventToAccelerator(event)
     if (!pressed || !isOpen.value) return
+    if (isInsideOpenDialog(event.target)) return
 
     if (acceleratorsMatch(pressed, SHORTCUTS_MAP["editor:close"].accelerator)) {
       if (event.defaultPrevented || isSubtaskEditorOpen.value || modals.value.length > 0) return

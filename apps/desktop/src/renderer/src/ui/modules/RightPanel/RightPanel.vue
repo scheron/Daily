@@ -41,7 +41,7 @@ useEventListener(scrollerRef, "scroll", updateFirstLineOut, {passive: true})
 function updateFirstLineOut() {
   if (nestedTarget.value) return
   const scroller = scrollerRef.value
-  const line = scroller?.querySelector(".cm-line")
+  const line = scroller?.querySelector(".markdown-editor .tiptap > :first-child")
   isFirstLineOut.value = !!scroller && !!line && line.getBoundingClientRect().bottom <= scroller.getBoundingClientRect().top
 }
 

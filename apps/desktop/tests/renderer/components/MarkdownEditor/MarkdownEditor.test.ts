@@ -1,218 +1,188 @@
 // @vitest-environment happy-dom
-// @ts-nocheck
-import {nextTick} from "vue"
 import {createPinia, setActivePinia} from "pinia"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
-import {acceptCompletion, completionStatus, selectedCompletionIndex} from "@codemirror/autocomplete"
-import {EditorView} from "@codemirror/view"
 import {mount} from "@vue/test-utils"
 import {mockBridgeIPC} from "../../../helpers/bridgeIPC"
-import {pressKey, typeText} from "../../../helpers/editorView"
+import {makeTask} from "../../../helpers/taskFixtures"
+import {findTipTapEditor, pressTipTapKey as pressKey, typeTipTapText as typeText} from "../../../helpers/tiptapEditor"
+
+import type MarkdownEditorComponent from "@/ui/common/misc/MarkdownEditor"
+import type {QuickTaskMenu} from "@shared/types/quickTask"
+
+type EditorProps = InstanceType<typeof MarkdownEditorComponent>["$props"]
 
 const uploadImageFile = vi.hoisted(() => vi.fn())
 vi.mock("../../../../src/renderer/src/ui/common/misc/MarkdownEditor/utils/uploadImageFile", () => ({uploadImageFile}))
 
+const fileMarkdown = "![shot =240x120](daily://file/DF-shot)"
+const task = makeTask({id: "__draft__", status: "backlog", content: "", scheduled: null})
+
+function dispatchImageEvent(type: "drop" | "paste" | "dragover", target: Element) {
+  const file = new File(["x"], "shot.png", {type: "image/png"})
+  const event = new Event(type, {bubbles: true, cancelable: true})
+  const transfer = {files: [file], types: ["Files"]}
+  const clipboard = {items: [{type: "image/png", getAsFile: () => file}], getData: () => ""}
+  Object.defineProperty(event, type === "paste" ? "clipboardData" : "dataTransfer", {value: type === "paste" ? clipboard : transfer})
+  target.dispatchEvent(event)
+  return event
+}
+
 describe("MarkdownEditor", () => {
-  let wrapper = null
+  let unmount: (() => void) | undefined
 
   beforeEach(() => {
     mockBridgeIPC()
     setActivePinia(createPinia())
-    uploadImageFile.mockReset().mockResolvedValue("![shot](file://shot.png)")
+    uploadImageFile.mockReset().mockResolvedValue(fileMarkdown)
   })
 
   afterEach(() => {
-    wrapper?.unmount()
-    wrapper = null
-    vi.useRealTimers()
+    unmount?.()
+    unmount = undefined
   })
 
-  async function mountEditor(content) {
+  async function mountEditor(content: string, props: Partial<Omit<EditorProps, "content">> = {}) {
     const {default: MarkdownEditor} = await import("../../../../src/renderer/src/ui/common/misc/MarkdownEditor")
-    wrapper = mount(MarkdownEditor, {props: {content}, attachTo: document.body, global: {directives: {tooltip: {}}}})
-    return EditorView.findFromDOM(wrapper.element)
+    const wrapper = mount(MarkdownEditor, {props: {content, ...props}, attachTo: document.body, global: {directives: {tooltip: {}}}})
+    unmount = () => wrapper.unmount()
+    await vi.waitFor(() => expect(wrapper.find(".tiptap").exists()).toBe(true))
+    const editor = findTipTapEditor(wrapper.element)!
+    const lastMarkdown = () => wrapper.emitted<[string]>("update:content")?.at(-1)?.[0]
+    const lastMenu = () => wrapper.emitted<[QuickTaskMenu | null]>("menu")?.at(-1)?.[0]
+    return {wrapper, editor, lastMarkdown, lastMenu}
   }
 
-  it("Ctrl+N moves the selection of an open completion list", async () => {
-    vi.useFakeTimers()
-    const view = await mountEditor("")
-    typeText(view, "/")
-    await vi.waitFor(() => expect(selectedCompletionIndex(view.state)).toBe(0))
-    await vi.advanceTimersByTimeAsync(75)
-
-    pressKey(view, {key: "n", ctrlKey: true})
-
-    expect(selectedCompletionIndex(view.state)).toBe(1)
+  it("keeps original Markdown when opening, replacing and undoing an edit", async () => {
+    const {wrapper, lastMarkdown} = await mountEditor("Title\n=====\n\n* item")
+    expect(lastMarkdown()).toBeUndefined()
+    const replacement = "New title\n=========\n\n3. item\n4. another"
+    await wrapper.setProps({content: replacement})
+    expect(lastMarkdown()).toBeUndefined()
+    await vi.waitFor(() => expect(findTipTapEditor(wrapper.element)?.state.doc.textContent).toContain("New title"))
+    const editor = findTipTapEditor(wrapper.element)!
+    editor.commands.setTextSelection(4)
+    typeText(editor, "!")
+    expect(lastMarkdown()).toContain("!")
+    expect(editor.commands.undo()).toBe(true)
+    expect(lastMarkdown()).toBe(replacement)
   })
 
-  it("does not count a completion still pending after a keystroke as open", async () => {
-    const view = await mountEditor("")
-    typeText(view, "a")
-
-    expect(completionStatus(view.state)).toBe("pending")
-    expect(wrapper.vm.isCompletionOpen()).toBe(false)
+  it("reports and navigates the completion menu through the Quick Task contract", async () => {
+    const {editor, lastMenu} = await mountEditor("", {externalMenu: true})
+    typeText(editor, "a")
+    expect(lastMenu()).toBeUndefined()
+    editor.commands.deleteRange({from: 1, to: 2})
+    expect(editor.state.doc.textContent).toBe("")
+    typeText(editor, "/")
+    await vi.waitFor(() => expect(lastMenu()?.selected).toBe(0))
+    pressKey(editor, "n", {ctrlKey: true})
+    expect(lastMenu()?.selected).toBe(1)
+    typeText(editor, "zzz")
+    await vi.waitFor(() => expect(lastMenu()).toBeNull())
   })
 
-  it("keeps a shown completion list open while it re-queries after a keystroke", async () => {
-    const view = await mountEditor("")
-    typeText(view, "/")
-    await vi.waitFor(() => expect(wrapper.vm.isCompletionOpen()).toBe(true))
-
-    typeText(view, " ")
-
-    expect(completionStatus(view.state)).toBe("pending")
-    expect(wrapper.vm.isCompletionOpen()).toBe(true)
+  it("keeps ordered list numbering after deleting a middle item", async () => {
+    const {editor, lastMarkdown} = await mountEditor("1. a\n2. b\n3. c\n4. d")
+    const list = editor.state.doc.firstChild!
+    const item = list.child(1)
+    const from = 1 + list.child(0).nodeSize
+    editor.commands.deleteRange({from, to: from + item.nodeSize})
+    expect(lastMarkdown()?.trim()).toBe("1. a\n2. c\n3. d")
   })
 
-  it("does not count a completion with no matching options as open", async () => {
-    const view = await mountEditor("")
-    typeText(view, "/")
-    await vi.waitFor(() => expect(wrapper.vm.isCompletionOpen()).toBe(true))
-
-    typeText(view, "zzz")
-
-    await vi.waitFor(() => expect(wrapper.vm.isCompletionOpen()).toBe(false))
+  it("inserts a closing bracket and removes the pair with one Backspace", async () => {
+    const {editor} = await mountEditor("")
+    typeText(editor, "(")
+    expect(editor.state.doc.textContent).toBe("()")
+    expect(editor.state.selection.from).toBe(2)
+    pressKey(editor, "Backspace")
+    expect(editor.state.doc.textContent).toBe("")
   })
 
-  it("deleting a middle item renumbers the list", async () => {
-    const view = await mountEditor("1. a\n2. b\n3. c\n4. d")
-    view.dispatch({selection: {anchor: 5, head: 10}})
+  it("turns typed Markdown into an editable link and image", async () => {
+    const {wrapper, editor, lastMarkdown} = await mountEditor("")
+    typeText(editor, "[Guide](https://example.com/guide)")
+    const link = wrapper.element.querySelector(".tiptap a")
+    expect(link?.textContent).toBe("Guide")
+    expect(link?.getAttribute("href")).toBe("https://example.com/guide")
 
-    pressKey(view, {key: "Backspace"})
-
-    expect(view.state.doc.toString()).toBe("1. a\n2. c\n3. d")
+    pressKey(editor, "Enter")
+    typeText(editor, "![Screenshot](https://example.com/shot.png)")
+    expect(wrapper.element.querySelector(".tiptap img[src]")?.getAttribute("src")).toBe("https://example.com/shot.png")
+    expect(lastMarkdown()).toContain("![Screenshot](https://example.com/shot.png)")
   })
 
-  it("content replaced from outside keeps its numbering", async () => {
-    const view = await mountEditor("")
-
-    await wrapper.setProps({content: "3. a\n4. b"})
-
-    expect(view.state.doc.toString()).toBe("3. a\n4. b")
+  it("opens a fenced code block inside a list from the keyboard", async () => {
+    const {editor, lastMarkdown} = await mountEditor("- item")
+    editor.commands.setTextSelection(7)
+    pressKey(editor, "Enter", {shiftKey: true})
+    typeText(editor, "```ts")
+    pressKey(editor, "Enter")
+    expect(editor.isActive("codeBlock")).toBe(true)
+    expect(lastMarkdown()).toMatch(/```ts\n[\s\S]*```/)
   })
 
-  it("typing an opening bracket closes the pair around the caret", async () => {
-    const view = await mountEditor("")
-
-    typeText(view, "(")
-
-    expect(view.state.doc.toString()).toBe("()")
-    expect(view.state.selection.main.head).toBe(1)
-  })
-
-  it("Backspace between a bracket pair removes both halves", async () => {
-    const view = await mountEditor("()")
-    view.dispatch({selection: {anchor: 1}})
-
-    pressKey(view, {key: "Backspace"})
-
-    expect(view.state.doc.toString()).toBe("")
-  })
-
-  it("typing ```ts then Enter inside a list item closes the fence", async () => {
-    const view = await mountEditor("- item\n  ")
-    view.dispatch({selection: {anchor: view.state.doc.length}})
-
-    typeText(view, "```ts")
-    pressKey(view, {key: "Enter"})
-
-    expect(view.state.doc.toJSON()).toEqual(["- item", "  ```ts", expect.any(String), "  ```"])
-  })
-
-  describe("with a task", () => {
-    const task = {
-      id: "__draft__",
-      branchId: "main",
-      scheduled: null,
-      estimatedTime: 0,
-      spentTime: 0,
-      content: "",
-      status: "backlog",
-      tags: [],
-      milestoneId: null,
+  it("emits status, date and estimate patches when choosing task commands", async () => {
+    const {wrapper, editor, lastMenu} = await mountEditor("", {task, externalMenu: true})
+    for (const query of ["/Status in prog", "/Date 05.10", "/Estimate 1h30m"]) {
+      typeText(editor, query)
+      await vi.waitFor(() => expect(lastMenu()?.selected).toBe(0))
+      wrapper.vm.pickCompletion(0)
+      await vi.waitFor(() => expect(lastMenu()).toBeNull())
     }
+    const patches = wrapper.emitted("patch")?.map(([update]) => update)
+    expect(patches).toEqual([
+      {status: "in_progress"},
+      {scheduled: expect.objectContaining({date: expect.stringMatching(/^\d{4}-10-05$/)})},
+      {estimatedTime: 5400},
+    ])
+    expect(editor.state.doc.textContent).toBe("")
+  })
 
-    async function mountTaskEditor(content) {
-      const {default: MarkdownEditor} = await import("../../../../src/renderer/src/ui/common/misc/MarkdownEditor")
-      wrapper = mount(MarkdownEditor, {props: {content, task}, attachTo: document.body, global: {directives: {tooltip: {}}}})
-      return EditorView.findFromDOM(wrapper.element)
-    }
+  it("inserts dropped and pasted images as Daily Markdown", async () => {
+    const {wrapper, editor, lastMarkdown} = await mountEditor("", {task})
+    expect(dispatchImageEvent("drop", wrapper.element).defaultPrevented).toBe(true)
+    await vi.waitFor(() => expect(uploadImageFile).toHaveBeenCalledOnce())
+    await vi.waitFor(() => expect(lastMarkdown()?.trim()).toBe(fileMarkdown))
+    dispatchImageEvent("paste", editor.view.dom)
+    await vi.waitFor(() => expect(lastMarkdown()?.split(fileMarkdown)).toHaveLength(3))
+    expect(uploadImageFile).toHaveBeenCalledTimes(2)
+  })
 
-    async function choose(view) {
-      await vi.advanceTimersByTimeAsync(200)
-      await vi.waitFor(() => expect(selectedCompletionIndex(view.state)).toBe(0))
-      acceptCompletion(view)
-    }
-
-    it("emits the draft patch for a status, a typed date and a typed estimate", async () => {
-      vi.useFakeTimers()
-      const view = await mountTaskEditor("")
-
-      typeText(view, "/Status in prog")
-      await choose(view)
-      typeText(view, "/Date 05.10")
-      await choose(view)
-      typeText(view, "/Estimate 1h30m")
-      await choose(view)
-
-      const patches = wrapper.emitted("patch").map(([updates]) => updates)
-      expect(patches[0]).toEqual({status: "in_progress"})
-      expect(patches[1].scheduled.date).toMatch(/^\d{4}-10-05$/)
-      expect(patches[2]).toEqual({estimatedTime: 5400})
-    })
-
-    function dropImage(target) {
-      const file = new File(["x"], "shot.png", {type: "image/png"})
-      const event = new Event("drop", {bubbles: true, cancelable: true})
-      event.dataTransfer = {files: [file], types: ["Files"]}
-      target.dispatchEvent(event)
-      return event
-    }
-
-    function pasteImage(target) {
-      const file = new File(["x"], "shot.png", {type: "image/png"})
+  it("inserts paste at the caret, including whitespace-only text", async () => {
+    const {editor} = await mountEditor("A B", {task})
+    editor.commands.setTextSelection(2)
+    for (const value of ["x ", " "]) {
       const event = new Event("paste", {bubbles: true, cancelable: true})
-      event.clipboardData = {items: [{type: "image/png", getAsFile: () => file}], getData: () => ""}
-      target.dispatchEvent(event)
+      Object.defineProperty(event, "clipboardData", {value: {items: [], files: [], getData: () => value}})
+      editor.view.dom.dispatchEvent(event)
     }
 
-    it("inserts a dropped or pasted image by default", async () => {
-      const view = await mountTaskEditor("")
+    expect(editor.state.doc.childCount).toBe(1)
+    expect(editor.state.doc.textContent).toBe("Ax   B")
+  })
 
-      dropImage(wrapper.element)
-      await vi.waitFor(() => expect(view.state.doc.toString()).toBe("![shot](file://shot.png)"))
-      pasteImage(view.contentDOM)
-      await vi.waitFor(() => expect(uploadImageFile).toHaveBeenCalledTimes(2))
-    })
+  it("keeps the entire code block when a file is dropped inside it", async () => {
+    const {wrapper, editor, lastMarkdown} = await mountEditor("```ts\nconst rest = 1\n```", {task})
+    editor.commands.setTextSelection(3)
+    dispatchImageEvent("drop", wrapper.element)
 
-    it("ignores a dropped or pasted image when attachments are off", async () => {
-      const {default: MarkdownEditor} = await import("../../../../src/renderer/src/ui/common/misc/MarkdownEditor")
-      wrapper = mount(MarkdownEditor, {props: {content: "", task, attachments: false}, attachTo: document.body, global: {directives: {tooltip: {}}}})
-      const view = EditorView.findFromDOM(wrapper.element)
-      await nextTick()
+    await vi.waitFor(() => expect(lastMarkdown()?.trim()).toBe(`\`\`\`ts\nco${fileMarkdown}nst rest = 1\n\`\`\``))
+    expect(editor.state.doc.childCount).toBe(1)
+  })
 
-      const drop = dropImage(wrapper.element)
-      pasteImage(view.contentDOM)
-      await new Promise((resolve) => setTimeout(resolve, 20))
+  it("consumes files without uploading when attachments are off", async () => {
+    const {wrapper, editor, lastMarkdown} = await mountEditor("", {task, attachments: false})
+    expect(dispatchImageEvent("drop", wrapper.element).defaultPrevented).toBe(true)
+    dispatchImageEvent("paste", editor.view.dom)
+    expect(uploadImageFile).not.toHaveBeenCalled()
+    expect(lastMarkdown()).toBeUndefined()
+  })
 
-      expect(drop.defaultPrevented).toBe(true)
-      expect(uploadImageFile).not.toHaveBeenCalled()
-      expect(view.state.doc.toString()).toBe("")
-    })
-
-    it("shows no drop ring for a file dragged over a read-only editor", async () => {
-      const {default: MarkdownEditor} = await import("../../../../src/renderer/src/ui/common/misc/MarkdownEditor")
-      wrapper = mount(MarkdownEditor, {props: {content: "", task, readonly: true}, attachTo: document.body, global: {directives: {tooltip: {}}}})
-      await nextTick()
-
-      const over = new Event("dragover", {bubbles: true, cancelable: true})
-      over.dataTransfer = {files: [], types: ["Files"]}
-      wrapper.element.dispatchEvent(over)
-      await nextTick()
-
-      expect(over.defaultPrevented).toBe(true)
-      expect(wrapper.element.classList.contains("ring-2")).toBe(false)
-    })
+  it("shows no file drop ring when the editor is read-only", async () => {
+    const {wrapper} = await mountEditor("", {task, readonly: true})
+    expect(dispatchImageEvent("dragover", wrapper.element).defaultPrevented).toBe(true)
+    expect(wrapper.element.classList.contains("ring-2")).toBe(false)
   })
 })

@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import {onMounted, ref, shallowRef, useTemplateRef, watch} from "vue"
+import {computed, ref, toRef, useTemplateRef, watch} from "vue"
 
 import {useBatchedResizeObserver} from "@/composables/useBatchedResizeObserver"
+import {useMarkdownPreview} from "@/composables/useMarkdownPreview"
 import {useImagePreviewModal} from "@/ui/overlays/ImagePreviewModal"
-import {renderMarkdownPreview} from "@/utils/codemirror/preview"
 import {cn} from "@/utils/ui/tailwindcss"
 
 const props = withDefaults(
@@ -18,11 +18,16 @@ const props = withDefaults(
 )
 
 const containerRef = useTemplateRef<HTMLDivElement>("container")
-const contentElementRef = shallowRef<HTMLElement | null>(null)
+const content = toRef(props, "content")
+const minimizable = toRef(props, "minimizable")
 const shouldClamp = ref(false)
 
+const previewOptions = computed(() => ({isCompact: false, isCodeClipped: props.clipCode}))
+
 const {open: openImagePreview} = useImagePreviewModal()
-useBatchedResizeObserver([() => (props.minimizable ? contentElementRef.value : null)], {read: readContentHeight, write: applyClamp})
+const contentElementRef = useMarkdownPreview(containerRef, content, previewOptions)
+const observedContent = computed(() => (minimizable.value ? contentElementRef.value : null))
+useBatchedResizeObserver([observedContent], {read: readContentHeight, write: applyClamp})
 
 function getMarkdownViewClasses(isMinimized: boolean) {
   return cn("markdown-view", isMinimized && "is-minimized")
@@ -36,21 +41,9 @@ function applyClamp(height: number) {
   shouldClamp.value = props.minimizable && height > 200
 }
 
-function renderPreview(content: string) {
-  if (!containerRef.value) return
-
-  const preview = renderMarkdownPreview(content, {isCompact: false, isCodeClipped: props.clipCode})
-  containerRef.value.replaceChildren(preview.element)
-  contentElementRef.value = preview.element.querySelector(".cm-content")
-
-  preview.languagesLoaded?.then(() => {
-    if (props.content === content) renderPreview(content)
-  })
-}
-
 function onContentClick(event: MouseEvent) {
-  const target = event.target as HTMLElement | null
-  if (!target) return
+  const target = event.target
+  if (!(target instanceof Element)) return
 
   const image = target.closest("img")
   if (!(image instanceof HTMLImageElement)) return
@@ -61,18 +54,7 @@ function onContentClick(event: MouseEvent) {
   openImagePreview(image.currentSrc || image.src, image.alt || "Image preview")
 }
 
-watch(
-  () => props.content,
-  (newContent) => {
-    renderPreview(newContent)
-    applyClamp(readContentHeight())
-  },
-  {immediate: true},
-)
-
-onMounted(() => {
-  renderPreview(props.content)
-})
+watch([contentElementRef, minimizable], () => applyClamp(readContentHeight()), {flush: "sync"})
 </script>
 
 <template>
@@ -86,23 +68,7 @@ onMounted(() => {
   overflow-y: hidden;
 }
 
-.markdown-view :deep(.cm-editor) {
-  background-color: transparent;
-}
-
-.markdown-view :deep(.cm-scroller) {
-  overflow: visible;
-}
-
-.markdown-view :deep(.cm-content) {
-  padding: 0;
-}
-
-.markdown-view :deep(.cm-codeblock-line) {
-  overflow-x: visible !important;
-}
-
-.markdown-view :deep(.cm-image-wrapper img) {
+.markdown-view :deep(.markdown-image img) {
   cursor: zoom-in;
 }
 
@@ -120,17 +86,5 @@ onMounted(() => {
   bottom: 0;
   height: 24px;
   background: linear-gradient(to bottom, transparent, var(--color-base-100));
-}
-
-.markdown-view.is-minimized :deep(.cm-editor) {
-  max-height: var(--task-content-minimized-height);
-}
-
-.markdown-view.is-minimized :deep(.cm-scroller) {
-  overflow: hidden;
-}
-
-.markdown-view :deep(.cm-content) {
-  min-width: 0;
 }
 </style>

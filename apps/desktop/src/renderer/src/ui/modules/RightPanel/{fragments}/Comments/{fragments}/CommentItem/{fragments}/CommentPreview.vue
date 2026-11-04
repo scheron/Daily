@@ -39,7 +39,7 @@ function queueMeasurement() {
 
 function measure() {
   const viewport = viewportRef.value
-  const content = renderedRef.value?.querySelector<HTMLElement>(".cm-content") ?? null
+  const content = renderedRef.value?.querySelector<HTMLElement>(".markdown-preview-content") ?? null
   if (content !== measuredContent) {
     if (measuredContent) resizeObserver?.unobserve(measuredContent)
     measuredContent = content
@@ -100,7 +100,7 @@ function readLines(content: HTMLElement): RenderedLine[] {
   let node: Node | null
   while ((node = walker.nextNode())) {
     const parent = node.parentElement
-    if (!parent || !node.textContent?.length || parent.closest("button, .cm-image-wrapper, .cm-table")) continue
+    if (!parent || !node.textContent?.length || parent.closest("button, .markdown-image, table")) continue
     range.selectNodeContents(node)
     const lineHeight = Number.parseFloat(getComputedStyle(parent).lineHeight)
     for (const rect of Array.from(range.getClientRects())) {
@@ -110,12 +110,11 @@ function readLines(content: HTMLElement): RenderedLine[] {
     }
   }
 
-  for (const element of Array.from(
-    content.querySelectorAll<HTMLElement>(".cm-image-wrapper, .cm-table tr, .cm-hr, .cm-line, .cm-codeblock-text-line"),
-  )) {
-    const isEmptyLine =
-      element.matches(".cm-line, .cm-codeblock-text-line") && !element.textContent && !element.querySelector("img, .cm-image-wrapper")
-    if (!isEmptyLine && !element.matches(".cm-image-wrapper, .cm-table tr, .cm-hr")) continue
+  const blocks = ".markdown-image, table tr, .markdown-divider"
+  const lineSelectors = ".markdown-line, .markdown-code-line"
+  for (const element of Array.from(content.querySelectorAll<HTMLElement>(`${blocks}, ${lineSelectors}`))) {
+    const isEmptyLine = element.matches(lineSelectors) && !element.textContent && !element.querySelector(".markdown-image")
+    if (!isEmptyLine && !element.matches(blocks)) continue
     const rect = element.getBoundingClientRect()
     if (rect.height > 0 && rect.width > 0) rectangles.push({top: rect.top, bottom: rect.bottom})
   }

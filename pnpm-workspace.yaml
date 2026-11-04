@@ -8,9 +8,3 @@ allowBuilds:
   electron-winstaller: true
   esbuild: true
   vue-demi: true
-
-packageExtensions:
-  "@codemirror/lang-jinja":
-    dependencies:
-      "@codemirror/state": "*"
-      "@codemirror/view": "*"

@@ -7,6 +7,7 @@ import {useThemeStore} from "@/stores/theme"
 import BaseKeyCaps from "@/ui/base/BaseKeyCaps.vue"
 import MarkdownEditor from "@/ui/common/misc/MarkdownEditor"
 import {toAcceleratorKeyCaps} from "@/utils/shortcuts/toAcceleratorKeyCaps"
+import {isInsideOpenDialog} from "@/utils/ui/isInsideOpenDialog"
 import {useQuickTaskDraft} from "./composables/useQuickTaskDraft"
 import {useReportPanelHeight} from "./composables/useReportPanelHeight"
 import QuickTaskChips from "./{fragments}/QuickTaskChips.vue"
@@ -33,6 +34,7 @@ useEventListener(
   "keydown",
   (event) => {
     if (event.key !== "Enter" || !event.metaKey) return
+    if (isInsideOpenDialog(event.target)) return
     event.preventDefault()
     event.stopPropagation()
     onSave()
@@ -85,7 +87,7 @@ onBeforeUnmount(() => {
       external-menu
       :min-lines="EDITOR_MIN_LINES"
       :attachments="false"
-      class="[--editor-line-height:20px] [&_.cm-content]:!text-[14px] [&_.cm-content]:!leading-[20px] [&_.cm-editor]:max-h-60 [&_.cm-line]:!leading-[20px]"
+      class="[--editor-line-height:20px] [--editor-max-height:15rem]"
       @update:content="patch({content: $event})"
       @patch="patch"
       @menu="onMenu"

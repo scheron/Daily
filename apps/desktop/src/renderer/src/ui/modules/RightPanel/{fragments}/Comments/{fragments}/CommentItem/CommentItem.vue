@@ -121,17 +121,16 @@ function focusRow(event: MouseEvent) {
   visibility: visible;
 }
 
-.comment-markdown :deep(> :first-child) {
+.comment-markdown :deep(.markdown-preview-content > :first-child) {
   margin-top: 0;
 }
 
-.comment-markdown :deep(.cm-heading) {
+.comment-markdown :deep(:is(h1, h2, h3, h4, h5, h6)) {
   margin-top: 0.25rem;
   margin-bottom: 0.1rem;
 }
 
-.comment-markdown :deep(.cm-heading1),
-.comment-markdown :deep(.cm-heading2) {
+.comment-markdown :deep(:is(h1, h2)) {
   font-size: 1.15em !important;
   margin: 0.25rem 0 0.1rem !important;
   padding-bottom: 0 !important;

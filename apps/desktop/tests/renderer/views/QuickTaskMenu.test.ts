@@ -61,9 +61,9 @@ describe("the Quick task menu window view", () => {
 
     const drawn = rows()
     expect(drawn.map((row) => row.text())).toEqual(["Divider", "work", "home"])
-    expect(drawn[0].find(".cm-slash-option-icon use").attributes("href")).toBe("#minus")
-    expect(drawn[1].find(".cm-tag-option-chip").attributes("style")).toContain("--tag-color: #ff0000")
-    expect(drawn[2].classes()).toContain("cm-tag-option-remove")
+    expect(drawn[0].find(".slash-command-icon use").attributes("href")).toBe("#minus")
+    expect(drawn[1].find(".slash-tag-chip").attributes("style")).toContain("--tag-color: #ff0000")
+    expect(drawn[2].classes()).toContain("slash-tag-remove")
     expect(drawn.map((row) => row.attributes("aria-selected"))).toEqual([undefined, "true", undefined])
   })
 

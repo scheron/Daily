@@ -5,12 +5,9 @@ import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
 import {getToday} from "@daily/std"
 
-import {closeCompletion, completionStatus, currentCompletions} from "@codemirror/autocomplete"
-import {undo} from "@codemirror/commands"
-import {EditorView} from "@codemirror/view"
 import {flushPromises, mount} from "@vue/test-utils"
 import {mockBridgeIPC} from "../../helpers/bridgeIPC"
-import {pressKey, typeText} from "../../helpers/editorView"
+import {findTipTapEditor, pressTipTapKey as pressKey, typeTipTapText as typeText} from "../../helpers/tiptapEditor"
 
 const SRC = "../../../src/renderer/src"
 
@@ -68,6 +65,10 @@ describe("the Quick task window view", () => {
     wrapper = mount(QuickTask, {attachTo: document.body, global: {directives: {tooltip: {}}}})
     await flushPromises()
     return wrapper.findComponent({name: "MarkdownEditor"})
+  }
+
+  function menuState() {
+    return bridge["quick-task:set-menu"].mock.calls.at(-1)?.[0] ?? null
   }
 
   function chips() {
@@ -294,97 +295,94 @@ describe("the Quick task window view", () => {
 
   it("Escape closes an open slash menu first and hides the panel only when nothing consumed it", async () => {
     await mountView()
-    const view = EditorView.findFromDOM(wrapper.find(".cm-editor").element.parentElement)
+    const view = findTipTapEditor(wrapper.element)
     typeText(view, "/")
-    await vi.waitFor(() => expect(completionStatus(view.state)).toBe("active"))
+    await vi.waitFor(() => expect(menuState()).not.toBeNull())
 
-    pressKey(view, {key: "Escape"})
+    pressKey(view, "Escape")
 
-    expect(completionStatus(view.state)).toBeNull()
+    expect(menuState()).toBeNull()
     expect(bridge["quick-task:hide"]).not.toHaveBeenCalled()
 
-    pressKey(view, {key: "Escape"})
+    pressKey(view, "Escape")
 
     expect(bridge["quick-task:hide"]).toHaveBeenCalledTimes(1)
   })
 
   it("keeps the slash menu out of the panel and hands it to the menu window", async () => {
     await mountView()
-    const view = EditorView.findFromDOM(wrapper.find(".cm-editor").element.parentElement)
+    const view = findTipTapEditor(wrapper.element)
 
     typeText(view, "/")
-    await vi.waitFor(() => expect(completionStatus(view.state)).toBe("active"))
+    await vi.waitFor(() => expect(menuState()).not.toBeNull())
 
     await vi.waitFor(() => expect(bridge["quick-task:set-menu"]).toHaveBeenLastCalledWith(expect.objectContaining({selected: 0})))
     const menu = bridge["quick-task:set-menu"].mock.calls.at(-1)[0]
     expect(menu.rows[0].label).toBe("Divider")
     expect(menu.rows.map((row) => row.label)).toContain("Status")
 
-    closeCompletion(view)
+    pressKey(view, "Escape")
     await vi.waitFor(() => expect(bridge["quick-task:set-menu"]).toHaveBeenLastCalledWith(null))
   })
 
   it("a click on a menu row selects and accepts it, and the editor keeps the keyboard", async () => {
     await mountView()
-    const view = EditorView.findFromDOM(wrapper.find(".cm-editor").element.parentElement)
+    const view = findTipTapEditor(wrapper.element)
     typeText(view, "/")
-    await vi.waitFor(() => expect(completionStatus(view.state)).toBe("active"))
-    await new Promise((resolve) => setTimeout(resolve, 100))
-    const index = currentCompletions(view.state).findIndex((completion) => completion.label === "/Heading 2")
+    await vi.waitFor(() => expect(menuState()).not.toBeNull())
+    const index = menuState().rows.findIndex((row) => row.label === "Heading 2")
+    expect(index).toBeGreaterThanOrEqual(0)
 
     pickMenuRow(index)
     await flushPromises()
 
-    expect(view.state.doc.toString()).toBe("## ")
-    expect(completionStatus(view.state)).toBeNull()
-    expect(view.hasFocus).toBe(true)
+    expect(view.view.dom.querySelector("h2")).not.toBeNull()
+    expect(menuState()).toBeNull()
+    await vi.waitFor(() => expect(view.view.hasFocus()).toBe(true))
   })
 
   it("a click on a row that is gone from a shrunk list accepts nothing", async () => {
     await mountView()
-    const view = EditorView.findFromDOM(wrapper.find(".cm-editor").element.parentElement)
+    const view = findTipTapEditor(wrapper.element)
     typeText(view, "/")
-    await vi.waitFor(() => expect(completionStatus(view.state)).toBe("active"))
-    await new Promise((resolve) => setTimeout(resolve, 100))
-    const count = currentCompletions(view.state).length
+    await vi.waitFor(() => expect(menuState()).not.toBeNull())
+    const count = menuState().rows.length
 
     pickMenuRow(count)
     await flushPromises()
 
-    expect(view.state.doc.toString()).toBe("/")
-    expect(completionStatus(view.state)).toBe("active")
+    expect(view.state.doc.textContent).toBe("/")
+    expect(menuState()).not.toBeNull()
   })
 
   it("a click that arrives after the menu closed accepts nothing and does not steal focus", async () => {
     await mountView()
-    const view = EditorView.findFromDOM(wrapper.find(".cm-editor").element.parentElement)
+    const view = findTipTapEditor(wrapper.element)
     typeText(view, "/")
-    await vi.waitFor(() => expect(completionStatus(view.state)).toBe("active"))
-    await new Promise((resolve) => setTimeout(resolve, 100))
-    closeCompletion(view)
-    view.contentDOM.blur()
+    await vi.waitFor(() => expect(menuState()).not.toBeNull())
+    pressKey(view, "Escape")
+    view.view.dom.blur()
 
     pickMenuRow(0)
     await flushPromises()
 
-    expect(view.state.doc.toString()).toBe("/")
-    expect(view.hasFocus).toBe(false)
+    expect(view.state.doc.textContent).toBe("/")
+    expect(view.view.hasFocus()).toBe(false)
   })
 
   it("a save starts a fresh undo history", async () => {
     vi.useFakeTimers({toFake: ["Date"], now: new Date("2030-03-10T12:00:00")})
     await mountView()
-    const view = EditorView.findFromDOM(wrapper.find(".cm-editor").element.parentElement)
+    const view = findTipTapEditor(wrapper.element)
     typeText(view, "Call the dentist")
     await flushPromises()
     vi.setSystemTime(new Date("2030-03-10T12:00:05"))
 
     pressCmdEnter()
     await flushPromises()
-    undo(view)
-    await flushPromises()
-
-    expect(view.state.doc.toString()).toBe("")
+    const freshEditor = findTipTapEditor(wrapper.element)
+    expect(freshEditor.commands.undo()).toBe(false)
+    expect(freshEditor.state.doc.textContent).toBe("")
   })
 
   it("a status picked yesterday keeps meaning today when the panel is shown and saved again", async () => {

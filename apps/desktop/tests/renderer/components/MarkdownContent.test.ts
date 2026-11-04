@@ -4,7 +4,6 @@ import {nextTick} from "vue"
 import {createPinia, setActivePinia} from "pinia"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
-import {EditorView} from "@codemirror/view"
 import {mount} from "@vue/test-utils"
 import {mockBridgeIPC} from "../../helpers/bridgeIPC"
 import {installFakeResizeObserver, stubLayout} from "../../helpers/resizeObserver"
@@ -76,13 +75,13 @@ describe("MarkdownContent", () => {
     wrapper = null
   })
 
-  it("renders_TC-4_a_not-yet-loaded_language_that_highlights_once_it_settles", async () => {
+  it("highlights a fenced language in a static preview", async () => {
     const {default: MarkdownContent} = await import("../../../src/renderer/src/ui/common/misc/MarkdownContent.vue")
 
     wrapper = mount(MarkdownContent, {props: {content: "```ruby\ndef greet\n  1\nend\n```"}, attachTo: document.body})
     await settle()
 
-    const codeLines = () => Array.from(wrapper.element.querySelectorAll(".cm-codeblock-text-line"))
+    const codeLines = () => Array.from(wrapper.element.querySelectorAll(".markdown-code-line"))
 
     expect(wrapper.element.textContent).toContain("def greet")
 
@@ -119,7 +118,7 @@ describe("MarkdownContent", () => {
 
     for (const each of [card, comment, deleted, searchResult]) {
       expect(each.text()).toContain("First line of the description")
-      expect(EditorView.findFromDOM(each.element)).toBeNull()
+      expect(each.element.querySelector("[contenteditable=true], .tiptap.ProseMirror")).toBeNull()
     }
 
     await card.setProps({task: makeTask({content: updatedLines})})
@@ -135,7 +134,7 @@ describe("MarkdownContent", () => {
 
     for (const each of [card, comment, deleted, searchResult]) {
       expect(each.text()).toContain("Changed first line")
-      expect(EditorView.findFromDOM(each.element)).toBeNull()
+      expect(each.element.querySelector("[contenteditable=true], .tiptap.ProseMirror")).toBeNull()
     }
 
     card.unmount()
@@ -151,7 +150,7 @@ describe("MarkdownContent", () => {
     wrapper = mount(MarkdownContent, {props: {content: "![a](daily://file/abc)"}, attachTo: document.body})
     await settle()
 
-    const image = wrapper.element.querySelector(".cm-image-wrapper img")
+    const image = wrapper.element.querySelector(".markdown-image img")
     expect(image).not.toBeNull()
 
     image.dispatchEvent(new MouseEvent("click", {bubbles: true, cancelable: true}))
@@ -171,7 +170,7 @@ describe("MarkdownContent", () => {
     wrapper = mount(MarkdownContent, {props: {content: "[docs](https://example.com)"}, attachTo: document.body})
     await settle()
 
-    const link = wrapper.element.querySelector("a.cm-link-widget")
+    const link = wrapper.element.querySelector("a[href]")
     expect(link).not.toBeNull()
 
     const event = new MouseEvent("click", {bubbles: true, cancelable: true})
@@ -188,8 +187,8 @@ describe("MarkdownContent", () => {
       const instance = mount(MarkdownContent, {props: {content: "text", minimizable}, attachTo: document.body})
       await nextTick()
 
-      const contentEl = instance.element.querySelector(".cm-content")
-      if (!contentEl) throw new Error("no .cm-content found")
+      const contentEl = instance.element.querySelector(".markdown-preview-content")
+      if (!contentEl) throw new Error("no .markdown-preview-content found")
       stubLayout(contentEl, {scrollHeight: height})
 
       deliverResizeToObserved()

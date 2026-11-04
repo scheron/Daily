@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import {computed, onMounted, useTemplateRef, watch} from "vue"
+import {computed, useTemplateRef} from "vue"
 
 import {sortTags} from "@daily/protocol"
 import {toDateLabel} from "@daily/std"
 
+import {useMarkdownPreview} from "@/composables/useMarkdownPreview"
 import {TASK_COLUMNS} from "@/constants/ui"
 import BaseIcon from "@/ui/base/BaseIcon"
 import BaseTag from "@/ui/base/BaseTag"
-import {renderMarkdownPreview} from "@/utils/codemirror/preview"
 import {getProjectName} from "@/utils/projects/getProjectName"
 import {cn} from "@/utils/ui/tailwindcss"
 
@@ -18,20 +18,12 @@ const props = defineProps<{result: TaskSearchResult}>()
 const containerRef = useTemplateRef<HTMLDivElement>("container")
 
 const statusIcon = computed(() => TASK_COLUMNS.find((column) => column.status === props.result.task.status)!.icon)
-
 const sortedTags = computed(() => sortTags(props.result.task.tags))
 const branchName = computed(() => getProjectName(props.result.branch))
+const content = computed(() => props.result.task.content)
+const previewOptions = computed(() => ({isCompact: true, matches: props.result.matches}))
 
-function renderPreview(content: string) {
-  if (!containerRef.value) return
-
-  const preview = renderMarkdownPreview(content, {isCompact: true, matches: props.result.matches})
-  containerRef.value.replaceChildren(preview.element)
-
-  preview.languagesLoaded?.then(() => {
-    if (props.result.task.content === content) renderPreview(content)
-  })
-}
+useMarkdownPreview(containerRef, content, previewOptions)
 
 function getStatusIconClasses(status: TaskStatus) {
   return cn(
@@ -47,16 +39,6 @@ function getStatusIconClasses(status: TaskStatus) {
     }[status],
   )
 }
-
-watch(
-  () => [props.result.task.content, props.result.matches],
-  () => {
-    renderPreview(props.result.task.content)
-  },
-  {deep: true},
-)
-
-onMounted(() => renderPreview(props.result.task.content))
 </script>
 
 <template>
@@ -84,21 +66,5 @@ onMounted(() => renderPreview(props.result.task.content))
   width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
-}
-
-.search-result-content-viewer :deep(.cm-editor) {
-  background-color: transparent;
-}
-
-.search-result-content-viewer :deep(.cm-scroller) {
-  overflow: visible;
-}
-
-.search-result-content-viewer :deep(.cm-content) {
-  padding: 0;
-}
-
-.search-result-content-viewer :deep(.cm-codeblock-line) {
-  overflow-x: visible !important;
 }
 </style>

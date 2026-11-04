@@ -114,21 +114,3 @@ function getRootClasses(isUser: boolean) {
     </div>
   </div>
 </template>
-
-<style scoped>
-.ai-message-content :deep(.cm-editor) {
-  background-color: transparent;
-}
-
-.ai-message-content :deep(.cm-content) {
-  padding: 0;
-}
-
-.ai-message-content :deep(.cm-scroller) {
-  overflow: visible;
-}
-
-.ai-message-content :deep(.cm-line) {
-  padding-left: 0;
-}
-</style>

@@ -13,11 +13,13 @@ import {parseDayMonth} from "../utils/parseDayMonth"
 import {parseDuration} from "../utils/parseDuration"
 
 import type {TaskDraft} from "@/types/taskDraft"
-import type {NestedCommand, NestedItem, SlashCommandsOptions} from "@/utils/codemirror/extensions"
 import type {Task} from "@daily/protocol"
 import type {ComputedRef} from "vue"
+import type {NestedCommand} from "../types"
 
-export function useTaskSlashCommands(task: ComputedRef<Task>, patch: (updates: Partial<TaskDraft>) => void): SlashCommandsOptions {
+type NestedItem = ReturnType<NestedCommand["getItems"]>[number]
+
+export function useTaskSlashCommands(task: ComputedRef<Task>, patch: (updates: Partial<TaskDraft>) => void) {
   const branchesStore = useBranchesStore()
   const tagsStore = useTagsStore()
   const milestonesStore = useMilestonesStore()

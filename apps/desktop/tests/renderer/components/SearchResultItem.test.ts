@@ -1,31 +1,13 @@
 // @vitest-environment happy-dom
-// @ts-nocheck
 import {nextTick} from "vue"
 import {describe, expect, it} from "vitest"
 
 import {mount} from "@vue/test-utils"
+import {makeTask} from "../../helpers/taskFixtures"
 
-function makeTask(overrides = {}) {
-  return {
-    id: "task-1",
-    branchId: "main",
-    milestoneId: null,
-    status: "in_progress",
-    content: "task",
-    minimized: false,
-    orderIndex: 1024,
-    scheduled: null,
-    estimatedTime: 0,
-    spentTime: 0,
-    tags: [],
-    createdAt: "2026-01-01T00:00:00.000Z",
-    updatedAt: "2026-01-01T00:00:00.000Z",
-    deletedAt: null,
-    ...overrides,
-  }
-}
+import type {SearchMatch, TaskSearchResult} from "@daily/protocol"
 
-function makeSearchResult(overrides = {}) {
+function makeSearchResult(overrides: Partial<TaskSearchResult> = {}): TaskSearchResult {
   return {
     task: makeTask(),
     branch: null,
@@ -45,7 +27,7 @@ describe("SearchResultItem", () => {
     })
     await nextTick()
 
-    const headMutations = []
+    const headMutations: MutationRecord[] = []
     const headObserver = new MutationObserver((records) => headMutations.push(...records))
     headObserver.observe(document.head, {childList: true, characterData: true, subtree: true})
 
@@ -64,5 +46,28 @@ describe("SearchResultItem", () => {
 
     first.unmount()
     rest.forEach((wrapper) => wrapper.unmount())
+  })
+  it("updates source matches on the same task while retaining the Markdown formatting", async () => {
+    const {default: SearchResultItem} = await import("../../../src/renderer/src/ui/overlays/SearchModal/{fragments}/SearchResultItem.vue")
+    const content = "Before **first** then `second`"
+    const task = makeTask({content})
+    const match = (text: string): SearchMatch => {
+      const start = content.indexOf(text)
+      return {indices: [[start, start + text.length - 1]], value: text, key: "content"}
+    }
+    const wrapper = mount(SearchResultItem, {
+      attachTo: document.body,
+      props: {result: makeSearchResult({task, matches: [match("first")]})},
+    })
+
+    await nextTick()
+    expect(wrapper.find("strong .markdown-search-highlight").text()).toBe("first")
+
+    await wrapper.setProps({result: makeSearchResult({task, matches: [match("second")]})})
+    expect(wrapper.find("strong .markdown-search-highlight").exists()).toBe(false)
+    expect(wrapper.find("code .markdown-search-highlight").text()).toBe("second")
+    expect(wrapper.find("[contenteditable=true]").exists()).toBe(false)
+
+    wrapper.unmount()
   })
 })
