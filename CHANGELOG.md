@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.38.1 - 2026-11-04
+
+### 🎨 Improvements
+
+- **Updates** — Daily checks for new versions in the background and shows when an update is available.
+
+### 🐛 Bug Fixes
+
+- **Activity** — moving a task into or out of Backlog no longer adds a separate entry for an automatic date change. Manually set or cleared dates still appear in Activity.
+
+---
+
 ## v0.38.0 - 2026-11-04
 
 ### 🎨 Improvements
