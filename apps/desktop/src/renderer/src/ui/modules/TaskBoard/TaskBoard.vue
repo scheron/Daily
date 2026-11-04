@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import {computed, useTemplateRef, watch} from "vue"
-import {storeToRefs} from "pinia"
+import {computed, ref, useTemplateRef} from "vue"
+import {useElementSize, useMutationObserver} from "@vueuse/core"
 
 import {useTaskColumns} from "@/composables/tasks/useTaskColumns"
 import {useSettingValue} from "@/composables/useSettingValue"
@@ -32,11 +32,13 @@ const filterStore = useFilterStore()
 const milestonesStore = useMilestonesStore()
 const dragDropStore = useDragDropStore()
 
-const {activeDay} = storeToRefs(tasksStore)
-
 const containerRef = useTemplateRef<HTMLElement>("container")
 const boardRef = useTemplateRef<HTMLElement>("board")
 const focusDockRef = useTemplateRef<InstanceType<typeof FocusDock>>("focusDock")
+const rootFontSize = ref(readRootFontSize())
+
+const {width: boardWidth} = useElementSize(containerRef)
+const isDockCompact = computed(() => boardWidth.value > 0 && boardWidth.value < 76 * rootFontSize.value)
 
 const columns = useTaskColumns()
 const boardMode = useSettingValue("appearance.boardMode", "normal")
@@ -90,16 +92,19 @@ const isBoardVisible = computed(() => {
 const {hiddenColumns, revealColumn} = useHiddenColumnIndicators(boardRef, visibleColumns)
 
 useDragScroll(boardRef)
+useMutationObserver(document.documentElement, () => (rootFontSize.value = readRootFontSize()), {attributeFilter: ["style"]})
+
+function readRootFontSize() {
+  return Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 15
+}
 
 function getColumnClasses(status: TaskStatus) {
   return cn(draggingStatus.value === status && "pointer-events-none")
 }
-
-watch(activeDay, () => containerRef.value?.scrollTo({top: 0, behavior: "instant"}))
 </script>
 
 <template>
-  <div ref="container" class="relative min-w-0 flex-1 overflow-hidden">
+  <div ref="container" class="relative min-w-0 flex-1 overflow-clip">
     <NoTasksPlaceholder v-if="!isBoardVisible" :date="placeholderDate" :milestone-name="framedMilestoneName" @create-task="emit('createTask')" />
 
     <div v-else ref="board" data-task-board class="task-board flex size-full overflow-x-auto overflow-y-hidden" :style="columnLayoutStyle">
@@ -121,9 +126,9 @@ watch(activeDay, () => containerRef.value?.scrollTo({top: 0, behavior: "instant"
     <HiddenColumnStack side="right" :columns="hiddenColumns.right" :obstacle="focusDockRef?.element" @reveal="revealColumn" />
 
     <div class="drag-region absolute inset-x-0 top-0 z-20 h-11" />
-    <TagsDock />
+    <TagsDock :compact="isDockCompact" />
     <CalendarDock />
-    <ActionsDock @create-task="emit('createTask')" />
+    <ActionsDock :compact="isDockCompact" @create-task="emit('createTask')" />
     <FocusDock ref="focusDock" />
     <TaskDragPreview />
     <ColumnDragPreview v-if="draggingStatus" :status="draggingStatus" :x="previewPosition.x" :y="previewPosition.y" />

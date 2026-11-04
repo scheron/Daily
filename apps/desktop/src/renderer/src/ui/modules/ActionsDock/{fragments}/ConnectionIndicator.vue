@@ -8,6 +8,9 @@ import {useSyncServerStore} from "@/stores/syncServer.store"
 import BaseAnimation from "@/ui/base/BaseAnimation.vue"
 import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
+import {cn} from "@/utils/ui/tailwindcss"
+
+defineProps<{compact?: boolean}>()
 
 const storageStore = useStorageStore()
 const syncServerStore = useSyncServerStore()
@@ -26,6 +29,10 @@ const connectionState = computed<"connecting" | "reconnecting" | "settled" | nul
 })
 
 const {start: startSettledTimeout, stop: stopSettledTimeout} = useTimeoutFn(() => (settledLabel.value = null), 2500, {immediate: false})
+
+function getLabelClasses(compact?: boolean) {
+  return cn(compact && "sr-only")
+}
 
 async function onRetry() {
   isRetrying.value = true
@@ -50,23 +57,31 @@ watch(connection, (nextConnection, prevConnection) => {
     <div v-if="connectionState" class="flex h-full items-center gap-0.5">
       <span v-if="connectionState === 'connecting'" class="text-base-content/60 flex items-center gap-1.5 whitespace-nowrap px-2 text-xs font-medium">
         <BaseIcon name="spinner-arc" class="size-3.5 animate-spin" />
-        Connecting…
+        <span :class="getLabelClasses(compact)">Connecting…</span>
       </span>
 
       <template v-else-if="connectionState === 'reconnecting'">
-        <span class="text-warning flex items-center gap-1.5 whitespace-nowrap pl-2 pr-0.5 text-xs font-medium">
+        <span v-if="!compact" class="text-warning flex items-center gap-1.5 whitespace-nowrap pl-2 pr-0.5 text-xs font-medium">
           <BaseIcon name="spinner-arc" class="size-3.5 animate-spin" />
           Reconnecting…
         </span>
-        <BaseButton variant="warning-ghost" icon="refresh" size="sm" tooltip="Try again" :loading="isRetrying" @click="onRetry" />
+        <BaseButton
+          variant="warning-ghost"
+          icon="refresh"
+          size="sm"
+          tooltip="Try again"
+          aria-label="Retry connection"
+          :loading="isRetrying"
+          @click="onRetry"
+        />
       </template>
 
       <span v-else class="text-success flex items-center gap-1.5 whitespace-nowrap px-2 text-xs font-medium">
         <BaseIcon name="check" class="size-3.5" />
-        {{ settledLabel }}
+        <span :class="getLabelClasses(compact)">{{ settledLabel }}</span>
       </span>
 
-      <div class="bg-base-300 h-4.5 mx-0.5 w-px" />
+      <div v-if="!compact" class="bg-base-300 h-4.5 mx-0.5 w-px" />
     </div>
   </BaseAnimation>
 </template>

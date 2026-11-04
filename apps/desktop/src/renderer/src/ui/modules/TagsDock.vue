@@ -12,8 +12,11 @@ import {useUIStore} from "@/stores/ui"
 import BaseAnimation from "@/ui/base/BaseAnimation.vue"
 import DynamicTagsPanel from "@/ui/common/misc/DynamicTagsPanel.vue"
 import {getActiveTagNames} from "@/utils/tags/getActiveTagNames"
+import {cn} from "@/utils/ui/tailwindcss"
 
 import type {Tag} from "@daily/protocol"
+
+const props = defineProps<{compact: boolean}>()
 
 const tasksStore = useTasksStore()
 const filterStore = useFilterStore()
@@ -42,6 +45,10 @@ const selectedChipIds = computed<Set<Tag["id"]>>(() => {
   if (!projectScopeStore.isAllProjectsMode) return filterStore.activeTagIds
   return new Set(filteredTags.value.filter((tag) => activeTagNames.value.has(tag.name)).map((tag) => tag.id))
 })
+
+function getDockClasses(compact: boolean) {
+  return cn("pointer-events-none absolute right-1/2 top-2 z-30 mr-28 flex", compact ? "left-20 min-w-14" : "left-24")
+}
 
 function onSelectTag(id: Tag["id"]) {
   const chip = filteredTags.value.find((tag) => tag.id === id)
@@ -81,7 +88,7 @@ watch(filteredTags, (tags) => {
 
 <template>
   <BaseAnimation name="fade" :duration="200">
-    <div v-if="filteredTags.length && !uiStore.isCalendarDockExpanded" class="pointer-events-none absolute left-24 right-1/2 top-2 z-30 mr-28 flex">
+    <div v-if="filteredTags.length && !uiStore.isCalendarDockExpanded" :class="getDockClasses(props.compact)">
       <DynamicTagsPanel
         :tags="filteredTags"
         :selected-tags="selectedChipIds"
