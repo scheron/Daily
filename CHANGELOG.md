@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.38.0 - 2026-11-04
+
+### 🎨 Improvements
+
+- The **Markdown editor** shows formatting while editing tasks, subtasks, and comments. Markdown shortcuts still work. Edit table cells directly, move between them with Tab, and manage links in a dialog.
+- **Search** highlights matches inside Markdown table cells.
+- The **task panel** keeps its chosen width when the window narrows. The board groups its actions under **More actions** when space is tight.
+
+---
+
 ## v0.37.2 - 2026-11-03
 
 ### 🎨 Improvements
