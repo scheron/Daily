@@ -75,7 +75,6 @@ export const buttonColorVariant = defineVariant({
       `,
       dock: `
           dock-surface gap-2 border border-base-300/70 dark:border-base-300 duration-150
-          hover:bg-base-200/60
       `,
       floating: `
           bg-base-200 text-base-content/70 border border-base-300 shadow-sm
