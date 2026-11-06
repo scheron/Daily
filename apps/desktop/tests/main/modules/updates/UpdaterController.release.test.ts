@@ -140,6 +140,7 @@ describe("checking GitHub releases through the updater", () => {
     await controller.initialize()
     await vi.advanceTimersByTimeAsync(60_000)
     await vi.waitFor(() => expect(fetch.mock.calls.map(([url]) => url)).toEqual([manifestUrl, releaseUrl, manifestUrl]))
+    await vi.waitFor(async () => expect((await updateCheckSchedule.readUpdateCheckSchedule()).nextCheckAt).toBeGreaterThan(Date.now()))
     await vi.advanceTimersByTimeAsync(5 * 60_000)
 
     expect(controller.getState()).toMatchObject({status: "error", availableVersion: null})

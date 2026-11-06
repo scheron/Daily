@@ -1,4 +1,4 @@
-import {createEntityId, MAIN_BRANCH_NAME, NO_PROJECT_ID} from "@daily/protocol"
+import {createEntityId, MAIN_BRANCH_NAME, NO_PROJECT_ID, normalizeProjectEmoji} from "@daily/protocol"
 import {notUndefined} from "@daily/std"
 
 import {logger} from "../../utils/logger"
@@ -32,7 +32,7 @@ export class BranchModel {
   }
 
   getBranchList(params?: {includeDeleted?: boolean}): Branch[] {
-    let sql = `SELECT id, name, description, created_at, updated_at, deleted_at FROM branches`
+    let sql = `SELECT id, name, description, emoji, created_at, updated_at, deleted_at FROM branches`
 
     if (!params?.includeDeleted) {
       sql += ` WHERE deleted_at IS NULL`
@@ -49,7 +49,7 @@ export class BranchModel {
     const row = this.db
       .prepare(
         `
-      SELECT id, name, description, created_at, updated_at, deleted_at FROM branches WHERE id = ?
+      SELECT id, name, description, emoji, created_at, updated_at, deleted_at FROM branches WHERE id = ?
     `,
       )
       .get(id) as any
@@ -68,24 +68,24 @@ export class BranchModel {
     return branch
   }
 
-  createBranch(branch: Pick<Branch, "name"> & Partial<Pick<Branch, "description">>): Branch | null {
+  createBranch(branch: Pick<Branch, "name"> & Partial<Pick<Branch, "description" | "emoji">>): Branch | null {
     const id = createEntityId("branch")
     const now = new Date().toISOString()
 
     this.db
       .prepare(
         `
-      INSERT INTO branches (id, name, description, created_at, updated_at, deleted_at)
-      VALUES (?, ?, ?, ?, ?, NULL)
+      INSERT INTO branches (id, name, description, emoji, created_at, updated_at, deleted_at)
+      VALUES (?, ?, ?, ?, ?, ?, NULL)
     `,
       )
-      .run(id, branch.name, branch.description ?? "", now, now)
+      .run(id, branch.name, branch.description ?? "", normalizeProjectEmoji(branch.emoji), now, now)
 
     logger.storage("Created", "BRANCHES", id)
     return this.getBranch(id, {includeDeleted: true})
   }
 
-  updateBranch(id: Branch["id"], updates: Partial<Pick<Branch, "description" | "name">>): Branch | null {
+  updateBranch(id: Branch["id"], updates: Partial<Pick<Branch, "description" | "name" | "emoji">>): Branch | null {
     if (id === NO_PROJECT_ID && notUndefined(updates.name)) {
       logger.warn(logger.CONTEXT.BRANCHES, "Main branch cannot be renamed")
       return null
@@ -103,6 +103,11 @@ export class BranchModel {
     if (notUndefined(updates.description)) {
       setClauses.push("description = ?")
       values.push(updates.description)
+    }
+
+    if (notUndefined(updates.emoji)) {
+      setClauses.push("emoji = ?")
+      values.push(normalizeProjectEmoji(updates.emoji))
     }
 
     if (setClauses.length > 0) {

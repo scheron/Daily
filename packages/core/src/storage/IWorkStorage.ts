@@ -80,8 +80,8 @@ export interface IWorkStorage {
 
   getBranchList(): Promise<Branch[]>
   getBranch(id: Branch["id"]): Promise<Branch | null>
-  createBranch(branch: Pick<Branch, "name"> & Partial<Pick<Branch, "description">>): Promise<Changeset>
-  updateBranch(id: Branch["id"], updates: Partial<Pick<Branch, "description" | "name">>): Promise<Changeset>
+  createBranch(branch: Pick<Branch, "name"> & Partial<Pick<Branch, "description" | "emoji">>): Promise<Changeset>
+  updateBranch(id: Branch["id"], updates: Partial<Pick<Branch, "description" | "name" | "emoji">>): Promise<Changeset>
   deleteBranch(id: Branch["id"]): Promise<Changeset>
 
   getTagList(branchId?: Branch["id"]): Promise<Tag[]>

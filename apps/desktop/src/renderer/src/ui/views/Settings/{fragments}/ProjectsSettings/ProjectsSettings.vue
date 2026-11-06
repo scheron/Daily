@@ -7,7 +7,7 @@ import {useBranchesStore} from "@/stores/branches.store"
 import SettingsGroup from "@/ui/views/Settings/{fragments}/SettingsGroup.vue"
 import MilestonesForm from "./{fragments}/MilestonesForm"
 import ProjectDescription from "./{fragments}/ProjectDescription.vue"
-import ProjectsForm from "./{fragments}/ProjectsForm.vue"
+import ProjectsForm from "./{fragments}/ProjectsForm"
 import TagsForm from "./{fragments}/TagsForm.vue"
 
 import type {Branch} from "@daily/protocol"

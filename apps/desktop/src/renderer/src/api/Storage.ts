@@ -250,10 +250,10 @@ export class StorageAPI {
   }
 
   /**
-   * The default "main" project can carry a description but cannot be renamed. The new name, when given,
+   * The default "main" project can carry a description and emoji but cannot be renamed. The new name, when given,
    * is trimmed; resolves to null if it is empty or already taken.
    */
-  async updateBranch(id: Branch["id"], updates: Partial<Pick<Branch, "name" | "description">>): Promise<Branch | null> {
+  async updateBranch(id: Branch["id"], updates: Partial<Pick<Branch, "name" | "description" | "emoji">>): Promise<Branch | null> {
     return await window.BridgeIPC["branches:update"](id, updates)
   }
 

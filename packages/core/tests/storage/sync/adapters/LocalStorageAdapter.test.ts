@@ -65,7 +65,36 @@ describe("LocalStorageAdapter", () => {
     db.close()
   })
 
-  it("imports legacy snapshot statuses through merge and SQLite and publishes v15 with the same task fields", async () => {
+  it("exchanges a v16 project emoji between databases and lets a newer snapshot clear it", async () => {
+    const branch = {id: "emoji-project", name: "Space", description: "Mission", emoji: "👩🏽‍🚀", created_at: now, updated_at: now, deleted_at: null}
+    await adapter.upsertDocs({
+      tasks: [],
+      tags: [],
+      branches: [branch],
+      milestones: [],
+      relations: [],
+      comments: [],
+      subtasks: [],
+      files: [],
+      events: [],
+    })
+    const snapshot = JSON.parse(JSON.stringify(buildSnapshot(await adapter.loadAllDocs())))
+    expect(snapshot.version).toBe(16)
+    expect(snapshot.docs.branches).toContainEqual(branch)
+    const otherDb = createTestDatabase()
+    try {
+      const other = new LocalStorageAdapter(otherDb, new FileModel(otherDb, "/tmp/daily-local-storage-adapter-other"))
+      const merged = mergeRemoteIntoLocal(await other.loadAllDocs(), snapshot.docs, "pull", 7 * 24 * 60 * 60 * 1000)
+      await other.upsertDocs(merged.toUpsert)
+      expect((await other.loadAllDocs()).branches).toContainEqual(branch)
+      await other.upsertDocs({...snapshot.docs, branches: [{...branch, emoji: null}]})
+      expect((await other.loadAllDocs()).branches.find((item) => item.id === branch.id)?.emoji).toBeNull()
+    } finally {
+      otherDb.close()
+    }
+  })
+
+  it("imports legacy snapshot statuses through merge and SQLite and publishes v16 with the same task fields", async () => {
     insertTask(db, "legacy-active", "Keep content", {date: "2026-10-29"})
     insertTask(db, "legacy-discarded", "Keep cancellation", {status: "cancelled", date: "2026-10-28"})
     insertTag(db, "legacy-tag", "Keep tag")
@@ -78,10 +107,10 @@ describe("LocalStorageAdapter", () => {
     await adapter.upsertDocs(merged.toUpsert)
     const restored = await adapter.loadAllDocs()
     expect(restored.tasks).toEqual(current.tasks)
-    expect(buildSnapshot(restored).version).toBe(15)
+    expect(buildSnapshot(restored).version).toBe(16)
   })
 
-  it("round-trips To Do with its tags and subtask through a v15 snapshot into another database", async () => {
+  it("round-trips To Do with its tags and subtask through a v16 snapshot into another database", async () => {
     insertTask(db, "t1", "Parent", {status: "todo"})
     insertTag(db, "todo-tag", "Planned")
     linkTaskTag(db, "t1", "todo-tag")
@@ -98,7 +127,7 @@ describe("LocalStorageAdapter", () => {
     await other.upsertDocs(snapshot.docs)
 
     const restored = await other.loadAllDocs()
-    expect(snapshot.version).toBe(15)
+    expect(snapshot.version).toBe(16)
     expect(restored.tasks).toEqual(snapshot.docs.tasks)
     expect(restored.tasks[0]).toMatchObject({status: "todo", scheduled_date: "2026-03-25", tags: ["todo-tag"]})
     expect(restored.subtasks).toEqual(snapshot.docs.subtasks)

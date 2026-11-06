@@ -289,6 +289,8 @@ export type Tag = {
 }
 
 export type Branch = {
+  /** One emoji grapheme, or the standard project icon when empty. */
+  emoji?: string | null
   id: string
   createdAt: ISODateTime
   updatedAt: ISODateTime

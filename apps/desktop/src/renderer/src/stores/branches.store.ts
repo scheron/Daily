@@ -30,18 +30,18 @@ export const useBranchesStore = defineStore("branches", () => {
     }
   }
 
-  async function createBranch(name: string): Promise<Branch | null> {
+  async function createBranch(name: string, emoji?: string | null): Promise<Branch | null> {
     const trimmed = name.trim()
     if (!trimmed) return null
 
-    return await API.createBranch({name: trimmed, description: ""})
+    return await API.createBranch({name: trimmed, description: "", ...(emoji !== undefined ? {emoji} : {})})
   }
 
-  async function updateBranchName(id: Branch["id"], name: string): Promise<Branch | null> {
+  async function updateBranchName(id: Branch["id"], name: string, emoji?: string | null): Promise<Branch | null> {
     const trimmed = name.trim()
     if (!trimmed) return null
 
-    return await API.updateBranch(id, {name: trimmed})
+    return await API.updateBranch(id, {name: trimmed, ...(emoji !== undefined ? {emoji} : {})})
   }
 
   async function updateBranchDescription(id: Branch["id"], description: string): Promise<Branch | null> {

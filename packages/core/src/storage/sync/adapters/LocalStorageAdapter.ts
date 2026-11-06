@@ -1,3 +1,5 @@
+import {normalizeProjectEmoji} from "@daily/protocol"
+
 import type {
   ILocalStorage,
   SnapshotBranch,
@@ -38,17 +40,18 @@ export class LocalStorageAdapter implements ILocalStorage {
     const transaction = this.db.transaction(() => {
       if (docs.branches.length) {
         const stmt = this.db.prepare(`
-          INSERT INTO branches (id, name, description, created_at, updated_at, deleted_at)
-          VALUES (?, ?, ?, ?, ?, ?)
+          INSERT INTO branches (id, name, description, emoji, created_at, updated_at, deleted_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
           ON CONFLICT(id) DO UPDATE SET
             name        = excluded.name,
             description = excluded.description,
+            emoji       = excluded.emoji,
             created_at  = excluded.created_at,
             updated_at  = excluded.updated_at,
             deleted_at  = excluded.deleted_at
         `)
         for (const b of docs.branches) {
-          stmt.run(b.id, b.name, b.description, b.created_at, b.updated_at, b.deleted_at)
+          stmt.run(b.id, b.name, b.description, normalizeProjectEmoji(b.emoji), b.created_at, b.updated_at, b.deleted_at)
         }
       }
 
@@ -423,6 +426,7 @@ export class LocalStorageAdapter implements ILocalStorage {
       id: row.id,
       name: row.name,
       description: row.description,
+      emoji: normalizeProjectEmoji(row.emoji),
       created_at: row.created_at,
       updated_at: row.updated_at,
       deleted_at: row.deleted_at,

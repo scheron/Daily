@@ -76,6 +76,16 @@ describe("BranchCombobox", () => {
     expect(wrapper.findAll("[data-active]").map((row) => row.text())).toContain("No project")
   })
 
+  it("renders the saved emoji beside the project name", async () => {
+    const {default: BranchCombobox} = await import("../../../src/renderer/src/ui/common/comboboxes/BranchCombobox.vue")
+    const {useBranchesStore} = await import("../../../src/renderer/src/stores/branches.store")
+    useBranchesStore().branches = [makeBranch({id: "work", name: "Work", emoji: "👩🏽‍💻"})]
+    const popup = mountInPopup(BranchCombobox, {selectedId: "work"})
+    wrapper = popup.wrapper
+    expect(wrapper.text()).toContain("👩🏽‍💻")
+    expect(wrapper.find('use[href="#project"]').exists()).toBe(false)
+  })
+
   it("leaves_no_project_out_when_the_picker_clears_the_project_its_own_way", async () => {
     const {default: BranchCombobox} = await import("../../../src/renderer/src/ui/common/comboboxes/BranchCombobox.vue")
     const {useBranchesStore} = await import("../../../src/renderer/src/stores/branches.store")

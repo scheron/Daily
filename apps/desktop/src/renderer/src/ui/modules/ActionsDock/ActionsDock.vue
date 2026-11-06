@@ -7,11 +7,12 @@ import {useProjectScopeStore} from "@/stores/projectScope.store"
 import {useUIStore} from "@/stores/ui"
 import BaseAnimation from "@/ui/base/BaseAnimation.vue"
 import BaseButton from "@/ui/base/BaseButton"
+import BaseIcon from "@/ui/base/BaseIcon"
 import BaseMenu from "@/ui/base/BaseMenu.vue"
 import BasePopup from "@/ui/base/BasePopup.vue"
 import BranchPicker from "@/ui/common/pickers/BranchPicker.vue"
+import ProjectIcon from "@/ui/common/projects/ProjectIcon.vue"
 import {useSearchModal} from "@/ui/overlays/SearchModal"
-import {getProjectIcon} from "@/utils/projects/getProjectIcon"
 import {getProjectName} from "@/utils/projects/getProjectName"
 import {toShortcutKeys} from "@/utils/shortcuts/toShortcutKeys"
 import {cn} from "@/utils/ui/tailwindcss"
@@ -123,7 +124,6 @@ function getFocusVariant(isOpen: boolean) {
       >
         <template #trigger="{show}">
           <BaseButton
-            :icon="projectScopeStore.isAllProjectsMode ? 'layers' : getProjectIcon(branchesStore.activeBranch)"
             variant="ghost-primary"
             size="sm"
             :aria-label="compact ? `Project: ${activeBranchName}` : undefined"
@@ -131,6 +131,10 @@ function getFocusVariant(isOpen: boolean) {
             @mouseenter="show"
             @click="show"
           >
+            <template #icon="{class: iconClass}">
+              <BaseIcon v-if="projectScopeStore.isAllProjectsMode" name="layers" :class="iconClass" />
+              <ProjectIcon v-else :project="branchesStore.activeBranch" :class="iconClass" />
+            </template>
             <template v-if="!compact" #default>
               <span class="max-w-24 truncate">{{ activeBranchName }}</span>
             </template>

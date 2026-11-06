@@ -1,4 +1,4 @@
-import {NO_PROJECT_ID} from "@daily/protocol"
+import {NO_PROJECT_ID, normalizeProjectEmoji} from "@daily/protocol"
 import {notUndefined} from "@daily/std"
 
 import type {Branch, Milestone, Tag, Task} from "@daily/protocol"
@@ -27,7 +27,10 @@ export class BranchesService {
     return this.branchModel.getBranch(id)
   }
 
-  async createBranch(branch: Pick<Branch, "name"> & Partial<Pick<Branch, "description">>): Promise<Branch | null> {
+  async createBranch(branch: Pick<Branch, "name"> & Partial<Pick<Branch, "description" | "emoji">>): Promise<Branch | null> {
+    const emoji = normalizeProjectEmoji(branch.emoji)
+    if (branch.emoji?.trim() && !emoji) return null
+
     const name = branch.name.trim()
     if (!name) return null
 
@@ -35,13 +38,13 @@ export class BranchesService {
     const hasDuplicate = existing.some((item) => item.name.trim().toLowerCase() === name.toLowerCase())
     if (hasDuplicate) return null
 
-    return this.branchModel.createBranch({name, description: branch.description})
+    return this.branchModel.createBranch({name, description: branch.description, emoji})
   }
 
-  async updateBranch(id: Branch["id"], updates: Partial<Pick<Branch, "description" | "name">>): Promise<Branch | null> {
+  async updateBranch(id: Branch["id"], updates: Partial<Pick<Branch, "description" | "name" | "emoji">>): Promise<Branch | null> {
     if (id === NO_PROJECT_ID && notUndefined(updates.name)) return null
 
-    const next: Partial<Pick<Branch, "description" | "name">> = {}
+    const next: Partial<Pick<Branch, "description" | "name" | "emoji">> = {}
 
     if (notUndefined(updates.name)) {
       const name = updates.name.trim()
@@ -55,6 +58,12 @@ export class BranchesService {
     }
 
     if (notUndefined(updates.description)) next.description = updates.description
+
+    if (notUndefined(updates.emoji)) {
+      const emoji = normalizeProjectEmoji(updates.emoji)
+      if (updates.emoji?.trim() && !emoji) return null
+      next.emoji = emoji
+    }
 
     return this.branchModel.updateBranch(id, next)
   }

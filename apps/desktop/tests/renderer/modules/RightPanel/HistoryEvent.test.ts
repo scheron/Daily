@@ -4,7 +4,7 @@ import {afterEach, beforeEach, describe, expect, it} from "vitest"
 import {mount} from "@vue/test-utils"
 import {mockBridgeIPC} from "../../../helpers/bridgeIPC"
 
-import type {TaskEvent} from "@daily/protocol"
+import type {Branch, TaskEvent} from "@daily/protocol"
 import type {VueWrapper} from "@vue/test-utils"
 
 function makeEvent(overrides: Partial<TaskEvent> = {}): TaskEvent {
@@ -19,6 +19,18 @@ function makeEvent(overrides: Partial<TaskEvent> = {}): TaskEvent {
     createdAt: "2026-10-31T09:00:00.000Z",
     kind: "manual",
     provider: null,
+    ...overrides,
+  }
+}
+
+function makeProject(overrides: Partial<Branch> = {}): Branch {
+  return {
+    id: "project-1",
+    name: "Daily",
+    description: "",
+    createdAt: "",
+    updatedAt: "",
+    deletedAt: null,
     ...overrides,
   }
 }
@@ -169,14 +181,6 @@ describe("an Activity event", () => {
     expect(row.text()).not.toContain("Priority:")
 
     const {useBranchesStore} = await import("../../../../src/renderer/src/stores/branches.store")
-    const makeProject = () => ({
-      id: "project-1",
-      name: "Daily",
-      description: "",
-      createdAt: "",
-      updatedAt: "",
-      deletedAt: null,
-    })
     useBranchesStore().branches = [makeProject()]
     await row.setProps({event: makeEvent({type: "project_changed", fromBranchId: "main", toBranchId: "project-1"})})
     expect(row.text().replace(/\s+/g, " ")).toContain("No project → Daily")
@@ -185,6 +189,14 @@ describe("an Activity event", () => {
     await row.setProps({event: makeEvent({type: "project_changed", fromBranchId: "project-gone", toBranchId: "project-1"})})
     expect(row.text().replace(/\s+/g, " ")).toContain("project-gone → Daily")
     expect(row.text()).not.toContain("Project:")
+  })
+
+  it("shows both project emojis in a project transition", async () => {
+    const {useBranchesStore} = await import("../../../../src/renderer/src/stores/branches.store")
+    useBranchesStore().branches = [makeProject({id: "work", name: "Work", emoji: "💼"}), makeProject({id: "home", name: "Home", emoji: "🏠"})]
+    const row = await renderEvent(makeEvent({type: "project_changed", fromBranchId: "work", toBranchId: "home"}))
+    expect(row.text()).toContain("💼")
+    expect(row.text()).toContain("🏠")
   })
 
   it("keeps legacy status events readable without inventing previous values", async () => {

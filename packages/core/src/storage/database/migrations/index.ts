@@ -19,6 +19,7 @@ import {v018} from "./v018-agent-statuses"
 import {v019} from "./v019-subtasks"
 import {v020} from "./v020-todo-status"
 import {v021} from "./v021-task-event-changes"
+import {v022} from "./v022-project-emoji"
 
 import type {Migration} from "../scripts/migrate"
 
@@ -44,4 +45,5 @@ export const migrations: Migration[] = [
   v019,
   v020,
   v021,
+  v022,
 ]

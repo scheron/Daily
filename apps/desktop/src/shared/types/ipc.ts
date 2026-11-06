@@ -179,7 +179,7 @@ export interface BridgeIPC {
   "branches:get-many": () => Promise<Branch[]>
   "branches:get-one": (id: Branch["id"]) => Promise<Branch | null>
   "branches:create": (branch: Omit<Branch, "id" | "createdAt" | "updatedAt" | "deletedAt">) => Promise<Branch | null>
-  "branches:update": (id: Branch["id"], updates: Partial<Pick<Branch, "name" | "description">>) => Promise<Branch | null>
+  "branches:update": (id: Branch["id"], updates: Partial<Pick<Branch, "name" | "description" | "emoji">>) => Promise<Branch | null>
   "branches:delete": (id: Branch["id"]) => Promise<boolean>
   "branches:set-active": (id: Branch["id"]) => Promise<void>
 

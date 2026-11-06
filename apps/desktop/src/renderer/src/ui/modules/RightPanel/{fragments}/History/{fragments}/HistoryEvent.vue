@@ -7,15 +7,16 @@ import {toDateLabel, toLocaleDateTime, toTime} from "@daily/std"
 import {TASK_COLUMNS} from "@/constants/ui"
 import {useBranchesStore} from "@/stores/branches.store"
 import BaseIcon from "@/ui/base/BaseIcon"
+import ProjectIcon from "@/ui/common/projects/ProjectIcon.vue"
 import AgentIcon from "@/ui/common/sync/AgentIcon.vue"
 import {getPriorityLevel} from "@/utils/priority/getPriorityLevel"
 import {getProjectName} from "@/utils/projects/getProjectName"
 import {cn} from "@/utils/ui/tailwindcss"
 
 import type {IconName} from "@/ui/base/BaseIcon"
-import type {TaskEvent, TaskEventType, TaskPriority, TaskStatus} from "@daily/protocol"
+import type {Branch, TaskEvent, TaskEventType, TaskPriority, TaskStatus} from "@daily/protocol"
 
-type EventEndpoint = {label: string; icon?: IconName; textClass?: string; color?: string}
+type EventEndpoint = {label: string; icon?: IconName; project?: Pick<Branch, "id" | "emoji">; textClass?: string; color?: string}
 type EventTransition = {from: EventEndpoint; to: EventEndpoint}
 
 const props = defineProps<{event: TaskEvent}>()
@@ -80,7 +81,7 @@ function priorityEndpoint(priority: TaskPriority): EventEndpoint {
 
 function projectEndpoint(id: string): EventEndpoint {
   const project = branchesStore.branchesMap.get(id)
-  return {label: id === NO_PROJECT_ID ? getProjectName(null) : (project?.name ?? id), icon: id === NO_PROJECT_ID ? "project-off" : "project"}
+  return {label: id === NO_PROJECT_ID ? getProjectName(null) : (project?.name ?? id), project: project ?? {id}}
 }
 
 function getEndpointClasses(textClass?: string) {
@@ -109,12 +110,14 @@ function getMarkerClasses(hasSource: boolean) {
     <span class="min-w-0 text-xs leading-5">
       <template v-if="transition">
         <span :class="getEndpointClasses(transition.from.textClass)" :style="{color: transition.from.color}">
-          <BaseIcon v-if="transition.from.icon" :name="transition.from.icon" class="size-3" />
+          <ProjectIcon v-if="transition.from.project" :project="transition.from.project" class="size-3" />
+          <BaseIcon v-else-if="transition.from.icon" :name="transition.from.icon" class="size-3" />
           <span class="min-w-0 break-words">{{ transition.from.label }}</span>
         </span>
         →
         <span :class="getEndpointClasses(transition.to.textClass)" :style="{color: transition.to.color}">
-          <BaseIcon v-if="transition.to.icon" :name="transition.to.icon" class="size-3" />
+          <ProjectIcon v-if="transition.to.project" :project="transition.to.project" class="size-3" />
+          <BaseIcon v-else-if="transition.to.icon" :name="transition.to.icon" class="size-3" />
           <span class="min-w-0 break-words">{{ transition.to.label }}</span>
         </span>
       </template>

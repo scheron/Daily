@@ -43,7 +43,9 @@ function getIconClasses(isSpinning: boolean) {
   <button v-tooltip="{content: tooltip, placement: tooltipPosition}" :class="getButtonClasses(!!$slots.default)" :disabled="disabled || loading">
     <BaseIcon v-if="loading" name="spinner" :class="getIconClasses(true)" />
     <template v-else>
-      <BaseIcon v-if="icon" :name="icon" :class="getIconClasses(false)" />
+      <slot name="icon" :class="getIconClasses(false)">
+        <BaseIcon v-if="icon" :name="icon" :class="getIconClasses(false)" />
+      </slot>
       <slot />
     </template>
   </button>

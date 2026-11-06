@@ -383,12 +383,12 @@ export class StorageController implements IStorageController {
     return this.workStorage.getBranch(id)
   }
 
-  async createBranch(branch: Pick<Branch, "name"> & Partial<Pick<Branch, "description">>): Promise<Branch | null> {
+  async createBranch(branch: Pick<Branch, "name"> & Partial<Pick<Branch, "description" | "emoji">>): Promise<Branch | null> {
     const changeset = await this.workStorage.createBranch(branch)
     return changeset.branches?.upserted?.[0] ?? null
   }
 
-  async updateBranch(id: Branch["id"], updates: Partial<Pick<Branch, "description" | "name">>): Promise<Branch | null> {
+  async updateBranch(id: Branch["id"], updates: Partial<Pick<Branch, "description" | "name" | "emoji">>): Promise<Branch | null> {
     const changeset = await this.workStorage.updateBranch(id, updates)
     return changeset.branches?.upserted?.[0] ?? null
   }

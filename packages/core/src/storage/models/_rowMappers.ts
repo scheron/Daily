@@ -55,6 +55,7 @@ type TagRow = {
 }
 
 type BranchRow = {
+  emoji?: string | null
   id: string
   name: string
   description: string
@@ -180,6 +181,7 @@ export function rowToTag(row: TagRow): Tag {
 
 export function rowToBranch(row: BranchRow): Branch {
   return {
+    emoji: row.emoji ?? null,
     id: row.id,
     name: row.name,
     description: row.description ?? "",

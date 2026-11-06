@@ -21,7 +21,7 @@ import type {
 } from "@daily/protocol"
 
 export type TagView = {id: string; projectId: string; name: string; color: string; createdAt: ISODateTime; updatedAt: ISODateTime}
-export type ProjectView = {id: string; name: string; description: string; createdAt: ISODateTime; updatedAt: ISODateTime}
+export type ProjectView = {id: string; name: string; emoji: string | null; description: string; createdAt: ISODateTime; updatedAt: ISODateTime}
 export type MilestoneView = {
   id: string
   projectId: string
@@ -76,7 +76,14 @@ export function tagView(tag: Tag): TagView {
 }
 
 export function projectView(branch: Branch): ProjectView {
-  return {id: branch.id, name: branch.name, description: branch.description, createdAt: branch.createdAt, updatedAt: branch.updatedAt}
+  return {
+    id: branch.id,
+    name: branch.name,
+    emoji: branch.emoji ?? null,
+    description: branch.description,
+    createdAt: branch.createdAt,
+    updatedAt: branch.updatedAt,
+  }
 }
 
 export function milestoneView(milestone: Milestone, progress: MilestoneProgress): MilestoneView {

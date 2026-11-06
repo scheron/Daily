@@ -49,6 +49,22 @@ describe("BranchesService", () => {
     db.close()
   })
 
+  it("persists a complete emoji and preserves it when editing only project text", async () => {
+    const created = await branchesService.createBranch({name: "Space", emoji: "  👩🏽‍🚀  "})
+    expect(created?.emoji).toBe("👩🏽‍🚀")
+    const renamed = await branchesService.updateBranch(created.id, {name: "Launch", description: "Mission"})
+    expect(renamed?.emoji).toBe("👩🏽‍🚀")
+    expect((await branchesService.getBranch(created.id))?.emoji).toBe("👩🏽‍🚀")
+    expect((await branchesService.updateBranch(created.id, {emoji: null}))?.emoji).toBeNull()
+  })
+
+  it("rejects invalid nonempty emoji without partially changing the project", async () => {
+    expect(await branchesService.createBranch({name: "Bad", emoji: "hello"})).toBeNull()
+    const created = await branchesService.createBranch({name: "Keep", emoji: "🇯🇵"})
+    expect(await branchesService.updateBranch(created.id, {name: "Changed", emoji: "🚀🎯"})).toBeNull()
+    expect(await branchesService.getBranch(created.id)).toMatchObject({name: "Keep", emoji: "🇯🇵"})
+  })
+
   it("rejects branch with duplicate name (case-insensitive)", async () => {
     await branchesService.createBranch({name: "Feature"})
     const duplicate = await branchesService.createBranch({name: "feature"})

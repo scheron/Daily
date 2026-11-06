@@ -1,4 +1,4 @@
-import {APP_CONFIG, NO_PROJECT_ID} from "@daily/protocol"
+import {APP_CONFIG, NO_PROJECT_ID, normalizeProjectEmoji} from "@daily/protocol"
 
 import {extractFileIds} from "../../files/extractFileIds"
 
@@ -6,7 +6,7 @@ import type {SnapshotDocs, SnapshotFile, SnapshotTask} from "@daily/protocol"
 
 /**
  * Fills what an older snapshot does not carry: the `milestones`, `relations`, `comments` and `subtasks` collections, a
- * task's `milestone_id` and `priority` (`none`), a tag's `branch_id`, a branch's `description`, and an event's actor, change metadata and stable ordering.
+ * task's `milestone_id` and `priority` (`none`), a tag's `branch_id`, a branch's `description` and `emoji`, and an event's actor, change metadata and stable ordering.
  * Drops what an older snapshot carries and this one no longer has — the `settings` document, local to
  * each device since v7, and a task's `attachments`, folded into its `content` as file links since v10.
  * Called on both sides of a merge so no reader downstream has to defend itself.
@@ -28,7 +28,7 @@ export function normalizeSnapshotDocs(docs: SnapshotDocs): SnapshotDocs {
       ),
     ),
     tags: docs.tags.map((tag) => ({...tag, branch_id: tag.branch_id ?? NO_PROJECT_ID})),
-    branches: docs.branches.map((branch) => ({...branch, description: branch.description ?? ""})),
+    branches: docs.branches.map((branch) => ({...branch, description: branch.description ?? "", emoji: normalizeProjectEmoji(branch.emoji)})),
     milestones: docs.milestones ?? [],
     relations: docs.relations ?? [],
     comments: docs.comments ?? [],

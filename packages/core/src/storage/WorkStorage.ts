@@ -314,14 +314,14 @@ export class WorkStorage implements IWorkStorage {
     return this.core.branchesService.getBranch(id)
   }
 
-  async createBranch(branch: Pick<Branch, "name"> & Partial<Pick<Branch, "description">>): Promise<Changeset> {
+  async createBranch(branch: Pick<Branch, "name"> & Partial<Pick<Branch, "description" | "emoji">>): Promise<Changeset> {
     const createdBranch = await this.core.branchesService.createBranch(branch)
     if (!createdBranch) return EMPTY_CHANGESET
 
     return this.commitWrite({branches: {upserted: [createdBranch]}})
   }
 
-  async updateBranch(id: Branch["id"], updates: Partial<Pick<Branch, "description" | "name">>): Promise<Changeset> {
+  async updateBranch(id: Branch["id"], updates: Partial<Pick<Branch, "description" | "name" | "emoji">>): Promise<Changeset> {
     const updatedBranch = await this.core.branchesService.updateBranch(id, updates)
     if (!updatedBranch) return EMPTY_CHANGESET
 

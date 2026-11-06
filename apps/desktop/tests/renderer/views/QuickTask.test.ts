@@ -277,6 +277,16 @@ describe("the Quick task window view", () => {
     expect(editor.props("content")).toBe("Half-written")
   })
 
+  it("shows the chosen project emoji in the quick task chip", async () => {
+    const editor = await mountView()
+    const {useBranchesStore} = await import(`${SRC}/stores/branches.store`)
+    useBranchesStore().branches.find((project) => project.id === "daily").emoji = "🚀"
+    editor.vm.$emit("patch", {branchId: "daily"})
+    await flushPromises()
+    expect(wrapper.find("[data-chip=project]").text()).toContain("🚀")
+    expect(wrapper.find("[data-chip=project]").find('use[href="#project"]').exists()).toBe(false)
+  })
+
   it("showing an untouched panel re-takes the project active now", async () => {
     await mountView()
     const {useSettingsStore} = await import(`${SRC}/stores/settings.store`)

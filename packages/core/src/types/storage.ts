@@ -159,8 +159,8 @@ export interface IStorageController {
 
   getBranchList(): Promise<Branch[]>
   getBranch(id: Branch["id"]): Promise<Branch | null>
-  createBranch(branch: Pick<Branch, "name"> & Partial<Pick<Branch, "description">>): Promise<Branch | null>
-  updateBranch(id: Branch["id"], updates: Partial<Pick<Branch, "description" | "name">>): Promise<Branch | null>
+  createBranch(branch: Pick<Branch, "name"> & Partial<Pick<Branch, "description" | "emoji">>): Promise<Branch | null>
+  updateBranch(id: Branch["id"], updates: Partial<Pick<Branch, "description" | "name" | "emoji">>): Promise<Branch | null>
   deleteBranch(id: Branch["id"]): Promise<boolean>
   setActiveBranch(id: Branch["id"]): Promise<void>
 

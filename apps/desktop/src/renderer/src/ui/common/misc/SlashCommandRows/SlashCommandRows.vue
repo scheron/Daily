@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {nextTick, useTemplateRef, watch} from "vue"
 
+import ProjectIcon from "@/ui/common/projects/ProjectIcon.vue"
 import {cn} from "@/utils/ui/tailwindcss"
 
 import type {QuickTaskMenu} from "@shared/types/quickTask"
@@ -41,7 +42,8 @@ watch(
         </span>
         <span v-else class="slash-command-option">
           <span class="slash-command-icon" :style="{color: row.iconColor}">
-            <svg v-if="row.icon" width="16" height="16" aria-hidden="true"><use :href="`#${row.icon}`" /></svg>
+            <ProjectIcon v-if="row.project" :project="row.project" class="size-4" />
+            <svg v-else-if="row.icon" width="16" height="16" aria-hidden="true"><use :href="`#${row.icon}`" /></svg>
           </span>
           <span>{{ row.label }}</span>
         </span>

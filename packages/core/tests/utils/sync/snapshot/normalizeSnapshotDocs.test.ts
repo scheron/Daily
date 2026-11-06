@@ -71,3 +71,14 @@ it("keeps existing planned and executing statuses with their dates during normal
   }))
   expect(normalizeSnapshotDocs(legacyDocs({tasks})).tasks).toEqual(tasks)
 })
+
+it("reads legacy projects with the standard icon and preserves complete emoji from new snapshots", () => {
+  const branches = [
+    {id: "old", name: "Old"},
+    {id: "new", name: "New", emoji: "👨‍👩‍👧‍👦"},
+  ]
+  expect(normalizeSnapshotDocs(legacyDocs({branches})).branches).toEqual([
+    {id: "old", name: "Old", description: "", emoji: null},
+    {id: "new", name: "New", description: "", emoji: "👨‍👩‍👧‍👦"},
+  ])
+})

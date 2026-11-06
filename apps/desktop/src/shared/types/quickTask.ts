@@ -1,3 +1,5 @@
+import type {Branch} from "@daily/protocol"
+
 /** Why a rebind did not happen: `invalid` is not a usable accelerator, `unavailable` is taken by another app, `not-running` means the Quick task process is not there to ask. */
 export type HotkeyRebindResult =
   | {ok: true}
@@ -9,7 +11,15 @@ export type QuickTaskHotkeyState = {running: boolean; active: string | null}
 
 /** What the panel's editor shows in its `/` menu: the rows, the highlighted one, and the caret's x in the panel window's coordinates. */
 export type QuickTaskMenu = {
-  rows: Array<{label: string; tooltip?: string; icon?: string; iconColor?: string; color?: string; tone?: "remove"}>
+  rows: Array<{
+    label: string
+    tooltip?: string
+    project?: Pick<Branch, "id" | "emoji">
+    icon?: string
+    iconColor?: string
+    color?: string
+    tone?: "remove"
+  }>
   selected: number
   caretX: number
 }

@@ -6,7 +6,7 @@ export type SnapshotMeta = {
 }
 
 export type Snapshot = {
-  version: 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15
+  version: 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16
   docs: SnapshotDocs
   meta: SnapshotMeta
 }
@@ -75,6 +75,7 @@ export type SnapshotTag = {
 }
 
 export type SnapshotBranch = {
+  emoji?: string | null
   id: string
   name: string
   description: string

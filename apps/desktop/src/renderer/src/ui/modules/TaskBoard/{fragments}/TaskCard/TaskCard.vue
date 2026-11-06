@@ -68,11 +68,8 @@ const spentLabel = computed(() => toShortDurationLabel(props.task.spentTime))
 const hasRelation = computed(() => taskRelationsStore.chipByTaskId.has(props.task.id))
 const commentCount = computed(() => taskCommentsStore.commentCountOf(props.task.id))
 const subtaskCount = computed(() => subtasksStore.countOf(props.task.id))
-const projectName = computed(() =>
-  projectScopeStore.isAllProjectsMode && props.task.branchId !== NO_PROJECT_ID
-    ? (branchesStore.branchesMap.get(props.task.branchId)?.name ?? "")
-    : "",
-)
+const project = computed(() => branchesStore.branchesMap.get(props.task.branchId))
+const projectName = computed(() => (projectScopeStore.isAllProjectsMode && props.task.branchId !== NO_PROJECT_ID ? (project.value?.name ?? "") : ""))
 const isInSession = computed(() => focusStore.isInSession(props.task.id))
 
 const footerDayLabel = computed(() => {
@@ -240,7 +237,7 @@ async function onLinkTask(side: keyof TaskRelationSets, taskId: Task["id"]) {
   <BaseContextMenu ref="contextMenu" :items="menuItems" @select="onSelect">
     <div :id="task.id" :class="getCardClasses(task.status, isInSession, isCompact)" :style="{height: `${cardHeight}px`}" @click.stop="onCardClick">
       <div class="board-card-inner relative z-10 flex h-full w-full flex-col gap-2 px-4 pb-3 pt-3.5">
-        <CardCrumb v-if="projectName || milestone" :project-name="projectName" :milestone="milestone" />
+        <CardCrumb v-if="projectName || milestone" :project-name="projectName" :project="project" :milestone="milestone" />
 
         <div :class="getContentClasses(task.status)">
           <p v-if="isCompact" class="board-card-title">{{ title }}</p>

@@ -272,6 +272,18 @@ describe("TaskCard — the crumb", () => {
     expect(crumb().find("svg path").exists()).toBe(true)
   })
 
+  it("shows and reactively refreshes the saved project emoji in the crumb", async () => {
+    await setup(makeTask({branchId: "leki"}), {isAllProjects: true})
+    const {useBranchesStore} = await import("../../../../src/renderer/src/stores/branches.store")
+    useBranchesStore().branches.find((project) => project.id === "leki").emoji = "🚀"
+    await nextTick()
+    expect(crumb().text()).toContain("🚀")
+    expect(crumb().find('use[href="#project"]').exists()).toBe(false)
+    useBranchesStore().branches.find((project) => project.id === "leki").emoji = null
+    await nextTick()
+    expect(crumb().find('use[href="#project"]').exists()).toBe(true)
+  })
+
   it("shows_only_the_milestone_inside_one_project", async () => {
     await setup(makeTask({branchId: "leki", milestoneId: "milestone-1"}), {milestone: makeMilestone({branchId: "leki"})})
 

@@ -5,8 +5,8 @@ import {NO_PROJECT_ID} from "@daily/protocol"
 
 import {useBranchesStore} from "@/stores/branches.store"
 import {useTaskEditorStore} from "@/stores/task-editor"
-import BaseIcon from "@/ui/base/BaseIcon"
 import BranchPicker from "@/ui/common/pickers/BranchPicker.vue"
+import ProjectIcon from "@/ui/common/projects/ProjectIcon.vue"
 import PropertyCell from "../PropertyCell.vue"
 
 import type {Branch, Task} from "@daily/protocol"
@@ -33,7 +33,7 @@ function onRemove() {
     <template #trigger="{toggle}">
       <PropertyCell :label="branchName" :is-empty="!branch" :removable="Boolean(branch)" @click="toggle" @remove="onRemove">
         <template #icon>
-          <BaseIcon name="project" class="size-4" />
+          <ProjectIcon :project="branch" class="size-4" />
         </template>
       </PropertyCell>
     </template>

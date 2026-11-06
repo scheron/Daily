@@ -130,6 +130,19 @@ describe("useTaskSlashCommands", () => {
     })
   })
 
+  it("passes the project emoji to slash menu rows while retaining project selection", async () => {
+    const {useBranchesStore} = await import(`${SRC}/stores/branches.store`)
+    useBranchesStore().branches = [{...branch("daily", "Daily"), emoji: "🚀"}]
+    const row = items("Project")[0]
+    const {default: SlashCommandRows} = await import(`${SRC}/ui/common/misc/SlashCommandRows/SlashCommandRows.vue`)
+    const {mount} = await import("@vue/test-utils")
+    const menu = mount(SlashCommandRows, {props: {menu: {rows: [row], selected: 0, caretX: 0}}, global: {directives: {tooltip: {}}}})
+    expect(menu.text()).toContain("🚀")
+    row.apply()
+    expect(patch).toHaveBeenCalledWith({branchId: "daily"})
+    menu.unmount()
+  })
+
   describe("Priority", () => {
     it("lists every level in order and filters by what was typed", () => {
       expect(labels(items("Priority"))).toEqual(["No priority", "Urgent", "High", "Medium", "Low"])

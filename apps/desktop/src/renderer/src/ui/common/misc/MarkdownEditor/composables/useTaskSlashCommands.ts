@@ -82,6 +82,7 @@ export function useTaskSlashCommands(task: ComputedRef<Task>, patch: (updates: P
       .map((branch) => ({
         label: getProjectName(branch),
         icon: getProjectIcon(branch),
+        project: {id: branch.id, emoji: branch.emoji},
         apply: () => {
           if (branch.id !== task.value.branchId) patch({branchId: branch.id})
         },

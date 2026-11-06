@@ -45,7 +45,7 @@ export function setupStorageIPC(getStorage: () => IStorageController | null) {
 
   ipcMain.handle("branches:get-one", (_e, id: Branch["id"]) => getStorage()?.getBranch(id))
   ipcMain.handle("branches:create", (_e, branch: Omit<Branch, "id" | "createdAt" | "updatedAt" | "deletedAt">) => getStorage()?.createBranch(branch))
-  ipcMain.handle("branches:update", (_e, id: Branch["id"], updates: Partial<Pick<Branch, "name" | "description">>) => getStorage()?.updateBranch(id, updates))
+  ipcMain.handle("branches:update", (_e, id: Branch["id"], updates: Partial<Pick<Branch, "name" | "description" | "emoji">>) => getStorage()?.updateBranch(id, updates))
   ipcMain.handle("branches:delete", (_e, id: Branch["id"]) => getStorage()?.deleteBranch(id))
   ipcMain.handle("branches:set-active", (_e, id: Branch["id"]) => getStorage()?.setActiveBranch(id))
 

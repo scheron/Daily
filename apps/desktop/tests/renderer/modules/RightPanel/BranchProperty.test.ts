@@ -47,7 +47,7 @@ describe("BranchProperty", () => {
     const {useBranchesStore} = await import("../../../../src/renderer/src/stores/branches.store")
     useBranchesStore().branches = [
       {id: "main", name: "Main"},
-      {id: "leki", name: "Leki"},
+      {id: "leki", name: "Leki", emoji: "💼"},
     ]
 
     wrapper = mount(BranchProperty, {props: {task}, global: {directives: {tooltip: {}}}})
@@ -64,6 +64,7 @@ describe("BranchProperty", () => {
     const cell = await setup(makeTask({branchId: "leki"}))
 
     expect(cell.props()).toEqual({label: "Leki", isEmpty: false, removable: true})
+    expect(cell.text()).toContain("💼")
   })
 
   it("clears_the_project_back_to_main_from_the_cross", async () => {

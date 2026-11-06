@@ -7,11 +7,10 @@ import {NO_PROJECT_ID} from "@daily/protocol"
 import {useBranchesStore} from "@/stores/branches.store"
 import BaseCombobox from "@/ui/base/BaseCombobox"
 import BaseIcon from "@/ui/base/BaseIcon"
-import {getProjectIcon} from "@/utils/projects/getProjectIcon"
+import ProjectIcon from "@/ui/common/projects/ProjectIcon.vue"
 import {getProjectName} from "@/utils/projects/getProjectName"
 import {cn} from "@/utils/ui/tailwindcss"
 
-import type {IconName} from "@/ui/base/BaseIcon"
 import type {Branch} from "@daily/protocol"
 
 type Row = {kind: "all"} | {kind: "project"; branch: Branch}
@@ -51,10 +50,6 @@ function getRowKey(row: Row) {
 
 function getRowLabel(row: Row) {
   return row.kind === "all" ? "All projects" : getProjectName(row.branch)
-}
-
-function getRowIcon(row: Row): IconName {
-  return row.kind === "all" ? "layers" : getProjectIcon(row.branch)
 }
 
 function isRowSelected(row: Row) {
@@ -102,7 +97,8 @@ function getProjectNameClasses(isSelected: boolean) {
       <template #item="{item}">
         <BaseIcon v-if="isRowSelected(item)" name="check" class="text-accent size-4 shrink-0" />
         <span v-else class="size-4 shrink-0" />
-        <BaseIcon :name="getRowIcon(item)" :class="getProjectIconClasses(isRowSelected(item))" />
+        <BaseIcon v-if="item.kind === 'all'" name="layers" :class="getProjectIconClasses(isRowSelected(item))" />
+        <ProjectIcon v-else :project="item.branch" :class="getProjectIconClasses(isRowSelected(item))" />
         <span :class="getProjectNameClasses(isRowSelected(item))">{{ getRowLabel(item) }}</span>
       </template>
 
