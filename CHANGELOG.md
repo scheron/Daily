@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.38.3 - 2026-11-06
+
+### 🎨 Improvements
+
+- **Projects** — choose an emoji icon from a searchable picker when creating or editing a project. The form expands across the row to keep project names readable.
+
+---
+
 ## v0.38.2 - 2026-11-06
 
 ### 🎨 Improvements
