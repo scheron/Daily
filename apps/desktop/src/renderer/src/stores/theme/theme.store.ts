@@ -53,7 +53,7 @@ export const useThemeStore = defineStore("theme", () => {
   }
 
   function applySnapshot(snapshot: AppearanceSnapshot) {
-    const fontSizePx: Record<FontSize, number> = {small: 13, normal: 15, large: 17}
+    const fontSizePx: Record<FontSize, number> = {small: 15, normal: 17, large: 19}
     const root = document.documentElement
     root.classList.toggle("dark", snapshot.isDark)
     root.style.setProperty("--c-accent", snapshot.accent)

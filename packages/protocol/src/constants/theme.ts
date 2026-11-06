@@ -78,22 +78,6 @@ export const BASE_PRESETS: BasePreset[] = [
       content: "oklch(85% 0.01 160)",
     },
   },
-  {
-    id: "stone",
-    name: "Stone",
-    light: {
-      base100: "oklch(99.4% 0.001 106.5)",
-      base200: "oklch(96% 0.002 106.5)",
-      base300: "oklch(93% 0.002 106.5)",
-      content: "oklch(20% 0.004 106.5)",
-    },
-    dark: {
-      base100: "oklch(20% 0.058 106.5)",
-      base200: "oklch(23% 0.058 106.5)",
-      base300: "oklch(27% 0.058 106.5)",
-      content: "oklch(85% 0.002 106.5)",
-    },
-  },
 ]
 
 export const DEFAULT_ACCENT_ID = ACCENT_PRESETS[0].id
