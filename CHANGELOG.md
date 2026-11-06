@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.38.2 - 2026-11-06
+
+### 🎨 Improvements
+
+- **Board** — drag tasks directly onto the status chips at either edge of the board to move them to a hidden column without scrolling.
+
+### 🐛 Bug Fixes
+
+- **Board** — fixed hidden-column chips becoming transparent on hover.
+- **Drag and drop** — fixed tasks picking up a previously hovered date or milestone when released elsewhere.
+
+---
+
 ## v0.38.1 - 2026-11-04
 
 ### 🎨 Improvements
