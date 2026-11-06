@@ -1,6 +1,6 @@
 ---
 name: release-daily
-description: Cut a release of the Daily app — survey what each artifact (app and sync server) has pending, analyze commits + diffs since the app's own last tag, filter to user-facing changes only (App Store-style product changelog), interactively propose 2-3 phrasing options per section and a version bump with recommendations, then on user approval invoke `pnpm release` non-interactively with the agreed values. Use this skill whenever the user says "release", "bump version", asks what changed since the last release, or wants help drafting CHANGELOG entries or deciding what version to ship. Also triggers when the user mentions CHANGELOG.md, `scripts/release.js`, or version-tag workflows in this project.
+description: Release Daily's app and sync server, draft product changelogs, and offer optional feature media for visible UI changes. Use when the user asks to release, bump a version, review changes since the last release, draft CHANGELOG.md entries, or work on scripts/release.js and version-tag workflows.
 ---
 
 # Release the Daily project
@@ -162,6 +162,8 @@ For the full reference — Apple/Linear/Figma examples, the worked example with 
 - **Anything experimental in this release?** A new feature whose shape might still shift — anything labelled beta or behind a flag. If yes, use the experimental marker pattern from `references/voice.md` §6.
 - **Any upcoming behavior changes worth announcing?** A deprecation or breaking switch scheduled for a future version. If yes, add an `### ⚠️ Upcoming behavior changes` section per the same reference.
 
+**Offer release media once.** If this release contains a visually demonstrable UI change, ask in English: "Create an 8–15-second silent feature preview as GIF + MP4 for this release? (yes/no)" Recognize an explicit answer already given in this session. Skip the offer for invisible or backend-only changes. A decline continues the ordinary release; an opt-in activates [the release-media workflow](references/release-media.md), with production after step 8 and approval at step 9. Consent to create the clip does not approve publishing it.
+
 ### Step 7 — version bump interview
 
 Show **all three** options (patch / minor / major) with reasoning, and mark the recommended one. Use `AskUserQuestion`. Reasoning shapes:
@@ -186,6 +188,8 @@ That runs lint + typecheck (main / render / shared) + circular + tests. If any g
 
 **About test failures:** the project may have pre-existing test failures unrelated to current changes (you've seen baselines like "11 failed / 68 passed" as a stable baseline). Treat those as the bar — what matters is that the baseline didn't worsen. Compare against `main` if needed.
 
+If release media was requested, complete the production and focused checks in [the release-media workflow](references/release-media.md) now. Step 9 needs the actual completed GIF and MP4 preview. If production is blocked, report the cause and let the user choose whether to continue this release without media. If they choose to proceed without it, record media as skipped for this release, use the ordinary step 9 approval, and omit the step 10 media attachment. Do not silently drop the clip or publish an unreviewed result.
+
 ### Step 9 — assemble and confirm the final text
 
 Stitch the selected per-section options together with:
@@ -195,11 +199,11 @@ Stitch the selected per-section options together with:
 - Each chosen section in order
 - `---` separator at the end
 
-Show the full text to the user one more time. Print it as a single markdown block. Then ask:
+Print the complete assembled markdown that will land in CHANGELOG.md as one block, immediately before the confirmation question in the same turn. A summary or link to earlier choices is insufficient. Then ask:
 
 > "Ship v${nextVersion} with this text? (yes/no/edit)"
 
-**Print the complete assembled markdown — the exact text that will land in CHANGELOG.md — immediately before asking, in the same turn as the confirmation question.** Not "as agreed earlier", not a summary, not a link back to the per-section interview: the full final text, every time, right above the question. The user reads it there and then answers.
+For requested media that has not been marked skipped, show the completed previews before this approval and combine the question: "Ship v${nextVersion} with this text and attach the previewed GIF to its GitHub Release? (yes/no/edit)" Record approval for the exact text, version, and previewed file digest. Reuse explicit approval already given for those exact artifacts; do not ask a second identical confirmation. A changed clip needs review and approval again.
 
 - `yes` → step 10
 - `no` → STOP and stay out of the git/tag/push side until the user comes back.
@@ -220,7 +224,7 @@ pnpm release app --version="$NEXT_VERSION" --changelog-file="$SECTION_FILE"
 
 With both flags set, the script runs in non-interactive mode: it replaces the `## [Unreleased]` placeholder (or inserts after `# Changelog` if no placeholder), bumps `apps/desktop/package.json`, commits `release: v${nextVersion}`, tags `v${nextVersion}`, and pushes both branch and tag to origin. Naming `app` also makes it print a `⚠️ server also has N unreleased commits` line when the server is behind. By this point step 2 should have cleared it; if the line still appears, the server was skipped and the app is about to ship a protocol its published image cannot serve — stop and say so.
 
-After the push completes, report success and the tag URL. Pushing `v*` triggers `.github/workflows/release.yml`, which builds the `.dmg` and publishes the GitHub Release.
+After the push completes, report success and the tag URL. Pushing `v*` triggers `.github/workflows/release.yml`, which builds the `.dmg` and publishes the GitHub Release. If media was approved and has not been marked skipped, wait for that published release, then upload the approved GIF, embed it in the release body, and verify the asset digest and preserved notes as specified in [the release-media workflow](references/release-media.md). Report the verified release URL and local media paths.
 
 ## Edge cases worth handling proactively
 
@@ -234,4 +238,4 @@ After the push completes, report success and the tag URL. Pushing `v*` triggers 
 
 ## Skill boundary
 
-This skill produces the CHANGELOG entry + version + script invocation. Marketing copy, App Store metadata beyond the CHANGELOG, deciding whether a change is worth shipping, bypassing pre-flight gates, and pushing without approval at step 9 all stay outside the boundary — they belong to the user's judgement.
+This skill produces the CHANGELOG entry, version, script invocation, and optional approved feature media attached to that release. Broader marketing campaigns, App Store metadata beyond the CHANGELOG, deciding whether a change is worth shipping, bypassing pre-flight gates, and pushing without approval at step 9 stay outside the boundary.

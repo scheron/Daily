@@ -41,6 +41,7 @@
     "bundle:size": "node scripts/bundle-size.js",
     "evitest": "ELECTRON_RUN_AS_NODE=1 ./node_modules/.bin/electron ./node_modules/vitest/vitest.mjs",
     "test": "pnpm evitest run",
+    "test:release-media": "node --test scripts/release-media/tests/*.test.mjs",
     "test:watch": "pnpm evitest",
     "test:coverage": "pnpm evitest run --coverage",
     "check:all": "pnpm lint && pnpm typecheck:all && pnpm circular && pnpm test"
@@ -82,6 +83,7 @@
     "husky": "^9.1.7",
     "lint-staged": "^16.1.0",
     "madge": "^8.0.0",
+    "playwright": "1.65.0",
     "prettier": "^3.5.3",
     "prettier-plugin-tailwindcss": "^0.6.12",
     "typescript": "^5.8.3",

@@ -46,7 +46,7 @@ pnpm check:all           # lint + typecheck:all + circular + test
 - **`type` over `interface`** (reserve `interface` for shapes a class implements).
 - **Locality:** types/constants at the narrowest scope; lift to `apps/desktop/src/shared/` only when crossing the process boundary.
 - **Motion:** app animations currently run independently of OS Reduce Motion. A future app-level animations setting is deferred.
-- **CHANGELOG:** App Store-style, impersonal (no "you"), type-based sections. See `.claude/skills/release-daily/`.
+- **CHANGELOG:** App Store-style, impersonal (no "you"), type-based sections. See `.claude/skills/release-daily/`; its optional release-media workflow covers feature previews and approved GitHub Release attachments.
 
 ## Gotchas
 
