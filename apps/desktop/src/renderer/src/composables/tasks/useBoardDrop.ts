@@ -42,6 +42,7 @@ export const useBoardDrop = createSharedComposable(() => {
   }
 
   function onPointerUp(event: PointerEvent) {
+    onPointerMove(event)
     const isReleasedInsideDropZone = Boolean(findClosestAtPoint(event.clientX, event.clientY, DROP_ZONE_SELECTOR))
     if (isReleasedInsideDropZone) dragDropStore.setReleasedInsideDropZone(true)
 

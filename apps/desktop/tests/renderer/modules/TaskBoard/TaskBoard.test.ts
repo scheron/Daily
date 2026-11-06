@@ -560,6 +560,89 @@ describe("TaskBoard", () => {
     expect(window.BridgeIPC["settings:save"].mock.calls).toEqual([[{layout: {sectionsCollapsed: {backlog: false}}}]])
   })
 
+  it.each([
+    ["right", "done", 0],
+    ["left", "backlog", 740],
+  ])("accepts a task on the %s hidden chip without navigating, then clears its feedback (visual state proxy)", async (side, status, scrollLeft) => {
+    const {mountBoard, tasks} = await setup()
+    const {default: BaseButton} = await import("../../../../src/renderer/src/ui/base/BaseButton")
+    tasks.tasks = [makeTask(), makeTask({id: "done", status: "done"}), makeTask({id: "backlog", status: "backlog", scheduled: null})]
+    window.BridgeIPC["tasks:move-by-order"].mockResolvedValue({})
+    const board = mountBoard()
+    await nextTick()
+    const element = measureColumns(board, {}, 1110)
+    element.scrollLeft = scrollLeft
+    const scrollTo = vi.spyOn(element, "scrollTo")
+    viewport(board, "in_progress")
+    deliverResize(element)
+    await settle()
+    const chip = board.findAllComponents(BaseButton).find((button) => button.attributes("data-hidden-column-status") === status)
+    expect(chip.element.closest("nav").dataset.side).toBe(side)
+    expect(chip.props("variant")).toBe("dock")
+    let hit = chip.element.querySelector("span")
+    vi.spyOn(document, "elementFromPoint").mockImplementation(() => hit)
+    board.element
+      .querySelector("#task-1")
+      .dispatchEvent(new PointerEvent("pointerdown", {bubbles: true, button: 0, clientX: 800 - scrollLeft, clientY: 150, pointerId: 1}))
+    window.dispatchEvent(new PointerEvent("pointermove", {bubbles: true, clientX: side === "left" ? 20 : 1090, clientY: 120, pointerId: 1}))
+    await settle()
+    expect(chip.props("variant")).toBe("dock-drop")
+    expect(board.findAllComponents(BaseButton).filter((button) => button.props("variant") === "dock-drop")).toHaveLength(1)
+    hit = null
+    window.dispatchEvent(new PointerEvent("pointermove", {bubbles: true, clientX: 500, clientY: 850, pointerId: 1}))
+    await settle()
+    expect(chip.props("variant")).toBe("dock")
+    hit = chip.element
+    window.dispatchEvent(new PointerEvent("pointermove", {bubbles: true, clientX: side === "left" ? 20 : 1090, clientY: 120, pointerId: 1}))
+    await settle()
+    expect(chip.props("variant")).toBe("dock-drop")
+    window.dispatchEvent(new PointerEvent("pointerup", {bubbles: true, clientX: side === "left" ? 20 : 1090, clientY: 120, pointerId: 1}))
+    chip.element.dispatchEvent(new MouseEvent("click", {bubbles: true, cancelable: true, detail: 1}))
+    await settle()
+    expect(chip.props("variant")).toBe("dock")
+    expect(element.scrollLeft).toBe(scrollLeft)
+    expect(scrollTo).not.toHaveBeenCalled()
+    await new Promise((resolve) => setTimeout(resolve, 170))
+    await settle()
+    expect(tasks.tasks.find((task) => task.id === "task-1").status).toBe(status)
+    expect(chip.attributes("aria-label")).toBe(`Scroll ${side} to ${status === "done" ? "Done" : "Backlog"}, 2 tasks`)
+  })
+
+  it("restores a chip after cancellation and lets an ordinary click reveal its column (visual state proxy)", async () => {
+    const {mountBoard, tasks} = await setup()
+    const {default: BaseButton} = await import("../../../../src/renderer/src/ui/base/BaseButton")
+    tasks.tasks = [makeTask(), makeTask({id: "done", status: "done"})]
+    const original = JSON.stringify(tasks.tasks)
+    const board = mountBoard()
+    await nextTick()
+    const element = measureColumns(board, {}, 1110)
+    viewport(board, "in_progress")
+    const scrollTo = vi.spyOn(element, "scrollTo").mockImplementation(({left}) => {
+      element.scrollLeft = left
+      element.dispatchEvent(new Event("scroll"))
+    })
+    deliverResize(element)
+    await settle()
+    const chip = board.findAllComponents(BaseButton).find((button) => button.attributes("data-hidden-column-status") === "done")
+    vi.spyOn(document, "elementFromPoint").mockReturnValue(chip.element)
+    board.element
+      .querySelector("#task-1")
+      .dispatchEvent(new PointerEvent("pointerdown", {bubbles: true, button: 0, clientX: 800, clientY: 150, pointerId: 1}))
+    window.dispatchEvent(new PointerEvent("pointermove", {bubbles: true, clientX: 1090, clientY: 120, pointerId: 1}))
+    await settle()
+    expect(chip.props("variant")).toBe("dock-drop")
+    window.dispatchEvent(new PointerEvent("pointercancel", {bubbles: true, pointerId: 1}))
+    await settle()
+    expect(chip.props("variant")).toBe("dock")
+    expect(JSON.stringify(tasks.tasks)).toBe(original)
+    expect(window.BridgeIPC["tasks:move-by-order"]).not.toHaveBeenCalled()
+    expect(element.scrollLeft).toBe(0)
+    await chip.trigger("click")
+    await settle()
+    expect(columnOf(board, "done").getBoundingClientRect().right).toBe(1110)
+    expect(scrollTo).toHaveBeenCalledExactlyOnceWith({left: 370, behavior: "smooth"})
+  })
+
   it.each([false, true])(
     "reveals a hidden column with collapse=%s by moving only the board and handing focus to its header (layout proxy)",
     async (collapsed) => {

@@ -9,7 +9,7 @@ import {useHiddenColumnPlacement} from "./useHiddenColumnPlacement"
 import type {TaskStatus} from "@daily/protocol"
 import type {HiddenColumn} from "../../types"
 
-const props = defineProps<{side: "left" | "right"; columns: HiddenColumn[]; obstacle?: HTMLElement | null}>()
+const props = defineProps<{side: "left" | "right"; columns: HiddenColumn[]; hoveredChipStatus: TaskStatus | null; obstacle?: HTMLElement | null}>()
 const emit = defineEmits<{reveal: [status: TaskStatus]}>()
 
 const stackRef = useTemplateRef<HTMLElement>("stack")
@@ -22,6 +22,10 @@ function getStackClasses(side: "left" | "right") {
 
 function getButtonClasses(side: "left" | "right") {
   return cn(side === "right" && "flex-row-reverse")
+}
+
+function getButtonVariant(status: TaskStatus) {
+  return props.hoveredChipStatus === status ? "dock-drop" : "dock"
 }
 
 function getIconClasses(titleClass: string) {
@@ -47,7 +51,7 @@ function getCounterClasses(counterClass: string) {
       v-for="column in columns"
       :key="column.status"
       type="button"
-      variant="dock"
+      :variant="getButtonVariant(column.status)"
       size="dock"
       :data-hidden-column-status="column.status"
       :aria-label="`Scroll ${side} to ${column.label}, ${column.count} ${column.count === 1 ? 'task' : 'tasks'}`"

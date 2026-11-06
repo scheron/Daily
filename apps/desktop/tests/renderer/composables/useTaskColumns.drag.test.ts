@@ -462,6 +462,212 @@ describe("useTaskColumns — the board's pointer drag", () => {
     })
   })
 
+  describe("a hidden status chip", () => {
+    it("preserves exact status and order when a grouped Normal task drops on its source chip", async () => {
+      const {tasks, columns, chipOf, startDrag, hover, release, find} = await setupBoard([
+        ...makeColumn("backlog", ["first"], {scheduled: null, orderIndex: 100}),
+        ...makeColumn("ready_for_agent", ["ready"], {scheduled: null, orderIndex: 200}),
+        ...makeColumn("backlog", ["last"], {scheduled: null, orderIndex: 300}),
+      ])
+      const chip = chipOf("backlog")
+      vi.useFakeTimers()
+
+      startDrag(find("ready"), yForIndex(1))
+      hover(chip, 20)
+      release(20)
+      expect(itemsOf(columns.columnItems.value.backlog)).toEqual(["first", "ready", "last"])
+      expect(columns.columnItems.value.backlog[1].task.status).toBe("ready_for_agent")
+      await vi.advanceTimersByTimeAsync(500)
+
+      expect(itemsOf(columns.columnItems.value.backlog)).toEqual(["first", "ready", "last"])
+      expect(find("ready")).toMatchObject({status: "ready_for_agent", orderIndex: 200, scheduled: null})
+      expect(tasks.moveTaskByOrder).not.toHaveBeenCalled()
+    })
+
+    it("uses the release coordinates to accept a chip without a final pointer move", async () => {
+      const {columns, chipOf, tracks, startDrag, release, find} = await setupBoard([
+        ...makeColumn("in_progress", ["A", "B"]),
+        ...makeColumn("done", ["X"]),
+      ])
+      const chip = chipOf("done")
+      document.elementFromPoint.mockImplementation((_, y) => (y === 20 ? chip : tracks.in_progress))
+      vi.useFakeTimers()
+
+      startDrag(find("A"), yForIndex(0))
+      release(20)
+
+      expect(itemsOf(columns.columnItems.value.done)).toEqual(["X", "A"])
+      expect(columns.columnItems.value.done[1].task.status).toBe("done")
+      await vi.advanceTimersByTimeAsync(160)
+    })
+
+    it("uses the release coordinates to reject a stale chip hover outside the board", async () => {
+      const {tasks, columns, chipOf, tracks, startDrag, hover, release, find} = await setupBoard([
+        ...makeColumn("in_progress", ["A", "B"]),
+        ...makeColumn("done", ["X"]),
+      ])
+      const chip = chipOf("done")
+      document.elementFromPoint.mockImplementation((_, y) => (y === 20 ? chip : y === 400 ? null : tracks.in_progress))
+      vi.useFakeTimers()
+
+      startDrag(find("A"), yForIndex(0))
+      hover(chip, 20)
+      release(400)
+      await vi.advanceTimersByTimeAsync(500)
+
+      expect(itemsOf(columns.columnItems.value.in_progress)).toEqual(["A", "B"])
+      expect(itemsOf(columns.columnItems.value.done)).toEqual(["X"])
+      expect(tasks.moveTaskByOrder).not.toHaveBeenCalled()
+    })
+
+    it("appends a dropped task without revealing the chip's column", async () => {
+      const {tasks, columns, ui, drag, chipOf, startDrag, hover, release, find} = await setupBoard(
+        [...makeColumn("in_progress", ["A", "B"], {branchId: "other"}), ...makeColumn("done", ["X", "Y"])],
+        {allProjects: true},
+      )
+      const chip = chipOf("done")
+      ui.setSectionCollapsed("done", true)
+      vi.useFakeTimers()
+
+      startDrag(find("A"), yForIndex(0))
+      hover(chip, 20)
+      expect(columns.hoveredChipStatus.value).toBe("done")
+      release(20)
+
+      expect(columns.hoveredChipStatus.value).toBeNull()
+      expect(itemsOf(columns.columnItems.value.done)).toEqual(["X", "Y", "A"])
+      expect(columns.columnItems.value.done[2].task.status).toBe("done")
+      expect(itemsOf(columns.columnItems.value.in_progress)).toEqual(["B"])
+      expect(ui.sectionsCollapsed.done).toBe(true)
+      expect(drag.isOverDropZone).toBe(false)
+      await vi.advanceTimersByTimeAsync(160)
+      expect(tasks.moveTaskByOrder).toHaveBeenCalledWith({
+        taskId: "A",
+        targetStatus: "done",
+        boardMode: "normal",
+        targetTaskId: null,
+        position: "after",
+        activeDate: TODAY,
+        acrossProjects: true,
+      })
+    })
+
+    it.each([
+      ["Escape", () => window.dispatchEvent(new KeyboardEvent("keydown", {key: "Escape", bubbles: true}))],
+      ["pointer cancellation", () => window.dispatchEvent(new PointerEvent("pointercancel", {pointerId: 1, bubbles: true}))],
+      ["window blur", () => window.dispatchEvent(new Event("blur"))],
+      ["unmount", ({unmount}) => unmount()],
+    ])("clears chip acceptance without a move after %s", async (_, end) => {
+      const board = await setupBoard([...makeColumn("in_progress", ["A", "B"]), ...makeColumn("done", ["X"])])
+      const {tasks, columns, drag, chipOf, startDrag, hover, release, find} = board
+      const chip = chipOf("done")
+      vi.useFakeTimers()
+
+      startDrag(find("A"), yForIndex(0))
+      hover(chip, 20)
+      expect(columns.hoveredChipStatus.value).toBe("done")
+      end(board)
+      expect(columns.hoveredChipStatus.value).toBeNull()
+      release(20)
+      await vi.advanceTimersByTimeAsync(500)
+
+      expect(columns.hoveredChipStatus.value).toBeNull()
+      expect(drag.draggingTaskId).toBeNull()
+      expect(itemsOf(columns.columnItems.value.in_progress)).toEqual(["A", "B"])
+      expect(itemsOf(columns.columnItems.value.done)).toEqual(["X"])
+      expect(tasks.moveTaskByOrder).not.toHaveBeenCalled()
+    })
+
+    it("clears chip acceptance on leaving and still accepts an ordinary column drop", async () => {
+      const {columns, chipOf, startDrag, hover, moveOver, release, find} = await setupBoard([
+        ...makeColumn("in_progress", ["A", "B"]),
+        ...makeColumn("done", ["X", "Y"]),
+      ])
+      vi.useFakeTimers()
+
+      startDrag(find("A"), yForIndex(0))
+      hover(chipOf("done"), 20)
+      expect(columns.hoveredChipStatus.value).toBe("done")
+      moveOver(null, 400)
+      expect(columns.hoveredChipStatus.value).toBeNull()
+      expect(placeholdersIn(columns)).toHaveLength(0)
+      moveOver("done", yForIndex(1))
+      release(yForIndex(1))
+
+      expect(itemsOf(columns.columnItems.value.done)).toEqual(["X", "A", "Y"])
+      expect(columns.hoveredChipStatus.value).toBeNull()
+      await vi.advanceTimersByTimeAsync(160)
+    })
+
+    it.each(["normal", "agents"])("keeps a milestone task's date and project scope through a chip drop in %s", async (boardMode) => {
+      const date = "2030-01-02"
+      const {tasks, columns, chipOf, startDrag, hover, release, find} = await setupBoard(
+        [...makeColumn("ready_to_merge", ["ready"], {scheduled: {date, time: "09:00", timezone: "UTC"}}), ...makeColumn("done", ["X"])],
+        {frame: "milestone", boardMode, allProjects: true},
+      )
+      vi.useFakeTimers()
+
+      startDrag(find("ready"), yForIndex(0))
+      hover(chipOf("done"), 20)
+      release(20)
+
+      const landed = columns.columnItems.value.done.find((item) => item.kind === "task" && item.task.id === "ready").task
+      expect(landed).toMatchObject({status: "done", branchId: "main", scheduled: {date, time: "09:00", timezone: "UTC"}})
+      await vi.advanceTimersByTimeAsync(160)
+      expect(tasks.moveTaskByOrder).toHaveBeenCalledWith({
+        taskId: "ready",
+        targetStatus: "done",
+        boardMode,
+        targetTaskId: null,
+        position: "after",
+        activeDate: date,
+        acrossProjects: false,
+      })
+    })
+
+    it("clears a dated Agent task's schedule when dropped onto the Backlog chip", async () => {
+      const {tasks, columns, chipOf, startDrag, hover, release, find} = await setupBoard(
+        [...makeColumn("ready_for_agent", ["ready"]), ...makeColumn("backlog", ["X"], {scheduled: null})],
+        {boardMode: "agents"},
+      )
+      vi.useFakeTimers()
+
+      startDrag(find("ready"), yForIndex(0))
+      hover(chipOf("backlog"), 20)
+      release(20)
+
+      expect(itemsOf(columns.columnItems.value.backlog)).toEqual(["X", "ready"])
+      expect(columns.columnItems.value.backlog[1].task).toMatchObject({status: "backlog", scheduled: null})
+      await vi.advanceTimersByTimeAsync(160)
+      expect(tasks.moveTaskByOrder.mock.calls[0][0]).toMatchObject({targetStatus: "backlog", boardMode: "agents", activeDate: TODAY})
+    })
+
+    it("stops both scroll axes over a chip using mocked scroll geometry", async () => {
+      const {boardEl, tracks, chipOf, startDrag, hover, find} = await setupBoard([
+        ...makeColumn("in_progress", ["A", "B"]),
+        ...makeColumn("done", ["X"]),
+      ])
+      const list = tracks.in_progress.parentElement
+      vi.spyOn(boardEl, "getBoundingClientRect").mockReturnValue({left: 0, right: 370})
+      vi.spyOn(list, "getBoundingClientRect").mockReturnValue({top: 100, bottom: 800})
+      Object.defineProperties(boardEl, {scrollWidth: {value: 1000}, clientWidth: {value: 370}})
+      Object.defineProperties(list, {scrollHeight: {value: 1000}, clientHeight: {value: 700}})
+      boardEl.scrollLeft = 200
+      list.scrollTop = 200
+      vi.useFakeTimers()
+
+      startDrag(find("A"), yForIndex(0))
+      await vi.advanceTimersByTimeAsync(20)
+      expect(boardEl.scrollLeft).toBeLessThan(200)
+      expect(list.scrollTop).toBeLessThan(200)
+
+      hover(chipOf("done"), 20)
+      const stopped = {x: boardEl.scrollLeft, y: list.scrollTop}
+      await vi.advanceTimersByTimeAsync(100)
+      expect({x: boardEl.scrollLeft, y: list.scrollTop}).toEqual(stopped)
+    })
+  })
+
   describe("TC-11 a release inside the calendar dock", () => {
     it("writes no column move for a drag released inside a drop zone", async () => {
       const {tasks, drag, startDrag, moveOver, release, find} = await setupBoard([

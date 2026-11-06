@@ -122,8 +122,14 @@ function getColumnClasses(status: TaskStatus) {
       </template>
     </div>
 
-    <HiddenColumnStack side="left" :columns="hiddenColumns.left" @reveal="revealColumn" />
-    <HiddenColumnStack side="right" :columns="hiddenColumns.right" :obstacle="focusDockRef?.element" @reveal="revealColumn" />
+    <HiddenColumnStack side="left" :columns="hiddenColumns.left" :hovered-chip-status="columns.hoveredChipStatus.value" @reveal="revealColumn" />
+    <HiddenColumnStack
+      side="right"
+      :columns="hiddenColumns.right"
+      :hovered-chip-status="columns.hoveredChipStatus.value"
+      :obstacle="focusDockRef?.element"
+      @reveal="revealColumn"
+    />
 
     <div class="drag-region absolute inset-x-0 top-0 z-20 h-11" />
     <TagsDock :compact="isDockCompact" />

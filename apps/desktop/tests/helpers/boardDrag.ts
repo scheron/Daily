@@ -41,7 +41,7 @@ export function yForIndex(index, step = 206) {
 
 export async function mountBoardDrag(
   seed,
-  {frame = "day", taskView = "regular", fontSize = "normal", boardMode = "normal", allProjects = false} = {},
+  {frame = "day", taskView = "regular", fontSize = "normal", boardMode = "normal", allProjects = false, externalDrops = false} = {},
 ) {
   const {useTasksStore} = await import("../../src/renderer/src/stores/tasks/tasks.store")
   const {useDragDropStore} = await import("../../src/renderer/src/stores/dragDrop.store")
@@ -50,6 +50,7 @@ export async function mountBoardDrag(
   const {useMilestonesStore} = await import("../../src/renderer/src/stores/milestones.store")
   const {useUIStore} = await import("../../src/renderer/src/stores/ui/ui.store")
   const {useTaskColumns} = await import("../../src/renderer/src/composables/tasks/useTaskColumns")
+  const {useBoardDrop} = await import("../../src/renderer/src/composables/tasks/useBoardDrop")
 
   let hit = null
 
@@ -87,6 +88,7 @@ export async function mountBoardDrag(
     defineComponent({
       setup() {
         columns = useTaskColumns()
+        if (externalDrops) useBoardDrop()
         return () => h("div")
       },
     }),
@@ -131,6 +133,12 @@ export async function mountBoardDrag(
     return card
   }
 
+  function chipOf(status) {
+    const chip = document.body.appendChild(document.createElement("button"))
+    chip.dataset.hiddenColumnStatus = status
+    return chip.appendChild(document.createElement("span"))
+  }
+
   function pressOn(element, y, button = 0) {
     hit = element.closest("[data-column-track]")
     element.dispatchEvent(new PointerEvent("pointerdown", {bubbles: true, button, clientX: 50, clientY: y, pointerId: 1}))
@@ -171,6 +179,7 @@ export async function mountBoardDrag(
     boardEl,
     tracks: board,
     cardOf,
+    chipOf,
     pressOn,
     press,
     hover,

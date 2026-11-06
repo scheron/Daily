@@ -50,6 +50,7 @@ export const useTaskColumns = createSharedComposable(() => {
 
   const dropTarget = shallowRef<ColumnSlot | null>(null)
   const landing = shallowRef<PlacedTask | null>(null)
+  const hoveredChipStatus = shallowRef<TaskStatus | null>(null)
 
   const boardMode = useSettingValue<"appearance.boardMode", BoardMode>("appearance.boardMode", "normal")
 
@@ -86,6 +87,7 @@ export const useTaskColumns = createSharedComposable(() => {
   const boardScroll = useDragAutoScroll("x")
 
   useEventListener(window, "pointermove", onDragPointerMove)
+  useEventListener(window, "blur", stopPress)
 
   /** Starts watching a press on a board card; it becomes a drag once the pointer travels more than 2 px, and every drop is decided from the pointer and the column grid. */
   function onCardPointerDown(event: PointerEvent, task: Task) {
@@ -206,6 +208,10 @@ export const useTaskColumns = createSharedComposable(() => {
     if (!press || event.pointerId !== press.pointerId) return
 
     const dragged = origin
+    if (dragged) {
+      pointer = {x: event.clientX, y: event.clientY}
+      trackPointer()
+    }
     const target = dropTarget.value
     if (dragged && target && !dragDropStore.isReleasedInsideDropZone) dropCard(dragged, target)
 
@@ -235,6 +241,17 @@ export const useTaskColumns = createSharedComposable(() => {
 
   function trackPointer() {
     const hit = document.elementFromPoint(pointer.x, pointer.y)
+    const chipStatus = hit?.closest<HTMLElement>("[data-hidden-column-status]")?.dataset.hiddenColumnStatus as TaskStatus | undefined
+    hoveredChipStatus.value = chipStatus ?? null
+    if (chipStatus) {
+      const index =
+        chipStatus === origin?.status ? origin.index : tasksByStatus.value[chipStatus].filter((task) => task.id !== origin?.task.id).length
+      dropTarget.value = {status: chipStatus, index}
+      columnScroll.stop()
+      boardScroll.stop()
+      return
+    }
+
     const board = hit?.closest<HTMLElement>("[data-task-board]")
     const column = hit?.closest<HTMLElement>("[data-column-status]")
     const status = column?.dataset.columnStatus as TaskStatus | undefined
@@ -297,6 +314,7 @@ export const useTaskColumns = createSharedComposable(() => {
 
     origin = null
     dropTarget.value = null
+    hoveredChipStatus.value = null
     columnScroll.stop()
     boardScroll.stop()
     document.body.style.userSelect = bodyUserSelect
@@ -364,6 +382,7 @@ export const useTaskColumns = createSharedComposable(() => {
   return {
     tasksByStatus,
     columnItems,
+    hoveredChipStatus,
     isDragging,
     isDragDisabled: isCommitting,
     isColumnCollapsed,
