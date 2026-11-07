@@ -58,4 +58,4 @@ pnpm check:all           # lint + typecheck:all + circular + test
 
 ## Skills
 
-Project skills live in `.agents/skills/`, which Codex and other agents read. Claude Code reads only `.agents/skills/`, so each skill there is a relative symlink back into `.agents/skills/`; a new skill gets its link the same way.
+Project skills live in `.agents/skills/`, which Codex reads directly. Claude Code discovers the same skills through the `.claude/skills` symlink to `../.agents/skills`. Add new skills under `.agents/skills/`.
