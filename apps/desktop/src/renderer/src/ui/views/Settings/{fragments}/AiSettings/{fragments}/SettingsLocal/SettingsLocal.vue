@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import {computed, onMounted} from "vue"
-import {toasts} from "vue-toasts-lite"
 import {sort} from "fast-sort"
 
+import {toasts} from "@/composables/useToasts"
 import {useAiStore} from "@/stores/ai"
 import BaseButton from "@/ui/base/BaseButton"
 import BaseSegmented from "@/ui/base/BaseSegmented.vue"

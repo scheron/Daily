@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import {computed, nextTick, onMounted, useTemplateRef, watch} from "vue"
-import {toasts} from "vue-toasts-lite"
 import {until} from "@vueuse/core"
 import {storeToRefs} from "pinia"
 
 import {toDateLabel} from "@daily/std"
 
 import {useCopyToClipboard} from "@/composables/useCopyToClipboard"
+import {toasts} from "@/composables/useToasts"
 import {useAiStore} from "@/stores/ai"
 import {useThemeStore} from "@/stores/theme"
 import BaseButton from "@/ui/base/BaseButton"
@@ -98,7 +98,7 @@ onMounted(async () => {
 
 <template>
   <div class="bg-base-100 flex h-dvh w-dvw flex-col overflow-hidden">
-    <header class="h-header grid shrink-0 grid-cols-[1fr_auto_1fr] items-center select-none" style="-webkit-app-region: drag">
+    <header class="h-header grid shrink-0 select-none grid-cols-[1fr_auto_1fr] items-center" style="-webkit-app-region: drag">
       <div></div>
       <span v-if="aiStore.chatTimeStarted && aiStore.hasMessages" class="text-base-content/70 text-sm">
         {{ toDateLabel(aiStore.chatTimeStarted) }}
@@ -138,7 +138,7 @@ onMounted(async () => {
             <OnboardingAICard v-if="!aiStore.hasMessages" />
 
             <div v-else class="relative min-h-0 flex-1">
-              <div ref="messagesContainer" class="h-full space-y-5 overflow-y-auto px-4 pt-3 pb-10">
+              <div ref="messagesContainer" class="h-full space-y-5 overflow-y-auto px-4 pb-10 pt-3">
                 <ChatMessage
                   v-for="(msg, idx) in aiStore.messages"
                   :key="msg.id"
@@ -165,7 +165,7 @@ onMounted(async () => {
                 </div>
               </div>
 
-              <BaseButton v-if="isAwayFromBottom" variant="floating" icon="chevron-down" class="absolute right-4 bottom-3" @click="scrollToBottom" />
+              <BaseButton v-if="isAwayFromBottom" variant="floating" icon="chevron-down" class="absolute bottom-3 right-4" @click="scrollToBottom" />
             </div>
 
             <ChatForm

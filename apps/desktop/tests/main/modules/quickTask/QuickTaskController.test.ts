@@ -22,12 +22,14 @@ describe("Daily's Quick task process", () => {
   let onReady = null
   let quickTask = null
   let availability = null
+  let toasts = null
 
   beforeEach(() => {
     vi.useFakeTimers()
     children = []
     clock = 0
     availability = []
+    toasts = []
     handleRequest = vi.fn(async () => "answer")
     onReady = vi.fn()
     quickTask = new QuickTaskController({
@@ -38,6 +40,7 @@ describe("Daily's Quick task process", () => {
       },
       handleRequest,
       onReady,
+      onToast: (toast) => toasts.push(toast),
       onAvailabilityChange: (isAvailable) => availability.push(isAvailable),
       now: () => clock,
     })
@@ -159,6 +162,19 @@ describe("Daily's Quick task process", () => {
     quickTask.emit("settings:changed")
 
     expect(JSON.parse(children[0].stdin.written[0])).toEqual({kind: "event", channel: "settings:changed", args: []})
+  })
+
+  it("receives only valid toast events from the current Quick task process", () => {
+    quickTask.start()
+    const toast = {type: "success", message: "Task added"}
+    const child = children[0]
+
+    child.stdout.emit("data", line({kind: "event", channel: "toast:publish", args: [{type: "success", message: 12}]}))
+    child.stdout.emit("data", line({kind: "event", channel: "toast:publish", args: [toast]}))
+    quickTask.stop()
+    child.stdout.emit("data", line({kind: "event", channel: "toast:publish", args: [{type: "info", message: "Too late"}]}))
+
+    expect(toasts).toEqual([toast])
   })
 
   it("restarts a Quick task process that exits unexpectedly, after a delay", () => {

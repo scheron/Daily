@@ -8,7 +8,7 @@ import QuickTaskHotkey from "../../../../src/renderer/src/ui/views/Settings/{fra
 import {mockBridgeIPC} from "../../../helpers/bridgeIPC"
 
 const toasts = vi.hoisted(() => ({success: vi.fn(), error: vi.fn()}))
-vi.mock("vue-toasts-lite", () => ({toasts}))
+vi.mock("@/composables/useToasts", () => ({toasts}))
 
 describe("QuickTaskHotkey — General settings rebinds the Quick task shortcut", () => {
   let wrapper = null

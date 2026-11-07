@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import {onScopeDispose} from "vue"
 import {useRoute} from "vue-router"
-import {toasts, ToastsLiteProvider} from "vue-toasts-lite"
+import {ToastsLiteProvider} from "vue-toasts-lite"
 import {invoke, until} from "@vueuse/core"
 
 import {useAiStore} from "./stores/ai"
@@ -15,6 +16,7 @@ import {useTaskCommentsStore} from "./stores/taskComments.store"
 import {useTaskRelationsStore} from "./stores/taskRelations.store"
 import {useTasksStore} from "./stores/tasks"
 import {useUpdateStore} from "./stores/update.store"
+import {toasts, useToasts} from "./composables/useToasts"
 import {IconsSprite} from "./ui/base/BaseIcon"
 import {BaseModalProvider} from "./ui/base/BaseModal"
 
@@ -24,24 +26,26 @@ const LIGHT_ROUTES: RouteRecordNameGeneric[] = ["Settings", "Assistant", "Focus"
 const DATALESS_ROUTES: RouteRecordNameGeneric[] = ["Focus", "QuickTaskMenu"]
 
 const route = useRoute()
+const settingsStore = useSettingsStore()
+
 const isLightRoute = LIGHT_ROUTES.includes(route.name)
 const isSettingsRoute = route.name === "Settings"
 
-const settingsStore = useSettingsStore()
-
-const BOOTSTRAP_READY_CEILING_MS = 10_000
-const BOOTSTRAP_FAILURE_MESSAGE = "Some data could not be loaded. Restart the app if things look wrong."
+const localToasts = useToasts("current")
+const stopListeningForToasts = window.BridgeIPC["toast:on-show"](({type, message}) => localToasts[type](message))
 
 if (!isLightRoute || isSettingsRoute) useSyncServerStore().watchForApprovals()
 
 invoke(async () => {
+  const BOOTSTRAP_FAILURE_MESSAGE = "Some data could not be loaded. Restart the app if things look wrong."
+
   let signalled = false
   let timedOut = false
 
   const ceiling = setTimeout(() => {
     timedOut = true
     toasts.error(BOOTSTRAP_FAILURE_MESSAGE)
-  }, BOOTSTRAP_READY_CEILING_MS)
+  }, 10_000)
 
   const signalRendererReady = () => {
     if (signalled) return
@@ -117,6 +121,8 @@ invoke(async () => {
     signalRendererReady()
   }
 })
+
+onScopeDispose(stopListeningForToasts)
 </script>
 
 <template>

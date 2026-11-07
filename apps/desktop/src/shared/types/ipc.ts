@@ -52,6 +52,7 @@ import type {
 } from "./ai"
 import type {FocusCommand, FocusSession} from "./focus"
 import type {HotkeyRebindResult, QuickTaskHotkeyState, QuickTaskMenu} from "./quickTask"
+import type {ToastMessage} from "./toast"
 import type {AppUpdateOffer, AppUpdateState} from "./update"
 
 export type ApprovalKind = "device" | "agent"
@@ -66,6 +67,9 @@ export interface BridgeIPC {
   "window:close": () => void
 
   "app:renderer-ready": () => void
+
+  "toast:publish": (toast: ToastMessage) => void
+  "toast:on-show": (callback: (toast: ToastMessage) => void) => () => void
 
   "platform:is-mac": () => boolean
   "platform:is-windows": () => boolean

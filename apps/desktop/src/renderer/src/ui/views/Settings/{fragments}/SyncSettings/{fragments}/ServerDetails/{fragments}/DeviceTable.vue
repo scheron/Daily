@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import {toasts} from "vue-toasts-lite"
-
 import {toDateLabel, toLocaleDateTime, toRelativeTime} from "@daily/std"
 
+import {toasts} from "@/composables/useToasts"
 import {useSyncServerStore} from "@/stores/syncServer.store"
 import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"

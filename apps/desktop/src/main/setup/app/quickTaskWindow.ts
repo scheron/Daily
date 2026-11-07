@@ -6,6 +6,7 @@ import {setupQuickTaskPanelIPC} from "@main/setup/ipc/quickTaskPanel"
 import {createQuickTaskWindow, toggleQuickTask} from "@main/windows/quickTask.window"
 import {createQuickTaskMenuWindow} from "@main/windows/quickTaskMenu.window"
 import {PROCESS_READY_EVENT, QUICK_TASK_FORWARDED_EVENTS} from "@shared/constants/quickTask"
+import {TOAST_PUBLISH_CHANNEL} from "@shared/constants/toast"
 import {QuickTaskError} from "@shared/errors/quickTask/QuickTaskError"
 import {QuickTaskErrorCode} from "@shared/errors/quickTask/QuickTaskErrorCode"
 
@@ -51,6 +52,7 @@ export function setupQuickTaskWindow({stdin, stdout}: ChannelStreams = process) 
       getPanel: () => panel,
       getMenu: () => menu,
       forward: (name, args) => channel.request(name, args),
+      onToast: (toast) => channel.emit(TOAST_PUBLISH_CHANNEL, toast),
     })
     channel.emit(PROCESS_READY_EVENT)
   })

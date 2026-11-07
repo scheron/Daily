@@ -1,7 +1,7 @@
 import {computed, ref} from "vue"
-import {toasts} from "vue-toasts-lite"
 
 import {API} from "@/api"
+import {toasts} from "@/composables/useToasts"
 
 import type {TaskDraft} from "@/types/taskDraft"
 import type {Subtask, Task, TaskComment} from "@daily/protocol"

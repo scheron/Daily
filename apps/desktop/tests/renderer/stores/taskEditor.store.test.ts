@@ -7,7 +7,7 @@ import {toTaskRelationId} from "@daily/protocol"
 
 import {mockBridgeIPC} from "../../helpers/bridgeIPC"
 
-vi.mock("vue-toasts-lite", () => ({toasts: {error: vi.fn(), success: vi.fn()}}))
+vi.mock("@/composables/useToasts", () => ({toasts: {error: vi.fn(), success: vi.fn()}}))
 
 function makeTask(overrides = {}) {
   return {
@@ -577,7 +577,7 @@ describe("taskEditorStore — pending subtasks and comments", () => {
   })
 
   it("attempts every item when one write fails and says how many were lost", async () => {
-    const {toasts} = await import("vue-toasts-lite")
+    const {toasts} = await import("@/composables/useToasts")
     const {editor} = await setupStores()
     const created = []
     window.BridgeIPC["subtasks:create"] = vi.fn(async (taskId, content) => {

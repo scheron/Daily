@@ -1,7 +1,7 @@
 import {computed, ref} from "vue"
-import {toasts} from "vue-toasts-lite"
 import {useEventListener} from "@vueuse/core"
 
+import {toasts} from "@/composables/useToasts"
 import {uploadImageFile} from "../utils/uploadImageFile"
 
 import type {Task} from "@daily/protocol"

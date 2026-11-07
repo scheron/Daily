@@ -1,11 +1,11 @@
 import {toRaw} from "vue"
-import {toasts} from "vue-toasts-lite"
 import {getActivePinia} from "pinia"
 
 import {createEntityId, getPreviousTaskOrderIndex, planTaskCreate, planTaskMoveByOrder, planTaskUpdate} from "@daily/protocol"
 import {getTime, getTimezone, getToday, notNull, notUndefined, objectFilter} from "@daily/std"
 
 import {API} from "@/api"
+import {toasts} from "@/composables/useToasts"
 import {applyChangeset} from "@/utils/storage/applyChangeset"
 import {toRawDeep} from "@/utils/ui/toRawDeep"
 

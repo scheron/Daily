@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {computed} from "vue"
-import {toasts} from "vue-toasts-lite"
 
+import {toasts} from "@/composables/useToasts"
 import {useFilterStore} from "@/stores/filter.store"
 import {useTagsStore} from "@/stores/tags.store"
 import BaseButton from "@/ui/base/BaseButton"

@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import {toasts} from "vue-toasts-lite"
-
 import {useCopyToClipboard} from "@/composables/useCopyToClipboard"
+import {toasts} from "@/composables/useToasts"
 import {useTasksStore} from "@/stores/tasks"
 import BaseButton from "@/ui/base/BaseButton"
 import {useTaskEditor} from "@/ui/modules/RightPanel/composables/useTaskEditor"

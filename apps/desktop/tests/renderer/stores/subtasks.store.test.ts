@@ -1,13 +1,13 @@
 // @ts-nocheck
-import {toasts} from "vue-toasts-lite"
 import {createPinia, setActivePinia} from "pinia"
 import {beforeEach, describe, expect, it, vi} from "vitest"
 
+import {toasts} from "@/composables/useToasts"
 import {useSubtasksStore} from "../../../src/renderer/src/stores/subtasks.store"
 import {API} from "../../../src/renderer/src/api"
 import {mockBridgeIPC} from "../../helpers/bridgeIPC"
 
-vi.mock("vue-toasts-lite", () => ({
+vi.mock("@/composables/useToasts", () => ({
   toasts: {success: vi.fn(), error: vi.fn()},
 }))
 

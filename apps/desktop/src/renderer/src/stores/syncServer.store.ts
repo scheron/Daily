@@ -1,8 +1,8 @@
 import {computed, ref} from "vue"
-import {toasts} from "vue-toasts-lite"
 import {invoke} from "@vueuse/core"
 import {defineStore} from "pinia"
 
+import {toasts} from "@/composables/useToasts"
 import {useBaseModal} from "@/ui/base/BaseModal"
 import ApproveAgentModal from "@/ui/overlays/ApproveAgentModal.vue"
 import ApproveDeviceModal from "@/ui/overlays/ApproveDeviceModal.vue"

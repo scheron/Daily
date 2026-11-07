@@ -1,10 +1,10 @@
 import {computed} from "vue"
-import {toasts} from "vue-toasts-lite"
 
 import {boardColumnForStatus, groupTasksForBoard} from "@daily/protocol"
 
 import {useCopyToClipboard} from "@/composables/useCopyToClipboard"
 import {useSettingValue} from "@/composables/useSettingValue"
+import {toasts} from "@/composables/useToasts"
 import {useBranchesStore} from "@/stores/branches.store"
 import {useFilterStore} from "@/stores/filter.store"
 import {useProjectScopeStore} from "@/stores/projectScope.store"

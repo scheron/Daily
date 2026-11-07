@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import {computed, ref} from "vue"
-import {toasts} from "vue-toasts-lite"
 
 import {NO_PROJECT_ID} from "@daily/protocol"
 
+import {toasts} from "@/composables/useToasts"
 import {useBranchesStore} from "@/stores/branches.store"
 import BaseCombobox from "@/ui/base/BaseCombobox"
 import BaseIcon from "@/ui/base/BaseIcon"

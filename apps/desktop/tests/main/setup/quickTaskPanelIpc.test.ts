@@ -33,6 +33,7 @@ describe("the Quick task process's IPC", () => {
   const fromMenu = {sender: menuContents}
   const foreign = {sender: {}}
   let forward = null
+  let toasts = null
 
   beforeEach(() => {
     electron.handlers.clear()
@@ -40,7 +41,8 @@ describe("the Quick task process's IPC", () => {
     Object.values(windows).forEach((fn) => fn.mockClear())
     panelContents.send.mockClear()
     forward = vi.fn(async () => "answer")
-    setupQuickTaskPanelIPC({getPanel: () => panel, getMenu: () => menu, forward})
+    toasts = []
+    setupQuickTaskPanelIPC({getPanel: () => panel, getMenu: () => menu, forward, onToast: (toast) => toasts.push(toast)})
   })
 
   const send = (channel, payload, event = own) => electron.listeners.get(channel)(event, payload)
@@ -89,6 +91,18 @@ describe("the Quick task process's IPC", () => {
   })
 
   describe("the window channels", () => {
+    it("accepts only valid toasts from Quick task windows", () => {
+      const toast = {type: "success", message: "Task added"}
+      const publish = electron.listeners.get("toast:publish")
+
+      publish?.(own, toast)
+      publish?.(fromMenu, {type: "info", message: "Menu closed"})
+      publish?.(foreign, {type: "info", message: "Wrong window"})
+      publish?.(own, {type: "invalid", message: "Wrong type"})
+
+      expect(toasts).toEqual([toast, {type: "info", message: "Menu closed"}])
+    })
+
     it("hides and resizes the panel for its own windows only", () => {
       send("quick-task:hide")
       send("quick-task:hide", undefined, foreign)

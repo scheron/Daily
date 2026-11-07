@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import {computed, onMounted, ref} from "vue"
-import {toasts} from "vue-toasts-lite"
 import {useEventListener} from "@vueuse/core"
 
 import {DEFAULT_QUICK_TASK_HOTKEY} from "@daily/protocol"
 
 import {useSettingValue} from "@/composables/useSettingValue"
+import {toasts} from "@/composables/useToasts"
 import {useSettingsStore} from "@/stores/settings.store"
 import BaseButton from "@/ui/base/BaseButton"
 import SettingRow from "@/ui/views/Settings/{fragments}/SettingRow.vue"

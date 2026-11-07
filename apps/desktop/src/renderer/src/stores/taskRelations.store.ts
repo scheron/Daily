@@ -1,10 +1,10 @@
 import {computed, ref, shallowRef, toRaw} from "vue"
-import {toasts} from "vue-toasts-lite"
 import {defineStore} from "pinia"
 
 import {canLinkTasks, isResolvedTaskStatus, planTaskRelations, toTaskRelationId} from "@daily/protocol"
 
 import {API} from "@/api"
+import {toasts} from "@/composables/useToasts"
 import {useTasksStore} from "@/stores/tasks"
 import {applyChangeset} from "@/utils/storage/applyChangeset"
 

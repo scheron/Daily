@@ -7,7 +7,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {mount} from "@vue/test-utils"
 import {mockBridgeIPC} from "../../../helpers/bridgeIPC"
 
-vi.mock("vue-toasts-lite", () => ({toasts: {error: vi.fn(), success: vi.fn()}}))
+vi.mock("@/composables/useToasts", () => ({toasts: {error: vi.fn(), success: vi.fn()}}))
 
 const Editor = defineComponent({
   name: "MarkdownEditor",

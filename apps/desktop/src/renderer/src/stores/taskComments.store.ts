@@ -1,8 +1,8 @@
 import {computed, ref, shallowRef} from "vue"
-import {toasts} from "vue-toasts-lite"
 import {defineStore} from "pinia"
 
 import {API} from "@/api"
+import {toasts} from "@/composables/useToasts"
 import {applyChangeset} from "@/utils/storage/applyChangeset"
 
 import type {Changeset} from "@daily/core"

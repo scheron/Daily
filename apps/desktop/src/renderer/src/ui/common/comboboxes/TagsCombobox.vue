@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import {computed, ref} from "vue"
-import {toasts} from "vue-toasts-lite"
 
 import {findTagByName, normalizeTagName, sortTags, TAG_PRESET_COLORS} from "@daily/protocol"
 
+import {toasts} from "@/composables/useToasts"
 import {useTagsStore} from "@/stores/tags.store"
 import BaseButton from "@/ui/base/BaseButton"
 import BaseCombobox from "@/ui/base/BaseCombobox"

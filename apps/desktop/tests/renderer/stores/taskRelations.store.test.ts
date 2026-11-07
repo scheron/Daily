@@ -1,9 +1,9 @@
 // @ts-nocheck
 import {ref} from "vue"
-import {toasts} from "vue-toasts-lite"
 import {createPinia, setActivePinia} from "pinia"
 import {beforeEach, describe, expect, it, vi} from "vitest"
 
+import {toasts} from "@/composables/useToasts"
 import {useTaskRelationsStore} from "../../../src/renderer/src/stores/taskRelations.store"
 import {useTasksStore} from "../../../src/renderer/src/stores/tasks/tasks.store"
 import {API} from "../../../src/renderer/src/api"
@@ -11,7 +11,7 @@ import {mockBridgeIPC} from "../../helpers/bridgeIPC"
 
 vi.mock("../../../src/renderer/src/utils/ui/toRawDeep", () => ({toRawDeep: (v) => v}))
 
-vi.mock("vue-toasts-lite", () => ({
+vi.mock("@/composables/useToasts", () => ({
   toasts: {success: vi.fn(), error: vi.fn()},
 }))
 

@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import {computed, ref, watch} from "vue"
-import {toasts} from "vue-toasts-lite"
 
 import {groupTasksByDay, isMilestoneClosed, isMilestoneOverdue, milestoneCompletion} from "@daily/protocol"
 import {getToday, toDateLabel} from "@daily/std"
 
+import {toasts} from "@/composables/useToasts"
 import {useMilestonesStore} from "@/stores/milestones.store"
 import {useTasksStore} from "@/stores/tasks"
 import BaseButton from "@/ui/base/BaseButton"

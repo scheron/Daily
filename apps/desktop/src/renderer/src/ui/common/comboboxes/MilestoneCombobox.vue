@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import {computed, ref} from "vue"
-import {toasts} from "vue-toasts-lite"
 
 import {milestoneCompletion, sortMilestones} from "@daily/protocol"
 
+import {toasts} from "@/composables/useToasts"
 import {useMilestonesStore} from "@/stores/milestones.store"
 import BaseCombobox from "@/ui/base/BaseCombobox"
 import BaseIcon from "@/ui/base/BaseIcon"

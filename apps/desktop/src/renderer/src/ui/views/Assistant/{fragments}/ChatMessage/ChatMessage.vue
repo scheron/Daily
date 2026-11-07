@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import {computed} from "vue"
-import {toasts} from "vue-toasts-lite"
 
 import {toLocaleDateTime, toLocaleTime} from "@daily/std"
 
 import {useCopyToClipboard} from "@/composables/useCopyToClipboard"
+import {toasts} from "@/composables/useToasts"
 import {useAiStore} from "@/stores/ai"
 import BaseButton from "@/ui/base/BaseButton"
 import {cn} from "@/utils/ui/tailwindcss"

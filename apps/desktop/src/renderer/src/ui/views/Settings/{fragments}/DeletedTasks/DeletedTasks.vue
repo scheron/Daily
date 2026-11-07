@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import {ref} from "vue"
-import {toasts} from "vue-toasts-lite"
 
 import {API} from "@/api"
+import {toasts} from "@/composables/useToasts"
 import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
 import ConfirmPopup from "@/ui/overlays/ConfirmPopup.vue"

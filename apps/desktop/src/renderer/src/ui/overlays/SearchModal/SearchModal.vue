@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import {toasts} from "vue-toasts-lite"
-
 import {useTaskColumns} from "@/composables/tasks/useTaskColumns"
+import {toasts} from "@/composables/useToasts"
 import {useBranchesStore} from "@/stores/branches.store"
 import {useProjectScopeStore} from "@/stores/projectScope.store"
 import {useTaskEditorStore} from "@/stores/task-editor"

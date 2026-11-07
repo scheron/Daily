@@ -1,5 +1,4 @@
 import {computed, ref} from "vue"
-import {toasts} from "vue-toasts-lite"
 import {defineStore} from "pinia"
 
 import {toISODate} from "@daily/std"
@@ -88,7 +87,6 @@ export const useAiStore = defineStore("ai", () => {
       if (!liveAlreadyPresent) {
         messages.value.push(response.message)
       }
-      toasts.success("AI response ready")
       thinkState.setState("LOADED")
     } catch {
       if (isCancelled.value) return

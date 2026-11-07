@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import {computed, ref, watch} from "vue"
-import {toasts} from "vue-toasts-lite"
 import VueDraggable from "vuedraggable"
 
 import {getOrderIndexBetween, isMilestoneClosed, normalizeTaskOrderIndexes, sortMilestones} from "@daily/protocol"
 import {deepClone} from "@daily/std"
 
+import {toasts} from "@/composables/useToasts"
 import {useMilestonesStore} from "@/stores/milestones.store"
 import BaseButton from "@/ui/base/BaseButton"
 import BaseInput from "@/ui/base/BaseInput.vue"
@@ -148,7 +148,7 @@ watch(
     </VueDraggable>
 
     <template v-if="closedMilestones.length">
-      <div class="text-base-content/45 px-2 pt-3 pb-1 text-[11px] font-semibold tracking-wide uppercase">Closed · {{ closedMilestones.length }}</div>
+      <div class="text-base-content/45 px-2 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide">Closed · {{ closedMilestones.length }}</div>
       <MilestoneRow
         v-for="milestone in closedMilestones"
         :key="milestone.id"

@@ -43,6 +43,7 @@ import {setupShellIPC} from "./setup/ipc/shell"
 import {setupStorageIPC} from "./setup/ipc/storage"
 import {setupSyncProviderIPC} from "./setup/ipc/syncProvider"
 import {setupSyncServerIPC} from "./setup/ipc/syncServer"
+import {createToastRouter} from "./setup/ipc/toast"
 import {setupUpdatesIPC} from "./setup/ipc/updates"
 import {setupMainWindowIPC} from "./setup/ipc/windows"
 import {setupCSP} from "./setup/security/csp"
@@ -78,9 +79,12 @@ let trayQuickTask: ReturnType<typeof setupTrayQuickTask> | null = null
 let quickTaskSwitch: ReturnType<typeof setupQuickTask> | null = null
 let trayVisibility: ReturnType<typeof setupTrayVisibility> | null = null
 
+const toastRouter = createToastRouter()
+
 const quickTask = new QuickTaskController({
   spawn: spawnQuickTaskProcess,
   handleRequest: createStorageRequestHandler(() => storage),
+  onToast: toastRouter.publish,
   onReady: async () => {
     const hotkey = (await storage?.loadSettings())?.quickTask.hotkey
     if (!hotkey) return
@@ -147,6 +151,8 @@ async function startDaily() {
       else target.webContents.send("ai:confirmation-resolved", {confirmationId: event.confirmationId})
     },
     (event) => {
+      if (event.type === "turn_finished") toastRouter.publish({type: "success", message: "AI response ready"})
+
       const target = windows.assistant ?? windows.main
       target?.webContents.send("ai:event", event)
     },
@@ -185,6 +191,7 @@ async function startDaily() {
   setupMainWindowIPC(() => windows.main)
   setupMenuIPC(() => windows.main)
   setupUpdatesIPC()
+  toastRouter.registerIPC()
 
   setupAboutIPC(
     () => windows.about,
@@ -261,6 +268,7 @@ function setupMainWindow(windows: AppWindows, options?: {showSplash?: boolean}) 
 
   windows.main = createMainWindow(savedMainWindowState)
   const main = windows.main!
+  toastRouter.trackMainWindow(main)
   const rendererReady = waitForRendererReady(() => windows.main)
   if (storage && !IS_DEMO) setupUpdateManager(main, () => storage)
 

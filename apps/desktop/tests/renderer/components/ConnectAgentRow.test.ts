@@ -1,14 +1,14 @@
 // @vitest-environment happy-dom
 // @ts-nocheck
-import {toasts} from "vue-toasts-lite"
 import {createPinia, setActivePinia} from "pinia"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
+import {toasts} from "@/composables/useToasts"
 import {mount} from "@vue/test-utils"
 import {mockBridgeIPC} from "../../helpers/bridgeIPC"
 import {makeAgentWindow, makeBinding} from "../../helpers/syncServerFixtures"
 
-vi.mock("vue-toasts-lite", () => ({toasts: {success: vi.fn(), error: vi.fn()}}))
+vi.mock("@/composables/useToasts", () => ({toasts: {success: vi.fn(), error: vi.fn()}}))
 
 describe("ConnectAgentRow — the waiting panel, its per-agent accordion, copying and re-reading (TC-16 to TC-21)", () => {
   let wrapper = null

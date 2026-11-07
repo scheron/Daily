@@ -1,6 +1,7 @@
 import {contextBridge, ipcRenderer} from "electron"
 
 import {SHORTCUTS_MAP} from "@shared/constants/shortcuts"
+import {TOAST_PUBLISH_CHANNEL} from "@shared/constants/toast"
 
 import type {Changeset} from "@daily/core"
 import type {
@@ -53,6 +54,7 @@ import type {
 import type {FocusCommand, FocusSession} from "@shared/types/focus"
 import type {ApprovalKind, BridgeIPC} from "@shared/types/ipc"
 import type {HotkeyRebindResult, QuickTaskHotkeyState, QuickTaskMenu} from "@shared/types/quickTask"
+import type {ToastMessage} from "@shared/types/toast"
 import type {AppUpdateOffer, AppUpdateState} from "@shared/types/update"
 import type {PartialDeep} from "type-fest"
 
@@ -71,6 +73,14 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "window:close": () => ipcRenderer.send("window:close"),
 
   "app:renderer-ready": () => ipcRenderer.send("app:renderer-ready"),
+
+  [TOAST_PUBLISH_CHANNEL]: (toast: ToastMessage) => ipcRenderer.send(TOAST_PUBLISH_CHANNEL, toast),
+  "toast:on-show": (callback: (toast: ToastMessage) => void) => {
+    const subscription = (_event: unknown, toast: ToastMessage) => callback(toast)
+    ipcRenderer.on("toast:show", subscription)
+    ipcRenderer.send("toast:renderer-ready")
+    return () => ipcRenderer.removeListener("toast:show", subscription)
+  },
 
   "platform:is-mac": () => process.platform === "darwin",
   "platform:is-windows": () => process.platform === "win32",

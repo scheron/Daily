@@ -1,10 +1,10 @@
 // @vitest-environment happy-dom
 // @ts-nocheck
 import {defineComponent, h} from "vue"
-import {toasts} from "vue-toasts-lite"
 import {createPinia, setActivePinia} from "pinia"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
+import {toasts} from "@/composables/useToasts"
 import {flushPromises, mount} from "@vue/test-utils"
 import {mockBridgeIPC} from "../../../helpers/bridgeIPC"
 
@@ -20,7 +20,7 @@ const MarkdownEditor = defineComponent({
 })
 
 vi.mock("../../../../src/renderer/src/ui/common/misc/MarkdownEditor", () => ({default: MarkdownEditor}))
-vi.mock("vue-toasts-lite", () => ({toasts: {error: vi.fn()}}))
+vi.mock("@/composables/useToasts", () => ({toasts: {error: vi.fn()}}))
 
 function makeTask(id) {
   return {

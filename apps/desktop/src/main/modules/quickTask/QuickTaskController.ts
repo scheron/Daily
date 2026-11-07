@@ -1,11 +1,14 @@
 import {logger} from "@daily/core"
 
+import {isToastMessage} from "@main/utils/toasts/isToastMessage"
 import {PROCESS_READY_EVENT} from "@shared/constants/quickTask"
+import {TOAST_PUBLISH_CHANNEL} from "@shared/constants/toast"
 import {QuickTaskError} from "@shared/errors/quickTask/QuickTaskError"
 import {QuickTaskErrorCode} from "@shared/errors/quickTask/QuickTaskErrorCode"
 import {StdioChannel} from "./StdioChannel"
 
 import type {HotkeyRequest} from "@main/types/quickTask"
+import type {ToastMessage} from "@shared/types/toast"
 import type {ChildProcess} from "node:child_process"
 
 type QuickTaskChild = Pick<ChildProcess, "stdin" | "stdout" | "stderr" | "on" | "kill" | "pid">
@@ -15,6 +18,7 @@ type QuickTaskControllerOptions = {
   handleRequest: (channel: string, args: unknown[]) => Promise<unknown>
   onReady: () => void | Promise<void>
   onAvailabilityChange?: (isAvailable: boolean) => void
+  onToast?: (toast: ToastMessage) => void
   now?: () => number
 }
 
@@ -125,7 +129,11 @@ export class QuickTaskController {
       },
       {
         onRequest: this.options.handleRequest,
-        onEvent: (name) => {
+        onEvent: (name, [payload]) => {
+          if (name === TOAST_PUBLISH_CHANNEL) {
+            if (this.channel === channel && isToastMessage(payload)) this.options.onToast?.(payload)
+            return
+          }
           if (name !== PROCESS_READY_EVENT) return
 
           void new Promise<void>((resolve) => resolve(this.options.onReady()))

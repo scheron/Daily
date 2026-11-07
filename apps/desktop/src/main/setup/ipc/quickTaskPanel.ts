@@ -1,28 +1,35 @@
 import {ipcMain} from "electron"
 
+import {isToastMessage} from "@main/utils/toasts/isToastMessage"
 import {hideQuickTask, resizeQuickTask} from "@main/windows/quickTask.window"
 import {placeQuickTaskMenu, setQuickTaskMenu} from "@main/windows/quickTaskMenu.window"
 import {QUICK_TASK_FORWARDED_CHANNELS} from "@shared/constants/quickTask"
+import {TOAST_PUBLISH_CHANNEL} from "@shared/constants/toast"
 import {QuickTaskError} from "@shared/errors/quickTask/QuickTaskError"
 import {QuickTaskErrorCode} from "@shared/errors/quickTask/QuickTaskErrorCode"
 
 import type {QuickTaskMenu} from "@shared/types/quickTask"
+import type {ToastMessage} from "@shared/types/toast"
 import type {BrowserWindow, IpcMainEvent, IpcMainInvokeEvent} from "electron"
 
 type QuickTaskPanelIPCOptions = {
   getPanel: () => BrowserWindow | null
   getMenu: () => BrowserWindow | null
   forward: (channel: string, args: unknown[]) => Promise<unknown>
+  onToast: (toast: ToastMessage) => void
 }
 
 const MENU_FORWARDED_CHANNEL = "settings:load"
 
-/** Registers what the panel and menu renderers call in the Quick task process. Each channel answers only the window it is for: the panel for data, hide, resize and the menu content, the menu window for its placement, picks and loading settings. */
-export function setupQuickTaskPanelIPC({getPanel, getMenu, forward}: QuickTaskPanelIPCOptions) {
+export function setupQuickTaskPanelIPC({getPanel, getMenu, forward, onToast}: QuickTaskPanelIPCOptions) {
   const isFrom = (win: BrowserWindow | null, event: IpcMainEvent | IpcMainInvokeEvent) =>
     !!win && !win.isDestroyed() && win.webContents === event.sender
   const isPanel = (event: IpcMainEvent | IpcMainInvokeEvent) => isFrom(getPanel(), event)
   const isMenu = (event: IpcMainEvent | IpcMainInvokeEvent) => isFrom(getMenu(), event)
+
+  ipcMain.on(TOAST_PUBLISH_CHANNEL, (event, payload: unknown) => {
+    if ((isPanel(event) || isMenu(event)) && isToastMessage(payload)) onToast(payload)
+  })
 
   ipcMain.on("quick-task:hide", (event) => {
     const panelWindow = getPanel()

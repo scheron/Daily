@@ -1,7 +1,8 @@
 import {computed, ref} from "vue"
-import {toasts} from "vue-toasts-lite"
 import {invoke} from "@vueuse/core"
 import {defineStore} from "pinia"
+
+import {toasts} from "@/composables/useToasts"
 
 import type {AppUpdateOffer, AppUpdateState} from "@shared/types/update"
 

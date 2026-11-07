@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import {computed} from "vue"
-import {toasts} from "vue-toasts-lite"
 
 import {sortTags} from "@daily/protocol"
 import {toDateLabel, toDurationLabel} from "@daily/std"
 
 import {API} from "@/api"
+import {toasts} from "@/composables/useToasts"
 import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
 import DynamicTagsPanel from "@/ui/common/misc/DynamicTagsPanel.vue"
@@ -31,7 +31,7 @@ async function onPermanentDelete(task: Task) {
 </script>
 
 <template>
-  <div :id="task.id" class="bg-base-100 group border-base-300/50 relative overflow-hidden rounded-2xl border transition-all duration-200">
+  <div :id="task.id" class="bg-base-100 border-base-300/50 group relative overflow-hidden rounded-2xl border transition-all duration-200">
     <div class="relative z-10 flex w-full flex-col gap-3 px-5 py-4">
       <div class="flex w-full items-center gap-3">
         <DynamicTagsPanel :tags="sortedTags" size="sm" />

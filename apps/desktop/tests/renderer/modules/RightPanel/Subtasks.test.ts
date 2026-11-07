@@ -1,13 +1,13 @@
 // @vitest-environment happy-dom
 // @ts-nocheck
-import {toasts} from "vue-toasts-lite"
 import {createPinia, setActivePinia} from "pinia"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
+import {toasts} from "@/composables/useToasts"
 import {mount} from "@vue/test-utils"
 import {mockBridgeIPC} from "../../../helpers/bridgeIPC"
 
-vi.mock("vue-toasts-lite", () => ({toasts: {error: vi.fn(), success: vi.fn()}}))
+vi.mock("@/composables/useToasts", () => ({toasts: {error: vi.fn(), success: vi.fn()}}))
 
 function makeTask(id) {
   return {

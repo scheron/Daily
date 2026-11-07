@@ -1,11 +1,11 @@
 // @ts-nocheck
-import {toasts} from "vue-toasts-lite"
 import {DateTime} from "luxon"
 import {createPinia, setActivePinia} from "pinia"
 import {beforeEach, describe, expect, it, vi} from "vitest"
 
 import {groupTasksByDay} from "@daily/protocol"
 
+import {toasts} from "@/composables/useToasts"
 import {useBranchesStore} from "../../../src/renderer/src/stores/branches.store"
 import {useFilterStore} from "../../../src/renderer/src/stores/filter.store"
 import {useMilestonesStore} from "../../../src/renderer/src/stores/milestones.store"
@@ -21,7 +21,7 @@ vi.mock("../../../src/renderer/src/utils/ui/toRawDeep", () => ({
   toRawDeep: (v) => v,
 }))
 
-vi.mock("vue-toasts-lite", () => ({
+vi.mock("@/composables/useToasts", () => ({
   toasts: {success: vi.fn(), error: vi.fn()},
 }))
 
