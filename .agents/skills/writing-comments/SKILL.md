@@ -54,7 +54,7 @@ A pure util whose contract is easiest shown by use may carry an `@example` — `
 - **Stores, services, controllers** — only on the public actions/methods that pass the core rule.
 - **Tests** — none; a case that needs explaining needs a better name (**writing-tests**).
 - **Tool directives are code, not comments** — `// @ts-nocheck`, `// @vitest-environment`, `// eslint-disable-next-line` stay.
-- **Teaching references** under `.claude/skills/**/reference/` are the only place section labels are allowed.
+- **Teaching references** under `.agents/skills/**/reference/` are the only place section labels are allowed.
 
 ## When editing a file
 

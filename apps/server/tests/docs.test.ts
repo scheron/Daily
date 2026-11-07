@@ -6,7 +6,7 @@ import {describe, expect, it} from "vitest"
 const rootDir = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..")
 
 const FORBIDDEN_SRC_ROOTS = ["main", "renderer", "shared"]
-const TOP_LEVEL_PATH_DIRS = ["src", "apps", "packages", "scripts", ".claude", ".github"]
+const TOP_LEVEL_PATH_DIRS = ["src", "apps", "packages", "scripts", ".claude", ".agents", ".github"]
 
 function read(relativePath: string): string {
   return readFileSync(join(rootDir, relativePath), "utf-8")
@@ -44,7 +44,7 @@ function extractRawGithubInstallPath(text: string): string | null {
   return match ? match[1] : null
 }
 
-describe("TC-12: README.md, CLAUDE.md and the Dockerfile labels name paths that exist", () => {
+describe("TC-12: README.md, AGENTS.md and the Dockerfile labels name paths that exist", () => {
   it("every relative link in README.md resolves, and no CLI or folder/SSH provider survives", () => {
     const readme = read("README.md")
 
@@ -61,15 +61,15 @@ describe("TC-12: README.md, CLAUDE.md and the Dockerfile labels name paths that 
     expect(readme).not.toMatch(/\bSSH\b/)
   })
 
-  it("every path CLAUDE.md names resolves, and no CLI or folder/SSH provider survives", () => {
-    const claude = read("CLAUDE.md")
+  it("every path AGENTS.md names resolves, and no CLI or folder/SSH provider survives", () => {
+    const claude = read("AGENTS.md")
 
     for (const path of extractPathLikeBackticks(claude)) {
-      expect(existsSync(join(rootDir, path)), `CLAUDE.md path ${path}`).toBe(true)
+      expect(existsSync(join(rootDir, path)), `AGENTS.md path ${path}`).toBe(true)
     }
 
     for (const root of FORBIDDEN_SRC_ROOTS) {
-      expect(hasBareSrcRoot(claude, root), `CLAUDE.md should not reference the pre-split src/${root}`).toBe(false)
+      expect(hasBareSrcRoot(claude, root), `AGENTS.md should not reference the pre-split src/${root}`).toBe(false)
     }
 
     expect(claude).not.toMatch(/\bCLI\b/i)

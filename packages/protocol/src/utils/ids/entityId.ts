@@ -4,7 +4,7 @@ import {customAlphabet} from "nanoid"
  * The two-letter mark every new id carries, so a bare string says what it is when it travels
  * outside the app — a log line, an MCP call, a conversation with an agent.
  *
- * `branch` is the project (see CLAUDE.md): one concept, two names, and `DP` spells the newer one.
+ * `branch` is the project (see AGENTS.md): one concept, two names, and `DP` spells the newer one.
  */
 export const ENTITY_ID_PREFIX = {
   task: "DT",
