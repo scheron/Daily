@@ -53,7 +53,7 @@ import type {
 import type {FocusCommand, FocusSession} from "./focus"
 import type {HotkeyRebindResult, QuickTaskHotkeyState, QuickTaskMenu} from "./quickTask"
 import type {ToastMessage} from "./toast"
-import type {AppUpdateOffer, AppUpdateState} from "./update"
+import type {AppUpdateOffer, AppUpdateState, WhatsNewRelease} from "./update"
 
 export type ApprovalKind = "device" | "agent"
 
@@ -65,6 +65,8 @@ export interface BridgeIPC {
   "window:minimize": () => void
   "window:maximize": () => void
   "window:close": () => void
+  "window:is-visible": () => Promise<boolean>
+  "window:on-visibility-changed": (callback: (visible: boolean) => void) => () => void
 
   "app:renderer-ready": () => void
 
@@ -129,6 +131,8 @@ export interface BridgeIPC {
   "updates:download": (offer: AppUpdateOffer) => Promise<boolean>
   "updates:install": () => Promise<boolean>
   "updates:on-state-changed": (callback: (state: AppUpdateState) => void) => () => void
+  "whats-new:get-release": () => Promise<WhatsNewRelease | null>
+  "whats-new:mark-shown": (version: string) => Promise<boolean>
 
   "activity:get-by-task": (taskId: Task["id"]) => Promise<TaskEvent[]>
 

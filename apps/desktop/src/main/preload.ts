@@ -55,7 +55,7 @@ import type {FocusCommand, FocusSession} from "@shared/types/focus"
 import type {ApprovalKind, BridgeIPC} from "@shared/types/ipc"
 import type {HotkeyRebindResult, QuickTaskHotkeyState, QuickTaskMenu} from "@shared/types/quickTask"
 import type {ToastMessage} from "@shared/types/toast"
-import type {AppUpdateOffer, AppUpdateState} from "@shared/types/update"
+import type {AppUpdateOffer, AppUpdateState, WhatsNewRelease} from "@shared/types/update"
 import type {PartialDeep} from "type-fest"
 
 // prettier-ignore
@@ -71,6 +71,12 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "window:minimize": () => ipcRenderer.send("window:minimize"),
   "window:maximize": () => ipcRenderer.send("window:maximize"),
   "window:close": () => ipcRenderer.send("window:close"),
+  "window:is-visible": () => ipcRenderer.invoke("window:is-visible") as Promise<boolean>,
+  "window:on-visibility-changed": (callback: (visible: boolean) => void) => {
+    const subscription = (_event: unknown, visible: boolean) => callback(visible)
+    ipcRenderer.on("window:visibility-changed", subscription)
+    return () => ipcRenderer.removeListener("window:visibility-changed", subscription)
+  },
 
   "app:renderer-ready": () => ipcRenderer.send("app:renderer-ready"),
 
@@ -144,6 +150,8 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
     ipcRenderer.on("updates:state-changed", subscription)
     return () => ipcRenderer.removeListener("updates:state-changed", subscription)
   },
+  "whats-new:get-release": () => ipcRenderer.invoke("whats-new:get-release") as Promise<WhatsNewRelease | null>,
+  "whats-new:mark-shown": (version: string) => ipcRenderer.invoke("whats-new:mark-shown", version) as Promise<boolean>,
 
   "activity:get-by-task": (taskId: Task["id"]) => ipcRenderer.invoke("activity:get-by-task", taskId) as Promise<TaskEvent[]>,
 

@@ -30,6 +30,7 @@ defineExpose({element: dockRef})
     <section
       v-if="uiStore.isFocusDockOpen && !isDetached"
       ref="dock"
+      data-focus-dock
       :data-focus-drop-zone="isCollecting || undefined"
       class="dock-surface w-90 absolute bottom-4 right-4 z-20 flex max-h-[calc(100%-4.5rem)] flex-col overflow-hidden rounded-2xl shadow-lg"
     >

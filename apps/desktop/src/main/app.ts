@@ -45,7 +45,7 @@ import {setupSyncProviderIPC} from "./setup/ipc/syncProvider"
 import {setupSyncServerIPC} from "./setup/ipc/syncServer"
 import {createToastRouter} from "./setup/ipc/toast"
 import {setupUpdatesIPC} from "./setup/ipc/updates"
-import {setupMainWindowIPC} from "./setup/ipc/windows"
+import {setupMainWindowIPC, trackMainWindowVisibility} from "./setup/ipc/windows"
 import {setupCSP} from "./setup/security/csp"
 import {setupPrivilegedSchemes, setupSafeFileProtocol} from "./setup/security/protocols"
 import {createMainWindow} from "./windows/main.window"
@@ -190,7 +190,7 @@ async function startDaily() {
   setupShellIPC()
   setupMainWindowIPC(() => windows.main)
   setupMenuIPC(() => windows.main)
-  setupUpdatesIPC()
+  setupUpdatesIPC(() => windows.main)
   toastRouter.registerIPC()
 
   setupAboutIPC(
@@ -269,6 +269,7 @@ function setupMainWindow(windows: AppWindows, options?: {showSplash?: boolean}) 
   windows.main = createMainWindow(savedMainWindowState)
   const main = windows.main!
   toastRouter.trackMainWindow(main)
+  trackMainWindowVisibility(main)
   const rendererReady = waitForRendererReady(() => windows.main)
   if (storage && !IS_DEMO) setupUpdateManager(main, () => storage)
 

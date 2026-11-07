@@ -27,3 +27,17 @@ export type AppUpdateState = {
   reason: string | null
   installFailure: AppUpdateInstallFailure | null
 }
+
+export type WhatsNewMedia = {
+  kind: "image" | "gif" | "video"
+  url: string
+  label: string
+  poster?: string
+}
+
+export type WhatsNewRelease = {
+  version: string
+  highlights: string[]
+  media: WhatsNewMedia[]
+  releaseUrl: string
+}

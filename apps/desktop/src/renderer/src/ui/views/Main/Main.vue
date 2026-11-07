@@ -13,6 +13,7 @@ import TaskBoard from "@/ui/modules/TaskBoard"
 import {useConfirmUnsavedModal} from "@/ui/overlays/ConfirmUnsavedModal"
 import {useSearchModal} from "@/ui/overlays/SearchModal"
 import UpdateBanner from "@/ui/overlays/UpdateBanner.vue"
+import WhatsNewBanner from "@/ui/overlays/WhatsNewBanner"
 import {usePanelSize} from "./composables/usePanelSize"
 import MainDragIndicator from "./{fragments}/MainDragIndicator"
 
@@ -51,6 +52,7 @@ async function onCreateTask() {
 <template>
   <div class="app-shell bg-base-100 relative flex h-dvh w-dvw overflow-hidden">
     <UpdateBanner />
+    <WhatsNewBanner />
 
     <main class="app-main-panel bg-base-100 min-w-0 flex-1">
       <div class="text-base-content flex size-full">
