@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import {computed, nextTick, ref, watch} from "vue"
+import {useNow} from "@vueuse/core"
 
-import {toDateLabel, toISODate} from "@daily/std"
+import {toISODate} from "@daily/std"
 
 import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
 import {nestedTarget} from "@/ui/modules/RightPanel/composables/useNestedView"
 import {useTaskComments} from "@/ui/modules/RightPanel/composables/useTaskComments"
 import {useTaskHistory} from "../History/composables/useTaskHistory"
+import {toActivityDateLabel} from "../../utils/toActivityDateLabel"
 import HistoryEvent from "../History/{fragments}/HistoryEvent.vue"
 import CommentItem from "./{fragments}/CommentItem"
 
@@ -22,6 +24,9 @@ const isNewestFirst = ref(true)
 
 const {comments, removeComment} = useTaskComments()
 const {events} = useTaskHistory()
+const now = useNow({interval: 1000})
+
+const today = computed(() => toISODate(now.value))
 
 const items = computed<ActivityItem[]>(() => {
   const all: ActivityItem[] = comments.value.map((comment) => ({key: `c:${comment.id}`, at: comment.createdAt, comment}))
@@ -101,7 +106,7 @@ watch(nestedTarget, async (target, previous) => {
           class="text-base-content/70 mb-1.5 flex items-center gap-2 px-4 text-[.8rem] font-semibold leading-normal"
         >
           <span aria-hidden="true" class="bg-base-content/10 h-px flex-1" />
-          {{ toDateLabel(group.day, {short: true}) }}
+          {{ toActivityDateLabel(group.day, today) }}
         </h3>
         <div class="mx-4">
           <template v-for="item in group.entries" :key="item.key">
@@ -111,7 +116,7 @@ watch(nestedTarget, async (target, previous) => {
               @open="openComment(item.comment.id, $event)"
               @remove="removeComment(item.comment.id)"
             />
-            <HistoryEvent v-else-if="item.event" :event="item.event" />
+            <HistoryEvent v-else-if="item.event" :event="item.event" :today="today" />
           </template>
         </div>
       </section>

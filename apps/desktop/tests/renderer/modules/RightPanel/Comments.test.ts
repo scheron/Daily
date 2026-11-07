@@ -51,6 +51,7 @@ describe("Activity", () => {
   beforeEach(() => {
     previousZone = Settings.defaultZone
     Settings.defaultZone = "Asia/Vladivostok"
+    vi.setSystemTime(new Date("2026-11-06T14:00:00.000Z"))
     setActivePinia(createPinia())
   })
 
@@ -59,6 +60,7 @@ describe("Activity", () => {
     wrapper = null
     bridge = null
     Settings.defaultZone = previousZone
+    vi.useRealTimers()
   })
 
   async function setup(thread, overrides = {}) {
@@ -170,6 +172,30 @@ describe("Activity", () => {
     expect(groups[1].text()).not.toContain("comment after")
     expect(groups[0].text()).toContain("comment after")
     expect(groups[0].text()).toContain("comment offset")
+  })
+
+  it("labels nearby activity groups and scheduling changes by the local calendar day", async () => {
+    const makeMoveEvent = (id, createdAt, fromDate, toDate) => ({id, taskId: "task-1", type: "moved", createdAt, fromDate, toDate})
+    await setup(
+      [
+        makeComment("older", "2026-11-05T13:59:00.000Z"),
+        makeComment("yesterday", "2026-11-06T13:59:00.000Z"),
+        makeComment("tomorrow", "2026-11-07T14:01:00.000Z"),
+        makeComment("later", "2026-11-08T14:01:00.000Z"),
+      ],
+      {
+        history: [
+          makeMoveEvent("nearby", "2026-11-06T14:01:00.000Z", "2026-11-06", "2026-11-07"),
+          makeMoveEvent("ahead", "2026-11-06T14:02:00.000Z", "2026-11-08", "2026-11-09"),
+        ],
+      },
+    )
+
+    expect(wrapper.findAll("h3").map((heading) => heading.text())).toEqual(["Nov 9, 2026", "Tomorrow", "Today", "Yesterday", "Nov 5, 2026"])
+    expect(wrapper.findAll(".history-row").map((row) => row.text().replace(/\s+/g, " "))).toEqual([
+      expect.stringContaining("Tomorrow → Nov 9"),
+      expect.stringContaining("Yesterday → Today"),
+    ])
   })
 
   it("removes days without comments when Only comments hides their events", async () => {

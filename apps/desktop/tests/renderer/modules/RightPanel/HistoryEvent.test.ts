@@ -48,7 +48,7 @@ describe("an Activity event", () => {
   async function renderEvent(event: TaskEvent) {
     const {default: HistoryEvent} =
       await import("../../../../src/renderer/src/ui/modules/RightPanel/{fragments}/History/{fragments}/HistoryEvent.vue")
-    wrapper = mount(HistoryEvent, {props: {event}})
+    wrapper = mount(HistoryEvent, {props: {event, today: "2026-11-07"}})
     return wrapper
   }
 

@@ -2,7 +2,7 @@
 import {computed} from "vue"
 
 import {NO_PROJECT_ID} from "@daily/protocol"
-import {toDateLabel, toLocaleDateTime, toTime} from "@daily/std"
+import {toLocaleDateTime, toTime} from "@daily/std"
 
 import {TASK_COLUMNS} from "@/constants/ui"
 import {useBranchesStore} from "@/stores/branches.store"
@@ -12,6 +12,7 @@ import AgentIcon from "@/ui/common/sync/AgentIcon.vue"
 import {getPriorityLevel} from "@/utils/priority/getPriorityLevel"
 import {getProjectName} from "@/utils/projects/getProjectName"
 import {cn} from "@/utils/ui/tailwindcss"
+import {toActivityDateLabel} from "../../../utils/toActivityDateLabel"
 
 import type {IconName} from "@/ui/base/BaseIcon"
 import type {Branch, TaskEvent, TaskEventType, TaskPriority, TaskStatus} from "@daily/protocol"
@@ -19,7 +20,7 @@ import type {Branch, TaskEvent, TaskEventType, TaskPriority, TaskStatus} from "@
 type EventEndpoint = {label: string; icon?: IconName; project?: Pick<Branch, "id" | "emoji">; textClass?: string; color?: string}
 type EventTransition = {from: EventEndpoint; to: EventEndpoint}
 
-const props = defineProps<{event: TaskEvent}>()
+const props = defineProps<{event: TaskEvent; today: string}>()
 
 const branchesStore = useBranchesStore()
 
@@ -61,10 +62,7 @@ const transition = computed<EventTransition | null>(() => {
     return {from: projectEndpoint(event.fromBranchId), to: projectEndpoint(event.toBranchId)}
   }
   if (event.type === "moved" && (event.fromDate || event.toDate)) {
-    return {
-      from: {label: event.fromDate ? toDateLabel(event.fromDate, {short: true, year: false}) : "No date", icon: "calendar"},
-      to: {label: event.toDate ? toDateLabel(event.toDate, {short: true, year: false}) : "No date", icon: "calendar"},
-    }
+    return {from: dateEndpoint(event.fromDate), to: dateEndpoint(event.toDate)}
   }
   return null
 })
@@ -82,6 +80,10 @@ function priorityEndpoint(priority: TaskPriority): EventEndpoint {
 function projectEndpoint(id: string): EventEndpoint {
   const project = branchesStore.branchesMap.get(id)
   return {label: id === NO_PROJECT_ID ? getProjectName(null) : (project?.name ?? id), project: project ?? {id}}
+}
+
+function dateEndpoint(date: TaskEvent["fromDate"]): EventEndpoint {
+  return {label: date ? toActivityDateLabel(date, props.today, {year: false}) : "No date", icon: "calendar"}
 }
 
 function getEndpointClasses(textClass?: string) {
