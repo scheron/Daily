@@ -1,4 +1,6 @@
-# The workbench source and commit each copy was taken from; written by /workbench.
+# Managed by /workbench — do not edit by hand.
+# Skills in .agents/skills/ that come from the workbench:
+# source is the skill's path in the workbench, revision the workbench commit it was last synced with.
 skills:
   keeping-symbols-local:
     source: front/keeping-symbols-local
