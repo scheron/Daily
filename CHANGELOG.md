@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.39.0 - 2026-11-08
+
+### ✨ New Features
+
+- **What’s New** — starting with the next update, Daily shows release highlights once in the main window.
+
+### 🎨 Improvements
+
+- **Activity** — day headings in comments and task history use Today and Yesterday. Changes to a task’s date can also show Tomorrow.
+- **Notifications** — in-app messages from Quick task, Settings, and the Assistant appear in the main window. Recent messages wait until the window is visible again.
+- **Appearance** — all three text sizes are larger. Profiles that used Stone now display the Cool palette.
+
+### 🐛 Bug Fixes
+
+- **Board** — fixed the borders on hidden-column shortcuts to match their task cards.
+
+---
+
 ## v0.38.3 - 2026-11-06
 
 ### 🎨 Improvements
