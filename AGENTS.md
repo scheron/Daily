@@ -41,7 +41,7 @@ pnpm check:all           # lint + typecheck:all + circular + test
 ## Conventions (enforced)
 
 - **Public-before-private:** public methods/exports first, private/helpers last; constructor after fields.
-- **No inline comments.** JSDoc only where it earns it: public methods/props, function/composable `@param`, component props, pure utils (`@example`).
+- **Comments** follow the `writing-comments` skill.
 - **Errors** live in `apps/desktop/src/shared/errors/<domain>/` — one file per `Error` subclass; inline throws use enum codes there.
 - **`type` over `interface`** (reserve `interface` for shapes a class implements).
 - **Locality:** types/constants at the narrowest scope; lift to `apps/desktop/src/shared/` only when crossing the process boundary.

@@ -4,7 +4,7 @@
 
 // 1. imports
 import {computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch} from "vue"
-import {useElementSize} from "@vueuse/core"
+import {useElementSize, useEventListener} from "@vueuse/core"
 
 import {useTasksStore} from "@/stores/tasks"
 import BaseButton from "@/ui/base/BaseButton"
@@ -18,11 +18,12 @@ type UndoPhase = "idle" | "counting" | "expired"
 // 3. constants
 const UNDO_WINDOW_MS = 5_000
 
-// 4. props / emits
+// 4. contract
 const props = defineProps<{taskId: Task["id"]; autoStart?: boolean}>()
 const emit = defineEmits<{commit: []}>()
+const open = defineModel<boolean>("open", {required: true})
 
-// 5. module-mutable state
+// 5. instance state
 let suppressCommit = false
 let tickTimer = 0
 
@@ -30,7 +31,7 @@ let tickTimer = 0
 const tasksStore = useTasksStore()
 
 // 7. refs
-const rootRef = useTemplateRef<HTMLElement>("root")
+const panelRef = useTemplateRef("panel")
 const startedAt = ref<number | null>(null)
 const nowMs = ref(0)
 
@@ -45,32 +46,43 @@ const phase = computed<UndoPhase>(() => {
   if (startedAt.value === null) return "idle"
   return remainingMs.value > 0 ? "counting" : "expired"
 })
+const panelClass = computed(() =>
+  cn("flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm", [phase.value === "expired" ? "text-base-content/40" : "bg-accent/15 text-accent"]),
+)
 
-// 9. composables / derived reactive state
-const {width} = useElementSize(rootRef)
+// 9. composables
+const {width} = useElementSize(panelRef)
+useEventListener(document, "visibilitychange", () => (nowMs.value = Date.now()))
 
 // 10. methods
 function start() {
   suppressCommit = false
   startedAt.value = Date.now()
   nowMs.value = Date.now()
+  panelRef.value?.scrollIntoView({block: "nearest"})
 }
 
 function reset() {
   startedAt.value = null
 }
 
+function undo() {
+  reset()
+  open.value = false
+}
+
 function commit() {
   if (suppressCommit) return
   emit("commit")
   reset()
+  open.value = false
 }
 
-function getRootClasses(value: UndoPhase) {
-  return cn("flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm", value === "expired" ? "text-base-content/40" : "bg-accent/15 text-accent")
+function onKeydown(event: KeyboardEvent) {
+  if (event.key === "Escape" && phase.value === "counting") undo()
 }
 
-// 11. watchers
+// 11. watchers and subscriptions
 watch(phase, (value) => {
   if (value === "expired") commit()
 })
@@ -79,6 +91,8 @@ watch(
   () => props.taskId,
   () => reset(),
 )
+
+useEventListener(window, "keydown", onKeydown)
 
 // 12. lifecycle
 onMounted(() => {
@@ -96,9 +110,9 @@ defineExpose({start, reset})
 </script>
 
 <template>
-  <div ref="root" :class="getRootClasses(phase)">
+  <div v-if="open" ref="panel" role="status" :class="panelClass">
     <span class="min-w-0 truncate">{{ label }}</span>
     <span class="tabular-nums">{{ Math.round(progress * 100) }}%</span>
-    <BaseButton variant="primary-ghost" :disabled="phase === 'expired' || width < 120" @click="reset">Undo</BaseButton>
+    <BaseButton variant="primary-ghost" :disabled="phase !== 'counting' || width < 120" @click="undo">Undo</BaseButton>
   </div>
 </template>
