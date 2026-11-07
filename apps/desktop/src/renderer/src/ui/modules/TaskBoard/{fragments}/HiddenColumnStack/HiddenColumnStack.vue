@@ -28,6 +28,10 @@ function getButtonVariant(status: TaskStatus) {
   return props.hoveredChipStatus === status ? "dock-drop" : "dock"
 }
 
+function getBorderClasses(cardBorderClass: string) {
+  return cn("absolute -inset-px rounded-[inherit] border transition-colors duration-150", cardBorderClass)
+}
+
 function getIconClasses(titleClass: string) {
   return cn("size-4 shrink-0", titleClass)
 }
@@ -58,6 +62,7 @@ function getCounterClasses(counterClass: string) {
       :class="getButtonClasses(side)"
       @click="emit('reveal', column.status)"
     >
+      <span aria-hidden="true" :class="getBorderClasses(column.cardBorderClass)" />
       <BaseIcon :name="side === 'left' ? 'chevron-left' : 'chevron-right'" class="hidden-column-chevron text-base-content/60 size-3.5 shrink-0" />
       <BaseIcon :name="column.icon" :class="getIconClasses(column.titleClass)" />
       <span :class="getCounterClasses(column.counterClass)">{{ column.count }}</span>

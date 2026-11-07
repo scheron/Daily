@@ -74,10 +74,10 @@ export const buttonColorVariant = defineVariant({
           disabled:hover:bg-base-content/80
       `,
       dock: `
-          dock-surface gap-2 border border-base-300/70 dark:border-base-300 duration-150
+          dock-surface gap-2 border border-transparent dark:border-transparent duration-150
       `,
       "dock-drop": `
-          dock-surface gap-2 border border-accent bg-accent/10 outline-2 outline-solid outline-accent/60 duration-150
+          dock-surface gap-2 border border-transparent bg-accent/10 outline-2 outline-solid outline-accent/60 dark:border-transparent duration-150
       `,
       floating: `
           bg-base-200 text-base-content/70 border border-base-300 shadow-sm
