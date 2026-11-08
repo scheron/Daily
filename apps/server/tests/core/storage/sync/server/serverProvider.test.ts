@@ -1,6 +1,14 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
-import {SYNC_PROTOCOL_CONFIG, SYNC_PROTOCOL_PATHS, SYNC_PROTOCOL_VERSION, SyncServerError, SyncServerErrorCode} from "@daily/protocol"
+import {
+  ProtocolError,
+  ProtocolErrorCode,
+  SYNC_PROTOCOL_CONFIG,
+  SYNC_PROTOCOL_PATHS,
+  SYNC_PROTOCOL_VERSION,
+  SyncServerError,
+  SyncServerErrorCode,
+} from "@daily/protocol"
 import {revokeDevice} from "@daily/server/devices/DeviceStore"
 import {ensureClaimCode, isClaimed} from "@daily/server/identity/ServerIdentityStore"
 import {getTimezone} from "@daily/std"
@@ -10,6 +18,7 @@ import {getDefaultSettings} from "@core/storage/models/_rowMappers"
 import {StorageController} from "@core/storage/StorageController"
 import {DailySyncClient} from "@core/storage/sync/server/DailySyncClient"
 import {ServerProviderService} from "@core/storage/sync/server/ServerProviderService"
+import * as serverTransport from "@core/storage/sync/server/serverTransport"
 import {toBindingView, toSettingsView} from "@core/utils/sync/settingsViews"
 import {assertSingleActiveProvider, buildSyncRemotes, resolveActiveProvider} from "@core/utils/sync/syncProvider"
 import {isBlockedAddress} from "@core/utils/web/isBlockedAddress"
@@ -361,6 +370,7 @@ describe("the revision probe", () => {
   })
 
   afterEach(() => {
+    vi.restoreAllMocks()
     vi.useRealTimers()
   })
 
@@ -475,49 +485,45 @@ describe("the revision probe", () => {
   })
 
   it("reports_TC-10_a_typed_revocation_through_getState_firing_onRevoked_once_and_clearing_on_a_later_bind", async () => {
-    const server = await bootSyncServer()
-    try {
-      const credential = await claimFirstDevice(server, "MacBook Air")
-      const binding = bindingFromCredential(server, credential)
-      const store = makeSettingsStore({server: {enabled: true, binding}})
-      const runSyncCycle = vi.fn(async () => {})
-      const disableAutoSync = vi.fn()
-      const onRevoked = vi.fn()
-      const service = makeService(store, {runSyncCycle, disableAutoSync, onRevoked})
+    const binding = makeBinding()
+    const store = makeSettingsStore({server: {enabled: true, binding}})
+    const runSyncCycle = vi.fn(async () => {})
+    const disableAutoSync = vi.fn()
+    const onRevoked = vi.fn()
+    const service = makeService(store, {runSyncCycle, disableAutoSync, onRevoked})
+    vi.spyOn(DailySyncClient.prototype, "probeRevision").mockRejectedValue(new ProtocolError(ProtocolErrorCode.DEVICE_REVOKED))
 
-      revokeDevice(server.store, credential.device.id)
+    service.startProbe()
+    await vi.advanceTimersByTimeAsync(SYNC_PROTOCOL_CONFIG.revisionProbeIntervalMs)
 
-      service.startProbe()
-      await fireProbeTick()
+    expect(runSyncCycle).not.toHaveBeenCalled()
+    expect(disableAutoSync).toHaveBeenCalledTimes(1)
+    expect(onRevoked).toHaveBeenCalledTimes(1)
 
-      expect(runSyncCycle).not.toHaveBeenCalled()
-      expect(disableAutoSync).toHaveBeenCalledTimes(1)
-      expect(onRevoked).toHaveBeenCalledTimes(1)
+    const stateAfterRevocation = await service.getState()
+    expect(stateAfterRevocation.revoked).toBe(true)
+    expect(stateAfterRevocation.binding?.deviceId).toBe(binding.deviceId)
+    expect(stateAfterRevocation.binding?.baseUrl).toBe(binding.baseUrl)
 
-      const stateAfterRevocation = await service.getState()
-      expect(stateAfterRevocation.revoked).toBe(true)
-      expect(stateAfterRevocation.binding?.deviceId).toBe(binding.deviceId)
-      expect(stateAfterRevocation.binding?.baseUrl).toBe(binding.baseUrl)
+    await vi.advanceTimersByTimeAsync(2 * SYNC_PROTOCOL_CONFIG.revisionProbeIntervalMs)
+    expect(onRevoked).toHaveBeenCalledTimes(1)
 
-      await fireProbeTick()
-      await fireProbeTick()
-      expect(onRevoked).toHaveBeenCalledTimes(1)
+    const freshBinding = makeBinding({baseUrl: "http://127.0.0.2", serverId: "srv-2", deviceId: "dev-2", token: "fresh-token"})
+    vi.spyOn(serverTransport, "probeTransport").mockResolvedValue({
+      info: {protocol: SYNC_PROTOCOL_VERSION, serverId: freshBinding.serverId, name: freshBinding.serverName, claimed: false},
+      transport: {mode: "plain", fingerprint: null, addressIsPublic: false},
+    })
+    vi.spyOn(DailySyncClient.prototype, "claim").mockResolvedValue({
+      device: {id: freshBinding.deviceId, name: freshBinding.deviceName, createdAt: freshBinding.boundAt},
+      token: freshBinding.token,
+    })
 
-      const freshServer = await bootSyncServer()
-      try {
-        await service.probe(freshServer.baseUrl)
-        const freshCode = ensureClaimCode(freshServer.store)
-        if (!freshCode) throw new Error("expected an unclaimed test server to hold a claim code")
-        await service.claim(freshCode, "MacBook Air", false)
+    await service.probe(freshBinding.baseUrl)
+    await service.claim("123456", freshBinding.deviceName, false)
 
-        const stateAfterRebind = await service.getState()
-        expect(stateAfterRebind.revoked).toBe(false)
-      } finally {
-        await freshServer.close()
-      }
-    } finally {
-      await server.close()
-    }
+    const stateAfterRebind = await service.getState()
+    expect(stateAfterRebind.revoked).toBe(false)
+    expect(stateAfterRebind.binding?.deviceId).toBe(freshBinding.deviceId)
   })
 })
 
