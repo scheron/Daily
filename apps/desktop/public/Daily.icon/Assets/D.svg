@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <path fill="#fff" fill-rule="evenodd" d="
+    M264 225 H479 C639 225 769 354 769 514 S639 803 479 803 H264 V698 H309 V331 H264 Z
+    M435 331 V698 H457 C555 698 635 615 635 514 S555 331 457 331 Z
+  "/>
+</svg>

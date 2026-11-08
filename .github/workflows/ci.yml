@@ -168,6 +168,8 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build the macOS package
+        env:
+          DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
         run: pnpm --filter @daily/desktop build
 
       - name: Verify the packaged bundle

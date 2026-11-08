@@ -12,7 +12,8 @@
   "afterPack": "scripts/afterPack-mac.js",
   "extraResources": [
     {"from": "resources/file-coordinator", "to": "file-coordinator"},
-    {"from": "resources/models.json", "to": "models.json"}
+    {"from": "resources/models.json", "to": "models.json"},
+    {"from": "public/icon.icns", "to": "icon.icns"}
   ],
   "files": [
     "out/**/*",
@@ -30,8 +31,11 @@
     "hardenedRuntime": true,
     "gatekeeperAssess": true,
     "identity": null,
-    "icon": "icon.icns",
+    "icon": "Daily.icon",
     "target": [{"target": "dmg", "arch": ["arm64"]}]
+  },
+  "dmg": {
+    "icon": "icon.icns"
   },
   "publish": null
 }

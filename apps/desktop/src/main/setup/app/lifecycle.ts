@@ -32,7 +32,8 @@ export function setupQuickTaskAppBoot() {
 }
 
 export function setupDockIcon() {
-  if (process.platform === "darwin" && app.dock) {
+  // A runtime override bypasses macOS's bundle icon and its appearance variants.
+  if (!app.isPackaged && process.platform === "darwin" && app.dock) {
     try {
       app.dock.setIcon(nativeImage.createFromPath(electronPaths.icon()))
     } catch (error) {

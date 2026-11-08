@@ -4,12 +4,10 @@ set -euo pipefail
 # Verifies the released .dmg by opening it and inspecting what is actually inside,
 # rather than only asserting that a file was produced.
 #
-# Two checks run against the app inside the mounted image:
-#   1. static  - every package in the runtime dependency closure resolves inside app.asar
-#   2. runtime - the packaged Electron binary loads those packages and exercises the native module
+# Static checks cover the app icon and the runtime dependency closure inside app.asar.
+# The packaged Electron binary also loads those packages and exercises the native module.
 #
-# Check 1 is the gate that catches a silently incomplete bundle. See the note at the
-# bottom of this file for why a GUI launch is deliberately not part of it.
+# See the note at the bottom for why the dependency checks run without a GUI.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
@@ -63,6 +61,12 @@ for dmg in "${dmgs[@]}"; do
     continue
   fi
   echo "mounted: $app"
+
+  if ! icon_name="$(plutil -extract CFBundleIconName raw "$app/Contents/Info.plist" 2>/dev/null)" ||
+    [ -z "$icon_name" ] || [ ! -s "$app/Contents/Resources/Assets.car" ]; then
+    echo "::error::packaged app is missing its native macOS icon"
+    status=1
+  fi
 
   if ! node "$SCRIPT_DIR/verify-bundle-closure.mjs" "$app"; then
     status=1
