@@ -3,7 +3,6 @@ import {join} from "node:path"
 import Database from "better-sqlite3"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
-import {rowToSettings} from "@core/storage/models/_rowMappers"
 import {FileModel} from "@core/storage/models/FileModel"
 import {SettingsModel} from "@core/storage/models/SettingsModel"
 import {LocalStorageAdapter} from "@core/storage/sync/adapters/LocalStorageAdapter"
@@ -40,10 +39,9 @@ describe("SettingsModel", () => {
     const data = JSON.stringify({appearance: {mode: "dark", accent: "rose", base: "slate", taskView}, branch: {activeId: "project-a"}})
     db.prepare("INSERT INTO settings (id, version, data, created_at, updated_at) VALUES ('default', 'v', ?, 'now', 'now')").run(data)
 
-    for (const settings of [settingsModel.loadSettings(), rowToSettings({data} as any)]) {
-      expect(settings.appearance).toEqual({mode: "dark", accent: "rose", base: "slate", taskView: "regular", boardMode: "normal"})
-      expect(settings.branch.activeId).toBe("project-a")
-    }
+    const settings = settingsModel.loadSettings()
+    expect(settings.appearance).toEqual({mode: "dark", accent: "rose", base: "slate", taskView: "regular", boardMode: "normal"})
+    expect(settings.branch.activeId).toBe("project-a")
   })
 
   it("normalizes an invalid partial save without losing the existing colors or other preferences", () => {
@@ -75,31 +73,28 @@ describe("SettingsModel", () => {
     const data = JSON.stringify({layout: {sectionsCollapsed: {done: true}}, appearance: {mode: "dark"}})
     db.prepare("INSERT INTO settings (id, version, data, created_at, updated_at) VALUES ('default', 'v', ?, 'now', 'now')").run(data)
 
-    for (const settings of [settingsModel.loadSettings(), rowToSettings({data} as any)]) {
-      expect(settings.layout.columnOrder).toEqual(["backlog", "todo", "ready_for_agent", "in_progress", "ready_to_merge", "done", "cancelled"])
-      expect(settings.layout.sectionsCollapsed.done).toBe(true)
-      expect(settings.appearance.mode).toBe("dark")
-    }
+    const settings = settingsModel.loadSettings()
+    expect(settings.layout.columnOrder).toEqual(["backlog", "todo", "ready_for_agent", "in_progress", "ready_to_merge", "done", "cancelled"])
+    expect(settings.layout.sectionsCollapsed.done).toBe(true)
+    expect(settings.appearance.mode).toBe("dark")
   })
 
   it("keeps known column positions once and appends missing statuses in their original order", () => {
     const data = JSON.stringify({layout: {columnOrder: ["done", "unknown", "backlog", "done", null, "ready_to_merge"]}})
     db.prepare("INSERT INTO settings (id, version, data, created_at, updated_at) VALUES ('default', 'v', ?, 'now', 'now')").run(data)
 
-    for (const settings of [settingsModel.loadSettings(), rowToSettings({data} as any)]) {
-      expect(settings.layout.columnOrder).toEqual(["done", "backlog", "todo", "ready_to_merge", "ready_for_agent", "in_progress", "cancelled"])
-    }
+    const settings = settingsModel.loadSettings()
+    expect(settings.layout.columnOrder).toEqual(["done", "backlog", "todo", "ready_to_merge", "ready_for_agent", "in_progress", "cancelled"])
   })
 
   it("falls back to the original order for a non-array without discarding other settings", () => {
     const data = JSON.stringify({layout: {columnOrder: "done", sectionsCollapsed: {cancelled: true}}, branch: {activeId: "project-a"}})
     db.prepare("INSERT INTO settings (id, version, data, created_at, updated_at) VALUES ('default', 'v', ?, 'now', 'now')").run(data)
 
-    for (const settings of [settingsModel.loadSettings(), rowToSettings({data} as any)]) {
-      expect(settings.layout.columnOrder).toEqual(["backlog", "todo", "ready_for_agent", "in_progress", "ready_to_merge", "done", "cancelled"])
-      expect(settings.layout.sectionsCollapsed.cancelled).toBe(true)
-      expect(settings.branch.activeId).toBe("project-a")
-    }
+    const settings = settingsModel.loadSettings()
+    expect(settings.layout.columnOrder).toEqual(["backlog", "todo", "ready_for_agent", "in_progress", "ready_to_merge", "done", "cancelled"])
+    expect(settings.layout.sectionsCollapsed.cancelled).toBe(true)
+    expect(settings.branch.activeId).toBe("project-a")
   })
 
   it("normalizes replacement column orders on save and keeps them through unrelated saves and real SQLite reopens", async () => {

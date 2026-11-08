@@ -2,21 +2,17 @@
 @import "./fonts.css";
 @import "tailwindcss";
 
-/** Dark theme — applied via the `.dark` class on `<html>`. */
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
   --header-height: 44px;
   --toolbar-height: 36px;
-  --card-min-height: 100px;
   --task-content-minimized-height: 220px;
 }
 
 @theme {
   --spacing-header: var(--header-height);
   --spacing-toolbar: var(--toolbar-height);
-  --spacing-card: var(--card-min-height);
-  --spacing-task-content-minimized: var(--task-content-minimized-height);
 }
 
 html {
@@ -77,5 +73,5 @@ body {
 }
 
 @utility dock-surface {
-  @apply bg-base-100 border-base-300/70 dark:border-base-300 border shadow-xs;
+  @apply bg-base-100 border-base-300/70 dark:border-base-300 shadow-xs border;
 }

@@ -1,4 +1,5 @@
 import {execFileSync} from "node:child_process"
+import {X509Certificate} from "node:crypto"
 import {isIP} from "node:net"
 import path from "node:path"
 import fs from "fs-extra"
@@ -6,7 +7,7 @@ import fs from "fs-extra"
 import {ServerSetupError} from "../errors/server/ServerSetupError"
 import {ServerSetupErrorCode} from "../errors/server/ServerSetupErrorCode"
 
-export type GeneratedCertificate = {certPath: string; keyPath: string; fingerprint: string}
+type GeneratedCertificate = {certPath: string; keyPath: string; fingerprint: string}
 
 const CERT_DAYS = 3650
 
@@ -38,6 +39,9 @@ export function generateSelfSignedCertificate(dataDir: string, host: string): Ge
         "ec",
         "-pkeyopt",
         "ec_paramgen_curve:P-256",
+        // LibreSSL defaults to explicit curve parameters, which Electron TLS cannot decode.
+        "-pkeyopt",
+        "ec_param_enc:named_curve",
         "-keyout",
         keyPath,
         "-out",
@@ -56,33 +60,8 @@ export function generateSelfSignedCertificate(dataDir: string, host: string): Ge
   fs.chmodSync(certPath, 0o600)
   fs.chmodSync(keyPath, 0o600)
 
-  return {certPath, keyPath, fingerprint: readCertificateFingerprint(certPath)}
-}
-
-/** Reads the SHA-256 fingerprint of a certificate already on disk, in `AA:BB:…` form. */
-export function readCertificateFingerprint(certPath: string): string {
-  const output = execFileSync("openssl", ["x509", "-in", certPath, "-noout", "-fingerprint", "-sha256"], {
-    stdio: ["ignore", "pipe", "pipe"],
-  }).toString()
-
-  const fingerprint = output.trim().split("=")[1]
-  return fingerprint
-}
-
-/** The hosts a certificate is for — its `DNS:` and `IP Address:` subjectAltName entries, bare. */
-export function readCertificateHosts(certPath: string): string[] {
-  const output = execFileSync("openssl", ["x509", "-in", certPath, "-noout", "-ext", "subjectAltName"], {
-    stdio: ["ignore", "pipe", "pipe"],
-  }).toString()
-
-  const hosts: string[] = []
-  const entryPattern = /(?:DNS|IP Address):([^,\n]+)/g
-  let match: RegExpExecArray | null
-  while ((match = entryPattern.exec(output)) !== null) {
-    hosts.push(match[1].trim())
-  }
-
-  return hosts
+  const certificate = new X509Certificate(fs.readFileSync(certPath))
+  return {certPath, keyPath, fingerprint: certificate.fingerprint256}
 }
 
 function ensureOpensslAvailable(): void {

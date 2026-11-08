@@ -1,17 +1,16 @@
-import { useSettingsStore } from "./stores/settings.store"
-import { createPinia } from "pinia"
-import { createApp } from "vue"
+import {createApp} from "vue"
+import {createPinia} from "pinia"
 
+import {useSettingsStore} from "./stores/settings.store"
 import App from "./App.vue"
+import vFocusOnMount from "./directives/vFocusOnMount"
 import router from "./router"
 
-import vFocusOnMount from "./directives/vFocusOnMount"
-
 import "vue-toasts-lite/style.css"
-
 import "./assets/styles/main.css"
 import "./assets/styles/tooltip.css"
 import "./assets/styles/rewrites/vue-toasts-lite.css"
+
 import vTooltip from "./directives/vTooltip"
 
 async function initApp() {

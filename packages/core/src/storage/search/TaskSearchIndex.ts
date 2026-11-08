@@ -25,14 +25,6 @@ export class TaskSearchIndex {
   }
 
   /**
-   * Add a new task to the index
-   */
-  addTask(task: Task) {
-    const searchTask = this.taskToSearchTask(task)
-    this.engine.addTask(searchTask)
-  }
-
-  /**
    * Update an existing task in the index
    */
   updateTask(task: Task) {
@@ -52,13 +44,6 @@ export class TaskSearchIndex {
    */
   search(query: string, options?: SearchOptions): SearchResult[] {
     return this.engine.search(query, options)
-  }
-
-  /**
-   * Clear the entire index
-   */
-  clear() {
-    this.engine.clear()
   }
 
   /**

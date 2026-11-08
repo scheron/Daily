@@ -1,42 +1,38 @@
 import fs from "node:fs"
+import {createRequire} from "node:module"
 import os from "node:os"
 import path from "node:path"
-import Database from "better-sqlite3"
+import {parseArgs} from "node:util"
 
-/**
- * Magic-byte signature table. A local copy of
- * `src/main/utils/files/sniffImageExt.ts`, which is the canonical source —
- * this script is raw ESM for a node-style runtime and cannot import
- * TypeScript from `src/**`.
- */
-const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
-const JPEG_SIGNATURE = [0xff, 0xd8, 0xff]
-const GIF_SIGNATURE = [0x47, 0x49, 0x46, 0x38]
-const RIFF_SIGNATURE = [0x52, 0x49, 0x46, 0x46]
-const WEBP_SIGNATURE = [0x57, 0x45, 0x42, 0x50]
-const WEBP_SIGNATURE_OFFSET = 8
+import {getMimeType} from "../packages/core/src/utils/files/getMimeType.ts"
+import {sniffImageExt} from "../packages/core/src/utils/files/sniffImageExt.ts"
 
-const flags = parseFlags(process.argv.slice(2))
-const dataDir = flags.dataDir ?? path.join(os.homedir(), "Library", "Application Support", "Daily")
+const {values: flags} = parseArgs({options: {apply: {type: "boolean"}, "dry-run": {type: "boolean"}, "data-dir": {type: "string"}}})
+if (flags.apply && flags["dry-run"]) throw new Error("Choose either --apply or --dry-run.")
+
+const require = createRequire(new URL("../apps/desktop/package.json", import.meta.url))
+const Database = require("better-sqlite3")
+
+const dataDir = flags["data-dir"] ?? path.join(os.homedir(), "Library", "Application Support", "Daily")
 const dbPath = path.join(dataDir, "db", "daily.sqlite")
 const assetsDir = path.join(dataDir, "assets")
 
 console.log("fix-asset-extensions: for best results, close Daily before running with --apply")
 
-const db = new Database(dbPath)
-const updateFile = db.prepare("UPDATE files SET name = ?, mime_type = ?, updated_at = ? WHERE id = ?")
+const db = new Database(dbPath, {fileMustExist: true, readonly: !flags.apply})
+const updateFile = flags.apply ? db.prepare("UPDATE files SET name = ?, mime_type = ?, updated_at = ? WHERE id = ?") : null
 const rowsById = new Map(
   db
-    .prepare("SELECT id, name FROM files")
+    .prepare("SELECT id, name, mime_type FROM files")
     .all()
     .map((row) => [row.id, row]),
 )
-const entries = fs.readdirSync(assetsDir)
+const entries = fs.readdirSync(assetsDir, {withFileTypes: true}).filter((entry) => entry.isFile())
 
 let mismatched = 0
 let fixed = 0
 
-for (const entry of entries) {
+for (const {name: entry} of entries) {
   const dotIndex = entry.lastIndexOf(".")
   const id = dotIndex !== -1 ? entry.slice(0, dotIndex) : entry
   const diskExt = dotIndex !== -1 ? entry.slice(dotIndex + 1) : ""
@@ -52,7 +48,8 @@ for (const entry of entries) {
   }
 
   const dbExt = path.extname(row.name).slice(1)
-  if (diskExt === sniffed && dbExt === sniffed) continue
+  const mimeType = getMimeType(sniffed)
+  if (diskExt === sniffed && dbExt === sniffed && row.mime_type === mimeType) continue
 
   mismatched++
 
@@ -65,9 +62,20 @@ for (const entry of entries) {
   const newName = `${path.basename(row.name, path.extname(row.name))}.${sniffed}`
   console.log(`fix-asset-extensions: ${entry} (${row.name}) -> ${id}.${sniffed} (${newName})`)
 
-  if (flags.apply) {
-    if (diskExt !== sniffed) fs.renameSync(filePath, targetPath)
-    updateFile.run(newName, getMimeType(sniffed), new Date().toISOString(), id)
+  if (updateFile) {
+    let renamed = false
+    try {
+      db.transaction(() => {
+        updateFile.run(newName, mimeType, new Date().toISOString(), id)
+        if (filePath !== targetPath) {
+          fs.renameSync(filePath, targetPath)
+          renamed = true
+        }
+      })()
+    } catch (error) {
+      if (renamed) fs.renameSync(targetPath, filePath)
+      throw error
+    }
     fixed++
   }
 }
@@ -80,32 +88,6 @@ if (flags.apply) {
 
 db.close()
 
-/**
- * Parses `--apply`, `--dry-run` (accepted, same as no flags) and
- * `--data-dir <path>` (also accepts `--data-dir=<path>`).
- */
-function parseFlags(argv) {
-  const result = {apply: false, dataDir: null}
-
-  for (let i = 0; i < argv.length; i++) {
-    const arg = argv[i]
-
-    if (arg === "--apply") {
-      result.apply = true
-    } else if (arg === "--dry-run") {
-      continue
-    } else if (arg === "--data-dir") {
-      result.dataDir = argv[i + 1]
-      i++
-    } else if (arg.startsWith("--data-dir=")) {
-      result.dataDir = arg.slice("--data-dir=".length)
-    }
-  }
-
-  return result
-}
-
-/** Reads the first bytes of a file — enough to cover every signature above. */
 function readHead(filePath, length = 32) {
   const buffer = Buffer.alloc(length)
   const fd = fs.openSync(filePath, "r")
@@ -115,35 +97,5 @@ function readHead(filePath, length = 32) {
     return buffer.subarray(0, bytesRead)
   } finally {
     fs.closeSync(fd)
-  }
-}
-
-function matchesAt(data, signature, offset) {
-  if (data.length < offset + signature.length) return false
-  return signature.every((byte, index) => data[offset + index] === byte)
-}
-
-function sniffImageExt(data) {
-  if (matchesAt(data, PNG_SIGNATURE, 0)) return "png"
-  if (matchesAt(data, JPEG_SIGNATURE, 0)) return "jpg"
-  if (matchesAt(data, GIF_SIGNATURE, 0)) return "gif"
-  if (matchesAt(data, RIFF_SIGNATURE, 0) && matchesAt(data, WEBP_SIGNATURE, WEBP_SIGNATURE_OFFSET)) return "webp"
-
-  return null
-}
-
-/** Local copy of the mime table in `src/main/utils/files/getMimeType.ts`. */
-function getMimeType(ext) {
-  switch (ext) {
-    case "png":
-      return "image/png"
-    case "jpg":
-      return "image/jpeg"
-    case "gif":
-      return "image/gif"
-    case "webp":
-      return "image/webp"
-    default:
-      return "application/octet-stream"
   }
 }

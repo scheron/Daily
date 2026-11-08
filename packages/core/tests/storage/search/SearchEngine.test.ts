@@ -32,7 +32,6 @@ describe("SearchEngine", () => {
   it("finds fuzzy match with 1-2 character errors", () => {
     engine.buildIndex([makeSearchTask({id: "1", content: "Implementation details"})])
 
-    // "implmentation" — missing 'e', should still match for long enough query
     const results = engine.search("implmentation")
 
     expect(results).toHaveLength(1)
@@ -47,7 +46,7 @@ describe("SearchEngine", () => {
 
   it("ranks exact matches higher than fuzzy matches", () => {
     engine.buildIndex([
-      makeSearchTask({id: "fuzzy", content: "implementaton details"}), // typo in content
+      makeSearchTask({id: "fuzzy", content: "implementaton details"}),
       makeSearchTask({id: "exact", content: "implementation details"}),
     ])
 
@@ -72,10 +71,10 @@ describe("SearchEngine", () => {
     expect(results).toHaveLength(3)
   })
 
-  it("adding and removing tasks updates index", () => {
+  it("updating the index with a new task makes it searchable until removed", () => {
     engine.buildIndex([makeSearchTask({id: "1", content: "First task"})])
 
-    engine.addTask(makeSearchTask({id: "2", content: "Second task"}))
+    engine.updateTask(makeSearchTask({id: "2", content: "Second task"}))
     expect(engine.search("Second")).toHaveLength(1)
 
     engine.removeTask("2")

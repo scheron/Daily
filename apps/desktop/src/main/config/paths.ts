@@ -1,5 +1,4 @@
-import path, {dirname, join} from "node:path"
-import {fileURLToPath} from "node:url"
+import path, {join} from "node:path"
 
 import {dataPaths, ENV} from "@daily/core"
 import {APP_CONFIG} from "@daily/protocol"
@@ -9,22 +8,19 @@ import {IS_DEMO, resolveAppProfile} from "@main/demo/profile"
 import type {AppPaths} from "@daily/core"
 
 type ElectronApp = {
+  readonly isPackaged: boolean
   getAppPath(): string
   getPath(name: "userData" | "documents"): string
 }
 
-const __dirname = dirname(fileURLToPath(import.meta.url))
 const profile = resolveAppProfile(IS_DEMO, ENV.isDevelopment)
 
-/**
- * Builds the full electron path set over a live `app` instance. The electron
- * import stays in `electronPaths.ts` so this module stays free of it.
- */
 export function createElectronPaths(app: ElectronApp, resourcesPath: string) {
   return {
     ...dataPaths(() => app.getPath("userData")),
-    icon: () => (ENV.isDevelopment ? join(__dirname, "resources", "icon.png") : join(app.getAppPath(), "resources", "icon.png")),
-    trayIcon: () => (ENV.isDevelopment ? join(process.cwd(), "public", "trayTemplate.png") : join(app.getAppPath(), "resources", "trayTemplate.png")),
+    icon: () => join(publicDir(), "icon.png"),
+    trayIcon: () => join(publicDir(), "trayTemplate.png"),
+    fileCoordinatorPath: () => join(extraResourcesDir(), "file-coordinator"),
     preload: () =>
       ENV.isDevelopment
         ? join(process.cwd(), profile.outputDirectory, "preload", "preload.cjs")
@@ -43,9 +39,17 @@ export function createElectronPaths(app: ElectronApp, resourcesPath: string) {
     updatesInstallResultPath: () => path.join(app.getPath("userData"), "updates", "install-result.json"),
     updatesInstallFailurePath: () => path.join(app.getPath("userData"), "updates", "install-failure.json"),
     updatesInstallLogPath: () => path.join(app.getPath("userData"), "updates", "install.log"),
-    modelsCatalogPath: () => (ENV.isDevelopment ? join(process.cwd(), "resources", "models.json") : join(resourcesPath, "models.json")),
+    modelsCatalogPath: () => join(extraResourcesDir(), "models.json"),
     modelsCatalogCachePath: () => path.join(app.getPath("userData"), "models-catalog.json"),
   } satisfies AppPaths & Record<string, () => string>
+
+  function publicDir() {
+    return app.isPackaged ? join(app.getAppPath(), "resources") : join(process.cwd(), "public")
+  }
+
+  function extraResourcesDir() {
+    return app.isPackaged ? resourcesPath : join(process.cwd(), "resources")
+  }
 }
 
 function remoteSyncPath(): string {

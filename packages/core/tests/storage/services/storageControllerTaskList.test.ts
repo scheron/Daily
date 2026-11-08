@@ -15,20 +15,6 @@ import {TasksService} from "@core/storage/services/TasksService"
 import {StorageController} from "@core/storage/StorageController"
 import {createTestDatabase} from "../../helpers/db"
 
-/**
- * TC-24 · US-5 · gate-b: N/A
- * given: a database holding dated and dateless tasks across two projects, and one soft-deleted task
- * when: the flat read is called with no arguments
- * then: it returns every live task of both projects, backlog included, and not the deleted one
- *
- * Retargeted per the human's 2026-09-14 decision: the all-projects read is a new
- * `StorageController.getAllTasks()`, not `getTaskList` with a flag — `getTaskList` keeps its
- * active-project scoping for `tasks:get-many` and the AI tools. `getAllTasks` does not exist yet
- * (phase 3), so this stays red until it lands. `StorageController` is built by hand rather than
- * through `init()`, the same technique `serverProvider.test.ts` already uses, to avoid the sync
- * engine and the filesystem it touches.
- */
-
 vi.mock("../../../src/utils/logger", () => ({
   logger: {
     info: vi.fn(),

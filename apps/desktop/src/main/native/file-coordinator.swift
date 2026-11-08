@@ -1,12 +1,7 @@
 import Foundation
 
-// MARK: - NSFileCoordinator CLI Tool
-// Provides coordinated file access for iCloud Drive files.
-// Usage: file-coordinator <subcommand> <path>
-// Subcommands: read, write, download, is-stub
-
 guard CommandLine.arguments.count >= 3 else {
-    fputs("Usage: file-coordinator <read|write|download|is-stub> <path>\n", stderr)
+    fputs("Usage: file-coordinator <read|write|download> <path>\n", stderr)
     exit(1)
 }
 
@@ -21,14 +16,10 @@ case "write":
     coordinatedWrite(url: fileURL)
 case "download":
     requestDownload(url: fileURL)
-case "is-stub":
-    checkStub(path: filePath)
 default:
     fputs("Unknown subcommand: \(subcommand)\n", stderr)
     exit(1)
 }
-
-// MARK: - Coordinated Read
 
 func coordinatedRead(url: URL) {
     var error: NSError?
@@ -54,8 +45,6 @@ func coordinatedRead(url: URL) {
     }
 }
 
-// MARK: - Coordinated Write
-
 func coordinatedWrite(url: URL) {
     let data = FileHandle.standardInput.readDataToEndOfFile()
     let tmpURL = url.appendingPathExtension("tmp")
@@ -76,7 +65,6 @@ func coordinatedWrite(url: URL) {
         }
     }
 
-    // Cleanup tmp on failure
     if writeError != nil || error != nil {
         try? FileManager.default.removeItem(at: tmpURL)
     }
@@ -91,8 +79,6 @@ func coordinatedWrite(url: URL) {
     }
 }
 
-// MARK: - Request Download
-
 func requestDownload(url: URL) {
     do {
         try FileManager.default.startDownloadingUbiquitousItem(at: url)
@@ -100,12 +86,4 @@ func requestDownload(url: URL) {
         fputs("Download request error: \(error.localizedDescription)\n", stderr)
         exit(1)
     }
-}
-
-// MARK: - Check iCloud Stub
-
-func checkStub(path: String) {
-    let filename = (path as NSString).lastPathComponent
-    let isStub = filename.hasPrefix(".") && filename.hasSuffix(".icloud")
-    print(isStub ? "true" : "false")
 }

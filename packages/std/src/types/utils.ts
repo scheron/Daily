@@ -1,19 +1,6 @@
 type Identity<T> = {[P in keyof T]: T[P]}
 
 /**
- * Creates a new type by renaming a property key `KOld` in type `T` to a new key `KNew`.
- * The value type remains the same.
- *
- * @template T - The source object type
- * @template KOld - The key in T to rename
- * @template KNew - The new key name
- * @example
- * type Foo = { a: number, b: string }
- * type Bar = Rename<Foo, "a", "x"> // { b: string, x: number }
- */
-export type ReplaceKey<T, KOld extends keyof T, KNew extends PropertyKey> = Omit<T, KOld> & {[P in KNew]: T[KOld]}
-
-/**
  * Creates a new type by replacing the value of a property key `K` in type `T`
  * with a new value of type `TReplace`.
  *

@@ -351,7 +351,7 @@ describe("checking GitHub releases through the updater", () => {
     await restarted.initialize()
 
     expect(restarted.getState()).toMatchObject({status: "downloaded", availableVersion: manifest.version, availableHash: hash})
-    expect(await restarted.installDownloadedUpdate()).toBe(installs)
+    expect(await restarted.downloadUpdate({version: manifest.version, hash})).toBe(installs)
     expect(spawn).toHaveBeenCalledTimes(installs ? 1 : 0)
     expect(app.quit).toHaveBeenCalledTimes(installs ? 1 : 0)
     expect(fetch.mock.calls.map(([url]) => url)).toEqual([manifestUrl, releaseUrl, manifestUrl])
@@ -423,7 +423,9 @@ describe("checking GitHub releases through the updater", () => {
         }) as unknown as IStorageController,
     )
 
-    expect(await controller.installDownloadedUpdate()).toBe(true)
+    await controller.initialize()
+    expect(controller.getState()).toMatchObject({status: "downloaded", availableVersion: manifest.version, availableHash: hash})
+    expect(await controller.downloadUpdate({version: manifest.version, hash})).toBe(true)
     expect(fetch.mock.calls.map(([url]) => url)).toEqual([manifestUrl, releaseUrl])
     expect(app.quit).toHaveBeenCalledOnce()
   })
@@ -439,7 +441,8 @@ describe("checking GitHub releases through the updater", () => {
 
     const controller = new UpdaterController()
     expect(await controller.checkForUpdate()).toMatchObject({status: "available"})
-    expect(await controller.installDownloadedUpdate()).toBe(false)
+    expect(await controller.downloadUpdate({version: manifest.version, hash})).toBe(false)
+    expect(fetch.mock.calls.map(([url]) => url)).toEqual([manifestUrl, releaseUrl])
     expect(spawn).not.toHaveBeenCalled()
     expect(await readFile(outsideCache, "utf8")).toBe("abc")
   })

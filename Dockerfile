@@ -10,7 +10,7 @@ WORKDIR /build
 
 RUN npm install --global pnpm@10.30.1
 
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/server/package.json ./apps/server/package.json
 COPY packages/core/package.json ./packages/core/package.json
 COPY packages/protocol/package.json ./packages/protocol/package.json

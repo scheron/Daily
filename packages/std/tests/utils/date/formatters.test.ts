@@ -1,19 +1,7 @@
 // @ts-nocheck
 import {describe, expect, it} from "vitest"
 
-import {
-  toDateLabel,
-  toDay,
-  toDurationLabel,
-  toISODate,
-  toISODateTime,
-  toLocaleDateRange,
-  toLocaleDateTime,
-  toLocaleTime,
-  toMonthYear,
-  toRelativeTime,
-  toTs,
-} from "@daily/std"
+import {toDateLabel, toDurationLabel, toISODate, toLocaleDateTime, toLocaleTime, toRelativeTime, toTs} from "@daily/std"
 
 describe("date formatters", () => {
   describe("toTs", () => {
@@ -28,13 +16,6 @@ describe("date formatters", () => {
 
     it("returns 0 for invalid date string", () => {
       expect(toTs("not-a-date")).toBe(0)
-    })
-  })
-
-  describe("toISODateTime", () => {
-    it("converts timestamp to ISO datetime string", () => {
-      const ts = Date.parse("2026-01-01T00:00:00.000Z")
-      expect(toISODateTime(ts)).toBe("2026-01-01T00:00:00.000Z")
     })
   })
 
@@ -56,13 +37,6 @@ describe("date formatters", () => {
     })
   })
 
-  describe("toDay", () => {
-    it("returns numeric day from ISO date", () => {
-      expect(toDay("2026-03-24")).toBe(24)
-      expect(toDay("2026-01-01")).toBe(1)
-    })
-  })
-
   describe("toDateLabel", () => {
     it("returns a non-empty string for a valid date", () => {
       const result = toDateLabel("2026-01-01")
@@ -74,13 +48,6 @@ describe("date formatters", () => {
       const full = toDateLabel("2026-01-01", {short: false})
       const short = toDateLabel("2026-01-01", {short: true})
       expect(full.length).toBeGreaterThanOrEqual(short.length)
-    })
-  })
-
-  describe("toMonthYear", () => {
-    it("returns a string containing year", () => {
-      const result = toMonthYear("2026-03-24")
-      expect(result).toContain("2026")
     })
   })
 
@@ -127,23 +94,6 @@ describe("date formatters", () => {
     it("returns HH:mm:ss formatted string", () => {
       const result = toLocaleTime(new Date("2026-01-15T10:30:45.000Z"))
       expect(result).toMatch(/^\d{2}:\d{2}:\d{2}$/)
-    })
-  })
-
-  describe("toLocaleDateRange", () => {
-    it("returns empty string for null range", () => {
-      expect(toLocaleDateRange(null)).toBe("")
-    })
-
-    it("returns single date when end is null", () => {
-      const result = toLocaleDateRange([new Date("2026-01-01"), null])
-      expect(typeof result).toBe("string")
-      expect(result.length).toBeGreaterThan(0)
-    })
-
-    it("returns range with dash when both dates provided", () => {
-      const result = toLocaleDateRange([new Date("2026-01-01"), new Date("2026-01-15")])
-      expect(result).toContain("—")
     })
   })
 

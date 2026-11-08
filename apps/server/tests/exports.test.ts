@@ -29,7 +29,7 @@ describe("apps/server/package.json exports", () => {
 })
 
 describe("apps/server/package.json dependencies", () => {
-  it("TC-2: declares @daily/core as a workspace dependency and luxon so neither is inlined into the bundle", () => {
+  it("declares @daily/core as a workspace dependency and luxon as a runtime dependency", () => {
     const {dependencies} = readServerManifest()
 
     expect(dependencies["@daily/core"]).toBe("workspace:*")

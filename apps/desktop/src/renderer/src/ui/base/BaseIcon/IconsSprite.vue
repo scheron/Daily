@@ -1,8 +1,6 @@
 <script setup lang="ts">
 export type IconName =
   | "appearance"
-  | "trending-up"
-  | "trending-down"
   | "cog"
   | "logo"
   | "calendar"
@@ -17,31 +15,21 @@ export type IconName =
   | "pause"
   | "pencil"
   | "markdown"
-  | "background"
   | "check"
   | "check-check"
-  | "check-circle"
   | "brain"
   | "bot"
   | "git-pull-request"
   | "undo"
-  | "hand-raised"
   | "empty"
   | "sparkles"
   | "keyboard"
   | "fire"
-  | "star"
   | "info"
   | "today"
-  | "sidebar"
   | "layout-list"
-  | "layout-columns"
-  | "layout-rows"
-  | "folder"
-  | "folder-open"
   | "trash"
   | "archive"
-  | "history"
   | "tags"
   | "tags-off"
   | "monitor"
@@ -50,11 +38,9 @@ export type IconName =
   | "stopwatch"
   | "cloud"
   | "server"
-  | "cloud-alert"
   | "cloud-off"
   | "circle-pulse"
   | "filter"
-  | "filter-off"
   | "bold"
   | "italic"
   | "code"
@@ -62,7 +48,6 @@ export type IconName =
   | "checkbox"
   | "quote"
   | "search"
-  | "book-x"
   | "user"
   | "send"
   | "message"
@@ -87,7 +72,6 @@ export type IconName =
   | "spinner-arc"
   | "copy"
   | "copy-id"
-  | "layout"
   | "minimize"
   | "maximize"
   | "move"
@@ -136,22 +120,6 @@ export type IconName =
     </symbol>
     <symbol id="arrow-up-down" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
       <path stroke-linecap="round" stroke-linejoin="round" d="M3 7.5 7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 0L16.5 21m0 0L12 16.5m4.5 4.5V7.5" />
-    </symbol>
-    <symbol id="trending-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M3 17l6 -6l4 4l8 -8"></path>
-      <path d="M14 7l7 0l0 7"></path>
-    </symbol>
-    <symbol
-      id="trending-down"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="1.5"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-    >
-      <path d="M3 7l6 6l4 -4l8 8"></path>
-      <path d="M21 10l0 7l-7 0"></path>
     </symbol>
     <symbol id="logo" viewBox="0 0 300 300" fill="none">
       <path
@@ -222,11 +190,6 @@ export type IconName =
       </g>
     </symbol>
 
-    <symbol id="check-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-      <path d="M22 4 12 14.01 9 11.01" />
-    </symbol>
-
     <symbol id="brain" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
       <path
         d="M7 14C5.34315 14 4 15.3431 4 17C4 18.6569 5.34315 20 7 20C7.35064 20 7.68722 19.9398 8 19.8293M4.26392 15.6046C2.9243 14.9582 2.00004 13.587 2.00004 12C2.00004 10.7883 2.53877 9.70251 3.38978 8.96898M3.42053 8.8882C3.1549 8.49109 3 8.01363 3 7.5C3 6.11929 4.11929 5 5.5 5C6.06291 5 6.58237 5.18604 7.00024 5.5M7.23769 5.56533C7.08524 5.24215 7 4.88103 7 4.5C7 3.11929 8.11929 2 9.5 2C10.8807 2 12 3.11929 12 4.5V20M8 20C8 21.1046 8.89543 22 10 22C11.1046 22 12 21.1046 12 20M12 7C12 8.65685 13.3431 10 15 10M17 14C18.6569 14 20 15.3431 20 17C20 18.6569 18.6569 20 17 20C16.6494 20 16.3128 19.9398 16 19.8293M19.7361 15.6046C21.0757 14.9582 22 13.587 22 12C22 10.7883 21.4612 9.70251 20.6102 8.96898M20.5795 8.8882C20.8451 8.49109 21 8.01363 21 7.5C21 6.11929 19.8807 5 18.5 5C17.9371 5 17.4176 5.18604 16.9998 5.5M12 4.5C12 3.11929 13.1193 2 14.5 2C15.8807 2 17 3.11929 17 4.5C17 4.88103 16.9148 5.24215 16.7623 5.56533M16 20C16 21.1046 15.1046 22 14 22C12.8954 22 12 21.1046 12 20"
@@ -264,26 +227,6 @@ export type IconName =
       <path
         d="M20.721 84.1V43.9H32.42l11.697 14.78L55.81 43.9h11.696v40.2H55.81V61.044l-11.694 14.78l-11.698-14.78V84.1H20.722zm73.104 0L76.28 64.591h11.697V43.9h11.698v20.69h11.698zm0 0"
       />
-    </symbol>
-
-    <symbol id="background" viewBox="0 0 24 24">
-      <path
-        fill="none"
-        stroke="currentColor"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        stroke-width="2"
-        d="m4 8l4-4m6 0L4 14m0 6L20 4m0 6L10 20m10-4l-4 4"
-      />
-    </symbol>
-
-    <symbol id="hand-raised" viewBox="0 0 24 24" fill="none">
-      <g stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2"></path>
-        <path d="M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2"></path>
-        <path d="M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8"></path>
-        <path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"></path>
-      </g>
     </symbol>
 
     <symbol id="empty" viewBox="0 0 256 256">
@@ -329,14 +272,6 @@ export type IconName =
       />
     </symbol>
 
-    <symbol id="star" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-      <path
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        d="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.562.562 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.562.562 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5Z"
-      />
-    </symbol>
-
     <symbol id="info" viewBox="0 0 24 24">
       <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
         <circle cx="12" cy="12" r="10" />
@@ -351,18 +286,6 @@ export type IconName =
       />
     </symbol>
 
-    <symbol id="sidebar" viewBox="0 0 24 24">
-      <path
-        fill="none"
-        stroke="currentColor"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        stroke-width="1.5"
-        d="M2 12c0-3.69 0-5.534.814-6.841a4.8 4.8 0 0 1 1.105-1.243C5.08 3 6.72 3 10 3h4c3.28 0 4.919 0 6.081.916c.43.338.804.759 1.105 1.243C22 6.466 22 8.31 22 12s0 5.534-.814 6.841a4.8 4.8 0 0 1-1.105 1.243C18.92 21 17.28 21 14 21h-4c-3.28 0-4.919 0-6.081-.916a4.8 4.8 0 0 1-1.105-1.243C2 17.534 2 15.69 2 12m7.5-9v18M5 7h1m-1 3h1"
-        color="currentColor"
-      />
-    </symbol>
-
     <symbol id="layout-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
       <circle cx="4.5" cy="6.5" r="1" fill="currentColor" />
       <circle cx="4.5" cy="12" r="1" fill="currentColor" />
@@ -370,47 +293,6 @@ export type IconName =
       <path d="M8 6.5h12M8 12h12M8 17.5h12" />
     </symbol>
 
-    <symbol
-      id="layout-columns"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="1.5"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-    >
-      <rect x="3" y="4" width="5" height="16" rx="1.2" />
-      <rect x="9.5" y="4" width="5" height="16" rx="1.2" />
-      <rect x="16" y="4" width="5" height="16" rx="1.2" />
-    </symbol>
-
-    <symbol id="layout-rows" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-      <rect width="18" height="18" x="3" y="3" rx="2" />
-      <path d="M21 7.5H3" />
-      <path d="M21 12H3" />
-      <path d="M21 16.5H3" />
-    </symbol>
-
-    <symbol id="folder" viewBox="0 0 24 24">
-      <path
-        fill="none"
-        stroke-width="1.5"
-        stroke="currentColor"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z"
-      />
-    </symbol>
-    <symbol id="folder-open" viewBox="0 0 24 24">
-      <path
-        fill="none"
-        stroke-width="1.5"
-        stroke="currentColor"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        d="M3.75 9.776c0-.414.336-.75.75-.75h13.5c.414 0 .75.336.75.75v6.75a.75.75 0 0 1-.75.75H4.5a.75.75 0 0 1-.75-.75v-6.75Zm0 0V6a2.25 2.25 0 0 1 2.25-2.25h5.379a1.5 1.5 0 0 1 1.06.44l2.122 2.12a1.5 1.5 0 0 0 1.06.44H18A2.25 2.25 0 0 1 20.25 6v3.776"
-      />
-    </symbol>
     <symbol id="trash" viewBox="0 0 20 22" fill="none">
       <path
         d="M1 5H19M6 5V3C6 2 7 1 8 1H12C13 1 14 2 14 3V5M17 9V19C17 20 16 21 15 21H5C4 21 3 20 3 19V9"
@@ -431,13 +313,6 @@ export type IconName =
       />
     </symbol>
 
-    <symbol id="history" viewBox="0 0 24 24">
-      <g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
-        <path d="M3 3v5h5"></path>
-        <path d="M12 7v5l4 2"></path>
-      </g>
-    </symbol>
     <symbol id="tags" viewBox="0 0 24 24">
       <g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
         <path d="m15 5 6.3 6.3a2.4 2.4 0 0 1 0 3.4L17 19"></path>
@@ -525,11 +400,6 @@ export type IconName =
         d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75C20.25 16.153 16.556 18 12 18s-8.25-1.847-8.25-4.125v-3.75m16.5 0c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125"
       />
     </symbol>
-    <symbol id="cloud-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M12 12v4"></path>
-      <path d="M12 20h.01"></path>
-      <path d="M17 18h.5a1 1 0 0 0 0-9h-1.79A7 7 0 1 0 7 17.708"></path>
-    </symbol>
     <symbol id="cloud-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="m2 2 20 20"></path>
       <path d="M5.782 5.782A7 7 0 0 0 9 19h8.5a4.5 4.5 0 0 0 1.307-.193"></path>
@@ -540,14 +410,6 @@ export type IconName =
         d="M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z"
       ></path>
     </symbol>
-    <symbol id="filter-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path
-        d="M12.531 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14v6a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341l.427-.473"
-      ></path>
-      <path d="m16.5 3.5 5 5"></path>
-      <path d="m21.5 3.5-5 5"></path>
-    </symbol>
-
     <symbol id="bold" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path>
       <path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path>
@@ -665,12 +527,6 @@ export type IconName =
     <symbol id="search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
       <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
     </symbol>
-    <symbol id="book-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-      <path d="m14.5 7-5 5" />
-      <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20" />
-      <path d="m9.5 7 5 5" />
-    </symbol>
-
     <symbol id="user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
       <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
       <circle cx="12" cy="7" r="4" />
@@ -809,11 +665,6 @@ export type IconName =
     <symbol id="copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
       <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect>
       <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
-    </symbol>
-    <symbol id="layout" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-      <rect width="7" height="18" x="3" y="3" rx="1"></rect>
-      <rect width="7" height="7" x="14" y="3" rx="1"></rect>
-      <rect width="7" height="7" x="14" y="14" rx="1"></rect>
     </symbol>
     <symbol id="minimize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
       <path d="M12 22v-6"></path>

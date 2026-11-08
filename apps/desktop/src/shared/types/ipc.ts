@@ -8,7 +8,6 @@ import type {
   EnrollmentTicketView,
   EnrollmentWindowView,
   File,
-  ISODate,
   LocalModelId,
   MigrationDirection,
   MigrationPreview,
@@ -62,9 +61,6 @@ export type BridgeIPC = {
   send: (channel: string, ...args: any[]) => void
   on: (channel: string, callback: (...args: any[]) => void) => () => void
 
-  "window:minimize": () => void
-  "window:maximize": () => void
-  "window:close": () => void
   "window:is-visible": () => Promise<boolean>
   "window:on-visibility-changed": (callback: (visible: boolean) => void) => () => void
 
@@ -74,8 +70,6 @@ export type BridgeIPC = {
   "toast:on-show": (callback: (toast: ToastMessage) => void) => () => void
 
   "platform:is-mac": () => boolean
-  "platform:is-windows": () => boolean
-  "platform:is-linux": () => boolean
 
   "shell:open-external": (url: string) => Promise<boolean>
 
@@ -127,9 +121,7 @@ export type BridgeIPC = {
   "settings:on-changed": (callback: () => void) => void
 
   "updates:get-state": () => Promise<AppUpdateState>
-  "updates:check": () => Promise<AppUpdateState>
   "updates:download": (offer: AppUpdateOffer) => Promise<boolean>
-  "updates:install": () => Promise<boolean>
   "updates:on-state-changed": (callback: (state: AppUpdateState) => void) => () => void
   "whats-new:get-release": () => Promise<WhatsNewReleaseResult>
   "whats-new:mark-shown": (version: string) => Promise<boolean>
@@ -152,18 +144,14 @@ export type BridgeIPC = {
   "quick-task-menu:pick": (index: number) => void
 
   "tasks:get-all": () => Promise<Task[]>
-  "tasks:get-many": (params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: Branch["id"]}) => Promise<Task[]>
   "tasks:get-one": (id: Task["id"]) => Promise<Task | null>
   "tasks:update": (id: Task["id"], updates: PartialDeep<Task>) => Promise<Changeset>
-  "tasks:toggle-minimized": (id: Task["id"], minimized: boolean) => Promise<Changeset>
   "tasks:create": (
     task: Omit<Task, "id" | "createdAt" | "updatedAt" | "deletedAt" | "branchId"> & {branchId?: Task["branchId"]; id?: Task["id"]},
   ) => Promise<Changeset>
   "tasks:move-by-order": (params: MoveTaskByOrderParams) => Promise<Changeset>
   "tasks:move-to-branch": (taskId: Task["id"], branchId: Branch["id"]) => Promise<Changeset>
   "tasks:delete": (id: Task["id"]) => Promise<Changeset>
-  "tasks:add-tags": (taskId: Task["id"], tagIds: Tag["id"][]) => Promise<Changeset>
-  "tasks:remove-tags": (taskId: Task["id"], tagIds: Tag["id"][]) => Promise<Changeset>
   "tasks:get-deleted": (params?: {limit?: number; branchId?: Branch["id"]}) => Promise<Task[]>
   "tasks:restore": (id: Task["id"]) => Promise<Changeset>
   "tasks:delete-permanently": (id: Task["id"]) => Promise<boolean>
@@ -185,7 +173,6 @@ export type BridgeIPC = {
   "subtasks:make-task": (id: Subtask["id"]) => Promise<Task | null>
 
   "branches:get-many": () => Promise<Branch[]>
-  "branches:get-one": (id: Branch["id"]) => Promise<Branch | null>
   "branches:create": (branch: Omit<Branch, "id" | "createdAt" | "updatedAt" | "deletedAt">) => Promise<Branch | null>
   "branches:update": (id: Branch["id"], updates: Partial<Pick<Branch, "name" | "description" | "emoji">>) => Promise<Branch | null>
   "branches:delete": (id: Branch["id"]) => Promise<boolean>
@@ -194,13 +181,10 @@ export type BridgeIPC = {
   "search:query": (query: string) => Promise<TaskSearchResult[]>
 
   "tags:get-many": () => Promise<Tag[]>
-  "tags:get-one": (id: Tag["id"]) => Promise<Tag | null>
-  "tags:update": (id: Tag["id"], updates: Partial<Tag>) => Promise<Tag | null>
   "tags:create": (tag: Omit<Tag, "id" | "createdAt" | "updatedAt" | "deletedAt">) => Promise<Tag | null>
   "tags:delete": (id: Tag["id"]) => Promise<boolean>
 
   "milestones:get-many": (branchId?: Branch["id"]) => Promise<Milestone[]>
-  "milestones:get-one": (id: Milestone["id"]) => Promise<Milestone | null>
   "milestones:create": (milestone: Omit<Milestone, "id" | "createdAt" | "updatedAt" | "orderIndex">) => Promise<Changeset>
   "milestones:update": (
     id: Milestone["id"],
@@ -209,7 +193,6 @@ export type BridgeIPC = {
   "milestones:delete": (id: Milestone["id"]) => Promise<Changeset>
 
   "files:save": (filename: string, data: Buffer) => Promise<File["id"]>
-  "files:delete": (filename: string) => Promise<boolean>
   "files:get-path": (id: File["id"]) => Promise<string>
 
   "ai:check-connection": () => Promise<boolean>
@@ -240,7 +223,5 @@ export type BridgeIPC = {
 
   "shortcut:tasks:create": (callback: () => void) => void
   "shortcut:ui:open-search-panel": (callback: () => void) => void
-  "shortcut:ui:open-assistant-panel": (callback: () => void) => void
-  "shortcut:ui:open-settings-panel": (callback: () => void) => void
   "shortcut:ui:calendar-dock:toggle": (callback: () => void) => void
 }

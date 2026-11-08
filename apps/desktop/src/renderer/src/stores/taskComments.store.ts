@@ -166,7 +166,6 @@ export const useTaskCommentsStore = defineStore("taskComments", () => {
   return {
     comments,
     commentCounts,
-    commentsByTaskId,
     commentsOf,
     commentCountOf,
     loadCommentCounts,

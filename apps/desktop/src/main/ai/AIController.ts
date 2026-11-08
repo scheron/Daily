@@ -162,10 +162,6 @@ export class AIController {
     return ok
   }
 
-  getToolExecutor(): ToolExecutor {
-    return this.executor
-  }
-
   getHooks(): HookChain {
     return this.hooks
   }

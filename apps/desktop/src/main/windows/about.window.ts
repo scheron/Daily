@@ -1,12 +1,9 @@
-import {join} from "node:path"
-import {pathToFileURL} from "node:url"
-import {app, BrowserWindow} from "electron"
+import {app, BrowserWindow, nativeImage} from "electron"
 
 import {APP_CONFIG} from "@daily/protocol"
 
 import {electronPaths} from "@main/config/electronPaths"
 import {focusWindow} from "@main/utils/windows/focusWindow"
-import {resolveAboutLogoURL} from "@main/utils/windows/resolveAboutLogoDataURL"
 
 export function createAboutWindow(): BrowserWindow {
   const aboutWindow = new BrowserWindow({
@@ -35,9 +32,7 @@ export function createAboutWindow(): BrowserWindow {
   const appVersion = app.getVersion()
   const appYear = new Date().getFullYear()
   const appAuthor = APP_CONFIG.author
-  const iconDataURL = resolveAboutLogoURL()
-  const fallbackIconURL = pathToFileURL(join(process.cwd(), "..", "..", "public", "icon.png")).toString()
-  const iconURL = iconDataURL ?? fallbackIconURL
+  const icon = nativeImage.createFromPath(electronPaths.icon())
 
   const aboutHTML = `
 <!doctype html>
@@ -145,7 +140,7 @@ export function createAboutWindow(): BrowserWindow {
     <div class="window">
       <main class="content">
         <div class="logo-frame">
-          <img class="logo" src="${iconURL}" alt="${appName} logo" draggable="false" />
+          ${icon.isEmpty() ? "" : `<img class="logo" src="${icon.toDataURL()}" alt="${appName} logo" draggable="false" />`}
         </div>
         <h1 class="title">${appName}</h1>
         <p class="meta">Version ${appVersion}</p>

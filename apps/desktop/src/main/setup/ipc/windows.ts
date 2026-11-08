@@ -7,13 +7,6 @@ export function setupMainWindowIPC(getMainWindow: () => BrowserWindow | null) {
     const window = getMainWindow()
     return Boolean(window && isMainWindowVisible(window) && window.webContents === event.sender)
   })
-  ipcMain.on("window:minimize", () => getMainWindow()?.minimize())
-  ipcMain.on("window:maximize", () => {
-    const mainWindow = getMainWindow()
-    if (mainWindow?.isMaximized()) mainWindow.unmaximize()
-    else mainWindow?.maximize()
-  })
-  ipcMain.on("window:close", () => getMainWindow()?.close())
 }
 
 export function trackMainWindowVisibility(window: BrowserWindow) {

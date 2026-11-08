@@ -3,7 +3,7 @@ import {ipcMain} from "electron"
 import {createSharedStorageHandlers} from "@main/utils/storage/createSharedStorageHandlers"
 
 import type {IStorageController} from "@daily/core"
-import type {Branch, ISODate, Milestone, MoveTaskByOrderParams, Subtask, Tag, Task, TaskComment, TaskRelationSets} from "@daily/protocol"
+import type {Branch, Milestone, MoveTaskByOrderParams, Subtask, Tag, Task, TaskComment, TaskRelationSets} from "@daily/protocol"
 import type {PartialDeep} from "type-fest"
 
 // prettier-ignore
@@ -15,10 +15,8 @@ export function setupStorageIPC(getStorage: () => IStorageController | null) {
 
   ipcMain.handle("activity:get-by-task", (_e, taskId: Task["id"]) => getStorage()?.getTaskHistory(taskId))
 
-  ipcMain.handle("tasks:get-many", (_e, params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: Branch["id"]}) => getStorage()?.getTaskList(params))
   ipcMain.handle("tasks:get-one", (_e, id: Task["id"]) => getStorage()?.getTask(id))
   ipcMain.handle("tasks:update", (_e, id: Task["id"], updates: PartialDeep<Task>) => getStorage()?.updateTask(id, updates))
-  ipcMain.handle("tasks:toggle-minimized", (_e, id: Task["id"], minimized: boolean) => getStorage()?.toggleTaskMinimized(id, minimized))
   ipcMain.handle("tasks:move-by-order", (_e, params: MoveTaskByOrderParams) => getStorage()?.moveTaskByOrder(params))
   ipcMain.handle("tasks:move-to-branch", (_e, taskId: Task["id"], branchId: Branch["id"]) => getStorage()?.moveTaskToBranch(taskId, branchId))
   ipcMain.handle("tasks:delete", (_e, id: Task["id"]) => getStorage()?.deleteTask(id))
@@ -43,7 +41,6 @@ export function setupStorageIPC(getStorage: () => IStorageController | null) {
   ipcMain.handle("subtasks:delete", (_e, id: Subtask["id"]) => getStorage()?.deleteSubtask(id))
   ipcMain.handle("subtasks:make-task", (_e, id: Subtask["id"]) => getStorage()?.makeTaskFromSubtask(id))
 
-  ipcMain.handle("branches:get-one", (_e, id: Branch["id"]) => getStorage()?.getBranch(id))
   ipcMain.handle("branches:create", (_e, branch: Omit<Branch, "id" | "createdAt" | "updatedAt" | "deletedAt">) => getStorage()?.createBranch(branch))
   ipcMain.handle("branches:update", (_e, id: Branch["id"], updates: Partial<Pick<Branch, "name" | "description" | "emoji">>) => getStorage()?.updateBranch(id, updates))
   ipcMain.handle("branches:delete", (_e, id: Branch["id"]) => getStorage()?.deleteBranch(id))
@@ -51,12 +48,9 @@ export function setupStorageIPC(getStorage: () => IStorageController | null) {
 
   ipcMain.handle("search:query", (_e, query: string) => getStorage()?.searchTasks(query))
 
-  ipcMain.handle("tags:get-one", (_e, id: Tag["id"]) => getStorage()?.getTag(id))
-  ipcMain.handle("tags:update", (_e, id: Tag["id"], updates: Partial<Tag>) => getStorage()?.updateTag(id, updates))
   ipcMain.handle("tags:create", (_e, tag: Omit<Tag, "id" | "createdAt" | "updatedAt">) => getStorage()?.createTag(tag))
   ipcMain.handle("tags:delete", (_e, id: Tag["id"]) => getStorage()?.deleteTag(id))
 
-  ipcMain.handle("milestones:get-one", (_e, id: Milestone["id"]) => getStorage()?.getMilestone(id))
   ipcMain.handle("milestones:create", (_e, milestone: Omit<Milestone, "id" | "createdAt" | "updatedAt" | "orderIndex">) => getStorage()?.createMilestone(milestone))
   ipcMain.handle(
     "milestones:update",
@@ -65,11 +59,7 @@ export function setupStorageIPC(getStorage: () => IStorageController | null) {
   )
   ipcMain.handle("milestones:delete", (_e, id: Milestone["id"]) => getStorage()?.deleteMilestone(id))
 
-  ipcMain.handle("tasks:add-tags", (_e, taskId: Task["id"], tags: Tag["id"][]) => getStorage()?.addTaskTags(taskId, tags))
-  ipcMain.handle("tasks:remove-tags", (_e, taskId: Task["id"], tags: Tag["id"][]) => getStorage()?.removeTaskTags(taskId, tags))
-
   ipcMain.handle("files:save", (_e, filename: string, data: any) => getStorage()?.saveFile(filename, Buffer.isBuffer(data) ? data : Buffer.from(data)))
-  ipcMain.handle("files:delete", (_e, filename: string) => getStorage()?.deleteFile(filename))
   ipcMain.handle("files:get-path", (_e, id: string) => getStorage()?.getFilePath(id))
 
   ipcMain.handle("storage-sync:sync", (_e) => getStorage()?.forceSync())

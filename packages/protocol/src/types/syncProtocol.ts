@@ -1,5 +1,3 @@
-import type {ProtocolErrorCode} from "../errors/protocol/ProtocolErrorCode"
-
 export const SYNC_PROTOCOL_VERSION = 4
 
 /**
@@ -35,10 +33,6 @@ export const SYNC_PROTOCOL_PATHS = {
   agentApprove: "/v1/agents/approve",
   agentDeny: "/v1/agents/deny",
 } as const
-
-export type ProtocolOk<T> = {ok: true; data: T}
-export type ProtocolFail = {ok: false; error: {code: ProtocolErrorCode; message: string}}
-export type ProtocolResponse<T> = ProtocolOk<T> | ProtocolFail
 
 export type ServerInfo = {protocol: number; serverId: string; name: string; claimed: boolean}
 

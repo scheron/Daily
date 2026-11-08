@@ -83,16 +83,7 @@ export class UpdaterController {
       return false
     }
 
-    return this.applyUpdate(true)
-  }
-
-  async installDownloadedUpdate(): Promise<boolean> {
-    if (this.isUpdaterSupported() && !this.checkInFlight && !this.isApplyingUpdate && this.updateState.status !== "installing") {
-      await this.restoreConfirmedRelease()
-      if (!this.confirmedRelease && (await this.readLegacyCache())) await this.checkForUpdate()
-    }
-
-    return this.applyUpdate(false)
+    return this.applyUpdate()
   }
 
   initialize(): Promise<void> {
@@ -244,7 +235,7 @@ export class UpdaterController {
     this.timer.unref()
   }
 
-  private async applyUpdate(allowDownload: boolean): Promise<boolean> {
+  private async applyUpdate(): Promise<boolean> {
     if (!this.isUpdaterSupported()) {
       this.setUpdateState({status: "unavailable", reason: UPDATES_UNAVAILABLE_REASON})
       return false
@@ -264,11 +255,6 @@ export class UpdaterController {
     try {
       const cachedRelease = await this.getCachedRelease(release)
       if (cachedRelease) return await this.startInstall(release, cachedRelease)
-      if (!allowDownload) {
-        this.setUpdateState({status: "error", reason: "Download the update first.", downloadedAt: null})
-        return false
-      }
-
       this.setUpdateState({status: "downloading", downloadProgress: 0, downloadedAt: null, reason: null, installFailure: null})
       const downloaded = await downloadRelease(release, (progress) => {
         this.setUpdateState({downloadProgress: progress})

@@ -102,11 +102,7 @@ onBeforeUnmount(() => {
   cancelHide()
 })
 
-defineExpose({
-  show,
-  hide,
-  toggle,
-})
+defineExpose({hide})
 </script>
 
 <template>

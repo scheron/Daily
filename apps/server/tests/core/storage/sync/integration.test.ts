@@ -555,6 +555,8 @@ function createServerBoundDevice(binding) {
   db.pragma("journal_mode = WAL")
   db.pragma("foreign_keys = ON")
   runMigrations(db)
+  const sharedProjectTimestamp = "2026-03-25 12:00:00"
+  db.prepare("UPDATE branches SET created_at = ?, updated_at = ? WHERE id = 'main'").run(sharedProjectTimestamp, sharedProjectTimestamp)
 
   const local = new LocalStorageAdapter(db, new FileModel(db, "/tmp/assets"))
   const remote = new DailyServerRemoteAdapter(binding)
@@ -610,12 +612,11 @@ describe("Snapshot sync through a real Daily Sync Server", () => {
 
     await syncDevice(deviceB)
     expect(getTasks(deviceB.db).some((t) => t.id === "t-a")).toBe(true)
+    expect(await readServerRevision(server, bindingA.token)).toBe("1")
 
-    // Device A has nothing new to push: the revision must not move on a no-op sync.
     await syncDevice(deviceA)
     expect(await readServerRevision(server, bindingA.token)).toBe("1")
 
-    // Concurrent creation on both sides, through the engine's existing retry loop.
     insertTask(deviceA.db, "t-concurrent-a", "Concurrent from A")
     insertTask(deviceB.db, "t-concurrent-b", "Concurrent from B")
 

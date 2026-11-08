@@ -29,16 +29,6 @@ describe("release-server.yml", () => {
 })
 
 describe("deploy/install.sh", () => {
-  /**
-   * [CORRECTED, per the plan's "Test cases" and "Corrections during execution"] This case was
-   * titled "everywhere the rolling tag appears" while its assertion read one file. Widened here,
-   * before phase 1, to scan every `ghcr.io/scheron/daily-server:p<N>` occurrence `git grep` finds
-   * in the tracked tree (excluding this file's own source, which mentions the pattern only in a
-   * literal `p<N>` string that the digit-requiring regex below does not match). It stays one
-   * test — no second assertion added beside it. Green at baseline: both known pins
-   * (`deploy/install.sh` and `apps/server/tests/stand/proxy/proxy.compose.yaml`) read `p2`, and
-   * `SYNC_PROTOCOL_VERSION` is `2`.
-   */
   it("TC-3: pins the image to the current SYNC_PROTOCOL_VERSION everywhere the rolling tag appears", () => {
     const protocolPath = join(rootDir, "packages/protocol/src/types/syncProtocol.ts")
     expect(existsSync(protocolPath)).toBe(true)

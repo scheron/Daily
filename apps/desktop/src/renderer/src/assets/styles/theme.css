@@ -1,10 +1,3 @@
-@theme {
-  --default-font-family: "DM Sans", system-ui, sans-serif;
-  --font-sans: "DM Sans", system-ui, sans-serif;
-  --font-serif: "DM Sans", system-ui, sans-serif;
-  --font-mono: "DMMono-Regular", system-ui, sans-serif;
-}
-
 :root {
   color-scheme: light;
 

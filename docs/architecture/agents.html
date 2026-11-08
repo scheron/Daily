@@ -534,7 +534,7 @@ a { color: var(--mac); }
 
   <div class="card">
     <h3>Not to be confused with</h3>
-    <p style="margin:0 0 10px">The in-app <b>Assistant</b> takes another path: its agent loop runs in the main process (<code>apps/desktop/src/main/ai/</code>), and its tools call the local <code>StorageController</code> directly, with no server and no OAuth.</p>
+    <p style="margin:0 0 10px">The in-app <b>Assistant</b> runs its agent loop in the main process (<code>apps/desktop/src/main/ai/</code>) and uses the app's local <code>WorkStorage</code>. Its tools need neither the sync server nor OAuth.</p>
     <p style="margin:0;color:var(--muted);font-size:13px">An agent sees the work only through the server, so it works while every Mac sleeps (ADR 0004). See <a href="assistant.html">the Assistant's diagram</a>.</p>
   </div>
 </div>

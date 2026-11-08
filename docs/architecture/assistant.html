@@ -182,7 +182,7 @@ a { color: var(--mac); }
 <main>
 
 <h1>The Daily Assistant</h1>
-<p class="lead">The Assistant lives inside the app: its agent loop runs in Electron's main process, and its model is a remote OpenAI-compatible API or a local llama-server. Its tools call <code>StorageController</code> directly, with no server and no OAuth; from there a change spreads exactly like a manual edit. For agents, see <a href="agents.html">the other diagram</a>.</p>
+<p class="lead">The Assistant lives inside the app: its agent loop runs in Electron's main process, and its model is a remote OpenAI-compatible API or a local llama-server. Its tools use the app's local <code>WorkStorage</code>, so changes follow the same path as manual edits. For agents, see <a href="agents.html">the other diagram</a>.</p>
 
 <div class="callout">The key idea: <b>the model only proposes calls, and <code>AIController</code> runs them</b>. Every call goes through a schema check and <code>policyHook</code>; a destructive one waits for Confirm in the window. The person sees only what the model hands to the <code>respond</code> tool, which ends the turn. Writes land in the local SQLite, and sync and the other windows hear about them from the same <code>notifyLocalChange</code> a manual edit fires.</div>
 
@@ -290,7 +290,7 @@ a { color: var(--mac); }
   <text x="798" y="560">text marked untrusted</text>
 
   <rect class="box mac" x="464" y="598" width="300" height="170" rx="12"/>
-  <text class="t" x="478" y="618">StorageController → services</text>
+  <text class="t" x="478" y="618">WorkStorage → services</text>
   <text x="478" y="638">notifyLocalChange(changeset):</text>
   <text x="478" y="654">→ storage:changed · → requestPush()</text>
   <rect class="box snap" x="478" y="668" width="272" height="88" rx="10"/>
@@ -493,7 +493,7 @@ a { color: var(--mac); }
     <div class="chips">
       <span class="chip">get_attachment</span><span class="chip">save_attachment</span><span class="chip x">delete_attachment</span><span class="chip e">read_url</span><span class="chip m">respond</span>
     </div>
-    <p style="margin:10px 0 0;color:var(--muted);font-size:13px">The 18 above (tasks through attachments) are <code>@daily/tools</code>' shared set — the same one an MCP agent runs; <code>read_url</code> and <code>respond</code> are the Assistant's own.</p>
+    <p style="margin:10px 0 0;color:var(--muted);font-size:13px">The 20 tools above (tasks through attachments) are shared with MCP through <code>@daily/tools</code>. <code>read_url</code> and <code>respond</code> belong to the Assistant.</p>
   </div>
 
   <div class="card">
@@ -518,10 +518,10 @@ a { color: var(--mac); }
   <table class="cmp">
     <tr><th></th><th>Assistant (this diagram)</th><th>Agent over MCP</th></tr>
     <tr><td>runs in</td><td>Daily's main process on a Mac</td><td>the Daily Sync Server</td></tr>
-    <tr><td>reaches the work</td><td>the local <code>StorageController</code>, directly</td><td>snapshot → in-memory core → conditional write</td></tr>
+    <tr><td>reaches the work</td><td>local <code>WorkStorage</code> → SQLite</td><td>snapshot → in-memory core → conditional write</td></tr>
     <tr><td>whose model</td><td>the one set in Daily: a remote API or llama-server</td><td>the agent's own (Claude, Codex)</td></tr>
     <tr><td>confirmation</td><td>every destructive call, 30 s</td><td>once, when it connects, with a code on a Mac</td></tr>
-    <tr><td>tools</td><td>20: the shared 18 plus <code>read_url</code> and <code>respond</code></td><td>the same shared 18: 6 reads, 6 writes, 6 deletes</td></tr>
+    <tr><td>tools</td><td>22: the shared 20 plus <code>read_url</code> and <code>respond</code></td><td>20 shared tools: 6 reads, 7 writes, 7 deletes</td></tr>
     <tr><td>history</td><td><code>ai_sessions</code> in local SQLite, not synced</td><td>kept by the agent</td></tr>
     <tr><td>available</td><td>while the Mac is on and Daily is open</td><td>whenever the server is up</td></tr>
   </table>

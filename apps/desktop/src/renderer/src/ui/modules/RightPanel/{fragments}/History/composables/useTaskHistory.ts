@@ -19,7 +19,6 @@ export function useTaskHistory() {
   const updatedAt = computed(() => task.value?.updatedAt ?? null)
   const signature = computed(() => (task.value ? `${task.value.id}:${updatedAt.value}` : null))
 
-  const lastEvent = computed<TaskEvent | null>(() => events.value[0] ?? null)
   const isEmpty = computed(() => events.value.length === 0)
 
   async function revalidate(): Promise<void> {
@@ -35,5 +34,5 @@ export function useTaskHistory() {
   const {off} = storageChangesStore.onStorageDataChanged(revalidate)
   onScopeDispose(off)
 
-  return {task, events, lastEvent, isEmpty}
+  return {task, events, isEmpty}
 }

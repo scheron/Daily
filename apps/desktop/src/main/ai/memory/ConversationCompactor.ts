@@ -29,10 +29,6 @@ export class ConversationCompactor {
     this.summary = summarizeTurns(turns)
   }
 
-  getSummary(): string {
-    return this.summary
-  }
-
   makeHook(opts: CompactorOptions): TransformContextHook {
     return (messages) => {
       if (!this.summary) return messages

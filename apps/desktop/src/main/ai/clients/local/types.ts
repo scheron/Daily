@@ -1,11 +1,11 @@
 import type {LocalModelId, LocalRuntimeParams} from "@daily/protocol"
-import type {CatalogRefreshResult, LocalModelDownloadProgress, LocalModelInfo, LocalToolingMode} from "@shared/types/ai"
+import type {CatalogRefreshResult, LocalModelDownloadProgress, LocalModelInfo} from "@shared/types/ai"
 
 export type ModelTier = "fast" | "balanced" | "quality"
 
 export type ModelCapabilities = {
   /** Whether this model handles tool calling via OpenAI-style API ("native") or via in-prompt descriptions ("compat"). */
-  tools: LocalToolingMode
+  tools: "compat" | "native"
 }
 
 export type ModelManifestEntry = {

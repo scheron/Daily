@@ -12,9 +12,7 @@ import type {BrowserWindow, IpcMainInvokeEvent} from "electron"
 export function setupUpdatesIPC(getMainWindow: () => BrowserWindow | null) {
   const whatsNew = IS_DEMO ? null : new WhatsNewController(app.getVersion(), join(app.getPath("userData"), "whats-new.json"))
   ipcMain.handle("updates:get-state", () => updaterController.getState())
-  ipcMain.handle("updates:check", () => updaterController.checkForUpdate({manual: true}))
   ipcMain.handle("updates:download", (_event, offer: AppUpdateOffer) => updaterController.downloadUpdate(offer))
-  ipcMain.handle("updates:install", () => updaterController.installDownloadedUpdate())
 
   ipcMain.handle("whats-new:get-release", (event) => (mainWindowFrom(event) ? (whatsNew?.getRelease() ?? null) : null))
   ipcMain.handle("whats-new:mark-shown", (event, version: string) => {

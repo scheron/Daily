@@ -59,13 +59,6 @@ export class SearchService {
   }
 
   /**
-   * Add a task to the search index
-   */
-  async addTaskToIndex(task: Task): Promise<void> {
-    this.searchIndex.addTask(task)
-  }
-
-  /**
    * Update a task in the search index
    */
   async updateTaskInIndex(task: Task): Promise<void> {
@@ -84,14 +77,6 @@ export class SearchService {
    */
   getIndexSize(): number {
     return this.searchIndex.getSize()
-  }
-
-  /**
-   * Rebuild the entire search index
-   * Useful for recovering from index corruption or major data changes
-   */
-  async rebuildIndex(): Promise<void> {
-    await this.initializeIndex()
   }
 
   /**

@@ -1,4 +1,3 @@
-import {join} from "node:path"
 import {app} from "electron"
 
 import {logger, setFileCoordinatorBinaryPath, StorageController} from "@daily/core"
@@ -36,7 +35,6 @@ import {setupAboutIPC} from "./setup/ipc/about"
 import {setupAiIPC} from "./setup/ipc/ai"
 import {setupAssistantIPC} from "./setup/ipc/assistant"
 import {setupFocusIPC} from "./setup/ipc/focus"
-import {setupMenuIPC} from "./setup/ipc/menu"
 import {setupQuickTaskIPC} from "./setup/ipc/quickTask"
 import {setupSettingsIPC} from "./setup/ipc/settings"
 import {setupShellIPC} from "./setup/ipc/shell"
@@ -103,9 +101,7 @@ if (process.argv.includes(QUICK_TASK_PROCESS_FLAG)) {
 }
 
 function bootDaily() {
-  setFileCoordinatorBinaryPath(
-    app.isPackaged ? join(process.resourcesPath, "file-coordinator") : join(process.cwd(), "..", "..", "resources", "file-coordinator"),
-  )
+  setFileCoordinatorBinaryPath(electronPaths.fileCoordinatorPath())
 
   setupPrivilegedSchemes()
   setupAppBoot()
@@ -189,7 +185,6 @@ async function startDaily() {
 
   setupShellIPC()
   setupMainWindowIPC(() => windows.main)
-  setupMenuIPC(() => windows.main)
   setupUpdatesIPC(() => windows.main)
   toastRouter.registerIPC()
 

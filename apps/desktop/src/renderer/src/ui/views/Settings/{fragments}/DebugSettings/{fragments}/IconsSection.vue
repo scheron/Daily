@@ -16,12 +16,8 @@ onBeforeMount(() => {
 <template>
   <div class="overflow-y-auto">
     <div class="grid grid-cols-3 gap-3">
-      <div
-        v-for="icon in icons"
-        :key="icon"
-        class="hover:bg-base-200 group flex cursor-pointer flex-col items-center justify-center rounded-md p-2 transition-colors"
-      >
-        <BaseIcon :name="icon" class="text-accent group-hover:text-accent-focus size-5 transition-colors" />
+      <div v-for="icon in icons" :key="icon" class="hover:bg-base-200 flex flex-col items-center justify-center rounded-md p-2 transition-colors">
+        <BaseIcon :name="icon" class="text-accent size-5" />
         <span class="mt-2 text-center text-xs">{{ icon }}</span>
       </div>
     </div>

@@ -18,24 +18,10 @@ export class SearchEngine {
     this.isInitialized = true
   }
 
-  /**
-   * Update the index with a modified task
-   */
+  /** Updates or inserts a task once the index has been built. */
   updateTask(task: SearchTask) {
     if (!this.isInitialized) return
     this.removeTask(task.id)
-    this.addTask(task)
-  }
-
-  /**
-   * Add a new task to the index
-   */
-  addTask(task: SearchTask) {
-    if (!this.isInitialized) {
-      this.buildIndex([task])
-      return
-    }
-
     this.collection.push(task)
   }
 
@@ -122,6 +108,10 @@ export class SearchEngine {
     return sortedResults.slice(0, limit)
   }
 
+  getIndexSize(): number {
+    return this.collection.length
+  }
+
   private findExactIndices(content: string, query: string): [number, number][] {
     if (!query.length) return []
 
@@ -165,14 +155,5 @@ export class SearchEngine {
     }
 
     return bestMatch
-  }
-
-  clear() {
-    this.isInitialized = false
-    this.collection = []
-  }
-
-  getIndexSize(): number {
-    return this.collection.length
   }
 }

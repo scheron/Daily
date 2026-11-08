@@ -31,8 +31,6 @@ const {size: rightWidth, setSize: setRightWidth} = usePanelSize()
 
 window.BridgeIPC["shortcut:tasks:create"](() => onCreateTask())
 window.BridgeIPC["shortcut:ui:open-search-panel"](() => searchModal.toggle())
-window.BridgeIPC["shortcut:ui:open-assistant-panel"](() => window.BridgeIPC.send("assistant:open"))
-window.BridgeIPC["shortcut:ui:open-settings-panel"](() => window.BridgeIPC.send("settings:open"))
 window.BridgeIPC["shortcut:ui:calendar-dock:toggle"](() => uiStore.toggleCalendarDock())
 
 async function onCreateTask() {

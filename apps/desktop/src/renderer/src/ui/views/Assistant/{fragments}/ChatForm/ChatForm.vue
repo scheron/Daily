@@ -77,7 +77,7 @@ function getRemoteGroupLabelClasses(hasLocalModels: boolean) {
             </BaseButton>
           </template>
 
-          <template #default="{hide}">
+          <template #default>
             <div class="flex flex-col gap-1">
               <template v-if="localModels.length > 0">
                 <span class="text-base-content/50 px-2 pt-1 text-[10px] font-semibold uppercase">Local</span>

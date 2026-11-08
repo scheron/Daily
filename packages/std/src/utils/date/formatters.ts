@@ -20,15 +20,6 @@ export function toDateLabel(date: string, options: {short?: boolean; month?: boo
 }
 
 /**
- * Formats a date to a day
- * @param date - The date to format
- * @returns The formatted date
- * @example toDay("2021-01-01") // 1
- */
-export function toDay(date: string) {
-  return DateTime.fromISO(date).day
-}
-/**
  * Formats a date to a day label
  * @param date - The date to format
  * @param options - The options to format the date
@@ -41,53 +32,6 @@ export function toDayLabel(date: string, options: {short?: boolean} = {}) {
     month: options?.short ? undefined : "long",
     day: options?.short ? undefined : "numeric",
   })
-}
-
-/**
- * Formats a date to a month and year
- * @param date - The date to format
- * @returns The formatted date
- * @example toMonthYear("2021-01-01") // "January 2021"
- */
-export function toMonthYear(date: string) {
-  return DateTime.fromISO(date).toLocaleString({
-    month: "long",
-    year: "numeric",
-  })
-}
-
-/**
- * Formats a date to a full month name.
- * @example toMonth("2021-01-01") // "January"
- */
-export function toMonth(date: string) {
-  return DateTime.fromISO(date).toLocaleString({month: "long"})
-}
-
-/**
- * Formats a date to a locale date
- * @param date - The date to format
- * @param locale - The locale to format the date
- * @returns The formatted date
- * @example toLocaleDate("2021-01-01") // "1/1/2021"
- */
-export function toLocaleDate(date: Date, locale: string = "en-US") {
-  return DateTime.fromJSDate(date).toLocaleString(DateTime.DATE_SHORT, {locale})
-}
-
-/**
- * Formats a date range to a locale date range
- * @param range - The date range to format
- * @param locale - The locale to format the date
- * @returns The formatted date range
- * @example toLocaleDateRange([new Date("2021-01-01"), new Date("2021-01-02")]) // "1/1/2021 — 1/2/2021"
- */
-export function toLocaleDateRange(range: [Date, Date | null], locale: string = "en-US") {
-  if (!range || !range[0]) return ""
-  const start = toLocaleDate(range[0], locale)
-  if (!range[1]) return start
-  const end = toLocaleDate(range[1], locale)
-  return `${start} — ${end}`
 }
 
 /**
@@ -161,16 +105,6 @@ export function toTs(value?: string): number {
   if (!value) return 0
   const ts = Date.parse(value)
   return Number.isFinite(ts) ? ts : 0
-}
-
-/**
- * Converts a timestamp to an ISO date time
- * @param value - The value to convert to an ISO date time
- * @returns The ISO date time
- * @example toISODateTime(1609459200000) // "2021-01-01T00:00:00.000Z"
- */
-export function toISODateTime(value: number): string {
-  return new Date(value).toISOString()
 }
 
 /**

@@ -30,7 +30,6 @@ describe("demo updater isolation", () => {
     await controller.initialize()
     expect(await controller.checkForUpdate({manual: true})).toMatchObject({status: "unavailable", reason: "Updates are disabled in Daily Demo."})
     expect(await controller.downloadUpdate({version: "1.1.0", hash: "f".repeat(64)})).toBe(false)
-    expect(await controller.installDownloadedUpdate()).toBe(false)
     expect(resolveLatestRelease).not.toHaveBeenCalled()
     expect(downloadRelease).not.toHaveBeenCalled()
     expect(applyPendingInstallResult).not.toHaveBeenCalled()

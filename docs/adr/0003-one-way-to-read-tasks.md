@@ -31,10 +31,9 @@ computed from memory will eventually disagree, and they will disagree silently.
 
 ## Consequences
 
-`tasks:get-many` keeps its `{from, to, limit, branchId}` parameters and the renderer never passes
-them. This looks like dead configuration and is not: the AI agent runs in the main process, calls
-`StorageController` directly, and wants slices — it should not pull the whole table to answer a
-question about one day. A capability is not removed because one of its consumers stopped using it.
+The renderer loads tasks through `tasks:get-all`. Filtered reads belong to `WorkStorage`, which
+the Assistant and MCP tools call to answer questions about a day or project without loading the
+entire table.
 
 The splash screen becomes a real readiness gate rather than a timer, because there is now a moment
 that is genuinely "loaded", and the window has no reason to appear before it.

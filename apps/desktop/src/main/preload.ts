@@ -12,7 +12,6 @@ import type {
   EnrollmentPollView,
   EnrollmentTicketView,
   EnrollmentWindowView,
-  ISODate,
   LocalModelId,
   MigrationDirection,
   MigrationPreview,
@@ -68,9 +67,6 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
     return () => ipcRenderer.removeListener(channel, subscription)
   },
 
-  "window:minimize": () => ipcRenderer.send("window:minimize"),
-  "window:maximize": () => ipcRenderer.send("window:maximize"),
-  "window:close": () => ipcRenderer.send("window:close"),
   "window:is-visible": () => ipcRenderer.invoke("window:is-visible") as Promise<boolean>,
   "window:on-visibility-changed": (callback: (visible: boolean) => void) => {
     const subscription = (_event: unknown, visible: boolean) => callback(visible)
@@ -89,8 +85,6 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   },
 
   "platform:is-mac": () => process.platform === "darwin",
-  "platform:is-windows": () => process.platform === "win32",
-  "platform:is-linux": () => process.platform === "linux",
 
   "shell:open-external": (url: string) => ipcRenderer.invoke("shell:open-external", url) as Promise<boolean>,
 
@@ -142,9 +136,7 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "settings:on-changed": (callback: () => void) => ipcRenderer.on("settings:changed", () => callback()),
 
   "updates:get-state": () => ipcRenderer.invoke("updates:get-state") as Promise<AppUpdateState>,
-  "updates:check": () => ipcRenderer.invoke("updates:check") as Promise<AppUpdateState>,
   "updates:download": (offer: AppUpdateOffer) => ipcRenderer.invoke("updates:download", offer) as Promise<boolean>,
-  "updates:install": () => ipcRenderer.invoke("updates:install") as Promise<boolean>,
   "updates:on-state-changed": (callback: (state: AppUpdateState) => void) => {
     const subscription = (_event: unknown, state: AppUpdateState) => callback(state)
     ipcRenderer.on("updates:state-changed", subscription)
@@ -185,18 +177,14 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "quick-task-menu:pick": (index: number) => ipcRenderer.send("quick-task-menu:pick", index),
 
   "tasks:get-all": () => ipcRenderer.invoke("tasks:get-all") as Promise<Task[]>,
-  "tasks:get-many": (params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: Branch["id"]}) => ipcRenderer.invoke("tasks:get-many", params) as Promise<Task[]>,
   "tasks:get-one": (id: Task["id"]) => ipcRenderer.invoke("tasks:get-one", id) as Promise<Task | null>,
   "tasks:update": (id: Task["id"], updates: PartialDeep<Task>) => ipcRenderer.invoke("tasks:update", id, updates) as Promise<Changeset>,
-  "tasks:toggle-minimized": (id: Task["id"], minimized: boolean) => ipcRenderer.invoke("tasks:toggle-minimized", id, minimized) as Promise<Changeset>,
   "tasks:create": (
     task: Omit<Task, "id" | "createdAt" | "updatedAt" | "deletedAt" | "branchId"> & {branchId?: Task["branchId"]; id?: Task["id"]},
   ) => ipcRenderer.invoke("tasks:create", task) as Promise<Changeset>,
   "tasks:move-by-order": (params) => ipcRenderer.invoke("tasks:move-by-order", params) as Promise<Changeset>,
   "tasks:move-to-branch": (taskId: Task["id"], branchId: Branch["id"]) => ipcRenderer.invoke("tasks:move-to-branch", taskId, branchId) as Promise<Changeset>,
   "tasks:delete": (id: Task["id"]) => ipcRenderer.invoke("tasks:delete", id) as Promise<Changeset>,
-  "tasks:add-tags": (taskId: Task["id"], tagIds: Tag["id"][]) => ipcRenderer.invoke("tasks:add-tags", taskId, tagIds) as Promise<Changeset>,
-  "tasks:remove-tags": (taskId: Task["id"], tagIds: Tag["id"][]) => ipcRenderer.invoke("tasks:remove-tags", taskId, tagIds) as Promise<Changeset>,
   "tasks:get-deleted": (params?: {limit?: number; branchId?: Branch["id"]}) => ipcRenderer.invoke("tasks:get-deleted", params) as Promise<Task[]>,
   "tasks:restore": (id: Task["id"]) => ipcRenderer.invoke("tasks:restore", id) as Promise<Changeset>,
   "tasks:delete-permanently": (id: Task["id"]) => ipcRenderer.invoke("tasks:delete-permanently", id) as Promise<boolean>,
@@ -219,7 +207,6 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "subtasks:make-task": (id: Subtask["id"]) => ipcRenderer.invoke("subtasks:make-task", id) as Promise<Task | null>,
 
   "branches:get-many": () => ipcRenderer.invoke("branches:get-many") as Promise<Branch[]>,
-  "branches:get-one": (id: Branch["id"]) => ipcRenderer.invoke("branches:get-one", id) as Promise<Branch | null>,
   "branches:create": (branch: Omit<Branch, "id" | "createdAt" | "updatedAt" | "deletedAt">) => ipcRenderer.invoke("branches:create", branch),
   "branches:update": (id: Branch["id"], updates: Partial<Pick<Branch, "name" | "description">>) => ipcRenderer.invoke("branches:update", id, updates),
   "branches:delete": (id: Branch["id"]) => ipcRenderer.invoke("branches:delete", id),
@@ -228,13 +215,10 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "search:query": (query: string) => ipcRenderer.invoke("search:query", query) as Promise<TaskSearchResult[]>,
 
   "tags:get-many": () => ipcRenderer.invoke("tags:get-many") as Promise<Tag[]>,
-  "tags:get-one": (id: Tag["id"]) => ipcRenderer.invoke("tags:get-one", id) as Promise<Tag | null>,
-  "tags:update": (id: Tag["id"], updates: Partial<Tag>) => ipcRenderer.invoke("tags:update", id, updates),
   "tags:create": (tag: Omit<Tag, "id" | "createdAt" | "updatedAt" | "deletedAt">) => ipcRenderer.invoke("tags:create", tag),
   "tags:delete": (id: Tag["id"]) => ipcRenderer.invoke("tags:delete", id),
 
   "milestones:get-many": (branchId?: Branch["id"]) => ipcRenderer.invoke("milestones:get-many", branchId) as Promise<Milestone[]>,
-  "milestones:get-one": (id: Milestone["id"]) => ipcRenderer.invoke("milestones:get-one", id) as Promise<Milestone | null>,
   "milestones:create": (milestone: Omit<Milestone, "id" | "createdAt" | "updatedAt" | "orderIndex">) =>
     ipcRenderer.invoke("milestones:create", milestone) as Promise<Changeset>,
   "milestones:update": (id: Milestone["id"], updates: Partial<Pick<Milestone, "name" | "description" | "targetDate" | "orderIndex">>) =>
@@ -242,7 +226,6 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "milestones:delete": (id: Milestone["id"]) => ipcRenderer.invoke("milestones:delete", id) as Promise<Changeset>,
 
   "files:save": (filename: string, data: Buffer) => ipcRenderer.invoke("files:save", filename, data),
-  "files:delete": (filename: string) => ipcRenderer.invoke("files:delete", filename),
   "files:get-path": (id: string) => ipcRenderer.invoke("files:get-path", id) as Promise<string>,
 
   "ai:check-connection": () => ipcRenderer.invoke("ai:check-connection") as Promise<boolean>,
@@ -285,7 +268,5 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
 
   "shortcut:tasks:create": (callback: () => void) => ipcRenderer.on(SHORTCUTS_MAP["tasks:create"].channel, () => callback()),
   "shortcut:ui:open-search-panel": (callback: () => void) => ipcRenderer.on(SHORTCUTS_MAP["ui:open-search-panel"].channel, () => callback()),
-  "shortcut:ui:open-assistant-panel": (callback: () => void) => ipcRenderer.on(SHORTCUTS_MAP["ui:open-assistant-panel"].channel, () => callback()),
-  "shortcut:ui:open-settings-panel": (callback: () => void) => ipcRenderer.on(SHORTCUTS_MAP["ui:open-settings-panel"].channel, () => callback()),
   "shortcut:ui:calendar-dock:toggle": (callback: () => void) => ipcRenderer.on(SHORTCUTS_MAP["ui:calendar-dock:toggle"].channel, () => callback()),
 } satisfies BridgeIPC)

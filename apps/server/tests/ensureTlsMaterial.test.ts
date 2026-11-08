@@ -9,7 +9,6 @@ import {ensureTlsMaterial} from "../src/tls/ensureTlsMaterial"
 
 import type {ServerConfig} from "../src/config/resolveServerConfig"
 
-/** Calls `fn` once, returns whatever it throws, and fails the test if it does not throw. */
 function captureError(fn: () => void): unknown {
   try {
     fn()
@@ -39,7 +38,10 @@ describe("ensureTlsMaterial", () => {
       maxAssetBytes: 1,
       maxSnapshotBodyBytes: 1,
       publicUrl: null,
+      name: null,
+      derivedName: null,
       transport: "plain",
+      backup: null,
       ...overrides,
     }
   }
@@ -48,17 +50,20 @@ describe("ensureTlsMaterial", () => {
     expect(ensureTlsMaterial(config({transport: "plain"}))).toBeNull()
   })
 
-  it("self-signed mints a certificate under <dataDir>/tls/ on the first call, and reuses it with the same fingerprint on the next", () => {
-    const cfg = config({transport: "self-signed", publicUrl: "https://example.test:8787"})
+  it.each(["https://example.test:8787", "https://192.0.2.1", "https://[2001:db8::1]"])(
+    "mints and reuses a self-signed certificate with the same fingerprint for %s",
+    (publicUrl) => {
+      const cfg = config({transport: "self-signed", publicUrl})
 
-    const first = ensureTlsMaterial(cfg)
-    const second = ensureTlsMaterial(cfg)
+      const first = ensureTlsMaterial(cfg)
+      const second = ensureTlsMaterial(cfg)
 
-    expect(first?.certPath).toBe(join(dataDir, "tls", "cert.pem"))
-    expect(first?.fingerprint).toBeTruthy()
-    expect(second?.certPath).toBe(first?.certPath)
-    expect(second?.fingerprint).toBe(first?.fingerprint)
-  }, 15000)
+      expect(first?.certPath).toBe(join(dataDir, "tls", "cert.pem"))
+      expect(first?.fingerprint).toBeTruthy()
+      expect(second).toEqual(first)
+    },
+    15000,
+  )
 
   it("refuses a certificate on disk covering a different host, naming both hosts and the absolute certificate path", () => {
     ensureTlsMaterial(config({transport: "self-signed", publicUrl: "https://old-host.example.test"}))

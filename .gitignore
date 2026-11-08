@@ -51,7 +51,6 @@ dist-ssr
 
 # Analysis artifacts
 deps.svg
-*.svg
 release-notes.md
 .claude/*.local.*
 .claude/*.lock

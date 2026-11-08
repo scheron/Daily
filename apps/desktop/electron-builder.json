@@ -14,7 +14,16 @@
     {"from": "resources/file-coordinator", "to": "file-coordinator"},
     {"from": "resources/models.json", "to": "models.json"}
   ],
-  "files": ["out/**/*", {"filter": ["**/*"], "from": "public", "to": "resources"}, "!dist", "!scripts", "!src", "!*.md", "!.git*", "!.DS_Store"],
+  "files": [
+    "out/**/*",
+    {"filter": ["icon.png", "trayTemplate.png", "trayTemplate@2x.png"], "from": "public", "to": "resources"},
+    "!dist",
+    "!scripts",
+    "!src",
+    "!*.md",
+    "!.git*",
+    "!.DS_Store"
+  ],
   "mac": {
     "artifactName": "${productName}-${version}-mac.${ext}",
     "category": "public.app-category.productivity",
@@ -22,7 +31,6 @@
     "gatekeeperAssess": true,
     "identity": null,
     "icon": "icon.icns",
-    "notarize": true,
     "target": [{"target": "dmg", "arch": ["arm64"]}]
   },
   "publish": null

@@ -7,7 +7,7 @@ import {
   TASK_STATUSES,
   WINDOWS_CONFIG,
 } from "@daily/protocol"
-import {deepMerge, isNumber, notNull} from "@daily/std"
+import {isNumber, notNull} from "@daily/std"
 
 import type {
   Branch,
@@ -116,14 +116,6 @@ type FileRow = {
   created_at: string
   updated_at: string
   deleted_at: string | null
-}
-
-type SettingsRow = {
-  id: string
-  version: string
-  data: string
-  created_at: string
-  updated_at: string
 }
 
 export function rowToTask(row: TaskRow): Task {
@@ -315,16 +307,6 @@ export function migrateSettingsShape(parsed: any): any {
   return migrateBoardSettings(migrateQuickCapture(migrateThemes(parsed)))
 }
 
-export function rowToSettings(row: SettingsRow): Settings {
-  const defaults = getDefaultSettings()
-  try {
-    const parsed = migrateSettingsShape(JSON.parse(row.data))
-    return normalizeSettings(deepMerge<Settings>(defaults, parsed))
-  } catch {
-    return defaults
-  }
-}
-
 /** Keeps saved column positions and inserts a missing To Do after Backlog. */
 export function normalizeSettings(settings: Settings): Settings {
   const savedOrder = settings.layout?.columnOrder
@@ -349,7 +331,7 @@ export function normalizeSettings(settings: Settings): Settings {
   }
 }
 
-export type {TaskRow, TagRow, BranchRow, MilestoneRow, TaskRelationRow, TaskCommentRow, SubtaskRow, FileRow, SettingsRow}
+export type {TaskRow, TagRow, BranchRow, MilestoneRow, TaskRelationRow, TaskCommentRow, SubtaskRow, FileRow}
 
 const COMMENT_KINDS: TaskCommentKind[] = ["manual", "agent", "mcp"]
 

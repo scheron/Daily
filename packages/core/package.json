@@ -11,11 +11,8 @@
     "./storage/createStorageCore": "./src/storage/createStorageCore.ts",
     "./storage/database/scripts/migrate": "./src/storage/database/scripts/migrate.ts",
     "./storage/IWorkStorage": "./src/storage/IWorkStorage.ts",
-    "./storage/sync/adapters/LocalStorageAdapter": "./src/storage/sync/adapters/LocalStorageAdapter.ts",
     "./storage/WorkStorage": "./src/storage/WorkStorage.ts",
-    "./types/storage": "./src/types/storage.ts",
     "./utils/files/extractFileIds": "./src/utils/files/extractFileIds.ts",
-    "./utils/files/removeFileLink": "./src/utils/files/removeFileLink.ts",
     "./utils/files/sniffImageExt": "./src/utils/files/sniffImageExt.ts",
     "./utils/sync/snapshot/assertKnownSnapshotVersion": "./src/utils/sync/snapshot/assertKnownSnapshotVersion.ts",
     "./utils/sync/snapshot/buildSnapshot": "./src/utils/sync/snapshot/buildSnapshot.ts",
@@ -25,9 +22,7 @@
   "dependencies": {
     "@daily/protocol": "workspace:*",
     "@daily/std": "workspace:*",
-    "fast-sort": "^3.4.1",
     "fs-extra": "^11.3.0",
-    "luxon": "^3.6.1",
     "nanoid": "^5.1.5",
     "type-fest": "^5.2.0",
     "undici": "^8.5.0"

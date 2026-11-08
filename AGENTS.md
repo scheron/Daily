@@ -1,6 +1,6 @@
 # AGENTS.md
 
-**Daily** ships as a pnpm workspace of six packages: the app (`apps/desktop`), the sync server (`apps/server`), and four Electron-free shared packages (`packages/core`, `packages/protocol`, `packages/std`, `packages/tools`). The app is a local-first macOS task manager — Electron main + Vue 3 renderer, built on `packages/core`'s storage core (`packages/core/src/storage/createStorageCore.ts`). SQLite is the source of truth; sync is local-first multi-remote (off, iCloud, or a self-hosted server) with Last-Write-Wins. `packages/tools` holds the one tool set agents (over MCP) and the Daily Assistant both run, over `packages/core`'s `WorkStorage`.
+**Daily** ships as a pnpm workspace of six packages: the app (`apps/desktop`), the sync server (`apps/server`), and four Electron-free shared packages (`packages/core`, `packages/protocol`, `packages/std`, `packages/tools`). The app is a local-first macOS task manager — Electron main + Vue 3 renderer, built on `packages/core`'s storage core (`packages/core/src/storage/createStorageCore.ts`). SQLite is the source of truth; sync is optional and uses one provider at a time (iCloud or a self-hosted server), with Last-Write-Wins. `packages/tools` holds the one tool set agents (over MCP) and the Daily Assistant both run, over `packages/core`'s `WorkStorage`.
 
 ## Commands
 
@@ -13,7 +13,8 @@ node scripts/release.js               # survey both, then ask which to release
 node scripts/release.js app           # release the app (--dry-run supported)
 node scripts/release.js server        # release the server (--dry-run supported)
 pnpm typecheck:all       # every package — run before committing
-pnpm lint                # ESLint --fix
+pnpm lint                # ESLint check
+pnpm lint:fix            # apply ESLint fixes
 pnpm test                # full vitest suite (Electron runtime via evitest)
 pnpm check:all           # lint + typecheck:all + circular + test
 ```
@@ -22,7 +23,7 @@ pnpm check:all           # lint + typecheck:all + circular + test
 
 **Build.** `pnpm --filter @daily/desktop build` — packages the macOS `.dmg`. `pnpm --filter @daily/server build` — bundles the sync server.
 **Typecheck.** `pnpm typecheck:all`
-**Lint.** `pnpm lint`
+**Lint.** `pnpm lint` (check) or `pnpm lint:fix` (apply fixes)
 **Tests.** `pnpm test` — vitest under the Electron runtime.
 **Single test file.** `pnpm evitest run packages/core/tests/storage/sync/convergence.test.ts`
 **Dev server.** `pnpm dev` — opens the Electron window, no URL.

@@ -10,7 +10,7 @@
   },
   "files": [
     "out-demo/**/*",
-    {"filter": ["**/*"], "from": "public", "to": "resources"},
+    {"filter": ["icon.png", "trayTemplate.png", "trayTemplate@2x.png"], "from": "public", "to": "resources"},
     "!out",
     "!dist",
     "!dist-demo",
@@ -21,7 +21,6 @@
     "!.DS_Store"
   ],
   "mac": {
-    "artifactName": "Daily-Demo-${version}-mac.${ext}",
-    "notarize": false
+    "artifactName": "Daily-Demo-${version}-mac.${ext}"
   }
 }

@@ -95,7 +95,7 @@ describe("StorageController — task write changesets and broadcasts", () => {
     db = harness.db
     const {taskModel, controller} = harness
     const task = taskModel.createTask(makeTaskInput({content: "Goes to the trash"}))
-    await controller.searchService.addTaskToIndex(task)
+    await controller.searchService.initializeIndex()
     const broadcasts = withBroadcasts(controller)
     const sizeBefore = controller.searchService.getIndexSize()
 
@@ -125,8 +125,8 @@ describe("StorageController — task write changesets and broadcasts", () => {
     db = harness.db
     const {taskModel, controller} = harness
     const task = taskModel.createTask(makeTaskInput({content: "Gone for good"}))
+    await controller.searchService.initializeIndex()
     taskModel.deleteTask(task.id)
-    await controller.searchService.addTaskToIndex(task)
     const broadcasts = withBroadcasts(controller)
     const sizeBefore = controller.searchService.getIndexSize()
 

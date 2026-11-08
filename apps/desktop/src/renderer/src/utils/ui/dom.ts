@@ -28,7 +28,3 @@ export function findClosestAtPoint(x: number, y: number, selector: string): HTML
   const el = document.elementFromPoint(x, y)
   return el?.closest<HTMLElement>(selector) ?? null
 }
-
-export function getCssVariable(name: string): string {
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
-}

@@ -1,5 +1,5 @@
 :root {
-  --tl-font-family: var(--default-font-family);
+  --tl-font-family: var(--font-sans);
   --tl-shadow: var(--shadow-md);
 
   --tl-bg: var(--color-base-100);

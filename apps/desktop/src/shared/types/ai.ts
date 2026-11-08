@@ -1,4 +1,4 @@
-import type {LocalModelId, LocalRuntimeParams} from "@daily/protocol"
+import type {LocalModelId} from "@daily/protocol"
 
 /** A known LLM: display label, context window, and (remote-only) endpoint + provider. */
 export type LlmModelInfo = {
@@ -104,36 +104,7 @@ export type LocalRuntimeState =
   | {status: "running"; modelId: LocalModelId; port: number; pid?: number}
   | {status: "error"; modelId?: LocalModelId; message: string; details?: string}
 
-export type LocalModelManifest = {
-  version: number
-  models: Array<{
-    id: LocalModelId
-    title: string
-    sizeBytes: number
-    requirements: {ramGb: number; diskGb: number}
-    files: Array<{
-      os: "macos"
-      cpu: "arm64" | "x64"
-      url: string
-      sha256: string
-    }>
-    serverDefaults: LocalRuntimeParams
-    capabilities: {
-      tools: LocalToolingMode
-      json: "strict" | "loose"
-    }
-  }>
-}
-
-export type LocalToolingMode = "compat" | "native"
-
 export type CatalogRefreshResult = "updated" | "unchanged" | "failed"
-
-export type LocalConfig = {
-  modelId: LocalModelId
-  toolingMode?: LocalToolingMode
-  params?: LocalRuntimeParams
-}
 
 export type LocalModelInfo = {
   id: LocalModelId

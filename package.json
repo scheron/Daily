@@ -24,8 +24,9 @@
     "release": "node scripts/release.js",
     "build:server": "pnpm --filter @daily/server build",
     "build:server:package": "pnpm build:server && node scripts/build-server-package.js",
-    "fix:assets": "ELECTRON_RUN_AS_NODE=1 ./node_modules/.bin/electron scripts/fix-asset-extensions.js",
-    "lint": "eslint . --ext .vue,.js,.jsx,.ts,.tsx --fix",
+    "fix:assets": "ELECTRON_RUN_AS_NODE=1 ./node_modules/.bin/electron --experimental-strip-types scripts/fix-asset-extensions.js",
+    "lint": "eslint . --ext .vue,.js,.jsx,.ts,.tsx",
+    "lint:fix": "pnpm lint --fix",
     "format": "prettier --write apps packages",
     "typecheck:protocol": "tsc --noEmit --project packages/protocol/tsconfig.json",
     "typecheck:std": "tsc --noEmit --project packages/std/tsconfig.json",
@@ -58,13 +59,11 @@
     "*.{json,md,yml,yaml}": [
       "prettier --write"
     ],
-    "*.{css}": [
+    "*.css": [
       "prettier --write"
     ]
   },
   "devDependencies": {
-    "@commitlint/cli": "^19.8.1",
-    "@commitlint/config-conventional": "^19.8.1",
     "@ianvs/prettier-plugin-sort-imports": "^4.4.2",
     "@types/luxon": "^3.6.2",
     "@types/node": "^22.15.17",
