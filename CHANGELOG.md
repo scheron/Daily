@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.39.1 - 2026-11-08
+
+### 🐛 Bug Fixes
+
+- Fixed the date picker in task details cutting off the last week of some months.
+
+---
+
 ## v0.39.0 - 2026-11-08
 
 ### ✨ New Features
