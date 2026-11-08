@@ -10,7 +10,6 @@ const props = defineProps<{media: WhatsNewMedia[]}>()
 
 const index = ref(0)
 const imagePlayback = ref<boolean | null>(null)
-const isVideoPlaying = ref(false)
 const hasError = ref(false)
 const videoRef = useTemplateRef<HTMLVideoElement>("video")
 const stillRef = useTemplateRef<HTMLCanvasElement>("still")
@@ -22,14 +21,13 @@ const active = computed(() => props.media[activeIndex.value])
 const label = computed(() => active.value?.label || "Release preview")
 const isVideo = computed(() => active.value?.kind === "video")
 const isImagePlaying = computed(() => imagePlayback.value ?? reducedMotion.value !== "reduce")
-const isPlaying = computed(() => (isVideo.value ? isVideoPlaying.value : isImagePlaying.value))
-const hasPlaybackControl = computed(() => {
+const hasImagePlaybackControl = computed(() => {
   const media = active.value
-  if (!media || hasError.value) return false
-  if (media.kind !== "image") return true
+  if (!media || media.kind === "video" || hasError.value) return false
+  if (media.kind === "gif") return true
   return !/\.(?:avif|jpe?g|png|webp)$/i.test(URL.parse(media.url)?.pathname ?? "")
 })
-const playbackLabel = computed(() => (isPlaying.value ? "Pause preview" : "Play preview"))
+const imagePlaybackLabel = computed(() => (isImagePlaying.value ? "Pause preview" : "Play preview"))
 
 const visibility = useDocumentVisibility()
 
@@ -37,24 +35,8 @@ function changePreview(step: number) {
   index.value = (activeIndex.value + step + props.media.length) % props.media.length
 }
 
-function togglePlayback() {
-  const video = videoRef.value
-  if (!video) {
-    imagePlayback.value = !isImagePlaying.value
-    return
-  }
-  if (video.paused) {
-    void video.play().catch(() => {
-      if (video === videoRef.value && video.error) handleError()
-    })
-    return
-  }
-  pauseVideo()
-}
-
 function pauseVideo() {
   videoRef.value?.pause()
-  isVideoPlaying.value = false
 }
 
 function handleError() {
@@ -68,14 +50,6 @@ watch(
     pauseVideo()
     imagePlayback.value = null
     hasError.value = false
-  },
-  {flush: "sync"},
-)
-
-watch(
-  visibility,
-  (value) => {
-    if (value === "hidden") pauseVideo()
   },
   {flush: "sync"},
 )
@@ -125,14 +99,12 @@ onBeforeUnmount(pauseVideo)
         :aria-label="label"
         :src="active.url"
         :poster="active.poster"
-        preload="metadata"
+        autoplay
+        loop
         muted
         playsinline
         disablepictureinpicture
         @contextmenu.prevent
-        @play="isVideoPlaying = true"
-        @pause="isVideoPlaying = false"
-        @ended="isVideoPlaying = false"
         @error="handleError"
       />
       <template v-else-if="visibility !== 'hidden'">
@@ -152,13 +124,13 @@ onBeforeUnmount(pauseVideo)
     <figcaption class="flex min-h-6 items-center gap-1.5">
       <span class="text-base-content/60 min-w-0 flex-1 truncate text-xs" :title="label">{{ label }}</span>
       <BaseButton
-        v-if="hasPlaybackControl"
+        v-if="hasImagePlaybackControl"
         size="xs"
         variant="ghost-muted"
-        :icon="isPlaying ? 'pause' : 'play'"
-        :aria-label="playbackLabel"
-        :tooltip="playbackLabel"
-        @click="togglePlayback"
+        :icon="isImagePlaying ? 'pause' : 'play'"
+        :aria-label="imagePlaybackLabel"
+        :tooltip="imagePlaybackLabel"
+        @click="imagePlayback = !isImagePlaying"
       />
       <template v-if="media.length > 1">
         <BaseButton

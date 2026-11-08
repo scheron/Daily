@@ -135,6 +135,11 @@ it("keeps one preview mounted, pauses video when switching and allows navigation
     const pause = vi.spyOn(player.element, "pause")
     expect(player.attributes("poster")).toBe(video.poster)
     expect(player.element.muted).toBe(true)
+    expect(player.element.autoplay).toBe(true)
+    expect(player.element.loop).toBe(true)
+    expect(player.element.controls).toBe(false)
+    expect(banner.find('button[aria-label="Play preview"]').exists()).toBe(false)
+    expect(banner.find('button[aria-label="Pause preview"]').exists()).toBe(false)
 
     await banner.get('button[aria-label="Previous preview"]').trigger("click")
     expect(pause).toHaveBeenCalled()
