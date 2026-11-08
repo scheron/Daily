@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import {ref, watch} from "vue"
+import {computed, ref, watch} from "vue"
 
 import BaseButton from "@/ui/base/BaseButton"
-import BaseIcon from "@/ui/base/BaseIcon"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
 import {cn} from "@/utils/ui/tailwindcss"
 import ToolCallCard from "./{fragments}/ToolCallCard.vue"
 
@@ -16,9 +16,7 @@ const props = defineProps<{
 
 const isOpen = ref(Boolean(props.streaming))
 
-function getChevronClasses(isOpen: boolean) {
-  return cn("size-3 shrink-0 transition-transform", isOpen && "rotate-90")
-}
+const chevronClass = computed(() => cn("size-3 shrink-0 transition-transform", {"rotate-90": isOpen.value}))
 
 watch(
   () => props.streaming,
@@ -32,7 +30,7 @@ watch(
 <template>
   <div class="border-base-300 rounded border-l-2 py-1 pl-3">
     <BaseButton variant="inline" size="xs" class="w-full" @click="isOpen = !isOpen">
-      <BaseIcon name="chevron-right" :class="getChevronClasses(isOpen)" />
+      <BaseIcon name="chevron-right" :class="chevronClass" />
       <BaseIcon name="tool" class="size-3 shrink-0" />
       <span>Tools Used</span>
     </BaseButton>

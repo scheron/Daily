@@ -2,14 +2,14 @@
 import {nextTick, onBeforeUnmount, onMounted, useTemplateRef} from "vue"
 import {useEventListener} from "@vueuse/core"
 
-import {useSettingsStore} from "@/stores/settings.store"
+import {useSettingsStore} from "@/stores/settings"
 import {useThemeStore} from "@/stores/theme"
 import BaseKeyCaps from "@/ui/base/BaseKeyCaps.vue"
-import MarkdownEditor from "@/ui/common/misc/MarkdownEditor"
+import MarkdownEditor from "@/ui/common/(editors)/MarkdownEditor"
 import {toAcceleratorKeyCaps} from "@/utils/shortcuts/toAcceleratorKeyCaps"
 import {isInsideOpenDialog} from "@/utils/ui/isInsideOpenDialog"
 import {useQuickTaskDraft} from "./composables/useQuickTaskDraft"
-import {useReportPanelHeight} from "./composables/useReportPanelHeight"
+import {watchReportPanelHeight} from "./composables/watchReportPanelHeight"
 import QuickTaskChips from "./{fragments}/QuickTaskChips.vue"
 
 import type {QuickTaskMenu} from "@shared/types/quickTask"
@@ -27,7 +27,7 @@ const editorRef = useTemplateRef<InstanceType<typeof MarkdownEditor>>("editor")
 
 const {draft, task, patch, refresh, save} = useQuickTaskDraft()
 
-useReportPanelHeight(panelRef)
+watchReportPanelHeight(panelRef)
 
 useEventListener(
   window,

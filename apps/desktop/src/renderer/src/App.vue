@@ -5,20 +5,20 @@ import {ToastsLiteProvider} from "vue-toasts-lite"
 import {invoke, until} from "@vueuse/core"
 
 import {useAiStore} from "./stores/ai"
-import {useBranchesStore} from "./stores/branches.store"
-import {useMilestonesStore} from "./stores/milestones.store"
-import {useSettingsStore} from "./stores/settings.store"
-import {useStorageChangesStore} from "./stores/storageChanges.store"
-import {useSubtasksStore} from "./stores/subtasks.store"
-import {useSyncServerStore} from "./stores/syncServer.store"
-import {useTagsStore} from "./stores/tags.store"
-import {useTaskCommentsStore} from "./stores/taskComments.store"
-import {useTaskRelationsStore} from "./stores/taskRelations.store"
+import {useBranchesStore} from "./stores/branches"
+import {useMilestonesStore} from "./stores/milestones"
+import {useSettingsStore} from "./stores/settings"
+import {useStorageChangesStore} from "./stores/storage-changes"
+import {useSubtasksStore} from "./stores/subtasks"
+import {useSyncServerStore} from "./stores/sync-server"
+import {useTagsStore} from "./stores/tags"
+import {useTaskCommentsStore} from "./stores/task-comments"
+import {useTaskRelationsStore} from "./stores/task-relations"
 import {useTasksStore} from "./stores/tasks"
-import {useUpdateStore} from "./stores/update.store"
+import {useUpdateStore} from "./stores/update"
 import {toasts, useToasts} from "./composables/useToasts"
-import {IconsSprite} from "./ui/base/BaseIcon"
-import {BaseModalProvider} from "./ui/base/BaseModal"
+import IconsSprite from "./IconsSprite.vue"
+import ModalProvider from "./ui/overlays/ModalProvider"
 
 import type {RouteRecordNameGeneric} from "vue-router"
 
@@ -128,7 +128,7 @@ onScopeDispose(stopListeningForToasts)
 <template>
   <RouterView />
 
-  <BaseModalProvider />
+  <ModalProvider />
   <IconsSprite />
   <ToastsLiteProvider />
 </template>

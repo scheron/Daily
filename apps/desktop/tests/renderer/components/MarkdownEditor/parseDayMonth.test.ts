@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
 
-import {parseDayMonth} from "../../../../src/renderer/src/ui/common/misc/MarkdownEditor/utils/parseDayMonth"
+import {parseDayMonth} from "../../../../src/renderer/src/ui/common/(editors)/MarkdownEditor/utils/parseDayMonth"
 
 describe("parseDayMonth", () => {
   it("reads dd.mm as the next such day, rolling into next year once it has passed", () => {

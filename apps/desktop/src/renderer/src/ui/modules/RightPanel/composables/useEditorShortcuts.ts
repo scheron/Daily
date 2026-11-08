@@ -1,11 +1,11 @@
 import {useEventListener} from "@vueuse/core"
 
-import {useBaseModal} from "@/ui/base/BaseModal"
+import {useBaseModal} from "@/composables/useBaseModal"
 import {isInsideOpenDialog} from "@/utils/ui/isInsideOpenDialog"
 import {SHORTCUTS_MAP} from "@shared/constants/shortcuts"
 import {acceleratorsMatch} from "@shared/utils/shortcuts/acceleratorsMatch"
 import {formatEventToAccelerator} from "@shared/utils/shortcuts/formatEventToAccelerator"
-import {nestedTarget} from "./useNestedView"
+import {nestedTarget} from "../state"
 import {useSubtaskEditorOpen} from "./useSubtaskEditorOpen"
 import {useTaskEditor} from "./useTaskEditor"
 

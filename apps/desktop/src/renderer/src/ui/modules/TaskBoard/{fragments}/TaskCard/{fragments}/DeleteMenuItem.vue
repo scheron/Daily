@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import {useTemplateRef} from "vue"
+import {computed, useTemplateRef} from "vue"
 
 import {useProgressFill} from "@/composables/useProgressFill"
-import BaseIcon from "@/ui/base/BaseIcon"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
 import {cn} from "@/utils/ui/tailwindcss"
 
 import type {BaseContextMenuLabeledItem} from "@/ui/base/BaseContextMenu"
-import type {HTMLAttributes} from "vue"
 
 const props = defineProps<{item: BaseContextMenuLabeledItem}>()
 const emit = defineEmits<{select: []}>()
@@ -15,22 +14,15 @@ const deleteButtonRef = useTemplateRef<HTMLButtonElement>("deleteButton")
 
 const {isFilling} = useProgressFill(deleteButtonRef, () => emit("select"))
 
-function getItemClasses(isFilling: boolean) {
-  return cn(
+const itemClass = computed(() =>
+  cn(
     "text-base-content px-3 hover:bg-base-300/80 flex w-full items-center gap-2 rounded-md py-1.5 text-left transition-colors",
-    isFilling && "bg-error/10",
-    props.item.disabled && "pointer-events-none opacity-50",
+    {"bg-error/10": isFilling.value, "pointer-events-none opacity-50": props.item.disabled},
     props.item.class,
-  )
-}
-
-function getIconClasses(classIcon: HTMLAttributes["class"]) {
-  return cn("size-4.5", classIcon)
-}
-
-function getLabelClasses(classLabel: HTMLAttributes["class"]) {
-  return cn("flex-1 truncate text-sm", classLabel)
-}
+  ),
+)
+const iconClass = computed(() => cn("size-4.5", props.item.classIcon))
+const labelClass = computed(() => cn("flex-1 truncate text-sm", props.item.classLabel))
 </script>
 
 <template>
@@ -42,9 +34,9 @@ function getLabelClasses(classLabel: HTMLAttributes["class"]) {
     :disabled="item.disabled"
     @click.prevent.stop
   >
-    <span :class="getItemClasses(isFilling)">
-      <BaseIcon v-if="item.icon" :name="item.icon" :class="getIconClasses(item.classIcon)" />
-      <span :class="getLabelClasses(item.classLabel)">{{ item.label }}</span>
+    <span :class="itemClass">
+      <BaseIcon v-if="item.icon" :name="item.icon" :class="iconClass" />
+      <span :class="labelClass">{{ item.label }}</span>
     </span>
   </button>
 </template>

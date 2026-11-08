@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import BaseIcon from "@/ui/base/BaseIcon"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
 
-import type {IconName} from "@/ui/base/BaseIcon"
+import type {IconName} from "@/types/icons"
 
 defineProps<{
   label?: string
@@ -15,7 +15,7 @@ defineProps<{
       <div class="bg-base-300 h-px flex-1"></div>
       <div class="text-base-content/60 flex items-center gap-1.5">
         <BaseIcon v-if="icon" :name="icon" class="size-3.5 shrink-0" />
-        <h2 class="text-xs font-semibold tracking-wider uppercase">{{ label }}</h2>
+        <h2 class="text-xs font-semibold uppercase tracking-wider">{{ label }}</h2>
       </div>
       <div class="bg-base-300 h-px flex-1"></div>
     </div>

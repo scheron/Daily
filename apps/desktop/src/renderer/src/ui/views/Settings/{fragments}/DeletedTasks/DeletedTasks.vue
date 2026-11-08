@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import {ref} from "vue"
 
-import {API} from "@/api"
+import {Storage} from "@/api"
 import {toasts} from "@/composables/useToasts"
 import BaseButton from "@/ui/base/BaseButton"
-import BaseIcon from "@/ui/base/BaseIcon"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
 import ConfirmPopup from "@/ui/overlays/ConfirmPopup.vue"
+import {useDeletedTasks} from "./composables/useDeletedTasks"
 import DeletedTaskItem from "./{fragments}/DeletedTaskItem.vue"
-import {useDeletedTasks} from "./useDeletedTasks"
 
 import type {Task} from "@daily/protocol"
 
@@ -17,7 +17,7 @@ const {deletedTasks, revalidate} = useDeletedTasks()
 
 async function onRestore(task: Task) {
   try {
-    const changeset = await API.restoreTask(task.id)
+    const changeset = await Storage.restoreTask(task.id)
     const restoredTask = changeset.tasks?.upserted?.find((t) => t.id === task.id)
 
     if (restoredTask) toasts.success("Task restored successfully")
@@ -35,7 +35,7 @@ async function onDeleteAll() {
 
   isDeletingAll.value = true
 
-  const deletedCount = await API.permanentlyDeleteAllDeletedTasks()
+  const deletedCount = await Storage.permanentlyDeleteAllDeletedTasks()
   if (deletedCount > 0) {
     toasts.success(`${deletedCount} task${deletedCount === 1 ? "" : "s"} permanently deleted`)
     await revalidate()

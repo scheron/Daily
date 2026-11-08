@@ -3,9 +3,9 @@ import {computed} from "vue"
 
 import {toLocaleDateTime, toLocaleTime} from "@daily/std"
 
-import {useStorageStore} from "@/stores/storage.store"
+import {useStorageStore} from "@/stores/storage"
 import BaseButton from "@/ui/base/BaseButton"
-import BaseIcon from "@/ui/base/BaseIcon"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
 import BaseSwitch from "@/ui/base/BaseSwitch.vue"
 
 import type {SyncProvider} from "@daily/protocol"

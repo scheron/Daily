@@ -1,3 +1,12 @@
+import {
+  MARKDOWN_ASTERISK_ITALIC_REGEX,
+  MARKDOWN_BOLD_OR_STRIKE_REGEX,
+  MARKDOWN_INLINE_CODE_REGEX,
+  MARKDOWN_LINK_LABEL_REGEX,
+  MARKDOWN_TASK_TITLE_PREFIX_REGEX,
+  MARKDOWN_UNDERSCORE_EMPHASIS_REGEX,
+} from "@/constants/regex"
+
 /**
  * The first non-empty line of a task's markdown without its marks.
  *
@@ -7,11 +16,11 @@
 export function getTaskTitle(content: string): string {
   const line = content.split("\n").find((value) => value.trim()) ?? ""
   return line
-    .replace(/^\s*(?:#{1,6}\s+|>\s*|[-*+]\s+(?:\[[ xX]\]\s+)?|\d+[.)]\s+)/, "")
-    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
-    .replace(/(?<!`)(`+)(?!`)(.+?)(?<!`)\1(?!`)/g, "$2")
-    .replace(/(\*\*|~~)(?=\S)(.+?)(?<=\S)\1/g, "$2")
-    .replace(/\*(?=\S)(.+?)(?<=\S)\*/g, "$1")
-    .replace(/(?<!\w)(__?)(?=\S)(.+?)(?<=\S)\1(?!\w)/g, "$2")
+    .replace(MARKDOWN_TASK_TITLE_PREFIX_REGEX, "")
+    .replace(MARKDOWN_LINK_LABEL_REGEX, "$1")
+    .replace(MARKDOWN_INLINE_CODE_REGEX, "$2")
+    .replace(MARKDOWN_BOLD_OR_STRIKE_REGEX, "$2")
+    .replace(MARKDOWN_ASTERISK_ITALIC_REGEX, "$1")
+    .replace(MARKDOWN_UNDERSCORE_EMPHASIS_REGEX, "$2")
     .trim()
 }

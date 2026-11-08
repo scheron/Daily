@@ -3,10 +3,10 @@ import {computed, ref, watch} from "vue"
 
 import {isNumber} from "@daily/std"
 
-import {useUpdateStore} from "@/stores/update.store"
+import {useUpdateStore} from "@/stores/update"
 import BaseAnimation from "@/ui/base/BaseAnimation.vue"
 import BaseButton from "@/ui/base/BaseButton"
-import BaseIcon from "@/ui/base/BaseIcon"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
 import {cn} from "@/utils/ui/tailwindcss"
 import {UpdateInstallFailureCode} from "@shared/errors/updates/UpdateInstallFailureCode"
 
@@ -70,12 +70,10 @@ const progressLabel = computed(() =>
   isNumber(updateStore.state.downloadProgress) ? `${updateStore.state.downloadProgress}% downloaded` : "Preparing download...",
 )
 
+const statusIconClass = computed(() => cn("size-4", {"animate-spin": updateStore.isBusy, "text-warning": hasInstallFailure.value}))
+
 function handlePrimaryAction() {
   return updateStore.downloadUpdate()
-}
-
-function getStatusIconClasses(isBusy: boolean, hasFailure: boolean) {
-  return cn("size-4", isBusy && "animate-spin", hasFailure && "text-warning")
 }
 
 watch(hasInstallFailure, (value) => {
@@ -94,7 +92,7 @@ watch(hasInstallFailure, (value) => {
           <div class="flex w-full items-center justify-between gap-2">
             <div class="flex items-center gap-1">
               <span class="text-base-content flex size-6 shrink-0 items-center justify-center rounded-full">
-                <BaseIcon :name="statusIcon" :class="getStatusIconClasses(updateStore.isBusy, hasInstallFailure)" />
+                <BaseIcon :name="statusIcon" :class="statusIconClass" />
               </span>
 
               <h3 class="text-sm font-semibold">

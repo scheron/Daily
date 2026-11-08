@@ -4,10 +4,10 @@ import {beforeEach, describe, expect, it, vi} from "vitest"
 
 import {isMilestoneClosed} from "@daily/protocol"
 
-import {useMilestonesStore} from "../../../src/renderer/src/stores/milestones.store"
-import {useSettingsStore} from "../../../src/renderer/src/stores/settings.store"
+import {useMilestonesStore} from "../../../src/renderer/src/stores/milestones"
+import {useSettingsStore} from "../../../src/renderer/src/stores/settings"
 import {useTasksStore} from "../../../src/renderer/src/stores/tasks/tasks.store"
-import {API} from "../../../src/renderer/src/api"
+import {Storage} from "../../../src/renderer/src/api"
 import {mockBridgeIPC} from "../../helpers/bridgeIPC"
 
 vi.mock("../../../src/renderer/src/utils/ui/toRawDeep", () => ({
@@ -15,7 +15,7 @@ vi.mock("../../../src/renderer/src/utils/ui/toRawDeep", () => ({
 }))
 
 vi.mock("../../../src/renderer/src/api", () => ({
-  API: {
+  Storage: {
     getAllTasks: vi.fn().mockResolvedValue([]),
     getMilestoneList: vi.fn().mockResolvedValue([]),
     createMilestone: vi.fn(),
@@ -92,7 +92,7 @@ describe("milestonesStore — progress scoped alongside the collection's own sel
     const day = "2026-09-14"
     const m1 = makeMilestone({id: "m1", branchId: "main"})
     const m2 = makeMilestone({id: "m2", branchId: "other"})
-    API.getMilestoneList.mockResolvedValueOnce([m1, m2])
+    Storage.getMilestoneList.mockResolvedValueOnce([m1, m2])
 
     const milestonesStore = useMilestonesStore()
     await milestonesStore.getMilestoneList()
@@ -106,7 +106,7 @@ describe("milestonesStore — progress scoped alongside the collection's own sel
       makeTask({id: "p2-backlog", branchId: "other", status: "backlog", scheduled: null}),
       makeTask({id: "p2-m2-a", branchId: "other", milestoneId: "m2", status: "in_progress", scheduled: {date: day, time: "", timezone: "UTC"}}),
     ]
-    API.getAllTasks.mockResolvedValueOnce(tasks)
+    Storage.getAllTasks.mockResolvedValueOnce(tasks)
 
     const tasksStore = useTasksStore()
     const settingsStore = useSettingsStore()
@@ -140,19 +140,19 @@ describe("milestonesStore writes — one IPC call, no list reread", () => {
 
   it("createMilestone makes one call and reads no list", async () => {
     const created = makeMilestone({id: "m1", name: "Launch"})
-    API.createMilestone.mockResolvedValueOnce({milestones: {upserted: [created]}})
+    Storage.createMilestone.mockResolvedValueOnce({milestones: {upserted: [created]}})
 
     const milestonesStore = useMilestonesStore()
     const result = await milestonesStore.createMilestone("Launch", null, "main")
 
     expect(result?.id).toBe("m1")
-    expect(API.createMilestone).toHaveBeenCalledTimes(1)
-    expect(API.getMilestoneList).not.toHaveBeenCalled()
+    expect(Storage.createMilestone).toHaveBeenCalledTimes(1)
+    expect(Storage.getMilestoneList).not.toHaveBeenCalled()
   })
 
   it("createMilestone holds the created milestone in memory before the storage broadcast arrives", async () => {
     const created = makeMilestone({id: "m1", name: "Launch"})
-    API.createMilestone.mockResolvedValueOnce({milestones: {upserted: [created]}})
+    Storage.createMilestone.mockResolvedValueOnce({milestones: {upserted: [created]}})
 
     const milestonesStore = useMilestonesStore()
     await milestonesStore.createMilestone("Launch", null, "main")
@@ -162,24 +162,24 @@ describe("milestonesStore writes — one IPC call, no list reread", () => {
 
   it("updateMilestone makes one call and reads no list", async () => {
     const updated = makeMilestone({id: "m1", name: "Renamed"})
-    API.updateMilestone.mockResolvedValueOnce({milestones: {upserted: [updated]}})
+    Storage.updateMilestone.mockResolvedValueOnce({milestones: {upserted: [updated]}})
 
     const milestonesStore = useMilestonesStore()
     const result = await milestonesStore.updateMilestone("m1", {name: "Renamed"})
 
     expect(result?.name).toBe("Renamed")
-    expect(API.updateMilestone).toHaveBeenCalledTimes(1)
-    expect(API.getMilestoneList).not.toHaveBeenCalled()
+    expect(Storage.updateMilestone).toHaveBeenCalledTimes(1)
+    expect(Storage.getMilestoneList).not.toHaveBeenCalled()
   })
 
   it("deleteMilestone makes one call and reads no list", async () => {
-    API.deleteMilestone.mockResolvedValueOnce({milestones: {removed: ["m1"]}})
+    Storage.deleteMilestone.mockResolvedValueOnce({milestones: {removed: ["m1"]}})
 
     const milestonesStore = useMilestonesStore()
     const result = await milestonesStore.deleteMilestone("m1")
 
     expect(result).toBe(true)
-    expect(API.deleteMilestone).toHaveBeenCalledTimes(1)
-    expect(API.getMilestoneList).not.toHaveBeenCalled()
+    expect(Storage.deleteMilestone).toHaveBeenCalledTimes(1)
+    expect(Storage.getMilestoneList).not.toHaveBeenCalled()
   })
 })

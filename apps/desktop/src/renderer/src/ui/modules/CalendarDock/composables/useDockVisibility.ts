@@ -2,12 +2,12 @@ import {watch} from "vue"
 import {useEventListener} from "@vueuse/core"
 import {storeToRefs} from "pinia"
 
-import {useDragDropStore} from "@/stores/dragDrop.store"
+import {useDragDropStore} from "@/stores/drag-drop"
 import {useTaskEditorStore} from "@/stores/task-editor"
-import {useUIStore} from "@/stores/ui"
+import {useUiStore} from "@/stores/ui"
 
 export function useDockVisibility() {
-  const uiStore = useUIStore()
+  const uiStore = useUiStore()
   const dragDropStore = useDragDropStore()
   const taskEditorStore = useTaskEditorStore()
 

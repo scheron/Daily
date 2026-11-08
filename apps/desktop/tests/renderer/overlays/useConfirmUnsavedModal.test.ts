@@ -6,7 +6,7 @@ import {mockBridgeIPC} from "../../helpers/bridgeIPC"
 
 const shown = vi.hoisted(() => ({props: null}))
 
-vi.mock("../../../src/renderer/src/ui/base/BaseModal", () => ({
+vi.mock("../../../src/renderer/src/composables/useBaseModal", () => ({
   useBaseModal: () => ({
     show: (_component, props) => (shown.props = props),
     hide: vi.fn(),
@@ -23,7 +23,7 @@ describe("useConfirmUnsavedModal", () => {
 
   async function setup(content) {
     const {useTaskEditorStore} = await import("../../../src/renderer/src/stores/task-editor")
-    const {useConfirmUnsavedModal} = await import("../../../src/renderer/src/ui/overlays/ConfirmUnsavedModal/useConfirmUnsavedModal")
+    const {useConfirmUnsavedModal} = await import("../../../src/renderer/src/ui/overlays/ConfirmUnsavedModal")
     const editor = useTaskEditorStore()
     editor.commit = vi.fn().mockResolvedValue(undefined)
     editor.openNew({branchId: "main"})

@@ -1,22 +1,22 @@
-import {nextTick, onMounted, ref, useTemplateRef, watch} from "vue"
+import {nextTick, onMounted, ref, toValue, watch} from "vue"
 
 import {sleep} from "@daily/std"
 
-import type {ComputedRef, Ref} from "vue"
+import type {MaybeRefOrGetter} from "vue"
 
 type ComboboxOptions = {
-  items: ComputedRef<readonly unknown[]>
-  hasFooter: ComputedRef<boolean>
-  query: Ref<string>
+  items: MaybeRefOrGetter<readonly unknown[]>
+  hasFooter: MaybeRefOrGetter<boolean>
+  query: MaybeRefOrGetter<string>
+  inputRef: MaybeRefOrGetter<HTMLInputElement | null>
+  listRef: MaybeRefOrGetter<HTMLElement | null>
 }
 
 export function useCombobox(options: ComboboxOptions) {
   const activeIndex = ref(0)
-  const inputRef = useTemplateRef<HTMLInputElement>("input")
-  const listRef = useTemplateRef<HTMLElement>("list")
 
   function focus() {
-    inputRef.value?.focus()
+    toValue(options.inputRef)?.focus()
   }
 
   function onKeydown(event: KeyboardEvent) {
@@ -35,14 +35,17 @@ export function useCombobox(options: ComboboxOptions) {
 
     activeIndex.value = (activeIndex.value + delta + count) % count
     await nextTick()
-    listRef.value?.querySelector('[data-active="true"]')?.scrollIntoView({block: "nearest"})
+    toValue(options.listRef)?.querySelector('[data-active="true"]')?.scrollIntoView({block: "nearest"})
   }
 
   function totalCount(): number {
-    return options.items.value.length + (options.hasFooter.value ? 1 : 0)
+    return toValue(options.items).length + (toValue(options.hasFooter) ? 1 : 0)
   }
 
-  watch(options.query, () => (activeIndex.value = 0))
+  watch(
+    () => toValue(options.query),
+    () => (activeIndex.value = 0),
+  )
 
   onMounted(async () => {
     await sleep(50)

@@ -3,7 +3,7 @@ import {useNow} from "@vueuse/core"
 
 import {toDateLabel, toLocaleDateTime} from "@daily/std"
 
-import BaseIcon from "@/ui/base/BaseIcon"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
 import AgentRow from "./AgentRow.vue"
 
 import type {ServerAgentView, ServerBindingView} from "@daily/protocol"

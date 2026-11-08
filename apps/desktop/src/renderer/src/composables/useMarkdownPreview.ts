@@ -1,19 +1,19 @@
-import {shallowRef, watch} from "vue"
+import {shallowRef, toValue, watch} from "vue"
 
 import {renderMarkdownPreview} from "@/utils/markdown/renderMarkdownPreview"
 
 import type {MarkdownPreviewOptions} from "@/utils/markdown/renderMarkdownPreview"
-import type {Ref} from "vue"
+import type {MaybeRefOrGetter} from "vue"
 
 export function useMarkdownPreview(
-  containerRef: Readonly<Ref<HTMLElement | null>>,
-  content: Readonly<Ref<string>>,
-  options: Readonly<Ref<MarkdownPreviewOptions>>,
+  containerRef: MaybeRefOrGetter<HTMLElement | null>,
+  content: MaybeRefOrGetter<string>,
+  options: MaybeRefOrGetter<MarkdownPreviewOptions>,
 ) {
   const contentElementRef = shallowRef<HTMLElement | null>(null)
 
   watch(
-    [containerRef, content, options],
+    [() => toValue(containerRef), () => toValue(content), () => toValue(options)],
     ([container, source, previewOptions], _, onCleanup) => {
       if (!container) {
         contentElementRef.value = null

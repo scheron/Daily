@@ -1,10 +1,11 @@
+import {toValue} from "vue"
 import {tryOnScopeDispose, useEventListener} from "@vueuse/core"
 
 import {findVerticalScrollAncestor} from "@/utils/ui/findVerticalScrollAncestor"
 
-import type {ShallowRef} from "vue"
+import type {MaybeRefOrGetter} from "vue"
 
-export function useDragScroll(target: Readonly<ShallowRef<HTMLElement | null>>) {
+export function useDragScroll(target: MaybeRefOrGetter<HTMLElement | null>) {
   let active = false
   let engaged = false
   let startX = 0
@@ -18,7 +19,7 @@ export function useDragScroll(target: Readonly<ShallowRef<HTMLElement | null>>) 
   function onPointerDown(event: PointerEvent) {
     const ignoreSelector = "[data-task-card], button, a, input, textarea, select, [role='button'], [contenteditable='true']"
 
-    const container = target.value
+    const container = toValue(target)
     if (!container || event.button !== 0) return
     if (event.target instanceof Element && event.target.closest(ignoreSelector)) return
 
@@ -38,7 +39,7 @@ export function useDragScroll(target: Readonly<ShallowRef<HTMLElement | null>>) 
   function onPointerMove(event: PointerEvent) {
     const threshold = 4
 
-    const container = target.value
+    const container = toValue(target)
     if (!active || !container) return
 
     const dx = event.clientX - startX

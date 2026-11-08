@@ -3,10 +3,10 @@ import {computed} from "vue"
 
 import {toLocaleDateTime} from "@daily/std"
 
-import {useSyncServerStore} from "@/stores/syncServer.store"
+import {useSyncServerStore} from "@/stores/sync-server"
 import BaseButton from "@/ui/base/BaseButton"
-import BaseIcon from "@/ui/base/BaseIcon"
-import {useWindowCountdown} from "../useWindowCountdown"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
+import {useWindowCountdown} from "../composables/useWindowCountdown"
 
 const syncServerStore = useSyncServerStore()
 

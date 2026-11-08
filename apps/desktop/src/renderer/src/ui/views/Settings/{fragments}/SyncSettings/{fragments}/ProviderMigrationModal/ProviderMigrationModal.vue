@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import {computed, onMounted, ref} from "vue"
 
-import {useStorageStore} from "@/stores/storage.store"
-import {useSyncServerStore} from "@/stores/syncServer.store"
+import {useStorageStore} from "@/stores/storage"
+import {useSyncServerStore} from "@/stores/sync-server"
 import BaseButton from "@/ui/base/BaseButton"
-import BaseIcon from "@/ui/base/BaseIcon"
-import {BaseModal} from "@/ui/base/BaseModal"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
+import BaseModal from "@/ui/base/BaseModal.vue"
+import ModalHeader from "@/ui/common/(headers)/ModalHeader.vue"
 import {messageOf} from "./utils/messageOf"
 import ServerConnectSteps from "./{fragments}/ServerConnectSteps.vue"
 
@@ -116,7 +117,11 @@ onMounted(() => {
 </script>
 
 <template>
-  <BaseModal :title="title" container-class="mx-4 h-auto w-full max-w-md rounded-xl" content-class="!p-5" @close="emit('close')">
+  <BaseModal container-class="mx-4 h-auto w-full max-w-md rounded-xl" content-class="!p-5" @close="emit('close')">
+    <template #header>
+      <ModalHeader :title="title" @close="emit('close')" />
+    </template>
+
     <p v-if="errorMessage" class="bg-error/10 text-error mb-4 rounded-lg px-3 py-2 text-sm">{{ errorMessage }}</p>
 
     <ServerConnectSteps v-if="step === 'connect'" v-model:step="connectStep" @bound="onBound" />

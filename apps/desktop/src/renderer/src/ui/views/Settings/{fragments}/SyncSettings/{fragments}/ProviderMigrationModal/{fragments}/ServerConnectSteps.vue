@@ -3,11 +3,12 @@ import {computed, onBeforeUnmount, onMounted, ref, useTemplateRef} from "vue"
 
 import {SYNC_PROTOCOL_CONFIG} from "@daily/protocol"
 
-import {useSyncServerStore} from "@/stores/syncServer.store"
+import {NON_DIGIT_REGEX} from "@/constants/regex"
+import {useSyncServerStore} from "@/stores/sync-server"
 import BaseButton from "@/ui/base/BaseButton"
-import BaseIcon from "@/ui/base/BaseIcon"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
 import BaseInput from "@/ui/base/BaseInput.vue"
-import EnrollmentCode from "@/ui/common/sync/EnrollmentCode.vue"
+import EnrollmentCode from "@/ui/common/(misc)/EnrollmentCode.vue"
 import {messageOf} from "../utils/messageOf"
 
 import type {EnrollmentTicketView, ServerProbeView} from "@daily/protocol"
@@ -171,7 +172,7 @@ function focusCodeCell(index: number): void {
 
 function onCodeDigitInput(index: number, event: Event): void {
   const target = event.target as HTMLInputElement
-  const digit = target.value.replace(/\D/g, "").slice(-1)
+  const digit = target.value.replace(NON_DIGIT_REGEX, "").slice(-1)
   codeDigits.value[index] = digit
   target.value = digit
 
@@ -205,7 +206,7 @@ function onCodeDigitKeydown(index: number, event: KeyboardEvent): void {
 
 function onCodeDigitPaste(index: number, event: ClipboardEvent): void {
   const digits = (event.clipboardData?.getData("text") ?? "")
-    .replace(/\D/g, "")
+    .replace(NON_DIGIT_REGEX, "")
     .slice(0, CODE_LENGTH - index)
     .split("")
   if (!digits.length) return
@@ -237,7 +238,7 @@ onBeforeUnmount(() => {
       <BaseButton variant="primary" class="w-full" :loading="isLoading" @click="onProbe">Continue</BaseButton>
     </div>
 
-    <div class="border-base-300 -mx-5 mt-5 -mb-5 flex flex-col border-t px-5 py-4">
+    <div class="border-base-300 -mx-5 -mb-5 mt-5 flex flex-col border-t px-5 py-4">
       <BaseButton variant="link" size="xs" class="self-center" @click="onOpenServerDocs">No server yet?</BaseButton>
     </div>
   </template>
@@ -254,7 +255,7 @@ onBeforeUnmount(() => {
       </div>
       <div v-if="probeResult.transport.fingerprint" class="flex flex-col gap-1">
         <span class="text-base-content/60">Fingerprint</span>
-        <span class="text-base-content bg-base-100 rounded px-2 py-1 font-mono text-xs break-all">{{ probeResult.transport.fingerprint }}</span>
+        <span class="text-base-content bg-base-100 break-all rounded px-2 py-1 font-mono text-xs">{{ probeResult.transport.fingerprint }}</span>
       </div>
     </div>
 

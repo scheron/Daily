@@ -44,11 +44,11 @@ export async function mountBoardDrag(
   {frame = "day", taskView = "regular", fontSize = "normal", boardMode = "normal", allProjects = false, externalDrops = false} = {},
 ) {
   const {useTasksStore} = await import("../../src/renderer/src/stores/tasks/tasks.store")
-  const {useDragDropStore} = await import("../../src/renderer/src/stores/dragDrop.store")
-  const {useSettingsStore} = await import("../../src/renderer/src/stores/settings.store")
-  const {useFilterStore} = await import("../../src/renderer/src/stores/filter.store")
-  const {useMilestonesStore} = await import("../../src/renderer/src/stores/milestones.store")
-  const {useUIStore} = await import("../../src/renderer/src/stores/ui/ui.store")
+  const {useDragDropStore} = await import("../../src/renderer/src/stores/drag-drop")
+  const {useSettingsStore} = await import("../../src/renderer/src/stores/settings")
+  const {useFilterStore} = await import("../../src/renderer/src/stores/filter")
+  const {useMilestonesStore} = await import("../../src/renderer/src/stores/milestones")
+  const {useUiStore} = await import("../../src/renderer/src/stores/ui/ui.store")
   const {useTaskColumns} = await import("../../src/renderer/src/composables/tasks/useTaskColumns")
   const {useBoardDrop} = await import("../../src/renderer/src/composables/tasks/useBoardDrop")
 
@@ -174,7 +174,7 @@ export async function mountBoardDrag(
     tasks,
     settings,
     drag: useDragDropStore(),
-    ui: useUIStore(),
+    ui: useUiStore(),
     columns,
     boardEl,
     tracks: board,

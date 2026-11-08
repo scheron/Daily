@@ -5,13 +5,13 @@ import {storeToRefs} from "pinia"
 
 import {toDurationLabel} from "@daily/std"
 
-import {useDragDropStore} from "@/stores/dragDrop.store"
+import {useDragDropStore} from "@/stores/drag-drop"
 import {useTasksStore} from "@/stores/tasks"
-import BaseIcon from "@/ui/base/BaseIcon"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
 import {cn} from "@/utils/ui/tailwindcss"
 import {toTaskTitle} from "@shared/utils/tasks/toTaskTitle"
 
-import type {IconName} from "@/ui/base/BaseIcon"
+import type {IconName} from "@/types/icons"
 import type {TaskStatus} from "@daily/protocol"
 
 let pointerX = 0
@@ -43,6 +43,24 @@ const icon = computed<IconName>(() => {
 
 useEventListener(window, "pointermove", onPointerMove)
 
+const previewClass = computed(() =>
+  cn(
+    "bg-base-100/80 border-base-300/70 dark:border-base-300 pointer-events-none fixed top-0 left-0 z-[100001] flex h-[44px] w-[346px] shrink-0 -rotate-[1.6deg] items-center gap-2.5 overflow-hidden rounded-full border px-[18px] opacity-90 shadow-lg backdrop-blur-sm transition-[width,height,padding,border-color] duration-200 ease-out",
+    {"border-accent dark:border-accent h-[32px] w-[168px] px-[14px]": isOverDropZone.value},
+  ),
+)
+const iconClass = computed(() =>
+  cn("size-4 shrink-0", {
+    "text-base-content/80": task.value?.status === "todo",
+    "text-accent": task.value?.status === "in_progress",
+    "text-error": task.value?.status === "ready_for_agent",
+    "text-info": task.value?.status === "ready_to_merge",
+    "text-warning": task.value?.status === "cancelled",
+    "text-success": task.value?.status === "done",
+    "text-base-content/60": task.value?.status === "backlog",
+  }),
+)
+
 function onPointerMove(event: PointerEvent) {
   pointerX = event.clientX
   pointerY = event.clientY
@@ -58,26 +76,6 @@ function place() {
   previewRef.value.style.translate = `${pointerX - anchorX}px ${pointerY - anchorY}px`
 }
 
-function getPreviewClasses(isOver: boolean) {
-  return cn(
-    "bg-base-100/80 border-base-300/70 dark:border-base-300 pointer-events-none fixed top-0 left-0 z-[100001] flex h-[44px] w-[346px] shrink-0 -rotate-[1.6deg] items-center gap-2.5 overflow-hidden rounded-full border px-[18px] opacity-90 shadow-lg backdrop-blur-sm transition-[width,height,padding,border-color] duration-200 ease-out",
-    isOver && "border-accent dark:border-accent h-[32px] w-[168px] px-[14px]",
-  )
-}
-
-function getIconClasses(status: TaskStatus) {
-  return cn(
-    "size-4 shrink-0",
-    status === "todo" && "text-base-content/80",
-    status === "in_progress" && "text-accent",
-    status === "ready_for_agent" && "text-error",
-    status === "ready_to_merge" && "text-info",
-    status === "cancelled" && "text-warning",
-    status === "done" && "text-success",
-    status === "backlog" && "text-base-content/60",
-  )
-}
-
 watch(draggingTaskId, async (id) => {
   if (!id) return
   await nextTick()
@@ -87,8 +85,8 @@ watch(draggingTaskId, async (id) => {
 
 <template>
   <Teleport to="body">
-    <div v-if="task" ref="preview" :class="getPreviewClasses(isOverDropZone)">
-      <BaseIcon :name="icon" :class="getIconClasses(task.status)" />
+    <div v-if="task" ref="preview" :class="previewClass">
+      <BaseIcon :name="icon" :class="iconClass" />
       <span class="min-w-0 flex-1 truncate text-sm">{{ title }}</span>
 
       <span v-if="estimateLabel && !isOverDropZone" class="text-base-content/80 inline-flex shrink-0 items-center gap-1 text-xs">

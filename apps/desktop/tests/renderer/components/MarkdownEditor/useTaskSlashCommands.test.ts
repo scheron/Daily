@@ -20,10 +20,10 @@ describe("useTaskSlashCommands", () => {
   beforeEach(async () => {
     mockBridgeIPC()
     setActivePinia(createPinia())
-    const {useTagsStore} = await import(`${SRC}/stores/tags.store`)
-    const {useBranchesStore} = await import(`${SRC}/stores/branches.store`)
-    const {useMilestonesStore} = await import(`${SRC}/stores/milestones.store`)
-    const {useTaskSlashCommands} = await import(`${SRC}/ui/common/misc/MarkdownEditor/composables/useTaskSlashCommands`)
+    const {useTagsStore} = await import(`${SRC}/stores/tags`)
+    const {useBranchesStore} = await import(`${SRC}/stores/branches`)
+    const {useMilestonesStore} = await import(`${SRC}/stores/milestones`)
+    const {useTaskSlashCommands} = await import(`${SRC}/ui/common/(editors)/MarkdownEditor/composables/useTaskSlashCommands`)
 
     useTagsStore().tags = [tag("t1", "work"), tag("t2", "Alpha"), tag("t3", "beta"), tag("t4", "other-project", "daily")]
     useBranchesStore().branches = [branch("daily", "Daily"), branch("main", "Main"), branch("zeta", "Zeta")]
@@ -131,10 +131,10 @@ describe("useTaskSlashCommands", () => {
   })
 
   it("passes the project emoji to slash menu rows while retaining project selection", async () => {
-    const {useBranchesStore} = await import(`${SRC}/stores/branches.store`)
+    const {useBranchesStore} = await import(`${SRC}/stores/branches`)
     useBranchesStore().branches = [{...branch("daily", "Daily"), emoji: "🚀"}]
     const row = items("Project")[0]
-    const {default: SlashCommandRows} = await import(`${SRC}/ui/common/misc/SlashCommandRows/SlashCommandRows.vue`)
+    const {default: SlashCommandRows} = await import(`${SRC}/ui/common/(misc)/SlashCommandRows/SlashCommandRows.vue`)
     const {mount} = await import("@vue/test-utils")
     const menu = mount(SlashCommandRows, {props: {menu: {rows: [row], selected: 0, caretX: 0}}, global: {directives: {tooltip: {}}}})
     expect(menu.text()).toContain("🚀")

@@ -17,8 +17,8 @@ describe("MilestoneRow", () => {
 
     const {default: MilestoneRow} =
       await import("../../../../src/renderer/src/ui/views/Settings/{fragments}/ProjectsSettings/{fragments}/MilestonesForm/{fragments}/MilestoneRow.vue")
-    const {default: TaskCalendar} = await import("../../../../src/renderer/src/ui/common/calendar/TaskCalendar")
-    const {useSettingsStore} = await import("../../../../src/renderer/src/stores/settings.store")
+    const {default: TaskCalendar} = await import("../../../../src/renderer/src/ui/common/(calendars)/TaskCalendar")
+    const {useSettingsStore} = await import("../../../../src/renderer/src/stores/settings")
     const {useTasksStore} = await import("../../../../src/renderer/src/stores/tasks")
 
     const settingsStore = useSettingsStore()

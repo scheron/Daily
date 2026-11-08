@@ -13,8 +13,8 @@ describe("uiStore", () => {
   })
 
   async function getStore() {
-    const {useUIStore} = await import("../../../src/renderer/src/stores/ui/ui.store")
-    const store = useUIStore()
+    const {useUiStore} = await import("../../../src/renderer/src/stores/ui/ui.store")
+    const store = useUiStore()
     await new Promise((r) => setTimeout(r, 0))
     return store
   }

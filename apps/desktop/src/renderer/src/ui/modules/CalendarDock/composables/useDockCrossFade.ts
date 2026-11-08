@@ -1,12 +1,12 @@
-import {watch} from "vue"
+import {toValue, watch} from "vue"
 import {storeToRefs} from "pinia"
 
-import {useUIStore} from "@/stores/ui"
+import {useUiStore} from "@/stores/ui"
 
-import type {ShallowRef} from "vue"
+import type {MaybeRefOrGetter} from "vue"
 
-export function useDockCrossFade(dock: Readonly<ShallowRef<HTMLElement | null>>) {
-  const uiStore = useUIStore()
+export function useDockCrossFade(dock: MaybeRefOrGetter<HTMLElement | null>) {
+  const uiStore = useUiStore()
   const {isCalendarDockExpanded} = storeToRefs(uiStore)
 
   let panelWidthBeforeCollapse = 0
@@ -26,7 +26,7 @@ export function useDockCrossFade(dock: Readonly<ShallowRef<HTMLElement | null>>)
 
   function onLeave(el: Element, done: () => void) {
     const node = el as HTMLElement
-    const surface = dock.value
+    const surface = toValue(dock)
     if (!surface || typeof node.animate !== "function") return done()
 
     const {leave, timing} = crossFadeFor(isCalendarDockExpanded.value)
@@ -54,7 +54,7 @@ export function useDockCrossFade(dock: Readonly<ShallowRef<HTMLElement | null>>)
     isCalendarDockExpanded,
     (isExpanded) => {
       if (isExpanded) return
-      const panel = dock.value?.querySelector<HTMLElement>(":scope > div")
+      const panel = toValue(dock)?.querySelector<HTMLElement>(":scope > div")
       panelWidthBeforeCollapse = panel?.offsetWidth ?? 0
     },
     {flush: "sync"},

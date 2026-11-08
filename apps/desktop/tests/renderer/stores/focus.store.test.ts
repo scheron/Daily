@@ -2,7 +2,7 @@
 import {createPinia, setActivePinia} from "pinia"
 import {beforeEach, describe, expect, it, vi} from "vitest"
 
-import {useFocusStore} from "../../../src/renderer/src/stores/focus.store"
+import {useFocusStore} from "../../../src/renderer/src/stores/focus"
 import {mockBridgeIPC} from "../../helpers/bridgeIPC"
 
 function makeTask(overrides = {}) {

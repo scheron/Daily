@@ -3,7 +3,7 @@
 import {createPinia, setActivePinia} from "pinia"
 import {beforeEach, describe, expect, it, vi} from "vitest"
 
-import {useDragDropStore} from "../../../src/renderer/src/stores/dragDrop.store"
+import {useDragDropStore} from "../../../src/renderer/src/stores/drag-drop"
 import {useTasksStore} from "../../../src/renderer/src/stores/tasks"
 import {mockBridgeIPC} from "../../helpers/bridgeIPC"
 import {makeTask} from "../../helpers/taskFixtures"

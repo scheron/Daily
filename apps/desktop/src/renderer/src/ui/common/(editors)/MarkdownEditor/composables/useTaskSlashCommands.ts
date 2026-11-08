@@ -1,0 +1,179 @@
+import {toValue} from "vue"
+
+import {sortMilestones} from "@daily/protocol"
+import {getTime, getTimezone, getToday, toDateLabel} from "@daily/std"
+
+import {PRIORITY_LEVELS} from "@/constants/priority"
+import {TASK_COLUMNS} from "@/constants/ui"
+import {useBranchesStore} from "@/stores/branches"
+import {useMilestonesStore} from "@/stores/milestones"
+import {useTagsStore} from "@/stores/tags"
+import {getProjectIcon} from "@/utils/projects/getProjectIcon"
+import {getProjectName} from "@/utils/projects/getProjectName"
+import {getUpcomingDays} from "../utils/getUpcomingDays"
+import {parseDayMonth} from "../utils/parseDayMonth"
+import {parseDuration} from "../utils/parseDuration"
+
+import type {TaskDraft} from "@/types/taskDraft"
+import type {Task} from "@daily/protocol"
+import type {MaybeRefOrGetter} from "vue"
+import type {NestedCommand} from "../types"
+
+type NestedItem = ReturnType<NestedCommand["getItems"]>[number]
+
+export function useTaskSlashCommands(task: MaybeRefOrGetter<Task>, patch: (updates: Partial<TaskDraft>) => void) {
+  const branchesStore = useBranchesStore()
+  const tagsStore = useTagsStore()
+  const milestonesStore = useMilestonesStore()
+
+  const commands: NestedCommand[] = [
+    {label: "Status", icon: "fire", getItems: getStatusItems},
+    {label: "Date", icon: "calendar", getItems: getDateItems},
+    {label: "Project", icon: "project", getItems: getProjectItems},
+    {label: "Priority", icon: "priority-high", getItems: getPriorityItems},
+    {label: "Milestone", icon: "milestone", isAvailable: () => getProjectMilestones().length > 0, getItems: getMilestoneItems},
+    {
+      label: "Remove Milestone",
+      icon: "milestone",
+      tone: "remove",
+      isAvailable: () => getProjectMilestones().some((milestone) => milestone.id === toValue(task).milestoneId),
+      getItems: getAttachedMilestoneItems,
+    },
+    {label: "Estimate", icon: "stopwatch", getItems: getEstimateItems},
+    {label: "Add Tag", icon: "tags", getItems: (query) => getTagItems(tagsStore.tagsForBranch(toValue(task).branchId), query, addTag)},
+    {
+      label: "Remove Tag",
+      icon: "tags-off",
+      tone: "remove",
+      isAvailable: () => toValue(task).tags.length > 0,
+      getItems: (query) => getTagItems(toValue(task).tags, query, removeTag),
+    },
+  ]
+
+  function getStatusItems(query: string): NestedItem[] {
+    return TASK_COLUMNS.filter((item) => matches(item.label, query)).map((item) => ({
+      label: item.label,
+      icon: item.icon,
+      apply: () => patch({status: item.status}),
+    }))
+  }
+
+  function getDateItems(query: string): NestedItem[] {
+    const today = getToday()
+    const days = [
+      {date: today, label: "Today"},
+      ...getUpcomingDays(today, 1, 1).map((day) => ({...day, label: "Tomorrow"})),
+      ...getUpcomingDays(today, 2, 6),
+    ]
+    const items: NestedItem[] = days
+      .filter((day) => matches(day.label, query))
+      .map((day) => ({label: day.label, tooltip: toDateLabel(day.date), icon: "calendar" as const, apply: () => setDate(day.date)}))
+
+    if (toValue(task).status === "ready_for_agent" && toValue(task).scheduled && matches("No date", query)) {
+      items.push({label: "No date", icon: "calendar", apply: () => patch({scheduled: null})})
+    }
+
+    const typed = parseDayMonth(query, today)
+    if (typed) items.push({label: query, tooltip: toDateLabel(typed), icon: "calendar", apply: () => setDate(typed)})
+    return items
+  }
+
+  function getProjectItems(query: string): NestedItem[] {
+    return branchesStore.orderedBranches
+      .filter((branch) => matches(getProjectName(branch), query))
+      .map((branch) => ({
+        label: getProjectName(branch),
+        icon: getProjectIcon(branch),
+        project: {id: branch.id, emoji: branch.emoji},
+        apply: () => {
+          if (branch.id !== toValue(task).branchId) patch({branchId: branch.id})
+        },
+      }))
+  }
+
+  function getPriorityItems(query: string): NestedItem[] {
+    return PRIORITY_LEVELS.filter((level) => matches(level.label, query)).map((level) => ({
+      label: level.label,
+      icon: `priority-${level.value}` as const,
+      iconColor: level.color,
+      apply: () => {
+        if (level.value !== toValue(task).priority) patch({priority: level.value})
+      },
+    }))
+  }
+
+  function getMilestoneItems(query: string): NestedItem[] {
+    return getProjectMilestones()
+      .filter((milestone) => matches(milestone.name, query))
+      .map((milestone) => ({
+        label: milestone.name,
+        icon: "milestone",
+        apply: () => {
+          if (milestone.id !== toValue(task).milestoneId) patch({milestoneId: milestone.id})
+        },
+      }))
+  }
+
+  function getAttachedMilestoneItems(query: string): NestedItem[] {
+    return getProjectMilestones()
+      .filter((milestone) => milestone.id === toValue(task).milestoneId && matches(milestone.name, query))
+      .map((milestone) => ({label: milestone.name, icon: "milestone", apply: () => patch({milestoneId: null})}))
+  }
+
+  function getEstimateItems(query: string): NestedItem[] {
+    const presets = [
+      {label: "15m", seconds: 15 * 60},
+      {label: "30m", seconds: 30 * 60},
+      {label: "1h", seconds: 60 * 60},
+      {label: "2h", seconds: 2 * 60 * 60},
+    ]
+    const typed = parseDuration(query)
+
+    const visible = presets.filter((preset) => matches(preset.label, query) || preset.seconds === typed)
+    const items = visible.map((preset) => ({
+      label: preset.label,
+      icon: "stopwatch" as const,
+      apply: () => patch({estimatedTime: preset.seconds}),
+    }))
+
+    if (typed && !visible.some((preset) => preset.seconds === typed)) {
+      items.push({label: query, icon: "stopwatch", apply: () => patch({estimatedTime: typed})})
+    }
+    return items
+  }
+
+  function getTagItems(tags: Task["tags"], query: string, apply: (tag: Task["tags"][number]) => void): NestedItem[] {
+    return [...tags]
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, {sensitivity: "base"}))
+      .filter((tag) => matches(tag.name, query))
+      .map((tag) => ({label: tag.name, color: tag.color, apply: () => apply(tag)}))
+  }
+
+  function getProjectMilestones() {
+    return sortMilestones(milestonesStore.milestonesForBranch(toValue(task).branchId))
+  }
+
+  function setDate(date: string) {
+    const scheduled = toValue(task).scheduled
+    if (date === scheduled?.date) return
+    patch({scheduled: scheduled ? {...scheduled, date} : {date, time: getTime(), timezone: getTimezone()}})
+  }
+
+  function addTag(tag: Task["tags"][number]) {
+    const {tags} = toValue(task)
+    if (tags.some((t) => t.id === tag.id)) return
+    patch({tags: [...tags, tag]})
+  }
+
+  function removeTag(tag: Task["tags"][number]) {
+    const {tags} = toValue(task)
+    if (!tags.some((t) => t.id === tag.id)) return
+    patch({tags: tags.filter((t) => t.id !== tag.id)})
+  }
+
+  return {commands}
+}
+
+function matches(label: string, query: string): boolean {
+  return !query || label.toLowerCase().includes(query.toLowerCase())
+}

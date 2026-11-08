@@ -2,9 +2,8 @@
 import {computed, nextTick, ref, useTemplateRef, watch} from "vue"
 import {useEventListener} from "@vueuse/core"
 
-import {useFocusTrap} from "@/composables/useFocusTrap"
+import {watchFocusTrap} from "@/composables/watchFocusTrap"
 import {useEditorShortcuts} from "./composables/useEditorShortcuts"
-import {nestedTarget} from "./composables/useNestedView"
 import {openedSubtaskId} from "./composables/useSubtaskEditorOpen"
 import {useTaskEditor} from "./composables/useTaskEditor"
 import {animatePanel} from "./utils/animatePanel"
@@ -17,6 +16,7 @@ import Footer from "./{fragments}/Footer.vue"
 import Subtasks from "./{fragments}/Subtasks"
 import SubtaskView from "./{fragments}/SubtaskView"
 import Toolbar from "./{fragments}/Toolbar.vue"
+import {nestedTarget} from "./state"
 
 const props = defineProps<{width: number}>()
 
@@ -33,7 +33,7 @@ const {isOpen, activeTask, isNew, editingTaskId, localContent} = useTaskEditor()
 
 const toolbarTitle = computed(() => (isFirstLineOut.value ? getTaskTitle(localContent.value) : ""))
 
-useFocusTrap(panelRef, isOpen)
+watchFocusTrap(panelRef, isOpen)
 useEditorShortcuts()
 
 useEventListener(scrollerRef, "scroll", updateFirstLineOut, {passive: true})

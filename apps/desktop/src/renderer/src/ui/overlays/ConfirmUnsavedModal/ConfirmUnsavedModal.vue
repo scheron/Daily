@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import BaseButton from "@/ui/base/BaseButton"
-import BaseIcon from "@/ui/base/BaseIcon"
-import {BaseModal} from "@/ui/base/BaseModal"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
+import BaseModal from "@/ui/base/BaseModal.vue"
 
 defineProps<{canSave: boolean}>()
 
@@ -14,7 +14,7 @@ defineEmits<{
 </script>
 
 <template>
-  <BaseModal hide-header container-class="mx-4 h-auto w-full max-w-md rounded-xl" content-class="!p-5" @close="$emit('close')">
+  <BaseModal container-class="mx-4 h-auto w-full max-w-md rounded-xl" content-class="!p-5" @close="$emit('close')">
     <div class="mb-2 flex items-center gap-3">
       <BaseIcon name="alert-circle" class="text-warning size-7" />
       <h2 class="text-base-content text-lg font-semibold">You have unsaved changes</h2>

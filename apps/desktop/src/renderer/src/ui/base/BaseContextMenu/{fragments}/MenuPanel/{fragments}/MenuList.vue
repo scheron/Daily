@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {hasSubmenu} from "@/ui/base/BaseContextMenu/{fragments}/MenuPanel/utils/hasSubmenu"
-import BaseIcon from "@/ui/base/BaseIcon"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
 import {cn} from "@/utils/ui/tailwindcss"
 
 import type {BaseContextMenuItem, BaseContextMenuLabeledItem} from "@/ui/base/BaseContextMenu/types"
@@ -10,15 +10,14 @@ const props = defineProps<{items: BaseContextMenuItem[]; activeValue?: string | 
 const emit = defineEmits<{select: [BaseContextMenuItem]; "item-hover": [item: BaseContextMenuItem, el: HTMLElement]; "item-leave": []}>()
 
 function getRowClasses(isSeparator: boolean) {
-  return cn(isSeparator && "my-1")
+  return cn({"my-1": isSeparator})
 }
 
 function getItemClasses(hasChildren: boolean, isActive: boolean, isDisabled: boolean, itemClass: HTMLAttributes["class"]) {
   return cn(
     "text-base-content hover:bg-base-300/80 flex w-full items-center gap-2 rounded-md py-1.5 text-left transition-colors",
-    hasChildren ? "pr-1 pl-3" : "px-3",
-    isActive && "bg-base-content/10",
-    isDisabled && "pointer-events-none opacity-50",
+    [hasChildren ? "pr-1 pl-3" : "px-3"],
+    {"bg-base-content/10": isActive, "pointer-events-none opacity-50": isDisabled},
     itemClass,
   )
 }
@@ -66,7 +65,7 @@ function onItemClick(item: BaseContextMenuItem) {
   <ul class="overflow-hidden p-1" @mouseleave="emit('item-leave')">
     <li v-for="(item, i) in items" :key="item.separator ? `sep-${i}` : item.value" :class="getRowClasses(!!item.separator)">
       <div v-if="item.separator" class="relative h-px w-full">
-        <span class="bg-base-300 absolute inset-0 block h-px w-full scale-x-200"></span>
+        <span class="bg-base-300 scale-x-200 absolute inset-0 block h-px w-full"></span>
       </div>
 
       <component :is="() => renderItemSlot(item)" v-else-if="hasItemSlot(item)" />

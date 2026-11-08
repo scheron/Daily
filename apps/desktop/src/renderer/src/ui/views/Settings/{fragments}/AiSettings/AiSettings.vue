@@ -9,8 +9,8 @@ import BaseSwitch from "@/ui/base/BaseSwitch.vue"
 import SettingRow from "@/ui/views/Settings/{fragments}/SettingRow.vue"
 import SettingsGroup from "@/ui/views/Settings/{fragments}/SettingsGroup.vue"
 import {cn} from "@/utils/ui/tailwindcss"
-import SettingsLocal from "./{fragments}/SettingsLocal"
-import SettingsOpenAI from "./{fragments}/SettingsOpenAI"
+import LocalAiSettings from "./{fragments}/LocalAiSettings"
+import OpenAiSettings from "./{fragments}/OpenAiSettings"
 
 import type {AIProvider} from "@daily/protocol"
 
@@ -47,6 +47,8 @@ const statusInfo = computed(() => {
   return {label: "Not connected", dot: "bg-base-content/30"}
 })
 
+const statusDotClass = computed(() => cn("size-2 rounded-full", statusInfo.value.dot))
+
 async function onChangeProvider(value: AIProvider) {
   await aiStore.updateConfig({provider: value})
   await aiStore.checkConnection()
@@ -56,10 +58,6 @@ function onRefresh() {
   if (provider.value === "local") aiStore.loadLocalModels()
   else aiStore.checkConnection()
 }
-
-function getStatusDotClasses(dot: string) {
-  return cn("size-2 rounded-full", dot)
-}
 </script>
 
 <template>
@@ -68,7 +66,7 @@ function getStatusDotClasses(dot: string) {
       <SettingRow title="AI Assistant" description="Your personal AI agent for your day — it acts on your tasks, not just chat">
         <div class="flex items-center gap-2.5">
           <span v-if="aiStore.config?.enabled" class="text-base-content/60 flex items-center gap-1.5 text-xs">
-            <span :class="getStatusDotClasses(statusInfo.dot)" />
+            <span :class="statusDotClass" />
             {{ statusInfo.label }}
             <BaseButton variant="ghost" icon="refresh" size="xs" class="-mr-1" @click="onRefresh" />
           </span>
@@ -85,8 +83,8 @@ function getStatusDotClasses(dot: string) {
               </div>
 
               <div class="py-3">
-                <SettingsOpenAI v-if="provider === 'openai'" />
-                <SettingsLocal v-else />
+                <OpenAiSettings v-if="provider === 'openai'" />
+                <LocalAiSettings v-else />
               </div>
 
               <div class="py-3">

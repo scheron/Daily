@@ -2,13 +2,13 @@
 import {computed, useTemplateRef, watch} from "vue"
 import {storeToRefs} from "pinia"
 
-import {useFocusStore} from "@/stores/focus.store"
-import {useUIStore} from "@/stores/ui"
+import {useFocusStore} from "@/stores/focus"
+import {useUiStore} from "@/stores/ui"
 import BaseAnimation from "@/ui/base/BaseAnimation.vue"
 import BaseButton from "@/ui/base/BaseButton"
-import FocusPanel from "@/ui/common/focus/FocusPanel"
+import FocusPanel from "@/ui/common/(panels)/FocusPanel"
 
-const uiStore = useUIStore()
+const uiStore = useUiStore()
 const focusStore = useFocusStore()
 
 const {session} = storeToRefs(focusStore)

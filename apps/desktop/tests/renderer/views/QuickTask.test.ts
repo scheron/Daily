@@ -42,8 +42,8 @@ describe("the Quick task window view", () => {
         disconnect() {}
       },
     )
-    const {useSettingsStore} = await import(`${SRC}/stores/settings.store`)
-    const {useBranchesStore} = await import(`${SRC}/stores/branches.store`)
+    const {useSettingsStore} = await import(`${SRC}/stores/settings`)
+    const {useBranchesStore} = await import(`${SRC}/stores/branches`)
     await useSettingsStore().revalidate()
     useBranchesStore().branches = [
       {id: "main", name: "Main", createdAt: "", updatedAt: "", deletedAt: null},
@@ -212,7 +212,7 @@ describe("the Quick task window view", () => {
   })
 
   it("a picked milestone shows as a chip and is saved with the task; a project change drops it together with the tags", async () => {
-    const {useMilestonesStore} = await import(`${SRC}/stores/milestones.store`)
+    const {useMilestonesStore} = await import(`${SRC}/stores/milestones`)
     useMilestonesStore().milestones = [{id: "m1", name: "Launch", branchId: "main", orderIndex: 0, createdAt: "", updatedAt: "", deletedAt: null}]
     const editor = await mountView()
     editor.vm.$emit("update:content", "Ship it")
@@ -279,7 +279,7 @@ describe("the Quick task window view", () => {
 
   it("shows the chosen project emoji in the quick task chip", async () => {
     const editor = await mountView()
-    const {useBranchesStore} = await import(`${SRC}/stores/branches.store`)
+    const {useBranchesStore} = await import(`${SRC}/stores/branches`)
     useBranchesStore().branches.find((project) => project.id === "daily").emoji = "🚀"
     editor.vm.$emit("patch", {branchId: "daily"})
     await flushPromises()
@@ -289,7 +289,7 @@ describe("the Quick task window view", () => {
 
   it("showing an untouched panel re-takes the project active now", async () => {
     await mountView()
-    const {useSettingsStore} = await import(`${SRC}/stores/settings.store`)
+    const {useSettingsStore} = await import(`${SRC}/stores/settings`)
     bridge["settings:load"].mockResolvedValue({...(await bridge["settings:load"]()), branch: {activeId: "daily"}})
 
     shown()
@@ -450,7 +450,7 @@ describe("the Quick task window view", () => {
     editor.vm.$emit("update:content", "Half-written")
     editor.vm.$emit("patch", {branchId: "daily"})
     await flushPromises()
-    const {useBranchesStore} = await import(`${SRC}/stores/branches.store`)
+    const {useBranchesStore} = await import(`${SRC}/stores/branches`)
     useBranchesStore().branches = useBranchesStore().branches.filter((branch) => branch.id !== "daily")
 
     shown()

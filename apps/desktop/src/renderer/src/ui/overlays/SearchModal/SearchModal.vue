@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import {useTaskColumns} from "@/composables/tasks/useTaskColumns"
 import {toasts} from "@/composables/useToasts"
-import {useBranchesStore} from "@/stores/branches.store"
-import {useProjectScopeStore} from "@/stores/projectScope.store"
+import {useBranchesStore} from "@/stores/branches"
+import {useProjectScopeStore} from "@/stores/project-scope"
 import {useTaskEditorStore} from "@/stores/task-editor"
 import {useTasksStore} from "@/stores/tasks"
-import BaseIcon from "@/ui/base/BaseIcon"
-import {BaseModal} from "@/ui/base/BaseModal"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
+import BaseModal from "@/ui/base/BaseModal.vue"
 import {useConfirmUnsavedModal} from "@/ui/overlays/ConfirmUnsavedModal"
 import {useFilter} from "./composables/useFilter"
 import {useSearch} from "./composables/useSearch"
@@ -65,7 +65,7 @@ async function navigateToTask(result: TaskSearchResult) {
 </script>
 
 <template>
-  <BaseModal hide-header container-class="max-h-[70vh] w-[600px]" content-class="overflow-hidden" @close="emit('close')">
+  <BaseModal container-class="max-h-[70vh] w-[600px]" content-class="overflow-hidden" @close="emit('close')">
     <div class="flex h-full flex-col overflow-hidden px-4 py-1.5">
       <SearchToolbar v-model:filter-query="query" v-model:filter-status="filter" :searching="isSearching" :has-items="items.length > 0" />
 

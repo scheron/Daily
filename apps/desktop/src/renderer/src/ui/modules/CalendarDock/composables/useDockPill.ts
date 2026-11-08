@@ -4,8 +4,8 @@ import {useNow} from "@vueuse/core"
 import {isMilestoneOverdue, milestoneCompletion} from "@daily/protocol"
 import {getToday, toDateLabel, toISODate} from "@daily/std"
 
-import {useFilterStore} from "@/stores/filter.store"
-import {useMilestonesStore} from "@/stores/milestones.store"
+import {useFilterStore} from "@/stores/filter"
+import {useMilestonesStore} from "@/stores/milestones"
 import {useTasksStore} from "@/stores/tasks"
 
 export function useDockPill() {

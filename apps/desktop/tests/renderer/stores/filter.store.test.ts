@@ -3,9 +3,9 @@ import {nextTick} from "vue"
 import {createPinia, setActivePinia} from "pinia"
 import {beforeEach, describe, expect, it} from "vitest"
 
-import {useFilterStore} from "../../../src/renderer/src/stores/filter.store"
-import {useMilestonesStore} from "../../../src/renderer/src/stores/milestones.store"
-import {useSettingsStore} from "../../../src/renderer/src/stores/settings.store"
+import {useFilterStore} from "../../../src/renderer/src/stores/filter"
+import {useMilestonesStore} from "../../../src/renderer/src/stores/milestones"
+import {useSettingsStore} from "../../../src/renderer/src/stores/settings"
 import {mockBridgeIPC} from "../../helpers/bridgeIPC"
 
 function makeMilestone(overrides = {}) {

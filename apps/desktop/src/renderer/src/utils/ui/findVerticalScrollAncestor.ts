@@ -1,3 +1,5 @@
+import {SCROLLABLE_OVERFLOW_REGEX} from "@/constants/regex"
+
 /**
  * An ancestor counts only when its content actually overflows, not merely when `overflow-y` allows scrolling.
  */
@@ -7,7 +9,7 @@ export function findVerticalScrollAncestor(target: EventTarget | null): HTMLElem
   let current: HTMLElement | null = target
   while (current) {
     const style = window.getComputedStyle(current)
-    const isScrollableY = /(auto|scroll|overlay)/.test(style.overflowY)
+    const isScrollableY = SCROLLABLE_OVERFLOW_REGEX.test(style.overflowY)
     if (isScrollableY && current.scrollHeight > current.clientHeight) {
       return current
     }

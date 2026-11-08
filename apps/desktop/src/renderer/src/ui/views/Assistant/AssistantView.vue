@@ -10,16 +10,16 @@ import {toasts} from "@/composables/useToasts"
 import {useAiStore} from "@/stores/ai"
 import {useThemeStore} from "@/stores/theme"
 import BaseButton from "@/ui/base/BaseButton"
-import BaseIcon from "@/ui/base/BaseIcon"
-import WaveText from "@/ui/common/misc/WaveText.vue"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
+import WaveText from "@/ui/common/(misc)/WaveText.vue"
 import {useStickToBottom} from "./composables/useStickToBottom"
 import {useTyping} from "./composables/useTyping"
-import ConnectionErrorAICard from "./{fragments}/cards/ConnectionErrorAICard.vue"
-import DisabledAICard from "./{fragments}/cards/DisabledAICard.vue"
-import NoLocalModelAICard from "./{fragments}/cards/NoLocalModelAICard.vue"
-import OnboardingAICard from "./{fragments}/cards/OnboardingAICard.vue"
-import ThinkErrorAICard from "./{fragments}/cards/ThinkErrorAICard.vue"
-import ToolConfirmationCard from "./{fragments}/cards/ToolConfirmationCard.vue"
+import ConnectionErrorAiCard from "./{fragments}/(cards)/ConnectionErrorAiCard.vue"
+import DisabledAiCard from "./{fragments}/(cards)/DisabledAiCard.vue"
+import NoLocalModelAiCard from "./{fragments}/(cards)/NoLocalModelAiCard.vue"
+import OnboardingAiCard from "./{fragments}/(cards)/OnboardingAiCard.vue"
+import ThinkErrorAiCard from "./{fragments}/(cards)/ThinkErrorAiCard.vue"
+import ToolConfirmationCard from "./{fragments}/(cards)/ToolConfirmationCard.vue"
 import ChatForm from "./{fragments}/ChatForm"
 import ChatMessage from "./{fragments}/ChatMessage"
 
@@ -125,17 +125,17 @@ onMounted(async () => {
 
         <template v-else>
           <div v-if="aiStore.isDisabled" class="flex size-full w-full items-center justify-center">
-            <DisabledAICard />
+            <DisabledAiCard />
           </div>
           <div v-else-if="aiStore.isConnectionError && isNoLocalModel" class="flex size-full w-full items-center justify-center">
-            <NoLocalModelAICard :remote-models="aiStore.remoteModels" @select-remote-model="handleSelectRemoteModel" />
+            <NoLocalModelAiCard :remote-models="aiStore.remoteModels" @select-remote-model="handleSelectRemoteModel" />
           </div>
           <div v-else-if="aiStore.isConnectionError" class="flex size-full w-full items-center justify-center">
-            <ConnectionErrorAICard @retry="aiStore.checkConnection" />
+            <ConnectionErrorAiCard @retry="aiStore.checkConnection" />
           </div>
 
           <template v-else>
-            <OnboardingAICard v-if="!aiStore.hasMessages" />
+            <OnboardingAiCard v-if="!aiStore.hasMessages" />
 
             <div v-else class="relative min-h-0 flex-1">
               <div ref="messagesContainer" class="h-full space-y-5 overflow-y-auto px-4 pb-10 pt-3">
@@ -156,7 +156,7 @@ onMounted(async () => {
                   @cancel="aiStore.cancelPendingToolCall"
                 />
 
-                <ThinkErrorAICard v-if="aiStore.isThinkError && retryableMessageId" @retry="aiStore.retryMessage" />
+                <ThinkErrorAiCard v-if="aiStore.isThinkError && retryableMessageId" @retry="aiStore.retryMessage" />
 
                 <div v-if="showThinkingSpinner" class="flex items-start gap-3">
                   <div class="text-base-content/60 pt-1 text-sm">

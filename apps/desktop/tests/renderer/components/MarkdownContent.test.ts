@@ -76,7 +76,7 @@ describe("MarkdownContent", () => {
   })
 
   it("highlights a fenced language in a static preview", async () => {
-    const {default: MarkdownContent} = await import("../../../src/renderer/src/ui/common/misc/MarkdownContent.vue")
+    const {default: MarkdownContent} = await import("../../../src/renderer/src/ui/common/(misc)/MarkdownContent.vue")
 
     wrapper = mount(MarkdownContent, {props: {content: "```ruby\ndef greet\n  1\nend\n```"}, attachTo: document.body})
     await settle()
@@ -144,8 +144,8 @@ describe("MarkdownContent", () => {
   })
 
   it("opens_TC-6_the_image_preview_with_the_clicked_images_url", async () => {
-    const {default: MarkdownContent} = await import("../../../src/renderer/src/ui/common/misc/MarkdownContent.vue")
-    const {useBaseModal} = await import("../../../src/renderer/src/ui/base/BaseModal")
+    const {default: MarkdownContent} = await import("../../../src/renderer/src/ui/common/(misc)/MarkdownContent.vue")
+    const {useBaseModal} = await import("../../../src/renderer/src/composables/useBaseModal")
 
     wrapper = mount(MarkdownContent, {props: {content: "![a](daily://file/abc)"}, attachTo: document.body})
     await settle()
@@ -165,7 +165,7 @@ describe("MarkdownContent", () => {
 
   it("opens_TC-7_the_link_externally_without_navigating", async () => {
     const bridge = mockBridgeIPC({"shell:open-external": vi.fn().mockResolvedValue(true)})
-    const {default: MarkdownContent} = await import("../../../src/renderer/src/ui/common/misc/MarkdownContent.vue")
+    const {default: MarkdownContent} = await import("../../../src/renderer/src/ui/common/(misc)/MarkdownContent.vue")
 
     wrapper = mount(MarkdownContent, {props: {content: "[docs](https://example.com)"}, attachTo: document.body})
     await settle()
@@ -181,7 +181,7 @@ describe("MarkdownContent", () => {
   })
 
   it("clamps_TC-9_only_past_the_200px_threshold_while_minimizable", async () => {
-    const {default: MarkdownContent} = await import("../../../src/renderer/src/ui/common/misc/MarkdownContent.vue")
+    const {default: MarkdownContent} = await import("../../../src/renderer/src/ui/common/(misc)/MarkdownContent.vue")
 
     async function mountAt(height, minimizable = true) {
       const instance = mount(MarkdownContent, {props: {content: "text", minimizable}, attachTo: document.body})

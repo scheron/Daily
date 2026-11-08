@@ -2,7 +2,7 @@
 import {computed, nextTick, useTemplateRef, watch} from "vue"
 
 import {useTaskEditorStore} from "@/stores/task-editor"
-import MarkdownEditor from "@/ui/common/misc/MarkdownEditor"
+import MarkdownEditor from "@/ui/common/(editors)/MarkdownEditor"
 import {useTaskEditor} from "@/ui/modules/RightPanel/composables/useTaskEditor"
 
 const taskEditorStore = useTaskEditorStore()

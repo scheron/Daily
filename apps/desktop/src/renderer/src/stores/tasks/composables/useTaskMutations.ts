@@ -1,10 +1,10 @@
-import {toRaw} from "vue"
+import {toRaw, toValue} from "vue"
 import {getActivePinia} from "pinia"
 
 import {createEntityId, getPreviousTaskOrderIndex, planTaskCreate, planTaskMoveByOrder, planTaskUpdate} from "@daily/protocol"
 import {getTime, getTimezone, getToday, notNull, notUndefined, objectFilter} from "@daily/std"
 
-import {API} from "@/api"
+import {Storage} from "@/api"
 import {toasts} from "@/composables/useToasts"
 import {applyChangeset} from "@/utils/storage/applyChangeset"
 import {toRawDeep} from "@/utils/ui/toRawDeep"
@@ -26,7 +26,7 @@ import type {
   TaskStatus,
   TaskWritableFields,
 } from "@daily/protocol"
-import type {ComputedRef, Ref} from "vue"
+import type {MaybeRefOrGetter, Ref} from "vue"
 
 type TaskMoveMeta = {
   taskId: Task["id"]
@@ -38,9 +38,9 @@ type TaskMoveMeta = {
 
 type TaskMutationsContext = {
   tasks: Ref<Task[]>
-  activeDay: Ref<ISODate>
-  activeBranchId: ComputedRef<Branch["id"] | undefined>
-  dailyTasks: ComputedRef<Task[]>
+  activeDay: MaybeRefOrGetter<ISODate>
+  activeBranchId: MaybeRefOrGetter<Branch["id"] | undefined>
+  dailyTasks: MaybeRefOrGetter<Task[]>
   findTaskById: (taskId: Task["id"]) => Task | null
 }
 
@@ -59,7 +59,7 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
   }): Promise<Task | null> {
     const isUndated = params.status === "backlog" || (params.status === "ready_for_agent" && !params.date)
     const id = createEntityId("task")
-    const date = params.date ?? activeDay.value
+    const date = params.date ?? toValue(activeDay)
     const time = getTime()
     const timezone = getTimezone()
 
@@ -70,8 +70,8 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
       timezone,
       tags: params.tags,
       estimatedTime: params.estimatedTime ?? 0,
-      orderIndex: getPreviousTaskOrderIndex(dailyTasks.value),
-      branchId: params.branchId ?? activeBranchId.value,
+      orderIndex: getPreviousTaskOrderIndex(toValue(dailyTasks)),
+      branchId: params.branchId ?? toValue(activeBranchId),
       status: params.status,
       priority: params.priority,
       milestoneId: params.milestoneId,
@@ -94,7 +94,11 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
     const now = new Date().toISOString()
     const created: Task = {...fields, id, createdAt: now, updatedAt: now, deletedAt: null}
 
-    const isCreated = await predictAndWrite({tasks: {upserted: [created]}}, () => API.createTask(params.content, request), "Failed to create task")
+    const isCreated = await predictAndWrite(
+      {tasks: {upserted: [created]}},
+      () => Storage.createTask(params.content, request),
+      "Failed to create task",
+    )
     return isCreated ? findTaskById(created.id) : null
   }
 
@@ -121,13 +125,13 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
     const payload = toRawDeep(objectFilter(updates, (value) => notUndefined(value)))
     const patches = planTaskUpdate(mutationContext(), taskId, payload as Partial<TaskWritableFields>)
 
-    return predictAndWrite(changesetFromPatches(patches), () => API.updateTask(taskId, payload), "Failed to update task")
+    return predictAndWrite(changesetFromPatches(patches), () => Storage.updateTask(taskId, payload), "Failed to update task")
   }
 
   async function deleteTask(taskId: Task["id"]) {
     if (!findTaskById(taskId)) return false
 
-    return predictAndWrite({tasks: {removed: [taskId]}}, () => API.deleteTask(taskId), "Failed to delete task")
+    return predictAndWrite({tasks: {removed: [taskId]}}, () => Storage.deleteTask(taskId), "Failed to delete task")
   }
 
   async function moveTask(taskId: Task["id"], targetDate: ISODate) {
@@ -135,7 +139,7 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
 
     const patches = planTaskUpdate(mutationContext(), taskId, {scheduled: {date: targetDate} as TaskScheduled})
 
-    return predictAndWrite(changesetFromPatches(patches), () => API.moveTask(taskId, targetDate), "Failed to move task")
+    return predictAndWrite(changesetFromPatches(patches), () => Storage.moveTask(taskId, targetDate), "Failed to move task")
   }
 
   async function moveTaskToBranch(taskId: Task["id"], branchId: Branch["id"]) {
@@ -145,7 +149,7 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
 
     const patches = planTaskUpdate(mutationContext(), taskId, {branchId})
 
-    return predictAndWrite(changesetFromPatches(patches), () => API.moveTaskToBranch(taskId, branchId), "Failed to move task")
+    return predictAndWrite(changesetFromPatches(patches), () => Storage.moveTaskToBranch(taskId, branchId), "Failed to move task")
   }
 
   async function moveTaskByOrder(params: {
@@ -187,7 +191,7 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
     })
     const patches = planTaskMoveByOrder(mutationContext(), moveParams)
 
-    const isMoved = await predictAndWrite(changesetFromPatches(patches), () => API.moveTaskByOrder(moveParams), "Failed to move task")
+    const isMoved = await predictAndWrite(changesetFromPatches(patches), () => Storage.moveTaskByOrder(moveParams), "Failed to move task")
     return isMoved ? meta : null
   }
 

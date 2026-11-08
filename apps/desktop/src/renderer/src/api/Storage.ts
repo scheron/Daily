@@ -21,7 +21,7 @@ import type {
 } from "@daily/protocol"
 import type {CreateTaskParams} from "./types"
 
-export class StorageAPI {
+class _Storage {
   /** Newest first; the `moved` pair collapses to one row. */
   async getTaskHistory(taskId: Task["id"]): Promise<TaskEvent[]> {
     return window.BridgeIPC["activity:get-by-task"](taskId)
@@ -267,3 +267,5 @@ export class StorageAPI {
     await window.BridgeIPC["branches:set-active"](id)
   }
 }
+
+export const Storage = new _Storage()

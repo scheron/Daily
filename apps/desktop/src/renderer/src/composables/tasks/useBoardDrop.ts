@@ -2,7 +2,7 @@ import {watch} from "vue"
 import {storeToRefs} from "pinia"
 
 import {createSharedComposable} from "@/composables/createSharedComposable"
-import {useDragDropStore} from "@/stores/dragDrop.store"
+import {useDragDropStore} from "@/stores/drag-drop"
 import {findClosestAtPoint} from "@/utils/ui/dom"
 
 import type {ISODate, Milestone} from "@daily/protocol"

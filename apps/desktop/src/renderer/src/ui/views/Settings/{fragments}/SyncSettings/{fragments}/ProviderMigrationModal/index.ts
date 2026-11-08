@@ -1,1 +1,1 @@
-export {default} from "./ProviderMigrationModal.vue"
+export {useProviderMigrationModal} from "./composables/useProviderMigrationModal"

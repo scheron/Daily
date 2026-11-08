@@ -1,10 +1,10 @@
-import {computed, ref} from "vue"
+import {computed, ref, toValue} from "vue"
 
 import {autoUpdate, flip, offset, shift, useFloating} from "@floating-ui/vue"
 
-import type {Ref} from "vue"
+import type {MaybeRefOrGetter} from "vue"
 
-export function useMenuPosition(menuRef: Ref<HTMLElement | null>) {
+export function useMenuPosition(menuRef: MaybeRefOrGetter<HTMLElement | null>) {
   const mousePosition = ref({x: 0, y: 0})
 
   const virtualEl = computed(() => ({
@@ -22,12 +22,16 @@ export function useMenuPosition(menuRef: Ref<HTMLElement | null>) {
     },
   }))
 
-  const {floatingStyles} = useFloating(virtualEl, menuRef, {
-    strategy: "fixed",
-    placement: "bottom-start",
-    middleware: [offset(4), flip(), shift({padding: 8})],
-    whileElementsMounted: autoUpdate,
-  })
+  const {floatingStyles} = useFloating(
+    virtualEl,
+    computed(() => toValue(menuRef)),
+    {
+      strategy: "fixed",
+      placement: "bottom-start",
+      middleware: [offset(4), flip(), shift({padding: 8})],
+      whileElementsMounted: autoUpdate,
+    },
+  )
 
   function setPosition(event: MouseEvent) {
     mousePosition.value = {x: event.clientX, y: event.clientY}

@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import {computed} from "vue"
 
-import {useSettingsStore} from "@/stores/settings.store"
-import {useStorageStore} from "@/stores/storage.store"
-import {useSyncServerStore} from "@/stores/syncServer.store"
-import {useBaseModal} from "@/ui/base/BaseModal"
+import {useSettingsStore} from "@/stores/settings"
+import {useStorageStore} from "@/stores/storage"
+import {useSyncServerStore} from "@/stores/sync-server"
 import ICloudDetails from "./{fragments}/ICloudDetails.vue"
-import ProviderMigrationModal from "./{fragments}/ProviderMigrationModal"
+import {useProviderMigrationModal} from "./{fragments}/ProviderMigrationModal"
 import ServerDetails from "./{fragments}/ServerDetails"
 import ServerEmpty from "./{fragments}/ServerEmpty.vue"
 
@@ -16,16 +15,15 @@ const storageStore = useStorageStore()
 const settingsStore = useSettingsStore()
 const syncServerStore = useSyncServerStore()
 
-const {show, hide} = useBaseModal("sync-provider-migration")
-
 const isServerConnected = computed(() => storageStore.provider === "server")
 
+const {open} = useProviderMigrationModal()
+
 function onSelect(target: SyncProvider) {
-  show(ProviderMigrationModal, {target, onClose: () => hide(), onDone: onDone})
+  open(target, onDone)
 }
 
 async function onDone() {
-  hide()
   await Promise.all([settingsStore.revalidate(), syncServerStore.loadState()])
 }
 </script>

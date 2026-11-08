@@ -14,12 +14,12 @@ import {clamp} from "@daily/std"
 import {createSharedComposable} from "@/composables/createSharedComposable"
 import {useBoardCardGeometry} from "@/composables/useBoardCardGeometry"
 import {useSettingValue} from "@/composables/useSettingValue"
-import {useDragDropStore} from "@/stores/dragDrop.store"
-import {useFilterStore} from "@/stores/filter.store"
-import {useProjectScopeStore} from "@/stores/projectScope.store"
+import {useDragDropStore} from "@/stores/drag-drop"
+import {useFilterStore} from "@/stores/filter"
+import {useProjectScopeStore} from "@/stores/project-scope"
 import {useTaskEditorStore} from "@/stores/task-editor"
 import {useTasksStore} from "@/stores/tasks"
-import {useUIStore} from "@/stores/ui"
+import {useUiStore} from "@/stores/ui"
 import {getActiveTagNames} from "@/utils/tags/getActiveTagNames"
 import {findClosestAtPoint} from "@/utils/ui/dom"
 import {useDragAutoScroll} from "./useDragAutoScroll"
@@ -44,7 +44,7 @@ export const useTaskColumns = createSharedComposable(() => {
   const tasksStore = useTasksStore()
   const filterStore = useFilterStore()
   const projectScopeStore = useProjectScopeStore()
-  const uiStore = useUIStore()
+  const uiStore = useUiStore()
   const dragDropStore = useDragDropStore()
   const taskEditorStore = useTaskEditorStore()
 

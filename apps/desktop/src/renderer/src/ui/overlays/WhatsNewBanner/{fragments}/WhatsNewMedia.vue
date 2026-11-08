@@ -2,6 +2,7 @@
 import {computed, onBeforeUnmount, ref, useTemplateRef, watch} from "vue"
 import {useDocumentVisibility, usePreferredReducedMotion} from "@vueuse/core"
 
+import {RELEASE_IMAGE_EXTENSION_REGEX} from "@/constants/regex"
 import BaseButton from "@/ui/base/BaseButton"
 
 import type {WhatsNewMedia} from "@shared/types/update"
@@ -25,7 +26,7 @@ const hasImagePlaybackControl = computed(() => {
   const media = active.value
   if (!media || media.kind === "video" || hasError.value) return false
   if (media.kind === "gif") return true
-  return !/\.(?:avif|jpe?g|png|webp)$/i.test(URL.parse(media.url)?.pathname ?? "")
+  return !RELEASE_IMAGE_EXTENSION_REGEX.test(URL.parse(media.url)?.pathname ?? "")
 })
 const imagePlaybackLabel = computed(() => (isImagePlaying.value ? "Pause preview" : "Play preview"))
 

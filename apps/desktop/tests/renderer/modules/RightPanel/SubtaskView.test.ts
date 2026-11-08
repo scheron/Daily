@@ -19,7 +19,7 @@ const Editor = defineComponent({
   },
 })
 
-vi.mock("../../../../src/renderer/src/ui/common/misc/MarkdownEditor", () => ({default: Editor}))
+vi.mock("../../../../src/renderer/src/ui/common/(editors)/MarkdownEditor", () => ({default: Editor}))
 
 function makeTask(id) {
   return {
@@ -82,7 +82,7 @@ describe("SubtaskView", () => {
       ...overrides,
     })
     const {useTaskEditorStore} = await import("../../../../src/renderer/src/stores/task-editor")
-    const {useSubtasksStore} = await import("../../../../src/renderer/src/stores/subtasks.store")
+    const {useSubtasksStore} = await import("../../../../src/renderer/src/stores/subtasks")
     const {openedSubtaskId} = await import("../../../../src/renderer/src/ui/modules/RightPanel/composables/useSubtaskEditorOpen")
     const editor = useTaskEditorStore()
     await editor.open("task-1")

@@ -4,8 +4,8 @@ import {defineStore} from "pinia"
 import {statusForScheduling} from "@daily/protocol"
 import {deepClone, isNull, notNull} from "@daily/std"
 
-import {API} from "@/api"
-import {useTaskRelationsStore} from "@/stores/taskRelations.store"
+import {Storage} from "@/api"
+import {useTaskRelationsStore} from "@/stores/task-relations"
 import {useTasksStore} from "@/stores/tasks"
 import {usePendingChildren} from "./composables/usePendingChildren"
 import {buildRestPatch} from "./utils/buildRestPatch"
@@ -42,7 +42,7 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
   })
 
   async function open(taskId: Task["id"]) {
-    const task = tasksStore.findTaskById(taskId) ?? (await API.getTask(taskId))
+    const task = tasksStore.findTaskById(taskId) ?? (await Storage.getTask(taskId))
     if (!task || notNull(task.deletedAt)) return
     seedFrom(task)
   }

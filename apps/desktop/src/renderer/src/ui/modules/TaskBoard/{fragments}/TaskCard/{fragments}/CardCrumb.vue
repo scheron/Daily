@@ -4,12 +4,12 @@ import {computed} from "vue"
 import {isMilestoneOverdue, milestoneCompletion} from "@daily/protocol"
 import {getToday} from "@daily/std"
 
-import BaseIcon from "@/ui/base/BaseIcon"
-import MilestoneDiamond from "@/ui/common/milestones/MilestoneDiamond.vue"
-import ProjectIcon from "@/ui/common/projects/ProjectIcon.vue"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
+import MilestoneIcon from "@/ui/common/(icons)/MilestoneIcon.vue"
+import ProjectIcon from "@/ui/common/(icons)/ProjectIcon.vue"
 import {cn} from "@/utils/ui/tailwindcss"
 
-import type {MilestoneWithProgress} from "@/stores/milestones.store"
+import type {MilestoneWithProgress} from "@/stores/milestones"
 import type {Branch} from "@daily/protocol"
 
 const props = defineProps<{projectName: string; project?: Branch | null; milestone: MilestoneWithProgress | null}>()
@@ -17,9 +17,7 @@ const props = defineProps<{projectName: string; project?: Branch | null; milesto
 const completion = computed(() => (props.milestone ? milestoneCompletion(props.milestone.progress) : 0))
 const overdue = computed(() => (props.milestone ? isMilestoneOverdue(props.milestone, props.milestone.progress, getToday()) : false))
 
-function getMilestoneClasses(isOverdue: boolean) {
-  return cn("inline-flex min-w-14 shrink items-center gap-1", isOverdue && "text-error")
-}
+const milestoneClass = computed(() => cn("inline-flex min-w-14 shrink items-center gap-1", {"text-error": overdue.value}))
 </script>
 
 <template>
@@ -29,8 +27,8 @@ function getMilestoneClasses(isOverdue: boolean) {
       <span class="min-w-0 truncate">{{ projectName }}</span>
     </span>
     <BaseIcon v-if="projectName && milestone" name="chevron-right" class="text-base-content/35 size-3.5 shrink-0" />
-    <span v-if="milestone" v-tooltip="milestone.name" :class="getMilestoneClasses(overdue)">
-      <MilestoneDiamond class="shrink-0" :completion="completion" :overdue="overdue" :size="12" />
+    <span v-if="milestone" v-tooltip="milestone.name" :class="milestoneClass">
+      <MilestoneIcon class="shrink-0" :completion="completion" :overdue="overdue" :size="12" />
       <span class="min-w-0 truncate">{{ milestone.name }}</span>
     </span>
   </div>

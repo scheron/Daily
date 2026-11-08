@@ -1,5 +1,4 @@
-import type {ButtonColorVariant} from "@/ui/base/BaseButton"
-import type {IconName} from "@/ui/base/BaseIcon"
+import type {IconName} from "@/types/icons"
 import type {TaskPriority, TaskStatus} from "@daily/protocol"
 
 export type TaskColumn = {
@@ -11,7 +10,7 @@ export type TaskColumn = {
   cardBorderClass: string
   titleClass: string
   counterClass: string
-  buttonVariant: ButtonColorVariant
+  buttonVariant: "soft" | "error-soft" | "primary-ghost" | "success-soft" | "warning-soft"
 }
 
 export type PriorityLevel = {value: TaskPriority; label: string; color: string}

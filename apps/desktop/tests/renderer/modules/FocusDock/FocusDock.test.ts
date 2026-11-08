@@ -37,7 +37,7 @@ describe("FocusDock", () => {
 
   async function setupDock() {
     const {default: FocusDock} = await import("../../../../src/renderer/src/ui/modules/FocusDock.vue")
-    const {useFocusStore} = await import("../../../../src/renderer/src/stores/focus.store")
+    const {useFocusStore} = await import("../../../../src/renderer/src/stores/focus")
 
     const focus = useFocusStore()
     await vi.waitFor(() => expect(focus.session).not.toBeNull())
@@ -115,7 +115,7 @@ describe("FocusDock", () => {
   it("keeps the Focus button on while detached, and brings the window to the front from it without touching the dock", async () => {
     const actionsDockPath = "../../../../src/renderer/src/ui/modules/ActionsDock/ActionsDock.vue"
     const {default: ActionsDock} = await import(/* @vite-ignore */ actionsDockPath)
-    const {useUIStore} = await import("../../../../src/renderer/src/stores/ui/ui.store")
+    const {useUiStore} = await import("../../../../src/renderer/src/stores/ui/ui.store")
     const {dock, focus} = await setupDock()
     const actions = await mountInBody(ActionsDock)
     focus.session = {...focus.session, isDetached: true}
@@ -127,7 +127,7 @@ describe("FocusDock", () => {
     await focusButton.trigger("click")
 
     expect(bridge.send).toHaveBeenCalledWith("focus:show-window")
-    expect(useUIStore().isFocusDockOpen).toBe(false)
+    expect(useUiStore().isFocusDockOpen).toBe(false)
     expect(dock.text()).not.toContain("Focus session")
     expect(bridge["focus:dispatch"]).not.toHaveBeenCalled()
   })
@@ -183,8 +183,8 @@ describe("FocusDock", () => {
 
   it("takes no card into a panel without shouldAcceptCards, even inside a drop zone", async () => {
     board = await mountBoardDrag(makeColumn("in_progress", ["A", "S1", "S2"]))
-    const {default: FocusPanel} = await import("../../../../src/renderer/src/ui/common/focus/FocusPanel")
-    const {useFocusStore} = await import("../../../../src/renderer/src/stores/focus.store")
+    const {default: FocusPanel} = await import("../../../../src/renderer/src/ui/common/(panels)/FocusPanel")
+    const {useFocusStore} = await import("../../../../src/renderer/src/stores/focus")
     const focus = useFocusStore()
     await vi.waitFor(() => expect(focus.session).not.toBeNull())
     focus.session = {...focus.session, tasks: ["S1", "S2"].map(makeSessionTask)}
@@ -223,8 +223,8 @@ describe("FocusDock", () => {
   async function setupOpenDock(sessionTaskIds, overrides = {}) {
     const {dock, focus} = await setupDock()
     focus.session = {...focus.session, tasks: sessionTaskIds.map(makeSessionTask), ...overrides}
-    const {useUIStore} = await import("../../../../src/renderer/src/stores/ui/ui.store")
-    useUIStore().toggleFocusDock(true)
+    const {useUiStore} = await import("../../../../src/renderer/src/stores/ui/ui.store")
+    useUiStore().toggleFocusDock(true)
     await nextTick()
     return {dock, focus}
   }

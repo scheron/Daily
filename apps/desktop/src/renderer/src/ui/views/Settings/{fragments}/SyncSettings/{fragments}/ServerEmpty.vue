@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import BaseButton from "@/ui/base/BaseButton"
-import BaseIcon from "@/ui/base/BaseIcon"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
 
 const emit = defineEmits<{connect: []}>()
 </script>

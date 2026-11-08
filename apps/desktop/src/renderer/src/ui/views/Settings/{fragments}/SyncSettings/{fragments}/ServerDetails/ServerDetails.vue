@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import {computed} from "vue"
 
-import {useSyncServerStore} from "@/stores/syncServer.store"
-import BaseIcon from "@/ui/base/BaseIcon"
+import {useSyncServerStore} from "@/stores/sync-server"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
 import AddDeviceRow from "./{fragments}/AddDeviceRow.vue"
 import ConnectAgentRow from "./{fragments}/ConnectAgentRow"
 import DeviceTable from "./{fragments}/DeviceTable.vue"

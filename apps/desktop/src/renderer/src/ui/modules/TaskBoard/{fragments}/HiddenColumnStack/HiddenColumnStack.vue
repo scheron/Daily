@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import {toRef, useTemplateRef} from "vue"
+import {computed, toRef, useTemplateRef} from "vue"
 
 import BaseButton from "@/ui/base/BaseButton"
-import BaseIcon from "@/ui/base/BaseIcon"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
 import {cn} from "@/utils/ui/tailwindcss"
-import {useHiddenColumnPlacement} from "./useHiddenColumnPlacement"
+import {useHiddenColumnPlacement} from "./composables/useHiddenColumnPlacement"
 
 import type {TaskStatus} from "@daily/protocol"
 import type {HiddenColumn} from "../../types"
@@ -16,13 +16,8 @@ const stackRef = useTemplateRef<HTMLElement>("stack")
 
 const {placementStyle, isObscured} = useHiddenColumnPlacement(stackRef, toRef(props, "obstacle"))
 
-function getStackClasses(side: "left" | "right") {
-  return cn("top-25 absolute z-10 flex flex-col gap-2", side === "left" ? "left-4" : "right-4")
-}
-
-function getButtonClasses(side: "left" | "right") {
-  return cn(side === "right" && "flex-row-reverse")
-}
+const stackClass = computed(() => cn("top-25 absolute z-10 flex flex-col gap-2", [props.side === "left" ? "left-4" : "right-4"]))
+const buttonClass = computed(() => cn({"flex-row-reverse": props.side === "right"}))
 
 function getButtonVariant(status: TaskStatus) {
   return props.hoveredChipStatus === status ? "dock-drop" : "dock"
@@ -49,7 +44,7 @@ function getCounterClasses(counterClass: string) {
     :inert="isObscured || undefined"
     :aria-label="`Hidden columns to the ${side}`"
     :data-side="side"
-    :class="getStackClasses(side)"
+    :class="stackClass"
   >
     <BaseButton
       v-for="column in columns"
@@ -59,7 +54,7 @@ function getCounterClasses(counterClass: string) {
       size="dock"
       :data-hidden-column-status="column.status"
       :aria-label="`Scroll ${side} to ${column.label}, ${column.count} ${column.count === 1 ? 'task' : 'tasks'}`"
-      :class="getButtonClasses(side)"
+      :class="buttonClass"
       @click="emit('reveal', column.status)"
     >
       <span aria-hidden="true" :class="getBorderClasses(column.cardBorderClass)" />

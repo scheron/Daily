@@ -1,9 +1,9 @@
-import {computed, onUnmounted, ref, watch} from "vue"
+import {computed, onUnmounted, ref, toValue, watch} from "vue"
 import {onLongPress, useEventListener} from "@vueuse/core"
 
-import type {Ref} from "vue"
+import type {MaybeRefOrGetter} from "vue"
 
-export function useProgressFill(elementRef: Ref<HTMLElement | null>, onComplete: () => void) {
+export function useProgressFill(elementRef: MaybeRefOrGetter<HTMLElement | null>, onComplete: () => void) {
   const progress = ref(0)
   const isComplete = ref(false)
   const startTime = ref(0)
@@ -12,10 +12,14 @@ export function useProgressFill(elementRef: Ref<HTMLElement | null>, onComplete:
 
   const isFilling = computed(() => !isComplete.value && progress.value > 0)
 
-  onLongPress(elementRef, startProgress, {
-    delay: 0,
-    modifiers: {stop: true},
-  })
+  onLongPress(
+    computed(() => toValue(elementRef)),
+    startProgress,
+    {
+      delay: 0,
+      modifiers: {stop: true},
+    },
+  )
 
   useEventListener(elementRef, "mouseup", stopProgress)
   useEventListener(elementRef, "mouseleave", stopProgress)
@@ -46,7 +50,7 @@ export function useProgressFill(elementRef: Ref<HTMLElement | null>, onComplete:
   }
 
   function startProgress() {
-    if (!elementRef.value) return
+    if (!toValue(elementRef)) return
 
     startTime.value = performance.now()
     progress.value = 0
@@ -55,13 +59,14 @@ export function useProgressFill(elementRef: Ref<HTMLElement | null>, onComplete:
   }
 
   function updateProgress() {
-    if (!elementRef.value) return
+    const element = toValue(elementRef)
+    if (!element) return
 
     const currentTime = performance.now()
     const elapsed = currentTime - startTime.value
     progress.value = Math.min(elapsed / 500, 1)
 
-    elementRef.value.style.setProperty("--progress", `${progress.value * 100}%`)
+    element.style.setProperty("--progress", `${progress.value * 100}%`)
 
     if (progress.value < 1) {
       animationFrame.value = requestAnimationFrame(updateProgress)
@@ -77,11 +82,11 @@ export function useProgressFill(elementRef: Ref<HTMLElement | null>, onComplete:
     progress.value = 0
     isComplete.value = false
 
-    if (elementRef.value) elementRef.value.style.setProperty("--progress", "0%")
+    toValue(elementRef)?.style.setProperty("--progress", "0%")
   }
 
   watch(
-    elementRef,
+    () => toValue(elementRef),
     (element) => {
       if (!element) return
       setupProgressElement(element)
@@ -91,7 +96,8 @@ export function useProgressFill(elementRef: Ref<HTMLElement | null>, onComplete:
 
   onUnmounted(() => {
     if (animationFrame.value) cancelAnimationFrame(animationFrame.value)
-    if (elementRef.value) cleanupProgressElement(elementRef.value)
+    const element = toValue(elementRef)
+    if (element) cleanupProgressElement(element)
   })
 
   return {isFilling}

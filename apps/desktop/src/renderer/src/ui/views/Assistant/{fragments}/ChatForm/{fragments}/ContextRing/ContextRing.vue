@@ -2,7 +2,7 @@
 import {computed} from "vue"
 
 import {useAiStore} from "@/stores/ai"
-import BaseIcon from "@/ui/base/BaseIcon"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
 import BasePopup from "@/ui/base/BasePopup.vue"
 import RingChart from "./{fragments}/RingChart.vue"
 
@@ -32,7 +32,7 @@ const contextValue = computed(() => {
     </template>
 
     <div class="px-1 py-0.5">
-      <span class="text-base-content/50 mb-2 block text-[10px] font-semibold tracking-wider uppercase">Usage</span>
+      <span class="text-base-content/50 mb-2 block text-[10px] font-semibold uppercase tracking-wider">Usage</span>
       <div class="grid grid-cols-[auto_1fr_auto] items-center gap-x-3 gap-y-1.5 text-xs">
         <BaseIcon name="monitor" class="text-base-content/40 size-3.5 shrink-0" />
         <span class="text-base-content/70">Context</span>

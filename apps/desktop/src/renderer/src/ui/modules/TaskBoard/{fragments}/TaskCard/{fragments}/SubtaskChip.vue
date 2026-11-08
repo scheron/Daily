@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import BaseIcon from "@/ui/base/BaseIcon"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
 
 defineProps<{count: {done: number; total: number}}>()
 </script>

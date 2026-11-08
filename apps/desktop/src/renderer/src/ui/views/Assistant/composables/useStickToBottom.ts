@@ -1,9 +1,9 @@
-import {computed, nextTick, ref, toRefs, watch} from "vue"
+import {computed, nextTick, ref, toRefs, toValue, watch} from "vue"
 import {useMutationObserver, useScroll} from "@vueuse/core"
 
-import type {Ref} from "vue"
+import type {MaybeRefOrGetter} from "vue"
 
-export function useStickToBottom(container: Ref<HTMLElement | null>) {
+export function useStickToBottom(container: MaybeRefOrGetter<HTMLElement | null>) {
   const isStuck = ref(true)
 
   const isAwayFromBottom = computed(() => !isStuck.value)
@@ -20,7 +20,7 @@ export function useStickToBottom(container: Ref<HTMLElement | null>) {
   )
 
   function scrollToBottom() {
-    const el = container.value
+    const el = toValue(container)
     if (!el) return
     el.scrollTop = el.scrollHeight
     isStuck.value = true

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {computed, onBeforeUnmount, onMounted, ref, useTemplateRef} from "vue"
 
-import MarkdownContent from "@/ui/common/misc/MarkdownContent.vue"
+import MarkdownContent from "@/ui/common/(misc)/MarkdownContent.vue"
 import {cn} from "@/utils/ui/tailwindcss"
 
 type RenderedLine = {top: number; bottom: number}
@@ -22,12 +22,10 @@ const renderedRef = useTemplateRef<HTMLDivElement>("rendered")
 const clip = ref<{height: number; fadeHeight: number} | null>(null)
 
 const previewStyle = computed(() =>
-  clip.value ? {maxHeight: `${clip.value.height}px`, "--comment-fade-height": `${clip.value.fadeHeight}px`} : undefined,
+  clip.value ? {maxHeight: `${clip.value.height}px`, "--comment-fade-height": `${clip.value.fadeHeight}px`} : null,
 )
 
-function getViewportClasses(isClipped: boolean) {
-  return cn("comment-preview", isClipped && "is-clipped")
-}
+const viewportClass = computed(() => cn("comment-preview", {"is-clipped": clip.value !== null}))
 
 function queueMeasurement() {
   if (disposed || frame) return
@@ -154,7 +152,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="viewport" :class="getViewportClasses(clip !== null)" :style="previewStyle">
+  <div ref="viewport" :class="viewportClass" :style="previewStyle">
     <div ref="rendered" @load.capture="queueMeasurement" @error.capture="queueMeasurement">
       <MarkdownContent :content="content" :minimizable="false" />
     </div>

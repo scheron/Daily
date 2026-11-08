@@ -2,10 +2,10 @@
 import {createPinia, setActivePinia} from "pinia"
 import {beforeEach, describe, expect, it, vi} from "vitest"
 
-import {useProjectScopeStore} from "../../../src/renderer/src/stores/projectScope.store"
-import {useSettingsStore} from "../../../src/renderer/src/stores/settings.store"
+import {useProjectScopeStore} from "../../../src/renderer/src/stores/project-scope"
+import {useSettingsStore} from "../../../src/renderer/src/stores/settings"
 import {useTasksStore} from "../../../src/renderer/src/stores/tasks/tasks.store"
-import {useUIStore} from "../../../src/renderer/src/stores/ui"
+import {useUiStore} from "../../../src/renderer/src/stores/ui"
 import {makeTask} from "../../helpers/boardDrag"
 import {mockBridgeIPC} from "../../helpers/bridgeIPC"
 
@@ -40,7 +40,7 @@ describe("projectScopeStore", () => {
 
   it("falls back to the active project on the milestone frame and returns on Days", async () => {
     const tasks = await setup(true)
-    const ui = useUIStore()
+    const ui = useUiStore()
 
     ui.setFrame("milestone")
     expect(useProjectScopeStore().isAllProjectsMode).toBe(false)

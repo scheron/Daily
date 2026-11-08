@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {computed} from "vue"
 
-import BaseIcon from "@/ui/base/BaseIcon"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
 import {cn} from "@/utils/ui/tailwindcss"
 
 import type {ToolSegment} from "../../../types"
@@ -20,14 +20,14 @@ const display = computed(() => {
   return s.name
 })
 
-function getIconClasses(isRunning: boolean, isSuccess: boolean | undefined) {
-  return cn("size-3 shrink-0", isRunning ? "text-warning animate-spin" : isSuccess ? "text-success" : "text-error")
-}
+const iconClass = computed(() =>
+  cn("size-3 shrink-0", [props.segment.status === "running" ? "text-warning animate-spin" : props.segment.success ? "text-success" : "text-error"]),
+)
 </script>
 
 <template>
   <div class="flex min-w-0 items-center gap-1.5 py-0.5">
-    <BaseIcon :name="iconName" :class="getIconClasses(segment.status === 'running', segment.success)" />
+    <BaseIcon :name="iconName" :class="iconClass" />
     <span class="text-base-content/70 truncate font-mono text-xs">{{ display }}</span>
   </div>
 </template>

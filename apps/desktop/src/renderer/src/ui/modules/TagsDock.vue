@@ -5,12 +5,12 @@ import {storeToRefs} from "pinia"
 import {isTaskOnDayBoard, sortTags, sortTasksByOrderIndex} from "@daily/protocol"
 import {removeDuplicates} from "@daily/std"
 
-import {useFilterStore} from "@/stores/filter.store"
-import {useProjectScopeStore} from "@/stores/projectScope.store"
+import {useFilterStore} from "@/stores/filter"
+import {useProjectScopeStore} from "@/stores/project-scope"
 import {useTasksStore} from "@/stores/tasks"
-import {useUIStore} from "@/stores/ui"
+import {useUiStore} from "@/stores/ui"
 import BaseAnimation from "@/ui/base/BaseAnimation.vue"
-import DynamicTagsPanel from "@/ui/common/misc/DynamicTagsPanel.vue"
+import DynamicTagsPanel from "@/ui/common/(panels)/DynamicTagsPanel.vue"
 import {getActiveTagNames} from "@/utils/tags/getActiveTagNames"
 import {cn} from "@/utils/ui/tailwindcss"
 
@@ -21,7 +21,7 @@ const props = defineProps<{compact: boolean}>()
 const tasksStore = useTasksStore()
 const filterStore = useFilterStore()
 const projectScopeStore = useProjectScopeStore()
-const uiStore = useUIStore()
+const uiStore = useUiStore()
 
 const {activeDay} = storeToRefs(tasksStore)
 const {activeMilestoneId, isNoMilestoneActive} = storeToRefs(filterStore)
@@ -46,9 +46,7 @@ const selectedChipIds = computed<Set<Tag["id"]>>(() => {
   return new Set(filteredTags.value.filter((tag) => activeTagNames.value.has(tag.name)).map((tag) => tag.id))
 })
 
-function getDockClasses(compact: boolean) {
-  return cn("pointer-events-none absolute right-1/2 top-2 z-30 mr-28 flex", compact ? "left-20 min-w-14" : "left-24")
-}
+const dockClass = computed(() => cn("pointer-events-none absolute right-1/2 top-2 z-30 mr-28 flex", [props.compact ? "left-20 min-w-14" : "left-24"]))
 
 function onSelectTag(id: Tag["id"]) {
   const chip = filteredTags.value.find((tag) => tag.id === id)
@@ -88,7 +86,7 @@ watch(filteredTags, (tags) => {
 
 <template>
   <BaseAnimation name="fade" :duration="200">
-    <div v-if="filteredTags.length && !uiStore.isCalendarDockExpanded" :class="getDockClasses(props.compact)">
+    <div v-if="filteredTags.length && !uiStore.isCalendarDockExpanded" :class="dockClass">
       <DynamicTagsPanel
         :tags="filteredTags"
         :selected-tags="selectedChipIds"

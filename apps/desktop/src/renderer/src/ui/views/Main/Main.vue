@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import {NO_PROJECT_ID} from "@daily/protocol"
 
-import {useBranchesStore} from "@/stores/branches.store"
-import {useFilterStore} from "@/stores/filter.store"
-import {useProjectScopeStore} from "@/stores/projectScope.store"
-import {useStorageStore} from "@/stores/storage.store"
+import {useBranchesStore} from "@/stores/branches"
+import {useFilterStore} from "@/stores/filter"
+import {useProjectScopeStore} from "@/stores/project-scope"
+import {useStorageStore} from "@/stores/storage"
 import {useTaskEditorStore} from "@/stores/task-editor"
 import {useThemeStore} from "@/stores/theme"
-import {useUIStore} from "@/stores/ui"
+import {useUiStore} from "@/stores/ui"
 import RightPanel from "@/ui/modules/RightPanel"
 import TaskBoard from "@/ui/modules/TaskBoard"
 import {useConfirmUnsavedModal} from "@/ui/overlays/ConfirmUnsavedModal"
@@ -17,7 +17,7 @@ import WhatsNewBanner from "@/ui/overlays/WhatsNewBanner"
 import {usePanelSize} from "./composables/usePanelSize"
 import MainDragIndicator from "./{fragments}/MainDragIndicator"
 
-const uiStore = useUIStore()
+const uiStore = useUiStore()
 const taskEditorStore = useTaskEditorStore()
 const branchesStore = useBranchesStore()
 const filterStore = useFilterStore()

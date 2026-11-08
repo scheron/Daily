@@ -30,6 +30,8 @@ const title = computed(() => getTaskTitle(props.subtask?.content ?? ""))
 
 const isSubtaskEditorOpen = useSubtaskEditorOpen()
 
+const rowClass = computed(() => cn("group flex min-h-8 items-center gap-2 px-4 py-1", {"border-base-content/10 border-b": Boolean(props.subtask)}))
+
 function startEditing() {
   isEditing.value = true
 }
@@ -52,10 +54,6 @@ function cancel() {
   if (!props.subtask) emit("cancel")
 }
 
-function getRowClasses(hasSubtask: boolean) {
-  return cn("group flex min-h-8 items-center gap-2 px-4 py-1", hasSubtask && "border-base-content/10 border-b")
-}
-
 watch(
   isEditing,
   async (editing) => {
@@ -72,7 +70,7 @@ onBeforeUnmount(() => (isSubtaskEditorOpen.value = false))
 </script>
 
 <template>
-  <div :class="getRowClasses(!!subtask)">
+  <div :class="rowClass">
     <BaseCheckbox
       :model-value="subtask?.done ?? false"
       :aria-label="`Done: ${title}`"

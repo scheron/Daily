@@ -38,11 +38,11 @@ it("offers search filters for every true status and emits Ready to Merge", async
 })
 
 it("renders seven real calendar counts in Agents and groups them in Normal", async () => {
-  const {useSettingsStore} = await import(`${SRC}/stores/settings.store`)
+  const {useSettingsStore} = await import(`${SRC}/stores/settings`)
   const settings = useSettingsStore()
   await new Promise((resolve) => setTimeout(resolve))
   settings.settings = {appearance: {boardMode: "agents"}}
-  const {default: Calendar} = await import(`${SRC}/ui/common/calendar/TaskCalendar/TaskCalendar.vue`)
+  const {default: Calendar} = await import(`${SRC}/ui/common/(calendars)/TaskCalendar/TaskCalendar.vue`)
   const tasks = ["todo", "ready_for_agent", "ready_to_merge", "in_progress", "done", "cancelled"].map((status, i) =>
     makeTask({id: String(i), status, orderIndex: i}),
   )
@@ -67,7 +67,7 @@ it("renders seven real calendar counts in Agents and groups them in Normal", asy
 })
 
 it("lets a dated Ready task clear its day in the calendar", async () => {
-  const {default: Calendar} = await import(`${SRC}/ui/common/calendar/TaskCalendar/TaskCalendar.vue`)
+  const {default: Calendar} = await import(`${SRC}/ui/common/(calendars)/TaskCalendar/TaskCalendar.vue`)
   const wrapper = mount(Calendar, {props: {days: [], selectedDate: "2030-01-02", allowClear: true}, global: {directives: {tooltip: {}}}})
   const clear = wrapper.findAll("button").find((button) => button.text() === "Clear date")
   expect(clear).toBeDefined()

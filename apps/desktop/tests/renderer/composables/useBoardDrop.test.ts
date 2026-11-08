@@ -29,7 +29,7 @@ describe("useBoardDrop — release target ownership", () => {
 
   async function setupExternalDrop(kind) {
     const {useTasksStore} = await import("../../../src/renderer/src/stores/tasks/tasks.store")
-    const {useMilestonesStore} = await import("../../../src/renderer/src/stores/milestones.store")
+    const {useMilestonesStore} = await import("../../../src/renderer/src/stores/milestones")
     const moveTaskByOrder = useTasksStore().moveTaskByOrder
     board = await mountBoardDrag([...makeColumn("in_progress", ["A", "B"]), ...makeColumn("done", ["X"])], {externalDrops: true})
     const {tasks, columns, chipOf, tracks, startDrag, hover, release, find} = board

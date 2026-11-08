@@ -6,7 +6,7 @@ import {DEFAULT_QUICK_TASK_HOTKEY} from "@daily/protocol"
 
 import {useSettingValue} from "@/composables/useSettingValue"
 import {toasts} from "@/composables/useToasts"
-import {useSettingsStore} from "@/stores/settings.store"
+import {useSettingsStore} from "@/stores/settings"
 import BaseButton from "@/ui/base/BaseButton"
 import SettingRow from "@/ui/views/Settings/{fragments}/SettingRow.vue"
 import {toAcceleratorKeyCaps} from "@/utils/shortcuts/toAcceleratorKeyCaps"

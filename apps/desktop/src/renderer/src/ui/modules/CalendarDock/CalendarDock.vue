@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import {useTemplateRef} from "vue"
+import {computed, useTemplateRef} from "vue"
 
 import {useBoardDrop} from "@/composables/tasks/useBoardDrop"
-import {useFilterStore} from "@/stores/filter.store"
+import {useFilterStore} from "@/stores/filter"
 import {useTasksStore} from "@/stores/tasks"
-import {useUIStore} from "@/stores/ui"
+import {useUiStore} from "@/stores/ui"
 import BaseButton from "@/ui/base/BaseButton"
-import BaseIcon from "@/ui/base/BaseIcon"
-import TaskCalendar from "@/ui/common/calendar/TaskCalendar"
-import MilestoneDiamond from "@/ui/common/milestones/MilestoneDiamond.vue"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
+import TaskCalendar from "@/ui/common/(calendars)/TaskCalendar"
+import MilestoneIcon from "@/ui/common/(icons)/MilestoneIcon.vue"
 import {cn} from "@/utils/ui/tailwindcss"
 import {useDockCrossFade} from "./composables/useDockCrossFade"
 import {useDockDragHover} from "./composables/useDockDragHover"
@@ -20,7 +20,7 @@ import {useDockVisibility} from "./composables/useDockVisibility"
 import MilestoneList from "./{fragments}/MilestoneList.vue"
 
 const tasksStore = useTasksStore()
-const uiStore = useUIStore()
+const uiStore = useUiStore()
 const filterStore = useFilterStore()
 
 const dockRef = useTemplateRef<HTMLElement>("dock")
@@ -35,15 +35,17 @@ useDockDragHover()
 useDockHover(dockRef)
 useDockMorph(dockRef, dockTab)
 
-function getDockClasses() {
-  return cn(
+const dockClass = computed(() =>
+  cn(
     "dock-surface absolute top-2 z-20 flex -translate-x-1/2 flex-col items-center justify-start overflow-hidden [-webkit-app-region:no-drag]",
     dockWidthClass.value,
-    uiStore.isCalendarDockExpanded
-      ? "left-1/2 max-w-full rounded-2xl"
-      : "left-[max(50%,12.75rem)] max-w-[max(6rem,calc(100%-19.5rem))] rounded-[20px]",
-  )
-}
+    [
+      uiStore.isCalendarDockExpanded
+        ? "left-1/2 max-w-full rounded-2xl"
+        : "left-[max(50%,12.75rem)] max-w-[max(6rem,calc(100%-19.5rem))] rounded-[20px]",
+    ],
+  ),
+)
 
 function getTabVariant(isActive: boolean) {
   return isActive ? "primary" : "ghost-muted"
@@ -51,7 +53,7 @@ function getTabVariant(isActive: boolean) {
 </script>
 
 <template>
-  <div ref="dock" data-day-drop-zone :class="getDockClasses()">
+  <div ref="dock" data-day-drop-zone :class="dockClass">
     <Transition :css="false" @enter="onEnter" @leave="onLeave">
       <div v-if="uiStore.isCalendarDockExpanded" class="flex w-full flex-col gap-1 p-1">
         <div class="min-h-70">
@@ -82,7 +84,7 @@ function getTabVariant(isActive: boolean) {
 
       <div v-else data-dock-pill class="text-accent flex h-8 max-w-full items-center gap-1 whitespace-nowrap px-3 text-sm font-semibold">
         <span v-if="filterStore.frame === 'milestone' && framedMilestone" class="inline-flex min-w-0 items-center gap-1.5">
-          <MilestoneDiamond :completion="framedMilestoneCompletion" :overdue="framedMilestoneOverdue" :size="12" />
+          <MilestoneIcon :completion="framedMilestoneCompletion" :overdue="framedMilestoneOverdue" :size="12" />
           <span class="min-w-0 max-w-32 truncate">{{ framedMilestone.name }}</span>
         </span>
         <span v-else-if="filterStore.frame === 'milestone' && filterStore.isNoMilestoneActive" class="inline-flex min-w-0 items-center gap-1.5">

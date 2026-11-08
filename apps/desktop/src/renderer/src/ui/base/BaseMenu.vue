@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import {cn} from "@/utils/ui/tailwindcss"
-import BaseIcon from "./BaseIcon"
+import BaseIcon from "./BaseIcon.vue"
 
+import type {IconName} from "@/types/icons"
 import type {HTMLAttributes} from "vue"
-import type {IconName} from "./BaseIcon"
 
 export type BaseMenuItem = {
   value?: string

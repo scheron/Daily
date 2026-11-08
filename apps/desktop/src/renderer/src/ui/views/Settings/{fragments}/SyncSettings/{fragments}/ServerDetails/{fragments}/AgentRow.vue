@@ -2,9 +2,9 @@
 import {toDateLabel, toLocaleDateTime, toRelativeTime} from "@daily/std"
 
 import {toasts} from "@/composables/useToasts"
-import {useSyncServerStore} from "@/stores/syncServer.store"
+import {useSyncServerStore} from "@/stores/sync-server"
 import BaseButton from "@/ui/base/BaseButton"
-import AgentIcon from "@/ui/common/sync/AgentIcon.vue"
+import AgentIcon from "@/ui/common/(icons)/AgentIcon.vue"
 import ConfirmPopup from "@/ui/overlays/ConfirmPopup.vue"
 
 import type {ServerAgentView} from "@daily/protocol"

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {nextTick, ref, useSlots, useTemplateRef} from "vue"
+import {computed, nextTick, ref, useSlots, useTemplateRef} from "vue"
 import {useEventListener} from "@vueuse/core"
 
 import {cn} from "@/utils/ui/tailwindcss"
@@ -49,6 +49,12 @@ useEventListener(document, "keydown", (event: KeyboardEvent) => {
 
 useEventListener(window, "blur", () => isOpen.value && close())
 
+const panelClass = computed(() =>
+  cn("bg-base-100 border-base-300 min-w-44 rounded-lg border shadow-lg transition-opacity duration-100 ease-out", [
+    isVisible.value ? "opacity-100" : "opacity-0",
+  ]),
+)
+
 function openAt(event: MouseEvent) {
   setPosition(event)
 
@@ -69,13 +75,6 @@ function onSelect(path: BaseContextMenuSelectEvent) {
   close()
 }
 
-function getPanelClasses(isVisible: boolean) {
-  return cn(
-    "bg-base-100 border-base-300 min-w-44 rounded-lg border shadow-lg transition-opacity duration-100 ease-out",
-    isVisible ? "opacity-100" : "opacity-0",
-  )
-}
-
 defineExpose({
   close,
 })
@@ -88,7 +87,7 @@ defineExpose({
 
   <Teleport to="body">
     <div v-if="isOpen" ref="menu" :style="floatingStyles" class="z-50">
-      <div :class="getPanelClasses(isVisible)">
+      <div :class="panelClass">
         <MenuPanel :items="items" @select="onSelect" />
       </div>
     </div>

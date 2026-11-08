@@ -4,16 +4,16 @@ import {computed} from "vue"
 import {isMilestoneClosed, isMilestoneOverdue, milestoneCompletion, sortMilestones} from "@daily/protocol"
 import {getToday, toDateLabel} from "@daily/std"
 
-import {useBranchesStore} from "@/stores/branches.store"
-import {useDragDropStore} from "@/stores/dragDrop.store"
-import {useFilterStore} from "@/stores/filter.store"
-import {useMilestonesStore} from "@/stores/milestones.store"
+import {useBranchesStore} from "@/stores/branches"
+import {useDragDropStore} from "@/stores/drag-drop"
+import {useFilterStore} from "@/stores/filter"
+import {useMilestonesStore} from "@/stores/milestones"
 import {useTasksStore} from "@/stores/tasks"
-import BaseIcon from "@/ui/base/BaseIcon"
-import MilestoneDiamond from "@/ui/common/milestones/MilestoneDiamond.vue"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
+import MilestoneIcon from "@/ui/common/(icons)/MilestoneIcon.vue"
 import {cn} from "@/utils/ui/tailwindcss"
 
-import type {MilestoneWithProgress} from "@/stores/milestones.store"
+import type {MilestoneWithProgress} from "@/stores/milestones"
 import type {Milestone, MilestoneProgress} from "@daily/protocol"
 
 const branchesStore = useBranchesStore()
@@ -30,6 +30,9 @@ const openMilestones = computed(() =>
   firstClosedIndex.value === -1 ? sortedMilestones.value : sortedMilestones.value.slice(0, firstClosedIndex.value),
 )
 const closedMilestones = computed(() => (firstClosedIndex.value === -1 ? [] : sortedMilestones.value.slice(firstClosedIndex.value)))
+
+const noMilestoneClass = computed(() => getMilestoneClasses(null, false))
+const noMilestoneNameClass = computed(() => cn("min-w-0 flex-1 truncate font-medium", {"text-base-content/70": !isSelected(null)}))
 
 function overdueOf(milestone: MilestoneWithProgress) {
   return isMilestoneOverdue(milestone, milestone.progress, getToday())
@@ -58,14 +61,9 @@ function isSelected(id: Milestone["id"] | null) {
 function getMilestoneClasses(id: Milestone["id"] | null, isClosed: boolean) {
   return cn(
     "flex h-9 cursor-pointer items-center gap-2 rounded-md px-2 text-sm transition-colors",
-    isClosed && "opacity-50",
-    isDropTarget(id) && "ring-accent border-accent ring-1",
-    isSelected(id) ? "bg-accent/12 text-accent" : "hover:bg-base-200/60",
+    {"opacity-50": isClosed, "ring-accent border-accent ring-1": isDropTarget(id)},
+    [isSelected(id) ? "bg-accent/12 text-accent" : "hover:bg-base-200/60"],
   )
-}
-
-function getNoMilestoneNameClasses(isActive: boolean) {
-  return cn("min-w-0 flex-1 truncate font-medium", !isActive && "text-base-content/70")
 }
 </script>
 
@@ -81,7 +79,7 @@ function getNoMilestoneNameClasses(isActive: boolean) {
         :class="getMilestoneClasses(milestone.id, false)"
         @click="onSelect(milestone.id)"
       >
-        <MilestoneDiamond :completion="milestoneCompletion(milestone.progress)" :overdue="overdueOf(milestone)" :size="13" />
+        <MilestoneIcon :completion="milestoneCompletion(milestone.progress)" :overdue="overdueOf(milestone)" :size="13" />
         <span class="min-w-0 flex-1 truncate font-medium">{{ milestone.name }}</span>
         <div class="text-base-content/55 flex shrink-0 items-center gap-2 text-xs">
           <span class="shrink-0 whitespace-nowrap text-right">{{ dateLabelOf(milestone) }}</span>
@@ -92,9 +90,9 @@ function getNoMilestoneNameClasses(isActive: boolean) {
 
       <div v-if="openMilestones.length" class="bg-base-300/60 mx-2 my-1 h-px" />
 
-      <div data-drop-no-milestone :class="getMilestoneClasses(null, false)" @click="filterStore.toggleNoMilestone()">
+      <div data-drop-no-milestone :class="noMilestoneClass" @click="filterStore.toggleNoMilestone()">
         <BaseIcon name="milestone" class="size-3.25 opacity-50" />
-        <span :class="getNoMilestoneNameClasses(isSelected(null))">No milestone</span>
+        <span :class="noMilestoneNameClass">No milestone</span>
         <div class="text-base-content/55 flex shrink-0 items-center gap-2 text-xs">
           <span class="w-14 shrink-0 text-right tabular-nums">{{ tasksStore.tasksWithoutMilestone.length }} tasks</span>
           <span class="w-9 shrink-0" />
@@ -113,7 +111,7 @@ function getNoMilestoneNameClasses(isActive: boolean) {
           :class="getMilestoneClasses(milestone.id, true)"
           @click="onSelect(milestone.id)"
         >
-          <MilestoneDiamond :completion="milestoneCompletion(milestone.progress)" :overdue="overdueOf(milestone)" :size="13" />
+          <MilestoneIcon :completion="milestoneCompletion(milestone.progress)" :overdue="overdueOf(milestone)" :size="13" />
           <span class="min-w-0 flex-1 truncate font-medium">{{ milestone.name }}</span>
           <div class="text-base-content/55 flex shrink-0 items-center gap-2 text-xs">
             <span class="shrink-0 whitespace-nowrap text-right">{{ dateLabelOf(milestone) }}</span>

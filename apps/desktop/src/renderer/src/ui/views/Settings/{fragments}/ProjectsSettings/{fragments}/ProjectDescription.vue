@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import {computed, ref, watch} from "vue"
 
-import {useBranchesStore} from "@/stores/branches.store"
-import MarkdownEditor from "@/ui/common/misc/MarkdownEditor"
+import {useBranchesStore} from "@/stores/branches"
+import MarkdownEditor from "@/ui/common/(editors)/MarkdownEditor"
 
 import type {Branch} from "@daily/protocol"
 

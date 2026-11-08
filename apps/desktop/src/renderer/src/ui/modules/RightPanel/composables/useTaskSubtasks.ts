@@ -2,7 +2,7 @@ import {computed, watch} from "vue"
 import {storeToRefs} from "pinia"
 
 import {createSharedComposable} from "@/composables/createSharedComposable"
-import {useSubtasksStore} from "@/stores/subtasks.store"
+import {useSubtasksStore} from "@/stores/subtasks"
 import {useTaskEditorStore} from "@/stores/task-editor"
 
 import type {Subtask} from "@daily/protocol"

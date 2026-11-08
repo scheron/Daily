@@ -4,10 +4,10 @@ import {computed, nextTick, ref, useTemplateRef} from "vue"
 import {NO_PROJECT_ID} from "@daily/protocol"
 
 import {toasts} from "@/composables/useToasts"
-import {useBranchesStore} from "@/stores/branches.store"
+import {useBranchesStore} from "@/stores/branches"
 import BaseButton from "@/ui/base/BaseButton"
 import BaseInput from "@/ui/base/BaseInput.vue"
-import ProjectIcon from "@/ui/common/projects/ProjectIcon.vue"
+import ProjectIcon from "@/ui/common/(icons)/ProjectIcon.vue"
 import ConfirmPopup from "@/ui/overlays/ConfirmPopup.vue"
 import {getProjectName} from "@/utils/projects/getProjectName"
 import {cn} from "@/utils/ui/tailwindcss"
@@ -115,7 +115,7 @@ async function deleteProject(branch: Branch) {
 }
 
 function getProjectIconClasses(isBranchActive: boolean, isBranchSelected: boolean) {
-  return cn("size-4 shrink-0", isBranchActive && !isBranchSelected && "text-accent")
+  return cn("size-4 shrink-0", {"text-accent": isBranchActive && !isBranchSelected})
 }
 
 function getProjectButtonVariant(isBranchSelected: boolean) {
@@ -123,7 +123,7 @@ function getProjectButtonVariant(isBranchSelected: boolean) {
 }
 
 function getProjectNameClasses(isBranchActive: boolean) {
-  return cn("truncate", isBranchActive && "font-medium")
+  return cn("truncate", {"font-medium": isBranchActive})
 }
 </script>
 

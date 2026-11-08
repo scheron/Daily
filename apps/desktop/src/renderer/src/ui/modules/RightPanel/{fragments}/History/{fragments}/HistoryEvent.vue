@@ -5,16 +5,16 @@ import {NO_PROJECT_ID} from "@daily/protocol"
 import {toLocaleDateTime, toTime} from "@daily/std"
 
 import {TASK_COLUMNS} from "@/constants/ui"
-import {useBranchesStore} from "@/stores/branches.store"
-import BaseIcon from "@/ui/base/BaseIcon"
-import ProjectIcon from "@/ui/common/projects/ProjectIcon.vue"
-import AgentIcon from "@/ui/common/sync/AgentIcon.vue"
+import {useBranchesStore} from "@/stores/branches"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
+import AgentIcon from "@/ui/common/(icons)/AgentIcon.vue"
+import ProjectIcon from "@/ui/common/(icons)/ProjectIcon.vue"
 import {getPriorityLevel} from "@/utils/priority/getPriorityLevel"
 import {getProjectName} from "@/utils/projects/getProjectName"
 import {cn} from "@/utils/ui/tailwindcss"
 import {toActivityDateLabel} from "../../../utils/toActivityDateLabel"
 
-import type {IconName} from "@/ui/base/BaseIcon"
+import type {IconName} from "@/types/icons"
 import type {Branch, TaskEvent, TaskEventType, TaskPriority, TaskStatus} from "@daily/protocol"
 
 type EventEndpoint = {label: string; icon?: IconName; project?: Pick<Branch, "id" | "emoji">; textClass?: string; color?: string}
@@ -67,6 +67,14 @@ const transition = computed<EventTransition | null>(() => {
   return null
 })
 
+const fromEndpointClass = computed(() => cn("inline-flex max-w-full items-center gap-1 align-bottom", transition.value?.from.textClass))
+const toEndpointClass = computed(() => cn("inline-flex max-w-full items-center gap-1 align-bottom", transition.value?.to.textClass))
+const markerClass = computed(() =>
+  cn("history-source relative flex size-5 shrink-0 items-center justify-center", [
+    Boolean(sourceLabel.value) ? "text-accent" : "text-base-content/60",
+  ]),
+)
+
 function statusEndpoint(status: TaskStatus): EventEndpoint {
   const column = TASK_COLUMNS.find((column) => column.status === status)
   return {label: column?.label ?? status, icon: column?.icon, textClass: column?.textClass}
@@ -85,20 +93,12 @@ function projectEndpoint(id: string): EventEndpoint {
 function dateEndpoint(date: TaskEvent["fromDate"]): EventEndpoint {
   return {label: date ? toActivityDateLabel(date, props.today, {year: false}) : "No date", icon: "calendar"}
 }
-
-function getEndpointClasses(textClass?: string) {
-  return cn("inline-flex max-w-full items-center gap-1 align-bottom", textClass)
-}
-
-function getMarkerClasses(hasSource: boolean) {
-  return cn("history-source relative flex size-5 shrink-0 items-center justify-center", hasSource ? "text-accent" : "text-base-content/60")
-}
 </script>
 
 <template>
   <div class="history-row relative grid grid-cols-[20px_minmax(0,1fr)] items-start gap-2.5 py-1" :data-time="toTime(event.createdAt)" tabindex="0">
     <div
-      :class="getMarkerClasses(!!sourceLabel)"
+      :class="markerClass"
       :role="sourceLabel ? 'img' : undefined"
       :aria-label="sourceLabel ?? undefined"
       :data-source="sourceLabel ?? undefined"
@@ -111,13 +111,13 @@ function getMarkerClasses(hasSource: boolean) {
 
     <span class="min-w-0 text-xs leading-5">
       <template v-if="transition">
-        <span :class="getEndpointClasses(transition.from.textClass)" :style="{color: transition.from.color}">
+        <span :class="fromEndpointClass" :style="{color: transition.from.color}">
           <ProjectIcon v-if="transition.from.project" :project="transition.from.project" class="size-3" />
           <BaseIcon v-else-if="transition.from.icon" :name="transition.from.icon" class="size-3" />
           <span class="min-w-0 break-words">{{ transition.from.label }}</span>
         </span>
         →
-        <span :class="getEndpointClasses(transition.to.textClass)" :style="{color: transition.to.color}">
+        <span :class="toEndpointClass" :style="{color: transition.to.color}">
           <ProjectIcon v-if="transition.to.project" :project="transition.to.project" class="size-3" />
           <BaseIcon v-else-if="transition.to.icon" :name="transition.to.icon" class="size-3" />
           <span class="min-w-0 break-words">{{ transition.to.label }}</span>

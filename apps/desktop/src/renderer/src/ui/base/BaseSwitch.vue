@@ -17,37 +17,27 @@ const trackStyle = computed(() => {
   }
 })
 
+const rootClass = computed(() =>
+  cn("focus-visible-accent inline-flex cursor-pointer items-center rounded-xl border border-transparent outline-none", {
+    "cursor-default opacity-50": props.disabled,
+  }),
+)
+const thumbClass = computed(() =>
+  cn("absolute top-1/2 z-20 -translate-y-1/2 rounded-full bg-white shadow-sm transition-all duration-300 size-4", [
+    props.modelValue ? "left-[18px]" : "left-0.5",
+  ]),
+)
+
 function toggle() {
   if (props.disabled) return
   emit("update:modelValue", !props.modelValue)
 }
-
-function getRootClasses(isDisabled: boolean) {
-  return cn(
-    "focus-visible-accent inline-flex cursor-pointer items-center rounded-xl border border-transparent outline-none",
-    isDisabled && "cursor-default opacity-50",
-  )
-}
-
-function getThumbClasses(isOn: boolean) {
-  return cn(
-    "absolute top-1/2 z-20 -translate-y-1/2 rounded-full bg-white shadow-sm transition-all duration-300 size-4",
-    isOn ? "left-[18px]" : "left-0.5",
-  )
-}
 </script>
 
 <template>
-  <div
-    :tabindex="disabled ? -1 : 0"
-    :class="getRootClasses(Boolean(disabled))"
-    role="button"
-    @click="toggle"
-    @keydown.enter="toggle"
-    @keydown.space="toggle"
-  >
+  <div :tabindex="disabled ? -1 : 0" :class="rootClass" role="button" @click="toggle" @keydown.enter="toggle" @keydown.space="toggle">
     <div class="relative h-[20px] w-[36px] rounded-full transition-colors duration-300" :style="trackStyle">
-      <div :class="getThumbClasses(modelValue)" />
+      <div :class="thumbClass" />
     </div>
   </div>
 </template>

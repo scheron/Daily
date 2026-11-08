@@ -37,7 +37,7 @@ describe("DynamicTagsPanel", () => {
   })
 
   it("fits_TC-10_as_many_tags_as_the_container_allows_and_shows_nothing_before_the_first_measurement", async () => {
-    const {default: DynamicTagsPanel} = await import("../../../src/renderer/src/ui/common/misc/DynamicTagsPanel.vue")
+    const {default: DynamicTagsPanel} = await import("../../../src/renderer/src/ui/common/(panels)/DynamicTagsPanel.vue")
 
     const tags = [
       makeTag({id: "tag-1", name: "one"}),
@@ -98,7 +98,7 @@ describe("DynamicTagsPanel", () => {
   })
 
   it("skips oversized tags, keeps shorter tags in order, and preserves hidden tag selection", async () => {
-    const {default: DynamicTagsPanel} = await import("../../../src/renderer/src/ui/common/misc/DynamicTagsPanel.vue")
+    const {default: DynamicTagsPanel} = await import("../../../src/renderer/src/ui/common/(panels)/DynamicTagsPanel.vue")
     const tags = ["long-first", "short-first", "long-middle", "short-second", "short-third"].map((name) => makeTag({id: name, name}))
     wrapper = mount(DynamicTagsPanel, {
       props: {tags, selectable: true, selectedTags: new Set(["long-first"]), popupHoverMode: true},

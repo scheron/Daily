@@ -437,7 +437,7 @@ describe("taskEditorStore — relations in the draft", () => {
   async function setupStoresWithRelations() {
     const {useTasksStore} = await import("../../../src/renderer/src/stores/tasks/tasks.store")
     const {useTaskEditorStore} = await import("../../../src/renderer/src/stores/task-editor")
-    const {useTaskRelationsStore} = await import("../../../src/renderer/src/stores/taskRelations.store")
+    const {useTaskRelationsStore} = await import("../../../src/renderer/src/stores/task-relations")
     const tasks = useTasksStore()
     const relations = useTaskRelationsStore()
     const editor = useTaskEditorStore()

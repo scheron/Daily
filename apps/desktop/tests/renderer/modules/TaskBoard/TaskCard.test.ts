@@ -64,7 +64,7 @@ describe("TaskCard — the footer numbers", () => {
 
   async function setup(task, counts = {}) {
     const {default: TaskCard} = await import("../../../../src/renderer/src/ui/modules/TaskBoard/{fragments}/TaskCard/TaskCard.vue")
-    const {useTaskCommentsStore} = await import("../../../../src/renderer/src/stores/taskComments.store")
+    const {useTaskCommentsStore} = await import("../../../../src/renderer/src/stores/task-comments")
 
     useTaskCommentsStore().commentCounts = counts
 
@@ -114,7 +114,7 @@ describe("TaskCard — the footer numbers", () => {
 
   it("shows_done_over_total_of_the_subtasks_on_a_footer_of_its_own_even_with_nothing_else_to_count", async () => {
     await setup(makeTask())
-    const {useSubtasksStore} = await import("../../../../src/renderer/src/stores/subtasks.store")
+    const {useSubtasksStore} = await import("../../../../src/renderer/src/stores/subtasks")
 
     expect(wrapper.find('use[href="#list-checks"]').exists()).toBe(false)
 
@@ -155,7 +155,7 @@ describe("TaskCard — the footer numbers", () => {
   })
 
   it("leads_the_numbers_with_the_day_in_the_milestone_frame_only", async () => {
-    const {useFilterStore} = await import("../../../../src/renderer/src/stores/filter.store")
+    const {useFilterStore} = await import("../../../../src/renderer/src/stores/filter")
     useFilterStore().setFrame("milestone")
 
     await setup(makeTask({estimatedTime: 3600}))
@@ -179,7 +179,7 @@ describe("TaskCard — the footer numbers", () => {
 
   it("draws_a_footer_for_a_task_whose_only_content_is_a_relation", async () => {
     const {useTasksStore} = await import("../../../../src/renderer/src/stores/tasks")
-    const {useTaskRelationsStore} = await import("../../../../src/renderer/src/stores/taskRelations.store")
+    const {useTaskRelationsStore} = await import("../../../../src/renderer/src/stores/task-relations")
     const blocker = makeTask({id: "task-1"})
     useTasksStore().tasks = [blocker, makeTask({id: "task-2"})]
     useTaskRelationsStore().relations = [{id: "r1", blockerId: "task-1", blockedId: "task-2"}]
@@ -238,9 +238,9 @@ describe("TaskCard — the crumb", () => {
 
   async function setup(task, {isAllProjects = false, milestone = null} = {}) {
     const {default: TaskCard} = await import("../../../../src/renderer/src/ui/modules/TaskBoard/{fragments}/TaskCard/TaskCard.vue")
-    const {useSettingsStore} = await import("../../../../src/renderer/src/stores/settings.store")
-    const {useBranchesStore} = await import("../../../../src/renderer/src/stores/branches.store")
-    const {useMilestonesStore} = await import("../../../../src/renderer/src/stores/milestones.store")
+    const {useSettingsStore} = await import("../../../../src/renderer/src/stores/settings")
+    const {useBranchesStore} = await import("../../../../src/renderer/src/stores/branches")
+    const {useMilestonesStore} = await import("../../../../src/renderer/src/stores/milestones")
 
     const settingsStore = useSettingsStore()
     await new Promise((resolve) => setTimeout(resolve, 20))
@@ -274,7 +274,7 @@ describe("TaskCard — the crumb", () => {
 
   it("shows and reactively refreshes the saved project emoji in the crumb", async () => {
     await setup(makeTask({branchId: "leki"}), {isAllProjects: true})
-    const {useBranchesStore} = await import("../../../../src/renderer/src/stores/branches.store")
+    const {useBranchesStore} = await import("../../../../src/renderer/src/stores/branches")
     useBranchesStore().branches.find((project) => project.id === "leki").emoji = "🚀"
     await nextTick()
     expect(crumb().text()).toContain("🚀")
@@ -353,8 +353,8 @@ describe("TaskCard — its shape on the board", () => {
   it("is always the board's card height, with the crumb first and the text filling the rest, never clamped by its content", async () => {
     const {default: TaskCard} = await import("../../../../src/renderer/src/ui/modules/TaskBoard/{fragments}/TaskCard/TaskCard.vue")
     const {BOARD_CARD_HEIGHT} = await import("../../../../src/renderer/src/constants/ui")
-    const {useMilestonesStore} = await import("../../../../src/renderer/src/stores/milestones.store")
-    const {useSettingsStore} = await import("../../../../src/renderer/src/stores/settings.store")
+    const {useMilestonesStore} = await import("../../../../src/renderer/src/stores/milestones")
+    const {useSettingsStore} = await import("../../../../src/renderer/src/stores/settings")
 
     useSettingsStore().settings = {branch: {activeId: "main"}}
     useMilestonesStore().milestones = [makeMilestone()]
@@ -420,7 +420,7 @@ describe("TaskCard — the focus session's border", () => {
   it("draws the travelling border on a card in the session, and drops it once the task is done or the session reaches its summary", async () => {
     const {default: TaskCard} = await import("../../../../src/renderer/src/ui/modules/TaskBoard/{fragments}/TaskCard/TaskCard.vue")
     const {default: FocusBorder} = await import("../../../../src/renderer/src/ui/modules/TaskBoard/{fragments}/TaskCard/{fragments}/FocusBorder.vue")
-    const {useFocusStore} = await import("../../../../src/renderer/src/stores/focus.store")
+    const {useFocusStore} = await import("../../../../src/renderer/src/stores/focus")
 
     const focus = useFocusStore()
     focus.session = makeSession()
@@ -458,7 +458,7 @@ describe("TaskCard — the tags slot", () => {
   it("keeps_the_tags_panel_bottom_left_of_the_footer_before_the_numbers", async () => {
     const {default: TaskCard} = await import("../../../../src/renderer/src/ui/modules/TaskBoard/{fragments}/TaskCard/TaskCard.vue")
     const {default: TagLine} = await import("../../../../src/renderer/src/ui/modules/TaskBoard/{fragments}/TaskCard/{fragments}/TagLine.vue")
-    const {useTagsStore} = await import("../../../../src/renderer/src/stores/tags.store")
+    const {useTagsStore} = await import("../../../../src/renderer/src/stores/tags")
 
     useTagsStore().tags = [{id: "tag-1", name: "work", color: "#000", branchId: "main"}]
     wrapper = mount(TaskCard, {
@@ -476,7 +476,7 @@ describe("TaskCard — the tags slot", () => {
 
   it("draws_the_footer_for_a_task_with_tags_alone", async () => {
     const {default: TaskCard} = await import("../../../../src/renderer/src/ui/modules/TaskBoard/{fragments}/TaskCard/TaskCard.vue")
-    const {useTagsStore} = await import("../../../../src/renderer/src/stores/tags.store")
+    const {useTagsStore} = await import("../../../../src/renderer/src/stores/tags")
 
     useTagsStore().tags = [{id: "tag-1", name: "work", color: "#000", branchId: "main"}]
     wrapper = mount(TaskCard, {
@@ -506,7 +506,7 @@ describe("TaskCard — the relation chip", () => {
     const {default: RelationChip} =
       await import("../../../../src/renderer/src/ui/modules/TaskBoard/{fragments}/TaskCard/{fragments}/RelationChip.vue")
     const {useTasksStore} = await import("../../../../src/renderer/src/stores/tasks")
-    const {useTaskRelationsStore} = await import("../../../../src/renderer/src/stores/taskRelations.store")
+    const {useTaskRelationsStore} = await import("../../../../src/renderer/src/stores/task-relations")
 
     useTasksStore().tasks = [makeTask({id: "A"}), makeTask({id: "B"}), makeTask({id: "C"})]
     useTaskRelationsStore().relations = [
@@ -542,7 +542,7 @@ describe("TaskCard — compact presentation", () => {
   })
 
   async function setup(task, fontSize = "normal") {
-    const {useSettingsStore} = await import("../../../../src/renderer/src/stores/settings.store")
+    const {useSettingsStore} = await import("../../../../src/renderer/src/stores/settings")
     const settings = useSettingsStore()
     await flushPromises()
     settings.settings = {appearance: {taskView: "compact"}, typography: {fontSize}, branch: {activeId: "main"}}
@@ -596,11 +596,11 @@ describe("TaskCard — compact presentation", () => {
   )
 
   it("keeps compact tags on their own row and all task information on the next row", async () => {
-    const {useTagsStore} = await import("../../../../src/renderer/src/stores/tags.store")
-    const {useFilterStore} = await import("../../../../src/renderer/src/stores/filter.store")
-    const {useTaskCommentsStore} = await import("../../../../src/renderer/src/stores/taskComments.store")
-    const {useTaskRelationsStore} = await import("../../../../src/renderer/src/stores/taskRelations.store")
-    const {useSubtasksStore} = await import("../../../../src/renderer/src/stores/subtasks.store")
+    const {useTagsStore} = await import("../../../../src/renderer/src/stores/tags")
+    const {useFilterStore} = await import("../../../../src/renderer/src/stores/filter")
+    const {useTaskCommentsStore} = await import("../../../../src/renderer/src/stores/task-comments")
+    const {useTaskRelationsStore} = await import("../../../../src/renderer/src/stores/task-relations")
+    const {useSubtasksStore} = await import("../../../../src/renderer/src/stores/subtasks")
     const {useTasksStore} = await import("../../../../src/renderer/src/stores/tasks")
     const tags = ["alpha", "beta", "gamma", "delta"].map((name) => ({id: name, name, color: "#123456", branchId: "main"}))
     useTagsStore().tags = tags

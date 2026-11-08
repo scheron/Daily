@@ -1,10 +1,10 @@
 import {Buffer} from "node:buffer"
 import {beforeEach, expect, it, vi} from "vitest"
 
-import {uploadImageFile} from "../../../../src/renderer/src/ui/common/misc/MarkdownEditor/utils/uploadImageFile"
+import {uploadImageFile} from "../../../../src/renderer/src/ui/common/(editors)/MarkdownEditor/utils/uploadImageFile"
 import {mockBridgeIPC} from "../../../helpers/bridgeIPC"
 
-vi.mock("../../../../src/renderer/src/ui/common/misc/MarkdownEditor/utils/compressImageFile", () => ({
+vi.mock("../../../../src/renderer/src/ui/common/(editors)/MarkdownEditor/utils/compressImageFile", () => ({
   async compressImageFile() {
     return {buffer: Buffer.from("static frame"), width: 3, height: 2}
   },

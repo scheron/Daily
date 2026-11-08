@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import {computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch} from "vue"
 
+import {useTaskCommentsStore} from "@/stores/task-comments"
 import {useTaskEditorStore} from "@/stores/task-editor"
-import {useTaskCommentsStore} from "@/stores/taskComments.store"
 import BaseButton from "@/ui/base/BaseButton"
-import MarkdownEditor from "@/ui/common/misc/MarkdownEditor"
-import {nestedTarget} from "@/ui/modules/RightPanel/composables/useNestedView"
+import MarkdownEditor from "@/ui/common/(editors)/MarkdownEditor"
 import {useTaskComments} from "@/ui/modules/RightPanel/composables/useTaskComments"
 import {useTaskEditor} from "@/ui/modules/RightPanel/composables/useTaskEditor"
+import {nestedTarget} from "@/ui/modules/RightPanel/state"
 import {getTaskTitle} from "@/ui/modules/RightPanel/utils/getTaskTitle"
 import ConfirmPopup from "@/ui/overlays/ConfirmPopup.vue"
 

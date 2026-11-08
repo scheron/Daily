@@ -3,7 +3,7 @@
 import {describe, expect, it} from "vitest"
 
 import {mount} from "@vue/test-utils"
-import AgentIcon from "../../../src/renderer/src/ui/common/sync/AgentIcon.vue"
+import AgentIcon from "../../../src/renderer/src/ui/common/(icons)/AgentIcon.vue"
 
 describe("AgentIcon — the mark each client is drawn with (TC-42)", () => {
   function markOf(name) {

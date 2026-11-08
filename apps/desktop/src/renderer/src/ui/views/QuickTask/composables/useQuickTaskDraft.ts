@@ -4,8 +4,8 @@ import {storeToRefs} from "pinia"
 import {NO_PROJECT_ID, statusForScheduling} from "@daily/protocol"
 import {getTime, getTimezone, getToday} from "@daily/std"
 
-import {useBranchesStore} from "@/stores/branches.store"
-import {useSettingsStore} from "@/stores/settings.store"
+import {useBranchesStore} from "@/stores/branches"
+import {useSettingsStore} from "@/stores/settings"
 import {useTasksStore} from "@/stores/tasks"
 
 import type {TaskDraft} from "@/types/taskDraft"

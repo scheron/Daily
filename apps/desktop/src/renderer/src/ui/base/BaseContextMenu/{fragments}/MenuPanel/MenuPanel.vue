@@ -5,8 +5,8 @@ import {isArray} from "@daily/std"
 
 import {useContextMenuConsumer} from "@/ui/base/BaseContextMenu/composables/useContextMenuProvider"
 import {autoUpdate, flip, offset, shift, useFloating} from "@floating-ui/vue"
+import {useSubmenuNavigation} from "./composables/useSubmenuNavigation"
 import MenuList from "./{fragments}/MenuList.vue"
-import {useSubmenuNavigation} from "./useSubmenuNavigation"
 
 import type {BaseContextMenuItem, BaseContextMenuSelectEvent} from "@/ui/base/BaseContextMenu/types"
 

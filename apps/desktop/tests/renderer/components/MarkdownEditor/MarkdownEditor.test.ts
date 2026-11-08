@@ -7,13 +7,13 @@ import {mockBridgeIPC} from "../../../helpers/bridgeIPC"
 import {makeTask} from "../../../helpers/taskFixtures"
 import {findTipTapEditor, pressTipTapKey as pressKey, typeTipTapText as typeText} from "../../../helpers/tiptapEditor"
 
-import type MarkdownEditorComponent from "@/ui/common/misc/MarkdownEditor"
+import type MarkdownEditorComponent from "@/ui/common/(editors)/MarkdownEditor"
 import type {QuickTaskMenu} from "@shared/types/quickTask"
 
 type EditorProps = InstanceType<typeof MarkdownEditorComponent>["$props"]
 
 const uploadImageFile = vi.hoisted(() => vi.fn())
-vi.mock("../../../../src/renderer/src/ui/common/misc/MarkdownEditor/utils/uploadImageFile", () => ({uploadImageFile}))
+vi.mock("../../../../src/renderer/src/ui/common/(editors)/MarkdownEditor/utils/uploadImageFile", () => ({uploadImageFile}))
 
 const fileMarkdown = "![shot =240x120](daily://file/DF-shot)"
 const task = makeTask({id: "__draft__", status: "backlog", content: "", scheduled: null})
@@ -59,7 +59,7 @@ describe("MarkdownEditor", () => {
   })
 
   async function mountEditor(content: string, props: Partial<Omit<EditorProps, "content">> = {}) {
-    const {default: MarkdownEditor} = await import("../../../../src/renderer/src/ui/common/misc/MarkdownEditor")
+    const {default: MarkdownEditor} = await import("../../../../src/renderer/src/ui/common/(editors)/MarkdownEditor")
     const wrapper = mount(MarkdownEditor, {props: {content, ...props}, attachTo: document.body, global: {directives: {tooltip: {}}}})
     unmount = () => wrapper.unmount()
     await vi.waitFor(() => expect(wrapper.find(".tiptap").exists()).toBe(true))

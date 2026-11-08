@@ -59,7 +59,7 @@ describe("MilestoneCombobox", () => {
   })
 
   it("creates_a_milestone_in_the_tasks_project_selects_it_and_only_then_closes_the_popup", async () => {
-    const {default: MilestoneCombobox} = await import("../../../src/renderer/src/ui/common/comboboxes/MilestoneCombobox.vue")
+    const {default: MilestoneCombobox} = await import("../../../src/renderer/src/ui/common/(comboboxes)/MilestoneCombobox.vue")
     const onUpdate = vi.fn()
     const popup = mountInPopup(MilestoneCombobox, {task: makeTask({branchId: "work"}), onUpdate})
     wrapper = popup.wrapper

@@ -1,7 +1,6 @@
 <script setup lang="ts" generic="T">
-import {computed, ref, useSlots} from "vue"
+import {computed, ref, useSlots, useTemplateRef} from "vue"
 
-import BaseCheckbox from "@/ui/base/BaseCheckbox.vue"
 import {cn} from "@/utils/ui/tailwindcss"
 import {useCombobox} from "./composables/useCombobox"
 
@@ -12,9 +11,7 @@ const props = withDefaults(
     itemKey: (item: T) => string | number
     /** Text used to filter and to detect an exact match (for the create footer). */
     filterBy?: (item: T) => string
-    /** Whether an item is selected — drives the checkbox prefix. Omit it and no checkbox is rendered. */
-    selected?: (item: T) => boolean
-    /** Single-select: no checkbox prefix; selecting a row emits `select` then `close`. The footer emits only `select-footer`, so the consumer closes once its create finishes. */
+    /** Selecting a row emits `select` then `close`. The footer emits only `select-footer`, so the consumer closes once its create finishes. */
     single?: boolean
     placeholder?: string
     emptyText?: string
@@ -37,6 +34,9 @@ const emit = defineEmits<{
 
 const slots = useSlots()
 
+const inputRef = useTemplateRef<HTMLInputElement>("input")
+const listRef = useTemplateRef<HTMLElement>("list")
+
 const query = ref("")
 
 const trimmedQuery = computed(() => query.value.trim())
@@ -58,13 +58,14 @@ const hasExactMatch = computed(() => {
 
 const showFooter = computed(() => !!slots.footer && trimmedQuery.value.length > 0 && !hasExactMatch.value)
 
-const {activeIndex, onKeydown: onNavKeydown} = useCombobox({items: filtered, hasFooter: showFooter, query})
+const {activeIndex, onKeydown: onNavKeydown} = useCombobox({items: filtered, hasFooter: showFooter, query, inputRef, listRef})
+
+const footerClass = computed(() => getRowClasses(activeIndex.value === filtered.value.length))
 
 function getRowClasses(isActive: boolean) {
-  return cn(
-    "hover:bg-base-200 flex w-full cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-sm transition-colors",
-    isActive && "bg-base-200",
-  )
+  return cn("hover:bg-base-200 flex w-full cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-sm transition-colors", {
+    "bg-base-200": isActive,
+  })
 }
 
 function onInput(value: string) {
@@ -127,18 +128,12 @@ function onKeydown(event: KeyboardEvent) {
     <ul ref="list" class="max-h-60 overflow-y-auto p-1">
       <li v-for="(item, i) in filtered" :key="itemKey(item)">
         <div :data-active="i === activeIndex" :class="getRowClasses(i === activeIndex)" @mouseenter="activeIndex = i" @click="selectItem(item)">
-          <BaseCheckbox v-if="!single && selected" :model-value="selected(item)" class="pointer-events-none shrink-0" />
           <slot name="item" :item="item" />
         </div>
       </li>
 
       <li v-if="showFooter">
-        <div
-          :data-active="activeIndex === filtered.length"
-          :class="getRowClasses(activeIndex === filtered.length)"
-          @mouseenter="activeIndex = filtered.length"
-          @click="selectFooter()"
-        >
+        <div :data-active="activeIndex === filtered.length" :class="footerClass" @mouseenter="activeIndex = filtered.length" @click="selectFooter()">
           <slot name="footer" :query="trimmedQuery" />
         </div>
       </li>

@@ -6,20 +6,20 @@ import {getToday, notNullish, toDateLabel} from "@daily/std"
 
 import {useMarkdownPreview} from "@/composables/useMarkdownPreview"
 import {TASK_COLUMNS} from "@/constants/ui"
-import {useBranchesStore} from "@/stores/branches.store"
-import {useMilestonesStore} from "@/stores/milestones.store"
-import {useSettingsStore} from "@/stores/settings.store"
-import {useTagsStore} from "@/stores/tags.store"
-import {useTaskRelationsStore} from "@/stores/taskRelations.store"
-import BaseIcon from "@/ui/base/BaseIcon"
-import MilestoneDiamond from "@/ui/common/milestones/MilestoneDiamond.vue"
-import PriorityIcon from "@/ui/common/priority/PriorityIcon.vue"
-import ProjectIcon from "@/ui/common/projects/ProjectIcon.vue"
+import {useBranchesStore} from "@/stores/branches"
+import {useMilestonesStore} from "@/stores/milestones"
+import {useSettingsStore} from "@/stores/settings"
+import {useTagsStore} from "@/stores/tags"
+import {useTaskRelationsStore} from "@/stores/task-relations"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
+import MilestoneIcon from "@/ui/common/(icons)/MilestoneIcon.vue"
+import PriorityIcon from "@/ui/common/(icons)/PriorityIcon.vue"
+import ProjectIcon from "@/ui/common/(icons)/ProjectIcon.vue"
 import {toShortDurationLabel} from "@/utils/date/toShortDurationLabel"
 import {getPriorityLevel} from "@/utils/priority/getPriorityLevel"
 import {cn} from "@/utils/ui/tailwindcss"
 
-import type {IconName} from "@/ui/base/BaseIcon"
+import type {IconName} from "@/types/icons"
 import type {Task, TaskStatus} from "@daily/protocol"
 
 const props = defineProps<{task: Task}>()
@@ -93,7 +93,7 @@ function toRelationChip(task: Task) {
         <span>{{ projectLabel }}</span>
       </div>
       <div class="preview-cell" :data-empty="!milestone">
-        <MilestoneDiamond v-if="milestone" :completion="milestoneProgress" :overdue="milestoneOverdue" :size="14" aria-hidden="true" />
+        <MilestoneIcon v-if="milestone" :completion="milestoneProgress" :overdue="milestoneOverdue" :size="14" aria-hidden="true" />
         <BaseIcon v-else name="milestone" class="size-3.5" aria-hidden="true" />
         <span>{{ milestoneLabel }}</span>
       </div>

@@ -3,13 +3,13 @@ import {ACCENT_PRESETS} from "@daily/protocol"
 
 import {useThemeStore} from "@/stores/theme"
 import BaseButton from "@/ui/base/BaseButton"
-import BaseIcon from "@/ui/base/BaseIcon"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
 import {cn} from "@/utils/ui/tailwindcss"
 
 const themeStore = useThemeStore()
 
 function getAccentSwatchClasses(isActive: boolean) {
-  return cn("absolute inset-0 size-full rounded-md transition-opacity group-hover:opacity-100!", isActive ? "scale-110 opacity-100" : "opacity-40")
+  return cn("absolute inset-0 size-full rounded-md transition-opacity group-hover:opacity-100!", [isActive ? "scale-110 opacity-100" : "opacity-40"])
 }
 </script>
 

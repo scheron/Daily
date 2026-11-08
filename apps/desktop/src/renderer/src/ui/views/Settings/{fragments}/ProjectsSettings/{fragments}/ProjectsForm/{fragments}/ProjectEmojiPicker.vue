@@ -3,7 +3,7 @@ import {nextTick, onBeforeUnmount, ref, useId, useTemplateRef} from "vue"
 
 import BaseButton from "@/ui/base/BaseButton"
 import BasePopup from "@/ui/base/BasePopup.vue"
-import ProjectIcon from "@/ui/common/projects/ProjectIcon.vue"
+import ProjectIcon from "@/ui/common/(icons)/ProjectIcon.vue"
 
 import type {Picker} from "emoji-mart"
 

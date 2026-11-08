@@ -1,10 +1,10 @@
 <script setup lang="ts" generic="T extends string">
 import {computed, useTemplateRef} from "vue"
 
-import BaseIcon from "@/ui/base/BaseIcon"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
 import {cn} from "@/utils/ui/tailwindcss"
 
-import type {IconName} from "@/ui/base/BaseIcon"
+import type {IconName} from "@/types/icons"
 
 type Option = {value: T; label: string; icon?: IconName; activeClass?: string}
 

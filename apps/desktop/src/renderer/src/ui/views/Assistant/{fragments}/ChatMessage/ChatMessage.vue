@@ -52,17 +52,15 @@ const blocks = computed<SegmentBlock[]>(() => {
 
 const {copyToClipboard, isCopied: isMessageCopied} = useCopyToClipboard({onSuccess: () => toasts.success("Message copied")})
 
+const rootClass = computed(() => cn("flex", [isUser.value ? "justify-end" : "justify-start"]))
+
 function copyMessage() {
   copyToClipboard(props.message.content)
-}
-
-function getRootClasses(isUser: boolean) {
-  return cn("flex", isUser ? "justify-end" : "justify-start")
 }
 </script>
 
 <template>
-  <div :class="getRootClasses(isUser)">
+  <div :class="rootClass">
     <div v-if="!isUser" class="group flex w-full gap-3">
       <div class="min-w-0 flex-1">
         <div class="ai-message-content flex select-text flex-col gap-2 text-sm">

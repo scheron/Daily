@@ -1,16 +1,16 @@
 <script setup lang="ts">
-import {computed, nextTick, onMounted, toRef, useTemplateRef} from "vue"
+import {computed, nextTick, onMounted, useTemplateRef} from "vue"
 
 import {useTaskEditorStore} from "@/stores/task-editor"
 import BaseButton from "@/ui/base/BaseButton"
 import BaseCheckbox from "@/ui/base/BaseCheckbox.vue"
-import MarkdownEditor from "@/ui/common/misc/MarkdownEditor"
+import MarkdownEditor from "@/ui/common/(editors)/MarkdownEditor"
 import {openedSubtaskId} from "@/ui/modules/RightPanel/composables/useSubtaskEditorOpen"
 import {useTaskEditor} from "@/ui/modules/RightPanel/composables/useTaskEditor"
 import {getTaskTitle} from "@/ui/modules/RightPanel/utils/getTaskTitle"
 import ConfirmPopup from "@/ui/overlays/ConfirmPopup.vue"
 import {useConfirmUnsavedModal} from "@/ui/overlays/ConfirmUnsavedModal"
-import {useSubtaskWrite} from "./useSubtaskWrite"
+import {useSubtaskWrite} from "./composables/useSubtaskWrite"
 
 import type {Subtask} from "@daily/protocol"
 
@@ -18,7 +18,7 @@ const props = defineProps<{subtaskId: Subtask["id"]}>()
 
 const taskEditorStore = useTaskEditorStore()
 const {localContent} = useTaskEditor()
-const {content, subtask, onContentChange, flush, toggleDone, remove, startMakeTask} = useSubtaskWrite(toRef(props, "subtaskId"))
+const {content, subtask, onContentChange, flush, toggleDone, remove, startMakeTask} = useSubtaskWrite(props.subtaskId)
 const {open: confirmLeaveIfDirty} = useConfirmUnsavedModal()
 
 const editorRef = useTemplateRef<InstanceType<typeof MarkdownEditor>>("editor")

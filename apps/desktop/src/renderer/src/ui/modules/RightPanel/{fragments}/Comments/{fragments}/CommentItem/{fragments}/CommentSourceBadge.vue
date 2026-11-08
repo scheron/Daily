@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import {computed} from "vue"
 
-import BaseIcon from "@/ui/base/BaseIcon"
-import AgentIcon from "@/ui/common/sync/AgentIcon.vue"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
+import AgentIcon from "@/ui/common/(icons)/AgentIcon.vue"
 import {cn} from "@/utils/ui/tailwindcss"
 
 import type {TaskCommentKind} from "@daily/protocol"
@@ -11,13 +11,13 @@ const props = defineProps<{kind: TaskCommentKind; provider: string | null}>()
 
 const label = computed(() => (props.kind === "manual" ? "Comment" : props.kind === "agent" ? "Daily Assistant" : props.provider?.trim() || "MCP"))
 
-function getMarkerClasses(kind: TaskCommentKind) {
-  return cn("source-marker flex size-5 shrink-0 items-center justify-center", kind === "manual" ? "text-base-content/70" : "text-accent")
-}
+const markerClass = computed(() =>
+  cn("source-marker flex size-5 shrink-0 items-center justify-center", [props.kind === "manual" ? "text-base-content/70" : "text-accent"]),
+)
 </script>
 
 <template>
-  <span :class="getMarkerClasses(kind)" role="img" :aria-label="label" :data-source="label" tabindex="0">
+  <span :class="markerClass" role="img" :aria-label="label" :data-source="label" tabindex="0">
     <BaseIcon v-if="kind === 'manual'" name="message" class="size-3.5" />
     <BaseIcon v-else-if="kind === 'agent'" name="logo" class="size-3.5" />
     <AgentIcon v-else :name="provider ?? ''" class="size-3.5" />

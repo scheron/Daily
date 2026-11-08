@@ -1,7 +1,7 @@
 import {createApp} from "vue"
 import {createPinia} from "pinia"
 
-import {useSettingsStore} from "./stores/settings.store"
+import {useSettingsStore} from "./stores/settings"
 import App from "./App.vue"
 import vFocusOnMount from "./directives/vFocusOnMount"
 import router from "./router"
@@ -11,7 +11,7 @@ import "./assets/styles/main.css"
 import "./assets/styles/tooltip.css"
 import "./assets/styles/rewrites/vue-toasts-lite.css"
 
-import vTooltip from "./directives/vTooltip"
+import vTooltip from "./directives/v-tooltip"
 
 async function initApp() {
   const pinia = createPinia()

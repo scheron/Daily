@@ -1,5 +1,6 @@
 import {common, createLowlight} from "lowlight"
 
+import {WHITESPACE_REGEX} from "@/constants/regex"
 import {appendHighlightedText} from "./appendHighlightedText"
 import {appendMarkdownCodeLine} from "./appendMarkdownCodeLine"
 import {createCodeCopyButton} from "./createCodeCopyButton"
@@ -120,7 +121,7 @@ export function renderPreviewCode(token: Tokens.Code, options: {isClipped: boole
       tsx: "typescript",
       yml: "yaml",
     }
-    const language = token.lang?.trim().split(/\s/, 1)[0]?.toLowerCase()
+    const language = token.lang?.trim().split(WHITESPACE_REGEX, 1)[0]?.toLowerCase()
     return language && Object.hasOwn(aliases, language) ? aliases[language] : (language ?? "")
   }
 }

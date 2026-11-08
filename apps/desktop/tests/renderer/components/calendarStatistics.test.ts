@@ -4,8 +4,8 @@ import {expect, it} from "vitest"
 
 import {groupTasksByDay} from "@daily/protocol"
 
-import {calcMonthStatistics} from "../../../src/renderer/src/ui/common/calendar/TaskCalendar/utils/calcMonthStatistics"
-import {formatDaysToMonth} from "../../../src/renderer/src/ui/common/calendar/TaskCalendar/utils/formatDaysToMonth"
+import {calcMonthStatistics} from "../../../src/renderer/src/ui/common/(calendars)/TaskCalendar/utils/calcMonthStatistics"
+import {formatDaysToMonth} from "../../../src/renderer/src/ui/common/(calendars)/TaskCalendar/utils/formatDaysToMonth"
 import {makeTask} from "../../helpers/taskFixtures"
 
 it("counts each true status in the calendar without counting ready tasks as Cancelled", () => {

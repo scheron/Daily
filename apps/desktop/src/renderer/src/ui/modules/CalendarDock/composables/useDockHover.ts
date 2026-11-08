@@ -1,17 +1,17 @@
 import {useEventListener} from "@vueuse/core"
 import {storeToRefs} from "pinia"
 
-import {useDragDropStore} from "@/stores/dragDrop.store"
-import {useUIStore} from "@/stores/ui"
+import {useDragDropStore} from "@/stores/drag-drop"
+import {useUiStore} from "@/stores/ui"
 
-import type {ShallowRef} from "vue"
+import type {MaybeRefOrGetter} from "vue"
 
 /**
  * Expands the dock once the pointer rests on it and collapses it again on the way out.
  * Stands aside while a card is being dragged — `useDockDragHover` owns the dock for the length of a drag.
  */
-export function useDockHover(dock: Readonly<ShallowRef<HTMLElement | null>>) {
-  const uiStore = useUIStore()
+export function useDockHover(dock: MaybeRefOrGetter<HTMLElement | null>) {
+  const uiStore = useUiStore()
   const dragDropStore = useDragDropStore()
 
   const {draggingTaskId} = storeToRefs(dragDropStore)

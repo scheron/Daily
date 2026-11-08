@@ -2,8 +2,8 @@ import {watch} from "vue"
 import {useEventListener} from "@vueuse/core"
 import {storeToRefs} from "pinia"
 
-import {useDragDropStore} from "@/stores/dragDrop.store"
-import {useUIStore} from "@/stores/ui"
+import {useDragDropStore} from "@/stores/drag-drop"
+import {useUiStore} from "@/stores/ui"
 import {findClosestAtPoint} from "@/utils/ui/dom"
 
 import type {CalendarDockTab} from "@/stores/ui"
@@ -11,7 +11,7 @@ import type {CalendarDockTab} from "@/stores/ui"
 type HoverTarget = CalendarDockTab | "expand" | "collapse"
 
 export function useDockDragHover() {
-  const uiStore = useUIStore()
+  const uiStore = useUiStore()
   const dragDropStore = useDragDropStore()
 
   const {isCalendarDockExpanded, calendarDockTab} = storeToRefs(uiStore)

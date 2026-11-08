@@ -4,9 +4,9 @@ import {defineStore} from "pinia"
 
 import {groupTasksByDay, groupTasksForBoard, isTaskOnDayBoard, sortTasksByOrderIndex} from "@daily/protocol"
 
-import {API} from "@/api"
-import {useProjectScopeStore} from "@/stores/projectScope.store"
-import {useSettingsStore} from "@/stores/settings.store"
+import {Storage} from "@/api"
+import {useProjectScopeStore} from "@/stores/project-scope"
+import {useSettingsStore} from "@/stores/settings"
 import {useTaskMutations} from "./composables/useTaskMutations"
 
 import type {Day, ISODate, Milestone, Task, TaskStatus} from "@daily/protocol"
@@ -74,7 +74,7 @@ export const useTasksStore = defineStore("tasks", () => {
   async function loadTasks() {
     isLoaded.value = false
     try {
-      tasks.value = await API.getAllTasks()
+      tasks.value = await Storage.getAllTasks()
     } catch (error) {
       console.error("Failed to load tasks:", error)
       throw error

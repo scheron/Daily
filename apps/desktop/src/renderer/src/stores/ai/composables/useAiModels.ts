@@ -1,16 +1,16 @@
-import {computed} from "vue"
+import {computed, toValue} from "vue"
 
-import {useLocalModelStore} from "@/stores/ai/localModel.store"
-import {useRemoteModelStore} from "@/stores/ai/remoteModel.store"
-import {updateAiConfig} from "../utils/updateAiConfig"
+import {useLocalModelStore} from "@/stores/local-model"
+import {useRemoteModelStore} from "@/stores/remote-model"
+import {updateAiConfig} from "@/utils/ai/updateAiConfig"
 
 import type {useLoadingState} from "@/composables/useLoadingState"
 import type {AIConfig, AIProvider, LocalModelId} from "@daily/protocol"
-import type {ComputedRef, Ref} from "vue"
+import type {MaybeRefOrGetter, Ref} from "vue"
 
 type AiModelsContext = {
-  config: ComputedRef<AIConfig | null>
-  isDisabled: ComputedRef<boolean>
+  config: MaybeRefOrGetter<AIConfig | null>
+  isDisabled: MaybeRefOrGetter<boolean>
   connectionState: ReturnType<typeof useLoadingState>
   isConnected: Ref<boolean>
 }
@@ -27,14 +27,14 @@ export function useAiModels(ctx: AiModelsContext) {
   const localRuntimeState = computed(() => localModelStore.runtimeState)
   const localDiskUsage = computed(() => localModelStore.diskUsage)
   const availableModels = computed(() => {
-    if (!config.value) return []
-    if (config.value.provider === "openai") return remoteModelStore.availableModels
-    if (config.value.provider === "local") return localModelStore.availableModels
+    const provider = toValue(config)?.provider
+    if (provider === "openai") return remoteModelStore.availableModels
+    if (provider === "local") return localModelStore.availableModels
     return []
   })
 
   async function checkConnection() {
-    if (isDisabled.value) return
+    if (toValue(isDisabled)) return
     try {
       connectionState.setState("LOADING")
 
@@ -50,8 +50,9 @@ export function useAiModels(ctx: AiModelsContext) {
       isConnected.value = true
       connectionState.setState("LOADED")
 
-      if (config.value?.provider === "openai") await remoteModelStore.setAvailableModels(fetchedModels)
-      else if (config.value?.provider === "local") await localModelStore.setAvailableModels(fetchedModels)
+      const provider = toValue(config)?.provider
+      if (provider === "openai") await remoteModelStore.setAvailableModels(fetchedModels)
+      else if (provider === "local") await localModelStore.setAvailableModels(fetchedModels)
     } catch {
       isConnected.value = false
       connectionState.setState("ERROR")

@@ -1,8 +1,8 @@
 import {computed, onScopeDispose, ref, watch} from "vue"
 import {storeToRefs} from "pinia"
 
-import {API} from "@/api"
-import {useStorageChangesStore} from "@/stores/storageChanges.store"
+import {Storage} from "@/api"
+import {useStorageChangesStore} from "@/stores/storage-changes"
 import {useTaskEditorStore} from "@/stores/task-editor"
 import {useTasksStore} from "@/stores/tasks"
 
@@ -26,7 +26,7 @@ export function useTaskHistory() {
       events.value = []
       return
     }
-    events.value = await API.getTaskHistory(task.value.id)
+    events.value = await Storage.getTaskHistory(task.value.id)
   }
 
   watch(signature, revalidate, {immediate: true})

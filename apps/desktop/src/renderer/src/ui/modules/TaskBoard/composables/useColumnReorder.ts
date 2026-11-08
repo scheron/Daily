@@ -1,19 +1,19 @@
-import {computed, nextTick, onBeforeUnmount, ref, shallowRef, watch} from "vue"
+import {computed, nextTick, onBeforeUnmount, ref, shallowRef, toValue, watch} from "vue"
 import {useEventListener} from "@vueuse/core"
 import {storeToRefs} from "pinia"
 
 import {useDragAutoScroll} from "@/composables/tasks/useDragAutoScroll"
 import {useSettingValue} from "@/composables/useSettingValue"
 import {TASK_COLUMNS} from "@/constants/ui"
-import {useDragDropStore} from "@/stores/dragDrop.store"
-import {useFilterStore} from "@/stores/filter.store"
-import {useSettingsStore} from "@/stores/settings.store"
+import {useDragDropStore} from "@/stores/drag-drop"
+import {useFilterStore} from "@/stores/filter"
+import {useSettingsStore} from "@/stores/settings"
 import {useTasksStore} from "@/stores/tasks"
 
 import type {TaskStatus} from "@daily/protocol"
-import type {ShallowRef} from "vue"
+import type {MaybeRefOrGetter} from "vue"
 
-export function useColumnReorder(boardRef: Readonly<ShallowRef<HTMLElement | null>>) {
+export function useColumnReorder(boardRef: MaybeRefOrGetter<HTMLElement | null>) {
   let resizeObserver: ResizeObserver | null = null
   let suppressClick = false
   let previousCursor = ""
@@ -82,7 +82,7 @@ export function useColumnReorder(boardRef: Readonly<ShallowRef<HTMLElement | nul
     if (event.button !== 0 || gesture.value || draggingTaskId.value || !(event.target instanceof Element)) return
     const handle = event.target.closest("[data-column-drag-handle]")
     const column = handle?.closest<HTMLElement>("[data-column-status]")
-    const board = boardRef.value
+    const board = toValue(boardRef)
     if (!column || !board?.contains(column)) return
     suppressClick = false
     const rect = column.getBoundingClientRect()
@@ -141,13 +141,13 @@ export function useColumnReorder(boardRef: Readonly<ShallowRef<HTMLElement | nul
     current.pointerX = event.clientX
     previewPosition.value = {x: event.clientX, y: event.clientY}
     updateDestination()
-    autoScroll.update(boardRef.value, event.clientX)
+    autoScroll.update(toValue(boardRef), event.clientX)
   }
 
   function updateDestination() {
     const current = gesture.value
     if (!current || !draggingStatus.value || !checkGeometry()) return
-    const left = current.pointerX - current.offsetX + boardRef.value!.scrollLeft - current.origin
+    const left = current.pointerX - current.offsetX + toValue(boardRef)!.scrollLeft - current.origin
     const deadband = 4
     let slot = current.slot
     while (slot < current.thresholds.length && left > current.thresholds[slot] + deadband) slot++
@@ -180,7 +180,7 @@ export function useColumnReorder(boardRef: Readonly<ShallowRef<HTMLElement | nul
   function onPointerUp(event: PointerEvent) {
     const current = gesture.value
     if (!current || event.pointerId !== current.pointerId || !checkGeometry()) return
-    const rect = boardRef.value!.getBoundingClientRect()
+    const rect = toValue(boardRef)!.getBoundingClientRect()
     if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) {
       reset()
       return
@@ -207,7 +207,7 @@ export function useColumnReorder(boardRef: Readonly<ShallowRef<HTMLElement | nul
   }
 
   function updateColumns(change: () => void) {
-    const board = boardRef.value
+    const board = toValue(boardRef)
     if (!board) {
       change()
       return
@@ -223,7 +223,7 @@ export function useColumnReorder(boardRef: Readonly<ShallowRef<HTMLElement | nul
     change()
     if (scheduled) return
     void nextTick(() => {
-      if (pendingScroll !== scroll || boardRef.value !== board) return
+      if (pendingScroll !== scroll || toValue(boardRef) !== board) return
       pendingScroll = null
       for (const [element, position] of scroll) {
         if (!element.isConnected || !board.contains(element)) continue
@@ -243,7 +243,7 @@ export function useColumnReorder(boardRef: Readonly<ShallowRef<HTMLElement | nul
   function reset(revealStatus: TaskStatus | null = null) {
     const current = gesture.value
     if (!current) return
-    const board = boardRef.value
+    const board = toValue(boardRef)
     resizeObserver?.disconnect()
     resizeObserver = null
     autoScroll.stop()
@@ -260,7 +260,7 @@ export function useColumnReorder(boardRef: Readonly<ShallowRef<HTMLElement | nul
     })
     gesture.value = null
     void nextTick(() => {
-      if (!board || boardRef.value !== board || revision !== update) return
+      if (!board || toValue(boardRef) !== board || revision !== update) return
       board.scrollLeft = current.originalScrollLeft
       if (!revealStatus) return
       const source = getColumns().find((column) => column.dataset.columnStatus === revealStatus)
@@ -295,11 +295,11 @@ export function useColumnReorder(boardRef: Readonly<ShallowRef<HTMLElement | nul
   }
 
   function getColumns() {
-    return Array.from(boardRef.value?.querySelectorAll<HTMLElement>("[data-column-status]") ?? [])
+    return Array.from(toValue(boardRef)?.querySelectorAll<HTMLElement>("[data-column-status]") ?? [])
   }
 
   function observeGeometry() {
-    const board = boardRef.value
+    const board = toValue(boardRef)
     if (!board) return
     resizeObserver = new ResizeObserver(checkGeometry)
     resizeObserver.observe(board)
@@ -308,7 +308,7 @@ export function useColumnReorder(boardRef: Readonly<ShallowRef<HTMLElement | nul
 
   function checkGeometry() {
     const current = gesture.value
-    const board = boardRef.value
+    const board = toValue(boardRef)
     if (!current || !board) return false
     const rect = board.getBoundingClientRect()
     const columns = getColumns()
@@ -330,7 +330,7 @@ export function useColumnReorder(boardRef: Readonly<ShallowRef<HTMLElement | nul
   }
 
   watch(
-    [viewContext, draggingTaskId, boardRef],
+    [viewContext, draggingTaskId, () => toValue(boardRef)],
     () => {
       reset()
       pendingScroll = null

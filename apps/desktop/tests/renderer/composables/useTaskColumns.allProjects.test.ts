@@ -28,8 +28,8 @@ describe("useTaskColumns — the all-projects mode", () => {
       makeTask("other-work", {branchId: "other", tags: [{id: "t-other", name: "work"}]}),
       makeTask("other-home", {branchId: "other", tags: [{id: "t-home", name: "home"}]}),
     ])
-    const {useSettingsStore} = await import("../../../src/renderer/src/stores/settings.store")
-    const {useFilterStore} = await import("../../../src/renderer/src/stores/filter.store")
+    const {useSettingsStore} = await import("../../../src/renderer/src/stores/settings")
+    const {useFilterStore} = await import("../../../src/renderer/src/stores/filter")
 
     useSettingsStore().settings = {branch: {activeId: "main", isAllProjects: true}, layout: {sectionsCollapsed: {}}}
     useFilterStore().setActiveTags("t-main")
@@ -49,7 +49,7 @@ describe("useTaskColumns — the all-projects mode", () => {
       makeTask("y2", {branchId: "other", orderIndex: 3072}),
       makeTask("x2", {orderIndex: 4096}),
     ])
-    const {useSettingsStore} = await import("../../../src/renderer/src/stores/settings.store")
+    const {useSettingsStore} = await import("../../../src/renderer/src/stores/settings")
     useSettingsStore().settings = {branch: {activeId: "main", isAllProjects: true}, layout: {sectionsCollapsed: {}}}
     await nextTick()
     vi.useFakeTimers()

@@ -2,7 +2,7 @@
 import {useVModel} from "@vueuse/core"
 
 import BaseButton from "@/ui/base/BaseButton"
-import BaseIcon from "@/ui/base/BaseIcon"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
 import BaseInput from "@/ui/base/BaseInput.vue"
 
 const props = defineProps<{
@@ -25,7 +25,7 @@ function onClear() {
   <div class="relative w-full">
     <BaseInput v-model="value" placeholder="Search..." focus-on-mount />
 
-    <div class="absolute top-1/2 right-2 flex -translate-y-1/2 items-center gap-1">
+    <div class="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
       <div v-if="loading" class="flex size-5 items-center">
         <BaseIcon name="spinner" class="text-base-content/50 size-4 animate-spin" />
       </div>

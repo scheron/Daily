@@ -12,6 +12,8 @@ import type {MarkedToken, Token, Tokens} from "marked"
 
 import "./markdownPreview.css"
 
+import {MARKDOWN_FENCE_OPENER_REGEX, MARKDOWN_INLINE_LINK_REGEX, TRAILING_NEWLINES_REGEX} from "@/constants/regex"
+
 export type MarkdownPreviewOptions = {isCompact: boolean; matches?: SearchMatch[]; isCodeClipped?: boolean; isReadOnly?: boolean}
 type MarkdownPreview = {element: HTMLElement; languagesLoaded: Promise<void> | null}
 
@@ -43,7 +45,7 @@ export function renderMarkdownPreview(source: string, options: MarkdownPreviewOp
 
       for (let i = Number(hasBlock); i < pendingBreaks; i++) appendEmptyLine(parent)
       appendBlock(parent, token, nested)
-      pendingBreaks = token.raw.match(/\n+$/)?.[0].length ?? 0
+      pendingBreaks = token.raw.match(TRAILING_NEWLINES_REGEX)?.[0].length ?? 0
       hasBlock = true
     }
     for (let i = 0; i < pendingBreaks; i++) appendEmptyLine(parent)
@@ -100,7 +102,7 @@ export function renderMarkdownPreview(source: string, options: MarkdownPreviewOp
 
     function isRawCode(token: Tokens.Code) {
       const firstBreak = token.raw.indexOf("\n")
-      const opener = token.raw.match(/^[ \t]{0,3}(\x60{3,}|~{3,})/)?.[1]
+      const opener = token.raw.match(MARKDOWN_FENCE_OPENER_REGEX)?.[1]
       if (!opener || token.codeBlockStyle === "indented" || !token.raw.startsWith(opener)) return true
       if (firstBreak < 0) return true
 
@@ -154,7 +156,7 @@ export function renderMarkdownPreview(source: string, options: MarkdownPreviewOp
 
   function appendLiteral(parent: HTMLElement, token: MarkedToken) {
     const line = element("div", "markdown-line")
-    highlights.appendText(line, token, token.raw.replace(/\n+$/, ""))
+    highlights.appendText(line, token, token.raw.replace(TRAILING_NEWLINES_REGEX, ""))
     parent.append(line)
   }
 
@@ -165,7 +167,7 @@ export function renderMarkdownPreview(source: string, options: MarkdownPreviewOp
     )
     const scroll = element("div", "markdown-code-scroll")
     const highlighted = document.createElement("div")
-    highlights.appendText(highlighted, token, token.raw.replace(/\n+$/, ""))
+    highlights.appendText(highlighted, token, token.raw.replace(TRAILING_NEWLINES_REGEX, ""))
     let line = appendMarkdownCodeLine(scroll)
 
     for (const part of Array.from(highlighted.childNodes)) {
@@ -188,7 +190,7 @@ export function renderMarkdownPreview(source: string, options: MarkdownPreviewOp
     const clickable =
       !options.isReadOnly &&
       !inTable &&
-      /^\[[\s\S]*\]\([\s\S]*\)$/.test(token.raw) &&
+      MARKDOWN_INLINE_LINK_REGEX.test(token.raw) &&
       ["https:", "http:", "mailto:"].includes(URL.parse(token.href)?.protocol ?? "")
     if (!clickable) {
       const label = element("span", "markdown-link-label")

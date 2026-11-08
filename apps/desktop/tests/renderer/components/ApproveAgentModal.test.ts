@@ -3,7 +3,7 @@
 import {describe, expect, it} from "vitest"
 
 import {mount} from "@vue/test-utils"
-import ApproveAgentModal from "../../../src/renderer/src/ui/overlays/ApproveAgentModal.vue"
+import ApproveAgentModal from "../../../src/renderer/src/ui/overlays/ApproveAgentModal/ApproveAgentModal.vue"
 
 function makeRequest(overrides = {}) {
   return {

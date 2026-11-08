@@ -4,7 +4,7 @@ import {defineStore} from "pinia"
 import {toISODate} from "@daily/std"
 
 import {useLoadingState} from "@/composables/useLoadingState"
-import {useSettingsStore} from "@/stores/settings.store"
+import {useSettingsStore} from "@/stores/settings"
 import {LLM_MODELS} from "@shared/constants/ai"
 import {useAiModels} from "./composables/useAiModels"
 import {useAiSession} from "./composables/useAiSession"

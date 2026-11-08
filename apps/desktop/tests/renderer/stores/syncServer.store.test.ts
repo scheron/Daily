@@ -26,7 +26,7 @@ describe("syncServerStore — the mismatch flag reaches the renderer without reo
   })
 
   async function getStore() {
-    const {useSyncServerStore} = await import("../../../src/renderer/src/stores/syncServer.store")
+    const {useSyncServerStore} = await import("../../../src/renderer/src/stores/sync-server")
     const store = useSyncServerStore()
     await new Promise((r) => setTimeout(r, 0))
     return store
@@ -109,7 +109,7 @@ describe("syncServerStore — a role learned on the tick updates the store and r
   })
 
   async function getStore() {
-    const {useSyncServerStore} = await import("../../../src/renderer/src/stores/syncServer.store")
+    const {useSyncServerStore} = await import("../../../src/renderer/src/stores/sync-server")
     const store = useSyncServerStore()
     await new Promise((r) => setTimeout(r, 0))
     return store
@@ -181,19 +181,19 @@ function flush() {
 describe("syncServerStore — the agent list, the agent card and revoking an agent (TC-1 to TC-8)", () => {
   beforeEach(async () => {
     setActivePinia(createPinia())
-    const {useBaseModal} = await import("../../../src/renderer/src/ui/base/BaseModal")
+    const {useBaseModal} = await import("../../../src/renderer/src/composables/useBaseModal")
     useBaseModal().stack.value = []
   })
 
   async function getStore() {
-    const {useSyncServerStore} = await import("../../../src/renderer/src/stores/syncServer.store")
+    const {useSyncServerStore} = await import("../../../src/renderer/src/stores/sync-server")
     const store = useSyncServerStore()
     await flush()
     return store
   }
 
   async function agentCardItems() {
-    const {useBaseModal} = await import("../../../src/renderer/src/ui/base/BaseModal")
+    const {useBaseModal} = await import("../../../src/renderer/src/composables/useBaseModal")
     return useBaseModal().stack.value.filter((item) => item.props && "deviceName" in item.props)
   }
 
@@ -502,7 +502,7 @@ describe("syncServerStore — no revoked device in membership, whatever its role
   })
 
   async function getStore() {
-    const {useSyncServerStore} = await import("../../../src/renderer/src/stores/syncServer.store")
+    const {useSyncServerStore} = await import("../../../src/renderer/src/stores/sync-server")
     const store = useSyncServerStore()
     await flush()
     return store
@@ -567,7 +567,7 @@ describe("syncServerStore — where the connection to the server stands reaches 
       "sync-server:on-agents-accepted-changed": vi.fn(),
       "sync-server:on-connection-changed": vi.fn(),
     })
-    const {useSyncServerStore} = await import("../../../src/renderer/src/stores/syncServer.store")
+    const {useSyncServerStore} = await import("../../../src/renderer/src/stores/sync-server")
     const store = useSyncServerStore()
     await new Promise((r) => setTimeout(r, 0))
 

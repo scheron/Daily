@@ -2,15 +2,15 @@
 import {createPinia, setActivePinia} from "pinia"
 import {beforeEach, describe, expect, it, vi} from "vitest"
 
-import {useStorageChangesStore} from "../../../src/renderer/src/stores/storageChanges.store"
-import {useTagsStore} from "../../../src/renderer/src/stores/tags.store"
-import {useTaskRelationsStore} from "../../../src/renderer/src/stores/taskRelations.store"
+import {useStorageChangesStore} from "../../../src/renderer/src/stores/storage-changes"
+import {useTagsStore} from "../../../src/renderer/src/stores/tags"
+import {useTaskRelationsStore} from "../../../src/renderer/src/stores/task-relations"
 import {mockBridgeIPC} from "../../helpers/bridgeIPC"
 
 vi.mock("../../../src/renderer/src/utils/ui/toRawDeep", () => ({toRawDeep: (v) => v}))
 
 vi.mock("../../../src/renderer/src/api", () => ({
-  API: {
+  Storage: {
     getTagList: vi.fn().mockResolvedValue([]),
     createTag: vi.fn(),
     deleteTag: vi.fn().mockResolvedValue(true),

@@ -6,12 +6,12 @@ import {toDateLabel} from "@daily/std"
 
 import {useMarkdownPreview} from "@/composables/useMarkdownPreview"
 import {TASK_COLUMNS} from "@/constants/ui"
-import BaseIcon from "@/ui/base/BaseIcon"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
 import BaseTag from "@/ui/base/BaseTag"
 import {getProjectName} from "@/utils/projects/getProjectName"
 import {cn} from "@/utils/ui/tailwindcss"
 
-import type {TaskSearchResult, TaskStatus} from "@daily/protocol"
+import type {TaskSearchResult} from "@daily/protocol"
 
 const props = defineProps<{result: TaskSearchResult}>()
 
@@ -25,8 +25,8 @@ const previewOptions = computed(() => ({isCompact: true, matches: props.result.m
 
 useMarkdownPreview(containerRef, content, previewOptions)
 
-function getStatusIconClasses(status: TaskStatus) {
-  return cn(
+const statusIconClass = computed(() =>
+  cn(
     "size-4",
     {
       done: "text-success",
@@ -36,9 +36,9 @@ function getStatusIconClasses(status: TaskStatus) {
       ready_to_merge: "text-info",
       todo: "text-base-content/80",
       in_progress: "text-accent",
-    }[status],
-  )
-}
+    }[props.result.task.status],
+  ),
+)
 </script>
 
 <template>
@@ -48,7 +48,7 @@ function getStatusIconClasses(status: TaskStatus) {
         <span class="text-base-content/60 text-xs"> {{ result.task.scheduled ? toDateLabel(result.task.scheduled.date) : "No date" }} </span>
         <span class="bg-base-300 text-base-content/70 rounded px-1.5 py-0.5 text-[9px] font-medium">{{ branchName }}</span>
       </div>
-      <BaseIcon :name="statusIcon" :class="getStatusIconClasses(result.task.status)" />
+      <BaseIcon :name="statusIcon" :class="statusIconClass" />
     </div>
 
     <div class="text-base-content px-1 text-[10px]">

@@ -2,7 +2,7 @@
 import {nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef} from "vue"
 
 import {useThemeStore} from "@/stores/theme"
-import SlashCommandRows from "@/ui/common/misc/SlashCommandRows"
+import SlashCommandRows from "@/ui/common/(misc)/SlashCommandRows"
 
 import type {QuickTaskMenu} from "@shared/types/quickTask"
 

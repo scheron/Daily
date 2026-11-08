@@ -8,7 +8,7 @@ import {TaskEventModel} from "@core/storage/models/TaskEventModel"
 import {TaskModel} from "@core/storage/models/TaskModel"
 import {TaskEventsService} from "@core/storage/services/TaskEventsService"
 import {TasksService} from "@core/storage/services/TasksService"
-import {StorageAPI} from "../../../../../apps/desktop/src/renderer/src/api/Storage"
+import {Storage} from "../../../../../apps/desktop/src/renderer/src/api"
 import {mockBridgeIPC} from "../../../../../apps/desktop/tests/helpers/bridgeIPC"
 import {createTestDatabase} from "../../helpers/db"
 import {makeTaskInput} from "../../helpers/storageControllerHarness"
@@ -334,7 +334,7 @@ describe("calendar API day assignment to Ready tasks", () => {
         seeded,
         planTaskUpdate({tasks: [seeded], milestones: [], today: "2026-10-29"}, seeded.id, {scheduled: {date: "2026-10-30"}})[0],
       )
-      await new StorageAPI().moveTask(seeded.id, "2026-10-30")
+      await Storage.moveTask(seeded.id, "2026-10-30")
       const actual = taskModel.getTask(seeded.id)
       expect(actual.status).toBe("ready_for_agent")
       expect(actual.scheduled).toEqual({date: "2026-10-30", time: expect.stringMatching(/^\d{2}:\d{2}:\d{2}$/), timezone: expect.any(String)})

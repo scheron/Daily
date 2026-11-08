@@ -5,19 +5,19 @@ import {DateTime} from "luxon"
 import {sortTags} from "@daily/protocol"
 import {toDateLabel} from "@daily/std"
 
-import {useBranchesStore} from "@/stores/branches.store"
-import {useMilestonesStore} from "@/stores/milestones.store"
+import {useBranchesStore} from "@/stores/branches"
+import {useMilestonesStore} from "@/stores/milestones"
 import BaseButton from "@/ui/base/BaseButton"
-import BaseIcon from "@/ui/base/BaseIcon"
-import PriorityIcon from "@/ui/common/priority/PriorityIcon.vue"
-import ProjectIcon from "@/ui/common/projects/ProjectIcon.vue"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
+import PriorityIcon from "@/ui/common/(icons)/PriorityIcon.vue"
+import ProjectIcon from "@/ui/common/(icons)/ProjectIcon.vue"
 import {toShortDurationLabel} from "@/utils/date/toShortDurationLabel"
 import {getPriorityLevel} from "@/utils/priority/getPriorityLevel"
 import {getProjectName} from "@/utils/projects/getProjectName"
 import {cn} from "@/utils/ui/tailwindcss"
 
+import type {IconName} from "@/types/icons"
 import type {TaskDraft} from "@/types/taskDraft"
-import type {IconName} from "@/ui/base/BaseIcon"
 import type {Tag, Task, TaskStatus} from "@daily/protocol"
 
 const props = defineProps<{task: Task}>()
@@ -31,6 +31,9 @@ const projectName = computed(() => getProjectName(project.value))
 const milestoneName = computed(() => (props.task.milestoneId ? (milestonesStore.milestonesMap.get(props.task.milestoneId)?.name ?? "") : ""))
 const priorityLevel = computed(() => getPriorityLevel(props.task.priority))
 const statusView = computed(() => getStatusView(props.task.status))
+const statusChipClass = computed(() =>
+  cn("inline-flex h-6 items-center gap-1.5 rounded-full px-3 py-1 text-[0.8125rem] leading-none", statusView.value.classes),
+)
 const dateLabel = computed(() => (props.task.scheduled ? getDateLabel(props.task.scheduled.date) : ""))
 const dateTooltip = computed(() => {
   const scheduled = props.task.scheduled
@@ -49,10 +52,6 @@ function getStatusView(status: TaskStatus): {label: string; icon: IconName; clas
     done: {label: "Done", icon: "check-check" as const, classes: "bg-success/5 text-success"},
     cancelled: {label: "Cancelled", icon: "archive" as const, classes: "bg-warning/5 text-warning"},
   }[status]
-}
-
-function getChipClasses(tone?: string) {
-  return cn("inline-flex h-6 items-center gap-1.5 rounded-full px-3 py-1 text-[0.8125rem] leading-none", tone ?? "bg-accent/5 text-accent")
 }
 
 function getTagStyle(tag: Tag) {
@@ -74,12 +73,19 @@ function removeTag(tag: Tag) {
 
 <template>
   <div class="flex flex-wrap gap-1.5">
-    <span data-chip="project" :class="getChipClasses()">
+    <span
+      data-chip="project"
+      class="bg-accent/5 text-accent inline-flex h-6 items-center gap-1.5 rounded-full px-3 py-1 text-[0.8125rem] leading-none"
+    >
       <ProjectIcon :project="project" class="size-3.5" />
       <span>{{ projectName }}</span>
     </span>
 
-    <span v-if="milestoneName" data-chip="milestone" :class="getChipClasses()">
+    <span
+      v-if="milestoneName"
+      data-chip="milestone"
+      class="bg-accent/5 text-accent inline-flex h-6 items-center gap-1.5 rounded-full px-3 py-1 text-[0.8125rem] leading-none"
+    >
       <BaseIcon name="milestone" class="size-3.5" />
       <span>{{ milestoneName }}</span>
       <BaseButton variant="chip-remove" aria-label="Remove milestone" @click="emit('patch', {milestoneId: null})">
@@ -87,12 +93,16 @@ function removeTag(tag: Tag) {
       </BaseButton>
     </span>
 
-    <span data-chip="status" :class="getChipClasses(statusView.classes)">
+    <span data-chip="status" :class="statusChipClass">
       <BaseIcon :name="statusView.icon" class="size-3.5" />
       <span>{{ statusView.label }}</span>
     </span>
 
-    <span v-if="task.priority !== 'none'" data-chip="priority" :class="getChipClasses()">
+    <span
+      v-if="task.priority !== 'none'"
+      data-chip="priority"
+      class="bg-accent/5 text-accent inline-flex h-6 items-center gap-1.5 rounded-full px-3 py-1 text-[0.8125rem] leading-none"
+    >
       <PriorityIcon :priority="task.priority" class="size-3.5" />
       <span>{{ priorityLevel.label }}</span>
       <BaseButton variant="chip-remove" aria-label="Remove priority" @click="emit('patch', {priority: 'none'})">
@@ -100,7 +110,12 @@ function removeTag(tag: Tag) {
       </BaseButton>
     </span>
 
-    <span v-if="task.scheduled" v-tooltip="dateTooltip" data-chip="date" :class="getChipClasses()">
+    <span
+      v-if="task.scheduled"
+      v-tooltip="dateTooltip"
+      data-chip="date"
+      class="bg-accent/5 text-accent inline-flex h-6 items-center gap-1.5 rounded-full px-3 py-1 text-[0.8125rem] leading-none"
+    >
       <BaseIcon name="calendar" class="size-3.5" />
       <span>{{ dateLabel }}</span>
       <BaseButton variant="chip-remove" aria-label="Remove date" @click="emit('patch', {scheduled: null})">
@@ -108,7 +123,11 @@ function removeTag(tag: Tag) {
       </BaseButton>
     </span>
 
-    <span v-if="task.estimatedTime" data-chip="estimate" :class="getChipClasses()">
+    <span
+      v-if="task.estimatedTime"
+      data-chip="estimate"
+      class="bg-accent/5 text-accent inline-flex h-6 items-center gap-1.5 rounded-full px-3 py-1 text-[0.8125rem] leading-none"
+    >
       <BaseIcon name="stopwatch" class="size-3.5" />
       <span>{{ estimateLabel }}</span>
       <BaseButton variant="chip-remove" aria-label="Remove estimate" @click="emit('patch', {estimatedTime: 0})">
@@ -116,7 +135,13 @@ function removeTag(tag: Tag) {
       </BaseButton>
     </span>
 
-    <span v-for="tag in tags" :key="tag.id" data-chip="tag" :class="getChipClasses()" :style="getTagStyle(tag)">
+    <span
+      v-for="tag in tags"
+      :key="tag.id"
+      data-chip="tag"
+      class="bg-accent/5 text-accent inline-flex h-6 items-center gap-1.5 rounded-full px-3 py-1 text-[0.8125rem] leading-none"
+      :style="getTagStyle(tag)"
+    >
       <span>#</span>
       <span>{{ tag.name }}</span>
       <BaseButton variant="chip-remove" :aria-label="`Remove ${tag.name}`" @click="removeTag(tag)">

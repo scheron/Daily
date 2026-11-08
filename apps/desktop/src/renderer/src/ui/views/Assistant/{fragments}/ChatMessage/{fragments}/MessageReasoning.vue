@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import {onMounted, onUnmounted, ref, watch} from "vue"
+import {computed, onMounted, onUnmounted, ref, watch} from "vue"
 
 import BaseButton from "@/ui/base/BaseButton"
-import BaseIcon from "@/ui/base/BaseIcon"
-import WaveText from "@/ui/common/misc/WaveText.vue"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
+import WaveText from "@/ui/common/(misc)/WaveText.vue"
 import {cn} from "@/utils/ui/tailwindcss"
 import ChatMarkdown from "./ChatMarkdown"
 
@@ -14,6 +14,8 @@ const startedAt = Date.now()
 
 const isOpen = ref(Boolean(props.streaming) && !props.collapsed)
 const liveSeconds = ref(0)
+
+const chevronClass = computed(() => cn("size-3 transition-transform", {"rotate-90": isOpen.value}))
 
 function startTimer() {
   if (timer) return
@@ -26,10 +28,6 @@ function stopTimer() {
     clearInterval(timer)
     timer = null
   }
-}
-
-function getChevronClasses(isOpen: boolean) {
-  return cn("size-3 transition-transform", isOpen && "rotate-90")
 }
 
 watch(
@@ -57,7 +55,7 @@ onUnmounted(stopTimer)
 <template>
   <div class="border-base-300 rounded border-l-2 py-1 pl-3">
     <BaseButton variant="inline" size="xs" @click="isOpen = !isOpen">
-      <BaseIcon name="chevron-right" :class="getChevronClasses(isOpen)" />
+      <BaseIcon name="chevron-right" :class="chevronClass" />
       <WaveText v-if="streaming" text="Thinking" />
       <span v-else>Thinking</span>
       <span v-if="streaming" class="text-base-content/40">· {{ liveSeconds }}s</span>

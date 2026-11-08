@@ -1,32 +1,32 @@
-import {nextTick, watch} from "vue"
+import {nextTick, toValue, watch} from "vue"
 import {storeToRefs} from "pinia"
 
-import {useUIStore} from "@/stores/ui"
+import {useUiStore} from "@/stores/ui"
 
 import type {CalendarDockTab} from "@/stores/ui"
-import type {Ref, ShallowRef} from "vue"
+import type {MaybeRefOrGetter} from "vue"
 
-export function useDockMorph(dock: Readonly<ShallowRef<HTMLElement | null>>, tab: Readonly<Ref<CalendarDockTab>>) {
-  const uiStore = useUIStore()
+export function useDockMorph(dock: MaybeRefOrGetter<HTMLElement | null>, tab: MaybeRefOrGetter<CalendarDockTab>) {
+  const uiStore = useUiStore()
   const {isCalendarDockExpanded} = storeToRefs(uiStore)
 
   let running: Animation | null = null
   let overflowBeforeMorph: string | null = null
   let wasExpanded = isCalendarDockExpanded.value
 
-  watch([isCalendarDockExpanded, tab], async ([isExpanded]) => {
+  watch([isCalendarDockExpanded, () => toValue(tab)], async ([isExpanded]) => {
     const isToggled = isExpanded !== wasExpanded
     wasExpanded = isExpanded
 
     if (!isExpanded && !isToggled) return
 
-    const before = dock.value
+    const before = toValue(dock)
     if (!canAnimate(before)) return
 
     const from = measure(before)
     await nextTick()
 
-    const node = dock.value
+    const node = toValue(dock)
     if (!canAnimate(node)) return
 
     const to = measure(node)

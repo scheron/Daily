@@ -1,13 +1,13 @@
 import {computed, watch} from "vue"
 
-import {useFilterStore} from "@/stores/filter.store"
-import {useMilestonesStore} from "@/stores/milestones.store"
-import {useUIStore} from "@/stores/ui"
+import {useFilterStore} from "@/stores/filter"
+import {useMilestonesStore} from "@/stores/milestones"
+import {useUiStore} from "@/stores/ui"
 
 import type {CalendarDockTab} from "@/stores/ui"
 
 export function useDockTabs() {
-  const uiStore = useUIStore()
+  const uiStore = useUiStore()
   const filterStore = useFilterStore()
   const milestonesStore = useMilestonesStore()
 

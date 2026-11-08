@@ -1,4 +1,4 @@
-import {useBaseModal} from "@/ui/base/BaseModal"
+import {useBaseModal} from "@/composables/useBaseModal"
 import SearchModal from "../SearchModal.vue"
 
 export function useSearchModal() {

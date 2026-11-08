@@ -1,7 +1,7 @@
 import {readonly, ref, watch} from "vue"
 import {useDebounceFn} from "@vueuse/core"
 
-import {API} from "@/api"
+import {Storage} from "@/api"
 import {useLoadingState} from "@/composables/useLoadingState"
 
 import type {TaskSearchResult} from "@daily/protocol"
@@ -32,7 +32,7 @@ export function useSearch() {
     }
 
     try {
-      const results = await API.searchTasks(searchQuery)
+      const results = await Storage.searchTasks(searchQuery)
       if (currentRequestId !== requestId) return
       items.value = results
       setState("LOADED")

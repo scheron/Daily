@@ -6,39 +6,39 @@ import {toDateLabel} from "@daily/std"
 
 import {useBoardCardGeometry} from "@/composables/useBoardCardGeometry"
 import {TASK_COLUMNS} from "@/constants/ui"
-import {useBranchesStore} from "@/stores/branches.store"
-import {useFilterStore} from "@/stores/filter.store"
-import {useFocusStore} from "@/stores/focus.store"
-import {useMilestonesStore} from "@/stores/milestones.store"
-import {useProjectScopeStore} from "@/stores/projectScope.store"
-import {useSubtasksStore} from "@/stores/subtasks.store"
-import {useTagsStore} from "@/stores/tags.store"
+import {useBranchesStore} from "@/stores/branches"
+import {useFilterStore} from "@/stores/filter"
+import {useFocusStore} from "@/stores/focus"
+import {useMilestonesStore} from "@/stores/milestones"
+import {useProjectScopeStore} from "@/stores/project-scope"
+import {useSubtasksStore} from "@/stores/subtasks"
+import {useTagsStore} from "@/stores/tags"
+import {useTaskCommentsStore} from "@/stores/task-comments"
 import {useTaskEditorStore} from "@/stores/task-editor"
-import {useTaskCommentsStore} from "@/stores/taskComments.store"
-import {useTaskRelationsStore} from "@/stores/taskRelations.store"
+import {useTaskRelationsStore} from "@/stores/task-relations"
 import {useTasksStore} from "@/stores/tasks"
 import BaseContextMenu from "@/ui/base/BaseContextMenu"
-import BaseIcon from "@/ui/base/BaseIcon"
-import TaskCalendar from "@/ui/common/calendar/TaskCalendar"
-import BranchCombobox from "@/ui/common/comboboxes/BranchCombobox.vue"
-import MilestoneCombobox from "@/ui/common/comboboxes/MilestoneCombobox.vue"
-import PriorityCombobox from "@/ui/common/comboboxes/PriorityCombobox.vue"
-import TagsCombobox from "@/ui/common/comboboxes/TagsCombobox.vue"
-import TaskLinkCombobox from "@/ui/common/comboboxes/TaskLinkCombobox.vue"
-import MarkdownContent from "@/ui/common/misc/MarkdownContent.vue"
-import EstimationPicker from "@/ui/common/pickers/EstimationPicker"
-import PriorityIcon from "@/ui/common/priority/PriorityIcon.vue"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
+import TaskCalendar from "@/ui/common/(calendars)/TaskCalendar"
+import BranchCombobox from "@/ui/common/(comboboxes)/BranchCombobox.vue"
+import MilestoneCombobox from "@/ui/common/(comboboxes)/MilestoneCombobox.vue"
+import PriorityCombobox from "@/ui/common/(comboboxes)/PriorityCombobox.vue"
+import TagsCombobox from "@/ui/common/(comboboxes)/TagsCombobox.vue"
+import TaskLinkCombobox from "@/ui/common/(comboboxes)/TaskLinkCombobox.vue"
+import PriorityIcon from "@/ui/common/(icons)/PriorityIcon.vue"
+import MarkdownContent from "@/ui/common/(misc)/MarkdownContent.vue"
+import EstimationPicker from "@/ui/common/(pickers)/EstimationPicker"
 import {useConfirmUnsavedModal} from "@/ui/overlays/ConfirmUnsavedModal"
 import {toShortDurationLabel} from "@/utils/date/toShortDurationLabel"
 import {cn} from "@/utils/ui/tailwindcss"
 import {toTaskTitle} from "@shared/utils/tasks/toTaskTitle"
+import {useTaskModel} from "./composables/useTaskModel"
 import CardCrumb from "./{fragments}/CardCrumb.vue"
 import DeleteMenuItem from "./{fragments}/DeleteMenuItem.vue"
 import FocusBorder from "./{fragments}/FocusBorder.vue"
 import RelationChip from "./{fragments}/RelationChip.vue"
 import SubtaskChip from "./{fragments}/SubtaskChip.vue"
 import TagLine from "./{fragments}/TagLine.vue"
-import {useTaskModel} from "./useTaskModel"
 
 import type {BaseContextMenuItem, BaseContextMenuSelectEvent} from "@/ui/base/BaseContextMenu"
 import type {Branch, Tag, Task, TaskRelationSets, TaskStatus} from "@daily/protocol"
@@ -158,6 +158,22 @@ const menuItems = computed<BaseContextMenuItem[]>(() => {
 const {isCompact, cardHeight} = useBoardCardGeometry()
 const {open: confirmLeaveIfDirty} = useConfirmUnsavedModal()
 
+const cardClass = computed(() =>
+  cn(
+    "bg-base-100 hover:shadow-accent/5 group relative overflow-hidden rounded-2xl border transition-[border-color,box-shadow] duration-200 hover:shadow-lg",
+    TASK_COLUMNS.find((column) => column.status === props.task.status)?.cardBorderClass,
+    {"border-transparent hover:border-transparent": isInSession.value, "board-card-compact": isCompact.value},
+  ),
+)
+const priorityClass = computed(() => cn("size-4 shrink-0", {"ml-auto": !hasMetrics.value}))
+const spentClass = computed(() => cn("text-base-content/55", {"text-base-content": Boolean(spentLabel.value)}))
+const contentClass = computed(() =>
+  cn("relative min-h-0 flex-1 overflow-hidden transition-opacity duration-200", {
+    "board-card-text": !isCompact.value,
+    "opacity-50": props.task.status === "done" || props.task.status === "cancelled",
+  }),
+)
+
 async function onCardClick() {
   if (taskEditorStore.editingTaskId === props.task.id) return
 
@@ -177,31 +193,6 @@ function getStatusClass(status: TaskStatus) {
   if (status === "done") return "text-success hover:bg-success/10 bg-success/10 "
   if (status === "backlog") return "text-base-content hover:bg-base-content/10 bg-base-content/10 "
   return ""
-}
-
-function getCardClasses(status: TaskStatus, isInSession: boolean, isCompact: boolean) {
-  return cn(
-    "bg-base-100 hover:shadow-accent/5 group relative overflow-hidden rounded-2xl border transition-[border-color,box-shadow] duration-200 hover:shadow-lg",
-    TASK_COLUMNS.find((column) => column.status === status)?.cardBorderClass,
-    isInSession && "border-transparent hover:border-transparent",
-    isCompact && "board-card-compact",
-  )
-}
-
-function getPriorityClasses(hasMetrics: boolean) {
-  return cn("size-4 shrink-0", !hasMetrics && "ml-auto")
-}
-
-function getSpentClasses(hasSpent: boolean) {
-  return cn("text-base-content/55", hasSpent && "text-base-content")
-}
-
-function getContentClasses(status: TaskStatus) {
-  return cn(
-    "relative min-h-0 flex-1 overflow-hidden transition-opacity duration-200",
-    !isCompact.value && "board-card-text",
-    (status === "done" || status === "cancelled") && "opacity-50",
-  )
 }
 
 function onSelect(event: BaseContextMenuSelectEvent) {
@@ -235,11 +226,11 @@ async function onLinkTask(side: keyof TaskRelationSets, taskId: Task["id"]) {
 
 <template>
   <BaseContextMenu ref="contextMenu" :items="menuItems" @select="onSelect">
-    <div :id="task.id" :class="getCardClasses(task.status, isInSession, isCompact)" :style="{height: `${cardHeight}px`}" @click.stop="onCardClick">
+    <div :id="task.id" :class="cardClass" :style="{height: `${cardHeight}px`}" @click.stop="onCardClick">
       <div class="board-card-inner relative z-10 flex h-full w-full flex-col gap-2 px-4 pb-3 pt-3.5">
         <CardCrumb v-if="projectName || milestone" :project-name="projectName" :project="project" :milestone="milestone" />
 
-        <div :class="getContentClasses(task.status)">
+        <div :class="contentClass">
           <p v-if="isCompact" class="board-card-title">{{ title }}</p>
           <MarkdownContent v-else :content="task.content" :minimizable="false" clip-code />
         </div>
@@ -264,7 +255,7 @@ async function onLinkTask(side: keyof TaskRelationSets, taskId: Task["id"]) {
             <div v-if="hasTime" class="text-base-content/75 inline-flex shrink-0 items-center gap-1 whitespace-nowrap">
               <BaseIcon name="stopwatch" class="text-accent size-3.5" />
               <span>
-                <span :class="getSpentClasses(!!spentLabel)">{{ spentLabel || "–" }}</span>
+                <span :class="spentClass">{{ spentLabel || "–" }}</span>
                 <span class="text-base-content/55"> / {{ estimateLabel || "–" }}</span>
               </span>
             </div>
@@ -275,7 +266,7 @@ async function onLinkTask(side: keyof TaskRelationSets, taskId: Task["id"]) {
             </div>
           </div>
 
-          <PriorityIcon v-if="hasPriority" :priority="task.priority" :class="getPriorityClasses(hasMetrics)" />
+          <PriorityIcon v-if="hasPriority" :priority="task.priority" :class="priorityClass" />
         </div>
       </div>
 

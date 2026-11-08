@@ -4,7 +4,7 @@ import {computed} from "vue"
 import {toDayLabel} from "@daily/std"
 
 import BaseButton from "@/ui/base/BaseButton"
-import BaseIcon from "@/ui/base/BaseIcon"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
 
 const props = defineProps<{date?: string; milestoneName?: string}>()
 const emit = defineEmits<{createTask: []}>()

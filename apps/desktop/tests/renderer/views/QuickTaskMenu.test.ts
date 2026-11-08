@@ -23,7 +23,7 @@ describe("the Quick task menu window view", () => {
       "quick-task-menu:pick": vi.fn(),
     })
     setActivePinia(createPinia())
-    const {useSettingsStore} = await import(`${SRC}/stores/settings.store`)
+    const {useSettingsStore} = await import(`${SRC}/stores/settings`)
     await useSettingsStore().revalidate()
     const {default: QuickTaskMenu} = await import(`${SRC}/ui/views/QuickTaskMenu/QuickTaskMenu.vue`)
     wrapper = mount(QuickTaskMenu, {attachTo: document.body})

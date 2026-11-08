@@ -3,7 +3,7 @@ import {nextTick} from "vue"
 import {createPinia, setActivePinia} from "pinia"
 import {afterEach, expect, it, vi} from "vitest"
 
-import {useUIStore} from "@/stores/ui"
+import {useUiStore} from "@/stores/ui"
 import WhatsNewBanner from "@/ui/overlays/WhatsNewBanner"
 import {flushPromises, mount} from "@vue/test-utils"
 import {mockBridgeIPC} from "../../helpers/bridgeIPC"
@@ -39,7 +39,7 @@ it("waits for visibility before recording the recovered card once", async () => 
 
 it("waits for a visible main window and an unobstructed paint before recording the card as shown", async () => {
   const {banner, recordShown, setWindowVisibility} = mountBanner(false)
-  const ui = useUIStore()
+  const ui = useUiStore()
 
   try {
     await flushPromises()

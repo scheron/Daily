@@ -6,12 +6,12 @@ import {getOrderIndexBetween, isMilestoneClosed, normalizeTaskOrderIndexes, sort
 import {deepClone} from "@daily/std"
 
 import {toasts} from "@/composables/useToasts"
-import {useMilestonesStore} from "@/stores/milestones.store"
+import {useMilestonesStore} from "@/stores/milestones"
 import BaseButton from "@/ui/base/BaseButton"
 import BaseInput from "@/ui/base/BaseInput.vue"
 import MilestoneRow from "./{fragments}/MilestoneRow.vue"
 
-import type {MilestoneWithProgress} from "@/stores/milestones.store"
+import type {MilestoneWithProgress} from "@/stores/milestones"
 import type {Branch, Milestone} from "@daily/protocol"
 
 const props = defineProps<{branchId: Branch["id"]}>()

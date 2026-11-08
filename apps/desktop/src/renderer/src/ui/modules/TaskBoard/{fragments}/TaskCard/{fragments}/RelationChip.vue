@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import {computed} from "vue"
 
-import {useTaskRelationsStore} from "@/stores/taskRelations.store"
-import BaseIcon from "@/ui/base/BaseIcon"
+import {useTaskRelationsStore} from "@/stores/task-relations"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
 import {cn} from "@/utils/ui/tailwindcss"
 
-import type {TaskRelationChip} from "@/stores/taskRelations.store"
-import type {IconName} from "@/ui/base/BaseIcon"
+import type {TaskRelationChip} from "@/stores/task-relations"
+import type {IconName} from "@/types/icons"
 import type {Task} from "@daily/protocol"
 
 const props = defineProps<{taskId: Task["id"]}>()
@@ -15,9 +15,9 @@ const taskRelationsStore = useTaskRelationsStore()
 
 const chip = computed(() => taskRelationsStore.chipByTaskId.get(props.taskId) ?? null)
 
-function getChipClasses(kind: TaskRelationChip["kind"]) {
-  return cn("inline-flex items-center gap-1 text-xs whitespace-nowrap", kind === "blocked-by" ? "text-warning" : "text-base-content/75")
-}
+const chipClass = computed(() =>
+  cn("inline-flex items-center gap-1 text-xs whitespace-nowrap", [chip.value?.kind === "blocked-by" ? "text-warning" : "text-base-content/75"]),
+)
 
 function getIconName(kind: TaskRelationChip["kind"]): IconName {
   return ({"blocked-by": "alert-triangle", blocks: "ban", linked: "link"} satisfies Record<TaskRelationChip["kind"], IconName>)[kind]
@@ -29,7 +29,7 @@ function getLabel(chip: TaskRelationChip) {
 </script>
 
 <template>
-  <span v-if="chip" v-tooltip="getLabel(chip)" :class="getChipClasses(chip.kind)">
+  <span v-if="chip" v-tooltip="getLabel(chip)" :class="chipClass">
     <BaseIcon :name="getIconName(chip.kind)" class="size-3.5" />
     <span class="font-semibold">{{ chip.count }}</span>
   </span>

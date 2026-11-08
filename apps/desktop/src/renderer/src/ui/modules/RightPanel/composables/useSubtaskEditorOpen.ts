@@ -1,6 +1,6 @@
 import {computed, ref} from "vue"
 
-import {nestedTarget} from "./useNestedView"
+import {nestedTarget} from "../state"
 
 import type {Subtask} from "@daily/protocol"
 

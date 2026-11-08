@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import {onMounted} from "vue"
 
-import {useFocusStore} from "@/stores/focus.store"
+import {useFocusStore} from "@/stores/focus"
 import {useThemeStore} from "@/stores/theme"
 import BaseButton from "@/ui/base/BaseButton"
-import FocusPanel from "@/ui/common/focus/FocusPanel"
+import FocusPanel from "@/ui/common/(panels)/FocusPanel"
 
 const focusStore = useFocusStore()
 useThemeStore()
@@ -16,7 +16,7 @@ onMounted(() => {
 
 <template>
   <div class="bg-base-100 flex h-dvh w-dvw flex-col overflow-hidden">
-    <header class="border-base-300 drag-region relative flex h-9 shrink-0 items-center justify-end border-b pr-2 select-none">
+    <header class="border-base-300 drag-region relative flex h-9 shrink-0 select-none items-center justify-end border-b pr-2">
       <span class="text-base-content/70 pointer-events-none absolute inset-x-0 text-center text-sm font-semibold">Focus session</span>
       <BaseButton
         variant="ghost-muted"

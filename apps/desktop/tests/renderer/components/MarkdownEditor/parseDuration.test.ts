@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
 
-import {parseDuration} from "../../../../src/renderer/src/ui/common/misc/MarkdownEditor/utils/parseDuration"
+import {parseDuration} from "../../../../src/renderer/src/ui/common/(editors)/MarkdownEditor/utils/parseDuration"
 
 describe("parseDuration", () => {
   it("reads hours and minutes into seconds", () => {

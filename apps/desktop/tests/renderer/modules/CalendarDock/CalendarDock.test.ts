@@ -74,14 +74,14 @@ describe("CalendarDock", () => {
 
   async function setup() {
     const {default: CalendarDock} = await import("../../../../src/renderer/src/ui/modules/CalendarDock")
-    const {default: TaskCalendar} = await import("../../../../src/renderer/src/ui/common/calendar/TaskCalendar/TaskCalendar.vue")
-    const {default: MilestoneDiamond} = await import("../../../../src/renderer/src/ui/common/milestones/MilestoneDiamond.vue")
-    const {useUIStore} = await import("../../../../src/renderer/src/stores/ui/ui.store")
+    const {default: TaskCalendar} = await import("../../../../src/renderer/src/ui/common/(calendars)/TaskCalendar/TaskCalendar.vue")
+    const {default: MilestoneIcon} = await import("../../../../src/renderer/src/ui/common/(icons)/MilestoneIcon.vue")
+    const {useUiStore} = await import("../../../../src/renderer/src/stores/ui/ui.store")
     const {useTasksStore} = await import("../../../../src/renderer/src/stores/tasks/tasks.store")
-    const {useDragDropStore} = await import("../../../../src/renderer/src/stores/dragDrop.store")
+    const {useDragDropStore} = await import("../../../../src/renderer/src/stores/drag-drop")
     const {useTaskEditorStore} = await import("../../../../src/renderer/src/stores/task-editor")
-    const {useMilestonesStore} = await import("../../../../src/renderer/src/stores/milestones.store")
-    const {useFilterStore} = await import("../../../../src/renderer/src/stores/filter.store")
+    const {useMilestonesStore} = await import("../../../../src/renderer/src/stores/milestones")
+    const {useFilterStore} = await import("../../../../src/renderer/src/stores/filter")
 
     async function mountDock() {
       wrapper = mount(CalendarDock, {attachTo: document.body, global: {directives: {tooltip: {}}}})
@@ -96,10 +96,10 @@ describe("CalendarDock", () => {
 
     return {
       TaskCalendar,
-      MilestoneDiamond,
+      MilestoneIcon,
       mountDock,
       hover,
-      ui: useUIStore(),
+      ui: useUiStore(),
       tasks: useTasksStore(),
       drag: useDragDropStore(),
       editor: useTaskEditorStore(),
@@ -204,7 +204,7 @@ describe("CalendarDock", () => {
   })
 
   it("keeps_TC-9_the_panel_open_on_a_milestone_click_and_shows_its_diamond_and_name_on_the_pill", async () => {
-    const {mountDock, ui, tasks, milestones, filter, MilestoneDiamond} = await setup()
+    const {mountDock, ui, tasks, milestones, filter, MilestoneIcon} = await setup()
     tasks.activeDay = DateTime.now().toISODate()
 
     milestones.milestones = [makeMilestone({id: "m1", name: "Launch", progress: {total: 2, resolved: 1}})]
@@ -227,7 +227,7 @@ describe("CalendarDock", () => {
     await nextTick()
 
     expect(dock.find("[data-dock-pill]").exists()).toBe(true)
-    const diamond = dock.findComponent(MilestoneDiamond)
+    const diamond = dock.findComponent(MilestoneIcon)
     expect(diamond.exists()).toBe(true)
     expect(dock.text()).toContain("Launch")
   })
@@ -260,7 +260,7 @@ describe("CalendarDock", () => {
 
   it("lists_a_no_milestone_row_between_the_open_and_closed_milestones_that_frames_the_projects_unassigned_tasks", async () => {
     const {mountDock, ui, milestones, filter, tasks} = await setup()
-    const {useSettingsStore} = await import("../../../../src/renderer/src/stores/settings.store")
+    const {useSettingsStore} = await import("../../../../src/renderer/src/stores/settings")
     await vi.waitFor(() => expect(useSettingsStore().isSettingsLoaded).toBe(true))
 
     milestones.milestones = [makeMilestone({id: "m-open", name: "Alpha"}), makeMilestone({id: "m-closed", name: "Gamma"})]
@@ -295,7 +295,7 @@ describe("CalendarDock", () => {
 
   it("takes_the_milestone_off_a_task_dropped_on_the_no_milestone_row", async () => {
     const {mountDock, ui, milestones, drag, tasks} = await setup()
-    const {useSettingsStore} = await import("../../../../src/renderer/src/stores/settings.store")
+    const {useSettingsStore} = await import("../../../../src/renderer/src/stores/settings")
     await vi.waitFor(() => expect(useSettingsStore().isSettingsLoaded).toBe(true))
 
     milestones.milestones = [makeMilestone({id: "m1"})]
@@ -515,8 +515,8 @@ describe("CalendarDock", () => {
 
   it("shows_TC-3_the_actions_panel_only_while_the_calendar_is_collapsed_and_lets_new_create_a_task", async () => {
     const {ui} = await setup()
-    const {useSettingsStore} = await import("../../../../src/renderer/src/stores/settings.store")
-    const {useBranchesStore} = await import("../../../../src/renderer/src/stores/branches.store")
+    const {useSettingsStore} = await import("../../../../src/renderer/src/stores/settings")
+    const {useBranchesStore} = await import("../../../../src/renderer/src/stores/branches")
     const {default: CalendarDock} = await import("../../../../src/renderer/src/ui/modules/CalendarDock")
     const actionsDockPath = "../../../../src/renderer/src/ui/modules/ActionsDock/ActionsDock.vue"
     const {default: ActionsDock} = await import(/* @vite-ignore */ actionsDockPath)

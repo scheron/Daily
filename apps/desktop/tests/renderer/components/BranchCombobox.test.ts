@@ -34,7 +34,7 @@ describe("BranchCombobox", () => {
   })
 
   it("creates_a_project_selects_it_and_only_then_closes_the_popup", async () => {
-    const {default: BranchCombobox} = await import("../../../src/renderer/src/ui/common/comboboxes/BranchCombobox.vue")
+    const {default: BranchCombobox} = await import("../../../src/renderer/src/ui/common/(comboboxes)/BranchCombobox.vue")
     const onSelect = vi.fn()
     const popup = mountInPopup(BranchCombobox, {selectedId: "main", onSelect})
     wrapper = popup.wrapper
@@ -48,8 +48,8 @@ describe("BranchCombobox", () => {
   })
 
   it("gives_the_all_projects_row_its_own_icon_and_keeps_project_rows_on_the_project_icon", async () => {
-    const {default: BranchCombobox} = await import("../../../src/renderer/src/ui/common/comboboxes/BranchCombobox.vue")
-    const {useBranchesStore} = await import("../../../src/renderer/src/stores/branches.store")
+    const {default: BranchCombobox} = await import("../../../src/renderer/src/ui/common/(comboboxes)/BranchCombobox.vue")
+    const {useBranchesStore} = await import("../../../src/renderer/src/stores/branches")
     useBranchesStore().branches = [makeBranch({id: "leki", name: "Leki"})]
     const popup = mountInPopup(BranchCombobox, {selectedId: "main", hasAllProjects: true})
     wrapper = popup.wrapper
@@ -61,8 +61,8 @@ describe("BranchCombobox", () => {
   })
 
   it("lists_main_as_no_project_and_finds_it_by_that_name", async () => {
-    const {default: BranchCombobox} = await import("../../../src/renderer/src/ui/common/comboboxes/BranchCombobox.vue")
-    const {useBranchesStore} = await import("../../../src/renderer/src/stores/branches.store")
+    const {default: BranchCombobox} = await import("../../../src/renderer/src/ui/common/(comboboxes)/BranchCombobox.vue")
+    const {useBranchesStore} = await import("../../../src/renderer/src/stores/branches")
     useBranchesStore().branches = [makeBranch(), makeBranch({id: "leki", name: "Leki"})]
     const popup = mountInPopup(BranchCombobox, {selectedId: "leki", hasAllProjects: true})
     wrapper = popup.wrapper
@@ -77,8 +77,8 @@ describe("BranchCombobox", () => {
   })
 
   it("renders the saved emoji beside the project name", async () => {
-    const {default: BranchCombobox} = await import("../../../src/renderer/src/ui/common/comboboxes/BranchCombobox.vue")
-    const {useBranchesStore} = await import("../../../src/renderer/src/stores/branches.store")
+    const {default: BranchCombobox} = await import("../../../src/renderer/src/ui/common/(comboboxes)/BranchCombobox.vue")
+    const {useBranchesStore} = await import("../../../src/renderer/src/stores/branches")
     useBranchesStore().branches = [makeBranch({id: "work", name: "Work", emoji: "👩🏽‍💻"})]
     const popup = mountInPopup(BranchCombobox, {selectedId: "work"})
     wrapper = popup.wrapper
@@ -87,8 +87,8 @@ describe("BranchCombobox", () => {
   })
 
   it("leaves_no_project_out_when_the_picker_clears_the_project_its_own_way", async () => {
-    const {default: BranchCombobox} = await import("../../../src/renderer/src/ui/common/comboboxes/BranchCombobox.vue")
-    const {useBranchesStore} = await import("../../../src/renderer/src/stores/branches.store")
+    const {default: BranchCombobox} = await import("../../../src/renderer/src/ui/common/(comboboxes)/BranchCombobox.vue")
+    const {useBranchesStore} = await import("../../../src/renderer/src/stores/branches")
     useBranchesStore().branches = [makeBranch(), makeBranch({id: "leki", name: "Leki"})]
     const popup = mountInPopup(BranchCombobox, {selectedId: "leki", hidesNoProject: true})
     wrapper = popup.wrapper

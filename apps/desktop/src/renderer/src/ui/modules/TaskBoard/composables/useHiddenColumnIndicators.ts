@@ -1,4 +1,4 @@
-import {computed, onScopeDispose, shallowRef, watch} from "vue"
+import {computed, onScopeDispose, shallowRef, toValue, watch} from "vue"
 import {useEventListener, useRafFn, useResizeObserver} from "@vueuse/core"
 
 import {clamp} from "@daily/std"
@@ -7,10 +7,10 @@ import {useTaskColumns} from "@/composables/tasks/useTaskColumns"
 
 import type {TaskColumn} from "@/types/ui"
 import type {TaskStatus} from "@daily/protocol"
-import type {ComputedRef, ShallowRef} from "vue"
+import type {MaybeRefOrGetter} from "vue"
 import type {HiddenColumn} from "../types"
 
-export function useHiddenColumnIndicators(boardRef: Readonly<ShallowRef<HTMLElement | null>>, visibleColumns: ComputedRef<TaskColumn[]>) {
+export function useHiddenColumnIndicators(boardRef: MaybeRefOrGetter<HTMLElement | null>, visibleColumns: MaybeRefOrGetter<TaskColumn[]>) {
   let disposed = false
   let pendingNavigation: {status: TaskStatus; origin: Element | null} | null = null
 
@@ -19,14 +19,14 @@ export function useHiddenColumnIndicators(boardRef: Readonly<ShallowRef<HTMLElem
   const columns = useTaskColumns()
 
   const indicatorColumns = computed<HiddenColumn[]>(() =>
-    visibleColumns.value.map((column) => ({
+    toValue(visibleColumns).map((column) => ({
       ...column,
       count: columns.tasksByStatus.value[column.status].length,
     })),
   )
-  const collapsedColumns = computed(() => visibleColumns.value.map((column) => columns.isColumnCollapsed(column.status)))
+  const collapsedColumns = computed(() => toValue(visibleColumns).map((column) => columns.isColumnCollapsed(column.status)))
   const indicatorResizeTargets = computed(() => {
-    const board = boardRef.value
+    const board = toValue(boardRef)
     return [board, ...indicatorColumns.value.map((column) => board?.querySelector<HTMLElement>(`[data-column-status="${column.status}"]`))]
   })
 
@@ -38,7 +38,7 @@ export function useHiddenColumnIndicators(boardRef: Readonly<ShallowRef<HTMLElem
   useResizeObserver(indicatorResizeTargets, scheduleIndicatorUpdate)
 
   function revealColumn(status: TaskStatus) {
-    const board = boardRef.value
+    const board = toValue(boardRef)
     const column = board?.querySelector<HTMLElement>(`[data-column-status="${status}"]`)
     if (!board || !column) return
     const viewport = board.getBoundingClientRect()
@@ -53,13 +53,13 @@ export function useHiddenColumnIndicators(boardRef: Readonly<ShallowRef<HTMLElem
 
   function scheduleIndicatorUpdate() {
     queueMicrotask(() => {
-      if (!disposed && boardRef.value) resume()
+      if (!disposed && toValue(boardRef)) resume()
     })
   }
 
   function sampleIndicatorGeometry() {
     updateIndicators()
-    const elements = boardRef.value?.querySelectorAll<HTMLElement>("[data-column-status]") ?? []
+    const elements = toValue(boardRef)?.querySelectorAll<HTMLElement>("[data-column-status]") ?? []
     const isAnimating = Array.from(elements).some((column) => {
       const animations = column.getAnimations?.() ?? []
       return animations.some((animation) => animation.playState === "running" || animation.pending)
@@ -68,7 +68,7 @@ export function useHiddenColumnIndicators(boardRef: Readonly<ShallowRef<HTMLElem
   }
 
   function updateIndicators() {
-    const board = boardRef.value
+    const board = toValue(boardRef)
     if (!board) {
       hiddenColumns.value = {left: [], right: []}
       pendingNavigation = null
@@ -107,7 +107,7 @@ export function useHiddenColumnIndicators(boardRef: Readonly<ShallowRef<HTMLElem
   }
 
   function refreshIndicatorGeometry() {
-    if (boardRef.value) {
+    if (toValue(boardRef)) {
       scheduleIndicatorUpdate()
       return
     }
@@ -116,7 +116,7 @@ export function useHiddenColumnIndicators(boardRef: Readonly<ShallowRef<HTMLElem
     hiddenColumns.value = {left: [], right: []}
   }
 
-  watch([boardRef, indicatorColumns, collapsedColumns], refreshIndicatorGeometry, {flush: "post", immediate: true})
+  watch([() => toValue(boardRef), indicatorColumns, collapsedColumns], refreshIndicatorGeometry, {flush: "post", immediate: true})
 
   onScopeDispose(() => {
     disposed = true

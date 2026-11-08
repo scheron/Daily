@@ -2,7 +2,7 @@ import {afterEach, describe, expect, it, vi} from "vitest"
 
 import {extractFileIds} from "@daily/core/utils/files/extractFileIds"
 
-import {createDailyMarkdownExtensions} from "@/ui/common/misc/MarkdownEditor/utils/createDailyMarkdownExtensions"
+import {createDailyMarkdownExtensions} from "@/ui/common/(editors)/MarkdownEditor/utils/createDailyMarkdownExtensions"
 import {Editor} from "@tiptap/core"
 
 describe("Daily Markdown in TipTap", () => {

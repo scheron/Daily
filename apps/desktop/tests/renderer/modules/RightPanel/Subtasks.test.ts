@@ -101,7 +101,7 @@ describe("Subtasks section", () => {
 
   it("shows_the_done_count_in_the_header_and_nothing_for_an_empty_list", async () => {
     await setup([makeSubtask("a"), makeSubtask("b", {done: true})])
-    const {useSubtasksStore} = await import("../../../../src/renderer/src/stores/subtasks.store")
+    const {useSubtasksStore} = await import("../../../../src/renderer/src/stores/subtasks")
     useSubtasksStore().subtaskCounts = {"task-1": {done: 1, total: 2}}
     await flush()
     expect(wrapper.text()).toContain("1/2")

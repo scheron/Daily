@@ -3,7 +3,7 @@
 import {createPinia, setActivePinia} from "pinia"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
-import {useLocalModelStore} from "../../../src/renderer/src/stores/ai/localModel.store"
+import {useLocalModelStore} from "../../../src/renderer/src/stores/local-model"
 import {mockBridgeIPC} from "../../helpers/bridgeIPC"
 
 let bridge: Record<string, any>

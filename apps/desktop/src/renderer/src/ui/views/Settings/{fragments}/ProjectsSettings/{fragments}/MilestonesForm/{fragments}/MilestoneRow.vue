@@ -5,19 +5,19 @@ import {groupTasksByDay, isMilestoneClosed, isMilestoneOverdue, milestoneComplet
 import {getToday, toDateLabel} from "@daily/std"
 
 import {toasts} from "@/composables/useToasts"
-import {useMilestonesStore} from "@/stores/milestones.store"
+import {useMilestonesStore} from "@/stores/milestones"
 import {useTasksStore} from "@/stores/tasks"
 import BaseButton from "@/ui/base/BaseButton"
-import BaseIcon from "@/ui/base/BaseIcon"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
 import BaseInput from "@/ui/base/BaseInput.vue"
 import BasePopup from "@/ui/base/BasePopup.vue"
-import TaskCalendar from "@/ui/common/calendar/TaskCalendar"
-import MilestoneDiamond from "@/ui/common/milestones/MilestoneDiamond.vue"
-import MarkdownEditor from "@/ui/common/misc/MarkdownEditor"
+import TaskCalendar from "@/ui/common/(calendars)/TaskCalendar"
+import MarkdownEditor from "@/ui/common/(editors)/MarkdownEditor"
+import MilestoneIcon from "@/ui/common/(icons)/MilestoneIcon.vue"
 import ConfirmPopup from "@/ui/overlays/ConfirmPopup.vue"
 import {cn} from "@/utils/ui/tailwindcss"
 
-import type {MilestoneWithProgress} from "@/stores/milestones.store"
+import type {MilestoneWithProgress} from "@/stores/milestones"
 import type {Day, ISODate} from "@daily/protocol"
 
 const props = defineProps<{milestone: MilestoneWithProgress; expanded: boolean}>()
@@ -40,6 +40,13 @@ const projectDays = computed<Day[]>(() => {
   return groupTasksByDay({tasks: dated, tags: dated.flatMap((task) => task.tags)})
 })
 const percentLabel = computed(() => `${Math.round(completion.value * 100)}%`)
+
+const milestoneRowClass = computed(() =>
+  cn("group hover:bg-base-200/60 flex h-9 cursor-pointer items-center gap-2 rounded-md px-2 text-sm transition-colors", {"opacity-50": closed.value}),
+)
+const dateLabelClass = computed(() =>
+  cn("min-w-0 truncate whitespace-nowrap", {"text-base-content/35 italic": !props.milestone.targetDate, "text-error font-semibold": overdue.value}),
+)
 
 function startEdit() {
   isEditingName.value = true
@@ -81,21 +88,6 @@ function saveDescription() {
   milestonesStore.updateMilestone(props.milestone.id, {description: localDescription.value})
 }
 
-function getMilestoneRowClasses(isClosed: boolean) {
-  return cn(
-    "group hover:bg-base-200/60 flex h-9 cursor-pointer items-center gap-2 rounded-md px-2 text-sm transition-colors",
-    isClosed && "opacity-50",
-  )
-}
-
-function getDateLabelClasses(isOverdue: boolean) {
-  return cn(
-    "min-w-0 truncate whitespace-nowrap",
-    !props.milestone.targetDate && "text-base-content/35 italic",
-    isOverdue && "text-error font-semibold",
-  )
-}
-
 watch(
   () => props.milestone.id,
   () => {
@@ -114,7 +106,7 @@ watch(
 
 <template>
   <div class="border-base-300/70 border-b last:border-b-0">
-    <div :class="getMilestoneRowClasses(closed)" @click="emit('toggle')">
+    <div :class="milestoneRowClass" @click="emit('toggle')">
       <span
         class="ms-drag-handle text-base-content/25 hover:text-base-content/60 flex shrink-0 cursor-grab items-center transition-colors"
         @click.stop
@@ -124,7 +116,7 @@ watch(
 
       <BaseIcon :name="expanded ? 'chevron-down' : 'chevron-right'" class="text-base-content/40 size-3 shrink-0" />
 
-      <MilestoneDiamond :completion="completion" :overdue="overdue" :size="13" />
+      <MilestoneIcon :completion="completion" :overdue="overdue" :size="13" />
 
       <BaseInput
         v-if="isEditingName"
@@ -144,7 +136,7 @@ watch(
         <BasePopup hide-header position="end" trigger-class="w-24 shrink-0" container-class="max-h-none">
           <template #trigger="{toggle}">
             <BaseButton variant="text" size="xs" class="-mx-1.5 justify-end" @click.stop="toggle">
-              <span :class="getDateLabelClasses(overdue)">{{ dateLabel ?? "Set a date" }}</span>
+              <span :class="dateLabelClass">{{ dateLabel ?? "Set a date" }}</span>
             </BaseButton>
           </template>
 

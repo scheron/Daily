@@ -4,15 +4,23 @@ import {storeToRefs} from "pinia"
 
 import {SYNC_PROTOCOL_VERSION} from "@daily/protocol"
 
-import {useStorageStore} from "@/stores/storage.store"
-import {useSyncServerStore} from "@/stores/syncServer.store"
+import {useStorageStore} from "@/stores/storage"
+import {useSyncServerStore} from "@/stores/sync-server"
 import BaseButton from "@/ui/base/BaseButton"
-import BaseIcon from "@/ui/base/BaseIcon"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
 import {cn} from "@/utils/ui/tailwindcss"
 
 import type {ServerBindingView} from "@daily/protocol"
 
 type PillTone = "ok" | "idle" | "warn" | "error"
+
+const pillClass = "inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[11px] leading-none font-medium"
+const pillToneClasses: Record<PillTone, string> = {
+  ok: "text-success bg-success/15",
+  idle: "text-base-content/55 bg-base-content/8",
+  warn: "text-warning bg-warning/15",
+  error: "text-error bg-error/15",
+}
 
 const props = defineProps<{binding: ServerBindingView}>()
 
@@ -58,6 +66,9 @@ const mismatchMessage = computed(() => {
   return `The server has moved to sync protocol ${mismatch.serverProtocol}, but this Mac still speaks protocol ${mismatch.appProtocol}. Update Daily on this Mac to sync again — edits made here stay on this Mac and go up once the two sides agree.`
 })
 
+const statusPillClass = computed(() => cn(pillClass, pillToneClasses[statusTone.value]))
+const protocolPillClass = computed(() => cn(pillClass, [syncServerStore.mismatch ? pillToneClasses.warn : pillToneClasses.idle]))
+
 async function loadRemoteError() {
   const states = await window.BridgeIPC["storage-sync:get-remote-states"]()
   remoteError.value = states.find((state) => state.id === "daily-server")?.lastError ?? null
@@ -83,16 +94,6 @@ async function onDisconnect() {
   }
 }
 
-function getPillClasses(tone: PillTone) {
-  const color = {
-    ok: "text-success bg-success/15",
-    idle: "text-base-content/55 bg-base-content/8",
-    warn: "text-warning bg-warning/15",
-    error: "text-error bg-error/15",
-  }[tone]
-  return cn("inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[11px] leading-none font-medium", color)
-}
-
 watch(status, (value) => {
   if (value === "error") loadRemoteError()
 })
@@ -108,7 +109,7 @@ onMounted(() => {
       <div class="flex min-w-0 items-start gap-2.5">
         <BaseIcon name="server" class="text-base-content/60 mt-1.5 size-4 shrink-0" />
         <div class="min-w-0">
-          <h2 class="text-base-content truncate text-xl leading-tight font-semibold tracking-[-0.01em]">{{ binding.serverName }}</h2>
+          <h2 class="text-base-content truncate text-xl font-semibold leading-tight tracking-[-0.01em]">{{ binding.serverName }}</h2>
           <p class="text-base-content/60 mt-1 truncate text-[13px]">{{ binding.baseUrl }}</p>
         </div>
       </div>
@@ -120,13 +121,18 @@ onMounted(() => {
     </div>
 
     <div class="flex flex-wrap items-center gap-1.5">
-      <span :class="getPillClasses(statusTone)">
+      <span :class="statusPillClass">
         <BaseIcon v-if="isStatusBusy" name="spinner" class="size-3 animate-spin" />
         <span v-else class="size-2 shrink-0 rounded-full bg-current" />
         {{ statusLabel }}
       </span>
-      <span :class="getPillClasses(syncServerStore.mismatch ? 'warn' : 'idle')">Protocol v{{ SYNC_PROTOCOL_VERSION }}</span>
-      <span v-if="roleLabel" :class="getPillClasses('idle')">{{ roleLabel }}</span>
+      <span :class="protocolPillClass">Protocol v{{ SYNC_PROTOCOL_VERSION }}</span>
+      <span
+        v-if="roleLabel"
+        class="text-base-content/55 bg-base-content/8 inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[11px] font-medium leading-none"
+      >
+        {{ roleLabel }}
+      </span>
     </div>
 
     <div v-if="binding.insecure" class="text-warning bg-warning/10 flex items-center gap-1.5 rounded-md px-2 py-1 text-xs">

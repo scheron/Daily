@@ -3,7 +3,7 @@ import {onMounted} from "vue"
 
 import {useThemeStore} from "@/stores/theme"
 import BaseButton from "@/ui/base/BaseButton"
-import {useSettingsNav} from "./useSettingsNav"
+import {useSettingsNav} from "./composables/useSettingsNav"
 
 useThemeStore()
 
@@ -41,7 +41,7 @@ onMounted(() => {
     </header>
 
     <div class="h-[calc(100vh-var(--header-height))] flex-1 overflow-auto px-6">
-      <div class="mx-auto flex h-full max-w-2xl flex-col pt-3 pb-12">
+      <div class="mx-auto flex h-full max-w-2xl flex-col pb-12 pt-3">
         <component :is="activeSection.component" />
       </div>
     </div>

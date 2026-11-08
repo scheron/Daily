@@ -29,7 +29,7 @@ describe("the focus window", () => {
 
   async function mountWindow() {
     const {default: Focus} = await import("../../../src/renderer/src/ui/views/Focus.vue")
-    const {useFocusStore} = await import("../../../src/renderer/src/stores/focus.store")
+    const {useFocusStore} = await import("../../../src/renderer/src/stores/focus")
 
     const focus = useFocusStore()
     await vi.waitFor(() => expect(focus.session).not.toBeNull())

@@ -4,12 +4,13 @@ import {computed} from "vue"
 import {sortTags} from "@daily/protocol"
 import {toDateLabel, toDurationLabel} from "@daily/std"
 
-import {API} from "@/api"
+import {Storage} from "@/api"
 import {toasts} from "@/composables/useToasts"
+import {MARKDOWN_IMAGE_REGEX} from "@/constants/regex"
 import BaseButton from "@/ui/base/BaseButton"
-import BaseIcon from "@/ui/base/BaseIcon"
-import DynamicTagsPanel from "@/ui/common/misc/DynamicTagsPanel.vue"
-import MarkdownContent from "@/ui/common/misc/MarkdownContent.vue"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
+import MarkdownContent from "@/ui/common/(misc)/MarkdownContent.vue"
+import DynamicTagsPanel from "@/ui/common/(panels)/DynamicTagsPanel.vue"
 import ConfirmPopup from "@/ui/overlays/ConfirmPopup.vue"
 
 import type {Task} from "@daily/protocol"
@@ -18,12 +19,12 @@ const props = defineProps<{task: Task}>()
 const emit = defineEmits<{restore: [task: Task]}>()
 
 const sortedTags = computed(() => sortTags(props.task.tags))
-const imageCount = computed(() => props.task.content.match(/!\[[^\]]*\]\([^)]+\)/g)?.length ?? 0)
+const imageCount = computed(() => props.task.content.match(MARKDOWN_IMAGE_REGEX)?.length ?? 0)
 const dateLabel = computed(() => (props.task.scheduled ? toDateLabel(props.task.scheduled.date) : "No date"))
 const spentLabel = computed(() => (props.task.spentTime > 0 ? toDurationLabel(props.task.spentTime) : ""))
 
 async function onPermanentDelete(task: Task) {
-  const deleted = await API.permanentlyDeleteTask(task.id)
+  const deleted = await Storage.permanentlyDeleteTask(task.id)
 
   if (deleted) toasts.success("Task permanently deleted")
   else toasts.error("Failed to permanently delete task")

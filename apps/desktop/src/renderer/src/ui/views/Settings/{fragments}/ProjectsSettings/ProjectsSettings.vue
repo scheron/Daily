@@ -3,7 +3,7 @@ import {ref} from "vue"
 
 import {NO_PROJECT_ID} from "@daily/protocol"
 
-import {useBranchesStore} from "@/stores/branches.store"
+import {useBranchesStore} from "@/stores/branches"
 import SettingsGroup from "@/ui/views/Settings/{fragments}/SettingsGroup.vue"
 import MilestonesForm from "./{fragments}/MilestonesForm"
 import ProjectDescription from "./{fragments}/ProjectDescription.vue"

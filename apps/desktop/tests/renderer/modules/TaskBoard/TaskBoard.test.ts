@@ -101,9 +101,9 @@ describe("TaskBoard", () => {
     const {default: TaskBoard} = await import("../../../../src/renderer/src/ui/modules/TaskBoard")
     const {default: NoTasksPlaceholder} = await import("../../../../src/renderer/src/ui/modules/TaskBoard/{fragments}/NoTasksPlaceholder.vue")
     const {useTasksStore} = await import("../../../../src/renderer/src/stores/tasks/tasks.store")
-    const {useDragDropStore} = await import("../../../../src/renderer/src/stores/dragDrop.store")
-    const {useSettingsStore} = await import("../../../../src/renderer/src/stores/settings.store")
-    const {useUIStore} = await import("../../../../src/renderer/src/stores/ui/ui.store")
+    const {useDragDropStore} = await import("../../../../src/renderer/src/stores/drag-drop")
+    const {useSettingsStore} = await import("../../../../src/renderer/src/stores/settings")
+    const {useUiStore} = await import("../../../../src/renderer/src/stores/ui/ui.store")
 
     const settings = useSettingsStore()
     await new Promise((resolve) => setTimeout(resolve))
@@ -119,7 +119,7 @@ describe("TaskBoard", () => {
       return wrapper
     }
 
-    return {NoTasksPlaceholder, mountBoard, settings, tasks: useTasksStore(), drag: useDragDropStore(), ui: useUIStore()}
+    return {NoTasksPlaceholder, mountBoard, settings, tasks: useTasksStore(), drag: useDragDropStore(), ui: useUiStore()}
   }
 
   function columnOf(board, status) {
@@ -367,7 +367,7 @@ describe("TaskBoard", () => {
     const {mountBoard, tasks, ui} = await setup({
       columnOrder: ["backlog", "in_progress", "done", "todo", "cancelled", "ready_for_agent", "ready_to_merge"],
     })
-    const {useFocusStore} = await import("../../../../src/renderer/src/stores/focus.store")
+    const {useFocusStore} = await import("../../../../src/renderer/src/stores/focus")
     const focus = useFocusStore()
     await vi.waitFor(() => expect(focus.session).not.toBeNull())
     tasks.tasks = [makeTask(), makeTask({id: "done", status: "done"})]
@@ -474,7 +474,7 @@ describe("TaskBoard", () => {
 
   it("uses current day, project, milestone and tag scope for To Do counts, including zero Cancelled (layout proxy)", async () => {
     const {mountBoard, tasks, settings} = await setup()
-    const {useFilterStore} = await import("../../../../src/renderer/src/stores/filter.store")
+    const {useFilterStore} = await import("../../../../src/renderer/src/stores/filter")
     const filter = useFilterStore()
     tasks.tasks = [
       makeTask(),
@@ -1083,7 +1083,7 @@ describe("TaskBoard", () => {
     "cancels column reorder on %s (layout proxy)",
     async (reason) => {
       const {mountBoard, tasks, settings, ui} = await setup()
-      const {useFilterStore} = await import("../../../../src/renderer/src/stores/filter.store")
+      const {useFilterStore} = await import("../../../../src/renderer/src/stores/filter")
       useFilterStore().setFrame("day")
       tasks.tasks = [makeTask()]
       const board = mountBoard()
@@ -1254,7 +1254,7 @@ describe("TaskBoard", () => {
   it("renders the saved order across board modes, frames and projects while collapse stays with its status", async () => {
     const columnOrder = ["ready_to_merge", "done", "ready_for_agent", "cancelled", "in_progress", "backlog", "todo"]
     const {mountBoard, tasks, settings} = await setup({columnOrder, sectionsCollapsed: {done: true}})
-    const {useFilterStore} = await import("../../../../src/renderer/src/stores/filter.store")
+    const {useFilterStore} = await import("../../../../src/renderer/src/stores/filter")
     tasks.activeDay = DateTime.now().toISODate()
     tasks.tasks = [makeTask(), makeTask({id: "done-task", status: "done"}), makeTask({id: "other-task", branchId: "project-a"})]
     const originalTasks = JSON.parse(JSON.stringify(tasks.tasks))
@@ -1308,7 +1308,7 @@ describe("TaskBoard", () => {
     ["milestone", "compact", false],
   ])("switches columns in %s / %s / All projects=%s without rewriting statuses, dates or order", async (frame, taskView, allProjects) => {
     const {mountBoard, tasks, settings} = await setup({taskView})
-    const {useFilterStore} = await import("../../../../src/renderer/src/stores/filter.store")
+    const {useFilterStore} = await import("../../../../src/renderer/src/stores/filter")
     useFilterStore().setFrame(frame)
     settings.settings.branch.isAllProjects = allProjects
     const day = DateTime.now().toISODate()
@@ -1573,8 +1573,8 @@ describe("TaskBoard", () => {
 
   it("switching to the milestone frame mounts only the cards in view, without rewriting the document's stylesheets", async () => {
     const {mountBoard, tasks} = await setup()
-    const {useFilterStore} = await import("../../../../src/renderer/src/stores/filter.store")
-    const {useMilestonesStore} = await import("../../../../src/renderer/src/stores/milestones.store")
+    const {useFilterStore} = await import("../../../../src/renderer/src/stores/filter")
+    const {useMilestonesStore} = await import("../../../../src/renderer/src/stores/milestones")
     const today = DateTime.now().toISODate()
     tasks.activeDay = today
     tasks.tasks = Array.from({length: 10}, (_, index) =>
@@ -1607,7 +1607,7 @@ describe("TaskBoard", () => {
   it("lists the backlog's tags in the header beside the active day's", async () => {
     const {mountBoard, tasks} = await setup()
     const {default: TagsDock} = await import("../../../../src/renderer/src/ui/modules/TagsDock.vue")
-    const {default: DynamicTagsPanel} = await import("../../../../src/renderer/src/ui/common/misc/DynamicTagsPanel.vue")
+    const {default: DynamicTagsPanel} = await import("../../../../src/renderer/src/ui/common/(panels)/DynamicTagsPanel.vue")
     tasks.activeDay = DateTime.now().toISODate()
     tasks.tasks = [
       makeTask({id: "task-day", tags: [makeTag({id: "tag-bug", name: "Bug"})]}),

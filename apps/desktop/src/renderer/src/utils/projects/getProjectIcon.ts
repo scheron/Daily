@@ -1,6 +1,6 @@
 import {NO_PROJECT_ID} from "@daily/protocol"
 
-import type {IconName} from "@/ui/base/BaseIcon"
+import type {IconName} from "@/types/icons"
 import type {Branch} from "@daily/protocol"
 
 export function getProjectIcon(project: Pick<Branch, "id"> | null | undefined): IconName {

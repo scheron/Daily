@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
 
-import {toImageAltText} from "../../../../src/renderer/src/ui/common/misc/MarkdownEditor/utils/toImageAltText"
+import {toImageAltText} from "../../../../src/renderer/src/ui/common/(editors)/MarkdownEditor/utils/toImageAltText"
 
 describe("toImageAltText", () => {
   it("drops only the last extension", () => {

@@ -1,6 +1,6 @@
 import {ref} from "vue"
 
-import {useDragDropStore} from "@/stores/dragDrop.store"
+import {useDragDropStore} from "@/stores/drag-drop"
 
 export function useTaskDragDrop() {
   const dragDropStore = useDragDropStore()

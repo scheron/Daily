@@ -1,17 +1,17 @@
 <script setup lang="ts">
 import {computed, nextTick, useTemplateRef} from "vue"
 
-import {useBranchesStore} from "@/stores/branches.store"
-import {useFocusStore} from "@/stores/focus.store"
-import {useProjectScopeStore} from "@/stores/projectScope.store"
-import {useUIStore} from "@/stores/ui"
+import {useBranchesStore} from "@/stores/branches"
+import {useFocusStore} from "@/stores/focus"
+import {useProjectScopeStore} from "@/stores/project-scope"
+import {useUiStore} from "@/stores/ui"
 import BaseAnimation from "@/ui/base/BaseAnimation.vue"
 import BaseButton from "@/ui/base/BaseButton"
-import BaseIcon from "@/ui/base/BaseIcon"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
 import BaseMenu from "@/ui/base/BaseMenu.vue"
 import BasePopup from "@/ui/base/BasePopup.vue"
-import BranchPicker from "@/ui/common/pickers/BranchPicker.vue"
-import ProjectIcon from "@/ui/common/projects/ProjectIcon.vue"
+import ProjectIcon from "@/ui/common/(icons)/ProjectIcon.vue"
+import BranchPicker from "@/ui/common/(pickers)/BranchPicker.vue"
 import {useSearchModal} from "@/ui/overlays/SearchModal"
 import {getProjectName} from "@/utils/projects/getProjectName"
 import {toShortcutKeys} from "@/utils/shortcuts/toShortcutKeys"
@@ -26,7 +26,7 @@ const props = defineProps<{compact: boolean}>()
 const emit = defineEmits<{createTask: []}>()
 
 const branchesStore = useBranchesStore()
-const uiStore = useUIStore()
+const uiStore = useUiStore()
 const focusStore = useFocusStore()
 const projectScopeStore = useProjectScopeStore()
 
@@ -50,9 +50,7 @@ const actions = computed<(BaseMenuItem & {run: () => void})[]>(() => [
 
 const searchModal = useSearchModal()
 
-function getProjectTriggerClasses() {
-  return cn("grid h-full items-center", !props.compact && "min-w-20")
-}
+const projectTriggerClass = computed(() => cn("grid h-full items-center", {"min-w-20": !props.compact}))
 
 function onToggleActions(toggle: () => void) {
   toggle()
@@ -115,7 +113,7 @@ function getFocusVariant(isOpen: boolean) {
         :selected-id="branchesStore.activeBranchId"
         side="bottom"
         :position="compact ? 'end' : 'start'"
-        :trigger-class="getProjectTriggerClasses()"
+        :trigger-class="projectTriggerClass"
         hover-mode
         :has-all-projects="hasAllProjectsRow"
         :is-all-projects-selected="projectScopeStore.isAllProjectsMode"

@@ -5,9 +5,9 @@ import {useElementSize, useMutationObserver} from "@vueuse/core"
 import {useTaskColumns} from "@/composables/tasks/useTaskColumns"
 import {useSettingValue} from "@/composables/useSettingValue"
 import {TASK_COLUMNS} from "@/constants/ui"
-import {useDragDropStore} from "@/stores/dragDrop.store"
-import {useFilterStore} from "@/stores/filter.store"
-import {useMilestonesStore} from "@/stores/milestones.store"
+import {useDragDropStore} from "@/stores/drag-drop"
+import {useFilterStore} from "@/stores/filter"
+import {useMilestonesStore} from "@/stores/milestones"
 import {useTasksStore} from "@/stores/tasks"
 import ActionsDock from "@/ui/modules/ActionsDock"
 import CalendarDock from "@/ui/modules/CalendarDock"
@@ -99,7 +99,7 @@ function readRootFontSize() {
 }
 
 function getColumnClasses(status: TaskStatus) {
-  return cn(draggingStatus.value === status && "pointer-events-none")
+  return cn({"pointer-events-none": draggingStatus.value === status})
 }
 </script>
 

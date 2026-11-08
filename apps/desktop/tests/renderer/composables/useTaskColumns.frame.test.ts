@@ -66,7 +66,7 @@ describe("useTaskColumns — the milestone frame", () => {
       ],
       {frame: "milestone"},
     )
-    const {useFilterStore} = await import("../../../src/renderer/src/stores/filter.store")
+    const {useFilterStore} = await import("../../../src/renderer/src/stores/filter")
 
     useFilterStore().toggleNoMilestone()
     await nextTick()

@@ -2,16 +2,16 @@
 import {computed, onMounted, onScopeDispose, ref, watch} from "vue"
 import {useDocumentVisibility, useMutationObserver} from "@vueuse/core"
 
-import {useFocusStore} from "@/stores/focus.store"
-import {useUIStore} from "@/stores/ui"
-import {useUpdateStore} from "@/stores/update.store"
+import {useBaseModal} from "@/composables/useBaseModal"
+import {useFocusStore} from "@/stores/focus"
+import {useUiStore} from "@/stores/ui"
+import {useUpdateStore} from "@/stores/update"
 import BaseButton from "@/ui/base/BaseButton"
-import BaseIcon from "@/ui/base/BaseIcon"
-import {useBaseModal} from "@/ui/base/BaseModal"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
 import {useWhatsNewRelease} from "./composables/useWhatsNewRelease"
 import WhatsNewMedia from "./{fragments}/WhatsNewMedia.vue"
 
-const uiStore = useUIStore()
+const uiStore = useUiStore()
 const focusStore = useFocusStore()
 const updateStore = useUpdateStore()
 

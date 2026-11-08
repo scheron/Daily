@@ -8,10 +8,9 @@ import {cn} from "@/utils/ui/tailwindcss"
 const themeStore = useThemeStore()
 
 function getBaseSwatchClasses(isActive: boolean) {
-  return cn(
-    "border-base-content/20 absolute inset-0 size-full overflow-hidden rounded-md border transition-opacity group-hover:opacity-100!",
+  return cn("border-base-content/20 absolute inset-0 size-full overflow-hidden rounded-md border transition-opacity group-hover:opacity-100!", [
     isActive ? "scale-110 opacity-100" : "opacity-40",
-  )
+  ])
 }
 </script>
 

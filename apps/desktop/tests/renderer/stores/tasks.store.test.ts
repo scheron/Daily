@@ -6,13 +6,13 @@ import {beforeEach, describe, expect, it, vi} from "vitest"
 import {groupTasksByDay} from "@daily/protocol"
 
 import {toasts} from "@/composables/useToasts"
-import {useBranchesStore} from "../../../src/renderer/src/stores/branches.store"
-import {useFilterStore} from "../../../src/renderer/src/stores/filter.store"
-import {useMilestonesStore} from "../../../src/renderer/src/stores/milestones.store"
-import {useSettingsStore} from "../../../src/renderer/src/stores/settings.store"
-import {useTagsStore} from "../../../src/renderer/src/stores/tags.store"
+import {useBranchesStore} from "../../../src/renderer/src/stores/branches"
+import {useFilterStore} from "../../../src/renderer/src/stores/filter"
+import {useMilestonesStore} from "../../../src/renderer/src/stores/milestones"
+import {useSettingsStore} from "../../../src/renderer/src/stores/settings"
+import {useTagsStore} from "../../../src/renderer/src/stores/tags"
 import {useTasksStore} from "../../../src/renderer/src/stores/tasks/tasks.store"
-import {API} from "../../../src/renderer/src/api"
+import {Storage} from "../../../src/renderer/src/api"
 import {mockBridgeIPC} from "../../helpers/bridgeIPC"
 
 const TODAY = DateTime.now().toISODate()
@@ -26,7 +26,7 @@ vi.mock("@/composables/useToasts", () => ({
 }))
 
 vi.mock("../../../src/renderer/src/api", () => ({
-  API: {
+  Storage: {
     getAllTasks: vi.fn().mockResolvedValue([]),
     createTask: vi.fn().mockResolvedValue({}),
     updateTask: vi.fn().mockResolvedValue({}),
@@ -73,7 +73,7 @@ describe("tasksStore", () => {
 
   it.each([undefined, "2099-01-01"])("creates planned work as To Do on %s before persistence resolves", async (date) => {
     const store = await getStore()
-    API.createTask.mockImplementationOnce(() => new Promise(() => {}))
+    Storage.createTask.mockImplementationOnce(() => new Promise(() => {}))
     store.createTask({content: "Plan", tags: [], date, milestoneId: "release"})
     const created = store.tasks.find((task) => task.content === "Plan")
     expect(created).toMatchObject({status: "todo", scheduled: {date: date ?? store.activeDay}, milestoneId: "release"})
@@ -83,7 +83,7 @@ describe("tasksStore", () => {
     const store = await getStore()
     store.tasks = [makeTask({id: "resolved", status})]
     await store.duplicateTask("resolved")
-    expect(API.createTask).toHaveBeenCalledWith("Test", expect.objectContaining({status: "todo", date: TODAY}))
+    expect(Storage.createTask).toHaveBeenCalledWith("Test", expect.objectContaining({status: "todo", date: TODAY}))
     expect(store.tasks.find((task) => task.id !== "resolved").status).toBe("todo")
   })
 
@@ -92,7 +92,7 @@ describe("tasksStore", () => {
     const created = await store.createTask({content: "Ready", tags: [], status: "ready_for_agent"})
     expect(created.status).toBe("ready_for_agent")
     expect(created.scheduled).toBeNull()
-    expect(API.createTask).toHaveBeenCalledWith("Ready", expect.objectContaining({status: "ready_for_agent", date: undefined}))
+    expect(Storage.createTask).toHaveBeenCalledWith("Ready", expect.objectContaining({status: "ready_for_agent", date: undefined}))
   })
 
   it("passes the display mode to storage and orders optimistically among mixed Normal neighbours", async () => {
@@ -105,11 +105,11 @@ describe("tasksStore", () => {
     await store.moveTaskByOrder({taskId: "source", targetTaskId: "anchor", activeDate: TODAY, boardMode: "normal"})
     expect(store.findTaskById("source").orderIndex).toBe(150)
     expect(store.findTaskById("source").status).toBe("ready_to_merge")
-    expect(API.moveTaskByOrder).toHaveBeenCalledWith(expect.objectContaining({boardMode: "normal"}))
+    expect(Storage.moveTaskByOrder).toHaveBeenCalledWith(expect.objectContaining({boardMode: "normal"}))
   })
 
   it("loads tasks and sets isLoaded", async () => {
-    API.getAllTasks.mockResolvedValue([makeTask({id: "t1"})])
+    Storage.getAllTasks.mockResolvedValue([makeTask({id: "t1"})])
 
     const store = await getStore()
     await store.loadTasks()
@@ -125,7 +125,7 @@ describe("tasksStore", () => {
       makeTask({id: "3", status: "in_progress", orderIndex: 3}),
       makeTask({id: "4", status: "cancelled", orderIndex: 4}),
     ]
-    API.getAllTasks.mockResolvedValue(tasks)
+    Storage.getAllTasks.mockResolvedValue(tasks)
 
     const store = await getStore()
     await store.loadTasks()
@@ -137,14 +137,14 @@ describe("tasksStore", () => {
 
   it("deleteTask removes the task from state without rereading the collection", async () => {
     const task = makeTask({id: "to-delete"})
-    API.getAllTasks.mockResolvedValue([task])
+    Storage.getAllTasks.mockResolvedValue([task])
 
     const store = await getStore()
     await store.loadTasks()
 
     expect(store.dailyTasks).toHaveLength(1)
 
-    API.deleteTask.mockResolvedValueOnce({tasks: {removed: ["to-delete"]}})
+    Storage.deleteTask.mockResolvedValueOnce({tasks: {removed: ["to-delete"]}})
 
     await store.deleteTask("to-delete")
 
@@ -160,13 +160,13 @@ describe("tasksStore", () => {
   })
 
   it("createTask honors date, branchId, and status overrides", async () => {
-    API.getAllTasks.mockResolvedValue([])
+    Storage.getAllTasks.mockResolvedValue([])
     const store = await getStore()
     await store.loadTasks()
     store.activeDay = TODAY
 
     const createdTask = makeTask({id: "task-99", scheduled: {date: "2099-01-01", time: "", timezone: "UTC"}, branchId: "other", status: "done"})
-    API.createTask.mockResolvedValueOnce({tasks: {upserted: [createdTask]}})
+    Storage.createTask.mockResolvedValueOnce({tasks: {upserted: [createdTask]}})
 
     await store.createTask({
       content: "Future task",
@@ -177,12 +177,12 @@ describe("tasksStore", () => {
       status: "done",
     })
 
-    expect(API.createTask).toHaveBeenCalledWith("Future task", expect.objectContaining({date: "2099-01-01", branchId: "other", status: "done"}))
+    expect(Storage.createTask).toHaveBeenCalledWith("Future task", expect.objectContaining({date: "2099-01-01", branchId: "other", status: "done"}))
   })
 
   it("moves a task out of the backlog and back without ever holding it in both lists", async () => {
     const backlogTask = makeTask({id: "b1", status: "backlog", scheduled: null})
-    API.getAllTasks.mockResolvedValue([backlogTask])
+    Storage.getAllTasks.mockResolvedValue([backlogTask])
 
     const store = await getStore()
     await store.loadTasks()
@@ -191,14 +191,14 @@ describe("tasksStore", () => {
     expect(store.dailyTasks.map((t) => t.id)).not.toContain("b1")
 
     const activeTask = makeTask({id: "b1", status: "in_progress", scheduled: {date: TODAY, time: "09:00:00", timezone: "UTC"}})
-    API.moveTaskByOrder.mockResolvedValueOnce({tasks: {upserted: [activeTask]}})
+    Storage.moveTaskByOrder.mockResolvedValueOnce({tasks: {upserted: [activeTask]}})
 
     await store.moveTaskByOrder({taskId: "b1", targetStatus: "in_progress", targetTaskId: null, position: "before", activeDate: TODAY})
 
     expect(store.backlogTasks.map((t) => t.id)).not.toContain("b1")
     expect(store.dailyTasks.map((t) => t.id)).toContain("b1")
 
-    API.moveTaskByOrder.mockResolvedValueOnce({tasks: {upserted: [backlogTask]}})
+    Storage.moveTaskByOrder.mockResolvedValueOnce({tasks: {upserted: [backlogTask]}})
 
     await store.moveTaskByOrder({taskId: "b1", targetStatus: "backlog", targetTaskId: null, position: "before", activeDate: TODAY})
 
@@ -214,36 +214,36 @@ describe("tasksStore", () => {
     const store = await getStore()
     store.tasks = [makeTask({id: "ready", status, scheduled})]
     await store.duplicateTask("ready")
-    expect(API.createTask).toHaveBeenCalledWith("Test", expect.objectContaining({status, date: scheduled?.date}))
+    expect(Storage.createTask).toHaveBeenCalledWith("Test", expect.objectContaining({status, date: scheduled?.date}))
   })
 
   it("duplicates a backlog task as dateless, never inventing a day", async () => {
     const original = makeTask({id: "orig", status: "backlog", scheduled: null, content: "no day yet"})
-    API.getAllTasks.mockResolvedValue([original])
+    Storage.getAllTasks.mockResolvedValue([original])
 
     const store = await getStore()
     await store.loadTasks()
 
     await store.duplicateTask("orig")
 
-    expect(API.createTask).toHaveBeenCalledWith("no day yet", expect.objectContaining({status: "backlog", date: undefined}))
+    expect(Storage.createTask).toHaveBeenCalledWith("no day yet", expect.objectContaining({status: "backlog", date: undefined}))
   })
 
   it("duplicates a task with its priority", async () => {
     const original = makeTask({id: "orig", status: "in_progress", priority: "urgent", content: "pressing"})
-    API.getAllTasks.mockResolvedValue([original])
+    Storage.getAllTasks.mockResolvedValue([original])
 
     const store = await getStore()
     await store.loadTasks()
 
     await store.duplicateTask("orig")
 
-    expect(API.createTask).toHaveBeenCalledWith("pressing", expect.objectContaining({priority: "urgent"}))
+    expect(Storage.createTask).toHaveBeenCalledWith("pressing", expect.objectContaining({priority: "urgent"}))
   })
 
   it("updateTask cleans the day a task left when a status change sends it to the backlog", async () => {
     const task = makeTask({id: "t1", status: "in_progress"})
-    API.getAllTasks.mockResolvedValue([task])
+    Storage.getAllTasks.mockResolvedValue([task])
 
     const store = await getStore()
     await store.loadTasks()
@@ -251,7 +251,7 @@ describe("tasksStore", () => {
     expect(store.dailyTasks.map((t) => t.id)).toContain("t1")
 
     const backlogged = makeTask({id: "t1", status: "backlog", scheduled: null})
-    API.updateTask.mockResolvedValueOnce({tasks: {upserted: [backlogged]}})
+    Storage.updateTask.mockResolvedValueOnce({tasks: {upserted: [backlogged]}})
 
     await store.updateTask("t1", {status: "backlog"})
 
@@ -261,7 +261,7 @@ describe("tasksStore", () => {
   it("moves a task to a different day and out of the day it left, on any calendar day", async () => {
     const OTHER = DateTime.fromISO(TODAY).plus({days: 1}).toISODate()
     const task = makeTask({id: "t1", status: "in_progress", scheduled: {date: TODAY, time: "", timezone: "UTC"}})
-    API.getAllTasks.mockResolvedValue([task])
+    Storage.getAllTasks.mockResolvedValue([task])
 
     const store = await getStore()
     await store.loadTasks()
@@ -269,7 +269,7 @@ describe("tasksStore", () => {
     expect(store.dailyTasks.map((t) => t.id)).toContain("t1")
 
     const movedTask = makeTask({id: "t1", status: "done", scheduled: {date: OTHER, time: "", timezone: "UTC"}})
-    API.updateTask.mockResolvedValueOnce({tasks: {upserted: [movedTask]}})
+    Storage.updateTask.mockResolvedValueOnce({tasks: {upserted: [movedTask]}})
 
     await store.updateTask("t1", {status: "done", scheduled: movedTask.scheduled})
 
@@ -279,7 +279,7 @@ describe("tasksStore", () => {
 
   it("updateTask updates the backlog and reports success when a task already in the backlog is edited", async () => {
     const backlogTask = makeTask({id: "b1", status: "backlog", scheduled: null, estimatedTime: 0})
-    API.getAllTasks.mockResolvedValue([backlogTask])
+    Storage.getAllTasks.mockResolvedValue([backlogTask])
 
     const store = await getStore()
     await store.loadTasks()
@@ -287,7 +287,7 @@ describe("tasksStore", () => {
     expect(store.backlogTasks.map((t) => t.id)).toContain("b1")
 
     const updated = makeTask({id: "b1", status: "backlog", scheduled: null, estimatedTime: 3600})
-    API.updateTask.mockResolvedValueOnce({tasks: {upserted: [updated]}})
+    Storage.updateTask.mockResolvedValueOnce({tasks: {upserted: [updated]}})
 
     const isUpdated = await store.updateTask("b1", {estimatedTime: 3600})
 
@@ -298,7 +298,7 @@ describe("tasksStore", () => {
   it("optimistically assigns a complete day to undated Ready work and retains its readiness", async () => {
     const store = await getStore()
     store.tasks = [makeTask({id: "ready", status: "ready_for_agent", scheduled: null})]
-    API.moveTask.mockImplementationOnce(() => new Promise(() => {}))
+    Storage.moveTask.mockImplementationOnce(() => new Promise(() => {}))
     store.moveTask("ready", TODAY)
     expect(store.findTaskById("ready")).toMatchObject({
       status: "ready_for_agent",
@@ -312,7 +312,7 @@ describe("tasksStore", () => {
 
   it("moves a dateless backlog task onto the day it is dropped on and out of the backlog", async () => {
     const backlogTask = makeTask({id: "b1", status: "backlog", scheduled: null})
-    API.getAllTasks.mockResolvedValue([backlogTask])
+    Storage.getAllTasks.mockResolvedValue([backlogTask])
 
     const store = await getStore()
     await store.loadTasks()
@@ -320,23 +320,23 @@ describe("tasksStore", () => {
 
     const targetDate = "2026-09-20"
     const activeTask = makeTask({id: "b1", status: "in_progress", scheduled: {date: targetDate, time: "09:00:00", timezone: "UTC"}})
-    API.moveTask.mockResolvedValueOnce({tasks: {upserted: [activeTask]}})
+    Storage.moveTask.mockResolvedValueOnce({tasks: {upserted: [activeTask]}})
 
     const moved = await store.moveTask("b1", targetDate)
 
     expect(moved).toBe(true)
-    expect(API.moveTask).toHaveBeenCalledWith("b1", targetDate)
+    expect(Storage.moveTask).toHaveBeenCalledWith("b1", targetDate)
     expect(store.backlogTasks.map((t) => t.id)).not.toContain("b1")
     expect(store.days.find((d) => d.date === targetDate)?.tasks.map((t) => t.id)).toContain("b1")
   })
 
   it("updateTask shows the edit on the board before the write resolves", async () => {
-    API.getAllTasks.mockResolvedValue([makeTask({id: "t1", content: "Before"})])
+    Storage.getAllTasks.mockResolvedValue([makeTask({id: "t1", content: "Before"})])
 
     const store = await getStore()
     await store.loadTasks()
 
-    API.updateTask.mockImplementationOnce(() => new Promise(() => {}))
+    Storage.updateTask.mockImplementationOnce(() => new Promise(() => {}))
 
     store.updateTask("t1", {content: "After"})
 
@@ -344,7 +344,7 @@ describe("tasksStore", () => {
   })
 
   it("moveTaskByOrder puts a card where it was dropped before the write resolves", async () => {
-    API.getAllTasks.mockResolvedValue([
+    Storage.getAllTasks.mockResolvedValue([
       makeTask({id: "a", orderIndex: 1024}),
       makeTask({id: "b", orderIndex: 2048}),
       makeTask({id: "c", orderIndex: 3072}),
@@ -353,7 +353,7 @@ describe("tasksStore", () => {
     const store = await getStore()
     await store.loadTasks()
 
-    API.moveTaskByOrder.mockImplementationOnce(() => new Promise(() => {}))
+    Storage.moveTaskByOrder.mockImplementationOnce(() => new Promise(() => {}))
 
     store.moveTaskByOrder({taskId: "c", targetTaskId: "a", targetStatus: "in_progress", position: "before", activeDate: TODAY})
 
@@ -361,7 +361,7 @@ describe("tasksStore", () => {
   })
 
   it("moveTaskByOrder hands the write the flag that places a card among every project", async () => {
-    API.getAllTasks.mockResolvedValue([makeTask({id: "a", orderIndex: 1024}), makeTask({id: "b", branchId: "other", orderIndex: 2048})])
+    Storage.getAllTasks.mockResolvedValue([makeTask({id: "a", orderIndex: 1024}), makeTask({id: "b", branchId: "other", orderIndex: 2048})])
 
     const store = await getStore()
     await store.loadTasks()
@@ -375,17 +375,17 @@ describe("tasksStore", () => {
       acrossProjects: true,
     })
 
-    expect(API.moveTaskByOrder).toHaveBeenCalledWith(expect.objectContaining({taskId: "b", acrossProjects: true}))
+    expect(Storage.moveTaskByOrder).toHaveBeenCalledWith(expect.objectContaining({taskId: "b", acrossProjects: true}))
   })
 
   it("updateTask reports failure and leaves the task as it was when the write rejects", async () => {
-    API.getAllTasks.mockResolvedValue([makeTask({id: "t1", content: "Before", estimatedTime: 0})])
+    Storage.getAllTasks.mockResolvedValue([makeTask({id: "t1", content: "Before", estimatedTime: 0})])
 
     const store = await getStore()
     await store.loadTasks()
     const before = store.tasks.find((t) => t.id === "t1")
 
-    API.updateTask.mockRejectedValueOnce(new Error("write failed"))
+    Storage.updateTask.mockRejectedValueOnce(new Error("write failed"))
 
     await expect(store.updateTask("t1", {content: "After", estimatedTime: 3600})).resolves.toBe(false)
     expect(store.tasks.find((t) => t.id === "t1")).toBe(before)
@@ -393,7 +393,7 @@ describe("tasksStore", () => {
 
   it("holds a milestone's tasks and reflects them after a write", async () => {
     const milestoneTask = makeTask({id: "m1", milestoneId: "milestone-1", scheduled: null, status: "backlog"})
-    API.getAllTasks.mockResolvedValue([milestoneTask])
+    Storage.getAllTasks.mockResolvedValue([milestoneTask])
 
     const store = await getStore()
     await store.loadTasks()
@@ -401,7 +401,7 @@ describe("tasksStore", () => {
     expect(store.tasksByMilestoneId.get("milestone-1")?.map((t) => t.id)).toEqual(["m1"])
 
     const renamedMilestoneTask = makeTask({id: "m1", milestoneId: "milestone-1", scheduled: null, status: "backlog", content: "Renamed"})
-    API.updateTask.mockResolvedValueOnce({tasks: {upserted: [renamedMilestoneTask]}})
+    Storage.updateTask.mockResolvedValueOnce({tasks: {upserted: [renamedMilestoneTask]}})
 
     await store.updateTask("m1", {content: "Renamed"})
 
@@ -421,11 +421,11 @@ describe("the collection lives in memory — phase 4/5 surface", () => {
   }
 
   function totalApiCalls() {
-    return Object.values(API).reduce((n, fn) => n + (fn.mock?.calls.length ?? 0), 0)
+    return Object.values(Storage).reduce((n, fn) => n + (fn.mock?.calls.length ?? 0), 0)
   }
 
   it("switches_TC-1_the_frame_and_milestone_selection_without_any_API_call", async () => {
-    API.getAllTasks.mockResolvedValueOnce([makeTask({id: "t1"})])
+    Storage.getAllTasks.mockResolvedValueOnce([makeTask({id: "t1"})])
     const filterStore = useFilterStore()
     const store = useTasksStore()
     await settle()
@@ -442,7 +442,7 @@ describe("the collection lives in memory — phase 4/5 surface", () => {
   })
 
   it("toggles_TC-3_a_tag_and_switches_project_without_any_API_call", async () => {
-    API.getAllTasks.mockResolvedValueOnce([makeTask({id: "t1"})])
+    Storage.getAllTasks.mockResolvedValueOnce([makeTask({id: "t1"})])
     const filterStore = useFilterStore()
     const settingsStore = useSettingsStore()
     const store = useTasksStore()
@@ -459,17 +459,17 @@ describe("the collection lives in memory — phase 4/5 surface", () => {
 
   it("edits_TC-5_a_tasks_content_with_exactly_one_write_and_no_read", async () => {
     const task = makeTask({id: "t1", content: "Before"})
-    API.getAllTasks.mockResolvedValueOnce([task])
+    Storage.getAllTasks.mockResolvedValueOnce([task])
     const store = useTasksStore()
     await settle()
     await store.loadTasks()
     vi.clearAllMocks()
-    API.updateTask.mockResolvedValueOnce({tasks: {upserted: [{...task, content: "After"}]}})
+    Storage.updateTask.mockResolvedValueOnce({tasks: {upserted: [{...task, content: "After"}]}})
 
     await store.updateTask("t1", {content: "After"})
 
     expect(totalApiCalls()).toBe(1)
-    expect(API.updateTask).toHaveBeenCalledTimes(1)
+    expect(Storage.updateTask).toHaveBeenCalledTimes(1)
   })
 
   it("keeps_TC-6_the_API_call_count_at_exactly_one_the_write_regardless_of_world_size", async () => {
@@ -479,7 +479,7 @@ describe("the collection lives in memory — phase 4/5 surface", () => {
       vi.clearAllMocks()
 
       const tasks = Array.from({length: taskCount}, (_, i) => makeTask({id: `t${i}`, content: `Task ${i}`}))
-      API.getAllTasks.mockResolvedValueOnce(tasks)
+      Storage.getAllTasks.mockResolvedValueOnce(tasks)
 
       const milestonesStore = useMilestonesStore()
       milestonesStore.milestones = Array.from({length: milestoneCount}, (_, i) => ({id: `m${i}`, branchId: "main"}))
@@ -493,7 +493,7 @@ describe("the collection lives in memory — phase 4/5 surface", () => {
       await store.loadTasks()
       vi.clearAllMocks()
 
-      API.updateTask.mockResolvedValueOnce({tasks: {upserted: [{...tasks[0], content: "Edited"}]}})
+      Storage.updateTask.mockResolvedValueOnce({tasks: {upserted: [{...tasks[0], content: "Edited"}]}})
       await store.updateTask("t0", {content: "Edited"})
 
       return totalApiCalls()
@@ -508,13 +508,13 @@ describe("the collection lives in memory — phase 4/5 surface", () => {
   })
 
   it("creates_TC-11_a_task_that_never_swaps_the_id_it_first_appears_with", async () => {
-    API.getAllTasks.mockResolvedValueOnce([])
+    Storage.getAllTasks.mockResolvedValueOnce([])
     const store = useTasksStore()
     await settle()
     await store.loadTasks()
 
     let resolveWrite: (value: unknown) => void
-    API.createTask.mockImplementationOnce(
+    Storage.createTask.mockImplementationOnce(
       () =>
         new Promise((resolve) => {
           resolveWrite = resolve
@@ -541,7 +541,7 @@ describe("the collection lives in memory — phase 4/5 surface", () => {
     const dated1 = makeTask({id: "d1", scheduled: {date: "2026-09-10", time: "", timezone: "UTC"}})
     const dated2 = makeTask({id: "d2", scheduled: {date: "2026-09-12", time: "", timezone: "UTC"}})
     const backlog = makeTask({id: "b1", status: "backlog", scheduled: null})
-    API.getAllTasks.mockResolvedValueOnce([dated1, dated2, backlog])
+    Storage.getAllTasks.mockResolvedValueOnce([dated1, dated2, backlog])
 
     const store = useTasksStore()
     await settle()
@@ -555,7 +555,7 @@ describe("the collection lives in memory — phase 4/5 surface", () => {
 
   it("calls_TC-20_the_full_collection_read_exactly_once_across_startup_and_several_interactions", async () => {
     const tasks = [makeTask({id: "t1"}), makeTask({id: "t2"}), makeTask({id: "t3"})]
-    API.getAllTasks.mockResolvedValueOnce(tasks)
+    Storage.getAllTasks.mockResolvedValueOnce(tasks)
     const filterStore = useFilterStore()
     const store = useTasksStore()
     await settle()
@@ -565,22 +565,22 @@ describe("the collection lives in memory — phase 4/5 surface", () => {
     filterStore.setFrame("milestone")
     filterStore.setActiveTags("tag-1")
 
-    API.updateTask.mockResolvedValue({tasks: {upserted: [{...tasks[0], content: "e1"}]}})
+    Storage.updateTask.mockResolvedValue({tasks: {upserted: [{...tasks[0], content: "e1"}]}})
     await store.updateTask("t1", {content: "e1"})
     await store.updateTask("t2", {content: "e2"})
     await store.updateTask("t3", {content: "e3"})
 
-    expect(API.getAllTasks).toHaveBeenCalledTimes(1)
+    expect(Storage.getAllTasks).toHaveBeenCalledTimes(1)
   })
 
   it("rolls_TC-21_back_every_patched_row_and_raises_a_toast_when_the_write_rejects", async () => {
     const task = makeTask({id: "t1", content: "Before"})
-    API.getAllTasks.mockResolvedValueOnce([task])
+    Storage.getAllTasks.mockResolvedValueOnce([task])
     const store = useTasksStore()
     await settle()
     await store.loadTasks()
 
-    API.updateTask.mockRejectedValueOnce(new Error("write failed"))
+    Storage.updateTask.mockRejectedValueOnce(new Error("write failed"))
 
     await store.updateTask("t1", {content: "After"})
 

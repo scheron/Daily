@@ -4,7 +4,7 @@ import {createPinia, setActivePinia} from "pinia"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
 import {flushPromises, mount} from "@vue/test-utils"
-import {useSettingsStore} from "../../../../src/renderer/src/stores/settings.store"
+import {useSettingsStore} from "../../../../src/renderer/src/stores/settings"
 import GeneralSettings from "../../../../src/renderer/src/ui/views/Settings/{fragments}/GeneralSettings/GeneralSettings.vue"
 import SettingRow from "../../../../src/renderer/src/ui/views/Settings/{fragments}/SettingRow.vue"
 import SettingsGroup from "../../../../src/renderer/src/ui/views/Settings/{fragments}/SettingsGroup.vue"

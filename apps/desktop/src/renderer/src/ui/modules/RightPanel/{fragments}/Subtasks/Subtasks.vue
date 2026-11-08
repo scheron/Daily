@@ -2,7 +2,7 @@
 import {computed, ref} from "vue"
 
 import BaseButton from "@/ui/base/BaseButton"
-import BaseIcon from "@/ui/base/BaseIcon"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
 import {openSubtask} from "@/ui/modules/RightPanel/composables/useSubtaskEditorOpen"
 import {useTaskSubtasks} from "@/ui/modules/RightPanel/composables/useTaskSubtasks"
 import SubtaskItem from "./{fragments}/SubtaskItem.vue"
@@ -15,6 +15,7 @@ const isAdding = ref(false)
 const isHidingCompleted = ref(false)
 
 const visibleSubtasks = computed(() => (isHidingCompleted.value ? subtasks.value.filter((subtask) => !subtask.done) : subtasks.value))
+const hideCompletedVariant = computed(() => (isHidingCompleted.value ? "ghost-selected" : "ghost-muted"))
 
 async function add(content: string) {
   isAdding.value = false
@@ -38,10 +39,9 @@ function setSubtaskDone(id: Subtask["id"], done: boolean) {
 
       <div aria-hidden="true" class="flex-1" />
       <BaseButton
-        variant="ghost-muted"
+        :variant="hideCompletedVariant"
         icon="eye-off"
         size="xs"
-        :class="isHidingCompleted && 'bg-base-content/10 text-base-content'"
         :aria-pressed="isHidingCompleted"
         :tooltip="isHidingCompleted ? 'Show completed' : 'Hide completed'"
         @click="isHidingCompleted = !isHidingCompleted"

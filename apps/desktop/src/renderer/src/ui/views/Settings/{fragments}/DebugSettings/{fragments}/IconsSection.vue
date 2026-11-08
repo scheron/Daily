@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import {onBeforeMount, ref} from "vue"
 
-import BaseIcon from "@/ui/base/BaseIcon"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
 
-import type {IconName} from "@/ui/base/BaseIcon"
+import type {IconName} from "@/types/icons"
 
 const icons = ref<IconName[]>([])
 

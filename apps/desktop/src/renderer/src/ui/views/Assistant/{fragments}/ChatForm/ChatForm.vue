@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import {ref, useTemplateRef} from "vue"
+import {computed, ref, useTemplateRef} from "vue"
 
 import BaseButton from "@/ui/base/BaseButton"
-import BaseIcon from "@/ui/base/BaseIcon"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
 import BasePopup from "@/ui/base/BasePopup.vue"
 import {cn} from "@/utils/ui/tailwindcss"
 import AutoSizeInput from "./{fragments}/AutoSizeInput.vue"
@@ -11,7 +11,7 @@ import ContextRing from "./{fragments}/ContextRing"
 import type {AIProvider} from "@daily/protocol"
 import type {LocalModelInfo} from "@shared/types/ai"
 
-defineProps<{
+const props = defineProps<{
   activeProvider: AIProvider
   activeModel: string
   localModels: LocalModelInfo[]
@@ -27,6 +27,10 @@ const emit = defineEmits<{
 
 const message = ref("")
 const popupRef = useTemplateRef<InstanceType<typeof BasePopup>>("popup")
+
+const remoteGroupLabelClass = computed(() =>
+  cn("text-base-content/50 px-2 pt-1 text-[10px] font-semibold uppercase", {"mt-1": props.localModels.length > 0}),
+)
 
 function onKeydown(e: KeyboardEvent) {
   if (e.key === "Enter" && !e.shiftKey) {
@@ -51,15 +55,11 @@ function handleSelectModel(provider: AIProvider, model: string) {
 }
 
 function getModelDotClasses(isActive: boolean) {
-  return cn("size-2 shrink-0 rounded-full border", isActive ? "bg-accent border-accent" : "border-base-content/30")
+  return cn("size-2 shrink-0 rounded-full border", [isActive ? "bg-accent border-accent" : "border-base-content/30"])
 }
 
 function getModelLabelClasses(isActive: boolean) {
-  return cn("text-xs", isActive ? "text-accent" : "text-base-content")
-}
-
-function getRemoteGroupLabelClasses(hasLocalModels: boolean) {
-  return cn("text-base-content/50 px-2 pt-1 text-[10px] font-semibold uppercase", hasLocalModels && "mt-1")
+  return cn("text-xs", [isActive ? "text-accent" : "text-base-content"])
 }
 </script>
 
@@ -88,7 +88,7 @@ function getRemoteGroupLabelClasses(hasLocalModels: boolean) {
               </template>
 
               <template v-if="remoteModels.length > 0">
-                <span :class="getRemoteGroupLabelClasses(localModels.length > 0)">Remote</span>
+                <span :class="remoteGroupLabelClass">Remote</span>
                 <BaseButton v-for="m in remoteModels" :key="m" variant="cell" size="sm" @click="handleSelectModel('openai', m)">
                   <span :class="getModelDotClasses(activeProvider === 'openai' && activeModel === m)" />
                   <span :class="getModelLabelClasses(activeProvider === 'openai' && activeModel === m)">{{ m }}</span>

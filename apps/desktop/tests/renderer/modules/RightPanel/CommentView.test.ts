@@ -19,7 +19,7 @@ const MarkdownEditor = defineComponent({
   },
 })
 
-vi.mock("../../../../src/renderer/src/ui/common/misc/MarkdownEditor", () => ({default: MarkdownEditor}))
+vi.mock("../../../../src/renderer/src/ui/common/(editors)/MarkdownEditor", () => ({default: MarkdownEditor}))
 vi.mock("@/composables/useToasts", () => ({toasts: {error: vi.fn()}}))
 
 function makeTask(id) {
@@ -89,7 +89,7 @@ describe("Comment view in the task panel", () => {
     vi.useFakeTimers()
     setActivePinia(createPinia())
     vi.clearAllMocks()
-    const {nestedTarget} = await import("../../../../src/renderer/src/ui/modules/RightPanel/composables/useNestedView")
+    const {nestedTarget} = await import("../../../../src/renderer/src/ui/modules/RightPanel/state")
     nestedTarget.value = null
   })
 
@@ -98,7 +98,7 @@ describe("Comment view in the task panel", () => {
     wrapper = null
     modalProvider?.unmount()
     modalProvider = null
-    const {useBaseModal} = await import("../../../../src/renderer/src/ui/base/BaseModal")
+    const {useBaseModal} = await import("../../../../src/renderer/src/composables/useBaseModal")
     const {stack, remove} = useBaseModal()
     for (const item of [...stack.value]) remove(item.id)
     await vi.runOnlyPendingTimersAsync()
@@ -119,7 +119,7 @@ describe("Comment view in the task panel", () => {
       })),
     })
     const {useTaskEditorStore} = await import("../../../../src/renderer/src/stores/task-editor")
-    const {useTaskCommentsStore} = await import("../../../../src/renderer/src/stores/taskComments.store")
+    const {useTaskCommentsStore} = await import("../../../../src/renderer/src/stores/task-comments")
     const {useTasksStore} = await import("../../../../src/renderer/src/stores/tasks")
     useTasksStore().tasks = [...new Set(thread.map((comment) => comment.taskId))].map(makeTask)
     const editor = useTaskEditorStore()
@@ -475,9 +475,9 @@ describe("Comment view in the task panel", () => {
   it("dismisses an attachment modal on Escape while keeping the comment buffer until a later Escape", async () => {
     const {editor, comments} = await setup()
     const {default: CommentView} = await import("../../../../src/renderer/src/ui/modules/RightPanel/{fragments}/CommentView.vue")
-    const {BaseModalProvider} = await import("../../../../src/renderer/src/ui/base/BaseModal")
+    const {default: ModalProvider} = await import("../../../../src/renderer/src/ui/overlays/ModalProvider")
     const {useImagePreviewModal} = await import("../../../../src/renderer/src/ui/overlays/ImagePreviewModal")
-    modalProvider = mount(BaseModalProvider, {global: {directives: {tooltip: {}}, stubs: {transition: false}}})
+    modalProvider = mount(ModalProvider, {global: {directives: {tooltip: {}}, stubs: {transition: false}}})
     await wrapper.find("button[aria-label='Open comment']").trigger("click")
     await wrapper.find("[aria-label='Markdown content']").setValue("Comment under the preview")
     useImagePreviewModal().open("data:image/png;base64,", "Attachment preview")
@@ -644,7 +644,7 @@ describe("Comment view in the task panel", () => {
     const subtask = makeSubtask("s1")
     await setup([makeComment("c1")], {subtasks: [subtask]})
     window.BridgeIPC["subtasks:update"] = vi.fn(async (id, changes) => ({subtasks: {upserted: [{...subtask, ...changes}]}}))
-    const {useSubtasksStore} = await import("../../../../src/renderer/src/stores/subtasks.store")
+    const {useSubtasksStore} = await import("../../../../src/renderer/src/stores/subtasks")
     await wrapper.find("button[aria-label='Open comment']").trigger("click")
     await buttonWithIcon("chevron-left").trigger("click")
     await buttonWithIcon("chevron-right").trigger("click")

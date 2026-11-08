@@ -1,8 +1,8 @@
 import {computed, onBeforeUnmount, shallowRef} from "vue"
 import {useEventListener} from "@vueuse/core"
 
+import {useBaseModal} from "@/composables/useBaseModal"
 import {useTasksStore} from "@/stores/tasks"
-import {useBaseModal} from "@/ui/base/BaseModal"
 import {autoUpdate, flip, hide, offset, shift, useFloating} from "@floating-ui/vue"
 
 import type {Task} from "@daily/protocol"

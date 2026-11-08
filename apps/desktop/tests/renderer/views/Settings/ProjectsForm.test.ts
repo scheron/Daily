@@ -51,7 +51,7 @@ describe("ProjectsForm", () => {
       "branches:update": vi.fn(async (id, updates) => makeProject({id, ...updates})),
     })
     setActivePinia(createPinia())
-    const {useBranchesStore} = await import("../../../../src/renderer/src/stores/branches.store")
+    const {useBranchesStore} = await import("../../../../src/renderer/src/stores/branches")
     useBranchesStore().branches = [makeProject({id: "main", name: "Main", emoji: "🚀"}), makeProject()]
     const {default: ProjectsForm} =
       await import("../../../../src/renderer/src/ui/views/Settings/{fragments}/ProjectsSettings/{fragments}/ProjectsForm")

@@ -15,7 +15,7 @@ describe("useTaskModel — updateTaskPriority", () => {
 
   async function setup(priority) {
     const {useTasksStore} = await import("../../../src/renderer/src/stores/tasks")
-    const {useTaskModel} = await import("../../../src/renderer/src/ui/modules/TaskBoard/{fragments}/TaskCard/useTaskModel")
+    const {useTaskModel} = await import("../../../src/renderer/src/ui/modules/TaskBoard/{fragments}/TaskCard/composables/useTaskModel")
 
     const updateTask = vi.spyOn(useTasksStore(), "updateTask").mockResolvedValue(true)
     const model = useTaskModel(ref({id: "task-1", branchId: "main", priority}))
@@ -46,10 +46,10 @@ describe("useTaskModel — Normal column ordering", () => {
   })
 
   async function setup() {
-    const {useSettingsStore} = await import("../../../src/renderer/src/stores/settings.store")
+    const {useSettingsStore} = await import("../../../src/renderer/src/stores/settings")
     const {useTasksStore} = await import("../../../src/renderer/src/stores/tasks")
-    const {useFilterStore} = await import("../../../src/renderer/src/stores/filter.store")
-    const {useTaskModel} = await import("../../../src/renderer/src/ui/modules/TaskBoard/{fragments}/TaskCard/useTaskModel")
+    const {useFilterStore} = await import("../../../src/renderer/src/stores/filter")
+    const {useTaskModel} = await import("../../../src/renderer/src/ui/modules/TaskBoard/{fragments}/TaskCard/composables/useTaskModel")
     const settings = useSettingsStore()
     await new Promise((resolve) => setTimeout(resolve))
     settings.settings = {branch: {activeId: "main"}, appearance: {boardMode: "normal"}}

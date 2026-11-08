@@ -4,9 +4,9 @@ import {createPinia, setActivePinia} from "pinia"
 import {beforeEach, describe, expect, it, vi} from "vitest"
 
 import {toasts} from "@/composables/useToasts"
-import {useTaskRelationsStore} from "../../../src/renderer/src/stores/taskRelations.store"
+import {useTaskRelationsStore} from "../../../src/renderer/src/stores/task-relations"
 import {useTasksStore} from "../../../src/renderer/src/stores/tasks/tasks.store"
-import {API} from "../../../src/renderer/src/api"
+import {Storage} from "../../../src/renderer/src/api"
 import {mockBridgeIPC} from "../../helpers/bridgeIPC"
 
 vi.mock("../../../src/renderer/src/utils/ui/toRawDeep", () => ({toRawDeep: (v) => v}))
@@ -16,7 +16,7 @@ vi.mock("@/composables/useToasts", () => ({
 }))
 
 vi.mock("../../../src/renderer/src/api", () => ({
-  API: {
+  Storage: {
     getAllTasks: vi.fn().mockResolvedValue([]),
     getAllTaskRelations: vi.fn().mockResolvedValue([]),
     setTaskRelations: vi.fn(),
@@ -161,7 +161,7 @@ describe("useTaskRelationsStore", () => {
     const relationsStore = useTaskRelationsStore()
 
     let resolveApi
-    API.setTaskRelations.mockImplementationOnce(
+    Storage.setTaskRelations.mockImplementationOnce(
       () =>
         new Promise((resolve) => {
           resolveApi = resolve
@@ -185,10 +185,10 @@ describe("useTaskRelationsStore", () => {
     await writePromise
 
     expect(relationsStore.relations.find((r) => r.blockerId === "A" && r.blockedId === "B")).toEqual(mainRow)
-    expect(API.setTaskRelations).toHaveBeenCalledWith("B", {blockedBy: ["A"], blocks: []})
+    expect(Storage.setTaskRelations).toHaveBeenCalledWith("B", {blockedBy: ["A"], blocks: []})
 
     relationsStore.relations = []
-    API.setTaskRelations.mockRejectedValueOnce(new Error("write failed"))
+    Storage.setTaskRelations.mockRejectedValueOnce(new Error("write failed"))
     const beforeReject = structuredClone(relationsStore.relations)
 
     const result = await relationsStore.setTaskRelations("B", {blockedBy: ["A"], blocks: []})
@@ -196,7 +196,7 @@ describe("useTaskRelationsStore", () => {
     expect(result).toBe(false)
     expect(relationsStore.relations).toEqual(beforeReject)
     expect(toasts.error).toHaveBeenCalled()
-    expect(API.setTaskRelations).toHaveBeenLastCalledWith("B", {blockedBy: ["A"], blocks: []})
+    expect(Storage.setTaskRelations).toHaveBeenLastCalledWith("B", {blockedBy: ["A"], blocks: []})
   })
 
   it("hands_the_api_a_plain_payload_that_survives_structuredClone_even_when_the_caller_passes_reactive_arrays", async () => {
@@ -204,12 +204,12 @@ describe("useTaskRelationsStore", () => {
     tasksStore.tasks = [makeTask({id: "A", branchId: "P"}), makeTask({id: "B", branchId: "P"})]
 
     const relationsStore = useTaskRelationsStore()
-    API.setTaskRelations.mockResolvedValueOnce({})
+    Storage.setTaskRelations.mockResolvedValueOnce({})
 
     const draft = ref({blockedBy: ["A"], blocks: []})
     await relationsStore.setTaskRelations("B", {blockedBy: draft.value.blockedBy, blocks: draft.value.blocks})
 
-    const payload = API.setTaskRelations.mock.calls[0][1]
+    const payload = Storage.setTaskRelations.mock.calls[0][1]
     expect(() => structuredClone(payload)).not.toThrow()
     expect(payload).toEqual({blockedBy: ["A"], blocks: []})
   })

@@ -4,15 +4,15 @@ import {useIntervalFn} from "@vueuse/core"
 
 import {toLocaleDateTime} from "@daily/std"
 
-import {useSyncServerStore} from "@/stores/syncServer.store"
+import {useSyncServerStore} from "@/stores/sync-server"
 import BaseButton from "@/ui/base/BaseButton"
-import BaseIcon from "@/ui/base/BaseIcon"
-import AgentIcon from "@/ui/common/sync/AgentIcon.vue"
+import BaseIcon from "@/ui/base/BaseIcon.vue"
+import AgentIcon from "@/ui/common/(icons)/AgentIcon.vue"
 import {cn} from "@/utils/ui/tailwindcss"
+import {useWindowCountdown} from "../../composables/useWindowCountdown"
 import CopyField from "./{fragments}/CopyField.vue"
-import {useWindowCountdown} from "../../useWindowCountdown"
 
-import type {IconName} from "@/ui/base/BaseIcon"
+import type {IconName} from "@/types/icons"
 
 const syncServerStore = useSyncServerStore()
 
@@ -86,22 +86,21 @@ async function onCancel() {
 }
 
 function getItemClasses(index: number) {
-  return cn(index > 0 && "border-base-300 border-t")
+  return cn({"border-base-300 border-t": index > 0})
 }
 
 function getHeadClasses(isOpen: boolean) {
-  return cn(
-    "hover:bg-base-content/[2.5%] flex w-full cursor-pointer items-center gap-2.5 px-3 py-2.5 text-left text-sm transition-colors",
+  return cn("hover:bg-base-content/[2.5%] flex w-full cursor-pointer items-center gap-2.5 px-3 py-2.5 text-left text-sm transition-colors", [
     isOpen ? "text-accent" : "text-base-content",
-  )
+  ])
 }
 
 function getChevronClasses(isOpen: boolean) {
-  return cn("size-3.5 shrink-0 transition-transform", isOpen ? "text-accent rotate-180" : "text-base-content/40")
+  return cn("size-3.5 shrink-0 transition-transform", [isOpen ? "text-accent rotate-180" : "text-base-content/40"])
 }
 
 function getStepTextClasses(hasField: boolean) {
-  return cn("text-[13px] leading-snug", hasField ? "mb-1.5" : "text-base-content/70")
+  return cn("text-[13px] leading-snug", [hasField ? "mb-1.5" : "text-base-content/70"])
 }
 
 watch(isPolling, (value) => (value ? resume() : pause()), {immediate: true})

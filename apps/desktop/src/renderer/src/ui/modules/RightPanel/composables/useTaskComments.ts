@@ -2,8 +2,8 @@ import {computed, watch} from "vue"
 import {storeToRefs} from "pinia"
 
 import {createSharedComposable} from "@/composables/createSharedComposable"
+import {useTaskCommentsStore} from "@/stores/task-comments"
 import {useTaskEditorStore} from "@/stores/task-editor"
-import {useTaskCommentsStore} from "@/stores/taskComments.store"
 
 import type {TaskComment} from "@daily/protocol"
 

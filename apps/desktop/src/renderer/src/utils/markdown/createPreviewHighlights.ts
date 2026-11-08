@@ -1,3 +1,13 @@
+import {
+  LEADING_HORIZONTAL_WHITESPACE_REGEX,
+  LEADING_SPACES_REGEX,
+  MARKDOWN_BLOCKQUOTE_PREFIX_REGEX,
+  MARKDOWN_CHECKBOX_PREFIX_REGEX,
+  MARKDOWN_HEADING_PREFIX_REGEX,
+  MARKDOWN_LEADING_BACKTICKS_REGEX,
+  MARKDOWN_LINES_REGEX,
+  MARKDOWN_LIST_MARKER_REGEX,
+} from "@/constants/regex"
 import {appendHighlightedText} from "./appendHighlightedText"
 
 import type {SearchMatch} from "@daily/protocol"
@@ -61,7 +71,7 @@ function mapTokens(tokens: readonly Token[], source: SourceText, locations: Weak
 }
 
 function mapTable(table: Tokens.Table, raw: SourceText, locations: WeakMap<Token, SourceText>) {
-  const lines = [...raw.text.matchAll(/^[^\n]*/gm)]
+  const lines = [...raw.text.matchAll(MARKDOWN_LINES_REGEX)]
   for (const [index, cells] of [table.header, ...table.rows].entries()) {
     const line = lines[index === 0 ? 0 : index + 1]
     if (!line) continue
@@ -92,19 +102,19 @@ function splitTableRow(row: SourceText) {
 }
 
 function innerSource(token: Token, source: SourceText) {
-  if (token.type === "heading") return sourceSlice(source, source.text.match(/^ {0,3}#{1,6}[ \t]+/)?.[0].length ?? 0)
+  if (token.type === "heading") return sourceSlice(source, source.text.match(MARKDOWN_HEADING_PREFIX_REGEX)?.[0].length ?? 0)
   if (token.type === "strong") return sourceSlice(source, 2, source.text.length - 2)
   if (token.type === "del") {
     const delimiter = source.text.startsWith("~~") ? 2 : 1
     return sourceSlice(source, delimiter, source.text.length - delimiter)
   }
   if (token.type === "list_item") {
-    const marker = source.text.match(/^ {0,3}(?:[*+-]|\d{1,9}[.)])[ \t]*/)?.[0].length ?? 0
+    const marker = source.text.match(MARKDOWN_LIST_MARKER_REGEX)?.[0].length ?? 0
     const body = sourceSlice(source, marker)
-    const checkbox = (token as Tokens.ListItem).task ? (body.text.match(/^\[[ xX]\][ \t]*/)?.[0].length ?? 0) : 0
+    const checkbox = (token as Tokens.ListItem).task ? (body.text.match(MARKDOWN_CHECKBOX_PREFIX_REGEX)?.[0].length ?? 0) : 0
     return sourceSlice(body, checkbox)
   }
-  if (token.type === "blockquote") return sourceSlice(source, source.text.match(/^ {0,3}>[ \t]?/)?.[0].length ?? 0)
+  if (token.type === "blockquote") return sourceSlice(source, source.text.match(MARKDOWN_BLOCKQUOTE_PREFIX_REGEX)?.[0].length ?? 0)
   if (token.type === "em") return sourceSlice(source, 1, source.text.length - 1)
   if (token.type === "link") {
     if (source.text.startsWith("<")) return sourceSlice(source, 1, source.text.length - 1)
@@ -126,7 +136,7 @@ function innerSource(token: Token, source: SourceText) {
 function visibleSource(token: Token, raw: SourceText, text: string) {
   if (token.type === "escape") return projectText(sourceSlice(raw, 1), text)
   if (token.type === "codespan") {
-    const fence = raw.text.match(/^`+/)?.[0].length ?? 0
+    const fence = raw.text.match(MARKDOWN_LEADING_BACKTICKS_REGEX)?.[0].length ?? 0
     const body = sourceSlice(raw, fence, raw.text.length - fence)
     return projectText({...body, text: body.text.replaceAll("\n", " ")}, text)
   }
@@ -160,8 +170,8 @@ function projectText(source: SourceText, text: string): SourceText | null {
     }
 
     let char = 0
-    const targetIndent = target.match(/^ +/)?.[0].length ?? 0
-    const sourceIndent = targetIndent ? source.text.slice(cursor, limit).match(/^[ \t]+/)?.[0] : undefined
+    const targetIndent = target.match(LEADING_SPACES_REGEX)?.[0].length ?? 0
+    const sourceIndent = targetIndent ? (source.text.slice(cursor, limit).match(LEADING_HORIZONTAL_WHITESPACE_REGEX)?.[0] ?? null) : null
     if (sourceIndent && sourceIndent.includes("\t")) {
       const expanded: MarkdownOffsetRange[] = []
       for (let index = 0; index < sourceIndent.length; index++) {

@@ -136,7 +136,7 @@ describe("an Activity event", () => {
 
   it("shows each exact status and its icon independently of the board mode", async () => {
     const row = await renderEvent(makeEvent({type: "status_changed", fromStatus: "ready_for_agent", toStatus: "in_progress"}))
-    const {useSettingsStore} = await import("../../../../src/renderer/src/stores/settings.store")
+    const {useSettingsStore} = await import("../../../../src/renderer/src/stores/settings")
     const settings = useSettingsStore()
 
     for (const boardMode of ["normal", "agents"] as const) {
@@ -180,7 +180,7 @@ describe("an Activity event", () => {
     expect(row.text().replace(/\s+/g, " ")).toContain("No priority → Urgent")
     expect(row.text()).not.toContain("Priority:")
 
-    const {useBranchesStore} = await import("../../../../src/renderer/src/stores/branches.store")
+    const {useBranchesStore} = await import("../../../../src/renderer/src/stores/branches")
     useBranchesStore().branches = [makeProject()]
     await row.setProps({event: makeEvent({type: "project_changed", fromBranchId: "main", toBranchId: "project-1"})})
     expect(row.text().replace(/\s+/g, " ")).toContain("No project → Daily")
@@ -192,7 +192,7 @@ describe("an Activity event", () => {
   })
 
   it("shows both project emojis in a project transition", async () => {
-    const {useBranchesStore} = await import("../../../../src/renderer/src/stores/branches.store")
+    const {useBranchesStore} = await import("../../../../src/renderer/src/stores/branches")
     useBranchesStore().branches = [makeProject({id: "work", name: "Work", emoji: "💼"}), makeProject({id: "home", name: "Home", emoji: "🏠"})]
     const row = await renderEvent(makeEvent({type: "project_changed", fromBranchId: "work", toBranchId: "home"}))
     expect(row.text()).toContain("💼")

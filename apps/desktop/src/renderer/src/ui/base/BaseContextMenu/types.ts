@@ -1,4 +1,4 @@
-import type {IconName} from "@/ui/base/BaseIcon"
+import type {IconName} from "@/types/icons"
 import type {HTMLAttributes} from "vue"
 
 type CommonProps = {

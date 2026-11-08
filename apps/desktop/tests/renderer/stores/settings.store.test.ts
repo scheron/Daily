@@ -15,7 +15,7 @@ describe("settingsStore", () => {
   })
 
   async function getStore() {
-    const {useSettingsStore} = await import("../../../src/renderer/src/stores/settings.store")
+    const {useSettingsStore} = await import("../../../src/renderer/src/stores/settings")
     const store = useSettingsStore()
     await vi.dynamicImportSettled()
     await new Promise((r) => setTimeout(r, 0))

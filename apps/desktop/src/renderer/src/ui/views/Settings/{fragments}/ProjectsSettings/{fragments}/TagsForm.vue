@@ -2,11 +2,11 @@
 import {computed} from "vue"
 
 import {toasts} from "@/composables/useToasts"
-import {useFilterStore} from "@/stores/filter.store"
-import {useTagsStore} from "@/stores/tags.store"
+import {useFilterStore} from "@/stores/filter"
+import {useTagsStore} from "@/stores/tags"
 import BaseButton from "@/ui/base/BaseButton"
 import BasePopup from "@/ui/base/BasePopup.vue"
-import TagsCombobox from "@/ui/common/comboboxes/TagsCombobox.vue"
+import TagsCombobox from "@/ui/common/(comboboxes)/TagsCombobox.vue"
 import ConfirmPopup from "@/ui/overlays/ConfirmPopup.vue"
 
 import type {Branch, Tag} from "@daily/protocol"

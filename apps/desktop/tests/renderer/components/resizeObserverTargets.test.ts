@@ -44,7 +44,7 @@ describe("resize observer targets", () => {
   })
 
   it("clamps MarkdownContent from a delivery on .markdown-preview-content, not one on its own root", async () => {
-    const {default: MarkdownContent} = await import("../../../src/renderer/src/ui/common/misc/MarkdownContent.vue")
+    const {default: MarkdownContent} = await import("../../../src/renderer/src/ui/common/(misc)/MarkdownContent.vue")
 
     wrapper = mount(MarkdownContent, {props: {content: "text"}, attachTo: document.body})
     await nextTick()
@@ -63,7 +63,7 @@ describe("resize observer targets", () => {
   })
 
   it("observes MarkdownContent's .markdown-preview-content only when the content can be minimized", async () => {
-    const {default: MarkdownContent} = await import("../../../src/renderer/src/ui/common/misc/MarkdownContent.vue")
+    const {default: MarkdownContent} = await import("../../../src/renderer/src/ui/common/(misc)/MarkdownContent.vue")
     const observe = vi.spyOn(window.ResizeObserver.prototype, "observe")
 
     const fixed = mount(MarkdownContent, {props: {content: "text", minimizable: false}, attachTo: document.body})
@@ -78,7 +78,7 @@ describe("resize observer targets", () => {
   })
 
   it("fits DynamicTagsPanel's tags from a delivery on its probe, not one on its own container", async () => {
-    const {default: DynamicTagsPanel} = await import("../../../src/renderer/src/ui/common/misc/DynamicTagsPanel.vue")
+    const {default: DynamicTagsPanel} = await import("../../../src/renderer/src/ui/common/(panels)/DynamicTagsPanel.vue")
 
     const tags = [makeTag({id: "tag-1", name: "one"}), makeTag({id: "tag-2", name: "two"})]
 

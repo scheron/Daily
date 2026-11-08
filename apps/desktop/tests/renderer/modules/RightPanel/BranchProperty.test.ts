@@ -41,10 +41,10 @@ describe("BranchProperty", () => {
 
   async function setup(task) {
     const {default: BranchProperty} =
-      await import("../../../../src/renderer/src/ui/modules/RightPanel/{fragments}/Details/{fragments}/properties/BranchProperty.vue")
+      await import("../../../../src/renderer/src/ui/modules/RightPanel/{fragments}/Details/{fragments}/(properties)/BranchProperty.vue")
     const {default: PropertyCell} =
       await import("../../../../src/renderer/src/ui/modules/RightPanel/{fragments}/Details/{fragments}/PropertyCell.vue")
-    const {useBranchesStore} = await import("../../../../src/renderer/src/stores/branches.store")
+    const {useBranchesStore} = await import("../../../../src/renderer/src/stores/branches")
     useBranchesStore().branches = [
       {id: "main", name: "Main"},
       {id: "leki", name: "Leki", emoji: "💼"},

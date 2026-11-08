@@ -1,1 +1,1 @@
-export {useImagePreviewModal} from "./useImagePreviewModal"
+export {useImagePreviewModal} from "./composables/useImagePreviewModal"

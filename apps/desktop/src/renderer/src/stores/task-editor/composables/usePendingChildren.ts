@@ -1,17 +1,17 @@
-import {computed, ref} from "vue"
+import {computed, ref, toValue} from "vue"
 
-import {API} from "@/api"
+import {Storage} from "@/api"
 import {toasts} from "@/composables/useToasts"
 
 import type {TaskDraft} from "@/types/taskDraft"
 import type {Subtask, Task, TaskComment} from "@daily/protocol"
-import type {Ref} from "vue"
+import type {MaybeRefOrGetter} from "vue"
 
 const PENDING_TASK_ID = "__draft__"
 const PENDING_PREFIX = "pending:"
 
 type PendingChildrenContext = {
-  draft: Ref<TaskDraft | null>
+  draft: MaybeRefOrGetter<TaskDraft | null>
 }
 
 export function usePendingChildren(ctx: PendingChildrenContext) {
@@ -68,7 +68,7 @@ export function usePendingChildren(ctx: PendingChildrenContext) {
       {
         id: `${PENDING_PREFIX}${++pendingSeq}`,
         taskId: PENDING_TASK_ID,
-        branchId: draft.value?.branchId ?? "",
+        branchId: toValue(draft)?.branchId ?? "",
         content: text,
         kind: "manual",
         provider: null,
@@ -100,14 +100,14 @@ export function usePendingChildren(ctx: PendingChildrenContext) {
 
     while (pendingSubtasks.value.length || pendingComments.value.length) {
       const subtask = pendingSubtasks.value[0]
-      const comment = subtask ? undefined : pendingComments.value[0]
+      const comment = subtask ? null : (pendingComments.value[0] ?? null)
 
       try {
         if (subtask) {
-          const written = (await API.createSubtask(taskId, subtask.content)).subtasks?.upserted?.[0]
-          if (subtask.done && written) await API.updateSubtask(written.id, {done: true})
+          const written = (await Storage.createSubtask(taskId, subtask.content)).subtasks?.upserted?.[0]
+          if (subtask.done && written) await Storage.updateSubtask(written.id, {done: true})
         } else if (comment) {
-          await API.createTaskComment(taskId, comment.content)
+          await Storage.createTaskComment(taskId, comment.content)
         }
       } catch (error) {
         failed++

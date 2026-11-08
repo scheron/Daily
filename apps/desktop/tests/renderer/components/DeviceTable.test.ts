@@ -43,7 +43,7 @@ describe("DeviceTable — agents hang under their Mac (TC-23, TC-24)", () => {
 
     const {default: DeviceTable} =
       await import("../../../src/renderer/src/ui/views/Settings/{fragments}/SyncSettings/{fragments}/ServerDetails/{fragments}/DeviceTable.vue")
-    const {useSyncServerStore} = await import("../../../src/renderer/src/stores/syncServer.store")
+    const {useSyncServerStore} = await import("../../../src/renderer/src/stores/sync-server")
 
     const Host = defineComponent({
       setup() {

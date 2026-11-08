@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {computed} from "vue"
 
-import {useUpdateStore} from "@/stores/update.store"
+import {useUpdateStore} from "@/stores/update"
 import SettingRow from "@/ui/views/Settings/{fragments}/SettingRow.vue"
 
 const updateStore = useUpdateStore()

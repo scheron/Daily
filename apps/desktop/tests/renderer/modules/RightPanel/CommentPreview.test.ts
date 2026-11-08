@@ -299,7 +299,7 @@ describe("Comment preview geometry proxy", () => {
     expect(linkEvent.defaultPrevented).toBe(true)
 
     wrapper.find("img").element.dispatchEvent(new MouseEvent("click", {bubbles: true, cancelable: true}))
-    const {useBaseModal} = await import("../../../../src/renderer/src/ui/base/BaseModal")
+    const {useBaseModal} = await import("../../../../src/renderer/src/composables/useBaseModal")
     const modal = useBaseModal("image-preview")
     expect(modal.stack.value.find((item) => item.id === "image-preview")?.props.src).toBe("daily://file/example")
     expect(wrapper.emitted("open")).toBeUndefined()

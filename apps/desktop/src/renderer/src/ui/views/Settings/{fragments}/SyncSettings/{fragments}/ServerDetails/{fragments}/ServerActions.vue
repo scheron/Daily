@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {computed} from "vue"
 
-import {useSyncServerStore} from "@/stores/syncServer.store"
+import {useSyncServerStore} from "@/stores/sync-server"
 import BaseButton from "@/ui/base/BaseButton"
 
 defineProps<{isAddDeviceShown: boolean; isConnectAgentShown: boolean}>()
