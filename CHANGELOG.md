@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.39.3 - 2026-11-08
+
+### 🎨 Improvements
+
+- Long linked task previews open in a shorter panel and scroll within it.
+- Videos in What’s New play automatically and repeat.
+
+### 🐛 Bug Fixes
+
+- Fixed animated GIFs losing their animation when pasted or dropped into tasks.
+- Fixed the Settings, Assistant, and standalone Focus windows sometimes failing to open on the first attempt.
+
+---
+
 ## v0.39.2 - 2026-11-08
 
 ### ✨ New Features
