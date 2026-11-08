@@ -8,19 +8,18 @@ import {useUpdateStore} from "@/stores/update.store"
 import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon"
 import {useBaseModal} from "@/ui/base/BaseModal"
+import {useWhatsNewRelease} from "./composables/useWhatsNewRelease"
 import WhatsNewMedia from "./{fragments}/WhatsNewMedia.vue"
-
-import type {WhatsNewRelease} from "@shared/types/update"
 
 const uiStore = useUIStore()
 const focusStore = useFocusStore()
 const updateStore = useUpdateStore()
 
-const release = ref<WhatsNewRelease | null>(null)
 const presentation = ref<"pending" | "recording" | "interrupted" | "shown">("pending")
 const nativeWindowVisible = ref<boolean | null>(null)
 const hasBlockingElement = ref(false)
 
+const release = useWhatsNewRelease()
 const documentVisibility = useDocumentVisibility()
 const {stack: modals} = useBaseModal()
 
@@ -42,8 +41,6 @@ const canShow = computed(() => {
 const stopVisibilityListener = window.BridgeIPC["window:on-visibility-changed"]((visible) => {
   nativeWindowVisible.value = visible
 })
-
-useMutationObserver(body, refreshBlockingElement, {attributes: true, attributeFilter: ["open"], childList: true, subtree: true})
 
 function refreshBlockingElement() {
   hasBlockingElement.value = Boolean(document.querySelector("dialog[open], [data-focus-dock]"))
@@ -74,6 +71,12 @@ function openRelease() {
   void window.BridgeIPC["shell:open-external"](release.value.releaseUrl)
 }
 
+useMutationObserver(body, refreshBlockingElement, {attributes: true, attributeFilter: ["open"], childList: true, subtree: true})
+
+watch(release, (notes) => {
+  if (notes) refreshBlockingElement()
+})
+
 watch(
   canShow,
   (visible, _, onCleanup) => {
@@ -93,13 +96,10 @@ watch(
 
 onMounted(async () => {
   try {
-    const [visible, notes] = await Promise.all([window.BridgeIPC["window:is-visible"](), window.BridgeIPC["whats-new:get-release"]()])
+    const visible = await window.BridgeIPC["window:is-visible"]()
     nativeWindowVisible.value ??= visible
-    if (!notes) return
-    refreshBlockingElement()
-    release.value = notes
   } catch (error) {
-    console.error("Failed to load What's New:", error)
+    console.error("Failed to read window visibility for What's New:", error)
   }
 })
 

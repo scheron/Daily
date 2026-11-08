@@ -6,7 +6,7 @@ import {logger} from "@daily/core"
 import {compareVersions} from "./utils/compareVersions"
 import {fetchWhatsNewRelease, isSafeWhatsNewMediaUrl, whatsNewReleaseUrl} from "./whatsNewRelease"
 
-import type {WhatsNewRelease} from "@shared/types/update"
+import type {WhatsNewRelease, WhatsNewReleaseResult} from "@shared/types/update"
 
 type WhatsNewState = {
   lastVersion: string
@@ -16,16 +16,17 @@ type WhatsNewState = {
 }
 
 export class WhatsNewController {
-  private state: WhatsNewState | null = null
-  private load: Promise<WhatsNewRelease | null> | null = null
+  private _state: WhatsNewState | null = null
+  private _load: Promise<WhatsNewReleaseResult> | null = null
+  private _retryAt: number | null = null
 
   constructor(
     version: string,
-    private readonly path: string,
+    private readonly _path: string,
   ) {
-    const previous = readState(path)
+    const previous = readState(_path)
     if (previous?.lastVersion === version) {
-      this.state = previous
+      this._state = previous
       return
     }
 
@@ -37,46 +38,56 @@ export class WhatsNewController {
       shownVersions,
       cachedRelease: null,
     }
-    if (this.persist(state)) this.state = state
+    if (this._persist(state)) this._state = state
   }
 
-  async getRelease(): Promise<WhatsNewRelease | null> {
-    const state = this.state
+  async getRelease(): Promise<WhatsNewReleaseResult> {
+    const state = this._state
     const version = state?.pendingVersion
     if (!version) return null
 
-    return state.cachedRelease ?? (this.load ??= this.loadRelease(version))
+    if (state.cachedRelease) return state.cachedRelease
+    if (this._retryAt !== null && Date.now() >= this._retryAt) {
+      this._load = null
+      this._retryAt = null
+    }
+    return (this._load ??= this._loadRelease(version))
   }
 
   markShown(version: string): boolean {
-    if (!this.state || this.state.pendingVersion !== version || this.state.cachedRelease?.version !== version) return false
+    if (!this._state || this._state.pendingVersion !== version || this._state.cachedRelease?.version !== version) return false
 
     const state = {
-      ...this.state,
+      ...this._state,
       pendingVersion: null,
-      shownVersions: [...this.state.shownVersions, version],
+      shownVersions: [...this._state.shownVersions, version],
       cachedRelease: null,
     }
-    if (!this.persist(state)) return false
-    this.state = state
+    if (!this._persist(state)) return false
+    this._state = state
     return true
   }
 
-  private async loadRelease(version: string): Promise<WhatsNewRelease | null> {
-    const release = await fetchWhatsNewRelease(version)
-    if (!this.state || this.state.pendingVersion !== version || release?.version !== version) return null
+  private async _loadRelease(version: string): Promise<WhatsNewReleaseResult> {
+    const result = await fetchWhatsNewRelease(version)
+    if (!this._state || this._state.pendingVersion !== version || !result) return null
+    if ("retryAt" in result) {
+      this._retryAt = result.retryAt
+      return result
+    }
+    if (result.version !== version) return null
 
-    this.state = {...this.state, cachedRelease: release}
-    this.persist(this.state)
-    return release
+    this._state = {...this._state, cachedRelease: result}
+    this._persist(this._state)
+    return result
   }
 
-  private persist(state: WhatsNewState): boolean {
+  private _persist(state: WhatsNewState): boolean {
     try {
-      const temporaryPath = `${this.path}.tmp`
-      mkdirSync(dirname(this.path), {recursive: true})
+      const temporaryPath = `${this._path}.tmp`
+      mkdirSync(dirname(this._path), {recursive: true})
       writeFileSync(temporaryPath, JSON.stringify(state), {mode: 0o600})
-      renameSync(temporaryPath, this.path)
+      renameSync(temporaryPath, this._path)
       return true
     } catch (error) {
       logger.warn(logger.CONTEXT.UPDATES, "Failed to save What's New state", error)

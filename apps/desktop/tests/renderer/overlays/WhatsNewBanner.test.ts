@@ -8,11 +8,33 @@ import WhatsNewBanner from "@/ui/overlays/WhatsNewBanner"
 import {flushPromises, mount} from "@vue/test-utils"
 import {mockBridgeIPC} from "../../helpers/bridgeIPC"
 
-import type {AppUpdateState, WhatsNewMedia} from "@shared/types/update"
+import type {AppUpdateState, WhatsNewMedia, WhatsNewReleaseResult} from "@shared/types/update"
 
 afterEach(() => {
   vi.useRealTimers()
   vi.restoreAllMocks()
+})
+
+it("waits for visibility before recording the recovered card once", async () => {
+  const retryDelay = 1_000
+  const {banner, recordShown, setWindowVisibility} = mountBanner(false, [], retryDelay)
+
+  try {
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(retryDelay)
+    expect(banner.find("h2").exists()).toBe(false)
+    expect(recordShown).not.toHaveBeenCalled()
+
+    setWindowVisibility(true)
+    await nextTick()
+    expect(banner.text()).toContain("1.2.0")
+    vi.advanceTimersToNextFrame()
+    vi.advanceTimersToNextFrame()
+    await flushPromises()
+    expect(recordShown).toHaveBeenCalledExactlyOnceWith("1.2.0")
+  } finally {
+    banner.unmount()
+  }
 })
 
 it("waits for a visible main window and an unobstructed paint before recording the card as shown", async () => {
@@ -128,10 +150,10 @@ it("keeps one preview mounted, pauses video when switching and allows navigation
   }
 })
 
-function mountBanner(initiallyVisible: boolean, media: WhatsNewMedia[] = []) {
-  vi.useFakeTimers({toFake: ["requestAnimationFrame", "cancelAnimationFrame"]})
+function mountBanner(initiallyVisible: boolean, media: WhatsNewMedia[] = [], retryDelay: number | null = null) {
+  vi.useFakeTimers({toFake: ["Date", "setTimeout", "clearTimeout", "requestAnimationFrame", "cancelAnimationFrame"]})
   setActivePinia(createPinia())
-  let onWindowVisibility: (visible: boolean) => void = () => {}
+  let onWindowVisibility: ((visible: boolean) => void) | null = null
   const state: AppUpdateState = {
     status: "idle",
     currentVersion: "1.2.0",
@@ -145,24 +167,32 @@ function mountBanner(initiallyVisible: boolean, media: WhatsNewMedia[] = []) {
     installFailure: null,
   }
   const recordShown = vi.fn().mockResolvedValue(true)
+  const getRelease = vi.fn<() => Promise<WhatsNewReleaseResult>>().mockResolvedValue({
+    version: "1.2.0",
+    highlights: ["Shows the release notes after updating."],
+    media,
+    releaseUrl: "https://github.com/scheron/Daily/releases/tag/v1.2.0",
+  })
+  if (retryDelay !== null) getRelease.mockResolvedValueOnce({retryAt: Date.now() + retryDelay})
   mockBridgeIPC({
     "window:is-visible": vi.fn().mockResolvedValue(initiallyVisible),
-    "window:on-visibility-changed": (callback: typeof onWindowVisibility) => {
+    "window:on-visibility-changed": (callback) => {
       onWindowVisibility = callback
       return () => {}
     },
     "updates:get-state": vi.fn().mockResolvedValue(state),
-    "whats-new:get-release": vi.fn().mockResolvedValue({
-      version: "1.2.0",
-      highlights: ["Shows the release notes after updating."],
-      media,
-      releaseUrl: "https://github.com/scheron/Daily/releases/tag/v1.2.0",
-    }),
+    "whats-new:get-release": getRelease,
     "whats-new:mark-shown": recordShown,
   })
   const banner = mount(WhatsNewBanner, {global: {directives: {tooltip: {}}, stubs: {Teleport: true}}})
 
-  return {banner, recordShown, setWindowVisibility: (visible: boolean) => onWindowVisibility(visible)}
+  return {
+    banner,
+    recordShown,
+    setWindowVisibility(visible: boolean) {
+      onWindowVisibility?.(visible)
+    },
+  }
 }
 
 function makeMedia(overrides: Partial<WhatsNewMedia> = {}): WhatsNewMedia {

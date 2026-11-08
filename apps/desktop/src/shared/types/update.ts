@@ -41,3 +41,6 @@ export type WhatsNewRelease = {
   media: WhatsNewMedia[]
   releaseUrl: string
 }
+
+/** A retry deadline is Unix time in milliseconds. Null ends lookups for this session. */
+export type WhatsNewReleaseResult = WhatsNewRelease | {retryAt: number} | null

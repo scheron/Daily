@@ -6,19 +6,21 @@ import {WHATS_NEW_MEDIA_SOURCES} from "@main/config/security"
 import {UPDATES_CONFIG} from "@shared/config/updates"
 import {githubCooldown} from "./utils/githubCooldown"
 
-import type {WhatsNewMedia, WhatsNewRelease} from "@shared/types/update"
+import type {WhatsNewMedia, WhatsNewRelease, WhatsNewReleaseResult} from "@shared/types/update"
 
 type JsonObject = Record<string, unknown>
 
 let cooldown = {restNotBefore: 0, fallbackFailures: 0}
 
-export async function fetchWhatsNewRelease(version: string): Promise<WhatsNewRelease | null> {
+export async function fetchWhatsNewRelease(version: string): Promise<WhatsNewReleaseResult> {
   const tag = `v${version}`
   const url = `https://api.github.com/repos/${UPDATES_CONFIG.githubRepo}/releases/tags/${encodeURIComponent(tag)}`
   const maxAttempts = 2
+  const retryDelayMs = 5 * 60_000
 
-  for (let attempt = 0; attempt < maxAttempts && Date.now() >= cooldown.restNotBefore; attempt++) {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
     if (attempt > 0) await new Promise<void>((resolve) => setTimeout(resolve, 400))
+    if (Date.now() < cooldown.restNotBefore) return {retryAt: cooldown.restNotBefore}
 
     const response = await fetch(url, {
       headers: UPDATES_CONFIG.githubHeaders,
@@ -27,16 +29,21 @@ export async function fetchWhatsNewRelease(version: string): Promise<WhatsNewRel
     }).catch(() => null)
     if (!response) continue
 
-    const payload: unknown = await response.json().catch(() => null)
+    let isBodyUnavailable = false
+    const payload: unknown = await response.json().catch((error: unknown) => {
+      isBodyUnavailable = !(error instanceof SyntaxError)
+      return null
+    })
     const message = isObject<JsonObject>(payload) && typeof payload.message === "string" ? payload.message : null
+    const now = Date.now()
     cooldown =
-      githubCooldown({status: response.status, ok: response.ok, headers: response.headers, message}, Date.now(), cooldown.fallbackFailures) ??
-      cooldown
-    if (response.ok) return readRelease(payload, tag, version)
-    if (response.status < 500) return null
+      githubCooldown({status: response.status, ok: response.ok, headers: response.headers, message}, now, cooldown.fallbackFailures) ?? cooldown
+    if (response.ok && !isBodyUnavailable) return readRelease(payload, tag, version)
+    if (cooldown.restNotBefore > now) return {retryAt: cooldown.restNotBefore}
+    if (!response.ok && response.status < 500) return null
   }
 
-  return null
+  return {retryAt: Date.now() + retryDelayMs}
 }
 
 export function whatsNewReleaseUrl(version: string): string {

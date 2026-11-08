@@ -55,7 +55,7 @@ import type {FocusCommand, FocusSession} from "@shared/types/focus"
 import type {ApprovalKind, BridgeIPC} from "@shared/types/ipc"
 import type {HotkeyRebindResult, QuickTaskHotkeyState, QuickTaskMenu} from "@shared/types/quickTask"
 import type {ToastMessage} from "@shared/types/toast"
-import type {AppUpdateOffer, AppUpdateState, WhatsNewRelease} from "@shared/types/update"
+import type {AppUpdateOffer, AppUpdateState, WhatsNewReleaseResult} from "@shared/types/update"
 import type {PartialDeep} from "type-fest"
 
 // prettier-ignore
@@ -150,7 +150,9 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
     ipcRenderer.on("updates:state-changed", subscription)
     return () => ipcRenderer.removeListener("updates:state-changed", subscription)
   },
-  "whats-new:get-release": () => ipcRenderer.invoke("whats-new:get-release") as Promise<WhatsNewRelease | null>,
+  "whats-new:get-release"() {
+    return ipcRenderer.invoke("whats-new:get-release") as Promise<WhatsNewReleaseResult>
+  },
   "whats-new:mark-shown": (version: string) => ipcRenderer.invoke("whats-new:mark-shown", version) as Promise<boolean>,
 
   "activity:get-by-task": (taskId: Task["id"]) => ipcRenderer.invoke("activity:get-by-task", taskId) as Promise<TaskEvent[]>,

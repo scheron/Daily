@@ -53,11 +53,11 @@ import type {
 import type {FocusCommand, FocusSession} from "./focus"
 import type {HotkeyRebindResult, QuickTaskHotkeyState, QuickTaskMenu} from "./quickTask"
 import type {ToastMessage} from "./toast"
-import type {AppUpdateOffer, AppUpdateState, WhatsNewRelease} from "./update"
+import type {AppUpdateOffer, AppUpdateState, WhatsNewReleaseResult} from "./update"
 
 export type ApprovalKind = "device" | "agent"
 
-export interface BridgeIPC {
+export type BridgeIPC = {
   invoke: (channel: string, ...args: any[]) => Promise<any>
   send: (channel: string, ...args: any[]) => void
   on: (channel: string, callback: (...args: any[]) => void) => () => void
@@ -131,7 +131,7 @@ export interface BridgeIPC {
   "updates:download": (offer: AppUpdateOffer) => Promise<boolean>
   "updates:install": () => Promise<boolean>
   "updates:on-state-changed": (callback: (state: AppUpdateState) => void) => () => void
-  "whats-new:get-release": () => Promise<WhatsNewRelease | null>
+  "whats-new:get-release": () => Promise<WhatsNewReleaseResult>
   "whats-new:mark-shown": (version: string) => Promise<boolean>
 
   "activity:get-by-task": (taskId: Task["id"]) => Promise<TaskEvent[]>

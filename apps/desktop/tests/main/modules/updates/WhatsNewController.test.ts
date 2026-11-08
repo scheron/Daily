@@ -25,6 +25,7 @@ describe("What's New after updating Daily", () => {
   })
 
   afterEach(async () => {
+    vi.useRealTimers()
     await rm(profile, {recursive: true, force: true})
   })
 
@@ -57,13 +58,23 @@ describe("What's New after updating Daily", () => {
     expect(await launch("1.4.0").getRelease()).toEqual(makeRelease("1.4.0"))
   })
 
-  it("keeps pending after a failed fetch and shares one bounded load per launch", async () => {
+  it("shares each lookup and retries pending notes when the reported deadline arrives", async () => {
+    vi.useFakeTimers({toFake: ["Date"], now: new Date("2026-11-08T00:00:00Z")})
+    const retryAt = Date.parse("2026-11-08T00:05:00Z")
     launch("1.0.0")
-    fetchWhatsNewRelease.mockResolvedValueOnce(null)
-    const offline = launch("1.1.0")
-    expect(await Promise.all([offline.getRelease(), offline.getRelease()])).toEqual([null, null])
-    expect(await offline.getRelease()).toBeNull()
-    expect(await launch("1.1.0").getRelease()).toEqual(makeRelease("1.1.0"))
+    fetchWhatsNewRelease.mockResolvedValueOnce({retryAt})
+    const upgraded = launch("1.1.0")
+
+    expect(await Promise.all([upgraded.getRelease(), upgraded.getRelease()])).toEqual([{retryAt}, {retryAt}])
+    vi.setSystemTime(retryAt - 1)
+    expect(await upgraded.getRelease()).toEqual({retryAt})
+    expect(fetchWhatsNewRelease).toHaveBeenCalledTimes(1)
+
+    vi.setSystemTime(retryAt)
+    const release = makeRelease("1.1.0")
+    expect(await Promise.all([upgraded.getRelease(), upgraded.getRelease()])).toEqual([release, release])
+    expect(await upgraded.getRelease()).toEqual(release)
+    expect(fetchWhatsNewRelease).toHaveBeenCalledTimes(2)
   })
 
   it("replaces unshown notes on upgrade and clears pending notes on downgrade", async () => {
@@ -78,6 +89,7 @@ describe("What's New after updating Daily", () => {
     launch("1.0.0")
     fetchWhatsNewRelease.mockResolvedValueOnce(makeRelease("1.2.0"))
     const upgraded = launch("1.1.0")
+    expect(await upgraded.getRelease()).toBeNull()
     expect(await upgraded.getRelease()).toBeNull()
     expect(upgraded.markShown("1.1.0")).toBe(false)
     expect(await launch("1.1.0").getRelease()).toEqual(makeRelease("1.1.0"))

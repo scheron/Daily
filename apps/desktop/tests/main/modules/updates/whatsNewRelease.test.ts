@@ -111,8 +111,8 @@ describe("loading What's New for the installed release", () => {
     expect(fetch).toHaveBeenCalledTimes(1)
   })
 
-  it("retries a transient failure once and leaves later retries to a future launch", async () => {
-    vi.useFakeTimers()
+  it("returns a five-minute deadline when the immediate retry also fails", async () => {
+    vi.useFakeTimers({now: new Date("2026-11-07T00:00:00Z")})
     const fetch = vi
       .fn()
       .mockRejectedValueOnce(new TypeError("Network error"))
@@ -122,8 +122,27 @@ describe("loading What's New for the installed release", () => {
     const load = fetchWhatsNewRelease(version)
     await vi.runAllTimersAsync()
 
-    await expect(load).resolves.toBeNull()
+    await expect(load).resolves.toEqual({retryAt: Date.parse("2026-11-07T00:05:00.400Z")})
     expect(fetch).toHaveBeenCalledTimes(2)
+  })
+
+  it("retries when GitHub sends successful headers but the response body fails in transit", async () => {
+    vi.useFakeTimers()
+    const body = new ReadableStream({
+      start(controller) {
+        controller.error(new TypeError("Network error"))
+      },
+    })
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(body))
+      .mockImplementation(async () => releaseResponse("A new feature is available."))
+    vi.stubGlobal("fetch", fetch)
+
+    const load = fetchWhatsNewRelease(version)
+    await vi.runAllTimersAsync()
+
+    await expect(load).resolves.toMatchObject({highlights: ["A new feature is available."]})
   })
 
   it("does not request GitHub again until its cooldown elapses", async () => {
@@ -135,9 +154,10 @@ describe("loading What's New for the installed release", () => {
       .mockImplementation(async () => releaseResponse("A new feature is available."))
     vi.stubGlobal("fetch", fetch)
 
-    await expect(fetchWhatsNewRelease(version)).resolves.toBeNull()
+    const retryAt = startedAt + 120_000
+    await expect(fetchWhatsNewRelease(version)).resolves.toEqual({retryAt})
     vi.setSystemTime(startedAt + 119_000)
-    await expect(fetchWhatsNewRelease(version)).resolves.toBeNull()
+    await expect(fetchWhatsNewRelease(version)).resolves.toEqual({retryAt})
     expect(fetch).toHaveBeenCalledTimes(1)
 
     vi.setSystemTime(startedAt + 120_000)

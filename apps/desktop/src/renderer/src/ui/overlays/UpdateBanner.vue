@@ -38,7 +38,8 @@ const description = computed(() => {
   if (hasInstallFailure.value) {
     return "Daily is running the version it had before. Your tasks and settings are untouched, and the download is still ready — try again."
   }
-  return "A new version of Daily is available. The app will relaunch automatically after installing."
+  const {availableVersion, currentVersion} = updateStore.state
+  return `Daily ${availableVersion} is available. You're running ${currentVersion}. The app will relaunch automatically after installing.`
 })
 
 const failureDetail = computed(() => {
@@ -69,10 +70,6 @@ const progressLabel = computed(() =>
   isNumber(updateStore.state.downloadProgress) ? `${updateStore.state.downloadProgress}% downloaded` : "Preparing download...",
 )
 
-watch(hasInstallFailure, (value) => {
-  if (!value) isDetailsOpen.value = false
-})
-
 function handlePrimaryAction() {
   return updateStore.downloadUpdate()
 }
@@ -80,6 +77,10 @@ function handlePrimaryAction() {
 function getStatusIconClasses(isBusy: boolean, hasFailure: boolean) {
   return cn("size-4", isBusy && "animate-spin", hasFailure && "text-warning")
 }
+
+watch(hasInstallFailure, (value) => {
+  if (!value) isDetailsOpen.value = false
+})
 </script>
 
 <template>
