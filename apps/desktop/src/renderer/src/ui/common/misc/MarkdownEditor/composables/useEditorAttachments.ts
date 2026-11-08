@@ -45,15 +45,19 @@ export function useEditorAttachments(
     event.preventDefault()
     event.stopPropagation()
 
+    const text = clipboard.getData("text/plain")
     if (enabled.value) {
       const image = getClipboardImage(clipboard)
+      if (event.isTrusted && image?.type !== "image/gif" && (image || !text)) {
+        void pasteNativeGif(instance, image)
+        return
+      }
       if (image) {
         void insertImages([image], instance)
         return
       }
     }
 
-    const text = clipboard.getData("text/plain")
     if (!text) return
 
     const blocks = text.trim() && !isLiteralTextBlock(instance) ? instance.markdown?.parse(text).content : undefined
@@ -67,13 +71,22 @@ export function useEditorAttachments(
     instance.commands.insertContent(content)
 
     function getClipboardImage(data: DataTransfer) {
-      for (const item of Array.from(data.items ?? [])) {
-        if (!item.type.startsWith("image/")) continue
-        const file = item.getAsFile()
-        if (file) return file
-      }
-      return Array.from(data.files ?? []).find((file) => file.type.startsWith("image/")) ?? null
+      const files = Array.from(data.items ?? [])
+        .filter((item) => item.type.startsWith("image/"))
+        .map((item) => item.getAsFile())
+        .concat(Array.from(data.files ?? []))
+
+      return files.find((file) => file?.type === "image/gif") ?? files.find((file) => file?.type.startsWith("image/")) ?? null
     }
+  }
+
+  async function pasteNativeGif(instance: Editor, fallback: File | null) {
+    const key = contentKey.value
+    const bytes = await window.BridgeIPC["clipboard:read-gif"]().catch(() => null)
+    if (key !== contentKey.value) return
+
+    const image = bytes ? new File([bytes], "pasted.gif", {type: "image/gif"}) : fallback
+    if (image) await insertImages([image], instance)
   }
 
   function onDragOver(event: DragEvent) {

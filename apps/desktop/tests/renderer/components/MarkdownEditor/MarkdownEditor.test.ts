@@ -18,12 +18,28 @@ vi.mock("../../../../src/renderer/src/ui/common/misc/MarkdownEditor/utils/upload
 const fileMarkdown = "![shot =240x120](daily://file/DF-shot)"
 const task = makeTask({id: "__draft__", status: "backlog", content: "", scheduled: null})
 
-function dispatchImageEvent(type: "drop" | "paste" | "dragover", target: Element) {
-  const file = new File(["x"], "shot.png", {type: "image/png"})
+function dispatchImageEvent(
+  type: "drop" | "paste" | "dragover",
+  target: Element,
+  {files = [new File(["x"], "shot.png", {type: "image/png"})], trusted = false} = {},
+) {
   const event = new Event(type, {bubbles: true, cancelable: true})
-  const transfer = {files: [file], types: ["Files"]}
-  const clipboard = {items: [{type: "image/png", getAsFile: () => file}], getData: () => ""}
+  const transfer = {files, types: ["Files"]}
+  const clipboard = {
+    ...transfer,
+    items: files.map((file) => ({
+      kind: "file",
+      type: file.type,
+      getAsFile() {
+        return file
+      },
+    })),
+    getData() {
+      return ""
+    },
+  }
   Object.defineProperty(event, type === "paste" ? "clipboardData" : "dataTransfer", {value: type === "paste" ? clipboard : transfer})
+  if (trusted) Object.defineProperty(event, "isTrusted", {value: true})
   target.dispatchEvent(event)
   return event
 }
@@ -148,6 +164,29 @@ describe("MarkdownEditor", () => {
     dispatchImageEvent("paste", editor.view.dom)
     await vi.waitFor(() => expect(lastMarkdown()?.split(fileMarkdown)).toHaveLength(3))
     expect(uploadImageFile).toHaveBeenCalledTimes(2)
+  })
+
+  it("inserts the GIF when a clipboard image also has a static representation", async () => {
+    const {editor, lastMarkdown} = await mountEditor("", {task})
+    const gifMarkdown = "![animation =240x120](daily://file/DF-animation)"
+    uploadImageFile.mockImplementation(async (file: File) => (file.type === "image/gif" ? gifMarkdown : fileMarkdown))
+
+    dispatchImageEvent("paste", editor.view.dom, {
+      files: [new File(["static"], "shot.png", {type: "image/png"}), new File(["animated"], "animation.gif", {type: "image/gif"})],
+    })
+
+    await vi.waitFor(() => expect(lastMarkdown()?.trim()).toBe(gifMarkdown))
+  })
+
+  it("inserts the original clipboard GIF when Chromium only exposes a PNG", async () => {
+    mockBridgeIPC({"clipboard:read-gif": vi.fn().mockResolvedValue(Uint8Array.of(71, 73, 70, 56, 57, 97))})
+    const {editor, lastMarkdown} = await mountEditor("", {task})
+    const gifMarkdown = "![animation =240x120](daily://file/DF-animation)"
+    uploadImageFile.mockImplementation(async (file: File) => (file.type === "image/gif" ? gifMarkdown : fileMarkdown))
+
+    dispatchImageEvent("paste", editor.view.dom, {trusted: true})
+
+    await vi.waitFor(() => expect(lastMarkdown()?.trim()).toBe(gifMarkdown))
   })
 
   it("inserts paste at the caret, including whitespace-only text", async () => {

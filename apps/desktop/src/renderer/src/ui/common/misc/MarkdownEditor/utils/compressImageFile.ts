@@ -1,4 +1,6 @@
-export async function compressImageFile(file: File): Promise<{blob: Blob; width: number; height: number}> {
+import {blobToBuffer} from "./blobToBuffer"
+
+export async function compressImageFile(file: File) {
   const maxWidth = 1024
   const maxHeight = 1024
   const quality = 0.9
@@ -29,5 +31,5 @@ export async function compressImageFile(file: File): Promise<{blob: Blob; width:
   })
 
   bitmap.close()
-  return {blob, width, height}
+  return {buffer: await blobToBuffer(blob), width, height}
 }

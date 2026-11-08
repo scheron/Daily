@@ -87,6 +87,9 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "platform:is-mac": () => process.platform === "darwin",
 
   "shell:open-external": (url: string) => ipcRenderer.invoke("shell:open-external", url) as Promise<boolean>,
+  "clipboard:read-gif"() {
+    return ipcRenderer.invoke("clipboard:read-gif") as Promise<Uint8Array<ArrayBuffer> | null>
+  },
 
   "storage-sync:sync": () => ipcRenderer.invoke("storage-sync:sync") as Promise<void>,
   "storage-sync:get-status": () => ipcRenderer.invoke("storage-sync:get-status") as Promise<SyncStatus>,

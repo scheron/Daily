@@ -72,6 +72,7 @@ export type BridgeIPC = {
   "platform:is-mac": () => boolean
 
   "shell:open-external": (url: string) => Promise<boolean>
+  "clipboard:read-gif": () => Promise<Uint8Array<ArrayBuffer> | null>
 
   "storage-sync:sync": () => Promise<void>
   "storage-sync:get-status": () => Promise<SyncStatus>
