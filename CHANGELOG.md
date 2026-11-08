@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.39.2 - 2026-11-08
+
+### ✨ New Features
+
+- **Linked task previews** — hover over a dependency to see the linked task’s details, description, and images while keeping the current task open.
+
+### 🎨 Improvements
+
+- **Updates** — the update banner shows the installed version and the version available to install.
+
+### 🐛 Bug Fixes
+
+- Fixed What’s New failing to appear after a temporary connection problem.
+- Fixed the app icon ignoring the system’s icon appearance on macOS Tahoe.
+
+---
+
 ## v0.39.1 - 2026-11-08
 
 ### 🐛 Bug Fixes
