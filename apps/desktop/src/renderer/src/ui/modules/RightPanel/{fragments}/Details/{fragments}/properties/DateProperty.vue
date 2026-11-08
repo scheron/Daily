@@ -34,7 +34,7 @@ function selectDate(date: ISODate, hide: () => void) {
 </script>
 
 <template>
-  <BasePopup hide-header position="start">
+  <BasePopup hide-header position="start" container-class="max-h-none">
     <template #trigger="{toggle}">
       <PropertyCell :label="dateLabel" :is-empty="!task.scheduled" @click="toggle">
         <template #icon>
