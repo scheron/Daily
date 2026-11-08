@@ -12,7 +12,7 @@ import type {MarkedToken, Token, Tokens} from "marked"
 
 import "./markdownPreview.css"
 
-export type MarkdownPreviewOptions = {isCompact: boolean; matches?: SearchMatch[]; isCodeClipped?: boolean}
+export type MarkdownPreviewOptions = {isCompact: boolean; matches?: SearchMatch[]; isCodeClipped?: boolean; isReadOnly?: boolean}
 type MarkdownPreview = {element: HTMLElement; languagesLoaded: Promise<void> | null}
 
 export function renderMarkdownPreview(source: string, options: MarkdownPreviewOptions): MarkdownPreview {
@@ -87,6 +87,7 @@ export function renderMarkdownPreview(source: string, options: MarkdownPreviewOp
         }
         const {element: code, languageLoaded} = renderPreviewCode(token, {
           isClipped: options.isCompact || !!options.isCodeClipped,
+          isReadOnly: !!options.isReadOnly,
           ranges: highlights.rangesForCode(token),
         })
         if (languageLoaded) loadingLanguages.add(languageLoaded)
@@ -178,14 +179,17 @@ export function renderMarkdownPreview(source: string, options: MarkdownPreviewOp
       }
     }
 
-    if (token.text.trim()) block.append(createCodeCopyButton(() => token.text))
+    if (!options.isReadOnly && token.text.trim()) block.append(createCodeCopyButton(() => token.text))
     block.append(scroll)
     parent.append(block)
   }
 
   function appendLink(parent: HTMLElement, token: Tokens.Link, inTable: boolean) {
     const clickable =
-      !inTable && /^\[[\s\S]*\]\([\s\S]*\)$/.test(token.raw) && ["https:", "http:", "mailto:"].includes(URL.parse(token.href)?.protocol ?? "")
+      !options.isReadOnly &&
+      !inTable &&
+      /^\[[\s\S]*\]\([\s\S]*\)$/.test(token.raw) &&
+      ["https:", "http:", "mailto:"].includes(URL.parse(token.href)?.protocol ?? "")
     if (!clickable) {
       const label = element("span", "markdown-link-label")
       appendInline(label, token.tokens, inTable)
@@ -212,7 +216,14 @@ export function renderMarkdownPreview(source: string, options: MarkdownPreviewOp
       return
     }
 
-    parent.append(createMarkdownImage({url: token.href, alt: decodeMarkdownImageAlt(token.text), title: token.title ?? undefined}))
+    parent.append(
+      createMarkdownImage({
+        url: token.href,
+        alt: decodeMarkdownImageAlt(token.text),
+        ...(token.title ? {title: token.title} : {}),
+        isReadOnly: !!options.isReadOnly,
+      }),
+    )
   }
 
   function drawList(token: Tokens.List) {

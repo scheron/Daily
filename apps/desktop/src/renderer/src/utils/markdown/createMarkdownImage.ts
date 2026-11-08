@@ -1,9 +1,9 @@
 import "./markdownImage.css"
 
-type MarkdownImage = {url: string; alt: string; title?: string}
+type MarkdownImage = {url: string; alt: string; title?: string; isReadOnly?: boolean}
 
 /** The decoded alt may end in a Daily size suffix, such as `Screenshot =320x160`. */
-export function createMarkdownImage({url, alt, title}: MarkdownImage): HTMLSpanElement {
+export function createMarkdownImage({url, alt, title, isReadOnly}: MarkdownImage): HTMLSpanElement {
   const dimensions = alt.match(/\s*=(\d+)x(\d+)$/)
   const name = (dimensions ? alt.slice(0, dimensions.index) : alt) || "image"
   const width = dimensions ? Number(dimensions[1]) : undefined
@@ -50,6 +50,8 @@ export function createMarkdownImage({url, alt, title}: MarkdownImage): HTMLSpanE
 
     const message = document.createElement("span")
     message.textContent = `Failed to load image: ${name}`
+    notice.append(message)
+    if (isReadOnly) return notice
 
     const button = document.createElement("button")
     button.type = "button"
@@ -61,7 +63,7 @@ export function createMarkdownImage({url, alt, title}: MarkdownImage): HTMLSpanE
       wrapper.replaceChildren(img)
       reload()
     }
-    notice.append(message, button)
+    notice.append(button)
     return notice
   }
 }

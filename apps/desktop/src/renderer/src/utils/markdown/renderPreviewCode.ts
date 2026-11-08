@@ -28,12 +28,12 @@ const languageLoaders = new Map(
 )
 const pending = new Map<string, Promise<void>>()
 
-export function renderPreviewCode(token: Tokens.Code, options: {isClipped: boolean; ranges: readonly MarkdownOffsetRange[]}) {
+export function renderPreviewCode(token: Tokens.Code, options: {isClipped: boolean; isReadOnly: boolean; ranges: readonly MarkdownOffsetRange[]}) {
   const block = document.createElement("div")
   block.className = options.isClipped ? "markdown-code-block markdown-code-clipped" : "markdown-code-block"
   const language = languageName(token)
   block.dataset.language = language || "plaintext"
-  if (token.text.trim()) block.append(createCodeCopyButton(() => token.text))
+  if (!options.isReadOnly && token.text.trim()) block.append(createCodeCopyButton(() => token.text))
 
   const scroller = document.createElement("div")
   scroller.className = "markdown-code-scroll"

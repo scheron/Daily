@@ -17,7 +17,12 @@ import ChipsCell from "../ChipsCell.vue"
 import type {IconName} from "@/ui/base/BaseIcon"
 import type {Task, TaskRelationSets, TaskStatus} from "@daily/protocol"
 
-const props = defineProps<{side: keyof TaskRelationSets}>()
+const props = defineProps<{side: keyof TaskRelationSets; previewId: string; previewTaskId?: Task["id"]}>()
+const emit = defineEmits<{
+  preview: [taskId: Task["id"], event: PointerEvent | FocusEvent]
+  leavePreview: [event: PointerEvent | FocusEvent]
+  hidePreview: []
+}>()
 
 const taskEditorStore = useTaskEditorStore()
 const tasksStore = useTasksStore()
@@ -56,6 +61,11 @@ const current = computed<TaskRelationSets>(() => ({
 
 const {open: confirmLeaveIfDirty} = useConfirmUnsavedModal()
 
+function onOpenPicker(toggle: () => void) {
+  emit("hidePreview")
+  toggle()
+}
+
 function onLink(taskId: Task["id"]) {
   if (props.side === "blockedBy") {
     taskEditorStore.patch({blockedBy: [...current.value.blockedBy, taskId], blocks: current.value.blocks.filter((id) => id !== taskId)})
@@ -65,11 +75,13 @@ function onLink(taskId: Task["id"]) {
 }
 
 function onRemove(taskId: Task["id"]) {
+  emit("hidePreview")
   if (props.side === "blockedBy") taskEditorStore.patch({blockedBy: current.value.blockedBy.filter((id) => id !== taskId)})
   else taskEditorStore.patch({blocks: current.value.blocks.filter((id) => id !== taskId)})
 }
 
 async function onOpen(taskId: Task["id"]) {
+  emit("hidePreview")
   const proceed = await confirmLeaveIfDirty()
   if (!proceed) return
   taskEditorStore.open(taskId)
@@ -83,14 +95,19 @@ function columnFor(status: TaskStatus) {
 <template>
   <BasePopup hide-header position="start" trigger-class="min-w-0" container-class="p-0 overflow-hidden max-h-none">
     <template #trigger="{toggle}">
-      <ChipsCell :icon="cellIcon" :label="cellLabel" @open="toggle">
+      <ChipsCell :icon="cellIcon" :label="cellLabel" @open="onOpenPicker(toggle)">
         <BaseButton
           v-for="row in rows"
           :key="row.id"
           :variant="columnFor(row.status).buttonVariant"
           :icon="columnFor(row.status).icon"
+          :aria-describedby="previewTaskId === row.id ? previewId : undefined"
           size="xs"
           class="shrink-0"
+          @pointerenter="emit('preview', row.id, $event)"
+          @pointerleave="emit('leavePreview', $event)"
+          @focus="emit('preview', row.id, $event)"
+          @blur="emit('leavePreview', $event)"
           @click="onOpen(row.id)"
         >
           <span class="font-mono">{{ toTaskIdHash(row.id) }}</span>
