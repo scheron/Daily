@@ -30,6 +30,11 @@ export function createSettingsWindow(section?: string): BrowserWindow {
     },
   })
 
+  settingsWindow.webContents.ipc.once("window:ready", () => {
+    settingsWindow.show()
+    focusWindow(settingsWindow)
+  })
+
   const query = section ? `?section=${section}` : ""
   const rendererPath = electronPaths.renderer()
   if (rendererPath.startsWith("http")) {
@@ -37,13 +42,6 @@ export function createSettingsWindow(section?: string): BrowserWindow {
   } else {
     settingsWindow.loadFile(rendererPath, {hash: `/settings${query}`})
   }
-
-  settingsWindow.webContents.once("ipc-message", (_event, channel) => {
-    if (channel === "window:ready") {
-      settingsWindow.show()
-      focusWindow(settingsWindow)
-    }
-  })
 
   return settingsWindow
 }

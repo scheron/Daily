@@ -32,19 +32,17 @@ export function createAssistantWindow(): BrowserWindow {
     },
   })
 
+  assistantWindow.webContents.ipc.once("window:ready", () => {
+    assistantWindow.show()
+    focusWindow(assistantWindow)
+  })
+
   const rendererPath = electronPaths.renderer()
   if (rendererPath.startsWith("http")) {
     assistantWindow.loadURL(`${rendererPath}#/assistant`)
   } else {
     assistantWindow.loadFile(rendererPath, {hash: "/assistant"})
   }
-
-  assistantWindow.webContents.once("ipc-message", (_event, channel) => {
-    if (channel === "window:ready") {
-      assistantWindow.show()
-      focusWindow(assistantWindow)
-    }
-  })
 
   return assistantWindow
 }

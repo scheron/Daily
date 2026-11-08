@@ -38,19 +38,17 @@ export function createFocusWindow(mainBounds?: Rectangle): BrowserWindow {
     },
   })
 
+  detachedWindow.webContents.ipc.once("window:ready", () => {
+    detachedWindow.show()
+    focusWindow(detachedWindow)
+  })
+
   const rendererPath = electronPaths.renderer()
   if (rendererPath.startsWith("http")) {
     detachedWindow.loadURL(`${rendererPath}#/focus`)
   } else {
     detachedWindow.loadFile(rendererPath, {hash: "/focus"})
   }
-
-  detachedWindow.webContents.once("ipc-message", (_event, channel) => {
-    if (channel === "window:ready") {
-      detachedWindow.show()
-      focusWindow(detachedWindow)
-    }
-  })
 
   return detachedWindow
 }

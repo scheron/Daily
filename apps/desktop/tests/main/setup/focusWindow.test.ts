@@ -12,7 +12,7 @@ vi.mock("electron", () => ({
       this.url = null
       this.handlers = new Map()
       this.isClosed = false
-      this.webContents = {once: vi.fn()}
+      this.webContents = {ipc: {once: vi.fn()}}
       electron.windows.push(this)
     }
 
