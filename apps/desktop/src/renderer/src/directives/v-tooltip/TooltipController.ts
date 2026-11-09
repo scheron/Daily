@@ -1,4 +1,8 @@
+import {createTextVNode, h, render} from "vue"
+
 import {notNull} from "@daily/std"
+
+import type {Slot} from "vue"
 
 export type TooltipPlacement =
   | "top"
@@ -15,8 +19,9 @@ export type TooltipPlacement =
   | "right-end"
 
 export type TooltipOptions = {
-  content: string
+  content?: string | Slot
   placement?: TooltipPlacement
+  delayMs?: number
 }
 
 const TOOLTIP_OFFSET = 8
@@ -32,20 +37,28 @@ export class TooltipController {
   show(element: HTMLElement, options: TooltipOptions) {
     if (!options.content) return
 
-    this.clear()
+    this.hide()
     this.target = element
     this.options = options
 
-    this.timerId = window.setTimeout(() => this.render(), 1200)
+    this.timerId = window.setTimeout(() => this.render(), options.delayMs ?? 1200)
+  }
+
+  updateIfTarget(element: HTMLElement, options: TooltipOptions) {
+    if (this.target !== element) return
+
+    this.options = options
+    if (this.isVisible) this.render()
   }
 
   hide() {
     this.clear()
+    this.target = null
     if (!this.container || !this.isVisible) return
 
     this.container.setAttribute("aria-hidden", "true")
     this.isVisible = false
-    this.target = null
+    if (typeof this.options.content === "function") render(null, this.container)
   }
 
   hideIfTarget(element: HTMLElement) {
@@ -71,13 +84,12 @@ export class TooltipController {
     if (!this.target || !this.options.content) return
 
     const container = this.getContainer()
-    container.textContent = this.options.content
+    const {content} = this.options
+    render(typeof content === "function" ? h(content) : createTextVNode(content), container)
 
-    requestAnimationFrame(() => {
-      this.position()
-      container.setAttribute("aria-hidden", "false")
-      this.isVisible = true
-    })
+    this.position()
+    container.setAttribute("aria-hidden", "false")
+    this.isVisible = true
   }
 
   private getContainer(): HTMLElement {
@@ -164,7 +176,10 @@ export class TooltipController {
 
   private destroy() {
     this.clear()
-    this.container?.remove()
+    if (this.container) {
+      render(null, this.container)
+      this.container.remove()
+    }
     this.container = null
     this.target = null
     this.isVisible = false

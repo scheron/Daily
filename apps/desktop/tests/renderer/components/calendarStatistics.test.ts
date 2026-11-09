@@ -4,7 +4,7 @@ import {expect, it} from "vitest"
 
 import {groupTasksByDay} from "@daily/protocol"
 
-import {calcMonthStatistics} from "../../../src/renderer/src/ui/common/(calendars)/TaskCalendar/utils/calcMonthStatistics"
+import {countTasksByStatus} from "../../../src/renderer/src/ui/common/(calendars)/TaskCalendar/utils/countTasksByStatus"
 import {formatDaysToMonth} from "../../../src/renderer/src/ui/common/(calendars)/TaskCalendar/utils/formatDaysToMonth"
 import {makeTask} from "../../helpers/taskFixtures"
 
@@ -12,8 +12,7 @@ it("counts each true status in the calendar without counting ready tasks as Canc
   const tasks = ["todo", "ready_for_agent", "ready_to_merge", "in_progress", "done", "cancelled"].map((status, i) =>
     makeTask({id: String(i), status, orderIndex: i}),
   )
-  const days = groupTasksByDay({tasks, tags: []})
-  expect(calcMonthStatistics(days).get("2030-01")).toEqual({
+  expect(countTasksByStatus(tasks, "agents")).toEqual({
     backlog: 0,
     todo: 1,
     ready_for_agent: 1,

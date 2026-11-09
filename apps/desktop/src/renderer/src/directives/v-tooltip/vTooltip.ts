@@ -24,6 +24,7 @@ export default {
       controller.hideIfTarget(el)
     } else {
       attach(el, opts)
+      controller.updateIfTarget(el, opts)
     }
   },
 

@@ -58,6 +58,6 @@ function setSubtaskDone(id: Subtask["id"], done: boolean) {
       @open="openSubtask(subtask.id)"
     />
 
-    <SubtaskItem v-if="isAdding" @save="add" @cancel="isAdding = false" />
+    <SubtaskItem v-if="isAdding" @save="add" @save-and-continue="addSubtask" @cancel="isAdding = false" />
   </section>
 </template>

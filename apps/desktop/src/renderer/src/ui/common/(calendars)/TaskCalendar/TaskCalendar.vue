@@ -2,19 +2,20 @@
 import {computed, onBeforeMount, ref, watch} from "vue"
 import {DateTime} from "luxon"
 
+import {boardColumnForStatus} from "@daily/protocol"
 import {isToday, toDateLabel} from "@daily/std"
 
 import {useBoardDrop} from "@/composables/tasks/useBoardDrop"
 import {useSettingValue} from "@/composables/useSettingValue"
 import {TASK_COLUMNS} from "@/constants/ui"
 import BaseButton from "@/ui/base/BaseButton"
-import BaseIcon from "@/ui/base/BaseIcon.vue"
 import {cn} from "@/utils/ui/tailwindcss"
 import {useMonthDragStep} from "./composables/useMonthDragStep"
-import {calcMonthStatistics} from "./utils/calcMonthStatistics"
+import {countTasksByStatus} from "./utils/countTasksByStatus"
 import {formatDaysToMonth} from "./utils/formatDaysToMonth"
+import StatusCounts from "./{fragments}/StatusCounts.vue"
 
-import type {Day, ISODate} from "@daily/protocol"
+import type {BoardMode, Day, ISODate} from "@daily/protocol"
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const
 
@@ -37,28 +38,18 @@ const emit = defineEmits<{
 
 const currentMonth = ref<DateTime<boolean>>(DateTime.now())
 
-const boardMode = useSettingValue("appearance.boardMode", "normal")
+const boardMode = useSettingValue<"appearance.boardMode", BoardMode>("appearance.boardMode", "normal")
 
-const countColumns = computed(() =>
-  TASK_COLUMNS.filter((column) => boardMode.value === "agents" || !["ready_for_agent", "ready_to_merge"].includes(column.status)),
-)
+const countColumns = computed(() => TASK_COLUMNS.filter(({status}) => boardColumnForStatus(status, boardMode.value) === status))
 const calendarDays = computed(() => formatDaysToMonth(currentMonth.value, props.days))
 const monthYearDisplay = computed(() => currentMonth.value.toFormat("MMMM yyyy", {locale: "en"}))
 const currentMonthKey = computed(() => currentMonth.value.toFormat("yyyy-MM"))
-const monthCounts = computed(() => {
-  const counts = calcMonthStatistics(props.days).get(currentMonthKey.value) ?? {
-    backlog: 0,
-    todo: 0,
-    ready_for_agent: 0,
-    in_progress: 0,
-    ready_to_merge: 0,
-    done: 0,
-    cancelled: 0,
-  }
-  if (boardMode.value === "normal")
-    return {...counts, backlog: counts.backlog + counts.ready_for_agent, in_progress: counts.in_progress + counts.ready_to_merge}
-  return counts
-})
+const monthCounts = computed(() =>
+  countTasksByStatus(
+    props.days.filter((day) => day.date.slice(0, 7) === currentMonthKey.value).flatMap((day) => day.tasks),
+    boardMode.value,
+  ),
+)
 
 const {dropTargetDate} = useBoardDrop()
 
@@ -78,10 +69,6 @@ function jumpToCurrentMonth() {
 
 function selectDate(isoDate: ISODate) {
   emit("select-date", isoDate)
-}
-
-function getCountClasses(hasTasks: boolean, titleClass: string) {
-  return cn("flex shrink-0 items-center gap-0.5 whitespace-nowrap", [hasTasks ? titleClass : "text-base-content/50"])
 }
 
 function getDateClasses(isoDate: ISODate, isCurrentMonth: boolean) {
@@ -127,18 +114,7 @@ onBeforeMount(() => {
         </BaseButton>
         <BaseButton variant="ghost" icon="chevron-right" data-month-step="next" @click="nextMonth" />
       </div>
-      <div class="flex shrink-0 items-center gap-2 px-1 text-xs font-semibold">
-        <span
-          v-for="column in countColumns"
-          :key="column.status"
-          v-tooltip="column.label"
-          :aria-label="`${column.label}: ${monthCounts[column.status]}`"
-          :class="getCountClasses(monthCounts[column.status] > 0, column.titleClass)"
-        >
-          <BaseIcon :name="column.icon" class="size-3" />
-          {{ monthCounts[column.status] }}
-        </span>
-      </div>
+      <StatusCounts :columns="countColumns" :counts="monthCounts" class="px-1" show-labels />
     </div>
 
     <ul class="grid grid-cols-7 gap-1">
@@ -152,7 +128,8 @@ onBeforeMount(() => {
         v-for="day in calendarDays"
         :key="day.isoDate"
         variant="ghost"
-        :tooltip="toDateLabel(day.isoDate)"
+        :tooltip-delay-ms="300"
+        :aria-label="toDateLabel(day.isoDate)"
         :data-drop-day="day.isoDate"
         :class="getDateClasses(day.isoDate, day.isCurrentMonth)"
         @click="selectDate(day.isoDate)"
@@ -160,6 +137,10 @@ onBeforeMount(() => {
         {{ day.date.day }}
 
         <div v-if="day.dayInfo.countTotalTasks" :class="getDotClasses(day.dayInfo.countActiveTasks > 0)" />
+
+        <template #tooltip>
+          <StatusCounts :columns="countColumns" :counts="countTasksByStatus(day.tasks, boardMode)" />
+        </template>
       </BaseButton>
     </ul>
     <BaseButton v-if="allowClear && selectedDate" variant="ghost-muted" icon="calendar" class="mt-2 w-full" @click="emit('clear-date')">

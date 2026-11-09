@@ -16,6 +16,7 @@ const props = defineProps<{subtask?: Subtask}>()
 const emit = defineEmits<{
   setDone: [done: boolean]
   save: [content: string]
+  saveAndContinue: [content: string]
   cancel: []
   remove: []
   open: []
@@ -36,10 +37,16 @@ function startEditing() {
   isEditing.value = true
 }
 
-function commit() {
+function commit(keepAdding = false) {
   if (!isEditing.value) return
-  isEditing.value = false
   const text = draft.value.trim()
+  if (!props.subtask && keepAdding && text) {
+    draft.value = ""
+    emit("saveAndContinue", text)
+    return
+  }
+
+  isEditing.value = false
   if (!text) return props.subtask ? undefined : emit("cancel")
   if (!props.subtask) return emit("save", text)
   const lines = props.subtask.content.split("\n")
@@ -86,9 +93,9 @@ onBeforeUnmount(() => (isSubtaskEditorOpen.value = false))
       hide-outline
       placeholder="New subtask"
       class="min-w-0 flex-1 text-sm"
-      @keydown.enter.prevent="commit"
+      @keydown.enter.prevent="commit(true)"
       @keydown.esc.stop.prevent="cancel"
-      @blur="commit"
+      @blur="commit()"
     />
 
     <button v-else v-tooltip="title" type="button" class="min-w-0 flex-1 cursor-text select-text truncate text-left text-sm" @click="startEditing">

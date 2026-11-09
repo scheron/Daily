@@ -1,10 +1,11 @@
-import type {Day, ISODate} from "@daily/protocol"
+import type {Day, ISODate, Task} from "@daily/protocol"
 import type {DateTime} from "luxon"
 
 type CalendarDay = {
   date: DateTime
   isCurrentMonth: boolean
   isoDate: ISODate
+  tasks: Task[]
   dayInfo: {
     countActiveTasks: number
     countTotalTasks: number
@@ -39,6 +40,7 @@ export function formatDaysToMonth(currentMonth: DateTime, days: Day[]): Calendar
       date: current,
       isCurrentMonth: current.month === currentMonth.month,
       isoDate,
+      tasks: dayData?.tasks ?? [],
       dayInfo,
     })
 

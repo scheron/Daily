@@ -73,7 +73,7 @@ describe("Subtasks section", () => {
 
     const {default: Subtasks} = await import("../../../../src/renderer/src/ui/modules/RightPanel/{fragments}/Subtasks")
 
-    wrapper = mount(Subtasks, {global: {directives: {tooltip: {}}}})
+    wrapper = mount(Subtasks, {attachTo: document.body, global: {directives: {tooltip: {}}}})
     await flush()
   }
 
@@ -171,9 +171,10 @@ describe("Subtasks section", () => {
     expect(rows()[0].find("input").exists()).toBe(false)
   })
 
-  it("adds_a_row_in_edit_mode_from_the_plus_and_creates_it_on_enter", async () => {
+  it("keeps a fresh subtask input focused after Enter and closes it on blur", async () => {
+    let created = 0
     await setup([makeSubtask("a")], {
-      "subtasks:create": vi.fn(async (taskId, content) => ({subtasks: {upserted: [makeSubtask("z", {taskId, content})]}})),
+      "subtasks:create": vi.fn(async (taskId, content) => ({subtasks: {upserted: [makeSubtask(`z${++created}`, {taskId, content})]}})),
     })
 
     await buttonWithIcon("plus").trigger("click")
@@ -184,9 +185,19 @@ describe("Subtasks section", () => {
     await flush()
 
     expect(bridge["subtasks:create"]).toHaveBeenCalledWith("task-1", "Обновить changelog")
-    expect(wrapper.find("input").exists()).toBe(false)
-    expect(rows()).toHaveLength(2)
     expect(rows()[1].text()).toContain("Обновить changelog")
+    expect(wrapper.find("input").exists()).toBe(true)
+    const nextInput = wrapper.get("input")
+    expect(nextInput.element.value).toBe("")
+    expect(document.activeElement).toBe(nextInput.element)
+
+    await nextInput.setValue("Проверить сборку")
+    nextInput.element.blur()
+    await flush()
+
+    expect(wrapper.find("input").exists()).toBe(false)
+    expect(rows()).toHaveLength(3)
+    expect(rows()[2].text()).toContain("Проверить сборку")
   })
 
   it("removes_a_new_row_on_escape_or_an_empty_blur", async () => {

@@ -18,6 +18,7 @@ const props = defineProps<{
   loading?: boolean
   tooltip?: string
   tooltipPosition?: TooltipPlacement
+  tooltipDelayMs?: number
   class?: HtmlHTMLAttributes["class"]
 }>()
 
@@ -39,7 +40,11 @@ function getButtonClasses(hasContent: boolean) {
 </script>
 
 <template>
-  <button v-tooltip="{content: tooltip, placement: tooltipPosition}" :class="getButtonClasses(!!$slots.default)" :disabled="disabled || loading">
+  <button
+    v-tooltip="{content: $slots.tooltip ?? tooltip, placement: tooltipPosition, delayMs: tooltipDelayMs}"
+    :class="getButtonClasses(!!$slots.default)"
+    :disabled="disabled || loading"
+  >
     <BaseIcon v-if="loading" name="spinner" :class="spinnerClass" />
     <template v-else>
       <slot name="icon" :class="iconSizeClass">
