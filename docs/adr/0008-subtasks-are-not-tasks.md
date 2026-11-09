@@ -17,7 +17,7 @@ task, one level deep.
 **A task with a `parentId`.** This was the obvious path: content, attachments, sync and the agent
 tools would all come for free. We rejected it because a task row carries a status, a day, a
 project and the rest, and every reader that lists tasks would have to filter children out: the
-board, the calendar, search, milestone progress, the focus session, `list_tasks` and statistics.
+board, the calendar, search, milestone progress, `list_tasks` and statistics.
 Missing one filter puts a subtask on the board, and nothing in the type stops it. That is the cost
 [ADR 0002](0002-backlog-is-the-absence-of-a-date.md) rejected for backlog dates, moved into
 everyone's head instead of the type. A separate record cannot leak into a task list, because it

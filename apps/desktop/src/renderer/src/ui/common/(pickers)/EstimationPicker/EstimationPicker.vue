@@ -40,7 +40,9 @@ function resetDraft() {
 
 watch(() => props.modelValue, resetDraft, {immediate: true})
 watch(totalSeconds, (value) => {
-  if (value !== props.modelValue) emit("update:modelValue", value)
+  const seconds = props.modelValue % 60
+  if (value === props.modelValue - seconds) return
+  emit("update:modelValue", value === 0 ? 0 : value + seconds)
 })
 </script>
 

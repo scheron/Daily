@@ -17,7 +17,7 @@ import ChipsCell from "../ChipsCell.vue"
 import type {IconName} from "@/types/icons"
 import type {Task, TaskRelationSets, TaskStatus} from "@daily/protocol"
 
-const props = defineProps<{side: keyof TaskRelationSets; previewId: string; previewTaskId?: Task["id"]}>()
+const props = defineProps<{side: keyof TaskRelationSets; previewId: string; previewTaskId: Task["id"] | null}>()
 const emit = defineEmits<{
   preview: [taskId: Task["id"], event: PointerEvent | FocusEvent]
   leavePreview: [event: PointerEvent | FocusEvent]

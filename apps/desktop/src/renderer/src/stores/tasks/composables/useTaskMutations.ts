@@ -121,11 +121,18 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
     return notNull(created)
   }
 
-  async function updateTask(taskId: Task["id"], updates: Partial<Omit<Task, "id" | "createdAt" | "updatedAt">>) {
+  async function updateTask(
+    taskId: Task["id"],
+    updates: Partial<Omit<Task, "id" | "createdAt" | "updatedAt">>,
+    ...spentTimeAdjustment: [spentTimeDelta?: number]
+  ) {
     const payload = toRawDeep(objectFilter(updates, (value) => notUndefined(value)))
-    const patches = planTaskUpdate(mutationContext(), taskId, payload as Partial<TaskWritableFields>)
+    const [spentTimeDelta] = spentTimeAdjustment
+    const task = spentTimeDelta === undefined ? null : findTaskById(taskId)
+    const prediction = task && spentTimeDelta !== undefined ? {...payload, spentTime: Math.max(0, task.spentTime + spentTimeDelta)} : payload
+    const patches = planTaskUpdate(mutationContext(), taskId, prediction as Partial<TaskWritableFields>)
 
-    return predictAndWrite(changesetFromPatches(patches), () => Storage.updateTask(taskId, payload), "Failed to update task")
+    return predictAndWrite(changesetFromPatches(patches), () => Storage.updateTask(taskId, payload, ...spentTimeAdjustment), "Failed to update task")
   }
 
   async function deleteTask(taskId: Task["id"]) {

@@ -1,20 +1,15 @@
 <script setup lang="ts">
-import {computed, toRef, useTemplateRef} from "vue"
+import {computed} from "vue"
 
 import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon.vue"
 import {cn} from "@/utils/ui/tailwindcss"
-import {useHiddenColumnPlacement} from "./composables/useHiddenColumnPlacement"
 
 import type {TaskStatus} from "@daily/protocol"
 import type {HiddenColumn} from "../../types"
 
-const props = defineProps<{side: "left" | "right"; columns: HiddenColumn[]; hoveredChipStatus: TaskStatus | null; obstacle?: HTMLElement | null}>()
+const props = defineProps<{side: "left" | "right"; columns: HiddenColumn[]; hoveredChipStatus: TaskStatus | null}>()
 const emit = defineEmits<{reveal: [status: TaskStatus]}>()
-
-const stackRef = useTemplateRef<HTMLElement>("stack")
-
-const {placementStyle, isObscured} = useHiddenColumnPlacement(stackRef, toRef(props, "obstacle"))
 
 const stackClass = computed(() => cn("top-25 absolute z-10 flex flex-col gap-2", [props.side === "left" ? "left-4" : "right-4"]))
 const buttonClass = computed(() => cn({"flex-row-reverse": props.side === "right"}))
@@ -37,15 +32,7 @@ function getCounterClasses(counterClass: string) {
 </script>
 
 <template>
-  <nav
-    v-if="columns.length"
-    ref="stack"
-    :style="placementStyle"
-    :inert="isObscured || undefined"
-    :aria-label="`Hidden columns to the ${side}`"
-    :data-side="side"
-    :class="stackClass"
-  >
+  <nav v-if="columns.length" :aria-label="`Hidden columns to the ${side}`" :data-side="side" :class="stackClass">
     <BaseButton
       v-for="column in columns"
       :key="column.status"

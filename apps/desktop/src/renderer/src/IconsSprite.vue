@@ -557,16 +557,6 @@
       <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect>
       <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
     </symbol>
-    <symbol id="minimize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M12 22v-6"></path>
-      <path d="M12 8V2"></path>
-      <path d="M4 12H2"></path>
-      <path d="M10 12H8"></path>
-      <path d="M16 12h-2"></path>
-      <path d="M22 12h-2"></path>
-      <path d="m15 19-3-3-3 3"></path>
-      <path d="m15 5-3 3-3-3"></path>
-    </symbol>
     <symbol id="maximize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
       <path d="M12 22v-6"></path>
       <path d="M12 8V2"></path>

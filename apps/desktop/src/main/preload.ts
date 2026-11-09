@@ -50,9 +50,9 @@ import type {
   LocalRuntimeState,
   PendingToolConfirmation,
 } from "@shared/types/ai"
-import type {FocusCommand, FocusSession} from "@shared/types/focus"
 import type {ApprovalKind, BridgeIPC} from "@shared/types/ipc"
 import type {HotkeyRebindResult, QuickTaskHotkeyState, QuickTaskMenu} from "@shared/types/quickTask"
+import type {TaskTimer, TaskTimerCommand} from "@shared/types/taskTimer"
 import type {ToastMessage} from "@shared/types/toast"
 import type {AppUpdateOffer, AppUpdateState, WhatsNewReleaseResult} from "@shared/types/update"
 import type {PartialDeep} from "type-fest"
@@ -152,10 +152,6 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
 
   "activity:get-by-task": (taskId: Task["id"]) => ipcRenderer.invoke("activity:get-by-task", taskId) as Promise<TaskEvent[]>,
 
-  "focus:get": () => ipcRenderer.invoke("focus:get") as Promise<FocusSession>,
-  "focus:dispatch": (command: FocusCommand) => ipcRenderer.invoke("focus:dispatch", command) as Promise<FocusSession>,
-  "focus:on-changed": (callback: (session: FocusSession) => void) => ipcRenderer.on("focus:changed", (_event, session: FocusSession) => callback(session)),
-
   "quick-task:hide": () => ipcRenderer.send("quick-task:hide"),
   "quick-task:resize": (height: number) => ipcRenderer.send("quick-task:resize", height),
   "quick-task:active-hotkey": () => ipcRenderer.invoke("quick-task:active-hotkey") as Promise<QuickTaskHotkeyState>,
@@ -179,9 +175,18 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "quick-task-menu:resize": (height: number) => ipcRenderer.send("quick-task-menu:resize", height),
   "quick-task-menu:pick": (index: number) => ipcRenderer.send("quick-task-menu:pick", index),
 
+  "task-timers:get": () => ipcRenderer.invoke("task-timers:get") as Promise<TaskTimer[]>,
+  "task-timers:dispatch": (command: TaskTimerCommand) => ipcRenderer.invoke("task-timers:dispatch", command) as Promise<boolean>,
+  "task-timers:on-changed": (callback: (timers: TaskTimer[]) => void) => {
+    const subscription = (_event: unknown, timers: TaskTimer[]) => callback(timers)
+    ipcRenderer.on("task-timers:changed", subscription)
+    return () => ipcRenderer.removeListener("task-timers:changed", subscription)
+  },
+
   "tasks:get-all": () => ipcRenderer.invoke("tasks:get-all") as Promise<Task[]>,
   "tasks:get-one": (id: Task["id"]) => ipcRenderer.invoke("tasks:get-one", id) as Promise<Task | null>,
-  "tasks:update": (id: Task["id"], updates: PartialDeep<Task>) => ipcRenderer.invoke("tasks:update", id, updates) as Promise<Changeset>,
+  "tasks:update": (id: Task["id"], updates: PartialDeep<Task>, spentTimeDelta?: number) =>
+    ipcRenderer.invoke("tasks:update", id, updates, spentTimeDelta) as Promise<Changeset>,
   "tasks:create": (
     task: Omit<Task, "id" | "createdAt" | "updatedAt" | "deletedAt" | "branchId"> & {branchId?: Task["branchId"]; id?: Task["id"]},
   ) => ipcRenderer.invoke("tasks:create", task) as Promise<Changeset>,

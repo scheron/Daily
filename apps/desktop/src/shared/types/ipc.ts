@@ -49,8 +49,8 @@ import type {
   LocalRuntimeState,
   PendingToolConfirmation,
 } from "./ai"
-import type {FocusCommand, FocusSession} from "./focus"
 import type {HotkeyRebindResult, QuickTaskHotkeyState, QuickTaskMenu} from "./quickTask"
+import type {TaskTimer, TaskTimerCommand} from "./taskTimer"
 import type {ToastMessage} from "./toast"
 import type {AppUpdateOffer, AppUpdateState, WhatsNewReleaseResult} from "./update"
 
@@ -129,10 +129,6 @@ export type BridgeIPC = {
 
   "activity:get-by-task": (taskId: Task["id"]) => Promise<TaskEvent[]>
 
-  "focus:get": () => Promise<FocusSession>
-  "focus:dispatch": (command: FocusCommand) => Promise<FocusSession>
-  "focus:on-changed": (callback: (session: FocusSession) => void) => void
-
   "quick-task:hide": () => void
   "quick-task:resize": (height: number) => void
   "quick-task:active-hotkey": () => Promise<QuickTaskHotkeyState>
@@ -144,9 +140,13 @@ export type BridgeIPC = {
   "quick-task-menu:resize": (height: number) => void
   "quick-task-menu:pick": (index: number) => void
 
+  "task-timers:get": () => Promise<TaskTimer[]>
+  "task-timers:dispatch": (command: TaskTimerCommand) => Promise<boolean>
+  "task-timers:on-changed": (callback: (timers: TaskTimer[]) => void) => () => void
+
   "tasks:get-all": () => Promise<Task[]>
   "tasks:get-one": (id: Task["id"]) => Promise<Task | null>
-  "tasks:update": (id: Task["id"], updates: PartialDeep<Task>) => Promise<Changeset>
+  "tasks:update": (id: Task["id"], updates: PartialDeep<Task>, spentTimeDelta?: number) => Promise<Changeset>
   "tasks:create": (
     task: Omit<Task, "id" | "createdAt" | "updatedAt" | "deletedAt" | "branchId"> & {branchId?: Task["branchId"]; id?: Task["id"]},
   ) => Promise<Changeset>

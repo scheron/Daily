@@ -3,7 +3,7 @@ import {nextTick} from "vue"
 import {createPinia, setActivePinia} from "pinia"
 import {afterEach, expect, it, vi} from "vitest"
 
-import {useUiStore} from "@/stores/ui"
+import {useUpdateStore} from "@/stores/update"
 import WhatsNewBanner from "@/ui/overlays/WhatsNewBanner"
 import {flushPromises, mount} from "@vue/test-utils"
 import {mockBridgeIPC} from "../../helpers/bridgeIPC"
@@ -39,7 +39,7 @@ it("waits for visibility before recording the recovered card once", async () => 
 
 it("waits for a visible main window and an unobstructed paint before recording the card as shown", async () => {
   const {banner, recordShown, setWindowVisibility} = mountBanner(false)
-  const ui = useUiStore()
+  const update = useUpdateStore()
 
   try {
     await flushPromises()
@@ -51,13 +51,13 @@ it("waits for a visible main window and an unobstructed paint before recording t
     expect(banner.text()).toContain("1.2.0")
     vi.advanceTimersToNextFrame()
 
-    ui.toggleFocusDock(true)
+    update.state = {...update.state, status: "available", availableVersion: "1.3.0"}
     await nextTick()
     vi.advanceTimersToNextFrame()
     expect(banner.find("h2").exists()).toBe(false)
     expect(recordShown).not.toHaveBeenCalled()
 
-    ui.toggleFocusDock(false)
+    update.dismissPanel()
     await nextTick()
     vi.advanceTimersToNextFrame()
     expect(recordShown).not.toHaveBeenCalled()

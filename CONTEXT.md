@@ -91,13 +91,14 @@ seven statuses; Normal groups Ready for Agent into Backlog and Ready to Merge in
 preserving each task's actual status and day.
 _Avoid_: project workflow, Frame, agent assignment
 
-### Focus
+### Time tracking
 
-**Focus session**:
-A handful of tasks worked through one after another against a timer, with the mode it runs in and
-the phase it is at. There is one per app, held by the main process, so every window shows the same
-one; the time spent in it lands in each task's spent time, and it ends with the app.
-_Avoid_: pomodoro, sprint, timer, focus mode
+**Task timer**:
+A stopwatch for one saved task on this Mac. Several task timers can run independently. Pausing
+records the time since the last credit and keeps the stopwatch in the stack. Stopping, completing
+the task or quitting Daily records any remaining time and closes the stopwatch. The recorded
+time belongs to the task's Spent value.
+_Avoid_: focus session, pomodoro
 
 ### Sync
 

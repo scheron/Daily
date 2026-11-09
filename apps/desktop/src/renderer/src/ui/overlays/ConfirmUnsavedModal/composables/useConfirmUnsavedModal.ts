@@ -21,7 +21,7 @@ export function useConfirmUnsavedModal() {
       canSave,
       onSave: async () => {
         if (!canSave) return
-        await taskEditorStore.commit()
+        if (!(await taskEditorStore.commit())) return
         hide()
         resolve(true)
       },

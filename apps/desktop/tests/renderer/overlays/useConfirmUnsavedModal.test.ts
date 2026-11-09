@@ -25,7 +25,7 @@ describe("useConfirmUnsavedModal", () => {
     const {useTaskEditorStore} = await import("../../../src/renderer/src/stores/task-editor")
     const {useConfirmUnsavedModal} = await import("../../../src/renderer/src/ui/overlays/ConfirmUnsavedModal")
     const editor = useTaskEditorStore()
-    editor.commit = vi.fn().mockResolvedValue(undefined)
+    editor.commit = vi.fn().mockResolvedValue(true)
     editor.openNew({branchId: "main"})
     editor.patch({content})
     editor.addPendingSubtask("a")

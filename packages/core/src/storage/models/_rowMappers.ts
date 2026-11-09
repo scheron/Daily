@@ -283,7 +283,6 @@ export function getDefaultSettings(): Settings {
     },
     quickTask: {isEnabled: true, hotkey: DEFAULT_QUICK_TASK_HOTKEY},
     menuBar: {isVisible: true},
-    focus: {shouldNotify: true, shouldPlaySound: true},
     window: {
       main: {
         width: WINDOWS_CONFIG.main.width,

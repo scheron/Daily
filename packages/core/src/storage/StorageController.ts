@@ -261,8 +261,12 @@ export class StorageController implements IStorageController {
     return this.tasksService.getTask(id)
   }
 
-  async updateTask(id: Task["id"], updates: PartialDeep<Task>, source?: ActorSource): Promise<Changeset> {
-    return this.workStorage.updateTask(id, updates, source)
+  async updateTask(id: Task["id"], updates: PartialDeep<Task>, source?: ActorSource, spentTimeDelta?: number): Promise<Changeset> {
+    return this.workStorageInstance.updateTask(id, updates, source, spentTimeDelta)
+  }
+
+  async addTaskSpentTime(id: Task["id"], seconds: number): Promise<Changeset> {
+    return this.workStorageInstance.addTaskSpentTime(id, seconds)
   }
 
   async toggleTaskMinimized(id: Task["id"], minimized: boolean): Promise<Changeset> {

@@ -57,11 +57,14 @@ export class TasksService {
   }
 
   /** Every row the update patched — always at least the named task, unless it does not exist. */
-  async updateTask(id: Task["id"], updates: PartialDeep<Task>, source?: ActorSource): Promise<Task[]> {
+  async updateTask(id: Task["id"], updates: PartialDeep<Task>, source?: ActorSource, spentTimeDelta?: number): Promise<Task[]> {
     const before = this.taskModel.getTask(id)
     if (!before) return []
 
-    const writable = updates as Partial<TaskWritableFields>
+    const writable = {
+      ...(updates as Partial<TaskWritableFields>),
+      ...(spentTimeDelta !== undefined && Number.isSafeInteger(spentTimeDelta) ? {spentTime: Math.max(0, before.spentTime + spentTimeDelta)} : {}),
+    }
     const milestones = this.readMilestoneScope(writable.milestoneId, [before.branchId, writable.branchId])
     const branchId = notUndefined(writable.branchId) ? writable.branchId : before.branchId
 
@@ -72,6 +75,14 @@ export class TasksService {
     if (after) this.taskEvents.recordUpdate(before, after, source, {dateExplicit: requestedDate === (after.scheduled?.date ?? null)})
 
     return updated
+  }
+
+  addTaskSpentTime(id: Task["id"], seconds: number): Task | null {
+    if (!Number.isSafeInteger(seconds) || seconds <= 0) return null
+
+    const task = this.taskModel.addTaskSpentTime(id, seconds)
+    if (task) this.taskEvents.record(task, "edited")
+    return task
   }
 
   async createTask(task: Omit<Task, "id"> & {id?: Task["id"]}, source?: ActorSource): Promise<Task | null> {

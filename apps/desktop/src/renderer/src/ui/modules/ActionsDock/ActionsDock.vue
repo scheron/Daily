@@ -2,7 +2,6 @@
 import {computed, nextTick, useTemplateRef} from "vue"
 
 import {useBranchesStore} from "@/stores/branches"
-import {useFocusStore} from "@/stores/focus"
 import {useProjectScopeStore} from "@/stores/project-scope"
 import {useUiStore} from "@/stores/ui"
 import BaseAnimation from "@/ui/base/BaseAnimation.vue"
@@ -25,9 +24,21 @@ const props = defineProps<{compact: boolean}>()
 
 const emit = defineEmits<{createTask: []}>()
 
+const actions: (BaseMenuItem & {run: () => void})[] = [
+  {value: "assistant", label: "AI Assistant", icon: "ai", run: onOpenAssistantPanel},
+  {value: "search", label: "Search", icon: "search", run: onOpenSearch},
+  {
+    value: "new",
+    label: "New task",
+    icon: "plus",
+    run() {
+      emit("createTask")
+    },
+  },
+]
+
 const branchesStore = useBranchesStore()
 const uiStore = useUiStore()
-const focusStore = useFocusStore()
 const projectScopeStore = useProjectScopeStore()
 
 const compactActionsRef = useTemplateRef<HTMLElement>("compactActions")
@@ -38,19 +49,9 @@ const activeBranchName = computed(() => {
   return getProjectName(branchesStore.activeBranch)
 })
 const hasAllProjectsRow = computed(() => uiStore.frame === "day")
-const isFocusDetached = computed(() => focusStore.session?.isDetached ?? false)
-const isFocusActive = computed(() => uiStore.isFocusDockOpen || isFocusDetached.value)
-
-const actions = computed<(BaseMenuItem & {run: () => void})[]>(() => [
-  {value: "assistant", label: "AI Assistant", icon: "ai", run: onOpenAssistantPanel},
-  {value: "search", label: "Search", icon: "search", run: onOpenSearch},
-  {value: "focus", label: "Focus", icon: "stopwatch", classLabel: isFocusActive.value ? "text-accent" : undefined, run: onFocusButtonClick},
-  {value: "new", label: "New task", icon: "plus", run: () => emit("createTask")},
-])
+const projectTriggerClass = computed(() => cn("grid h-full items-center", {"min-w-20": !props.compact}))
 
 const searchModal = useSearchModal()
-
-const projectTriggerClass = computed(() => cn("grid h-full items-center", {"min-w-20": !props.compact}))
 
 function onToggleActions(toggle: () => void) {
   toggle()
@@ -70,7 +71,7 @@ function onActionsEscape(event: KeyboardEvent, hide: () => void) {
 
 function onSelectAction(value: BaseMenuItem["value"], hide: () => void) {
   closeActions(hide)
-  actions.value.find((action) => action.value === value)?.run()
+  actions.find((action) => action.value === value)?.run()
 }
 
 function onOpenAssistantPanel() {
@@ -81,11 +82,6 @@ function onOpenSearch() {
   searchModal.toggle()
 }
 
-function onFocusButtonClick() {
-  if (isFocusDetached.value) window.BridgeIPC.send("focus:show-window")
-  else uiStore.toggleFocusDock()
-}
-
 async function onSelectBranch(branch: Branch) {
   await projectScopeStore.setAllProjects(false)
   if (branch.id === branchesStore.activeBranchId) return
@@ -94,10 +90,6 @@ async function onSelectBranch(branch: Branch) {
 
 async function onSelectAllProjects() {
   await projectScopeStore.setAllProjects(true)
-}
-
-function getFocusVariant(isOpen: boolean) {
-  return isOpen ? "primary" : "ghost-primary"
 }
 </script>
 
@@ -181,8 +173,6 @@ function getFocusVariant(isOpen: boolean) {
           :tooltip="`Search (${toShortcutKeys('ui:open-search-panel')})`"
           @click="onOpenSearch"
         />
-
-        <BaseButton :variant="getFocusVariant(isFocusActive)" icon="stopwatch" size="sm" tooltip="Focus" @click="onFocusButtonClick" />
 
         <div class="bg-base-300 h-4.5 mx-0.5 w-px" />
 

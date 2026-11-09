@@ -3,16 +3,12 @@ import {computed, onMounted, onScopeDispose, ref, watch} from "vue"
 import {useDocumentVisibility, useMutationObserver} from "@vueuse/core"
 
 import {useBaseModal} from "@/composables/useBaseModal"
-import {useFocusStore} from "@/stores/focus"
-import {useUiStore} from "@/stores/ui"
 import {useUpdateStore} from "@/stores/update"
 import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon.vue"
 import {useWhatsNewRelease} from "./composables/useWhatsNewRelease"
 import WhatsNewMedia from "./{fragments}/WhatsNewMedia.vue"
 
-const uiStore = useUiStore()
-const focusStore = useFocusStore()
 const updateStore = useUpdateStore()
 
 const presentation = ref<"pending" | "recording" | "interrupted" | "shown">("pending")
@@ -25,14 +21,12 @@ const {stack: modals} = useBaseModal()
 
 const body = computed(() => (release.value ? document.body : null))
 const canShow = computed(() => {
-  const focusDockOpen = uiStore.isFocusDockOpen && !focusStore.session?.isDetached
   return (
     !!release.value &&
     presentation.value !== "interrupted" &&
     nativeWindowVisible.value === true &&
     documentVisibility.value === "visible" &&
     !hasBlockingElement.value &&
-    !focusDockOpen &&
     !modals.value.length &&
     !updateStore.isPanelVisible
   )
@@ -43,7 +37,7 @@ const stopVisibilityListener = window.BridgeIPC["window:on-visibility-changed"](
 })
 
 function refreshBlockingElement() {
-  hasBlockingElement.value = Boolean(document.querySelector("dialog[open], [data-focus-dock]"))
+  hasBlockingElement.value = Boolean(document.querySelector("dialog[open]"))
 }
 
 async function markShown() {

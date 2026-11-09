@@ -40,8 +40,6 @@ const themeStore = useThemeStore()
 
 const {taskView} = useBoardCardGeometry()
 const boardMode = useSettingValue<"appearance.boardMode", BoardMode>("appearance.boardMode", "normal")
-const shouldNotify = useSettingValue("focus.shouldNotify", true)
-const shouldPlaySound = useSettingValue("focus.shouldPlaySound", true)
 const isMenuBarVisible = useSettingValue("menuBar.isVisible", true)
 const isQuickTaskEnabled = useSettingValue("quickTask.isEnabled", true)
 </script>
@@ -75,16 +73,6 @@ const isQuickTaskEnabled = useSettingValue("quickTask.isEnabled", true)
 
       <SettingRow title="Show icon in menu bar" description="Keep the Daily icon in the menu bar to open Settings or Quick task">
         <BaseSwitch v-model="isMenuBarVisible" />
-      </SettingRow>
-    </SettingsGroup>
-
-    <SettingsGroup label="Focus" icon="stopwatch">
-      <SettingRow title="Notifications" description="Notify when a focus interval or a break ends while Daily is in the background">
-        <BaseSwitch v-model="shouldNotify" />
-      </SettingRow>
-
-      <SettingRow title="Sound" description="Play a sound with the notification">
-        <BaseSwitch v-model="shouldPlaySound" :disabled="!shouldNotify" />
       </SettingRow>
     </SettingsGroup>
 

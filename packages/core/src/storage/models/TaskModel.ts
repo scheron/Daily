@@ -104,6 +104,14 @@ export class TaskModel {
     return rowToTask(row)
   }
 
+  addTaskSpentTime(id: Task["id"], seconds: number): Task | null {
+    const updated = this.db
+      .prepare("UPDATE tasks SET spent_time = spent_time + ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL")
+      .run(seconds, new Date().toISOString(), id)
+
+    return updated.changes ? this.getTask(id) : null
+  }
+
   createTask(task: Omit<TaskInternal, "createdAt" | "updatedAt">): Task | null {
     const id = task.id
     const now = new Date().toISOString()

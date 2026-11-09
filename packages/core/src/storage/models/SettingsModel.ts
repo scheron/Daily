@@ -20,7 +20,7 @@ export class SettingsModel {
 
     try {
       const parsed = migrateSettingsShape(JSON.parse(row.data))
-      const {sync: _sync, typography: _typography, ...syncable} = parsed
+      const {sync: _sync, typography: _typography, focus: _focus, ...syncable} = parsed
       return {...normalizeSettings(deepMerge<Settings>(defaults, syncable)), sync, typography}
     } catch {
       return {...defaults, sync, typography}

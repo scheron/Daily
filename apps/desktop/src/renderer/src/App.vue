@@ -22,8 +22,7 @@ import ModalProvider from "./ui/overlays/ModalProvider"
 
 import type {RouteRecordNameGeneric} from "vue-router"
 
-const LIGHT_ROUTES: RouteRecordNameGeneric[] = ["Settings", "Assistant", "Focus", "QuickTask", "QuickTaskMenu"]
-const DATALESS_ROUTES: RouteRecordNameGeneric[] = ["Focus", "QuickTaskMenu"]
+const LIGHT_ROUTES: RouteRecordNameGeneric[] = ["Settings", "Assistant", "QuickTask", "QuickTaskMenu"]
 
 const route = useRoute()
 const settingsStore = useSettingsStore()
@@ -58,7 +57,7 @@ invoke(async () => {
     await until(() => settingsStore.isSettingsLoaded).toBeTruthy()
 
     if (isLightRoute) {
-      if (DATALESS_ROUTES.includes(route.name)) return
+      if (route.name === "QuickTaskMenu") return
 
       if (route.name === "QuickTask") {
         const branchesStore = useBranchesStore()

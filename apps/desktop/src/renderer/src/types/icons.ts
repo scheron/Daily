@@ -71,7 +71,6 @@ export type IconName =
   | "spinner-arc"
   | "copy"
   | "copy-id"
-  | "minimize"
   | "maximize"
   | "move"
   | "chevrons-down"

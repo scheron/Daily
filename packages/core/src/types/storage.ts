@@ -1,4 +1,5 @@
 import type {
+  ActorSource,
   AgentWindowView,
   Branch,
   DeviceRole,
@@ -101,7 +102,7 @@ export interface IStorageController {
   getAllTasks(): Promise<Task[]>
   getTaskList(params?: {from?: ISODate; to?: ISODate; limit?: number; branchId?: Branch["id"]}): Promise<Task[]>
   getTask(id: Task["id"]): Promise<Task | null>
-  updateTask(id: Task["id"], updates: PartialDeep<Task>): Promise<Changeset>
+  updateTask(id: Task["id"], updates: PartialDeep<Task>, source?: ActorSource, spentTimeDelta?: number): Promise<Changeset>
   toggleTaskMinimized(id: Task["id"], minimized: boolean): Promise<Changeset>
   moveTaskByOrder(params: MoveTaskByOrderParams): Promise<Changeset>
   moveTaskToBranch(taskId: Task["id"], branchId: Branch["id"]): Promise<Changeset>

@@ -1,4 +1,4 @@
-import {app} from "electron"
+import {app, powerMonitor} from "electron"
 
 import {logger, setFileCoordinatorBinaryPath, StorageController} from "@daily/core"
 import {APP_CONFIG} from "@daily/protocol"
@@ -6,6 +6,7 @@ import {APP_CONFIG} from "@daily/protocol"
 import {QuickTaskController} from "@main/modules/quickTask/QuickTaskController"
 import {createStorageRequestHandler} from "@main/modules/quickTask/utils/createStorageRequestHandler"
 import {spawnQuickTaskProcess} from "@main/modules/quickTask/utils/spawnQuickTaskProcess"
+import {TaskTimersController} from "@main/modules/task-timers/TaskTimersController"
 import {HOTKEY_REQUESTS, QUICK_TASK_PROCESS_FLAG} from "@shared/constants/quickTask"
 import {createBetterSqliteDriver} from "./utils/database/betterSqliteDriver"
 import {awaitRendererReady} from "./utils/windows/awaitRendererReady"
@@ -17,9 +18,7 @@ import {AIController} from "./ai/AIController"
 import {electronPaths} from "./config/electronPaths"
 import {IS_DEMO} from "./demo/profile"
 import {seedDemoStorage} from "./demo/seedDemoStorage"
-import {FocusController} from "./modules/focus/FocusController"
 import {trayController} from "./modules/tray/TrayController"
-import {setupFocusWindow} from "./setup/app/focusWindow"
 import {setupInstanceAndDeepLinks} from "./setup/app/instance"
 import {setupActivateHandler, setupAppBoot, setupDockIcon, setupQuickTaskAppBoot, setupWindowAllClosedHandler} from "./setup/app/lifecycle"
 import {setupMenu} from "./setup/app/menu"
@@ -34,13 +33,13 @@ import {setupMainWindowStatePersistence} from "./setup/app/windowState"
 import {setupAboutIPC} from "./setup/ipc/about"
 import {setupAiIPC} from "./setup/ipc/ai"
 import {setupAssistantIPC} from "./setup/ipc/assistant"
-import {setupFocusIPC} from "./setup/ipc/focus"
 import {setupQuickTaskIPC} from "./setup/ipc/quickTask"
 import {setupSettingsIPC} from "./setup/ipc/settings"
 import {setupShellIPC} from "./setup/ipc/shell"
 import {setupStorageIPC} from "./setup/ipc/storage"
 import {setupSyncProviderIPC} from "./setup/ipc/syncProvider"
 import {setupSyncServerIPC} from "./setup/ipc/syncServer"
+import {setupTaskTimersIPC} from "./setup/ipc/taskTimers"
 import {createToastRouter} from "./setup/ipc/toast"
 import {setupUpdatesIPC} from "./setup/ipc/updates"
 import {setupMainWindowIPC, trackMainWindowVisibility} from "./setup/ipc/windows"
@@ -58,7 +57,6 @@ type AppWindows = {
   about: BrowserWindow | null
   settings: BrowserWindow | null
   assistant: BrowserWindow | null
-  focus: BrowserWindow | null
 }
 
 const windows: AppWindows = {
@@ -67,11 +65,10 @@ const windows: AppWindows = {
   about: null,
   settings: null,
   assistant: null,
-  focus: null,
 }
 let storage: StorageController | null = null
 let ai: AIController | null = null
-let focus: FocusController | null = null
+let taskTimers: TaskTimersController | null = null
 let savedMainWindowState: MainWindowSettings | undefined
 let trayQuickTask: ReturnType<typeof setupTrayQuickTask> | null = null
 let quickTaskSwitch: ReturnType<typeof setupQuickTask> | null = null
@@ -125,7 +122,7 @@ function bootDaily() {
   app.on("will-quit", () => quickTask.stop())
 
   app.on("before-quit", async (event) => {
-    if (focus?.holdQuit(event)) return
+    if (taskTimers?.holdQuit(event, () => app.quit())) return
     if (ai) await ai.dispose()
   })
 }
@@ -169,17 +166,6 @@ async function startDaily() {
     return
   }
 
-  const followFocusWindow = setupFocusWindow(
-    () => focus,
-    () => windows.main,
-    () => windows.focus,
-    (win) => (windows.focus = win),
-  )
-  focus = new FocusController(storage, (session) => {
-    broadcastToWindows(() => windows, "focus:changed", session)
-    followFocusWindow(session)
-  })
-
   setupSafeFileProtocol(storage)
   setupCSP()
 
@@ -204,11 +190,26 @@ async function startDaily() {
   )
 
   setupStorageIPC(() => storage)
-  setupQuickTaskIPC(quickTask, () => storage)
-  setupFocusIPC(
-    () => focus,
-    () => windows.focus,
+  taskTimers = new TaskTimersController(
+    storage,
+    (timers) => {
+      const main = windows.main
+      if (!main || main.isDestroyed() || main.webContents.isDestroyed()) return
+
+      try {
+        main.webContents.send("task-timers:changed", timers)
+      } catch (error) {
+        logger.warn(logger.CONTEXT.TASKS, "Failed to publish task timers", error)
+      }
+    },
+    (error) => {
+      logger.error(logger.CONTEXT.TASKS, "Failed to save task timer time", error)
+      toastRouter.publish({type: "error", message: "Couldn't save timer time. Try stopping the timer again."})
+    },
   )
+  setupTaskTimersIPC(taskTimers)
+  powerMonitor.on("suspend", () => taskTimers?.pauseAll())
+  setupQuickTaskIPC(quickTask, () => storage)
   setupSyncServerIPC(
     () => storage,
     () => windows,
@@ -221,10 +222,10 @@ async function startDaily() {
   setupStorageSync(
     () => storage,
     () => windows,
-    () => focus,
-    (channel, ...args) => {
-      quickTask.emit(channel, ...args)
-      if (channel !== "settings:changed") return
+    (...broadcast) => {
+      if (broadcast[0] === "storage:changed") taskTimers?.applyStorageChange(broadcast[1])
+      quickTask.emit(broadcast[0], ...broadcast.slice(1))
+      if (broadcast[0] !== "settings:changed") return
       void trayQuickTask?.refresh()
       void quickTaskSwitch?.apply()
       void trayVisibility?.apply()

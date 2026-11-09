@@ -4,6 +4,8 @@ import {computed, ref} from "vue"
 import {toDurationLabel} from "@daily/std"
 
 import {useTaskEditorStore} from "@/stores/task-editor"
+import {useTaskTimersStore} from "@/stores/task-timers"
+import {useTasksStore} from "@/stores/tasks"
 import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon.vue"
 import BasePopup from "@/ui/base/BasePopup.vue"
@@ -17,6 +19,8 @@ type TimeField = "estimatedTime" | "spentTime"
 const props = defineProps<{task: Task}>()
 
 const taskEditorStore = useTaskEditorStore()
+const taskTimersStore = useTaskTimersStore()
+const tasksStore = useTasksStore()
 
 const activeField = ref<TimeField>("estimatedTime")
 
@@ -25,6 +29,12 @@ const timeLabel = computed(() => {
   if (isEmpty.value) return "Set estimate"
   return `${toDurationLabel(props.task.estimatedTime, "—")} / ${toDurationLabel(props.task.spentTime, "—")}`
 })
+const canStartTimer = computed(() => {
+  const taskId = taskEditorStore.editingTaskId
+  if (taskId === null || props.task.status === "done" || tasksStore.findTaskById(taskId)?.status === "done") return false
+  return !taskTimersStore.timers.some((timer) => timer.taskId === taskId)
+})
+const isTimerPending = computed(() => taskEditorStore.editingTaskId !== null && taskTimersStore.isPending(taskEditorStore.editingTaskId))
 
 function patchTime(total: number) {
   taskEditorStore.patch({[activeField.value]: total})
@@ -32,6 +42,14 @@ function patchTime(total: number) {
 
 function getTabVariant(isActive: boolean) {
   return isActive ? "primary" : "ghost-muted"
+}
+
+async function startTimer(hide: () => void) {
+  const taskId = taskEditorStore.editingTaskId
+  if (taskId === null || !canStartTimer.value) return
+
+  const started = await taskTimersStore.dispatch({type: "start", taskId})
+  if (started && taskEditorStore.editingTaskId === taskId) hide()
 }
 </script>
 
@@ -45,7 +63,7 @@ function getTabVariant(isActive: boolean) {
       </PropertyCell>
     </template>
 
-    <template #default>
+    <template #default="{hide}">
       <div class="flex w-64 flex-col gap-2" @click.stop>
         <div class="flex items-center gap-1">
           <BaseButton
@@ -70,6 +88,18 @@ function getTabVariant(isActive: boolean) {
         </div>
 
         <EstimationPicker :model-value="task[activeField]" @update:model-value="patchTime" />
+
+        <BaseButton
+          v-if="activeField === 'spentTime' && taskEditorStore.editingTaskId !== null"
+          variant="primary"
+          size="sm"
+          icon="play"
+          :disabled="!canStartTimer"
+          :loading="isTimerPending"
+          @click="startTimer(hide)"
+        >
+          Timer
+        </BaseButton>
       </div>
     </template>
   </BasePopup>

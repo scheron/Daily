@@ -4,17 +4,6 @@ import {vi} from "vitest"
 export function mockBridgeIPC(overrides = {}) {
   const noop = vi.fn().mockResolvedValue(undefined)
   const noopOn = vi.fn()
-  const focusSession = {
-    phase: "collect",
-    mode: "pomodoro-25",
-    tasks: [],
-    currentTaskId: null,
-    runStartedAt: null,
-    intervalFocusedSeconds: 0,
-    completedIntervals: 0,
-    isDetached: false,
-  }
-
   const bridge = {
     send: vi.fn(),
     "toast:publish": vi.fn(),
@@ -39,6 +28,9 @@ export function mockBridgeIPC(overrides = {}) {
     "tasks:create": noop,
     "tasks:update": noop,
     "tasks:delete": vi.fn().mockResolvedValue(true),
+    "task-timers:get": vi.fn().mockResolvedValue([]),
+    "task-timers:dispatch": vi.fn().mockResolvedValue(true),
+    "task-timers:on-changed": vi.fn(() => noopOn),
     "tasks:move-by-order": noop,
     "tasks:move-to-branch": vi.fn().mockResolvedValue(true),
     "relations:get-all": vi.fn().mockResolvedValue([]),
@@ -66,9 +58,6 @@ export function mockBridgeIPC(overrides = {}) {
     "sync-server:on-role-changed": noopOn,
     "sync-server:on-agents-accepted-changed": noopOn,
     "sync-server:on-connection-changed": noopOn,
-    "focus:get": vi.fn().mockResolvedValue(focusSession),
-    "focus:dispatch": vi.fn().mockResolvedValue(focusSession),
-    "focus:on-changed": noopOn,
     ...overrides,
   }
 

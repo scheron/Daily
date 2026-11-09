@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import {useId, useTemplateRef, watch} from "vue"
+import {useId, useTemplateRef} from "vue"
 
-import {useTaskRelationPreview} from "./composables/useTaskRelationPreview"
+import TaskPreviewPopup from "@/ui/common/(misc)/TaskPreviewPopup"
 import BranchProperty from "./{fragments}/(properties)/BranchProperty.vue"
 import DateProperty from "./{fragments}/(properties)/DateProperty.vue"
 import MilestoneProperty from "./{fragments}/(properties)/MilestoneProperty.vue"
@@ -10,22 +10,13 @@ import RelationsProperty from "./{fragments}/(properties)/RelationsProperty.vue"
 import StatusProperty from "./{fragments}/(properties)/StatusProperty.vue"
 import TagsProperty from "./{fragments}/(properties)/TagsProperty.vue"
 import TimeProperty from "./{fragments}/(properties)/TimeProperty.vue"
-import TaskRelationPreview from "./{fragments}/TaskRelationPreview.vue"
 
 import type {Task} from "@daily/protocol"
 
-const props = defineProps<{task: Task}>()
+defineProps<{task: Task}>()
 
 const previewId = useId()
 const detailsRef = useTemplateRef("details")
-const previewRef = useTemplateRef("preview")
-
-const {previewTask, isPreviewVisible, floatingStyles, showPreview, leavePreview, holdPreview, scheduleHide, hidePreview} = useTaskRelationPreview(
-  detailsRef,
-  previewRef,
-)
-
-watch(() => props.task.id, hidePreview)
 </script>
 
 <template>
@@ -52,30 +43,17 @@ watch(() => props.task.id, hidePreview)
     </div>
 
     <TagsProperty :task="task" />
-    <RelationsProperty
-      v-for="side in ['blockedBy', 'blocks'] as const"
-      :key="side"
-      :side="side"
-      :preview-id="previewId"
-      :preview-task-id="isPreviewVisible ? previewTask?.id : undefined"
-      @preview="showPreview"
-      @leave-preview="leavePreview"
-      @hide-preview="hidePreview"
-    />
+    <TaskPreviewPopup :id="previewId" :key="task.id" :alignment="detailsRef" v-slot="{taskId, show, leave, hide}">
+      <RelationsProperty
+        v-for="side in ['blockedBy', 'blocks'] as const"
+        :key="side"
+        :side="side"
+        :preview-id="previewId"
+        :preview-task-id="taskId"
+        @preview="show"
+        @leave-preview="leave"
+        @hide-preview="hide"
+      />
+    </TaskPreviewPopup>
   </div>
-
-  <Teleport to="body">
-    <div
-      v-if="previewTask"
-      :id="previewId"
-      ref="preview"
-      role="tooltip"
-      class="dock-surface z-[998] max-h-[min(592px,calc(100dvh-16px))] w-[336px] max-w-[calc(100vw-16px)] overflow-auto overscroll-contain rounded-2xl shadow-lg"
-      :style="[floatingStyles, {visibility: isPreviewVisible ? 'visible' : 'hidden'}]"
-      @pointerenter="holdPreview"
-      @pointerleave="scheduleHide"
-    >
-      <TaskRelationPreview :key="previewTask.id" :task="previewTask" />
-    </div>
-  </Teleport>
 </template>

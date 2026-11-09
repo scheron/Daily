@@ -68,8 +68,12 @@ class _Storage {
     return await window.BridgeIPC["tasks:create"](newTask)
   }
 
-  async updateTask(id: Task["id"], updates: Partial<Omit<Task, "id" | "createdAt" | "updatedAt">>): Promise<Changeset> {
-    return await window.BridgeIPC["tasks:update"](id, updates)
+  async updateTask(
+    id: Task["id"],
+    updates: Partial<Omit<Task, "id" | "createdAt" | "updatedAt">>,
+    ...spentTimeAdjustment: [spentTimeDelta?: number]
+  ): Promise<Changeset> {
+    return await window.BridgeIPC["tasks:update"](id, updates, ...spentTimeAdjustment)
   }
 
   /**

@@ -23,6 +23,7 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
   const draftBase = ref<TaskDraft | null>(null)
   const editingTaskId = ref<Task["id"] | null>(null)
   let dateExplicitlyCleared = false
+  let pendingCommit: Promise<boolean> | null = null
 
   const pending = usePendingChildren({draft})
   const {pendingSubtasks, pendingComments, hasPending, clearPending, writePending} = pending
@@ -36,6 +37,8 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
   })
   const editingTask = computed(() => (notNull(editingTaskId.value) ? tasksStore.findTaskById(editingTaskId.value) : null))
   const editingTaskUpdatedAt = computed(() => editingTask.value?.updatedAt ?? null)
+  const editingTaskSpentTime = computed(() => editingTask.value?.spentTime ?? null)
+  const hasSpentTimeEdit = computed(() => draft.value?.spentTime !== draftBase.value?.spentTime)
   const editingTaskRelationIds = computed<TaskRelationSets | null>(() => {
     if (isNull(editingTaskId.value)) return null
     return relationIdsFor(editingTaskId.value)
@@ -106,7 +109,31 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
   }
 
   async function commit() {
-    if (!draft.value) return
+    if (pendingCommit) return pendingCommit
+
+    pendingCommit = writeDraft()
+    try {
+      return await pendingCommit
+    } finally {
+      pendingCommit = null
+    }
+  }
+
+  async function commitAndClose() {
+    const id = editingTaskId.value
+    if ((await commit()) && editingTaskId.value === id && !isDirty.value) clear()
+  }
+
+  function clear() {
+    draft.value = null
+    draftBase.value = null
+    editingTaskId.value = null
+    dateExplicitlyCleared = false
+    clearPending()
+  }
+
+  async function writeDraft(): Promise<boolean> {
+    if (!draft.value) return false
     const next = draft.value
 
     if (isNull(editingTaskId.value)) {
@@ -121,14 +148,16 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
         milestoneId: next.milestoneId,
       })
 
-      if (created && (next.blockedBy.length || next.blocks.length)) {
+      if (!created) return false
+
+      if (next.blockedBy.length || next.blocks.length) {
         await taskRelationsStore.setTaskRelations(created.id, {blockedBy: next.blockedBy, blocks: next.blocks})
       }
 
-      if (created) await writePending(created.id)
+      await writePending(created.id)
 
       draftBase.value = deepClone(next)
-      return
+      return true
     }
 
     const id = editingTaskId.value
@@ -137,27 +166,27 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
     if (base) {
       const needsDate = next.status !== "backlog" && next.status !== "ready_for_agent" && !next.scheduled
       const restPatch = buildRestPatch(next, base)
+      const spentTimeDelta = next.spentTime - base.spentTime
+      const adjustment: [spentTimeDelta?: number] = spentTimeDelta === 0 ? [] : [spentTimeDelta]
       const shouldWriteDate = next.scheduled?.date !== base.scheduled?.date && (next.status !== "backlog" || dateExplicitlyCleared)
+      const writesDateWithPatch = !needsDate && shouldWriteDate && ("status" in restPatch || next.scheduled === null)
+      const updates = writesDateWithPatch ? {...restPatch, scheduled: next.scheduled} : restPatch
 
       if (next.branchId !== base.branchId) await tasksStore.moveTaskToBranch(id, next.branchId ?? "")
 
+      if ((adjustment.length || Object.keys(updates).length) && (await tasksStore.updateTask(id, updates, ...adjustment)) === false) return false
+
       if (needsDate) {
-        if (Object.keys(restPatch).length) await tasksStore.updateTask(id, restPatch)
         await tasksStore.moveTaskByOrder({taskId: id, targetStatus: next.status, activeDate: tasksStore.activeDay})
-      } else {
-        if (shouldWriteDate && ("status" in restPatch || next.scheduled === null)) {
-          await tasksStore.updateTask(id, {...restPatch, scheduled: next.scheduled})
-        } else {
-          if (Object.keys(restPatch).length) await tasksStore.updateTask(id, restPatch)
-          if (shouldWriteDate && next.scheduled) await tasksStore.moveTask(id, next.scheduled.date)
-        }
+      } else if (shouldWriteDate && !writesDateWithPatch && next.scheduled) {
+        await tasksStore.moveTask(id, next.scheduled.date)
       }
 
       if (!sameIds(next.blockedBy, base.blockedBy) || !sameIds(next.blocks, base.blocks)) {
         await taskRelationsStore.setTaskRelations(id, {blockedBy: next.blockedBy, blocks: next.blocks})
       }
     } else {
-      await tasksStore.updateTask(id, {
+      const updated = await tasksStore.updateTask(id, {
         content: next.content,
         tags: next.tags,
         estimatedTime: next.estimatedTime,
@@ -166,23 +195,22 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
         priority: next.priority,
         milestoneId: next.milestoneId,
       })
+      if (updated === false) return false
       await taskRelationsStore.setTaskRelations(id, {blockedBy: next.blockedBy, blocks: next.blocks})
     }
 
-    draftBase.value = deepClone(next)
-  }
+    if (editingTaskId.value !== id || !draft.value) return true
 
-  async function commitAndClose() {
-    await commit()
-    clear()
-  }
-
-  function clear() {
-    draft.value = null
-    draftBase.value = null
-    editingTaskId.value = null
-    dateExplicitlyCleared = false
-    clearPending()
+    const saved = deepClone(next)
+    if (base && next.spentTime !== base.spentTime) {
+      saved.spentTime = editingTaskSpentTime.value ?? next.spentTime
+      const remainingEdit = draft.value.spentTime - next.spentTime
+      draft.value = {...draft.value, spentTime: Math.max(0, saved.spentTime + remainingEdit)}
+    } else if (base) {
+      saved.spentTime = draftBase.value?.spentTime ?? next.spentTime
+    }
+    draftBase.value = saved
+    return true
   }
 
   function seedFrom(task: Task) {
@@ -221,6 +249,15 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
   watch(editingTaskUpdatedAt, (updatedAt) => {
     if (isNull(updatedAt) || isDirty.value) return
     if (editingTask.value) seedFrom(editingTask.value)
+  })
+
+  watch([editingTaskSpentTime, hasSpentTimeEdit], ([spentTime, hasEdit]) => {
+    const current = draft.value
+    const base = draftBase.value
+    if (spentTime === null || !current || !base || base.spentTime === spentTime || (hasEdit && pendingCommit)) return
+
+    draft.value = {...current, spentTime: Math.max(0, spentTime + current.spentTime - base.spentTime)}
+    draftBase.value = {...base, spentTime}
   })
 
   watch(editingTaskRelationIds, (ids) => {

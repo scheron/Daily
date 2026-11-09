@@ -26,14 +26,13 @@ describe("GeneralSettings", () => {
     vi.useRealTimers()
   })
 
-  async function setup(focus, settings = {}) {
+  async function setup(settings = {}) {
     bridge = mockBridgeIPC({
       "settings:load": vi.fn().mockResolvedValue({
         appearance: {mode: "system", accent: "default", base: "default"},
         typography: {fontSize: "normal"},
         layout: {sectionsCollapsed: {}},
         branch: {activeId: "main"},
-        focus,
         ...settings,
       }),
     })
@@ -50,37 +49,8 @@ describe("GeneralSettings", () => {
       .findComponent(BaseSwitch)
   }
 
-  it("Focus: saves notifications turned off", async () => {
-    await setup({shouldNotify: true, shouldPlaySound: true})
-
-    await switchIn("Notifications").trigger("click")
-    await vi.advanceTimersByTimeAsync(300)
-
-    expect(bridge["settings:save"]).toHaveBeenCalledWith({focus: {shouldNotify: false}})
-  })
-
-  it("Focus: saves the sound turned off while notifications stay on", async () => {
-    await setup({shouldNotify: true, shouldPlaySound: true})
-
-    await switchIn("Sound").trigger("click")
-    await vi.advanceTimersByTimeAsync(300)
-
-    expect(bridge["settings:save"]).toHaveBeenCalledWith({focus: {shouldPlaySound: false}})
-  })
-
-  it("Focus: holds the sound switch still while notifications are off", async () => {
-    await setup({shouldNotify: false, shouldPlaySound: true})
-
-    const sound = switchIn("Sound")
-    await sound.trigger("click")
-    await vi.advanceTimersByTimeAsync(300)
-
-    expect(sound.props("disabled")).toBe(true)
-    expect(bridge["settings:save"]).not.toHaveBeenCalled()
-  })
-
   it("Shortcuts: saves Quick task turned off and hides its shortcut", async () => {
-    await setup({shouldNotify: true, shouldPlaySound: true})
+    await setup()
     const titles = () => wrapper.findAllComponents(SettingRow).map((row) => row.props("title"))
     expect(titles()).toContain("Quick task shortcut")
 
@@ -92,7 +62,7 @@ describe("GeneralSettings", () => {
   })
 
   it("Appearance: selects regular by default and saves compact through the existing settings path", async () => {
-    await setup({shouldNotify: true, shouldPlaySound: true})
+    await setup()
     const titles = wrapper.findAllComponents(SettingRow).map((row) => row.props("title"))
     expect(titles).toContain("Interface Size")
     const row = wrapper.findAllComponents(SettingRow).find((row) => row.props("title") === "Interface Size")
@@ -106,13 +76,10 @@ describe("GeneralSettings", () => {
   })
 
   it("Appearance: restores the saved board view and persists mode changes without changing interface size or collapsed columns", async () => {
-    await setup(
-      {shouldNotify: true, shouldPlaySound: true},
-      {
-        appearance: {mode: "system", accent: "default", base: "default", boardMode: "agents", taskView: "compact"},
-        layout: {sectionsCollapsed: {backlog: true, done: false}},
-      },
-    )
+    await setup({
+      appearance: {mode: "system", accent: "default", base: "default", boardMode: "agents", taskView: "compact"},
+      layout: {sectionsCollapsed: {backlog: true, done: false}},
+    })
     const settingsStore = useSettingsStore()
     const savedSettings = JSON.parse(JSON.stringify(settingsStore.settings))
     const row = wrapper.findAllComponents(SettingRow).find((row) => row.props("title") === "Board View")
@@ -135,7 +102,7 @@ describe("GeneralSettings", () => {
   })
 
   it("opens with the Appearance group in the agreed row order", async () => {
-    await setup({shouldNotify: true, shouldPlaySound: true})
+    await setup()
 
     expect(wrapper.findAllComponents(SettingsGroup)[0].props("label")).toBe("Appearance")
     const titles = wrapper

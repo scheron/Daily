@@ -84,8 +84,7 @@ export const useTaskEditor = createSharedComposable(() => {
 
   async function commitDraft() {
     if (!canSave.value) return
-    await taskEditorStore.commit()
-    if (taskEditorStore.isNew) taskEditorStore.clear()
+    if ((await taskEditorStore.commit()) && taskEditorStore.isNew) taskEditorStore.clear()
   }
 
   async function commitDraftAndClose() {

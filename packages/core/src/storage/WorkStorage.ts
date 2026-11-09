@@ -1,3 +1,4 @@
+import {logger} from "../utils/logger"
 import {EMPTY_CHANGESET} from "../types/storage"
 
 import type {
@@ -52,7 +53,7 @@ export class WorkStorage implements IWorkStorage {
    * async I/O (a network call, writing a file's bytes) belongs inside it: the transaction holds
    * `BEGIN IMMEDIATE`'s lock for as long as `fn` is running.
    */
-  async batch<T>(fn: () => Promise<T>): Promise<T> {
+  async batch<T>(fn: () => Promise<T>, {acknowledgeCommit = false}: {acknowledgeCommit?: boolean} = {}): Promise<T> {
     if (this.openBatch) return fn()
 
     const openBatch: OpenBatch = {changeset: {}}
@@ -78,8 +79,8 @@ export class WorkStorage implements IWorkStorage {
       this.openBatch = null
     }
 
-    await this.applyIndexMaintenance(openBatch.changeset)
-    this.afterWrite(openBatch.changeset)
+    if (acknowledgeCommit) await this.publishCommitted(openBatch.changeset)
+    else await this.commitWrite(openBatch.changeset)
     return result
   }
 
@@ -123,21 +124,16 @@ export class WorkStorage implements IWorkStorage {
   }
 
   /** A project change carried in `updates.branchId` also keeps the task's comments with it — the same as `moveTaskToBranch`, which is this method's own special case. */
-  async updateTask(id: Task["id"], updates: PartialDeep<Task>, source?: ActorSource): Promise<Changeset> {
-    const updatedTasks = await this.core.tasksService.updateTask(id, updates, source)
-    if (!updatedTasks.length) return EMPTY_CHANGESET
+  async updateTask(id: Task["id"], updates: PartialDeep<Task>, source?: ActorSource, spentTimeDelta?: number): Promise<Changeset> {
+    if (spentTimeDelta === undefined) return this.applyTaskUpdate(id, updates, source)
+    return this.batch(() => this.applyTaskUpdate(id, updates, source, spentTimeDelta), {acknowledgeCommit: true})
+  }
 
-    const removedRelations = await this.core.taskRelationsService.removeInvalidRelations(updatedTasks.map((task) => task.id))
+  async addTaskSpentTime(id: Task["id"], seconds: number): Promise<Changeset> {
+    const task = this.db.transaction(() => this.core.tasksService.addTaskSpentTime(id, seconds))()
+    if (!task) return EMPTY_CHANGESET
 
-    const changeset: Changeset = {tasks: {upserted: updatedTasks}}
-    if (removedRelations.length) changeset.relations = {removed: removedRelations}
-
-    if (updates.branchId !== undefined) {
-      const movedComments = await this.core.taskCommentsService.alignCommentsToTaskBranch(id, updates.branchId as Branch["id"])
-      if (movedComments.length) changeset.comments = {upserted: movedComments}
-    }
-
-    return this.commitWrite(changeset)
+    return this.publishCommitted({tasks: {upserted: [task]}})
   }
 
   async moveTaskByOrder(params: MoveTaskByOrderParams, source?: ActorSource): Promise<Changeset> {
@@ -441,6 +437,33 @@ export class WorkStorage implements IWorkStorage {
 
   async searchTasks(query: string): Promise<TaskSearchResult[]> {
     return this.core.searchService.searchTasks(query)
+  }
+
+  private async applyTaskUpdate(id: Task["id"], updates: PartialDeep<Task>, source?: ActorSource, spentTimeDelta?: number): Promise<Changeset> {
+    const updatedTasks = await this.core.tasksService.updateTask(id, updates, source, spentTimeDelta)
+    if (!updatedTasks.length) return EMPTY_CHANGESET
+
+    const removedRelations = await this.core.taskRelationsService.removeInvalidRelations(updatedTasks.map((task) => task.id))
+
+    const changeset: Changeset = {tasks: {upserted: updatedTasks}}
+    if (removedRelations.length) changeset.relations = {removed: removedRelations}
+
+    if (updates.branchId !== undefined) {
+      const movedComments = await this.core.taskCommentsService.alignCommentsToTaskBranch(id, updates.branchId as Branch["id"])
+      if (movedComments.length) changeset.comments = {upserted: movedComments}
+    }
+
+    return this.commitWrite(changeset)
+  }
+
+  private async publishCommitted(changeset: Changeset): Promise<Changeset> {
+    try {
+      return await this.commitWrite(changeset)
+    } catch (error) {
+      // Retrying after a notification failure would apply the increment twice.
+      logger.error(logger.CONTEXT.TASKS, "Failed to publish recorded time", error)
+      return changeset
+    }
   }
 
   private async commitWrite(changeset: Changeset): Promise<Changeset> {

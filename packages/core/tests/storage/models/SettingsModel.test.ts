@@ -212,6 +212,18 @@ describe("SettingsModel", () => {
     expect(settingsModel.loadSettings().menuBar.isVisible).toBe(false)
   })
 
+  it("drops retired Focus settings while keeping other saved preferences", () => {
+    const data = JSON.stringify({focus: {shouldNotify: false, shouldPlaySound: false}, menuBar: {isVisible: false}})
+    db.prepare("INSERT INTO settings (id, version, data, created_at, updated_at) VALUES ('default', 'v', ?, 'now', 'now')").run(data)
+
+    expect(settingsModel.loadSettings()).not.toHaveProperty("focus")
+    settingsModel.saveSettings({quickTask: {hotkey: "Control+Shift+A"}})
+
+    const saved = JSON.parse(db.prepare("SELECT data FROM settings WHERE id = 'default'").get().data)
+    expect(saved).not.toHaveProperty("focus")
+    expect(saved.menuBar.isVisible).toBe(false)
+  })
+
   it("persists remote configuration locally, not in the syncable settings row", () => {
     settingsModel.saveSettings({sync: {iCloud: {enabled: true}}})
     const settings = settingsModel.loadSettings()

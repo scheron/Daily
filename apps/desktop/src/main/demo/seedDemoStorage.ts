@@ -460,7 +460,6 @@ export async function seedDemoStorage(storage: StorageController, today: ISODate
     branch: {activeId: (activeProject as Branch).id, isAllProjects: false},
     quickTask: {...settings.quickTask, isEnabled: false},
     menuBar: {isVisible: false},
-    focus: {shouldNotify: false, shouldPlaySound: false},
     ai: null,
     window: {main: {width: 1440, height: 960, isMaximized: false, isFullScreen: false}},
   })

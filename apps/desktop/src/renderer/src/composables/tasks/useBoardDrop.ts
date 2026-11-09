@@ -9,7 +9,7 @@ import type {ISODate, Milestone} from "@daily/protocol"
 
 type PendingDrop = {type: "day"; taskId: string; date: ISODate} | {type: "milestone"; taskId: string; milestoneId: Milestone["id"] | null}
 
-const DROP_ZONE_SELECTOR = "[data-popup], [data-day-drop-zone], [data-focus-drop-zone]"
+const DROP_ZONE_SELECTOR = "[data-popup], [data-day-drop-zone]"
 
 export const useBoardDrop = createSharedComposable(() => {
   const dragDropStore = useDragDropStore()

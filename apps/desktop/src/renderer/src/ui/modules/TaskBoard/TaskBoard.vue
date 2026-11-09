@@ -11,7 +11,6 @@ import {useMilestonesStore} from "@/stores/milestones"
 import {useTasksStore} from "@/stores/tasks"
 import ActionsDock from "@/ui/modules/ActionsDock"
 import CalendarDock from "@/ui/modules/CalendarDock"
-import FocusDock from "@/ui/modules/FocusDock.vue"
 import TagsDock from "@/ui/modules/TagsDock.vue"
 import {cn} from "@/utils/ui/tailwindcss"
 import {useColumnReorder} from "./composables/useColumnReorder"
@@ -22,6 +21,7 @@ import HiddenColumnStack from "./{fragments}/HiddenColumnStack"
 import NoTasksPlaceholder from "./{fragments}/NoTasksPlaceholder.vue"
 import TaskColumn from "./{fragments}/TaskColumn.vue"
 import TaskDragPreview from "./{fragments}/TaskDragPreview.vue"
+import TaskTimerStack from "./{fragments}/TaskTimerStack"
 
 import type {TaskStatus} from "@daily/protocol"
 
@@ -34,7 +34,6 @@ const dragDropStore = useDragDropStore()
 
 const containerRef = useTemplateRef<HTMLElement>("container")
 const boardRef = useTemplateRef<HTMLElement>("board")
-const focusDockRef = useTemplateRef<InstanceType<typeof FocusDock>>("focusDock")
 const rootFontSize = ref(readRootFontSize())
 
 const {width: boardWidth} = useElementSize(containerRef)
@@ -123,19 +122,13 @@ function getColumnClasses(status: TaskStatus) {
     </div>
 
     <HiddenColumnStack side="left" :columns="hiddenColumns.left" :hovered-chip-status="columns.hoveredChipStatus.value" @reveal="revealColumn" />
-    <HiddenColumnStack
-      side="right"
-      :columns="hiddenColumns.right"
-      :hovered-chip-status="columns.hoveredChipStatus.value"
-      :obstacle="focusDockRef?.element"
-      @reveal="revealColumn"
-    />
+    <HiddenColumnStack side="right" :columns="hiddenColumns.right" :hovered-chip-status="columns.hoveredChipStatus.value" @reveal="revealColumn" />
 
     <div class="drag-region absolute inset-x-0 top-0 z-20 h-11" />
     <TagsDock :compact="isDockCompact" />
     <CalendarDock />
     <ActionsDock :compact="isDockCompact" @create-task="emit('createTask')" />
-    <FocusDock ref="focusDock" />
+    <TaskTimerStack />
     <TaskDragPreview />
     <ColumnDragPreview v-if="draggingStatus" :status="draggingStatus" :x="previewPosition.x" :y="previewPosition.y" />
   </div>

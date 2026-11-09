@@ -5,7 +5,7 @@ import type {Tag, Task, TaskPriority, TaskStatus} from "@daily/protocol"
 
 /**
  * Builds the minimal patch of changed fields between a draft and its base, excluding
- * `scheduled.date` and `branchId` (those are committed via dedicated move operations).
+ * `scheduled.date` and `branchId` (dedicated move operations) and Spent (an additive write).
  * A status leaving the backlog with no date picked is excluded too — that resolves
  * through `moveTaskByOrder`, which takes the board's day, not a plain status write.
  */
@@ -14,7 +14,6 @@ export function buildRestPatch(next: TaskDraft, base: TaskDraft) {
     content: string
     tags: Tag[]
     estimatedTime: number
-    spentTime: number
     status: TaskStatus
     priority: TaskPriority
     milestoneId: Task["milestoneId"]
@@ -27,7 +26,6 @@ export function buildRestPatch(next: TaskDraft, base: TaskDraft) {
   if (next.content !== base.content) out.content = next.content
   if (!sameTagIds(next.tags, base.tags)) out.tags = next.tags
   if (next.estimatedTime !== base.estimatedTime) out.estimatedTime = next.estimatedTime
-  if (next.spentTime !== base.spentTime) out.spentTime = next.spentTime
   if (next.status !== base.status && !needsDate) out.status = next.status
   if (next.priority !== base.priority) out.priority = next.priority
   if (next.milestoneId !== base.milestoneId) out.milestoneId = next.milestoneId

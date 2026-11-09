@@ -8,7 +8,6 @@ import {useBoardCardGeometry} from "@/composables/useBoardCardGeometry"
 import {TASK_COLUMNS} from "@/constants/ui"
 import {useBranchesStore} from "@/stores/branches"
 import {useFilterStore} from "@/stores/filter"
-import {useFocusStore} from "@/stores/focus"
 import {useMilestonesStore} from "@/stores/milestones"
 import {useProjectScopeStore} from "@/stores/project-scope"
 import {useSubtasksStore} from "@/stores/subtasks"
@@ -35,7 +34,6 @@ import {toTaskTitle} from "@shared/utils/tasks/toTaskTitle"
 import {useTaskModel} from "./composables/useTaskModel"
 import CardCrumb from "./{fragments}/CardCrumb.vue"
 import DeleteMenuItem from "./{fragments}/DeleteMenuItem.vue"
-import FocusBorder from "./{fragments}/FocusBorder.vue"
 import RelationChip from "./{fragments}/RelationChip.vue"
 import SubtaskChip from "./{fragments}/SubtaskChip.vue"
 import TagLine from "./{fragments}/TagLine.vue"
@@ -53,7 +51,6 @@ const taskCommentsStore = useTaskCommentsStore()
 const subtasksStore = useSubtasksStore()
 const milestonesStore = useMilestonesStore()
 const filterStore = useFilterStore()
-const focusStore = useFocusStore()
 const branchesStore = useBranchesStore()
 const projectScopeStore = useProjectScopeStore()
 
@@ -70,7 +67,6 @@ const commentCount = computed(() => taskCommentsStore.commentCountOf(props.task.
 const subtaskCount = computed(() => subtasksStore.countOf(props.task.id))
 const project = computed(() => branchesStore.branchesMap.get(props.task.branchId))
 const projectName = computed(() => (projectScopeStore.isAllProjectsMode && props.task.branchId !== NO_PROJECT_ID ? (project.value?.name ?? "") : ""))
-const isInSession = computed(() => focusStore.isInSession(props.task.id))
 
 const footerDayLabel = computed(() => {
   if (filterStore.frame !== "milestone" || !props.task.scheduled) return ""
@@ -162,7 +158,7 @@ const cardClass = computed(() =>
   cn(
     "bg-base-100 hover:shadow-accent/5 group relative overflow-hidden rounded-2xl border transition-[border-color,box-shadow] duration-200 hover:shadow-lg",
     TASK_COLUMNS.find((column) => column.status === props.task.status)?.cardBorderClass,
-    {"border-transparent hover:border-transparent": isInSession.value, "board-card-compact": isCompact.value},
+    {"board-card-compact": isCompact.value},
   ),
 )
 const priorityClass = computed(() => cn("size-4 shrink-0", {"ml-auto": !hasMetrics.value}))
@@ -269,8 +265,6 @@ async function onLinkTask(side: keyof TaskRelationSets, taskId: Task["id"]) {
           <PriorityIcon v-if="hasPriority" :priority="task.priority" :class="priorityClass" />
         </div>
       </div>
-
-      <FocusBorder v-if="isInSession" />
     </div>
 
     <template #item-delete="item">

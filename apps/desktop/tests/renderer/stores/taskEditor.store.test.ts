@@ -426,6 +426,87 @@ describe("taskEditorStore — external sync", () => {
     expect(editor.draft?.content).toBe("my edits")
     expect(editor.draft?.status).toBe("in_progress")
   })
+
+  it("keeps externally logged time in a content draft through save", async () => {
+    const {tasks, editor} = await setupStores()
+    const live = ref(makeTask({spentTime: 50}))
+    tasks.findTaskById = () => live.value
+
+    await editor.open(live.value.id)
+    editor.patch({content: "my edits"})
+    live.value = {...live.value, spentTime: 61}
+    await nextTick()
+
+    expect(editor.draft).toMatchObject({content: "my edits", spentTime: 61})
+
+    tasks.updateTask.mockImplementation(async () => {
+      live.value = {...live.value, spentTime: 72}
+      await nextTick()
+    })
+
+    await editor.commit()
+
+    expect(editor.draft?.spentTime).toBe(72)
+    expect(editor.isDirty).toBe(false)
+    expect(tasks.updateTask.mock.calls).toEqual([[live.value.id, {content: "my edits"}]])
+  })
+
+  it("refreshes Spent when completion logs more time during a manual save", async () => {
+    const {tasks, editor} = await setupStores()
+    const live = ref(makeTask({spentTime: 50}))
+    tasks.findTaskById = () => live.value
+
+    await editor.open(live.value.id)
+    editor.patch({spentTime: 120, status: "done"})
+
+    tasks.updateTask.mockImplementation(async () => {
+      live.value = {...live.value, spentTime: 131, status: "done"}
+      await nextTick()
+    })
+
+    await editor.commit()
+    await nextTick()
+
+    expect(editor.draft?.spentTime).toBe(131)
+    expect(editor.isDirty).toBe(false)
+  })
+
+  it("adds a manual Spent edit once on top of time logged since the draft opened", async () => {
+    const task = makeTask({spentTime: 600})
+    const release = Promise.withResolvers()
+    let persisted = {...task, spentTime: 720}
+    mockBridgeIPC({
+      async "tasks:update"(_id, updates, spentTimeDelta) {
+        await release.promise
+        const spentTime = spentTimeDelta === undefined ? (updates.spentTime ?? persisted.spentTime) : persisted.spentTime + spentTimeDelta
+        persisted = {...persisted, ...updates, spentTime}
+        return {tasks: {upserted: [persisted]}}
+      },
+    })
+    const {useTasksStore} = await import("../../../src/renderer/src/stores/tasks")
+    const {useTaskEditorStore} = await import("../../../src/renderer/src/stores/task-editor")
+    const tasks = useTasksStore()
+    const editor = useTaskEditorStore()
+    tasks.tasks = [task]
+
+    await editor.open(task.id)
+    editor.patch({spentTime: 1500})
+    tasks.tasks = [persisted]
+    await nextTick()
+
+    const rebasedSpent = editor.draft?.spentTime
+    const save = editor.commit()
+    const repeatedSave = editor.commit()
+    const predictedSpent = tasks.findTaskById(task.id)?.spentTime
+    release.resolve()
+    await Promise.all([save, repeatedSave])
+
+    expect(rebasedSpent).toBe(1620)
+    expect(predictedSpent).toBe(1620)
+    expect(persisted.spentTime).toBe(1620)
+    expect(editor.draft?.spentTime).toBe(1620)
+    expect(editor.isDirty).toBe(false)
+  })
 })
 
 describe("taskEditorStore — relations in the draft", () => {

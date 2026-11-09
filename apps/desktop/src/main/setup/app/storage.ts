@@ -3,15 +3,15 @@ import {logger} from "@daily/core"
 import {broadcastToWindows} from "@main/utils/windows/broadcastToWindows"
 import {sendToApprovalWindow} from "@main/utils/windows/sendToApprovalWindow"
 
-import type {StorageController} from "@daily/core"
-import type {FocusController} from "@main/modules/focus/FocusController"
+import type {Changeset, StorageController} from "@daily/core"
 import type {WindowsGetter} from "@main/utils/windows/broadcastToWindows"
+
+type StorageBroadcast = [channel: "storage:changed", changeset: Changeset] | [channel: "settings:changed"]
 
 export function setupStorageSync(
   getStorage: () => StorageController | null,
   getWindows: WindowsGetter,
-  getFocus: () => FocusController | null,
-  onBroadcast: (channel: string, ...args: unknown[]) => void = () => undefined,
+  onBroadcast: (...args: StorageBroadcast) => void,
 ) {
   const storage = getStorage()
 
@@ -25,9 +25,8 @@ export function setupStorageSync(
       broadcastToWindows(getWindows, "storage-sync:status-changed", status, prevStatus)
     },
     onDataChange: (changeset) => {
-      broadcastToWindows(getWindows, "storage:changed", changeset)
       onBroadcast("storage:changed", changeset)
-      getFocus()?.applyStorageChange(changeset)
+      broadcastToWindows(getWindows, "storage:changed", changeset)
     },
     onSettingsChange: () => {
       broadcastToWindows(getWindows, "settings:changed")

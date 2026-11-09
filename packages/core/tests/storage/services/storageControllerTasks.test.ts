@@ -74,6 +74,81 @@ describe("StorageController — task write changesets and broadcasts", () => {
     expect(broadcasts).toEqual([])
   })
 
+  it("adds both timer credits to Spent without changing the task status", async () => {
+    const harness = makeHarness()
+    db = harness.db
+    const {taskModel, controller} = harness
+    const task = taskModel.createTask(makeTaskInput({spentTime: 120, status: "done"}))
+    const broadcasts = withBroadcasts(controller)
+
+    await Promise.all([controller.addTaskSpentTime(task.id, 13), controller.addTaskSpentTime(task.id, 22)])
+
+    expect(taskModel.getTask(task.id)).toMatchObject({spentTime: 155, status: "done"})
+    expect(broadcasts.map((changeset) => changeset.tasks.upserted[0].spentTime)).toEqual([133, 155])
+  })
+
+  it("applies a draft's Spent adjustment on top of a timer credit already in storage", async () => {
+    const harness = makeHarness()
+    db = harness.db
+    const {taskModel, controller} = harness
+    const task = taskModel.createTask(makeTaskInput({spentTime: 600}))
+
+    await controller.addTaskSpentTime(task.id, 120)
+    await controller.updateTask(task.id, {status: "done"}, {kind: "manual"}, 900)
+
+    expect(taskModel.getTask(task.id)).toMatchObject({spentTime: 1_620, status: "done"})
+  })
+
+  it("acknowledges a committed Spent adjustment even if its notification fails", async () => {
+    const harness = makeHarness()
+    db = harness.db
+    const {taskModel, controller} = harness
+    const task = taskModel.createTask(makeTaskInput({spentTime: 120}))
+    controller.setupStorageBroadcasts({
+      onDataChange() {
+        throw new Error("Unable to broadcast")
+      },
+    })
+
+    const changeset = await controller.updateTask(task.id, {}, {kind: "manual"}, 900)
+
+    expect(changeset.tasks?.upserted).toEqual([expect.objectContaining({id: task.id, spentTime: 1_020})])
+    expect(taskModel.getTask(task.id).spentTime).toBe(1_020)
+  })
+
+  it("ignores timer credit for a task in the trash", async () => {
+    const harness = makeHarness()
+    db = harness.db
+    const {taskModel, controller} = harness
+    const task = taskModel.createTask(makeTaskInput({spentTime: 120}))
+    taskModel.deleteTask(task.id)
+    const broadcasts = withBroadcasts(controller)
+
+    expect(await controller.addTaskSpentTime(task.id, 13)).toEqual(EMPTY_CHANGESET)
+    expect(taskModel.getTask(task.id).spentTime).toBe(120)
+    expect(broadcasts).toEqual([])
+  })
+
+  it("rolls back timer credit if its activity record fails, so retry adds the time once", async () => {
+    const harness = makeHarness()
+    db = harness.db
+    const {taskModel, taskEventModel, controller} = harness
+    const task = taskModel.createTask(makeTaskInput({spentTime: 120}))
+    const broadcasts = withBroadcasts(controller)
+    const record = vi.spyOn(taskEventModel, "record").mockImplementationOnce(() => {
+      throw new Error("Unable to record activity")
+    })
+
+    await expect(controller.addTaskSpentTime(task.id, 13)).rejects.toThrow("Unable to record activity")
+    expect(taskModel.getTask(task.id).spentTime).toBe(120)
+    expect(broadcasts).toEqual([])
+
+    await controller.addTaskSpentTime(task.id, 13)
+
+    expect(taskModel.getTask(task.id).spentTime).toBe(133)
+    expect(record).toHaveBeenCalledTimes(2)
+  })
+
   it("moveTaskByOrder_returns_every_row_the_reorder_touched_as_upserted_and_broadcasts_them", async () => {
     const harness = makeHarness()
     db = harness.db

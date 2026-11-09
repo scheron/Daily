@@ -16,7 +16,9 @@ export function setupStorageIPC(getStorage: () => IStorageController | null) {
   ipcMain.handle("activity:get-by-task", (_e, taskId: Task["id"]) => getStorage()?.getTaskHistory(taskId))
 
   ipcMain.handle("tasks:get-one", (_e, id: Task["id"]) => getStorage()?.getTask(id))
-  ipcMain.handle("tasks:update", (_e, id: Task["id"], updates: PartialDeep<Task>) => getStorage()?.updateTask(id, updates))
+  ipcMain.handle("tasks:update", (_e, id: Task["id"], updates: PartialDeep<Task>, spentTimeDelta?: number) =>
+    getStorage()?.updateTask(id, updates, {kind: "manual"}, spentTimeDelta),
+  )
   ipcMain.handle("tasks:move-by-order", (_e, params: MoveTaskByOrderParams) => getStorage()?.moveTaskByOrder(params))
   ipcMain.handle("tasks:move-to-branch", (_e, taskId: Task["id"], branchId: Branch["id"]) => getStorage()?.moveTaskToBranch(taskId, branchId))
   ipcMain.handle("tasks:delete", (_e, id: Task["id"]) => getStorage()?.deleteTask(id))
