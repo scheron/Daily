@@ -1,6 +1,6 @@
 ---
 name: keeping-symbols-local
-description: Use when about to `export`, hoist or extract a type, composable, constant, helper or sub-component — especially one with a single use site, such as a union used by one component or a lookup table read by one function. Decides whether a symbol stays inside its function, stays in its file, earns an export and a file inside its owner's folder, or is promoted to a shared folder.
+description: Use when, in TypeScript/Vue code, about to `export`, hoist or extract a type, composable, constant, helper or sub-component — especially one with a single use site, such as a union used by one component or a lookup table read by one function. Decides whether a symbol stays inside its function, stays in its file, earns an export and a file inside its owner's folder, or is promoted to a shared folder.
 ---
 
 # Keeping Symbols Local
@@ -25,13 +25,13 @@ This skill sets how far a symbol is visible. Whether behaviour belongs to the Vi
 
 Every symbol sits on one rung. Start at the bottom; one real new consumer moves it up exactly one rung.
 
-- **Rung 0 — inside the function.** Read by one function: declare it there, or return the literal straight from it and let the type be inferred. `crossFadeFor` in `ui/modules/CalendarDock/composables/useDockCrossFade.ts` returns its keyframes and timings inline — no `type CrossFade`, no `const CROSS_FADE` beside it. The one exception is a type the function's own signature needs, such as a composable's options object: it sits unexported at module level, right above the function (`type DragScrollOptions = {…}`).
+- **Rung 0 — inside the function.** Read by one function: declare it there, or return the literal straight from it and let the type be inferred. `crossFadeFor` in `ui/modules/CalendarDock/composables/useDockCrossFade.ts` returns its keyframes and timings inline — no `type CrossFade`, no `const CROSS_FADE` beside it. The one exception is a type the function's own signature needs, such as a composable's options object: it sits unexported at module level, right above the function (`type DragScrollOptions = {…}`). Regex literals live in `constants/regex.ts` (**naming-files**).
 - **Rung 1 — file-local.** Read by several functions of one `.ts` or one `.vue`: module level, unexported. A union or a class map used only inside one component lives in its `<script setup>`.
 - **Rung 2 — owner-local.** Two or more files inside one component folder share it, or the responsibility guide extracts it from the `.vue`. Now it earns `types.ts`, `constants.ts`, `composables/useXxx.ts` or `utils/xxx.ts`, with `export`. A composable always goes to `composables/`, even when it is the only one — never flat beside the `.vue`. These exports stay inside the folder and are not re-exported from its `index.ts`, unless they form the owner's actual public contract. Anchors: `ui/base/BaseContextMenu/types.ts`, `ui/base/BaseModal/types.ts`.
 - **Rung 3 — renderer-shared.** An independent owner — a _second component_ — needs it. Only now does it leave the folder, to the home its kind has: mutable reactive state and registries to a store in `stores/`, static catalogs to `constants/`, loaders, queries and transforms to `utils/<domain>/`, shared types to `types/`, composables to `composables/`, components to `ui/common/(<group>)/` or `ui/base/`. A shared domain contract never lives in a UI component.
 - **Rung 4 — cross-boundary.** Main and renderer both need it → `apps/desktop/src/shared/`. Core or the server needs it too → `packages/std` (domain-free helpers) or `packages/protocol` (rules over the synced domain). Only symbols that really cross the boundary go there.
 
-Two private copies of the same function are two readers, not two symbols: merge them into one declaration on the rung both readers need. The identical `messageOf` in `ProviderMigrationModal.vue` and its fragment `ServerConnectSteps.vue` becomes `ProviderMigrationModal/utils/messageOf.ts`.
+Two private copies of the same function are two readers, not two symbols: merge them into one declaration on the rung both readers need. The identical `messageOf` in `ProviderMigrationModal.vue` and its fragment `ServerConnectSteps.vue` becomes `ProviderMigrationModal/utils/messageOf.ts`. Variant class maps belong to their component (**structuring-components**).
 
 You never skip rungs on speculation, and you never widen reach "to be safe".
 

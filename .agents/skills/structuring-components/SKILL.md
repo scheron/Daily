@@ -39,7 +39,7 @@ The form tells what a folder is: PascalCase is a component, lowercase is logic, 
 - Callers configure a Base component only through props and slots, and style its inner parts through class props: `class` for the root, `triggerClass`, `contentClass`, `containerClass` for the parts (`BasePopup`).
 - A Base component never imports a sibling Base component, not even through its composable or its door. A composition of primitives is an app widget: a field built from `BaseInput` and `BaseIcon` lives in `common/(inputs)/SearchInput/`. Private parts inside one Base folder are fine. Base stays a leaf layer, so nothing cycles and each primitive is replaced on its own.
 - A primitive lives in `base/` for what it is — a checkbox, a resize handle — even with one consumer. The one-consumer rule of keeping-symbols-local moves app widgets and fragments, not primitives.
-- A Base folder may hold `variants.ts`, the component's class map built with `defineVariant`. A component never imports another component's variants, nor the types derived from them: a caller passes `BaseButton` its `variant` prop typed with a union of its own, and when two components need the same class map, each keeps its own copy.
+- A Base folder may hold `variants.ts`, the component's class map built with `defineVariant`. Each component owns its variants and the types derived from them: a caller passes `BaseButton` its `variant` prop typed with a union of its own, and when two components need the same class map, each keeps its own copy.
 - An application host or provider gets no Base wrapper.
 
 ### `common/`

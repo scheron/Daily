@@ -52,7 +52,7 @@ Real anchors: `IAiClient` (`apps/desktop/src/main/ai/types.ts`), `IStorageContro
 ## A class contract
 
 - **A contract earns an `interface` only when something reads it besides the class** — a parameter, a variable, a second implementation or a test double typed by it. An interface that exactly one class implements and nothing else reads adds a second copy of the contract: drop it and let the class carry the signatures and their JSDoc (`StorageAPI` in `apps/desktop/src/renderer/src/api/Storage.ts`).
-- **A class contract is `interface IXxx`.** One that lacks the `I` prefix, or is a `type` a class implements, is renamed to `interface IXxx`.
+- **A class contract uses `interface IXxx`.**
 - **Fitting a shape is not yet `implements`.** A function takes a `SocketLike`, and some class happens to fit it; no class says `implements SocketLike`, so it stays a `type`. The same holds for an object literal: `const item: BaseContextMenuItem = {...}` is not `implements`. Only a `class ... implements` clause qualifies for case 1.
 
 ## Where a type lives
@@ -82,7 +82,7 @@ return undefined
 Authorization: token ? `Bearer ${token}` : undefined
 ```
 
-`undefined` stays where the platform hands it over (an optional prop not passed, `Map.get` of a missing key) and in a check against it. An existing protocol, wire format or stored format keeps its semantics: this rule never rewrites one.
+`undefined` stays where the platform hands it over (an optional prop not passed, `Map.get` of a missing key) and in a check against it. A protocol, wire format or stored format keeps its semantics: this rule never rewrites one.
 
 In a Vue template, a native attribute the DOM types allow only as `string | undefined` is left out with `v-bind` of a computed attributes object. A template attribute with an off value takes it: `:aria-current="isActive ? 'page' : 'false'"`, `:aria-hidden="Boolean(collapsed)"`, `:role="loading ? 'status' : null"`.
 

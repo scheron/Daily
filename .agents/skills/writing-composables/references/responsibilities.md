@@ -34,12 +34,4 @@ Disclosure and focus of a card's optional fields do not earn a composable. A lis
 - Do not replace every DOM argument with a callback to make the dependency look abstract. Separate the actual responsibility; callbacks alone do not make a workflow independent of its View.
 - Do not create wrappers for a ref assignment, a native array lookup or a single composable call that add no policy or lifetime of their own.
 
-Done when each moved concern has an explicit owner, named template refs stay discoverable in the matching View, workflow state does not depend on template structure, and existing cancellation, atomic writes, stale guards and UI protocol cleanup are preserved.
-
-## Sources
-
-- [Microsoft: MVVM](https://learn.microsoft.com/en-us/dotnet/architecture/maui/mvvm) separates View structure and visual behavior from bindable state, commands and model coordination, and explicitly leaves visual behavior such as animations in the View.
-- [Vue: Composables](https://vuejs.org/guide/reusability/composables) describes composing stateful logic, UI mechanisms and DOM effects included. A composable is not a synonym for a ViewModel.
-- [Vue: Template Refs](https://vuejs.org/guide/essentials/template-refs) shows element refs owned by the component and focus behavior. Keeping named refs in the View is the convention here; passing refs into an earned mechanism remains ordinary Vue composition.
-
-The external sources supply the distinction, not a stack to adopt.
+Done when each moved concern has an explicit owner, named template refs stay discoverable in the matching View, workflow state does not depend on template structure, and cancellation, atomic writes, stale guards and UI protocol cleanup are preserved.

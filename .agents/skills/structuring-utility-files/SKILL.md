@@ -47,7 +47,7 @@ utils/
 
 ## A class is a file of its own
 
-A file that exports a class, or a ready instance of a class, is PascalCase and named by the class without its underscore (**naming-files**): `utils/common/EventEmitter.ts`. It lives in a domain folder or `common/`, like a function. A class that needs several files becomes a folder whose `index.ts` is its door.
+A file that exports a class or its ready instance is PascalCase and named by the class without its underscore (**naming-files**): `utils/common/EventEmitter.ts`. It lives in a domain folder or `common/`, like a function. A class that needs several files becomes a folder whose `index.ts` is its door.
 
 ## Utilities and singletons
 
@@ -68,10 +68,10 @@ General-purpose operations over arrays, objects or strings are not a closed fami
 
 ## `helpers` is not a name
 
-`helpers` is not a file or folder name (**naming-files**). An existing `helpers` file or folder is not a family either:
+`helpers` is not a file or folder name (**naming-files**), and a `helpers` file or folder is not a family either:
 
 - Nothing new goes into it, not even a function that looks like it fits.
-- A function in it that you edit moves out to its own file, placed by the table below. The rest stays until a task is about that file.
+- Move any function you edit to its own file, placed by the table below.
 
 | What the function is                   | Where it goes                                                                                      |
 | -------------------------------------- | -------------------------------------------------------------------------------------------------- |

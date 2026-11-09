@@ -1,6 +1,6 @@
 ---
 name: writing-comments
-description: Use when writing, keeping, or deleting any comment or JSDoc in this repo, and whenever you edit a file that already has comments. Decides whether a comment earns its place — JSDoc on a public surface whose contract the name and the code do not tell, or a one-line reason the code cannot show — and keeps every comment describing the code as it is now.
+description: Use when writing, keeping, rewriting or deleting a comment or JSDoc in this repo, including comments beside edited code. Decides whether a comment earns its place — JSDoc on a public surface whose contract the name and the code do not tell, or a one-line reason the code cannot show — and keeps every comment describing the code as it is now.
 ---
 
 # Writing Comments
@@ -23,11 +23,13 @@ Every comment is **short** — one sentence, two at most — and in the present 
 const done = row.done === 1
 ```
 
+Delete comments in the code you touch if they do not pass the core rule.
+
 ## The current state, never the history
 
 A comment describes the code as it is now. It never records what the code used to do, what changed, what was removed or which bug a line once fixed — that history lives in git, and the commit message is where a change explains itself.
 
-When code next to a comment changes, the comment is rewritten to describe the new code, not extended with a sentence about the change.
+A comment that passes the core rule but no longer matches the code is rewritten to describe the code as it is, never extended with a sentence about what changed.
 
 ```ts
 // ❌ history
@@ -97,11 +99,7 @@ A pure util whose contract is easiest shown by use may carry an `@example` — `
 - **Stores, services, controllers, API clients** — only on the public actions and methods that pass the core rule.
 - **Tests** — none; a case that needs explaining needs a better name (**writing-tests**).
 - **Tool directives are code, not comments** — `// @ts-expect-error`, `// @ts-nocheck`, `// @vitest-environment`, `// eslint-disable-next-line`, `// prettier-ignore` stay.
-- **Teaching references** under `.agents/skills/**/reference/` are the only place section labels are allowed.
-
-## When editing a file
-
-Delete every comment in the code you touch that does not pass the core rule. Not being wrong is not a reason to keep one. A comment that passes it but no longer matches the code is rewritten to match.
+- **Teaching references** in a skill's own `reference/` folder (teaching code files) are the only place section labels are allowed.
 
 ## Common mistakes
 

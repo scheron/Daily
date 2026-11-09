@@ -89,7 +89,7 @@ watch(phase, (value) => {
 
 watch(
   () => props.taskId,
-  () => reset(),
+  () => panelRef.value?.scrollIntoView({block: "nearest"}),
 )
 
 useEventListener(window, "keydown", onKeydown)

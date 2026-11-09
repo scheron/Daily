@@ -80,6 +80,8 @@ A component itself is looked at in the running app, over CDP. A test that only p
 
 ## Where tests live
 
+When code moves, keep its test coverage at the seam that follows it.
+
 Tests never sit beside the source. They mirror it under a `tests/` root:
 
 - `apps/desktop/tests/renderer/…` — the renderer (`stores/`, `modules/`, `components/`, `composables/`, `overlays/`, `views/`, `utils/`)

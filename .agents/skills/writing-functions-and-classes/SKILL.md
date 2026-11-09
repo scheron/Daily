@@ -1,6 +1,6 @@
 ---
 name: writing-functions-and-classes
-description: Use when declaring any function, method, or class — choosing between a `function` declaration, an arrow and an object method, ordering a class's members, or naming and marking its private members. Applies whenever you write `const x = () =>`, `#field`, a `private` member or a `constructor`.
+description: Use when, in TypeScript/Vue code, declaring any function, method, or class — choosing between a `function` declaration, an arrow and an object method, ordering a class's members, or naming and marking its private members. Applies whenever you write `const x = () =>`, `#field`, a `private` member or a `constructor`.
 ---
 
 # Writing Functions and Classes

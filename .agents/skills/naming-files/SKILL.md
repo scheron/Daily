@@ -1,6 +1,6 @@
 ---
 name: naming-files
-description: Use when creating or renaming a file or folder in a front-end source tree — case, role suffix (`.store`, `.endpoint`, `.events`, `.meta`), stores, classes and singletons, DTOs, `index.ts` barrels, `helpers`, a regex constant, an acronym, or a hyphen in a name.
+description: Use when creating or renaming a file or folder in a front-end source tree (TypeScript/Vue code) — case, role suffix (`.store`, `.endpoint`, `.events`, `.meta`), stores, classes and singletons, DTOs, `index.ts` barrels, `helpers`, a regex constant, an acronym, or a hyphen in a name.
 ---
 
 # Naming Files
@@ -19,11 +19,11 @@ Component folders and the `ui/` layout: **structuring-components**. One function
    `stores/session/session.store.ts`, `login.endpoint.ts`, `email.schema.ts`, `parser.worker.ts`, `env.d.ts`, `locales/en-US.meta.ts`, `useTheme.test.ts`. Event-name constants are `constants/events/<name>.events.ts`: the files are found by searching for the suffix, yet they lie together in one folder.
 4. **Identifier tied to the file name:** `useXStore` ↔ `x.store.ts`; `xEndpoint` ↔ `x.endpoint.ts`; `xSchema` ↔ `x.schema.ts`; directive `vX` ↔ `vX.ts` (Vue); `useXModal` ↔ `XModal/` (Vue). `useSessionStore` ↔ `stores/session/session.store.ts`, `loginEndpoint` ↔ `login.endpoint.ts`, `directives/vFocusOnMount.ts`, `useConfirmModal` ↔ `ConfirmModal/`.
 5. **Folders outside `ui/` are kebab-case**, usually one word. `api/rest-client/`, `constants/validation-schemas/`.
-6. **`helpers` is not a name** for a file or a folder, in `router/` too: router utilities live in `router/utils/`. What to do with an existing one: **structuring-utility-files**.
+6. **`helpers` is not a name** for a file or a folder, in `router/` too: router utilities live in `router/utils/`. Where a `helpers` file's functions go: **structuring-utility-files**.
 7. **The kind word goes last** in a component or class name, everywhere — in groups, in `{fragments}`, for classes. `ConfirmModal`, `PasswordInput`, `SessionStore`, `ApiRestError`.
 8. **No truncated words; an acronym is written as a word.** `IconButton`, not `IconBtn`; `QrCode`, not `QRCode`; `CsvExporter`; `ApiRestError`, not `ApiRESTError`; `decodeJwt`, not `decodeJWT`.
 9. **`index.ts` is the door of a module**: a component folder, a store, an `api` module, the router, a class split over several files. `stores/session/index.ts`, `api/rest-client/index.ts`. A grouping — a `ui/` group, a domain folder of `utils/`, `composables/`, `constants/`, `types/`, `directives/`, `lib/` — has no barrel.
-10. **A store is always a folder, one folder one store:** `stores/<name>/<name>.store.ts` plus an `index.ts` that re-exports by name: `export {useSessionStore} from "./session.store"`. A second store is a second folder, never a second file in the first. The store file defines it as `export const useXStore = defineStore("x", () => {…})` — no default export; the store id matches the folder and never changes once released.
+10. **A store is always a folder, one folder one store:** `stores/<name>/<name>.store.ts` plus an `index.ts` that re-exports by name: `export {useSessionStore} from "./session.store"`. A second store is a second folder, never a second file in the first. The Pinia store file defines it as `export const useXStore = defineStore("x", () => {…})` — no default export; the store id matches the folder and never changes once released.
     What else lies in the folder, only when the store has it:
     - `composables/` — composables only this store uses; the door does not re-export them.
     - `utils/` — the store's functions; where a function lives and how far it is exported: **structuring-utility-files** and **keeping-symbols-local**.

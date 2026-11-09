@@ -88,7 +88,7 @@ function onKeydown(event: KeyboardEvent) {
 
 watch(
   () => props.taskId,
-  () => reset(),
+  () => panelRef.value?.scrollIntoView({block: "nearest"}),
 ) // ❌ second watcher scattered away from the first
 
 useEventListener(document, "visibilitychange", () => (nowMs.value = Date.now())) // ❌ an inline callback passes no method — this subscription sits with the composables (9)

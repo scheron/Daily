@@ -4,31 +4,31 @@
 skills:
   keeping-symbols-local:
     source: front/keeping-symbols-local
-    revision: ab6a9b9
+    revision: c80da04
   naming-files:
     source: front/naming-files
-    revision: 5e7b24c
+    revision: c80da04
   structuring-components:
     source: front/structuring-components
-    revision: ab6a9b9
+    revision: c80da04
   structuring-script-setup:
     source: front/structuring-script-setup
-    revision: ab6a9b9
+    revision: c80da04
   structuring-utility-files:
     source: front/structuring-utility-files
-    revision: 2ab25d3
+    revision: c80da04
   writing-comments:
     source: writing-comments
-    revision: ab6a9b9
+    revision: c80da04
   writing-composables:
     source: front/writing-composables
-    revision: ab6a9b9
+    revision: c80da04
   writing-functions-and-classes:
     source: front/writing-functions-and-classes
-    revision: ab6a9b9
+    revision: c80da04
   writing-tests:
     source: front/writing-tests
-    revision: ab6a9b9
+    revision: c80da04
   writing-types:
     source: front/writing-types
-    revision: ab6a9b9
+    revision: c80da04
