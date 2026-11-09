@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.40.0 - 2026-11-09
+
+### 💥 Breaking Changes
+
+- The Focus Session window and its Pomodoro modes have been removed.
+
+### ✨ New Features
+
+- **Task timers** — start timers from Spent and manage them together in the stack. Hover over a timer to preview its task, or click to open it. Time is saved to Spent when a timer is paused or stopped, its task is completed, or Daily quits.
+
+---
+
+
 ## v0.39.3 - 2026-11-08
 
 ### 🎨 Improvements
