@@ -68,6 +68,12 @@ for dmg in "${dmgs[@]}"; do
     status=1
   fi
 
+  if ! helper_minos="$(xcrun vtool -arch arm64 -show-build "$app/Contents/Resources/file-coordinator" | awk '$1 == "minos" { print $2 }')" ||
+    [ "$helper_minos" != "15.0" ]; then
+    echo "::error::packaged file-coordinator must target arm64 macOS 15.0 (found ${helper_minos:-none})"
+    status=1
+  fi
+
   if ! node "$SCRIPT_DIR/verify-bundle-closure.mjs" "$app"; then
     status=1
   fi

@@ -11,5 +11,5 @@ OUTPUT="$OUTPUT_DIR/file-coordinator"
 mkdir -p "$OUTPUT_DIR"
 
 echo "Building file-coordinator..."
-swiftc -O -o "$OUTPUT" "$SOURCE"
+swiftc -target arm64-apple-macosx15.0 -O -o "$OUTPUT" "$SOURCE"
 echo "Built: $OUTPUT ($(du -h "$OUTPUT" | cut -f1))"
