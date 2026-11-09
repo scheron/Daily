@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.40.1 - 2026-11-09
+
+### 🎨 Improvements
+
+- Hover over a day in the calendar to see how many tasks are in each status.
+
+### 🐛 Bug Fixes
+
+- The subtask field stays focused after pressing Enter, so subtasks can be added one after another.
+- Fixed time controls continuing to repeat after the time picker closed.
+
+---
+
 ## v0.40.0 - 2026-11-09
 
 ### 💥 Breaking Changes
@@ -11,7 +24,6 @@
 - **Task timers** — start timers from Spent and manage them together in the stack. Hover over a timer to preview its task, or click to open it. Time is saved to Spent when a timer is paused or stopped, its task is completed, or Daily quits.
 
 ---
-
 
 ## v0.39.3 - 2026-11-08
 
