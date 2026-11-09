@@ -30,23 +30,23 @@ type OpenBatch = {changeset: Changeset}
 /**
  * The one read and write path tasks, relations, comments, projects, tags, milestones, files and
  * search go through, built over a `StorageCore`. Carries every step of a write — the search index,
- * invalid-relation cleanup, and a moved task's comments — and calls `afterWrite` once per write with
+ * invalid-relation cleanup, and a moved task's comments — and calls its write callback once per write with
  * the resulting changeset.
  */
 export class WorkStorage implements IWorkStorage {
-  private openBatch: OpenBatch | null = null
+  private _openBatch: OpenBatch | null = null
 
   constructor(
-    private core: StorageCore,
-    private db: SqliteDriver,
-    private afterWrite: (changeset: Changeset) => void,
+    private _core: StorageCore,
+    private _db: SqliteDriver,
+    private _afterWrite: (changeset: Changeset) => void,
   ) {}
 
   /**
    * Runs `fn`'s writes as one SQLite transaction: none of them reaches the search index or
-   * `afterWrite` on its own, and only once `fn` resolves does the merged changeset of all of them do
+   * the write callback on its own, and only once `fn` resolves does the merged changeset of all of them do
    * both, in a single call. A thrown error rolls the transaction back and reaches the caller with
-   * neither the index nor `afterWrite` touched. A `batch` already open when this one starts is
+   * neither the index nor the write callback touched. A `batch` already open when this one starts is
    * joined rather than nested — its own commit covers this one's writes too.
    *
    * `fn` may only call this class's own writes — DB statements against the open transaction. No real
@@ -54,33 +54,33 @@ export class WorkStorage implements IWorkStorage {
    * `BEGIN IMMEDIATE`'s lock for as long as `fn` is running.
    */
   async batch<T>(fn: () => Promise<T>, {acknowledgeCommit = false}: {acknowledgeCommit?: boolean} = {}): Promise<T> {
-    if (this.openBatch) return fn()
+    if (this._openBatch) return fn()
 
     const openBatch: OpenBatch = {changeset: {}}
-    this.openBatch = openBatch
-    this.db.exec("BEGIN IMMEDIATE")
+    this._openBatch = openBatch
+    this._db.exec("BEGIN IMMEDIATE")
 
     let result: T
     try {
       try {
         result = await fn()
       } catch (error) {
-        this.rollbackIfOpen()
+        this._rollbackIfOpen()
         throw error
       }
 
       try {
-        this.db.exec("COMMIT")
+        this._db.exec("COMMIT")
       } catch (error) {
-        this.rollbackIfOpen()
+        this._rollbackIfOpen()
         throw error
       }
     } finally {
-      this.openBatch = null
+      this._openBatch = null
     }
 
-    if (acknowledgeCommit) await this.publishCommitted(openBatch.changeset)
-    else await this.commitWrite(openBatch.changeset)
+    if (acknowledgeCommit) await this._publishCommitted(openBatch.changeset)
+    else await this._commitWrite(openBatch.changeset)
     return result
   }
 
@@ -92,181 +92,181 @@ export class WorkStorage implements IWorkStorage {
     includeDeleted?: boolean
     includeBacklog?: boolean
   }): Promise<Task[]> {
-    return this.core.tasksService.getTaskList(params)
+    return this._core.tasksService.getTaskList(params)
   }
 
   async getTask(id: Task["id"]): Promise<Task | null> {
-    return this.core.tasksService.getTask(id)
+    return this._core.tasksService.getTask(id)
   }
 
   async getHistoryByTask(taskId: Task["id"]): Promise<TaskEvent[]> {
-    return this.core.tasksService.getHistoryByTask(taskId)
+    return this._core.tasksService.getHistoryByTask(taskId)
   }
 
   async getDeletedTasks(params?: {limit?: number; branchId?: Branch["id"]}): Promise<Task[]> {
-    return this.core.tasksService.getDeletedTasks(params)
+    return this._core.tasksService.getDeletedTasks(params)
   }
 
   async getMoveCounts(): Promise<Record<Task["id"], number>> {
-    return this.core.tasksService.getMoveCounts()
+    return this._core.tasksService.getMoveCounts()
   }
 
   async getCompletionsBetween(fromInclusive?: ISODateTime, toExclusive?: ISODateTime): Promise<Array<{taskId: Task["id"]; at: ISODateTime}>> {
-    return this.core.tasksService.getCompletionsBetween(fromInclusive, toExclusive)
+    return this._core.tasksService.getCompletionsBetween(fromInclusive, toExclusive)
   }
 
   async createTask(task: Omit<Task, "id"> & {id?: Task["id"]}, source?: ActorSource): Promise<Changeset> {
-    const branchId = await this.core.branchesService.resolveBranchId(task?.branchId)
-    const createdTask = await this.core.tasksService.createTask({...task, branchId}, source)
+    const branchId = await this._core.branchesService.resolveBranchId(task?.branchId)
+    const createdTask = await this._core.tasksService.createTask({...task, branchId}, source)
     if (!createdTask) return EMPTY_CHANGESET
 
-    return this.commitWrite({tasks: {upserted: [createdTask]}})
+    return this._commitWrite({tasks: {upserted: [createdTask]}})
   }
 
   /** A project change carried in `updates.branchId` also keeps the task's comments with it — the same as `moveTaskToBranch`, which is this method's own special case. */
   async updateTask(id: Task["id"], updates: PartialDeep<Task>, source?: ActorSource, spentTimeDelta?: number): Promise<Changeset> {
-    if (spentTimeDelta === undefined) return this.applyTaskUpdate(id, updates, source)
-    return this.batch(() => this.applyTaskUpdate(id, updates, source, spentTimeDelta), {acknowledgeCommit: true})
+    if (spentTimeDelta === undefined) return this._applyTaskUpdate(id, updates, source)
+    return this.batch(() => this._applyTaskUpdate(id, updates, source, spentTimeDelta), {acknowledgeCommit: true})
   }
 
   async addTaskSpentTime(id: Task["id"], seconds: number): Promise<Changeset> {
-    const task = this.db.transaction(() => this.core.tasksService.addTaskSpentTime(id, seconds))()
+    const task = this._db.transaction(() => this._core.tasksService.addTaskSpentTime(id, seconds))()
     if (!task) return EMPTY_CHANGESET
 
-    return this.publishCommitted({tasks: {upserted: [task]}})
+    return this._publishCommitted({tasks: {upserted: [task]}})
   }
 
   async moveTaskByOrder(params: MoveTaskByOrderParams, source?: ActorSource): Promise<Changeset> {
-    const updatedTasks = await this.core.tasksService.moveTaskByOrder(params, source)
+    const updatedTasks = await this._core.tasksService.moveTaskByOrder(params, source)
     if (!updatedTasks.length) return EMPTY_CHANGESET
 
-    return this.commitWrite({tasks: {upserted: updatedTasks}})
+    return this._commitWrite({tasks: {upserted: updatedTasks}})
   }
 
   async moveTaskToBranch(taskId: Task["id"], branchId: Branch["id"], source?: ActorSource): Promise<Changeset> {
-    const branch = await this.core.branchesService.getBranch(branchId)
+    const branch = await this._core.branchesService.getBranch(branchId)
     if (!branch) return EMPTY_CHANGESET
 
     return this.updateTask(taskId, {branchId: branch.id}, source)
   }
 
   async restoreTask(id: Task["id"], source?: ActorSource): Promise<Changeset> {
-    const restoredTask = await this.core.tasksService.restoreTask(id, source)
+    const restoredTask = await this._core.tasksService.restoreTask(id, source)
     if (!restoredTask) return EMPTY_CHANGESET
 
-    return this.commitWrite({tasks: {upserted: [restoredTask]}})
+    return this._commitWrite({tasks: {upserted: [restoredTask]}})
   }
 
   async deleteTask(id: Task["id"], source?: ActorSource): Promise<Changeset> {
-    const isDeleted = await this.core.tasksService.deleteTask(id, source)
+    const isDeleted = await this._core.tasksService.deleteTask(id, source)
     if (!isDeleted) return EMPTY_CHANGESET
 
-    const removedRelations = await this.core.taskRelationsService.removeInvalidRelations([id])
+    const removedRelations = await this._core.taskRelationsService.removeInvalidRelations([id])
 
     const changeset: Changeset = {tasks: {removed: [id]}}
     if (removedRelations.length) changeset.relations = {removed: removedRelations}
-    return this.commitWrite(changeset)
+    return this._commitWrite(changeset)
   }
 
   /** Deleted tasks are already excluded from the live collection, so a permanent delete has nothing to name in its changeset. */
   async permanentlyDeleteTask(id: Task["id"]): Promise<boolean> {
-    const isDeleted = await this.core.tasksService.permanentlyDeleteTask(id)
+    const isDeleted = await this._core.tasksService.permanentlyDeleteTask(id)
     if (isDeleted) {
-      this.core.searchService.removeTaskFromIndex(id)
-      await this.core.taskCommentsService.permanentlyDeleteCommentsOfTasks([id])
-      await this.core.subtasksService.permanentlyDeleteSubtasksOfTasks([id])
-      this.afterWrite(EMPTY_CHANGESET)
+      this._core.searchService.removeTaskFromIndex(id)
+      await this._core.taskCommentsService.permanentlyDeleteCommentsOfTasks([id])
+      await this._core.subtasksService.permanentlyDeleteSubtasksOfTasks([id])
+      this._afterWrite(EMPTY_CHANGESET)
     }
     return isDeleted
   }
 
   async permanentlyDeleteAllDeletedTasks(branchId: Branch["id"]): Promise<number> {
-    const deletedTasks = await this.core.tasksService.getDeletedTasks({branchId})
+    const deletedTasks = await this._core.tasksService.getDeletedTasks({branchId})
     if (!deletedTasks.length) return 0
 
-    const count = await this.core.tasksService.permanentlyDeleteAllDeletedTasks({branchId})
+    const count = await this._core.tasksService.permanentlyDeleteAllDeletedTasks({branchId})
 
     for (const task of deletedTasks) {
-      this.core.searchService.removeTaskFromIndex(task.id)
+      this._core.searchService.removeTaskFromIndex(task.id)
     }
 
-    await this.core.taskCommentsService.permanentlyDeleteCommentsOfTasks(deletedTasks.map((task) => task.id))
-    await this.core.subtasksService.permanentlyDeleteSubtasksOfTasks(deletedTasks.map((task) => task.id))
+    await this._core.taskCommentsService.permanentlyDeleteCommentsOfTasks(deletedTasks.map((task) => task.id))
+    await this._core.subtasksService.permanentlyDeleteSubtasksOfTasks(deletedTasks.map((task) => task.id))
 
-    this.afterWrite(EMPTY_CHANGESET)
+    this._afterWrite(EMPTY_CHANGESET)
     return count
   }
 
   async getRelationList(): Promise<TaskRelation[]> {
-    return this.core.taskRelationsService.getRelationList()
+    return this._core.taskRelationsService.getRelationList()
   }
 
   async getRelationsOfTask(taskId: Task["id"]): Promise<{blockedBy: Task[]; blocks: Task[]}> {
-    return this.core.taskRelationsService.getRelationsOfTask(taskId)
+    return this._core.taskRelationsService.getRelationsOfTask(taskId)
   }
 
   async setTaskRelations(taskId: Task["id"], next: TaskRelationSets): Promise<Changeset> {
-    const {upserted, removed} = await this.core.taskRelationsService.setTaskRelations(taskId, next)
+    const {upserted, removed} = await this._core.taskRelationsService.setTaskRelations(taskId, next)
     if (!upserted.length && !removed.length) return EMPTY_CHANGESET
 
     const changeset: Changeset = {}
     if (upserted.length) changeset.relations = {...changeset.relations, upserted}
     if (removed.length) changeset.relations = {...changeset.relations, removed}
-    return this.commitWrite(changeset)
+    return this._commitWrite(changeset)
   }
 
   async getCommentsOfTask(taskId: Task["id"]): Promise<TaskComment[]> {
-    return this.core.taskCommentsService.getCommentsOfTask(taskId)
+    return this._core.taskCommentsService.getCommentsOfTask(taskId)
   }
 
   async createComment(taskId: Task["id"], content: string, source?: TaskCommentSource): Promise<Changeset> {
-    const created = await this.core.taskCommentsService.createComment(taskId, content, source)
+    const created = await this._core.taskCommentsService.createComment(taskId, content, source)
     if (!created) return EMPTY_CHANGESET
 
-    return this.commitWrite({comments: {upserted: [created]}})
+    return this._commitWrite({comments: {upserted: [created]}})
   }
 
   async updateComment(id: TaskComment["id"], content: string): Promise<Changeset> {
-    const updated = await this.core.taskCommentsService.updateComment(id, content)
+    const updated = await this._core.taskCommentsService.updateComment(id, content)
     if (!updated) return EMPTY_CHANGESET
 
-    return this.commitWrite({comments: {upserted: [updated]}})
+    return this._commitWrite({comments: {upserted: [updated]}})
   }
 
   async deleteComment(id: TaskComment["id"]): Promise<Changeset> {
-    const removed = await this.core.taskCommentsService.deleteComment(id)
+    const removed = await this._core.taskCommentsService.deleteComment(id)
     if (!removed) return EMPTY_CHANGESET
 
-    return this.commitWrite({comments: {removed: [removed]}})
+    return this._commitWrite({comments: {removed: [removed]}})
   }
 
   async getSubtasksOfTask(taskId: Task["id"]): Promise<Subtask[]> {
-    return this.core.subtasksService.getSubtasksOfTask(taskId)
+    return this._core.subtasksService.getSubtasksOfTask(taskId)
   }
 
   async getSubtaskCounts(): Promise<SubtaskCounts> {
-    return this.core.subtasksService.getSubtaskCounts()
+    return this._core.subtasksService.getSubtaskCounts()
   }
 
   async createSubtask(taskId: Task["id"], content: string): Promise<Changeset> {
-    const created = await this.core.subtasksService.createSubtask(taskId, content)
+    const created = await this._core.subtasksService.createSubtask(taskId, content)
     if (!created) return EMPTY_CHANGESET
 
-    return this.commitWrite({subtasks: {upserted: [created]}})
+    return this._commitWrite({subtasks: {upserted: [created]}})
   }
 
   async updateSubtask(id: Subtask["id"], updates: {content?: string; done?: boolean}): Promise<Changeset> {
-    const updated = await this.core.subtasksService.updateSubtask(id, updates)
+    const updated = await this._core.subtasksService.updateSubtask(id, updates)
     if (!updated) return EMPTY_CHANGESET
 
-    return this.commitWrite({subtasks: {upserted: [updated]}})
+    return this._commitWrite({subtasks: {upserted: [updated]}})
   }
 
   async deleteSubtask(id: Subtask["id"]): Promise<Changeset> {
-    const removed = await this.core.subtasksService.deleteSubtask(id)
+    const removed = await this._core.subtasksService.deleteSubtask(id)
     if (!removed) return EMPTY_CHANGESET
 
-    return this.commitWrite({subtasks: {removed: [removed]}})
+    return this._commitWrite({subtasks: {removed: [removed]}})
   }
 
   /**
@@ -275,8 +275,8 @@ export class WorkStorage implements IWorkStorage {
    * Null when the subtask, or its task, is gone.
    */
   async makeTaskFromSubtask(id: Subtask["id"]): Promise<Task | null> {
-    const subtask = await this.core.subtasksService.getSubtask(id)
-    const parent = subtask && (await this.core.tasksService.getTask(subtask.taskId))
+    const subtask = await this._core.subtasksService.getSubtask(id)
+    const parent = subtask && (await this._core.tasksService.getTask(subtask.taskId))
     if (!subtask || !parent || parent.deletedAt !== null) return null
 
     return this.batch(async () => {
@@ -303,162 +303,162 @@ export class WorkStorage implements IWorkStorage {
   }
 
   async getBranchList(): Promise<Branch[]> {
-    return this.core.branchesService.getBranchList()
+    return this._core.branchesService.getBranchList()
   }
 
   async getBranch(id: Branch["id"]): Promise<Branch | null> {
-    return this.core.branchesService.getBranch(id)
+    return this._core.branchesService.getBranch(id)
   }
 
   async createBranch(branch: Pick<Branch, "name"> & Partial<Pick<Branch, "description" | "emoji">>): Promise<Changeset> {
-    const createdBranch = await this.core.branchesService.createBranch(branch)
+    const createdBranch = await this._core.branchesService.createBranch(branch)
     if (!createdBranch) return EMPTY_CHANGESET
 
-    return this.commitWrite({branches: {upserted: [createdBranch]}})
+    return this._commitWrite({branches: {upserted: [createdBranch]}})
   }
 
   async updateBranch(id: Branch["id"], updates: Partial<Pick<Branch, "description" | "name" | "emoji">>): Promise<Changeset> {
-    const updatedBranch = await this.core.branchesService.updateBranch(id, updates)
+    const updatedBranch = await this._core.branchesService.updateBranch(id, updates)
     if (!updatedBranch) return EMPTY_CHANGESET
 
-    return this.commitWrite({branches: {upserted: [updatedBranch]}})
+    return this._commitWrite({branches: {upserted: [updatedBranch]}})
   }
 
   /** Also removes the project's tasks, milestones and tags — cascaded in one transaction by `BranchesService.deleteBranch`. */
   async deleteBranch(id: Branch["id"]): Promise<Changeset> {
-    const result = await this.core.branchesService.deleteBranch(id)
+    const result = await this._core.branchesService.deleteBranch(id)
     if (!result) return EMPTY_CHANGESET
 
-    const removedRelations = await this.core.taskRelationsService.removeInvalidRelations(result.deletedTaskIds)
+    const removedRelations = await this._core.taskRelationsService.removeInvalidRelations(result.deletedTaskIds)
 
     const changeset: Changeset = {branches: {removed: [id]}}
     if (result.deletedTaskIds.length) changeset.tasks = {removed: result.deletedTaskIds}
     if (result.deletedMilestoneIds.length) changeset.milestones = {removed: result.deletedMilestoneIds}
     if (result.deletedTagIds.length) changeset.tags = {removed: result.deletedTagIds}
     if (removedRelations.length) changeset.relations = {removed: removedRelations}
-    return this.commitWrite(changeset)
+    return this._commitWrite(changeset)
   }
 
   async getTagList(branchId?: Branch["id"]): Promise<Tag[]> {
-    return this.core.tagsService.getTagList(branchId)
+    return this._core.tagsService.getTagList(branchId)
   }
 
   async getTag(id: Tag["id"]): Promise<Tag | null> {
-    return this.core.tagsService.getTag(id)
+    return this._core.tagsService.getTag(id)
   }
 
   async createTag(tag: Omit<Tag, "id" | "createdAt" | "updatedAt">): Promise<Changeset> {
-    const createdTag = await this.core.tagsService.createTag(tag)
+    const createdTag = await this._core.tagsService.createTag(tag)
     if (!createdTag) return EMPTY_CHANGESET
 
-    return this.commitWrite({tags: {upserted: [createdTag]}})
+    return this._commitWrite({tags: {upserted: [createdTag]}})
   }
 
   async updateTag(id: Tag["id"], updates: Partial<Tag>): Promise<Changeset> {
-    const updatedTag = await this.core.tagsService.updateTag(id, updates)
+    const updatedTag = await this._core.tagsService.updateTag(id, updates)
     if (!updatedTag) return EMPTY_CHANGESET
 
-    return this.commitWrite({tags: {upserted: [updatedTag]}})
+    return this._commitWrite({tags: {upserted: [updatedTag]}})
   }
 
   async deleteTag(id: Tag["id"]): Promise<Changeset> {
-    const isDeleted = await this.core.tagsService.deleteTag(id)
+    const isDeleted = await this._core.tagsService.deleteTag(id)
     if (!isDeleted) return EMPTY_CHANGESET
 
-    return this.commitWrite({tags: {removed: [id]}})
+    return this._commitWrite({tags: {removed: [id]}})
   }
 
   async getMilestoneList(branchId?: Branch["id"]): Promise<Milestone[]> {
-    return this.core.milestonesService.getMilestoneList(branchId)
+    return this._core.milestonesService.getMilestoneList(branchId)
   }
 
   async getMilestone(id: Milestone["id"]): Promise<Milestone | null> {
-    return this.core.milestonesService.getMilestone(id)
+    return this._core.milestonesService.getMilestone(id)
   }
 
   async createMilestone(milestone: Omit<Milestone, "id" | "createdAt" | "updatedAt" | "orderIndex">): Promise<Changeset> {
-    const createdMilestone = await this.core.milestonesService.createMilestone(milestone)
+    const createdMilestone = await this._core.milestonesService.createMilestone(milestone)
     if (!createdMilestone) return EMPTY_CHANGESET
 
-    return this.commitWrite({milestones: {upserted: [createdMilestone]}})
+    return this._commitWrite({milestones: {upserted: [createdMilestone]}})
   }
 
   async updateMilestone(
     id: Milestone["id"],
     updates: Partial<Pick<Milestone, "name" | "description" | "targetDate" | "orderIndex">>,
   ): Promise<Changeset> {
-    const updatedMilestone = await this.core.milestonesService.updateMilestone(id, updates)
+    const updatedMilestone = await this._core.milestonesService.updateMilestone(id, updates)
     if (!updatedMilestone) return EMPTY_CHANGESET
 
-    return this.commitWrite({milestones: {upserted: [updatedMilestone]}})
+    return this._commitWrite({milestones: {upserted: [updatedMilestone]}})
   }
 
   /** Also nulls `milestoneId` on the tasks it held; those ids are not surfaced here since `MilestonesService.deleteMilestone` only reports success. */
   async deleteMilestone(id: Milestone["id"]): Promise<Changeset> {
-    const isDeleted = await this.core.milestonesService.deleteMilestone(id)
+    const isDeleted = await this._core.milestonesService.deleteMilestone(id)
     if (!isDeleted) return EMPTY_CHANGESET
 
-    return this.commitWrite({milestones: {removed: [id]}})
+    return this._commitWrite({milestones: {removed: [id]}})
   }
 
   async getFiles(fileIds: File["id"][]): Promise<File[]> {
-    return this.core.filesService.getFiles(fileIds)
+    return this._core.filesService.getFiles(fileIds)
   }
 
   getFilePath(id: File["id"]): string {
-    return this.core.filesService.getFilePath(id)
+    return this._core.filesService.getFilePath(id)
   }
 
   async resolveAssetPath(id: File["id"]): Promise<string | null> {
-    return this.core.filesService.resolveAssetPath(id)
+    return this._core.filesService.resolveAssetPath(id)
   }
 
   async prepareFile(filename: string, data: Buffer): Promise<{file: File; ext: string}> {
-    return this.core.filesService.prepareFile(filename, data)
+    return this._core.filesService.prepareFile(filename, data)
   }
 
   async writeFileAsset(fileId: File["id"], ext: string, data: Buffer): Promise<void> {
-    return this.core.filesService.writeFileAsset(fileId, ext, data)
+    return this._core.filesService.writeFileAsset(fileId, ext, data)
   }
 
   async deleteFile(fileId: File["id"]): Promise<boolean> {
-    const isDeleted = await this.core.filesService.deleteFile(fileId)
-    if (isDeleted) await this.commitWrite(EMPTY_CHANGESET)
+    const isDeleted = await this._core.filesService.deleteFile(fileId)
+    if (isDeleted) await this._commitWrite(EMPTY_CHANGESET)
     return isDeleted
   }
 
   async cleanupOrphanFiles(): Promise<void> {
-    return this.core.filesService.cleanupOrphanFiles()
+    return this._core.filesService.cleanupOrphanFiles()
   }
 
   async initializeIndex(): Promise<void> {
-    return this.core.searchService.initializeIndex()
+    return this._core.searchService.initializeIndex()
   }
 
   async searchTasks(query: string): Promise<TaskSearchResult[]> {
-    return this.core.searchService.searchTasks(query)
+    return this._core.searchService.searchTasks(query)
   }
 
-  private async applyTaskUpdate(id: Task["id"], updates: PartialDeep<Task>, source?: ActorSource, spentTimeDelta?: number): Promise<Changeset> {
-    const updatedTasks = await this.core.tasksService.updateTask(id, updates, source, spentTimeDelta)
+  private async _applyTaskUpdate(id: Task["id"], updates: PartialDeep<Task>, source?: ActorSource, spentTimeDelta?: number): Promise<Changeset> {
+    const updatedTasks = await this._core.tasksService.updateTask(id, updates, source, spentTimeDelta)
     if (!updatedTasks.length) return EMPTY_CHANGESET
 
-    const removedRelations = await this.core.taskRelationsService.removeInvalidRelations(updatedTasks.map((task) => task.id))
+    const removedRelations = await this._core.taskRelationsService.removeInvalidRelations(updatedTasks.map((task) => task.id))
 
     const changeset: Changeset = {tasks: {upserted: updatedTasks}}
     if (removedRelations.length) changeset.relations = {removed: removedRelations}
 
     if (updates.branchId !== undefined) {
-      const movedComments = await this.core.taskCommentsService.alignCommentsToTaskBranch(id, updates.branchId as Branch["id"])
+      const movedComments = await this._core.taskCommentsService.alignCommentsToTaskBranch(id, updates.branchId as Branch["id"])
       if (movedComments.length) changeset.comments = {upserted: movedComments}
     }
 
-    return this.commitWrite(changeset)
+    return this._commitWrite(changeset)
   }
 
-  private async publishCommitted(changeset: Changeset): Promise<Changeset> {
+  private async _publishCommitted(changeset: Changeset): Promise<Changeset> {
     try {
-      return await this.commitWrite(changeset)
+      return await this._commitWrite(changeset)
     } catch (error) {
       // Retrying after a notification failure would apply the increment twice.
       logger.error(logger.CONTEXT.TASKS, "Failed to publish recorded time", error)
@@ -466,29 +466,29 @@ export class WorkStorage implements IWorkStorage {
     }
   }
 
-  private async commitWrite(changeset: Changeset): Promise<Changeset> {
-    if (this.openBatch) {
-      this.openBatch.changeset = mergeChangesets(this.openBatch.changeset, changeset)
+  private async _commitWrite(changeset: Changeset): Promise<Changeset> {
+    if (this._openBatch) {
+      this._openBatch.changeset = mergeChangesets(this._openBatch.changeset, changeset)
       return changeset
     }
 
-    await this.applyIndexMaintenance(changeset)
-    this.afterWrite(changeset)
+    await this._applyIndexMaintenance(changeset)
+    this._afterWrite(changeset)
     return changeset
   }
 
-  private rollbackIfOpen(): void {
-    if (!this.db.inTransaction) return
+  private _rollbackIfOpen(): void {
+    if (!this._db.inTransaction) return
     try {
-      this.db.exec("ROLLBACK")
+      this._db.exec("ROLLBACK")
     } catch {
       return
     }
   }
 
-  private async applyIndexMaintenance(changeset: Changeset): Promise<void> {
-    for (const task of changeset.tasks?.upserted ?? []) await this.core.searchService.updateTaskInIndex(task)
-    for (const id of changeset.tasks?.removed ?? []) this.core.searchService.removeTaskFromIndex(id)
+  private async _applyIndexMaintenance(changeset: Changeset): Promise<void> {
+    for (const task of changeset.tasks?.upserted ?? []) await this._core.searchService.updateTaskInIndex(task)
+    for (const id of changeset.tasks?.removed ?? []) this._core.searchService.removeTaskFromIndex(id)
   }
 }
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, reactive, watch} from "vue"
+import {computed} from "vue"
 
 import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon.vue"
@@ -21,9 +21,14 @@ const emit = defineEmits<{
   "update:modelValue": [value: number]
 }>()
 
-const draft = reactive({hours: 0, minutes: 0})
-
-const totalSeconds = computed(() => draft.hours * 3600 + draft.minutes * 60)
+const hours = computed({
+  get: () => Math.floor(props.modelValue / 3600),
+  set: (value) => updateTime(value, minutes.value),
+})
+const minutes = computed({
+  get: () => Math.floor((props.modelValue % 3600) / 60),
+  set: (value) => updateTime(hours.value, value),
+})
 
 function addTime(minutes: number) {
   emit("update:modelValue", props.modelValue + minutes * 60)
@@ -33,17 +38,12 @@ function subtractTime(minutes: number) {
   emit("update:modelValue", Math.max(0, props.modelValue - minutes * 60))
 }
 
-function resetDraft() {
-  draft.hours = Math.floor(props.modelValue / 3600)
-  draft.minutes = Math.floor((props.modelValue % 3600) / 60)
-}
-
-watch(() => props.modelValue, resetDraft, {immediate: true})
-watch(totalSeconds, (value) => {
+function updateTime(hours: number, minutes: number) {
+  const wholeMinutesInSeconds = hours * 3600 + minutes * 60
   const seconds = props.modelValue % 60
-  if (value === props.modelValue - seconds) return
-  emit("update:modelValue", value === 0 ? 0 : value + seconds)
-})
+  if (wholeMinutesInSeconds === props.modelValue - seconds) return
+  emit("update:modelValue", wholeMinutesInSeconds === 0 ? 0 : wholeMinutesInSeconds + seconds)
+}
 </script>
 
 <template>
@@ -59,9 +59,9 @@ watch(totalSeconds, (value) => {
     </div>
 
     <div class="flex items-center justify-center gap-3 px-3 py-2">
-      <TimePicker v-model:time="draft.hours" :max="23" />
+      <TimePicker v-model:time="hours" :max="23" />
       <BaseIcon name="stopwatch" class="text-base-content/60 size-5" />
-      <TimePicker v-model:time="draft.minutes" :max="59" />
+      <TimePicker v-model:time="minutes" :max="59" />
     </div>
   </div>
 </template>

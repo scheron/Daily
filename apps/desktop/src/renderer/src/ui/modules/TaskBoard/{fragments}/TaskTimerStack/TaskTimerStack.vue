@@ -3,21 +3,15 @@ import {computed, nextTick, ref, useId, useTemplateRef, watch} from "vue"
 import {onClickOutside} from "@vueuse/core"
 import {storeToRefs} from "pinia"
 
-import {useTaskEditorStore} from "@/stores/task-editor"
 import {useTaskTimersStore} from "@/stores/task-timers"
 import TaskPreviewPopup from "@/ui/common/(misc)/TaskPreviewPopup"
-import {useConfirmUnsavedModal} from "@/ui/overlays/ConfirmUnsavedModal"
 import {cn} from "@/utils/ui/tailwindcss"
+import {useOpenTimerTask} from "./composables/useOpenTimerTask"
 import TaskTimerPill from "./{fragments}/TaskTimerPill.vue"
 
 import type {Task} from "@daily/protocol"
 
-const previewId = useId()
-const listId = useId()
-
-const taskEditorStore = useTaskEditorStore()
-const taskTimersStore = useTaskTimersStore()
-const {timers} = storeToRefs(taskTimersStore)
+const {timers} = storeToRefs(useTaskTimersStore())
 
 const stackRef = useTemplateRef("stack")
 const expandButtonRef = useTemplateRef("expandButton")
@@ -29,8 +23,9 @@ const stackClass = computed(() => cn({"top-12": isExpanded.value}))
 const stackStyle = computed(() => ({"--timer-stack-layers": rearLayerCount.value}))
 const listClass = computed(() => cn({"hide-scrollbar overflow-y-auto overscroll-contain": isExpanded.value}))
 
-const {open: confirmLeaveIfDirty} = useConfirmUnsavedModal()
-onClickOutside(stackRef, collapse, {ignore: [`[id="${previewId}"]`]})
+const previewId = useId()
+const listId = useId()
+const {openTimerTask} = useOpenTimerTask()
 
 async function expand(event: MouseEvent) {
   isExpanded.value = true
@@ -54,15 +49,12 @@ async function onEscape(event: KeyboardEvent, hidePreview: () => void) {
   expandButtonRef.value?.focus({preventScroll: true})
 }
 
-async function onOpen(taskId: Task["id"], hidePreview: () => void) {
+function onOpen(taskId: Task["id"], hidePreview: () => void) {
   hidePreview()
-  if (taskEditorStore.editingTaskId !== taskId) {
-    if (!(await confirmLeaveIfDirty())) return
-    await taskEditorStore.open(taskId)
-  }
-
-  if (taskEditorStore.editingTaskId === taskId) await taskTimersStore.dispatch({type: "promote", taskId})
+  return openTimerTask(taskId)
 }
+
+onClickOutside(stackRef, collapse, {ignore: [`[id="${previewId}"]`]})
 
 watch(rearLayerCount, (count) => {
   if (count === 0) collapse()

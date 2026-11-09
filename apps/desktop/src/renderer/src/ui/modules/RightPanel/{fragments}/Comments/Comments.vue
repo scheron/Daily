@@ -22,6 +22,9 @@ let commentOpener: HTMLElement | null = null
 const isOnlyComments = ref(false)
 const isNewestFirst = ref(true)
 
+const sortVariant = computed(() => (isNewestFirst.value ? "ghost-muted-selected" : "ghost-muted"))
+const commentsVariant = computed(() => (isOnlyComments.value ? "ghost-muted-selected" : "ghost-muted"))
+
 const {comments, removeComment} = useTaskComments()
 const {events} = useTaskHistory()
 const now = useNow({interval: 1000})
@@ -51,10 +54,6 @@ const days = computed(() => {
   return [...groups].map(([day, entries]) => ({day, entries}))
 })
 
-function getToggleVariant(isSelected: boolean) {
-  return isSelected ? "ghost-muted-selected" : "ghost-muted"
-}
-
 function openComment(id: TaskComment["id"], event: MouseEvent) {
   commentOpener = event.currentTarget as HTMLElement
   nestedTarget.value = {kind: "comment", id}
@@ -75,7 +74,7 @@ watch(nestedTarget, async (target, previous) => {
       <span>Activity</span>
       <div aria-hidden="true" class="flex-1" />
       <BaseButton
-        :variant="getToggleVariant(isNewestFirst)"
+        :variant="sortVariant"
         icon="arrow-up-down"
         size="xs"
         aria-label="Newest first"
@@ -84,7 +83,7 @@ watch(nestedTarget, async (target, previous) => {
         @click="isNewestFirst = !isNewestFirst"
       />
       <BaseButton
-        :variant="getToggleVariant(isOnlyComments)"
+        :variant="commentsVariant"
         icon="message"
         size="xs"
         aria-label="Only comments"

@@ -22,6 +22,7 @@ const taskTimersStore = useTaskTimersStore()
 
 const taskHash = computed(() => toTaskIdHash(props.timer.taskId))
 const isPaused = computed(() => !props.timer.isRunning)
+const toggleVariant = computed(() => (isPaused.value ? "primary-ghost" : "ghost-muted"))
 const isPending = computed(() => taskTimersStore.isPending(props.timer.taskId))
 const elapsed = computed(() => {
   const total = taskTimersStore.elapsedSeconds(props.timer)
@@ -74,7 +75,7 @@ function onStop() {
     <span class="bg-base-300 mx-px h-3 w-px" aria-hidden="true" />
     <BaseButton
       type="button"
-      :variant="isPaused ? 'primary-ghost' : 'ghost-muted'"
+      :variant="toggleVariant"
       size="xs"
       :icon="isPaused ? 'play' : 'pause'"
       :aria-label="toggleLabel"

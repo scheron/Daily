@@ -101,7 +101,7 @@ function columnFor(status: TaskStatus) {
           :key="row.id"
           :variant="columnFor(row.status).buttonVariant"
           :icon="columnFor(row.status).icon"
-          :aria-describedby="previewTaskId === row.id ? previewId : undefined"
+          v-bind="previewTaskId === row.id ? {'aria-describedby': previewId} : {}"
           size="xs"
           class="shrink-0"
           @pointerenter="emit('preview', row.id, $event)"

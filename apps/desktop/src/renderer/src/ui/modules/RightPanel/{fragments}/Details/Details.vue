@@ -11,12 +11,15 @@ import StatusProperty from "./{fragments}/(properties)/StatusProperty.vue"
 import TagsProperty from "./{fragments}/(properties)/TagsProperty.vue"
 import TimeProperty from "./{fragments}/(properties)/TimeProperty.vue"
 
-import type {Task} from "@daily/protocol"
+import type {Task, TaskRelationSets} from "@daily/protocol"
+
+const RELATION_SIDES: (keyof TaskRelationSets)[] = ["blockedBy", "blocks"]
 
 defineProps<{task: Task}>()
 
-const previewId = useId()
 const detailsRef = useTemplateRef("details")
+
+const previewId = useId()
 </script>
 
 <template>
@@ -45,7 +48,7 @@ const detailsRef = useTemplateRef("details")
     <TagsProperty :task="task" />
     <TaskPreviewPopup :id="previewId" :key="task.id" :alignment="detailsRef" v-slot="{taskId, show, leave, hide}">
       <RelationsProperty
-        v-for="side in ['blockedBy', 'blocks'] as const"
+        v-for="side in RELATION_SIDES"
         :key="side"
         :side="side"
         :preview-id="previewId"

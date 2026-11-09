@@ -14,20 +14,17 @@ const props = defineProps<{
 
 const emit = defineEmits<{click: []; remove: []}>()
 
+const cellVariant = computed(() => (props.isEmpty ? "cell-muted" : "cell"))
 const labelClass = computed(() => cn("min-w-0 truncate text-left leading-none", {"flex-1": !props.removable}))
 
 function onRemove(event: Event) {
   event.stopPropagation()
   emit("remove")
 }
-
-function getCellVariant(isEmpty?: boolean) {
-  return isEmpty ? "cell-muted" : "cell"
-}
 </script>
 
 <template>
-  <BaseButton :variant="getCellVariant(isEmpty)" class="w-full min-w-0" @click="emit('click')">
+  <BaseButton :variant="cellVariant" class="w-full min-w-0" @click="emit('click')">
     <slot name="icon" />
     <span :class="labelClass">{{ label }}</span>
     <span

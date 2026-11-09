@@ -46,7 +46,7 @@ invoke(async () => {
     toasts.error(BOOTSTRAP_FAILURE_MESSAGE)
   }, 10_000)
 
-  const signalRendererReady = () => {
+  function signalRendererReady() {
     if (signalled) return
     signalled = true
     clearTimeout(ceiling)

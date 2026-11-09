@@ -24,6 +24,8 @@ const tasksStore = useTasksStore()
 
 const activeField = ref<TimeField>("estimatedTime")
 
+const estimateVariant = computed(() => (activeField.value === "estimatedTime" ? "primary" : "ghost-muted"))
+const spentVariant = computed(() => (activeField.value === "spentTime" ? "primary" : "ghost-muted"))
 const isEmpty = computed(() => props.task.estimatedTime === 0 && props.task.spentTime === 0)
 const timeLabel = computed(() => {
   if (isEmpty.value) return "Set estimate"
@@ -38,10 +40,6 @@ const isTimerPending = computed(() => taskEditorStore.editingTaskId !== null && 
 
 function patchTime(total: number) {
   taskEditorStore.patch({[activeField.value]: total})
-}
-
-function getTabVariant(isActive: boolean) {
-  return isActive ? "primary" : "ghost-muted"
 }
 
 async function startTimer(hide: () => void) {
@@ -66,25 +64,11 @@ async function startTimer(hide: () => void) {
     <template #default="{hide}">
       <div class="flex w-64 flex-col gap-2" @click.stop>
         <div class="flex items-center gap-1">
-          <BaseButton
-            :variant="getTabVariant(activeField === 'estimatedTime')"
-            icon="stopwatch"
-            size="sm"
-            class="flex-1"
-            @click="activeField = 'estimatedTime'"
-          >
+          <BaseButton :variant="estimateVariant" icon="stopwatch" size="sm" class="flex-1" @click="activeField = 'estimatedTime'">
             Estimate
           </BaseButton>
 
-          <BaseButton
-            :variant="getTabVariant(activeField === 'spentTime')"
-            icon="check-check"
-            size="sm"
-            class="flex-1"
-            @click="activeField = 'spentTime'"
-          >
-            Spent
-          </BaseButton>
+          <BaseButton :variant="spentVariant" icon="check-check" size="sm" class="flex-1" @click="activeField = 'spentTime'"> Spent </BaseButton>
         </div>
 
         <EstimationPicker :model-value="task[activeField]" @update:model-value="patchTime" />

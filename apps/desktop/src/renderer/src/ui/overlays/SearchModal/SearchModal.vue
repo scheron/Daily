@@ -1,15 +1,10 @@
 <script setup lang="ts">
 import {useTaskColumns} from "@/composables/tasks/useTaskColumns"
-import {toasts} from "@/composables/useToasts"
-import {useBranchesStore} from "@/stores/branches"
-import {useProjectScopeStore} from "@/stores/project-scope"
-import {useTaskEditorStore} from "@/stores/task-editor"
-import {useTasksStore} from "@/stores/tasks"
 import BaseIcon from "@/ui/base/BaseIcon.vue"
 import BaseModal from "@/ui/base/BaseModal.vue"
-import {useConfirmUnsavedModal} from "@/ui/overlays/ConfirmUnsavedModal"
 import {useFilter} from "./composables/useFilter"
 import {useSearch} from "./composables/useSearch"
+import {useSearchTaskNavigation} from "./composables/useSearchTaskNavigation"
 import {highlightElement} from "./utils/highlightElement"
 import SearchResultItem from "./{fragments}/SearchResultItem.vue"
 import SearchToolbar from "./{fragments}/SearchToolbar"
@@ -20,47 +15,18 @@ const emit = defineEmits<{
   close: []
 }>()
 
-const tasksStore = useTasksStore()
-const branchesStore = useBranchesStore()
-const projectScopeStore = useProjectScopeStore()
-const taskEditorStore = useTaskEditorStore()
-
 const {query, items, isSearching, isLoaded} = useSearch()
 const {filter, filteredItems} = useFilter(items)
-const {open: confirmLeaveIfDirty} = useConfirmUnsavedModal()
-const columns = useTaskColumns()
+const {prepareNavigation} = useSearchTaskNavigation()
+const {revealTask} = useTaskColumns()
 
 async function navigateToTask(result: TaskSearchResult) {
-  const task = result.task
+  const destination = await prepareNavigation(result)
+  if (destination === null) return
 
-  if (result.branch?.deletedAt) {
-    toasts.error("Task belongs to a deleted project")
-    return
-  }
-
-  if (!task.scheduled) {
-    if (taskEditorStore.editingTaskId === task.id) {
-      emit("close")
-      return
-    }
-
-    if (!(await confirmLeaveIfDirty())) return
-  }
-
-  if (!projectScopeStore.isAllProjectsMode && branchesStore.activeBranchId !== task.branchId) {
-    await branchesStore.setActiveBranch(task.branchId)
-  }
-
-  if (!task.scheduled) {
-    taskEditorStore.open(task.id)
-    emit("close")
-    return
-  }
-
-  tasksStore.setActiveDay(task.scheduled.date)
   emit("close")
 
-  if (await columns.revealTask(task.id)) highlightElement(task.id)
+  if (destination === "board" && (await revealTask(result.task.id))) highlightElement(result.task.id)
 }
 </script>
 

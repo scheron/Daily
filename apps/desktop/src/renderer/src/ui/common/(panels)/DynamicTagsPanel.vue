@@ -40,11 +40,10 @@ const visibleIndices = ref<number[] | null>(null)
 const visibleIndexSet = computed(() => new Set(visibleIndices.value ?? []))
 const visibleTags = computed(() => props.tags.filter((_, index) => visibleIndexSet.value.has(index)))
 const hiddenTags = computed(() => (visibleIndices.value === null ? [] : props.tags.filter((_, index) => !visibleIndexSet.value.has(index))))
-const hasSelectedInPopup = computed(() => hiddenTags.value.some((tag) => props.selectedTags.has(tag.id)))
+const moreButtonVariant = computed(() => (hiddenTags.value.some((tag) => props.selectedTags.has(tag.id)) ? "primary" : "text"))
+const rowClass = computed(() => cn("flex min-w-0 items-center gap-2", props.rowClass))
 
 useBatchedResizeObserver([probeRef, measureRef], {read: readVisibleIndices, write: (indices) => (visibleIndices.value = indices)})
-
-const rowClass = computed(() => cn("flex min-w-0 items-center gap-2", props.rowClass))
 
 function isActiveTag(id: Tag["id"]) {
   return props.selectedTags.has(id)
@@ -52,10 +51,6 @@ function isActiveTag(id: Tag["id"]) {
 
 function onSelectTag(id: Tag["id"]) {
   emit("select", id)
-}
-
-function getMoreButtonVariant(hasSelected: boolean) {
-  return hasSelected ? "primary" : "text"
 }
 
 function readVisibleIndices(): number[] {
@@ -114,7 +109,7 @@ watch(
         <BasePopup v-if="hiddenTags.length" hide-header :hover-mode="popupHoverMode" container-class="min-w-44 p-1" content-class="gap-1.5">
           <template #trigger="{toggle, show}">
             <BaseButton
-              :variant="getMoreButtonVariant(hasSelectedInPopup)"
+              :variant="moreButtonVariant"
               size="sm"
               icon="tags"
               class="shrink-0 flex-row-reverse"

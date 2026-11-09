@@ -6,7 +6,7 @@ import {toDayLabel} from "@daily/std"
 import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon.vue"
 
-const props = defineProps<{date?: string; milestoneName?: string}>()
+const props = defineProps<{date: string | null; milestoneName: string | null}>()
 const emit = defineEmits<{createTask: []}>()
 
 const subject = computed(() => props.milestoneName ?? (props.date ? toDayLabel(props.date) : null))

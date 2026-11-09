@@ -2,7 +2,7 @@
 import {computed} from "vue"
 
 import BaseButton from "@/ui/base/BaseButton"
-import {withRepeatAction} from "./utils/withRepeatAction"
+import {useRepeatAction} from "./composables/useRepeatAction"
 import NumberInput from "./{fragments}/NumberInput.vue"
 
 const props = withDefaults(
@@ -23,8 +23,8 @@ const value = computed({
   set: (time: number) => emit("update:time", time),
 })
 
-const {start: startIncrease, stop: stopIncrease} = withRepeatAction(onIncrease)
-const {start: startDecrease, stop: stopDecrease} = withRepeatAction(onDecrease)
+const {start: startIncrease, stop: stopIncrease} = useRepeatAction(onIncrease)
+const {start: startDecrease, stop: stopDecrease} = useRepeatAction(onDecrease)
 
 function onIncrease() {
   value.value = Math.min(value.value + 1, props.max)

@@ -20,12 +20,13 @@ export function useTaskPreview(
 
   const tasksStore = useTasksStore()
   const {stack: modals} = useBaseModal()
+
+  const previewRef = toRef(() => toValue(previewElement))
   const active = shallowRef<{taskId: Task["id"]; anchor: HTMLElement} | null>(null)
 
   const anchor = computed(() => active.value?.anchor ?? null)
   const previewTask = computed(() => (active.value ? tasksStore.findTaskById(active.value.taskId) : null))
 
-  const previewRef = toRef(() => toValue(previewElement))
   const {floatingStyles, isPositioned, middlewareData} = useFloating(anchor, previewRef, {
     open: computed(() => active.value !== null),
     strategy: "fixed",
@@ -49,6 +50,16 @@ export function useTaskPreview(
   })
 
   const isPreviewVisible = computed(() => !!previewTask.value && isPositioned.value && !middlewareData.value.hide?.referenceHidden)
+
+  useEventListener(document, "keydown", (event) => {
+    if (event.key !== "Escape" || event.defaultPrevented || modals.value.length > 0) return
+    if (isPreviewVisible.value) event.preventDefault()
+    hidePreview()
+  })
+
+  useEventListener(document, "pointerdown", (event) => {
+    if (!(event.target instanceof Node) || !previewRef.value?.contains(event.target)) hidePreview()
+  })
 
   function showPreview(taskId: Task["id"], event: PointerEvent | FocusEvent) {
     const target = event.currentTarget
@@ -103,16 +114,6 @@ export function useTaskPreview(
     window.clearTimeout(showTimer)
     pendingAnchor = null
   }
-
-  useEventListener(document, "keydown", (event) => {
-    if (event.key !== "Escape" || event.defaultPrevented || modals.value.length > 0) return
-    if (isPreviewVisible.value) event.preventDefault()
-    hidePreview()
-  })
-
-  useEventListener(document, "pointerdown", (event) => {
-    if (!(event.target instanceof Node) || !previewRef.value?.contains(event.target)) hidePreview()
-  })
 
   onBeforeUnmount(hidePreview)
 

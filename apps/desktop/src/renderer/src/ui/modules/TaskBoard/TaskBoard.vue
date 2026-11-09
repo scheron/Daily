@@ -50,7 +50,7 @@ const {draggingStatus, previewOrder, previewPosition} = useColumnReorder(boardRe
 
 const visibleColumns = computed(() => {
   const order = previewOrder.value ?? (Array.isArray(columnOrder.value) ? columnOrder.value : [])
-  const position = (status: (typeof order)[number]) => {
+  function position(status: (typeof order)[number]) {
     const index = order.indexOf(status)
     return index === -1 ? order.length : index
   }
@@ -73,13 +73,13 @@ const columnLayoutStyle = computed(() => {
 })
 
 const framedMilestoneName = computed(() => {
-  if (filterStore.frame !== "milestone") return undefined
+  if (filterStore.frame !== "milestone") return null
   if (filterStore.isNoMilestoneActive) return "No milestone"
   if (!filterStore.activeMilestoneId) return "All tasks"
-  return milestonesStore.milestonesMap.get(filterStore.activeMilestoneId)?.name
+  return milestonesStore.milestonesMap.get(filterStore.activeMilestoneId)?.name ?? null
 })
 
-const placeholderDate = computed(() => (filterStore.frame === "milestone" ? undefined : tasksStore.activeDay))
+const placeholderDate = computed(() => (filterStore.frame === "milestone" ? null : tasksStore.activeDay))
 
 const isBoardVisible = computed(() => {
   if (dragDropStore.draggingTaskId) return true

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import BaseKeyCaps from "@/ui/base/BaseKeyCaps.vue"
-import {toShortcutKeyCaps} from "@/utils/shortcuts/toShortcutKeys"
+import {toShortcutKeyCaps} from "@/utils/shortcuts/toShortcutKeyCaps"
 import {SHORTCUTS_MAP} from "@shared/constants/shortcuts"
 
 import type {ShortcutAction} from "@shared/types/shortcuts"

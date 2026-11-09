@@ -50,6 +50,9 @@ const activeBranchName = computed(() => {
 })
 const hasAllProjectsRow = computed(() => uiStore.frame === "day")
 const projectTriggerClass = computed(() => cn("grid h-full items-center", {"min-w-20": !props.compact}))
+const compactProjectButtonAttrs = computed(() =>
+  props.compact ? {"aria-label": `Project: ${activeBranchName.value}`, tooltip: activeBranchName.value} : {},
+)
 
 const searchModal = useSearchModal()
 
@@ -113,14 +116,7 @@ async function onSelectAllProjects() {
         @select-all="onSelectAllProjects"
       >
         <template #trigger="{show}">
-          <BaseButton
-            variant="ghost-primary"
-            size="sm"
-            :aria-label="compact ? `Project: ${activeBranchName}` : undefined"
-            :tooltip="compact ? activeBranchName : undefined"
-            @mouseenter="show"
-            @click="show"
-          >
+          <BaseButton variant="ghost-primary" size="sm" v-bind="compactProjectButtonAttrs" @mouseenter="show" @click="show">
             <template #icon="{class: iconClass}">
               <BaseIcon v-if="projectScopeStore.isAllProjectsMode" name="layers" :class="iconClass" />
               <ProjectIcon v-else :project="branchesStore.activeBranch" :class="iconClass" />

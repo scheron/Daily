@@ -1,8 +1,11 @@
-export function withRepeatAction(action: () => void) {
+import {onScopeDispose} from "vue"
+
+export function useRepeatAction(action: () => void) {
   let timeoutId: ReturnType<typeof setTimeout> | null = null
   let intervalId: ReturnType<typeof setInterval> | null = null
 
   function start() {
+    stop()
     action()
 
     timeoutId = setTimeout(() => {
@@ -11,11 +14,13 @@ export function withRepeatAction(action: () => void) {
   }
 
   function stop() {
-    if (timeoutId) clearTimeout(timeoutId)
-    if (intervalId) clearInterval(intervalId)
+    if (timeoutId !== null) clearTimeout(timeoutId)
+    if (intervalId !== null) clearInterval(intervalId)
     timeoutId = null
     intervalId = null
   }
+
+  onScopeDispose(stop)
 
   return {start, stop}
 }

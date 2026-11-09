@@ -36,8 +36,6 @@ const toolbarTitle = computed(() => (isFirstLineOut.value ? getTaskTitle(localCo
 watchFocusTrap(panelRef, isOpen)
 useEditorShortcuts()
 
-useEventListener(scrollerRef, "scroll", updateFirstLineOut, {passive: true})
-
 function updateFirstLineOut() {
   if (nestedTarget.value) return
   const scroller = scrollerRef.value
@@ -52,6 +50,8 @@ function onEnter(el: Element, done: () => void) {
 function onLeave(el: Element, done: () => void) {
   animatePanel(el as HTMLElement, false).then(done, done)
 }
+
+useEventListener(scrollerRef, "scroll", updateFirstLineOut, {passive: true})
 
 watch([editingTaskId, isNew], () => {
   nestedTarget.value = null
