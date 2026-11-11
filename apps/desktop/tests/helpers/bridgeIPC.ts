@@ -58,6 +58,7 @@ export function mockBridgeIPC(overrides = {}) {
     "sync-server:on-role-changed": noopOn,
     "sync-server:on-agents-accepted-changed": noopOn,
     "sync-server:on-connection-changed": noopOn,
+    "sync-server:get-logs": vi.fn().mockResolvedValue({entries: [], serverIssue: null}),
     ...overrides,
   }
 

@@ -22,6 +22,7 @@ import {
   enrollWindowOpenRoute,
 } from "./enroll"
 import {healthRoute} from "./health"
+import {logsRoute} from "./logs"
 import {mcpRoute} from "./mcp"
 import {oauthAuthorizeRoute, oauthConsentRoute, oauthConsentStatusRoute} from "./oauthAuthorize"
 import {oauthTokenRoute} from "./oauthToken"
@@ -58,6 +59,7 @@ export const routes: Route[] = [
   agentPendingRoute,
   agentApproveRoute,
   agentDenyRoute,
+  logsRoute,
   protectedResourceMetadataRoute,
   protectedResourceMetadataRootRoute,
   authorizationServerMetadataRoute,

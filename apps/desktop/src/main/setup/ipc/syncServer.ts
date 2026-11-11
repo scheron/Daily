@@ -46,6 +46,8 @@ export function setupSyncServerIPC(getStorage: () => IStorageController | null, 
   })
   ipcMain.handle("sync-server:list-agents", (_e) => getStorage()?.getServerProvider().listAgents())
   ipcMain.handle("sync-server:revoke-agent", (_e, agentId: string) => getStorage()?.getServerProvider().revokeAgent(agentId))
+
+  ipcMain.handle("sync-server:get-logs", (_e) => getStorage()?.getServerProvider().getLogs())
 }
 
 function announceResolved(getWindows: WindowsGetter, kind: ApprovalKind) {

@@ -1,3 +1,4 @@
+import type {ISODateTime} from "./common"
 import type {DeviceRole, RequestOrigin} from "./syncProtocol"
 
 /**
@@ -103,4 +104,37 @@ export type PendingAgentRequestView = {
   isLocalProgram: boolean
   requestedAt: string
   expiresAt: string
+}
+
+/**
+ * One line of a request log. A run of identical outcomes collapses into a single entry that keeps
+ * the time of its first (`firstAt`) and last (`at`) request. `device` names the Mac that made a
+ * server-side request, and is `null` for an entry the Mac wrote about its own request.
+ */
+export type RequestLogEntry = {
+  at: ISODateTime
+  firstAt: ISODateTime
+  level: "info" | "warn" | "error"
+  source: "mac" | "server"
+  method: string
+  /** The route path without its query. */
+  path: string
+  /** `null` when no response arrived. */
+  status: number | null
+  durationMs: number
+  device: string | null
+  /** The full failure text, cause chain included. `null` on success. */
+  error: string | null
+}
+
+/** The body of `GET /v1/logs`, oldest first. */
+export type RequestLogView = {entries: RequestLogEntry[]}
+
+/**
+ * What the renderer shows in the logs panel: this Mac's entries merged with the server's, oldest first.
+ * `serverIssue` says why the server contributed none: it predates the log (`outdated`), or it could not
+ * be asked (`failed`). `null` when it answered, or when no server is bound.
+ */
+export type RequestLogResult = RequestLogView & {
+  serverIssue: {kind: "outdated"} | {kind: "failed"; message: string} | null
 }

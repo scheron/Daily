@@ -4,11 +4,12 @@ import {DailyServerRemoteAdapter} from "../../storage/sync/adapters/DailyServerR
 import {ICloudRemoteAdapter} from "../../storage/sync/adapters/ICloudRemoteAdapter"
 
 import type {SyncProvider, SyncRemote, SyncSettings} from "@daily/protocol"
+import type {RequestLogBuffer} from "../requestLog/RequestLogBuffer"
 
 export {resolveActiveProvider}
 
 /** Builds the remotes `SyncEngine` should run against: at most one, matching `resolveActiveProvider`. */
-export function buildSyncRemotes(sync: SyncSettings, paths: {icloudSyncDir: string}): SyncRemote[] {
+export function buildSyncRemotes(sync: SyncSettings, paths: {icloudSyncDir: string; requestLog?: RequestLogBuffer}): SyncRemote[] {
   const provider = resolveActiveProvider(sync)
 
   if (provider === "icloud") {
@@ -16,7 +17,7 @@ export function buildSyncRemotes(sync: SyncSettings, paths: {icloudSyncDir: stri
   }
 
   if (provider === "server" && sync.server.binding) {
-    return [{id: SYNC_REMOTE_ID.server, label: "Self-hosted Daily", adapter: new DailyServerRemoteAdapter(sync.server.binding)}]
+    return [{id: SYNC_REMOTE_ID.server, label: "Self-hosted Daily", adapter: new DailyServerRemoteAdapter(sync.server.binding, paths.requestLog)}]
   }
 
   return []

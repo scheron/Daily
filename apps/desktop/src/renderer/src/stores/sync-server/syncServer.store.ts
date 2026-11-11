@@ -14,6 +14,8 @@ import type {
   PendingAgentRequestView,
   PendingApprovalView,
   ProtocolMismatchView,
+  RequestLogEntry,
+  RequestLogResult,
   ServerAgentsView,
   ServerAgentView,
   ServerBindingView,
@@ -31,6 +33,9 @@ export const useSyncServerStore = defineStore("syncServer", () => {
   const membership = ref<ServerMembershipView | null>(null)
   const agents = ref<ServerAgentView[]>([])
   const agentWindow = ref<AgentWindowView | null>(null)
+  const logs = ref<RequestLogEntry[]>([])
+  const serverIssue = ref<RequestLogResult["serverIssue"]>(null)
+  const isLogsLoading = ref(false)
   let isWatchingApprovals = false
 
   const {open: showApproval, close: hideApproval} = useApproveDeviceModal()
@@ -90,6 +95,19 @@ export const useSyncServerStore = defineStore("syncServer", () => {
       applyAgents(await window.BridgeIPC["sync-server:list-agents"]())
     } catch (error) {
       console.error("Failed to load the Daily Sync Server's agents:", error)
+    }
+  }
+
+  async function loadLogs(): Promise<void> {
+    isLogsLoading.value = true
+    try {
+      const view = await window.BridgeIPC["sync-server:get-logs"]()
+      logs.value = [...view.entries].sort((a, b) => b.at.localeCompare(a.at))
+      serverIssue.value = view.serverIssue
+    } catch (error) {
+      console.error("Failed to load the request logs:", error)
+    } finally {
+      isLogsLoading.value = false
     }
   }
 
@@ -297,6 +315,9 @@ export const useSyncServerStore = defineStore("syncServer", () => {
     membership,
     agents,
     agentWindow,
+    logs,
+    serverIssue,
+    isLogsLoading,
 
     loadState,
     retry,
@@ -312,6 +333,7 @@ export const useSyncServerStore = defineStore("syncServer", () => {
     cancelConnection,
     disconnect,
     listAgents,
+    loadLogs,
     revokeAgent,
     openAgentWindow,
     closeAgentWindow,

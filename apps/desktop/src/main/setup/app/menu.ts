@@ -168,14 +168,7 @@ function createTasksMenu(mainWindow: BrowserWindow): MenuItemConstructorOptions[
 }
 
 function createSettingsMenu(): MenuItemConstructorOptions[] {
-  const sections = [
-    "settings:general",
-    "settings:projects",
-    "settings:sync",
-    "settings:ai",
-    "settings:deleted-tasks",
-    ...(ENV.isDevelopment ? (["settings:debug"] as const) : []),
-  ] as const
+  const sections = ["settings:general", "settings:projects", "settings:sync", "settings:ai", "settings:deleted-tasks"] as const
 
   return sections.map((key) => {
     const shortcut = SHORTCUTS_MAP[key]

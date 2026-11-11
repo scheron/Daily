@@ -1,5 +1,6 @@
 import {createHash} from "node:crypto"
-import {existsSync, mkdtempSync, readdirSync, rmSync, unlinkSync} from "node:fs"
+import {existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, unlinkSync} from "node:fs"
+import {request} from "node:http"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
 import {Readable} from "node:stream"
@@ -33,6 +34,7 @@ import type {
   EnrollRequestResponse,
   IssuedCredential,
   PendingEnrollmentResponse,
+  RequestLogEntry,
   RevisionProbe,
   ServerInfo,
   SnapshotReadResponse,
@@ -550,6 +552,17 @@ describe("snapshot and revision http surface", () => {
     return fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.revision}`, {headers: {authorization: `Bearer ${token}`}})
   }
 
+  function closeOnceDispatched(method: string, path: string, token: string): Promise<void> {
+    return new Promise((resolve) => {
+      const req = request(`${booted.baseUrl}${path}`, {method, headers: {authorization: `Bearer ${token}`, expect: "100-continue"}})
+      req.on("error", () => {})
+      req.once("continue", () => {
+        req.destroy()
+        resolve()
+      })
+    })
+  }
+
   function snapshotDocument(overrides: Record<string, unknown> = {}): Record<string, unknown> {
     return {
       version: 4,
@@ -565,6 +578,53 @@ describe("snapshot and revision http surface", () => {
     const res = await readSnapshot(first.token)
     expect(res.status).toBe(200)
     expect(await readData<SnapshotReadResponse>(res)).toEqual({snapshot: null, revision: null})
+  })
+
+  it("the request log names the device and the route, never the token or query, and is read only with a token", async () => {
+    await claimFirstDevice()
+    const child = await bindSecondDevice("Mac mini")
+
+    await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.revision}?secret=1`, {headers: {authorization: `Bearer ${child.token}`}})
+    await fetch(`${booted.baseUrl}${HEALTH_PATH}`)
+    await fetch(`${booted.baseUrl}/v1/nope`)
+
+    const unauthorized = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.logs}`)
+    expect(unauthorized.status).toBe(401)
+    expect(await unauthorized.json()).toEqual({ok: false, error: {code: "UNAUTHORIZED", message: expect.any(String)}})
+
+    const res = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.logs}`, {headers: {authorization: `Bearer ${child.token}`}})
+    const {entries} = await readData<{entries: RequestLogEntry[]}>(res)
+
+    expect(entries.map((e) => [e.method, e.path, e.status, e.device, e.level, e.source])).toEqual([
+      ["POST", SYNC_PROTOCOL_PATHS.claim, 200, null, "info", "server"],
+      ["POST", SYNC_PROTOCOL_PATHS.enrollConsole, 200, null, "info", "server"],
+      ["GET", SYNC_PROTOCOL_PATHS.revision, 200, "Mac mini", "info", "server"],
+    ])
+    expect(JSON.stringify(entries)).not.toContain(child.token)
+    expect(JSON.stringify(entries)).not.toContain("secret")
+  })
+
+  it("the request log skips a held revision poll the client closes, keeps the device's series, and records any other route the client closes", async () => {
+    const {token} = await claimFirstDevice()
+    const {revision} = await readData<SnapshotWriteResponse>(await writeSnapshot(token, snapshotDocument(), null))
+
+    await readRevision(token)
+    await closeOnceDispatched("GET", `${SYNC_PROTOCOL_PATHS.revision}?knownRevision=${revision}`, token)
+    await readRevision(token)
+    await closeOnceDispatched("POST", SYNC_PROTOCOL_PATHS.snapshot, token)
+
+    let entries: RequestLogEntry[] = []
+    await vi.waitFor(async () => {
+      const res = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.logs}`, {headers: {authorization: `Bearer ${token}`}})
+      entries = (await readData<{entries: RequestLogEntry[]}>(res)).entries
+      expect(entries.at(-1)?.status).toBeNull()
+    })
+
+    expect(entries.slice(1).map((e) => [e.method, e.path, e.status, e.level, e.error])).toEqual([
+      ["POST", SYNC_PROTOCOL_PATHS.snapshot, 200, "info", null],
+      ["GET", SYNC_PROTOCOL_PATHS.revision, 200, "info", null],
+      ["POST", SYNC_PROTOCOL_PATHS.snapshot, null, "error", "connection closed by client"],
+    ])
   })
 
   it("TC-9: a conditional write is accepted from whichever bound device read the current revision, and refused from the one that did not", async () => {
@@ -884,6 +944,63 @@ describe("asset http surface", () => {
     expect(downloaded.status).toBe(200)
     const downloadedBytes = Buffer.from(await downloaded.arrayBuffer())
     expect(downloadedBytes.equals(bytes)).toBe(true)
+  })
+
+  it("the request log records a refusal as a code, a body-size refusal as its code, and a failed blob read as a server failure", async () => {
+    const capped = await bootServer(dataDir)
+
+    try {
+      const code = ensureClaimCode(capped.store)
+      const claimRes = await fetch(`${capped.baseUrl}${SYNC_PROTOCOL_PATHS.claim}`, {
+        method: "POST",
+        body: JSON.stringify({code, deviceName: "MacBook Air"}),
+      })
+      const {token} = ((await claimRes.json()) as {ok: true; data: ClaimResponse}).data
+      const headers = {authorization: `Bearer ${token}`}
+
+      await fetch(assetUrl(capped.baseUrl, "secretphoto.png"), {headers})
+      await fetch(assetUrl(capped.baseUrl, "holiday%20photo.png"), {method: "PUT", headers, body: Buffer.from("x")})
+      await fetch(`${capped.baseUrl}${SYNC_PROTOCOL_PATHS.deviceRevoke}`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({deviceId: "BODY-VALUE-123"}),
+      })
+      await fetch(`${capped.baseUrl}${SYNC_PROTOCOL_PATHS.claim}`, {
+        method: "POST",
+        headers,
+        body: "x".repeat(SYNC_PROTOCOL_CONFIG.maxControlRequestBodyBytes + 1),
+      })
+
+      mkdirSync(join(dataDir, "assets", "blocked.png"))
+      await fetch(assetUrl(capped.baseUrl, "blocked.png"), {method: "PUT", headers, body: Buffer.from("x")})
+
+      await fetch(assetUrl(capped.baseUrl, "unreadable.png"), {method: "PUT", headers, body: Buffer.from("x")})
+      rmSync(join(dataDir, "assets", "unreadable.png"))
+      mkdirSync(join(dataDir, "assets", "unreadable.png"))
+      await fetch(assetUrl(capped.baseUrl, "unreadable.png"), {headers})
+        .then((res) => res.arrayBuffer())
+        .catch(() => {})
+
+      let entries: RequestLogEntry[] = []
+      await vi.waitFor(async () => {
+        const res = await fetch(`${capped.baseUrl}${SYNC_PROTOCOL_PATHS.logs}`, {headers})
+        entries = (await readData<{entries: RequestLogEntry[]}>(res)).entries
+        expect(entries.at(-1)?.status).toBeNull()
+      })
+
+      expect(entries.slice(1).map((e) => [e.status, e.level, e.error])).toEqual([
+        [404, "warn", "ASSET_NOT_FOUND"],
+        [400, "warn", "INVALID_ASSET_NAME"],
+        [404, "warn", "DEVICE_NOT_FOUND"],
+        [413, "warn", "HTTP 413"],
+        [500, "error", "Unexpected server error"],
+        [200, "info", null],
+        [null, "error", "Server failed while sending the response body"],
+      ])
+      for (const leak of ["secretphoto", "holiday", "BODY-VALUE", "EISDIR", dataDir]) expect(JSON.stringify(entries)).not.toContain(leak)
+    } finally {
+      await capped.close()
+    }
   })
 
   it("TC-16: a never-uploaded name, a missing blob, a path-escaping name and an oversized upload are each refused with their own code", async () => {

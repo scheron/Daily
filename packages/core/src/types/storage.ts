@@ -14,6 +14,7 @@ import type {
   MoveTaskByOrderParams,
   PendingAgentRequestView,
   PendingApprovalView,
+  RequestLogResult,
   ServerAgentsView,
   ServerBindingView,
   ServerConnectionStateView,
@@ -90,6 +91,8 @@ export interface IServerProvider {
   denyAgent(requestId: string): Promise<void>
   listAgents(): Promise<ServerAgentsView>
   revokeAgent(agentId: string): Promise<ServerAgentsView>
+
+  getLogs(): Promise<RequestLogResult>
 }
 
 export interface IStorageController {

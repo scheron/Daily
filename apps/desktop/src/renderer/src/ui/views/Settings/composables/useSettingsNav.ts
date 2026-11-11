@@ -3,9 +3,7 @@ import {useRoute, useRouter} from "vue-router"
 
 import {isString} from "@daily/std"
 
-import {IS_DEVELOPMENT} from "@/constants/env"
 import AiSettings from "../{fragments}/AiSettings"
-import DebugSettings from "../{fragments}/DebugSettings"
 import DeletedTasks from "../{fragments}/DeletedTasks"
 import GeneralSettings from "../{fragments}/GeneralSettings"
 import ProjectsSettings from "../{fragments}/ProjectsSettings"
@@ -15,7 +13,7 @@ import type {IconName} from "@/types/icons"
 import type {ComponentInstance} from "vue"
 
 export function useSettingsNav() {
-  type SettingsPanel = "general" | "projects" | "sync" | "ai" | "deleted-tasks" | "debug"
+  type SettingsPanel = "general" | "projects" | "sync" | "ai" | "deleted-tasks"
 
   type SettingsSection = {
     id: SettingsPanel
@@ -30,7 +28,6 @@ export function useSettingsNav() {
     {id: "sync", icon: "cloud", label: "Sync", component: SyncSettings},
     {id: "ai", icon: "ai", label: "Daily AI", component: AiSettings},
     {id: "deleted-tasks", icon: "trash", label: "Recently Deleted", component: DeletedTasks},
-    ...(IS_DEVELOPMENT ? [{id: "debug", icon: "code", label: "DEBUG", component: DebugSettings} as SettingsSection] : []),
   ]
   const sectionIds = new Set<SettingsPanel>(sections.map((s) => s.id))
 

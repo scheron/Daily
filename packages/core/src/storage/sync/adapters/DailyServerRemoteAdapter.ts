@@ -9,6 +9,7 @@ import {isValidSnapshot} from "../../../utils/sync/snapshot/isValidSnapshot"
 import {DailySyncClient} from "../server/DailySyncClient"
 
 import type {IRevisionedRemoteStorage, RemoteReadResult, ServerSyncBinding, Snapshot, SnapshotFile, SnapshotRevision} from "@daily/protocol"
+import type {RequestLogBuffer} from "../../../utils/requestLog/RequestLogBuffer"
 
 /**
  * IRevisionedRemoteStorage over a Daily Sync Server this device has bound itself to. The server
@@ -21,8 +22,8 @@ export class DailyServerRemoteAdapter implements IRevisionedRemoteStorage {
 
   private readonly client: DailySyncClient
 
-  constructor(binding: ServerSyncBinding) {
-    this.client = new DailySyncClient({baseUrl: binding.baseUrl, token: binding.token, fingerprint: binding.fingerprint})
+  constructor(binding: ServerSyncBinding, requestLog?: RequestLogBuffer) {
+    this.client = new DailySyncClient({baseUrl: binding.baseUrl, token: binding.token, fingerprint: binding.fingerprint, requestLog})
   }
 
   async loadSnapshot(): Promise<Snapshot | null> {

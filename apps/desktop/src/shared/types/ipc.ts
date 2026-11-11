@@ -16,6 +16,7 @@ import type {
   PendingAgentRequestView,
   PendingApprovalView,
   ProtocolMismatchView,
+  RequestLogResult,
   ServerAgentsView,
   ServerBindingView,
   ServerConnectionStateView,
@@ -104,6 +105,7 @@ export type BridgeIPC = {
   "sync-server:deny-agent": (requestId: string) => Promise<void>
   "sync-server:list-agents": () => Promise<ServerAgentsView>
   "sync-server:revoke-agent": (agentId: string) => Promise<ServerAgentsView>
+  "sync-server:get-logs": () => Promise<RequestLogResult>
 
   "sync-server:on-approval-requested": (callback: () => void) => void
   "sync-server:on-revoked": (callback: () => void) => void

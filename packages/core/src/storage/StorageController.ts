@@ -13,6 +13,7 @@ import {SYNC_CONFIG} from "@daily/protocol"
 import {deepMerge} from "@daily/std"
 
 import {logger} from "../utils/logger"
+import {RequestLogBuffer} from "../utils/requestLog/RequestLogBuffer"
 import {assertSingleActiveProvider, buildSyncRemotes, resolveActiveProvider} from "../utils/sync/syncProvider"
 import {EMPTY_CHANGESET} from "../types/storage"
 import {createStorageCore} from "./createStorageCore"
@@ -77,6 +78,7 @@ export class StorageController implements IStorageController {
   private localAdapter!: StorageCore["localAdapter"]
   private aiSessionModel!: StorageCore["aiSessionModel"]
   private workStorageInstance!: WorkStorage
+  private readonly requestLog = new RequestLogBuffer()
 
   private notifyStorageStatusChange?: (status: SyncStatus, prevStatus: SyncStatus) => void
   private notifyStorageDataChange?: (changeset: Changeset) => void
@@ -129,6 +131,7 @@ export class StorageController implements IStorageController {
     })
 
     this.serverProvider = new ServerProviderService({
+      requestLog: this.requestLog,
       loadSettings: () => this.loadSettings(),
       saveSettings: (partial) => this.saveSettings(partial),
       onBindingChanged: () => this.applyRemoteConfiguration(),
@@ -148,7 +151,7 @@ export class StorageController implements IStorageController {
       loadSettings: () => this.loadSettings(),
       saveSettings: (partial) => this.saveSettings(partial),
       loadLocalDocs: () => this.localAdapter.loadAllDocs(),
-      buildRemotes: (sync) => buildSyncRemotes(sync, {icloudSyncDir: this.paths.remoteSyncPath()}),
+      buildRemotes: (sync) => buildSyncRemotes(sync, {icloudSyncDir: this.paths.remoteSyncPath(), requestLog: this.requestLog}),
       setRemotes: (remotes) => this.syncEngine.setRemotes(remotes),
       getRemoteStates: () => this.syncEngine.getRemoteStates(),
       disableAutoSync: () => this.syncEngine.disableAutoSync(),
@@ -570,7 +573,7 @@ export class StorageController implements IStorageController {
   }
 
   private buildRemotes(settings: Settings): SyncRemote[] {
-    return buildSyncRemotes(settings.sync, {icloudSyncDir: this.paths.remoteSyncPath()})
+    return buildSyncRemotes(settings.sync, {icloudSyncDir: this.paths.remoteSyncPath(), requestLog: this.requestLog})
   }
 
   private hasEnabledRemote(settings: Settings): boolean {

@@ -21,6 +21,8 @@ import type {
   PendingAgentRequestView,
   PendingApprovalView,
   ProtocolMismatchView,
+  RequestLogEntry,
+  RequestLogResult,
   RevisionProbe,
   ServerAgentsView,
   ServerBindingView,
@@ -34,9 +36,12 @@ import type {
 } from "@daily/protocol"
 import type {Scheduler} from "@daily/std"
 import type {IServerProvider} from "../../../types/storage"
+import type {RequestLogBuffer} from "../../../utils/requestLog/RequestLogBuffer"
 import type {ServerTransport} from "./serverTransport"
 
 type ServerProviderDeps = {
+  /** The one log every client of this app writes into. */
+  requestLog: RequestLogBuffer
   loadSettings: () => Promise<Settings>
   saveSettings: (partial: Partial<Settings>) => Promise<void>
   onBindingChanged: () => Promise<void>
@@ -330,6 +335,29 @@ export class ServerProviderService implements IServerProvider {
   }
 
   /**
+   * This Mac's requests merged with the server's, oldest first. A server that cannot be read never
+   * hides the Mac's entries; `serverIssue` says why it is missing. Error codes do not cross IPC, so the
+   * reason is decided here.
+   */
+  async getLogs(): Promise<RequestLogResult> {
+    let server: RequestLogEntry[] = []
+    let serverIssue: RequestLogResult["serverIssue"] = null
+
+    try {
+      server = await (await this.boundClient()).readLogs()
+    } catch (error) {
+      if (error instanceof ProtocolError && error.code === ProtocolErrorCode.UNKNOWN_ROUTE) serverIssue = {kind: "outdated"}
+      else if (!(error instanceof SyncServerError && error.code === SyncServerErrorCode.NO_BINDING)) {
+        serverIssue = {kind: "failed", message: error instanceof Error ? error.message : String(error)}
+      }
+    }
+
+    // Read after the request above, so its own failure is among the Mac's entries.
+    const entries = [...this.deps.requestLog.list(), ...server].sort((a, b) => a.at.localeCompare(b.at))
+    return {entries, serverIssue}
+  }
+
+  /**
    * Starts the twelve-second revision probe; a no-op if it is already running. Each tick compares
    * the server's revision against the one the previous tick read and runs one sync cycle exactly
    * when it moved, and edge-triggers the approval callback on a waiting enrollment request.
@@ -415,14 +443,14 @@ export class ServerProviderService implements IServerProvider {
   }
 
   private attemptClient(attempt: ConnectionAttempt): DailySyncClient {
-    return new DailySyncClient({baseUrl: attempt.baseUrl, token: null, fingerprint: attempt.transport.fingerprint})
+    return new DailySyncClient({baseUrl: attempt.baseUrl, token: null, fingerprint: attempt.transport.fingerprint, requestLog: this.deps.requestLog})
   }
 
   private async clientIfBound(): Promise<DailySyncClient | null> {
     const binding = (await this.deps.loadSettings()).sync.server.binding
     if (!binding) return null
 
-    return new DailySyncClient({baseUrl: binding.baseUrl, token: binding.token, fingerprint: binding.fingerprint})
+    return new DailySyncClient({baseUrl: binding.baseUrl, token: binding.token, fingerprint: binding.fingerprint, requestLog: this.deps.requestLog})
   }
 
   private async boundClient(): Promise<DailySyncClient> {

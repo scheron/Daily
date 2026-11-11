@@ -8,6 +8,7 @@ import ConnectAgentRow from "./{fragments}/ConnectAgentRow"
 import DeviceTable from "./{fragments}/DeviceTable.vue"
 import ServerActions from "./{fragments}/ServerActions.vue"
 import ServerHero from "./{fragments}/ServerHero.vue"
+import ServerLogs from "./{fragments}/ServerLogs"
 import ThisMacTable from "./{fragments}/ThisMacTable.vue"
 
 const syncServerStore = useSyncServerStore()
@@ -42,6 +43,7 @@ const isDomainLineShown = computed(() => binding.value?.acceptsAgents === false 
 
       <AddDeviceRow v-if="isAddDeviceShown" />
       <ConnectAgentRow v-if="isConnectAgentShown" />
+      <ServerLogs />
     </template>
 
     <p v-else class="text-base-content/50 py-2 text-xs">Checking this Mac's role…</p>

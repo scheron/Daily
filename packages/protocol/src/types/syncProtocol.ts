@@ -32,6 +32,7 @@ export const SYNC_PROTOCOL_PATHS = {
   agentPending: "/v1/agents/pending",
   agentApprove: "/v1/agents/approve",
   agentDeny: "/v1/agents/deny",
+  logs: "/v1/logs",
 } as const
 
 export type ServerInfo = {protocol: number; serverId: string; name: string; claimed: boolean}

@@ -24,6 +24,7 @@ describe("packages/core/package.json exports", () => {
       "./storage/WorkStorage": "./src/storage/WorkStorage.ts",
       "./utils/files/extractFileIds": "./src/utils/files/extractFileIds.ts",
       "./utils/files/sniffImageExt": "./src/utils/files/sniffImageExt.ts",
+      "./utils/requestLog/RequestLogBuffer": "./src/utils/requestLog/RequestLogBuffer.ts",
       "./utils/sync/snapshot/assertKnownSnapshotVersion": "./src/utils/sync/snapshot/assertKnownSnapshotVersion.ts",
       "./utils/sync/snapshot/buildSnapshot": "./src/utils/sync/snapshot/buildSnapshot.ts",
       "./utils/sync/snapshot/isValidSnapshot": "./src/utils/sync/snapshot/isValidSnapshot.ts",

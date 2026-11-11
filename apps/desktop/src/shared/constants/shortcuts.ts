@@ -15,7 +15,6 @@ export const SHORTCUTS_MAP = {
     accelerator: "CmdOrCtrl+Shift+5",
     section: "deleted-tasks",
   },
-  "settings:debug": {label: "DEBUG", accelerator: "CmdOrCtrl+Shift+6", section: "debug"},
 
   "editor:close": {label: "Close", accelerator: "Escape"},
   "editor:save": {label: "Save", accelerator: "CmdOrCtrl+S"},

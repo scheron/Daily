@@ -35,7 +35,7 @@ Component folders and the `ui/` layout: **structuring-components**. One function
 
 11. **A regex is a constant in `constants/regex.ts`**, named `<WHAT>_REGEX`, and a caller imports it from there; no file keeps its own regex literal.
 12. **One file per `Error` subclass**, named by the class, in a folder of errors grouped by domain: `errors/auth/SessionExpiredError.ts`.
-13. **Shared data and environment.** Shared contracts go in `types/<domain>.ts`, static catalogs and content in `constants/<domain>/`, loaders and transforms in `utils/<domain>/` — no feature silo at the source root. Application metadata is static data, not an export borrowed from a page. Build-environment values are read through one module, `constants/env.ts`.
+13. **Shared data and environment.** Shared contracts go in `types/<domain>.ts`, static catalogs and content in `constants/<domain>/`, loaders and transforms in `utils/<domain>/` — no feature silo at the source root. Application metadata is static data, not an export borrowed from a page.
 14. **DTO**, when the app has an API layer: `<Name>Dto.ts`, a class with a `static fromEntry` that normalizes an endpoint response, and a `static to<Name>Body(params)` for every request body the endpoint sends, so an endpoint never builds a body inline: `UserDto.fromEntry`, `UserDto.toUpdateBody`. A DTO never imports a type from an endpoint file: it declares a local, unexported input type for each mapper, with only the fields that mapper reads, and the endpoint's params satisfy it structurally.
 
 ## Exceptions

@@ -19,6 +19,7 @@ import type {
   PendingAgentRequestView,
   PendingApprovalView,
   ProtocolMismatchView,
+  RequestLogResult,
   ServerAgentsView,
   ServerBindingView,
   ServerConnectionStateView,
@@ -121,6 +122,7 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "sync-server:deny-agent": (requestId: string) => ipcRenderer.invoke("sync-server:deny-agent", requestId) as Promise<void>,
   "sync-server:list-agents": () => ipcRenderer.invoke("sync-server:list-agents") as Promise<ServerAgentsView>,
   "sync-server:revoke-agent": (agentId: string) => ipcRenderer.invoke("sync-server:revoke-agent", agentId) as Promise<ServerAgentsView>,
+  "sync-server:get-logs": () => ipcRenderer.invoke("sync-server:get-logs") as Promise<RequestLogResult>,
 
   "sync-server:on-approval-requested": (callback: () => void) => ipcRenderer.on("sync-server:approval-requested", (_event, ) => callback()),
   "sync-server:on-revoked": (callback: () => void) => ipcRenderer.on("sync-server:revoked", (_event, ) => callback()),

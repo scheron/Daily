@@ -30,6 +30,13 @@ export function respondError(res: ServerResponse, error: ProtocolError): void {
   writeJson(res, error.status, {ok: false, error: {code: error.code, message: error.message}}, false)
 }
 
+const failedBodyStreams = new WeakSet<ServerResponse>()
+
+/** Whether `respondBytes` destroyed `res` because reading its source failed, as opposed to the client leaving. */
+export function isBodyStreamFailure(res: ServerResponse): boolean {
+  return failedBodyStreams.has(res)
+}
+
 /** Writes the head for a binary body and pipes `source` into the response, destroying it on a stream error. */
 export function respondBytes(res: ServerResponse, source: Readable, meta: {size: number; sha256: string}): void {
   res.writeHead(200, {
@@ -37,6 +44,9 @@ export function respondBytes(res: ServerResponse, source: Readable, meta: {size:
     "content-length": String(meta.size),
     etag: `"${meta.sha256}"`,
   })
+
+  // Marked on the source's own error: pipeline closes `res` before its promise rejects.
+  source.once("error", () => failedBodyStreams.add(res))
 
   pipeline(source, res).catch((err) => {
     console.error(err)

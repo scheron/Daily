@@ -20,18 +20,22 @@ import type {
   PendingEnrollment,
   PendingEnrollmentResponse,
   ProtocolErrorCode,
+  RequestLogEntry,
   RevisionProbe,
   ServerInfo,
   SnapshotReadResponse,
   SnapshotWriteResponse,
 } from "@daily/protocol"
 import type {Dispatcher} from "undici"
+import type {RequestLogBuffer} from "../../../utils/requestLog/RequestLogBuffer"
 
 export type DailySyncClientOptions = {
   baseUrl: string
   token: string | null
   fingerprint: string | null
   fetch?: typeof globalThis.fetch
+  /** Receives one entry per finished request. Every client of one app shares a single buffer. */
+  requestLog?: RequestLogBuffer
 }
 
 type Method = "GET" | "POST" | "PUT"
@@ -63,8 +67,10 @@ export class DailySyncClient {
   private readonly token: string | null
   private readonly fetchFn: typeof globalThis.fetch
   private readonly dispatcher: Dispatcher | undefined
+  private readonly requestLog: RequestLogBuffer | null
 
   constructor(options: DailySyncClientOptions) {
+    this.requestLog = options.requestLog ?? null
     this.baseUrl = options.baseUrl
     this.token = options.token
     this.fetchFn = options.fetch ?? (undiciFetch as unknown as typeof globalThis.fetch)
@@ -181,25 +187,71 @@ export class DailySyncClient {
     return this.request<RevisionProbe>("GET", path, {timeout: TIMEOUTS.revisionHold, token: this.token, signal})
   }
 
+  async readLogs(): Promise<RequestLogEntry[]> {
+    const view = await this.request<{entries: RequestLogEntry[]}>("GET", SYNC_PROTOCOL_PATHS.logs, {timeout: TIMEOUTS.probe, token: this.token})
+    return view.entries
+  }
+
   async listAssets(): Promise<AssetEntry[]> {
     const manifest = await this.request<AssetManifestResponse>("GET", SYNC_PROTOCOL_PATHS.assets, {timeout: TIMEOUTS.asset, token: this.token})
     return manifest.assets
   }
 
   async downloadAsset(name: string): Promise<Buffer> {
-    const response = await this.send("GET", assetUrl(name), {timeout: TIMEOUTS.asset, token: this.token})
-    if (response.status === 200) return Buffer.from(await response.arrayBuffer())
+    return this.track("GET", assetUrl(name), {timeout: TIMEOUTS.asset, token: this.token}, async (response) => {
+      if (response.status === 200) return Buffer.from(await response.arrayBuffer())
 
-    return this.parseEnvelope<Buffer>(response)
+      return this.parseEnvelope<Buffer>(response)
+    })
   }
 
   uploadAsset(name: string, bytes: Buffer): Promise<AssetEntry> {
     return this.request<AssetEntry>("PUT", assetUrl(name), {timeout: TIMEOUTS.asset, token: this.token, rawBody: bytes})
   }
 
-  private async request<T>(method: Method, path: string, options: RequestOptions): Promise<T> {
-    const response = await this.send(method, path, options)
-    return this.parseEnvelope<T>(response)
+  private request<T>(method: Method, path: string, options: RequestOptions): Promise<T> {
+    return this.track(method, path, options, (response) => this.parseEnvelope<T>(response))
+  }
+
+  /** Runs one request through `read` and logs how it ended. A request the caller cancelled is not a failure and is not logged. */
+  private async track<T>(method: Method, path: string, options: RequestOptions, read: (response: Response) => Promise<T>): Promise<T> {
+    const startedAt = Date.now()
+    let status: number | null = null
+
+    try {
+      const response = await this.send(method, path, options)
+      status = response.status
+      const result = await read(response)
+      this.log(method, path, startedAt, status, null)
+      return result
+    } catch (err) {
+      if (!options.signal?.aborted) this.log(method, path, startedAt, status, describeError(err))
+      throw err
+    }
+  }
+
+  private log(method: Method, path: string, startedAt: number, status: number | null, error: string | null): void {
+    if (!this.requestLog) return
+    // Reading the log is not itself an event; a failed read is.
+    if (error === null && path === SYNC_PROTOCOL_PATHS.logs) return
+
+    // The route form only: an asset name or a query never reaches an entry, nor an error text that quotes the URL.
+    const route = path.startsWith(SYNC_PROTOCOL_PATHS.assetItem) ? SYNC_PROTOCOL_PATHS.assetItem : path.split("?")[0]
+    const at = new Date().toISOString()
+    const level = error === null ? "info" : status !== null && status >= 400 && status < 500 ? "warn" : "error"
+
+    this.requestLog.add({
+      at,
+      firstAt: at,
+      level,
+      source: "mac",
+      method,
+      path: route,
+      status,
+      durationMs: Date.now() - startedAt,
+      device: null,
+      error: error === null ? null : scrub(error, path, route),
+    })
   }
 
   private async send(method: Method, path: string, options: RequestOptions): Promise<Response> {
@@ -255,8 +307,14 @@ export class DailySyncClient {
     let payload: unknown
     try {
       payload = await response.json()
-    } catch {
-      throw new SyncServerError(SyncServerErrorCode.UNREACHABLE, "The server sent a response that was not valid JSON")
+    } catch (err) {
+      const isTimeout = err instanceof Error && err.name === "TimeoutError"
+      const error = new SyncServerError(
+        SyncServerErrorCode.UNREACHABLE,
+        isTimeout ? "The request timed out" : "The server sent a response that was not valid JSON",
+      )
+      error.cause = err
+      throw error
     }
 
     if (!isRecord(payload) || typeof payload.ok !== "boolean") {
@@ -270,6 +328,40 @@ export class DailySyncClient {
 
     return (payload as {data: T}).data
   }
+}
+
+/** `CODE: message`, then each `cause` in turn, so a log line carries the whole chain. */
+/** Drops the request URL, and an asset's name in either form, from an error text: the server's own message quotes the bare name. */
+function scrub(error: string, path: string, route: string): string {
+  let text = error.replaceAll(path, route)
+
+  if (route === SYNC_PROTOCOL_PATHS.assetItem && path.length > route.length) {
+    const encoded = path.slice(route.length)
+    text = text.replaceAll(encoded, "<asset>")
+    try {
+      text = text.replaceAll(decodeURIComponent(encoded), "<asset>")
+    } catch {
+      // A malformed escape has no decoded form to remove.
+    }
+  }
+
+  return text
+}
+
+function describeError(err: unknown): string {
+  const parts: string[] = []
+
+  for (let current = err; current !== undefined && current !== null && parts.length < 5; current = (current as {cause?: unknown}).cause) {
+    if (!(current instanceof Error)) {
+      parts.push(String(current))
+      break
+    }
+
+    const code = (current as {code?: unknown}).code
+    parts.push(`${typeof code === "string" ? code : current.name}: ${current.message}`)
+  }
+
+  return parts.join(" Cause: ")
 }
 
 function assetUrl(name: string): string {
