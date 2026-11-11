@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.41.1 - 2026-11-11
+
+### 🎨 Improvements
+
+- **Sync logs** — a failed request now says whether the connection could not be opened or the server did not answer, and a retried attempt appears as its own entry.
+
+### 🐛 Bug Fixes
+
+- **Sync** — fixed actions such as revoking an agent failing when a new connection to the sync server stalls, for example over a VPN. Daily now gives up on a stalled connection after 5 seconds and retries on a fresh one.
+- **Sync logs** — fixed secondary Macs logging a permission warning every time Daily opened.
+
+---
+
 ## v0.41.0 - 2026-11-11
 
 ### ✨ New Features
