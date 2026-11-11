@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {toDateLabel, toLocaleDateTime, toRelativeTime} from "@daily/std"
 
-import {toasts} from "@/composables/useToasts"
+import {useToasts} from "@/composables/useToasts"
 import {useSyncServerStore} from "@/stores/sync-server"
 import BaseButton from "@/ui/base/BaseButton"
 import AgentIcon from "@/ui/common/(icons)/AgentIcon.vue"
@@ -12,6 +12,7 @@ import type {ServerAgentView} from "@daily/protocol"
 const props = defineProps<{agent: ServerAgentView}>()
 
 const syncServerStore = useSyncServerStore()
+const toasts = useToasts("current")
 
 async function onRevoke() {
   try {

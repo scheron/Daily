@@ -89,7 +89,7 @@ describe("Comment view in the task panel", () => {
     vi.useFakeTimers()
     setActivePinia(createPinia())
     vi.clearAllMocks()
-    const {nestedTarget} = await import("../../../../src/renderer/src/ui/modules/RightPanel/state")
+    const {nestedTarget} = await import("../../../../src/renderer/src/ui/modules/RightPanel/nestedTarget")
     nestedTarget.value = null
   })
 

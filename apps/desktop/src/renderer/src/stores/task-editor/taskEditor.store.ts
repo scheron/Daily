@@ -142,7 +142,7 @@ export const useTaskEditorStore = defineStore("taskEditor", () => {
         tags: next.tags,
         estimatedTime: next.estimatedTime,
         date: next.scheduled?.date,
-        branchId: next.branchId ?? undefined,
+        ...(next.branchId ? {branchId: next.branchId} : {}),
         status: next.status,
         priority: next.priority,
         milestoneId: next.milestoneId,

@@ -9,7 +9,7 @@ import {mount} from "@vue/test-utils"
 import {mockBridgeIPC} from "../../helpers/bridgeIPC"
 import {makeAgent, makeAgentWindow, makeBinding, makeDevice} from "../../helpers/syncServerFixtures"
 
-vi.mock("@/composables/useToasts", () => ({toasts: {success: vi.fn(), error: vi.fn()}}))
+vi.mock("@/composables/useToasts", () => ({toasts: {success: vi.fn(), error: vi.fn()}, useToasts: () => ({success: vi.fn(), error: vi.fn()})}))
 
 describe("ServerDetails — no revoked device rendered, the row or the line, by role and by the accepts-agents fact (TC-47, TC-25 to TC-29)", () => {
   let wrapper = null

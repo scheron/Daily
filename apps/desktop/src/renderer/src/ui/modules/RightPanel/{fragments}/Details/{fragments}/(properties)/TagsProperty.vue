@@ -29,7 +29,7 @@ function onRemove(id: Tag["id"]) {
 </script>
 
 <template>
-  <BasePopup hide-header position="start" trigger-class="min-w-0" container-class="p-0 overflow-hidden max-h-none">
+  <BasePopup position="start" trigger-class="min-w-0" container-class="p-0 overflow-hidden max-h-none">
     <template #trigger="{toggle}">
       <ChipsCell icon="tags" label="Add tags" @open="toggle">
         <BaseTag v-for="tag in tags" :key="tag.id" :tag="tag" size="sm" removable @remove="onRemove(tag.id)" />

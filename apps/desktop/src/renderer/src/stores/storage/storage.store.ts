@@ -1,4 +1,4 @@
-import {computed, onMounted, ref} from "vue"
+import {computed, onMounted, ref, watch} from "vue"
 import {defineStore} from "pinia"
 
 import {resolveActiveProvider} from "@daily/protocol"
@@ -15,6 +15,7 @@ export const useStorageStore = defineStore("storage", () => {
 
   const status = ref<SyncStatus>("inactive")
   const lastSyncAt = ref<ISODateTime>(new Date().toISOString())
+  const serverSyncError = ref<string | null>(null)
 
   const provider = computed<SyncProvider>(() => {
     const sync = settingsStore.settings?.sync
@@ -62,6 +63,15 @@ export const useStorageStore = defineStore("storage", () => {
     await settingsStore.revalidate()
   }
 
+  async function loadServerSyncError(): Promise<void> {
+    const states = await window.BridgeIPC["storage-sync:get-remote-states"]()
+    serverSyncError.value = states.find((state) => state.id === "daily-server")?.lastError ?? null
+  }
+
+  watch(status, (value) => {
+    if (value === "error") loadServerSyncError()
+  })
+
   onMounted(async () => {
     await loadSyncStatus()
     if (status.value === "active") forceSync()
@@ -70,6 +80,7 @@ export const useStorageStore = defineStore("storage", () => {
   return {
     status,
     lastSyncAt,
+    serverSyncError,
     provider,
 
     forceSync,

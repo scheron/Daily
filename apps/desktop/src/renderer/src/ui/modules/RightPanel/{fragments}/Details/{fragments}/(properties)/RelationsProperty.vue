@@ -93,7 +93,7 @@ function columnFor(status: TaskStatus) {
 </script>
 
 <template>
-  <BasePopup hide-header position="start" trigger-class="min-w-0" container-class="p-0 overflow-hidden max-h-none">
+  <BasePopup position="start" trigger-class="min-w-0" container-class="p-0 overflow-hidden max-h-none">
     <template #trigger="{toggle}">
       <ChipsCell :icon="cellIcon" :label="cellLabel" @open="onOpenPicker(toggle)">
         <BaseButton

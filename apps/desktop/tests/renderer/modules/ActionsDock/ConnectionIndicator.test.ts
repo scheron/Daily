@@ -21,8 +21,10 @@ describe("ConnectionIndicator — the dock tells when the sync server is being r
     vi.useRealTimers()
   })
 
-  async function setup({provider = "server", connection = "unreachable"} = {}) {
+  async function setup({provider = "server", connection = "unreachable", status = "inactive", lastError = null} = {}) {
     bridge = mockBridgeIPC({
+      "storage-sync:get-status": vi.fn().mockResolvedValue(status),
+      "storage-sync:get-remote-states": vi.fn().mockResolvedValue([{id: "daily-server", label: "Server", lastSyncAt: null, lastError}]),
       "settings:load": vi.fn().mockResolvedValue({
         sync: {iCloud: {enabled: provider === "icloud"}, server: {enabled: provider === "server", binding: makeBinding()}},
         branch: {activeId: "main"},
@@ -95,6 +97,17 @@ describe("ConnectionIndicator — the dock tells when the sync server is being r
     await vi.advanceTimersByTimeAsync(2500)
     await settle()
     expect(wrapper.text()).toBe("")
+  })
+
+  it("shows Sync error with its reason while the server answers but the sync fails, and retries from there", async () => {
+    await setup({connection: "connected", status: "error", lastError: "The request timed out"})
+
+    expect(wrapper.text()).toContain("Sync error")
+    expect(wrapper.findComponent({name: "BaseButton"}).props("tooltip")).toBe("The request timed out")
+
+    await wrapper.find("button").trigger("click")
+
+    expect(bridge["sync-server:retry"]).toHaveBeenCalledTimes(1)
   })
 
   it("asks main to retry the server when Try again is pressed", async () => {

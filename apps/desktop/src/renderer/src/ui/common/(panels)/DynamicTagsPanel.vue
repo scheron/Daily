@@ -106,7 +106,7 @@ watch(
           @click="onSelectTag(tag.id)"
         />
 
-        <BasePopup v-if="hiddenTags.length" hide-header :hover-mode="popupHoverMode" container-class="min-w-44 p-1" content-class="gap-1.5">
+        <BasePopup v-if="hiddenTags.length" :hover-mode="popupHoverMode" container-class="min-w-44 p-1" content-class="gap-1.5">
           <template #trigger="{toggle, show}">
             <BaseButton
               :variant="moreButtonVariant"

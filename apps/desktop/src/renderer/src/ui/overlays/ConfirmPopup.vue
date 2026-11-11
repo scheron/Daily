@@ -36,7 +36,7 @@ function onConfirm() {
 </script>
 
 <template>
-  <BasePopup ref="popup" hide-header :position="position" :content-class="contentClass">
+  <BasePopup ref="popup" :position="position" :content-class="contentClass">
     <template #trigger="{show}">
       <slot name="trigger" :show="show" />
     </template>

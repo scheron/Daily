@@ -47,7 +47,10 @@ function commit(keepAdding = false) {
   }
 
   isEditing.value = false
-  if (!text) return props.subtask ? undefined : emit("cancel")
+  if (!text) {
+    if (!props.subtask) emit("cancel")
+    return
+  }
   if (!props.subtask) return emit("save", text)
   const lines = props.subtask.content.split("\n")
   if (lines[firstLineIndex.value].trim() === text) return

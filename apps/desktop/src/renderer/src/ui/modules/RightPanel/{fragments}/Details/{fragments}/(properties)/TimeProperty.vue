@@ -52,7 +52,7 @@ async function startTimer(hide: () => void) {
 </script>
 
 <template>
-  <BasePopup hide-header position="start">
+  <BasePopup position="start">
     <template #trigger="{toggle}">
       <PropertyCell :label="timeLabel" :is-empty="isEmpty" @click="toggle">
         <template #icon>

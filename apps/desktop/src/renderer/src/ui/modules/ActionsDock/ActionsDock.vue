@@ -129,7 +129,7 @@ async function onSelectAllProjects() {
       </BranchPicker>
 
       <div v-if="compact" ref="compactActions">
-        <BasePopup hide-header position="end">
+        <BasePopup position="end">
           <template #trigger="{toggle, hide, isOpen}">
             <BaseButton
               icon="dots-horizontal"

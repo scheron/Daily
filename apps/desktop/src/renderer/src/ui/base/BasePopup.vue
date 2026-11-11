@@ -5,13 +5,11 @@ import {onClickOutside} from "@vueuse/core"
 import {cn} from "@/utils/ui/tailwindcss"
 // @ts-ignore
 import {autoUpdate, flip, offset, shift, useFloating} from "@floating-ui/vue"
-import BaseButton from "./BaseButton"
 
 export type HorizontalPosition = "start" | "center" | "end"
 
 const props = withDefaults(
   defineProps<{
-    hideHeader?: boolean
     hoverMode?: boolean
     side?: "top" | "bottom"
     position?: HorizontalPosition
@@ -20,7 +18,6 @@ const props = withDefaults(
     containerClass?: string
   }>(),
   {
-    hideHeader: false,
     hoverMode: false,
     side: "bottom",
     position: "start",
@@ -110,10 +107,6 @@ defineExpose({hide})
   <Teleport to="body">
     <div v-if="isOpen" ref="popup" data-popup :class="containerClass" :style="floatingStyles" @mouseenter="cancelHide" @mouseleave="scheduleHide">
       <div :class="contentClass">
-        <div v-if="!hideHeader" class="border-base-300 flex items-center justify-between border-b pb-1">
-          <BaseButton icon="x-mark" variant="ghost-muted" size="sm" class="ml-auto" @click="hide" />
-        </div>
-
         <slot :hide="hide" />
       </div>
     </div>

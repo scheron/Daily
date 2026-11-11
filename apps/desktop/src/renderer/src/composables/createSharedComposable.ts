@@ -11,15 +11,15 @@ type AnyFn = (...args: any[]) => any
 export function createSharedComposable<Fn extends AnyFn>(composable: Fn, keyGenerator?: (...args: Parameters<Fn>) => string): Fn {
   if (!keyGenerator) {
     let subscribers = 0
-    let state: ReturnType<Fn> | undefined
-    let scope: EffectScope | undefined
+    let state: ReturnType<Fn> | null = null
+    let scope: EffectScope | null = null
 
     function dispose() {
       subscribers -= 1
       if (scope && subscribers <= 0) {
         scope.stop()
-        state = undefined
-        scope = undefined
+        state = null
+        scope = null
       }
     }
 
@@ -27,7 +27,7 @@ export function createSharedComposable<Fn extends AnyFn>(composable: Fn, keyGene
       subscribers += 1
       if (!scope) {
         scope = effectScope(true)
-        state = scope.run(() => composable(...args))
+        state = scope.run(() => composable(...args))!
       }
 
       tryOnScopeDispose(dispose)
@@ -41,7 +41,7 @@ export function createSharedComposable<Fn extends AnyFn>(composable: Fn, keyGene
       state: ReturnType<Fn>
       scope: EffectScope
       subscribers: number
-      disposeTimer?: ReturnType<typeof setTimeout>
+      disposeTimer: ReturnType<typeof setTimeout> | null
     }
   >()
 
@@ -56,6 +56,7 @@ export function createSharedComposable<Fn extends AnyFn>(composable: Fn, keyGene
         state,
         scope,
         subscribers: 0,
+        disposeTimer: null,
       })
     }
 
@@ -64,7 +65,7 @@ export function createSharedComposable<Fn extends AnyFn>(composable: Fn, keyGene
 
     if (instance.disposeTimer) {
       clearTimeout(instance.disposeTimer)
-      instance.disposeTimer = undefined
+      instance.disposeTimer = null
     }
 
     function dispose() {

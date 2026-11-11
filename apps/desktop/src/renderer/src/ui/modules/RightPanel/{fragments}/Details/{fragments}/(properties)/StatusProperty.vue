@@ -31,7 +31,7 @@ function selectStatus(status: TaskStatus) {
 </script>
 
 <template>
-  <BasePopup hide-header position="start">
+  <BasePopup position="start">
     <template #trigger="{toggle}">
       <PropertyCell :label="active.label" @click="toggle">
         <template #icon>

@@ -95,7 +95,7 @@ export function useQuickTaskDraft() {
       tags,
       estimatedTime,
       date: scheduled?.date,
-      branchId: branchId ?? undefined,
+      ...(branchId ? {branchId} : {}),
       status,
       milestoneId,
       priority,

@@ -30,7 +30,7 @@ function onSelect(milestoneId: Milestone["id"] | null) {
 </script>
 
 <template>
-  <BasePopup hide-header position="start">
+  <BasePopup position="start">
     <template #trigger="{toggle}">
       <PropertyCell :label="milestoneName" :is-empty="!milestone" @click="toggle">
         <template #icon>

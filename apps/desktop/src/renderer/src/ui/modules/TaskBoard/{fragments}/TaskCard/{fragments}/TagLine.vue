@@ -56,7 +56,6 @@ onMounted(() => {
       <span v-for="tag in visibleTags" :key="tag.id" class="shrink-0 whitespace-nowrap font-medium" :style="{color: tag.color}">#{{ tag.name }}</span>
       <BasePopup
         v-if="hiddenTags.length"
-        hide-header
         hover-mode
         trigger-class="shrink-0"
         container-class="min-w-44 max-w-[calc(100vw-1rem)] p-1"

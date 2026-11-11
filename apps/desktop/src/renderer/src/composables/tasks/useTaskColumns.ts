@@ -25,7 +25,7 @@ import {findClosestAtPoint} from "@/utils/ui/dom"
 import {useDragAutoScroll} from "./useDragAutoScroll"
 import {useTaskDragDrop} from "./useTaskDragDrop"
 
-import type {BoardMode, MoveTaskByOrderParams, Task, TaskStatus} from "@daily/protocol"
+import type {BoardMode, MoveTaskByOrderParams, Task, TaskMovePosition, TaskStatus} from "@daily/protocol"
 
 type ColumnItem = {kind: "task"; task: Task} | {kind: "placeholder"}
 
@@ -285,7 +285,7 @@ export const useTaskColumns = createSharedComposable(() => {
       taskId: dragged.task.id,
       ...(isSameColumn ? {} : {targetStatus: target.status}),
       boardMode: boardMode.value,
-      ...(isMilestoneFrame ? {targetTaskId: null, position: "after" as const} : resolveMoveTarget(column, target.index)),
+      ...(isMilestoneFrame ? {targetTaskId: null, position: "after" satisfies TaskMovePosition} : resolveMoveTarget(column, target.index)),
       activeDate: isMilestoneFrame ? (dragged.task.scheduled?.date ?? tasksStore.activeDay) : tasksStore.activeDay,
       acrossProjects: projectScopeStore.isAllProjectsMode,
     }

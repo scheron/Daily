@@ -27,14 +27,7 @@ const emit = defineEmits<{select: [branch: Branch]; "select-all": []}>()
 </script>
 
 <template>
-  <BasePopup
-    hide-header
-    :hover-mode="hoverMode"
-    :side="side"
-    :position="position"
-    :trigger-class="triggerClass"
-    container-class="p-0 overflow-hidden max-h-none"
-  >
+  <BasePopup :hover-mode="hoverMode" :side="side" :position="position" :trigger-class="triggerClass" container-class="p-0 overflow-hidden max-h-none">
     <template #trigger="{toggle, show}">
       <slot name="trigger" :toggle="toggle" :show="show" />
     </template>

@@ -30,6 +30,10 @@ const sourceLabel = computed(() => {
   return null
 })
 
+const markerAttrs = computed(() =>
+  sourceLabel.value ? {role: "img", "aria-label": sourceLabel.value, "data-source": sourceLabel.value, tabindex: 0} : {},
+)
+
 const metadata = computed(() => {
   const metadata: Record<TaskEventType, {icon: IconName; verb: string}> = {
     created: {icon: "plus", verb: "Created"},
@@ -97,13 +101,7 @@ function dateEndpoint(date: TaskEvent["fromDate"]): EventEndpoint {
 
 <template>
   <div class="history-row relative grid grid-cols-[20px_minmax(0,1fr)] items-start gap-2.5 py-1" :data-time="toTime(event.createdAt)" tabindex="0">
-    <div
-      :class="markerClass"
-      :role="sourceLabel ? 'img' : undefined"
-      :aria-label="sourceLabel ?? undefined"
-      :data-source="sourceLabel ?? undefined"
-      :tabindex="sourceLabel ? 0 : undefined"
-    >
+    <div :class="markerClass" v-bind="markerAttrs">
       <BaseIcon v-if="event.kind === 'agent'" name="logo" class="size-3.5" />
       <AgentIcon v-else-if="event.kind === 'mcp'" :name="event.provider ?? ''" class="size-3.5" />
       <BaseIcon v-else :name="metadata.icon" class="size-3.5" />

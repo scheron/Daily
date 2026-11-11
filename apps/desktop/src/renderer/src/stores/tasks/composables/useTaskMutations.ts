@@ -65,7 +65,7 @@ export function useTaskMutations(ctx: TaskMutationsContext) {
 
     const request: CreateTaskParams = toRawDeep({
       id,
-      date: isUndated ? undefined : date,
+      ...(isUndated ? {} : {date}),
       time,
       timezone,
       tags: params.tags,

@@ -92,7 +92,8 @@ describe("tasksStore", () => {
     const created = await store.createTask({content: "Ready", tags: [], status: "ready_for_agent"})
     expect(created.status).toBe("ready_for_agent")
     expect(created.scheduled).toBeNull()
-    expect(Storage.createTask).toHaveBeenCalledWith("Ready", expect.objectContaining({status: "ready_for_agent", date: undefined}))
+    expect(Storage.createTask).toHaveBeenCalledWith("Ready", expect.objectContaining({status: "ready_for_agent"}))
+    expect(Storage.createTask.mock.lastCall[1].date).toBeUndefined()
   })
 
   it("passes the display mode to storage and orders optimistically among mixed Normal neighbours", async () => {
@@ -214,7 +215,8 @@ describe("tasksStore", () => {
     const store = await getStore()
     store.tasks = [makeTask({id: "ready", status, scheduled})]
     await store.duplicateTask("ready")
-    expect(Storage.createTask).toHaveBeenCalledWith("Test", expect.objectContaining({status, date: scheduled?.date}))
+    expect(Storage.createTask).toHaveBeenCalledWith("Test", expect.objectContaining({status}))
+    expect(Storage.createTask.mock.lastCall[1].date).toBe(scheduled?.date)
   })
 
   it("duplicates a backlog task as dateless, never inventing a day", async () => {
@@ -226,7 +228,8 @@ describe("tasksStore", () => {
 
     await store.duplicateTask("orig")
 
-    expect(Storage.createTask).toHaveBeenCalledWith("no day yet", expect.objectContaining({status: "backlog", date: undefined}))
+    expect(Storage.createTask).toHaveBeenCalledWith("no day yet", expect.objectContaining({status: "backlog"}))
+    expect(Storage.createTask.mock.lastCall[1].date).toBeUndefined()
   })
 
   it("duplicates a task with its priority", async () => {

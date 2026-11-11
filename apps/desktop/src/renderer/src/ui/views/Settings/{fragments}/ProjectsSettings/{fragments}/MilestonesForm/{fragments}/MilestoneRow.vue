@@ -133,7 +133,7 @@ watch(
       <span v-else class="min-w-0 flex-1 truncate font-medium">{{ milestone.name }}</span>
 
       <div class="text-base-content/55 ml-auto flex shrink-0 items-center text-xs">
-        <BasePopup hide-header position="end" trigger-class="w-24 shrink-0" container-class="max-h-none">
+        <BasePopup position="end" trigger-class="w-24 shrink-0" container-class="max-h-none">
           <template #trigger="{toggle}">
             <BaseButton variant="text" size="xs" class="-mx-1.5 justify-end" @click.stop="toggle">
               <span :class="dateLabelClass">{{ dateLabel ?? "Set a date" }}</span>

@@ -24,7 +24,7 @@ const contextValue = computed(() => {
 </script>
 
 <template>
-  <BasePopup v-if="usage.total > 0" hover-mode hide-header position="end">
+  <BasePopup v-if="usage.total > 0" hover-mode position="end">
     <template #trigger="{show}">
       <div class="flex items-center" @mouseenter="show">
         <RingChart :value="usage.window ? usage.used : 0" :max="usage.window ?? 1" />

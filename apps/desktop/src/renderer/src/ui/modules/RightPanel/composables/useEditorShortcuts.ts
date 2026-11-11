@@ -5,7 +5,7 @@ import {isInsideOpenDialog} from "@/utils/ui/isInsideOpenDialog"
 import {SHORTCUTS_MAP} from "@shared/constants/shortcuts"
 import {acceleratorsMatch} from "@shared/utils/shortcuts/acceleratorsMatch"
 import {formatEventToAccelerator} from "@shared/utils/shortcuts/formatEventToAccelerator"
-import {nestedTarget} from "../state"
+import {nestedTarget} from "../nestedTarget"
 import {useSubtaskEditorOpen} from "./useSubtaskEditorOpen"
 import {useTaskEditor} from "./useTaskEditor"
 

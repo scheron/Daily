@@ -22,7 +22,7 @@ function onSelect(priority: TaskPriority) {
 </script>
 
 <template>
-  <BasePopup hide-header position="start">
+  <BasePopup position="start">
     <template #trigger="{toggle}">
       <PropertyCell :label="label" :is-empty="task.priority === 'none'" @click="toggle">
         <template #icon>

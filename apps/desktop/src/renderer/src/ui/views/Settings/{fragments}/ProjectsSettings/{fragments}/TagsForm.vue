@@ -32,7 +32,7 @@ async function deleteTag(tag: Tag) {
 
 <template>
   <div class="flex flex-wrap items-center gap-x-5 gap-y-2">
-    <BasePopup hide-header position="start" container-class="p-0 overflow-hidden max-h-none">
+    <BasePopup position="start" container-class="p-0 overflow-hidden max-h-none">
       <template #trigger="{toggle}">
         <BaseButton variant="inline" icon="plus" size="sm" @click="toggle">Add tag</BaseButton>
       </template>

@@ -16,7 +16,7 @@ import Footer from "./{fragments}/Footer.vue"
 import Subtasks from "./{fragments}/Subtasks"
 import SubtaskView from "./{fragments}/SubtaskView"
 import Toolbar from "./{fragments}/Toolbar.vue"
-import {nestedTarget} from "./state"
+import {nestedTarget} from "./nestedTarget"
 
 const props = defineProps<{width: number}>()
 

@@ -15,16 +15,17 @@ const props = defineProps<{compact?: boolean}>()
 const storageStore = useStorageStore()
 const syncServerStore = useSyncServerStore()
 
-const {provider} = storeToRefs(storageStore)
+const {provider, status, serverSyncError} = storeToRefs(storageStore)
 const {connection} = storeToRefs(syncServerStore)
 
 const settledLabel = ref<"Connected" | "Reconnected" | null>(null)
 const isRetrying = ref(false)
 
-const connectionState = computed<"connecting" | "reconnecting" | "settled" | null>(() => {
+const connectionState = computed<"connecting" | "reconnecting" | "sync-error" | "settled" | null>(() => {
   if (provider.value !== "server") return null
   if (connection.value === "connecting") return "connecting"
   if (connection.value === "unreachable") return "reconnecting"
+  if (status.value === "error") return "sync-error"
   return settledLabel.value ? "settled" : null
 })
 
@@ -69,6 +70,22 @@ watch(connection, (nextConnection, prevConnection) => {
           size="sm"
           tooltip="Try again"
           aria-label="Retry connection"
+          :loading="isRetrying"
+          @click="onRetry"
+        />
+      </template>
+
+      <template v-else-if="connectionState === 'sync-error'">
+        <span v-if="!compact" class="text-error flex items-center gap-1.5 whitespace-nowrap pl-2 pr-0.5 text-xs font-medium">
+          <BaseIcon name="alert-circle" class="size-3.5" />
+          Sync error
+        </span>
+        <BaseButton
+          variant="error-ghost"
+          icon="refresh"
+          size="sm"
+          :tooltip="serverSyncError ?? 'Try again'"
+          aria-label="Retry sync"
           :loading="isRetrying"
           @click="onRetry"
         />

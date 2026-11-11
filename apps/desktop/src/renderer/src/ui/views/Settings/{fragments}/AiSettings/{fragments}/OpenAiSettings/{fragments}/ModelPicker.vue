@@ -30,7 +30,7 @@ function onSelect(value: BaseMenuItem["value"]) {
 </script>
 
 <template>
-  <BasePopup ref="popup" hide-header position="end" trigger-class="min-w-0">
+  <BasePopup ref="popup" position="end" trigger-class="min-w-0">
     <template #trigger="{toggle}">
       <BaseButton variant="select" class="w-52" @click="toggle">
         <span class="truncate text-left text-sm">{{ modelValue || "Select model" }}</span>

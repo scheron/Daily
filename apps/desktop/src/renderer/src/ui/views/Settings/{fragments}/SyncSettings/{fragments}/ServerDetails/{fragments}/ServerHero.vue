@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, onMounted, ref, watch} from "vue"
+import {computed, ref} from "vue"
 import {storeToRefs} from "pinia"
 
 import {SYNC_PROTOCOL_VERSION} from "@daily/protocol"
@@ -27,11 +27,10 @@ const props = defineProps<{binding: ServerBindingView}>()
 const storageStore = useStorageStore()
 const syncServerStore = useSyncServerStore()
 
-const {status} = storeToRefs(storageStore)
+const {status, serverSyncError} = storeToRefs(storageStore)
 
 const isDisconnecting = ref(false)
 const isRetrying = ref(false)
-const remoteError = ref<string | null>(null)
 
 const statusTone = computed<PillTone>(() => {
   if (syncServerStore.isRevoked) return "error"
@@ -69,11 +68,6 @@ const mismatchMessage = computed(() => {
 const statusPillClass = computed(() => cn(pillClass, pillToneClasses[statusTone.value]))
 const protocolPillClass = computed(() => cn(pillClass, [syncServerStore.mismatch ? pillToneClasses.warn : pillToneClasses.idle]))
 
-async function loadRemoteError() {
-  const states = await window.BridgeIPC["storage-sync:get-remote-states"]()
-  remoteError.value = states.find((state) => state.id === "daily-server")?.lastError ?? null
-}
-
 async function onRetry() {
   isRetrying.value = true
   try {
@@ -93,14 +87,6 @@ async function onDisconnect() {
     isDisconnecting.value = false
   }
 }
-
-watch(status, (value) => {
-  if (value === "error") loadRemoteError()
-})
-
-onMounted(() => {
-  if (status.value === "error") loadRemoteError()
-})
 </script>
 
 <template>
@@ -156,9 +142,9 @@ onMounted(() => {
       <BaseButton variant="warning-ghost" size="xs" icon="refresh" :loading="isRetrying" @click="onRetry">Try again</BaseButton>
     </div>
 
-    <div v-else-if="status === 'error' && remoteError" class="text-error bg-error/10 flex items-center gap-1.5 rounded-md px-2 py-1 text-xs">
+    <div v-else-if="status === 'error' && serverSyncError" class="text-error bg-error/10 flex items-center gap-1.5 rounded-md px-2 py-1 text-xs">
       <BaseIcon name="alert-circle" class="size-3.5 shrink-0" />
-      <span class="min-w-0 flex-1">{{ remoteError }}</span>
+      <span class="min-w-0 flex-1">{{ serverSyncError }}</span>
       <BaseButton variant="error-ghost" size="xs" icon="refresh" :loading="isRetrying" @click="onRetry">Try again</BaseButton>
     </div>
   </div>

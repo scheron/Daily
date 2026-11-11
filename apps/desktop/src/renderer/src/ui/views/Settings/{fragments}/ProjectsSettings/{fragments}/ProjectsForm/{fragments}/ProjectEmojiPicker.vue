@@ -139,7 +139,7 @@ onBeforeUnmount(disposePicker)
 </script>
 
 <template>
-  <BasePopup hide-header container-class="w-64 max-h-none overflow-hidden p-3" trigger-class="shrink-0" @close="disposePicker">
+  <BasePopup container-class="w-64 max-h-none overflow-hidden p-3" trigger-class="shrink-0" @close="disposePicker">
     <template #trigger="{show, hide, isOpen}">
       <span ref="trigger">
         <BaseButton

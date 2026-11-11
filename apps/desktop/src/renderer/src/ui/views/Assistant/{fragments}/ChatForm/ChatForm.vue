@@ -69,7 +69,7 @@ function getModelLabelClasses(isActive: boolean) {
       <AutoSizeInput v-model="message" :disabled="loading" placeholder="Ask me anything..." @keydown="onKeydown" />
 
       <div class="flex w-full items-center justify-between gap-2 p-2">
-        <BasePopup ref="popup" position="start" hide-header container-class="min-w-48">
+        <BasePopup ref="popup" position="start" container-class="min-w-48">
           <template #trigger="{toggle}">
             <BaseButton variant="tertiary" icon="ai" size="xs" @click="toggle">
               {{ activeModel || "-" }}
