@@ -330,6 +330,42 @@ describe("an unbound device", () => {
   })
 })
 
+describe("pendingApproval by role", () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it("returns null for a child without asking the server, and reads the waiting request for a parent", async () => {
+    const server = await bootSyncServer()
+    try {
+      const credential = await claimFirstDevice(server, "MacBook Air")
+      const request = {
+        requestId: "req-1",
+        code: "123456",
+        deviceName: "Mac B",
+        requestedAt: "2026-01-01T00:00:00.000Z",
+        expiresAt: "2026-01-01T00:05:00.000Z",
+        requestedFrom: null,
+      }
+      const pendingEnrollment = vi.spyOn(DailySyncClient.prototype, "pendingEnrollment").mockResolvedValue(request as never)
+
+      const child = makeService(
+        makeSettingsStore({server: {enabled: true, binding: bindingFromCredential(server, credential, {role: "child", approvedBy: null})}}),
+      )
+      await expect(child.pendingApproval()).resolves.toBeNull()
+      expect(pendingEnrollment).not.toHaveBeenCalled()
+
+      const parent = makeService(
+        makeSettingsStore({server: {enabled: true, binding: bindingFromCredential(server, credential, {role: "parent", approvedBy: null})}}),
+      )
+      await expect(parent.pendingApproval()).resolves.toMatchObject({requestId: "req-1"})
+      expect(pendingEnrollment).toHaveBeenCalledTimes(1)
+    } finally {
+      await server.close()
+    }
+  })
+})
+
 describe("the enrollment wait", () => {
   it("clears_TC-23_a_lapsed_enrollment_wait_and_never_reuses_its_code_on_a_fresh_request", async () => {
     const server = await bootSyncServer()

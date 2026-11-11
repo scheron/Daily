@@ -206,8 +206,11 @@ export class ServerProviderService implements IServerProvider {
     await this.deps.onBindingChanged()
   }
 
-  /** The one enrollment request waiting on this server, or `null` when none waits and when no server is connected. */
+  /** The one enrollment request waiting on this server, or `null` when none waits, when no server is connected and when this device is a child (only a parent can approve). */
   async pendingApproval(): Promise<PendingApprovalView | null> {
+    const binding = (await this.deps.loadSettings()).sync.server.binding
+    if (binding?.role === "child") return null
+
     const client = await this.clientIfBound()
     if (!client) return null
 
