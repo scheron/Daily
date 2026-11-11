@@ -12,11 +12,13 @@ import {saveProjectTool} from "./saveProject"
 import {saveSubtaskTool} from "./saveSubtask"
 import {saveTagTool} from "./saveTag"
 import {saveTaskTool} from "./saveTask"
+import {updateTaskWorkflowTool} from "./updateTaskWorkflow"
 
 import type {Tool} from "../types"
 
 export const WRITE_TOOLS: readonly Tool[] = [
   saveTaskTool,
+  updateTaskWorkflowTool,
   deleteTaskTool,
   saveCommentTool,
   deleteCommentTool,

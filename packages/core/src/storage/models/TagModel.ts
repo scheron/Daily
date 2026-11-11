@@ -1,3 +1,5 @@
+import {randomUUID} from "node:crypto"
+
 import {createEntityId, NO_PROJECT_ID} from "@daily/protocol"
 import {notUndefined} from "@daily/std"
 
@@ -87,17 +89,16 @@ export class TagModel {
       values.push(updates.color)
     }
 
-    if (setClauses.length > 0) {
+    this.db.transaction(() => {
+      if (setClauses.length > 0) {
+        this.db.prepare(`UPDATE tags SET ${setClauses.join(", ")}, updated_at = ? WHERE id = ?`).run(...values, now, id)
+      } else {
+        this.db.prepare(`UPDATE tags SET updated_at = ? WHERE id = ?`).run(now, id)
+      }
       this.db
-        .prepare(
-          `
-        UPDATE tags SET ${setClauses.join(", ")}, updated_at = ? WHERE id = ?
-      `,
-        )
-        .run(...values, now, id)
-    } else {
-      this.db.prepare(`UPDATE tags SET updated_at = ? WHERE id = ?`).run(now, id)
-    }
+        .prepare("UPDATE tasks SET updated_at = ?, workflow_generation = ? WHERE id IN (SELECT task_id FROM task_tags WHERE tag_id = ?)")
+        .run(now, randomUUID(), id)
+    })()
 
     logger.storage("Updated", "TAGS", id)
     return this.getTag(id)
@@ -108,6 +109,9 @@ export class TagModel {
 
     let changes = 0
     const run = this.db.transaction(() => {
+      this.db
+        .prepare("UPDATE tasks SET updated_at = ?, workflow_generation = ? WHERE id IN (SELECT task_id FROM task_tags WHERE tag_id = ?)")
+        .run(now, randomUUID(), id)
       this.db.prepare(`DELETE FROM task_tags WHERE tag_id = ?`).run(id)
       const result = this.db.prepare(`UPDATE tags SET deleted_at = ?, updated_at = ? WHERE id = ?`).run(now, now, id)
       changes = result.changes
@@ -122,9 +126,16 @@ export class TagModel {
   /** Soft-deletes every tag in a project in one statement. Returns the ids it touched. */
   deleteTagsByBranch(branchId: Branch["id"]): Tag["id"][] {
     const now = new Date().toISOString()
-    const rows = this.db
-      .prepare(`UPDATE tags SET deleted_at = ?, updated_at = ? WHERE branch_id = ? AND deleted_at IS NULL RETURNING id`)
-      .all<{id: string}>(now, now, branchId)
+    const rows = this.db.transaction(() => {
+      this.db
+        .prepare(
+          "UPDATE tasks SET updated_at = ?, workflow_generation = ? WHERE id IN (SELECT tt.task_id FROM task_tags tt JOIN tags t ON t.id = tt.tag_id WHERE t.branch_id = ? AND t.deleted_at IS NULL)",
+        )
+        .run(now, randomUUID(), branchId)
+      return this.db
+        .prepare(`UPDATE tags SET deleted_at = ?, updated_at = ? WHERE branch_id = ? AND deleted_at IS NULL RETURNING id`)
+        .all<{id: string}>(now, now, branchId)
+    })()
 
     logger.info(logger.CONTEXT.TAGS, `Deleted ${rows.length} tags for branch ${branchId}`)
     return rows.map((row) => row.id)

@@ -26,11 +26,22 @@ describe("handleMcpRequest", () => {
   beforeEach(async () => {
     seeded = await seedAgentStore()
     const agent = bindAgent(seeded.store, "Agent Mac", "UTC")
-    caller = {deviceId: agent.deviceId, timeZone: agent.timeZone, name: agent.name}
+    caller = {agentId: agent.agentId, deviceId: agent.deviceId, timeZone: agent.timeZone, name: agent.name}
   })
 
   afterEach(() => {
     seeded.close()
+  })
+
+  it("initialize explains how to discover and maintain the selected task's workflow", async () => {
+    const reply = await handleMcpRequest(
+      {store: seeded.store},
+      caller,
+      JSON.stringify({jsonrpc: "2.0", id: 1, method: "initialize", params: {protocolVersion: "2025-11-25"}}),
+      noHeaders(),
+    )
+    expect(reply.body).toMatchObject({result: {instructions: expect.stringContaining("get_task_workflow")}})
+    expect(reply.body).toMatchObject({result: {instructions: expect.stringContaining("update_task_workflow")}})
   })
 
   describe("a malformed message is refused before dispatch — TC-21", () => {
@@ -99,7 +110,12 @@ describe("handleMcpRequest", () => {
         expect(reply.body).toEqual({
           jsonrpc: "2.0",
           id: index,
-          result: {protocolVersion: version, capabilities: {tools: {}}, serverInfo: {name: "daily", title: "Daily", version: serverVersion}},
+          result: {
+            protocolVersion: version,
+            capabilities: {tools: {}},
+            serverInfo: {name: "daily", title: "Daily", version: serverVersion},
+            instructions: expect.any(String),
+          },
         })
         expect((reply.body as Record<string, unknown>).result).not.toHaveProperty("resultType")
       }
@@ -135,7 +151,12 @@ describe("handleMcpRequest", () => {
       expect(ambiguous.body).toEqual({
         jsonrpc: "2.0",
         id: "amb",
-        result: {protocolVersion: "2025-11-25", capabilities: {tools: {}}, serverInfo: {name: "daily", title: "Daily", version: serverVersion}},
+        result: {
+          protocolVersion: "2025-11-25",
+          capabilities: {tools: {}},
+          serverInfo: {name: "daily", title: "Daily", version: serverVersion},
+          instructions: expect.any(String),
+        },
       })
     })
   })
@@ -152,7 +173,7 @@ describe("handleMcpRequest", () => {
       })
       expect(list.status).toBe(200)
       const listResult = (list.body as {result: Record<string, unknown>}).result
-      expect((listResult.tools as unknown[]).length).toBe(20)
+      expect((listResult.tools as unknown[]).length).toBe(22)
       expect(listResult).not.toHaveProperty("resultType")
       expect(listResult).not.toHaveProperty("ttlMs")
       expect(listResult).not.toHaveProperty("cacheScope")
@@ -222,7 +243,7 @@ describe("handleMcpRequest", () => {
       expect(list.status).toBe(200)
       const listResult = (list.body as {result: Record<string, unknown>}).result
       expect(listResult.resultType).toBe("complete")
-      expect((listResult.tools as unknown[]).length).toBe(20)
+      expect((listResult.tools as unknown[]).length).toBe(22)
       expect(listResult.ttlMs).toBe(300000)
       expect(listResult.cacheScope).toBe("public")
       expect(listResult._meta).toEqual({"io.modelcontextprotocol/serverInfo": {name: "daily", title: "Daily", version: serverVersion}})
@@ -384,11 +405,11 @@ describe("handleMcpRequest", () => {
   })
 
   describe("both generations answer the same zoneless result — TC-29", () => {
-    it("TC-29: tools/list still answers the twenty tools, and tools/call answers the MAC_TIME_ZONE_UNKNOWN result inside each generation's own envelope", async () => {
+    it("TC-29: tools/list still answers the shared tools, and tools/call answers the MAC_TIME_ZONE_UNKNOWN result inside each generation's own envelope", async () => {
       const zonelessMessage =
         "This agent's Mac has not told the server its time zone yet, so the server cannot tell which day it is there. Open Daily on that Mac and let it sync once, then try again."
       const zonelessDeviceId = bindDevice(seeded.store, "Zoneless Mac")
-      const zonelessCaller: McpCaller = {deviceId: zonelessDeviceId, timeZone: null, name: "Test Client"}
+      const zonelessCaller: McpCaller = {agentId: "zoneless-agent", deviceId: zonelessDeviceId, timeZone: null, name: "Test Client"}
 
       const legacyList = await handleMcpRequest(
         {store: seeded.store},
@@ -396,7 +417,7 @@ describe("handleMcpRequest", () => {
         JSON.stringify({jsonrpc: "2.0", id: 1, method: "tools/list"}),
         noHeaders(),
       )
-      expect((legacyList.body as {result: {tools: unknown[]}}).result.tools.length).toBe(20)
+      expect((legacyList.body as {result: {tools: unknown[]}}).result.tools.length).toBe(22)
 
       const legacyCall = await handleMcpRequest(
         {store: seeded.store},
@@ -415,7 +436,7 @@ describe("handleMcpRequest", () => {
         JSON.stringify({jsonrpc: "2.0", id: 3, method: "tools/list", params: {_meta: STATELESS_META}}),
         {protocolVersion: "2026-07-28", method: "tools/list", name: null},
       )
-      expect((statelessList.body as {result: {tools: unknown[]}}).result.tools.length).toBe(20)
+      expect((statelessList.body as {result: {tools: unknown[]}}).result.tools.length).toBe(22)
 
       const statelessCall = await handleMcpRequest(
         {store: seeded.store},
@@ -436,6 +457,7 @@ describe("handleMcpRequest", () => {
     it("answers -32603 with the request's own id and logs the throw — 500 in the 2026-07-28 generation, 200 in the 2025-11-25 one", async () => {
       const failure = new Error("the caller could not be read")
       const failingCaller = {
+        agentId: caller.agentId,
         deviceId: caller.deviceId,
         name: caller.name,
         get timeZone(): string | null {

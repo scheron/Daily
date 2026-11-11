@@ -47,19 +47,19 @@ describe("task history (per task)", () => {
     db.close()
   })
 
-  it("records assigning and clearing a Ready day as explicit moves with their actor", async () => {
+  it("records assigning and clearing a Ready day as explicit moves with the human actor", async () => {
     const task = await tasks.createTask(makeTask({status: "ready_for_agent", scheduled: null}))
-    const source = {kind: "mcp", provider: "codex"}
+    const source = {kind: "manual"}
 
     await tasks.updateTask(task.id, {scheduled: {date: TASK_DAY, time: "10:00:00", timezone: "UTC"}}, source)
     const assigned = await taskEvents.getHistoryByTask(task.id)
     expect(assigned.map((event) => event.type)).toEqual(["moved", "created"])
-    expect(assigned[0]).toMatchObject({eventDate: TASK_DAY, fromDate: null, toDate: TASK_DAY, kind: "mcp", provider: "codex"})
+    expect(assigned[0]).toMatchObject({eventDate: TASK_DAY, fromDate: null, toDate: TASK_DAY, kind: "manual", provider: null})
 
     await tasks.updateTask(task.id, {scheduled: null}, source)
     const cleared = await taskEvents.getHistoryByTask(task.id)
     expect(cleared.map((event) => event.type)).toEqual(["moved", "moved", "created"])
-    expect(cleared[0]).toMatchObject({fromDate: TASK_DAY, toDate: null, kind: "mcp", provider: "codex"})
+    expect(cleared[0]).toMatchObject({fromDate: TASK_DAY, toDate: null, kind: "manual", provider: null})
     expect(await tasks.getTask(task.id)).toMatchObject({status: "ready_for_agent", scheduled: null})
   })
 

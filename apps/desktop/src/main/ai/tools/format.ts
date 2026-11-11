@@ -12,7 +12,8 @@ import type {ToolResult} from "./types"
  */
 export function toModelToolMessage(toolName: string, result: ToolResult): string {
   const safeResult = toPersistableToolResult(toolName, result)
-  if (safeResult.error) return JSON.stringify({success: false, error: safeResult.error})
+  if (safeResult.error)
+    return JSON.stringify({success: false, error: safeResult.error, ...(notUndefined(safeResult.data) && {data: safeResult.data})})
 
   const summary = safeResult.summary ?? (isString(safeResult.data) ? safeResult.data : "")
   if (summary) return JSON.stringify({success: safeResult.success, data: summary})

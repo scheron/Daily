@@ -31,26 +31,26 @@ describe("save_task — a project move combined with a reorder", () => {
     }
   }
 
-  it("places a task sent to the backlog at the top of the NEW project's backlog, not the old one's", async () => {
+  it("moves backlog work into a new project without assigning a day", async () => {
     const {db: realDb, workStorage, ctx} = makeRealWorkspace()
     db = realDb
 
     const branchB = (await workStorage.createBranch({name: "B"})).branches!.upserted![0]
     await workStorage.createTask(taskInput({content: "b1", branchId: branchB.id, status: "backlog", scheduled: null, orderIndex: -5000}))
     await workStorage.createTask(taskInput({content: "b2", branchId: branchB.id, status: "backlog", scheduled: null, orderIndex: -4000}))
-    const movingId = (await workStorage.createTask(taskInput({content: "mv", branchId: "main"}))).tasks!.upserted![0].id
+    const movingId = (await workStorage.createTask(taskInput({content: "mv", branchId: "main", status: "backlog", scheduled: null}))).tasks!
+      .upserted![0].id
 
-    await saveTaskTool.run({id: movingId, projectId: branchB.id, date: null}, ctx)
+    await saveTaskTool.run({id: movingId, projectId: branchB.id}, ctx)
 
     const backlogB = (await workStorage.getTaskList({branchId: branchB.id, includeBacklog: true}))
       .filter((task) => task.status === "backlog")
       .sort((a, b) => a.orderIndex - b.orderIndex)
 
-    expect(backlogB[0].id).toBe(movingId)
-    expect(backlogB[0].orderIndex).toBe(-1024)
+    expect(backlogB).toContainEqual(expect.objectContaining({id: movingId, status: "backlog", scheduled: null}))
   })
 
-  it("places a backlog task given a date among the NEW project's tasks on that day, not the old one's", async () => {
+  it("preserves a scheduled day while moving and ordering work in a new project", async () => {
     const {db: realDb, workStorage, ctx} = makeRealWorkspace()
     db = realDb
 
@@ -60,10 +60,13 @@ describe("save_task — a project move combined with a reorder", () => {
         taskInput({content: "already-there", branchId: branchB.id, scheduled: {date: "2026-03-25", time: "09:00", timezone: "UTC"}}),
       )
     ).tasks!.upserted![0].id
-    const movingId = (await workStorage.createTask(taskInput({content: "mv", branchId: "main", status: "backlog", scheduled: null, orderIndex: -1})))
-      .tasks!.upserted![0].id
+    const movingId = (
+      await workStorage.createTask(
+        taskInput({content: "mv", branchId: "main", scheduled: {date: "2026-03-25", time: "09:00", timezone: "UTC"}, orderIndex: -1}),
+      )
+    ).tasks!.upserted![0].id
 
-    await saveTaskTool.run({id: movingId, projectId: branchB.id, date: "2026-03-25"}, ctx)
+    await saveTaskTool.run({id: movingId, projectId: branchB.id, beforeTaskId: alreadyThereId}, ctx)
 
     const dayB = await workStorage.getTaskList({branchId: branchB.id, from: "2026-03-25", to: "2026-03-25"})
     const ids = dayB.map((task) => task.id)
@@ -75,17 +78,18 @@ describe("save_task — a project move combined with a reorder", () => {
     expect(moved?.orderIndex).toBe(-1014)
   })
 
-  it("moves the project on a status change alone, landing in the new project", async () => {
+  it("preserves the task stage when moving projects and editing content", async () => {
     const {db: realDb, workStorage, ctx} = makeRealWorkspace()
     db = realDb
 
     const branchB = (await workStorage.createBranch({name: "B"})).branches!.upserted![0]
     const movingId = (await workStorage.createTask(taskInput({content: "mv", branchId: "main"}))).tasks!.upserted![0].id
 
-    await saveTaskTool.run({id: movingId, projectId: branchB.id, status: "done"}, ctx)
+    await saveTaskTool.run({id: movingId, projectId: branchB.id, content: "Updated"}, ctx)
 
     const after = await workStorage.getTask(movingId)
     expect(after?.branchId).toBe(branchB.id)
-    expect(after?.status).toBe("done")
+    expect(after?.status).toBe("in_progress")
+    expect(after?.content).toBe("Updated")
   })
 })

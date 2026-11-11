@@ -1,5 +1,4 @@
 import {Readable} from "node:stream"
-import {DateTime} from "luxon"
 import {describe, expect, it} from "vitest"
 
 import {TOOLS} from "@daily/tools"
@@ -28,10 +27,10 @@ function putOnServer(store: ServerStore, fileId: string, ext: string, bytes: Buf
 }
 
 describe("listMcpTools — TC-14", () => {
-  it("TC-14: answers TOOLS's own twenty entries in order, with readOnlyHint true for reads and destructiveHint true for deletes", () => {
+  it("TC-14: answers TOOLS's own twenty-two entries in order, with readOnlyHint true for reads and destructiveHint true for deletes", () => {
     const result = listMcpTools()
 
-    expect(result).toHaveLength(20)
+    expect(result).toHaveLength(22)
     expect(result.map((tool) => tool.name)).toEqual(TOOLS.map((tool) => tool.name))
 
     TOOLS.forEach((tool, index) => {
@@ -54,7 +53,7 @@ describe("callMcpTool over a read — TC-15", () => {
 
     try {
       const agent = bindAgent(seeded.store, "Agent Mac", "Asia/Tokyo")
-      const caller: McpCaller = {deviceId: agent.deviceId, timeZone: agent.timeZone, name: agent.name}
+      const caller: McpCaller = {agentId: agent.agentId, deviceId: agent.deviceId, timeZone: agent.timeZone, name: agent.name}
 
       const reference = await runAgentTool({store: seeded.store}, agent, {name: "list_tasks", input: {date: "2026-03-25"}})
       if (!reference.ok) throw new Error("expected the reference call to succeed")
@@ -76,13 +75,13 @@ describe("callMcpTool over a read — TC-15", () => {
 })
 
 describe("callMcpTool over a write — TC-16", () => {
-  it("TC-16: a successful write moves the stored revision forward, attributed to the caller's Mac, and answers the task it created on that Mac's today", async () => {
+  it("TC-16: a successful write moves the stored revision forward, attributed to the caller's Mac, and creates an unscheduled Backlog task", async () => {
     const seeded = await seedAgentStore()
     expect(seeded.revision).toBe("1")
 
     try {
       const m = bindAgent(seeded.store, "M", "Pacific/Auckland")
-      const caller: McpCaller = {deviceId: m.deviceId, timeZone: m.timeZone, name: m.name}
+      const caller: McpCaller = {agentId: m.agentId, deviceId: m.deviceId, timeZone: m.timeZone, name: m.name}
 
       const outcome = await callMcpTool({store: seeded.store}, caller, {name: "save_task", arguments: {content: "Buy milk"}})
       if (!outcome.ok) throw new Error("expected save_task to succeed")
@@ -90,8 +89,8 @@ describe("callMcpTool over a write — TC-16", () => {
 
       const parsed = JSON.parse(textOf(outcome.result.content))
       expect(parsed.task.projectId).toBe("main")
-      expect(parsed.task.scheduled.timezone).toBe("Pacific/Auckland")
-      expect(parsed.task.scheduled.date).toBe(DateTime.now().setZone("Pacific/Auckland").toISODate())
+      expect(parsed.task.status).toBe("backlog")
+      expect(parsed.task.scheduled).toBeNull()
 
       const row = seeded.store.db.prepare(`SELECT revision, written_by_device_id FROM snapshot`).get() as {
         revision: number
@@ -118,7 +117,7 @@ describe("callMcpTool's get_attachment — TC-17", () => {
       await putOnServer(seeded.store, fileId, "png", makePngBytes(128))
 
       const agent = bindAgent(seeded.store)
-      const caller: McpCaller = {deviceId: agent.deviceId, timeZone: agent.timeZone, name: agent.name}
+      const caller: McpCaller = {agentId: agent.agentId, deviceId: agent.deviceId, timeZone: agent.timeZone, name: agent.name}
 
       const outcome = await callMcpTool({store: seeded.store}, caller, {name: "get_attachment", arguments: {id: fileId}})
       if (!outcome.ok) throw new Error("expected get_attachment to succeed")
@@ -142,7 +141,7 @@ describe("a tool's own refusal is an isError result, not a protocol error — TC
 
     try {
       const agent = bindAgent(seeded.store)
-      const caller: McpCaller = {deviceId: agent.deviceId, timeZone: agent.timeZone, name: agent.name}
+      const caller: McpCaller = {agentId: agent.agentId, deviceId: agent.deviceId, timeZone: agent.timeZone, name: agent.name}
 
       const notFoundReference = await runAgentTool({store: seeded.store}, agent, {name: "get_task", input: {id: "nope"}})
       const notFoundOutcome = await callMcpTool({store: seeded.store}, caller, {name: "get_task", arguments: {id: "nope"}})
@@ -167,7 +166,7 @@ describe("a malformed call is a protocol error, never a tool result — TC-19", 
 
     try {
       const agent = bindAgent(seeded.store)
-      const caller: McpCaller = {deviceId: agent.deviceId, timeZone: agent.timeZone, name: agent.name}
+      const caller: McpCaller = {agentId: agent.agentId, deviceId: agent.deviceId, timeZone: agent.timeZone, name: agent.name}
 
       const refusals: unknown[] = [null, {}, {name: "drop_database"}, {name: "list_projects", arguments: []}, {name: "list_projects", arguments: "x"}]
 
@@ -206,7 +205,7 @@ describe("no time zone on record refuses every call before any clock is built �
 
     try {
       const deviceId = bindDevice(seeded.store, "Zoneless Mac")
-      const caller: McpCaller = {deviceId, timeZone: null, name: "Test Client"}
+      const caller: McpCaller = {agentId: "zoneless-agent", deviceId, timeZone: null, name: "Test Client"}
       const message =
         "This agent's Mac has not told the server its time zone yet, so the server cannot tell which day it is there. Open Daily on that Mac and let it sync once, then try again."
 

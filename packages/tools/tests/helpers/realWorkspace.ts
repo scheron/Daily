@@ -56,7 +56,7 @@ export function makeRealWorkspace(source: ActorSource = {kind: "agent"}): {
   const changesets: Changeset[] = []
   const workStorage = new WorkStorage(core, db, (changeset) => changesets.push(changeset))
 
-  const ctx: ToolContext = {workStorage, clock: makeClock(), source, files: makeFilesPort()}
+  const ctx: ToolContext = {workStorage, clock: makeClock(), source, files: makeFilesPort(), workflowActorId: "test-assistant"}
 
   return {db, core, workStorage, ctx, changesets}
 }

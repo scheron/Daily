@@ -4,13 +4,19 @@ import {AsyncMutex, createIntervalScheduler, withElapsedDelay} from "@daily/std"
 import {logger} from "../../utils/logger"
 import {isRevisionedRemote} from "../../utils/sync/isRevisionedRemote"
 import {mergeRemoteIntoLocal} from "../../utils/sync/merge/mergeRemoteIntoLocal"
+import {assertKnownSnapshotVersion} from "../../utils/sync/snapshot/assertKnownSnapshotVersion"
 import {buildSnapshot, buildSnapshotMeta} from "../../utils/sync/snapshot/buildSnapshot"
+import {isValidSnapshot} from "../../utils/sync/snapshot/isValidSnapshot"
+import {normalizeSnapshotDocs} from "../../utils/sync/snapshot/normalizeSnapshotDocs"
+import {workflowSpentTime} from "../../utils/tasks/workflowTime"
 import {rowToBranch, rowToMilestone, rowToTag, rowToTaskComment, rowToTaskRelation} from "../models/_rowMappers"
+import {TaskWorkflowError} from "../TaskWorkflowError"
 
 import type {
   ILocalStorage,
   IRevisionedRemoteStorage,
   MergeResult,
+  Snapshot,
   SnapshotBranch,
   SnapshotDocs,
   SnapshotMilestone,
@@ -27,6 +33,7 @@ import type {
   SyncStrategy,
   Tag,
   Task,
+  TaskWorkflowRecord,
 } from "@daily/protocol"
 import type {Changeset} from "../../types/storage"
 
@@ -206,7 +213,7 @@ export class SyncEngine {
     for (const remote of plainRemotes) {
       try {
         const snapshot = await remote.adapter.loadSnapshot()
-        const remoteDocs = snapshot?.docs ?? null
+        const remoteDocs = readSnapshotDocs(snapshot)
 
         if (remoteDocs && buildSnapshotMeta(localDocs).hash === snapshot!.meta.hash) {
           logger.debug(logger.CONTEXT.SYNC_ENGINE, `Remote "${remote.id}": hashes match, no merge needed`)
@@ -260,7 +267,7 @@ export class SyncEngine {
     }
 
     if (anyChanges) {
-      this.onDataChanged?.(buildChangeset(changesetAcc, localDocs.tags))
+      this.onDataChanged?.(buildChangeset(changesetAcc, localDocs))
     }
 
     for (const {remote, remoteDocs} of pushTargets) {
@@ -308,7 +315,7 @@ export class SyncEngine {
 
     for (let attempt = 1; attempt <= SYNC_CONFIG.conditionalWriteMaxAttempts; attempt++) {
       const {snapshot, revision} = await adapter.loadSnapshotWithRevision()
-      const remoteDocs = snapshot?.docs ?? null
+      const remoteDocs = readSnapshotDocs(snapshot)
 
       const {resultDocs, hasChanges} = await this._pull(docs, remoteDocs, strategy, changesetAcc)
       docs = resultDocs
@@ -363,6 +370,11 @@ export class SyncEngine {
 
     const {resultDocs, toUpsert, toRemove, changes} = mergeResult
     accumulateDelta(changesetAcc, toUpsert, toRemove)
+    const workflowTaskIds = new Set(toUpsert.workflowRecords?.map((record) => record.taskId))
+    accumulateCollection(
+      changesetAcc.tasks,
+      resultDocs.tasks.filter((task) => workflowTaskIds.has(task.id)),
+    )
 
     const upsertCount = this.countDocs(toUpsert)
     if (upsertCount) {
@@ -391,6 +403,7 @@ export class SyncEngine {
     subtasks?: unknown[]
     files?: unknown[]
     events?: unknown[]
+    workflowRecords?: unknown[]
   }): number {
     return (
       (docs.tasks?.length ?? 0) +
@@ -401,7 +414,8 @@ export class SyncEngine {
       (docs.comments?.length ?? 0) +
       (docs.subtasks?.length ?? 0) +
       (docs.files?.length ?? 0) +
-      (docs.events?.length ?? 0)
+      (docs.events?.length ?? 0) +
+      (docs.workflowRecords?.length ?? 0)
     )
   }
 
@@ -557,7 +571,7 @@ function accumulateDelta(acc: ChangesetAccumulator, toUpsert: SnapshotDocs, toRe
 }
 
 /** A task as the merge left it, resolved against `tagsById` — the final merged tag set, not just the tags a pull happened to touch. */
-function snapshotTaskToTask(row: SnapshotTask, tagsById: Map<string, Tag>): Task {
+function snapshotTaskToTask(row: SnapshotTask, tagsById: Map<string, Tag>, workflowRecords: TaskWorkflowRecord[]): Task {
   return {
     id: row.id,
     status: row.status as Task["status"],
@@ -567,7 +581,7 @@ function snapshotTaskToTask(row: SnapshotTask, tagsById: Map<string, Tag>): Task
     scheduled:
       row.scheduled_date === null ? null : {date: row.scheduled_date, time: row.scheduled_time as string, timezone: row.scheduled_timezone as string},
     estimatedTime: row.estimated_time,
-    spentTime: row.spent_time,
+    spentTime: workflowSpentTime(row.spent_time, row.workflow_time_baseline ?? 0, workflowRecords, row.id),
     branchId: row.branch_id,
     milestoneId: row.milestone_id,
     priority: row.priority as Task["priority"],
@@ -591,14 +605,15 @@ function snapshotSubtaskToSubtask(row: SnapshotSubtask): Subtask {
   }
 }
 
-/** Builds the `Changeset` a pull emits from everything its merges accumulated. `finalTags` resolves a task's tags even when the tag itself did not change. */
-function buildChangeset(acc: ChangesetAccumulator, finalTags: SnapshotTag[]): Changeset {
+/** Resolves changed tasks against the final merged tags and confirmed workflow intervals. */
+function buildChangeset(acc: ChangesetAccumulator, finalDocs: SnapshotDocs): Changeset {
   const changeset: Changeset = {}
-  const tagsById = new Map(finalTags.map((t) => [t.id, rowToTag(t)]))
+  const tagsById = new Map(finalDocs.tags.map((t) => [t.id, rowToTag(t)]))
 
   if (acc.tasks.upserted.size || acc.tasks.removed.size) {
     changeset.tasks = {}
-    if (acc.tasks.upserted.size) changeset.tasks.upserted = [...acc.tasks.upserted.values()].map((t) => snapshotTaskToTask(t, tagsById))
+    if (acc.tasks.upserted.size)
+      changeset.tasks.upserted = [...acc.tasks.upserted.values()].map((t) => snapshotTaskToTask(t, tagsById, finalDocs.workflowRecords ?? []))
     if (acc.tasks.removed.size) changeset.tasks.removed = [...acc.tasks.removed]
   }
 
@@ -639,4 +654,15 @@ function buildChangeset(acc: ChangesetAccumulator, finalTags: SnapshotTag[]): Ch
   }
 
   return changeset
+}
+
+function readSnapshotDocs(snapshot: Snapshot | null): SnapshotDocs | null {
+  if (!snapshot) return null
+  assertKnownSnapshotVersion(snapshot)
+  if (!isValidSnapshot(snapshot))
+    throw new TaskWorkflowError(
+      "invalid_request",
+      "Invalid workflow snapshot structure. Sync stops without discarding history; repair the source snapshot before retrying.",
+    )
+  return normalizeSnapshotDocs(snapshot.docs, snapshot.version)
 }

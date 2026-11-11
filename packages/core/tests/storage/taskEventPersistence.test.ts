@@ -52,7 +52,7 @@ describe("task event persistence", () => {
     expect(history.map((event) => event.sequence)).toEqual([3, 2, 2, 1])
     expect(model.getLatestByTask("task")).toEqual(history[0])
     const snapshot = JSON.parse(JSON.stringify(buildSnapshot(await adapter.loadAllDocs())))
-    expect(snapshot.version).toBe(16)
+    expect(snapshot.version).toBe(18)
 
     const remoteDb = createTestDatabase()
     try {

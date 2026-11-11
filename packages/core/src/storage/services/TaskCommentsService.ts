@@ -1,6 +1,8 @@
 import {resolveActorProvider} from "@daily/protocol"
 
-import type {Branch, Task, TaskComment, TaskCommentCounts, TaskCommentSource} from "@daily/protocol"
+import {TaskWorkflowError} from "../TaskWorkflowError"
+
+import type {ActorSource, Branch, Task, TaskComment, TaskCommentCounts, TaskCommentSource} from "@daily/protocol"
 import type {TaskCommentModel} from "../models/TaskCommentModel"
 import type {TaskModel} from "../models/TaskModel"
 
@@ -37,16 +39,18 @@ export class TaskCommentsService {
     })
   }
 
-  /** Rewrites a live comment. Null for an unknown or deleted comment, and for content that is only whitespace. */
-  async updateComment(id: TaskComment["id"], content: string): Promise<TaskComment | null> {
+  /** Agent sources cannot rewrite ledger-bound proposal comments; an omitted source is the human editing route. Null for absent comments or blank content. */
+  async updateComment(id: TaskComment["id"], content: string, source: ActorSource = {kind: "manual"}): Promise<TaskComment | null> {
     const trimmed = content.trim()
     if (!trimmed) return null
 
+    this._assertEditable(id, source)
     return this.commentModel.updateComment(id, trimmed)
   }
 
-  /** Soft-deletes a comment. Null when it was already gone. */
-  async deleteComment(id: TaskComment["id"]): Promise<TaskComment["id"] | null> {
+  /** Agent sources cannot delete ledger-bound proposal comments; an omitted source is the human editing route. Null when an ordinary comment was already gone. */
+  async deleteComment(id: TaskComment["id"], source: ActorSource = {kind: "manual"}): Promise<TaskComment["id"] | null> {
+    this._assertEditable(id, source)
     return this.commentModel.deleteComment(id)
   }
 
@@ -58,5 +62,11 @@ export class TaskCommentsService {
   /** Sends the comments of permanently deleted tasks the same way their tasks went: backdated, for the next sync merge to collect. */
   async permanentlyDeleteCommentsOfTasks(taskIds: Task["id"][]): Promise<TaskComment["id"][]> {
     return this.commentModel.permanentlyDeleteCommentsOfTasks(taskIds)
+  }
+
+  private _assertEditable(id: TaskComment["id"], source: ActorSource): void {
+    if (source.kind !== "manual" && this.commentModel.isWorkflowProposal(id)) {
+      throw new TaskWorkflowError("forbidden", "This comment presents a workflow proposal for human review. Ask the person to edit or delete it.")
+    }
   }
 }

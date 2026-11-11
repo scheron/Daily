@@ -1,4 +1,5 @@
 import {isNumber, isObject, isString} from "@daily/std"
+import {TASK_WORKFLOW_INSTRUCTIONS} from "@daily/tools"
 
 import pkg from "../../../package.json"
 import {callMcpTool, listMcpTools} from "./mcpTools"
@@ -153,7 +154,7 @@ function initialize(params: unknown): JsonRpcOutcome {
   if (!isString(requested)) return {error: {code: -32602, message: "initialize needs a protocolVersion string"}}
 
   const protocolVersion = EARLIER_VERSIONS.includes(requested) ? requested : "2025-11-25"
-  return {result: {protocolVersion, capabilities: {tools: {}}, serverInfo: SERVER_INFO}}
+  return {result: {protocolVersion, capabilities: {tools: {}}, serverInfo: SERVER_INFO, instructions: TASK_WORKFLOW_INSTRUCTIONS}}
 }
 
 function unsupportedVersion(requested: string): JsonRpcError {

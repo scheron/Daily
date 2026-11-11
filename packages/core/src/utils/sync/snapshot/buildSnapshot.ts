@@ -1,22 +1,35 @@
 import crypto from "node:crypto"
 
+import {validateWorkflowSnapshotDocs} from "../../tasks/workflowValidation"
+
 import type {Snapshot, SnapshotDocs, SnapshotMeta} from "@daily/protocol"
 
 export function buildSnapshot(docs: SnapshotDocs): Snapshot {
+  const normalized = {
+    ...docs,
+    tasks: docs.tasks.map((task) => ({
+      ...task,
+      workflow_time_baseline: task.workflow_time_baseline ?? 0,
+      workflow_generation: task.workflow_generation ?? "",
+    })),
+    workflowRecords: docs.workflowRecords ?? [],
+  }
   return {
-    version: 16,
-    docs,
-    meta: buildSnapshotMeta(docs),
+    version: 18,
+    docs: normalized,
+    meta: buildSnapshotMeta(normalized),
   }
 }
 
 export function buildSnapshotMeta(docs: SnapshotDocs): SnapshotMeta {
+  validateWorkflowSnapshotDocs(docs)
   const collections: Array<{id: string}[]> = [
     docs.tasks,
     docs.tags,
     docs.branches,
     docs.files,
     docs.events,
+    docs.workflowRecords ?? [],
     docs.milestones ?? [],
     docs.relations ?? [],
     docs.comments ?? [],

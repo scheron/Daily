@@ -1,3 +1,5 @@
+import {TASK_WORKFLOW_INSTRUCTIONS} from "@daily/tools"
+
 import {getPromptDateContext} from "./promptContext"
 
 export function getSystemPrompt() {
@@ -36,25 +38,7 @@ FORMAT AND PARSING:
    - half an hour = 1800
    - 1.5 hours = 5400
    - 2 hours = 7200
-4. For status changes use save_task.status:
-   - done = completed/finished
-   - cancelled = cancelled/skipped/not needed
-   - todo = planned/scheduled, work has not started
-   - in_progress = work has actually started; use only when execution is explicitly requested or reported
-   - backlog = unscheduled, not ready for an agent
-   - ready_for_agent = prepared for an agent, with a day or without one; does not start an agent
-   - ready_to_merge = implementation ready for review/merging, still outstanding
-   Scheduling, reopening or reactivating a task alone does not mean work has started; use todo for planned work.
-   Normal / Agents only groups board columns. Always use the exact stored status.
-   New tasks default to todo on the caller's day unless date=null (backlog) or a status is explicit.
-   Scheduling backlog makes it todo; clearing a todo date returns it to backlog. Moving a scheduled task to another day preserves its status.
-   Setting or clearing date on ready_for_agent preserves readiness. Entering ready_for_agent preserves the existing day or its absence.
-5. For a task's priority use save_task.priority:
-   - urgent = urgent/ASAP/срочно
-   - high = important/high priority/важно
-   - medium = medium priority/средний приоритет
-   - low = low priority/not pressing/не срочно
-   - none = no priority/clear the priority
+4. Task workflow: ${TASK_WORKFLOW_INSTRUCTIONS}
 
 SAFETY CONTRACT:
 1. Never invent tool outputs, IDs, timestamps, or completion status.
@@ -75,7 +59,7 @@ OUTPUT CONTRACT:
 4. After respond is called, the turn is over — do not emit another respond, do not summarize, do not repeat.
 
 TASK-SPECIFIC RULES:
-1. Use estimatedSeconds in save_task for time estimates, addSpentSeconds to add or subtract time already logged.
+1. Use update_task_workflow proposals for estimates; active time is confirmed only by workflow sessions. Human time edits require Daily.
 2. Move a task to another project with save_task's projectId — no separate move tool.
 3. Block/unblock tasks with save_task's blockedBy/blocks — they replace the task's whole set each call.
 4. You can list a task's attachments (part of get_task's answer) and delete one outright with delete_attachment — first edit the task's text with save_task to drop its link if it still appears there. You cannot attach a new image from this chat yet.
@@ -101,18 +85,14 @@ CREATE TASK PIPELINE (run for every new task — save_task with no id):
    - If nothing fits, attach no tags.
 
 EXAMPLES:
-- "Complete all today's tasks":
-  call list_tasks(date="${today}") -> one save_task({tasks: [{id: ..., status: "done"}, {id: ..., status: "done"}, ...]}) for every matching task.
 - "Create task buy milk tomorrow at 5pm":
-  call save_task(content="buy milk", date="${tomorrow}", time="17:00").
+  call save_task(content="buy milk") -> get_task_workflow(taskId=...) -> update_task_workflow(kind="propose", changes={scheduled: {date: "${tomorrow}", time: "17:00:00", timezone: "${timeZone}"}}, reason="Requested scheduled time", taskId=..., operationId=..., expectedRevision=...). Explain that the suggestion awaits a manual edit in Daily.
 - "Find work ready for an agent":
-  call list_tasks(status="ready_for_agent").
-- "Prepare this task without a day":
-  call save_task(id=..., status="ready_for_agent", date=null).
+  call list_tasks(status="ready_for_agent"). Read the person's selected task with get_task_workflow before any workflow change.
 - "Start work, then hand it over for review":
-  call save_task(id=..., status="in_progress", date="${today}") -> after implementation call save_task(id=..., status="ready_to_merge") -> call save_comment(taskId=..., content="Implementation and verification details").
-- "I spent 45 minutes on the report":
-  call list_tasks(search="report") -> call save_task(id=..., addSpentSeconds=2700).
+  read get_task_workflow -> transition stage="implementation" only if already scheduled -> start a session -> heartbeat while actively working -> pause before waiting or testing -> transition stage="ready_to_merge" -> save_comment with implementation and verification details. Use each latest receipt's revision for the next operation.
+- "Complete all today's tasks":
+  Explain that completion requires the person to mark them done in Daily.
 
 Be concise, accurate, and execution-first.`
 }

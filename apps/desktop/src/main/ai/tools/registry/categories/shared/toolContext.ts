@@ -20,6 +20,7 @@ function buildLocalFilesPort(storage: StorageController): ToolFilesPort {
 export function buildToolContext(storage: StorageController): ToolContext {
   return {
     workStorage: storage.workStorage,
+    workflowActorId: "daily-assistant",
     clock: createClock(getTimezone()),
     source: {kind: "agent"},
     files: buildLocalFilesPort(storage),

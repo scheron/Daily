@@ -1,6 +1,8 @@
 // @ts-nocheck
 import {describe, expect, it, vi} from "vitest"
 
+import {TaskWorkflowError} from "@daily/core/storage/TaskWorkflowError"
+
 import {ToolExecutor} from "../../../../src/main/ai/tools/ToolExecutor"
 
 vi.mock("@daily/core", async (importOriginal) => ({
@@ -32,11 +34,16 @@ describe("ToolExecutor (registry-backed)", () => {
 
   it("normalizes a ToolError thrown from a shared tool's run into ToolResult, without logging it as an error", async () => {
     const {logger} = await import("@daily/core")
-    const fakeStorage = makeFakeStorage({getTask: vi.fn(async () => null)})
+    const fakeStorage = makeFakeStorage({
+      getTaskWorkflow: vi.fn(async () => {
+        throw new TaskWorkflowError("not_found", "The task no longer exists.")
+      }),
+    })
     const exec = new ToolExecutor(fakeStorage)
     const r = await exec.execute("get_task" as any, {id: "nope"}, "in-app")
     expect(r.success).toBe(false)
     expect(r.error).toBe('No task "nope".')
+    expect(r.data).toEqual({code: "NOT_FOUND"})
     expect(logger.error).not.toHaveBeenCalled()
   })
 

@@ -2,11 +2,13 @@ import {expect, it} from "vitest"
 
 import {makeRealWorkspace} from "../../../../../../packages/tools/tests/helpers/realWorkspace"
 import {exerciseStatusContract} from "../../../../../../packages/tools/tests/helpers/statusContract"
+import {toModelToolMessage} from "../../../../src/main/ai/tools/format"
 import {SHARED_TOOLS} from "../../../../src/main/ai/tools/registry/categories/shared"
 
 import type {StorageController} from "@daily/core"
+import type {ToolExecutionContext} from "../../../../src/main/ai/tools/registry/types"
 
-it("the Assistant wrapper preserves seven exact statuses and authorship in Normal mode", async () => {
+it("the Assistant wrapper enforces the shared workflow and authorship in Normal mode", async () => {
   const {db, core, workStorage} = makeRealWorkspace()
   try {
     expect((await core.settingsService.loadSettings()).appearance.boardMode).toBe("normal")
@@ -21,6 +23,32 @@ it("the Assistant wrapper preserves seven exact statuses and authorship in Norma
       },
       {kind: "agent", provider: "daily_agent"},
     )
+  } finally {
+    db.close()
+  }
+})
+
+it("the actual model message preserves actionable workflow refusal code and current state", async () => {
+  const {db, workStorage} = makeRealWorkspace()
+  try {
+    const storage = {workStorage} as StorageController
+    const ctx: ToolExecutionContext = {storage, now: () => new Date(), caller: "in-app"}
+    const save = SHARED_TOOLS.find((tool) => tool.name === "save_task")!
+    const created = await save.execute({content: "Selected work"}, ctx)
+    const {task} = created.data as {task: {id: string}}
+    const before = await workStorage.getTaskWorkflow(task.id)
+    await workStorage.updateTask(task.id, {content: "Human correction"})
+    const current = await workStorage.getTaskWorkflow(task.id)
+    const update = SHARED_TOOLS.find((tool) => tool.name === "update_task_workflow")!
+    const refused = await update.execute(
+      {taskId: task.id, operationId: "stale-model-message", expectedRevision: before.revision, kind: "start", sessionId: "work"},
+      ctx,
+    )
+    expect(JSON.parse(toModelToolMessage(update.name, refused))).toMatchObject({
+      success: false,
+      error: expect.stringContaining("current workflow"),
+      data: {code: "stale_revision", current: {revision: current.revision, task: {content: "Human correction"}}},
+    })
   } finally {
     db.close()
   }

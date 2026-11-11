@@ -43,3 +43,5 @@ export * from "./utils/tasks/mutationRules"
 export * from "./utils/tasks/orderIndex"
 export * from "./utils/tasks/sortScheduledTasks"
 export * from "./utils/tasks/toTaskIdHash"
+
+export * from "./types/taskWorkflow"

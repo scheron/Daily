@@ -14,7 +14,7 @@ import {
   startClientDocumentServer,
 } from "../oauth/harness"
 
-it("OAuth-connected MCP tools preserve seven exact statuses, atomic writes and approved authorship", async () => {
+it("OAuth-connected MCP tools enforce the shared workflow, atomic writes and approved authorship", async () => {
   const server = await bootAgentServer()
   const docs = await startClientDocumentServer()
   try {
@@ -27,7 +27,18 @@ it("OAuth-connected MCP tools preserve seven exact statuses, atomic writes and a
         snapshot: {
           version: KNOWN_SNAPSHOT_VERSION,
           meta: {updatedAt: new Date().toISOString(), hash: "synthetic"},
-          docs: {tasks: [], tags: [], branches: [], milestones: [], relations: [], comments: [], files: [], events: []},
+          docs: {
+            tasks: [],
+            tags: [],
+            branches: [],
+            milestones: [],
+            relations: [],
+            comments: [],
+            subtasks: [],
+            files: [],
+            events: [],
+            workflowRecords: [],
+          },
         },
       }),
     })

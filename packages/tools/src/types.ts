@@ -56,6 +56,7 @@ export type ToolFilesPort = {
  * file's bytes.
  */
 export type ToolContext = {
+  workflowActorId: string
   workStorage: IWorkStorage
   clock: ToolClock
   source: ActorSource

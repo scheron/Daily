@@ -1,6 +1,8 @@
 import {createEntityId, NO_PROJECT_ID, planTaskCreate, planTaskMoveByOrder, planTaskUpdate} from "@daily/protocol"
 import {getToday, notNullish, notUndefined} from "@daily/std"
 
+import {TaskWorkflowError} from "../TaskWorkflowError"
+
 import type {
   ActorSource,
   Branch,
@@ -58,6 +60,14 @@ export class TasksService {
 
   /** Every row the update patched — always at least the named task, unless it does not exist. */
   async updateTask(id: Task["id"], updates: PartialDeep<Task>, source?: ActorSource, spentTimeDelta?: number): Promise<Task[]> {
+    if (source?.kind === "agent" || source?.kind === "mcp") {
+      if (
+        ["status", "scheduled", "estimatedTime", "priority", "spentTime", "deletedAt"].some((key) => key in updates) ||
+        spentTimeDelta !== undefined
+      ) {
+        throw new TaskWorkflowError("forbidden", "Use the task workflow for agent stage, planning and active-time changes.")
+      }
+    }
     const before = this.taskModel.getTask(id)
     if (!before) return []
 
@@ -86,6 +96,17 @@ export class TasksService {
   }
 
   async createTask(task: Omit<Task, "id"> & {id?: Task["id"]}, source?: ActorSource): Promise<Task | null> {
+    if (
+      (source?.kind === "agent" || source?.kind === "mcp") &&
+      (task.status !== "backlog" ||
+        task.scheduled !== null ||
+        task.estimatedTime !== 0 ||
+        task.spentTime !== 0 ||
+        task.priority !== "none" ||
+        task.deletedAt !== null)
+    ) {
+      throw new TaskWorkflowError("forbidden", "Agents create unplanned backlog tasks. Use proposals for planning changes.")
+    }
     const id = task.id ?? createEntityId("task")
     const fields = planTaskCreate(this.readContext(task.branchId ?? NO_PROJECT_ID, null), task)
 
@@ -100,9 +121,19 @@ export class TasksService {
     const sourceTask = this.taskModel.getTask(params.taskId)
     if (!sourceTask) return []
 
-    const updated = this.applyPatches(
-      planTaskMoveByOrder(this.readContext(params.acrossProjects ? undefined : sourceTask.branchId, sourceTask), params),
-    )
+    const patches = planTaskMoveByOrder(this.readContext(params.acrossProjects ? undefined : sourceTask.branchId, sourceTask), params)
+    if (source?.kind === "agent" || source?.kind === "mcp") {
+      for (const patch of patches) {
+        const before = this.taskModel.getTask(patch.id)
+        if (
+          before &&
+          ((patch.status !== undefined && patch.status !== before.status) ||
+            (patch.scheduled !== undefined && JSON.stringify(patch.scheduled) !== JSON.stringify(before.scheduled)))
+        )
+          throw new TaskWorkflowError("forbidden", "Reordering cannot change agent stage or planning. Use the task workflow.")
+      }
+    }
+    const updated = this.applyPatches(patches)
 
     return this.finalizeMove(sourceTask, updated, source)
   }
@@ -129,6 +160,7 @@ export class TasksService {
   }
 
   async restoreTask(id: Task["id"], source?: ActorSource): Promise<Task | null> {
+    if (source?.kind === "agent" || source?.kind === "mcp") throw new TaskWorkflowError("forbidden", "Only the person can restore deleted work.")
     const restored = this.taskModel.restoreTask(id)
     if (restored) this.taskEvents.record(restored, "restored", source)
 

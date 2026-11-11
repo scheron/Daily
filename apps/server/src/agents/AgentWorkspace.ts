@@ -1,3 +1,6 @@
+import {randomUUID} from "node:crypto"
+import {performance} from "node:perf_hooks"
+
 import {dataPaths} from "@daily/core/config/paths"
 import {createStorageCore} from "@daily/core/storage/createStorageCore"
 import {runMigrations} from "@daily/core/storage/database/scripts/migrate"
@@ -23,9 +26,9 @@ import type {ServerStore} from "../store/instance"
  * days in, and the name it was approved under — the `agents` row's own `name`, never anything the
  * call itself carries, so a tool can attribute what it writes to the client a person let in.
  */
-export type AgentIdentity = {deviceId: string; timeZone: string; name: string}
+export type AgentIdentity = {agentId: string; deviceId: string; timeZone: string; name: string}
 
-export type AgentWorkspaceDeps = {store: ServerStore; now?: () => Date}
+export type AgentWorkspaceDeps = {store: ServerStore; now?: () => Date; monotonicNow?: () => number; runtimeId?: string}
 
 /** Durable work a tool call defers until the snapshot it wrote has actually committed. */
 export type AgentCommitEffect = () => Promise<void>
@@ -36,6 +39,7 @@ export const AGENT_WRITE_ATTEMPTS = 3
 const SNAPSHOT_UNREADABLE_MESSAGE = "The Daily data stored on this server could not be read."
 
 const writeLocks = new WeakMap<ServerStore, AsyncMutex>()
+const runtimeIds = new WeakMap<ServerStore, string>()
 
 /**
  * Runs one tool call against the snapshot the server stores: loads it into a throwaway in-memory
@@ -52,8 +56,16 @@ export async function runInAgentWorkspace<T>(
   run: (ctx: ToolContext) => Promise<T>,
 ): Promise<T> {
   const clock = buildAgentClock(agent.timeZone, deps.now)
+  let runtimeId = deps.runtimeId ?? runtimeIds.get(deps.store)
+  if (!runtimeId) {
+    runtimeId = randomUUID()
+    runtimeIds.set(deps.store, runtimeId)
+  }
+  const observedAt = (deps.now?.() ?? new Date()).getTime()
+  const observedMonotonic = deps.monotonicNow?.() ?? performance.now()
+  const workflowHost = {runtimeId, now: () => observedAt, monotonicNow: () => observedMonotonic}
 
-  if (mode === "read") return runAttempt(deps.store, agent, clock, mode, run)
+  if (mode === "read") return runAttempt(deps.store, agent, clock, mode, run, workflowHost)
 
   let lock = writeLocks.get(deps.store)
   if (!lock) {
@@ -64,7 +76,7 @@ export async function runInAgentWorkspace<T>(
   return lock.runExclusive(async () => {
     for (let attempt = 1; attempt <= AGENT_WRITE_ATTEMPTS; attempt++) {
       try {
-        return await runAttempt(deps.store, agent, clock, mode, run)
+        return await runAttempt(deps.store, agent, clock, mode, run, workflowHost)
       } catch (error) {
         if (!(error instanceof ProtocolError) || error.code !== ProtocolErrorCode.REVISION_CONFLICT) throw error
       }
@@ -94,6 +106,7 @@ async function runAttempt<T>(
   clock: ToolClock,
   mode: ToolMode,
   run: (ctx: ToolContext) => Promise<T>,
+  workflowHost: {runtimeId: string; now: () => number; monotonicNow: () => number},
 ): Promise<T> {
   const stored = readSnapshot(store)
 
@@ -134,7 +147,7 @@ async function runAttempt<T>(
     const core = createStorageCore(db, {...dataPaths(() => store.dataDir), remoteSyncPath: () => ""}, {today: () => clock.today()})
 
     try {
-      await core.localAdapter.upsertDocs(normalizeSnapshotDocs(stored.document.docs as SnapshotDocs))
+      await core.localAdapter.upsertDocs(normalizeSnapshotDocs(stored.document.docs as SnapshotDocs, stored.version))
     } catch {
       throw new ToolError(ToolErrorCode.SNAPSHOT_UNREADABLE, SNAPSHOT_UNREADABLE_MESSAGE)
     }
@@ -144,11 +157,11 @@ async function runAttempt<T>(
       commitEffects.push(effect)
     }
 
-    const workStorage = new WorkStorage(core, db, () => {})
+    const workStorage = new WorkStorage(core, db, () => {}, workflowHost)
     const source: ActorSource = {kind: "mcp", provider: agent.name}
     const files = buildServerFilesPort(store, agent.deviceId, afterCommit)
 
-    const result = await run({workStorage, clock, source, files})
+    const result = await run({workStorage, clock, source, files, workflowActorId: agent.agentId})
     if (mode === "read") return result
 
     const built = buildSnapshot(await core.localAdapter.loadAllDocs())

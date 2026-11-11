@@ -1,4 +1,3 @@
-import {DateTime} from "luxon"
 import {describe, expect, it, vi} from "vitest"
 
 import {KNOWN_SNAPSHOT_VERSION} from "@daily/core/utils/sync/snapshot/assertKnownSnapshotVersion"
@@ -56,7 +55,18 @@ async function writeInitialSnapshot(booted: BootedAgentServer, token: string): P
       snapshot: {
         version: KNOWN_SNAPSHOT_VERSION,
         meta: {updatedAt: new Date().toISOString(), hash: "seed"},
-        docs: {tasks: [], tags: [], branches: [], milestones: [], relations: [], comments: [], files: [], events: []},
+        docs: {
+          tasks: [],
+          tags: [],
+          branches: [],
+          milestones: [],
+          relations: [],
+          comments: [],
+          subtasks: [],
+          files: [],
+          events: [],
+          workflowRecords: [],
+        },
       },
     }),
   })
@@ -153,7 +163,7 @@ describe("POST /mcp refuses a token that is not a live, unexpired access token o
 })
 
 describe("the 2026-07-28 path answers as the caller's Mac and records last use — TC-54", () => {
-  it("TC-54: server/discover, tools/list and tools/call save_task all answer over /mcp, the task lands on the Mac's own today in its own zone, and the agent's last use is recorded", async () => {
+  it("TC-54: server/discover, tools/list and tools/call save_task all answer over /mcp, create an unscheduled Backlog task, and record the agent's last use", async () => {
     const booted = await bootAgentServer()
     const docs = await startClientDocumentServer()
     try {
@@ -174,18 +184,17 @@ describe("the 2026-07-28 path answers as the caller's Mac and records last use �
       const listRes = await postMcp(booted, connected.accessToken, list.body, list.headers)
       expect(listRes.status).toBe(200)
       const listJson = (await listRes.json()) as {result: {tools: unknown[]}}
-      expect(listJson.result.tools).toHaveLength(20)
+      expect(listJson.result.tools).toHaveLength(22)
 
-      const aucklandToday = DateTime.now().setZone("Pacific/Auckland").toISODate()
       const call = statelessRequest(3, "tools/call", {name: "save_task", arguments: {content: "Buy milk"}}, "save_task")
       const callRes = await postMcp(booted, connected.accessToken, call.body, call.headers)
       expect(callRes.status).toBe(200)
       const callJson = (await callRes.json()) as {result: {resultType: string; content: {type: string; text: string}[]}}
       expect(callJson.result.resultType).toBe("complete")
-      const savedTask = (JSON.parse(callJson.result.content[0].text) as {task: {projectId: string; scheduled: {timezone: string; date: string}}}).task
+      const savedTask = (JSON.parse(callJson.result.content[0].text) as {task: {projectId: string; status: string; scheduled: null}}).task
       expect(savedTask.projectId).toBe("main")
-      expect(savedTask.scheduled.timezone).toBe("Pacific/Auckland")
-      expect(savedTask.scheduled.date).toBe(aucklandToday)
+      expect(savedTask.status).toBe("backlog")
+      expect(savedTask.scheduled).toBeNull()
 
       const revisionRow = booted.store.db.prepare(`SELECT revision, written_by_device_id FROM snapshot`).get() as {
         revision: number
@@ -459,8 +468,8 @@ describe("a self-signed restart answers one fact on every agent path — TC-59",
   })
 })
 
-describe("the day a tool runs on follows the Mac, and answers gracefully once it is unknown — TC-60", () => {
-  it("TC-60: a task lands on the probed zone's own date, not the zone approval happened in, and clearing the zone still answers tools/list while refusing save_task", async () => {
+describe("the tool host follows the Mac's probed time zone and refuses an unknown one — TC-60", () => {
+  it("TC-60: a probe updates the approved Mac's time zone, creation stays unscheduled, and clearing the zone preserves tools/list while refusing save_task", async () => {
     const booted = await bootAgentServer()
     const docs = await startClientDocumentServer()
     try {
@@ -478,14 +487,15 @@ describe("the day a tool runs on follows the Mac, and answers gracefully once it
           headers: {authorization: `Bearer ${parent.token}`},
         })
         expect(probeRes.status).toBe(200)
+        expect(booted.store.db.prepare(`SELECT time_zone FROM devices WHERE id = ?`).get(parent.deviceId)).toEqual({time_zone: "Asia/Tokyo"})
 
         const save = statelessRequest(1, "tools/call", {name: "save_task", arguments: {content: "Tokyo task"}}, "save_task")
         const saveRes = await postMcp(booted, connected.accessToken, save.body, save.headers)
         expect(saveRes.status).toBe(200)
         const saveJson = (await saveRes.json()) as {result: {content: {type: string; text: string}[]}}
-        const savedTask = (JSON.parse(saveJson.result.content[0].text) as {task: {scheduled: {timezone: string; date: string}}}).task
-        expect(savedTask.scheduled.timezone).toBe("Asia/Tokyo")
-        expect(savedTask.scheduled.date).toBe("2026-01-15")
+        const savedTask = (JSON.parse(saveJson.result.content[0].text) as {task: {status: string; scheduled: null}}).task
+        expect(savedTask.status).toBe("backlog")
+        expect(savedTask.scheduled).toBeNull()
       } finally {
         vi.useRealTimers()
       }
@@ -496,7 +506,7 @@ describe("the day a tool runs on follows the Mac, and answers gracefully once it
       const listRes = await postMcp(booted, connected.accessToken, listAfterZoneless.body, listAfterZoneless.headers)
       expect(listRes.status).toBe(200)
       const listJson = (await listRes.json()) as {result: {tools: unknown[]}}
-      expect(listJson.result.tools).toHaveLength(20)
+      expect(listJson.result.tools).toHaveLength(22)
 
       const revisionBefore = (booted.store.db.prepare(`SELECT revision FROM snapshot`).get() as {revision: number}).revision
 

@@ -49,6 +49,16 @@ export class TaskCommentModel {
     return rowToTaskComment(row)
   }
 
+  isWorkflowProposal(id: TaskComment["id"]): boolean {
+    return Boolean(
+      this.db
+        .prepare(
+          "SELECT 1 FROM workflow_records WHERE json_extract(data, '$.command.kind') = 'propose' AND json_extract(data, '$.proposalCommentId') = ? LIMIT 1",
+        )
+        .get(id),
+    )
+  }
+
   createComment(input: {taskId: Task["id"]; branchId: Branch["id"]; content: string; kind: TaskCommentKind; provider: string | null}): TaskComment {
     const id = createEntityId("comment")
     const now = new Date().toISOString()

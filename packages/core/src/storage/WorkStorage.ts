@@ -1,5 +1,8 @@
+import {randomUUID} from "node:crypto"
+
 import {logger} from "../utils/logger"
 import {EMPTY_CHANGESET} from "../types/storage"
+import {TaskWorkflowService} from "./services/TaskWorkflowService"
 
 import type {
   ActorSource,
@@ -18,12 +21,17 @@ import type {
   TaskRelation,
   TaskRelationSets,
   TaskSearchResult,
+  TaskWorkflowCommand,
+  TaskWorkflowContext,
+  TaskWorkflowReceipt,
+  TaskWorkflowState,
 } from "@daily/protocol"
 import type {PartialDeep} from "type-fest"
 import type {SqliteDriver} from "../database/SqliteDriver"
 import type {Changeset} from "../types/storage"
 import type {StorageCore} from "./createStorageCore"
 import type {IWorkStorage} from "./IWorkStorage"
+import type {TaskWorkflowHost} from "./services/TaskWorkflowService"
 
 type OpenBatch = {changeset: Changeset}
 
@@ -35,12 +43,16 @@ type OpenBatch = {changeset: Changeset}
  */
 export class WorkStorage implements IWorkStorage {
   private _openBatch: OpenBatch | null = null
+  private _workflow: TaskWorkflowService
 
   constructor(
     private _core: StorageCore,
     private _db: SqliteDriver,
     private _afterWrite: (changeset: Changeset) => void,
-  ) {}
+    workflowHost: TaskWorkflowHost = {runtimeId: randomUUID()},
+  ) {
+    this._workflow = new TaskWorkflowService(_db, workflowHost)
+  }
 
   /**
    * Runs `fn`'s writes as one SQLite transaction: none of them reaches the search index or
@@ -97,6 +109,16 @@ export class WorkStorage implements IWorkStorage {
 
   async getTask(id: Task["id"]): Promise<Task | null> {
     return this._core.tasksService.getTask(id)
+  }
+
+  async getTaskWorkflow(taskId: string): Promise<TaskWorkflowState> {
+    return this._workflow.get(taskId)
+  }
+
+  async executeTaskWorkflow(command: TaskWorkflowCommand, context: TaskWorkflowContext): Promise<TaskWorkflowReceipt> {
+    const {receipt, changeset} = this._workflow.execute(command, context)
+    await this._publishCommitted(changeset)
+    return receipt
   }
 
   async getHistoryByTask(taskId: Task["id"]): Promise<TaskEvent[]> {
@@ -226,15 +248,15 @@ export class WorkStorage implements IWorkStorage {
     return this._commitWrite({comments: {upserted: [created]}})
   }
 
-  async updateComment(id: TaskComment["id"], content: string): Promise<Changeset> {
-    const updated = await this._core.taskCommentsService.updateComment(id, content)
+  async updateComment(id: TaskComment["id"], content: string, source?: ActorSource): Promise<Changeset> {
+    const updated = await this._core.taskCommentsService.updateComment(id, content, source)
     if (!updated) return EMPTY_CHANGESET
 
     return this._commitWrite({comments: {upserted: [updated]}})
   }
 
-  async deleteComment(id: TaskComment["id"]): Promise<Changeset> {
-    const removed = await this._core.taskCommentsService.deleteComment(id)
+  async deleteComment(id: TaskComment["id"], source?: ActorSource): Promise<Changeset> {
+    const removed = await this._core.taskCommentsService.deleteComment(id, source)
     if (!removed) return EMPTY_CHANGESET
 
     return this._commitWrite({comments: {removed: [removed]}})
@@ -274,28 +296,31 @@ export class WorkStorage implements IWorkStorage {
    * milestone and tags, with the subtask's markdown, no priority and no estimate, and the subtask is deleted.
    * Null when the subtask, or its task, is gone.
    */
-  async makeTaskFromSubtask(id: Subtask["id"]): Promise<Task | null> {
+  async makeTaskFromSubtask(id: Subtask["id"], source?: ActorSource): Promise<Task | null> {
     const subtask = await this._core.subtasksService.getSubtask(id)
     const parent = subtask && (await this._core.tasksService.getTask(subtask.taskId))
     if (!subtask || !parent || parent.deletedAt !== null) return null
 
     return this.batch(async () => {
-      const created = await this.createTask({
-        status: parent.status,
-        content: subtask.content,
-        minimized: false,
-        orderIndex: Date.now(),
-        scheduled: parent.scheduled,
-        estimatedTime: 0,
-        spentTime: 0,
-        branchId: parent.branchId,
-        milestoneId: parent.milestoneId,
-        priority: "none",
-        tags: parent.tags,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        deletedAt: null,
-      })
+      const created = await this.createTask(
+        {
+          status: parent.status,
+          content: subtask.content,
+          minimized: false,
+          orderIndex: Date.now(),
+          scheduled: parent.scheduled,
+          estimatedTime: 0,
+          spentTime: 0,
+          branchId: parent.branchId,
+          milestoneId: parent.milestoneId,
+          priority: "none",
+          tags: parent.tags,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          deletedAt: null,
+        },
+        source,
+      )
       await this.deleteSubtask(id)
 
       return created.tasks!.upserted![0]

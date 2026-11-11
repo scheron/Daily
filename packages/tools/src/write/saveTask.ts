@@ -1,31 +1,24 @@
-import {NO_PROJECT_ID, statusForScheduling, TASK_STATUSES} from "@daily/protocol"
+import {NO_PROJECT_ID, TASK_STATUSES} from "@daily/protocol"
 import {isArray, isObject, isString} from "@daily/std"
 
 import {ToolError} from "../errors/ToolError"
 import {ToolErrorCode} from "../errors/ToolErrorCode"
-import {readBoolean, readEnum, readInteger, readISODate, readISOTime, readString} from "../input"
+import {readString} from "../input"
 import {readTaskDetail} from "../readTaskDetail"
 
-import type {ISODate, ISOTime, Milestone, Tag, Task, TaskMovePosition, TaskPriority, TaskScheduled, TaskStatus} from "@daily/protocol"
+import type {Milestone, Tag, Task, TaskMovePosition, TaskPriority} from "@daily/protocol"
 import type {Tool, ToolContext, ToolPropertySchema} from "../types"
 
-const TASK_PRIORITIES = ["none", "urgent", "high", "medium", "low"] as const
+const TASK_PRIORITIES: TaskPriority[] = ["none", "urgent", "high", "medium", "low"]
 const MAX_BATCH_SIZE = 50
 
 type ParsedFields = {
   content?: string
   projectId?: string
-  date?: ISODate | null
-  time?: ISOTime
-  status?: TaskStatus
-  priority?: TaskPriority
   milestoneId?: string | null
   tagIds?: string[]
-  estimatedSeconds?: number
   blockedBy?: string[]
   blocks?: string[]
-  deleted?: boolean
-  addSpentSeconds?: number
   afterTaskId?: string
   beforeTaskId?: string
 }
@@ -39,20 +32,22 @@ const TASK_ITEM_PROPERTIES: Record<string, ToolPropertySchema> = {
   },
   date: {
     type: ["string", "null"],
-    description:
-      "The scheduled day, YYYY-MM-DD, or null to clear it. Scheduling Backlog makes it To Do; clearing To Do returns it to Backlog. Ready for Agent keeps its status.",
+    description: "Protected: use update_task_workflow kind=propose with changes.scheduled; the person manually applies the suggestion in Daily.",
   },
-  time: {type: "string", description: 'The time of day, HH:mm or HH:mm:ss. Cannot be sent as null — clear a day with "date": null instead.'},
+  time: {type: "string", description: "Protected: propose a scheduled day/time through update_task_workflow."},
   status: {
     type: "string",
-    description:
-      "The exact task status, independent of Normal / Agents board mode. To Do means planned, In Progress means work has started. Ready for Agent accepts a day or no day; Ready to Merge remains outstanding.",
+    description: "Protected: use update_task_workflow kind=transition. Completion, cancellation and reopening require the person in Daily.",
     enum: TASK_STATUSES,
   },
-  priority: {type: "string", description: 'The task\'s priority. "none" clears it. Defaults to "none" when creating.', enum: TASK_PRIORITIES},
+  priority: {
+    type: "string",
+    description: "Protected: propose changes.priority through update_task_workflow. New tasks start with no priority.",
+    enum: TASK_PRIORITIES,
+  },
   milestoneId: {type: ["string", "null"], description: "The milestone this task belongs to, from its own project, or null to clear it."},
   tagIds: {type: "array", description: "Replaces the task's whole tag set.", items: {type: "string", description: "A tag id."}},
-  estimatedSeconds: {type: "integer", description: "The estimated time, in seconds.", minimum: 0},
+  estimatedSeconds: {type: "integer", description: "Protected: propose changes.estimatedTime in seconds through update_task_workflow.", minimum: 0},
   blockedBy: {
     type: "array",
     description: "Tasks that block this one. Replaces the whole set.",
@@ -61,11 +56,11 @@ const TASK_ITEM_PROPERTIES: Record<string, ToolPropertySchema> = {
   blocks: {type: "array", description: "Tasks this one blocks. Replaces the whole set.", items: {type: "string", description: "A task id."}},
   deleted: {
     type: "boolean",
-    description: 'Set to false to return a soft-deleted task from the trash. Cannot be set to true — delete a task with "delete_task".',
+    description: "Protected: restoring deleted tasks requires the person in Daily. Delete with delete_task.",
   },
   addSpentSeconds: {
     type: "integer",
-    description: "Adds to the time already logged, in seconds. Negative subtracts. The result never goes below zero.",
+    description: "Protected: use workflow start/heartbeat/pause for confirmed active work. Human time edits require Daily.",
   },
   afterTaskId: {type: "string", description: 'Places the task right after this one, within its day. Cannot be combined with "beforeTaskId".'},
   beforeTaskId: {type: "string", description: 'Places the task right before this one, within its day. Cannot be combined with "afterTaskId".'},
@@ -74,7 +69,7 @@ const TASK_ITEM_PROPERTIES: Record<string, ToolPropertySchema> = {
 export const saveTaskTool: Tool = {
   name: "save_task",
   description:
-    'Creates a task when no id is given, or updates the one named. A day, time and status are worked out from what is given and the caller\'s own clock. New tasks default to To Do on the caller\'s day; a null date defaults to Backlog. An explicit status takes priority. Priority is taken as sent, and a new task defaults to "none". Send "tasks" instead for a batch of up to 50, applied atomically.',
+    'Creates an unscheduled Backlog task when no id is given, or edits content, project, tags, milestone and relations on the task named. Use get_task_workflow and update_task_workflow for status and active time; propose schedule, estimate and priority changes there for the person to apply in Daily. Direct protected edits and restoring deleted tasks are refused. Send "tasks" for an atomic batch of up to 50.',
   mode: "write",
   inputSchema: {
     type: "object",
@@ -133,15 +128,16 @@ function readTaskBatch(value: unknown): Record<string, unknown>[] {
 }
 
 async function applyOneTask(ctx: ToolContext, input: Record<string, unknown>): Promise<Task["id"]> {
+  const protectedFields = ["status", "date", "time", "priority", "estimatedSeconds", "addSpentSeconds", "deleted"]
+  const protectedField = protectedFields.find((field) => Object.hasOwn(input, field))
+  if (protectedField) {
+    throw new ToolError(
+      ToolErrorCode.WORKFLOW_REQUIRED,
+      `"${protectedField}" cannot be changed with save_task. Read get_task_workflow, then use update_task_workflow for stage, active time or a pending planning proposal. The person must complete, cancel, restore or manually apply planning changes in Daily. Create a task first before proposing planning changes.`,
+    )
+  }
   const id = readString(input, "id")
   const fields = parseFields(input)
-
-  if (fields.deleted === true) {
-    throw new ToolError(ToolErrorCode.INVALID_INPUT, '"deleted" can only be set to false — delete a task with "delete_task".')
-  }
-  if (fields.deleted === false && id === undefined) {
-    throw new ToolError(ToolErrorCode.INVALID_INPUT, '"deleted": false requires "id" — there is no deleted task to restore when creating one.')
-  }
 
   return ctx.workStorage.batch(async () => {
     const taskId = id === undefined ? await createTask(ctx, fields) : await updateTask(ctx, id, fields)
@@ -151,14 +147,6 @@ async function applyOneTask(ctx: ToolContext, input: Record<string, unknown>): P
 }
 
 function parseFields(input: Record<string, unknown>): ParsedFields {
-  const rawDate = input.date
-  const date = rawDate === null ? null : readISODate(input, "date")
-
-  if (input.time === null) {
-    throw new ToolError(ToolErrorCode.INVALID_INPUT, '"time" cannot be null — clear a day with "date": null instead.')
-  }
-  const time = readISOTime(input, "time")
-
   const rawMilestoneId = input.milestoneId
   const milestoneId = rawMilestoneId === null ? null : readString(input, "milestoneId")
 
@@ -169,17 +157,10 @@ function parseFields(input: Record<string, unknown>): ParsedFields {
   return {
     content: readString(input, "content"),
     projectId: readString(input, "projectId"),
-    date,
-    time,
-    status: readEnum(input, "status", TASK_STATUSES),
-    priority: readEnum(input, "priority", TASK_PRIORITIES),
     milestoneId,
     tagIds: readIdArray(input, "tagIds"),
-    estimatedSeconds: readInteger(input, "estimatedSeconds", {min: 0}),
     blockedBy: readIdArray(input, "blockedBy"),
     blocks: readIdArray(input, "blocks"),
-    deleted: readBoolean(input, "deleted"),
-    addSpentSeconds: readInteger(input, "addSpentSeconds"),
     afterTaskId: readString(input, "afterTaskId"),
     beforeTaskId: readString(input, "beforeTaskId"),
   }
@@ -189,20 +170,6 @@ async function createTask(ctx: ToolContext, fields: ParsedFields): Promise<Task[
   if (!fields.content) throw new ToolError(ToolErrorCode.INVALID_INPUT, '"content" is required.')
 
   const projectId = await resolveProjectId(ctx, fields.projectId ?? NO_PROJECT_ID)
-
-  let status: TaskStatus
-  let scheduled: TaskScheduled | null
-
-  if (fields.date === undefined) {
-    status = fields.status ?? "todo"
-    scheduled = status === "ready_for_agent" ? null : ctx.clock.scheduledNow()
-  } else if (fields.date === null) {
-    status = fields.status ?? "backlog"
-    scheduled = null
-  } else {
-    status = fields.status ?? "todo"
-    scheduled = {date: fields.date, time: fields.time ?? ctx.clock.time(), timezone: ctx.clock.timeZone}
-  }
 
   const milestoneId = (await resolveMilestoneId(ctx, fields.milestoneId, projectId)) ?? null
   const tags = (await resolveTags(ctx, fields.tagIds, projectId)) ?? []
@@ -214,15 +181,15 @@ async function createTask(ctx: ToolContext, fields: ParsedFields): Promise<Task[
       updatedAt: now,
       deletedAt: null,
       branchId: projectId,
-      scheduled,
-      status,
-      priority: fields.priority ?? "none",
+      scheduled: null,
+      status: "backlog",
+      priority: "none",
       milestoneId,
       tags,
       content: fields.content,
       minimized: false,
       orderIndex: Date.now(),
-      estimatedTime: fields.estimatedSeconds ?? 0,
+      estimatedTime: 0,
       spentTime: 0,
     },
     ctx.source,
@@ -236,30 +203,19 @@ async function createTask(ctx: ToolContext, fields: ParsedFields): Promise<Task[
 }
 
 async function updateTask(ctx: ToolContext, id: Task["id"], fields: ParsedFields): Promise<Task["id"]> {
-  let before = await ctx.workStorage.getTask(id)
+  const before = await ctx.workStorage.getTask(id)
   if (!before) throw new ToolError(ToolErrorCode.NOT_FOUND, `No task "${id}".`)
-
-  if (fields.deleted === false) {
-    const restored = await ctx.workStorage.restoreTask(id, ctx.source)
-    const restoredTask = restored.tasks?.upserted?.[0]
-    if (restoredTask) before = restoredTask
-  }
 
   const projectId = fields.projectId === undefined ? before.branchId : await resolveProjectId(ctx, fields.projectId)
 
   const updates: Partial<Task> = {}
   if (fields.content !== undefined) updates.content = fields.content
-  if (fields.priority !== undefined) updates.priority = fields.priority
-  if (fields.estimatedSeconds !== undefined) updates.estimatedTime = fields.estimatedSeconds
-  if (fields.addSpentSeconds !== undefined) updates.spentTime = Math.max(0, before.spentTime + fields.addSpentSeconds)
 
   const milestoneId = await resolveMilestoneId(ctx, fields.milestoneId, projectId)
   if (milestoneId !== undefined) updates.milestoneId = milestoneId
 
   const tags = await resolveTags(ctx, fields.tagIds, projectId)
   if (tags !== undefined) updates.tags = tags
-
-  applyScheduling(ctx, before, fields, updates)
 
   if (projectId !== before.branchId) updates.branchId = projectId
 
@@ -289,34 +245,6 @@ async function applyReorder(ctx: ToolContext, id: Task["id"], afterTaskId: strin
   const activeDate = current.scheduled?.date ?? ctx.clock.today()
 
   await ctx.workStorage.moveTaskByOrder({taskId: id, targetTaskId, position, targetStatus: current.status, activeDate}, ctx.source)
-}
-
-function applyScheduling(ctx: ToolContext, before: Task, fields: ParsedFields, updates: Partial<Task>): void {
-  if (fields.date === null) {
-    updates.status = fields.status ?? statusForScheduling(before.status, null)
-    updates.scheduled = null
-    return
-  }
-
-  if (fields.date !== undefined) {
-    if (fields.status !== undefined) updates.status = fields.status
-    updates.scheduled = {date: fields.date, time: fields.time ?? before.scheduled?.time ?? ctx.clock.time(), timezone: ctx.clock.timeZone}
-    return
-  }
-
-  if (fields.time !== undefined) {
-    if (fields.status !== undefined) updates.status = fields.status
-    updates.scheduled = {date: before.scheduled?.date ?? ctx.clock.today(), time: fields.time, timezone: ctx.clock.timeZone}
-    return
-  }
-
-  if (fields.status !== undefined && fields.status !== "backlog" && fields.status !== "ready_for_agent" && before.scheduled === null) {
-    updates.status = fields.status
-    updates.scheduled = ctx.clock.scheduledNow()
-    return
-  }
-
-  if (fields.status !== undefined) updates.status = fields.status
 }
 
 async function resolveProjectId(ctx: ToolContext, projectId: string): Promise<string> {

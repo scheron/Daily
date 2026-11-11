@@ -1,3 +1,4 @@
+import {TaskWorkflowError} from "@daily/core/storage/TaskWorkflowError"
 import {ToolError, TOOLS} from "@daily/tools"
 
 import {buildToolContext} from "./toolContext"
@@ -18,7 +19,10 @@ function wrapSharedTool(tool: SharedTool): RegisteredTool {
         const data = await tool.run(params, toolContext)
         return {success: true, data}
       } catch (err) {
-        if (err instanceof ToolError) return {success: false, error: err.message}
+        if (err instanceof ToolError || err instanceof TaskWorkflowError) {
+          const current = err instanceof TaskWorkflowError ? err.current : null
+          return {success: false, error: err.message, data: {code: err.code, ...(current && {current})}}
+        }
         throw err
       }
     },

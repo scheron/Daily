@@ -8,8 +8,8 @@ import type {ToolContext} from "./types"
 import type {TaskDetailView} from "./views"
 
 /** Reads one task in full — project name, both relation sides, history, attachments, comments and subtasks — or throws `NOT_FOUND`. */
-export async function readTaskDetail(ctx: ToolContext, id: Task["id"]): Promise<TaskDetailView> {
-  const task = await ctx.workStorage.getTask(id)
+export async function readTaskDetail(ctx: ToolContext, id: Task["id"], observedTask?: Task): Promise<TaskDetailView> {
+  const task = observedTask ?? (await ctx.workStorage.getTask(id))
   if (!task) throw new ToolError(ToolErrorCode.NOT_FOUND, `No task "${id}".`)
 
   const branch = await ctx.workStorage.getBranch(task.branchId)

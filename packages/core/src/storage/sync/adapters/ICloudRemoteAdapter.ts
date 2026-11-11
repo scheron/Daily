@@ -8,6 +8,8 @@ import {coordinatedRead, coordinatedWrite, getICloudStubPath, hasICloudStub, req
 import {logger} from "../../../utils/logger"
 import {assertKnownSnapshotVersion} from "../../../utils/sync/snapshot/assertKnownSnapshotVersion"
 import {isValidSnapshot} from "../../../utils/sync/snapshot/isValidSnapshot"
+import {normalizeSnapshotDocs} from "../../../utils/sync/snapshot/normalizeSnapshotDocs"
+import {TaskWorkflowError} from "../../TaskWorkflowError"
 
 import type {IRemoteStorage, Snapshot, SnapshotFile} from "@daily/protocol"
 
@@ -42,19 +44,20 @@ export class ICloudRemoteAdapter implements IRemoteStorage {
         assertKnownSnapshotVersion(parsed)
 
         if (!isValidSnapshot(parsed)) {
+          if (parsed?.version >= 17)
+            throw new TaskWorkflowError(
+              "invalid_request",
+              "Invalid workflow snapshot structure. Sync stops without discarding history; repair the source snapshot before retrying.",
+            )
           logger.warn(logger.CONTEXT.SYNC_REMOTE, "Invalid snapshot structure, treating as empty")
           return null
         }
 
-        /* Old snapshots (v2) may omit docs.branches / docs.events; normalize for downstream code. */
-        if (parsed.docs) {
-          parsed.docs.branches = parsed.docs.branches ?? []
-          parsed.docs.events = parsed.docs.events ?? []
-        }
+        parsed.docs = normalizeSnapshotDocs(parsed.docs, parsed.version)
 
         return parsed as Snapshot
       } catch (err: any) {
-        if (err instanceof RemoteSnapshotPendingError || err instanceof SnapshotVersionAheadError) {
+        if (err instanceof RemoteSnapshotPendingError || err instanceof SnapshotVersionAheadError || err instanceof TaskWorkflowError) {
           throw err
         }
 

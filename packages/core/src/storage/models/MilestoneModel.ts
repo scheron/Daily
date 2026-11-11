@@ -1,3 +1,5 @@
+import {randomUUID} from "node:crypto"
+
 import {createEntityId, getNextTaskOrderIndex} from "@daily/protocol"
 import {notUndefined} from "@daily/std"
 
@@ -135,7 +137,9 @@ export class MilestoneModel {
 
     let changes = 0
     const run = this.db.transaction(() => {
-      this.db.prepare(`UPDATE tasks SET milestone_id = NULL WHERE milestone_id = ?`).run(id)
+      this.db
+        .prepare(`UPDATE tasks SET milestone_id = NULL, updated_at = ?, workflow_generation = ? WHERE milestone_id = ?`)
+        .run(now, randomUUID(), id)
       const result = this.db.prepare(`UPDATE milestones SET deleted_at = ?, updated_at = ? WHERE id = ?`).run(now, now, id)
       changes = result.changes
     })

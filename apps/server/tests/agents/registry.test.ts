@@ -7,15 +7,17 @@ import {readRevision} from "../../src/snapshot/SnapshotStore"
 import {bindAgent, seedAgentStore} from "./helpers"
 
 describe("the agent tool registry", () => {
-  it("TC-42: holds exactly the twenty shared tools, once each, reads before writes, each with a name, a description and an object input schema", () => {
+  it("TC-42: holds exactly the twenty-two shared tools, once each, reads before writes, each with a name, a description and an object input schema", () => {
     expect(TOOLS.map((tool) => tool.name)).toEqual([
       "list_tasks",
       "get_task",
+      "get_task_workflow",
       "get_attachment",
       "list_projects",
       "list_milestones",
       "list_tags",
       "save_task",
+      "update_task_workflow",
       "delete_task",
       "save_comment",
       "delete_comment",
@@ -57,7 +59,7 @@ describe("runAgentTool", () => {
     }
   })
 
-  it("TC-44: save_task with neither content nor id, save_task with an id and time: null, and get_task with a number for an id all refuse INVALID_INPUT naming the field, revision unchanged", async () => {
+  it("TC-44: malformed content and ids refuse INVALID_INPUT, protected time refuses WORKFLOW_REQUIRED, and every refusal leaves the revision unchanged", async () => {
     let taskId = ""
     const seeded = await seedAgentStore(async (mac) => {
       const task = await mac.core.tasksService.createTask({
@@ -90,7 +92,7 @@ describe("runAgentTool", () => {
       const nullTime = await runAgentTool({store: seeded.store}, agent, {name: "save_task", input: {id: taskId, time: null}})
       expect(nullTime.ok).toBe(false)
       if (!nullTime.ok) {
-        expect(nullTime.error.code).toBe(ToolErrorCode.INVALID_INPUT)
+        expect(nullTime.error.code).toBe(ToolErrorCode.WORKFLOW_REQUIRED)
         expect(nullTime.error.message).toContain("time")
       }
 

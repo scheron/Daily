@@ -54,27 +54,27 @@ function makeTag(id, overrides = {}) {
 }
 
 describe("buildSnapshot", () => {
-  it("creates snapshot with version 16", () => {
+  it("creates snapshot with version 19", () => {
     const snapshot = buildSnapshot(emptyDocs())
-    expect(snapshot.version).toBe(16)
+    expect(snapshot.version).toBe(18)
   })
 
-  it("builds version 16 snapshots whose hash moves when a relation's blocked_id changes", () => {
+  it("builds version 18 snapshots whose hash moves when a relation's blocked_id changes", () => {
     const docsA = {...emptyDocs(), relations: [makeRelation("r1", {blocked_id: "b"})]}
     const docsB = {...emptyDocs(), relations: [makeRelation("r1", {blocked_id: "c"})]}
 
     const snapshotA = buildSnapshot(docsA)
     const snapshotB = buildSnapshot(docsB)
 
-    expect(snapshotA.version).toBe(16)
-    expect(snapshotB.version).toBe(16)
+    expect(snapshotA.version).toBe(18)
+    expect(snapshotB.version).toBe(18)
     expect(snapshotA.meta.hash).not.toBe(snapshotB.meta.hash)
   })
 
   it("includes docs and meta", () => {
     const docs = emptyDocs()
     const snapshot = buildSnapshot(docs)
-    expect(snapshot.docs).toBe(docs)
+    expect(snapshot.docs).toEqual({...docs, workflowRecords: []})
     expect(snapshot.meta).toBeDefined()
     expect(snapshot.meta.updatedAt).toBeDefined()
     expect(snapshot.meta.hash).toBeDefined()

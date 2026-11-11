@@ -6,6 +6,8 @@ import {ProtocolError, ProtocolErrorCode, RemoteWriteConflictError, SnapshotVers
 import {logger} from "../../../utils/logger"
 import {assertKnownSnapshotVersion} from "../../../utils/sync/snapshot/assertKnownSnapshotVersion"
 import {isValidSnapshot} from "../../../utils/sync/snapshot/isValidSnapshot"
+import {normalizeSnapshotDocs} from "../../../utils/sync/snapshot/normalizeSnapshotDocs"
+import {TaskWorkflowError} from "../../TaskWorkflowError"
 import {DailySyncClient} from "../server/DailySyncClient"
 
 import type {IRevisionedRemoteStorage, RemoteReadResult, ServerSyncBinding, Snapshot, SnapshotFile, SnapshotRevision} from "@daily/protocol"
@@ -38,13 +40,17 @@ export class DailyServerRemoteAdapter implements IRevisionedRemoteStorage {
     assertKnownSnapshotVersion(parsed)
 
     if (!isValidSnapshot(parsed as Snapshot)) {
+      if ((parsed as Snapshot)?.version >= 17)
+        throw new TaskWorkflowError(
+          "invalid_request",
+          "Invalid workflow snapshot structure. Sync stops without discarding history; repair the source snapshot before retrying.",
+        )
       logger.warn(logger.CONTEXT.SYNC_REMOTE, "Invalid snapshot structure, treating as empty")
       return {snapshot: null, revision: revision ?? null}
     }
 
     const snapshot = parsed as Snapshot
-    snapshot.docs.branches = snapshot.docs.branches ?? []
-    snapshot.docs.events = snapshot.docs.events ?? []
+    snapshot.docs = normalizeSnapshotDocs(snapshot.docs, snapshot.version)
     return {snapshot, revision: revision ?? null}
   }
 

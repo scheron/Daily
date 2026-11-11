@@ -1,5 +1,8 @@
 import {normalizeProjectEmoji} from "@daily/protocol"
 
+import {validateWorkflowSnapshotDocs} from "../../../utils/tasks/workflowValidation"
+import {WorkflowRecordModel} from "../../models/WorkflowRecordModel"
+
 import type {
   ILocalStorage,
   SnapshotBranch,
@@ -33,11 +36,28 @@ export class LocalStorageAdapter implements ILocalStorage {
     const files = this._loadFiles()
     const events = this._loadTaskEvents()
 
-    return {tasks, tags, branches, milestones, relations, comments, subtasks, files, events}
+    return {
+      tasks,
+      tags,
+      branches,
+      milestones,
+      relations,
+      comments,
+      subtasks,
+      files,
+      events,
+      workflowRecords: new WorkflowRecordModel(this.db).getAll(),
+    }
   }
 
   async upsertDocs(docs: SnapshotDocs): Promise<void> {
+    validateWorkflowSnapshotDocs(docs)
     const transaction = this.db.transaction(() => {
+      const tasksById = new Map(this._loadTasks().map((task) => [task.id, task]))
+      for (const task of docs.tasks) tasksById.set(task.id, task)
+      const recordsById = new Map(new WorkflowRecordModel(this.db).getAll().map((record) => [record.id, record]))
+      for (const record of docs.workflowRecords ?? []) recordsById.set(record.id, record)
+      validateWorkflowSnapshotDocs({...docs, tasks: [...tasksById.values()], workflowRecords: [...recordsById.values()]})
       if (docs.branches.length) {
         const stmt = this.db.prepare(`
           INSERT INTO branches (id, name, description, emoji, created_at, updated_at, deleted_at)
@@ -110,8 +130,8 @@ export class LocalStorageAdapter implements ILocalStorage {
 
       if (docs.tasks.length) {
         const taskStmt = this.db.prepare(`
-          INSERT INTO tasks (id, status, content, minimized, order_index, scheduled_date, scheduled_time, scheduled_timezone, estimated_time, spent_time, branch_id, milestone_id, priority, created_at, updated_at, deleted_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO tasks (id, status, content, minimized, order_index, scheduled_date, scheduled_time, scheduled_timezone, estimated_time, spent_time, branch_id, milestone_id, priority, created_at, updated_at, deleted_at, workflow_time_baseline, workflow_generation)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           ON CONFLICT(id) DO UPDATE SET
             status             = excluded.status,
             content            = excluded.content,
@@ -122,6 +142,8 @@ export class LocalStorageAdapter implements ILocalStorage {
             scheduled_timezone = excluded.scheduled_timezone,
             estimated_time     = excluded.estimated_time,
             spent_time         = excluded.spent_time,
+            workflow_time_baseline = excluded.workflow_time_baseline,
+            workflow_generation = excluded.workflow_generation,
             branch_id          = excluded.branch_id,
             milestone_id       = excluded.milestone_id,
             priority           = excluded.priority,
@@ -152,6 +174,8 @@ export class LocalStorageAdapter implements ILocalStorage {
             t.created_at,
             t.updated_at,
             t.deleted_at,
+            t.workflow_time_baseline ?? 0,
+            t.workflow_generation ?? "",
           )
 
           deleteTagsStmt.run(t.id)
@@ -213,6 +237,8 @@ export class LocalStorageAdapter implements ILocalStorage {
           stmt.run(s.id, s.task_id, s.content, s.done ? 1 : 0, s.order_key, s.created_at, s.updated_at, s.deleted_at)
         }
       }
+
+      for (const record of docs.workflowRecords ?? []) new WorkflowRecordModel(this.db).append(record)
 
       if (docs.events.length) {
         const stmt = this.db.prepare(`
@@ -398,6 +424,8 @@ export class LocalStorageAdapter implements ILocalStorage {
         scheduled_timezone: row.scheduled_timezone,
         estimated_time: row.estimated_time,
         spent_time: row.spent_time,
+        workflow_time_baseline: row.workflow_time_baseline,
+        workflow_generation: row.workflow_generation,
         branch_id: row.branch_id,
         milestone_id: row.milestone_id ?? null,
         priority: row.priority as SnapshotTask["priority"],

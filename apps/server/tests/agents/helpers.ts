@@ -58,7 +58,8 @@ export function bindDevice(store: ServerStore, name = "Bound Mac"): string {
  * name the agent itself was approved under, the one a comment is attributed to.
  */
 export function bindAgent(store: ServerStore, deviceName = "Agent Mac", timeZone = "UTC", agentName = "Test Client"): AgentIdentity {
-  return {deviceId: bindDevice(store, deviceName), timeZone, name: agentName}
+  const deviceId = bindDevice(store, deviceName)
+  return {agentId: `test-agent-${deviceId}`, deviceId, timeZone, name: agentName}
 }
 
 /** Loads every document off `mac`'s core and writes it into `store` exactly as a Mac's sync would, through `buildSnapshot`. */
@@ -93,7 +94,7 @@ export function rawSnapshotDocument(overrides: Record<string, unknown> = {}): an
   return {
     version: KNOWN_SNAPSHOT_VERSION,
     meta: {updatedAt: "2026-01-01T00:00:00.000Z", hash: "hash-1"},
-    docs: {tasks: [], tags: [], branches: [], milestones: [], relations: [], comments: [], files: [], events: []},
+    docs: {tasks: [], tags: [], branches: [], milestones: [], relations: [], comments: [], files: [], events: [], workflowRecords: []},
     ...overrides,
   }
 }

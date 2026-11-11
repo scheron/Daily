@@ -17,7 +17,7 @@ export const deleteCommentTool: Tool = {
   async run(input, ctx) {
     const id = requireString(input, "id")
 
-    const changeset = await ctx.workStorage.deleteComment(id)
+    const changeset = await ctx.workStorage.deleteComment(id, ctx.source)
     const deleted = changeset.comments?.removed?.[0]
     if (!deleted) throw new ToolError(ToolErrorCode.NOT_FOUND, `No comment "${id}".`)
 

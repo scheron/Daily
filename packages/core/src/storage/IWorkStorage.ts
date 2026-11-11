@@ -15,6 +15,10 @@ import type {
   TaskRelation,
   TaskRelationSets,
   TaskSearchResult,
+  TaskWorkflowCommand,
+  TaskWorkflowContext,
+  TaskWorkflowReceipt,
+  TaskWorkflowState,
 } from "@daily/protocol"
 import type {PartialDeep} from "type-fest"
 import type {Changeset} from "../types/storage"
@@ -50,6 +54,8 @@ export interface IWorkStorage {
     includeBacklog?: boolean
   }): Promise<Task[]>
   getTask(id: Task["id"]): Promise<Task | null>
+  getTaskWorkflow(taskId: string): Promise<TaskWorkflowState>
+  executeTaskWorkflow(command: TaskWorkflowCommand, context: TaskWorkflowContext): Promise<TaskWorkflowReceipt>
   getHistoryByTask(taskId: Task["id"]): Promise<TaskEvent[]>
   getDeletedTasks(params?: {limit?: number; branchId?: Branch["id"]}): Promise<Task[]>
   getMoveCounts(): Promise<Record<Task["id"], number>>
@@ -68,15 +74,15 @@ export interface IWorkStorage {
 
   getCommentsOfTask(taskId: Task["id"]): Promise<TaskComment[]>
   createComment(taskId: Task["id"], content: string, source?: TaskCommentSource): Promise<Changeset>
-  updateComment(id: TaskComment["id"], content: string): Promise<Changeset>
-  deleteComment(id: TaskComment["id"]): Promise<Changeset>
+  updateComment(id: TaskComment["id"], content: string, source?: ActorSource): Promise<Changeset>
+  deleteComment(id: TaskComment["id"], source?: ActorSource): Promise<Changeset>
 
   getSubtasksOfTask(taskId: Task["id"]): Promise<Subtask[]>
   getSubtaskCounts(): Promise<SubtaskCounts>
   createSubtask(taskId: Task["id"], content: string): Promise<Changeset>
   updateSubtask(id: Subtask["id"], updates: {content?: string; done?: boolean}): Promise<Changeset>
   deleteSubtask(id: Subtask["id"]): Promise<Changeset>
-  makeTaskFromSubtask(id: Subtask["id"]): Promise<Task | null>
+  makeTaskFromSubtask(id: Subtask["id"], source?: ActorSource): Promise<Task | null>
 
   getBranchList(): Promise<Branch[]>
   getBranch(id: Branch["id"]): Promise<Branch | null>
