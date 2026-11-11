@@ -3,7 +3,7 @@ import {fetch as undiciFetch} from "undici"
 
 import {ProtocolError, SYNC_PROTOCOL_CONFIG, SYNC_PROTOCOL_PATHS, SyncServerError, SyncServerErrorCode} from "@daily/protocol"
 
-import {createServerDispatcher} from "./serverTransport"
+import {createServerDispatcher, isConnectFailure} from "./serverTransport"
 
 import type {
   AgentListResponse,
@@ -50,7 +50,7 @@ type RequestOptions = {
 }
 
 const TIMEOUTS = {
-  probe: 8_000,
+  probe: 30_000,
   snapshot: 30_000,
   asset: 120_000,
   /** Outlasts the server's `revisionHoldMs` hold, so a held request never times out client-side while it waits. */
@@ -230,7 +230,7 @@ export class DailySyncClient {
     }
   }
 
-  private log(method: Method, path: string, startedAt: number, status: number | null, error: string | null): void {
+  private log(method: Method, path: string, startedAt: number, status: number | null, error: string | null, forcedLevel?: "warn"): void {
     if (!this.requestLog) return
     // Reading the log is not itself an event; a failed read is.
     if (error === null && path === SYNC_PROTOCOL_PATHS.logs) return
@@ -238,7 +238,7 @@ export class DailySyncClient {
     // The route form only: an asset name or a query never reaches an entry, nor an error text that quotes the URL.
     const route = path.startsWith(SYNC_PROTOCOL_PATHS.assetItem) ? SYNC_PROTOCOL_PATHS.assetItem : path.split("?")[0]
     const at = new Date().toISOString()
-    const level = error === null ? "info" : status !== null && status >= 400 && status < 500 ? "warn" : "error"
+    const level = forcedLevel ?? (error === null ? "info" : status !== null && status >= 400 && status < 500 ? "warn" : "error")
 
     this.requestLog.add({
       at,
@@ -271,32 +271,42 @@ export class DailySyncClient {
 
     if (options.token) headers.authorization = `Bearer ${options.token}`
 
+    // One deadline for the whole call, retry included.
     const timeoutSignal = AbortSignal.timeout(options.timeout)
+    const startedAt = Date.now()
 
-    try {
-      return await this.fetchFn(`${this.baseUrl}${path}`, {
-        method,
-        headers,
-        body,
-        signal: options.signal ? AbortSignal.any([timeoutSignal, options.signal]) : timeoutSignal,
-        dispatcher: this.dispatcher,
-      } as RequestInit)
-    } catch (err) {
-      throw this.toSyncServerError(err)
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await this.fetchFn(`${this.baseUrl}${path}`, {
+          method,
+          headers,
+          body,
+          signal: options.signal ? AbortSignal.any([timeoutSignal, options.signal]) : timeoutSignal,
+          dispatcher: this.dispatcher,
+        } as RequestInit)
+      } catch (err) {
+        if (attempt === 1 && !options.signal?.aborted && !timeoutSignal.aborted && isConnectFailure(err)) {
+          this.log(method, path, startedAt, null, `${describeError(err)} (connection failed, retrying once)`, "warn")
+          continue
+        }
+
+        throw this.toSyncServerError(err, options.timeout)
+      }
     }
   }
 
-  private toSyncServerError(err: unknown): SyncServerError {
+  private toSyncServerError(err: unknown, timeout: number): SyncServerError {
     if (err instanceof SyncServerError) return err
 
     const cause = err instanceof Error ? (err as {cause?: unknown}).cause : undefined
     if (cause instanceof SyncServerError) return cause
 
     if (err instanceof Error && err.name === "TimeoutError") {
-      return new SyncServerError(SyncServerErrorCode.UNREACHABLE, "The request timed out")
+      return new SyncServerError(SyncServerErrorCode.UNREACHABLE, `The server did not respond within ${timeout / 1000} s`)
     }
 
-    const error = new SyncServerError(SyncServerErrorCode.UNREACHABLE, `Could not reach the server at ${this.baseUrl}`)
+    const phase = isConnectFailure(err) ? " (connection failed)" : ""
+    const error = new SyncServerError(SyncServerErrorCode.UNREACHABLE, `Could not reach the server at ${this.baseUrl}${phase}`)
     error.cause = err
     return error
   }
@@ -330,7 +340,6 @@ export class DailySyncClient {
   }
 }
 
-/** `CODE: message`, then each `cause` in turn, so a log line carries the whole chain. */
 /** Drops the request URL, and an asset's name in either form, from an error text: the server's own message quotes the bare name. */
 function scrub(error: string, path: string, route: string): string {
   let text = error.replaceAll(path, route)
@@ -348,6 +357,7 @@ function scrub(error: string, path: string, route: string): string {
   return text
 }
 
+/** `CODE: message`, then each `cause` in turn, so a log line carries the whole chain. */
 function describeError(err: unknown): string {
   const parts: string[] = []
 

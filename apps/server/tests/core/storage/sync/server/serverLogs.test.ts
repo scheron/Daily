@@ -102,7 +102,9 @@ describe("ServerProviderService.getLogs", () => {
     const view = await makeService(bind(baseUrl, "t"), requestLog).getLogs()
 
     expect(view.serverIssue).toMatchObject({kind: "failed", message: expect.stringContaining("Could not reach the server")})
-    expect(view.entries).toHaveLength(2)
-    expect(view.entries[1]).toMatchObject({source: "mac", path: SYNC_PROTOCOL_PATHS.logs, level: "error"})
+    // The refused connection is retried once: a WARN for the first attempt, then the final ERROR.
+    expect(view.entries).toHaveLength(3)
+    expect(view.entries.map((e) => e.level)).toEqual(expect.arrayContaining(["warn", "error"]))
+    expect(view.entries.at(-1)).toMatchObject({source: "mac", path: SYNC_PROTOCOL_PATHS.logs, level: "error"})
   })
 })

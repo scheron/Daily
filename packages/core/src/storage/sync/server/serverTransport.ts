@@ -67,36 +67,76 @@ export async function probeTransport(baseUrl: string): Promise<ServerProbe> {
   }
 }
 
-/**
- * Builds an `undici` dispatcher pinned to `fingerprint`: every connection's certificate is
- * compared to it, and the socket is destroyed before any request is written on a mismatch. With
- * no fingerprint, builds nothing, so `undici`'s default (system trust store / plain HTTP)
- * applies unchanged.
- */
-export function createServerDispatcher(fingerprint: string | null): Dispatcher | undefined {
-  if (!fingerprint) return undefined
+/** Covers TCP plus the TLS handshake of a new connection; a request already on a pooled connection is unaffected. */
+const CONNECT_TIMEOUT_MS = 5_000
 
-  const inner = buildConnector({rejectUnauthorized: false})
+const CONNECT_FAILED = Symbol("connectFailed")
 
-  const connector: buildConnector.connector = (options, callback) => {
-    inner(options, (err, socket) => {
-      if (err) {
-        callback(err, null)
-        return
-      }
-
-      const actual = peerFingerprint(socket)
-      if (actual !== fingerprint) {
-        socket.destroy()
-        callback(new SyncServerError(SyncServerErrorCode.FINGERPRINT_MISMATCH, `Certificate fingerprint mismatch for ${options.hostname}`), null)
-        return
-      }
-
-      callback(null, socket)
-    })
+/** True when an error in the chain was raised while establishing the connection, so no request bytes were written. */
+export function isConnectFailure(err: unknown): boolean {
+  for (let current = err, depth = 0; current instanceof Error && depth < 5; current = (current as {cause?: unknown}).cause, depth++) {
+    if ((current as {[CONNECT_FAILED]?: true})[CONNECT_FAILED]) return true
   }
 
-  return new Agent({connect: connector})
+  return false
+}
+
+export function markConnectFailure<T extends Error>(err: T): T {
+  ;(err as {[CONNECT_FAILED]?: true})[CONNECT_FAILED] = true
+  return err
+}
+
+/** Marks every error the connector raises (TCP, TLS handshake, timeout, DNS) as a connection-establishment failure. */
+function markingConnector(inner: buildConnector.connector): buildConnector.connector {
+  return (options, callback) => {
+    inner(options, (err, socket) => {
+      if (err) callback(markConnectFailure(err), null)
+      else callback(null, socket)
+    })
+  }
+}
+
+const dispatchers = new Map<string, Dispatcher>()
+
+/**
+ * The `undici` dispatcher for a pinned fingerprint (or none), shared by every client using it so the
+ * pool (and the long poll's kept-alive connection) survives across clients. Connections give up after
+ * `CONNECT_TIMEOUT_MS`. With a `fingerprint`, every connection's certificate is compared to it and
+ * the socket is destroyed before any request is written on a mismatch.
+ */
+export function createServerDispatcher(fingerprint: string | null): Dispatcher {
+  const key = fingerprint ?? ""
+  let dispatcher = dispatchers.get(key)
+  if (dispatcher) return dispatcher
+
+  if (!fingerprint) {
+    dispatcher = new Agent({connect: markingConnector(buildConnector({timeout: CONNECT_TIMEOUT_MS}))})
+  } else {
+    const inner = markingConnector(buildConnector({rejectUnauthorized: false, timeout: CONNECT_TIMEOUT_MS}))
+
+    const connector: buildConnector.connector = (options, callback) => {
+      inner(options, (err, socket) => {
+        if (err) {
+          callback(err, null)
+          return
+        }
+
+        const actual = peerFingerprint(socket)
+        if (actual !== fingerprint) {
+          socket.destroy()
+          callback(new SyncServerError(SyncServerErrorCode.FINGERPRINT_MISMATCH, `Certificate fingerprint mismatch for ${options.hostname}`), null)
+          return
+        }
+
+        callback(null, socket)
+      })
+    }
+
+    dispatcher = new Agent({connect: connector})
+  }
+
+  dispatchers.set(key, dispatcher)
+  return dispatcher
 }
 
 function capturingConnector(): {connector: buildConnector.connector; read(): string | null} {

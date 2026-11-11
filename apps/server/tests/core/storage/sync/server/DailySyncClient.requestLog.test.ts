@@ -1,8 +1,10 @@
+import {createServer} from "node:net"
 import {describe, expect, it} from "vitest"
 
-import {SYNC_PROTOCOL_PATHS, SyncServerErrorCode} from "@daily/protocol"
+import {SYNC_PROTOCOL_PATHS, SyncServerError, SyncServerErrorCode} from "@daily/protocol"
 
 import {DailySyncClient} from "@core/storage/sync/server/DailySyncClient"
+import {markConnectFailure} from "@core/storage/sync/server/serverTransport"
 import {RequestLogBuffer} from "@core/utils/requestLog/RequestLogBuffer"
 
 function envelope(status: number, body: unknown): Response {
@@ -14,6 +16,95 @@ function makeClient(fetch: typeof globalThis.fetch) {
   const client = new DailySyncClient({baseUrl: "http://server.test", token: "secret-token", fingerprint: null, fetch, requestLog})
   return {client, requestLog}
 }
+
+const connectTimeout = () =>
+  new TypeError("fetch failed", {
+    cause: markConnectFailure(Object.assign(new Error("Connect Timeout Error"), {code: "UND_ERR_CONNECT_TIMEOUT"})),
+  })
+
+describe("DailySyncClient connection retry", () => {
+  it("retries a connection failure once on a fresh attempt, logging the first as WARN", async () => {
+    let calls = 0
+    const {client, requestLog} = makeClient(async () => {
+      if (++calls === 1) throw connectTimeout()
+      return envelope(200, {ok: true, data: {agents: []}})
+    })
+
+    await client.listAgents()
+
+    expect(calls).toBe(2)
+    const entries = requestLog.list()
+    expect(entries).toHaveLength(2)
+    expect(entries.map((e) => e.level).sort()).toEqual(["info", "warn"])
+    const warn = entries.find((e) => e.level === "warn")!
+    expect(warn.status).toBeNull()
+    expect(warn.error).toContain("UND_ERR_CONNECT_TIMEOUT")
+    expect(warn.error).toContain("retrying")
+  })
+
+  it("gives up after one retry and names the connection phase", async () => {
+    let calls = 0
+    const {client} = makeClient(async () => {
+      calls++
+      throw connectTimeout()
+    })
+
+    await expect(client.listAgents()).rejects.toThrow("(connection failed)")
+    expect(calls).toBe(2)
+  })
+
+  it("does not retry a reset after the request reached the server", async () => {
+    let requests = 0
+    const server = createServer((socket) => {
+      let received = ""
+      socket.on("error", () => {})
+      socket.on("data", (chunk) => {
+        received += chunk.toString()
+        if (!received.includes("\r\n\r\n") || !received.includes("a1")) return
+        requests++
+        socket.resetAndDestroy()
+      })
+    })
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve))
+    const {port} = server.address() as {port: number}
+
+    try {
+      const requestLog = new RequestLogBuffer()
+      const client = new DailySyncClient({baseUrl: `http://127.0.0.1:${port}`, token: "t", fingerprint: null, requestLog})
+
+      const error = await client.revokeAgent("a1").catch((e: Error) => e)
+
+      expect(requests).toBe(1)
+      expect(error).toMatchObject({code: SyncServerErrorCode.UNREACHABLE})
+      expect((error as Error).message).not.toContain("(connection failed)")
+      expect(requestLog.list().map((e) => e.level)).toEqual(["error"])
+    } finally {
+      server.close()
+    }
+  })
+
+  it("does not retry a response timeout, and names the 30 s wait", async () => {
+    let calls = 0
+    const {client} = makeClient(async () => {
+      calls++
+      throw new DOMException("The operation timed out.", "TimeoutError")
+    })
+
+    await expect(client.listAgents()).rejects.toThrow("The server did not respond within 30 s")
+    expect(calls).toBe(1)
+  })
+
+  it("does not retry a fingerprint mismatch", async () => {
+    let calls = 0
+    const {client} = makeClient(async () => {
+      calls++
+      throw new TypeError("fetch failed", {cause: new SyncServerError(SyncServerErrorCode.FINGERPRINT_MISMATCH, "mismatch")})
+    })
+
+    await expect(client.listAgents()).rejects.toMatchObject({code: SyncServerErrorCode.FINGERPRINT_MISMATCH})
+    expect(calls).toBe(1)
+  })
+})
 
 describe("DailySyncClient request log", () => {
   it("logs a success as INFO with the path stripped of its query and no token", async () => {
@@ -33,12 +124,13 @@ describe("DailySyncClient request log", () => {
     expect(refused.requestLog.list()[0]).toMatchObject({level: "warn", status: 403, error: "NOT_AGENT_OWNER: Not yours"})
 
     const down = makeClient(async () => {
-      throw new TypeError("fetch failed", {cause: Object.assign(new Error("Connect Timeout Error"), {code: "UND_ERR_CONNECT_TIMEOUT"})})
+      throw connectTimeout()
     })
     await expect(down.client.revokeAgent("a1")).rejects.toMatchObject({code: SyncServerErrorCode.UNREACHABLE})
-    expect(down.requestLog.list()[0]).toMatchObject({level: "error", status: null, method: "POST", path: "/v1/agents/revoke"})
-    expect(down.requestLog.list()[0].error).toBe(
-      "UNREACHABLE: Could not reach the server at http://server.test Cause: TypeError: fetch failed Cause: UND_ERR_CONNECT_TIMEOUT: Connect Timeout Error",
+    const final = down.requestLog.list().find((e) => e.level === "error")!
+    expect(final).toMatchObject({level: "error", status: null, method: "POST", path: "/v1/agents/revoke"})
+    expect(final.error).toBe(
+      "UNREACHABLE: Could not reach the server at http://server.test (connection failed) Cause: TypeError: fetch failed Cause: UND_ERR_CONNECT_TIMEOUT: Connect Timeout Error",
     )
   })
 
