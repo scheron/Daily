@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.41.0 - 2026-11-11
+
+### ✨ New Features
+
+- **Sync logs** — Settings → Sync shows requests between this Mac and the sync server in one list, with the date, time, and full cause of any failure. The whole log can be copied in one click. Server entries require the latest Daily Server.
+
+### 🎨 Improvements
+
+- **Sync** — sync errors appear next to the connection status with a retry button, and the reason shows on hover.
+
+---
+
 ## v0.40.1 - 2026-11-09
 
 ### 🎨 Improvements
