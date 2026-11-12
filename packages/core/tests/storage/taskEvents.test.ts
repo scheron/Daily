@@ -224,10 +224,10 @@ describe("task activity recording", () => {
     expect(events.getByTask(task.id).some((event) => event.type === "edited")).toBe(false)
   })
 
-  it("records all categories from one save and preserves their actor", async () => {
+  it("records all categories from one human save and preserves their actor", async () => {
     const project = new BranchModel(db).createBranch({name: "Release"})
     const task = await service.createTask(makeTask({content: "A"}))
-    const source = {kind: "mcp", provider: "Codex"}
+    const source = {kind: "manual"}
 
     await service.updateTask(
       task.id,
@@ -243,7 +243,7 @@ describe("task activity recording", () => {
 
     const history = (await service.getHistoryByTask(task.id)).filter((event) => event.type !== "created")
     expect(history.map((event) => event.type).sort()).toEqual(["edited", "moved", "priority_changed", "project_changed", "status_changed"])
-    expect(history.every((event) => event.kind === "mcp" && event.provider === "Codex")).toBe(true)
+    expect(history.every((event) => event.kind === "manual" && event.provider === null)).toBe(true)
     expect(history.find((event) => event.type === "status_changed")).toMatchObject({fromStatus: "in_progress", toStatus: "ready_to_merge"})
     expect(history.find((event) => event.type === "project_changed")).toMatchObject({fromBranchId: "main", toBranchId: project.id})
   })

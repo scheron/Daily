@@ -69,7 +69,9 @@ it("keeps existing planned and executing statuses with their dates during normal
     milestone_id: null,
     priority: "high",
   }))
-  expect(normalizeSnapshotDocs(legacyDocs({tasks})).tasks).toEqual(tasks)
+  expect(normalizeSnapshotDocs(legacyDocs({tasks})).tasks).toEqual(
+    tasks.map((task) => ({...task, workflow_generation: "", workflow_time_baseline: 0})),
+  )
 })
 
 it("reads legacy projects with the standard icon and preserves complete emoji from new snapshots", () => {

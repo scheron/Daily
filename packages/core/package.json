@@ -18,7 +18,8 @@
     "./utils/sync/snapshot/assertKnownSnapshotVersion": "./src/utils/sync/snapshot/assertKnownSnapshotVersion.ts",
     "./utils/sync/snapshot/buildSnapshot": "./src/utils/sync/snapshot/buildSnapshot.ts",
     "./utils/sync/snapshot/isValidSnapshot": "./src/utils/sync/snapshot/isValidSnapshot.ts",
-    "./utils/sync/snapshot/normalizeSnapshotDocs": "./src/utils/sync/snapshot/normalizeSnapshotDocs.ts"
+    "./utils/sync/snapshot/normalizeSnapshotDocs": "./src/utils/sync/snapshot/normalizeSnapshotDocs.ts",
+    "./storage/TaskWorkflowError": "./src/errors/task-workflow/TaskWorkflowError.ts"
   },
   "dependencies": {
     "@daily/protocol": "workspace:*",

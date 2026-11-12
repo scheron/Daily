@@ -1,17 +1,25 @@
 import {mkdtempSync, rmSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import {describe, expect, it} from "vitest"
+import {describe, expect, it, vi} from "vitest"
 
 import {KNOWN_SNAPSHOT_VERSION} from "@daily/core/utils/sync/snapshot/assertKnownSnapshotVersion"
+import {buildSnapshot} from "@daily/core/utils/sync/snapshot/buildSnapshot"
 import {ToolErrorCode} from "@daily/tools"
 
 import {AGENT_WRITE_ATTEMPTS, runInAgentWorkspace} from "../../src/agents/AgentWorkspace"
+import {runAgentTool} from "../../src/agents/runAgentTool"
 import {readRevision, readSnapshot, writeSnapshotIfUnchanged} from "../../src/snapshot/SnapshotStore"
 import {openServerStore} from "../../src/store/instance"
 import {bindAgent, bindDevice, makeTaskDraft, openMacCore, rawSnapshotDocument, seedAgentStore, writeMacSnapshot} from "./helpers"
 
+import type * as SnapshotStore from "../../src/snapshot/SnapshotStore"
 import type {ServerStore} from "../../src/store/instance"
+
+vi.mock("../../src/snapshot/SnapshotStore", async (importOriginal) => {
+  const actual = await importOriginal<typeof SnapshotStore>()
+  return {...actual, writeSnapshotIfUnchanged: vi.fn(actual.writeSnapshotIfUnchanged)}
+})
 
 type BareStore = {store: ServerStore; dataDir: string; close(): void}
 
@@ -30,6 +38,98 @@ function openBareStore(): BareStore {
 }
 
 describe("the agent workspace cycle", () => {
+  it("an exhausted workflow snapshot conflict returns current task state without persisting the failed operation", async () => {
+    let taskId = ""
+    const seeded = await seedAgentStore(async (mac) => {
+      taskId = (await mac.core.tasksService.createTask(makeTaskDraft()))!.id
+    })
+    const actual = await vi.importActual<typeof SnapshotStore>("../../src/snapshot/SnapshotStore")
+    try {
+      const agent = bindAgent(seeded.store)
+      const deps = {store: seeded.store}
+      const before = await runInAgentWorkspace(deps, agent, "read", (ctx) => ctx.workStorage.getTaskWorkflow(taskId))
+      const rivalSnapshots = []
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        await seeded.mac.core.tasksService.createTask(makeTaskDraft({content: `Unrelated task ${attempt}`}))
+        rivalSnapshots.push(buildSnapshot(await seeded.mac.core.localAdapter.loadAllDocs()))
+      }
+
+      let attempts = 0
+      vi.mocked(writeSnapshotIfUnchanged).mockImplementation((store, document, revision, deviceId) => {
+        actual.writeSnapshotIfUnchanged(store, rivalSnapshots[attempts++], revision, seeded.deviceId)
+        return actual.writeSnapshotIfUnchanged(store, document, revision, deviceId)
+      })
+
+      const outcome = await runAgentTool(deps, agent, {
+        name: "update_task_workflow",
+        input: {taskId, operationId: "uncommitted-start", expectedRevision: before.revision, kind: "start", sessionId: "working"},
+      })
+
+      expect(attempts).toBe(3)
+      expect(readRevision(seeded.store)).toBe(String(Number(seeded.revision) + 3))
+      const after = await runInAgentWorkspace(deps, agent, "read", (ctx) => ctx.workStorage.getTaskWorkflow(taskId))
+      expect(after.records).toEqual([])
+      expect(after.confirmedSeconds).toBe(0)
+      expect(outcome).toMatchObject({
+        ok: false,
+        error: {code: ToolErrorCode.WRITE_CONFLICT, current: {task: {id: taskId}, revision: before.revision, records: []}},
+      })
+    } finally {
+      vi.mocked(writeSnapshotIfUnchanged).mockImplementation(actual.writeSnapshotIfUnchanged)
+      seeded.close()
+    }
+  })
+
+  it("a workflow heartbeat retried after a snapshot race credits only time observed at request entry", async () => {
+    let taskId = ""
+    const seeded = await seedAgentStore(async (mac) => {
+      taskId = (await mac.core.tasksService.createTask(makeTaskDraft()))!.id
+    })
+    try {
+      const agent = bindAgent(seeded.store)
+      let now = 1000
+      let monotonic = 0
+      const deps = {
+        store: seeded.store,
+        now() {
+          return new Date(now)
+        },
+        monotonicNow() {
+          return monotonic
+        },
+      }
+      const start = await runInAgentWorkspace(deps, agent, "write", async (ctx) => {
+        const state = await ctx.workStorage.getTaskWorkflow(taskId)
+        return ctx.workStorage.executeTaskWorkflow(
+          {taskId, operationId: "start", expectedRevision: state.revision, kind: "start", sessionId: "working"},
+          {actorId: ctx.workflowActorId, source: ctx.source},
+        )
+      })
+      now = 11000
+      monotonic = 10000
+      let first = true
+      const heartbeat = await runInAgentWorkspace(deps, agent, "write", async (ctx) => {
+        const receipt = await ctx.workStorage.executeTaskWorkflow(
+          {taskId, operationId: "heartbeat", expectedRevision: start.revision, kind: "heartbeat", sessionId: "working"},
+          {actorId: ctx.workflowActorId, source: ctx.source},
+        )
+        if (first) {
+          first = false
+          const stored = readSnapshot(seeded.store)!
+          writeSnapshotIfUnchanged(seeded.store, stored.document, stored.revision, seeded.deviceId)
+          now = 21000
+          monotonic = 20000
+        }
+        return receipt
+      })
+      expect(heartbeat.confirmedSeconds).toBe(10)
+      const state = await runInAgentWorkspace(deps, agent, "read", (ctx) => ctx.workStorage.getTaskWorkflow(taskId))
+      expect(state.confirmedSeconds).toBe(10)
+      expect(state.records.find((record) => record.command.operationId === "heartbeat")?.createdAt).toBe(11000)
+    } finally {
+      seeded.close()
+    }
+  })
   it("TC-9: a read-mode call sees the stored snapshot's tasks and leaves the stored revision unchanged", async () => {
     const seeded = await seedAgentStore(async (mac) => {
       await mac.core.tasksService.createTask(makeTaskDraft({content: "Buy milk"}))

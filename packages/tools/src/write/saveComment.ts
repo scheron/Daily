@@ -43,7 +43,7 @@ async function createComment(ctx: ToolContext, input: Record<string, unknown>, c
 }
 
 async function updateComment(ctx: ToolContext, id: TaskComment["id"], content: string): Promise<TaskComment> {
-  const changeset = await ctx.workStorage.updateComment(id, content)
+  const changeset = await ctx.workStorage.updateComment(id, content, ctx.source)
   const updated = changeset.comments?.upserted?.[0]
   if (!updated) throw new ToolError(ToolErrorCode.NOT_FOUND, `No comment "${id}".`)
 

@@ -6,6 +6,8 @@ export function mockBridgeIPC(overrides = {}) {
   const noopOn = vi.fn()
   const bridge = {
     send: vi.fn(),
+    on: vi.fn(() => noopOn),
+    "workflow:get-task": vi.fn().mockResolvedValue({ok: false, code: "unavailable", message: "No workflow fixture", current: null}),
     "toast:publish": vi.fn(),
     "toast:on-show": vi.fn(() => noopOn),
     "settings:load": vi.fn().mockResolvedValue({

@@ -3,6 +3,7 @@ import {useRoute, useRouter} from "vue-router"
 
 import {isString} from "@daily/std"
 
+import AgentSettings from "../{fragments}/AgentSettings.vue"
 import AiSettings from "../{fragments}/AiSettings"
 import DeletedTasks from "../{fragments}/DeletedTasks"
 import GeneralSettings from "../{fragments}/GeneralSettings"
@@ -13,7 +14,7 @@ import type {IconName} from "@/types/icons"
 import type {ComponentInstance} from "vue"
 
 export function useSettingsNav() {
-  type SettingsPanel = "general" | "projects" | "sync" | "ai" | "deleted-tasks"
+  type SettingsPanel = "general" | "projects" | "agents" | "sync" | "ai" | "deleted-tasks"
 
   type SettingsSection = {
     id: SettingsPanel
@@ -25,6 +26,7 @@ export function useSettingsNav() {
   const sections: SettingsSection[] = [
     {id: "general", icon: "cog", label: "General", component: GeneralSettings},
     {id: "projects", icon: "monitor", label: "Projects", component: ProjectsSettings},
+    {id: "agents", icon: "bot", label: "Agents", component: AgentSettings},
     {id: "sync", icon: "cloud", label: "Sync", component: SyncSettings},
     {id: "ai", icon: "ai", label: "Daily AI", component: AiSettings},
     {id: "deleted-tasks", icon: "trash", label: "Recently Deleted", component: DeletedTasks},

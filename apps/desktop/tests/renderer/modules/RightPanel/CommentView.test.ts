@@ -129,7 +129,10 @@ describe("Comment view in the task panel", () => {
     wrapper = mount(RightPanel, {
       attachTo: document.body,
       props: {width: 420},
-      global: {directives: {tooltip: {}}, stubs: {Toolbar: true, Details: true, Editor: true, ...(options.subtasks ? {} : {Subtasks: true})}},
+      global: {
+        directives: {tooltip: {}},
+        stubs: {Toolbar: true, Details: true, Editor: true, TaskWorkflow: true, ...(options.subtasks ? {} : {Subtasks: true})},
+      },
     })
     await flushPromises()
     return {editor, comments: useTaskCommentsStore()}

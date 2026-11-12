@@ -58,14 +58,14 @@ describe("LocalStorageAdapter", () => {
 
   beforeEach(() => {
     db = createTestDatabase()
-    adapter = new LocalStorageAdapter(db, new FileModel(db, "/tmp/daily-local-storage-adapter"))
+    adapter = new LocalStorageAdapter(db, new FileModel(db, join(tmpdir(), "daily-local-storage-adapter")))
   })
 
   afterEach(() => {
     db.close()
   })
 
-  it("exchanges a v16 project emoji between databases and lets a newer snapshot clear it", async () => {
+  it("exchanges a v20 project emoji between databases and lets a newer snapshot clear it", async () => {
     const branch = {id: "emoji-project", name: "Space", description: "Mission", emoji: "👩🏽‍🚀", created_at: now, updated_at: now, deleted_at: null}
     await adapter.upsertDocs({
       tasks: [],
@@ -79,11 +79,11 @@ describe("LocalStorageAdapter", () => {
       events: [],
     })
     const snapshot = JSON.parse(JSON.stringify(buildSnapshot(await adapter.loadAllDocs())))
-    expect(snapshot.version).toBe(16)
+    expect(snapshot.version).toBe(20)
     expect(snapshot.docs.branches).toContainEqual(branch)
     const otherDb = createTestDatabase()
     try {
-      const other = new LocalStorageAdapter(otherDb, new FileModel(otherDb, "/tmp/daily-local-storage-adapter-other"))
+      const other = new LocalStorageAdapter(otherDb, new FileModel(otherDb, join(tmpdir(), "daily-local-storage-adapter-other")))
       const merged = mergeRemoteIntoLocal(await other.loadAllDocs(), snapshot.docs, "pull", 7 * 24 * 60 * 60 * 1000)
       await other.upsertDocs(merged.toUpsert)
       expect((await other.loadAllDocs()).branches).toContainEqual(branch)
@@ -94,7 +94,7 @@ describe("LocalStorageAdapter", () => {
     }
   })
 
-  it("imports legacy snapshot statuses through merge and SQLite and publishes v16 with the same task fields", async () => {
+  it("imports legacy snapshot statuses through merge and SQLite and publishes v20 with the same task fields", async () => {
     insertTask(db, "legacy-active", "Keep content", {date: "2026-10-29"})
     insertTask(db, "legacy-discarded", "Keep cancellation", {status: "cancelled", date: "2026-10-28"})
     insertTag(db, "legacy-tag", "Keep tag")
@@ -107,10 +107,10 @@ describe("LocalStorageAdapter", () => {
     await adapter.upsertDocs(merged.toUpsert)
     const restored = await adapter.loadAllDocs()
     expect(restored.tasks).toEqual(current.tasks)
-    expect(buildSnapshot(restored).version).toBe(16)
+    expect(buildSnapshot(restored).version).toBe(20)
   })
 
-  it("round-trips To Do with its tags and subtask through a v16 snapshot into another database", async () => {
+  it("round-trips To Do with its tags and subtask through a v20 snapshot into another database", async () => {
     insertTask(db, "t1", "Parent", {status: "todo"})
     insertTag(db, "todo-tag", "Planned")
     linkTaskTag(db, "t1", "todo-tag")
@@ -123,11 +123,11 @@ describe("LocalStorageAdapter", () => {
     ])
 
     const otherDb = createTestDatabase()
-    const other = new LocalStorageAdapter(otherDb, new FileModel(otherDb, "/tmp/daily-local-storage-adapter"))
+    const other = new LocalStorageAdapter(otherDb, new FileModel(otherDb, join(tmpdir(), "daily-local-storage-adapter")))
     await other.upsertDocs(snapshot.docs)
 
     const restored = await other.loadAllDocs()
-    expect(snapshot.version).toBe(16)
+    expect(snapshot.version).toBe(20)
     expect(restored.tasks).toEqual(snapshot.docs.tasks)
     expect(restored.tasks[0]).toMatchObject({status: "todo", scheduled_date: "2026-03-25", tags: ["todo-tag"]})
     expect(restored.subtasks).toEqual(snapshot.docs.subtasks)
@@ -577,7 +577,7 @@ describe("LocalStorageAdapter", () => {
       expect(snapshot.docs.tasks.find((t) => t.id === "t1")?.priority).toBe("high")
 
       const otherDb = createTestDatabase()
-      const otherAdapter = new LocalStorageAdapter(otherDb, new FileModel(otherDb, "/tmp/daily-local-storage-adapter-priority"))
+      const otherAdapter = new LocalStorageAdapter(otherDb, new FileModel(otherDb, join(tmpdir(), "daily-local-storage-adapter-priority")))
       await otherAdapter.upsertDocs(snapshot.docs)
 
       const roundTripped = await otherAdapter.loadAllDocs()
@@ -607,7 +607,7 @@ describe("LocalStorageAdapter", () => {
       const snapshot = buildSnapshot(sourceDocs)
 
       const otherDb = createTestDatabase()
-      const otherAdapter = new LocalStorageAdapter(otherDb, new FileModel(otherDb, "/tmp/daily-local-storage-adapter-other"))
+      const otherAdapter = new LocalStorageAdapter(otherDb, new FileModel(otherDb, join(tmpdir(), "daily-local-storage-adapter-other")))
       await otherAdapter.upsertDocs(snapshot.docs)
 
       const roundTripped = await otherAdapter.loadAllDocs()

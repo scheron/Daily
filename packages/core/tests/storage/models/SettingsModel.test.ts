@@ -1,4 +1,5 @@
 import {mkdtempSync, rmSync} from "node:fs"
+import {tmpdir} from "node:os"
 import {join} from "node:path"
 import Database from "better-sqlite3"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
@@ -98,7 +99,7 @@ describe("SettingsModel", () => {
   })
 
   it("normalizes replacement column orders on save and keeps them through unrelated saves and real SQLite reopens", async () => {
-    const directory = mkdtempSync("/tmp/daily-column-order-settings-")
+    const directory = mkdtempSync(join(tmpdir(), "daily-column-order-settings-"))
     try {
       const filename = join(directory, "settings.sqlite")
       db.exec(`VACUUM INTO '${filename}'`)
@@ -159,7 +160,7 @@ describe("SettingsModel", () => {
   })
 
   it("keeps compact after partial saves and reopening a real SQLite database without leaking it into snapshots", async () => {
-    const directory = mkdtempSync("/tmp/daily-task-view-settings-")
+    const directory = mkdtempSync(join(tmpdir(), "daily-task-view-settings-"))
     try {
       settingsModel.saveSettings({appearance: {taskView: "compact", mode: "dark", boardMode: "agents"}})
       settingsModel.saveSettings({menuBar: {isVisible: false}})
@@ -288,7 +289,7 @@ describe("SettingsModel", () => {
     expect(JSON.parse(db.prepare("SELECT data FROM settings WHERE id = 'default'").get().data).sync).toBeUndefined()
     expect(JSON.parse(db.prepare("SELECT data FROM device_settings WHERE id = 'sync'").get().data).server).toEqual({enabled: true, binding})
 
-    const docs = await new LocalStorageAdapter(db, new FileModel(db, "/tmp/daily-settings-model")).loadAllDocs()
+    const docs = await new LocalStorageAdapter(db, new FileModel(db, join(tmpdir(), "daily-settings-model"))).loadAllDocs()
     const snapshot = buildSnapshot(docs)
     expect(snapshot.docs).not.toHaveProperty("settings")
     expect(JSON.stringify(snapshot)).not.toContain("super-secret-token")

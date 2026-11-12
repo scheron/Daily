@@ -1,3 +1,6 @@
+import {randomUUID} from "node:crypto"
+import {performance} from "node:perf_hooks"
+
 import {dataPaths} from "@daily/core/config/paths"
 import {createStorageCore} from "@daily/core/storage/createStorageCore"
 import {runMigrations} from "@daily/core/storage/database/scripts/migrate"
@@ -18,14 +21,10 @@ import type {ActorSource, Snapshot, SnapshotDocs} from "@daily/protocol"
 import type {ToolClock, ToolContext, ToolMode} from "@daily/tools"
 import type {ServerStore} from "../store/instance"
 
-/**
- * The agent a tool call runs as: the Mac it was approved from, the time zone that Mac reads its
- * days in, and the name it was approved under — the `agents` row's own `name`, never anything the
- * call itself carries, so a tool can attribute what it writes to the client a person let in.
- */
-export type AgentIdentity = {deviceId: string; timeZone: string; name: string}
+/** Attribution uses the approved agent name and bound device, never an identity supplied in tool input. */
+export type AgentIdentity = {agentId: string; deviceId: string; timeZone: string; name: string}
 
-export type AgentWorkspaceDeps = {store: ServerStore; now?: () => Date}
+export type AgentWorkspaceDeps = {store: ServerStore; now?: () => Date; monotonicNow?: () => number; runtimeId?: string}
 
 /** Durable work a tool call defers until the snapshot it wrote has actually committed. */
 export type AgentCommitEffect = () => Promise<void>
@@ -37,14 +36,8 @@ const SNAPSHOT_UNREADABLE_MESSAGE = "The Daily data stored on this server could 
 
 const writeLocks = new WeakMap<ServerStore, AsyncMutex>()
 
-/**
- * Runs one tool call against the snapshot the server stores: loads it into a throwaway in-memory
- * core, hands `run` the shared host context over it, and — in write mode — stores the rebuilt
- * snapshot back at the revision it was read at, attributed to the agent's Mac.
- *
- * @param mode `"read"` never writes and makes one attempt; `"write"` and `"delete"` are both serialised per store and retry a lost race up to `AGENT_WRITE_ATTEMPTS` times.
- * @throws ToolError when the stored snapshot cannot serve the call, when every write attempt loses its race, or when `run` itself refuses.
- */
+/** Freezes host observations before retries; write/delete calls serialize per store and retry revision conflicts up to AGENT_WRITE_ATTEMPTS.
+ * Reads never persist; unreadable snapshots, exhausted retries and tool refusals reject. */
 export async function runInAgentWorkspace<T>(
   deps: AgentWorkspaceDeps,
   agent: AgentIdentity,
@@ -52,8 +45,28 @@ export async function runInAgentWorkspace<T>(
   run: (ctx: ToolContext) => Promise<T>,
 ): Promise<T> {
   const clock = buildAgentClock(agent.timeZone, deps.now)
+  let runtimeId = deps.runtimeId ?? runtimeIds.get(deps.store)
+  if (!runtimeId) {
+    runtimeId = randomUUID()
+    runtimeIds.set(deps.store, runtimeId)
+  }
+  const observedAt = (deps.now?.() ?? new Date()).getTime()
+  const observedMonotonic = deps.monotonicNow?.() ?? performance.now()
+  const observedSchedule = createClock(agent.timeZone, () => new Date(observedAt)).scheduledNow()
+  const workflowHost = {
+    runtimeId,
+    now() {
+      return observedAt
+    },
+    monotonicNow() {
+      return observedMonotonic
+    },
+    scheduledNow() {
+      return observedSchedule
+    },
+  }
 
-  if (mode === "read") return runAttempt(deps.store, agent, clock, mode, run)
+  if (mode === "read") return runAttempt(deps.store, agent, clock, mode, run, workflowHost)
 
   let lock = writeLocks.get(deps.store)
   if (!lock) {
@@ -64,7 +77,7 @@ export async function runInAgentWorkspace<T>(
   return lock.runExclusive(async () => {
     for (let attempt = 1; attempt <= AGENT_WRITE_ATTEMPTS; attempt++) {
       try {
-        return await runAttempt(deps.store, agent, clock, mode, run)
+        return await runAttempt(deps.store, agent, clock, mode, run, workflowHost)
       } catch (error) {
         if (!(error instanceof ProtocolError) || error.code !== ProtocolErrorCode.REVISION_CONFLICT) throw error
       }
@@ -76,6 +89,8 @@ export async function runInAgentWorkspace<T>(
     )
   })
 }
+
+const runtimeIds = new WeakMap<ServerStore, string>()
 
 function buildAgentClock(timeZone: string, now?: () => Date): ToolClock {
   try {
@@ -94,6 +109,7 @@ async function runAttempt<T>(
   clock: ToolClock,
   mode: ToolMode,
   run: (ctx: ToolContext) => Promise<T>,
+  workflowHost: NonNullable<ConstructorParameters<typeof WorkStorage>[3]>,
 ): Promise<T> {
   const stored = readSnapshot(store)
 
@@ -134,21 +150,17 @@ async function runAttempt<T>(
     const core = createStorageCore(db, {...dataPaths(() => store.dataDir), remoteSyncPath: () => ""}, {today: () => clock.today()})
 
     try {
-      await core.localAdapter.upsertDocs(normalizeSnapshotDocs(stored.document.docs as SnapshotDocs))
+      await core.localAdapter.upsertDocs(normalizeSnapshotDocs(stored.document.docs as SnapshotDocs, stored.version))
     } catch {
       throw new ToolError(ToolErrorCode.SNAPSHOT_UNREADABLE, SNAPSHOT_UNREADABLE_MESSAGE)
     }
 
     const commitEffects: AgentCommitEffect[] = []
-    const afterCommit = (effect: AgentCommitEffect) => {
-      commitEffects.push(effect)
-    }
-
-    const workStorage = new WorkStorage(core, db, () => {})
+    const workStorage = new WorkStorage(core, db, () => {}, workflowHost)
     const source: ActorSource = {kind: "mcp", provider: agent.name}
     const files = buildServerFilesPort(store, agent.deviceId, afterCommit)
 
-    const result = await run({workStorage, clock, source, files})
+    const result = await run({workStorage, clock, source, files, workflowActorId: agent.agentId})
     if (mode === "read") return result
 
     const built = buildSnapshot(await core.localAdapter.loadAllDocs())
@@ -171,6 +183,10 @@ async function runAttempt<T>(
     for (const effect of commitEffects) await effect()
 
     return result
+
+    function afterCommit(effect: AgentCommitEffect) {
+      commitEffects.push(effect)
+    }
   } finally {
     db.close()
   }

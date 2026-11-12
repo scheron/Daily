@@ -1,8 +1,14 @@
+import {randomUUID} from "node:crypto"
+
 import {NO_PROJECT_ID} from "@daily/protocol"
 import {notUndefined} from "@daily/std"
 
 import {logger} from "../../utils/logger"
+import {confirmedWorkflowSeconds} from "../../utils/task-workflow/confirmedWorkflowSeconds"
+import {validateWorkflowTimeMetadata} from "../../utils/task-workflow/validateWorkflowTimeMetadata"
+import {workflowSpentTime} from "../../utils/task-workflow/workflowSpentTime"
 import {rowToTask} from "./_rowMappers"
+import {WorkflowRecordModel} from "./WorkflowRecordModel"
 
 import type {Branch, ISODate, Milestone, Tag, Task} from "@daily/protocol"
 import type {SqliteDriver} from "../../database/SqliteDriver"
@@ -21,6 +27,7 @@ const TASK_SELECT = `
     t.scheduled_timezone,
     t.estimated_time,
     t.spent_time,
+    t.workflow_time_baseline,
     t.branch_id,
     t.milestone_id,
     t.created_at,
@@ -35,7 +42,7 @@ const TASK_SELECT = `
 `
 
 export class TaskModel {
-  constructor(private db: SqliteDriver) {}
+  constructor(private _db: SqliteDriver) {}
 
   getTaskList(params?: {
     from?: ISODate
@@ -84,16 +91,16 @@ export class TaskModel {
       sql += ` LIMIT ${params.limit}`
     }
 
-    const rows = this.db.prepare(sql).all(...values) as any[]
+    const rows = this._db.prepare(sql).all(...values) as any[]
 
     logger.info(logger.CONTEXT.TASKS, `Loaded ${rows.length} tasks from database`)
 
-    return rows.map(rowToTask)
+    return rows.map((row) => this._projectTask(row))
   }
 
   getTask(id: Task["id"]): Task | null {
     const sql = `${TASK_SELECT} WHERE t.id = ?`
-    const row = this.db.prepare(sql).get(id) as any
+    const row = this._db.prepare(sql).get(id) as any
 
     if (!row) {
       logger.debug(logger.CONTEXT.TASKS, `Task not found: ${id}`)
@@ -101,18 +108,27 @@ export class TaskModel {
     }
 
     logger.debug(logger.CONTEXT.TASKS, `Returned task: ${id}`)
-    return rowToTask(row)
+    return this._projectTask(row)
   }
 
   addTaskSpentTime(id: Task["id"], seconds: number): Task | null {
-    const updated = this.db
-      .prepare("UPDATE tasks SET spent_time = spent_time + ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL")
-      .run(seconds, new Date().toISOString(), id)
-
-    return updated.changes ? this.getTask(id) : null
+    validateWorkflowTimeMetadata(seconds, 0)
+    return this._db.transaction(() => {
+      const row = this._db
+        .prepare("SELECT spent_time, workflow_time_baseline FROM tasks WHERE id = ? AND deleted_at IS NULL")
+        .get<{spent_time: number; workflow_time_baseline: number}>(id)
+      if (!row) return null
+      validateWorkflowTimeMetadata(row.spent_time, row.workflow_time_baseline)
+      validateWorkflowTimeMetadata(row.spent_time + seconds, row.workflow_time_baseline)
+      this._db
+        .prepare("UPDATE tasks SET spent_time = spent_time + ?, updated_at = ?, workflow_generation = ? WHERE id = ? AND deleted_at IS NULL")
+        .run(seconds, new Date().toISOString(), randomUUID(), id)
+      return this.getTask(id)
+    })()
   }
 
   createTask(task: Omit<TaskInternal, "createdAt" | "updatedAt">): Task | null {
+    validateWorkflowTimeMetadata(task.spentTime, 0)
     const id = task.id
     const now = new Date().toISOString()
     const branchId = task.branchId ?? NO_PROJECT_ID
@@ -122,8 +138,8 @@ export class TaskModel {
     const scheduledTime = task.scheduled?.time ?? null
     const scheduledTimezone = task.scheduled?.timezone ?? null
 
-    const run = this.db.transaction(() => {
-      this.db
+    const run = this._db.transaction(() => {
+      this._db
         .prepare(
           `
         INSERT INTO tasks (
@@ -154,7 +170,7 @@ export class TaskModel {
         )
 
       for (const tagId of tags) {
-        this.db.prepare(`INSERT OR IGNORE INTO task_tags (task_id, tag_id) VALUES (?, ?)`).run(id, tagId)
+        this._db.prepare(`INSERT OR IGNORE INTO task_tags (task_id, tag_id) VALUES (?, ?)`).run(id, tagId)
       }
     })
 
@@ -166,14 +182,16 @@ export class TaskModel {
 
   /** Whether a milestone exists and belongs to the given project. Used to refuse a cross-project reference before it is written. */
   milestoneBelongsToBranch(milestoneId: Milestone["id"], branchId: Branch["id"]): boolean {
-    const row = this.db.prepare(`SELECT 1 FROM milestones WHERE id = ? AND branch_id = ?`).get(milestoneId, branchId)
+    const row = this._db.prepare(`SELECT 1 FROM milestones WHERE id = ? AND branch_id = ?`).get(milestoneId, branchId)
     return Boolean(row)
   }
 
   updateTask(id: Task["id"], updates: Partial<TaskInternal>): Task | null {
+    if (notUndefined(updates.spentTime)) validateWorkflowTimeMetadata(updates.spentTime, 0)
     const now = new Date().toISOString()
-    const setClauses: string[] = []
-    const values: any[] = []
+    const setClauses: string[] = ["workflow_generation = ?"]
+    const values: any[] = [randomUUID()]
+    let baselineIndex = -1
 
     if (notUndefined(updates.status)) {
       setClauses.push("status = ?")
@@ -206,8 +224,9 @@ export class TaskModel {
     }
 
     if (notUndefined(updates.spentTime)) {
-      setClauses.push("spent_time = ?")
-      values.push(updates.spentTime)
+      setClauses.push("spent_time = ?", "workflow_time_baseline = ?")
+      values.push(updates.spentTime, 0)
+      baselineIndex = values.length - 1
     }
 
     if (notUndefined(updates.branchId)) {
@@ -244,9 +263,10 @@ export class TaskModel {
       }
     }
 
-    const run = this.db.transaction(() => {
+    const run = this._db.transaction(() => {
+      if (baselineIndex >= 0) values[baselineIndex] = confirmedWorkflowSeconds(new WorkflowRecordModel(this._db).getByTask(id), id)
       if (setClauses.length > 0) {
-        this.db
+        this._db
           .prepare(
             `
           UPDATE tasks SET ${setClauses.join(", ")}, updated_at = ? WHERE id = ?
@@ -254,18 +274,27 @@ export class TaskModel {
           )
           .run(...values, now, id)
       } else {
-        this.db.prepare(`UPDATE tasks SET updated_at = ? WHERE id = ?`).run(now, id)
+        this._db.prepare(`UPDATE tasks SET updated_at = ? WHERE id = ?`).run(now, id)
       }
 
       if (notUndefined(updates.tags)) {
-        this.db.prepare(`DELETE FROM task_tags WHERE task_id = ?`).run(id)
+        this._db.prepare(`DELETE FROM task_tags WHERE task_id = ?`).run(id)
         for (const tagId of updates.tags) {
-          this.db.prepare(`INSERT OR IGNORE INTO task_tags (task_id, tag_id) VALUES (?, ?)`).run(id, tagId)
+          this._db.prepare(`INSERT OR IGNORE INTO task_tags (task_id, tag_id) VALUES (?, ?)`).run(id, tagId)
         }
       }
     })
 
-    run()
+    if (baselineIndex >= 0 && !this._db.inTransaction) {
+      this._db.exec("BEGIN IMMEDIATE")
+      try {
+        run()
+        this._db.exec("COMMIT")
+      } catch (error) {
+        if (this._db.inTransaction) this._db.exec("ROLLBACK")
+        throw error
+      }
+    } else run()
 
     logger.storage("Updated", "TASKS", id)
     return this.getTask(id)
@@ -273,7 +302,9 @@ export class TaskModel {
 
   deleteTask(id: Task["id"]): boolean {
     const now = new Date().toISOString()
-    const result = this.db.prepare(`UPDATE tasks SET deleted_at = ?, updated_at = ? WHERE id = ?`).run(now, now, id)
+    const result = this._db
+      .prepare(`UPDATE tasks SET deleted_at = ?, updated_at = ?, workflow_generation = ? WHERE id = ?`)
+      .run(now, now, randomUUID(), id)
 
     logger.storage("Deleted", "TASKS", id)
     return result.changes > 0
@@ -282,9 +313,9 @@ export class TaskModel {
   /** Soft-deletes every task in a project in one statement. Returns the ids it touched, so the caller can drop exactly those from the search index. */
   deleteTasksByBranch(branchId: Branch["id"]): Task["id"][] {
     const now = new Date().toISOString()
-    const rows = this.db
-      .prepare(`UPDATE tasks SET deleted_at = ?, updated_at = ? WHERE branch_id = ? AND deleted_at IS NULL RETURNING id`)
-      .all<{id: string}>(now, now, branchId)
+    const rows = this._db
+      .prepare(`UPDATE tasks SET deleted_at = ?, updated_at = ?, workflow_generation = ? WHERE branch_id = ? AND deleted_at IS NULL RETURNING id`)
+      .all<{id: string}>(now, now, randomUUID(), branchId)
 
     logger.info(logger.CONTEXT.TASKS, `Deleted ${rows.length} tasks for branch ${branchId}`)
     return rows.map((row) => row.id)
@@ -311,16 +342,16 @@ export class TaskModel {
       sql += ` LIMIT ${params.limit}`
     }
 
-    const rows = this.db.prepare(sql).all(...values) as any[]
+    const rows = this._db.prepare(sql).all(...values) as any[]
 
     logger.info(logger.CONTEXT.TASKS, `Loaded ${rows.length} deleted tasks from database`)
 
-    return rows.map(rowToTask)
+    return rows.map((row) => this._projectTask(row))
   }
 
   restoreTask(id: Task["id"]): Task | null {
     const now = new Date().toISOString()
-    this.db.prepare(`UPDATE tasks SET deleted_at = NULL, updated_at = ? WHERE id = ?`).run(now, id)
+    this._db.prepare(`UPDATE tasks SET deleted_at = NULL, updated_at = ?, workflow_generation = ? WHERE id = ?`).run(now, randomUUID(), id)
 
     logger.storage("Restored", "TASKS", id)
     return this.getTask(id)
@@ -328,13 +359,13 @@ export class TaskModel {
 
   permanentlyDeleteTask(id: Task["id"]): boolean {
     const now = new Date().toISOString()
-    const result = this.db
+    const result = this._db
       .prepare(
         `
-      UPDATE tasks SET deleted_at = '1970-01-01T00:00:00.000Z', updated_at = ? WHERE id = ?
+      UPDATE tasks SET deleted_at = '1970-01-01T00:00:00.000Z', updated_at = ?, workflow_generation = ? WHERE id = ?
     `,
       )
-      .run(now, id)
+      .run(now, randomUUID(), id)
 
     logger.storage("Permanently Deleted", "TASKS", id)
     return result.changes > 0
@@ -346,35 +377,35 @@ export class TaskModel {
 
     if (branchId) {
       if (branchId === NO_PROJECT_ID) {
-        result = this.db
+        result = this._db
           .prepare(
             `
-          UPDATE tasks SET deleted_at = '1970-01-01T00:00:00.000Z', updated_at = ?
+          UPDATE tasks SET deleted_at = '1970-01-01T00:00:00.000Z', updated_at = ?, workflow_generation = ?
           WHERE deleted_at IS NOT NULL AND deleted_at >= '2000-01-01'
           AND (branch_id = ? OR branch_id IS NULL)
         `,
           )
-          .run(now, branchId)
+          .run(now, randomUUID(), branchId)
       } else {
-        result = this.db
+        result = this._db
           .prepare(
             `
-          UPDATE tasks SET deleted_at = '1970-01-01T00:00:00.000Z', updated_at = ?
+          UPDATE tasks SET deleted_at = '1970-01-01T00:00:00.000Z', updated_at = ?, workflow_generation = ?
           WHERE deleted_at IS NOT NULL AND deleted_at >= '2000-01-01'
           AND branch_id = ?
         `,
           )
-          .run(now, branchId)
+          .run(now, randomUUID(), branchId)
       }
     } else {
-      result = this.db
+      result = this._db
         .prepare(
           `
-        UPDATE tasks SET deleted_at = '1970-01-01T00:00:00.000Z', updated_at = ?
+        UPDATE tasks SET deleted_at = '1970-01-01T00:00:00.000Z', updated_at = ?, workflow_generation = ?
         WHERE deleted_at IS NOT NULL AND deleted_at >= '2000-01-01'
       `,
         )
-        .run(now)
+        .run(now, randomUUID())
     }
 
     logger.info(logger.CONTEXT.TASKS, `Permanently deleted ${result.changes} tasks`)
@@ -382,20 +413,38 @@ export class TaskModel {
   }
 
   addTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Task | null {
-    for (const tagId of tagIds) {
-      this.db.prepare(`INSERT OR IGNORE INTO task_tags (task_id, tag_id) VALUES (?, ?)`).run(taskId, tagId)
-    }
+    this._db.transaction(() => {
+      let changes = 0
+      for (const tagId of tagIds) {
+        changes += this._db.prepare(`INSERT OR IGNORE INTO task_tags (task_id, tag_id) VALUES (?, ?)`).run(taskId, tagId).changes
+      }
+      if (changes)
+        this._db.prepare("UPDATE tasks SET updated_at = ?, workflow_generation = ? WHERE id = ?").run(new Date().toISOString(), randomUUID(), taskId)
+    })()
 
     logger.debug(logger.CONTEXT.TASKS, `Added ${tagIds.length} tags to task ${taskId}`)
     return this.getTask(taskId)
   }
 
   removeTaskTags(taskId: Task["id"], tagIds: Tag["id"][]): Task | null {
-    for (const tagId of tagIds) {
-      this.db.prepare(`DELETE FROM task_tags WHERE task_id = ? AND tag_id = ?`).run(taskId, tagId)
-    }
+    this._db.transaction(() => {
+      let changes = 0
+      for (const tagId of tagIds) {
+        changes += this._db.prepare(`DELETE FROM task_tags WHERE task_id = ? AND tag_id = ?`).run(taskId, tagId).changes
+      }
+      if (changes)
+        this._db.prepare("UPDATE tasks SET updated_at = ?, workflow_generation = ? WHERE id = ?").run(new Date().toISOString(), randomUUID(), taskId)
+    })()
 
     logger.debug(logger.CONTEXT.TASKS, `Removed ${tagIds.length} tags from task ${taskId}`)
     return this.getTask(taskId)
+  }
+
+  private _projectTask(row: Parameters<typeof rowToTask>[0] & {workflow_time_baseline: number}): Task {
+    const task = rowToTask(row)
+    return {
+      ...task,
+      spentTime: workflowSpentTime(task.spentTime, row.workflow_time_baseline, new WorkflowRecordModel(this._db).getByTask(task.id), task.id),
+    }
   }
 }

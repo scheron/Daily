@@ -51,6 +51,8 @@ import type {
   TaskRelation,
   TaskRelationSets,
   TaskSearchResult,
+  TaskWorkflowResolution,
+  WorkflowGuidanceUpdate,
 } from "@daily/protocol"
 import type {PartialDeep} from "type-fest"
 import type {AppPaths} from "../config/paths"
@@ -77,7 +79,7 @@ export class StorageController implements IStorageController {
   private providerMigration!: ProviderMigrationService
   private localAdapter!: StorageCore["localAdapter"]
   private aiSessionModel!: StorageCore["aiSessionModel"]
-  private workStorageInstance!: WorkStorage
+  private _workStorageInstance!: WorkStorage
   private readonly requestLog = new RequestLogBuffer()
 
   private notifyStorageStatusChange?: (status: SyncStatus, prevStatus: SyncStatus) => void
@@ -111,7 +113,7 @@ export class StorageController implements IStorageController {
     this.searchService = core.searchService
     this.localAdapter = core.localAdapter
     this.aiSessionModel = core.aiSessionModel
-    this.workStorageInstance = new WorkStorage(core, this.db, (changeset) => this.notifyLocalChange(changeset))
+    this._workStorageInstance = new WorkStorage(core, this.db, (changeset) => this.notifyLocalChange(changeset))
   }
 
   async init(): Promise<void> {
@@ -264,12 +266,28 @@ export class StorageController implements IStorageController {
     return this.tasksService.getTask(id)
   }
 
+  async getTaskWorkflow(taskId: string) {
+    return this._workStorageInstance.getTaskWorkflow(taskId)
+  }
+
+  async getWorkflowGuidance(projectId?: string) {
+    return this._workStorageInstance.getWorkflowGuidance(projectId)
+  }
+
+  async updateWorkflowGuidance(update: WorkflowGuidanceUpdate) {
+    return this._workStorageInstance.updateWorkflowGuidance(update)
+  }
+
+  async resolveTaskWorkflowProposal(request: TaskWorkflowResolution) {
+    return this._workStorageInstance.resolveTaskWorkflowProposal(request)
+  }
+
   async updateTask(id: Task["id"], updates: PartialDeep<Task>, source?: ActorSource, spentTimeDelta?: number): Promise<Changeset> {
-    return this.workStorageInstance.updateTask(id, updates, source, spentTimeDelta)
+    return this._workStorageInstance.updateTask(id, updates, source, spentTimeDelta)
   }
 
   async addTaskSpentTime(id: Task["id"], seconds: number): Promise<Changeset> {
-    return this.workStorageInstance.addTaskSpentTime(id, seconds)
+    return this._workStorageInstance.addTaskSpentTime(id, seconds)
   }
 
   async toggleTaskMinimized(id: Task["id"], minimized: boolean): Promise<Changeset> {
@@ -303,13 +321,13 @@ export class StorageController implements IStorageController {
 
   /** Deleted tasks are already excluded from the live collection, so a permanent delete has nothing to name. Desktop-only — off `IWorkStorage`, so no shared tool can reach it. */
   async permanentlyDeleteTask(id: Task["id"]): Promise<boolean> {
-    return this.workStorageInstance.permanentlyDeleteTask(id)
+    return this._workStorageInstance.permanentlyDeleteTask(id)
   }
 
   /** Desktop-only — off `IWorkStorage`, so no shared tool can reach it. */
   async permanentlyDeleteAllDeletedTasks(): Promise<number> {
     const branchId = await this.branchesService.getActiveBranchId()
-    return this.workStorageInstance.permanentlyDeleteAllDeletedTasks(branchId)
+    return this._workStorageInstance.permanentlyDeleteAllDeletedTasks(branchId)
   }
   //#endregion
 
@@ -512,7 +530,7 @@ export class StorageController implements IStorageController {
 
   /** Desktop-only — off `IWorkStorage`, so no shared tool can reach it (the server's assets directory has no room to spare a GC accident). */
   async cleanupOrphanFiles(): Promise<void> {
-    return this.workStorageInstance.cleanupOrphanFiles()
+    return this._workStorageInstance.cleanupOrphanFiles()
   }
 
   /**
@@ -554,7 +572,7 @@ export class StorageController implements IStorageController {
 
   /** The one read and write path a shared tool runs against — the same instance for this controller's whole lifetime, built once by `attachCore`. */
   get workStorage(): IWorkStorage {
-    return this.workStorageInstance
+    return this._workStorageInstance
   }
 
   private notifyLocalChange(changeset: Changeset): void {

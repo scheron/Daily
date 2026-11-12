@@ -1,9 +1,13 @@
-import {ToolError, TOOLS} from "@daily/tools"
+import {TaskWorkflowError} from "@daily/core/storage/TaskWorkflowError"
+import {taskWorkflowView, ToolError, TOOLS} from "@daily/tools"
 
 import {buildToolContext} from "./toolContext"
 
 import type {Tool as SharedTool} from "@daily/tools"
 import type {RegisteredTool} from "@main/ai/tools/registry/types"
+
+/** Every tool agents over MCP and the Daily Assistant both share, in `@daily/tools`' own order. */
+export const SHARED_TOOLS: readonly RegisteredTool[] = TOOLS.map(wrapSharedTool)
 
 function wrapSharedTool(tool: SharedTool): RegisteredTool {
   return {
@@ -18,12 +22,12 @@ function wrapSharedTool(tool: SharedTool): RegisteredTool {
         const data = await tool.run(params, toolContext)
         return {success: true, data}
       } catch (err) {
-        if (err instanceof ToolError) return {success: false, error: err.message}
+        if (err instanceof ToolError || err instanceof TaskWorkflowError) {
+          const current = err instanceof TaskWorkflowError ? err.current : null
+          return {success: false, error: err.message, data: {code: err.code, ...(current && {current: taskWorkflowView(current)})}}
+        }
         throw err
       }
     },
   }
 }
-
-/** Every tool agents over MCP and the Daily Assistant both share, in `@daily/tools`' own order. */
-export const SHARED_TOOLS: readonly RegisteredTool[] = TOOLS.map(wrapSharedTool)

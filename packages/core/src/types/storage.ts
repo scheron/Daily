@@ -36,6 +36,12 @@ import type {
   TaskRelation,
   TaskRelationSets,
   TaskSearchResult,
+  TaskWorkflowReceipt,
+  TaskWorkflowResolution,
+  TaskWorkflowState,
+  WorkflowGuidance,
+  WorkflowGuidanceDocument,
+  WorkflowGuidanceUpdate,
 } from "@daily/protocol"
 import type {ReplaceValue} from "@daily/std"
 import type {PartialDeep} from "type-fest"
@@ -100,6 +106,10 @@ export interface IStorageController {
   init(): Promise<void>
 
   getTaskHistory(taskId: Task["id"]): Promise<TaskEvent[]>
+  getTaskWorkflow(taskId: string): Promise<TaskWorkflowState>
+  getWorkflowGuidance(projectId?: string): Promise<WorkflowGuidance>
+  updateWorkflowGuidance(update: WorkflowGuidanceUpdate): Promise<WorkflowGuidanceDocument>
+  resolveTaskWorkflowProposal(request: TaskWorkflowResolution): Promise<TaskWorkflowReceipt>
 
   /** Every live task of every project, backlog included. */
   getAllTasks(): Promise<Task[]>

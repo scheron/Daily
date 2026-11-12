@@ -8,7 +8,7 @@ import type {AgentWorkspaceDeps} from "../AgentWorkspace"
 import type {AgentToolOutcome} from "../runAgentTool"
 
 /** The agent behind one MCP request: its Mac, that Mac's time zone, and the name it was approved under. */
-export type McpCaller = {deviceId: string; timeZone: string | null; name: string}
+export type McpCaller = {agentId: string; deviceId: string; timeZone: string | null; name: string}
 
 export type McpToolDescription = {
   name: string
@@ -59,13 +59,17 @@ export async function callMcpTool(deps: AgentWorkspaceDeps, caller: McpCaller, p
   }
 
   const toolArguments = isObject<Record<string, unknown>>(rawArguments) ? rawArguments : {}
-  const outcome = await runAgentTool(deps, {deviceId: caller.deviceId, timeZone: caller.timeZone, name: caller.name}, {name, input: toolArguments})
+  const outcome = await runAgentTool(
+    deps,
+    {agentId: caller.agentId, deviceId: caller.deviceId, timeZone: caller.timeZone, name: caller.name},
+    {name, input: toolArguments},
+  )
 
   return {ok: true, result: renderToolOutcome(name, outcome)}
 }
 
 function renderToolOutcome(name: string, outcome: AgentToolOutcome): McpToolResult {
-  if (!outcome.ok) return errorResult(outcome.error.code, outcome.error.message)
+  if (!outcome.ok) return errorResult(outcome.error.code, outcome.error.message, outcome.error.current)
 
   if (name === "get_attachment") {
     const attachment = outcome.data as ToolAttachment
@@ -75,6 +79,6 @@ function renderToolOutcome(name: string, outcome: AgentToolOutcome): McpToolResu
   return {content: [{type: "text", text: JSON.stringify(outcome.data)}]}
 }
 
-function errorResult(code: ToolErrorCode, message: string): McpToolResult {
-  return {content: [{type: "text", text: JSON.stringify({error: {code, message}})}], isError: true}
+function errorResult(code: string, message: string, current?: unknown): McpToolResult {
+  return {content: [{type: "text", text: JSON.stringify({error: {code, message, ...(current ? {current} : {})}})}], isError: true}
 }

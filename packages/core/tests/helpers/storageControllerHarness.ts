@@ -1,5 +1,7 @@
 // @ts-nocheck
 import {rmSync} from "node:fs"
+import {tmpdir} from "node:os"
+import {join} from "node:path"
 import {nanoid} from "nanoid"
 import {onTestFinished} from "vitest"
 
@@ -50,7 +52,7 @@ export function makeTaskInput(overrides = {}) {
 }
 
 function makeTestPaths() {
-  const root = `/tmp/daily-test-${nanoid()}`
+  const root = join(tmpdir(), `daily-test-${nanoid()}`)
   onTestFinished(() => rmSync(root, {recursive: true, force: true}))
 
   return {

@@ -1,5 +1,7 @@
 import {randomUUID} from "node:crypto"
 import {rmSync} from "node:fs"
+import {tmpdir} from "node:os"
+import {join} from "node:path"
 import {onTestFinished} from "vitest"
 
 import {createStorageCore} from "@daily/core/storage/createStorageCore"
@@ -11,14 +13,49 @@ import type {Changeset, SqliteDriver} from "@daily/core"
 import type {ActorSource} from "@daily/protocol"
 import type {ToolClock, ToolContext, ToolFilesPort} from "../../src/types"
 
+export function makeRealWorkspace(source: ActorSource = {kind: "agent"}): {
+  db: SqliteDriver
+  core: ReturnType<typeof createStorageCore>
+  workStorage: WorkStorage
+  ctx: ToolContext
+  changesets: Changeset[]
+} {
+  const root = join(tmpdir(), `daily-tools-test-${randomUUID()}`)
+  onTestFinished(() => rmSync(root, {recursive: true, force: true}))
+
+  const db = createTestDatabase()
+  const core = createStorageCore(db, {
+    appDataRoot: () => root,
+    dbPath: () => `${root}/db`,
+    assetsDir: () => `${root}/assets`,
+    remoteSyncPath: () => `${root}/remote`,
+  })
+  const changesets: Changeset[] = []
+  const workStorage = new WorkStorage(core, db, (changeset) => changesets.push(changeset))
+
+  const ctx: ToolContext = {workStorage, clock: makeClock(), source, files: makeFilesPort(), workflowActorId: "test-assistant"}
+
+  return {db, core, workStorage, ctx, changesets}
+}
+
 function makeClock(): ToolClock {
   return {
     timeZone: "UTC",
-    today: () => "2026-03-24",
-    time: () => "09:00:00",
-    scheduledNow: () => ({date: "2026-03-24", time: "09:00:00", timezone: "UTC"}),
-    dayStart: (date) => `${date}T00:00:00.000Z`,
-    dayEndExclusive: (date) => `${date}T23:59:59.999Z`,
+    today() {
+      return "2026-03-24"
+    },
+    time() {
+      return "09:00:00"
+    },
+    scheduledNow() {
+      return {date: "2026-03-24", time: "09:00:00", timezone: "UTC"}
+    },
+    dayStart(date) {
+      return `${date}T00:00:00.000Z`
+    },
+    dayEndExclusive(date) {
+      return `${date}T23:59:59.999Z`
+    },
   }
 }
 
@@ -34,29 +71,4 @@ function makeFilesPort(): ToolFilesPort {
       return effect()
     },
   }
-}
-
-export function makeRealWorkspace(source: ActorSource = {kind: "agent"}): {
-  db: SqliteDriver
-  core: ReturnType<typeof createStorageCore>
-  workStorage: WorkStorage
-  ctx: ToolContext
-  changesets: Changeset[]
-} {
-  const root = `/tmp/daily-tools-test-${randomUUID()}`
-  onTestFinished(() => rmSync(root, {recursive: true, force: true}))
-
-  const db = createTestDatabase()
-  const core = createStorageCore(db, {
-    appDataRoot: () => root,
-    dbPath: () => `${root}/db`,
-    assetsDir: () => `${root}/assets`,
-    remoteSyncPath: () => `${root}/remote`,
-  })
-  const changesets: Changeset[] = []
-  const workStorage = new WorkStorage(core, db, (changeset) => changesets.push(changeset))
-
-  const ctx: ToolContext = {workStorage, clock: makeClock(), source, files: makeFilesPort()}
-
-  return {db, core, workStorage, ctx, changesets}
 }

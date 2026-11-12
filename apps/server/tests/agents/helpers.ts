@@ -52,13 +52,9 @@ export function bindDevice(store: ServerStore, name = "Bound Mac"): string {
   return createDevice(store, name).device.id
 }
 
-/**
- * An `AgentIdentity` naming a freshly bound device — the shape a write-mode call needs, since
- * `written_by_device_id` is a real foreign key. `deviceName` names the Mac; `agentName` is the
- * name the agent itself was approved under, the one a comment is attributed to.
- */
 export function bindAgent(store: ServerStore, deviceName = "Agent Mac", timeZone = "UTC", agentName = "Test Client"): AgentIdentity {
-  return {deviceId: bindDevice(store, deviceName), timeZone, name: agentName}
+  const deviceId = bindDevice(store, deviceName)
+  return {agentId: `test-agent-${deviceId}`, deviceId, timeZone, name: agentName}
 }
 
 /** Loads every document off `mac`'s core and writes it into `store` exactly as a Mac's sync would, through `buildSnapshot`. */
@@ -88,12 +84,23 @@ export function makeTaskDraft(overrides: Record<string, unknown> = {}): any {
   }
 }
 
-/** A structurally valid, empty `StoredSnapshotDocument`, overridden per case to build a specific edge — never a hand-copied object per case. */
 export function rawSnapshotDocument(overrides: Record<string, unknown> = {}): any {
   return {
     version: KNOWN_SNAPSHOT_VERSION,
     meta: {updatedAt: "2026-01-01T00:00:00.000Z", hash: "hash-1"},
-    docs: {tasks: [], tags: [], branches: [], milestones: [], relations: [], comments: [], files: [], events: []},
+    docs: {
+      tasks: [],
+      tags: [],
+      branches: [],
+      milestones: [],
+      relations: [],
+      comments: [],
+      subtasks: [],
+      files: [],
+      events: [],
+      workflowRecords: [],
+      workflowGuidanceRecords: [],
+    },
     ...overrides,
   }
 }

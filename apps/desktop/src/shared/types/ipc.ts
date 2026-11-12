@@ -37,6 +37,8 @@ import type {
   TaskRelation,
   TaskRelationSets,
   TaskSearchResult,
+  TaskWorkflowResolution,
+  WorkflowGuidanceUpdate,
 } from "@daily/protocol"
 import type {Buffer} from "buffer"
 import type {PartialDeep} from "type-fest"
@@ -54,10 +56,16 @@ import type {HotkeyRebindResult, QuickTaskHotkeyState, QuickTaskMenu} from "./qu
 import type {TaskTimer, TaskTimerCommand} from "./taskTimer"
 import type {ToastMessage} from "./toast"
 import type {AppUpdateOffer, AppUpdateState, WhatsNewReleaseResult} from "./update"
+import type {GuidanceResult, GuidanceSaveResult, TaskWorkflowResult} from "./workflow"
 
 export type ApprovalKind = "device" | "agent"
 
 export type BridgeIPC = {
+  "workflow:get-guidance": (projectId?: string) => Promise<GuidanceResult>
+  "workflow:save-guidance": (update: WorkflowGuidanceUpdate) => Promise<GuidanceSaveResult>
+  "workflow:get-task": (taskId: string) => Promise<TaskWorkflowResult>
+  "workflow:resolve-proposal": (resolution: TaskWorkflowResolution) => Promise<TaskWorkflowResult>
+
   invoke: (channel: string, ...args: any[]) => Promise<any>
   send: (channel: string, ...args: any[]) => void
   on: (channel: string, callback: (...args: any[]) => void) => () => void

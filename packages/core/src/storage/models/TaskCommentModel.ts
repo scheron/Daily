@@ -15,7 +15,7 @@ const TASK_COMMENT_SELECT = `
 const PERMANENT_DELETE_AT = "1970-01-01T00:00:00.000Z"
 
 export class TaskCommentModel {
-  constructor(private db: SqliteDriver) {}
+  constructor(private _db: SqliteDriver) {}
 
   /**
    * One task's live comments, oldest first. `rowid` breaks a tie rather than `id`, so comments
@@ -23,7 +23,7 @@ export class TaskCommentModel {
    * in instead of the arbitrary order of their nanoids. `TaskEventModel` orders its rows the same way.
    */
   getByTask(taskId: Task["id"]): TaskComment[] {
-    const rows = this.db
+    const rows = this._db
       .prepare(`${TASK_COMMENT_SELECT} WHERE task_id = ? AND deleted_at IS NULL ORDER BY created_at ASC, rowid ASC`)
       .all<TaskCommentRow>(taskId)
 
@@ -35,7 +35,7 @@ export class TaskCommentModel {
    * read a card's count without every task paying for a row.
    */
   countByTask(): TaskCommentCounts {
-    const rows = this.db
+    const rows = this._db
       .prepare(`SELECT task_id, COUNT(*) AS total FROM task_comments WHERE deleted_at IS NULL GROUP BY task_id`)
       .all<{task_id: string; total: number}>()
 
@@ -43,17 +43,21 @@ export class TaskCommentModel {
   }
 
   getComment(id: TaskComment["id"]): TaskComment | null {
-    const row = this.db.prepare(`${TASK_COMMENT_SELECT} WHERE id = ?`).get<TaskCommentRow>(id)
+    const row = this._db.prepare(`${TASK_COMMENT_SELECT} WHERE id = ?`).get<TaskCommentRow>(id)
     if (!row) return null
 
     return rowToTaskComment(row)
+  }
+
+  isWorkflowProposal(id: TaskComment["id"]): boolean {
+    return Boolean(this._db.prepare("SELECT 1 FROM workflow_records WHERE json_extract(data, '$.proposalCommentId') = ? LIMIT 1").get(id))
   }
 
   createComment(input: {taskId: Task["id"]; branchId: Branch["id"]; content: string; kind: TaskCommentKind; provider: string | null}): TaskComment {
     const id = createEntityId("comment")
     const now = new Date().toISOString()
 
-    this.db
+    this._db
       .prepare(
         `INSERT INTO task_comments (id, task_id, branch_id, content, kind, provider, created_at, updated_at, deleted_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
@@ -66,7 +70,7 @@ export class TaskCommentModel {
   /** Rewrites a live comment's markdown. Null when no live comment carries that id. */
   updateComment(id: TaskComment["id"], content: string): TaskComment | null {
     const now = new Date().toISOString()
-    const touched = this.db
+    const touched = this._db
       .prepare(`UPDATE task_comments SET content = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL RETURNING id`)
       .all<{id: string}>(content, now, id)
 
@@ -78,7 +82,7 @@ export class TaskCommentModel {
   /** Soft-deletes a live comment. Null when no live comment carries that id. */
   deleteComment(id: TaskComment["id"]): TaskComment["id"] | null {
     const now = new Date().toISOString()
-    const touched = this.db
+    const touched = this._db
       .prepare(`UPDATE task_comments SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL RETURNING id`)
       .all<{id: string}>(now, now, id)
 
@@ -87,7 +91,7 @@ export class TaskCommentModel {
 
   /** Every stored comment's text, soft-deleted ones included, so file cleanup preserves images until their referencing rows are collected. */
   getAllContents(): string[] {
-    return this.db
+    return this._db
       .prepare(`SELECT content FROM task_comments`)
       .all<{content: string}>()
       .map((row) => row.content)
@@ -96,7 +100,7 @@ export class TaskCommentModel {
   /** Points a task's comments at the project the task now sits in; returns the comments that moved. */
   moveCommentsToBranch(taskId: Task["id"], branchId: Branch["id"]): TaskComment[] {
     const now = new Date().toISOString()
-    const touched = this.db
+    const touched = this._db
       .prepare(`UPDATE task_comments SET branch_id = ?, updated_at = ? WHERE task_id = ? AND branch_id != ? AND deleted_at IS NULL RETURNING id`)
       .all<{id: string}>(branchId, now, taskId, branchId)
 
@@ -112,7 +116,7 @@ export class TaskCommentModel {
 
     const now = new Date().toISOString()
     const placeholders = taskIds.map(() => "?").join(", ")
-    const touched = this.db
+    const touched = this._db
       .prepare(
         `UPDATE task_comments SET deleted_at = ?, updated_at = ?
          WHERE task_id IN (${placeholders}) AND (deleted_at IS NULL OR deleted_at > ?)

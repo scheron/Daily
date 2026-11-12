@@ -56,7 +56,17 @@ describe("RightPanel layout", () => {
       props: {width: 420},
       global: {
         directives: {tooltip: {}},
-        stubs: {Toolbar: true, Details: true, Editor: true, Footer: true, Comments: true, History: true, Subtasks: true, SubtaskView: true},
+        stubs: {
+          Toolbar: true,
+          Details: true,
+          Editor: true,
+          Footer: true,
+          Comments: true,
+          History: true,
+          Subtasks: true,
+          SubtaskView: true,
+          TaskWorkflow: true,
+        },
       },
     })
 

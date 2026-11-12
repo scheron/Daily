@@ -13,7 +13,7 @@ describe("save_project", () => {
     expect(created.project).toMatchObject({name: "Launch", emoji: "👩🏽‍🚀"})
     const renamed = (await saveProjectTool.run({id: created.project.id, name: "Space", description: "Mission"}, ctx)) as {project: ProjectView}
     expect(renamed.project).toMatchObject({name: "Space", description: "Mission", emoji: "👩🏽‍🚀"})
-    expect(await listProjectsTool.run({}, ctx)).toMatchObject({projects: expect.arrayContaining([renamed.project])})
+    expect(await listProjectsTool.run({}, ctx)).toMatchObject({projects: expect.arrayContaining([expect.objectContaining(renamed.project)])})
     const cleared = (await saveProjectTool.run({id: created.project.id, emoji: null}, ctx)) as {project: ProjectView}
     expect(cleared.project).toMatchObject({emoji: null})
   })

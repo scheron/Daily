@@ -1,20 +1,19 @@
 import {APP_CONFIG, NO_PROJECT_ID, normalizeProjectEmoji} from "@daily/protocol"
 
 import {extractFileIds} from "../../files/extractFileIds"
+import {validateWorkflowSnapshotDocs} from "../../task-workflow/validateWorkflowSnapshotDocs"
 
 import type {SnapshotDocs, SnapshotFile, SnapshotTask} from "@daily/protocol"
 
-/**
- * Fills what an older snapshot does not carry: the `milestones`, `relations`, `comments` and `subtasks` collections, a
- * task's `milestone_id` and `priority` (`none`), a tag's `branch_id`, a branch's `description` and `emoji`, and an event's actor, change metadata and stable ordering.
- * Drops what an older snapshot carries and this one no longer has — the `settings` document, local to
- * each device since v7, and a task's `attachments`, folded into its `content` as file links since v10.
- * Called on both sides of a merge so no reader downstream has to defend itself.
- */
-export function normalizeSnapshotDocs(docs: SnapshotDocs): SnapshotDocs {
+/** Upgrades legacy document fields; snapshots before v18 retain history with expired monotonic checkpoints and no proposal comment binding. */
+export function normalizeSnapshotDocs(docs: SnapshotDocs, version = 20): SnapshotDocs {
+  const workflowRecords = Array.isArray(docs.workflowRecords)
+    ? docs.workflowRecords.map((record) => (version < 18 ? {...record, checkpointMonotonic: null, proposalCommentId: null} : record))
+    : docs.workflowRecords
+  validateWorkflowSnapshotDocs({...docs, workflowRecords})
   const {settings: _deviceLocalSettings, ...rest} = docs as SnapshotDocs & {settings?: unknown}
 
-  return {
+  const normalized = {
     ...rest,
     tasks: docs.tasks.map((task) =>
       foldAttachmentsIntoContent(
@@ -23,12 +22,16 @@ export function normalizeSnapshotDocs(docs: SnapshotDocs): SnapshotDocs {
           status: task.status === "active" ? "in_progress" : task.status === "discarded" ? "cancelled" : task.status,
           milestone_id: task.milestone_id ?? null,
           priority: task.priority ?? "none",
+          workflow_time_baseline: task.workflow_time_baseline ?? 0,
+          workflow_generation: task.workflow_generation ?? "",
         },
         docs.files,
       ),
     ),
     tags: docs.tags.map((tag) => ({...tag, branch_id: tag.branch_id ?? NO_PROJECT_ID})),
     branches: docs.branches.map((branch) => ({...branch, description: branch.description ?? "", emoji: normalizeProjectEmoji(branch.emoji)})),
+    workflowRecords: workflowRecords ?? [],
+    workflowGuidanceRecords: docs.workflowGuidanceRecords ?? [],
     milestones: docs.milestones ?? [],
     relations: docs.relations ?? [],
     comments: docs.comments ?? [],
@@ -47,6 +50,8 @@ export function normalizeSnapshotDocs(docs: SnapshotDocs): SnapshotDocs {
       move_id: event.move_id ?? null,
     })),
   }
+  validateWorkflowSnapshotDocs(normalized)
+  return normalized
 }
 
 function foldAttachmentsIntoContent(task: SnapshotTask, files: SnapshotFile[]): SnapshotTask {

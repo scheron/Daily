@@ -1,3 +1,8 @@
+import {isDeepStrictEqual} from "node:util"
+
+import {TaskWorkflowError} from "../../../errors/task-workflow/TaskWorkflowError"
+import {TaskWorkflowErrorCode} from "../../../errors/task-workflow/TaskWorkflowErrorCode"
+import {validateWorkflowSnapshotDocs} from "../../task-workflow/validateWorkflowSnapshotDocs"
 import {normalizeSnapshotDocs} from "../snapshot/normalizeSnapshotDocs"
 import {mergeAppendOnly} from "./mergeAppendOnly"
 import {mergeCollections} from "./mergeCollections"
@@ -5,7 +10,7 @@ import {mergeCollections} from "./mergeCollections"
 import type {MergeResult, SnapshotDocs, SnapshotTaskComment, SnapshotTaskRelation, SyncStrategy} from "@daily/protocol"
 
 /**
- * Merge remote snapshot into local using pure LWW strategy.
+ * Merges ordinary document fields by LWW and task mutation generations by token union.
  * Returns merged docs, typed upsert/remove, and change count.
  */
 export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: SnapshotDocs, strategy: SyncStrategy, gcIntervalMs: number): MergeResult {
@@ -16,7 +21,28 @@ export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: Snapsh
   let changes = 0
   const now = new Date().toISOString()
 
-  const {result: mergedTasks, toGc: gcTasks, adoptedOnTie: adoptedTasks} = mergeCollections(local.tasks, remote.tasks, strategy, gcIntervalMs)
+  const {result: mergedTaskFields, toGc: gcTasks, adoptedOnTie: adoptedTasks} = mergeCollections(local.tasks, remote.tasks, strategy, gcIntervalMs)
+  const generationsById = new Map<string, Set<string>>()
+  for (const task of [...local.tasks, ...remote.tasks]) {
+    const generation = task.workflow_generation ?? ""
+    if (!generation) continue
+    let markers = [generation]
+    if (generation.startsWith("[")) {
+      try {
+        const parsed: unknown = JSON.parse(generation)
+        if (Array.isArray(parsed) && parsed.every((marker) => typeof marker === "string" && marker.length)) markers = parsed
+      } catch {
+        markers = [generation]
+      }
+    }
+    const combined = generationsById.get(task.id) ?? new Set<string>()
+    for (const marker of markers) combined.add(marker)
+    generationsById.set(task.id, combined)
+  }
+  const mergedTasks = mergedTaskFields.map((task) => {
+    const markers = [...(generationsById.get(task.id) ?? [])].sort()
+    return {...task, workflow_generation: markers.length > 1 ? JSON.stringify(markers) : (markers[0] ?? "")}
+  })
   const {result: mergedTags, toGc: gcTags, adoptedOnTie: adoptedTags} = mergeCollections(local.tags, remote.tags, strategy, gcIntervalMs)
   const {
     result: mergedBranches,
@@ -46,6 +72,27 @@ export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: Snapsh
   const {result: mergedFiles, toGc: gcFiles, adoptedOnTie: adoptedFiles} = mergeCollections(local.files, remote.files, strategy, gcIntervalMs)
 
   const {result: mergedEvents, added: addedEvents} = mergeAppendOnly(local.events, remote.events)
+
+  const workflowRecordsById = new Map<string, NonNullable<SnapshotDocs["workflowRecords"]>[number]>()
+  for (const record of [...(local.workflowRecords ?? []), ...(remote.workflowRecords ?? [])]) {
+    const existing = workflowRecordsById.get(record.id)
+    if (existing && !isDeepStrictEqual(existing, record))
+      throw new TaskWorkflowError(TaskWorkflowErrorCode.Conflict, "Conflicting immutable workflow records block sync. No record is discarded.")
+    workflowRecordsById.set(record.id, record)
+  }
+  const {result: mergedWorkflowRecords, added: addedWorkflowRecords} = mergeAppendOnly(local.workflowRecords ?? [], remote.workflowRecords ?? [])
+
+  const guidanceRecordsById = new Map<string, NonNullable<SnapshotDocs["workflowGuidanceRecords"]>[number]>()
+  for (const record of [...(local.workflowGuidanceRecords ?? []), ...(remote.workflowGuidanceRecords ?? [])]) {
+    const existing = guidanceRecordsById.get(record.id)
+    if (existing && !isDeepStrictEqual(existing, record))
+      throw new TaskWorkflowError(TaskWorkflowErrorCode.Conflict, "Conflicting immutable guidance revisions block sync. No history is discarded.")
+    guidanceRecordsById.set(record.id, record)
+  }
+  const {result: mergedGuidanceRecords, added: addedGuidanceRecords} = mergeAppendOnly(
+    local.workflowGuidanceRecords ?? [],
+    remote.workflowGuidanceRecords ?? [],
+  )
 
   const survivingBranchIds = new Set(mergedBranches.map((b) => b.id))
   const onASurvivingBranch = <D extends {branch_id: string}>(doc: D): boolean => survivingBranchIds.has(doc.branch_id)
@@ -137,7 +184,11 @@ export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: Snapsh
     subtasks: subtasksAfterTaskGc,
     files: mergedFiles,
     events: mergedEvents,
+    workflowRecords: mergedWorkflowRecords,
+    workflowGuidanceRecords: mergedGuidanceRecords,
   }
+
+  validateWorkflowSnapshotDocs(resultDocs, {completeHistory: true})
 
   const toUpsert: SnapshotDocs = {
     tasks: [],
@@ -149,15 +200,26 @@ export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: Snapsh
     subtasks: [],
     files: [],
     events: [],
+    workflowRecords: [],
+    workflowGuidanceRecords: [],
   }
 
-  if (hasChanges(local.tasks, tasksAfterBranchGc) || gcTasks.length || branchReassignTouchesTasks || milestoneClearTouchesTasks) {
+  const localTasksById = new Map(local.tasks.map((task) => [task.id, task]))
+  const workflowGenerationChanged = tasksAfterBranchGc.some((task) => task.workflow_generation !== localTasksById.get(task.id)?.workflow_generation)
+  if (
+    hasChanges(local.tasks, tasksAfterBranchGc) ||
+    workflowGenerationChanged ||
+    gcTasks.length ||
+    branchReassignTouchesTasks ||
+    milestoneClearTouchesTasks
+  ) {
     toUpsert.tasks = tasksAfterBranchGc
     if (gcTasks.length) toRemove.tasks = gcTasks
     changes += tasksAfterBranchGc.length + gcTasks.length
   } else if (adoptedTasks.length) {
-    toUpsert.tasks = adoptedTasks
-    changes += adoptedTasks.length
+    const adoptedIds = new Set(adoptedTasks.map((task) => task.id))
+    toUpsert.tasks = tasksAfterBranchGc.filter((task) => adoptedIds.has(task.id))
+    changes += toUpsert.tasks.length
   }
 
   if (hasChanges(local.tags, tagsAfterBranchGc) || gcTags.length || branchGcDropsTags) {
@@ -226,6 +288,16 @@ export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: Snapsh
   if (addedEvents.length) {
     toUpsert.events = addedEvents
     changes += addedEvents.length
+  }
+
+  if (addedWorkflowRecords.length) {
+    toUpsert.workflowRecords = addedWorkflowRecords
+    changes += addedWorkflowRecords.length
+  }
+
+  if (addedGuidanceRecords.length) {
+    toUpsert.workflowGuidanceRecords = addedGuidanceRecords
+    changes += addedGuidanceRecords.length
   }
 
   return {resultDocs, toUpsert, toRemove, changes}

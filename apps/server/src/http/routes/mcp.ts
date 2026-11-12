@@ -64,7 +64,7 @@ async function postMcp(ctx: RouteContext): Promise<typeof RESPONSE_SENT> {
     return respondJson(ctx.res, 413, {jsonrpc: "2.0", id: null, error: {code: -32600, message: "Request body too large"}})
   }
 
-  const mcpCaller = {deviceId: caller.deviceId, timeZone: caller.timeZone, name: caller.name}
+  const mcpCaller = {agentId: caller.agentId, deviceId: caller.deviceId, timeZone: caller.timeZone, name: caller.name}
   const reply = await handleMcpRequest({store: ctx.store}, mcpCaller, body, {
     protocolVersion: readHeaderValue(ctx.req.headers["mcp-protocol-version"]),
     method: readHeaderValue(ctx.req.headers["mcp-method"]),

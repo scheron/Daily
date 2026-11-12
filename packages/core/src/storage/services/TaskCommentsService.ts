@@ -1,23 +1,26 @@
 import {resolveActorProvider} from "@daily/protocol"
 
-import type {Branch, Task, TaskComment, TaskCommentCounts, TaskCommentSource} from "@daily/protocol"
+import {TaskWorkflowError} from "../../errors/task-workflow/TaskWorkflowError"
+import {TaskWorkflowErrorCode} from "../../errors/task-workflow/TaskWorkflowErrorCode"
+
+import type {ActorSource, Branch, Task, TaskComment, TaskCommentCounts, TaskCommentSource} from "@daily/protocol"
 import type {TaskCommentModel} from "../models/TaskCommentModel"
 import type {TaskModel} from "../models/TaskModel"
 
 export class TaskCommentsService {
   constructor(
-    private commentModel: TaskCommentModel,
+    private _commentModel: TaskCommentModel,
     private taskModel: TaskModel,
   ) {}
 
   /** One task's live comments, oldest first. Empty for a task that does not exist. */
   async getCommentsOfTask(taskId: Task["id"]): Promise<TaskComment[]> {
-    return this.commentModel.getByTask(taskId)
+    return this._commentModel.getByTask(taskId)
   }
 
   /** How many live comments each task carries; a task with none is left out. */
   async getCommentCounts(): Promise<TaskCommentCounts> {
-    return this.commentModel.countByTask()
+    return this._commentModel.countByTask()
   }
 
   /** Writes a comment on a live task. Null for an unknown or deleted task, and for content that is only whitespace. */
@@ -28,7 +31,7 @@ export class TaskCommentsService {
     const task = this.taskModel.getTask(taskId)
     if (!task || task.deletedAt !== null) return null
 
-    return this.commentModel.createComment({
+    return this._commentModel.createComment({
       taskId,
       branchId: task.branchId,
       content: trimmed,
@@ -37,26 +40,37 @@ export class TaskCommentsService {
     })
   }
 
-  /** Rewrites a live comment. Null for an unknown or deleted comment, and for content that is only whitespace. */
-  async updateComment(id: TaskComment["id"], content: string): Promise<TaskComment | null> {
+  /** Agent sources cannot rewrite ledger-bound proposal comments; an omitted source is the human editing route. Null for absent comments or blank content. */
+  async updateComment(id: TaskComment["id"], content: string, source: ActorSource = {kind: "manual"}): Promise<TaskComment | null> {
     const trimmed = content.trim()
     if (!trimmed) return null
 
-    return this.commentModel.updateComment(id, trimmed)
+    this._assertEditable(id, source)
+    return this._commentModel.updateComment(id, trimmed)
   }
 
-  /** Soft-deletes a comment. Null when it was already gone. */
-  async deleteComment(id: TaskComment["id"]): Promise<TaskComment["id"] | null> {
-    return this.commentModel.deleteComment(id)
+  /** Agent sources cannot delete ledger-bound proposal comments; an omitted source is the human editing route. Null when an ordinary comment was already gone. */
+  async deleteComment(id: TaskComment["id"], source: ActorSource = {kind: "manual"}): Promise<TaskComment["id"] | null> {
+    this._assertEditable(id, source)
+    return this._commentModel.deleteComment(id)
   }
 
   /** Keeps a moved task's comments in the task's project; returns the comments that moved with it. */
   async alignCommentsToTaskBranch(taskId: Task["id"], branchId: Branch["id"]): Promise<TaskComment[]> {
-    return this.commentModel.moveCommentsToBranch(taskId, branchId)
+    return this._commentModel.moveCommentsToBranch(taskId, branchId)
   }
 
   /** Sends the comments of permanently deleted tasks the same way their tasks went: backdated, for the next sync merge to collect. */
   async permanentlyDeleteCommentsOfTasks(taskIds: Task["id"][]): Promise<TaskComment["id"][]> {
-    return this.commentModel.permanentlyDeleteCommentsOfTasks(taskIds)
+    return this._commentModel.permanentlyDeleteCommentsOfTasks(taskIds)
+  }
+
+  private _assertEditable(id: TaskComment["id"], source: ActorSource): void {
+    if (source.kind !== "manual" && this._commentModel.isWorkflowProposal(id)) {
+      throw new TaskWorkflowError(
+        TaskWorkflowErrorCode.Forbidden,
+        "This comment presents a workflow proposal for human review. Ask the person to edit or delete it.",
+      )
+    }
   }
 }

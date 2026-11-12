@@ -1,6 +1,7 @@
 import {ipcMain} from "electron"
 
 import {createSharedStorageHandlers} from "@main/utils/storage/createSharedStorageHandlers"
+import {setupWorkflowIPC} from "./workflow"
 
 import type {IStorageController} from "@daily/core"
 import type {Branch, Milestone, MoveTaskByOrderParams, Subtask, Tag, Task, TaskComment, TaskRelationSets} from "@daily/protocol"
@@ -8,6 +9,7 @@ import type {PartialDeep} from "type-fest"
 
 // prettier-ignore
 export function setupStorageIPC(getStorage: () => IStorageController | null) {
+  setupWorkflowIPC(getStorage)
   const shared = createSharedStorageHandlers(getStorage)
   for (const [channel, handler] of Object.entries(shared)) ipcMain.handle(channel, (_e, ...args) => handler(...args))
 

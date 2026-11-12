@@ -1,9 +1,11 @@
 import {expect, it} from "vitest"
 
-import {KNOWN_SNAPSHOT_VERSION} from "@daily/core/utils/sync/snapshot/assertKnownSnapshotVersion"
+import {WorkStorage} from "@daily/core/storage/WorkStorage"
 import {AGENT_ENDPOINT_PATH, SYNC_PROTOCOL_PATHS} from "@daily/protocol"
 
 import {exerciseStatusContract} from "../../../../../packages/tools/tests/helpers/statusContract"
+import {readSnapshot} from "../../../src/snapshot/SnapshotStore"
+import {openMacCore, rawSnapshotDocument, writeMacSnapshot} from "../helpers"
 import {
   bootAgentServer,
   claimParent,
@@ -14,7 +16,9 @@ import {
   startClientDocumentServer,
 } from "../oauth/harness"
 
-it("OAuth-connected MCP tools preserve seven exact statuses, atomic writes and approved authorship", async () => {
+import type {SnapshotDocs} from "@daily/protocol"
+
+it("OAuth-connected MCP tools enforce the shared workflow, atomic writes and approved authorship", async () => {
   const server = await bootAgentServer()
   const docs = await startClientDocumentServer()
   try {
@@ -24,11 +28,7 @@ it("OAuth-connected MCP tools preserve seven exact statuses, atomic writes and a
       headers: {authorization: `Bearer ${parent.token}`, "content-type": "application/json"},
       body: JSON.stringify({
         expectedRevision: null,
-        snapshot: {
-          version: KNOWN_SNAPSHOT_VERSION,
-          meta: {updatedAt: new Date().toISOString(), hash: "synthetic"},
-          docs: {tasks: [], tags: [], branches: [], milestones: [], relations: [], comments: [], files: [], events: []},
-        },
+        snapshot: rawSnapshotDocument({meta: {updatedAt: new Date().toISOString(), hash: "synthetic"}}),
       }),
     })
     expect(seed.status).toBe(200)
@@ -50,6 +50,21 @@ it("OAuth-connected MCP tools preserve seven exact statuses, atomic writes and a
         return data
       },
       {kind: "mcp", provider: "Claude Code"},
+      async (request) => {
+        const stored = readSnapshot(server.store)!
+        const mac = openMacCore()
+        try {
+          await mac.core.localAdapter.upsertDocs(stored.document.docs as SnapshotDocs)
+          const storage = new WorkStorage(mac.core, mac.db, () => {}, {
+            runtimeId: "trusted-review",
+            scheduledNow: () => ({date: "2040-01-01", time: "00:00:00", timezone: "UTC"}),
+          })
+          await storage.resolveTaskWorkflowProposal(request)
+          await writeMacSnapshot(server.store, mac, stored.revision, parent.deviceId)
+        } finally {
+          mac.close()
+        }
+      },
     )
   } finally {
     await docs.close()

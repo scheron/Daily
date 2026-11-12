@@ -15,6 +15,7 @@ import Editor from "./{fragments}/Editor.vue"
 import Footer from "./{fragments}/Footer.vue"
 import Subtasks from "./{fragments}/Subtasks"
 import SubtaskView from "./{fragments}/SubtaskView"
+import TaskWorkflow from "./{fragments}/TaskWorkflow"
 import Toolbar from "./{fragments}/Toolbar.vue"
 import {nestedTarget} from "./nestedTarget"
 
@@ -91,6 +92,7 @@ watch(isOpen, async (open) => {
                 <Details :task="activeTask" />
                 <Editor />
                 <Subtasks />
+                <TaskWorkflow v-if="editingTaskId" :key="editingTaskId" :task-id="editingTaskId" />
                 <Comments />
               </div>
             </div>

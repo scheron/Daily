@@ -1,5 +1,7 @@
 // @ts-nocheck
 import {mkdtempSync, rmSync} from "node:fs"
+import {tmpdir} from "node:os"
+import {join} from "node:path"
 import Database from "better-sqlite3"
 import {describe, expect, it} from "vitest"
 
@@ -656,6 +658,8 @@ describe("migrations", () => {
       expect(task).toBeDefined()
       expect(task.content).toBe("Keep me")
 
+      expect(rollbackLastMigration(db)).toBe(24)
+      expect(rollbackLastMigration(db)).toBe(23)
       expect(rollbackLastMigration(db)).toBe(22)
       expect(rollbackLastMigration(db)).toBe(21)
       expect(rollbackLastMigration(db)).toBe(20)
@@ -733,6 +737,8 @@ describe("migrations", () => {
       seedComment(db, "typed", null)
       runMigrations(db)
 
+      expect(rollbackLastMigration(db)).toBe(24)
+      expect(rollbackLastMigration(db)).toBe(23)
       expect(rollbackLastMigration(db)).toBe(22)
       expect(rollbackLastMigration(db)).toBe(21)
       expect(rollbackLastMigration(db)).toBe(20)
@@ -816,6 +822,8 @@ describe("migrations", () => {
       const task = db.prepare("SELECT * FROM tasks WHERE id = 't1'").get()
       expect(task.content).toBe("Keep me")
 
+      expect(rollbackLastMigration(db)).toBe(24)
+      expect(rollbackLastMigration(db)).toBe(23)
       expect(rollbackLastMigration(db)).toBe(22)
       expect(rollbackLastMigration(db)).toBe(21)
       expect(rollbackLastMigration(db)).toBe(20)
@@ -960,6 +968,8 @@ describe("migrations", () => {
 
       expect(db.prepare("SELECT priority FROM tasks WHERE id = 't1'").get().priority).toBe("none")
 
+      expect(rollbackLastMigration(db)).toBe(24)
+      expect(rollbackLastMigration(db)).toBe(23)
       expect(rollbackLastMigration(db)).toBe(22)
       expect(rollbackLastMigration(db)).toBe(21)
       expect(rollbackLastMigration(db)).toBe(20)
@@ -979,7 +989,7 @@ describe("migrations", () => {
 })
 
 it("upgrades v17 statuses and preserves task fields and associations across reopening", () => {
-  const directory = mkdtempSync("/tmp/daily-agent-status-migration-")
+  const directory = mkdtempSync(join(tmpdir(), "daily-agent-status-migration-"))
   let db = new Database(`${directory}/daily.sqlite`)
   db.pragma("foreign_keys = ON")
   db.exec("CREATE TABLE _migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL)")
@@ -1010,7 +1020,12 @@ it("upgrades v17 statuses and preserves task fields and associations across reop
     db.prepare(`SELECT * FROM ${table}`).all(),
   ])
   runMigrations(db)
-  expect(db.prepare("SELECT * FROM tasks WHERE id = 't1'").get()).toEqual({...before, status: "in_progress"})
+  expect(db.prepare("SELECT * FROM tasks WHERE id = 't1'").get()).toEqual({
+    ...before,
+    status: "in_progress",
+    workflow_generation: "",
+    workflow_time_baseline: 0,
+  })
   expect(db.prepare("SELECT status FROM tasks WHERE id = 't2'").get().status).toBe("cancelled")
   for (const [table, rows] of related) {
     const loaded = db.prepare(`SELECT * FROM ${table}`).all()
@@ -1064,6 +1079,8 @@ it("v019 adds the subtasks table to a v018 database, leaves tasks untouched and 
   ).toEqual(["id", "task_id", "content", "done", "order_key", "created_at", "updated_at", "deleted_at"])
   expect(db.prepare("SELECT content FROM tasks WHERE id = 't1'").get().content).toBe("Keep me")
 
+  expect(rollbackLastMigration(db)).toBe(24)
+  expect(rollbackLastMigration(db)).toBe(23)
   expect(rollbackLastMigration(db)).toBe(22)
   expect(rollbackLastMigration(db)).toBe(21)
   expect(rollbackLastMigration(db)).toBe(20)
@@ -1073,7 +1090,7 @@ it("v019 adds the subtasks table to a v018 database, leaves tasks untouched and 
 })
 
 it("v020 preserves every v019 task and related row, stores To Do across reopening and maps only To Do on rollback", () => {
-  const directory = mkdtempSync("/tmp/daily-todo-migration-")
+  const directory = mkdtempSync(join(tmpdir(), "daily-todo-migration-"))
   let db = new Database(`${directory}/daily.sqlite`)
   try {
     db.pragma("foreign_keys = ON")
@@ -1121,8 +1138,10 @@ it("v020 preserves every v019 task and related row, stores To Do across reopenin
       db.prepare(`SELECT * FROM ${table}`).all(),
     ])
     runMigrations(db)
-    expect(getAppliedMigrations(db).at(-1).version).toBe(22)
-    expect(db.prepare("SELECT * FROM tasks ORDER BY id").all()).toEqual(before)
+    expect(getAppliedMigrations(db).at(-1).version).toBe(24)
+    expect(db.prepare("SELECT * FROM tasks ORDER BY id").all()).toEqual(
+      before.map((task) => ({...task, workflow_generation: "", workflow_time_baseline: 0})),
+    )
     for (const [table, rows] of related) {
       const loaded = db.prepare(`SELECT * FROM ${table}`).all()
       if (table === "task_events") expect(loaded).toMatchObject(rows)
@@ -1136,6 +1155,8 @@ it("v020 preserves every v019 task and related row, stores To Do across reopenin
     runMigrations(db)
     expect(db.prepare("SELECT status FROM tasks WHERE id = 'new'").get().status).toBe("todo")
     expect(db.prepare("PRAGMA foreign_key_check").all()).toEqual([])
+    expect(rollbackLastMigration(db)).toBe(24)
+    expect(rollbackLastMigration(db)).toBe(23)
     expect(rollbackLastMigration(db)).toBe(22)
     expect(rollbackLastMigration(db)).toBe(21)
     expect(rollbackLastMigration(db)).toBe(20)
@@ -1157,6 +1178,8 @@ it("v021 preserves legacy activity without invented changes and removes only its
   const db = new Database(":memory:")
   try {
     runMigrations(db)
+    expect(rollbackLastMigration(db)).toBe(24)
+    expect(rollbackLastMigration(db)).toBe(23)
     expect(rollbackLastMigration(db)).toBe(22)
     expect(rollbackLastMigration(db)).toBe(21)
     db.prepare("INSERT INTO task_events (id, task_id, branch_id, type, event_date, created_at, kind, provider) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run(
@@ -1182,6 +1205,8 @@ it("v021 preserves legacy activity without invented changes and removes only its
       sequence: 0,
       move_id: null,
     })
+    expect(rollbackLastMigration(db)).toBe(24)
+    expect(rollbackLastMigration(db)).toBe(23)
     expect(rollbackLastMigration(db)).toBe(22)
     expect(rollbackLastMigration(db)).toBe(21)
     expect(db.prepare("SELECT * FROM task_events").all()).toEqual(before)
@@ -1191,10 +1216,12 @@ it("v021 preserves legacy activity without invented changes and removes only its
 })
 
 it("v022 upgrades existing projects with the standard icon and persists complete emoji after reopening", () => {
-  const directory = mkdtempSync("/tmp/daily-project-emoji-")
+  const directory = mkdtempSync(join(tmpdir(), "daily-project-emoji-"))
   let db = new Database(`${directory}/daily.sqlite`)
   try {
     runMigrations(db)
+    expect(rollbackLastMigration(db)).toBe(24)
+    expect(rollbackLastMigration(db)).toBe(23)
     expect(rollbackLastMigration(db)).toBe(22)
     db.prepare("INSERT INTO branches (id, name, description, created_at, updated_at) VALUES ('space', 'Space', 'Mission', ?, ?)").run(
       "2026-11-06",
@@ -1208,6 +1235,8 @@ it("v022 upgrades existing projects with the standard icon and persists complete
     db = new Database(`${directory}/daily.sqlite`)
     runMigrations(db)
     expect(db.prepare("SELECT * FROM branches WHERE id = 'space'").get()).toEqual({...before, emoji: "👩🏽‍🚀"})
+    expect(rollbackLastMigration(db)).toBe(24)
+    expect(rollbackLastMigration(db)).toBe(23)
     expect(rollbackLastMigration(db)).toBe(22)
     expect(db.prepare("SELECT * FROM branches WHERE id = 'space'").get()).toEqual(before)
   } finally {

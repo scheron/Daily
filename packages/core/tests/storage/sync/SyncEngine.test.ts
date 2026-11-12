@@ -45,6 +45,8 @@ function makeTask(id: string, updatedAt: string): SnapshotTask {
     scheduled_timezone: "UTC",
     estimated_time: 0,
     spent_time: 0,
+    workflow_time_baseline: 0,
+    workflow_generation: "",
     branch_id: "main",
     milestone_id: null,
     priority: "none",

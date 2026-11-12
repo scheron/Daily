@@ -174,11 +174,7 @@ export type Task = {
    * @default 0
    */
   estimatedTime: number
-  /**
-   * The actual time spent on the task in seconds. \
-   * Changes when the task is marked as done or discarded.
-   * @default 0
-   */
+  /** Actual total in seconds, including observed agent intervals; a human absolute edit sets the correction baseline. */
   spentTime: number
 
   content: string

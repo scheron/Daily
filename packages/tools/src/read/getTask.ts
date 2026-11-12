@@ -1,12 +1,19 @@
+import {TaskWorkflowError} from "@daily/core/storage/TaskWorkflowError"
+
+import {TASK_DOMAIN} from "../constants/tasks/taskDomain"
+import {TASK_CONTEXT_INSTRUCTIONS} from "../constants/workflow/instructions"
+import {readTaskDetail} from "../utils/tasks/readTaskDetail"
+import {workflowGuidanceView} from "../utils/workflow/workflowGuidanceView"
+import {ToolError} from "../errors/ToolError"
+import {ToolErrorCode} from "../errors/ToolErrorCode"
 import {requireString} from "../input"
-import {readTaskDetail} from "../readTaskDetail"
 
 import type {Tool} from "../types"
 
 export const getTaskTool: Tool = {
   name: "get_task",
   description:
-    "Answers one task in full with its exact status regardless of Normal / Agents board mode: its fields, tags, milestone, both relation sides, its history newest first, its attachments, its comments oldest first with the id each one is edited or deleted by, and its subtasks in order with their done state and the id each one is edited or deleted by.",
+    "Answers one task in full with exact real status, fields, relations, history, attachments, comments and subtasks. Its workflow includes the observed revision, effective scoped guidance, completion permission, proposal decisions and sessions. Reconcile status and session proactively at meaningful work boundaries using update_task_workflow.",
   mode: "read",
   inputSchema: {
     type: "object",
@@ -15,6 +22,26 @@ export const getTaskTool: Tool = {
     additionalProperties: false,
   },
   async run(input, ctx) {
-    return readTaskDetail(ctx, requireString(input, "id"))
+    const id = requireString(input, "id")
+    try {
+      const {task: observedTask, revision, proposals, confirmedSeconds, guidance, sessions} = await ctx.workStorage.getTaskWorkflow(id)
+      const task = await readTaskDetail(ctx, id, observedTask)
+      return {
+        ...task,
+        workflow: {
+          taskId: id,
+          revision,
+          proposals,
+          confirmedSeconds,
+          guidance: workflowGuidanceView(guidance),
+          sessions,
+          domain: TASK_DOMAIN,
+          instructions: TASK_CONTEXT_INSTRUCTIONS,
+        },
+      }
+    } catch (error) {
+      if (error instanceof TaskWorkflowError && error.code === "not_found") throw new ToolError(ToolErrorCode.NOT_FOUND, `No task "${id}".`)
+      throw error
+    }
   },
 }
