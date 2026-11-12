@@ -1,7 +1,8 @@
 import {isDeepStrictEqual} from "node:util"
 
-import {validateWorkflowRecord} from "../../utils/tasks/workflowValidation"
-import {TaskWorkflowError} from "../TaskWorkflowError"
+import {validateWorkflowRecord} from "../../utils/task-workflow/validateWorkflowRecord"
+import {TaskWorkflowError} from "../../errors/task-workflow/TaskWorkflowError"
+import {TaskWorkflowErrorCode} from "../../errors/task-workflow/TaskWorkflowErrorCode"
 
 import type {TaskWorkflowRecord} from "@daily/protocol"
 import type {SqliteDriver} from "../../database/SqliteDriver"
@@ -32,7 +33,7 @@ export class WorkflowRecordModel {
     validateWorkflowRecord(record)
     const existing = this.get(record.id)
     if (existing && !isDeepStrictEqual(existing, record))
-      throw new TaskWorkflowError("conflict", "Conflicting immutable workflow records block sync. No record is discarded.")
+      throw new TaskWorkflowError(TaskWorkflowErrorCode.Conflict, "Conflicting immutable workflow records block sync. No record is discarded.")
     this._db
       .prepare("INSERT OR IGNORE INTO workflow_records (id, task_id, data) VALUES (?, ?, ?)")
       .run(record.id, record.taskId, JSON.stringify(record))

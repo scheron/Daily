@@ -69,7 +69,9 @@ describe("save_task", () => {
 
     try {
       const agent: AgentIdentity = {...bindAgent(seeded.store, "Tokyo Mac"), timeZone: "Asia/Tokyo"}
-      const now = () => new Date("2026-06-15T23:30:00Z")
+      function now() {
+        return new Date("2026-06-15T23:30:00Z")
+      }
 
       const result = await call({store: seeded.store, now}, agent, saveTaskTool, {content: "Buy milk"})
 
@@ -85,7 +87,9 @@ describe("save_task", () => {
     const seeded = await seedAgentStore()
 
     try {
-      const now = () => new Date("2026-06-15T23:30:00Z")
+      function now() {
+        return new Date("2026-06-15T23:30:00Z")
+      }
       const tokyoAgent: AgentIdentity = {...bindAgent(seeded.store, "Tokyo Mac"), timeZone: "Asia/Tokyo"}
       const laAgent: AgentIdentity = {...bindAgent(seeded.store, "LA Mac"), timeZone: "America/Los_Angeles"}
 
@@ -167,7 +171,9 @@ describe("save_task", () => {
 
     try {
       const agent: AgentIdentity = {...bindAgent(seeded.store, "Tokyo Mac"), timeZone: "Asia/Tokyo"}
-      const now = () => new Date("2026-06-15T23:30:00Z")
+      function now() {
+        return new Date("2026-06-15T23:30:00Z")
+      }
 
       const result = await call({store: seeded.store, now}, agent, saveTaskTool, {id: backlogId, status: "in_progress"})
       expect(result).toMatchObject({

@@ -1,7 +1,8 @@
 import {isDeepStrictEqual} from "node:util"
 
-import {validateWorkflowGuidanceRecord} from "../../utils/tasks/workflowValidation"
-import {TaskWorkflowError} from "../TaskWorkflowError"
+import {validateWorkflowGuidanceRecord} from "../../utils/task-workflow/validateWorkflowGuidanceRecord"
+import {TaskWorkflowError} from "../../errors/task-workflow/TaskWorkflowError"
+import {TaskWorkflowErrorCode} from "../../errors/task-workflow/TaskWorkflowErrorCode"
 
 import type {WorkflowGuidanceRecord} from "@daily/protocol"
 import type {SqliteDriver} from "../../database/SqliteDriver"
@@ -24,7 +25,7 @@ export class WorkflowGuidanceModel {
     validateWorkflowGuidanceRecord(record)
     const existing = this.getAll().find((item) => item.id === record.id)
     if (existing && !isDeepStrictEqual(existing, record))
-      throw new TaskWorkflowError("conflict", "Conflicting immutable guidance revisions block sync. No history is discarded.")
+      throw new TaskWorkflowError(TaskWorkflowErrorCode.Conflict, "Conflicting immutable guidance revisions block sync. No history is discarded.")
     this._db.prepare("INSERT OR IGNORE INTO workflow_guidance_records (id, data) VALUES (?, ?)").run(record.id, JSON.stringify(record))
   }
 }

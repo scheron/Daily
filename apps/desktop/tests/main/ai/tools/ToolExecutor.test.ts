@@ -32,7 +32,7 @@ describe("ToolExecutor (registry-backed)", () => {
     expect(getTagList).toHaveBeenCalled()
   })
 
-  it("normalizes a ToolError thrown from a shared tool's run into ToolResult, without logging it as an error", async () => {
+  it("preserves a shared tool refusal code without logging an unexpected error", async () => {
     const {logger} = await import("@daily/core")
     const fakeStorage = makeFakeStorage({
       getTaskWorkflow: vi.fn(async () => {

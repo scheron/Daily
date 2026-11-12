@@ -1,6 +1,6 @@
 import crypto from "node:crypto"
 
-import {validateWorkflowSnapshotDocs} from "../../tasks/workflowValidation"
+import {validateWorkflowSnapshotDocs} from "../../task-workflow/validateWorkflowSnapshotDocs"
 
 import type {Snapshot, SnapshotDocs, SnapshotMeta} from "@daily/protocol"
 

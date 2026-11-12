@@ -6,6 +6,9 @@ import {buildToolContext} from "./toolContext"
 import type {Tool as SharedTool} from "@daily/tools"
 import type {RegisteredTool} from "@main/ai/tools/registry/types"
 
+/** Every tool agents over MCP and the Daily Assistant both share, in `@daily/tools`' own order. */
+export const SHARED_TOOLS: readonly RegisteredTool[] = TOOLS.map(wrapSharedTool)
+
 function wrapSharedTool(tool: SharedTool): RegisteredTool {
   return {
     name: tool.name,
@@ -28,6 +31,3 @@ function wrapSharedTool(tool: SharedTool): RegisteredTool {
     },
   }
 }
-
-/** Every tool agents over MCP and the Daily Assistant both share, in `@daily/tools`' own order. */
-export const SHARED_TOOLS: readonly RegisteredTool[] = TOOLS.map(wrapSharedTool)

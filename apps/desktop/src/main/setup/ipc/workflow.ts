@@ -1,14 +1,14 @@
 import {ipcMain} from "electron"
 
 import type {IStorageController} from "@daily/core"
-import type {TaskWorkflowState, WorkflowGuidanceDocument} from "@daily/protocol"
-import type {GuidanceUpdate, ProposalResolution, WorkflowResult} from "@shared/types/workflow"
+import type {TaskWorkflowResolution, TaskWorkflowState, WorkflowGuidanceDocument, WorkflowGuidanceUpdate} from "@daily/protocol"
+import type {WorkflowResult} from "@shared/types/workflow"
 
 export function setupWorkflowIPC(getStorage: () => IStorageController | null) {
   ipcMain.handle("workflow:get-guidance", (_event, projectId?: string) => run((storage) => storage.getWorkflowGuidance(projectId)))
-  ipcMain.handle("workflow:save-guidance", (_event, update: GuidanceUpdate) => run((storage) => storage.updateWorkflowGuidance(update)))
+  ipcMain.handle("workflow:save-guidance", (_event, update: WorkflowGuidanceUpdate) => run((storage) => storage.updateWorkflowGuidance(update)))
   ipcMain.handle("workflow:get-task", (_event, taskId: string) => run((storage) => storage.getTaskWorkflow(taskId)))
-  ipcMain.handle("workflow:resolve-proposal", (_event, resolution: ProposalResolution) =>
+  ipcMain.handle("workflow:resolve-proposal", (_event, resolution: TaskWorkflowResolution) =>
     run(async (storage) => {
       await storage.resolveTaskWorkflowProposal(resolution)
       return storage.getTaskWorkflow(resolution.taskId)

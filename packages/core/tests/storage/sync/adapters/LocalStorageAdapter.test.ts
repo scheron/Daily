@@ -65,7 +65,7 @@ describe("LocalStorageAdapter", () => {
     db.close()
   })
 
-  it("exchanges a v18 project emoji between databases and lets a newer snapshot clear it", async () => {
+  it("exchanges a v20 project emoji between databases and lets a newer snapshot clear it", async () => {
     const branch = {id: "emoji-project", name: "Space", description: "Mission", emoji: "👩🏽‍🚀", created_at: now, updated_at: now, deleted_at: null}
     await adapter.upsertDocs({
       tasks: [],
@@ -110,7 +110,7 @@ describe("LocalStorageAdapter", () => {
     expect(buildSnapshot(restored).version).toBe(20)
   })
 
-  it("round-trips To Do with its tags and subtask through a v18 snapshot into another database", async () => {
+  it("round-trips To Do with its tags and subtask through a v20 snapshot into another database", async () => {
     insertTask(db, "t1", "Parent", {status: "todo"})
     insertTag(db, "todo-tag", "Planned")
     linkTaskTag(db, "t1", "todo-tag")

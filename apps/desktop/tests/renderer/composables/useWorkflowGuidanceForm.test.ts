@@ -17,26 +17,16 @@ function mountForm(value: WorkflowGuidanceScope = {kind: "workspace"}) {
   return scope.run(() => useWorkflowGuidanceForm(ref(value)))!
 }
 
-function makeProjectGuidance(): WorkflowGuidance {
-  return {
-    ...makeWorkflowGuidance("Original workspace instructions"),
-    project: {
-      scope: {kind: "project", projectId: "main"},
-      content: "Project instructions",
-      allowCompletion: null,
-      revision: "project-1",
-      history: [],
-    },
-  }
-}
-
 it("storage changes refresh a clean guidance form and its effective completion permission", async () => {
   const listeners = new Set<() => void>()
-  let current = makeWorkflowGuidance("Original instructions")
+  let current = makeWorkflowGuidance({content: "Original instructions"})
   mockBridgeIPC({
     on: vi.fn((event: string, listener: () => void) => {
       if (event === "storage:changed") listeners.add(listener)
-      return () => listeners.delete(listener)
+      function unsubscribe() {
+        return listeners.delete(listener)
+      }
+      return unsubscribe
     }),
     "workflow:get-guidance": vi.fn(async () => ({ok: true, value: current})),
   })
@@ -44,7 +34,7 @@ it("storage changes refresh a clean guidance form and its effective completion p
   await nextTick()
   await Promise.resolve()
   current = {
-    ...makeWorkflowGuidance("Updated instructions"),
+    ...makeWorkflowGuidance({content: "Updated instructions"}),
     workspace: {...current.workspace, content: "Updated instructions", allowCompletion: true, revision: "revision-2"},
     allowCompletion: true,
   }
@@ -61,12 +51,28 @@ it("storage changes refresh a clean guidance form and its effective completion p
 })
 
 it("workspace guidance refreshes beneath a dirty project draft without changing its save revision", async () => {
+  function makeProjectGuidance(): WorkflowGuidance {
+    return {
+      ...makeWorkflowGuidance({content: "Original workspace instructions"}),
+      project: {
+        scope: {kind: "project", projectId: "main"},
+        content: "Project instructions",
+        allowCompletion: null,
+        revision: "project-1",
+        history: [],
+      },
+    }
+  }
+
   const listeners = new Set<() => void>()
   let current = makeProjectGuidance()
   const bridge = mockBridgeIPC({
     on: vi.fn((event: string, listener: () => void) => {
       if (event === "storage:changed") listeners.add(listener)
-      return () => listeners.delete(listener)
+      function unsubscribe() {
+        return listeners.delete(listener)
+      }
+      return unsubscribe
     }),
     "workflow:get-guidance": vi.fn(async () => ({ok: true, value: current})),
     "workflow:save-guidance": vi.fn().mockResolvedValue({
@@ -107,11 +113,14 @@ it("workspace guidance refreshes beneath a dirty project draft without changing 
 
 it("a changed saved document preserves a dirty draft and blocks saving with its old revision", async () => {
   const listeners = new Set<() => void>()
-  let current = makeWorkflowGuidance("Original instructions")
+  let current = makeWorkflowGuidance({content: "Original instructions"})
   mockBridgeIPC({
     on: vi.fn((event: string, listener: () => void) => {
       if (event === "storage:changed") listeners.add(listener)
-      return () => listeners.delete(listener)
+      function unsubscribe() {
+        return listeners.delete(listener)
+      }
+      return unsubscribe
     }),
     "workflow:get-guidance": vi.fn(async () => ({ok: true, value: current})),
   })
@@ -134,14 +143,17 @@ it("a changed saved document preserves a dirty draft and blocks saving with its 
 
 it("a refresh started before saving cannot replace the confirmed saved document", async () => {
   const listeners = new Set<() => void>()
-  const original = makeWorkflowGuidance("Original instructions")
+  const original = makeWorkflowGuidance({content: "Original instructions"})
   const savedDocument = {...original.workspace, content: "Confirmed local instructions", revision: "revision-2"}
   const pending = {complete(_result: {ok: boolean; value: WorkflowGuidance}) {}}
   const delayed = new Promise((resolve) => (pending.complete = resolve))
   mockBridgeIPC({
     on: vi.fn((event: string, listener: () => void) => {
       if (event === "storage:changed") listeners.add(listener)
-      return () => listeners.delete(listener)
+      function unsubscribe() {
+        return listeners.delete(listener)
+      }
+      return unsubscribe
     }),
     "workflow:get-guidance": vi
       .fn()
@@ -167,7 +179,7 @@ it("a refresh started before saving cannot replace the confirmed saved document"
 })
 
 it("a stale guidance save preserves the draft and requires reviewing current guidance", async () => {
-  const guidance = makeWorkflowGuidance("Original instructions")
+  const guidance = makeWorkflowGuidance({content: "Original instructions"})
   mockBridgeIPC({
     "workflow:get-guidance": vi.fn().mockResolvedValue({ok: true, value: guidance}),
     "workflow:save-guidance": vi

@@ -52,11 +52,6 @@ export function bindDevice(store: ServerStore, name = "Bound Mac"): string {
   return createDevice(store, name).device.id
 }
 
-/**
- * An `AgentIdentity` naming a freshly bound device — the shape a write-mode call needs, since
- * `written_by_device_id` is a real foreign key. `deviceName` names the Mac; `agentName` is the
- * name the agent itself was approved under, the one a comment is attributed to.
- */
 export function bindAgent(store: ServerStore, deviceName = "Agent Mac", timeZone = "UTC", agentName = "Test Client"): AgentIdentity {
   const deviceId = bindDevice(store, deviceName)
   return {agentId: `test-agent-${deviceId}`, deviceId, timeZone, name: agentName}
@@ -89,7 +84,6 @@ export function makeTaskDraft(overrides: Record<string, unknown> = {}): any {
   }
 }
 
-/** A structurally valid, empty `StoredSnapshotDocument`, overridden per case to build a specific edge — never a hand-copied object per case. */
 export function rawSnapshotDocument(overrides: Record<string, unknown> = {}): any {
   return {
     version: KNOWN_SNAPSHOT_VERSION,

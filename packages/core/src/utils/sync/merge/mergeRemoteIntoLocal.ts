@@ -1,7 +1,8 @@
 import {isDeepStrictEqual} from "node:util"
 
-import {TaskWorkflowError} from "../../../storage/TaskWorkflowError"
-import {validateWorkflowSnapshotDocs} from "../../tasks/workflowValidation"
+import {TaskWorkflowError} from "../../../errors/task-workflow/TaskWorkflowError"
+import {TaskWorkflowErrorCode} from "../../../errors/task-workflow/TaskWorkflowErrorCode"
+import {validateWorkflowSnapshotDocs} from "../../task-workflow/validateWorkflowSnapshotDocs"
 import {normalizeSnapshotDocs} from "../snapshot/normalizeSnapshotDocs"
 import {mergeAppendOnly} from "./mergeAppendOnly"
 import {mergeCollections} from "./mergeCollections"
@@ -76,7 +77,7 @@ export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: Snapsh
   for (const record of [...(local.workflowRecords ?? []), ...(remote.workflowRecords ?? [])]) {
     const existing = workflowRecordsById.get(record.id)
     if (existing && !isDeepStrictEqual(existing, record))
-      throw new TaskWorkflowError("conflict", "Conflicting immutable workflow records block sync. No record is discarded.")
+      throw new TaskWorkflowError(TaskWorkflowErrorCode.Conflict, "Conflicting immutable workflow records block sync. No record is discarded.")
     workflowRecordsById.set(record.id, record)
   }
   const {result: mergedWorkflowRecords, added: addedWorkflowRecords} = mergeAppendOnly(local.workflowRecords ?? [], remote.workflowRecords ?? [])
@@ -85,7 +86,7 @@ export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: Snapsh
   for (const record of [...(local.workflowGuidanceRecords ?? []), ...(remote.workflowGuidanceRecords ?? [])]) {
     const existing = guidanceRecordsById.get(record.id)
     if (existing && !isDeepStrictEqual(existing, record))
-      throw new TaskWorkflowError("conflict", "Conflicting immutable guidance revisions block sync. No history is discarded.")
+      throw new TaskWorkflowError(TaskWorkflowErrorCode.Conflict, "Conflicting immutable guidance revisions block sync. No history is discarded.")
     guidanceRecordsById.set(record.id, record)
   }
   const {result: mergedGuidanceRecords, added: addedGuidanceRecords} = mergeAppendOnly(

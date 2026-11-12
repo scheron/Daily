@@ -8,9 +8,10 @@ import {assertKnownSnapshotVersion} from "../../utils/sync/snapshot/assertKnownS
 import {buildSnapshot, buildSnapshotMeta} from "../../utils/sync/snapshot/buildSnapshot"
 import {isValidSnapshot} from "../../utils/sync/snapshot/isValidSnapshot"
 import {normalizeSnapshotDocs} from "../../utils/sync/snapshot/normalizeSnapshotDocs"
-import {workflowSpentTime} from "../../utils/tasks/workflowTime"
+import {workflowSpentTime} from "../../utils/task-workflow/workflowSpentTime"
+import {TaskWorkflowError} from "../../errors/task-workflow/TaskWorkflowError"
+import {TaskWorkflowErrorCode} from "../../errors/task-workflow/TaskWorkflowErrorCode"
 import {rowToBranch, rowToMilestone, rowToTag, rowToTaskComment, rowToTaskRelation} from "../models/_rowMappers"
-import {TaskWorkflowError} from "../TaskWorkflowError"
 
 import type {
   ILocalStorage,
@@ -66,7 +67,7 @@ export class SyncEngine {
 
   private readonly assetsDir: () => string
   private onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => void
-  private onDataChanged: (changeset: Changeset) => void
+  private _onDataChanged: (changeset: Changeset) => void
   private autoSyncScheduler: ReturnType<typeof createIntervalScheduler>
   private pushDebounceTimer: ReturnType<typeof setTimeout> | null = null
   private pacing: SyncPacing
@@ -83,7 +84,7 @@ export class SyncEngine {
     this.remotes = remotes
     this.assetsDir = options.assetsDir
     this.onStatusChange = options.onStatusChange
-    this.onDataChanged = options.onDataChanged
+    this._onDataChanged = options.onDataChanged
 
     this.pacing = syncPacingFor(this.remotes[0]?.id)
     this.autoSyncScheduler = this._createAutoSyncScheduler()
@@ -267,7 +268,7 @@ export class SyncEngine {
     }
 
     if (anyChanges) {
-      this.onDataChanged?.(buildChangeset(changesetAcc, localDocs))
+      this._onDataChanged?.(buildChangeset(changesetAcc, localDocs))
     }
 
     for (const {remote, remoteDocs} of pushTargets) {
@@ -376,13 +377,13 @@ export class SyncEngine {
       resultDocs.tasks.filter((task) => workflowTaskIds.has(task.id)),
     )
 
-    const upsertCount = this.countDocs(toUpsert)
+    const upsertCount = this._countDocs(toUpsert)
     if (upsertCount) {
       logger.debug(logger.CONTEXT.SYNC_PULL, `Upserting ${upsertCount} documents`)
       await this.localStore.upsertDocs(toUpsert)
     }
 
-    const removalCount = this.countDocs(toRemove)
+    const removalCount = this._countDocs(toRemove)
     if (removalCount) {
       logger.debug(logger.CONTEXT.SYNC_PULL, `Deleting ${removalCount} documents`)
       await this.localStore.deleteDocs(toRemove)
@@ -393,7 +394,7 @@ export class SyncEngine {
     return {resultDocs, hasChanges: changes > 0}
   }
 
-  private countDocs(docs: {
+  private _countDocs(docs: {
     tasks?: unknown[]
     tags?: unknown[]
     branches?: unknown[]
@@ -663,7 +664,7 @@ function readSnapshotDocs(snapshot: Snapshot | null): SnapshotDocs | null {
   assertKnownSnapshotVersion(snapshot)
   if (!isValidSnapshot(snapshot))
     throw new TaskWorkflowError(
-      "invalid_request",
+      TaskWorkflowErrorCode.InvalidRequest,
       "Invalid workflow snapshot structure. Sync stops without discarding history; repair the source snapshot before retrying.",
     )
   return normalizeSnapshotDocs(snapshot.docs, snapshot.version)

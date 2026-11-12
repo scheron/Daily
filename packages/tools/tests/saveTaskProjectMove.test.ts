@@ -78,7 +78,7 @@ describe("save_task — a project move combined with a reorder", () => {
     expect(moved?.orderIndex).toBe(-1014)
   })
 
-  it("preserves the task stage when moving projects and editing content", async () => {
+  it("preserves the task status when moving projects and editing content", async () => {
     const {db: realDb, workStorage, ctx} = makeRealWorkspace()
     db = realDb
 

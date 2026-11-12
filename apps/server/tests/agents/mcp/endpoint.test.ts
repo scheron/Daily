@@ -1,8 +1,8 @@
 import {describe, expect, it, vi} from "vitest"
 
-import {KNOWN_SNAPSHOT_VERSION} from "@daily/core/utils/sync/snapshot/assertKnownSnapshotVersion"
 import {AGENT_ENDPOINT_PATH, SYNC_PROTOCOL_PATHS} from "@daily/protocol"
 
+import {rawSnapshotDocument} from "../helpers"
 import {
   AGENT_OAUTH_TEST_PATHS,
   bootAgentServer,
@@ -18,6 +18,7 @@ import {
   startClientDocumentServer,
 } from "../oauth/harness"
 
+import type {Task} from "@daily/protocol"
 import type {BootedAgentServer} from "../oauth/harness"
 
 function statelessRequest(
@@ -52,23 +53,7 @@ async function writeInitialSnapshot(booted: BootedAgentServer, token: string): P
     headers: {authorization: `Bearer ${token}`, "content-type": "application/json"},
     body: JSON.stringify({
       expectedRevision: null,
-      snapshot: {
-        version: KNOWN_SNAPSHOT_VERSION,
-        meta: {updatedAt: new Date().toISOString(), hash: "seed"},
-        docs: {
-          tasks: [],
-          tags: [],
-          branches: [],
-          milestones: [],
-          relations: [],
-          comments: [],
-          subtasks: [],
-          files: [],
-          events: [],
-          workflowRecords: [],
-          workflowGuidanceRecords: [],
-        },
-      },
+      snapshot: rawSnapshotDocument({meta: {updatedAt: new Date().toISOString(), hash: "seed"}}),
     }),
   })
   if (res.status !== 200) throw new Error(`expected the harness's snapshot seed to succeed, got ${res.status}`)
@@ -192,7 +177,8 @@ describe("the 2026-07-28 path answers as the caller's Mac and records last use â
       expect(callRes.status).toBe(200)
       const callJson = (await callRes.json()) as {result: {resultType: string; content: {type: string; text: string}[]}}
       expect(callJson.result.resultType).toBe("complete")
-      const savedTask = (JSON.parse(callJson.result.content[0].text) as {task: {projectId: string; status: string; scheduled: null}}).task
+      const savedTask = (JSON.parse(callJson.result.content[0].text) as {task: {projectId: string; status: string; scheduled: Task["scheduled"]}})
+        .task
       expect(savedTask.projectId).toBe("main")
       expect(savedTask.status).toBe("todo")
       expect(savedTask.scheduled).toMatchObject({date: expect.any(String)})
@@ -494,7 +480,7 @@ describe("the tool host follows the Mac's probed time zone and refuses an unknow
         const saveRes = await postMcp(booted, connected.accessToken, save.body, save.headers)
         expect(saveRes.status).toBe(200)
         const saveJson = (await saveRes.json()) as {result: {content: {type: string; text: string}[]}}
-        const savedTask = (JSON.parse(saveJson.result.content[0].text) as {task: {status: string; scheduled: null}}).task
+        const savedTask = (JSON.parse(saveJson.result.content[0].text) as {task: {status: string; scheduled: Task["scheduled"]}}).task
         expect(savedTask.status).toBe("todo")
         expect(savedTask.scheduled).toMatchObject({date: "2026-01-15", timezone: "Asia/Tokyo"})
       } finally {

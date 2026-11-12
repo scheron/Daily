@@ -83,14 +83,17 @@ describe("callMcpTool over a write — TC-16", () => {
       const m = bindAgent(seeded.store, "M", "Pacific/Auckland")
       const caller: McpCaller = {agentId: m.agentId, deviceId: m.deviceId, timeZone: m.timeZone, name: m.name}
 
-      const outcome = await callMcpTool({store: seeded.store}, caller, {name: "save_task", arguments: {content: "Buy milk"}})
+      const outcome = await callMcpTool({store: seeded.store, now: () => new Date("2026-01-01T23:00:00Z")}, caller, {
+        name: "save_task",
+        arguments: {content: "Buy milk"},
+      })
       if (!outcome.ok) throw new Error("expected save_task to succeed")
       expect(outcome.result.isError).toBeUndefined()
 
       const parsed = JSON.parse(textOf(outcome.result.content))
       expect(parsed.task.projectId).toBe("main")
       expect(parsed.task.status).toBe("todo")
-      expect(parsed.task.scheduled).toMatchObject({date: expect.any(String)})
+      expect(parsed.task.scheduled).toEqual({date: "2026-01-02", time: "12:00:00", timezone: "Pacific/Auckland"})
 
       const row = seeded.store.db.prepare(`SELECT revision, written_by_device_id FROM snapshot`).get() as {
         revision: number

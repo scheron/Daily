@@ -15,6 +15,9 @@ export function useTaskWorkflow(taskId: MaybeRefOrGetter<string>) {
   const resolvingId = ref<string | null>(null)
   const notice = ref<string | null>(null)
 
+  const unsubscribe = window.BridgeIPC.on("storage:changed", () => void load(true))
+  useIntervalFn(() => void load(true), 5000)
+
   async function load(quiet = false) {
     if (resolvingId.value !== null) return
     const request = ++generation
@@ -81,9 +84,6 @@ export function useTaskWorkflow(taskId: MaybeRefOrGetter<string>) {
       isLoading.value = false
     }
   }
-
-  const unsubscribe = window.BridgeIPC.on("storage:changed", () => void load(true))
-  useIntervalFn(() => void load(true), 5000)
 
   watch(
     () => toValue(taskId),

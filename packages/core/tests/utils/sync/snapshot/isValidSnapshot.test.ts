@@ -71,7 +71,7 @@ describe("isValidSnapshot", () => {
     expect(isValidSnapshot("string")).toBe(false)
   })
 
-  it("accepts complete version 18 and refuses version 19", () => {
+  it("accepts legacy version 17 with workflow records and refuses version 19 without guidance", () => {
     expect(isValidSnapshot({...validSnapshot(), version: 8})).toBe(true)
     expect(isValidSnapshot({...validSnapshot(), version: 9})).toBe(true)
     expect(isValidSnapshot({...validSnapshot(), version: 17, docs: {...validSnapshot().docs, workflowRecords: []}})).toBe(true)

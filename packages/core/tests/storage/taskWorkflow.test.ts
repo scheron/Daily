@@ -5,8 +5,8 @@ import {WorkStorage} from "@core/storage/WorkStorage"
 import {makeControllerHarness, makeTaskInput} from "../helpers/storageControllerHarness"
 
 import type {SqliteDriver} from "@core/database/SqliteDriver"
-import type {TaskWorkflowHost} from "@core/storage/services/TaskWorkflowService"
 import type {Changeset} from "@core/types/storage"
+import type {TaskWorkflowHost} from "@core/types/taskWorkflow"
 import type {ActorSource, TaskWorkflowCommand, TaskWorkflowContext} from "@daily/protocol"
 
 const cleanups: Array<() => void> = []
@@ -357,10 +357,11 @@ it("checkpoints a human absolute total against intervals committed before its ed
       db.exec(sql)
     },
     transaction(fn) {
-      return () => {
+      function runTransaction() {
         if (!db.inTransaction) commitInterval()
         return db.transaction(fn)()
       }
+      return runTransaction
     },
   }
 

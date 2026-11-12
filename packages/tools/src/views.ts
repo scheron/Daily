@@ -17,10 +17,7 @@ import type {
   TaskEventType,
   TaskPriority,
   TaskStatus,
-  TaskWorkflowState,
   Timezone,
-  WorkflowGuidance,
-  WorkflowGuidanceDocument,
 } from "@daily/protocol"
 
 export type TagView = {id: string; projectId: string; name: string; color: string; createdAt: ISODateTime; updatedAt: ISODateTime}
@@ -164,20 +161,6 @@ export function subtaskView(subtask: Subtask): SubtaskView {
   return {id: subtask.id, content: subtask.content, done: subtask.done, createdAt: subtask.createdAt, updatedAt: subtask.updatedAt}
 }
 
-/** Agent contexts carry current preferences and policy; guidance audit history stays in Daily's trusted interface. */
-export function workflowGuidanceView(guidance: WorkflowGuidance) {
-  return {
-    workspace: guidanceDocumentView(guidance.workspace),
-    project: guidance.project ? guidanceDocumentView(guidance.project) : null,
-    allowCompletion: guidance.allowCompletion,
-    timePolicy: guidance.timePolicy,
-  }
-}
-
-export function taskWorkflowView(state: TaskWorkflowState) {
-  return {...state, guidance: workflowGuidanceView(state.guidance)}
-}
-
 type TaskEventView = {
   type: TaskEventType
   date: ISODate
@@ -216,8 +199,4 @@ function taskEventView(event: TaskEvent): TaskEventView {
     kind: event.kind,
     provider: event.provider,
   }
-}
-
-function guidanceDocumentView(document: WorkflowGuidanceDocument) {
-  return {scope: document.scope, content: document.content, allowCompletion: document.allowCompletion, revision: document.revision}
 }

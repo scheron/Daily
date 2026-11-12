@@ -6,11 +6,13 @@ import {mergeRemoteIntoLocal} from "@core/utils/sync/merge/mergeRemoteIntoLocal"
 import {buildSnapshot} from "@core/utils/sync/snapshot/buildSnapshot"
 import {isValidSnapshot} from "@core/utils/sync/snapshot/isValidSnapshot"
 import {normalizeSnapshotDocs} from "@core/utils/sync/snapshot/normalizeSnapshotDocs"
-import {workflowSpentTime} from "@core/utils/tasks/workflowTime"
-import {canonicalWorkflowValue, validateWorkflowSnapshotDocs, workflowDigest} from "@core/utils/tasks/workflowValidation"
+import {canonicalWorkflowValue} from "@core/utils/task-workflow/canonicalWorkflowValue"
+import {validateWorkflowSnapshotDocs} from "@core/utils/task-workflow/validateWorkflowSnapshotDocs"
+import {workflowDigest} from "@core/utils/task-workflow/workflowDigest"
+import {workflowSpentTime} from "@core/utils/task-workflow/workflowSpentTime"
 import {makeControllerHarness, makeTaskInput} from "../helpers/storageControllerHarness"
 
-import type {SnapshotDocs, TaskWorkflowCommand, TaskWorkflowRecord} from "@daily/protocol"
+import type {AgentSessionState, Snapshot, SnapshotDocs, SyncStrategy, TaskWorkflowCommand, TaskWorkflowRecord} from "@daily/protocol"
 
 const cleanups: Array<() => void> = []
 afterEach(() => {
@@ -331,70 +333,68 @@ function asLegacySessionRecord(record: TaskWorkflowRecord, kind: "start" | "hear
   }
 }
 
-it.each([
+it.each<[Extract<TaskWorkflowCommand["kind"], "heartbeat" | "pause">, boolean]>([
   ["heartbeat", false],
   ["pause", false],
   ["heartbeat", true],
   ["pause", true],
-] as const)(
-  "rejects legacy %s after a current terminal receipt with indirect ancestry=%s on full, merged and delta imports",
-  async (kind, indirect) => {
-    const core = await makeTerminalContinuation()
-    if (indirect) {
-      const receipt = await core.storage.executeTaskWorkflow(
-        {
-          taskId: core.task.id,
-          operationId: "intervening-session",
-          expectedRevision: core.continuation.command.expectedRevision,
-          kind: "session_start",
-          sessionId: "other-session",
-        },
-        {actorId: "other-agent", source: {kind: "mcp"}},
-      )
-      core.continuation.command.expectedRevision = receipt.revision
-    }
-    const retained = await core.localAdapter.loadAllDocs()
-    const legacy = asLegacySessionRecord(core.continuation, kind)
-    const frozen = await core.storage.getTaskWorkflow(core.task.id)
-    legacy.receipt.revision = workflowDigest({
-      task: {...frozen.task, spentTime: 20},
-      generation: retained.tasks[0].workflow_generation,
-      ids: [...frozen.records.map((record) => record.id), legacy.id].sort(),
-      guidance: [frozen.guidance.workspace.revision, frozen.guidance.project?.revision ?? null],
-    })
-    expect(legacy.receipt.revision).not.toBe(core.continuation.command.expectedRevision)
-    await expect(
-      core.storage.executeTaskWorkflow(legacy.command as TaskWorkflowCommand, {actorId: "agent", source: {kind: "mcp"}}),
-    ).rejects.toMatchObject({
-      code: "conflict",
-    })
-    const full = {...retained, workflowRecords: [...retained.workflowRecords!, legacy]}
-    const delta = {
-      ...retained,
-      tasks: [],
-      branches: retained.branches.map((branch) => ({...branch, name: "Must not write"})),
-      workflowRecords: [legacy],
-    }
-    expect(() => validateWorkflowSnapshotDocs(delta)).not.toThrow()
-    expect(() => validateWorkflowSnapshotDocs(full, {completeHistory: true})).toThrow(/terminal boundary/)
-    expect(() => buildSnapshot(full)).toThrow(/terminal boundary/)
-    expect(() => isValidSnapshot({...buildSnapshot(retained), docs: full})).toThrow(/terminal boundary/)
-    for (const strategy of ["pull", "push"] as const) {
-      expect(() => mergeRemoteIntoLocal(retained, full, strategy, 100000)).toThrow(/terminal boundary/)
-      expect(() => mergeRemoteIntoLocal(full, retained, strategy, 100000)).toThrow(/terminal boundary/)
-      expect(() => mergeRemoteIntoLocal(retained, delta, strategy, 100000)).toThrow(/terminal boundary/)
-    }
-    const target = makeControllerHarness()
-    cleanups.push(() => target.db.close())
-    const before = await target.localAdapter.loadAllDocs()
-    await expect(target.localAdapter.upsertDocs(full)).rejects.toThrow(/terminal boundary/)
-    expect(await target.localAdapter.loadAllDocs()).toEqual(before)
-    await expect(core.localAdapter.upsertDocs(delta)).rejects.toThrow(/terminal boundary/)
-    expect(await core.localAdapter.loadAllDocs()).toEqual(retained)
-    expect((await core.storage.getTaskWorkflow(core.task.id)).confirmedSeconds).toBe(10)
-    expect((await core.storage.getTask(core.task.id))?.spentTime).toBe(10)
-  },
-)
+])("rejects legacy %s after a current terminal receipt with indirect ancestry=%s on full, merged and delta imports", async (kind, indirect) => {
+  const core = await makeTerminalContinuation()
+  if (indirect) {
+    const receipt = await core.storage.executeTaskWorkflow(
+      {
+        taskId: core.task.id,
+        operationId: "intervening-session",
+        expectedRevision: core.continuation.command.expectedRevision,
+        kind: "session_start",
+        sessionId: "other-session",
+      },
+      {actorId: "other-agent", source: {kind: "mcp"}},
+    )
+    core.continuation.command.expectedRevision = receipt.revision
+  }
+  const retained = await core.localAdapter.loadAllDocs()
+  const legacy = asLegacySessionRecord(core.continuation, kind)
+  const frozen = await core.storage.getTaskWorkflow(core.task.id)
+  legacy.receipt.revision = workflowDigest({
+    task: {...frozen.task, spentTime: 20},
+    generation: retained.tasks[0].workflow_generation,
+    ids: [...frozen.records.map((record) => record.id), legacy.id].sort(),
+    guidance: [frozen.guidance.workspace.revision, frozen.guidance.project?.revision ?? null],
+  })
+  expect(legacy.receipt.revision).not.toBe(core.continuation.command.expectedRevision)
+  await expect(
+    core.storage.executeTaskWorkflow(legacy.command as TaskWorkflowCommand, {actorId: "agent", source: {kind: "mcp"}}),
+  ).rejects.toMatchObject({
+    code: "conflict",
+  })
+  const full = {...retained, workflowRecords: [...retained.workflowRecords!, legacy]}
+  const delta = {
+    ...retained,
+    tasks: [],
+    branches: retained.branches.map((branch) => ({...branch, name: "Must not write"})),
+    workflowRecords: [legacy],
+  }
+  expect(() => validateWorkflowSnapshotDocs(delta)).not.toThrow()
+  expect(() => validateWorkflowSnapshotDocs(full, {completeHistory: true})).toThrow(/terminal boundary/)
+  expect(() => buildSnapshot(full)).toThrow(/terminal boundary/)
+  expect(() => isValidSnapshot({...buildSnapshot(retained), docs: full})).toThrow(/terminal boundary/)
+  const strategies: SyncStrategy[] = ["pull", "push"]
+  for (const strategy of strategies) {
+    expect(() => mergeRemoteIntoLocal(retained, full, strategy, 100000)).toThrow(/terminal boundary/)
+    expect(() => mergeRemoteIntoLocal(full, retained, strategy, 100000)).toThrow(/terminal boundary/)
+    expect(() => mergeRemoteIntoLocal(retained, delta, strategy, 100000)).toThrow(/terminal boundary/)
+  }
+  const target = makeControllerHarness()
+  cleanups.push(() => target.db.close())
+  const before = await target.localAdapter.loadAllDocs()
+  await expect(target.localAdapter.upsertDocs(full)).rejects.toThrow(/terminal boundary/)
+  expect(await target.localAdapter.loadAllDocs()).toEqual(before)
+  await expect(core.localAdapter.upsertDocs(delta)).rejects.toThrow(/terminal boundary/)
+  expect(await core.localAdapter.loadAllDocs()).toEqual(retained)
+  expect((await core.storage.getTaskWorkflow(core.task.id)).confirmedSeconds).toBe(10)
+  expect((await core.storage.getTask(core.task.id))?.spentTime).toBe(10)
+})
 
 it.each(["other-session", "other-actor", "preterminal-fork"])("preserves a legacy %s alongside current terminal history", async (control) => {
   const core = await makeTerminalContinuation()
@@ -434,7 +434,8 @@ async function expectLegacyHistoryAccepted(retained: SnapshotDocs, incoming: Tas
   const full = {...retained, workflowRecords: [...retained.workflowRecords!, ...incoming]}
   const delta = {...full, tasks: [], workflowRecords: incoming}
   expect(isValidSnapshot(buildSnapshot(full))).toBe(true)
-  for (const strategy of ["pull", "push"] as const) {
+  const strategies: SyncStrategy[] = ["pull", "push"]
+  for (const strategy of strategies) {
     for (const [local, remote] of [
       [retained, full],
       [full, retained],
@@ -525,11 +526,12 @@ it("preserves an offline same-session fork beyond a terminal boundary when its c
     {actorId: "agent", source: {kind: "mcp"}},
   )
   await right.localAdapter.upsertDocs(await left.localAdapter.loadAllDocs())
-  for (const [storage, at, operationId, state] of [
+  const boundaries: [WorkStorage, number, string, AgentSessionState][] = [
     [rightStorage, 5000, "fork-resume", "working"],
     [leftStorage, 10000, "fork-left-finish", "finished"],
     [rightStorage, 20000, "fork-right-finish", "finished"],
-  ] as const) {
+  ]
+  for (const [storage, at, operationId, state] of boundaries) {
     observed = at
     const current = await storage.getTaskWorkflow(task.id)
     await storage.executeTaskWorkflow(
@@ -570,10 +572,11 @@ it("credits only the additional union learned offline after a human correction o
   const rightStorage = new WorkStorage(right, right.db, () => {}, {runtimeId: "right", now: () => observed, monotonicNow: () => observed})
   const task = left.taskModel.createTask(makeTaskInput())!
   await right.localAdapter.upsertDocs(await left.localAdapter.loadAllDocs())
-  for (const [storage, actor] of [
+  const actors: [WorkStorage, string][] = [
     [leftStorage, "left"],
     [rightStorage, "right"],
-  ] as const) {
+  ]
+  for (const [storage, actor] of actors) {
     const state = await storage.getTaskWorkflow(task.id)
     await storage.executeTaskWorkflow(
       {taskId: task.id, operationId: `${actor}-start`, expectedRevision: state.revision, kind: "session_start", sessionId: actor},
@@ -613,12 +616,19 @@ it("requires the retained working checkpoint that backs each confirmed interval"
   let observed = 0
   const storage = new WorkStorage(core, core.db, () => {}, {runtimeId: "chain", now: () => observed, monotonicNow: () => observed})
   const task = core.taskModel.createTask(makeTaskInput())!
-  for (const [at, command] of [
+  const commands: [
+    number,
+    (
+      | Omit<Extract<TaskWorkflowCommand, {kind: "session_start"}>, "taskId" | "operationId" | "expectedRevision">
+      | Omit<Extract<TaskWorkflowCommand, {kind: "session_update"}>, "taskId" | "operationId" | "expectedRevision">
+    ),
+  ][] = [
     [0, {kind: "session_start", sessionId: "chain"}],
     [10000, {kind: "session_update", sessionId: "chain", state: "waiting"}],
     [20000, {kind: "session_update", sessionId: "chain", state: "working"}],
     [30000, {kind: "session_update", sessionId: "chain", state: "finished"}],
-  ] as const) {
+  ]
+  for (const [at, command] of commands) {
     observed = at
     const state = await storage.getTaskWorkflow(task.id)
     await storage.executeTaskWorkflow(
@@ -735,7 +745,7 @@ it("accepts real epoch interval endpoints rounded from fractional monotonic obse
   expect((await storage.getTask(task.id))?.spentTime).toBe(1)
 })
 
-it.each([17, 18, 19] as const)("reads genuine v%d retained records without inventing new proposal authority", async (version) => {
+it.each<Snapshot["version"]>([17, 18, 19])("reads genuine v%d retained records without inventing new proposal authority", async (version) => {
   const {docs, record, task} = await makeHarness()
   const {schema: _schema, effectiveChanges: _effectiveChanges, originalValues, sessionId, sessionState, receipt, ...base} = record
   const {outcome: _outcome, proposalId: _proposalId, ...legacyReceipt} = receipt

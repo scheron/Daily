@@ -17,7 +17,13 @@ it("the Assistant wrapper enforces the shared workflow and authorship in Normal 
       async (name, input) => {
         const tool = SHARED_TOOLS.find((candidate) => candidate.name === name)
         expect(tool).toBeDefined()
-        const result = await tool!.execute(input, {storage, now: () => new Date(), caller: "in-app"})
+        const result = await tool!.execute(input, {
+          storage,
+          now() {
+            return new Date()
+          },
+          caller: "in-app",
+        })
         if (!result.success) throw new Error(result.error)
         return result.data
       },
@@ -43,7 +49,13 @@ it("the actual model message preserves actionable workflow refusal code and curr
         expectedRevision: workspace.revision,
       })
     }
-    const ctx: ToolExecutionContext = {storage, now: () => new Date(), caller: "in-app"}
+    const ctx: ToolExecutionContext = {
+      storage,
+      now() {
+        return new Date()
+      },
+      caller: "in-app",
+    }
     const save = SHARED_TOOLS.find((tool) => tool.name === "save_task")!
     const created = await save.execute({content: "Selected work"}, ctx)
     const {task} = created.data as {task: {id: string}}

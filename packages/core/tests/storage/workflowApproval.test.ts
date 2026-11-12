@@ -3,14 +3,14 @@ import {afterEach, expect, it} from "vitest"
 import {WorkStorage} from "@core/storage/WorkStorage"
 import {makeControllerHarness, makeTaskInput} from "../helpers/storageControllerHarness"
 
-import type {TaskScheduled, TaskStatus, TaskWorkflowCommand} from "@daily/protocol"
+import type {TaskScheduled, TaskStatus, TaskWorkflowCommand, TaskWorkflowResolution} from "@daily/protocol"
 
 const cleanups: Array<() => void> = []
 afterEach(() => {
   for (const cleanup of cleanups.splice(0)) cleanup()
 })
 
-function fixture(scheduled: TaskScheduled | null = {date: "2030-01-01", time: "10:00", timezone: "UTC"}) {
+function makeApprovalHarness(scheduled: TaskScheduled | null = {date: "2030-01-01", time: "10:00", timezone: "UTC"}) {
   const core = makeControllerHarness()
   cleanups.push(() => core.db.close())
   let day: TaskScheduled = {date: "2030-02-02", time: "11:00", timezone: "UTC"}
@@ -53,7 +53,7 @@ function fixture(scheduled: TaskScheduled | null = {date: "2030-01-01", time: "1
 }
 
 it("keeps a dated status transition pending until the exact status and cleared day are accepted", async () => {
-  const core = fixture()
+  const core = makeApprovalHarness()
   await core.run({kind: "transition", status: "backlog"})
   expect(await core.storage.getTask(core.task.id)).toMatchObject({status: "in_progress", scheduled: core.task.scheduled})
   expect((await core.storage.getTaskWorkflow(core.task.id)).proposals).toEqual([
@@ -68,7 +68,7 @@ it("keeps a dated status transition pending until the exact status and cleared d
 })
 
 it("freezes an implicit first day when requesting a dated status and applies it only after approval", async () => {
-  const core = fixture(null)
+  const core = makeApprovalHarness(null)
   await core.run({kind: "transition", status: "in_progress"})
   expect(await core.storage.getTask(core.task.id)).toMatchObject({status: "ready_for_agent", scheduled: null})
   const proposed = {date: "2030-02-02", time: "11:00", timezone: "UTC"}
@@ -79,7 +79,7 @@ it("freezes an implicit first day when requesting a dated status and applies it 
 })
 
 it("leaves status and schedule unchanged after rejecting a dependent date proposal", async () => {
-  const core = fixture()
+  const core = makeApprovalHarness()
   await core.run({kind: "transition", status: "backlog"})
   expect((await core.storage.getTaskWorkflow(core.task.id)).proposals).toHaveLength(1)
   await core.decide("rejected")
@@ -87,7 +87,7 @@ it("leaves status and schedule unchanged after rejecting a dependent date propos
 })
 
 it("binds an explicit schedule clear to a visible backlog status effect", async () => {
-  const core = fixture()
+  const core = makeApprovalHarness()
   await core.run({kind: "propose", changes: {scheduled: null}, reason: "No day is appropriate"})
   expect((await core.storage.getTaskWorkflow(core.task.id)).proposals[0]).toMatchObject({
     originalValues: {status: "in_progress", scheduled: core.task.scheduled},
@@ -98,14 +98,14 @@ it("binds an explicit schedule clear to a visible backlog status effect", async 
 })
 
 it("changes a schedule preserving status automatically", async () => {
-  const core = fixture()
+  const core = makeApprovalHarness()
   await core.run({kind: "transition", status: "ready_to_merge"})
   expect(await core.storage.getTask(core.task.id)).toMatchObject({status: "ready_to_merge", scheduled: core.task.scheduled})
   expect((await core.storage.getTaskWorkflow(core.task.id)).proposals).toHaveLength(0)
 })
 
 it("requires a fresh human revision after proposal values leave and return to their originals", async () => {
-  const core = fixture()
+  const core = makeApprovalHarness()
   await core.run({kind: "propose", changes: {priority: "high"}, reason: "Review priority"})
   const pending = await core.storage.getTaskWorkflow(core.task.id)
   await core.storage.updateTask(core.task.id, {priority: "low"})
@@ -125,7 +125,7 @@ it("requires a fresh human revision after proposal values leave and return to th
 })
 
 it("refuses an accepted proposal whose proposed milestone was deleted during review", async () => {
-  const core = fixture()
+  const core = makeApprovalHarness()
   const milestone = core.milestoneModel.createMilestone({
     branchId: "main",
     name: "Review milestone",
@@ -142,15 +142,15 @@ it("refuses an accepted proposal whose proposed milestone was deleted during rev
 })
 
 it("settles connected observed work during trusted acceptance and keeps the exact decision retryable", async () => {
-  const core = fixture()
+  const core = makeApprovalHarness()
   await core.run({kind: "session_start", sessionId: "during-review"})
   await core.run({kind: "propose", changes: {priority: "high"}, reason: "Review while working"})
   core.observe(20000)
   const pending = await core.storage.getTaskWorkflow(core.task.id)
-  const request = {
+  const request: TaskWorkflowResolution = {
     taskId: core.task.id,
     proposalId: pending.proposals[0].id,
-    decision: "accepted" as const,
+    decision: "accepted",
     operationId: "accept-during-work",
     expectedRevision: pending.revision,
   }
@@ -162,7 +162,7 @@ it("settles connected observed work during trusted acceptance and keeps the exac
 })
 
 it("does not apply an older proposal to a deleted task without an explicit reviewed restoration", async () => {
-  const core = fixture()
+  const core = makeApprovalHarness()
   await core.run({kind: "propose", changes: {priority: "high"}, reason: "Review before deletion"})
   await core.storage.deleteTask(core.task.id)
   await expect(core.decide("accepted")).rejects.toMatchObject({code: "not_found"})
@@ -172,7 +172,7 @@ it("does not apply an older proposal to a deleted task without an explicit revie
 it("keeps planning corrections to already resolved tasks available for trusted review without completion permission", async () => {
   const statuses: TaskStatus[] = ["done", "cancelled"]
   for (const status of statuses) {
-    const core = fixture()
+    const core = makeApprovalHarness()
     await core.storage.updateTask(core.task.id, {status})
     expect((await core.storage.getWorkflowGuidance("main")).allowCompletion).toBe(false)
     await expect(
@@ -187,7 +187,7 @@ it("keeps planning corrections to already resolved tasks available for trusted r
 it("still requires completion permission when a proposal explicitly requests a terminal status", async () => {
   const statuses: TaskStatus[] = ["done", "cancelled"]
   for (const status of statuses) {
-    const core = fixture()
+    const core = makeApprovalHarness()
     await core.storage.updateTask(core.task.id, {status})
     await expect(core.run({kind: "propose", changes: {status, priority: "high"}, reason: "Explicit terminal request"})).rejects.toMatchObject({
       code: "forbidden",
@@ -198,7 +198,7 @@ it("still requires completion permission when a proposal explicitly requests a t
 })
 
 it("requires destination completion permission when a proposal moves a terminal task to another project", async () => {
-  const core = fixture()
+  const core = makeApprovalHarness()
   const project = core.branchModel.createBranch({name: "Destination"})!
   await core.storage.updateTask(core.task.id, {status: "done"})
   const action = {kind: "propose", changes: {branchId: project.id, priority: "high"}, reason: "Move completed work"}

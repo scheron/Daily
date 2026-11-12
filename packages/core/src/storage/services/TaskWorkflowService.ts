@@ -1,18 +1,22 @@
 import {randomUUID} from "node:crypto"
 import {performance} from "node:perf_hooks"
 
-import {planTaskUpdate, resolveActorProvider} from "@daily/protocol"
+import {MAX_OBSERVED_WORKFLOW_INTERVAL_SECONDS, planTaskUpdate, resolveActorProvider} from "@daily/protocol"
 import {getTime, getTimezone, getToday} from "@daily/std"
 
-import {confirmedWorkflowSeconds} from "../../utils/tasks/workflowTime"
-import {canonicalWorkflowValue, validateWorkflowCommand, validateWorkflowResolution, workflowDigest} from "../../utils/tasks/workflowValidation"
+import {canonicalWorkflowValue} from "../../utils/task-workflow/canonicalWorkflowValue"
+import {confirmedWorkflowSeconds} from "../../utils/task-workflow/confirmedWorkflowSeconds"
+import {validateWorkflowCommand} from "../../utils/task-workflow/validateWorkflowCommand"
+import {validateWorkflowResolution} from "../../utils/task-workflow/validateWorkflowResolution"
+import {workflowDigest} from "../../utils/task-workflow/workflowDigest"
+import {TaskWorkflowError} from "../../errors/task-workflow/TaskWorkflowError"
+import {TaskWorkflowErrorCode} from "../../errors/task-workflow/TaskWorkflowErrorCode"
 import {MilestoneModel} from "../models/MilestoneModel"
 import {TagModel} from "../models/TagModel"
 import {TaskCommentModel} from "../models/TaskCommentModel"
 import {TaskEventModel} from "../models/TaskEventModel"
 import {TaskModel} from "../models/TaskModel"
 import {WorkflowRecordModel} from "../models/WorkflowRecordModel"
-import {TaskWorkflowError} from "../TaskWorkflowError"
 import {TaskEventsService} from "./TaskEventsService"
 import {WorkflowGuidanceService} from "./WorkflowGuidanceService"
 
@@ -20,7 +24,6 @@ import type {
   AgentSessionState,
   Task,
   TaskPlanningChanges,
-  TaskScheduled,
   TaskWorkflowCommand,
   TaskWorkflowContext,
   TaskWorkflowProposal,
@@ -34,8 +37,7 @@ import type {
 } from "@daily/protocol"
 import type {SqliteDriver} from "../../database/SqliteDriver"
 import type {Changeset} from "../../types/storage"
-
-export type TaskWorkflowHost = {runtimeId: string; now?: () => number; monotonicNow?: () => number; scheduledNow?: () => TaskScheduled}
+import type {TaskWorkflowHost} from "../../types/taskWorkflow"
 
 type ClockObservation = {wall: number; monotonic: number}
 
@@ -72,7 +74,7 @@ export class TaskWorkflowService {
       !["mcp", "agent"].includes(context.source?.kind) ||
       (context.source.provider != null && typeof context.source.provider !== "string")
     )
-      throw new TaskWorkflowError("forbidden", "A host-owned agent identity is required.")
+      throw new TaskWorkflowError(TaskWorkflowErrorCode.Forbidden, "A host-owned agent identity is required.")
     validateWorkflowCommand(command)
     return this._transaction(command, context, joinTransaction)
   }
@@ -112,7 +114,7 @@ export class TaskWorkflowService {
   private _transaction(command: TaskWorkflowRecordedCommand, context: TaskWorkflowContext, joinTransaction: boolean) {
     const ownTransaction = !this._db.inTransaction
     if (!ownTransaction && !joinTransaction)
-      throw new TaskWorkflowError("conflict", "Workflow commands require their own transaction or a WorkStorage batch.")
+      throw new TaskWorkflowError(TaskWorkflowErrorCode.Conflict, "Workflow commands require their own transaction or a WorkStorage batch.")
     if (ownTransaction) this._db.exec("BEGIN IMMEDIATE")
     try {
       const result = this._execute(command, context, this._observe())
@@ -126,7 +128,7 @@ export class TaskWorkflowService {
 
   private _get(taskId: string, observed: ClockObservation): TaskWorkflowState {
     const task = this._tasks.getTask(taskId)
-    if (!task) throw new TaskWorkflowError("not_found", "The task no longer exists.")
+    if (!task) throw new TaskWorkflowError(TaskWorkflowErrorCode.NotFound, "The task no longer exists.")
     const records = this._records.getByTask(taskId).sort(compareRecords)
     const guidance = this._guidance.get(task.branchId)
     const sessions = this._sessionRecords(records).map((record): TaskWorkflowSession => {
@@ -146,7 +148,7 @@ export class TaskWorkflowService {
           record.checkpointMonotonic === null ||
           observed.wall < record.createdAt ||
           (record.checkpointMonotonic !== null && observed.monotonic < record.checkpointMonotonic))
-      const uncertain = observed.wall - record.createdAt >= 1800000
+      const uncertain = observed.wall - record.createdAt >= MAX_OBSERVED_WORKFLOW_INTERVAL_SECONDS * 1000
       const summary = [...records]
         .sort(compareRecords)
         .reverse()
@@ -161,7 +163,7 @@ export class TaskWorkflowService {
         updatedAt: record.createdAt,
         connection: interrupted ? "interrupted" : uncertain && state === "working" ? "uncertain" : "connected",
         checkpointAt: record.createdAt,
-        expiresAt: record.createdAt + 1800000,
+        expiresAt: record.createdAt + MAX_OBSERVED_WORKFLOW_INTERVAL_SECONDS * 1000,
         expired: interrupted || (uncertain && state === "working"),
       }
     })
@@ -219,16 +221,16 @@ export class TaskWorkflowService {
     if (previous) {
       if (previous.canonicalRequest === canonicalRequest) return {receipt: previous.receipt, changeset: {}}
       throw new TaskWorkflowError(
-        "conflict",
+        TaskWorkflowErrorCode.Conflict,
         "This operation ID already names a different request. Use a new operation ID.",
         this._tasks.getTask(command.taskId) ? this._get(command.taskId, observed) : null,
       )
     }
     let current = this._get(command.taskId, observed)
     if (command.expectedRevision !== current.revision)
-      throw new TaskWorkflowError("stale_revision", "Read the current workflow and retry with a new operation ID.", current)
+      throw new TaskWorkflowError(TaskWorkflowErrorCode.StaleRevision, "Read the current workflow and retry with a new operation ID.", current)
     if (current.task.deletedAt !== null && command.kind !== "resolve" && !(command.kind === "propose" && command.changes.deletedAt === null))
-      throw new TaskWorkflowError("not_found", "The task was deleted.", current)
+      throw new TaskWorkflowError(TaskWorkflowErrorCode.NotFound, "The task was deleted.", current)
 
     let sessionId: string | null = "sessionId" in command ? command.sessionId : null
     let sessionState: AgentSessionState | null = null
@@ -239,13 +241,13 @@ export class TaskWorkflowService {
         : owned.find((record) => this._sessionState(record) === "working")) ?? null
     if (command.kind === "start" || command.kind === "session_start") {
       if (current.records.some((record) => this._sessionId(record) === sessionId))
-        throw new TaskWorkflowError("conflict", "A session ID cannot be reused. Start with a new session ID.", current)
+        throw new TaskWorkflowError(TaskWorkflowErrorCode.Conflict, "A session ID cannot be reused. Start with a new session ID.", current)
       sessionState = "working"
       checkpoint = null
     } else if (sessionId) {
-      if (!checkpoint) throw new TaskWorkflowError("forbidden", "Only the session's authenticated actor can update it.", current)
+      if (!checkpoint) throw new TaskWorkflowError(TaskWorkflowErrorCode.Forbidden, "Only the session's authenticated actor can update it.", current)
       if (["finished", "error"].includes(this._sessionState(checkpoint)!))
-        throw new TaskWorkflowError("conflict", "This session is terminal. Start a new session ID.", current)
+        throw new TaskWorkflowError(TaskWorkflowErrorCode.Conflict, "This session is terminal. Start a new session ID.", current)
       sessionState = command.kind === "session_update" ? command.state : command.kind === "pause" ? "waiting" : "working"
     } else if (checkpoint && command.kind !== "resolve") {
       sessionId = this._sessionId(checkpoint)
@@ -271,7 +273,11 @@ export class TaskWorkflowService {
               ? "in_progress"
               : "ready_to_merge"
       if ((status === "done" || status === "cancelled") && !current.guidance.allowCompletion)
-        throw new TaskWorkflowError("forbidden", "Completion requires human review under the current workspace and project policy.", current)
+        throw new TaskWorkflowError(
+          TaskWorkflowErrorCode.Forbidden,
+          "Completion requires human review under the current workspace and project policy.",
+          current,
+        )
       const effective = this._planEffective(current.task, {status})
       if (canonicalWorkflowValue(effective.scheduled ?? null) !== canonicalWorkflowValue(current.task.scheduled)) effectiveChanges = effective
       else {
@@ -286,7 +292,7 @@ export class TaskWorkflowService {
         (status === "done" || status === "cancelled") &&
         (command.changes.status !== undefined || (effectiveChanges.branchId !== undefined && effectiveChanges.branchId !== current.task.branchId))
       if (requiresCompletionPermission && !this._guidance.get(effectiveChanges.branchId ?? current.task.branchId).allowCompletion)
-        throw new TaskWorkflowError("forbidden", "Completion requires human review under the effective project policy.", current)
+        throw new TaskWorkflowError(TaskWorkflowErrorCode.Forbidden, "Completion requires human review under the effective project policy.", current)
     }
     if (effectiveChanges) {
       originalValues = Object.fromEntries(Object.keys(effectiveChanges).map((key) => [key, current.task[key as keyof TaskPlanningChanges]]))
@@ -306,18 +312,19 @@ export class TaskWorkflowService {
     }
     if (command.kind === "resolve") {
       const proposal = current.proposals.find((item) => item.id === command.proposalId)
-      if (!proposal) throw new TaskWorkflowError("not_found", "The proposal no longer exists.", current)
-      if (proposal.status !== "pending") throw new TaskWorkflowError("conflict", "This proposal already has a human decision.", current)
+      if (!proposal) throw new TaskWorkflowError(TaskWorkflowErrorCode.NotFound, "The proposal no longer exists.", current)
+      if (proposal.status !== "pending")
+        throw new TaskWorkflowError(TaskWorkflowErrorCode.Conflict, "This proposal already has a human decision.", current)
       if (command.decision === "accepted") {
         if (current.task.deletedAt !== null && proposal.changes.deletedAt !== null)
           throw new TaskWorkflowError(
-            "not_found",
+            TaskWorkflowErrorCode.NotFound,
             "This task was deleted. Request an explicit restoration proposal before applying changes.",
             current,
           )
         if (proposal.conflict)
           throw new TaskWorkflowError(
-            "conflict",
+            TaskWorkflowErrorCode.Conflict,
             "The proposal's original planning values changed. Ask for a fresh proposal or reject this one.",
             current,
           )
@@ -327,7 +334,7 @@ export class TaskWorkflowService {
           canonicalWorkflowValue(this._planEffective(current.task, proposal.changes)) !== canonicalWorkflowValue(proposal.changes)
         )
           throw new TaskWorkflowError(
-            "conflict",
+            TaskWorkflowErrorCode.Conflict,
             "This older proposal does not bind all scheduling effects. Request a fresh proposal before accepting.",
             current,
           )
@@ -389,14 +396,14 @@ export class TaskWorkflowService {
     const requested = {...changes}
     if (requested.scheduled === null && requested.status !== undefined && !["backlog", "ready_for_agent"].includes(requested.status))
       throw new TaskWorkflowError(
-        "invalid_request",
+        TaskWorkflowErrorCode.InvalidRequest,
         "Clearing the schedule requires Backlog or Ready for Agent. Request compatible status and schedule values together.",
       )
     if (requested.scheduled === null && requested.status === undefined && !["backlog", "ready_for_agent"].includes(task.status))
       requested.status = "backlog"
     const branchId = requested.branchId ?? task.branchId
     if (!this._db.prepare("SELECT 1 FROM branches WHERE id = ? AND deleted_at IS NULL").get(branchId))
-      throw new TaskWorkflowError("not_found", "The proposed project no longer exists.")
+      throw new TaskWorkflowError(TaskWorkflowErrorCode.NotFound, "The proposed project no longer exists.")
     const patches = planTaskUpdate(
       {
         tasks: this._tasks.getTaskList({includeBacklog: true, includeDeleted: true}),
@@ -408,7 +415,10 @@ export class TaskWorkflowService {
     )
     const {id: _id, ...effective} = patches[0]
     if (patches.length !== 1)
-      throw new TaskWorkflowError("invalid_request", "This change requires additional task effects. Review those changes separately.")
+      throw new TaskWorkflowError(
+        TaskWorkflowErrorCode.InvalidRequest,
+        "This change requires additional task effects. Review those changes separately.",
+      )
     if (task.scheduled === null && effective.scheduled && requested.scheduled === undefined) effective.scheduled = scheduledNow
     const result = {...effective, ...(requested.deletedAt === null && {deletedAt: null})}
     if ("scheduled" in result) result.status ??= task.status
@@ -419,16 +429,22 @@ export class TaskWorkflowService {
   private _assertReferences(task: Task, changes: TaskPlanningChanges): void {
     const branchId = changes.branchId ?? task.branchId
     if (!this._db.prepare("SELECT 1 FROM branches WHERE id = ? AND deleted_at IS NULL").get(branchId))
-      throw new TaskWorkflowError("conflict", "The proposed project no longer exists. Request a fresh proposal.")
+      throw new TaskWorkflowError(TaskWorkflowErrorCode.Conflict, "The proposed project no longer exists. Request a fresh proposal.")
     if (
       changes.milestoneId &&
       !this._db.prepare("SELECT 1 FROM milestones WHERE id = ? AND branch_id = ? AND deleted_at IS NULL").get(changes.milestoneId, branchId)
     )
-      throw new TaskWorkflowError("conflict", "The proposed milestone no longer belongs to this project. Request a fresh proposal.")
+      throw new TaskWorkflowError(
+        TaskWorkflowErrorCode.Conflict,
+        "The proposed milestone no longer belongs to this project. Request a fresh proposal.",
+      )
     for (const tag of changes.tags ?? []) {
       const current = new TagModel(this._db).getTag(tag.id)
       if (!current || current.branchId !== branchId || canonicalWorkflowValue(current) !== canonicalWorkflowValue(tag))
-        throw new TaskWorkflowError("conflict", "A proposed tag changed or no longer belongs to this project. Request a fresh proposal.")
+        throw new TaskWorkflowError(
+          TaskWorkflowErrorCode.Conflict,
+          "A proposed tag changed or no longer belongs to this project. Request a fresh proposal.",
+        )
     }
   }
 
@@ -462,9 +478,9 @@ export class TaskWorkflowService {
     return (
       record.runtimeId === this._host.runtimeId &&
       wallElapsed >= 0 &&
-      wallElapsed <= 1800000 &&
+      wallElapsed <= MAX_OBSERVED_WORKFLOW_INTERVAL_SECONDS * 1000 &&
       monotonicElapsed >= 0 &&
-      monotonicElapsed <= 1800000 &&
+      monotonicElapsed <= MAX_OBSERVED_WORKFLOW_INTERVAL_SECONDS * 1000 &&
       record.taskGeneration === this._checkpointGeneration(taskId)
     )
   }
@@ -478,7 +494,7 @@ export class TaskWorkflowService {
       observed.monotonic < 0 ||
       observed.monotonic > Number.MAX_SAFE_INTEGER
     )
-      throw new TaskWorkflowError("invalid_request", "The host clock observation is invalid.")
+      throw new TaskWorkflowError(TaskWorkflowErrorCode.InvalidRequest, "The host clock observation is invalid.")
     return observed
   }
 

@@ -13,31 +13,6 @@ import type {Changeset, SqliteDriver} from "@daily/core"
 import type {ActorSource} from "@daily/protocol"
 import type {ToolClock, ToolContext, ToolFilesPort} from "../../src/types"
 
-function makeClock(): ToolClock {
-  return {
-    timeZone: "UTC",
-    today: () => "2026-03-24",
-    time: () => "09:00:00",
-    scheduledNow: () => ({date: "2026-03-24", time: "09:00:00", timezone: "UTC"}),
-    dayStart: (date) => `${date}T00:00:00.000Z`,
-    dayEndExclusive: (date) => `${date}T23:59:59.999Z`,
-  }
-}
-
-function makeFilesPort(): ToolFilesPort {
-  return {
-    async isPresent() {
-      return false
-    },
-    async read() {
-      throw new Error("no file bytes in this harness")
-    },
-    afterSave(_file, effect) {
-      return effect()
-    },
-  }
-}
-
 export function makeRealWorkspace(source: ActorSource = {kind: "agent"}): {
   db: SqliteDriver
   core: ReturnType<typeof createStorageCore>
@@ -61,4 +36,39 @@ export function makeRealWorkspace(source: ActorSource = {kind: "agent"}): {
   const ctx: ToolContext = {workStorage, clock: makeClock(), source, files: makeFilesPort(), workflowActorId: "test-assistant"}
 
   return {db, core, workStorage, ctx, changesets}
+}
+
+function makeClock(): ToolClock {
+  return {
+    timeZone: "UTC",
+    today() {
+      return "2026-03-24"
+    },
+    time() {
+      return "09:00:00"
+    },
+    scheduledNow() {
+      return {date: "2026-03-24", time: "09:00:00", timezone: "UTC"}
+    },
+    dayStart(date) {
+      return `${date}T00:00:00.000Z`
+    },
+    dayEndExclusive(date) {
+      return `${date}T23:59:59.999Z`
+    },
+  }
+}
+
+function makeFilesPort(): ToolFilesPort {
+  return {
+    async isPresent() {
+      return false
+    },
+    async read() {
+      throw new Error("no file bytes in this harness")
+    },
+    afterSave(_file, effect) {
+      return effect()
+    },
+  }
 }

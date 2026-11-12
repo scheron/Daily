@@ -15,7 +15,7 @@ import {normalizeSnapshotDocs} from "@core/utils/sync/snapshot/normalizeSnapshot
 import {makeControllerHarness, makeTaskInput} from "../helpers/storageControllerHarness"
 
 import type {SqliteDriver} from "@core/database/SqliteDriver"
-import type {TaskWorkflowCommand, TaskWorkflowRecord} from "@daily/protocol"
+import type {TaskStatus, TaskWorkflowCommand, TaskWorkflowRecord, TaskWorkflowResolution, WorkflowGuidanceUpdate} from "@daily/protocol"
 
 const cleanups: Array<() => void> = []
 afterEach(() => {
@@ -47,7 +47,8 @@ function makeHarness() {
 
 it("reviews schedule assigning and clearing effects alongside actual status transitions", async () => {
   const {storage, task, run} = makeHarness()
-  for (const status of ["in_progress", "backlog"]) {
+  const statuses: TaskStatus[] = ["in_progress", "backlog"]
+  for (const status of statuses) {
     await expect(run({kind: "transition", status})).resolves.toMatchObject({kind: "transition", outcome: "proposal_pending"})
     const pending = await storage.getTaskWorkflow(task.id)
     const proposal = pending.proposals.find((item) => item.status === "pending")!
@@ -87,8 +88,8 @@ it("syncs scoped guidance revisions and completion overrides without losing conc
   const left = makeHarness()
   const right = makeHarness()
   const initial = await left.storage.getWorkflowGuidance("main")
-  const update = {
-    scope: {kind: "workspace" as const},
+  const update: WorkflowGuidanceUpdate = {
+    scope: {kind: "workspace"},
     content: "Workspace procedure",
     allowCompletion: true,
     operationId: "workspace",
@@ -161,10 +162,10 @@ it("accepts a planning proposal once, applies domain rules atomically and return
     status: "pending",
     conflict: false,
   })
-  const request = {
+  const request: TaskWorkflowResolution = {
     taskId: task.id,
     proposalId: pending.proposals[0].id,
-    decision: "accepted" as const,
+    decision: "accepted",
     operationId: "accept",
     expectedRevision: pending.revision,
   }
@@ -182,10 +183,10 @@ it("rejects decline then acceptance races and changed original values without pa
   const {storage, task, run} = makeHarness()
   await run({kind: "propose", changes: {estimatedTime: 60, priority: "high"}, reason: "Review"})
   const pending = await storage.getTaskWorkflow(task.id)
-  const request = {
+  const request: TaskWorkflowResolution = {
     taskId: task.id,
     proposalId: pending.proposals[0].id,
-    decision: "rejected" as const,
+    decision: "rejected",
     operationId: "reject",
     expectedRevision: pending.revision,
   }
@@ -504,10 +505,18 @@ it("rejects imported session metadata that disagrees with its immutable command 
 it("persists guidance, both proposal decisions, session history and confirmed time across an actual database close and reopen", async () => {
   const directory = mkdtempSync(join(tmpdir(), "daily-workflow-restart-"))
   const paths = {
-    appDataRoot: () => directory,
-    dbPath: () => join(directory, "daily.sqlite"),
-    assetsDir: () => join(directory, "assets"),
-    remoteSyncPath: () => join(directory, "remote"),
+    appDataRoot() {
+      return directory
+    },
+    dbPath() {
+      return join(directory, "daily.sqlite")
+    },
+    assetsDir() {
+      return join(directory, "assets")
+    },
+    remoteSyncPath() {
+      return join(directory, "remote")
+    },
   }
   let native = new Database(paths.dbPath())
   let observed = 100000

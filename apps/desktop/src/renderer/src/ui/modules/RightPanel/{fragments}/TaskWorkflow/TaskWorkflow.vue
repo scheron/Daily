@@ -29,7 +29,7 @@ const confirmedLabel = computed(() => toDurationLabel(state.value?.confirmedSeco
 const proposals = computed(() => state.value?.proposals.toReversed() ?? [])
 const sessions = computed(() => state.value?.sessions.toSorted((a, b) => b.updatedAt - a.updatedAt || a.sessionId.localeCompare(b.sessionId)) ?? [])
 
-function getProposalStatusClass(status: TaskWorkflowProposal["status"]) {
+function getProposalStatusClasses(status: TaskWorkflowProposal["status"]) {
   return cn("text-base-content/85 rounded px-1.5 py-0.5 text-xs font-medium capitalize", {
     "bg-warning/12": status === "pending",
     "bg-success/12": status === "accepted",
@@ -37,12 +37,12 @@ function getProposalStatusClass(status: TaskWorkflowProposal["status"]) {
   })
 }
 
-function getSessionStateClass(session: TaskWorkflowSession) {
+function getSessionStateClasses(state: AgentSessionState, connection: TaskWorkflowSession["connection"]) {
   return cn("text-base-content/85 rounded px-1.5 py-0.5 text-xs font-medium", {
-    "bg-accent/10": session.state === "working" && session.connection === "connected" && !isStale.value,
-    "bg-warning/12": session.state === "waiting" || session.connection !== "connected" || isStale.value,
-    "bg-success/12": session.state === "finished",
-    "bg-error/10": session.state === "error",
+    "bg-accent/10": state === "working" && connection === "connected" && !isStale.value,
+    "bg-warning/12": state === "waiting" || connection !== "connected" || isStale.value,
+    "bg-success/12": state === "finished",
+    "bg-error/10": state === "error",
   })
 }
 
@@ -132,7 +132,10 @@ function proposalRows(proposal: TaskWorkflowProposal) {
   if ("tags" in proposal.changes)
     rows.push({
       label: "Tags",
-      before: proposal.originalValues.tags?.map((tag) => tag.name).join(", ") || "No tags",
+      before:
+        proposal.originalValues.tags === undefined
+          ? "Original value unavailable"
+          : proposal.originalValues.tags.map((tag) => tag.name).join(", ") || "No tags",
       after: proposal.changes.tags?.map((tag) => tag.name).join(", ") || "No tags",
     })
   if ("orderIndex" in proposal.changes)
@@ -144,7 +147,12 @@ function proposalRows(proposal: TaskWorkflowProposal) {
   if ("deletedAt" in proposal.changes)
     rows.push({
       label: "Availability",
-      before: proposal.originalValues.deletedAt ? `Deleted · ${proposal.originalValues.deletedAt}` : "Active",
+      before:
+        proposal.originalValues.deletedAt === undefined
+          ? "Original value unavailable"
+          : proposal.originalValues.deletedAt
+            ? `Deleted · ${proposal.originalValues.deletedAt}`
+            : "Active",
       after: proposal.changes.deletedAt ? `Deleted · ${proposal.changes.deletedAt}` : "Active (restored)",
     })
   return rows
@@ -165,11 +173,11 @@ function sessionHistory(session: TaskWorkflowSession) {
 function recordLabel(record: TaskWorkflowRecord) {
   if (record.command.kind === "session_update")
     return `${SESSION_LABELS[record.command.state]}${record.command.summary ? ` · ${record.command.summary}` : ""}`
-  if (record.command.kind === "session_start") return `Working${record.command.summary ? ` · ${record.command.summary}` : ""}`
-  if (record.command.kind === "pause") return "Waiting"
+  if (record.command.kind === "session_start") return `${SESSION_LABELS.working}${record.command.summary ? ` · ${record.command.summary}` : ""}`
+  if (record.command.kind === "pause") return SESSION_LABELS.waiting
   if (record.command.kind === "propose") return `planning proposal · ${record.command.reason}`
   if (record.command.kind === "transition") return `task status · ${"status" in record.command ? record.command.status : record.command.stage}`
-  return "Working"
+  return SESSION_LABELS.working
 }
 
 function recordTimeLabel(record: TaskWorkflowRecord) {
@@ -198,7 +206,7 @@ function recordTimeLabel(record: TaskWorkflowRecord) {
         <div v-for="proposal in proposals" :key="proposal.id" class="border-base-300/65 mt-3 border-t pt-3">
           <div class="flex flex-wrap items-baseline justify-between gap-2">
             <span class="text-base-content/75 break-all text-xs">{{ actorLabel(proposal.actorId) }}</span>
-            <span :class="getProposalStatusClass(proposal.status)">{{ proposal.status }}</span>
+            <span :class="getProposalStatusClasses(proposal.status)">{{ proposal.status }}</span>
           </div>
           <p class="my-2 whitespace-pre-wrap text-[13px] leading-relaxed">{{ proposal.reason }}</p>
           <table class="w-full table-fixed text-left text-xs leading-relaxed">
@@ -270,7 +278,7 @@ function recordTimeLabel(record: TaskWorkflowRecord) {
         <article v-for="session in sessions" :key="`${session.actorId}:${session.sessionId}`" class="border-base-300/65 mt-3 border-t pt-3">
           <div class="flex flex-wrap items-baseline justify-between gap-2">
             <span class="break-all text-[13px] font-medium">{{ actorLabel(session.actorId) }}</span>
-            <span :class="getSessionStateClass(session)">{{ sessionStateLabel(session) }}</span>
+            <span :class="getSessionStateClasses(session.state, session.connection)">{{ sessionStateLabel(session) }}</span>
           </div>
           <p v-if="session.summary" class="mt-1 whitespace-pre-wrap text-[13px] leading-relaxed">{{ session.summary }}</p>
           <p class="text-base-content/75 mt-1 text-xs">Updated {{ formatDate(session.updatedAt) }}</p>

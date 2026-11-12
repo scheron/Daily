@@ -1,11 +1,11 @@
-import {TASK_STATUSES} from "@daily/protocol"
+import {AGENT_SESSION_STATES, TASK_PRIORITIES, TASK_STATUSES, TASK_WORKFLOW_LEGACY_STAGES} from "@daily/protocol"
 import {isObject} from "@daily/std"
 
 import {ToolError} from "../errors/ToolError"
 import {ToolErrorCode} from "../errors/ToolErrorCode"
 import {readEnum, readInteger, readISODate, readISOTime, readString, requireString} from "../input"
 
-import type {AgentSessionState, TaskPriority, TaskWorkflowCommand} from "@daily/protocol"
+import type {TaskWorkflowCommand} from "@daily/protocol"
 import type {Tool} from "../types"
 
 export const updateTaskWorkflowTool: Tool = {
@@ -23,7 +23,7 @@ export const updateTaskWorkflowTool: Tool = {
         type: "string",
         description:
           "transition uses status; session_start uses sessionId; session_update uses sessionId and state; propose uses changes and reason. start/heartbeat/pause are compatibility aliases.",
-        enum: ["transition", "session_start", "session_update", "propose", "start", "heartbeat", "pause"],
+        enum: ["transition", "session_start", "session_update", "propose", "start", "heartbeat", "pause"] satisfies TaskWorkflowCommand["kind"][],
       },
       status: {
         type: "string",
@@ -35,13 +35,13 @@ export const updateTaskWorkflowTool: Tool = {
         type: "string",
         description:
           "Legacy transition alias; use status instead. planning retains the current status; implementation means in_progress. Cannot combine with status.",
-        enum: ["planning", "implementation", "ready_to_merge"],
+        enum: TASK_WORKFLOW_LEGACY_STAGES,
       },
       sessionId: {type: "string", description: "Required for session actions. Choose a new id when starting; subsequent state updates use that id."},
       state: {
         type: "string",
         description: "Required for session_update. Working settles observed time at the next boundary; waiting, finished and error stop accrual.",
-        enum: ["working", "waiting", "finished", "error"],
+        enum: AGENT_SESSION_STATES,
       },
       summary: {
         type: "string",
@@ -70,7 +70,7 @@ export const updateTaskWorkflowTool: Tool = {
             additionalProperties: false,
           },
           estimatedTime: {type: "integer", description: "Suggested estimate in seconds.", minimum: 0},
-          priority: {type: "string", description: "Suggested priority.", enum: ["none", "urgent", "high", "medium", "low"]},
+          priority: {type: "string", description: "Suggested priority.", enum: TASK_PRIORITIES},
         },
         additionalProperties: false,
       },
@@ -103,7 +103,8 @@ function parseCommand(input: Record<string, unknown>): TaskWorkflowCommand {
     operationId: requireString(input, "operationId"),
     expectedRevision: requireString(input, "expectedRevision"),
   }
-  const kind = readEnum(input, "kind", ["transition", "session_start", "session_update", "start", "heartbeat", "pause", "propose"])
+  const kinds: TaskWorkflowCommand["kind"][] = ["transition", "session_start", "session_update", "start", "heartbeat", "pause", "propose"]
+  const kind = readEnum(input, "kind", kinds)
   const common = ["taskId", "operationId", "expectedRevision", "kind"]
   if (kind === "transition") {
     assertFields(input, [...common, "status", "stage"])
@@ -112,7 +113,7 @@ function parseCommand(input: Record<string, unknown>): TaskWorkflowCommand {
       if (Object.hasOwn(input, "stage")) invalid('Use "status" or legacy "stage", not both.')
       return {...base, kind, status}
     }
-    const stage = readEnum(input, "stage", ["planning", "implementation", "ready_to_merge"])
+    const stage = readEnum(input, "stage", TASK_WORKFLOW_LEGACY_STAGES)
     if (!stage) invalid('"status" is required for transition.')
     return {...base, kind, stage}
   }
@@ -121,8 +122,7 @@ function parseCommand(input: Record<string, unknown>): TaskWorkflowCommand {
     const sessionId = requireString(input, "sessionId")
     const summary = readString(input, "summary")
     if (kind === "session_start") return {...base, kind, sessionId, ...(summary !== undefined && {summary})}
-    const states: AgentSessionState[] = ["working", "waiting", "finished", "error"]
-    const state = readEnum(input, "state", states)
+    const state = readEnum(input, "state", AGENT_SESSION_STATES)
     if (!state) invalid('"state" is required for session_update.')
     return {...base, kind, sessionId, state, ...(summary !== undefined && {summary})}
   }
@@ -157,8 +157,7 @@ function parseCommand(input: Record<string, unknown>): TaskWorkflowCommand {
     }
     if (Object.hasOwn(raw, "estimatedTime")) changes.estimatedTime = readInteger(raw, "estimatedTime", {min: 0})
     if (Object.hasOwn(raw, "priority")) {
-      const priorities: TaskPriority[] = ["none", "urgent", "high", "medium", "low"]
-      changes.priority = readEnum(raw, "priority", priorities)
+      changes.priority = readEnum(raw, "priority", TASK_PRIORITIES)
     }
     return {...base, kind, changes, reason: requireString(input, "reason")}
   }

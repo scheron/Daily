@@ -1,11 +1,12 @@
 import {TaskWorkflowError} from "@daily/core/storage/TaskWorkflowError"
 
+import {TASK_DOMAIN} from "../constants/tasks/taskDomain"
+import {TASK_CONTEXT_INSTRUCTIONS} from "../constants/workflow/instructions"
+import {readTaskDetail} from "../utils/tasks/readTaskDetail"
+import {workflowGuidanceView} from "../utils/workflow/workflowGuidanceView"
 import {ToolError} from "../errors/ToolError"
 import {ToolErrorCode} from "../errors/ToolErrorCode"
 import {requireString} from "../input"
-import {readTaskDetail} from "../readTaskDetail"
-import {TASK_CONTEXT_INSTRUCTIONS, TASK_DOMAIN} from "../taskWorkflowInstructions"
-import {workflowGuidanceView} from "../views"
 
 import type {Tool} from "../types"
 

@@ -27,8 +27,6 @@ export type TaskWorkflowResolution = {
   expectedRevision: string
 }
 
-export type TaskWorkflowLegacyTransition = Extract<TaskWorkflowCommand, {stage: string}>
-
 export type TaskWorkflowRecordedCommand = TaskWorkflowCommand | (TaskWorkflowResolution & {kind: "resolve"})
 
 export type TaskWorkflowContext = {actorId: string; source: ActorSource}

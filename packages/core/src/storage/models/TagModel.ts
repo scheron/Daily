@@ -10,7 +10,7 @@ import type {Branch, Tag} from "@daily/protocol"
 import type {SqliteDriver} from "../../database/SqliteDriver"
 
 export class TagModel {
-  constructor(private db: SqliteDriver) {}
+  constructor(private _db: SqliteDriver) {}
 
   getTagList(params?: {branchId?: Branch["id"]; includeDeleted?: boolean}): Tag[] {
     const conditions: string[] = []
@@ -33,7 +33,7 @@ export class TagModel {
     const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : ""
     const sql = `SELECT id, branch_id, name, color, created_at, updated_at, deleted_at FROM tags ${where} ORDER BY name COLLATE NOCASE`
 
-    const rows = this.db.prepare(sql).all(...values) as any[]
+    const rows = this._db.prepare(sql).all(...values) as any[]
 
     logger.info(logger.CONTEXT.TAGS, `Loaded ${rows.length} tags from database`)
 
@@ -41,7 +41,7 @@ export class TagModel {
   }
 
   getTag(id: Tag["id"]): Tag | null {
-    const row = this.db
+    const row = this._db
       .prepare(
         `
       SELECT id, branch_id, name, color, created_at, updated_at, deleted_at FROM tags WHERE id = ?
@@ -61,7 +61,7 @@ export class TagModel {
     const id = createEntityId("tag")
     const now = new Date().toISOString()
 
-    this.db
+    this._db
       .prepare(
         `
       INSERT INTO tags (id, branch_id, name, color, created_at, updated_at, deleted_at)
@@ -89,13 +89,13 @@ export class TagModel {
       values.push(updates.color)
     }
 
-    this.db.transaction(() => {
+    this._db.transaction(() => {
       if (setClauses.length > 0) {
-        this.db.prepare(`UPDATE tags SET ${setClauses.join(", ")}, updated_at = ? WHERE id = ?`).run(...values, now, id)
+        this._db.prepare(`UPDATE tags SET ${setClauses.join(", ")}, updated_at = ? WHERE id = ?`).run(...values, now, id)
       } else {
-        this.db.prepare(`UPDATE tags SET updated_at = ? WHERE id = ?`).run(now, id)
+        this._db.prepare(`UPDATE tags SET updated_at = ? WHERE id = ?`).run(now, id)
       }
-      this.db
+      this._db
         .prepare("UPDATE tasks SET updated_at = ?, workflow_generation = ? WHERE id IN (SELECT task_id FROM task_tags WHERE tag_id = ?)")
         .run(now, randomUUID(), id)
     })()
@@ -108,12 +108,12 @@ export class TagModel {
     const now = new Date().toISOString()
 
     let changes = 0
-    const run = this.db.transaction(() => {
-      this.db
+    const run = this._db.transaction(() => {
+      this._db
         .prepare("UPDATE tasks SET updated_at = ?, workflow_generation = ? WHERE id IN (SELECT task_id FROM task_tags WHERE tag_id = ?)")
         .run(now, randomUUID(), id)
-      this.db.prepare(`DELETE FROM task_tags WHERE tag_id = ?`).run(id)
-      const result = this.db.prepare(`UPDATE tags SET deleted_at = ?, updated_at = ? WHERE id = ?`).run(now, now, id)
+      this._db.prepare(`DELETE FROM task_tags WHERE tag_id = ?`).run(id)
+      const result = this._db.prepare(`UPDATE tags SET deleted_at = ?, updated_at = ? WHERE id = ?`).run(now, now, id)
       changes = result.changes
     })
 
@@ -126,13 +126,13 @@ export class TagModel {
   /** Soft-deletes every tag in a project in one statement. Returns the ids it touched. */
   deleteTagsByBranch(branchId: Branch["id"]): Tag["id"][] {
     const now = new Date().toISOString()
-    const rows = this.db.transaction(() => {
-      this.db
+    const rows = this._db.transaction(() => {
+      this._db
         .prepare(
           "UPDATE tasks SET updated_at = ?, workflow_generation = ? WHERE id IN (SELECT tt.task_id FROM task_tags tt JOIN tags t ON t.id = tt.tag_id WHERE t.branch_id = ? AND t.deleted_at IS NULL)",
         )
         .run(now, randomUUID(), branchId)
-      return this.db
+      return this._db
         .prepare(`UPDATE tags SET deleted_at = ?, updated_at = ? WHERE branch_id = ? AND deleted_at IS NULL RETURNING id`)
         .all<{id: string}>(now, now, branchId)
     })()

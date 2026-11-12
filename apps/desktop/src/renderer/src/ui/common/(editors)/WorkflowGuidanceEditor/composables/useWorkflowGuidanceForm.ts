@@ -39,6 +39,8 @@ export function useWorkflowGuidanceForm(scope: MaybeRefOrGetter<WorkflowGuidance
   )
   const currentDocument = computed(() => (isProject.value ? guidance.value?.project : guidance.value?.workspace) ?? null)
 
+  const unsubscribe = window.BridgeIPC.on("storage:changed", () => void load(true))
+
   async function load(preserveDraft = false) {
     if (isSaving.value) {
       refreshQueued = true
@@ -138,8 +140,6 @@ export function useWorkflowGuidanceForm(scope: MaybeRefOrGetter<WorkflowGuidance
       }
     }
   }
-
-  const unsubscribe = window.BridgeIPC.on("storage:changed", () => void load(true))
 
   watch(
     scopeKey,

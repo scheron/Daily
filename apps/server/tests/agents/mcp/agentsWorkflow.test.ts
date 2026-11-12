@@ -1,12 +1,11 @@
 import {expect, it} from "vitest"
 
 import {WorkStorage} from "@daily/core/storage/WorkStorage"
-import {KNOWN_SNAPSHOT_VERSION} from "@daily/core/utils/sync/snapshot/assertKnownSnapshotVersion"
 import {AGENT_ENDPOINT_PATH, SYNC_PROTOCOL_PATHS} from "@daily/protocol"
 
 import {exerciseStatusContract} from "../../../../../packages/tools/tests/helpers/statusContract"
 import {readSnapshot} from "../../../src/snapshot/SnapshotStore"
-import {openMacCore, writeMacSnapshot} from "../helpers"
+import {openMacCore, rawSnapshotDocument, writeMacSnapshot} from "../helpers"
 import {
   bootAgentServer,
   claimParent,
@@ -29,23 +28,7 @@ it("OAuth-connected MCP tools enforce the shared workflow, atomic writes and app
       headers: {authorization: `Bearer ${parent.token}`, "content-type": "application/json"},
       body: JSON.stringify({
         expectedRevision: null,
-        snapshot: {
-          version: KNOWN_SNAPSHOT_VERSION,
-          meta: {updatedAt: new Date().toISOString(), hash: "synthetic"},
-          docs: {
-            tasks: [],
-            tags: [],
-            branches: [],
-            milestones: [],
-            relations: [],
-            comments: [],
-            subtasks: [],
-            files: [],
-            events: [],
-            workflowRecords: [],
-            workflowGuidanceRecords: [],
-          },
-        },
+        snapshot: rawSnapshotDocument({meta: {updatedAt: new Date().toISOString(), hash: "synthetic"}}),
       }),
     })
     expect(seed.status).toBe(200)

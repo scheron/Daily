@@ -1,8 +1,7 @@
-import {confirmedWorkflowSeconds, validateWorkflowTimeMetadata} from "./workflowValidation"
+import {confirmedWorkflowSeconds} from "./confirmedWorkflowSeconds"
+import {validateWorkflowTimeMetadata} from "./validateWorkflowTimeMetadata"
 
 import type {TaskWorkflowRecord} from "@daily/protocol"
-
-export {confirmedWorkflowSeconds} from "./workflowValidation"
 
 export function workflowSpentTime(spentTime: number, baseline: number, records: TaskWorkflowRecord[], taskId: string): number {
   validateWorkflowTimeMetadata(spentTime, baseline)

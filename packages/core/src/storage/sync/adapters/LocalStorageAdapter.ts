@@ -1,6 +1,6 @@
 import {normalizeProjectEmoji} from "@daily/protocol"
 
-import {validateWorkflowSnapshotDocs} from "../../../utils/tasks/workflowValidation"
+import {validateWorkflowSnapshotDocs} from "../../../utils/task-workflow/validateWorkflowSnapshotDocs"
 import {WorkflowGuidanceModel} from "../../models/WorkflowGuidanceModel"
 import {WorkflowRecordModel} from "../../models/WorkflowRecordModel"
 
@@ -22,7 +22,7 @@ import type {FileModel} from "../../models/FileModel"
 
 export class LocalStorageAdapter implements ILocalStorage {
   constructor(
-    private db: SqliteDriver,
+    private _db: SqliteDriver,
     private fileModel: FileModel,
   ) {}
 
@@ -47,21 +47,21 @@ export class LocalStorageAdapter implements ILocalStorage {
       subtasks,
       files,
       events,
-      workflowRecords: new WorkflowRecordModel(this.db).getAll(),
-      workflowGuidanceRecords: new WorkflowGuidanceModel(this.db).getAll(),
+      workflowRecords: new WorkflowRecordModel(this._db).getAll(),
+      workflowGuidanceRecords: new WorkflowGuidanceModel(this._db).getAll(),
     }
   }
 
   async upsertDocs(docs: SnapshotDocs): Promise<void> {
     validateWorkflowSnapshotDocs(docs)
-    const transaction = this.db.transaction(() => {
+    const transaction = this._db.transaction(() => {
       const tasksById = new Map(this._loadTasks().map((task) => [task.id, task]))
       for (const task of docs.tasks) tasksById.set(task.id, task)
-      const recordsById = new Map(new WorkflowRecordModel(this.db).getAll().map((record) => [record.id, record]))
+      const recordsById = new Map(new WorkflowRecordModel(this._db).getAll().map((record) => [record.id, record]))
       for (const record of docs.workflowRecords ?? []) recordsById.set(record.id, record)
       validateWorkflowSnapshotDocs({...docs, tasks: [...tasksById.values()], workflowRecords: [...recordsById.values()]}, {completeHistory: true})
       if (docs.branches.length) {
-        const stmt = this.db.prepare(`
+        const stmt = this._db.prepare(`
           INSERT INTO branches (id, name, description, emoji, created_at, updated_at, deleted_at)
           VALUES (?, ?, ?, ?, ?, ?, ?)
           ON CONFLICT(id) DO UPDATE SET
@@ -78,7 +78,7 @@ export class LocalStorageAdapter implements ILocalStorage {
       }
 
       if (docs.milestones.length) {
-        const stmt = this.db.prepare(`
+        const stmt = this._db.prepare(`
           INSERT INTO milestones (id, branch_id, name, description, target_date, order_index, created_at, updated_at, deleted_at)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
           ON CONFLICT(id) DO UPDATE SET
@@ -97,7 +97,7 @@ export class LocalStorageAdapter implements ILocalStorage {
       }
 
       if (docs.tags.length) {
-        const stmt = this.db.prepare(`
+        const stmt = this._db.prepare(`
           INSERT INTO tags (id, branch_id, name, color, created_at, updated_at, deleted_at)
           VALUES (?, ?, ?, ?, ?, ?, ?)
           ON CONFLICT(id) DO UPDATE SET
@@ -114,7 +114,7 @@ export class LocalStorageAdapter implements ILocalStorage {
       }
 
       if (docs.files.length) {
-        const stmt = this.db.prepare(`
+        const stmt = this._db.prepare(`
           INSERT INTO files (id, name, mime_type, size, created_at, updated_at, deleted_at)
           VALUES (?, ?, ?, ?, ?, ?, ?)
           ON CONFLICT(id) DO UPDATE SET
@@ -131,7 +131,7 @@ export class LocalStorageAdapter implements ILocalStorage {
       }
 
       if (docs.tasks.length) {
-        const taskStmt = this.db.prepare(`
+        const taskStmt = this._db.prepare(`
           INSERT INTO tasks (id, status, content, minimized, order_index, scheduled_date, scheduled_time, scheduled_timezone, estimated_time, spent_time, branch_id, milestone_id, priority, created_at, updated_at, deleted_at, workflow_time_baseline, workflow_generation)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           ON CONFLICT(id) DO UPDATE SET
@@ -153,8 +153,8 @@ export class LocalStorageAdapter implements ILocalStorage {
             updated_at         = excluded.updated_at,
             deleted_at         = excluded.deleted_at
         `)
-        const deleteTagsStmt = this.db.prepare(`DELETE FROM task_tags WHERE task_id = ?`)
-        const insertTagStmt = this.db.prepare(
+        const deleteTagsStmt = this._db.prepare(`DELETE FROM task_tags WHERE task_id = ?`)
+        const insertTagStmt = this._db.prepare(
           `INSERT OR IGNORE INTO task_tags (task_id, tag_id) SELECT ?, ? WHERE EXISTS (SELECT 1 FROM tags WHERE id = ?)`,
         )
 
@@ -188,7 +188,7 @@ export class LocalStorageAdapter implements ILocalStorage {
       }
 
       if (docs.relations?.length) {
-        const stmt = this.db.prepare(`
+        const stmt = this._db.prepare(`
           INSERT INTO task_relations (id, blocker_id, blocked_id, created_at, updated_at, deleted_at)
           VALUES (?, ?, ?, ?, ?, ?)
           ON CONFLICT(id) DO UPDATE SET
@@ -204,7 +204,7 @@ export class LocalStorageAdapter implements ILocalStorage {
       }
 
       if (docs.comments?.length) {
-        const stmt = this.db.prepare(`
+        const stmt = this._db.prepare(`
           INSERT INTO task_comments (id, task_id, branch_id, content, kind, provider, created_at, updated_at, deleted_at)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
           ON CONFLICT(id) DO UPDATE SET
@@ -223,7 +223,7 @@ export class LocalStorageAdapter implements ILocalStorage {
       }
 
       if (docs.subtasks?.length) {
-        const stmt = this.db.prepare(`
+        const stmt = this._db.prepare(`
           INSERT INTO subtasks (id, task_id, content, done, order_key, created_at, updated_at, deleted_at)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?)
           ON CONFLICT(id) DO UPDATE SET
@@ -240,11 +240,11 @@ export class LocalStorageAdapter implements ILocalStorage {
         }
       }
 
-      for (const record of docs.workflowRecords ?? []) new WorkflowRecordModel(this.db).append(record)
-      for (const record of docs.workflowGuidanceRecords ?? []) new WorkflowGuidanceModel(this.db).append(record)
+      for (const record of docs.workflowRecords ?? []) new WorkflowRecordModel(this._db).append(record)
+      for (const record of docs.workflowGuidanceRecords ?? []) new WorkflowGuidanceModel(this._db).append(record)
 
       if (docs.events.length) {
-        const stmt = this.db.prepare(`
+        const stmt = this._db.prepare(`
           INSERT OR IGNORE INTO task_events (id, task_id, branch_id, type, event_date, from_date, to_date, created_at, kind, provider,
             from_status, to_status, from_priority, to_priority, from_branch_id, to_branch_id, sequence, move_id)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -294,17 +294,20 @@ export class LocalStorageAdapter implements ILocalStorage {
     files: number
   }> {
     const cutoff = new Date(Date.now() - ttlMs).toISOString()
-    const expiredIds = (table: string): string[] =>
-      (this.db.prepare(`SELECT id FROM ${table} WHERE deleted_at IS NOT NULL AND deleted_at <= ?`).all(cutoff) as {id: string}[]).map((row) => row.id)
+    function expiredIds(db: SqliteDriver, table: string): string[] {
+      return (db.prepare(`SELECT id FROM ${table} WHERE deleted_at IS NOT NULL AND deleted_at <= ?`).all(cutoff) as {id: string}[]).map(
+        (row) => row.id,
+      )
+    }
 
-    const tasks = expiredIds("tasks")
-    const tags = expiredIds("tags")
-    const branches = expiredIds("branches")
-    const milestones = expiredIds("milestones")
-    const relations = expiredIds("task_relations")
-    const comments = expiredIds("task_comments")
-    const subtasks = expiredIds("subtasks")
-    const files = expiredIds("files")
+    const tasks = expiredIds(this._db, "tasks")
+    const tags = expiredIds(this._db, "tags")
+    const branches = expiredIds(this._db, "branches")
+    const milestones = expiredIds(this._db, "milestones")
+    const relations = expiredIds(this._db, "task_relations")
+    const comments = expiredIds(this._db, "task_comments")
+    const subtasks = expiredIds(this._db, "subtasks")
+    const files = expiredIds(this._db, "files")
 
     await this.deleteDocs({tasks, tags, branches, milestones, relations, comments, subtasks, files})
 
@@ -331,64 +334,64 @@ export class LocalStorageAdapter implements ILocalStorage {
     files?: string[]
   }): Promise<void> {
     const fileRows = ids.files?.length
-      ? (this.db.prepare(`SELECT id, name FROM files WHERE id IN (${ids.files.map(() => "?").join(", ")})`).all(...ids.files) as {
+      ? (this._db.prepare(`SELECT id, name FROM files WHERE id IN (${ids.files.map(() => "?").join(", ")})`).all(...ids.files) as {
           id: string
           name: string
         }[])
       : []
 
-    const transaction = this.db.transaction(() => {
+    const transaction = this._db.transaction(() => {
       if (ids.tasks?.length) {
         for (const id of ids.tasks) {
-          this.db.prepare(`DELETE FROM task_tags WHERE task_id = ?`).run(id)
-          this.db.prepare(`DELETE FROM task_relations WHERE blocker_id = ? OR blocked_id = ?`).run(id, id)
-          this.db.prepare(`DELETE FROM task_comments WHERE task_id = ?`).run(id)
-          this.db.prepare(`DELETE FROM subtasks WHERE task_id = ?`).run(id)
-          this.db.prepare(`DELETE FROM tasks WHERE id = ?`).run(id)
+          this._db.prepare(`DELETE FROM task_tags WHERE task_id = ?`).run(id)
+          this._db.prepare(`DELETE FROM task_relations WHERE blocker_id = ? OR blocked_id = ?`).run(id, id)
+          this._db.prepare(`DELETE FROM task_comments WHERE task_id = ?`).run(id)
+          this._db.prepare(`DELETE FROM subtasks WHERE task_id = ?`).run(id)
+          this._db.prepare(`DELETE FROM tasks WHERE id = ?`).run(id)
         }
       }
       if (ids.tags?.length) {
         for (const id of ids.tags) {
-          this.db.prepare(`DELETE FROM task_tags WHERE tag_id = ?`).run(id)
-          this.db.prepare(`DELETE FROM tags WHERE id = ?`).run(id)
+          this._db.prepare(`DELETE FROM task_tags WHERE tag_id = ?`).run(id)
+          this._db.prepare(`DELETE FROM tags WHERE id = ?`).run(id)
         }
       }
       if (ids.milestones?.length) {
-        const clearTasksStmt = this.db.prepare(`UPDATE tasks SET milestone_id = NULL WHERE milestone_id = ?`)
-        const deleteMilestoneStmt = this.db.prepare(`DELETE FROM milestones WHERE id = ?`)
+        const clearTasksStmt = this._db.prepare(`UPDATE tasks SET milestone_id = NULL WHERE milestone_id = ?`)
+        const deleteMilestoneStmt = this._db.prepare(`DELETE FROM milestones WHERE id = ?`)
         for (const id of ids.milestones) {
           clearTasksStmt.run(id)
           deleteMilestoneStmt.run(id)
         }
       }
       if (ids.relations?.length) {
-        const deleteRelationStmt = this.db.prepare(`DELETE FROM task_relations WHERE id = ?`)
+        const deleteRelationStmt = this._db.prepare(`DELETE FROM task_relations WHERE id = ?`)
         for (const id of ids.relations) {
           deleteRelationStmt.run(id)
         }
       }
       if (ids.comments?.length) {
-        const deleteCommentStmt = this.db.prepare(`DELETE FROM task_comments WHERE id = ?`)
+        const deleteCommentStmt = this._db.prepare(`DELETE FROM task_comments WHERE id = ?`)
         for (const id of ids.comments) {
           deleteCommentStmt.run(id)
         }
       }
       if (ids.subtasks?.length) {
-        const deleteSubtaskStmt = this.db.prepare(`DELETE FROM subtasks WHERE id = ?`)
+        const deleteSubtaskStmt = this._db.prepare(`DELETE FROM subtasks WHERE id = ?`)
         for (const id of ids.subtasks) {
           deleteSubtaskStmt.run(id)
         }
       }
       if (ids.branches?.length) {
-        const clearTasksMilestoneStmt = this.db.prepare(
+        const clearTasksMilestoneStmt = this._db.prepare(
           `UPDATE tasks SET milestone_id = NULL WHERE milestone_id IN (SELECT id FROM milestones WHERE branch_id = ?)`,
         )
-        const deleteMilestonesStmt = this.db.prepare(`DELETE FROM milestones WHERE branch_id = ?`)
-        const deleteTaskTagsStmt = this.db.prepare(`DELETE FROM task_tags WHERE tag_id IN (SELECT id FROM tags WHERE branch_id = ?)`)
-        const deleteTagsStmt = this.db.prepare(`DELETE FROM tags WHERE branch_id = ?`)
-        const reassignBranchStmt = this.db.prepare(`UPDATE tasks SET branch_id = 'main' WHERE branch_id = ?`)
-        const reassignCommentsStmt = this.db.prepare(`UPDATE task_comments SET branch_id = 'main' WHERE branch_id = ?`)
-        const deleteBranchStmt = this.db.prepare(`DELETE FROM branches WHERE id = ?`)
+        const deleteMilestonesStmt = this._db.prepare(`DELETE FROM milestones WHERE branch_id = ?`)
+        const deleteTaskTagsStmt = this._db.prepare(`DELETE FROM task_tags WHERE tag_id IN (SELECT id FROM tags WHERE branch_id = ?)`)
+        const deleteTagsStmt = this._db.prepare(`DELETE FROM tags WHERE branch_id = ?`)
+        const reassignBranchStmt = this._db.prepare(`UPDATE tasks SET branch_id = 'main' WHERE branch_id = ?`)
+        const reassignCommentsStmt = this._db.prepare(`UPDATE task_comments SET branch_id = 'main' WHERE branch_id = ?`)
+        const deleteBranchStmt = this._db.prepare(`DELETE FROM branches WHERE id = ?`)
         for (const id of ids.branches) {
           clearTasksMilestoneStmt.run(id)
           deleteMilestonesStmt.run(id)
@@ -401,7 +404,7 @@ export class LocalStorageAdapter implements ILocalStorage {
       }
       if (ids.files?.length) {
         for (const id of ids.files) {
-          this.db.prepare(`DELETE FROM files WHERE id = ?`).run(id)
+          this._db.prepare(`DELETE FROM files WHERE id = ?`).run(id)
         }
       }
     })
@@ -412,9 +415,9 @@ export class LocalStorageAdapter implements ILocalStorage {
   }
 
   private _loadTasks(): SnapshotTask[] {
-    const rows = this.db.prepare(`SELECT * FROM tasks`).all() as any[]
+    const rows = this._db.prepare(`SELECT * FROM tasks`).all() as any[]
     return rows.map((row) => {
-      const tagRows = this.db.prepare(`SELECT tag_id FROM task_tags WHERE task_id = ?`).all(row.id) as {tag_id: string}[]
+      const tagRows = this._db.prepare(`SELECT tag_id FROM task_tags WHERE task_id = ?`).all(row.id) as {tag_id: string}[]
 
       return {
         id: row.id,
@@ -441,7 +444,7 @@ export class LocalStorageAdapter implements ILocalStorage {
   }
 
   private _loadTags(): SnapshotTag[] {
-    return (this.db.prepare(`SELECT * FROM tags`).all() as any[]).map((row) => ({
+    return (this._db.prepare(`SELECT * FROM tags`).all() as any[]).map((row) => ({
       id: row.id,
       branch_id: row.branch_id,
       name: row.name,
@@ -453,7 +456,7 @@ export class LocalStorageAdapter implements ILocalStorage {
   }
 
   private _loadBranches(): SnapshotBranch[] {
-    return (this.db.prepare(`SELECT * FROM branches`).all() as any[]).map((row) => ({
+    return (this._db.prepare(`SELECT * FROM branches`).all() as any[]).map((row) => ({
       id: row.id,
       name: row.name,
       description: row.description,
@@ -465,7 +468,7 @@ export class LocalStorageAdapter implements ILocalStorage {
   }
 
   private _loadMilestones(): SnapshotMilestone[] {
-    return (this.db.prepare(`SELECT * FROM milestones`).all() as any[]).map((row) => ({
+    return (this._db.prepare(`SELECT * FROM milestones`).all() as any[]).map((row) => ({
       id: row.id,
       branch_id: row.branch_id,
       name: row.name,
@@ -479,7 +482,7 @@ export class LocalStorageAdapter implements ILocalStorage {
   }
 
   private _loadRelations(): SnapshotTaskRelation[] {
-    return (this.db.prepare(`SELECT * FROM task_relations`).all() as any[]).map((row) => ({
+    return (this._db.prepare(`SELECT * FROM task_relations`).all() as any[]).map((row) => ({
       id: row.id,
       blocker_id: row.blocker_id,
       blocked_id: row.blocked_id,
@@ -490,7 +493,7 @@ export class LocalStorageAdapter implements ILocalStorage {
   }
 
   private _loadTaskComments(): SnapshotTaskComment[] {
-    return (this.db.prepare(`SELECT * FROM task_comments`).all() as any[]).map((row) => ({
+    return (this._db.prepare(`SELECT * FROM task_comments`).all() as any[]).map((row) => ({
       id: row.id,
       task_id: row.task_id,
       branch_id: row.branch_id,
@@ -504,7 +507,7 @@ export class LocalStorageAdapter implements ILocalStorage {
   }
 
   private _loadSubtasks(): SnapshotSubtask[] {
-    return (this.db.prepare(`SELECT * FROM subtasks`).all() as any[]).map((row) => ({
+    return (this._db.prepare(`SELECT * FROM subtasks`).all() as any[]).map((row) => ({
       id: row.id,
       task_id: row.task_id,
       content: row.content,
@@ -517,7 +520,7 @@ export class LocalStorageAdapter implements ILocalStorage {
   }
 
   private _loadFiles(): SnapshotFile[] {
-    return (this.db.prepare(`SELECT * FROM files`).all() as any[]).map((row) => ({
+    return (this._db.prepare(`SELECT * FROM files`).all() as any[]).map((row) => ({
       id: row.id,
       name: row.name,
       mime_type: row.mime_type,
@@ -529,7 +532,7 @@ export class LocalStorageAdapter implements ILocalStorage {
   }
 
   private _loadTaskEvents(): SnapshotTaskEvent[] {
-    return (this.db.prepare(`SELECT * FROM task_events`).all() as any[]).map((row) => ({
+    return (this._db.prepare(`SELECT * FROM task_events`).all() as any[]).map((row) => ({
       id: row.id,
       task_id: row.task_id,
       branch_id: row.branch_id,

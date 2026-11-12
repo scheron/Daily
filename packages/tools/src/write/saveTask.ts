@@ -1,12 +1,12 @@
 import {randomUUID} from "node:crypto"
 
-import {NO_PROJECT_ID, TASK_STATUSES} from "@daily/protocol"
+import {NO_PROJECT_ID, TASK_PRIORITIES, TASK_STATUSES} from "@daily/protocol"
 import {isArray, isObject, isString} from "@daily/std"
 
+import {readTaskDetail} from "../utils/tasks/readTaskDetail"
 import {ToolError} from "../errors/ToolError"
 import {ToolErrorCode} from "../errors/ToolErrorCode"
 import {readBoolean, readEnum, readInteger, readISODate, readISOTime, readString} from "../input"
-import {readTaskDetail} from "../readTaskDetail"
 
 import type {
   ISODate,
@@ -21,9 +21,6 @@ import type {
   TaskStatus,
 } from "@daily/protocol"
 import type {Tool, ToolContext, ToolPropertySchema} from "../types"
-
-const TASK_PRIORITIES: TaskPriority[] = ["none", "urgent", "high", "medium", "low"]
-const MAX_BATCH_SIZE = 50
 
 type ParsedFields = {
   content?: string
@@ -149,6 +146,7 @@ function hasTopLevelTaskField(input: Record<string, unknown>): boolean {
 }
 
 function readTaskBatch(value: unknown): Record<string, unknown>[] {
+  const MAX_BATCH_SIZE = 50
   if (!isArray(value)) throw new ToolError(ToolErrorCode.INVALID_INPUT, '"tasks" must be an array.')
   if (value.length > MAX_BATCH_SIZE) {
     throw new ToolError(ToolErrorCode.INVALID_INPUT, `"tasks" cannot hold more than ${MAX_BATCH_SIZE} items.`)

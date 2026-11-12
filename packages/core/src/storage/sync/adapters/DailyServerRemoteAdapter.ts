@@ -7,7 +7,8 @@ import {logger} from "../../../utils/logger"
 import {assertKnownSnapshotVersion} from "../../../utils/sync/snapshot/assertKnownSnapshotVersion"
 import {isValidSnapshot} from "../../../utils/sync/snapshot/isValidSnapshot"
 import {normalizeSnapshotDocs} from "../../../utils/sync/snapshot/normalizeSnapshotDocs"
-import {TaskWorkflowError} from "../../TaskWorkflowError"
+import {TaskWorkflowError} from "../../../errors/task-workflow/TaskWorkflowError"
+import {TaskWorkflowErrorCode} from "../../../errors/task-workflow/TaskWorkflowErrorCode"
 import {DailySyncClient} from "../server/DailySyncClient"
 
 import type {IRevisionedRemoteStorage, RemoteReadResult, ServerSyncBinding, Snapshot, SnapshotFile, SnapshotRevision} from "@daily/protocol"
@@ -42,7 +43,7 @@ export class DailyServerRemoteAdapter implements IRevisionedRemoteStorage {
     if (!isValidSnapshot(parsed as Snapshot)) {
       if ((parsed as Snapshot)?.version >= 17)
         throw new TaskWorkflowError(
-          "invalid_request",
+          TaskWorkflowErrorCode.InvalidRequest,
           "Invalid workflow snapshot structure. Sync stops without discarding history; repair the source snapshot before retrying.",
         )
       logger.warn(logger.CONTEXT.SYNC_REMOTE, "Invalid snapshot structure, treating as empty")

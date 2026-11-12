@@ -27,12 +27,8 @@ const SUPPORTED_VERSIONS = [...STATELESS_VERSIONS, ...EARLIER_VERSIONS]
 const PROTOCOL_VERSION_META = "io.modelcontextprotocol/protocolVersion"
 const SERVER_INFO = {name: "daily", title: "Daily", version: pkg.version}
 
-/**
- * Answers one MCP POST body as `caller`'s Mac, in the protocol generation the request itself selects:
- * the 2026-07-28 stateless one or the 2025-11-25 `initialize` one. Knows nothing of tokens, `Origin`,
- * the body's size or HTTP — `headers` are the raw `MCP-Protocol-Version`, `Mcp-Method` and `Mcp-Name`
- * values, `null` when absent. Never rejects; a `202` is sent with no body.
- */
+/** Selects the MCP generation from raw nullable protocol headers and handles refusals as replies.
+ * Never rejects; notifications and responses return 202 with no body. */
 export async function handleMcpRequest(deps: AgentWorkspaceDeps, caller: McpCaller, body: string, headers: McpRequestHeaders): Promise<McpReply> {
   const classified = classifyMcpRequest(body, headers)
 
@@ -159,7 +155,7 @@ async function answerStatelessGeneration(
 }
 
 async function initialize(deps: AgentWorkspaceDeps, caller: McpCaller, params: unknown): Promise<JsonRpcOutcome> {
-  const requested = isObject<Record<string, unknown>>(params) ? params.protocolVersion : undefined
+  const requested = isObject<Record<string, unknown>>(params) ? params.protocolVersion : null
   if (!isString(requested)) return {error: {code: -32602, message: "initialize needs a protocolVersion string"}}
 
   const protocolVersion = EARLIER_VERSIONS.includes(requested) ? requested : "2025-11-25"

@@ -1,5 +1,7 @@
-import {TASK_CONTEXT_INSTRUCTIONS, TASK_DOMAIN} from "../taskWorkflowInstructions"
-import {projectView, workflowGuidanceView} from "../views"
+import {TASK_DOMAIN} from "../constants/tasks/taskDomain"
+import {TASK_CONTEXT_INSTRUCTIONS} from "../constants/workflow/instructions"
+import {workflowGuidanceView} from "../utils/workflow/workflowGuidanceView"
+import {projectView} from "../views"
 
 import type {Tool} from "../types"
 

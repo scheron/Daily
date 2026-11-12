@@ -1,6 +1,11 @@
-import {canonicalWorkflowValue, validateWorkflowGuidanceUpdate, workflowDigest} from "../../utils/tasks/workflowValidation"
+import {MAX_OBSERVED_WORKFLOW_INTERVAL_SECONDS} from "@daily/protocol"
+
+import {canonicalWorkflowValue} from "../../utils/task-workflow/canonicalWorkflowValue"
+import {validateWorkflowGuidanceUpdate} from "../../utils/task-workflow/validateWorkflowGuidanceUpdate"
+import {workflowDigest} from "../../utils/task-workflow/workflowDigest"
+import {TaskWorkflowError} from "../../errors/task-workflow/TaskWorkflowError"
+import {TaskWorkflowErrorCode} from "../../errors/task-workflow/TaskWorkflowErrorCode"
 import {WorkflowGuidanceModel} from "../models/WorkflowGuidanceModel"
-import {TaskWorkflowError} from "../TaskWorkflowError"
 
 import type {WorkflowGuidance, WorkflowGuidanceDocument, WorkflowGuidanceScope, WorkflowGuidanceUpdate} from "@daily/protocol"
 import type {SqliteDriver} from "../../database/SqliteDriver"
@@ -13,17 +18,48 @@ export class WorkflowGuidanceService {
   }
 
   get(projectId?: string): WorkflowGuidance {
-    const workspace = this.document({kind: "workspace"})
-    const project = projectId ? this.document({kind: "project", projectId}) : null
+    const workspace = this._document({kind: "workspace"})
+    const project = projectId ? this._document({kind: "project", projectId}) : null
     return {
       workspace,
       project,
       allowCompletion: project?.allowCompletion ?? workspace.allowCompletion ?? false,
-      timePolicy: {maxObservedIntervalSeconds: 1800, requiresHeartbeat: false},
+      timePolicy: {maxObservedIntervalSeconds: MAX_OBSERVED_WORKFLOW_INTERVAL_SECONDS, requiresHeartbeat: false},
     }
   }
 
-  document(scope: WorkflowGuidanceScope): WorkflowGuidanceDocument {
+  update(update: WorkflowGuidanceUpdate, now: number): WorkflowGuidanceDocument {
+    validateWorkflowGuidanceUpdate(update)
+    const ownTransaction = !this._db.inTransaction
+    if (ownTransaction) this._db.exec("BEGIN IMMEDIATE")
+    try {
+      const id = workflowDigest({guidance: update.scope, operationId: update.operationId})
+      const previous = this._records.getAll().find((record) => record.id === id)
+      if (previous) {
+        const {id: _id, createdAt: _createdAt, sequence: _sequence, ...request} = previous
+        if (canonicalWorkflowValue(request) !== canonicalWorkflowValue(update))
+          throw new TaskWorkflowError(TaskWorkflowErrorCode.Conflict, "This guidance operation ID already names a different request.")
+      } else {
+        const current = this._document(update.scope)
+        if (update.expectedRevision !== current.revision)
+          throw new TaskWorkflowError(TaskWorkflowErrorCode.StaleRevision, "The guidance changed. Reload its history before saving.", null, current)
+        if (
+          update.scope.kind === "project" &&
+          !this._db.prepare("SELECT id FROM branches WHERE id = ? AND deleted_at IS NULL").get(update.scope.projectId)
+        )
+          throw new TaskWorkflowError(TaskWorkflowErrorCode.NotFound, "The project no longer exists.")
+        this._records.append({...update, id, createdAt: now, sequence: current.history.length})
+      }
+      const result = this._document(update.scope)
+      if (ownTransaction) this._db.exec("COMMIT")
+      return result
+    } catch (error) {
+      if (ownTransaction && this._db.inTransaction) this._db.exec("ROLLBACK")
+      throw error
+    }
+  }
+
+  private _document(scope: WorkflowGuidanceScope): WorkflowGuidanceDocument {
     const key = canonicalWorkflowValue(scope)
     const history = this._records
       .getAll()
@@ -40,37 +76,6 @@ export class WorkflowGuidanceService {
       allowCompletion: current ? current.allowCompletion : scope.kind === "workspace" ? false : null,
       revision: workflowDigest({scope, ids: history.map((record) => record.id).sort()}),
       history,
-    }
-  }
-
-  update(update: WorkflowGuidanceUpdate, now: number): WorkflowGuidanceDocument {
-    validateWorkflowGuidanceUpdate(update)
-    const ownTransaction = !this._db.inTransaction
-    if (ownTransaction) this._db.exec("BEGIN IMMEDIATE")
-    try {
-      const id = workflowDigest({guidance: update.scope, operationId: update.operationId})
-      const previous = this._records.getAll().find((record) => record.id === id)
-      if (previous) {
-        const {id: _id, createdAt: _createdAt, sequence: _sequence, ...request} = previous
-        if (canonicalWorkflowValue(request) !== canonicalWorkflowValue(update))
-          throw new TaskWorkflowError("conflict", "This guidance operation ID already names a different request.")
-      } else {
-        const current = this.document(update.scope)
-        if (update.expectedRevision !== current.revision)
-          throw new TaskWorkflowError("stale_revision", "The guidance changed. Reload its history before saving.", null, current)
-        if (
-          update.scope.kind === "project" &&
-          !this._db.prepare("SELECT id FROM branches WHERE id = ? AND deleted_at IS NULL").get(update.scope.projectId)
-        )
-          throw new TaskWorkflowError("not_found", "The project no longer exists.")
-        this._records.append({...update, id, createdAt: now, sequence: current.history.length})
-      }
-      const result = this.document(update.scope)
-      if (ownTransaction) this._db.exec("COMMIT")
-      return result
-    } catch (error) {
-      if (ownTransaction && this._db.inTransaction) this._db.exec("ROLLBACK")
-      throw error
     }
   }
 }

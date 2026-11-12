@@ -89,7 +89,15 @@ describe("the agent workspace cycle", () => {
       const agent = bindAgent(seeded.store)
       let now = 1000
       let monotonic = 0
-      const deps = {store: seeded.store, now: () => new Date(now), monotonicNow: () => monotonic}
+      const deps = {
+        store: seeded.store,
+        now() {
+          return new Date(now)
+        },
+        monotonicNow() {
+          return monotonic
+        },
+      }
       const start = await runInAgentWorkspace(deps, agent, "write", async (ctx) => {
         const state = await ctx.workStorage.getTaskWorkflow(taskId)
         return ctx.workStorage.executeTaskWorkflow(

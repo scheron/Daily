@@ -1,9 +1,10 @@
 import {randomUUID} from "node:crypto"
 
 import {logger} from "../utils/logger"
+import {TaskWorkflowError} from "../errors/task-workflow/TaskWorkflowError"
+import {TaskWorkflowErrorCode} from "../errors/task-workflow/TaskWorkflowErrorCode"
 import {EMPTY_CHANGESET} from "../types/storage"
 import {TaskWorkflowService} from "./services/TaskWorkflowService"
-import {TaskWorkflowError} from "./TaskWorkflowError"
 
 import type {
   ActorSource,
@@ -35,9 +36,9 @@ import type {
 import type {PartialDeep} from "type-fest"
 import type {SqliteDriver} from "../database/SqliteDriver"
 import type {Changeset} from "../types/storage"
+import type {TaskWorkflowHost} from "../types/taskWorkflow"
 import type {StorageCore} from "./createStorageCore"
 import type {IWorkStorage} from "./IWorkStorage"
-import type {TaskWorkflowHost} from "./services/TaskWorkflowService"
 
 type OpenBatch = {changeset: Changeset}
 
@@ -181,7 +182,7 @@ export class WorkStorage implements IWorkStorage {
       (task.status === "done" || task.status === "cancelled") &&
       !this._workflow.getGuidance(branchId).allowCompletion
     )
-      throw new TaskWorkflowError("forbidden", "Completion requires human review under the current workspace and project policy.")
+      throw new TaskWorkflowError(TaskWorkflowErrorCode.Forbidden, "Completion requires human review under the current workspace and project policy.")
     const createdTask = await this._core.tasksService.createTask({...task, branchId}, source)
     if (!createdTask) return EMPTY_CHANGESET
 

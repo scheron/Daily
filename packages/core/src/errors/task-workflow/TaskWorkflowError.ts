@@ -1,8 +1,9 @@
 import type {TaskWorkflowState, WorkflowGuidanceDocument} from "@daily/protocol"
+import type {TaskWorkflowErrorCode} from "./TaskWorkflowErrorCode"
 
 export class TaskWorkflowError extends Error {
   constructor(
-    public readonly code: "not_found" | "conflict" | "stale_revision" | "forbidden" | "invalid_request" | "session_expired",
+    public readonly code: `${TaskWorkflowErrorCode}`,
     message: string,
     public readonly current: TaskWorkflowState | null = null,
     public readonly currentGuidance: WorkflowGuidanceDocument | null = null,

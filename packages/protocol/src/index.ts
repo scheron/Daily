@@ -10,6 +10,8 @@ export * from "./types/theme"
 export * from "./types/update"
 
 export * from "./constants/storage"
+export * from "./constants/tasks"
+export * from "./constants/taskWorkflow"
 export * from "./constants/tagColorPalette"
 export * from "./constants/theme"
 

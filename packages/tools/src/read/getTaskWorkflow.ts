@@ -1,6 +1,7 @@
+import {TASK_DOMAIN} from "../constants/tasks/taskDomain"
+import {TASK_CONTEXT_INSTRUCTIONS} from "../constants/workflow/instructions"
+import {taskWorkflowView} from "../utils/tasks/taskWorkflowView"
 import {requireString} from "../input"
-import {TASK_CONTEXT_INSTRUCTIONS, TASK_DOMAIN} from "../taskWorkflowInstructions"
-import {taskWorkflowView} from "../views"
 
 import type {Tool} from "../types"
 

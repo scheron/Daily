@@ -3,49 +3,17 @@ import {afterEach, expect, it, vi} from "vitest"
 
 import {useTaskWorkflow} from "../../../src/renderer/src/ui/modules/RightPanel/{fragments}/TaskWorkflow/composables/useTaskWorkflow"
 import {mockBridgeIPC} from "../../helpers/bridgeIPC"
-import {makeTask} from "../../helpers/taskFixtures"
-import {makeWorkflowGuidance} from "../../helpers/workflowFixtures"
-
-import type {TaskWorkflowProposal, TaskWorkflowState} from "@daily/protocol"
+import {makeTaskWorkflow, makeTaskWorkflowProposal} from "../../helpers/workflowFixtures"
 
 const scopes: ReturnType<typeof effectScope>[] = []
 
 afterEach(() => scopes.splice(0).forEach((scope) => scope.stop()))
 
-function makeProposal(overrides: Partial<TaskWorkflowProposal> = {}): TaskWorkflowProposal {
-  return {
-    id: "proposal-1",
-    commentId: null,
-    actorId: "test-agent",
-    changes: {estimatedTime: 1200},
-    originalValues: {estimatedTime: 600},
-    reason: "Allow time for review",
-    status: "pending",
-    resolutionRecordId: null,
-    conflict: false,
-    ...overrides,
-  }
-}
-
-function makeWorkflow(overrides: Partial<TaskWorkflowState> = {}): TaskWorkflowState {
-  return {
-    revision: "original",
-    task: makeTask(),
-    sessions: [],
-    activeSessions: [],
-    records: [],
-    confirmedSeconds: 0,
-    guidance: makeWorkflowGuidance(),
-    proposals: [makeProposal()],
-    ...overrides,
-  }
-}
-
 it("a conflicting proposal decision refreshes its persisted state and keeps the conflict visible", async () => {
-  const current = makeWorkflow({revision: "latest", proposals: [makeProposal({status: "rejected"})]})
+  const current = makeTaskWorkflow({revision: "latest", proposals: [makeTaskWorkflowProposal({status: "rejected"})]})
   mockBridgeIPC({
     on: vi.fn(() => vi.fn()),
-    "workflow:get-task": vi.fn().mockResolvedValue({ok: true, value: makeWorkflow()}),
+    "workflow:get-task": vi.fn().mockResolvedValue({ok: true, value: makeTaskWorkflow()}),
     "workflow:resolve-proposal": vi
       .fn()
       .mockResolvedValue({ok: false, code: "stale_revision", message: "Another device rejected this proposal.", current}),
@@ -64,7 +32,7 @@ it("a conflicting proposal decision refreshes its persisted state and keeps the 
 it("a failed refresh marks cached session reports as unconfirmed", async () => {
   const bridge = mockBridgeIPC({
     on: vi.fn(() => vi.fn()),
-    "workflow:get-task": vi.fn().mockResolvedValue({ok: true, value: makeWorkflow()}),
+    "workflow:get-task": vi.fn().mockResolvedValue({ok: true, value: makeTaskWorkflow()}),
   })
   const scope = effectScope()
   scopes.push(scope)
@@ -81,7 +49,7 @@ it("a failed refresh marks cached session reports as unconfirmed", async () => {
 it("a successful quiet refresh clears an obsolete refresh failure", async () => {
   const bridge = mockBridgeIPC({
     on: vi.fn(() => vi.fn()),
-    "workflow:get-task": vi.fn().mockResolvedValue({ok: true, value: makeWorkflow()}),
+    "workflow:get-task": vi.fn().mockResolvedValue({ok: true, value: makeTaskWorkflow()}),
   })
   const scope = effectScope()
   scopes.push(scope)

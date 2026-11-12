@@ -40,6 +40,8 @@ import type {
   TaskRelation,
   TaskRelationSets,
   TaskSearchResult,
+  TaskWorkflowResolution,
+  WorkflowGuidanceUpdate,
 } from "@daily/protocol"
 import type {
   AgentTurnSnapshot,
@@ -56,15 +58,15 @@ import type {HotkeyRebindResult, QuickTaskHotkeyState, QuickTaskMenu} from "@sha
 import type {TaskTimer, TaskTimerCommand} from "@shared/types/taskTimer"
 import type {ToastMessage} from "@shared/types/toast"
 import type {AppUpdateOffer, AppUpdateState, WhatsNewReleaseResult} from "@shared/types/update"
-import type {GuidanceResult, GuidanceSaveResult, GuidanceUpdate, ProposalResolution, TaskWorkflowResult} from "@shared/types/workflow"
+import type {GuidanceResult, GuidanceSaveResult, TaskWorkflowResult} from "@shared/types/workflow"
 import type {PartialDeep} from "type-fest"
 
 // prettier-ignore
 contextBridge.exposeInMainWorld("BridgeIPC", {
-  "workflow:get-guidance": (projectId?: string) => ipcRenderer.invoke("workflow:get-guidance", projectId) as Promise<GuidanceResult>,
-  "workflow:save-guidance": (update: GuidanceUpdate) => ipcRenderer.invoke("workflow:save-guidance", update) as Promise<GuidanceSaveResult>,
-  "workflow:get-task": (taskId: string) => ipcRenderer.invoke("workflow:get-task", taskId) as Promise<TaskWorkflowResult>,
-  "workflow:resolve-proposal": (resolution: ProposalResolution) => ipcRenderer.invoke("workflow:resolve-proposal", resolution) as Promise<TaskWorkflowResult>,
+  "workflow:get-guidance"(projectId?: string) { return ipcRenderer.invoke("workflow:get-guidance", projectId) as Promise<GuidanceResult> },
+  "workflow:save-guidance"(update: WorkflowGuidanceUpdate) { return ipcRenderer.invoke("workflow:save-guidance", update) as Promise<GuidanceSaveResult> },
+  "workflow:get-task"(taskId: string) { return ipcRenderer.invoke("workflow:get-task", taskId) as Promise<TaskWorkflowResult> },
+  "workflow:resolve-proposal"(resolution: TaskWorkflowResolution) { return ipcRenderer.invoke("workflow:resolve-proposal", resolution) as Promise<TaskWorkflowResult> },
   invoke: (channel: string, ...args: any[]) => ipcRenderer.invoke(channel, ...args),
   send: (channel: string, ...args: any[]) => ipcRenderer.send(channel, ...args),
   on: (channel: string, callback: (...args: any[]) => void) => {

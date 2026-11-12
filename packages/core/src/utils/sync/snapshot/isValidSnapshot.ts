@@ -1,6 +1,6 @@
 import {isArray, isNumber, isObject, isString} from "@daily/std"
 
-import {validateWorkflowSnapshotDocs} from "../../tasks/workflowValidation"
+import {validateWorkflowSnapshotDocs} from "../../task-workflow/validateWorkflowSnapshotDocs"
 import {KNOWN_SNAPSHOT_VERSION} from "./assertKnownSnapshotVersion"
 import {normalizeSnapshotDocs} from "./normalizeSnapshotDocs"
 

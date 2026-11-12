@@ -1,7 +1,7 @@
 import {APP_CONFIG, NO_PROJECT_ID, normalizeProjectEmoji} from "@daily/protocol"
 
 import {extractFileIds} from "../../files/extractFileIds"
-import {validateWorkflowSnapshotDocs} from "../../tasks/workflowValidation"
+import {validateWorkflowSnapshotDocs} from "../../task-workflow/validateWorkflowSnapshotDocs"
 
 import type {SnapshotDocs, SnapshotFile, SnapshotTask} from "@daily/protocol"
 

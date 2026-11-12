@@ -24,7 +24,7 @@ const MILESTONE_SELECT = `
 `
 
 export class MilestoneModel {
-  constructor(private db: SqliteDriver) {}
+  constructor(private _db: SqliteDriver) {}
 
   getMilestoneList(params?: {branchId?: Branch["id"]; includeDeleted?: boolean}): Milestone[] {
     const conditions: string[] = []
@@ -45,7 +45,7 @@ export class MilestoneModel {
     }
     sql += ` ORDER BY m.order_index ASC`
 
-    const rows = this.db.prepare(sql).all(...values) as any[]
+    const rows = this._db.prepare(sql).all(...values) as any[]
 
     logger.info(logger.CONTEXT.MILESTONES, `Loaded ${rows.length} milestones from database`)
 
@@ -53,7 +53,7 @@ export class MilestoneModel {
   }
 
   getMilestone(id: Milestone["id"]): Milestone | null {
-    const row = this.db.prepare(`${MILESTONE_SELECT} WHERE m.id = ?`).get(id) as any
+    const row = this._db.prepare(`${MILESTONE_SELECT} WHERE m.id = ?`).get(id) as any
 
     if (!row) {
       logger.debug(logger.CONTEXT.MILESTONES, `Milestone not found: ${id}`)
@@ -68,7 +68,7 @@ export class MilestoneModel {
     const now = new Date().toISOString()
     const orderIndex = getNextTaskOrderIndex(this.getMilestoneList({branchId: milestone.branchId}))
 
-    this.db
+    this._db
       .prepare(
         `
       INSERT INTO milestones (id, branch_id, name, description, target_date, order_index, created_at, updated_at, deleted_at)
@@ -117,7 +117,7 @@ export class MilestoneModel {
     }
 
     if (setClauses.length > 0) {
-      this.db
+      this._db
         .prepare(
           `
         UPDATE milestones SET ${setClauses.join(", ")}, updated_at = ? WHERE id = ?
@@ -125,7 +125,7 @@ export class MilestoneModel {
         )
         .run(...values, now, id)
     } else {
-      this.db.prepare(`UPDATE milestones SET updated_at = ? WHERE id = ?`).run(now, id)
+      this._db.prepare(`UPDATE milestones SET updated_at = ? WHERE id = ?`).run(now, id)
     }
 
     logger.storage("Updated", "MILESTONES", id)
@@ -136,11 +136,11 @@ export class MilestoneModel {
     const now = new Date().toISOString()
 
     let changes = 0
-    const run = this.db.transaction(() => {
-      this.db
+    const run = this._db.transaction(() => {
+      this._db
         .prepare(`UPDATE tasks SET milestone_id = NULL, updated_at = ?, workflow_generation = ? WHERE milestone_id = ?`)
         .run(now, randomUUID(), id)
-      const result = this.db.prepare(`UPDATE milestones SET deleted_at = ?, updated_at = ? WHERE id = ?`).run(now, now, id)
+      const result = this._db.prepare(`UPDATE milestones SET deleted_at = ?, updated_at = ? WHERE id = ?`).run(now, now, id)
       changes = result.changes
     })
 
@@ -153,7 +153,7 @@ export class MilestoneModel {
   /** Soft-deletes every milestone in a project in one statement. Returns the ids it touched. */
   deleteMilestonesByBranch(branchId: Branch["id"]): Milestone["id"][] {
     const now = new Date().toISOString()
-    const rows = this.db
+    const rows = this._db
       .prepare(`UPDATE milestones SET deleted_at = ?, updated_at = ? WHERE branch_id = ? AND deleted_at IS NULL RETURNING id`)
       .all<{id: string}>(now, now, branchId)
 

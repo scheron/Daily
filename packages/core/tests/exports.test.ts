@@ -22,7 +22,7 @@ describe("packages/core/package.json exports", () => {
       "./storage/database/scripts/migrate": "./src/storage/database/scripts/migrate.ts",
       "./storage/IWorkStorage": "./src/storage/IWorkStorage.ts",
       "./storage/WorkStorage": "./src/storage/WorkStorage.ts",
-      "./storage/TaskWorkflowError": "./src/storage/TaskWorkflowError.ts",
+      "./storage/TaskWorkflowError": "./src/errors/task-workflow/TaskWorkflowError.ts",
       "./utils/files/extractFileIds": "./src/utils/files/extractFileIds.ts",
       "./utils/files/sniffImageExt": "./src/utils/files/sniffImageExt.ts",
       "./utils/requestLog/RequestLogBuffer": "./src/utils/requestLog/RequestLogBuffer.ts",

@@ -9,7 +9,8 @@ import {logger} from "../../../utils/logger"
 import {assertKnownSnapshotVersion} from "../../../utils/sync/snapshot/assertKnownSnapshotVersion"
 import {isValidSnapshot} from "../../../utils/sync/snapshot/isValidSnapshot"
 import {normalizeSnapshotDocs} from "../../../utils/sync/snapshot/normalizeSnapshotDocs"
-import {TaskWorkflowError} from "../../TaskWorkflowError"
+import {TaskWorkflowError} from "../../../errors/task-workflow/TaskWorkflowError"
+import {TaskWorkflowErrorCode} from "../../../errors/task-workflow/TaskWorkflowErrorCode"
 
 import type {IRemoteStorage, Snapshot, SnapshotFile} from "@daily/protocol"
 
@@ -46,7 +47,7 @@ export class ICloudRemoteAdapter implements IRemoteStorage {
         if (!isValidSnapshot(parsed)) {
           if (parsed?.version >= 17)
             throw new TaskWorkflowError(
-              "invalid_request",
+              TaskWorkflowErrorCode.InvalidRequest,
               "Invalid workflow snapshot structure. Sync stops without discarding history; repair the source snapshot before retrying.",
             )
           logger.warn(logger.CONTEXT.SYNC_REMOTE, "Invalid snapshot structure, treating as empty")
