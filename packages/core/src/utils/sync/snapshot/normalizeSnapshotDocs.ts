@@ -6,7 +6,7 @@ import {validateWorkflowSnapshotDocs} from "../../tasks/workflowValidation"
 import type {SnapshotDocs, SnapshotFile, SnapshotTask} from "@daily/protocol"
 
 /** Upgrades legacy document fields; snapshots before v18 retain history with expired monotonic checkpoints and no proposal comment binding. */
-export function normalizeSnapshotDocs(docs: SnapshotDocs, version = 18): SnapshotDocs {
+export function normalizeSnapshotDocs(docs: SnapshotDocs, version = 20): SnapshotDocs {
   const workflowRecords = Array.isArray(docs.workflowRecords)
     ? docs.workflowRecords.map((record) => (version < 18 ? {...record, checkpointMonotonic: null, proposalCommentId: null} : record))
     : docs.workflowRecords
@@ -31,6 +31,7 @@ export function normalizeSnapshotDocs(docs: SnapshotDocs, version = 18): Snapsho
     tags: docs.tags.map((tag) => ({...tag, branch_id: tag.branch_id ?? NO_PROJECT_ID})),
     branches: docs.branches.map((branch) => ({...branch, description: branch.description ?? "", emoji: normalizeProjectEmoji(branch.emoji)})),
     workflowRecords: workflowRecords ?? [],
+    workflowGuidanceRecords: docs.workflowGuidanceRecords ?? [],
     milestones: docs.milestones ?? [],
     relations: docs.relations ?? [],
     comments: docs.comments ?? [],

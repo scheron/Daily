@@ -7,6 +7,7 @@ export {createClock} from "./clock"
 export {ToolError} from "./errors/ToolError"
 export {ToolErrorCode} from "./errors/ToolErrorCode"
 export {TASK_WORKFLOW_INSTRUCTIONS} from "./taskWorkflowInstructions"
+export {taskWorkflowView, workflowGuidanceView} from "./views"
 
 export type {ToolAttachment} from "./read/getAttachment"
 export type {Tool, ToolClock, ToolContext, ToolFilesPort, ToolInputSchema, ToolMode} from "./types"

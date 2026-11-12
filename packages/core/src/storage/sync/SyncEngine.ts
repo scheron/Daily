@@ -404,6 +404,7 @@ export class SyncEngine {
     files?: unknown[]
     events?: unknown[]
     workflowRecords?: unknown[]
+    workflowGuidanceRecords?: unknown[]
   }): number {
     return (
       (docs.tasks?.length ?? 0) +
@@ -415,7 +416,8 @@ export class SyncEngine {
       (docs.subtasks?.length ?? 0) +
       (docs.files?.length ?? 0) +
       (docs.events?.length ?? 0) +
-      (docs.workflowRecords?.length ?? 0)
+      (docs.workflowRecords?.length ?? 0) +
+      (docs.workflowGuidanceRecords?.length ?? 0)
     )
   }
 

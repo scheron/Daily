@@ -13,16 +13,17 @@ export function buildSnapshot(docs: SnapshotDocs): Snapshot {
       workflow_generation: task.workflow_generation ?? "",
     })),
     workflowRecords: docs.workflowRecords ?? [],
+    workflowGuidanceRecords: docs.workflowGuidanceRecords ?? [],
   }
   return {
-    version: 18,
+    version: 20,
     docs: normalized,
     meta: buildSnapshotMeta(normalized),
   }
 }
 
 export function buildSnapshotMeta(docs: SnapshotDocs): SnapshotMeta {
-  validateWorkflowSnapshotDocs(docs)
+  validateWorkflowSnapshotDocs(docs, {completeHistory: true})
   const collections: Array<{id: string}[]> = [
     docs.tasks,
     docs.tags,
@@ -30,6 +31,7 @@ export function buildSnapshotMeta(docs: SnapshotDocs): SnapshotMeta {
     docs.files,
     docs.events,
     docs.workflowRecords ?? [],
+    docs.workflowGuidanceRecords ?? [],
     docs.milestones ?? [],
     docs.relations ?? [],
     docs.comments ?? [],

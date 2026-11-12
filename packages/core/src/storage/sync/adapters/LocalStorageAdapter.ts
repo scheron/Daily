@@ -1,6 +1,7 @@
 import {normalizeProjectEmoji} from "@daily/protocol"
 
 import {validateWorkflowSnapshotDocs} from "../../../utils/tasks/workflowValidation"
+import {WorkflowGuidanceModel} from "../../models/WorkflowGuidanceModel"
 import {WorkflowRecordModel} from "../../models/WorkflowRecordModel"
 
 import type {
@@ -47,6 +48,7 @@ export class LocalStorageAdapter implements ILocalStorage {
       files,
       events,
       workflowRecords: new WorkflowRecordModel(this.db).getAll(),
+      workflowGuidanceRecords: new WorkflowGuidanceModel(this.db).getAll(),
     }
   }
 
@@ -57,7 +59,7 @@ export class LocalStorageAdapter implements ILocalStorage {
       for (const task of docs.tasks) tasksById.set(task.id, task)
       const recordsById = new Map(new WorkflowRecordModel(this.db).getAll().map((record) => [record.id, record]))
       for (const record of docs.workflowRecords ?? []) recordsById.set(record.id, record)
-      validateWorkflowSnapshotDocs({...docs, tasks: [...tasksById.values()], workflowRecords: [...recordsById.values()]})
+      validateWorkflowSnapshotDocs({...docs, tasks: [...tasksById.values()], workflowRecords: [...recordsById.values()]}, {completeHistory: true})
       if (docs.branches.length) {
         const stmt = this.db.prepare(`
           INSERT INTO branches (id, name, description, emoji, created_at, updated_at, deleted_at)
@@ -239,6 +241,7 @@ export class LocalStorageAdapter implements ILocalStorage {
       }
 
       for (const record of docs.workflowRecords ?? []) new WorkflowRecordModel(this.db).append(record)
+      for (const record of docs.workflowGuidanceRecords ?? []) new WorkflowGuidanceModel(this.db).append(record)
 
       if (docs.events.length) {
         const stmt = this.db.prepare(`

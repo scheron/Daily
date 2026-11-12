@@ -59,7 +59,7 @@ describe("runAgentTool", () => {
     }
   })
 
-  it("TC-44: malformed content and ids refuse INVALID_INPUT, protected time refuses WORKFLOW_REQUIRED, and every refusal leaves the revision unchanged", async () => {
+  it("TC-44: malformed content, time and ids refuse INVALID_INPUT without changing the revision", async () => {
     let taskId = ""
     const seeded = await seedAgentStore(async (mac) => {
       const task = await mac.core.tasksService.createTask({
@@ -92,7 +92,7 @@ describe("runAgentTool", () => {
       const nullTime = await runAgentTool({store: seeded.store}, agent, {name: "save_task", input: {id: taskId, time: null}})
       expect(nullTime.ok).toBe(false)
       if (!nullTime.ok) {
-        expect(nullTime.error.code).toBe(ToolErrorCode.WORKFLOW_REQUIRED)
+        expect(nullTime.error.code).toBe(ToolErrorCode.INVALID_INPUT)
         expect(nullTime.error.message).toContain("time")
       }
 

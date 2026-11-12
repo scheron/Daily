@@ -81,6 +81,18 @@ export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: Snapsh
   }
   const {result: mergedWorkflowRecords, added: addedWorkflowRecords} = mergeAppendOnly(local.workflowRecords ?? [], remote.workflowRecords ?? [])
 
+  const guidanceRecordsById = new Map<string, NonNullable<SnapshotDocs["workflowGuidanceRecords"]>[number]>()
+  for (const record of [...(local.workflowGuidanceRecords ?? []), ...(remote.workflowGuidanceRecords ?? [])]) {
+    const existing = guidanceRecordsById.get(record.id)
+    if (existing && !isDeepStrictEqual(existing, record))
+      throw new TaskWorkflowError("conflict", "Conflicting immutable guidance revisions block sync. No history is discarded.")
+    guidanceRecordsById.set(record.id, record)
+  }
+  const {result: mergedGuidanceRecords, added: addedGuidanceRecords} = mergeAppendOnly(
+    local.workflowGuidanceRecords ?? [],
+    remote.workflowGuidanceRecords ?? [],
+  )
+
   const survivingBranchIds = new Set(mergedBranches.map((b) => b.id))
   const onASurvivingBranch = <D extends {branch_id: string}>(doc: D): boolean => survivingBranchIds.has(doc.branch_id)
 
@@ -172,9 +184,10 @@ export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: Snapsh
     files: mergedFiles,
     events: mergedEvents,
     workflowRecords: mergedWorkflowRecords,
+    workflowGuidanceRecords: mergedGuidanceRecords,
   }
 
-  validateWorkflowSnapshotDocs(resultDocs)
+  validateWorkflowSnapshotDocs(resultDocs, {completeHistory: true})
 
   const toUpsert: SnapshotDocs = {
     tasks: [],
@@ -187,6 +200,7 @@ export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: Snapsh
     files: [],
     events: [],
     workflowRecords: [],
+    workflowGuidanceRecords: [],
   }
 
   const localTasksById = new Map(local.tasks.map((task) => [task.id, task]))
@@ -278,6 +292,11 @@ export function mergeRemoteIntoLocal(localDocs: SnapshotDocs, remoteDocs: Snapsh
   if (addedWorkflowRecords.length) {
     toUpsert.workflowRecords = addedWorkflowRecords
     changes += addedWorkflowRecords.length
+  }
+
+  if (addedGuidanceRecords.length) {
+    toUpsert.workflowGuidanceRecords = addedGuidanceRecords
+    changes += addedGuidanceRecords.length
   }
 
   return {resultDocs, toUpsert, toRemove, changes}

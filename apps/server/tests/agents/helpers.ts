@@ -94,7 +94,19 @@ export function rawSnapshotDocument(overrides: Record<string, unknown> = {}): an
   return {
     version: KNOWN_SNAPSHOT_VERSION,
     meta: {updatedAt: "2026-01-01T00:00:00.000Z", hash: "hash-1"},
-    docs: {tasks: [], tags: [], branches: [], milestones: [], relations: [], comments: [], files: [], events: [], workflowRecords: []},
+    docs: {
+      tasks: [],
+      tags: [],
+      branches: [],
+      milestones: [],
+      relations: [],
+      comments: [],
+      subtasks: [],
+      files: [],
+      events: [],
+      workflowRecords: [],
+      workflowGuidanceRecords: [],
+    },
     ...overrides,
   }
 }

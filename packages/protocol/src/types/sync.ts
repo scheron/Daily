@@ -1,4 +1,4 @@
-import type {TaskWorkflowRecord} from "./taskWorkflow"
+import type {TaskWorkflowRecord, WorkflowGuidanceRecord} from "./taskWorkflow"
 
 export type SyncStrategy = "pull" | "push"
 
@@ -8,7 +8,7 @@ export type SnapshotMeta = {
 }
 
 export type Snapshot = {
-  version: 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18
+  version: 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20
   docs: SnapshotDocs
   meta: SnapshotMeta
 }
@@ -23,6 +23,7 @@ export type SnapshotDocs = {
   subtasks: SnapshotSubtask[]
   files: SnapshotFile[]
   workflowRecords?: TaskWorkflowRecord[]
+  workflowGuidanceRecords?: WorkflowGuidanceRecord[]
   events: SnapshotTaskEvent[]
 }
 

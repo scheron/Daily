@@ -3,6 +3,7 @@ import {randomUUID} from "node:crypto"
 import {logger} from "../utils/logger"
 import {EMPTY_CHANGESET} from "../types/storage"
 import {TaskWorkflowService} from "./services/TaskWorkflowService"
+import {TaskWorkflowError} from "./TaskWorkflowError"
 
 import type {
   ActorSource,
@@ -24,7 +25,12 @@ import type {
   TaskWorkflowCommand,
   TaskWorkflowContext,
   TaskWorkflowReceipt,
+  TaskWorkflowResolution,
+  TaskWorkflowSession,
   TaskWorkflowState,
+  WorkflowGuidance,
+  WorkflowGuidanceDocument,
+  WorkflowGuidanceUpdate,
 } from "@daily/protocol"
 import type {PartialDeep} from "type-fest"
 import type {SqliteDriver} from "../database/SqliteDriver"
@@ -116,9 +122,40 @@ export class WorkStorage implements IWorkStorage {
   }
 
   async executeTaskWorkflow(command: TaskWorkflowCommand, context: TaskWorkflowContext): Promise<TaskWorkflowReceipt> {
-    const {receipt, changeset} = this._workflow.execute(command, context)
+    const {receipt, changeset} = this._workflow.execute(command, context, this._openBatch !== null)
     await this._publishCommitted(changeset)
     return receipt
+  }
+
+  async getWorkflowGuidance(projectId?: string): Promise<WorkflowGuidance> {
+    return this._workflow.getGuidance(projectId)
+  }
+
+  async updateWorkflowGuidance(update: WorkflowGuidanceUpdate): Promise<WorkflowGuidanceDocument> {
+    const document = this._workflow.updateGuidance(update)
+    await this._publishCommitted({})
+    return document
+  }
+
+  async resolveTaskWorkflowProposal(request: TaskWorkflowResolution): Promise<TaskWorkflowReceipt> {
+    return this.batch(
+      async () => {
+        const before = await this.getTask(request.taskId)
+        const {receipt, changeset} = this._workflow.resolve(request, true)
+        const after = changeset.tasks?.upserted?.find((task) => task.id === request.taskId)
+        if (after) {
+          const removed = await this._core.taskRelationsService.removeInvalidRelations([after.id])
+          if (removed.length) changeset.relations = {removed}
+          if (before && before.branchId !== after.branchId) {
+            const comments = await this._core.taskCommentsService.alignCommentsToTaskBranch(after.id, after.branchId)
+            if (comments.length) changeset.comments = {upserted: comments}
+          }
+        }
+        await this._publishCommitted(changeset)
+        return receipt
+      },
+      {acknowledgeCommit: true},
+    )
   }
 
   async getHistoryByTask(taskId: Task["id"]): Promise<TaskEvent[]> {
@@ -139,6 +176,12 @@ export class WorkStorage implements IWorkStorage {
 
   async createTask(task: Omit<Task, "id"> & {id?: Task["id"]}, source?: ActorSource): Promise<Changeset> {
     const branchId = await this._core.branchesService.resolveBranchId(task?.branchId)
+    if (
+      (source?.kind === "mcp" || source?.kind === "agent") &&
+      (task.status === "done" || task.status === "cancelled") &&
+      !this._workflow.getGuidance(branchId).allowCompletion
+    )
+      throw new TaskWorkflowError("forbidden", "Completion requires human review under the current workspace and project policy.")
     const createdTask = await this._core.tasksService.createTask({...task, branchId}, source)
     if (!createdTask) return EMPTY_CHANGESET
 
@@ -147,7 +190,9 @@ export class WorkStorage implements IWorkStorage {
 
   /** A project change carried in `updates.branchId` also keeps the task's comments with it — the same as `moveTaskToBranch`, which is this method's own special case. */
   async updateTask(id: Task["id"], updates: PartialDeep<Task>, source?: ActorSource, spentTimeDelta?: number): Promise<Changeset> {
-    if (spentTimeDelta === undefined) return this._applyTaskUpdate(id, updates, source)
+    const task = await this.getTask(id)
+    if (!task) return EMPTY_CHANGESET
+    if (!Object.values(updates).some((value) => value !== undefined) && spentTimeDelta === undefined) return {tasks: {upserted: [task]}}
     return this.batch(() => this._applyTaskUpdate(id, updates, source, spentTimeDelta), {acknowledgeCommit: true})
   }
 
@@ -159,10 +204,23 @@ export class WorkStorage implements IWorkStorage {
   }
 
   async moveTaskByOrder(params: MoveTaskByOrderParams, source?: ActorSource): Promise<Changeset> {
-    const updatedTasks = await this._core.tasksService.moveTaskByOrder(params, source)
-    if (!updatedTasks.length) return EMPTY_CHANGESET
+    return this.batch(
+      async () => {
+        const sessions = new Map<Task["id"], TaskWorkflowSession[]>()
+        const updatedTasks = await this._core.tasksService.moveTaskByOrder(params, source, (taskIds) => {
+          for (const taskId of taskIds) {
+            const active = this._workflow.checkpointSessions(taskId)
+            if (active.length) sessions.set(taskId, active)
+          }
+        })
+        if (!updatedTasks.length) return EMPTY_CHANGESET
 
-    return this._commitWrite({tasks: {upserted: updatedTasks}})
+        for (const [taskId, active] of sessions) this._workflow.checkpointSessions(taskId, active)
+        const upserted = sessions.size ? await Promise.all(updatedTasks.map(async (task) => (await this.getTask(task.id)) ?? task)) : updatedTasks
+        return this._commitWrite({tasks: {upserted}})
+      },
+      {acknowledgeCommit: true},
+    )
   }
 
   async moveTaskToBranch(taskId: Task["id"], branchId: Branch["id"], source?: ActorSource): Promise<Changeset> {
@@ -465,12 +523,20 @@ export class WorkStorage implements IWorkStorage {
   }
 
   private async _applyTaskUpdate(id: Task["id"], updates: PartialDeep<Task>, source?: ActorSource, spentTimeDelta?: number): Promise<Changeset> {
+    if (!Object.values(updates).some((value) => value !== undefined) && spentTimeDelta === undefined) {
+      const task = await this.getTask(id)
+      return task ? {tasks: {upserted: [task]}} : EMPTY_CHANGESET
+    }
+    const sessions = (await this.getTask(id)) ? this._workflow.checkpointSessions(id) : []
     const updatedTasks = await this._core.tasksService.updateTask(id, updates, source, spentTimeDelta)
     if (!updatedTasks.length) return EMPTY_CHANGESET
+    if (sessions.length) this._workflow.checkpointSessions(id, sessions)
 
     const removedRelations = await this._core.taskRelationsService.removeInvalidRelations(updatedTasks.map((task) => task.id))
 
-    const changeset: Changeset = {tasks: {upserted: updatedTasks}}
+    const changeset: Changeset = {
+      tasks: {upserted: sessions.length ? await Promise.all(updatedTasks.map(async (task) => (await this.getTask(task.id)) ?? task)) : updatedTasks},
+    }
     if (removedRelations.length) changeset.relations = {removed: removedRelations}
 
     if (updates.branchId !== undefined) {

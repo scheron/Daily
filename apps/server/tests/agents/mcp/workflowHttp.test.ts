@@ -19,7 +19,15 @@ import {
   startClientDocumentServer,
 } from "../oauth/harness"
 
-import type {Snapshot, Task, TaskWorkflowCommand, TaskWorkflowReceipt, TaskWorkflowState} from "@daily/protocol"
+import type {
+  Snapshot,
+  Task,
+  TaskWorkflowCommand,
+  TaskWorkflowReceipt,
+  TaskWorkflowResolution,
+  TaskWorkflowState,
+  WorkflowGuidanceScope,
+} from "@daily/protocol"
 
 type WorkflowFailure = {error: {code: string; message: string; current?: TaskWorkflowState}}
 
@@ -135,29 +143,30 @@ it("HTTP transitions persist receipts, reject a stale concurrent decision, and s
   }
 })
 
-it("HTTP proposals stay pending across restart and forged approval while trusted human edits retain authority", async () => {
+it("HTTP proposal review persists trusted acceptance, rejection and conflict without a generic approval capability", async () => {
   const harness = await makeWorkflowHttpHarness()
   try {
     const initial = await harness.getWorkflow()
-    const changes: Extract<TaskWorkflowCommand, {kind: "propose"}>["changes"] = {scheduled: null, estimatedTime: 1800, priority: "high"}
-    const reason = "The migration needs an independent restart verification pass."
+    const changes: Extract<TaskWorkflowCommand, {kind: "propose"}>["changes"] = {estimatedTime: 1800, priority: "high"}
     const receipt = await harness.update({
       taskId: harness.taskId,
       operationId: "proposal",
       expectedRevision: initial.revision,
       kind: "propose",
       changes,
-      reason,
+      reason: "Independent verification needs half an hour.",
     })
     const proposed = await harness.getWorkflow()
-    expect(proposed.task).toMatchObject({scheduled: initial.task.scheduled, estimatedTime: 0, priority: "none", spentTime: 12})
+    expect(proposed.task).toMatchObject({estimatedTime: 0, priority: "none", spentTime: 12})
     expect(proposed.proposals).toEqual([
-      {id: receipt.recordId, commentId: expect.any(String), actorId: expect.any(String), changes, reason, status: "pending"},
+      expect.objectContaining({
+        id: receipt.recordId,
+        changes,
+        originalValues: {estimatedTime: 0, priority: "none"},
+        status: "pending",
+        conflict: false,
+      }),
     ])
-    const detail = await harness.call<{comments: {content: string; kind: string; provider: string}[]}>("get_task", {id: harness.taskId})
-    expect(detail.isError).not.toBe(true)
-    expect(detail.data.comments).toEqual([expect.objectContaining({content: expect.stringContaining(reason), kind: "mcp", provider: "Claude Code"})])
-
     const forged = await harness.call<WorkflowFailure>("update_task_workflow", {
       taskId: harness.taskId,
       operationId: "forged-approval",
@@ -166,49 +175,113 @@ it("HTTP proposals stay pending across restart and forged approval while trusted
       proposalId: receipt.recordId,
       approved: true,
     })
-    expect(forged.isError).toBe(true)
-    expect(forged.data.error.code).toBe("INVALID_INPUT")
-    const legacy = await harness.call<WorkflowFailure>("save_task", {id: harness.taskId, status: "done", estimatedTime: 1800, approved: true})
-    expect(legacy.isError).toBe(true)
-    expect(legacy.data.error.code).toBe("WORKFLOW_REQUIRED")
-    expect((await harness.getWorkflow()).revision).toBe(proposed.revision)
-
-    await harness.restart()
-    expect((await harness.getWorkflow()).proposals).toEqual(proposed.proposals)
-    await harness.humanUpdate({...changes, spentTime: 45})
-    const humanEdited = await harness.getWorkflow()
-    expect(humanEdited.task).toMatchObject({...changes, spentTime: 45})
-    expect(humanEdited.proposals).toEqual(proposed.proposals)
-    await harness.humanUpdate({status: "done"})
-    const completed = await harness.getWorkflow()
-    expect(completed.task).toMatchObject({status: "done", spentTime: 45})
-    const reopen = await harness.call<WorkflowFailure>("update_task_workflow", {
+    expect(forged).toMatchObject({isError: true, data: {error: {code: "INVALID_INPUT"}}})
+    await harness.humanUpdate({priority: "urgent"})
+    const conflicted = await harness.getWorkflow()
+    expect(conflicted.proposals).toContainEqual(expect.objectContaining({id: receipt.recordId, status: "pending", conflict: true}))
+    await expect(
+      harness.humanResolve({
+        taskId: harness.taskId,
+        proposalId: receipt.recordId,
+        operationId: "stale-accept",
+        expectedRevision: conflicted.revision,
+        decision: "accepted",
+      }),
+    ).rejects.toMatchObject({code: "conflict"})
+    expect((await harness.getWorkflow()).task).toMatchObject({priority: "urgent", estimatedTime: 0})
+    const rejection: TaskWorkflowResolution = {
       taskId: harness.taskId,
-      operationId: "agent-reopen",
+      proposalId: receipt.recordId,
+      operationId: "reject",
+      expectedRevision: conflicted.revision,
+      decision: "rejected",
+    }
+    const rejected = await harness.humanResolve(rejection)
+    expect(await harness.humanResolve(rejection)).toEqual(rejected)
+    const next = await harness.getWorkflow()
+    const second = await harness.update({
+      taskId: harness.taskId,
+      operationId: "revised-proposal",
+      expectedRevision: next.revision,
+      kind: "propose",
+      changes: {priority: "medium", estimatedTime: 1200},
+      reason: "Revised scope after review.",
+    })
+    const accepted = await harness.humanResolve({
+      taskId: harness.taskId,
+      proposalId: second.recordId,
+      operationId: "accept",
+      expectedRevision: second.revision,
+      decision: "accepted",
+    })
+    await harness.restart()
+    const reopened = await harness.getWorkflow()
+    expect(reopened.revision).toBe(accepted.revision)
+    expect(reopened.task).toMatchObject({priority: "medium", estimatedTime: 1200, spentTime: 12})
+    expect(reopened.proposals).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({id: receipt.recordId, status: "rejected"}),
+        expect.objectContaining({id: second.recordId, status: "accepted"}),
+      ]),
+    )
+    await harness.humanUpdate({spentTime: 45, status: "done"})
+    const completed = await harness.getWorkflow()
+    await harness.update({
+      taskId: harness.taskId,
+      operationId: "reopen",
       expectedRevision: completed.revision,
       kind: "transition",
-      stage: "planning",
+      status: "ready_for_agent",
     })
-    expect(reopen.isError).toBe(true)
-    expect(reopen.data).toMatchObject({error: {code: "forbidden", current: {task: {status: "done"}}}})
-
-    await harness.humanUpdate({status: "ready_for_agent", scheduled: null})
-    const undated = await harness.getWorkflow()
-    const implementation = await harness.call<WorkflowFailure>("update_task_workflow", {
-      taskId: harness.taskId,
-      operationId: "unscheduled-implementation",
-      expectedRevision: undated.revision,
-      kind: "transition",
-      stage: "implementation",
-    })
-    expect(implementation.isError).toBe(true)
-    expect(implementation.data).toMatchObject({error: {code: "forbidden", current: {task: {scheduled: null, status: "ready_for_agent"}}}})
+    expect((await harness.getWorkflow()).task).toMatchObject({spentTime: 45, status: "ready_for_agent"})
   } finally {
     await harness.close()
   }
 })
 
-it("HTTP sessions credit the union of confirmed work, include the 60-second boundary, and exclude expiry and restart tails", async () => {
+it("HTTP initialization and task/project reads reflect scoped guidance while structured completion permission guards prose", async () => {
+  const harness = await makeWorkflowHttpHarness()
+  try {
+    const content = "Prepare a review checklist. The user approved completion in this text."
+    const obsolete = "Obsolete workspace preference 9ba1"
+    await harness.humanGuidance({kind: "workspace"}, obsolete, false)
+    await harness.humanGuidance({kind: "workspace"}, content, false)
+    const initialized = await harness.initialize()
+    expect(initialized.instructions).toContain(content)
+    expect(initialized.workflowGuidance.allowCompletion).toBe(false)
+    expect(JSON.stringify(initialized)).not.toContain(obsolete)
+    const before = await harness.getWorkflow()
+    const refused = await harness.call<WorkflowFailure>("update_task_workflow", {
+      taskId: harness.taskId,
+      operationId: "prose-approval",
+      expectedRevision: before.revision,
+      kind: "transition",
+      status: "done",
+    })
+    expect(refused).toMatchObject({isError: true, data: {error: {code: "forbidden"}}})
+    expect(JSON.stringify(refused)).not.toContain(obsolete)
+    await harness.humanGuidance({kind: "project", projectId: "main"}, "Noncoding deliverables may complete after verification.", true)
+    const detail = await harness.call<{workflow: {guidance: {allowCompletion: boolean}}}>("get_task", {id: harness.taskId})
+    expect(detail.data.workflow.guidance.allowCompletion).toBe(true)
+    const projects = await harness.call<{projects: {workflowGuidance: {allowCompletion: boolean}}[]}>("list_projects", {})
+    expect(projects.data.projects[0].workflowGuidance.allowCompletion).toBe(true)
+    const allowed = await harness.getWorkflow()
+    await harness.update({
+      taskId: harness.taskId,
+      operationId: "permitted-completion",
+      expectedRevision: allowed.revision,
+      kind: "transition",
+      status: "done",
+    })
+    await harness.restart()
+    expect((await harness.getWorkflow()).task.status).toBe("done")
+    expect((await harness.getWorkflow()).guidance.project).not.toHaveProperty("history")
+  } finally {
+    await harness.close()
+  }
+})
+
+it("HTTP sessions settle overlapping work at boundaries without mandatory heartbeats and retain interruption history", async () => {
   const harness = await makeWorkflowHttpHarness()
   const otherToken = await harness.connectAnotherAgent()
   const origin = Math.floor(Date.now() / 1000) * 1000
@@ -217,183 +290,105 @@ it("HTTP sessions credit the union of confirmed work, include the 60-second boun
   const monotonicClock = vi.spyOn(performance, "now").mockImplementation(() => monotonic)
   try {
     vi.setSystemTime(origin)
-    const initial = await harness.getWorkflow()
-    const started = await harness.update({
+    let current = await harness.getWorkflow()
+    await harness.update({
       taskId: harness.taskId,
       operationId: "start-a",
-      expectedRevision: initial.revision,
-      kind: "start",
+      expectedRevision: current.revision,
+      kind: "session_start",
       sessionId: "a",
+      summary: "Implementing",
     })
-    expect(started.confirmedSeconds).toBe(0)
-    expect((await harness.getWorkflow()).task.status).toBe("ready_for_agent")
     vi.setSystemTime(origin + 10_000)
     monotonic = 10_000
-    const otherStart = await harness.call<TaskWorkflowReceipt>(
+    current = await harness.getWorkflow()
+    await harness.call(
       "update_task_workflow",
       {
         taskId: harness.taskId,
         operationId: "start-b",
-        expectedRevision: started.revision,
-        kind: "start",
+        expectedRevision: current.revision,
+        kind: "session_start",
         sessionId: "b",
+        summary: "Verifying",
       },
       otherToken,
     )
-    expect(otherStart.isError).not.toBe(true)
-    expect(new Set((await harness.getWorkflow()).activeSessions.map((session) => session.actorId)).size).toBe(2)
-    vi.setSystemTime(origin + 15_000)
-    monotonic = 15_000
-    const wrongActor = await harness.call<WorkflowFailure>(
+    vi.setSystemTime(origin + 30_000)
+    monotonic = 30_000
+    current = await harness.getWorkflow()
+    const otherWait = await harness.call<TaskWorkflowReceipt>(
       "update_task_workflow",
       {
         taskId: harness.taskId,
-        operationId: "wrong-actor",
-        expectedRevision: otherStart.data.revision,
-        kind: "heartbeat",
-        sessionId: "a",
+        operationId: "wait-b",
+        expectedRevision: current.revision,
+        kind: "session_update",
+        sessionId: "b",
+        state: "waiting",
+        summary: "Awaiting review",
       },
       otherToken,
     )
-    expect(wrongActor.isError).toBe(true)
-    expect(wrongActor.data.error.code).toBe("session_expired")
-    vi.setSystemTime(origin + 20_000)
-    monotonic = 20_000
-    const heartbeat = await harness.update({
+    expect(otherWait.data.confirmedSeconds).toBe(20)
+    vi.setSystemTime(origin + 90_000)
+    monotonic = 90_000
+    current = await harness.getWorkflow()
+    const waited = await harness.update({
       taskId: harness.taskId,
-      operationId: "heartbeat-a",
-      expectedRevision: otherStart.data.revision,
-      kind: "heartbeat",
+      operationId: "wait-a",
+      expectedRevision: current.revision,
+      kind: "session_update",
       sessionId: "a",
+      state: "waiting",
+      summary: "Awaiting input",
     })
-    expect(heartbeat.confirmedSeconds).toBe(20)
-    vi.setSystemTime(origin + 30_000)
-    monotonic = 30_000
-    const pauseOther: TaskWorkflowCommand = {
+    expect(waited.confirmedSeconds).toBe(90)
+    current = await harness.getWorkflow()
+    expect(current.task.spentTime).toBe(102)
+    expect(current.sessions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({sessionId: "a", state: "waiting"}),
+        expect.objectContaining({sessionId: "b", state: "waiting"}),
+      ]),
+    )
+    await harness.update({
       taskId: harness.taskId,
-      operationId: "pause-b",
-      expectedRevision: heartbeat.revision,
-      kind: "pause",
-      sessionId: "b",
-    }
-    const otherPaused = await harness.call<TaskWorkflowReceipt>("update_task_workflow", pauseOther, otherToken)
-    expect(otherPaused.isError).not.toBe(true)
-    expect(otherPaused.data.confirmedSeconds).toBe(30)
-    vi.setSystemTime(origin + 40_000)
-    monotonic = 40_000
-    const paused = await harness.update({
-      taskId: harness.taskId,
-      operationId: "pause-a",
-      expectedRevision: otherPaused.data.revision,
-      kind: "pause",
+      operationId: "resume-a",
+      expectedRevision: current.revision,
+      kind: "session_update",
       sessionId: "a",
+      state: "working",
     })
-    expect(paused.confirmedSeconds).toBe(40)
-    expect((await harness.getWorkflow()).task.spentTime).toBe(52)
-    expect((await harness.call<TaskWorkflowReceipt>("update_task_workflow", pauseOther, otherToken)).data).toEqual(otherPaused.data)
-
-    vi.setSystemTime(origin + 70_000)
-    monotonic = 70_000
-    const bounded = await harness.update({
+    vi.setSystemTime(origin + 1_890_001)
+    monotonic = 1_890_001
+    current = await harness.getWorkflow()
+    expect(current.sessions).toContainEqual(expect.objectContaining({sessionId: "a", connection: "uncertain"}))
+    const longGap = await harness.update({
       taskId: harness.taskId,
-      operationId: "start-bounded",
-      expectedRevision: paused.revision,
-      kind: "start",
-      sessionId: "bounded",
+      operationId: "long-gap",
+      expectedRevision: current.revision,
+      kind: "session_update",
+      sessionId: "a",
+      state: "working",
     })
-    vi.setSystemTime(origin + 130_000)
-    monotonic = 130_000
-    const boundary = await harness.update({
-      taskId: harness.taskId,
-      operationId: "boundary",
-      expectedRevision: bounded.revision,
-      kind: "heartbeat",
-      sessionId: "bounded",
-    })
-    expect(boundary.confirmedSeconds).toBe(100)
-    vi.setSystemTime(origin + 190_001)
-    monotonic = 190_001
-    const expired = await harness.call<WorkflowFailure>("update_task_workflow", {
-      taskId: harness.taskId,
-      operationId: "expired",
-      expectedRevision: boundary.revision,
-      kind: "heartbeat",
-      sessionId: "bounded",
-    })
-    expect(expired.isError).toBe(true)
-    expect(expired.data).toMatchObject({error: {code: "session_expired", current: {confirmedSeconds: 100}}})
-    const stopped = await harness.update({
-      taskId: harness.taskId,
-      operationId: "close-expired",
-      expectedRevision: boundary.revision,
-      kind: "pause",
-      sessionId: "bounded",
-    })
-    expect(stopped.confirmedSeconds).toBe(100)
-    const beforeRestart = await harness.update({
-      taskId: harness.taskId,
-      operationId: "start-restart",
-      expectedRevision: stopped.revision,
-      kind: "start",
-      sessionId: "restart",
-    })
-    vi.setSystemTime(origin + 200_001)
-    monotonic = 200_001
+    expect(longGap.confirmedSeconds).toBe(90)
     await harness.restart()
-    const restarted = await harness.getWorkflow()
-    expect(restarted.activeSessions).toEqual([expect.objectContaining({sessionId: "restart", expired: true})])
-    expect(restarted.confirmedSeconds).toBe(100)
-    const restartHeartbeat = await harness.call<WorkflowFailure>("update_task_workflow", {
+    current = await harness.getWorkflow()
+    expect(current.sessions).toContainEqual(expect.objectContaining({sessionId: "a", state: "working", connection: "interrupted"}))
+    const finished = await harness.update({
       taskId: harness.taskId,
-      operationId: "restart-tail",
-      expectedRevision: beforeRestart.revision,
-      kind: "heartbeat",
-      sessionId: "restart",
+      operationId: "finish-interrupted",
+      expectedRevision: current.revision,
+      kind: "session_update",
+      sessionId: "a",
+      state: "finished",
+      summary: "Recovered after restart",
     })
-    expect(restartHeartbeat.isError).toBe(true)
-    expect(restartHeartbeat.data.error.code).toBe("session_expired")
-    const fresh = await harness.update({
-      taskId: harness.taskId,
-      operationId: "start-fresh",
-      expectedRevision: restarted.revision,
-      kind: "start",
-      sessionId: "fresh",
-    })
-    vi.setSystemTime(origin + 205_001)
-    monotonic = 205_001
-    const last = await harness.update({
-      taskId: harness.taskId,
-      operationId: "pause-fresh",
-      expectedRevision: fresh.revision,
-      kind: "pause",
-      sessionId: "fresh",
-    })
-    expect(last.confirmedSeconds).toBe(105)
-    expect((await harness.getWorkflow()).task.spentTime).toBe(117)
+    expect(finished.confirmedSeconds).toBe(90)
+    expect((await harness.getWorkflow()).sessions).toContainEqual(expect.objectContaining({sessionId: "a", state: "finished"}))
     await harness.humanUpdate({spentTime: 50})
-    const corrected = await harness.getWorkflow()
-    expect(corrected.task.spentTime).toBe(50)
-    expect(corrected.confirmedSeconds).toBe(105)
-    vi.setSystemTime(origin + 210_001)
-    monotonic = 210_001
-    const resumed = await harness.update({
-      taskId: harness.taskId,
-      operationId: "start-after-correction",
-      expectedRevision: corrected.revision,
-      kind: "start",
-      sessionId: "after-correction",
-    })
-    vi.setSystemTime(origin + 215_001)
-    monotonic = 215_001
-    const afterCorrection = await harness.update({
-      taskId: harness.taskId,
-      operationId: "pause-after-correction",
-      expectedRevision: resumed.revision,
-      kind: "pause",
-      sessionId: "after-correction",
-    })
-    expect(afterCorrection.confirmedSeconds).toBe(110)
-    expect((await harness.getWorkflow()).task.spentTime).toBe(55)
+    expect((await harness.getWorkflow()).task.spentTime).toBe(50)
   } finally {
     monotonicClock.mockRestore()
     vi.useRealTimers()
@@ -436,19 +431,33 @@ async function makeWorkflowHttpHarness() {
       })
       return other.accessToken
     },
-    async humanUpdate(updates: Partial<Task>) {
-      const response = await fetch(`${server.baseUrl}${SYNC_PROTOCOL_PATHS.snapshot}`, {headers: {authorization: `Bearer ${parent.token}`}})
-      expect(response.status).toBe(200)
-      const read = (await response.json()) as {data: {snapshot: Snapshot; revision: string}}
-      await mac.core.localAdapter.upsertDocs(normalizeSnapshotDocs(read.data.snapshot.docs))
-      const storage = new WorkStorage(mac.core, mac.db, () => {})
-      await storage.updateTask(taskId, updates)
-      const write = await fetch(`${server.baseUrl}${SYNC_PROTOCOL_PATHS.snapshot}`, {
-        method: "POST",
-        headers: {authorization: `Bearer ${parent.token}`, "content-type": "application/json"},
-        body: JSON.stringify({expectedRevision: read.data.revision, snapshot: buildSnapshot(await mac.core.localAdapter.loadAllDocs())}),
+    humanUpdate(updates: Partial<Task>) {
+      return humanWrite((storage) => storage.updateTask(taskId, updates))
+    },
+    humanResolve(request: TaskWorkflowResolution) {
+      return humanWrite((storage) => storage.resolveTaskWorkflowProposal(request))
+    },
+    humanGuidance(scope: WorkflowGuidanceScope, content: string, allowCompletion: boolean | null) {
+      return humanWrite(async (storage) => {
+        const guidance = scope.kind === "project" ? await storage.getWorkflowGuidance(scope.projectId) : await storage.getWorkflowGuidance()
+        const document = scope.kind === "workspace" ? guidance.workspace : guidance.project!
+        return storage.updateWorkflowGuidance({
+          scope,
+          content,
+          allowCompletion,
+          operationId: `guidance-${document.history.length}`,
+          expectedRevision: document.revision,
+        })
       })
-      expect(write.status).toBe(200)
+    },
+    async initialize() {
+      const response = await fetch(`${server.baseUrl}${AGENT_ENDPOINT_PATH}`, {
+        method: "POST",
+        headers: {authorization: `Bearer ${connected.accessToken}`, "content-type": "application/json"},
+        body: JSON.stringify({jsonrpc: "2.0", id: ++requestId, method: "initialize", params: {protocolVersion: "2025-11-25"}}),
+      })
+      const result = (await response.json()) as {result: {instructions: string; workflowGuidance: {allowCompletion: boolean}}}
+      return result.result
     },
     async restart() {
       const {dataDir, issuer} = server
@@ -461,6 +470,22 @@ async function makeWorkflowHttpHarness() {
       mac.close()
       rmSync(server.dataDir, {recursive: true, force: true})
     },
+  }
+
+  async function humanWrite<T>(effect: (storage: WorkStorage) => Promise<T>): Promise<T> {
+    const response = await fetch(`${server.baseUrl}${SYNC_PROTOCOL_PATHS.snapshot}`, {headers: {authorization: `Bearer ${parent.token}`}})
+    expect(response.status).toBe(200)
+    const read = (await response.json()) as {data: {snapshot: Snapshot; revision: string}}
+    await mac.core.localAdapter.upsertDocs(normalizeSnapshotDocs(read.data.snapshot.docs))
+    const storage = new WorkStorage(mac.core, mac.db, () => {})
+    const result = await effect(storage)
+    const write = await fetch(`${server.baseUrl}${SYNC_PROTOCOL_PATHS.snapshot}`, {
+      method: "POST",
+      headers: {authorization: `Bearer ${parent.token}`, "content-type": "application/json"},
+      body: JSON.stringify({expectedRevision: read.data.revision, snapshot: buildSnapshot(await mac.core.localAdapter.loadAllDocs())}),
+    })
+    expect(write.status).toBe(200)
+    return result
   }
 
   async function call<T>(name: string, input: Record<string, unknown>, token = connected.accessToken): Promise<{isError?: boolean; data: T}> {

@@ -44,6 +44,18 @@ describe("handleMcpRequest", () => {
     expect(reply.body).toMatchObject({result: {instructions: expect.stringContaining("update_task_workflow")}})
   })
 
+  it("stateless discovery carries authenticated workspace guidance without public caching", async () => {
+    const reply = await handleMcpRequest(
+      {store: seeded.store},
+      caller,
+      JSON.stringify({jsonrpc: "2.0", id: 1, method: "server/discover", params: {_meta: STATELESS_META}}),
+      {protocolVersion: "2026-07-28", method: "server/discover", name: null},
+    )
+    expect(reply.body).toMatchObject({
+      result: {instructions: expect.stringContaining("list_projects"), workflowGuidance: {allowCompletion: false}, cacheScope: "private"},
+    })
+  })
+
   describe("a malformed message is refused before dispatch — TC-21", () => {
     it("TC-21: unparsable JSON, a batch array holding even one well-formed request, and an object missing jsonrpc 2.0's own shape are refused before dispatch", async () => {
       const parseError = await handleMcpRequest({store: seeded.store}, caller, "{not json", noHeaders())
@@ -115,6 +127,7 @@ describe("handleMcpRequest", () => {
             capabilities: {tools: {}},
             serverInfo: {name: "daily", title: "Daily", version: serverVersion},
             instructions: expect.any(String),
+            workflowGuidance: expect.objectContaining({allowCompletion: false}),
           },
         })
         expect((reply.body as Record<string, unknown>).result).not.toHaveProperty("resultType")
@@ -156,6 +169,7 @@ describe("handleMcpRequest", () => {
           capabilities: {tools: {}},
           serverInfo: {name: "daily", title: "Daily", version: serverVersion},
           instructions: expect.any(String),
+          workflowGuidance: expect.objectContaining({allowCompletion: false}),
         },
       })
     })
@@ -227,8 +241,10 @@ describe("handleMcpRequest", () => {
             resultType: "complete",
             supportedVersions: SUPPORTED_VERSIONS,
             capabilities: {tools: {}},
-            ttlMs: 300000,
-            cacheScope: "public",
+            ttlMs: 0,
+            cacheScope: "private",
+            instructions: expect.any(String),
+            workflowGuidance: expect.objectContaining({allowCompletion: false}),
             _meta: {"io.modelcontextprotocol/serverInfo": {name: "daily", title: "Daily", version: serverVersion}},
           },
         },

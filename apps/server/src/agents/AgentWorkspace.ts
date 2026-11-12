@@ -63,7 +63,8 @@ export async function runInAgentWorkspace<T>(
   }
   const observedAt = (deps.now?.() ?? new Date()).getTime()
   const observedMonotonic = deps.monotonicNow?.() ?? performance.now()
-  const workflowHost = {runtimeId, now: () => observedAt, monotonicNow: () => observedMonotonic}
+  const observedSchedule = createClock(agent.timeZone, () => new Date(observedAt)).scheduledNow()
+  const workflowHost = {runtimeId, now: () => observedAt, monotonicNow: () => observedMonotonic, scheduledNow: () => observedSchedule}
 
   if (mode === "read") return runAttempt(deps.store, agent, clock, mode, run, workflowHost)
 
@@ -106,7 +107,7 @@ async function runAttempt<T>(
   clock: ToolClock,
   mode: ToolMode,
   run: (ctx: ToolContext) => Promise<T>,
-  workflowHost: {runtimeId: string; now: () => number; monotonicNow: () => number},
+  workflowHost: NonNullable<ConstructorParameters<typeof WorkStorage>[3]>,
 ): Promise<T> {
   const stored = readSnapshot(store)
 

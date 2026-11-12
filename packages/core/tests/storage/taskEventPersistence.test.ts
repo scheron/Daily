@@ -1,3 +1,5 @@
+import {tmpdir} from "node:os"
+import {join} from "node:path"
 import {afterEach, beforeEach, describe, expect, it} from "vitest"
 
 import {FileModel} from "@core/storage/models/FileModel"
@@ -33,7 +35,7 @@ describe("task event persistence", () => {
   beforeEach(() => {
     db = createTestDatabase()
     model = new TaskEventModel(db)
-    adapter = new LocalStorageAdapter(db, new FileModel(db, "/tmp/daily-event-persistence"))
+    adapter = new LocalStorageAdapter(db, new FileModel(db, join(tmpdir(), "daily-event-persistence")))
   })
 
   afterEach(() => db.close())
@@ -52,11 +54,11 @@ describe("task event persistence", () => {
     expect(history.map((event) => event.sequence)).toEqual([3, 2, 2, 1])
     expect(model.getLatestByTask("task")).toEqual(history[0])
     const snapshot = JSON.parse(JSON.stringify(buildSnapshot(await adapter.loadAllDocs())))
-    expect(snapshot.version).toBe(18)
+    expect(snapshot.version).toBe(20)
 
     const remoteDb = createTestDatabase()
     try {
-      const remote = new LocalStorageAdapter(remoteDb, new FileModel(remoteDb, "/tmp/daily-event-persistence-other"))
+      const remote = new LocalStorageAdapter(remoteDb, new FileModel(remoteDb, join(tmpdir(), "daily-event-persistence-other")))
       const reversed = {...snapshot.docs, events: [...snapshot.docs.events].reverse()}
       await remote.upsertDocs(reversed)
       await remote.upsertDocs(snapshot.docs)

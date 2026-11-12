@@ -96,17 +96,6 @@ export class TasksService {
   }
 
   async createTask(task: Omit<Task, "id"> & {id?: Task["id"]}, source?: ActorSource): Promise<Task | null> {
-    if (
-      (source?.kind === "agent" || source?.kind === "mcp") &&
-      (task.status !== "backlog" ||
-        task.scheduled !== null ||
-        task.estimatedTime !== 0 ||
-        task.spentTime !== 0 ||
-        task.priority !== "none" ||
-        task.deletedAt !== null)
-    ) {
-      throw new TaskWorkflowError("forbidden", "Agents create unplanned backlog tasks. Use proposals for planning changes.")
-    }
     const id = task.id ?? createEntityId("task")
     const fields = planTaskCreate(this.readContext(task.branchId ?? NO_PROJECT_ID, null), task)
 
@@ -117,7 +106,7 @@ export class TasksService {
   }
 
   /** Every row the move patched — one, or a whole renormalised column — unless the task does not exist. */
-  async moveTaskByOrder(params: MoveTaskByOrderParams, source?: ActorSource): Promise<Task[]> {
+  async moveTaskByOrder(params: MoveTaskByOrderParams, source?: ActorSource, beforeApply?: (taskIds: Task["id"][]) => void): Promise<Task[]> {
     const sourceTask = this.taskModel.getTask(params.taskId)
     if (!sourceTask) return []
 
@@ -133,9 +122,11 @@ export class TasksService {
           throw new TaskWorkflowError("forbidden", "Reordering cannot change agent stage or planning. Use the task workflow.")
       }
     }
+    beforeApply?.(patches.map((patch) => patch.id))
+    const before = this.taskModel.getTask(params.taskId) ?? sourceTask
     const updated = this.applyPatches(patches)
 
-    return this.finalizeMove(sourceTask, updated, source)
+    return this.finalizeMove(before, updated, source)
   }
 
   async moveTaskToBranch(taskId: Task["id"], branchId: Branch["id"], source?: ActorSource): Promise<boolean> {
@@ -160,7 +151,6 @@ export class TasksService {
   }
 
   async restoreTask(id: Task["id"], source?: ActorSource): Promise<Task | null> {
-    if (source?.kind === "agent" || source?.kind === "mcp") throw new TaskWorkflowError("forbidden", "Only the person can restore deleted work.")
     const restored = this.taskModel.restoreTask(id)
     if (restored) this.taskEvents.record(restored, "restored", source)
 

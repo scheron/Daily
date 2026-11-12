@@ -2,6 +2,7 @@ import {readdir} from "node:fs/promises"
 import {Readable} from "node:stream"
 import {describe, expect, it} from "vitest"
 
+import {WorkStorage} from "@daily/core/storage/WorkStorage"
 import {APP_CONFIG} from "@daily/protocol"
 import {findTool, ToolError, ToolErrorCode} from "@daily/tools"
 
@@ -63,7 +64,7 @@ async function expectRejectsWithAgentError(promise: Promise<unknown>): Promise<T
 }
 
 describe("save_task", () => {
-  it("TC-31: creating work across a date boundary leaves it in unscheduled Backlog", async () => {
+  it("TC-31: creation defaults to the caller day across a date boundary", async () => {
     const seeded = await seedAgentStore()
 
     try {
@@ -72,15 +73,15 @@ describe("save_task", () => {
 
       const result = await call({store: seeded.store, now}, agent, saveTaskTool, {content: "Buy milk"})
 
-      expect(result.task.status).toBe("backlog")
+      expect(result.task.status).toBe("todo")
       expect(result.task.projectId).toBe("main")
-      expect(result.task.scheduled).toBeNull()
+      expect(result.task.scheduled).toMatchObject({date: "2026-06-16", timezone: "Asia/Tokyo"})
     } finally {
       seeded.close()
     }
   })
 
-  it("TC-32: agents in different time zones cannot implicitly schedule their created tasks", async () => {
+  it("TC-32: agents create tasks on their own current day and time zone", async () => {
     const seeded = await seedAgentStore()
 
     try {
@@ -91,8 +92,8 @@ describe("save_task", () => {
       const tokyoResult = await call({store: seeded.store, now}, tokyoAgent, saveTaskTool, {content: "Tokyo task"})
       const laResult = await call({store: seeded.store, now}, laAgent, saveTaskTool, {content: "LA task"})
 
-      expect(tokyoResult.task).toMatchObject({status: "backlog", scheduled: null})
-      expect(laResult.task).toMatchObject({status: "backlog", scheduled: null})
+      expect(tokyoResult.task).toMatchObject({status: "todo", scheduled: {date: "2026-06-16", timezone: "Asia/Tokyo"}})
+      expect(laResult.task).toMatchObject({status: "todo", scheduled: {date: "2026-06-15", timezone: "America/Los_Angeles"}})
     } finally {
       seeded.close()
     }
@@ -127,7 +128,7 @@ describe("save_task", () => {
     }
   })
 
-  it("TC-34: setting or clearing a scheduled day requires a proposal and leaves the snapshot unchanged", async () => {
+  it("TC-34: legacy day edits create proposals and leave task planning unchanged", async () => {
     let backlogId = ""
     let datedId = ""
 
@@ -142,19 +143,21 @@ describe("save_task", () => {
       const agent = bindAgent(seeded.store)
 
       const revision = readSnapshot(seeded.store)!.revision
-      await expect(call({store: seeded.store}, agent, saveTaskTool, {id: backlogId, date: "2026-02-01"})).rejects.toMatchObject({
-        code: ToolErrorCode.WORKFLOW_REQUIRED,
+      await expect(call({store: seeded.store}, agent, saveTaskTool, {id: backlogId, date: "2026-02-01"})).resolves.toMatchObject({
+        outcome: "proposal_pending",
+        task: {status: "backlog", scheduled: null},
       })
-      await expect(call({store: seeded.store}, agent, saveTaskTool, {id: datedId, date: null})).rejects.toMatchObject({
-        code: ToolErrorCode.WORKFLOW_REQUIRED,
+      await expect(call({store: seeded.store}, agent, saveTaskTool, {id: datedId, date: null})).resolves.toMatchObject({
+        outcome: "proposal_pending",
+        task: {scheduled: {date: "2026-01-15"}},
       })
-      expect(readSnapshot(seeded.store)!.revision).toBe(revision)
+      expect(readSnapshot(seeded.store)!.revision).not.toBe(revision)
     } finally {
       seeded.close()
     }
   })
 
-  it("TC-35: a legacy In Progress edit cannot assign today to an unscheduled task", async () => {
+  it("TC-35: a legacy In Progress edit proposes the frozen caller day and zone until trusted acceptance", async () => {
     let backlogId = ""
 
     const seeded = await seedAgentStore(async (mac) => {
@@ -166,11 +169,31 @@ describe("save_task", () => {
       const agent: AgentIdentity = {...bindAgent(seeded.store, "Tokyo Mac"), timeZone: "Asia/Tokyo"}
       const now = () => new Date("2026-06-15T23:30:00Z")
 
-      await expect(call({store: seeded.store, now}, agent, saveTaskTool, {id: backlogId, status: "in_progress"})).rejects.toMatchObject({
-        code: ToolErrorCode.WORKFLOW_REQUIRED,
+      const result = await call({store: seeded.store, now}, agent, saveTaskTool, {id: backlogId, status: "in_progress"})
+      expect(result).toMatchObject({
+        outcome: "proposal_pending",
+        task: {status: "backlog", scheduled: null},
+        proposals: [{changes: {status: "in_progress", scheduled: {date: "2026-06-16", timezone: "Asia/Tokyo"}}}],
       })
-      const task = await call({store: seeded.store}, agent, getTaskTool, {id: backlogId})
-      expect(task).toMatchObject({status: "backlog", scheduled: null})
+      const stored = readSnapshot(seeded.store)!
+      await seeded.mac.core.localAdapter.upsertDocs(stored.document.docs as any)
+      const storage = new WorkStorage(seeded.mac.core, seeded.mac.db, () => {}, {
+        runtimeId: "trusted-review",
+        scheduledNow: () => ({date: "2040-01-01", time: "00:00:00", timezone: "UTC"}),
+      })
+      const pending = await storage.getTaskWorkflow(backlogId)
+      await storage.resolveTaskWorkflowProposal({
+        taskId: backlogId,
+        proposalId: pending.proposals[0].id,
+        operationId: "accept-caller-date",
+        expectedRevision: pending.revision,
+        decision: "accepted",
+      })
+      await writeMacSnapshot(seeded.store, seeded.mac, stored.revision, seeded.deviceId)
+      expect(await call({store: seeded.store}, agent, getTaskTool, {id: backlogId})).toMatchObject({
+        status: "in_progress",
+        scheduled: result.proposals[0].changes.scheduled,
+      })
     } finally {
       seeded.close()
     }
@@ -256,7 +279,7 @@ describe("save_task", () => {
     }
   })
 
-  it("TC-37: refused completion and scheduling edits create no history or snapshot revision", async () => {
+  it("TC-37: disabled completion changes nothing while schedule proposals persist", async () => {
     let doneId = ""
     let moveId = ""
 
@@ -273,14 +296,18 @@ describe("save_task", () => {
       const beforeDone = await call({store: seeded.store}, agent, getTaskTool, {id: doneId})
       const beforeMove = await call({store: seeded.store}, agent, getTaskTool, {id: moveId})
       await expect(call({store: seeded.store}, agent, saveTaskTool, {id: doneId, status: "done"})).rejects.toMatchObject({
-        code: ToolErrorCode.WORKFLOW_REQUIRED,
+        code: "forbidden",
       })
-      await expect(call({store: seeded.store}, agent, saveTaskTool, {id: moveId, date: "2026-01-05"})).rejects.toMatchObject({
-        code: ToolErrorCode.WORKFLOW_REQUIRED,
+      expect(readSnapshot(seeded.store)!.revision).toBe(revision)
+      await expect(call({store: seeded.store}, agent, saveTaskTool, {id: moveId, date: "2026-01-05"})).resolves.toMatchObject({
+        outcome: "proposal_pending",
       })
       expect(await call({store: seeded.store}, agent, getTaskTool, {id: doneId})).toEqual(beforeDone)
-      expect(await call({store: seeded.store}, agent, getTaskTool, {id: moveId})).toEqual(beforeMove)
-      expect(readSnapshot(seeded.store)!.revision).toBe(revision)
+      expect(await call({store: seeded.store}, agent, getTaskTool, {id: moveId})).toMatchObject({
+        scheduled: beforeMove.scheduled,
+        history: beforeMove.history,
+      })
+      expect(readSnapshot(seeded.store)!.revision).not.toBe(revision)
     } finally {
       seeded.close()
     }
@@ -367,7 +394,7 @@ describe("save_task", () => {
     }
   })
 
-  it("TC-13: restoring deleted work requires the person and leaves the task deleted", async () => {
+  it("TC-13: restoring soft-deleted work preserves the legacy restore contract", async () => {
     let taskId = ""
 
     const seeded = await seedAgentStore(async (mac) => {
@@ -379,10 +406,8 @@ describe("save_task", () => {
     try {
       const agent = bindAgent(seeded.store)
       const revision = readSnapshot(seeded.store)!.revision
-      await expect(call({store: seeded.store}, agent, saveTaskTool, {id: taskId, deleted: false})).rejects.toMatchObject({
-        code: ToolErrorCode.WORKFLOW_REQUIRED,
-      })
-      expect(readSnapshot(seeded.store)!.revision).toBe(revision)
+      await expect(call({store: seeded.store}, agent, saveTaskTool, {id: taskId, deleted: false})).resolves.toMatchObject({task: {deletedAt: null}})
+      expect(readSnapshot(seeded.store)!.revision).not.toBe(revision)
     } finally {
       seeded.close()
     }
@@ -650,7 +675,7 @@ describe("save_task", () => {
     }
   })
 
-  it("a legacy priority change is refused on create and update without advancing the snapshot", async () => {
+  it("initial priority is applied and existing priority becomes a pending proposal", async () => {
     let existingId = ""
 
     const seeded = await seedAgentStore(async (mac) => {
@@ -662,14 +687,15 @@ describe("save_task", () => {
       const agent = bindAgent(seeded.store)
 
       const revision = readSnapshot(seeded.store)!.revision
-      await expect(call({store: seeded.store}, agent, saveTaskTool, {content: "Urgent thing", priority: "urgent"})).rejects.toMatchObject({
-        code: ToolErrorCode.WORKFLOW_REQUIRED,
+      await expect(call({store: seeded.store}, agent, saveTaskTool, {content: "Urgent thing", priority: "urgent"})).resolves.toMatchObject({
+        task: {priority: "urgent"},
       })
-      await expect(call({store: seeded.store}, agent, saveTaskTool, {id: existingId, priority: "low"})).rejects.toMatchObject({
-        code: ToolErrorCode.WORKFLOW_REQUIRED,
+      await expect(call({store: seeded.store}, agent, saveTaskTool, {id: existingId, priority: "low"})).resolves.toMatchObject({
+        outcome: "proposal_pending",
+        proposals: [expect.objectContaining({changes: {priority: "low"}})],
       })
       expect((await call({store: seeded.store}, agent, getTaskTool, {id: existingId})).priority).toBe("none")
-      expect(readSnapshot(seeded.store)!.revision).toBe(revision)
+      expect(readSnapshot(seeded.store)!.revision).not.toBe(revision)
     } finally {
       seeded.close()
     }

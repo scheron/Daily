@@ -151,7 +151,7 @@ it("credits only confirmed intervals and unions overlapping agents without chang
   expect((await storage.getTask(task.id))?.spentTime).toBe(30)
 })
 
-it("expires unconfirmed gaps, restart checkpoints and human-edited sessions without granting idle time", async () => {
+it("forfeits ambiguous gaps and restart or human edit tails while retaining confirmed intervals", async () => {
   let now = 0
   let monotonic = 0
   const {storage, task, db, ...core} = makeWorkflowHarness({runtimeId: "runtime-a", now: () => now, monotonicNow: () => monotonic})
@@ -167,24 +167,20 @@ it("expires unconfirmed gaps, restart checkpoints and human-edited sessions with
   now = monotonic = 60000
   await run(storage, "heartbeat")
   expect((await storage.getTask(task.id))?.spentTime).toBe(60)
-  now = monotonic = 120001
-  await expect(run(storage, "heartbeat")).rejects.toMatchObject({code: "session_expired"})
-  expect((await storage.getTask(task.id))?.spentTime).toBe(60)
+  now = monotonic = 1860001
+  await expect(run(storage, "heartbeat")).resolves.toMatchObject({confirmedSeconds: 60})
   await run(storage, "pause")
   await expect(run(storage, "start")).rejects.toMatchObject({code: "conflict"})
   await run(storage, "start", "second")
   const restarted = new WorkStorage(core, db, () => {}, {runtimeId: "runtime-b", now: () => now, monotonicNow: () => monotonic})
   now += 10000
   monotonic += 10000
-  await expect(run(restarted, "heartbeat", "second")).rejects.toMatchObject({code: "session_expired"})
+  await expect(run(restarted, "heartbeat", "second")).resolves.toMatchObject({confirmedSeconds: 60})
   await run(restarted, "start", "third")
   await storage.updateTask(task.id, {content: "Edited by the person"})
   now += 10000
   monotonic += 10000
-  await expect(run(restarted, "heartbeat", "third")).rejects.toMatchObject({code: "session_expired"})
-  await run(restarted, "start", "fourth")
-  now -= 1
-  await expect(run(restarted, "heartbeat", "fourth")).rejects.toMatchObject({code: "session_expired"})
+  await expect(run(restarted, "heartbeat", "third")).resolves.toMatchObject({confirmedSeconds: 60})
   expect((await storage.getTask(task.id))?.spentTime).toBe(60)
 })
 
@@ -219,20 +215,20 @@ it("persists pending proposals and visible reasons without applying or trusting 
   expect((await storage.getTaskWorkflow(task.id)).proposals[0].status).toBe("pending")
 })
 
-it("blocks legacy creation, implicit move scheduling and restore bypasses while allowing ordinary reorder", async () => {
-  const {storage, task, tasksService, taskModel} = makeWorkflowHarness()
+it("preserves explicit creation fields and restoration while guarding completion and implicit reorder scheduling", async () => {
+  const {storage, task, taskModel} = makeWorkflowHarness()
   const source: ActorSource = {kind: "mcp"}
-  await expect(tasksService.createTask(makeTaskInput({status: "done"}), source)).rejects.toMatchObject({code: "forbidden"})
-  await expect(storage.createTask(makeTaskInput({status: "backlog", scheduled: null, priority: "high"}), source)).rejects.toMatchObject({
-    code: "forbidden",
+  await expect(storage.createTask(makeTaskInput({status: "done"}), source)).rejects.toMatchObject({code: "forbidden"})
+  await expect(storage.createTask(makeTaskInput({status: "backlog", scheduled: null, priority: "high"}), source)).resolves.toMatchObject({
+    tasks: {upserted: [{priority: "high"}]},
   })
   const unscheduled = taskModel.createTask(makeTaskInput({status: "todo", scheduled: null}))!
   await expect(storage.moveTaskByOrder({taskId: unscheduled.id, activeDate: "2030-01-01"}, source)).rejects.toMatchObject({code: "forbidden"})
   await storage.moveTaskByOrder({taskId: task.id, activeDate: task.scheduled!.date}, source)
   const subtask = (await storage.createSubtask(task.id, "A subtask")).subtasks!.upserted![0]
-  await expect(storage.makeTaskFromSubtask(subtask.id, source)).rejects.toMatchObject({code: "forbidden"})
+  await expect(storage.makeTaskFromSubtask(subtask.id, source)).resolves.toMatchObject({content: "A subtask"})
   await storage.deleteTask(task.id)
-  await expect(storage.restoreTask(task.id, source)).rejects.toMatchObject({code: "forbidden"})
+  await expect(storage.restoreTask(task.id, source)).resolves.toMatchObject({tasks: {upserted: [{deletedAt: null}]}})
   expect((await storage.restoreTask(task.id)).tasks?.upserted?.[0].deletedAt).toBeNull()
 })
 
@@ -406,7 +402,7 @@ it.each([159000, 99999])("forfeits a wall-clock adjustment to %d without adding 
   wall = adjustedWall
   monotonic = 10
   const current = await storage.getTaskWorkflow(task.id)
-  expect(current.activeSessions[0].expired).toBe(true)
+  expect(current.activeSessions[0].expired).toBe(adjustedWall < 100000)
   await storage.executeTaskWorkflow(
     {taskId: task.id, operationId: "pause", expectedRevision: current.revision, kind: "pause", sessionId: "work"},
     {actorId: "a", source: {kind: "mcp"}},
@@ -414,7 +410,7 @@ it.each([159000, 99999])("forfeits a wall-clock adjustment to %d without adding 
   expect((await storage.getTaskWorkflow(task.id)).confirmedSeconds).toBe(0)
 })
 
-it("uses one clock observation for a command and rejects gaps above the confirmation bound", async () => {
+it("uses one clock observation and checkpoints an ambiguous gap without crediting it", async () => {
   let wall = 0
   let monotonic = 0
   let observations = 0
@@ -436,7 +432,7 @@ it("uses one clock observation for a command and rejects gaps above the confirma
     {actorId: "a", source: {kind: "mcp"}},
   )
   const state = await storage.getTaskWorkflow(task.id)
-  wall = monotonic = 60001
+  wall = monotonic = 1800001
   observations = 0
   monotonicObservations = 0
   await expect(
@@ -444,13 +440,13 @@ it("uses one clock observation for a command and rejects gaps above the confirma
       {taskId: task.id, operationId: "heartbeat", expectedRevision: state.revision, kind: "heartbeat", sessionId: "work"},
       {actorId: "a", source: {kind: "mcp"}},
     ),
-  ).rejects.toMatchObject({code: "session_expired"})
+  ).resolves.toMatchObject({confirmedSeconds: 0})
   expect(observations).toBe(1)
   expect(monotonicObservations).toBe(1)
-  expect((await storage.getTaskWorkflow(task.id)).records).toHaveLength(1)
+  expect((await storage.getTaskWorkflow(task.id)).records).toHaveLength(2)
 })
 
-it("credits the smaller coherent elapsed time and rejects a regressed monotonic checkpoint", async () => {
+it("credits the smaller elapsed time and forfeits a regressed monotonic tail", async () => {
   let wall = 0
   let monotonic = 0
   const {storage, task} = makeWorkflowHarness({runtimeId: "runtime", now: () => wall, monotonicNow: () => monotonic})
@@ -468,7 +464,7 @@ it("credits the smaller coherent elapsed time and rejects a regressed monotonic 
   expect((await storage.getTaskWorkflow(task.id)).confirmedSeconds).toBe(0)
   wall = 1001
   monotonic = 999
-  await expect(run("heartbeat", "regress")).rejects.toMatchObject({code: "session_expired"})
+  await expect(run("heartbeat", "regress")).resolves.toMatchObject({confirmedSeconds: 0})
 })
 
 it("invalidates both revisions and checkpoints after same-millisecond tag edits reverse", async () => {
@@ -633,3 +629,111 @@ it("persists the merged generation when a timestamp tie adopts older task conten
     vi.useRealTimers()
   }
 })
+
+describe("workflow sessions during relative reorder", () => {
+  it("confirms a moved task's observed work and continues its session after an ordinary reorder", async () => {
+    let now = 0
+    const {storage, task, taskModel} = makeWorkflowHarness({runtimeId: "reorder", now: () => now, monotonicNow: () => now})
+    const target = taskModel.createTask(makeTaskInput({status: task.status, scheduled: task.scheduled, orderIndex: 2048}))!
+    await startWorkflowSession(storage, task.id)
+
+    now = 10000
+    const changeset = await storage.moveTaskByOrder(
+      {taskId: task.id, targetTaskId: target.id, position: "after", activeDate: task.scheduled!.date},
+      {kind: "mcp"},
+    )
+
+    expect(changeset.tasks?.upserted).toMatchObject([{id: task.id, orderIndex: 3072, spentTime: 10}])
+    expect(await storage.getTaskWorkflow(task.id)).toMatchObject({
+      confirmedSeconds: 10,
+      task: {spentTime: 10},
+      activeSessions: [{state: "working", connection: "connected", expired: false}],
+    })
+    now = 15000
+    await waitForWorkflowSession(storage, task.id)
+    expect(await storage.getTaskWorkflow(task.id)).toMatchObject({confirmedSeconds: 15, task: {spentTime: 15}})
+  })
+
+  it("preserves work for every rebalanced peer and leaves unrelated active sessions untouched", async () => {
+    let now = 0
+    const {storage, task, taskModel} = makeWorkflowHarness({runtimeId: "rebalance", now: () => now, monotonicNow: () => now})
+    const first = taskModel.createTask(makeTaskInput({status: task.status, scheduled: task.scheduled, orderIndex: 100}))!
+    const second = taskModel.createTask(makeTaskInput({status: task.status, scheduled: task.scheduled, orderIndex: 101}))!
+    const unchanged = taskModel.createTask(makeTaskInput({status: task.status, scheduled: task.scheduled, orderIndex: 4096}))!
+    const tomorrow = taskModel.createTask(makeTaskInput({status: task.status, scheduled: {...task.scheduled!, date: "2026-03-25"}, orderIndex: 101}))!
+    const affected = [first, task, second]
+    const unrelated = [unchanged, tomorrow]
+    for (const active of [...affected, ...unrelated]) await startWorkflowSession(storage, active.id)
+    const beforeUnrelated = await Promise.all(unrelated.map((active) => storage.getTaskWorkflow(active.id)))
+
+    now = 10000
+    const changeset = await storage.moveTaskByOrder({taskId: task.id, targetTaskId: second.id, activeDate: task.scheduled!.date}, {kind: "mcp"})
+
+    expect(changeset.tasks?.upserted).toMatchObject([
+      {id: first.id, orderIndex: 1024, spentTime: 10},
+      {id: task.id, orderIndex: 2048, spentTime: 10},
+      {id: second.id, orderIndex: 3072, spentTime: 10},
+    ])
+    for (const active of affected)
+      expect(await storage.getTaskWorkflow(active.id)).toMatchObject({
+        confirmedSeconds: 10,
+        task: {spentTime: 10},
+        activeSessions: [{state: "working", connection: "connected", expired: false}],
+      })
+    expect(await Promise.all(unrelated.map((active) => storage.getTaskWorkflow(active.id)))).toEqual(beforeUnrelated)
+    now = 20000
+    for (const active of [...affected, ...unrelated]) {
+      await waitForWorkflowSession(storage, active.id)
+      expect(await storage.getTaskWorkflow(active.id)).toMatchObject({confirmedSeconds: 20, task: {spentTime: 20}})
+    }
+  })
+
+  it("rolls back reordered rows and session checkpoints together when resuming a peer fails", async () => {
+    let now = 0
+    const {storage, task, taskModel, db, localAdapter} = makeWorkflowHarness({
+      runtimeId: "rollback",
+      now: () => now,
+      monotonicNow: () => now,
+    })
+    const first = taskModel.createTask(makeTaskInput({status: task.status, scheduled: task.scheduled, orderIndex: 100}))!
+    const second = taskModel.createTask(makeTaskInput({id: "rollback-peer", status: task.status, scheduled: task.scheduled, orderIndex: 101}))!
+    const affected = [first, task, second]
+    for (const active of affected) await startWorkflowSession(storage, active.id)
+    const before = await localAdapter.loadAllDocs()
+    const beforeSessions = await Promise.all(affected.map((active) => storage.getTaskWorkflow(active.id)))
+    db.exec(`CREATE TEMP TRIGGER fail_reorder_resume BEFORE INSERT ON workflow_records
+      WHEN NEW.task_id = 'rollback-peer' AND (SELECT order_index FROM tasks WHERE id = 'rollback-peer') = 3072
+      BEGIN SELECT RAISE(ABORT, 'resume checkpoint failed'); END`)
+
+    now = 10000
+    await expect(
+      storage.moveTaskByOrder({taskId: task.id, targetTaskId: second.id, activeDate: task.scheduled!.date}, {kind: "mcp"}),
+    ).rejects.toThrow("resume checkpoint failed")
+
+    expect(await localAdapter.loadAllDocs()).toEqual(before)
+    expect(await Promise.all(affected.map((active) => storage.getTaskWorkflow(active.id)))).toEqual(beforeSessions)
+    expect(db.inTransaction).toBe(false)
+    db.exec("DROP TRIGGER fail_reorder_resume")
+    now = 20000
+    for (const active of affected) {
+      await waitForWorkflowSession(storage, active.id)
+      expect(await storage.getTaskWorkflow(active.id)).toMatchObject({confirmedSeconds: 20, task: {spentTime: 20}})
+    }
+  })
+})
+
+async function startWorkflowSession(storage: WorkStorage, taskId: string) {
+  const state = await storage.getTaskWorkflow(taskId)
+  await storage.executeTaskWorkflow(
+    {kind: "session_start", taskId, sessionId: "work", operationId: `start-${taskId}`, expectedRevision: state.revision},
+    {actorId: "agent", source: {kind: "mcp"}},
+  )
+}
+
+async function waitForWorkflowSession(storage: WorkStorage, taskId: string) {
+  const state = await storage.getTaskWorkflow(taskId)
+  await storage.executeTaskWorkflow(
+    {kind: "session_update", taskId, sessionId: "work", operationId: `wait-${taskId}`, expectedRevision: state.revision, state: "waiting"},
+    {actorId: "agent", source: {kind: "mcp"}},
+  )
+}

@@ -1,5 +1,5 @@
 import {TaskWorkflowError} from "@daily/core/storage/TaskWorkflowError"
-import {findTool, ToolError, ToolErrorCode} from "@daily/tools"
+import {findTool, taskWorkflowView, ToolError, ToolErrorCode} from "@daily/tools"
 
 import {runInAgentWorkspace} from "./AgentWorkspace"
 
@@ -27,7 +27,7 @@ export async function runAgentTool(deps: AgentWorkspaceDeps, agent: AgentIdentit
         const taskId = call.input.taskId
         current = await runInAgentWorkspace(deps, agent, "read", (ctx) => ctx.workStorage.getTaskWorkflow(taskId)).catch(() => null)
       }
-      return {ok: false, error: {code: error.code, message: error.message, ...(current && {current})}}
+      return {ok: false, error: {code: error.code, message: error.message, ...(current && {current: taskWorkflowView(current)})}}
     }
 
     console.error(error)

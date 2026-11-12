@@ -75,7 +75,7 @@ describe("callMcpTool over a read — TC-15", () => {
 })
 
 describe("callMcpTool over a write — TC-16", () => {
-  it("TC-16: a successful write moves the stored revision forward, attributed to the caller's Mac, and creates an unscheduled Backlog task", async () => {
+  it("TC-16: a successful write moves the stored revision forward, attributed to the caller's Mac, and creates a task on the caller day", async () => {
     const seeded = await seedAgentStore()
     expect(seeded.revision).toBe("1")
 
@@ -89,8 +89,8 @@ describe("callMcpTool over a write — TC-16", () => {
 
       const parsed = JSON.parse(textOf(outcome.result.content))
       expect(parsed.task.projectId).toBe("main")
-      expect(parsed.task.status).toBe("backlog")
-      expect(parsed.task.scheduled).toBeNull()
+      expect(parsed.task.status).toBe("todo")
+      expect(parsed.task.scheduled).toMatchObject({date: expect.any(String)})
 
       const row = seeded.store.db.prepare(`SELECT revision, written_by_device_id FROM snapshot`).get() as {
         revision: number

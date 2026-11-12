@@ -21,6 +21,7 @@ import {v020} from "./v020-todo-status"
 import {v021} from "./v021-task-event-changes"
 import {v022} from "./v022-project-emoji"
 import {v023} from "./v023-task-workflow"
+import {v024} from "./v024-workflow-guidance"
 
 import type {Migration} from "../scripts/migrate"
 
@@ -48,4 +49,5 @@ export const migrations: Migration[] = [
   v021,
   v022,
   v023,
+  v024,
 ]

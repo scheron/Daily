@@ -1,16 +1,17 @@
+import {TASK_STATUSES} from "@daily/protocol"
 import {isObject} from "@daily/std"
 
 import {ToolError} from "../errors/ToolError"
 import {ToolErrorCode} from "../errors/ToolErrorCode"
-import {readEnum, readInteger, readISODate, readISOTime, requireString} from "../input"
-import {TASK_WORKFLOW_INSTRUCTIONS} from "../taskWorkflowInstructions"
+import {readEnum, readInteger, readISODate, readISOTime, readString, requireString} from "../input"
 
-import type {TaskPriority, TaskWorkflowCommand} from "@daily/protocol"
+import type {AgentSessionState, TaskPriority, TaskWorkflowCommand} from "@daily/protocol"
 import type {Tool} from "../types"
 
 export const updateTaskWorkflowTool: Tool = {
   name: "update_task_workflow",
-  description: `Atomically records one guarded workflow operation and returns its durable receipt. kind selects transition, start, heartbeat, pause or propose; only send that kind's fields. Proposals cannot be approved or applied through tools. ${TASK_WORKFLOW_INSTRUCTIONS}`,
+  description:
+    "Atomically updates a real task status, starts or updates an independent agent session, or proposes planning changes. Use the revision from get_task/get_task_workflow and a unique operationId; identical retries return the original receipt. Reconcile status and session at meaningful work boundaries. Only trusted Daily review can accept or reject proposals; prose approval grants no capability.",
   mode: "write",
   inputSchema: {
     type: "object",
@@ -18,20 +19,48 @@ export const updateTaskWorkflowTool: Tool = {
       taskId: {type: "string", description: "The selected task id."},
       operationId: {type: "string", description: "A unique operation id; reuse only for an identical retry."},
       expectedRevision: {type: "string", description: "The revision most recently read from get_task_workflow."},
-      kind: {type: "string", description: "The workflow action.", enum: ["transition", "start", "heartbeat", "pause", "propose"]},
+      kind: {
+        type: "string",
+        description:
+          "transition uses status; session_start uses sessionId; session_update uses sessionId and state; propose uses changes and reason. start/heartbeat/pause are compatibility aliases.",
+        enum: ["transition", "session_start", "session_update", "propose", "start", "heartbeat", "pause"],
+      },
+      status: {
+        type: "string",
+        description:
+          "Required for transition: any real task status. Completion/cancellation require effective allowCompletion permission. A resulting schedule change returns proposal_pending for exact status and frozen schedule together; the task changes only after trusted Daily acceptance. Schedule preserving transitions apply automatically.",
+        enum: TASK_STATUSES,
+      },
       stage: {
         type: "string",
-        description: "Required only for transition. Planning preserves stage; implementation requires an existing day.",
+        description:
+          "Legacy transition alias; use status instead. planning retains the current status; implementation means in_progress. Cannot combine with status.",
         enum: ["planning", "implementation", "ready_to_merge"],
       },
-      sessionId: {type: "string", description: "Required for start, heartbeat and pause. A unique session id chosen when starting."},
+      sessionId: {type: "string", description: "Required for session actions. Choose a new id when starting; subsequent state updates use that id."},
+      state: {
+        type: "string",
+        description: "Required for session_update. Working settles observed time at the next boundary; waiting, finished and error stop accrual.",
+        enum: ["working", "waiting", "finished", "error"],
+      },
+      summary: {
+        type: "string",
+        description: "Optional for session_start/session_update: a concise account of current work or the reason for waiting/stopping.",
+      },
       changes: {
         type: "object",
-        description: "Required only for propose. Suggestions remain pending for the person to manually apply.",
+        description: "Required only for propose. Suggestions remain pending until accepted or rejected in Daily.",
         properties: {
+          status: {
+            type: "string",
+            enum: TASK_STATUSES,
+            description:
+              "Optional combined status. Clearing a dated status requires Backlog or Ready for Agent; incompatible explicit status and clear are rejected before review.",
+          },
           scheduled: {
             type: ["object", "null"],
-            description: "Suggested scheduled day and time, or null to clear the day.",
+            description:
+              "Suggested scheduled day and time, or null to clear the day. A needed Backlog status effect is included visibly in the same proposal.",
             properties: {
               date: {type: "string", description: "YYYY-MM-DD."},
               time: {type: "string", description: "HH:mm or HH:mm:ss, or an empty string when no time is suggested."},
@@ -52,7 +81,19 @@ export const updateTaskWorkflowTool: Tool = {
   },
   async run(input, ctx) {
     const command = parseCommand(input)
-    return ctx.workStorage.executeTaskWorkflow(command, {actorId: ctx.workflowActorId, source: ctx.source})
+    const receipt = await ctx.workStorage.executeTaskWorkflow(command, {actorId: ctx.workflowActorId, source: ctx.source})
+    if (receipt.outcome !== "proposal_pending") return receipt
+    const state = await ctx.workStorage.getTaskWorkflow(command.taskId)
+    const proposal = state.proposals.find((proposal) => proposal.id === receipt.proposalId)!
+    return {
+      ...receipt,
+      proposal,
+      reviewStatus: proposal.status,
+      guidance:
+        proposal.status === "pending"
+          ? "Pending trusted review in Daily. Status and all requested task fields remain unchanged; report the proposal as pending until accepted."
+          : `This immutable receipt records the original pending request. Its proposal is now ${proposal.status}; read the current task before reporting its status or schedule.`,
+    }
   },
 }
 
@@ -62,13 +103,28 @@ function parseCommand(input: Record<string, unknown>): TaskWorkflowCommand {
     operationId: requireString(input, "operationId"),
     expectedRevision: requireString(input, "expectedRevision"),
   }
-  const kind = readEnum(input, "kind", ["transition", "start", "heartbeat", "pause", "propose"])
+  const kind = readEnum(input, "kind", ["transition", "session_start", "session_update", "start", "heartbeat", "pause", "propose"])
   const common = ["taskId", "operationId", "expectedRevision", "kind"]
   if (kind === "transition") {
-    assertFields(input, [...common, "stage"])
+    assertFields(input, [...common, "status", "stage"])
+    const status = readEnum(input, "status", TASK_STATUSES)
+    if (status !== undefined) {
+      if (Object.hasOwn(input, "stage")) invalid('Use "status" or legacy "stage", not both.')
+      return {...base, kind, status}
+    }
     const stage = readEnum(input, "stage", ["planning", "implementation", "ready_to_merge"])
-    if (!stage) invalid('"stage" is required for transition.')
+    if (!stage) invalid('"status" is required for transition.')
     return {...base, kind, stage}
+  }
+  if (kind === "session_start" || kind === "session_update") {
+    assertFields(input, [...common, "sessionId", "summary", ...(kind === "session_update" ? ["state"] : [])])
+    const sessionId = requireString(input, "sessionId")
+    const summary = readString(input, "summary")
+    if (kind === "session_start") return {...base, kind, sessionId, ...(summary !== undefined && {summary})}
+    const states: AgentSessionState[] = ["working", "waiting", "finished", "error"]
+    const state = readEnum(input, "state", states)
+    if (!state) invalid('"state" is required for session_update.')
+    return {...base, kind, sessionId, state, ...(summary !== undefined && {summary})}
   }
   if (kind === "start" || kind === "heartbeat" || kind === "pause") {
     assertFields(input, [...common, "sessionId"])
@@ -78,9 +134,10 @@ function parseCommand(input: Record<string, unknown>): TaskWorkflowCommand {
     assertFields(input, [...common, "changes", "reason"])
     if (!isObject<Record<string, unknown>>(input.changes)) invalid('"changes" must be an object.')
     const raw = input.changes
-    assertFields(raw, ["scheduled", "estimatedTime", "priority"])
+    assertFields(raw, ["scheduled", "estimatedTime", "priority", "status"])
     if (Object.keys(raw).length === 0) invalid('"changes" must contain a planning suggestion.')
     const changes: Extract<TaskWorkflowCommand, {kind: "propose"}>["changes"] = {}
+    if (Object.hasOwn(raw, "status")) changes.status = readEnum(raw, "status", TASK_STATUSES)
     if (Object.hasOwn(raw, "scheduled")) {
       if (raw.scheduled === null) changes.scheduled = null
       else {

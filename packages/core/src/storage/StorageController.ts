@@ -51,6 +51,8 @@ import type {
   TaskRelation,
   TaskRelationSets,
   TaskSearchResult,
+  TaskWorkflowResolution,
+  WorkflowGuidanceUpdate,
 } from "@daily/protocol"
 import type {PartialDeep} from "type-fest"
 import type {AppPaths} from "../config/paths"
@@ -262,6 +264,22 @@ export class StorageController implements IStorageController {
 
   async getTask(id: Task["id"]): Promise<Task | null> {
     return this.tasksService.getTask(id)
+  }
+
+  async getTaskWorkflow(taskId: string) {
+    return this.workStorageInstance.getTaskWorkflow(taskId)
+  }
+
+  async getWorkflowGuidance(projectId?: string) {
+    return this.workStorageInstance.getWorkflowGuidance(projectId)
+  }
+
+  async updateWorkflowGuidance(update: WorkflowGuidanceUpdate) {
+    return this.workStorageInstance.updateWorkflowGuidance(update)
+  }
+
+  async resolveTaskWorkflowProposal(request: TaskWorkflowResolution) {
+    return this.workStorageInstance.resolveTaskWorkflowProposal(request)
   }
 
   async updateTask(id: Task["id"], updates: PartialDeep<Task>, source?: ActorSource, spentTimeDelta?: number): Promise<Changeset> {

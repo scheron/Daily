@@ -19,6 +19,7 @@ import type {
   TaskWorkflowContext,
   TaskWorkflowReceipt,
   TaskWorkflowState,
+  WorkflowGuidance,
 } from "@daily/protocol"
 import type {PartialDeep} from "type-fest"
 import type {Changeset} from "../types/storage"
@@ -55,6 +56,7 @@ export interface IWorkStorage {
   }): Promise<Task[]>
   getTask(id: Task["id"]): Promise<Task | null>
   getTaskWorkflow(taskId: string): Promise<TaskWorkflowState>
+  getWorkflowGuidance(projectId?: string): Promise<WorkflowGuidance>
   executeTaskWorkflow(command: TaskWorkflowCommand, context: TaskWorkflowContext): Promise<TaskWorkflowReceipt>
   getHistoryByTask(taskId: Task["id"]): Promise<TaskEvent[]>
   getDeletedTasks(params?: {limit?: number; branchId?: Branch["id"]}): Promise<Task[]>

@@ -12,7 +12,7 @@ import type {ActorSource} from "@daily/protocol"
 describe("shared task workflow", () => {
   it("proposes a scheduled day without requiring an invented time", async () => {
     const {db, ctx} = makeRealWorkspace()
-    const {task} = (await saveTaskTool.run({content: "Selected task"}, ctx)) as {task: {id: string}}
+    const {task} = (await saveTaskTool.run({content: "Selected task", date: null}, ctx)) as {task: {id: string}}
     const state = await ctx.workStorage.getTaskWorkflow(task.id)
     await updateTaskWorkflowTool.run(
       {
@@ -26,33 +26,35 @@ describe("shared task workflow", () => {
       ctx,
     )
     const pending = await ctx.workStorage.getTaskWorkflow(task.id)
-    expect(pending.proposals).toContainEqual(expect.objectContaining({changes: {scheduled: {date: "2026-11-12", time: "", timezone: "UTC"}}}))
+    expect(pending.proposals).toContainEqual(
+      expect.objectContaining({changes: expect.objectContaining({scheduled: {date: "2026-11-12", time: "", timezone: "UTC"}, status: "todo"})}),
+    )
     expect(pending.task.scheduled).toBeNull()
     db.close()
   })
   it("get_task exposes the observed workflow revision and pending planning summary", async () => {
     const {db, ctx} = makeRealWorkspace()
-    const {task} = (await saveTaskTool.run({content: "Selected task"}, ctx)) as {task: {id: string}}
+    const {task} = (await saveTaskTool.run({content: "Selected task", date: null}, ctx)) as {task: {id: string}}
     const state = await ctx.workStorage.getTaskWorkflow(task.id)
     expect(await getTaskTool.run({id: task.id}, ctx)).toMatchObject({
       workflow: {taskId: task.id, revision: state.revision, confirmedSeconds: 0, proposals: []},
     })
     db.close()
   })
-  it("creates unscheduled backlog work without granting planning values or execution", async () => {
+  it("creates unscheduled backlog work when date is explicitly null", async () => {
     const {db, ctx} = makeRealWorkspace()
-    const result = await saveTaskTool.run({content: "New task"}, ctx)
+    const result = await saveTaskTool.run({content: "New task", date: null}, ctx)
     expect(result).toMatchObject({task: {status: "backlog", scheduled: null, priority: "none", estimatedSeconds: 0, spentSeconds: 0}})
     db.close()
   })
-  it("refuses legacy protected edits with guidance before saving any content", async () => {
+  it("keeps requested content and planning edits pending in one review", async () => {
     const {db, ctx} = makeRealWorkspace()
-    const {task} = (await saveTaskTool.run({content: "Selected task"}, ctx)) as {task: {id: string}}
-    await expect(saveTaskTool.run({id: task.id, content: "Changed", priority: "urgent"}, ctx)).rejects.toMatchObject({
-      code: "WORKFLOW_REQUIRED",
-      message: expect.stringContaining("update_task_workflow"),
+    const {task} = (await saveTaskTool.run({content: "Selected task", date: null}, ctx)) as {task: {id: string}}
+    await expect(saveTaskTool.run({id: task.id, content: "Changed", priority: "urgent"}, ctx)).resolves.toMatchObject({
+      outcome: "proposal_pending",
+      task: {content: "Selected task", priority: "none"},
+      proposals: [expect.objectContaining({changes: {content: "Changed", priority: "urgent"}, status: "pending"})],
     })
-    expect((await ctx.workStorage.getTask(task.id))?.content).toBe("Selected task")
     db.close()
   })
   it("returns authoritative task fields and revision from one observation during a concurrent human edit", async () => {

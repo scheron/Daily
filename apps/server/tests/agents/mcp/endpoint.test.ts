@@ -66,6 +66,7 @@ async function writeInitialSnapshot(booted: BootedAgentServer, token: string): P
           files: [],
           events: [],
           workflowRecords: [],
+          workflowGuidanceRecords: [],
         },
       },
     }),
@@ -163,7 +164,7 @@ describe("POST /mcp refuses a token that is not a live, unexpired access token o
 })
 
 describe("the 2026-07-28 path answers as the caller's Mac and records last use — TC-54", () => {
-  it("TC-54: server/discover, tools/list and tools/call save_task all answer over /mcp, create an unscheduled Backlog task, and record the agent's last use", async () => {
+  it("TC-54: server/discover, tools/list and tools/call save_task all answer over /mcp, create a task on the caller day, and record the agent's last use", async () => {
     const booted = await bootAgentServer()
     const docs = await startClientDocumentServer()
     try {
@@ -193,8 +194,8 @@ describe("the 2026-07-28 path answers as the caller's Mac and records last use �
       expect(callJson.result.resultType).toBe("complete")
       const savedTask = (JSON.parse(callJson.result.content[0].text) as {task: {projectId: string; status: string; scheduled: null}}).task
       expect(savedTask.projectId).toBe("main")
-      expect(savedTask.status).toBe("backlog")
-      expect(savedTask.scheduled).toBeNull()
+      expect(savedTask.status).toBe("todo")
+      expect(savedTask.scheduled).toMatchObject({date: expect.any(String)})
 
       const revisionRow = booted.store.db.prepare(`SELECT revision, written_by_device_id FROM snapshot`).get() as {
         revision: number
@@ -469,7 +470,7 @@ describe("a self-signed restart answers one fact on every agent path — TC-59",
 })
 
 describe("the tool host follows the Mac's probed time zone and refuses an unknown one — TC-60", () => {
-  it("TC-60: a probe updates the approved Mac's time zone, creation stays unscheduled, and clearing the zone preserves tools/list while refusing save_task", async () => {
+  it("TC-60: a probe updates the approved Mac's time zone, creation follows that zone, and clearing the zone preserves tools/list while refusing save_task", async () => {
     const booted = await bootAgentServer()
     const docs = await startClientDocumentServer()
     try {
@@ -494,8 +495,8 @@ describe("the tool host follows the Mac's probed time zone and refuses an unknow
         expect(saveRes.status).toBe(200)
         const saveJson = (await saveRes.json()) as {result: {content: {type: string; text: string}[]}}
         const savedTask = (JSON.parse(saveJson.result.content[0].text) as {task: {status: string; scheduled: null}}).task
-        expect(savedTask.status).toBe("backlog")
-        expect(savedTask.scheduled).toBeNull()
+        expect(savedTask.status).toBe("todo")
+        expect(savedTask.scheduled).toMatchObject({date: "2026-01-15", timezone: "Asia/Tokyo"})
       } finally {
         vi.useRealTimers()
       }

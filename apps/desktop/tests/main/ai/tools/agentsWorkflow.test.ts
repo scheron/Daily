@@ -22,6 +22,7 @@ it("the Assistant wrapper enforces the shared workflow and authorship in Normal 
         return result.data
       },
       {kind: "agent", provider: "daily_agent"},
+      (request) => workStorage.resolveTaskWorkflowProposal(request),
     )
   } finally {
     db.close()
@@ -32,6 +33,16 @@ it("the actual model message preserves actionable workflow refusal code and curr
   const {db, workStorage} = makeRealWorkspace()
   try {
     const storage = {workStorage} as StorageController
+    for (const content of ["Obsolete Assistant guidance 24c8", "Current Assistant guidance ff01"]) {
+      const {workspace} = await workStorage.getWorkflowGuidance()
+      await workStorage.updateWorkflowGuidance({
+        scope: {kind: "workspace"},
+        content,
+        allowCompletion: false,
+        operationId: content,
+        expectedRevision: workspace.revision,
+      })
+    }
     const ctx: ToolExecutionContext = {storage, now: () => new Date(), caller: "in-app"}
     const save = SHARED_TOOLS.find((tool) => tool.name === "save_task")!
     const created = await save.execute({content: "Selected work"}, ctx)
@@ -49,6 +60,8 @@ it("the actual model message preserves actionable workflow refusal code and curr
       error: expect.stringContaining("current workflow"),
       data: {code: "stale_revision", current: {revision: current.revision, task: {content: "Human correction"}}},
     })
+    expect(toModelToolMessage(update.name, refused)).not.toContain("Obsolete Assistant guidance 24c8")
+    expect(toModelToolMessage(update.name, refused)).toContain("Current Assistant guidance ff01")
   } finally {
     db.close()
   }

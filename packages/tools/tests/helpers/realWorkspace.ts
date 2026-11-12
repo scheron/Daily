@@ -1,5 +1,7 @@
 import {randomUUID} from "node:crypto"
 import {rmSync} from "node:fs"
+import {tmpdir} from "node:os"
+import {join} from "node:path"
 import {onTestFinished} from "vitest"
 
 import {createStorageCore} from "@daily/core/storage/createStorageCore"
@@ -43,7 +45,7 @@ export function makeRealWorkspace(source: ActorSource = {kind: "agent"}): {
   ctx: ToolContext
   changesets: Changeset[]
 } {
-  const root = `/tmp/daily-tools-test-${randomUUID()}`
+  const root = join(tmpdir(), `daily-tools-test-${randomUUID()}`)
   onTestFinished(() => rmSync(root, {recursive: true, force: true}))
 
   const db = createTestDatabase()
