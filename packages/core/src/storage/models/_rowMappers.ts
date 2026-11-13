@@ -268,7 +268,7 @@ export function getDefaultSettings(): Settings {
     typography: getDefaultTypographySettings(),
     sync: getDefaultSyncSettings(),
     ai: null,
-    branch: {activeId: NO_PROJECT_ID, isAllProjects: false},
+    branch: {activeId: NO_PROJECT_ID, isAllProjects: false, selectedIds: [NO_PROJECT_ID]},
     layout: {
       columnOrder: [...TASK_STATUSES],
       sectionsCollapsed: {
@@ -296,14 +296,14 @@ export function getDefaultSettings(): Settings {
 }
 
 /**
- * Migrates a persisted settings blob to the current shape: the old `themes` becomes `appearance`, and `quickCapture` becomes `quickTask`.
+ * Migrates a persisted settings blob to the current shape: the old `themes` becomes `appearance`, `quickCapture` becomes `quickTask`, and a lone `branch.activeId` becomes a one-project `branch.selectedIds`.
  * Legacy column keys follow the current statuses without resetting saved collapse choices.
  * A part already in the current shape is left as it is.
  * @example migrateSettingsShape({themes: {current: "aurora", useSystem: false}})
  */
 export function migrateSettingsShape(parsed: any): any {
   if (!parsed || typeof parsed !== "object") return parsed
-  return migrateBoardSettings(migrateQuickCapture(migrateThemes(parsed)))
+  return migrateProjectSelection(migrateBoardSettings(migrateQuickCapture(migrateThemes(parsed))))
 }
 
 /** Keeps saved column positions and inserts a missing To Do after Backlog. */
@@ -354,6 +354,17 @@ function migrateThemes(parsed: any): any {
 
   const {themes: _themes, ...rest} = parsed
   return {...rest, appearance: {mode, accent}}
+}
+
+/** A blob saved before the dock picked several projects holds one `activeId`: it reads as a set of that one project. */
+function migrateProjectSelection(parsed: any): any {
+  const branch = parsed.branch
+  if (!branch || typeof branch !== "object") return parsed
+
+  const selectedIds = Array.isArray(branch.selectedIds) ? branch.selectedIds.filter((id: unknown) => typeof id === "string") : []
+  if (selectedIds.length) return parsed
+
+  return {...parsed, branch: {...branch, selectedIds: [typeof branch.activeId === "string" ? branch.activeId : NO_PROJECT_ID]}}
 }
 
 function migrateQuickCapture(parsed: any): any {

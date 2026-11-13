@@ -44,6 +44,21 @@ describe("SettingsModel", () => {
     expect(settings.branch.activeId).toBe("project-a")
   })
 
+  it("reads settings saved with only an activeId as a set of that one project", () => {
+    const data = JSON.stringify({branch: {activeId: "project-a", isAllProjects: false}})
+    db.prepare("INSERT INTO settings (id, version, data, created_at, updated_at) VALUES ('default', 'v', ?, 'now', 'now')").run(data)
+
+    expect(settingsModel.loadSettings().branch).toEqual({activeId: "project-a", isAllProjects: false, selectedIds: ["project-a"]})
+  })
+
+  it("keeps a saved set in order and ignores a save that would empty it", () => {
+    settingsModel.saveSettings({branch: {activeId: "b", isAllProjects: false, selectedIds: ["a", "b"]}})
+    expect(settingsModel.loadSettings().branch.selectedIds).toEqual(["a", "b"])
+
+    settingsModel.saveSettings({branch: {selectedIds: []}} as any)
+    expect(settingsModel.loadSettings().branch.selectedIds).toEqual(["a", "b"])
+  })
+
   it("normalizes an invalid partial save without losing the existing colors or other preferences", () => {
     settingsModel.saveSettings({appearance: {mode: "dark", accent: "rose", base: "slate", taskView: "compact"}, menuBar: {isVisible: false}})
     settingsModel.saveSettings({appearance: {taskView: "dense"}} as any)
@@ -107,7 +122,10 @@ describe("SettingsModel", () => {
       settingsModel = new SettingsModel(db)
       settingsModel.saveSettings({layout: {columnOrder: ["cancelled", "backlog"], sectionsCollapsed: {done: true}}} as any)
       settingsModel.saveSettings({layout: {columnOrder: ["ready_to_merge", "done", "done", "unknown"]}} as any)
-      settingsModel.saveSettings({appearance: {mode: "dark"}, branch: {activeId: "project-a", isAllProjects: true}} as any)
+      settingsModel.saveSettings({
+        appearance: {mode: "dark"},
+        branch: {activeId: "project-a", isAllProjects: true, selectedIds: ["project-a"]},
+      } as any)
       expect(JSON.parse(db.prepare("SELECT data FROM settings WHERE id = 'default'").get().data).layout.columnOrder).toEqual([
         "ready_to_merge",
         "done",
@@ -125,7 +143,7 @@ describe("SettingsModel", () => {
       expect(settings.layout.columnOrder).toEqual(["ready_to_merge", "done", "backlog", "todo", "ready_for_agent", "in_progress", "cancelled"])
       expect(settings.layout.sectionsCollapsed.done).toBe(true)
       expect(settings.appearance.mode).toBe("dark")
-      expect(settings.branch).toEqual({activeId: "project-a", isAllProjects: true})
+      expect(settings.branch).toEqual({activeId: "project-a", isAllProjects: true, selectedIds: ["project-a"]})
       const docs = await new LocalStorageAdapter(db, new FileModel(db, directory)).loadAllDocs()
       expect(buildSnapshot(docs).docs).not.toHaveProperty("settings")
     } finally {
@@ -197,11 +215,11 @@ describe("SettingsModel", () => {
   })
 
   it("leaves the all-projects flag off by default and keeps it beside the active project", () => {
-    expect(settingsModel.loadSettings().branch).toEqual({activeId: "main", isAllProjects: false})
+    expect(settingsModel.loadSettings().branch).toEqual({activeId: "main", isAllProjects: false, selectedIds: ["main"]})
 
     settingsModel.saveSettings({branch: {activeId: "main", isAllProjects: true}})
 
-    expect(settingsModel.loadSettings().branch).toEqual({activeId: "main", isAllProjects: true})
+    expect(settingsModel.loadSettings().branch).toEqual({activeId: "main", isAllProjects: true, selectedIds: ["main"]})
   })
 
   it("shows the menu bar icon by default and keeps it hidden once turned off", () => {

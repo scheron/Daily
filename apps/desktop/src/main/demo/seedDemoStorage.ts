@@ -457,7 +457,7 @@ export async function seedDemoStorage(storage: StorageController, today: ISODate
   await storage.saveSettings({
     appearance: {...settings.appearance, mode: "light", base: "neutral", accent: "indigo", boardMode: "normal", taskView: "regular"},
     typography: {fontSize: "normal"},
-    branch: {activeId: (activeProject as Branch).id, isAllProjects: false},
+    branch: {activeId: (activeProject as Branch).id, isAllProjects: false, selectedIds: [(activeProject as Branch).id]},
     quickTask: {...settings.quickTask, isEnabled: false},
     menuBar: {isVisible: false},
     ai: null,

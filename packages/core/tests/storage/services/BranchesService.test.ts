@@ -94,6 +94,35 @@ describe("BranchesService", () => {
     expect(activeId).toBe("main")
   })
 
+  it("drops a deleted project from the selected set and makes the last remaining one active", async () => {
+    const a = await branchesService.createBranch({name: "A"})
+    const b = await branchesService.createBranch({name: "B"})
+    await settingsService.saveSettings({branch: {activeId: b.id, isAllProjects: false, selectedIds: [a.id, b.id]}})
+
+    await branchesService.deleteBranch(b.id)
+
+    expect((await settingsService.loadSettings()).branch).toEqual({activeId: a.id, isAllProjects: false, selectedIds: [a.id]})
+  })
+
+  it("turns the flag on when the projects left in the set are every project", async () => {
+    const a = await branchesService.createBranch({name: "A"})
+    const b = await branchesService.createBranch({name: "B"})
+    await settingsService.saveSettings({branch: {activeId: a.id, isAllProjects: false, selectedIds: ["main", a.id]}})
+
+    await branchesService.deleteBranch(b.id)
+
+    expect((await settingsService.loadSettings()).branch).toEqual({activeId: a.id, isAllProjects: true, selectedIds: ["main", a.id]})
+  })
+
+  it("falls back to main when the deleted project was the whole set", async () => {
+    const a = await branchesService.createBranch({name: "A"})
+    await branchesService.setActiveBranch(a.id)
+
+    await branchesService.deleteBranch(a.id)
+
+    expect((await settingsService.loadSettings()).branch.selectedIds).toEqual(["main"])
+  })
+
   it("resolveBranchId returns active branch when no id provided", async () => {
     const branch = await branchesService.createBranch({name: "Work"})
     await branchesService.setActiveBranch(branch.id)

@@ -96,12 +96,21 @@ export class BranchesService {
     if (!deleted) return null
 
     const settings = await this.settingsService.loadSettings()
-    const activeId = settings.branch?.activeId ?? NO_PROJECT_ID
-    if (activeId === id) {
+    const selectedIds = settings.branch?.selectedIds ?? []
+    const remaining = selectedIds.filter((selectedId) => selectedId !== id)
+    const nextIds = remaining.length ? remaining : [NO_PROJECT_ID]
+    const branches = await this.branchModel.getBranchList()
+    const isEveryProject = branches.every((branch) => nextIds.includes(branch.id))
+    const isSetChanged = selectedIds.includes(id) || settings.branch?.activeId === id
+
+    // A set that covers every remaining project is "All projects": only the flag shows projects created later.
+    if (isSetChanged || (isEveryProject && !settings.branch?.isAllProjects)) {
       await this.settingsService.saveSettings({
         branch: {
           ...settings.branch,
-          activeId: NO_PROJECT_ID,
+          activeId: isSetChanged ? nextIds[nextIds.length - 1] : settings.branch.activeId,
+          isAllProjects: Boolean(settings.branch?.isAllProjects) || isEveryProject,
+          selectedIds: nextIds,
         },
       })
     }
@@ -116,7 +125,7 @@ export class BranchesService {
 
     if (active) return active.id
 
-    await this.settingsService.saveSettings({branch: {...settings.branch, activeId: NO_PROJECT_ID}})
+    await this.settingsService.saveSettings({branch: {...settings.branch, activeId: NO_PROJECT_ID, selectedIds: [NO_PROJECT_ID]}})
     return NO_PROJECT_ID
   }
 
@@ -129,6 +138,7 @@ export class BranchesService {
       branch: {
         ...settings.branch,
         activeId: nextId,
+        selectedIds: [nextId],
       },
     })
   }

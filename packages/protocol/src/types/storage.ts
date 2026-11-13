@@ -100,9 +100,12 @@ export type Settings = {
   sync: SyncSettings
   ai: AIConfig | null
   branch: {
+    /** The one project that Milestone and single-project views use; always the last of `selectedIds`. */
     activeId: Branch["id"]
-    /** Show the tasks of every project on the Days board; `activeId` stays the last concrete project. */
+    /** Show the tasks of every project on the Days board; `selectedIds` keeps the last chosen set. */
     isAllProjects: boolean
+    /** The projects the dock filters the Days board by, in the order they were added. Never empty: an empty array cannot replace a saved one in a merge. */
+    selectedIds: Branch["id"][]
   }
   layout: {
     columnOrder: TaskStatus[]
