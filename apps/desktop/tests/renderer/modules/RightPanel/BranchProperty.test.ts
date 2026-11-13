@@ -54,28 +54,31 @@ describe("BranchProperty", () => {
     return wrapper.findComponent(PropertyCell)
   }
 
-  it("shows_a_task_in_main_as_no_project_chosen_rather_than_by_the_name_main", async () => {
+  it("shows_a_task_in_main_as_a_muted_no_project_rather_than_by_the_name_main", async () => {
     const cell = await setup(makeTask())
 
-    expect(cell.props()).toEqual({label: "Set project", isEmpty: true, removable: false})
+    expect(cell.props()).toEqual({label: "No project", isEmpty: true})
   })
 
   it("names_a_project_of_the_person_own", async () => {
     const cell = await setup(makeTask({branchId: "leki"}))
 
-    expect(cell.props()).toEqual({label: "Leki", isEmpty: false, removable: true})
+    expect(cell.props()).toEqual({label: "Leki", isEmpty: false})
     expect(cell.text()).toContain("💼")
   })
 
-  it("clears_the_project_back_to_main_from_the_cross", async () => {
+  it("clears_the_project_and_milestone_when_no_project_is_picked_from_the_list", async () => {
     const {useTaskEditorStore} = await import("../../../../src/renderer/src/stores/task-editor")
     const taskEditorStore = useTaskEditorStore()
     taskEditorStore.openNew({branchId: "leki", milestoneId: "milestone-1"})
     const cell = await setup(taskEditorStore.draft)
 
-    await cell.get('[aria-label="Remove Leki"]').trigger("click")
+    await cell.trigger("click")
+    const rows = document.body.querySelectorAll("[data-active]")
+    expect(rows[0].textContent).toContain("No project")
+    rows[0].click()
+    await wrapper.vm.$nextTick()
 
     expect(taskEditorStore.draft).toMatchObject({branchId: "main", milestoneId: null})
-    expect(cell.emitted("click")).toBeUndefined()
   })
 })

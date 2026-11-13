@@ -18,7 +18,7 @@ const items = computed<BaseMenuItem[]>(() =>
   props.options.map((option) => ({
     value: option,
     label: option,
-    ...(option === props.modelValue ? {classLabel: "text-accent"} : {}),
+    selected: option === props.modelValue,
   })),
 )
 

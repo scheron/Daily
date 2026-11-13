@@ -1,15 +1,12 @@
 <script setup lang="ts">
 import {computed, ref} from "vue"
 
-import {NO_PROJECT_ID} from "@daily/protocol"
-
 import {toasts} from "@/composables/useToasts"
 import {useBranchesStore} from "@/stores/branches"
 import BaseCombobox from "@/ui/base/BaseCombobox"
 import BaseIcon from "@/ui/base/BaseIcon.vue"
 import ProjectIcon from "@/ui/common/(icons)/ProjectIcon.vue"
 import {getProjectName} from "@/utils/projects/getProjectName"
-import {cn} from "@/utils/ui/tailwindcss"
 
 import type {Branch} from "@daily/protocol"
 
@@ -20,8 +17,6 @@ const props = defineProps<{
   /** Offers "All projects" as the first row. */
   hasAllProjects?: boolean
   isAllProjectsSelected?: boolean
-  /** Leaves out the "No project" row, for a picker that clears the project with its own control. */
-  hidesNoProject?: boolean
 }>()
 const emit = defineEmits<{select: [branch: Branch]; "select-all": []; close: []}>()
 
@@ -30,9 +25,7 @@ const branchesStore = useBranchesStore()
 const query = ref("")
 
 const rows = computed<Row[]>(() => {
-  const projects = branchesStore.orderedBranches
-    .filter((branch) => !props.hidesNoProject || branch.id !== NO_PROJECT_ID)
-    .map((branch): Row => ({kind: "project", branch}))
+  const projects = branchesStore.orderedBranches.map((branch): Row => ({kind: "project", branch}))
   return props.hasAllProjects ? [{kind: "all"}, ...projects] : projects
 })
 
@@ -69,14 +62,6 @@ async function onCreate() {
   emit("select", created)
   emit("close")
 }
-
-function getProjectIconClasses(isSelected: boolean) {
-  return cn("size-4.5 shrink-0", {"text-accent": isSelected})
-}
-
-function getProjectNameClasses(isSelected: boolean) {
-  return cn("flex-1 truncate", {"text-accent font-medium": isSelected})
-}
 </script>
 
 <template>
@@ -95,11 +80,10 @@ function getProjectNameClasses(isSelected: boolean) {
       @escape="emit('close')"
     >
       <template #item="{item}">
-        <BaseIcon v-if="isRowSelected(item)" name="check" class="text-accent size-4 shrink-0" />
-        <span v-else class="size-4 shrink-0" />
-        <BaseIcon v-if="item.kind === 'all'" name="layers" :class="getProjectIconClasses(isRowSelected(item))" />
-        <ProjectIcon v-else :project="item.branch" :class="getProjectIconClasses(isRowSelected(item))" />
-        <span :class="getProjectNameClasses(isRowSelected(item))">{{ getRowLabel(item) }}</span>
+        <BaseIcon v-if="item.kind === 'all'" name="layers" class="size-4.5 shrink-0" />
+        <ProjectIcon v-else :project="item.branch" class="size-4.5 shrink-0" />
+        <span class="flex-1 truncate">{{ getRowLabel(item) }}</span>
+        <BaseIcon v-if="isRowSelected(item)" name="check" class="text-base-content/60 size-4 shrink-0" />
       </template>
 
       <template #footer="{query: createName}">

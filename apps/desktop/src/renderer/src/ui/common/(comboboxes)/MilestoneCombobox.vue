@@ -62,6 +62,7 @@ async function createMilestone() {
       <template #item="{item}">
         <MilestoneIcon :completion="milestoneCompletion(item.progress)" :size="12" />
         <span class="flex-1 truncate">{{ item.name }}</span>
+        <BaseIcon v-if="isSelected(item)" name="check" class="text-base-content/60 size-4 shrink-0" />
       </template>
 
       <template #footer="{query: createName}">

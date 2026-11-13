@@ -1,23 +1,17 @@
 <script setup lang="ts">
-import {cn} from "@/utils/ui/tailwindcss"
 import BaseIcon from "./BaseIcon.vue"
 
 import type {IconName} from "@/types/icons"
-import type {HTMLAttributes} from "vue"
 
 export type BaseMenuItem = {
   value?: string
   label?: string
   icon?: IconName
-  classLabel?: HTMLAttributes["class"]
+  selected?: boolean
 }
 
 defineProps<{items: BaseMenuItem[]}>()
 const emit = defineEmits<{select: [value: BaseMenuItem["value"]]}>()
-
-function getLabelClasses(classLabel: BaseMenuItem["classLabel"]) {
-  return cn("flex-1 truncate text-sm", classLabel)
-}
 </script>
 
 <template>
@@ -31,7 +25,8 @@ function getLabelClasses(classLabel: BaseMenuItem["classLabel"]) {
       >
         <span class="text-base-content hover:bg-base-300/80 flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left transition-colors">
           <BaseIcon v-if="item.icon" :name="item.icon" class="size-4.5" />
-          <span :class="getLabelClasses(item.classLabel)">{{ item.label }}</span>
+          <span class="flex-1 truncate text-sm">{{ item.label }}</span>
+          <BaseIcon v-if="item.selected" name="check" class="text-base-content/60 size-4 shrink-0" />
         </span>
       </button>
     </li>

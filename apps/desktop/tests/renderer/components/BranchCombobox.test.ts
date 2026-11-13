@@ -85,14 +85,4 @@ describe("BranchCombobox", () => {
     expect(wrapper.text()).toContain("👩🏽‍💻")
     expect(wrapper.find('use[href="#project"]').exists()).toBe(false)
   })
-
-  it("leaves_no_project_out_when_the_picker_clears_the_project_its_own_way", async () => {
-    const {default: BranchCombobox} = await import("../../../src/renderer/src/ui/common/(comboboxes)/BranchCombobox.vue")
-    const {useBranchesStore} = await import("../../../src/renderer/src/stores/branches")
-    useBranchesStore().branches = [makeBranch(), makeBranch({id: "leki", name: "Leki"})]
-    const popup = mountInPopup(BranchCombobox, {selectedId: "leki", hidesNoProject: true})
-    wrapper = popup.wrapper
-
-    expect(wrapper.findAll("[data-active]").map((row) => row.text())).toEqual(["Leki"])
-  })
 })
