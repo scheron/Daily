@@ -46,7 +46,11 @@ const menuRef = useTemplateRef<HTMLElement>("menu")
 
 const activeBranchName = computed(() => {
   if (projectScopeStore.isAllProjectsMode) return "All projects"
-  return getProjectName(branchesStore.activeBranch)
+  if (!projectScopeStore.isMultiProjectMode) return getProjectName(branchesStore.activeBranch)
+
+  const scoped = branchesStore.orderedBranches.filter((branch) => projectScopeStore.projectIdsInScope.includes(branch.id))
+  const names = scoped.slice(0, 2).map(getProjectName).join(", ")
+  return scoped.length > 2 ? `${names} +${scoped.length - 2}` : names
 })
 const hasAllProjectsRow = computed(() => uiStore.frame === "day")
 const projectTriggerClass = computed(() => cn("grid h-full items-center", {"min-w-20": !props.compact}))
@@ -85,14 +89,13 @@ function onOpenSearch() {
   searchModal.toggle()
 }
 
-async function onSelectBranch(branch: Branch) {
-  await projectScopeStore.setAllProjects(false)
-  if (branch.id === branchesStore.activeBranchId) return
-  await branchesStore.setActiveBranch(branch.id)
+async function onSelectBranch(branch: Branch, {isMulti}: {isMulti: boolean}) {
+  if (isMulti) await projectScopeStore.toggleProject(branch.id)
+  else await projectScopeStore.selectProject(branch.id)
 }
 
 async function onSelectAllProjects() {
-  await projectScopeStore.setAllProjects(true)
+  await projectScopeStore.selectAllProjects()
 }
 </script>
 
@@ -106,19 +109,21 @@ async function onSelectAllProjects() {
 
       <BranchPicker
         :selected-id="branchesStore.activeBranchId"
+        :selected-ids="projectScopeStore.projectIdsInScope"
         side="bottom"
         :position="compact ? 'end' : 'start'"
         :trigger-class="projectTriggerClass"
         hover-mode
         :has-all-projects="hasAllProjectsRow"
         :is-all-projects-selected="projectScopeStore.isAllProjectsMode"
+        :is-multi-select="hasAllProjectsRow"
         @select="onSelectBranch"
         @select-all="onSelectAllProjects"
       >
         <template #trigger="{show}">
           <BaseButton variant="ghost-primary" size="sm" v-bind="compactProjectButtonAttrs" @mouseenter="show" @click="show">
             <template #icon="{class: iconClass}">
-              <BaseIcon v-if="projectScopeStore.isAllProjectsMode" name="layers" :class="iconClass" />
+              <BaseIcon v-if="projectScopeStore.isMultiProjectMode" name="layers" :class="iconClass" />
               <ProjectIcon v-else :project="branchesStore.activeBranch" :class="iconClass" />
             </template>
             <template v-if="!compact" #default>

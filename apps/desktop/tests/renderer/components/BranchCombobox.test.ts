@@ -43,7 +43,7 @@ describe("BranchCombobox", () => {
     const createRow = wrapper.findAll("[data-active]").find((row) => row.text().includes("Create"))
     await createRow.trigger("click")
 
-    await vi.waitFor(() => expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({id: "p-new", name: "Work"})))
+    await vi.waitFor(() => expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({id: "p-new", name: "Work"}), {isMulti: false}))
     expect(popup.isOpen.value).toBe(false)
   })
 
@@ -84,5 +84,58 @@ describe("BranchCombobox", () => {
     wrapper = popup.wrapper
     expect(wrapper.text()).toContain("👩🏽‍💻")
     expect(wrapper.find('use[href="#project"]').exists()).toBe(false)
+  })
+
+  it("marks_every_row_when_all_projects_is_selected_and_each_chosen_row_otherwise [project-menu#all-is-every-project]", async () => {
+    const {default: BranchCombobox} = await import("../../../src/renderer/src/ui/common/(comboboxes)/BranchCombobox.vue")
+    const {useBranchesStore} = await import("../../../src/renderer/src/stores/branches")
+    useBranchesStore().branches = [makeBranch(), makeBranch({id: "leki", name: "Leki"}), makeBranch({id: "work", name: "Work"})]
+    function checked() {
+      return wrapper.findAll("[data-active]").map((row) => row.find('use[href="#check"]').exists())
+    }
+
+    const popup = mountInPopup(BranchCombobox, {selectedId: "leki", selectedIds: ["main", "work"], hasAllProjects: true})
+    wrapper = popup.wrapper
+    expect(checked()).toEqual([false, true, false, true])
+
+    await wrapper.setProps({isAllProjectsSelected: true})
+    expect(checked()).toEqual([true, true, true, true])
+  })
+
+  it("keeps_the_menu_open_on_cmd_click_only_when_multi_select_is_on [project-menu#cmd-multi-select]", async () => {
+    const {default: BranchCombobox} = await import("../../../src/renderer/src/ui/common/(comboboxes)/BranchCombobox.vue")
+    const {useBranchesStore} = await import("../../../src/renderer/src/stores/branches")
+    useBranchesStore().branches = [makeBranch(), makeBranch({id: "leki", name: "Leki"})]
+    const onSelect = vi.fn()
+    const popup = mountInPopup(BranchCombobox, {selectedId: "main", isMultiSelect: true, onSelect})
+    wrapper = popup.wrapper
+    function rowOf(name) {
+      return wrapper.findAll("[data-active]").find((row) => row.text() === name)
+    }
+
+    await rowOf("Leki").trigger("click", {metaKey: true})
+    expect(onSelect).toHaveBeenLastCalledWith(expect.objectContaining({id: "leki"}), {isMulti: true})
+    expect(popup.isOpen.value).toBe(true)
+
+    await rowOf("Leki").trigger("click")
+    expect(onSelect).toHaveBeenLastCalledWith(expect.objectContaining({id: "leki"}), {isMulti: false})
+    expect(popup.isOpen.value).toBe(false)
+  })
+
+  it("closes_on_cmd_click_when_multi_select_is_off [project-menu#cmd-multi-select]", async () => {
+    const {default: BranchCombobox} = await import("../../../src/renderer/src/ui/common/(comboboxes)/BranchCombobox.vue")
+    const {useBranchesStore} = await import("../../../src/renderer/src/stores/branches")
+    useBranchesStore().branches = [makeBranch(), makeBranch({id: "leki", name: "Leki"})]
+    const onSelect = vi.fn()
+    const popup = mountInPopup(BranchCombobox, {selectedId: "main", onSelect})
+    wrapper = popup.wrapper
+
+    await wrapper
+      .findAll("[data-active]")
+      .find((row) => row.text() === "Leki")
+      .trigger("click", {metaKey: true})
+
+    expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({id: "leki"}), {isMulti: false})
+    expect(popup.isOpen.value).toBe(false)
   })
 })

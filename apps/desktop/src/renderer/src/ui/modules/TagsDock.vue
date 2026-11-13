@@ -42,7 +42,7 @@ const filteredTags = computed(() => {
 const activeTagNames = computed(() => getActiveTagNames(tasksStore.projectTasks, filterStore.activeTagIds))
 
 const selectedChipIds = computed<Set<Tag["id"]>>(() => {
-  if (!projectScopeStore.isAllProjectsMode) return filterStore.activeTagIds
+  if (!projectScopeStore.isMultiProjectMode) return filterStore.activeTagIds
   return new Set(filteredTags.value.filter((tag) => activeTagNames.value.has(tag.name)).map((tag) => tag.id))
 })
 
@@ -50,7 +50,7 @@ const dockClass = computed(() => cn("pointer-events-none absolute right-1/2 top-
 
 function onSelectTag(id: Tag["id"]) {
   const chip = filteredTags.value.find((tag) => tag.id === id)
-  if (!projectScopeStore.isAllProjectsMode || !chip || !activeTagNames.value.has(chip.name)) {
+  if (!projectScopeStore.isMultiProjectMode || !chip || !activeTagNames.value.has(chip.name)) {
     filterStore.setActiveTags(id)
     return
   }
@@ -66,7 +66,7 @@ watch([activeDay, activeMilestoneId, isNoMilestoneActive], () => filterStore.cle
 watch(filteredTags, (tags) => {
   if (!filterStore.activeTagIds.size) return
 
-  if (projectScopeStore.isAllProjectsMode) {
+  if (projectScopeStore.isMultiProjectMode) {
     const availableNames = new Set(tags.map((tag) => tag.name))
     const nameById = new Map(tasksStore.projectTasks.flatMap((task) => task.tags).map((tag) => [tag.id, tag.name]))
     for (const id of filterStore.activeTagIds) {

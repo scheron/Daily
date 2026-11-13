@@ -14,11 +14,16 @@ type Row = {kind: "all"} | {kind: "project"; branch: Branch}
 
 const props = defineProps<{
   selectedId: Branch["id"] | null
+  /** Several selected projects; wins over `selectedId`. */
+  selectedIds?: readonly Branch["id"][]
   /** Offers "All projects" as the first row. */
   hasAllProjects?: boolean
+  /** Marks every row, All projects included. */
   isAllProjectsSelected?: boolean
+  /** `Cmd`+click on a project keeps the menu open and emits `select` with `isMulti`. */
+  isMultiSelect?: boolean
 }>()
-const emit = defineEmits<{select: [branch: Branch]; "select-all": []; close: []}>()
+const emit = defineEmits<{select: [branch: Branch, options: {isMulti: boolean}]; "select-all": []; close: []}>()
 
 const branchesStore = useBranchesStore()
 
@@ -29,12 +34,16 @@ const rows = computed<Row[]>(() => {
   return props.hasAllProjects ? [{kind: "all"}, ...projects] : projects
 })
 
-function onSelect(row: Row) {
+function onSelect(row: Row, event?: MouseEvent) {
   if (row.kind === "project") {
-    emit("select", row.branch)
+    emit("select", row.branch, {isMulti: isMultiClick(row, event)})
     return
   }
   emit("select-all")
+}
+
+function isMultiClick(row: Row, event?: MouseEvent) {
+  return Boolean(props.isMultiSelect && row.kind === "project" && event?.metaKey)
 }
 
 function getRowKey(row: Row) {
@@ -46,7 +55,9 @@ function getRowLabel(row: Row) {
 }
 
 function isRowSelected(row: Row) {
-  return row.kind === "all" ? Boolean(props.isAllProjectsSelected) : !props.isAllProjectsSelected && props.selectedId === row.branch.id
+  if (props.isAllProjectsSelected) return true
+  if (row.kind === "all") return false
+  return (props.selectedIds ?? [props.selectedId]).includes(row.branch.id)
 }
 
 async function onCreate() {
@@ -59,7 +70,7 @@ async function onCreate() {
     return
   }
 
-  emit("select", created)
+  emit("select", created, {isMulti: false})
   emit("close")
 }
 </script>
@@ -71,6 +82,7 @@ async function onCreate() {
       :item-key="getRowKey"
       :filter-by="getRowLabel"
       single
+      :hold-open="isMultiClick"
       placeholder="Search or create project..."
       empty-text="No projects found"
       @update:query="query = $event"

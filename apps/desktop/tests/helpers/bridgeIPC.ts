@@ -13,7 +13,7 @@ export function mockBridgeIPC(overrides = {}) {
       themes: {current: "github-light", preferredLight: "github-light", preferredDark: "github-dark", useSystem: true, glassUI: false},
       sync: {iCloud: {enabled: false}, server: {enabled: false, binding: null}},
       ai: null,
-      branch: {activeId: "main"},
+      branch: {activeId: "main", isAllProjects: false, selectedIds: ["main"]},
       layout: {
         sectionsCollapsed: {active: false, discarded: false, done: false},
       },

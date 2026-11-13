@@ -21,9 +21,12 @@ export const useTasksStore = defineStore("tasks", () => {
   const activeDay = ref<ISODate>(DateTime.now().toISODate()!)
   const activeBranchId = computed(() => settingsStore.settings?.branch?.activeId)
 
-  const projectTasks = computed(() =>
-    projectScopeStore.isAllProjectsMode ? tasks.value : tasks.value.filter((task) => task.branchId === activeBranchId.value),
-  )
+  const projectTasks = computed(() => {
+    if (projectScopeStore.isAllProjectsMode) return tasks.value
+
+    const projectIds = new Set(projectScopeStore.projectIdsInScope)
+    return tasks.value.filter((task) => projectIds.has(task.branchId))
+  })
 
   const days = computed<Day[]>(() => {
     const dated = projectTasks.value.filter((task) => task.scheduled)

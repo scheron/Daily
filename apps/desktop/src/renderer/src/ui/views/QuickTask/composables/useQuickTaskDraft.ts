@@ -109,8 +109,10 @@ export function useQuickTaskDraft() {
   }
 
   function getDefaultBranchId(): TaskDraft["branchId"] {
-    if (settings.value?.branch?.isAllProjects) return NO_PROJECT_ID
-    return settings.value?.branch?.activeId ?? null
+    const branch = settings.value?.branch
+    if (!branch) return null
+    if (branch.isAllProjects || branch.selectedIds.length > 1) return NO_PROJECT_ID
+    return branch.activeId
   }
 
   function refreshAutoDate() {

@@ -66,7 +66,7 @@ const hasRelation = computed(() => taskRelationsStore.chipByTaskId.has(props.tas
 const commentCount = computed(() => taskCommentsStore.commentCountOf(props.task.id))
 const subtaskCount = computed(() => subtasksStore.countOf(props.task.id))
 const project = computed(() => branchesStore.branchesMap.get(props.task.branchId))
-const projectName = computed(() => (projectScopeStore.isAllProjectsMode && props.task.branchId !== NO_PROJECT_ID ? (project.value?.name ?? "") : ""))
+const projectName = computed(() => (projectScopeStore.isMultiProjectMode && props.task.branchId !== NO_PROJECT_ID ? (project.value?.name ?? "") : ""))
 
 const footerDayLabel = computed(() => {
   if (filterStore.frame !== "milestone" || !props.task.scheduled) return ""

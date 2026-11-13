@@ -108,7 +108,7 @@ describe("TaskBoard", () => {
     const settings = useSettingsStore()
     await new Promise((resolve) => setTimeout(resolve))
     settings.settings = {
-      branch: {activeId: "main"},
+      branch: {activeId: "main", isAllProjects: false, selectedIds: ["main"]},
       layout: {sectionsCollapsed, columnOrder},
       appearance: {taskView, boardMode},
       typography: {fontSize},
@@ -439,7 +439,7 @@ describe("TaskBoard", () => {
     filter.activeTagIds = new Set()
     await settle()
     expect(labels()).toEqual(["Scroll right to To Do, 2 tasks", "Scroll right to Cancelled, 1 task"])
-    settings.settings.branch.activeId = "other"
+    settings.settings.branch = {...settings.settings.branch, activeId: "other", selectedIds: ["other"]}
     await settle()
     expect(filter.activeMilestoneId).toBeNull()
     expect(labels()).toEqual(["Scroll right to To Do, 1 task"])
@@ -1023,7 +1023,7 @@ describe("TaskBoard", () => {
       await settle()
       if (reason === "board mode") settings.settings.appearance.boardMode = "agents"
       if (reason === "frame") useFilterStore().setFrame("milestone")
-      if (reason === "project") settings.settings.branch.activeId = "other"
+      if (reason === "project") settings.settings.branch = {...settings.settings.branch, activeId: "other", selectedIds: ["other"]}
       if (reason === "day") tasks.activeDay = "2099-01-01"
       if (reason === "density") settings.settings.appearance.taskView = "compact"
       if (reason === "collapse") ui.setSectionCollapsed("done", true)
@@ -1201,7 +1201,7 @@ describe("TaskBoard", () => {
     await nextTick()
     expect(renderedOrder()).toEqual(["ready_to_merge", "done", "ready_for_agent", "cancelled", "in_progress", "backlog", "todo"])
     settings.settings.branch.isAllProjects = false
-    settings.settings.branch.activeId = "project-a"
+    settings.settings.branch = {...settings.settings.branch, activeId: "project-a", selectedIds: ["project-a"]}
     settings.settings.appearance.boardMode = "normal"
     await nextTick()
     expect(renderedOrder()).toEqual(["done", "cancelled", "in_progress", "backlog", "todo"])

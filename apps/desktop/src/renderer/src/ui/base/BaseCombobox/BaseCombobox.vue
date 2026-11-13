@@ -13,6 +13,8 @@ const props = withDefaults(
     filterBy?: (item: T) => string
     /** Selecting a row emits `select` then `close`. The footer emits only `select-footer`, so the consumer closes once its create finishes. */
     single?: boolean
+    /** With `single`, keeps the popup open for a click this returns true for; the row still emits `select`. */
+    holdOpen?: (item: T, event: MouseEvent) => boolean
     placeholder?: string
     emptyText?: string
   }>(),
@@ -25,7 +27,7 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   "update:query": [value: string]
-  select: [item: T]
+  select: [item: T, event?: MouseEvent]
   "select-footer": []
   close: []
   escape: []
@@ -73,9 +75,9 @@ function onInput(value: string) {
   emit("update:query", value)
 }
 
-function selectItem(item: T) {
-  emit("select", item)
-  if (props.single) emit("close")
+function selectItem(item: T, event?: MouseEvent) {
+  emit("select", item, event)
+  if (props.single && !(event && props.holdOpen?.(item, event))) emit("close")
 }
 
 function selectFooter() {
@@ -127,7 +129,12 @@ function onKeydown(event: KeyboardEvent) {
 
     <ul ref="list" class="max-h-60 overflow-y-auto p-1">
       <li v-for="(item, i) in filtered" :key="itemKey(item)">
-        <div :data-active="i === activeIndex" :class="getRowClasses(i === activeIndex)" @mouseenter="activeIndex = i" @click="selectItem(item)">
+        <div
+          :data-active="i === activeIndex"
+          :class="getRowClasses(i === activeIndex)"
+          @mouseenter="activeIndex = i"
+          @click="selectItem(item, $event)"
+        >
           <slot name="item" :item="item" />
         </div>
       </li>

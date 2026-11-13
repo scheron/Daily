@@ -8,12 +8,14 @@ import type {Branch} from "@daily/protocol"
 withDefaults(
   defineProps<{
     selectedId: Branch["id"] | null
+    selectedIds?: readonly Branch["id"][]
     position?: HorizontalPosition
     side?: "top" | "bottom"
     triggerClass?: string
     hoverMode?: boolean
     hasAllProjects?: boolean
     isAllProjectsSelected?: boolean
+    isMultiSelect?: boolean
   }>(),
   {
     position: "start",
@@ -22,7 +24,7 @@ withDefaults(
   },
 )
 
-const emit = defineEmits<{select: [branch: Branch]; "select-all": []}>()
+const emit = defineEmits<{select: [branch: Branch, options: {isMulti: boolean}]; "select-all": []}>()
 </script>
 
 <template>
@@ -34,9 +36,11 @@ const emit = defineEmits<{select: [branch: Branch]; "select-all": []}>()
     <template #default="{hide}">
       <BranchCombobox
         :selected-id="selectedId"
+        :selected-ids="selectedIds"
         :has-all-projects="hasAllProjects"
         :is-all-projects-selected="isAllProjectsSelected"
-        @select="emit('select', $event)"
+        :is-multi-select="isMultiSelect"
+        @select="(branch, options) => emit('select', branch, options)"
         @select-all="emit('select-all')"
         @close="hide"
       />

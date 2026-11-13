@@ -57,7 +57,7 @@ export async function mountBoardDrag(
   const settings = useSettingsStore()
   await new Promise((resolve) => setTimeout(resolve))
   settings.settings = {
-    branch: {activeId: "main", isAllProjects: allProjects},
+    branch: {activeId: "main", isAllProjects: allProjects, selectedIds: ["main"]},
     layout: {sectionsCollapsed: {}},
     appearance: {taskView, boardMode},
     typography: {fontSize},

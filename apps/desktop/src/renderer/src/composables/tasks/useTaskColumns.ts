@@ -155,7 +155,7 @@ export const useTaskColumns = createSharedComposable(() => {
 
   function filterByTag(tasks: Task[]) {
     if (!filterStore.activeTagIds.size) return tasks
-    if (projectScopeStore.isAllProjectsMode) {
+    if (projectScopeStore.isMultiProjectMode) {
       const names = getActiveTagNames(tasksStore.projectTasks, filterStore.activeTagIds)
       return tasks.filter((task) => task.tags.some((tag) => names.has(tag.name)))
     }
@@ -287,7 +287,7 @@ export const useTaskColumns = createSharedComposable(() => {
       boardMode: boardMode.value,
       ...(isMilestoneFrame ? {targetTaskId: null, position: "after" satisfies TaskMovePosition} : resolveMoveTarget(column, target.index)),
       activeDate: isMilestoneFrame ? (dragged.task.scheduled?.date ?? tasksStore.activeDay) : tasksStore.activeDay,
-      acrossProjects: projectScopeStore.isAllProjectsMode,
+      acrossProjects: projectScopeStore.isMultiProjectMode,
     }
 
     const status = isSameColumn ? dragged.task.status : target.status

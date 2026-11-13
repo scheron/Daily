@@ -290,7 +290,10 @@ describe("the Quick task window view", () => {
   it("showing an untouched panel re-takes the project active now", async () => {
     await mountView()
     const {useSettingsStore} = await import(`${SRC}/stores/settings`)
-    bridge["settings:load"].mockResolvedValue({...(await bridge["settings:load"]()), branch: {activeId: "daily"}})
+    bridge["settings:load"].mockResolvedValue({
+      ...(await bridge["settings:load"]()),
+      branch: {activeId: "daily", isAllProjects: false, selectedIds: ["daily"]},
+    })
 
     shown()
     await vi.waitFor(() => expect(wrapper.find("[data-chip=project]").text()).toBe("Daily"))

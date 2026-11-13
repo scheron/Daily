@@ -36,7 +36,7 @@ window.BridgeIPC["shortcut:ui:calendar-dock:toggle"](() => uiStore.toggleCalenda
 async function onCreateTask() {
   const proceed = await confirmUnsavedModal.open()
   if (!proceed) return
-  if (projectScopeStore.isAllProjectsMode) {
+  if (projectScopeStore.isMultiProjectMode) {
     taskEditorStore.openNew({branchId: NO_PROJECT_ID, milestoneId: null})
     return
   }

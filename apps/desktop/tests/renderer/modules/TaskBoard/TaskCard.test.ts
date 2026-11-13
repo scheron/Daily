@@ -236,7 +236,7 @@ describe("TaskCard — the crumb", () => {
     wrapper = null
   })
 
-  async function setup(task, {isAllProjects = false, milestone = null} = {}) {
+  async function setup(task, {isAllProjects = false, selectedIds = ["main"], milestone = null} = {}) {
     const {default: TaskCard} = await import("../../../../src/renderer/src/ui/modules/TaskBoard/{fragments}/TaskCard/TaskCard.vue")
     const {useSettingsStore} = await import("../../../../src/renderer/src/stores/settings")
     const {useBranchesStore} = await import("../../../../src/renderer/src/stores/branches")
@@ -244,7 +244,7 @@ describe("TaskCard — the crumb", () => {
 
     const settingsStore = useSettingsStore()
     await new Promise((resolve) => setTimeout(resolve, 20))
-    settingsStore.settings = {branch: {activeId: "main", isAllProjects}, layout: {sectionsCollapsed: {}}}
+    settingsStore.settings = {branch: {activeId: "main", isAllProjects, selectedIds}, layout: {sectionsCollapsed: {}}}
     useBranchesStore().branches = [
       {id: "main", name: "Main"},
       {id: "leki", name: "Leki"},
@@ -270,6 +270,12 @@ describe("TaskCard — the crumb", () => {
     expect(crumb().find("span.truncate").text()).toBe("Leki")
     expect(crumb().text()).toBe("LekiLaunch")
     expect(crumb().find("svg path").exists()).toBe(true)
+  })
+
+  it("reads_project_in_a_several_project_set [project-menu#several-as-all]", async () => {
+    await setup(makeTask({branchId: "leki"}), {selectedIds: ["main", "leki"]})
+
+    expect(crumb().text()).toBe("Leki")
   })
 
   it("shows and reactively refreshes the saved project emoji in the crumb", async () => {

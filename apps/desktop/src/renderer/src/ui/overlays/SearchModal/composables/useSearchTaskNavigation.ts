@@ -26,8 +26,8 @@ export function useSearchTaskNavigation() {
       if (!(await confirmLeaveIfDirty())) return null
     }
 
-    if (!projectScopeStore.isAllProjectsMode && branchesStore.activeBranchId !== task.branchId) {
-      await branchesStore.setActiveBranch(task.branchId)
+    if (!projectScopeStore.projectIdsInScope.includes(task.branchId)) {
+      if (!(await projectScopeStore.activateProjectInSet(task.branchId))) await branchesStore.setActiveBranch(task.branchId)
     }
 
     if (!task.scheduled) {

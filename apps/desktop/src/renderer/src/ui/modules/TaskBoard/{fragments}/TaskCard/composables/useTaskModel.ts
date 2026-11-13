@@ -140,7 +140,7 @@ export function useTaskModel(task: MaybeRefOrGetter<Task>) {
       boardMode: boardMode.value,
       position: "before",
       activeDate: tasksStore.activeDay,
-      acrossProjects: projectScopeStore.isAllProjectsMode,
+      acrossProjects: projectScopeStore.isMultiProjectMode,
     })
 
     if (!result) toasts.error("Failed to move task")
@@ -158,7 +158,7 @@ export function useTaskModel(task: MaybeRefOrGetter<Task>) {
       boardMode: boardMode.value,
       position: "after",
       activeDate: tasksStore.activeDay,
-      acrossProjects: projectScopeStore.isAllProjectsMode,
+      acrossProjects: projectScopeStore.isMultiProjectMode,
     })
 
     if (!result) toasts.error("Failed to move task")
@@ -176,7 +176,7 @@ export function useTaskModel(task: MaybeRefOrGetter<Task>) {
       boardMode: boardMode.value,
       position: "before",
       activeDate: tasksStore.activeDay,
-      acrossProjects: projectScopeStore.isAllProjectsMode,
+      acrossProjects: projectScopeStore.isMultiProjectMode,
     })
 
     if (!result) toasts.error("Failed to move task")
@@ -191,7 +191,7 @@ export function useTaskModel(task: MaybeRefOrGetter<Task>) {
       boardMode: boardMode.value,
       position: "after",
       activeDate: tasksStore.activeDay,
-      acrossProjects: projectScopeStore.isAllProjectsMode,
+      acrossProjects: projectScopeStore.isMultiProjectMode,
     })
 
     if (!result) toasts.error("Failed to move task")

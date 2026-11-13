@@ -22,7 +22,7 @@ describe("TagsDock — the all-projects mode", () => {
 
     const settingsStore = useSettingsStore()
     await new Promise((resolve) => setTimeout(resolve, 20))
-    settingsStore.settings = {branch: {activeId: "main", isAllProjects: true}, layout: {sectionsCollapsed: {}}}
+    settingsStore.settings = {branch: {activeId: "main", isAllProjects: true, selectedIds: ["main"]}, layout: {sectionsCollapsed: {}}}
 
     const tasks = useTasksStore()
     tasks.activeDay = TODAY
@@ -72,7 +72,11 @@ describe.each(["normal", "agents"])("TagsDock day queue in %s", (boardMode) => {
     const {useTaskColumns} = await import("../../../src/renderer/src/composables/tasks/useTaskColumns")
     const settings = useSettingsStore()
     await new Promise((resolve) => setTimeout(resolve, 20))
-    settings.settings = {branch: {activeId: "main", isAllProjects: allProjects}, layout: {sectionsCollapsed: {}}, appearance: {boardMode}}
+    settings.settings = {
+      branch: {activeId: "main", isAllProjects: allProjects, selectedIds: ["main"]},
+      layout: {sectionsCollapsed: {}},
+      appearance: {boardMode},
+    }
     const tasks = useTasksStore()
     tasks.activeDay = TODAY
     const tag = (id, branchId = "main") => ({id, name: id, color: "#000", branchId})
