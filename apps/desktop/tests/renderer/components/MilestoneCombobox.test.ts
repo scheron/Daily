@@ -42,6 +42,16 @@ function makeTask(overrides = {}) {
   }
 }
 
+async function mountCombobox(task, milestones = [makeMilestone()]) {
+  const {default: MilestoneCombobox} = await import("../../../src/renderer/src/ui/common/(comboboxes)/MilestoneCombobox.vue")
+  const {useMilestonesStore} = await import("../../../src/renderer/src/stores/milestones")
+  const store = useMilestonesStore()
+  vi.spyOn(store, "milestonesForBranch").mockReturnValue(milestones.map((m) => ({...m, progress: {done: 0, total: 0}})))
+  const onUpdate = vi.fn()
+  const popup = mountInPopup(MilestoneCombobox, {task, onUpdate})
+  return {...popup, onUpdate}
+}
+
 describe("MilestoneCombobox", () => {
   let bridge = null
   let wrapper = null
@@ -71,5 +81,47 @@ describe("MilestoneCombobox", () => {
     await vi.waitFor(() => expect(onUpdate).toHaveBeenCalledWith("m-new"))
     expect(popup.isOpen.value).toBe(false)
     expect(bridge["milestones:create"]).toHaveBeenCalledWith(expect.objectContaining({name: "Launch", branchId: "work"}))
+  })
+
+  it("lists_no_milestone_first_checked_when_the_task_has_none_[menus#no-milestone-row]", async () => {
+    const popup = await mountCombobox(makeTask())
+    wrapper = popup.wrapper
+
+    const rows = wrapper.findAll("[data-active]")
+    expect(rows.map((row) => row.text())).toEqual(["No milestone", "Launch"])
+    expect(rows.map((row) => row.find('use[href="#check"]').exists())).toEqual([true, false])
+  })
+
+  it("selecting_no_milestone_clears_the_milestone_[menus#no-milestone-row]", async () => {
+    const popup = await mountCombobox(makeTask({milestoneId: "milestone-1"}))
+    wrapper = popup.wrapper
+
+    await wrapper.findAll("[data-active]")[0].trigger("click")
+
+    expect(popup.onUpdate).toHaveBeenCalledWith(null)
+  })
+
+  it("clicking_the_checked_milestone_reports_nothing_and_closes_the_menu_[menus#no-milestone-row]", async () => {
+    const popup = await mountCombobox(makeTask({milestoneId: "milestone-1"}))
+    wrapper = popup.wrapper
+
+    await wrapper.findAll("[data-active]")[1].trigger("click")
+
+    expect(popup.onUpdate).not.toHaveBeenCalled()
+    expect(popup.isOpen.value).toBe(false)
+  })
+
+  it("keeps_no_milestone_for_a_partial_query_and_offers_no_create_row_for_its_exact_name_[menus#no-milestone-row]", async () => {
+    const popup = await mountCombobox(makeTask())
+    wrapper = popup.wrapper
+
+    await wrapper.get("input").setValue("no mil")
+    expect(wrapper.findAll("[data-active]")[0].text()).toBe("No milestone")
+
+    await wrapper.get("input").setValue("Launch")
+    expect(wrapper.findAll("[data-active]").some((row) => row.text() === "No milestone")).toBe(false)
+
+    await wrapper.get("input").setValue("No milestone")
+    expect(wrapper.findAll("[data-active]").map((row) => row.text())).toEqual(["No milestone"])
   })
 })

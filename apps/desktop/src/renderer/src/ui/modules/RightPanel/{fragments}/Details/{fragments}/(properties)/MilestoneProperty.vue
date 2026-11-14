@@ -20,7 +20,7 @@ const milestonesStore = useMilestonesStore()
 const taskEditorStore = useTaskEditorStore()
 
 const milestone = computed(() => (props.task.milestoneId ? (milestonesStore.milestonesMap.get(props.task.milestoneId) ?? null) : null))
-const milestoneName = computed(() => milestone.value?.name ?? "Set milestone")
+const milestoneName = computed(() => milestone.value?.name ?? "No milestone")
 const completion = computed(() => (milestone.value ? milestoneCompletion(milestone.value.progress) : 0))
 const overdue = computed(() => (milestone.value ? isMilestoneOverdue(milestone.value, milestone.value.progress, getToday()) : false))
 

@@ -12,6 +12,8 @@ import MilestoneIcon from "@/ui/common/(icons)/MilestoneIcon.vue"
 import type {MilestoneWithProgress} from "@/stores/milestones"
 import type {Milestone, Task} from "@daily/protocol"
 
+type Row = {kind: "none"} | {kind: "milestone"; milestone: MilestoneWithProgress}
+
 const props = defineProps<{task: Task}>()
 const emit = defineEmits<{update: [milestoneId: Milestone["id"] | null]; close: []}>()
 
@@ -21,12 +23,22 @@ const query = ref("")
 
 const sortedMilestones = computed(() => sortMilestones(milestonesStore.milestonesForBranch(props.task.branchId)))
 
-function isSelected(milestone: MilestoneWithProgress): boolean {
-  return props.task.milestoneId === milestone.id
+const rows = computed<Row[]>(() => [{kind: "none"}, ...sortedMilestones.value.map((milestone): Row => ({kind: "milestone", milestone}))])
+
+function getRowId(row: Row): Milestone["id"] | null {
+  return row.kind === "none" ? null : row.milestone.id
 }
 
-function selectMilestone(milestone: MilestoneWithProgress) {
-  emit("update", isSelected(milestone) ? null : milestone.id)
+function getRowLabel(row: Row): string {
+  return row.kind === "none" ? "No milestone" : row.milestone.name
+}
+
+function isSelected(row: Row): boolean {
+  return props.task.milestoneId === getRowId(row)
+}
+
+function selectRow(row: Row) {
+  if (!isSelected(row)) emit("update", getRowId(row))
 }
 
 async function createMilestone() {
@@ -48,20 +60,21 @@ async function createMilestone() {
   <div class="w-70">
     <BaseCombobox
       single
-      :items="sortedMilestones"
-      :item-key="(milestone) => milestone.id"
-      :filter-by="(milestone) => milestone.name"
+      :items="rows"
+      :item-key="(row) => getRowId(row) ?? 'none'"
+      :filter-by="getRowLabel"
       placeholder="Search or create milestone..."
       empty-text="No milestones found"
       @update:query="query = $event"
-      @select="selectMilestone"
+      @select="selectRow"
       @select-footer="createMilestone"
       @close="emit('close')"
       @escape="emit('close')"
     >
       <template #item="{item}">
-        <MilestoneIcon :completion="milestoneCompletion(item.progress)" :size="12" />
-        <span class="flex-1 truncate">{{ item.name }}</span>
+        <BaseIcon v-if="item.kind === 'none'" name="milestone" class="size-3 shrink-0 opacity-50" />
+        <MilestoneIcon v-else :completion="milestoneCompletion(item.milestone.progress)" :size="12" />
+        <span class="flex-1 truncate">{{ getRowLabel(item) }}</span>
         <BaseIcon v-if="isSelected(item)" name="check" class="text-base-content/60 size-4 shrink-0" />
       </template>
 
