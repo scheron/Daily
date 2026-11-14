@@ -1,38 +1,38 @@
-This is history; the rules that hold now are in `docs/spec/`.
+This is history. The current rules are in `docs/spec/`.
 
-# Spec: Меню выбора проекта
+# Spec: Project selection menu
 
 ## Result
 
-Одно меню проектов с поиском открывается в трёх местах: в доке оно переключает активный проект, в деталях задачи и в контекстном меню карточки задаёт проект задачи. Из поиска можно сразу создать проект.
+One project menu with search opens in three places. In the dock, it changes the active project. In task details and the card context menu, it sets the task's project. Search also lets the user create a project at once.
 
 ## Out of scope
 
-- Свойство Project в деталях задачи: крестик и «Set project» уходят, вместо них строка No project по образцу No priority — серый текст, выбрана по умолчанию. Решено 2026-11-13, делается отдельной задачей; тогда `project-menu#card-no-project-row` расширится на детали задачи.
-- Проект с именем «Main» создать можно: `main` хранит свой ID и не переименовывается, совпадает только имя, которое видят агенты. Узкий случай, правила нет.
+- The Project property in task details: remove the clear button and "Set project". Use a No project row like No priority: gray text, selected by default. This was decided on 2026-11-13 and needs a separate task. That task will extend `project-menu#card-no-project-row` to cover task details.
+- A project named "Main" is allowed. `main` keeps its ID and cannot be renamed. Only the name that agents see matches. This is a narrow case with no rule.
 
 ## Spec
 
-+ project-menu — Меню выбора проекта
-  About: Список проектов с поиском. В доке переключает активный проект, у задачи задаёт её проект.
-+ project-menu#order — Сверху All projects, где он есть, под ним No project, дальше проекты по алфавиту без учёта регистра
-  Why: All projects — вообще все задачи, No project — задачи без проекта, куда всё попадает с первого запуска; проекты, заведённые пользователем, идут после них
++ project-menu — Project selection menu
+  About: A project list with search. In the dock, it changes the active project. For a task, it sets the task's project.
++ project-menu#order — Show All projects first, where available, then No project, then projects in alphabetical order, ignoring case
+  Why: All projects shows every task. No project shows tasks without a project, the default from the first launch. User-created projects follow these rows.
   Done: 1, 2
-+ project-menu#create-from-search — Имя, которого нет в списке, создаётся прямо из поиска и сразу выбирается
-  Why: не нашёл в поиске — значит, хочешь создать; это короткий путь мимо Settings, так же устроены теги
++ project-menu#create-from-search — Create a project from a name that is not in the search results and select it at once
+  Why: when search finds no project, the next step is to create one. This avoids a trip to Settings, as tags already do.
   Done: 3
-+ project-menu#exact-match-no-create — При точном совпадении имени без учёта регистра и пробелов по краям строки Create нет
-  Why: поле прежде всего поиск: совпало — значит, нашёл; проект с тем же именем заводят в Settings, проекты различаются по ID
++ project-menu#exact-match-no-create — Hide Create when a project name matches after ignoring case and spaces at the start and end
+  Why: the field is mainly for search. An exact match means the project was found. Create duplicate names in Settings; IDs keep projects distinct.
   Done: 4
-+ project-menu#create-failure-keeps-input — Неудачное создание показывает тост и оставляет меню открытым с набранным именем
-  Why: имя не теряется, создание можно повторить
++ project-menu#create-failure-keeps-input — If creation fails, show a toast and keep the menu open with the entered name
+  Why: the name stays in the field, so creation can be retried.
   Done: 5
-+ project-menu#all-projects-dock-day — All projects есть только в доке и только во фрейме Day
-  Why: milestone всегда принадлежит одному проекту, milestone по всем проектам — бессмыслица; а задача лежит ровно в одном проекте
++ project-menu#all-projects-dock-day — Show All projects only in the dock and only in the Day frame
+  Why: a milestone always belongs to one project, so a milestone across all projects has no meaning. A task belongs to exactly one project.
   Done: 6
-+ project-menu#card-no-project-row — В контекстном меню карточки No project — строка списка, её выбор снимает проект
-  Why: крестика, которым сбрасывают проект, в контекстном меню нет
++ project-menu#card-no-project-row — Show No project as a row in the card context menu; selecting it clears the project
+  Why: the context menu has no clear button for the project.
   Done: 7
-+ project-menu#dock-opens-on-hover — В доке меню открывается наведением, в деталях задачи — кликом
-  Why: в доке это быстрое переключение фильтра, как смена дня или тега; в редакторе выбор проекта — намеренное изменение задачи
++ project-menu#dock-opens-on-hover — Open the dock menu on hover and the task details menu on click
+  Why: the dock changes filters quickly, like the day or tag filter. In the editor, selecting a project is a deliberate task change.
   Done: 8

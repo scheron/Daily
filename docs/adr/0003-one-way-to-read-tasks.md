@@ -1,47 +1,44 @@
-# The renderer reads tasks one way, and every view is a selector
+# The renderer loads tasks once and filters them for each view
 
-Daily is a desktop app over a local SQLite file, so a person expects it to answer instantly; the one
-place a wait is acceptable is the splash screen. We had been letting the renderer order data in the
-shape it wanted to draw — a day, a backlog, one milestone's tasks — which made every change of view
-and every write a new order. We are replacing that with one read: the renderer loads every live task
-at startup and holds it, and a day, a milestone, the backlog, a tag, a status or anything drawn
-later is a **selector over that collection**.
+Daily uses a local SQLite file. Users expect an instant response after the splash screen. The
+renderer used to request tasks separately for each view: a day, the backlog, or a milestone. Every
+view change and write triggered another request.
 
-The rule that follows, and the reason this is written down: **an endpoint that takes a criterion for
-selecting tasks is a new loading axis.** A new way to look at the work is a new selector, never a new
-endpoint. Reading tasks by milestone, by tag or by status would each be the same 458 rows arriving
-again in a different arrangement, and the app already has them.
+We replace these requests with one read at startup. The renderer loads all tasks that are not
+deleted and keeps them in memory. Each view uses a **selector**, a function that filters or groups
+that collection. Days, milestones, the backlog, tags, statuses, and future views all use selectors.
 
-## Considered Options
+**A new task filter belongs in a selector, not a new renderer endpoint.** Endpoints for milestones,
+tags, or statuses would send the same 458 rows again. The renderer already has those rows.
 
-**Keep fetching per view, and make it faster.** Cache by selection key, debounce, batch. This is what
-was there, and one stopgap of exactly this kind had already landed. Rejected because it treats the
-symptom: caching hides the cost of _switching_ while leaving the cost of _writing_, and every such fix
-adds a place where the cache and the database can disagree.
+## Options considered
 
-**Keep a lazy window of dates and page it.** The design that existed: a ±6 month range with edge
-buffers, extended as the person scrolls. Rejected because it protects against a cost that does not
-exist — the production database is 458 live tasks in 1.6 MB — and pays for that protection with a
-whole class of "is this loaded yet" state, which is where the loading flags and the empty boards came
-from.
+**Keep fetching for each view and make it faster.** We could cache each selection, debounce requests,
+or batch them. One temporary fix of this kind already existed. We rejected it because caching only
+hides the cost of switching views. Writes still need new reads. Each cache also adds a place where
+memory and the database can disagree.
 
-**Move the aggregation into the renderer but keep the shaped endpoints beside it.** Rejected because
-it leaves two sources of the same fact. A milestone's progress computed in SQL and the same progress
-computed from memory will eventually disagree, and they will disagree silently.
+**Load a range of dates and extend it as needed.** The old design loaded a ±6 month range with extra
+dates at each edge. Scrolling extended that range. We rejected it because the production database
+has only 458 live tasks in 1.6 MB. The range adds unnecessary state to track what is loaded. That
+state caused loading flags and empty boards.
+
+**Calculate view data in the renderer but keep filtered endpoints too.** We rejected this because
+it creates two ways to calculate the same fact. Milestone progress calculated in SQL could silently
+differ from progress calculated in memory.
 
 ## Consequences
 
-The renderer loads tasks through `tasks:get-all`. Filtered reads belong to `WorkStorage`, which
-the Assistant and MCP tools call to answer questions about a day or project without loading the
-entire table.
+The renderer loads tasks through `tasks:get-all`. `WorkStorage` still provides filtered reads for
+the Assistant and MCP tools. These callers can answer questions about a day or project without
+loading the whole table.
 
-The splash screen becomes a real readiness gate rather than a timer, because there is now a moment
-that is genuinely "loaded", and the window has no reason to appear before it.
+The splash screen waits until the data is ready. It no longer uses a timer. The window appears
+after loading finishes.
 
-A write reports what it changed instead of inviting a reread, and the renderer predicts that report
-locally before it arrives. That is what makes a write feel instant, and it is only possible because
-the renderer holds enough data to predict with.
+A write reports its changes instead of asking the renderer to read again. The renderer predicts
+these changes locally before the response arrives. Its complete collection lets writes appear
+immediately.
 
-Memory use grows with the size of the database rather than with what is on screen. There is a size at
-which this stops being the right answer. Reaching it is a new decision with a measurement in front of
-it — not a reason to reintroduce a window quietly, and not something to pre-empt now.
+Memory use grows with the database size. At some measured size, this approach will need a new
+decision. We do not add a loading range before that need exists.

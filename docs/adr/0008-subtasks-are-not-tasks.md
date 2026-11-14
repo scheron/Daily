@@ -1,43 +1,44 @@
-# Subtasks are their own record, not tasks with a parent
+# Subtasks have separate records
 
 Status: accepted.
 
-A task needed a way to hold its own small pieces of work without each piece cluttering the board
-beside it. A subtask is a checkbox with its own markdown, and it takes everything else from its
-parent: day, status, project, milestone, tags, priority. It has no comments, no history and no
-place on the board. Anything that needs more than that is made into a task. The planning unit
-stays the parent, and work spread across days stays a milestone's job.
+A task needs smaller pieces of work without adding each piece to the board. A subtask is a checkbox
+with its own Markdown content. It uses its parent task's day, status, project, milestone, tags, and
+priority. It has no comments, history, or board entry. Work that needs more features becomes a task.
+The parent task remains the planning unit. Milestones group work across days.
 
-We store a subtask as its own record, holding the task it belongs to, its markdown, whether it is
-done and its place in the list. One task has many subtasks, and a subtask belongs to exactly one
-task, one level deep.
+Each subtask has a separate record with its parent task, Markdown content, done state, and list
+position. A task can have many subtasks. Each subtask belongs to exactly one task. Subtasks cannot
+have their own subtasks.
 
-## Considered Options
+## Options considered
 
-**A task with a `parentId`.** This was the obvious path: content, attachments, sync and the agent
-tools would all come for free. We rejected it because a task row carries a status, a day, a
-project and the rest, and every reader that lists tasks would have to filter children out: the
-board, the calendar, search, milestone progress, `list_tasks` and statistics.
-Missing one filter puts a subtask on the board, and nothing in the type stops it. That is the cost
-[ADR 0002](0002-backlog-is-the-absence-of-a-date.md) rejected for backlog dates, moved into
-everyone's head instead of the type. A separate record cannot leak into a task list, because it
-has none of the fields a task list reads.
+**Use a task with a `parentId`.** This would reuse task content, attachments, sync, and agent tools.
+We rejected it because a task row also carries a status, day, project, and other fields. Every task
+list would need to filter out subtasks. This includes the board, calendar, search, milestone
+progress, `list_tasks`, and statistics.
 
-**Markdown checkboxes in the task's content.** These already exist in the editor. We rejected them
-because a checkbox holds one line, and a subtask needs a body worth writing. Agents also could not
-check one off without rewriting the parent's whole content.
+A missing filter would put a subtask on the board. The type system would not prevent it. Like the
+backlog dates rejected in [ADR 0002](0002-backlog-is-the-absence-of-a-date.md), this makes every caller
+responsible for a rule. A separate record lacks the fields task lists read, so it cannot appear in
+them by mistake.
+
+**Use Markdown checkboxes in task content.** The editor already supports them. We rejected this
+because a checkbox holds one line, while a subtask needs its own body. An agent would also need to
+rewrite all parent content to check off one subtask.
 
 ## Consequences
 
-The sync snapshot gains a collection of its own, so `Snapshot.version` moves to 13. Subtasks merge
-by Last-Write-Wins one at a time, not as part of the parent.
+The sync snapshot gains a subtask collection, so `Snapshot.version` moves to 13. Each subtask merges
+separately by Last-Write-Wins. It does not merge as part of its parent.
 
-Images in a subtask are anchored by `daily://file/…` links in the subtask's own markdown, so the
-file collector must read subtask content as well as task content, or it will delete them.
-Subtasks share their task's lifetime the way comments do. Soft-deleting a task leaves its subtasks
-untouched, so restoring the task brings them back. Deleting the task for good deletes them too,
-and that frees their images.
+Subtask Markdown refers to images through `daily://file/…` links. The file collector must read
+subtask content as well as task content. Otherwise, it will delete images that subtasks still use.
 
-"Make a task" is the only way out. It creates a task with the subtask's markdown, copies the
-parent's status, day, project, milestone and tags as they are, and removes the subtask. Agents do
-not get this action. They create the task and delete the subtask themselves.
+Subtasks follow their task's lifetime, as comments do. Soft-deleting a task leaves its subtasks in
+place. Restoring the task restores access to them. Permanently deleting a task also deletes its
+subtasks and releases their images.
+
+"Make a task" is the only action that converts a subtask. It creates a task with the subtask's
+Markdown and copies the parent's status, day, project, milestone, and tags unchanged. It then removes
+the subtask. Agents do not have this action. They create a task and delete the subtask themselves.

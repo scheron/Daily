@@ -1,59 +1,59 @@
-# Agents are served by the sync server from its opaque snapshot, through an in-memory core
+# The sync server runs agent tools on a snapshot loaded into memory
 
-Agents — Claude Code, the Claude app, Codex — need to read and change the work the way they do in
-Linear, including from a phone while every Mac is asleep. The Daily Sync Server stores the whole of
-that work as one snapshot document and never looks inside it. We decided that the server itself
-serves agents, on the same process and port as sync, and that its storage stays exactly as it is:
-for a tool call it loads the stored snapshot into `packages/core` running on an in-memory database,
-runs the tool through the same services the app runs, and writes the result back with the existing
-conditional write at the revision it read, attributed to the agent's Mac.
+Agents such as Claude Code, the Claude app, and Codex need to read and change work, as they do in
+Linear. They must also work from a phone while every Mac is asleep.
 
-## Considered Options
+The Daily Sync Server stores all work in one snapshot document. During sync, it does not read the
+snapshot's contents. The server itself serves agents in the same process and on the same port as
+sync. Its stored data stays in the same format.
 
-**A tabular server.** Unpack the snapshot into the same tables the client has, and let agents query
-them. Rejected because it binds the server to a schema that is still moving — `Snapshot.version`
-went from 4 to 7 between 2026-09-11 and 2026-09-17 — so every such app release would need a server
-upgrade, and an older server receiving a newer snapshot could only drop the fields it does not know,
-silently, or stop sync. It would also be a third representation of the same data: the snapshot
-stays regardless, because iCloud and the sync protocol carry it. Sync would not get cheaper unless
-the protocol moved to row deltas as well, and the client already had delta sync, with a change log
-and triggers, and removed it.
+For each tool call, the server loads the snapshot into `packages/core` with an in-memory database.
+It runs the tool through the same services as the app. It writes the result only if the stored
+revision still matches the revision it read. The write records the agent's Mac as its source.
 
-**Edit the snapshot's rows directly on the server.** No dependency on `packages/core`. Rejected
-because the rules about tasks live in the services — task events, ordering, the backlog invariant
-of ADR 0002 — and a second copy of them written against snapshot rows would drift, with the drift
-spreading to every Mac through sync before anyone noticed.
+## Options considered
 
-**A separate service beside the server that syncs as a device.** Keeps the server untouched.
-Rejected because each install shape would need new routing, the self-signed install has no proxy
-to route through at all, and the service would keep a persistent copy of data the server already
-holds.
+**Store the server's work in tables.** We could unpack the snapshot into client-style tables and let
+agents query them. We rejected this because the data structure still changes often.
+`Snapshot.version` went from 4 to 7 between 2026-09-11 and 2026-09-17. Each such app release would
+need a server upgrade. An older server would either silently drop unknown fields or stop sync.
 
-**A relay that forwards each call to a Mac.** Keeps the server dumb and runs every tool on a real
-app. Rejected because agents would work only while some Mac is awake with Daily open, which is the
-case the phone exists to escape.
+Tables would also add a third form of the same data. The snapshot must remain because iCloud and
+the sync protocol use it. Sync costs would fall only if the protocol also sent changes to individual
+rows. The client once had that approach, with a change log and triggers, and removed it.
 
-**A local MCP server inside the app**, the approach of the 2026-07 `feat/mcp-impl` branch. Rejected
-for the same reason, and because it reaches only an agent on that same computer.
+**Edit snapshot rows directly on the server.** This avoids a dependency on `packages/core`. We
+rejected it because services own the task rules, including events, ordering, and ADR 0002's backlog
+rule. A second implementation would eventually behave differently. Sync would spread its errors to
+every Mac before anyone noticed.
+
+**Add a separate service that syncs as a device.** This leaves the server unchanged. We rejected it
+because every deployment type would need new routing. A self-signed deployment has no proxy to do
+that routing. The service would also keep another permanent copy of data the server already stores.
+
+**Forward each call to a Mac.** This keeps processing in the app. We rejected it because a Mac must
+be awake with Daily open. Phone access must work without that requirement.
+
+**Run a local MCP server inside the app.** The 2026-07 `feat/mcp-impl` branch used this approach.
+We rejected it for the same reason. It also serves only agents on that computer.
 
 ## Consequences
 
-The server stops being purely a store. It still resolves no conflict — the conditional write means
-it never merges, and a lost race is reloaded and re-applied — but it now makes changes an agent
-asked for. `CONTEXT.md` says so in its definition of the Daily Sync Server.
+The server now makes changes requested by agents. It still does not merge conflicts. If another
+write changes the revision first, the server reloads the snapshot and applies the operation again.
+`CONTEXT.md` includes this behavior in its definition of the Daily Sync Server.
 
-The server image carries `packages/core`, and a snapshot version bump in the app now needs a server
-release before agents can write again. The release tooling counts changes to `packages/core` as
-pending for the server so this cannot be forgotten.
+The server image includes `packages/core`. When the app adds a snapshot version, the server needs
+a release before agents can write again. Release tools count changes to `packages/core` as pending
+server changes.
 
-An agent never moves the data's version. If the stored snapshot is newer than the server knows,
-tools refuse and ask for a server upgrade; if it is older, tools read and refuse to write until the
-Macs are updated. The server is upgraded by hand and the Macs by their updater, and a version raised
-by an agent would stop sync on a Mac nobody was looking at.
+An agent never changes the snapshot version. If the stored version is newer than the server supports,
+tools refuse access and ask for a server upgrade. If it is older, tools allow reads but refuse writes
+until the Macs are updated. People upgrade the server manually; Macs use the app updater. Letting
+an agent raise the version could stop sync on an unattended Mac.
 
-Writes are serialised in the server, and each is a whole-snapshot write, as a Mac's is. That is the
-right cost at a single person's data size, for the same reason ADR 0003 gives for holding every task
-in memory; the size at which it stops being right is a new decision with a measurement in front of
-it.
+The server runs writes one at a time. Each write replaces the whole snapshot, just as a Mac's write
+does. This cost is acceptable for one person's data, for the same reason given in ADR 0003. A larger
+data size will need a new decision based on measurements.
 
-Agents exist only for people who run a server. iCloud and no-sync users get none.
+Agents require a Daily Sync Server. They are not available with iCloud or without sync.

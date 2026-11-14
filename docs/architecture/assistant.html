@@ -182,12 +182,12 @@ a { color: var(--mac); }
 <main>
 
 <h1>The Daily Assistant</h1>
-<p class="lead">The Assistant lives inside the app: its agent loop runs in Electron's main process, and its model is a remote OpenAI-compatible API or a local llama-server. Its tools use the app's local <code>WorkStorage</code>, so changes follow the same path as manual edits. For agents, see <a href="agents.html">the other diagram</a>.</p>
+<p class="lead">The Assistant runs inside the app. Its agent loop runs in Electron's main process. Its language model (LLM) uses a remote OpenAI-compatible API or a local llama-server. Its tools use the app's local <code>WorkStorage</code>. Changes follow the same path as manual edits. For agents, see <a href="agents.html">the agents diagram</a>.</p>
 
-<div class="callout">The key idea: <b>the model only proposes calls, and <code>AIController</code> runs them</b>. Every call goes through a schema check and <code>policyHook</code>; a destructive one waits for Confirm in the window. The person sees only what the model hands to the <code>respond</code> tool, which ends the turn. Writes land in the local SQLite, and sync and the other windows hear about them from the same <code>notifyLocalChange</code> a manual edit fires.</div>
+<div class="callout"><b>The model requests tool calls. <code>AIController</code> runs them.</b> Each call passes through <code>policyHook</code> and a schema check, which checks the argument rules. A destructive call, such as a delete, waits for Confirm in the window. The person sees only the text the model sends to <code>respond</code>. This tool ends the turn. Writes go to local SQLite. The same <code>notifyLocalChange</code> used by manual edits tells sync and the other windows about the changes.</div>
 
 <h2>Overview</h2>
-<p class="sub">Everything except the LLM, web pages and the Provider runs in one process on the Mac. The thick orange line is the path of task data.</p>
+<p class="sub">Everything except the LLM, web pages, and sync provider runs in one process on the Mac. The thick orange line shows how task data moves.</p>
 
 <div class="card scroll">
 <svg class="overview" viewBox="0 44 1400 750" role="img" aria-label="Architecture of the Assistant">
@@ -208,7 +208,7 @@ a { color: var(--mac); }
 
   <rect class="box mac" x="44" y="104" width="290" height="270" rx="12"/>
   <text class="t" x="58" y="124">Assistant window  <tspan class="m mu">#/assistant</tspan></text>
-  <text x="58" y="148">AssistantView — the chat</text>
+  <text x="58" y="148">AssistantView: the chat</text>
   <text x="58" y="166"><tspan class="m">ai.store</tspan> + <tspan class="m">useAiStreaming</tspan></text>
   <text x="58" y="184">turn steps: reasoning, calls, result</text>
   <text class="grp" x="58" y="212">invokes</text>
@@ -222,7 +222,7 @@ a { color: var(--mac); }
   <text x="72" y="346"><tspan class="m">ToolConfirmationCard</tspan>: Confirm / Cancel</text>
 
   <rect class="box mac" x="44" y="420" width="290" height="160" rx="12"/>
-  <text class="t" x="58" y="440">Main window (and the rest)</text>
+  <text class="t" x="58" y="440">Main window and other windows</text>
   <text x="58" y="462">board, calendar, task editor</text>
   <text class="m" x="58" y="484">storageChanges.store</text>
   <text x="58" y="504"><tspan class="m">storage:on-changed</tspan> →</text>
@@ -235,27 +235,27 @@ a { color: var(--mac); }
   <text x="58" y="654"><tspan class="m">ai:event</tspan> and confirmations go to</text>
   <text x="58" y="672">the Assistant window when it is</text>
   <text x="58" y="690">open, otherwise to the main one</text>
-  <text x="58" y="716"><tspan class="m">storage:changed</tspan> — to every window</text>
-  <text class="mu" x="58" y="744">window.BridgeIPC — the only bridge</text>
+  <text x="58" y="716"><tspan class="m">storage:changed</tspan>: to every window</text>
+  <text class="mu" x="58" y="744">window.BridgeIPC: the only bridge</text>
   <text class="mu" x="58" y="760">between renderer and main</text>
 
   <rect class="box mcp" x="464" y="104" width="300" height="336" rx="12"/>
   <text class="t" x="478" y="124">AIController · agent loop</text>
   <text x="478" y="146"><tspan class="m">sendMutex</tspan>: one turn at a time</text>
-  <text x="478" y="164">one system prompt — no tiers</text>
+  <text x="478" y="164">one system prompt for all models</text>
   <text x="478" y="182">tools: shared set + respond, read_url</text>
   <text x="478" y="200">tool_choice: required (auto for</text>
   <text x="478" y="218">reasoning models)</text>
   <text class="grp" x="478" y="244">up to 10 iterations</text>
   <text x="478" y="262">① transformContext → history</text>
-  <text x="478" y="280">② LLM, streamed deltas → ai:event</text>
+  <text x="478" y="280">② LLM, streamed chunks → ai:event</text>
   <text x="478" y="298">③ tool_calls → before → execute → after</text>
   <text x="478" y="316">④ result → history as role: tool</text>
   <text x="478" y="334">⑤ <tspan class="m">respond</tspan> → the answer, turn ends</text>
   <text class="mu" x="478" y="354">no tool_calls → the text is the answer</text>
   <text class="grp" x="478" y="380">at the end</text>
   <text x="478" y="398">TurnBuilder → persistTurn</text>
-  <text class="mu" x="478" y="418">cancel / error → history rolls back</text>
+  <text class="mu" x="478" y="418">cancel / error → restore history</text>
 
   <rect class="box plain" x="784" y="104" width="200" height="158" rx="12"/>
   <text class="t" x="798" y="124">HookChain</text>
@@ -268,11 +268,11 @@ a { color: var(--mac); }
 
   <rect class="box warn" x="784" y="300" width="200" height="144" rx="12"/>
   <text class="t" x="798" y="320">policyHook</text>
-  <text x="798" y="342">ordinary → pass</text>
+  <text x="798" y="342">other calls → pass</text>
   <text x="798" y="360">isDestructive → Confirm</text>
   <text x="798" y="378">read_url → Confirm, unless</text>
   <text x="798" y="396">autoApprove or cached</text>
-  <text x="798" y="414">30 s unanswered → declined</text>
+  <text x="798" y="414">no answer in 30 s → declined</text>
   <text class="mu" x="798" y="433">declined → error to the model</text>
 
   <rect class="box oauth" x="464" y="464" width="300" height="110" rx="12"/>
@@ -297,14 +297,14 @@ a { color: var(--mac); }
   <text class="t" x="492" y="688">SQLite (local)</text>
   <text x="492" y="708">tasks, tags, projects, … → sync</text>
   <text class="m" x="492" y="728">ai_sessions · ai_turns · ai_steps</text>
-  <text class="mu" x="492" y="746">chat history — this Mac only</text>
+  <text class="mu" x="492" y="746">chat history: this Mac only</text>
 
   <rect class="box mac" x="784" y="598" width="200" height="170" rx="12"/>
   <text class="t" x="798" y="618">SyncEngine</text>
   <text x="798" y="640">requestPush() → debounce</text>
   <text x="798" y="658">pull → LWW → push</text>
   <text x="798" y="682">an Assistant edit syncs</text>
-  <text x="798" y="700">like any manual one</text>
+  <text x="798" y="700">like a manual edit</text>
   <text class="mu" x="798" y="728">with no sync it stays</text>
   <text class="mu" x="798" y="746">on this Mac only</text>
 
@@ -318,25 +318,25 @@ a { color: var(--mac); }
 
   <rect class="box llm" x="1114" y="292" width="242" height="148" rx="12"/>
   <text class="t" x="1128" y="312">Local: llama-server</text>
-  <text x="1128" y="334">spawned on 127.0.0.1, a free port</text>
+  <text x="1128" y="334">starts on 127.0.0.1, a free port</text>
   <text x="1128" y="352">a GGUF model from the catalog</text>
   <text x="1128" y="370">the same OpenAI-compatible client</text>
   <text x="1128" y="388">compat: tools in the prompt,</text>
-  <text x="1128" y="406">calls parsed from the text</text>
+  <text x="1128" y="406">reads calls from the reply</text>
   <text class="mu" x="1128" y="428">unloaded when idle (15m)</text>
 
   <rect class="box plain" x="1114" y="464" width="242" height="110" rx="12"/>
   <text class="t" x="1128" y="484">Internet</text>
   <text x="1128" y="506">pages for <tspan class="m">read_url</tspan></text>
-  <text class="mu" x="1128" y="528">only on an explicit call</text>
+  <text class="mu" x="1128" y="528">only when the model calls it</text>
   <text class="mu" x="1128" y="546">and with permission</text>
 
   <rect class="box proto" x="1114" y="598" width="242" height="170" rx="12"/>
   <text class="t" x="1128" y="618">Provider</text>
   <text x="1128" y="640">Daily Sync Server or iCloud</text>
   <text x="1128" y="664">other Macs get the edit</text>
-  <text x="1128" y="682">through an ordinary sync</text>
-  <text class="mu" x="1128" y="710">agents see it too —</text>
+  <text x="1128" y="682">through normal sync</text>
+  <text class="mu" x="1128" y="710">agents also see it</text>
   <text class="mu" x="1128" y="728">in the server's snapshot</text>
 
   <line class="arrow" x1="336" y1="200" x2="462" y2="200" marker-start="url(#ah)" marker-end="url(#ah)"/>
@@ -374,7 +374,7 @@ a { color: var(--mac); }
 </div>
 
 <h2>One Assistant turn</h2>
-<p class="sub">Example: "find the report task and delete it". Three loop iterations: a search, a delete behind a confirmation, and the answer through <code>respond</code>.</p>
+<p class="sub">Example: "find the report task and delete it". The loop runs three times: search, delete with confirmation, and answer through <code>respond</code>.</p>
 
 <div class="card">
 <div class="seq" style="--n:5">
@@ -394,13 +394,13 @@ a { color: var(--mac); }
 
     <div class="phase">start the turn</div>
     <div class="row"><span class="num">1</span>
-      <div class="msg" style="--a:1;--b:2"><span class="l">ai:send-message("…")</span><i class="ln"></i><span class="d">the invoke waits for the whole turn</span></div>
+      <div class="msg" style="--a:1;--b:2"><span class="l">ai:send-message("…")</span><i class="ln"></i><span class="d">the IPC call waits until the turn ends</span></div>
     </div>
     <div class="row"><span class="num">2</span>
       <div class="self lane-ctl" style="--a:2;--w:1.3"><b>Preparation</b><code>sendMutex.tryLock</code> (a second turn → "already processing") · <code>settings.ai.enabled</code> · compatMode → tool_choice · history.push(user) · <code>turn_started</code></div>
     </div>
 
-    <div class="phase">iteration 1 — a read</div>
+    <div class="phase">iteration 1: a read</div>
     <div class="row"><span class="num">3</span>
       <div class="self lane-ctl" style="--a:2"><b>transformContext</b>Compactor: over 30 messages → summary + the last 16</div>
     </div>
@@ -408,7 +408,7 @@ a { color: var(--mac); }
       <div class="msg" style="--a:2;--b:3"><span class="l">chat(system + history, tools, tool_choice)</span><i class="ln"></i></div>
     </div>
     <div class="row"><span class="num">5</span>
-      <div class="msg rtl back" style="--a:1;--b:3"><span class="l">deltas → ai:event model_*_delta</span><i class="ln"></i><span class="d">reasoning and content stream into the window; compat mode hides reasoning</span></div>
+      <div class="msg rtl back" style="--a:1;--b:3"><span class="l">chunks → ai:event model_*_delta</span><i class="ln"></i><span class="d">the window receives reasoning and content as they arrive; compat mode hides reasoning</span></div>
     </div>
     <div class="row"><span class="num">6</span>
       <div class="msg rtl back" style="--a:2;--b:3"><span class="l">tool_calls: [list_tasks {search}]</span><i class="ln"></i></div>
@@ -423,7 +423,7 @@ a { color: var(--mac); }
       <div class="msg rtl back" style="--a:2;--b:5"><span class="l">ToolResult → history (role: tool)</span><i class="ln"></i><span class="d">+ ai:event tool_started / tool_finished to the window</span></div>
     </div>
 
-    <div class="phase">iteration 2 — a destructive call</div>
+    <div class="phase">iteration 2: a destructive call</div>
     <div class="row"><span class="num">10</span>
       <div class="msg rtl back" style="--a:2;--b:3"><span class="l">tool_calls: [delete_task]</span><i class="ln"></i></div>
     </div>
@@ -434,37 +434,37 @@ a { color: var(--mac); }
       <div class="msg rtl" style="--a:1;--b:2"><span class="l">ai:confirmation-required</span><i class="ln"></i><span class="d">ToolConfirmationCard: title, summary, details from describeToolCall</span></div>
     </div>
     <div class="row"><span class="num">13</span>
-      <div class="self lane-ui" style="--a:1"><b>The person decides</b>Confirm → pass · Cancel or 30 s of silence → skip, and the model gets "User declined the action"</div>
+      <div class="self lane-ui" style="--a:1"><b>The person decides</b>Confirm → pass. Cancel or no answer in 30 s → skip and send "User declined the action" to the model.</div>
     </div>
     <div class="row"><span class="num">14</span>
       <div class="msg" style="--a:1;--b:2"><span class="l">ai:confirm-tool-call(id)</span><i class="ln"></i></div>
     </div>
     <div class="row"><span class="num">15</span>
-      <div class="msg hot" style="--a:2;--b:5"><span class="l">execute → ctx.workStorage.deleteTask(id, source)</span><i class="ln"></i><span class="d">sets deletedAt; search index and relations update, one afterWrite</span></div>
+      <div class="msg hot" style="--a:2;--b:5"><span class="l">execute → ctx.workStorage.deleteTask(id, source)</span><i class="ln"></i><span class="d">sets deletedAt, updates the search index and relations, and calls afterWrite once</span></div>
     </div>
     <div class="row"><span class="num">16</span>
       <div class="self lane-db" style="--a:5"><b>notifyLocalChange</b><code>storage:changed</code> → every window (the task leaves the board) · <code>requestPush()</code> → sync</div>
     </div>
 
-    <div class="phase">iteration 3 — the answer</div>
+    <div class="phase">iteration 3: the answer</div>
     <div class="row"><span class="num">17</span>
-      <div class="msg rtl back" style="--a:2;--b:3"><span class="l">tool_calls: [respond {text}]</span><i class="ln"></i><span class="d">intercepted: no hooks, no executor; the text is the final answer</span></div>
+      <div class="msg rtl back" style="--a:2;--b:3"><span class="l">tool_calls: [respond {text}]</span><i class="ln"></i><span class="d">AIController handles this call directly, without hooks or the executor; the text is the final answer</span></div>
     </div>
     <div class="row"><span class="num">18</span>
       <div class="msg rtl back" style="--a:1;--b:2"><span class="l">ai:event turn_finished · {message, toolCalls}</span><i class="ln"></i></div>
     </div>
     <div class="row"><span class="num">19</span>
-      <div class="msg" style="--a:2;--b:5"><span class="l">persistTurn → appendAiTurn</span><i class="ln"></i><span class="d">ai_sessions / ai_turns / ai_steps, then compactor.refresh; never in the snapshot</span></div>
+      <div class="msg" style="--a:2;--b:5"><span class="l">persistTurn → appendAiTurn</span><i class="ln"></i><span class="d">writes ai_sessions / ai_turns / ai_steps, then calls compactor.refresh; history stays out of the snapshot</span></div>
     </div>
   </div>
 </div>
 </div>
 
-<h2>Tools, modes, comparison</h2>
+<h2>Tools, modes, and agents</h2>
 <div class="grid2">
   <div class="card">
     <h3>22 tools</h3>
-    <div style="display:flex;gap:14px;font-size:12px;color:var(--muted)"><span><span class="chip x">…</span> destructive — Confirm</span><span><span class="chip e">…</span> network</span><span><span class="chip m">…</span> protocol</span></div>
+    <div style="display:flex;gap:14px;font-size:12px;color:var(--muted)"><span><span class="chip x">…</span> destructive: Confirm</span><span><span class="chip e">…</span> network</span><span><span class="chip m">…</span> protocol</span></div>
     <div class="cat">tasks</div>
     <div class="chips">
       <span class="chip">list_tasks</span><span class="chip">get_task</span><span class="chip">save_task</span><span class="chip x">delete_task</span>
@@ -493,22 +493,22 @@ a { color: var(--mac); }
     <div class="chips">
       <span class="chip">get_attachment</span><span class="chip">save_attachment</span><span class="chip x">delete_attachment</span><span class="chip e">read_url</span><span class="chip m">respond</span>
     </div>
-    <p style="margin:10px 0 0;color:var(--muted);font-size:13px">The 20 tools above (tasks through attachments) are shared with MCP through <code>@daily/tools</code>. <code>read_url</code> and <code>respond</code> belong to the Assistant.</p>
+    <p style="margin:10px 0 0;color:var(--muted);font-size:13px">The Assistant and MCP agents share the 20 tools from tasks through attachments. These tools come from <code>@daily/tools</code>. Only the Assistant has <code>read_url</code> and <code>respond</code>.</p>
   </div>
 
   <div class="card">
-    <h3>How tool_choice and compat mode are chosen</h3>
+    <h3>How the Assistant chooses tool_choice and compat mode</h3>
     <table class="cmp">
       <tr><th>model</th><th>when</th><th>tool_choice</th></tr>
-      <tr><td>ordinary</td><td>remote, or local with native tool calls</td><td>required</td></tr>
+      <tr><td>standard</td><td>remote, or local with native tool calls</td><td>required</td></tr>
       <tr><td>reasoning</td><td>o-series, deepseek-r/v4+, qwq, *thinking*</td><td>auto</td></tr>
-      <tr><td>compat</td><td>local, catalog marks its tools "compat"</td><td>none — schemas go in the prompt as text</td></tr>
+      <tr><td>compat</td><td>local, catalog marks its tools "compat"</td><td>none: schemas go in the prompt as text</td></tr>
     </table>
     <ul style="margin-top:12px">
-      <li>One system prompt and one tool set for every model — no tiers, no compact schemas, no tier-based <code>tool_choice</code>.</li>
+      <li>Every model uses the same system prompt and tool set. There are no model tiers, shortened schemas, or tier-based <code>tool_choice</code>.</li>
       <li>Reasoning models reject <code>required</code>, so they get <code>auto</code>.</li>
-      <li>Compat mode is for a local model without native tool calls: the schemas go into the system prompt as text, and calls are parsed from the reply.</li>
-      <li>Under <code>auto</code> the model may answer in plain text, and that is a final answer too.</li>
+      <li>Compat mode supports local models without native tool calls. The system prompt contains the schemas as text. The Assistant reads calls from the reply.</li>
+      <li>With <code>auto</code>, the model can answer in plain text. This also ends the turn.</li>
     </ul>
   </div>
 </div>
@@ -518,30 +518,30 @@ a { color: var(--mac); }
   <table class="cmp">
     <tr><th></th><th>Assistant (this diagram)</th><th>Agent over MCP</th></tr>
     <tr><td>runs in</td><td>Daily's main process on a Mac</td><td>the Daily Sync Server</td></tr>
-    <tr><td>reaches the work</td><td>local <code>WorkStorage</code> → SQLite</td><td>snapshot → in-memory core → conditional write</td></tr>
-    <tr><td>whose model</td><td>the one set in Daily: a remote API or llama-server</td><td>the agent's own (Claude, Codex)</td></tr>
+    <tr><td>reads and changes data</td><td>local <code>WorkStorage</code> → SQLite</td><td>snapshot → core in memory → write if the revision still matches</td></tr>
+    <tr><td>model</td><td>the model set in Daily: a remote API or llama-server</td><td>the agent's own model (Claude, Codex)</td></tr>
     <tr><td>confirmation</td><td>every destructive call, 30 s</td><td>once, when it connects, with a code on a Mac</td></tr>
     <tr><td>tools</td><td>22: the shared 20 plus <code>read_url</code> and <code>respond</code></td><td>20 shared tools: 6 reads, 7 writes, 7 deletes</td></tr>
-    <tr><td>history</td><td><code>ai_sessions</code> in local SQLite, not synced</td><td>kept by the agent</td></tr>
-    <tr><td>available</td><td>while the Mac is on and Daily is open</td><td>whenever the server is up</td></tr>
+    <tr><td>history</td><td><code>ai_sessions</code> in local SQLite, not synced</td><td>the agent stores it</td></tr>
+    <tr><td>available</td><td>while the Mac is on and Daily is open</td><td>while the server runs</td></tr>
   </table>
 </div>
 
 <div class="card" style="margin-top:16px">
-  <h3>Where it lives in the code</h3>
+  <h3>Code locations</h3>
   <table class="files">
     <tr><td>apps/desktop/src/main/ai/AIController.ts</td><td>the <code>sendMessage</code> loop, tool_choice, confirmations, persistTurn</td></tr>
     <tr><td>apps/desktop/src/main/ai/hooks/</td><td>HookChain: transformContext, before/afterToolCall</td></tr>
     <tr><td>apps/desktop/src/main/ai/policy/</td><td>policyHook, describeToolCall for the card, the 30 s timeout</td></tr>
-    <tr><td>apps/desktop/src/main/ai/tools/</td><td>registry/ (22 tools: <code>@daily/tools</code> wrapped + <code>respond</code>, <code>read_url</code>), ToolExecutor.ts, compat.ts (the compat parser)</td></tr>
-    <tr><td>packages/tools/</td><td>the shared 20 tools, run the same way by an MCP agent</td></tr>
+    <tr><td>apps/desktop/src/main/ai/tools/</td><td>registry/ (22 tools: adapters for <code>@daily/tools</code> + <code>respond</code>, <code>read_url</code>), ToolExecutor.ts, compat.ts (reads compat calls)</td></tr>
+    <tr><td>packages/tools/</td><td>the 20 shared tools; MCP agents run them in the same way</td></tr>
     <tr><td>apps/desktop/src/main/ai/clients/</td><td>OpenAiCompatibleClient, RemoteAiClient, LocalAiClient + LlamaServer</td></tr>
-    <tr><td>apps/desktop/src/main/ai/memory/</td><td>ConversationCompactor, restoring history at startup</td></tr>
-    <tr><td>apps/desktop/src/main/ai/web/</td><td>SafeWebFetcher, read limits, the untrusted wrapper</td></tr>
-    <tr><td>apps/desktop/src/main/app.ts · setup/ipc/ai.ts</td><td>creating AIController, the <code>ai:*</code> channels, where events are sent</td></tr>
+    <tr><td>apps/desktop/src/main/ai/memory/</td><td>ConversationCompactor; restores history when the app starts</td></tr>
+    <tr><td>apps/desktop/src/main/ai/web/</td><td>SafeWebFetcher, read limits, marking web text as untrusted</td></tr>
+    <tr><td>apps/desktop/src/main/app.ts · setup/ipc/ai.ts</td><td>creates AIController, sets up <code>ai:*</code> channels, and sends events</td></tr>
     <tr><td>packages/core/src/storage/StorageController.ts</td><td><code>notifyLocalChange</code> → windows + <code>requestPush</code>; <code>appendAiTurn</code></td></tr>
-    <tr><td>packages/core/src/storage/models/AISessionModel.ts</td><td>the ai_sessions, ai_turns and ai_steps tables</td></tr>
-    <tr><td>apps/desktop/src/renderer/src/stores/ai/</td><td>ai.store, useAiStreaming — the chat and turn steps</td></tr>
+    <tr><td>packages/core/src/storage/models/AISessionModel.ts</td><td>the ai_sessions, ai_turns, and ai_steps tables</td></tr>
+    <tr><td>apps/desktop/src/renderer/src/stores/ai/</td><td>ai.store, useAiStreaming: the chat and turn steps</td></tr>
     <tr><td>apps/desktop/src/renderer/src/ui/views/Assistant/</td><td>AssistantView, ToolConfirmationCard</td></tr>
   </table>
 </div>

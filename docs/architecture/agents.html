@@ -165,12 +165,12 @@ a { color: var(--mac); }
 <main>
 
 <h1>Agents and data in Daily</h1>
-<p class="lead">An agent — Claude Code, the Claude app on a phone, Codex — never talks to a Mac. It reaches the Daily Sync Server over MCP, gets access through OAuth, and a person approves it on one of their Macs. The server holds all the work as one opaque snapshot and opens it only for the length of a tool call.</p>
+<p class="lead">Agents such as Claude Code, the Claude app on a phone, and Codex never connect to a Mac. They connect to the Daily Sync Server through MCP and request access through OAuth. A person approves access on one of their Macs. The server stores all work in one snapshot. It reads the data inside only during a tool call.</p>
 
-<div class="callout">The key idea: <b>the server keeps no task tables</b>. For each tool call it starts <code>packages/core</code> on an in-memory SQLite, loads the snapshot into it, runs the tool through the same services the app runs, and writes the snapshot back with a conditional write at the <code>revision</code> it read. Macs learn about it from the <code>/v1/revision</code> long-poll and pull the change with an ordinary sync (LWW).</div>
+<div class="callout"><b>The server keeps no task tables.</b> For each tool call, it starts <code>packages/core</code> with a temporary SQLite database in memory. It loads the snapshot and runs the tool through the same services as the app. It writes the snapshot back only if the <code>revision</code> has not changed since the read. Macs wait for changes through the <code>/v1/revision</code> long-poll request. They then fetch the change through normal sync. Sync uses Last-Write-Wins (LWW): the latest update wins.</div>
 
 <h2>Overview</h2>
-<p class="sub">Who talks to whom, and where the data lives. The thick orange line is the path of task data.</p>
+<p class="sub">The diagram shows connections and data storage. The thick orange line shows the path of task data.</p>
 
 <div class="card scroll">
 <svg class="overview" viewBox="0 44 1400 750" role="img" aria-label="Architecture: Mac, Daily Sync Server, agents">
@@ -194,8 +194,8 @@ a { color: var(--mac); }
 
   <rect class="box mac" x="58" y="136" width="262" height="112" rx="10"/>
   <text class="t" x="72" y="156">ServerProviderService</text>
-  <text x="72" y="178">probe: <tspan class="m">GET /v1/revision</tspan> (hold)</text>
-  <text x="72" y="196">revision moved → sync cycle</text>
+  <text x="72" y="178">wait: <tspan class="m">GET /v1/revision</tspan> (hold)</text>
+  <text x="72" y="196">revision changed → sync cycle</text>
   <text x="72" y="214"><tspan class="m">pendingAgentRequest</tspan> → approval card</text>
   <text x="72" y="232">open window · approve · revoke</text>
 
@@ -210,7 +210,7 @@ a { color: var(--mac); }
   <text class="mu" x="72" y="409">packages/core</text>
 
   <rect class="box snap" x="58" y="436" width="262" height="66" rx="10"/>
-  <text class="t" x="72" y="456">SQLite — source of truth</text>
+  <text class="t" x="72" y="456">SQLite: source of truth</text>
   <text x="72" y="475">a full copy on every Mac</text>
   <text class="mu" x="72" y="492">soft delete · LWW by updatedAt</text>
 
@@ -267,7 +267,7 @@ a { color: var(--mac); }
   <text class="t" x="758" y="440">AgentWorkspace (per call)</text>
   <text x="758" y="460">① readSnapshot → doc + revision N</text>
   <text x="758" y="477">② in-memory SQLite + migrations</text>
-  <text x="758" y="494">③ createStorageCore — as in the app</text>
+  <text x="758" y="494">③ createStorageCore (same as app)</text>
   <text x="758" y="511">④ tool.run(input)</text>
   <text x="758" y="528">⑤ buildSnapshot → write at N</text>
   <text class="mu" x="758" y="550">write: mutex · up to 3 attempts</text>
@@ -276,11 +276,11 @@ a { color: var(--mac); }
   <text class="t" x="748" y="620">Server store · SQLite on disk</text>
 
   <rect class="box snap" x="478" y="628" width="250" height="128" rx="10"/>
-  <text class="t" x="492" y="648">snapshot — one row</text>
+  <text class="t" x="492" y="648">snapshot: one row</text>
   <text class="m" x="492" y="668">revision  +1 on every write</text>
   <text class="m" x="492" y="685">version   Snapshot.version</text>
   <text class="m" x="492" y="702">hash</text>
-  <text class="m" x="492" y="719">document  opaque JSON</text>
+  <text class="m" x="492" y="719">document  JSON stored as one value</text>
   <text class="m" x="492" y="736">written_by_device_id</text>
 
   <text class="m" x="748" y="650">devices  (+ time_zone)</text>
@@ -289,7 +289,7 @@ a { color: var(--mac); }
   <text class="m" x="748" y="699">agent_authorizations</text>
   <text class="m" x="748" y="716">agent_tokens  (hashes)</text>
   <text class="m" x="748" y="733">agents  (device_id, revoked)</text>
-  <text class="m" x="748" y="750">assets/ — file bytes</text>
+  <text class="m" x="748" y="750">assets/: file bytes</text>
 
   <rect class="box browser" x="1114" y="104" width="242" height="150" rx="12"/>
   <text class="t" x="1128" y="124">Browser</text>
@@ -299,26 +299,26 @@ a { color: var(--mac); }
   <text class="m" x="1128" y="204">→ redirect_uri?code=…</text>
 
   <rect class="box agent" x="1114" y="290" width="242" height="180" rx="12"/>
-  <text class="t" x="1128" y="310">Agents — MCP clients</text>
+  <text class="t" x="1128" y="310">Agents: MCP clients</text>
   <text x="1128" y="332">Claude Code</text>
   <text x="1128" y="350">Claude app (phone included)</text>
   <text x="1128" y="368">Codex</text>
   <text class="mu" x="1128" y="392">client_id = CIMD document URL</text>
-  <text class="mu" x="1128" y="412">access token — 1 hour</text>
-  <text class="mu" x="1128" y="430">refresh rotates on every</text>
-  <text class="mu" x="1128" y="448">exchange; reusing one → revoke</text>
+  <text class="mu" x="1128" y="412">access token: 1 hour</text>
+  <text class="mu" x="1128" y="430">new refresh token on each use;</text>
+  <text class="mu" x="1128" y="448">reuse an old one → revoke agent</text>
 
   <rect class="box plain" x="1094" y="510" width="282" height="274" rx="14"/>
   <text class="t" x="1114" y="534">Legend</text>
   <rect class="box mac" x="1114" y="550" width="16" height="12" rx="3"/><text x="1138" y="560">Mac processes</text>
   <rect class="box proto" x="1114" y="572" width="16" height="12" rx="3"/><text x="1138" y="582">sync protocol (devices)</text>
-  <rect class="box oauth" x="1114" y="594" width="16" height="12" rx="3"/><text x="1138" y="604">OAuth — granting an agent access</text>
-  <rect class="box mcp" x="1114" y="616" width="16" height="12" rx="3"/><text x="1138" y="626">MCP — tool calls</text>
+  <rect class="box oauth" x="1114" y="594" width="16" height="12" rx="3"/><text x="1138" y="604">OAuth: give an agent access</text>
+  <rect class="box mcp" x="1114" y="616" width="16" height="12" rx="3"/><text x="1138" y="626">MCP: tool calls</text>
   <rect class="box snap" x="1114" y="638" width="16" height="12" rx="3"/><text x="1138" y="648">task data</text>
   <line class="arrow hot" x1="1114" y1="672" x2="1150" y2="672"/><text x="1160" y="676">task data path</text>
   <line class="arrow" x1="1114" y1="694" x2="1150" y2="694"/><text x="1160" y="698">request / response</text>
   <line class="arrow dash" x1="1114" y1="716" x2="1150" y2="716"/><text x="1160" y="720">redirect / opening</text>
-  <text class="mu" x="1114" y="748">iCloud and no sync get no agents:</text>
+  <text class="mu" x="1114" y="748">Agents need server sync:</text>
   <text class="mu" x="1114" y="765">you need your own server on a domain</text>
 
   <line class="arrow" x1="322" y1="182" x2="462" y2="182" marker-start="url(#ah)" marker-end="url(#ah)"/>
@@ -352,8 +352,8 @@ a { color: var(--mac); }
 </svg>
 </div>
 
-<h2>1. Connecting an agent — once</h2>
-<p class="sub">OAuth as the MCP specification describes it. Daily has no accounts and no passwords, so the proof of ownership is an approval on a bound Mac, inside an Agent window, after comparing a code. The agent belongs to the Mac that approved it.</p>
+<h2>1. Connect an agent once</h2>
+<p class="sub">Daily follows the MCP specification for OAuth. Daily has no accounts or passwords. To prove ownership, a person compares a code and approves access on a Mac linked to the server during an Agent window. The agent belongs to the Mac that approved it.</p>
 
 <div class="card">
 <div class="seq" style="--n:4">
@@ -374,10 +374,10 @@ a { color: var(--mac); }
       <div class="self lane-mac" style="--a:1"><b>Settings → Sync → Connect agent</b>IPC <code>sync-server:open-agent-window</code></div>
     </div>
     <div class="row"><span class="num">2</span>
-      <div class="msg" style="--a:1;--b:2"><span class="l">POST /v1/agents/window/open</span><i class="ln"></i><span class="d">one window per server, 5 minutes, tied to this Mac; a request still waiting → denied</span></div>
+      <div class="msg" style="--a:1;--b:2"><span class="l">POST /v1/agents/window/open</span><i class="ln"></i><span class="d">One window per server. It lasts 5 minutes and belongs to this Mac. Any request still waiting is denied.</span></div>
     </div>
 
-    <div class="phase">discovery</div>
+    <div class="phase">find server settings</div>
     <div class="row"><span class="num">3</span>
       <div class="msg rtl" style="--a:2;--b:4"><span class="l">POST /mcp  (no token)</span><i class="ln"></i></div>
     </div>
@@ -385,7 +385,7 @@ a { color: var(--mac); }
       <div class="msg back" style="--a:2;--b:4"><span class="l">401 · WWW-Authenticate: resource_metadata=…</span><i class="ln"></i></div>
     </div>
     <div class="row"><span class="num">5</span>
-      <div class="msg rtl" style="--a:2;--b:4"><span class="l">GET /.well-known/oauth-protected-resource/mcp · oauth-authorization-server</span><i class="ln"></i><span class="d">RFC 9728 + RFC 8414: the client learns authorize/token, CIMD and PKCE S256; there is no Dynamic Client Registration</span></div>
+      <div class="msg rtl" style="--a:2;--b:4"><span class="l">GET /.well-known/oauth-protected-resource/mcp · oauth-authorization-server</span><i class="ln"></i><span class="d">RFC 9728 + RFC 8414 give the client authorize/token URLs, CIMD (client metadata document) support, and PKCE S256 support. No Dynamic Client Registration (DCR).</span></div>
     </div>
 
     <div class="phase">access request</div>
@@ -393,27 +393,27 @@ a { color: var(--mac); }
       <div class="msg rtl back" style="--a:3;--b:4"><span class="l">opens /oauth/authorize?client_id&amp;code_challenge&amp;state…</span><i class="ln"></i></div>
     </div>
     <div class="row"><span class="num">7</span>
-      <div class="msg rtl" style="--a:2;--b:3"><span class="l">GET /oauth/authorize</span><i class="ln"></i><span class="d">no window → 403; a request already waiting → 409; fetches the CIMD at the client_id URL (private addresses refused)</span></div>
+      <div class="msg rtl" style="--a:2;--b:3"><span class="l">GET /oauth/authorize</span><i class="ln"></i><span class="d">No window → 403. A request is already waiting → 409. The server fetches the CIMD from the client_id URL. It rejects private addresses.</span></div>
     </div>
     <div class="row"><span class="num">8</span>
-      <div class="self lane-srv" style="--a:2"><b>createAgentAuthorization</b><code>agent_requests</code>: 6-digit code, 5-minute TTL, <code>device_id</code> = the window's Mac · <code>agent_authorizations</code>: redirect_uri, state, code_challenge</div>
+      <div class="self lane-srv" style="--a:2"><b>createAgentAuthorization</b><code>agent_requests</code>: 6-digit code, expires after 5 minutes, <code>device_id</code> = the window's Mac · <code>agent_authorizations</code>: redirect_uri, state, code_challenge</div>
     </div>
     <div class="row"><span class="num">9</span>
-      <div class="msg back" style="--a:2;--b:3"><span class="l">303 → /oauth/consent?id=…</span><i class="ln"></i><span class="d">a page with the code "123 456" that reloads itself</span></div>
+      <div class="msg back" style="--a:2;--b:3"><span class="l">303 → /oauth/consent?id=…</span><i class="ln"></i><span class="d">The page shows the code "123 456" and reloads itself.</span></div>
     </div>
 
     <div class="phase">approval on the Mac</div>
     <div class="row"><span class="num">10</span>
-      <div class="msg rtl back" style="--a:1;--b:2"><span class="l">GET /v1/revision → pendingAgentRequest: true</span><i class="ln"></i><span class="d">the held long-poll answers as soon as a request waits on this Mac's window</span></div>
+      <div class="msg rtl back" style="--a:1;--b:2"><span class="l">GET /v1/revision → pendingAgentRequest: true</span><i class="ln"></i><span class="d">The waiting long-poll request returns as soon as an agent request reaches this Mac's window.</span></div>
     </div>
     <div class="row"><span class="num">11</span>
       <div class="msg" style="--a:1;--b:2"><span class="l">GET /v1/agents/pending</span><i class="ln"></i><span class="d">onAgentRequested → IPC <code>sync-server:agent-requested</code> → ApproveAgentModal</span></div>
     </div>
     <div class="row"><span class="num">12</span>
-      <div class="self lane-mac" style="--a:1"><b>The person compares the code</b>agent name, where it returns; for a local program, a warning that any program can claim to be Claude Code</div>
+      <div class="self lane-mac" style="--a:1"><b>The person compares the code</b>The dialog shows the agent name and return address. For a local program, it warns that any program can claim to be Claude Code.</div>
     </div>
     <div class="row"><span class="num">13</span>
-      <div class="msg" style="--a:1;--b:2"><span class="l">POST /v1/agents/approve {requestId, code, timeZone}</span><i class="ln"></i><span class="d">in one transaction: window owner → code → INSERT <code>agents</code>(device_id = this Mac) → the window closes</span></div>
+      <div class="msg" style="--a:1;--b:2"><span class="l">POST /v1/agents/approve {requestId, code, timeZone}</span><i class="ln"></i><span class="d">One transaction: check window owner → check code → INSERT <code>agents</code>(device_id = this Mac) → close window.</span></div>
     </div>
 
     <div class="phase">tokens</div>
@@ -421,20 +421,20 @@ a { color: var(--mac); }
       <div class="msg rtl" style="--a:2;--b:3"><span class="l">/oauth/consent reloads</span><i class="ln"></i></div>
     </div>
     <div class="row"><span class="num">15</span>
-      <div class="msg back" style="--a:2;--b:4"><span class="l">303 → redirect_uri?code&amp;state&amp;iss</span><i class="ln"></i><span class="d">a one-time authorization code goes back to the agent through the browser</span></div>
+      <div class="msg back" style="--a:2;--b:4"><span class="l">303 → redirect_uri?code&amp;state&amp;iss</span><i class="ln"></i><span class="d">The browser returns a single-use authorization code to the agent.</span></div>
     </div>
     <div class="row"><span class="num">16</span>
       <div class="msg rtl" style="--a:2;--b:4"><span class="l">POST /oauth/token  code + code_verifier</span><i class="ln"></i><span class="d">PKCE: the verifier's hash must match code_challenge</span></div>
     </div>
     <div class="row"><span class="num">17</span>
-      <div class="msg back" style="--a:2;--b:4"><span class="l">access (1 h) + refresh</span><i class="ln"></i><span class="d">only hashes are stored; refresh rotates, and reusing a spent one revokes the agent</span></div>
+      <div class="msg back" style="--a:2;--b:4"><span class="l">access (1 h) + refresh</span><i class="ln"></i><span class="d">The server stores only token hashes. Each refresh returns a new refresh token. Reusing a refresh token that was already used revokes the agent.</span></div>
     </div>
   </div>
 </div>
 </div>
 
-<h2>2. A tool call — every time</h2>
-<p class="sub">Example: an agent creates a task with <code>save_task</code>. Reads (<code>list_tasks</code> and the rest) take the same path without the mutex, in one attempt, and write nothing.</p>
+<h2>2. Run each tool call</h2>
+<p class="sub">Example: an agent creates a task with <code>save_task</code>. A mutex allows only one write at a time. Read tools such as <code>list_tasks</code> follow the same steps without the mutex. They make one attempt and write nothing.</p>
 
 <div class="card">
 <div class="seq" style="--n:5">
@@ -443,7 +443,7 @@ a { color: var(--mac); }
     <div class="lane-mcp"><b>POST /mcp</b><small>mcpRoute · handleMcpRequest</small></div>
     <div class="lane-ws"><b>AgentWorkspace</b><small>in-memory core</small></div>
     <div class="lane-store"><b>snapshot</b><small>server store</small></div>
-    <div class="lane-mac"><b>Macs</b><small>every bound Mac</small></div>
+    <div class="lane-mac"><b>Macs</b><small>every linked Mac</small></div>
   </div>
   <div class="seq-body">
     <div class="life lane-agent" style="--i:1"></div>
@@ -452,48 +452,48 @@ a { color: var(--mac); }
     <div class="life lane-store" style="--i:4"></div>
     <div class="life lane-mac" style="--i:5"></div>
 
-    <div class="phase">in</div>
+    <div class="phase">receive request</div>
     <div class="row"><span class="num">1</span>
-      <div class="msg" style="--a:1;--b:2"><span class="l">tools/call save_task · Bearer</span><i class="ln"></i><span class="d">JSON-RPC; MCP generations 2025-11-25 (initialize) and 2026-07-28 (stateless)</span></div>
+      <div class="msg" style="--a:1;--b:2"><span class="l">tools/call save_task · Bearer</span><i class="ln"></i><span class="d">JSON-RPC. MCP versions: 2025-11-25 (initialize) and 2026-07-28 (stateless).</span></div>
     </div>
     <div class="row"><span class="num">2</span>
-      <div class="self lane-mcp" style="--a:2"><b>verifyAgentAccessToken</b>Origin = issuer · token hash, unexpired, agent not revoked → <code>{agentId, deviceId, timeZone}</code> · <code>touchAgent</code> → last_used_at</div>
+      <div class="self lane-mcp" style="--a:2"><b>verifyAgentAccessToken</b>Check Origin = issuer and the token hash. Check that the token has not expired and the agent is not revoked → <code>{agentId, deviceId, timeZone}</code> · <code>touchAgent</code> → last_used_at</div>
     </div>
     <div class="row"><span class="num">3</span>
-      <div class="msg" style="--a:2;--b:3"><span class="l">runAgentTool → runInAgentWorkspace("write")</span><i class="ln"></i><span class="d">writes are serialised by one AsyncMutex for the whole server</span></div>
+      <div class="msg" style="--a:2;--b:3"><span class="l">runAgentTool → runInAgentWorkspace("write")</span><i class="ln"></i><span class="d">One AsyncMutex allows only one write at a time across the server.</span></div>
     </div>
 
-    <div class="phase">snapshot → live core</div>
+    <div class="phase">load snapshot into core</div>
     <div class="row"><span class="num">4</span>
       <div class="msg hot" style="--a:3;--b:4"><span class="l">readSnapshot()</span><i class="ln"></i></div>
     </div>
     <div class="row"><span class="num">5</span>
-      <div class="msg hot rtl back" style="--a:3;--b:4"><span class="l">document + revision N</span><i class="ln"></i><span class="d">no data → NO_DATA_YET; version newer than the server → SERVER_TOO_OLD; older → read only</span></div>
+      <div class="msg hot rtl back" style="--a:3;--b:4"><span class="l">document + revision N</span><i class="ln"></i><span class="d">No data → NO_DATA_YET. Snapshot version newer than the server → SERVER_TOO_OLD. Older version → read only.</span></div>
     </div>
     <div class="row"><span class="num">6</span>
-      <div class="self lane-ws" style="--a:3;--w:1.2"><b>Start the core</b>in-memory SQLite → <code>runMigrations</code> → <code>createStorageCore</code> on the agent's Mac clock → <code>upsertDocs(snapshot)</code></div>
+      <div class="self lane-ws" style="--a:3;--w:1.2"><b>Start the core</b>SQLite in memory → <code>runMigrations</code> → <code>createStorageCore</code> with the agent's Mac clock → <code>upsertDocs(snapshot)</code></div>
     </div>
     <div class="row"><span class="num">7</span>
-      <div class="self lane-ws" style="--a:3;--w:1.2"><b>tool.run(input, ctx)</b>the app's own services: task events, ordering, Backlog = no date (ADR 0002); "today" in the Mac's time zone</div>
+      <div class="self lane-ws" style="--a:3;--w:1.2"><b>tool.run(input, ctx)</b>Use the app's services for task events and ordering. Backlog = no date (ADR 0002). "Today" uses the Mac's time zone.</div>
     </div>
 
-    <div class="phase">back into the snapshot</div>
+    <div class="phase">save the snapshot</div>
     <div class="row"><span class="num">8</span>
-      <div class="msg hot" style="--a:3;--b:4"><span class="l">writeSnapshotIfUnchanged(built, N, deviceId)</span><i class="ln"></i><span class="d">buildSnapshot(loadAllDocs); same hash → no write; the version never moves</span></div>
+      <div class="msg hot" style="--a:3;--b:4"><span class="l">writeSnapshotIfUnchanged(built, N, deviceId)</span><i class="ln"></i><span class="d">buildSnapshot(loadAllDocs). Same hash → no write. The snapshot version never changes.</span></div>
     </div>
     <div class="row"><span class="num">9</span>
-      <div class="msg rtl back" style="--a:3;--b:4"><span class="l">ok → revision N+1 · or REVISION_CONFLICT</span><i class="ln"></i><span class="d">conflict → start over from the read (up to 3 times), then WRITE_CONFLICT; the server never merges</span></div>
+      <div class="msg rtl back" style="--a:3;--b:4"><span class="l">ok → revision N+1 · or REVISION_CONFLICT</span><i class="ln"></i><span class="d">On conflict, start again from the read (up to 3 times). Then return WRITE_CONFLICT. The server never merges data.</span></div>
     </div>
     <div class="row"><span class="num">10</span>
-      <div class="msg rtl back" style="--a:1;--b:3"><span class="l">result (JSON-RPC)</span><i class="ln"></i><span class="d">the in-memory database is closed and thrown away</span></div>
+      <div class="msg rtl back" style="--a:1;--b:3"><span class="l">result (JSON-RPC)</span><i class="ln"></i><span class="d">Close and remove the temporary database in memory.</span></div>
     </div>
 
     <div class="phase">Macs pull the change</div>
     <div class="row"><span class="num">11</span>
-      <div class="msg back" style="--a:4;--b:5"><span class="l">GET /v1/revision?knownRevision=N → N+1</span><i class="ln"></i><span class="d">the request waited up to 45 s and answers as soon as the revision moves</span></div>
+      <div class="msg back" style="--a:4;--b:5"><span class="l">GET /v1/revision?knownRevision=N → N+1</span><i class="ln"></i><span class="d">The request waits up to 45 s. It returns as soon as the revision changes.</span></div>
     </div>
     <div class="row"><span class="num">12</span>
-      <div class="msg hot rtl" style="--a:4;--b:5"><span class="l">runSyncCycle: GET /v1/snapshot</span><i class="ln"></i><span class="d">LWW merge into local SQLite → the renderer updates tasks; POST back only when the Mac has changes of its own</span></div>
+      <div class="msg hot rtl" style="--a:4;--b:5"><span class="l">runSyncCycle: GET /v1/snapshot</span><i class="ln"></i><span class="d">Merge into local SQLite with LWW → update tasks in the renderer. POST back only if the Mac has local changes.</span></div>
     </div>
   </div>
 </div>
@@ -503,59 +503,59 @@ a { color: var(--mac); }
 <div class="grid3">
   <div class="card">
     <h3>Agent tools</h3>
-    <div style="color:var(--muted);font-size:12px">read — one attempt, no write, <code>readOnlyHint: true</code></div>
+    <div style="color:var(--muted);font-size:12px">Read: one attempt, no write, <code>readOnlyHint: true</code></div>
     <div class="chips">
       <span class="chip r">list_tasks</span><span class="chip r">get_task</span><span class="chip r">get_attachment</span>
       <span class="chip r">list_projects</span><span class="chip r">list_milestones</span><span class="chip r">list_tags</span>
     </div>
-    <div style="color:var(--muted);font-size:12px">write — mutex, up to 3 attempts</div>
+    <div style="color:var(--muted);font-size:12px">Write: mutex, up to 3 attempts</div>
     <div class="chips">
       <span class="chip w">save_task</span><span class="chip w">save_project</span><span class="chip w">save_milestone</span>
       <span class="chip w">save_tag</span><span class="chip w">save_comment</span><span class="chip w">save_subtask</span><span class="chip w">save_attachment</span>
     </div>
-    <div style="color:var(--muted);font-size:12px">delete — soft, mutex, <code>destructiveHint: true</code></div>
+    <div style="color:var(--muted);font-size:12px">Delete: mark as deleted, mutex, <code>destructiveHint: true</code></div>
     <div class="chips">
       <span class="chip d">delete_task</span><span class="chip d">delete_project</span><span class="chip d">delete_milestone</span>
       <span class="chip d">delete_tag</span><span class="chip d">delete_comment</span><span class="chip d">delete_subtask</span><span class="chip d">delete_attachment</span>
     </div>
-    <p style="margin:0;color:var(--muted);font-size:13px">One set of 20, defined once in <code>@daily/tools</code> and shared with the Assistant (ADR 0006). Attachments are read from <code>assets/</code> on the server.</p>
+    <p style="margin:0;color:var(--muted);font-size:13px"><code>@daily/tools</code> defines all 20 tools once. Agents and the Assistant share them (ADR 0006). Tools read attachments from <code>assets/</code> on the server.</p>
   </div>
 
   <div class="card">
     <h3>Rules</h3>
     <ul>
-      <li>Agents exist only on a server with HTTPS and a trusted certificate, or on loopback. Self-signed, iCloud and no sync get none.</li>
-      <li>An agent never moves <code>Snapshot.version</code>: newer than the server — refused; older — read only until the Macs update.</li>
-      <li>A write is attributed to the agent's Mac (<code>written_by_device_id</code>), and "today" follows that Mac's time zone.</li>
-      <li>Revoking a device revokes its agents. A Child revokes its own, the Parent any.</li>
-      <li>The server resolves no conflict: a conditional write, and a lost race is reread and reapplied.</li>
+      <li>Agents require HTTPS with a trusted certificate, or a loopback server. Self-signed certificates, iCloud, and no sync do not support agents.</li>
+      <li>An agent never changes <code>Snapshot.version</code>. The server rejects newer versions. Older versions allow only reads until the Macs update.</li>
+      <li>Each write records the agent's Mac in <code>written_by_device_id</code>. "Today" uses that Mac's time zone.</li>
+      <li>Revoking a device also revokes its agents. A Child can revoke its own agents. The Parent can revoke any agent.</li>
+      <li>The server writes only if the revision is unchanged. If another write wins, it reads again and repeats the change without merging.</li>
     </ul>
   </div>
 
   <div class="card">
-    <h3>Not to be confused with</h3>
-    <p style="margin:0 0 10px">The in-app <b>Assistant</b> runs its agent loop in the main process (<code>apps/desktop/src/main/ai/</code>) and uses the app's local <code>WorkStorage</code>. Its tools need neither the sync server nor OAuth.</p>
-    <p style="margin:0;color:var(--muted);font-size:13px">An agent sees the work only through the server, so it works while every Mac sleeps (ADR 0004). See <a href="assistant.html">the Assistant's diagram</a>.</p>
+    <h3>The in-app Assistant</h3>
+    <p style="margin:0 0 10px">The in-app <b>Assistant</b> runs its agent loop in the main process (<code>apps/desktop/src/main/ai/</code>). It uses the app's local <code>WorkStorage</code>. Its tools do not need the sync server or OAuth.</p>
+    <p style="margin:0;color:var(--muted);font-size:13px">An external agent reads and changes work through the server, even while every Mac sleeps (ADR 0004). See <a href="assistant.html">the Assistant's diagram</a>.</p>
   </div>
 </div>
 
 <div class="card" style="margin-top:16px">
-  <h3>Where it lives in the code</h3>
+  <h3>Code locations</h3>
   <table class="files">
-    <tr><td>apps/server/src/http/routes/index.ts</td><td>the one route table: the protocol, then OAuth and <code>/mcp</code></td></tr>
+    <tr><td>apps/server/src/http/routes/index.ts</td><td>One route table: the protocol, then OAuth and <code>/mcp</code></td></tr>
     <tr><td>apps/server/src/http/routes/mcp.ts</td><td>Origin, Bearer, <code>verifyAgentAccessToken</code>, <code>touchAgent</code> → <code>handleMcpRequest</code></td></tr>
-    <tr><td>apps/server/src/agents/mcp/handleMcpRequest.ts</td><td>JSON-RPC, two MCP generations, tools/list, tools/call</td></tr>
-    <tr><td>apps/server/src/agents/AgentWorkspace.ts</td><td>snapshot → in-memory core → tool.run → conditional write, mutex and retries</td></tr>
-    <tr><td>packages/tools/</td><td>the shared read/write/delete tools, <code>findTool</code> — also run by the Assistant</td></tr>
-    <tr><td>apps/server/src/agents/runAgentTool.ts</td><td><code>findTool</code> → <code>tool.run</code>, coded into an <code>AgentToolOutcome</code></td></tr>
-    <tr><td>apps/server/src/http/routes/oauthAuthorize.ts</td><td>/oauth/authorize, /oauth/consent and the consent pages' HTML</td></tr>
-    <tr><td>apps/server/src/agents/oauth/</td><td>CIMD clients, authorization codes, rotating tokens</td></tr>
+    <tr><td>apps/server/src/agents/mcp/handleMcpRequest.ts</td><td>JSON-RPC, two MCP versions, tools/list, tools/call</td></tr>
+    <tr><td>apps/server/src/agents/AgentWorkspace.ts</td><td>snapshot → core in memory → tool.run → write if revision is unchanged; mutex and retries</td></tr>
+    <tr><td>packages/tools/</td><td>Shared read/write/delete tools and <code>findTool</code>. The Assistant uses the same tools.</td></tr>
+    <tr><td>apps/server/src/agents/runAgentTool.ts</td><td><code>findTool</code> → <code>tool.run</code> → result as an <code>AgentToolOutcome</code></td></tr>
+    <tr><td>apps/server/src/http/routes/oauthAuthorize.ts</td><td>/oauth/authorize, /oauth/consent, and HTML for consent pages</td></tr>
+    <tr><td>apps/server/src/agents/oauth/</td><td>CIMD clients, authorization codes, refresh tokens replaced after use</td></tr>
     <tr><td>apps/server/src/agents/AgentStore.ts</td><td>Agent window, requests, approve/deny, list, revoke</td></tr>
-    <tr><td>apps/server/src/http/routes/snapshot.ts</td><td>/v1/snapshot and the held /v1/revision with <code>pendingAgentRequest</code></td></tr>
-    <tr><td>packages/core/src/storage/sync/server/ServerProviderService.ts</td><td>the Mac's probe loop: sync on a moved revision, <code>onAgentRequested</code></td></tr>
+    <tr><td>apps/server/src/http/routes/snapshot.ts</td><td>/v1/snapshot and the waiting /v1/revision request with <code>pendingAgentRequest</code></td></tr>
+    <tr><td>packages/core/src/storage/sync/server/ServerProviderService.ts</td><td>The Mac checks for changes: sync when revision changes, <code>onAgentRequested</code></td></tr>
     <tr><td>packages/core/src/storage/sync/SyncEngine.ts</td><td><code>_syncRevisionedRemote</code>: pull → LWW → push at the revision read</td></tr>
     <tr><td>apps/desktop/src/renderer/src/stores/syncServer.store.ts</td><td>Agent window, ApproveAgentModal, the agent list and revoke</td></tr>
-    <tr><td><a href="../adr/0004-agents-served-from-the-opaque-snapshot.md">docs/adr/0004</a>, <a href="../adr/0005-agent-access-approved-on-a-mac.md">0005</a></td><td>why the server serves agents itself, and why approval happens on a Mac</td></tr>
+    <tr><td><a href="../adr/0004-agents-served-from-the-opaque-snapshot.md">docs/adr/0004</a>, <a href="../adr/0005-agent-access-approved-on-a-mac.md">0005</a></td><td>Why agents use the server directly and why a Mac approves access</td></tr>
   </table>
 </div>
 

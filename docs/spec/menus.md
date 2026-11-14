@@ -1,11 +1,11 @@
-# Меню выбора
+# Selection menus
 
-Списки, из которых выбирают одно значение: статус, приоритет, проект, milestone, модель AI.
+Lists for selecting one value: status, priority, project, milestone, or AI model.
 
-### same-as-priority — Меню выбора выглядят как меню приоритета и статуса: у каждой выбранной строки серая галочка справа, без выделения цветом
+### same-as-priority — Selection menus follow the priority and status menus: each selected row has a gray checkmark on the right, without a highlight color
 
-Why: одинаковые меню читаются без привыкания к каждому; эталон — меню приоритета и статуса
+Why: consistent menus are easy to read without learning each one. The priority and status menus set the pattern.
 
-- Открыть меню проекта в доке, в контекстном меню карточки и в деталях задачи → у выбранного проекта серая галочка справа, имя и иконка обычного цвета.
-- Открыть меню milestone у задачи с milestone → у него серая галочка справа.
-- Settings → AI → выбор модели → у текущей модели серая галочка справа, имя обычного цвета.
+- Open the project menu in the dock, the card context menu, and task details → the selected project has a gray checkmark on the right. Its name and icon keep their normal color.
+- Open the milestone menu for a task with a milestone → its milestone has a gray checkmark on the right.
+- Open Settings → AI → model selection → the current model has a gray checkmark on the right. Its name keeps its normal color.

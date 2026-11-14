@@ -1,39 +1,38 @@
-# Devices bound to a Daily Sync Server are a hierarchy, not peers
+# Devices on a Daily Sync Server have Parent and Child roles
 
-The enrollment protocol was built on device equality — `enroll.ts` still carries the comment "any
-bound device reads the one waiting request; no device is privileged over another" — so any bound Mac
-could approve a newcomer, and revocation existed only on the server console. We are replacing that
-with a hierarchy: the device that claimed the server is the Parent and alone may approve enrollments
-and revoke devices, and every other device is a Child that syncs and nothing else.
+The enrollment protocol originally gave all connected devices equal rights. The comment in
+`enroll.ts` still says "any bound device reads the one waiting request; no device is privileged over
+another". Any connected Mac could approve a new device. Only the server console could revoke devices.
 
-## Considered Options
+We replace this with two roles. The device that first claimed the server is the Parent. Only the
+Parent can approve new devices and revoke devices. Every other device is a Child and can only sync.
 
-**Keep device equality.** Any bound Mac approves and revokes. Simplest, and already built. Rejected
-because it means any Child can lock the owner out of their own server: a single compromised or
-borrowed Mac could revoke every other device, and recovery would need console access to the host.
+## Options considered
 
-**Introduce a separate owner role, held by a person rather than a device.** Rejected as a larger
-model than the problem: there are no accounts here and no identity beyond the device credential, so
-an owner would have to be invented before it could be used.
+**Keep equal rights for devices.** Any connected Mac can approve and revoke devices. This is the
+simplest option and already exists. We rejected it because a Child could lock the owner out of their
+server. One compromised or borrowed Mac could revoke all other devices. Recovery would need console
+access to the server host.
 
-**Hierarchy anchored on the claiming device.** Chosen. The server is already claimed exactly once,
-which makes the anchor a fact the system records rather than a new concept, and it matches how these
-servers are actually run — one person's Macs, one of which is the one they administer from.
+**Give a person a separate owner role.** We rejected this because Daily has no accounts. It identifies
+devices only by their credentials. We would need to add a user identity before we could use an owner
+role.
+
+**Give the Parent role to the device that claimed the server.** We chose this option. A server is
+claimed exactly once, so the system already has a clear event to record. It also matches normal use:
+one person has several Macs and manages the server from one of them.
 
 ## Consequences
 
-Membership is not self-service. A Child cannot add a Mac while the Parent is asleep, away, or lost,
-so adding a device is now something that happens at the Parent.
+A Child cannot add a Mac while the Parent is asleep, away, or lost. Adding a device requires the Parent.
 
-Recovery moves to the console, and needs a verb the console did not have: `device promote <id>`,
-for when the Parent is gone and the Children remain. Without it a server with a lost Parent can
-neither gain a device nor lose one, and the console is the only authority left that can act.
+The console needs a new command for recovery: `device promote <id>`. It promotes a Child when the
+Parent is lost. Without this command, the server cannot add or remove devices after losing its
+Parent. Only the console can restore access in that case.
 
-Who claimed the server has to be recorded explicitly. It is not stored today, and deriving the
-Parent as "the oldest device" would silently reassign the role the first time a Parent is revoked
-and re-enrolled.
+The server must record which device claimed it. It does not store this fact yet. Choosing the oldest
+device would silently change the Parent after the original Parent is revoked and enrolled again.
 
-The enrollment window follows from this: since only the Parent approves, the Parent can also be the
-one who decides when the server accepts requests at all. That closes the unauthenticated hold on the
-single enrollment slot, and removes the case where an unexpected request is waiting when someone
-opens the approval dialog.
+Only the Parent approves devices, so it can also control when the server accepts enrollment requests.
+This prevents an unauthenticated request from holding the single enrollment slot. It also prevents an
+unexpected request from waiting when someone opens the approval dialog.

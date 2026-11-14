@@ -1,85 +1,85 @@
-# Меню выбора проекта
+# Project selection menu
 
-Список проектов с поиском. В доке переключает активный проект, у задачи задаёт её проект.
+A project list with search. In the dock, it changes the active project. For a task, it sets the task's project.
 
-### order — Сверху All projects, где он есть, под ним No project, дальше проекты по алфавиту без учёта регистра
+### order — Show All projects first, where available, then No project, then projects in alphabetical order, ignoring case
 
-Why: All projects — вообще все задачи, No project — задачи без проекта, куда всё попадает с первого запуска; проекты, заведённые пользователем, идут после них
+Why: All projects shows every task. No project shows tasks without a project, the default from the first launch. User-created projects follow these rows.
 
-- Во фрейме Day открыть меню в доке → первая строка All projects, вторая No project, дальше проекты по алфавиту без учёта регистра.
-- В контекстном меню карточки открыть Project → первая строка No project, дальше проекты по алфавиту; строки All projects нет.
+- In the Day frame, open the dock menu → All projects is first, then No project, then projects in alphabetical order, ignoring case.
+- Open Project in the card context menu → No project is first, then projects in alphabetical order. There is no All projects row.
 
-### create-from-search — Имя, которого нет в списке, создаётся прямо из поиска и сразу выбирается
+### create-from-search — Create a project from a name that is not in the search results and select it at once
 
-Why: не нашёл в поиске — значит, хочешь создать; это короткий путь мимо Settings, так же устроены теги
+Why: when search finds no project, the next step is to create one. This avoids a trip to Settings, as tags already do.
 
-- Набрать в меню имя, которого нет → внизу строка «Create "<имя>"»; выбрать её → проект создан и выбран (в доке стал активным, у задачи стал её проектом), меню закрыто.
+- Enter a name that does not exist → a `Create "<name>"` row appears at the bottom. Select it → the menu creates and selects the project, then closes. In the dock, the project becomes active. For a task, it becomes the task's project.
 
-### exact-match-no-create — При точном совпадении имени без учёта регистра и пробелов по краям строки Create нет
+### exact-match-no-create — Hide Create when a project name matches after ignoring case and spaces at the start and end
 
-Why: поле прежде всего поиск: совпало — значит, нашёл; проект с тем же именем заводят в Settings, проекты различаются по ID
+Why: the field is mainly for search. An exact match means the project was found. Create duplicate names in Settings; IDs keep projects distinct.
 
-- Набрать имя существующего проекта в другом регистре или с пробелами по краям → строки Create нет, в списке найденный проект.
+- Enter an existing project name with different case or spaces at the start or end → there is no Create row. The matching project appears in the list.
 
-### create-failure-keeps-input — Неудачное создание показывает тост и оставляет меню открытым с набранным именем
+### create-failure-keeps-input — If creation fails, show a toast and keep the menu open with the entered name
 
-Why: имя не теряется, создание можно повторить
+Why: the name stays in the field, so creation can be retried.
 
-- Создание из меню не удалось → тост «Failed to create project», меню открыто, набранное имя на месте.
+- Creation from the menu fails → a "Failed to create project" toast appears. The menu stays open and keeps the entered name.
 
-### all-projects-dock-day — All projects есть только в доке и только во фрейме Day
+### all-projects-dock-day — Show All projects only in the dock and only in the Day frame
 
-Why: milestone всегда принадлежит одному проекту, milestone по всем проектам — бессмыслица; а задача лежит ровно в одном проекте
+Why: a milestone always belongs to one project, so a milestone across all projects has no meaning. A task belongs to exactly one project.
 
-- Во фрейме Milestone открыть меню в доке → строки All projects нет; в деталях задачи и в контекстном меню карточки её нет ни в каком фрейме.
+- In the Milestone frame, open the dock menu → there is no All projects row. Task details and the card context menu never show it, in any frame.
 
-### dock-opens-on-hover — В доке меню открывается наведением, в деталях задачи — кликом
+### dock-opens-on-hover — Open the dock menu on hover and the task details menu on click
 
-Why: в доке это быстрое переключение фильтра, как смена дня или тега; в редакторе выбор проекта — намеренное изменение задачи
+Why: the dock changes filters quickly, like the day or tag filter. In the editor, selecting a project is a deliberate task change.
 
-- Навести курсор на проект в доке → меню открыто без клика; навести на свойство Project в деталях задачи → меню не открывается, открывается по клику.
+- Hover over the project in the dock → the menu opens without a click. Hover over Project in task details → the menu stays closed. Click to open it.
 
-### no-project-row — В деталях задачи и в контекстном меню карточки No project — строка списка, её выбор снимает проект
+### no-project-row — Show No project as a row in task details and the card context menu; selecting it clears the project
 
-Why: пустое значение выбирают из списка, как No priority; крестика для сброса нет
+Why: select the empty value from the list, as with No priority. There is no clear button.
 
-- В деталях задачи в проекте открыть Project → есть строка No project; выбрать её → свойство серое «No project», при следующем открытии отмечена No project.
-- В контекстном меню карточки выбрать No project → задача без проекта.
+- Open Project in the details of a task with a project → the menu has a No project row. Select it → the property shows "No project" in gray. Open the menu again → No project is selected.
+- Select No project in the card context menu → the task has no project.
 
-### cmd-multi-select — В доке во фрейме Day Cmd+клик добавляет проект к выбору или снимает его и не закрывает меню; последний выбранный снять нельзя
+### cmd-multi-select — In the Day dock, Cmd+click selects or deselects a project and keeps the menu open; the last selected project cannot be deselected
 
-Why: док — фильтр задач, и смотреть на несколько проектов сразу нужно без All projects; пустой фильтр не показывает ничего
+Why: the dock filters tasks. It must show several projects without selecting All projects. An empty filter would show nothing.
 
-- Во фрейме Day выбран проект A; навести на меню в доке, `Cmd`+клик по B → меню открыто, галочки у A и B, видны задачи обоих проектов с подписью проекта на карточках, на кнопке «A, B» с иконкой слоёв.
-- `Cmd`+клик по B → галочка с B снята, его задач нет; когда отмечен только A, `Cmd`+клик по A → ничего не меняется.
-- Клик без `Cmd` по B → выбран только B, меню закрыто.
-- В деталях задачи и в контекстном меню карточки `Cmd`+клик по проекту → выбран один проект, меню закрыто, как раньше.
+- In the Day frame, select project A. Hover over the dock menu and `Cmd`+click B → the menu stays open. A and B have checkmarks. Tasks from both projects appear with project labels on their cards. The button shows "A, B" with the layers icon.
+- `Cmd`+click B → its checkmark and tasks disappear. If only A is selected, `Cmd`+click A → nothing changes.
+- Click B without `Cmd` → only B is selected and the menu closes.
+- In task details and the card context menu, `Cmd`+click a project → one project is selected and the menu closes, as before.
 
-### all-is-every-project — Отмечены все проекты — это All projects: галочка у каждого проекта и у All projects
+### all-is-every-project — Selecting every project means All projects: every project and All projects have checkmarks
 
-Why: одно состояние выглядит одинаково, каким путём к нему ни пришли; проект, созданный позже, сразу виден в All projects
+Why: the same state must look the same, however it was selected. A project created later appears in All projects at once.
 
-- `Cmd`+кликами отметить по одному все проекты → галочка появляется и у All projects, на кнопке «All projects»; `Cmd`+клик по A → отмечены все, кроме A, у All projects галочки нет.
-- `Cmd`+клик по All projects → выбрано всё, меню закрыто, отмечены All projects и каждый проект.
+- `Cmd`+click each project to select them all → All projects also gets a checkmark and the button shows "All projects". `Cmd`+click A → every project except A stays selected. All projects loses its checkmark.
+- `Cmd`+click All projects → everything is selected and the menu closes. All projects and every project have checkmarks.
 
-### several-as-all — Несколько выбранных проектов ведут себя как All projects в их пределах
+### several-as-all — Several selected projects behave like All projects within that set
 
-Why: набору не нужно поведение, отличное от All projects; новая задача уходит в No project, как при All projects
+Why: a set needs the same behavior as All projects. New tasks go to No project, as they do with All projects.
 
-- Во фрейме Day выбран проект A; навести на меню в доке, `Cmd`+клик по B → меню открыто, галочки у A и B, видны задачи обоих проектов с подписью проекта на карточках, на кнопке «A, B» с иконкой слоёв.
-- Отметить No project и A → видны только задачи без проекта и задачи A.
-- Выбраны A и B, в обоих есть тег «bug»; выбрать «bug» в доке тегов → задачи с «bug» из обоих проектов.
-- Выбраны A и B; создать задачу шорткатом и через Quick Task → обе задачи в No project.
+- In the Day frame, select project A. Hover over the dock menu and `Cmd`+click B → the menu stays open. A and B have checkmarks. Tasks from both projects appear with project labels on their cards. The button shows "A, B" with the layers icon.
+- Select No project and A → only tasks without a project and tasks from A appear.
+- Select A and B, both with a "bug" tag. Select "bug" in the tag dock → tasks with "bug" from both projects appear.
+- Select A and B. Create one task with the shortcut and another through Quick Task → both tasks go to No project.
 
-### several-label — Кнопка в доке при нескольких проектах: два имени в порядке меню и «+n», иконка слоёв
+### several-label — For several projects, the dock button shows two names in menu order, "+n", and the layers icon
 
-Why: имена говорят, что выбрано; иконка слоёв уже значит «несколько проектов»
+Why: the names show what is selected. The layers icon already means "several projects".
 
-- Во фрейме Day выбран проект A; навести на меню в доке, `Cmd`+клик по B → меню открыто, галочки у A и B, видны задачи обоих проектов с подписью проекта на карточках, на кнопке «A, B» с иконкой слоёв.
-- `Cmd`+клик по C → на кнопке «A, B +1».
+- In the Day frame, select project A. Hover over the dock menu and `Cmd`+click B → the menu stays open. A and B have checkmarks. Tasks from both projects appear with project labels on their cards. The button shows "A, B" with the layers icon.
+- `Cmd`+click C → the button shows "A, B +1".
 
-### milestone-one-project — Во фрейме Milestone действует один проект, добавленный в выбор последним; в Day выбор возвращается
+### milestone-one-project — The Milestone frame uses the last project added to the selection; Day restores the full selection
 
-Why: milestone всегда принадлежит одному проекту
+Why: a milestone always belongs to one project.
 
-- Выбраны A и B, B добавлен последним; перейти во фрейм Milestone → в меню отмечен только B, видны milestone проекта B; вернуться в Day → снова A и B.
+- Select A and B, adding B last. Switch to the Milestone frame → only B is selected in the menu and B's milestones appear. Return to Day → A and B are selected again.

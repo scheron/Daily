@@ -1,54 +1,54 @@
-This is history; the rules that hold now are in `docs/spec/`.
+This is history. The current rules are in `docs/spec/`.
 
-# Plan: No project строкой меню и одна отметка выбора во всех меню
+# Plan: Use a No project menu row and the same selection mark in every menu
 
 ## Result
 
-Свойство Project в деталях задачи сбрасывается крестиком, а пустая ячейка подписана «Set project». В меню проектов выбор отмечен иначе, чем в соседних меню. После этого плана:
+The Project property in task details has a clear button. The empty property says "Set project". Project menus mark the selection differently from nearby menus. After this plan:
 
-- проект у задачи в деталях снимается строкой No project, как в контекстном меню карточки; задача без проекта показывает No project серым, как No priority;
-- во всех меню выбора одного значения (статус, приоритет, проект, milestone, модель AI) выбранная строка отмечена одинаково: серая галочка справа, без выделения цветом.
+- Clear the project in task details through a No project row, as in the card context menu. A task without a project shows No project in gray, like No priority.
+- Every menu for selecting one value (status, priority, project, milestone, or AI model) marks the selected row the same way. It has a gray checkmark on the right, without a highlight color.
 
-Задача: DT-wSUVOdYn2ZwHydOD0y6nh; решения грилла — в её комментарии.
+Task: DT-wSUVOdYn2ZwHydOD0y6nh. Its comment records the decisions from the design discussion.
 
 ## Approach
 
-No project — это проект `main`, и меню проектов уже показывает его как строку «No project». Детали задачи перестают её прятать и теряют свой крестик. Отметку выбора берём у меню приоритета и статуса и переносим в меню проектов, milestone и модели AI.
+No project is the `main` project. The project menu already shows it as a "No project" row. Task details stop hiding that row and lose the clear button. Use the selection mark from the priority and status menus in the project, milestone, and AI model menus.
 
-- В ячейке без проекта — «No project» серым, без крестика — так выглядит пустой Priority.
-- Выбор строки No project — обычная смена проекта у задачи: milestone, теги и связи снимаются так же, как сейчас крестиком.
-- Проп «спрятать No project» у меню проектов и крестик у ячейки свойства удаляются — после фикса ими никто не пользуется.
-- Отметка выбора — серая галочка справа; у выбранной строки нет акцентного цвета и полужирного, иконка обычного цвета. Строка All projects в доке — так же — эталон меню приоритета и статуса.
-- Milestone получает галочку; сброс повторным кликом по выбранному остаётся — как его снимать, решает DT-T5ZXEjN5BDis7pL1lsi1j.
-- Модель AI отмечается галочкой вместо акцентного текста; классом подписи пункта в общем меню пользуется только этот выбор модели, у контекстного меню карточки свой тип.
-- Задача, чей проект ещё не загружен, читается как No project, и в меню ничего не отмечено — так же, как сегодня, только под новой подписью.
+- Without a project, the property shows "No project" in gray with no clear button, like an empty Priority property.
+- Selecting No project is a normal project change. It clears the milestone, tags, and links, as the clear button does today.
+- Remove the project menu's "hide No project" prop and the property's clear button. Nothing uses them after the fix.
+- The selection mark is a gray checkmark on the right. The selected row has no accent color or bold text. Its icon keeps its normal color. Apply this to All projects in the dock too, following the priority and status menus.
+- Add a checkmark to Milestone. Keep clearing it when the selected milestone is clicked again. Task DT-T5ZXEjN5BDis7pL1lsi1j decides how to clear it.
+- Mark the AI model with a checkmark instead of accent text. Only model selection uses the item label class in the shared menu. The card context menu has its own type.
+- If a task's project has not loaded, show No project and leave every menu row unselected. This keeps the current behavior with a new label.
 
 ## Out of scope
 
-- Как снимать milestone: повторным кликом или строкой No milestone — DT-T5ZXEjN5BDis7pL1lsi1j.
-- Меню тегов (выбор нескольких, чекбоксы) и меню действий «+» в доке.
-- Ширина, поиск и прочий вид меню, кроме отметки выбора.
+- How to clear a milestone: click it again or use a No milestone row. See DT-T5ZXEjN5BDis7pL1lsi1j.
+- The tag menu (multiple selection with checkboxes) and the "+" actions menu in the dock.
+- Menu width, search, and other appearance changes beyond the selection mark.
 
 ## Done
 
-1. Открыть детали задачи в проекте → Project показывает имя проекта обычным текстом, крестика нет; клик → в меню первая строка No project.
-2. В деталях задачи в проекте открыть Project → есть строка No project; выбрать её → свойство серое «No project», при следующем открытии отмечена No project.
-3. Задача с проектом и milestone → в деталях выбрать No project → milestone снят; у задачи без проекта выбрать проект → его имя обычным текстом.
-4. В контекстном меню карточки выбрать No project → задача без проекта.
-5. Открыть меню проекта в доке, в контекстном меню карточки и в деталях задачи → у выбранного проекта серая галочка справа, имя и иконка обычного цвета. — you check
-6. Открыть меню milestone у задачи с milestone → у него серая галочка справа. — you check
-7. Settings → AI → выбор модели → у текущей модели серая галочка справа, имя обычного цвета. — you check
-8. В меню milestone кликнуть по выбранному milestone → milestone снят, как раньше.
+1. Open the details of a task with a project → Project shows the project name in normal text, without a clear button. Click it → No project is the first menu row.
+2. Open Project in the details of a task with a project → the menu has a No project row. Select it → the property shows "No project" in gray. Open the menu again → No project is selected.
+3. For a task with a project and milestone, select No project in task details → the milestone is cleared. Select a project for a task without one → its name appears in normal text.
+4. Select No project in the card context menu → the task has no project.
+5. Open the project menu in the dock, the card context menu, and task details → the selected project has a gray checkmark on the right. Its name and icon keep their normal color. — you check
+6. Open the milestone menu for a task with a milestone → its milestone has a gray checkmark on the right. — you check
+7. Open Settings → AI → model selection → the current model has a gray checkmark on the right. Its name keeps its normal color. — you check
+8. In the milestone menu, click the selected milestone → the milestone is cleared, as before.
 
 ## Spec
 
-+ menus — Меню выбора
-  About: Списки, из которых выбирают одно значение: статус, приоритет, проект, milestone, модель AI.
++ menus — Selection menus
+  About: Lists for selecting one value: status, priority, project, milestone, or AI model.
 - project-menu#card-no-project-row
-  Why: правило переходит в project-menu#no-project-row, которое покрывает и детали задачи
-+ project-menu#no-project-row — В деталях задачи и в контекстном меню карточки No project — строка списка, её выбор снимает проект
-  Why: пустое значение выбирают из списка, как No priority; крестика для сброса нет
+  Why: the rule moves to project-menu#no-project-row, which also covers task details.
++ project-menu#no-project-row — Show No project as a row in task details and the card context menu; selecting it clears the project
+  Why: select the empty value from the list, as with No priority. There is no clear button.
   Done: 2, 4
-+ menus#same-as-priority — Меню выбора одного значения выглядят как меню приоритета и статуса: у выбранной строки серая галочка справа, без выделения цветом
-  Why: одинаковые меню читаются без привыкания к каждому; эталон — меню приоритета и статуса
++ menus#same-as-priority — Menus for selecting one value follow the priority and status menus: the selected row has a gray checkmark on the right, without a highlight color
+  Why: consistent menus are easy to read without learning each one. The priority and status menus set the pattern.
   Done: 5, 6, 7
