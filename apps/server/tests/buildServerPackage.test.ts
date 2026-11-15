@@ -28,6 +28,7 @@ describe("build-server-package", () => {
     root = mkdtempSync(join(tmpdir(), "daily-server-package-"))
     mkdirSync(join(root, "apps", "server", "out"), {recursive: true})
     writeFileSync(join(root, "apps", "server", "out", "index.js"), 'import {Command} from "commander"\n', "utf-8")
+    writeFileSync(join(root, "apps", "server", "out", "searchWorker.js"), "")
     writeFileSync(join(root, "LICENSE"), "MIT\n", "utf-8")
     writeFileSync(
       join(root, "apps", "server", "package.json"),
@@ -36,7 +37,7 @@ describe("build-server-package", () => {
         version: "9.9.9",
         license: "MIT",
         repository: {type: "git", url: "git+https://example.invalid/daily-server.git"},
-        dependencies: {commander: "^15.0.0"},
+        dependencies: {commander: "^15.0.0", "fs-extra": "^11.3.0"},
       }),
       "utf-8",
     )
@@ -76,6 +77,20 @@ describe("build-server-package", () => {
     runScript(root)
 
     expect(readGeneratedPackage(root).dependencies).toEqual({commander: "^15.0.0"})
+  })
+
+  it("ships the search runner, its shared chunk and the dependency imported only by that chunk", () => {
+    const bundleDir = join(root, "apps", "server", "out")
+    const runner = 'import "./search-shared.js"\n'
+    const chunk = 'import fs from "fs-extra"\n'
+    writeFileSync(join(bundleDir, "searchWorker.js"), runner)
+    writeFileSync(join(bundleDir, "search-shared.js"), chunk)
+
+    runScript(root)
+
+    expect(readGeneratedPackage(root).dependencies).toEqual({commander: "^15.0.0", "fs-extra": "^11.3.0"})
+    expect(readFileSync(join(root, "apps", "server", "dist-server", "searchWorker.js"), "utf-8")).toBe(runner)
+    expect(readFileSync(join(root, "apps", "server", "dist-server", "search-shared.js"), "utf-8")).toBe(chunk)
   })
 
   it("TC-2: fails, naming the import, when the bundle imports something apps/server's package.json does not declare", () => {

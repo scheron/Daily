@@ -1,19 +1,25 @@
-import {copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync} from "node:fs"
+import {copyFileSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync} from "node:fs"
 import {join} from "node:path"
 
 const root = process.cwd()
 const serverDir = join(root, "apps", "server")
-const bundlePath = join(serverDir, "out", "index.js")
+const bundleDir = join(serverDir, "out")
 const outDir = join(serverDir, "dist-server")
 
 const serverPkg = JSON.parse(readFileSync(join(serverDir, "package.json"), "utf-8"))
-const bundle = readFileSync(bundlePath, "utf-8")
+const bundleFiles = readdirSync(bundleDir).filter((name) => name.endsWith(".js"))
+for (const entry of ["index.js", "searchWorker.js"]) {
+  if (!bundleFiles.includes(entry)) throw new Error(`Missing server build entry ${entry}`)
+}
 
 const version = process.env.DAILY_SERVER_PACKAGE_VERSION?.trim() || serverPkg.version
 
 const bareImports = new Set()
-for (const match of bundle.matchAll(/(?:^|\n)import\s[^"']*["']([^."'/][^"']*)["']/g)) {
-  bareImports.add(match[1].startsWith("@") ? match[1].split("/").slice(0, 2).join("/") : match[1].split("/")[0])
+for (const name of bundleFiles) {
+  const bundledCode = readFileSync(join(bundleDir, name), "utf-8")
+  for (const match of bundledCode.matchAll(/(?:^|\n)import\s[^"']*["']([^."'/][^"']*)["']/g)) {
+    bareImports.add(match[1].startsWith("@") ? match[1].split("/").slice(0, 2).join("/") : match[1].split("/")[0])
+  }
 }
 
 const dependencies = {}
@@ -29,7 +35,7 @@ for (const name of [...bareImports].sort()) {
 
 rmSync(outDir, {recursive: true, force: true})
 mkdirSync(outDir, {recursive: true})
-copyFileSync(bundlePath, join(outDir, "index.js"))
+for (const name of bundleFiles) copyFileSync(join(bundleDir, name), join(outDir, name))
 copyFileSync(join(root, "LICENSE"), join(outDir, "LICENSE"))
 
 const pkg = {

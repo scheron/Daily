@@ -3,6 +3,7 @@ import {describe, expect, it, vi} from "vitest"
 
 import {KNOWN_SNAPSHOT_VERSION} from "@daily/core/utils/sync/snapshot/assertKnownSnapshotVersion"
 import {AGENT_ENDPOINT_PATH, SYNC_PROTOCOL_PATHS} from "@daily/protocol"
+import {ToolErrorCode} from "@daily/tools"
 
 import {
   AGENT_OAUTH_TEST_PATHS,
@@ -19,6 +20,7 @@ import {
   startClientDocumentServer,
 } from "../oauth/harness"
 
+import type {SearchOutcome} from "../../../src/agents/search/SearchRunner"
 import type {BootedAgentServer} from "../oauth/harness"
 
 function statelessRequest(
@@ -35,11 +37,17 @@ function statelessRequest(
   return {body, headers}
 }
 
-function postMcp(booted: BootedAgentServer, token: string | null, body: string, extraHeaders: Record<string, string> = {}): Promise<Response> {
+function postMcp(
+  booted: BootedAgentServer,
+  token: string | null,
+  body: string,
+  extraHeaders: Record<string, string> = {},
+  signal: AbortSignal | null = null,
+): Promise<Response> {
   const headers: Record<string, string> = {"content-type": "application/json", ...extraHeaders}
   if (token !== null) headers.authorization = `Bearer ${token}`
 
-  return fetch(`${booted.baseUrl}${AGENT_ENDPOINT_PATH}`, {method: "POST", headers, body})
+  return fetch(`${booted.baseUrl}${AGENT_ENDPOINT_PATH}`, {method: "POST", headers, body, signal})
 }
 
 function readLastUsedAt(booted: BootedAgentServer, agentId: string): string | null {
@@ -205,7 +213,7 @@ describe("the 2026-07-28 path answers as the caller's Mac and records last use �
 })
 
 describe("the 2025-11-25 path negotiates its version and reads without a session — TC-55", () => {
-  it("TC-55: initialize answers the version it asked for, the notification is accepted, and the list reads back what was written, none of it carrying mcp-session-id", async () => {
+  it("TC-55: initialize offers a session, and the client can still send notifications and read without echoing it", async () => {
     const booted = await bootAgentServer()
     const docs = await startClientDocumentServer()
     try {
@@ -235,7 +243,7 @@ describe("the 2025-11-25 path negotiates its version and reads without a session
       const initJson = (await initRes.json()) as {result: {protocolVersion: string}}
       expect(initJson.result.protocolVersion).toBe("2025-06-18")
       expect(initJson.result).not.toHaveProperty("resultType")
-      expect(initRes.headers.get("mcp-session-id")).toBeNull()
+      expect(initRes.headers.get("mcp-session-id") ?? "").toMatch(/^[\x21-\x7e]+$/)
 
       const notifRes = await postMcp(booted, codexAgent.accessToken, JSON.stringify({jsonrpc: "2.0", method: "notifications/initialized"}))
       expect(notifRes.status).toBe(202)
@@ -258,6 +266,223 @@ describe("the 2025-11-25 path negotiates its version and reads without a session
     }
   })
 })
+
+describe("searched MCP reads", () => {
+  it("returns a runner refusal as a tool error in both protocol generations", async () => {
+    const endpoint = await bootSearchEndpoint()
+    try {
+      const {server, accessToken, runner} = endpoint
+      const modern = statelessRequest(2, "tools/call", searchParams(), "list_tasks")
+      const requests = [postMcp(server, accessToken, legacySearch(2)), postMcp(server, accessToken, modern.body, modern.headers)]
+      await vi.waitFor(() => expect(runner.calls).toHaveLength(2))
+      runner.calls[0].resolve({ok: false, error: {code: ToolErrorCode.SEARCH_OVERLOADED, message: "Try again shortly."}})
+      runner.calls[1].resolve({ok: false, error: {code: ToolErrorCode.SEARCH_OVERLOADED, message: "Try again shortly."}})
+
+      for (const response of await Promise.all(requests)) {
+        expect(response.status).toBe(200)
+        expect(await response.json()).toMatchObject({
+          id: 2,
+          result: {isError: true, content: [{type: "text", text: '{"error":{"code":"SEARCH_OVERLOADED","message":"Try again shortly."}}'}]},
+        })
+      }
+    } finally {
+      await endpoint.close()
+    }
+  })
+
+  it.each(["modern", "sessionless legacy"])("cancels a %s search when its response disconnects", async (protocol) => {
+    const endpoint = await bootSearchEndpoint()
+    const aborted = new AbortController()
+    try {
+      const {server, accessToken, runner} = endpoint
+      const search = protocol === "modern" ? statelessRequest(2, "tools/call", searchParams(), "list_tasks") : {body: legacySearch(2), headers: {}}
+      const response = postMcp(server, accessToken, search.body, search.headers, aborted.signal).catch((error: unknown) => error)
+      await vi.waitFor(() => expect(runner.calls).toHaveLength(1))
+
+      aborted.abort()
+
+      expect(await response).toHaveProperty("name", "AbortError")
+      await vi.waitFor(() => expect(runner.calls[0].cancel).toHaveBeenCalledOnce())
+
+      const next = postMcp(server, accessToken, legacySearch(3))
+      await vi.waitFor(() => expect(runner.calls).toHaveLength(2))
+      runner.calls[1].resolve({ok: true, text: '{ "tasks": [], "total": 0 }'})
+      expect(await (await next).json()).toEqual({jsonrpc: "2.0", id: 3, result: {content: [{type: "text", text: '{ "tasks": [], "total": 0 }'}]}})
+      expect(runner.calls[1].cancel).not.toHaveBeenCalled()
+    } finally {
+      aborted.abort()
+      await endpoint.close()
+    }
+  })
+
+  it("only cancels a live legacy search for the same authenticated agent, session and typed request ID", async () => {
+    const endpoint = await bootSearchEndpoint()
+    try {
+      const {server, accessToken, runner} = endpoint
+      const otherToken = await endpoint.connect()
+      const session = await initializeLegacySearch(server, accessToken)
+      const otherSession = await initializeLegacySearch(server, accessToken)
+      const first = postMcp(server, accessToken, legacySearch(2), session)
+      await vi.waitFor(() => expect(runner.calls).toHaveLength(1))
+
+      const unrelated = [
+        postMcp(server, accessToken, cancelLegacySearch(2)),
+        postMcp(server, accessToken, cancelLegacySearch(2), otherSession),
+        postMcp(server, accessToken, cancelLegacySearch("2"), session),
+        postMcp(server, accessToken, cancelLegacySearch(2, {reason: 3}), session),
+        postMcp(server, accessToken, cancelLegacySearch(2), {...session, "mcp-protocol-version": "2026-07-28"}),
+      ]
+      for (const response of await Promise.all(unrelated)) {
+        expect(response.status).toBe(202)
+        expect(await response.text()).toBe("")
+      }
+      expect((await postMcp(server, otherToken, cancelLegacySearch(2), session)).status).toBe(404)
+      expect(runner.calls[0].cancel).not.toHaveBeenCalled()
+
+      const cancellation = await postMcp(server, accessToken, cancelLegacySearch(2), session)
+      expect(cancellation.status).toBe(202)
+      expect(await cancellation.text()).toBe("")
+      expect(await (await first).json()).toMatchObject({
+        id: 2,
+        result: {isError: true, content: [{type: "text", text: expect.stringContaining('"code":"SEARCH_CANCELLED"')}]},
+      })
+
+      const reused = postMcp(server, accessToken, legacySearch(2), session)
+      const fresh = postMcp(server, accessToken, legacySearch(2), otherSession)
+      await vi.waitFor(() => expect(runner.calls).toHaveLength(3))
+      expect((await postMcp(server, accessToken, cancelLegacySearch(2), session)).status).toBe(202)
+      for (const call of runner.calls.slice(1)) call.resolve({ok: true, text: '{"tasks":[],"total":0}'})
+      for (const response of await Promise.all([reused, fresh])) {
+        expect(await response.json()).toMatchObject({id: 2, result: {content: [{type: "text", text: '{"tasks":[],"total":0}'}]}})
+      }
+    } finally {
+      await endpoint.close()
+    }
+  })
+
+  it("asks a legacy client with an unknown or expired session to reinitialize", async () => {
+    const endpoint = await bootSearchEndpoint()
+    try {
+      const {server, accessToken} = endpoint
+      const ping = JSON.stringify({jsonrpc: "2.0", id: 2, method: "ping"})
+      const unknownSession = {"mcp-session-id": "2f351dc3-44a0-4944-ae56-7a4d56d983c6"}
+      expect((await postMcp(server, accessToken, ping, unknownSession)).status).toBe(404)
+      expect((await postMcp(server, accessToken, cancelLegacySearch(2), unknownSession)).status).toBe(404)
+
+      const modern = statelessRequest(2, "tools/list")
+      const modernResponse = await postMcp(server, accessToken, modern.body, {...modern.headers, ...unknownSession})
+      expect(modernResponse.status).toBe(200)
+      expect(await modernResponse.json()).toMatchObject({result: {resultType: "complete"}})
+
+      vi.useFakeTimers({toFake: ["performance"]})
+      const session = await initializeLegacySearch(server, accessToken)
+      vi.advanceTimersByTime(3_600_001)
+      expect((await postMcp(server, accessToken, ping, session)).status).toBe(404)
+      const replacement = await initializeLegacySearch(server, accessToken)
+      expect(replacement).not.toEqual(session)
+      expect(await (await postMcp(server, accessToken, ping, replacement)).json()).toEqual({jsonrpc: "2.0", id: 2, result: {}})
+    } finally {
+      vi.useRealTimers()
+      await endpoint.close()
+    }
+  })
+
+  it("retires a full legacy session while allowing cancellation of its admitted searches", async () => {
+    const endpoint = await bootSearchEndpoint()
+    try {
+      const {server, accessToken, runner} = endpoint
+      const session = await initializeLegacySearch(server, accessToken)
+      const running = postMcp(server, accessToken, legacySearch(2), session)
+      await vi.waitFor(() => expect(runner.calls).toHaveLength(1))
+
+      for (let id = 3; id <= 1024; id++) {
+        const response = await postMcp(server, accessToken, JSON.stringify({jsonrpc: "2.0", id, method: "ping"}), session)
+        if (response.status !== 200) throw new Error(`ping ${id} returned HTTP ${response.status}`)
+        await response.text()
+      }
+      const newPing = JSON.stringify({jsonrpc: "2.0", id: 1025, method: "ping"})
+      expect((await postMcp(server, accessToken, newPing, session)).status).toBe(404)
+      expect((await postMcp(server, accessToken, cancelLegacySearch(2), session)).status).toBe(202)
+      expect(await (await running).json()).toMatchObject({result: {isError: true}})
+      expect((await postMcp(server, accessToken, cancelLegacySearch(2), session)).status).toBe(404)
+
+      const replacement = await initializeLegacySearch(server, accessToken)
+      expect(await (await postMcp(server, accessToken, newPing, replacement)).json()).toEqual({jsonrpc: "2.0", id: 1025, result: {}})
+    } finally {
+      await endpoint.close()
+    }
+  })
+})
+
+function searchParams() {
+  return {name: "list_tasks", arguments: {search: "Buy milk"}}
+}
+
+function legacySearch(id: number | string): string {
+  return JSON.stringify({jsonrpc: "2.0", id, method: "tools/call", params: searchParams()})
+}
+
+function cancelLegacySearch(requestId: number | string, extras: Record<string, unknown> = {}): string {
+  return JSON.stringify({jsonrpc: "2.0", method: "notifications/cancelled", params: {requestId, ...extras}})
+}
+
+async function initializeLegacySearch(server: BootedAgentServer, accessToken: string): Promise<Record<string, string>> {
+  const response = await postMcp(
+    server,
+    accessToken,
+    JSON.stringify({jsonrpc: "2.0", id: 1, method: "initialize", params: {protocolVersion: "2025-11-25"}}),
+  )
+  const session = response.headers.get("mcp-session-id")
+  expect(response.status).toBe(200)
+  expect(session).toBeTruthy()
+  await response.text()
+  return {"mcp-session-id": session ?? ""}
+}
+
+async function bootSearchEndpoint() {
+  const runner = makeHeldRunner()
+  const server = await bootAgentServer({}, {searchRunner: runner})
+  const docs = await startClientDocumentServer()
+  const parent = await claimParent(server)
+  await writeInitialSnapshot(server, parent.token)
+  const clientId = registerClientDocument(docs, "/claude-code.json", claudeCodeDocument)
+  return {server, runner, accessToken: await connect(), connect, close}
+
+  async function connect() {
+    await openAgentWindowOver(server, parent.token)
+    return (await connectAgent(server, parent.token, {clientId, redirectUri: "http://localhost:5555/callback"})).accessToken
+  }
+
+  async function close() {
+    await runner.close()
+    await Promise.all([server.close(), docs.close()])
+  }
+}
+
+function makeHeldRunner() {
+  const calls: ReturnType<typeof hold>[] = []
+
+  return {
+    calls,
+    submit() {
+      const call = hold()
+      calls.push(call)
+      return call
+    },
+    async close() {
+      for (const call of calls) call.resolve({ok: false, error: {code: ToolErrorCode.SEARCH_CANCELLED, message: "Search cancelled."}})
+    },
+  }
+
+  function hold() {
+    const {promise, resolve} = Promise.withResolvers<SearchOutcome>()
+    return {
+      outcome: promise,
+      resolve,
+      cancel: vi.fn(() => resolve({ok: false, error: {code: ToolErrorCode.SEARCH_CANCELLED, message: "Search cancelled."}})),
+    }
+  }
+}
 
 describe("last use moves on every accepted request, and only those — TC-56", () => {
   it("TC-56: lastUsedAt advances on two accepted requests in turn, and a request refused for a different agent's revoked token moves nobody's", async () => {

@@ -10,7 +10,7 @@ import {ProtocolError, ProtocolErrorCode, SnapshotVersionAheadError} from "@dail
 import {AsyncMutex} from "@daily/std"
 import {createClock, ToolError, ToolErrorCode} from "@daily/tools"
 
-import {readSnapshot, writeSnapshotIfUnchanged} from "../snapshot/SnapshotStore"
+import {readSnapshot, readSnapshotWithinSize, writeSnapshotIfUnchanged} from "../snapshot/SnapshotStore"
 import {createInMemorySqliteDriver} from "../store/betterSqliteDriver"
 import {buildServerFilesPort} from "./attachments"
 
@@ -25,7 +25,7 @@ import type {ServerStore} from "../store/instance"
  */
 export type AgentIdentity = {deviceId: string; timeZone: string; name: string}
 
-export type AgentWorkspaceDeps = {store: ServerStore; now?: () => Date}
+export type AgentWorkspaceDeps = {store: ServerStore; now?: () => Date; maxReadSnapshotBytes?: number}
 
 /** Durable work a tool call defers until the snapshot it wrote has actually committed. */
 export type AgentCommitEffect = () => Promise<void>
@@ -53,7 +53,7 @@ export async function runInAgentWorkspace<T>(
 ): Promise<T> {
   const clock = buildAgentClock(agent.timeZone, deps.now)
 
-  if (mode === "read") return runAttempt(deps.store, agent, clock, mode, run)
+  if (mode === "read") return runAttempt(deps, agent, clock, mode, run)
 
   let lock = writeLocks.get(deps.store)
   if (!lock) {
@@ -64,7 +64,7 @@ export async function runInAgentWorkspace<T>(
   return lock.runExclusive(async () => {
     for (let attempt = 1; attempt <= AGENT_WRITE_ATTEMPTS; attempt++) {
       try {
-        return await runAttempt(deps.store, agent, clock, mode, run)
+        return await runAttempt(deps, agent, clock, mode, run)
       } catch (error) {
         if (!(error instanceof ProtocolError) || error.code !== ProtocolErrorCode.REVISION_CONFLICT) throw error
       }
@@ -89,13 +89,16 @@ function buildAgentClock(timeZone: string, now?: () => Date): ToolClock {
 }
 
 async function runAttempt<T>(
-  store: ServerStore,
+  {store, maxReadSnapshotBytes}: AgentWorkspaceDeps,
   agent: AgentIdentity,
   clock: ToolClock,
   mode: ToolMode,
   run: (ctx: ToolContext) => Promise<T>,
 ): Promise<T> {
-  const stored = readSnapshot(store)
+  const stored = mode === "read" && maxReadSnapshotBytes !== undefined ? readSnapshotWithinSize(store, maxReadSnapshotBytes) : readSnapshot(store)
+  if (stored === "tooLarge") {
+    throw new ToolError(ToolErrorCode.SEARCH_BUDGET_EXCEEDED, "This workspace exceeds the server search snapshot limit. Use search in the Daily app.")
+  }
 
   if (!stored) {
     throw new ToolError(

@@ -1,3 +1,5 @@
+import {McpJournal} from "../agents/mcp/McpJournal"
+import {SearchRunner} from "../agents/search/SearchRunner"
 import {scheduleBackups} from "../backup/scheduleBackups"
 import {resolveServerConfig} from "../config/resolveServerConfig"
 import {clearExpiredIssuedTokens} from "../enrollment/EnrollmentStore"
@@ -55,7 +57,14 @@ function runStart(opts: StartOptions): void {
 
   const claimCode = ensureClaimCode(store)
   const identity = loadIdentity(store)
-  const server = createHttpServer(store, config)
+  const searchRunner = new SearchRunner(store)
+  const mcpJournal = new McpJournal(config.dataDir)
+  const server = createHttpServer(store, config, searchRunner, mcpJournal)
+  let stopBackups: (() => void) | null = null
+  let shuttingDown = false
+
+  process.once("SIGINT", shutdown)
+  process.once("SIGTERM", shutdown)
 
   server.listen(config.port, config.host, () => {
     const scheme = config.tls ? "https" : "http"
@@ -63,7 +72,7 @@ function runStart(opts: StartOptions): void {
 
     if (config.backup) {
       console.log(`Backups every ${config.backup.intervalMs / 3_600_000}h in ${config.backup.dir}, keeping ${config.backup.keep}.`)
-      scheduleBackups(store, config.backup)
+      stopBackups = scheduleBackups(store, config.backup)
     }
 
     if (claimCode) {
@@ -71,6 +80,19 @@ function runStart(opts: StartOptions): void {
       reportPublicUrlVerification(config, identity.serverId)
     }
   })
+
+  function shutdown() {
+    if (shuttingDown) return
+    shuttingDown = true
+    stopBackups?.()
+
+    const searchesClosed = searchRunner.close()
+    const drain = setTimeout(() => server.closeAllConnections(), 5_000).unref()
+    server.close(() => {
+      clearTimeout(drain)
+      void searchesClosed.then(() => mcpJournal.close()).then(() => store.close())
+    })
+  }
 }
 
 /**

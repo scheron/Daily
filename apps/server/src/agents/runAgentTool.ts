@@ -22,7 +22,6 @@ export async function runAgentTool(deps: AgentWorkspaceDeps, agent: AgentIdentit
   } catch (error) {
     if (error instanceof ToolError) return {ok: false, error: {code: error.code, message: error.message}}
 
-    console.error(error)
-    return {ok: false, error: {code: ToolErrorCode.INTERNAL, message: error instanceof Error ? error.message : String(error)}}
+    return {ok: false, error: {code: ToolErrorCode.INTERNAL, message: "The server could not complete the tool call. Try again."}}
   }
 }

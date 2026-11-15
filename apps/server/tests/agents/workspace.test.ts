@@ -8,9 +8,10 @@ import {ToolErrorCode} from "@daily/tools"
 
 import {AGENT_WRITE_ATTEMPTS, runInAgentWorkspace} from "../../src/agents/AgentWorkspace"
 import {readRevision, readSnapshot, writeSnapshotIfUnchanged} from "../../src/snapshot/SnapshotStore"
-import {openServerStore} from "../../src/store/instance"
+import {openReadOnlyServerStore, openServerStore} from "../../src/store/instance"
 import {bindAgent, bindDevice, makeTaskDraft, openMacCore, rawSnapshotDocument, seedAgentStore, writeMacSnapshot} from "./helpers"
 
+import type {ToolContext} from "@daily/tools"
 import type {ServerStore} from "../../src/store/instance"
 
 type BareStore = {store: ServerStore; dataDir: string; close(): void}
@@ -30,6 +31,32 @@ function openBareStore(): BareStore {
 }
 
 describe("the agent workspace cycle", () => {
+  it("reads a committed snapshot on a read-only connection and refuses it when the byte budget is smaller", async () => {
+    const seeded = await seedAgentStore(async (mac) => {
+      await mac.core.tasksService.createTask(makeTaskDraft({content: "Проверить отчёт"}))
+    })
+    const readonly = openReadOnlyServerStore(seeded.dataDir)
+
+    try {
+      const agent = bindAgent(seeded.store)
+      async function run(ctx: ToolContext) {
+        return ctx.workStorage.getTaskList({includeBacklog: true})
+      }
+      const bytes = Buffer.byteLength(JSON.stringify(readSnapshot(seeded.store)?.document))
+
+      await expect(runInAgentWorkspace({store: readonly, maxReadSnapshotBytes: bytes - 1}, agent, "read", run)).rejects.toMatchObject({
+        code: ToolErrorCode.SEARCH_BUDGET_EXCEEDED,
+      })
+      const tasks = await runInAgentWorkspace({store: readonly, maxReadSnapshotBytes: bytes}, agent, "read", run)
+      expect(tasks.map((task) => task.content)).toContain("Проверить отчёт")
+      expect(() => readonly.db.exec("DELETE FROM snapshot")).toThrow(/readonly/)
+      expect(readRevision(seeded.store)).toBe(seeded.revision)
+    } finally {
+      readonly.close()
+      seeded.close()
+    }
+  })
+
   it("TC-9: a read-mode call sees the stored snapshot's tasks and leaves the stored revision unchanged", async () => {
     const seeded = await seedAgentStore(async (mac) => {
       await mac.core.tasksService.createTask(makeTaskDraft({content: "Buy milk"}))

@@ -3,18 +3,19 @@ import {isNumber, isObject, isString} from "@daily/std"
 import pkg from "../../../package.json"
 import {callMcpTool, listMcpTools} from "./mcpTools"
 
-import type {AgentWorkspaceDeps} from "../AgentWorkspace"
-import type {McpCaller} from "./mcpTools"
+import type {McpRequestId} from "./LegacyMcpSessions"
+import type {McpCaller, McpToolDeps} from "./mcpTools"
 
 export type McpRequestHeaders = {protocolVersion: string | null; method: string | null; name: string | null}
-export type McpReply = {status: 202; body: null} | {status: 200 | 400 | 404 | 500; body: object}
+export type McpReply = {status: 202; body: null} | {status: 200 | 400 | 404 | 500; body: object; legacyInitializeId?: McpRequestId}
 
+type LegacyRequests = {begin(id: McpRequestId | null): boolean; notify(cancelId: McpRequestId | null): boolean}
 type McpGeneration = "2025-11-25" | "2026-07-28"
 type JsonRpcRequest = {id: unknown; method: string; params: unknown}
 type McpRequestClass =
   | {kind: "parseError"}
   | {kind: "invalidRequest"; id: string | number | null}
-  | {kind: "notificationOrResponse"}
+  | {kind: "notificationOrResponse"; generation: McpGeneration; cancelId: McpRequestId | null}
   | {kind: "request"; generation: McpGeneration; request: JsonRpcRequest}
 type JsonRpcError = {code: -32700 | -32600 | -32601 | -32602 | -32603 | -32020 | -32022; message: string; data?: unknown}
 type JsonRpcOutcome = {result: object} | {error: JsonRpcError}
@@ -31,7 +32,13 @@ const SERVER_INFO = {name: "daily", title: "Daily", version: pkg.version}
  * the body's size or HTTP — `headers` are the raw `MCP-Protocol-Version`, `Mcp-Method` and `Mcp-Name`
  * values, `null` when absent. Never rejects; a `202` is sent with no body.
  */
-export async function handleMcpRequest(deps: AgentWorkspaceDeps, caller: McpCaller, body: string, headers: McpRequestHeaders): Promise<McpReply> {
+export async function handleMcpRequest(
+  deps: McpToolDeps,
+  caller: McpCaller,
+  body: string,
+  headers: McpRequestHeaders,
+  legacy: LegacyRequests | null = null,
+): Promise<McpReply> {
   const classified = classifyMcpRequest(body, headers)
 
   switch (classified.kind) {
@@ -40,22 +47,36 @@ export async function handleMcpRequest(deps: AgentWorkspaceDeps, caller: McpCall
     case "invalidRequest":
       return {status: 400, body: errorEnvelope(classified.id, {code: -32600, message: "Invalid Request"})}
     case "notificationOrResponse":
+      if (classified.generation === "2025-11-25" && legacy?.notify(classified.cancelId) === false) return sessionUnavailable(null)
       return {status: 202, body: null}
   }
 
   const {generation, request} = classified
+  if (generation === "2025-11-25" && request.method !== "initialize") {
+    if (headers.protocolVersion !== null && !EARLIER_VERSIONS.includes(headers.protocolVersion)) {
+      return {status: 400, body: errorEnvelope(request.id, unsupportedVersion(headers.protocolVersion))}
+    }
+    if (legacy?.begin(readSessionRequestId(request.id)) === false) return sessionUnavailable(request.id)
+  }
+
   let outcome: JsonRpcOutcome
   try {
     outcome =
       generation === "2026-07-28"
         ? await answerStatelessGeneration(deps, caller, request, headers)
-        : await answerEarlierGeneration(deps, caller, request, headers)
-  } catch (error) {
-    console.error(error)
+        : await answerEarlierGeneration(deps, caller, request)
+  } catch {
     outcome = {error: {code: -32603, message: "Internal error"}}
   }
 
-  if ("result" in outcome) return {status: 200, body: {jsonrpc: "2.0", id: request.id, result: outcome.result}}
+  if ("result" in outcome) {
+    const initializeId = request.method === "initialize" ? readSessionRequestId(request.id) : null
+    return {
+      status: 200,
+      body: {jsonrpc: "2.0", id: request.id, result: outcome.result},
+      ...(initializeId !== null && {legacyInitializeId: initializeId}),
+    }
+  }
   return {status: errorStatus(generation, outcome.error.code), body: errorEnvelope(request.id, outcome.error)}
 }
 
@@ -76,29 +97,28 @@ function classifyMcpRequest(body: string, headers: McpRequestHeaders): McpReques
     return {kind: "invalidRequest", id: isString(id) || isNumber(id) ? id : null}
   }
 
-  if (!isString(method) || id === undefined) return {kind: "notificationOrResponse"}
+  const {params} = message
+  const generation = isStateless(params, headers) ? "2026-07-28" : "2025-11-25"
+  if (!isString(method) || id === undefined) {
+    let cancelId: McpRequestId | null = null
+    if (
+      generation === "2025-11-25" &&
+      method === "notifications/cancelled" &&
+      !isResponse &&
+      (headers.protocolVersion === null || EARLIER_VERSIONS.includes(headers.protocolVersion)) &&
+      isObject<Record<string, unknown>>(params) &&
+      (params.reason === undefined || isString(params.reason))
+    ) {
+      cancelId = readSessionRequestId(params.requestId)
+    }
 
-  const request = {id, method, params: message.params}
-  if (method === "initialize") return {kind: "request", generation: "2025-11-25", request}
-
-  if (readMeta(request.params)?.[PROTOCOL_VERSION_META] !== undefined || STATELESS_VERSIONS.includes(headers.protocolVersion ?? "")) {
-    return {kind: "request", generation: "2026-07-28", request}
+    return {kind: "notificationOrResponse", generation, cancelId}
   }
 
-  return {kind: "request", generation: "2025-11-25", request}
+  return {kind: "request", generation: method === "initialize" ? "2025-11-25" : generation, request: {id, method, params}}
 }
 
-async function answerEarlierGeneration(
-  deps: AgentWorkspaceDeps,
-  caller: McpCaller,
-  request: JsonRpcRequest,
-  headers: McpRequestHeaders,
-): Promise<JsonRpcOutcome> {
-  const {protocolVersion} = headers
-  if (request.method !== "initialize" && protocolVersion !== null && !EARLIER_VERSIONS.includes(protocolVersion)) {
-    return {error: unsupportedVersion(protocolVersion)}
-  }
-
+async function answerEarlierGeneration(deps: McpToolDeps, caller: McpCaller, request: JsonRpcRequest): Promise<JsonRpcOutcome> {
   switch (request.method) {
     case "initialize":
       return initialize(request.params)
@@ -116,7 +136,7 @@ async function answerEarlierGeneration(
 }
 
 async function answerStatelessGeneration(
-  deps: AgentWorkspaceDeps,
+  deps: McpToolDeps,
   caller: McpCaller,
   request: JsonRpcRequest,
   headers: McpRequestHeaders,
@@ -204,10 +224,27 @@ function readMeta(params: unknown): Record<string, unknown> | null {
   return params._meta
 }
 
+function isStateless(params: unknown, headers: McpRequestHeaders): boolean {
+  return readMeta(params)?.[PROTOCOL_VERSION_META] !== undefined || STATELESS_VERSIONS.includes(headers.protocolVersion ?? "")
+}
+
+function readSessionRequestId(value: unknown): McpRequestId | null {
+  if (isString(value) && value.length <= 128) return value
+  if (isNumber(value) && Number.isSafeInteger(value)) return value
+  return null
+}
+
 function errorStatus(generation: McpGeneration, code: JsonRpcError["code"]): 200 | 400 | 404 | 500 {
   if (generation === "2025-11-25") return code === -32022 ? 400 : 200
   if (code === -32601) return 404
   return code === -32603 ? 500 : 400
+}
+
+function sessionUnavailable(id: unknown): McpReply {
+  return {
+    status: 404,
+    body: {jsonrpc: "2.0", id, error: {code: -32001, message: "MCP session is unavailable. Initialize a new session."}},
+  }
 }
 
 function errorEnvelope(id: unknown, error: JsonRpcError): object {

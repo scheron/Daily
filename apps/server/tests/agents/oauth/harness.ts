@@ -50,12 +50,16 @@ export type BootedAgentServer = {
  */
 export async function bootAgentServer(
   overrides: ServerConfigOptions = {},
-  {autoPublicUrl = true, deleteDataDirOnClose = true}: {autoPublicUrl?: boolean; deleteDataDirOnClose?: boolean} = {},
+  {
+    autoPublicUrl = true,
+    deleteDataDirOnClose = true,
+    searchRunner,
+  }: {autoPublicUrl?: boolean; deleteDataDirOnClose?: boolean; searchRunner?: Parameters<typeof createHttpServer>[2]} = {},
 ): Promise<BootedAgentServer> {
   const dataDir = overrides.dataDir ?? mkdtempSync(join(tmpdir(), "daily-agent-oauth-"))
   const config = resolveServerConfig({host: "127.0.0.1", port: 0, ...overrides, dataDir})
   const store = openServerStore(config.dataDir)
-  const server = createHttpServer(store, config)
+  const server = createHttpServer(store, config, searchRunner)
 
   await new Promise<void>((resolve) => server.listen(config.port, config.host, resolve))
   const {port} = server.address() as AddressInfo

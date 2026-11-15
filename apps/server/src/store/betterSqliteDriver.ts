@@ -36,27 +36,21 @@ export function createBetterSqliteDriver(dbPath: string): SqliteDriver {
   db.pragma("synchronous = NORMAL")
   db.pragma("journal_size_limit = 67108864")
 
-  return {
-    prepare: (sql: string) => wrapStatement(db.prepare(sql)),
-    exec: (sql: string) => void db.exec(sql),
-    pragma: (statement: string) => void db.pragma(statement),
-    transaction: <T>(fn: () => T) => db.transaction(fn) as SqliteTransaction<T>,
-    backup: async (destinationPath: string) => {
-      fs.ensureDirSync(path.dirname(destinationPath))
-      await db.backup(destinationPath)
-    },
-    close: () => void db.close(),
-    get inTransaction() {
-      return db.inTransaction
-    },
-  }
+  return wrapDatabase(db)
+}
+
+export function createReadOnlySqliteDriver(dbPath: string): SqliteDriver {
+  return wrapDatabase(new Database(dbPath, {readonly: true, fileMustExist: true}))
 }
 
 /** Opens a private, throwaway in-memory database on the same driver surface — the schema an agent's tool call runs its snapshot on, gone when the call ends. */
 export function createInMemorySqliteDriver(): SqliteDriver {
   const db = new Database(":memory:")
   db.pragma("foreign_keys = ON")
+  return wrapDatabase(db)
+}
 
+function wrapDatabase(db: Database.Database): SqliteDriver {
   return {
     prepare: (sql: string) => wrapStatement(db.prepare(sql)),
     exec: (sql: string) => void db.exec(sql),

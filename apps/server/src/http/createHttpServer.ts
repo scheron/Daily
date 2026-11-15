@@ -4,8 +4,11 @@ import https from "node:https"
 import {gunzipSync} from "node:zlib"
 
 import {RequestLogBuffer} from "@daily/core/utils/requestLog/RequestLogBuffer"
-import {ProtocolError, ProtocolErrorCode, SYNC_PROTOCOL_CONFIG, SYNC_PROTOCOL_PATHS} from "@daily/protocol"
+import {AGENT_ENDPOINT_PATH, ProtocolError, ProtocolErrorCode, SYNC_PROTOCOL_CONFIG, SYNC_PROTOCOL_PATHS} from "@daily/protocol"
 
+import {LegacyMcpSessions} from "../agents/mcp/LegacyMcpSessions"
+import {McpJournal} from "../agents/mcp/McpJournal"
+import {SearchRunner} from "../agents/search/SearchRunner"
 import {findDeviceByTokenHash} from "../devices/DeviceStore"
 import {hashToken} from "../devices/tokens"
 import {readBearerToken} from "./readBearerToken"
@@ -17,6 +20,8 @@ import type {IncomingMessage, Server, ServerResponse} from "node:http"
 import type {ServerConfig} from "../config/resolveServerConfig"
 import type {ServerStore} from "../store/instance"
 
+type McpSearchRunner = Pick<SearchRunner, "submit" | "close">
+
 export type RouteContext = {
   req: IncomingMessage
   res: ServerResponse
@@ -24,6 +29,9 @@ export type RouteContext = {
   config: ServerConfig
   body: unknown
   requestLog: RequestLogBuffer
+  searchRunner: McpSearchRunner
+  legacyMcpSessions: LegacyMcpSessions
+  mcpJournal: McpJournal
 }
 export type Route = {
   method: "GET" | "POST" | "PUT"
@@ -44,8 +52,14 @@ const STREAM_FAILURE = "Server failed while sending the response body"
  * unexpected exception — onto the wire envelope. The listener is created but not started;
  * `commands/start.ts` binds it.
  */
-export function createHttpServer(store: ServerStore, config: ServerConfig): Server {
+export function createHttpServer(
+  store: ServerStore,
+  config: ServerConfig,
+  searchRunner: McpSearchRunner = new SearchRunner(store),
+  mcpJournal = new McpJournal(config.dataDir),
+): Server {
   const requestLog = new RequestLogBuffer()
+  const legacyMcpSessions = new LegacyMcpSessions()
 
   const listener = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
     let route: Route | undefined
@@ -84,7 +98,7 @@ export function createHttpServer(store: ServerStore, config: ServerConfig): Serv
       const body =
         route.body === "stream" ? undefined : req.method === "POST" ? await readRequestBody(req, res, resolveBodyLimit(route, config)) : undefined
 
-      const data = await route.handler({req, res, store, config, body, requestLog})
+      const data = await route.handler({req, res, store, config, body, requestLog, searchRunner, legacyMcpSessions, mcpJournal})
       if (data !== RESPONSE_SENT) respondOk(res, data, acceptsGzip(req))
     } catch (err) {
       if (err === RESPONSE_ALREADY_SENT) return
@@ -97,16 +111,17 @@ export function createHttpServer(store: ServerStore, config: ServerConfig): Serv
         return
       }
 
-      console.error(err)
+      if (route?.path === AGENT_ENDPOINT_PATH) console.error("MCP request failed")
+      else console.error(err)
       respondError(res, new ProtocolError(ProtocolErrorCode.INTERNAL, "Internal server error"))
     }
   }
 
-  if (config.tls) {
-    return https.createServer({cert: readFileSync(config.tls.certPath), key: readFileSync(config.tls.keyPath)}, listener)
-  }
-
-  return http.createServer(listener)
+  const server = config.tls
+    ? https.createServer({cert: readFileSync(config.tls.certPath), key: readFileSync(config.tls.keyPath)}, listener)
+    : http.createServer(listener)
+  server.once("close", () => void searchRunner.close().then(() => mcpJournal.close()))
+  return server
 }
 
 /** A response the handler wrote itself (an oversized body, an MCP refusal) leaves no failure: the status is the reason. */

@@ -433,7 +433,7 @@ describe("handleMcpRequest", () => {
   })
 
   describe("an unexpected throw while answering", () => {
-    it("answers -32603 with the request's own id and logs the throw — 500 in the 2026-07-28 generation, 200 in the 2025-11-25 one", async () => {
+    it("answers -32603 with the request's own id and keeps the exception private in both protocol generations", async () => {
       const failure = new Error("the caller could not be read")
       const failingCaller = {
         deviceId: caller.deviceId,
@@ -460,7 +460,7 @@ describe("handleMcpRequest", () => {
         )
         expect(stateless).toEqual({status: 500, body: {jsonrpc: "2.0", id: 2, error: {code: -32603, message: "Internal error"}}})
 
-        expect(consoleError).toHaveBeenCalledWith(failure)
+        expect(consoleError.mock.calls).toEqual([])
       } finally {
         consoleError.mockRestore()
       }

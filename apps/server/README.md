@@ -150,7 +150,7 @@ curl https://your-server/health
 ```
 
 `GET /health` needs no credentials and answers `{"status":"ok"}` and nothing else. It is the
-address to give an uptime monitor, and it stays put across protocol versions.
+address to give an uptime monitor, and it stays put across protocol versions. [MCP lifecycle journal](MCP-JOURNAL.md)
 
 ## Recovery
 

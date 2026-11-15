@@ -2,7 +2,7 @@ import path from "node:path"
 
 import {ensureAssetsDir, sweepPartialUploads} from "../assets/AssetStore"
 import {loadIdentity} from "../identity/ServerIdentityStore"
-import {createBetterSqliteDriver} from "./betterSqliteDriver"
+import {createBetterSqliteDriver, createReadOnlySqliteDriver} from "./betterSqliteDriver"
 import {runMigrations} from "./migrate"
 import {migrations} from "./migrations"
 
@@ -30,4 +30,9 @@ export function openServerStore(dataDir: string, defaultName?: string): ServerSt
   sweepPartialUploads(store)
 
   return store
+}
+
+export function openReadOnlyServerStore(dataDir: string): ServerStore {
+  const db = createReadOnlySqliteDriver(path.join(dataDir, "server.sqlite"))
+  return {db, dataDir, close: () => db.close()}
 }

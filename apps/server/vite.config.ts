@@ -14,7 +14,14 @@ export default defineConfig({
     emptyOutDir: true,
     minify: false,
     target: "node22",
-    lib: {entry: join(__dirname, "src/index.ts"), formats: ["es"], fileName: () => "index.js"},
-    rollupOptions: {external, output: {banner: "#!/usr/bin/env node"}},
+    lib: {
+      entry: {
+        index: join(__dirname, "src/index.ts"),
+        searchWorker: join(__dirname, "src/agents/search/searchWorker.ts"),
+      },
+      formats: ["es"],
+      fileName: (_format, entryName) => `${entryName}.js`,
+    },
+    rollupOptions: {external, output: {banner: (chunk) => (chunk.name === "index" ? "#!/usr/bin/env node" : "")}},
   },
 })

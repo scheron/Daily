@@ -63,6 +63,16 @@ export function readSnapshot(store: ServerStore): StoredSnapshot | null {
   return row ? toStoredSnapshot(row) : null
 }
 
+/** Checks the byte count before materializing the same committed snapshot in JavaScript. */
+export function readSnapshotWithinSize(store: ServerStore, maxBytes: number): StoredSnapshot | "tooLarge" | null {
+  return store.db.transaction(() => {
+    const row = store.db.prepare("SELECT octet_length(document) AS bytes FROM snapshot WHERE id = 1").get<{bytes: number}>()
+    if (!row) return null
+    if (row.bytes > maxBytes) return "tooLarge"
+    return readSnapshot(store)
+  })()
+}
+
 /** Reads only the current revision, as a decimal string, or `null` when the server holds no snapshot. */
 export function readRevision(store: ServerStore): string | null {
   const row = store.db.prepare(`SELECT revision FROM snapshot WHERE id = 1`).get() as {revision: number} | undefined
