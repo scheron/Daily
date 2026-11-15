@@ -33,6 +33,7 @@ import type {
   ServerProbeView,
   ServerSyncBinding,
   Settings,
+  SnapshotRevision,
 } from "@daily/protocol"
 import type {Scheduler} from "@daily/std"
 import type {IServerProvider} from "../../../types/storage"
@@ -43,10 +44,9 @@ type ServerProviderDeps = {
   /** The one log every client of this app writes into. */
   requestLog: RequestLogBuffer
   loadSettings: () => Promise<Settings>
-  saveSettings: (partial: Partial<Settings>) => Promise<void>
+  saveSettings: (partial: Partial<Settings>, signal?: AbortSignal) => Promise<void>
   onBindingChanged: () => Promise<void>
-  /** Runs one sync cycle through the same path (and `AsyncMutex`) the rest of the app uses. */
-  runSyncCycle: () => Promise<void>
+  runSyncCycle: (observation?: {revision: SnapshotRevision | null; reconnected: boolean}) => Promise<void>
   /** Fires once when a peer's enrollment request starts waiting, not again while it still is. */
   onApprovalRequested: () => void
   /** Fires once when an agent's request starts waiting on this Mac's own Agent window, not again while it still is. */
@@ -360,30 +360,16 @@ export class ServerProviderService implements IServerProvider {
     return {entries, serverIssue}
   }
 
-  /**
-   * Starts the twelve-second revision probe; a no-op if it is already running. Each tick compares
-   * the server's revision against the one the previous tick read and runs one sync cycle exactly
-   * when it moved, and edge-triggers the approval callback on a waiting enrollment request.
-   */
   startProbe(): void {
     if (this.probeScheduler) return
+    if (this.mismatch) {
+      this.mismatch = null
+      this.deps.onProtocolMismatchChanged?.(null)
+    }
     this.setConnection("connecting")
     this.startProbeScheduler(SYNC_PROTOCOL_CONFIG.revisionProbeIntervalMs)
   }
 
-  /**
-   * Stops the probe; a no-op if it is not running. Cancels a held request rather than abandoning
-   * it, cancels a pending re-arm rather than letting it resurrect the loop afterward, and clears
-   * `probeInFlight` so a `startProbe()` right after this is never left waiting on a flag a tick
-   * already being torn down would otherwise still clear for itself, a moment later, on its own.
-   *
-   * `probeGeneration` is bumped every call, not just reset — it is what a tick still unwinding
-   * from before this call checks against before touching state a later `startProbe()` now owns.
-   * `probeAbort`/`clearTimeout(probeRearm)` only reach requests and timers that exist; they do
-   * nothing about a tick already past its network call and into `runSyncCycle()`, which nothing
-   * here can cancel — the generation check is what stops that tick's *return*, once it finally
-   * happens, from clobbering a tick this call had nothing to do with.
-   */
   stopProbe(): void {
     this.probeScheduler?.stop()
     this.probeScheduler = null
@@ -500,37 +486,22 @@ export class ServerProviderService implements IServerProvider {
     return {expiresAt: window.expiresAt, agentAddress: window.agentAddress, isThisMac: window.deviceId === thisDeviceId}
   }
 
-  /**
-   * Runs one probe, and re-arms the next one immediately when this one made real progress — a
-   * moved revision, a freshly pending enrollment or agent request, or a hold that ran to its own
-   * end with nothing new — rather than waiting for the scheduler's own interval. `createIntervalScheduler` stays
-   * the only scheduler; the re-arm is one cancellable `setTimeout(…, 0)` calling this method again.
-   *
-   * `probeInFlight` keeps this method single-flight across its two entry points: the scheduler's
-   * own `perform()`, and a re-arm's direct call, which `perform()`'s serialisation does not cover.
-   * `probeGeneration`, bumped by every `stopProbe()`, is what a tick still alive after a
-   * `stopProbe()`/`startProbe()` — since nothing here can cancel `runSyncCycle()` mid-flight —
-   * checks before touching state or the flag a newer tick now owns.
-   *
-   * A still-pending enrollment or agent request, and a probe sent with no known revision (before
-   * the first exists, or while mismatched), answer at once and must not re-arm, or neither would
-   * bound how often it asks again.
-   */
   private async probeTick(): Promise<void> {
     if (this.probeInFlight || !this.probeScheduler) return
     this.probeInFlight = true
     const generation = this.probeGeneration
+    const abort = new AbortController()
+    this.probeAbort = abort
 
     try {
       let probe: RevisionProbe
 
       const knownRevision = this.mismatch || this.failedProbes > 0 ? null : this.lastProbedRevision
       const askedToHold = knownRevision != null
-      const abort = new AbortController()
-      this.probeAbort = abort
-
       try {
-        probe = await (await this.boundClient()).probeRevision(knownRevision, abort.signal, getTimezone())
+        const client = await this.boundClient()
+        abort.signal.throwIfAborted()
+        probe = await client.probeRevision(knownRevision, abort.signal, getTimezone())
       } catch (error) {
         if (error instanceof ProtocolError && error.code === ProtocolErrorCode.DEVICE_REVOKED) {
           if (this.probeGeneration !== generation) return
@@ -547,8 +518,6 @@ export class ServerProviderService implements IServerProvider {
 
         this.recordFailedProbe(error)
         return
-      } finally {
-        if (this.probeAbort === abort) this.probeAbort = null
       }
 
       if (this.probeGeneration !== generation) return
@@ -566,24 +535,17 @@ export class ServerProviderService implements IServerProvider {
 
       const stillPendingEnrollment = probe.pendingEnrollment && this.hadPendingEnrollment
 
-      const revisionMoved = this.lastProbedRevision !== undefined && probe.revision !== this.lastProbedRevision
-      if (revisionMoved || hasReconnected) await this.deps.runSyncCycle()
-
-      if (this.probeGeneration !== generation) return
-
-      await this.applyRoleIfChanged(probe.role)
-
-      if (this.probeGeneration !== generation) return
-
-      await this.applyAcceptsAgentsIfChanged(probe.acceptsAgents)
-
-      if (this.probeGeneration !== generation) return
-
-      await this.applyServerNameIfChanged(probe.name)
-
-      if (this.probeGeneration !== generation) return
-
+      const firstObservation = this.lastProbedRevision === undefined
+      const revisionMoved = !firstObservation && probe.revision !== this.lastProbedRevision
       this.lastProbedRevision = probe.revision
+      if (firstObservation || revisionMoved || hasReconnected) {
+        void this.deps.runSyncCycle({revision: probe.revision, reconnected: hasReconnected}).catch((error) => {
+          if (!abort.signal.aborted) logger.debug(logger.CONTEXT.SYNC_REMOTE, "Failed to schedule snapshot sync", error)
+        })
+      }
+
+      await this._applyProbeMetadata(probe, abort.signal)
+      if (abort.signal.aborted) return
 
       const enrollmentNewlyPending = probe.pendingEnrollment && !this.hadPendingEnrollment
       if (enrollmentNewlyPending) this.deps.onApprovalRequested()
@@ -623,54 +585,29 @@ export class ServerProviderService implements IServerProvider {
         }, 0)
       }
     } finally {
-      if (this.probeGeneration === generation) this.probeInFlight = false
+      if (this.probeGeneration === generation) {
+        this.probeAbort = null
+        this.probeInFlight = false
+      }
     }
   }
 
-  /**
-   * The typed-fact-on-tick mechanism, reused for role: a tick that finds `RevisionProbe.role`
-   * differs from the binding's own writes it through `saveSettings` and fires `onRoleChanged`
-   * once. A tick that agrees writes nothing and fires nothing.
-   */
-  private async applyRoleIfChanged(role: DeviceRole): Promise<void> {
-    const settings = await this.deps.loadSettings()
-    const binding = settings.sync.server.binding
-    if (!binding || binding.role === role) return
+  private async _applyProbeMetadata(probe: RevisionProbe, signal: AbortSignal): Promise<void> {
+    const {sync} = await this.deps.loadSettings()
+    const binding = sync.server.binding
+    if (signal.aborted || !binding) return
 
-    await this.deps.saveSettings({sync: {...settings.sync, server: {...settings.sync.server, binding: {...binding, role}}}})
-    this.deps.onRoleChanged?.(role)
-  }
+    const role = probe.role ?? binding.role
+    const acceptsAgents = probe.acceptsAgents ?? binding.acceptsAgents
+    const serverName = probe.name || binding.serverName
+    const roleChanged = role !== binding.role
+    const acceptsAgentsChanged = acceptsAgents !== binding.acceptsAgents
+    if (!roleChanged && !acceptsAgentsChanged && serverName === binding.serverName) return
 
-  /**
-   * The same typed-fact-on-tick mechanism, for whether this server accepts agents: a tick that finds
-   * `RevisionProbe.acceptsAgents` differs from the binding's own writes it through `saveSettings` and
-   * fires `onAgentsAcceptedChanged` once, so `getState()` answers it immediately after a restart. A
-   * tick that agrees writes nothing and fires nothing.
-   */
-  private async applyAcceptsAgentsIfChanged(acceptsAgents: boolean): Promise<void> {
-    const settings = await this.deps.loadSettings()
-    const binding = settings.sync.server.binding
-    if (!binding || binding.acceptsAgents === acceptsAgents) return
-
-    await this.deps.saveSettings({sync: {...settings.sync, server: {...settings.sync.server, binding: {...binding, acceptsAgents}}}})
-    this.deps.onAgentsAcceptedChanged?.(acceptsAgents)
-  }
-
-  /**
-   * The same typed-fact-on-tick mechanism, for the server's display name — the one binding field
-   * that was frozen at bind time and never refreshed, so a server renamed after enrollment went on
-   * showing its old name here forever. Writing through `saveSettings` is what tells the renderer to
-   * re-read it; no dedicated broadcast is needed. A server too old to send a name leaves the stored
-   * one alone rather than blanking it.
-   */
-  private async applyServerNameIfChanged(name: string | undefined): Promise<void> {
-    if (!name) return
-
-    const settings = await this.deps.loadSettings()
-    const binding = settings.sync.server.binding
-    if (!binding || binding.serverName === name) return
-
-    await this.deps.saveSettings({sync: {...settings.sync, server: {...settings.sync.server, binding: {...binding, serverName: name}}}})
+    await this.deps.saveSettings({sync: {...sync, server: {...sync.server, binding: {...binding, role, acceptsAgents, serverName}}}}, signal)
+    if (signal.aborted) return
+    if (roleChanged && role !== null) this.deps.onRoleChanged?.(role)
+    if (acceptsAgentsChanged && acceptsAgents !== null) this.deps.onAgentsAcceptedChanged?.(acceptsAgents)
   }
 
   /**

@@ -1,12 +1,26 @@
+import {mkdtempSync, readFileSync, rmSync} from "node:fs"
+import {createSecureServer} from "node:http2"
+import {tmpdir} from "node:os"
+import {join} from "node:path"
+import {setTimeout as delay} from "node:timers/promises"
 import {describe, expect, it} from "vitest"
 
-import {ProtocolErrorCode, SYNC_PROTOCOL_VERSION, SyncServerErrorCode} from "@daily/protocol"
+import {ProtocolErrorCode, SYNC_PROTOCOL_PATHS, SYNC_PROTOCOL_VERSION, SyncServerErrorCode} from "@daily/protocol"
 import {listDevices} from "@daily/server/devices/DeviceStore"
 import {ensureClaimCode} from "@daily/server/identity/ServerIdentityStore"
 
 import {DailySyncClient} from "@core/storage/sync/server/DailySyncClient"
 import {isPrivateServerAddress, probeTransport} from "@core/storage/sync/server/serverTransport"
-import {bootHttpsSyncServer, bootSyncServer, claimFirstDevice, createAgentRequest, openEnrollmentWindow} from "@server-tests/helpers/syncServer"
+import {
+  bootHttpsSyncServer,
+  bootSyncServer,
+  claimFirstDevice,
+  createAgentRequest,
+  generateSelfSignedCertificate,
+  openEnrollmentWindow,
+} from "@server-tests/helpers/syncServer"
+
+import type {ServerHttp2Session} from "node:http2"
 
 /** Flips one hex byte of a `AA:BB:...` fingerprint so the result differs from the input in exactly one byte, as TC-5 requires. */
 function corruptFingerprint(fingerprint: string): string {
@@ -78,10 +92,55 @@ describe("fingerprint pinning", () => {
       )
 
       expect(rejection).toMatchObject({code: SyncServerErrorCode.FINGERPRINT_MISMATCH})
+      await expect(pinnedWrong.readSnapshot()).rejects.toMatchObject({kind: "terminal", code: SyncServerErrorCode.FINGERPRINT_MISMATCH})
       expect(readClaimAttempts(secure)).toBe(attemptsBefore)
       expect(listDevices(secure.store)).toHaveLength(0)
     } finally {
       await secure.close()
+    }
+  })
+})
+
+describe("snapshot connection isolation", () => {
+  it("writes a snapshot while an HTTP/2 revision probe is still held", async () => {
+    const certDir = mkdtempSync(join(tmpdir(), "daily-h2-test-"))
+    const {keyPath, certPath, fingerprint} = generateSelfSignedCertificate(certDir)
+    const server = createSecureServer({key: readFileSync(keyPath), cert: readFileSync(certPath)})
+    const sessions = new Set<ServerHttp2Session>()
+    const held = Promise.withResolvers<void>()
+    const cancellation = new AbortController()
+    server.on("session", (session) => sessions.add(session))
+    server.on("stream", (stream, headers) => {
+      if (headers[":path"]?.startsWith(SYNC_PROTOCOL_PATHS.revision)) {
+        held.resolve()
+        return
+      }
+
+      stream.on("end", () => {
+        stream.respond({":status": 200, "content-type": "application/json"})
+        stream.end(JSON.stringify({ok: true, data: {revision: "2"}}))
+      })
+      stream.resume()
+    })
+
+    await new Promise<void>((resolve, reject) => {
+      server.once("error", reject)
+      server.listen(0, "127.0.0.1", resolve)
+    })
+    const {port} = server.address() as {port: number}
+    const client = new DailySyncClient({baseUrl: `https://127.0.0.1:${port}`, fingerprint, token: "test"})
+    const probe = client.probeRevision("1", cancellation.signal).catch(() => null)
+
+    try {
+      await held.promise
+      const write = client.writeSnapshot({docs: {}}, "1", cancellation.signal)
+      await expect(Promise.race([write, delay(1_000, "upload still queued", {ref: false})])).resolves.toEqual({revision: "2"})
+    } finally {
+      cancellation.abort()
+      await probe
+      for (const session of sessions) session.destroy()
+      await new Promise<void>((resolve) => server.close(() => resolve()))
+      rmSync(certDir, {recursive: true, force: true})
     }
   })
 })

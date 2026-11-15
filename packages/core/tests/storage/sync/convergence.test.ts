@@ -7,11 +7,13 @@ import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {createStorageCore} from "@core/storage/createStorageCore"
 import {ICloudRemoteAdapter} from "@core/storage/sync/adapters/ICloudRemoteAdapter"
 import {SyncEngine} from "@core/storage/sync/SyncEngine"
+import {WorkStorage} from "@core/storage/WorkStorage"
+import {buildSnapshot} from "@core/utils/sync/snapshot/buildSnapshot"
 import {createTestDatabase} from "../../helpers/db"
 
+import type {SqliteDriver} from "@core/database/SqliteDriver"
 import type {StorageCore} from "@core/storage/createStorageCore"
-import type {Task} from "@daily/protocol"
-import type Database from "better-sqlite3"
+import type {IRevisionedRemoteStorage, Snapshot, Task} from "@daily/protocol"
 
 vi.mock("../../../src/utils/logger", () => ({
   logger: {
@@ -53,7 +55,7 @@ vi.mock("../../../src/utils/fileCoordinator", () => ({
   }),
 }))
 
-type Node = {db: Database.Database; core: StorageCore; engine: SyncEngine; root: string; onDataChanged: ReturnType<typeof vi.fn>}
+type Node = {db: SqliteDriver; core: StorageCore; engine: SyncEngine; root: string; onDataChanged: ReturnType<typeof vi.fn>}
 
 describe("two-node convergence through a shared sync directory", () => {
   let syncDir: string
@@ -134,6 +136,35 @@ describe("two-node convergence through a shared sync directory", () => {
     node.db.prepare("UPDATE tasks SET updated_at = ? WHERE id = ?").run(updatedAt, taskId)
   }
 
+  function bindRevisionedRemote(
+    hooks: {beforeRead?: () => Promise<void>; beforeWrite?: (snapshot: Snapshot) => Promise<void>},
+    {empty = false}: {empty?: boolean} = {},
+  ) {
+    let revision = empty ? 0 : 1
+    const adapter: IRevisionedRemoteStorage = {
+      supportsRevisions: true,
+      async loadSnapshotWithRevision() {
+        const observedRevision = revision
+        const snapshot = await this.loadSnapshot()
+        await hooks.beforeRead?.()
+        return {snapshot, revision: observedRevision ? String(observedRevision) : null}
+      },
+      async loadSnapshot() {
+        return revision ? buildSnapshot(await nodeB.core.localAdapter.loadAllDocs()) : null
+      },
+      async saveSnapshotIfUnchanged(snapshot) {
+        await hooks.beforeWrite?.(snapshot)
+        await this.saveSnapshot(snapshot)
+        return String(++revision)
+      },
+      async saveSnapshot(snapshot) {
+        await nodeB.core.localAdapter.upsertDocs(snapshot.docs)
+      },
+      async syncAssets() {},
+    }
+    nodeA.engine.setRemotes([{id: "server", label: "Daily Sync Server", adapter}])
+  }
+
   beforeEach(() => {
     syncDir = mkdtempSync(join(tmpdir(), "daily-sync-dir-"))
     nodeA = makeNode("a")
@@ -174,6 +205,113 @@ describe("two-node convergence through a shared sync directory", () => {
     const taskOnB = await nodeB.core.tasksService.getTask(task.id)
     expect(taskOnA?.content).toBe("edit from B")
     expect(taskOnB?.content).toBe("edit from B")
+  })
+
+  it("preserves edits to the same task and an unrelated task while the server snapshot is in flight", async () => {
+    const shared = await addTaskWithMintedId(nodeA, "Shared")
+    const localOnly = await addTaskWithMintedId(nodeA, "Local-only")
+    const received = await addTaskWithMintedId(nodeA, "Remote will edit")
+    for (const task of [shared, localOnly, received]) setUpdatedAt(nodeA, task.id, "2026-07-01T10:00:00.000Z")
+    const docs = await nodeA.core.localAdapter.loadAllDocs()
+    await nodeB.core.localAdapter.upsertDocs({...docs, tasks: docs.tasks.filter((task) => task.id !== localOnly.id)})
+    await nodeB.core.tasksService.updateTask(shared.id, {content: "Older remote edit"})
+    setUpdatedAt(nodeB, shared.id, "2026-07-02T10:00:00.000Z")
+    await nodeB.core.tasksService.updateTask(received.id, {content: "New remote edit"})
+    setUpdatedAt(nodeB, received.id, "2026-07-02T10:00:00.000Z")
+
+    const readStarted = Promise.withResolvers<void>()
+    const finishRead = Promise.withResolvers<void>()
+    bindRevisionedRemote({
+      async beforeRead() {
+        readStarted.resolve()
+        await finishRead.promise
+      },
+    })
+
+    const workStorage = new WorkStorage(nodeA.core, nodeA.db, vi.fn())
+    const sync = nodeA.engine.syncOnce()
+    await readStarted.promise
+    try {
+      await workStorage.updateTask(shared.id, {content: "Newer local edit"})
+      setUpdatedAt(nodeA, shared.id, "2026-07-03T10:00:00.000Z")
+      await workStorage.updateTask(localOnly.id, {content: "Edited while reading"})
+    } finally {
+      finishRead.resolve()
+    }
+    await sync
+
+    for (const node of [nodeA, nodeB]) {
+      expect((await node.core.tasksService.getTask(shared.id))?.content).toBe("Newer local edit")
+      expect((await node.core.tasksService.getTask(localOnly.id))?.content).toBe("Edited while reading")
+      expect((await node.core.tasksService.getTask(received.id))?.content).toBe("New remote edit")
+    }
+    expect(nodeA.onDataChanged).toHaveBeenCalledWith(
+      expect.objectContaining({tasks: {upserted: [expect.objectContaining({id: received.id, content: "New remote edit"})]}}),
+    )
+  })
+
+  it("includes an edit made while waiting for the server's first empty snapshot", async () => {
+    const task = await addTaskWithMintedId(nodeA, "Before first sync")
+    const readStarted = Promise.withResolvers<void>()
+    const finishRead = Promise.withResolvers<void>()
+    bindRevisionedRemote(
+      {
+        async beforeRead() {
+          readStarted.resolve()
+          await finishRead.promise
+        },
+      },
+      {empty: true},
+    )
+
+    const sync = nodeA.engine.syncOnce()
+    await readStarted.promise
+    try {
+      const workStorage = new WorkStorage(nodeA.core, nodeA.db, vi.fn())
+      await workStorage.updateTask(task.id, {content: "Edited during first read"})
+    } finally {
+      finishRead.resolve()
+    }
+    await sync
+
+    expect((await nodeB.core.tasksService.getTask(task.id))?.content).toBe("Edited during first read")
+    expect(nodeA.onDataChanged).not.toHaveBeenCalled()
+  })
+
+  it("publishes a committed pull before the push settles and sends an edit made during the failed push on the next cycle", async () => {
+    const pending = await addTaskWithMintedId(nodeA, "Outgoing")
+    const incoming = await addTaskWithMintedId(nodeB, "Incoming")
+    const writeStarted = Promise.withResolvers<Snapshot>()
+    const finishWrite = Promise.withResolvers<void>()
+    let first = true
+    bindRevisionedRemote({
+      async beforeWrite(snapshot) {
+        if (!first) return
+        first = false
+        writeStarted.resolve(snapshot)
+        await finishWrite.promise
+        throw new Error("Upload rejected")
+      },
+    })
+
+    const workStorage = new WorkStorage(nodeA.core, nodeA.db, vi.fn())
+    const failed = expect(nodeA.engine.syncOnce()).rejects.toThrow("Upload rejected")
+    const sent = await writeStarted.promise
+    try {
+      expect(sent.docs.tasks.find((task) => task.id === pending.id)?.content).toBe("Outgoing")
+      expect((await workStorage.getTask(incoming.id))?.content).toBe("Incoming")
+      expect(nodeA.onDataChanged).toHaveBeenCalledWith(
+        expect.objectContaining({tasks: {upserted: [expect.objectContaining({id: incoming.id, content: "Incoming"})]}}),
+      )
+      await workStorage.updateTask(pending.id, {content: "Edited during upload"})
+    } finally {
+      finishWrite.resolve()
+      await failed
+    }
+
+    expect((await workStorage.getTask(pending.id))?.content).toBe("Edited during upload")
+    await nodeA.engine.syncOnce()
+    expect((await nodeB.core.tasksService.getTask(pending.id))?.content).toBe("Edited during upload")
   })
 
   it("loads_TC-12_a_v4_snapshot_from_the_previous_release_with_task_schedules_intact", async () => {

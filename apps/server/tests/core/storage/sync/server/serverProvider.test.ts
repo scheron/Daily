@@ -1,3 +1,6 @@
+import {mkdtemp, rm} from "node:fs/promises"
+import {tmpdir} from "node:os"
+import {join} from "node:path"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
 import {
@@ -16,6 +19,8 @@ import {getTimezone} from "@daily/std"
 import {createStorageCore} from "@core/storage/createStorageCore"
 import {getDefaultSettings} from "@core/storage/models/_rowMappers"
 import {StorageController} from "@core/storage/StorageController"
+import {DailyServerRemoteAdapter} from "@core/storage/sync/adapters/DailyServerRemoteAdapter"
+import {ICloudRemoteAdapter} from "@core/storage/sync/adapters/ICloudRemoteAdapter"
 import {DailySyncClient} from "@core/storage/sync/server/DailySyncClient"
 import {ServerProviderService} from "@core/storage/sync/server/ServerProviderService"
 import * as serverTransport from "@core/storage/sync/server/serverTransport"
@@ -197,6 +202,110 @@ describe("the single guard on every settings write", () => {
     expect(after).toEqual(before)
 
     db.close()
+  })
+})
+
+describe("the storage controller's active server configuration", () => {
+  async function makeController() {
+    const root = await mkdtemp(join(tmpdir(), "daily-server-controller-"))
+    const db = createTestDatabase()
+    const controller = new StorageController(db, {
+      appDataRoot: () => root,
+      dbPath: () => join(root, "db"),
+      assetsDir: () => join(root, "assets"),
+      remoteSyncPath: () => join(root, "remote"),
+    })
+    await controller.init()
+    return {
+      controller,
+      async close() {
+        controller.stopSync()
+        db.close()
+        await rm(root, {recursive: true, force: true})
+      },
+    }
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.useRealTimers()
+  })
+
+  it("applies probe metadata during an upload and cancels the upload and stale probe on rebind", async () => {
+    const {controller, close} = await makeController()
+    vi.useFakeTimers()
+    const initial = makeBinding()
+    const replacement = makeBinding({serverId: "srv-2", serverName: "Replacement", token: "replacement-token"})
+    const staleProbe = Promise.withResolvers<RevisionProbe>()
+    const probeResult: RevisionProbe = {
+      revision: null,
+      name: "Updated name",
+      role: "child",
+      acceptsAgents: true,
+      protocol: SYNC_PROTOCOL_VERSION,
+      pendingEnrollment: false,
+      pendingAgentRequest: false,
+    }
+    const reads = vi.spyOn(DailySyncClient.prototype, "probeRevision").mockResolvedValueOnce(probeResult).mockReturnValueOnce(staleProbe.promise)
+    vi.spyOn(DailyServerRemoteAdapter.prototype, "loadSnapshotWithRevision").mockResolvedValue({snapshot: null, revision: null})
+    const writes = vi
+      .spyOn(DailyServerRemoteAdapter.prototype, "saveSnapshotIfUnchanged")
+      .mockImplementationOnce(
+        (_snapshot, _revision, signal) =>
+          new Promise((_, reject) => {
+            signal?.addEventListener("abort", () => reject(signal.reason), {once: true})
+          }),
+      )
+      .mockResolvedValue("replacement-revision")
+
+    try {
+      const {sync} = await controller.loadSettings()
+      await controller.saveSettings({sync: {...sync, server: {enabled: true, binding: initial}}})
+      await vi.advanceTimersByTimeAsync(0)
+      const uploadSignal = writes.mock.calls[0]?.[2]
+      expect(uploadSignal?.aborted).toBe(false)
+
+      await vi.advanceTimersByTimeAsync(SYNC_PROTOCOL_CONFIG.revisionProbeIntervalMs)
+      expect((await controller.loadSettings()).sync.server.binding).toMatchObject({serverName: "Updated name", role: "child", acceptsAgents: true})
+      expect(uploadSignal?.aborted).toBe(false)
+      expect(writes).toHaveBeenCalledTimes(1)
+
+      await vi.advanceTimersByTimeAsync(SYNC_PROTOCOL_CONFIG.revisionProbeIntervalMs)
+      const staleSignal = reads.mock.calls[1]?.[1]
+      expect(staleSignal?.aborted).toBe(false)
+      await controller.saveSettings({sync: {...sync, server: {enabled: true, binding: replacement}}})
+      expect(uploadSignal?.aborted).toBe(true)
+      expect(staleSignal?.aborted).toBe(true)
+      staleProbe.resolve({...probeResult, name: "Stale name"})
+      await vi.advanceTimersByTimeAsync(0)
+      expect((await controller.loadSettings()).sync.server.binding).toMatchObject({serverId: "srv-2", serverName: "Replacement"})
+      expect(writes).toHaveBeenCalledTimes(2)
+      expect(controller.getSyncStatus()).toBe("active")
+    } finally {
+      await close()
+    }
+  })
+
+  it("restores the prior server after a failed migration with unchanged settings", async () => {
+    const {controller, close} = await makeController()
+    vi.useFakeTimers()
+    const reads = vi.spyOn(DailyServerRemoteAdapter.prototype, "loadSnapshotWithRevision").mockResolvedValue({snapshot: null, revision: null})
+    vi.spyOn(DailyServerRemoteAdapter.prototype, "saveSnapshotIfUnchanged").mockResolvedValue("server-revision")
+    vi.spyOn(ICloudRemoteAdapter.prototype, "loadSnapshot").mockRejectedValue(new Error("iCloud unavailable"))
+    try {
+      const {sync} = await controller.loadSettings()
+      await controller.saveSettings({sync: {...sync, server: {enabled: true, binding: makeBinding()}}})
+      await vi.advanceTimersByTimeAsync(0)
+      expect(reads).toHaveBeenCalledTimes(1)
+
+      await expect(controller.migrateProvider("icloud", "keep-local")).rejects.toThrow("iCloud unavailable")
+      await vi.advanceTimersByTimeAsync(0)
+      expect(reads).toHaveBeenCalledTimes(2)
+      expect(controller.getSyncRemoteStates().map(({id}) => id)).toEqual(["daily-server"])
+      expect(controller.getSyncStatus()).toBe("active")
+    } finally {
+      await close()
+    }
   })
 })
 
@@ -430,7 +539,7 @@ describe("the revision probe", () => {
     await settleProbeIO()
   }
 
-  it("runs_TC-14_a_sync_cycle_exactly_when_the_revision_moves_and_edge_triggers_the_approval_callback", async () => {
+  it("observes_TC-14_the_initial_revision_and_changes_and_edge_triggers_the_approval_callback", async () => {
     const server = await bootSyncServer()
     try {
       const credential = await claimFirstDevice(server, "MacBook Air")
@@ -447,7 +556,8 @@ describe("the revision probe", () => {
       await fireProbeTick()
       await fireProbeTick()
       await fireProbeTick()
-      expect(runSyncCycle).not.toHaveBeenCalled()
+      expect(runSyncCycle).toHaveBeenCalledExactlyOnceWith({revision: null, reconnected: false})
+      runSyncCycle.mockClear()
 
       await fetch(`${server.baseUrl}${SYNC_PROTOCOL_PATHS.snapshot}`, {
         method: "POST",
@@ -781,7 +891,8 @@ describe("the protocol mismatch a probe tick can find — TC-2, TC-4 through TC-
       mockProbeOnce({revision: "r0", pendingEnrollment: false, protocol: SYNC_PROTOCOL_VERSION} as RevisionProbe)
       service.startProbe()
       await fireProbeTick()
-      expect(runSyncCycle).not.toHaveBeenCalled()
+      expect(runSyncCycle).toHaveBeenCalledExactlyOnceWith({revision: "r0", reconnected: false})
+      runSyncCycle.mockClear()
 
       mockProbeOnce({revision: "r0", pendingEnrollment: false, protocol: SYNC_PROTOCOL_VERSION + 1} as RevisionProbe)
       await fireProbeTick()
@@ -823,7 +934,7 @@ describe("the protocol mismatch a probe tick can find — TC-2, TC-4 through TC-
 
       const state = await service.getState()
       expect(state.mismatch).toBeNull()
-      expect(runSyncCycle).not.toHaveBeenCalled()
+      expect(runSyncCycle).toHaveBeenCalledExactlyOnceWith({revision: null, reconnected: false})
     } finally {
       await server.close()
     }
@@ -897,7 +1008,8 @@ describe("the re-arm after a successful probe", () => {
 
       service.startProbe()
       await fireProbeTick()
-      expect(runSyncCycle).not.toHaveBeenCalled()
+      expect(runSyncCycle).toHaveBeenCalledExactlyOnceWith({revision: "r0", reconnected: false})
+      runSyncCycle.mockClear()
 
       // The scheduler's second fire reaches "r1" — the move that ends that hold — and the re-arm
       // this phase adds is what reaches "r2" too, without a third twelve-second wait: a
@@ -926,7 +1038,8 @@ describe("the re-arm after a successful probe", () => {
 
       service.startProbe()
       await fireProbeTick()
-      expect(runSyncCycle).not.toHaveBeenCalled()
+      expect(runSyncCycle).toHaveBeenCalledExactlyOnceWith({revision: "r0", reconnected: false})
+      runSyncCycle.mockClear()
 
       // The scheduler's second fire is the move that ends that hold and schedules a re-arm.
       await fireProbeTick()
@@ -959,7 +1072,8 @@ describe("the re-arm after a successful probe", () => {
 
       service.startProbe()
       await fireProbeTick()
-      expect(runSyncCycle).not.toHaveBeenCalled()
+      expect(runSyncCycle).toHaveBeenCalledExactlyOnceWith({revision: "r0", reconnected: false})
+      runSyncCycle.mockClear()
 
       // The scheduler's second fire moves to "r1" and schedules a re-arm; that re-armed probe is
       // the one that finds the mismatch, so a re-arm must not outlive a switch into mismatch.
@@ -1000,7 +1114,8 @@ describe("the re-arm after a successful probe", () => {
 
       service.startProbe()
       await fireProbeTick()
-      expect(runSyncCycle).not.toHaveBeenCalled()
+      expect(runSyncCycle).toHaveBeenCalledExactlyOnceWith({revision: "r0", reconnected: false})
+      runSyncCycle.mockClear()
 
       // The scheduler's second fire finds "r0" unchanged — an expired hold, nothing new — and still
       // re-arms: the re-armed probe, within this same call, is what reaches "r1" and runs the sync
@@ -1077,7 +1192,8 @@ describe("the re-arm after a successful probe", () => {
 
       service.startProbe()
       await fireProbeTick()
-      expect(runSyncCycle).not.toHaveBeenCalled()
+      expect(runSyncCycle).toHaveBeenCalledExactlyOnceWith({revision: "r0", reconnected: false})
+      runSyncCycle.mockClear()
 
       // The scheduler's second fire moves to "r1" and schedules a re-arm; that re-armed probe,
       // within this same call, is the one now held open above.
@@ -1104,83 +1220,32 @@ describe("the re-arm after a successful probe", () => {
     }
   }, 20000)
 
-  it("does not let a tick still unwinding after disconnect clobber a tick a later reconnect started", async () => {
-    let releaseStaleSyncCycle: (() => void) | null = null
-    const runSyncCycle = vi.fn(
-      () =>
-        new Promise<void>((resolve) => {
-          releaseStaleSyncCycle = resolve
-        }),
-    )
-    const {server, service, store, binding} = await bindRearmService({runSyncCycle})
+  it("reads the next revision while the previous revision's snapshot transfer is still running", async () => {
+    const transfer = Promise.withResolvers<void>()
+    const runSyncCycle = vi.fn(() => transfer.promise)
+    const store = makeSettingsStore({server: {enabled: true, binding: makeBinding()}})
+    const service = makeService(store, {runSyncCycle})
     try {
-      const probeSpy = vi.spyOn(DailySyncClient.prototype, "probeRevision")
-      let inFlight = 0
-      let peakInFlight = 0
-      let releaseReconnectedHold: (() => void) | null = null
-
-      probeSpy.mockResolvedValueOnce(probe("r0"))
-      // The move that sends this tick into `runSyncCycle()` — held open above, standing in for
-      // work nothing here can cancel, exactly like a real sync cycle already running.
-      probeSpy.mockResolvedValueOnce(probe("r1"))
+      const nextProbe = Promise.withResolvers<RevisionProbe>()
+      const reads = vi
+        .spyOn(DailySyncClient.prototype, "probeRevision")
+        .mockResolvedValueOnce(probe("r0"))
+        .mockResolvedValueOnce(probe("r1"))
+        .mockReturnValueOnce(nextProbe.promise)
 
       service.startProbe()
       await fireProbeTick()
-      expect(runSyncCycle).not.toHaveBeenCalled()
-
-      // The scheduler's second fire moves to "r1" and calls `runSyncCycle()`, which this test holds
-      // open rather than letting resolve — this tick is now stuck exactly where the coordinator's
-      // sequence puts it: past its network call, inside the one await nothing can cancel.
       await fireProbeTick()
-      expect(runSyncCycle).toHaveBeenCalledTimes(1)
-      expect(probeSpy.mock.calls.length).toBe(2)
-
-      // Disconnect while that tick is still stuck — its own `stopProbe()` cannot touch a running
-      // sync cycle — and reconnect immediately after, exactly the coordinator's steps 2 and 3.
-      // `disconnect()` clears the binding as a real one would; restoring it through the same
-      // settings store a real re-bind writes through is what lets the reconnected probe run at
-      // all, without reaching into the service's own privates to do it.
-      await service.disconnect()
-      await store.saveSettings({sync: {...store.snapshot().sync, server: {enabled: true, binding}}})
-      probeSpy.mockImplementationOnce(async () => {
-        inFlight++
-        peakInFlight = Math.max(peakInFlight, inFlight)
-        await new Promise<void>((resolve) => {
-          releaseReconnectedHold = resolve
-        })
-        inFlight--
-        return probe("r0")
-      })
-      probeSpy.mockResolvedValue(probe("r0"))
-      service.startProbe()
-
-      // The reconnected scheduler's own first fire opens a hold of its own — held open above,
-      // exactly the coordinator's step 4.
-      await fireProbeTick()
-      expect(probeSpy.mock.calls.length).toBe(3)
-
-      // Now let the stale tick from before the disconnect finish — the coordinator's step 5. Before
-      // this round's fix, its `finally` cleared the in-flight flag the reconnected tick owns.
-      releaseStaleSyncCycle?.()
+      await vi.advanceTimersByTimeAsync(1)
       await settleProbeIO()
 
-      // The reconnected scheduler's own next boundary, a full interval later, with its own hold
-      // from above still open. If the stale tick's finish had cleared a flag it no longer owned,
-      // this is exactly where a second, concurrent probe would start.
-      await fireProbeTick()
-
-      expect(probeSpy.mock.calls.length).toBe(3)
-      expect(peakInFlight).toBe(1)
-      // The stale tick returned without writing anything — its own revision report never lands.
-      expect(runSyncCycle).toHaveBeenCalledTimes(1)
-
-      releaseReconnectedHold?.()
-      await settleProbeIO()
-      service.stopProbe()
+      expect(runSyncCycle.mock.calls).toEqual([[{revision: "r0", reconnected: false}], [{revision: "r1", reconnected: false}]])
+      expect(reads.mock.calls.map(([knownRevision]) => knownRevision ?? null)).toEqual([null, "r0", "r1"])
     } finally {
-      await server.close()
+      service.stopProbe()
+      transfer.resolve()
     }
-  }, 20000)
+  })
 })
 
 describe("the connection to the server, as the revision probe learns it", () => {
@@ -1301,7 +1366,7 @@ describe("the connection to the server, as the revision probe learns it", () => 
     await fireProbeTick()
 
     expect(onConnectionChanged.mock.calls).toEqual([["connecting"], ["connected"], ["unreachable"], ["connected"]])
-    expect(runSyncCycle).toHaveBeenCalledTimes(1)
+    expect(runSyncCycle.mock.calls).toEqual([[{revision: "r0", reconnected: false}], [{revision: "r0", reconnected: true}]])
     expect((await service.getState()).connection).toBe("connected")
     service.stopProbe()
   })

@@ -36,7 +36,7 @@ import {bootSyncServer, claimFirstDevice} from "@server-tests/helpers/syncServer
 
 import type {AppPaths} from "@core/config/paths"
 import type {StorageCore} from "@core/storage/createStorageCore"
-import type {IssuedCredential, ServerSyncBinding, Settings, SyncSettings} from "@daily/protocol"
+import type {IssuedCredential, ServerSyncBinding, Settings, SyncRemote, SyncSettings} from "@daily/protocol"
 import type {BootedSyncServer} from "@server-tests/helpers/syncServer"
 import type Database from "better-sqlite3"
 
@@ -146,17 +146,17 @@ function makeRig(db: Database.Database, root: string) {
   const probe = {running: false}
   const buildRemotes = (sync: SyncSettings) => buildSyncRemotes(sync, {icloudSyncDir})
 
-  async function applyRemoteConfiguration(): Promise<void> {
+  async function applyRemoteConfiguration(migratedRemote?: SyncRemote): Promise<void> {
     const settings = await core.settingsService.loadSettings()
-    engine.setRemotes(buildRemotes(settings.sync))
-    if (resolveActiveProvider(settings.sync) !== "off") engine.enableAutoSync()
+    engine.setRemotes(migratedRemote ? [migratedRemote] : buildRemotes(settings.sync))
+    if (resolveActiveProvider(settings.sync) !== "off") engine.enableAutoSync({reconciled: Boolean(migratedRemote)})
     else engine.disableAutoSync()
     probe.running = resolveActiveProvider(settings.sync) === "server"
   }
 
-  async function saveSettings(partial: Partial<Settings>): Promise<void> {
+  async function saveSettings(partial: Partial<Settings>, migratedRemote?: SyncRemote): Promise<void> {
     await core.settingsService.saveSettings(partial)
-    if (partial.sync) await applyRemoteConfiguration()
+    if (partial.sync) await applyRemoteConfiguration(migratedRemote)
   }
 
   const migration = new ProviderMigrationService({
@@ -465,9 +465,13 @@ describe("migrating in each direction", () => {
 
   it("migrates_TC-5_keep-local_uniting_both_sides_while_the_contested_task_holds_this_Macs_content_everywhere", async () => {
     const {db, server, rig, binding} = await setupContestedMigration()
+    const reads = vi.spyOn(DailyServerRemoteAdapter.prototype, "loadSnapshotWithRevision")
 
     try {
       await rig.migration.migrate("server", "keep-local")
+      await new Promise<void>((resolve) => setImmediate(resolve))
+      expect(rig.engine.syncStatus).toBe("active")
+      expect(reads).toHaveBeenCalledTimes(1)
 
       expect(getTaskRow(db, "contested")?.content).toBe("Local content")
       expect(getTaskRow(db, "local-only-task")).toBeDefined()
@@ -485,6 +489,8 @@ describe("migrating in each direction", () => {
       expect(rig.probe.running).toBe(true)
       expect(rig.engine.syncStatus).toBe("active")
     } finally {
+      reads.mockRestore()
+      rig.engine.disableAutoSync()
       db.close()
       await server.close()
     }

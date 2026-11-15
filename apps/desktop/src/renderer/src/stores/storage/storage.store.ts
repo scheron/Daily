@@ -2,7 +2,6 @@ import {computed, onMounted, ref, watch} from "vue"
 import {defineStore} from "pinia"
 
 import {resolveActiveProvider} from "@daily/protocol"
-import {sleep} from "@daily/std"
 
 import {useSettingsStore} from "../settings"
 import {useStorageChangesStore} from "../storage-changes"
@@ -22,14 +21,9 @@ export const useStorageStore = defineStore("storage", () => {
     return sync ? resolveActiveProvider(sync) : "off"
   })
 
-  window.BridgeIPC["storage-sync:on-status-changed"](async (newStatus, prevStatus) => {
+  window.BridgeIPC["storage-sync:on-status-changed"]((newStatus) => {
     status.value = newStatus
     lastSyncAt.value = new Date().toISOString()
-
-    if (prevStatus === "inactive" && newStatus === "active") {
-      await sleep(500)
-      await forceSync()
-    }
   })
 
   storageChangesStore.onStorageDataChanged(async () => {
@@ -72,10 +66,7 @@ export const useStorageStore = defineStore("storage", () => {
     if (value === "error") loadServerSyncError()
   })
 
-  onMounted(async () => {
-    await loadSyncStatus()
-    if (status.value === "active") forceSync()
-  })
+  onMounted(loadSyncStatus)
 
   return {
     status,

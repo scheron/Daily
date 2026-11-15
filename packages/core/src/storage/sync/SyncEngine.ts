@@ -1,4 +1,4 @@
-import {RemoteSnapshotPendingError, RemoteWriteConflictError, SYNC_CONFIG, syncPacingFor} from "@daily/protocol"
+import {RemoteSnapshotPendingError, RemoteWriteConflictError, SYNC_CONFIG, SYNC_REMOTE_ID, syncPacingFor} from "@daily/protocol"
 import {AsyncMutex, createIntervalScheduler, withElapsedDelay} from "@daily/std"
 
 import {logger} from "../../utils/logger"
@@ -6,6 +6,7 @@ import {isRevisionedRemote} from "../../utils/sync/isRevisionedRemote"
 import {mergeRemoteIntoLocal} from "../../utils/sync/merge/mergeRemoteIntoLocal"
 import {buildSnapshot, buildSnapshotMeta} from "../../utils/sync/snapshot/buildSnapshot"
 import {rowToBranch, rowToMilestone, rowToTag, rowToTaskComment, rowToTaskRelation} from "../models/_rowMappers"
+import {SyncTransferError} from "./server/DailySyncClient"
 
 import type {
   ILocalStorage,
@@ -14,6 +15,7 @@ import type {
   SnapshotBranch,
   SnapshotDocs,
   SnapshotMilestone,
+  SnapshotRevision,
   SnapshotSubtask,
   SnapshotTag,
   SnapshotTask,
@@ -30,42 +32,36 @@ import type {
 } from "@daily/protocol"
 import type {Changeset} from "../../types/storage"
 
-type RevisionedSyncOutcome = {
-  resultDocs: SnapshotDocs
-  hasChanges: boolean
-  conflict: RemoteWriteConflictError | null
+type PendingCycle = {
+  strategy: SyncStrategy
+  expedited: boolean
+  revision?: SnapshotRevision | null
+  done: PromiseWithResolvers<void>
 }
 
-/**
- * SyncEngine orchestrates pull/push operations between local SQLite and a set
- * of remote storages.
- *
- * Architecture:
- * - Local-first: SQLite is always the source of truth
- * - Each remote is a "remote flash drive" - no server-side logic
- * - All merge logic happens locally using pure LWW (Last Write Wins) strategy
- * - Remotes are merged sequentially, then every remote whose hash differs from
- *   the merged local state receives a push (the node acts as a bridge)
- * - A failing remote is isolated: its error lands in per-remote state, the
- *   others continue; the whole sync fails only when every remote failed
- * - AsyncMutex prevents concurrent sync operations
- */
 export class SyncEngine {
   private _syncStatus: SyncStatus = "inactive"
   private _isSyncEnabled = false
-  private mutex = new AsyncMutex()
-  private remotes: SyncRemote[]
-  private remoteStates = new Map<string, {lastSyncAt: string | null; lastError: string | null}>()
+  private _mutex = new AsyncMutex()
+  private _remotes: SyncRemote[]
+  private _remoteStates = new Map<string, {lastSyncAt: string | null; lastError: string | null}>()
+  private _reconciledRevision: {value: SnapshotRevision | null} | null = null
+  private _activity = new AbortController()
+  private _automaticCycleRunning = false
+  private _pendingCycle: PendingCycle | null = null
+  private _retryTimer: ReturnType<typeof setTimeout> | null = null
+  private _retryFailures = 0
+  private _pushWhileDisabled = false
 
-  private readonly assetsDir: () => string
-  private onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => void
-  private onDataChanged: (changeset: Changeset) => void
-  private autoSyncScheduler: ReturnType<typeof createIntervalScheduler>
-  private pushDebounceTimer: ReturnType<typeof setTimeout> | null = null
-  private pacing: SyncPacing
+  private readonly _assetsDir: () => string
+  private readonly _onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => void
+  private readonly _onDataChanged: (changeset: Changeset) => void
+  private _autoSyncScheduler: ReturnType<typeof createIntervalScheduler>
+  private _pushDebounceTimer: ReturnType<typeof setTimeout> | null = null
+  private _pacing: SyncPacing
 
   constructor(
-    private localStore: ILocalStorage,
+    private _localStore: ILocalStorage,
     remotes: SyncRemote[],
     options: {
       assetsDir: () => string
@@ -73,13 +69,13 @@ export class SyncEngine {
       onDataChanged: (changeset: Changeset) => void
     },
   ) {
-    this.remotes = remotes
-    this.assetsDir = options.assetsDir
-    this.onStatusChange = options.onStatusChange
-    this.onDataChanged = options.onDataChanged
+    this._remotes = remotes
+    this._assetsDir = options.assetsDir
+    this._onStatusChange = options.onStatusChange
+    this._onDataChanged = options.onDataChanged
 
-    this.pacing = syncPacingFor(this.remotes[0]?.id)
-    this.autoSyncScheduler = this._createAutoSyncScheduler()
+    this._pacing = syncPacingFor(this._remotes[0]?.id)
+    this._autoSyncScheduler = this._createAutoSyncScheduler()
 
     this._initRemoteStates()
   }
@@ -90,90 +86,180 @@ export class SyncEngine {
 
   /** Replaces the remote set (e.g. when iCloud settings change). State of removed remotes is dropped. */
   setRemotes(remotes: SyncRemote[]): void {
-    this.remotes = remotes
+    if (remotes.length === this._remotes.length && remotes.every((remote, index) => remote === this._remotes[index])) return
+
+    this._cancelActivity()
+    this._reconciledRevision = null
+    for (const previous of this._remotes) {
+      if (!remotes.some(({id, adapter}) => previous.id === id && previous.adapter === adapter)) this._remoteStates.delete(previous.id)
+    }
+    this._remotes = remotes
     this._applyPacing()
     this._initRemoteStates()
+    if (this._isSyncEnabled) {
+      this._setStatus("active")
+      this._requestStartupSync()
+    }
   }
 
   /** Per-remote sync bookkeeping (last successful sync, last error) for the settings UI. */
   getRemoteStates(): SyncRemoteState[] {
-    return this.remotes.map((remote) => {
-      const state = this.remoteStates.get(remote.id) ?? {lastSyncAt: null, lastError: null}
+    return this._remotes.map((remote) => {
+      const state = this._remoteStates.get(remote.id) ?? {lastSyncAt: null, lastError: null}
       return {id: remote.id, label: remote.label, ...state}
     })
   }
 
-  enableAutoSync() {
+  enableAutoSync({reconciled = false}: {reconciled?: boolean} = {}) {
     if (this._isSyncEnabled) return
 
     this._isSyncEnabled = true
-    this.autoSyncScheduler.start()
+    this._autoSyncScheduler.start()
 
     this._setStatus("active")
+    if (!reconciled) this._requestStartupSync()
+    else if (this._pushWhileDisabled) this.requestPush()
+    this._pushWhileDisabled = false
   }
 
   disableAutoSync() {
-    if (!this._isSyncEnabled) return
-
     this._isSyncEnabled = false
-    this.autoSyncScheduler.stop()
-    this._cancelPendingPush()
+    this._autoSyncScheduler.stop()
+    this._cancelActivity()
 
-    this._setStatus("inactive")
+    if (this._syncStatus !== "inactive") this._setStatus("inactive")
   }
 
-  /**
-   * Requests a sync once the active provider's debounce has passed since the
-   * last call, restarting the timer on each call so a burst of edits produces
-   * one sync rather than one per edit. How long that is belongs to the
-   * provider: iCloud pays for every write, the server does not. Runs the same
-   * `sync()` the periodic scheduler runs, so the mutex, the status transitions
-   * and the failure handling are not duplicated. Meant for local mutations; a
-   * change that arrived from a remote should not call this.
-   */
   requestPush(): void {
-    this._cancelPendingPush()
-    this.pushDebounceTimer = setTimeout(() => {
-      this.pushDebounceTimer = null
-      void this.sync()
-    }, this.pacing.pushDebounceMs)
+    if (!this._isSyncEnabled) {
+      this._pushWhileDisabled = true
+      return
+    }
+    this._schedulePush(this._pacing.pushDebounceMs)
   }
 
-  /**
-   * Sync with all remotes, guarded by AsyncMutex. No-op unless auto-sync is
-   * enabled; failures are swallowed into the "error" status (app cycle behavior).
-   */
-  async sync(strategy: SyncStrategy = "pull"): Promise<void> {
-    if (!this._isSyncEnabled) return
-
-    await this.mutex.runExclusive(async () => {
-      this._setStatus("syncing")
-
-      try {
-        await withElapsedDelay(async () => await this._sync(strategy), 1_000)
-        this._setStatus(this._isSyncEnabled ? "active" : "inactive")
-      } catch {
-        this._setStatus("error")
-      }
-    })
+  observeRevision(revision: SnapshotRevision | null, reconnected: boolean): void {
+    if (!reconnected && this._reconciledRevision?.value === revision) return
+    void this._queueAutomaticCycle("pull", reconnected, reconnected ? {} : {revision})
   }
 
-  /**
-   * One-shot sync that works without enableAutoSync — used around provider
-   * migrations. Unlike sync(), a total failure propagates to the caller.
-   */
+  /** A manual retry brings pending work forward, including a cycle in backoff. */
+  sync(strategy: SyncStrategy = "pull"): Promise<void> {
+    return this._queueAutomaticCycle(strategy, true)
+  }
+
+  /** Runs the migration cycle once and propagates a total failure. */
   async syncOnce(strategy: SyncStrategy = "pull"): Promise<void> {
-    await this.mutex.runExclusive(async () => {
+    const {signal} = this._activity
+    await this._mutex.runExclusive(async () => {
+      signal.throwIfAborted()
+      this._pushWhileDisabled = false
       this._setStatus("syncing")
-
       try {
-        await this._sync(strategy)
+        await this._sync(strategy, signal)
+        signal.throwIfAborted()
         this._setStatus(this._isSyncEnabled ? "active" : "inactive")
       } catch (error) {
-        this._setStatus("error")
+        if (!signal.aborted) this._setStatus("error")
         throw error
       }
     })
+  }
+
+  private _requestStartupSync(): void {
+    if (this._remotes.some(({adapter}) => isRevisionedRemote(adapter))) void this._queueAutomaticCycle("pull", false)
+    else if (this._remotes.some(({id}) => id === SYNC_REMOTE_ID.icloud)) this._schedulePush(500)
+  }
+
+  private _schedulePush(delayMs: number): void {
+    this._cancelPendingPush()
+    this._pushDebounceTimer = setTimeout(() => {
+      this._pushDebounceTimer = null
+      void this._queueAutomaticCycle("pull", false)
+    }, delayMs)
+  }
+
+  private _cancelActivity(): void {
+    this._activity.abort()
+    this._activity = new AbortController()
+    this._cancelPendingPush()
+    this._clearRetryTimer()
+    this._retryFailures = 0
+    this._pendingCycle?.done.resolve()
+    this._pendingCycle = null
+  }
+
+  private _queueAutomaticCycle(strategy: SyncStrategy, expedited: boolean, observation: {revision?: SnapshotRevision | null} = {}): Promise<void> {
+    if (!this._isSyncEnabled) return Promise.resolve()
+
+    const pending = this._pendingCycle ?? {strategy, expedited: false, ...observation, done: Promise.withResolvers<void>()}
+    if (observation.revision === undefined) delete pending.revision
+    else if (pending.revision !== undefined) pending.revision = observation.revision
+    if (expedited) {
+      pending.strategy = strategy
+      pending.expedited = true
+      this._clearRetryTimer()
+    }
+    this._pendingCycle = pending
+    queueMicrotask(() => this._startPendingCycle())
+    return pending.done.promise
+  }
+
+  private _startPendingCycle(): void {
+    const pending = this._pendingCycle
+    if (!pending || this._automaticCycleRunning || this._retryTimer !== null) return
+
+    this._pendingCycle = null
+    if (pending.revision !== undefined && this._reconciledRevision?.value === pending.revision && this._retryFailures === 0) {
+      pending.done.resolve()
+      return
+    }
+
+    this._automaticCycleRunning = true
+    const {signal} = this._activity
+    void this._runAutomaticCycle(pending.strategy, signal).finally(() => {
+      this._automaticCycleRunning = false
+      pending.done.resolve()
+      this._startPendingCycle()
+    })
+  }
+
+  private async _runAutomaticCycle(strategy: SyncStrategy, signal: AbortSignal): Promise<void> {
+    await this._mutex.runExclusive(async () => {
+      if (signal.aborted) return
+      this._setStatus("syncing")
+      let retry = false
+      try {
+        retry = this._remotes.some(({adapter}) => isRevisionedRemote(adapter))
+          ? await this._sync(strategy, signal)
+          : await withElapsedDelay(() => this._sync(strategy, signal), 1_000)
+        if (!signal.aborted) this._setStatus("active")
+      } catch (error) {
+        if (signal.aborted) return
+        retry = isRetryableTransfer(error)
+        this._setStatus("error")
+      }
+      if (signal.aborted) return
+      if (retry) this._scheduleRetry(strategy)
+      else this._retryFailures = 0
+    })
+  }
+
+  private _scheduleRetry(strategy: SyncStrategy): void {
+    const ceilingMs = Math.min(60_000, 2_000 * 2 ** this._retryFailures)
+    this._retryFailures = Math.min(this._retryFailures + 1, 5)
+    if (this._pendingCycle?.expedited) return
+
+    const delayMs = Math.round(ceilingMs * (0.5 + Math.random() * 0.5))
+    this._retryTimer = setTimeout(() => {
+      this._retryTimer = null
+      void this._queueAutomaticCycle(strategy, false)
+    }, delayMs)
+  }
+
+  private _clearRetryTimer(): void {
+    if (this._retryTimer !== null) clearTimeout(this._retryTimer)
+    this._retryTimer = null
   }
 
   /**
@@ -187,25 +273,29 @@ export class SyncEngine {
    * revision support is handled apart from that two-pass shape, in a bounded
    * read-merge-write loop of its own.
    */
-  private async _sync(strategy: SyncStrategy = "pull"): Promise<void> {
+  private async _sync(strategy: SyncStrategy, signal: AbortSignal): Promise<boolean> {
     const revisionedRemotes: Array<{remote: SyncRemote; adapter: IRevisionedRemoteStorage}> = []
     const plainRemotes: SyncRemote[] = []
 
-    for (const remote of this.remotes) {
+    for (const remote of this._remotes) {
       if (isRevisionedRemote(remote.adapter)) revisionedRemotes.push({remote, adapter: remote.adapter})
       else plainRemotes.push(remote)
     }
 
-    let localDocs = await this.localStore.loadAllDocs()
+    let localDocs = plainRemotes.length ? await this._localStore.loadAllDocs() : null
+    signal.throwIfAborted()
     let anyChanges = false
+    let retry = false
     let succeeded = 0
     const pushTargets: Array<{remote: SyncRemote; remoteDocs: SnapshotDocs | null}> = []
     const errors: unknown[] = []
     const changesetAcc = createChangesetAccumulator()
 
     for (const remote of plainRemotes) {
+      if (!localDocs || signal.aborted) break
       try {
         const snapshot = await remote.adapter.loadSnapshot()
+        signal.throwIfAborted()
         const remoteDocs = snapshot?.docs ?? null
 
         if (remoteDocs && buildSnapshotMeta(localDocs).hash === snapshot!.meta.hash) {
@@ -219,6 +309,7 @@ export class SyncEngine {
         anyChanges ||= hasChanges
         pushTargets.push({remote, remoteDocs})
       } catch (error) {
+        if (signal.aborted) break
         if (error instanceof RemoteSnapshotPendingError) {
           logger.info(logger.CONTEXT.SYNC_REMOTE, `Remote "${remote.id}": snapshot still downloading, postponing`)
           continue
@@ -231,10 +322,11 @@ export class SyncEngine {
     }
 
     for (const {remote, adapter} of revisionedRemotes) {
+      if (signal.aborted) break
       try {
-        const {resultDocs, hasChanges, conflict} = await this._syncRevisionedRemote(remote, adapter, localDocs, strategy, changesetAcc)
-        localDocs = resultDocs
-        anyChanges ||= hasChanges
+        const {docs, conflict} = await this._syncRevisionedRemote(remote, adapter, strategy, signal)
+        signal.throwIfAborted()
+        localDocs = docs
 
         if (conflict) {
           logger.warn(
@@ -242,104 +334,110 @@ export class SyncEngine {
             `Remote "${remote.id}": conditional write lost ${SYNC_CONFIG.conditionalWriteMaxAttempts} races, deferring to the next cycle`,
           )
           this._recordRemoteError(remote.id, conflict)
+          retry = true
           continue
         }
 
         succeeded++
         this._recordRemoteSuccess(remote.id)
       } catch (error) {
+        if (signal.aborted) break
         if (error instanceof RemoteSnapshotPendingError) {
           logger.info(logger.CONTEXT.SYNC_REMOTE, `Remote "${remote.id}": snapshot still downloading, postponing`)
           continue
         }
 
+        retry ||= isRetryableTransfer(error)
         logger.error(logger.CONTEXT.SYNC_ENGINE, `Remote "${remote.id}": conditional sync failed`, error)
         this._recordRemoteError(remote.id, error)
         errors.push(error)
       }
     }
 
-    if (anyChanges) {
-      this.onDataChanged?.(buildChangeset(changesetAcc, localDocs.tags))
+    if (anyChanges && localDocs) {
+      this._onDataChanged?.(buildChangeset(changesetAcc, localDocs.tags))
     }
+    signal.throwIfAborted()
 
     for (const {remote, remoteDocs} of pushTargets) {
+      if (!localDocs) break
       try {
         if (this._shouldPush(localDocs, remoteDocs)) {
-          await this._push(remote, localDocs)
+          await this._push(remote, localDocs, signal)
         } else {
-          await this._syncAssets(remote, localDocs.files)
+          await this._syncAssets(remote, localDocs.files, signal)
         }
+        signal.throwIfAborted()
         succeeded++
         this._recordRemoteSuccess(remote.id)
       } catch (error) {
+        signal.throwIfAborted()
         logger.error(logger.CONTEXT.SYNC_PUSH, `Remote "${remote.id}": failed to push`, error)
         this._recordRemoteError(remote.id, error)
         errors.push(error)
       }
     }
 
-    if (this.remotes.length > 0 && succeeded === 0 && errors.length > 0) {
-      throw errors[0]
+    if (this._remotes.length > 0 && succeeded === 0 && errors.length > 0) {
+      throw errors.find(isRetryableTransfer) ?? errors[0]
     }
+    return retry
   }
 
-  /**
-   * Conditional-write path for a remote that declares revision support: read
-   * the snapshot together with its revision, merge it into local through the
-   * same `_pull` the plain remotes use, then write back only if that revision
-   * still holds. A rejected write starts the next attempt from a fresh read,
-   * never from the snapshot that lost the race.
-   *
-   * Attempts are bounded by `SYNC_CONFIG.conditionalWriteMaxAttempts`;
-   * exhausting them is reported as a conflict for the caller to record, not
-   * thrown, so a lost race defers to the next cycle instead of failing it.
-   */
   private async _syncRevisionedRemote(
     remote: SyncRemote,
     adapter: IRevisionedRemoteStorage,
-    localDocs: SnapshotDocs,
     strategy: SyncStrategy,
-    changesetAcc: ChangesetAccumulator,
-  ): Promise<RevisionedSyncOutcome> {
-    let docs = localDocs
-    let anyChanges = false
-    let lastConflict: RemoteWriteConflictError | null = null
+    signal: AbortSignal,
+  ): Promise<{docs: SnapshotDocs; conflict?: RemoteWriteConflictError}> {
+    let recoveredAmbiguousWrite = false
 
-    for (let attempt = 1; attempt <= SYNC_CONFIG.conditionalWriteMaxAttempts; attempt++) {
-      const {snapshot, revision} = await adapter.loadSnapshotWithRevision()
+    for (let attempt = 1; ; attempt++) {
+      const {snapshot, revision} = await adapter.loadSnapshotWithRevision(signal)
+      signal.throwIfAborted()
+      if ((snapshot === null) !== (revision === null)) {
+        throw new SyncTransferError("terminal", "The server's snapshot and revision disagree")
+      }
       const remoteDocs = snapshot?.docs ?? null
+      const {resultDocs: docs} = await this._localStore.mergeAndApply(
+        remoteDocs,
+        strategy,
+        ({changes, toUpsert, toRemove, resultDocs}) => {
+          this._pushWhileDisabled = false
+          if (!changes) return
+          const delta = createChangesetAccumulator()
+          accumulateDelta(delta, toUpsert, toRemove)
+          this._onDataChanged(buildChangeset(delta, resultDocs.tags))
+        },
+        signal,
+      )
+      signal.throwIfAborted()
 
-      const {resultDocs, hasChanges} = await this._pull(docs, remoteDocs, strategy, changesetAcc)
-      docs = resultDocs
-      anyChanges ||= hasChanges
-
-      if (!this._shouldPush(docs, remoteDocs)) {
-        await this._syncAssets(remote, docs.files)
-        return {resultDocs: docs, hasChanges: anyChanges, conflict: null}
+      let reconciledRevision = revision
+      if (this._shouldPush(docs, remoteDocs)) {
+        try {
+          const nextSnapshot = buildSnapshot(docs)
+          reconciledRevision = await adapter.saveSnapshotIfUnchanged(nextSnapshot, revision, signal)
+          signal.throwIfAborted()
+          logger.info(logger.CONTEXT.SYNC_PUSH, `Pushed snapshot ${nextSnapshot.meta.hash} to "${remote.id}" at revision ${reconciledRevision}`)
+        } catch (error) {
+          signal.throwIfAborted()
+          if (error instanceof RemoteWriteConflictError) {
+            if (attempt >= SYNC_CONFIG.conditionalWriteMaxAttempts) return {docs, conflict: error}
+            continue
+          }
+          if (error instanceof SyncTransferError && error.kind === "ambiguous" && !recoveredAmbiguousWrite) {
+            recoveredAmbiguousWrite = true
+            continue
+          }
+          throw error
+        }
       }
 
-      try {
-        const nextSnapshot = buildSnapshot(docs)
-        await adapter.saveSnapshotIfUnchanged(nextSnapshot, revision)
-
-        logger.info(logger.CONTEXT.SYNC_PUSH, `Pushed snapshot ${nextSnapshot.meta.hash} to "${remote.id}" at revision ${revision ?? "none"}`)
-
-        await this._syncAssets(remote, docs.files)
-
-        return {resultDocs: docs, hasChanges: anyChanges, conflict: null}
-      } catch (error) {
-        if (!(error instanceof RemoteWriteConflictError)) throw error
-
-        lastConflict = error
-        logger.info(
-          logger.CONTEXT.SYNC_PUSH,
-          `Remote "${remote.id}": conditional write rejected at revision ${revision ?? "none"} (attempt ${attempt}), re-reading`,
-        )
-      }
+      this._reconciledRevision = {value: reconciledRevision}
+      await this._syncAssets(remote, docs.files, signal)
+      return {docs}
     }
-
-    return {resultDocs: docs, hasChanges: anyChanges, conflict: lastConflict}
   }
 
   /**
@@ -364,16 +462,16 @@ export class SyncEngine {
     const {resultDocs, toUpsert, toRemove, changes} = mergeResult
     accumulateDelta(changesetAcc, toUpsert, toRemove)
 
-    const upsertCount = this.countDocs(toUpsert)
+    const upsertCount = this._countDocs(toUpsert)
     if (upsertCount) {
       logger.debug(logger.CONTEXT.SYNC_PULL, `Upserting ${upsertCount} documents`)
-      await this.localStore.upsertDocs(toUpsert)
+      await this._localStore.upsertDocs(toUpsert)
     }
 
-    const removalCount = this.countDocs(toRemove)
+    const removalCount = this._countDocs(toRemove)
     if (removalCount) {
       logger.debug(logger.CONTEXT.SYNC_PULL, `Deleting ${removalCount} documents`)
-      await this.localStore.deleteDocs(toRemove)
+      await this._localStore.deleteDocs(toRemove)
     }
 
     logger.info(logger.CONTEXT.SYNC_PULL, `Pull result: ${changes} changes`)
@@ -381,7 +479,7 @@ export class SyncEngine {
     return {resultDocs, hasChanges: changes > 0}
   }
 
-  private countDocs(docs: {
+  private _countDocs(docs: {
     tasks?: unknown[]
     tags?: unknown[]
     branches?: unknown[]
@@ -408,55 +506,64 @@ export class SyncEngine {
   /**
    * Push phase: send merged local state to one remote + sync its assets
    */
-  private async _push(remote: SyncRemote, localDocs: SnapshotDocs): Promise<void> {
+  private async _push(remote: SyncRemote, localDocs: SnapshotDocs, signal: AbortSignal): Promise<void> {
     logger.info(logger.CONTEXT.SYNC_PUSH, `Pushing snapshot to "${remote.id}"`)
 
     const snapshot = buildSnapshot(localDocs)
     await remote.adapter.saveSnapshot(snapshot)
+    signal.throwIfAborted()
 
     logger.info(logger.CONTEXT.SYNC_PUSH, `Pushed snapshot ${snapshot.meta.hash} to "${remote.id}"`)
 
-    await this._syncAssets(remote, localDocs.files)
+    await this._syncAssets(remote, localDocs.files, signal)
   }
 
-  private async _syncAssets(remote: SyncRemote, files: SnapshotDocs["files"]): Promise<void> {
+  private async _syncAssets(remote: SyncRemote, files: SnapshotDocs["files"], signal: AbortSignal): Promise<void> {
+    signal.throwIfAborted()
     if (!files.length) return
 
     try {
-      await remote.adapter.syncAssets(this.assetsDir(), files)
+      await remote.adapter.syncAssets(this._assetsDir(), files, signal)
+      signal.throwIfAborted()
     } catch (error) {
+      signal.throwIfAborted()
       logger.warn(logger.CONTEXT.SYNC_PUSH, `Asset sync failed for "${remote.id}", will retry next cycle`, error)
     }
   }
 
   private _initRemoteStates(): void {
     const next = new Map<string, {lastSyncAt: string | null; lastError: string | null}>()
-    for (const remote of this.remotes) {
-      next.set(remote.id, this.remoteStates.get(remote.id) ?? {lastSyncAt: null, lastError: null})
+    for (const remote of this._remotes) {
+      next.set(remote.id, this._remoteStates.get(remote.id) ?? {lastSyncAt: null, lastError: null})
     }
-    this.remoteStates = next
+    this._remoteStates = next
   }
 
   private _recordRemoteSuccess(id: string): void {
-    this.remoteStates.set(id, {lastSyncAt: new Date().toISOString(), lastError: null})
+    this._remoteStates.set(id, {lastSyncAt: new Date().toISOString(), lastError: null})
   }
 
   private _recordRemoteError(id: string, error: unknown): void {
-    const prev = this.remoteStates.get(id)
-    this.remoteStates.set(id, {
+    const prev = this._remoteStates.get(id)
+    this._remoteStates.set(id, {
       lastSyncAt: prev?.lastSyncAt ?? null,
       lastError: error instanceof Error ? error.message : String(error),
     })
   }
 
   private _cancelPendingPush(): void {
-    if (this.pushDebounceTimer === null) return
-    clearTimeout(this.pushDebounceTimer)
-    this.pushDebounceTimer = null
+    if (this._pushDebounceTimer === null) return
+    clearTimeout(this._pushDebounceTimer)
+    this._pushDebounceTimer = null
   }
 
   private _createAutoSyncScheduler(): ReturnType<typeof createIntervalScheduler> {
-    return createIntervalScheduler({intervalMs: this.pacing.remoteSyncInterval, onProcess: () => this.sync()})
+    return createIntervalScheduler({
+      intervalMs: this._pacing.remoteSyncInterval,
+      onProcess: async () => {
+        void this._queueAutomaticCycle("pull", false)
+      },
+    })
   }
 
   /**
@@ -465,20 +572,20 @@ export class SyncEngine {
    * scheduler takes its interval once, at construction.
    */
   private _applyPacing(): void {
-    const previousInterval = this.pacing.remoteSyncInterval
-    this.pacing = syncPacingFor(this.remotes[0]?.id)
+    const previousInterval = this._pacing.remoteSyncInterval
+    this._pacing = syncPacingFor(this._remotes[0]?.id)
 
-    if (this.pacing.remoteSyncInterval === previousInterval) return
+    if (this._pacing.remoteSyncInterval === previousInterval) return
 
-    this.autoSyncScheduler.stop()
-    this.autoSyncScheduler = this._createAutoSyncScheduler()
-    if (this._isSyncEnabled) this.autoSyncScheduler.start()
+    this._autoSyncScheduler.stop()
+    this._autoSyncScheduler = this._createAutoSyncScheduler()
+    if (this._isSyncEnabled) this._autoSyncScheduler.start()
   }
 
   private _setStatus(status: SyncStatus) {
     const prevStatus = this._syncStatus
     this._syncStatus = status
-    this.onStatusChange(status, prevStatus)
+    this._onStatusChange(status, prevStatus)
   }
 
   private _shouldPush(localDocs: SnapshotDocs, remoteDocs: SnapshotDocs | null): boolean {
@@ -505,6 +612,10 @@ export class SyncEngine {
     logger.debug(logger.CONTEXT.SYNC_PUSH, "No changes detected, no push")
     return false
   }
+}
+
+function isRetryableTransfer(error: unknown): boolean {
+  return error instanceof SyncTransferError && (error.kind === "transient" || error.kind === "ambiguous")
 }
 
 /** Every row a pull's merges upserted or removed, before it becomes the domain-shaped `Changeset` the caller is notified with. */

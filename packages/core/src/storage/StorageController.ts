@@ -10,7 +10,7 @@ Storage Architecture (SQLite):
 import fs from "fs-extra"
 
 import {SYNC_CONFIG} from "@daily/protocol"
-import {deepMerge} from "@daily/std"
+import {AsyncMutex, deepMerge} from "@daily/std"
 
 import {logger} from "../utils/logger"
 import {RequestLogBuffer} from "../utils/requestLog/RequestLogBuffer"
@@ -41,6 +41,7 @@ import type {
   SyncProvider,
   SyncRemote,
   SyncRemoteState,
+  SyncSettings,
   SyncStatus,
   Tag,
   Task,
@@ -79,6 +80,9 @@ export class StorageController implements IStorageController {
   private aiSessionModel!: StorageCore["aiSessionModel"]
   private workStorageInstance!: WorkStorage
   private readonly requestLog = new RequestLogBuffer()
+  private readonly _settingsWrites = new AsyncMutex()
+  private _remoteConfiguration: string | null = null
+  private _stopped = false
 
   private notifyStorageStatusChange?: (status: SyncStatus, prevStatus: SyncStatus) => void
   private notifyStorageDataChange?: (changeset: Changeset) => void
@@ -120,9 +124,7 @@ export class StorageController implements IStorageController {
 
     this.attachCore(createStorageCore(initDatabase(this.db), this.paths))
 
-    const settings = await this.loadSettings()
-
-    this.syncEngine = new SyncEngine(this.localAdapter, this.buildRemotes(settings), {
+    this.syncEngine = new SyncEngine(this.localAdapter, [], {
       assetsDir: () => this.paths.assetsDir(),
       onStatusChange: (status: SyncStatus, prevStatus: SyncStatus) => this.notifyStorageStatusChange?.(status, prevStatus),
       onDataChanged: (changeset: Changeset) => {
@@ -133,9 +135,12 @@ export class StorageController implements IStorageController {
     this.serverProvider = new ServerProviderService({
       requestLog: this.requestLog,
       loadSettings: () => this.loadSettings(),
-      saveSettings: (partial) => this.saveSettings(partial),
+      saveSettings: (partial, signal) => this.saveSettings(partial, {signal}),
       onBindingChanged: () => this.applyRemoteConfiguration(),
-      runSyncCycle: () => this.forceSync(),
+      runSyncCycle: async (observation) => {
+        if (observation) this.syncEngine.observeRevision(observation.revision, observation.reconnected)
+        else await this.forceSync()
+      },
       onApprovalRequested: () => this.notifyApprovalRequested?.(),
       onAgentRequested: () => this.notifyAgentRequested?.(),
       disableAutoSync: () => this.syncEngine.disableAutoSync(),
@@ -149,10 +154,13 @@ export class StorageController implements IStorageController {
 
     this.providerMigration = new ProviderMigrationService({
       loadSettings: () => this.loadSettings(),
-      saveSettings: (partial) => this.saveSettings(partial),
+      saveSettings: (partial, migratedRemote) => this.saveSettings(partial, {migratedRemote}),
       loadLocalDocs: () => this.localAdapter.loadAllDocs(),
       buildRemotes: (sync) => buildSyncRemotes(sync, {icloudSyncDir: this.paths.remoteSyncPath(), requestLog: this.requestLog}),
-      setRemotes: (remotes) => this.syncEngine.setRemotes(remotes),
+      setRemotes: (remotes) => {
+        this._remoteConfiguration = null
+        this.syncEngine.setRemotes(remotes)
+      },
       getRemoteStates: () => this.syncEngine.getRemoteStates(),
       disableAutoSync: () => this.syncEngine.disableAutoSync(),
       syncOnce: (strategy) => this.syncEngine.syncOnce(strategy),
@@ -160,16 +168,16 @@ export class StorageController implements IStorageController {
       stopProbe: () => this.serverProvider.stopProbe(),
     })
 
-    if (this.hasEnabledRemote(settings)) {
-      logger.info(logger.CONTEXT.STORAGE, "A local sync remote is enabled, restoring auto-sync")
-      this.syncEngine.enableAutoSync()
-    }
-
-    if (resolveActiveProvider(settings.sync) === "server") this.serverProvider.startProbe()
-
     logger.info(logger.CONTEXT.STORAGE, "Initializing search index")
     await this.searchService.initializeIndex()
     logger.info(logger.CONTEXT.STORAGE, `Search index initialized with ${this.searchService.getIndexSize()} tasks`)
+    await this.applyRemoteConfiguration()
+  }
+
+  stopSync(): void {
+    this._stopped = true
+    this.serverProvider?.stopProbe()
+    this.syncEngine?.disableAutoSync()
   }
 
   //#region STORAGE
@@ -231,15 +239,22 @@ export class StorageController implements IStorageController {
     return this.settingsService.loadSettings()
   }
 
-  async saveSettings(newSettings: Partial<Settings>): Promise<void> {
-    if (newSettings.sync) {
-      const current = await this.loadSettings()
-      assertSingleActiveProvider(deepMerge(structuredClone(current.sync), newSettings.sync))
-    }
+  async saveSettings(
+    newSettings: Partial<Settings>,
+    {signal, migratedRemote}: {signal?: AbortSignal; migratedRemote?: SyncRemote} = {},
+  ): Promise<void> {
+    await this._settingsWrites.runExclusive(async () => {
+      if (signal?.aborted) return
+      if (newSettings.sync) {
+        const current = await this.loadSettings()
+        if (signal?.aborted) return
+        assertSingleActiveProvider(deepMerge(structuredClone(current.sync), newSettings.sync))
+      }
 
-    await this.settingsService.saveSettings(newSettings)
-    if (newSettings.sync) await this.applyRemoteConfiguration()
-    this.notifySettingsChange?.()
+      await this.settingsService.saveSettings(newSettings)
+      if (newSettings.sync) await this.applyRemoteConfiguration(migratedRemote)
+      this.notifySettingsChange?.()
+    })
   }
   //#endregion
 
@@ -562,21 +577,29 @@ export class StorageController implements IStorageController {
     this.syncEngine?.requestPush()
   }
 
-  private async applyRemoteConfiguration(): Promise<void> {
-    const settings = await this.loadSettings()
-    this.syncEngine.setRemotes(this.buildRemotes(settings))
-    if (this.hasEnabledRemote(settings)) this.syncEngine.enableAutoSync()
-    else this.syncEngine.disableAutoSync()
+  private async applyRemoteConfiguration(migratedRemote?: SyncRemote): Promise<void> {
+    const {sync} = await this.loadSettings()
+    if (this._stopped) return
+    const provider = resolveActiveProvider(sync)
+    const configuration = this._remoteConfigurationKey(sync, provider)
+    if (configuration === this._remoteConfiguration) return
 
-    if (resolveActiveProvider(settings.sync) === "server") this.serverProvider.startProbe()
-    else this.serverProvider.stopProbe()
+    this._remoteConfiguration = configuration
+    this.serverProvider.stopProbe()
+    const remotes = migratedRemote
+      ? [migratedRemote]
+      : buildSyncRemotes(sync, {icloudSyncDir: this.paths.remoteSyncPath(), requestLog: this.requestLog})
+    this.syncEngine.setRemotes(remotes)
+    if (provider === "off") this.syncEngine.disableAutoSync()
+    else this.syncEngine.enableAutoSync({reconciled: Boolean(migratedRemote)})
+
+    if (provider === "server") this.serverProvider.startProbe()
   }
 
-  private buildRemotes(settings: Settings): SyncRemote[] {
-    return buildSyncRemotes(settings.sync, {icloudSyncDir: this.paths.remoteSyncPath(), requestLog: this.requestLog})
-  }
-
-  private hasEnabledRemote(settings: Settings): boolean {
-    return resolveActiveProvider(settings.sync) !== "off"
+  private _remoteConfigurationKey(sync: SyncSettings, provider: SyncProvider): string {
+    const binding = sync.server.binding
+    if (provider !== "server" || !binding) return provider
+    const {baseUrl, fingerprint, token, serverId, deviceId} = binding
+    return JSON.stringify([provider, baseUrl, fingerprint, token, serverId, deviceId])
   }
 }

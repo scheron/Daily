@@ -123,6 +123,7 @@ function bootDaily() {
 
   app.on("before-quit", async (event) => {
     if (taskTimers?.holdQuit(event, () => app.quit())) return
+    storage?.stopSync()
     if (ai) await ai.dispose()
   })
 }

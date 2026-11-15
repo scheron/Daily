@@ -155,6 +155,13 @@ export type MergeResult = {
 }
 
 export interface ILocalStorage {
+  /** Merges against committed local state and calls `onCommitted` before any asset cleanup. */
+  mergeAndApply(
+    remoteDocs: SnapshotDocs | null,
+    strategy: SyncStrategy,
+    onCommitted: (result: MergeResult) => void,
+    signal?: AbortSignal,
+  ): Promise<MergeResult>
   loadAllDocs(): Promise<SnapshotDocs>
   upsertDocs(docs: SnapshotDocs): Promise<void>
   deleteDocs(ids: {
@@ -172,7 +179,7 @@ export interface ILocalStorage {
 export interface IRemoteStorage {
   loadSnapshot(): Promise<Snapshot | null>
   saveSnapshot(snapshot: Snapshot): Promise<void>
-  syncAssets(localAssetsDir: string, fileManifest: SnapshotFile[]): Promise<void>
+  syncAssets(localAssetsDir: string, fileManifest: SnapshotFile[], signal?: AbortSignal): Promise<void>
 }
 
 export type SnapshotRevision = string
@@ -190,8 +197,8 @@ export type RemoteReadResult = {
  */
 export interface IRevisionedRemoteStorage extends IRemoteStorage {
   readonly supportsRevisions: true
-  loadSnapshotWithRevision(): Promise<RemoteReadResult>
-  saveSnapshotIfUnchanged(snapshot: Snapshot, expectedRevision: SnapshotRevision | null): Promise<SnapshotRevision>
+  loadSnapshotWithRevision(signal?: AbortSignal): Promise<RemoteReadResult>
+  saveSnapshotIfUnchanged(snapshot: Snapshot, expectedRevision: SnapshotRevision | null, signal?: AbortSignal): Promise<SnapshotRevision>
 }
 
 export type SyncRemote = {

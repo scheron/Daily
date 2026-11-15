@@ -2,6 +2,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 
 import {RemoteWriteConflictError, SYNC_CONFIG, SYNC_REMOTE_ID} from "@daily/protocol"
 
+import {SyncTransferError} from "@core/storage/sync/server/DailySyncClient"
 import {SyncEngine} from "@core/storage/sync/SyncEngine"
 import {mergeRemoteIntoLocal} from "@core/utils/sync/merge/mergeRemoteIntoLocal"
 import {buildSnapshot} from "@core/utils/sync/snapshot/buildSnapshot"
@@ -30,7 +31,7 @@ vi.mock("../../../src/utils/logger", () => ({
 }))
 
 function emptyDocs(): SnapshotDocs {
-  return {tasks: [], tags: [], branches: [], milestones: [], files: [], events: []}
+  return {tasks: [], tags: [], branches: [], milestones: [], relations: [], comments: [], subtasks: [], files: [], events: []}
 }
 
 function makeTask(id: string, updatedAt: string): SnapshotTask {
@@ -57,6 +58,17 @@ function makeTask(id: string, updatedAt: string): SnapshotTask {
 
 class FakeLocalStore implements ILocalStorage {
   docs = emptyDocs()
+
+  async mergeAndApply(...[remote, strategy, onCommitted, signal]: Parameters<ILocalStorage["mergeAndApply"]>) {
+    signal?.throwIfAborted()
+    const result = remote
+      ? mergeRemoteIntoLocal(await this.loadAllDocs(), remote, strategy, SYNC_CONFIG.garbageCollectionInterval)
+      : {resultDocs: await this.loadAllDocs(), toUpsert: emptyDocs(), toRemove: {}, changes: 0}
+    await this.upsertDocs(result.toUpsert)
+    await this.deleteDocs(result.toRemove)
+    onCommitted(result)
+    return result
+  }
 
   async loadAllDocs(): Promise<SnapshotDocs> {
     return structuredClone(this.docs)
@@ -234,6 +246,32 @@ describe("SyncEngine (multi-remote)", () => {
     expect(local.docs.tasks.map((t) => t.id).toSorted()).toEqual(["tA", "tB", "tC"])
   })
 
+  it.each([false, true])("reconciles a competing write after losing the write reply (committed: %s)", async (committed) => {
+    local.docs.tasks = [makeTask("local", "2026-07-18T10:00:00.000Z")]
+    local.docs.files = [
+      {id: "f1", name: "example.txt", mime_type: "text/plain", size: 8, created_at: "2026-07-18", updated_at: "2026-07-18", deleted_at: null},
+    ]
+    const remote = new FakeRevisionedRemote({revision: null, snapshot: null})
+    const save = remote.saveSnapshotIfUnchanged.bind(remote)
+    const assets = vi.spyOn(remote, "syncAssets")
+    const writes = vi.spyOn(remote, "saveSnapshotIfUnchanged").mockImplementationOnce(async (snapshot, revision) => {
+      if (committed) await save(snapshot, revision)
+      const remoteDocs = remote.snapshot?.docs ?? emptyDocs()
+      remote.revision = "competing-revision"
+      remote.snapshot = buildSnapshot({...remoteDocs, tasks: [...remoteDocs.tasks, makeTask("competing", "2026-07-18T10:01:00.000Z")]})
+      throw new SyncTransferError("ambiguous", "Write reply lost")
+    })
+    const {engine} = makeEngine(local, [{id: "a", adapter: remote}])
+
+    await engine.syncOnce()
+
+    expect(remote.loadWithRevisionCount).toBe(2)
+    expect(writes.mock.calls.map(([, revision]) => revision)).toEqual(committed ? [null] : [null, "competing-revision"])
+    expect(assets).toHaveBeenCalledWith("/tmp/unused-assets", local.docs.files, expect.any(AbortSignal))
+    expect(local.docs.tasks.map((task) => task.id).toSorted()).toEqual(["competing", "local"])
+    expect(remote.snapshot?.docs.tasks.map((task) => task.id).toSorted()).toEqual(["competing", "local"])
+  })
+
   it("defers_TC-6_after_exhausting_conditional_write_attempts_without_failing_the_cycle", async () => {
     const taskA = makeTask("tA", "2026-07-18T10:00:00.000Z")
     local.docs.tasks = [taskA]
@@ -247,8 +285,7 @@ describe("SyncEngine (multi-remote)", () => {
       onDataChanged: vi.fn(),
     })
     engine.enableAutoSync()
-
-    await expect(engine.sync()).resolves.toBeUndefined()
+    await vi.waitFor(() => expect(remote.saveAttempts).toBe(SYNC_CONFIG.conditionalWriteMaxAttempts))
 
     expect(remote.saveAttempts).toBe(SYNC_CONFIG.conditionalWriteMaxAttempts)
     expect(remote.loadWithRevisionCount).toBe(SYNC_CONFIG.conditionalWriteMaxAttempts)
@@ -331,6 +368,133 @@ describe("SyncEngine (multi-remote)", () => {
     expect(states.map((s) => s.id)).toEqual(["a", "b"])
     expect(states.find((s) => s.id === "a")?.lastSyncAt).toBe(before?.lastSyncAt)
     expect(states.find((s) => s.id === "b")?.lastSyncAt).toBeNull()
+  })
+
+  describe("automatic server reconciliation", () => {
+    beforeEach(() => vi.useFakeTimers())
+    afterEach(() => {
+      vi.restoreAllMocks()
+      vi.useRealTimers()
+    })
+
+    it("keeps edits made during a migration upload pending after activation", async () => {
+      const remote = new FakeRevisionedRemote({revision: null, snapshot: null})
+      const save = remote.saveSnapshotIfUnchanged.bind(remote)
+      const uploading = Promise.withResolvers<void>()
+      const uploaded = Promise.withResolvers<void>()
+      vi.spyOn(remote, "saveSnapshotIfUnchanged").mockImplementationOnce(async (snapshot, revision) => {
+        uploading.resolve()
+        await uploaded.promise
+        return save(snapshot, revision)
+      })
+      const chosenRemote = {id: SYNC_REMOTE_ID.server, label: "Server", adapter: remote}
+      const {engine} = makeEngine(local, [])
+      engine.setRemotes([chosenRemote])
+      local.docs.tasks = [makeTask("before", "2026-07-18T10:00:00.000Z")]
+
+      const migration = engine.syncOnce()
+      await uploading.promise
+      local.docs.tasks.push(makeTask("during", "2026-07-18T11:00:00.000Z"))
+      engine.requestPush()
+      uploaded.resolve()
+      await migration
+
+      engine.setRemotes([chosenRemote])
+      engine.enableAutoSync({reconciled: true})
+      engine.observeRevision(remote.revision, false)
+      await vi.advanceTimersByTimeAsync(499)
+      expect(remote.loadWithRevisionCount).toBe(1)
+
+      await vi.advanceTimersByTimeAsync(1)
+      expect(remote.loadWithRevisionCount).toBe(2)
+      expect(remote.snapshot?.docs.tasks.map((task) => task.id).toSorted()).toEqual(["before", "during"])
+      engine.disableAutoSync()
+    })
+
+    it("backs off after transient transfer failures with one retry and a capped jitter window", async () => {
+      vi.spyOn(Math, "random").mockReturnValue(0)
+      const remote = new FakeRevisionedRemote({revision: null, snapshot: null})
+      const read = vi.spyOn(remote, "loadSnapshotWithRevision").mockRejectedValue(new SyncTransferError("transient", "Connection lost"))
+      const {engine} = makeEngine(local, [{id: SYNC_REMOTE_ID.server, adapter: remote}])
+      engine.enableAutoSync()
+      await vi.advanceTimersByTimeAsync(0)
+      expect(read).toHaveBeenCalledTimes(1)
+
+      for (const delay of [1_000, 2_000, 4_000, 8_000, 16_000, 30_000, 30_000, 30_000]) {
+        const count = read.mock.calls.length
+        engine.requestPush()
+        engine.observeRevision("observed-during-backoff", false)
+        await vi.advanceTimersByTimeAsync(delay - 1)
+        expect(read).toHaveBeenCalledTimes(count)
+        await vi.advanceTimersByTimeAsync(1)
+        expect(read).toHaveBeenCalledTimes(count + 1)
+      }
+
+      engine.disableAutoSync()
+      await vi.advanceTimersByTimeAsync(60_000)
+      expect(read).toHaveBeenCalledTimes(9)
+    })
+
+    it.each([false, true])("recovers the same observed revision and edits queued during backoff (reconnected: %s)", async (reconnected) => {
+      vi.spyOn(Math, "random").mockReturnValue(0.9)
+      const incoming = makeTask("incoming", "2026-07-18T10:00:00.000Z")
+      const remote = new FakeRevisionedRemote({revision: "r1", snapshot: buildSnapshot({...emptyDocs(), tasks: [incoming]})})
+      const read = vi.spyOn(remote, "loadSnapshotWithRevision").mockRejectedValueOnce(new SyncTransferError("transient", "Connection lost"))
+      const {engine} = makeEngine(local, [{id: SYNC_REMOTE_ID.server, adapter: remote}])
+      engine.enableAutoSync()
+      await vi.advanceTimersByTimeAsync(0)
+      expect(engine.syncStatus).toBe("error")
+
+      local.docs.tasks.push(makeTask("local", "2026-07-18T11:00:00.000Z"))
+      engine.requestPush()
+      engine.observeRevision("r1", false)
+      await vi.advanceTimersByTimeAsync(550)
+      expect(read).toHaveBeenCalledTimes(1)
+
+      if (reconnected) engine.observeRevision("r1", true)
+      await vi.advanceTimersByTimeAsync(reconnected ? 0 : 1_350)
+      expect(read).toHaveBeenCalledTimes(2)
+      expect(remote.snapshot?.docs.tasks.map((task) => task.id).toSorted()).toEqual(["incoming", "local"])
+      engine.disableAutoSync()
+    })
+
+    it("coalesces triggers during a transfer and cancels the queued follow-up on rebind", async () => {
+      const previous = new FakeRevisionedRemote({revision: null, snapshot: null})
+      const replacement = new FakeRevisionedRemote({revision: null, snapshot: null})
+      const aborted = vi.fn()
+      const previousRead = vi.spyOn(previous, "loadSnapshotWithRevision").mockImplementationOnce((signal?: AbortSignal) => {
+        return new Promise((_, reject) => {
+          signal?.addEventListener(
+            "abort",
+            () => {
+              aborted()
+              reject(signal.reason)
+            },
+            {once: true},
+          )
+        })
+      })
+      const {engine} = makeEngine(local, [{id: SYNC_REMOTE_ID.server, adapter: previous}])
+      engine.enableAutoSync()
+      await vi.advanceTimersByTimeAsync(0)
+      const firstRetry = engine.sync()
+      const secondRetry = engine.sync()
+      expect(firstRetry).toBe(secondRetry)
+      engine.observeRevision("r1", false)
+      engine.observeRevision("r2", false)
+      engine.requestPush()
+
+      engine.setRemotes([{id: SYNC_REMOTE_ID.server, label: "replacement", adapter: replacement}])
+      await Promise.all([firstRetry, secondRetry])
+      await vi.advanceTimersByTimeAsync(2_000)
+
+      expect(aborted).toHaveBeenCalledTimes(1)
+      expect(previousRead).toHaveBeenCalledTimes(1)
+      expect(previous.saveAttempts).toBe(0)
+      expect(replacement.loadWithRevisionCount).toBe(1)
+      expect(engine.getRemoteStates()[0].lastError).toBeNull()
+      engine.disableAutoSync()
+    })
   })
 
   describe("auto-sync lifecycle", () => {
@@ -471,6 +635,19 @@ describe("SyncEngine (multi-remote)", () => {
       engine.disableAutoSync()
     })
 
+    it("starts iCloud sync on activation without waiting for a renderer or a local edit", async () => {
+      const icloud = new FakeRemote()
+      const {engine} = makeEngine(local, [{id: SYNC_REMOTE_ID.icloud, adapter: icloud}])
+      engine.enableAutoSync()
+
+      await vi.advanceTimersByTimeAsync(499)
+      expect(icloud.loadCount).toBe(0)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(icloud.loadCount).toBe(1)
+
+      engine.disableAutoSync()
+    })
+
     it("leaves iCloud on its slower debounce, untouched by the server's", async () => {
       local.docs.tasks = [makeTask("t1", "2026-07-18T10:00:00.000Z")]
       const icloud = new FakeRemote()
@@ -568,6 +745,33 @@ describe("SyncEngine (multi-remote)", () => {
  * the merge's outcome — only at the shape the plan already names for what carries it out.
  */
 describe("the changeset a pull emits", () => {
+  it("publishes a committed iCloud deletion when syncing stops during asset cleanup", async () => {
+    const local = new FakeLocalStore()
+    const old = "2020-01-01T00:00:00.000Z"
+    local.docs.tasks = [{...makeTask("expired", old), deleted_at: old}]
+    const remote = new FakeRemote()
+    remote.snapshot = buildSnapshot(emptyDocs())
+    const cleanupStarted = Promise.withResolvers<void>()
+    const cleanupFinished = Promise.withResolvers<void>()
+    const deleteDocs = local.deleteDocs.bind(local)
+    vi.spyOn(local, "deleteDocs").mockImplementationOnce(async (ids) => {
+      await deleteDocs(ids)
+      cleanupStarted.resolve()
+      await cleanupFinished.promise
+    })
+    const {engine, onDataChanged} = makeEngine(local, [{id: SYNC_REMOTE_ID.icloud, adapter: remote}])
+    const completed = expect(engine.syncOnce()).rejects.toMatchObject({name: "AbortError"})
+    await cleanupStarted.promise
+
+    engine.disableAutoSync()
+    cleanupFinished.resolve()
+    await completed
+
+    expect(local.docs.tasks).toEqual([])
+    expect(onDataChanged).toHaveBeenCalledExactlyOnceWith({tasks: {removed: ["expired"]}})
+    expect(remote.saveCount).toBe(0)
+  })
+
   let local: FakeLocalStore
 
   beforeEach(() => {

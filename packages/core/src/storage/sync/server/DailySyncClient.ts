@@ -1,7 +1,16 @@
-import {gzipSync} from "node:zlib"
-import {fetch as undiciFetch} from "undici"
+import {Readable} from "node:stream"
+import {gunzipSync, gzipSync} from "node:zlib"
+import {fetch as undiciFetch, request as undiciRequest} from "undici"
 
-import {ProtocolError, SYNC_PROTOCOL_CONFIG, SYNC_PROTOCOL_PATHS, SyncServerError, SyncServerErrorCode} from "@daily/protocol"
+import {
+  ProtocolError,
+  ProtocolErrorCode,
+  SYNC_PROTOCOL_CONFIG,
+  SYNC_PROTOCOL_PATHS,
+  SYNC_PROTOCOL_VERSION,
+  SyncServerError,
+  SyncServerErrorCode,
+} from "@daily/protocol"
 
 import {createServerDispatcher, isConnectFailure} from "./serverTransport"
 
@@ -19,11 +28,11 @@ import type {
   PendingAgentRequestResponse,
   PendingEnrollment,
   PendingEnrollmentResponse,
-  ProtocolErrorCode,
   RequestLogEntry,
   RevisionProbe,
   ServerInfo,
   SnapshotReadResponse,
+  SnapshotWriteBody,
   SnapshotWriteResponse,
 } from "@daily/protocol"
 import type {Dispatcher} from "undici"
@@ -43,7 +52,6 @@ type RequestOptions = {
   timeout: number
   token?: string | null
   json?: unknown
-  gzipJson?: unknown
   rawBody?: Buffer
   /** Cancels the request from this side, in addition to (not instead of) `timeout`. */
   signal?: AbortSignal
@@ -51,11 +59,23 @@ type RequestOptions = {
 
 const TIMEOUTS = {
   probe: 30_000,
-  snapshot: 30_000,
+  snapshotIdle: 30_000,
+  snapshotTotal: 15 * 60_000,
   asset: 120_000,
   /** Outlasts the server's `revisionHoldMs` hold, so a held request never times out client-side while it waits. */
   revisionHold: SYNC_PROTOCOL_CONFIG.revisionHoldMs + 15_000,
 } as const
+
+export class SyncTransferError extends SyncServerError {
+  constructor(
+    readonly kind: "transient" | "terminal" | "ambiguous" | "cancelled",
+    message: string,
+    code = SyncServerErrorCode.UNREACHABLE,
+  ) {
+    super(code, message)
+    this.name = "SyncTransferError"
+  }
+}
 
 /**
  * A typed client for the Daily Sync Protocol. Every method rejects with `ProtocolError`
@@ -66,7 +86,8 @@ export class DailySyncClient {
   private readonly baseUrl: string
   private readonly token: string | null
   private readonly fetchFn: typeof globalThis.fetch
-  private readonly dispatcher: Dispatcher | undefined
+  private readonly dispatcher: Dispatcher
+  private readonly _snapshotDispatcher: Dispatcher
   private readonly requestLog: RequestLogBuffer | null
 
   constructor(options: DailySyncClientOptions) {
@@ -74,7 +95,8 @@ export class DailySyncClient {
     this.baseUrl = options.baseUrl
     this.token = options.token
     this.fetchFn = options.fetch ?? (undiciFetch as unknown as typeof globalThis.fetch)
-    this.dispatcher = options.fetch ? undefined : createServerDispatcher(options.fingerprint)
+    this.dispatcher = createServerDispatcher(options.fingerprint)
+    this._snapshotDispatcher = createServerDispatcher(options.fingerprint, "snapshot")
   }
 
   serverInfo(): Promise<ServerInfo> {
@@ -161,16 +183,16 @@ export class DailySyncClient {
     return this.request<AgentListResponse>("POST", SYNC_PROTOCOL_PATHS.agentRevoke, {timeout: TIMEOUTS.probe, token: this.token, json: {agentId}})
   }
 
-  readSnapshot(): Promise<SnapshotReadResponse> {
-    return this.request<SnapshotReadResponse>("GET", SYNC_PROTOCOL_PATHS.snapshot, {timeout: TIMEOUTS.snapshot, token: this.token})
+  readSnapshot(signal?: AbortSignal): Promise<SnapshotReadResponse> {
+    return this._snapshotRequest(null, validateSnapshotRead, signal)
   }
 
-  writeSnapshot(snapshot: unknown, expectedRevision: string | null): Promise<SnapshotWriteResponse> {
-    return this.request<SnapshotWriteResponse>("POST", SYNC_PROTOCOL_PATHS.snapshot, {
-      timeout: TIMEOUTS.snapshot,
-      token: this.token,
-      gzipJson: {snapshot, expectedRevision},
-    })
+  writeSnapshot(snapshot: unknown, expectedRevision: string | null, signal?: AbortSignal): Promise<SnapshotWriteResponse> {
+    return this._snapshotRequest(
+      {snapshot, expectedRevision},
+      (data): data is SnapshotWriteResponse => isRecord(data) && isRevision(data.revision) && data.revision !== expectedRevision,
+      signal,
+    )
   }
 
   /**
@@ -182,9 +204,16 @@ export class DailySyncClient {
    */
   probeRevision(knownRevision?: string | null, signal?: AbortSignal, timeZone?: string): Promise<RevisionProbe> {
     const path = revisionPath(knownRevision, timeZone)
-    if (knownRevision == null) return this.request<RevisionProbe>("GET", path, {timeout: TIMEOUTS.probe, token: this.token})
-
-    return this.request<RevisionProbe>("GET", path, {timeout: TIMEOUTS.revisionHold, token: this.token, signal})
+    return this.track(
+      "GET",
+      path,
+      {timeout: knownRevision == null ? TIMEOUTS.probe : TIMEOUTS.revisionHold, token: this.token, signal},
+      async (response) => {
+        const data = await this.parseEnvelope<unknown>(response)
+        if (response.status !== 200 || !isRevisionProbe(data)) throw new SyncTransferError("terminal", "The server sent an invalid revision probe")
+        return data
+      },
+    )
   }
 
   async readLogs(): Promise<RequestLogEntry[]> {
@@ -192,21 +221,89 @@ export class DailySyncClient {
     return view.entries
   }
 
-  async listAssets(): Promise<AssetEntry[]> {
-    const manifest = await this.request<AssetManifestResponse>("GET", SYNC_PROTOCOL_PATHS.assets, {timeout: TIMEOUTS.asset, token: this.token})
+  async listAssets(signal?: AbortSignal): Promise<AssetEntry[]> {
+    const manifest = await this.request<AssetManifestResponse>("GET", SYNC_PROTOCOL_PATHS.assets, {
+      timeout: TIMEOUTS.asset,
+      token: this.token,
+      signal,
+    })
     return manifest.assets
   }
 
-  async downloadAsset(name: string): Promise<Buffer> {
-    return this.track("GET", assetUrl(name), {timeout: TIMEOUTS.asset, token: this.token}, async (response) => {
+  async downloadAsset(name: string, signal?: AbortSignal): Promise<Buffer> {
+    return this.track("GET", assetUrl(name), {timeout: TIMEOUTS.asset, token: this.token, signal}, async (response) => {
       if (response.status === 200) return Buffer.from(await response.arrayBuffer())
 
       return this.parseEnvelope<Buffer>(response)
     })
   }
 
-  uploadAsset(name: string, bytes: Buffer): Promise<AssetEntry> {
-    return this.request<AssetEntry>("PUT", assetUrl(name), {timeout: TIMEOUTS.asset, token: this.token, rawBody: bytes})
+  uploadAsset(name: string, bytes: Buffer, signal?: AbortSignal): Promise<AssetEntry> {
+    return this.request<AssetEntry>("PUT", assetUrl(name), {timeout: TIMEOUTS.asset, token: this.token, rawBody: bytes, signal})
+  }
+
+  private async _snapshotRequest<T>(
+    payload: SnapshotWriteBody | null,
+    validate: (data: unknown) => data is T,
+    cancellation?: AbortSignal,
+  ): Promise<T> {
+    const startedAt = Date.now()
+    const method = payload ? "POST" : "GET"
+    const path = SYNC_PROTOCOL_PATHS.snapshot
+    const deadline = new AbortController()
+    const timer = setTimeout(() => deadline.abort(), TIMEOUTS.snapshotTotal).unref()
+    const signal = cancellation ? AbortSignal.any([deadline.signal, cancellation]) : deadline.signal
+    let status: number | null = null
+
+    try {
+      signal.throwIfAborted()
+      const body = payload ? encodeSnapshot(payload) : null
+      const headers = {
+        "accept-encoding": "gzip",
+        ...(this.token && {authorization: `Bearer ${this.token}`}),
+        ...(body && {"content-type": "application/json", "content-encoding": "gzip", "content-length": String(body.length)}),
+      }
+      const url = `${this.baseUrl}${path}`
+      for (let attempt = 1; ; attempt++) {
+        try {
+          const response = await undiciRequest(url, {
+            dispatcher: this._snapshotDispatcher,
+            method,
+            headers,
+            // An HTTP/2 GOAWAY can requeue a buffered body. The upload stream is single-use.
+            body: body ? Readable.from([body]) : null,
+            signal,
+            idempotent: false,
+            // A backpressured upload can still be progressing. Only the receiver can time its inactivity.
+            headersTimeout: payload ? 0 : TIMEOUTS.snapshotIdle,
+            bodyTimeout: TIMEOUTS.snapshotIdle,
+          })
+
+          status = response.statusCode
+          if (status === 408 || status === 429) {
+            response.body.once("error", () => {}).destroy()
+            throw new SyncTransferError("transient", `The server paused the snapshot transfer (HTTP ${status})`)
+          }
+          const bytes = Buffer.from(await response.body.arrayBuffer())
+          const data = parseSnapshotEnvelope(bytes, status, response.headers["content-encoding"], method === "POST")
+          if (!validate(data)) throw invalidSnapshotReply(method === "POST", "The server sent invalid snapshot data or revision")
+          this.log(method, path, startedAt, status, null)
+          return data
+        } catch (err) {
+          if (attempt === 1 && status === null && !signal.aborted && isConnectFailure(err) && !isCertificateFailure(err)) {
+            this.log(method, path, startedAt, null, "Snapshot connection failed, retrying once", "warn")
+            continue
+          }
+          throw err
+        }
+      }
+    } catch (err) {
+      const error = transferError(err, method === "POST", cancellation, deadline.signal, status)
+      if (error instanceof ProtocolError || error.kind !== "cancelled") this.log(method, path, startedAt, status, describeError(error))
+      throw error
+    } finally {
+      clearTimeout(timer)
+    }
   }
 
   private request<T>(method: Method, path: string, options: RequestOptions): Promise<T> {
@@ -261,10 +358,6 @@ export class DailySyncClient {
     if (options.json !== undefined) {
       headers["content-type"] = "application/json"
       body = JSON.stringify(options.json)
-    } else if (options.gzipJson !== undefined) {
-      headers["content-type"] = "application/json"
-      headers["content-encoding"] = "gzip"
-      body = gzipSync(Buffer.from(JSON.stringify(options.gzipJson)))
     } else if (options.rawBody !== undefined) {
       body = options.rawBody as unknown as BodyInit
     }
@@ -277,11 +370,13 @@ export class DailySyncClient {
 
     for (let attempt = 1; ; attempt++) {
       try {
+        const signal = options.signal ? AbortSignal.any([timeoutSignal, options.signal]) : timeoutSignal
+        signal.throwIfAborted()
         return await this.fetchFn(`${this.baseUrl}${path}`, {
           method,
           headers,
           body,
-          signal: options.signal ? AbortSignal.any([timeoutSignal, options.signal]) : timeoutSignal,
+          signal,
           dispatcher: this.dispatcher,
         } as RequestInit)
       } catch (err) {
@@ -332,12 +427,112 @@ export class DailySyncClient {
     }
 
     if (payload.ok === false) {
-      const error = (payload as {error: {code: ProtocolErrorCode; message: string}}).error
+      const error = payload.error
+      if (!isRecord(error) || !isProtocolErrorCode(error.code) || typeof error.message !== "string") {
+        throw new SyncServerError(SyncServerErrorCode.UNREACHABLE, "The server sent an unexpected error response")
+      }
       throw new ProtocolError(error.code, error.message)
     }
 
     return (payload as {data: T}).data
   }
+}
+
+function encodeSnapshot(payload: SnapshotWriteBody): Buffer {
+  try {
+    return gzipSync(JSON.stringify(payload))
+  } catch {
+    throw new SyncTransferError("terminal", "The local snapshot could not be encoded")
+  }
+}
+
+function parseSnapshotEnvelope(bytes: Buffer, status: number, encoding: string | string[] | undefined, writing: boolean): unknown {
+  if (status >= 500) throw new SyncTransferError(writing ? "ambiguous" : "transient", `The snapshot server failed (HTTP ${status})`)
+  const possiblyCommitted = writing && status >= 200 && status < 300
+  if (encoding && encoding !== "gzip" && encoding !== "identity") {
+    throw invalidSnapshotReply(possiblyCommitted, "The server sent an unsupported snapshot encoding")
+  }
+
+  let envelope: unknown
+  try {
+    const decoded = encoding === "gzip" ? gunzipSync(bytes) : bytes
+    envelope = JSON.parse(new TextDecoder("utf-8", {fatal: true}).decode(decoded))
+  } catch {
+    throw invalidSnapshotReply(possiblyCommitted, "The server sent a corrupt snapshot response")
+  }
+
+  if (isRecord(envelope)) {
+    if (status === 200 && envelope.ok === true) return envelope.data
+    if (status >= 400 && envelope.ok === false && isRecord(envelope.error) && isProtocolErrorCode(envelope.error.code)) {
+      const error = new ProtocolError(envelope.error.code)
+      if (error.status === status && typeof envelope.error.message === "string") throw error
+    }
+  }
+  throw invalidSnapshotReply(possiblyCommitted, "The server sent an unexpected snapshot response")
+}
+
+function invalidSnapshotReply(possiblyCommitted: boolean, message: string): SyncTransferError {
+  return new SyncTransferError(possiblyCommitted ? "ambiguous" : "terminal", message)
+}
+
+function transferError(
+  err: unknown,
+  writing: boolean,
+  cancellation: AbortSignal | undefined,
+  deadline: AbortSignal,
+  status: number | null,
+): SyncTransferError | ProtocolError {
+  if (cancellation?.aborted) return new SyncTransferError("cancelled", "Snapshot transfer cancelled")
+  if (err instanceof ProtocolError || err instanceof SyncTransferError) return err
+  if (err instanceof SyncServerError) return new SyncTransferError("terminal", err.message, err.code)
+  if (isCertificateFailure(err)) return new SyncTransferError("terminal", "The server's TLS certificate could not be verified")
+
+  const code = errorCode(err)
+  const kind = writing && !isConnectFailure(err) ? "ambiguous" : "transient"
+  if (deadline.aborted) return new SyncTransferError(kind, "The snapshot transfer reached its 15 min limit")
+  if (code === "UND_ERR_BODY_TIMEOUT") return new SyncTransferError(kind, "The snapshot response was idle for 30 s")
+  if (code === "UND_ERR_HEADERS_TIMEOUT") return new SyncTransferError(kind, "The server did not start a snapshot response within 30 s")
+  if (code?.startsWith("HPE_")) return invalidSnapshotReply(writing, "The server sent a malformed HTTP response")
+  return new SyncTransferError(
+    kind,
+    status === null ? "Could not reach the server for the snapshot transfer" : "The snapshot response was interrupted",
+  )
+}
+
+function errorCode(value: unknown): string | null {
+  return isRecord(value) && typeof value.code === "string" ? value.code : null
+}
+
+function isCertificateFailure(err: unknown): boolean {
+  const code = errorCode(err)
+  return code !== null && /CERT|SELF_SIGNED|UNABLE_TO_(VERIFY|GET)_/.test(code)
+}
+
+function validateSnapshotRead(data: unknown): data is SnapshotReadResponse {
+  if (!isRecord(data)) return false
+  return data.snapshot === null ? data.revision === null : isRecord(data.snapshot) && isRevision(data.revision)
+}
+
+function isRevision(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0
+}
+
+function isRevisionProbe(value: unknown): value is RevisionProbe {
+  if (!isRecord(value) || (value.revision !== null && !isRevision(value.revision))) return false
+  if (typeof value.pendingEnrollment !== "boolean") return false
+  if (value.protocol !== undefined && (typeof value.protocol !== "number" || !Number.isSafeInteger(value.protocol) || value.protocol < 1))
+    return false
+  if (value.protocol !== SYNC_PROTOCOL_VERSION) return true
+  return (
+    typeof value.pendingAgentRequest === "boolean" &&
+    typeof value.acceptsAgents === "boolean" &&
+    (value.role === "parent" || value.role === "child") &&
+    (value.name === undefined || typeof value.name === "string")
+  )
+}
+
+function isProtocolErrorCode(value: unknown): value is ProtocolErrorCode {
+  return Object.values(ProtocolErrorCode).some((code) => code === value)
 }
 
 /** Drops the request URL, and an asset's name in either form, from an error text: the server's own message quotes the bare name. */
@@ -388,5 +583,5 @@ function revisionPath(knownRevision?: string | null, timeZone?: string): string 
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null
+  return typeof value === "object" && value !== null && !Array.isArray(value)
 }

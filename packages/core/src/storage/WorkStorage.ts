@@ -1,5 +1,6 @@
 import {logger} from "../utils/logger"
 import {EMPTY_CHANGESET} from "../types/storage"
+import {getWriteMutex} from "./database/getWriteMutex"
 
 import type {
   ActorSource,
@@ -56,32 +57,26 @@ export class WorkStorage implements IWorkStorage {
   async batch<T>(fn: () => Promise<T>, {acknowledgeCommit = false}: {acknowledgeCommit?: boolean} = {}): Promise<T> {
     if (this._openBatch) return fn()
 
-    const openBatch: OpenBatch = {changeset: {}}
-    this._openBatch = openBatch
-    this._db.exec("BEGIN IMMEDIATE")
+    return getWriteMutex(this._db).runExclusive(async () => {
+      const openBatch: OpenBatch = {changeset: {}}
+      this._db.exec("BEGIN IMMEDIATE")
+      this._openBatch = openBatch
 
-    let result: T
-    try {
+      let result: T
       try {
         result = await fn()
-      } catch (error) {
-        this._rollbackIfOpen()
-        throw error
-      }
-
-      try {
         this._db.exec("COMMIT")
       } catch (error) {
         this._rollbackIfOpen()
         throw error
+      } finally {
+        this._openBatch = null
       }
-    } finally {
-      this._openBatch = null
-    }
 
-    if (acknowledgeCommit) await this._publishCommitted(openBatch.changeset)
-    else await this._commitWrite(openBatch.changeset)
-    return result
+      if (acknowledgeCommit) await this._publishCommitted(openBatch.changeset)
+      else await this._commitWrite(openBatch.changeset)
+      return result
+    })
   }
 
   async getTaskList(params?: {

@@ -157,4 +157,67 @@ describe("WorkStorage.batch", () => {
     expect(broadcasts).toHaveLength(1)
     expect(broadcasts[0].tasks.upserted).toHaveLength(1)
   })
+
+  it("commits a waiting sync merge independently when an open local batch rolls back", async () => {
+    const {controller, localAdapter, db: testDb} = makeHarness()
+    db = testDb
+    const workStorage = controller.workStorage
+    const task = makeTaskInput({content: "Original"})
+    await workStorage.createTask(task)
+    const before = await localAdapter.loadAllDocs()
+    const remote = {...before, tasks: before.tasks.map((row) => ({...row, content: "Remote edit", updated_at: "2090-01-01T00:00:00.000Z"}))}
+
+    const batchOpened = Promise.withResolvers<void>()
+    const abortBatch = Promise.withResolvers<void>()
+    const rolledBack = expect(
+      workStorage.batch(async () => {
+        await workStorage.updateTask(task.id, {content: "Discarded edit"})
+        await workStorage.createTask(makeTaskInput({id: "discarded", content: "Discarded task"}))
+        batchOpened.resolve()
+        await abortBatch.promise
+        throw new Error("Local action cancelled")
+      }),
+    ).rejects.toThrow("Local action cancelled")
+    await batchOpened.promise
+
+    const notified = vi.fn((result) => ({inTransaction: db.inTransaction, result}))
+    const pendingMerge = localAdapter.mergeAndApply(remote, "pull", notified)
+    abortBatch.resolve()
+    await rolledBack
+    const result = await pendingMerge
+
+    expect(notified.mock.results).toEqual([{type: "return", value: {inTransaction: false, result}}])
+    expect(result.resultDocs.tasks.map(({id, content}) => ({id, content}))).toEqual([{id: task.id, content: "Remote edit"}])
+    expect(await workStorage.getTask("discarded")).toBeNull()
+    expect((await workStorage.getTask(task.id))?.content).toBe("Remote edit")
+  })
+
+  it("drops a cancelled sync merge that is waiting for an open local batch", async () => {
+    const {controller, localAdapter, db: testDb} = makeHarness()
+    db = testDb
+    const workStorage = controller.workStorage
+    const task = makeTaskInput({content: "Original"})
+    await workStorage.createTask(task)
+    const before = await localAdapter.loadAllDocs()
+    const remote = {...before, tasks: before.tasks.map((row) => ({...row, content: "Cancelled remote", updated_at: "2090-01-01T00:00:00.000Z"}))}
+    const batchOpened = Promise.withResolvers<void>()
+    const finishBatch = Promise.withResolvers<void>()
+    const batch = workStorage.batch(async () => {
+      await workStorage.updateTask(task.id, {content: "Local edit"})
+      batchOpened.resolve()
+      await finishBatch.promise
+    })
+    await batchOpened.promise
+
+    const abort = new AbortController()
+    const notified = vi.fn()
+    const cancelled = expect(localAdapter.mergeAndApply(remote, "pull", notified, abort.signal)).rejects.toHaveProperty("name", "AbortError")
+    abort.abort()
+    finishBatch.resolve()
+    await batch
+    await cancelled
+
+    expect(notified).not.toHaveBeenCalled()
+    expect((await workStorage.getTask(task.id))?.content).toBe("Local edit")
+  })
 })

@@ -136,6 +136,49 @@ describe("DailyServerRemoteAdapter — the snapshot version guard", () => {
   })
 })
 
+describe("DailyServerRemoteAdapter — stored row validation", () => {
+  const timestamp = "2026-08-10T00:00:00.000Z"
+
+  it.each([
+    {field: "an invalid task update timestamp", docs: {tasks: [{...makeTask("t1", timestamp), updated_at: "bad"}]}},
+    {field: "a string in a task's boolean field", docs: {tasks: [{...makeTask("t1", timestamp), minimized: "false"}]}},
+    {field: "a file ID containing path segments", docs: {files: [makeFile("../outside", "note.txt")]}},
+  ])("rejects a snapshot with $field", async ({docs}) => {
+    const server = await bootSyncServer()
+
+    try {
+      const credential = await claimFirstDevice(server, "MacBook Air")
+      const binding = bindingFromCredential(server, credential)
+      const client = new DailySyncClient(binding)
+      await client.writeSnapshot({version: 16, meta: {updatedAt: timestamp, hash: "stored"}, docs: {...emptyDocs(), ...docs}}, null)
+
+      const adapter = new DailyServerRemoteAdapter(binding)
+      await expect(adapter.loadSnapshotWithRevision()).rejects.toMatchObject({kind: "terminal"})
+    } finally {
+      await server.close()
+    }
+  })
+
+  it("accepts an older task with legacy attachments and a project without description or emoji", async () => {
+    const server = await bootSyncServer()
+
+    try {
+      const credential = await claimFirstDevice(server, "MacBook Air")
+      const binding = bindingFromCredential(server, credential)
+      const client = new DailySyncClient(binding)
+      const task = {...makeTask("t1", timestamp), status: "active", attachments: ["file-1"]}
+      const project = {id: "main", name: "Main", created_at: timestamp, updated_at: timestamp, deleted_at: null}
+      const docs = {tasks: [task], tags: [], branches: [project], files: [makeFile("file-1", "work notes.pdf")]}
+      await client.writeSnapshot({version: 3, meta: {updatedAt: timestamp, hash: "legacy"}, docs}, null)
+
+      const adapter = new DailyServerRemoteAdapter(binding)
+      await expect(adapter.loadSnapshotWithRevision()).resolves.toMatchObject({snapshot: {version: 3, docs: {...docs, events: []}}, revision: "1"})
+    } finally {
+      await server.close()
+    }
+  })
+})
+
 describe("DailyServerRemoteAdapter — assets", () => {
   it("syncs_TC-10_assets_under_the_shared_naming_scheme_and_skips_a_file_present_on_neither_side", async () => {
     const server = await bootSyncServer()

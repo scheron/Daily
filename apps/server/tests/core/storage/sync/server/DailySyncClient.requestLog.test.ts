@@ -108,7 +108,7 @@ describe("DailySyncClient connection retry", () => {
 
 describe("DailySyncClient request log", () => {
   it("logs a success as INFO with the path stripped of its query and no token", async () => {
-    const {client, requestLog} = makeClient(async () => envelope(200, {ok: true, data: {revision: "r1"}}))
+    const {client, requestLog} = makeClient(async () => envelope(200, {ok: true, data: {revision: "r1", pendingEnrollment: false}}))
 
     await client.probeRevision(null, undefined, "Europe/Berlin")
 
@@ -146,7 +146,7 @@ describe("DailySyncClient request log", () => {
     expect(requestLog.list()[0].error).toContain("UNREACHABLE: The request timed out Cause: TimeoutError")
   })
 
-  it("does not log a request the caller cancelled", async () => {
+  it("cancels an immediate revision probe without logging it", async () => {
     const controller = new AbortController()
     const {client, requestLog} = makeClient(
       (_url, init) =>
@@ -155,7 +155,7 @@ describe("DailySyncClient request log", () => {
         }),
     )
 
-    const pending = client.probeRevision("r1", controller.signal)
+    const pending = client.probeRevision(null, controller.signal)
     controller.abort()
 
     await expect(pending).rejects.toThrow()

@@ -21,7 +21,7 @@ import type {
 
 type ProviderMigrationDeps = {
   loadSettings: () => Promise<Settings>
-  saveSettings: (partial: Partial<Settings>) => Promise<void>
+  saveSettings: (partial: Partial<Settings>, migratedRemote?: SyncRemote) => Promise<void>
   loadLocalDocs: () => Promise<SnapshotDocs>
   buildRemotes: (sync: SyncSettings) => SyncRemote[]
   setRemotes: (remotes: SyncRemote[]) => void
@@ -124,7 +124,7 @@ export class ProviderMigrationService {
       throw new SyncServerError(SyncServerErrorCode.MIGRATION_FAILED, failure)
     }
 
-    await this.deps.saveSettings({sync: nextSync})
+    await this.deps.saveSettings({sync: nextSync}, remote)
     logger.info(logger.CONTEXT.SYNC_REMOTE, `Migrated syncing to "${target}" with "${direction}"`)
   }
 

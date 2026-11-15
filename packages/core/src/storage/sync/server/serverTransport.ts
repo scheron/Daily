@@ -96,17 +96,18 @@ function markingConnector(inner: buildConnector.connector): buildConnector.conne
   }
 }
 
-const dispatchers = new Map<string, Dispatcher>()
+const dispatchers = {
+  control: new Map<string, Dispatcher>(),
+  snapshot: new Map<string, Dispatcher>(),
+}
 
 /**
- * The `undici` dispatcher for a pinned fingerprint (or none), shared by every client using it so the
- * pool (and the long poll's kept-alive connection) survives across clients. Connections give up after
- * `CONNECT_TIMEOUT_MS`. With a `fingerprint`, every connection's certificate is compared to it and
- * the socket is destroyed before any request is written on a mismatch.
+ * Reuses connections per request pool and certificate fingerprint. Undici queues an HTTP/2 stream-body
+ * upload behind existing requests on its connection, so snapshot transfers use a pool separate from held probes.
  */
-export function createServerDispatcher(fingerprint: string | null): Dispatcher {
+export function createServerDispatcher(fingerprint: string | null, pool: keyof typeof dispatchers = "control"): Dispatcher {
   const key = fingerprint ?? ""
-  let dispatcher = dispatchers.get(key)
+  let dispatcher = dispatchers[pool].get(key)
   if (dispatcher) return dispatcher
 
   if (!fingerprint) {
@@ -135,7 +136,7 @@ export function createServerDispatcher(fingerprint: string | null): Dispatcher {
     dispatcher = new Agent({connect: connector})
   }
 
-  dispatchers.set(key, dispatcher)
+  dispatchers[pool].set(key, dispatcher)
   return dispatcher
 }
 

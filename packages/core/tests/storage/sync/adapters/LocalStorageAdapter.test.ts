@@ -65,6 +65,49 @@ describe("LocalStorageAdapter", () => {
     db.close()
   })
 
+  it("returns the committed task tag links when an expired tag is purged", async () => {
+    insertTask(db, "task", "Task")
+    insertTag(db, "tag", "Expired")
+    linkTaskTag(db, "task", "tag")
+    const before = await adapter.loadAllDocs()
+    const remote = {...before, tags: before.tags.map((tag) => ({...tag, deleted_at: "1970-01-01T00:00:00.000Z"}))}
+
+    const result = await adapter.mergeAndApply(remote, "pull", () => {})
+
+    expect(result.resultDocs.tasks).toEqual([expect.objectContaining({id: "task", tags: []})])
+    expect(result.toUpsert.tasks).toEqual([expect.objectContaining({id: "task", tags: []})])
+    expect(result.toRemove).toEqual({tags: ["tag"]})
+  })
+
+  it("rolls back a pulled update if removing an expired task fails in the same merge", async () => {
+    insertTask(db, "task", "Original")
+    insertTask(db, "expired", "Expired", {deletedAt: "1970-01-01T00:00:00.000Z"})
+    db.exec(`CREATE TRIGGER reject_expired_delete BEFORE DELETE ON tasks WHEN OLD.id = 'expired'
+      BEGIN SELECT RAISE(ABORT, 'cleanup failed'); END`)
+    const before = await adapter.loadAllDocs()
+    const remote = {
+      ...before,
+      tasks: before.tasks.map((task) => (task.id === "task" ? {...task, content: "Pulled", updated_at: "2090-01-01T00:00:00.000Z"} : task)),
+    }
+
+    const notified = vi.fn()
+    await expect(adapter.mergeAndApply(remote, "pull", notified)).rejects.toThrow("cleanup failed")
+
+    expect((await adapter.loadAllDocs()).tasks).toEqual(before.tasks)
+    expect(notified).not.toHaveBeenCalled()
+  })
+
+  it("rejects a remote event that SQLite cannot store", async () => {
+    const before = await adapter.loadAllDocs()
+    const remote = {
+      ...before,
+      events: [{id: "malformed", task_id: "task", branch_id: "main", type: null, event_date: now.slice(0, 10), created_at: now}],
+    }
+
+    await expect(adapter.mergeAndApply(remote, "pull", () => {})).rejects.toThrow("NOT NULL constraint failed: task_events.type")
+    expect((await adapter.loadAllDocs()).events).toEqual([])
+  })
+
   it("exchanges a v16 project emoji between databases and lets a newer snapshot clear it", async () => {
     const branch = {id: "emoji-project", name: "Space", description: "Mission", emoji: "👩🏽‍🚀", created_at: now, updated_at: now, deleted_at: null}
     await adapter.upsertDocs({
