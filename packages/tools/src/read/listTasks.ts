@@ -1,3 +1,4 @@
+import {TaskSearchIndex} from "@daily/core/storage/search/TaskSearchIndex"
 import {TASK_STATUSES} from "@daily/protocol"
 import {isNumber, isObject} from "@daily/std"
 
@@ -8,7 +9,7 @@ import {readBoolean, readEnum, readInteger, readISODate, readString} from "../in
 import {taskView} from "../views"
 
 import type {Task, TaskStatus} from "@daily/protocol"
-import type {Tool, ToolContext} from "../types"
+import type {Tool} from "../types"
 import type {TaskView} from "../views"
 
 const DEFAULT_LIMIT = 50
@@ -100,11 +101,10 @@ export const listTasksTool: Tool = {
       deleted === true
         ? await ctx.workStorage.getDeletedTasks({branchId: filters.projectId})
         : await ctx.workStorage.getTaskList({includeBacklog: true})
-    const ordered = search === undefined ? [...source].sort(compareTasks) : await searchOrder(ctx, source, search)
-
-    const filtered = ordered.filter((task) => matchesFilters(task, filters, movedCounts))
-    const total = filtered.length
-    const page = filtered.slice(offset, offset + limit)
+    const filtered = source.filter((task) => matchesFilters(task, filters, movedCounts))
+    const ordered = search === undefined ? filtered.sort(compareTasks) : searchOrder(filtered, search, ctx.searchWorkBudget)
+    const total = ordered.length
+    const page = ordered.slice(offset, offset + limit)
     const nextOffset = offset + limit
     const nextCursor = nextOffset < total ? encodeCursor(nextOffset) : null
 
@@ -118,18 +118,22 @@ export const listTasksTool: Tool = {
   },
 }
 
-async function searchOrder(ctx: ToolContext, live: Task[], search: string): Promise<Task[]> {
-  await ctx.workStorage.initializeIndex()
-  const results = await ctx.workStorage.searchTasks(search)
+function searchOrder(tasks: Task[], search: string, budget = Infinity): Task[] {
+  const index = new TaskSearchIndex()
+  index.setTasks(tasks, consumeWork)
+  const results = index.search(search, {limit: tasks.length, includeMatches: false, consumeWork})
+  const byId = new Map(tasks.map((task) => [task.id, task]))
+  return results.map((result) => byId.get(result.task.id)!)
 
-  const byId = new Map(live.map((task) => [task.id, task]))
-  const ordered: Task[] = []
-  for (const result of results) {
-    const task = byId.get(result.task.id)
-    if (task) ordered.push(task)
+  function consumeWork(units: number): void {
+    budget -= units
+    if (budget < 0) {
+      throw new ToolError(
+        ToolErrorCode.SEARCH_BUDGET_EXCEEDED,
+        "This search exceeds the work limit. Narrow it by project or date, or shorten the phrase.",
+      )
+    }
   }
-
-  return ordered
 }
 
 function matchesFilters(task: Task, filters: ListTasksFilters, movedCounts: Record<Task["id"], number>): boolean {

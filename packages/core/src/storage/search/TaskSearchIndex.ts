@@ -19,8 +19,11 @@ export class TaskSearchIndex {
   /**
    * Build or rebuild the entire search index from tasks
    */
-  setTasks(tasks: Task[]) {
-    const searchTasks = tasks.map((task) => this.taskToSearchTask(task))
+  setTasks(tasks: Task[], consumeWork?: SearchOptions["consumeWork"]) {
+    const searchTasks = tasks.map((task) => {
+      consumeWork?.(1 + task.content.length)
+      return this._taskToSearchTask(task)
+    })
     this.engine.buildIndex(searchTasks)
   }
 
@@ -28,7 +31,7 @@ export class TaskSearchIndex {
    * Update an existing task in the index
    */
   updateTask(task: Task) {
-    const searchTask = this.taskToSearchTask(task)
+    const searchTask = this._taskToSearchTask(task)
     this.engine.updateTask(searchTask)
   }
 
@@ -53,11 +56,7 @@ export class TaskSearchIndex {
     return this.engine.getIndexSize()
   }
 
-  /**
-   * Convert a Task to a SearchTask
-   * Includes text normalization for efficient searching
-   */
-  private taskToSearchTask(task: Task): SearchTask {
+  private _taskToSearchTask(task: Task): SearchTask {
     return {
       id: task.id,
       content: task.content,

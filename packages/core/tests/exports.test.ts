@@ -21,6 +21,7 @@ describe("packages/core/package.json exports", () => {
       "./storage/createStorageCore": "./src/storage/createStorageCore.ts",
       "./storage/database/scripts/migrate": "./src/storage/database/scripts/migrate.ts",
       "./storage/IWorkStorage": "./src/storage/IWorkStorage.ts",
+      "./storage/search/TaskSearchIndex": "./src/storage/search/TaskSearchIndex.ts",
       "./storage/WorkStorage": "./src/storage/WorkStorage.ts",
       "./utils/files/extractFileIds": "./src/utils/files/extractFileIds.ts",
       "./utils/files/sniffImageExt": "./src/utils/files/sniffImageExt.ts",

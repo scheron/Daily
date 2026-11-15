@@ -1,4 +1,4 @@
-import {calcLevenshteinDistance, normalize} from "@daily/std"
+import {normalize} from "@daily/std"
 
 import type {SearchOptions, SearchResult, SearchTask} from "../../types/search"
 
@@ -7,31 +7,31 @@ import type {SearchOptions, SearchResult, SearchTask} from "../../types/search"
  * Handles text normalization and search operations
  */
 export class SearchEngine {
-  private isInitialized = false
-  private collection: SearchTask[] = []
+  private _isInitialized = false
+  private _collection: SearchTask[] = []
 
   /**
    * Build the search index from an array of tasks
    */
   buildIndex(tasks: SearchTask[]) {
-    this.collection = tasks
-    this.isInitialized = true
+    this._collection = tasks
+    this._isInitialized = true
   }
 
   /** Updates or inserts a task once the index has been built. */
   updateTask(task: SearchTask) {
-    if (!this.isInitialized) return
+    if (!this._isInitialized) return
     this.removeTask(task.id)
-    this.collection.push(task)
+    this._collection.push(task)
   }
 
   /**
    * Remove a task from the index
    */
   removeTask(taskId: string) {
-    if (!this.isInitialized) return
+    if (!this._isInitialized) return
 
-    this.collection = this.collection.filter((task) => task.id !== taskId)
+    this._collection = this._collection.filter((task) => task.id !== taskId)
   }
 
   /**
@@ -39,8 +39,9 @@ export class SearchEngine {
    * Returns results sorted by relevance (score), then by updatedAt (newest first)
    */
   search(query: string, options?: SearchOptions): SearchResult[] {
+    options?.consumeWork?.(query.length)
     const normalizedQuery = normalize(query)
-    if (!this.isInitialized || !normalizedQuery) {
+    if (!this._isInitialized || !normalizedQuery) {
       return []
     }
 
@@ -48,38 +49,43 @@ export class SearchEngine {
     const matchedTasks: SearchResult[] = []
     const maxDistance = Math.floor(normalizedQuery.length / 4)
 
-    for (const task of this.collection) {
+    for (const task of this._collection) {
+      options?.consumeWork?.(task.content.length)
       const lowerContent = task.content.toLowerCase()
       const normalizedContent = task.plainText
-      const rawIndices = this.findExactIndices(lowerContent, rawLowerQuery)
-      const rawExactIndex = rawIndices[0]?.[0] ?? -1
+      const rawExactIndex = lowerContent.indexOf(rawLowerQuery)
 
       if (rawExactIndex !== -1) {
+        const indices: [number, number][] = []
+        let matchCount = 0
+        for (let index = rawExactIndex; index !== -1; index = lowerContent.indexOf(rawLowerQuery, index + 1)) {
+          options?.consumeWork?.(rawLowerQuery.length)
+          matchCount++
+          if (options?.includeMatches !== false) indices.push([index, index + rawLowerQuery.length - 1])
+        }
         const positionScore = (rawExactIndex / Math.max(task.content.length, 1)) * 100
-        const matchCountScore = 10 / rawIndices.length
+        const matchCountScore = 10 / matchCount
         const score = positionScore + matchCountScore
 
         matchedTasks.push({
           task,
           score,
-          matches: [{indices: rawIndices, value: query, key: "content"}],
+          ...(indices.length > 0 && {matches: [{indices, value: query, key: "content"}]}),
         })
         continue
       }
 
+      options?.consumeWork?.(normalizedContent.length)
       const exactIndex = normalizedContent.indexOf(normalizedQuery)
       if (exactIndex !== -1) {
         const positionScore = (exactIndex / Math.max(normalizedContent.length, 1)) * 100
         const matchCountScore = 10
         const score = positionScore + matchCountScore
 
-        matchedTasks.push({
-          task,
-          score,
-          matches: undefined,
-        })
-      } else {
-        const fuzzyMatch = this.findFuzzySubstring(normalizedContent, normalizedQuery, maxDistance)
+        matchedTasks.push({task, score})
+      } else if (maxDistance > 0 && normalizedContent.length >= normalizedQuery.length - maxDistance) {
+        options?.consumeWork?.(normalizedContent.length * normalizedQuery.length)
+        const fuzzyMatch = this._findFuzzySubstring(normalizedContent, normalizedQuery, maxDistance)
 
         if (fuzzyMatch) {
           const positionScore = (fuzzyMatch.index / Math.max(normalizedContent.length, 1)) * 100
@@ -87,11 +93,7 @@ export class SearchEngine {
           const fuzzyPenalty = 200
           const score = fuzzyPenalty + positionScore + errorPenalty
 
-          matchedTasks.push({
-            task,
-            score,
-            matches: undefined,
-          })
+          matchedTasks.push({task, score})
         }
       }
     }
@@ -109,51 +111,33 @@ export class SearchEngine {
   }
 
   getIndexSize(): number {
-    return this.collection.length
+    return this._collection.length
   }
 
-  private findExactIndices(content: string, query: string): [number, number][] {
-    if (!query.length) return []
+  private _findFuzzySubstring(content: string, query: string, maxDistance: number): {index: number; distance: number} | null {
+    const distances = new Uint16Array(query.length + 1)
+    for (let length = 1; length <= query.length; length++) distances[length] = length
 
-    const indices: [number, number][] = []
-    let searchIndex = 0
+    let bestIndex = -1
+    let bestDistance = maxDistance
 
-    while (searchIndex < content.length) {
-      const foundIndex = content.indexOf(query, searchIndex)
-      if (foundIndex === -1) break
-
-      indices.push([foundIndex, foundIndex + query.length - 1])
-      searchIndex = foundIndex + 1
-    }
-
-    return indices
-  }
-
-  /**
-   * Find fuzzy substring match allowing for character errors
-   * Uses sliding window with edit distance
-   */
-  private findFuzzySubstring(content: string, query: string, maxDistance: number): {index: number; length: number; distance: number} | null {
-    if (!query.length) return null
-
-    let bestMatch: {index: number; length: number; distance: number} | null = null
-
-    for (let i = 0; i <= content.length - query.length + maxDistance; i++) {
-      const minLen = Math.max(query.length - maxDistance, 1)
-      const maxLen = query.length + maxDistance
-
-      for (let len = minLen; len <= maxLen && i + len <= content.length; len++) {
-        const substring = content.substring(i, i + len)
-        const distance = calcLevenshteinDistance(substring, query)
-
-        if (distance <= maxDistance) {
-          if (!bestMatch || distance < bestMatch.distance || (distance === bestMatch.distance && i < bestMatch.index)) {
-            bestMatch = {index: i, length: len, distance}
-          }
-        }
+    // Working backwards with distances[0] fixed at zero lets each match choose its own end.
+    for (let start = content.length - 1; start >= 0; start--) {
+      const char = content[start]
+      let diagonal = 0
+      for (let length = 1; length <= query.length; length++) {
+        const previous = distances[length]
+        const substitution = char === query[query.length - length] ? 0 : 1
+        distances[length] = Math.min(previous + 1, distances[length - 1] + 1, diagonal + substitution)
+        diagonal = previous
+      }
+      const distance = distances[query.length]
+      if (distance <= bestDistance) {
+        bestIndex = start
+        bestDistance = distance
       }
     }
 
-    return bestMatch
+    return bestIndex === -1 ? null : {index: bestIndex, distance: bestDistance}
   }
 }

@@ -60,6 +60,8 @@ export type ToolContext = {
   clock: ToolClock
   source: ActorSource
   files: ToolFilesPort
+  /** Work allowance for scanned UTF-16 text and fuzzy edit-distance cells. */
+  searchWorkBudget?: number
 }
 
 /** One tool of the shared set: what it is advertised as, and what it does when called with parsed input over the host context. */

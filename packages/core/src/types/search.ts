@@ -12,7 +12,7 @@ export type SearchTask = {
 
 export type SearchResult = {
   task: SearchTask
-  /** Relevance score from Fuse.js (lower is better) */
+  /** Lower relevance scores rank first. */
   score: number
   /** Match positions for highlighting */
   matches?: SearchMatch[]
@@ -25,4 +25,7 @@ export type SearchOptions = {
   limit?: number
   /** Minimum characters to match */
   minMatchCharLength?: number
+  includeMatches?: boolean
+  /** Receives scanned UTF-16 lengths and fuzzy edit-distance cells before each operation. May throw to stop the search. */
+  consumeWork?: (units: number) => void
 }
