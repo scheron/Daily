@@ -145,6 +145,16 @@ EOF
 
 write_caddyfile() {
   sed "s#__DOMAIN__#$2#g" > "$1/Caddyfile" <<'EOF'
+{
+	servers {
+		timeouts {
+			read_header 1m
+			read_body 15m
+			write 15m
+		}
+	}
+}
+
 __DOMAIN__ {
 	reverse_proxy daily-server:8787
 }

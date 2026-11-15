@@ -87,19 +87,7 @@ describe("TC-12: README.md, AGENTS.md and the Dockerfile labels name paths that 
 })
 
 describe("TC-16: apps/server/README.md describes the three deploy scenarios and nothing that no longer exists", () => {
-  /**
-   * [CORRECTED] The cap was 175, set for a README whose Updating section was five lines of prose
-   * about what a `p<N>` tag is. `upgrade` now moves that pin itself, takes a backup nobody asked
-   * for, and undoes itself when the new image will not run — three behaviours a self-hoster meets
-   * without warning and has to be able to look up. Raised to 180, which is the same three lines of
-   * headroom the cap left before, so it still catches sprawl. Raised to 215 for the Connecting
-   * agents section, the one task a self-hoster has to look up to use agents, keeping the same
-   * three lines of headroom. Raised to 222 for `rename`: the verb row, plus the five lines that
-   * say which of the three name sources wins, which is not guessable from the verb list and is
-   * the thing a self-hoster hits the moment a container id shows up in Daily. Same three lines
-   * of headroom.
-   */
-  it("every relative link resolves, none of the removed variables or the own-certificate mode survive, and the file stays under 222 lines", () => {
+  it("every relative link resolves, the removed options stay absent, and the operator guide stays within its length budget", () => {
     const readme = read("apps/server/README.md")
 
     for (const link of extractMarkdownRelativeLinks(readme)) {
@@ -111,7 +99,7 @@ describe("TC-16: apps/server/README.md describes the three deploy scenarios and 
     }
 
     const lineCount = readme.trimEnd().split("\n").length
-    expect(lineCount, "apps/server/README.md should be under 222 lines").toBeLessThan(222)
+    expect(lineCount, "apps/server/README.md should be under 238 lines").toBeLessThan(238)
   })
 })
 

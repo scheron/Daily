@@ -66,6 +66,10 @@ describe("resolveServerConfig", () => {
     expect(config.publicUrl).toBeNull()
   })
 
+  it("rejects an explicit snapshot cap that would let unbounded bytes through", () => {
+    expectServerSetupError(() => resolveServerConfig({maxSnapshotBodyBytes: Infinity}), ServerSetupErrorCode.INVALID_ENVIRONMENT)
+  })
+
   it("with neither DAILY_SERVER_NAME nor DAILY_SERVER_PUBLIC_URL set, declares no name and derives none either", () => {
     const config = resolveServerConfig({})
 

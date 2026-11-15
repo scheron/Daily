@@ -13,6 +13,7 @@ import {isStorableSnapshot, readRevision, readSnapshot, writeSnapshotIfUnchanged
 import {RESPONSE_SENT} from "../respond"
 
 import type {RevisionProbe, SnapshotReadResponse, SnapshotWriteBody, SnapshotWriteResponse} from "@daily/protocol"
+import type {IncomingMessage} from "node:http"
 import type {ServerConfig} from "../../config/resolveServerConfig"
 import type {DeviceRecord} from "../../devices/DeviceStore"
 import type {ServerStore} from "../../store/instance"
@@ -29,7 +30,7 @@ export const snapshotReadRoute: Route = {
 export const snapshotWriteRoute: Route = {
   method: "POST",
   path: SYNC_PROTOCOL_PATHS.snapshot,
-  bodyLimit: "snapshot",
+  authorizeSnapshotUpload,
   handler: postSnapshot,
 }
 
@@ -50,25 +51,33 @@ async function getSnapshot(ctx: RouteContext): Promise<SnapshotReadResponse> {
 }
 
 async function postSnapshot(ctx: RouteContext): Promise<SnapshotWriteResponse> {
-  requireClaimedServer(ctx.store)
-  const device = authenticateRequest(ctx.store, ctx.req)
-
   if (typeof ctx.body !== "object" || ctx.body === null) {
     throw new ProtocolError(ProtocolErrorCode.MALFORMED_REQUEST, "A snapshot write needs a body")
   }
 
   const body = ctx.body as Partial<SnapshotWriteBody>
-  if (!("snapshot" in body) || (typeof body.expectedRevision !== "string" && body.expectedRevision !== null)) {
+  const {snapshot, expectedRevision} = body
+  if (!("snapshot" in body) || (typeof expectedRevision !== "string" && expectedRevision !== null)) {
     throw new ProtocolError(ProtocolErrorCode.MALFORMED_REQUEST, "A snapshot write needs a snapshot and an expectedRevision")
   }
 
-  if (!isStorableSnapshot(body.snapshot)) {
+  if (!isStorableSnapshot(snapshot)) {
     throw new ProtocolError(ProtocolErrorCode.INVALID_SNAPSHOT, "This body is not a storable snapshot")
   }
 
-  const revision = writeSnapshotIfUnchanged(ctx.store, body.snapshot, body.expectedRevision, device.id)
+  const revision = ctx.store.db
+    .transaction(() => {
+      const device = authorizeSnapshotUpload(ctx.store, ctx.req)
+      return writeSnapshotIfUnchanged(ctx.store, snapshot, expectedRevision, device.id)
+    })
+    .immediate()
 
   return {revision}
+}
+
+function authorizeSnapshotUpload(store: ServerStore, req: IncomingMessage): DeviceRecord {
+  requireClaimedServer(store)
+  return authenticateRequest(store, req)
 }
 
 /**

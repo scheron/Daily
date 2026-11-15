@@ -102,6 +102,19 @@ export function createAgentRequest(server: BootedSyncServer, params: CreateAgent
   return createStoreAgentRequest(server.store, params)
 }
 
+export function generateSelfSignedCertificate(dataDir: string): {certPath: string; keyPath: string; fingerprint: string} {
+  const certPath = join(dataDir, "cert.pem")
+  const keyPath = join(dataDir, "key.pem")
+
+  execFileSync(
+    "openssl",
+    ["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "3650", "-subj", "/CN=localhost", "-keyout", keyPath, "-out", certPath],
+    {stdio: "ignore"},
+  )
+
+  return {certPath, keyPath, fingerprint: readCertificateFingerprint(certPath)}
+}
+
 function startServer(config: ServerConfig, dataDir: string): Promise<BootedSyncServer> {
   const store = openServerStore(config.dataDir)
   const server = createHttpServer(store, config)
@@ -125,19 +138,6 @@ function startServer(config: ServerConfig, dataDir: string): Promise<BootedSyncS
       })
     })
   })
-}
-
-function generateSelfSignedCertificate(dataDir: string): {certPath: string; keyPath: string; fingerprint: string} {
-  const certPath = join(dataDir, "cert.pem")
-  const keyPath = join(dataDir, "key.pem")
-
-  execFileSync(
-    "openssl",
-    ["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "3650", "-subj", "/CN=localhost", "-keyout", keyPath, "-out", certPath],
-    {stdio: "ignore"},
-  )
-
-  return {certPath, keyPath, fingerprint: readCertificateFingerprint(certPath)}
 }
 
 function readCertificateFingerprint(certPath: string): string {

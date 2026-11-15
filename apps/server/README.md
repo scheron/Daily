@@ -126,10 +126,26 @@ Configure through environment variables; there is no config file. Do not edit `d
 | `DAILY_SERVER_TLS`                   | unset (plain HTTP)                       | `self-signed` mints and serves a certificate for `DAILY_SERVER_PUBLIC_URL`'s host; any other value is refused |
 | `DAILY_SERVER_NAME`                  | unset                                    | declares the name Daily shows; unset, the name comes from `daily-server rename`, else the public URL's host   |
 | `DAILY_SERVER_MAX_ASSET_BYTES`       | 100 MB                                   | largest single attachment the server accepts                                                                  |
-| `DAILY_SERVER_MAX_SNAPSHOT_BYTES`    | 32 MB                                    | largest snapshot write body the server accepts                                                                |
+| `DAILY_SERVER_MAX_SNAPSHOT_BYTES`    | 32 MiB                                   | largest snapshot write body, measured separately before and after gzip decoding                               |
 | `DAILY_SERVER_BACKUP_INTERVAL_HOURS` | `24`                                     | hours between scheduled backups; `0` turns the schedule off                                                   |
 | `DAILY_SERVER_BACKUP_KEEP`           | `1`                                      | how many backups to keep; the oldest beyond this are removed                                                  |
 | `DAILY_SERVER_BACKUP_DIR`            | `backups` under the data directory       | where scheduled backups are written                                                                           |
+
+### Sync over slow connections
+
+An upgraded app and server allow 15 minutes per snapshot transfer. After 30 seconds without data,
+the app times out a download and the server times out an upload. The server accepts two uploads
+at a time and asks others to retry. Other request bodies keep a five-minute limit after headers.
+
+Mixed versions still sync within the limits of the older endpoint. An older app keeps its
+30-second snapshot deadline. An older server limits uploads to about five minutes.
+
+New bundled Caddy configurations stream bodies and set a one-minute header timeout and
+15-minute read and write ceilings. Upgrading the server image preserves the existing Caddyfile.
+The original bundled configuration also streams bodies, so it can use the upgraded app and
+server deadlines. If you run another proxy, stream snapshot uploads and downloads and allow
+at least 15 minutes for progressing transfers. Allow at least 45 seconds for a held revision
+probe to respond.
 
 ## Backups
 

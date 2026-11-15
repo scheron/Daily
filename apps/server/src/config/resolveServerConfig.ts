@@ -46,6 +46,9 @@ export function resolveServerConfig(options: ServerConfigOptions): ServerConfig 
   const dataDir = options.dataDir ?? process.env.DAILY_SERVER_DATA_DIR ?? defaultDataDir()
   const maxAssetBytes = options.maxAssetBytes ?? envMaxAssetBytes() ?? SYNC_PROTOCOL_CONFIG.maxAssetBytes
   const maxSnapshotBodyBytes = options.maxSnapshotBodyBytes ?? envMaxSnapshotBodyBytes() ?? SYNC_PROTOCOL_CONFIG.maxSnapshotBodyBytes
+  if (!Number.isSafeInteger(maxSnapshotBodyBytes) || maxSnapshotBodyBytes < 0) {
+    throw new ServerSetupError(ServerSetupErrorCode.INVALID_ENVIRONMENT, "The snapshot body limit must be a nonnegative whole number of bytes")
+  }
 
   const publicUrl = options.publicUrl ?? process.env.DAILY_SERVER_PUBLIC_URL ?? null
   const name = options.name?.trim() || process.env.DAILY_SERVER_NAME?.trim() || null

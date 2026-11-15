@@ -1,6 +1,13 @@
 {
 	auto_https disable_redirects
 	admin off
+	servers {
+		timeouts {
+			read_header 1m
+			read_body 15m
+			write 15m
+		}
+	}
 }
 
 https://daily.test:8443 {

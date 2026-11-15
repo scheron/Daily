@@ -38,11 +38,10 @@ export type Route = {
   path: string
   prefix?: true
   body?: "json" | "stream"
-  bodyLimit?: "control" | "snapshot"
+  authorizeSnapshotUpload?: (store: ServerStore, req: IncomingMessage) => void
   handler: (ctx: RouteContext) => Promise<unknown>
 }
 
-const RESPONSE_ALREADY_SENT = Symbol("response-already-sent")
 const STREAM_FAILURE = "Server failed while sending the response body"
 
 /**
@@ -60,10 +59,12 @@ export function createHttpServer(
 ): Server {
   const requestLog = new RequestLogBuffer()
   const legacyMcpSessions = new LegacyMcpSessions()
+  let activeSnapshotUploads = 0
 
-  const listener = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
+  const listener = async (req: IncomingMessage, res: ServerResponse, expectContinue = false): Promise<void> => {
     let route: Route | undefined
     let failure: string | null = null
+    let admittedSnapshotUpload = false
     const startedAt = Date.now()
 
     // Recorded at close, not at dispatch, so a client that drops the connection is logged too.
@@ -95,16 +96,38 @@ export function createHttpServer(
       const pathname = new URL(req.url ?? "/", "http://placeholder").pathname
       route = matchRoute(req.method ?? "", pathname)
 
-      const body =
-        route.body === "stream" ? undefined : req.method === "POST" ? await readRequestBody(req, res, resolveBodyLimit(route, config)) : undefined
+      const readsJson = route.body !== "stream" && route.method === "POST"
+      const maxBodyBytes = route.authorizeSnapshotUpload ? config.maxSnapshotBodyBytes : SYNC_PROTOCOL_CONFIG.maxControlRequestBodyBytes
+      if (route.authorizeSnapshotUpload) route.authorizeSnapshotUpload(store, req)
+      if (readsJson && Number(req.headers["content-length"]) > maxBodyBytes) {
+        refuseOversizedBody(req, res)
+        return
+      }
 
+      if (route.authorizeSnapshotUpload) {
+        if (activeSnapshotUploads >= 2) {
+          closeAfterResponse(req, res)
+          res.writeHead(429).end()
+          return
+        }
+        activeSnapshotUploads++
+        admittedSnapshotUpload = true
+      }
+
+      if (req.headers["transfer-encoding"] || Number(req.headers["content-length"]) > 0) {
+        const timer = setTimeout(() => expireIncompleteRequest(req, res), admittedSnapshotUpload ? 900_000 : 300_000)
+        req.once("close", () => clearTimeout(timer))
+      }
+      if (expectContinue) res.writeContinue()
+      const body = readsJson ? await readRequestBody(req, res, maxBodyBytes, admittedSnapshotUpload ? 30_000 : null) : undefined
       const data = await route.handler({req, res, store, config, body, requestLog, searchRunner, legacyMcpSessions, mcpJournal})
       if (data !== RESPONSE_SENT) respondOk(res, data, acceptsGzip(req))
     } catch (err) {
-      if (err === RESPONSE_ALREADY_SENT) return
+      if (err === RESPONSE_SENT || res.destroyed) return
 
       // Only a code: a message can quote an attachment name, a body value or a server path.
       failure = err instanceof ProtocolError ? err.code : "Unexpected server error"
+      if (!req.complete) closeAfterResponse(req, res)
 
       if (err instanceof ProtocolError) {
         respondError(res, err)
@@ -114,12 +137,17 @@ export function createHttpServer(
       if (route?.path === AGENT_ENDPOINT_PATH) console.error("MCP request failed")
       else console.error(err)
       respondError(res, new ProtocolError(ProtocolErrorCode.INTERNAL, "Internal server error"))
+    } finally {
+      if (admittedSnapshotUpload) activeSnapshotUploads--
     }
   }
 
+  // Node applies requestTimeout to the whole listener, so the body deadlines start after routing.
+  const options = {requestTimeout: 0, headersTimeout: 60_000}
   const server = config.tls
-    ? https.createServer({cert: readFileSync(config.tls.certPath), key: readFileSync(config.tls.keyPath)}, listener)
-    : http.createServer(listener)
+    ? https.createServer({...options, cert: readFileSync(config.tls.certPath), key: readFileSync(config.tls.keyPath)}, listener)
+    : http.createServer(options, listener)
+  server.on("checkContinue", (req, res) => void listener(req, res, true))
   server.once("close", () => void searchRunner.close().then(() => mcpJournal.close()))
   return server
 }
@@ -152,41 +180,69 @@ function matchRoute(method: string, pathname: string): Route {
   return route
 }
 
-function resolveBodyLimit(route: Route, config: ServerConfig): number {
-  return route.bodyLimit === "snapshot" ? config.maxSnapshotBodyBytes : SYNC_PROTOCOL_CONFIG.maxControlRequestBodyBytes
-}
-
 function acceptsGzip(req: IncomingMessage): boolean {
   const header = req.headers["accept-encoding"]
   return typeof header === "string" && header.includes("gzip")
 }
 
-function readRequestBody(req: IncomingMessage, res: ServerResponse, maxBytes: number): Promise<unknown> {
+function closeAfterResponse(req: IncomingMessage, res: ServerResponse): void {
+  req.pause()
+  res.setHeader("connection", "close")
+}
+
+function refuseOversizedBody(req: IncomingMessage, res: ServerResponse): void {
+  if (!req.complete) closeAfterResponse(req, res)
+  respondError(res, new ProtocolError(ProtocolErrorCode.PAYLOAD_TOO_LARGE, "Request body too large"))
+}
+
+function expireIncompleteRequest(req: IncomingMessage, res: ServerResponse): void {
+  if (req.complete) return
+  if (!res.socket || res.headersSent) {
+    req.destroy()
+    return
+  }
+
+  closeAfterResponse(req, res)
+  res.writeHead(408).end()
+}
+
+function readRequestBody(req: IncomingMessage, res: ServerResponse, maxBytes: number, idleMs: number | null): Promise<unknown> {
   return new Promise((resolve, reject) => {
-    const chunks: Buffer[] = []
+    let buffer = Buffer.alloc(0)
     let received = 0
-    let settled = false
 
-    req.on("data", (chunk: Buffer) => {
-      if (settled) return
+    const idle = idleMs === null ? null : setTimeout(() => expireIncompleteRequest(req, res), idleMs)
 
-      received += chunk.length
-      if (received > maxBytes) {
-        settled = true
-        respondError(res, new ProtocolError(ProtocolErrorCode.PAYLOAD_TOO_LARGE, "Request body too large"))
-        req.destroy()
-        reject(RESPONSE_ALREADY_SENT)
+    function cleanup(): void {
+      if (idle) clearTimeout(idle)
+      buffer = Buffer.alloc(0)
+      req.off("data", onData).off("end", onEnd).off("error", onClose).off("close", onClose)
+      res.off("finish", onClose)
+    }
+
+    function onData(chunk: Buffer): void {
+      const nextSize = received + chunk.length
+      if (nextSize > maxBytes) {
+        cleanup()
+        refuseOversizedBody(req, res)
+        reject(RESPONSE_SENT)
         return
       }
 
-      chunks.push(chunk)
-    })
+      idle?.refresh()
+      // Copy into bounded storage so tiny chunks cannot pin entire socket buffers.
+      if (nextSize > buffer.length) {
+        const grown = Buffer.allocUnsafe(Math.min(maxBytes, Math.max(16 * 1024, buffer.length * 2, nextSize)))
+        buffer.copy(grown, 0, 0, received)
+        buffer = grown
+      }
+      chunk.copy(buffer, received)
+      received = nextSize
+    }
 
-    req.on("end", () => {
-      if (settled) return
-      settled = true
-
-      const compressed = Buffer.concat(chunks)
+    function onEnd(): void {
+      const compressed = buffer.subarray(0, received)
+      cleanup()
       if (compressed.length === 0) {
         resolve(undefined)
         return
@@ -198,13 +254,15 @@ function readRequestBody(req: IncomingMessage, res: ServerResponse, maxBytes: nu
       } catch (err) {
         reject(err instanceof ProtocolError ? err : new ProtocolError(ProtocolErrorCode.MALFORMED_REQUEST, "Request body is not valid JSON"))
       }
-    })
+    }
 
-    req.on("error", (err) => {
-      if (settled) return
-      settled = true
-      reject(err)
-    })
+    function onClose(): void {
+      cleanup()
+      reject(RESPONSE_SENT)
+    }
+
+    req.on("data", onData).once("end", onEnd).once("error", onClose).once("close", onClose)
+    res.once("finish", onClose)
   })
 }
 
