@@ -1,6 +1,6 @@
+import {once} from "node:events"
 import {request as requestHttp} from "node:http"
 import {request as requestHttps} from "node:https"
-import {setTimeout as delay} from "node:timers/promises"
 import {gzipSync} from "node:zlib"
 import {afterEach, describe, expect, it, vi} from "vitest"
 
@@ -13,7 +13,7 @@ import {ensureClaimCode} from "../src/identity/ServerIdentityStore"
 import {readRevision} from "../src/snapshot/SnapshotStore"
 import {bootHttpsSyncServer, bootSyncServer, claimFirstDevice, enrollSecondDevice} from "./helpers/syncServer"
 
-import type {ClientRequest} from "node:http"
+import type {ClientRequest, IncomingMessage} from "node:http"
 import type {BootedSyncServer} from "./helpers/syncServer"
 
 describe("snapshot uploads", () => {
@@ -50,9 +50,7 @@ describe("snapshot uploads", () => {
     const {token} = claimServer(server.store, code, "Test device")
     vi.useFakeTimers({toFake: ["setTimeout", "clearTimeout"]})
 
-    const upload = begin(SYNC_PROTOCOL_PATHS.snapshot, token)
-    expect(await upload.admission).toBe("continue")
-    await sendProgress(upload.req, 16)
+    const upload = await beginProgressingUpload(token, 16)
 
     if (server.baseUrl.startsWith("http:")) {
       const probe = await fetch(new URL(SYNC_PROTOCOL_PATHS.revision, server.baseUrl), {headers: {authorization: `Bearer ${token}`}})
@@ -89,9 +87,7 @@ describe("snapshot uploads", () => {
     const {token} = await claimFirstDevice(server)
     vi.useFakeTimers({toFake: ["setTimeout", "clearTimeout"]})
 
-    const upload = begin(SYNC_PROTOCOL_PATHS.snapshot, token)
-    expect(await upload.admission).toBe("continue")
-    await sendProgress(upload.req, 45)
+    const upload = await beginProgressingUpload(token, 45)
 
     expect(await upload.status).toBe(408)
     expect(readRevision(server.store)).toBeNull()
@@ -211,11 +207,19 @@ describe("snapshot uploads", () => {
     return {req, admission, status}
   }
 
-  async function sendProgress(req: ClientRequest, count: number): Promise<void> {
+  async function beginProgressingUpload(token: string, count: number) {
+    const serverRequest = new Promise<IncomingMessage>((resolve) => server.httpServer.once("checkContinue", resolve))
+    const upload = begin(SYNC_PROTOCOL_PATHS.snapshot, token)
+    expect(await upload.admission).toBe("continue")
+    const incoming = await serverRequest
+
     for (let offset = 0; offset < count; offset++) {
-      req.write(body.slice(offset, offset + 1))
-      await delay(5)
+      const received = once(incoming, "data")
+      upload.req.write(body.slice(offset, offset + 1))
+      await received
       await vi.advanceTimersByTimeAsync(20_000)
     }
+
+    return upload
   }
 })

@@ -15,11 +15,13 @@ import type {ClaimResponse, ConsoleEnrollResponse, EnrollmentWindow, IssuedCrede
 import type {AgentRequestRecord, CreateAgentRequestParams} from "@daily/server/agents/AgentStore"
 import type {ServerConfig, ServerConfigOptions} from "@daily/server/config/resolveServerConfig"
 import type {ServerStore} from "@daily/server/store/instance"
+import type {Server} from "node:http"
 import type {AddressInfo} from "node:net"
 
 export type BootedSyncServer = {
   baseUrl: string
   store: ServerStore
+  httpServer: Server
   close(): Promise<void>
 }
 
@@ -127,6 +129,7 @@ function startServer(config: ServerConfig, dataDir: string): Promise<BootedSyncS
       resolve({
         baseUrl: `${scheme}://${config.host}:${port}`,
         store,
+        httpServer: server,
         close: () =>
           new Promise((res) => {
             server.close(() => {
