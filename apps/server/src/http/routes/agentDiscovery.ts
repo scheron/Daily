@@ -20,7 +20,7 @@ export const protectedResourceMetadataRootRoute: Route = {
   handler: getProtectedResourceMetadata,
 }
 
-/** `GET /.well-known/oauth-authorization-server` — RFC 8414 metadata, naming CIMD and `none` so Claude chooses them over Dynamic Client Registration. */
+/** `GET /.well-known/oauth-authorization-server` — RFC 8414 metadata for public clients using CIMD or dynamic registration. */
 export const authorizationServerMetadataRoute: Route = {
   method: "GET",
   path: AGENT_OAUTH_PATHS.authorizationServer,
@@ -47,6 +47,7 @@ async function getAuthorizationServerMetadata(ctx: RouteContext): Promise<typeof
     issuer: urls.issuer,
     authorization_endpoint: urls.authorizationEndpoint,
     token_endpoint: urls.tokenEndpoint,
+    registration_endpoint: urls.registrationEndpoint,
     response_types_supported: ["code"],
     grant_types_supported: ["authorization_code", "refresh_token"],
     code_challenge_methods_supported: ["S256"],

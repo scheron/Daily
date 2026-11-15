@@ -8,7 +8,7 @@ import {isLoopbackHostname} from "../isLoopbackHostname"
 import type {ClientRequest, IncomingMessage} from "node:http"
 import type {LookupFunction} from "node:net"
 
-/** A client as its metadata document describes it: `clientName` is the document's `client_name`, trimmed — the agent's name; `redirectUris` is the list as written. */
+/** A client's self-asserted name and callback list, from a metadata document or dynamic registration. */
 export type ClientMetadata = {clientId: string; clientName: string; redirectUris: string[]}
 export type ClientMetadataRefusal = "invalid_client_id" | "unsafe_address" | "unreachable" | "invalid_document"
 export type ClientMetadataResult = {ok: true; client: ClientMetadata} | {ok: false; refusal: ClientMetadataRefusal}
@@ -58,21 +58,37 @@ export async function fetchClientMetadata(clientId: string, options: {allowLoopb
 }
 
 /**
- * Accepts only a redirect URI the client's document lists, and only an `https:` one or an `http:` one
- * on a loopback host — a listed private-use scheme or a listed non-loopback `http:` URI is still
- * refused. The port is ignored only against a listed `http:` loopback URI (OAuth 2.1 §8.4.2), where a
- * native client listens on an ephemeral port; `localhost` and `127.0.0.1` never stand in for each other.
+ * Accepts declared HTTPS and HTTP loopback redirects, with a port exception for HTTP loopback only.
+ * The exception compares the rest of the URI as written for dynamic registration and permits URL normalization for hosted metadata.
  */
-export function isRegisteredRedirectUri(client: ClientMetadata, redirectUri: string): boolean {
+export function isRegisteredRedirectUri(client: ClientMetadata, redirectUri: string, {strictLoopbackMatch = false} = {}): boolean {
   const uri = parseRedirectUri(redirectUri)
   if (!uri) return false
   if (client.redirectUris.includes(redirectUri)) return true
+  if (uri.protocol !== "http:") return false
+
+  if (strictLoopbackMatch) {
+    const portless = withoutRawPort(redirectUri)
+    return client.redirectUris.some((listed) => withoutRawPort(listed) === portless)
+  }
 
   const portless = withoutPort(uri)
   return client.redirectUris.some((listed) => {
     const listedUri = parseRedirectUri(listed)
     return listedUri !== null && listedUri.protocol === "http:" && withoutPort(listedUri) === portless
   })
+}
+
+export function parseRedirectUri(redirectUri: string): URL | null {
+  let url: URL
+  try {
+    url = new URL(redirectUri)
+  } catch {
+    return null
+  }
+  if (redirectUri.includes("#")) return null
+
+  return url.protocol === "https:" || (url.protocol === "http:" && isLoopbackHostname(url.hostname)) ? url : null
 }
 
 function parseClientIdUrl(clientId: string, allowLoopback: boolean): URL | null {
@@ -203,22 +219,14 @@ function cacheLifetimeSeconds(cacheControl: string | undefined): number {
   return maxAge ? Math.min(Number(maxAge[1]), 3600) : 0
 }
 
-function parseRedirectUri(redirectUri: string): URL | null {
-  let url: URL
-  try {
-    url = new URL(redirectUri)
-  } catch {
-    return null
-  }
-  if (redirectUri.includes("#")) return null
-
-  return url.protocol === "https:" || (url.protocol === "http:" && isLoopbackHostname(url.hostname)) ? url : null
-}
-
 function withoutPort(url: URL): string {
   const copy = new URL(url.href)
   copy.port = ""
   return copy.href
+}
+
+function withoutRawPort(redirectUri: string): string {
+  return redirectUri.replace(/^(http:\/\/(?:\[[a-f0-9:.]+\]|[^:/?#@\\]+)):\d+(?=[/?]|$)/i, "$1")
 }
 
 function hasDotSegment(clientId: string): boolean {

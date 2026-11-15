@@ -2,7 +2,7 @@ import {describe, expect, it, vi} from "vitest"
 
 import {AGENT_ENDPOINT_PATH} from "@daily/protocol"
 
-import {verifyAgentAccessToken} from "../../../src/agents/oauth/AgentTokenStore"
+import {exchangeAuthorizationCode, refreshAgentTokens, verifyAgentAccessToken} from "../../../src/agents/oauth/AgentTokenStore"
 import {
   AGENT_OAUTH_TEST_PATHS,
   authorizeApproveAndReturn,
@@ -18,6 +18,7 @@ import {
   readAgentsList,
   refreshTokens,
   registerClientDocument,
+  registerClientInStore,
   revokeAgentOver,
   revokeDeviceOver,
   startClientDocumentServer,
@@ -81,6 +82,30 @@ describe("POST /oauth/token exchanges a code for a token pair — TC-43", () => 
       }
     } finally {
       await docs.close()
+      await booted.close()
+    }
+  })
+
+  it("requires the exact callback at exchange for an issued client ID without burning the code", async () => {
+    const booted = await bootAgentServer()
+    try {
+      const parent = await claimParent(booted)
+      await openAgentWindowOver(booted, parent.token)
+      const clientId = registerClientInStore(booted, "Example Desktop", ["http://127.0.0.1/callback"])
+      const redirectUri = "http://127.0.0.1:5555/callback"
+      const {code, verifier} = await authorizeApproveAndReturn(booted, parent.token, {clientId, redirectUri})
+
+      const omitted = await exchangeCode(booted, {code, clientId, verifier})
+      expect(omitted.status).toBe(400)
+      expect(await omitted.json()).toMatchObject({error: "invalid_grant"})
+
+      const differentPort = await exchangeCode(booted, {code, clientId, verifier, redirectUri: "http://127.0.0.1:5556/callback"})
+      expect(differentPort.status).toBe(400)
+      expect(await differentPort.json()).toMatchObject({error: "invalid_grant"})
+
+      const exact = await exchangeCode(booted, {code, clientId, verifier, redirectUri})
+      expect(exact.status).toBe(200)
+    } finally {
       await booted.close()
     }
   })
@@ -207,6 +232,23 @@ describe("an otherwise-invalid replay of a used code only refuses; an otherwise-
       await booted.close()
     }
   })
+
+  it("keeps the original grant active if its used code is presented under another issuer", async () => {
+    const {booted, docs, parentToken, clientId} = await setUp()
+    try {
+      await openAgentWindowOver(booted, parentToken)
+      const {accessToken, code, verifier, redirectUri} = await connectAgent(booted, parentToken, {
+        clientId,
+        redirectUri: "http://localhost:5555/callback",
+      })
+      const result = exchangeAuthorizationCode(booted.store, {clientId, code, codeVerifier: verifier, redirectUri}, "https://other.example.com/mcp")
+      expect(result.ok).toBe(false)
+      expect(verifyAgentAccessToken(booted.store, accessToken, `${booted.issuer}${AGENT_ENDPOINT_PATH}`)).not.toBeNull()
+    } finally {
+      await docs.close()
+      await booted.close()
+    }
+  })
 })
 
 describe("refreshing rotates the pair, and the previous access token keeps working until its own hour is up — TC-46", () => {
@@ -272,6 +314,29 @@ describe("presenting an already-rotated refresh token revokes the agent — TC-4
       expect(await r2Refused.json()).toMatchObject({error: "invalid_grant"})
 
       expect(verifyAgentAccessToken(booted.store, pairA2.access_token, resource)).toBeNull()
+    } finally {
+      await docs.close()
+      await booted.close()
+    }
+  })
+
+  it.each(["client", "issuer"])("keeps the original grant active if its rotated refresh token is presented under another %s", async (binding) => {
+    const {booted, docs, parentToken, clientId} = await setUp()
+    try {
+      const resource = `${booted.issuer}${AGENT_ENDPOINT_PATH}`
+      await openAgentWindowOver(booted, parentToken)
+      const {refreshToken} = await connectAgent(booted, parentToken, {clientId, redirectUri: "http://localhost:5555/callback"})
+      const rotated = await refreshTokens(booted, {refreshToken, clientId})
+      expect(rotated.status).toBe(200)
+      const {access_token: accessToken} = (await rotated.json()) as {access_token: string}
+
+      const result = refreshAgentTokens(
+        booted.store,
+        {refreshToken, clientId: binding === "client" ? docs.urlFor("/other-client.json") : clientId},
+        binding === "issuer" ? "https://other.example.com/mcp" : resource,
+      )
+      expect(result.ok).toBe(false)
+      expect(verifyAgentAccessToken(booted.store, accessToken, resource)).not.toBeNull()
     } finally {
       await docs.close()
       await booted.close()

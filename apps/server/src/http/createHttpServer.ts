@@ -38,6 +38,7 @@ export type Route = {
   path: string
   prefix?: true
   body?: "json" | "stream"
+  bodyDeadlineMs?: number
   authorizeSnapshotUpload?: (store: ServerStore, req: IncomingMessage) => void
   handler: (ctx: RouteContext) => Promise<unknown>
 }
@@ -115,7 +116,8 @@ export function createHttpServer(
       }
 
       if (req.headers["transfer-encoding"] || Number(req.headers["content-length"]) > 0) {
-        const timer = setTimeout(() => expireIncompleteRequest(req, res), admittedSnapshotUpload ? 900_000 : 300_000)
+        const bodyDeadlineMs = route.bodyDeadlineMs ?? (admittedSnapshotUpload ? 900_000 : 300_000)
+        const timer = setTimeout(() => expireIncompleteRequest(req, res), bodyDeadlineMs)
         req.once("close", () => clearTimeout(timer))
       }
       if (expectContinue) res.writeContinue()

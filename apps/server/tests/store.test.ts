@@ -60,7 +60,7 @@ describe("server store", () => {
     const serverId = identityRows[0].server_id
 
     const appliedAfterFirstOpen = first.db.prepare("SELECT version FROM _migrations").all()
-    expect(appliedAfterFirstOpen).toHaveLength(6)
+    expect(appliedAfterFirstOpen).toHaveLength(7)
 
     first.close()
 
@@ -71,7 +71,7 @@ describe("server store", () => {
     expect(identityRowsAfterSecondOpen[0].server_id).toBe(serverId)
 
     const appliedAfterSecondOpen = second.db.prepare("SELECT version FROM _migrations").all()
-    expect(appliedAfterSecondOpen).toHaveLength(6)
+    expect(appliedAfterSecondOpen).toHaveLength(7)
 
     second.close()
   })
@@ -1387,7 +1387,7 @@ describe("migrating an existing store to v005 for agents — TC-24", () => {
     const migrated = openServerStore(dataDir)
 
     const appliedVersions = migrated.db.prepare(`SELECT version FROM _migrations ORDER BY version`).all() as {version: number}[]
-    expect(appliedVersions.map((row) => row.version)).toEqual([1, 2, 3, 4, 5, 6])
+    expect(appliedVersions.map((row) => row.version)).toEqual([1, 2, 3, 4, 5, 6, 7])
 
     const agentColumns = (migrated.db.prepare(`PRAGMA table_info(agents)`).all() as {name: string}[]).map((c) => c.name).sort()
     expect(agentColumns).toEqual(["created_at", "device_id", "id", "last_used_at", "name", "revoked_at"].sort())
@@ -1437,7 +1437,7 @@ describe("migrating an existing store to v005 for agents — TC-24", () => {
 
     const reopened = openServerStore(dataDir)
     const appliedVersionsAfterSecondOpen = reopened.db.prepare(`SELECT version FROM _migrations ORDER BY version`).all() as {version: number}[]
-    expect(appliedVersionsAfterSecondOpen.map((row) => row.version)).toEqual([1, 2, 3, 4, 5, 6])
+    expect(appliedVersionsAfterSecondOpen.map((row) => row.version)).toEqual([1, 2, 3, 4, 5, 6, 7])
     reopened.close()
   })
 })

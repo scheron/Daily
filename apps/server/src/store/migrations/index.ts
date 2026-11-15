@@ -4,7 +4,8 @@ import {v003} from "./v003-assets"
 import {v004} from "./v004-device-roles"
 import {v005} from "./v005-agents"
 import {v006} from "./v006-agent-oauth"
+import {v007} from "./v007-agent-client-registrations"
 
 import type {Migration} from "../migrate"
 
-export const migrations: Migration[] = [v001, v002, v003, v004, v005, v006]
+export const migrations: Migration[] = [v001, v002, v003, v004, v005, v006, v007]

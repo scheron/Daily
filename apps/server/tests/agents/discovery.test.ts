@@ -41,7 +41,7 @@ describe("protected resource metadata and authorization server metadata — TC-1
     }
   })
 
-  it("TC-2: authorization server metadata answers exactly the nine fields Claude reads to choose CIMD", async () => {
+  it("TC-2: authorization server metadata advertises registration and CIMD while the connection window is closed", async () => {
     const res = await fetch(`${booted.baseUrl}${AGENT_OAUTH_TEST_PATHS.authorizationServer}`)
 
     expect(res.status).toBe(200)
@@ -51,6 +51,7 @@ describe("protected resource metadata and authorization server metadata — TC-1
       issuer: booted.issuer,
       authorization_endpoint: `${booted.issuer}${AGENT_OAUTH_TEST_PATHS.authorize}`,
       token_endpoint: `${booted.issuer}${AGENT_OAUTH_TEST_PATHS.token}`,
+      registration_endpoint: `${booted.issuer}/oauth/register`,
       response_types_supported: ["code"],
       grant_types_supported: ["authorization_code", "refresh_token"],
       code_challenge_methods_supported: ["S256"],
@@ -59,7 +60,6 @@ describe("protected resource metadata and authorization server metadata — TC-1
       authorization_response_iss_parameter_supported: true,
     })
     expect(json).not.toHaveProperty("scopes_supported")
-    expect(json).not.toHaveProperty("registration_endpoint")
   })
 })
 
@@ -76,10 +76,16 @@ describe("a public address builds one string for the Mac to copy and the server 
       expect(resourceJson.authorization_servers).toEqual(["https://daily.example.com"])
 
       const authServerRes = await fetch(`${booted.baseUrl}${AGENT_OAUTH_TEST_PATHS.authorizationServer}`)
-      const authServerJson = (await authServerRes.json()) as {issuer: string; authorization_endpoint: string; token_endpoint: string}
+      const authServerJson = (await authServerRes.json()) as {
+        issuer: string
+        authorization_endpoint: string
+        token_endpoint: string
+        registration_endpoint: string
+      }
       expect(authServerJson.issuer).toBe("https://daily.example.com")
       expect(authServerJson.authorization_endpoint).toBe("https://daily.example.com/oauth/authorize")
       expect(authServerJson.token_endpoint).toBe("https://daily.example.com/oauth/token")
+      expect(authServerJson.registration_endpoint).toBe("https://daily.example.com/oauth/register")
 
       const window: AgentWindow = await openAgentWindowOver(booted, parent.token)
       expect(window.agentAddress).toBe(resourceJson.resource)

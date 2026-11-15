@@ -3,7 +3,6 @@ import BaseButton from "@/ui/base/BaseButton"
 import BaseIcon from "@/ui/base/BaseIcon.vue"
 import BaseModal from "@/ui/base/BaseModal.vue"
 import ModalHeader from "@/ui/common/(headers)/ModalHeader.vue"
-import AgentIcon from "@/ui/common/(icons)/AgentIcon.vue"
 import EnrollmentCode from "@/ui/common/(misc)/EnrollmentCode.vue"
 
 import type {PendingAgentRequestView} from "@daily/protocol"
@@ -39,28 +38,19 @@ defineEmits<{
     </div>
 
     <div class="flex justify-between gap-10">
-      <div>
-        <div class="text-base-content/50 text-xs uppercase tracking-[0.06em]">Agent</div>
-        <div class="text-base-content mt-1 flex items-center gap-1.5 text-sm font-medium">
-          <AgentIcon :name="request.agentName" class="size-4" />
-          {{ request.agentName }}
-        </div>
+      <div class="min-w-0">
+        <div class="text-base-content/65 text-xs">Name supplied by the agent</div>
+        <bdi class="text-base-content mt-1 block break-words text-sm font-medium">{{ request.agentName }}</bdi>
       </div>
-      <div class="text-right">
-        <div class="text-base-content/50 text-xs uppercase tracking-[0.06em]">Returns to</div>
-        <div class="mt-1 flex items-center justify-end gap-2">
-          <span class="text-base-content font-mono text-sm font-medium">{{ request.returnsTo }}</span>
-          <span v-if="request.isLocalProgram" class="text-warning bg-warning/14 rounded px-2 py-1 text-xs font-medium">A program on a computer</span>
-        </div>
+      <div class="min-w-0 text-right">
+        <div class="text-base-content/65 text-xs">Browser returns to</div>
+        <bdi class="text-base-content mt-1 block break-words font-mono text-sm font-medium">{{ request.returnsTo }}</bdi>
       </div>
     </div>
 
     <div v-if="request.isLocalProgram" class="text-warning bg-warning/10 mt-3.5 flex items-start gap-2 rounded-lg px-2.5 py-2 text-xs leading-normal">
       <BaseIcon name="alert-triangle" class="mt-0.5 size-3.5 shrink-0" />
-      <span
-        >This agent returns to a program on a computer, not to a website. Any program can claim to be {{ request.agentName }} — approve only if you
-        just started it yourself.</span
-      >
+      <span>The browser will return to a program on its computer. Approve only if you just started this connection.</span>
     </div>
 
     <div class="mt-3.5">

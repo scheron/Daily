@@ -6,6 +6,7 @@ import {findAgentById, findPendingAgentRequest, readAgentRequest} from "../../ag
 import {AGENT_OAUTH_PATHS, agentUrls, isAgentResource} from "../../agents/agentUrls"
 import {isLoopbackHostname} from "../../agents/isLoopbackHostname"
 import {createAgentAuthorization, issueAuthorizationCode, readAgentAuthorization} from "../../agents/oauth/AgentAuthorizationStore"
+import {isIssuedAgentClientId, readRegisteredAgentClient} from "../../agents/oauth/AgentClientRegistrationStore"
 import {fetchClientMetadata, isRegisteredRedirectUri} from "../../agents/oauth/clientMetadata"
 import {readAgentWindow} from "../../identity/ServerIdentityStore"
 import {RESPONSE_SENT} from "../respond"
@@ -13,7 +14,6 @@ import {RESPONSE_SENT} from "../respond"
 import type {ServerResponse} from "node:http"
 import type {AgentRequestRecord} from "../../agents/AgentStore"
 import type {AgentUrls} from "../../agents/agentUrls"
-import type {AgentAuthorizationRecord} from "../../agents/oauth/AgentAuthorizationStore"
 import type {ClientMetadata} from "../../agents/oauth/clientMetadata"
 import type {Route, RouteContext} from "../createHttpServer"
 
@@ -27,10 +27,8 @@ type BrowserPage =
   | {kind: "not-granted"; host: string; agentName: string; returnUrl: string}
 
 /**
- * `GET /oauth/authorize` — starts an agent request only inside an open Agent window, fetching the
- * client's metadata document only then. Every refusal before the return address is checked is a
- * page on this server; every refusal after it is a `303` to that address carrying `error`,
- * `state` and `iss`. An accepted request is sent to the consent page.
+ * Resolves registered or hosted client metadata and starts approval only if the same Agent window remains open.
+ * OAuth parameter errors redirect only to a validated callback, and a closed or replaced window can return a local `403`.
  */
 export const oauthAuthorizeRoute: Route = {
   method: "GET",
@@ -72,47 +70,39 @@ async function getAuthorize(ctx: RouteContext): Promise<typeof RESPONSE_SENT> {
   const retryUrl = new URL(urls.authorizationEndpoint)
   retryUrl.search = requestUrl.search
 
-  const window = readAgentWindow(ctx.store)
-  if (!window) return respondPage(ctx.res, 403, renderPage({kind: "no-window", host, retryUrl: retryUrl.href}))
-  if (findPendingAgentRequest(ctx.store, window.deviceId)) {
+  const agentWindow = readAgentWindow(ctx.store)
+  if (!agentWindow) return respondPage(ctx.res, 403, renderPage({kind: "no-window", host, retryUrl: retryUrl.href}))
+  if (findPendingAgentRequest(ctx.store, agentWindow.deviceId)) {
     return respondPage(ctx.res, 409, renderPage({kind: "request-waiting", host, retryUrl: retryUrl.href}))
   }
 
   const clientIds = query.getAll("client_id")
   if (clientIds.length !== 1) return respondPage(ctx.res, 400, renderPage({kind: "invalid-request", host, reason: "client"}))
 
-  const metadata = await fetchClientMetadata(clientIds[0], {allowLoopback: isLoopbackHostname(issuerUrl.hostname)})
-  if (!metadata.ok) {
-    const reason = ({invalid_client_id: "client", invalid_document: "client", unsafe_address: "unsafe", unreachable: "unreachable"} as const)[
-      metadata.refusal
-    ]
-    return respondPage(ctx.res, 400, renderPage({kind: "invalid-request", host, reason}))
-  }
-
-  const redirectUri = resolveRedirectUri(query, metadata.client)
-  if (!redirectUri) return respondPage(ctx.res, 400, renderPage({kind: "invalid-request", host, reason: "return"}))
-
-  const states = query.getAll("state")
-  const state = states.length === 1 ? states[0] : null
-
-  const refusal = findAuthorizeRefusal(query, urls)
-  if (refusal) {
-    return respondRedirect(ctx.res, buildReturnUrl(redirectUri, {error: refusal.error, error_description: refusal.description}, state, urls.issuer))
-  }
-
-  const returnsTo = new URL(redirectUri).hostname
-  let authorization: AgentAuthorizationRecord
+  type AuthorizeOutcome = {redirect: string} | {status: number; page: BrowserPage}
   try {
-    authorization = createAgentAuthorization(ctx.store, {
-      agentName: metadata.client.clientName,
-      returnsTo,
-      isLocalProgram: isLoopbackHostname(returnsTo),
-      clientId: metadata.client.clientId,
-      redirectUri,
-      state,
-      codeChallenge: query.get("code_challenge") ?? "",
-      resource: urls.resource,
-    })
+    let outcome: AuthorizeOutcome
+    if (isIssuedAgentClientId(clientIds[0])) {
+      // Keep an unused registration from being pruned between lookup and writing its approval request.
+      const authorizeRegisteredClient = ctx.store.db.transaction((): AuthorizeOutcome => {
+        const client = readRegisteredAgentClient(ctx.store, urls.issuer, clientIds[0])
+        if (!client) return {status: 400, page: {kind: "invalid-request", host, reason: "client"}}
+
+        return prepareAuthorization(client, urls, agentWindow.id)
+      })
+      outcome = authorizeRegisteredClient.immediate()
+    } else {
+      const metadata = await fetchClientMetadata(clientIds[0], {allowLoopback: isLoopbackHostname(issuerUrl.hostname)})
+      if (!metadata.ok) {
+        const reason = ({invalid_client_id: "client", invalid_document: "client", unsafe_address: "unsafe", unreachable: "unreachable"} as const)[
+          metadata.refusal
+        ]
+        return respondPage(ctx.res, 400, renderPage({kind: "invalid-request", host, reason}))
+      }
+      outcome = prepareAuthorization(metadata.client, urls, agentWindow.id)
+    }
+
+    return "redirect" in outcome ? respondRedirect(ctx.res, outcome.redirect) : respondPage(ctx.res, outcome.status, renderPage(outcome.page))
   } catch (error) {
     if (error instanceof ProtocolError && error.code === ProtocolErrorCode.AGENT_WINDOW_CLOSED) {
       return respondPage(ctx.res, 403, renderPage({kind: "no-window", host, retryUrl: retryUrl.href}))
@@ -123,7 +113,36 @@ async function getAuthorize(ctx: RouteContext): Promise<typeof RESPONSE_SENT> {
     throw error
   }
 
-  return respondRedirect(ctx.res, `${AGENT_OAUTH_PATHS.consent}?id=${authorization.id}`)
+  function prepareAuthorization(client: ClientMetadata, urls: AgentUrls, windowId: string): AuthorizeOutcome {
+    const redirectUri = resolveRedirectUri(query, client)
+    if (!redirectUri) return {status: 400, page: {kind: "invalid-request", host, reason: "return"}}
+
+    const states = query.getAll("state")
+    const state = states.length === 1 ? states[0] : null
+
+    const refusal = findAuthorizeRefusal(query, urls)
+    if (refusal) {
+      return {redirect: buildReturnUrl(redirectUri, {error: refusal.error, error_description: refusal.description}, state, urls.issuer)}
+    }
+
+    const returnsTo = new URL(redirectUri).hostname
+    const authorization = createAgentAuthorization(
+      ctx.store,
+      {
+        agentName: client.clientName,
+        returnsTo,
+        isLocalProgram: isLoopbackHostname(returnsTo),
+        clientId: client.clientId,
+        redirectUri,
+        state,
+        codeChallenge: query.get("code_challenge") ?? "",
+        resource: urls.resource,
+      },
+      windowId,
+    )
+
+    return {redirect: `${AGENT_OAUTH_PATHS.consent}?id=${authorization.id}`}
+  }
 }
 
 async function getConsent(ctx: RouteContext): Promise<typeof RESPONSE_SENT> {
@@ -134,7 +153,9 @@ async function getConsent(ctx: RouteContext): Promise<typeof RESPONSE_SENT> {
   const authorizationId = new URL(ctx.req.url ?? "/", "http://placeholder").searchParams.get("id")
   const authorization = authorizationId ? readAgentAuthorization(ctx.store, authorizationId) : null
   const request = authorization ? readAgentRequest(ctx.store, authorization.requestId) : null
-  if (!authorization || !request) return respondPage(ctx.res, 404, renderPage({kind: "unknown", host}))
+  if (!authorization || !request || authorization.resource !== urls.resource) {
+    return respondPage(ctx.res, 404, renderPage({kind: "unknown", host}))
+  }
 
   if (isAwaitingMac(request)) {
     return respondPage(ctx.res, 200, renderPage({kind: "waiting", host, agentName: request.agentName, code: request.code}))
@@ -142,10 +163,15 @@ async function getConsent(ctx: RouteContext): Promise<typeof RESPONSE_SENT> {
 
   const agent = request.state === "approved" && request.issuedAgentId ? findAgentById(ctx.store, request.issuedAgentId) : null
   if (agent && !agent.revokedAt) {
-    const code = issueAuthorizationCode(ctx.store, authorization.id)
-    if (code) return respondRedirect(ctx.res, buildReturnUrl(authorization.redirectUri, {code}, authorization.state, urls.issuer))
+    const issueCode = ctx.store.db.transaction(() => {
+      if (isIssuedAgentClientId(authorization.clientId) && !readRegisteredAgentClient(ctx.store, urls.issuer, authorization.clientId)) return null
+      return {code: issueAuthorizationCode(ctx.store, authorization.id)}
+    })
+    const issued = issueCode.immediate()
+    if (issued?.code)
+      return respondRedirect(ctx.res, buildReturnUrl(authorization.redirectUri, {code: issued.code}, authorization.state, urls.issuer))
 
-    return respondPage(ctx.res, 200, renderPage({kind: "granted", host, agentName: request.agentName}))
+    if (issued) return respondPage(ctx.res, 200, renderPage({kind: "granted", host, agentName: request.agentName}))
   }
 
   const returnUrl = buildReturnUrl(authorization.redirectUri, {error: "access_denied"}, authorization.state, urls.issuer)
@@ -154,9 +180,10 @@ async function getConsent(ctx: RouteContext): Promise<typeof RESPONSE_SENT> {
 }
 
 async function getConsentStatus(ctx: RouteContext): Promise<{pending: boolean}> {
+  const urls = agentUrls(ctx.config)
   const authorizationId = new URL(ctx.req.url ?? "/", "http://placeholder").searchParams.get("id")
   const authorization = authorizationId ? readAgentAuthorization(ctx.store, authorizationId) : null
-  const request = authorization ? readAgentRequest(ctx.store, authorization.requestId) : null
+  const request = authorization && authorization.resource === urls?.resource ? readAgentRequest(ctx.store, authorization.requestId) : null
 
   ctx.res.setHeader("cache-control", "no-store")
 
@@ -173,7 +200,7 @@ function resolveRedirectUri(query: URLSearchParams, client: ClientMetadata): str
 
   const candidate = given[0] ?? (client.redirectUris.length === 1 ? client.redirectUris[0] : null)
 
-  return candidate && isRegisteredRedirectUri(client, candidate) ? candidate : null
+  return candidate && isRegisteredRedirectUri(client, candidate, {strictLoopbackMatch: isIssuedAgentClientId(client.clientId)}) ? candidate : null
 }
 
 function findAuthorizeRefusal(query: URLSearchParams, urls: AgentUrls): {error: string; description: string} | null {
@@ -247,6 +274,7 @@ function renderPage(page: BrowserPage): string {
   switch (page.kind) {
     case "waiting":
       content = `<h2>${escapeHtml(page.agentName)} wants access to your Daily</h2>
+<p>Name supplied by the agent</p>
 <div class="bcode">${escapeHtml(`${page.code.slice(0, 3)} ${page.code.slice(3)}`)}</div>
 <div class="bwait"><span class="spin"></span>Approve on the Mac that is waiting for an agent</div>
 <div class="fine">It will read and change your tasks, projects, milestones and tags.</div>`

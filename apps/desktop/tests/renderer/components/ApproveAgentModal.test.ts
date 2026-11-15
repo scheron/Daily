@@ -22,56 +22,37 @@ function findButtonByText(wrapper, text) {
   return wrapper.findAll("button").find((button) => button.text().trim() === text)
 }
 
+function mountApproval(overrides = {}) {
+  return mount(ApproveAgentModal, {
+    props: {request: makeRequest(overrides), deviceName: "Gate Mac"},
+    global: {directives: {tooltip: {}}},
+  })
+}
+
 describe("ApproveAgentModal", () => {
-  it("reads_TC-9_every_pinned_string_for_a_request_from_a_program_on_a_computer", () => {
-    const wrapper = mount(ApproveAgentModal, {
-      props: {request: makeRequest(), deviceName: "Gate Mac"},
-    })
+  it("shows the matching code, agent-supplied name and local destination warning [TC-9]", () => {
+    const wrapper = mountApproval()
 
     const text = wrapper.text()
-    expect(text).toContain("Approve agent")
-    expect(text).toContain("An agent wants access")
-    expect(text).toContain("Compare the code with the browser page that just opened. If it does not match, or you did not start this, decline.")
     expect(text).toContain("482 913")
     expect(text).toContain("Match this on the browser page")
-    expect(text).toContain("Agent")
-    expect(text).toContain("Claude Code")
-    expect(text).toContain("Returns to")
-    expect(text).toContain("localhost")
-    expect(text).toContain("A program on a computer")
-    expect(text).toContain(
-      "This agent returns to a program on a computer, not to a website. Any program can claim to be Claude Code — approve only if you just started it yourself.",
-    )
-    expect(text).toContain("Belongs to")
-    expect(text).toContain("Gate Mac")
-    expect(text).toContain("This Mac")
-    expect(text).toContain("Decline")
-    expect(text).toContain("Approve")
+    expect(text).toMatch(/Name supplied by the agent\s*Claude Code/)
+    expect(text).toMatch(/Browser returns to\s*localhost/)
+    expect(text).toContain("The browser will return to a program on its computer")
+    expect(text).toMatch(/Belongs to\s*Gate Mac\s*This Mac/)
   })
 
-  it("reads_TC-10_a_website_return_with_no_badge_and_no_warning", () => {
-    const wrapper = mount(ApproveAgentModal, {
-      props: {request: makeRequest({agentName: "Claude", returnsTo: "claude.ai", isLocalProgram: false}), deviceName: "Gate Mac"},
-    })
+  it("shows a website destination without the local program warning [TC-10]", () => {
+    const wrapper = mountApproval({agentName: "Claude", returnsTo: "claude.ai", isLocalProgram: false})
 
     const text = wrapper.text()
-    expect(text).toContain("claude.ai")
-    const address = wrapper.findAll("span").find((span) => span.text() === "claude.ai")
-    expect(address?.element.parentElement?.children).toHaveLength(1)
-    expect(text).not.toContain("A program on a computer")
-    expect(text).not.toContain("This agent returns to a program on a computer")
-    expect(text).toContain("Claude")
-    expect(text).toContain("Approve agent")
-    expect(text).toContain("An agent wants access")
-    expect(text).toContain("Belongs to")
-    expect(text).toContain("Gate Mac")
-    expect(text).toContain("This Mac")
-    expect(text).toContain("Decline")
-    expect(text).toContain("Approve")
+    expect(text).toMatch(/Name supplied by the agent\s*Claude/)
+    expect(text).toMatch(/Browser returns to\s*claude\.ai/)
+    expect(text).not.toContain("The browser will return to a program on its computer")
   })
 
   it("emits_TC-11_approve_once_on_approve_and_nothing_else", async () => {
-    const wrapper = mount(ApproveAgentModal, {props: {request: makeRequest(), deviceName: "Gate Mac"}})
+    const wrapper = mountApproval()
 
     await findButtonByText(wrapper, "Approve").trigger("click")
 
@@ -81,7 +62,7 @@ describe("ApproveAgentModal", () => {
   })
 
   it("emits_TC-11_deny_once_on_decline_and_nothing_else", async () => {
-    const wrapper = mount(ApproveAgentModal, {props: {request: makeRequest(), deviceName: "Gate Mac"}})
+    const wrapper = mountApproval()
 
     await findButtonByText(wrapper, "Decline").trigger("click")
 
@@ -91,7 +72,7 @@ describe("ApproveAgentModal", () => {
   })
 
   it("emits_TC-11_close_once_when_the_modals_own_close_is_used_and_nothing_else", async () => {
-    const wrapper = mount(ApproveAgentModal, {props: {request: makeRequest(), deviceName: "Gate Mac"}})
+    const wrapper = mountApproval()
 
     await wrapper.find(".backdrop-blur-xs").trigger("click")
 

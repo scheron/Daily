@@ -6,10 +6,11 @@ import {join} from "node:path"
 
 import {AGENT_ENDPOINT_PATH, SYNC_PROTOCOL_PATHS} from "@daily/protocol"
 
+import {registerAgentClient} from "../../../src/agents/oauth/AgentClientRegistrationStore"
 import {resolveServerConfig} from "../../../src/config/resolveServerConfig"
 import {createConsoleEnrollment} from "../../../src/enrollment/EnrollmentStore"
 import {createHttpServer} from "../../../src/http/createHttpServer"
-import {ensureClaimCode} from "../../../src/identity/ServerIdentityStore"
+import {ensureClaimCode, readAgentWindow} from "../../../src/identity/ServerIdentityStore"
 import {openServerStore} from "../../../src/store/instance"
 
 import type {AgentListResponse, AgentWindow, ClaimResponse, ConsoleEnrollResponse, PendingAgentRequestResponse} from "@daily/protocol"
@@ -89,6 +90,7 @@ export type DocumentResponseSpec = {
   headers?: Record<string, string>
   body?: string
   delayMs?: number
+  beforeResponse?: () => Promise<void>
   hang?: true
 }
 
@@ -110,7 +112,7 @@ export async function startClientDocumentServer(): Promise<ClientDocumentServer>
   const counts = new Map<string, number>()
   const specs = new Map<string, DocumentResponseSpec>()
 
-  const server = http.createServer((req, res) => {
+  const server = http.createServer(async (req, res) => {
     const pathname = new URL(req.url ?? "/", "http://placeholder").pathname
     counts.set(pathname, (counts.get(pathname) ?? 0) + 1)
 
@@ -121,6 +123,7 @@ export async function startClientDocumentServer(): Promise<ClientDocumentServer>
       return
     }
     if (spec.hang) return
+    if (spec.beforeResponse) await spec.beforeResponse()
 
     const write = (): void => {
       res.writeHead(spec.status ?? 200, {"content-type": "application/json", ...spec.headers})
@@ -272,6 +275,15 @@ export async function openAgentWindowOver(server: BootedAgentServer, token: stri
   if (res.status !== 200) throw new Error(`expected the harness to open an Agent window, got ${res.status}`)
 
   return ((await res.json()) as {ok: true; data: AgentWindow}).data
+}
+
+export function registerClientInStore(server: BootedAgentServer, clientName: string, redirectUris: string[]): string {
+  const window = readAgentWindow(server.store)
+  if (!window) throw new Error("expected an open Agent window")
+  const registration = registerAgentClient(server.store, {issuer: server.issuer, windowId: window.id, clientName, redirectUris})
+  if (!registration.ok) throw new Error("expected the client registration to succeed")
+
+  return registration.client.clientId
 }
 
 /** The request waiting on `token`'s own Agent window, or `null`, over the real `/v1/agents/pending` route. */

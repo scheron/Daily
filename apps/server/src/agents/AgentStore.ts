@@ -66,10 +66,10 @@ const AGENT_REQUEST_COLUMNS = `id, device_id, code, agent_name, returns_to, is_l
  * happens inside one transaction — the window and any pending request are both re-read there, so
  * two requests arriving together produce one pending request, not two.
  */
-export function createAgentRequest(store: ServerStore, params: CreateAgentRequestParams): AgentRequestRecord {
+export function createAgentRequest(store: ServerStore, params: CreateAgentRequestParams, windowId?: string): AgentRequestRecord {
   const create = store.db.transaction((): AgentRequestRecord => {
     const window = readAgentWindow(store)
-    if (!window) {
+    if (!window || (windowId !== undefined && window.id !== windowId)) {
       throw new ProtocolError(ProtocolErrorCode.AGENT_WINDOW_CLOSED, "No Mac has an Agent window open right now")
     }
 

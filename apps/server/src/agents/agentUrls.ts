@@ -15,6 +15,7 @@ export const AGENT_OAUTH_PATHS = {
   consent: "/oauth/consent",
   consentStatus: "/oauth/consent/status",
   token: "/oauth/token",
+  registration: "/oauth/register",
 } as const
 
 export type AgentUrls = {
@@ -23,6 +24,7 @@ export type AgentUrls = {
   resourceMetadata: string
   authorizationEndpoint: string
   tokenEndpoint: string
+  registrationEndpoint: string
 }
 
 /**
@@ -41,6 +43,7 @@ export function agentUrls(config: ServerConfig): AgentUrls | null {
     resourceMetadata: `${issuer}${AGENT_OAUTH_PATHS.protectedResource}${AGENT_ENDPOINT_PATH}`,
     authorizationEndpoint: `${issuer}${AGENT_OAUTH_PATHS.authorize}`,
     tokenEndpoint: `${issuer}${AGENT_OAUTH_PATHS.token}`,
+    registrationEndpoint: `${issuer}${AGENT_OAUTH_PATHS.registration}`,
   }
 }
 

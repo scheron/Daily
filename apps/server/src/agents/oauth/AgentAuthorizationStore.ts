@@ -44,15 +44,10 @@ type AgentAuthorizationRow = {
 
 const AGENT_AUTHORIZATION_COLUMNS = `id, request_id, client_id, redirect_uri, state, code_challenge, resource, created_at, code_expires_at, code_used_at`
 
-/**
- * Starts an agent request on the open Agent window and records the OAuth parameters it belongs
- * to, as one unit: the request's own transaction runs as a savepoint inside this one, so its
- * `ProtocolError(AGENT_WINDOW_CLOSED | AGENT_REQUEST_IN_PROGRESS)` is rethrown unchanged with
- * neither row written.
- */
-export function createAgentAuthorization(store: ServerStore, params: CreateAgentAuthorizationParams): AgentAuthorizationRecord {
+/** Writes both rows atomically, only while the window identified before client resolution is still open. */
+export function createAgentAuthorization(store: ServerStore, params: CreateAgentAuthorizationParams, windowId: string): AgentAuthorizationRecord {
   const create = store.db.transaction((): AgentAuthorizationRecord => {
-    const request = createAgentRequest(store, {agentName: params.agentName, returnsTo: params.returnsTo, isLocalProgram: params.isLocalProgram})
+    const request = createAgentRequest(store, params, windowId)
 
     const record: AgentAuthorizationRecord = {
       id: nanoid(),

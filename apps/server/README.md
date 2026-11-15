@@ -57,35 +57,34 @@ Revoking the Parent leaves none; the console can appoint another — see [Recove
 
 ## Connecting agents
 
-Agents — Claude Code, the Claude app, Codex — read and change tasks through this server.
-They require a domain with a trusted certificate; IP installs reject them.
+Agents read and change tasks through this server. Use a domain with a trusted certificate, or a
+loopback address for local testing.
 
-1. On any bound Mac, open Settings → Sync and press **Connect an agent**. Copy the
-   address it shows. It waits five minutes.
-2. Add the address to the agent.
+1. On any bound Mac, open Settings → Sync and press **Connect an agent**. Copy the address shown.
+   The server waits five minutes, even if you leave Settings. Select **Cancel** to close it early.
+2. Add the address to your client. Replace `https://your-server/mcp` with the address you copied.
+   - Claude Code uses `claude mcp add --transport http daily https://your-server/mcp`. Run
+     `/mcp`, pick **daily** and choose **Authenticate**.
+   - Codex uses `codex mcp add daily --url https://your-server/mcp`, then `codex mcp login daily`.
+   - In the Claude app, go to **Settings → Connectors → Add custom connector** and paste the address.
+3. Match the browser's six-digit code on that Mac, check where the browser returns, then approve.
+   The displayed name comes from the agent. Approval closes the window and the browser returns to the agent.
 
-   Claude Code:
+Connections keep working after the window closes. The Mac that approved the agent, or the Parent,
+can revoke it. Revoking a Mac revokes its agents.
 
-   ```bash
-   claude mcp add --transport http daily https://your-server/mcp
-   ```
+### Client registration and retries
 
-   Then run `/mcp`, pick **daily** and choose **Authenticate**.
+Public OAuth clients can use hosted Client ID Metadata Documents (CIMD) or discover
+`/oauth/register` for Dynamic Client Registration (DCR). Both paths require an open window to
+start a new connection. DCR gives the client an ID for this server.
 
-   Codex:
+- On `403`, open **Connect an agent** and retry.
+- On `429`, follow `Retry-After` if present. Open a new window if the current window reached its quota.
+- On `503`, registration storage is full. Retry after unused registrations expire.
+- If the agent keeps using an expired or wrong-server ID, remove its saved connection and add the address again.
 
-   ```bash
-   codex mcp add daily --url https://your-server/mcp
-   codex mcp login daily
-   ```
-
-   The Claude app: **Settings → Connectors → Add custom connector**, and paste the address.
-
-3. A page on your server opens with a six-digit code. Your Mac shows the same code and the agent's
-   name. Approve there, and the browser hands you back to the agent.
-
-The agent belongs to the Mac that approved it and stays connected until you revoke it — from that
-Mac, or from the Parent. Revoking a Mac revokes its agents.
+See [ADR 0005](https://github.com/scheron/Daily/blob/main/docs/adr/0005-agent-access-approved-on-a-mac.md) for limits and ID retention.
 
 ## Managing it
 

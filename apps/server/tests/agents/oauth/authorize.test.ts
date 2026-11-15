@@ -2,11 +2,10 @@ import {createHash} from "node:crypto"
 import {mkdtempSync, rmSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import {describe, expect, it} from "vitest"
+import {describe, expect, it, vi} from "vitest"
 
-import {AGENT_ENDPOINT_PATH, SYNC_PROTOCOL_CONFIG} from "@daily/protocol"
+import {AGENT_ENDPOINT_PATH, SYNC_PROTOCOL_CONFIG, SYNC_PROTOCOL_PATHS} from "@daily/protocol"
 
-import {approveAgentRequest, createAgentRequest, openAgentWindow} from "../../../src/agents/AgentStore"
 import {createDevice} from "../../../src/devices/DeviceStore"
 import {loadIdentity} from "../../../src/identity/ServerIdentityStore"
 import {createBetterSqliteDriver} from "../../../src/store/betterSqliteDriver"
@@ -33,6 +32,7 @@ import {
   readAgentsList,
   readPendingRequest,
   registerClientDocument,
+  registerClientInStore,
   revokeAgentOver,
   startClientDocumentServer,
 } from "./harness"
@@ -166,6 +166,129 @@ describe("a second authorize request while one already waits is refused outright
   })
 })
 
+it("refuses an authorization if the same Mac reopens the Agent window during metadata lookup", async () => {
+  const booted = await bootAgentServer()
+  const docs = await startClientDocumentServer()
+  const metadataRequested = Promise.withResolvers<void>()
+  const metadataReleased = Promise.withResolvers<void>()
+  try {
+    const parent = await claimParent(booted)
+    await openAgentWindowOver(booted, parent.token)
+    const clientId = docs.urlFor("/slow.json")
+    docs.serve("/slow.json", {
+      body: JSON.stringify(claudeCodeDocument(clientId)),
+      beforeResponse() {
+        metadataRequested.resolve()
+        return metadataReleased.promise
+      },
+    })
+
+    const {challenge} = makePkcePair()
+    const authorizeUrl = buildAuthorizeUrl(booted, {clientId, redirectUri: "http://localhost:5555/callback", codeChallenge: challenge})
+    const response = fetch(authorizeUrl, {redirect: "manual"})
+    await metadataRequested.promise
+    const close = await fetch(`${booted.baseUrl}${SYNC_PROTOCOL_PATHS.agentWindowClose}`, {
+      method: "POST",
+      headers: {authorization: `Bearer ${parent.token}`},
+    })
+    expect(close.status).toBe(204)
+    await openAgentWindowOver(booted, parent.token)
+    metadataReleased.resolve()
+
+    const res = await response
+    expect(res.status).toBe(403)
+    expect(res.headers.get("location")).toBeNull()
+    expect(await readPendingRequest(booted, parent.token)).toBeNull()
+
+    const retry = await fetch(authorizeUrl, {redirect: "manual"})
+    expect(retry.headers.get("location")).toMatch(/^\/oauth\/consent\?id=/)
+  } finally {
+    metadataReleased.resolve()
+    await docs.close()
+    await booted.close()
+  }
+})
+
+it("uses an issued client ID's registered callback to start the same Mac approval", async () => {
+  const booted = await bootAgentServer()
+  try {
+    const parent = await claimParent(booted)
+    await openAgentWindowOver(booted, parent.token)
+    const clientId = registerClientInStore(booted, "Example Desktop", ["http://127.0.0.1/callback"])
+    const {challenge: codeChallenge} = makePkcePair()
+    for (const redirectUri of ["http://localhost:5555/callback", "http://127.0.0.1:5555/other/../callback"]) {
+      const invalid = await fetch(buildAuthorizeUrl(booted, {clientId, codeChallenge, redirectUri}), {redirect: "manual"})
+      expect(invalid.status).toBe(400)
+      expect(await invalid.text()).toContain("The agent asked to return somewhere it didn't declare.")
+      expect(invalid.headers.get("location")).toBeNull()
+    }
+    expect(await readPendingRequest(booted, parent.token)).toBeNull()
+
+    const valid = await fetch(buildAuthorizeUrl(booted, {clientId, codeChallenge, redirectUri: "http://127.0.0.1:5555/callback"}), {
+      redirect: "manual",
+    })
+    expect(valid.status).toBe(303)
+    expect(valid.headers.get("location")).toMatch(/^\/oauth\/consent\?id=/)
+    expect(await readPendingRequest(booted, parent.token)).toMatchObject({
+      agentName: "Example Desktop",
+      returnsTo: "127.0.0.1",
+      isLocalProgram: true,
+    })
+  } finally {
+    await booted.close()
+  }
+})
+
+it("keeps an approved request redeemable only under the issuer that authorized it", async () => {
+  const booted = await bootAgentServer()
+  try {
+    const parent = await claimParent(booted)
+    await openAgentWindowOver(booted, parent.token)
+    const redirectUri = "http://127.0.0.1:5555/callback"
+    const clientId = registerClientInStore(booted, "Example Desktop", [redirectUri])
+    const {consentPath} = await startAndConsentUrl(booted, parent.token, clientId, redirectUri)
+    const pending = await readPendingRequest(booted, parent.token)
+    if (!pending) throw new Error("expected a pending request")
+    expect((await approveRequest(booted, parent.token, pending.requestId, pending.code)).status).toBe(204)
+
+    booted.config.publicUrl = "http://127.0.0.1:1"
+    const foreign = await fetch(`${booted.baseUrl}${consentPath}`, {redirect: "manual"})
+    expect(foreign.status).toBe(404)
+    expect(foreign.headers.get("location")).toBeNull()
+
+    booted.config.publicUrl = booted.issuer
+    const original = await fetch(`${booted.baseUrl}${consentPath}`, {redirect: "manual"})
+    expect(original.status).toBe(303)
+    expect(new URL(original.headers.get("location")!).searchParams.get("code")).toBeTruthy()
+  } finally {
+    await booted.close()
+  }
+})
+
+it("declines to issue a code after an approved client's unused registration expires", async () => {
+  const booted = await bootAgentServer()
+  try {
+    const parent = await claimParent(booted)
+    await openAgentWindowOver(booted, parent.token)
+    const redirectUri = "http://127.0.0.1:5555/callback"
+    const clientId = registerClientInStore(booted, "Example Desktop", [redirectUri])
+    const {consentPath} = await startAndConsentUrl(booted, parent.token, clientId, redirectUri)
+    const pending = await readPendingRequest(booted, parent.token)
+    if (!pending) throw new Error("expected a pending request")
+    expect((await approveRequest(booted, parent.token, pending.requestId, pending.code)).status).toBe(204)
+
+    vi.useFakeTimers({toFake: ["Date"]})
+    vi.advanceTimersByTime(24 * 60 * 60 * 1000)
+    const expired = await fetch(`${booted.baseUrl}${consentPath}`, {redirect: "manual"})
+    expect(expired.status).toBe(200)
+    expect(expired.headers.get("location")).toBeNull()
+    expect(await expired.text()).toContain("Access wasn't granted")
+  } finally {
+    vi.useRealTimers()
+    await booted.close()
+  }
+})
+
 describe("the consent page names the agent and the code, and waits without reloading itself — TC-32", () => {
   it("TC-32: the consent page reads the same for a local program and for claude.ai, names no return address, and the pending request carries the facts the Mac needs", async () => {
     const booted = await bootAgentServer()
@@ -205,6 +328,7 @@ describe("the consent page names the agent and the code, and waits without reloa
 
       const html = await consentRes.text()
       expect(html).toContain("Claude Code wants access to your Daily")
+      expect(html).toContain("Name supplied by the agent")
       expect(html).toContain(codeAsDigitTriples(pending.code))
       expect(html).toContain("Approve on the Mac that is waiting for an agent")
       expect(html).toContain("It will read and change your tasks, projects, milestones and tags.")
@@ -795,9 +919,16 @@ describe("migration v006 adds the OAuth tables — TC-42", () => {
       loadIdentity(before)
 
       const device = createDevice(before, "Seed Mac")
-      openAgentWindow(before, device.device.id)
-      const request = createAgentRequest(before, {agentName: "Claude Code", returnsTo: "localhost", isLocalProgram: true})
-      approveAgentRequest(before, request.id, request.code, device.device.id)
+      const seededAt = new Date().toISOString()
+      before.db
+        .prepare(`INSERT INTO agents (id, device_id, name, created_at) VALUES ('seed-agent', ?, 'Claude Code', ?)`)
+        .run(device.device.id, seededAt)
+      before.db
+        .prepare(
+          `INSERT INTO agent_requests (id, device_id, code, agent_name, returns_to, is_local_program, state, created_at, expires_at, resolved_at, issued_agent_id)
+           VALUES ('seed-request', ?, '123456', 'Claude Code', 'localhost', 1, 'approved', ?, ?, ?, 'seed-agent')`,
+        )
+        .run(device.device.id, seededAt, seededAt, seededAt)
 
       const devicesBefore = before.db.prepare(`SELECT * FROM devices ORDER BY id`).all()
       const agentsBefore = before.db.prepare(`SELECT * FROM agents ORDER BY id`).all()
@@ -808,7 +939,7 @@ describe("migration v006 adds the OAuth tables — TC-42", () => {
       const migrated = openServerStore(dataDir)
 
       const appliedVersions = migrated.db.prepare(`SELECT version FROM _migrations ORDER BY version`).all() as {version: number}[]
-      expect(appliedVersions.map((row) => row.version)).toEqual([1, 2, 3, 4, 5, 6])
+      expect(appliedVersions.map((row) => row.version)).toEqual([1, 2, 3, 4, 5, 6, 7])
 
       const authorizationColumns = (migrated.db.prepare(`PRAGMA table_info(agent_authorizations)`).all() as {name: string}[])
         .map((c) => c.name)
@@ -855,7 +986,7 @@ describe("migration v006 adds the OAuth tables — TC-42", () => {
 
       const reopened = openServerStore(dataDir)
       const appliedAfterSecondOpen = reopened.db.prepare(`SELECT version FROM _migrations ORDER BY version`).all() as {version: number}[]
-      expect(appliedAfterSecondOpen.map((row) => row.version)).toEqual([1, 2, 3, 4, 5, 6])
+      expect(appliedAfterSecondOpen.map((row) => row.version)).toEqual([1, 2, 3, 4, 5, 6, 7])
       reopened.close()
     } finally {
       rmSync(dataDir, {recursive: true, force: true})

@@ -4,6 +4,7 @@ import {nanoid} from "nanoid"
 import {hashToken, mintToken} from "../../devices/tokens"
 import {findAgentById, readAgentRequest, revokeAgent} from "../AgentStore"
 import {findAgentAuthorizationByCode, markAuthorizationCodeUsed} from "./AgentAuthorizationStore"
+import {isIssuedAgentClientId} from "./AgentClientRegistrationStore"
 
 import type {ServerStore} from "../../store/instance"
 
@@ -24,12 +25,15 @@ export function exchangeAuthorizationCode(store: ServerStore, exchange: CodeExch
     const authorization = findAgentAuthorizationByCode(store, exchange.code)
     if (!authorization) return {ok: false, description: "The authorization code is not valid"}
 
-    const isSameClient =
-      authorization.clientId === exchange.clientId && (exchange.redirectUri === null || exchange.redirectUri === authorization.redirectUri)
+    const isSameRedirect =
+      exchange.redirectUri === authorization.redirectUri || (exchange.redirectUri === null && !isIssuedAgentClientId(authorization.clientId))
+    const isSameClient = authorization.clientId === exchange.clientId && isSameRedirect
     const isVerifierCorrect = matchesCodeChallenge(exchange.codeVerifier, authorization.codeChallenge)
+    const isSameResource = authorization.resource === resource
 
     if (authorization.codeUsedAt) {
-      const issuedAgentId = isSameClient && isVerifierCorrect ? readAgentRequest(store, authorization.requestId)?.issuedAgentId : null
+      const issuedAgentId =
+        isSameClient && isVerifierCorrect && isSameResource ? readAgentRequest(store, authorization.requestId)?.issuedAgentId : null
       if (issuedAgentId) revokeAgent(store, issuedAgentId)
 
       return {ok: false, description: "The authorization code was already used"}
@@ -40,7 +44,7 @@ export function exchangeAuthorizationCode(store: ServerStore, exchange: CodeExch
     }
     if (!isSameClient) return {ok: false, description: "The authorization code was issued to another client or redirect_uri"}
     if (!isVerifierCorrect) return {ok: false, description: "The code_verifier does not match the code_challenge"}
-    if (authorization.resource !== resource) return {ok: false, description: "The authorization code was issued for another resource"}
+    if (!isSameResource) return {ok: false, description: "The authorization code was issued for another resource"}
 
     const request = readAgentRequest(store, authorization.requestId)
     const agent = request?.state === "approved" && request.issuedAgentId ? findAgentById(store, request.issuedAgentId) : null
@@ -55,10 +59,8 @@ export function exchangeAuthorizationCode(store: ServerStore, exchange: CodeExch
 }
 
 /**
- * Rotates a refresh token: retires it and answers a new pair for the same agent. A refresh token
- * that was already rotated revokes the agent before anything else is checked, and the refusal is
- * returned from the transaction rather than thrown, so that revocation commits. A `null`
- * `clientId` is not compared.
+ * Rotates a refresh token and issues a new pair. A replay within the resource and client binding
+ * revokes the agent and returns a refusal so the revocation commits. A `null` `clientId` is not compared.
  */
 export function refreshAgentTokens(store: ServerStore, refresh: TokenRefresh, resource: string): AgentTokenOutcome {
   const rotate = store.db.transaction((): AgentTokenOutcome => {
@@ -69,6 +71,11 @@ export function refreshAgentTokens(store: ServerStore, refresh: TokenRefresh, re
       | undefined
     if (!row) return {ok: false, description: "The refresh token is not valid"}
 
+    if (refresh.clientId !== null && refresh.clientId !== row.client_id) {
+      return {ok: false, description: "The refresh token was issued to another client"}
+    }
+    if (row.resource !== resource) return {ok: false, description: "The refresh token was issued for another resource"}
+
     if (row.rotated_at) {
       revokeAgent(store, row.agent_id)
       return {ok: false, description: "The refresh token was already used, so the agent has been revoked"}
@@ -76,10 +83,6 @@ export function refreshAgentTokens(store: ServerStore, refresh: TokenRefresh, re
 
     const agent = findAgentById(store, row.agent_id)
     if (!agent || agent.revokedAt) return {ok: false, description: "The agent has been revoked"}
-    if (refresh.clientId !== null && refresh.clientId !== row.client_id) {
-      return {ok: false, description: "The refresh token was issued to another client"}
-    }
-    if (row.resource !== resource) return {ok: false, description: "The refresh token was issued for another resource"}
 
     store.db.prepare(`UPDATE agent_tokens SET rotated_at = ? WHERE id = ?`).run(new Date().toISOString(), row.id)
 
