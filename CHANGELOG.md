@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.42.0 - 2026-11-17
+
+### ✨ New Features
+
+- **Several projects at once** — Cmd+click projects in the dock to view them together. The Day view shows tasks from every selected project, and tasks created there go to No project.
+
+### 🎨 Improvements
+
+- **Project and milestone menus** — No project and No milestone are now rows in the list, and the chosen row is marked with a check, as in the priority and status menus.
+- **Agents** — more MCP clients can connect through Daily Server, including ones such as Qoder that register themselves first. The approval window shows that the agent's name comes from the agent itself. Requires the latest Daily Server.
+
+### 🐛 Bug Fixes
+
+- **Search** — fixed searches within a project missing matches when tasks in other projects ranked higher.
+- **Sync** — fixed edits made during a sync to Daily Server occasionally being lost, and sync failing to recover over slow connections. With the latest Daily Server, a large sync can take up to 15 minutes before timing out.
+
+---
+
 ## v0.41.1 - 2026-11-11
 
 ### 🎨 Improvements
