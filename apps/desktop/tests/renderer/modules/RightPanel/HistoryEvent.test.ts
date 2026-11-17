@@ -1,3 +1,4 @@
+import {Settings} from "luxon"
 import {createPinia, setActivePinia} from "pinia"
 import {afterEach, beforeEach, describe, expect, it} from "vitest"
 
@@ -37,13 +38,19 @@ function makeProject(overrides: Partial<Branch> = {}): Branch {
 
 describe("an Activity event", () => {
   let wrapper: VueWrapper | undefined
+  let previousZone: typeof Settings.defaultZone
 
   beforeEach(() => {
+    previousZone = Settings.defaultZone
+    Settings.defaultZone = "Asia/Vladivostok"
     setActivePinia(createPinia())
     mockBridgeIPC()
   })
 
-  afterEach(() => wrapper?.unmount())
+  afterEach(() => {
+    wrapper?.unmount()
+    Settings.defaultZone = previousZone
+  })
 
   async function renderEvent(event: TaskEvent) {
     const {default: HistoryEvent} =
@@ -52,11 +59,13 @@ describe("an Activity event", () => {
     return wrapper
   }
 
-  it("keeps an event's exact timestamp available to assistive reading while the row receives focus", async () => {
-    const row = await renderEvent(makeEvent())
-    expect(row.findAll("time").map((time) => time.attributes("datetime"))).toEqual(["2026-10-31T09:00:00.000Z"])
+  it("shows a zero-padded local event time with its full accessible timestamp and no time tooltip [activity#visible-time]", async () => {
+    const row = await renderEvent(makeEvent({createdAt: "2026-10-31T15:05:06.000Z"}))
+    expect(row.findAll("time").map((time) => time.attributes("datetime"))).toEqual(["2026-10-31T15:05:06.000Z"])
+    expect(row.get("time").text()).toBe("01:05")
+    expect(row.get("time").attributes("aria-label")).toBe("01 Nov 2026 01:05:06")
     expect(row.attributes("tabindex")).toBe("0")
-    expect(row.attributes("data-time")).toMatch(/\d{2}:\d{2}/)
+    expect(row.attributes("data-time")).toBeUndefined()
   })
 
   it("replaces an MCP event's action badge with its client mark and exposes its source without losing the time", async () => {
@@ -69,7 +78,7 @@ describe("an Activity event", () => {
     expect(row.find('use[href="#pencil"]').exists()).toBe(false)
     expect(row.text()).toContain("Edited")
     expect(row.get("time").attributes("datetime")).toBe("2026-10-31T09:00:00.000Z")
-    expect(row.attributes("data-time")).toMatch(/\d{2}:\d{2}/)
+    expect(row.get("time").text()).toBe("19:00")
     expect(row.text()).not.toContain("Comment")
   })
 

@@ -27,12 +27,18 @@ function focusRow(event: MouseEvent) {
 </script>
 
 <template>
-  <div ref="row" class="comment-row group relative py-1" :data-time="toTime(comment.createdAt)" tabindex="0" @click="focusRow">
-    <div class="grid grid-cols-[20px_minmax(0,1fr)] items-start gap-2.5">
+  <div ref="row" class="comment-row group relative py-1" tabindex="0" @click="focusRow">
+    <div class="grid grid-cols-[2rem_20px_minmax(0,1fr)] items-start gap-1.5">
+      <time
+        :datetime="comment.createdAt"
+        :aria-label="toLocaleDateTime(comment.createdAt)"
+        class="text-base-content/50 whitespace-nowrap text-[10px] tabular-nums leading-5"
+      >
+        {{ toTime(comment.createdAt) }}
+      </time>
       <CommentSourceBadge :kind="comment.kind" :provider="comment.provider" />
       <CommentPreview :content="comment.content" class="comment-markdown min-w-0 select-text" @clip-focus="focusClippedContent" />
     </div>
-    <time :datetime="comment.createdAt" class="sr-only">{{ toLocaleDateTime(comment.createdAt) }}</time>
 
     <div class="comment-actions">
       <ConfirmPopup
@@ -86,26 +92,7 @@ function focusRow(event: MouseEvent) {
   background: var(--color-base-100);
   box-shadow: 0 2px 4px rgb(0 0 0 / 8%);
   opacity: 0;
-  pointer-events: none;
-}
-
-.comment-row::after {
-  content: attr(data-time);
-  position: absolute;
-  top: calc(var(--action-bar-top) + var(--action-bar-height) / 2);
-  right: 4.75rem;
-  z-index: 4;
-  transform: translateY(-50%);
-  padding: 0.25rem 0.5rem;
-  border-radius: 0.25rem;
-  background: var(--color-base-content);
-  color: var(--color-base-100);
-  font-size: 0.75rem;
-  line-height: 1.25;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  opacity: 0;
-  visibility: hidden;
+  transition: opacity 150ms ease-out;
   pointer-events: none;
 }
 
@@ -113,12 +100,6 @@ function focusRow(event: MouseEvent) {
 .comment-row:focus-within .comment-actions {
   opacity: 1;
   pointer-events: auto;
-}
-
-.comment-row:hover::after,
-.comment-row:focus-within::after {
-  opacity: 1;
-  visibility: visible;
 }
 
 .comment-markdown :deep(.markdown-preview-content > :first-child) {

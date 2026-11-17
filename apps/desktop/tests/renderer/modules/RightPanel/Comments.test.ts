@@ -340,6 +340,7 @@ describe("Activity", () => {
     const [, typedRow] = rowTexts()
 
     expect(wrapper.findAll("[role=img][aria-label]").map((source) => source.attributes("aria-label"))).toEqual(["Daily Assistant", "Comment"])
+    expect(wrapper.findAll("[data-source]").map((source) => source.attributes("data-source"))).toEqual(["Daily Assistant", "Comment"])
     expect(typedRow).not.toContain("Agent")
     expect(typedRow).not.toContain("MCP")
   })
@@ -404,13 +405,16 @@ describe("Activity", () => {
     expect(bridge["comments:create"]).not.toHaveBeenCalled()
   })
 
-  it("focuses a tapped comment's content so its actions and time become reachable", async () => {
-    await setup([makeComment("c1", "2026-01-01T09:00:00.000Z")])
+  it("shows a zero-padded local comment time with its full accessible timestamp while content focus reaches actions [activity#visible-time]", async () => {
+    await setup([makeComment("c1", "2026-01-01T15:05:06.000Z")])
     const row = wrapper.find(".group")
     await row.find(".comment-markdown").trigger("click")
 
     expect(document.activeElement).toBe(row.element)
-    expect(row.findAll("time").map((time) => time.attributes("datetime"))).toEqual(["2026-01-01T09:00:00.000Z"])
+    expect(row.findAll("time").map((time) => time.attributes("datetime"))).toEqual(["2026-01-01T15:05:06.000Z"])
+    expect(row.get("time").text()).toBe("01:05")
+    expect(row.get("time").attributes("aria-label")).toBe("02 Jan 2026 01:05:06")
+    expect(row.attributes("data-time")).toBeUndefined()
   })
 
   it("keeps a comment when its deletion is cancelled", async () => {

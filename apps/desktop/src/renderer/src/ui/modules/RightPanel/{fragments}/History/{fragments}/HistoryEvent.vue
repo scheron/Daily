@@ -100,7 +100,14 @@ function dateEndpoint(date: TaskEvent["fromDate"]): EventEndpoint {
 </script>
 
 <template>
-  <div class="history-row relative grid grid-cols-[20px_minmax(0,1fr)] items-start gap-2.5 py-1" :data-time="toTime(event.createdAt)" tabindex="0">
+  <div class="history-row relative grid grid-cols-[2rem_20px_minmax(0,1fr)] items-start gap-1.5 py-1" tabindex="0">
+    <time
+      :datetime="event.createdAt"
+      :aria-label="toLocaleDateTime(event.createdAt)"
+      class="text-base-content/50 whitespace-nowrap text-[10px] tabular-nums leading-5"
+    >
+      {{ toTime(event.createdAt) }}
+    </time>
     <div :class="markerClass" v-bind="markerAttrs">
       <BaseIcon v-if="event.kind === 'agent'" name="logo" class="size-3.5" />
       <AgentIcon v-else-if="event.kind === 'mcp'" :name="event.provider ?? ''" class="size-3.5" />
@@ -123,8 +130,6 @@ function dateEndpoint(date: TaskEvent["fromDate"]): EventEndpoint {
       </template>
       <template v-else>{{ metadata.verb }}</template>
     </span>
-
-    <time :datetime="event.createdAt" class="sr-only">{{ toLocaleDateTime(event.createdAt) }}</time>
   </div>
 </template>
 
@@ -134,31 +139,6 @@ function dateEndpoint(date: TaskEvent["fromDate"]): EventEndpoint {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
   border-radius: 0.25rem;
-}
-
-.history-row::after {
-  content: attr(data-time);
-  position: absolute;
-  top: 0.25rem;
-  right: 0;
-  z-index: 4;
-  padding: 0.25rem 0.5rem;
-  border-radius: 0.25rem;
-  background: var(--color-base-content);
-  color: var(--color-base-100);
-  font-size: 0.75rem;
-  line-height: 1.25;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-}
-
-.history-row:hover::after,
-.history-row:focus-within::after {
-  opacity: 1;
-  visibility: visible;
 }
 
 .history-source[data-source]::after {
