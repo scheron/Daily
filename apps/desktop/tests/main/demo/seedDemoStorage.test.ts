@@ -38,7 +38,6 @@ describe("demo workspace", () => {
     expect((await storage.getTaskRelations(DEMO_TASK_IDS.release)).blockedBy.map((task) => task.id)).toEqual([DEMO_TASK_IDS.onboarding])
     expect((await storage.searchTasks("onboarding")).map((result) => result.task.id)).toContain(DEMO_TASK_IDS.onboarding)
     expect(settings.appearance.mode).toBe("light")
-    expect(settings.quickTask.isEnabled).toBe(false)
     expect(settings.ai).toBeNull()
     expect(settings.sync.iCloud.enabled).toBe(false)
     expect(settings.sync.server.enabled).toBe(false)

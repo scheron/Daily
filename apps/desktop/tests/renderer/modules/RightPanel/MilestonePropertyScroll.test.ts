@@ -29,8 +29,8 @@ describe.each([
         await page.evaluate(async (size) => {
           const bridge = window.BridgeIPC
           const settings = await bridge["settings:load"]()
-          if (settings.sync.iCloud.enabled || settings.sync.server.enabled || settings.quickTask.isEnabled) {
-            throw new Error("The layout test requires the isolated launcher with sync and Quick Task disabled")
+          if (settings.sync.iCloud.enabled || settings.sync.server.enabled) {
+            throw new Error("The layout test requires the isolated launcher with sync disabled")
           }
           await bridge["settings:save"]({typography: {fontSize: size}})
           const milestones = await bridge["milestones:get-many"]("main")

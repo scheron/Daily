@@ -8,7 +8,6 @@ import {makeTask} from "../../../helpers/taskFixtures"
 import {findTipTapEditor, pressTipTapKey as pressKey, typeTipTapText as typeText} from "../../../helpers/tiptapEditor"
 
 import type MarkdownEditorComponent from "@/ui/common/(editors)/MarkdownEditor"
-import type {QuickTaskMenu} from "@shared/types/quickTask"
 
 type EditorProps = InstanceType<typeof MarkdownEditorComponent>["$props"]
 
@@ -45,7 +44,7 @@ function dispatchImageEvent(
 }
 
 describe("MarkdownEditor", () => {
-  let unmount: (() => void) | undefined
+  let unmount: (() => void) | null = null
 
   beforeEach(() => {
     mockBridgeIPC()
@@ -55,18 +54,22 @@ describe("MarkdownEditor", () => {
 
   afterEach(() => {
     unmount?.()
-    unmount = undefined
+    unmount = null
   })
 
   async function mountEditor(content: string, props: Partial<Omit<EditorProps, "content">> = {}) {
     const {default: MarkdownEditor} = await import("../../../../src/renderer/src/ui/common/(editors)/MarkdownEditor")
     const wrapper = mount(MarkdownEditor, {props: {content, ...props}, attachTo: document.body, global: {directives: {tooltip: {}}}})
-    unmount = () => wrapper.unmount()
+    unmount = cleanup
     await vi.waitFor(() => expect(wrapper.find(".tiptap").exists()).toBe(true))
     const editor = findTipTapEditor(wrapper.element)!
-    const lastMarkdown = () => wrapper.emitted<[string]>("update:content")?.at(-1)?.[0]
-    const lastMenu = () => wrapper.emitted<[QuickTaskMenu | null]>("menu")?.at(-1)?.[0]
-    return {wrapper, editor, lastMarkdown, lastMenu}
+    function lastMarkdown() {
+      return wrapper.emitted<[string]>("update:content")?.at(-1)?.[0]
+    }
+    function cleanup() {
+      wrapper.unmount()
+    }
+    return {wrapper, editor, lastMarkdown}
   }
 
   it("keeps original Markdown when opening, replacing and undoing an edit", async () => {
@@ -84,18 +87,45 @@ describe("MarkdownEditor", () => {
     expect(lastMarkdown()).toBe(replacement)
   })
 
-  it("reports and navigates the completion menu through the Quick Task contract", async () => {
-    const {editor, lastMenu} = await mountEditor("", {externalMenu: true})
+  it("navigates the internal completion menu and hides it when the query has no matches", async () => {
+    const {editor} = await mountEditor("")
     typeText(editor, "a")
-    expect(lastMenu()).toBeUndefined()
+    expect(document.querySelector('[role="listbox"][aria-label="Slash commands"]')).toBeNull()
     editor.commands.deleteRange({from: 1, to: 2})
     expect(editor.state.doc.textContent).toBe("")
     typeText(editor, "/")
-    await vi.waitFor(() => expect(lastMenu()?.selected).toBe(0))
+    await vi.waitFor(() => expect(document.querySelector('[role="option"][aria-selected="true"]')?.textContent?.trim()).toBe("Divider"))
     pressKey(editor, "n", {ctrlKey: true})
-    expect(lastMenu()?.selected).toBe(1)
+    await vi.waitFor(() => expect(document.querySelector('[role="option"][aria-selected="true"]')?.textContent?.trim()).toBe("Heading 1"))
     typeText(editor, "zzz")
-    await vi.waitFor(() => expect(lastMenu()).toBeNull())
+    await vi.waitFor(() => expect(document.querySelector('[role="listbox"][aria-label="Slash commands"]')).toBeNull())
+    expect(editor.state.doc.textContent).toBe("/zzz")
+  })
+
+  it("applies a clicked completion without losing the editor keyboard focus", async () => {
+    const {editor} = await mountEditor("")
+    typeText(editor, "/")
+    await vi.waitFor(() => expect(document.querySelectorAll('[role="option"]').length).toBeGreaterThan(0))
+    const heading = [...document.querySelectorAll('[role="option"]')].find((row) => row.textContent?.trim() === "Heading 2")!
+    heading.dispatchEvent(new MouseEvent("mousedown", {bubbles: true, cancelable: true}))
+    heading.dispatchEvent(new MouseEvent("click", {bubbles: true}))
+
+    expect(editor.state.doc.firstChild?.type.name).toBe("heading")
+    expect(editor.state.doc.firstChild?.attrs.level).toBe(2)
+    expect(editor.state.doc.textContent).toBe("")
+    await vi.waitFor(() => expect(editor.view.hasFocus()).toBe(true))
+    expect(document.querySelector('[role="listbox"][aria-label="Slash commands"]')).toBeNull()
+  })
+
+  it("dismisses slash suggestions on Escape without deleting the typed text", async () => {
+    const {editor} = await mountEditor("")
+    typeText(editor, "/")
+    await vi.waitFor(() => expect(document.querySelectorAll('[role="option"]').length).toBeGreaterThan(0))
+
+    pressKey(editor, "Escape")
+
+    await vi.waitFor(() => expect(document.querySelector('[role="listbox"][aria-label="Slash commands"]')).toBeNull())
+    expect(editor.state.doc.textContent).toBe("/")
   })
 
   it("keeps ordered list numbering after deleting a middle item", async () => {
@@ -140,12 +170,12 @@ describe("MarkdownEditor", () => {
   })
 
   it("emits status, date and estimate patches when choosing task commands", async () => {
-    const {wrapper, editor, lastMenu} = await mountEditor("", {task, externalMenu: true})
+    const {wrapper, editor} = await mountEditor("", {task})
     for (const query of ["/Status in prog", "/Date 05.10", "/Estimate 1h30m"]) {
       typeText(editor, query)
-      await vi.waitFor(() => expect(lastMenu()?.selected).toBe(0))
-      wrapper.vm.pickCompletion(0)
-      await vi.waitFor(() => expect(lastMenu()).toBeNull())
+      await vi.waitFor(() => expect(document.querySelectorAll('[role="option"]').length).toBe(1))
+      pressKey(editor, "Enter")
+      await vi.waitFor(() => expect(document.querySelector('[role="listbox"][aria-label="Slash commands"]')).toBeNull())
     }
     const patches = wrapper.emitted("patch")?.map(([update]) => update)
     expect(patches).toEqual([
@@ -209,14 +239,6 @@ describe("MarkdownEditor", () => {
 
     await vi.waitFor(() => expect(lastMarkdown()?.trim()).toBe(`\`\`\`ts\nco${fileMarkdown}nst rest = 1\n\`\`\``))
     expect(editor.state.doc.childCount).toBe(1)
-  })
-
-  it("consumes files without uploading when attachments are off", async () => {
-    const {wrapper, editor, lastMarkdown} = await mountEditor("", {task, attachments: false})
-    expect(dispatchImageEvent("drop", wrapper.element).defaultPrevented).toBe(true)
-    dispatchImageEvent("paste", editor.view.dom)
-    expect(uploadImageFile).not.toHaveBeenCalled()
-    expect(lastMarkdown()).toBeUndefined()
   })
 
   it("shows no file drop ring when the editor is read-only", async () => {

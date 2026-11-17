@@ -8,7 +8,6 @@ import {useSettingsStore} from "../../../../src/renderer/src/stores/settings"
 import GeneralSettings from "../../../../src/renderer/src/ui/views/Settings/{fragments}/GeneralSettings/GeneralSettings.vue"
 import SettingRow from "../../../../src/renderer/src/ui/views/Settings/{fragments}/SettingRow.vue"
 import SettingsGroup from "../../../../src/renderer/src/ui/views/Settings/{fragments}/SettingsGroup.vue"
-import BaseSwitch from "../../../../src/renderer/src/ui/base/BaseSwitch.vue"
 import {mockBridgeIPC} from "../../../helpers/bridgeIPC"
 
 describe("GeneralSettings", () => {
@@ -41,25 +40,6 @@ describe("GeneralSettings", () => {
     })
     await flushPromises()
   }
-
-  function switchIn(title) {
-    return wrapper
-      .findAllComponents(SettingRow)
-      .find((row) => row.props("title") === title)
-      .findComponent(BaseSwitch)
-  }
-
-  it("Shortcuts: saves Quick task turned off and hides its shortcut", async () => {
-    await setup()
-    const titles = () => wrapper.findAllComponents(SettingRow).map((row) => row.props("title"))
-    expect(titles()).toContain("Quick task shortcut")
-
-    await switchIn("Quick task").trigger("click")
-    await vi.advanceTimersByTimeAsync(300)
-
-    expect(bridge["settings:save"]).toHaveBeenCalledWith({quickTask: {isEnabled: false}})
-    expect(titles()).not.toContain("Quick task shortcut")
-  })
 
   it("Appearance: selects regular by default and saves compact through the existing settings path", async () => {
     await setup()

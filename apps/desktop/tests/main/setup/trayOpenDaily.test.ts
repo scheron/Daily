@@ -8,7 +8,22 @@ const appFocus = vi.hoisted(() => vi.fn())
 vi.mock("electron", () => ({app: {focus: appFocus}}))
 
 function makeWindow({minimized = false, destroyed = false} = {}) {
-  return {isMinimized: () => minimized, isDestroyed: () => destroyed, restore: vi.fn(), focus: vi.fn()}
+  const state = {minimized, focused: false}
+  return {
+    state,
+    isMinimized() {
+      return state.minimized
+    },
+    isDestroyed() {
+      return destroyed
+    },
+    restore() {
+      state.minimized = false
+    },
+    focus() {
+      state.focused = true
+    },
+  }
 }
 
 function setup(mainWindow) {
@@ -20,7 +35,7 @@ function setup(mainWindow) {
 }
 
 describe("the tray's Open Daily item", () => {
-  it("sits above Settings… in the section Quick task shares", () => {
+  it("sits above Settings… in the open section", () => {
     const {added} = setup(null)
 
     expect(added).toMatchObject({item: {label: "Open Daily", section: "open"}, beforeId: "settings"})
@@ -33,8 +48,7 @@ describe("the tray's Open Daily item", () => {
     click()
 
     expect(appFocus).toHaveBeenCalledWith({steal: true})
-    expect(mainWindow.restore).toHaveBeenCalled()
-    expect(mainWindow.focus).toHaveBeenCalled()
+    expect(mainWindow.state).toEqual({minimized: false, focused: true})
     expect(createMainWindow).not.toHaveBeenCalled()
   })
 

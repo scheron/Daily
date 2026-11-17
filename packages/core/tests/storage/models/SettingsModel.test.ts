@@ -200,18 +200,27 @@ describe("SettingsModel", () => {
     }
   })
 
-  it("keeps a rebound Quick task hotkey", () => {
-    settingsModel.saveSettings({quickTask: {hotkey: "Control+Shift+A"}})
+  it("preserves unknown quickTask data across loads and unrelated saves without filling missing fields", () => {
+    const quickTask = {hotkey: "Control+Shift+A", unknown: {choices: ["a", "b"], value: null}}
+    db.prepare("INSERT INTO settings (id, version, data, created_at, updated_at) VALUES ('default', 'v', ?, 'now', 'now')").run(
+      JSON.stringify({quickTask}),
+    )
 
-    expect(settingsModel.loadSettings().quickTask.hotkey).toBe("Control+Shift+A")
+    expect(settingsModel.loadSettings()).toHaveProperty("quickTask", quickTask)
+    settingsModel.saveSettings({menuBar: {isVisible: false}})
+
+    const saved = JSON.parse(db.prepare("SELECT data FROM settings WHERE id = 'default'").get().data)
+    expect(saved.quickTask).toEqual(quickTask)
+    expect(settingsModel.loadSettings()).toHaveProperty("quickTask", quickTask)
+    expect(settingsModel.loadSettings().menuBar.isVisible).toBe(false)
   })
 
-  it("turns Quick task on for a hotkey saved before the switch and the rename existed", () => {
+  it("migrates a stored quickCapture hotkey to quickTask without adding fields", () => {
     db.prepare("INSERT INTO settings (id, version, data, created_at, updated_at) VALUES ('default', 'v', ?, 'now', 'now')").run(
       JSON.stringify({quickCapture: {hotkey: "Control+Shift+A"}}),
     )
 
-    expect(settingsModel.loadSettings().quickTask).toEqual({isEnabled: true, hotkey: "Control+Shift+A"})
+    expect(settingsModel.loadSettings()).toHaveProperty("quickTask", {hotkey: "Control+Shift+A"})
   })
 
   it("leaves the all-projects flag off by default and keeps it beside the active project", () => {
@@ -235,7 +244,7 @@ describe("SettingsModel", () => {
     db.prepare("INSERT INTO settings (id, version, data, created_at, updated_at) VALUES ('default', 'v', ?, 'now', 'now')").run(data)
 
     expect(settingsModel.loadSettings()).not.toHaveProperty("focus")
-    settingsModel.saveSettings({quickTask: {hotkey: "Control+Shift+A"}})
+    settingsModel.saveSettings({typography: {fontSize: "large"}})
 
     const saved = JSON.parse(db.prepare("SELECT data FROM settings WHERE id = 'default'").get().data)
     expect(saved).not.toHaveProperty("focus")

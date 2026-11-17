@@ -112,12 +112,6 @@ export type Settings = {
     /** Manual collapse state per status. */
     sectionsCollapsed: Record<TaskStatus, boolean>
   }
-  quickTask: {
-    /** Run Quick task: its global shortcut and its item in the menu bar. Off, the Quick task process is not started. */
-    isEnabled: boolean
-    /** Electron accelerator of the global shortcut that shows and hides the Quick task window. */
-    hotkey: string
-  }
   menuBar: {
     /** Show the Daily icon in the macOS menu bar. */
     isVisible: boolean

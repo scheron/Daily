@@ -22,7 +22,7 @@ import ModalProvider from "./ui/overlays/ModalProvider"
 
 import type {RouteRecordNameGeneric} from "vue-router"
 
-const LIGHT_ROUTES: RouteRecordNameGeneric[] = ["Settings", "Assistant", "QuickTask", "QuickTaskMenu"]
+const LIGHT_ROUTES: RouteRecordNameGeneric[] = ["Settings", "Assistant"]
 
 const route = useRoute()
 const settingsStore = useSettingsStore()
@@ -57,20 +57,6 @@ invoke(async () => {
     await until(() => settingsStore.isSettingsLoaded).toBeTruthy()
 
     if (isLightRoute) {
-      if (route.name === "QuickTaskMenu") return
-
-      if (route.name === "QuickTask") {
-        const branchesStore = useBranchesStore()
-        const tasksStore = useTasksStore()
-        const tagsStore = useTagsStore()
-        const milestonesStore = useMilestonesStore()
-        useStorageChangesStore()
-
-        await Promise.all([branchesStore.getBranchList(), tasksStore.loadTasks(), tagsStore.getTagList(), milestonesStore.getMilestoneList()])
-        signalRendererReady()
-        return
-      }
-
       const aiStore = useAiStore()
 
       if (isSettingsRoute) {

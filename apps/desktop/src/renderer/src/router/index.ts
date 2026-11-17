@@ -19,16 +19,6 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import("@/ui/views/Assistant"),
   },
   {
-    path: "/quick-task",
-    name: "QuickTask",
-    component: () => import("@/ui/views/QuickTask"),
-  },
-  {
-    path: "/quick-task-menu",
-    name: "QuickTaskMenu",
-    component: () => import("@/ui/views/QuickTaskMenu"),
-  },
-  {
     path: "/:pathMatch(.*)*",
     redirect: "/",
   },

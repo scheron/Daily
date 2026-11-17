@@ -1,7 +1,7 @@
 import type {IconName} from "@/types/icons"
-import type {QuickTaskMenu} from "@shared/types/quickTask"
+import type {SlashMenu} from "@/ui/common/(misc)/SlashCommandRows"
 
-type NestedItem = Omit<QuickTaskMenu["rows"][number], "tone" | "icon"> & {icon?: IconName; apply: () => void}
+type NestedItem = Omit<SlashMenu["rows"][number], "tone"> & {apply: () => void}
 
 export type NestedCommand = {
   label: string

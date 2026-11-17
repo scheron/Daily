@@ -24,7 +24,7 @@ pnpm demo
 
 The demo has its own app identifier and stores data under `~/Library/Application Support/Daily-Demo`. It adds sample data only when the demo profile is empty. It keeps changes between launches. It does not copy data or settings from Daily or Daily-dev.
 
-Sync is off at first. Quick task hotkeys, automatic update checks, and background refresh of the model catalog are disabled. The demo includes no provider credentials or downloaded AI models. It has no prepared Assistant conversation.
+Sync is off at first. Automatic update checks and background refresh of the model catalog are disabled. The demo includes no provider credentials or downloaded AI models. It has no prepared Assistant conversation.
 
 Dates use the first launch as their starting point, so the calendar opens on a day with tasks. To create the sample data again, quit Daily Demo and run:
 

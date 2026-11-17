@@ -78,30 +78,13 @@ describe("TrayController", () => {
     expect(lastMenu().find((i) => i.label === "Settings…")).not.toHaveProperty("accelerator")
   })
 
-  it("adds an item above the one named and refreshes its accelerator and enabled state", () => {
+  it("adds an item above the one named in its own section", () => {
     const tray = new TrayController()
     tray.create()
-    tray.addItem({id: "quick", label: "Quick task", enabled: false}, "settings")
-    expect(lastMenu().map((i) => i.label ?? "-")).toEqual(["Daily v0.29.0", "-", "Quick task", "-", "Settings…", "Check for Updates…", "-", "Quit"])
+    tray.addItem({id: "openDaily", section: "open", label: "Open Daily"}, "settings")
+
+    expect(lastMenu().map((i) => i.label ?? "-")).toEqual(["Daily v0.29.0", "-", "Open Daily", "-", "Settings…", "Check for Updates…", "-", "Quit"])
     expect(lastMenu()[2]).not.toHaveProperty("accelerator")
-
-    tray.updateItem("quick", {accelerator: "Command+Alt+Space", enabled: true})
-    expect(lastMenu()[2]).toMatchObject({label: "Quick task", accelerator: "Command+Alt+Space", registerAccelerator: false, enabled: true})
-
-    tray.updateItem("quick", {accelerator: undefined})
-    expect(lastMenu()[2]).not.toHaveProperty("accelerator")
-  })
-
-  it("drops a hidden item together with the separator it would start, and brings both back when shown", () => {
-    const tray = new TrayController()
-    tray.create()
-    tray.addItem({id: "quick", label: "Quick task"}, "settings")
-
-    tray.updateItem("quick", {visible: false})
-    expect(lastMenu().map((i) => i.label ?? "-")).toEqual(["Daily v0.29.0", "-", "Settings…", "Check for Updates…", "-", "Quit"])
-
-    tray.updateItem("quick", {visible: true})
-    expect(lastMenu().map((i) => i.label ?? "-")).toEqual(["Daily v0.29.0", "-", "Quick task", "-", "Settings…", "Check for Updates…", "-", "Quit"])
   })
 
   it("logs a missing icon instead of failing silently", () => {
@@ -118,18 +101,17 @@ describe("TrayController", () => {
     tray.create()
     expect(state.trays).toHaveLength(1)
 
-    tray.addItem({id: "quick", label: "Quick task"}, "settings")
+    tray.addItem({id: "openDaily", label: "Open Daily", enabled: false}, "settings")
     tray.destroy()
     expect(state.trays[0].destroy).toHaveBeenCalled()
     expect(tray.isVisible).toBe(false)
 
-    tray.updateItem("quick", {enabled: false})
     tray.create()
     expect(state.trays).toHaveLength(2)
     expect(lastMenu().map((i) => (i.type === "separator" ? "-" : [i.label, i.enabled]))).toEqual([
       ["Daily v0.29.0", false],
       "-",
-      ["Quick task", false],
+      ["Open Daily", false],
       "-",
       ["Settings…", true],
       ["Check for Updates…", true],

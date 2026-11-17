@@ -136,7 +136,7 @@ describe("useTaskSlashCommands", () => {
     const row = items("Project")[0]
     const {default: SlashCommandRows} = await import(`${SRC}/ui/common/(misc)/SlashCommandRows/SlashCommandRows.vue`)
     const {mount} = await import("@vue/test-utils")
-    const menu = mount(SlashCommandRows, {props: {menu: {rows: [row], selected: 0, caretX: 0}}, global: {directives: {tooltip: {}}}})
+    const menu = mount(SlashCommandRows, {props: {menu: {rows: [row], selected: 0}}, global: {directives: {tooltip: {}}}})
     expect(menu.text()).toContain("🚀")
     row.apply()
     expect(patch).toHaveBeenCalledWith({branchId: "daily"})

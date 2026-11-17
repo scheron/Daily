@@ -6,18 +6,18 @@ import {PluginKey} from "@tiptap/pm/state"
 import Suggestion from "@tiptap/suggestion"
 
 import type {IconName} from "@/types/icons"
-import type {QuickTaskMenu} from "@shared/types/quickTask"
+import type {SlashMenu} from "@/ui/common/(misc)/SlashCommandRows"
 import type {ChainedCommands, Editor, Range} from "@tiptap/core"
 import type {SuggestionProps} from "@tiptap/suggestion"
 import type {Ref} from "vue"
 import type {NestedCommand} from "../types"
 
-type SlashItem = {row: QuickTaskMenu["rows"][number]; apply: (editor: Editor, range: Range) => void}
+type SlashItem = {row: SlashMenu["rows"][number]; apply: (editor: Editor, range: Range) => void}
 
 export function useSlashMenu(commands: readonly NestedCommand[], linkDialogOpen: Ref<boolean>) {
   let suggestion: SuggestionProps<SlashItem, SlashItem> | null = null
 
-  const menu = shallowRef<QuickTaskMenu | null>(null)
+  const menu = shallowRef<SlashMenu | null>(null)
 
   const slashKey = new PluginKey("dailySlashMenu")
   const commandLabels = commands.map(({label}) => label.replace(REGEXP_METACHARACTER_REGEX, "\\$&")).join("|")
@@ -124,9 +124,7 @@ export function useSlashMenu(commands: readonly NestedCommand[], linkDialogOpen:
   function update(next: SuggestionProps<SlashItem, SlashItem>) {
     const selected = suggestion?.query === next.query ? (menu.value?.selected ?? 0) : 0
     suggestion = next
-    menu.value = next.items.length
-      ? {rows: next.items.map(({row}) => row), selected: Math.min(selected, next.items.length - 1), caretX: getAnchor().left}
-      : null
+    menu.value = next.items.length ? {rows: next.items.map(({row}) => row), selected: Math.min(selected, next.items.length - 1)} : null
   }
 
   function getAnchor() {

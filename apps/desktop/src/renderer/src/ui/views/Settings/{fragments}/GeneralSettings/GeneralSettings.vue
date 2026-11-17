@@ -9,7 +9,6 @@ import SettingsGroup from "@/ui/views/Settings/{fragments}/SettingsGroup.vue"
 import AboutSection from "./{fragments}/AboutSection.vue"
 import AccentPicker from "./{fragments}/AccentPicker.vue"
 import MainColorPicker from "./{fragments}/MainColorPicker.vue"
-import QuickTaskHotkey from "./{fragments}/QuickTaskHotkey.vue"
 import ShortcutsSection from "./{fragments}/ShortcutsSection.vue"
 
 import type {AppearanceMode, BoardMode, FontSize, TaskView} from "@daily/protocol"
@@ -41,7 +40,6 @@ const themeStore = useThemeStore()
 const {taskView} = useBoardCardGeometry()
 const boardMode = useSettingValue<"appearance.boardMode", BoardMode>("appearance.boardMode", "normal")
 const isMenuBarVisible = useSettingValue("menuBar.isVisible", true)
-const isQuickTaskEnabled = useSettingValue("quickTask.isEnabled", true)
 </script>
 
 <template>
@@ -71,18 +69,12 @@ const isQuickTaskEnabled = useSettingValue("quickTask.isEnabled", true)
         <BaseSegmented v-model="boardMode" :options="boardModeOptions" />
       </SettingRow>
 
-      <SettingRow title="Show icon in menu bar" description="Keep the Daily icon in the menu bar to open Settings or Quick task">
+      <SettingRow title="Show icon in menu bar" description="Keep the Daily icon in the menu bar to open Daily or Settings">
         <BaseSwitch v-model="isMenuBarVisible" />
       </SettingRow>
     </SettingsGroup>
 
     <SettingsGroup label="Shortcuts" icon="keyboard">
-      <SettingRow title="Quick task" description="Add a task from any app without switching to Daily">
-        <BaseSwitch v-model="isQuickTaskEnabled" />
-      </SettingRow>
-
-      <QuickTaskHotkey v-if="isQuickTaskEnabled" />
-
       <ShortcutsSection />
     </SettingsGroup>
 

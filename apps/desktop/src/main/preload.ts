@@ -52,7 +52,6 @@ import type {
   PendingToolConfirmation,
 } from "@shared/types/ai"
 import type {ApprovalKind, BridgeIPC} from "@shared/types/ipc"
-import type {HotkeyRebindResult, QuickTaskHotkeyState, QuickTaskMenu} from "@shared/types/quickTask"
 import type {TaskTimer, TaskTimerCommand} from "@shared/types/taskTimer"
 import type {ToastMessage} from "@shared/types/toast"
 import type {AppUpdateOffer, AppUpdateState, WhatsNewReleaseResult} from "@shared/types/update"
@@ -153,29 +152,6 @@ contextBridge.exposeInMainWorld("BridgeIPC", {
   "whats-new:mark-shown": (version: string) => ipcRenderer.invoke("whats-new:mark-shown", version) as Promise<boolean>,
 
   "activity:get-by-task": (taskId: Task["id"]) => ipcRenderer.invoke("activity:get-by-task", taskId) as Promise<TaskEvent[]>,
-
-  "quick-task:hide": () => ipcRenderer.send("quick-task:hide"),
-  "quick-task:resize": (height: number) => ipcRenderer.send("quick-task:resize", height),
-  "quick-task:active-hotkey": () => ipcRenderer.invoke("quick-task:active-hotkey") as Promise<QuickTaskHotkeyState>,
-  "quick-task:rebind-hotkey": (accelerator: string) => ipcRenderer.invoke("quick-task:rebind-hotkey", accelerator) as Promise<HotkeyRebindResult>,
-  "quick-task:on-shown": (callback: () => void) => {
-    const subscription = () => callback()
-    ipcRenderer.on("quick-task:shown", subscription)
-    return () => ipcRenderer.removeListener("quick-task:shown", subscription)
-  },
-  "quick-task:set-menu": (menu: QuickTaskMenu | null) => ipcRenderer.send("quick-task:set-menu", menu),
-  "quick-task:on-menu-pick": (callback: (index: number) => void) => {
-    const subscription = (_event: unknown, index: number) => callback(index)
-    ipcRenderer.on("quick-task:menu-pick", subscription)
-    return () => ipcRenderer.removeListener("quick-task:menu-pick", subscription)
-  },
-  "quick-task-menu:on-menu": (callback: (menu: QuickTaskMenu | null) => void) => {
-    const subscription = (_event: unknown, menu: QuickTaskMenu | null) => callback(menu)
-    ipcRenderer.on("quick-task-menu:menu", subscription)
-    return () => ipcRenderer.removeListener("quick-task-menu:menu", subscription)
-  },
-  "quick-task-menu:resize": (height: number) => ipcRenderer.send("quick-task-menu:resize", height),
-  "quick-task-menu:pick": (index: number) => ipcRenderer.send("quick-task-menu:pick", index),
 
   "task-timers:get": () => ipcRenderer.invoke("task-timers:get") as Promise<TaskTimer[]>,
   "task-timers:dispatch": (command: TaskTimerCommand) => ipcRenderer.invoke("task-timers:dispatch", command) as Promise<boolean>,

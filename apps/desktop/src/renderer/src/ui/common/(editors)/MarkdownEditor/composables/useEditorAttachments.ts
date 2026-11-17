@@ -10,7 +10,6 @@ import type {MaybeRefOrGetter} from "vue"
 
 type AttachmentOptions = {
   enabled: MaybeRefOrGetter<boolean>
-  disabled: MaybeRefOrGetter<boolean>
   readonly: MaybeRefOrGetter<boolean>
   contentKey: MaybeRefOrGetter<Task["id"] | undefined>
 }
@@ -18,7 +17,7 @@ type AttachmentOptions = {
 export function useEditorAttachments(
   containerRef: MaybeRefOrGetter<HTMLElement | null>,
   editor: MaybeRefOrGetter<Editor | null>,
-  {enabled, disabled, readonly: isReadonly, contentKey}: AttachmentOptions,
+  {enabled, readonly: isReadonly, contentKey}: AttachmentOptions,
 ) {
   const dragging = ref(false)
 
@@ -92,10 +91,9 @@ export function useEditorAttachments(
   function onDragOver(event: DragEvent) {
     const transfer = event.dataTransfer
     const hasFiles = transfer?.types?.includes("Files") || Boolean(transfer?.files?.length)
-    if (!hasFiles || (!toValue(enabled) && !toValue(disabled))) return
+    if (!hasFiles || !toValue(enabled)) return
     event.preventDefault()
     event.stopPropagation()
-    if (!toValue(enabled)) return
     dragging.value = true
     if (transfer) transfer.dropEffect = "copy"
   }
@@ -113,11 +111,11 @@ export function useEditorAttachments(
 
     const instance = toValue(editor)
     const files = event.dataTransfer?.files
-    if (!files?.length || (!toValue(enabled) && !toValue(disabled))) return
+    if (!files?.length || !toValue(enabled)) return
 
     event.preventDefault()
     event.stopPropagation()
-    if (!toValue(enabled) || !instance) return
+    if (!instance) return
 
     const images = []
     for (const file of Array.from(files)) {

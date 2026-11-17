@@ -16,18 +16,14 @@ import FloatingToolbar from "./{fragments}/FloatingToolbar.vue"
 
 import type {TaskDraft} from "@/types/taskDraft"
 import type {Task} from "@daily/protocol"
-import type {QuickTaskMenu} from "@shared/types/quickTask"
 
 const props = withDefaults(
   defineProps<{
     content: string
     /** The task whose properties the `/` commands edit. */
     task?: Task
-    /** Reports the slash menu for a host that draws it in a separate window. */
-    externalMenu?: boolean
-    /** Image paste and drop. Defaults to on with a task. False swallows file drops. */
+    /** Image paste and drop. Defaults to on with a task. */
     attachments?: boolean
-    minLines?: number
     placeholder?: string
     /** Grows with its content and lets the host scroll. */
     grow?: boolean
@@ -38,7 +34,6 @@ const props = withDefaults(
 const emit = defineEmits<{
   "update:content": [value: string]
   patch: [updates: Partial<TaskDraft>]
-  menu: [menu: QuickTaskMenu | null]
 }>()
 
 let lastMarkdown = props.content
@@ -50,7 +45,6 @@ const linkDialogOpen = ref(false)
 const isEmpty = ref(!props.content)
 
 const attachmentsEnabled = computed(() => props.attachments ?? !!props.task)
-const attachmentsDisabled = computed(() => props.attachments === false)
 const readonly = computed(() => !!props.readonly)
 const taskId = computed(() => props.task?.id)
 const task = computed(() => props.task!)
@@ -58,7 +52,6 @@ const task = computed(() => props.task!)
 const {open: openImagePreview} = useImagePreviewModal()
 const {isDraggingOver} = useEditorAttachments(containerRef, editor, {
   enabled: attachmentsEnabled,
-  disabled: attachmentsDisabled,
   readonly,
   contentKey: taskId,
 })
@@ -76,7 +69,6 @@ const {floatingStyles} = useFloating(slashReference, slashPanelRef, {
 
 const containerClass = computed(() =>
   cn("markdown-editor relative", [props.grow ? "is-grow w-full" : "size-full"], {
-    "has-min-lines": props.minLines,
     "ring-offset-base-100 ring-accent/50 rounded-md ring-2": isDraggingOver.value,
   }),
 )
@@ -162,13 +154,6 @@ watch(readonly, (value) => {
     linkDialogOpen.value = false
   }
 })
-watch(
-  slashMenu,
-  (menu) => {
-    if (props.externalMenu) emit("menu", menu)
-  },
-  {flush: "sync"},
-)
 
 onMounted(() => replaceEditor(props.content))
 onBeforeUnmount(() => {
@@ -179,21 +164,21 @@ onBeforeUnmount(() => {
 })
 
 defineExpose({
-  focus: () => editor.value?.commands.focus(),
-  resetHistory: () => replaceEditor(lastMarkdown),
-  pickCompletion: pick,
+  focus() {
+    return editor.value?.commands.focus()
+  },
 })
 </script>
 
 <template>
-  <div ref="container" :class="containerClass" :style="minLines ? {'--editor-min-lines': minLines} : null">
+  <div ref="container" :class="containerClass">
     <EditorContent v-if="editor" :editor="editor" class="editor-body" @click="onContentClick" />
     <span v-if="isEmpty && !readonly" class="pointer-events-none absolute start-0 top-0 text-sm opacity-40" aria-hidden="true">
       {{ placeholder ?? "Type / for commands" }}
     </span>
     <FloatingToolbar v-if="editor && !readonly" :editor="editor" @edit-link="openLinkDialog" />
     <EditLinkDialog v-if="editor && linkDialogOpen" :editor="editor" @close="closeLinkDialog" />
-    <Teleport v-if="slashMenu && !externalMenu" to="body">
+    <Teleport v-if="slashMenu" to="body">
       <div ref="slashPanel" class="z-60" :style="floatingStyles">
         <SlashCommandRows :menu="slashMenu" @pick="pick" />
       </div>
@@ -223,10 +208,6 @@ defineExpose({
   font-size: 0.875rem;
   line-height: var(--editor-line-height, 1.5);
   overflow-wrap: anywhere;
-}
-
-.markdown-editor.has-min-lines :deep(.tiptap) {
-  min-height: calc(var(--editor-min-lines) * var(--editor-line-height, 1.5em));
 }
 
 .editor-body :deep(.tiptap h1),

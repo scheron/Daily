@@ -50,7 +50,6 @@ import type {
   LocalRuntimeState,
   PendingToolConfirmation,
 } from "./ai"
-import type {HotkeyRebindResult, QuickTaskHotkeyState, QuickTaskMenu} from "./quickTask"
 import type {TaskTimer, TaskTimerCommand} from "./taskTimer"
 import type {ToastMessage} from "./toast"
 import type {AppUpdateOffer, AppUpdateState, WhatsNewReleaseResult} from "./update"
@@ -130,17 +129,6 @@ export type BridgeIPC = {
   "whats-new:mark-shown": (version: string) => Promise<boolean>
 
   "activity:get-by-task": (taskId: Task["id"]) => Promise<TaskEvent[]>
-
-  "quick-task:hide": () => void
-  "quick-task:resize": (height: number) => void
-  "quick-task:active-hotkey": () => Promise<QuickTaskHotkeyState>
-  "quick-task:rebind-hotkey": (accelerator: string) => Promise<HotkeyRebindResult>
-  "quick-task:on-shown": (callback: () => void) => () => void
-  "quick-task:set-menu": (menu: QuickTaskMenu | null) => void
-  "quick-task:on-menu-pick": (callback: (index: number) => void) => () => void
-  "quick-task-menu:on-menu": (callback: (menu: QuickTaskMenu | null) => void) => () => void
-  "quick-task-menu:resize": (height: number) => void
-  "quick-task-menu:pick": (index: number) => void
 
   "task-timers:get": () => Promise<TaskTimer[]>
   "task-timers:dispatch": (command: TaskTimerCommand) => Promise<boolean>

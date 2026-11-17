@@ -23,7 +23,6 @@ export function mockBridgeIPC(overrides = {}) {
     "settings:save": noop,
     "settings:on-changed": noopOn,
     "platform:is-mac": vi.fn().mockReturnValue(false),
-    "quick-task:active-hotkey": vi.fn().mockResolvedValue({running: true, active: "Command+Alt+Space"}),
     "tasks:get-one": vi.fn().mockResolvedValue(null),
     "tasks:create": noop,
     "tasks:update": noop,

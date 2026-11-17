@@ -66,10 +66,10 @@ Why: the same state must look the same, however it was selected. A project creat
 
 Why: a set needs the same behavior as All projects. New tasks go to No project, as they do with All projects.
 
-- In the Day frame, select project A. Hover over the dock menu and `Cmd`+click B → the menu stays open. A and B have checkmarks. Tasks from both projects appear with project labels on their cards. The button shows "A, B" with the layers icon.
+- In the Day frame select A, `Cmd`+click B → the menu stays open, A and B have checkmarks, tasks from both appear with project labels, the button shows "A, B" with the layers icon.
 - Select No project and A → only tasks without a project and tasks from A appear.
-- Select A and B, both with a "bug" tag. Select "bug" in the tag dock → tasks with "bug" from both projects appear.
-- Select A and B. Create one task with the shortcut and another through Quick Task → both tasks go to No project.
+- Select A and B, both with a "bug" tag, then "bug" in the tag dock → tasks with "bug" from both projects appear.
+- Select A and B, create a task with the shortcut → it goes to No project.
 
 ### several-label — For several projects, the dock button shows two names in menu order, "+n", and the layers icon
 

@@ -3,11 +3,7 @@ import {app, powerMonitor} from "electron"
 import {logger, setFileCoordinatorBinaryPath, StorageController} from "@daily/core"
 import {APP_CONFIG} from "@daily/protocol"
 
-import {QuickTaskController} from "@main/modules/quickTask/QuickTaskController"
-import {createStorageRequestHandler} from "@main/modules/quickTask/utils/createStorageRequestHandler"
-import {spawnQuickTaskProcess} from "@main/modules/quickTask/utils/spawnQuickTaskProcess"
 import {TaskTimersController} from "@main/modules/task-timers/TaskTimersController"
-import {HOTKEY_REQUESTS, QUICK_TASK_PROCESS_FLAG} from "@shared/constants/quickTask"
 import {createBetterSqliteDriver} from "./utils/database/betterSqliteDriver"
 import {awaitRendererReady} from "./utils/windows/awaitRendererReady"
 import {broadcastToWindows} from "./utils/windows/broadcastToWindows"
@@ -20,20 +16,16 @@ import {IS_DEMO} from "./demo/profile"
 import {seedDemoStorage} from "./demo/seedDemoStorage"
 import {trayController} from "./modules/tray/TrayController"
 import {setupInstanceAndDeepLinks} from "./setup/app/instance"
-import {setupActivateHandler, setupAppBoot, setupDockIcon, setupQuickTaskAppBoot, setupWindowAllClosedHandler} from "./setup/app/lifecycle"
+import {setupActivateHandler, setupAppBoot, setupDockIcon, setupWindowAllClosedHandler} from "./setup/app/lifecycle"
 import {setupMenu} from "./setup/app/menu"
-import {setupQuickTask} from "./setup/app/quickTask"
-import {setupQuickTaskWindow} from "./setup/app/quickTaskWindow"
 import {setupStorageSync} from "./setup/app/storage"
 import {setupTrayOpenDaily} from "./setup/app/trayOpenDaily"
-import {setupTrayQuickTask} from "./setup/app/trayQuickTask"
 import {setupTrayVisibility} from "./setup/app/trayVisibility"
 import {setupUpdateManager} from "./setup/app/updates"
 import {setupMainWindowStatePersistence} from "./setup/app/windowState"
 import {setupAboutIPC} from "./setup/ipc/about"
 import {setupAiIPC} from "./setup/ipc/ai"
 import {setupAssistantIPC} from "./setup/ipc/assistant"
-import {setupQuickTaskIPC} from "./setup/ipc/quickTask"
 import {setupSettingsIPC} from "./setup/ipc/settings"
 import {setupShellIPC} from "./setup/ipc/shell"
 import {setupStorageIPC} from "./setup/ipc/storage"
@@ -70,32 +62,11 @@ let storage: StorageController | null = null
 let ai: AIController | null = null
 let taskTimers: TaskTimersController | null = null
 let savedMainWindowState: MainWindowSettings | undefined
-let trayQuickTask: ReturnType<typeof setupTrayQuickTask> | null = null
-let quickTaskSwitch: ReturnType<typeof setupQuickTask> | null = null
 let trayVisibility: ReturnType<typeof setupTrayVisibility> | null = null
 
 const toastRouter = createToastRouter()
 
-const quickTask = new QuickTaskController({
-  spawn: spawnQuickTaskProcess,
-  handleRequest: createStorageRequestHandler(() => storage),
-  onToast: toastRouter.publish,
-  onReady: async () => {
-    const hotkey = (await storage?.loadSettings())?.quickTask.hotkey
-    if (!hotkey) return
-
-    const isRegistered = await quickTask.request(HOTKEY_REQUESTS.register, [hotkey])
-    if (!isRegistered) logger.warn(logger.CONTEXT.APP, `Quick task hotkey could not be registered: ${hotkey}`)
-  },
-  onAvailabilityChange: (isAvailable) => trayQuickTask?.setAvailable(isAvailable),
-})
-
-if (process.argv.includes(QUICK_TASK_PROCESS_FLAG)) {
-  setupQuickTaskAppBoot()
-  setupQuickTaskWindow()
-} else {
-  bootDaily()
-}
+bootDaily()
 
 function bootDaily() {
   setFileCoordinatorBinaryPath(electronPaths.fileCoordinatorPath())
@@ -118,8 +89,6 @@ function bootDaily() {
   )
 
   app.whenReady().then(startDaily)
-
-  app.on("will-quit", () => quickTask.stop())
 
   app.on("before-quit", async (event) => {
     if (taskTimers?.holdQuit(event, () => app.quit())) return
@@ -210,7 +179,6 @@ async function startDaily() {
   )
   setupTaskTimersIPC(taskTimers)
   powerMonitor.on("suspend", () => taskTimers?.pauseAll())
-  setupQuickTaskIPC(quickTask, () => storage)
   setupSyncServerIPC(
     () => storage,
     () => windows,
@@ -225,10 +193,7 @@ async function startDaily() {
     () => windows,
     (...broadcast) => {
       if (broadcast[0] === "storage:changed") taskTimers?.applyStorageChange(broadcast[1])
-      quickTask.emit(broadcast[0], ...broadcast.slice(1))
       if (broadcast[0] !== "settings:changed") return
-      void trayQuickTask?.refresh()
-      void quickTaskSwitch?.apply()
       void trayVisibility?.apply()
     },
   )
@@ -239,9 +204,6 @@ async function startDaily() {
       () => windows.main,
       () => setupMainWindow(windows),
     )
-    trayQuickTask = setupTrayQuickTask(trayController, quickTask, () => storage)
-    void trayQuickTask.refresh()
-    quickTaskSwitch = setupQuickTask(quickTask, () => storage)
     trayVisibility = setupTrayVisibility(trayController, () => storage)
     await trayVisibility.apply()
   }
@@ -294,7 +256,6 @@ function setupMainWindow(windows: AppWindows, options?: {showSplash?: boolean}) 
 
     main.show()
     focusWindow(main)
-    void quickTaskSwitch?.apply()
   })
 
   return main

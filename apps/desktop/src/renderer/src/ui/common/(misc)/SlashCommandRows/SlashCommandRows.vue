@@ -4,9 +4,9 @@ import {nextTick, useTemplateRef, watch} from "vue"
 import ProjectIcon from "@/ui/common/(icons)/ProjectIcon.vue"
 import {cn} from "@/utils/ui/tailwindcss"
 
-import type {QuickTaskMenu} from "@shared/types/quickTask"
+import type {SlashMenu} from "./types"
 
-const props = defineProps<{menu: QuickTaskMenu}>()
+const props = defineProps<{menu: SlashMenu}>()
 const emit = defineEmits<{pick: [index: number]}>()
 
 const listRef = useTemplateRef<HTMLUListElement>("list")
@@ -34,7 +34,7 @@ watch(
         v-tooltip="row.tooltip"
         role="option"
         :class="getRowClasses(row.tone === 'remove')"
-        :aria-selected="index === menu.selected ? 'true' : undefined"
+        :aria-selected="index === menu.selected ? 'true' : 'false'"
         @click="emit('pick', index)"
       >
         <span v-if="row.color" class="slash-tag-chip" :style="{'--tag-color': row.color}">

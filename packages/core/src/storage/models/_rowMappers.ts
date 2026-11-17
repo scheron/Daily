@@ -1,12 +1,4 @@
-import {
-  ACTOR_PROVIDER_MAX_LENGTH,
-  DEFAULT_ACCENT_ID,
-  DEFAULT_BASE_ID,
-  DEFAULT_QUICK_TASK_HOTKEY,
-  NO_PROJECT_ID,
-  TASK_STATUSES,
-  WINDOWS_CONFIG,
-} from "@daily/protocol"
+import {ACTOR_PROVIDER_MAX_LENGTH, DEFAULT_ACCENT_ID, DEFAULT_BASE_ID, NO_PROJECT_ID, TASK_STATUSES, WINDOWS_CONFIG} from "@daily/protocol"
 import {isNumber, notNull} from "@daily/std"
 
 import type {
@@ -281,7 +273,6 @@ export function getDefaultSettings(): Settings {
         ready_to_merge: false,
       },
     },
-    quickTask: {isEnabled: true, hotkey: DEFAULT_QUICK_TASK_HOTKEY},
     menuBar: {isVisible: true},
     window: {
       main: {
