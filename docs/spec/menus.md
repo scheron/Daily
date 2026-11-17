@@ -19,3 +19,10 @@ Why: select the empty value from the list, as with No project and No priority, s
 - In task details and in the card context menu, click the milestone that is already checked → the menu closes, the task keeps its milestone, and its update time stays the same.
 - Type "no mil" in the milestone menu → No milestone stays. Type a milestone's name → No milestone is gone. Type "no milestone" → there is no Create row.
 - Open Milestone for a task whose project has no milestones → the only row is No milestone, and it is checked. Type a new name → a Create row appears.
+
+### milestone-search-stays-fixed — In task details, only the milestone choices scroll; the search field stays fixed at every interface size
+
+Why: one scrolling region keeps search reachable and removes competing scrollbars
+
+- In task details, open Milestone for a project with at least 16 milestones at each interface size; scroll the choices to the last milestone → choices move, the search field stays fixed, the last milestone is reachable, and the popup has no second scrollable region.
+- Open Milestone for a project with no milestones → No milestone is available; enter a new name → Create is reachable. The short menu needs no scrollbar.
