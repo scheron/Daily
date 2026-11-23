@@ -106,6 +106,10 @@ function focusRow(event: MouseEvent) {
   margin-top: 0;
 }
 
+.comment-markdown :deep(.markdown-preview-content > :last-child) {
+  margin-bottom: 0;
+}
+
 .comment-markdown :deep(:is(h1, h2, h3, h4, h5, h6)) {
   margin-top: 0.25rem;
   margin-bottom: 0.1rem;

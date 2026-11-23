@@ -99,7 +99,7 @@ watch(nestedTarget, async (target, previous) => {
     </div>
 
     <div v-else>
-      <section v-for="group in days" :key="group.day" :aria-labelledby="`activity-day-${group.day}`" class="mt-6 first:mt-1">
+      <section v-for="group in days" :key="group.day" :aria-labelledby="`activity-day-${group.day}`" class="mt-1.5 first:mt-1">
         <h3
           :id="`activity-day-${group.day}`"
           class="text-base-content/70 mb-1.5 flex items-center gap-2 px-4 text-[.8rem] font-semibold leading-normal"
