@@ -28,6 +28,7 @@ pnpm check:all           # lint + typecheck:all + circular + test
 **Single test file.** `pnpm evitest run packages/core/tests/storage/sync/convergence.test.ts`
 **Dev server.** `pnpm dev` — opens the Electron window, no URL.
 **E2E.** none
+**Language.** English
 **Runtime.** The app is driven through its Electron window (`pnpm dev`). The server runs as the `ghcr.io/scheron/daily-server` image, or from the package `pnpm build:server:package` emits — `cd apps/server/dist-server && npm install --omit=dev && node index.js start`. That install is not optional: the workspace's `better-sqlite3` is built for Electron's ABI, so a plain `node` cannot load the bundle.
 
 **bootstrap.** `pnpm install` (`apps/desktop`'s `postinstall` runs `electron-builder install-app-deps`)
@@ -60,3 +61,13 @@ pnpm check:all           # lint + typecheck:all + circular + test
 ## Skills
 
 Project skills live in `.agents/skills/`, which Codex reads directly. Claude Code discovers the same skills through the `.claude/skills` symlink to `../.agents/skills`. Add new skills under `.agents/skills/`.
+
+## Executors
+
+```toml
+[executors."antigravity".primary]
+model = "gemini-4-neon-xhigh"
+
+[executors."antigravity".secondary]
+model = "pro"
+```
