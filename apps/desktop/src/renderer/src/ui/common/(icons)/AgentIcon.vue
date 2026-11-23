@@ -19,6 +19,10 @@ function toIconName(agentName: string): IconName {
       return "openai"
     case "codex":
       return "codex"
+    case "antigravity":
+      return "antigravity"
+    case "qoder":
+      return "qoder"
     default:
       return "ai"
   }

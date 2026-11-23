@@ -23,5 +23,7 @@ describe("AgentIcon — the mark each client is drawn with (TC-42)", () => {
     expect(markOf("codex-fork")).toBe("#ai")
     expect(markOf("Codex")).toBe("#codex")
     expect(markOf("  CODEX  ")).toBe("#codex")
+    expect(markOf("Antigravity")).toBe("#antigravity")
+    expect(markOf("Qoder")).toBe("#qoder")
   })
 })

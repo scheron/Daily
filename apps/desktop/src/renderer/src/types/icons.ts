@@ -62,6 +62,8 @@ export type IconName =
   | "claude-code"
   | "claude"
   | "codex"
+  | "antigravity"
+  | "qoder"
   | "openai"
   | "award"
   | "arrow-up"
