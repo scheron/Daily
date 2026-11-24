@@ -24,14 +24,20 @@ const fail = (message) => {
 const flag = (name) => args[args.indexOf(name) + 1]
 
 if (command === "api" && subcommand.endsWith("/releases?per_page=100")) {
-  console.log(JSON.stringify([state.releases.slice(0, 1), state.releases.slice(1)]))
+  const listed = state.hideDrafts ? state.releases.filter((release) => !release.draft) : state.releases
+  console.log(JSON.stringify([listed.slice(0, 1), listed.slice(1)]))
 } else if (command === "api" && subcommand.endsWith("/releases/latest")) {
   console.log(state.latest)
-} else if (command === "release" && subcommand === "create" && args.includes("--draft")) {
-  const [tag_name] = args
+} else if (command === "api" && subcommand.startsWith("repos/{owner}/{repo}/git/ref/tags/")) {
+  if (subcommand.endsWith("/" + state.missingTag)) fail("Tag not found")
+} else if (command === "api" && subcommand.endsWith("/releases") && args.includes("draft=true")) {
+  const tag_name = flag("-f").slice("tag_name=".length)
+  if (!args.includes("name=" + tag_name) || !args.includes("body=@release-notes.md")) fail("Expected release title and notes")
   if (state.releases.some((release) => release.tag_name === tag_name)) fail("Release already exists")
-  state.releases.push({id: state.releases.length + 1, tag_name, draft: true, prerelease: false, assets: []})
+  const draft = {id: state.releases.length + 1, tag_name, draft: true, prerelease: false, assets: []}
+  state.releases.push(draft)
   save()
+  console.log(JSON.stringify(draft))
 } else if (command === "release" && subcommand === "upload") {
   const release = state.releases.find((item) => item.tag_name === args[0])
   if (!release?.draft) fail("Expected a draft release")
@@ -201,4 +207,23 @@ test("a mismatched uploaded digest prevents publication even after upload succee
   assert.equal(fixture.state().latest, previous.tag_name)
   assert.equal(fixture.state().releases[1].draft, true)
   assert.equal(fixture.output(), "")
+})
+
+test("publishes when the release listing omits the newly created draft", (t) => {
+  const fixture = setup(t, {releases: [], hideDrafts: true})
+  writeFileSync(join(fixture.dist, "Daily-0.43.0-mac.dmg"), "package")
+
+  const result = fixture.run("v0.43.0")
+  assert.equal(result.status, 0, result.stderr)
+  assert.equal(fixture.state().latest, "v0.43.0")
+})
+
+test("a missing remote tag prevents draft creation", (t) => {
+  const fixture = setup(t, {releases: [], missingTag: "v0.43.0"})
+  writeFileSync(join(fixture.dist, "Daily-0.43.0-mac.dmg"), "package")
+
+  const result = fixture.run("v0.43.0")
+  assert.equal(result.status, 1)
+  assert.match(result.stderr, /Tag not found/)
+  assert.deepEqual(fixture.state().releases, [])
 })

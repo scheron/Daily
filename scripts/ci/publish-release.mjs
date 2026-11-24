@@ -46,9 +46,8 @@ async function publish(tag) {
 
   let draft = releases.find((release) => release.tag_name === tag)
   if (!draft) {
-    gh("release", "create", tag, "--verify-tag", "--draft", "--title", tag, "--notes-file", "release-notes.md")
-    draft = listReleases().find((release) => release.tag_name === tag && release.draft)
-    if (!draft) throw new Error(`Could not find the draft for ${tag}.`)
+    gh("api", `repos/{owner}/{repo}/git/ref/tags/${tag}`, "--silent")
+    draft = JSON.parse(gh("api", releasesEndpoint, "-f", `tag_name=${tag}`, "-f", `name=${tag}`, "-F", "draft=true", "-F", "body=@release-notes.md"))
   }
 
   gh("release", "upload", tag, "--clobber", dmg, manifest)
