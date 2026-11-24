@@ -9,6 +9,8 @@ import {useSearchTaskNavigation} from "@/ui/overlays/SearchModal/composables/use
 import {mockBridgeIPC} from "../../helpers/bridgeIPC"
 import {makeTask} from "../../helpers/taskFixtures"
 
+import type {SettingsView} from "@daily/protocol"
+
 const confirm = vi.hoisted(() => vi.fn())
 
 vi.mock("@/ui/overlays/ConfirmUnsavedModal", () => ({
@@ -47,7 +49,7 @@ it("keeps the project set when the result's project is in it", async () => {
   setActivePinia(pinia)
 
   try {
-    useSettingsStore().settings = {branch: {activeId: "b", isAllProjects: false, selectedIds: ["a", "b"]}}
+    useSettingsStore().settings = {branch: {activeId: "b", isAllProjects: false, selectedIds: ["a", "b"]}} as SettingsView
     const switchProject = vi.spyOn(useBranchesStore(), "setActiveBranch").mockResolvedValue(true)
     vi.spyOn(useTaskEditorStore(), "open").mockResolvedValue()
     const {prepareNavigation} = useSearchTaskNavigation()
@@ -67,7 +69,7 @@ it("makes the result's project active without collapsing the Day set when the bo
   try {
     const settingsStore = useSettingsStore()
     await new Promise((resolve) => setTimeout(resolve, 0))
-    settingsStore.settings = {branch: {activeId: "b", isAllProjects: false, selectedIds: ["a", "b"]}}
+    settingsStore.settings = {branch: {activeId: "b", isAllProjects: false, selectedIds: ["a", "b"]}} as SettingsView
     useUiStore().setFrame("milestone")
     const switchProject = vi.spyOn(useBranchesStore(), "setActiveBranch").mockResolvedValue(true)
     vi.spyOn(useTaskEditorStore(), "open").mockResolvedValue()
@@ -77,7 +79,7 @@ it("makes the result's project active without collapsing the Day set when the bo
     await prepareNavigation({task: makeTask({branchId: "a", scheduled: null}), branch: null, score: 0})
 
     expect(switchProject).not.toHaveBeenCalled()
-    expect(settingsStore.settings.branch).toEqual({activeId: "a", isAllProjects: false, selectedIds: ["b", "a"]})
+    expect(settingsStore.settings?.branch).toEqual({activeId: "a", isAllProjects: false, selectedIds: ["b", "a"]})
   } finally {
     disposePinia(pinia)
   }

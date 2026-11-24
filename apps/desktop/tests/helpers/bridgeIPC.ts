@@ -1,7 +1,7 @@
 // @ts-nocheck
 import {vi} from "vitest"
 
-export function mockBridgeIPC(overrides = {}) {
+export function mockBridgeIPC<T extends Record<string, unknown> = Record<string, unknown>>(overrides: T = {} as T) {
   const noop = vi.fn().mockResolvedValue(undefined)
   const noopOn = vi.fn()
   const bridge = {

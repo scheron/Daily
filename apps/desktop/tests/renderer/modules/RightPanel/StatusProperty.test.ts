@@ -12,7 +12,7 @@ import StatusCombobox from "../../../../src/renderer/src/ui/common/(comboboxes)/
 import {mockBridgeIPC} from "../../../helpers/bridgeIPC"
 import {makeTask} from "../../../helpers/taskFixtures"
 
-import type {TaskStatus} from "@daily/protocol"
+import type {SettingsView, TaskStatus} from "@daily/protocol"
 
 enableAutoUnmount(afterEach)
 
@@ -65,13 +65,13 @@ it.each([
     expect(labels(wrapper)).toEqual(["Backlog", "To Do", "In Progress", "Done", "Cancelled"])
     expect(wrapper.get("button").text()).toBe(groupedLabel)
 
-    settings.updateSettings({appearance: {boardMode: "agents"}})
+    settings.updateSettings({appearance: {boardMode: "agents"}} as Partial<SettingsView>)
     await nextTick()
 
     expect(labels(wrapper)).toEqual(["Backlog", "To Do", "Ready for Agent", "In Progress", "Ready to Merge", "Done", "Cancelled"])
     expect(wrapper.get("button").text()).toBe(actualLabel)
 
-    settings.updateSettings({appearance: {boardMode: "normal"}})
+    settings.updateSettings({appearance: {boardMode: "normal"}} as Partial<SettingsView>)
     await nextTick()
 
     expect(wrapper.get("button").text()).toBe(groupedLabel)
@@ -85,7 +85,7 @@ it.each([
 
 it("keeps an actual status click unchanged and commits an explicit Backlog choice from grouped readiness with its day cleared", async () => {
   const {wrapper, settings, tasks, editor} = await setup("ready_for_agent")
-  settings.updateSettings({appearance: {boardMode: "agents"}})
+  settings.updateSettings({appearance: {boardMode: "agents"}} as Partial<SettingsView>)
   await nextTick()
   const draft = editor.draft
 
@@ -93,7 +93,7 @@ it("keeps an actual status click unchanged and commits an explicit Backlog choic
 
   expect(editor.draft).toBe(draft)
 
-  settings.updateSettings({appearance: {boardMode: "normal"}})
+  settings.updateSettings({appearance: {boardMode: "normal"}} as Partial<SettingsView>)
   await nextTick()
   pick(wrapper, "backlog")
 

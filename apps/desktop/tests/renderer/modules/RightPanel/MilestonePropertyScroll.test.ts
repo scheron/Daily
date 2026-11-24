@@ -66,7 +66,6 @@ describe.each([
               estimatedTime: 0,
               spentTime: 0,
               tags: [],
-              attachments: [],
             }
           }
         }, fontSize)

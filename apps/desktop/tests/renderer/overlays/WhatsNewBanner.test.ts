@@ -181,7 +181,7 @@ function mountBanner(initiallyVisible: boolean, media: WhatsNewMedia[] = [], ret
   if (retryDelay !== null) getRelease.mockResolvedValueOnce({retryAt: Date.now() + retryDelay})
   mockBridgeIPC({
     "window:is-visible": vi.fn().mockResolvedValue(initiallyVisible),
-    "window:on-visibility-changed": (callback) => {
+    "window:on-visibility-changed": (callback: (visible: boolean) => void) => {
       onWindowVisibility = callback
       return () => {}
     },

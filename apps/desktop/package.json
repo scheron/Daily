@@ -29,6 +29,7 @@
     "preview": "electron-vite preview",
     "typecheck:main": "tsc --noEmit --project src/main/tsconfig.json",
     "typecheck:renderer": "vue-tsc --noEmit --project src/renderer/tsconfig.json",
+    "typecheck:tests": "vue-tsc --noEmit --project tests/tsconfig.json",
     "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {

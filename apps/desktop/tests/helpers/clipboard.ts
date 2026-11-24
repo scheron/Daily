@@ -19,9 +19,9 @@ export function stubClipboard() {
 
   afterEach(() => {
     if (originalClipboardDescriptor) Object.defineProperty(navigator, "clipboard", originalClipboardDescriptor)
-    else delete (navigator as Partial<Navigator>).clipboard
+    else Reflect.deleteProperty(navigator, "clipboard")
     if (originalExecCommandDescriptor) Object.defineProperty(document, "execCommand", originalExecCommandDescriptor)
-    else delete (document as Partial<Document>).execCommand
+    else Reflect.deleteProperty(document, "execCommand")
     document.body.innerHTML = ""
   })
 

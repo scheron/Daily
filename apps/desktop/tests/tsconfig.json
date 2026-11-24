@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "useDefineForClassFields": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "jsx": "preserve",
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "lib": ["esnext", "dom", "dom.iterable"],
+    "types": ["node", "vite/client"],
+    "baseUrl": "..",
+    "paths": {
+      "@main/*": ["./src/main/*"],
+      "@shared/*": ["./src/shared/*"],
+      "@/*": ["./src/renderer/src/*"]
+    }
+  },
+  "include": ["./**/*.ts", "./**/*.d.ts", "../src/renderer/**/*.d.ts"]
+}

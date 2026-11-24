@@ -10,7 +10,7 @@ it("the Assistant wrapper preserves seven exact statuses and authorship in Norma
   const {db, core, workStorage} = makeRealWorkspace()
   try {
     expect((await core.settingsService.loadSettings()).appearance.boardMode).toBe("normal")
-    const storage = {workStorage} as StorageController
+    const storage = {workStorage} as unknown as StorageController
     await exerciseStatusContract(
       async (name, input) => {
         const tool = SHARED_TOOLS.find((candidate) => candidate.name === name)

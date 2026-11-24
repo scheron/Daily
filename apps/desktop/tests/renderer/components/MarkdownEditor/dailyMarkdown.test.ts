@@ -111,7 +111,7 @@ describe("Daily Markdown in TipTap", () => {
     const editor = open(source)
 
     const reopened = appendParagraph(editor)
-    const image = reopened.view.dom.querySelector("img[src]")
+    const image = reopened.view.dom.querySelector<HTMLImageElement>("img[src]")
 
     expect(image?.getAttribute("src")).toBe("daily://file/DF-escaped")
     expect(image?.alt).toBe("a]b\\c")
