@@ -9,7 +9,7 @@ import type {Tool, ToolContext} from "../types"
 export const saveSubtaskTool: Tool = {
   name: "save_subtask",
   description:
-    "Adds a subtask to a task when no id is given, or changes the one named: its text, or whether it is checked off. A new subtask goes last and starts unchecked. Subtasks cannot be reordered from here.",
+    "Adds a subtask to a task when no id is given, or changes the one named: its text, or whether it is checked off. Check subtasks off as you complete them during execution. A new subtask goes last and starts unchecked. Subtasks cannot be reordered from here.",
   mode: "write",
   inputSchema: {
     type: "object",

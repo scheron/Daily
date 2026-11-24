@@ -99,9 +99,18 @@ describe("handleMcpRequest", () => {
         expect(reply.body).toEqual({
           jsonrpc: "2.0",
           id: index,
-          result: {protocolVersion: version, capabilities: {tools: {}}, serverInfo: {name: "daily", title: "Daily", version: serverVersion}},
+          result: {
+            protocolVersion: version,
+            capabilities: {tools: {}},
+            serverInfo: {name: "daily", title: "Daily", version: serverVersion},
+            instructions: expect.any(String),
+          },
         })
-        expect((reply.body as Record<string, unknown>).result).not.toHaveProperty("resultType")
+        const result = (reply.body as {result: {instructions: string}}).result
+        expect(result.instructions).toContain("ready_for_agent")
+        expect(result.instructions).toContain("in_progress")
+        expect(result.instructions).toContain("ready_to_merge")
+        expect(result).not.toHaveProperty("resultType")
       }
 
       for (const version of ["2024-11-05", "2026-07-28"]) {
@@ -135,7 +144,12 @@ describe("handleMcpRequest", () => {
       expect(ambiguous.body).toEqual({
         jsonrpc: "2.0",
         id: "amb",
-        result: {protocolVersion: "2025-11-25", capabilities: {tools: {}}, serverInfo: {name: "daily", title: "Daily", version: serverVersion}},
+        result: {
+          protocolVersion: "2025-11-25",
+          capabilities: {tools: {}},
+          serverInfo: {name: "daily", title: "Daily", version: serverVersion},
+          instructions: expect.any(String),
+        },
       })
     })
   })
@@ -206,6 +220,7 @@ describe("handleMcpRequest", () => {
             resultType: "complete",
             supportedVersions: SUPPORTED_VERSIONS,
             capabilities: {tools: {}},
+            instructions: expect.any(String),
             ttlMs: 300000,
             cacheScope: "public",
             _meta: {"io.modelcontextprotocol/serverInfo": {name: "daily", title: "Daily", version: serverVersion}},

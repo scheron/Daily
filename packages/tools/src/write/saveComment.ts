@@ -9,7 +9,7 @@ import type {Tool, ToolContext} from "../types"
 export const saveCommentTool: Tool = {
   name: "save_comment",
   description:
-    "Writes a comment on a task when no id is given, or rewrites the one named. A comment written this way is marked as coming from this caller, not as if typed in the app — that mark cannot be set from here.",
+    "Writes a comment on a task when no id is given, or rewrites the one named. Use it to leave a concise summary and verification notes when handing work off to ready_to_merge or finishing a task. A comment written this way is marked as coming from this caller, not as if typed in the app — that mark cannot be set from here.",
   mode: "write",
   inputSchema: {
     type: "object",

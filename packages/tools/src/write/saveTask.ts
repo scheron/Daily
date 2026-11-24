@@ -40,13 +40,13 @@ const TASK_ITEM_PROPERTIES: Record<string, ToolPropertySchema> = {
   date: {
     type: ["string", "null"],
     description:
-      "The scheduled day, YYYY-MM-DD, or null to clear it. Scheduling Backlog makes it To Do; clearing To Do returns it to Backlog. Ready for Agent keeps its status.",
+      "The scheduled day, YYYY-MM-DD, or null to clear it. Without an explicit status, scheduling Backlog makes it To Do and clearing To Do returns it to Backlog; Ready for Agent keeps its status. Cannot pass null with a dated status or a date with backlog.",
   },
   time: {type: "string", description: 'The time of day, HH:mm or HH:mm:ss. Cannot be sent as null — clear a day with "date": null instead.'},
   status: {
     type: "string",
     description:
-      "The exact task status, independent of Normal / Agents board mode. To Do means planned, In Progress means work has started. Ready for Agent accepts a day or no day; Ready to Merge remains outstanding.",
+      "The exact task status, independent of Normal / Agents board mode: backlog (unscheduled, no date), todo (planned or being scoped/discussed), ready_for_agent (agreed plan, ready to execute; date optional), in_progress (actively executing), ready_to_merge (implemented and verified, awaiting human review/merge), done (completed), cancelled (dropped). Moving an undated task to a dated status schedules it for today; pairing date: null with a dated status or a date with backlog is rejected.",
     enum: TASK_STATUSES,
   },
   priority: {type: "string", description: 'The task\'s priority. "none" clears it. Defaults to "none" when creating.', enum: TASK_PRIORITIES},
@@ -74,7 +74,7 @@ const TASK_ITEM_PROPERTIES: Record<string, ToolPropertySchema> = {
 export const saveTaskTool: Tool = {
   name: "save_task",
   description:
-    'Creates a task when no id is given, or updates the one named. A day, time and status are worked out from what is given and the caller\'s own clock. New tasks default to To Do on the caller\'s day; a null date defaults to Backlog. An explicit status takes priority. Priority is taken as sent, and a new task defaults to "none". Send "tasks" instead for a batch of up to 50, applied atomically.',
+    "Creates a task when no id is given, or updates the one named. Update task status proactively as work progresses: todo while planning or scoping, ready_for_agent once a plan is ready to execute, in_progress as soon as execution starts, ready_to_merge when coding or review-gated work is verified and awaiting human review, and done when non-coding work is completed (or when asked to close a task). New tasks default to To Do on the caller's day; a null date defaults to Backlog. Moving an undated task into a dated status schedules it for the caller's today automatically; explicit status/date contradictions are rejected. Send \"tasks\" instead for a batch of up to 50, applied atomically.",
   mode: "write",
   inputSchema: {
     type: "object",
@@ -166,12 +166,15 @@ function parseFields(input: Record<string, unknown>): ParsedFields {
     throw new ToolError(ToolErrorCode.INVALID_INPUT, '"afterTaskId" and "beforeTaskId" cannot both be given.')
   }
 
+  const status = readEnum(input, "status", TASK_STATUSES)
+  validateStatusAndSchedule(status, date, time)
+
   return {
     content: readString(input, "content"),
     projectId: readString(input, "projectId"),
     date,
     time,
-    status: readEnum(input, "status", TASK_STATUSES),
+    status,
     priority: readEnum(input, "priority", TASK_PRIORITIES),
     milestoneId,
     tagIds: readIdArray(input, "tagIds"),
@@ -363,6 +366,21 @@ async function applyRelations(ctx: ToolContext, taskId: Task["id"], blockedBy: s
   const nextBlocks = blocks ?? current.blocks.map((task) => task.id)
 
   await ctx.workStorage.setTaskRelations(taskId, {blockedBy: nextBlockedBy, blocks: nextBlocks})
+}
+
+function validateStatusAndSchedule(status: TaskStatus | undefined, date: ISODate | null | undefined, time: ISOTime | undefined): void {
+  if (date === null && time !== undefined) {
+    throw new ToolError(ToolErrorCode.INVALID_INPUT, '"time" cannot be combined with "date": null.')
+  }
+  if (status === "backlog" && ((date !== undefined && date !== null) || time !== undefined)) {
+    throw new ToolError(
+      ToolErrorCode.INVALID_INPUT,
+      '"status": "backlog" cannot be combined with a scheduled date or time. Omit "date"/"time" or pass "date": null.',
+    )
+  }
+  if (date === null && status !== undefined && status !== "backlog" && status !== "ready_for_agent") {
+    throw new ToolError(ToolErrorCode.INVALID_INPUT, `"status": "${status}" requires a scheduled day and cannot be combined with "date": null.`)
+  }
 }
 
 function readIdArray(input: Record<string, unknown>, field: string): string[] | undefined {

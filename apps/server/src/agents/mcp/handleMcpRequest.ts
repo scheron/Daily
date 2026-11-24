@@ -25,6 +25,23 @@ const EARLIER_VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26"]
 const SUPPORTED_VERSIONS = [...STATELESS_VERSIONS, ...EARLIER_VERSIONS]
 const PROTOCOL_VERSION_META = "io.modelcontextprotocol/protocolVersion"
 const SERVER_INFO = {name: "daily", title: "Daily", version: pkg.version}
+const MCP_INSTRUCTIONS = [
+  "Daily is the user's task board. Keep task status in sync proactively as you work — do not wait to be reminded.",
+  "Statuses:",
+  "- backlog: unscheduled ideas or deferred work (no date).",
+  "- todo: planned work, or work being discussed, researched, or scoped before a plan is ready.",
+  "- ready_for_agent: has an agreed implementation plan and is ready for an agent to execute (date optional).",
+  "- in_progress: execution has started and work is actively underway.",
+  "- ready_to_merge: coding or review-gated work is implemented and verified, waiting for human review/merge.",
+  "- done: completed.",
+  "- cancelled: dropped or no longer needed.",
+  "Workflow:",
+  "- When discussing or planning a task, keep it in todo (or backlog if unscheduled). Once a plan is agreed and ready to execute, move it to ready_for_agent.",
+  "- As soon as you start executing a task, move it to in_progress with save_task (undated tasks are automatically scheduled for today).",
+  "- Check off subtasks with save_subtask as you complete them.",
+  "- When coding work (or anything awaiting human review) is finished and verified, move it to ready_to_merge and leave a concise summary comment with save_comment. Leave the final move to done to the user unless they ask you to close it.",
+  "- For non-coding tasks that you complete directly without needing review, move the task to done.",
+].join("\n")
 
 /**
  * Answers one MCP POST body as `caller`'s Mac, in the protocol generation the request itself selects:
@@ -156,7 +173,15 @@ async function answerStatelessGeneration(
 
   switch (request.method) {
     case "server/discover":
-      return {result: completeResult({supportedVersions: SUPPORTED_VERSIONS, capabilities: {tools: {}}, ttlMs: 300000, cacheScope: "public"})}
+      return {
+        result: completeResult({
+          supportedVersions: SUPPORTED_VERSIONS,
+          capabilities: {tools: {}},
+          instructions: MCP_INSTRUCTIONS,
+          ttlMs: 300000,
+          cacheScope: "public",
+        }),
+      }
     case "tools/list":
       return {result: completeResult({tools: listMcpTools(), ttlMs: 300000, cacheScope: "public"})}
     case "tools/call": {
@@ -173,7 +198,7 @@ function initialize(params: unknown): JsonRpcOutcome {
   if (!isString(requested)) return {error: {code: -32602, message: "initialize needs a protocolVersion string"}}
 
   const protocolVersion = EARLIER_VERSIONS.includes(requested) ? requested : "2025-11-25"
-  return {result: {protocolVersion, capabilities: {tools: {}}, serverInfo: SERVER_INFO}}
+  return {result: {protocolVersion, capabilities: {tools: {}}, serverInfo: SERVER_INFO, instructions: MCP_INSTRUCTIONS}}
 }
 
 function unsupportedVersion(requested: string): JsonRpcError {
