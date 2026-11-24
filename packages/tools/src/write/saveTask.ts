@@ -32,7 +32,7 @@ type ParsedFields = {
 
 const TASK_ITEM_PROPERTIES: Record<string, ToolPropertySchema> = {
   id: {type: "string", description: "The task id, to update it. Omitted to create one."},
-  content: {type: "string", description: "The task's text. Required when creating."},
+  content: {type: "string", description: "The full Markdown text. Required when creating. Replaces the existing text when updating."},
   projectId: {
     type: "string",
     description: 'The project the task belongs to. Defaults to "main" when creating. A move drops the old project\'s milestone and tags.',
@@ -51,8 +51,12 @@ const TASK_ITEM_PROPERTIES: Record<string, ToolPropertySchema> = {
   },
   priority: {type: "string", description: 'The task\'s priority. "none" clears it. Defaults to "none" when creating.', enum: TASK_PRIORITIES},
   milestoneId: {type: ["string", "null"], description: "The milestone this task belongs to, from its own project, or null to clear it."},
-  tagIds: {type: "array", description: "Replaces the task's whole tag set.", items: {type: "string", description: "A tag id."}},
-  estimatedSeconds: {type: "integer", description: "The estimated time, in seconds.", minimum: 0},
+  tagIds: {
+    type: "array",
+    description: "All tag ids to keep, from the task's project. An empty array clears the tags.",
+    items: {type: "string", description: "A tag id."},
+  },
+  estimatedSeconds: {type: "integer", description: "Replaces the estimate in seconds. Zero clears the estimate.", minimum: 0},
   blockedBy: {
     type: "array",
     description: "Tasks that block this one. Replaces the whole set.",
@@ -74,7 +78,11 @@ const TASK_ITEM_PROPERTIES: Record<string, ToolPropertySchema> = {
 export const saveTaskTool: Tool = {
   name: "save_task",
   description:
-    "Creates a task when no id is given, or updates the one named. Update task status proactively as work progresses: todo while planning or scoping, ready_for_agent once a plan is ready to execute, in_progress as soon as execution starts, ready_to_merge when coding or review-gated work is verified and awaiting human review, and done when non-coding work is completed (or when asked to close a task). New tasks default to To Do on the caller's day; a null date defaults to Backlog. Moving an undated task into a dated status schedules it for the caller's today automatically; explicit status/date contradictions are rejected. Send \"tasks\" instead for a batch of up to 50, applied atomically.",
+    "Create with content, or update by id with only the fields to change. New tasks default to todo today, or backlog with date: null. Moving an undated task to a dated status schedules it for today. " +
+    "For the task linked to the current work, use todo while planning (backlog if unscheduled), ready_for_agent once the plan is agreed, and in_progress when execution starts. Check off completed steps with save_subtask. " +
+    "When coding or review-gated work is verified, set ready_to_merge and leave a summary and verification notes with save_comment. Leave it there unless the user asks you to close it. Mark completed non-coding work done when it needs no review. " +
+    "content replaces the full text. tagIds, blocks and blockedBy each replace their whole set (send all ids to keep, or [] to clear). estimatedSeconds replaces the estimate. addSpentSeconds adds a signed delta. " +
+    "Use tasks alone for an atomic batch of up to 50 changes.",
   mode: "write",
   inputSchema: {
     type: "object",

@@ -107,9 +107,8 @@ describe("handleMcpRequest", () => {
           },
         })
         const result = (reply.body as {result: {instructions: string}}).result
-        expect(result.instructions).toContain("ready_for_agent")
-        expect(result.instructions).toContain("in_progress")
-        expect(result.instructions).toContain("ready_to_merge")
+        expect(result.instructions).toContain("unambiguously linked")
+        expect(result.instructions).toContain("save_task")
         expect(result).not.toHaveProperty("resultType")
       }
 

@@ -28,6 +28,13 @@ function putOnServer(store: ServerStore, fileId: string, ext: string, bytes: Buf
 }
 
 describe("listMcpTools — TC-14", () => {
+  it("publishes the linked-task workflow and replacement semantics in save_task's description", () => {
+    const description = listMcpTools().find((tool) => tool.name === "save_task")?.description
+    for (const term of ["ready_for_agent", "in_progress", "ready_to_merge", "save_subtask", "save_comment", "tagIds, blocks and blockedBy"]) {
+      expect(description).toContain(term)
+    }
+  })
+
   it("TC-14: answers TOOLS's own twenty entries in order, with readOnlyHint true for reads and destructiveHint true for deletes", () => {
     const result = listMcpTools()
 
