@@ -190,4 +190,86 @@ describe("useSubtasksStore", () => {
     store.applyBroadcast({subtasks: {removed: ["s1"]}})
     expect(store.subtasksOf("t1")).toEqual([])
   })
+
+  it("shares_an_in_flight_load_across_concurrent_callers_for_the_same_task", async () => {
+    const store = useSubtasksStore()
+    let resolveLoad
+    Storage.getSubtasksOfTask.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveLoad = resolve
+      }),
+    )
+
+    let firstSettled = false
+    let secondSettled = false
+    const first = store.loadSubtasks("t1").then(() => {
+      firstSettled = true
+    })
+    const second = store.loadSubtasks("t1").then(() => {
+      secondSettled = true
+    })
+
+    await flushCounts()
+    expect(Storage.getSubtasksOfTask).toHaveBeenCalledTimes(1)
+    expect(firstSettled).toBe(false)
+    expect(secondSettled).toBe(false)
+
+    resolveLoad([makeSubtask("s1", "t1")])
+    await Promise.all([first, second])
+
+    expect(firstSettled).toBe(true)
+    expect(secondSettled).toBe(true)
+    expect(store.subtasksOf("t1").map((s) => s.id)).toEqual(["s1"])
+  })
+
+  it("rejects_all_concurrent_callers_on_failure_and_allows_a_later_retry", async () => {
+    const store = useSubtasksStore()
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {})
+    let rejectLoad
+    Storage.getSubtasksOfTask.mockReturnValueOnce(
+      new Promise((_, reject) => {
+        rejectLoad = reject
+      }),
+    )
+
+    try {
+      const first = store.loadSubtasks("t1")
+      const second = store.loadSubtasks("t1")
+
+      rejectLoad(new Error("ipc down"))
+      await expect(first).rejects.toThrow("ipc down")
+      await expect(second).rejects.toThrow("ipc down")
+
+      Storage.getSubtasksOfTask.mockResolvedValueOnce([makeSubtask("s1", "t1")])
+      await store.loadSubtasks("t1")
+
+      expect(Storage.getSubtasksOfTask).toHaveBeenCalledTimes(2)
+      expect(store.subtasksOf("t1").map((s) => s.id)).toEqual(["s1"])
+    } finally {
+      consoleError.mockRestore()
+    }
+  })
+
+  it("keeps_in_flight_loads_for_different_tasks_independent", async () => {
+    const store = useSubtasksStore()
+    let resolveFirst
+    Storage.getSubtasksOfTask.mockImplementation((taskId) => {
+      if (taskId === "t1") {
+        return new Promise((resolve) => {
+          resolveFirst = resolve
+        })
+      }
+      return Promise.resolve([makeSubtask("s2", "t2")])
+    })
+
+    const first = store.loadSubtasks("t1")
+    await store.loadSubtasks("t2")
+
+    expect(store.subtasksOf("t2").map((s) => s.id)).toEqual(["s2"])
+    expect(store.subtasksOf("t1")).toEqual([])
+
+    resolveFirst([makeSubtask("s1", "t1")])
+    await first
+    expect(store.subtasksOf("t1").map((s) => s.id)).toEqual(["s1"])
+  })
 })

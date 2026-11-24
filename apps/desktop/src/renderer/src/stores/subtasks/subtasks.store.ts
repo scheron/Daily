@@ -24,7 +24,7 @@ export const useSubtasksStore = defineStore("subtasks", () => {
   const subtasks = shallowRef<Subtask[]>([])
   const subtaskCounts = ref<SubtaskCounts>({})
   const loadedTaskIds = ref(new Set<Task["id"]>())
-  const pendingTaskIds = ref(new Set<Task["id"]>())
+  const pendingLoads = new Map<Task["id"], Promise<void>>()
   let wantsCounts = false
 
   const subtasksByTaskId = computed(() => {
@@ -62,25 +62,18 @@ export const useSubtasksStore = defineStore("subtasks", () => {
     }
   }
 
-  /** Reads a task's subtasks. Already-read tasks are skipped. */
-  async function loadSubtasks(taskId: Task["id"]): Promise<void> {
-    if (loadedTaskIds.value.has(taskId)) return
-    if (pendingTaskIds.value.has(taskId)) return
+  /** Reads a task's subtasks, sharing any in-flight load for the same task. Already-read tasks are skipped. */
+  function loadSubtasks(taskId: Task["id"]): Promise<void> {
+    if (loadedTaskIds.value.has(taskId)) return Promise.resolve()
 
-    pendingTaskIds.value = new Set(pendingTaskIds.value).add(taskId)
+    const existing = pendingLoads.get(taskId)
+    if (existing) return existing
 
-    try {
-      const list = await Storage.getSubtasksOfTask(taskId)
-      subtasks.value = [...subtasks.value.filter((subtask) => subtask.taskId !== taskId), ...list]
-      loadedTaskIds.value = new Set(loadedTaskIds.value).add(taskId)
-    } catch (error) {
-      console.error("Failed to load subtasks:", error)
-      throw error
-    } finally {
-      const pending = new Set(pendingTaskIds.value)
-      pending.delete(taskId)
-      pendingTaskIds.value = pending
-    }
+    const loading = fetchSubtasks(taskId).finally(() => {
+      if (pendingLoads.get(taskId) === loading) pendingLoads.delete(taskId)
+    })
+    pendingLoads.set(taskId, loading)
+    return loading
   }
 
   /** Writes a subtask last in a task and returns it, or null when the write failed or storage refused whitespace-only content. */
@@ -124,6 +117,17 @@ export const useSubtasksStore = defineStore("subtasks", () => {
     if (!upserted?.length && !removed?.length) return
 
     applyChangeset({subtasks}, {subtasks: {upserted, removed}})
+  }
+
+  async function fetchSubtasks(taskId: Task["id"]): Promise<void> {
+    try {
+      const list = await Storage.getSubtasksOfTask(taskId)
+      subtasks.value = [...subtasks.value.filter((subtask) => subtask.taskId !== taskId), ...list]
+      loadedTaskIds.value = new Set(loadedTaskIds.value).add(taskId)
+    } catch (error) {
+      console.error("Failed to load subtasks:", error)
+      throw error
+    }
   }
 
   async function write(action: string, run: () => Promise<Changeset>): Promise<boolean> {

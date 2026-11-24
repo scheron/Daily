@@ -142,7 +142,7 @@ const menuItems = computed<BaseContextMenuItem[]>(() => {
       icon: "copy",
       children: [
         {value: "copy-id", label: "Copy Task ID", icon: "copy-id"},
-        {value: "copy-content", label: "Copy Task Content", icon: "copy"},
+        {value: "copy-task", label: "Copy Task", icon: "copy"},
       ],
     },
     {value: "duplicate", label: "Duplicate Task", icon: "duplicate"},
@@ -199,7 +199,7 @@ function onSelect(event: BaseContextMenuSelectEvent) {
   if (event.item.value === "clear-date") tasksStore.updateTask(props.task.id, {scheduled: null})
   if (event.item.value === "duplicate") taskModel.duplicateTask()
   if (event.item.value === "copy-id") taskModel.copyTaskIdToClipboard()
-  if (event.item.value === "copy-content") taskModel.copyTaskContentToClipboard()
+  if (event.item.value === "copy-task") taskModel.copyTaskToClipboard()
   if (event.parent && event.parent.item.value === "status") taskModel.changeStatus(event.item.value as TaskStatus)
 }
 

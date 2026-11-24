@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {useCopyTask} from "@/composables/tasks/useCopyTask"
 import {useCopyToClipboard} from "@/composables/useCopyToClipboard"
 import {toasts} from "@/composables/useToasts"
 import {useTasksStore} from "@/stores/tasks"
@@ -27,18 +28,16 @@ const {
 } = useTaskEditor()
 
 const {copyToClipboard: runCopyId, isCopied: isIdCopied} = useCopyToClipboard({onSuccess: () => toasts.success("Task ID copied to clipboard")})
-const {copyToClipboard: runCopyContent, isCopied: isContentCopied} = useCopyToClipboard({
-  onSuccess: () => toasts.success("Task content copied to clipboard"),
-})
+const {copyTask: runCopyTask, isCopied: isTaskCopied} = useCopyTask()
 
 function copyTaskId() {
   if (!editingTaskId.value) return
   runCopyId(editingTaskId.value)
 }
 
-function copyTaskContent() {
-  if (!activeTask.value) return
-  runCopyContent(activeTask.value.content)
+async function copyTask() {
+  if (!editingTaskId.value || !activeTask.value) return
+  await runCopyTask({id: editingTaskId.value, content: activeTask.value.content})
 }
 
 async function onDelete() {
@@ -72,7 +71,7 @@ async function onDelete() {
     <div class="flex shrink-0 items-center gap-0.5">
       <template v-if="isEditing">
         <BaseButton variant="ghost" :icon="isIdCopied ? 'check' : 'copy-id'" size="sm" tooltip="Copy Task ID" @click="copyTaskId" />
-        <BaseButton variant="ghost" :icon="isContentCopied ? 'check' : 'copy'" size="sm" tooltip="Copy Task Content" @click="copyTaskContent" />
+        <BaseButton variant="ghost" :icon="isTaskCopied ? 'check' : 'copy'" size="sm" tooltip="Copy Task" @click="copyTask" />
 
         <ConfirmPopup
           title="Delete task?"

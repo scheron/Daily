@@ -2,6 +2,7 @@ import {computed, toValue} from "vue"
 
 import {boardColumnForStatus, groupTasksForBoard} from "@daily/protocol"
 
+import {useCopyTask} from "@/composables/tasks/useCopyTask"
 import {useCopyToClipboard} from "@/composables/useCopyToClipboard"
 import {useSettingValue} from "@/composables/useSettingValue"
 import {toasts} from "@/composables/useToasts"
@@ -36,7 +37,7 @@ export function useTaskModel(task: MaybeRefOrGetter<Task>) {
   const canMoveToBottom = computed(() => canMoveDown.value)
 
   const {copyToClipboard: copyTaskId} = useCopyToClipboard({onSuccess: () => toasts.success("Task ID copied to clipboard")})
-  const {copyToClipboard: copyTaskContent} = useCopyToClipboard({onSuccess: () => toasts.success("Task content copied to clipboard")})
+  const {copyTask} = useCopyTask()
 
   async function changeStatus(status: TaskStatus) {
     if (toValue(task).status === status) return
@@ -81,8 +82,8 @@ export function useTaskModel(task: MaybeRefOrGetter<Task>) {
     await copyTaskId(toValue(task).id)
   }
 
-  async function copyTaskContentToClipboard() {
-    await copyTaskContent(toValue(task).content)
+  async function copyTaskToClipboard() {
+    await copyTask(toValue(task))
   }
 
   async function updateTaskTags(tags: Tag[]) {
@@ -211,7 +212,7 @@ export function useTaskModel(task: MaybeRefOrGetter<Task>) {
     rescheduleTask,
     duplicateTask,
     copyTaskIdToClipboard,
-    copyTaskContentToClipboard,
+    copyTaskToClipboard,
     updateTaskTags,
     updateTaskMilestone,
     updateTaskPriority,

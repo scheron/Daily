@@ -8,7 +8,9 @@ import {toDateLabel} from "@daily/std"
 
 import {flushPromises, mount} from "@vue/test-utils"
 import {mockBridgeIPC} from "../../../helpers/bridgeIPC"
+import {stubClipboard} from "../../../helpers/clipboard"
 import {installFakeResizeObserver, stubLayout} from "../../../helpers/resizeObserver"
+import {makeSubtask} from "../../../helpers/taskFixtures"
 
 const {deliverResize} = installFakeResizeObserver()
 
@@ -588,7 +590,98 @@ describe("TaskCard — compact presentation", () => {
         .props("items")
         .find((item) => item.value === "copy")
         .children.map((item) => item.value),
-    ).toContain("copy-content")
+    ).toEqual(["copy-id", "copy-task"])
     expect(menu.props("items").map((item) => item.value)).toContain("status")
+  })
+})
+
+describe("TaskCard — Copy menu", () => {
+  const clipboard = stubClipboard()
+
+  let wrapper = null
+
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  afterEach(() => {
+    wrapper?.unmount()
+    wrapper = null
+    vi.restoreAllMocks()
+  })
+
+  it("offers Copy Task ID and Copy Task instead of Copy Task Content and copies raw YAML with ordered subtasks [task-copy#yaml-structure]", async () => {
+    const bridge = mockBridgeIPC({
+      "subtasks:get-by-task": vi
+        .fn()
+        .mockResolvedValue([
+          makeSubtask({id: "sub-b", taskId: "task-1", content: "Second", done: true, orderKey: "b"}),
+          makeSubtask({id: "sub-a", taskId: "task-1", content: "First", done: false, orderKey: "a"}),
+        ]),
+    })
+    const {default: TaskCard} = await import("../../../../src/renderer/src/ui/modules/TaskBoard/{fragments}/TaskCard/TaskCard.vue")
+    wrapper = mount(TaskCard, {
+      props: {task: makeTask({id: "task-1", content: "# Ship\n\nBody"})},
+      global: {directives: {tooltip: {}}},
+    })
+    await nextTick()
+
+    const menu = wrapper.findComponent({name: "BaseContextMenu"})
+    const copyMenu = menu.props("items").find((item) => item.value === "copy")
+    expect(copyMenu.children.map(({value, label}) => ({value, label}))).toEqual([
+      {value: "copy-id", label: "Copy Task ID"},
+      {value: "copy-task", label: "Copy Task"},
+    ])
+
+    const copyTaskItem = copyMenu.children.find((item) => item.value === "copy-task")
+    menu.vm.$emit("select", {item: copyTaskItem, parent: {item: copyMenu}})
+    await flushPromises()
+
+    expect(clipboard.read()).toBe(
+      "version: 1\nid: task-1\ncontent: |-\n  # Ship\n\n  Body\nsubtasks:\n  - id: sub-a\n    done: false\n    content: First\n  - id: sub-b\n    done: true\n    content: Second\n",
+    )
+    expect(bridge["toast:publish"]).toHaveBeenCalledExactlyOnceWith({type: "success", message: "Task copied to clipboard"})
+  })
+
+  it("blocks copying from the card menu when the same task has unsaved panel edits while still copying another card [task-copy#blocks-unsaved-draft]", async () => {
+    const bridge = mockBridgeIPC({
+      "subtasks:get-by-task": vi.fn().mockResolvedValue([]),
+    })
+    const {useTasksStore} = await import("../../../../src/renderer/src/stores/tasks")
+    const {useTaskEditorStore} = await import("../../../../src/renderer/src/stores/task-editor")
+    const {default: TaskCard} = await import("../../../../src/renderer/src/ui/modules/TaskBoard/{fragments}/TaskCard/TaskCard.vue")
+
+    const openTask = makeTask({id: "task-1", content: "Open task"})
+    const otherTask = makeTask({id: "task-2", content: "Other task"})
+    useTasksStore().tasks = [openTask, otherTask]
+
+    const taskEditorStore = useTaskEditorStore()
+    await taskEditorStore.open("task-1")
+    taskEditorStore.patch({priority: "urgent"})
+
+    wrapper = mount(TaskCard, {props: {task: openTask}, global: {directives: {tooltip: {}}}})
+    await nextTick()
+
+    let menu = wrapper.findComponent({name: "BaseContextMenu"})
+    let copyMenu = menu.props("items").find((item) => item.value === "copy")
+    menu.vm.$emit("select", {item: copyMenu.children.find((item) => item.value === "copy-task"), parent: {item: copyMenu}})
+    await flushPromises()
+
+    expect(clipboard.read()).toBeNull()
+    expect(bridge["toast:publish"]).toHaveBeenCalledExactlyOnceWith({type: "info", message: "Save changes before copying task"})
+
+    wrapper.unmount()
+    bridge["toast:publish"].mockClear()
+
+    wrapper = mount(TaskCard, {props: {task: otherTask}, global: {directives: {tooltip: {}}}})
+    await nextTick()
+
+    menu = wrapper.findComponent({name: "BaseContextMenu"})
+    copyMenu = menu.props("items").find((item) => item.value === "copy")
+    menu.vm.$emit("select", {item: copyMenu.children.find((item) => item.value === "copy-task"), parent: {item: copyMenu}})
+    await flushPromises()
+
+    expect(clipboard.read()).toBe("version: 1\nid: task-2\ncontent: Other task\nsubtasks: []\n")
+    expect(bridge["toast:publish"]).toHaveBeenCalledExactlyOnceWith({type: "success", message: "Task copied to clipboard"})
   })
 })

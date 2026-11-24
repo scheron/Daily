@@ -1,4 +1,4 @@
-import type {Task} from "@daily/protocol"
+import type {Subtask, Task} from "@daily/protocol"
 
 export function makeTask(overrides: Partial<Task> = {}): Task {
   return {
@@ -14,6 +14,20 @@ export function makeTask(overrides: Partial<Task> = {}): Task {
     estimatedTime: 0,
     spentTime: 0,
     tags: [],
+    createdAt: "2030-01-01T00:00:00Z",
+    updatedAt: "2030-01-01T00:00:00Z",
+    deletedAt: null,
+    ...overrides,
+  }
+}
+
+export function makeSubtask(overrides: Partial<Subtask> = {}): Subtask {
+  return {
+    id: "subtask-1",
+    taskId: "task-1",
+    content: "Subtask",
+    done: false,
+    orderKey: "a",
     createdAt: "2030-01-01T00:00:00Z",
     updatedAt: "2030-01-01T00:00:00Z",
     deletedAt: null,
