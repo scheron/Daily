@@ -27,7 +27,7 @@ pnpm check:all           # lint + typecheck:all + circular + test
 **Tests.** `pnpm test` — vitest under the Electron runtime.
 **Single test file.** `pnpm evitest run packages/core/tests/storage/sync/convergence.test.ts`
 **Dev server.** `pnpm dev` — opens the Electron window, no URL.
-**E2E.** none
+**E2E.** `Daily-dev` (`~/Library/Application Support/Daily-dev`) is the dedicated dev profile — test data may be freely created, edited, and deleted there without touching personal `Daily` data. Start the dev app with CDP (`pnpm --filter @daily/desktop exec electron-vite dev -- --remote-debugging-address=127.0.0.1 --remote-debugging-port=9225`), or build with `pnpm --filter @daily/desktop build:compress` and launch `./node_modules/.bin/electron apps/desktop --user-data-dir="$HOME/Library/Application Support/Daily-dev" --remote-debugging-address=127.0.0.1 --remote-debugging-port=9225` (or a temp dir), then attach `browser-test` (`tab attach 9225`). User-visible Electron UI changes use `Gate: normal` (`verify`) unless the user explicitly opts for `small`.
 **Language.** English
 **Runtime.** The app is driven through its Electron window (`pnpm dev`). The server runs as the `ghcr.io/scheron/daily-server` image, or from the package `pnpm build:server:package` emits — `cd apps/server/dist-server && npm install --omit=dev && node index.js start`. That install is not optional: the workspace's `better-sqlite3` is built for Electron's ABI, so a plain `node` cannot load the bundle.
 
