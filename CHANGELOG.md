@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.43.0 - 2026-11-24
+
+### 💥 Breaking Changes
+
+- The Quick Task window and its global shortcut have been removed. Tasks are created in the main window.
+
+### ✨ New Features
+
+- **Copy Task** — replaces Copy Task Content in the task toolbar and card menu. Copies the task ID, full text, and subtasks as structured YAML, ready to paste into AI agents or editors. Prompts to save first when the open task has unsaved edits.
+
+### 🎨 Improvements
+
+- **Agents** — Daily Server now shares board workflow guidance with connected MCP agents so they move tasks through statuses, check off subtasks, and leave summary comments proactively, while rejecting conflicting status and date updates. The built-in AI Assistant follows the same status rules. Requires the latest Daily Server.
+- **Agents** — Antigravity and Qoder now display their own icons in connected agents and task activity.
+- **Activity** — comments and history entries always show their time inline next to each row instead of on hover, comment actions fade in smoothly, and spacing around day headings is more balanced.
+
+### 🐛 Bug Fixes
+
+- Fixed the search field in the Milestone menu scrolling out of view on long lists; only the milestone choices now scroll.
+
+---
+
 ## v0.42.0 - 2026-11-17
 
 ### ✨ New Features
