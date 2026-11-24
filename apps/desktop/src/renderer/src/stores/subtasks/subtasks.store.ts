@@ -1,6 +1,8 @@
 import {computed, ref, shallowRef} from "vue"
 import {defineStore} from "pinia"
 
+import {SingleFlight} from "@daily/std"
+
 import {Storage} from "@/api"
 import {toasts} from "@/composables/useToasts"
 import {applyChangeset} from "@/utils/storage/applyChangeset"
@@ -24,7 +26,7 @@ export const useSubtasksStore = defineStore("subtasks", () => {
   const subtasks = shallowRef<Subtask[]>([])
   const subtaskCounts = ref<SubtaskCounts>({})
   const loadedTaskIds = ref(new Set<Task["id"]>())
-  const pendingLoads = new Map<Task["id"], Promise<void>>()
+  const pendingLoads = new SingleFlight<Task["id"]>()
   let wantsCounts = false
 
   const subtasksByTaskId = computed(() => {
@@ -65,15 +67,7 @@ export const useSubtasksStore = defineStore("subtasks", () => {
   /** Reads a task's subtasks, sharing any in-flight load for the same task. Already-read tasks are skipped. */
   function loadSubtasks(taskId: Task["id"]): Promise<void> {
     if (loadedTaskIds.value.has(taskId)) return Promise.resolve()
-
-    const existing = pendingLoads.get(taskId)
-    if (existing) return existing
-
-    const loading = fetchSubtasks(taskId).finally(() => {
-      if (pendingLoads.get(taskId) === loading) pendingLoads.delete(taskId)
-    })
-    pendingLoads.set(taskId, loading)
-    return loading
+    return pendingLoads.run(taskId, () => fetchSubtasks(taskId))
   }
 
   /** Writes a subtask last in a task and returns it, or null when the write failed or storage refused whitespace-only content. */

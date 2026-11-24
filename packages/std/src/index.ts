@@ -1,6 +1,7 @@
 export * from "./types/utils"
 
 export * from "./utils/AsyncMutex"
+export * from "./utils/SingleFlight"
 export * from "./utils/createIntervalScheduler"
 
 export * from "./utils/arrays/forEachAsync"
